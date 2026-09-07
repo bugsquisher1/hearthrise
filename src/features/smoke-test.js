@@ -2168,19 +2168,17 @@ const TESTS = [
      unchanged, and this test guards BOTH halves of that — an exemption is
      worthless if it quietly leaks to smithing.
 
-     PRAYER JOINED IT — the altar ruling (game-designer, 2026-09-07).
-     The Shrine is a tier-4 room whose every rung buys prayerSpeed, and the
-     server's gate on bury_bones/bury_big/bury_dragon is `req_lv` alone
-     (hr_activities has no room column; hr_apply's `activity_locked` branch
-     re-checks the LEVEL against server XP and nothing else). A client-held
-     property tier standing in front of a server capability is CLAUDE §6's
-     residue-ahead class, so the client gate went. This test now pins the
-     exemption SET rather than one member of it: the two rooms that sell a
-     bonus are exempt, the two that sell access are not. */
+     PRAYER JOINED IT — the altar ruling (game-designer, 2026-09-07), stated once
+     at the bury test below and not restated here. This test pins the
+     exemption SET rather than one member of it: the two rooms that sell a bonus
+     are exempt, the two that sell access are not. */
   () => tryRun('b225/b521: cooking and prayer are never gated on a room; Forge/Workshop still are', () => {
     const H = window.HearthriseHomestead;
     const G = window.G;
-    const savedHomestead = G.homestead, savedRooms = G.rooms, savedSkills = G.skills;
+    /* The suite's own teardown: this drives ensureState(), notePropertyUnlocks()
+       and the rooms arm, so putting three fields back by hand leaves the RECORD
+       holding what they left and the next test inherits a G that disagrees with it. */
+    const snap = snapshotG();
     try {
       // Fresh camp: no rooms at all → the two exemptions run, the other two do not
       G.homestead = { tier: 0 }; G.rooms = {}; G.skills = {};
@@ -2196,21 +2194,17 @@ const TESTS = [
       assert(H.UNGATED.prayer === true, 'b521: prayer must be a DECLARED exemption, not an accident of a caller');
       assert(!H.UNGATED.smithing && !H.UNGATED.crafting,
         'the exemption leaked to a bench that sells access');
-      /* THE MAPPING SURVIVES THE EXEMPTION. prayerSpeed's lookup, the House
-         room copy and the "Go to Prayer" card all read shrine→prayer, so
-         deleting the row (rather than exempting the skill) would take the
-         Shrine's whole purpose with it — the same reason the campfire kept
-         cooking→kitchen. */
+      /* THE MAPPING SURVIVES THE EXEMPTION. prayerSpeed's lookup, the House room copy
+         and the "Go to Prayer" card all read shrine→prayer, so deleting the row rather
+         than exempting the skill would take the Shrine's whole purpose with it. */
       assert(H.WORKBENCH.prayer === 'shrine', 'the shrine→prayer mapping must survive the exemption');
-      /* AND THE ROOM CARD MUST STOP CLAIMING TO GATE IT. roomDescriptor pushes
-         a "Gates: <Skill>" fact for any room whose skill is not exempt; the
-         Shrine's card said "Gates: Prayer" for 296 builds. */
+      /* AND THE ROOM CARD MUST STOP CLAIMING TO GATE IT. roomDescriptor pushes a
+         "Gates: <Skill>" fact for any room whose skill is not exempt. */
       if (typeof H.roomDescriptor === 'function') {
         const shrineCard = H.roomDescriptor('shrine');
         assert(!(shrineCard.now || []).some((f) => f.label === 'Gates'),
           'the Shrine card still advertises a Gates fact — it sells prayerSpeed, not permission');
-        /* THE CONTROL, so the line above cannot pass because the descriptor
-           stopped emitting Gates facts altogether. */
+        /* THE CONTROL: the line above must not pass by Gates facts ceasing entirely. */
         const forgeCard = H.roomDescriptor('forge');
         assert((forgeCard.now || []).some((f) => f.label === 'Gates' && /Smithing/i.test(f.value)),
           'the Forge card must still advertise "Gates: Smithing" — without it the Shrine check above is vacuous');
@@ -2292,7 +2286,7 @@ const TESTS = [
         }
       }
     } finally {
-      G.homestead = savedHomestead; G.rooms = savedRooms; G.skills = savedSkills;
+      restoreGAndRecord(snap);
     }
   }),
   () => tryRun('b213: property ladder is climbable — no tier cost needs a locked workbench', () => {
@@ -27247,20 +27241,19 @@ const TESTS = [
   }),
 
   /* ── THE BURY GESTURE AUTHORS NOTHING ─────────────────────────────
-     paione, 2026-09-07: "I got like 2k bones which I can bury a gazillion times
-     and get the exp and keep the bones." buryBones() was removeItem + addXp
-     with no intent and no settle — the client authored the debit AND the XP, so
-     a reload restored the bones. It REPLACES the older test, whose contract ("a
-     plain Bury clears the whole stack") was the bug written down; that test's
-     real property, all three surfaces on ONE path, is kept below. */
+     paione, 2026-09-07: "I got like 2k bones which I can bury a gazillion times and
+     get the exp and keep the bones." buryBones() was removeItem + addXp with no
+     intent and no settle, so a reload restored the bones. It REPLACES the older
+     test, whose contract ("a plain Bury clears the whole stack") was the bug
+     written down; that test's real property is kept below. */
   () => tryRun('b521: Bury starts the SERVER-SETTLED altar bench — no client XP, no client debit (paione: "bury a gazillion times and keep the bones")', () => {
     if(typeof window.buryBones !== 'function'){ skip('no buryBones'); return; }
     const snap = snapshotG();
     const realNotify = window.notify;
-    /* The bench arms two setIntervals; left running they would tick
-       doArtisanAction() through the REST of the suite. The player's own Stop
-       clears the timers AND the pointer — nulling it by hand would hide one
-       that stopped neither. */
+    /* The bench arms two setIntervals; left running they would tick doArtisanAction()
+       through the REST of the suite. The player's own Stop clears the timers AND the
+       pointer, so it is also how the fixture is reset between probes — nulling the
+       pointer by hand would hide a Stop that cleared neither. */
     const stopBench = () => {
       try {
         if(typeof window.stopSkill === 'function') window.stopSkill();
@@ -27275,26 +27268,29 @@ const TESTS = [
       assert(rec && rec.id === 'bury_bones',
         'bones must resolve to the bury_bones prayer recipe, got ' + JSON.stringify(rec));
 
-      /* 0. NO ROOM GATE REMAINS ON PRAYER (the altar ruling).
-
-         This block used to assert the OPPOSITE — that with no Shrine the Bury
-         button is DISABLED and names the room. The designer re-ruled it on
-         2026-09-07: the Shrine is a tier-4 room that sells prayerSpeed, the
-         server's gate on bury_bones is `req_lv` alone (hr_activities has no
-         room column), and a client-held property tier in front of a server
-         capability is CLAUDE §6's residue-ahead class. So the character below
-         is the one the old gate refused — WANDERER'S CAMP, no rooms at all —
-         and the bench must start for them.
-
-         Deliberately driven through the REAL inventory-detail button rather
-         than by calling buryBones() directly: the gate that shipped lived in
-         that renderer, and a test that only calls the function would have
-         stayed green with the disabled button still on screen. */
-      G.inventory = Object.assign({}, G.inventory, { bones: 20 });
-      G.homestead = { tier: 0 }; G.rooms = {};
-      G.skills = Object.assign({}, G.skills, { prayer: 0 });   // bury_bones is Prayer 1 = level 1
-      G.activeSkill = null; G.skillTargetId = null;
+      /* 0. NO ROOM GATE REMAINS ON PRAYER (the altar ruling). This block once asserted
+         the OPPOSITE — no Shrine, so a DISABLED Bury naming the room. Re-ruled
+         2026-09-07: the Shrine sells prayerSpeed, the server's gate on bury_bones is
+         `req_lv` alone, and a client-held tier in front of a server capability is
+         CLAUDE §6's residue-ahead class. So the character here is the one the old gate
+         refused — WANDERER'S CAMP — and the bench must start. The fixture ARRIVES the
+         way a loaded one does instead of being asserted: an hr_load with no progress
+         rows (what hr_state_of sends someone who owns nothing), bones through the
+         envelope reconcile, and the tier DERIVED by ensureState() — a hand-written
+         tier-0 homestead would state the very thing the residue-ahead class is about.
+         Prayer is the only XP, so nothing grandfathers a room in. Driven through the
+         REAL inv-detail button: the gate that shipped lived in that renderer. */
+      delete G.homestead; delete G.rooms;
+      G.skills = { prayer: 0 };   // bury_bones is Prayer 1 = level 1
+      stopBench();
       stampRecordLikeLoad(G);
+      window.HearthriseAccrual.reconcileInventory(G, { inventory: { bones: 20, dragon_bones: 5 } }, false, false);
+      const bones0 = (G.inventory && G.inventory.bones) || 0;
+      assert(bones0 >= 1, 'setup: the envelope did not put bones in the bag (' + bones0 + ')');
+      window.HearthriseHomestead.ensureState();
+      assert((G.homestead && G.homestead.tier) === 0,
+        'CONTROL: the fixture must be the camp character the old gate refused, got tier '
+        + (G.homestead && G.homestead.tier));
       assert(window.HearthriseHomestead.hasWorkbench('prayer').ok === true,
         'the Shrine gate is back on prayer — hasWorkbench refused a tier-0 character');
       if(typeof window.openInvDetail === 'function'){
@@ -27307,13 +27303,13 @@ const TESTS = [
           'the Bury affordance still mentions the Shrine');
         if(typeof window.closeInvDetail === 'function') window.closeInvDetail();
       }
-      /* AND THE LEVEL GATE — the one the server DOES enforce — survived the
-         removal. bury_dragon is Prayer 35; at level 1 it must still refuse, or
-         this build traded a wrong gate for no gate at all. */
+      /* AND THE LEVEL GATE — the one the server DOES enforce — survived the removal.
+         bury_dragon is Prayer 35; at level 1 it must still refuse, or this build
+         traded a wrong gate for no gate at all. */
       {
         const deep = window.buryRecipeFor('dragon_bones');
         assert(deep && deep.req > 1, 'dragon_bones must resolve to a level-gated rite; got ' + JSON.stringify(deep));
-        G.inventory = Object.assign({}, G.inventory, { dragon_bones: 5 });
+        assert((G.inventory.dragon_bones || 0) > 0, 'setup: the envelope did not deliver dragon bones');
         window.openInvDetail && window.openInvDetail('dragon_bones');
         const dhtml = document.body.innerHTML;
         const dm = /<button[^>]*disabled[^>]*>Bury[^<]*<\/button>/.exec(dhtml);
@@ -27324,11 +27320,7 @@ const TESTS = [
         delete G.inventory.dragon_bones;
       }
 
-      // Still at the CAMP for every probe below — no room is granted, because
-      // none is required. (This is where the first cut granted `shrine:1`.)
-      G.inventory = Object.assign({}, G.inventory, { bones: 20 });
-      G.skills = Object.assign({}, G.skills, { prayer: 0 });
-      G.activeSkill = null; G.skillTargetId = null;
+      // Still at the CAMP for every probe below — no room is granted, none is required.
       stopBench();
       window.notify = () => {};
 
@@ -27370,8 +27362,7 @@ const TESTS = [
         if(cancel) cancel.click();
       }
 
-      // 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED (bone_chips
-      //    is a real drop with no prayer recipe).
+      // 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED (bone_chips is real).
       stopBench();
       let said = '';
       window.notify = (m) => { said += ' ' + m; };
@@ -27387,28 +27378,20 @@ const TESTS = [
   }),
 
   /* THE HAZARD THE EXEMPTION CREATED, CLOSED IN THE SAME BUILD.
-
-     ensureState()'s grandfather pass reads "XP in S → you owned WORKBENCH[S]
-     → you were at least at its tier". Until this build that implication held
-     for prayer BY CONSTRUCTION: you could not earn Prayer XP without the
-     Shrine, and the Shrine needs Ironvale Keep. Exempting prayer killed it —
-     from now on a bone is buried at the Wanderer's Camp, and a fresh player
-     who buries one and reloads before ever opening the House tab would have
-     had a TIER-4 KEEP inferred into their residue.
-
-     That is paione's residue-ahead deadlock (2026-09-04) with a bigger number
-     on it: the property heal conforms the residue DOWN to a KNOWN rung, but
-     only a COMPLETE `progress` statement is a known rung, so a truncated one
-     (the 1000-row cap) leaves the phantom keep in place forever — and a
-     phantom keep refuses every room purchase with prereq_property_tier.
-
-     Fails without the `if (UNGATED[skill]) return;` guard in the tier loop and
-     the GRANDFATHER_ROOM_FROM_XP check in the room loop. */
+     ensureState()'s grandfather pass reads "XP in S → you owned WORKBENCH[S] → you were
+     at least at its tier". That held for prayer BY CONSTRUCTION until the exemption: no
+     Prayer XP without the Shrine, no Shrine without Ironvale Keep. A bone is now buried
+     at the camp, so a fresh player who buries one and reloads before opening the House
+     tab would have had a TIER-4 KEEP inferred into their residue — paione's
+     residue-ahead deadlock (2026-09-04) with a bigger number on it, and unhealable: the
+     heal conforms DOWN only to a KNOWN rung, so behind a truncated `progress` (the
+     1000-row cap) the phantom keep stands. Fails without the `if (UNGATED[skill])
+     return;` guard in the tier loop and the GRANDFATHER_ROOM_FROM_XP room check. */
   () => tryRun('b521: a buried bone must not grandfather Ironvale Keep (the residue-ahead hazard the exemption created)', () => {
     const H = window.HearthriseHomestead;
     if(!H || typeof H.ensureState !== 'function' || typeof H.roomMinTier !== 'function'){ skip('homestead API absent'); return; }
     const G = window.G;
-    const savedHomestead = G.homestead, savedRooms = G.rooms, savedSkills = G.skills;
+    const snap = snapshotG();   // the suite's teardown: ensureState() reaches past three fields
     try {
       const shrineTier = H.roomMinTier('shrine'), forgeTier = H.roomMinTier('forge');
       assert(shrineTier > 0 && forgeTier > 0, 'both rooms must sit above the camp for this test to mean anything');
@@ -27440,8 +27423,7 @@ const TESTS = [
       assert(!H.GRANDFATHER_ROOM_FROM_XP.prayer,
         'prayer must not be grandfather evidence — its room was never required to earn the XP');
     } finally {
-      G.homestead = savedHomestead; G.rooms = savedRooms; G.skills = savedSkills;
-      stampRecordLikeLoad(G);
+      restoreGAndRecord(snap);
     }
   }),
 
@@ -40747,36 +40729,18 @@ const TESTS = [
   }),
 
   /* ── b521 regression — "SOMETIMES THE GAME TRIPS AND DROPS MY MAX HIT TO 25" ─
-     Paione, 2026-09-07, two screen recordings of ONE Wraith fight with ONE
-     loadout. The weapon row read `Iron Warhammer · 3.17s` in the good frame and
-     `Iron Warhammer · 2.4s` in the bad one, with MAX HIT 30 → 25 and the 2H-hammer
-     weakness gone. 2400 ms is COMBAT_BALANCE.tickMs with NOTHING equipped; the
-     hammer was still NAMED because the label is a raw `G.equipment.weapon` read
-     while every NUMBER goes through equipmentMapG() → recordValue → the stamp.
-
-     THE MECHANISM. hr_state_of projects `jsonb_object_agg(equip_slot, item_id)`
-     over the player_equipment ROWS, so the server's map is SPARSE. The client
-     normalises it back into the full doll — legacy.js `migrateEquipmentSlots()`
-     runs from renderLoadout / renderInventory / renderInvNew, i.e. on ANY
-     inventory or loadout REPAINT, with no gear change and nothing to heal it
-     until an unrelated settle lands — and the old `fingerprintEquipment` wrote a
-     `-` marker per empty slot, so those added keys read as a SECOND WRITER,
-     `recordValue` answered `client-overwrote`, and `equipmentMap()` fail-closed
-     to the frozen EMPTY set. NOT display-only: `combatSimCtx.playerRolls` calls
-     getEquipmentStats() every tick and `ctx.tickMs = combatTickMs()` schedules the
-     swing, so the live fight really did lose the strength bonus, the weakness
-     multiplier and the armour, and really did take more hits.
-
-     This drives the REAL path — a sparse worn set arriving through
-     `stampRecordLikeLoad` (a genuine applyRecord), then the production repaint —
-     and asserts the forecast inputs are IDENTICAL across it. It fails without the
-     fix on every one of the five assertions (measured: hammer→neutral, strB 12→0,
-     defB 14→0, 3175→2400 ms, weakness matched→false).
-
-     (E) is the CONTROL, and it is why this test cannot be satisfied by simply
-     never fail-closing: a forged weapon swap on a stamped set must STILL be
-     caught. The fingerprint now measures the worn set instead of the object's key
-     layout; it did not stop measuring. */
+     Paione, 2026-09-07, two screen recordings of ONE Wraith fight with ONE loadout:
+     the weapon row read `Iron Warhammer · 3.17s` in the good frame and `· 2.4s` in the
+     bad one, max hit 30 → 25, the 2H-hammer weakness gone. 2400 ms is the base tick
+     with NOTHING equipped, and the hammer was still NAMED because the label is a raw
+     `G.equipment.weapon` read while every NUMBER goes through equipmentMapG() →
+     recordValue → the stamp. The mechanism is written once, at the fix, in
+     src/net/record.js `fingerprintEquipment`. This test drives the REAL path — a
+     sparse worn set through `stampRecordLikeLoad`, then the production repaint — and
+     asserts the forecast inputs are IDENTICAL across it. Without the fix all five fail
+     (measured: hammer→neutral, strB 12→0, defB 14→0, 3175→2400 ms, weakness→false).
+     (E) is the CONTROL: a forged weapon swap on a stamped set must STILL be caught, so
+     this cannot be satisfied by never fail-closing at all. */
   () => tryRun('b521 regression: a doll repaint cannot disarm the worn set (Paione — "drops my max hit to 25")', () => {
     const G = window.G;
     const R = window.HearthriseRecord;
@@ -40825,8 +40789,7 @@ const TESTS = [
         'the 2H-hammer weakness bonus was lost on a repaint (matched '
         + before.weakMatched + ' → ' + after.weakMatched + ')');
 
-      /* (E) THE TEETH. A repaint is invisible; a real change to the worn set is
-         not, in either direction. */
+      /* (E) THE TEETH. A repaint is invisible; a real change to the set is not. */
       G.equipment.weapon = 'dragon_sword';
       const forged = R.recordValue(G, 'equipment');
       assert(forged.known === false && forged.source === 'client-overwrote',
@@ -49018,16 +48981,12 @@ const TESTS = [
 
   /* ── AWAY-HONEST-5 — THE TOUR'S AWAY PROMISE, BOUND TO THE AWAY ENGINE ──────────────────────────
      One question since b340 — "does the tour promise what the engine pays?" — re-specified whenever
-     the answer changes, never deleted. It used to pin the qualification "only until you fall" IN;
-     Recovery Rule rev. 2 (src/core/away.js) made a fall an INTERRUPTION — Knocked Out for
-     `recoveryFor()` (free on the day's first), back up on `resumeHpFor()` of maximum, SAME fight
-     resumed — so that pin is now the honesty defect this test exists to catch, wearing its badge.
-     It therefore binds the NEW sentences, clause by clause, to MEASURED SPANS rather than to
-     constants: `recoveryFor(0,0) === 0` is the ladder's promise, but what a player is promised is a
-     NIGHT. Each clause is asserted against `simulateSpan`/`simulateSkillSpan` — the bytes
-     tools/pack-edge.mjs vendors into hr-accrue — over an 8h absence on a foodless character who
-     really does fall. FIRST-LIGHT-4 pins the RETIRED sentences OUT; this pins the REPLACEMENT in and
-     ties it to the payout — the two fail for different reasons, which is why they are two tests.
+     the answer changes, never deleted. It used to pin "only until you fall" IN; Recovery Rule rev. 2
+     (src/core/away.js) made a fall an INTERRUPTION, so that pin is now the honesty defect this test
+     catches. It binds each NEW sentence to a MEASURED SPAN of `simulateSpan`/`simulateSkillSpan` (the
+     bytes pack-edge vendors into hr-accrue) over an 8h absence on a foodless character who really
+     falls — a player is promised a NIGHT, not a constant. FIRST-LIGHT-4 pins the RETIRED sentences
+     OUT; this pins the REPLACEMENT in and ties it to the payout.
      MUTATIONS PROVEN 2026-09-07, six, each RED with the clause named:
        copy   wrap "…picks itself back up and carries on" → "…banks only until you fall"  → clause 3
        engine combat-sim ends the run on a fall                                           → clause 2
@@ -49053,8 +49012,8 @@ const TESTS = [
 
     const NIGHT_MS = 8 * 3600000;
 
-    /* CLAUSE 1 · "even when you're offline, progress continues" — bound to a whole NIGHT, not the
-       hour AWAY-HONEST-4 measures: "continues" is `paidMs === awayMs`, never merely "> 0". */
+    /* CLAUSE 1 · "even when you're offline, progress continues" — over a whole NIGHT, not
+       AWAY-HONEST-4's hour, and "continues" is `paidMs === awayMs`, never merely "> 0". */
     assert(/offline, progress continues/i.test(String(byId.skills.body || '')),
       'the skills step must promise offline progress — it is true, and it is the promise the game keeps');
     const gather = awayGatherSpan({ spanMs: NIGHT_MS });
@@ -49064,10 +49023,9 @@ const TESTS = [
     assert((gather.paid.xp[gather.skill] || 0) > 0 && Object.keys(gather.paid.items).length > 0,
       'the whole night counted as paid and granted nothing: ' + JSON.stringify(gather.paid));
 
-    /* THE NIGHT THAT FALLS. A foodless character on slimes: hits for 3, is hit for 2, 120 max HP.
-       Deterministic (pinned seed, fixed rolls) over a whole number of 2.4s ticks, so the identity
-       below is an equality and not a tolerance; `fromMs` is stated because the truncated twin
-       derives from it. MEASURED: 132 kills, 13 falls, first fall at 4.24 min. */
+    /* THE NIGHT THAT FALLS. A foodless character on slimes: hits 3, is hit for 2, 120 max HP;
+       deterministic over whole 2.4s ticks, so clause 2 is an equality and not a tolerance, and
+       `fromMs` is named because the truncated twin derives from it. MEASURED: 132 kills, 13 falls. */
     const FROM = Date.UTC(2026, 0, 15, 6, 0, 0);
     const fixture = {
       fromMs: FROM,
@@ -49082,9 +49040,8 @@ const TESTS = [
       'CONTROL: this fixture must both kill and fall or nothing below is measuring the rule — '
       + JSON.stringify({ kills: night.out.kills, deaths: night.out.deaths }));
 
-    /* CLAUSE 2 · "it banks the whole time you are gone" — THE ACCOUNTING IDENTITY. Every ms of the
-       absence either EARNED (`survivedMs`) or was a recovery clock (`recoverMs`); none of it is "the
-       run ended", whose shape is a remainder that goes nowhere. */
+    /* CLAUSE 2 · "it banks the whole time you are gone" — THE ACCOUNTING IDENTITY: every ms either
+       EARNED (`survivedMs`) or was a recovery clock (`recoverMs`). "The run ended" is a remainder. */
     assert(/banks the whole time you are gone/i.test(wrapBody),
       'the wrap step no longer states the deal it is being held to here: ' + wrapBody);
     assert(night.out.survivedMs + night.out.recoverMs === NIGHT_MS,
@@ -49093,9 +49050,9 @@ const TESTS = [
       + ' (earned ' + night.out.survivedMs + ', knocked out ' + night.out.recoverMs
       + ') — the rest of the absence went nowhere, which is what "the fight ended" looks like');
 
-    /* CLAUSE 3 · "a fight that falls picks itself back up and carries on" — a DELTA, because
-       "kills > 0" is satisfied by a run that STOPPED at the first fall. The twin is the identical
-       seeded run truncated at that fall, so the difference IS what resuming is worth. */
+    /* CLAUSE 3 · "a fight that falls picks itself back up and carries on" — a DELTA against the
+       identical span truncated at the first fall, because "kills > 0" passes on a run that STOPPED
+       there. The difference IS what resuming is worth. */
     assert(/picks itself back up/i.test(wrapBody),
       'the wrap step dropped the resume promise this test binds: ' + wrapBody);
     const firstFall = night.out.deathLog[0];
@@ -49115,17 +49072,16 @@ const TESTS = [
       'the fight resumed against ' + night.state.activeMonster + ' — the copy says the SAME fight '
       + 'carries on, and src/core/combat-sim.js restores the target the death fx cleared');
 
-    /* CLAUSE 4 · "the first fall of each day costs you no time at all" — as the ladder actually
-       CHARGED it inside a span, not as the pure function (FIRST-LIGHT-4's), because a span is where
-       a caller could stamp a clock the ladder never asked for. */
+    /* CLAUSE 4 · "the first fall of each day costs you no time at all" — as a span CHARGED it, not
+       as the pure function (FIRST-LIGHT-4's): a span is where a caller can add its own clock. */
     assert(/first fall of each day costs you no time at all/i.test(combatBody),
       'the combat step dropped the free-first-fall promise: ' + combatBody);
     assert(night.out.recoverLadder[0] === 0,
       'the tour promises the day\'s first fall is free; the span charged '
       + night.out.recoverLadder[0] + 'ms for it. Ladder: ' + night.out.recoverLadder.join(','));
 
-    /* CLAUSE 5 · "stand back up on part of your health" — PART, not all: the full heal this replaced
-       made dying the cheapest top-up. The span must agree with `resumeHpFor`, the one definition. */
+    /* CLAUSE 5 · "stand back up on part of your health" — PART, not all (the full heal this replaced
+       made dying the cheapest top-up), and agreeing with `resumeHpFor`, the one definition. */
     assert(/part of your health/i.test(combatBody),
       'the combat step no longer says a fall returns PART of your health: ' + combatBody);
     assert(firstFall.resumeHp > 0 && firstFall.resumeHp < 120,
@@ -49135,9 +49091,8 @@ const TESTS = [
       'the span stood the character up on ' + firstFall.resumeHp + ' while away.js resumeHpFor(120) says '
       + C.away.resumeHpFor(120) + ' — two definitions of the same rule');
 
-    /* CLAUSE 6 · "while you are away … under exactly the same rule" — the SAME span run with
-       `away: false` must be byte-identical: AWAY-1 parity restated as a copy binding, so an
-       away-only recovery table (the shape away.js forbids) fails here. */
+    /* CLAUSE 6 · "while you are away … under exactly the same rule" — the SAME span at `away:false`
+       must be byte-identical: AWAY-1 parity as a copy binding, so an away-only table fails here. */
     assert(/while you're away|while you are away/i.test(combatBody)
       && /the same rule/i.test(combatBody),
       'the combat step must state the away deal AND that it is the same rule: ' + combatBody);

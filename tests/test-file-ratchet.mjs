@@ -449,8 +449,13 @@ function selftest() {
     ['20 new `G.x = …` seeds added for 1 new test', 'TF-2',
       { lines: real.lines + 40, codeLines: real.codeLines + 30, tests: real.tests + 1,
         seeds: real.seeds + 20 }],
+    /* `base.tests - 1`, NOT `real.tests - 1` — the ⚠ above, which this arm was
+       the one exception to. TF-3 fires on `now.tests < baseline.tests`, so a
+       delta off TODAY goes quiet the moment the suite grows past the pin: at
+       1,180 tests against a pinned 1,178 this arm deleted a test and still
+       reported green (MEASURED on the assembled tree, 2026-09-07). */
     ['a test deleted to make the ratios look better', 'TF-3',
-      { tests: real.tests - 1, lines: real.lines - 400, codeLines: real.codeLines - 300 }],
+      { tests: base.tests - 1, lines: real.lines - 400, codeLines: real.codeLines - 300 }],
     /* THE CLAUSE THE RE-SPEC MUST NOT LOSE. Both ratios fall when tests are
        deleted, so without TF-3 the cheapest way to green a red build is to
        delete the tests that made it red. Proven at the BAND's edge, where a

@@ -453,12 +453,10 @@ const ROOMS={
     {nm:'The Cask Room',    cost:{gold:70000,timber_beam:12,field_ration:20,goldenroot_roast:6}, tier:3, bonus:'Food buffs last +80% longer',  bk:'buffDuration',bv:.80},
     {nm:'The Deep Cellar',  cost:{gold:320000,keystone:2,moonbloom_elixir:4,duskwood_plank:20},  tier:5, bonus:'Food buffs last +100% longer', bk:'buffDuration',bv:1.0}]},
   /* b201 (SYS-1): rooms ARE workbenches — forge gates smithing, workshop gates
-     crafting. See features/homestead.js (property tiers gate which rooms can
-     be built).
-     TWO rooms are NOT permission and their `desc` must never claim to be: the
-     Kitchen (campfire ruling — sells `noBurn`) and the Shrine (altar ruling —
-     the server gates burying on LEVEL; the room sells `prayerSpeed`). The set
-     is UNGATED in features/homestead.js. Forge/Workshop are unchanged. */
+     crafting; property tiers gate which rooms can be built (features/homestead.js).
+     TWO rooms are NOT permission and their `desc` must never claim to be: the Kitchen
+     (campfire ruling — sells `noBurn`) and the Shrine (altar ruling — the server gates
+     burying on LEVEL; the room sells `prayerSpeed`). Both are UNGATED in homestead.js. */
   workshop:{name:'Workshop',icon:'🪚',desc:'Craft items faster. Required for Crafting.',levels:[
     /* b227 P1 — THE ROOM-COST DEADLOCK, found by Tyler and confirmed in data.
        This rung cost `normal_plank:15`. The ONLY source of a plank is the
@@ -16401,10 +16399,9 @@ window.startArtisan = function(skillId, recipeId){
   if(!recipes) return;
   var r = recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
-  /* b201 (SYS-1): rooms are workbenches — no forge, no smithing.
-     The exemptions live in ONE place (homestead.js UNGATED): cooking and
-     prayer return ok with no room. Forge/Workshop are unchanged — the
-     game-designer's to re-rule, not this seam's. */
+  /* b201 (SYS-1): rooms are workbenches — no forge, no smithing. The exemptions
+     live in ONE place (homestead.js UNGATED): cooking and prayer return ok with
+     no room. Forge/Workshop are the game-designer's to re-rule, not this seam's. */
   if(window.HearthriseHomestead){
     var wb = window.HearthriseHomestead.hasWorkbench(skillId);
     if(!wb.ok){ if(typeof notify==='function') notify(''+wb.reason,'kill'); return; }

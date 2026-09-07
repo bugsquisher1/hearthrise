@@ -196,7 +196,7 @@ export const SERVER_OF_RECORD = Object.freeze([
     decode: decodeBalance, fingerprint: fingerprintBalance }),
   Object.freeze({ field: 'gems', from: 'gems', since: 'b3xx',
     decode: decodeBalance, fingerprint: fingerprintBalance }),
-  /* ── SKILLS XP, SHIPPED DORMANT (b429) — THE MAP THAT IS ONE RECORD ──────────
+  /* ── SKILLS XP (b429) — THE MAP THAT IS ONE RECORD, AND IT IS ARMED ─────────
      The design question this entry answers: gold is a scalar, skills are a MAP
      ({id: xp} in G, {id:{xp,level}} on the wire). The faithful extension of a
      per-FIELD registry is ONE entry whose value IS the whole map — not fifteen
@@ -213,19 +213,16 @@ export const SERVER_OF_RECORD = Object.freeze([
          2026-08-11-apply-engine.sql §2, and the header envelope shape above).
          `pick` names where the raw wire value lives; absent it, decodeRecord
          reads `res.state[from]` exactly as before, so gold/gems are untouched.
-       • `armed()` — the DORMANT gate. Unlike gold/gems (armed with the master
-         switch), skills carries its own enable that DEFAULTS OFF, mirroring the
-         inventory-flip's INVENTORY_ARM_ENABLED. While `isSkillsRecordArmed()` is
-         false the entry is invisible to serverOfRecordFields / isServerOfRecord /
-         decodeRecord / the strip — so shipping it changes nothing byte-for-byte
-         until a rollout commit flips SKILLS_RECORD_ARM_ENABLED. That is what
-         "ship dormant, do not arm" means mechanically, and it is why this entry
-         can land on `main` beside the always-on ones without going live. */
+       • `armed()` — the per-field gate. Unlike gold/gems (armed with the master
+         switch) skills carries its own enable, which shipped OFF and is now ON.
+         While false the entry is invisible to serverOfRecordFields /
+         isServerOfRecord / decodeRecord / the strip — the kill-switch position the
+         suite still drives explicitly through __setSkillsRecordArm. */
   Object.freeze({ field: 'skills', from: 'skills', since: 'b429',
     pick: (res) => (res && typeof res === 'object') ? res.skills : undefined,
     armed: () => isSkillsRecordArmed(),
     decode: decodeSkills, fingerprint: fingerprintSkills }),
-  /* ── EQUIPMENT, SHIPPED DORMANT (b433) — THE FIELD WHOSE WRITER ALREADY MOVED ──
+  /* ── EQUIPMENT (b433) — THE FIELD WHOSE WRITER ALREADY MOVED, NOW ARMED ──────
      Unlike skills/inventory, the equipment writer is ALREADY server-authoritative:
      the equip verb (src/net/equip.js → hr_apply §equip) debits the bag under a
      lock, checks the requirement off ITEMS[id] server-side, and writes
@@ -248,16 +245,14 @@ export const SERVER_OF_RECORD = Object.freeze([
         (undefined) → null → UNKNOWN. That distinction is the whole reason empty
         decodes to `{}` and undefined decodes to null.
 
-     DORMANT via EQUIPMENT_RECORD_ARM_ENABLED (defaults OFF, also requires the
-     master switch), exactly like skills — invisible to the field list / strip /
-     decode loop until a post-wipe rollout flips it AND the client equipment read
-     sites are routed through an accessor (the skill-record.js analogue). Shipping
-     it changes nothing byte-for-byte. */
+     ARMED via EQUIPMENT_RECORD_ARM_ENABLED (which also requires the
+     master switch); while off it is invisible to the field list / strip / decode
+     loop, which is the kill-switch position. */
   Object.freeze({ field: 'equipment', from: 'equipment', since: 'b433',
     pick: (res) => (res && typeof res === 'object') ? res.equipment : undefined,
     armed: () => isEquipmentRecordArmed(),
     decode: decodeEquipment, fingerprint: fingerprintEquipment }),
-  /* ── ROOMS / HOUSE UPGRADES, SHIPPED DORMANT (b431) — THE RECORD THAT NEEDS
+  /* ── ROOMS / HOUSE UPGRADES (b431), ARMED — THE RECORD THAT NEEDS
      NO NEW PROJECTION ──────────────────────────────────────────────────────────
      `G.rooms` is `{ <roomId>: <rung> }` — the same map-is-one-record shape skills
      use, so it is ONE entry whose value IS the whole map: one strip
@@ -283,16 +278,13 @@ export const SERVER_OF_RECORD = Object.freeze([
      (pickRooms returns undefined → decodeRooms returns null → the field stays
      UNKNOWN, fail-closed), which is what a malformed / pre-envelope answer is.
 
-     DORMANT: its own `ROOMS_RECORD_ARM_ENABLED`, defaulting OFF and ALSO requiring
-     the master accrual switch, exactly like skills. While off the entry is
-     invisible to serverOfRecordFields / the strip / decodeRecord, so `G.rooms`
-     is neither stripped nor read record-first — shipping it changes nothing
-     byte-for-byte until a post-wipe rollout flips the const. */
+     ARMED via `ROOMS_RECORD_ARM_ENABLED` (+ the master accrual switch).
+     While off, `G.rooms` is neither stripped nor read record-first. */
   Object.freeze({ field: 'rooms', from: 'rooms', since: 'b431',
     pick: pickRooms,
     armed: () => isRoomsRecordArmed(),
     decode: decodeRooms, fingerprint: fingerprintRooms }),
-  /* ── BOUNTY MARKS, SHIPPED DORMANT — THE SCALAR THAT MOVES HOME ──────────────
+  /* ── BOUNTY MARKS, ARMED — THE SCALAR THAT MOVES HOME ───────────────────────
      Marks are a scalar currency exactly like gold/gems, so this entry is modelled
      the SAME way: from:'marks' reads the flat `state.marks` that hr_state_of now
      projects (2026-08-26-marks-record.sql), decoded/fingerprinted by the shared
@@ -305,26 +297,19 @@ export const SERVER_OF_RECORD = Object.freeze([
      `G.bountyHunter.marks` (a NESTED field), while a record field is a TOP-LEVEL G
      key. Marks are now the top-level scalar `G.marks` (default G literal +
      ensureBountyState migrate a legacy nested value up on load, gated on the arm),
-     read everywhere through src/net/marks-record.js `marksOf(G)` — the server value
-     under arm, `G.marks` while dormant. The three arm-blockers this entry once named
-     are now CLOSED for a safe arm:
-       (1) ✅ every marks READ site (topbar/bounty panel/shop/lifetime-stats/
-           affordability) routes through marksOf/canAffordMarks/fmtMarks — see the
-           marks-record test's read sweep;
-       (2) reroll/abandon SPENDS moved to hr_bounty_spend (goal-claim.js); the
-           shop-trait (buyTrait) + bounty-shop-upgrade (spendMarks) spends have NO
-           server verb yet and are GATED behind clientMayWriteRecordField('marks'),
-           so under arm they FAIL-CLOSED (refuse) rather than raw-debit — a documented
-           post-arm UX follow-up (build hr_bounty_spend siblings, or a generic marks
-           spend RPC, to re-enable them server-side), NOT a self-mint;
-       (3) ✅ storage migrated to top-level `G.marks`; the framework strip removes it
-           cleanly and the nested mirror is dropped, so there is exactly ONE client
-           home. Still DORMANT (armed()=false) + POST-WIPE only; nothing changes
-           byte-for-byte until MARKS_RECORD_ARM_ENABLED flips. */
+     read everywhere through src/net/marks-record.js `marksOf(G)`, and ARMED.
+     Of the three blockers this entry once named, the READ sweep and the move to a
+     single top-level `G.marks` home are closed; the third is still OPEN:
+       ⚠ reroll/abandon SPENDS moved to hr_bounty_spend (goal-claim.js), but the
+         shop-trait (buyTrait) + bounty-shop-upgrade (spendMarks) spends have NO
+         server verb and are GATED behind clientMayWriteRecordField('marks') — so
+         under arm they FAIL-CLOSED (refuse) rather than raw-debit. That is a
+         self-mint avoided and a UX follow-up owed (hr_bounty_spend siblings, or a
+         generic marks spend RPC), not a closed item. */
   Object.freeze({ field: 'marks', from: 'marks', since: 'b4xx',
     armed: () => isMarksRecordArmed(),
     decode: decodeBalance, fingerprint: fingerprintBalance }),
-  /* ── DUNGEON SCRIP, SHIPPED DORMANT — THE SCALAR THAT MOVES OUT OF THE BAG ───
+  /* ── DUNGEON SCRIP (ARMED) — THE SCALAR THAT MOVES OUT OF THE BAG ───────────
      Scrip is a fungible currency (spent at the Quartermaster), modelled EXACTLY
      like marks: from:'dungeon_scrip' reads the flat state.dungeon_scrip that
      hr_state_of now projects (2026-09-10-dungeon-scrip.sql), decoded by the shared
@@ -334,16 +319,14 @@ export const SERVER_OF_RECORD = Object.freeze([
      which is the reported P1 ("dungeon scrip goes to 0"). Read everywhere through
      src/net/dungeon-scrip-record.js `scripOf(G)` — the server value under arm, the
      legacy G.inventory.dungeon_scrip while dormant.
-     ⚠ ARM-COUPLED TO INCREMENT 3. The SPEND side (Quartermaster) is still the
-     client `removeItem('dungeon_scrip')` on the inventory item; arming this READ
-     without quartermaster_buy would leave the shop debiting a bag entry that no
-     longer holds the balance. So DUNGEON_SETTLE_ARM_ENABLED stays OFF until the
-     rollout that lands BOTH — armed()=false today, so this entry is inert and
-     nothing changes byte-for-byte. */
+     ARM-COUPLED TO INCREMENT 3, WHICH LANDED. Arming this READ without a
+     server-side spend would have left the Quartermaster debiting a bag entry that
+     no longer held the balance, so DUNGEON_SETTLE_ARM_ENABLED waited for
+     quartermaster_buy (2026-09-11-quartermaster-buy.sql). Both are ARMED. */
   Object.freeze({ field: 'dungeonScrip', from: 'dungeon_scrip', since: 'b5xx',
     armed: () => isDungeonSettleArmed(),
     decode: decodeBalance, fingerprint: fingerprintBalance }),
-  /* ── RESTED XP, SHIPPED DORMANT — THE COUPLED SCALAR + WATERMARK ─────────────
+  /* ── RESTED XP, ARMED — THE COUPLED SCALAR + WATERMARK ──────────────────────
      Rested XP is a bank of CHARGES (`G.restedXp`, a small integer) governed by a
      WATERMARK (`G.restedAt`, the instant already paid up to). Unlike a skill map
      these are TWO top-level G keys, and the framework strips/writes per top-level
@@ -363,14 +346,11 @@ export const SERVER_OF_RECORD = Object.freeze([
        negative, or a zero epoch is not a watermark and answering "1970" would
        mint a full capped bank — so those decode to null → UNKNOWN, never 0.
 
-     DORMANT via RESTED_RECORD_ARM_ENABLED (defaults OFF, ALSO requires the master
-     switch). While off, both entries are invisible to the field list / strip /
-     decode loop, so `G.restedXp`/`G.restedAt` are neither stripped nor read
-     record-first — byte-for-byte unchanged. Arming additionally requires: (1)
-     every rested READ routed through restedOf; (2) the SPEND path (spendRestedCharge,
-     consumed by grantXp) moved server-side — only accrual moved here; (3) POST-WIPE.
-     Rested potency is 0 today (getBonus('restedXp')===0) so the bank pays nothing
-     regardless, which is why this can ship ahead of the spend path. */
+     ARMED via RESTED_RECORD_ARM_ENABLED (+ the master switch). ⚠ THE
+     SPEND PATH IS STILL OPEN: spendRestedCharge (consumed by grantXp) never moved
+     server-side — only accrual did. That is survivable only because rested potency
+     is 0 today (getBonus('restedXp')===0), so the bank pays nothing either way; it
+     is an OPEN follow-up, not a closed one. */
   Object.freeze({ field: 'restedXp', from: 'rested_xp', since: 'b437',
     armed: () => isRestedRecordArmed(),
     decode: decodeBalance, fingerprint: fingerprintBalance }),
@@ -1591,7 +1571,15 @@ export async function requestRecord(opts) {
    `hydrationStep` keeps the guard and names the casualty. It also records it on
    the verdict, so `bootHydrationState().partial` can say which parts of the
    character did not arrive — a bug report that names `reconcileFarm` is worth an
-   afternoon of guessing about disappearing crops. */
+   afternoon of guessing about disappearing crops.
+
+   TWO INVARIANTS HOLD FOR EVERY STEP BELOW, AND ARE STATED HERE ONCE RATHER THAN
+   IN EACH: (1) the boot hr_load envelope is the ALWAYS-FULL statement of the
+   character — hr-accrue answers {accrued:false} on an idle boot, so
+   applyEnvelopeState may never run and hr_load is the only statement some sessions
+   see, which is why so many reconciles are called from here as well; (2) every
+   step is GUARDED by this wrapper. A step's own comment says only what is true of
+   THAT step. */
 let partialSteps = [];
 function hydrationStep(name, fn) {
   try { fn(); } catch (e) {
@@ -1639,29 +1627,20 @@ function settle(verdict) {
        character and carries `state.hp` / `state.max_hp` (hr_state_of), so it is
        applied HERE through the SAME shared function the accrue path uses.
        A boot is by construction not mid-fight, so reconcileHp's attended-fight
-       exception cannot fire on this path. Guarded — a throw must never break the
-       record load. */
+       exception cannot fire on this path. */
     hydrationStep('hp', () => reconcileHp(G, verdict.body));
     /* ── REBUILD THE COMPANION ROSTER FROM THE SAME ENVELOPE (blob-retire) ───────
-       The boot hr_load envelope is the ALWAYS-FULL statement of the character
-       (accrue's hr-accrue returns nothing on an idle settle, so applyEnvelopeState
-       may never run on an idle boot). Companions are SERVER-OWNED under arm —
-       ownership rows, the equipped column, and per-id XP — so the roster is rebuilt
-       here from `res.companions`, exactly as workers/bank rebuild in
-       applyEnvelopeState. Arm-gated inside reconcileCompanions: a pure no-op while
-       dormant, so the dormant load path is byte-for-byte unchanged. Guarded — a
-       throw here must never break the record load. */
+       Companions are SERVER-OWNED under arm — ownership rows, the equipped column,
+       and per-id XP — so the roster is rebuilt here from `res.companions`, exactly
+       as workers/bank rebuild in applyEnvelopeState. Arm-gated inside
+       reconcileCompanions: a pure no-op while dormant. */
     hydrationStep('companions', () => reconcileCompanions(G, verdict.body));
     /* ── REBUILD THE FARM PLOTS FROM THE SAME ENVELOPE (blob-retire capstone) ────
-       The boot hr_load envelope is the ALWAYS-FULL statement of the character
-       (accrue's hr-accrue returns nothing on an idle settle, so applyEnvelopeState
-       may never run on an idle boot). Under arm the client stops loading the save
-       blob, so NOTHING else rebuilds G.farmPlots / G.plotLevels — and the farm tick
-       + render loops would deref an undefined and throw, silently vanishing every
-       standing crop. Rebuilt here from `res.farm`, exactly as companions/workers
-       rebuild in applyEnvelopeState. Arm-gated inside reconcileFarm: a pure no-op
-       while dormant, so the dormant load path is byte-for-byte unchanged. Guarded —
-       a throw here must never break the record load. */
+       Under arm the client stops loading the save blob, so NOTHING else rebuilds
+       G.farmPlots / G.plotLevels — and the farm tick + render loops would deref an
+       undefined and throw, silently vanishing every standing crop. Rebuilt here from
+       `res.farm`, exactly as companions/workers rebuild in applyEnvelopeState.
+       Arm-gated inside reconcileFarm: a pure no-op while dormant. */
     /* {authoritative:true}: the boot hr_load body IS the full statement of the
        farm, so an empty farm here legitimately clears the plots (a new/unplanted
        character). The LEAN accrue-settle path (applyEnvelopeState) passes no flag,
@@ -1670,14 +1649,11 @@ function settle(verdict) {
     hydrationStep('farm', () => reconcileFarm(G, verdict.body, { authoritative: true }));
     /* ── HYDRATE THE OWNED TRAIT SET FROM THE SAME ENVELOPE (b46x) ───────────────
        hr_trait_buy is now the server-side writer of a permanent trait, and
-       hr_state_of projects the owned ids as a flat `traits` array. The boot
-       hr_load envelope is the ALWAYS-FULL statement of the character (an idle
-       settle returns nothing, so applyEnvelopeState may never run on an idle
-       boot), so ownership is hydrated HERE as well — which is what makes a trait
-       bought on one device appear on another. A UNION, never a replace: a trait
-       bought before the server verb existed has no server row and must never be
-       revoked (see reconcileTraits' header). Guarded — a throw here must never
-       break the record load. */
+       hr_state_of projects the owned ids as a flat `traits` array, so ownership is
+       hydrated HERE as well — which is what makes a trait bought on one device
+       appear on another. A UNION, never a replace: a trait bought before the server
+       verb existed has no server row and must never be revoked (see
+       reconcileTraits' header). */
     hydrationStep('traits', () => reconcileTraits(G, verdict.body));
     /* ── HYDRATE THE BAG + BANK FROM THE SAME ENVELOPE (b46x inventory-hydrate) ───
        THE P1 THIS CLOSES. Inventory hydration lived ONLY in accrue.js's
@@ -1685,9 +1661,8 @@ function settle(verdict) {
        hr-accrue answers {accrued:false, reason:'idle'} — so applyEnvelopeState
        never ran and the bag was never applied: the player saw a stale ~3-stack
        remnant while the server held the full inventory (near-total apparent loss
-       to anyone whose activity had ended before they reloaded). The boot hr_load
-       envelope is the ALWAYS-FULL statement of the character and DOES carry the
-       full inventory + bank, so the bag is rebuilt HERE from `verdict.body`,
+       to anyone whose activity had ended before they reloaded). The envelope DOES
+       carry the full inventory + bank, so the bag is rebuilt HERE from `verdict.body`,
        exactly as companions/farm/traits rebuild above and through the SAME shared
        apply the accrue path uses (reconcileInventory / reconcileBank).
 
@@ -1734,10 +1709,9 @@ function settle(verdict) {
        the four fields is residue or server-of-record, so there was no other
        source — measured live 2026-09-07: `recovering_until` 11 minutes ahead on
        the server, `isKnockedOut()` false on the client after the reload, so a
-       tap started a local run the edge had already decided to refuse. The
-       hr_load body is the ALWAYS-FULL statement of the character and carries
-       all four keys (hr_state_of), so it goes through the SAME shared reader
-       the accrue path uses.
+       tap started a local run the edge had already decided to refuse. The body
+       carries all four keys (hr_state_of), so it goes through the SAME shared
+       reader the accrue path uses.
 
        ⚠ ORDER MATTERS, AND IT IS NOT NEXT TO 'hp'. reconcileRecovery
          dispatches `hearthrise:fall`, which RAISES the knocked-out sheet
@@ -1761,16 +1735,14 @@ function settle(verdict) {
        visibility-gated (decideSettle → 'hidden'), so applyEnvelopeState may NEVER
        run — leaving `G._heroSlots` absent for the whole session. multi-character.js
        reads that scratch for `serverKnown`; while it is absent the Hero-slot Buy is
-       stuck on "Checking…" on every boot (QA slot 4, live 2026-09-04). The boot
-       hr_load envelope is the ALWAYS-FULL statement of the account and hr_state_of
+       stuck on "Checking…" on every boot (QA slot 4, live 2026-09-04). hr_state_of
        projects the owned set as a top-level `hero_slots` array (2026-09-08
        migration GATE(g)/GATE(h)), so hydrate it HERE like inventory/crew/traits.
        reconcileHeroSlots is FAIL-CLOSED on a missing/garbage `hero_slots` (a server
        predating the projection leaves the scratch exactly as it was — never read as
        "you own nothing", which would evict a player from a hero they are in) and is
        ABSOLUTE, not a union (the server's set already counts every grandfathered
-       character). NOT arm-gated (writes a scratch key nothing else reads). Guarded —
-       a throw here must never break the record load. */
+       character). NOT arm-gated (writes a scratch key nothing else reads). */
     hydrationStep('hero-slots', () => reconcileHeroSlots(G, verdict.body));
     /* ── THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07) ────────────────────
        THE SAME IDLE-BOOT HYDRATION CLASS AS ITS NEIGHBOURS, and without this line
@@ -1782,8 +1754,7 @@ function settle(verdict) {
        never happened. `G.lastOfflineSummary` is a NO_SYNC field, so the Home
        "While you were away" card, the welcome-back modal and the combat recap all
        rendered nothing for a night the server had paid, journalled and banked:
-       precisely the bug the ruling exists to delete. The hr_load body is the
-       ALWAYS-FULL statement of the character and hr_state_of projects
+       precisely the bug the ruling exists to delete. hr_state_of projects
        `state.last_away_receipt` raw, so the seed belongs HERE as well.
 
        IDEMPOTENT AND HOLE-FILLING ONLY: reconcileAwayReceipt yields to any
@@ -1791,8 +1762,7 @@ function settle(verdict) {
        nothing rather than rendering a fabricated empty night), and CREDITS
        NOTHING — the seeded summary is marked `restored` and legacy.js's
        `creditServerAwayKills` refuses a restored receipt at source, so a boot
-       seed can never feed the kill counters or the Muster's shared meter.
-       Guarded like its neighbours — a throw must never break the record load. */
+       seed can never feed the kill counters or the Muster's shared meter. */
     hydrationStep('away-receipt', () => reconcileAwayReceipt(G, verdict.body));
     /* ── THE LIFETIME GOAL COUNTERS, HYDRATED FROM THE SAME ENVELOPE ──────────
        THE FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477

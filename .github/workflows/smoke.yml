@@ -718,3 +718,9 @@ jobs:
         run: |
           node tests/dead-exports.mjs --selftest
           node tests/dead-exports.mjs
+
+      - name: Cleanup slice 3 - dead CSS class census
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/dead-css.mjs --selftest
+          node tests/dead-css.mjs

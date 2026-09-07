@@ -2697,7 +2697,6 @@ body.in-combat #combat-area {
     max-width: 380px;
     padding: 16px !important;
   }
-  .qsm-actions button { min-height: 44px; }
 
   /* P2: qty slider action buttons wrap + shrink so they don't clip past
      the modal edge on phone */

@@ -1001,6 +1001,18 @@ function a10_utcBoundary() {
         `${tag}: every segment paid the same multiplier (${[...mults].join(', ')}), so this arm `
         + 'cannot distinguish a per-segment bind from a single one — the fixture is vacuous');
 
+      /* ⚠ PART (b) ONWARD INDEXES `segs[0]` AND `segs[1]` DIRECTLY, so a mutant
+         that reports NO segments at all must stop here rather than throw. It is
+         not a skip: the four assertions above have already gone RED for it (the
+         segment count, the >= 2 floor, the sum identity and `mults.size >= 2`),
+         which is the arm doing its job. WITHOUT this line `--mutate=no_topup`
+         died on `TypeError: Cannot read properties of undefined`, the whole run
+         threw, and `--selftest` scored it "migration/harness rejected it" — i.e.
+         CAUGHT, by a crash, with every assertion in the file discarded and none
+         of them proven. A guard that is credited for crashing is a guard nobody
+         has measured. */
+      if (cross.segs.length < 2) continue;
+
       // ── (b) THE MONEY ACTUALLY MOVED — the blended reference ─────────────
       const refA = boundaryPair(target, fx.prev + BOUNDARY_REF_OFFSET_MS,
         fx.prev + BOUNDARY_REF_OFFSET_MS + 2 * BOUNDARY_HALF_MS);
@@ -1294,6 +1306,32 @@ async function sqlHalf(patchList) {
   const proj7 = await asDefiner(uid, 'select public.hr_attended_kills($1::uuid,0,now()) as r', [uid]);
   ok(!('slime' in (proj7?.kills || {})),
     `C8: another player's credit leaked into this window: ${JSON.stringify(proj7?.kills)}`);
+
+  /* ── C8b — AND THE OTHER HALF OF THE SCOPE: THIS PLAYER'S OTHER CHARACTER ──
+     ADDED 2026-09-07, and it is the arm this file was MISSING. The scope is
+     (user, slot) and only the USER half was ever asserted here: every row above
+     is written at slot 0, so deleting `and l.slot = coalesce(p_slot, 0)` from the
+     projection changed nothing any C-block could see. Measured — with the
+     migration's own GATE(e4) short-circuited (`--mutate=cross_slot_gate_blind`),
+     the whole file reported "all checks pass" against a projection that pools
+     every character on the account into one window. Six slots, one faucet, and
+     an alt parked on a high-value target is free loot for the main.
+
+     The row is written as the OWNER (not through hr_credit_kills) because the
+     point is that the PROJECTION scopes, not that the writer does. */
+  await q(`insert into public.hr_kill_credit_log
+             (user_id, slot, idem, target, claimed, credit, cap, applied, created_at)
+           values ($1,1,$2,'bat',777,777,777,777, now())`, [uid, UUID()]);
+  const proj7b = await asDefiner(uid, 'select public.hr_attended_kills($1::uuid,0,now()) as r', [uid]);
+  ok(!('bat' in (proj7b?.kills || {})),
+    `C8b: a credit belonging to SLOT 1 was projected into slot 0's window `
+    + `(${JSON.stringify(proj7b?.kills)}). The scope is (user, slot); an account's six characters `
+    + 'must not pool their attended kills, or one alt pointed at a high-value target pays the main.');
+  /* CONTROL — the projection still returns this slot's own rows, so the absence
+     above is not "the projection returned nothing". */
+  ok(Object.keys(proj7b?.kills || {}).length > 0,
+    'C8b CONTROL: the slot-0 window projected nothing at all, so C8/C8b prove nothing');
+  await q("delete from public.hr_kill_credit_log where user_id = $1 and slot = 1", [uid]);
 
   // ── C9 — THE UPPER EDGE, AND ITS CLAMP (Security condition C6) ─────────
   /* The engine advances `accrued_to` to the `now()` it read in the STATE
@@ -1623,6 +1661,68 @@ MUTATIONS.no_upper_bound_gate_blind = {
      + 'exists for is a LATER migration restating hr_attended_kills from a stale template.',
   find: MUTATIONS.no_upper_bound.find,
   repl: MUTATIONS.no_upper_bound.repl,
+  also: [GATE_BLIND],
+};
+
+/* ── THE REST OF THE SQL ARMS, TWINNED (hardening slice 2, 2026-09-07) ──────
+   MEASURED, not assumed: `--selftest` reported `client_executable`, `no_ceiling`,
+   `upto_unclamped` and `cross_slot` as
+
+     CAUGHT  <id>  — SQL HALF: THE REPO CANNOT REBUILD THE DATABASE.
+
+   which is the migration refusing to install, NOT this file seeing the defect.
+   The C-series assertions those four arms are supposed to prove (C1, C7, C9's
+   clamp, C8) therefore never executed under mutation, so each was an untested
+   line sitting in a file whose header claims it tests them. Every mutation in
+   this block is the same defect with the migration's own assertion silenced, so
+   the C-series is the sole remaining defence — which is what it has to be the
+   day a later migration restates hr_attended_kills from a stale template and
+   nothing re-runs §3.
+
+   Verified on this machine: all four install cleanly with the silencer and all
+   four go RED on the named C-block alone. */
+
+/* GATE(a)'s `authenticated` arm, neutralised. GATE_BLIND above only skips the
+   EXECUTED subtransaction (e1-e6); (a)-(d) are structural and run before it, so
+   the grant arm needs its own silencer. The anchor carries the first line of the
+   message so it cannot collide with the anon/service_role arms above it. */
+const GATE_A_AUTH_BLIND = [
+  "  if has_function_privilege('authenticated', 'public.hr_attended_kills(uuid,int,timestamptz)', 'execute') then\n"
+  + "    raise exception 'GATE(a): hr_attended_kills is executable by authenticated",
+  "  if false then\n"
+  + "    raise exception 'GATE(a): hr_attended_kills is executable by authenticated",
+];
+MUTATIONS.client_executable_gate_blind = {
+  sql: true,
+  why: `${MUTATIONS.client_executable.why} — with the migration's own GATE(a) authenticated arm `
+     + 'short-circuited, so ONLY this guard (C1) can see it. Without the twin, `client_executable` '
+     + 'was CAUGHT by the migration refusing to install and C1 had never been shown red.',
+  find: MUTATIONS.client_executable.find,
+  repl: MUTATIONS.client_executable.repl,
+  also: [GATE_A_AUTH_BLIND],
+};
+MUTATIONS.no_ceiling_gate_blind = {
+  sql: true,
+  why: `${MUTATIONS.no_ceiling.why} — with the migration's own §3 gate short-circuited, so ONLY `
+     + 'this guard (C7) can see it. GATE(e5) runs at APPLY time and nothing re-runs it.',
+  find: MUTATIONS.no_ceiling.find,
+  repl: MUTATIONS.no_ceiling.repl,
+  also: [GATE_BLIND],
+};
+MUTATIONS.upto_unclamped_gate_blind = {
+  sql: true,
+  why: `${MUTATIONS.upto_unclamped.why} — with the migration's own §3 gate short-circuited, so `
+     + "ONLY this guard (C9's clamp assertion) can see it.",
+  find: MUTATIONS.upto_unclamped.find,
+  repl: MUTATIONS.upto_unclamped.repl,
+  also: [GATE_BLIND],
+};
+MUTATIONS.cross_slot_gate_blind = {
+  sql: true,
+  why: `${MUTATIONS.cross_slot.why} — with the migration's own §3 gate short-circuited, so ONLY `
+     + 'this guard (C8) can see it.',
+  find: MUTATIONS.cross_slot.find,
+  repl: MUTATIONS.cross_slot.repl,
   also: [GATE_BLIND],
 };
 

@@ -129,6 +129,32 @@ const MUTATIONS = {
       "  if false then\n    raise exception 'VERIFY(c):",
     ]],
   },
+  /* ── MHP-0's OWN ARM (added 2026-09-07, hardening slice 2) ───────────────
+     MHP-0 asserts THREE substrings of pg_get_triggerdef — 'AFTER INSERT OR
+     UPDATE OF xp', 'FOR EACH ROW' and 'hitpoints' — and the migration's own
+     VERIFY(b) asserts EXACTLY THE SAME THREE. So every defect MHP-0 exists for
+     is caught first by the file refusing to install, MHP-0's ✓ is a ✓ nobody
+     has ever seen turn red, and the assertion it makes is unproven. (The one
+     arm that gets near it, `trigger_never_fires`, slips past VERIFY(b) only by
+     accident: 'hitpoints_never' still CONTAINS 'hitpoints'.)
+
+     The defect planted here is the realistic one — the column list dropped, so
+     the hook fires on every player_skills UPDATE instead of on xp writes, which
+     the §3 comment calls out by name as the reason the WHEN clause is cheap.
+     VERIFY(b)'s definition check is short-circuited so MHP-0 is the only thing
+     left looking, which is what it has to be the day a later migration restates
+     the trigger and nothing re-runs §5. */
+  trigger_wrong_event_gate_blind: {
+    why: 'the hook loses its `of xp` column list and fires on EVERY player_skills update, with the '
+       + "migration's own VERIFY(b) definition check short-circuited so only this guard can see it "
+       + '(MHP-0)',
+    find: '  after insert or update of xp on public.player_skills',
+    repl: '  after insert or update on public.player_skills',
+    also: [[
+      "  if position('AFTER INSERT OR UPDATE OF xp' in v_def) = 0",
+      "  if false and position('AFTER INSERT OR UPDATE OF xp' in v_def) = 0",
+    ]],
+  },
 };
 
 let failed = 0;

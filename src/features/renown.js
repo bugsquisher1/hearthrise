@@ -856,7 +856,19 @@
       '.ftue-root,#hr-welcome-modal,.wbv-overlay,.beta-overlay,[class*="welcome-overlay"],.hr-dl-scrim,.hr-cl-scrim,.acq-overlay,.ach-overlay'
     );
   }
+  /* ── THE WATCHER CAN BE PARKED (suite isolation) ──────────────────────────
+     `celebrate()` builds a FULL-SCREEN scrim that closes only on a click, and
+     this poll fires it off whatever `G` happens to hold. In the game that is
+     exactly right. In the smoke suite `G` is a fixture — a battery that hands a
+     character kills, gold or levels crosses a rank boundary that nobody earned
+     — and the celebration then sits over every later test until something
+     clicks it, so the failure surfaces hundreds of tests away as "something is
+     covering the buy control COVER=<div>.hr-rn-cele" (measured on b513). The
+     suite already parks the settle loop and the autosave for the same reason
+     and states it; this is the third of the same kind, not a new idea. */
+  var pollEnabled = true;
   function tick() {
+    if (!pollEnabled) return;
     if (!window.G) return;
     if (document.getElementById('hr-rn-cele') || document.getElementById('hr-rn-modal')) return; // ours already open
     if (anotherModalUp()) return;                       // wait for the screen to clear
@@ -892,7 +904,10 @@
     getPerks: getPerks,
     pollRankUp: pollRankUp,
     openLadder: openLadder,
-    celebrate: celebrate
+    celebrate: celebrate,
+    /* Read/write park switch for the suite (see `tick`). Never called by the
+       game: the watcher is on for every real player, always. */
+    __setPollEnabled: function (on) { var was = pollEnabled; pollEnabled = !!on; return was; }
   };
 
   // Seed state + start the rank-up watcher once G exists.

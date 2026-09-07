@@ -7143,6 +7143,20 @@ function simulateAwayCombat(hrs,nowMs,capped,opts){
   const askedFrom=opts&&Number(opts.fromMs);
   const fromMs=(isFinite(askedFrom)&&askedFrom>0)?askedFrom:(atMs-spanMs);
   const ctx=combatSimCtx();
+  /* ── THIS SPAN IS AWAY, AND IT SAYS SO ITSELF ─────────────────────────────
+     `combatSimCtx()` reads `ctx.away` off `inOfflineReplay()` — the ambient
+     b227 latch — which is the right answer for the 2.4 s live tick and merely
+     USUALLY the right answer here. Every production caller runs inside
+     processOffline's latch, so a caller that does not (a harness, a preview, a
+     future entry point) simulates an ABSENCE as though the player were sitting
+     at the keyboard. That is not cosmetic: `ctx.away` picks the rate multiplier
+     and the payable scope, and it is the single thing standing between an away
+     death and COMBAT_FX.onDeath raising the attended death sheet — a
+     full-screen modal, with "Fight again" on it, for a fall nobody watched.
+     MEASURED: the b341 fixture calls this directly and left that modal over the
+     game for the remainder of the run. A function whose whole subject is an
+     absence states the fact rather than inheriting it from whoever called. */
+  ctx.away=true;
   ctx.fromMs=fromMs;
   ctx.toMs=fromMs+spanMs;
   /* THE SAME INTERVAL LIVE PLAY USES. The old away loop divided by the flat

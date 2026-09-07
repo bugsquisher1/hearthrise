@@ -58,6 +58,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { bootTemplated, prefixLength, MIN_PREFIX_FILES } from './pglite-template.mjs';
 
 export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIGDIR = join(ROOT, 'supabase', 'migrations');
@@ -226,22 +227,104 @@ export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
     }
   }
 
-  const db = await PGlite.create();
-  for (const [k, v] of Object.entries((await manifest()).gucs || {})) {
-    if (k.startsWith('_')) continue;
-    await db.exec(`select set_config('${k.replace(/'/g, "''")}','${String(v).replace(/'/g, "''")}',false)`);
-  }
-  await db.exec(await readFile(join(ROOT, 'tests', 'sql', 'pglite-fixture.sql'), 'utf8'));
-  await db.exec(SCAFFOLD);
-
   if (upTo !== undefined && !files.some(([name]) => name === upTo)) {
     const e = new Error(`bootReplay upTo names a file not in the chain: "${upTo}"`);
     e.harness = true; throw e;
   }
 
+  const gucs = Object.entries((await manifest()).gucs || {}).filter(([k]) => !k.startsWith('_'));
+  const fixture = await readFile(join(ROOT, 'tests', 'sql', 'pglite-fixture.sql'), 'utf8');
+  // set_config(..., false) is SESSION state and is NOT inside a data-directory
+  // snapshot. It runs on every boot, cached or not.
+  const session = async (d) => {
+    for (const [k, v] of gucs) {
+      await d.exec(`select set_config('${k.replace(/'/g, "''")}','${String(v).replace(/'/g, "''")}',false)`);
+    }
+  };
+
+  // ── THE SNAPSHOT PREFIX (tests/pglite-template.mjs) ──────────────────────
+  // A mutation patches ONE file; everything before it in the apply order
+  // produces byte-identical state on every replay, and this harness replays it
+  // 9-45 times per guard. So the unpatched leading run is applied once and
+  // restored from a snapshot thereafter, keyed on the exact SQL TEXT of every
+  // file in it. `tolerant` opts out: that mode exists to REPORT a cascade of
+  // apply failures, and a prefix that is skipped is a cascade nobody sees.
+  const cut = tolerant ? 0 : prefixLength(files, patches ? patches.keys() : [], upTo);
+  const usePrefix = cut >= MIN_PREFIX_FILES;
   const applied = [];
   const failures = [];
-  for (const [name] of files) {
+  // Closed once the tail is applied — see bootTemplated's timer note.
+  let endCapture = () => 0;
+
+  const applyOne = async (d, name) => {
+    // Wrapped, because that is how a file is applied on this project: atomically.
+    // A self-check `raise` must abort the whole file, not leave half installed.
+    await d.exec(`begin;\n${sources.get(name)}\ncommit;`);
+  };
+
+  let db;
+  if (usePrefix) {
+    const prefix = files.slice(0, cut);
+    let prefixError = null;
+    const boot = await bootTemplated({
+      PGlite,
+      keyParts: [
+        'schema-replay', fixture, SCAFFOLD,
+        gucs.map(([k, v]) => `${k}=${v}`).join(';'),
+        ...prefix.flatMap(([name]) => [name, sources.get(name)]),
+      ],
+      session,
+      // A PATCHED prefix is used once (the next mutation patches a different
+      // file), so it lives in memory only; the canonical chain is what every
+      // guard and every process shares, and that is what goes to disk.
+      persist: !patches,
+      build: async (d) => {
+        await d.exec(fixture);
+        await d.exec(SCAFFOLD);
+        for (const [name] of prefix) {
+          try { await applyOne(d, name); } catch (err) {
+            await d.exec('rollback').catch(() => {});
+            prefixError = { file: name, error: String(err && err.message || err).split('\n')[0] };
+            throw err;
+          }
+        }
+      },
+    }).catch((err) => {
+      if (err && err.harness) throw err;
+      if (!prefixError) throw err;
+      return null;
+    });
+    if (!boot) {
+      // A prefix file failed to apply. That is the ORIGINAL failure this engine
+      // reports, unchanged — and nothing was cached, because the snapshot is
+      // only taken after the whole prefix applies.
+      failures.push(prefixError);
+      const e = new Error(
+        `THE REPO CANNOT REBUILD THE DATABASE.\n`
+        + `  ${prefixError.file} failed to apply: ${prefixError.error}\n`
+        + '  A file that cannot replay is a hole in disaster recovery, not a test\n'
+        + '  failure. Run  node tests/schema-replay.mjs --list  for the full cascade.');
+      e.replay = true; e.failures = failures; throw e;
+    }
+    db = boot.db;
+    endCapture = boot.endCapture || (() => 0);
+    for (const [name] of prefix) applied.push(name);
+    if (process.env.HR_PGLITE_CACHE_DEBUG) {
+      console.error(`  pglite-cache: prefix ${cut}/${files.length} `
+        + `${boot.cacheHit ? 'RESTORED' : 'built'} in ${boot.buildMs}ms`);
+    }
+    if (cut >= files.length || (upTo !== undefined && files[cut - 1][0] === upTo)) {
+      endCapture();
+      return { db, applied, failures };
+    }
+  } else {
+    db = await PGlite.create();
+    await session(db);
+    await db.exec(fixture);
+    await db.exec(SCAFFOLD);
+  }
+
+  for (const [name] of files.slice(usePrefix ? cut : 0)) {
     // Wrapped, because that is how a file is applied on this project: atomically.
     // A self-check `raise` must abort the whole file, not leave half installed.
     try {
@@ -262,6 +345,7 @@ export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
     }
     if (name === upTo) break;   // validate the state AS OF this migration
   }
+  endCapture();
   return { db, applied, failures };
 }
 

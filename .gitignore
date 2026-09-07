@@ -100,3 +100,7 @@ smoke-*-done.txt
 worktrees/
 
 tests/smoke-run.log
+
+# PGlite chain snapshots (tests/pglite-template.mjs). Content-addressed, rebuilt
+# on demand, never a source of truth. Deleting the directory is always safe.
+tests/.pglite-cache/

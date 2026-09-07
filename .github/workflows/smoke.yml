@@ -41,35 +41,71 @@ on:
 permissions:
   contents: read
 
+# ── THE MATRIX (cleanup slice 8a, 2026-09-07) ───────────────────────────────
+# This was ONE sequential job of 58 commands. The b514 run took 50.2 minutes
+# and was CANCELLED by its own `timeout-minutes: 50` — a red build with no
+# failing assertion in it, which is the most misleading way a gate can fail,
+# and the second time this workflow has raised that number rather than the
+# question underneath it.
+#
+# The steps are now partitioned by what they NEED, into five jobs that run in
+# parallel, so the wall clock is the slowest family rather than the sum:
+#
+#   job                needs                      MEASURED   timeout (= x2)
+#   in-page            a real Chromium            ~15 min *  30
+#   economy-selftests  an applied migration chain  14.9 min  30
+#   db-replay          an applied migration chain   5.8 min  12
+#   client-guards      nothing but this repo        2.1 min   5
+#   edge               the live gateway             0.5 s     5 (floor)
+#
+# MEASURED 2026-09-07 on the dev machine with `node tests/run-ci-local.mjs
+# --job <name>`, every job green (economy 20/20 in 895.2 s, db-replay 15/15 in
+# 345.4 s, client-guards 22/22 in 124.8 s, edge 1/1 in 0.5 s) and with two other
+# suites running on the same box, so the numbers are pessimistic rather than
+# flattering. (*) in-page is not re-measured here: run-smoke was measured at
+# ~12.8 min on 2026-09-05 and the browser install adds ~2 min; running the
+# in-page suite while two others were running would have measured the machine,
+# not the suite. The two smallest budgets are a FLOOR, not a measurement --
+# checkout + setup-node + npm install is ~40 s before a guard runs at all, and
+# a budget under about five minutes would be measuring the runner.
+#
+# EVERY STEP LANDS IN EXACTLY ONE JOB, and `tests/ci-shape.mjs` is the guard
+# that says so: it fails if a command is in two jobs, if a command that was
+# registered has vanished from all of them, if a new command is unregistered,
+# if a job has no timeout, or if `run-ci-local --list` stops enumerating the
+# whole matrix. A split is exactly the kind of change that loses a guard
+# quietly, so the split ships with the thing that would notice.
+#
+# `timeout-minutes` per job is the MEASURED family time x2 — stated on each
+# job. A margin is not a licence to slow down: a genuine hang still fails,
+# it just fails after the evidence has been collected.
+#
+# The second half of the fix is that a chain replay no longer costs 9-20 s a
+# time: tests/pglite-template.mjs snapshots the applied prefix and restores
+# it (measured 12.9 s -> 1.1 s). Measured end to end on two guards:
+# bank-cap-rungs --selftest 182.0 s -> 52.8 s, bounty-hunter-xp --selftest
+# 121.5 s -> 39.1 s, with every mutation still caught.
+#
+# History of the number this replaces: 15 -> 20 (2026-08-31, the mutation
+# proofs), 20 -> 30 (2026-09-04, measured: 856.6 s of CI-only guards), 30 ->
+# 50 (2026-09-05, measured: run-smoke ~12.8 min PLUS 793 s of guards). Every
+# raise was honest and every one bought less headroom than the next guard
+# cost. This is the first change that makes the work smaller instead.
 jobs:
-  test:
+
+  # ── in-page ── THE PLAYER'S-EYE HALF: everything that needs a real Chromium.
+  # The 1,150-test headless suite, the Hunt card's rendered copy and the visual
+  # QA gate. This is the LONG POLE of the matrix by design — it is the only
+  # family that pays for `playwright install --with-deps` (~2 min) and it runs
+  # a browser for ~13 min — and every other family finishes inside it, so the
+  # wall clock of the whole workflow is this job plus queueing.
+  #
+  # MEASURED 2026-09-05 on the dev machine: run-smoke ~12.8 min. A shared
+  # runner is slower, and checkout + setup-node + npm install + the browser
+  # download add ~3 min. Budget = measured x2 (see the note above `jobs:`).
+  in-page:
     runs-on: ubuntu-latest
-    # 15 -> 20 on 2026-08-31: live-hash-drift replays the whole migration chain
-    # once for the guard and three more times for its mutation proof, and the
-    # renown-faucet mutation harness replays it sixteen times (~2m). A timeout
-    # that trims mutation proofs is a timeout that deletes the only evidence a
-    # guard can fail.
-    #
-    # 20 -> 30 on 2026-09-04, on a MEASUREMENT rather than a hunch. With every
-    # guard finally green, `node tests/run-ci-local.mjs` — which derives its list
-    # from the steps below — runs the thirteen CI-only steps in 856.6s (14m17s),
-    # of which conservation-fuzz --selftest is 219.5s, renown-kill-faucet
-    # --selftest 151.1s, activity-intent 108.0s and claim-intent 91.0s. Add
-    # checkout + setup-node + `npm install` + `playwright install --with-deps`
-    # and the in-page suite, none of which that number includes, and 20 minutes
-    # was inside the noise of the wall. A job that TIMES OUT presents as a red
-    # build with no failing assertion in it — indistinguishable, in the Actions
-    # list, from the reds this workflow spent 2026-08-29..09-04 accumulating, and
-    # the single most misleading way for a gate to fail. The margin is deliberate
-    # and it is not a licence to slow down: a genuine hang still fails, ten
-    # minutes later.
-    # MEASURED 2026-09-05 on the dev machine: run-smoke ~12.8 min plus the
-    # CI-only guards 793 s = ~26 min for both halves. A shared runner is
-    # slower, and checkout/setup-node/npm/playwright add ~3 min on top, so
-    # 30 could not fit the work even when nothing failed. A timeout is a red
-    # build with no failing assertion in it -- indistinguishable from the
-    # forty reds this workflow just came out of.
-    timeout-minutes: 50
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -81,31 +117,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      # The cache-buster must agree across build-info.js, index.html and every
-      # ESM import specifier. Cheap, so run it before spending time on a browser.
-      - name: Cache-buster invariant
-        run: bash bump-version.sh --check
-
-      # ARM-FLAG HONESTY: the comment above an arm flag is the ONLY documentation
-      # of where authority lives for that field, and every reader trusts it before
-      # the value. The b454 cutover armed everything in one commit and left eight
-      # comments saying "DORMANT" over a literal `true`; on 2026-08-31 the same
-      # staleness on MARKS_RECORD_ARM_ENABLED produced a real misdiagnosis. Pure
-      # source scan, no browser — run it with the other cheap gates.
-      - name: Arm-flag honesty — no comment may contradict its flag's value
-        run: |
-          node tests/arm-flag-honesty.mjs --selftest
-          node tests/arm-flag-honesty.mjs
-
-      # DUPLICATE TOP-LEVEL FUNCTIONS: two declarations of one name in one scope
-      # means the later hoists over the earlier and the earlier body is dead code
-      # that can be edited, reviewed and shipped while changing nothing. Also
-      # pins the eight legitimate cross-IIFE name collisions so a NEW one is loud.
-      - name: Duplicate top-level fns — no dead twin in src/legacy.js
-        run: |
-          node tests/no-duplicate-toplevel-fns.mjs --selftest
-          node tests/no-duplicate-toplevel-fns.mjs
 
       - name: Install Playwright + Chromium
         run: |
@@ -125,24 +136,79 @@ jobs:
           HR_SUITE_TIMEOUT_MS: '600000'
         run: node tests/run-smoke.mjs
 
-      # QUEST ITEM REWARDS: THE SAME NUMBER IN ALL THREE PLACES.
-      # Every quest item reward used to be PHANTOM — QUEST_DEFS authored it,
-      # completeQuest paid it with addItem() (G.inventory only) and
-      # hr_claim_quest credited gold only, so the next envelope that spoke about
-      # the id erased it. 2026-09-06-quest-item-rewards.sql moves the credit
-      # server-side, which puts the same authored number in three files:
-      # src/data/goal-catalogue.js, src/legacy.js QUEST_DEFS and the SQL seed. A
-      # one-sided edit means a player is promised 30 shrimp and paid 5 — or
-      # promised an item and paid nothing. It also refuses an authored item that
-      # is not server-credited (the phantom class being re-authored) and an id
-      # that exists in no catalogue (authored, shipped, silently skipped).
-      # Credential-free, database-free, seconds. --selftest plants all eight
-      # defect classes and requires each to be caught by a named assertion.
-      - name: Quest reward parity — data, client and server agree, every id real
+      # ...and that the rule is READABLE. A reward rule a player cannot see is
+      # the same failure as a stat that renders no number. Drives the real
+      # raids.js in real Chromium and asserts on the card's own text.
+      - name: Hunt card states the band rule
+        if: ${{ !cancelled() }}
+        run: node tests/raid-card-copy.mjs
+
+      # Needs the Chromium installed above. The gate half is a pure function and
+      # is proven by --selftest without a browser, so a Chromium problem shows up
+      # as exit 2 (harness) rather than as a visual verdict.
+      - name: Presentation floor - visual QA gate (P0 / new P1)
         if: ${{ !cancelled() }}
         run: |
-          node tests/quest-reward-parity.mjs
-          node tests/quest-reward-parity.mjs --selftest
+          node tests/visual-qa-gate.mjs --selftest
+          node tests/visual-qa-gate.mjs
+
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ── db-replay ── DOES THE REPO STILL REBUILD THE DATABASE, AND DOES IT MATCH
+  # WHAT PRODUCTION RUNS? The four guards that stand between a cutover database
+  # and an unrecoverable one, plus the two read-only production probes that need
+  # no credential. They share one PGlite chain snapshot
+  # (tests/pglite-template.mjs), which is why the cache's own verification step
+  # is the FIRST thing in this job: if the snapshot mechanism is not sound,
+  # nothing measured after it in this job means anything.
+  #
+  # MEASURED 2026-09-07: 15/15 green in 345.4 s (5.8 min). Budget = 12.
+  db-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # node_modules, NO browser. `playwright install --with-deps` is ~2 minutes
+      # and buys nothing for a guard that never opens a page, so it stays in the
+      # in-page job. The install itself runs in every family: a job that fails on
+      # a dependency it did not know it had is a red build with no failing
+      # assertion in it, and that is the class this whole slice is about.
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # THE SNAPSHOT CACHE'S OWN PROOF. Every guard below (and every guard in
+      # economy-selftests) boots its PostgreSQL from a data-directory snapshot
+      # of the applied migration prefix instead of replaying it. A STALE
+      # snapshot would make every ✓ in this workflow a statement about a
+      # database the repo does not build — the always-null-probe family, with a
+      # speedup as its motive. This replays the chain three ways (build,
+      # restore, and again with the cache switched off), requires all three
+      # fingerprints to be equal, and then plants two corruptions and requires
+      # each to be REFUSED. It runs FIRST because nothing measured after it is
+      # worth reading if it is red.
+      - name: PGlite snapshot cache - restored == replayed, corruption refused
+        if: ${{ !cancelled() }}
+        run: node tests/pglite-template.mjs --verify
 
       # CAN THE REPO REBUILD THE DATABASE? After cutover the database is the ONLY
       # copy of every player's progression, and disaster recovery rests entirely
@@ -239,28 +305,114 @@ jobs:
           node tests/apply-order-honesty.mjs
           node tests/apply-order-honesty.mjs --selftest
 
-      # THE PLOT-TIER PRICE — the client and the server may never disagree.
-      # b510 re-priced the farm plot tier in GOLD behind a farming level after
-      # production measured farm plants per day falling to ZERO for nine days
-      # (the only way off tier 1 was a 0.1%-drop Farmer's Deed, and turnip is
-      # the only tier-1 crop). That price now exists in FOUR authored places —
-      # the migration's UPDATE, the migration's own self-check, the client
-      # mirror src/core/farm.js PLOT_TIER_PRICES, and the GENERATED deed_cost
-      # catalogue — and a re-price that moves three of them quotes the player a
-      # number the RPC will not charge. It also guards the RULING: every tier's
-      # required farming level must stay STRICTLY BELOW the earliest crop it
-      # unlocks, so the tier can never become the wall again.
-      # Credential-free and text-only (it parses the four files, no replay), so
-      # it costs milliseconds. --selftest plants 9 defects, each of which must
-      # be caught by its NAMED assertion, plus 2 negative controls (a comment
-      # edit and a whitespace edit) that must stay silent; --mutate plants 3 in
-      # the real file text.
-      - name: Plot-tier price parity — client mirror vs server catalogue
+      # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
+      # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
+      # it "says nothing about whether any row survives a restore". This is that
+      # half: every base table in `public` must state whether a repo rebuild
+      # reproduces its rows or whether only a BACKUP has them.
+      #
+      # ⚠ It existed since 2026-08-15 and was WIRED INTO NOTHING — not here, not
+      #   run-smoke, not package.json. In that fortnight the schema went from 67
+      #   to 90 base tables and 23 arrived with no DR class at all, including
+      #   player_bank and player_workers, which hold player value, while every
+      #   other player_* table was classified restore_only. Nobody could have
+      #   known: no build ran it. That is the whole reason this step exists.
+      #
+      # The census now also fails on a rationale-free classification, on a
+      # player-value table quietly downgraded to make a red build green, and on
+      # any NEW table carrying a user_id that appears in neither the player-value
+      # manifest nor the written exemption list. Adding a player-scoped table
+      # without ruling on it is one red line and one line to fix.
+      #
+      # --mutate plants six defects in the real migration text (a catalogue that
+      # rebuilds one row long past its own floor check, a lost retention cron, an
+      # unclassified table, an unruled player-scoped table, a restore_only table
+      # that starts being seeded) and demands each is caught BY THIS GUARD rather
+      # than by a neighbour. --baseline-selftest does the same for the half that
+      # lives in the baseline rather than in SQL: nine planted classification
+      # defects, each pinned to the specific message that must fire.
+      #
+      # No credentials; production untouched. The PRODUCTION half is
+      # `--live-sql` / `--live-compare` and is deliberately NOT here: it needs a
+      # live database, and no database credential belongs in a job that runs npm
+      # lifecycle scripts (see `permissions:` above). It is a pre-apply ritual —
+      # run it before any migration that touches a data-bearing table, and before
+      # any rebuild or restore.
+      - name: Restore census — which rows only a backup gives back
         if: ${{ !cancelled() }}
         run: |
-          node tests/plot-tier-parity.mjs
-          node tests/plot-tier-parity.mjs --selftest
-          node tests/plot-tier-parity.mjs --mutate
+          node tests/restore-census.mjs
+          node tests/restore-census.mjs --mutate
+          node tests/restore-census.mjs --baseline-selftest
+
+      # REALTIME COST. Measured on production 2026-09-06 over 20.25 days: the
+      # Realtime WAL poller is 2,706,517 calls / 15,669 s / max 9.8 s — ~61% of
+      # all exec time and ~36x the #2 statement — for two published tables, one
+      # of which no client subscribed to. The guard asserts an EQUALITY, both
+      # directions: the publication set == the postgres_changes subscriptions in
+      # src/**. Published-but-unsubscribed is pure poller cost; subscribed-but-
+      # unpublished is a feature that silently never fires (which is what the
+      # market panel shipped for months). Per C4, base AND selftest: a
+      # selftest-only registration cannot tell a broken migration from a working
+      # guard.
+      - name: Realtime cost — publication == client subscriptions, both directions
+        if: ${{ !cancelled() }}
+        run: node tests/realtime-cost.mjs --selftest
+
+      - name: Realtime cost — base run (the trim migration itself is green)
+        if: ${{ !cancelled() }}
+        run: node tests/realtime-cost.mjs
+
+      # THE POSTGREST RPC RESOLUTION GATE.
+      # The A9 retrofit (2026-08-11) rewrapped 35 live RPCs; every wrapper had to
+      # keep the original PARAMETER NAMES, because that is what PostgREST resolves
+      # on. Get one wrong and the migration reports success while the RPC starts
+      # answering PGRST202 to real players. That was checked by hand exactly once.
+      # This checks it on every push, against a committed baseline, with a control
+      # that must NOT resolve so the probe cannot silently go blind.
+      #
+      # Read-only against production and needs no secret: 38 of the 41 calls are
+      # refused by Postgres before the body runs, 2 read the public leaderboard,
+      # and the anon key is public by design and already committed in
+      # src/net/supabase-bootstrap.js. `continue-on-error` is DELIBERATELY ABSENT —
+      # an RPC the client can no longer see is a player-facing outage.
+      - name: RPC resolution vs baseline
+        if: ${{ !cancelled() }}
+        run: node tests/rpc-resolution.mjs
+
+  # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
+  # 8-45 real defects in real migration text and demand every one turns the
+  # guard red. Before the snapshot cache these replayed the whole chain per
+  # mutation — several hundred replays per run, and the arithmetic that put the
+  # b514 run through a 50-minute timeout.
+  #
+  # They are grouped because they share exactly one input: the applied chain.
+  # One job builds the snapshot once and every guard after it restores.
+  #
+  # MEASURED 2026-09-07: 20/20 green in 895.2 s (14.9 min); the two longest are
+  # conservation-fuzz 270.9 s and attended-loot-credit 94.9 s. Budget = 30.
+  economy-selftests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # node_modules, NO browser. `playwright install --with-deps` is ~2 minutes
+      # and buys nothing for a guard that never opens a page, so it stays in the
+      # in-page job. The install itself runs in every family: a job that fails on
+      # a dependency it did not know it had is a red build with no failing
+      # assertion in it, and that is the class this whole slice is about.
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
 
       # THE RENOWN FAUCET'S MUTATION HARNESS — the half that proves the guard
       # itself can fail. The guard already runs inside run-smoke; its --selftest
@@ -399,6 +551,7 @@ jobs:
       - name: State-of farm projection - plot tier and watering history survive a reload
         if: ${{ !cancelled() }}
         run: node tests/state-of-farm-projection.mjs --selftest
+
       # SA-010 / Q-4: PURCHASED BANK SPACE WAS ENFORCED AT THE BASE CAP.
       # hr_unlock_buy sells bank space as a 30-rung ladder and files it as a
       # player_progress unlock row; NOTHING ever wrote player_state.bank_cap,
@@ -415,28 +568,12 @@ jobs:
       - name: Bank cap tracks rungs — purchased bank space is the enforced bank space
         if: ${{ !cancelled() }}
         run: node tests/bank-cap-rungs.mjs --selftest
+
       # Security C4 (2026-09-06): a --selftest-only registration cannot tell a broken
       # migration from a working guard (every arm throws either way). Run the base too.
       - name: Bank cap tracks rungs — base run (the migration itself is green)
         if: ${{ !cancelled() }}
         run: node tests/bank-cap-rungs.mjs
-
-      # REALTIME COST. Measured on production 2026-09-06 over 20.25 days: the
-      # Realtime WAL poller is 2,706,517 calls / 15,669 s / max 9.8 s — ~61% of
-      # all exec time and ~36x the #2 statement — for two published tables, one
-      # of which no client subscribed to. The guard asserts an EQUALITY, both
-      # directions: the publication set == the postgres_changes subscriptions in
-      # src/**. Published-but-unsubscribed is pure poller cost; subscribed-but-
-      # unpublished is a feature that silently never fires (which is what the
-      # market panel shipped for months). Per C4, base AND selftest: a
-      # selftest-only registration cannot tell a broken migration from a working
-      # guard.
-      - name: Realtime cost — publication == client subscriptions, both directions
-        if: ${{ !cancelled() }}
-        run: node tests/realtime-cost.mjs --selftest
-      - name: Realtime cost — base run (the trim migration itself is green)
-        if: ${{ !cancelled() }}
-        run: node tests/realtime-cost.mjs
 
       # THE RECOVERY RULE'S SQL HALF (First-Night Idle Rescue, rev. 2).
       # A death INTERRUPTS a run; it does not terminate it. The JS half -- the
@@ -481,71 +618,6 @@ jobs:
       - name: Recovery floor - the attended cadence RPCs obey recovering_until
         if: ${{ !cancelled() }}
         run: node tests/cadence-recovery-floor.mjs --selftest
-
-      # R10, THE STANDING RULE: RECOVERY IS NOT FOR SALE.
-      # No trait, unlock, gold-ladder rung, Quartermaster offer, clan bond, perk,
-      # renown rank, glyph or companion may key a mechanical effect on recovery
-      # duration, a recovery skip, or a death counter. Relief is bought with FOOD
-      # (hr_rest) or it is not bought. The catalogues are DATA and grow by rows,
-      # so this fails on the day such a row is WRITTEN rather than the day it is
-      # noticed. Static, credential-free, milliseconds.
-      - name: Recovery relief - nothing in any catalogue sells a way off the floor
-        if: ${{ !cancelled() }}
-        run: node tests/recovery-relief-guard.mjs --selftest
-
-      # A DEATH THE PLAYER WATCHED IS STILL THE SERVER'S.
-      # b509's Recovery Rule held away and not live: the attended death called
-      # stopCombat(), which declares `idle`, and hr_apply stamps
-      # `accrued_to = now()` on any activity delta - so the window the death was
-      # in was closed before anything simulated it. Measured on the QA account:
-      # recovering_until NULL, hp 12/12, no deaths row, no ledger row, while the
-      # sheet counted down from a rung the client had invented out of a LIFETIME
-      # death tally. This guard drives the client fall-state machine headlessly
-      # (up -> pending -> recovering/unconfirmed) and source-scans the three
-      # places the bug can come back. 9 mutations, no credentials, milliseconds.
-      - name: Attended fall - the client asks, the server answers, nobody invents a timer
-        if: ${{ !cancelled() }}
-        run: node tests/attended-fall.mjs --selftest
-
-      # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
-      # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
-      # it "says nothing about whether any row survives a restore". This is that
-      # half: every base table in `public` must state whether a repo rebuild
-      # reproduces its rows or whether only a BACKUP has them.
-      #
-      # ⚠ It existed since 2026-08-15 and was WIRED INTO NOTHING — not here, not
-      #   run-smoke, not package.json. In that fortnight the schema went from 67
-      #   to 90 base tables and 23 arrived with no DR class at all, including
-      #   player_bank and player_workers, which hold player value, while every
-      #   other player_* table was classified restore_only. Nobody could have
-      #   known: no build ran it. That is the whole reason this step exists.
-      #
-      # The census now also fails on a rationale-free classification, on a
-      # player-value table quietly downgraded to make a red build green, and on
-      # any NEW table carrying a user_id that appears in neither the player-value
-      # manifest nor the written exemption list. Adding a player-scoped table
-      # without ruling on it is one red line and one line to fix.
-      #
-      # --mutate plants six defects in the real migration text (a catalogue that
-      # rebuilds one row long past its own floor check, a lost retention cron, an
-      # unclassified table, an unruled player-scoped table, a restore_only table
-      # that starts being seeded) and demands each is caught BY THIS GUARD rather
-      # than by a neighbour. --baseline-selftest does the same for the half that
-      # lives in the baseline rather than in SQL: nine planted classification
-      # defects, each pinned to the specific message that must fire.
-      #
-      # No credentials; production untouched. The PRODUCTION half is
-      # `--live-sql` / `--live-compare` and is deliberately NOT here: it needs a
-      # live database, and no database credential belongs in a job that runs npm
-      # lifecycle scripts (see `permissions:` above). It is a pre-apply ritual —
-      # run it before any migration that touches a data-bearing table, and before
-      # any rebuild or restore.
-      - name: Restore census — which rows only a backup gives back
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/restore-census.mjs
-          node tests/restore-census.mjs --mutate
-          node tests/restore-census.mjs --baseline-selftest
 
       # THE CONSERVATION FUZZ. Randomised, seeded operations across several
       # characters against the REAL server-authority migrations, running on an
@@ -610,45 +682,143 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/raid-band-denial.mjs --selftest
 
-      # ...and that the rule is READABLE. A reward rule a player cannot see is
-      # the same failure as a stat that renders no number. Drives the real
-      # raids.js in real Chromium and asserts on the card's own text.
-      - name: Hunt card states the band rule
-        if: ${{ !cancelled() }}
-        run: node tests/raid-card-copy.mjs
+  # ── client-guards ── STATIC AND SOURCE-SCANNING GUARDS: censuses, ratchets,
+  # parity checks, the cache-buster invariant. No database, no browser, no
+  # network; the whole family is text in this repository. Seconds, not minutes —
+  # which is the point of separating it: a red ratchet should be readable in the
+  # Actions list one minute after the push, not forty.
+  #
+  # MEASURED 2026-09-07: 22/22 green in 124.8 s (2.1 min). Budget = 5, which is
+  # the floor rather than 2x: checkout + setup-node + npm install is ~40 s
+  # before a guard runs at all.
+  client-guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
-      # THE POSTGREST RPC RESOLUTION GATE.
-      # The A9 retrofit (2026-08-11) rewrapped 35 live RPCs; every wrapper had to
-      # keep the original PARAMETER NAMES, because that is what PostgREST resolves
-      # on. Get one wrong and the migration reports success while the RPC starts
-      # answering PGRST202 to real players. That was checked by hand exactly once.
-      # This checks it on every push, against a committed baseline, with a control
-      # that must NOT resolve so the probe cannot silently go blind.
-      #
-      # Read-only against production and needs no secret: 38 of the 41 calls are
-      # refused by Postgres before the body runs, 2 read the public leaderboard,
-      # and the anon key is public by design and already committed in
-      # src/net/supabase-bootstrap.js. `continue-on-error` is DELIBERATELY ABSENT —
-      # an RPC the client can no longer see is a player-facing outage.
-      - name: RPC resolution vs baseline
-        if: ${{ !cancelled() }}
-        run: node tests/rpc-resolution.mjs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
 
-      # IS verify_jwt ACTUALLY ON, ON THE DEPLOYED FUNCTIONS?
-      # supabase/config.toml pins it true for both functions and
-      # bug-report-bridge's own header states it as its contract. On
-      # 2026-08-23 the deployed bug-report-bridge answered its own 400 to a
-      # caller holding `Bearer aaa.bbb.ccc`, while hr-accrue — same header,
-      # same project — was refused by the gateway. A file is not a deployment,
-      # and the existing guard (accrual-engine.mjs) only ever read the file.
-      #
-      # Read-only against production and needs no secret, exactly like the RPC
-      # probe above: one POST per function with a garbage token, plus a control
-      # (the public leaderboard) that MUST succeed, so an unreachable project
-      # is reported as INCONCLUSIVE rather than as a green tick.
-      - name: Edge Functions verify JWT at the gateway
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # node_modules, NO browser. `playwright install --with-deps` is ~2 minutes
+      # and buys nothing for a guard that never opens a page, so it stays in the
+      # in-page job. The install itself runs in every family: a job that fails on
+      # a dependency it did not know it had is a red build with no failing
+      # assertion in it, and that is the class this whole slice is about.
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # THE SHAPE OF THIS FILE IS ITSELF A GUARD. The matrix above is five jobs;
+      # a step can be dropped while moving between them, land in two jobs, or be
+      # added while run-ci-local stops enumerating it -- and none of those shows
+      # up as red, because four jobs go green and the fifth simply never had the
+      # step. This asserts the partition: every guard command in exactly one job,
+      # every registered command still present, every job with a timeout and a
+      # checkout, and run-ci-local --list still covering the whole matrix.
+      # --selftest plants one defect per assertion and two negative controls.
+      - name: CI shape - every guard command in exactly one job
         if: ${{ !cancelled() }}
-        run: node tests/edge-jwt-gate.mjs --strict
+        run: |
+          node tests/ci-shape.mjs --selftest
+          node tests/ci-shape.mjs
+
+      # The cache-buster must agree across build-info.js, index.html and every
+      # ESM import specifier. Cheap, so run it before spending time on a browser.
+      - name: Cache-buster invariant
+        run: bash bump-version.sh --check
+
+      # ARM-FLAG HONESTY: the comment above an arm flag is the ONLY documentation
+      # of where authority lives for that field, and every reader trusts it before
+      # the value. The b454 cutover armed everything in one commit and left eight
+      # comments saying "DORMANT" over a literal `true`; on 2026-08-31 the same
+      # staleness on MARKS_RECORD_ARM_ENABLED produced a real misdiagnosis. Pure
+      # source scan, no browser — run it with the other cheap gates.
+      - name: Arm-flag honesty — no comment may contradict its flag's value
+        run: |
+          node tests/arm-flag-honesty.mjs --selftest
+          node tests/arm-flag-honesty.mjs
+
+      # DUPLICATE TOP-LEVEL FUNCTIONS: two declarations of one name in one scope
+      # means the later hoists over the earlier and the earlier body is dead code
+      # that can be edited, reviewed and shipped while changing nothing. Also
+      # pins the eight legitimate cross-IIFE name collisions so a NEW one is loud.
+      - name: Duplicate top-level fns — no dead twin in src/legacy.js
+        run: |
+          node tests/no-duplicate-toplevel-fns.mjs --selftest
+          node tests/no-duplicate-toplevel-fns.mjs
+
+      # QUEST ITEM REWARDS: THE SAME NUMBER IN ALL THREE PLACES.
+      # Every quest item reward used to be PHANTOM — QUEST_DEFS authored it,
+      # completeQuest paid it with addItem() (G.inventory only) and
+      # hr_claim_quest credited gold only, so the next envelope that spoke about
+      # the id erased it. 2026-09-06-quest-item-rewards.sql moves the credit
+      # server-side, which puts the same authored number in three files:
+      # src/data/goal-catalogue.js, src/legacy.js QUEST_DEFS and the SQL seed. A
+      # one-sided edit means a player is promised 30 shrimp and paid 5 — or
+      # promised an item and paid nothing. It also refuses an authored item that
+      # is not server-credited (the phantom class being re-authored) and an id
+      # that exists in no catalogue (authored, shipped, silently skipped).
+      # Credential-free, database-free, seconds. --selftest plants all eight
+      # defect classes and requires each to be caught by a named assertion.
+      - name: Quest reward parity — data, client and server agree, every id real
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/quest-reward-parity.mjs
+          node tests/quest-reward-parity.mjs --selftest
+
+      # THE PLOT-TIER PRICE — the client and the server may never disagree.
+      # b510 re-priced the farm plot tier in GOLD behind a farming level after
+      # production measured farm plants per day falling to ZERO for nine days
+      # (the only way off tier 1 was a 0.1%-drop Farmer's Deed, and turnip is
+      # the only tier-1 crop). That price now exists in FOUR authored places —
+      # the migration's UPDATE, the migration's own self-check, the client
+      # mirror src/core/farm.js PLOT_TIER_PRICES, and the GENERATED deed_cost
+      # catalogue — and a re-price that moves three of them quotes the player a
+      # number the RPC will not charge. It also guards the RULING: every tier's
+      # required farming level must stay STRICTLY BELOW the earliest crop it
+      # unlocks, so the tier can never become the wall again.
+      # Credential-free and text-only (it parses the four files, no replay), so
+      # it costs milliseconds. --selftest plants 9 defects, each of which must
+      # be caught by its NAMED assertion, plus 2 negative controls (a comment
+      # edit and a whitespace edit) that must stay silent; --mutate plants 3 in
+      # the real file text.
+      - name: Plot-tier price parity — client mirror vs server catalogue
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/plot-tier-parity.mjs
+          node tests/plot-tier-parity.mjs --selftest
+          node tests/plot-tier-parity.mjs --mutate
+
+      # R10, THE STANDING RULE: RECOVERY IS NOT FOR SALE.
+      # No trait, unlock, gold-ladder rung, Quartermaster offer, clan bond, perk,
+      # renown rank, glyph or companion may key a mechanical effect on recovery
+      # duration, a recovery skip, or a death counter. Relief is bought with FOOD
+      # (hr_rest) or it is not bought. The catalogues are DATA and grow by rows,
+      # so this fails on the day such a row is WRITTEN rather than the day it is
+      # noticed. Static, credential-free, milliseconds.
+      - name: Recovery relief - nothing in any catalogue sells a way off the floor
+        if: ${{ !cancelled() }}
+        run: node tests/recovery-relief-guard.mjs --selftest
+
+      # A DEATH THE PLAYER WATCHED IS STILL THE SERVER'S.
+      # b509's Recovery Rule held away and not live: the attended death called
+      # stopCombat(), which declares `idle`, and hr_apply stamps
+      # `accrued_to = now()` on any activity delta - so the window the death was
+      # in was closed before anything simulated it. Measured on the QA account:
+      # recovering_until NULL, hp 12/12, no deaths row, no ledger row, while the
+      # sheet counted down from a rung the client had invented out of a LIFETIME
+      # death tally. This guard drives the client fall-state machine headlessly
+      # (up -> pending -> recovering/unconfirmed) and source-scans the three
+      # places the bug can come back. 9 mutations, no credentials, milliseconds.
+      - name: Attended fall - the client asks, the server answers, nobody invents a timer
+        if: ${{ !cancelled() }}
+        run: node tests/attended-fall.mjs --selftest
 
       # -- THE PRESENTATION-LAYER FLOOR (cleanup slice 1) --------------------
       # Three ratchets on the things CLAUDE.md has asserted for months while
@@ -689,27 +859,6 @@ jobs:
           node tests/breakpoint-guard.mjs --report
           node tests/breakpoint-guard.mjs --selftest
 
-      # Needs the Chromium installed above. The gate half is a pure function and
-      # is proven by --selftest without a browser, so a Chromium problem shows up
-      # as exit 2 (harness) rather than as a visual verdict.
-      - name: Presentation floor - visual QA gate (P0 / new P1)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/visual-qa-gate.mjs --selftest
-          node tests/visual-qa-gate.mjs
-
-      # A failing run is far easier to diagnose with the page state attached.
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-failure
-          path: |
-            tests/**/*.png
-            tests/**/*.log
-          if-no-files-found: ignore
-          retention-days: 7
-
       # slice 3 — deletions proven dead (derived censuses, never hand-pinned).
       # Appended at the END of the file on purpose: slice 2 is appending its own
       # steps here too, and two blocks under distinct comments merge cleanly.
@@ -724,3 +873,51 @@ jobs:
         run: |
           node tests/dead-css.mjs --selftest
           node tests/dead-css.mjs
+
+
+  # ── edge ── THE DEPLOYED GATEWAY. One read-only probe against the live Edge
+  # Functions with a garbage token, plus its control. It is alone in a job on
+  # purpose: it is the only step whose result depends on something OUTSIDE this
+  # repository, so a Supabase incident must not be able to present as a failure
+  # of the guards that watch the code.
+  #
+  # MEASURED 2026-09-07: 1/1 green in 0.5 s. Budget = 5, the same floor: twice
+  # half a second is not a timeout, it is a coin flip on a slow runner.
+  edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # node_modules, NO browser. `playwright install --with-deps` is ~2 minutes
+      # and buys nothing for a guard that never opens a page, so it stays in the
+      # in-page job. The install itself runs in every family: a job that fails on
+      # a dependency it did not know it had is a red build with no failing
+      # assertion in it, and that is the class this whole slice is about.
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # IS verify_jwt ACTUALLY ON, ON THE DEPLOYED FUNCTIONS?
+      # supabase/config.toml pins it true for both functions and
+      # bug-report-bridge's own header states it as its contract. On
+      # 2026-08-23 the deployed bug-report-bridge answered its own 400 to a
+      # caller holding `Bearer aaa.bbb.ccc`, while hr-accrue — same header,
+      # same project — was refused by the gateway. A file is not a deployment,
+      # and the existing guard (accrual-engine.mjs) only ever read the file.
+      #
+      # Read-only against production and needs no secret, exactly like the RPC
+      # probe above: one POST per function with a garbage token, plus a control
+      # (the public leaderboard) that MUST succeed, so an unreachable project
+      # is reported as INCONCLUSIVE rather than as a green tick.
+      - name: Edge Functions verify JWT at the gateway
+        if: ${{ !cancelled() }}
+        run: node tests/edge-jwt-gate.mjs --strict

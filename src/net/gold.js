@@ -116,9 +116,9 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
-} from './accrue.js?v=514';
-import { SHOP_OFFERS } from '../data/shops.js?v=514';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=514';
+} from './accrue.js?v=517';
+import { SHOP_OFFERS } from '../data/shops.js?v=517';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=517';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';
@@ -171,8 +171,9 @@ export const MAX_QTY = 1000;
  *  before it becomes a public listing. */
 export const MAX_ASK = 1000000000;
 
-/* Deliberately the accrual switch itself, not a copy of the key. */
-export function isGoldIntentEnabled() { return isServerAccrualEnabled(); }
+/* Was the accrual kill switch itself; retired in b515. Unconditional: the OFF
+   position of that switch is what let gold be minted on the client. */
+export function isGoldIntentEnabled() { return true; }
 
 /* ══════════════════════════════════════════════════════════════════════════
    THE OFFER RESOLVER — an ITEM the shop sells → the OFFER the server prices.
@@ -540,7 +541,7 @@ export function receiptOf(body) {
      unreachable    no answer at all
      timeout        aborted — also no answer
      unconfigured   no endpoint / no token on this device
-     switch-off     the kill switch is off; nothing was sent
+     switch-off     RETIRED (b515) — vocabulary only; nothing produces it now
      unsendable     the client refused its own request before sending it */
 
 export function classifyGoldResponse(status, body) {
@@ -666,7 +667,78 @@ export function applyGoldEnvelope(G, body, ownKey) {
      background sync re-stamps. Same shape applyRecord expects on the reference
      path (`{ok:true, version, state, now}`), which `env` already is. Monotonic
      on `version`, so a slower answer cannot rewind. */
-  try { if (typeof window !== 'undefined' && window.HearthriseRecord) window.HearthriseRecord.applyRecord(G, env); } catch (e) {}
+  /* ⚠ THE **BODY**, NOT THE NARROWED ENVELOPE (b515, QA — a live P1).
+     `envelopeOf()` deliberately keeps only what the BALANCE applier needs
+     (`ok, version, now, state, skills, inventory, equipment`) — and `progress`
+     is not on that list. But `progress` is how a ROOM RUNG and a PROPERTY TIER
+     travel: `hr_state_of` returns `progress[] = {kind:'unlock', key:'room:<id>',
+     value:<rung>}` verbatim on every verb answer, and `record.js pickRooms` is
+     its only reader.
+
+     So passing `env` here made b500's whole design unreachable. `upgradeRoom`
+     sends `room.<id>.<rung>` and, under the armed rooms record, advances NOTHING
+     locally ("the rung advances ONLY on the server's ok"). The ok arrived, the
+     gold moved, the toast said "the Forge is yours" — and the rung stayed
+     UNKNOWN, so the House kept rendering `Build` at the next price until an
+     unrelated hr_load or 90-second settle happened to carry a full envelope. A
+     player who taps again inside that window buys the NEXT rung. That is the
+     b227 double-build report, restored by omission.
+
+     `body` is a superset of `env` — same `version`, same `state`, same `skills`
+     — so this is strictly more of what the server said, never a different
+     reading of it, and `applyRecord`'s own `decodeRecord` re-validates. Falls
+     back to `env` if the body is not an object, so a malformed answer degrades
+     to today's behaviour rather than to none.
+     GUARDED BY: `b227 regression: building a room repaints the House`, which now
+     drives the real gesture against a stubbed transport and asserts the rung
+     lands from the answer. */
+  /* ⚠ AND `ok: true` IS RESTORED ON THE WAY IN (b517 — SECURITY RULING, money
+     path). This is the half b516 got backwards, and the bug it caused is the
+     b395 class restored by omission.
+
+     THE SPLIT: `applyEnvelopeState` above writes `G.gold` ABSOLUTELY from any
+     body that `envelopeOf()` validated — including a REFUSAL body, because
+     settleVerdict routes to the applier on SHAPE, not on the 4xx outcome.
+     `decodeRecord`, meanwhile, refuses `ok !== true` outright. So a refusal that
+     carried state moved the DISPLAYED balance while leaving `_record.stamp.gold`
+     at the OLD fingerprint — and a stamped-but-mismatched field is exactly what
+     `recordValue` reports as `source:'client-overwrote'`. gold IS armed (no
+     `armed()` on its registry entry, master switch on), so that answer makes
+     `balanceOf('gold')` UNKNOWN, `canAfford` fail-closed, and every Buy / Sell /
+     List control disable until an unrelated hr_load or the 90s settle re-stamps.
+
+     WHY BELIEVING A REFUSAL IS CORRECT HERE, AND IS NOT THE CLIENT AUTHORING
+     ANYTHING: a refusal envelope is a DELIBERATE reconciliation aid, not a
+     leftover. `supabase/functions/hr-accrue/envelope.js refusalBody()` attaches a
+     **fresh `hr_state_of` read** taken ON the refusal path — precisely because
+     the refusal that most needs one is `version_conflict`, which means BY
+     DEFINITION that the pre-call read was stale. The `state`/`version`/`progress`
+     in a refusal body is therefore CURRENT SERVER TRUTH about this character; it
+     is simply not a receipt for the verb. The verb's outcome is settleVerdict's
+     business (the prediction is rolled back or abandoned there, unchanged by this
+     line). The RECORD's business is "what does the server say the value is", and
+     the answer in hand is the newest one that exists.
+
+     THE GATE IS `env`, AND IT IS THE WHOLE SAFETY ARGUMENT. We only reach this
+     line when `envelopeOf(body)` returned non-null — a finite `version` plus
+     object `state`, `skills` and `inventory`. A stateless refusal (the shape and
+     pre-database codes, which `refusalCarriesState` answers false for) has none
+     of that, so `applyGoldEnvelope` returns null at the top: nothing is written,
+     nothing is stamped, `lastVersion` does not move. The `ok:true` we add is a
+     statement about the ENVELOPE (validated, monotonic, freshly read), never
+     about the verb.
+
+     `applyRecord` is still monotonic on `version` and still fail-closed per
+     field, so an older or gappy answer cannot rewind a known field.
+     GUARDED BY: `b517 regression: a refusal envelope is reconciliation, not a
+     receipt` (three cases + the no-envelope case), mutation-proved by dropping
+     the `ok: true` spread. */
+  try {
+    if (typeof window !== 'undefined' && window.HearthriseRecord) {
+      const forRecord = (body && typeof body === 'object' && !Array.isArray(body)) ? body : env;
+      window.HearthriseRecord.applyRecord(G, { ...forRecord, ok: true });
+    }
+  } catch (e) {}
   return written;
 }
 
@@ -801,9 +873,10 @@ export function getGoldState() {
  *   refusal seven calls earlier.
  *
  * REVERSED, not merely dropped, because nothing was sent: there is no server
- * effect for the local write to be a prediction OF. The one exception is the
- * kill switch going off between the payment and the send — with the switch off
- * the local payment is the real payment, so that one is dropped and kept.
+ * effect for the local write to be a prediction OF. The one exception WAS the
+ * kill switch going off between the payment and the send; that switch is retired
+ * (b515), so `switch-off` is never produced and the `dropPrediction` arm below is
+ * vocabulary-only — the rollback contract's shape, not a fork on a flag.
  */
 function inert(outcome, verb, reason, detail, key) {
   if (key) {
@@ -831,7 +904,6 @@ function inert(outcome, verb, reason, detail, key) {
  */
 export async function sendGoldIntent(req, key) {
   const verb = req && req.verb;
-  if (!isGoldIntentEnabled()) return inert('switch-off', verb, null, null, key);
   if (!config) return inert('unconfigured', verb, 'no_endpoint', null, key);
   const token = tokenOf();
   if (!token) return inert('unconfigured', verb, 'no_token', null, key);

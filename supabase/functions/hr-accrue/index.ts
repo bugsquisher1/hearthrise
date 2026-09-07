@@ -1236,6 +1236,53 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         // explanation files a bug, and the honest answer is "it kept you alive
         // for the whole twelve hours".
         foodEaten: out.foodEaten,
+        /* ── WHY THE RUN ENDED BEFORE THE ABSENCE DID (b345, restored) ──────
+           The engine has stated all five of these since the artisan/gather
+           simulations landed (`src/core/artisan-sim.js` returns `burnt`,
+           `stoppedBy`, `stoppedById`, `stoppedSkill`, `stoppedPerHour`;
+           `src/core/skill-sim.js` returns the first four of those, gathering
+           consuming nothing) and `out.summary` spreads the whole span summary —
+           they were dropped HERE, at the response boundary, and nowhere else.
+           The cost is the exact bug b345 exists to have deleted: eight Raw
+           Shrimp against an eight-hour absence earns for 31 seconds and the
+           card reports eight hours of honest pay with nothing about the stop.
+
+           PASS-THROUGH ONLY. Nothing is computed, inferred or defaulted to a
+           guess: a path that did not state a stop sends `null`/`0`, which the
+           renderers read as "say nothing" (home-dashboard.js `awayStop` returns
+           null on a falsy `stoppedBy`). In particular the server must NEVER
+           derive the stop from `paidMs < awayMs` — tick flooring makes that
+           inequality true on a perfectly ordinary night.
+
+           A STOP IS A STRING OR IT IS NOTHING, for the same reason the client
+           translator says so: a non-string truthy value reaches a renderer as
+           "something stopped" with nothing to say about it, which is worse than
+           silence. `burnt` and `stoppedPerHour` are counts, so they floor at 0. */
+        burnt: Math.max(0, Math.floor(Number(out.summary.burnt) || 0)),
+        stoppedBy: typeof out.summary.stoppedBy === 'string' && out.summary.stoppedBy
+          ? out.summary.stoppedBy : null,
+        stoppedById: typeof out.summary.stoppedById === 'string' && out.summary.stoppedById
+          ? out.summary.stoppedById : null,
+        stoppedSkill: typeof out.summary.stoppedSkill === 'string' && out.summary.stoppedSkill
+          ? out.summary.stoppedSkill : null,
+        stoppedPerHour: Math.max(0, Math.floor(Number(out.summary.stoppedPerHour) || 0)),
+        /* ── THE RECOVERY ROWS (Recovery Rule rev.2) ────────────────────────
+           Stated by `src/core/combat-sim.js` (:723-:737) and read by
+           `summaryFromAway` since b341 — but never sent, so the headline
+           first-night mechanic rendered as "0 deaths" on every server-stated
+           receipt and a night that ended four falls in looked identical to one
+           that ran clean. `recoverLadder` is the ladder AS CHARGED, one entry
+           per fall, and is sent verbatim because a card that regenerated the
+           doubling from a count would be wrong (and harsher than the truth) on
+           every night that met the novice clamp or the 64-minute cap. It is
+           bounded by the same death cap the simulation is (~20 entries on the
+           worst night), so it cannot grow the receipt without bound. */
+        deaths: Math.max(0, Math.floor(Number(out.summary.deaths) || 0)),
+        recoverMs: Math.max(0, Math.floor(Number(out.summary.recoverMs) || 0)),
+        recoverRemainingMs: Math.max(0, Math.floor(Number(out.summary.recoverRemainingMs) || 0)),
+        recoverLadder: Array.isArray(out.summary.recoverLadder)
+          ? out.summary.recoverLadder.map((v: any) => Math.max(0, Math.floor(Number(v) || 0)))
+          : [],
         blessed: out.summary.blessed,
         buffsPaused: out.summary.buffsPaused,
         featuredMs: out.summary.featuredMs,

@@ -300,21 +300,15 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + 'gold-sites.js as `seam:*`; carried here so a reader of the gem census is not left to '
       + 'wonder whether the choke point was overlooked.',
   },
-  {
-    id: 'src/legacy.js#loadLocal',
-    kind: 'init', status: 'none',
-    why: '`G.gems = G.gems || 0` — a default so the topbar has a number to render, and it is '
-      + 'already behind clientMayWriteRecordField so under the arm it does not even do that '
-      + '(balance.js renders a pending glyph instead). Normalisation, not a movement: it can only '
-      + 'ever write the value that is already there.',
-  },
-  {
-    id: 'src/multi-character.js#unlockSlot@2',
-    kind: 'rollback', status: 'none',
-    why: '`G.gems = prevGems` — the b371 atomicity rollback, undoing this client\'s OWN optimistic '
-      + 'debit when the write did not become durable. It restores a value it captured itself and '
-      + 'can never move gems net-positive. Removing it would be the bug.',
-  },
+  /* `src/legacy.js#loadLocal` STRUCK 2026-09-07 (b515): the `G.gems = G.gems || 0`
+     normalisation went with the blob read. loadLocal reads no save. */
+  /* `src/multi-character.js#unlockSlot@2` STRUCK 2026-09-07 (b515). It was the
+     b371 atomicity rollback (`G.gems = prevGems`), undoing this client's own
+     optimistic debit when the LOCAL blob write did not become durable. There is
+     no local write left to fail: the entitlement rides the residue save and the
+     gem spend is reconciled from the envelope, so the read-back proof and its
+     refund arm are deleted. Nothing replaces it — a rollback with no failure to
+     roll back would be a second writer of a server-owned balance. */
   {
     id: 'src/net/gold.js#reconcilePredictions',
     kind: 'server', status: 'none',

@@ -134,6 +134,143 @@ check_invariant() {
   return "$ok"
 }
 
+# ════════════════════════════════════════════════════════════════════════
+# --selftest — THE MUTATION PROOF FOR --check
+#
+# `bash bump-version.sh --check` is a CI gate, and until now it was the only
+# one with no way to demonstrate it can fail. That matters more here than
+# almost anywhere else, because this rule is ENTIRELY made of greps whose
+# scoping has been narrowed four times (b332, b493, b511) to stop false
+# positives — and every narrowing is a chance to have narrowed it into
+# blindness. b511 is the proof: `?v=88` sat in src/icon-swap.js for 400+ builds
+# while --check said OK, because the pattern required a `.ext` before the query.
+#
+# So: copy the tree to a scratch dir, plant ONE real defect, run the REAL
+# check_invariant against it, and require the SPECIFIC message that owns that
+# defect. Nothing in the working tree is touched — the copy is thrown away.
+# Each mutation is a defect this repo has actually shipped or narrowly avoided;
+# none is a syntax break.
+#
+#   bash bump-version.sh --selftest
+# ════════════════════════════════════════════════════════════════════════
+selftest() {
+  local orig scratch bad=0 cur
+  orig="$PWD"
+  cur="$(grep -oE 'cache:[[:space:]]*[0-9]+' src/build-info.js | grep -oE '[0-9]+')"
+  echo "bump-version --selftest: each mutation must turn --check RED (current build ${cur})"
+  echo
+
+  # id | human reason | the mutation (run inside the scratch copy) | required message
+  run_case() {
+    local id="$1" why="$2" mutate="$3" want="$4" out rc
+    scratch="$(mktemp -d)"
+    cp -r "$orig/src" "$scratch/src"
+    cp "$orig/index.html" "$scratch/index.html"
+    ( cd "$scratch" && eval "$mutate" )
+    set +e
+    out="$( cd "$scratch" && check_invariant 2>&1 )"; rc=$?
+    set -e
+    rm -rf "$scratch"
+    if [[ "$rc" == "0" ]]; then
+      echo "  FAIL  ${id} — NOT CAUGHT: --check stayed GREEN with the defect planted"
+      bad=$((bad+1))
+    elif ! grep -qF "$want" <<<"$out"; then
+      echo "  FAIL  ${id} — went red for the WRONG reason (wanted: ${want})"
+      sed 's/^/          /' <<<"$out"
+      bad=$((bad+1))
+    else
+      echo "  ok    ${id} — caught"
+    fi
+    echo "        ${why}"
+  }
+
+  # THE CLEAN CONTROL. A rule that is red at rest is red for everything, and
+  # every "caught" below would be an artefact rather than a proof.
+  scratch="$(mktemp -d)"
+  cp -r "$orig/src" "$scratch/src"; cp "$orig/index.html" "$scratch/index.html"
+  set +e; ( cd "$scratch" && check_invariant >/dev/null 2>&1 ); local crc=$?; set -e
+  rm -rf "$scratch"
+  if [[ "$crc" == "0" ]]; then
+    echo "  ok    CLEAN control is GREEN (an unmutated copy of the tree passes)"
+  else
+    echo "  FAIL  CLEAN control is RED — the mutations below prove nothing"
+    bad=$((bad+1))
+  fi
+  echo "        the copy the mutations are planted into must itself be clean"
+
+  run_case "B1-stale-index-tag" \
+    "a merge brings index.html in at the branch's build number; the browser then loads that file stale for ~10 min after deploy" \
+    "sed -i -E '0,/(src|href)=\"([^\"]*\\.[a-z]+)\\?v=[0-9]+\"/s//\\1=\"\\2?v=1\"/' index.html" \
+    "index.html has stale versions"
+
+  run_case "B2-stale-esm-specifier" \
+    "THE b493 DOUBLE-LOAD: a specifier two builds stale is a DIFFERENT module key, so the module is fetched and evaluated twice with two copies of its state (six modules ran as doubles on 492->493)" \
+    "sed -i \"0,/\\.js?v=${cur}/s//.js?v=1/\" src/main.js" \
+    "src/**/*.js has stale versions"
+
+  run_case "B3-bare-quoted-version-pin" \
+    "THE b511 CACHE LOCK: a quoted BARE ?v= with no extension in front of it (BASE + name + '?v=88') is invisible to the rewrite, so no bump can ever move it. It survived 400+ builds" \
+    "printf \"%s\\n\" \"const SPRITE = base + name + '?v=88';\" >> src/build-info.js" \
+    "QUOTED ?v= literal"
+
+  run_case "B4-relative-import-loses-its-version" \
+    "an unversioned relative import serves the previous build's module after deploy — the gap b148 closed, and the one a bump cannot repair because there is no number to rewrite" \
+    "sed -i \"0,/\\.js?v=${cur}'/s//.js'/\" src/main.js" \
+    "relative imports with no ?v="
+
+  run_case "B5-build-info-moved-alone" \
+    "somebody edits BUILD.cache by hand instead of running this script: build-info claims a build the tree is not at, which is the half-stale release the whole invariant exists to prevent" \
+    "sed -i -E \"s/(cache:[[:space:]]*)[0-9]+,/\\19999,/\" src/build-info.js" \
+    "index.html has stale versions"
+
+  run_case "B6-build-info-unreadable" \
+    "the shape of build-info.js changes and the number cannot be read. This must be a LOUD failure: a check that silently compares against an empty string would call every version stale, or nothing" \
+    "sed -i -E 's/cache:[[:space:]]*[0-9]+,/cacheNumber: undefined,/' src/build-info.js" \
+    "could not read cache number"
+
+  # ── THE OTHER HALF: the scoping must not have been narrowed into blindness,
+  # and it must not have been widened into noise either. These plant shapes the
+  # rule is RIGHT to ignore, and require --check to stay GREEN. Without them the
+  # cheapest way to pass every case above is a grep that flags everything.
+  stay_green() {
+    local id="$1" why="$2" mutate="$3" out rc
+    scratch="$(mktemp -d)"
+    cp -r "$orig/src" "$scratch/src"; cp "$orig/index.html" "$scratch/index.html"
+    ( cd "$scratch" && eval "$mutate" )
+    set +e; out="$( cd "$scratch" && check_invariant 2>&1 )"; rc=$?; set -e
+    rm -rf "$scratch"
+    if [[ "$rc" != "0" ]]; then
+      echo "  FAIL  ${id} — FALSE POSITIVE: --check went red on a shape it must ignore"
+      sed 's/^/          /' <<<"$out"
+      bad=$((bad+1))
+    else
+      echo "  ok    ${id} — correctly ignored"
+    fi
+    echo "        ${why}"
+  }
+
+  stay_green "B7-unquoted-prose-in-a-src-comment" \
+    "legacy.js's kill-switch comment DESCRIBES a stale specifier (e.g. legacy.js?v=111). Unquoted prose is not a specifier, and flagging it is how this rule gets switched off by whoever is trying to ship" \
+    "printf '%s\\n' '// e.g. a browser stuck on legacy.js?v=111 after a bad deploy' >> src/build-info.js"
+
+  stay_green "B8-node-only-import-under-tests" \
+    "b332: a ?v= outside src/** has no job to do and must not be demanded. tests/ and supabase/functions/ are not served to a browser; versionQueryGuard owns that half" \
+    "mkdir -p othertests && printf \"%s\\n\" \"import { x } from '../src/core/pacing.js';\" > othertests/probe.mjs"
+
+  echo
+  if [[ "$bad" != "0" ]]; then
+    echo "bump-version --selftest FAILED — ${bad} unproven" >&2
+    return 1
+  fi
+  echo "bump-version --selftest PASSED — clean control green, 6/6 mutations caught, 2/2 ignorable shapes ignored."
+  return 0
+}
+
+if [[ "$new" == "--selftest" ]]; then
+  selftest
+  exit "$?"
+fi
+
 # ── --check: assert the three places agree, change nothing ──────────────
 if [[ "$new" == "--check" ]]; then
   check_invariant

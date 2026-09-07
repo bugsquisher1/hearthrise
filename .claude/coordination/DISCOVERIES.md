@@ -2352,3 +2352,209 @@ away a boss fight.
 
 Also standing red in every run, unrelated and already known: `2026-09-06: the market backend opens no
 Realtime channel` — "the Supabase market backend is not published — this test would pass vacuously".
+
+---
+
+## 2026-09-07 · QA · **P1** — the welcome-back receipt is under-reported on the server path: SIX honesty fields the renderers read are never sent
+
+Found while re-pointing the 31 away tests off the deleted local engine (b515). Not a b515
+regression — b515 only removed the client-side simulation that was FILLING these fields inside the
+test harness, which is what had been masking a live gap since the b454 accrual cutover. On a real
+signed-in device the local path never ran either (the b353 switch defaulted ON), so this has been
+the player-facing behaviour for ~60 builds.
+
+**THE GAP, measured on the shipped bytes.** `supabase/functions/hr-accrue/index.ts` builds the
+`away:` payload (~line 1163) out of exactly 23 keys:
+
+    grantMs capped awayMs paidMs unpaidMs windowFrom windowTo tickMs kills crits died diedTo
+    autoEat foodEaten blessed buffsPaused featuredMs featuredDropMult gold xp items levelUps events
+
+`src/net/accrue.js summaryFromAway` — the ONE translator from that payload to
+`G.lastOfflineSummary` — reads, and therefore silently zeroes:
+
+| field | what the renderer does with it | what the player sees today |
+|---|---|---|
+| `deaths` | `home-dashboard.js` "fell N times" | always 0 |
+| `recoverMs` | "8m spent recovering" | always 0 |
+| `recoverRemainingMs` | "still 1:47 to go" | always 0 |
+| `recoverLadder[]` | the ladder as CHARGED, one entry per fall | always empty |
+| `burnt` | `legacy.js` "· N burnt on the fire" | hardcoded `burnt: 0` in summaryFromAway |
+| `buffPaidMs` / `buffsExpired[]` | AWAY-9's coverage report | 0 / empty |
+
+…and `stoppedBy` / `stoppedById` are read by **four** client sites
+(`home-dashboard.js` :531 :536 :625 :758, `legacy.js` :14295 :14298 :14392) and are neither sent by
+the server NOR copied by `summaryFromAway`. The engine HAS them — `accrual.js` :3158 journals
+`meta.stopped` / `meta.out_of` into `game_events`, and the artisan/gather summaries carry
+`stoppedBy` + `stoppedById` — they are dropped at the response boundary.
+
+**WHY THIS IS A P1 AND NOT A COSMETIC.** It is the b345 bug, restored in full, on the only path
+that runs:
+
+  · Starter cook, 8 Raw Shrimp on `cook_shrimp`, away 8h. The run earns for ~31 SECONDS
+    (0.107% of the night) and then the bag is empty. The card and the toast report eight hours of
+    honest pay and say nothing about the stop. b345 exists because a designer hit exactly this and
+    could not tell why the night was empty.
+  · Recovery rev.2 is the headline first-night mechanic and its whole player-facing surface is the
+    death/recovery rows. On a server-stated receipt they render as "0 deaths", so a night that ended
+    four falls in looks identical to one that ran clean.
+
+**REPRO (no account needed).** In the console on any build:
+`HearthriseAccrual.summaryFromAway({grantMs:3.6e6, kills:1, deaths:4, recoverMs:480000, burnt:11,
+stoppedBy:'supplies', stoppedById:'shrimp'}, {version:1})` → `deaths:4, recoverMs:480000` survive
+(they ARE read), but `burnt:0` and no `stoppedBy` at all. Then check `index.ts`: the server never
+puts `deaths`/`recoverMs`/`burnt`/`stoppedBy` on the wire in the first place, so on a real envelope
+every one of them is the default.
+
+**DISPOSITION — routed, NOT fixed here.** Two halves and both are outside the QA lane:
+  1. **Backend / Systems (edge):** add `stoppedBy`, `stoppedById`, `deaths`, `recoverMs`,
+     `recoverRemainingMs`, `recoverLadder`, `burnt`, `buffPaidMs`, `buffsExpired` to the `away`
+     payload in `index.ts`. `out.summary` already holds all of them.
+  2. **Systems (client):** `summaryFromAway` must carry `stoppedBy`/`stoppedById` through and stop
+     hardcoding `burnt: 0`. A client read alone changes nothing — it needs (1).
+Requires an edge redeploy; it is a receipt/telemetry surface, not a value movement, so it is not a
+Security-GO surface on its own.
+
+**TEST COVERAGE, stated honestly.** `B345-1` is re-pointed so that the two halves it CAN still hold
+are held — the ENGINE states the stop (`simulateArtisanSpan` → `stoppedBy:'supplies'`,
+`stoppedById:'shrimp'`, `paidMs === 8 × interval`) and the THREE SURFACES render it when the receipt
+carries it (toast / away card / welcome modal — b345's own M2, M3 and M4 mutations). What is NOT
+covered, and is named in the test where a reader will meet it, is the WIRE between them. Closing
+that gap should land with a test that drives `applyServerEnvelope` on a real envelope and asserts
+the card names the stop — which is red today and is the reason this entry exists.
+
+### …and what changed while filing it (same entry, 2026-09-07)
+
+**FIXED HERE (client half, `src/net/accrue.js summaryFromAway`).** Seven fields the translator was
+dropping now come off the payload, stated and never inferred:
+`paidMs`, `burnt` (was a hardcoded `0`), `stoppedBy`, `stoppedById`, `stoppedSkill`,
+`stoppedPerHour`. Each is read by a shipped renderer (`home-dashboard.js` :524 :531 :536 :758,
+`legacy.js` :14295 :14298) and each was reaching them as `undefined`. Guarded by `B345-1`, which now
+drives the real `simulateArtisanSpan` → `applyServerEnvelope` → `summaryFromAway` chain and asserts
+the away card names the bench, the item, the span that earned and the consumption rate.
+`deaths` / `recoverMs` / `recoverRemainingMs` / `recoverLadder` were already read correctly and are
+guarded by the re-pointed `b341`.
+
+**STILL OPEN, and both need an owner:**
+
+1. **P1 · Backend (edge) — the payload.** `hr-accrue/index.ts` (~1163) still does not SEND
+   `stoppedBy`, `stoppedById`, `stoppedSkill`, `stoppedPerHour`, `burnt`, `deaths`, `recoverMs`,
+   `recoverRemainingMs`, `recoverLadder`, `buffPaidMs` or `buffsExpired`. `out.summary` holds every
+   one of them. Until this ships the client fix above degrades honestly (says nothing) instead of
+   dishonestly (claims a full night) — but the player still cannot see why an empty night was empty.
+   Needs an edge redeploy; no DB change, no value movement, so not a Security-GO surface on its own.
+
+2. **P2 · Systems + Game Designer — b515 deleted the b345 STOP TOAST and the rev.2 fall/recovery
+   toast, with no replacement.** `7c84c111` removed processOffline's local receipt block, which was
+   the only code that produced *"Cooking ran out of Raw Shrimp 31s in; the remaining 7h 59m paid
+   nothing."* and *"…fell 3× and got back up, 6m spent recovering."* The server-path toast is
+   `accrue.js receiptSentence` and it has never had either clause — for a stopped night it prints
+   *"⏰ Away 8h — the server credited +8 items, +174 XP, +0 gold"*, which is verbatim the sentence
+   b345 exists to have deleted. It needs a `skillLabel`/`itemLabel` injection beside the existing
+   `foeLabel` (the module is pure and must not reach for catalogues). Named in `B345-1` where the
+   assertion used to be, so it cannot be forgotten quietly. On LIVE nothing regressed — the deleted
+   toast only ever fired on the client-authored path, which no signed-in device took — so this is
+   "the good toast has never shipped on the path that runs", not "b515 broke a live surface".
+
+3. **P2 · Systems — the welcome-back receipt does not survive a reload.** `lastOfflineSummary` is
+   not on `RESIDUE_FIELDS` and is not projected by `hr_state_of`, and with the local blob retired
+   there is nothing else carrying it. The absence is already paid, so no new away envelope rebuilds
+   it: the "durable" away card is a session surface. Either it joins the residue or the copy should
+   stop calling itself durable. `B345-1`'s round-trip assertion is retired against this entry.
+
+---
+
+## 2026-09-07 · QA · **P2** — b313 is back on the path that runs: a server-stated companion level-up leaves a stale doll
+
+Found while re-pointing the companion tests off `pinClientAuthoritative`. Same shape as the receipt
+entry above and, again, not a b515 regression on LIVE — b515 only removed the client-side
+implementation that had been masking it inside the harness.
+
+**THE ORIGINAL BUG (paione, b313).** The equipment doll's Companion pane is only rebuilt when the
+doll is, so after a pet LEVELS UP the pane kept showing the old level and stats while inventory and
+combat — which read the live bonus on every call — already showed the higher numbers. The fix was a
+`refreshAllDolls()` (and a `renderStable()`) on the level change inside
+`src/features/companions.js awardCompanionXp`.
+
+**WHY IT IS BACK.** `awardCompanionXp` returns on its first two lines
+(`COMPANION_XP_SERVER_BACKED`, then `blobRetired()` — which b515 made the literal `true`), so the
+level-up branch and its repaint are UNREACHABLE for every caller. The level now arrives through
+`accrue.js reconcileCompanions`, which rebuilds `G.companions.xp` from the envelope and repaints
+nothing. Its caller `applyServerEnvelope` calls `refreshAll()`, which is `updateTopbar()` plus the
+ACTIVE TAB's renderer (legacy.js :7377) and never touches the dolls.
+
+**REPRO.** Equip a pet one XP shy of a level. Let a settle land that crosses it. Inventory and combat
+show the new bonus; the Companion pane on the equipment doll still says the old level until
+something else rebuilds the doll.
+
+**DISPOSITION — routed to Systems.** The level-up repaint belongs on the reconcile: compare the
+per-id level before/after inside `reconcileCompanions` (or in `applyServerEnvelope` around it) and
+fire the same two calls `awardCompanionXp` used to. `awardCompanionXp`'s now-unreachable level-up
+branch should go with it rather than being left as a second implementation.
+
+**TEST COVERAGE.** `b313` is re-pointed to assert what IS live — the client authors no companion XP,
+and a server-stated level change moves the live bonus that inventory and combat read — with the
+repaint gap named in the test where a reader will meet it. It is not asserted, because asserting a
+repaint nothing performs is a red that teaches the next reader to delete the assertion.
+
+### Also, same sweep · **P3** — two orphans b515 left behind
+
+`window.simulateAwayCombat` (legacy.js ~6386) and `withOfflineReplay`/`_offlineReplay` have no
+production caller now: `processOffline`'s local replay was their only one. `simulateAwayCombat` is a
+~55-line wrapper over `simulateSpan` that several tests were still driving, which is coverage of dead
+code — the re-pointed away tests drive `simulateSpan` directly instead. `window._applyCatchup`
+(legacy.js :15125) is worse than orphaned: it calls `addXp`/`addItem` off a client-side ESTIMATE, so
+it is a loaded gun with no trigger — the injector that used to call it was deleted in b342 and the
+b214 double-pay is exactly what re-attaching it would recreate. All three should be deleted rather
+than left unreferenced; `tests/dead-exports.mjs` is the natural home for the guard.
+
+---
+
+## 2026-09-07 · QA · **P1 (LIVE, player-visible)** — a room or property purchase never shows as owned on its own answer: `applyGoldEnvelope` drops `progress`
+
+**⚠ THIS ONE IS FIXED IN THIS BRANCH (one line, `src/net/gold.js`), and it sits on the gold-verb
+path, so it wants a Systems read and a Security glance before it ships even though it moves no
+value.** Filed here in full because the fix is small and the reasoning is not.
+
+**THE DEFECT.** `src/net/gold.js applyGoldEnvelope` ended with:
+
+    window.HearthriseRecord.applyRecord(G, env);        // env = envelopeOf(body)
+
+`envelopeOf()` deliberately narrows a verb answer to what the BALANCE applier needs —
+`{ok, version, now, state, skills, inventory, equipment}`. `progress` is not on that list. But
+`progress` is *how a room rung and a property tier travel*: `hr_state_of` returns
+`progress[] = {kind:'unlock', key:'room:<id>', value:<rung>}` verbatim (2026-08-11-apply-engine.sql
+~254), `hr_unlock_buy`'s answer is `{...res}` so it carries it, and `record.js pickRooms` is its only
+reader. So the rung was stripped one line before the only function that could have applied it.
+
+**WHY THAT IS b227's DOUBLE-BUILD REPORT, RESTORED BY OMISSION.** b500 moved the rung write to the
+server on purpose — `upgradeRoom` sends `room.<id>.<rung>` and, under the armed rooms record,
+`clientMayWriteRecordField('rooms')` is false so it advances NOTHING locally ("the rung advances ONLY
+on the server's ok"). The ok arrives, the gold moves, the toast says *"the Forge is yours"* — and the
+rung stays UNKNOWN, so `renderHouse` keeps drawing **Build** at the next price. A player who taps
+again inside that window buys the NEXT rung. The window closes only when an unrelated `hr_load` or a
+90-second settle happens to carry a full envelope, so it is up to ~90 seconds of a lit Build button
+on a room that has already been paid for. That is the exact report b227 exists to guard, and the
+guard could not see it because the test was running client-authoritative and writing `G.rooms`
+itself.
+
+**THE FIX.** Pass the BODY, falling back to `env` when the body is not an object:
+
+    const forRecord = (body && typeof body === 'object' && !Array.isArray(body)) ? body : env;
+    window.HearthriseRecord.applyRecord(G, forRecord);
+
+`body` is a superset of `env` — same `version`, same `state`, same `skills` — so this is strictly
+more of what the server said, never a different reading of it, and `applyRecord`'s own
+`decodeRecord` re-validates and stays monotonic on `version`. It cannot mint: `pickRooms` reads the
+server's own rows and the client supplies nothing.
+
+**MUTATION PROVEN.** Reverting the line to `const forRecord = env;` turns
+`b227 regression: building a room repaints the House` red with *"the build did not land"*; restoring
+it turns it green. The test drives the real `upgradeRoom` against a stubbed transport, asserts the
+intent is exactly one `unlock_buy` naming `room.forge.1` with no price field, and reads the balance
+back as the SERVER's number (deliberately not `before - 800`, so it cannot pass on a client debit).
+
+**ROUTED:** Systems Engineer to review the applier change; Security for a glance because it is on the
+gold-verb path (it is an APPLY-what-the-server-sent change, not a value movement). Worth checking
+whether any other verb answer carries a field `envelopeOf` drops — `farm`, `companions` and
+`hero_slots` are all on `hr_state_of` and all reconciled elsewhere, so `progress` may not be the only
+one.

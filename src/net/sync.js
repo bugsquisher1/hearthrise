@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=514';
+//   import { setupSync } from './net/sync.js?v=517';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,23 +16,23 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=514';
+import { on, snapshot } from './events.js?v=517';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=514';
+import { resolveActiveSlot } from './accrue.js?v=517';
 /* Read-only, for the cloud-save self-test's report. A balance the client has
    not been told is a different fact from a balance of zero. */
-import { balanceState } from './balance.js?v=514';
-/* ── THE CAPSTONE SAVE PATH (blob-retire, DORMANT) ───────────────────────────
-   Under the capstone the authoritative snapshot() blob is NOT uploaded — the
-   authority fields flow through their own server writes (record / RPCs / accrual)
-   and only the self-only residue is persisted, via putClientState. isBlobRetired
-   is the one flag; buildResiduePatch is the census→patch. No cycle: neither
-   capstone.js nor client-state.js imports sync.js. */
-import { isBlobRetired, buildResiduePatch } from './capstone.js?v=514';
-import { putClientState } from './client-state.js?v=514';
+import { balanceState } from './balance.js?v=517';
+/* ── THE CAPSTONE SAVE PATH (blob-retire — the ONLY path since b515) ─────────
+   The authoritative snapshot() blob is NOT uploaded: the authority fields flow
+   through their own server writes (record / RPCs / accrual) and only the
+   self-only residue is persisted, via putClientState. buildResiduePatch is the
+   census→patch. No cycle: neither capstone.js nor client-state.js imports
+   sync.js. */
+import { buildResiduePatch } from './capstone.js?v=517';
+import { putClientState } from './client-state.js?v=517';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -1020,105 +1020,62 @@ async function snapshotIfDue(force, keepalive) {
     if (!decideUploadAllowed(claimView, getInstanceId(), Date.now())) return false;
   }
   lastSnapshotAt = now;
-  /* ── CAPSTONE: SHIP RESIDUE, NOT THE BLOB (blob-retire, DORMANT) ─────────────
-     Armed, we do NOT upsert the authoritative snapshot() blob — under the capstone
-     that blob is retired, and re-uploading it would put a client-authored copy of
-     server-owned fields back on the wire (the two-sources bug record.js exists to
-     prevent). Instead ship ONLY the self-only residue via hr_put_client_state; the
-     authority fields are already persisted by their own server writes. The throttle
-     / auth / claim gates above still apply (residue rides the same cadence). A
-     failed put is NON-FATAL (residue is self-only) — it just retries next cadence,
-     exactly as putClientState documents. While DORMANT this branch is never taken
-     and the blob upsert below runs byte-for-byte as today. */
-  if (isBlobRetired()) {
-    const patch = buildResiduePatch(window.G);
-    if (!patch || !Object.keys(patch).length) return false;
-    const base = String(config.snapshotEndpoint || '').replace(/\/rest\/v1\/.*$/, '');
-    const anonKey = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
-    const jwt = typeof config.authToken === 'function' ? config.authToken() : config.authToken;
-    if (!base || !anonKey || !jwt) return false;   // not configured → wait, never author locally
-    /* b459 (suite catch): this is the ONE periodic write the armed game still
-       makes, and a bare fetch inside putClientState lost b371's gateway retry
-       AND b331's auth accounting (a 401 never latched the dead token, never
-       fired onAuthExpired). Inject fetchWithAuthRetry as the transport so the
-       capstone save gets the same hardening as every other write. It returns
-       null on a definitive failure — map that to a rejected fetch so
-       putClientState reports {ok:false, error:'transport'} as designed. */
-    /* Q-1 — THE TAB-CLOSE SAVE MUST SURVIVE THE TAB CLOSING.
-       `keepalive` is threaded into the residue write for exactly the reason the
-       blob upsert below sets it (see the `if (keepalive)` line there): this
-       branch RETURNS before that line, so from the capstone onward the
-       pagehide/visibility-hidden save was a plain fetch that the browser
-       cancels on teardown — up to a full 60s cadence of self-only progress
-       (bestiary, achievements, quests, dungeon cooldowns, buffs, the
-       daily-reward shown-marker) lost on EVERY tab close and every mobile
-       backgrounding. putClientState / buildClientStatePutRequest owns the flag
-       and the 64 KiB keepalive body ceiling; the cadence, the allowlist and the
-       patch are untouched.
-       retryWrite mirrors the blob path (`retryWrite: !keepalive`): on the
-       parting shot there is no page left to sleep 500ms in, and a second
-       keepalive body would double-spend the browser's small inflight quota. */
-    const put = await putClientState(patch, {
-      url: base, anonKey, jwt, pinnedSlot: config.slot, keepalive: !!keepalive,
-      fetch: async (u, init) => {
-        const res = await fetchWithAuthRetry(u, () => init, 'client_state', { retryWrite: !keepalive });
-        if (!res) throw new Error('transport_failed');
-        return res;
-      },
-    });
-    const okc = !!(put && put.ok);
-    noteSaveOutcome(okc, okc ? null : (put && put.error) || 'client_state_put_failed', now);
-    if (okc && window.G) { window.G.cloudSyncedAt = now; lastCloudSaveAt = now; }
-    return okc;
-  }
-  const snap = snapshot(window.G);
-  if (!snap) return false;
-  // Stamp the derived, server-sortable fields (totalLevel, combatLevel, renown,
-  // bossKills). See derivedSnapshotFields for why each one has to be written
-  // down rather than computed server-side.
-  Object.assign(snap, derivedSnapshotFields(config, window));
-  // b301: stamp the writing device so any client can detect a concurrent session
-  // on the same account. `__`-prefixed so snapshot() never re-reads it off G and
-  // restore strips it before merge.
-  snap.__device = getDeviceId();
-  // Always cache locally for offline-load
-  try { localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snap)); } catch {}
-  if (!navigator.onLine) return false;
+  /* ── SHIP THE RESIDUE, NOT THE BLOB (the capstone, unconditional since b515) ──
+     We do NOT upsert the authoritative snapshot() blob. That blob is retired:
+     re-uploading it would put a client-authored copy of server-owned fields back
+     on the wire (the two-sources bug record.js exists to prevent). Ship ONLY the
+     self-only residue via hr_put_client_state; the authority fields are already
+     persisted by their own server writes. The throttle / auth / claim gates above
+     still apply (residue rides the same cadence). A failed put is NON-FATAL
+     (residue is self-only) — it retries next cadence, as putClientState documents.
 
-  const userId = config.userId
-    ? (typeof config.userId === 'function' ? config.userId() : config.userId)
-    : null;
-  const req = buildSnapshotRequest(config, userId, snap, now);
-  // Auth-aware: refresh + retry once on an expired token, and surface failures
-  // instead of swallowing them. Headers rebuilt per attempt for the fresh token.
-  const res = await fetchWithAuthRetry(req.url, () => {
-    const init = {
-      method: req.method,
-      headers: withAuthHeaders(req.headers),
-      body: JSON.stringify(req.body),
-    };
-    if (keepalive) init.keepalive = true;   // survive page teardown on close
-    return init;
-    // b371: retry a gateway casualty once — except on the pagehide/keepalive
-    // send, where there is no page left to wait 500ms in.
-  }, 'snapshot', { retryWrite: !keepalive });
-  const ok = !!(res && res.ok);
-  /* b371 — THE WRITE CHANNEL, AT ITS ONE SOURCE OF TRUTH. This is the only
-     call site: "cloud save is working" means exactly "this upsert returned
-     ok", and nothing else in the module may assert it. A null res (hard
-     network failure) is a failed save, not an absent one. */
-  noteSaveOutcome(ok, ok ? null : (res ? 'http-' + res.status : 'offline'), now);
-  /* b299: the REAL sync now records that it succeeded, on G where the player can
-     see it (Settings "Last synced"). Before this, cloudSyncedAt was only ever set
-     by the DEAD mock cloudSync() path (legacy NetClient, no endpoint), so the
-     indicator said "never" forever even while snapshots uploaded fine — which is
-     exactly why cloud save felt unverifiable. Also tracked as lastCloudSaveAt for
-     the verify tool + health readout. */
-  if (ok && window.G) {
-    window.G.cloudSyncedAt = now;
-    lastCloudSaveAt = now;
-  }
-  return ok;
+     b515: this used to be `if (isBlobRetired())` with a ~50-line ELSE that
+     upserted the blob to `game_saves`. isBlobRetired() ANDed the b353 kill
+     switch, so that else-arm was live on any device holding
+     `hr:serverAccrual=off` — a second, client-authored copy of progression that
+     CLAUDE.md §1 forbids. The switch is retired and the arm is deleted; the
+     staged `2026-09-07-game-saves-revoke.sql` takes the client's INSERT/UPDATE
+     grant on the table away so it cannot come back through another door.
+     `snapshot()` / `buildSnapshotRequest()` survive: the b305 battery and the
+     local offline cache still read them. */
+  const patch = buildResiduePatch(window.G);
+  if (!patch || !Object.keys(patch).length) return false;
+  const base = String(config.snapshotEndpoint || '').replace(/\/rest\/v1\/.*$/, '');
+  const anonKey = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
+  const jwt = typeof config.authToken === 'function' ? config.authToken() : config.authToken;
+  if (!base || !anonKey || !jwt) return false;   // not configured → wait, never author locally
+  /* b459 (suite catch): this is the ONE periodic write the armed game still
+     makes, and a bare fetch inside putClientState lost b371's gateway retry
+     AND b331's auth accounting (a 401 never latched the dead token, never
+     fired onAuthExpired). Inject fetchWithAuthRetry as the transport so the
+     capstone save gets the same hardening as every other write. It returns
+     null on a definitive failure — map that to a rejected fetch so
+     putClientState reports {ok:false, error:'transport'} as designed. */
+  /* Q-1 — THE TAB-CLOSE SAVE MUST SURVIVE THE TAB CLOSING.
+     `keepalive` is threaded into the residue write because from the capstone
+     onward the
+     pagehide/visibility-hidden save was a plain fetch that the browser
+     cancels on teardown — up to a full 60s cadence of self-only progress
+     (bestiary, achievements, quests, dungeon cooldowns, buffs, the
+     daily-reward shown-marker) lost on EVERY tab close and every mobile
+     backgrounding. putClientState / buildClientStatePutRequest owns the flag
+     and the 64 KiB keepalive body ceiling; the cadence, the allowlist and the
+     patch are untouched.
+     retryWrite mirrors the blob path (`retryWrite: !keepalive`): on the
+     parting shot there is no page left to sleep 500ms in, and a second
+     keepalive body would double-spend the browser's small inflight quota. */
+  const put = await putClientState(patch, {
+    url: base, anonKey, jwt, pinnedSlot: config.slot, keepalive: !!keepalive,
+    fetch: async (u, init) => {
+      const res = await fetchWithAuthRetry(u, () => init, 'client_state', { retryWrite: !keepalive });
+      if (!res) throw new Error('transport_failed');
+      return res;
+    },
+  });
+  const okc = !!(put && put.ok);
+  noteSaveOutcome(okc, okc ? null : (put && put.error) || 'client_state_put_failed', now);
+  if (okc && window.G) { window.G.cloudSyncedAt = now; lastCloudSaveAt = now; }
+  return okc;
 }
 
 /**
@@ -1546,8 +1503,10 @@ export function setupSync(opts = {}) {
         const SR = w.HearthriseSkillRecord;
         const probe = {
           build: (w.HearthriseBuild && w.HearthriseBuild.cache) || (w.BUILD && w.BUILD.cache) || null,
-          armed: !!(w.HearthriseAccrual && w.HearthriseAccrual.isServerAccrualEnabled
-            && w.HearthriseAccrual.isServerAccrualEnabled()),
+          /* b515: the kill switch is retired, so this is a constant. Kept in
+             the probe's SHAPE so a boot_probe row from before the retirement
+             still parses against the same key set. */
+          armed: true,
           skillsKnown: (SR && typeof SR.isSkillXpKnown === 'function')
             ? !!SR.isSkillXpKnown(Gg, 'woodcutting') : null,
           goldKnown: (typeof w.balKnown === 'function') ? !!w.balKnown('gold') : null,

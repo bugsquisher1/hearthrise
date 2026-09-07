@@ -98,6 +98,54 @@ export async function accrueEnvelopeAwayGuard() {
     fail('SOURCE: could not read index.ts: ' + (e && e.message));
   }
 
+  /* == PART 1b - THE MAIN AWAY RECEIPT STATES THE STOP AND THE RECOVERY =====
+     (2026-09-07, QA's P1.) The engine has stated all nine of these for builds -
+     `src/core/artisan-sim.js` returns burnt/stoppedBy/stoppedById/stoppedSkill/
+     stoppedPerHour, `src/core/skill-sim.js` the four non-rate ones,
+     `src/core/combat-sim.js` deaths/recoverMs/recoverRemainingMs/recoverLadder -
+     and `out.summary` spreads the span summary whole. They were dropped HERE,
+     at the response boundary, so a supply-exhausted night (8 Raw Shrimp, 8h
+     away, 31 seconds of pay) carded as eight hours of honest pay, and a night
+     that ended four falls in carded as "0 deaths".
+
+     THE RULE: every one of them is FORWARDED FROM `out.summary`, never derived.
+     A server that computed the stop from `paidMs < awayMs` would report a
+     shortage on every ordinary night, because flooring a tick count guarantees
+     that inequality. So the assertion is both "the key is on the payload" and
+     "its value reads out.summary".
+
+     MUTATION PROOF: delete any one of the nine lines from index.ts's `away: {`
+     block, or replace its right-hand side with a literal, and this goes red. */
+  try {
+    const idx = await readFile(new URL('supabase/functions/hr-accrue/index.ts', ROOT), 'utf8');
+    const start = idx.indexOf('      away: {');
+    const end = idx.indexOf('        events: out.events,', start);
+    if (start < 0 || end < 0) {
+      fail('RECEIPT: could not locate the main `away: {` payload in index.ts - the guard is stale, '
+        + 'fix it before trusting green');
+    } else {
+      const block = idx.slice(start, end);
+      const RECEIPT_FIELDS = [
+        'burnt', 'stoppedBy', 'stoppedById', 'stoppedSkill', 'stoppedPerHour',
+        'deaths', 'recoverMs', 'recoverRemainingMs', 'recoverLadder',
+      ];
+      for (const key of RECEIPT_FIELDS) {
+        const m = block.match(new RegExp('^\\s*' + key + ':([\\s\\S]*?)(?=\\n\\s*(?:/\\*|[a-zA-Z]+:))', 'm'));
+        if (!m) {
+          fail('RECEIPT: the away payload does not send `' + key + '`, which summaryFromAway reads '
+            + 'and a welcome-back renderer prints. The engine states it on out.summary; dropping it '
+            + 'here is the b345 class - a stopped night reads as a full one.');
+        } else if (!/out\.summary\./.test(m[1])) {
+          fail('RECEIPT: `' + key + '` is not forwarded from out.summary - the receipt must state '
+            + 'what the simulation did, never re-derive it (a stop derived from paidMs < awayMs is '
+            + 'true on every ordinary night).');
+        }
+      }
+    }
+  } catch (e) {
+    fail('RECEIPT: could not read index.ts: ' + (e && e.message));
+  }
+
   // ── PART 2 — CONTRACT: the responses the branch returns pass the gate. ─────
   // A minimal well-formed post-apply envelope (state/skills/inventory/version),
   // the shape hr_apply spreads via `...wr`.

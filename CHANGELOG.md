@@ -4,6 +4,24 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 517 — 2026-09-07 (Cleanup: proofs, deletions, and the farm's last client twin)
+
+- 🧪 **Every CI guard now proves it can fail.** Six gating guards had no mutation proof (the version-lockstep check among them had been blind for 400+ builds); all carry one now, six orphaned guards were adopted or deleted with reasons, and a meta-guard fails the build if a guard is ever registered without a real proof again. A second pass found a guard whose cross-character arm had no assertion at all (a projection pooling every character on an account into one credit window would have passed) — covered now.
+- 🗑️ **Eleven dead server objects dropped** after a design ruling and a security review: six v1 clan verbs the clan overhaul rejects in full, the cutover import tool (the last caller-supplied whole-character writer), and four orphaned market trigger bodies whose invariants live in the market RPCs. Nothing a player can reach changed; the clan tables and the market rules are intact.
+- 🌾 **The farm's client-side twin is gone.** Plant, water, water-all and harvest have exactly one path — the realm's — and refuse cleanly if it is unavailable; a guard fails the build if a local mint ever returns. A goal-catalogue constraint now makes it impossible to point a paying goal at a lifetime counter by mistake, and the daily "Plant N crops" goal never baselines against a count the realm hasn't stated yet.
+- 🧪 The "no icon arrives after first paint" guard raced the engine's boot under load and reported "could not observe" as a failure; the engine now writes a one-shot first-paint marker and the guard waits on it — measured 5/5 idle and 2/2 under load, mutations still caught.
+
+## v0.9.2-beta build 516 — 2026-09-07 (Fix-forward: a census red)
+
+- 🧪 b515 went out red on the new dead-exports census: a helper added for the welcome card was exported but only read inside its own module. It is module-internal now. No player-facing change; this build exists so the CI gate is reachable again for what follows.
+
+## v0.9.2-beta build 515 — 2026-09-07 (The welcome card tells the realm's time)
+
+- ⏱️ **"Time away" on the welcome-back card is now the realm's number.** Unless your away receipt was under half an hour old, the card printed a per-device stamp that only some saves refreshed — hence "13h 8m" two hours after you last played, or "64h" beside a 4-hour receipt. It now shows the span the realm priced (the same figure the Home away card uses), or the span since the realm's own watermark on an idle boot, and shows no number at all when the realm has none.
+- 🌱 **Farm quests count again.** Since the cutover nothing had been writing the "plants" and "harvests" counters that Green Thumb, the farmhand quest and "Plant N crops" read — they sat at zero for everyone. The counters now mirror the realm's own progress rows on load and on every sync. (The realm now also keeps a lifetime plant count — applied 09:20 UTC with a backfill of every plant already in the ledger — so "Plant N crops" grades from the realm too.)
+- 🧪 CI's job budget was raised from 50 to 90 minutes with the measurement written in: b514's run was cancelled at 50.2 minutes with no failing test — the workflow has grown to 58 serial steps; splitting it into parallel families is the next cleanup slice.
+- 🗝️ **Correction to b511: dungeon rewards were still not being settled by the realm.** The switch b511 turned on read a misspelled global name and so stayed off in production; every dungeon run since was still paid on your screen only. The name is fixed in this build, a guard now fails the build if any client module reads a realm global that doesn't exist, and the dungeon settlement is truly on. We're sorry for the false note.
+
 ## v0.9.2-beta build 514 — 2026-09-07 (The knockout repaints the moment the realm answers)
 
 - 🔁 **The knocked-out sheet and the activity bar update the instant the realm answers, not on a timer.** Both used to repaint only on a clock tick, and a browser throttles a background tab's clocks to once a minute — so a player who tabbed away while "Asking the hearth…" could come back to a stale sheet long after the realm had set the recovery clock. Both now repaint on the same event that carries the answer.

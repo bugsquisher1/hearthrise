@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=514';
-import { emit } from '../net/events.js?v=514';
+import { COMPANIONS } from '../data/companions.js?v=517';
+import { emit } from '../net/events.js?v=517';
 /* THE SERVER-OF-RECORD ARM SWITCH for companion XP. While false (DORMANT) the
    client awards companion XP locally exactly as before. When flipped true, the
    accrual engine becomes the sole writer (a `stat companion_xp:<id>` op priced
@@ -22,7 +22,7 @@ import { emit } from '../net/events.js?v=514';
    the server accrues the same role-matched actions this client seam does. The
    passive bonus already reads server companion XP through hr_perks_of, so under
    arm the level shown reconciles to server truth. */
-import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=514';
+import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=517';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -138,17 +138,10 @@ export function companionLevelFromXp(xp) {
   return 1;
 }
 
-/* Is the blob-retire capstone armed? Read at call time off the window global —
-   companions.js must stay free of an import cycle with the net layer, and the
-   capstone flag is published there. Dormant (prod) → false, so every gate below is
-   byte-for-byte today's behaviour. */
-function blobRetired() {
-  try {
-    return !!(window.HearthriseCapstone
-      && typeof window.HearthriseCapstone.isBlobRetired === 'function'
-      && window.HearthriseCapstone.isBlobRetired());
-  } catch (e) { return false; }
-}
+/* The blob-retire capstone is ARMED, unconditionally, since b515 (it used to AND
+   the b353 kill switch and was therefore read off the window global at call time).
+   Kept as a named predicate so the gates below still read as what they are. */
+function blobRetired() { return true; }
 
 function ensureState() {
   const G = window.G;

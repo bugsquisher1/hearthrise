@@ -439,18 +439,13 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
 
   // ══ BULK STATE WRITES — F6. THEY CAN CARRY GOLD WITHOUT NAMING IT ═════════
-  'src/legacy.js#loadLocal': {
-    kind: 'seam', status: 'none',
-    why: 'F6 — `Object.assign(G, stripRecordFields(migrated))`, the local save load. It writes '
-      + 'whatever the blob holds, gold included, and no `.gold =` appears anywhere in it. Safe '
-      + 'because the strip is what §9.3 makes it: a moved field is DELETED on the way in, so the '
-      + 'blob\'s copy is never consulted for authority. The row exists so that stops being an '
-      + 'unexamined assumption — the day `gold` joins SERVER_OF_RECORD, this is the site that '
-      + 'has to already be right.',
-  },
-  'src/legacy.js#loadLocal@2': {
-    kind: 'seam', status: 'none', why: 'the v1 migration branch of the same load — see above.',
-  },
+  /* `src/legacy.js#loadLocal` and `#loadLocal@2` STRUCK 2026-09-07 (b515). They
+     described `Object.assign(G, stripRecordFields(migrated))` — the local save
+     load and its v1 migration branch, bulk writes that carried gold without
+     naming it. loadLocal no longer reads a blob at all (it drops any leftover
+     one and forgets the factory literals), and stripRecordFields is deleted
+     with its only caller. A census row for a site nobody runs is READ as one
+     that does. */
   'src/net/auth.js#applyCloudOverlay': {
     kind: 'seam', status: 'none',
     why: 'F6 — `Object.assign(G, overlay)`, the cloud overlay. Same shape and the same defence: '
@@ -712,19 +707,13 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'without the key leaves gold alone for the next envelope to settle. This is the same shape '
       + 'as an envelope write, not a payment.',
   },
-  'src/features/farm-progression.js#setGold@2': {
-    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    site: 'src/features/farm-progression.js upgradePlot() — the PRE-ARM fallback debit',
-    note: 'UNREACHABLE in the shipped client: the farm arm (isFarmServerArmed, src/data/'
-      + 'item-authority.js) is ON, so every upgrade goes through hr_farm_upgrade_plot and the row '
-      + 'above. This branch is the switch-OFF path (and the in-page suite\'s withLocalFarm harness), '
-      + 'and it is gated on clientMayWriteRecordField(\'gold\') so an armed record can never see a '
-      + 'client-authored debit. It is filed against UNLOCK_BUY rather than given a verb because the '
-      + 'plot tier is deliberately NOT a sellable unlock namespace (hr_unlock_offers records '
-      + 'farm_plot.2..5 as namespace_unsupported:farm_plot_tier) — a second way to buy the tier '
-      + 'would be a second writer of player_state.plot_level.',
-  },
+  /* b514 (cleanup slice 4) — `farm-progression.js#setGold@2` IS RETIRED, not
+     re-filed. It described upgradePlot()'s PRE-ARM fallback debit (deed/gold
+     spend + a local plot_level write), which had been unreachable since the b454
+     cutover armed FARM_SERVER_ARM_ENABLED and is now DELETED from the source.
+     There is exactly one writer of the plot tier again — hr_farm_upgrade_plot —
+     and the `#setGold` row above (the server's absolute post-debit balance) is
+     the whole of what the client still does with gold on this screen. */
   'src/legacy.js#buildPlot': {
     kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
     site: 'the NON-farm plot buildings (scarecrow) — farm_plot itself is now seam:farm.build_plot',

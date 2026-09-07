@@ -14,7 +14,7 @@
 // undefined G.farmPlots and THROW, silently vanishing every standing crop.
 //
 // PROVES:
-//   1. DORMANT — reconcileFarm is a pure no-op; the client farm is untouched.
+//   1. ABSENT  — an envelope with no farm projection leaves the farm alone.
 //   2. ARMED   — G.farmPlots is rebuilt from res.farm[] (crops, real server
 //      planted_at → ready time, watered_at → waterings), and G.plotLevels from a
 //      state.plot_level tier IF the projection carries one.
@@ -83,14 +83,20 @@ export async function farmRecordGuard() {
   });
 
   try {
-    // ── 1. DORMANT: reconcileFarm is a pure no-op ───────────────────────────
-    setArm(false);
+    /* ── 1. RETIRED IN b515 — there is no DORMANT farm ──────────────────────
+       This asserted that with the capstone disarmed reconcileFarm was a pure
+       no-op and the CLIENT-authored farm survived it. Both halves were
+       reachable only through the b353 kill switch (the arm ANDed it), the
+       client farm twin was deleted in slice 4, and b515 deleted the no-op with
+       the switch. What replaces it is the property that still has a subject and
+       is the dangerous one: ABSENCE IS NOT A CLAIM THE FARM IS EMPTY. */
+    // ── 1b. A projection-free envelope must leave the farm ALONE ────────────
     {
       const G = { farmPlots: [{ cropId: 'turnip', plantedAt: 123, waterings: [], state: 'growing' }], plotLevels: 2 };
-      const r = A.reconcileFarm(G, ENV());
-      if (!r || r.mode !== 'dormant') fail('DORMANT: reconcileFarm must return {mode:dormant} (got ' + JSON.stringify(r) + ')');
+      const r = A.reconcileFarm(G, { ok: true, version: 5 });      // no `farm` key
+      if (!r || r.mode !== 'absent') fail('ABSENT: an envelope with no farm projection must answer {mode:absent} (got ' + JSON.stringify(r) + ')');
       if (G.farmPlots.length !== 1 || G.farmPlots[0].cropId !== 'turnip' || G.plotLevels !== 2)
-        fail('DORMANT: reconcileFarm altered the client farm');
+        fail('ABSENT: a lean envelope wiped the farm — absence is not a claim the farm is empty');
     }
 
     // ── 2. ARMED: rebuild from the envelope ─────────────────────────────────
@@ -165,5 +171,5 @@ const SELF = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace
 if (SELF) {
   const probs = await farmRecordGuard();
   if (probs.length) { console.error('FAIL:\n' + probs.map((p) => '  - ' + p).join('\n')); process.exit(1); }
-  console.log('farm-record: dormant no-op + armed rebuild + fail-closed-absent + empty-lean-no-wipe + empty-authoritative-clears + no-throw — all green');
+  console.log('farm-record: absent-envelope no-op + armed rebuild + fail-closed-absent + empty-lean-no-wipe + empty-authoritative-clears + no-throw — all green');
 }

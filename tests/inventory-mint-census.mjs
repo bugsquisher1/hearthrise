@@ -114,9 +114,26 @@ const BASELINE = {
   //    This lane therefore needs no unbackedOwnableMintLanes() entry and no
   //    BLOB_RETIRE_UNSAFE_LANES entry — those registries are for mints the
   //    server does NOT write, which is the opposite of this one.
+  /* b514 (cleanup slice 4): `crop.prod` LEFT this lane. harvestPlot's local
+     yield roll (`addItem(crop.prod, qty)`) was the client-authored twin of
+     hr_farm_harvest and had been unreachable since the b454 cutover; it is
+     deleted. The farm's only remaining credit is reconcileFarmResult applying
+     the SERVER's `res.produce`/`res.qty` in src/net/farm-sync.js, which is a
+     different lane and a different token. */
+  /* b516 (Security GO-WITH-CHANGES): `rewards.itemId` LEFT this lane. It was
+     `addItem(rewards.itemId, rewards.itemQty)` inside `window._applyCatchup` —
+     the client-side catch-up APPLIER, which credited an absence that
+     `calcCatchup()` had invented from the DEVICE clock. b214 stopped it
+     double-PAYING and b342 deleted its caller, but both functions stayed
+     published on `window`, so the mint was one console line from reachable.
+     Both are deleted (tombstone at src/legacy.js section 3); the absence is
+     computed and paid by hr-accrue alone and the welcome modal quotes the
+     server RECEIPT. The `b214: an absence is granted exactly ONCE` in-page test
+     is now an EXISTENCE guard on both names, so the lane cannot come back
+     silently. */
   'src/legacy.js': [
-    "'hearth_token'", 'b.id', 'crop.prod', 'cur', 'id', 'kv[0]',
-    'r.item', 'r.output', 'res.produced.id', 'rewards.itemId',
+    "'hearth_token'", 'b.id', 'cur', 'id', 'kv[0]',
+    'r.item', 'r.output', 'res.produced.id',
     'inv:id', 'inv:old',
   ],
   'src/features/muster.js': ["'muster_seal'", 'it.id'],

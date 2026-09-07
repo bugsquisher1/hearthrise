@@ -61,7 +61,11 @@ import { runAll as eatIntentGuards } from './eat-intent.mjs';
 import { guard as skillRowUpsertGuard } from './skill-row-upsert.mjs';
 import { guard as leaderboardSourceGuard } from './leaderboard-server-source.mjs';
 import { itemsCatalogueGuard, itemsCatalogueMutationGuard } from './items-catalogue.mjs';
-import { cutoverImportGuard } from './cutover-import.mjs';
+/* tests/cutover-import.mjs was DELETED 2026-09-07 with
+   supabase/migrations/2026-09-07-drop-dead-server-objects.sql: it drove the real
+   hr_import_apply RPC, which that migration drops. The cutover is complete and the
+   beta was wiped, so there is no ceremony left to guard and no surviving path the
+   assertion could be rewritten onto. Deliberately unregistered, not forgotten. */
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
@@ -133,7 +137,10 @@ const EXTERNAL_URL = argOf('--url');
    their own Chromium suite blew the 120s in-page budget three times in a row on
    code that passed 999/999 alone). Only the wall-clock budget flexes — every
    assertion still has to pass. `HR_SUITE_TIMEOUT_MS=300000 node tests/run-smoke.mjs`. */
-const SUITE_TIMEOUT_MS = Number(process.env.HR_SUITE_TIMEOUT_MS) > 0 ? Number(process.env.HR_SUITE_TIMEOUT_MS) : 120_000;
+/* MEASURED 2026-09-07: the in-page run is ~135 s on an idle dev machine at 1,174 tests and
+   more under load; the old 120 000 default timed the harness out and reported "suite timed
+   out" as if a test had failed (CI sets 600 000 in smoke.yml). Local default = CI budget. */
+const SUITE_TIMEOUT_MS = Number(process.env.HR_SUITE_TIMEOUT_MS) > 0 ? Number(process.env.HR_SUITE_TIMEOUT_MS) : 600_000;
 
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
@@ -1114,13 +1121,17 @@ async function saveSlotGuard(browser, url) {
 
     const r = await page.evaluate(async () => {
       const P = window.HearthriseProfile;
-      /* b459: this guard's subject is the game_saves autosave ADDRESSING (blob →
-         the active slot) — the DORMANT save path. Under the armed capstone the
-         autosave ships residue via hr_put_client_state instead and this capture
-         goes vacuous (the exact blindness the burn-down flagged). Drive the
-         dormant path via the seam; the armed write's addressing rides
-         putClientState's own pinnedSlot contract. */
-      try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(false); } catch (e) {}
+      /* b515 — RE-POINTED, NOT RETIRED. The subject was the game_saves autosave
+         ADDRESSING, driven on the DORMANT blob path through the capstone seam
+         because the armed path ships residue instead. That dormant path is
+         DELETED (the kill switch that kept it reachable is retired), so the old
+         capture went vacuous — "no autosave request was captured" — which is the
+         exact blindness this guard's own vacuity check exists to catch.
+         The property still matters and still has a subject: the periodic save
+         must address the character being PLAYED. It is now the p_slot of the
+         hr_put_client_state RPC, and there is no cloud READ any more (the blob
+         reconcile went with it), so the read half is asserted ABSENT instead —
+         a returning GET on game_saves would mean the reconcile is back. */
       // Become a player with three characters, on the third — through the REAL
       // slot API (unlockSlot/switchSlot), not by writing the profile record.
       P.init();
@@ -1172,35 +1183,31 @@ async function saveSlotGuard(browser, url) {
         await new Promise((res) => setTimeout(res, 300));
       } finally { window.fetch = realFetch; }
 
-      const pull = seen.find((s) => /game_saves\?/.test(s.url) && s.method === 'GET');
-      const post = seen.find((s) => /game_saves/.test(s.url) && s.method === 'POST');
+      const blobAny = seen.filter((s) => /game_saves/.test(s.url));
+      const post = seen.find((s) => /rpc\/hr_put_client_state/.test(s.url) && s.method === 'POST');
       let writeSlot = null;
-      if (post && post.body) { try { writeSlot = JSON.parse(post.body).slot; } catch (e) {} }
-      const m = pull ? String(pull.url).match(/slot=eq\.(\d+)/) : null;
+      if (post && post.body) { try { writeSlot = JSON.parse(post.body).p_slot; } catch (e) {} }
       return {
         activeSlot,
-        sawPull: !!pull, sawWrite: !!post,
-        readSlot: m ? Number(m[1]) : null,
+        sawWrite: !!post,
         writeSlot,
-        pullUrl: pull ? pull.url : null,
+        blobUrls: blobAny.map((s) => s.method + ' ' + s.url),
       };
     });
 
     // Vacuity first: a guard that silently observed nothing is the failure this
     // program has met eleven times.
     if (r.activeSlot !== 2) problems.push(`the harness never reached character 3 (activeSlot=${r.activeSlot}) — nothing below was tested`);
-    if (!r.sawWrite) problems.push('no autosave request was captured — the write assertion would pass vacuously');
-    if (!r.sawPull) problems.push('no cloud-read request was captured — the read assertion would pass vacuously');
+    if (!r.sawWrite) problems.push('no residue autosave (rpc/hr_put_client_state) was captured — the write '
+      + 'assertion would pass vacuously');
     if (r.sawWrite && r.writeSlot !== 2) {
-      problems.push(`the autosave wrote slot ${r.writeSlot} while the player is on character 3 (slot 2) — `
-        + 'game_saves is UNIQUE (user_id, slot), so this silently overwrites another character\'s cloud save');
+      problems.push(`the residue autosave wrote p_slot ${r.writeSlot} while the player is on character 3 (slot 2) — `
+        + 'player_state is keyed (user_id, slot), so this silently overwrites another character\'s residue');
     }
-    if (r.sawPull && r.readSlot !== 2) {
-      problems.push(`the cloud read asked for slot ${r.readSlot} while the player is on character 3 (${r.pullUrl}) — `
-        + 'decideRestore compares by freshness, so a different character\'s save would be restored over the live game');
-    }
-    if (r.sawPull && r.sawWrite && r.readSlot !== r.writeSlot) {
-      problems.push(`read slot ${r.readSlot} != write slot ${r.writeSlot} — the save is read from one character and written to another`);
+    if (r.blobUrls.length) {
+      problems.push(`the client touched game_saves ${r.blobUrls.length} time(s) (${r.blobUrls.join('; ')}). The `
+        + 'client-authored save blob is retired (b515): there is no upsert and no reconcile read. A request here '
+        + 'means one of them came back — and 2026-09-07-game-saves-revoke.sql will answer it with a 403.');
     }
   } catch (err) {
     problems.push('harness failure: ' + err.message);
@@ -2593,7 +2600,7 @@ const run = async () => {
       for (const p of farmSyncProblems) console.log(`  ✗ ${p}`);
       exitCode = 1;
     } else {
-      console.log('\nFarm-sync transport guard — dormant no-regression + armed RPC shape + reconcile-from-response (produce once, no double credit) + fail-safe.');
+      console.log('\nFarm-sync transport guard — the arm is a seamless constant + armed RPC shape + reconcile-from-response (produce once, no double credit) + fail-safe.');
     }
 
     /* ⚠ The blob-retire capstone guard runs LATE (search "blob-retire capstone
@@ -2832,33 +2839,6 @@ const run = async () => {
         + 'price, braced uuid, SQL-shaped listing) is refused by name before it costs a database '
         + 'statement; the buyer\'s wire binds a listing and a count and no price; a replay carries '
         + 'the envelope and no receipt.');
-    }
-
-    /* ── The cutover import (b355) ──────────────────────────────────────
-       The one moment a client-authored save blob is allowed to become server
-       state. Six synthetic snapshots — normal, maxed, forged (1e12 gold),
-       unknown ids, unlocks, corrupt — driven through the REAL tool and the
-       REAL RPC on a real PostgreSQL with the whole chain applied, so
-       2026-08-17-cutover-import.sql's own self-verifying block executes here
-       on every run.
-
-       The two arms worth naming: a FIELD_MAP with a missing entry fails the
-       run BY NAME (the b350 declaration-gap lesson applied to a one-off), and
-       an imported Kitchen rung is followed all the way to
-       makeBonus('noBurn') > 0 through hr_perks_of — because "the row is in
-       the table" is not the claim, "the Kitchen stops burning food" is, and
-       that is the ordering dependency the artisan flip waits on.
-       `node tests/cutover-import.mjs --selftest` plants thirteen real
-       defects; every one must read RED. */
-    const cutoverProblems = await cutoverImportGuard();
-    if (cutoverProblems.length) {
-      console.log('\nCutover import guard — FAILED:');
-      for (const p of cutoverProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCutover import guard — a maxed save imports unclamped, a forged one clamps AND '
-        + 'reports, unknown ids drop by name, an imported Kitchen rung reaches makeBonus(\'noBurn\'), '
-        + 'and a re-run skips on the marker.');
     }
 
     /* ── The client-write-grant sweep, batch 2 (Security) ───────────────
@@ -3973,7 +3953,11 @@ const run = async () => {
       'Artisan progress model guard', 'Goal counters guard', 'Artisan accrual guard',
       'Live settlement Phase 0', 'Equip intent (Phase 2)', 'Skill-row upsert',
       'Unlock purchase guard', 'Market v2 guard', 'Market intent guard',
-      'Cutover import guard', 'Client write sweep guard', 'Client write sweep batch 3',
+      /* 'Cutover import guard' — REMOVED 2026-09-07 with tests/cutover-import.mjs, whose
+         subject hr_import_apply is dropped by 2026-09-07-drop-dead-server-objects.sql. A
+         retired guard must leave this list in the SAME commit, or the run reports it as
+         never-reported — which is the right alarm and the wrong cause. */
+      'Client write sweep guard', 'Client write sweep batch 3',
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
       'Display-prediction guard',
       'Goal-gold retune guard',

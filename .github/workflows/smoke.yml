@@ -52,15 +52,28 @@ permissions:
 # parallel, so the wall clock is the slowest family rather than the sum:
 #
 #   job                needs                      MEASURED   timeout (= x2)
-#   in-page            a real Chromium            ~15 min *  30
-#   economy-selftests  an applied migration chain  14.9 min  30
-#   db-replay          an applied migration chain   5.8 min  12
-#   client-guards      nothing but this repo        2.1 min   5
+#   in-page            a real Chromium            ~15.5 min * 30
+#   economy-selftests  an applied migration chain  15.8 min  32
+#   db-replay          an applied migration chain   3.8 min  12
+#   client-guards      nothing but this repo        2.0 min   5
 #   edge               the live gateway             0.5 s     5 (floor)
 #
+# RE-MEASURED 2026-09-07 after merging main, which brought SIXTEEN steps this
+# branch forked before (guard-hygiene, window-globals, no-client-farm-mint,
+# no-duplicate-rpc-callers, no-blob-branches, signup-door x2, worker-accrual x2,
+# goal-counter-kinds, icon-boot-order, and the bump-version / rpc-resolution /
+# edge-jwt-gate / raid-card-copy mutation proofs). Each was RE-SLOTTED into the
+# family that matches what it needs, never dropped: run-ci-local --list on this
+# tree is a strict SUPERSET of the list main's smoke.yml produces (84 commands
+# vs 81; the three extras are the ci-shape guard and the PGlite cache verify).
+# Only ONE budget moved: economy-selftests 30 -> 32, because goal-counter-kinds
+# --selftest (49.2 s, PGlite) + worker-accrual (6.2 s) push the family from
+# 14.9 to 15.8 min and 15.8 x 2 = 31.6.
+#
 # MEASURED 2026-09-07 on the dev machine with `node tests/run-ci-local.mjs
-# --job <name>`, every job green (economy 20/20 in 895.2 s, db-replay 15/15 in
-# 345.4 s, client-guards 22/22 in 124.8 s, edge 1/1 in 0.5 s) and with two other
+# --job <name>`, every job green (economy 20/20 in 895.2 s + 55.4 s of merged-in
+# steps, db-replay 16/16 in 228.0 s, client-guards 35/35 in 122.7 s, edge 1/1 in
+# 0.5 s) and with two other
 # suites running on the same box, so the numbers are pessimistic rather than
 # flattering. (*) in-page is not re-measured here: run-smoke was measured at
 # ~12.8 min on 2026-09-05 and the browser install adds ~2 min; running the
@@ -103,6 +116,11 @@ jobs:
   # MEASURED 2026-09-05 on the dev machine: run-smoke ~12.8 min. A shared
   # runner is slower, and checkout + setup-node + npm install + the browser
   # download add ~3 min. Budget = measured x2 (see the note above `jobs:`).
+  #
+  # The two browser mutation proofs merged in from main on 2026-09-07 —
+  # raid-card-copy --selftest (9.0 s) and icon-boot-order --selftest (22.4 s,
+  # and it is the one that runs the CPU-load control) — add 31.4 s between them.
+  # Half a minute on a ~15 min family: budget stays 30.
   in-page:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -143,6 +161,30 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/raid-card-copy.mjs
 
+      # The Hunt card copy, mutation-proven in the REAL browser: each defect is
+      # planted into the real src/features/raids.js on the way to Chromium.
+      # Includes C6, the value-crossing one — the clan gate ceasing to fire, so
+      # a functional Strike/Claim/Declare card renders while the claim and
+      # weekly-reset server half is still deferred.
+      - name: Hunt card copy — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/raid-card-copy.mjs --selftest
+
+      # ICON BOOT-ORDER — THE MUTATION PROOF, AND THE LOAD CONTROL.
+      # run-smoke.mjs already runs this guard's base pass; what it cannot run is
+      # the proof that the guard still BITES. --selftest plants three defects and
+      # requires each to be caught: an icon path written after first paint
+      # (property A), a neutered __hrRepaintActive (property B), and a suppressed
+      # __hrFirstPaint marker (the "cannot observe" branch). Its fourth control
+      # is a clean run under artificial CPU load — 4 busy workers plus main-
+      # thread jank — which is exactly the condition the pre-b517 5 ms polling
+      # hook lost first paint in (measured 2/3 loaded runs vs 0/3 idle), turning
+      # a guard precondition into a red suite and blocking the gate for every
+      # later build. The load control is what stops that regressing.
+      - name: Icon boot-order — mutations caught, and green under CPU load
+        if: ${{ !cancelled() }}
+        run: node tests/icon-boot-order.mjs --selftest
+
       # Needs the Chromium installed above. The gate half is a pure function and
       # is proven by --selftest without a browser, so a Chromium problem shows up
       # as exit 2 (harness) rather than as a visual verdict.
@@ -172,7 +214,10 @@ jobs:
   # is the FIRST thing in this job: if the snapshot mechanism is not sound,
   # nothing measured after it in this job means anything.
   #
-  # MEASURED 2026-09-07: 15/15 green in 345.4 s (5.8 min). Budget = 12.
+  # MEASURED 2026-09-07: 16/16 green in 228.0 s (3.8 min) on the merged tree,
+  # 160 migration files in the chain. rpc-resolution --selftest was re-slotted
+  # here from main's serial job: it mutates the ONE probe the base run already
+  # made, so it costs 4.1 s and no extra network. Budget stays 12.
   db-replay:
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -380,6 +425,16 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/rpc-resolution.mjs
 
+      # The RPC resolution comparator, mutation-proven against a REAL probe of
+      # production: an RPC that vanished (PGRST202 — the shipped failure), one
+      # opened to anon, a retired signature that resolved again, a changed
+      # return shape, an unbaselined RPC, one that stopped being probed, and the
+      # control blinded. Probes once and mutates the measurement, so this adds
+      # no extra network round trips.
+      - name: RPC resolution — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/rpc-resolution.mjs --selftest
+
   # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
   # 8-45 real defects in real migration text and demand every one turns the
   # guard red. Before the snapshot cache these replayed the whole chain per
@@ -390,10 +445,15 @@ jobs:
   # One job builds the snapshot once and every guard after it restores.
   #
   # MEASURED 2026-09-07: 20/20 green in 895.2 s (14.9 min); the two longest are
-  # conservation-fuzz 270.9 s and attended-loot-credit 94.9 s. Budget = 30.
+  # conservation-fuzz 270.9 s and attended-loot-credit 94.9 s. The 2026-09-07
+  # merge re-slotted three more steps here — goal-counter-kinds --selftest
+  # (49.2 s; it replays the chain in PGlite, which is exactly this family's one
+  # shared input) and worker-accrual --selftest + base run (6.2 s, a pure engine
+  # harness but an ECONOMY faucet) — taking the family to 950.6 s (15.8 min).
+  # Budget RAISED 30 -> 32, still measured x2.
   economy-selftests:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 32
 
     steps:
       - uses: actions/checkout@v4
@@ -682,13 +742,54 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/raid-band-denial.mjs --selftest
 
+      # THE BACKFILLED LIFETIME PLANT COUNTER MUST STAY UNPAYABLE (Security P2 on
+      # supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql). That file
+      # backfilled a lifetime stat/'ev:planted' row for 27 (user, slot) pairs from
+      # the plant ledger - a stock of already-completed work that no catalogue
+      # grades today. Two independent paths could make it payable, and neither is
+      # covered by the other: a row in hr_goal_rewards naming a lifetime kind
+      # (now refused by a CHECK constraint), and a fifth branch in
+      # hr_claim_quest__ungated's hardcoded CASE over LIFETIME stat keys, which
+      # no constraint anywhere can reach. The guard proves the constraint EXISTS,
+      # is VALIDATED and bites (an executed counter_kind='stat' insert must raise
+      # 23514 after a control insert succeeds), that the quest body names no
+      # ev:planted, AND - the property that actually matters - drives a character
+      # holding 40x the target as a LIFETIME counter through the real
+      # hr_goal_state / hr_claim_goal and requires have=0 and a 'not_complete'
+      # refusal, with a non-vacuity arm showing the same reads do say yes to a
+      # real daily counter. 4 defects x 2 arms (gate / SEC-4-blind) plus a GREEN
+      # control that deletes the CREATE TABLE's inline check so the migration's
+      # own ADD path is exercised rather than assumed. No credentials.
+      - name: Goal counter kinds - the backfilled lifetime ev:planted stock cannot be claimed
+        if: ${{ !cancelled() }}
+        run: node tests/goal-counter-kinds.mjs --selftest
+
+      # ORPHAN ADOPTED. W1-W13 on the shipped hired-crew accrual engine. Its
+      # header claimed run-smoke.mjs invoked it; nothing did, so thirteen
+      # assertions about an economy faucet went uncollected. --selftest plants
+      # six real rebalances/refactors against a scratch copy of the engine —
+      # including WA6, which proved the file's own "no second copy" assertion
+      # was vacuous (=== on a number cannot tell a re-export from an equal
+      # mirror, the exact state b389 shipped at 1.60x from). Now structural.
+      - name: Hired-crew accrual — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/worker-accrual.mjs --selftest
+
+      - name: Hired-crew accrual — base run
+        if: ${{ !cancelled() }}
+        run: node tests/worker-accrual.mjs
+
   # ── client-guards ── STATIC AND SOURCE-SCANNING GUARDS: censuses, ratchets,
   # parity checks, the cache-buster invariant. No database, no browser, no
   # network; the whole family is text in this repository. Seconds, not minutes —
   # which is the point of separating it: a red ratchet should be readable in the
   # Actions list one minute after the push, not forty.
   #
-  # MEASURED 2026-09-07: 22/22 green in 124.8 s (2.1 min). Budget = 5, which is
+  # MEASURED 2026-09-07 on the merged tree: 35/35 green in 122.7 s (2.0 min) —
+  # thirteen more steps than before the merge for LESS wall clock, because every
+  # one of them is a text scan (no-client-farm-mint, no-duplicate-rpc-callers,
+  # no-blob-branches, window-globals-exist, signup-door x2, guard-hygiene x2 and
+  # bump-version.sh --selftest at 12.3 s, the heaviest of them). Budget = 5, which is
   # the floor rather than 2x: checkout + setup-node + npm install is ~40 s
   # before a guard runs at all.
   client-guards:
@@ -732,6 +833,15 @@ jobs:
       # ESM import specifier. Cheap, so run it before spending time on a browser.
       - name: Cache-buster invariant
         run: bash bump-version.sh --check
+
+      # The cache-buster rule, mutation-proven: 6 defects caught (stale tag,
+      # stale ESM specifier = the b493 double-load, the b511 bare quoted pin, a
+      # stripped ?v=, build-info moved alone, build-info unreadable) AND 2
+      # shapes it must keep ignoring, so the fix for a false negative cannot be
+      # a grep that flags everything.
+      - name: Cache-buster invariant — mutation proof
+        if: ${{ !cancelled() }}
+        run: bash bump-version.sh --selftest
 
       # ARM-FLAG HONESTY: the comment above an arm flag is the ONLY documentation
       # of where authority lives for that field, and every reader trusts it before
@@ -874,6 +984,74 @@ jobs:
           node tests/dead-css.mjs --selftest
           node tests/dead-css.mjs
 
+      # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
+      # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their
+      # client-authored twins — the yield roll, the perennial ladder, the seed
+      # debit, the watering window, the deed/gold spend, the plot_level write —
+      # had survived the b454 cutover unreachable for 60 builds and are now
+      # deleted. This is what stops them returning a line at a time.
+      - name: No client farm mint — the farm gestures author nothing
+        run: |
+          node tests/no-client-farm-mint.mjs --selftest
+          node tests/no-client-farm-mint.mjs
+
+      # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
+      # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a
+      # transport — folding them is the wrong abstraction), and the mayCall
+      # adoption floor may rise but never fall. Adopting it in the other five was
+      # tried and turned b340/F5 red: hr_clan_browser is legitimately session-free.
+      - name: RPC callers — the copies do not grow and the b349 guard floor holds
+        run: |
+          node tests/no-duplicate-rpc-callers.mjs --selftest
+          node tests/no-duplicate-rpc-callers.mjs
+
+      # NO BLOB BRANCHES (b514 froze it at 13, b515 emptied it): a RATCHET AT
+      # ZERO. The b353 kill switch is retired, so isBlobRetired() is the constant
+      # BLOB_RETIRED and every fork — dormant client-authored half included — is
+      # deleted. A1: no isBlobRetired() conditional survives under src/. A2: the
+      # premise re-checked the other way — it must never AND the switch again.
+      - name: Blob-retire forks — the census is empty, and the premise re-checked
+        run: |
+          node tests/no-blob-branches.mjs --selftest
+          node tests/no-blob-branches.mjs
+
+      # slice 3 (b515) - the window.Hearthrise* census. A misspelt global is silently
+      # undefined, so the feature behind it is DEAD rather than loudly broken:
+      # window.HearthriseAccrue kept the dungeon-settle arm off while the flag said ON.
+      - name: Cleanup slice 3 - window globals census
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/window-globals-exist.mjs --selftest
+          node tests/window-globals-exist.mjs
+
+      # ORPHAN ADOPTED. The sign-up door rules (emailRedirectTo, the resend, the
+      # refusal vocabulary, the invite link) live as pure functions in
+      # src/net/signup-door.js and are graded against 21 mutations. beta-2 lost
+      # 11 of 49 sign-ups at the email wall to three defects, none of which is
+      # visible from the DOM. Nothing ran this file.
+      - name: Sign-up door — every mutation caught
+        if: ${{ !cancelled() }}
+        run: node tests/signup-door.mjs --selftest
+
+      - name: Sign-up door — base run
+        if: ${{ !cancelled() }}
+        run: node tests/signup-door.mjs
+
+      # THE META-GUARD. Every tests/*.mjs must be registered here, invoked by
+      # run-smoke.mjs, chained from another guard, or listed in
+      # tests/guards-unregistered.json with a written reason — and every step
+      # that passes --selftest must have a file that IMPLEMENTS it. Both halves
+      # exist because both failed silently: 12 guard files were reachable by
+      # nothing, and a --selftest flag a file ignores is a vacuous proof that
+      # reads exactly like a real one in a green log.
+      - name: Guard hygiene — no orphans, no vacuous selftests
+        if: ${{ !cancelled() }}
+        run: node tests/guard-hygiene.mjs --selftest
+
+      - name: Guard hygiene — base run
+        if: ${{ !cancelled() }}
+        run: node tests/guard-hygiene.mjs
+
 
   # ── edge ── THE DEPLOYED GATEWAY. One read-only probe against the live Edge
   # Functions with a garbage token, plus its control. It is alone in a job on
@@ -881,7 +1059,9 @@ jobs:
   # repository, so a Supabase incident must not be able to present as a failure
   # of the guards that watch the code.
   #
-  # MEASURED 2026-09-07: 1/1 green in 0.5 s. Budget = 5, the same floor: twice
+  # MEASURED 2026-09-07: 1/1 green in 0.5 s, plus edge-jwt-gate --selftest
+  # re-slotted here from main (it plants its six defects OFFLINE, so it belongs
+  # with the gate it proves and adds no probe). Budget = 5, the same floor: twice
   # half a second is not a timeout, it is a coin flip on a slow runner.
   edge:
     runs-on: ubuntu-latest
@@ -921,3 +1101,12 @@ jobs:
       - name: Edge Functions verify JWT at the gateway
         if: ${{ !cancelled() }}
         run: node tests/edge-jwt-gate.mjs --strict
+
+      # The verify_jwt verdict, mutation-proven offline: the 2026-08-23 finding
+      # itself (our own body answered a garbage bearer), verify_jwt = false, an
+      # undeclared function directory, declared-but-not-deployed, our own 401
+      # mistaken for the gateway's, and the lookahead parser bug that would
+      # check n-1 of n sections and report green.
+      - name: Edge JWT gate — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/edge-jwt-gate.mjs --selftest

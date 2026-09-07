@@ -581,40 +581,21 @@
            and check BOTH halves are in it. Production was failing saves when
            this dupe was reported — a write we did not verify is exactly how the
            entitlement outlived the payment. */
-    var durable = false;
-    try {
-      var blobRetired = false;
-      try { blobRetired = !!(window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()); } catch(e){}
-      if (blobRetired) {
-        /* b459 (suite catch SLOT-BUY-1): under the capstone the local blob is
-           retired — saveLocal is a deliberate no-op and the read-back below can
-           never succeed, which made EVERY slot purchase roll back ("Couldn't
-           save your purchase"). Under arm the durable store is the SERVER:
-           heroSlotsUnlocked rides the residue save (buildResiduePatch → the
-           hardened putClientState) and gems are a record field whose spend is
-           reconciled by the envelope. The blob proof is not weakened — it is
-           MOOT: there is no local blob for the entitlement to outlive the
-           payment in. The b371 dupe this proof stopped was a LOCAL-blob split;
-           the armed model cannot express that split. */
-        durable = true;
-      } else {
-        if(typeof window.saveLocal === 'function') window.saveLocal();
-        var raw = localStorage.getItem(SAVE_KEY);
-        if(raw){
-          var d = JSON.parse(raw);
-          durable = (d.gems === G.gems) && (d.heroSlotsUnlocked === G.heroSlotsUnlocked);
-        }
-      }
-    } catch(e){ durable = false; }
-
-    if(!durable){
-      // ── ROLLBACK. Nothing was charged and nothing was granted. ──
-      G.gems = prevGems;
-      G.heroSlotsUnlocked = prevUnlocked;
-      try { if(typeof window.saveLocal === 'function') window.saveLocal(); } catch(e){}
-      try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
-      return { ok:false, reason:'Couldn’t save your purchase, so nothing was charged. Try again in a moment.' };
-    }
+    /* b515 — THE PROOF IS MOOT, AND SAYING SO IS THE POINT. Under the capstone
+       the local blob is retired: saveLocal is a no-op and a read-back could never
+       succeed, which made EVERY slot purchase roll back ("Couldn't save your
+       purchase") when the capstone first armed (b459). The durable store is the
+       SERVER: heroSlotsUnlocked rides the residue save (buildResiduePatch → the
+       hardened putClientState) and gems are a record field whose spend is
+       reconciled by the envelope. The b371 dupe this proof stopped was a
+       LOCAL-blob split and the armed model cannot express that split.
+       Until b515 this read `if (isBlobRetired()) durable = true; else <read the
+       blob back>`, and that else was reachable on any device holding the retired
+       `hr:serverAccrual=off` — i.e. a gem spend proved against a local file. */
+    /* No rollback arm: there is no local write that can fail. The gem debit is
+       the SERVER's (reconciled from the envelope) and the entitlement rides the
+       residue save. b515 deleted the `if(!durable)` refund arm with the blob
+       read-back that was its only trigger. */
 
     // ── 3. ONLY NOW the device-local metadata record ──────────────────────
     profile.unlockedSlots = G.heroSlotsUnlocked;      // cache, not authority

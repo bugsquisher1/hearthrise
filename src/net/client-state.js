@@ -48,11 +48,11 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=514';
+import { resolveActiveSlot } from './accrue.js?v=517';
 /* b492 — the property/worker rung OBSERVER. See applyClientState for why the
    boot observation belongs in THIS module. property-record.js imports nothing,
    so it cannot form a cycle with either this file or accrue.js. */
-import { notePropertyUnlocks } from './property-record.js?v=514';
+import { notePropertyUnlocks } from './property-record.js?v=517';
 
 /* ── THE ARM (SUPERSEDED BY THE CAPSTONE — THIS CONST IS INERT) ─────────────
    THE VALUE IS false AND STAYS false, BUT THE STORE IS SERVER-BACKED IN PROD.
@@ -69,24 +69,14 @@ import { notePropertyUnlocks } from './property-record.js?v=514';
 export const CLIENT_STATE_SERVER_BACKED = false;   // INERT — superseded by capstone.js BLOB_RETIRED (true since b454); armed() ORs the two
 let armOverride = null;
 /* THE CAPSTONE COUPLING. The blob-retire capstone (src/net/capstone.js) is the
-   SINGLE switch for the whole finish line, and residue reads must follow it — so
-   when the capstone is armed, this store is server-backed too, without a second
-   flag to flip. Read off the window global at CALL time (not a static import) to
-   keep this low-level module free of an import cycle with capstone.js, which
-   imports THIS module for isClientStateFromServer. In a Node test with no window,
-   this is inert and the armed path is driven via __setClientStateArm instead. */
-function capstoneArmed() {
-  try {
-    if (typeof window !== 'undefined' && window.HearthriseCapstone
-        && typeof window.HearthriseCapstone.isBlobRetired === 'function') {
-      return !!window.HearthriseCapstone.isBlobRetired();
-    }
-  } catch (e) {}
-  return false;
-}
+   SINGLE switch for the whole finish line, and residue reads follow it. Since
+   b515 that capstone is a CONSTANT (`BLOB_RETIRED`, no kill-switch conjunction),
+   so this store is server-backed unconditionally — the old window-global read at
+   call time existed to avoid an import cycle with capstone.js, and a constant
+   needs no read at all. `__setClientStateArm` remains the way a test drives the
+   dormant direction. */
 export function isClientStateServerBacked() {
-  const on = armOverride !== null ? armOverride : (CLIENT_STATE_SERVER_BACKED || capstoneArmed());
-  return !!on && isServerAccrualEnabled();
+  return armOverride !== null ? !!armOverride : true;
 }
 /** Test seam, same spirit as record.js's __setSkillsRecordArm. */
 export function __setClientStateArm(v) {

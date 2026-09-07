@@ -6,7 +6,7 @@
 // become live, and cloud-sync auto-upgrades from offline to live.
 
 import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots,
-         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=514';
+         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=517';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}
@@ -589,14 +589,11 @@ export function wireServerIntents(win, cfg) {
    into "we restored a forgeable value". */
 export function stripRecordFieldsForOverlay(snap, win) {
   const w = win || (typeof window !== 'undefined' ? window : null);
-  /* The SWITCH is read from accrue.js, not from record.js — deliberately. If it
-     were read from record.js then a missing record.js would read as "switch
-     off" and the strip would silently not happen, which is the failure this
-     function is guarding. The switch and the field list live in different
-     modules precisely so one cannot vouch for the other. */
-  const A = w && w.HearthriseAccrual;
-  const on = !!(A && typeof A.isServerAccrualEnabled === 'function' && A.isServerAccrualEnabled());
-  if (!on) return snap;
+  /* b515: this opened by reading the b353 kill switch from accrue.js (never
+     from record.js — a missing record.js would have read as "switch off" and the
+     strip would silently not happen, which is the failure this function guards).
+     The switch is retired, so the strip is unconditional and a missing record.js
+     is the loud error below rather than a silent pass-through. */
   const R = w && w.HearthriseRecord;
   if (!R || typeof R.stripServerOfRecord !== 'function') {
     throw new Error('server accrual is ON but src/net/record.js did not load — refusing to overlay a '
@@ -777,146 +774,29 @@ export function decideRestore(local, snap, ownership) {
   return { action: 'adopt', reason: 'local-fresh', ...full };
 }
 
-// b314: bounded retry counter for a cloud pull that keeps failing. While the
-// pull is UNKNOWN (network down / non-200) the snapshot gate stays HELD so a
-// fresh/empty local can never upload over a cloud we could not read — the exact
-// data-loss the reconcile gate exists to prevent. Local persistence (saveLocal +
-// the event buffer) is untouched, so nothing is lost; uploads simply wait until
-// we get a definitive read. Backoff caps so we don't hammer a dead endpoint.
-// b331: the cap was 30s, so an unreadable cloud meant a GET every 30 seconds
-// FOREVER — 120/hr, all of them 401, for the whole of a three-hour session. The
-// gate must still stay held (that part is right), but holding it does not
-// require hammering: 5 minutes recovers just as fast in every case a human
-// notices, and the breaker in sync.js keeps the blocked attempts off the network
-// entirely. This loop deliberately never gives up, so a background refresh that
-// succeeds always gets the reconcile — and therefore the upload — restarted.
-let reconcileAttempts = 0;
-const RECONCILE_MAX_DELAY = 300000;
-
 async function pullAndMaybeRestore() {
-  /* ── THE CAPSTONE BYPASSES THE ENTIRE BLOB RECONCILE (blob-retire, DORMANT) ──
-     Under the capstone the SERVER is the sole source of the character: authority
-     arrives via record.js (applyRecord) and the residue via client_state
-     (applyClientState). There is NO rival local authored save to reconcile, so
-     the pull → decideRestore → overlay → reload dance — and the device-handoff
-     "replace your local progress" prompt it drives — must not run. Release the
-     upload hold (the save path under arm ships residue via putClientState, which
-     the hold does not gate) and return before any local-vs-cloud comparison.
-     Read the flag off the window global at CALL time (auth.js does not import the
-     capstone; zero cycle risk). While dormant this is false and the full b314/b318
-     reconcile below runs byte-for-byte as today — the b305 battery exercises that
-     path and stays green. Deleting decideRestore / this function is a POST-ARM
-     cleanup once proven live post-wipe; it is only GATED here, never removed. */
-  let __blobRetired = false;
-  try {
-    __blobRetired = typeof window !== 'undefined' && window.HearthriseCapstone
-      && typeof window.HearthriseCapstone.isBlobRetired === 'function'
-      && window.HearthriseCapstone.isBlobRetired();
-  } catch (e) { __blobRetired = false; }
-  if (__blobRetired) {
-    console.log('[Auth] capstone armed — server is the sole source; skipping the blob reconcile (no local save to compare, no handoff prompt).');
-    try { releaseSnapshots(); } catch (e) {}
-    return;
-  }
-  // b314: hold snapshot uploads until we have pulled the cloud and reconciled.
-  // A fresh/empty local must never race an upload out ahead of this decision.
-  try { holdSnapshots(); } catch (e) {}
-  try {
-    // b300: one cloud-restore per tab session. The restore path reloads, and
-    // after the reload local == cloud so decideRestore returns 'adopt' — but this
-    // guard is belt-and-suspenders against clock skew making cloudAt persistently
-    // look newer and re-triggering a reload loop.
-    let restoredAlready = false;
-    try { restoredAlready = sessionStorage.getItem('hr:cloudRestoreDone') === '1'; } catch (e) {}
+  /* ── THERE IS NOTHING TO RECONCILE, AND SINCE b515 THERE IS NO OTHER CASE ───
+     The SERVER is the sole source of the character: authority arrives via
+     record.js (applyRecord) and the residue via client_state (applyClientState).
+     There is no rival local authored save, so the pull → decideRestore → overlay
+     → reload dance — and the device-handoff "this will replace your local
+     progress" prompt it drove — must not run. Release the upload hold (the save
+     path ships residue via putClientState, which the hold does not gate) and
+     return before any local-vs-cloud comparison.
 
-    const pull = await pullLatestDetailed();
+     Until b515 this was `if (isBlobRetired()) { …this… }` with ~100 lines of
+     blob reconcile after it. isBlobRetired() ANDed the b353 kill switch, so that
+     reconcile was live on any device holding `hr:serverAccrual=off` — it pulled
+     `game_saves`, overlaid a client-authored blob onto G and reloaded. The
+     switch is retired; the reconcile is deleted.
 
-    // UNKNOWN cloud (network error / non-200). We must NOT release the gate and
-    // let a possibly-fresh local upload over a cloud we never read. Stay held and
-    // retry with backoff; a returning device keeps playing offline meanwhile.
-    if (pull.status === 'error') {
-      reconcileAttempts++;
-      const delay = Math.min(RECONCILE_MAX_DELAY, 4000 * reconcileAttempts);
-      console.warn(`[Auth] cloud pull failed (attempt ${reconcileAttempts}); snapshot uploads held, retrying in ${delay}ms.`);
-      setTimeout(() => { pullAndMaybeRestore(); }, delay);
-      return;   // gate stays HELD — the finally below must not run a release for this path
-    }
-    reconcileAttempts = 0;
-
-    const snap = pull.snap;   // null for 'empty'/'skip' → decideRestore returns none/adopt
-    const local = {
-      lastSeen: (window.G && Number(window.G.lastSeen)) || 0,
-      totalLevel: (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : 0)
-        || (window.G && window.G.totalLevel) || 0,
-      owner: (window.G && window.G._saveOwner) || null,
-      currentUser: currentUserId(),
-    };
-    const d = decideRestore(local, snap);
-
-    // b318 (V2): the live save belongs to a DIFFERENT account. Do not merge it,
-    // do not upload it, do not reason about its timestamp. Park it (recoverable
-    // — that player gets it back when they sign in here again) and reload, so
-    // this account boots either its own parked save or a clean character and
-    // then reconciles against its own cloud through the normal path.
-    if (d.action === 'foreign') {
-      let already = false;
-      try { already = sessionStorage.getItem('hr:foreignParked') === local.currentUser; } catch (e) {}
-      console.warn(`[Auth] local save is owned by another account (${d.localAt} / Lv ${d.localTotalLv}); parking it instead of uploading.`);
-      if (already) return;   // belt-and-braces: never loop on a park that didn't take. Gate stays HELD.
-      try { sessionStorage.setItem('hr:foreignParked', local.currentUser); } catch (e) {}
-      try { if (typeof window.parkLocalSave === 'function') window.parkLocalSave('foreign'); } catch (e) {}
-      // Gate deliberately stays HELD — no snapshot may leave this tab before the
-      // reload replaces G with something this account actually owns.
-      location.reload();
-      return;
-    }
-
-    if (d.action !== 'restore' || restoredAlready || !window.G) {
-      // 'none'/'adopt' → local stays live and sync.js uploads it (that IS adoption
-      // in a cloud-authoritative model: cloud simply catches up to local).
-      console.log(`[Auth] keeping local save (${d.action}/${d.reason}; localAt ${d.localAt} vs cloudAt ${d.cloudAt}, Lv ${d.localTotalLv} vs ${d.cloudTotalLv}).`);
-      releaseSnapshots();   // definitive decision reached → uploads may resume
-      return;
-    }
-
-    // Cloud is newer → it is authoritative. Overlay its fields onto G. snapshot()
-    // omits the NO_SYNC set (in-flight combat/activity, combatLog,
-    // lastOfflineSummary, derived totalLevel/combatLevel) and `_`-prefixed
-    // scratch — including the b318 `_saveOwner` stamp, which is device-local
-    // identity and must never ride to the cloud — so those survive the overlay.
-    // b318 CORRECTION: this comment previously claimed lastSeen and
-    // offlineBudget were NO_SYNC device-local journal. They are NOT in NO_SYNC
-    // (src/net/events.js) — both ARE uploaded, and both are explicitly
-    // re-stamped to cloudAt immediately below precisely because the overlay
-    // brings the cloud's copies with it. Behaviour unchanged; the comment was
-    // simply wrong and would have misled the next person to touch this.
-    const cloudAt = d.cloudAt || Date.now();
-    delete snap.__cloudSavedAt;                       // never let our meta keys land in G
-    delete snap.__device;                             // (b301 concurrent-device marker)
-    /* b340 — THE SECOND BLOB→G SEAM. The cloud snapshot is still a client-
-       authored blob; it is a CACHE, not a record. Any field the server owns is
-       deleted on the way in so it cannot be read back out of it — see
-       src/net/record.js. No-op while the b337 switch is off, so every restore
-       path b305 exercises is byte-for-byte unchanged.
-       b347 — and the watermark re-stamp that followed it is INSIDE the same
-       function now, because it was undoing the strip. This line is the whole of
-       the cloud→G seam; there is deliberately nothing left inline. */
-    applyCloudOverlay(window.G, snap, cloudAt);
-    try { sessionStorage.setItem('hr:cloudRestoreDone', '1'); } catch (e) {}
-    try { sessionStorage.setItem('hr:restoredFromCloud', '1'); } catch (e) {}   // toast after reload
-    console.log(`[Auth] restoring newer cloud save (cloudAt ${cloudAt} > localAt ${d.localAt}; Lv ${d.cloudTotalLv}).`);
-    releaseSnapshots();   // we have the authoritative save; the reload re-reconciles cleanly
-    if (typeof window.saveLocal === 'function') window.saveLocal();
-    location.reload();
-  } catch (e) {
-    // An UNEXPECTED failure mid-reconcile is treated exactly like an unknown
-    // cloud: keep the gate HELD (never upload a possibly-fresh local over an
-    // unread cloud) and retry with backoff.
-    console.warn('[Auth] reconcile failed:', e && e.message);
-    reconcileAttempts++;
-    const delay = Math.min(RECONCILE_MAX_DELAY, 4000 * reconcileAttempts);
-    setTimeout(() => { pullAndMaybeRestore(); }, delay);
-  }
+     `decideRestore`, `applyCloudOverlay` and `stripRecordFieldsForOverlay` stay
+     EXPORTED and tested: decideRestore is the b305 anti-rollback rule and the
+     battery drives it directly. They have no production caller any more, which
+     is named in the report as debt for the seam-deletion slice — not silently
+     left looking live. */
+  console.log('[Auth] server is the sole source of the character; no blob reconcile, no handoff prompt.');
+  try { releaseSnapshots(); } catch (e) {}
 }
 
 // ── Public actions ──

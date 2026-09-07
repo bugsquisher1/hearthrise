@@ -163,7 +163,191 @@ async function probe(cfg, targets) {
   return out;
 }
 
+// ── The two rules, as pure functions of the measurement ──────────────────
+// Extracted so --selftest can mutate the MEASUREMENT (an RPC that vanished, a
+// retired signature that came back, a changed return shape) and require this
+// exact code — the code the CI step runs — to go red. Nothing is duplicated.
+const fingerprint = (v) => (v ? v.status + '/' + v.code + '/' + v.shape : null);
+
+const CONTROL = 'hr_definitely_not_a_function()';
+
+/** THE CONTROL rule: a probe that cannot see a missing function cannot certify
+ *  a present one. Returns null when healthy, a reason when the probe is blind. */
+function controlProblem(measured) {
+  if (measured[CONTROL]?.code !== 'PGRST202') {
+    return 'THE CONTROL DID NOT FIRE. ' + CONTROL + ' answered ' +
+      JSON.stringify(measured[CONTROL]) + ' instead of PGRST202. A probe that cannot see a ' +
+      'missing function cannot certify a present one. Fix the probe before trusting any result.';
+  }
+  return null;
+}
+
+/** THE DRIFT rule: every probed RPC resolves exactly as the baseline says. */
+function driftsAgainst(baselineObj, measured) {
+  const keys = [...new Set([...Object.keys(baselineObj), ...Object.keys(measured)])].sort();
+  const out = [];
+  for (const k of keys) {
+    const fa = fingerprint(baselineObj[k]) ?? '<not in baseline>';
+    const fb = fingerprint(measured[k]) ?? '<not probed>';
+    if (fa !== fb) out.push({ rpc: k, expected: fa, actual: fb });
+  }
+  return out;
+}
+
 const targets = JSON.parse(fs.readFileSync(TARGETS_PATH, 'utf8'));
+
+// ════════════════════════════════════════════════════════════════════════
+// --selftest — THE MUTATION PROOF
+//
+// The property this file exists for is NOT "35 RPCs answered something". It is
+// "the client's view of the RPC surface has not moved" — and the failure it was
+// written for (PGRST202 on a live call, from a renamed parameter) is invisible
+// unless the comparator bites. So the run probes production ONCE, then plants
+// each regression into that real measurement and requires a NAMED diff back.
+//
+// Every mutation is a posture production could really be in. None is a syntax
+// break, and none needs a second network round trip.
+// ════════════════════════════════════════════════════════════════════════
+const MUTATIONS = [
+  {
+    id: 'R1-live-rpc-vanished',
+    why: 'THE SHIPPED FAILURE: a wrapper keeps its name and loses a parameter NAME, so '
+       + 'PostgREST cannot resolve it and real players get PGRST202 while the migration '
+       + 'reports success',
+    mutate: (m, b) => {
+      const k = Object.keys(m).find((x) => m[x].code === '42501');
+      if (!k) throw new Error('no 42501 entry to break — the probe measured no locked-down RPC');
+      return { measured: { ...m, [k]: { status: 404, code: 'PGRST202', shape: '' } }, baseline: b, hit: k };
+    },
+    expect: (d, hit) => d.some((x) => x.rpc === hit && /PGRST202/.test(x.actual)),
+  },
+  {
+    id: 'R2-rpc-opened-to-anon',
+    why: 'a locked-down RPC (42501) starts executing for an anonymous caller — the grant '
+       + 'regression hr_assert_grant_hygiene exists for, seen here from the client side',
+    mutate: (m, b) => {
+      const k = Object.keys(m).find((x) => m[x].code === '42501');
+      return { measured: { ...m, [k]: { status: 200, code: 'OK', shape: 'obj{ok}' } }, baseline: b, hit: k };
+    },
+    expect: (d, hit) => d.some((x) => x.rpc === hit),
+  },
+  {
+    id: 'R3-retired-signature-came-back',
+    why: 'a rebuild or restore replays supabase/schema.sql without reaching the 2026-08-27 '
+       + 'drop, so the client-authored buy_listing path RESOLVES again. The four retired '
+       + 'entries exist precisely to notice this',
+    mutate: (m, b) => {
+      const k = Object.keys(b).find((x) => b[x].code === 'PGRST202' && x !== CONTROL);
+      if (!k) throw new Error('the baseline holds no retired PGRST202 signature to resurrect');
+      return { measured: { ...m, [k]: { status: 404, code: '42501', shape: '' } }, baseline: b, hit: k };
+    },
+    expect: (d, hit) => d.some((x) => x.rpc === hit),
+  },
+  {
+    id: 'R4-public-board-return-type-changed',
+    why: 'hr_leaderboard is the one call that EXECUTES. Its rows change constantly and must '
+       + 'not fail the test; its SHAPE changing is a contract break the screen renders wrong',
+    mutate: (m, b) => {
+      const k = Object.keys(m).find((x) => x.startsWith('hr_leaderboard('));
+      if (!k) throw new Error('no hr_leaderboard entry probed');
+      return { measured: { ...m, [k]: { ...m[k], shape: 'obj{ok,rows}' } }, baseline: b, hit: k };
+    },
+    expect: (d, hit) => d.some((x) => x.rpc === hit),
+  },
+  {
+    id: 'R5-new-rpc-never-baselined',
+    why: 'an RPC appears on the client surface with no committed expectation. Silence is not '
+       + 'approval — a surface nobody reviewed is exactly what the baseline is for',
+    mutate: (m, b) => ({
+      measured: { ...m, 'hr_brand_new_money_mover(p_amount)': { status: 200, code: 'OK', shape: 'obj{ok}' } },
+      baseline: b, hit: 'hr_brand_new_money_mover(p_amount)',
+    }),
+    expect: (d, hit) => d.some((x) => x.rpc === hit && x.expected === '<not in baseline>'),
+  },
+  {
+    id: 'R6-baselined-rpc-no-longer-probed',
+    why: 'the targets file loses an entry, so a covered RPC quietly stops being measured — '
+       + 'the "green because we stopped looking" shape this repo has shipped six of',
+    mutate: (m, b) => {
+      const k = Object.keys(m).find((x) => x !== CONTROL);
+      const measured = { ...m }; delete measured[k];
+      return { measured, baseline: b, hit: k };
+    },
+    expect: (d, hit) => d.some((x) => x.rpc === hit && x.actual === '<not probed>'),
+  },
+];
+
+// The CONTROL's own mutation is graded by controlProblem(), not by the diff.
+const CONTROL_MUTATION = {
+  id: 'R7-control-blinded',
+  why: 'the probe loses the ability to see a missing function (a proxy answering 200 to '
+     + 'everything, a wrong base URL that redirects). Every pass it has ever printed would '
+     + 'be worthless, so the control must fire before any diff is trusted',
+};
+
+if (argv.includes('--list')) {
+  for (const m of [...MUTATIONS, CONTROL_MUTATION]) console.log(m.id + '  —  ' + m.why);
+  process.exit(0);
+}
+
+if (argv.includes('--selftest')) {
+  console.log('rpc-resolution --selftest: each mutation must turn the guard RED\n');
+  const cfgS = readClientConfig();
+  const measuredReal = await probe(cfgS, targets);
+  const baselineReal = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+
+  const fe = Object.values(measuredReal).filter((v) => v.code === 'FETCH_ERR').length;
+  if (fe) {
+    console.error(`rpc-resolution --selftest: could not reach ${cfgS.url} (${fe} socket failures). ` +
+      'The selftest grades the comparator against a REAL measurement, so an unmeasured surface is ' +
+      'INCONCLUSIVE, not green.');
+    process.exit(2);
+  }
+
+  let bad = 0;
+  // CLEAN control first: a guard that is red at rest is red for everything, and
+  // every "caught" below would be an artefact rather than a proof.
+  const cleanCtl = controlProblem(measuredReal);
+  const cleanDiffs = driftsAgainst(baselineReal, measuredReal);
+  if (cleanCtl || cleanDiffs.length) {
+    bad++;
+    console.log('  FAIL  CLEAN control is RED against live — the mutations below prove nothing');
+    if (cleanCtl) console.log('          control: ' + cleanCtl.slice(0, 150));
+    for (const d of cleanDiffs) console.log(`          ${d.rpc}: expected ${d.expected}, actual ${d.actual}`);
+  } else {
+    console.log(`  ok    CLEAN control is GREEN (${Object.keys(measuredReal).length} RPCs match the baseline)`);
+  }
+
+  for (const m of MUTATIONS) {
+    let res;
+    try { res = m.mutate(measuredReal, baselineReal); }
+    catch (e) { bad++; console.log(`  FAIL  ${m.id} — could not be planted: ${e.message}`); console.log(`        ${m.why}`); continue; }
+    const diffs = driftsAgainst(res.baseline, res.measured);
+    if (m.expect(diffs, res.hit)) {
+      console.log(`  ok    ${m.id} — caught (${res.hit})`);
+    } else {
+      bad++;
+      console.log(`  FAIL  ${m.id} — NOT CAUGHT on ${res.hit} (${diffs.length} diff(s))`);
+    }
+    console.log(`        ${m.why}`);
+  }
+
+  // R7: blind the control in the measurement and require controlProblem to say so.
+  const blinded = { ...measuredReal, [CONTROL]: { status: 200, code: 'OK', shape: 'obj{ok}' } };
+  if (controlProblem(blinded)) {
+    console.log(`  ok    ${CONTROL_MUTATION.id} — caught`);
+  } else {
+    bad++;
+    console.log(`  FAIL  ${CONTROL_MUTATION.id} — NOT CAUGHT: the control accepted a resolving non-function`);
+  }
+  console.log(`        ${CONTROL_MUTATION.why}`);
+
+  console.log('');
+  if (bad) { console.log(`rpc-resolution --selftest FAILED — ${bad} unproven`); process.exit(1); }
+  console.log(`rpc-resolution --selftest PASSED — clean control green, ${MUTATIONS.length + 1}/${MUTATIONS.length + 1} mutations caught.`);
+  process.exit(0);
+}
+
 const cfg = readClientConfig();
 const live = await probe(cfg, targets);
 
@@ -180,14 +364,10 @@ if (fetchErrors.length) {
 
 // THE CONTROL. If the non-existent function ever stops answering PGRST202 the
 // probe has lost the ability to see the exact failure it exists to catch, and
-// every "pass" it has ever printed is worthless.
-const CONTROL = 'hr_definitely_not_a_function()';
-if (live[CONTROL]?.code !== 'PGRST202') {
-  console.error('RPC RESOLUTION: THE CONTROL DID NOT FIRE. ' + CONTROL + ' answered ' +
-    JSON.stringify(live[CONTROL]) + ' instead of PGRST202. A probe that cannot see a ' +
-    'missing function cannot certify a present one. Fix the probe before trusting any result.');
-  process.exit(1);
-}
+// every "pass" it has ever printed is worthless. (Rule in controlProblem(),
+// above, so --selftest grades the same code.)
+const ctl = controlProblem(live);
+if (ctl) { console.error('RPC RESOLUTION: ' + ctl); process.exit(1); }
 
 if (UPDATE) {
   fs.writeFileSync(BASELINE_PATH, JSON.stringify(live, null, 1) + '\n');
@@ -199,13 +379,7 @@ if (UPDATE) {
 
 const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
 const keys = [...new Set([...Object.keys(baseline), ...Object.keys(live)])].sort();
-const diffs = [];
-for (const k of keys) {
-  const a = baseline[k], b = live[k];
-  const fa = a ? a.status + '/' + a.code + '/' + a.shape : '<not in baseline>';
-  const fb = b ? b.status + '/' + b.code + '/' + b.shape : '<not probed>';
-  if (fa !== fb) diffs.push({ rpc: k, expected: fa, actual: fb });
-}
+const diffs = driftsAgainst(baseline, live);
 
 const counts = {};
 for (const v of Object.values(live)) counts[v.code] = (counts[v.code] || 0) + 1;

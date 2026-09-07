@@ -2808,9 +2808,20 @@ const TESTS = [
     const savedRecord = G._record ? JSON.parse(JSON.stringify(G._record)) : undefined;
     const savedEquip = G.equipment ? JSON.parse(JSON.stringify(G.equipment)) : undefined;
     const armed = R.isServerOfRecord && R.isServerOfRecord('equipment');
+    /* ⚠ NEWER THAN WHATEVER IS ALREADY STAMPED, and derived rather than
+       hard-coded (found b515). `applyRecord` is MONOTONIC on `version`, and a
+       STALE envelope only fills the GAPS — so these three used to be 9000001..3
+       and were silently refused whenever an earlier test had stamped a record
+       with `Date.now()` (~1.79e12). The staff never landed, `getWeaponType()`
+       read the sword default, and the failure looked exactly like the paione
+       bug this test exists to catch. It passed alone and failed in the suite,
+       which is the worst way for a guard to be wrong. The three-step LADDER is
+       the part that matters (each envelope must be newer than the last), so it
+       is preserved on a base that cannot be beaten. */
+    const V = Math.max(((G._record && Number(G._record.version)) || 0) + 1, Date.now()) + 1;
     try {
       // MAGIC user: server record confirms a staff → family is magic.
-      R.applyRecord(G, { ok: true, version: 9000001, state: {}, equipment: { weapon: 'apprentice_staff' } });
+      R.applyRecord(G, { ok: true, version: V, state: {}, equipment: { weapon: 'apprentice_staff' } });
       assert(window.getWeaponType() === 'magic',
         'a confirmed magic weapon must resolve to the magic style family; got ' + window.getWeaponType());
       // The player equips a helmet — a client write to G.equipment. Under the arm
@@ -2826,7 +2837,7 @@ const TESTS = [
         'THE BUG: after a client gear swap the magic family flipped to the sword/Attack default; '
         + 'got ' + window.getWeaponType());
       // BOTH DIRECTIONS: a melee user must stay melee through the same gesture.
-      R.applyRecord(G, { ok: true, version: 9000002, state: {}, equipment: { weapon: 'bronze_sword' } });
+      R.applyRecord(G, { ok: true, version: V + 1, state: {}, equipment: { weapon: 'bronze_sword' } });
       assert(window.getWeaponType() === 'sword', 'a confirmed sword must resolve to the sword family');
       G.equipment.weapon = 'bronze_sword';
       G.equipment.body = 'leather_body';
@@ -2834,7 +2845,7 @@ const TESTS = [
         'a melee gear swap wrongly flipped the family away from sword; got ' + window.getWeaponType());
       // THE LEVEL-UP CASE: a lean envelope (a settle / level-up) that OMITS
       // equipment must leave the family exactly where the last worn weapon put it.
-      R.applyRecord(G, { ok: true, version: 9000003, state: { combat_style: { sword: 'aggressive' } } });
+      R.applyRecord(G, { ok: true, version: V + 2, state: { combat_style: { sword: 'aggressive' } } });
       assert(window.getWeaponType() === 'sword',
         'a lean level-up envelope disturbed the weapon family; got ' + window.getWeaponType());
     } finally {

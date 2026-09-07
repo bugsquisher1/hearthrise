@@ -10,6 +10,15 @@
 //   • Monsters  → G.bestiary  { id: {kills, firstKill} }   (all MONSTERS)
 //   • Items     → G.collection{ id: count }                 (all ITEMS)
 //
+// ⚠ NEITHER OF THOSE TWO STORES IS FED BY AWAY PROGRESS. Both are written only
+// by the ATTENDED client seams (addItem → trackCollection, killMonster), while
+// a semi-idle player earns most of what they own through the envelope. The ITEM
+// half is repaired here by `reconcileHeld` — the bag the realm states is itself
+// proof of what you have obtained, so the log is levelled against it before
+// anything is counted, drawn or announced. The MONSTER half has no such local
+// witness and still needs hr_bestiary_of projected onto the envelope; see the
+// note on the bestiary toast below.
+//
 // Milestones (G.collectionLog.claimed[]) hand out a reward the first time you
 // cross a completion threshold — the reason to chase 100%.
 //
@@ -40,6 +49,97 @@
     if (!G.collectionLog || typeof G.collectionLog !== 'object') G.collectionLog = { claimed: [] };
     if (!Array.isArray(G.collectionLog.claimed)) G.collectionLog.claimed = [];
     return G.collectionLog;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE LOG IS RECONCILED AGAINST THE BAG THE REALM STATES.
+
+     THE BUG (paione, 2026-09-07, with a screenshot): a Stonemason at Lv 43
+     holding 14,800 granite and 19,300 rubble was told "New discovery: Granite
+     Stone (80/623)" — an item he had held for days — and until that moment the
+     log rendered that 14.8K stack as an undiscovered "???".
+
+     THE CAUSE, and it is architectural rather than a slip. `G.collection` has
+     exactly ONE writer: legacy.js `trackCollection`, reached only from the
+     client-side `addItem`. Under server authority almost nothing reaches the
+     bag that way any more — an away night's gathering, an activity settle, an
+     offline combat span all land through src/net/accrue.js `reconcileInventory`,
+     which assigns `G.inventory` WHOLESALE (accrue.js:3216 / :3310) and has never
+     heard of the collection log. So a semi-idle player's log is blind to
+     everything they earned while away, and the first ATTENDED tick that happens
+     to push a long-held id through `addItem` announces it as brand new. The
+     counter "climbing from 79" is the same fact from the other side: the log has
+     been under-counting the whole time and re-discovers one id at a time.
+
+     THE REALM HAS ALREADY CONFIRMED THOSE ITEMS. The envelope STATES the bag,
+     and holding an item is proof you obtained it. So the log is reconciled
+     against the bag: every id the player holds is recorded as found, SILENTLY,
+     because acknowledging a fact the server already stated is not a discovery.
+     This is not minting — nothing is invented that the server has not said.
+
+     ⚠ WHAT THIS DOES NOT FIX, STATED. An item obtained and then wholly spent,
+     sold or eaten is not in the bag, so it stays uncounted until the realm's own
+     collection is projected to the client. `hr_collection_of`
+     (supabase/migrations/2026-08-21-collection.sql) already holds it server-side
+     — combat drops only, `ev:loot:%` — but it is Edge-only and no envelope key
+     carries it; wiring that projection is that migration's own named follow-up
+     ("the client wiring … is the Systems Engineer's follow-up") and is a
+     migration+edge change, not a client one.
+
+     COST: one pass over `G.inventory` per credit and per log open. The bag is
+     bounded by the bank cap (a few hundred stacks) and each step is a hash
+     lookup, so it is free at the ~1 Hz the gather loop credits at, and stays
+     free at 10× the item catalogue — the loop is sized by the BAG, not by ITEMS.
+     ══════════════════════════════════════════════════════════════════════════ */
+  function reconcileHeld(G) {
+    G = G || window.G;
+    if (!G || typeof G !== 'object') return 0;
+    var inv = G.inventory, ITEMS = window.ITEMS;
+    if (!inv || typeof inv !== 'object' || !ITEMS) return 0;
+    if (!G.collection || typeof G.collection !== 'object') G.collection = {};
+    var col = G.collection, added = 0;
+    for (var id in inv) {
+      if (!Object.prototype.hasOwnProperty.call(inv, id)) continue;
+      if (col[id] || !ITEMS[id]) continue;           // already logged, or not an id this build knows
+      var q = Math.floor(Number(inv[id]) || 0);
+      if (!(q > 0)) continue;                        // a zero / garbage row is not a holding
+      col[id] = q;                                   // "at least this many have passed through the bag"
+      added++;
+    }
+    return added;
+  }
+
+  /* ── NEVER ANNOUNCE A DISCOVERY THE REALM HAS NOT CONFIRMED ────────────────
+     Before the boot envelope lands, `G.collection` is the empty object
+     ensureRetentionState() creates and `G.inventory` is empty beside it — so the
+     first credit of the session would read as brand new against a picture that
+     has simply not arrived yet. That is the "mint a discovery from the first
+     inventory delta after boot" failure, and the fail-safe direction is
+     unknown → NOT new (record it, say nothing).
+
+     `player_state.client_state` is `NOT NULL DEFAULT '{}'`
+     (2026-08-28-client-state.sql §1) and hr_state_of always projects it, so
+     `isClientStateHydrated()` is true for EVERY loaded character INCLUDING a
+     brand-new one — it is false only while the load is still in flight, which is
+     exactly the window where "new" is unknowable. A fresh player therefore keeps
+     every genuine discovery toast. */
+  var _realmOverride = null;
+  function realmStatedTheCharacter() {
+    if (_realmOverride !== null) return !!_realmOverride;
+    try {
+      var CS = window.HearthriseClientState;
+      if (CS && typeof CS.isClientStateHydrated === 'function' && CS.isClientStateHydrated()) return true;
+    } catch (e) {}
+    return false;
+  }
+  /* Test seam — the in-page suite drives the discovery hook in the LIVE page.
+     It also zeroes the 700 ms toast debounce, because a suite asserting "this did
+     NOT announce a discovery" must not be able to pass merely because something
+     else toasted 400 ms earlier. Pass null to restore production behaviour. */
+  function __setRealmStated(v) {
+    lastToast = 0;
+    _realmOverride = (v === null || v === undefined) ? null : !!v;
+    return realmStatedTheCharacter();
   }
 
   function getStats(G) {
@@ -390,6 +490,11 @@
     if (document.getElementById('hr-cl-modal')) document.getElementById('hr-cl-modal').remove();
     ensureStyle();
     var G = window.G;
+    /* LEVEL WITH THE BAG BEFORE ANYTHING IS COUNTED OR DRAWN. The toast was only
+       the loudest half of the bug — the GRID drew a 14,800-strong granite stack
+       as "???" and the header's "% Complete" under-reported to match. Both read
+       G.collection, and both read it from here. */
+    reconcileHeld(G);
     var st = getStats(G);
     var claims = claimable(G);
     var msHtml = claims.map(function (m) {
@@ -458,6 +563,11 @@
     claimMilestone: claimMilestone,
     milestoneShortfall: milestoneShortfall,
     __resetClaimState: __resetClaimState,
+    /* Mark every item the realm says you HOLD as found. Idempotent, silent, and
+       the reason a long-held stack is no longer "discovered" by the tick that
+       re-credits it. Published so the suite can assert it directly. */
+    reconcileHeld: reconcileHeld,
+    __setRealmStated: __setRealmStated,
     open: open,
     ensureState: ensureState
   };
@@ -480,10 +590,16 @@
     var origAdd = window.addItem;
     window.addItem = function (id) {
       var G = window.G;
+      /* RECONCILE FIRST, THEN ASK. The log has to be level with the realm's bag
+         BEFORE we decide whether this credit is new, or the tick that happens to
+         re-credit a long-held id "discovers" it. Guarded: a reconcile must never
+         cost the player a pickup. */
+      try { reconcileHeld(G); } catch (e) {}
       var before = (G && G.collection) ? G.collection[id] : undefined;
       var r = origAdd.apply(this, arguments);
       try {
-        if (!before && G && G.collection && G.collection[id] && window.ITEMS && window.ITEMS[id]) {
+        if (!before && G && G.collection && G.collection[id] && window.ITEMS && window.ITEMS[id]
+            && realmStatedTheCharacter()) {
           toast('New discovery: ' + window.ITEMS[id].n + ' (' + totals(G) + ')');
         }
       } catch (e) { /* never break item pickups */ }
@@ -501,7 +617,15 @@
         var wasNew = mid && (!before || !(before.kills > 0));
         var r = origKill.apply(this, arguments);
         try {
-          if (wasNew && mid && G.bestiary && G.bestiary[mid] && G.bestiary[mid].kills > 0 && window.MONSTERS && window.MONSTERS[mid]) {
+          /* Same realm gate as the item half. There is no bestiary equivalent of
+             "the bag says you hold it" to reconcile against — `G.bestiary` is fed
+             only by the ATTENDED killMonster (legacy.js:15379), so away kills are
+             invisible to it exactly as away pickups were to the collection, and
+             the honest repair is to project hr_bestiary_of onto the envelope
+             (a migration + edge change, out of this lane; see the report). Until
+             then the gate is what stops a pre-envelope kill minting a discovery. */
+          if (wasNew && mid && G.bestiary && G.bestiary[mid] && G.bestiary[mid].kills > 0 && window.MONSTERS && window.MONSTERS[mid]
+              && realmStatedTheCharacter()) {
             toast('Bestiary: ' + window.MONSTERS[mid].name + ' discovered! (' + totals(G) + ')');
           }
         } catch (e) { /* never break combat */ }

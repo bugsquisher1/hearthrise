@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 518 — 2026-09-07 (The last local-game switch is gone)
+
+- 🔒 **The old "run the game locally" switch is retired.** Since the cutover a hidden device flag could still flip the client back to a pre-cutover mode: local saves, locally computed progress, all realm intents dark — a divergent game that was silently discarded the moment the flag flipped back. It could never move anything into the realm's economy (every server surface refused it), but it was 1,700 lines of a game that no longer exists. Server accrual is unconditional now; the flag is inert; 83 tests that only passed by pretending the client was authoritative were re-pointed at the realm or retired with a reason.
+- 🧾 **The welcome-back receipt gets nine fields the realm computed but never sent** — what stopped you and why, food burnt, falls and the recovery ladder — so the card and the Home summary read from truth instead of zeros.
+- 🏠 A paid room could show "Build" for up to 90 seconds after purchase because a gold-verb reply dropped its progress statement; fixed, with a regression that a refused reply carrying state writes nothing.
+- ⚙️ CI runs as five parallel families (about 15 minutes instead of 50), the migration chain is cached per job with a fingerprint that refuses a stale cache, and a shape guard keeps every step in exactly one job. Two defects came out of it: an unlogged rate-counter table that a physical restore truncates, and a timer leak that would have hung jobs.
+- 🗄️ The pre-cutover save table can no longer be written or deleted from a browser (select stays, for forensics only): the single archived row from the forged-save era is now evidence that cannot be erased by the account that made it. Applied after a security review.
+
 ## v0.9.2-beta build 517 — 2026-09-07 (Cleanup: proofs, deletions, and the farm's last client twin)
 
 - 🧪 **Every CI guard now proves it can fail.** Six gating guards had no mutation proof (the version-lockstep check among them had been blind for 400+ builds); all carry one now, six orphaned guards were adopted or deleted with reasons, and a meta-guard fails the build if a guard is ever registered without a real proof again. A second pass found a guard whose cross-character arm had no assertion at all (a projection pooling every character on an account into one credit window would have passed) — covered now.

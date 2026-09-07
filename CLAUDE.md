@@ -73,6 +73,7 @@ Refusals are journalled server-side (one row per user/verb/reason/minute; farmin
 - **Mutate the caller; one sample is not a verdict.** A guard that has never been red is not a guard: every standing guard carries `--selftest`/`--mutate` proof.
 - **Second breakage = missing test.** Add the test before fixing again.
 - **Never disable a failing test to unblock a push.** The test is the contract.
+- **A red in-page test is a P1, never "cosmetic".** The GitHub `smoke` job fails on ANY in-page ✗, so one pre-existing flake makes the CI gate unreachable for every later build (b512 shipped green locally and red on GitHub for exactly this). Fix the test at its source (clock pinned, state torn down, layout measured) before the next push; a flake is never re-run until green.
 - **Server-side changes carry a §4 self-check block** in the migration (properties asserted by executing SQL, not by markers), and the repo chain must replay on `node tests/schema-drift.mjs` with a byte-identical second apply.
 - The in-page suite also runs from the game (`Ctrl+Shift+T` / 🧪), but the record of truth is the headless run.
 

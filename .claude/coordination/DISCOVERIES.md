@@ -2460,3 +2460,49 @@ guarded by the re-pointed `b341`.
    there is nothing else carrying it. The absence is already paid, so no new away envelope rebuilds
    it: the "durable" away card is a session surface. Either it joins the residue or the copy should
    stop calling itself durable. `B345-1`'s round-trip assertion is retired against this entry.
+
+---
+
+## 2026-09-07 · QA · **P2** — b313 is back on the path that runs: a server-stated companion level-up leaves a stale doll
+
+Found while re-pointing the companion tests off `pinClientAuthoritative`. Same shape as the receipt
+entry above and, again, not a b515 regression on LIVE — b515 only removed the client-side
+implementation that had been masking it inside the harness.
+
+**THE ORIGINAL BUG (paione, b313).** The equipment doll's Companion pane is only rebuilt when the
+doll is, so after a pet LEVELS UP the pane kept showing the old level and stats while inventory and
+combat — which read the live bonus on every call — already showed the higher numbers. The fix was a
+`refreshAllDolls()` (and a `renderStable()`) on the level change inside
+`src/features/companions.js awardCompanionXp`.
+
+**WHY IT IS BACK.** `awardCompanionXp` returns on its first two lines
+(`COMPANION_XP_SERVER_BACKED`, then `blobRetired()` — which b515 made the literal `true`), so the
+level-up branch and its repaint are UNREACHABLE for every caller. The level now arrives through
+`accrue.js reconcileCompanions`, which rebuilds `G.companions.xp` from the envelope and repaints
+nothing. Its caller `applyServerEnvelope` calls `refreshAll()`, which is `updateTopbar()` plus the
+ACTIVE TAB's renderer (legacy.js :7377) and never touches the dolls.
+
+**REPRO.** Equip a pet one XP shy of a level. Let a settle land that crosses it. Inventory and combat
+show the new bonus; the Companion pane on the equipment doll still says the old level until
+something else rebuilds the doll.
+
+**DISPOSITION — routed to Systems.** The level-up repaint belongs on the reconcile: compare the
+per-id level before/after inside `reconcileCompanions` (or in `applyServerEnvelope` around it) and
+fire the same two calls `awardCompanionXp` used to. `awardCompanionXp`'s now-unreachable level-up
+branch should go with it rather than being left as a second implementation.
+
+**TEST COVERAGE.** `b313` is re-pointed to assert what IS live — the client authors no companion XP,
+and a server-stated level change moves the live bonus that inventory and combat read — with the
+repaint gap named in the test where a reader will meet it. It is not asserted, because asserting a
+repaint nothing performs is a red that teaches the next reader to delete the assertion.
+
+### Also, same sweep · **P3** — two orphans b515 left behind
+
+`window.simulateAwayCombat` (legacy.js ~6386) and `withOfflineReplay`/`_offlineReplay` have no
+production caller now: `processOffline`'s local replay was their only one. `simulateAwayCombat` is a
+~55-line wrapper over `simulateSpan` that several tests were still driving, which is coverage of dead
+code — the re-pointed away tests drive `simulateSpan` directly instead. `window._applyCatchup`
+(legacy.js :15125) is worse than orphaned: it calls `addXp`/`addItem` off a client-side ESTIMATE, so
+it is a loaded gun with no trigger — the injector that used to call it was deleted in b342 and the
+b214 double-pay is exactly what re-attaching it would recreate. All three should be deleted rather
+than left unreferenced; `tests/dead-exports.mjs` is the natural home for the guard.

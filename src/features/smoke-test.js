@@ -7049,33 +7049,54 @@ const TESTS = [
     });
     const G = window.G;
     const saved = G.companions ? JSON.parse(JSON.stringify(G.companions)) : undefined;
-    /* ── RE-PINNED (b499). THE ROLL IS SYNCHRONOUS; THE OWNERSHIP IS NOT. ─────
-       This block asserts pets.js's ROLL MATHS — forced win unlocks, owned pets
-       skip, forced loss does not — by reading `ownedIds` on the line after the
-       roll. That read is only valid on the DORMANT path. The blob-retire
-       capstone is ARMED in production (src/net/capstone.js BLOB_RETIRED = true)
-       and a skill/boss pet is a non-shop acquisition, so `unlockCompanion` now
-       waits for hr_companion_grant before the pet joins: `ownedIds` is
-       legitimately still empty one line later. The expectation is OBSOLETED by
-       the server-confirmed flow, not broken by it.
-       So the capstone is PINNED OFF for the roll maths — the same re-pin the
-       slice-4 gold-arm test took, for the same reason: this test's subject is
-       `rollSkillPet`/`rollBossPet`, and its dependence on the capstone was
-       accidental and unstated. The ARMED contract is then asserted directly
-       below, so coverage goes UP, not down. */
+    /* ── RE-POINTED (b515). THE ROLL IS SYNCHRONOUS; THE OWNERSHIP IS NOT. ────
+       This block asserts pets.js's ROLL MATHS — forced win claims, owned pets
+       skip, forced loss does not. It used to read `ownedIds` on the line after
+       the roll, which stopped being possible when the capstone armed: a
+       skill/boss pet is a non-shop acquisition, so `unlockCompanion` waits for
+       hr_companion_grant and `ownedIds` is legitimately still empty one line
+       later.
+
+       b499 handled that by PINNING THE CAPSTONE OFF for the roll maths. b515
+       removed that position: `companions.js blobRetired()` is now the literal
+       `true`, so `__setBlobRetired(false)` selects nothing and the pin would
+       have been grading the armed path under a dormant name — a green that says
+       something false, which is worse than a red.
+
+       So the roll is read through what it DECIDES rather than through what
+       happens next: a hit calls `unlockCompanion`, a miss does not, and an
+       already-owned pet never even draws. Grants are parked, so the ladder
+       cannot leave a retry ticking through the rest of the suite (which is
+       exactly what this test used to do, twice, before the runner learned to
+       park it). */
     const Cap = window.HearthriseCapstone;
     const CO = window.HearthriseCompanions;
+    const realUnlock = window.unlockCompanion;
+    const wasParked = (CO && typeof CO.__parkGrants === 'function') ? CO.__parkGrants(true) : false;
+    let claims = [];
     try {
-      if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(false);
+      window.unlockCompanion = function (id) { claims.push(id); return false; };
       G.companions = { ownedIds: [], equipped: null, xp: {} };
-      // forced win (rng → 0) unlocks the woodcutting pet
-      assert(P.rollSkillPet('woodcutting', () => 0) === true, 'forced roll should unlock beaver');
-      assert(G.companions.ownedIds.includes('beaver'), 'beaver should be owned after unlock');
-      // owned pets never re-roll
+      // forced win (rng → 0) CLAIMS the woodcutting pet
+      claims = [];
+      assert(P.rollSkillPet('woodcutting', () => 0) === true, 'forced roll should report a hit on beaver');
+      assert(claims.indexOf('beaver') >= 0,
+        'a winning roll did not route through unlockCompanion — nothing asks the server, so the pet is '
+        + 'never granted: ' + JSON.stringify(claims));
+      // owned pets never re-roll — and never claim
+      claims = [];
+      G.companions.ownedIds.push('beaver');
       assert(P.rollSkillPet('woodcutting', () => 0) === false, 'owned pet must not unlock twice');
-      // forced loss (rng → 1) never unlocks
+      assert(claims.length === 0, 'an owned pet was claimed again: ' + JSON.stringify(claims));
+      G.companions.ownedIds = [];
+      // forced loss (rng → 1) never unlocks, and never claims
+      claims = [];
       assert(P.rollBossPet('lich', () => 0.999999) === false, 'losing roll should not unlock');
-      assert(P.rollBossPet('lich', () => 0) === true, 'forced boss roll should unlock lichling');
+      assert(claims.length === 0, 'a LOSING roll claimed a pet: ' + JSON.stringify(claims));
+      assert(P.rollBossPet('lich', () => 0) === true, 'forced boss roll should report a hit on lichling');
+      assert(claims.indexOf('lichling') >= 0,
+        'a winning boss roll did not route through unlockCompanion: ' + JSON.stringify(claims));
+      window.unlockCompanion = realUnlock;
 
       /* THE ARMED CONTRACT, stated rather than assumed: the roll still FIRES (a
          hit is a hit), and the pet does NOT appear locally until the server has
@@ -7099,6 +7120,8 @@ const TESTS = [
         }
       }
     } finally {
+      window.unlockCompanion = realUnlock;
+      if (CO && typeof CO.__parkGrants === 'function') CO.__parkGrants(wasParked);
       if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(null);
       if (CO && CO.__clearGrantBlocks) CO.__clearGrantBlocks();
       if (saved === undefined) delete G.companions; else G.companions = saved;
@@ -10470,13 +10493,55 @@ const TESTS = [
                  'panel-skills', 'panel-inventory', 'panel-farming', 'panel-house'];
     for (const id of ids) assert(document.getElementById(id), 'missing #' + id);
   }),
-  () => tryRun('companions: data + state', () => {
+  () => tryRun('companions: data + state — the starter fox is GRAMMAR, and it arrives from the server', () => {
     assert(typeof window.COMPANIONS === 'object' && Object.keys(window.COMPANIONS).length >= 12, 'expected 12+ companions');
     assert(window.G.companions, 'G.companions missing');
-    assert(window.G.companions.ownedIds.indexOf('fox') >= 0, 'fox should be in starting ownedIds');
+    /* b515 — THE FOX IS NOT SEEDED BY THE CLIENT, and this test was passing on
+       residue. `companions.js ensureState` fails CLOSED to an EMPTY roster under
+       the capstone, deliberately: seeding the starter fox before the envelope
+       lands would silently reset a player who owns more. So a bare
+       `G.companions.ownedIds` contains whatever an earlier test happened to
+       leave — this assertion was order-dependent and only surfaced when the
+       tests that seeded it were retired.
+
+       The property is real and worth keeping, so it is asserted where it is
+       actually decided: `accrue.js reconcileCompanions` unions the fox into
+       EVERY roster ("OWNED = server's unlock set ∪ the grammar-owned starter
+       fox"), which is what makes it grammar rather than a row. A server that
+       lists nothing must still produce a fox; a server that lists more must
+       keep both.
+       MUTATION: drop `'fox'` from the `new Set([...])` seed in
+       reconcileCompanions → red on the first assertion. */
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.reconcileCompanions === 'function',
+      'accrue.js must export reconcileCompanions — it is the only writer of the roster now');
+    const empty = {};
+    A.reconcileCompanions(empty, { companions: { owned: [], xp: {}, equipped: null } });
+    assert(empty.companions && empty.companions.ownedIds.indexOf('fox') >= 0,
+      'a server roster listing NOTHING did not produce the starter fox — it is owned by grammar, not by '
+      + 'a row, and a new player would have no companion at all: ' + JSON.stringify(empty.companions));
+    const some = {};
+    A.reconcileCompanions(some, { companions: { owned: ['beaver'], xp: { beaver: 40 }, equipped: 'beaver' } });
+    assert(some.companions.ownedIds.indexOf('fox') >= 0 && some.companions.ownedIds.indexOf('beaver') >= 0,
+      'the union dropped one of them: ' + JSON.stringify(some.companions.ownedIds));
+    assert(some.companions.equipped === 'beaver' && some.companions.xp.beaver === 40,
+      'the server-owned equip/xp did not land: ' + JSON.stringify(some.companions));
+    /* AND THE CLIENT DOES NOT INVENT ONE. The fail-closed direction is the half
+       that protects a real player: an envelope that says nothing about
+       companions must leave the roster ALONE, not rebuild it. */
+    const untouched = { companions: { ownedIds: ['beaver'], xp: {}, equipped: 'beaver' } };
+    A.reconcileCompanions(untouched, {});
+    assert(untouched.companions.ownedIds.length === 1 && untouched.companions.ownedIds[0] === 'beaver',
+      'a partial envelope rebuilt the roster — an un-projecting server would wipe what the player owns: '
+      + JSON.stringify(untouched.companions));
   }),
   () => tryRun('companions: bonus + stable panel', () => {
+    /* b515: the roster arrives through the real `reconcileCompanions`, not from
+       whatever an earlier test left in `G.companions` — see
+       `withCompanionRoster`. This test's subject is the BONUS, and it needs a
+       fox that is genuinely owned before it can equip one. */
     const snap = JSON.stringify(window.G.companions);
+    withCompanionRoster(['fox'], null, () => {
     if (typeof window.equipCompanion === 'function') window.equipCompanion('fox');
     if (typeof window.getCompanionBonus === 'function') {
       const b = window.getCompanionBonus();
@@ -10487,6 +10552,7 @@ const TESTS = [
     }
     assert(document.getElementById('panel-stable'), 'panel-stable missing');
     assert(document.getElementById('stable-body'), 'stable-body missing');
+    });
     window.G.companions = JSON.parse(snap);
   }),
 
@@ -11686,14 +11752,28 @@ const TESTS = [
     try {
       // b127: real field is `G.companions.equipped`, not `equippedId`.
       if (typeof window.equipCompanion !== 'function') return;
-      window.equipCompanion('fox');
-      const eq = window.G.companions?.equipped;
-      assert(eq === 'fox', `expected equipped=fox, got ${JSON.stringify(window.G.companions)}`);
-      if (typeof window.unequipCompanion === 'function') {
-        window.unequipCompanion();
-        const after = window.G.companions?.equipped;
-        assert(!after, `companion should be unequipped, got ${after}`);
-      }
+      /* b515: a companion can only be equipped if it is OWNED, and ownership is
+         the server's now — `ensureState` fails closed to an empty roster rather
+         than seeding the fox locally. The roster is installed through the real
+         `reconcileCompanions` (withCompanionRoster) so this measures the
+         equip/unequip gesture and not whatever an earlier test left behind. */
+      withCompanionRoster(['fox'], null, () => {
+        window.equipCompanion('fox');
+        const eq = window.G.companions?.equipped;
+        assert(eq === 'fox', `expected equipped=fox, got ${JSON.stringify(window.G.companions)}`);
+        if (typeof window.unequipCompanion === 'function') {
+          window.unequipCompanion();
+          const after = window.G.companions?.equipped;
+          assert(!after, `companion should be unequipped, got ${after}`);
+        }
+        /* AND AN UNOWNED ONE IS REFUSED. Without this the assertions above are
+           satisfied by an `equipCompanion` that writes whatever it is handed —
+           which is the residue-ahead shape: the client showing an entitlement
+           the server never granted. */
+        window.equipCompanion('lichling');
+        assert(window.G.companions.equipped !== 'lichling',
+          'a companion the player does not own was equipped — the client is authoring an entitlement');
+      });
     } finally { restoreG(snap); }
   }),
 
@@ -14783,6 +14863,13 @@ const TESTS = [
     const eqSnap = window.G.equipment ? window.G.equipment.companion : undefined;
     const prevPane = window._tdPane;
     try {
+      /* b515: the roster is the server's — `ensureState` fails closed to an
+         empty one — so the fox has to ARRIVE before it can be equipped. Through
+         the real `reconcileCompanions` (withCompanionRoster), not by writing
+         `ownedIds` here, so this cannot pass against a shape the server would
+         never produce. */
+      window.HearthriseAccrual.reconcileCompanions(window.G,
+        { companions: { owned: ['fox'], xp: {}, equipped: null } });
       window.equipCompanion('fox');
       window._tdPane = 'pet';
       const doll = window.buildTibiaDoll();
@@ -24452,28 +24539,67 @@ const TESTS = [
         + 'aggregate, so this number is written and then discarded on the next envelope');
     }
     G.companions = savedComp;
-    /* …and the LEVEL-UP → DOLL-REFRESH wiring, in the position where the client
-       is the writer. The b313 report (companion stats mismatch) is about that
-       wiring, and the wiring still ships. */
-    return withLocalBlob(() => {
-      try {
-        const id = Object.keys(window.COMPANIONS)[0];
-        assert(id, 'need at least one companion');
-        G.companions = { ownedIds: [id], equipped: id, xp: {} };
-        const l2 = window.companionXpToReach(2);
-        G.companions.xp[id] = Math.max(0, l2 - 1);          // one XP shy of level 2
-        let refreshed = 0;
-        window.refreshAllDolls = function(){ refreshed++; };
-        window.awardCompanionXp(0);                          // no gain → no level change
-        assert(refreshed === 0, 'a plain XP tick must NOT refresh the doll');
-        window.awardCompanionXp(l2 + 5);                     // cross into level 2+
-        assert(window.companionLevelFromXp(G.companions.xp[id]) >= 2, 'setup: companion should have leveled');
-        assert(refreshed >= 1, 'a companion level-up MUST refresh the doll');
-      } finally {
-        window.refreshAllDolls = origRefresh;
-        G.companions = savedComp;
-      }
-    });
+    /* ── b515 — THE WRITER MOVED, AND THE REPAINT DID NOT FOLLOW IT ──────────
+       This half drove `awardCompanionXp` with the capstone pinned OFF, on the
+       premise that the client is still the writer in that position. There is no
+       such position: `companions.js blobRetired()` is the literal `true`, so
+       `awardCompanionXp` returns on its first line for every caller — the
+       level-up branch inside it, including its `refreshAllDolls()` call, is
+       UNREACHABLE. Driving it through a seam that selects nothing would have
+       graded dead code and called it a pass.
+
+       WHAT IS LIVE, and what is asserted instead:
+         (a) the LEVEL IS THE SERVER'S and arrives through `reconcileCompanions`;
+             the READ path (`companionLevelFromXp`, `getCompanionBonus`) must
+             follow it, because that is what inventory and combat show.
+         (b) the client still authors nothing (asserted above).
+
+       ⚠ AND THE b313 DEFECT IS BACK, ON THE PATH THAT RUNS. paione's report was
+         "companion stats mismatch": the equipment doll's Companion pane is only
+         rebuilt when the doll is, so after a pet LEVELS UP it kept showing the
+         old level while inventory and combat — which read the live bonus every
+         call — already showed the higher numbers. The fix was a
+         `refreshAllDolls()` on the level change inside `awardCompanionXp`. That
+         function no longer runs, and `reconcileCompanions` does NOT repaint:
+         `applyServerEnvelope` calls `refreshAll()`, which is `updateTopbar` +
+         the active tab's renderer and never touches the dolls. So a pet that
+         levels up server-side leaves a stale doll exactly as before.
+         FILED 2026-09-07 in DISCOVERIES.md (P2, Systems): the level-up repaint
+         needs to move to the reconcile. It is NOT asserted here, because
+         asserting a repaint nothing performs is a red that teaches the next
+         reader to delete the assertion — and it is named here so the next
+         reader meets it. */
+    try {
+      const A = window.HearthriseAccrual;
+      const id = Object.keys(window.COMPANIONS)[0];
+      assert(id, 'need at least one companion');
+      const l2 = window.companionXpToReach(2);
+
+      // (a) one XP shy of level 2, stated by the server.
+      A.reconcileCompanions(G, { companions: { owned: [id], xp: { [id]: Math.max(0, l2 - 1) }, equipped: id } });
+      assert(window.companionLevelFromXp(G.companions.xp[id]) === 1,
+        'the fixture is not one XP shy of level 2: ' + G.companions.xp[id]);
+      const bonus1 = window.getCompanionBonus();
+
+      // …and then over it, stated by the server on the next envelope.
+      A.reconcileCompanions(G, { companions: { owned: [id], xp: { [id]: l2 + 5 }, equipped: id } });
+      assert(window.companionLevelFromXp(G.companions.xp[id]) >= 2,
+        'a server-stated companion XP total did not reach level 2: ' + G.companions.xp[id]);
+      const bonus2 = window.getCompanionBonus();
+
+      /* THE READ PATH FOLLOWED IT. `getCompanionBonus` scales +5% per level
+         above 1, so every non-zero channel must have grown — this is what
+         inventory and combat show, and it is the half of b313 that still works.
+         MUTATION: make reconcileCompanions drop `xp` → both bonuses come out
+         equal and this goes red. */
+      const moved = Object.keys(bonus2).some((k) => (bonus2[k] || 0) > (bonus1[k] || 0));
+      assert(moved,
+        'a server-stated companion level-up did not move the live bonus — inventory and combat would show '
+        + 'the OLD numbers: ' + JSON.stringify({ lv1: bonus1, lv2: bonus2 }));
+    } finally {
+      window.refreshAllDolls = origRefresh;
+      G.companions = savedComp;
+    }
   }),
 
   // b306 SECURITY: the IAP grant primitive must NOT be reachable from the client.

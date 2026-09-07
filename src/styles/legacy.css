@@ -16,72 +16,7 @@
    ===================================================================== */
 
 /* ---------- design tokens ---------- */
-:root{
-  /* colors — Forge & Stone. These DEFAULTS now match the only theme
-     (hearthlight) so nothing falls back to the old cold-navy/teal palette.
-     b197 UI consolidation: single source of truth lives here + the
-     hearthlight block in theme-cozy.css (kept in sync). */
-  --bg-0:#100e0b;
-  --bg-1:#17140f;
-  --bg-2:#201b15;
-  --bg-3:#2a241c;
-  --bg-card:linear-gradient(180deg,#26201a,#1a1610);
-  --line:rgba(201,162,74,.20);
-  --line-soft:rgba(236,225,204,.055);
-  --line-strong:rgba(201,162,74,.42);
-
-  --ink:#ece1cc;
-  --ink-2:#c4b79e;
-  --ink-3:#8f7d63;
-
-  --gold:#c9a24a;          /* restrained gilt (was bright #e2b84e) */
-  --gold-2:#e3c77e;
-  --gold-bg:rgba(201,162,74,.14);
-
-  /* --aqua retired to a muted weathered value; teal LITERALS get purged in
-     Phase 2 and the components reading --aqua get repointed to gold/steel. */
-  --aqua:#5c8f89;
-  --aqua-2:#a89a80;
-  --aqua-bg:rgba(92,143,137,.15);
-
-  --green:#7f9a4f;         /* moss — nature/XP/success */
-  --green-bg:rgba(127,154,79,.15);
-  --red:#b23a2c;           /* oxblood — danger/combat */
-  --red-bg:rgba(178,58,44,.16);
-  --red-line:#cf5340;      /* b357: the danger EDGE — a ring drawn in --red goes to mud on near-black */
-  --purple:#6a4560;        /* heraldic plum */
-  --purple-bg:rgba(106,69,96,.20);
-
-  /* gem (premium currency) accent */
-  --gem:#5262b3;           /* sapphire */
-  --gem-bg:rgba(82,98,179,.18);
-
-  /* forge-stone additions (b197) */
-  --steel:#7a8791;         /* cool neutral accent */
-  --accent:#c9a24a;        /* = gold: the single interactive accent */
-  --tab-active:linear-gradient(180deg,rgba(201,162,74,.24),rgba(201,162,74,.10)); /* one active-tab token (gilt, not the old red/aqua) */
-
-  /* layout */
-  /* b227: the rail holds nothing but text, so it scales with the UI-scale
-     dial. Without this, 130% pushed the wordmark flush against the left edge
-     and wrapped "Bounty Board" onto two lines — the dial was making the type
-     bigger without giving it anywhere to go. At 100% this computes to exactly
-     the 180px it has always been. The 64px icon-rail below is deliberately
-     NOT scaled: it shows no labels, so its width is an icon measurement. */
-  --nav-w:calc(180px * var(--ui-scale, 1));
-  --top-h:54px;
-  --gap:10px;
-  --r-sm:8px;
-  --r:12px;
-  --r-lg:16px;
-  --tap:44px;            /* min touch target */
-  --safe-t:env(safe-area-inset-top,0px);
-  --safe-b:env(safe-area-inset-bottom,0px);
-
-  /* type */
-  --f-display:'Cinzel',Georgia,serif;
-  --f-ui:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
-}
+/* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
 
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -725,8 +660,8 @@ img,svg{display:block;max-width:100%}
    ===================================================================== */
 
 /* ─── tablet (<=1180px): smaller nav, condensed dashboard ─── */
-@media (max-width:1180px){
-  :root{--nav-w:64px}
+@media (max-width:1180px) {
+  /* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
   /* b213 (phase 2): in icon-rail mode the section headers ("Adventure",
      "Economy", "Homestead") clipped to garbage like "ADV" — hide them
      along with the text labels. */
@@ -751,7 +686,7 @@ img,svg{display:block;max-width:100%}
 }
 
 /* ─── phone (<=900px): bottom nav, single column ─── */
-@media (max-width:900px), (max-height:540px) and (max-width:1024px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
   .app{grid-template-columns:1fr}
   .sidebar{display:none}
   .main{grid-column:1}
@@ -823,12 +758,12 @@ img,svg{display:block;max-width:100%}
      still stacks, because there 220px really is the whole screen. */
   .iap-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 }
-@media (max-width:540px){
+@media (max-width:540px) {
   .iap-grid{grid-template-columns:1fr}
 }
 
 /* ─── tiny phone (<=380px) ─── */
-@media (max-width:380px){
+@media (max-width:380px) {
   .top-stats{gap:3px}
   .t-stat{padding:4px 6px;font-size:calc(14.5px * var(--ui-scale, 1))}
   .player-name{max-width:80px}
@@ -836,21 +771,21 @@ img,svg{display:block;max-width:100%}
 }
 
 /* ─── Steam landscape (1280x720 minimum, fixed) ─── */
-@media (min-width:1280px) and (max-height:800px){
-  :root{--nav-w:calc(170px * var(--ui-scale, 1));--top-h:48px}
+@media (min-width:1280px) and (max-height:800px) {
+  /* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
   .panel{padding:8px}
   .card{padding:10px}
   .card-title{font-size:calc(14.5px * var(--ui-scale, 1))}
 }
 
 /* ─── ultra-wide ─── */
-@media (min-width:1900px){
-  :root{--nav-w:calc(220px * var(--ui-scale, 1))}
+@media (min-width:1900px) {
+  /* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
   body{font-size:calc(18px * var(--ui-scale, 1))}
 }
 
 /* ─── prefers-reduced-motion ─── */
-@media (prefers-reduced-motion:reduce){
+@media (prefers-reduced-motion:reduce) {
   *{transition:none !important;animation:none !important}
 }
 
@@ -1156,7 +1091,7 @@ img,svg{display:block;max-width:100%}
 .cbt-food-note{line-height:1.5;max-width:62ch}
 .inv-detail-close{position:absolute;top:12px;right:14px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:calc(17px * var(--ui-scale, 1));cursor:pointer}
 
-@media (max-width:900px), (max-height:540px) and (max-width:1024px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
   #panel-inventory.active{display:block !important}
   #panel-inventory .card{margin-bottom:8px;max-height:none}
   .inv-doll{grid-template-columns:1fr 1fr 1fr}
@@ -1215,7 +1150,7 @@ img,svg{display:block;max-width:100%}
 
    Cut-off is 899px because 900 is where the uncompacted rail exactly fits
    (measured: 889 of 900). ─────────────────────────────────────────────────── */
-@media (max-height: 899px){
+@media (max-height: 899px) {
   .sidebar{gap:3px;padding-top:8px}
   .brand{padding:6px 10px 6px;margin-bottom:4px}
   .nav-btn{min-height:38px;padding:5px 10px}
@@ -1307,7 +1242,7 @@ img,svg{display:block;max-width:100%}
 }
 .ab-stop:hover{background:rgba(248,81,73,.3);color:#fff}
 
-@media(max-width:600px){
+@media (max-width:600px) {
   .activity-bar{padding:6px 10px;gap:8px;font-size:calc(14.5px * var(--ui-scale, 1));min-height:38px}
   .ab-icon{width:26px;height:26px;font-size:calc(18px * var(--ui-scale, 1))}
   .ab-name{font-size:calc(14.5px * var(--ui-scale, 1))}
@@ -1385,41 +1320,7 @@ img,svg{display:block;max-width:100%}
 
 /* ===== block 8: lane1-stardew ===== */
 /* ═══ STARDEW VALLEY style retheme — toggle via data-theme="lane1" ═══ */
-body[data-theme="lane1"]{
-  --bg-0:#3a1812;
-  --bg-1:#5b2618;
-  --bg-2:#793930;
-  --bg-3:#945540;
-  --bg-card:#f8d878;
-
-  --line:#5b2618;
-  --line-soft:rgba(77,38,19,.18);
-  --line-strong:#f9c54e;
-
-  --ink:#4d2613;
-  --ink-2:#7a4623;
-  --ink-3:#a07045;
-
-  --gold:#e8a838;
-  --gold-2:#f9c54e;
-  --gold-bg:rgba(249,197,78,.18);
-
-  --aqua:#8a8272;
-  --aqua-2:#a49a86;
-  --aqua-bg:rgba(98,150,180,.16);
-
-  --green:#5e9f4a;
-  --green-bg:rgba(94,159,74,.20);
-  --red:#c44a2c;
-  --red-bg:rgba(196,74,44,.20);
-
-  --r-sm:6px;
-  --r:10px;
-  --r-lg:14px;
-
-  --f-display:'Fredoka','Quicksand',system-ui,sans-serif;
-  --f-ui:'Quicksand',system-ui,'Segoe UI',Roboto,sans-serif;
-}
+/* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
 
 /* Body — soft outdoor scene gradient (dawn over Stardew Valley vibe) */
 body[data-theme="lane1"]{
@@ -1892,7 +1793,7 @@ body[data-theme="lane1"] .topbar .idle-hint{color:#fdde98 !important;text-shadow
   gap:16px;align-items:start;
 }
 .hmstead-col{display:flex;flex-direction:column;min-width:0}
-@media (max-width:900px), (max-height:540px) and (max-width:1024px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
   .hmstead-grid{grid-template-columns:1fr;gap:10px}
 }
 
@@ -1900,39 +1801,7 @@ body[data-theme="lane1"] .topbar .idle-hint{color:#fdde98 !important;text-shadow
 /* ═══ COZY DARK theme — mirrors warm cozy vocabulary on dark stained wood ═══
    Activated via body[data-theme="dark"] */
 
-body[data-theme="dark"]{
-  --bg-0:#1f0f08;
-  --bg-1:#3a1812;
-  --bg-2:#4d2418;
-  --bg-3:#5b2618;
-  --bg-card:#5b2618;
-
-  --line:#7a4225;
-  --line-soft:rgba(232,200,150,.10);
-  --line-strong:#f9c54e;
-
-  --ink:#fdde98;
-  --ink-2:#e8c896;
-  --ink-3:#a88458;
-
-  --gold:#c8881e;
-  --gold-2:#f9c54e;
-  --gold-bg:rgba(249,197,78,.14);
-
-  --aqua:#a49a86;
-  --aqua-2:#c0b49a;
-  --aqua-bg:rgba(139,184,212,.14);
-
-  --green:#8bc26a;
-  --green-bg:rgba(139,194,106,.16);
-  --red:#e8746a;
-  --red-bg:rgba(232,116,106,.16);
-
-  --r-sm:6px; --r:10px; --r-lg:14px;
-
-  --f-display:'Fredoka','Quicksand',system-ui,sans-serif;
-  --f-ui:'Quicksand',system-ui,'Segoe UI',Roboto,sans-serif;
-}
+/* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
 
 /* Body — moonlit dark wood + tavern ambience */
 body[data-theme="dark"]{
@@ -3019,12 +2888,12 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
    and the doll 808px tall in a 423px viewport. Sizing is `--td-cell` now and
    the mobile value is set once, in theme-cozy.css beside the other
    mobile-landscape density rules. Nothing here may re-declare a track. */
-@media (max-width:900px), (max-height:540px) and (max-width:1024px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
   .td-doll .td-slot{font-size:calc(33px * var(--ui-scale, 1))}
   .td-doll .td-slot small{font-size:calc(14.5px * var(--ui-scale, 1))}
 }
 /* Mobile: collapse to single column */
-@media (max-width:900px), (max-height:540px) and (max-width:1024px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
   .invc-main{grid-template-columns:1fr}
   .invc-cat-strip{flex-direction:row}
   .invc-equip-col{order:-1}
@@ -3182,10 +3051,10 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   pointer-events:none;
 }
 
-@media (max-width:1100px){
+@media (max-width:1100px) {
   .act-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
 }
-@media (max-width:780px){
+@media (max-width:780px) {
   .act-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
 }
 
@@ -3546,7 +3415,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .cr-rate-row .cr-rate-val{color:var(--gold-2);font-weight:800;font-size:calc(16px * var(--ui-scale, 1))}
 .cr-rate-row .cr-rate-meta{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))}
 
-@media (max-width:1100px){
+@media (max-width:1100px) {
   .cr-hero{grid-template-columns:120px 1fr;}
   .cr-hero-portrait{width:120px;height:120px}
   .cr-hero-stats{grid-column:1/-1}
@@ -3764,7 +3633,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .qm-info-text{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.6}
 .qm-reset{margin-top:auto;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-family:monospace;text-align:center;padding-top:10px;border-top:1px dashed var(--line)}
 
-@media (max-width:900px), (max-height:540px) and (max-width:1024px){
+@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
   .global-quests-strip{flex-wrap:wrap;gap:6px}
   .qm-body{grid-template-columns:1fr}
   .qm-aside{border-left:none;border-top:1px solid var(--line)}

@@ -156,6 +156,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;0,800;1,400&family=Alegreya+Sans+SC:wght@500;700;800&display=swap" rel="stylesheet">
 
 <!-- moved style#0 (style-0) -->
+  <!-- cleanup slice 5: tokens.css is the SINGLE SOURCE of design tokens and
+       must load FIRST. Every :root / body[data-theme=…] custom property that
+       used to be scattered through the four sheets below now lives there, in
+       the same order, so the cascade is byte-for-byte the one it replaced.
+       Nothing below may declare a token on a root selector — the guard is
+       tests/token-single-source.mjs. -->
+  <link rel="stylesheet" href="src/styles/tokens.css?v=518">
   <link rel="stylesheet" href="src/styles/legacy.css?v=518">
   <link rel="stylesheet" href="src/styles/audit-overrides.css?v=518">
   <!-- theme-cozy MUST load last so it wins specificity over legacy.css :root + accumulated inline overrides -->

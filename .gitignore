@@ -104,3 +104,12 @@ tests/smoke-run.log
 # PGlite chain snapshots (tests/pglite-template.mjs). Content-addressed, rebuilt
 # on demand, never a source of truth. Deleting the directory is always safe.
 tests/.pglite-cache/
+
+# tools/css-ab-pixel-diff.mjs: the reference stylesheets it materialises from a
+# git ref while it runs, and the diff PNGs it writes when pixels actually moved.
+# Both are rebuilt on demand; a committed one would just be a stale screenshot.
+.css-ab-ref/
+docs/reports/css-ab/
+
+# agent scratch tooling (one-off migration scripts, before/after snapshots)
+.scratch/

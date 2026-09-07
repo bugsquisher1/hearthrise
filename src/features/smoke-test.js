@@ -40637,6 +40637,99 @@ const TESTS = [
     }
   }),
 
+  /* ── b521 regression — "SOMETIMES THE GAME TRIPS AND DROPS MY MAX HIT TO 25" ─
+     Paione, 2026-09-07, two screen recordings of ONE Wraith fight with ONE
+     loadout. The weapon row read `Iron Warhammer · 3.17s` in the good frame and
+     `Iron Warhammer · 2.4s` in the bad one, with MAX HIT 30 → 25 and the 2H-hammer
+     weakness gone. 2400 ms is COMBAT_BALANCE.tickMs with NOTHING equipped; the
+     hammer was still NAMED because the label is a raw `G.equipment.weapon` read
+     while every NUMBER goes through equipmentMapG() → recordValue → the stamp.
+
+     THE MECHANISM. hr_state_of projects `jsonb_object_agg(equip_slot, item_id)`
+     over the player_equipment ROWS, so the server's map is SPARSE. The client
+     normalises it back into the full doll — legacy.js `migrateEquipmentSlots()`
+     runs from renderLoadout / renderInventory / renderInvNew, i.e. on ANY
+     inventory or loadout REPAINT, with no gear change and nothing to heal it
+     until an unrelated settle lands — and the old `fingerprintEquipment` wrote a
+     `-` marker per empty slot, so those added keys read as a SECOND WRITER,
+     `recordValue` answered `client-overwrote`, and `equipmentMap()` fail-closed
+     to the frozen EMPTY set. NOT display-only: `combatSimCtx.playerRolls` calls
+     getEquipmentStats() every tick and `ctx.tickMs = combatTickMs()` schedules the
+     swing, so the live fight really did lose the strength bonus, the weakness
+     multiplier and the armour, and really did take more hits.
+
+     This drives the REAL path — a sparse worn set arriving through
+     `stampRecordLikeLoad` (a genuine applyRecord), then the production repaint —
+     and asserts the forecast inputs are IDENTICAL across it. It fails without the
+     fix on every one of the five assertions (measured: hammer→neutral, strB 12→0,
+     defB 14→0, 3175→2400 ms, weakness matched→false).
+
+     (E) is the CONTROL, and it is why this test cannot be satisfied by simply
+     never fail-closing: a forged weapon swap on a stamped set must STILL be
+     caught. The fingerprint now measures the worn set instead of the object's key
+     layout; it did not stop measuring. */
+  () => tryRun('b521 regression: a doll repaint cannot disarm the worn set (Paione — "drops my max hit to 25")', () => {
+    const G = window.G;
+    const R = window.HearthriseRecord;
+    if (!R || typeof R.isServerOfRecord !== 'function') return;
+    if (typeof window.migrateEquipmentSlots !== 'function') return;
+    if (!window.ITEMS || !window.ITEMS.iron_warhammer || !window.ITEMS.leather_boots) return;
+    if (!window.MONSTERS || !window.MONSTERS.wraith) return;
+    const snap = snapshotG();
+    try {
+      /* THE SPARSE MAP THE SERVER REALLY SENDS — only the slots with a row. */
+      G.equipment = { weapon: 'iron_warhammer', boots: 'leather_boots' };
+      stampRecordLikeLoad(G);
+      assert(R.recordValue(G, 'equipment').known === true,
+        'the fixture did not arrive on the record — this test would then compare naked with naked');
+
+      const read = () => {
+        const eq = window.getEquipmentStats();
+        const rolls = window.getPlayerCombatRolls(window.MONSTERS.wraith, eq);
+        return { weaponType: eq.weaponType, strB: eq.strB, defB: eq.defB, spdB: eq.spdB,
+          tickMs: window.combatTickMs(), maxHit: rolls.maxHit,
+          weakMatched: !!(rolls.weak && rolls.weak.matched) };
+      };
+      const before = read();
+      assert(before.weaponType === 'hammer',
+        'the fixture is not swinging a hammer (' + before.weaponType + ') — nothing below can bite');
+
+      /* ONE REPAINT. No gear changed; the player did not touch anything. */
+      window.migrateEquipmentSlots();
+      const after = read();
+
+      assert(R.recordValue(G, 'equipment').known === true,
+        'a doll repaint disarmed the worn set: recordValue says `'
+        + R.recordValue(G, 'equipment').source + '`. migrateEquipmentSlots() only ADDS empty slots — it '
+        + 'changes nothing the player is wearing — so it must not read as a second writer.');
+      assert(after.weaponType === before.weaponType,
+        'the weapon class was lost on a repaint: ' + before.weaponType + ' → ' + after.weaponType);
+      assert(after.tickMs === before.tickMs,
+        'the swing interval moved on a repaint: ' + before.tickMs + 'ms → ' + after.tickMs + 'ms. '
+        + '(Paione saw exactly this as `3.17s` → `2.4s` on the weapon row mid-fight.)');
+      assert(after.strB === before.strB && after.defB === before.defB && after.spdB === before.spdB,
+        'gear bonuses were lost on a repaint: str ' + before.strB + '→' + after.strB
+        + ', def ' + before.defB + '→' + after.defB + ', spd ' + before.spdB + '→' + after.spdB);
+      assert(after.maxHit === before.maxHit,
+        'max hit moved on a repaint: ' + before.maxHit + ' → ' + after.maxHit);
+      assert(after.weakMatched === before.weakMatched && after.weakMatched === true,
+        'the 2H-hammer weakness bonus was lost on a repaint (matched '
+        + before.weakMatched + ' → ' + after.weakMatched + ')');
+
+      /* (E) THE TEETH. A repaint is invisible; a real change to the worn set is
+         not, in either direction. */
+      G.equipment.weapon = 'dragon_sword';
+      const forged = R.recordValue(G, 'equipment');
+      assert(forged.known === false && forged.source === 'client-overwrote',
+        'a client weapon SWAP on a stamped set was not caught: ' + JSON.stringify(forged));
+      G.equipment.weapon = 'iron_warhammer';
+      delete G.equipment.boots;
+      const dropped = R.recordValue(G, 'equipment');
+      assert(dropped.known === false && dropped.source === 'client-overwrote',
+        'a client REMOVING a worn item was not caught: ' + JSON.stringify(dropped));
+    } finally { restoreG(snap); stampRecordLikeLoad(G); }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════════
      B429 — SKILL XP IS SERVER-OF-RECORD (shipped DORMANT).
      ══════════════════════════════════════════════════════════════════════════

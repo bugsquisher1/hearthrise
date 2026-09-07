@@ -630,14 +630,59 @@ export function decodeEquipment(v) {
    guarantee). NEVER empty — an unequipped set fingerprints as `eq:` (a real,
    distinct token) so `want === have` in recordValue is a genuine comparison and a
    known-empty set never collides with an absent/unknown one. `null` and a
-   non-object fingerprint as `absent`, matching the UNKNOWN they decode to. */
+   non-object fingerprint as `absent`, matching the UNKNOWN they decode to.
+
+   ── b52x — IT FINGERPRINTS THE WORN SET, NOT THE OBJECT'S KEY LAYOUT ─────────
+   Paione, 2026-09-07: "sometimes the game like trips and drops my max hit to 25",
+   with two screen recordings of the same Wraith fight, the same loadout, and the
+   weapon row reading `Iron Warhammer · 3.17s` in one and `Iron Warhammer · 2.4s`
+   in the other. 2400 ms is `COMBAT_BALANCE.tickMs` with NO gear at all; 3175 ms is
+   that base × hammer 1.35 × leather-boot spdB .02. The forecast had gone NAKED
+   mid-fight while still naming the hammer, because the name is a raw `G.equipment`
+   read and every NUMBER goes through `equipmentMapG()` → this fingerprint.
+
+   MEASURED, in the page, both states in one turn (see the b52x regression):
+
+     after the envelope   want eq:body=iron_platebody;boots=leather_boots;weapon=iron_warhammer;
+                          hammer / strB 12 / spdB .02 / 3175 ms      known:true
+     after ONE repaint    have eq:ammo=-;belt=-;body=…;cape=-;companion=-;earrings=-;…
+                          neutral / strB 0 / spdB 0 / 2400 ms        known:false
+
+   `hr_state_of` projects `jsonb_object_agg(equip_slot, item_id)` over the
+   `player_equipment` ROWS, so the server's map is SPARSE — only what is worn. The
+   client repeatedly normalises that into the full 15-slot doll: legacy.js
+   `migrateEquipmentSlots()` (called by renderLoadout / renderInventory /
+   renderInvNew, i.e. on any inventory or loadout REPAINT, with no gear change and
+   no server round-trip to heal it) and `reconcileEquipmentFromEnvelope()` both
+   null-fill every unworn slot. Under the OLD expression each of those wrote `-`
+   markers the stamp had never seen, so `recordValue` answered `client-overwrote`,
+   `equipmentMap()` fail-closed to the frozen EMPTY map, and the player fought the
+   rest of the round unarmed — in the LIVE tick, not just the tiles
+   (`combatSimCtx.playerRolls` calls getEquipmentStats() every tick and
+   `ctx.tickMs = combatTickMs()` schedules the swing).
+
+   `{weapon:'iron_warhammer'}` and `{weapon:'iron_warhammer', helmet:null, …}` are
+   the SAME worn set — `decodeEquipment` accepts both, `equippedItem` answers null
+   for an absent key and for an explicit null alike, and `equipmentStats` skips
+   both — so a fingerprint that told them apart was measuring the object's key
+   layout rather than the thing it exists to protect. Skipping empty slots costs
+   the detector NO teeth: adding/removing an empty slot grants nothing, while
+   putting a real item in a slot, changing one, or DROPPING one all still move the
+   string (B433-4's `g.equipment.weapon='dragon_sword'` on a server-empty set is
+   `eq:` → `eq:weapon=dragon_sword;`, caught exactly as before). Fixing it here
+   rather than at each normaliser is what kills the class: the next pass that
+   re-shapes the doll is inert by construction instead of stripping a player naked
+   mid-fight. */
 export function fingerprintEquipment(v) {
   if (v === null || typeof v !== 'object' || Array.isArray(v)) return 'absent';
   const keys = Object.keys(v).sort();
   let s = 'eq:';
   for (const k of keys) {
     const item = v[k];
-    s += k + '=' + (item === null || typeof item === 'undefined' ? '-' : String(item)) + ';';
+    /* AN EMPTY SLOT IS NOT PART OF THE WORN SET. `''` joins null/undefined because
+       decodeEquipment's grammar cannot produce it but a client normaliser can. */
+    if (item === null || typeof item === 'undefined' || item === '') continue;
+    s += k + '=' + String(item) + ';';
   }
   return s;
 }

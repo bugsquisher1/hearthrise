@@ -35,16 +35,21 @@ export async function clientStateGuard() {
     return problems;
   }
 
+  /* b515: `reset()` used to put the master accrual switch OFF, because the arm
+     ANDed it. That switch is retired, so PRISTINE now means SERVER-BACKED and
+     the dormant direction is driven by this store's own seam — which is the
+     right seam anyway: a test that needs the dormant read path should say so,
+     not disable the whole record system to get it. */
   const reset = () => {
     try { C.__setClientStateArm(null); } catch (e) {}
     try { C.__resetClientState(); } catch (e) {}
-    try { A.setServerAccrualEnabled(false); } catch (e) {}
   };
 
   try {
-    // ── ARM OFF (default): dormant, no regression ──────────────────────────
+    // ── ARM OFF (driven, no longer the default): the blob-read path ────────
     reset();
-    if (C.CLIENT_STATE_SERVER_BACKED !== false) fail('CLIENT_STATE_SERVER_BACKED must ship false (DORMANT)');
+    C.__setClientStateArm(false);
+    if (C.CLIENT_STATE_SERVER_BACKED !== false) fail('CLIENT_STATE_SERVER_BACKED must ship false (INERT)');
     if (C.isClientStateServerBacked()) fail('ARM OFF: isClientStateServerBacked must be false');
     {
       const G = { stats: { kills: 7 }, activeStyle: 2, foodSlot: 'shrimp',
@@ -59,11 +64,9 @@ export async function clientStateGuard() {
     }
 
     // ── ARM ON: residue is sourced from the server envelope ────────────────
-    // The arm ALSO requires the master accrual switch (isServerAccrualEnabled).
     C.__resetClientState();
-    A.setServerAccrualEnabled(true);
     const armed = C.__setClientStateArm(true);
-    if (!armed) { fail('ARM ON: could not arm (master switch not honoured?) — rest skipped'); reset(); return problems; }
+    if (!armed) { fail('ARM ON: could not arm — rest skipped'); reset(); return problems; }
     {
       const G = { activeStyle: 2, foodSlot: 'shrimp', stats: { kills: 7 } };   // a forged blob must NOT be read
       // Before any envelope: no bag → fields read as fallback, and NOT from the blob.

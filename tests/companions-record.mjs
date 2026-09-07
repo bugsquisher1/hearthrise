@@ -75,22 +75,22 @@ export async function companionsRecordGuard() {
   });
 
   try {
-    // ── 1. DORMANT: reconcileCompanions is a pure no-op ─────────────────────
-    setArm(false);
+    /* ── 1. RETIRED IN b515 — there is no DORMANT companion path ─────────────
+       This asserted that with the capstone disarmed reconcileCompanions was a
+       pure no-op and ensureState seeded the starter fox from the client. Both
+       halves were reachable only through the b353 kill switch (isBlobRetired()
+       ANDed it), and b515 retired the switch and DELETED them: the server owns
+       the roster in every position, and a client fox-seed is the reset this
+       guard's §3 exists to prevent. Nothing replaces it — the property it held
+       ("the un-armed path is byte-unchanged") no longer has a subject.
+       §3 below still proves the pre-envelope state is EMPTY, never fox. */
+    // ── 1b. NO ENVELOPE YET: the roster is untouched, never client-authored ──
     {
       const G = { companions: { ownedIds: ['fox'], xp: { fox: 42 }, equipped: 'fox' } };
-      const r = A.reconcileCompanions(G, ENV());
-      if (!r || r.mode !== 'dormant') fail('DORMANT: reconcileCompanions must return {mode:dormant} (got ' + JSON.stringify(r) + ')');
-      if (G.companions.equipped !== 'fox' || G.companions.xp.fox !== 42 || G.companions.ownedIds.length !== 1)
-        fail('DORMANT: reconcileCompanions altered the client roster');
-    }
-    // DORMANT ensureState (via getCompanionBonus) keeps seeding fox exactly as today.
-    if (typeof C.getCompanionBonus === 'function') {
-      globalThis.window.G = { equipment: {} };
-      C.getCompanionBonus();
-      const comp = globalThis.window.G.companions;
-      if (!comp || !Array.isArray(comp.ownedIds) || comp.ownedIds.indexOf('fox') === -1)
-        fail('DORMANT: ensureState must still seed the starter fox (got ' + JSON.stringify(comp) + ')');
+      const r = A.reconcileCompanions(G, { ok: true, version: 5 });   // no `companions` key
+      if (!r || r.mode !== 'absent') fail('ABSENT: a projection-free envelope must answer {mode:absent} (got ' + JSON.stringify(r) + ')');
+      if (G.companions.equipped !== 'fox' || G.companions.ownedIds.length !== 1)
+        fail('ABSENT: an envelope with no companions projection must leave the roster alone');
     }
 
     // ── 2. ARMED: rebuild from the envelope, NOT reset to fox ────────────────
@@ -156,12 +156,9 @@ export async function companionsRecordGuard() {
       C.awardCompanionXp(500);
       if (globalThis.window.G.companions.xp.raccoon !== 100)
         fail('XP-GATE: awardCompanionXp wrote XP under arm — the server owns companion XP (got ' + globalThis.window.G.companions.xp.raccoon + ')');
-      // …and DORMANT it still awards (no regression).
-      setArm(false);
-      globalThis.window.G = { companions: { ownedIds: ['fox', 'raccoon'], xp: { raccoon: 100 }, equipped: 'raccoon' }, equipment: {} };
-      C.awardCompanionXp(5);
-      if (globalThis.window.G.companions.xp.raccoon <= 100)
-        fail('XP-GATE: DORMANT awardCompanionXp must still award (regression)');
+      /* The "…and DORMANT it still awards" half is RETIRED (b515): the client
+         award path was reachable only with the kill switch off and is deleted.
+         The server owns companion XP in every position. */
     }
 
     // ── 6. SERVER-GRANT TRANSPORT: a NON-SHOP unlock writes the server row ────
@@ -193,16 +190,11 @@ export async function companionsRecordGuard() {
         },
       };
 
-      // (a) DORMANT: a non-shop unlock fires NO server grant (byte-unchanged).
-      setArm(false);
-      calls.length = 0;
-      globalThis.window.G = { companions: { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' } };
-      C.unlockCompanion('wolf_pup');                     // drop:small_wolf — non-shop
-      if (calls.length !== 0) fail('GRANT: DORMANT must NOT fire a server grant (got ' + JSON.stringify(calls) + ')');
-      if (globalThis.window.G.companions.ownedIds.indexOf('wolf_pup') === -1)
-        fail('GRANT: DORMANT unlockCompanion must still write the local ownedIds (byte-unchanged)');
+      /* (a) was "DORMANT fires no grant and writes ownedIds locally" — RETIRED
+         in b515 with the kill switch that made the dormant half reachable. A
+         non-shop acquisition is a server grant, in every position. */
 
-      // (b) ARMED: a non-shop unlock fires exactly one grant, carrying id + source.
+      // (b) a non-shop unlock fires exactly one grant, carrying id + source.
       setArm(true);
       calls.length = 0;
       globalThis.window.G = { companions: { ownedIds: [], xp: {}, equipped: null } };
@@ -237,5 +229,10 @@ const SELF = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace
 if (SELF) {
   const probs = await companionsRecordGuard();
   if (probs.length) { console.error('FAIL:\n' + probs.map((p) => '  - ' + p).join('\n')); process.exit(1); }
-  console.log('companions-record: dormant no-op + armed rebuild + fail-closed-pre-envelope + equip-safety + xp-gate — all green');
+  console.log('companions-record: absent-envelope no-op + rebuild-not-reset + fail-closed-pre-envelope '
+    + '+ equip-safety + xp-gate + server-grant transport — all green');
+  /* b515: the armed grant path leaves a cooldown timer pending, so the CLI would
+     otherwise sit at an empty event loop after printing. The suite imports the
+     function and is unaffected; this is only the standalone entry point. */
+  process.exit(0);
 }

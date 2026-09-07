@@ -120,11 +120,11 @@ import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=517';
    predict.js imports nothing, so there is no cycle. */
 import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=517';
 
-/* THE SAME SWITCH AS b337/b338, DELIBERATELY. A separate switch would create a
-   state where the record has moved but the computation has not, or the reverse
-   — and "which half is on" is not a question anybody should have to ask during
-   an incident. One switch, one authority. */
-export function isRecordActive() { return isServerAccrualEnabled(); }
+/* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
+   RETIRED, so this is a constant. A separate switch would have created a state
+   where the record has moved but the computation has not; there is now no state
+   at all. The per-FIELD arms below are the real granularity and they stay. */
+export function isRecordActive() { return true; }
 
 /* ── THE REGISTRY ───────────────────────────────────────────────────────────
    DATA, not code, so moving the second field is an entry and not a refactor —

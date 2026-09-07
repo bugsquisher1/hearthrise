@@ -46,17 +46,17 @@
 // `G.marks`, so bountyHunter is wholly residue and hydrateInto/buildResiduePatch
 // merely DROP any stray nested `marks` defensively (see those functions).
 //
-// ── THE MASTER-SWITCH COUPLING ──────────────────────────────────────────────
-// isBlobRetired() ALSO requires isServerAccrualEnabled(), the same master switch
-// record.js's arms ride. The capstone cannot be "on" while the record system as
-// a whole is off — that would strip/retire the blob while the authority fields
-// were still client-authored, stranding the character. One switch decides whose
-// record it is; this flag decides whether the blob still exists at all, and it
-// can only matter once the record system is live.
+// ── THE MASTER-SWITCH COUPLING IS GONE (b515) ──────────────────────────────
+// isBlobRetired() used to AND isServerAccrualEnabled() — the b353 kill switch —
+// so the capstone could not be "on" while the record system as a whole was off.
+// That switch is RETIRED: server accrual is unconditional, so the conjunction
+// had exactly one remaining effect, which was to keep the DORMANT half of every
+// fork below reachable on any device holding `hr:serverAccrual=off`. The
+// predicate is now the constant `BLOB_RETIRED`, the dormant halves are deleted,
+// and `tests/no-blob-branches.mjs` holds the census at zero.
 //
 // ── WHY A GLOBAL, NOT AN IMPORT, FOR accrue.js/gold.js ──────────────────────
-// accrue.js gates its replacement modal on this flag, and accrue.js is imported
-// BY this module (for isServerAccrualEnabled) — so accrue.js reads the flag off
+// accrue.js gates its replacement modal on this flag — so accrue.js reads it off
 // window.HearthriseCapstone at CALL time (the same cycle-avoidance gold.js uses
 // for isReconcilePending, see accrue.js ~1828). This module's own reference to
 // accrue is call-time too, so the cycle is benign either way, but the global
@@ -83,11 +83,12 @@
 
 import { isServerAccrualEnabled } from './accrue.js?v=517';
 import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=517';
+import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=516';
 
 /* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al): one
-   greppable const, a test override seam, and a runtime predicate that ALSO
-   requires the master accrual switch. The const is TRUE — the client-authored
+   greppable const, a test override seam, and a runtime predicate. The const is
+   TRUE — the client-authored
    save blob is RETIRED; server tables are the only copy of progression and the
    residue is a client-preference allowlist.
 
@@ -97,14 +98,21 @@ import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=517
    "for safety" — the game is online-only and refusing to proceed is correct. */
 export const BLOB_RETIRED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — the save blob is retired
 let armOverride = null;
+/* THE ONE EXPRESSION. `isBlobRetired()` and `__setBlobRetired()` both read it, so
+   the predicate is written once and nothing in this module CALLS the exported
+   name — which is what lets tests/no-blob-branches.mjs hold the fork census at
+   zero without excusing this file. */
+function armed() { return armOverride !== null ? !!armOverride : !!BLOB_RETIRED; }
 export function isBlobRetired() {
-  const on = armOverride !== null ? armOverride : BLOB_RETIRED;
-  return !!on && isServerAccrualEnabled();
+  /* A CONSTANT in production since b515: the `&& isServerAccrualEnabled()`
+     conjunction went with the retired b353 kill switch. The override seam stays
+     because ~40 harness sites drive it; nothing in src/ forks on it any more. */
+  return armed();
 }
 /** Test seam, same spirit as record.js's __setSkillsRecordArm. */
 export function __setBlobRetired(v) {
   armOverride = (v === null || v === undefined) ? null : !!v;
-  return isBlobRetired();
+  return armed();
 }
 
 /* ── THE RESIDUE CENSUS ──────────────────────────────────────────────────────
@@ -217,7 +225,7 @@ export function firstUnmetArmPrecondition(G) {
 }
 
 export function canProceedArmed(G, opts) {
-  if (!isBlobRetired()) return true;             // dormant — old path decides
+  if (!armed()) return true;                     // seam only — there is no dormant path left
   const o = opts || {};
   if (o.noCharacter === true) return true;       // server said fresh account — proceed clean
   const rec = G && G._record;

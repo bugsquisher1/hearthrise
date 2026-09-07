@@ -74,128 +74,85 @@
 // answers `not_signed_in`), and the deployed `payload_sha256` equals
 // `node tools/pack-edge.mjs hr-accrue --hash`.
 //
-// ⚠ b353 — THE SAFETY ARGUMENT ABOVE HAS EXPIRED, BY DESIGN. Everything below
-// used to read "this is dark; the switch defaults off". It does not any more:
-// the switch DEFAULTS ON (see ACCRUE_KILL_KEY), which is the switch-on. There
-// is no dark path left to reason about, and the only remaining gate is the one
-// that was always real — a deployed function, applied migrations, and a signed-
-// in player. The `2026-08-14-character-bootstrap.sql` gate named below is
-// APPLIED and is therefore no longer a gate either.
+// ⚠ b515 — THERE IS NO SWITCH. The b353 kill switch (`hr:serverAccrual`) is
+// RETIRED: server accrual is unconditional, `isServerAccrualEnabled()` is a
+// constant `true`, and nothing in this file or any consumer forks on it. The
+// only remaining gate is the one that was always real — a deployed function,
+// applied migrations, and a signed-in player. A pre-b338 server is refused
+// rather than latched (B339-6); `tests/cors-preflight.mjs` C4 remains the live
+// gate for the transport, and `tests/no-blob-branches.mjs` fails if a fork on
+// the retired switch ever returns.
 //
-// A stale safety argument is worse than no safety argument: it is believed —
-// and unlike a stale assertion, no test can catch a stale sentence. What IS
-// asserted, because it is behaviour: the switch defaults ON (B353-1), only the
-// literal string `'off'` disables it (B353-1), and a pre-b338 server is refused
-// rather than latched (B339-6).
-// `tests/cors-preflight.mjs` C4 remains the live gate for the transport.
-//
-// ── WHY A KILL SWITCH AT ALL, NOW THAT IT DEFAULTS ON ──────────────────────
-// Same shape as sync.js's event-log switch, and now the same polarity: a
-// localStorage key plus a config override, readable and writable at runtime, so
-// ONE player can be dropped back to the pre-cutover client during an incident
-// without a redeploy. It shipped defaulting OFF while it was arming a new
-// authority; it defaults ON now that it IS the authority.
+// What the switch's OFF position actually did, measured before removal: a
+// divergent single-device local game — blob upload to `game_saves`, local
+// `processOffline`, local gold/gem mint, `mayClientWrite` true for every field,
+// every intent dark, v1 market client writes, boot veil off — all of it
+// silently discarded the moment the key was cleared. That is a client-authored
+// fallback and CLAUDE.md §1 forbids it. Nothing it authored could cross into
+// another player's economy (the server grants refuse a client value), so this
+// was an honesty and dead-code problem rather than an exploit.
 //
 // DOM-free except for one honesty sheet at the bottom, which is guarded on
 // `typeof document` and is the ONLY thing in this file that touches the page.
 // ============================================================================
 
-/* ── The kill switch ────────────────────────────────────────────────────────
-   ⚠ b353 — THE POLARITY IS INVERTED, AND THAT IS THE SWITCH-ON.
+/* ── THE KILL SWITCH IS RETIRED (b515) ──────────────────────────────────────
+   `hr:serverAccrual` shipped in b353 as an operator escape hatch: the literal
+   string 'off' in localStorage dropped ONE device back to the pre-cutover
+   client without a redeploy. Security measured what "off" actually did on
+   2026-09-07 and it is not a pre-cutover client — it is a DIVERGENT SINGLE-
+   DEVICE LOCAL GAME: the authoritative save blob uploads to `game_saves`
+   again, `processOffline` computes away time from the device clock, gold and
+   gems mint locally, `mayClientWrite` answers yes for every field, every
+   intent goes dark, the v1 market writes from the client and the boot veil is
+   off. None of it can cross into another player's economy (the server grants
+   refuse a client value), so it was never an exploit — but it IS a client-
+   authored fallback, and everything it "saved" is silently discarded the
+   moment the key is cleared. CLAUDE.md §1 forbids exactly that: nothing is
+   authored by the client, ever, and there is no back-compat path.
 
-   It shipped as `'on' enables; anything else — including absent — is OFF`,
-   which was right for arming a new authority on one tester's device without a
-   redeploy. It is exactly wrong once the authority IS the game: with that
-   polarity, "the flag failed to be written" and "the client owns the economy"
-   are the same state, and every player who has never touched devtools is in it.
-
-   So it is now b319's shape, for b319's reason: **the literal string 'off'
-   disables; anything else — including absent, including a typo — is ON.** A
-   corrupted or unreadable value now falls to the SERVER, not to the client, and
-   the one value that can hand authority back is a value somebody had to type.
+   So the switch is GONE, not defaulted-on. `isServerAccrualEnabled()` is a
+   constant `true`, the localStorage key is never read, and a device that
+   still has `hr:serverAccrual=off` sitting in storage from an old session
+   simply boots the normal server game. `setServerAccrualEnabled` survives for
+   one release as a logging no-op so a console call or an un-updated caller is
+   answered honestly rather than silently doing nothing.
 
    Every consumer reads THIS function — `isActivityIntentEnabled`,
    `isGoldIntentEnabled`, `isCharacterIntentEnabled`, `isRecordActive`,
-   `serverMarketActive` (through the gold one) and legacy.js's
-   `serverAccrualActive` are all one-line delegations, so the polarity lives at
-   one definition and cannot be half-flipped. B353-1 asserts that. */
-export const ACCRUE_KILL_KEY = 'hr:serverAccrual';
-/** The ONE value that turns it off. Exported so a test names the same string
- *  the implementation does rather than restating it. */
-export const ACCRUE_OFF_VALUE = 'off';
+   `isEatIntentEnabled`, `isBlobRetired` and legacy.js's `serverAccrualActive`
+   are all one-line delegations — so retiring it here retires it everywhere,
+   and `tests/no-blob-branches.mjs` fails if the predicate ever regains a
+   condition. */
 
 let config = null;          // {url, apiKey, authToken, slot}
-let override = null;        // in-memory switch state; null = consult storage
 
-export function isServerAccrualEnabled() {
-  if (override !== null) return override;
-  /* THE CATCH FLIPPED WITH THE POLARITY, DELIBERATELY. It used to answer
-     `false` when localStorage throws (Safari private mode, a locked-down
-     embed) — fail-closed when "closed" meant "do not arm the new thing".
-     "Closed" now means the SERVER owns the economy, so an unreadable storage
-     must not be a way to become client-authoritative. */
-  try { return localStorage.getItem(ACCRUE_KILL_KEY) !== ACCRUE_OFF_VALUE; } catch (e) { return true; }
-}
+/** Always true. Kept as a function (not a const) because ~20 modules delegate
+ *  to it and one definition is what made the retirement a single edit. */
+export function isServerAccrualEnabled() { return true; }
 
-/* ── THE WATERMARKS, AND WHY FLIPPING THE SWITCH MUST MOVE THEM (b339) ──────
-   The server path deliberately never advances `G.offlineBudget.at` or
-   `G.restedAt`. That is correct while the switch is ON — the server owns the
-   accrued_to watermark, and having the client advance a watermark it does not
-   own is how a real absence gets confiscated.
+/* ── THE RETIRED SETTER (b515) ──────────────────────────────────────────────
+   Kept for ONE release as a logging no-op, deliberately: `setServerAccrualEnabled`
+   was reachable from the console and from a handful of harnesses, and a silently
+   inert setter is how a tester ends up believing they are in a state they are
+   not. It says so once, then never again (a caller in a loop must not be able to
+   flood the console).
 
-   But it makes the switch NOT SAFELY REVERSIBLE, which is the property it was
-   sold on. Flip ON at t1, play for an hour, flip OFF at t2: the local watermark
-   is still whatever it was before t1, so the first processOffline() after t2
-   measures the whole span [t1, t2] — a span the SERVER has already been paying
-   for — and pays it AGAIN, locally, capped only by offlineCapHours. A kill
-   switch whose "off" position mints progress is not a kill switch.
-
-   So both watermarks are stamped to now on every flip, IN BOTH DIRECTIONS.
-   Symmetry is the point: ON hands the span to the server (nothing local may
-   later claim it), OFF hands it back (nothing local may claim what the server
-   already paid). One side alone leaves the other direction minting.
-
-   THE COST, STATED: an UNCLAIMED local absence at the instant of a flip is
-   confiscated. That is real, it is the safe direction, and the flip is a
-   console/devtools action taken by a tester — not something a player does
-   mid-session. Minting is unrecoverable; a confiscated test absence is not. */
-export function stampAwayWatermarks(G, now) {
-  if (!G || typeof G !== 'object') return null;
-  const t = Number.isFinite(Number(now)) ? Number(now) : nowMs();
-  if (!G.offlineBudget || typeof G.offlineBudget !== 'object') G.offlineBudget = {};
-  G.offlineBudget.at = t;
-  G.restedAt = t;
-  return { offlineBudgetAt: t, restedAt: t };
-}
-
-/** Flip the switch. Persists, so a reload keeps the tester's choice.
- *
- *  ⚠ b353: ON is now the ABSENCE of the key and OFF is the literal string, which
- *    is the inverse of what this wrote before. Writing `'on'` instead would work
- *    (anything that is not `'off'` is on) and would be wrong: it would leave a
- *    key behind that looks like a decision, so a later reader could not tell a
- *    player who was deliberately armed from one who simply is. Pristine means
- *    pristine, and pristine is ON. */
-export function setServerAccrualEnabled(on) {
-  const was = isServerAccrualEnabled();
-  override = !!on;
-  try {
-    if (on) localStorage.removeItem(ACCRUE_KILL_KEY);
-    else localStorage.setItem(ACCRUE_KILL_KEY, ACCRUE_OFF_VALUE);
-  } catch (e) {}
-  const now = isServerAccrualEnabled();
-  /* Only on an actual CHANGE. Re-asserting the current position (the suite does
-     this constantly, and so does a reload) must not keep pushing the watermark
-     forward, or a page that calls this on every boot would quietly become a
-     permanent "you were never away". */
-  if (now !== was) {
-    try { stampAwayWatermarks(typeof window !== 'undefined' ? window.G : null, nowMs()); } catch (e) {}
+   `stampAwayWatermarks` went with it. Its whole job was to stop a flip minting a
+   span the other side had already paid for; with no flip there is no span to
+   confiscate, and the server owns `accrued_to` in both directions. */
+let retirementAnnounced = false;
+export function setServerAccrualEnabled() {
+  if (!retirementAnnounced) {
+    retirementAnnounced = true;
+    try { console.warn('[accrue] setServerAccrualEnabled: retired in b515 — server accrual is unconditional'); } catch (e) {}
   }
-  return now;
+  return true;
 }
 
-/** Test seam: forget the in-memory override and go back to reading storage. */
-export function __clearAccrualOverride() { override = null; }
+/** Test seam, retained so callers that reset module state keep compiling. There
+ *  is no override left to clear. */
+export function __clearAccrualOverride() { return true; }
 
 /* ── MAY A CLIENT SITE WRITE THIS FIELD? (b347) ─────────────────────────────
    THE ONE IMPLEMENTATION, and it lives here rather than in record.js for the
@@ -214,7 +171,6 @@ export function __clearAccrualOverride() { override = null; }
    cost of a wrong "no" is a stale local number nothing reads for authority; the
    cost of a wrong "yes" is the record acquiring a second source. */
 export function mayClientWrite(field, win) {
-  if (!isServerAccrualEnabled()) return true;      // switch off → byte-for-byte b346
   const w = win || (typeof window !== 'undefined' ? window : null);
   const R = w && w.HearthriseRecord;
   if (!R || typeof R.clientMayWrite !== 'function') return false;
@@ -449,7 +405,7 @@ let haltAnnounced = false;
 export function getAccrualState() {
   const now = nowMs();
   return {
-    enabled: isServerAccrualEnabled(),
+    enabled: true,               // b515: the kill switch is retired; always on
     configured: !!config,
     pending: !!inFlight,
     ...gate,
@@ -815,7 +771,9 @@ export function consumedKeysOf(res) {
    THE KILL SWITCH IS AN OPT-BACK-IN, NOT AN OPT-OUT, because that is the shape
    that works in an incident: `localStorage['hr:envelopeMerge'] = 'on'` restores
    b359 merge semantics for ONE device, immediately, with no deploy. It is the
-   `ACCRUE_KILL_KEY` pattern and it exists for the same reason.
+   shape the retired `hr:serverAccrual` switch had — with the difference that
+   kept THIS one: it selects between two SERVER-APPLIED merge semantics, not
+   between the server and a client-authored local game.
 
    AN OLD CLIENT IS NOT AFFECTED AT ALL. This is client code: a player on a
    stale build runs their own copy of the merge and keeps merge semantics until
@@ -1793,21 +1751,8 @@ export function reconcileBankRungs(G, res) {
    window. Read the capstone flag off the window global at CALL time — accrue.js is
    imported BY capstone.js, so importing back would be a cycle (the same rule
    isReconcilePending uses). */
-function companionAuthorityArmed() {
-  try {
-    const w = (typeof window !== 'undefined') ? window
-      : (typeof globalThis !== 'undefined' ? globalThis.window : null);
-    return !!(w && w.HearthriseCapstone
-      && typeof w.HearthriseCapstone.isBlobRetired === 'function'
-      && w.HearthriseCapstone.isBlobRetired());
-  } catch (e) { return false; }
-}
-
 export function reconcileCompanions(G, res) {
   if (!G || typeof G !== 'object') return null;
-  /* DORMANT: the client owns G.companions exactly as today. A pure no-op — this
-     is what keeps the un-armed load path byte-for-byte unchanged. */
-  if (!companionAuthorityArmed()) return { mode: 'dormant' };
   const c = res && res.companions;
   /* FAIL-CLOSED: an un-projecting/partial envelope leaves the roster alone. */
   if (!c || typeof c !== 'object' || Array.isArray(c) || !Array.isArray(c.owned)) {
@@ -2195,10 +2140,10 @@ export function reconcileCombatStyle(G, res) {
        display-only: the finite-perennial wither LIMIT is enforced server-side in
        hr_farm_harvest, so a client that under-counts regrows cannot exceed it.
 
-   ⚠ ARM-GATED (companionAuthorityArmed / isBlobRetired), like reconcileCompanions
-   and for the same reason: G.farmPlots is CLIENT-authored today, so running this
-   dormant would overwrite the live client farm and break byte-parity. Dormant it
-   is a pure no-op ({mode:'dormant'}).
+   b515: this WAS arm-gated (companionAuthorityArmed / isBlobRetired) because
+   G.farmPlots used to be client-authored when the kill switch was off. The
+   switch is retired, the client farm twin is gone, and this reconcile is the
+   only writer — so the dormant no-op went with it.
 
    FAIL-CLOSED on absence: no readable `res.farm` ARRAY leaves G.farmPlots
    UNTOUCHED — a server build predating the projection, or a partial we cannot
@@ -2265,9 +2210,6 @@ function farmPlotReady(p) {
 
 export function reconcileFarm(G, res, opts) {
   if (!G || typeof G !== 'object') return null;
-  /* DORMANT: the client owns G.farmPlots exactly as today — a pure no-op that
-     keeps the un-armed load path byte-for-byte unchanged. */
-  if (!companionAuthorityArmed()) return { mode: 'dormant' };
   const rows = res && res.farm;
   /* FAIL-CLOSED: absence is not a claim the farm is empty. Leave it alone. */
   if (!Array.isArray(rows)) return { mode: 'absent' };
@@ -3381,21 +3323,12 @@ export function applyEnvelope(G, res) {
      at CALL time (cycle-avoidance, same as isReconcilePending above). While dormant
      it is false and the sheet behaves byte-for-byte as today. Deleting the sheet +
      its plumbing is a POST-ARM cleanup once proven live post-wipe. */
-  let __blobRetired = false;
-  try {
-    __blobRetired = typeof window !== 'undefined' && window.HearthriseCapstone
-      && typeof window.HearthriseCapstone.isBlobRetired === 'function'
-      && window.HearthriseCapstone.isBlobRetired();
-  } catch (e) { __blobRetired = false; }
-  const firstContact = envelopeDrift.applied <= 1;
-  if (!__blobRetired && loss.destructive && !isReplacementAcknowledged()
-      && (!isEnvelopeAbsolute() || firstContact)) {
-    console.warn('[accrue] REFUSING to overwrite local progress with the server character '
-      + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp
-      + ' skill XP and ' + loss.items + ' item(s). This is permanent and there is no merge.');
-    showReplacementSheet(loss, G, res);
-    return null;
-  }
+  /* b515: the replacement sheet is GONE, not gated. It asked the player to
+     confirm before the server envelope "replaced" a rival local character; the
+     capstone retired that rival, and the flag that could bring it back (the b353
+     kill switch) is retired too. `describeReplacement` / `showReplacementSheet`
+     remain exported for the tests that pin the copy; nothing calls the sheet on
+     the load path any more. */
   const st = res.state || {};
   const written = applyEnvelopeState(G, res);
 
@@ -3432,7 +3365,51 @@ export function summaryFromAway(away, res) {
     gainedXp: xp,
     gainedGold: Number(a.gold) || 0,
     gainedKills: Number(a.kills) || 0,
-    burnt: 0,
+    /* ── WHY THE RUN STOPPED, AND ON WHAT (b515, QA) ────────────────────────
+       `burnt` was a hardcoded 0 and `stoppedBy`/`stoppedById` were not read at
+       all — while FOUR client sites render them (home-dashboard.js's away card
+       at :531/:536/:625/:758 and legacy.js's welcome modal at :14295/:14298).
+       Under the local away engine `processOffline` filled the flat receipt
+       itself, so the omission was invisible; b515 deleted that engine and made
+       this function the ONLY translator, at which point a supply-exhausted
+       night — the exact b345 scenario, 8 Raw Shrimp against an 8-hour absence
+       that earns for 31 seconds — renders as eight hours of honest pay.
+
+       These three now come off the payload, STATED and never inferred: a
+       renderer that derived the stop from `paidMs < awayMs` would print a
+       shortage on every ordinary night, because tick flooring guarantees the
+       inequality (B345-1's own third case).
+
+       ⚠ THE SERVER HALF IS STILL MISSING AND IS FILED, NOT FIXED HERE.
+         supabase/functions/hr-accrue/index.ts (~1163) does not put `stoppedBy`,
+         `stoppedById` or `burnt` on the `away:` payload, although `out.summary`
+         holds all three and `accrual.js` already journals them as
+         `meta.stopped` / `meta.out_of`. Until that ships these read null/0 on a
+         live envelope — which is the honest degradation (say nothing) rather
+         than the old one (claim a full night). See DISCOVERIES.md 2026-09-07,
+         routed to Backend + Systems with the edge redeploy it needs. */
+    burnt: Math.max(0, Number(a.burnt) || 0),
+    /* A STOP IS A STRING OR IT IS NOTHING. An empty string, a number or an
+       object would each reach a renderer as a truthy "something stopped" with
+       nothing to say about it, which is worse than silence. */
+    stoppedBy: (typeof a.stoppedBy === 'string' && a.stoppedBy) ? a.stoppedBy : null,
+    stoppedById: (typeof a.stoppedById === 'string' && a.stoppedById) ? a.stoppedById : null,
+    /* WHICH BENCH, and HOW FAST it eats. Both are stated by the simulation
+       (`skill`, `stoppedPerHour`) for the same reason the stop is: the card
+       says "Cooking ran out of Raw Shrimp 31s in — it eats about 940/hr, so
+       stock up", and every one of those numbers has to come from the run that
+       actually happened. A card that re-derived the rate would be a second
+       estimator of a night that is already settled. */
+    stoppedSkill: (typeof a.stoppedSkill === 'string' && a.stoppedSkill) ? a.stoppedSkill : null,
+    stoppedPerHour: Math.max(0, Number(a.stoppedPerHour) || 0),
+    /* HOW MUCH OF THE WINDOW ACTUALLY EARNED. `awayMs` is the CREDITED span;
+       `paidMs` is the part of it the run was alive for, and it is what
+       home-dashboard.js :524 prints as "…31s in". The server has always sent it
+       (index.ts `paidMs: out.summary.paidMs`); this function simply never read
+       it, so the card fell back to the whole window and a run that stopped 31
+       seconds in read as the full night. Defaults to the credited span, which
+       is the truthful reading when nothing stopped. */
+    paidMs: Number.isFinite(Number(a.paidMs)) ? Math.max(0, Number(a.paidMs)) : ms,
     combat: a.kills ? { kills: Number(a.kills) || 0, crits: Number(a.crits) || 0, died: !!a.died } : null,
     /* ── DEATH, AT THE TOP LEVEL (ruling 2b, 2026-08-31) ─────────────────────
        These three are the shape legacy.js's own summary has carried since b341
@@ -3903,12 +3880,12 @@ function defaultSettleEnv() {
     /* §3.1: "while the tab is VISIBLE". A document that does not exist (Node,
        the suite's pure blocks) counts as visible — there is nothing to hide. */
     visible: () => (typeof document === 'undefined' ? true : !document.hidden),
-    /* The switch and the wiring are read THROUGH the env for the same reason
-       the clock is: they are ambient module state, and a test that cannot
-       control them can only assert the loop in whatever position the previous
-       test happened to leave it. The defaults are the real readers, so nothing
-       about production behaviour is indirected away. */
-    enabled: () => isServerAccrualEnabled(),
+    /* The wiring is read THROUGH the env for the same reason the clock is: it
+       is ambient module state, and a test that cannot control it can only
+       assert the loop in whatever position the previous test happened to leave
+       it. `enabled` is a constant since b515 — the retirement left decideSettle's
+       `switch-off` arm reachable only from a test that passes it explicitly. */
+    enabled: () => true,
     configured: () => !!config,
     /* legacy.js owns the pointer and publishes ONE translation of it
        (`localActivityPointer`). Read, never re-derived: a second reader of
@@ -4132,7 +4109,6 @@ export function buildKeepaliveRequest(opts) {
  * parting shot.
  */
 export function settleOnUnload() {
-  if (!isServerAccrualEnabled()) return null;
   if (!config) return null;
   const token = tokenOf();
   if (!token) return null;
@@ -4173,7 +4149,7 @@ export function settleOnUnload() {
  * CONFISCATE on a refused collect, which is a strictly worse trade.
  */
 export async function settleBeforeIntent() {
-  if (!isServerAccrualEnabled() || !config) return { settled: false, reason: 'unconfigured' };
+  if (!config) return { settled: false, reason: 'unconfigured' };
   const e = env();
   const now = e.now();
   let p = null;
@@ -4410,7 +4386,7 @@ export function hideAccrualHaltedSheet() {
  */
 export async function verifyHaltedState() {
   if (!gate.halted) return { checked: false, cleared: false, reason: 'not-halted' };
-  if (!isServerAccrualEnabled() || !config) return { checked: false, cleared: false, reason: 'unconfigured' };
+  if (!config) return { checked: false, cleared: false, reason: 'unconfigured' };
   if (!tokenOf()) return { checked: false, cleared: false, reason: 'no-token' };
   /* Take the carried-over sheet down FOR the duration of the check. If the
      server answers, the player never sees a claim that was already false; if it
@@ -4438,10 +4414,10 @@ export function beginServerAccrual(opts) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseAccrual = {
-    ACCRUE_KILL_KEY, ACCRUE_OFF_VALUE, ACCRUE_OUTCOMES, ACCRUE_SHEET_ID,
+    ACCRUE_OUTCOMES, ACCRUE_SHEET_ID,
     ACCRUE_REPLACE_ACK_KEY, ACCRUE_REPLACE_SHEET_ID, MAX_SLOT,
     isServerAccrualEnabled, setServerAccrualEnabled, __clearAccrualOverride,
-    stampAwayWatermarks, clampSlot, resolveActiveSlot, mayClientWrite,
+    clampSlot, resolveActiveSlot, mayClientWrite,
     /* THE RECOVERY LINE, read-only. A function rather than a value so a caller
        cannot capture a stale number, and read-only so no surface can author it:
        the client renders `recoveringUntilMs() - Date.now()` and nothing else. */

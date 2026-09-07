@@ -439,18 +439,13 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
 
   // ══ BULK STATE WRITES — F6. THEY CAN CARRY GOLD WITHOUT NAMING IT ═════════
-  'src/legacy.js#loadLocal': {
-    kind: 'seam', status: 'none',
-    why: 'F6 — `Object.assign(G, stripRecordFields(migrated))`, the local save load. It writes '
-      + 'whatever the blob holds, gold included, and no `.gold =` appears anywhere in it. Safe '
-      + 'because the strip is what §9.3 makes it: a moved field is DELETED on the way in, so the '
-      + 'blob\'s copy is never consulted for authority. The row exists so that stops being an '
-      + 'unexamined assumption — the day `gold` joins SERVER_OF_RECORD, this is the site that '
-      + 'has to already be right.',
-  },
-  'src/legacy.js#loadLocal@2': {
-    kind: 'seam', status: 'none', why: 'the v1 migration branch of the same load — see above.',
-  },
+  /* `src/legacy.js#loadLocal` and `#loadLocal@2` STRUCK 2026-09-07 (b515). They
+     described `Object.assign(G, stripRecordFields(migrated))` — the local save
+     load and its v1 migration branch, bulk writes that carried gold without
+     naming it. loadLocal no longer reads a blob at all (it drops any leftover
+     one and forgets the factory literals), and stripRecordFields is deleted
+     with its only caller. A census row for a site nobody runs is READ as one
+     that does. */
   'src/net/auth.js#applyCloudOverlay': {
     kind: 'seam', status: 'none',
     why: 'F6 — `Object.assign(G, overlay)`, the cloud overlay. Same shape and the same defence: '

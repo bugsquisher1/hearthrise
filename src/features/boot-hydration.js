@@ -68,6 +68,7 @@
 import { bootHydrationState, isCharacterHydrated, onHydrationChange,
          beginRecordLoad } from '../net/record.js?v=517';
 import { isBlobRetired } from '../net/capstone.js?v=517';
+         beginRecordLoad } from '../net/record.js?v=516';
 
 export const VEIL_ID = 'hr-boot-hydration-veil';
 
@@ -116,8 +117,10 @@ export function readEnv(win) {
     const A = w && w.HearthriseAuth;
     signedIn = !!(A && typeof A.isSignedIn === 'function' && A.isSignedIn());
   } catch (e) { signedIn = false; }
-  let retired = false;
-  try { retired = !!isBlobRetired(); } catch (e) { retired = false; }
+  /* b515: was `isBlobRetired()`, which ANDed the retired b353 kill switch — a
+     device holding `hr:serverAccrual=off` booted with the veil OFF and the whole
+     local game behind it. The capstone is a constant now, so is this. */
+  const retired = true;
   let hydrated = true;   // fail toward NOT veiling if record.js is unreachable
   try { hydrated = !!isCharacterHydrated(); } catch (e) { hydrated = true; }
   return {

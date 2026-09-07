@@ -40,8 +40,23 @@ export async function blobRetireGuard() {
     // lockstep with a bump.
     const { readFile } = await import('node:fs/promises');
     const src = await readFile(new URL('src/net/capstone.js', ROOT), 'utf8');
-    const m = src.match(/accrue\.js\?v=(\d+)/);
-    const v = m ? `?v=${m[1]}` : '';
+    /* b515: this read the version off capstone.js's `accrue.js?v=NNN` import.
+       That import was DELETED with the kill switch, the regex silently missed,
+       `v` became '' — and client-state.js was then imported as a DIFFERENT module
+       instance from the one capstone.js holds. isClientStateFromServer() was set
+       on one and read on the other, so canProceedArmed answered false with the
+       bag present: the b436 breakage this very comment warns about, reproduced by
+       the file's own drift. Read it off the import that capstone ACTUALLY makes
+       and that this guard actually shares — and fail loudly if it is not there,
+       because '' is the wrong answer, not a neutral one. */
+    const m = src.match(/client-state\.js\?v=(\d+)/);
+    if (!m) {
+      fail('capstone.js no longer imports ./client-state.js?v=NNN — this guard cannot derive the module '
+        + 'instance capstone shares, and importing a bare specifier would make every arm it sets invisible '
+        + 'to the code under test (b436). Re-point the derivation at whatever specifier capstone now uses.');
+      return problems;
+    }
+    const v = `?v=${m[1]}`;
     C  = await import(mod('src/net/capstone.js'));
     CS = await import(mod('src/net/client-state.js' + v));
     R  = await import(mod('src/net/record.js' + v));
@@ -72,8 +87,14 @@ export async function blobRetireGuard() {
       + 'rival to the server copy, and re-enabling it is the cutover incident');
     if (!C.isBlobRetired()) fail('ARMED: isBlobRetired() must be true with the flag on and the master switch on');
 
-    // ── DORMANT (seam-forced) ───────────────────────────────────────────────
+    // ── DORMANT (seam-forced, BOTH seams since b515) ────────────────────────
+    /* The residue store used to follow the capstone implicitly (it read
+       isBlobRetired() off the window global, ANDed with the retired kill
+       switch). It is a constant now with its own override, so a test that wants
+       the dormant READ path must say so at both seams — which is the honest
+       shape: one flag, one thing it decides. */
     C.__setBlobRetired(false);
+    CS.__setClientStateArm(false);
     if (C.isBlobRetired()) fail('DORMANT: isBlobRetired() must be false with the seam off');
     // clientField reads the blob byte-for-byte.
     {

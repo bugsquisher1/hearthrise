@@ -842,86 +842,27 @@ function _activeSaveSlot(){
   return null;
 }
 function saveLocal(){
-  /* b455 BLOB-RETIRE (capstone completion) — under the arm the SERVER is the
-     sole authoritative copy of the character; a local blob is not a cache, it
-     is a STALE RIVAL. The live cutover proved it: the pagehide autosave kept
-     re-persisting a pre-wipe mix between every clear-and-reload, resurrecting
-     dead state on each boot (the "items are still here" loop). Under arm the
-     local blob is simply never written; boot loads pure server (record +
-     residue + reconciles). Dormant: byte-for-byte as before. */
-  /* b463 — lastSeen MUST KEEP BEATING UNDER THE ARM. The stamp lived further
-     down this function, so retiring the blob (the early return below) froze it
-     at whatever the residue last carried — and the welcome-back modal then
-     opened every session with "Time away 17h 46m" for a player who never left
-     (Tyler, live). Same visibility rule the offline-budget watermark follows:
-     never advance while hidden, so a background tab still reads as an absence. */
+  /* THERE IS NO LOCAL SAVE. The b455 capstone retired the client-authored blob —
+     the SERVER is the sole authoritative copy of the character, and a local blob
+     is not a cache but a STALE RIVAL. The live cutover proved it: the pagehide
+     autosave kept re-persisting a pre-wipe mix between every clear-and-reload,
+     resurrecting dead state on each boot (the "items are still here" loop).
+
+     b515 DELETED the ~65-line write below this point (owner stamp, slot stamp,
+     watermark advance, the Storage-seam setItem). It survived only because
+     `isBlobRetired()` ANDed the b353 kill switch, so a device holding
+     `hr:serverAccrual=off` still wrote a rival character to localStorage that the
+     next flip silently discarded. The account wall (b224), the park policy
+     (b318), the switch quiesce (b372) and the owner stamp all existed to make
+     THAT write safe; with no write there is nothing for them to protect.
+
+     b463 — lastSeen MUST KEEP BEATING. It is residue (it rides putClientState),
+     and the welcome-back modal reads it: freezing it opened every session with
+     "Time away 17h 46m" for a player who never left (Tyler, live). Same
+     visibility rule the offline-budget watermark follows: never advance while
+     hidden, so a background tab still reads as an absence. This stamp is the
+     whole of saveLocal now, and the name is kept because ~90 call sites say it. */
   try{ if(!document.hidden) G.lastSeen=Date.now(); }catch(e){}
-  try{ if(window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()) return; }catch(e){}
-  /* b224 ACCOUNT WALL — the single most dangerous line in this change.
-     While the gate is closed boot() has NOT run, so loadLocal() has NOT run,
-     so `G` is still the factory-default object. Any autosave, any hook, any
-     stray caller that reached saveLocal() in that state would write a brand
-     new character straight over a real beta player's local save. The wall
-     must never cost anybody their save, so persistence is simply off until
-     the player is through the door. */
-  if(window.HearthriseGate && !window.HearthriseGate.isOpen()) return;
-  /* b318 (V2): the save has been PARKED (sign-out, or a foreign save set aside
-     for its owner). Writing G back out now would resurrect it under the next
-     account. Persistence resumes after the reload that follows a park. */
-  if(window.__saveParked) return;
-  /* b372 (P0) SWITCH QUIESCE. A character switch has moved the slot pointer and
-     is tearing this page down; `G` still holds the OUTGOING character. Writing
-     it now rewrites SAVE_KEY — which switchSlot just cleared or replaced for the
-     INCOMING slot — with the wrong character, and boot then adopts that clone
-     over the target's real save. That is the b372 duplication bug, and its
-     loudest trigger is the `pagehide` autosave that fires during the switch's
-     own location.reload(). The outgoing character was saved and cloud-flushed
-     BEFORE the swap (multi-character.js switchSlotAsync), so there is nothing
-     here to lose. The latch self-heals by age — see beginQuiesce(). */
-  if(_switchQuiesced()) return;
-  /* b318 (V2) OWNER STAMP. Binds this local save to the account that owns it so
-     it can never be adopted by — or uploaded over — a different account. Kept
-     under a `_` key on purpose: events.js snapshot() skips `_`-prefixed scratch,
-     so this device-local identity marker never reaches the cloud.
-     WRITTEN ONLY WHEN ABSENT. That is the load-bearing detail: if it re-stamped
-     on every save, an autosave firing between boot and reconcile would relabel
-     the previous account's save as the current player's and walk it straight
-     past the foreign-save guard. Absent-only means an unstamped legacy save is
-     claimed once (by whoever is actually playing) and a foreign save keeps its
-     true owner. */
-  if(!G._saveOwner){ const _uid=currentSaveOwnerId(); if(_uid) G._saveOwner=_uid; }
-  G.lastSeen=Date.now();
-  /* b226: the offline-budget watermark tracks lastSeen while the tab is open,
-     so an evening of active play is never mistaken for an absence and charged
-     against the daily allowance. processOffline() is the only thing that
-     advances it ahead of a grant — which is what makes double-pay impossible.
-     b261: only WHILE VISIBLE — a throttled background autosave must not advance
-     the watermark, or it slices an AFK gap into uncredited sub-threshold pieces.
-     b347: and only while the CLIENT still owns the field. Under the b337 switch
-     `offlineBudget` is on the SERVER_OF_RECORD registry, applyRecord is its only
-     writer, and this line was overwriting the server's watermark with `lastSeen`
-     on every autosave — measured: server 06:00Z, this line 09:30Z, and the
-     record accessor still reported it as `source:'server'`. */
-  if(G.offlineBudget && typeof G.offlineBudget==='object'
-     && clientMayWriteRecordField('offlineBudget')
-     && !(typeof document!=='undefined' && document.hidden)) G.offlineBudget.at=G.lastSeen;
-  /* b372 SLOT STAMP — WHICH CHARACTER THESE BYTES ARE. SAVE_KEY is a single key
-     that the switch re-points between five characters, so "the save on disk" and
-     "the character the profile says is live" are two different claims and every
-     cross-slot data-loss bug so far has been the gap between them. Stamping the
-     blob makes that gap CHECKABLE at boot (loadLocal) instead of silent.
-     `_`-prefixed on purpose: events.js snapshot() skips `_` scratch, so this
-     device-local address never rides to the cloud. Written on every save (unlike
-     the owner stamp) because it is not an identity claim to be defended — it is
-     simply where G is being played right now. */
-  try{ const _sl=_activeSaveSlot(); if(_sl!=null) G._saveSlot=_sl; }catch(e){}
-  // Route through the platform Storage seam (src/platform/storage.js) so Steam
-  // (electron-store) / mobile (Capacitor) can swap the backend without touching
-  // this. Falls back to localStorage directly if the seam hasn't loaded.
-  try{
-    if(window.HearthriseStorage){window.HearthriseStorage.setJSON(SAVE_KEY,G);}
-    else{localStorage.setItem(SAVE_KEY,JSON.stringify(G));}
-  }catch(e){console.warn('save failed',e);}
 }
 // One accessor for reading a raw save string, via the seam when present.
 function _readSave(key){
@@ -1237,226 +1178,35 @@ function remapMonsterFamilies(G){
 }
 window.remapMonsterFamilies = remapMonsterFamilies;
 
-/* ════════════════════════════════════════════════════════════════
-   b340 — THE RECORD STRIP. See src/net/record.js.
-
-   The save blob is a CACHE, not a record. Any field the server owns is deleted
-   on the way IN, so a value that has moved has exactly ONE source afterwards.
-   snapshot() is untouched — nothing is added to NO_SYNC and the blob keeps
-   carrying every field it always did, so b302/b305/b314 are unaffected. What
-   changes is that the blob's copy is never read for authority again.
-
-   FAILS LOUD. If the switch is on and record.js did not load, this throws
-   rather than returning the blob: silently reading a server-owned field back
-   out of a client-authored save is the exact bug the seam exists to prevent,
-   and it would be invisible. loadLocal's own catch treats the throw as an
-   unreadable save (backed up, player told) — the safe direction.
-   ════════════════════════════════════════════════════════════════ */
-function stripRecordFields(d){
-  /* The SWITCH from accrue.js, the FIELD LIST from record.js — two modules, so
-     neither can vouch for the other's absence. */
-  if(!serverAccrualActive()) return d;
-  const R=window.HearthriseRecord;
-  if(!R||typeof R.stripServerOfRecord!=='function'){
-    throw new Error('server accrual is ON but src/net/record.js did not load — refusing to load a save '
-      +'that still carries server-owned fields');
-  }
-  const out=R.stripServerOfRecord(d);
-  /* THE RECEIPT, AND IT IS LOAD-BEARING (found by the b340 mutation run). The
-     forgetServerOfRecord() call further down loadLocal() is belt-and-braces —
-     and it turned out to be SO effective that reverting the strip entirely left
-     B340-3 GREEN: the belt cleared G and the test could not tell which of the
-     two mechanisms had done it. Two defences where a test can only see one is a
-     defence that can rot silently. This marker is produced by the STRIP and by
-     nothing else, so the test observes the seam it names. Window-scoped and
-     `__`-prefixed: never enters G, never enters the snapshot. */
-  try{ window.__hrRecordStrip={at:Date.now(),stripped:out.stripped.slice()}; }catch(e){}
-  if(out.stripped.length) console.log('[record] dropped '+out.stripped.join(', ')+' from the save blob — the server owns '+(out.stripped.length===1?'it':'them'));
-  return out.blob;
-}
 function loadLocal(){
-  /* b455 BLOB-RETIRE (capstone completion) — under the arm the character loads
-     ENTIRELY from the server (applyRecord + client_state hydrate + the
-     reconcile* rebuilds). A local blob read here would seed G with a stale
-     rival copy that the empty-bag hydrate cannot fully overwrite (it only
-     writes fields the server bag HAS) — the exact stale-state loop from the
-     live cutover. Under arm: skip the read, and drop any leftover blob so a
-     later disarm can't resurrect it. Dormant: byte-for-byte as before. */
-  try{
-    if(window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()){
-      try{ _removeSave(SAVE_KEY); }catch(e){}
-      /* ── b492: THE THIRD SOURCE THE CAPSTONE FORGOT — THE FRESH-G LITERAL ────
-         This early return skips the rest of loadLocal(), INCLUDING the
-         `forgetServerOfRecord(G)` belt further down. The strip only ever removed
-         moved fields from the SAVE BLOB, and under the capstone there is no blob
-         — so nobody noticed that G still carried the factory literal for every
-         armed record field: `gold:500`, `skills:{attack:0,…,hitpoints:1154,…}`,
-         `equipment:{weapon:'bronze_sword'}`, `rooms:{}`, `marks:0`.
+  /* THERE IS NO LOCAL SAVE TO LOAD. The character loads ENTIRELY from the server
+     (applyRecord + client_state hydrate + the reconcile* rebuilds). A local blob
+     read here would seed G with a stale rival copy that the empty-bag hydrate
+     cannot fully overwrite (it only writes the fields the server bag HAS) — the
+     exact stale-state loop from the live cutover. So: drop any leftover blob,
+     and forget the factory literals.
 
-         That is a client-authored copy of a server-owned field living in a live
-         G under an armed record, which is precisely the two-sources bug
-         record.js's header says cannot exist. It went unseen because it is
-         invisible while the server answers — applyRecord overwrites it within a
-         second. On 2026-08-29 the boot read failed and it became the character
-         the player was shown: a level-1 hero with 500 gold, on an account
-         holding attack 428 and 7,520 gold, with no error on the page.
+     b515 DELETED the ~120-line blob read below this point (the v1 migration, the
+     park/unpark policy, the foreign-slot park, the strip, Object.assign into G,
+     the maxHp recompute, the processOffline() call and the loop resumes — all of
+     which the armed path already returned before). It survived only because
+     `isBlobRetired()` ANDed the b353 kill switch: a device holding
+     `hr:serverAccrual=off` loaded a client-authored character from localStorage.
 
-         Forgetting them here makes the capstone path hold the SAME property the
-         blob path already held: after loadLocal, under the switch, G holds no
-         client-authored copy of anything the server owns. UNKNOWN then means
-         unknown, the display ladder cannot resurrect a default, and
-         src/features/boot-hydration.js holds the veil until a verdict lands. */
-      try{ if(serverAccrualActive()&&window.HearthriseRecord) window.HearthriseRecord.forgetServerOfRecord(G); }catch(e){}
-      return;
-    }
-  }catch(e){}
-  // b127: must MUTATE G in place. Earlier we did `G = {...G, ...migrated}`
-  // which silently breaks every caller that reads `window.G` — they keep
-  // a reference to the *old* object while the module-scoped `G` points
-  // at a new one. The smoke-test save/load round-trip caught this:
-  // after loadLocal(), window.G.gold still held the pre-load mutation.
-  // Object.assign keeps the same reference, so window.G stays correct.
-  let raw=_readSave(SAVE_KEY);
-  let _misSlotted=false;
-  /* b318 (V2): no live save, but this account has one parked here (they signed
-     out on this device, or another account's boot set theirs aside). Give it
-     back BEFORE the v1 migration path — a returning player must never be handed
-     a fresh character while their real save sits in a backup slot. */
-  if(!raw){ try{ if(unparkOwnSave()) raw=_readSave(SAVE_KEY); }catch(_){ } }
-  /* b372 — A SAVE FROM ANOTHER SLOT IS NOT THIS CHARACTER, EVER.
-     The live incident: a write that escaped during a switch left the OUTGOING
-     character in SAVE_KEY while the profile pointed at the incoming slot. G
-     adopted it, decideRestore saw a "newer local" and kept it, and the next
-     autosave uploaded the clone over the target character's cloud row —
-     duplicating one character and destroying another. The quiesce latch closes
-     the known writer; this closes the CLASS, at the one place every boot passes
-     through, whatever wrote the blob.
-     Park, never delete (b318 policy): the bytes are somebody's real progress and
-     stay recoverable. Then boot exactly as if there were no local save — which
-     is the correct state for a slot whose save lives in the cloud or does not
-     exist yet.
-     UNSTAMPED IS NOT FOREIGN. Every save written before b372 carries no
-     `_saveSlot`, and accusing those would park the entire live beta on upgrade.
-     They are claimed by the active slot on the first save after upgrade. */
-  if(raw){
-    try{
-      const _d=JSON.parse(raw);
-      const _mine=_activeSaveSlot();
-      if(typeof _d._saveSlot==='number' && _mine!=null && _d._saveSlot!==_mine){
-        console.warn('[save] local save belongs to hero slot '+_d._saveSlot+' but slot '+_mine
-          +' is active — parking it instead of adopting it as this character.');
-        try{ localStorage.setItem(PARK_PREFIX+'mis-slotted-'+_d._saveSlot+':'+Date.now(), raw); }catch(_){ }
-        _removeSave(SAVE_KEY);
-        raw=null;
-        _misSlotted=true;
-      }
-    }catch(_){ /* unparseable — the corrupt-save path below owns that case */ }
-  }
-  /* …and do NOT fall through to the v1 migration for it. The v1 key holds the
-     pre-multi-character single save, i.e. slot 0's ancestor: adopting it here
-     would answer "this slot's save is not here" with a DIFFERENT character
-     again, which is the bug wearing another hat. Absent means fresh + cloud. */
-  if(!raw && !_misSlotted){
-    /* migrate from v1 if present */
-    raw=_readSave(LEGACY_KEY);
-    if(raw)try{
-      const d=JSON.parse(raw);
-      // run versioned migrations on the v1 save before merge
-      const migrated = (typeof window.applyMigrations==='function') ? window.applyMigrations(d) : d;
-      Object.assign(G, stripRecordFields(migrated));
-      /* b465: "Save migrated from v1" is a release note, not a sentence for a
-         player who has never heard of v1. Say what it means for them. */
-      notify('Your older save was brought forward — everything is here','info');
-    }catch(e){}
-  }else{
-    try{
-      const d=JSON.parse(raw);
-      // run versioned migrations BEFORE merge so old shapes are
-      // upgraded against a clean object, not against current G defaults
-      const migrated = (typeof window.applyMigrations==='function') ? window.applyMigrations(d) : d;
-      Object.assign(G, stripRecordFields(migrated));
-    }catch(e){
-      console.warn(e);
-      /* b213 QA: an unreadable save used to silently reset the game — the
-         player was never told, even though Settings → Data can restore
-         backups. Preserve the bad blob for recovery + say what happened. */
-      try{ localStorage.setItem('hearthrise:save-backup:corrupt-'+Date.now(), raw); }catch(_){ }
-      try{ if(typeof window.captureException==='function') window.captureException(e,{source:'loadLocal-corrupt-save'}); }catch(_){ }
-      setTimeout(function(){
-        try{ notify('Your save data could not be read, so a fresh start was loaded. Open Settings → Data to restore a backup.','kill'); }catch(_){ }
-      }, 2000);
-    }
-  }
-  /* b340: belt to the strip's braces. The strip keeps a moved field out of the
-     blob; this keeps one out of G whatever its provenance (a fresh-G default, a
-     migration that re-added it, a value left over from before a flip). After
-     this line, under the switch, G holds no client-authored copy of anything
-     the server owns — a property checkable at one instant rather than argued
-     about across three call sites. It is NOT a substitute for the strip, and
-     B340-3 now distinguishes the two (see __hrRecordStrip). */
-  try{ if(serverAccrualActive()&&window.HearthriseRecord) window.HearthriseRecord.forgetServerOfRecord(G); }catch(e){}
-  remapItemIds(G);   // b244: fold any renamed/retired item ids across every store
-  remapMonsterIds(G);       // b356: same, for monster ids (DEC-ALIAS-01)
-  remapMonsterFamilies(G);  // b356: fold the 2026-08-16 family renames in killsByFamily
-  /* b246: grandfather gear already worn when wield-reqs went live — never strip
-     anyone of what they're wearing, and let them re-wear it freely. */
-  G.wieldGrandfather = G.wieldGrandfather || {};
-  { const _em=equipmentMapG(); for(const _s in _em){ const _eid=_em[_s]; if(_eid) G.wieldGrandfather[_eid]=true; } }
-  ensureRetentionState();
-  ensureBountyState();
-  migrateEquipmentSlots();
-  ensureStarterCombatKit();
-  G.entitlements=G.entitlements||{};
-  /* ELEMENTS v1 — backfill the enchant map on saves that predate it. Empty {}
-     = no enchant. It persists by default (absent from NO_SYNC), so nothing else
-     is needed for it to survive save/load. */
-  if(!G.enchant||typeof G.enchant!=='object'||Array.isArray(G.enchant))G.enchant={};
-  G.ownedThemes=G.ownedThemes||['default'];
-  G.ownedCosmetics=G.ownedCosmetics||[];
-  G.settings=Object.assign({sfx:true,reduceFx:false,leftHand:false},G.settings||{});
-  delete G.settings.scale;   // b227: migrate old saves off the dead UI-scale key
-  /* b353: THE THIRD WRITER, CAUGHT BEFORE IT EXISTED. This line ran
-     unconditionally, fourteen lines after `forgetServerOfRecord(G)`. The day
-     `gems` joins SERVER_OF_RECORD it becomes exactly the writer record.js's
-     header says does not exist — re-creating a client-authored 0 over a field
-     the strip has just deleted, and a 0 is indistinguishable from a real empty
-     purse until the envelope lands. It asks now. `gems` is not on the registry
-     yet (see the b353 block in src/net/record.js for the blocker), so today the
-     predicate is always true and this is byte-for-byte the b352 line — which is
-     the point: the site is already right, so arming the field is one entry and
-     not a hunt. */
-  if(clientMayWriteRecordField('gems')) G.gems=G.gems||0;
-  G.bank=Object.assign({goldBuys:0,gemBuys:0,grandfather:0},G.bank||{});
-  generateDailyTasks(false);
-  /* b429: read hitpoints xp through the skill-record accessor (dormant → the raw
-     local read, byte-for-byte; armed → the SERVER map, and 0 until the envelope
-     lands, which maxHp is reconciled from anyway). Guarded so a boot where the
-     module has not attached degrades to the classic read rather than throwing,
-     and so a stripped-away G.skills (armed) cannot crash the boot the way the
-     b353 gold `toLocaleString` cold-load did. */
-  /* b455: the DISPLAY read, so a hitpoints level the player has just been shown
-     is the one their max HP reflects. This is a boot-time seed and addXp keeps it
-     in step afterwards (its levelup branch writes G.playerMaxHp); maxHp is not a
-     record field, and the server recomputes its own from its own skills map. */
-  var _SRhp=window.HearthriseSkillRecord;
-  var _hpXp=(_SRhp&&typeof _SRhp.skillXpForDisplayOr==='function')
-    ? _SRhp.skillXpForDisplayOr(G,'hitpoints',0)
-    : ((_SRhp&&typeof _SRhp.skillXpOr==='function')
-      ? _SRhp.skillXpOr(G,'hitpoints',0)
-      : ((G.skills&&G.skills.hitpoints)||0));
-  G.playerMaxHp=levelFromXp(_hpXp);
-  G.playerHp=Math.min(G.playerHp||G.playerMaxHp,G.playerMaxHp);
-  processOffline();
-  // Resume the live combat tick if we still have an active monster
-  // after the offline catch-up. processOfflineCombat may have nulled
-  // G.activeMonster on death.
-  if(G.activeMonster && !combatInterval){
-    _combatIntervalMs = combatTickMs();   // b245: honour attack speed on resume
-    combatInterval = setInterval(combatTick, _combatIntervalMs);
-  }
-  // b237: and resume the live gathering/artisan loop the same way — otherwise
-  // the save says "fishing" but nothing ticks until the player re-taps.
-  resumeActiveActivity();
+     b492 — THE FRESH-G LITERAL IS THE THIRD SOURCE. There is no blob to strip,
+     so nobody noticed that G still carried the factory literal for every armed
+     record field: `gold:500`, `skills:{…,hitpoints:1154,…}`,
+     `equipment:{weapon:'bronze_sword'}`, `rooms:{}`, `marks:0`. That is a
+     client-authored copy of a server-owned field in a live G under an armed
+     record — the two-sources bug record.js's header says cannot exist. It is
+     invisible while the server answers (applyRecord overwrites it within a
+     second); on 2026-08-29 the boot read failed and it became the character the
+     player was shown: a level-1 hero with 500 gold on an account holding attack
+     428 and 7,520 gold, with no error on the page. Forgetting them here means
+     UNKNOWN means unknown, the display ladder cannot resurrect a default, and
+     src/features/boot-hydration.js holds the veil until a verdict lands. */
+  try{ _removeSave(SAVE_KEY); }catch(e){}
+  try{ if(window.HearthriseRecord) window.HearthriseRecord.forgetServerOfRecord(G); }catch(e){}
 }
 /* ════════════════════════════════════════════════════════════════
    b307 — THE OFFLINE CAP IS PER-ABSENCE (Tyler, 2026-08-10).
@@ -1687,32 +1437,22 @@ function _awayArtisanEntry(){
   return e;
 }
 /* ════════════════════════════════════════════════════════════════
-   b337 — SERVER-AUTHORITATIVE AWAY TIME (roadmap item 2, one vertical slice).
+   b337/b515 — SERVER-AUTHORITATIVE AWAY TIME, WITH NO OTHER POSITION.
 
-   When the kill switch in src/net/accrue.js is ON, this client STOPS COMPUTING
-   away progression entirely and asks `hr-accrue` what it earned. The gate below
-   is the whole of it, and its shape is the point:
+   This client does not compute away progression. It asks `hr-accrue` what it
+   earned and renders the answer — unconditionally, not "if the server
+   answered". A server that is unreachable, rate-limited, 500ing or says
+   `no_character` still means nothing is credited, and the player is told.
+   There is no fallback to local computation: that would look exactly like
+   success while this device quietly kept authoring the economy.
 
-     • it is the FIRST statement of processOffline(), before accrueRestedXp()
-       and before claimOfflineMs(), so with the switch on there is no path
-       through this function that grants anything or moves the local watermark;
-     • it returns UNCONDITIONALLY — not "if the server answered". A server that
-       is unreachable, rate-limited, 500ing or says `no_character` still means
-       nothing is credited. **There is no fallback to local computation**, which
-       is the single most dangerous thing that could be built here: it would
-       look exactly like success while this device quietly kept authoring the
-       economy;
-     • the switch DEFAULTS OFF, so every line below it behaves exactly as it did
-       in b336 and the b305 save battery is untouched.
-
-   What the switch does NOT yet move to the server, stated plainly so nobody
-   reads more into it than it does: rested XP, the farm, live (present) ticks,
-   and every value in game_saves.snapshot. Those are still client-authored. This
-   slice moves ONE domain. */
-function serverAccrualActive(){
-  const A=window.HearthriseAccrual;
-  return !!(A && typeof A.isServerAccrualEnabled==='function' && A.isServerAccrualEnabled());
-}
+   b515: this used to be a GATE (`if(serverAccrualActive())`) on the b353 kill
+   switch, and everything below it in processOffline was the pre-cutover local
+   engine, live on any device holding `hr:serverAccrual=off`. The switch is
+   retired and the local engine is deleted. The predicate stays as a NAME —
+   ~6 call sites and the suite read `window.serverAccrualActive` — but it is a
+   constant, and accrue.js's own `isServerAccrualEnabled` is the definition. */
+function serverAccrualActive(){ return true; }
 /* ── b347: THE RECORD FOLLOWS THE WRITER, AND THIS IS THE WRITER ASKING ─────
    Every client site that mutates a field on the SERVER_OF_RECORD registry asks
    this first. Today that is exactly one line (`saveLocal`'s watermark advance);
@@ -1721,14 +1461,15 @@ function serverAccrualActive(){
    them ends at the same sentence at its ~40 write sites.
 
    The rule and the fail-closed direction both live in ONE place —
-   accrue.js `mayClientWrite`, which reads the SWITCH from itself and the FIELD
-   LIST from record.js so neither can vouch for the other's absence. This
+   accrue.js `mayClientWrite`, which reads the FIELD LIST from record.js. This
    wrapper exists only because legacy.js is a classic script and cannot import.
-   With accrue.js itself absent the switch cannot be on, so `true` is both safe
-   and exactly today's behaviour. */
+   b515: with accrue.js absent this used to answer `!serverAccrualActive()` —
+   i.e. TRUE while the kill switch was off, which is how every field became
+   client-writable on a disarmed device. A missing accrue.js is now a refusal:
+   the server owns the field and we cannot ask, so we do not write. */
 function clientMayWriteRecordField(field){
   const A=window.HearthriseAccrual;
-  if(!A||typeof A.mayClientWrite!=='function') return !serverAccrualActive();
+  if(!A||typeof A.mayClientWrite!=='function') return false;
   try{ return A.mayClientWrite(field, window)!==false; }catch(e){ return false; }
 }
 window.clientMayWriteRecordField=clientMayWriteRecordField;
@@ -2555,582 +2296,89 @@ function maybeIdleAwayReceipt(now,watermark){
 }
 window.maybeIdleAwayReceipt=maybeIdleAwayReceipt;
 function processOffline(){
-  /* b337: THE AUTHORITY GATE. See the block above. Must stay first. */
-  if(serverAccrualActive()){
-    wireServerAccrual();
-    /* OFFLINE-CLARITY fix 1 — remember how long this return has been away, read
-       BEFORE the server settle, so a 'nothing to pay' outcome (idle absence) can
-       still greet the player. The watermark is level with lastSeen during live
-       play, so a tab-flip reads ~0 and never trips the welcome-back. Zeroed while
-       hidden — a background settle is not a return. */
-    try{
-      var _rn=Date.now();
-      /* READ the watermark, never CREATE it: ensureOfflineBudget would re-add a
-         server-owned field the load path just stripped (B340-3). A stripped /
-         absent watermark leaves the absence UNKNOWN, which is the honest 0. */
-      var _rb=G.offlineBudget;
-      var _rwm=(_rb&&typeof _rb.at==='number'&&isFinite(_rb.at))?_rb.at:null;
-      window._hrPendingAbsenceMs=(_rwm===null||(typeof document!=='undefined'&&document.hidden))
-        ? 0 : Math.max(0,_rn-_rwm);
-    }catch(e){ window._hrPendingAbsenceMs=0; }
-    /* b338: ENSURE BEFORE ACCRUE. `player_state` starts empty for every player,
-       and hr-accrue answers `no_character` until a row exists — so without this
-       the b337 switch could never credit anybody. `ensureThenAccrue` asks the
-       server to create one (idempotently; the server decides, and the STARTING
-       KIT is the server's) and then asks for accrual REGARDLESS of the verdict,
-       because the server is the authority on whether there is anything to pay
-       and a failed ensure must not also cost the player their absence.
-       It latches, so this is one round trip per session, not one per return. */
-    try{
-      var C=window.HearthriseCharacter;
-      var R=window.HearthriseRecord;
-      /* b340: THE BOOT READ. hr_load supplies the fields the server is the
-         RECORD of — the ones stripRecordFields() deleted from the save blob on
-         the way in. It runs AFTER the ensure (an empty slot answers
-         `no_character`, and asking before creating just burns a rate budget for
-         a refusal) and does NOT gate accrual: a failed load leaves the field
-         UNKNOWN, which is the honest state, and never a local number. */
-      /* b427/b428 — REPAINT WHENEVER THE RECORD LANDS. record.js is DOM-free by
-         design, so a successful hr_load STAMPS the balance (gold/gems via
-         applyRecord) but paints nothing. On a live session the next combat/activity
-         tick calls updateTopbar() and the number appears within a frame; on an IDLE
-         cloud-restore / new-device boot there is NO tick, so the top bar and shop
-         sat on the pending em dash and every Buy/Sell fail-closed indefinitely even
-         though the balance was known.
-         Registered through onRecordApplied (not chained onto a single
-         beginRecordLoad promise) precisely because the load that actually succeeds
-         on a fresh new-device tab is the CONFIG-RETRY one fired from configureRecord
-         (b428) — a promise this boot code never holds. The hook fires for both the
-         initial read and that retry, only when a field was written. Idempotent. */
-      if(R&&typeof R.onRecordApplied==='function'){
-        try{ R.onRecordApplied(function(){
-          try{ if(typeof updateTopbar==='function') updateTopbar(); }catch(e){}
-          try{ if(typeof activeTab!=='undefined'&&activeTab==='shop'&&typeof renderShop==='function') renderShop(); }catch(e){}
-        }); }catch(e){}
-      }
-      if(C&&typeof C.ensureThenAccrue==='function'){
-        var p=C.ensureThenAccrue();
-        /* b492 — THE BOOT READ MUST NOT BE HOSTAGE TO THE ENSURE.
-           This was `p.then(fn)`. A single-argument `.then` runs on FULFILMENT
-           ONLY, so an ensure that rejected — or, worse, one whose promise never
-           settled at all (character.js's fetch had no timeout until b492, and
-           its single-flight latch handed the dead promise to every later
-           caller) — silently deleted EVERY hr_load this session would have
-           made, including the ones the 4s resume watchdog would have fired.
-           That is the live "36 seconds ready on a factory-default character".
-           `.then(f, f)` makes a rejection a reason to ask, not a reason to stop:
-           whether or not the character could be ensured, the server is still the
-           authority on whether one exists, and the READ is how we find out. */
-        if(R&&p&&typeof p.then==='function'){
-          var _load=function(){ try{ R.beginRecordLoad(); }catch(e){} };
-          p.then(_load,_load);
-        }
-        else if(R) R.beginRecordLoad();
-      }
-      else{
-        window.HearthriseAccrual.beginServerAccrual();
-        if(R) R.beginRecordLoad();
-      }
-    }catch(e){}
-    return;
-  }
-  /* b222 (SEAM 3): rest accrues BEFORE the early returns, because you rest
-     whether or not you left an activity running — that is the whole point of
-     Rested XP. It reads its own watermark (G.restedAt), never G.lastSeen, so
-     it cannot participate in the b214 double-pay pattern where processOffline
-     and the catch-up systems all re-read one unrefreshed timestamp. Calling
-     processOffline() twice banks charges exactly once. */
-  const _now=Date.now();
-  accrueRestedXp(_now);
-  /* The budget watermark advances whether or not anything was running, so a
-     day spent with no activity set cannot be banked and spent later. */
-  /* ── b343: THE AWAY-COMBAT GATE IS GONE. AWAY COMBAT PAYS FROM KILL ONE ───
-     b341/b342 put a precondition here (100 hand-landed kills — the "Field
-     Licence") that declined the whole combat span for a new character. Tyler's
-     ruling, verbatim: "I think we just needed to make it a quest and get rid
-     of the license shit it's way too confusing. The marks that sell auto
-     complete basically make it desirable to do afk combat anyway."
-
-     THE REASONING, kept here because this is where a future author will be
-     tempted to reintroduce it:
-
-       1. A SECOND LOCK ON A DOOR THAT WAS NEVER OPEN. `TRAITS.auto_eat` is
-          the real gate on unattended combat: auto-actions.js returns false
-          without the trait, so nobody eats while you are away and a fresh
-          character's fight is over in ~60 seconds. The trait costs 100 Bounty
-          Marks and marks come from bounties played by hand. The economy
-          already enforces "learn combat attended"; the gate only added a
-          word the player could not parse.
-       2. THE P0 IT SHIPPED FOR WAS AN HONESTY BUG, NOT A BALANCE BUG. A new
-          character died ~60s into an eight-hour absence and the away card
-          reported it as a normal base-rate night. That was fixed separately
-          and INDEPENDENTLY of any gate: `died` / `diedAfterMs` / `diedTo` are
-          their own payload on the receipt below, and every welcome-back
-          surface prints them. That fix stands.
-       3. The gate was CLIENT-ONLY in the end — `supabase/functions/hr-accrue`
-          never adopted it (zero references), so it was decorative against the
-          save-editing it was never meant to stop anyway.
-
-     What replaces it is not a rule but a SENTENCE: every surface that offers
-     away pay now states what actually ends the night (you fall / your food
-     runs out / your daily cap), and the away card says plainly when a night
-     went badly. See `awayFightSustains()` and `awayCardHtml()`. */
-  const active=!!(G.activeSkill||G.activeMonster||G.activeArtisanRecipe);
-  /* b261: 60s floor (was 180s). With the watermark now only advancing while
-     visible, a genuine 1–3 min AFK is credited instead of silently dropped;
-     sub-minute tab-flips still cost nothing. */
-  /* ── THE WATERMARK, READ BEFORE IT MOVES (Ruling 2, 2026-08-15) ───────────
-     `claimOfflineMs` ADVANCES `G.offlineBudget.at` to now — that advance IS
-     "signing in resets the timer" — so the instant the absence began is only
-     legible from here, one line earlier. It is the anchor of the credited
-     window: an over-cap absence pays its FIRST cap-hours, not its last.
-     `ensureOfflineBudget` is called first for the same reason claimOfflineMs
-     calls it (a missing or garbage watermark is seeded, not trusted); it is
-     idempotent, so this is a read, not a second claim. */
-  const _watermark=(ensureOfflineBudget(_now)||{}).at;
-  const hrs=claimOfflineMs(_now,active,60000)/3600000;
-  /* b297 (paione: "x'd out at 71 kills, logged back in at 71 kills"): the offline
-     pipeline credits correctly in an end-to-end test, so a real 0-credit is an
-     INPUT problem — no active loop in the loaded save, or the watermark measured
-     no elapsed time. This black-box breadcrumb records the decision inputs on
-     EVERY call (including the early return below), persisted so it survives the
-     reload, so the next occurrence is diagnosable instead of a guessing game.
-     `_`-prefixed + localStorage-only → never enters the cloud snapshot. */
+  /* THE ONLY PATH. The server computes away time; this asks for it and renders
+     the answer. b515 deleted the ~500-line local engine that used to follow this
+     block behind `if(serverAccrualActive())` — rested accrual, claimOfflineMs, the
+     credited window, the offline combat/gather/artisan replay, the local receipt.
+     It was live on any device holding the retired `hr:serverAccrual=off`, which is
+     exactly the client-authored fallback this file's own header calls the single
+     most dangerous thing that could be built here. src/core/away.js + the hr-accrue
+     engine are the one implementation now, and AWAY-1/AWAY-12 are its contract. */
+  wireServerAccrual();
+  /* OFFLINE-CLARITY fix 1 — remember how long this return has been away, read
+     BEFORE the server settle, so a 'nothing to pay' outcome (idle absence) can
+     still greet the player. The watermark is level with lastSeen during live
+     play, so a tab-flip reads ~0 and never trips the welcome-back. Zeroed while
+     hidden — a background settle is not a return. */
   try{
-    const _diag={ t:new Date(_now).toISOString(),
-      hidden:(typeof document!=='undefined' && document.hidden),
-      active:active, activeMonster:G.activeMonster||null,
-      activeSkill:G.activeSkill||null, hrs:+hrs.toFixed(3),
-      budgetAt:(G.offlineBudget&&G.offlineBudget.at)||null, lastSeen:G.lastSeen||null,
-      kills:(G.stats&&G.stats.kills)||0 };
-    window._hrOfflineDiag=_diag;
-    localStorage.setItem('hr:offlineDiag', JSON.stringify(_diag));
-  }catch(e){}
-  /* OFFLINE-CLARITY fix 1 — NEVER RETURN TO SILENCE. A genuine absence that
-     credited nothing (nothing was running, or nothing that banks) used to leave
-     the returning player on a normal dashboard with no acknowledgement at all —
-     which reads as "did my time away do anything? is it broken?". Write a
-     DISPLAY-ONLY welcome-back receipt (grants nothing; every total is 0) so the
-     Home away card's quiet branch greets them and explains what banks. Gated to
-     a real absence (>= the sync ceiling, i.e. not a tab-flip) and to a live
-     return (not while hidden). */
-  if(hrs<=0){ try{ maybeIdleAwayReceipt(_now,_watermark); }catch(e){} return; }
-  const cap=offlineCapHours();
-  /* ── THE CREDITED WINDOW (Ruling 2) ──────────────────────────────────────
-     `hrs` says HOW MUCH of the absence is paid; this says WHICH HOURS. One
-     definition, shared with the server accrual engine — see src/core/away.js
-     `creditWindow` for the exploit the old `toMs - spanMs` anchor left open
-     (return timing selecting the Boss-of-the-Day multiplier) and for why the
-     forfeited time is the TAIL.
-
-     Called unguarded, exactly like `HearthriseCore.away.AWAY_RATE_MULT` below:
-     a missing helper must fail loudly here, because the silent fallback would
-     be the very anchor this replaces. */
-  const _win=window.HearthriseCore.away.creditWindow({
-    watermarkMs:_watermark, nowMs:_now, grantMs:Math.round(hrs*3600000),
-  });
-  /* THE PART OF THE ABSENCE THAT PAYS NOTHING, AND WHICH SIDE OF THE WINDOW IT
-     FALLS ON. Timed buffs are personal, so they pay away AND drain away
-     (src/core/away.js) — which means the buff clock has to advance across the
-     WHOLE absence or a returning player's timers disagree with the wall clock.
-     Only the credited window pays; the rest is spent at zero.
-
-     Both ends are DERIVED from the window rather than assumed, and that is not
-     ceremony: under first-window crediting the head is always 0 and the tail is
-     the forfeit, but if the window anchor ever moves back to the return instant
-     the head becomes real and a buff eaten at logoff must then be spent on time
-     that paid nothing. The code states the invariant ("the clock crosses the
-     whole absence; only the window pays") instead of a consequence of it. */
-  const _unpaidHeadMs=Math.max(0,_win.fromMs-_watermark);
-  const _unpaidTailMs=Math.max(0,_now-_win.toMs);
-  const beforeInv={...G.inventory},beforeXp={...G.skills},beforeGold=balNum('gold'),beforeKills=G.stats?.kills||0;
-  /* SAMPLED HERE, BEFORE THE REPLAY (First-Night Idle Rescue). See awayHadFood. */
-  const _hadFoodAtStart = awayHadFood();
-  let combatSummary = null;
-  /* ── b345: HOW MUCH OF THE ABSENCE ACTUALLY PAID ────────────────────────
-     `hrs` is how long the player was GONE. It has never been how long their
-     run EARNED, and the summary had no field that could tell the two apart —
-     so a cooking session that exhausted eight shrimp in 30.7 seconds of a
-     28,800-second night was reported, on every durable surface, as a full
-     night's honest pay. (Measured: away interval 3,840 ms × 8 shrimp = 0.107%
-     of the absence.)
-
-     Same fix b342 applied to the declined-combat night, applied to the reason
-     it happens to everybody: SUPPLIES. `paidMs` is the span that earned;
-     `stoppedBy` NAMES what ended it and `stoppedById` names the thing. All
-     three are STATED, never inferred — a renderer must not conclude "it
-     stopped early" from `paidMs < awayMs`, because flooring a tick count
-     already makes that true on a perfectly ordinary night. */
-  let paidMs = Math.round(hrs*3600000);
-  let stoppedBy = null, stoppedById = null, stoppedSkill = null, stoppedPerHour = 0;
-  /* ── b347: WHAT THE BUFFS ACTUALLY DID ON A GATHER/ARTISAN NIGHT ─────────
-     The same two facts `simulateSpan` reports for a combat night, so the
-     welcome-back card asks ONE question of the receipt regardless of which
-     activity was running. `buffPaidMs` is the slice of the absence at least
-     one buff was live for; `buffsExpired` names the types that ran out
-     mid-night. Both STATED by the replay, never inferred by a renderer — the
-     inference a renderer would otherwise make ("the whole night was buffed")
-     is precisely the mint b347 exists to prevent. */
-  let buffPaidMs = 0, buffsExpired = [];
-
-  /* ── b227: EVERYTHING that simulates elapsed time runs inside the latch ──
-     The rotating blessings are session-gated, and every "is the player here?"
-     signal is TRUE right here: loadLocal() calls us inside a live, connected
-     session with an activity set. Without this latch the returning player would
-     be paid a whole night at today's blessing — the exact shape of the bug
-     b226's flat ×1.12 shipped with. Inside it, `blessingsApply()` is false
-     regardless of connectivity (b229 did not weaken this), so every key
-     the replay reads (allXP, combatXP, goldFind, farmYield, noBurn AND the
-     speed keys, via the interval re-derivation below) is the base value. */
-  withOfflineReplay(function(){
-    /* Spend the uncredited time that falls BEFORE the window, at zero payout.
-       Zero under first-window crediting (the head is empty by construction) —
-       kept because the drain belongs to the window, not to a build. */
-    if(_unpaidHeadMs>0 && typeof advanceBuffClock==='function') advanceBuffClock(_unpaidHeadMs);
-    // Combat takes priority — if a fight was in progress, simulate that.
-    if(G.activeMonster){
-      /* THE UNIFICATION. This used to call processOfflineCombat(), a second
-         combat loop; it is one span of the SAME simulateTick() the live 2.4s
-         tick runs, with `away:true`. See src/core/combat-sim.js.
-
-         b343: UNCONDITIONAL. There is no precondition on this call and there
-         must not be one — a gate here is a whole night silently missing, and
-         the honest answer to "a new character dies in sixty seconds" is the
-         death line on the receipt below, not an empty night. */
-      combatSummary = simulateAwayCombat(hrs, _now, hrs >= (cap - 0.05), {fromMs:_win.fromMs});
-    } else if(_awaySpanCore() && _awayArtisanEntry()){
-      /* ════════════════════════════════════════════════════════════════════
-         b351 — THE ARTISAN AWAY BRANCH IS ONE CALL INTO CORE.
-
-         What was here was ~90 lines that replayed `window.doArtisanAction`
-         thousands of times: the whole production step lived behind a function
-         that writes the bag, queues toasts and repaints two panels, which is
-         why `hr-accrue` refused all 290 artisan activities — 84% of the
-         catalogue — and a player who logged off smelting was paid nothing.
-
-         `src/core/artisan-sim.js simulateArtisanSpan` is that branch, made
-         pure. It runs on the SAME `sliceSpan` the gather branch runs on, so
-         the buff-expiry timeline b347 built is one mechanism, not three.
-
-         ⚠ IT MUST STAY INSIDE `withOfflineReplay`. The interval is derived
-           from `getBonus` at call time and a cook/smith-speed BLESSING is
-           presence-gated; asking from outside the latch answers a smaller
-           number. (Measured on the gather side while AWAY-16 was written: 375
-           core actions against 400 live ones, from nothing but which side of
-           the latch asked.)
-
-         THE ONE REFUSAL CALL SURVIVES, and still for b345's reason: the honest
-         "Out of Raw Shrimp — cooking stopped" toast and the cleared activity
-         come from `doArtisanAction`'s OWN refusal branch. Core states the stop;
-         it does not grow a second copy of the sentence. It is made AFTER the
-         span (b347) because that branch clears `G.activeSkill`, which would
-         freeze the buff drain for the very minutes the run did work. */
-      const _entry=_awayArtisanEntry();
-      const _C=_awaySpanCore();
-      window._hrOfflineBurns = 0;
-      const span=_C.artisanSim.simulateArtisanSpan(G, {
-        away:true, fromMs:_win.fromMs, toMs:_win.toMs, capped: hrs >= (cap - 0.05),
-        rng:_C.rng, items:(typeof ITEMS!=='undefined'&&ITEMS)||null,
-        recipes:_C.artisanRecipes(),
-        bonus:window.getBonus,
-        /* THE ADAPTER — every side effect the client performs, named. The two
-           per-action repaints `doArtisanAction` used to fire even on a silent
-           tick are deliberately NOT here: the replay is followed by exactly one
-           renderProfile()/renderQuestStrip() below (b326), so a night's cooking
-           now costs one frame instead of thousands. */
-        fx:{
-          addItem:function(id,q){ if(typeof addItem==='function') addItem(id,q); },
-          removeItem:function(id,q){ if(typeof removeItem==='function') removeItem(id,q); },
-          addXp:function(sk,amt){ if(typeof addXp==='function') addXp(sk,amt); },
-          updateDaily:function(k,n){ if(typeof updateDaily==='function') updateDaily(k,n); },
-          updateQuest:function(k,n){ if(typeof updateQuest==='function') updateQuest(k,n); },
-        },
-      });
-      window._hrOfflineBurns = span.burnt||0;
-      buffPaidMs=span.buffPaidMs; buffsExpired=span.buffsExpired;
-      if(span.stoppedBy){
-        paidMs=Math.round(span.paidMs);
-        stoppedBy=span.stoppedBy; stoppedById=span.stoppedById;
-        stoppedSkill=span.stoppedSkill; stoppedPerHour=span.stoppedPerHour;
-        if(typeof window.doArtisanAction==='function'){
-          window.doArtisanAction(_entry.skill, G.skillTargetId, {silent:true});
-        }
-      }
-    } else if(_awaySpanCore() && G.activeSkill){
-      /* ════════════════════════════════════════════════════════════════════
-         b351 — THE GATHER AWAY BRANCH IS ONE CALL INTO CORE.
-
-         Offline gather runs at the same rate as active play — no dampening —
-         through `src/core/skill-sim.js simulateSkillSpan`, which is what this
-         branch (`replayAwaySpan` over `doSkillAction(true)`) was, made pure.
-         The accrual Edge Function runs the same function on the same 23 nodes.
-
-         The precondition was proven BEFORE the switch, not after: AWAY-16
-         PARITY runs 400 live `doSkillAction` calls against one core span of
-         exactly 400 actions' worth of time and asserts the same bag, XP,
-         counters and fractional tool carry. So this is a delegation, not a
-         balance change.
-
-         ⚠ INSIDE `withOfflineReplay`, for the reason that test records: a
-           gather-speed BLESSING is presence-gated, and sizing the span from
-           outside the latch measured 375 core actions against 400 live ones. */
-      const _C=_awaySpanCore();
-      const span=_C.skillSim.simulateSkillSpan(G, {
-        away:true, fromMs:_win.fromMs, toMs:_win.toMs, capped: hrs >= (cap - 0.05),
-        rng:_C.rng, items:(typeof ITEMS!=='undefined'&&ITEMS)||null,
-        nodes:_C.gatherNodes(),
-        bonus:window.getBonus,
-        /* THE ADAPTER. `onStop` is the level gate: core STATES the fact and the
-           client decides what it means — here, `stopSkill()`, exactly as
-           `doSkillAction`'s own gate did. Core never nulls the pointer itself. */
-        fx:{
-          addItem:function(id,q){ if(typeof addItem==='function') addItem(id,q); },
-          addXp:function(sk,amt){ if(typeof addXp==='function') addXp(sk,amt); },
-          updateDaily:function(k,n){ if(typeof updateDaily==='function') updateDaily(k,n); },
-          updateQuest:function(k,n){ if(typeof updateQuest==='function') updateQuest(k,n); },
-          onStop:function(){ if(typeof stopSkill==='function') stopSkill(); },
-        },
-      });
-      buffPaidMs=span.buffPaidMs; buffsExpired=span.buffsExpired;
-      if(span.stoppedBy){
-        paidMs=Math.round(span.paidMs);
-        stoppedBy=span.stoppedBy; stoppedById=span.stoppedById; stoppedSkill=span.stoppedSkill;
-      }
+    var _rn=Date.now();
+    /* READ the watermark, never CREATE it: ensureOfflineBudget would re-add a
+       server-owned field the load path just stripped (B340-3). A stripped /
+       absent watermark leaves the absence UNKNOWN, which is the honest 0. */
+    var _rb=G.offlineBudget;
+    var _rwm=(_rb&&typeof _rb.at==='number'&&isFinite(_rb.at))?_rb.at:null;
+    window._hrPendingAbsenceMs=(_rwm===null||(typeof document!=='undefined'&&document.hidden))
+      ? 0 : Math.max(0,_rn-_rwm);
+  }catch(e){ window._hrPendingAbsenceMs=0; }
+  /* b338: ENSURE BEFORE ACCRUE. `player_state` starts empty for every player,
+     and hr-accrue answers `no_character` until a row exists — so without this
+     the b337 switch could never credit anybody. `ensureThenAccrue` asks the
+     server to create one (idempotently; the server decides, and the STARTING
+     KIT is the server's) and then asks for accrual REGARDLESS of the verdict,
+     because the server is the authority on whether there is anything to pay
+     and a failed ensure must not also cost the player their absence.
+     It latches, so this is one round trip per session, not one per return. */
+  try{
+    var C=window.HearthriseCharacter;
+    var R=window.HearthriseRecord;
+    /* b340: THE BOOT READ. hr_load supplies the fields the server is the
+       RECORD of — the ones stripRecordFields() deleted from the save blob on
+       the way in. It runs AFTER the ensure (an empty slot answers
+       `no_character`, and asking before creating just burns a rate budget for
+       a refusal) and does NOT gate accrual: a failed load leaves the field
+       UNKNOWN, which is the honest state, and never a local number. */
+    /* b427/b428 — REPAINT WHENEVER THE RECORD LANDS. record.js is DOM-free by
+       design, so a successful hr_load STAMPS the balance (gold/gems via
+       applyRecord) but paints nothing. On a live session the next combat/activity
+       tick calls updateTopbar() and the number appears within a frame; on an IDLE
+       cloud-restore / new-device boot there is NO tick, so the top bar and shop
+       sat on the pending em dash and every Buy/Sell fail-closed indefinitely even
+       though the balance was known.
+       Registered through onRecordApplied (not chained onto a single
+       beginRecordLoad promise) precisely because the load that actually succeeds
+       on a fresh new-device tab is the CONFIG-RETRY one fired from configureRecord
+       (b428) — a promise this boot code never holds. The hook fires for both the
+       initial read and that retry, only when a field was written. Idempotent. */
+    if(R&&typeof R.onRecordApplied==='function'){
+      try{ R.onRecordApplied(function(){
+        try{ if(typeof updateTopbar==='function') updateTopbar(); }catch(e){}
+        try{ if(typeof activeTab!=='undefined'&&activeTab==='shop'&&typeof renderShop==='function') renderShop(); }catch(e){}
+      }); }catch(e){}
     }
-    /* THE FORFEITED TAIL. The cap stops the PAYOUT, not the clock: the
-       character kept standing there, so a consumable that was still running
-       when the window closed goes on running out. Zero payout — nothing reads
-       a bonus after this point in the replay. `advanceBuffClock` still honours
-       its one freeze condition (nothing active), so a night that ended in a
-       death does not spend a buff on an idle corpse. */
-    if(_unpaidTailMs>0 && typeof advanceBuffClock==='function') advanceBuffClock(_unpaidTailMs);
-  });
-
-  /* b326 (perf): renderProfile() and the quest strip skip their work while the
-     latch is closed — see their guards. The replay is over here, so repaint
-     each exactly once with the finished state. One frame instead of thousands. */
-  try{ if(typeof renderProfile==='function') renderProfile(); }catch(e){}
-  try{ if(typeof window.renderQuestStrip==='function') window.renderQuestStrip(); }catch(e){}
-
-  const gainedItems=Object.keys(G.inventory).reduce((s,id)=>s+Math.max(0,(G.inventory[id]||0)-(beforeInv[id]||0)),0);
-  const gainedXp=Object.keys(G.skills).reduce((s,sk)=>s+Math.max(0,(G.skills[sk]||0)-(beforeXp[sk]||0)),0);
-  /* The away summary's gold line is a DELTA across the window. If either end
-     is UNKNOWN there is no delta to state, and reporting `0` would tell a
-     player their night paid nothing — the exact silent-penalty sin the b326
-     away-honesty pass was written to end. 0 here means "not stated", and every
-     surface that prints it already gates on `> 0`. */
-  const _goldAfter=balNum('gold');
-  const gainedGold=(beforeGold===null||_goldAfter===null)?0:(_goldAfter-beforeGold);
-  const gainedKills=(G.stats?.kills||0)-beforeKills;
-  /* b225: burns are part of what happened while you were away, so they belong
-     in the summary object and not only in a toast the queue may coalesce. The
-     Home dashboard's offline line reads this. */
-  const offlineBurnt = window._hrOfflineBurns || 0;
-  window._hrOfflineBurns = 0;
-  /* b226: the budget is on the summary, because a player must never discover
-     a cap by noticing an absence. b307: the cap is now PER-ABSENCE, so the
-     welcome-back line only mentions it when this trip actually HIT the cap. */
-  const capped = hrs >= (cap - 0.05);
-  G.lastOfflineSummary={
-    hrs:+hrs.toFixed(1), gainedItems, gainedXp,
-    gainedGold, gainedKills, burnt: offlineBurnt,
-    combat: combatSummary,
-    budgetHrs: cap,        // b307: now the PER-ABSENCE cap ("your offline max")
-    capped: capped,        // b307: true when this absence was longer than the cap
-    at: Date.now(),
-    /* b227: a machine-readable statement of what this catch-up was paid at.
-       The summary must never quote a blessing it did not apply — the surest
-       way to guarantee that is for the summary to carry the truth instead of
-       leaving each renderer to guess.
-
-       RULING 3.5 (2026-08-15): it carries the truth by ASKING, not by
-       restating. This was a literal `false` — a fourth handwritten copy of a
-       decision `AWAY_SCOPE.blessing` already owns (the other three were in
-       combat-sim / skill-sim / artisan-sim). `{away:true}` is not the rule,
-       it is this function's own fact: processOffline IS the absence. What
-       the away context MEANS for blessings is the table's call alone. */
-    blessed: _awayBlessed(),
-    /* THE HONESTY PAYLOAD (away-time-ruling.md §"Player-facing honesty").
-       Everything a welcome-back renderer needs in order to describe the
-       absence WITHOUT inferring anything:
-         blessed         whether the SERVER-WIDE blessing channel paid, as
-                         `AWAY_SCOPE.blessing` decides it (false today). Never
-                         restated here — see `_awayBlessed`.
-         buffsPaused     ALWAYS FALSE since b347. Personal buffs pay away and
-                         spend away on EVERY path now (combat via
-                         simulateSpan, gather/artisan via replayAwaySpan), so
-                         nothing is ever paused. The key is kept rather than
-                         deleted: home-dashboard.js reads `off.buffsPaused`
-                         unguarded, and `undefined` on a stale summary is a
-                         larger blast radius than a false. What replaced it as
-                         the interesting fact is buffPaidMs / buffsExpired.
-         buffPaidMs      ms of the absence at least one buff was actually live
-         buffsExpired    the buff types that ran out DURING the absence
-         crits           away crits, so "142 kills · 21 crits" is sayable
-         featuredMs      ms spent on the Boss of the Day / Week, so the card
-                         can add "· 8h on the Boss of the Day (+50% drops)"
-         capped          this absence hit the per-absence ceiling
-         rateMult        the away rate actually applied (1.00)
-       A renderer that has to guess will eventually quote a bonus nobody
-       paid; this is the cheapest possible way to make that impossible. */
-    /* b347: the non-combat arm used to answer this with "did the player hold a
-       buff?", which was a fair proxy while a held buff really was frozen. Buffs
-       spend away on this path now, so that expression became a lie in both
-       directions on a gather night — nothing was paused, and the buff paid the
-       whole night. Both arms now state the same false, from the same rule. */
-    buffsPaused: combatSummary ? !!combatSummary.buffsPaused : false,
-    /* Stated by whichever engine ran the night: simulateSpan for combat,
-       replayAwaySpan for gather/artisan. One shape, so the card does not care
-       which was running. */
-    buffPaidMs: combatSummary ? (combatSummary.buffPaidMs||0) : buffPaidMs,
-    buffsExpired: combatSummary ? (combatSummary.buffsExpired||[]) : buffsExpired,
-    crits: combatSummary ? (combatSummary.crits||0) : 0,
-    /* DEATH IS PART OF THE RECEIPT.
-       `combat.died` has existed since b325 and only ever reached a toast that
-       is gone in ten seconds; the durable Home card read the totals and the
-       hours and said "8h away — +53 XP … at the base rate", which is how an
-       absence that ended sixty seconds in reads as a full night's honest pay.
-       Death is mirrored to the TOP LEVEL beside `crits` and `featuredMs` for
-       the same reason those are: a welcome-back renderer reads one flat
-       payload and infers nothing. `diedAfterMs` is the span that actually
-       earned; the remainder provably paid nothing, because COMBAT_FX.onDeath
-       clears activeMonster and every other branch above is gated on it. */
-    died: combatSummary ? !!combatSummary.died : false,
-    diedAfterMs: (combatSummary && combatSummary.died) ? (combatSummary.survivedMs||0) : 0,
-    diedTo: (combatSummary && combatSummary.died) ? (combatSummary.diedTo||null) : null,
-    /* ── THE RECOVERY PAYLOAD (First-Night Idle Rescue) ────────────────────
-       `died` alone can no longer describe a night: a death is an interruption
-       now, so a twelve-hour absence can contain four of them and still pay. The
-       SAME three fields the server states (accrual.js -> src/net/accrue.js
-       summaryFromAway), stated by whichever engine ran the night, so every
-       welcome-back renderer reads ONE shape and infers nothing. */
-    deaths: combatSummary ? (combatSummary.deaths||0) : 0,
-    recoverMs: combatSummary ? (combatSummary.recoverMs||0) : 0,
-    recoverRemainingMs: combatSummary ? (combatSummary.recoverRemainingMs||0) : 0,
-    /* The rungs as charged, one per fall. Same field the server states, so both
-       receipt paths render from ONE shape. */
-    recoverLadder: (combatSummary && Array.isArray(combatSummary.recoverLadder))
-      ? combatSummary.recoverLadder.slice() : [],
-    /* ── AND WHY NOTHING HEALED (Designer ruling 2b, 2026-08-31) ───────────
-       The SAME field the server states on its own receipt (hr-accrue
-       accrual.js → index.ts `away.autoEat` → src/net/accrue.js
-       summaryFromAway), so `receiptDeathCause` reads ONE shape whichever
-       engine ran the night and the two paths cannot describe one death
-       differently. Only on a combat receipt: a gather night has no auto-eat
-       to report and a stated `enabled:false` there would read as a cause. */
-    autoEat: combatSummary ? awayAutoEatState(_hadFoodAtStart) : null,
-
-    featuredMs: combatSummary ? (combatSummary.featuredMs||0) : 0,
-    /* The MULTIPLIER that featured time actually paid, so the welcome-back
-       line can say "(+50% drops)" without a renderer inferring which boss it
-       was. Daily is x1.5 and weekly x2.0 — a renderer that assumed "daily"
-       would understate a weekly night by half, which is the same species of
-       lie as quoting a blessing nobody paid, only in the other direction. */
-    featuredDropMult: combatSummary ? (combatSummary.featuredDropMult||1) : 1,
-    rateMult: window.HearthriseCore.away.AWAY_RATE_MULT,
-    /* b326: `hrs` is rounded to one decimal for the numeric readouts, which is
-       6-minute granularity — fine for "8.2h", wrong for "8h 12m". The exact
-       span is carried alongside it so a duration can be PRINTED honestly. */
-    awayMs: Math.round(hrs*3600000),
-    /* ── b352 (Ruling 2): WHICH HOURS, not just how many ──────────────────
-       `awayMs` keeps its meaning — the span that was CREDITED. What it never
-       carried is where that span sat on the clock, and after the flip a
-       renderer can no longer derive it ("now minus awayMs" was only ever right
-       because the window used to end at the return instant). So it is STATED,
-       like every other field on this receipt:
-         windowFrom/windowTo  the credited hours. The Boss-of-the-Day segments
-                              and every timed effect were resolved against them.
-         unpaidMs             the tail the cap forfeited. `awayMs + unpaidMs`
-                              is the whole absence; it is 0 on a night that fit
-                              inside the cap, which is almost all of them. */
-    windowFrom: _win.fromMs,
-    windowTo: _win.toMs,
-    unpaidMs: Math.round(_unpaidHeadMs + _unpaidTailMs),
-    /* ── b345: THE RUN'S OWN LENGTH, beside the absence's ─────────────────
-       `awayMs` is how long the player was gone; `paidMs` is how long their
-       run earned. They are equal on an ordinary night and wildly unequal on
-       the one this exists for. DEATH IS FOLDED IN rather than left as a
-       parallel concept: `died`/`diedAfterMs` stay exactly as they were (three
-       surfaces read them and death has richer copy than a generic stop), but
-       it also reports through this seam so a renderer can ask ONE question —
-       "did the run end before the absence did, and what ended it?" — instead
-       of growing a new branch per reason. A future reason (a full bank, a
-       despawn) is then a new `stoppedBy` VALUE and a copy row, not a new
-       field and a new code path. That is the AWAY_SCOPE lesson: rules that
-       grow belong in a table. */
-    paidMs: (combatSummary && combatSummary.died)
-      ? (combatSummary.survivedMs||0) : paidMs,
-    stoppedBy: (combatSummary && combatSummary.died) ? 'death' : stoppedBy,
-    stoppedById: (combatSummary && combatSummary.died)
-      ? (combatSummary.diedTo||null) : stoppedById,
-    /* The skill that was running, as an ID — resolved to a display name by
-       each renderer, exactly as `diedTo` is resolved through MONSTERS. */
-    stoppedSkill: stoppedSkill,
-    /* Supplies only: how much of the missing input an hour of this run eats.
-       Stated here because THIS is the only place that knows the away interval
-       and the recipe together; a card that re-derived it would be a second
-       estimator of a night that is already settled. 0 when it does not apply. */
-    stoppedPerHour: stoppedPerHour,
-  };
-  /* b307: no daily bucket to report. Only speak up when the absence was long
-     enough to hit the per-absence cap, so the player learns the ceiling by
-     bumping it rather than by seeing an accusatory "0h left" every login. */
-  /* b345: …and only when the run was STILL EARNING as the window closed.
-     A cap note beside "ran out of Raw Shrimp 31s in" reads as the cause of an
-     empty night and sells an upgrade that would have changed nothing. Same
-     rule the away card follows, keyed on the same stated field. */
-  const budgetNote = (capped && !stoppedBy) ? ` · capped at your ${cap}h offline max — upgrades raise this` : '';
-  /* b227: the rate, stated in the ONE offline surface a player actually sees.
-     The day's blessing is announced on Home and in Events as something that is
-     alive while you are in the game; a welcome-back line that said nothing
-     would leave the player to assume the night was blessed too, and then
-     quietly disappoint them. b229 matches Tyler's register — "the steady base
-     rate" — so the two halves of the rule read as one sentence across surfaces
-     rather than two policies. */
-  const rateNote = 'at the base rate';
-  if(combatSummary){
-    /* b326 (ruling §"Player-facing honesty" 2): away combat REPORTS ITS CRITS.
-       Crits are gear, they apply away, and stating the count is the cheapest
-       proof that they did — the omission was the original sin here. */
-    const critNote = combatSummary.crits ? ` · ${combatSummary.crits} crits` : '';
-    /* ── A NIGHT WITH FALLS IN IT (Recovery rev. 2) ───────────────────────
-       "fought to the death" is false about EVERY night now, including a
-       one-death one: the character got back up, served their recovery and kept
-       going, and the rev-1 single-death branch still told that player their
-       night ended in the first ten minutes. So the two death branches collapse
-       into one that reads off the SAME stated fields the receipt does, and it
-       leads with the recovery cost because that is the number the player can do
-       something about. `_recMs === 0` (the day's free fall) says so plainly
-       rather than quoting "0s spent recovering". */
-    const _deaths = combatSummary.deaths || 0;
-    const _recMs = combatSummary.recoverMs || 0;
-    const _fellNote = _deaths === 1 ? 'fell once and got back up' : `fell ${_deaths}× and got back up`;
-    const _costNote = _recMs > 0 ? `, ${fmtSince(_recMs)} spent recovering` : ' at no cost';
-    const note = _deaths > 0
-      ? `Offline ${hrs.toFixed(1)}h ${rateNote} — ${combatSummary.kills} kills${critNote}, ${_fellNote}${_costNote}. +${gainedXp} XP, +${gainedGold} gold`
-      : `Offline ${hrs.toFixed(1)}h ${rateNote} — ${combatSummary.kills} kills${critNote}, +${gainedItems} items, +${gainedGold} gold`;
-    notify(note + budgetNote, combatSummary.died ? 'kill' : 'info');
-  } else {
-    /* b225: if the fire ruined any of it while you were away, say so — an
-       unexplained pile of Burnt Food in the bag is exactly the kind of
-       silent mechanic the b224 food lesson said never to ship again.
-
-       ── b345: AND IF THE RUN STOPPED, THE STOP LEADS ─────────────────────
-       This toast is the LAST thing a returning player reads, and it used to
-       read "Offline 8.0h at the base rate — +11 items, +80 XP" over a run
-       that had ended 30.7 seconds in. The honest line ("Out of Raw Shrimp —
-       cooking stopped") is fired by doArtisanAction three toasts earlier and
-       is then contradicted by this one. So the stop is stated HERE too, in
-       the same sentence as the totals, where it cannot be outlived. */
-    const _restMs = Math.max(0, Math.round(hrs*3600000) - paidMs);
-    const stopLead = stoppedBy==='supplies'
-      ? `${_skillLabel(stoppedSkill)} ran out of ${_itemLabel(stoppedById)} ${fmtSince(paidMs)} in`
-        + (_restMs >= 60000 ? `; the remaining ${fmtHm(_restMs)} paid nothing` : '')
-        + '. '
-      : '';
-    notify(`Offline ${hrs.toFixed(1)}h ${rateNote} — ${stopLead}+${gainedItems} items, +${gainedXp} XP` +
-      (offlineBurnt ? ` · ${offlineBurnt} burnt on the fire` : '') + budgetNote,'info');
-  }
+    if(C&&typeof C.ensureThenAccrue==='function'){
+      var p=C.ensureThenAccrue();
+      /* b492 — THE BOOT READ MUST NOT BE HOSTAGE TO THE ENSURE.
+         This was `p.then(fn)`. A single-argument `.then` runs on FULFILMENT
+         ONLY, so an ensure that rejected — or, worse, one whose promise never
+         settled at all (character.js's fetch had no timeout until b492, and
+         its single-flight latch handed the dead promise to every later
+         caller) — silently deleted EVERY hr_load this session would have
+         made, including the ones the 4s resume watchdog would have fired.
+         That is the live "36 seconds ready on a factory-default character".
+         `.then(f, f)` makes a rejection a reason to ask, not a reason to stop:
+         whether or not the character could be ensured, the server is still the
+         authority on whether one exists, and the READ is how we find out. */
+      if(R&&p&&typeof p.then==='function'){
+        var _load=function(){ try{ R.beginRecordLoad(); }catch(e){} };
+        p.then(_load,_load);
+      }
+      else if(R) R.beginRecordLoad();
+    }
+    else{
+      window.HearthriseAccrual.beginServerAccrual();
+      if(R) R.beginRecordLoad();
+    }
+  }catch(e){}
 }
 /* "9h 12m" / "48m" — the offline budget readout's only formatter. Deliberately
    local: the fmtSpan() further down the file lives inside another block's scope. */
@@ -6674,12 +5922,13 @@ function stopCombat(){
      (supabase/migrations/*-apply-engine.sql, the S5 half), and the collect that
      runs before the switch REFUSES a window under the 60 s server floor. Stop
      on a death and the death is arithmetically erased. */
-/* True when the SERVER owns this fall. With server accrual off (a harness, a
-   signed-out boot, the b346 dark path) nothing will ever answer the question,
-   so the pre-b510 behaviour — stop the run — is the honest one. */
+/* True when the SERVER owns this fall — i.e. accrue.js is present to be asked.
+   Without it (a harness, a bare page) nothing will ever answer the question, so
+   the pre-b510 behaviour — stop the run — is the honest one. b515 dropped the
+   `serverAccrualActive() &&` conjunction with the kill switch. */
 function hrServerOwnsFall(){
   const A=window.HearthriseAccrual;
-  return !!(serverAccrualActive() && A && typeof A.noteFall==='function');
+  return !!(A && typeof A.noteFall==='function');
 }
 function hrClearFall(){
   const A=window.HearthriseAccrual;
@@ -9074,7 +8323,6 @@ const EAT_SEND_QUEUE_MAX=120;    // ~6 min of drain — inside the hold's TTL
 let _eatQueue=[],_eatTimer=null,_eatLastSentAt=0;
 function _pendingConsumeApi(){ return window.HearthrisePendingConsume||null; }
 function _sendEatNow(foodId){
-  if(!(typeof serverAccrualActive==='function'&&serverAccrualActive()))return false;
   try{
     const M=wireServerEat();
     if(!M||typeof M.sendEat!=='function')return false;
@@ -9190,7 +8438,6 @@ function noteItemConsumed(itemId,qty,opts){
   }
   if(opts.send===false)return true;
   if(!_isEdibleItem(id))return true;                 // no verb for this id yet — hold only
-  if(!(typeof serverAccrualActive==='function'&&serverAccrualActive()))return true;
   if(opts.auto&&!_clientOwnsAutoEatDebit())return true;   // the server eats this one — hold only
   for(let i=0;i<n;i++){
     if(opts.auto)queueEatIntent(id); else _sendEatNow(id);
@@ -15981,41 +15228,31 @@ function checkAchievements(){
    calls it by bare name, which resolves to window.showLevelupCelebration. */
 
 /* =========================================================
-   3. CATCHUP REWARDS (offline progress)
+   3. CATCHUP REWARDS - DELETED (b516). DO NOT RE-ADD.
+   =========================================================
+   `calcCatchup()`, `window._catchupCalc` and `window._applyCatchup` lived here
+   and are gone. They were the last client-side OFFLINE ESTIMATOR: calcCatchup
+   read `G.lastSeen` against the DEVICE clock and the active node's rate to
+   invent an absence, and `_applyCatchup` then CREDITED that invention through
+   `addXp` / `addItem`. Measured before deletion, it minted a real +1,200 logs
+   for a 2h fixture.
+
+   It was already unreachable - b214 stopped it double-PAYING, b342 deleted the
+   injector that called it - but "unreferenced" is not "unreachable". It hung
+   off `window`, so any devtools console, any bookmarklet, any future line of
+   glue could call `window._applyCatchup(window._catchupCalc())` and mint XP and
+   items into a save the SERVER owns. CLAUDE.md §1: the client never authors a
+   number, and dead code that can still be dialled is a capability, not debt.
+
+   THE ABSENCE IS THE SERVER'S AND ONLY THE SERVER'S: hr-accrue computes it from
+   activity plus the server clock, and the welcome modal quotes the RECEIPT
+   (`G.lastOfflineSummary`) rather than any estimate. There is no second opinion
+   to reconcile because there is no second calculator.
+
+   GUARDED BY: `b214: an absence is granted exactly ONCE`, which is now an
+   EXISTENCE guard - it fails if either name returns on `window`, and it still
+   asserts the welcome modal quotes the receipt and never a calculator.
    ========================================================= */
-function calcCatchup(){
-  if(typeof G !== 'object' || !G) return null;
-  var since = Date.now() - (G.lastSeen || Date.now());
-  var hoursAway = since / 3600000;
-  if(hoursAway < 0.5) return null;            // <30 min — no catchup
-  hoursAway = Math.min(hoursAway, 12);        // cap at 12 hours
-  var rewards = {hours: hoursAway, xp: {}, gold: 0};
-  if(G.activeSkill && G.skillTargetId){
-    var node = null;
-    if(typeof TREES !== 'undefined') node = TREES.find(function(a){return a.id===G.skillTargetId;});
-    if(!node && typeof ROCKS !== 'undefined') node = ROCKS.find(function(a){return a.id===G.skillTargetId;});
-    if(!node && typeof FISH_SPOTS !== 'undefined') node = FISH_SPOTS.find(function(a){return a.id===G.skillTargetId;});
-    if(node){
-      var aph = 3600000 / Math.max(500, node.ms);
-      var actions = Math.floor(hoursAway * aph * 0.5); // 50% efficiency offline
-      var xpGain = actions * node.xp;
-      rewards.xp[G.activeSkill] = xpGain;
-      rewards.itemId = node.prod;
-      rewards.itemQty = Math.floor(actions * (node.qty[0]+node.qty[1])/2);
-    }
-  }
-  return rewards;
-}
-window._catchupCalc = calcCatchup;
-window._applyCatchup = function(rewards){
-  if(!rewards) return;
-  Object.keys(rewards.xp||{}).forEach(function(sk){
-    if(typeof addXp === 'function') addXp(sk, rewards.xp[sk]);
-  });
-  if(rewards.itemId && rewards.itemQty){
-    if(typeof addItem === 'function') addItem(rewards.itemId, rewards.itemQty);
-  }
-};
 
 /* =========================================================
    4. BESTIARY
@@ -16092,9 +15329,10 @@ window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
 
    The modal now reads `G.lastOfflineSummary` — the receipt processOffline (or
    the server accrual) actually wrote — so there is ONE number for one fact and
-   it is the number the save holds. `calcCatchup()` itself is left in place: it
-   is still exported as `window._catchupCalc` and covered by a smoke test, and
-   deleting a pure function is a separate, larger cleanup than this fix.
+   it is the number the save holds. `calcCatchup()` ITSELF IS NOW GONE TOO
+   (b516, see the tombstone at section 3): leaving the estimator on `window`
+   with no caller kept a client-side minting path one console line away, and
+   the receipt made it redundant rather than merely unused.
    ════════════════════════════════════════════════════════════════════════ */
 
 /* Add Achievements + Bestiary buttons to the Profile panel */
@@ -16676,9 +15914,24 @@ window._renderWelcomeV2 = renderModal;
     if(!s) return;
     G.lastWelcome = Date.now();
     G.lastSessionSummary = s;
-    /* b214 (correctness fix): display-only — see the note by calcCatchup's
-       caller above. processOffline() already granted; this second grant was
-       double-paying every returning gatherer. renderModal shows the estimate. */
+    /* b214 (correctness fix): display-only. processOffline() already granted;
+       this second grant was double-paying every returning gatherer. renderModal
+       shows the estimate.
+       ⚠ WHY THIS ESTIMATOR SURVIVED THE b516 SWEEP AND `calcCatchup` DID NOT.
+       The test for deletion was REACHABILITY-AS-A-MINT, not deadness:
+         · `calcCatchup` + `window._applyCatchup` — pure estimate PLUS a
+           crediting applier, BOTH on `window`. One console line joined them
+           into `addXp`/`addItem`. DELETED (tombstone at section 3).
+         · `calcRichCatchup` + `window._calcRichCatchup` — on `window`, but
+           PURE: it returns a summary and credits nothing. It is the modal's
+           numbers, and it stays.
+         · `applyRichCatchup` (just above) — DOES credit, but is module-scope
+           with zero callers and is NOT published on `window`, so nothing
+           outside this file can reach it. Dead, not dialable; left in place so
+           this build's diff stays the capability removal it claims to be.
+       ⚠ IF `applyRichCatchup` IS EVER EXPORTED, OR `calcRichCatchup` EVER
+       GROWS A CREDIT, that pairing recreates the b214 double-pay — delete it
+       the way b516 deleted the first one, rather than unreferencing it. */
     renderModal(s);
   }, 1800);
 })();
@@ -19586,35 +18839,25 @@ window.companionLevelFromXp = function(xp){
 // State migration
 function ensureCompanionState(){
   if(typeof G === 'undefined') return;
-  /* ⚠ FAIL-CLOSED UNDER THE BLOB-RETIRE ARM (critical blocker). Under arm the
-     client stops loading the save blob and the SERVER owns the roster: ownership
-     rows, the equipped column, and per-id XP, projected on the envelope and
-     rebuilt into G.companions by accrue.js reconcileCompanions (on the hr_load
-     boot path via record.js). If this function seeded the starter fox with 0 XP
-     BEFORE that envelope arrived, an armed boot would silently RESET every
-     player's roster — and (once the blob is retired) that reset would be what the
-     UI renders until the envelope lands. So under arm we NEVER invent fox: we seed
-     an EMPTY roster ("no companions yet") that reconcileCompanions replaces with
-     server truth. We also do NOT read equippedItemG (a client value). Dormant,
-     the block below is byte-for-byte unchanged. */
-  if(window.HearthriseCapstone && typeof window.HearthriseCapstone.isBlobRetired === 'function'
-     && window.HearthriseCapstone.isBlobRetired()){
-    if(!G.companions){
-      G.companions = { ownedIds: [], xp: {}, equipped: null };
-    }
-    return;
-  }
+  /* FAIL-CLOSED: the SERVER owns the roster — ownership rows, the equipped
+     column and per-id XP, projected on the envelope and rebuilt into
+     G.companions by accrue.js reconcileCompanions (on the hr_load boot path via
+     record.js). Seeding the starter fox here BEFORE that envelope arrives would
+     silently RESET every player's roster and that reset is what the UI would
+     render until the envelope lands. So we NEVER invent fox: an EMPTY roster
+     ("no companions yet") that reconcileCompanions replaces with server truth,
+     and no read of equippedItemG (a client value).
+     b515: this used to be the ARMED half of an `isBlobRetired()` fork whose
+     dormant half seeded `ownedIds:['fox']` from the client. That fork ANDed the
+     retired b353 kill switch, so the fox-seed was reachable on any device
+     holding `hr:serverAccrual=off`. Deleted with the switch. */
   if(!G.companions){
-    G.companions = {
-      ownedIds: ['fox'],          // start with fox
-      xp: { fox: 0 },
-      equipped: equippedItemG('companion') === 'fox_companion' ? 'fox' : null
-    };
+    G.companions = { ownedIds: [], xp: {}, equipped: null };
   }
-  // Migrate any existing fox_companion equip state
-  if(equippedItemG('companion') === 'fox_companion' && !G.companions.equipped){
-    G.companions.equipped = 'fox';
-  }
+  /* The fox_companion equip MIGRATION is gone with the fork above: it read
+     equippedItemG('companion'), a client value, and the armed path always
+     returned before it. reconcileCompanions sets `equipped` from the server's
+     own column. */
 }
 
 // Bonus helper — scaled by level.

@@ -131,11 +131,12 @@ jobs:
         run: |
           node tests/no-duplicate-rpc-callers.mjs --selftest
           node tests/no-duplicate-rpc-callers.mjs
-      # NO BLOB BRANCHES (b514): a RATCHET, not a deletion. isBlobRetired() is
-      # NOT a constant — it ANDs the b353 kill switch — so the dormant halves are
-      # reachable and two of them are saveLocal/loadLocal. Frozen at 13 sites
-      # until the Coordinator + security decide the switch's blob half goes.
-      - name: Blob-retire forks — frozen census, and the premise re-checked
+      # NO BLOB BRANCHES (b514 froze it at 13, b515 emptied it): a RATCHET AT
+      # ZERO. The b353 kill switch is retired, so isBlobRetired() is the constant
+      # BLOB_RETIRED and every fork — dormant client-authored half included — is
+      # deleted. A1: no isBlobRetired() conditional survives under src/. A2: the
+      # premise re-checked the other way — it must never AND the switch again.
+      - name: Blob-retire forks — the census is empty, and the premise re-checked
         run: |
           node tests/no-blob-branches.mjs --selftest
           node tests/no-blob-branches.mjs

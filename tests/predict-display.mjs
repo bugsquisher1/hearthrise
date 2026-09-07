@@ -79,7 +79,6 @@ export async function predictDisplayGuard() {
   /* ══════════════════════════════════════════════════════════════════════
      A. ARMED — the gain is instant, and the record does not move.
      ══════════════════════════════════════════════════════════════════════ */
-  accrue.setServerAccrualEnabled(true);
   ok(record.isServerOfRecord('skills'), 'ARMED SETUP: `skills` is not on the active registry — '
     + 'the whole guard below would pass vacuously against the dormant path.');
   ok(record.isServerOfRecord('gold'), 'ARMED SETUP: `gold` is not on the active registry.');
@@ -526,29 +525,20 @@ export async function predictDisplayGuard() {
   }
 
   /* ══════════════════════════════════════════════════════════════════════
-     F. DORMANT — byte-for-byte the pre-b455 answers.
-     ══════════════════════════════════════════════════════════════════════ */
-  accrue.setServerAccrualEnabled(false);
-  ok(record.isServerOfRecord('skills') === false,
-    'F SETUP: `skills` is still on the registry with the master switch off.');
-  const D = { skills: { woodcutting: 500 }, gold: 1000, gems: 4 };
-  ok(skillRec.skillXpForDisplayOr(D, 'woodcutting', 0) === skillRec.skillXpOr(D, 'woodcutting', 0),
-    'F/DORMANT: the display accessor disagrees with the authority accessor while dormant. '
-    + 'Dormant they must be the same function.');
-  ok(skillRec.skillLevelForDisplay(D, 'woodcutting', LV) === skillRec.skillLevelOf(D, 'woodcutting', LV),
-    'F/DORMANT: the display level disagrees with the authority level while dormant.');
-  ok(balance.fmtBalance(D, 'gold') === (1000).toLocaleString(),
-    'F/DORMANT: fmtBalance changed while dormant.');
-  predict.predictXp(D, 'woodcutting', 35);
-  predict.predictBalance(D, 'gold', 7);
-  ok(skillRec.skillXpForDisplayOr(D, 'woodcutting', 0) === 500,
-    'F/DORMANT: a prediction was ADDED to a dormant display. Dormant the client writes the real '
-    + 'value, so adding a prediction on top would double-count every gain.');
-  ok(balance.fmtBalance(D, 'gold') === (1000).toLocaleString(),
-    'F/DORMANT: a gold prediction was added to a dormant display.');
-  ok(balance.balanceForDisplay(D, 'gems').value === 4,
-    'F/DORMANT: a client-owned balance stopped reading through.');
-  accrue.setServerAccrualEnabled(true);
+     F. RETIRED IN b515 — THERE IS NO DORMANT DISPLAY.
+     ══════════════════════════════════════════════════════════════════════
+     This section asserted the pre-b455 answers with the master accrual switch
+     OFF: the display accessor identical to the authority accessor, no prediction
+     added on top, fmtBalance unchanged. It was reachable only through the b353
+     kill switch (`hr:serverAccrual=off`), whose off position was a client-
+     authored local game; b515 retired the switch, so `isRecordActive()` is a
+     constant and `skills`/`gold` are never off the registry.
+
+     Nothing replaces it. The property it defended — "a prediction is never added
+     to a value the client itself wrote" — is now structural: the client cannot
+     write those fields at all (record.clientMayWrite is asserted false in the
+     ARMED SETUP above, and accrue.mayClientWrite lost its permissive arm in the
+     same build). Sections A–G cover the only path that exists. */
 
   notes.push('armed: a tick moves the display instantly (500→535 xp, 1000→1007 gold) with G.skills '
     + 'and G.gold byte-unchanged and the b347 fingerprint intact');
@@ -564,7 +554,6 @@ export async function predictDisplayGuard() {
     + 'is monotone across a stale-watermark envelope, a "nothing" settle, a partial credit, an '
     + 'over-advance and a downward correction');
   notes.push('authority (skillXpOf / balanceOf / canAfford) is blind to every prediction');
-  notes.push('dormant is byte-for-byte the pre-b455 answer');
   return { problems: problems.slice(), notes: notes.slice() };
 }
 

@@ -53,11 +53,11 @@ let config = null;
 let hooks = { onEnvelope: null, onOutcome: null };
 let last = null;
 
-/* The verb is dormant until the arm flips AND the master accrual switch is on —
-   both, because sending a settle to a server that has not applied it yet is a
-   wasted round trip and a confusing refusal. */
+/* The verb is dormant until ITS OWN arm flips. The `&& isServerAccrualEnabled()`
+   conjunction went with the retired b353 kill switch (b515); the arm below is
+   the real gate and it is unchanged. */
 export function isDungeonSettleEnabled() {
-  return isDungeonSettleArmed() && isServerAccrualEnabled();
+  return isDungeonSettleArmed();
 }
 
 export const DUNGEON_OUTCOMES = Object.freeze([

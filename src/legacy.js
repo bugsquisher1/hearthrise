@@ -2085,8 +2085,15 @@ function applyServerEnvelope(res,opts){
        call site can grow a second. 0 (unwired, unknown, hidden) means "cannot
        prove it", and the toast speaks. */
     var _txt=(_A&&typeof _A.receiptSentence==='function')
+      /* `itemLabel`/`skillLabel` are injected for exactly the reason `foeLabel`
+         is: the away sentence now says WHY the run stopped ("Cooking ran out of
+         Raw Shrimp 31s in"), and ITEMS/SKILLS_DEF are data a pure module must
+         not reach for. These are the same two resolvers the welcome-back modal
+         uses on the same two fields, so the toast and the modal cannot name one
+         material two ways. */
       ? _A.receiptSentence(s,{saleLine:_sale,spanLabel:fmtSince,
           visibleSince:(typeof _A.visibleSince==='function')?_A.visibleSince():0,
+          itemLabel:_itemLabel, skillLabel:_skillLabel,
           foeLabel:function(id){ return (id&&MONSTERS[id]&&MONSTERS[id].name)||null; }})
       /* The fallback is the PRE-b361 sentence exactly. A missing accrual module
          is a wiring break, not a licence to invent a third sentence here. */

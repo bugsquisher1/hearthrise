@@ -25444,11 +25444,9 @@ const TESTS = [
          `applyServerEnvelope` calls `refreshAll()`, which is `updateTopbar` +
          the active tab's renderer and never touches the dolls. So a pet that
          levels up server-side leaves a stale doll exactly as before.
-         FILED 2026-09-07 in DISCOVERIES.md (P2, Systems): the level-up repaint
-         needs to move to the reconcile. It is NOT asserted here, because
-         asserting a repaint nothing performs is a red that teaches the next
-         reader to delete the assertion — and it is named here so the next
-         reader meets it. */
+         FIXED (b313 rev.2): the detector and the two repaints moved to
+         `accrue.js reconcileCompanions` / announceCompanionLevelUps, reading
+         only envelope values. Asserted in the third block below. */
     try {
       const A = window.HearthriseAccrual;
       const id = Object.keys(window.COMPANIONS)[0];
@@ -25476,6 +25474,52 @@ const TESTS = [
       assert(moved,
         'a server-stated companion level-up did not move the live bonus — inventory and combat would show '
         + 'the OLD numbers: ' + JSON.stringify({ lv1: bonus1, lv2: bonus2 }));
+
+      /* ── b313 rev.2 REGRESSION — THE DOLL FOLLOWS THE ENVELOPE ────────────
+         The repaint is the reconcile's job now, so it is driven through the
+         reconcile: a server-stated level 3 → 4 must refresh the doll and say so
+         ONCE; a second envelope at the SAME level must say nothing (an envelope
+         arrives every settle, and a notice per settle is noise); and two levels
+         crossed in one envelope are one notice naming the level the player is
+         NOW, because that is what the doll will show.
+         MUTATION: delete announceCompanionLevelUps' call in reconcileCompanions
+         → the first assertion goes red; drop the `to > from` guard → the
+         same-level assertion goes red. */
+      let dolls = 0;
+      const seen = [];
+      window.refreshAllDolls = () => { dolls++; };
+      const off = window.HearthriseEvents.on('companionLevelUp', (p) => seen.push(p));
+      try {
+        const at = (L) => window.companionXpToReach(L);
+        const env = (xpv) => ({ companions: { owned: [id], xp: { [id]: xpv }, equipped: id } });
+
+        // Prior mirror: level 3, stated by the server.
+        A.reconcileCompanions(G, env(at(3)));
+        dolls = 0; seen.length = 0;
+
+        // (1) 3 → 4: one notice, one repaint.
+        A.reconcileCompanions(G, env(at(4)));
+        assert(dolls === 1, 'a server-stated companion level-up did not refresh the doll (b313: the '
+          + 'Companion pane keeps the old level while inventory and combat show the new one) — refreshAllDolls x' + dolls);
+        assert(seen.length === 1 && seen[0].id === id && seen[0].level === 4,
+          'expected exactly one companionLevelUp naming level 4, got ' + JSON.stringify(seen));
+
+        // (2) same level again: silence.
+        dolls = 0; seen.length = 0;
+        A.reconcileCompanions(G, env(at(4) + 3));
+        assert(dolls === 0 && seen.length === 0,
+          'an envelope that did NOT change the level announced one anyway — every settle would celebrate: '
+          + JSON.stringify({ dolls, seen }));
+
+        // (3) two levels in one envelope: ONE notice, naming the final level.
+        A.reconcileCompanions(G, env(at(6)));
+        assert(seen.length === 1 && seen[0].level === 6,
+          'two levels crossed in one envelope must be ONE notice naming the level the player is now, got '
+          + JSON.stringify(seen));
+        assert(dolls === 1, 'two levels in one envelope must repaint the doll once, got x' + dolls);
+      } finally {
+        if (typeof off === 'function') off();
+      }
     } finally {
       window.refreshAllDolls = origRefresh;
       G.companions = savedComp;
@@ -55019,6 +55063,67 @@ const TESTS = [
     const sw = { source: 'switch', awayMs: 90000, gainedItems: 1, gainedXp: 2, gainedGold: 3 };
     assert(A.receiptSentence(sw, { spanLabel: () => '1m' }) === 'Collected 1m — +3 gold, +2 XP, +1 items',
       'a switch must keep its own sentence, got ' + A.receiptSentence(sw, { spanLabel: () => '1m' }));
+  }),
+
+  () => tryRun('SYNC-5: an away receipt says WHY it stopped and that you got back up', () => {
+    /* THE REGRESSION. b515 deleted the local `processOffline`, and with it the
+       b345 stop toast and the Recovery rev. 2 fall toast; `receiptSentence`,
+       the only sentence source since, never had either clause. b518 put the
+       fields on the away payload, so a supply-exhausted night with two falls in
+       it arrived carrying every fact it needed and toasted as "⏰ Away 8h — the
+       server credited …" and nothing else: eight hours of honest, uninterrupted
+       pay over a run that earned for thirty-one seconds and fell twice.
+
+       The clauses belong to the AWAY branch alone (b510: an attended live
+       settle narrates nothing) and a terminal death keeps b343's own sentence,
+       so all three readings are pinned here together. */
+    const A = window.HearthriseAccrual;
+    const label = { spanLabel: (ms) => (ms < 60000 ? Math.max(1, Math.round(ms / 1000)) + 's'
+                                                   : Math.round(ms / 60000) + 'm'),
+                    itemLabel: (id) => (id === 'raw_shrimp' ? 'Raw Shrimp' : null),
+                    skillLabel: (k) => (k === 'cooking' ? 'Cooking' : null),
+                    foeLabel: (id) => (id === 'goblin' ? 'Goblin' : null) };
+    const night = { awayMs: 8 * 3600000, hrs: 8, gainedItems: 11, gainedXp: 80, gainedGold: 0,
+      paidMs: 30700, stoppedBy: 'supplies', stoppedById: 'raw_shrimp', stoppedSkill: 'cooking',
+      stoppedPerHour: 940, deaths: 2, recoverMs: 240000, diedTo: 'goblin' };
+    const said = A.receiptSentence(night, label);
+    assert(/You fell 2 times to the Goblin — knocked out for 4m in total; your run picked up each time/.test(said),
+      'the away receipt states two falls and 4m of recovery and said nothing about either: ' + said);
+    assert(/Cooking ran out of Raw Shrimp 31s in — nothing was earned after/.test(said),
+      'the away receipt states a supply stop 31s into an 8h night and said nothing about it: ' + said);
+    /* THE CREDIT IS STILL QUOTED, unchanged: these clauses explain the numbers,
+       they do not replace them. */
+    assert(said.indexOf('⏰ Away 8h — the server credited +11 items, +80 XP, +0 gold') === 0,
+      'the away sentence lost its own receipt: ' + said);
+    /* STATED, NOT INFERRED — the same rule the card and the modal follow. A
+       receipt with no stop and no death count says neither thing. */
+    const plain = { awayMs: 8 * 3600000, hrs: 8, gainedItems: 11, gainedXp: 80, gainedGold: 0 };
+    assert(A.receiptSentence(plain, label) === '⏰ Away 8h — the server credited +11 items, +80 XP, +0 gold',
+      'an ordinary night grew a stop or a fall clause out of nothing: ' + A.receiptSentence(plain, label));
+    /* A REASON THIS SENTENCE CANNOT HONESTLY DESCRIBE IS SILENT. `stoppedBy`
+       also carries 'idle', 'gate', 'level' and 'budget', none of which mean
+       "you ran out of something"; inventing a cause is the failure this clause
+       exists to prevent, pointed the other way. */
+    const gated = Object.assign({}, night, { stoppedBy: 'gate', deaths: 0 });
+    assert(A.receiptSentence(gated, label).indexOf('ran out') === -1,
+      'a locked-recipe stop was reported as running out of materials: ' + A.receiptSentence(gated, label));
+    /* THE ATTENDED LIVE SETTLE NARRATES NOTHING (b510). The same two fields on
+       a 90-second sync must not put an absence's story on the player's screen
+       while they are watching it happen. */
+    const sync = { awayMs: 90000, hrs: 0, gainedItems: 13, gainedXp: 104, gainedGold: 0,
+      paidMs: 30700, stoppedBy: 'supplies', stoppedById: 'raw_shrimp', stoppedSkill: 'cooking',
+      deaths: 2, recoverMs: 240000 };
+    const syncLine = A.receiptSentence(sync, label);
+    assert(syncLine === 'Synced — +13 items, +104 XP',
+      'a live settle narrated the away story: ' + syncLine);
+    /* A TERMINAL DEATH STILL TAKES b343's BRANCH, word for word: the run really
+       did stop, so "nothing was earned after" is true and must not be traded
+       for a recovery line that claims the night carried on. */
+    const died = { awayMs: 8 * 3600000, hrs: 8, gainedItems: 0, gainedXp: 0, gainedGold: 0,
+      died: true, diedTo: 'goblin', diedAfterMs: 60000, stoppedBy: 'death', deaths: 1 };
+    const deathLine = A.receiptSentence(died, label);
+    assert(deathLine === 'You died to Goblin — nothing was earned after',
+      'a terminal death left the b343 branch: ' + deathLine);
   }),
 
   () => tryRun('SYNC-3: a sync never draws an away card, never re-labels one, and never evicts a fresh one', () => {

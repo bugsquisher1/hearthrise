@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 512 — 2026-09-07 (A fight never freezes silently)
+
+- ⚔️ **The swing bar no longer sweeps forever after the realm knocks you out.** (Reported by Tyler.) When a settle came back saying you had fallen, the fight stopped dealing damage — correctly — but nothing said so: the monster stayed on screen, the swing bar kept moving, kills stayed at zero. The knockout is now announced the moment it arrives, whoever stated it, and the swing bar parks while you are down and resumes on its own.
+- ⏳ **"Asking the hearth…" always gets an answer.** After a fall at the keyboard the game asked the realm what happened, got "too soon to tell" (the realm prices windows of a minute or more) and never asked again — the sheet waited forever and the fight stayed frozen. It now asks again once the minute has passed, keeps the normal sync alive while waiting, and if the realm says you are still standing it says so and resumes at your real health.
+- 🧪 b511 went out red on CI and this build fixes it forward: four tests had stopped describing the game (a farm fixture without the farming level the new plot ladder requires, a text-window match pushed out by a comment, a probe of a market verb that never existed, a fixture clobbered by the new server-HP seed). No engine code changed for those; the guards keep their teeth.
+- 🎯 The combat style buttons no longer wrap unpredictably: the style name sits over its sub-label at full width and the duplicated swing time (already shown above the arena and on hover) is gone, so the Eat button stays inside the arena card at every width.
+
 ## v0.9.2-beta build 511 — 2026-09-06 (Knocked out means knocked out)
 
 - 🛌 **Reloading while knocked out now shows it.** Before, a reload during recovery booted you into a normal "Fighting Goblin" bar at full health with no countdown and no way to rest — nothing told you nothing was earning. The knocked-out sheet now rises once per recovery on load, and the activity bar reads "Knocked out — back on your feet in 27m · Goblin resumes automatically".

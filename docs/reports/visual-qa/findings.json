@@ -13,7 +13,7 @@
     ],
     "stats": {
       "els": 395,
-      "chars": 2482
+      "chars": 2481
     },
     "viewport": "desktop"
   },
@@ -43,19 +43,13 @@
       {
         "sev": "P1",
         "kind": "clipped-text",
-        "detail": "\"Goblin Warlord\" (144>139)",
+        "detail": "\"The Crownless Wyrm\" (185>135)",
         "el": ".wt-dest>.wtd-body>.wtd-main>b"
       },
       {
         "sev": "P1",
         "kind": "clipped-text",
-        "detail": "\"The Crownless Wyrm\" (185>139)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b"
-      },
-      {
-        "sev": "P1",
-        "kind": "clipped-text",
-        "detail": "\"Today's blessing\" (142>139)",
+        "detail": "\"Today's blessing\" (142>135)",
         "el": ".wt-dest>.wtd-body>.wtd-main>b"
       },
       {
@@ -91,7 +85,7 @@
     ],
     "stats": {
       "els": 572,
-      "chars": 3714
+      "chars": 3657
     },
     "viewport": "desktop"
   },
@@ -181,7 +175,7 @@
     ],
     "stats": {
       "els": 456,
-      "chars": 2790
+      "chars": 2792
     },
     "viewport": "desktop"
   },
@@ -253,7 +247,7 @@
     ],
     "stats": {
       "els": 367,
-      "chars": 1090
+      "chars": 1092
     },
     "viewport": "desktop"
   },
@@ -271,7 +265,7 @@
     ],
     "stats": {
       "els": 344,
-      "chars": 2482
+      "chars": 2481
     },
     "viewport": "landscape"
   },
@@ -379,7 +373,7 @@
     ],
     "stats": {
       "els": 311,
-      "chars": 3714
+      "chars": 3657
     },
     "viewport": "landscape"
   },
@@ -475,7 +469,7 @@
     ],
     "stats": {
       "els": 406,
-      "chars": 2790
+      "chars": 2792
     },
     "viewport": "landscape"
   },
@@ -547,7 +541,7 @@
     ],
     "stats": {
       "els": 317,
-      "chars": 1068
+      "chars": 1081
     },
     "viewport": "landscape"
   }

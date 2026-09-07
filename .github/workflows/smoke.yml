@@ -98,6 +98,16 @@ jobs:
           node tests/arm-flag-honesty.mjs --selftest
           node tests/arm-flag-honesty.mjs
 
+      # NO BLOB BRANCHES (b514): a RATCHET, not a deletion. isBlobRetired() is
+      # NOT a constant — it ANDs the b353 kill switch — so the dormant halves are
+      # reachable and two of them are saveLocal/loadLocal. Frozen at 13 sites
+      # until the Coordinator + security decide the switch's blob half goes.
+      - name: Blob-retire forks — frozen census, and the premise re-checked
+        run: |
+          node tests/no-blob-branches.mjs --selftest
+          node tests/no-blob-branches.mjs
+
+
       # DUPLICATE TOP-LEVEL FUNCTIONS: two declarations of one name in one scope
       # means the later hoists over the earlier and the earlier body is dead code
       # that can be edited, reviewed and shipped while changing nothing. Also

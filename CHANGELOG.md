@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 515 — 2026-09-07 (The welcome card tells the realm's time)
+
+- ⏱️ **"Time away" on the welcome-back card is now the realm's number.** Unless your away receipt was under half an hour old, the card printed a per-device stamp that only some saves refreshed — hence "13h 8m" two hours after you last played, or "64h" beside a 4-hour receipt. It now shows the span the realm priced (the same figure the Home away card uses), or the span since the realm's own watermark on an idle boot, and shows no number at all when the realm has none.
+- 🌱 **Farm quests count again.** Since the cutover nothing had been writing the "plants" and "harvests" counters that Green Thumb, the farmhand quest and "Plant N crops" read — they sat at zero for everyone. The counters now mirror the realm's own progress rows on load and on every sync. (The realm now also keeps a lifetime plant count — applied 09:20 UTC with a backfill of every plant already in the ledger — so "Plant N crops" grades from the realm too.)
+- 🧪 CI's job budget was raised from 50 to 90 minutes with the measurement written in: b514's run was cancelled at 50.2 minutes with no failing test — the workflow has grown to 58 serial steps; splitting it into parallel families is the next cleanup slice.
+- 🗝️ **Correction to b511: dungeon rewards were still not being settled by the realm.** The switch b511 turned on read a misspelled global name and so stayed off in production; every dungeon run since was still paid on your screen only. The name is fixed in this build, a guard now fails the build if any client module reads a realm global that doesn't exist, and the dungeon settlement is truly on. We're sorry for the false note.
+
 ## v0.9.2-beta build 514 — 2026-09-07 (The knockout repaints the moment the realm answers)
 
 - 🔁 **The knocked-out sheet and the activity bar update the instant the realm answers, not on a timer.** Both used to repaint only on a clock tick, and a browser throttles a background tab's clocks to once a minute — so a player who tabbed away while "Asking the hearth…" could come back to a stale sheet long after the realm had set the recovery clock. Both now repaint on the same event that carries the answer.

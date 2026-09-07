@@ -3650,3 +3650,57 @@ untouched and no redeploy is owed.
   already takes that shape, so the promotion is a move.
 * **Owed to whoever runs the assembled gate:** `comment-ratio-ratchet` wants a `--write` it must not be
   given blind — read the four "fell" notes first.
+
+## 2026-09-07 — the forge/workshop ruling: rooms sell speed, levels sell permission
+
+Two rulings, one branch. **1a** — smithing and crafting join cooking and prayer in
+`homestead.js` `UNGATED`, so every consumer corrects from one line; then the machinery the
+exemption made unreachable was DELETED rather than left dormant: `hasWorkbench`'s refusal branch,
+`startArtisan` seam 7's `if(!wb.ok)` arm, `hrArtisanGateClick`'s route-to-House arm,
+`tileForArtisan`'s `wbInfo/wbOk` bench-lock chip, `roomDescriptor`'s "Gates: <Skill>" fact, and the
+"Required for Smithing/Crafting" copy on both rooms. **2** — `GRANDFATHER_ROOM_FROM_XP` and BOTH XP
+arms of `ensureState` are gone; the inference reads OWNED rooms and plots only, and only when
+`serverRungKnown()`.
+
+### What the mutation proof taught (three of nine mutations first came back GREEN)
+
+* **A guard on a SEAM does not cover the GESTURE.** Restoring `hasWorkbench`'s refusal alone left
+  the played happy path green, because the *caller* in legacy.js had also been deleted. Only
+  restoring both (M9) turned it red. Two mechanisms, two mutations — a single-mechanism mutation
+  against a two-part gate proves nothing and looks like a passing proof.
+* **Plant the mutation where the historical code actually lived.** Re-adding the XP tier loop
+  INSIDE `if (serverRungKnown() && (hasAnyRoom || plotCount > 0))` never fired: the shipped bug set
+  `existing` from `artisanXp` FIRST. A faithful re-plant (`|| xpMut`) went red at once.
+* **Deleting code can turn a comment ratchet red.** CR-1's allowance is
+  `base.comment + rate * max(0, code - base.code)`; while a file sits ABOVE its baseline code count,
+  removing code REMOVES earned allowance. This branch shed 19 code lines from legacy.js and went
+  from 98 to 109 comment lines over — with no prose added. Budget prose against the DELETION, not
+  against the file.
+
+### The one real judgement call
+
+`serverRungKnown()` gating the room/plot inference is belt-and-braces for rooms (the rooms map
+already fail-closes to empty when the record is UNKNOWN) but LOAD-BEARING for plots: `plotBuildings`
+is a RESIDUE field, so without the gate a client-held array raises a server-owned rung. The narrow
+cost: a session whose residue is lost AND whose `progress` was truncated in a way that dropped the
+`property:` row while keeping a `room:` row now reads Wanderer's Camp until the next complete
+envelope, where before it inferred the room's tier. Self-healing, ~zero population, and the
+alternative is the class CLAUDE §6 forbids by name.
+
+### Handoffs
+
+* **Coordinator:** the three cleanup ratchets are RED ON `main` BEFORE THIS BRANCH (proved on a
+  pristine `git archive HEAD` tree — see CONFLICTS.md). Every number here moves the right way
+  (legacy 21299→21264 lines; smoke-test 63.5→58.0 comment lines over allowance; corpus b-lines
+  4201→4187; seeds/test 2.072→2.069; homestead.js stays green) and none of them clears. They need a
+  re-pin or a payment pass of their own; a lane-A branch cannot close a 109-line prose debt.
+* **game-designer / backend-architect:** `DAILY_TASK_REQUIREMENTS` now gates an OFFER that no
+  longer gates the ability. Left standing per the ruling; the twin is in
+  `2026-08-29-daily-task-eligibility.sql`, so changing it is lane C. Written up in CONFLICTS.md.
+* **art-director:** two room `desc` strings are the designer's exact copy; the Workshop's ROOM_META
+  `flavour` said "every plank in the game", which was an exclusivity claim after the ruling, so it
+  now reads "a rack of drying planks … it saws faster, and now and then for nothing". Re-voice
+  freely — the constraint is only that no room copy may claim permission.
+* **qa-engineer:** the WAVE1 "artisan tiles show a persistent workbench lock" test was RETIRED (it
+  had been a bare `skip` since SA-013, and its name asserted the opposite of the shipped rule). The
+  SA-013 seam-exposure debt is still real and still parked on the gather twin beside it.

@@ -389,7 +389,7 @@ const ROOMS={
     {nm:'Cast-Iron Range',  cost:{gold:8000,oak_log:30},                              bonus:'Cook +6% · never burns',     bk:'cookSpeed',bv:.06,bx:{noBurn:.25}},
     {nm:'Twin Range',       cost:{gold:45000,timber_beam:12,willow_log:40,field_ration:25},   tier:3, bonus:'Cook +8% · 4% extra portion',  bk:'cookSpeed',bv:.08,bx:{noBurn:.25,yield_cooking:.04}},
     {nm:'The Great Hearth', cost:{gold:250000,keystone:2,duskwood_plank:30,dragon_scale:8},   tier:5, bonus:'Cook +10% · 8% extra portion', bk:'cookSpeed',bv:.10,bx:{noBurn:.25,yield_cooking:.08}}]},
-  forge:{name:'Forge',icon:'🔥',desc:'Smith items faster. Required for Smithing.',levels:[
+  forge:{name:'Forge',icon:'🔥',desc:'Smith faster, and the forge gives you the odd extra bar.',levels:[
     {nm:'Field Forge',      cost:{gold:800,copper_ore:30},                            bonus:'Smith +2%',                  bk:'smithSpeed',bv:.02},
     {nm:'Stone Forge',      cost:{gold:3000,iron_ore:50},                             bonus:'Smith +4%',                  bk:'smithSpeed',bv:.04},
     {nm:'Double Bellows',   cost:{gold:12000,iron_ore:100},                           bonus:'Smith +6%',                  bk:'smithSpeed',bv:.06},
@@ -452,31 +452,18 @@ const ROOMS={
     {nm:'The Vault',        cost:{gold:12000,willow_log:50},                          bonus:'Food buffs last +60% longer', bk:'buffDuration',bv:.60},
     {nm:'The Cask Room',    cost:{gold:70000,timber_beam:12,field_ration:20,goldenroot_roast:6}, tier:3, bonus:'Food buffs last +80% longer',  bk:'buffDuration',bv:.80},
     {nm:'The Deep Cellar',  cost:{gold:320000,keystone:2,moonbloom_elixir:4,duskwood_plank:20},  tier:5, bonus:'Food buffs last +100% longer', bk:'buffDuration',bv:1.0}]},
-  /* b201 (SYS-1): rooms ARE workbenches — forge gates smithing, workshop gates
-     crafting. See features/homestead.js (property tiers gate which rooms can
-     be built).
-     TWO rooms are NOT permission and their `desc` must never claim to be: the
-     Kitchen (campfire ruling — sells `noBurn`) and the Shrine (altar ruling —
-     the server gates burying on LEVEL; the room sells `prayerSpeed`). The set
-     is UNGATED in features/homestead.js. Forge/Workshop are unchanged. */
-  workshop:{name:'Workshop',icon:'🪚',desc:'Craft items faster. Required for Crafting.',levels:[
-    /* b227 P1 — THE ROOM-COST DEADLOCK, found by Tyler and confirmed in data.
-       This rung cost `normal_plank:15`. The ONLY source of a plank is the
-       crafting recipe `saw_normal`; crafting is bench-gated on the Workshop;
-       the Workshop is this room. No monster drops a plank and no shop stocks
-       one, so a fresh account could never build the Workshop honestly — the
-       bench that makes the material was gated behind the material.
-
-       This is the b213 deadlock class, and b213 missed it because that pass
-       audited TIER costs and never walked ROOM costs. The spec's §7 proof has
-       the same blind spot: it proves the L4/L5 castle goods are reachable and
-       simply assumes the live rungs were. Both are now closed by an executable
-       proof in the smoke suite that walks every rung of every room.
-
-       40 logs rather than 15 planks: the saw is 1 log → 1 plank at 15 planks,
-       so 40 is a deliberate premium for the labour the player is no longer
-       doing, and logs come from woodcutting, which needs no bench at all.
-       Cost-side fix only — anyone who already owns a Workshop keeps it. */
+  /* NO ROOM IS PERMISSION, AND NO `desc` MAY CLAIM TO BE. A room sells speed
+     and quality; the LEVEL is what lets you smith, craft, cook or bury (the
+     server gates on req_skill/req_lv and has no room column at all). All four
+     benches are UNGATED in features/homestead.js, which is the one place the
+     rule lives — property tiers still gate which rooms can be BUILT. */
+  workshop:{name:'Workshop',icon:'🪚',desc:'Craft faster, and some pieces cost you nothing.',levels:[
+    /* 40 LOGS, NOT 15 PLANKS. This rung once cost planks, whose only source was
+       the saw on the bench this very room provided — a room priced in its own
+       output. The saw is 1 log → 1 plank, so 40 is a deliberate premium for the
+       labour the player is not doing, and logs need no bench at all. Every rung
+       of every room is walked for that shape by an executable proof in the
+       suite; costs are never audited by eye. */
     {nm:'Work Bench',       cost:{gold:700,normal_log:40},                            bonus:'Craft +2%',                  bk:'craftSpeed',bv:.02},
     {nm:"Joiner's Bench",   cost:{gold:2800,oak_plank:25},                            bonus:'Craft +4%',                  bk:'craftSpeed',bv:.04},
     {nm:'The Sawpit',       cost:{gold:11000,willow_plank:30},                        bonus:'Craft +6%',                  bk:'craftSpeed',bv:.06},
@@ -16401,14 +16388,9 @@ window.startArtisan = function(skillId, recipeId){
   if(!recipes) return;
   var r = recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
-  /* b201 (SYS-1): rooms are workbenches — no forge, no smithing.
-     The exemptions live in ONE place (homestead.js UNGATED): cooking and
-     prayer return ok with no room. Forge/Workshop are unchanged — the
-     game-designer's to re-rule, not this seam's. */
-  if(window.HearthriseHomestead){
-    var wb = window.HearthriseHomestead.hasWorkbench(skillId);
-    if(!wb.ok){ if(typeof notify==='function') notify(''+wb.reason,'kill'); return; }
-  }
+  /* THE ROOM CHECK IS GONE, not disabled: no room is permission (homestead.js
+     UNGATED), so the gates that remain are the ones hr_apply itself re-checks
+     — the LEVEL, then the recipe scroll, then the inputs. */
   if(typeof getLevel==='function' && getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Need Lv '+r.req+' '+skillId,'kill'); return; }
   if(!gateOk(r)){ if(typeof notify==='function') notify('Need recipe scroll: '+(ITEMS[r.gated]?.n||r.gated),'kill'); return; }
   if(!hasInputs(r)){ 
@@ -17950,24 +17932,16 @@ window.hrWearLineHtml = function(outputId){
 
 /* ── Build an artisan tile ── */
 /* Wave 1 (audit fix, Tyler: "the only tool I can craft is a fishing rod"):
-   handle a click on a GATED artisan tile — say exactly why it's locked and, for
-   a missing workbench, route the player to the House to go build it. The old tile
-   only checked level, rendered fully enabled without the Forge, and failed on
-   click with a toast that flashed away — reading as a broken button. */
+   handle a click on a LOCKED artisan tile — say exactly why, rather than the
+   old silent failure that read as a broken button. The workbench arm is gone
+   with the room gate: the two locks left are the LEVEL and the recipe scroll,
+   which are the two hr_apply itself re-checks. */
 window.hrArtisanGateClick = function(skillId, recipeId){
   var recipes = window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[skillId];
   var r = recipes && recipes.find(function(x){ return x.id === recipeId; });
   if(!r) return;
   var sName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   if(getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Requires '+sName+' Lv '+r.req, 'kill'); return; }
-  if(window.HearthriseHomestead && typeof window.HearthriseHomestead.hasWorkbench==='function'){
-    var wb = window.HearthriseHomestead.hasWorkbench(skillId);
-    if(wb && wb.ok === false){
-      if(typeof notify==='function') notify(''+(wb.reason||'Build the workbench first'), 'kill');
-      if(typeof showTab==='function') showTab('house');
-      return;
-    }
-  }
   if(typeof gateOk==='function' && !gateOk(r)){
     if(typeof notify==='function') notify('Needs recipe scroll: '+((ITEMS[r.gated]&&ITEMS[r.gated].n)||r.gated), 'kill');
     return;
@@ -17978,22 +17952,15 @@ window.hrArtisanGateClick = function(skillId, recipeId){
 function tileForArtisan(recipe, skillId){
   var lv = getLevel(skillId);
   var active = (G.activeSkill === skillId && G.skillTargetId === recipe.id) || G.activeArtisanRecipe === recipe.id; /* b226: startArtisan never writes activeArtisanRecipe */
-  /* Wave 1 (audit fix): a tile is "unlocked" only when EVERY gate passes — level,
-     workbench (Forge/Workshop built) AND recipe scroll. Before, it checked level
-     only, so smithing tiles showed enabled with no Forge and died silently on
-     click. Now the tile shows a persistent lock naming the FIRST failing gate. */
+  /* Wave 1 (audit fix): a tile is "unlocked" only when EVERY gate passes, and it
+     shows a persistent lock naming the FIRST failing one rather than dying
+     silently on click. The workbench arm is gone with the room gate — a room
+     sells speed, never permission — so the gates are LEVEL then recipe scroll. */
   var levelOk = lv >= recipe.req;
-  var wbInfo = (window.HearthriseHomestead && typeof window.HearthriseHomestead.hasWorkbench==='function') ? window.HearthriseHomestead.hasWorkbench(skillId) : { ok: true };
-  var wbOk = !(wbInfo && wbInfo.ok === false);
   var scrollOk = (typeof gateOk === 'function') ? gateOk(recipe) : true;
-  var unlocked = levelOk && wbOk && scrollOk;
+  var unlocked = levelOk && scrollOk;
   var lockLabel = '', benchLock = false;
   if(!levelOk){ lockLabel = 'Level ' + recipe.req; }
-  else if(!wbOk){
-    var benchId = (window.HearthriseHomestead && window.HearthriseHomestead.WORKBENCH && window.HearthriseHomestead.WORKBENCH[skillId]) || '';
-    var benchName = (window.ROOMS && window.ROOMS[benchId] && window.ROOMS[benchId].name) || (benchId ? benchId.charAt(0).toUpperCase()+benchId.slice(1) : 'Workbench');
-    lockLabel = 'Build the ' + benchName; benchLock = true;
-  }
   else if(!scrollOk){ lockLabel = 'Recipe scroll'; benchLock = true; }
   var outId = recipe.output;
   var outDef = ITEMS[outId];

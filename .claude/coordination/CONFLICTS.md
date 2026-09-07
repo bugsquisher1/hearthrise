@@ -1258,3 +1258,27 @@ lines per test (comments stripped by the sibling ratchet's own `classify()`, imp
 cannot disagree), an absolute +1% band, and `--write` pinning only downward so the band is spent once
 rather than renewed. TF-3 ("may not be satisfied by deleting tests") is unchanged and is now proven
 at the band's edge as well as at one test.
+
+## 2026-09-07 — the daily-task OFFER gate now diverges from the PERMISSION gate (semantic, deliberate)
+
+The game-designer ruled that smithing and crafting are not gated on the Forge/Workshop: a level
+grants permission, a room grants speed and quality. The client gate is gone — `UNGATED` covers all
+four benches, `hasWorkbench` answers ok for every skill, and the refusal branch, the tile lock chip,
+the "Gates: <Skill>" room fact and the "Required for Smithing/Crafting" copy are deleted rather than
+disabled.
+
+`DAILY_TASK_REQUIREMENTS` in `src/data/goal-catalogue.js` was left EXACTLY as it is by the same
+ruling, so `daily_smith` and `daily_craft` are still only OFFERED to an account that owns the room.
+That is an offer gate standing next to no permission gate, and the two now say different things
+about the same room. It is defensible — a 40-item daily with no speed rungs is a bad deal, not a
+padlock, and the recipes themselves are open either way — and it is NOT free to change: the twin
+lives in `2026-08-29-daily-task-eligibility.sql` and `tests/goal-catalogue-drift.mjs` binds all four
+copies, so relaxing it is a lane-C migration plus the client half. Recorded here so the next reader
+does not "fix" one side alone; the divergence is written into that table's own comment too.
+
+Also recorded, because it is not mine and it blocks the gate: `monolith-ratchet`,
+`comment-ratio-ratchet` and `test-file-ratchet` are ALREADY RED on `main` at `0d9f12ab` — measured on
+a pristine `git archive HEAD` tree, before this branch exists (legacy.js 21299 against a 21132
+ceiling; smoke-test.js 64 comment lines over allowance; corpus b-lines 4201 against 4174; seeds/test
+2.072 against a 2.060 band). The baselines were pinned at tree `762a1672` and `main` has moved past
+them twice since. This branch improves every one of those numbers and clears none of them.

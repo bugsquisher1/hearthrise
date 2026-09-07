@@ -2162,139 +2162,129 @@ const TESTS = [
     }
     assert(typeof H.getTier() === 'number', 'getTier returns a number');
   }),
-  /* b225 — this test used to assert the OPPOSITE ("no kitchen, no cooking").
-     The campfire ruling (Tyler, 2026-08-08, binding) reversed it: a tier-1
-     camp has a fire, so it cooks. The gate on the other artisan skills is
-     unchanged, and this test guards BOTH halves of that — an exemption is
-     worthless if it quietly leaks to smithing.
+  /* ── ROOMS SELL SPEED; LEVELS SELL PERMISSION ────────────────────────────
+     This test has been re-ruled twice, and each time it pinned the CURRENT
+     membership list as if it were the rule: first "no kitchen, no cooking"
+     (reversed by the campfire ruling), then "cooking and prayer are exempt,
+     the Forge and the Workshop still gate" (reversed by the game-designer on
+     2026-09-07). So it now pins the RULE — NO artisan skill carries a client
+     room gate — derived over ARTISAN_RECIPES and over ROOMS, so a skill or a
+     room added tomorrow is covered without anyone editing this file.
 
-     PRAYER JOINED IT — the altar ruling (game-designer, 2026-09-07).
-     The Shrine is a tier-4 room whose every rung buys prayerSpeed, and the
-     server's gate on bury_bones/bury_big/bury_dragon is `req_lv` alone
-     (hr_activities has no room column; hr_apply's `activity_locked` branch
-     re-checks the LEVEL against server XP and nothing else). A client-held
-     property tier standing in front of a server capability is CLAUDE §6's
-     residue-ahead class, so the client gate went. This test now pins the
-     exemption SET rather than one member of it: the two rooms that sell a
-     bonus are exempt, the two that sell access are not. */
-  () => tryRun('b225/b521: cooking and prayer are never gated on a room; Forge/Workshop still are', () => {
+     Why there is a rule at all: `hr_activities` gates an activity on
+     (req_skill, req_lv) and has NO room column, so every room gate the client
+     held was a client-side property tier standing in front of a server
+     capability — CLAUDE §6's residue-ahead class — and it cost a level-1 smith
+     two whole property tiers of padlocks over recipes the server would have
+     run for them. Three independent mechanisms could put it back (the
+     exemption set, the seam's refusal branch, the room card's copy) and this
+     bites on each of them separately. */
+  () => tryRun('no artisan skill carries a client room gate — a room sells speed, a level sells permission', () => {
     const H = window.HearthriseHomestead;
     const G = window.G;
-    const savedHomestead = G.homestead, savedRooms = G.rooms, savedSkills = G.skills;
+    const snap = snapshotG();
     try {
-      // Fresh camp: no rooms at all → the two exemptions run, the other two do not
+      // A Wanderer's Camp with no rooms at all — the character every gate refused.
       G.homestead = { tier: 0 }; G.rooms = {}; G.skills = {};
-      assert(H.hasWorkbench('cooking').ok === true, 'the open fire cooks — cooking must not be gated');
-      assert(H.hasWorkbench('prayer').ok === true,
-        'b521: the altar takes a bone at the camp — prayer must not be gated on the Shrine');
-      ['smithing', 'crafting'].forEach((s) => {
+      const skills = Object.keys(window.ARTISAN_RECIPES || {});
+      assert(skills.length >= 4, 'the derivation is empty — this test would pass vacuously');
+      skills.forEach((s) => {
         const r = H.hasWorkbench(s);
-        assert(r.ok === false, s + ' must still require its workbench room');
-        assert(typeof r.reason === 'string' && r.reason.length > 0, s + ' must say which room it needs');
+        assert(r && r.ok === true, s + ' is gated on a room at the camp: ' + (r && r.reason));
+        assert(r.reason == null, s + ' still carries a refusal reason — the gate is hidden, not gone');
       });
-      assert(H.UNGATED && H.UNGATED.cooking === true, 'cooking must be a declared exemption');
-      assert(H.UNGATED.prayer === true, 'b521: prayer must be a DECLARED exemption, not an accident of a caller');
-      assert(!H.UNGATED.smithing && !H.UNGATED.crafting,
-        'the exemption leaked to a bench that sells access');
-      /* THE MAPPING SURVIVES THE EXEMPTION. prayerSpeed's lookup, the House
-         room copy and the "Go to Prayer" card all read shrine→prayer, so
-         deleting the row (rather than exempting the skill) would take the
-         Shrine's whole purpose with it — the same reason the campfire kept
-         cooking→kitchen. */
-      assert(H.WORKBENCH.prayer === 'shrine', 'the shrine→prayer mapping must survive the exemption');
-      /* AND THE ROOM CARD MUST STOP CLAIMING TO GATE IT. roomDescriptor pushes
-         a "Gates: <Skill>" fact for any room whose skill is not exempt; the
-         Shrine's card said "Gates: Prayer" for 296 builds. */
+      // …and the SET says so out loud, so the rule survives a caller rewrite.
+      Object.keys(H.WORKBENCH).forEach((s) => {
+        assert(H.UNGATED && H.UNGATED[s] === true, s + ' is mapped to a room but is not a declared exemption');
+      });
+      /* THE MAPPING SURVIVES THE EXEMPTION: it is the record of which room
+         SPEEDS which skill (goal-catalogue's DAILY_TASK_REQUIREMENTS is
+         authored against it), so deleting the rows rather than exempting the
+         skills would take the rooms' whole purpose with them. */
+      assert(H.WORKBENCH.cooking === 'kitchen' && H.WORKBENCH.smithing === 'forge'
+        && H.WORKBENCH.crafting === 'workshop' && H.WORKBENCH.prayer === 'shrine',
+        'the skill→room mapping must survive the exemption');
+      /* AND NO ROOM CARD MAY ADVERTISE A PERMISSION — over EVERY room, not the
+         two that happen to be topical. A "Gates: <Skill>" fact is a claim the
+         server does not check, and the Shrine's card made it for 296 builds
+         while bones sat in the bag as vendor trash. */
       if (typeof H.roomDescriptor === 'function') {
-        const shrineCard = H.roomDescriptor('shrine');
-        assert(!(shrineCard.now || []).some((f) => f.label === 'Gates'),
-          'the Shrine card still advertises a Gates fact — it sells prayerSpeed, not permission');
-        /* THE CONTROL, so the line above cannot pass because the descriptor
-           stopped emitting Gates facts altogether. */
-        const forgeCard = H.roomDescriptor('forge');
-        assert((forgeCard.now || []).some((f) => f.label === 'Gates' && /Smithing/i.test(f.value)),
-          'the Forge card must still advertise "Gates: Smithing" — without it the Shrine check above is vacuous');
+        Object.keys(window.ROOMS || {}).forEach((id) => {
+          const card = H.roomDescriptor(id);
+          assert(!(((card && card.now) || []).some((f) => f.label === 'Gates')),
+            'the ' + id + ' card advertises a Gates fact — no room grants permission');
+        });
       }
-      /* The Kitchen is still cooking's ROOM (cookSpeed + noBurn come off it), so
-         the grandfather pass must still restore it for a veteran cook — in the
-         position where the CLIENT is allowed to author a rung.
+      /* THE SAME CLAIM IN COPY. `desc` is the sentence a player reads BEFORE
+         they own the room, and "Required for Smithing" was the gate's last
+         hiding place after the code came out. */
+      Object.keys(window.ROOMS || {}).forEach((id) => {
+        const d = String((window.ROOMS[id] || {}).desc || '');
+        assert(!/required for/i.test(d), 'the ' + id + ' desc still claims to be required: "' + d + '"');
+      });
+    } finally { restoreG(snap); }
+  }),
 
-         b456 TEST-DEBT BURN-DOWN: under the rooms arm that write is deliberately
-         refused (homestead.js gates it on clientMayWriteRecordField('rooms')),
-         because a locally-granted rung is a room the server never confirmed and
-         G.rooms is stripped out of the blob anyway. So this now asserts BOTH
-         positions, and the armed one is the shipping one:
-           ARMED   → no rung is forged, but the TIER still covers the trained
-                     skill, so the veteran is not demoted to Wanderer's Camp;
-           DORMANT → the classic grandfather still grants the Kitchen. */
-      delete G.homestead; G.rooms = {}; G.skills = { cooking: 500 };
-      H.ensureState();
-      const armedRooms = typeof window.clientMayWriteRecordField === 'function'
-        && window.clientMayWriteRecordField('rooms') === false;
-      /* ── RE-RULED (b502). This used to read "grandfathered save should be at
-         least tier 1" full stop, which under the old raise-only heal meant a
-         CLIENT-INFERRED tier could out-rank the server's rung forever. It cannot
-         anymore, and this test now says which position it is describing:
-
-           UNKNOWN (no server statement — a client-authoritative session, or the
-                    boot frame before the first envelope) → the local inference
-                    stands. That is the ONLY position it was ever legitimate in.
-           KNOWN   → the server's rung is the tier, INCLUDING when it is lower.
-                    A fresh post-wipe account with cooking XP and no `property:*`
-                    row is at the camp, not at the Homestead the client guessed.
-
-         The beta is wiped at cutover, so there is no pre-cutover client
-         progression to grandfather past a server rung; and a client rung the
-         server will not honour is not a gift, it is paione's unplayable account
-         (can't build, can't hire, not even OFFERED the rung it needs). */
-      assert(G.homestead.tier >= 1,
-        'the local grandfather inference (the UNKNOWN position) should reach at least tier 1');
-      const _P = window.HearthriseProperty;
-      if (_P && typeof _P.__resetPropertyRecord === 'function') {
-        const _prevGrand = _P.__resetPropertyRecord();
-        try {
-          // A REAL hr_state_of answer: the array PLUS the completeness flag it
-          // always ships with. Without the flag this is only a floor and could
-          // not lower anything — see property-record.js isCompleteStatement.
-          _P.notePropertyUnlocks({ ok: true, progress: [], progress_truncated: false });
-          assert(H.getTier() === 0,
-            'a KNOWN server rung of 0 must out-rank the client\'s grandfather inference; got ' + H.getTier()
-            + ' — a client-inferred tier is out-ranking the realm (the b502 class)');
-          assert(G.homestead.tier === 0,
-            'the conform must be WRITTEN back into the residue, or the inference returns on the next reload');
-        } finally {
-          _P.__resetPropertyRecord(_prevGrand.tier, _prevGrand.workers);
-          delete G.homestead; G.rooms = {}; G.skills = { cooking: 500 };
-          H.ensureState();
-        }
-      }
-      if (armedRooms) {
-        assert(!((G.rooms || {}).kitchen > 0),
-          'the client forged a Kitchen rung while rooms are server-of-record — the server never confirmed it and '
-          + 'G.rooms is stripped from the blob, so this is a two-sources write');
-      } else {
-        assert((G.rooms.kitchen || 0) >= 1, 'existing cooking XP should grandfather a kitchen');
-      }
-      // And the DORMANT position explicitly, so the off switch stays covered.
-      const R = window.HearthriseRecord;
-      if (R && typeof R.__setRoomsRecordArm === 'function') {
-        try {
-          R.__setRoomsRecordArm(false);
-          delete G.homestead; G.rooms = {}; G.skills = { cooking: 500 };
-          H.ensureState();
-          assert((G.rooms.kitchen || 0) >= 1, 'dormant: existing cooking XP should grandfather a kitchen');
-          // Same b502 re-ruling as above: this is the UNKNOWN position (no server
-          // statement in this block), which is the only one the inference owns.
-          assert(G.homestead.tier >= 1,
-            'dormant: the local grandfather inference (the UNKNOWN position) should reach at least tier 1');
-        } finally {
-          R.__setRoomsRecordArm(null);
-        }
-      }
+  /* THE PLAYER-SIDE HALF OF THE SAME RULING, PLAYED RATHER THAN ASSERTED.
+     hasWorkbench() answering `ok` proves the seam; it does not prove the
+     GESTURE works, and the gate that shipped for the Shrine lived in a
+     renderer rather than in the seam — a test that only called the API would
+     have stayed green with the padlock still on screen. So this drives the
+     real startArtisan (the inputs-aware seam-7 override, which is the one that
+     actually runs) from the character the old gate refused, and requires the
+     three things a started run means: the pointer moves, the DECLARATION goes
+     out (no declaration, no server-side accrual — the run would pay nothing),
+     and no refusal is spoken. */
+  () => tryRun('a Wanderer\'s Camp smith with ore and Smithing 1 can start smelt_copper — no room refusal, the run is declared', () => {
+    if (typeof window.startArtisan !== 'function') { skip('no startArtisan'); return; }
+    const snap = snapshotG();
+    const realNotify = window.notify, realDeclare = window.declareActivity;
+    /* The bench arms two setIntervals; leaving them running would tick
+       doArtisanAction() through the rest of the suite, eating ore and moving
+       Smithing inside other tests. */
+    const stopBench = () => {
+      try {
+        if (typeof window.stopSkill === 'function') window.stopSkill();
+        else if (typeof window._stopArtisan === 'function') window._stopArtisan();
+      } catch (e) {}
+      window.G.activeSkill = null; window.G.skillTargetId = null;
+    };
+    try {
+      const G = window.G;
+      const said = [], declares = [];
+      window.notify = (m) => { said.push(String(m)); };
+      window.declareActivity = (kind, id) => { declares.push({ kind, id }); return null; };
+      // No rooms at all — no Forge, no Workshop. Both recipes are req 1.
+      G.homestead = { tier: 0 }; G.rooms = {};
+      G.inventory = Object.assign({}, G.inventory, { copper_ore: 50, normal_log: 50, iron_ore: 50, coal: 50 });
+      G.skills = Object.assign({}, G.skills, { smithing: 0, crafting: 0 });
+      stampRecordLikeLoad(G);
+      [['smithing', 'smelt_copper'], ['crafting', 'saw_normal']].forEach(([skill, recipe]) => {
+        const req = (window.ARTISAN_RECIPES[skill] || []).find((r) => r.id === recipe);
+        assert(req && req.req === 1, recipe + ' must be the level-1 recipe for this test to mean anything');
+        stopBench(); said.length = 0; declares.length = 0;
+        window.startArtisan(skill, recipe);
+        assert(G.activeSkill === skill && G.skillTargetId === recipe,
+          'at the camp, ' + recipe + ' must start; pointer is ' + G.activeSkill + '/' + G.skillTargetId
+          + ', said: ' + JSON.stringify(said));
+        assert(declares.some((d) => d.kind === 'artisan' && d.id === recipe),
+          recipe + ' started without declaring the activity — an undeclared run accrues nothing away');
+        assert(!said.some((m) => /forge|workshop|workbench|homestead first/i.test(m)),
+          'a room refusal was spoken: ' + JSON.stringify(said));
+      });
+      /* AND THE GATE THE SERVER *DOES* ENFORCE SURVIVED, or this traded a wrong
+         gate for no gate: smelt_iron is Smithing 15 and must still refuse. */
+      stopBench(); said.length = 0; declares.length = 0;
+      window.startArtisan('smithing', 'smelt_iron');
+      assert(G.activeSkill !== 'smithing' || G.skillTargetId !== 'smelt_iron',
+        'smelt_iron (Smithing 15) started at level 1 — the LEVEL gate went with the room gate');
+      assert(said.some((m) => /Lv\s*15/i.test(m)), 'the level refusal must name the level, said: ' + JSON.stringify(said));
     } finally {
-      G.homestead = savedHomestead; G.rooms = savedRooms; G.skills = savedSkills;
+      window.notify = realNotify; window.declareActivity = realDeclare;
+      stopBench(); restoreG(snap);
     }
   }),
+
   () => tryRun('b213: property ladder is climbable — no tier cost needs a locked workbench', () => {
     // Regression for the fresh-account deadlock: tier 1 demanded planks
     // (Workshop = tier-2 room) and tiers 2-3 demanded bars (Forge = tier-3
@@ -6125,9 +6115,13 @@ const TESTS = [
       ((window.MONSTERS[m] || {}).drops || []).forEach((d) => d && d.id && raw.add(d.id));
     });
 
-    // ── which bench each artisan skill needs, and when you may own it ──
-    // Cooking is the exception the campfire ruling created: the tier-1 camp
-    // has a fire, so cooking is reachable from tier 0 with no room at all.
+    /* ── which bench each artisan skill needs, and when you may own it ──
+       Every mapped skill is UNGATED since 2026-09-07 (a room sells speed, a
+       level sells permission), so today this is 0 across the board and the
+       walk below is a "reachable at all" proof rather than a bench-order one.
+       It is kept as a FUNCTION of UNGATED rather than folded to 0 because the
+       day a room gates something again is the day the circularity returns —
+       and this is the only executable proof that it does not. */
     const BENCH = H.WORKBENCH;                    // skill → room
     const benchTier = (skill) => (H.UNGATED[skill] ? 0 : H.roomMinTier(BENCH[skill]));
 
@@ -6189,17 +6183,34 @@ const TESTS = [
       });
     });
     assert(problems.length === 0, 'DEADLOCK — ' + problems.join(' | '));
-    // The exclusion must actually bite, or this whole proof is decorative.
     assert(reach(2, 'workshop').has('normal_log'), 'sanity: logs are free with no Workshop');
-    assert(!reach(2, 'workshop').has('normal_plank'),
-      'the self-exclusion is not working — a plank must be unreachable while the Workshop is excluded');
+    /* THE VACUITY GUARD, IN THE ONLY TWO POSITIONS IT HAS. The self-exclusion
+       above can only bite while some bench is GATED on its room; since
+       2026-09-07 none is, so the circularity is structurally impossible and
+       `without` is a no-op. That must be asserted from the exemption set rather
+       than assumed, or this proof would decay into "somebody could make it",
+       and the moment a bench is re-gated the first branch takes over again. */
+    const gatedBench = Object.keys(BENCH).filter((s) => !H.UNGATED[s]);
+    if (gatedBench.length) {
+      const s = gatedBench[0], room = BENCH[s];
+      const made = (window.ARTISAN_RECIPES[s] || []).find((r) => r.output);
+      assert(made && !reach(9, room).has(made.output),
+        'the self-exclusion is not working — ' + (made && made.output) + ' must be unreachable while the '
+        + room + ' is excluded');
+    } else {
+      assert(reach(2, 'workshop').has('normal_plank'),
+        'no bench is gated on a room, so a plank must be reachable with no Workshop — this walk and '
+        + 'HearthriseHomestead.UNGATED disagree about the same rule');
+    }
 
-    // The specific regression, pinned so it cannot come back by another route.
+    /* The specific regression, still pinned — though the deadlock behind it is
+       now impossible twice over: the cost is logs, AND the saw is a level-1
+       crafting recipe no room gates, so a plank is reachable from the camp. */
     assert(!('normal_plank' in R.workshop.levels[0].cost),
-      'Workshop L1 must not cost planks — the only plank source is the bench it is trying to build');
+      'Workshop L1 must not cost planks — it was once priced in its own output');
     assert(reach(0).has('normal_log'), 'logs must be free at a Wanderer\'s Camp');
-    assert(!reach(0).has('normal_plank'), 'precondition: a plank must NOT be reachable without a Workshop');
-    assert(reach(2).has('normal_plank'), 'a plank must become reachable once the Workshop tier is open');
+    assert(reach(0).has('normal_plank'),
+      'a plank must be reachable at the camp — saw_normal is Crafting 1 and no room gates it');
   }),
 
   () => tryRun('b227: the magnitude retune — small increments, and costs untouched', () => {
@@ -8826,23 +8837,15 @@ const TESTS = [
     });
   }),
 
-  () => tryRun('WAVE1: artisan tiles show a persistent workbench lock when the room is not built', () => {
-    // Tyler: "the only tool I can craft is a fishing rod." Smithing needs the
-    // Forge; without it the tile used to render enabled and die silently on click.
-    /* SA-013: the bench-lock feature this test asserts (at-lock-bench / "Build the
-       …" / hrArtisanGateClick) lives ONLY in legacy.js's tileForArtisan — the
-       builder that actually renders in the live UI — and legacy's builder is NOT
-       exposed as a test seam (window.tileForArtisan is undefined). The published
-       HearthriseActivitiesGrid.__tileForArtisan is a KNOWN-INCOMPLETE dead twin
-       (its own comment: "these builders currently paint nothing"; legacy wins the
-       renderSkillDetail assignment) and does not implement the lock, so asserting
-       against it fails on absent-by-design code. Skip honestly and route the
-       seam-exposure to Systems Engineer (see DISCOVERIES / HANDOFFS SA-013) rather
-       than leave the old silent early-return that asserted nothing. */
-    skip('live tile builder (legacy.js tileForArtisan) not exposed as a test seam; module twin is a known-incomplete dead twin — routed to Systems');
-    return;
-  }),
-
+  /* THE WAVE1 ARTISAN BENCH-LOCK TEST WAS RETIRED HERE, NOT SILENCED. Its
+     subject — the tile's "Build the Forge" padlock — was removed on
+     2026-09-07 when the designer ruled that a room sells speed and a level
+     sells permission, so the test name was a contract asserting the opposite
+     of the shipped rule (it had already been a bare skip since SA-013: the
+     live builder, legacy.js tileForArtisan, is not exposed as a test seam).
+     What replaced it is the derived rule test in the homestead block plus the
+     played happy path beside it. The seam-exposure debt itself is still real
+     and still routed to Systems — see the gather twin immediately below. */
   () => tryRun('WAVE1: gather tile names the active tool and its bonus', () => {
     // Tyler: "the fishing rod doesn't seem to do anything." The rod worked but was
     // never surfaced. The tile must now name the tool + its speed bonus.
@@ -27386,62 +27389,79 @@ const TESTS = [
     }
   }),
 
-  /* THE HAZARD THE EXEMPTION CREATED, CLOSED IN THE SAME BUILD.
+  /* ── NO SKILL'S XP FORGES A ROOM OR RAISES A TIER ────────────────────────
+     ensureState() used to read "XP in S → you owned WORKBENCH[S] → you were at
+     least at its tier", and grant the room to match. That implication held
+     only while the rooms WERE the permission; with the gates gone it is false
+     in both directions, and dangerous in both. One buried bone would infer
+     IRONVALE KEEP and one smelted bar FIELDWORTH FARMSTEAD into the residue of
+     a bedroll owner, and `G.rooms[x] = 1` forges an `unlock` row hr_unlock_buy
+     never sold while rooms are server-of-record.
 
-     ensureState()'s grandfather pass reads "XP in S → you owned WORKBENCH[S]
-     → you were at least at its tier". Until this build that implication held
-     for prayer BY CONSTRUCTION: you could not earn Prayer XP without the
-     Shrine, and the Shrine needs Ironvale Keep. Exempting prayer killed it —
-     from now on a bone is buried at the Wanderer's Camp, and a fresh player
-     who buries one and reloads before ever opening the House tab would have
-     had a TIER-4 KEEP inferred into their residue.
-
-     That is paione's residue-ahead deadlock (2026-09-04) with a bigger number
-     on it: the property heal conforms the residue DOWN to a KNOWN rung, but
-     only a COMPLETE `progress` statement is a known rung, so a truncated one
-     (the 1000-row cap) leaves the phantom keep in place forever — and a
+     A forged tier is paione's residue-ahead deadlock (2026-09-04) with a
+     bigger number on it: the heal conforms the residue DOWN to a KNOWN rung,
+     but only a COMPLETE `progress` statement is a known rung, so a truncated
+     one (the 1000-row cap) leaves the phantom keep there forever — and a
      phantom keep refuses every room purchase with prereq_property_tier.
 
-     Fails without the `if (UNGATED[skill]) return;` guard in the tier loop and
-     the GRANDFATHER_ROOM_FROM_XP check in the room loop. */
-  () => tryRun('b521: a buried bone must not grandfather Ironvale Keep (the residue-ahead hazard the exemption created)', () => {
-    const H = window.HearthriseHomestead;
+     Three legs on three mechanisms, so no one of them can pass vacuously: XP
+     infers nothing, an UNKNOWN rung infers nothing (the plot count is RESIDUE
+     — a client-held array may not raise a server rung), and an OWNED room
+     still does. */
+  () => tryRun('no skill XP forges a room or raises a property tier (the residue-ahead class)', () => {
+    const H = window.HearthriseHomestead, P = window.HearthriseProperty;
     if(!H || typeof H.ensureState !== 'function' || typeof H.roomMinTier !== 'function'){ skip('homestead API absent'); return; }
     const G = window.G;
-    const savedHomestead = G.homestead, savedRooms = G.rooms, savedSkills = G.skills;
+    const snap = snapshotG();
+    const prevRec = (P && typeof P.__resetPropertyRecord === 'function') ? P.__resetPropertyRecord() : null;
     try {
-      const shrineTier = H.roomMinTier('shrine'), forgeTier = H.roomMinTier('forge');
-      assert(shrineTier > 0 && forgeTier > 0, 'both rooms must sit above the camp for this test to mean anything');
+      const forgeTier = H.roomMinTier('forge'), shrineTier = H.roomMinTier('shrine');
+      assert(forgeTier > 0 && shrineTier > 0, 'both rooms must sit above the camp or this test proves nothing');
+      // One setup for all three legs; each leg then changes only what it is about.
+      G.rooms = {}; G.skills = {}; G.plotBuildings = [];
 
-      delete G.homestead; G.rooms = {}; G.skills = { prayer: 5000 };
+      /* 1. XP INFERS NOTHING — every artisan skill at once, with the rung
+         KNOWN (a complete projection carrying no `property:` row IS a camp),
+         so leg 2 cannot be what makes this pass. */
+      if (P) P.notePropertyUnlocks({ ok: true, progress: [], progress_truncated: false });
+      delete G.homestead;
+      G.skills = { cooking: 500, smithing: 5000, crafting: 5000, prayer: 5000 };
       stampRecordLikeLoad(G);
       H.ensureState();
-      assert(G.homestead.tier < shrineTier,
-        'prayer XP inferred a tier-' + G.homestead.tier + ' property from a bone buried at the camp '
-        + '(the Shrine is tier ' + shrineTier + ') — residue-ahead, and unhealable behind a truncated progress read');
-      assert(!((G.rooms || {}).shrine > 0),
-        'prayer XP forged a Shrine rung the server never sold — rooms is server-of-record');
+      assert(G.homestead.tier === 0,
+        'skill XP inferred a tier-' + G.homestead.tier + ' property at the camp (the Forge is ' + forgeTier
+        + ', the Shrine ' + shrineTier + ') — residue-ahead, and unhealable behind a truncated progress read');
+      assert(Object.keys(G.rooms || {}).length === 0,
+        'skill XP forged ' + JSON.stringify(G.rooms) + ' — a room is sold by hr_unlock_buy, never inferred');
 
-      /* THE CONTROL. A GATED skill's XP still infers its room's tier, so the
-         assertions above cannot pass because the grandfather stopped working
-         altogether. Smithing is not exempt and the Forge is a real gate. */
-      delete G.homestead; G.rooms = {}; G.skills = { smithing: 5000 };
+      /* 2. AN UNKNOWN RUNG INFERS NOTHING EITHER. Absence is not a claim, and
+         the plot count this pass also reads is RESIDUE (client-state.js
+         RESIDUE_FIELDS), so with no server statement even an owned room would
+         be inferred through a client-held array's arithmetic. */
+      if (P) P.__resetPropertyRecord();
+      delete G.homestead; G.rooms = { forge: 1 }; G.skills = {};
       stampRecordLikeLoad(G);
       H.ensureState();
-      assert(G.homestead.tier >= forgeTier,
-        'smithing XP must still infer the Forge tier (' + forgeTier + '), got ' + G.homestead.tier
-        + ' — the grandfather is broken, not selective, and the prayer checks above are vacuous');
+      assert(G.homestead.tier === 0,
+        'a tier was inferred with no server rung stated this session, got ' + G.homestead.tier);
 
-      /* AND COOKING KEEPS ITS CAMPFIRE CARVE-OUT: exempt from the GATE but
-         still hands the veteran cook their Kitchen back, which is why the
-         exemption set and the grandfather-evidence set are two lists. */
-      assert(H.GRANDFATHER_ROOM_FROM_XP && H.GRANDFATHER_ROOM_FROM_XP.cooking === true,
-        'b225: cooking must stay in the grandfather-evidence set');
-      assert(!H.GRANDFATHER_ROOM_FROM_XP.prayer,
-        'prayer must not be grandfather evidence — its room was never required to earn the XP');
+      /* 3. THE CONTROL: an OWNED room is a server fact and still raises the
+         tier, or legs 1 and 2 pass because the inference is broken rather than
+         selective. The statement here is TRUNCATED — a floor of 1 — so
+         reaching the Forge's own tier can only have come from the room. */
+      if (P) {
+        P.__resetPropertyRecord();
+        P.notePropertyUnlocks({ ok: true, progress_truncated: true,
+          progress: [{ kind: 'unlock', key: 'property:homestead', value: 1, period: '' }] });
+        delete G.homestead;
+        H.ensureState();
+        assert(G.homestead.tier === forgeTier,
+          'an owned Forge must still infer its tier (' + forgeTier + '), got ' + G.homestead.tier
+          + ' — the inference is broken, not selective, and the legs above are vacuous');
+      }
     } finally {
-      G.homestead = savedHomestead; G.rooms = savedRooms; G.skills = savedSkills;
-      stampRecordLikeLoad(G);
+      if (P && prevRec) P.__resetPropertyRecord(prevRec.tier, prevRec.workers);
+      restoreGAndRecord(snap);
     }
   }),
 
@@ -32581,11 +32601,9 @@ const TESTS = [
         else feed[r.input] = 1;
         return { skill, recipe: r.id, feed };
       });
-      // Grant every workbench so the bench-gate isn't what stops us — exhaustion is.
-      /* b456: and the grant has to reach the RECORD — `rooms` is server-of-record
-         and hasWorkbench() reads it through roomsOf, so a raw assignment leaves
-         every bench locked and the smithing/crafting probes never start (cooking
-         is the UNGATED exemption, which is why only it kept passing). */
+      /* The rooms are granted for their SPEED rungs only — no bench gates a
+         recipe any more — and the grant still has to reach the RECORD, because
+         `rooms` is server-of-record and a raw assignment no reader can see. */
       window.G.rooms = Object.assign({}, window.G.rooms, { kitchen: 1, forge: 1, workshop: 1, shrine: 1 });
       stampRecordLikeLoad(window.G);
       for (const c of cases) {
@@ -46475,15 +46493,14 @@ const TESTS = [
       rooms: JSON.parse(JSON.stringify(G.rooms || {})),
       offlineBudget: G.offlineBudget, restedAt: G.restedAt };
 
-    /* The four gates `startArtisan` checks, satisfied — and then ASSERTED, so a
+    /* Every gate `startArtisan` checks, satisfied — and then ASSERTED, so a
        gesture that returns early cannot look like a missing declaration. */
     if (recipe) {
       G.rooms = Object.assign({}, G.rooms, { forge: 3, workshop: 3, shrine: 3, kitchen: 3 });
       G.skills[bench] = Math.max(G.skills[bench] || 0, 14000000);
-      /* b456: the WORKBENCH gate reads the rung through roomsOf and `rooms` is
-         server-of-record, so the grant above is invisible unless it arrives on the
-         record — startArtisan then returns early and this test reports "the player
-         gesture started nothing", which is the fixture failing, not the b348 bug. */
+      /* The rungs are granted for their room BONUSES only — no bench gates a
+         recipe any more — but they still have to arrive on the record, since
+         `rooms` is server-of-record and a raw assignment no reader can see. */
       stampRecordLikeLoad(G);
       const inputs = window.getInputs ? window.getInputs(recipe) : (recipe.inputs || {});
       for (const id of Object.keys(inputs)) G.inventory[id] = (G.inventory[id] || 0) + 500;

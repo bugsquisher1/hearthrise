@@ -140,15 +140,6 @@ function freshStats() {
   };
 }
 export const stats = freshStats();
-/** Test seam. Returns the counters to zero AND retires the session's proof —
-    the two are one fact, so they must not be resettable independently. */
-export function __resetEquipStats() {
-  const f = freshStats();
-  for (const k of Object.keys(f)) stats[k] = f[k];
-  markEquipAuthorityLive(false);
-  return stats;
-}
-export function equipStats() { return stats; }
 
 /* THROTTLED, NOT SUPPRESSED. The first three sightings of a reason are warned
    in full; after that only the counter moves. Three because one can be a
@@ -559,6 +550,6 @@ if (typeof window !== 'undefined') {
        copy: a support request that says "paste HearthriseEquip.stats" must
        show what the transport is doing NOW, and a snapshot taken at publish
        time would show all zeros forever. */
-    EQUIP_DROP_REASONS, stats, equipStats, isEquipTransportProven, __resetEquipStats,
+    EQUIP_DROP_REASONS, stats, isEquipTransportProven,
   };
 }

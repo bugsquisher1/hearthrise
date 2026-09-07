@@ -77,7 +77,7 @@ export const STATUSES = Object.freeze(['wired', 'deferred', 'none']);
    `flipBehaviourOf` is the single reader; the census guard asserts every
    deferred row resolves to one AND that more than one distinct answer exists,
    so a derivation that collapsed to a single string is caught. */
-export const FLIP_BEHAVIOUR = Object.freeze({
+const FLIP_BEHAVIOUR = Object.freeze({
   grant: 'ERASED. The next absolute envelope overwrites the local grant with the server value, '
     + 'which does not contain it. The player watches gold arrive and disappear.',
   spend: 'REFUNDED. The next absolute envelope restores the gold and — a write later — takes back '
@@ -882,20 +882,8 @@ export function isWiredSite(id) {
   return !!(row && row.status === 'wired');
 }
 
-/** The census, as counts — for a report, and so a test can assert the shape did
- *  not quietly collapse to one bucket. Derived, never restated. */
-export function goldSiteCensus() {
-  const out = { total: 0, byKind: Object.create(null), byStatus: Object.create(null) };
-  for (const row of Object.values(GOLD_SITE_LEDGER)) {
-    out.total++;
-    out.byKind[row.kind] = (out.byKind[row.kind] || 0) + 1;
-    out.byStatus[row.status] = (out.byStatus[row.status] || 0) + 1;
-  }
-  return out;
-}
-
 if (typeof window !== 'undefined') {
   window.HearthriseGoldSites = {
-    GOLD_SITE_LEDGER, KINDS, STATUSES, isWiredSite, goldSiteCensus, flipBehaviourOf, flipGuardOf,
+    GOLD_SITE_LEDGER, KINDS, STATUSES, isWiredSite, flipBehaviourOf, flipGuardOf,
   };
 }

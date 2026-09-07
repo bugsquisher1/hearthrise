@@ -361,8 +361,3 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + 'as admin.js#addGems: erased by the next envelope, and it must stay that way.',
   },
 ]);
-
-/** Rows by id — a convenience for readers, never a switch. */
-export function gemSiteById(id) {
-  return GEM_SITE_LEDGER.find((r) => r.id === id) || null;
-}

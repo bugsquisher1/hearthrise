@@ -64,9 +64,6 @@ export function restedOf(G) {
   return { known: true, xp: Math.floor(xp), at, reason: 'ok', source: 'local' };
 }
 
-/** Is the rested bank known at all? */
-export function isRestedKnown(G) { return restedOf(G).known; }
-
 /** THE CHARGE COUNT — a number, or null for UNKNOWN. Branch on null. */
 export function restedCharges(G) {
   const b = restedOf(G);
@@ -81,5 +78,5 @@ export function restedChargesOr(G, fallback) {
 }
 
 if (typeof window !== 'undefined') {
-  window.HearthriseRested = { restedOf, isRestedKnown, restedCharges, restedChargesOr };
+  window.HearthriseRested = { restedOf, restedCharges, restedChargesOr };
 }

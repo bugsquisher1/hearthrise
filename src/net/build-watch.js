@@ -73,7 +73,7 @@ export const VISIBILITY_MIN_GAP_MS = 60 * 1000;
 export const TICK_MS = 60 * 1000;
 export const FAIL_BACKOFF_BASE_MS = 2 * 60 * 1000;
 export const FAIL_BACKOFF_MAX_MS = 60 * 60 * 1000;
-export const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_MS = 8000;
 /* A build-info.js is ~1 KB. Anything much larger is a captive-portal login page
    or an SPA index.html, not our file — refuse to regex-scan it. */
 export const MAX_BODY_BYTES = 64 * 1024;
@@ -431,10 +431,6 @@ export function startBuildWatch() {
   return true;
 }
 
-export function stopBuildWatch() {
-  if (timer) { clearInterval(timer); timer = null; }
-}
-
 if (typeof window !== 'undefined') {
   window.HearthriseBuildWatch = {
     // pure
@@ -442,7 +438,7 @@ if (typeof window !== 'undefined') {
     POLL_INTERVAL_MS, VISIBILITY_MIN_GAP_MS, FAIL_BACKOFF_BASE_MS, FAIL_BACKOFF_MAX_MS,
     MAX_BODY_BYTES, CARD_ID, ESCALATION_ID, BUILD_INFO_URL,
     // runtime
-    startBuildWatch, stopBuildWatch, tickBuildWatch, applyBuildInfoText,
+    startBuildWatch, tickBuildWatch, applyBuildInfoText,
     showUpdateCard, hideUpdateCard, escalateIntoAuthSheet,
     getState: () => ({ ...state }),
     /* Test seams. `__setState` restores exactly, and `__setAuthDeadProbe(null)`

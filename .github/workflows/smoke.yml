@@ -709,3 +709,12 @@ jobs:
             tests/**/*.log
           if-no-files-found: ignore
           retention-days: 7
+
+      # slice 3 — deletions proven dead (derived censuses, never hand-pinned).
+      # Appended at the END of the file on purpose: slice 2 is appending its own
+      # steps here too, and two blocks under distinct comments merge cleanly.
+      - name: Cleanup slice 3 - dead export census
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/dead-exports.mjs --selftest
+          node tests/dead-exports.mjs

@@ -155,8 +155,6 @@ export const MARKET_CANCEL_VERB = 'market_cancel';
 export const MARKET_BUY_VERB = 'market_buy';
 export const MARKET_VERBS = Object.freeze(
   [MARKET_LIST_VERB, MARKET_CANCEL_VERB, MARKET_BUY_VERB]);
-export const GOLD_VERBS = Object.freeze([SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_REWARD_VERB,
-  UNLOCK_BUY_VERB, ...MARKET_VERBS]);
 
 /** Mirrors `MAX_QTY` in supabase/functions/hr-accrue/request.js. A count above
  *  it is refused by the server with `bad_qty`; refusing it HERE means the
@@ -531,20 +529,19 @@ export function receiptOf(body) {
   return (r && typeof r === 'object') ? r : null;
 }
 
-export const GOLD_OUTCOMES = Object.freeze([
-  'applied',        // 200 ok:true — the verb landed, the envelope is the truth
-  'replayed',       // 200 ok:true replayed:true — this exact intent already landed
-  'refused',        // 4xx/409 with a machine code; may or may not carry an envelope
-  'rate-limited',   // 429
-  'not-signed-in',  // 401/403
-  'unavailable',    // 5xx
-  'malformed',      // a 200 that is not an envelope
-  'unreachable',    // no answer at all
-  'timeout',        // aborted — also no answer
-  'unconfigured',   // no endpoint / no token on this device
-  'switch-off',     // the kill switch is off; nothing was sent
-  'unsendable',     // the client refused its own request before sending it
-]);
+/* The vocabulary classifyGoldResponse() can produce, for the reader:
+     applied        200 ok:true — the verb landed, the envelope is the truth
+     replayed       200 ok:true replayed:true — this exact intent already landed
+     refused        4xx/409 with a machine code; may or may not carry an envelope
+     rate-limited   429
+     not-signed-in  401/403
+     unavailable    5xx
+     malformed      a 200 that is not an envelope
+     unreachable    no answer at all
+     timeout        aborted — also no answer
+     unconfigured   no endpoint / no token on this device
+     switch-off     the kill switch is off; nothing was sent
+     unsendable     the client refused its own request before sending it */
 
 export function classifyGoldResponse(status, body) {
   const b = (body && typeof body === 'object') ? body : null;
@@ -1235,7 +1232,7 @@ if (typeof window !== 'undefined') {
   });
 
   window.HearthriseGold = {
-    GOLD_VERBS, SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_REWARD_VERB, GOLD_OUTCOMES,
+    SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_REWARD_VERB,
     MARKET_VERBS, MARKET_LIST_VERB, MARKET_CANCEL_VERB, MARKET_BUY_VERB,
     listOnMarket, cancelMarketListing, buyMarketListing, isListingId, MAX_ASK,
     MAX_QTY, MAX_PENDING, GOLD_TIMEOUT_MS, PREDICTION_CARRY_MS, PREDICTED_FIELDS,

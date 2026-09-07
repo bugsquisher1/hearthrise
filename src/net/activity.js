@@ -349,20 +349,19 @@ export function buildActivityRequest(opts) {
    `switched` and `replayed` both mean "the server's pointer is what we asked
    for"; they are kept apart because only one of them applied a delta and a
    receipt that cannot tell them apart cannot explain a missing payment. */
-export const ACTIVITY_OUTCOMES = Object.freeze([
-  'switched',       // 200 ok:true — the declaration landed, envelope is the truth
-  'replayed',       // 200 ok:true replayed:true — this exact intent already landed
-  'refused',        // 4xx/409 with a machine code; may or may not carry an envelope
-  'rate-limited',   // 429 — 30/min. Back off; never spin.
-  'not-signed-in',  // 401/403
-  'unavailable',    // 5xx
-  'malformed',      // a 200 that is not an envelope
-  'unreachable',    // no answer at all (CORS, DNS, offline)
-  'timeout',        // aborted after ACTIVITY_TIMEOUT_MS — also no answer
-  'unconfigured',   // no endpoint / no token on this device
-  'switch-off',     // the kill switch is off; nothing was sent
-  'undeclarable',   // the client refused its own request before sending it
-]);
+/* The vocabulary classifyActivityResponse() can produce, for the reader:
+     switched       200 ok:true — the declaration landed, envelope is the truth
+     replayed       200 ok:true replayed:true — this exact intent already landed
+     refused        4xx/409 with a machine code; may or may not carry an envelope
+     rate-limited   429 — 30/min. Back off; never spin.
+     not-signed-in  401/403
+     unavailable    5xx
+     malformed      a 200 that is not an envelope
+     unreachable    no answer at all (CORS, DNS, offline)
+     timeout        aborted after ACTIVITY_TIMEOUT_MS — also no answer
+     unconfigured   no endpoint / no token on this device
+     switch-off     the kill switch is off; nothing was sent
+     undeclarable   the client refused its own request before sending it */
 
 /**
  * THE ENVELOPE, CONSTRUCTED FIELD BY FIELD FROM THE BODY.
@@ -1042,7 +1041,7 @@ export function declare(kind, id) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseActivity = {
-    ACTIVITY_VERB, ACTIVITY_KINDS, GAME_ACTIVITY_KINDS, ACTIVITY_OUTCOMES,
+    ACTIVITY_VERB, ACTIVITY_KINDS, GAME_ACTIVITY_KINDS,
     ACTIVITY_TIMEOUT_MS, ACTIVITY_MAX_TRIES,
     UNANSWERED_OUTCOMES, isAnswered, newIntentKey, isIntentKey, nextIntentKey,
     isActivityIntentEnabled, isDeclarableActivity, declarationFor, isPayableRecipe,

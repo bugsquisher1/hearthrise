@@ -417,8 +417,6 @@ export function notePropertyRefusalTier(have) {
 
 /** The property rung the server has stated this session, or null (UNKNOWN). */
 export function serverPropertyTier() { return observedTier; }
-/** The paid crew cap the server has stated this session, or null (UNKNOWN). */
-export function serverWorkerRung() { return observedWorkers; }
 /** Has the server stated the property rung at all this session? UNKNOWN is the
  *  ONE state in which the residue is the only reading available — every caller
  *  that gates a capability should be able to say so honestly rather than guess.
@@ -538,7 +536,7 @@ if (typeof window !== 'undefined') {
     pickPropertyTier, pickWorkerRung, pickBankRung, isCompleteProgressStatement,
     notePropertyUnlocks,
     notePropertyGranted, notePropertyRefusalTier,
-    serverPropertyTier, serverWorkerRung, propertyTierKnown, propertyTierExact,
+    serverPropertyTier, propertyTierKnown, propertyTierExact,
     propertyStatementTruncated,
     residuePropertyTier, effectivePropertyTier, healPropertyTier,
     effectiveWorkerSlots, __resetPropertyRecord,

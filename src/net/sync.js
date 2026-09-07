@@ -498,7 +498,7 @@ export function tokenStatus(tok, now = Date.now(), skewMs = 0) {
   return (exp * 1000) - skewMs <= now ? 'expired' : 'ok';
 }
 
-export const AUTH_BACKOFF_BASE_MS = 5000;
+const AUTH_BACKOFF_BASE_MS = 5000;
 export const AUTH_BACKOFF_MAX_MS = 300000;   // 5 min ceiling on a single wait
 export const AUTH_DEAD_AFTER_TRIES = 6;      // ~155s of doubling
 export const AUTH_DEAD_AFTER_MS = 180000;    // …or 3 minutes, whichever first

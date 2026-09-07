@@ -81,7 +81,7 @@ let refreshTimer = null;
        out of its own account — the same reason the b331 proactive-refresh timer
        checks isClockTrusted(). An untrusted clock sends the token and lets the
        server be the judge, which is the safe direction. */
-export const TOKEN_RECOVERY_FLOOR_MS = 5000;
+const TOKEN_RECOVERY_FLOOR_MS = 5000;
 let lastTokenRecoveryAt = 0;
 export function liveAccessToken(now) {
   const tok = session && session.access_token;

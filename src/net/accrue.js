@@ -2368,29 +2368,18 @@ export function applyEnvelopeState(G, res, ownKey) {
   } catch (e) {}
   written.absolute = absolute;
 
-  /* ── THE RECOVERY LINE, OBSERVED (First-Night Idle Rescue) ────────────────
-     `player_state.recovering_until` — an ABSOLUTE server instant. Recorded off
-     every envelope and NEVER decremented here: a client-side countdown is a
-     number that survives a reload, and Recovery is precisely the thing that
-     must not (exploit R1). Renderers subtract it from the clock to draw and
-     compute nothing else from it.
-     ⚠ KEY PRESENCE, not truthiness. `null` means "this character is up" and
-       must CLEAR the stored line; an ABSENT key means an older server and must
-       leave it alone, or a mixed-deploy window would show a stale knockout. */
-  if (st && Object.prototype.hasOwnProperty.call(st, 'recovering_until')) {
-    const t = st.recovering_until ? Date.parse(st.recovering_until) : 0;
-    recoveringUntil = (Number.isFinite(t) && t > 0) ? t : 0;
-    written.recoveringUntil = recoveringUntil;
-  }
-
-  /* ── THE PRICED WINDOW AND THE DEATH COUNTERS, OBSERVED ───────────────
-     Same KEY-PRESENCE rule the recovery line above follows, for the same
-     reason: an ABSENT key is an older server and must leave the reading alone,
-     while a present one is the truth. `accrued_to` is what answers a pending
-     fall (see `noteFallAnswer`); `deaths_today` / `deaths_lifetime` are what
-     the death sheet renders instead of re-deriving a ladder rung from
-     `G.stats.deaths`, which is a lifetime tally and produced a two-minute
-     promise on a fall the server charged nothing for. */
+  /* ── THE PRICED WINDOW, OBSERVED ──────────────────────────────────────────
+     Same KEY-PRESENCE rule the recovery line follows, for the same reason: an
+     ABSENT key is an older server and must leave the reading alone, while a
+     present one is the truth. `accrued_to` is what answers a pending fall (see
+     `noteFallAnswer`).
+     ⚠ SITED HERE, AND ONLY HERE. It is read BEFORE `reconcileFall` below (which
+       ends in `noteFallAnswer`) exactly as it always was — the observation was
+       moved up a few lines, never reordered against its reader. It is
+       deliberately NOT inside reconcileFall: `bootAccruedToAt` is the
+       welcome-back card's statement of the absence, and letting the boot
+       `hr_load` body be the first thing to write it would change a
+       player-visible number on a surface this change does not own. */
   if (st && Object.prototype.hasOwnProperty.call(st, 'accrued_to')) {
     const a = st.accrued_to ? Date.parse(st.accrued_to) : 0;
     if (Number.isFinite(a) && a > 0) {
@@ -2398,61 +2387,15 @@ export function applyEnvelopeState(G, res, ownKey) {
       if (!bootAccruedToAt) bootAccruedToAt = a;
     }
   }
-  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
-    const n = Math.floor(Number(st.deaths_today));
-    deathsTodayCount = (Number.isFinite(n) && n >= 0) ? n : 0;
-    written.deathsToday = deathsTodayCount;
-  }
-  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_lifetime')) {
-    const n = Math.floor(Number(st.deaths_lifetime));
-    deathsLifetimeCount = (Number.isFinite(n) && n >= 0) ? n : 0;
-    written.deathsLifetime = deathsLifetimeCount;
-  }
-  /* ── THE RETREAT COUNTER, OBSERVED (Recovery rev. 3) ─────────────────────
-     `player_state.consec_falls` — consecutive falls with no kill between them.
-     It is written straight onto `G` and not into a module-local like the two
-     counters above, and that is deliberate: `G` IS the state the live combat
-     tick hands to `src/core/combat-sim.js` `resolveDeath`, so this one
-     assignment is the whole of what makes the ATTENDED path evaluate the same
-     rule the away path does, off the same durable number, with no second copy.
 
-     ⚠ KEY PRESENCE, not truthiness — the same rule the recovery line follows,
-       and here it is load-bearing in an additional way: `resolveDeath` gates
-       the ENTIRE Retreat on this field being a NUMBER, so an ABSENT key (a
-       server that predates the migration) must leave `G.consecFalls`
-       `undefined` and the client must never invent a 0. Inventing one would arm
-       a client-side rule against a database that cannot back it — which is the
-       residue-ahead class, pointed at a mechanic that STOPS the player.
-     ⚠ PREDICTION ONLY. The tick's own increments are display state; the next
-       envelope overwrites them with the server's number. That is the standard
-       contract (CLAUDE.md §1) and it is why no `?v=` of this value is ever
-       proposed back: the client sends intents, the server owns the count. */
-  if (st && Object.prototype.hasOwnProperty.call(st, 'consec_falls')) {
-    const n = Math.floor(Number(st.consec_falls));
-    const v = (Number.isFinite(n) && n >= 0) ? n : 0;
-    /* `G` is this function's own first parameter — the very object the live
-       tick passes to `simulateTick`. One identity, not a copy. */
-    if (G) G.consecFalls = v;
-    written.consecFalls = v;
-  }
-  /* AFTER all three, because the answer is a function of every one of them. */
-  noteFallAnswer(res);
-
-  /* ── THE FALL IS ANNOUNCED, ONCE PER ENVELOPE (2026-09-06, boot-raise P1) ──
-     Measured live on b510: a character with `recovering_until` 27 minutes ahead
-     RELOADED and got a normal "Fighting Goblin" bar — no sheet, no countdown,
-     no Rest button, nothing saying that 27 minutes would earn nothing. The
-     sheet was never broken; its only trigger was the fall MOMENT in the live
-     tick, and a reload has no such moment.
-     A one-way NOTIFICATION, not a call: this module must not know the death
-     sheet exists, and a listener that throws must not be able to poison an
-     envelope apply. The listener owns the once-per-window rule. */
-  try {
-    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
-        && typeof CustomEvent === 'function') {
-      window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
-    }
-  } catch (e) {}
+  /* WHERE THE CHARACTER STANDS — the recovery line, the death counters, the
+     retreat counter, the pending-fall answer and the one-way announcement. ONE
+     implementation, shared with the BOOT hr_load path (record.js), for the same
+     reason `reconcileHp` below is shared: applyEnvelopeState runs only on
+     `accrued:true`, and a retreat always leaves the pointer idle — so without
+     the shared seam the one state the Retreat produces is the one state the
+     client is blind to. See reconcileFall for the measurement. */
+  Object.assign(written, reconcileFall(G, res) || {});
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
@@ -3051,6 +2994,140 @@ export function __resetServerAutoEat() {
    the exception can no longer launder a stale full bar through a whole fight.
 
    Returns a receipt fragment; never throws. */
+/* ══════════════════════════════════════════════════════════════════════════
+   reconcileFall — WHERE THE CHARACTER STANDS, OFF ANY SERVER ENVELOPE.
+
+   ONE observer, TWO callers: `applyEnvelopeState` (the hr-accrue settle, the
+   activity/intent envelope, the gold envelope) and record.js's boot `hr_load`
+   settle. Extracted from `applyEnvelopeState` verbatim — same order, same
+   key-presence rules, same `noteFallAnswer` placement — so the two paths cannot
+   develop two ideas of whether a player is on the floor.
+
+   ── THE MEASURED BUG THIS EXTRACTION EXISTS FOR (RETREAT-A4) ───────────────
+   `applyEnvelopeState` only ever runs on an envelope with `accrued:true`
+   (`isEnvelopeApplicable`). A RETREAT, by construction, leaves the server's
+   activity pointer IDLE — so the very next boot asks hr-accrue, is answered
+   `{accrued:false, reason:'idle'}`, and applyEnvelopeState never runs. Measured
+   here on 2026-09-07 against the real record.js boot path with an `hr_load` body
+   carrying `recovering_until` 32 minutes ahead and `consec_falls: 3`:
+
+       fallState().phase      "up"          (the client believes nobody is down)
+       recoveringUntilMs()    0
+       G.consecFalls          undefined     (the durable counter is GONE)
+       activity bar           "Idle — pick an activity"
+       death sheet            not raised
+
+   That is b510 exactly — "27 minutes in which nothing earns, with no sheet, no
+   countdown and no Rest button" — reached through the IDLE-BOOT door instead of
+   the reload door RECOVER-11 closed, and it is the FIFTH instance of the class
+   record.js already names (inventory b467, crew b477, hero slots SA-016, hp
+   b511). It bites the Retreat twice over: the player is given no reason for
+   their 5/13 HP and no Rest button, AND `G.consecFalls` comes back undefined —
+   so the rule that just ended a hopeless run forgets it did, and one reload puts
+   the player straight back into the grind with the count restarted at zero.
+
+   The fix is the shape record.js's own comments prescribe for the other four:
+   route the always-full boot body through the SAME shared function the accrue
+   path uses. Nothing is re-derived and nothing new is authored — the client
+   observes three server columns it was already entitled to.
+
+   ⚠ `accrued_to` IS DELIBERATELY NOT IN HERE. It feeds `bootAccruedToAt`, which
+     is the welcome-back card's statement of how long the player was away, and
+     moving its first observation from the settle to the boot read would change
+     a player-visible number on a surface this change has no business touching.
+     `noteFallAnswer` reads it, but only when `fall.at` is set — which at boot it
+     never is — so the boot caller loses nothing by its absence. Raised for the
+     Game Designer in CONFLICTS.md rather than decided here.
+
+   Returns a receipt fragment; never throws. */
+export function reconcileFall(G, res) {
+  const st = (res && res.state) || {};
+  const written = {};
+
+  /* ── THE RECOVERY LINE, OBSERVED (First-Night Idle Rescue) ────────────────
+     `player_state.recovering_until` — an ABSOLUTE server instant. Recorded off
+     every envelope and NEVER decremented here: a client-side countdown is a
+     number that survives a reload, and Recovery is precisely the thing that
+     must not (exploit R1). Renderers subtract it from the clock to draw and
+     compute nothing else from it.
+     ⚠ KEY PRESENCE, not truthiness. `null` means "this character is up" and
+       must CLEAR the stored line; an ABSENT key means an older server and must
+       leave it alone, or a mixed-deploy window would show a stale knockout. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'recovering_until')) {
+    const t = st.recovering_until ? Date.parse(st.recovering_until) : 0;
+    recoveringUntil = (Number.isFinite(t) && t > 0) ? t : 0;
+    written.recoveringUntil = recoveringUntil;
+  }
+
+  /* ── THE DEATH COUNTERS, OBSERVED ─────────────────────────────────────────
+     Same KEY-PRESENCE rule the recovery line above follows, for the same
+     reason: an ABSENT key is an older server and must leave the reading alone,
+     while a present one is the truth. `deaths_today` / `deaths_lifetime` are
+     what the death sheet renders instead of re-deriving a ladder rung from
+     `G.stats.deaths`, which is a lifetime tally and produced a two-minute
+     promise on a fall the server charged nothing for. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
+    const n = Math.floor(Number(st.deaths_today));
+    deathsTodayCount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    written.deathsToday = deathsTodayCount;
+  }
+  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_lifetime')) {
+    const n = Math.floor(Number(st.deaths_lifetime));
+    deathsLifetimeCount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    written.deathsLifetime = deathsLifetimeCount;
+  }
+  /* ── THE RETREAT COUNTER, OBSERVED (Recovery rev. 3) ─────────────────────
+     `player_state.consec_falls` — consecutive falls with no kill between them.
+     It is written straight onto `G` and not into a module-local like the two
+     counters above, and that is deliberate: `G` IS the state the live combat
+     tick hands to `src/core/combat-sim.js` `resolveDeath`, so this one
+     assignment is the whole of what makes the ATTENDED path evaluate the same
+     rule the away path does, off the same durable number, with no second copy.
+
+     ⚠ KEY PRESENCE, not truthiness — the same rule the recovery line follows,
+       and here it is load-bearing in an additional way: `resolveDeath` gates
+       the ENTIRE Retreat on this field being a NUMBER, so an ABSENT key (a
+       server that predates the migration) must leave `G.consecFalls`
+       `undefined` and the client must never invent a 0. Inventing one would arm
+       a client-side rule against a database that cannot back it — which is the
+       residue-ahead class, pointed at a mechanic that STOPS the player.
+     ⚠ PREDICTION ONLY. The tick's own increments are display state; the next
+       envelope overwrites them with the server's number. That is the standard
+       contract (CLAUDE.md §1) and it is why no `?v=` of this value is ever
+       proposed back: the client sends intents, the server owns the count. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'consec_falls')) {
+    const n = Math.floor(Number(st.consec_falls));
+    const v = (Number.isFinite(n) && n >= 0) ? n : 0;
+    /* `G` is the object the live tick passes to `simulateTick`. One identity,
+       not a copy. Guarded because the boot caller may reach this before the
+       engine has published one. */
+    if (G && typeof G === 'object') G.consecFalls = v;
+    written.consecFalls = v;
+  }
+  /* AFTER all three, because the answer is a function of every one of them.
+     A no-op unless the CLIENT saw itself fall this session (`fall.at`), which
+     on the boot path it never has. */
+  noteFallAnswer(res);
+
+  /* ── THE FALL IS ANNOUNCED, ONCE PER ENVELOPE (2026-09-06, boot-raise P1) ──
+     Measured live on b510: a character with `recovering_until` 27 minutes ahead
+     RELOADED and got a normal "Fighting Goblin" bar — no sheet, no countdown,
+     no Rest button, nothing saying that 27 minutes would earn nothing. The
+     sheet was never broken; its only trigger was the fall MOMENT in the live
+     tick, and a reload has no such moment.
+     A one-way NOTIFICATION, not a call: this module must not know the death
+     sheet exists, and a listener that throws must not be able to poison an
+     envelope apply. The listener owns the once-per-window rule. */
+  try {
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
+        && typeof CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
+    }
+  } catch (e) {}
+
+  return written;
+}
+
 let lastServerHp = null;   /* {hp, maxHp, at} — the last hp the SERVER stated. */
 
 /** The last server-stated hp, or null if this session has never seen one.
@@ -4725,7 +4802,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

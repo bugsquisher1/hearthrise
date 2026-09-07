@@ -3330,3 +3330,66 @@ number happens to be zero: `up / pending / recovering / down-free / unconfirmed`
 * **Art Director:** while a fall is pending/recovering the combat panel now shows a PAUSED fight
   behind the sheet (pointer intact, monster at 0 HP) instead of an emptied one. The sheet covers it,
   but the panel itself has no "knocked out" state yet. Small, visible, and not mine.
+
+---
+
+## 2026-09-07 · The Retreat, second pass — the honest guard note, the reload, the adversarial replay
+`worktree-agent-a4fe88a314834df6b` · Security signed GO-WITH-CHANGES; this is the three changes.
+
+### C1 — the deployment record stopped naming a file that does not exist
+`tests/schema-apply-order.json`'s note for `2026-09-07-retreat.sql` claimed
+`tests/retreat-attended.mjs (RETREAT-A1..A5)`. There is no such file and there never was: the
+attended battery is registered inside `src/features/smoke-test.js` as `RETREAT-A/W5`. The note now
+names (a) that in-page battery test by test, (b) `tests/accrual-engine.mjs`'s RETREAT-W1..W8 +
+FORECAST-1 (and says WHY there is no W5 there), (c) `tests/retreat-apply.mjs`, (d) schema-drift +
+apply-order-honesty. Still `STAGED, NOT APPLIED` — the Coordinator flips it.
+
+### C2 — RETREAT-A4, and the P1 it found
+**Measured, not inferred.** Driving the real `record.js` boot (`requestRecord` → settle →
+`applyRecord`) with an `hr_load` body carrying `recovering_until +32m`, `active_kind idle`,
+`consec_falls 3`, the client came up: `phase 'up'`, `recoveringUntilMs() 0`, `G.consecFalls
+undefined`, bar "Idle — pick an activity", no sheet. `applyEnvelopeState` — where every one of
+those observations lived — runs ONLY on `accrued:true`, and a retreat ALWAYS ends with the pointer
+idle, so the next boot is answered `{accrued:false, reason:'idle'}` and the observation never ran.
+b510 verbatim, through the idle-boot door, PLUS the rule forgetting itself: a reload restarted the
+consecutive-fall count at zero and handed the player back the grind the realm had just ended.
+
+**Fix, in the shape the codebase already prescribes for this class.** `reconcileFall(G, res)`
+extracted VERBATIM from `applyEnvelopeState` (`src/net/accrue.js`) and called from `record.js`
+settle as `hydrationStep('fall')` — the fifth instance of the idle-boot hydration class record.js
+names in its own comments (inventory b467, crew b477, hero slots SA-016, hp b511). Plus the
+activity bar's knocked-out readout got its IDLE twin (`refreshActivityBar`, `src/legacy.js`); the
+combat branch has had one since b510 and a retreat never reaches it.
+
+### C3 — `tests/retreat-apply.mjs`
+Security's adversarial harness, adapted to the repo's PGlite chain template. Proves `hr_apply`'s
+`consec_falls` contract BY EXECUTION, not by strpos (which is all the migration's own §4 can do).
+`--selftest` plants two defects that APPLY CLEAN — the range predicate's ceiling arm dropped, the
+JSON-type predicate disarmed — because a mutation that stops the file installing proves nothing.
+Registered in `db-replay`; `tests/ci-shape.baseline.json` regenerated (84 → 86 commands).
+
+### Learnings worth keeping
+1. **`applyEnvelopeState` is not "every envelope" — it is "every PAID envelope".** Anything a
+   player must still see when the server has nothing to pay them belongs in a shared reconcile that
+   the boot `hr_load` path also calls. The idle-boot hydration class has now bitten five times and
+   every instance had the same tell: state that only exists after an `accrued:true` answer.
+2. **A mechanic that ENDS an activity is structurally the worst case for envelope-gated state**,
+   because ending the activity is exactly what makes the next envelope say `accrued:false`. Any
+   future "the server stops you" feature should assume the boot path is the ONLY path it gets.
+3. **A mutation that makes a migration fail to APPLY proves nothing.** The two mutations here were
+   chosen from the predicates §4 does not assert, precisely so the mutated file installs green and
+   only the executed guard can see the defect.
+4. **`window.G` swap + `finally` is not a full teardown for the accrual singleton.** The recovery
+   line is module state; restoring G leaves a live 32-minute knockout gating the tick for every
+   later test. The only sanctioned retirement is an envelope stating the character is up.
+
+### Handoffs
+* **Coordinator:** no `supabase/**` and no `src/core/**` change — the edge pack hash is still
+  `3f22ab0f…0f5b7e61`, so no redeploy for this lane. The migration body is untouched (schema-drift
+  fingerprint unchanged, `4faa7eb33c35…`). One new `db-replay` step; `ci-shape.baseline.json`
+  regenerated with `--write`. `tests/live-hash-drift.baseline.json` NOT touched (Coordinator-only).
+* **Game Designer / Art Director:** see CONFLICTS.md 2026-09-07 — after a reload a retreated player
+  is currently shown an ORDINARY knockout ("Back on your feet in 31:47" + "Your run picks up the
+  moment you are up · automatic"), which the idled pointer will not honour. The distinguishing fact
+  is server-stated (`active_kind idle` + a running `recovering_until`), so it needs no second copy
+  of the rule — but the words are the Designer's. My new bar meta line is provisional.

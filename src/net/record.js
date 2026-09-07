@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp, reconcileEventCounters } from './accrue.js?v=519';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp, reconcileFall, reconcileEventCounters } from './accrue.js?v=519';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1696,6 +1696,27 @@ function settle(verdict) {
        exception cannot fire on this path. Guarded — a throw must never break the
        record load. */
     hydrationStep('hp', () => reconcileHp(G, verdict.body));
+    /* ── OBSERVE THE FALL AT BOOT (RETREAT-A4, 2026-09-07) ──────────────────────
+       FIFTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS, and the one that made the
+       Retreat forgettable. `recovering_until`, `deaths_today`, `deaths_lifetime`
+       and `consec_falls` lived ONLY in accrue.js's applyEnvelopeState, which runs
+       ONLY on `accrued:true` — and a RETREAT always ends with the server's pointer
+       IDLE, so the very next boot is answered {accrued:false, reason:'idle'} and
+       applyEnvelopeState never runs. MEASURED 2026-09-07 against this path with an
+       hr_load body carrying recovering_until +32m and consec_falls 3: the client
+       came up `phase:'up'`, `recoveringUntilMs() 0`, `G.consecFalls undefined`, the
+       bar reading "Idle — pick an activity", and no sheet — i.e. b510's "27 minutes
+       in which nothing earns, with no sheet, no countdown and no Rest button",
+       plus a durable retreat counter reset to nothing by a reload.
+       The hr_load body is the ALWAYS-FULL statement of the character and carries
+       all four columns (hr_state_of), so they are observed HERE through the SAME
+       shared function the accrue path uses. It also dispatches `hearthrise:fall`,
+       which is what raises the recovery sheet on a client that saw no fall moment.
+       ⚠ It does NOT touch the activity pointer — the server idled that, and
+         `activity-resume` below deliberately no-ops on an idle answer, which is
+         what keeps a retreat from restarting the fight it just ended.
+       Guarded — a throw must never break the record load. */
+    hydrationStep('fall', () => reconcileFall(G, verdict.body));
     /* ── REBUILD THE COMPANION ROSTER FROM THE SAME ENVELOPE (blob-retire) ───────
        The boot hr_load envelope is the ALWAYS-FULL statement of the character
        (accrue's hr-accrue returns nothing on an idle settle, so applyEnvelopeState

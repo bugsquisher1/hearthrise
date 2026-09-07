@@ -1082,3 +1082,51 @@ Measured on the live gate: 19 s window, hp untouched, `accrued_to` advanced to t
 Off the death path now, but still true of every fast stop/start. Cheapest honest fix: journal it, by
 extending `forceCloseWindow`'s ledger row to the `below_min_span` case. Lowering the floor is
 Security's call and has been refused before (see `ACCRUE_MIN_SPAN_MS`'s comment in src/net/accrue.js).
+
+---
+
+## 2026-09-07 · SYSTEMS → GAME DESIGNER (copy/ruling) + ART DIRECTOR (bar/sheet) · **SEMANTIC: after a reload, a RETREATED player is shown an ordinary knockout** (`worktree-agent-a4fe88a314834df6b`, RETREAT-A4)
+
+Not a git conflict. Two rendered surfaces now genuinely reach a state the ruling has not worded,
+and I have deliberately NOT decided it.
+
+**Background (mine, and it is fixed).** Measured 2026-09-07 against the real `hr_load` boot path:
+a retreated character reloading came up `fallState().phase 'up'`, `recoveringUntilMs() 0`,
+`G.consecFalls undefined`, bar reading "Idle — pick an activity", no sheet. Cause:
+`applyEnvelopeState` runs only on `accrued:true`, and a retreat ALWAYS leaves the pointer idle, so
+the boot is answered `{accrued:false, reason:'idle'}` and the whole fall observation was skipped —
+b510 through the idle-boot door, plus a durable retreat counter that a reload erased. Fixed by the
+shared-reconcile pattern (`reconcileFall` in `src/net/accrue.js`, called from `record.js` settle as
+`hydrationStep('fall')`), which is the fifth instance of the class record.js already names.
+
+**What is now OPEN, and it is the Designer's to rule on.** With the fix in, the reload raises the
+sheet — and the sheet says **"Knocked out / Back on your feet in 31:47"** with a row reading
+**"Your run picks up the moment you are up · automatic"**. On a RETREAT that row is false: the
+server idled the pointer and the run does not pick up. It is the same defect RETREAT-A6 exists for
+("the countdown must not un-say the retreat"), reached through the boot door instead of the tick.
+
+`src/features/death-sheet.js` `readMoment()` records a deliberate decision NOT to claim a retreat
+on a boot-raised sheet — "re-deriving it here from a count and a bag would be a second copy of the
+rule, and the second copy is the one that is wrong" — and I agree with the reasoning and did not
+overrule it. But there IS a server-stated way to tell the two apart without re-deriving anything:
+after a retreat the envelope carries `active_kind: 'idle'` **and** a running `recovering_until`,
+where an ordinary knockout still carries `active_kind: 'combat'`. That is an observation, not a
+second copy of the rule. Whether the boot-raised sheet should then read "You pulled back" is copy,
+and copy is the Designer's.
+
+**What I did do, and why it is the smaller half.** The activity bar's knocked-out readout lived
+inside `if(G.activeMonster)`, so a retreat (idle pointer) fell through to "Idle — pick an activity"
+— inviting a player who cannot act for 32 minutes to start something. I gave it its idle twin in
+`refreshActivityBar` (`src/legacy.js`) with a meta line that deliberately does NOT reuse the combat
+branch's "<foe> resumes automatically": **"Nothing earns while you recover · your run does not
+restart itself"**, which is the ruled retreat lead's own fact. That sentence is provisional and is
+flagged here rather than defended — it is one string in one branch and is free to be rewritten.
+
+**Second, smaller open item (Designer/Coordinator, not blocking).** `bootAccruedToAt` — the
+welcome-back card's statement of how long the player was away — is written by the FIRST
+`state.accrued_to` the session observes. I deliberately left `accrued_to` OUT of the shared
+`reconcileFall` so the boot `hr_load` body does not become that first observation, because it would
+change a player-visible number on a surface this change has no business touching. Arguably the boot
+body is the MORE correct source ("the last instant the server had priced before this boot" is
+literally what `player_state.accrued_to` is at boot). Someone should decide that on purpose; today
+it is unchanged by design.

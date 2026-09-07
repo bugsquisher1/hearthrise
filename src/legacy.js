@@ -12727,6 +12727,30 @@ function refreshActivityBar(){
   /* Idle */
   bar.classList.add('idle'); bar.classList.remove('combat');
   setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
+  /* ── KNOCKED OUT WITH AN IDLE POINTER: THE BAR STILL SAYS SO (RETREAT-A4) ──
+     THE TWIN OF THE COMBAT BRANCH ABOVE, and it is the state the RETREAT
+     produces every single time. The combat branch was written for b510 — "the
+     always-on readout must not claim the player is fighting while the server
+     has them on the floor" — and it lives inside `if(G.activeMonster)`. A
+     retreat ENDS the run: accrual.js idles the server pointer, so after the
+     reload `G.activeMonster` is null and control fell through to here, which
+     invited a player who cannot act for another 32 minutes to "pick an
+     activity". Measured 2026-09-07 on the real hr_load boot path.
+     ⚠ THE META IS DELIBERATELY NOT THE COMBAT BRANCH'S SENTENCE. That one
+       promises "<foe> resumes automatically", which is true while the pointer
+       still names a fight and false the moment it does not — and a retreat is
+       exactly the case where the run does NOT come back on its own. Same fact
+       the ruled retreat lead states ("the fight does not restart itself").
+     Stop stays hidden: there is nothing running to stop. */
+  const _koIdleMin = hrRecoveryMinutesLeft();
+  if(_koIdleMin !== null){
+    bar.classList.add('knocked-out');
+    if(nameEl) nameEl.textContent = `Knocked out — back on your feet in ${_koIdleMin}m`;
+    if(metaEl) metaEl.textContent = 'Nothing earns while you recover · your run does not restart itself';
+    if(stopBtn) stopBtn.style.display = 'none';
+    refreshPanelProgress();
+    return;
+  }
   if(nameEl) nameEl.textContent = 'Idle — pick an activity';
   if(metaEl) metaEl.innerHTML = '';
   if(stopBtn) stopBtn.style.display = 'none';

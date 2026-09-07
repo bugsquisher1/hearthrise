@@ -47865,6 +47865,293 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     RETREAT-A4 — THE RETREAT SURVIVES A RELOAD.
+
+     THE RULING'S FOURTH PROPERTY, and the only one no other test could reach:
+     the run ended, the hero is off their feet, and the player closes the tab.
+     When they come back, four things must still be true — the character is
+     still recovering, the surfaces say so, `hr_rest` is still the only cure and
+     still charges food, and THE FIGHT DOES NOT RESTART ITSELF.
+
+     ── WHAT THIS FOUND, MEASURED 2026-09-07 ─────────────────────────────────
+     Every existing recovery test (RECOVER-8/10..15) drives
+     `HearthriseAccrual.applyEnvelopeState`. That function runs ONLY on an
+     envelope with `accrued:true` (`isEnvelopeApplicable`) — and a RETREAT, by
+     construction, ends with the server's activity pointer IDLE, so the very
+     next boot asks hr-accrue, is answered `{accrued:false, reason:'idle'}`, and
+     applyEnvelopeState never runs at all. Driven against the REAL record.js
+     boot path (`requestRecord` -> settle -> applyRecord) with an `hr_load` body
+     carrying `recovering_until` 32 minutes ahead and `consec_falls: 3`, the
+     client came up:
+
+         fallState().phase   "up"      the client believed nobody was down
+         recoveringUntilMs() 0
+         G.consecFalls       undefined the durable retreat counter was GONE
+         activity bar        "Idle — pick an activity"
+         death sheet         not raised
+
+     which is b510 word for word — "27 minutes in which nothing earns, with no
+     sheet, no countdown and no Rest button" — reached through the IDLE-BOOT
+     door rather than the reload door RECOVER-11 closed. And it cost the Retreat
+     its own rule: with `consec_falls` forgotten, one reload put the player back
+     into the hopeless grind with the count restarted at zero.
+
+     FIXED by routing the always-full boot body through the SAME shared observer
+     the accrue path uses (`reconcileFall`, src/net/accrue.js; called from
+     record.js settle as `hydrationStep('fall')`) — the fifth instance of the
+     idle-boot hydration class record.js already names (inventory b467, crew
+     b477, hero slots SA-016, hp b511) — and by giving the activity bar's
+     knocked-out readout its IDLE twin (legacy.js refreshActivityBar).
+
+     ── THE TWO MUTATIONS THIS BATTERY IS PROVEN AGAINST ─────────────────────
+       · delete `hydrationStep('fall', …)` from record.js settle()  (or the
+         `recovering_until` clause inside reconcileFall) -> (1) goes red: the
+         boot reads phase 'up' with 0 ms left, which is the bug above.
+       · make the boot restart the fight — `hydrationStep('activity-resume')`
+         calling `reconcileActivityPointer` on an IDLE answer, or the fixture's
+         own control below re-pointing G.activeMonster -> (4) goes red: the
+         retreat that ended the run un-ends it on the next boot.
+
+     ⚠ NOTHING HERE TOUCHES THE LIVE CHARACTER. `window.G` is swapped for a
+       synthetic object for the duration and restored in `finally`, exactly as
+       INV-HYDRATE-1 / PHANTOM-FOOD-1 do, and the record transport is reset. The
+       recovery line, the raise latch and the sheet are torn down together
+       (`__resetForTest`) or a full-screen overlay outlives the fixture. */
+  () => tryRunAsync('RETREAT-A4: a retreat survives a reload — still recovering, hr_rest still the '
+    + 'only cure, and the fight does not restart itself', async () => {
+    const R = window.HearthriseRecord;
+    const A = window.HearthriseAccrual;
+    const D = window.HearthriseDeathSheet;
+    const AW = window.HearthriseCore && window.HearthriseCore.away;
+    assert(R && typeof R.requestRecord === 'function', 'A4: the boot record path is not wired');
+    assert(A && typeof A.fallState === 'function' && typeof A.recoveringUntilMs === 'function',
+      'A4: the fall seam is missing');
+    assert(D && typeof D.describeDeath === 'function' && typeof D._restRefusalText === 'function',
+      'A4: the death-sheet seams are missing');
+    assert(AW && typeof AW.retreatAtFall === 'function',
+      'A4: src/core/away.js does not export the Retreat table');
+
+    const FOE = window.MONSTERS.dark_wizard ? 'dark_wizard' : 'slime';
+    const realFetch = window.fetch;
+    const savedG = window.G;
+    const wasOn = A.isServerAccrualEnabled();
+    /* THE RULING'S OWN NUMBER. 32 minutes ahead: comfortably inside the ladder's
+       64-minute cap and far enough from any boundary that a slow page cannot
+       round it to zero. */
+    const UNTIL = Date.now() + 32 * 60000;
+    const RUNG = AW.RETREAT_FOODLESS_FALLS;
+
+    try {
+      D.__resetForTest();
+      A.clearFall();
+      A.setServerAccrualEnabled(true);
+
+      /* THE SERVER STATE A RETREAT LEAVES BEHIND, and every field of it is one
+         the server actually writes: accrual.js idles the pointer through the
+         LEVEL seam, combat-sim stamps the line as the retreating fall charges
+         its rung, and hr_apply writes the counter ABSOLUTE (2026-09-07-retreat
+         .sql). Nothing here is invented for the fixture. */
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, version: 9, now: new Date().toISOString(),
+          state: {
+            slot: 0, accrued_to: new Date().toISOString(),
+            hp: 5, max_hp: 13,
+            active_kind: 'idle', active_id: null,
+            recovering_until: new Date(UNTIL).toISOString(),
+            consec_falls: RUNG, deaths_today: RUNG, deaths_lifetime: 63,
+          },
+          skills: {}, inventory: {},
+        }), { status: 200 }));
+      };
+      /* A FRESHLY BOOTED CLIENT: nothing known, no fight, a full bar. This is
+         what a reload actually is — the fall MOMENT is gone with the page. */
+      window.G = { inventory: {}, offlineBudget: {}, playerHp: 13, playerMaxHp: 13,
+        activeMonster: null, skills: {}, stats: {}, combatLog: [] };
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key',
+        authToken: () => 'jwt-token', slot: 0 });
+
+      const v = await R.requestRecord();
+      assert(v.outcome === 'loaded', 'A4: the boot read did not load: ' + JSON.stringify(v));
+
+      /* ── (1) THE CHARACTER IS STILL RECOVERING ─────────────────────────── */
+      const f = A.fallState();
+      assert(f.phase === 'recovering',
+        'A4: the boot came up phase "' + f.phase + '". The server holds a recovery line 32 minutes '
+        + 'ahead and the client believes nobody is down — that is b510 through the IDLE-BOOT door, '
+        + 'and a retreat ALWAYS leaves the pointer idle, so it is the only door the Retreat uses.');
+      assert(Math.abs(A.recoveringUntilMs() - UNTIL) < 1500,
+        'A4: the client is not reading the SERVER\'s instant (' + A.recoveringUntilMs() + ' vs '
+        + UNTIL + '). The line is absolute and is never re-derived here.');
+      assert(f.msLeft > 31 * 60000 && f.msLeft <= 32 * 60000,
+        'A4: ' + Math.round(f.msLeft / 60000) + ' minutes left, not 32');
+      assert(f.serverDied === true && f.answered === true,
+        'A4: the boot did not treat a running server line as an answered fall');
+
+      /* ── (1b) AND THE DURABLE RETREAT COUNTER SURVIVED IT ──────────────────
+         THE RULE ITSELF. `resolveDeath` gates the entire Retreat on
+         `G.consecFalls` being a NUMBER, so a reload that drops it hands the
+         player back the hopeless grind with the count restarted at zero — the
+         rule un-does itself once per reload. Read off `window.G`, which is the
+         object the live tick passes to `simulateTick`: one identity, not a
+         copy. */
+      assert(window.G.consecFalls === RUNG,
+        'A4: G.consecFalls reads ' + JSON.stringify(window.G.consecFalls) + ' after the reload, not '
+        + RUNG + '. The Retreat forgot it fired: the next fall starts a fresh count and the run '
+        + 'the realm just ended begins again.');
+      assert(window.G.playerHp === 5,
+        'A4: the 40% resume did not survive the reload (bar reads ' + window.G.playerHp + ')');
+
+      /* ── (2) THE SURFACES SAY SO. The bar first — it is the always-on
+         readout and it is the one a player sees without opening anything. */
+      window.refreshActivityBar();
+      const nameEl = document.getElementById('ab-name');
+      assert(nameEl && /Knocked out/.test(nameEl.textContent),
+        'A4: the activity bar reads "' + (nameEl && nameEl.textContent) + '". A player who cannot '
+        + 'act for another 32 minutes is being invited to pick an activity: the b510 knocked-out '
+        + 'line lives inside the COMBAT branch, and a retreat ends with an IDLE pointer.');
+      assert(/32m|31m/.test(nameEl.textContent),
+        'A4: the bar does not carry the server\'s clock — ' + nameEl.textContent);
+      const metaEl = document.getElementById('ab-meta');
+      assert(metaEl && !/resumes automatically/.test(metaEl.textContent || ''),
+        'A4: the bar promises the run resumes automatically. After a retreat the server has idled '
+        + 'the pointer and it does not — ' + (metaEl && metaEl.textContent));
+
+      /* AND THE SHEET RAISED ITSELF, off the envelope alone. A reload has no
+         fall moment, so this is the only trigger there is. */
+      const scrim = document.getElementById('hr-death-scrim');
+      assert(scrim && scrim.classList.contains('show'),
+        'A4: the reload showed the player NOTHING — no sheet, no countdown, no Rest button, for '
+        + '32 minutes in which nothing earns.');
+      assert(/Back on your feet in 3[12]:/.test(scrim.textContent || ''),
+        'A4: the raised sheet is not counting the SERVER\'s line down — '
+        + (scrim.textContent || '').slice(0, 140));
+
+      /* ── (3) THE RETREAT COPY, DRIVEN BY THE SERVER'S OWN COUNTER ────────
+         The ruled sentence, built from the number the RELOAD just hydrated
+         rather than from a hand-typed 3 — which is the wiring half: a lead that
+         only renders off a fixture nobody produces is a lead no player reads.
+         ⚠ `describeDeath` is asked directly. A boot-raised sheet carries no
+           engine `info` and therefore never CLAIMS a retreat (a deliberate
+           decision recorded in src/features/death-sheet.js: re-deriving the rule
+           from a count and a bag would be the second copy, and the second copy
+           is the one that is wrong). Whether that boot-raised sheet should say
+           "You pulled back" is a live question for the Game Designer and is
+           raised in CONFLICTS.md; what is asserted here is that the ruled words
+           exist and are a function of server state. */
+      const m = D.describeDeath({
+        monsterName: window.MONSTERS[FOE].name, maxHp: 13,
+        deaths: RUNG, deathsToday: RUNG, recoveryMs: 32 * 60000, resumeHp: window.G.playerHp,
+        /* THE CLOCK IS PINNED TO THE HYDRATED INSTANT, not to Date.now(). Both
+           numbers are still the reload's own — the instant is what the boot
+           envelope wrote and the count is what it hydrated — but the minute the
+           sentence quotes is then arithmetic rather than a race with the page:
+           unpinned, a slow boot renders '31m to go' and the assertion is a flake
+           (CLAUDE.md sec.4: a red in-page test is a P1, so it is pinned here
+           rather than re-run until green). */
+        recoveringUntilMs: A.recoveringUntilMs(), nowMs: A.recoveringUntilMs() - 32 * 60000,
+        hadFood: false,
+        retreat: true, retreatFoodless: true, retreatFalls: window.G.consecFalls });
+      assert(m.title === 'You pulled back', 'A4: the retreat title moved — ' + m.title);
+      assert(m.lead === 'Three falls in a row on an empty bag — you retreated to camp rather than '
+        + 'keep going down. Still recovering — 32m to go. The clock runs down on its own; the '
+        + 'fight does not restart itself. Bring food, then pick the fight back up.',
+        'A4: the ruled lead does not survive the reload\'s own numbers — ' + m.lead);
+      assert(!/Back on your feet/.test(m.lead),
+        'A4: the reload lead promises a resume the idled pointer will not honour — ' + m.lead);
+
+      /* ── (4) THE FIGHT DOES NOT RESTART ITSELF ──────────────────────────
+         THE PROPERTY THE WHOLE RULE RESTS ON. The server idled the pointer;
+         a boot that re-points it would un-end the run the realm just ended,
+         and the player would come back to the same doomed fight with the
+         counter at the rung — one fall from another 64-minute charge.
+         MUTATION: have the boot call `reconcileActivityPointer` on an idle
+         answer, or drop the `act.kind !== 'idle'` test in record.js's
+         activity-resume step, and this goes red. */
+      assert(!window.G.activeMonster,
+        'A4: the boot restarted the fight (' + window.G.activeMonster + '). The server idled the '
+        + 'pointer BECAUSE the run ended; re-pointing it on the next boot makes the Retreat a '
+        + '32-minute pause instead of an ending.');
+      assert(!window.G.activeSkill,
+        'A4: the boot started a gather run on a knocked-out character (' + window.G.activeSkill + ')');
+      /* And the client is still gated: `isKnockedOut` is what the live tick
+         asks before it swings, so a client that answered "no" here would swing
+         through the whole window. */
+      assert(A.isKnockedOut() === true,
+        'A4: the tick gate reads NOT knocked out while the server line runs — the client would '
+        + 'swing through a window the server pays nothing for');
+
+      /* ── (5) hr_rest IS STILL THE ONLY CURE, AND IT STILL CHARGES FOOD ───
+         The recovery line is SERVER-OWNED and has no client setter (RECOVER-8
+         pins the absence of one); the paid cure is `hr_rest`, which eats a real
+         provision. A reload must not have invented a free way out.
+         The refusal VOCABULARY is asserted unchanged: `insufficient_food` is
+         the one a player on an empty bag actually meets, and it must keep
+         saying that nothing was eaten. */
+      assert(typeof A.setRecoveringUntil !== 'function' && typeof A.clearRecovery !== 'function',
+        'A4: a client-side setter for the recovery line appeared. The reload is exactly when one '
+        + 'would be reached for, and it would make the Retreat a page refresh away from nothing.');
+      const GC = window.HearthriseGoalClaim;
+      assert(GC && typeof GC.rest === 'function',
+        'A4: HearthriseGoalClaim.rest is gone — the sheet\'s Rest button has no transport and the '
+        + 'knockout has no cure at all');
+      const refusal = D._restRefusalText({ error: 'insufficient_food' },
+        { maxHp: 13, recoverMsLeft: A.recoveringUntilMs() - Date.now() });
+      assert(/^You have no cooked food left/.test(refusal) && /Nothing was eaten\.$/.test(refusal),
+        'A4: the empty-bag rest refusal changed — a player who taps Rest with nothing to eat must '
+        + 'be told the Hearth ate nothing: ' + refusal);
+      assert(/not_recovering/.test(String(D._restRefusalText)) === false
+        || D._restRefusalText({ error: 'not_recovering' })
+           === 'You are already back on your feet — there is nothing to rest off.',
+        'A4: the not_recovering refusal changed');
+      assert(D._restRefusalText({ error: 'not_hurt' })
+        === 'You are at full health — there is nothing to heal.',
+        'A4: the not_hurt refusal changed');
+      /* THE SHEET STILL OFFERS IT, AND STILL PRICES IT IN FOOD. A cure nothing
+         on screen can reach is not a cure — this control is what the b510 reload
+         never showed at all.
+         THIS CHARACTER'S BAG IS EMPTY, which is the foodless rung's own
+         population, so the honest DISABLED label is the correct render (b510
+         P0: the sheet must not offer a tap hr_rest will answer
+         insufficient_food). Both halves are asserted — the empty bag gets the
+         refusal in advance, and the SAME model with food in the bag prices the
+         cure in health — so 'food still buys it' cannot rot into 'the button
+         went away'. */
+      const restRow = /No food to rest with/.test(scrim.textContent || '');
+      assert(restRow,
+        'A4: the raised sheet carries no Rest control at all — the one action a downed player has '
+        + 'is unreachable after a reload: ' + (scrim.textContent || '').slice(0, 200));
+      const fed = D.describeDeath({
+        monsterName: window.MONSTERS[FOE].name, maxHp: 13, deaths: RUNG, deathsToday: RUNG,
+        recoveryMs: 32 * 60000, resumeHp: 5, recoveringUntilMs: A.recoveringUntilMs(),
+        nowMs: A.recoveringUntilMs() - 32 * 60000, hadFood: true, foodQty: 9, missingHp: 8,
+        retreat: true, retreatFoodless: false, retreatFalls: RUNG });
+      const restAct = (fed.actions || []).filter(function (x) { return x.k === 'rest'; })[0];
+      assert(restAct && restAct.disabled !== true && /eat 8 health/.test(restAct.label),
+        'A4: with food in the bag the cure is no longer priced in health — hr_rest is bought with '
+        + 'FOOD and nothing else (the R10 standing rule): ' + JSON.stringify(restAct));
+    } finally {
+      window.fetch = realFetch;
+      try { R.resetRecord(); R.configureRecord(null); } catch (e) {}
+      try { D.__resetForTest(); } catch (e) {}
+      try { A.clearFall(); } catch (e) {}
+      window.G = savedG;
+      try { A.setServerAccrualEnabled(wasOn); } catch (e) {}
+      /* The recovery line is module state on the accrual singleton, not on G —
+         restoring `window.G` does not retire it, and a live 32-minute knockout
+         left behind would gate the tick for every later test in the suite. The
+         only sanctioned retirement is an envelope that says the character is
+         up, which is what __resetForTest above sends; this re-asserts it after
+         G is back so the state and the object agree. */
+      try { A.applyEnvelopeState(window.G || {}, { state: { recovering_until: null } }); } catch (e) {}
+      try { D.__resetForTest(); } catch (e) {}
+      try { window.refreshActivityBar(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b341: NO monster row can start a fight on one tap — however the list was painted', () => {
     /* THE MEASURED BUG. Two wrappers re-pointed monster rows at the preview
        after every render, both hooked on `renderMonsterList` / `showTab`.

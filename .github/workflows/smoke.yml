@@ -724,3 +724,12 @@ jobs:
         run: |
           node tests/dead-css.mjs --selftest
           node tests/dead-css.mjs
+
+      # slice 3 (b515) - the window.Hearthrise* census. A misspelt global is silently
+      # undefined, so the feature behind it is DEAD rather than loudly broken:
+      # window.HearthriseAccrue kept the dungeon-settle arm off while the flag said ON.
+      - name: Cleanup slice 3 - window globals census
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/window-globals-exist.mjs --selftest
+          node tests/window-globals-exist.mjs

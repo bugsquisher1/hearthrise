@@ -35,15 +35,24 @@ const KEY = 'bone_key';
 const SCRIP_BASE = 15;   // dungeonScripBase(25)
 const uidFor = (n) => `000000c5-0000-0000-0000-0000000000${n}`;
 
-// isDungeonSettleArmed() is `override && serverActive()`, and serverActive() reads
-// window.HearthriseAccrue.isServerAccrualEnabled() — so the ARMED read path can only
-// be true when server accrual is on (the live rollout state: arm on requires accrual
-// on). We stub that window LOCALLY around the client-read block rather than globally,
-// because PGlite (bootReplay) also probes `window` and a partial stub breaks it.
-function withServerAccrual(fn) {
+// isDungeonSettleArmed() is `override ?? (flag && serverActive())`, and serverActive()
+// reads window.HearthriseAccrual.isServerAccrualEnabled() — so the ARMED read path can
+// only be true when server accrual is on (the live rollout state: arm on requires
+// accrual on). We stub that window LOCALLY around the client-read block rather than
+// globally, because PGlite (bootReplay) also probes `window` and a partial stub breaks it.
+//
+// ⚠ THE NAME IS LOAD-BEARING. b511 shipped serverActive() reading
+// `window.HearthriseAccrue` — a global nothing assigns — and THIS guard stubbed the
+// same misspelling, so the guard agreed with the bug: the arm was false in every
+// browser while the flag said ON. The stub below spells the REAL global
+// (src/net/accrue.js line `window.HearthriseAccrual = {`), and REAL_PREDICATE below
+// drives isDungeonSettleArmed() with NO override so the production expression is what
+// is under test. tests/window-globals-exist.mjs is the standing census for the class.
+const ACCRUAL_GLOBAL = 'HearthriseAccrual';
+function withServerAccrual(fn, on = true) {
   const had = Object.prototype.hasOwnProperty.call(globalThis, 'window');
   const prev = globalThis.window;
-  globalThis.window = { HearthriseAccrue: { isServerAccrualEnabled: () => true } };
+  globalThis.window = { [ACCRUAL_GLOBAL]: { isServerAccrualEnabled: () => on } };
   try { return fn(); }
   finally { if (had) globalThis.window = prev; else delete globalThis.window; }
 }
@@ -137,6 +146,21 @@ async function runAll(db) {
       ok(G.dungeonScrip === credited, 'an envelope without dungeon_scrip leaves the balance untouched');
     } finally { __setDungeonSettleArm(null); }
   });
+
+  /* ── REAL_PREDICATE (regression, b515): the arm with NO test override ────────
+     The override short-circuits isDungeonSettleArmed() entirely, so every earlier
+     assertion here and in the in-page DGN-SETTLE-3 passed while PRODUCTION was
+     dormant. These four drive the production expression itself — flag && the real
+     global — and go RED for a misnamed/missing global. */
+  ok(withServerAccrual(() => isDungeonSettleArmed(), true) === true,
+     'REAL predicate (no override): flag ON + real window.' + ACCRUAL_GLOBAL
+     + ' with accrual ON → ARMED. Red means serverActive() reads a global nothing assigns.');
+  ok(withServerAccrual(() => isDungeonSettleArmed(), false) === false,
+     'REAL predicate: accrual switch OFF → dormant (never read server-first while nothing populates it)');
+  ok(withServerAccrual(() => scripOf({ inventory: {}, dungeonScrip: 21 }), true) === 21,
+     'REAL predicate: the armed READ reaches G.dungeonScrip with no override in play');
+  ok(isDungeonSettleArmed() === false,
+     'REAL predicate: with no window at all (no accrual module) the arm fails safe to dormant');
 
   // THE ARM (flipped 2026-09-06, once the settle + quartermaster RPCs, the
   // catalogue and the edge verbs were all verified live). The dormant path below

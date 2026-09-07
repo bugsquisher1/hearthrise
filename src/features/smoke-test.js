@@ -25436,11 +25436,9 @@ const TESTS = [
          `applyServerEnvelope` calls `refreshAll()`, which is `updateTopbar` +
          the active tab's renderer and never touches the dolls. So a pet that
          levels up server-side leaves a stale doll exactly as before.
-         FILED 2026-09-07 in DISCOVERIES.md (P2, Systems): the level-up repaint
-         needs to move to the reconcile. It is NOT asserted here, because
-         asserting a repaint nothing performs is a red that teaches the next
-         reader to delete the assertion — and it is named here so the next
-         reader meets it. */
+         FIXED (b313 rev.2): the detector and the two repaints moved to
+         `accrue.js reconcileCompanions` / announceCompanionLevelUps, reading
+         only envelope values. Asserted in the third block below. */
     try {
       const A = window.HearthriseAccrual;
       const id = Object.keys(window.COMPANIONS)[0];
@@ -25468,6 +25466,52 @@ const TESTS = [
       assert(moved,
         'a server-stated companion level-up did not move the live bonus — inventory and combat would show '
         + 'the OLD numbers: ' + JSON.stringify({ lv1: bonus1, lv2: bonus2 }));
+
+      /* ── b313 rev.2 REGRESSION — THE DOLL FOLLOWS THE ENVELOPE ────────────
+         The repaint is the reconcile's job now, so it is driven through the
+         reconcile: a server-stated level 3 → 4 must refresh the doll and say so
+         ONCE; a second envelope at the SAME level must say nothing (an envelope
+         arrives every settle, and a notice per settle is noise); and two levels
+         crossed in one envelope are one notice naming the level the player is
+         NOW, because that is what the doll will show.
+         MUTATION: delete announceCompanionLevelUps' call in reconcileCompanions
+         → the first assertion goes red; drop the `to > from` guard → the
+         same-level assertion goes red. */
+      let dolls = 0;
+      const seen = [];
+      window.refreshAllDolls = () => { dolls++; };
+      const off = window.HearthriseEvents.on('companionLevelUp', (p) => seen.push(p));
+      try {
+        const at = (L) => window.companionXpToReach(L);
+        const env = (xpv) => ({ companions: { owned: [id], xp: { [id]: xpv }, equipped: id } });
+
+        // Prior mirror: level 3, stated by the server.
+        A.reconcileCompanions(G, env(at(3)));
+        dolls = 0; seen.length = 0;
+
+        // (1) 3 → 4: one notice, one repaint.
+        A.reconcileCompanions(G, env(at(4)));
+        assert(dolls === 1, 'a server-stated companion level-up did not refresh the doll (b313: the '
+          + 'Companion pane keeps the old level while inventory and combat show the new one) — refreshAllDolls x' + dolls);
+        assert(seen.length === 1 && seen[0].id === id && seen[0].level === 4,
+          'expected exactly one companionLevelUp naming level 4, got ' + JSON.stringify(seen));
+
+        // (2) same level again: silence.
+        dolls = 0; seen.length = 0;
+        A.reconcileCompanions(G, env(at(4) + 3));
+        assert(dolls === 0 && seen.length === 0,
+          'an envelope that did NOT change the level announced one anyway — every settle would celebrate: '
+          + JSON.stringify({ dolls, seen }));
+
+        // (3) two levels in one envelope: ONE notice, naming the final level.
+        A.reconcileCompanions(G, env(at(6)));
+        assert(seen.length === 1 && seen[0].level === 6,
+          'two levels crossed in one envelope must be ONE notice naming the level the player is now, got '
+          + JSON.stringify(seen));
+        assert(dolls === 1, 'two levels in one envelope must repaint the doll once, got x' + dolls);
+      } finally {
+        if (typeof off === 'function') off();
+      }
     } finally {
       window.refreshAllDolls = origRefresh;
       G.companions = savedComp;

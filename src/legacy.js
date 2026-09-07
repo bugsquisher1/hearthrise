@@ -8009,6 +8009,32 @@ document.addEventListener('keydown', function(e){
 });
 
 function showTab(tab){
+  /* b517 — THE FIRST-PAINT MARKER. `tests/icon-boot-order.mjs` has to know the
+     icon picture AS IT WAS at the engine's first paint (property A: no icon
+     path may arrive after it). It used to learn that by racing a wrapper onto
+     `window.showTab` from a Playwright init script, polled every 5 ms — but
+     the window between `function showTab` being hoisted (legacy.js parse) and
+     boot()'s `showTab('profile')` (DOMContentLoaded) is sub-frame, and on a
+     loaded machine a 5 ms timer is delayed past the whole boot. The guard then
+     reported "never observed the engine's first showTab()" and run-smoke
+     counted that as the property FAILING. One flake makes the GitHub gate
+     unreachable for every later build (CLAUDE.md §4).
+     Recording the fact HERE, synchronously, inside the function whose call IS
+     first paint, makes the observation impossible to miss by construction: no
+     timer, no wrapper, no ordering. It sits above every alias remap so the
+     marker is written before any work, and it is one-shot. Cost is one Date,
+     three booleans and one ~490-entry key array, once per page load.
+     Kin to `__hrBooted` / `__hrIconsReadyAt` / `__hrIconRepaint`: the engine
+     states its own facts rather than letting a test guess them from outside. */
+  if(!window.__hrFirstPaint){
+    window.__hrFirstPaint = {
+      at: Date.now(),
+      tab: tab,
+      booted: !!window.__hrBooted,
+      iconsReady: !!window.__hrIconsReadyAt,
+      paths: Object.keys(window._itemPath || {})
+    };
+  }
   if(tab==='more'){document.getElementById('more-modal').classList.add('show');return;}
   /* b225 (#18): the Clan Seat left Social for its own destination. Every name
      the castle has been called by in code, a deep link or a chat message lands

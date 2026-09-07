@@ -168,6 +168,21 @@ jobs:
           HR_SUITE_TIMEOUT_MS: '600000'
         run: node tests/run-smoke.mjs
 
+      # ICON BOOT-ORDER — THE MUTATION PROOF, AND THE LOAD CONTROL.
+      # run-smoke.mjs already runs this guard's base pass; what it cannot run is
+      # the proof that the guard still BITES. --selftest plants three defects and
+      # requires each to be caught: an icon path written after first paint
+      # (property A), a neutered __hrRepaintActive (property B), and a suppressed
+      # __hrFirstPaint marker (the "cannot observe" branch). Its fourth control
+      # is a clean run under artificial CPU load — 4 busy workers plus main-
+      # thread jank — which is exactly the condition the pre-b517 5 ms polling
+      # hook lost first paint in (measured 2/3 loaded runs vs 0/3 idle), turning
+      # a guard precondition into a red suite and blocking the gate for every
+      # later build. The load control is what stops that regressing.
+      - name: Icon boot-order — mutations caught, and green under CPU load
+        if: ${{ !cancelled() }}
+        run: node tests/icon-boot-order.mjs --selftest
+
       # QUEST ITEM REWARDS: THE SAME NUMBER IN ALL THREE PLACES.
       # Every quest item reward used to be PHANTOM — QUEST_DEFS authored it,
       # completeQuest paid it with addItem() (G.inventory only) and

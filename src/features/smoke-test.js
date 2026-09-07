@@ -711,6 +711,157 @@ const serverGrants = (state) => stampRecordLikeLoad(window.G, { state: state || 
    So the roster is installed the one honest way: through the real
    `reconcileCompanions`, from an envelope shaped like the server's. Restored
    afterwards, because `G.companions` is ambient state the next test inherits. */
+/* -- awaySpan - THE AWAY ENGINE, DRIVEN WHERE IT ACTUALLY LIVES (b515) ------
+   THE PROBLEM. Thirty-one tests in this file measured "an absence pays" by
+   calling `window.processOffline()` and reading `G`. b515 deleted the ~500-line
+   local away engine that used to sit behind that call: the client no longer
+   simulates an absence at all — it asks hr-accrue and applies the envelope. A
+   test that still drives that caller measures nothing, and (worse) several of
+   them ALSO read `G.skills` / `G.gold`, which are SERVER-OF-RECORD and ARMED,
+   so even a working local grant could not land in them.
+
+   WHERE THE PROPERTY WENT. `src/core/combat-sim.js`, `skill-sim.js` and
+   `artisan-sim.js` ARE the away engine — tools/pack-edge.mjs vendors them
+   verbatim into the Edge Function, so a span simulated here is the same bytes
+   the server runs (AWAY-1 / AWAY-12 are that contract). They are pure: `state`
+   is a plain object, every impure edge is injected, and "missing handlers are
+   no-ops" (combat-sim.js's own header). So the honest rig is the one AWAY-15
+   and AWAY-12c already use — a bare `simulateSpan` on a plain object — with an
+   `fx` that RECORDS instead of one that writes the live G.
+
+   WHY THAT IS STRONGER THAN WHAT IT REPLACES, not weaker:
+     · it cannot pass because the client authored a number (nothing reaches G);
+     · it cannot pass because an earlier test left state behind (`state` is
+       built fresh, and `window.G` is never touched);
+     · it is deterministic (a pinned seed, fixed rolls), so a payout assertion
+       is an equality rather than a "> 0" that a lucky ambient stack satisfies;
+     · it runs in the shape Deno runs, so it fails when a browser-only
+       dependency creeps into the engine.
+
+   WHAT IT DELIBERATELY DOES NOT COVER: the CALLER. "processOffline asks the
+   server and applies what comes back" is b337-ON + B340-8 + the applyEnvelope
+   battery; this rig is about the simulation, and a test that needs both says so.
+
+   rig = { out, state, paid } - `out` is simulateSpan's payload, `state` is the
+   mutated plain state, `paid` is what fx was ASKED to grant (xp per skill, gold,
+   items, kills). Options: { monster, spanMs, fromMs, seed, tickMs, state, ctx, fx }.
+   `playerRolls`/`monsterRolls` default to an always-hit, never-hurt pair so a
+   span's payout is a function of the span and not of a death; a test about
+   dying supplies its own. */
+const awaySpan = (o) => {
+  const opts = o || {};
+  const C = window.HearthriseCore;
+  const monsterId = opts.monster || 'slime';
+  const m = window.MONSTERS[monsterId];
+  const fromMs = Number.isFinite(opts.fromMs) ? opts.fromMs : Date.UTC(2026, 0, 15, 6, 0, 0);
+  const spanMs = Number.isFinite(opts.spanMs) ? opts.spanMs : 3600000;
+  const state = Object.assign({
+    activeMonster: monsterId,
+    monsterHp: m ? m.hp : 10, monsterMaxHp: m ? m.hp : 10,
+    playerHp: 9999, playerMaxHp: 9999,
+    stats: { kills: 0, crits: 0, deaths: 0, rareDrops: 0 },
+    skills: {}, inventory: {}, buffs: [], recoveringUntilMs: 0,
+  }, opts.state);
+  const paid = { xp: {}, gold: 0, items: {}, kills: 0, deaths: 0, ate: 0 };
+  const fx = Object.assign({
+    addXp: (skill, amount) => { paid.xp[skill] = (paid.xp[skill] || 0) + amount; },
+    onLoot: (gp) => { paid.gold += gp; },
+    addItem: (id, qty) => { paid.items[id] = (paid.items[id] || 0) + (Number(qty) || 1); },
+    onKill: () => { paid.kills++; },
+    onDeath: () => { paid.deaths++; },
+  }, opts.fx);
+  const out = C.combatSim.simulateSpan(state, Object.assign({
+    away: opts.away !== false,
+    fromMs, toMs: fromMs + spanMs,
+    tickMs: Number.isFinite(opts.tickMs) ? opts.tickMs : 2400,
+    rng: C.rngMod.createRng(Number.isFinite(opts.seed) ? opts.seed : 0xC0FFEE),
+    monsters: window.MONSTERS,
+    playerRolls: () => ({ accuracy: 1e9, maxHit: 40, critChance: 0 }),
+    monsterRolls: () => ({ accuracy: 0, maxHit: 0 }),
+    weakness: () => ({ dropMult: 1 }),
+    bonus: () => 0,
+    fx,
+  }, opts.ctx));
+  return { out, state, paid };
+};
+
+/* The GATHER twin of `awaySpan`, same contract and the same reasons. The node
+   INDEX is the one thing the caller must supply (the server holds one id and no
+   skill column, so the index is what says which skill an id belongs to), and it
+   is built from the shipped catalogues rather than a fixture so a renamed node
+   fails here instead of passing against a private copy. */
+const awayGatherSpan = (o) => {
+  const opts = o || {};
+  const C = window.HearthriseCore;
+  const nodes = C.skillSim.indexGatherNodes({
+    woodcutting: window.TREES, mining: window.ROCKS, fishing: window.FISH_SPOTS,
+  });
+  const targetId = opts.targetId
+    || ((window.TREES || []).filter((t) => (t.req || 1) <= 1)[0] || {}).id;
+  const skill = (nodes[targetId] || {}).skill || 'woodcutting';
+  const fromMs = Number.isFinite(opts.fromMs) ? opts.fromMs : Date.UTC(2026, 0, 15, 6, 0, 0);
+  const spanMs = Number.isFinite(opts.spanMs) ? opts.spanMs : 3600000;
+  const state = Object.assign({
+    activeSkill: skill, skillTargetId: targetId,
+    skills: {}, inventory: {}, buffs: [], toolCarry: {}, stats: {}, equipment: {},
+  }, opts.state);
+  const paid = { xp: {}, items: {} };
+  const fx = Object.assign({
+    addXp: (sk, amt) => { paid.xp[sk] = (paid.xp[sk] || 0) + amt; },
+    addItem: (id, qty) => { paid.items[id] = (paid.items[id] || 0) + (Number(qty) || 1); },
+  }, opts.fx);
+  const out = C.skillSim.simulateSkillSpan(state, Object.assign({
+    away: opts.away !== false,
+    fromMs, toMs: fromMs + spanMs,
+    nodes, items: window.ITEMS,
+    rng: C.rngMod.createRng(Number.isFinite(opts.seed) ? opts.seed : 0xC0FFEE),
+    bonus: () => 0,
+    fx,
+  }, opts.ctx));
+  return { out, state, paid, nodes, targetId, skill };
+};
+
+/* The ARTISAN twin of `awaySpan`. Unlike the other two its `fx` MUTATES the
+   plain state's bag, because the bench's stop condition is "the inputs ran
+   out" — a recorder that only counted would let the span cook for ever and the
+   "no free food, no lost food" assertion would be measuring nothing. */
+const awayArtisanSpan = (o) => {
+  const opts = o || {};
+  const C = window.HearthriseCore;
+  const recipes = C.artisanSim.indexArtisanRecipes(window.ARTISAN_RECIPES);
+  const targetId = opts.targetId || 'cook_shrimp';
+  const skill = (recipes[targetId] || {}).skill || 'cooking';
+  const fromMs = Number.isFinite(opts.fromMs) ? opts.fromMs : Date.UTC(2026, 0, 15, 6, 0, 0);
+  const spanMs = Number.isFinite(opts.spanMs) ? opts.spanMs : 7200000;
+  const state = Object.assign({
+    activeSkill: skill, skillTargetId: targetId,
+    skills: {}, inventory: {}, buffs: [], toolCarry: {}, stats: {}, rooms: {}, equipment: {},
+  }, opts.state);
+  const paid = { xp: {}, items: {}, removed: {} };
+  const fx = Object.assign({
+    addXp: (sk, amt) => { paid.xp[sk] = (paid.xp[sk] || 0) + amt; },
+    addItem: (id, qty) => {
+      const q = Number(qty) || 1;
+      paid.items[id] = (paid.items[id] || 0) + q;
+      state.inventory[id] = (state.inventory[id] || 0) + q;
+    },
+    removeItem: (id, qty) => {
+      const q = Number(qty) || 1;
+      paid.removed[id] = (paid.removed[id] || 0) + q;
+      state.inventory[id] = Math.max(0, (state.inventory[id] || 0) - q);
+    },
+  }, opts.fx);
+  const out = C.artisanSim.simulateArtisanSpan(state, Object.assign({
+    away: opts.away !== false,
+    fromMs, toMs: fromMs + spanMs,
+    recipes, items: window.ITEMS,
+    rng: C.rngMod.createRng(Number.isFinite(opts.seed) ? opts.seed : 0xC0FFEE),
+    bonus: () => 0,
+    fx,
+  }, opts.ctx));
+  return { out, state, paid, recipes, targetId, skill };
+};
+
 const withCompanionRoster = (owned, equipped, fn) => {
   const G = window.G;
   const A = window.HearthriseAccrual;
@@ -6942,36 +7093,32 @@ const TESTS = [
       assert(E.isActive() === true, 'and reconnecting restores it');
     } finally { restoreG(snap); }
   }),
-  () => tryRunClientAuthoritative('b204: artisan offline — cooking session progresses offline (was zero)', () => {
-    const G = window.G;
-    const saved = {
-      activeSkill: G.activeSkill, target: G.skillTargetId, ms: G.skillMs, monster: G.activeMonster,
-      lastSeen: G.lastSeen, inv: JSON.parse(JSON.stringify(G.inventory || {})), skills: JSON.parse(JSON.stringify(G.skills || {})),
-      rooms: JSON.parse(JSON.stringify(G.rooms || {})), summary: G.lastOfflineSummary
-    };
-    try {
-      G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });      // workbench present
-      G.activeMonster = null;
-      G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp'; G.skillMs = 2400;
-      G.inventory = Object.assign({}, G.inventory, { shrimp: 50, cooked_shrimp: 0, burnt_food: 0 });
-      setAway(2);                                               // 2h "offline"
-      processOffline();
-      const cooked = G.inventory.cooked_shrimp || 0;
-      // b225: offline cooking runs through the same doArtisanAction, so it
-      // burns at the same odds. An attempt is cooked-or-burnt; raw shrimp are
-      // consumed 1:1 with ATTEMPTS, which is what "no free food, no lost food"
-      // actually means now.
-      const burnt = G.inventory.burnt_food || 0;
-      assert(cooked > 0, 'offline cooking should produce cooked shrimp, got 0');
-      assert(cooked <= 50, 'offline cooking must stop when inputs run out, got ' + cooked);
-      assert((G.inventory.shrimp || 0) === 50 - cooked - burnt,
-        `raw shrimp should be consumed 1:1 with attempts (cooked ${cooked} + burnt ${burnt}), left ${G.inventory.shrimp}`);
-    } finally {
-      G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target; G.skillMs = saved.ms;
-      G.activeMonster = saved.monster; G.lastSeen = saved.lastSeen;
-      G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms; G.lastOfflineSummary = saved.summary;
-    }
+  () => tryRun('b204: artisan offline — a cooking session progresses across an absence (was zero)', () => {
+    /* b515 — DRIVEN ON THE BENCH ITSELF. This called `processOffline()` and read
+       `G.inventory`; the local away engine behind that call is deleted, and the
+       one that replaced it is `src/core/artisan-sim.js simulateArtisanSpan`,
+       vendored into hr-accrue by tools/pack-edge.mjs. Same fixture, same
+       numbers, measured where the work happens — and now on a plain state, so
+       an ambient `G.inventory` an earlier test left behind cannot satisfy it. */
+    const r = awayArtisanSpan({
+      targetId: 'cook_shrimp', spanMs: 2 * 3600000,
+      state: { skills: { cooking: 0 }, inventory: { shrimp: 50 }, rooms: { kitchen: 1 } },
+    });
+    const cooked = r.paid.items.cooked_shrimp || 0;
+    const burnt = r.paid.items.burnt_food || 0;
+    const attempts = r.paid.removed.shrimp || 0;
+    assert(cooked > 0, 'an offline cooking span produced no cooked shrimp, got 0 (' + r.out.stoppedBy + ')');
+    assert(cooked <= 50, 'the span must stop when the inputs run out, got ' + cooked);
+    /* b225: an attempt is cooked-or-burnt, and raw shrimp are consumed 1:1 with
+       ATTEMPTS — which is what "no free food, no lost food" actually means. */
+    assert(attempts === cooked + burnt,
+      'raw shrimp must be consumed 1:1 with attempts (cooked ' + cooked + ' + burnt ' + burnt + ' = '
+      + (cooked + burnt) + '), consumed ' + attempts);
+    assert(attempts === 50 - (r.state.inventory.shrimp || 0),
+      'the bag disagrees with the consumption the bench reported: ' + JSON.stringify(r.state.inventory));
+    assert((r.paid.xp.cooking || 0) > 0, 'an offline cooking span paid no Cooking XP');
   }),
+
   () => tryRun('b217: onboarding chain guides preparation before combat', () => {
     const G = window.G;
     const saved = { quests: JSON.parse(JSON.stringify(G.quests || [])) };
@@ -8101,31 +8248,72 @@ const TESTS = [
     }
   }),
 
-  () => tryRunClientAuthoritative('b214: offline rewards are granted exactly ONCE (no catch-up double-pay)', () => {
-    // Regression: three systems read G.lastSeen and all granted —
-    // processOffline() (100% rate) plus _applyCatchup() and applyRichCatchup()
-    // (50% each), with G.lastSeen never refreshed between them. Every
-    // returning gatherer banked ~2-3x their offline yield. The two catch-up
-    // paths are now display-only; only processOffline may grant.
-    if (typeof window.processOffline !== 'function') return;
+  () => tryRun('b214: an absence is granted exactly ONCE — the catch-up calculators are DISPLAY-ONLY', () => {
+    /* THE REGRESSION: three systems read `G.lastSeen` and all three granted —
+       `processOffline()` at 100% plus `_applyCatchup()` and `applyRichCatchup()`
+       at 50% each, with `lastSeen` never refreshed between them. Every returning
+       gatherer banked 2-3x their offline yield.
+
+       b515 — THE GRANTING SYSTEM IS GONE, THE OTHER TWO ARE NOT, and that is
+       exactly why this test still has a job. processOffline no longer grants
+       anything (it asks hr-accrue and applies the envelope), so the ONE payer is
+       the server. The two catch-up calculators still ship, still read the same
+       clock, and still feed the welcome modal — so the property to hold is the
+       half that can still break: they must CALCULATE and never CREDIT.
+       MUTATION: put an `addItem`/`addXp` back into `_applyCatchup` → red. */
     const snap = snapshotG();
     try {
       const G = window.G;
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
       G.inventory = {};
       setAway(2);                                     // 2h away
-      window.processOffline();
-      const afterOffline = (G.inventory.normal_log || 0);
-      assert(afterOffline > 0, 'processOffline should grant the offline haul');
-      // The catch-up calculators may still RUN (they feed the welcome modal)
-      // but must not add anything on top.
+      const before = JSON.stringify(G.inventory);
+      const goldBefore = goldOf();
+
+      /* The calculators may still RUN — they are the modal's numbers. */
+      let rewards = null;
       if (typeof window._catchupCalc === 'function') {
-        const rewards = window._catchupCalc();
+        rewards = window._catchupCalc();
         assert(rewards === null || typeof rewards === 'object', 'calcCatchup still returns a summary');
-      }
-      assert((G.inventory.normal_log || 0) === afterOffline,
-        'catch-up calculation must not grant items on top of processOffline');
+      } else { skip('no catch-up calculator in this build'); return; }
+
+      /* (a) CALCULATING IS NOT CREDITING. `calcCatchup` is the estimate the
+         welcome modal used to print; running it must move nothing at all. */
+      assert(JSON.stringify(G.inventory) === before,
+        'merely CALCULATING the catch-up credited items: ' + before + ' -> ' + JSON.stringify(G.inventory));
+      assert(goldOf() === goldBefore,
+        'merely CALCULATING the catch-up credited gold (' + goldBefore + ' -> ' + goldOf() + ')');
+
+      /* (b) THE APPLIER STILL MINTS, AND IT IS DISARMED BY HAVING NO TRIGGER —
+         so the trigger is what this test guards. `window._applyCatchup` calls
+         `addXp` and `addItem` off a client-side ESTIMATE; measured here, it
+         credits (the fixture below is a real +1,200 logs). It is safe today for
+         exactly one reason: nothing calls it. The injector that used to poll for
+         `#welcome-rows` and prepend its rows was deleted in b342, and the modal
+         reads the RECEIPT instead.
+         So: assert the modal still reads the receipt and not the estimate. That
+         is the wire that, re-attached, recreates the b214 double-pay — and it is
+         a stronger guard than watching the applier, because the applier is
+         supposed to credit; it is the CALLER that must not exist.
+         ⚠ FILED (P3, Systems Engineer): `_applyCatchup` is dead client-authored
+         mint with no call site. It should be deleted, not merely unreferenced. */
+      const rawModal = String(window.__maybeShowWelcome || '');
+      assert(rawModal.length > 200,
+        'the welcome modal is not reachable under __maybeShowWelcome — this guard would be vacuous');
+      /* COMMENTS STRIPPED FIRST, and the reason is worth a line: this function
+         carries a long b342 note that NAMES `calcCatchup()` as the thing it
+         stopped quoting. A bare source match would fail on the explanation of
+         the fix, which is the worst kind of red — it teaches the next reader to
+         delete the comment. What is being asserted is a CALL, so what is
+         searched is code. */
+      const modalSrc = rawModal.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+      assert(/lastOfflineSummary/.test(modalSrc),
+        'the welcome-back modal no longer reads `lastOfflineSummary` — the RECEIPT the server actually '
+        + 'wrote. Whatever it reads instead is a second estimate of the same night.');
+      assert(!/(calcCatchup|_catchupCalc|_applyCatchup)\s*\(/.test(modalSrc),
+        'the welcome-back modal is quoting the catch-up ESTIMATE again. b214 stopped it double-PAYING and '
+        + 'b342 stopped it double-SPEAKING; wiring `_applyCatchup` back in re-creates the double-pay, '
+        + 'because that function credits.');
     } finally { restoreG(snap); }
   }),
 
@@ -18691,55 +18879,87 @@ const TESTS = [
   // all read the same unrefreshed G.lastSeen. Rested XP accrues on exactly that
   // path, so it is watermarked instead: G.restedAt is the instant already paid
   // for, and it advances by what was granted. Re-running cannot re-pay.
-  () => tryRunClientAuthoritative('b222 SEAM 3: rested accrual is watermarked — no offline double-bank', () => {
-    const snap = snapshotG();
-    try {
-      const CHARGE = window.RESTED_CHARGE_MS;
-      const CAP = window.RESTED_CAP;
-      assert(CHARGE === 360000 && CAP === 80, 'rested constants drifted: ' + CHARGE + ' / ' + CAP);
+  () => tryRun('b222 SEAM 3: rested accrual is watermarked — no offline double-bank', () => {
+    /* b515 — DRIVEN ON `src/core/rested.js`, WHICH IS BOTH SIDES. The old
+       fixture called `window.accrueRestedXp()` and `window.processOffline()` on
+       the live G. Neither can bank now, and for two different reasons that are
+       both correct: `restedXp`/`restedAt` are SERVER-OF-RECORD and ARMED, so
+       legacy.js's wrapper fails closed on its first line
+       (`clientMayWriteRecordField('restedXp')`), and the away engine that used
+       to call it is deleted. The BANKING is the accrual engine's
+       (`accrual.js accrueRested`), and it runs THIS function.
 
-      // One hour away = 10 charges, banked once.
-      const now = Date.now();
-      window.G.restedXp = 0;
-      window.G.restedAt = now - 60 * 60000;
-      const first = window.accrueRestedXp(now);
-      assert(first === 10 && window.G.restedXp === 10, 'one hour should bank 10 charges, got ' + first);
-      const second = window.accrueRestedXp(now);
-      assert(second === 0 && window.G.restedXp === 10, 'the second read re-banked ' + second + ' charges');
-      const third = window.accrueRestedXp(now);
-      assert(third === 0 && window.G.restedXp === 10, 'the third read re-banked ' + third + ' charges');
+       So the watermark rule is asserted on the shared implementation, with a
+       plain state — which also removes the fixture's old dependence on whatever
+       `G.restedAt` the previous test left behind. The client-side REFUSAL is
+       asserted at the end, because "the client may not bank" is the other half
+       of "there is exactly one banker". */
+    const C = window.HearthriseCore;
+    const R = C.rested;
+    const CHARGE = window.RESTED_CHARGE_MS;
+    const CAP = window.RESTED_CAP;
+    assert(CHARGE === 360000 && CAP === 80, 'rested constants drifted: ' + CHARGE + ' / ' + CAP);
+    assert(R.RESTED_CHARGE_MS === CHARGE && R.RESTED_CAP === CAP,
+      'the window constants and the core constants disagree — two copies of a rate is how they drift');
 
-      // The b214 shape, exactly: a STALE lastSeen re-read by a second caller.
-      // The watermark is a different clock, so it cannot be fooled by it.
-      window.G.restedXp = 0;
-      window.G.restedAt = now - 30 * 60000;
-      window.G.lastSeen = now - 30 * 60000;      // deliberately not refreshed
-      window.processOffline();
-      const afterFirst = window.G.restedXp;
-      window.processOffline();
-      assert(window.G.restedXp === afterFirst,
-        'processOffline double-banked rested charges: ' + afterFirst + ' → ' + window.G.restedXp);
-      assert(afterFirst === 5, 'thirty minutes should bank 5 charges, got ' + afterFirst);
+    const now = Date.UTC(2026, 0, 16, 6, 0, 0);
+    /* THE PLAIN CAP, not `C.restedLibraryCap()`. That helper reads the Great
+       Library rung off `G.rooms`, which is SERVER-OF-RECORD and reads UNKNOWN
+       (0) in a harness with no envelope — and `restedCap(0)` correctly falls
+       back to RESTED_CAP, so passing it here would work by accident today and
+       silently measure the LIBRARY cap on any run where a previous test left a
+       rooms stamp behind. Stated, so the fixture is a fixture. */
+    const cap = R.restedCap(0);
+    assert(cap === CAP, 'the default rested cap is not ' + CAP + ', got ' + cap);
 
-      // The cap is a hard cap, and a capped bank must not leave the watermark
-      // behind — otherwise spending one charge would instantly re-bank it.
-      window.G.restedXp = 0;
-      window.G.restedAt = now - 30 * 24 * 3600000;    // a month away
-      window.accrueRestedXp(now);
-      assert(window.G.restedXp === CAP, 'a month away must cap at ' + CAP + ', got ' + window.G.restedXp);
-      assert(window.G.restedAt <= now, 'the watermark must never run ahead of now');
-      assert(window.accrueRestedXp(now) === 0, 'a capped bank must not keep accruing');
+    // One hour away = 10 charges, banked ONCE. The watermark is the whole rule.
+    const st = { restedXp: 0, restedAt: now - 60 * 60000 };
+    const first = R.accrueRestedXp(st, now, cap);
+    assert(first === 10 && st.restedXp === 10, 'one hour should bank 10 charges, got ' + first);
+    assert(R.accrueRestedXp(st, now, cap) === 0 && st.restedXp === 10, 'the second read re-banked charges');
+    assert(R.accrueRestedXp(st, now, cap) === 0 && st.restedXp === 10, 'the third read re-banked charges');
 
-      // A fresh save must not be handed a bank it never earned.
-      delete window.G.restedXp;
-      delete window.G.restedAt;
-      window.accrueRestedXp(now);
-      assert(window.G.restedXp === 0, 'a save with no watermark must start empty, got ' + window.G.restedXp);
-      // A future-dated watermark (clock skew, edited save) must self-heal.
-      window.G.restedAt = now + 9e8;
-      window.accrueRestedXp(now);
-      assert(window.G.restedAt <= now && window.G.restedXp === 0, 'a future watermark must be repaired');
-    } finally { restoreG(snap); }
+    /* THE b214 SHAPE, EXACTLY: a STALE `lastSeen` re-read by a second caller.
+       The rested watermark is a DIFFERENT clock, so it cannot be fooled by it —
+       which is the property, and it is why `restedAt` exists at all. */
+    const st2 = { restedXp: 0, restedAt: now - 30 * 60000, lastSeen: now - 30 * 60000 };
+    const a = R.accrueRestedXp(st2, now, cap);
+    const b = R.accrueRestedXp(st2, now, cap);      // lastSeen deliberately not refreshed
+    assert(a === 5, 'thirty minutes should bank 5 charges, got ' + a);
+    assert(b === 0 && st2.restedXp === 5, 'a stale lastSeen re-banked the same half hour: +' + b);
+
+    // The cap is hard, and a capped bank must not leave the watermark behind —
+    // otherwise spending one charge would instantly re-bank it.
+    const st3 = { restedXp: 0, restedAt: now - 30 * 24 * 3600000 };
+    R.accrueRestedXp(st3, now, cap);
+    assert(st3.restedXp === cap, 'a month away must cap at ' + cap + ', got ' + st3.restedXp);
+    assert(st3.restedAt <= now, 'the watermark must never run ahead of now');
+    assert(R.accrueRestedXp(st3, now, cap) === 0, 'a capped bank must not keep accruing');
+
+    // A fresh save must not be handed a bank it never earned.
+    const st4 = {};
+    R.accrueRestedXp(st4, now, cap);
+    assert(st4.restedXp === 0, 'a save with no watermark must start empty, got ' + st4.restedXp);
+    // A future-dated watermark (clock skew, edited save) must self-heal.
+    const st5 = { restedXp: 0, restedAt: now + 9e8 };
+    R.accrueRestedXp(st5, now, cap);
+    assert(st5.restedAt <= now && st5.restedXp === 0, 'a future watermark must be repaired');
+
+    /* AND THE CLIENT IS NOT THE BANKER. Under the armed record the wrapper must
+       refuse rather than write a second copy of a server-owned bank — the b347
+       two-writers rule, at the one call site that used to do it.
+       MUTATION: drop the `clientMayWriteRecordField('restedXp')` guard from
+       legacy.js accrueRestedXp → red here. */
+    if (typeof window.accrueRestedXp === 'function' && !window.clientMayWriteRecordField('restedXp')) {
+      const snap = snapshotG();
+      try {
+        window.G.restedXp = 0;
+        window.G.restedAt = Date.now() - 3600000;
+        assert(window.accrueRestedXp(Date.now()) === 0 && (window.G.restedXp || 0) === 0,
+          'the CLIENT banked rested charges for a field the server owns — applyRecord is the only writer, '
+          + 'and a second one strands the server\'s copy');
+      } finally { restoreGAndRecord(snap); }
+    }
   }),
 
   // #10h: SEAM 3 — the fragile manual save allowlist. A bank that does not
@@ -22255,38 +22475,45 @@ const TESTS = [
     }
   }),
 
-  () => tryRunClientAuthoritative('b225: offline cooking burns on the same math and reports it once', () => {
-    const G = window.G;
-    const saved = {
-      activeSkill: G.activeSkill, target: G.skillTargetId, ms: G.skillMs, monster: G.activeMonster,
-      lastSeen: G.lastSeen, inv: JSON.parse(JSON.stringify(G.inventory || {})),
-      skills: JSON.parse(JSON.stringify(G.skills || {})), rooms: JSON.parse(JSON.stringify(G.rooms || {})),
-      summary: G.lastOfflineSummary, random: Math.random,
-    };
-    const rec = window.ARTISAN_RECIPES.cooking.find((r) => r.output === 'cooked_shrimp');
-    try {
-      G.rooms = {}; G.activeMonster = null;
-      G.skills = Object.assign({}, G.skills, { cooking: 0 });
-      G.inventory = { shrimp: 30, cooked_shrimp: 0, burnt_food: 0 };
-      G.activeSkill = 'cooking'; G.skillTargetId = rec.id; G.skillMs = 3000;
-      setAway(2);
-      window.HearthriseCore.setRng(window.HearthriseCore.rngMod.rngFrom(() => 0)); // every offline cook burns
-      window.processOffline();
-      assert((G.inventory.burnt_food || 0) === 30, 'offline cooking must burn on the same math, got ' + G.inventory.burnt_food);
-      assert((G.inventory.cooked_shrimp || 0) === 0, 'a forced burn must not produce dishes offline either');
-      assert(G.lastOfflineSummary && G.lastOfflineSummary.burnt === 30,
-        'the offline summary must report the burns, got ' + JSON.stringify(G.lastOfflineSummary && G.lastOfflineSummary.burnt));
-      assert((window._hrOfflineBurns || 0) === 0, 'the offline burn counter must reset, or the next session double-reports');
-    } finally {
-      Math.random = saved.random;
-      window.HearthriseCore.setRng(null);
-      G.activeSkill = saved.activeSkill; G.skillTargetId = saved.target; G.skillMs = saved.ms;
-      G.activeMonster = saved.monster; G.lastSeen = saved.lastSeen;
-      G.inventory = saved.inv; G.skills = saved.skills; G.rooms = saved.rooms;
-      G.lastOfflineSummary = saved.summary;
-      if (typeof window._stopArtisan === 'function') window._stopArtisan();
-    }
+  () => tryRun('b225: an away cooking span burns on the same math, and reports it once', () => {
+    /* b515 — SAME MOVE AS b204. The subject is the BURN, not the caller: an
+       away bench must roll burns on the same odds a live one does, consume the
+       raw input either way, and REPORT the count so the welcome-back card can
+       say it. `simulateArtisanSpan` is the one implementation of all three, and
+       it is the copy hr-accrue runs.
+       The forced-burn rng (every roll a burn) is supplied to the span rather
+       than installed globally with `setRng`, so this test can no longer leak a
+       pinned stream into whatever runs after it — which the old fixture could,
+       and did, whenever it threw before its finally. */
+    const C = window.HearthriseCore;
+    const rec = window.ARTISAN_RECIPES.cooking.filter((r) => r.output === 'cooked_shrimp')[0];
+    assert(rec, 'the cooking catalogue no longer has a cooked_shrimp recipe');
+    const r = awayArtisanSpan({
+      targetId: rec.id, spanMs: 2 * 3600000,
+      state: { skills: { cooking: 0 }, inventory: { shrimp: 30 }, rooms: {} },
+      ctx: { rng: C.rngMod.rngFrom(() => 0) },     // every attempt burns
+    });
+    assert((r.paid.items.burnt_food || 0) === 30,
+      'an away cooking span must burn on the same math, got ' + (r.paid.items.burnt_food || 0));
+    assert(!(r.paid.items.cooked_shrimp > 0), 'a forced burn must not produce dishes away either');
+    assert((r.paid.removed.shrimp || 0) === 30,
+      'a burnt attempt still eats its raw input — got ' + (r.paid.removed.shrimp || 0) + ' consumed');
+    assert(r.out.burnt === 30,
+      'the span must REPORT its burns so the welcome-back card can say so, got ' + r.out.burnt);
+    assert(r.out.produced === 0, 'the span reported dishes it did not produce: ' + r.out.produced);
+
+    /* THE CONTROL: with a never-burn stream the same span produces 30 dishes and
+       zero burns. Without it "burnt === 30" is satisfied by a bench that burns
+       everything unconditionally. */
+    const ctrl = awayArtisanSpan({
+      targetId: rec.id, spanMs: 2 * 3600000,
+      state: { skills: { cooking: 0 }, inventory: { shrimp: 30 }, rooms: {} },
+      ctx: { rng: C.rngMod.rngFrom(() => 0.999999) },
+    });
+    assert(ctrl.out.burnt === 0 && ctrl.out.produced === 30,
+      'CONTROL: a never-burn stream still burnt ' + ctrl.out.burnt + ' and produced ' + ctrl.out.produced);
   }),
+
   // b226 (Tyler): "No progress bar when cooking shrimp." The artisan tile grid
   // marked tiles active on G.activeArtisanRecipe — which startArtisan NEVER
   // writes (it writes activeSkill + skillTargetId) — so no artisan tile was
@@ -32674,7 +32901,7 @@ const TESTS = [
   /* Shared rig: stand the player in a known fight with a known loadout, run
      N ticks under a PINNED seed through a given away flag, and report totals.
      Nothing here reads the wall clock except through `atMs`, which is passed. */
-  () => tryRunClientAuthoritative('AWAY-1 PARITY (the contract): the same seeded fight pays identically through away:false and away:true', () => {
+  () => tryRun('AWAY-1 PARITY (the contract): the same seeded fight pays identically through away:false and away:true', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
@@ -32706,7 +32933,24 @@ const TESTS = [
            Resetting makes it a STRONGER assertion — the quest payout must land
            identically through both paths. */
         G.quests = [];
+        /* b515 — MEASURE ONE THING, NOT TWO. This read `xpMap()` (the DISPLAY
+           ladder: the server's map plus this session's predictions) as `before`
+           and raw `G.skills` as `after`. That was harmless while the suite ran
+           client-authoritative — `addXp` wrote `G.skills` and no prediction
+           existed — and it inverted the moment the b353 kill switch was retired:
+           `skills` is SERVER-OF-RECORD and ARMED, so a kill's XP is a PREDICTION
+           and never a write to `G.skills`. The LIVE run left its predictions on
+           the books, the AWAY run's `before` read them and its `after` did not,
+           and the contract assertion reported the away path short by exactly the
+           live run's payout — a false red accusing the away path of the one
+           crime this test exists to detect.
+           Both ends now read the DISPLAY, which is what the client actually
+           produces under the arm and what the player is shown, and the ledger is
+           zeroed at the top of each run so the two runs cannot contaminate each
+           other. `goldOf()` is the same fix for gold, for the same reason. */
+        predZero();
         const xpBefore = xpMap();
+        const goldBefore = goldOf();
         C.reseed(0xC0FFEE);
         const body = () => {
           const ctx = window.HearthriseCombatSim.ctx();
@@ -32716,10 +32960,11 @@ const TESTS = [
           }
         };
         if (away) P._withOfflineReplay(body); else body();
+        const xpAfter = xpMap();
         const xp = {};
-        Object.keys(G.skills).forEach((k) => { const d = (G.skills[k] || 0) - (xpBefore[k] || 0); if (d) xp[k] = d; });
+        Object.keys(xpAfter).forEach((k) => { const d = (xpAfter[k] || 0) - (xpBefore[k] || 0); if (d) xp[k] = d; });
         return {
-          gold: G.gold,
+          gold: goldOf() - goldBefore,
           kills: G.stats.kills,
           crits: G.stats.crits,
           xp,
@@ -32762,7 +33007,7 @@ const TESTS = [
      ladder covers it — the cheap branch would never fire and this arm would be
      AWAY-1 again with extra steps. The server-side twin of this assertion is
      `AUTO-EAT MIXED-BAG PARITY` in tests/accrual-engine.mjs. */
-  () => tryRunClientAuthoritative('AWAY-1b PARITY: with auto-eat ON, live and away drain the SAME stacks out of the same bag', () => {
+  () => tryRun('AWAY-1b PARITY: with auto-eat ON, live and away drain the SAME stacks out of the same bag', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
@@ -32792,7 +33037,24 @@ const TESTS = [
         G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
         G.quests = [];
         A.setEat({ enabled: true, threshold: 0.95, foodId: null });
+        /* b515 — MEASURE ONE THING, NOT TWO. This read `xpMap()` (the DISPLAY
+           ladder: the server's map plus this session's predictions) as `before`
+           and raw `G.skills` as `after`. That was harmless while the suite ran
+           client-authoritative — `addXp` wrote `G.skills` and no prediction
+           existed — and it inverted the moment the b353 kill switch was retired:
+           `skills` is SERVER-OF-RECORD and ARMED, so a kill's XP is a PREDICTION
+           and never a write to `G.skills`. The LIVE run left its predictions on
+           the books, the AWAY run's `before` read them and its `after` did not,
+           and the contract assertion reported the away path short by exactly the
+           live run's payout — a false red accusing the away path of the one
+           crime this test exists to detect.
+           Both ends now read the DISPLAY, which is what the client actually
+           produces under the arm and what the player is shown, and the ledger is
+           zeroed at the top of each run so the two runs cannot contaminate each
+           other. `goldOf()` is the same fix for gold, for the same reason. */
+        predZero();
         const xpBefore = xpMap();
+        const goldBefore = goldOf();
         C.reseed(0xC0FFEE);
         const body = () => {
           const ctx = window.HearthriseCombatSim.ctx();
@@ -32802,14 +33064,15 @@ const TESTS = [
           }
         };
         if (away) P._withOfflineReplay(body); else body();
+        const xpAfter = xpMap();
         const xp = {};
-        Object.keys(G.skills).forEach((k) => { const d = (G.skills[k] || 0) - (xpBefore[k] || 0); if (d) xp[k] = d; });
+        Object.keys(xpAfter).forEach((k) => { const d = (xpAfter[k] || 0) - (xpBefore[k] || 0); if (d) xp[k] = d; });
         const ate = {};
         Object.keys(BAG).forEach((id) => {
           const gone = BAG[id] - (Number(G.inventory[id]) || 0);
           if (gone > 0) ate[id] = gone;
         });
-        return { gold: G.gold, kills: G.stats.kills, crits: G.stats.crits, xp, ate };
+        return { gold: goldOf() - goldBefore, kills: G.stats.kills, crits: G.stats.crits, xp, ate };
       };
 
       const live = run(false);
@@ -33177,277 +33440,27 @@ const TESTS = [
     } finally { C.randomSeed(); restoreG(snap); }
   }),
 
-  () => tryRunClientAuthoritative('AWAY-16: the GATHER/ARTISAN away replay has a timeline too — a 10-minute buff pays 10 minutes of an 8-hour night and is spent', () => {
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const snap = snapshotG();
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    const WE = window.HearthriseWorldEvents;   // b456: hoisted so the finally can hand the calendar back
-    try {
-      /* ── WHY THIS TEST EXISTS SEPARATELY FROM AWAY-5 ──────────────────────
-         AWAY-5 measures the same rule on the COMBAT path and passes with this
-         bug fully present, which is exactly how the bug survived. `AWAY_SCOPE`
-         is a TABLE, so opening `buff` opened it for every away caller at once —
-         but only `simulateSpan` owned a timeline. `processOffline`'s gather and
-         artisan branches computed `ticks = floor(spanMs / offlineIntervalMs())`
-         with the interval derived ONCE and nothing advancing a clock inside the
-         loop, so a buff paid the WHOLE absence and drained NONE of it.
+  /* AWAY-16 IS RETIRED (b515), and its own header says why in advance: "this
+     drives the REAL window.processOffline() — not a core primitive — because
+     the defect was in the caller that owns no timeline, and a core-level test
+     cannot see a caller."
 
-         MEASURED before the fix, on this exact fixture: 6,250 actions against a
-         6,000-action control (+250 — a 10-minute consumable buying 50x the
-         actions it earned), and the buff came back reading a full 10:00.
+     THAT CALLER IS DELETED. processOffline's gather and artisan branches — the
+     flat `ticks = floor(spanMs / interval)` loops with nothing advancing a
+     clock inside them, which paid a ten-minute consumable for a whole night —
+     went with the rest of the local away engine in b515. There is no second
+     implementation of the gather loop for a timeline to be missing from: the
+     ONE loop is `src/core/skill-sim.js simulateSkillSpan`, and it slices
+     (`sliceSpan`, `MAX_SLICES`, `resolveStepMs`) and drains per slice.
 
-         So this drives the REAL `window.processOffline()` — not a core
-         primitive — because the defect was in the caller that owns no
-         timeline, and a core-level test cannot see a caller.
-
-         MUTATION PROVEN RED four ways, each independently:
-           (i)   revert the gather branch to the flat loop -> (b) fails on THE
-                 MINT with 6250 vs 6005;
-           (ii)  drop the `_drainAwayBuffs` call from `replayAwaySpan` -> (c)
-                 fails: the buff comes back at 600000ms;
-           (iii) drain WITHOUT re-deriving the interval per slice (hoist
-                 `stepMs` out of the while) -> (b) fails, 6250 again;
-           (iv)  restore `buffsPaused` to "did they hold a buff" -> (e) fails. */
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      const AWAY_MS = 8 * 3600000;
-      const BUFF_MS = 600000;
-
-      /* ⚠ b456 — NEUTRALISE THE PERMANENT XP STACK, OR THIS TEST MEASURES THE FUSE.
-         `getBonus('allXP')` is a seven-layer additive chain that is CLAMPED (the
-         b228 power budget). This fixture ran on whatever permanent bonuses the
-         ~800 tests before it happened to leave behind, and when that ambient stack
-         is already at the clamp a +5% buff legitimately adds NOTHING — so
-         `xpBuff.xp > ctrl.xp` failed while the product was correct. MEASURED: the
-         suite reported 36000 vs 36000 (a pinned +20% = the cap) where the same
-         fixture in isolation reports 30000 vs 30125.
-         Every other bonus-sensitive test in this file already controls its
-         environment this way (b228 FUSE and B349-1 both force QUIET); this one
-         never did. The calendar is forced QUIET and the permanent contributors are
-         zeroed for the duration — snapshotG restores all of them. */
-      if (WE && typeof WE._force === 'function') WE._force({ daily: WE.QUIET, weekly: WE.QUIET });
-      const CSUI = window.HearthriseClanSeatUI;
-      if (CSUI && typeof CSUI._reset === 'function') { try { CSUI._reset(); } catch (e) {} }
-
-      const gatherNight = (buffs) => {
-        G.activeMonster = null; G.activeArtisanRecipe = null;
-        G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-        G.inventory = {}; G.gold = 0; G.toolCarry = {};
-        G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-        G.rooms = {}; G.plotBuildings = [];
-        G.companions = { ownedIds: [], xp: {}, equipped: null };
-        G.equipment = {};          // gear carries xpB — part of the permanent stack
-        stampRecordLikeLoad(G);
-        G.buffs = buffs.map((b) => Object.assign({ addedAt: Date.now() }, b));
-        G.skillMs = null;
-        G.offlineBudget = { at: Date.now() - AWAY_MS };
-        window.processOffline();
-        return {
-          actions: G.inventory.normal_log || 0,
-          xp: G.skills.woodcutting || 0,
-          left: (G.buffs || []).slice(),
-          sum: G.lastOfflineSummary || {},
-        };
-      };
-
-      /* (a) THE CONTROL. Without it every number below is a number, not a
-         measurement — and the control is what makes (b) a RATIO rather than a
-         magic constant that a pacing dial would invalidate next month. */
-      const ctrl = gatherNight([]);
-      assert(ctrl.actions > 1000,
-        'the gather fixture banked ' + ctrl.actions + ' actions — everything below would be vacuous');
-      assert(ctrl.sum.buffPaidMs === 0, 'no buff was held, so nothing may be reported as paid');
-
-      /* (b) THE MINT, CLOSED. A `gather_speed` buff shortens the interval, so
-         the honest lift is the handful of extra actions its own ten minutes
-         bought — NOT 4% of the whole night. Stated as a bound on the ratio so
-         it survives a pacing change: the buff was alive for 1/48th of the
-         absence, so it may not buy more than a small fraction of its magnitude. */
-      const speed = gatherNight([{ type: 'gather_speed', magnitude: 4, remainingMs: BUFF_MS }]);
-      const liftPct = ((speed.actions / ctrl.actions) - 1) * 100;
-      assert(speed.actions > ctrl.actions,
-        'the buff bought nothing at all (' + speed.actions + ' vs ' + ctrl.actions + ') — it must pay for the span it was alive');
-      assert(liftPct < 4 * (BUFF_MS / AWAY_MS) * 3,
-        'THE MINT: a ' + (BUFF_MS / 60000) + '-minute +4% speed buff lifted an '
-        + (AWAY_MS / 3600000) + '-hour night by ' + liftPct.toFixed(3) + '% — it was alive for '
-        + ((BUFF_MS / AWAY_MS) * 100).toFixed(2) + '% of it. The replay paid it all night.');
-
-      /* (c) AND IT WAS SPENT. Paying without spending is the b326 exploit
-         written backwards and is strictly worse than the one b326 closed. */
-      assert(speed.left.length === 0,
-        'the buff survived an 8-hour absence intact (' + JSON.stringify(speed.left) + ') — it paid but never drained');
-      assert(speed.sum.buffPaidMs === BUFF_MS,
-        'the receipt must state the buff covered exactly its own ' + BUFF_MS + 'ms, got ' + speed.sum.buffPaidMs);
-      assert((speed.sum.buffsExpired || []).indexOf('gather_speed') >= 0,
-        'the receipt must name the buff that ran out mid-night, got ' + JSON.stringify(speed.sum.buffsExpired));
-
-      /* (d) THE XP SIDE, which travels a different route: `gather_speed` is
-         read once per SLICE by the interval formula, `all_xp` is read live
-         inside addXp on every action. Both must stop at the same instant, so
-         both are measured — one of them passing is not the rule holding. */
-      /* ⚠ b456 — THE MAGNITUDE IS 25, NOT 5, AND THAT IS A RESOLUTION FIX RATHER
-         THAN A LOOSENING. XP is granted as an INTEGER: `addXp` floors
-         `pacedXp(skill, base) * (1 + allXP)` per action. A single normal_tree
-         action is paced to ~5.85, so whether a +5% buff shows up AT ALL depends on
-         where the ambient bonus happens to leave that product relative to the next
-         integer — 5.85→5 and 6.14→6 (visible), but 5.99→5 and 6.29→6 (invisible).
-         MEASURED: the identical fixture reported 30000 vs 30125 in isolation and
-         36000 vs 36000 inside the suite, on the same build, purely because the
-         ambient stack differed by ~2%. That is the test being unlucky about a
-         floor boundary, not the engine paying nothing.
-         A magnitude guaranteed to move a ~5.85 action by at least a whole XP point
-         removes the luck. THE MINT BOUND BELOW SCALES WITH IT, so the property is
-         unchanged: a buff alive for 1/48th of the night may not lift it by
-         anything like its own magnitude. */
-      const XP_MAG = 25;
-      /* HEADROOM FIRST, measured on the REAL grant path rather than on getBonus,
-         because the FLOOR is what actually decides this. If it fires, the FIXTURE
-         is wrong (a clamped or unlucky ambient stack), not the engine. */
-      {
-        const tree = (window.TREES || []).filter((t) => t.id === 'normal_tree')[0];
-        const base = tree ? tree.xp : 15;
-        const savedBuffs = G.buffs, savedSkills = G.skills;
-        const oneAction = (bs) => {
-          G.buffs = bs;
-          G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-          window.addXp('woodcutting', base);
-          return G.skills.woodcutting || 0;
-        };
-        const plain = oneAction([]);
-        const buffed = oneAction([{ type: 'all_xp', magnitude: XP_MAG, remainingMs: BUFF_MS, addedAt: Date.now() }]);
-        G.buffs = savedBuffs; G.skills = savedSkills;
-        assert(buffed > plain,
-          'FIXTURE: a +' + XP_MAG + '% buff does not move a single floored action (' + plain + ' → ' + buffed
-          + ', ambient allXP ' + window.getBonus('allXP') + ') — the night measurement below cannot resolve '
-          + 'anything. Raise the magnitude or neutralise the ambient stack; do NOT relax the assertion.');
-      }
-      const xpBuff = gatherNight([{ type: 'all_xp', magnitude: XP_MAG, remainingMs: BUFF_MS }]);
-      const xpLiftPct = ((xpBuff.xp / ctrl.xp) - 1) * 100;
-      assert(xpBuff.xp > ctrl.xp, 'the all_xp buff paid nothing (' + xpBuff.xp + ' vs ' + ctrl.xp
-        + '; actions ' + xpBuff.actions + '/' + ctrl.actions + ', ambient allXP ' + window.getBonus('allXP')
-        + ', xp/action ' + (ctrl.xp / Math.max(1, ctrl.actions)) + ', buffPaidMs ' + xpBuff.sum.buffPaidMs + ')');
-      assert(xpLiftPct < XP_MAG * (BUFF_MS / AWAY_MS) * 6,
-        'THE MINT (xp): a ' + (BUFF_MS / 60000) + '-minute +' + XP_MAG + '% XP buff lifted the night by '
-        + xpLiftPct.toFixed(3) + '% — it was alive for ' + ((BUFF_MS / AWAY_MS) * 100).toFixed(2) + '% of it');
-      assert(xpBuff.left.length === 0, 'the all_xp buff was never spent');
-
-      /* (e) A BUFF LONGER THAN THE ABSENCE SURVIVES IT, minus exactly the time
-         that passed. Only testing the expiry case would pass a replay that
-         drained every buff to zero regardless — a different theft.
-
-         ⚠ THE BOUND IS SELF-CALIBRATING, AND IT HAS TO BE. This assertion used
-           to be `remainingMs === 1200000 - SHORT`, which flaked at roughly 5%
-           (measured: 2 failures in ~36 consecutive suite runs, reporting
-           `left 899999`). The fixture pins only the START of the absence —
-           `offlineBudget.at = Date.now() - SHORT` — while processOffline reads
-           its OWN, strictly later, Date.now() to size the span. When the
-           millisecond ticks in between, the real absence is SHORT+1 and the
-           replay correctly drains SHORT+1. The product was right and the test
-           was asserting a clock coincidence.
-
-           A fixed tolerance would have worked, but this is better: the extra
-           can never exceed the wall time this test itself burned around the
-           call, so measuring that gives an exact upper bound with no magic
-           number to tune. It stays strictly tighter than any tolerance a
-           reviewer would have picked (typically a few ms), so every mutation
-           the old form caught is still caught: no drain leaves 0 and fails the
-           floor; a double drain leaves 600000 and a full drain leaves 1200000,
-           both failing the ceiling.
-
-           A gate that goes red ~5% of the time on work that did not break it
-           teaches the team to re-run instead of to read, which is how a real
-           regression gets waved through. */
-      const SHORT = 300000;
-      const BUFF_START = 1200000;
-      const t0 = Date.now();
-      G.offlineBudget = { at: t0 - SHORT };
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-      G.inventory = {}; G.buffs = [{ type: 'gather_speed', magnitude: 4, remainingMs: BUFF_START, addedAt: Date.now() }];
-      G.skillMs = null;
-      window.processOffline();
-      /* The absence processOffline sized is (ITS Date.now()) - (t0 - SHORT), i.e.
-         SHORT plus however long this block took to reach it. `Date.now() - t0`
-         IS that extra, directly — do NOT subtract SHORT from it as well. Doing
-         so yields an upper bound BELOW the lower bound, an empty accepted band,
-         and an assertion that fails unconditionally while looking tighter than
-         ever. Caught here by arithmetic, not by a red run: two mutations were
-         already "proven" against it before anybody ran a GREEN CONTROL, and a
-         mutation that fails against a test which cannot pass has proven nothing
-         at all. */
-      const slopMs = Date.now() - t0;   // >= 0; the ms this test itself burned
-      assert(G.buffs.length === 1, 'a buff longer than the absence must survive it');
-      const drainedMs = BUFF_START - G.buffs[0].remainingMs;
-      assert(drainedMs >= SHORT && drainedMs <= SHORT + slopMs,
-        'a 5-minute absence must spend 5 minutes of a 20-minute buff — drained ' + drainedMs
-        + 'ms, accepted ' + SHORT + '..' + (SHORT + slopMs) + ' (left ' + G.buffs[0].remainingMs + ')');
-
-      /* (f) THE COPY WAS A LIE IN BOTH DIRECTIONS. home-dashboard.js prints
-         "Food buffs paused — their time was kept, not spent." off this flag,
-         and the non-combat arm used to compute it as `G.buffs.some(alive)` —
-         "did the player still hold a buff when they got back". On a gather
-         night nothing is paused AND the buff was spent, so the card described
-         the opposite of what happened.
-
-         ASSERTED HERE, ON THE SURVIVING-BUFF CASE, AND THAT PLACEMENT IS THE
-         WHOLE POINT. It was originally asserted on the expiring case above and
-         mutation testing caught it GREEN: that buff is pruned during the
-         replay, so `G.buffs.some(alive)` is false by the time the summary is
-         written and the old expression accidentally agrees. A buff that
-         OUTLIVES the absence is the only state where the two expressions
-         differ, so it is the only state where the assertion means anything. */
-      assert(G.lastOfflineSummary.buffsPaused === false,
-        'the receipt claims the buffs were PAUSED on a night that spent 5 minutes of them');
-
-      /* (g) ARTISAN IS THE SAME REPLAY AND THE SAME RULE — and the b345
-         supplies stop must survive the split, including the ONE refusal call
-         that produces the "out of X" toast and clears the activity. The buff is
-         charged for the WORK, not for the absence: the run stopped 31 seconds
-         in, so 31 seconds is what the Feast paid for. */
-      const recipes = (window.ARTISAN_RECIPES || {}).cooking || [];
-      const rec = recipes[0];
-      if (rec && window.HearthriseCore.artisan) {
-        const inputs = C.artisan.recipeInputs(rec) || {};
-        G.activeMonster = null; G.activeSkill = 'cooking'; G.skillTargetId = rec.id;
-        G.inventory = {};
-        Object.keys(inputs).forEach((k) => { G.inventory[k] = 8; });
-        G.skills = Object.assign({}, G.skills, { cooking: 0 });
-        G.buffs = [{ type: 'all_xp', magnitude: 5, remainingMs: BUFF_MS, addedAt: Date.now() }];
-        G.skillMs = null;
-        G.offlineBudget = { at: Date.now() - AWAY_MS };
-        window.processOffline();
-        const s = G.lastOfflineSummary || {};
-        assert(s.stoppedBy === 'supplies',
-          'the b345 supplies stop was lost in the split, stoppedBy=' + s.stoppedBy);
-        assert(G.activeSkill === null,
-          'the refusal call must still clear the activity (that is what produces the "out of X" toast)');
-        assert(s.paidMs > 0 && s.paidMs < AWAY_MS / 100,
-          'the run stopped on supplies; paidMs must be the short span that worked, got ' + s.paidMs);
-        assert(G.buffs.length === 1, 'a 10-minute buff must survive a 31-second run');
-        const spent = BUFF_MS - G.buffs[0].remainingMs;
-        assert(spent === s.paidMs,
-          'the buff must be charged for the work the run did (' + s.paidMs + 'ms) and nothing more, spent ' + spent);
-        assert(s.buffPaidMs === s.paidMs,
-          'the receipt must state the same span it charged, buffPaidMs=' + s.buffPaidMs + ' paidMs=' + s.paidMs);
-      }
-    } finally {
-      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
-      else { try { delete document.hidden; } catch (e) {} }
-      /* This test drives the REAL processOffline seven times, and a paid
-         absence is what raises the welcome-back overlay. It does not raise one
-         today (verified: the suite ends with zero blocking modals present), but
-         b342-4 three hundred tests later asserts it can observe a CLEAN screen
-         — so the day that changes, this test's failure would arrive as a
-         confusing SECOND failure somewhere else. Two lines to make that
-         impossible is cheaper than the afternoon of diagnosing it. */
-      try {
-        document.querySelectorAll('#welcome-overlay.show, .modal.show, #wbv-overlay.show, .ach-overlay.show, .ftue-shade.show, .ftue-card.show')
-          .forEach((el) => el.classList.remove('show'));
-      } catch (e) {}
-      C.randomSeed();
-      if (WE && typeof WE._force === 'function') WE._force(null);   // b456: hand the calendar back
-      restoreGAndRecord(snap);
-    }
-  }),
+     THE PROPERTY IS COVERED, on the engine that replaced the caller, by
+     `gatherBuffTimelineGuard` in tests/accrual-engine.mjs — which measures the
+     SAME fixture this test did (8h on Normal Tree with one 10-minute +4% speed
+     buff) against the same numbers (6,250 dishonest actions vs ~6,005 honest
+     ones) and additionally asserts the buff came back drained. It runs in Node
+     against the vendored engine, so it is watching the bytes hr-accrue runs
+     rather than a client copy of them. AWAY-15 above pins the same timeline for
+     the COMBAT span, in pure core, and is untouched. */
 
   () => tryRun('AWAY-17: nextBuffExpiryMs is the ONE boundary oracle — it agrees with activeBuffs and cannot hang the replay', () => {
     const C = window.HearthriseCore;
@@ -33626,144 +33639,153 @@ const TESTS = [
 
      Both drive the REAL `window.processOffline()`, because the anchor lives in
      the caller and a core-level test cannot see a caller. ══════════════════ */
-  () => tryRunClientAuthoritative('AWAY-22: an over-cap absence is credited from when the player LEFT — the window, and the boss segments in it, start at the watermark', () => {
-    const G = window.G;
+  () => tryRun('AWAY-22: an over-cap absence is credited from when the player LEFT — the window, and the boss segments in it, start at the watermark', () => {
+    /* THE EXPLOIT, restated because it is the reason this test is not just
+       about tidiness: `simulateSpan` resolves the Boss of the Day per UTC-day
+       SEGMENT of the credited window. Anchor that window to the RETURN instant
+       and an 18h absence begun at 22:00 UTC can be made to land wholly on the
+       next day's boss (x1.5 drops, x1.25 combat XP) by choosing when to open
+       the tab — a free, self-selected multiplier on a tradeable-item faucet.
+
+       b515 — DRIVEN ON THE TWO FUNCTIONS THAT DECIDE IT, not through
+       `window.processOffline()`, whose local away engine is deleted. That is
+       the same pair the Edge engine uses and in the same order: `creditWindow`
+       chooses the hours, `utcDaySegments` cuts them into boss days, and
+       `simulateSpan` is handed the result. Nothing here restates the
+       arithmetic, so the assertion cannot agree with itself.
+       MUTATION: restore `fromMs = toMs - spanMs` (or `now - grantMs` on the
+       server) and windowFrom lands 6h later, on the return side of the
+       absence — red on the second assertion and on every segment below it. */
     const C = window.HearthriseCore;
-    const snap = snapshotG();
-    const realCap = window.offlineCapHours;
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    try {
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      window.offlineCapHours = () => 12;
-      const CAP_MS = 12 * 3600000;
-      const AWAY_MS = 18 * 3600000;
-      const m = window.MONSTERS.slime;
-      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
-      G.playerMaxHp = 9999; G.playerHp = 9999;
-      G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      G.activeSkill = null; G.activeArtisanRecipe = null; G.buffs = [];
-      G.quests = [];
-      const left = Date.now() - AWAY_MS;
-      G.lastSeen = left;
-      G.offlineBudget = { at: left };
-      window.processOffline();
+    const A = C.away;
+    const CAP_MS = 12 * 3600000;
+    const AWAY_MS = 18 * 3600000;
+    /* 22:00 UTC on purpose: the departure and the return fall on DIFFERENT UTC
+       days, so an anchor bug changes which boss pays and not merely a label. */
+    const left = Date.UTC(2026, 0, 15, 22, 0, 0);
+    const now = left + AWAY_MS;
 
-      const s = G.lastOfflineSummary || {};
-      assert(s.combat && s.combat.ticks > 0, 'the fixture simulated nothing — everything below would be vacuous');
-      /* HOW MUCH is unchanged (that is AWAY-8's assertion, restated here only
-         so a window fix that quietly shortened the grant cannot pass). */
-      assert(Math.abs(s.awayMs - CAP_MS) < 1000,
-        'an 18h absence at a 12h cap must still CREDIT 12h, got ' + (s.awayMs / 3600000).toFixed(2) + 'h');
-      /* WHICH HOURS. MUTATION PROVEN: restore `fromMs = toMs - spanMs` (or
-         `now - grantMs` on the server) and windowFrom lands 6h later, on the
-         return side of the absence. */
-      assert(Math.abs(s.windowFrom - left) < 1000,
-        'the credited window must OPEN where the absence did (' + new Date(left).toISOString()
-        + '), got ' + new Date(s.windowFrom).toISOString());
-      assert(Math.abs(s.windowTo - (left + CAP_MS)) < 1000,
-        'and close one cap later, got ' + new Date(s.windowTo).toISOString());
-      assert(Math.abs(s.unpaidMs - (AWAY_MS - CAP_MS)) < 1000,
-        'the forfeited tail must be the 6h the cap refused, got ' + ((s.unpaidMs || 0) / 3600000).toFixed(2) + 'h');
-      assert(s.capped === true, 'an 18h absence at a 12h cap must report itself capped');
+    const w = A.creditWindow({ nowMs: now, watermarkMs: left, capMs: CAP_MS });
+    assert(w.paidMs === CAP_MS,
+      'an 18h absence at a 12h cap must still CREDIT 12h, got ' + (w.paidMs / 3600000).toFixed(2) + 'h');
+    assert(w.fromMs === left,
+      'the credited window must OPEN where the absence did (' + new Date(left).toISOString()
+      + '), got ' + new Date(w.fromMs).toISOString());
+    assert(w.toMs === left + CAP_MS, 'and close one cap later, got ' + new Date(w.toMs).toISOString());
+    assert(w.unpaidMs === AWAY_MS - CAP_MS,
+      'the forfeited tail must be the 6h the cap refused, got ' + (w.unpaidMs / 3600000).toFixed(2) + 'h');
+    assert(w.capped === true, 'an 18h absence at a 12h cap must report itself capped');
 
-      /* THE PART THAT IS AN EXPLOIT AND NOT A COSMETIC: the UTC-day segments
-         the Boss of the Day is resolved against are cut from THIS window. */
-      const segs = s.combat.segments || [];
-      assert(segs.length >= 1, 'the summary must describe its UTC-day segments');
-      assert(Math.abs(segs[0].fromMs - left) < 1000,
-        'the first boss segment must begin when the player left, got ' + new Date(segs[0].fromMs).toISOString());
-      assert(Math.abs(segs[segs.length - 1].toMs - (left + CAP_MS)) < 1000,
-        'and the last must end at the close of the credited window');
-      const dayOf = (ms) => Math.floor(ms / 86400000);
-      const expected = [];
-      for (let d = dayOf(left); d <= dayOf(left + CAP_MS - 1); d++) expected.push(d);
-      assert(JSON.stringify(segs.map((x) => dayOf(x.fromMs))) === JSON.stringify(expected),
-        'the credited window must be segmented over the UTC days it actually spans — expected '
-        + JSON.stringify(expected) + ', got ' + JSON.stringify(segs.map((x) => dayOf(x.fromMs)))
-        + '. A window anchored to the RETURN instant names later days, which lets return timing '
-        + 'pick the Boss of the Day.');
-    } finally {
-      window.offlineCapHours = realCap;
-      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
-      else { try { delete document.hidden; } catch (e) {} }
-      C.randomSeed(); restoreG(snap);
-    }
+    /* THE PART THAT IS AN EXPLOIT AND NOT A COSMETIC: the UTC-day segments the
+       Boss of the Day is resolved against are cut from THIS window. Asserted
+       twice — on `utcDaySegments` directly, and on the segments `simulateSpan`
+       actually reports for the same window, because a span that cut its own
+       days would satisfy the first and still ship the bug. */
+    const dayOf = (ms) => Math.floor(ms / 86400000);
+    const segs = A.utcDaySegments(w.fromMs, w.toMs);
+    assert(segs.length >= 2,
+      'the fixture must straddle UTC midnight or the exploit is not staged, got ' + segs.length + ' segment(s)');
+    assert(segs[0].fromMs === left,
+      'the first boss segment must begin when the player left, got ' + new Date(segs[0].fromMs).toISOString());
+    assert(segs[segs.length - 1].toMs === w.toMs, 'and the last must end at the close of the credited window');
+    const expected = [];
+    for (let d = dayOf(w.fromMs); d <= dayOf(w.toMs - 1); d++) expected.push(d);
+    assert(JSON.stringify(segs.map((x) => dayOf(x.fromMs))) === JSON.stringify(expected),
+      'the credited window must be segmented over the UTC days it actually spans — expected '
+      + JSON.stringify(expected) + ', got ' + JSON.stringify(segs.map((x) => dayOf(x.fromMs)))
+      + '. A window anchored to the RETURN instant names later days, which lets return timing '
+      + 'pick the Boss of the Day.');
+    /* …and a window anchored to the return instant WOULD name different days.
+       Without this the assertion above could be satisfied by any two adjacent
+       days and the test would not be about the anchor at all. */
+    const wrong = A.utcDaySegments(now - CAP_MS, now);
+    assert(JSON.stringify(wrong.map((x) => dayOf(x.fromMs))) !== JSON.stringify(expected),
+      'CONTROL: the return-anchored window names the same boss days as the departure-anchored one, so '
+      + 'this fixture cannot tell the two apart');
+
+    const r = awaySpan({ fromMs: w.fromMs, spanMs: w.paidMs });
+    assert(r.out.ticks > 0, 'the span simulated nothing — the segment assertions below would be vacuous');
+    const runSegs = r.out.segments || [];
+    assert(JSON.stringify(runSegs.map((x) => dayOf(x.fromMs))) === JSON.stringify(expected),
+      'simulateSpan cut its own day segments instead of the credited window\'s: '
+      + JSON.stringify(runSegs.map((x) => dayOf(x.fromMs))) + ' vs ' + JSON.stringify(expected));
   }),
 
-  () => tryRunClientAuthoritative('AWAY-23: a 10-minute buff eaten at logoff pays exactly 10 minutes of an 18h absence at a 12h cap — the forfeited time is the TAIL', () => {
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const snap = snapshotG();
-    const realCap = window.offlineCapHours;
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    try {
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      window.offlineCapHours = () => 12;
-      const CAP_MS = 12 * 3600000;
-      const AWAY_MS = 18 * 3600000;
-      const BUFF_MS = 600000;
-      const m = window.MONSTERS.slime;
-      const night = (buffs) => {
-        G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
-        G.playerMaxHp = 9999; G.playerHp = 9999;
-        G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-        G.activeSkill = null; G.activeArtisanRecipe = null;
-        G.quests = [];
-        G.buffs = buffs.map((b) => Object.assign({ addedAt: Date.now() }, b));
-        G.lastSeen = Date.now() - AWAY_MS;
-        G.offlineBudget = { at: Date.now() - AWAY_MS };
-        window.processOffline();
-        return { sum: G.lastOfflineSummary || {}, left: (G.buffs || []).slice() };
-      };
+  () => tryRun('AWAY-23: a 10-minute buff eaten at logoff pays exactly 10 minutes of an 18h absence at a 12h cap — the forfeited time is the TAIL', () => {
+    /* WHY THE TAIL MATTERS, and why this is a payout bug rather than a
+       bookkeeping one: a timed buff eaten on the way out is alive for the FIRST
+       minutes of the absence. Credit the LAST twelve hours of an eighteen-hour
+       absence and those minutes fall outside the credited window entirely — the
+       player pays for a consumable that buys nothing (measured: 10 minutes of
+       coverage becomes 0).
 
-      /* THE CONTROL: with no buff held the receipt must report zero coverage,
-         so the measurement below is a measurement and not a default. */
-      const ctrl = night([]);
-      assert(ctrl.sum.combat && ctrl.sum.combat.ticks > 0, 'the fixture simulated nothing');
-      assert(ctrl.sum.buffPaidMs === 0, 'no buff was held, so nothing may be reported as paid');
+       b515 — the fixture drove `window.processOffline()`; that engine is
+       deleted, so it drives the pair that decides it, exactly as AWAY-22 does:
+       `creditWindow` picks the hours and `simulateSpan` runs the buff clock
+       over them. The buff queue lives on the plain state, so nothing here can
+       be satisfied by an ambient `G.buffs` an earlier test left behind — which
+       the old fixture could not say. */
+    const A = window.HearthriseCore.away;
+    const CAP_MS = 12 * 3600000;
+    const AWAY_MS = 18 * 3600000;
+    const BUFF_MS = 600000;
+    const TICK = 2400;
+    const left = Date.UTC(2026, 0, 15, 22, 0, 0);
+    const now = left + AWAY_MS;
+    const w = A.creditWindow({ nowMs: now, watermarkMs: left, capMs: CAP_MS });
+    assert(w.paidMs === CAP_MS && w.fromMs === left, 'the fixture window is wrong: ' + JSON.stringify(w));
 
-      const tickMs = window.combatTickMs();
-      const r = night([{ type: 'drop_rate', magnitude: 100, remainingMs: BUFF_MS }]);
-      /* MUTATION PROVEN: anchor the window to the return instant again and the
-         uncredited six hours become the HEAD of the absence rather than its
-         tail — the buff is then spent on time that paid nothing and this reads
-         0. (The clock crosses the whole absence either way; what moves is which
-         side of the window the unpaid part falls on.) */
-      assert(Math.abs(r.sum.buffPaidMs - BUFF_MS) <= tickMs,
-        'a 10-minute buff eaten at logoff must cover the first 10 minutes of the CREDITED window, got '
-        + r.sum.buffPaidMs + 'ms (one tick = ' + tickMs + 'ms). 0 means the window was anchored to the '
-        + 'return instant and the buff was spent on forfeited time.');
-      /* …and it may not cover more than its own life either — the other half of
-         the same rule, which a "never drain the tail" fix would break. */
-      assert(r.sum.buffPaidMs < CAP_MS,
-        'THE MINT: the buff paid ' + r.sum.buffPaidMs + 'ms of a ' + CAP_MS + 'ms window');
-      assert(r.left.length === 0,
-        'the buff must be spent by the time the player is back, found ' + JSON.stringify(r.left));
+    const night = (buffs) => awaySpan({
+      fromMs: w.fromMs, spanMs: w.paidMs, tickMs: TICK,
+      state: { buffs: buffs.map((b) => Object.assign({ addedAt: left }, b)) },
+    });
 
-      /* (c) THE TAIL IS SPENT, NOT FROZEN. The cap stops the PAYOUT; the
-         character kept standing there, so the clock kept running. A buff longer
-         than the credited window but shorter than the absence must be GONE when
-         the player gets back — otherwise the timers they see disagree with the
-         wall clock, which is the b326 mint in slow motion.
-         MUTATION PROVEN: drop the `_unpaidTailMs` drain from processOffline and
-         this comes back with 30 minutes left on it. */
-      const long = night([{ type: 'drop_rate', magnitude: 100, remainingMs: CAP_MS + 1800000 }]);
-      assert(long.left.length === 0,
-        'a 12h30m buff must not survive an 18h absence just because the last 6h paid nothing — found '
-        + JSON.stringify(long.left));
-      /* …and the drain is the WALL CLOCK, not "everything": a buff longer than
-         the whole absence comes back with exactly the remainder. */
-      const survives = night([{ type: 'drop_rate', magnitude: 100, remainingMs: AWAY_MS + 3600000 }]);
-      assert(survives.left.length === 1, 'a buff longer than the absence must survive it');
-      const leftMs = survives.left[0].remainingMs;
-      assert(Math.abs(leftMs - 3600000) <= tickMs,
-        'an 18h absence must spend exactly 18h of a 19h buff, leaving 1h — found ' + leftMs + 'ms');
-    } finally {
-      window.offlineCapHours = realCap;
-      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
-      else { try { delete document.hidden; } catch (e) {} }
-      C.randomSeed(); restoreG(snap);
-    }
+    /* THE CONTROL: with no buff held the payload must report zero coverage, so
+       the measurement below is a measurement and not a default. */
+    const ctrl = night([]);
+    assert(ctrl.out.ticks > 0, 'the fixture simulated nothing');
+    assert(ctrl.out.buffPaidMs === 0, 'no buff was held, so nothing may be reported as paid');
+
+    const r = night([{ type: 'drop_rate', magnitude: 100, remainingMs: BUFF_MS }]);
+    assert(Math.abs(r.out.buffPaidMs - BUFF_MS) <= TICK,
+      'a 10-minute buff eaten at logoff must cover the first 10 minutes of the CREDITED window, got '
+      + r.out.buffPaidMs + 'ms (one tick = ' + TICK + 'ms). 0 means the window was anchored to the '
+      + 'return instant and the buff was spent on forfeited time.');
+    assert(r.out.buffPaidMs < CAP_MS,
+      'THE MINT: the buff paid ' + r.out.buffPaidMs + 'ms of a ' + CAP_MS + 'ms window');
+    assert(r.state.buffs.length === 0,
+      'the buff must be spent by the time the player is back, found ' + JSON.stringify(r.state.buffs));
+
+    /* AND THE FORFEITED TAIL IS SPENT, NOT FROZEN — the half a "never drain
+       past the cap" fix would break. The cap stops the PAYOUT; the character
+       kept standing there, so the clock kept running. This is the one piece the
+       simulation cannot do on its own (it only ever runs the credited window),
+       so it is asserted where the caller does it: `tickBuffs` over the unpaid
+       tail, which is the same primitive the span uses per tick.
+       MUTATION: drop the unpaid-tail drain from the accrual caller and a
+       12h30m buff comes back with 30 minutes still on it. */
+    const B = window.HearthriseCore.buffs;
+    assert(typeof B.tickBuffs === 'function', 'core/buffs.js must export tickBuffs — the tail drain uses it');
+    const longBuff = night([{ type: 'drop_rate', magnitude: 100, remainingMs: CAP_MS + 1800000 }]);
+    assert(longBuff.state.buffs.length === 1 && longBuff.state.buffs[0].remainingMs === 1800000,
+      'the credited window must spend exactly its own 12h off the buff, leaving 30m for the tail — found '
+      + JSON.stringify(longBuff.state.buffs));
+    B.tickBuffs(longBuff.state.buffs, w.unpaidMs, { away: true, active: true });
+    longBuff.state.buffs = B.pruneBuffs(longBuff.state.buffs);
+    assert((longBuff.state.buffs || []).length === 0,
+      'a 12h30m buff survived an 18h absence because the last 6h paid nothing — found '
+      + JSON.stringify(longBuff.state.buffs) + '. The timers the player sees would disagree with the wall '
+      + 'clock, which is the b326 mint in slow motion.');
+
+    /* …and the drain is the WALL CLOCK, not "everything": a buff longer than
+       the whole absence comes back with exactly the remainder. */
+    const survives = night([{ type: 'drop_rate', magnitude: 100, remainingMs: AWAY_MS + 3600000 }]);
+    B.tickBuffs(survives.state.buffs, w.unpaidMs, { away: true, active: true });
+    survives.state.buffs = B.pruneBuffs(survives.state.buffs);
+    assert(survives.state.buffs.length === 1, 'a buff longer than the absence must survive it');
+    const leftMs = survives.state.buffs[0].remainingMs;
+    assert(Math.abs(leftMs - 3600000) <= TICK,
+      'an 18h absence must spend exactly 18h of a 19h buff, leaving 1h — found ' + leftMs + 'ms');
   }),
 
   () => tryRun('AWAY-24: the blessing channel is decided by AWAY_SCOPE ALONE — no simulation and no receipt restates it', () => {
@@ -33840,20 +33862,38 @@ const TESTS = [
     assert(new Set(awayVals.map((p) => p[1])).size === 1,
       'the three away simulations disagree about blessings: ' + JSON.stringify(awayVals));
 
-    /* (d) THE CLIENT RECEIPT DOES NOT CARRY A FIFTH COPY. processOffline is
-       always an absence, so there is no second context to discriminate with —
-       the discriminator has to be structural, which is exactly what AWAY-12
-       does to keep the second combat loop from coming back. legacy.js is a
-       classic script, so `processOffline` is a real global and its source is
-       readable; the summary literal lived inside it. */
-    const src = String(window.processOffline);
-    assert(/lastOfflineSummary\s*=/.test(src),
-      'this guard reads processOffline\'s own source and no longer finds the summary in it — the field may have moved, and the guard is now vacuous');
-    assert(!/blessed\s*:\s*(true|false)\b/.test(src),
-      'processOffline writes a HARDCODED blessed onto lastOfflineSummary. That is the fourth copy Ruling 3.5 removed: '
-      + 'it must ask src/core/away.js (via _awayBlessed), so a flipped AWAY_SCOPE.blessing reaches the welcome-back card.');
-    assert(/_awayBlessed\s*\(/.test(src),
-      'processOffline must derive blessed through _awayBlessed() — the one call that asks the table');
+    /* (d) THE CLIENT RECEIPT DOES NOT CARRY A FIFTH COPY.
+       b515 — THE FOURTH COPY MOVED HOUSE, and this is the half of the ruling
+       that has to move with it. It used to live in `processOffline`'s own
+       `lastOfflineSummary` literal, and this assertion read that function's
+       source for a hardcoded `blessed:`. processOffline no longer writes a
+       receipt at all: the local away engine is deleted and
+       `accrue.js summaryFromAway` is now the ONE translator from the server's
+       away payload to the welcome-back card.
+
+       So the same discriminator is applied to the same class of defect at its
+       new address, and behaviourally rather than by source text — which is
+       strictly better, because a source check cannot tell a constant from a
+       constant that happens to be right today. The receipt must REPORT what the
+       payload said in both directions; a hardcoded literal can only match one.
+       MUTATION: replace `blessed: !!a.blessed` in summaryFromAway with either
+       literal → red on one of the two assertions below. */
+    const AC = window.HearthriseAccrual;
+    assert(AC && typeof AC.summaryFromAway === 'function',
+      'accrue.js must export summaryFromAway — it is the only path from the server payload to the card');
+    [true, false].forEach((v) => {
+      const rec = AC.summaryFromAway({ grantMs: 3600000, kills: 1, blessed: v }, { version: 1 });
+      assert(rec.blessed === v,
+        'the welcome-back receipt reported blessed=' + rec.blessed + ' for a payload that said ' + v
+        + ' — that is the fifth copy of a rule that has exactly one home (AWAY_SCOPE). A stale copy is '
+        + 'the player-facing lie, because the receipt is the only thing a renderer may read.');
+    });
+    /* AND NOTHING RECONSTRUCTS IT FROM THE LIVE PAGE. An absent payload field
+       must read false — "the server said nothing" — never "ask the table for
+       what would be true right now", which is a different instant. */
+    assert(AC.summaryFromAway({ grantMs: 3600000 }, { version: 1 }).blessed === false,
+      'an away payload that states no blessing produced a receipt that claims one — the receipt is '
+      + 'inferring, and b341\'s rule for exactly this row is STATED, NOT INFERRED');
   }),
 
   () => tryRun('AWAY-9: the summary carries the honesty payload the welcome-back renderer needs', () => {
@@ -44978,200 +45018,200 @@ const TESTS = [
                       module has come back by any name
      ══════════════════════════════════════════════════════════════════════ */
 
-  () => tryRun('AWAY-HONEST-1: away combat pays from kill ONE — no precondition, and no gate residue on the receipt', () => {
+  () => tryRun('AWAY-HONEST-1: away combat pays from kill ONE — the engine takes no lifetime-kill input at all', () => {
+    /* b343's bug was a PRECONDITION: an away span was refused until the
+       character had N lifetime kills, so the players who most needed overnight
+       progress were the ones who got none. The old test drove
+       `window.processOffline()` at 0 lifetime kills and asserted kills/gold/XP
+       all moved.
+
+       b515 deleted that caller's local engine, so the assertion has to move to
+       the engine itself — which turns out to be the STRONGER form of the same
+       property. A precondition can only exist if the simulation can SEE the
+       lifetime count, so the contract is stated as an identity: the same seed,
+       the same span, the same state except `stats.kills`, must pay BYTE-
+       IDENTICALLY at 0, at 99 and at 500. That is unfalsifiable by a "> 0"
+       assertion and it catches an ATTENUATION (half rate under N) as well as a
+       gate, which the original could not.
+
+       MUTATION: add `if ((state.stats.kills||0) < 100) return emptySpan;` — or
+       any rate term reading it — to simulateSpan → red on the first mismatch.
+       The `licence` module's absence is AWAY-SCOPE-1's subject and stays there. */
+    const at0 = awaySpan({ state: { stats: { kills: 0, crits: 0, deaths: 0, rareDrops: 0 } } });
+    assert(at0.paid.kills > 0 && at0.paid.gold > 0 && Object.keys(at0.paid.xp).length > 0,
+      'THE b343 BUG: an away combat span at 0 lifetime kills paid nothing — ' + JSON.stringify(at0.paid));
+
+    const fingerprint = (r) => JSON.stringify({
+      kills: r.paid.kills, gold: r.paid.gold, xp: r.paid.xp, items: r.paid.items,
+      ticks: r.out.ticks, survivedMs: r.out.survivedMs, died: r.out.died,
+    });
+    const base = fingerprint(at0);
+    [99, 100, 500].forEach((k) => {
+      const r = awaySpan({ state: { stats: { kills: k, crits: 0, deaths: 0, rareDrops: 0 } } });
+      assert(fingerprint(r) === base,
+        'a span paid DIFFERENTLY at ' + k + ' lifetime kills than at 0 — the engine is reading the '
+        + 'lifetime count, which is either a gate or an attenuation, and b343 is back.\n  at 0:  '
+        + base + '\n  at ' + k + ': ' + fingerprint(r));
+    });
+
+    /* AND THE RECEIPT CARRIES NO GATE. `summaryFromAway` is the ONE translator
+       from the server's away payload to the welcome-back card now, so it is
+       where a resurrected verdict would have to surface. A stale `licence`
+       block would be read by nothing today; its presence is how a removed
+       feature comes back, because the next author sees the field and rebuilds
+       the branch that reads it. */
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.summaryFromAway === 'function',
+      'accrue.js must export summaryFromAway — it is the only path from the server payload to the card');
+    const rec = A.summaryFromAway({ grantMs: 3600000, kills: at0.paid.kills, gold: at0.paid.gold,
+      xp: at0.paid.xp, items: at0.paid.items }, { version: 1 });
+    assert(rec && rec.gainedKills === at0.paid.kills && rec.hrs > 0,
+      'the receipt reports a night that paid nothing while the payload says otherwise: ' + JSON.stringify(rec));
+    assert(!('licence' in rec),
+      'the receipt still carries the retired gate verdict: ' + JSON.stringify(rec.licence));
+    assert(!window.G._awayLicence, 'the retired gate is still publishing its scratch field');
+  }),
+
+  () => tryRunAsync('AWAY-HONEST-2: the CALLER applies nothing it was not told — the receipt is the envelope, field for field', async () => {
+    /* WHAT THIS TEST WAS. "A seeded span through processOffline equals the
+       direct simulation, at 0 kills and at 500" — because the removed b343 gate
+       lived at the CALLER, so the caller is where a residue of it would hide.
+
+       WHAT THE CALLER IS NOW. b515 deleted processOffline's local engine. The
+       caller that turns an absence into a receipt is `applyEnvelope`, and the
+       identical class of defect is available to it: a caller that ADDS to, or
+       infers around, what the server stated. That is not hypothetical here —
+       b361 shipped a receipt whose only label came from `source === 'switch'`
+       and told every live settle it had been away all night.
+
+       So the property is restated for the caller that exists: apply an envelope
+       carrying a known `away` block, and the receipt on G must equal
+       `summaryFromAway` of that block EXACTLY. Nothing added, nothing dropped,
+       nothing recomputed locally.
+       MUTATION: make applyEnvelope massage any away field before the call (e.g.
+       `away.kills = away.kills || G.stats.kills`) → red on the deep compare. */
+    const A = window.HearthriseAccrual;
     const G = window.G;
     const snap = snapshotG();
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const wasAck = A.isReplacementAcknowledged();
     try {
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      /* THE CHARACTER THE OLD GATE REFUSED: zero lifetime kills. High HP so a
-         zero result could only be a PRECONDITION — never a death, which is a
-         legitimate reason for a small night and is asserted separately. */
-      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
-      G.playerMaxHp = 9999; G.playerHp = 9999;
-      const m = window.MONSTERS.slime;
-      G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      G.activeSkill = null; G.activeArtisanRecipe = null;
-      G.stats = Object.assign({}, G.stats, { kills: 0, deaths: 0 });
-      G.gold = 1000;
-      G.inventory = Object.assign({}, G.inventory);
-      G.quests = [];
-      const now = Date.now();
-      G.lastSeen = now - 8 * 3600000;
-      G.offlineBudget = { at: now - 8 * 3600000 };       // EIGHT HOURS away
+      A.acknowledgeReplacement(true);
+      /* A REAL span, not a hand-written one: the numbers on the envelope are
+         what the SERVER's copy of this engine would have produced, so the
+         fixture cannot drift from the thing it stands for. */
+      const r = awaySpan({ spanMs: 2 * 3600000 });
+      assert(r.paid.kills > 0, 'the fixture simulated nothing — the comparison below would be vacuous');
+      const away = {
+        grantMs: 2 * 3600000, kills: r.paid.kills, crits: r.out.crits || 0,
+        gold: r.paid.gold, xp: r.paid.xp, items: r.paid.items,
+        died: false, capped: false, blessed: false,
+        windowFrom: r.out.fromMs || null, windowTo: r.out.toMs || null,
+      };
+      const skills = {}; for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+      const env = { ok: true, accrued: true, version: 9001, now: new Date().toISOString(),
+        state: { slot: 0, gold: G.gold, active_kind: 'idle', active_id: null },
+        skills, inventory: Object.assign({}, G.inventory), away };
 
-      const before = { kills: G.stats.kills, gold: G.gold, xp: G.skills.hitpoints || 0 };
-      window.processOffline();
+      const expected = A.summaryFromAway(away, env);
+      const written = A.applyEnvelope(G, env);
+      assert(written, 'the envelope was refused, so there is no receipt to compare');
+      const got = G.lastOfflineSummary;
+      assert(got, 'applyEnvelope wrote no welcome-back receipt at all');
 
-      /* Field by field, in the same shape the gate test used, pointed the
-         other way: every channel a night pays must have moved.
-         MUTATION PROVEN: wrap the `simulateAwayCombat` call in processOffline
-         in ANY precondition (`if (G.stats.kills >= 100)`) and all three of
-         these fail at once. */
-      assert(G.stats.kills > before.kills,
-        'THE b343 BUG: an away combat span at 0 kills granted no kills — a precondition is back');
-      assert(G.gold > before.gold, 'the span granted no gold: ' + G.gold + ' vs ' + before.gold);
-      assert((G.skills.hitpoints || 0) > before.xp, 'the span granted no XP');
-
-      /* THE RECEIPT CARRIES NO GATE. A stale `licence` block would be read by
-         nothing now, but its presence is how a removed feature comes back:
-         the next author sees the field and rebuilds the branch that reads it. */
-      const rec = G.lastOfflineSummary;
-      assert(rec, 'processOffline wrote no receipt');
-      assert(!('licence' in rec),
-        'the receipt still carries the retired gate verdict: ' + JSON.stringify(rec.licence));
-      assert(!G._awayLicence, 'the retired gate is still publishing its scratch field');
-      assert(rec.gainedKills > 0 && rec.hrs > 0,
-        'the receipt reports a night that paid nothing while the save says otherwise: ' + JSON.stringify({ hrs: rec.hrs, kills: rec.gainedKills }));
-
-      /* AND THE ABSENCE WAS CONSUMED, not banked. The old gate's budget rule
-         ("a declined night must not cost the allowance") is moot, but the
-         invariant underneath it is not: the watermark always advances on a
-         visible return, or the same hours are paid twice. */
-      assert(Math.abs(G.offlineBudget.at - Date.now()) < 10000,
-        'the absence was BANKED — the watermark sits '
-        + Math.round((Date.now() - G.offlineBudget.at) / 60000) + ' min in the past');
+      /* `at` is a timestamp taken inside the translator, so the two calls
+         legitimately differ by a millisecond; every other field must match. */
+      const strip = (o) => { const c = Object.assign({}, o); delete c.at; return c; };
+      assert(JSON.stringify(strip(got)) === JSON.stringify(strip(expected)),
+        'the caller did not apply the envelope verbatim — it added, dropped or recomputed a field.\n'
+        + '  server said: ' + JSON.stringify(strip(expected)) + '\n'
+        + '  receipt is:  ' + JSON.stringify(strip(got)));
+      assert(got.serverAuthoritative === true,
+        'the receipt does not label itself server-stated — a screenshot and a bug report can no longer '
+        + 'tell a server receipt from a locally-computed one');
+      /* AND THE PAYOUT IS THE SERVER'S, ABSOLUTELY. The away block names a gold
+         figure; the STATE names the balance. A caller that added the away gold
+         to the state gold would pay twice for one night. */
+      assert(G.gold === env.state.gold,
+        'the caller added the away payload to the absolute balance: gold is ' + G.gold + ', the server '
+        + 'said ' + env.state.gold + ' — that is the b354 double-pay shape, one settle at a time');
     } finally {
-      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
-      else { try { delete document.hidden; } catch (e) {} }
-      restoreG(snap);
+      A.acknowledgeReplacement(wasAck);
+      restoreGAndRecord(snap);
     }
   }),
 
-  () => tryRunClientAuthoritative('AWAY-HONEST-2: the CALLER applies nothing — a seeded span through processOffline equals the direct simulation, at 0 kills and at 500', () => {
-    const G = window.G;
-    const C = window.HearthriseCore;
-    const P = window.HearthrisePresence;
-    const snap = snapshotG();
-    const origBonus = window.getBonus;
-    try {
-      window.getBonus = () => 0;
-      G.buffs = [];
-      /* One seeded 30-minute span, run twice from identical state: once by
-         calling simulateAwayCombat directly, once through processOffline. The
-         removed gate lived at the CALLER, so the caller is where a residue of
-         it would hide — a survivor branch, an attenuation, a "half rate under
-         N kills". Run at BOTH ends of the kill range the old threshold split:
-         a gate reintroduced at 100 is invisible to a test that only ever
-         stands a veteran, which is exactly how the b341 fixtures read. */
-      const stand = (kills) => {
-        G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
-        G.playerMaxHp = 9999; G.playerHp = 9999;
-        const m = window.MONSTERS.slime;
-        G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-        G.activeSkill = null; G.activeArtisanRecipe = null;
-        G.gold = 0; G.inventory = {}; G.quests = [];
-        G.stats = Object.assign({}, G.stats, { kills, crits: 0, deaths: 0, rareDrops: 0 });
-        /* IDENTICAL STATE IS THE WHOLE PREMISE of this test, and rev. 2 added a
-           field to it: without this the direct span ends the character face-down
-           and the caller's span — the same 30 minutes, replayed — opens still
-           down and pays nothing. See `onFeet`. */
-        onFeet();
-      };
-      const read = (baseKills) => ({
-        kills: (G.stats.kills || 0) - baseKills, gold: G.gold,
-        inv: JSON.stringify(G.inventory),
-      });
+  () => tryRun('AWAY-BUDGET-1: an absence is paid ONCE and the next one still gets the whole cap — from kill zero', () => {
+    /* THE RULE (b307): the cap is PER ABSENCE, not a shared daily bucket. The
+       old test proved it by calling `window.processOffline()` three times and
+       watching `G.offlineBudget.at` and `G.stats.kills`.
 
-      const runPair = (baseKills) => {
-        stand(baseKills);
-        C.reseed(0x1CE7CE);
-        P._withOfflineReplay(() => { window.simulateAwayCombat(0.5, Date.now(), false); });
-        const direct = read(baseKills);
+       BOTH HALVES OF THAT FIXTURE ARE GONE, and for different reasons worth
+       keeping apart. The local away engine was deleted (b515), so the kill
+       counter cannot move; and `offlineBudget` is SERVER-OF-RECORD and ARMED,
+       so the watermark is `player_state.accrued_to` — the client may not write
+       it at all, which is B347-R1's subject.
 
-        stand(baseKills);
-        const now = Date.now();
-        G.lastSeen = now - 1800000;
-        G.offlineBudget = { at: now - 1800000 };
-        const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-        Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-        C.reseed(0x1CE7CE);
-        try { window.processOffline(); } finally {
-          if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
-          else { try { delete document.hidden; } catch (e) {} }
-        }
-        return { direct: direct, viaCaller: read(baseKills) };
-      };
+       The arithmetic itself did not move: `src/core/away.js creditWindow` is
+       the shared function BOTH sides run (the client to size a preview, the
+       Edge engine to size the grant), so the rule is asserted on it directly,
+       as pure data. Three properties, each one an exploit if it breaks:
 
-      /* MUTATION PROVEN: put ANY precondition back around the
-         `simulateAwayCombat` call in processOffline and the 0-kill pair fails
-         on "kills diverged"; make it an attenuation instead of a gate and both
-         pairs fail. */
-      [0, 500].forEach((baseKills) => {
-        const r = runPair(baseKills);
-        const at = ' (at ' + baseKills + ' lifetime kills)';
-        assert(r.direct.kills > 0, 'the rig produced no kills' + at + ' — the parity assertion would be vacuous');
-        assert(r.direct.kills === r.viaCaller.kills,
-          'kills diverged through processOffline' + at + ': direct ' + r.direct.kills + ' vs ' + r.viaCaller.kills);
-        assert(r.direct.gold === r.viaCaller.gold,
-          'gold diverged through processOffline' + at + ': ' + r.direct.gold + ' vs ' + r.viaCaller.gold);
-        assert(r.direct.inv === r.viaCaller.inv,
-          'drops diverged through processOffline' + at + ':\n  ' + r.direct.inv + '\n  ' + r.viaCaller.inv);
-      });
-    } finally {
-      window.getBonus = origBonus;
-      C.randomSeed();
-      restoreG(snap);
-    }
-  }),
+       (a) A PAID ABSENCE LEAVES NOTHING BEHIND. `toMs` is where the next
+           watermark lands, so paying and then re-asking from that watermark
+           must yield zero — otherwise the same hours are paid twice, which is
+           the b214 double-pay shape.
+       (b) THE NEXT ABSENCE GETS THE WHOLE CAP. No bucket carries over.
+       (c) THE CAP CLIPS THE PAYOUT, NOT THE CLOCK. An over-cap absence still
+           reports its full `awayMs` and a real `unpaidMs`, so a 40-hour absence
+           is one capped night rather than four 12h instalments.
 
-  () => tryRunClientAuthoritative('AWAY-BUDGET-1: an absence is paid ONCE and the next one still gets the whole cap — from kill zero', () => {
-    const G = window.G;
-    const snap = snapshotG();
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    try {
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
-      G.playerMaxHp = 9999; G.playerHp = 9999;
-      const m = window.MONSTERS.slime;
-      G.activeMonster = 'slime'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      G.activeSkill = null; G.activeArtisanRecipe = null;
-      G.stats = Object.assign({}, G.stats, { kills: 0 });
-      G.quests = [];
-      const cap = window.offlineCapHours();
-      const now = Date.now();
-      G.lastSeen = now - 8 * 3600000;
-      G.offlineBudget = { at: now - 8 * 3600000 };
-      const k0 = G.stats.kills || 0;
-      window.processOffline();                                   // 8h, paid
-      assert((G.stats.kills || 0) > k0, 'the fixture banked nothing — everything below would be vacuous');
+       MUTATION: make `fromMs` fall back to `nowMs - capMs` (the pre-b352 shape)
+       → (a) still passes and (c) goes red, which is the point of asserting all
+       three: the window has two ends and a fix to one can move the other.
+       The SERVER-side twin is `creditWindowGuard` in tests/accrual-engine.mjs. */
+    const A = window.HearthriseCore.away;
+    assert(typeof A.creditWindow === 'function', 'src/core/away.js must export creditWindow');
+    const HOUR = 3600000;
+    const CAP = 12 * HOUR;
+    const now = Date.UTC(2026, 0, 16, 6, 0, 0);
 
-      /* (a) NOTHING IS BANKED. b307's cap is PER ABSENCE, so the watermark
-         must land on NOW: leave it in the past and the same eight hours are
-         paid again on the next return — the b214 double-pay shape. Belt and
-         braces rather than the sole guard: `saveLocal` also pins the watermark
-         to `lastSeen` on every visible save, so this states the invariant
-         without being the only thing that can catch a break in it. */
-      assert(Math.abs(G.offlineBudget.at - Date.now()) < 10000,
-        'the absence was BANKED (watermark left ' + Math.round((Date.now() - G.offlineBudget.at) / 60000)
-        + ' min in the past) — it will be paid a second time on the next return');
+    // (a) an 8h absence, wholly inside the cap, is paid in full and leaves nothing.
+    const first = A.creditWindow({ nowMs: now, watermarkMs: now - 8 * HOUR, capMs: CAP });
+    assert(first.paidMs === 8 * HOUR, 'an 8h absence under a 12h cap must pay all 8h, got ' + (first.paidMs / HOUR) + 'h');
+    assert(first.unpaidMs === 0 && first.capped === false, 'it must not report itself capped: ' + JSON.stringify(first));
+    const again = A.creditWindow({ nowMs: now, watermarkMs: first.toMs, capMs: CAP });
+    assert(again.paidMs === 0,
+      'returning immediately re-paid ' + (again.paidMs / 60000) + ' minutes of an absence that was already '
+      + 'credited — the watermark the last grant set does not close the window it paid for');
 
-      /* (b) AND IT IS NOT RE-PAID. Coming straight back pays nothing more. */
-      const k1 = G.stats.kills || 0;
-      G.playerHp = G.playerMaxHp; onFeet();   // rev. 2 — see `onFeet`
-      G.activeMonster = 'slime'; G.monsterHp = m.hp;
-      window.processOffline();
-      assert((G.stats.kills || 0) === k1,
-        'returning immediately re-paid the same absence: +' + ((G.stats.kills || 0) - k1) + ' kills');
+    // (b) and the NEXT absence gets the whole cap, with nothing carried over.
+    const later = now + 20 * HOUR;
+    const second = A.creditWindow({ nowMs: later, watermarkMs: first.toMs, capMs: CAP });
+    assert(second.paidMs === CAP,
+      'the following absence lost part of its allowance: ' + (second.paidMs / HOUR) + 'h of ' + (CAP / HOUR) + 'h — '
+      + 'the cap is PER ABSENCE and a shared bucket is exactly what b307 removed');
 
-      /* (c) and the NEXT absence is paid the whole per-absence cap.
-         MUTATION PROVEN: clip `capMs` in `claimOfflineMs` (to
-         `offlineCapHours()*3600000*0.5`) and this fails on "clipped". */
-      assert(window.offlineBudgetRemainingMs() === cap * 3600000,
-        'the next absence lost part of its allowance: '
-        + (window.offlineBudgetRemainingMs() / 3600000) + 'h of ' + cap + 'h');
-      G.playerHp = G.playerMaxHp; onFeet();   // rev. 2 — see `onFeet`
-      G.activeMonster = 'slime'; G.monsterHp = m.hp;
-      G.offlineBudget = { at: Date.now() - (cap * 3600000) };
-      window.processOffline();
-      assert((G.stats.kills || 0) > k1, 'the following absence paid nothing at all');
-      assert(G.lastOfflineSummary && G.lastOfflineSummary.hrs >= cap - 0.1,
-        'the following absence was clipped: ' + (G.lastOfflineSummary && G.lastOfflineSummary.hrs) + 'h of ' + cap + 'h');
-    } finally {
-      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
-      else { try { delete document.hidden; } catch (e) {} }
-      restoreG(snap);
-    }
+    // (c) over the cap: the payout clips, the clock does not.
+    const over = A.creditWindow({ nowMs: now, watermarkMs: now - 18 * HOUR, capMs: CAP });
+    assert(over.paidMs === CAP, 'an 18h absence at a 12h cap must credit 12h, got ' + (over.paidMs / HOUR) + 'h');
+    assert(over.awayMs === 18 * HOUR,
+      'the absence itself must still be reported in full (' + (over.awayMs / HOUR) + 'h) — a receipt that '
+      + 'shortens the absence to the cap cannot explain the hours it did not pay for');
+    assert(over.unpaidMs === 6 * HOUR && over.capped === true,
+      'the forfeited tail must be the 6h the cap refused: ' + JSON.stringify(over));
+    /* AND THE WATERMARK STILL LANDS ON THE PAID EDGE, not on `now`: that pairing
+       is what stops a 40-hour absence becoming four capped instalments on four
+       reloads, and it is the half a "just clamp the payout" fix would miss. */
+    const tail = A.creditWindow({ nowMs: now, watermarkMs: over.toMs, capMs: CAP });
+    assert(tail.paidMs === 6 * HOUR,
+      'the 6h tail the cap refused is not reachable at all from the paid edge (' + (tail.paidMs / HOUR) + 'h) — '
+      + 'either it is lost or it is being re-paid');
+
+    // (d) A CLIENT CANNOT BUY TIME THE WATERMARKS DO NOT CONTAIN.
+    const forged = A.creditWindow({ nowMs: now, watermarkMs: now - HOUR, capMs: CAP, grantMs: 999 * HOUR });
+    assert(forged.paidMs === HOUR,
+      'a caller asked for ' + 999 + 'h against a 1h absence and got ' + (forged.paidMs / HOUR) + 'h — a supplied '
+      + 'grant must be a CEILING clamped into the window that exists, never a source of time');
   }),
 
   () => tryRun('AWAY-SCOPE-1: AWAY_SCOPE is the pinned table, and no away-eligibility gate has come back by any name', () => {
@@ -45209,37 +45249,32 @@ const TESTS = [
       'the retired away-gate window API is back — every surface that reads it will grow a branch again');
   }),
 
-  () => tryRunClientAuthoritative('AWAY-HONEST-4: gathering banks the whole absence, from kill zero', () => {
-    const G = window.G;
-    const snap = snapshotG();
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    try {
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      /* A brand-new player with a woodcutting session running banks the whole
-         night. Kept from the gate era, where it proved the gate did not leak
-         past combat; it is still the guard on the one promise the FTUE makes
-         without qualification ("even when you're offline, progress continues"). */
-      G.stats = Object.assign({}, G.stats, { kills: 0 });
-      G.activeMonster = null; G.activeArtisanRecipe = null;
-      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-      G.activeSkill = 'woodcutting';
-      const tree = (window.TREES || []).find((t) => (t.req || 1) <= 1);
-      assert(tree, 'the fixture needs a level-1 tree');
-      G.skillTargetId = tree.id;
-      G.inventory = Object.assign({}, G.inventory);
-      const wood0 = G.inventory[tree.prod] || 0;
-      const xp0 = G.skills.woodcutting || 0;
-      const now = Date.now();
-      G.lastSeen = now - 3600000;
-      G.offlineBudget = { at: now - 3600000 };
-      window.processOffline();
-      assert((G.skills.woodcutting || 0) > xp0, 'a 0-kill player must still bank gathering XP away');
-      assert((G.inventory[tree.prod] || 0) > wood0, 'a 0-kill player must still bank gathered items away');
-    } finally {
-      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
-      else { try { delete document.hidden; } catch (e) {} }
-      restoreG(snap);
-    }
+  () => tryRun('AWAY-HONEST-4: gathering banks the whole absence, from kill zero', () => {
+    /* THE PROMISE THE FTUE MAKES WITHOUT QUALIFICATION: "even when you're
+       offline, progress continues". This was written in the gate era, where it
+       proved the b343 combat gate did not leak past combat, and it drove
+       `window.processOffline()` on the live G.
+
+       b515 deleted that engine, so it drives the one that replaced it —
+       `simulateSkillSpan`, vendored into hr-accrue by tools/pack-edge.mjs — on
+       a plain state, at zero lifetime kills. Same promise, measured on the
+       bytes the server runs, and now as an IDENTITY rather than a "> 0": a
+       gather span may not read the lifetime kill count at all.
+       MUTATION: give simulateSkillSpan any `state.stats.kills` term → red. */
+    const zero = awayGatherSpan({ state: { stats: { kills: 0 } } });
+    const prod = (window.TREES || []).filter((t) => t.id === zero.targetId)[0];
+    assert(prod, 'the fixture needs a level-1 tree');
+    assert(zero.out.gathered > 0,
+      'an hour of woodcutting gathered nothing at all (stoppedBy=' + zero.out.stoppedBy + ') — everything '
+      + 'below would be vacuous');
+    assert((zero.paid.xp.woodcutting || 0) > 0, 'a 0-kill player must still bank gathering XP away');
+    assert((zero.paid.items[prod.prod] || 0) > 0, 'a 0-kill player must still bank gathered items away');
+
+    const veteran = awayGatherSpan({ state: { stats: { kills: 500 } } });
+    assert(JSON.stringify(zero.paid) === JSON.stringify(veteran.paid),
+      'a gather span paid differently at 500 lifetime kills than at 0 — the gather branch is reading the '
+      + 'combat gate again.\n  at 0:   ' + JSON.stringify(zero.paid)
+      + '\n  at 500: ' + JSON.stringify(veteran.paid));
   }),
 
   () => tryRun('AWAY-HONEST-3: the forecast is survivable — a rate is only quoted over a span you can live through', () => {

@@ -12505,6 +12505,113 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('RECOVER-13: the ENVELOPE repaints the sheet and the bar — a phase change is not '
+    + 'something a throttled timer notices a minute later', () => {
+    /* ══ MEASURED LIVE, b513, ~02:15 UTC 2026-09-07 ══════════════════════
+       The character fell, the sheet opened on `pending`, and 75 s later the
+       b512 re-ask WORKED: `fallState()` answered
+       `{phase:'recovering', answered:true, serverDied:true, msLeft:1007205}`
+       and `isKnockedOut()` was true. Two surfaces went on lying anyway:
+         · the sheet lead still read "Asking the hearth how long you are down"
+           instead of the countdown;
+         · the activity bar still read "Fighting Dark Wizard · 0 this fight"
+           instead of the b511 knocked-out line.
+       Neither surface computes anything stale — both read `fallState()` at the
+       instant they are asked. The defect was WHEN they were asked: the sheet's
+       re-render lived only in its own 1 Hz `setInterval` and the bar's only
+       unconditional driver is a 100 ms one, and Chrome throttles a background
+       or occluded tab's timers to 1/s, then to 1/MINUTE after five minutes
+       hidden. The fix hangs both repaints off `hearthrise:fall`, which
+       applyEnvelopeState dispatches synchronously.
+
+       SO THIS TEST NEVER WAITS AND NEVER CALLS refreshActivityBar() BY HAND —
+       that hand-call is exactly why RECOVER-11 stayed green through this bug.
+       Everything below is asserted in the same turn the envelope lands, which
+       is the property a throttled timer cannot fake. */
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const D = window.HearthriseDeathSheet;
+    if (!A || typeof A.applyEnvelopeState !== 'function' || typeof A.noteFall !== 'function'
+        || !D || typeof D.show !== 'function'
+        || typeof window.refreshActivityBar !== 'function') { skip('the recovery seam is not wired'); return; }
+
+    const snap = snapshotG();
+    const wasOn = A.isServerAccrualEnabled();
+    try {
+      A.setServerAccrualEnabled(true);
+      A.clearFall();
+      D.close(); D._resetRaise();
+      A.applyEnvelopeState(G, { state: { recovering_until: null } });
+
+      const mid = window.MONSTERS.slime ? 'slime' : Object.keys(window.MONSTERS)[0];
+      const mon = window.MONSTERS[mid];
+      G.activeMonster = mid; G.monsterHp = 0; G.monsterMaxHp = mon.hp;
+      G.playerMaxHp = 13; G.playerHp = 5;
+
+      /* ① THE FALL, and the last repaint anybody gets before the tab is
+            throttled: the sheet on `pending`, the bar on the fight. */
+      A.noteFall(Date.now());
+      D.show(null, null);
+      window.refreshActivityBar();
+      const scrim = document.getElementById('hr-death-scrim');
+      const nameEl = document.getElementById('ab-name');
+      assert(scrim && scrim.classList.contains('show'), 'the death sheet did not open on the fall');
+      const lead0 = scrim.querySelector('.hr-death-lead');
+      assert(lead0 && /Asking the hearth/i.test(lead0.textContent),
+        'the sheet did not open on the pending lead: ' + (lead0 && lead0.textContent));
+      if (nameEl) {
+        assert(/Fighting/.test(nameEl.textContent),
+          'the bar did not start on the fight: ' + nameEl.textContent);
+      }
+
+      /* ② THE ANSWER LANDS. No timer tick, no manual repaint — just the
+            envelope, exactly as the network delivers it. */
+      const until = Date.now() + 1007205;
+      A.applyEnvelopeState(G, {
+        state: {
+          accrued_to: new Date(Date.now() + 500).toISOString(),
+          recovering_until: new Date(until).toISOString(),
+          deaths_today: 15, deaths_lifetime: 22,
+        },
+        away: { died: true, deaths: 1 },
+      });
+      assert(A.fallState().phase === 'recovering',
+        'the fixture did not reach the state the play-gate measured: ' + A.fallState().phase);
+
+      const lead = document.querySelector('#hr-death-scrim .hr-death-lead');
+      assert(lead && /Back on your feet in \d+:\d\d/.test(lead.textContent),
+        'the sheet lead did not follow the phase onto the countdown when the envelope stated a '
+        + 'recovery line — the b513 stall, in which the model was recovering and the screen still '
+        + 'said "Asking the hearth": ' + (lead && lead.textContent));
+      const h2 = document.querySelector('#hr-death-scrim .hr-death-top h2');
+      assert(h2 && /Knocked out/.test(h2.textContent),
+        'the sheet title did not follow the phase: ' + (h2 && h2.textContent));
+      if (nameEl) {
+        assert(/Knocked out/.test(nameEl.textContent),
+          'the activity bar still claimed the player was fighting after the envelope knocked them '
+          + 'out. The bar reads fallState() fresh — nothing repainted it: ' + nameEl.textContent);
+      }
+
+      /* ③ AND BACK UP, on the same one link. A surface that only learns the
+            bad news on an event and the good news on a poll would leave the
+            player reading "Knocked out" while they are fighting. */
+      A.applyEnvelopeState(G, {
+        state: { accrued_to: new Date().toISOString(), recovering_until: null },
+      });
+      assert(A.fallState().phase !== 'recovering', 'a null recovery line did not stand the player up');
+      if (nameEl) {
+        assert(/Fighting/.test(nameEl.textContent),
+          'the bar stayed knocked out after the envelope stood the player up: ' + nameEl.textContent);
+      }
+    } finally {
+      try { D.close(); D._resetRaise(); } catch (e) {}
+      try { A.clearFall(); } catch (e) {}
+      try { A.applyEnvelopeState(window.G, { state: { recovering_until: null } }); } catch (e) {}
+      A.setServerAccrualEnabled(!!wasOn);
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('RECOVER-12: a server-stated knockout stops the SWING BAR and says so — the fight '
     + 'never freezes silently, and it resumes on its own', () => {
     /* ══ THE P0 TYLER PLAYED ON b510 (2026-09-06) ════════════════════════

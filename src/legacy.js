@@ -13308,6 +13308,25 @@ if(typeof _origStartCombatAB === 'function'){
    the counter rides an existing loop rather than adding a wall-clock of its own. */
 setInterval(function(){ refreshActivityBar(); try{ tickPlayMs(); }catch(e){} }, 100);
 
+/* ── THE KNOCKOUT REACHES THE BAR ON THE ENVELOPE, NOT ON THE POLL ──────────
+   MEASURED LIVE on b513: the server had the character recovering with 16:47 to
+   run (`fallState()` said so, `isKnockedOut()` was true, `monsterHp` 0) and the
+   strip still read "Fighting Dark Wizard · 0 this fight". The knocked-out
+   branch above is not gated on anything stale — it reads `fallState()` fresh
+   every repaint — so the fault was that nothing REPAINTED: the ticker above is
+   the bar's only unconditional driver, and Chrome throttles a background or
+   occluded tab's timers to 1/s and, after five minutes hidden, 1/MINUTE. Same
+   defect the b373 note above this file describes for woodcutting, arriving
+   through a different door.
+   `hearthrise:fall` is dispatched synchronously from applyEnvelopeState on
+   every envelope (src/net/accrue.js), so the fact and its repaint travel
+   together and neither is subject to a timer. One link, no new wrapper. */
+try{
+  window.addEventListener('hearthrise:fall', function(){
+    try{ refreshActivityBar(); }catch(e){}
+  });
+}catch(e){}
+
 console.log('Activity bar: loaded');
 
 // ── Combat-mode arena VS visualization ─────────────────────────

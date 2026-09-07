@@ -81,7 +81,6 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isServerAccrualEnabled } from './accrue.js?v=517';
 import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=517';
 
 /* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────

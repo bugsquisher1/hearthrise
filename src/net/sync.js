@@ -25,23 +25,14 @@ import { resolveActiveSlot } from './accrue.js?v=517';
 /* Read-only, for the cloud-save self-test's report. A balance the client has
    not been told is a different fact from a balance of zero. */
 import { balanceState } from './balance.js?v=517';
-/* ── THE CAPSTONE SAVE PATH (blob-retire, DORMANT) ───────────────────────────
-   Under the capstone the authoritative snapshot() blob is NOT uploaded — the
-   authority fields flow through their own server writes (record / RPCs / accrual)
-   and only the self-only residue is persisted, via putClientState. isBlobRetired
-   is the one flag; buildResiduePatch is the census→patch. No cycle: neither
-   capstone.js nor client-state.js imports sync.js. */
-import { isBlobRetired, buildResiduePatch } from './capstone.js?v=517';
-import { putClientState } from './client-state.js?v=517';
-import { balanceState } from './balance.js?v=516';
 /* ── THE CAPSTONE SAVE PATH (blob-retire — the ONLY path since b515) ─────────
    The authoritative snapshot() blob is NOT uploaded: the authority fields flow
    through their own server writes (record / RPCs / accrual) and only the
    self-only residue is persisted, via putClientState. buildResiduePatch is the
    census→patch. No cycle: neither capstone.js nor client-state.js imports
    sync.js. */
-import { buildResiduePatch } from './capstone.js?v=516';
-import { putClientState } from './client-state.js?v=516';
+import { buildResiduePatch } from './capstone.js?v=517';
+import { putClientState } from './client-state.js?v=517';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';

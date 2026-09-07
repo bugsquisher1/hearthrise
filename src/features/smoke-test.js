@@ -1111,34 +1111,42 @@ async function armEquipFlipForTest(E, cfg) {
    ⚠ A TEST REGISTERED HERE IS A TEST THAT DOES **NOT** COVER THE SHIPPING
      DEFAULT. Anything asserting server-authoritative behaviour must stay on
      plain tryRun. */
-const pinClientAuthoritative = () => {
-  const A = window.HearthriseAccrual;
-  if (!A || typeof A.setServerAccrualEnabled !== 'function') return null;
-  A.setServerAccrualEnabled(false);
-  return A;
+/* ══════════════════════════════════════════════════════════════════════════
+   b515 — WHAT THIS RUNNER HAS BECOME, AND WHY IT IS RENAMED RATHER THAN KEPT.
+   ══════════════════════════════════════════════════════════════════════════
+   It was `tryRunClientAuthoritative`: it turned the b353 kill switch OFF for the
+   duration, and its header warned in capitals that "A TEST REGISTERED HERE IS A
+   TEST THAT DOES NOT COVER THE SHIPPING DEFAULT". Forty-nine tests were
+   registered on it.
+
+   The switch is retired. `setServerAccrualEnabled` is a logging no-op, so the
+   pin selected NOTHING — and a runner whose name and header both describe a
+   position it cannot reach is worse than no runner at all: every test on it
+   silently claimed to be covering the off position while actually running the
+   on one. Forty-four of those tests are re-pointed or retired in this change.
+   The five that remain never depended on the pin; what they DO depend on is the
+   other half of what `unpinClientAuthoritative` did, which had nothing to do
+   with the switch and was never in its name:
+
+     THE POST-TEST RE-STAMP. A test that moves `G.gold`/`G.gems` leaves the boot
+     stamp STALE for the ambient live G, so the next test's balance read
+     fail-closes to UNKNOWN and every affordability-gated action refuses. That is
+     a harness artifact and it is contagious — it was measured taking ~48
+     economy/UI tests down at once. `stampBalanceLikeLoad` re-establishes the
+     stamp the way `hr_load` does.
+
+   So the runner keeps that job under a name that says it, and loses the claim it
+   can no longer make. Scoped to the MUTATOR category, deliberately, exactly as
+   the old header said: a blanket per-test stamp would hide a real regression in
+   which production forgot to re-stamp after a server write (the b347/b356
+   `client-overwrote` fault). */
+const tryRunRestampingBalance = (name, fn) => {
+  try { return tryRun(name, fn); }
+  finally { try { stampBalanceLikeLoad(window.G); } catch (e) {} }
 };
-const unpinClientAuthoritative = (A) => {
-  if (!A) return;
-  /* PRISTINE, not "off" and not "whatever it was". The suite mutates the live
-     page a player is sitting in; leaving them client-authoritative because a
-     test needed that position would be the flip silently un-flipping itself. */
-  try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-  /* gold-arm: a client-authoritative test that moved gold/gems (or restored them
-     in its finally) leaves the boot stamp STALE for the ambient live G, which
-     would fail-close the next reader test's balance. Re-establish the stamp the
-     way hr_load does — scoped to this runner (the mutator category), never a
-     blanket per-test wrapper. */
-  try { stampBalanceLikeLoad(window.G); } catch (e) {}
-};
-const tryRunClientAuthoritative = (name, fn) => {
-  const A = pinClientAuthoritative();
-  try { return tryRun(name, fn); } finally { unpinClientAuthoritative(A); }
-};
-const tryRunAsyncClientAuthoritative = (name, fn) => {
-  const A = pinClientAuthoritative();
-  return tryRunAsync(name, fn).then((r) => { unpinClientAuthoritative(A); return r; },
-    (e) => { unpinClientAuthoritative(A); throw e; });
-};
+const tryRunAsyncRestampingBalance = (name, fn) => tryRunAsync(name, fn).then(
+  (r) => { try { stampBalanceLikeLoad(window.G); } catch (e) {} return r; },
+  (e) => { try { stampBalanceLikeLoad(window.G); } catch (_e) {} throw e; });
 
 // b219: the game tick runs THROUGH the suite, and earlier tests leave combat
 // or gathering active — so a genuine "Defeated Slime" toast can land in
@@ -7057,7 +7065,7 @@ const TESTS = [
      (gold-sites.js workers#hire) — the debit is a client write the armed switch
      suppresses, so this covers the switch-OFF position; the stamp makes the
      affordability READ known. */
-  () => tryRunClientAuthoritative('b201: workers — hire, assign, lazy accrual produces resources (never player XP)', () => {
+  () => tryRunRestampingBalance('b201: workers — hire, assign, lazy accrual produces resources (never player XP)', () => {
     const W = window.HearthriseWorkers, H = window.HearthriseHomestead;
     assert(W && H, 'workers + homestead modules present');
     const G = window.G;
@@ -28531,7 +28539,7 @@ const TESTS = [
       'the item flyout source line must also name the easiest recipe, got: ' + window.itemSourceLine('rune_blank'));
   }),
 
-  () => tryRunClientAuthoritative('b357 E2E: a Stonemason turns quarried stone into whetstones and an Ashlar the castle actually wants', () => {
+  () => tryRunRestampingBalance('b357 E2E: a Stonemason turns quarried stone into whetstones and an Ashlar the castle actually wants', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const snap = snapshotG();
@@ -28764,7 +28772,7 @@ const TESTS = [
      this drives the real renderers and reads the real DOM: the Activities list
      must offer both skills, opening one must paint its tiles, and the lane
      strip must be there to navigate Stonemason's four lanes. */
-  () => tryRunClientAuthoritative('b357 UI: both new skills appear in Activities and paint a working tile grid', () => {
+  () => tryRunRestampingBalance('b357 UI: both new skills appear in Activities and paint a working tile grid', () => {
     const G = window.G;
     const snap = snapshotG();
     try {
@@ -35543,7 +35551,7 @@ const TESTS = [
      so it exercises the second of the three RNG draws whose ORDER is part of
      the replay contract (craftSave, burn, yield). A fixture on smithing would
      pass while a reordered stream went unnoticed. */
-  () => tryRunClientAuthoritative('AWAY-19 PARITY: N live artisan actions == one core span of N actions (bag, XP, burns, counters, tool carry)', () => {
+  () => tryRunRestampingBalance('AWAY-19 PARITY: N live artisan actions == one core span of N actions (bag, XP, burns, counters, tool carry)', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
     const C = window.HearthriseCore;
@@ -39329,10 +39337,15 @@ const TESTS = [
            names the new failure.
        (2) THE DORMANT PATH IS STILL SHIPPED CODE and must still be a byte-for-byte
            no-op, because it is the kill-switch position: skill-record.js's
-           fall-through branch runs whenever the master accrual switch is off. An
-           untested off-position is not a kill switch (the same reasoning as
-           tryRunClientAuthoritative above). It is driven explicitly through the
-           __setSkillsRecordArm seam and restored to PRISTINE in `finally`. */
+           fall-through branch runs whenever the SKILLS ARM is off. An untested
+           off-position is not a kill switch — and b515 is the counter-example
+           that says when it stops being true: the b353 master switch's off
+           position was untested for so long that it had quietly become a
+           divergent client-authored game, and the answer was to delete the
+           position rather than to test it. This one is a per-field ARM with a
+           published seam and a real rollout ahead of it, so it is driven
+           explicitly through `__setSkillsRecordArm` and restored to PRISTINE in
+           `finally`. */
   () => tryRun('B429-1: ARMED by default — skills is on the active registry; the dormant seam still falls through to G.skills', () => {
     const R = window.HearthriseRecord;
     const S = window.HearthriseSkillRecord;
@@ -50716,7 +50729,7 @@ const TESTS = [
 
   // gold-arm: W.hire()'s debit is gated by clientMayWriteRecordField (switch-OFF
   // position); the stamp makes the affordability read known.
-  () => tryRunClientAuthoritative('WORKER-LEDGER-1: worker hauls are tallied per worker and surfaced on the crew list', () => {
+  () => tryRunRestampingBalance('WORKER-LEDGER-1: worker hauls are tallied per worker and surfaced on the crew list', () => {
     /* The other half of the same ruling: the data leaves the fight rail, so it
        needs a home. It is a per-worker lifetime tally on the worker record —
        which rides G.workers into the save by default — plus one derived

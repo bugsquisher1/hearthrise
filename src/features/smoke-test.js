@@ -47514,6 +47514,67 @@ const TESTS = [
         'A5: asking "should I fight?" CHANGED the character. forecastFight must clone.');
       assert(JSON.stringify(w) === JSON.stringify(w2),
         'A5: two forecasts of the same state disagreed — the seed is not fixed');
+
+      /* ── THE REAL GATE, DRIVEN END TO END ────────────────────────────────
+         `startCombat` SKIPS this dialog under `__HR_TEST_HARNESS__`, and it has
+         to: a blocking modal has no meaning where nobody can answer it, and the
+         suite calls `startCombat` about thirty times — MEASURED 2026-09-07, a
+         foodless character left `activeMonster` null AND a full-screen overlay
+         over the game for every later test (the b221 cascade). That skip is a
+         statement about who is watching, so THIS fixture takes the flag off and
+         proves the gate itself works: warned tap withholds the fight and raises
+         the dialog, the escape hatch goes straight through, and the latch means
+         the second tap is not nagged.
+         ⚠ try/finally, and the fight and the dialog are torn down in it. A
+           fixture that puts a modal up and leaves it there is the exact defect
+           it exists to prevent. */
+      const D = window.HearthriseDialog;
+      const hadFlag = window.__HR_TEST_HARNESS__;
+      const wasFighting = window.G.activeMonster;
+      const savedInv = window.G.inventory;
+      const savedMax = window.G.playerMaxHp; const savedHp = window.G.playerHp;
+      try {
+        window.stopCombat();
+        /* THE POPULATION THE RULING IS ABOUT: empty bag, 13 max HP. Restored in
+           the finally below — this is the live save. */
+        window.G.inventory = {};
+        window.G.playerMaxHp = MAXHP; window.G.playerHp = MAXHP;
+        window.__HR_TEST_HARNESS__ = false;
+        window.__hrClearFightWarnings();
+        const warned = window.__hrPreFightWarning(FOE);
+        assert(warned && warned.kind === 'no-food',
+          'A5: a 13-HP hero with an empty bag was not warned about ' + FOE + '. This is the exact '
+          + 'state the ruling was written about.');
+        assert(!/\b1 minutes\b/.test(warned.body),
+          'A5: the warning says "1 minutes" — ' + warned.body);
+        window.startCombat(FOE);
+        assert(!window.G.activeMonster,
+          'A5: the warned tap started the fight anyway. The ruled button is "Fight anyway", which '
+          + 'means the fight has not started yet.');
+        assert(D && D.isOpen && D.isOpen(),
+          'A5: no dialog was raised, so the player is refused in silence — which is the one thing '
+          + 'the ruling forbids.');
+        D.close();
+        /* NEVER REFUSED: the confirmed path goes straight through, synchronously. */
+        window.startCombat(FOE, { confirmed: true });
+        assert(window.G.activeMonster === FOE,
+          'A5: "Fight anyway" did not start the fight. The warning is ADVISORY — refusing an '
+          + 'overmatched fight was rejected by name as the residue-ahead class.');
+        window.stopCombat();
+        /* WARN ONCE: the latch is consumed, so a re-tap is not nagged. */
+        window.startCombat(FOE);
+        assert(window.G.activeMonster === FOE,
+          'A5: the second tap was warned again. "Warn once" — a modal on every re-tap trains the '
+          + 'player to dismiss it without reading, which is the same as not warning.');
+      } finally {
+        try { if (D && D.isOpen && D.isOpen()) D.close(); } catch (e) {}
+        try { window.stopCombat(); } catch (e) {}
+        window.__HR_TEST_HARNESS__ = hadFlag;
+        window.G.inventory = savedInv;
+        window.G.playerMaxHp = savedMax; window.G.playerHp = savedHp;
+        window.__hrClearFightWarnings();
+        if (wasFighting) { try { window.startCombat(wasFighting, { confirmed: true }); } catch (e) {} }
+      }
     }
 
     /* ── RETREAT-W5 — THE TWO RENDERED SURFACES, ONE SENTENCE ──────────────

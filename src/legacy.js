@@ -5890,12 +5890,19 @@ function hrPreFightWarning(mId){
     /* THE SPAN IS THE SIMULATION'S OWN (`firstDeathMs`), not an estimate — and
        it is omitted rather than guessed when the forecast never fell. */
     const ms=Number(f.firstDeathMs);
+    /* MEASURED, NOT ESTIMATED — `firstDeathMs` is the simulation's own deathLog
+       instant. Rounded to a human number because quoting "about 37.4 seconds"
+       claims a precision a seeded forecast does not have, and singular/plural
+       are spelled out because "about 1 minutes" is the first thing a player
+       notices and the last thing they trust afterwards. */
     const when=(isFinite(ms)&&ms>0)
       ? (ms<60000 ? ('about '+Math.max(5,Math.round(ms/5000)*5)+' seconds')
-                  : ('about '+Math.max(1,Math.round(ms/60000))+' minutes'))
+                  : (ms<90000 ? 'in about a minute'
+                              : ('about '+Math.round(ms/60000)+' minutes')))
       : null;
+    const clause=when?(when==='in about a minute'?(' '+when):(' in '+when)):'';
     return { kind:kind, title:'No food in your bag',
-      body:'You have no food. '+foe+' will put you down'+(when?(' in '+when):'')
+      body:'You have no food. '+foe+' will put you down'+clause
         +', and every fall today costs longer to shake off.' };
   }
   return { kind:kind, title:'Out of your league',
@@ -5905,6 +5912,35 @@ function hrPreFightWarning(mId){
 window.__hrPreFightWarning=hrPreFightWarning;          // test seam (FORECAST-COPY)
 window.__hrClearFightWarnings=hrClearFightWarnings;    // test seam
 
+/* ⚠ CONTRACT CHANGE (rev. 3), STATED BECAUSE IT IS NOT LOCAL, AND MEASURED.
+   `startCombat(mId)` is CONDITIONALLY ASYNCHRONOUS from this build: when the
+   forecast has something to warn about it raises a dialog and RETURNS WITHOUT
+   SETTING `G.activeMonster`; the fight starts from the dialog's confirm, which
+   re-enters with `{confirmed:true}`.
+
+   THAT IS CORRECT FOR EVERY PRODUCTION CALLER — the monster list, the Fight
+   button, the death sheet's "Fight again", Resume on the launchpad and the Boss
+   of the Day are all PLAYER GESTURES, and a gesture is exactly when a player
+   should be warned. It is WRONG FOR AN AUTOMATED ONE, and not merely
+   inconvenient: MEASURED 2026-09-07 on a foodless character,
+   `startCombat('slime')` left `activeMonster` null AND a FULL-SCREEN DIALOG
+   over the game that nothing would ever answer — which is the b221 overlay
+   cascade (a modal one test leaves up fails the next thirty, thousands of lines
+   away, reporting "something is covering the buy control"), reached through a
+   brand-new door. The in-page suite calls this function about thirty times.
+
+   SO THE GATE IS SKIPPED UNDER `__HR_TEST_HARNESS__`, which is the SAME signal
+   the invite gate already uses for the same reason: a blocking modal has no
+   meaning where nobody can answer it. The coverage that would otherwise be lost
+   is NOT lost — the suite's RETREAT-A5 fixture clears the flag itself, drives a
+   real warned tap, asserts the dialog and the withheld pointer, answers it, and
+   puts the flag back. Skipping the modal is therefore a statement about who is
+   watching, never about whether the rule works.
+
+   THE GATE LIVES INSIDE THE ONE DOOR, and not in a second
+   `startCombatWithWarning` wrapper the gesture sites would call. A second door
+   is a door somebody eventually walks through by accident, and the one thing
+   this warning must not be is optional-by-omission. */
 function startCombat(mId,opts){
   if(G.activeMonster===mId){stopCombat();return;}
   /* THE ADVISORY GATE. It never refuses: the dialog's confirm re-enters this
@@ -5914,7 +5950,7 @@ function startCombat(mId,opts){
      ⚠ HearthriseDialog, NEVER window.confirm. A native dialog blocks the
        renderer's main thread and has frozen this game twice (b371, b373);
        tests/native-dialog.mjs is the standing guard. */
-  if(!(opts&&opts.confirmed)){
+  if(!(opts&&opts.confirmed)&&!window.__HR_TEST_HARNESS__){
     const _w=hrPreFightWarning(mId);
     if(_w&&!_fightWarned[mId+':'+_w.kind]){
       _fightWarned[mId+':'+_w.kind]=true;

@@ -5057,7 +5057,19 @@ const QUEST_DEFS=[
      starting property, the identical derivation DAILY_TASK_POOL's floor uses.
      The goal is BOUND SERVER-SIDE (hr_claim_quest reads ev:harvest >= 6), so it
      moves in three places at once — see src/data/goal-catalogue.js. */
-  {id:'farmhand',type:'harvest',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
+  /* ⚠ MIRRORED, not counted — and that is the FIX, not a preference. As a
+     counting row it advanced only on `updateQuest('harvest',qty)`, which is
+     called from exactly ONE place: the client fall-through in harvestPlot,
+     below `if(farmSyncArmed()){ farmSyncHarvest(i); return; }`. Under the b454
+     farm arm that line is unreachable, so this quest had been frozen at 0 for
+     every player since the cutover while the server journalled every crop.
+     Mirroring `stats.harvested` — now projected from the server's own lifetime
+     `ev:harvest` row (src/net/accrue.js reconcileEventCounters) — gives it the
+     same property hundred_kills has: it is re-READ on every quest tick, so it
+     cannot drift from the counter it displays and it is correct on an account
+     that did all its harvesting on another device. The claim is unchanged and
+     still server-verified (hr_claim_quest reads ev:harvest >= 6). */
+  {id:'farmhand',type:'harvest',mirror:'stats.harvested',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
   /* ── THE HUNDRED-KILL MILESTONE ──────────────────────────────────────────
      b341 shipped this as the "Field Licence": a GATE that withheld away
      combat until it was earned. b343 removes the gate (see processOffline's
@@ -5139,6 +5151,10 @@ function migrateQuestIds(){
    which is the safe direction for a counter that pays on completion. */
 const MIRRORED_QUEST_SOURCES={
   'stats.kills':function(g){ var n=Number((g&&g.stats&&g.stats.kills)||0); return (isFinite(n)&&n>0)?Math.floor(n):0; },
+  /* Projected from the server's lifetime `ev:harvest` row by
+     src/net/accrue.js reconcileEventCounters — the client never increments it,
+     so this reads a number hr_claim_quest can and does verify. */
+  'stats.harvested':function(g){ var n=Number((g&&g.stats&&g.stats.harvested)||0); return (isFinite(n)&&n>0)?Math.floor(n):0; },
 };
 function mirroredQuestValue(key){
   const f=MIRRORED_QUEST_SOURCES[key];
@@ -6885,22 +6901,29 @@ function farmPlotCap(){
   return (window.HearthriseHomestead && typeof window.HearthriseHomestead.maxPlots==='function')
     ? window.HearthriseHomestead.maxPlots() : 8;
 }
-/* ── SERVER-AUTHORITY FARM ROUTING (b435 RPCs) — ARMED SINCE b454 ────────────
-   isFarmServerArmed() is TRUE in the shipped build (src/data/item-authority.js
-   FARM_SERVER_ARM_ENABLED, armed 2026-08-22 in the post-wipe cutover), so
-   farmSyncArmed() is true whenever src/net/farm-sync.js is loaded and every
-   gesture below takes the SERVER path; the client fall-through remains only as
-   the fail-safe for a missing farm-sync module. Under arm the gesture sends an
-   INTENT to the hr_farm_* RPC and
-   reconciles G.farmPlots / G.plotLevels from the RESPONSE (src/net/farm-sync.js),
-   rather than authoring the outcome locally. Crop PRODUCE, XP, the seed debit
-   and the deed spend are SERVER-owned — reconcileFarmResult applies the server's
-   own numbers ONCE, and the local yield roll / addXp / seed removal are SKIPPED,
-   so there is no double credit. */
-function farmSyncArmed(){
-  return !!(window.HearthriseFarmSync
-    && typeof window.HearthriseFarmSync.isFarmServerArmed==='function'
-    && window.HearthriseFarmSync.isFarmServerArmed());
+/* ── SERVER-AUTHORITY FARM ROUTING (b435 RPCs) — THE ONLY PATH SINCE b454 ────
+   Every farm gesture sends an INTENT to its hr_farm_* RPC and reconciles
+   G.farmPlots / G.plotLevels from the RESPONSE (src/net/farm-sync.js). Crop
+   PRODUCE, XP, the seed debit and the deed spend are SERVER-owned:
+   reconcileFarmResult applies the server's own numbers ONCE and the client never
+   rolls a yield, never calls addXp('farming', ...) and never debits a seed.
+
+   b514 (cleanup slice 4) DELETED the client-authoring fall-through that used to
+   sit under `if(farmSyncArmed())` in plantCrop / waterPlot / waterAllPlots /
+   harvestPlot. It had been unreachable since the 2026-08-22 cutover armed
+   FARM_SERVER_ARM_ENABLED, and an unreachable twin of the farm's whole ruleset is
+   exactly the forgeable surface the cutover closed — plus a standing invitation
+   to "fix" the farm in the copy nobody runs.
+
+   THE MISSING-MODULE POSITION IS FAIL-CLOSED, NOT FALL-THROUGH. If
+   src/net/farm-sync.js is absent the gesture is REFUSED with a sentence; the
+   client does not author the outcome instead. `farmSyncApi()` is that one check,
+   stated once. */
+function farmSyncApi(){
+  const FS=window.HearthriseFarmSync;
+  if(FS&&typeof FS.farmPlant==='function') return FS;
+  notify('The farm is offline for a moment — try again','kill');
+  return null;
 }
 /* The reconcile deps: the server already credited its own row, so these keep the
    CLIENT CACHE in step with it (applied once from the response, never a second
@@ -6937,10 +6960,11 @@ function farmPlantRefusal(res,cropId){
   return 'Could not plant — please report this';
 }
 function farmSyncPlant(plotIdx,cropId){
+  const FS=farmSyncApi(); if(!FS) return;
   const prev=G.farmPlots[plotIdx];
   G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
   renderFarm();
-  window.HearthriseFarmSync.farmPlant(plotIdx,cropId).then(function(res){
+  FS.farmPlant(plotIdx,cropId).then(function(res){
     if(res&&res.ok){ farmSyncReconcile('plant',res); }
     else {
       G.farmPlots[plotIdx]=prev||null;
@@ -6958,13 +6982,15 @@ function farmSyncPlant(plotIdx,cropId){
   });
 }
 function farmSyncWater(plotIdx){
-  window.HearthriseFarmSync.farmWater(plotIdx).then(function(res){
+  const FS=farmSyncApi(); if(!FS) return;
+  FS.farmWater(plotIdx).then(function(res){
     if(res&&res.ok){ farmSyncReconcile('water',res); }
     renderFarm();
   });
 }
 function farmSyncHarvest(plotIdx){
-  window.HearthriseFarmSync.farmHarvest(plotIdx).then(function(res){
+  const FS=farmSyncApi(); if(!FS) return;
+  FS.farmHarvest(plotIdx).then(function(res){
     if(res&&res.ok){
       farmSyncReconcile('harvest',res);
       if(res.produce&&res.qty>0){ const crop=CROPS[res.crop]; notify(`+${res.qty} ${crop?crop.name:res.crop}`,'loot'); }
@@ -7013,33 +7039,19 @@ function plantCrop(plotIdx,cropId){
     notify('Crop locked — upgrade Farm Plot in House → Plot','kill');
     return;
   }
-  // Server-authority routing (DORMANT): the server owns the seed debit + plant
-  // XP + plot timestamps; the client sends the intent and renders the response.
-  if(farmSyncArmed()){ farmSyncPlant(plotIdx,cropId); return; }
-  removeItem(seedId,1);
-  /* b220: a new plot is DRY and that is now correct — it grows at the base
-     rate and matures on its own. That is what makes auto-replant work
-     unattended. b222: the `watered` mirror is no longer written. */
-  G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
-  G.stats.planted=(G.stats.planted||0)+1;
-  /* b226: 28, not 2 — farming's ×14 (spec §8.3) applies to the whole skill,
-     not only the harvest, or planting stops being worth the click. Farming is
-     exempt from PACE.xp, so this is the grant. */
-  addXp('farming',28);renderFarm();
+  /* Server-authority routing: the server owns the seed debit, the plant XP and
+     the plot timestamps. Every check above is a PRE-FLIGHT for the copy — the
+     decision, and every number, is hr_farm_plant's. */
+  farmSyncPlant(plotIdx,cropId);
 }
 /* b220: watering opens a 2h double-speed window. It is rejected while a window
    is already open — that single rule is both the anti-abuse mechanism and the
-   affordance ("this plot is thirsty again"). One tap, no confirm, no modal. */
-function applyWatering(i){
-  const p=(G.farmPlots||[])[i];
-  if(!p||!plotIsWaterable(p))return false;
-  const A=farmApi();
-  const ws=(Array.isArray(p.waterings)?p.waterings.slice():[]);
-  ws.push(Date.now());
-  G.farmPlots[i]={...p,waterings:ws};   // b222: no `watered` mirror
-  addXp('farming',(A&&A.waterXp)?A.waterXp(p):1);
-  return true;
-}
+   affordance ("this plot is thirsty again"). One tap, no confirm, no modal.
+   b514: the rule is ENFORCED BY hr_farm_water. `plotIsWaterable` survives as the
+   client-side eligibility READ — it decides which tiles "Water all" bothers the
+   server about, and it supplies the refusal sentence. The local `applyWatering`
+   WRITER (waterings.push + addXp) is deleted: it authored a watering window the
+   server never recorded, which is b462 in miniature. */
 function waterPlot(i){
   const p=(G.farmPlots||[])[i];if(!p)return;
   /* A tile the player taps while it is already ready should harvest, not
@@ -7048,14 +7060,14 @@ function waterPlot(i){
     if(p.state!=='ready')G.farmPlots[i]={...p,state:'ready'};
     harvestPlot(i);return;
   }
-  // Server-authority routing (DORMANT): the server owns the watering window +
-  // water XP; the client sends the intent and renders the response.
-  if(farmSyncArmed()){ farmSyncWater(i); return; }
-  if(!applyWatering(i)){
+  /* The server owns the watering window and the water XP. The client still says
+     the "already watered" sentence itself: it is the side that knows what the
+     player is looking at, and hr_farm_water would answer the same. */
+  if(!plotIsWaterable(p)){
     notify(`Still watered — thirsty again in ${fmtClock(plotWindowMs(p))}`,'kill');
     return;
   }
-  renderFarm();
+  farmSyncWater(i);
 }
 /* b220: header action — one tap tucks the whole farm in before bed. */
 window.waterAllPlots=function waterAllPlots(){
@@ -7066,17 +7078,11 @@ window.waterAllPlots=function waterAllPlots(){
      called applyWatering() locally for every plot, so the next envelope (server
      truth: never watered) dried them all again — Tyler, beta morning: "i water
      plants, they go back to being dry". Same eligibility test, server verb. */
-  if(farmSyncArmed()){
-    for(let i=0;i<G.farmPlots.length;i++){
-      const p=G.farmPlots[i];
-      if(p&&plotIsWaterable(p)){ farmSyncWater(i); n++; }
-    }
-    notify(n?`Watering ${n} plot${n===1?'':'s'}…`:'Nothing to water right now',n?'loot':'kill');
-    return n;
+  for(let i=0;i<G.farmPlots.length;i++){
+    const p=G.farmPlots[i];
+    if(p&&plotIsWaterable(p)){ farmSyncWater(i); n++; }
   }
-  for(let i=0;i<G.farmPlots.length;i++){ if(applyWatering(i))n++; }
-  notify(n?`Watered ${n} plot${n===1?'':'s'}`:'Nothing to water right now',n?'loot':'kill');
-  renderFarm();
+  notify(n?`Watering ${n} plot${n===1?'':'s'}…`:'Nothing to water right now',n?'loot':'kill');
   return n;
 };
 /* b228 (bonus-rebase.md §5.3) — STOP FLOORING A FLAT BONUS.
@@ -7102,43 +7108,14 @@ function rollFlatBonus(v,_rand01){
 window.rollFlatBonus=rollFlatBonus;
 function harvestPlot(i){
   const p=G.farmPlots[i];if(!p||p.state!=='ready')return;
-  // Server-authority routing (DORMANT): the server owns the seeded yield roll,
-  // the farmYield perk, the finite-perennial wither and the harvest goal
-  // counters. The client sends the intent and renders the returned plot state +
-  // the server-credited produce/XP ONCE — no local roll, no double credit.
-  if(farmSyncArmed()){ farmSyncHarvest(i); return; }
-  const crop=CROPS[p.cropId];
-  const yieldBonus=rollFlatBonus(getBonus('farmYield'));
-  const qty=rand(crop.yield[0],crop.yield[1])+yieldBonus;
-  addItem(crop.prod,qty);
-  G.stats.harvested=(G.stats.harvested||0)+qty;
-  updateDaily('harvest',qty);updateQuest('harvest',qty);
-  addXp('farming',crop.xp*qty);
-  notify(`+${qty} ${crop.name}`,'loot');
-  /* b220: a regrow restarts dry — and now that dry crops actually finish,
-     that is a fresh cycle rather than the permanent stall it used to be.
-     b420 (design ruling): a perennial is FINITE. One seed buys `regrowLimit`
-     regrows (regrowLimit+1 total harvests); after the final harvest the plant
-     withers and the plot clears — so a tomato/emberfruit DEPLETES like a player
-     expects, instead of yielding free food forever and locking the plot. The
-     count lives on the plot (`regrowCount`), defaulting 0 for legacy plots. */
-  if(crop.regrows){
-    const done=(p.regrowCount||0)+1;
-    const limit=crop.regrowLimit||0;   // 0/undefined ⇒ legacy infinite perennial
-    if(limit>0 && done>limit){
-      G.farmPlots[i]=null;
-      notify(`${crop.name} plant withered after its last harvest`,'kill');
-    }else{
-      G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',waterings:[],regrowCount:done};   // b222: no `watered` mirror
-    }
-  }
-  else G.farmPlots[i]=null;
-  // b136: auto-replant hook. Only fires when the plot is now empty
-  // (regrow path skips it because the plot is already replanted).
-  if(!G.farmPlots[i] && window.HearthriseAuto && typeof window.HearthriseAuto.maybeReplant === 'function'){
-    window.HearthriseAuto.maybeReplant(i);
-  }
-  renderFarm();updateTopbar();
+  /* Server-authority routing: the server owns the seeded yield roll, the
+     farmYield perk, the finite-perennial wither and the harvest goal counters.
+     The client sends the intent and renders the returned plot state + the
+     server-credited produce/XP ONCE — no local roll, no double credit.
+     b514: the local roll (rand(crop.yield) + rollFlatBonus + addXp + the regrow
+     ladder) is DELETED. farmSyncHarvest reconciles from the response and fires
+     the auto-replant hook when the SERVER clears the plot. */
+  farmSyncHarvest(i);
 }
 
 /* ─── notifications ─── */
@@ -14236,14 +14213,33 @@ function paintStreak(){
 /* ─── Welcome-back modal (fires once per session if returning after 30min+) ─── */
 function maybeShowWelcome(){
   if(typeof G !== 'object' || !G) return;
+  /* ── THE ABSENCE IS THE SERVER'S SPAN, NEVER A RESIDUE STAMP (b514) ───────
+     MEASURED LIVE on b513: this card said "Time away 13h 8m" on a reload two
+     hours after the last session on that account, and earlier the same day
+     "64h 53m" while the server receipt for the same boot said awayMs 4.4h.
+     Both numbers came from `Date.now() - G.lastSeen` — a stamp this client
+     writes for itself, per-device, advanced only by the saves that happen to
+     run, and under §1 authority for nothing. `serverAwaySpanMs` returns the
+     receipt's credited span, else the boot watermark, else NULL; null means
+     the card greets the player and states no length at all, which is the only
+     honest thing to say about a span nobody measured. */
+  var _srvSpan = null;
+  try{
+    var _AC = window.HearthriseAccrual;
+    if(_AC && typeof _AC.serverAwaySpanMs === 'function') _srvSpan = _AC.serverAwaySpanMs(G);
+  }catch(e){}
   var since = Date.now() - (G.lastSeen || Date.now());
   var minutesAway = since / 60000;
-  if(minutesAway < 30) return;          // less than 30 minutes — skip
+  /* The 30-minute door still reads the residue stamp, DELIBERATELY: it decides
+     only WHETHER to greet a returning player, never a figure, and a client-held
+     "when this device last saw you" is a defensible trigger where it is not a
+     defensible measurement. (Making the door server-priced too is a design
+     call — it would suppress the card on a same-device reload — and it is not
+     this fix's to make.) */
+  if(minutesAway < 30) return;
   if(Date.now() - (G.lastWelcome||0) < 5000) return; // already shown this session
   G.lastWelcome = Date.now();
   buildWelcomeOverlay();
-  var hours = Math.floor(minutesAway/60), mins = Math.round(minutesAway%60);
-  var label = hours > 0 ? (hours + 'h ' + mins + 'm') : (mins + 'm');
   var rows = [];
   /* ── b342: THE RECEIPT IS THE SOURCE, AND IT IS THE ONLY SOURCE ───────────
      Measured on a returning player: this modal showed "While away 8.0h" AND
@@ -14262,19 +14258,18 @@ function maybeShowWelcome(){
      `lastOfflineSummary` is the receipt processOffline (or the server accrual)
      wrote for the absence THIS modal is about. Everything below is read from
      it — the span, the gains, the death, the licence — and nothing is
-     inferred. When there is no fresh receipt the modal falls back to the
-     clock-derived label and simply says less, which is the honest degradation.
+     inferred. When there is no fresh receipt the modal simply says less — and
+     since b514 the SPAN is the server's or absent, never the clock's.
      Glyphs, not emoji: the four this row list used to carry were pre-existing
      Final Directive debt and are cleared here rather than copied forward. */
   var _off = G.lastOfflineSummary;
   var _fresh = !!(_off && _off.at && (Date.now() - _off.at) < 30*60000);
-  var _awayMs = _fresh && _off.awayMs > 0 ? _off.awayMs : since;
-  var _awayLbl = (function(ms){
+  var _awayLbl = _srvSpan === null ? null : (function(ms){
     var m = Math.max(0, Math.round(ms/60000));
     if(m < 60) return m + 'm';
     return Math.floor(m/60) + 'h ' + (m%60) + 'm';
-  })(_awayMs);
-  rows.push({g:'uiHourglass', t: 'Time away', v: _fresh ? _awayLbl : label});
+  })(_srvSpan);
+  if(_awayLbl !== null) rows.push({g:'uiHourglass', t: 'Time away', v: _awayLbl});
   if(_fresh){
     /* WHAT THE NIGHT ACTUALLY PAID. One row per channel that moved, and none
        at all for a channel that did not — a "+0 gold" row is noise, and a
@@ -14642,6 +14637,104 @@ var DAILY_GOAL_POOL = [
   {id:'level_up',  glyph:'uiXp', name:'Gain a skill level', target:1,  source:'stats.levelups',
    desc:'Any skill, any level. Your lowest skill is the cheapest way to finish this.'},
 ];
+/* ══ THE BASELINE MUST NOT BE TAKEN AGAINST AN UNKNOWN COUNTER ══════════════
+   THE BUG (Security P2 follow-up to 2026-09-07-farm-plant-lifetime-counter.sql,
+   display-only). A daily goal grades `readSource(source) - startValues[id]`,
+   and the baseline was captured ONCE, the first time the day's slate was rolled
+   — including for a counter whose value the client had not been told yet.
+   `stats.planted` is now MIRRORED from the server's lifetime `ev:planted` row
+   (accrue.js reconcileEventCounters); before the first complete `progress`
+   statement lands it reads 0 through readSource's `cur || 0`. So on the first
+   boot after the lifetime backfill the sequence was:
+       roll the slate  → baseline plant = 0        (0 because UNKNOWN, not because zero)
+       envelope lands  → stats.planted = 120       (a real lifetime count)
+       render          → 120 - 0 = 120 >= 3        → "Plant 3 crops — Complete!"
+   for work done days ago. Nothing is paid — hr_claim_goal grades the server's
+   own DAILY counter and refuses `not_complete` — but the player is shown a
+   finished goal and a Claim button that cannot work, which is the dead-button
+   defect b461 removed, arriving through the baseline instead of the catalogue.
+
+   THE RULE IS THE ONE `balKnown('gold')` ALREADY ENFORCES for the day-start
+   gold watermark (see checkDailyGold): A BASELINE NOBODY CAN MEASURE IS NOT
+   TAKEN AT ALL. It is taken later, once the number is known, and until then the
+   goal reads 0 / target — never complete. Same shape, same reason, and this is
+   the third time this class has been fixed (b224 re-baselined every weekly that
+   was captured through a broken readSource; the gold watermark was the second).
+
+   WHICH SOURCES NEED IT IS DERIVED, NEVER LISTED. The mirrored set is
+   accrue.js's EVENT_COUNTER_PROJECTION — the one table that says which
+   `G.stats.*` leaves the server owns. Adding a counter there (a row, not a
+   branch) protects any goal reading it automatically; hardcoding 'plant' here
+   would have to be found again by the next author.
+
+   WHY A SEPARATE `counterBaselined` MAP RATHER THAN "is the key present".
+   `dailyGoals` is a RESIDUE field, so a slate rolled by the OLD build is on
+   disk right now carrying `startValues.plant = 0` — the poisoned baseline — and
+   presence alone would read it as valid for the rest of the day. The flag is
+   written only when the baseline was taken against a KNOWN counter, so a
+   pre-fix slate re-baselines itself once the envelope lands, while every
+   non-mirrored goal (kills, logs, ore) keeps the baseline it has and loses no
+   progress. */
+function goalSourceMirrored(source){
+  var A = (typeof window !== 'undefined') && window.HearthriseAccrual;
+  var rows = A && A.EVENT_COUNTER_PROJECTION;
+  if(!Array.isArray(rows) || !source) return false;
+  for(var i = 0; i < rows.length; i++){
+    if(rows[i] && rows[i].stat && ('stats.' + rows[i].stat) === source) return true;
+  }
+  return false;
+}
+/* KNOWN means a COMPLETE progress statement has landed this session
+   (`progress_truncated === false` — accrue.js stamps the scratch flag). Scratch,
+   `_`-prefixed, so it is never persisted: a reload starts UNKNOWN again, which
+   is the fail-safe direction. */
+function goalCountersKnown(){ return !!(typeof G === 'object' && G && G._eventCountersKnown); }
+function goalSourceKnown(source){ return !goalSourceMirrored(source) || goalCountersKnown(); }
+/** {known, value} — the ONLY reader of startValues. `known:false` means "do not
+ *  grade this goal yet", not "the baseline is zero". */
+function goalBaselineOf(stateObj, goal){
+  if(!stateObj || !goal) return {known:false, value:0};
+  var sv = stateObj.startValues;
+  if(!sv || !Object.prototype.hasOwnProperty.call(sv, goal.id)) return {known:false, value:0};
+  if(goalSourceMirrored(goal.source)
+     && !(stateObj.counterBaselined && stateObj.counterBaselined[goal.id])) return {known:false, value:0};
+  var n = Number(sv[goal.id]);
+  return {known:true, value: isFinite(n) ? n : 0};
+}
+/** Take the baseline IF the counter can be measured. Returns whether it was. */
+function takeGoalBaseline(stateObj, goal){
+  if(!stateObj || !goal || !goalSourceKnown(goal.source)) return false;
+  if(!stateObj.startValues) stateObj.startValues = {};
+  stateObj.startValues[goal.id] = readSource(goal.source);
+  if(goalSourceMirrored(goal.source)){
+    if(!stateObj.counterBaselined) stateObj.counterBaselined = {};
+    stateObj.counterBaselined[goal.id] = true;
+  }
+  return true;
+}
+/** The late pass: every goal still without a valid baseline tries again. Called
+ *  from the goal getters, which the renderers call on every paint, so the
+ *  baseline lands on the first frame after the envelope and no timer is added. */
+function rebaselineGoals(stateObj, goals){
+  if(!stateObj || !goals || !goals.length) return;
+  for(var i = 0; i < goals.length; i++){
+    var g = goals[i];
+    if(g && !goalBaselineOf(stateObj, g).known) takeGoalBaseline(stateObj, g);
+  }
+}
+/** Progress against a baseline, 0 while the baseline is unknown. */
+function goalProgressFrom(stateObj, goal){
+  var b = goalBaselineOf(stateObj, goal);
+  return b.known ? Math.max(0, readSource(goal.source) - b.value) : 0;
+}
+/* Exported because the Quests modal lives in its own IIFE (blocks 16 vs 40) and
+   reached for these by bare name once already — the b224/b130 cross-IIFE trap,
+   whose failure mode is a silent 0 forever. */
+window.__hrGoalBaseline = goalBaselineOf;
+window.__hrTakeGoalBaseline = takeGoalBaseline;
+window.__hrRebaselineGoals = rebaselineGoals;
+window.__hrGoalSourceMirrored = goalSourceMirrored;
+
 function getGoalsForToday(){
   var key = todayKey();
   if(!G.dailyGoals || G.dailyGoals.dayKey !== key){
@@ -14656,12 +14749,20 @@ function getGoalsForToday(){
     }
     G.dailyGoals = {dayKey: key, picks: picks.map(function(g){return g.id;}), startValues: {}};
     picks.forEach(function(g){
-      G.dailyGoals.startValues[g.id] = readSource(g.source);
+      /* Was an unconditional `startValues[id] = readSource(source)`. A mirrored
+         counter that has not arrived yet is now SKIPPED rather than baselined
+         at a 0 nobody measured — see the header above. */
+      takeGoalBaseline(G.dailyGoals, g);
     });
   }
-  return G.dailyGoals.picks.map(function(id){
+  var today = G.dailyGoals.picks.map(function(id){
     return DAILY_GOAL_POOL.find(function(p){return p.id===id;});
   }).filter(Boolean);
+  /* THE LATE BASELINE. Every caller is a renderer or the strip poller, so the
+     first paint after the envelope lands takes the baseline that could not be
+     taken at roll time — and heals a slate rolled by the pre-fix build. */
+  rebaselineGoals(G.dailyGoals, today);
+  return today;
 }
 // b130: explicit window assignment so the Quests modal renderer in
 // the wrapped IIFE below can find it. Same fix pattern as b127's
@@ -14708,8 +14809,10 @@ function renderDailyGoals(host){
   var goals = getGoalsForToday();
   host.innerHTML = '<div class="card"><div class="card-head"><div class="card-title">Daily Goals</div><span class="card-sub">Resets at UTC midnight</span></div><div class="card-body"><div class="daily-goals">' +
     goals.map(function(g){
-      var startVal = (G.dailyGoals.startValues||{})[g.id] || 0;
-      var current = Math.max(0, readSource(g.source) - startVal);
+      /* 0 while the baseline is unknown — NOT `readSource - 0`, which is how a
+         freshly-mirrored lifetime counter rendered "Complete!" on the first
+         boot after the backfill. */
+      var current = goalProgressFrom(G.dailyGoals, g);
       var done = current >= g.target;
       return '<div class="daily-goal'+(done?' done':'')+'">'+
         /* was `g.emoji` — the pool ships glyph keys now, not characters. */
@@ -14720,6 +14823,9 @@ function renderDailyGoals(host){
       '</div>';
     }).join('') + '</div></div></div>';
 }
+/* b130-style export: the strip renderer is reached from other IIFEs and by the
+   suite, which asserts the RENDERED "n / target" rather than an internal. */
+window.renderDailyGoals = renderDailyGoals;
 function hoursTillUTCMidnight(){
   var d = new Date(); return Math.max(1, 24 - d.getUTCHours());
 }
@@ -20807,7 +20913,8 @@ console.log('[Bundle Icons v1] applied:',
        ⚠ NO CONVERSION: an existing phantom G.skills.combat is NOT migrated into
        hitpoints anywhere. It was never server-authored, so converting it would
        mint ranked HP XP. The cutover importer drops the key by name
-       (2026-08-17-cutover-import.sql; tests/cutover-import.mjs C7/C8). */
+       (2026-08-17-cutover-import.sql; its guard tests/cutover-import.mjs was
+       retired 2026-09-07 with the drop of hr_import_apply). */
     kill_any:    {gold: 200, xp:{hitpoints:100}},
     kill_more:   {gold: 600, xp:{hitpoints:300}, gems: 1},
     /* b497 — the gathering retune. Targets moved in DAILY_GOAL_POOL (25→60,
@@ -20984,7 +21091,15 @@ console.log('[Bundle Icons v1] applied:',
     if(!G.weeklyGoals || G.weeklyGoals.weekKey !== key){
       var picks = pickWeeklyIds(key);
       G.weeklyGoals = {weekKey: key, picks: picks.map(function(g){return g.id;}), startValues: {}, claimed:{}, sv:1};
-      picks.forEach(function(g){ G.weeklyGoals.startValues[g.id] = src(g.source); });
+      /* Same rule as the daily slate: a SERVER-MIRRORED counter that has not
+         arrived is not baselined at a 0 nobody measured. No weekly source is
+         mirrored today (wk_harvest reads stats.cropsHarvested, a local tally),
+         so this is by construction rather than for a live bug — the next
+         EVENT_COUNTER_PROJECTION row must not have to find this line. */
+      picks.forEach(function(g){
+        if(typeof window.__hrTakeGoalBaseline === 'function') window.__hrTakeGoalBaseline(G.weeklyGoals, g);
+        else G.weeklyGoals.startValues[g.id] = src(g.source);
+      });
     } else if((G.weeklyGoals.picks||[]).some(function(id){
         return !goalDealable(WEEKLY_GOAL_POOL.find(function(p){return p.id===id;}));
       })){
@@ -21021,9 +21136,13 @@ console.log('[Bundle Icons v1] applied:',
       });
       G.weeklyGoals.sv = 1;
     }
-    return G.weeklyGoals.picks.map(function(id){
+    var week = G.weeklyGoals.picks.map(function(id){
       return WEEKLY_GOAL_POOL.find(function(p){return p.id===id;});
     }).filter(Boolean);
+    /* THE LATE BASELINE (the daily getter's twin) — a baseline that could not be
+       measured when the slate rolled is taken on the first paint after it can. */
+    if(typeof window.__hrRebaselineGoals === 'function') window.__hrRebaselineGoals(G.weeklyGoals, week);
+    return week;
   };
 
   // ── Helpers to compute progress ──
@@ -21078,12 +21197,25 @@ console.log('[Bundle Icons v1] applied:',
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
   window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; };
 
+  /* ── THE ONE READER OF startValues IN THIS IIFE ────────────────────────────
+     Delegates to block 16's goalBaselineOf (exported on window because this is
+     a different IIFE — the b224/b130 cross-scope trap). {known:false} means the
+     source is a SERVER-MIRRORED counter that has not arrived yet, and a goal
+     graded against a baseline nobody measured reads as instantly complete; see
+     the header on goalSourceMirrored.
+     FALLBACK, deliberately the OLD behaviour and not "unknown": if the export
+     ever goes missing, every goal reading 0 forever is a worse, louder bug than
+     the one this fixes, and tests/…/smoke asserts the export exists. */
+  function baselineOf(goal, isWeekly){
+    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
+    if(typeof window.__hrGoalBaseline === 'function') return window.__hrGoalBaseline(stateObj, goal);
+    return {known: true, value: (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0};
+  }
   function getProgress(goal, isWeekly){
     var sg = srvGoal(goal, isWeekly);
     if(sg) return sg.have;
-    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
-    var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
-    return Math.max(0, src(goal.source) - startVal);
+    var b = baselineOf(goal, isWeekly);
+    return b.known ? Math.max(0, src(goal.source) - b.value) : 0;
   }
   function isClaimed(goal, isWeekly){
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
@@ -21123,9 +21255,8 @@ console.log('[Bundle Icons v1] applied:',
   var _goalShown = Object.create(null);
   var _goalCelebrated = Object.create(null);
   function localProgress(goal, isWeekly){
-    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
-    var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
-    return Math.max(0, src(goal.source) - startVal);
+    var b = baselineOf(goal, isWeekly);
+    return b.known ? Math.max(0, src(goal.source) - b.value) : 0;
   }
   function goalDisplayKey(goal, isWeekly){
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
@@ -21138,8 +21269,11 @@ console.log('[Bundle Icons v1] applied:',
        from being pinned at the prior instance's shown value — and it is exactly
        the distinction between R1's "hold on a server reconcile-down" (baseline
        unchanged, predicted still high) and a genuine restart (baseline moved). */
-    var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
-    return per + ':' + goal.id + ':' + startVal;
+    /* An UNKNOWN baseline is its own epoch: when the counter finally lands and
+       the baseline is taken, the key changes, so the monotonic high-water does
+       not pin the bar at a number that was only ever rendered as 0. */
+    var b = baselineOf(goal, isWeekly);
+    return per + ':' + goal.id + ':' + (b.known ? b.value : 'pending');
   }
   function goalDisplay(goal, isWeekly){
     var confirmed = getProgress(goal, isWeekly);

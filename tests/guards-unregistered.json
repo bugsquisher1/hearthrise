@@ -1,0 +1,121 @@
+{
+  "$comment": [
+    "THE EXPLICIT DEBT LIST, read by tests/guard-hygiene.mjs.",
+    "",
+    "A guard file that nothing runs is not coverage — it is a file that LOOKS like",
+    "coverage. tests/worker-accrual.mjs sat here for months with a header claiming",
+    "run-smoke.mjs invoked it; nothing did, and thirteen assertions about an economy",
+    "faucet went uncollected. This file exists so that state can never be silent",
+    "again: every tests/*.mjs is registered in .github/workflows/smoke.yml, invoked",
+    "by tests/run-smoke.mjs, chained from another guard, or NAMED HERE WITH A REASON.",
+    "",
+    "Being on this list is not an endorsement. It is a debt with an owner. Adding an",
+    "entry is cheap and deliberate; the cost is that it is written down and countable.",
+    "",
+    "`verified` says what was actually measured on 2026-09-06 by the slice-2 audit —",
+    "not what the file's own header claims. `asserts` = the file can exit non-zero.",
+    "A file with asserts:false cannot be red and therefore gates nothing, whatever",
+    "it prints."
+  ],
+  "reviewed": "2026-09-06 (cleanup program, slice 2)",
+  "guards": {
+    "signup-door-page.mjs": {
+      "reason": "DELIBERATELY not in CI, by its own header and for a good reason: DOOR-1..7 and OPEN-3 already live in src/features/smoke-test.js and run inside the assembled in-page suite, which IS the contract. This file re-runs the SAME in-page runner filtered to one battery (window.__smokeTest({only})) so an agent proving one battery does not have to start a second multi-minute suite next to somebody else's and read the contention as a flake (b461). Registering it would duplicate the assertions and reintroduce exactly that contention. It is a development tool, not a gate.",
+      "owner": "qa-engineer",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": true,
+        "duplicates": "src/features/smoke-test.js DOOR-1..7, OPEN-3"
+      }
+    },
+    "character-bootstrap-guard.mjs": {
+      "reason": "family pglite-chain-replay: hr_create_character is an ENSURE and grants exactly src/data/start-kit.js. NOTE: measured as asserts:false — it reports rather than exits non-zero, so registering it as-is would gate nothing. Needs a verdict before adoption.",
+      "family": "pglite-chain-replay",
+      "owner": "backend-architect",
+      "disposition": "needs-a-verdict-first",
+      "verified": {
+        "asserts": false,
+        "selftest": true
+      }
+    },
+    "enchant-intent.mjs": {
+      "reason": "family pglite-chain-replay: the enchant intent against real PostgreSQL.",
+      "family": "pglite-chain-replay",
+      "owner": "backend-architect",
+      "disposition": "adopt-via-shared-db",
+      "verified": {
+        "asserts": true,
+        "selftest": false
+      }
+    },
+    "gold-intents.mjs": {
+      "reason": "family pglite-chain-replay: shop_buy and vendor_sell at the catalogue price/bid. Overlaps the registered conservation-fuzz step, which fuzzes the same value-movement invariants.",
+      "family": "pglite-chain-replay",
+      "owner": "backend-architect",
+      "disposition": "adopt-via-shared-db",
+      "verified": {
+        "asserts": true,
+        "selftest": true
+      }
+    },
+    "leaderboard-lockdown-guard.mjs": {
+      "reason": "family pglite-chain-replay: the boards are not writable by a client. The live source property IS registered inside run-smoke (leaderboard-server-source).",
+      "family": "pglite-chain-replay",
+      "owner": "security-engineer",
+      "disposition": "adopt-via-shared-db",
+      "verified": {
+        "asserts": true,
+        "selftest": false
+      }
+    },
+    "market-offers-guard.mjs": {
+      "reason": "family pglite-chain-replay: market offer integrity. run-smoke already registers market-v2 and market-intent, which drive the market's value movement.",
+      "family": "pglite-chain-replay",
+      "owner": "security-engineer",
+      "disposition": "adopt-via-shared-db",
+      "verified": {
+        "asserts": true,
+        "selftest": false
+      }
+    },
+    "market-offers-lockdown.mjs": {
+      "reason": "family pglite-chain-replay. NOTE: measured as asserts:false — it prints a lockdown report and cannot exit non-zero, so it gates nothing today. Either give it a verdict or fold it into market-offers-guard.",
+      "family": "pglite-chain-replay",
+      "owner": "security-engineer",
+      "disposition": "needs-a-verdict-first",
+      "verified": {
+        "asserts": false,
+        "selftest": false
+      }
+    },
+    "gem-daily-budget.mjs": {
+      "reason": "family pglite-chain-replay: Security's blocking condition 1 — no delta key without a per-call clamp AND a per-day ledger-derived ceiling. NOTE: measured as asserts:false, so the condition is currently DOCUMENTED rather than enforced by this file. The clamp itself is enforced server-side by hr_day_budget_limits(). Worth a verdict.",
+      "family": "pglite-chain-replay",
+      "owner": "security-engineer",
+      "disposition": "needs-a-verdict-first",
+      "verified": {
+        "asserts": false,
+        "selftest": false
+      }
+    },
+    "open-beta.mjs": {
+      "reason": "family pglite-chain-replay: the open-beta invite/door surface. The in-page suite registers beta-invite-gate for the live half.",
+      "family": "pglite-chain-replay",
+      "owner": "backend-architect",
+      "disposition": "adopt-via-shared-db",
+      "verified": {
+        "asserts": true,
+        "selftest": true
+      }
+    },
+    "$deleted:2026-09-06-slice-2": {
+      "reason": "NOT A GUARD FILE — the record of two orphans DELETED rather than adopted, so the decision is not re-litigated by whoever next greps for them. (1) tests/gold-intent-shape.mjs: a one-off investigation script, not a guard — it took the repo root as process.argv[2] and could not be run without one, printed a shape report, and asserted nothing that the registered conservation-fuzz and claim-intent steps do not already assert by execution against the same hr_apply. (2) tests/raid-claim-exploit.mjs: the b209 own-contribution-claim exploit reproduction, written against a HAND-BUILT partial schema in PGlite rather than the real migration chain, so it could pass while production diverged. The property it cared about — a free-rider cannot claim — is covered by the registered raid-band-denial step, whose --selftest plants exactly that defect against the real chain. Both bodies remain in git history at afa7175e~1."
+    },
+    "$note:client-write-sweep-2345": {
+      "reason": "NOT A GUARD FILE — why the four client-write-sweep guards were NOT collapsed into one, per the slice-2 brief's \"only if provably one seam\" condition. They are not one seam. Each pins a DIFFERENT migration with a different confirmed-writer population and a different property: -2 = display_names/leaderboard_meta + 2 writers; -3 = raid_claims/raid_contributions + 2 writers, plus the batch-1 MAINTAIN retrofit; -4 = 17 tables, 34 baseline rows, 42 writers driven before AND after the revoke, plus the two tables deliberately left granted; -5 is not a table batch at all — it is the fail-closed DEFAULT ACL, the schema-wide MAINTAIN revoke and the hr_assert_grant_hygiene detector takeover. Merging them would fuse four independent revert-detectors into one pass/fail, so a red would no longer name which batch regressed, and -5's default-ACL property has no table list to merge into. All four are invoked by tests/run-smoke.mjs and are therefore not orphans."
+    },
+    "$family:pglite-chain-replay": {
+      "reason": "NOT A GUARD FILE — a note covering the entries tagged family 'pglite-chain-replay'. Each boots a real PostgreSQL (PGlite/WASM) and applies the WHOLE migration chain verbatim before asserting, which costs minutes per file. CI already replays that chain once, in the registered `schema-drift` step (plus its --mutate and --live-selftest). Registering these individually would multiply the chain replay by the file count and turn a 20-minute workflow into an hour, for guards whose migrations also carry their own executing self-check blocks. The right fix is a SHARED replayed database these all attach to (tests/schema-replay.mjs already exports bootReplay for exactly this) — a real piece of work, not a line in a YAML file."
+    }
+  }
+}

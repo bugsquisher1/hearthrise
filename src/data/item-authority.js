@@ -53,11 +53,11 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=514';
-import { ARTISAN_RECIPES } from './recipes.js?v=514';
-import { MONSTERS } from './monsters.js?v=514';
-import { BOSSES } from './bosses.js?v=514';
-import { ITEMS } from './items.js?v=514';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=516';
+import { ARTISAN_RECIPES } from './recipes.js?v=516';
+import { MONSTERS } from './monsters.js?v=516';
+import { BOSSES } from './bosses.js?v=516';
+import { ITEMS } from './items.js?v=516';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -226,15 +226,16 @@ export const INVENTORY_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post
    documented exclusion) — so the harvest RPC, not the inventory flip, is what
    makes farm produce server-owned. */
 export const FARM_SERVER_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 cutover) — farm gestures are server intents
-let farmArmOverride = null;
+/* b514 (cleanup slice 4): the OVERRIDE SEAM IS GONE and this is a constant.
+   `__setFarmServerArm` existed to drive the pre-cutover client-authoring path,
+   and that path no longer exists in any caller — plantCrop / waterPlot /
+   waterAllPlots / harvestPlot / upgradePlot have exactly one branch each. A seam
+   that can only select a deleted branch is not a kill switch, it is a lie about
+   what the client can still do; keeping it would let a test (or a console) claim
+   a fall-through that would now simply drop the gesture on the floor.
+   The kill-switch position, if it is ever wanted again, is a SERVER one. */
 export function isFarmServerArmed() {
-  return farmArmOverride !== null ? !!farmArmOverride : FARM_SERVER_ARM_ENABLED;
-}
-/** Test seam, same spirit as the record.js __set*RecordArm helpers: force the
- *  arm on/off, or pass null to fall back to the const. Returns the armed state. */
-export function __setFarmServerArm(v) {
-  farmArmOverride = (v === null || v === undefined) ? null : !!v;
-  return isFarmServerArmed();
+  return FARM_SERVER_ARM_ENABLED;
 }
 
 /** Every id a hired worker can mint client-side = every gather product (a worker

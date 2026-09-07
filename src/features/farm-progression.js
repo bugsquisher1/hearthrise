@@ -152,12 +152,6 @@
     return window.G.inventory.farm_deed | 0;
   }
 
-  function farmSyncArmed(){
-    return !!(window.HearthriseFarmSync
-      && typeof window.HearthriseFarmSync.isFarmServerArmed === 'function'
-      && window.HearthriseFarmSync.isFarmServerArmed());
-  }
-
   function upgradePlot(){
     var v = getUpgradeCheck();
     if(!v.ok){
@@ -166,71 +160,49 @@
       }
       return false;
     }
-    var price = v.price;
-    // Server-authority routing: the server owns the price, the debit and the
-    // plot_level column. Send the intent and reconcile G from the RESPONSE
-    // (the server's own numbers, once) — no local mutation. The check above is
-    // a PRE-FLIGHT for the copy, never the decision.
-    if(farmSyncArmed()){
-      var FS = window.HearthriseFarmSync;
-      var deps = {
-        addItem: function(id,q){ if(typeof window.addItem==='function') window.addItem(id,q); },
-        removeItem: function(id,q){ if(typeof window.removeItem==='function') window.removeItem(id,q); },
-        addXp: function(sk,x){ if(typeof window.addXp==='function') window.addXp(sk,x); },
-        setGold: function(n){ if(window.G) window.G.gold = n; },
-      };
-      FS.farmUpgradePlot().then(function(res){
-        if(res && res.ok){ try{ FS.reconcileFarmResult(window.G,'upgrade',res,deps); }catch(e){}
-          if(typeof window.notify === 'function'){
-            window.notify('Farm Plot upgraded to Lv ' + res.plot_level
-              + (res.paid_with === 'deeds'
-                  ? ' — paid with ' + res.deeds_spent + " Farmer's Deed" + (res.deeds_spent===1?'':'s')
-                  : ' — ' + fmtN(res.gold_spent || 0) + ' gold'), 'levelup');
-          }
-        } else if(res && res.error && res.error!=='transport'){
-          if(typeof window.notify === 'function'){
-            /* The server is the price. Speak ITS refusal, not the client's guess. */
-            var msg = 'Could not upgrade plot — try again';
-            if(res.error === 'farm_level_too_low') msg = 'Farm Plot Lv ' + res.plot_level + ' needs Farming ' + res.need + ' (you are ' + res.have + ')';
-            else if(res.error === 'cannot_afford') msg = 'Farm Plot Lv ' + res.plot_level + ' costs ' + fmtN(res.need_gold) + ' gold or ' + res.need_deeds + " Farmer's Deed" + (res.need_deeds===1?'':'s') + ' — you have ' + fmtN(res.have_gold) + ' gold and ' + res.have_deeds;
-            else if(res.error === 'max_plot_level') msg = 'Farm Plot already maxed';
-            window.notify(msg, 'kill');
-          }
-        }
-        try { if(typeof window.renderHouse === 'function') window.renderHouse(); } catch(e){}
-        try { if(typeof window.renderFarm === 'function') window.renderFarm(); } catch(e){}
-        try { if(typeof window.renderInventory === 'function') window.renderInventory(); } catch(e){}
-        try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
-      });
-      return true;
-    }
-    /* CLIENT-AUTHORED FALLBACK (farm arm off — tests and the pre-arm client).
-       Gold is a RECORD field: if the client may not write it and the server is
-       not taking the gesture either, fail CLOSED rather than mint a tier the
-       realm never recorded. */
-    if(v.pay === 'gold' && typeof window.clientMayWriteRecordField === 'function'
-       && !window.clientMayWriteRecordField('gold')){
-      if(typeof window.notify === 'function') window.notify('That upgrade is unavailable right now','kill');
+    /* Server-authority routing: the server owns the price, the debit and the
+       plot_level column. Send the intent and reconcile G from the RESPONSE (the
+       server's own numbers, once) — no local mutation. The check above is a
+       PRE-FLIGHT for the copy, never the decision.
+       b514 (cleanup slice 4): ONE PATH. The client-authored fallback that used to
+       follow (deed/gold debit + plotLevels write + saveLocal) had been dead since
+       the b454 cutover armed FARM_SERVER_ARM_ENABLED, and it wrote a plot tier the
+       realm never recorded — the residue-ahead shape that deadlocked the Forge.
+       The missing-module position is FAIL-CLOSED, not local. */
+    var FS = window.HearthriseFarmSync;
+    if(!FS || typeof FS.farmUpgradePlot !== 'function'){
+      if(typeof window.notify === 'function') window.notify('The farm is offline for a moment — try again','kill');
       return false;
     }
-    if(v.pay === 'deeds'){
-      if(typeof window.removeItem === 'function') window.removeItem('farm_deed', price.deeds);
-      else window.G.inventory.farm_deed = Math.max(0, getDeedCount() - price.deeds);
-    } else {
-      window.G.gold = getGold() - price.gold;
-    }
-    window.G.plotLevels = price.level;
-    if(typeof window.notify === 'function'){
-      window.notify('Farm Plot upgraded to Lv ' + price.level
-        + (v.pay === 'deeds' ? ' — paid with ' + price.deeds + " Farmer's Deed" + (price.deeds===1?'':'s')
-                             : ' — ' + fmtN(price.gold) + ' gold'), 'levelup');
-    }
-    if(typeof window.saveLocal === 'function') window.saveLocal();
-    // Refresh any panels that show plot state.
-    try { if(typeof window.renderHouse === 'function') window.renderHouse(); } catch(e){}
-    try { if(typeof window.renderFarm === 'function') window.renderFarm(); } catch(e){}
-    try { if(typeof window.renderInventory === 'function') window.renderInventory(); } catch(e){}
-    try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
+    var deps = {
+      addItem: function(id,q){ if(typeof window.addItem==='function') window.addItem(id,q); },
+      removeItem: function(id,q){ if(typeof window.removeItem==='function') window.removeItem(id,q); },
+      addXp: function(sk,x){ if(typeof window.addXp==='function') window.addXp(sk,x); },
+      setGold: function(n){ if(window.G) window.G.gold = n; },
+    };
+    FS.farmUpgradePlot().then(function(res){
+      if(res && res.ok){ try{ FS.reconcileFarmResult(window.G,'upgrade',res,deps); }catch(e){}
+        if(typeof window.notify === 'function'){
+          window.notify('Farm Plot upgraded to Lv ' + res.plot_level
+            + (res.paid_with === 'deeds'
+                ? ' — paid with ' + res.deeds_spent + " Farmer's Deed" + (res.deeds_spent===1?'':'s')
+                : ' — ' + fmtN(res.gold_spent || 0) + ' gold'), 'levelup');
+        }
+      } else if(res && res.error && res.error!=='transport'){
+        if(typeof window.notify === 'function'){
+          /* The server is the price. Speak ITS refusal, not the client's guess. */
+          var msg = 'Could not upgrade plot — try again';
+          if(res.error === 'farm_level_too_low') msg = 'Farm Plot Lv ' + res.plot_level + ' needs Farming ' + res.need + ' (you are ' + res.have + ')';
+          else if(res.error === 'cannot_afford') msg = 'Farm Plot Lv ' + res.plot_level + ' costs ' + fmtN(res.need_gold) + ' gold or ' + res.need_deeds + " Farmer's Deed" + (res.need_deeds===1?'':'s') + ' — you have ' + fmtN(res.have_gold) + ' gold and ' + res.have_deeds;
+          else if(res.error === 'max_plot_level') msg = 'Farm Plot already maxed';
+          window.notify(msg, 'kill');
+        }
+      }
+      try { if(typeof window.renderHouse === 'function') window.renderHouse(); } catch(e){}
+      try { if(typeof window.renderFarm === 'function') window.renderFarm(); } catch(e){}
+      try { if(typeof window.renderInventory === 'function') window.renderInventory(); } catch(e){}
+      try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
+    });
     return true;
   }
 

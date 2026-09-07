@@ -103,22 +103,22 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp } from './accrue.js?v=514';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp, reconcileEventCounters } from './accrue.js?v=516';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=514';
+import { applyClientState } from './client-state.js?v=516';
 /* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
    top-level record field read from state.dungeon_scrip. Its own arm flag defaults
    OFF; while off the entry below is invisible to the field list / strip / decode
    loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
    DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
-import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=514';
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=516';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=514';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=516';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
    RETIRED, so this is a constant. A separate switch would have created a state
@@ -1798,6 +1798,24 @@ function settle(verdict) {
        character). NOT arm-gated (writes a scratch key nothing else reads). Guarded —
        a throw here must never break the record load. */
     hydrationStep('hero-slots', () => reconcileHeroSlots(G, verdict.body));
+    /* ── THE LIFETIME GOAL COUNTERS, HYDRATED FROM THE SAME ENVELOPE ──────────
+       THE FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
+       crew, SA-016 hero slots, now the `ev:*` counters) — and the one that had
+       NO writer at all. `G.stats.harvested` / `.planted` are residue fields the
+       goal engine reads (Green Thumb, the farmhand quest, "Plant 3 crops"), and
+       since the b454 farm cutover nothing wrote them: the client increments in
+       plantCrop/harvestPlot sit behind `farmSyncArmed()`'s early return, so the
+       counters sat at 0 for every player while hr_farm_harvest journalled every
+       crop server-side. This is the read.
+
+       ⚠ ORDER MATTERS: it runs AFTER hydrationStep('client-state'), which splats
+         the residue bag into G. The server's answer must land on top of the
+         residue copy, not under it — otherwise a stale bag value survives the
+         boot and we have rebuilt residue-ahead from the other side.
+
+       Fail-closed on a missing `progress` array, and lowering requires
+       `progress_truncated === false` — see reconcileEventCounters' header. */
+    hydrationStep('event-counters', () => reconcileEventCounters(G, verdict.body));
     /* b465 — the server's daily-login claim row closes the daily-reward sheet's
        question at boot (the residue marker kept losing tab/save races and the
        sheet re-opened on a paid reward). Guarded like its neighbours. */

@@ -1,6 +1,10 @@
 // ============================================================================
 // tests/worker-accrual.mjs — the PURE hired-worker accrual engine, proven in
-// Node. Run: node tests/worker-accrual.mjs  (also invoked by run-smoke.mjs).
+// Node. Run: node tests/worker-accrual.mjs   /  --selftest  /  --list
+//
+// REGISTERED IN .github/workflows/smoke.yml. Its header claimed for months that
+// run-smoke.mjs invoked it; nothing did, in CI or out, so W1-W13 were thirteen
+// assertions nobody collected. Registered + mutation-proven 2026-09-06.
 //
 // What it locks down:
 //   W1  determinism — same inputs, byte-identical output, no ambient read
@@ -28,6 +32,7 @@ import {
 import { GATHER_NODES } from '../supabase/functions/hr-accrue/catalogue.js';
 import { ITEMS } from '../src/data/items.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
+import { readFileSync } from 'node:fs';
 /* THE SHARED RATE MODEL both engines import (b497), and the PLAYER's own action
    interval. W11 divides one by the other — two independently-authored functions
    — so the ratio is a MEASUREMENT rather than a restatement of either. */
@@ -35,7 +40,16 @@ import { workerTickMs, WORKER_BASE_EFF as CORE_BASE_EFF } from '../src/core/work
 import { actionIntervalMs, pacedActionMs, PACE } from '../src/core/pacing.js';
 
 let failures = 0;
-function ok(cond, msg) { if (!cond) { failures++; console.error('  ✗ ' + msg); } else console.log('  ✓ ' + msg); }
+/* Under --selftest this file's OWN body still runs (it is a top-level script,
+   not a module with an entry point) — but its 100-odd lines of ✓ would drown
+   the mutation report, and its verdict is not the one being reported. The
+   CHILD runs are the measurement; they are spawned with no flags and print
+   normally. Silence the parent's body, and discard its `failures` before the
+   selftest block reads anything. */
+const WA_SELFTEST = process.argv.includes('--selftest') || process.argv.includes('--list');
+const wlog = WA_SELFTEST ? () => {} : (...a) => console.log(...a);
+const werr = WA_SELFTEST ? () => {} : (...a) => console.error(...a);
+function ok(cond, msg) { if (!cond) { failures++; werr('  ✗ ' + msg); } else wlog('  ✓ ' + msg); }
 function eq(a, b, msg) { ok(JSON.stringify(a) === JSON.stringify(b), msg + ` (${JSON.stringify(a)} vs ${JSON.stringify(b)})`); }
 
 // The CLIENT reference math — a transcription of src/features/workers.js
@@ -62,12 +76,48 @@ function clientAccrue(w, spanMs) {
   return { qty, id: act.prod, xp };
 }
 
-console.log('W1/W3 — the engine re-exports the shared model, and the curve is the ruled one');
+wlog('W1/W3 — the engine re-exports the shared model, and the curve is the ruled one');
 /* The engine must not hold its OWN copy of these — it re-exports
    src/core/workers.js. Assert identity with the core module (===, not a value
    match), then assert the VALUES against the b389 ruling independently, so a
    coordinated edit to both sides still has to face the design number. */
-ok(WORKER_BASE_EFF === CORE_BASE_EFF, 'the engine re-exports core WORKER_BASE_EFF (no second copy)');
+ok(WORKER_BASE_EFF === CORE_BASE_EFF, 'the engine re-exports core WORKER_BASE_EFF (value agrees)');
+/* …AND THE VALUE CHECK ABOVE IS NOT THE "NO SECOND COPY" PROOF IT CLAIMED TO BE.
+   `===` on a NUMBER compares values, so a mirror `const WORKER_BASE_EFF = 0.10`
+   in accrual.js passes it byte for byte — which is precisely the state b389
+   shipped from ("Mirrors …" in a comment, two definitions, equal on the day and
+   drifting on the next edit). Measured by WA6 in --selftest: the value check
+   stayed GREEN with the mirror planted.
+
+   So the structural claim is asserted STRUCTURALLY, against the engine's own
+   source: every name in the shared rate model must arrive through the import
+   from src/core/workers.js, and accrual.js must declare none of them itself. */
+{
+  const engineSrc = readFileSync(new URL('../supabase/functions/hr-accrue/accrual.js', import.meta.url), 'utf8');
+  const SHARED = ['WORKER_BASE_EFF', 'WORKER_EFF_PER_LVL', 'WORKER_MAX_LVL',
+                  'WORKER_ACCRUE_CAP_MS', 'WORKER_MAX_ACC_MS',
+                  'workerLevel', 'workerEff', 'workerEffE', 'workerAnchorMs'];
+  /* `[^}]*` and not `[\s\S]*?`: a lazy any-char run starts at the FIRST `import
+     {` in the file and swallows every import before this one, so the first name
+     in the real list arrives glued to the previous statement and never matches.
+     Caught by this assertion going red on an unmutated tree. */
+  const imp = /import\s*\{([^}]*)\}\s*from\s*'\.\.\/\.\.\/\.\.\/src\/core\/workers\.js'/.exec(engineSrc);
+  ok(!!imp, 'accrual.js imports the shared rate model from src/core/workers.js');
+  const imported = imp ? imp[1].split(',').map((s) => s.trim().split(/\s+as\s+/)[0]).filter(Boolean) : [];
+  for (const name of SHARED) {
+    ok(imported.includes(name), `accrual.js IMPORTS ${name} rather than defining it`);
+    // A local declaration of the same name is the mirror, whatever its value.
+    const decl = new RegExp(`^\\s*(?:const|let|var|function)\\s+${name}\\b`, 'm');
+    ok(!decl.test(engineSrc), `accrual.js declares no second ${name} (a mirror equal today drifts tomorrow)`);
+  }
+  // And the export list must forward those exact bindings, not aliases of copies.
+  const exp = /export\s*\{([\s\S]*?)\};/.exec(engineSrc.slice(engineSrc.indexOf('RE-EXPORTED, NOT REDEFINED')));
+  const exported = exp ? exp[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
+  for (const e of exported) {
+    ok(!/\sas\s/.test(e), `the re-export list forwards '${e}' unaliased (an alias can rename a local copy `
+      + 'onto the shared name and pass every value check)');
+  }
+}
 eq([WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL, WORKER_ACCRUE_CAP_MS],
    [0.10, 0.008, 10, 24 * 3600000], 'the rate curve is the b389 ruling: 10% at Lv1, +0.8%/lvl, cap Lv10, 24h');
 for (const [xp, lvl] of [[0, 1], [1999, 1], [2000, 2], [8000, 3], [18000, 4], [200000, 10], [1e9, 10]]) {
@@ -75,7 +125,7 @@ for (const [xp, lvl] of [[0, 1], [1999, 1], [2000, 2], [8000, 3], [18000, 4], [2
   ok(Math.abs(workerEff(xp) - (0.10 + 0.008 * (lvl - 1))) < 1e-12, `workerEff(${xp}) == 0.10 + 0.008*${lvl - 1}`);
 }
 
-console.log('W1 — determinism: same inputs, byte-identical output');
+wlog('W1 — determinism: same inputs, byte-identical output');
 const crew = [
   { uid: 'w1', skill: 'woodcutting', target_id: 'normal_tree', xp: 0 },
   { uid: 'w2', skill: 'mining', target_id: 'coal_rock', xp: 50000 },
@@ -88,7 +138,7 @@ const B = accrueWorkers({ nowMs: now, workersAccruedToMs: from, crew, nodes: GAT
 eq(A, B, 'two identical calls are byte-identical');
 ok(A.accrued === true, '12h crew settle accrues');
 
-console.log('W2 — away == live: server yield == client accrueWorker over the same span');
+wlog('W2 — away == live: server yield == client accrueWorker over the same span');
 {
   const span = now - from;
   // per-worker expected from the client transcription
@@ -107,7 +157,7 @@ console.log('W2 — away == live: server yield == client accrueWorker over the s
   eq(oneShot.items, A.items, 'one-shot away settle == the reference settle (no away/live divergence)');
 }
 
-console.log('W4 — idle / inconsistent / sub-tick workers produce nothing');
+wlog('W4 — idle / inconsistent / sub-tick workers produce nothing');
 {
   const idle = [{ uid: 'x', skill: null, target_id: null, xp: 0 }];
   ok(accrueWorkers({ nowMs: now, workersAccruedToMs: from, crew: idle, nodes: GATHER_NODES, items: ITEMS }).accrued === false,
@@ -125,7 +175,7 @@ console.log('W4 — idle / inconsistent / sub-tick workers produce nothing');
   ok(st.accrued === false, `a sub-tick span (20s < ${(stPer / 1000).toFixed(1)}s perTick) produces nothing, watermark deferred`);
 }
 
-console.log('W5 — the 24h cap bounds one settle; all item deltas are positive');
+wlog('W5 — the 24h cap bounds one settle; all item deltas are positive');
 {
   const huge = accrueWorkers({ nowMs: now, workersAccruedToMs: now - 100 * 3600000, crew, nodes: GATHER_NODES, items: ITEMS });
   const capped = accrueWorkers({ nowMs: now, workersAccruedToMs: now - 24 * 3600000, crew, nodes: GATHER_NODES, items: ITEMS });
@@ -134,7 +184,7 @@ console.log('W5 — the 24h cap bounds one settle; all item deltas are positive'
   for (const id in huge.items) ok(huge.items[id] > 0, `item ${id} delta is positive (a crew never debits)`);
 }
 
-console.log('W6 — worker xp is per-uid; player skills untouched');
+wlog('W6 — worker xp is per-uid; player skills untouched');
 {
   ok(Object.keys(A.workers).every((k) => k.startsWith('w')), 'worker settle keyed by worker uid');
   ok(!('woodcutting' in A.workers) && !('mining' in A.workers), 'no skill id appears in the worker map');
@@ -165,7 +215,7 @@ function runLoop(crew0, fromMs, toMs, stepMs) {
   return { items, xp };
 }
 
-console.log('W7 — a SLOW worker (perTick > settle cadence) eventually produces, never silently zero');
+wlog('W7 — a SLOW worker (perTick > settle cadence) eventually produces, never silently zero');
 {
   // normal_tree ms=3000, lv1 eff 0.10 → perTick = 48s (paced anchor). Settle every 10s.
   const slow = [{ uid: 'wslow', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0 }];
@@ -178,7 +228,7 @@ console.log('W7 — a SLOW worker (perTick > settle cadence) eventually produces
   ok(loop.items.normal_log > 0, 'a slow worker is NOT silently zero (the shared-watermark break is fixed)');
 }
 
-console.log('W8 — away == live byte-identical WITH carry (one big settle == many small)');
+wlog('W8 — away == live byte-identical WITH carry (one big settle == many small)');
 {
   // MAXED worker → eff constant (E=172) → exact across settle granularities.
   const maxed = [{ uid: 'wmax', skill: 'mining', target_id: 'coal_rock', xp: 200000, acc_ms: 0 }];
@@ -204,7 +254,7 @@ console.log('W8 — away == live byte-identical WITH carry (one big settle == ma
   ok(oneX - manyX < tickCount, `worker-xp gap ${oneX - manyX} is bounded by the ${Math.round(tickCount)} producing settles (< 1 xp each)`);
 }
 
-console.log('W9 — a pure sub-tick settle REFUSES (watermark not advanced, no write)');
+wlog('W9 — a pure sub-tick settle REFUSES (watermark not advanced, no write)');
 {
   const slow = [{ uid: 'w', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0 }];
   // 20s span, 48s perTick, no prior carry → 0 ticks → refuse.
@@ -212,7 +262,7 @@ console.log('W9 — a pure sub-tick settle REFUSES (watermark not advanced, no w
   ok(r.accrued === false && r.reason === 'nothing_accrued', 'sub-tick settle refuses (defers, no watermark move)');
 }
 
-console.log('W10 — carry stays in range; a mixed fast+slow crew loses nothing');
+wlog('W10 — carry stays in range; a mixed fast+slow crew loses nothing');
 {
   const mixed = [
     { uid: 'wfast', skill: 'mining', target_id: 'coal_rock', xp: 200000, acc_ms: 0 },   // fast (maxed)
@@ -244,7 +294,7 @@ console.log('W10 — carry stays in range; a mixed fast+slow crew loses nothing'
 //      • `workerTickMs`     — what one worker takes (src/core/workers.js).
 //    A ratio of two independent functions cannot be satisfied by editing one
 //    constant, which is exactly the property the old guard lacked.
-console.log('W11 — THE ANCHOR: a worker is exactly `eff` of an ACTIVE player at the same node');
+wlog('W11 — THE ANCHOR: a worker is exactly `eff` of an ACTIVE player at the same node');
 {
   const ALL = [...TREES.map((n) => ['woodcutting', n]), ...ROCKS.map((n) => ['mining', n]),
                ...FISH_SPOTS.map((n) => ['fishing', n])];
@@ -285,7 +335,7 @@ console.log('W11 — THE ANCHOR: a worker is exactly `eff` of an ACTIVE player a
 //    while `acc_ms` carries from the old regime are already in the database.
 //    A carry is banked TIME, not banked output, so re-pricing it must neither
 //    mint a burst nor confiscate it. Both directions are asserted.
-console.log('W12 — a carry banked under the OLD faster anchor neither bursts nor is forfeited');
+wlog('W12 — a carry banked under the OLD faster anchor neither bursts nor is forfeited');
 {
   const NODE_MS = 3000, XP = 0;                     // normal_tree, Lv1
   const oldPerTick = NODE_MS / workerEff(XP);       // the pre-b497 formula, verbatim
@@ -336,7 +386,7 @@ console.log('W12 — a carry banked under the OLD faster anchor neither bursts n
 //    NOTICE IT HAS GONE STALE. This walks the catalogue instead, so adding a
 //    slower node or moving PACE.actionMs fails HERE rather than as a
 //    `bad_worker_carry` rejection in production.
-console.log('W13 — the largest carry the real node catalogue can produce fits inside WORKER_MAX_ACC_MS');
+wlog('W13 — the largest carry the real node catalogue can produce fits inside WORKER_MAX_ACC_MS');
 {
   const ALL = [...TREES, ...ROCKS, ...FISH_SPOTS];
   const slowest = ALL.reduce((a, b) => (b.ms > a.ms ? b : a));
@@ -348,5 +398,155 @@ console.log('W13 — the largest carry the real node catalogue can produce fits 
      `and it keeps ${(WORKER_MAX_ACC_MS / ceiling).toFixed(1)}x headroom, so the constant is not on a knife edge`);
 }
 
+// ============================================================================
+// --selftest — THE MUTATION PROOF
+//
+// This file's header used to claim it was "also invoked by run-smoke.mjs". It
+// was not: nothing ran it, in CI or out, so W1-W13 were thirteen assertions
+// nobody was collecting. Registering it is only half the repair — a guard that
+// has never been red is not a guard, and this one is entirely made of numeric
+// agreements between two modules, which is the failure shape that goes quiet
+// rather than loud.
+//
+// So: copy src/ + supabase/ + this file to a scratch dir, plant ONE real
+// balance/engine defect, run THIS FILE unmodified there, and require it to
+// exit non-zero. Every mutation is a rebalance or refactor somebody could
+// plausibly commit — b389 shipped at 1.60x its stated size through exactly this
+// gap. Nothing in the working tree is touched.
+//
+//   node tests/worker-accrual.mjs --selftest
+//   node tests/worker-accrual.mjs --list
+// ============================================================================
+const WA_MUTATIONS = [
+  { id: 'WA1-crew-rate-drifts-from-the-core-model',
+    why: 'THE b389 SHAPE: the efficiency curve is edited in one place and not the other, so the '
+       + 'engine and the shared rate model disagree and a crew silently pays the wrong rate',
+    file: 'src/core/workers.js',
+    from: 'export const WORKER_EFF_PER_LVL = 0.008;',
+    to:   'export const WORKER_EFF_PER_LVL = 0.012;' },
+
+  { id: 'WA2-base-efficiency-buffed',
+    why: 'a "small" buff to the starting efficiency. The b389 ruling is 10% at Lv1; a crew that '
+       + 'pays more than the ruling is an economy faucet nobody voted for',
+    file: 'src/core/workers.js',
+    from: 'export const WORKER_BASE_EFF = 0.10;',
+    to:   'export const WORKER_BASE_EFF = 0.16;' },
+
+  { id: 'WA3-24h-rest-cap-lifted',
+    why: 'the "workers rest" cap is raised, so one settle after a long absence pays an unbounded '
+       + 'span — the burst W5 exists to bound',
+    file: 'src/core/workers.js',
+    from: 'export const WORKER_ACCRUE_CAP_MS = 24 * 3600000;',
+    to:   'export const WORKER_ACCRUE_CAP_MS = 240 * 3600000;' },
+
+  { id: 'WA4-carry-ceiling-lowered-under-the-real-catalogue',
+    why: 'W13: hr_apply REFUSES a carry outside WORKER_MAX_ACC_MS. Lower it under what the real '
+       + 'node catalogue can produce and honest carries start being rejected — a silent, '
+       + 'intermittent confiscation that no single sample would show',
+    file: 'src/core/workers.js',
+    from: 'export const WORKER_MAX_ACC_MS = 900000;',
+    to:   'export const WORKER_MAX_ACC_MS = 60000;' },
+
+  { id: 'WA5-max-level-raised',
+    why: 'the level ceiling moves without the curve being re-ruled, so workerLevel() disagrees '
+       + 'with the ladder every other surface prints',
+    file: 'src/core/workers.js',
+    from: 'export const WORKER_MAX_LVL = 10;',
+    to:   'export const WORKER_MAX_LVL = 20;' },
+
+  { id: 'WA6-engine-keeps-its-own-copy-of-the-anchor',
+    why: 'THE ONE THIS SUITE WAS WRITTEN FOR: the engine stops re-exporting the shared model and '
+       + 'holds a second copy. The two are equal ON THE DAY and drift on the next edit — the '
+       + '"Mirrors …" comment that let b389 ship at 1.60x',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    /* REDEFINE rather than re-export. The copy is EQUAL to the core value, so
+       nothing about today's numbers changes — which is the whole danger, and
+       exactly why W1's assertion is an IDENTITY check (===) against the core
+       module and not a value comparison. */
+    from: 'export {\n  WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL,',
+    to:   'const WORKER_BASE_EFF_MIRROR = 0.10;\nexport {\n  WORKER_BASE_EFF_MIRROR as WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL,' },
+];
+
+if (process.argv.includes('--list')) {
+  for (const m of WA_MUTATIONS) console.log(m.id + '  —  ' + m.why);
+  process.exit(0);
+}
+
+if (process.argv.includes('--selftest')) {
+  const { mkdtempSync, cpSync, rmSync, readFileSync: rf, writeFileSync } = await import('node:fs');
+  const { spawnSync } = await import('node:child_process');
+  const { tmpdir } = await import('node:os');
+  const pathMod = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const HERE = pathMod.dirname(fileURLToPath(import.meta.url));
+  const REPO = pathMod.resolve(HERE, '..');
+  const SELF = pathMod.basename(fileURLToPath(import.meta.url));
+
+  console.log('worker-accrual --selftest: each mutation must turn the guard RED\n');
+  let bad = 0;
+
+  const runIn = (dir) => spawnSync(process.execPath, [pathMod.join(dir, 'tests', SELF)],
+    { encoding: 'utf8', cwd: dir });
+
+  const scratchOf = () => {
+    const d = mkdtempSync(pathMod.join(tmpdir(), 'wa-selftest-'));
+    cpSync(pathMod.join(REPO, 'src'), pathMod.join(d, 'src'), { recursive: true });
+    cpSync(pathMod.join(REPO, 'supabase', 'functions'), pathMod.join(d, 'supabase', 'functions'), { recursive: true });
+    cpSync(pathMod.join(REPO, 'tests', SELF), pathMod.join(d, 'tests', SELF));
+    return d;
+  };
+
+  // THE CLEAN CONTROL. A guard that is red at rest is red for everything, and
+  // every "caught" below would be an artefact of the copy rather than a proof.
+  {
+    const d = scratchOf();
+    const r = runIn(d);
+    rmSync(d, { recursive: true, force: true });
+    if (r.status === 0) {
+      console.log('  ok    CLEAN control is GREEN (an unmutated copy of the engine passes)');
+    } else {
+      bad++;
+      console.log('  FAIL  CLEAN control is RED — the mutations below prove nothing');
+      console.log('          ' + String(r.stdout + r.stderr).split('\n').filter((l) => /✗|FAILED/.test(l)).slice(0, 4).join('\n          '));
+    }
+    console.log('        the copy the mutations are planted into must itself be clean');
+  }
+
+  for (const m of WA_MUTATIONS) {
+    const d = scratchOf();
+    const target = pathMod.join(d, ...m.file.split('/'));
+    const src = rf(target, 'utf8');
+    if (!src.includes(m.from)) {
+      bad++;
+      rmSync(d, { recursive: true, force: true });
+      console.log(`  FAIL  ${m.id} — anchor not found in ${m.file}; the mutation was never planted`);
+      console.log(`        ${m.why}`);
+      continue;
+    }
+    writeFileSync(target, src.replace(m.from, m.to));
+    const r = runIn(d);
+    const out = String(r.stdout || '') + String(r.stderr || '');
+    rmSync(d, { recursive: true, force: true });
+
+    if (r.status === 0) {
+      bad++;
+      console.log(`  FAIL  ${m.id} — NOT CAUGHT: the guard stayed GREEN with the defect planted`);
+    } else if (!/FAILED|✗/.test(out)) {
+      bad++;
+      console.log(`  FAIL  ${m.id} — went red WITHOUT an assertion failing (crash, not a verdict):`);
+      console.log('          ' + out.split('\n').slice(-4).join('\n          '));
+    } else {
+      const first = (out.split('\n').find((l) => l.includes('✗')) || '').trim().slice(0, 110);
+      console.log(`  ok    ${m.id} — caught (${first})`);
+    }
+    console.log(`        ${m.why}`);
+  }
+
+  console.log('');
+  if (bad) { console.error(`worker-accrual --selftest FAILED — ${bad} unproven`); process.exit(1); }
+  console.log(`worker-accrual --selftest PASSED — clean control green, ${WA_MUTATIONS.length}/${WA_MUTATIONS.length} mutations caught.`);
+  process.exit(0);
+}
+
 if (failures) { console.error(`\nworker-accrual: ${failures} FAILED`); process.exit(1); }
-console.log('\nworker-accrual: all green');
+wlog('\nworker-accrual: all green');

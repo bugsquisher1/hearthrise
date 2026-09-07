@@ -624,13 +624,23 @@ begin
 
   -- §1b LANDED. Without it the cutover ceremony refuses every player with
   -- `verify_mismatch: progress N <> N-1`, and the ceremony happens once.
-  if to_regprocedure('public.hr_import_apply(uuid,int,jsonb,jsonb,boolean)') is not null
-     and position('progress env %s <> table %s' in
-           replace(pg_get_functiondef(
-             'public.hr_import_apply(uuid,int,jsonb,jsonb,boolean)'::regprocedure), chr(13), '')) = 0 then
-    raise exception 'VERIFY: hr_import_apply still verifies the progress count against the '
-                    'plan-side counter. The bootstrap now writes one progress row, so every '
-                    'import fails verify_mismatch by exactly one. See §1b.';
+  -- ⚠ NESTED, NOT `a and b` — fixed 2026-09-07. SQL's AND DOES NOT SHORT-CIRCUIT:
+  --   the planner may evaluate either operand first, and the `::regprocedure`
+  --   cast in the second one RAISES 42883 rather than returning null. Once
+  --   2026-09-07-drop-dead-server-objects.sql removes hr_import_apply, the
+  --   `to_regprocedure(...) is not null` guard therefore stopped protecting
+  --   anything and a RE-APPLY of this file died here — measured on a full PGlite
+  --   replay by tests/auto-eat-at-creation.mjs arm A7, which re-executes this
+  --   file's own text and asserts it is idempotent. Behaviour is unchanged on a
+  --   database where hr_import_apply still exists (i.e. production today).
+  if to_regprocedure('public.hr_import_apply(uuid,int,jsonb,jsonb,boolean)') is not null then
+    if position('progress env %s <> table %s' in
+          replace(pg_get_functiondef(
+            'public.hr_import_apply(uuid,int,jsonb,jsonb,boolean)'::regprocedure), chr(13), '')) = 0 then
+      raise exception 'VERIFY: hr_import_apply still verifies the progress count against the '
+                      'plan-side counter. The bootstrap now writes one progress row, so every '
+                      'import fails verify_mismatch by exactly one. See §1b.';
+    end if;
   end if;
 
   -- THE SINK IS STILL PRICED. Re-read after the fact, because "we kept the paid

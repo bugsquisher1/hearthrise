@@ -69,8 +69,21 @@ jobs:
     # 30 could not fit the work even when nothing failed. A timeout is a red
     # build with no failing assertion in it -- indistinguishable from the
     # forty reds this workflow just came out of.
-    timeout-minutes: 50
+    # MEASURED 2026-09-07 (b514, 899e42f1): the job ran 50.2 min against this 50-minute
 
+    # budget and GitHub CANCELLED it mid-step (the visual gate happened to be current) --
+
+    # a red with no failing assertion, the exact failure this comment warns about. The
+
+    # workflow grew to 58 sequential steps with cleanup slices 1-2 (three presentation
+
+    # guards, six new selftests); run-ci-local measures ~47 min locally. The budget below
+
+    # is the measured cost x1.8 while the job is still one serial chain; cleanup slice 8a
+
+    # (in flight) splits it into a matrix by guard family and derives per-job budgets.
+
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -98,11 +111,32 @@ jobs:
           node tests/arm-flag-honesty.mjs --selftest
           node tests/arm-flag-honesty.mjs
 
-      # NO BLOB BRANCHES (b514): a RATCHET, not a deletion. isBlobRetired() is
-      # NOT a constant — it ANDs the b353 kill switch — so the dormant halves are
-      # reachable and two of them are saveLocal/loadLocal. Frozen at 13 sites
-      # until the Coordinator + security decide the switch's blob half goes.
-      - name: Blob-retire forks — frozen census, and the premise re-checked
+      # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
+      # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their
+      # client-authored twins — the yield roll, the perennial ladder, the seed
+      # debit, the watering window, the deed/gold spend, the plot_level write —
+      # had survived the b454 cutover unreachable for 60 builds and are now
+      # deleted. This is what stops them returning a line at a time.
+      - name: No client farm mint — the farm gestures author nothing
+        run: |
+          node tests/no-client-farm-mint.mjs --selftest
+          node tests/no-client-farm-mint.mjs
+
+      # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
+      # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a
+      # transport — folding them is the wrong abstraction), and the mayCall
+      # adoption floor may rise but never fall. Adopting it in the other five was
+      # tried and turned b340/F5 red: hr_clan_browser is legitimately session-free.
+      - name: RPC callers — the copies do not grow and the b349 guard floor holds
+        run: |
+          node tests/no-duplicate-rpc-callers.mjs --selftest
+          node tests/no-duplicate-rpc-callers.mjs
+      # NO BLOB BRANCHES (b514 froze it at 13, b515 emptied it): a RATCHET AT
+      # ZERO. The b353 kill switch is retired, so isBlobRetired() is the constant
+      # BLOB_RETIRED and every fork — dormant client-authored half included — is
+      # deleted. A1: no isBlobRetired() conditional survives under src/. A2: the
+      # premise re-checked the other way — it must never AND the switch again.
+      - name: Blob-retire forks — the census is empty, and the premise re-checked
         run: |
           node tests/no-blob-branches.mjs --selftest
           node tests/no-blob-branches.mjs
@@ -409,6 +443,28 @@ jobs:
       - name: State-of farm projection - plot tier and watering history survive a reload
         if: ${{ !cancelled() }}
         run: node tests/state-of-farm-projection.mjs --selftest
+
+      # THE BACKFILLED LIFETIME PLANT COUNTER MUST STAY UNPAYABLE (Security P2 on
+      # supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql). That file
+      # backfilled a lifetime stat/'ev:planted' row for 27 (user, slot) pairs from
+      # the plant ledger - a stock of already-completed work that no catalogue
+      # grades today. Two independent paths could make it payable, and neither is
+      # covered by the other: a row in hr_goal_rewards naming a lifetime kind
+      # (now refused by a CHECK constraint), and a fifth branch in
+      # hr_claim_quest__ungated's hardcoded CASE over LIFETIME stat keys, which
+      # no constraint anywhere can reach. The guard proves the constraint EXISTS,
+      # is VALIDATED and bites (an executed counter_kind='stat' insert must raise
+      # 23514 after a control insert succeeds), that the quest body names no
+      # ev:planted, AND - the property that actually matters - drives a character
+      # holding 40x the target as a LIFETIME counter through the real
+      # hr_goal_state / hr_claim_goal and requires have=0 and a 'not_complete'
+      # refusal, with a non-vacuity arm showing the same reads do say yes to a
+      # real daily counter. 4 defects x 2 arms (gate / SEC-4-blind) plus a GREEN
+      # control that deletes the CREATE TABLE's inline check so the migration's
+      # own ADD path is exercised rather than assumed. No credentials.
+      - name: Goal counter kinds - the backfilled lifetime ev:planted stock cannot be claimed
+        if: ${{ !cancelled() }}
+        run: node tests/goal-counter-kinds.mjs --selftest
       # SA-010 / Q-4: PURCHASED BANK SPACE WAS ENFORCED AT THE BASE CAP.
       # hr_unlock_buy sells bank space as a 30-rung ladder and files it as a
       # player_progress unlock row; NOTHING ever wrote player_state.bank_cap,
@@ -707,6 +763,100 @@ jobs:
         run: |
           node tests/visual-qa-gate.mjs --selftest
           node tests/visual-qa-gate.mjs
+      # ════════════════════════════════════════════════════════════════════
+      # slice 2 — MUTATION PROOFS FOR THE GATES THAT HAD NONE, plus the two
+      # orphan guards that were asserting live properties nothing ran.
+      #
+      # Kept as one contiguous block, immediately before the artifact upload,
+      # so this lands cleanly alongside the slice-1 steps and so a failure here
+      # still attaches its logs. CLAUDE.md §4: "a guard that has never been red
+      # is not a guard". Before this block, four CI-gating guards could not
+      # demonstrate they see failure — including the cache-buster invariant,
+      # which is entirely made of greps whose scoping has been narrowed three
+      # times (b332, b493, b511) and which was measurably blind for 400+ builds.
+      #
+      # Each --selftest plants real, previously-shipped defects and requires the
+      # NAMED assertion that owns the property to go red, then restores. None
+      # touches the working tree, production, or the network beyond the
+      # read-only probes the plain runs already make.
+      # ════════════════════════════════════════════════════════════════════
+
+      # The cache-buster rule, mutation-proven: 6 defects caught (stale tag,
+      # stale ESM specifier = the b493 double-load, the b511 bare quoted pin, a
+      # stripped ?v=, build-info moved alone, build-info unreadable) AND 2
+      # shapes it must keep ignoring, so the fix for a false negative cannot be
+      # a grep that flags everything.
+      - name: Cache-buster invariant — mutation proof
+        if: ${{ !cancelled() }}
+        run: bash bump-version.sh --selftest
+
+      # The RPC resolution comparator, mutation-proven against a REAL probe of
+      # production: an RPC that vanished (PGRST202 — the shipped failure), one
+      # opened to anon, a retired signature that resolved again, a changed
+      # return shape, an unbaselined RPC, one that stopped being probed, and the
+      # control blinded. Probes once and mutates the measurement, so this adds
+      # no extra network round trips.
+      - name: RPC resolution — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/rpc-resolution.mjs --selftest
+
+      # The verify_jwt verdict, mutation-proven offline: the 2026-08-23 finding
+      # itself (our own body answered a garbage bearer), verify_jwt = false, an
+      # undeclared function directory, declared-but-not-deployed, our own 401
+      # mistaken for the gateway's, and the lookahead parser bug that would
+      # check n-1 of n sections and report green.
+      - name: Edge JWT gate — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/edge-jwt-gate.mjs --selftest
+
+      # The Hunt card copy, mutation-proven in the REAL browser: each defect is
+      # planted into the real src/features/raids.js on the way to Chromium.
+      # Includes C6, the value-crossing one — the clan gate ceasing to fire, so
+      # a functional Strike/Claim/Declare card renders while the claim and
+      # weekly-reset server half is still deferred.
+      - name: Hunt card copy — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/raid-card-copy.mjs --selftest
+
+      # ORPHAN ADOPTED. The sign-up door rules (emailRedirectTo, the resend, the
+      # refusal vocabulary, the invite link) live as pure functions in
+      # src/net/signup-door.js and are graded against 21 mutations. beta-2 lost
+      # 11 of 49 sign-ups at the email wall to three defects, none of which is
+      # visible from the DOM. Nothing ran this file.
+      - name: Sign-up door — every mutation caught
+        if: ${{ !cancelled() }}
+        run: node tests/signup-door.mjs --selftest
+      - name: Sign-up door — base run
+        if: ${{ !cancelled() }}
+        run: node tests/signup-door.mjs
+
+      # ORPHAN ADOPTED. W1-W13 on the shipped hired-crew accrual engine. Its
+      # header claimed run-smoke.mjs invoked it; nothing did, so thirteen
+      # assertions about an economy faucet went uncollected. --selftest plants
+      # six real rebalances/refactors against a scratch copy of the engine —
+      # including WA6, which proved the file's own "no second copy" assertion
+      # was vacuous (=== on a number cannot tell a re-export from an equal
+      # mirror, the exact state b389 shipped at 1.60x from). Now structural.
+      - name: Hired-crew accrual — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/worker-accrual.mjs --selftest
+      - name: Hired-crew accrual — base run
+        if: ${{ !cancelled() }}
+        run: node tests/worker-accrual.mjs
+
+      # THE META-GUARD. Every tests/*.mjs must be registered here, invoked by
+      # run-smoke.mjs, chained from another guard, or listed in
+      # tests/guards-unregistered.json with a written reason — and every step
+      # that passes --selftest must have a file that IMPLEMENTS it. Both halves
+      # exist because both failed silently: 12 guard files were reachable by
+      # nothing, and a --selftest flag a file ignores is a vacuous proof that
+      # reads exactly like a real one in a green log.
+      - name: Guard hygiene — no orphans, no vacuous selftests
+        if: ${{ !cancelled() }}
+        run: node tests/guard-hygiene.mjs --selftest
+      - name: Guard hygiene — base run
+        if: ${{ !cancelled() }}
+        run: node tests/guard-hygiene.mjs
 
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
@@ -734,3 +884,12 @@ jobs:
         run: |
           node tests/dead-css.mjs --selftest
           node tests/dead-css.mjs
+
+      # slice 3 (b515) - the window.Hearthrise* census. A misspelt global is silently
+      # undefined, so the feature behind it is DEAD rather than loudly broken:
+      # window.HearthriseAccrue kept the dungeon-settle arm off while the flag said ON.
+      - name: Cleanup slice 3 - window globals census
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/window-globals-exist.mjs --selftest
+          node tests/window-globals-exist.mjs

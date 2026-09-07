@@ -907,6 +907,13 @@ let recoveringUntil = 0;
    not the presence of a recovery line — is what "the server has answered"
    means: the day's free first fall is answered with no timer at all. */
 let accruedToAt = 0;
+/* THE FIRST priced instant this page session ever saw — i.e. the watermark as
+   it stood BEFORE this boot's settle advanced it. `accruedToAt` is useless as a
+   measure of an absence for exactly that reason: by the time anything renders,
+   the server has already priced the span up to now and the difference is zero.
+   This one is written ONCE and never again, so "now - bootAccruedToAt" is the
+   server's own statement of how long the character went unpriced. */
+let bootAccruedToAt = 0;
 /* The server's own death counters, off `state.deaths_today` / `deaths_lifetime`
    (hr_state_of, 2026-09-06-recovering-until.sql). Rendered, never derived: the
    client's `G.stats.deaths` is a LIFETIME tally, and `resolveDeath` reading it
@@ -936,6 +943,41 @@ export const FALL_CONFIRM_TIMEOUT_MS = 2 * 60000;
  *  Exported (not just published on window) so tests/attended-fall.mjs can drive
  *  the whole state machine headlessly. */
 export function accruedToMs() { return accruedToAt; }
+function bootAccruedToMs() { return bootAccruedToAt; }
+
+/** THE ABSENCE, AS THE SERVER PRICED IT (b514).
+ *
+ *  The welcome-back card used to print `Date.now() - G.lastSeen` — a residue
+ *  stamp this client writes for itself. Measured live on b513: it said
+ *  "13h 8m" on a reload two hours after the last session, and "64h 53m" for a
+ *  boot whose server receipt said `awayMs 15,934,121` (4.4h). A residue stamp
+ *  is per-device, only advances on the saves that happen to run, and under §1
+ *  is not authority for anything — least of all for a span the server owns.
+ *
+ *  Order of truth:
+ *    1. the fresh away RECEIPT's credited span (`awayMs`), the same number the
+ *       Home away card and `classifyReceipt` quote — one absence, one figure;
+ *    2. otherwise the boot watermark: now - the first `accrued_to` this session
+ *       saw, i.e. the last instant the server had priced before this boot;
+ *    3. otherwise NULL — and null means the surface says nothing at all. An
+ *       unknown span is never rendered as a number.
+ *  @returns {number|null} milliseconds, or null when the server stated none. */
+export function serverAwaySpanMs(g, now) {
+  const st = g || (typeof window !== 'undefined' ? window.G : null);
+  const t = Number(now) > 0 ? Number(now) : nowMs();
+  const off = st && st.lastOfflineSummary;
+  if (off && Number(off.at) > 0 && (t - Number(off.at)) < 30 * 60000 && Number(off.awayMs) > 0) {
+    return Number(off.awayMs);
+  }
+  if (bootAccruedToAt > 0) return Math.max(0, t - bootAccruedToAt);
+  return null;
+}
+
+/** Test seam only: drive the boot watermark from the in-page suite. Never
+ *  called by game code — the watermark is written by an envelope or not at all. */
+export function __setBootAccruedToForTest(ms) {
+  bootAccruedToAt = Number(ms) > 0 ? Number(ms) : 0;
+}
 export function deathsToday() { return deathsTodayCount; }
 export function deathsLifetime() { return deathsLifetimeCount; }
 
@@ -1469,14 +1511,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=514';
+import * as itemLedger from './item-ledger.js?v=516';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=514';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=516';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1485,7 +1527,7 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=514';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=516';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -1503,17 +1545,17 @@ import { serverAccruedSkill } from '../data/skill-authority.js?v=514';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=514';
+import * as pendingConsume from './pending-consume.js?v=516';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=514';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=516';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=514';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=516';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1831,6 +1873,123 @@ export function reconcileHeroSlots(G, res) {
   owned.sort((a, b) => a - b);
   G._heroSlots = { owned, at: Date.now() };
   return { mode: 'server', owned: owned.length };
+}
+
+/* ── THE LIFETIME EVENT COUNTERS ARE THE SERVER'S (dead-counter class) ────────
+   THE DEFECT THIS CLOSES. `G.stats.harvested` / `G.stats.planted` are read by
+   the goal engine (legacy.js DAILY_GOAL_POOL `source:`, ACHIEVEMENTS `src:`,
+   MIRRORED_QUEST_SOURCES) and, since the b454 farm cutover, were written by
+   NOBODY. The only writers were the client-side increments inside plantCrop /
+   harvestPlot, and both sit AFTER `if(farmSyncArmed()){ …; return; }` — dead in
+   the shipped build. So "Harvest 100 crops" (Green Thumb), the farmhand quest
+   and "Plant 3 crops" sat at 0 for every player, forever: §3.4's dead-feature
+   class, invisible because nothing errored.
+
+   THE FIX IS THE SERVER'S OWN ROWS, not a re-armed client increment.
+   hr_farm_harvest already writes `player_progress(kind='stat', key='ev:harvest',
+   period_key='')` — a lifetime count — in the same transaction as the produce,
+   and hr_state_of projects the permanent rows onto EVERY envelope. This reads
+   them. The client never increments, so there is no second copy to drift, and
+   the counter is correct on a device that never saw the harvest that earned it.
+
+   ⚠ THE TABLE IS THE AUTHORING SURFACE. A new counter is a ROW here plus the
+   server-side `ev:<type>` write — never a branch. Keys are the src/core/goals.js
+   `ev:` namespace; targets are leaves of the G.stats residue bag.
+
+   ✔ `ev:planted` GREW ITS LIFETIME TWIN on 2026-09-07
+   (supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql, APPLIED
+   09:20 UTC): hr_farm_plant now stamps the `kind='stat', period=''` row in
+   lockstep with the daily one, and 27 (user, slot) pairs were backfilled from
+   the plant ledger. The paragraph below is the history that explains the row —
+   it is no longer inert. The FIRST boot after that backfill is what exposed the
+   goal-baseline defect the `_eventCountersKnown` stamp at the bottom of
+   reconcileEventCounters now closes.
+   HISTORY: hr_farm_plant stamped `ev:planted` as a
+   DAILY row only (kind='daily', period=<UTC day>), added by the b461 patch in
+   2026-08-23-modal-goal-claims.sql §5, whose own comment says it deliberately:
+   "there is no lifetime twin because no quest reads one". hr_farm_harvest, by
+   contrast, stamps BOTH (daily + kind='stat', period='') — 2026-08-22-server-
+   farming-complete.sql §HARVEST GOAL COUNTERS. That was true when it was
+   written and is not true now: legacy.js's DAILY_GOAL_POOL 'plant' row grades
+   `readSource('stats.planted') - startValue`, i.e. a LIFETIME counter with a
+   client-held day baseline, so a daily row cannot answer it.
+   The `ev:planted` row below was therefore correct and INERT until hr_farm_plant
+   grew the same two-line lifetime insert hr_farm_harvest already carried, which
+   it now has. Papering over the gap with a client increment was refused
+   throughout — that is the forged-counter direction, and a client-minted goal
+   counter is a client-authored reward.
+   (The QUEST-MODAL plant goal is unaffected: hr_claim_goal verifies it against
+   the daily row directly and never reads G.)
+
+   DIRECTION, and why it is not a plain assignment. These are LIFETIME, monotone
+   server counters, so:
+     · a COMPLETE progress statement (`progress_truncated === false`, the shared
+       predicate property-record.js already uses) SETS the counter, downward
+       included — that is what kills a residue-ahead value carried in the
+       client_state bag from the pre-cutover client-authored era, the exact
+       deadlock class the property rung hit;
+     · a TRUNCATED statement may only RAISE. Truncation means "some rows were not
+       in this window", and reading a missing row as 0 would rewind a real
+       player's lifetime harvest count to nothing.
+   FAIL-CLOSED on absence: no readable `res.progress` ARRAY leaves every counter
+   exactly as it was. A lean envelope is not a statement that you have done
+   nothing.
+
+   NOT arm-gated: these are display/goal counters with no dormant path, and the
+   farm's client half has been armed since b454.
+
+   Pure — takes G + res, returns a small receipt, so the suite drives it without
+   a window. */
+export const EVENT_COUNTER_PROJECTION = Object.freeze([
+  Object.freeze({ key: 'ev:harvest', stat: 'harvested' }),
+  /* LIVE since 2026-09-07 (hr_farm_plant stamps the twin; 27 pairs backfilled).
+     This table is also what legacy.js derives its "which goal sources are
+     server-mirrored" set from — add a row, and any goal reading that stat is
+     baseline-protected without touching the goal code. */
+  Object.freeze({ key: 'ev:planted', stat: 'planted' }),
+]);
+
+export function reconcileEventCounters(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const rows = res && res.progress;
+  if (!Array.isArray(rows)) return { mode: 'absent' };
+  const complete = isCompleteProgressStatement(res);
+  /* The LIFETIME rows only: kind='stat', period_key=''. A kind='daily' row for
+     the same key is TODAY's slice, and reading it as the lifetime total would
+     under-report a lifetime goal by every day but this one. */
+  const seen = new Map();
+  for (const r of rows) {
+    if (!r || r.kind !== 'stat' || r.period !== '') continue;
+    const v = Number(r.value);
+    if (!Number.isFinite(v) || v < 0) continue;
+    seen.set(r.key, Math.floor(v));
+  }
+  if (!G.stats || typeof G.stats !== 'object') G.stats = {};
+  const written = {};
+  for (const row of EVENT_COUNTER_PROJECTION) {
+    const next = seen.has(row.key) ? seen.get(row.key) : 0;
+    const prevRaw = Number(G.stats[row.stat]);
+    const prev = (Number.isFinite(prevRaw) && prevRaw > 0) ? Math.floor(prevRaw) : 0;
+    /* A truncated window may raise but never lower — see the header. */
+    if (!complete && next <= prev) continue;
+    if (next === prev && Number.isFinite(prevRaw)) continue;
+    G.stats[row.stat] = next;
+    written[row.stat] = next;
+  }
+  /* ── "THE COUNTER IS KNOWN" — the tell the goal baseline needs ────────────
+     A COMPLETE statement is the first moment these lifetime counters mean
+     anything: before it, `G.stats.planted` is absent and every reader gets 0
+     through a `|| 0`, which is indistinguishable from a real zero. legacy.js's
+     daily-goal baseline used to capture that 0 and then grade the arriving
+     lifetime count against it, rendering "Plant 3 crops — Complete!" for work
+     done days earlier (display-only; hr_claim_goal grades the server's own
+     DAILY counter and refuses `not_complete`). Same class as the day-start gold
+     watermark, which `balKnown('gold')` already gates.
+     SCRATCH, `_`-prefixed: never persisted, so a reload starts UNKNOWN again —
+     the fail-safe direction. Set only on `complete`; a TRUNCATED statement is
+     explicitly not a statement of the total. */
+  if (complete) G._eventCountersKnown = true;
+  return { mode: complete ? 'server' : 'floor', written };
 }
 
 /* ── THE COMBAT STYLE IS THE SERVER'S (2026-08-24-combat-style.sql) ───────────
@@ -2175,7 +2334,10 @@ export function applyEnvelopeState(G, res, ownKey) {
      promise on a fall the server charged nothing for. */
   if (st && Object.prototype.hasOwnProperty.call(st, 'accrued_to')) {
     const a = st.accrued_to ? Date.parse(st.accrued_to) : 0;
-    if (Number.isFinite(a) && a > 0) { accruedToAt = a; written.accruedTo = a; }
+    if (Number.isFinite(a) && a > 0) {
+      accruedToAt = a; written.accruedTo = a;
+      if (!bootAccruedToAt) bootAccruedToAt = a;
+    }
   }
   if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
     const n = Math.floor(Number(st.deaths_today));
@@ -2414,6 +2576,14 @@ export function applyEnvelopeState(G, res, ownKey) {
      Lands in `G._heroSlots` scratch, NEVER in the G.heroSlotsUnlocked residue;
      see reconcileHeroSlots' header for why keeping the two apart is the fix. */
   written.heroSlots = reconcileHeroSlots(G, res);
+
+  /* THE LIFETIME GOAL COUNTERS ARE THE SERVER'S (`ev:*` permanent progress
+     rows). Reconciled here, beside traits and the property rung, because they
+     ride the SAME rows and must land on EVERY envelope — away, activity-switch
+     and gold alike — or the Green Thumb bar moves only on the boot load. See
+     reconcileEventCounters' header for the direction rule and for why
+     `stats.planted` is inert until hr_farm_plant mints `ev:plant`. */
+  written.eventCounters = reconcileEventCounters(G, res);
 
   /* b492 — THE PROPERTY RUNG IS THE SERVER'S TOO, and it rides the SAME permanent
      `progress` rows as traits (`property:<tier>`, `worker_hire`). OBSERVED here
@@ -4262,6 +4432,9 @@ if (typeof window !== 'undefined') {
     noteFall, clearFall, fallState, isKnockedOut, FALL_CONFIRM_TIMEOUT_MS,
     FALL_REASK_MARGIN_MS, nextFallReaskAt, fallReaskAt,
     accruedToMs, deathsToday, deathsLifetime,
+    /* THE SERVER-PRICED ABSENCE, for every "welcome back" surface. Read it;
+       never re-derive one from `G.lastSeen` (b514). */
+    bootAccruedToMs, serverAwaySpanMs, __setBootAccruedToForTest,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,
@@ -4298,7 +4471,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileCombatStyle, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,

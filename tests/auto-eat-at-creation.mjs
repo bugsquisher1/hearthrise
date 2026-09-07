@@ -29,7 +29,8 @@
 //       version and journals a row — and 2026-08-17-cutover-import.sql §(e)
 //       reads BOTH as "this character has already played", so every one of
 //       tests/cutover-import.mjs's six snapshots went red with
-//       `character_already_played`. See also A9.
+//       `character_already_played`. A9 (the import-side half) is RETIRED; A2b/A2c
+//       carry the property now.
 //   A3  hr_trait_buy('auto_eat') answers `already_owned` and charges NOTHING.
 //       A grant that let the shop sell it again would be a Marks sink pointed
 //       at a thing the player already has.
@@ -53,12 +54,18 @@
 //       Security F6: without it the rollback revokes a PAID entitlement from
 //       every player who bought Auto-Eat more than retain_days (90) ago, and the
 //       row that proved they paid is the row that is gone.
-//   A9  a cutover-import DRY RUN of an empty plan still succeeds. The bootstrap
-//       now writes one player_progress row and hr_import_apply verified its work
-//       by comparing the envelope's progress count against a counter of rows THE
-//       PLAN wrote — off by exactly one, for every player, at a ceremony that
-//       happens once. §1b of the migration reconciles it; this is the assertion
-//       that keeps it reconciled.
+//   A9  RETIRED 2026-09-07 by supabase/migrations/2026-09-07-drop-dead-server-objects.sql.
+//       It asserted that a cutover-import DRY RUN of an empty plan still
+//       succeeded, because the bootstrap's one player_progress row broke
+//       hr_import_apply's env-vs-plan count equality. hr_import_apply is now
+//       DROPPED (the cutover is complete and the beta was wiped), so there is no
+//       second reader of the bootstrap's row and nothing left to reconcile.
+//       §1b of 2026-09-04-auto-eat-at-creation.sql is guarded by
+//       `to_regprocedure('public.hr_import_apply(...)') is not null` and is now a
+//       no-op, which is why the chain still replays. The property that MATTERS and
+//       survives — the bootstrap writes EXACTLY ONE progress row, leaves `version`
+//       at 0 and journals exactly one ledger row — is asserted by A2b/A2c, which
+//       are unchanged and are what actually caught the original defect.
 //
 // ── WHAT IS NOT PROVEN ──────────────────────────────────────────────────
 //   · TRUE CONCURRENCY. PGlite is one backend; the advisory lock is exercised
@@ -157,17 +164,6 @@ const MUTATIONS = {
        + 'that already owns the trait raises a unique violation mid-apply',
     pairs: [['  on conflict (user_id, slot, kind, key, period_key) do nothing;',
       '  ;'], BLIND_GRANT],
-  },
-  import_verify_unreconciled: {
-    why: '§1b is skipped, so hr_import_apply still verifies the progress count against a counter '
-       + 'of rows THE PLAN wrote while the bootstrap now writes one of its own — every player '
-       + 'fails the cutover with verify_mismatch, at a ceremony that happens once',
-    pairs: [
-      ["  if position('progress env %s <> table %s' in v_src) > 0 then\n    raise notice 'hr_import_apply already compares the envelope against the table — patch skipped';\n    return;\n  end if;",
-        '  if true then return; end if;'],
-      ["  if to_regprocedure('public.hr_import_apply(uuid,int,jsonb,jsonb,boolean)') is not null\n     and position('progress env %s <> table %s' in",
-        "  if false\n     and position('progress env %s <> table %s' in"],
-    ],
   },
   rollback_ignores_rollup: {
     why: 'the documented rollback loses its second not-exists clause, so it revokes a PURCHASED '
@@ -278,25 +274,6 @@ async function run(mutate) {
   try { await db.exec(migText); grantTwice = 'ok'; } catch (e) { grantTwice = `threw: ${e.message}`; }
   await q("select set_config('hearthrise.grant_auto_eat_existing','',false)");
 
-  /* A9 — THE CUTOVER STILL IMPORTS. The bootstrap now writes one
-     player_progress row, and hr_import_apply verified its work by comparing the
-     envelope's permanent-progress count against a counter of rows THE PLAN
-     wrote — an equality that only held while creation wrote none. A dry-run
-     import of an EMPTY plan is the smallest thing that exercises it: the RPC
-     creates the character, applies nothing, verifies, and rolls back. If §1b is
-     missing this answers verify_mismatch, which is what every player would get
-     at a ceremony that happens once. (tests/cutover-import.mjs drives the six
-     real snapshots; this is the coupling assertion, here, next to its cause.) */
-  const uid3 = (await q('select gen_random_uuid() as i'))[0].i;
-  await q("insert into auth.users (id, instance_id, aud, role, email) "
-    + "values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2)",
-  [uid3, 'autoeat3@probe.invalid']);
-  let importDry = null;
-  try {
-    importDry = (await q('select public.hr_import_apply($1::uuid, 0, $2::jsonb, $3::jsonb, false) as r',
-      [uid3, '{}', '{}']))[0].r;
-  } catch (e) { importDry = { ok: false, error: `threw: ${e.message}` }; }
-
   // A8 — the ACL and the policy posture.
   const acl = (await q(`select
       has_function_privilege('authenticated','public.hr_create_character(integer)','execute') a,
@@ -363,7 +340,7 @@ async function run(mutate) {
 
   return { created, flags, tier, st, tierIMax, tierIIMax, ledger, ensured, flagsAfter, bootLedger,
     rebuy, marksAfterRebuy, cost2, shortBuy, buy2, tier2, marksAfter2, traitsProj,
-    tierWithout, grantGatedOff, grantOn, grantTwice, acl, migText, importDry, rb };
+    tierWithout, grantGatedOff, grantOn, grantTwice, acl, migText, rb };
 }
 
 function grade(o) {
@@ -457,13 +434,6 @@ function grade(o) {
     + `${o.grantOn}.`);
   ok(o.grantTwice === 'ok',
     `A7: re-running the file with the GUC set is not idempotent — ${o.grantTwice}`);
-
-  // ── A9 ────────────────────────────────────────────────────────────────
-  ok(o.importDry && o.importDry.ok === true,
-    `A9: the cutover import refused a dry run of an EMPTY plan: ${JSON.stringify(o.importDry)}. `
-    + 'The bootstrap now writes one player_progress row, and hr_import_apply used to verify the '
-    + 'progress count against a counter of rows THE PLAN wrote — off by exactly one, for every '
-    + 'player, at a ceremony that happens once. See §1b of the migration.');
 
   // ── A10 ───────────────────────────────────────────────────────────────
   ok(o.rb.extracted === true,

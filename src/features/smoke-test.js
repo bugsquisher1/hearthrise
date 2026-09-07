@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=514' directly.
+// modularised, will import { G } from '../state/game.js?v=516' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=514';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=514';
+import { on, snapshot } from '../net/events.js?v=516';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=516';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=514';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=516';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -518,40 +518,56 @@ const withClientOwnedSlots = (fn) => {
   }
 };
 
-/* ── b456 — THE SAME PROBLEM FOR THE FARM ────────────────────────────────────
-   `FARM_SERVER_ARM_ENABLED` armed in the cutover, so plant/water/harvest/upgrade
-   now send an INTENT to the hr_farm_* RPCs and reconcile from the RESPONSE
-   instead of authoring the outcome locally. In this harness there is no server,
-   so every gesture's fetch fails and the optimistic plot state reverts — which
-   means five tests that measure the LOCAL farm arithmetic (the watering window,
-   the perennial regrow ladder, the yield, the deed spend) stopped measuring
-   anything at all.
+/* ── b514 (cleanup slice 4) — THE FARM IS DRIVEN AGAINST A STUBBED SERVER ────
+   b456 tested the farm by turning the SERVER ROUTING OFF (`withLocalFarm`) and
+   measuring the client-authored twin underneath. That twin is now DELETED —
+   plantCrop / waterPlot / waterAllPlots / harvestPlot / upgradePlot send an
+   hr_farm_* intent and author nothing (tests/no-client-farm-mint.mjs is the
+   standing guard) — so a harness that disarms the routing would measure code
+   that does not exist. Worse, it was never testing the shipping path.
 
-   That local path still ships behind the flag and is still the whole of the
-   farm's rules; the RPC's job is to run the same rules server-side. So the
-   arithmetic is tested in the position where it executes, pinned per test and
-   restored. The armed ROUTING (a gesture becomes a request and never a local
-   credit — no double credit) is covered by tests/farm-sync.mjs, which drives the
-   transport with a stubbed fetch; duplicating it here would prove less, not more.
+   What replaces it tests MORE, not less: `withFarmServer` swaps the four
+   transport methods on `window.HearthriseFarmSync` for recorders that answer
+   with a canned SERVER ENVELOPE, and leaves `reconcileFarmResult` REAL. Each
+   test therefore proves the two halves the client actually owns now:
+     · the GESTURE became the right intent (or was refused by the pre-flight
+       without one — a refusal that still calls the server is a bug), and
+     · the RESPONSE was rendered exactly once, with the server's numbers.
+   The RULES themselves (the yield roll, the watering window, the perennial
+   ladder, gold-before-deeds) are hr_farm_*'s and are proven by the §10 self-check
+   in 2026-08-22-server-farming-complete.sql + 2026-09-06-plot-tier-reachable.sql.
 
-   ⚠ A TEST WRAPPED HERE DOES **NOT** COVER THE SHIPPING DEFAULT.
-
-   ⚠ IT OVERRIDES THE PREDICATE, NOT THE FLAG, AND ONLY BECAUSE THE FLAG HAS NO
-     PUBLISHED SEAM. Every other arm in this program exposes a `__set*Arm` on a
-     window global (record.js, capstone.js, artisan-sim.js); `__setFarmServerArm`
-     lives in src/data/item-authority.js and is NOT re-exported onto
-     `window.HearthriseItemAuthority` or `window.HearthriseFarmSync`, so an
-     in-page test cannot reach it. Overriding `HearthriseFarmSync.isFarmServerArmed`
-     drives exactly the branch legacy.js's `farmSyncArmed()` reads, which is the
-     same fork, but it is one indirection further from the flag than it should be.
-     FILED as a small handoff: publish `__setFarmServerArm` beside
-     `isFarmServerArmed` and this helper becomes a two-liner like the others. */
-const withLocalFarm = (fn) => {
+   ⚠ THE STUB'S `then` IS SYNCHRONOUS ON PURPOSE. The call sites are
+   `FS.farmX(...).then(cb)`; a real Promise would defer `cb` to a microtask and
+   every assertion below would run before the reconcile. A thenable that calls
+   back inline keeps these tests synchronous without changing what they read. */
+const withFarmServer = (respond, fn) => {
   const F = window.HearthriseFarmSync;
-  const had = !!(F && typeof F.isFarmServerArmed === 'function');
-  const prev = had ? F.isFarmServerArmed : null;
-  if (had) F.isFarmServerArmed = () => false;
-  try { return fn(); } finally { if (had) F.isFarmServerArmed = prev; }
+  if (!F) return undefined;   // module absent ⇒ nothing to drive; the guard covers the source
+  const VERBS = ['farmPlant', 'farmWater', 'farmHarvest', 'farmUpgradePlot'];
+  const saved = {};
+  const calls = [];
+  const inline = (res) => ({ then(cb) { cb(res); return this; } });
+  for (const v of VERBS) {
+    saved[v] = F[v];
+    F[v] = function (...args) { calls.push({ verb: v, args }); return inline(respond(v, args, calls)); };
+  }
+  /* ⚠ `G._serverPlotLevel` LEAKS PAST restoreG AND THE HARNESS MUST CONTAIN IT.
+     reconcileFarmResult writes BOTH `G.plotLevels` and the `_`-prefixed mirror
+     (src/net/farm-sync.js), and `_` fields are scratch by design — snapshotG
+     does not carry them, so a tier this harness hands the client would otherwise
+     stay authoritative for every later test (getPlotLevel() prefers the mirror
+     and rewrites plotLevels from it). That is a HARNESS artifact, not a product
+     one: in a real session the mirror IS the server's tier and outliving a
+     reload is the point. Saved and restored here, beside the transport it
+     travels with, so no test has to remember. */
+  const G = window.G || {};
+  const hadMirror = Object.prototype.hasOwnProperty.call(G, '_serverPlotLevel');
+  const prevMirror = G._serverPlotLevel;
+  try { return fn(calls); } finally {
+    for (const v of VERBS) F[v] = saved[v];
+    try { if (hadMirror) G._serverPlotLevel = prevMirror; else delete G._serverPlotLevel; } catch (e) {}
+  }
 };
 
 /* ==========================================================================
@@ -2271,7 +2287,8 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b213: farm plots respect the property-tier cap', () => {
+  () => tryRun('b213: farm plots respect the property-tier cap', () => withFarmServer((verb, args) => ({ ok: true, plot: args[0], crop: args[1] || 'turnip',
+      planted_at: new Date().toISOString(), seed_spent: (args[1] || 'turnip') + '_seed', plant_xp: 28 }), () => {
     // Regression: the farm rendered 8 plantable plots at every tier, making
     // the homestead ladder's plot counts a fake perk. plantCrop must refuse
     // an empty plot index beyond HearthriseHomestead.maxPlots().
@@ -2286,7 +2303,7 @@ const TESTS = [
       window.plantCrop(5, 'turnip');
       assert(!window.G.farmPlots[5], 'plot 5 (beyond camp cap of 2) must refuse to plant');
     } finally { restoreG(snap); }
-  }),
+  })),
 
   /* ══════════════════════════════════════════════════════════════════════
      b227 — THE HOUSE IS A PLACE (homestead-deepening.md §3, §5, §6)
@@ -8613,7 +8630,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=514');
+    const S = await import('../data/shops.js?v=516');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -8708,7 +8725,12 @@ const TESTS = [
     if (!entry) return;
     const [id, d] = entry;
     const snap = snapshotG();
-    try {
+    const R = window.HearthriseDungeonScrip;
+    /* BOTH ARMS (b515). The key debit moved to the SERVER when the settle arm went
+       live, so "the client spends the key" is now the DORMANT contract only. Until
+       b515 the arm was unreachable in a browser (it read a global nothing assigns),
+       so this test was silently only ever exercising the dormant half. */
+    const runOnce = () => {
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
       G.gold = (G.gold || 0) + 100000;
@@ -8717,12 +8739,30 @@ const TESTS = [
       const before = G.inventory[d.cost.key];
       window.startManualDungeonRun(id);
       const after = G.inventory[d.cost.key] || 0;
-      // close the run overlay the call opened
+      /* CLOSE THE RUN PROPERLY. Hiding the overlay (what this test used to do)
+         leaves runState and its phase interval alive, and a second run then ticks
+         against half-built phaseData — `Cannot read properties of undefined
+         (reading 'type')` in phaseTick. The close button is the game's own teardown:
+         it clears the interval and nulls runState. */
+      const btn = document.querySelector('#drm-modal .drm-close');
+      if (btn) btn.click();
       const ov = document.getElementById('dgn-run-overlay');
       if (ov) ov.classList.remove('open');
-      assert(after === before - 1,
-        'manual run must consume 1 ' + d.cost.key + ' (before ' + before + ', after ' + after + ')');
-    } finally { restoreG(snap); }
+      return { before, after };
+    };
+    try {
+      if (R) R.__setDungeonSettleArm(false);
+      const dorm = runOnce();
+      assert(dorm.after === dorm.before - 1,
+        'dormant: manual run must consume 1 ' + d.cost.key + ' (before ' + dorm.before + ', after ' + dorm.after + ')');
+      if (R) {
+        R.__setDungeonSettleArm(true);
+        const armed = runOnce();
+        assert(armed.after === armed.before,
+          'armed: the entry key is consumed by the SERVER at settle — a local debit here double-spends it'
+          + ' (before ' + armed.before + ', after ' + armed.after + ')');
+      }
+    } finally { if (R) R.__setDungeonSettleArm(null); restoreG(snap); }
   }),
 
   () => tryRun('b214: no PvE loot table mints the premium hearth_token', () => {
@@ -9078,6 +9118,13 @@ const TESTS = [
 
       // 5. DUNGEON -> SCRIP -> 6. SPEND (the b281 cohesion loop, end to end)
       if (typeof window.awardDungeonScrip === 'function' && typeof window.buyFromQuartermaster === 'function') {
+        /* The dungeon leg walks the DORMANT economy on purpose (b515): armed, the
+           earn and the spend are both server calls with no local mint, and that round
+           trip is walked end-to-end against a real database in tests/dungeon-settle.mjs
+           + tests/dungeon-scrip-reload.mjs. What this E2E proves is that the CLIENT
+           loop hands off step to step. */
+        const R = window.HearthriseDungeonScrip;
+        if (R) R.__setDungeonSettleArm(false);
         const dId = Object.keys(window.DUNGEONS)[0];
         delete G.inventory.dungeon_scrip; delete G.inventory.bone_key;
         window.awardDungeonScrip(dId, 1);
@@ -9088,7 +9135,10 @@ const TESTS = [
         assert(window.buyFromQuartermaster('bone_key') === true, 'scrip must buy the key');
         assert((G.inventory.bone_key || 0) === 1, 'the purchase must deliver the item');
       }
-    } finally { restoreG(snap); }
+    } finally {
+      if (window.HearthriseDungeonScrip) window.HearthriseDungeonScrip.__setDungeonSettleArm(null);
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b292: "Earn 500 gold" counts INCOME, not net balance (paione: sold 10k, no credit)', () => {
@@ -9382,8 +9432,16 @@ const TESTS = [
   () => tryRun('WAVE3d: dungeon Scrip economy — earn on clear, spend at the Quartermaster', () => {
     const G = window.G;
     if (typeof window.awardDungeonScrip !== 'function' || typeof window.buyFromQuartermaster !== 'function' || !window.DUNGEONS) return;
-    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})) };
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), scrip: G.dungeonScrip };
+    const R = window.HearthriseDungeonScrip;
     try {
+      /* THE DORMANT ECONOMY (b515). Earn-and-spend in the BAG is the fallback a
+         client without live server accrual takes; armed, both legs are the server's
+         (hr_dungeon_settle / hr_quartermaster_buy), pinned by DGN-SETTLE-2/3 and
+         tests/dungeon-settle.mjs. The armed no-mint contract is asserted at the end
+         of this test. Before b515 the arm could not be reached in a browser at all,
+         so this ran dormant by accident rather than by statement. */
+      if (R) R.__setDungeonSettleArm(false);
       G.inventory = Object.assign({}, G.inventory); delete G.inventory.dungeon_scrip; delete G.inventory.bone_key;
       const dId = Object.keys(window.DUNGEONS)[0];
       const got = window.awardDungeonScrip(dId, 1);
@@ -9397,7 +9455,17 @@ const TESTS = [
       assert((G.inventory.dungeon_scrip || 0) === 0, 'the scrip must be spent');
       // can't overspend
       assert(window.buyFromQuartermaster('dragonfang_pike') === false, 'must refuse a purchase you can\'t afford');
-    } finally { G.inventory = snap.inv; }
+      /* ARMED: the clear mints NOTHING locally — the balance comes from the settle
+         envelope. A local mint is exactly the reward the next envelope erased. */
+      if (R) {
+        R.__setDungeonSettleArm(true);
+        delete G.inventory.dungeon_scrip; G.dungeonScrip = 0;
+        const predicted = window.awardDungeonScrip(dId, 1);
+        assert(predicted > 0, 'armed: awardDungeonScrip still returns the PREDICTED amount for display');
+        assert(!(G.inventory.dungeon_scrip > 0) && (G.dungeonScrip || 0) === 0,
+          'armed: awardDungeonScrip must write NOTHING — scrip is credited by hr_dungeon_settle only');
+      }
+    } finally { if (R) R.__setDungeonSettleArm(null); G.inventory = snap.inv; G.dungeonScrip = snap.scrip; }
   }),
 
   () => tryRun('WAVE4b: every combat/dungeon drop has a downstream use (no dead-end loot)', () => {
@@ -9455,7 +9523,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=514');
+    const mod = await import('../data/dungeons.js?v=516');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -9486,7 +9554,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=514');
+    const mod = await import('../data/dungeons.js?v=516');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -9550,6 +9618,31 @@ const TESTS = [
     const minted = [];
     let sent = null;
     try {
+      /* THE REAL PREDICATE FIRST (b515). Everything below forces the arm through
+         __setDungeonSettleArm, which short-circuits isDungeonSettleArmed() entirely —
+         so this test passed for four builds while PRODUCTION was dormant: the arm read
+         `window.HearthriseAccrue`, a global nothing assigns, and serverActive() was
+         permanently false. These three assertions drive the production expression
+         itself against the REAL published accrual global. */
+      const A = window.HearthriseAccrual;
+      assert(A && typeof A.isServerAccrualEnabled === 'function',
+        'the accrual module must publish window.HearthriseAccrual — the arm predicate reads it BY NAME');
+      assert(A.isServerAccrualEnabled() === true,
+        'b515: server accrual is a CONSTANT — the b353 kill switch is retired, so there is no OFF state to force');
+      assert(R.isDungeonSettleArmed() === true,
+        'REAL predicate (no override): flag ON + live accrual → ARMED. Red means the arm reads a global nothing assigns.');
+      /* THE FAIL-CLOSED HALF, still reachable after b515. The switch can no
+         longer be turned off, but serverActive() also answers NO when the global
+         is missing or does not expose the predicate — which is exactly the b511
+         misspelt-global class this test exists for. Driven by swapping the global
+         for a bag without the function, at call time, and restoring it. */
+      try {
+        window.HearthriseAccrual = {};
+        assert(R.isDungeonSettleArmed() === false,
+          'REAL predicate: no isServerAccrualEnabled on the published global → dormant (fails closed, never server-first on a guess)');
+      } finally { window.HearthriseAccrual = A; }
+      assert(R.isDungeonSettleArmed() === true, 'the global is restored and the arm is live again');
+
       R.__setDungeonSettleArm(true);
       G.inventory = Object.assign({}, G.inventory);
       G.inventory[d.cost.key] = 1;                       // a real key, so canRun passes
@@ -11913,84 +12006,80 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('action: plant + harvest a farm plot (state-level)', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    const snap = snapshotG();
-    try {
-      // Plant a turnip in plot 0. plantCrop(plotIdx, cropId) is the canonical API.
-      // Plot is stored as { cropId, plantedAt, watered, state } — note `cropId`,
-      // not `id`. b127 fixed this assertion.
-      if (typeof window.plantCrop !== 'function') return;
-      window.G.inventory = window.G.inventory || {};
-      window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 1;
-      window.G.farmPlots = window.G.farmPlots || [];
-      window.G.farmPlots[0] = null;
-      window.plantCrop(0, 'turnip');
-      const plot = window.G.farmPlots[0];
-      assert(plot && plot.cropId === 'turnip', `plot[0] should hold turnip, got ${JSON.stringify(plot)}`);
-      // Fast-forward + harvest
-      if (plot && typeof window.harvestPlot === 'function') {
+  () => tryRun('action: plant + harvest a farm plot (state-level)', () => withFarmServer(
+    (verb, args) => (verb === 'farmPlant'
+      ? { ok: true, plot: args[0], crop: args[1], planted_at: new Date().toISOString(), seed_spent: 'turnip_seed', plant_xp: 28 }
+      : { ok: true, plot: args[0], crop: 'turnip', produce: 'turnip', qty: 3, xp: 30, regrew: false, withered: false }),
+    (calls) => {
+      /* b514: the gesture is an INTENT and the plot is what the SERVER said.
+         Planting a turnip must reach hr_farm_plant with this plot and this crop
+         and nothing else; harvesting must credit the server's qty, once. */
+      const snap = snapshotG();
+      try {
+        if (typeof window.plantCrop !== 'function') return;
+        window.G.inventory = window.G.inventory || {};
+        window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 1;
+        window.G.farmPlots = window.G.farmPlots || [];
+        window.G.farmPlots[0] = null;
+        window.plantCrop(0, 'turnip');
+        assert(calls.length === 1 && calls[0].verb === 'farmPlant',
+          'planting must send exactly one hr_farm_plant intent, got ' + JSON.stringify(calls.map((c) => c.verb)));
+        assert(calls[0].args[0] === 0 && calls[0].args[1] === 'turnip',
+          'the intent carries the plot and the crop id only, got ' + JSON.stringify(calls[0].args));
+        const plot = window.G.farmPlots[0];
+        assert(plot && plot.cropId === 'turnip' && plot.state === 'growing',
+          `plot[0] should hold the server's growing turnip, got ${JSON.stringify(plot)}`);
+        // Fast-forward + harvest: the produce is the SERVER's number, applied once.
         plot.state = 'ready';
-        plot.plantedAt = Date.now() - 24 * 3600 * 1000;
         const beforeQty = window.G.inventory.turnip || 0;
         window.harvestPlot(0);
+        assert(calls.length === 2 && calls[1].verb === 'farmHarvest',
+          'harvesting must send one hr_farm_harvest intent, got ' + JSON.stringify(calls.map((c) => c.verb)));
         const afterQty = window.G.inventory.turnip || 0;
-        assert(afterQty > beforeQty, `harvest should add turnips: before=${beforeQty} after=${afterQty}`);
-      }
-    } finally { restoreG(snap); }
-  })),
+        assert(afterQty - beforeQty === 3,
+          `harvest must credit the SERVER's qty (3) exactly once: before=${beforeQty} after=${afterQty}`);
+        assert(window.G.farmPlots[0] == null, 'a non-regrowing crop leaves the plot cleared');
+      } finally { restoreG(snap); }
+    })),
 
   // b420 regression: a perennial (tomato/emberfruit) is FINITE. It regrows
   // `regrowLimit` times after the first harvest, then the plant withers and
   // the plot clears — it must NOT yield free food forever (the reported bug).
-  () => tryRun('action: perennial tomato regrows a finite number of times then withers', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    const snap = snapshotG();
-    try {
-      if (typeof window.harvestPlot !== 'function' || !window.CROPS || !window.CROPS.tomato) return;
-      const crop = window.CROPS.tomato;
-      const limit = crop.regrowLimit || 0;
-      assert(crop.regrows === true && limit > 0,
-        `tomato must be a finite perennial (regrows + regrowLimit>0), got regrows=${crop.regrows} limit=${limit}`);
-      window.G.inventory = window.G.inventory || {};
-      window.G.farmPlots = window.G.farmPlots || [];
-      const readyPlot = (regrowCount) => ({ cropId: 'tomato', plantedAt: Date.now() - 30 * 24 * 3600 * 1000, waterings: [], state: 'ready', regrowCount });
-      // First harvest (regrowCount 0) + each regrow up to the final one should
-      // leave a fresh growing plot behind — the plant is still alive.
-      // regrowLimit = number of regrows ⇒ limit+1 total harvests from one seed.
-      // The first `limit` harvests each leave a fresh growing plot (a regrow);
-      // the (limit+1)-th withers and clears the plot.
-      let harvests = 0;
-      window.G.farmPlots[0] = readyPlot(0);
-      for (let n = 0; n < limit; n++) {
-        window.G.farmPlots[0].state = 'ready';
-        window.G.farmPlots[0].plantedAt = Date.now() - 30 * 24 * 3600 * 1000;
+  () => tryRun('action: perennial tomato regrows then withers (the SERVER decides which)', () => {
+    /* b420 regression, restated for the cutover. The FINITE-PERENNIAL RULE is
+       hr_farm_harvest's (2026-08-22-server-farming-complete.sql §10 asserts the
+       ladder); the client's job is to render whichever of `regrew` / `withered`
+       comes back, and to keep regrowCount in step. Both are asserted here, plus
+       the catalogue fact the two sides share: tomato must still BE a finite
+       perennial, or neither half has a ladder to run. */
+    if (typeof window.harvestPlot !== 'function' || !window.CROPS || !window.CROPS.tomato) return;
+    const crop = window.CROPS.tomato;
+    assert(crop.regrows === true && (crop.regrowLimit || 0) > 0,
+      `tomato must be a finite perennial (regrows + regrowLimit>0), got regrows=${crop.regrows} limit=${crop.regrowLimit}`);
+    // A regrow: the plot comes back growing with the count advanced.
+    withFarmServer(() => ({ ok: true, plot: 0, crop: 'tomato', produce: 'tomato', qty: 4, xp: 60, regrew: true, withered: false }), (calls) => {
+      const snap = snapshotG();
+      try {
+        window.G.farmPlots = window.G.farmPlots || [];
+        window.G.farmPlots[0] = { cropId: 'tomato', plantedAt: Date.now() - 3600000, waterings: [], state: 'ready', regrowCount: 2 };
         window.harvestPlot(0);
-        harvests++;
+        assert(calls.length === 1 && calls[0].verb === 'farmHarvest', 'a harvest must send one intent');
         const p = window.G.farmPlots[0];
-        assert(p && p.state === 'growing' && (p.regrowCount || 0) === n + 1,
-          `after harvest ${n + 1} the perennial should regrow with regrowCount=${n + 1}, got ${JSON.stringify(p)}`);
-      }
-      // Final (limit+1)-th harvest: the plant withers, plot clears — it does NOT
-      // yield forever (the reported bug).
-      window.G.farmPlots[0].state = 'ready';
-      window.G.farmPlots[0].plantedAt = Date.now() - 30 * 24 * 3600 * 1000;
-      window.harvestPlot(0);
-      harvests++;
-      assert(window.G.farmPlots[0] == null,
-        `after ${harvests} harvests (limit=${limit}) the perennial must wither and clear the plot, got ${JSON.stringify(window.G.farmPlots[0])}`);
-    } finally { restoreG(snap); }
-  })),
+        assert(p && p.state === 'growing' && p.regrowCount === 3,
+          `a server regrow must leave a growing plot with regrowCount 3, got ${JSON.stringify(p)}`);
+      } finally { restoreG(snap); }
+    });
+    // The wither: the plant does NOT yield forever (the reported bug).
+    withFarmServer(() => ({ ok: true, plot: 0, crop: 'tomato', produce: 'tomato', qty: 4, xp: 60, regrew: false, withered: true }), () => {
+      const snap = snapshotG();
+      try {
+        window.G.farmPlots[0] = { cropId: 'tomato', plantedAt: Date.now() - 3600000, waterings: [], state: 'ready', regrowCount: crop.regrowLimit };
+        window.harvestPlot(0);
+        assert(window.G.farmPlots[0] == null,
+          `a server wither must clear the plot, got ${JSON.stringify(window.G.farmPlots[0])}`);
+      } finally { restoreG(snap); }
+    });
+  }),
 
   // gold-arm: upgradeRoom's debit is gated by clientMayWriteRecordField
   // (switch-OFF position); the stamp makes the affordability read known.
@@ -14323,55 +14412,62 @@ const TESTS = [
   }),
 
   // b136: upgradePlot consumes deeds and unlocks the next tier.
-  () => tryRun('b136: upgradePlot spends deeds + advances plot level', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    try {
-      window.G.plotLevels = 1;
-      window.G.inventory.farm_deed = 5;
-      /* b510: deeds are the FALLBACK payment now — gold is charged first — and
-         the tier sits behind a farming level. Broke + eligible is the state
-         that exercises the deed path. */
-      window.G.gold = 0;
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 20000;
-      const need = window.HearthriseFarm.getDeedsRequiredForNextLevel();
-      assert(need === 1, 'Lv 1 → 2 should cost 1 deed, got ' + need);
-      const ok = window.HearthriseFarm.upgradePlot();
-      assert(ok === true, 'upgradePlot should succeed');
-      assert(window.G.plotLevels === 2, 'plotLevels should be 2 after upgrade, got ' + window.G.plotLevels);
-      assert((window.G.inventory.farm_deed | 0) === 4, 'should have 5-1=4 deeds left, got ' + window.G.inventory.farm_deed);
-      assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot should now be plantable at Lv 2');
-      assert(window.HearthriseFarm.canPlantCrop('wheat') === true, 'wheat should now be plantable at Lv 2');
-      assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato should still be locked at Lv 2');
-    } finally {
-      restoreG(snap);
-    }
-  })),
+  () => tryRun('b136: upgradePlot sends the intent and renders the deed spend', () => withFarmServer(
+    () => ({ ok: true, plot_level: 2, paid_with: 'deeds', deeds_spent: 1 }),
+    (calls) => {
+      /* b514: the PRICE and the DEBIT are hr_farm_upgrade_plot's. What the client
+         still owns, and what this measures, is: the pre-flight lets an eligible
+         broke-but-deeded farmer through, exactly one intent goes out, and the
+         server's answer (tier 2, one deed) is rendered ONCE — including the crop
+         unlocks that hang off the tier. */
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.inventory.farm_deed = 5;
+        /* b510: deeds are the FALLBACK payment now — gold is charged first — and
+           the tier sits behind a farming level. Broke + eligible is the state
+           that exercises the deed path. */
+        window.G.gold = 0;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 20000;
+        const need = window.HearthriseFarm.getDeedsRequiredForNextLevel();
+        assert(need === 1, 'Lv 1 → 2 should cost 1 deed, got ' + need);
+        const ok = window.HearthriseFarm.upgradePlot();
+        assert(ok === true, 'upgradePlot should take the gesture');
+        assert(calls.length === 1 && calls[0].verb === 'farmUpgradePlot',
+          'exactly one hr_farm_upgrade_plot intent, got ' + JSON.stringify(calls.map((c) => c.verb)));
+        assert(window.G.plotLevels === 2, "plotLevels should be the server's 2, got " + window.G.plotLevels);
+        assert((window.G.inventory.farm_deed | 0) === 4, 'should have 5-1=4 deeds left, got ' + window.G.inventory.farm_deed);
+        assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot should now be plantable at Lv 2');
+        assert(window.HearthriseFarm.canPlantCrop('wheat') === true, 'wheat should now be plantable at Lv 2');
+        assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato should still be locked at Lv 2');
+      } finally { restoreG(snap); }
+    })),
 
   // b136: upgradePlot rejects when player lacks deeds.
-  () => tryRun('b136: upgradePlot fails without enough deeds', () => {
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    try {
-      window.G.plotLevels = 1;
-      window.G.inventory.farm_deed = 0;
-      window.G.gold = 0;                 // b510: gold is the first payment
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 20000;   // ...so isolate the MONEY refusal
-      const ok = window.HearthriseFarm.upgradePlot();
-      assert(ok === false, 'upgradePlot should refuse without deeds');
-      assert(window.G.plotLevels === 1, 'plotLevels should remain 1');
-    } finally {
-      restoreG(snap);
-    }
-  }),
+  () => tryRun('b136: upgradePlot fails without enough deeds — and never calls the server', () => withFarmServer(
+    () => { throw new Error('the server must not be called for a refused upgrade'); },
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.inventory.farm_deed = 0;
+        window.G.gold = 0;                 // b510: gold is the first payment
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 20000;   // ...so isolate the MONEY refusal
+        const ok = window.HearthriseFarm.upgradePlot();
+        assert(ok === false, 'upgradePlot should refuse without deeds');
+        assert(window.G.plotLevels === 1, 'plotLevels should remain 1');
+        /* b514: the pre-flight exists to say a sentence, not to spend a round
+           trip. A refusal that still fires the intent turns every mis-tap into
+           server load and a second refusal message. */
+        assert(calls.length === 0, 'a client-side refusal must send NO intent, got ' + calls.length);
+      } finally { restoreG(snap); }
+    })),
 
   // ════════════════════════════════════════════════════════════════════════
   // b510 — THE PLOT TIER IS A PRICE AGAIN (farm plants/day hit ZERO for nine
@@ -14379,87 +14475,101 @@ const TESTS = [
   // Player action: farm turnips to Farming 5, walk into House -> Plot with
   // 500 gold, buy tier 2, plant a carrot's worth of unlock.
   // ════════════════════════════════════════════════════════════════════════
-  () => tryRun('FARM-TIER-1: a farmer buys plot tier 2 with GOLD', () => withLocalFarm(() => {
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    const _mayWrite = window.clientMayWriteRecordField;
-    window.clientMayWriteRecordField = function(){ return true; };
-    try {
-      window.G.plotLevels = 1;
-      window.G.inventory.farm_deed = 0;          // no deed anywhere in sight
-      window.G.gold = 500;
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 512;             // exactly Farming 5
-      const price = window.HearthriseFarm.getUpgradePrice();
-      assert(price && price.level === 2, 'there must be a next-tier price at Lv 1');
-      assert(price.gold === 500, 'tier 2 must cost 500 gold, got ' + price.gold);
-      assert(price.farming === 5, 'tier 2 must need Farming 5, got ' + price.farming);
-      assert(window.HearthriseFarm.getFarmingLevel() >= 5,
-        'the harness must reach Farming 5, got ' + window.HearthriseFarm.getFarmingLevel());
-      const chk = window.HearthriseFarm.getUpgradeCheck();
-      assert(chk.ok === true && chk.pay === 'gold',
-        'a farmer with the gold and no deeds pays GOLD, got ' + JSON.stringify(chk));
-      const ok = window.HearthriseFarm.upgradePlot();
-      assert(ok === true, 'the upgrade should succeed');
-      assert(window.G.plotLevels === 2, 'plot level should be 2, got ' + window.G.plotLevels);
-      assert((window.G.gold | 0) === 0, 'the 500 gold should be spent, got ' + window.G.gold);
-      assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot must now be unlocked');
-      assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato is tier 3 — still locked');
-    } finally {
-      window.clientMayWriteRecordField = _mayWrite;
-      restoreG(snap);
-    }
-  })),
+  () => tryRun('FARM-TIER-1: a farmer buys plot tier 2 with GOLD', () => withFarmServer(
+    () => ({ ok: true, plot_level: 2, paid_with: 'gold', gold_spent: 500, gold: 0 }),
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.inventory.farm_deed = 0;          // no deed anywhere in sight
+        window.G.gold = 500;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 512;             // exactly Farming 5
+        const price = window.HearthriseFarm.getUpgradePrice();
+        assert(price && price.level === 2, 'there must be a next-tier price at Lv 1');
+        assert(price.gold === 500, 'tier 2 must cost 500 gold, got ' + price.gold);
+        assert(price.farming === 5, 'tier 2 must need Farming 5, got ' + price.farming);
+        assert(window.HearthriseFarm.getFarmingLevel() >= 5,
+          'the harness must reach Farming 5, got ' + window.HearthriseFarm.getFarmingLevel());
+        const chk = window.HearthriseFarm.getUpgradeCheck();
+        assert(chk.ok === true && chk.pay === 'gold',
+          'a farmer with the gold and no deeds pays GOLD, got ' + JSON.stringify(chk));
+        const ok = window.HearthriseFarm.upgradePlot();
+        assert(ok === true, 'the upgrade should be taken');
+        assert(calls.length === 1 && calls[0].verb === 'farmUpgradePlot', 'exactly one intent');
+        /* b514: the balance below is the SERVER's absolute post-debit figure
+           (res.gold), not a client subtraction — no price crosses the wire. */
+        assert(window.G.plotLevels === 2, 'plot level should be 2, got ' + window.G.plotLevels);
+        assert((window.G.gold | 0) === 0, "the server's post-debit balance should be rendered, got " + window.G.gold);
+        assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot must now be unlocked');
+        assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato is tier 3 — still locked');
+      } finally { restoreG(snap); }
+    })),
 
   // b510: the FARMING LEVEL is the pace, and it bites before the money — a
   // rich level-1 farmer cannot buy the ladder out from under the crops.
-  () => tryRun('FARM-TIER-2: gold cannot skip the farming level', () => withLocalFarm(() => {
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    try {
-      window.G.plotLevels = 1;
-      window.G.gold = 1e9;
-      window.G.inventory.farm_deed = 0;
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 0;
-      const chk = window.HearthriseFarm.getUpgradeCheck();
-      assert(chk.ok === false && chk.error === 'farm_level_too_low',
-        'a Farming-1 millionaire must be refused on LEVEL, got ' + JSON.stringify(chk));
-      assert(window.HearthriseFarm.upgradePlot() === false, 'the upgrade must refuse');
-      assert(window.G.plotLevels === 1, 'plot level must not move');
-      assert(window.G.gold === 1e9, 'a refused upgrade must charge nothing');
-    } finally {
-      restoreG(snap);
-    }
-  })),
+  () => tryRun('FARM-TIER-2: gold cannot skip the farming level', () => withFarmServer(
+    () => { throw new Error('a level-refused upgrade must not reach the server'); },
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.gold = 1e9;
+        window.G.inventory.farm_deed = 0;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 0;
+        const chk = window.HearthriseFarm.getUpgradeCheck();
+        assert(chk.ok === false && chk.error === 'farm_level_too_low',
+          'a Farming-1 millionaire must be refused on LEVEL, got ' + JSON.stringify(chk));
+        assert(window.HearthriseFarm.upgradePlot() === false, 'the upgrade must refuse');
+        assert(calls.length === 0, 'and must not spend a round trip doing it');
+        assert(window.G.plotLevels === 1, 'plot level must not move');
+        assert(window.G.gold === 1e9, 'a refused upgrade must charge nothing');
+        /* The BINDING copy of this rule is hr_farm_upgrade_plot's (it answers
+           farm_level_too_low with its own need/have); this is the pre-flight that
+           keeps the button honest before the player taps it. */
+      } finally { restoreG(snap); }
+    })),
 
   // b510: GOLD FIRST. A deed is worth 500g at tier 2 and 12,500g at tier 5 and
   // it is tradeable, so the game must never quietly spend the rarer currency
   // while the player is holding the cheaper one.
-  () => tryRun('FARM-TIER-3: holding both, the player pays gold and keeps the deed', () => withLocalFarm(() => {
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    const _mayWrite = window.clientMayWriteRecordField;
-    window.clientMayWriteRecordField = function(){ return true; };
-    try {
-      window.G.plotLevels = 1;
-      window.G.gold = 5000;
-      window.G.inventory.farm_deed = 4;
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 20000;
-      assert(window.HearthriseFarm.upgradePlot() === true, 'the upgrade should succeed');
-      assert(window.G.plotLevels === 2, 'plot level should be 2');
-      assert((window.G.gold | 0) === 4500, 'gold should be 5000-500, got ' + window.G.gold);
-      assert((window.G.inventory.farm_deed | 0) === 4,
-        'the deeds must be untouched, got ' + window.G.inventory.farm_deed);
-    } finally {
-      window.clientMayWriteRecordField = _mayWrite;
-      restoreG(snap);
-    }
-  })),
+  () => tryRun('FARM-TIER-3: holding both, the player pays gold and keeps the deed', () => withFarmServer(
+    () => ({ ok: true, plot_level: 2, paid_with: 'gold', gold_spent: 500, gold: 4500 }),
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.gold = 5000;
+        window.G.inventory.farm_deed = 4;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 20000;
+        /* b514: GOLD-BEFORE-DEEDS IS THE SERVER'S CHOICE now (the RPC picks and
+           reports it as paid_with). Two things stay the client's and are what
+           this measures: the pre-flight says GOLD, so the button's copy does not
+           promise the rarer currency; and a gold answer must leave the deeds
+           ALONE — reconcile debits farm_deed only on deeds_spent. */
+        const chk = window.HearthriseFarm.getUpgradeCheck();
+        assert(chk.ok === true && chk.pay === 'gold',
+          'holding both, the pre-flight must name GOLD, got ' + JSON.stringify(chk));
+        assert(window.HearthriseFarm.upgradePlot() === true, 'the upgrade should be taken');
+        assert(calls.length === 1, 'exactly one intent');
+        assert(window.G.plotLevels === 2, 'plot level should be 2');
+        assert((window.G.gold | 0) === 4500, "the server's balance should render as 4500, got " + window.G.gold);
+        assert((window.G.inventory.farm_deed | 0) === 4,
+          'the deeds must be untouched, got ' + window.G.inventory.farm_deed);
+      } finally { restoreG(snap); }
+    })),
 
   // b136: plantCrop respects the plot-level gate.
-  () => tryRun('b136: plantCrop is gated by plot level', () => {
+  () => tryRun('b136: plantCrop is gated by plot level', () => withFarmServer((verb, args) => ({ ok: true, plot: args[0], crop: args[1] || 'turnip',
+      planted_at: new Date().toISOString(), seed_spent: (args[1] || 'turnip') + '_seed', plant_xp: 28 }), () => {
     if (typeof window.plantCrop !== 'function' || !window.HearthriseFarm) return;
     const snap = snapshotG();
     try {
@@ -14487,10 +14597,11 @@ const TESTS = [
     } finally {
       restoreG(snap);
     }
-  }),
+  })),
 
   // b136: maybeReplant fires when enabled + seeds present + plot empty.
-  () => tryRun('b136: maybeReplant plants configured crop on empty plot', () => {
+  () => tryRun('b136: maybeReplant plants configured crop on empty plot', () => withFarmServer((verb, args) => ({ ok: true, plot: args[0], crop: args[1] || 'turnip',
+      planted_at: new Date().toISOString(), seed_spent: (args[1] || 'turnip') + '_seed', plant_xp: 28 }), () => {
     if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeReplant !== 'function') return;
     const snap = snapshotG();
     const fr = window.HearthriseAuto.getFarmReplant();
@@ -14509,10 +14620,11 @@ const TESTS = [
       window.HearthriseAuto.setFarmReplant(fr);
       restoreG(snap);
     }
-  }),
+  })),
 
   // b136: maybeReplant respects the plot-level gate (locked crop = no-op).
-  () => tryRun('b136: maybeReplant skips locked crops', () => {
+  () => tryRun('b136: maybeReplant skips locked crops', () => withFarmServer((verb, args) => ({ ok: true, plot: args[0], crop: args[1] || 'turnip',
+      planted_at: new Date().toISOString(), seed_spent: (args[1] || 'turnip') + '_seed', plant_xp: 28 }), () => {
     if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeReplant !== 'function') return;
     const snap = snapshotG();
     const fr = window.HearthriseAuto.getFarmReplant();
@@ -14530,7 +14642,7 @@ const TESTS = [
       window.HearthriseAuto.setFarmReplant(fr);
       restoreG(snap);
     }
-  }),
+  })),
 
   // b136: deed roll honours tier gate (Tier 1 mob = no roll).
   () => tryRun('b136: rollKillDeed never grants for Tier 1 monsters', () => {
@@ -16530,33 +16642,36 @@ const TESTS = [
     assert(F.isWaterable(done) === false, 'a ready crop is not waterable');
   }),
 
-  () => tryRun('b220: waterPlot opens one window and refuses a second', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    const snap = snapshotG();
-    try {
-      if (typeof window.waterPlot !== 'function') return;
-      window.G.farmPlots = window.G.farmPlots || [];
-      window.G.farmPlots[0] = { cropId: 'turnip', plantedAt: Date.now() - 3600000, waterings: [], state: 'growing' };
-      window.waterPlot(0);
-      let p = window.G.farmPlots[0];
-      assert(Array.isArray(p.waterings) && p.waterings.length === 1,
-        'first watering must be recorded, got ' + JSON.stringify(p.waterings));
-      // b222: the `watered` dual-write is DELETED. b220 mirrored it purely so a
-      // rollback to b219 read a sane value; two builds have shipped since, and
-      // a field that is written but never read is state waiting to be trusted
-      // by accident. `waterings[]` is the only source now.
-      assert(!('watered' in p), 'the `watered` dual-write must be gone — waterings[] is the only source');
-      window.waterPlot(0);
-      p = window.G.farmPlots[0];
-      assert(p.waterings.length === 1, 'a second watering inside the open window must be rejected');
-      assert(typeof window.waterAllPlots === 'function', 'waterAllPlots (farm header action) missing');
-    } finally { restoreG(snap); }
-  })),
+  () => tryRun('b220: waterPlot opens one window and refuses a second', () => withFarmServer(
+    (verb, args) => ({ ok: true, plot: args[0], crop: 'turnip', watered_at: new Date().toISOString(), water_xp: 7 }),
+    (calls) => {
+      /* b514: the WINDOW is hr_farm_water's rule. The client's half — and b462's
+         actual bug — is that the first tap becomes an intent, the reconcile
+         records the server's watered_at, and the second tap inside the open
+         window is refused WITHOUT a second round trip. */
+      const snap = snapshotG();
+      try {
+        if (typeof window.waterPlot !== 'function') return;
+        window.G.farmPlots = window.G.farmPlots || [];
+        window.G.farmPlots[0] = { cropId: 'turnip', plantedAt: Date.now() - 3600000, waterings: [], state: 'growing' };
+        window.waterPlot(0);
+        assert(calls.length === 1 && calls[0].verb === 'farmWater',
+          'the first tap must send one hr_farm_water intent, got ' + JSON.stringify(calls.map((c) => c.verb)));
+        let p = window.G.farmPlots[0];
+        assert(Array.isArray(p.waterings) && p.waterings.length === 1,
+          "the server's watering must be recorded, got " + JSON.stringify(p.waterings));
+        // b222: the `watered` dual-write is DELETED. b220 mirrored it purely so a
+        // rollback to b219 read a sane value; a field that is written but never
+        // read is state waiting to be trusted by accident. `waterings[]` is the
+        // only source now.
+        assert(!('watered' in p), 'the `watered` dual-write must be gone — waterings[] is the only source');
+        window.waterPlot(0);
+        p = window.G.farmPlots[0];
+        assert(p.waterings.length === 1, 'a second watering inside the open window must be rejected');
+        assert(calls.length === 1, 'and rejected LOCALLY — no second intent, got ' + calls.length);
+        assert(typeof window.waterAllPlots === 'function', 'waterAllPlots (farm header action) missing');
+      } finally { restoreG(snap); }
+    })),
 
   // The migration is what un-sticks every plot broken on live right now.
   () => tryRun('b220: save migration un-sticks stalled plots', () => {
@@ -16708,7 +16823,17 @@ const TESTS = [
       assert(def && def.goal === 6,
         'CONTROL: farmhand is not at the ruled goal of 6 — re-derive this fixture');
 
-      /* A PRE-RETUNE SAVE, exactly as production holds it. */
+      /* A PRE-RETUNE SAVE, exactly as production holds it.
+         ⚠ 2026-09-07: farmhand is now a MIRRORED row (mirror:'stats.harvested')
+           because its counting path was dead under the b454 farm arm — see the
+           EV-COUNTER-1 regression below. So the RETUNE properties this test
+           exists for are asserted on farmhand where they still apply (goal and
+           label re-read from the def) and on the NON-mirrored rows where the
+           save half is the thing under test (`gatherer`, `first_blood`); a
+           mirrored row's `progress` is a READ, not save state, so asserting it
+           survives a merge would be asserting the opposite of its design. */
+      window.G.stats = window.G.stats || {};
+      window.G.stats.harvested = 4;                     // the server-projected counter
       window.G.quests = [
         { id: 'farmhand', type: 'harvest', label: 'Harvest 10 crops', goal: 10, progress: 4, reward: { gold: 500, item: 'wheat_seed', qty: 5 }, done: false },
         { id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true },
@@ -16726,22 +16851,253 @@ const TESTS = [
       assert(g.done === true, 'the definition refresh re-opened a COMPLETED quest — it would pay twice');
       assert(g.progress === 15, 'the refresh moved a completed quest\'s progress, got ' + g.progress);
 
-      /* PROGRESS IS CLAMPED to the new goal, exactly as updateQuest clamps it —
-         a bar reading 9/6 is the same drift wearing a different number. */
-      window.G.quests = [{ id: 'farmhand', type: 'harvest', label: 'Harvest 10 crops', goal: 10, progress: 9, reward: { gold: 500 }, done: false }];
+      /* EARNED PROGRESS SURVIVES A RE-AUTHOR on a COUNTING row, where progress
+         IS the save state. (This half moved off farmhand when farmhand became
+         mirrored; the property is unchanged and still guarded.) */
+      window.G.quests = [{ id: 'gatherer', type: 'gather', label: 'old', goal: 30, progress: 7, reward: { gold: 150 }, done: false }];
       window.ensureRetentionState();
-      assert(window.G.quests.find((x) => x.id === 'farmhand').progress === 6,
+      const g2 = window.G.quests.find((x) => x.id === 'gatherer');
+      assert(g2.goal === 15, 'the authored goal never reached the save, got ' + g2.goal);
+      assert(g2.progress === 7, 'the refresh threw away earned progress, got ' + g2.progress);
+
+      /* PROGRESS IS CLAMPED to the new goal, exactly as updateQuest clamps it —
+         a bar reading 20/15 is the same drift wearing a different number. */
+      window.G.quests = [{ id: 'gatherer', type: 'gather', label: 'old', goal: 30, progress: 20, reward: { gold: 150 }, done: false }];
+      window.ensureRetentionState();
+      assert(window.G.quests.find((x) => x.id === 'gatherer').progress === 15,
         'progress above the new goal was not clamped, got '
-        + window.G.quests.find((x) => x.id === 'farmhand').progress);
+        + window.G.quests.find((x) => x.id === 'gatherer').progress);
 
       /* A STALE `mirror` MUST BE DROPPED, not carried. It changes how
          updateQuest BEHAVES (read instead of count), so a row keeping one the
          def has dropped is a quest that silently stops counting. */
-      window.G.quests = [{ id: 'farmhand', type: 'harvest', mirror: 'stats.kills', label: 'x', goal: 10, progress: 0, reward: { gold: 500 }, done: false }];
+      window.G.quests = [{ id: 'gatherer', type: 'gather', mirror: 'stats.kills', label: 'x', goal: 30, progress: 0, reward: { gold: 150 }, done: false }];
       window.ensureRetentionState();
-      assert(!('mirror' in window.G.quests.find((x) => x.id === 'farmhand')),
+      assert(!('mirror' in window.G.quests.find((x) => x.id === 'gatherer')),
         'a stale `mirror` survived the refresh — the quest would READ stats.kills forever');
+
+      /* AND THE MISSING `mirror` MUST BE ADDED. The same field, the other
+         direction: a live save holds farmhand as a COUNTING row, and if the
+         merge did not install the def's new `mirror` the quest would stay
+         frozen at whatever the dead counting path left it at — the very bug
+         the mirror was added to fix. */
+      window.G.stats.harvested = 3;
+      window.G.quests = [{ id: 'farmhand', type: 'harvest', label: 'Harvest 10 crops', goal: 10, progress: 0, reward: { gold: 500 }, done: false }];
+      window.ensureRetentionState();
+      const fh = window.G.quests.find((x) => x.id === 'farmhand');
+      assert(fh.mirror === 'stats.harvested',
+        'the merge did not install the def\'s `mirror` on a live counting row, got ' + fh.mirror);
+      assert(fh.progress === 3,
+        'a freshly-mirrored farmhand did not read the server counter, got ' + fh.progress);
     } finally { restoreG(snap); }
+  }),
+
+  /* ── EV-COUNTER-1 — THE DEAD FARM GOAL COUNTERS (cleanup slice 4, §3.4) ────
+     THE BUG. Since the b454 farm cutover, `G.stats.planted` / `.harvested` were
+     written by NO path. The only writers were the increments inside
+     plantCrop/harvestPlot, and both sit BELOW
+     `if(farmSyncArmed()){ farmSync*(…); return; }` — unreachable in the shipped
+     build. So every goal that counts crops ("Harvest 100 crops"/Green Thumb, the
+     farmhand quest, "Plant 3 crops") read 0 forever, for everyone, while
+     hr_farm_harvest journalled every single crop server-side. Nothing errored,
+     which is why it survived: the §3.4 dead-feature class exactly.
+
+     THE CONTRACT THIS PINS. The counters are PROJECTED from the server's own
+     permanent `player_progress(kind='stat', key='ev:*', period_key='')` rows on
+     the envelope, and the client NEVER increments them. A fix that re-armed a
+     client increment would pass a "the number moves" test and re-open the
+     forged-counter hole, so this test drives the ENVELOPE for the credit and a
+     REFUSED client plant for the no-op. */
+  () => tryRunAsync('EV-COUNTER-1: the farm goal counters are projected from the server, never counted locally', async () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.reconcileEventCounters === 'function',
+      'HearthriseAccrual.reconcileEventCounters is missing — nothing projects the server\'s '
+      + 'ev:* rows, so every crop-counting goal is frozen at 0 for every player');
+
+    /* PURE HALF: G + an envelope in, counters out. Both LIFETIME twins
+       (kind='stat', period='') are live server-side since 2026-09-07
+       (hr_farm_harvest always stamped one; hr_farm_plant grew its own in
+       2026-09-07-farm-plant-lifetime-counter.sql). EV-COUNTER-2 below covers
+       what that backfill exposed on the goal baseline. */
+    const g = { stats: { harvested: 0, planted: 0 } };
+    const env = {
+      progress_truncated: false,
+      progress: [
+        { kind: 'stat', key: 'ev:harvest', period: '', value: 2, state: 'active' },
+        { kind: 'stat', key: 'ev:planted', period: '', value: 3, state: 'active' },
+        /* TODAY's slice for the same key. Reading this as the lifetime total
+           would under-report every goal by every day but this one. */
+        { kind: 'daily', key: 'ev:harvest', period: '2026-09-07', value: 999, state: 'active' },
+      ],
+    };
+    A.reconcileEventCounters(g, env);
+    assert(g.stats.harvested === 2, 'the lifetime harvest counter did not reach G, got ' + g.stats.harvested);
+    assert(g.stats.planted === 3, 'the lifetime plant counter did not reach G, got ' + g.stats.planted);
+
+    // FAIL-CLOSED: a lean envelope is not a statement that you have done nothing.
+    const g2 = { stats: { harvested: 40 } };
+    const r2 = A.reconcileEventCounters(g2, { state: {} });
+    assert(r2 && r2.mode === 'absent' && g2.stats.harvested === 40,
+      'an envelope with no `progress` array wiped a real lifetime counter');
+
+    // TRUNCATED may RAISE but never LOWER — a missing row is not a zero.
+    const g3 = { stats: { harvested: 40 } };
+    A.reconcileEventCounters(g3, { progress_truncated: true, progress: [] });
+    assert(g3.stats.harvested === 40, 'a truncated window rewound the counter, got ' + g3.stats.harvested);
+
+    // A COMPLETE statement DOES lower — that is what kills a residue-ahead value.
+    const g4 = { stats: { harvested: 40 } };
+    A.reconcileEventCounters(g4, { progress_truncated: false, progress: [] });
+    assert(g4.stats.harvested === 0,
+      'a complete server statement did not overrule a residue-ahead counter, got ' + g4.stats.harvested);
+
+    const snap = snapshotG();
+    const prevSync = window.HearthriseFarmSync;
+    try {
+      /* THE GOAL ACTUALLY MOVES. farmhand mirrors stats.harvested, so the
+         projected counter has to show up on the quest a player reads. */
+      window.G.stats = window.G.stats || {};
+      window.G.stats.harvested = 0;
+      window.G.stats.planted = 0;
+      window.G.quests = [];
+      A.reconcileEventCounters(window.G, env);
+      window.ensureRetentionState();
+      const fh = window.G.quests.find((q) => q.id === 'farmhand');
+      assert(fh && fh.progress === 2,
+        'the farmhand quest did not read the projected harvest counter, got ' + (fh && fh.progress));
+
+      /* AND A REFUSED CLIENT PLANT MOVES NOTHING. This is the half that must
+         stay broken: under the farm arm the gesture is an INTENT, and a server
+         refusal has to leave the goal exactly where it was. If someone ever
+         re-arms the local increment to "fix" the plant goal, this goes red. */
+      window.HearthriseFarmSync = {
+        isFarmServerArmed: () => true,
+        farmPlantRefusalText: () => 'no seeds',
+        farmPlant: () => Promise.resolve({ ok: false, error: 'insufficient_seed' }),
+      };
+      window.G.farmPlots = [null, null];
+      window.G.inventory = Object.assign({}, window.G.inventory, { turnip_seed: 5 });
+      window.plantCrop(0, 'turnip');
+      await new Promise((r) => setTimeout(r, 0));
+      assert(window.G.stats.planted === 3,
+        'a REFUSED plant moved the plant counter — the client is minting a goal counter again, got '
+        + window.G.stats.planted);
+      assert(!window.G.farmPlots[0], 'a refused plant left a phantom crop in the plot');
+    } finally {
+      window.HearthriseFarmSync = prevSync;
+      restoreG(snap);
+    }
+  }),
+
+  /* ── EV-COUNTER-2: THE GOAL BASELINE MUST NOT BE TAKEN AGAINST AN UNKNOWN
+        COUNTER (Security P2 on the 2026-09-07 lifetime-plant backfill) ────────
+     THE BUG, display-only but player-visible on the FIRST boot after that
+     migration. The daily goal grades `readSource(source) - startValues[id]` and
+     the baseline was captured once, at slate-roll, for every source — including
+     `stats.planted`, which is MIRRORED from the server's lifetime `ev:planted`
+     row and reads 0 through `cur || 0` until the first complete `progress`
+     statement lands. So: baseline 0 (unknown, not zero) → envelope lands with a
+     backfilled lifetime count of 120 → the strip renders "Plant 3 crops —
+     Complete!" for work done days ago, offering a Claim the server refuses by
+     name (`not_complete`). Same class as the day-start gold watermark that
+     `balKnown('gold')` gates, and as b224's weekly re-baseline.
+     THE FIX IS "A BASELINE NOBODY CAN MEASURE IS NOT TAKEN AT ALL": it is taken
+     on the first paint after the counter is known, and the goal reads 0 until
+     then. This drives the REAL strip renderer and asserts the RENDERED number —
+     an internal predicate would pass on a fix that never reached the DOM. */
+  () => tryRun('EV-COUNTER-2: an unknown lifetime counter never baselines a daily goal at 0', () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.reconcileEventCounters !== 'function'
+        || typeof window.renderDailyGoals !== 'function'
+        || typeof window.__hrGoalBaseline !== 'function') { skip('no accrual/goal-baseline api'); return; }
+    const snap = snapshotG();
+    /* `_eventCountersKnown` is SCRATCH, so snapshotG (a deliberate allowlist)
+       does not carry it — and leaving it set would hand a later test, or the
+       live page, a "the counter is known" claim no envelope earned. That is the
+       very bug under test, injected by the suite. Restore it by hand. */
+    const knownWas = Object.prototype.hasOwnProperty.call(window.G, '_eventCountersKnown')
+      ? window.G._eventCountersKnown : undefined;
+    const host = document.createElement('div');
+    const shown = () => {
+      window.renderDailyGoals(host);
+      const el = host.querySelector('.dg-progress');
+      return { text: el ? el.textContent.trim() : null, done: !!host.querySelector('.daily-goal.done') };
+    };
+    try {
+      window.getGoalsForToday();                       // make sure a slate exists
+      const dayKey = window.G.dailyGoals.dayKey;
+      /* THE FIRST BOOT: the slate rolls before any envelope has landed, so the
+         mirrored counter is genuinely UNKNOWN (absent, not zero). */
+      window.G.stats = Object.assign({}, window.G.stats);
+      delete window.G.stats.planted;
+      delete window.G._eventCountersKnown;
+      window.G.dailyGoals = { dayKey, picks: ['plant'], startValues: {}, claimed: {} };
+
+      const goals = window.getGoalsForToday();
+      assert(goals.length === 1 && goals[0].id === 'plant',
+        'the fixture slate did not hold the plant goal, got ' + JSON.stringify(goals.map((g) => g.id)));
+      const target = goals[0].target;
+      assert(!Object.prototype.hasOwnProperty.call(window.G.dailyGoals.startValues, 'plant'),
+        'the baseline was taken against an UNKNOWN counter — that 0 is what makes the arriving '
+        + 'lifetime count read as a completed goal');
+      assert(window.__hrGoalBaseline(window.G.dailyGoals, goals[0]).known === false,
+        'an untaken baseline must report known:false');
+      let s = shown();
+      assert(s.text === '0 / ' + target,
+        'a goal with no measurable baseline must render 0 / ' + target + ', got ' + s.text);
+      assert(!s.done, 'a goal with no measurable baseline must never render as complete');
+
+      /* THE ENVELOPE LANDS: a COMPLETE statement carrying the backfilled
+         lifetime count. The baseline is taken NOW, at 120, so the goal is still
+         0 / target — the player is asked to plant three crops today, not
+         handed a completion for last week's farming. */
+      A.reconcileEventCounters(window.G, {
+        progress_truncated: false,
+        progress: [{ kind: 'stat', key: 'ev:planted', period: '', value: 120, state: 'active' }],
+      });
+      assert(window.G.stats.planted === 120, 'the lifetime counter did not project, got ' + window.G.stats.planted);
+      s = shown();
+      assert(window.G.dailyGoals.startValues.plant === 120,
+        'the baseline was not re-taken once the counter was known, got '
+        + window.G.dailyGoals.startValues.plant);
+      assert(s.text === '0 / ' + target && !s.done,
+        'THE BUG: the backfilled lifetime count completed the daily goal — got ' + s.text
+        + (s.done ? ' (rendered COMPLETE)' : ''));
+
+      // A REAL PLANT, credited the only way it can be: the server's next statement.
+      A.reconcileEventCounters(window.G, {
+        progress_truncated: false,
+        progress: [{ kind: 'stat', key: 'ev:planted', period: '', value: 121, state: 'active' }],
+      });
+      s = shown();
+      assert(s.text === '1 / ' + target,
+        'a real plant did not move the goal after the re-baseline, got ' + s.text);
+
+      /* THE RESIDUE CASE. `dailyGoals` is persisted, so a slate rolled by the
+         PRE-FIX build is on disk carrying the poisoned `startValues.plant = 0`
+         and no `counterBaselined` flag. Presence alone would honour it for the
+         rest of the day; the flag is what heals it. */
+      window.G.dailyGoals = { dayKey, picks: ['plant'], startValues: { plant: 0 }, claimed: {} };
+      s = shown();
+      assert(window.G.dailyGoals.startValues.plant === 121 && s.text === '0 / ' + target && !s.done,
+        'a pre-fix slate carrying startValues.plant = 0 was not healed — got ' + s.text
+        + ' with baseline ' + window.G.dailyGoals.startValues.plant);
+
+      /* AND A NON-MIRRORED GOAL IS UNTOUCHED: its baseline is client-counted and
+         must never be re-taken mid-day, which would erase real progress. */
+      window.G.stats.kills = 50;
+      window.G.dailyGoals = { dayKey, picks: ['kill_any'], startValues: { kill_any: 40 }, claimed: {} };
+      const ka = window.getGoalsForToday()[0];
+      assert(window.G.dailyGoals.startValues.kill_any === 40,
+        'a locally-counted goal was re-baselined, erasing real progress — got '
+        + window.G.dailyGoals.startValues.kill_any);
+      assert(window.__hrGoalBaseline(window.G.dailyGoals, ka).known === true,
+        'a locally-counted goal must be treated as known with no counterBaselined flag');
+    } finally {
+      if (knownWas === undefined) delete window.G._eventCountersKnown;
+      else window.G._eventCountersKnown = knownWas;
+      restoreG(snap);
+    }
   }),
 
   // ── FARM RELOAD REGRESSIONS (KD420 "disappearing plots" + Paione "turnip ready
@@ -19630,37 +19986,38 @@ const TESTS = [
   // mirrored it purely so a rollback to b219 read a sane value; two builds have
   // shipped since. A field written by four code paths and read by one migration
   // is state waiting to be trusted by accident.
-  () => tryRun('b222: the farming `watered` dual-write is deleted from every writer', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    const snap = snapshotG();
-    try {
-      window.G.farmPlots = window.G.farmPlots || [];
-      // plantCrop
-      window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 2;
-      window.G.farmPlots[0] = null;
-      window.plantCrop(0, 'turnip');
-      const planted = window.G.farmPlots[0];
-      assert(planted && Array.isArray(planted.waterings), 'plantCrop must write waterings[]');
-      assert(!('watered' in planted), 'plantCrop still writes the `watered` mirror');
-      // waterPlot
-      planted.plantedAt = Date.now() - 3600000;
-      window.waterPlot(0);
-      assert(window.G.farmPlots[0].waterings.length === 1, 'waterPlot must record a watering');
-      assert(!('watered' in window.G.farmPlots[0]), 'waterPlot still writes the `watered` mirror');
-      // The one surviving READER — the legacy-save conversion — must stay.
-      const legacy = { cropId: 'turnip', plantedAt: 1000, watered: true };
-      window.HearthriseFarm.normalizePlot(legacy);
-      assert(legacy.waterings.length === 1 && legacy.waterings[0] === 1000,
-        'the legacy watered→waterings conversion was removed — old saves would stall');
-      const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
-      assert(M, 'the v6 → v7 migration that reads `watered` must not be deleted');
-    } finally { restoreG(snap); }
-  })),
+  () => tryRun('b222: the farming `watered` dual-write is deleted from every writer', () => withFarmServer(
+    (verb, args) => (verb === 'farmPlant'
+      ? { ok: true, plot: args[0], crop: args[1], planted_at: new Date().toISOString(), seed_spent: 'turnip_seed', plant_xp: 28 }
+      : { ok: true, plot: args[0], crop: 'turnip', watered_at: new Date().toISOString(), water_xp: 7 }),
+    () => {
+      /* b514: the writers are now the OPTIMISTIC prediction in farmSyncPlant and
+         reconcileFarmResult. Both must still write waterings[] and neither may
+         resurrect the `watered` mirror. */
+      const snap = snapshotG();
+      try {
+        window.G.farmPlots = window.G.farmPlots || [];
+        // plantCrop
+        window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 2;
+        window.G.farmPlots[0] = null;
+        window.plantCrop(0, 'turnip');
+        const planted = window.G.farmPlots[0];
+        assert(planted && Array.isArray(planted.waterings), 'plantCrop must write waterings[]');
+        assert(!('watered' in planted), 'plantCrop still writes the `watered` mirror');
+        // waterPlot
+        planted.plantedAt = Date.now() - 3600000;
+        window.waterPlot(0);
+        assert(window.G.farmPlots[0].waterings.length === 1, 'waterPlot must record a watering');
+        assert(!('watered' in window.G.farmPlots[0]), 'waterPlot still writes the `watered` mirror');
+        // The one surviving READER — the legacy-save conversion — must stay.
+        const legacy = { cropId: 'turnip', plantedAt: 1000, watered: true };
+        window.HearthriseFarm.normalizePlot(legacy);
+        assert(legacy.waterings.length === 1 && legacy.waterings[0] === 1000,
+          'the legacy watered→waterings conversion was removed — old saves would stall');
+        const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
+        assert(M, 'the v6 → v7 migration that reads `watered` must not be deleted');
+      } finally { restoreG(snap); }
+    })),
 
   // #10k: the contribution formula. Every row here is lifted verbatim from
   // clan-overhaul v2 §3.4's worked table, computed against the REAL item
@@ -21123,8 +21480,11 @@ const TESTS = [
          hr_skills row: a reward that names it lands in the server's
          `skipped_xp` and the player is quoted a price they are never paid. */
       const rewardOf = (id) => {
-        const pool = (window.HearthriseGoalCatalogue && window.HearthriseGoalCatalogue.DAILY_GOAL_POOL)
-          || window.DAILY_GOAL_POOL || [];
+        /* THE POOL IS PUBLISHED AS `window.DAILY_GOAL_POOL` (legacy.js). An
+           earlier draft read a `window.HearthriseGoalCatalogue` that nothing
+           assigns — the b511 misspelt-global class, caught by
+           tests/window-globals-exist.mjs. One name, the real one. */
+        const pool = window.DAILY_GOAL_POOL || [];
         return (pool.filter((g) => g && g.id === id)[0] || {}).reward || null;
       };
       const rw = rewardOf('kill_more');
@@ -26456,7 +26816,10 @@ const TESTS = [
         return { bonusToasts, paid: marksOfG() - before, base };
       };
       const marksOfG = () => {
-        const MR = window.HearthriseMarksRecord;
+        /* The module publishes `window.HearthriseMarks`, not
+           `HearthriseMarksRecord` (window-globals-exist.mjs caught the draft
+           name; the fallback below hid it as a silent pass). */
+        const MR = window.HearthriseMarks;
         if (MR && typeof MR.marksOf === 'function') {
           const v = MR.marksOf(G);
           return (v && typeof v.value === 'number') ? v.value : (Number(G.marks) || 0);
@@ -40950,7 +41313,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=514');
+    const KIT = await import('../data/start-kit.js?v=516');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -41032,7 +41395,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=514');
+    const KIT = await import('../data/start-kit.js?v=516');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -41146,7 +41509,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=514');
+    const KIT = await import('../data/start-kit.js?v=516');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -43259,7 +43622,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=514')).text();
+    const src = await (await fetch('src/legacy.js?v=516')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -47834,17 +48197,92 @@ const TESTS = [
       assert(!/You died/.test(dtext), 'nobody died on this receipt and the modal said they did: ' + dtext);
       assert(!/licen[cs]e/i.test(dtext), 'the retired permit copy is back on the welcome-back modal: ' + dtext);
 
-      /* No fresh receipt → the modal falls back to the clock and simply says
-         less. It must never invent a night it has no record of. */
+      /* No fresh receipt → the modal simply says less. It must never invent a
+         night it has no record of — and since b514 that includes the LENGTH of
+         the night: the old fallback printed `Date.now() - G.lastSeen`, a
+         residue stamp, which live said "13h 8m" two hours after the last
+         session. With no receipt and no boot watermark there is no span to
+         state, so the card greets the player and states none. */
       G.lastOfflineSummary = null; G.lastWelcome = 0;
+      if (window.HearthriseAccrual) window.HearthriseAccrual.__setBootAccruedToForTest(0);
       window.__maybeShowWelcome();
       const ntext = document.getElementById('welcome-rows').textContent.replace(/\s+/g, ' ');
       assert(!/XP earned|Gold earned|You died/.test(ntext),
         'with no receipt the modal reported a night anyway: ' + ntext);
-      assert(/Time away/.test(ntext), 'the fallback still owes the player the span: ' + ntext);
+      assert(!/Time away/.test(ntext),
+        'with no server span the modal still printed one — that is the residue stamp: ' + ntext);
     } finally {
       const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
       Object.assign(G, save);
+    }
+  }),
+
+  () => tryRun('b514: "Time away" is the SERVER-priced absence, never a residue stamp', () => {
+    /* THE MEASURED BUG (QA slot, b513): the welcome-back card said
+       "Time away 13h 8m" on a reload roughly two hours after the last session
+       on that account, and earlier the same day "64h 53m" while the server
+       receipt for the same boot said `awayMs 15,934,121` (4.4h). The card read
+       `Date.now() - G.lastSeen` — a client-held stamp, per-device, advanced
+       only by the saves that happen to run. Under CLAUDE.md §1/§6 the absence
+       is the server's span.
+       MUTATION PROVEN: restore `v: _fresh ? _awayLbl : label` in
+       maybeShowWelcome and case A (residue 64h vs receipt 4.4h) still passes
+       but case B prints 64h and case C prints a span nobody measured. */
+    const G = window.G;
+    const AC = window.HearthriseAccrual;
+    assert(AC && typeof AC.serverAwaySpanMs === 'function',
+      'the server-span seam is missing — every welcome surface would re-derive one from residue');
+    const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary };
+    const rowText = () => (document.getElementById('welcome-rows').textContent || '').replace(/\s+/g, ' ');
+    try {
+      /* A. A 64-HOUR RESIDUE STAMP LOSES TO A 4.4-HOUR RECEIPT. */
+      AC.__setBootAccruedToForTest(0);
+      G.lastSeen = Date.now() - 64 * 3600000;
+      G.lastOfflineSummary = {
+        hrs: 4.4, awayMs: 15934121, gainedXp: 0, gainedItems: 0, gainedGold: 0,
+        gainedKills: 0, burnt: 0, combat: null, died: false, at: Date.now(),
+      };
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const a = rowText();
+      assert(/Time away\s*4h 26m/.test(a),
+        "the card did not print the receipt's credited span (4h 26m): " + a);
+      assert(!/64h/.test(a), 'THE b513 BUG: the residue stamp is still on the card: ' + a);
+
+      /* B. IDLE BOOT, NO RECEIPT → the boot watermark, i.e. the last instant
+            the server had priced before this boot. */
+      G.lastOfflineSummary = null;
+      G.lastSeen = Date.now() - 64 * 3600000;
+      AC.__setBootAccruedToForTest(Date.now() - 2 * 3600000);
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const b = rowText();
+      assert(/Time away\s*2h 0m/.test(b),
+        'an idle boot did not price the absence off the server watermark: ' + b);
+
+      /* C. NO SERVER SPAN AT ALL → no number. A greeting with no length beats
+            a length nobody measured. */
+      AC.__setBootAccruedToForTest(0);
+      G.lastOfflineSummary = null;
+      G.lastSeen = Date.now() - 8 * 3600000;
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const c = rowText();
+      assert(!/Time away/.test(c), 'the card invented a span the server never stated: ' + c);
+
+      /* D. A THREE-MINUTE SERVER SPAN IS PRINTED AS THREE MINUTES, even under a
+            64-hour residue stamp. The door is still the residue's (it decides
+            only whether to greet); the FIGURE is never. */
+      AC.__setBootAccruedToForTest(Date.now() - 3 * 60000);
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const d = rowText();
+      assert(/Time away\s*3m/.test(d) && !/64h|13h/.test(d),
+        'the card printed the residue stamp instead of the three minutes the server priced: ' + d);
+    } finally {
+      AC.__setBootAccruedToForTest(0);
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      G.lastSeen = save.lastSeen; G.lastWelcome = save.lastWelcome; G.lastOfflineSummary = save.los;
     }
   }),
 
@@ -47868,7 +48306,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=514');
+    const S = await import('../data/shops.js?v=516');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -49408,7 +49846,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=514');
+    const S = await import('../data/shops.js?v=516');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -54079,7 +54517,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=514')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=516')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -55800,7 +56238,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=514');
+    const A = await import('../net/accrue.js?v=516');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -55825,7 +56263,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=514');
+    const A = await import('../net/accrue.js?v=516');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -55852,7 +56290,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=514');
+    const A = await import('../net/accrue.js?v=516');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -56005,7 +56443,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=514')).text();
+      const raw = await (await fetch(f + '?v=516')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -56055,7 +56493,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=514')).text();
+    const raw = await (await fetch('src/observability.js?v=516')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -56159,7 +56597,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=514');
+    const _art = await import('../data/monster-art.js?v=516');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

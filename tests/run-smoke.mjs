@@ -61,7 +61,11 @@ import { runAll as eatIntentGuards } from './eat-intent.mjs';
 import { guard as skillRowUpsertGuard } from './skill-row-upsert.mjs';
 import { guard as leaderboardSourceGuard } from './leaderboard-server-source.mjs';
 import { itemsCatalogueGuard, itemsCatalogueMutationGuard } from './items-catalogue.mjs';
-import { cutoverImportGuard } from './cutover-import.mjs';
+/* tests/cutover-import.mjs was DELETED 2026-09-07 with
+   supabase/migrations/2026-09-07-drop-dead-server-objects.sql: it drove the real
+   hr_import_apply RPC, which that migration drops. The cutover is complete and the
+   beta was wiped, so there is no ceremony left to guard and no surviving path the
+   assertion could be rewritten onto. Deliberately unregistered, not forgotten. */
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';
@@ -2593,7 +2597,7 @@ const run = async () => {
       for (const p of farmSyncProblems) console.log(`  ✗ ${p}`);
       exitCode = 1;
     } else {
-      console.log('\nFarm-sync transport guard — dormant no-regression + armed RPC shape + reconcile-from-response (produce once, no double credit) + fail-safe.');
+      console.log('\nFarm-sync transport guard — the arm is a seamless constant + armed RPC shape + reconcile-from-response (produce once, no double credit) + fail-safe.');
     }
 
     /* ⚠ The blob-retire capstone guard runs LATE (search "blob-retire capstone
@@ -2832,33 +2836,6 @@ const run = async () => {
         + 'price, braced uuid, SQL-shaped listing) is refused by name before it costs a database '
         + 'statement; the buyer\'s wire binds a listing and a count and no price; a replay carries '
         + 'the envelope and no receipt.');
-    }
-
-    /* ── The cutover import (b355) ──────────────────────────────────────
-       The one moment a client-authored save blob is allowed to become server
-       state. Six synthetic snapshots — normal, maxed, forged (1e12 gold),
-       unknown ids, unlocks, corrupt — driven through the REAL tool and the
-       REAL RPC on a real PostgreSQL with the whole chain applied, so
-       2026-08-17-cutover-import.sql's own self-verifying block executes here
-       on every run.
-
-       The two arms worth naming: a FIELD_MAP with a missing entry fails the
-       run BY NAME (the b350 declaration-gap lesson applied to a one-off), and
-       an imported Kitchen rung is followed all the way to
-       makeBonus('noBurn') > 0 through hr_perks_of — because "the row is in
-       the table" is not the claim, "the Kitchen stops burning food" is, and
-       that is the ordering dependency the artisan flip waits on.
-       `node tests/cutover-import.mjs --selftest` plants thirteen real
-       defects; every one must read RED. */
-    const cutoverProblems = await cutoverImportGuard();
-    if (cutoverProblems.length) {
-      console.log('\nCutover import guard — FAILED:');
-      for (const p of cutoverProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nCutover import guard — a maxed save imports unclamped, a forged one clamps AND '
-        + 'reports, unknown ids drop by name, an imported Kitchen rung reaches makeBonus(\'noBurn\'), '
-        + 'and a re-run skips on the marker.');
     }
 
     /* ── The client-write-grant sweep, batch 2 (Security) ───────────────
@@ -3973,7 +3950,11 @@ const run = async () => {
       'Artisan progress model guard', 'Goal counters guard', 'Artisan accrual guard',
       'Live settlement Phase 0', 'Equip intent (Phase 2)', 'Skill-row upsert',
       'Unlock purchase guard', 'Market v2 guard', 'Market intent guard',
-      'Cutover import guard', 'Client write sweep guard', 'Client write sweep batch 3',
+      /* 'Cutover import guard' — REMOVED 2026-09-07 with tests/cutover-import.mjs, whose
+         subject hr_import_apply is dropped by 2026-09-07-drop-dead-server-objects.sql. A
+         retired guard must leave this list in the SAME commit, or the run reports it as
+         never-reported — which is the right alarm and the wrong cause. */
+      'Client write sweep guard', 'Client write sweep batch 3',
       'Client write sweep batch 4', 'Client write sweep batch 5', 'Bug-triage guard',
       'Display-prediction guard',
       'Goal-gold retune guard',

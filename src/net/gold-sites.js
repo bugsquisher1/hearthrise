@@ -707,19 +707,13 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'without the key leaves gold alone for the next envelope to settle. This is the same shape '
       + 'as an envelope write, not a payment.',
   },
-  'src/features/farm-progression.js#setGold@2': {
-    kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    site: 'src/features/farm-progression.js upgradePlot() — the PRE-ARM fallback debit',
-    note: 'UNREACHABLE in the shipped client: the farm arm (isFarmServerArmed, src/data/'
-      + 'item-authority.js) is ON, so every upgrade goes through hr_farm_upgrade_plot and the row '
-      + 'above. This branch is the switch-OFF path (and the in-page suite\'s withLocalFarm harness), '
-      + 'and it is gated on clientMayWriteRecordField(\'gold\') so an armed record can never see a '
-      + 'client-authored debit. It is filed against UNLOCK_BUY rather than given a verb because the '
-      + 'plot tier is deliberately NOT a sellable unlock namespace (hr_unlock_offers records '
-      + 'farm_plot.2..5 as namespace_unsupported:farm_plot_tier) — a second way to buy the tier '
-      + 'would be a second writer of player_state.plot_level.',
-  },
+  /* b514 (cleanup slice 4) — `farm-progression.js#setGold@2` IS RETIRED, not
+     re-filed. It described upgradePlot()'s PRE-ARM fallback debit (deed/gold
+     spend + a local plot_level write), which had been unreachable since the b454
+     cutover armed FARM_SERVER_ARM_ENABLED and is now DELETED from the source.
+     There is exactly one writer of the plot tier again — hr_farm_upgrade_plot —
+     and the `#setGold` row above (the server's absolute post-debit balance) is
+     the whole of what the client still does with gold on this screen. */
   'src/legacy.js#buildPlot': {
     kind: 'spend', status: 'deferred', blockedBy: B.UNLOCK_BUY,
     site: 'the NON-farm plot buildings (scarecrow) — farm_plot itself is now seam:farm.build_plot',

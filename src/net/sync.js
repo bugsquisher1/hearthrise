@@ -22,7 +22,7 @@ import { on, snapshot } from './events.js?v=520';
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
 import { resolveActiveSlot } from './accrue.js?v=520';
-/* b519 — THE CLOUD-SAVE SELF-TEST READS THE REALM'S PROJECTION, so it borrows
+/* THE CLOUD-SAVE SELF-TEST READS THE REALM'S PROJECTION, so it borrows
    record.js's own request builder and response classifier rather than growing a
    second copy of the hr_load shape. NO CYCLE: record.js imports accrue /
    client-state / predict / property-record / dungeon-scrip-record, none of which
@@ -1165,10 +1165,10 @@ export function agoText(atMs, nowMs) {
   return Math.round(s / 86400) + ' days ago';
 }
 
-/* ── READ THE REALM'S PROJECTION OF THIS CHARACTER (b519) ────────────────────
-   THE BUG THIS REPLACES. Until b519 this diagnostic forced an upload and then
-   read `game_saves` straight back. That table is RETIRED: the blob stopped being
-   uploaded at b515 and 2026-09-07-game-saves-revoke.sql took the client's write
+/* ── READ THE REALM'S PROJECTION OF THIS CHARACTER ───────────────────────────
+   THE BUG THIS REPLACES. This diagnostic used to force an upload and then read
+   `game_saves` straight back. That table is RETIRED: the blob stopped being
+   uploaded before the cutover and 2026-09-07-game-saves-revoke.sql took the client's write
    grants away, so the read could only ever return the pre-cutover row or
    nothing — and "Uploaded, but reading it back returned nothing" was shown to a
    HEALTHY player, in the exact tool they open when they are frightened about
@@ -1274,7 +1274,7 @@ export function describeCloudSave(realm, residue, nowMs) {
 }
 
 /**
- * b299, REBUILT IN b519 — THE CLOUD SAVE SELF-TEST.
+ * THE CLOUD SAVE SELF-TEST, REBUILT FOR THE POST-CUTOVER CLIENT.
  *
  * WAS: force a blob upload, read `game_saves` back, diff the round-trip. Both
  * halves are gone post-cutover (see readRealmProjection's header) and the read
@@ -1716,8 +1716,8 @@ export function setupSync(opts = {}) {
 window.HearthriseSync = {
   setupSync, flush, snapshotIfDue, pullLatest, buildSnapshotRequest, isAuthError,
   derivedSnapshotFields, countBossKills, verifyCloudSave, checkConcurrentDevice,
-  /* b519 — the projection read and the (pure) copy it renders, exposed so the
-     suite drives the REAL diagnostic rather than a reimplementation of it. */
+  /* The projection read and the (pure) copy it renders, exposed so the suite
+     drives the REAL diagnostic rather than a reimplementation of it. */
   readRealmProjection, describeCloudSave, agoText,
   claimSession, checkSessionClaim, pauseSync, pullLatestDetailed,
   // b366 device-handoff: the pure verdicts, exported so the suite drives the

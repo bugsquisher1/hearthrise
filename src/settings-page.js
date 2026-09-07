@@ -164,9 +164,8 @@
     if(typeof d.reduceFx      !== 'boolean') d.reduceFx      = false;
     if(typeof d.leftHand      !== 'boolean') d.leftHand      = false;
     if(typeof d.uiScale       !== 'number')  d.uiScale       = readDeviceScale();
-    // b227: `scale` was a 6-option select nothing read (click-through audit
-    // finding #2). It is replaced by `uiScale`; drop the dead key so it stops
-    // riding every save.
+    // `scale` was a 6-option select nothing read; `uiScale` replaced it. Drop
+    // the dead key so it stops riding every save.
     if('scale' in d) delete d.scale;
     if(typeof d.theme         !== 'string')  d.theme         = 'dark';
     if(typeof d.showDamage    !== 'boolean') d.showDamage    = true;
@@ -190,14 +189,12 @@
   function pct(n){ return Math.round(n * 100) + '%'; }
 
   // ── Invite code validation (A11; single-sourced 2026-08-23) ─────────────
-  // THE IMPLEMENTATION MOVED to src/net/account-gate.js and this delegates to
-  // it. It used to be duplicated here, and a duplicated predicate is the b332
-  // shape: two copies, one of them eventually wrong. account-gate.js owns it
-  // because account-gate.js IS the front door — it has to work when nothing
-  // else on the page has loaded, so it cannot depend on this file, and the
-  // dependency therefore has to run this way round. It loads first
-  // (index.html:918 vs :1082), so the seam is always present by the time
-  // anything here can be clicked.
+  // THE IMPLEMENTATION LIVES IN src/net/account-gate.js and this delegates to
+  // it: two copies of a predicate is two copies, one of them eventually wrong.
+  // account-gate.js owns it because account-gate.js IS the front door — it has
+  // to work when nothing else on the page has loaded, so it cannot depend on
+  // this file, and it loads first (index.html:918 vs :1082), so the seam is
+  // always present by the time anything here can be clicked.
   //
   // The rule it enforces is unchanged and still worth restating: NEVER read
   // `beta_invites` directly. Its SELECT policy was world-readable to the anon
@@ -674,11 +671,10 @@
     var liveSession = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
     var auth;
     if (liveSession && liveSession.user) {
-      /* b371 — THIS LINE WAS A HARDCODED STRING. It claimed "Cloud save active"
-         to anyone with a session, through any number of failed upserts, and
-         advertised a 30s cadence the game stopped using when snapshotIntervalMs
-         became 60000. Both halves are now derived: the claim from the last
-         CONFIRMED game_saves upsert, the cadence from the live sync config. */
+      /* BOTH HALVES ARE DERIVED, never asserted: the claim from the last
+         CONFIRMED upsert, the cadence from the live sync config. Hardcoded, it
+         said "Cloud save active" to anyone with a session through any number of
+         failed writes, at a cadence the game had stopped using. */
       var health = (window.cloudSaveLine ? window.cloudSaveLine() : { level: 'unknown', text: 'Cloud save connecting…' });
       var syncCfg = null;
       try { syncCfg = window.HearthriseSync && window.HearthriseSync.getConfig && window.HearthriseSync.getConfig(); } catch (e) {}
@@ -1084,13 +1080,10 @@
       } catch(e){}
       verify.textContent = old; verify.disabled = false;
       if(!vout) return;
-      /* b519 — RENDER THE DIAGNOSTIC'S OWN SENTENCES. The old renderer printed a
-         cloud/local diff of a round trip through `game_saves`, a table retired at
-         b515 and write-revoked 2026-09-07; it read back nothing and told healthy
-         players their save had vanished. verifyCloudSave now returns `lines` —
-         the realm's projection (version, last settle, gold, total level) and the
-         residue — already worded, each with its own ✓/✗. A `lines`-less answer
-         (not signed in, offline, unconfigured) still shows its one error line. */
+      /* RENDER THE DIAGNOSTIC'S OWN SENTENCES. verifyCloudSave returns `lines`
+         — the realm's projection (version, last settle, gold, total level) and
+         the residue — already worded, each with its own ✓/✗. A `lines`-less
+         answer (not signed in, offline, unconfigured) shows its error line. */
       var out = [];
       if(r.error) out.push((r.ok ? '' : '✗ ') + r.error);
       (r.lines || []).forEach(function(l){ out.push((l.ok ? '✓ ' : '✗ ') + l.text); });

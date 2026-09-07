@@ -32,7 +32,8 @@
 // deleted one lowers the ceiling (--write).
 //
 // ── WHAT IS RATCHETED ───────────────────────────────────────────────────────
-//   CR-1  per pinned file: comment lines ÷ code lines           (ceiling)
+//   CR-1  per pinned file: comment lines, against an allowance that GROWS WITH
+//         CODE and never shrinks with it                        (ceiling)
 //   CR-2  per pinned file: comment lines naming a build (b\d{3}) (ceiling)
 //   CR-3  the WHOLE corpus's b-number line total                 (ceiling)
 //         — CR-2 alone can be satisfied by moving the archaeology into an
@@ -41,6 +42,41 @@
 //         wordier than the WORST pinned ratio. The ceiling is derived from the
 //         baseline, never authored: "no new large file may be wordier than the
 //         wordiest file we already have."
+//
+// ── CR-1 IS MARGINAL, AND IT WAS NOT ALWAYS (re-specified 2026-09-07) ───────
+// CR-1 shipped as a whole-file RATIO ceiling: comment/code today may not exceed
+// comment/code at the baseline. That predicate goes RED WHEN CODE IS DELETED,
+// which is the one thing this repository's cleanup program is FOR. Two proofs
+// measured on the tree it first gated:
+//
+//   · src/settings-page.js — a lane replaced 11 lines of rendering with 7
+//     better ones. Comments UNCHANGED at 371; code 986 → 982; ratio
+//     0.376268 → 0.377800. RED, with nobody having written a word of prose.
+//   · src/legacy.js — the icon extraction moved 1,044 lines into
+//     src/render/icons.js, which is exactly what MONO-1/4/5 in the sibling
+//     ratchet reward. The extracted unit was code-denser than the file average,
+//     so the REMAINDER got proportionally wordier: 0.703794 → 0.710681. The
+//     extraction moved the number further the wrong way (+0.006887) than the
+//     build's new prose did (+0.005269). Two guards authored in one commit,
+//     disagreeing about the same commit.
+//
+// A ratchet with a false positive is a ratchet somebody switches off — the
+// sibling ratchet's own words. So the predicate is now MARGINAL:
+//
+//     comment_now ≤ comment_base + baseRate × max(0, code_now − code_base)
+//
+// Identical to the old rule whenever code GREW (both reduce to
+// comment_base + baseRate·Δcode), so nothing about "you may write prose at the
+// rate you write program" is relaxed. It differs in exactly one case — code
+// LEFT the file — where removing code now neither buys headroom nor costs it.
+// Adding prose to a file you are shrinking is still RED, and proven so by
+// --selftest.
+//
+// ⚠ THE RATE MAY ONLY FALL. `--write` re-pins comment/code/bnum from today but
+//   keeps `ratio` at min(today, previous), so a file cannot delete code, re-pin
+//   a higher rate and buy prose with it. Without that clause the marginal form
+//   would compound; with it the rate is a one-way ratchet like everything else
+//   here.
 //
 // ── WHY 16, AND WHY BY SIZE ─────────────────────────────────────────────────
 // The rule is about the files a person actually has to read to change something,
@@ -148,6 +184,29 @@ function walk(dir, out = []) {
 
 const ratioOf = (r) => (r.code ? r.comment / r.code : (r.comment ? Infinity : 0));
 
+/**
+ * CR-1's ceiling, in comment LINES rather than in a ratio. The baseline count
+ * plus the baseline RATE applied to the code the file has GAINED since — so a
+ * file may write prose at the rate it already writes program, and a file that
+ * SHEDS code (an extraction, a dead branch deleted) keeps the comments it has
+ * without being asked to delete a proportional share of them.
+ * `max(0, …)` is the whole re-specification: code leaving is worth zero, never
+ * negative. Exported so --selftest can assert the identity with the old ratio
+ * rule on the growth side.
+ */
+/** The rate a `--write` may pin: today's, or the previously-pinned one if that
+ *  was lower. One-way, so a file cannot delete code, re-pin the higher ratio
+ *  that produces, and spend it on prose. */
+export function repinRate(todayRatio, prevRatio) {
+  const was = Number(prevRatio);
+  return Number.isFinite(was) ? Math.min(todayRatio, was) : todayRatio;
+}
+
+export function commentAllowance(now, base) {
+  const rate = Number.isFinite(base.ratio) ? base.ratio : ratioOf(base);
+  return base.comment + rate * Math.max(0, now.code - base.code);
+}
+
 /** Every JS file under src/, measured, largest first. */
 export function measure(root) {
   const base = join(root, 'src');
@@ -176,12 +235,16 @@ export function compare(now, base) {
   for (const [file, b] of pinned) {
     const r = byFile.get(file);
     if (!r) { notes.push(`${file}: gone from src/ — run --write`); continue; }
-    if (r.ratio > b.ratio + EPS) {
-      fail('CR-1', `${file}: comment:code ${b.ratio.toFixed(3)} → ${r.ratio.toFixed(3)} `
-        + `(${b.comment}/${b.code} → ${r.comment}/${r.code}). A file may gain comments only as `
-        + 'fast as it gains code.');
-    } else if (r.ratio < b.ratio - EPS) {
-      notes.push(`${file}: ratio fell ${b.ratio.toFixed(3)} → ${r.ratio.toFixed(3)} — run --write`);
+    const allowance = commentAllowance(r, b);
+    if (r.comment > allowance + EPS) {
+      const grew = Math.max(0, r.code - b.code);
+      fail('CR-1', `${file}: ${r.comment} comment lines against an allowance of `
+        + `${Math.floor(allowance)} (${b.comment} at the baseline + ${b.ratio.toFixed(3)} × `
+        + `${grew} code line(s) added). A file may gain comments only as fast as it gains code; `
+        + 'deleting code neither buys headroom nor costs it.');
+    } else if (r.comment < b.comment) {
+      notes.push(`${file}: comment lines fell ${b.comment} → ${r.comment} `
+        + `(ratio ${b.ratio.toFixed(3)} → ${r.ratio.toFixed(3)}) — run --write`);
     }
     if (r.bnum > b.bnum) {
       fail('CR-2', `${file}: build-number narrative lines ${b.bnum} → ${r.bnum} (+${r.bnum - b.bnum}). `
@@ -250,15 +313,27 @@ function printReport(now, base) {
 export function run(argv = []) {
   const now = measure(ROOT);
   if (argv.includes('--write')) {
+    const prev = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : null;
+    const prevFiles = (prev && prev.files) || {};
     const files = {};
     for (const r of now.top) {
-      files[r.file] = { total: r.total, comment: r.comment, code: r.code, ratio: r.ratio, bnum: r.bnum };
+      /* THE RATE MAY ONLY FALL. Counts are re-pinned from today, but `ratio` —
+         which is the marginal ALLOWANCE rate CR-1 spends — keeps the lower of
+         today and whatever was pinned before. Without this, a file could delete
+         code, re-pin the higher ratio that produces, and buy prose with it: the
+         marginal form would compound instead of ratcheting. */
+      files[r.file] = {
+        total: r.total, comment: r.comment, code: r.code,
+        ratio: repinRate(r.ratio, prevFiles[r.file] && prevFiles[r.file].ratio),
+        bnum: r.bnum,
+      };
     }
     writeFileSync(BASELINE, JSON.stringify({
-      _why: 'CEILINGS, not targets. No pinned file may get proportionally wordier and the '
-        + 'build-number archaeology may only shrink. Regenerated by '
-        + '`node tests/comment-ratio-ratchet.mjs --write` when a number falls — never to make a red '
-        + 'build green (CLAUDE.md §2).',
+      _why: 'CEILINGS, not targets. A pinned file may gain comment lines only as fast as it gains '
+        + 'CODE lines (deleting code neither buys headroom nor costs it), the per-file marginal '
+        + '`ratio` may only ever FALL on a re-pin, and the build-number archaeology may only '
+        + 'shrink. Regenerated by `node tests/comment-ratio-ratchet.mjs --write` when a number '
+        + 'falls — never to make a red build green (CLAUDE.md §2).',
       _method: METHOD,
       measured: new Date().toISOString().slice(0, 10),
       pinnedCount: PINNED_COUNT,
@@ -337,6 +412,36 @@ function selftest() {
     say(g.bnum === want, label, `  → bnum ${g.bnum} (want ${want})`);
   }
 
+  console.log('\n  ── the ALLOWANCE and the RE-PIN (the 2026-09-07 re-specification) ──');
+  const B = { comment: 1000, code: 2000, ratio: 0.5 };
+  const allow = [
+    ['code UNCHANGED → the allowance is the baseline count', { code: 2000 }, 1000],
+    ['+400 code buys 200 comment lines at the baseline rate', { code: 2400 }, 1200],
+    ['−900 code buys NOTHING and costs nothing', { code: 1100 }, 1000],
+    ['−2000 code (the file emptied) still costs nothing', { code: 0 }, 1000],
+  ];
+  for (const [label, nowRow, want] of allow) {
+    const got = commentAllowance(nowRow, B);
+    say(got === want, label, `  → allowance ${got} (want ${want})`);
+  }
+  /* IDENTITY WITH THE OLD RULE ON THE GROWTH SIDE. The re-spec must relax
+     nothing where code was ADDED: for Δcode ≥ 0 the marginal allowance and the
+     old whole-file ratio ceiling are the same number, to float noise. */
+  let identical = true;
+  for (let dk = 0; dk <= 3000; dk += 137) {
+    if (Math.abs(commentAllowance({ code: B.code + dk }, B) - B.ratio * (B.code + dk)) > 1e-9) identical = false;
+  }
+  say(identical, 'the marginal rule is IDENTICAL to the old ratio ceiling for every Δcode ≥ 0');
+  const repins = [
+    ['a first pin takes today\'s rate', 0.71, undefined, 0.71],
+    ['a rate that FELL is pinned', 0.62, 0.70, 0.62],
+    ['a rate that ROSE keeps the old, lower one', 0.71, 0.70, 0.70],
+  ];
+  for (const [label, today, prev, want] of repins) {
+    const got = repinRate(today, prev);
+    say(Math.abs(got - want) < 1e-12, label, `  → pinned ${got} (want ${want})`);
+  }
+
   console.log('\n  ── the COMPARATOR ──');
   if (!existsSync(BASELINE)) { console.error('SELFTEST: no baseline; run --write first.'); return 2; }
   const base = JSON.parse(readFileSync(BASELINE, 'utf8'));
@@ -351,6 +456,15 @@ function selftest() {
   console.log('  false-positive floor: the real tree reports 0 problems');
 
   const victim = real.top[0].file;
+  /* ⚠ EVERY ARM BELOW IS EXPRESSED RELATIVE TO THE CEILING, NOT TO TODAY'S TREE.
+     The first version added +1 to today's counts, which only bit while the tree
+     happened to sit exactly ON its baseline — the moment a build paid down
+     archaeology (this one paid 59 corpus b-lines), CR-2 and CR-3 stopped firing
+     and reported themselves green. An arm whose bite depends on how much slack
+     the tree currently has is not a mutation proof, it is a coincidence. So each
+     arm SETS the mutated value from `base`, and the debt-payment controls set it
+     from `base` too. `bp` is the victim's own baseline row. */
+  const bp = base.files[victim];
   const bend = (fn) => {
     const rows = real.rows.map((r) => ({ ...r }));
     const m = { rows, top: rows.slice(0, PINNED_COUNT), bnumTotal: real.bnumTotal, fileCount: real.fileCount };
@@ -361,16 +475,41 @@ function selftest() {
   const pick = (m, f) => m.rows.find((r) => r.file === f);
 
   const arms = [
-    ['80 comment lines added to the biggest file', 'CR-1', (m) => {
-      const r = pick(m, victim); r.comment += 80; r.ratio = ratioOf(r);
+    ['80 comment lines added over the ceiling, code unchanged', 'CR-1', (m) => {
+      const r = pick(m, victim); r.comment = bp.comment + 80; r.code = bp.code; r.ratio = ratioOf(r);
     }],
-    ['one new "b512 did X" line in a pinned file', 'CR-2', (m) => { pick(m, victim).bnum += 1; }],
+    ['one new "b512 did X" line over the pinned count', 'CR-2', (m) => {
+      pick(m, victim).bnum = bp.bnum + 1;
+    }],
     ['the archaeology MOVED into an unpinned file (CR-2 satisfied, CR-3 not)', 'CR-3', (m) => {
       const r = pick(m, victim);
-      const moved = 5;
-      r.bnum -= moved;                       // pinned file goes DOWN — CR-2 is happy
+      r.bnum = Math.max(0, bp.bnum - 5);     // pinned file goes DOWN — CR-2 is happy
       const small = m.rows[m.rows.length - 1];
-      small.bnum += moved + 1;               // +1 net across the corpus
+      /* …and the corpus lands ONE line over its own ceiling, wherever the rest
+         of the tree happens to sit today. */
+      const restNow = m.rows.reduce((n, x) => n + (x === small ? 0 : x.bnum), 0);
+      small.bnum = Math.max(0, base.bnumTotal + 1 - restNow);
+    }],
+    ['80 comment lines added while 500 code lines LEAVE (shrinking is not a licence)',
+      'CR-1', (m) => {
+        const r = pick(m, victim);
+        r.comment = bp.comment + 80; r.code = bp.code - 500; r.ratio = ratioOf(r);
+      }],
+    ['prose grows FASTER than code: +300 comments for +100 code', 'CR-1', (m) => {
+      const r = pick(m, victim);
+      r.comment = bp.comment + 300; r.code = bp.code + 100; r.ratio = ratioOf(r);
+    }],
+    /* THE OTHER HALF OF THE SHRINK CASE, and the reason "deleting code is free"
+       is not "deleting code is a licence". A unit is extracted and its PROSE is
+       left behind: same code count as the baseline, plus the comments that were
+       written to explain a block no longer in the file. Those comments are now
+       describing something that is not here, which is the rot this guard exists
+       to name — so an extraction is expected to take its narrative with it, and
+       leaving it behind is RED. The clean extraction is the note above. */
+    ['the code was extracted but its PROSE was left behind', 'CR-1', (m) => {
+      const r = pick(m, victim);
+      r.comment = bp.comment + Math.floor(bp.ratio * 1000); r.code = bp.code;
+      r.ratio = ratioOf(r);
     }],
     ['a NEW 2,000-line file, wordier than record.js, enters the top 16', 'CR-4', (m) => {
       const worst = Math.max(...Object.values(base.files).map((b) => b.ratio));
@@ -393,12 +532,21 @@ function selftest() {
   }
 
   const noted = [
-    ['PAYING THE DEBT: 300 comment lines deleted', 'ratio fell', (m) => {
-      const r = pick(m, victim); r.comment -= 300; r.ratio = ratioOf(r);
+    ['PAYING THE DEBT: 300 comment lines deleted', 'comment lines fell', (m) => {
+      const r = pick(m, victim); r.comment = bp.comment - 300; r.ratio = ratioOf(r);
     }],
     ['PAYING THE DEBT: every b-number line removed from the biggest file', 'b-number lines fell', (m) => {
       pick(m, victim).bnum = 0;
     }],
+    /* THE RE-SPECIFICATION, AS AN ASSERTION. An EXTRACTION takes a code-dense
+       unit out of a pinned file: 1,044 lines leave, 326 of them comments. The
+       old whole-file ratio rule called that CR-1 RED — the same movement
+       MONO-1/4/5 in the sibling ratchet reward. It must be a note. */
+    ['PAYING THE DEBT: 1,044 lines EXTRACTED to src/render (718 code, 326 comment)',
+      'comment lines fell', (m) => {
+        const r = pick(m, victim);
+        r.comment = bp.comment - 326; r.code = bp.code - 718; r.ratio = ratioOf(r);
+      }],
   ];
   for (const [label, want, fn] of noted) {
     const got = bend(fn);
@@ -419,6 +567,19 @@ function selftest() {
     ['NEGATIVE CONTROL: 200 CODE lines added (writing code is always allowed)', (m) => {
       const r = pick(m, victim); r.code += 200; r.total += 200; r.ratio = ratioOf(r);
     }],
+    /* THE MEASURED FALSE POSITIVE THIS RE-SPEC EXISTS TO DELETE
+       (src/settings-page.js, 2026-09-07): a lane replaced 11 lines of rendering
+       with 7 better ones. Comments UNCHANGED; code 986 → 982; the old ratio rule
+       went red on 0.376268 → 0.377800 with nobody having written a word. */
+    ['NEGATIVE CONTROL: 4 CODE lines DELETED, comments untouched', (m) => {
+      const r = pick(m, victim);
+      r.comment = bp.comment; r.code = bp.code - 4; r.total -= 4; r.ratio = ratioOf(r);
+    }],
+    ['NEGATIVE CONTROL: 900 CODE lines deleted, comments untouched', (m) => {
+      const r = pick(m, victim);
+      r.comment = bp.comment; r.code = bp.code - 900; r.total -= 900; r.ratio = ratioOf(r);
+    }],
+
     ['NEGATIVE CONTROL: two pinned files swap rank', (m) => {
       const i = m.rows.findIndex((r) => r.file === real.top[2].file);
       const j = m.rows.findIndex((r) => r.file === real.top[3].file);

@@ -1138,3 +1138,63 @@ Measured on the live gate: 19 s window, hp untouched, `accrued_to` advanced to t
 Off the death path now, but still true of every fast stop/start. Cheapest honest fix: journal it, by
 extending `forceCloseWindow`'s ledger row to the `below_min_span` case. Lowering the floor is
 Security's call and has been refused before (see `ACCRUE_MIN_SPAN_MS`'s comment in src/net/accrue.js).
+
+---
+
+## 2026-09-07 — MERGE DEFECT found on the assembled tree (`21f3b5bf`): a bare `setActivityIcon`
+
+**Two individually-correct lanes, one broken screen.** The icon-extraction lane (slice 8b step 1)
+moved `setActivityIcon` out of `src/legacy.js` into `src/render/icons.js` and rewrote every call site
+it could see to `HearthriseIcons.setActivityIcon(...)`. The knocked-out P1 lane added a SIXTH call
+site — the `Knocked out — back on your feet in Nm` branch of the activity bar — after that census was
+taken, as a bare `setActivityIcon(...)`.
+
+On the merged tree that line throws `ReferenceError: setActivityIcon is not defined` on **every
+repaint of a knocked-out player's activity bar**: the countdown never renders and
+`refreshPanelProgress()` below it never runs. It is the exact surface the recovery lanes were built
+to give the player. `RECOVER-17` was RED on the assembled tree because of it.
+
+Fixed here (`src/legacy.js:12487`). Swept the whole namespace — `actIconHtml`, `paintSkillIcons`,
+`paintMonsterIcons`, `installIconLayer`, `setActivityIcon` — and this was the only survivor.
+
+**The class is open and belongs to whoever owns the next extraction slice.** A bare call to a name
+that has left `legacy.js` is invisible to every guard we have: `dead-exports` reads exports,
+`window-globals-exist` reads `window.Hearthrise*`, and a `ReferenceError` only fires on the code path
+a test happens to drive. Every remaining slice-8 extraction (inventory, combat, progress, refreshAll)
+can reintroduce it. **Wanted: a bare-identifier census over `src/legacy.js`** — every free identifier
+that is neither declared in its own top-level segment, nor a `window.*` publication, nor a browser
+global. Not built here; it is its own lane, not a line in a ratchet fix.
+
+## 2026-09-07 — CR-1 (comment-ratio ratchet) fought the cleanup program; re-specified
+
+Recorded because it is a DECISION about a standing guard, taken without the guard's author present.
+CR-1 shipped as a whole-file ratio ceiling (`comment/code <= comment/code at baseline`). That
+predicate goes red when CODE IS DELETED, which is what most of the CLEANUP_PROGRAM does. Two
+measurements on the tree it first gated:
+
+  * `src/settings-page.js` — a lane replaced 11 lines of rendering with 7 better ones. Comments
+    UNCHANGED at 371; code 986 -> 982; ratio 0.376268 -> 0.377800. **RED with nobody having written a
+    word of prose.**
+  * `src/legacy.js` — the icon extraction moved 1,044 lines out, which MONO-1/4/5 in the sibling
+    ratchet reward. The extracted unit was code-denser than the file average, so the remainder got
+    proportionally wordier: 0.703794 -> 0.710681. The extraction moved CR-1 the wrong way (+0.006887)
+    by MORE than the build's new prose did (+0.005269). **Two guards authored in one commit,
+    disagreeing about the same commit.**
+
+Re-specified to the marginal form — `comment_now <= comment_base + rate * max(0, dCode)` — which is
+arithmetically IDENTICAL to the old rule wherever code grew (asserted in `--selftest`) and differs
+only in the shrink case. Adding prose to a file you are shrinking is still red; so is leaving prose
+behind when its code is extracted. `--write` pins the rate only DOWNWARD so the change cannot
+compound. Nothing was re-baselined upward to get green: the actual prose debt in `accrue.js`,
+`record.js`, `home-dashboard.js`, `smoke-test.js` and `settings-page.js` was paid, not waived.
+
+## 2026-09-07 — TF-1/TF-2 (test-file ratchet): a corpus AVERAGE is not a ceiling
+
+Same species, stated for the record. A ceiling on the mean is unsatisfiable by any honest test above
+the mean: add one and the mean rises, so the only compliant test is a leaner-than-average one, and
+each such test drags the mean down so the next must be leaner still. It went red on its first real
+build — ten tests carrying the ATTENDED **and** AWAY arms CLAUDE.md §4 requires. Re-specified to CODE
+lines per test (comments stripped by the sibling ratchet's own `classify()`, imported so the two
+cannot disagree), an absolute +1% band, and `--write` pinning only downward so the band is spent once
+rather than renewed. TF-3 ("may not be satisfied by deleting tests") is unchanged and is now proven
+at the band's edge as well as at one test.

@@ -12484,7 +12484,7 @@ function refreshActivityBar(){
     bar.classList.remove('idle');
     bar.classList.toggle('combat', !!G.activeMonster);
     bar.classList.add('knocked-out');
-    setActivityIcon(iconEl, 'navCombat', 'var(--red)');
+    HearthriseIcons.setActivityIcon(iconEl, 'navCombat', 'var(--red)');
     if(nameEl) nameEl.textContent = `Knocked out — back on your feet in ${_koMin}m`;
     if(metaEl) metaEl.textContent = _koResumes
       ? `${_koResumes} resumes automatically · nothing earns while you recover`
@@ -16547,32 +16547,46 @@ console.log('Phase A.1 recipe set loaded:',
    right; the cost is real and the duplicate is invisible in every surface a
    player or a bug report can see.
 
-   `q` degrades to a plain call if the seam has not loaded, because a mutex that
-   stopped working when a network module was missing would be a worse bug than
-   a duplicate intent. */
-var q = function(fn){
-  if(typeof window.activityQuietly === 'function') return window.activityQuietly(fn);
-  return fn();
-};
-/* ── b519: THE RECOVERY GATE RIDES THE MUTEX ───────────────────────────────
+   The cross-stop degrades to a plain call if the seam has not loaded, because a
+   mutex that stopped working when a network module was missing would be a worse
+   bug than a duplicate intent.
+
+   ── AND THE RECOVERY GATE IS PART OF THE SAME DECISION ─────────────────────
    The three payable kinds have three separate start functions in three
    separate blocks, and the client's mirror of the server's recovery refusal
    (`hrRefuseWhileRecovering`, block 0) is one policy over all three. This is
    already the one place that holds a cross-cutting policy over exactly that
-   set, so the gate goes HERE rather than into a fourth wrapper per kind — the
+   set, so the gate lives HERE rather than in a fourth wrapper per kind — the
    `showTab`-is-wrapped-23-times mistake, which is how combat came to be the
-   only kind b347 wired.
+   only kind the pre-cutover mutex wired.
 
-   ⚠ OUTERMOST, BEFORE ANY LOCAL STATE MOVES. The whole defect is a local loop
-     that started before the answer came back, so the refusal has to land ahead
-     of the cross-stop, the pointer write and the timers — a gate that fires
-     after `orig` has armed the interval is not a gate.
-   ⚠ AND IT DEGRADES OPEN. If block 0 did not load there is no gate, exactly as
-     `q` degrades to a plain call: a client that refuses to start anything
-     because a helper is missing is a worse bug than the one being fixed. */
-var recovering = function(kind, id){
-  if(typeof window.hrRefuseWhileRecovering !== 'function') return false;
-  try{ return !!window.hrRefuseWhileRecovering(kind, id); }catch(e){ return false; }
+   ONE primitive rather than two, because the gate and the cross-stop are one
+   ORDERED decision and the order is the whole fix: the refusal has to land
+   ahead of the cross-stop, the pointer write and the timers — a gate that
+   fires after `orig` has armed the interval is not a gate. Two helpers can be
+   called in the wrong order by the next wrapper somebody writes; here the
+   order is not a convention, it is the body.
+
+   `kind` null means "not a start at all, only a cross-stop" — a toggle-off,
+   which is never gated. `stop` is a THUNK, invoked only once the gate has
+   passed, so each wrapper's own precondition (`G.activeMonster`) is still read
+   at the moment it was read before.
+
+   ⚠ IT DEGRADES OPEN, both halves. If block 0 did not load there is no gate,
+     exactly as a missing `activityQuietly` becomes a plain call: a client that
+     refuses to start anything because a helper is missing is a worse bug than
+     either of the ones this is holding.
+
+   Returns FALSE when the caller must not start. */
+var clearToStart = function(kind, id, stop){
+  if(kind && typeof window.hrRefuseWhileRecovering === 'function'){
+    try{ if(window.hrRefuseWhileRecovering(kind, id)) return false; }catch(e){}
+  }
+  if(typeof stop === 'function'){
+    if(typeof window.activityQuietly === 'function') window.activityQuietly(stop);
+    else stop();
+  }
+  return true;
 };
 (function(){
   var orig = window.startCombat;
@@ -16582,11 +16596,11 @@ var recovering = function(kind, id){
        allowed, server-side too. startCombat(activeMonster) means "stop this
        fight", and refusing it would trap a knocked-out player in a fight they
        are trying to leave. */
-    if(G.activeMonster !== mId && recovering('combat', mId)) return;
-    q(function(){
+    var ok = clearToStart(G.activeMonster !== mId ? 'combat' : null, mId, function(){
       if(typeof stopSkill === 'function') stopSkill();
       if(typeof window._stopArtisan === 'function') window._stopArtisan();
     });
+    if(!ok) return;
     return orig.apply(this, arguments);
   };
 })();
@@ -16594,8 +16608,10 @@ var recovering = function(kind, id){
   var orig = window.startSkill;
   if(typeof orig !== 'function') return;
   window.startSkill = function(type, targetId, ms){
-    if(recovering('gather', targetId)) return;
-    if(G.activeMonster && typeof stopCombat === 'function') q(stopCombat);
+    var ok = clearToStart('gather', targetId, function(){
+      if(G.activeMonster && typeof stopCombat === 'function') stopCombat();
+    });
+    if(!ok) return;
     return orig.apply(this, arguments);
   };
 })();
@@ -16603,8 +16619,10 @@ var recovering = function(kind, id){
   var orig = window.startArtisan;
   if(typeof orig !== 'function') return;
   window.startArtisan = function(skillId, recipeId){
-    if(recovering('artisan', recipeId)) return;
-    if(G.activeMonster && typeof stopCombat === 'function') q(stopCombat);
+    var ok = clearToStart('artisan', recipeId, function(){
+      if(G.activeMonster && typeof stopCombat === 'function') stopCombat();
+    });
+    if(!ok) return;
     return orig.apply(this, arguments);
   };
 })();

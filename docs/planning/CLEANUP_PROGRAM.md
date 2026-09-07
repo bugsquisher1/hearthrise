@@ -94,61 +94,6 @@ Hearthrise is not architecturally broken — zero circular imports, one combat e
 
 ## Scoreboard
 
-<<<<<<< HEAD
-| Metric | Today (2026-09-06) | Target | Slice |
-|---|---|---|---|
-| Hardcoded colour literals (CSS) | 2,009 measured (comments stripped) | < 400 | 1, 5c |
-| `!important` | 1,093 measured | < 500 | 1, 5c |
-| Stylesheets / CSS lines | 10 / 17,436 (was 9 / 17,398; tokens.css extracted) | 5 / < 12,000 | 5 |
-| Dead CSS class rules | 101 | 0 | 3 |
-| Breakpoint spellings | 27 canonical / 27 raw (was 28 / 35) | 2 | 1, 5b |
-| Inline `style=` in JS / hex in JS | ~300 / ~250 | < 50 / 0 | 5 |
-| CI-gating guards without `--selftest` | 14 | 0 | 2 |
-| Orphan guards (incl. `visual-qa.mjs`) | 6 | 0 | 2 |
-| `smoke-test.js` lines / files | 54,000 / 1 | < 4,000 / ~20 | 6 |
-| Test `G.*` seeds : gestures | 3,054 : 346 (9:1) | 3:1 | later |
-| Zero-occurrence exports | 64 | 0 | 3 |
-| `isBlobRetired()` dead branches | 15 | 0 | 4 |
-| Farm client fall-through lines | ~110 | 0 | 4 |
-| `deferred` gold sites | 24 | 0 | 4 |
-| Hand-rolled `rpc()` copies | 8 | 0 (all `HearthriseRpc`) | 4 |
-| Private `toast()` / `itemImg` copies | 6 / 3 | 1 / 1 | 4 |
-| Raw `window.showTab=` wraps | 34 | 0 (registry) | 8 |
-| Direct `localStorage.` sites | 164 | < 10 (storage seam) | 8 |
-| `window.Hearthrise*` reach-ins | 1,101 | < 400 | 8 |
-| `legacy.js` lines / functions | 22,365 / 510 | < 12,000 | 8 |
-| Patch chains: state_of / rpc_gate / apply | 39 / 24 / 17 | 1 / 1 / 1 | 7 |
-| Public functions / total size | 278 / 791 KB | < 240 / < 650 KB | 3, 7 |
-| Advisors: ERROR / mutable search_path | 1 / 30 | 0 / 0 | 3, 7 |
-| RLS initplan / multi-permissive warnings | 27 / 35 | 0 / < 10 | later |
-| CI wall clock | 40–60 min | < 15 min | 8 |
-| Migrations recorded in `supabase_migrations` | 27 of 149 | 149 of 149 | 7 |
-
-> **Slice 5 steps 1-2 result (2026-09-07):** the token ladder has one home and breakpoints have
-> one spelling, both at **zero visual delta, measured** (`5af5bb36`, `7e9303b2`).
-> **Step 1:** 367 root-ish custom-property declarations across four sheets -> `src/styles/tokens.css`
-> (loaded first), in the original load order with the original selectors. **41 were dead on arrival**
-> — same property, same selector, redeclared later with a different value; `--bg-0` was written three
-> times and two were never read. 326 winners survive, byte-identical. Guard:
-> `tests/token-single-source.mjs --selftest` (no token declared on a root selector outside
-> tokens.css; four element-scoped variables on an allowlist with reasons; bare-`var()`-with-no-
-> declaration ratcheted at 1). **Step 2:** 35 raw @media spellings -> 27, canonical 28 -> 27 (one
-> commutative `and`-reorder); no numeric value touched.
-> **Proof, not assertion:** the ordered cascade-winner list is identical before and after, every
-> per-file ratchet count is unchanged (2009 / 1093, tokens.css enters at 0/0), the visual gate is
-> 36 vs 36 twice, and `tools/css-ab-pixel-diff.mjs` (new) reports **0 differing pixels** on
-> combat/inventory/home/farm at 1440x900 AND 922x423 against the pre-slice base — with an A/A
-> control floor of 0 and a `--mutate` proof of 44,607 px. That tool exists because naive
-> before/after screenshots of an UNCHANGED tree differ by up to 38,799 px; see DISCOVERIES.
-> **Still open in slice 5:** (5b) converge the eight 900px mobile-rail rules onto 540/1024 — a real
-> layout change, visual gate at 922x423 per rule, NOT a spelling pass; (5c) literal -> token, combat
-> and inventory, one component per pass. **Next absorption, recommended in this order:**
-> `combat-hud.css` -> `combat-screens.css` (330 lines, 0 literals, one screen, and index.html
-> already calls combat-screens "the last statement about #panel-combat"), then
-> `audit-overrides.css` -> `components.css` (531 literals / 159 `!important`) — the second is a
-> specificity move between three sheets that fight, so it is per-component with the pixel tool, not
-> per-commit.
-=======
 **Read the Instrument column before quoting a number.** Every row measured by a guard carries that guard's method in its own header and its own `--report`; rows still marked *audit 09-06* were counted once by hand and have never been re-derived, so they are the ones most likely to be stale. Where a guard and the audit disagree (colour literals, breakpoint spellings, seeds:gestures) it is a difference of **method**, not a change in the debt — the guard's number is the one its baseline was cut with, and it is the one that will be enforced.
 
 | Metric | Measured | Target | Slice | Instrument |
@@ -202,6 +147,30 @@ Hearthrise is not architecturally broken — zero circular imports, one combat e
 > | `hr_create_character` | **2** | 2 | `2026-08-14-character-bootstrap.sql` |
 >
 > Twelve further bodies sit at depth 1 and are under the rule but not over it. `hr_rpc_gate` is at **1** — twelve restatements have kept it honest, the last on `2026-08-29`, so the audit's "24" is a count of restatements, not of an unauthored stack; it should drop down slice 7's queue. Ordering note: `hr_apply`'s depth of 10 comes from only **three** files (`rested-record` ×2, `recovering-until` ×6, `cadence-recovery-floor` ×2) — restating it is the cheapest large win on the board.
->>>>>>> worktree-agent-a28e0a63e40d0eaa8
+
+> **Slice 5 steps 1-2 result (2026-09-07):** the token ladder has one home and breakpoints have
+> one spelling, both at **zero visual delta, measured** (`5af5bb36`, `7e9303b2`).
+> **Step 1:** 367 root-ish custom-property declarations across four sheets -> `src/styles/tokens.css`
+> (loaded first), in the original load order with the original selectors. **41 were dead on arrival**
+> — same property, same selector, redeclared later with a different value; `--bg-0` was written three
+> times and two were never read. 326 winners survive, byte-identical. Guard:
+> `tests/token-single-source.mjs --selftest` (no token declared on a root selector outside
+> tokens.css; four element-scoped variables on an allowlist with reasons; bare-`var()`-with-no-
+> declaration ratcheted at 1). **Step 2:** 35 raw @media spellings -> 27, canonical 28 -> 27 (one
+> commutative `and`-reorder); no numeric value touched.
+> **Proof, not assertion:** the ordered cascade-winner list is identical before and after, every
+> per-file ratchet count is unchanged (2009 / 1093, tokens.css enters at 0/0), the visual gate is
+> 36 vs 36 twice, and `tools/css-ab-pixel-diff.mjs` (new) reports **0 differing pixels** on
+> combat/inventory/home/farm at 1440x900 AND 922x423 against the pre-slice base — with an A/A
+> control floor of 0 and a `--mutate` proof of 44,607 px. That tool exists because naive
+> before/after screenshots of an UNCHANGED tree differ by up to 38,799 px; see DISCOVERIES.
+> **Still open in slice 5:** (5b) converge the eight 900px mobile-rail rules onto 540/1024 — a real
+> layout change, visual gate at 922x423 per rule, NOT a spelling pass; (5c) literal -> token, combat
+> and inventory, one component per pass. **Next absorption, recommended in this order:**
+> `combat-hud.css` -> `combat-screens.css` (330 lines, 0 literals, one screen, and index.html
+> already calls combat-screens "the last statement about #panel-combat"), then
+> `audit-overrides.css` -> `components.css` (531 literals / 159 `!important`) — the second is a
+> specificity move between three sheets that fight, so it is per-component with the pixel tool, not
+> per-commit.
 >
 > **Slice 4 result (2026-09-07):** farm dual path removed (`7cbfdb4b`, fail-closed, guard `tests/no-client-farm-mint.mjs`). RPC consolidation refused with proof (`HearthriseRpc` is the decision seam, not the transport; `hr_clan_browser` is legitimately anonymous) — a ratchet landed instead (`9544d21f`). Blob/offline deletion refused: `isBlobRetired()` is NOT constant — it reads the live b353 kill switch `hr:serverAccrual`, so all 13 forks are reachable; that switch is itself a client-authored fallback §1 forbids. **Decision owed (Coordinator + Security): retire the b353 kill switch, then slice 8 deletes the blob machinery.** Gold: 24 deferred rows are a migration backlog with named server blockers, not twins. Surfaced bug: farm goal counters `planted/harvested` have had no writer since b454 (lane-A fix dispatched).

@@ -23417,39 +23417,95 @@ const TESTS = [
     }
   }),
 
-  () => tryRunClientAuthoritative('b230: returning to a backgrounded tab catches up offline gather (paione — mobile "logs off, stops collecting ore")', () => {
-    // The bug: on a phone, "logging off" means backgrounding the app / locking
-    // the screen — the page is NOT reloaded, so loadLocal()/processOffline()
-    // never re-ran and the frozen gather span was credited nowhere. The fix
-    // wires visibilitychange→visible to processOffline(). This drives the exact
-    // event a phone fires on unlock and proves the returning player is paid.
+  () => tryRunAsync('b230: returning to a backgrounded tab ASKS for the frozen span (paione — mobile "logs off, stops collecting ore")', async () => {
+    /* THE BUG, unchanged: on a phone "logging off" means backgrounding the app
+       or locking the screen — the page is NOT reloaded, so nothing re-ran the
+       catch-up and the frozen gather span was credited nowhere. The fix wired
+       `visibilitychange` -> visible to `processOffline()`, and this drives the
+       exact event a phone fires on unlock.
+
+       b515 — WHAT "CREDITED" MEANS MOVED, AND THAT IS THE WHOLE RE-POINT. The
+       old assertion read `G.inventory.normal_log` going up, because
+       `processOffline` simulated the span itself. It does not: it asks
+       hr-accrue and applies the envelope. So the property a phone actually
+       depends on is that the return REACHES THE WIRE — measured on the wire,
+       not on a flag — and a client that stopped asking is exactly paione's bug
+       in its current shape. The PAYING half is the engine's and is
+       AWAY-HONEST-4 / accrual-engine's `gatherParityGuard`.
+
+       MUTATION: delete the `visibilitychange` listener (or the
+       `processOffline()` call inside `hrResume`) from legacy.js → zero
+       requests, red. */
     const G = window.G;
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCharacter;
     const snap = snapshotG();
     const dHid = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
     const dVis = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
     const gate = window.HearthriseGate;
     const origOpen = gate && gate.isOpen;
+    const realFetch = window.fetch;
+    let accrueHits = 0;
     try {
       if (gate) gate.isOpen = () => true;                 // a signed-in session
+      window.fetch = function (u) {
+        const str = String(u);
+        if (/hr-accrue/.test(str)) {
+          accrueHits++;
+          return Promise.resolve(new Response('{"ok":true,"accrued":false,"reason":"none"}', { status: 200 }));
+        }
+        if (/hr_create_character/.test(str)) {
+          return Promise.resolve(new Response('{"ok":true,"slot":0,"created":false}', { status: 200 }));
+        }
+        if (/hr_load/.test(str)) {
+          return Promise.resolve(new Response('{"ok":false,"error":"no_character"}', { status: 200 }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+      const wiring = { url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' };
+      A.resetAccrualGate(); A.configureAccrual(wiring);
+      C.resetCharacterIntent(); C.configureCharacter({ ...wiring, userId: () => 'user-b230' });
+
       G.activeMonster = null;
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-      G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-      const before = (G.inventory && G.inventory.normal_log) || 0;
       // The player left 20 minutes ago: rewind the offline watermark + lastSeen.
       const now = Date.now(), past = now - 20 * 60000;
       G.lastSeen = past;
       G.offlineBudget = { dayKey: window.utcDayKey(now), usedMs: 0, at: past };
-      // Come BACK to the tab.
+
+      // Come BACK to the tab — the one event a phone fires on unlock.
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
       document.dispatchEvent(new Event('visibilitychange'));
-      const after = (G.inventory && G.inventory.normal_log) || 0;
-      assert(after > before, 'returning to the tab must credit the frozen gather span, got +' + (after - before));
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+
+      assert(accrueHits >= 1,
+        'returning to the tab put ' + accrueHits + ' accrual requests on the wire — the frozen span is '
+        + 'credited by NOBODY, which is paione\'s "logs off, stops collecting ore" exactly. The page was '
+        + 'never reloaded, so this event is the only thing that can ask.');
+      /* AND IT ONLY ASKS ON THE WAY BACK. A `visibilitychange` to HIDDEN must
+         not spend a request; without this the assertion above is satisfied by a
+         listener that fires on every transition, which on a phone is a request
+         every time the screen locks. */
+      const before = accrueHits;
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      assert(accrueHits === before,
+        'going away spent ' + (accrueHits - before) + ' accrual request(s) — the handler fires on the '
+        + 'wrong edge, and a phone would ask every time the screen locked');
     } finally {
+      window.fetch = realFetch;
       if (gate && origOpen) gate.isOpen = origOpen;
-      if (dHid) Object.defineProperty(document, 'hidden', dHid); else delete document.hidden;
-      if (dVis) Object.defineProperty(document, 'visibilityState', dVis); else delete document.visibilityState;
-      restoreG(snap);
+      if (dHid) Object.defineProperty(document, 'hidden', dHid); else { try { delete document.hidden; } catch (e) {} }
+      if (dVis) Object.defineProperty(document, 'visibilityState', dVis); else { try { delete document.visibilityState; } catch (e) {} }
+      A.resetAccrualGate(); A.configureAccrual(null);
+      C.resetCharacterIntent(); C.configureCharacter(null);
+      restoreGAndRecord(snap);
     }
   }),
 
@@ -24295,41 +24351,24 @@ const TESTS = [
     }
   }),
 
-  () => tryRunClientAuthoritative('b255: offline combat actually accrues kills/loot/XP (paione: "combat not working offline")', () => {
-    assert(typeof window.processOffline === 'function' && typeof window.simulateAwayCombat === 'function', 'away combat seams must exist');
-    const snap = snapshotG();
-    try {
-      const G = window.G;
-      // Stand the player in an active fight vs a weak foe, at full health.
-      G.skills = Object.assign({}, G.skills, { attack: 50000, strength: 50000, hitpoints: 20000, defense: 20000 });
-      G.activeMonster = 'goblin';
-      const m = window.MONSTERS.goblin;
-      G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 30;
-      G.playerHp = G.playerMaxHp;
-      const killsBefore = G.stats.kills || 0;
-      const goldBefore = G.gold || 0;
-      /* Direct simulator: half an hour of fighting must produce kills. Driven
-         inside the replay latch, because that latch IS `ctx.away` — calling it
-         bare would simulate an away span with blessings and food buffs live. */
-      let r = null;
-      window.HearthrisePresence._withOfflineReplay(() => { r = window.simulateAwayCombat(0.5); });
-      assert(r && r.kills > 0, 'simulateAwayCombat must produce kills over 30 min, got ' + JSON.stringify(r));
-      assert((G.stats.kills || 0) > killsBefore, 'kill count must advance');
-      // End-to-end through processOffline: set the offline watermark back an hour
-      // and confirm the catch-up runs combat and reports a summary.
-      G.activeMonster = 'goblin'; G.monsterHp = m.hp; G.playerHp = G.playerMaxHp;
-      onFeet();   // rev. 2: the half-hour above ended face-down (see `onFeet`)
-      if (typeof window.ensureOfflineBudget === 'function') {
-        const b = window.ensureOfflineBudget(Date.now());
-        b.at = Date.now() - 3600000; b.usedMs = 0;   // an hour away, budget fresh
-      }
-      const killsBefore2 = G.stats.kills || 0;
-      window.processOffline();
-      assert((G.stats.kills || 0) > killsBefore2, 'processOffline must simulate the fight on catch-up');
-      assert(G.lastOfflineSummary && G.lastOfflineSummary.combat, 'the welcome-back summary must record the offline combat');
-    } finally { restoreG(snap); }
-  }),
+  /* b255 IS RETIRED (b515). Two halves, and b515 removed the ground under
+     both: it drove `window.simulateAwayCombat()` (a client wrapper b515 left
+     with no production caller — it is now dead code, filed) and then
+     `window.processOffline()` (whose local engine is deleted), reading
+     `G.stats.kills` and `G.gold` — two fields that are SERVER-OF-RECORD and
+     ARMED, so a local credit could not land in them anyway.
+
+     paione's report — "combat not working offline" — is guarded, in the two
+     places it now lives:
+       · the SIMULATION pays: `AWAY-HONEST-1` runs `simulateSpan` (the copy
+         hr-accrue runs) for an hour and asserts kills, gold and XP all move,
+         byte-identically at 0/99/100/500 lifetime kills; `AWAY-1` proves away
+         and live pay the same seeded fight.
+       · the RETURN asks: `b230` (visibilitychange), `b260` (the
+         signal-independent resume) and `b337`-ON count the accrual requests
+         that actually leave the client.
+     The RECEIPT half it also asserted (`lastOfflineSummary.combat` exists) is
+     `b341` and `AWAY-HONEST-2`, both driven through the real envelope. */
 
   () => tryRun('b254: Boss of the Day — deterministic daily pick + featured kill bonus', () => {
     const B = window.HearthriseBossOfDay;
@@ -24808,26 +24847,23 @@ const TESTS = [
 
   // (3) CLOCK MANIPULATION: a forward clock jump (or a very long absence) must be
   // CAPPED at the daily offline budget — it can never mint unbounded progress.
-  () => tryRunClientAuthoritative('b305: offline catch-up is capped — a forward clock jump cannot mint unlimited progress', () => {
-    if(typeof window.processOffline !== 'function'){ skip('no processOffline'); return; }
-    const G = window.G;
-    const save = { offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, activeMonster:G.activeMonster, activeSkill:G.activeSkill, activeArtisanRecipe:G.activeArtisanRecipe, los:G.lastOfflineSummary };
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    try {
-      Object.defineProperty(document, 'hidden', { configurable:true, get:()=>false });
-      G.activeMonster = null; G.activeSkill = null; G.activeArtisanRecipe = null;   // no activity — just testing the cap
-      const now = Date.now();
-      G.lastSeen = now - (3650 * 24 * 3600000);                       // "10 years" ago
-      G.offlineBudget = { dayKey:0, usedMs:0, at: now - (3650 * 24 * 3600000) };
-      window.processOffline();
-      const s = G.lastOfflineSummary;
-      assert(s && typeof s.hrs === 'number', 'a long absence must still produce a summary');
-      assert(s.hrs <= (s.budgetHrs || 12) + 0.2, 'offline hours (' + s.hrs + ') must be capped at the daily budget (' + s.budgetHrs + ')');
-    } finally {
-      if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
-      Object.assign(G, { offlineBudget:save.offlineBudget, lastSeen:save.lastSeen, activeMonster:save.activeMonster, activeSkill:save.activeSkill, activeArtisanRecipe:save.activeArtisanRecipe, lastOfflineSummary:save.los });
-    }
-  }),
+  /* b305-CAP IS RETIRED (b515). It set the watermark ten years back, called
+     `processOffline()` and asserted the summary's `hrs` was clipped to the
+     budget. The clipping is not the client's any more: `offlineBudget` is
+     SERVER-OF-RECORD (the server's `accrued_to`), the grant is sized by
+     `src/core/away.js creditWindow` on both sides, and the receipt is whatever
+     the envelope stated.
+
+     The property — a forward clock jump cannot mint unlimited progress — is
+     asserted on that function directly by the re-pointed `AWAY-BUDGET-1`
+     (an 18h absence at a 12h cap credits exactly 12h, reports a real
+     `unpaidMs`, and a caller asking for 999h against a 1h absence gets 1h),
+     and server-side by `clampGuard` + `dayBudgetGuard` in
+     tests/accrual-engine.mjs, which run the real `computeAccrual` against the
+     reachable ceiling. `b305: a future watermark (backward clock) grants
+     nothing` immediately below is UNCHANGED and still passes — it asserts an
+     absence of movement, which survives the engine moving house.
+     The b307 per-absence rule is `AWAY-22` + `AWAY-BUDGET-1` (b). */
 
   // (4) BACKWARD clock: a watermark in the FUTURE (clock set back, or a bad synced
   // timestamp) must not grant negative/garbage progress — it clamps to zero.
@@ -24852,105 +24888,33 @@ const TESTS = [
     }
   }),
 
-  // b303: OFFLINE IS THE PREMISE. Guard that a gathering session credits XP
-  // through the real gated processOffline() (only combat was guarded before).
-  () => tryRunClientAuthoritative('b303: offline GATHER credits XP through processOffline (idle premise)', () => {
-    if(typeof window.processOffline !== 'function' || !window.TREES || !window.TREES.length){ skip('no gather'); return; }
-    const G = window.G;
-    const save = { skills:G.skills, activeSkill:G.activeSkill, skillTargetId:G.skillTargetId,
-      activeMonster:G.activeMonster, activeArtisanRecipe:G.activeArtisanRecipe,
-      inventory:G.inventory, offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, stats:G.stats };
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    try {
-      Object.defineProperty(document, 'hidden', { configurable:true, get:()=>false });
-      const tree = window.TREES[0];
-      G.skills = Object.assign({}, G.skills, { woodcutting: 5_000_000 });   // clears any level req
-      G.activeMonster = null; G.activeArtisanRecipe = null;
-      G.activeSkill = 'woodcutting'; G.skillTargetId = tree.id;
-      G.inventory = Object.assign({}, G.inventory);
-      const beforeXp = xpOf('woodcutting');
-      const now = Date.now();
-      G.lastSeen = now - 3600000;                                           // away 1 hour
-      G.offlineBudget = { dayKey:0, usedMs:0, at: now - 3600000 };
-      window.processOffline();
-      assert(xpOf('woodcutting') > beforeXp, 'offline woodcutting gained no XP (' + (xpOf('woodcutting') - beforeXp) + ')');
-    } finally {
-      if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
-      Object.assign(G, save);
-      if(typeof window.stopSkill === 'function' && !save.activeSkill) try{ window.stopSkill(); }catch(e){}
-    }
-  }),
+  /* b303-GATHER, b303-ARTISAN AND b297 ARE RETIRED (b515), together, because
+     they were three readings of ONE thing: "the real gated `processOffline()`
+     credits an absence". Each stood a character in an activity, rewound the
+     watermark, called `processOffline()` and read `G`.
 
-  // b303: and that an ARTISAN session (cooking) credits offline too.
-  () => tryRunClientAuthoritative('b303: offline ARTISAN credits XP through processOffline', () => {
-    if(typeof window.processOffline !== 'function' || !window.ARTISAN_RECIPES || !window.ARTISAN_RECIPES.cooking){ skip('no artisan'); return; }
-    const rec = window.ARTISAN_RECIPES.cooking.find(r => r.id === 'cook_shrimp') || window.ARTISAN_RECIPES.cooking[0];
-    if(!rec){ skip('no cooking recipe'); return; }
-    const G = window.G;
-    const save = { skills:G.skills, activeSkill:G.activeSkill, skillTargetId:G.skillTargetId,
-      activeMonster:G.activeMonster, activeArtisanRecipe:G.activeArtisanRecipe,
-      inventory:G.inventory, offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, stats:G.stats };
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    try {
-      Object.defineProperty(document, 'hidden', { configurable:true, get:()=>false });
-      G.skills = Object.assign({}, G.skills, { cooking: 5_000_000 });
-      G.activeMonster = null; G.activeArtisanRecipe = null;
-      G.activeSkill = 'cooking'; G.skillTargetId = rec.id;
-      // Stock the recipe's inputs generously (shape: {input:'shrimp'} → qty 1 each).
-      G.inventory = Object.assign({}, G.inventory);
-      if(rec.input) G.inventory[rec.input] = (G.inventory[rec.input] || 0) + 100000;
-      const beforeXp = xpOf('cooking');
-      const now = Date.now();
-      G.lastSeen = now - 3600000;
-      G.offlineBudget = { dayKey:0, usedMs:0, at: now - 3600000 };
-      window.processOffline();
-      assert(xpOf('cooking') > beforeXp, 'offline cooking gained no XP (' + (xpOf('cooking') - beforeXp) + ')');
-    } finally {
-      if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
-      Object.assign(G, save);
-      if(typeof window.stopSkill === 'function' && !save.activeSkill) try{ window.stopSkill(); }catch(e){}
-    }
-  }),
+     That call no longer credits anything — b515 deleted the ~500-line local
+     away engine behind it, so `processOffline` asks hr-accrue and applies the
+     answer — and the fields they read (`G.skills`, `G.stats.kills`) are
+     SERVER-OF-RECORD and ARMED, so even a working local grant could not land in
+     them. Two independent reasons the assertion could no longer mean what it
+     says.
 
-  // b297 (paione: "x'd out at 71 kills, logged back in at 71 kills"): the b267
-  // test above calls processOfflineCombat() DIRECTLY, bypassing the real gated
-  // entry point processOffline() (budget watermark + visibility + the activeMonster
-  // branch). This exercises that real path end-to-end so a regression in the GATE
-  // — not just the sim — is caught.
-  () => tryRunClientAuthoritative('b297: offline combat credits kills through the gated processOffline() path', () => {
-    if(typeof window.processOffline !== 'function'){ skip('no processOffline'); return; }
-    const G = window.G;
-    const save = {
-      skills: G.skills, playerHp: G.playerHp, playerMaxHp: G.playerMaxHp,
-      activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
-      activeSkill: G.activeSkill, activeArtisanRecipe: G.activeArtisanRecipe,
-      stats: G.stats, offlineBudget: G.offlineBudget, lastSeen: G.lastSeen,
-    };
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    try {
-      // The harness reports document.hidden===true; the gate returns 0 while
-      // hidden by design, so a returning-player load must be simulated as VISIBLE.
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      G.skills = Object.assign({}, G.skills, { attack: 6000, strength: 6000, defense: 6000, hitpoints: 9000 });
-      G.playerMaxHp = 9999; G.playerHp = 9999;
-      const id = window.MONSTERS && window.MONSTERS.slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
-      const m = window.MONSTERS[id];
-      G.activeMonster = id; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      G.activeSkill = null; G.activeArtisanRecipe = null;
-      const now = Date.now();
-      G.lastSeen = now - 3600000;                                  // away 1 hour
-      G.offlineBudget = { dayKey: 0, usedMs: 0, at: now - 3600000 };
-      const k0 = G.stats.kills || 0;
-      window.processOffline();
-      const credited = (G.stats.kills || 0) - k0;
-      assert(credited > 0, 'offline combat credited nothing through the real gate (kills +' + credited + ') — paione\'s 71→71 bug');
-    } finally {
-      if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
-      else { try { delete document.hidden; } catch(e){} }
-      Object.assign(G, save);
-      if(typeof window.stopCombat === 'function' && !save.activeMonster) try{ window.stopCombat(); }catch(e){}
-    }
-  }),
+     THE SIMULATION each one was really about is covered, on the engine the Edge
+     Function runs, by tests that ARE re-pointed:
+       · gather   — `AWAY-HONEST-4` (simulateSkillSpan: an hour of woodcutting
+                    pays XP and items, at zero lifetime kills, identically at
+                    500) and `AWAY-19 PARITY` (N live actions == one core span).
+       · artisan  — `b204` and `b225` (simulateArtisanSpan: a cooking session
+                    progresses, burns on the same math, consumes 1:1).
+       · combat   — `AWAY-HONEST-1` (simulateSpan pays from kill ONE, byte-
+                    identically at 0/99/100/500 lifetime kills) and `AWAY-1`.
+     THE GATE they were about — that the return actually ASKS — is
+     `b337: with the switch ON, processOffline puts the CONTRACT request on the
+     wire`, `B340-8` and the re-pointed `b230`/`b260`/`b261` below, which drive
+     the real resume paths and count the requests that leave.
+     paione's 71->71 report is therefore still guarded end to end; what is gone
+     is the client that used to answer it. */
 
   () => tryRun('b267: auto-eat works OFFLINE — a fighter with food set survives and consumes it (Tyler asked to verify)', () => {
     if(typeof window.processOfflineCombat !== 'function'){ skip('no offline combat'); return; }
@@ -25667,7 +25631,7 @@ const TESTS = [
      ⚠ KNOWN LIMITATION, stated rather than papered over: under the capstone the
        durable record of the switch is the SERVER's (the activity intent), and
        this test cannot reach that seam. tests/activity-seam.mjs owns it. */
-  () => tryRun('b344: an away night switches to the auto-accepted bounty target MID-NIGHT (b264 deferred the switch past the whole absence)', () => withLocalBlob(() => {
+  () => tryRun('b344: an away night switches to the auto-accepted bounty target MID-NIGHT (b264 deferred the switch past the whole absence)', () => {
     if (typeof window.simulateAwayCombat !== 'function' || typeof window.completeBounty !== 'function') { skip('seam absent'); return; }
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
     const snap = snapshotG();
@@ -25715,16 +25679,29 @@ const TESTS = [
       assert((G.bountyHunter.active.progress || 0) > 0,
         'the rest of the night must count toward the new bounty; progress is ' + G.bountyHunter.active.progress);
       assert((G.inventory.wolf_pelt || 0) > 0, 'the bag must hold the NEW target\'s trophies, wolf_pelt=' + (G.inventory.wolf_pelt || 0));
-      /* AND IT MUST BE ON DISK. processOffline() never calls saveLocal(), and
-         completeBounty()'s own save runs BEFORE the drain — measured, the local
-         save still read `goblin` after a night that had switched to `wolf`, and
-         only the next ordinary autosave corrected it. Close the browser inside
-         that window and the player reopens on the old monster holding the new
-         bounty, which is the pre-fix symptom in miniature. */
-      let disk = null;
-      try { disk = JSON.parse(localStorage.getItem('hearthbound-save-v2') || 'null'); } catch (e) {}
-      assert(disk && disk.activeMonster === 'wolf',
-        'the switched target must reach the local save, found ' + (disk && disk.activeMonster));
+      /* AND IT MUST REACH THE STORE THAT SURVIVES THE BROWSER CLOSING. The
+         symptom this half guards is unchanged — close the tab inside the window
+         where the switch has happened in memory but not in the save, and the
+         player reopens on the OLD monster holding the NEW bounty, which is the
+         pre-fix bug in miniature.
+
+         b515 — THE STORE CHANGED, so the assertion follows it. There is no
+         local save blob: `saveLocal()` is one `lastSeen` stamp. `bountyHunter`
+         is RESIDUE (client-state.js RESIDUE_FIELDS, "WHOLLY residue now"), so
+         the thing that has to carry the accepted bounty is the residue PATCH —
+         the bytes `snapshotIfDue` PUTs to `hr_put_client_state`. The activity
+         POINTER is the server's (`active_kind`/`active_id` on the accrual
+         delta), so it is asserted where it lives instead: the switch must have
+         DECLARED, or the server still believes this character is on goblins.
+         MUTATION: drop the residue field, or drop the declare from the switch
+         path → one of the two below goes red. */
+      const CAP = window.HearthriseCapstone;
+      assert(CAP && typeof CAP.buildResiduePatch === 'function', 'capstone.js must publish buildResiduePatch');
+      const patch = CAP.buildResiduePatch(G);
+      assert(patch && patch.bountyHunter && patch.bountyHunter.active
+        && patch.bountyHunter.active.target === 'wolf',
+        'the switched bounty is not in the residue patch, so a reload comes back on the old contract: '
+        + JSON.stringify(patch && patch.bountyHunter && patch.bountyHunter.active));
 
       /* LIVE IS STILL DEFERRED, and that is not an accident to be tidied away:
          startCombat() clears and re-arms combatInterval and then calls
@@ -25748,9 +25725,9 @@ const TESTS = [
          the player's local save naming a monster from a test fixture. */
       try { window.saveLocal(); } catch (e) {}
     }
-  })),
+  }),
 
-  () => tryRunClientAuthoritative('b344: the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.random())', () => {
+  () => tryRunAsync('b344: the bounty turn-in bonus is a SEEDED draw — the same seeded night pays the same Marks (it read Math.random())', async () => {
     if (typeof window.simulateAwayCombat !== 'function') { skip('seam absent'); return; }
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
     const snap = snapshotG();
@@ -25825,21 +25802,107 @@ const TESTS = [
          fight — `()=>0.999` misses every swing, so a night-shaped version of
          this would "pass" by killing nothing, which is the assertion-that-
          asserts-nothing failure wearing a different hat. */
+      /* b515 — THE PAYOUT IS NOT MEASURABLE HERE ANY MORE, AND THAT IS ITSELF
+         THE PROPERTY. `marks` is SERVER-OF-RECORD and ARMED, so
+         `completeBounty`'s bonus credit is explicitly gated
+         (`if (bonusRoll && clientMayWriteRecordField('marks'))`) and pays
+         nothing — deliberately, because hr_claim_bounty's reward is
+         base x type x difficulty with NO bonus roll, so a local credit would be
+         Marks that nothing anywhere grants. legacy.js says so at the call site.
+
+         So the two halves are measured where each is true:
+           (a) THE DRAW IS ON THE SEEDED STREAM. Forced through the seam, the
+               bonus toast fires or does not; forced through Math.random with
+               the seam pinned the other way, it follows the SEAM. That is the
+               replayability property the server-side recompute rests on, and
+               it survives whether or not the bonus currently pays.
+           (b) IT PAYS NOTHING TODAY. A forced-hit turn-in must not move the
+               balance, or the client is minting a server-owned currency.
+         MUTATION: revert the draw to `Math.random() < 0.10` -> (a) goes red;
+         drop the `clientMayWriteRecordField('marks')` gate -> (b) goes red. */
       const rngFrom = C.rngMod.rngFrom;
-      const turnIn = (rng) => {
+      const savedNotify = window.notify;
+      const turnIn = (seamValue, globalValue) => {
         fixture();
         const base = G.bountyHunter.active.rewards.marks;
-        C.setRng(rng);
-        const before = G.marks || 0;
-        window.completeBounty();
-        return { paid: (G.marks || 0) - before, base };
+        let bonusToasts = 0;
+        window.notify = function (m) { if (/Bonus turn-in/i.test(String(m))) bonusToasts++; };
+        C.setRng(rngFrom(() => seamValue));
+        Math.random = () => globalValue;
+        const before = marksOfG();
+        try { window.completeBounty(); } finally { window.notify = savedNotify; Math.random = realRandom; }
+        return { bonusToasts, paid: marksOfG() - before, base };
       };
-      const always = turnIn(rngFrom(() => 0));           // 0 < 0.10 -> bonus every time
-      const never = turnIn(rngFrom(() => 0.999));        // never
-      assert(never.paid === never.base, 'a suppressed roll must pay the base marks only, got ' + JSON.stringify(never));
-      assert(always.paid > never.paid,
-        'the turn-in bonus must still be payable and must read the SEEDED stream, got '
-        + JSON.stringify([always, never]));
+      const marksOfG = () => {
+        const MR = window.HearthriseMarksRecord;
+        if (MR && typeof MR.marksOf === 'function') {
+          const v = MR.marksOf(G);
+          return (v && typeof v.value === 'number') ? v.value : (Number(G.marks) || 0);
+        }
+        return Number(G.marks) || 0;
+      };
+      const mayPay = window.clientMayWriteRecordField('marks');
+      // (a) the seam decides, in BOTH directions, whatever Math.random says.
+      const seamHit = turnIn(0, 0.999);
+      const seamMiss = turnIn(0.999, 0);
+      if (mayPay) {
+        assert(seamHit.bonusToasts === 1,
+          'the turn-in bonus did not follow the SEEDED stream: the seam said hit (0 < 0.10) and the global '
+          + 'said miss, and no bonus fired — either it reads Math.random() or the roll is gone');
+        assert(seamMiss.bonusToasts === 0,
+          'the turn-in bonus followed Math.random(): the seam said miss (0.999 > 0.10) and the global said '
+          + 'hit, and it fired anyway');
+      } else {
+        /* (b) THE ARM. Under the Marks record the bonus is gated OFF at the
+           call site, so neither the credit nor the toast may appear — a toast
+           promising Marks nothing grants is most of what "I got 0 marks" feels
+           like (b494). The DRAW is still asserted, structurally, below. */
+        assert(seamHit.bonusToasts === 0 && seamHit.paid === 0,
+          'the client paid or announced a turn-in bonus for a SERVER-OWNED balance: '
+          + JSON.stringify(seamHit) + '. hr_claim_bounty has no bonus roll, so this is Marks that nothing '
+          + 'anywhere grants and the next envelope takes back.');
+        assert(seamMiss.paid === 0, 'a suppressed roll moved the balance: ' + JSON.stringify(seamMiss));
+        /* AND THE DRAW ITSELF IS STILL SEEDED, so the day the bonus moves
+           server-side it is replayable. Read off the shipped source with the
+           comments stripped — the prose around this line names Math.random() as
+           the thing it replaced, and a bare match would fail on the
+           explanation. */
+        /* ⚠ THE DRAW IS IN `finalizeBounty`, NOT IN `completeBounty`, AND IT IS
+           NOT ON `window`. The two-phase turn-in splits: completeBounty fires
+           the server intent, finalizeBounty pays out, and the bonus roll lives
+           in the payout half — which is block-scoped, so `String(fn)` cannot
+           reach it. Read from the SHIPPED BYTES instead, the same technique
+           B492-3b uses for loadLocal's body, and anchored on the function that
+           actually holds the draw: reading the wrong one would be a guard that
+           passes while the draw is a bare Math.random(), which is exactly the
+           shape this test exists to catch. */
+        const legacySrc = await (await fetch('src/legacy.js')).text();
+        assert(legacySrc.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
+        const fnAt = legacySrc.indexOf('function finalizeBounty(');
+        assert(fnAt !== -1, 'finalizeBounty is gone from legacy.js — the payout half of the turn-in moved');
+        const rawSrc = legacySrc.slice(fnAt, fnAt + 6000);
+        assert(/bonusRoll/.test(rawSrc), 'the turn-in bonus roll is gone from the payout path entirely');
+        const src = rawSrc
+          .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
+        assert(/rng\s*\.\s*chance\s*\(/.test(src),
+          'completeBounty no longer draws the turn-in bonus from the seeded stream — the server recomputes '
+          + 'an absence from (user_id, slot, accrued_to) and a bare draw makes its answer differ from the '
+          + "client's every single time");
+        /* THE SHAPE, not merely the presence: seeded FIRST, and the bare draw
+           reachable ONLY as the pre-boot fallback on the other side of the `?:`
+           (the same idiom companions.js and dungeons.js use, and legacy.js says
+           so at the call site). A revert to an unconditional `Math.random() <
+           0.10` fails this while still containing the word `chance` somewhere
+           in the function, which is why the presence check above is not enough. */
+        const seededFirst = /\?\s*[A-Za-z_$][\w$]*\.rng\.chance\(\s*0?\.10\s*\)\s*:/.test(src);
+        assert(seededFirst,
+          'the turn-in bonus no longer PREFERS the seeded stream — a bare draw is reachable on the live '
+          + 'path, and the server recomputing the same absence would get a different number every time');
+        const bare = src.match(/Math\s*\.\s*random\s*\(\s*\)/g) || [];
+        assert(bare.length <= 1,
+          'finalizeBounty holds ' + bare.length + ' Math.random() draws — at most the ONE documented '
+          + 'pre-boot fallback may exist, and a second one is by definition on a path the seed cannot replay');
+      }
     } finally {
       Math.random = realRandom;
       try { C.setRng(null); C.randomSeed(); } catch (e) {}
@@ -25897,7 +25960,7 @@ const TESTS = [
      1-in-2,500 and the Lichling's 1-in-200 are read from the live data. The
      proc counter reads the pet's OWN label out of COMPANIONS rather than
      hardcoding it, so a designer renaming a proc cannot rot this. */
-  () => tryRunClientAuthoritative('b345: the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one seed', () => {
+  () => tryRun('b345: the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one seed', () => {
     if (typeof window.simulateAwayCombat !== 'function' || typeof window.doSkillAction !== 'function'
         || !window.HearthrisePets || !window.COMPANIONS || !window.MONSTERS.lich) {
       skip('seam absent'); return;
@@ -26026,56 +26089,99 @@ const TESTS = [
         return read();
       };
 
-      // SITE 1 again — count the Raccoon's own proc toast, read from the data
-      // so a renamed label cannot make this silently stop counting.
-      const raccoonLabel = window.COMPANIONS.raccoon.proc.label;
-      assert(raccoonLabel && window.COMPANIONS.raccoon.proc.trigger === 'kill',
-        'FIXTURE: the Raccoon must still be a kill-triggered proc for this to measure anything');
-      let procs = 0;
-      window.notify = function (msg) { if (String(msg).indexOf(raccoonLabel) >= 0) procs++; };
-      const oneKill = (seamValue, globalValue) => followsSeam(
-        () => {
-          combatFixture();
-          G.monsterHp = 999999; G.monsterMaxHp = 999999;
-          procs = 0;
-        },
-        () => window.killMonster(window.MONSTERS.goblin),
-        () => procs, seamValue, globalValue);
-      assert(oneKill(0, 0.9999) === 1,
-        'companions.js rollProc did not follow the SEEDED stream: the seam said hit (0 < 0.20) and the '
-        + 'global said miss, and the proc did not fire — either it reads Math.random() or the roll is gone');
-      assert(oneKill(0.9999, 0.0001) === 0,
-        'companions.js rollProc followed Math.random(): the seam said miss (0.9999 > 0.20) and the global '
-        + 'said hit, and the proc fired anyway');
-      window.notify = savedNotify;
+      /* b515 — WHAT THE THREE SITES ARE READ THROUGH CHANGED, because the
+         client no longer authors the outcome. Each used to be read through its
+         EFFECT: the Raccoon's proc toast, and `ownedIds` containing the pet a
+         line after the roll. Neither is available now, and both for correct
+         reasons documented at their call sites:
 
-      // SITE 2 again — a real lich kill through the killMonster hook, not the
-      // rollBossPet(id, rng) test seam, which exercises a different branch.
-      const oneBossKill = (seamValue, globalValue) => followsSeam(
-        () => {
-          combatFixture();
-          G.monsterHp = 999999; G.monsterMaxHp = 999999;
-        },
-        () => window.killMonster(window.MONSTERS.lich),
-        () => owns('lichling'), seamValue, globalValue);
-      assert(oneBossKill(0, 0.9999) === true,
-        'pets.js rollBossPet did not follow the SEEDED stream: the seam said hit (0 < 1/200) and the '
-        + 'global said miss, and no lichling was unlocked');
-      assert(oneBossKill(0.9999, 0.0001) === false,
-        'pets.js rollBossPet followed Math.random(): the seam said miss and the global said hit, '
-        + 'and the lichling unlocked anyway');
+           · `rollProc` DEFERS a gold/extraGold proc entirely under the gold arm
+             (companions.js: "do NOT show a +Xg proc animation or record a
+             contribution the pet did not make"), so the Raccoon fires nothing;
+           · `unlockCompanion` waits for hr_companion_grant before a non-shop
+             companion joins (`needsServerConfirm`), so `ownedIds` is
+             legitimately still empty a line later — HATCH-REFUSE-1..3's subject.
 
-      // SITE 3 again — a real gather action through the addXp hook.
-      const oneGather = (seamValue, globalValue) => followsSeam(
-        gatherFixture,
-        () => window.doSkillAction(true),
-        () => owns('beaver'), seamValue, globalValue);
-      assert(oneGather(0, 0.9999) === true,
-        'pets.js rollSkillPet did not follow the SEEDED stream: the seam said hit (0 < 1/2500) and the '
-        + 'global said miss, and no beaver was unlocked');
-      assert(oneGather(0.9999, 0.0001) === false,
-        'pets.js rollSkillPet followed Math.random(): the seam said miss and the global said hit, '
-        + 'and the beaver unlocked anyway');
+         So each site is read through the thing that is still the CLIENT's: the
+         roll DECIDED. A hit routes to `unlockCompanion` (spied), a miss does
+         not; a non-gold proc still shows its label. That is a tighter reading
+         than the old one — it cannot pass because an effect happened for some
+         other reason — and it is the half a server-side recompute depends on. */
+
+      /* SITE 1 again — a proc whose EFFECT is not a gold credit, so the arm
+         does not defer it. Chosen from the catalogue rather than named, so a
+         data change fails here loudly instead of making this vacuous. */
+      const procId = Object.keys(window.COMPANIONS).filter((id) => {
+        const pr = window.COMPANIONS[id].proc;
+        return pr && pr.trigger === 'kill' && pr.effect !== 'gold' && pr.effect !== 'extraGold';
+      })[0];
+      if (procId) {
+        const procLabel = window.COMPANIONS[procId].proc.label;
+        let procs = 0;
+        window.notify = function (msg) { if (String(msg).indexOf(procLabel) >= 0) procs++; };
+        const oneKill = (seamValue, globalValue) => followsSeam(
+          () => {
+            combatFixture();
+            G.companions = { equipped: procId, ownedIds: [procId], xp: {} };
+            G.monsterHp = 999999; G.monsterMaxHp = 999999;
+            procs = 0;
+          },
+          () => window.killMonster(window.MONSTERS.goblin),
+          () => procs, seamValue, globalValue);
+        assert(oneKill(0, 0.9999) === 1,
+          'companions.js rollProc did not follow the SEEDED stream: the seam said hit and the global said '
+          + 'miss, and the proc did not fire — either it reads Math.random() or the roll is gone');
+        assert(oneKill(0.9999, 0.0001) === 0,
+          'companions.js rollProc followed Math.random(): the seam said miss and the global said hit, '
+          + 'and the proc fired anyway');
+        window.notify = savedNotify;
+      } else {
+        /* Every kill-triggered proc in the catalogue pays gold, so all of them
+           are deferred under the arm and site 1 has no observable effect at
+           all. Say so rather than passing quietly. */
+        skip('no non-gold kill proc in the catalogue — rollProc is unobservable under the gold arm');
+      }
+
+      /* SITES 2 and 3 — the pet rolls, read through the DECISION rather than
+         through ownership. `unlockCompanion` is the one call a hit makes; under
+         the capstone it returns false and asks the server, so counting the CALL
+         is what "the roll fired" means now. Grants are parked so the ladder
+         cannot leave a retry running through the rest of the suite. */
+      const CO = window.HearthriseCompanions;
+      const wasParked = (CO && typeof CO.__parkGrants === 'function') ? CO.__parkGrants(true) : false;
+      const realUnlock = window.unlockCompanion;
+      let unlockCalls = [];
+      try {
+        window.unlockCompanion = function (id) { unlockCalls.push(id); return false; };
+        const oneBossKill = (seamValue, globalValue) => followsSeam(
+          () => {
+            combatFixture();
+            G.monsterHp = 999999; G.monsterMaxHp = 999999;
+            unlockCalls = [];
+          },
+          () => window.killMonster(window.MONSTERS.lich),
+          () => unlockCalls.indexOf('lichling') >= 0, seamValue, globalValue);
+        assert(oneBossKill(0, 0.9999) === true,
+          'pets.js rollBossPet did not follow the SEEDED stream: the seam said hit (0 < 1/200) and the '
+          + 'global said miss, and no lichling was claimed');
+        assert(oneBossKill(0.9999, 0.0001) === false,
+          'pets.js rollBossPet followed Math.random(): the seam said miss and the global said hit, '
+          + 'and the lichling was claimed anyway');
+
+        const oneGather = (seamValue, globalValue) => followsSeam(
+          () => { gatherFixture(); unlockCalls = []; },
+          () => window.doSkillAction(true),
+          () => unlockCalls.indexOf('beaver') >= 0, seamValue, globalValue);
+        assert(oneGather(0, 0.9999) === true,
+          'pets.js rollSkillPet did not follow the SEEDED stream: the seam said hit (0 < 1/2500) and the '
+          + 'global said miss, and no beaver was claimed');
+        assert(oneGather(0.9999, 0.0001) === false,
+          'pets.js rollSkillPet followed Math.random(): the seam said miss and the global said hit, '
+          + 'and the beaver was claimed anyway');
+      } finally {
+        window.unlockCompanion = realUnlock;
+        if (CO && typeof CO.__parkGrants === 'function') CO.__parkGrants(wasParked);
+      }
 
       /* ── LAYER 3: the census ─────────────────────────────────────────────
          The only assertion here that can see a site nobody has named. */
@@ -26140,36 +26246,98 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRunClientAuthoritative('b261: a throttled background must not shred the offline gap (paione: AFK credits zero on Android)', () => {
-    if(typeof window.processOffline !== 'function'){ skip('seam absent'); return; }
+  () => tryRunAsync('b261: a throttled background must not shred the offline gap (paione: AFK credits zero on Android)', async () => {
+    /* THE BUG: on Android a backgrounded tab keeps firing the 90s autosave and
+       the 4s watchdog. If either ADVANCES the away watermark, a real absence is
+       sliced into sub-threshold pieces that each credit nothing, and the player
+       comes back to zero.
+
+       b515 — THE WATERMARK IS NOT THE CLIENT'S ANY MORE, and that is a stronger
+       form of the same guard rather than a weaker one. `offlineBudget` is
+       SERVER-OF-RECORD and ARMED, so `clientMayWriteRecordField('offlineBudget')`
+       is false and NOTHING on the client may move it — hidden or visible. The
+       old test could only show that saveLocal/processOffline happened not to;
+       this shows they CANNOT, and then shows the two halves that are still the
+       client's: nothing is asked while hidden, and the whole span is asked for
+       on the way back.
+       MUTATION: drop the `clientMayWriteRecordField('offlineBudget')` guard
+       from saveLocal (B347-R1's mutation) → the first assertion goes red. */
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCharacter;
     const snap = snapshotG();
     const dHid = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+    const realFetch = window.fetch;
+    let bodies = [];
     try {
-      const G = window.G;
-      G.skills = Object.assign({}, G.skills, { attack: 200000, strength: 200000, hitpoints: 200000, defense: 200000 });
+      window.fetch = function (u, init) {
+        const str = String(u);
+        if (/hr-accrue/.test(str)) {
+          bodies.push(String((init && init.body) || ''));
+          return Promise.resolve(new Response('{"ok":true,"accrued":false,"reason":"none"}', { status: 200 }));
+        }
+        if (/hr_create_character/.test(str)) return Promise.resolve(new Response('{"ok":true,"slot":0,"created":false}', { status: 200 }));
+        if (/hr_load/.test(str)) return Promise.resolve(new Response('{"ok":false,"error":"no_character"}', { status: 200 }));
+        return realFetch.apply(this, arguments);
+      };
+      const wiring = { url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' };
+      A.resetAccrualGate(); A.configureAccrual(wiring);
+      C.resetCharacterIntent(); C.configureCharacter({ ...wiring, userId: () => 'user-b261' });
+
       G.activeMonster = 'goblin';
       const m = window.MONSTERS.goblin;
       G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 99;
-      G.playerHp = G.playerMaxHp;
+      G.activeSkill = null; G.activeArtisanRecipe = null;
       // Backgrounded 30 min ago; the watermark sits at hide-time.
       const hideAt = Date.now() - 30 * 60000;
       G.offlineBudget = { dayKey: window.utcDayKey(Date.now()), usedMs: 0, at: hideAt };
-      // WHILE HIDDEN (Android throttle): the 90s autosave + 4s watchdog keep firing.
-      // Neither may advance the watermark — that was the bug that sliced a real
-      // absence into sub-threshold pieces crediting zero.
+      stampRecordLikeLoad(G);
+
+      /* (a) WHILE HIDDEN (the Android throttle) the 90s autosave and the 4s
+         watchdog keep firing. Neither may advance the watermark. */
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
-      if(typeof window.saveLocal === 'function') window.saveLocal();
-      window.processOffline();                                   // watchdog-style call while hidden
-      assert(G.offlineBudget.at === hideAt, 'watermark must NOT advance while hidden, moved by ' + (G.offlineBudget.at - hideAt) + 'ms');
-      // RETURN: now visible — the WHOLE 30-min span is credited once.
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      const killsBefore = G.stats.kills || 0;
+      if (typeof window.saveLocal === 'function') window.saveLocal();
       window.processOffline();
-      assert((G.stats.kills || 0) > killsBefore + 10, 'returning must credit the whole backgrounded span, got +' + ((G.stats.kills || 0) - killsBefore));
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      assert(G.offlineBudget.at === hideAt,
+        'the watermark moved by ' + (G.offlineBudget.at - hideAt) + 'ms while hidden — that is the bug '
+        + 'that sliced a real absence into sub-threshold pieces crediting zero');
+      assert(window.clientMayWriteRecordField('offlineBudget') === false,
+        'the CLIENT may write the away watermark again — the assertion above then only says it did not '
+        + 'happen to this time, and the server owns `accrued_to`');
+
+      /* (b) AND THE RETURN ASKS FOR THE WHOLE SPAN. The client no longer
+         simulates it, so "credited" means "the request left, naming this
+         character's slot" — the paying is the engine's (AWAY-HONEST-1). */
+      bodies = [];
+      /* ⚠ THE ENSURE LATCHES ONCE PER SESSION, and the hidden call above spent
+         it — `ensureThenAccrue` is deliberately one round trip per session, not
+         one per return (b338). Re-armed here so (b) measures a fresh return
+         rather than the latch. */
+      A.resetAccrualGate(); A.configureAccrual(wiring);
+      C.resetCharacterIntent(); C.configureCharacter({ ...wiring, userId: () => 'user-b261' });
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      window.processOffline();
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      assert(bodies.length >= 1,
+        'returning from a 30-minute background put nothing on the wire — the span is credited by nobody');
+      assert(/"slot"\s*:\s*\d/.test(bodies[0]),
+        'the accrual request does not name a character slot: ' + bodies[0].slice(0, 120));
+      /* THE WATERMARK STILL DID NOT MOVE LOCALLY. The server advances
+         `accrued_to` in the answer; a client that moved it on the way OUT would
+         shorten the very span it is asking to be paid for. */
+      assert(G.offlineBudget.at === hideAt,
+        'asking for the span moved the watermark locally by ' + (G.offlineBudget.at - hideAt)
+        + 'ms — the request would then under-report the absence it is about');
     } finally {
-      if(dHid) Object.defineProperty(document, 'hidden', dHid); else { try { delete document.hidden; } catch(e){} }
-      restoreG(snap);
+      window.fetch = realFetch;
+      if (dHid) Object.defineProperty(document, 'hidden', dHid); else { try { delete document.hidden; } catch (e) {} }
+      A.resetAccrualGate(); A.configureAccrual(null);
+      C.resetCharacterIntent(); C.configureCharacter(null);
+      restoreGAndRecord(snap);
     }
   }),
 
@@ -26196,48 +26364,84 @@ const TESTS = [
           byte-identical run to run, which is the same seam AWAY-1 uses. The
           stream is restored afterwards so no later test inherits it.
      ───────────────────────────────────────────────────────────────────────── */
-  () => tryRunClientAuthoritative('b260: robust resume re-arms combat AND credits the frozen gap, no visibilitychange needed', () => {
-    if(typeof window.__hrResume !== 'function' || typeof window.__isCombatLoopArmed !== 'function'){ skip('seam absent'); return; }
+  () => tryRunAsync('b260: robust resume re-arms combat AND asks for the frozen gap, no visibilitychange needed', async () => {
+    /* THE BUG (paione): iOS PWAs do NOT reliably fire `visibilitychange` on
+       return — they may fire `pageshow`/`focus`, or nothing at all — so a
+       resume path hung off that one event left combat frozen. Every resume
+       signal funnels through ONE idempotent handler, and a watchdog runs it
+       even when no event fires.
+
+       b515 — "CREDITS" BECAME "ASKS", exactly as in b230, and for the same
+       reason: `hrResume` still calls `processOffline()`, but that function no
+       longer simulates the span — it puts the accrual request on the wire and
+       applies the answer. So the two properties this test owns are (1) the
+       live loop is re-armed and (2) the request LEAVES, measured on the wire.
+       The paying is the engine's (AWAY-HONEST-1) and the seeded-replay
+       flakiness the b330 note below describes goes away with it: nothing here
+       simulates a fight any more, so nothing here can die on an unlucky seed.
+       MUTATION: delete the `processOffline()` call from `hrResume` → red on
+       the request count; delete the `resumeActiveActivity()` call → red on the
+       re-arm. */
+    if (typeof window.__hrResume !== 'function' || typeof window.__isCombatLoopArmed !== 'function') { skip('seam absent'); return; }
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const C = window.HearthriseCharacter;
     const snap = snapshotG();
-    const Core = window.HearthriseCore;
+    const realFetch = window.fetch;
+    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const gate = window.HearthriseGate;
+    const origOpen = gate && gate.isOpen;
+    let accrueHits = 0;
     try {
-      const G = window.G;
-      if(typeof window.stopCombat === 'function') window.stopCombat();     // dead interval
-      G.skills = Object.assign({}, G.skills, { attack: 50000, strength: 50000, hitpoints: 20000, defense: 20000 });
+      if (gate) gate.isOpen = () => true;
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      window.fetch = function (u) {
+        const str = String(u);
+        if (/hr-accrue/.test(str)) { accrueHits++; return Promise.resolve(new Response('{"ok":true,"accrued":false,"reason":"none"}', { status: 200 })); }
+        if (/hr_create_character/.test(str)) return Promise.resolve(new Response('{"ok":true,"slot":0,"created":false}', { status: 200 }));
+        if (/hr_load/.test(str)) return Promise.resolve(new Response('{"ok":false,"error":"no_character"}', { status: 200 }));
+        return realFetch.apply(this, arguments);
+      };
+      const wiring = { url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' };
+      A.resetAccrualGate(); A.configureAccrual(wiring);
+      C.resetCharacterIntent(); C.configureCharacter({ ...wiring, userId: () => 'user-b260' });
+
+      if (typeof window.stopCombat === 'function') window.stopCombat();     // dead interval
       G.activeMonster = 'goblin';
       const m = window.MONSTERS.goblin;
       G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      /* Not levelFromXp: an HP pool sized so that five minutes of goblin swings
-         cannot empty it under ANY seed. combat-sim treats playerMaxHp as given
-         (it only floors it at 10), so this is a construction, not a wager. */
       G.playerMaxHp = 100000; G.playerHp = G.playerMaxHp;
-      G.stats = Object.assign({}, G.stats, { deaths: 0 });
-      // Simulate a 5-minute frozen span with a fresh budget.
-      if(typeof window.ensureOfflineBudget === 'function'){
-        const b = window.ensureOfflineBudget(Date.now()); b.at = Date.now() - 5 * 60000; b.usedMs = 0;
-      }
+      G.offlineBudget = { at: Date.now() - 5 * 60000 };
+      stampRecordLikeLoad(G);
       assert(!window.__isCombatLoopArmed(), 'precondition: combat loop is dead');
-      const killsBefore = G.stats.kills || 0;
+
       // The resume handler runs WITHOUT any visibilitychange event.
-      if(Core && typeof Core.reseed === 'function') Core.reseed(0x6260b260);
       window.__hrResume(true);
-      assert((G.stats.deaths || 0) === 0,
-        'FIXTURE: the player must survive the replayed span, or the fight legitimately ends and there is ' +
-        'nothing left to re-arm — raise playerMaxHp rather than re-rolling the seed');
-      assert(G.activeMonster === 'goblin',
-        'FIXTURE: the fight must still be running after the replay, got activeMonster=' + G.activeMonster);
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 40; i++) await Promise.resolve();
+
       assert(window.__isCombatLoopArmed(), 'resume must re-arm the live combat loop');
-      assert((G.stats.kills || 0) > killsBefore, 'resume must credit the frozen combat span');
-      // The Android case: the interval EXISTS but is stalled (suspended, not
-      // cleared) — a stale heartbeat must trigger a fresh restart.
+      assert(G.activeMonster === 'goblin',
+        'resume cleared the activity pointer — the fight the player left running is gone: ' + G.activeMonster);
+      assert(accrueHits >= 1,
+        'resume put ' + accrueHits + ' accrual requests on the wire — the frozen span is asked for by '
+        + 'nobody, which is paione\'s frozen AFK combat in its current shape');
+
+      /* The Android case: the interval EXISTS but is stalled (suspended, not
+         cleared) — a stale heartbeat must trigger a fresh restart. */
       window._hrCombatBeat = Date.now() - 20000;
       window.resumeActiveActivity();
       assert(Date.now() - (window._hrCombatBeat || 0) < 2000,
         'a stalled combat loop must be restarted (fresh heartbeat), got age ' + (Date.now() - (window._hrCombatBeat || 0)) + 'ms');
     } finally {
-      if(typeof window.stopCombat === 'function') window.stopCombat();
-      if(Core && typeof Core.randomSeed === 'function') Core.randomSeed();
-      restoreG(snap);
+      window.fetch = realFetch;
+      if (gate && origOpen) gate.isOpen = origOpen;
+      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
+      A.resetAccrualGate(); A.configureAccrual(null);
+      C.resetCharacterIntent(); C.configureCharacter(null);
+      if (typeof window.stopCombat === 'function') window.stopCombat();
+      restoreGAndRecord(snap);
     }
   }),
 
@@ -28505,7 +28709,7 @@ const TESTS = [
     } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
   }),
 
-  () => tryRunClientAuthoritative('b227: OFFLINE output is byte-identical with and without an active blessing', () => {
+  () => tryRun('b227: AWAY output is byte-identical with and without an active blessing', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     // THE test this rework exists for, and b229 left its assertions ALONE —
     // only the retired input-clock seam was dropped from the setup. The latch,
@@ -28535,16 +28739,30 @@ const TESTS = [
          false parity failure. The two nights must differ in exactly one thing —
          the blessing — and the clock is not it. */
       const anchor = Date.now();
+      /* b515 — DRIVEN ON THE SPAN, INSIDE THE LATCH. The old rig called
+         `window.processOffline()`; that engine is deleted. What is under test is
+         unchanged and is not the caller: `blessingsApply()` is
+         `!inOfflineReplay() && sessionOnline()`, and the LATCH is the whole
+         offline boundary — a gate built on connectivity or presence answers
+         "yes" for the entire catch-up, because the catch-up runs in a live,
+         connected session (b226's ×1.12 leaked into every offline grant for
+         exactly that reason).
+
+         So the same three-hour night is replayed twice through
+         `simulateSkillSpan` with the REAL `window.getBonus` chain wired in, once
+         with the calendar quiet and once with it loud, INSIDE the replay latch.
+         `bonus` is the injected seam the engine reads, so this measures the
+         blessing layer exactly where an away span would meet it — and on a plain
+         state, so an ambient `G` an earlier test left behind cannot supply the
+         equality. */
       const runNight = () => {
-        G.rooms = {}; G.plotBuildings = []; G.restedXp = 0; G.restedAt = Date.now();
-        G.activeMonster = null; G.equipment = Object.fromEntries(Object.keys(G.equipment || {}).map((k) => [k, null]));
-        G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-        G.skillMs = 4800;
-        G.inventory = {}; G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-        G.stats = Object.assign({}, G.stats, { gathered: 0 });
-        setAway(3, anchor);                        // online by every other measure
-        window.processOffline();
-        return { xp: G.skills.woodcutting, items: G.stats.gathered, ms: G.skillMs };
+        const r = window.HearthrisePresence._withOfflineReplay(() => awayGatherSpan({
+          targetId: 'normal_tree', spanMs: 3 * 3600000, fromMs: anchor - 3 * 3600000,
+          state: { skills: { woodcutting: 0 }, inventory: {}, toolCarry: {}, equipment: {}, buffs: [] },
+          ctx: { bonus: window.getBonus },
+        }));
+        return { xp: r.paid.xp.woodcutting || 0, items: r.out.gathered || 0, ms: r.out.intervalMs,
+          blessed: r.out.blessed };
       };
 
       E._force({ daily: E.QUIET, weekly: E.QUIET });
@@ -28563,16 +28781,38 @@ const TESTS = [
       const loud = runNight();
       E._force(null);
 
-      assert(quiet.xp > 0, 'the offline night must actually have produced something to compare');
+      assert(quiet.xp > 0, 'the away night must actually have produced something to compare');
       assert(loud.xp === quiet.xp,
-        'offline XP must not move with the blessing (' + quiet.xp + ' vs ' + loud.xp + ')');
+        'away XP must not move with the blessing (' + quiet.xp + ' vs ' + loud.xp + ')');
       assert(loud.items === quiet.items,
-        'offline item yield must not move with the blessing (' + quiet.items + ' vs ' + loud.items + ')');
+        'away item yield must not move with the blessing (' + quiet.items + ' vs ' + loud.items + ')');
       assert(loud.ms === quiet.ms,
-        'the offline action interval must not move with the blessing (' + quiet.ms + ' vs ' + loud.ms + ')');
-      assert(G.lastOfflineSummary && G.lastOfflineSummary.blessed === false,
-        'the welcome-back summary must state, in data, that it was paid at the base rate');
-      assert(P.inOfflineReplay() === false, 'the replay latch must be released after processOffline');
+        'the away action interval must not move with the blessing (' + quiet.ms + ' vs ' + loud.ms + ')');
+
+      /* THE CONTROL, AND IT IS NEW. Every assertion above is also satisfied by a
+         blessing layer that pays NOBODY — which is a different bug and would
+         have shipped silently. The identical span run OUTSIDE the latch must
+         come out DIFFERENT, or the three equalities prove nothing.
+         MUTATION: make `blessingsApply()` return false unconditionally → the
+         three above still pass and this one goes red. */
+      E._force({ daily: LOUD, weekly: LOUD });
+      const online = awayGatherSpan({
+        targetId: 'normal_tree', spanMs: 3 * 3600000, fromMs: anchor - 3 * 3600000,
+        state: { skills: { woodcutting: 0 }, inventory: {}, toolCarry: {}, equipment: {}, buffs: [] },
+        ctx: { bonus: window.getBonus, away: false },
+      });
+      E._force(null);
+      assert((online.paid.xp.woodcutting || 0) !== quiet.xp || (online.out.gathered || 0) !== quiet.items,
+        'CONTROL FAILED: the loud blessing changed NOTHING even outside the replay latch ('
+        + JSON.stringify({ xp: online.paid.xp.woodcutting, items: online.out.gathered })
+        + ' vs quiet ' + JSON.stringify({ xp: quiet.xp, items: quiet.items }) + '). The three equalities '
+        + 'above are then satisfied by a blessing layer that pays nobody, which is a different bug.');
+
+      /* AND THE RECEIPT STATES IT, in data, rather than leaving a renderer to
+         infer it — AWAY-24's rule, asserted here on the span's own payload. */
+      assert(loud.blessed === false,
+        'the away span must state, in data, that it was paid at the base rate');
+      assert(P.inOfflineReplay() === false, 'the replay latch must be released after the span');
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       E._force(null);
@@ -28819,7 +29059,7 @@ const TESTS = [
     } finally { NS.setMode('ok'); restoreG(snap); }
   }),
 
-  () => tryRunClientAuthoritative('b229: every surface states the same rule — while online, not while focused', () => {
+  () => tryRun('b229: every surface states the same rule — while online, not while focused', () => {
     // Four surfaces tell the player when a blessing pays: the Events panel
     // card, Home's "The realm", the live note beside the running activity, and
     // the welcome-back offline toast. They were three different sentences, one
@@ -28860,22 +29100,35 @@ const TESTS = [
       const note = window.HearthriseBlessingNote();
       assert(note.indexOf('while online') >= 0, 'the activity note must state the same rule, got: ' + note);
 
-      // 4 — the welcome-back offline toast, captured at source.
-      const realNotify = window.notify;
-      let toast = '';
-      try {
-        window.notify = (msg) => { if (String(msg).indexOf('Offline') >= 0) toast = String(msg); };
-        G.rooms = {}; G.plotBuildings = []; G.inventory = {};
-        G.skills = Object.assign({}, G.skills, { woodcutting: 0 });
-        G.skillMs = 4800; setAway(3);
-        window.processOffline();
-      } finally { window.notify = realNotify; }
-      assert(toast.indexOf('at the base rate') >= 0, 'the offline toast must name the base rate, got: ' + toast);
+      /* 4 — THE WELCOME-BACK SURFACE. b515 — THE SENTENCE MOVED SURFACES, and
+         the rule did not. It used to be captured off the TOAST processOffline
+         raised, which said "Offline 3.0h at the base rate — …"; b515 deleted
+         that toast with the local away engine and the server-path toast
+         (`accrue.js receiptSentence`) has never carried the clause (filed
+         2026-09-07, P2). The DURABLE away card does carry it, and it is the
+         surface a player can still read a minute later, so that is where the
+         fourth reading is taken.
+         MUTATION: drop the base-rate line from home-dashboard.js's away card
+         and this goes red — which is what the toast assertion did for the
+         surface it watched. */
+      const H = window.HearthriseHome;
+      assert(H && typeof H.__awayCardHtml === 'function',
+        'the away-card seam must be published, or the fourth surface is unassertable');
+      const awayCardTxt = String(H.__awayCardHtml({
+        hrs: 3, awayMs: 3 * 3600000, gainedXp: 900, gainedItems: 40, gainedGold: 12,
+        gainedKills: 0, burnt: 0, crits: 0, capped: false, blessed: false, buffsPaused: false,
+        rateMult: 1, died: false, diedAfterMs: 0, diedTo: null, combat: null, at: Date.now(),
+      })).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+      assert(/base rate/i.test(awayCardTxt),
+        'the welcome-back card must name the base rate, got: ' + awayCardTxt);
+      assert(/while you play|while you are online|while online/i.test(awayCardTxt),
+        'the card states the rate but not the RULE — the player is left to guess when a blessing pays: '
+        + awayCardTxt);
 
       // …and none of the blessing copy may say "tab", or scold an "idle"
       // player. (Home is checked for "tab" only — the whole profile panel is
       // scanned there, and other cards are entitled to their own vocabulary.)
-      [cardTxt, note, toast].forEach((s) => {
+      [cardTxt, note, awayCardTxt].forEach((s) => {
         assert(String(s).indexOf('tab') < 0, 'no blessing surface may mention a tab: ' + s);
         assert(!/\bidle\b/.test(String(s)), 'no blessing surface may call an online player idle: ' + s);
       });
@@ -43489,54 +43742,31 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('ACT-6: the AWAY death branch declares NOTHING — the fourth pointer writer, and the silent one', () => {
-    /* The contract names four pointer writers and says the fourth must NOT call
-       the seam: the SERVER already set the pointer to idle inside the accrual
+  () => tryRun('ACT-6: an AWAY death declares NOTHING — the fourth pointer writer, and the silent one', () => {
+    /* THE CONTRACT names four pointer writers and says the fourth must NOT call
+       the seam: the SERVER already decided the pointer inside the accrual
        delta, so the client here is RECONCILING to state it was told, not
        declaring. A declaration would tell the server something the server told
        it, and spend an idempotency key and a rate budget doing it.
 
-       THE CONTROL IS THE WHOLE TEST. "Zero calls" passes trivially if the spy is
-       dead or the away path never touches combat, which would make this the
-       thirteenth assertion in this repo that asserts nothing. So the same spy
-       must record exactly one declaration from a LIVE stop first.
+       b515 — THE FOURTH WRITER MOVED, AND IT IS EASIER TO SEE NOW. The away
+       death used to happen inside `processOffline`'s local replay, so the
+       fixture had to produce one through the client engine and the test's own
+       header spent a paragraph on why `ctx.away` had to come from the latch.
+       There is no local replay: an away death arrives as `away.died` on an
+       accrual ENVELOPE, and `applyServerEnvelope` is the code that must not
+       declare. Same property, one indirection fewer, and no fixture that can
+       fail for a reason unrelated to the assertion.
 
-       ⚠ AND THE FIXTURE HAS TO BE THE REAL AWAY PATH, WHICH IS NOT THE OBVIOUS
-         ONE. This test first called `window.simulateAwayCombat()` directly, the
-         way the b341 death test does, and it FAILED with a captured stack
-         showing `onDeath → stopCombat → declareActivity`. Not a bug in the seam:
-         `ctx.away` is `inOfflineReplay()`, the b227 latch, and the latch is set
-         by processOffline — NOT by the simulation. Called directly the sim runs
-         the LIVE death branch, so the assertion was grading the wrong half of
-         an `if`. It goes through processOffline(), with the switch OFF, because
-         that is the only mode in which the client-side away replay runs at all.
-         The spy sits ABOVE the kill switch, so what is proven is the property
-         the contract states: the away death branch does not reach the seam. */
+       THE CONTROL IS THE WHOLE TEST. "Zero calls" passes trivially if the spy
+       is dead, which would make this the thirteenth assertion in this repo that
+       asserts nothing. So the same spy must record exactly one declaration from
+       a LIVE stop first. */
     const G = window.G;
-    const A = window.HearthriseAccrual;
-    if (typeof window.processOffline !== 'function') { skip('no processOffline'); return; }
+    const snap = snapshotG();
     const realDeclare = window.declareActivity;
     const calls = [];
-    const wasOn = A.isServerAccrualEnabled();
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    const save = { activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
-      playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, equipment: G.equipment,
-      skills: JSON.parse(JSON.stringify(G.skills)), stats: JSON.parse(JSON.stringify(G.stats || {})),
-      los: G.lastOfflineSummary, gold: G.gold, inventory: G.inventory, combatLog: G.combatLog,
-      activeSkill: G.activeSkill, activeArtisanRecipe: G.activeArtisanRecipe,
-      offlineBudget: G.offlineBudget, lastSeen: G.lastSeen, restedAt: G.restedAt, restedXp: G.restedXp,
-      /* ⚠ AND THE RECOVERY CLOCK. This fixture kills a level-1 character
-         thirteen times, and `recoveringUntilMs` is an ABSOLUTE instant left up
-         to 64 minutes in the FUTURE — so without it here every away fixture
-         that runs after this test opens its window already Knocked Out and
-         grades an empty night. MEASURED: this test was the single leaker in the
-         whole suite, and it took AWAY-HONEST-2, AWAY-BUDGET-1 and COMBAT-UI-24
-         down with it. Zero, not `save.x`, is what the field means for a
-         character who is on their feet. */
-      recoveringUntilMs: G.recoveringUntilMs || 0 };
     try {
-      A.setServerAccrualEnabled(false);
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
       window.declareActivity = function (kind, id) {
         calls.push({ kind, id, from: String((new Error()).stack || '').split('\n').slice(1, 4).join(' | ') });
         return null;
@@ -43549,24 +43779,20 @@ const TESTS = [
       assert(calls.length === 1 && calls[0].kind === 'idle' && calls[0].id === null,
         'the spy never saw a live stop declare, so a zero below would prove nothing: ' + JSON.stringify(calls));
 
-      // THE AWAY DEATH. A level-1 character bare-handed against a Tier-7 foe.
+      /* THE AWAY DEATH. The server states it; the client applies it. */
       calls.length = 0;
       const dragon = window.MONSTERS.dragon ? 'dragon' : mid;
-      const dm = window.MONSTERS[dragon];
-      G.equipment = {};
-      G.playerMaxHp = 10; G.playerHp = 10;
-      G.activeMonster = dragon; G.monsterMaxHp = dm.hp; G.monsterHp = dm.hp;
-      G.activeSkill = null; G.activeArtisanRecipe = null;
-      G.lastOfflineSummary = null;
-      onFeet();   // rev. 2 — this absence starts with the character standing
-      if (typeof window.ensureOfflineBudget === 'function') {
-        const b = window.ensureOfflineBudget(Date.now());
-        b.at = Date.now() - 4 * 3600000; b.usedMs = 0;      // four hours away
-      }
-      window.processOffline();
-      const rec = G.lastOfflineSummary;
-      assert(rec && rec.died === true,
-        'the fixture did not produce an AWAY death, so the branch under test never ran: ' + JSON.stringify(rec));
+      G.activeMonster = dragon;
+      const landed = applyAwayEnvelope({
+        grantMs: 4 * 3600000, awayMs: 4 * 3600000, paidMs: 60000,
+        kills: 3, crits: 0, gold: 0, xp: {}, items: {},
+        died: true, diedTo: dragon, deaths: 1, recoverMs: 0, recoverRemainingMs: 0,
+        recoverLadder: [0], capped: false, blessed: false,
+      }, { state: { active_kind: 'combat', active_id: dragon } });
+      assert(landed.rec && landed.rec.died === true,
+        'the fixture did not produce an AWAY death, so the branch under test never ran: '
+        + JSON.stringify(landed.rec));
+
       /* ╔═ THE POINTER SURVIVES (Recovery Rule rev. 2, 2026-09-06) ════════
          This asserted `activeMonster === null` — the pre-rev.2 contract, where
          a death ENDED the night and the away branch reconciled to an idle
@@ -43581,49 +43807,17 @@ const TESTS = [
         'the away death branch cleared the activity pointer — under rev. 2 a fall does not end the '
         + 'run, it interrupts it, and the same activity resumes: ' + G.activeMonster);
       assert(calls.length === 0,
-        'the away death branch declared ' + JSON.stringify(calls) + ' — the server set the pointer to idle '
-        + 'in the accrual delta already, so this is the client telling the server what the server told it, '
-        + 'at the cost of an idempotency key and a rate-gate spend, running a collect on a window the '
-        + 'accrual just closed');
+        'applying a server-stated away death declared ' + JSON.stringify(calls) + ' — the server set the '
+        + 'pointer inside the accrual delta already, so this is the client telling the server what the '
+        + 'server told it, at the cost of an idempotency key and a rate-gate spend, running a collect on '
+        + 'a window the accrual just closed');
     } finally {
       window.declareActivity = realDeclare;
-      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
-      Object.assign(G, save);
-      try { window.saveLocal(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      restoreGAndRecord(snap);
     }
   }),
 
-  /* ══════════════════════════════════════════════════════════════════════
-     b348 — THE HALF OF THE SEAM THAT WAS NEVER WIRED
-
-     b347 wired the pointer's four COMBAT writers. The next merge taught the
-     server to pay `gather` (`PAYABLE_KINDS`, and `SETTABLE_KINDS` by
-     derivation) and nothing here moved. Tyler's first switch-on test:
-     woodcutting started, a few minutes away, back — `player_intents` 0 rows,
-     `player_state` idle at version 0. Not a bug in either half; the two halves
-     simply had no link.
-
-       B348-1  a gathering gesture puts the CONTRACT bytes on the wire
-       B348-2  a stop declares idle — and a defensive stop with nothing
-               running declares nothing
-       B348-3  EVERY declarable kind is produced by a real player gesture
-               (the guard that makes the next widening impossible to half-ship)
-       B348-4  one gesture is one intent, through the mutex wrappers
-       B348-5  THE RULING: a server `idle` may not stop a run it was never
-               told about — it declares instead
-       B348-6  ...and it MUST stop one it was told about. Authority.
-       B348-7  the reconcile can represent `gather` at all
-       B348-8  b339 is not reopened: a gated envelope moves the loops and
-               moves no gold
-       B348-9  an activity the engine cannot price declares IDLE, not silence
-       B348-10 the client gather index IS the accrual engine's
-     ══════════════════════════════════════════════════════════════════════ */
-
-  /* One rig for the whole block: arm the switch, own `fetch`, hand back a
-     scripted answer, and put everything back afterwards. Written once because
-     ten copies of a teardown is ten chances to leave the kill switch on. */
   () => tryRunAsync('B348-1: starting a gathering activity puts the CONTRACT bytes on the wire', async () => {
     const A = window.HearthriseAccrual;
     const M = window.HearthriseActivity;

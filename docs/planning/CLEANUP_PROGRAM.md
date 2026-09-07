@@ -16,6 +16,17 @@ Hearthrise is not architecturally broken — zero circular imports, one combat e
 - **Size:** ~250 lines of tooling.
 - **Must NOT touch:** any file under `src/**`. A guard slice that edits product code cannot be trusted as a baseline.
 
+### Slice 1b — The debt ratchets (LANDED 2026-09-07)
+- **Goal:** the four numbers this document's scoreboard tracked and nothing enforced. Slice 1 ratcheted the *presentation* debt; 1b ratchets the *structural* debt, and each guard prints the target list for the slice that pays it, so no later slice has to re-derive it.
+- **Files:** `tests/monolith-ratchet.mjs`, `tests/comment-ratio-ratchet.mjs`, `tests/patch-chain-guard.mjs`, `tests/test-file-ratchet.mjs` (each + a `.baseline.json`), registered in `.github/workflows/smoke.yml` under `client-guards`; `tests/ci-shape.baseline.json` re-registered.
+- **Guard:** the slice is the guard, and each carries `--write` / `--report` / `--selftest`.
+  - `monolith-ratchet` — MONO-1/2/3 `src/legacy.js` lines, top-level functions and column-0 function-consts may only fall; MONO-4/5 `src/render/**` file count and total lines may only *rise* (a floor, because an extraction that gets reverted reads as done). Prints slice 8's extraction order with a per-unit size estimate that falls as each unit moves out.
+  - `comment-ratio-ratchet` — CR-1/2 per-file comment:code and build-number-narrative ceilings on the 16 largest JS files, pinned by path so rank shuffling moves nothing; CR-3 a corpus-wide ceiling on b-number lines so the archaeology cannot merely be relocated; CR-4 a new large file may not be wordier than the worst pinned one. Prints the worst five.
+  - `patch-chain-guard` — PATCH-1 no NEW migration may add an anchored `pg_get_functiondef` patch to a body whose chain is already ≥ 2 deep without `-- RESTATEMENT-DEBT-ACK: <why>` in its header; PATCH-2 an existing migration may not grow one; PATCH-3 the same rule for bodies the audit never saw; PATCH-4 no stale or one-word waiver; PATCH-5 a migration that contributed a grandfathered patch may not vanish (a chain whose evidence is gone would otherwise read as progress). Order comes from `tests/schema-apply-order.json`, not filenames. Prints slice 7's target list.
+  - `test-file-ratchet` — TF-1 lines per registered test, TF-2 direct `G.*` seeds per registered test, TF-3 a floor under the test count. Measured over a **corpus** (`smoke-test.js` + `src/features/smoke/**`) so slice 6's pure-move split leaves every number identical; `--selftest` proves exactly that.
+- **Gate:** lane B. Security GO no (no SQL authored, no DB read). Play-gate no.
+- **Must NOT touch:** any file under `src/**` or `supabase/migrations/**` — same reason as slice 1.
+
 ### Slice 2 — Guards that have never been red
 - **Goal:** `--selftest`/mutation proof on the 14 CI-gating guards that lack one; wire `tests/visual-qa.mjs` in as a real CI step; adopt or delete the 6 orphan guards.
 - **Files:** 14 files under `tests/`, `.github/workflows/smoke.yml`.
@@ -83,6 +94,7 @@ Hearthrise is not architecturally broken — zero circular imports, one combat e
 
 ## Scoreboard
 
+<<<<<<< HEAD
 | Metric | Today (2026-09-06) | Target | Slice |
 |---|---|---|---|
 | Hardcoded colour literals (CSS) | 2,009 measured (comments stripped) | < 400 | 1, 5c |
@@ -136,5 +148,60 @@ Hearthrise is not architecturally broken — zero circular imports, one combat e
 > `audit-overrides.css` -> `components.css` (531 literals / 159 `!important`) — the second is a
 > specificity move between three sheets that fight, so it is per-component with the pixel tool, not
 > per-commit.
+=======
+**Read the Instrument column before quoting a number.** Every row measured by a guard carries that guard's method in its own header and its own `--report`; rows still marked *audit 09-06* were counted once by hand and have never been re-derived, so they are the ones most likely to be stale. Where a guard and the audit disagree (colour literals, breakpoint spellings, seeds:gestures) it is a difference of **method**, not a change in the debt — the guard's number is the one its baseline was cut with, and it is the one that will be enforced.
+
+| Metric | Measured | Target | Slice | Instrument |
+|---|---|---|---|---|
+| Hardcoded colour literals (CSS) | **2,009** (09-07) | < 400 | 1, 5 | `css-literal-ratchet` (exempts theme-block token definitions; audit said 2,317) |
+| `!important` | **1,093** (09-07) | < 500 | 1, 5 | `css-literal-ratchet` |
+| Hex colour in JS strings | **533** in 43 files (09-07) | 0 | 5 | `css-literal-ratchet` |
+| Stylesheets / CSS lines | **9 / 17,532** (09-07) | 5 / < 12,000 | 5 | `wc` |
+| Dead CSS class rules | **0** (09-07) | 0 | 3 | `dead-css` (audit counted 101; slice 3a paid them) |
+| Breakpoint spellings | **28** across 83 `@media` blocks (09-07) | 2 | 1, 5 | `breakpoint-guard` (audit said 14) |
+| Inline `style=` in JS | ~300 | < 50 | 5 | audit 09-06 |
+| CI-gating guards without `--selftest` | 14 | 0 | 2 | audit 09-06 |
+| Orphan guards (incl. `visual-qa.mjs`) | 6 | 0 | 2 | audit 09-06 |
+| `smoke-test.js` lines / corpus files | **57,853 / 1** (09-07) | < 4,000 / ~20 | 6 | `test-file-ratchet` |
+| Lines per registered test | **49.7** (1,164 tests) (09-07) | < 40 | 6, later | `test-file-ratchet` TF-1 |
+| `G.*` seeds per registered test | **2.04** (09-07) | < 1 | later | `test-file-ratchet` TF-2 |
+| Test `G.*` seeds : gestures | **2,375 : 386 (6.2:1)** (09-07) | 3:1 | later | `test-file-ratchet` (audit's broader pattern gave 3,054 : 346) |
+| Zero-occurrence exports | **0** of 1,206 exported names (09-07) | 0 | 3 | `dead-exports` (audit counted 64; slice 3a paid them) |
+| `isBlobRetired()` dead branches | **0** (b515) | 0 | 4 | `no-blob-branches` |
+| Farm client fall-through lines | **0** (slice 4, `7cbfdb4b`) | 0 | 4 | `no-client-farm-mint` |
+| `deferred` gold sites | 24 | 0 | 4 | audit 09-06 (migration backlog, not twins — see slice 4 result) |
+| Hand-rolled `rpc()` copies | 6 (ratcheted; consolidation refused with proof) | 6 | 4 | `no-duplicate-rpc-callers` |
+| Private `toast()` / `itemImg` copies | 6 / 3 | 1 / 1 | 4 | audit 09-06 |
+| Raw `window.showTab=` wraps | 34 | 0 (registry) | 8 | audit 09-06 |
+| Direct `localStorage.` sites | 164 | < 10 (storage seam) | 8 | audit 09-06 |
+| `window.Hearthrise*` reach-ins | 1,101 | < 400 | 8 | audit 09-06 |
+| `legacy.js` lines / top-level fns | **21,936 / 516** (09-07) | < 12,000 | 8 | `monolith-ratchet` MONO-1/2 |
+| `src/render/**` files / lines | **11 / 1,505** (09-07) — flat since 08-24 | ~20 / > 8,000 | 8 | `monolith-ratchet` MONO-4/5 (a **floor**) |
+| Worst comment:code ratio | **`net/record.js` 1.75**, `net/accrue.js` 1.53 (09-07) | < 0.8 | later | `comment-ratio-ratchet` CR-1 |
+| Build-number narrative lines in `src/**` | **4,233** (09-07) | < 500 | later | `comment-ratio-ratchet` CR-3 |
+| Patch chains: state_of / apply / credit_kills | **12 / 10 / 7** (09-07) | 1 / 1 / 1 | 7 | `patch-chain-guard` (`rpc_gate` is **1** — restated 08-29; audit's 39/24/17 counted differently) |
+| Function bodies at chain depth ≥ 2 | **6** (09-07) | 0 | 7 | `patch-chain-guard` |
+| Migration files | **156** (09-07) | — | — | `ls` |
+| Public functions / total size | 278 / 791 KB | < 240 / < 650 KB | 3, 7 | audit 09-06 |
+| Advisors: ERROR / mutable search_path | 1 / 30 | 0 / 0 | 3, 7 | audit 09-06 |
+| RLS initplan / multi-permissive warnings | 27 / 35 | 0 / < 10 | later | audit 09-06 |
+| CI wall clock | 40–60 min sequential → **5-job matrix** (b518) | < 15 min | 8 | `ci-shape` (90 commands, 5 jobs) |
+| Migrations recorded in `supabase_migrations` | 27 of 149 | 156 of 156 | 7 | audit 09-06 (needs a live read) |
+
+> **Slice 1b result (2026-09-07):** four ratchets landed and registered in the `client-guards` matrix job (`ci-shape` now registers **90 commands across 5 jobs**). Baselines: `legacy.js` **21,936 lines / 516 top-level fns / 3 function-consts**; `src/render/**` **11 files / 1,505 lines** (floors); 16 pinned comment:code ceilings, worst `net/record.js` **1.75**, corpus **4,233** b-number narrative lines; suite corpus **57,853 lines / 1,164 tests / 2,375 seeds / 386 gestures** (49.7 lines and 2.04 seeds per test).
+>
+> **Grandfathered patch chains** (anchored `pg_get_functiondef` edits since each body's last full restatement, apply order per `schema-apply-order.json`) — this is slice 7's target list, and a new migration may no longer add to any of them without a `RESTATEMENT-DEBT-ACK`:
+>
+> | body | depth | migrations | last full restatement |
+> |---|---|---|---|
+> | `hr_state_of` | **12** | 11 | `2026-08-26-marks-record.sql` |
+> | `hr_apply` | **10** | 3 | `2026-08-25-workers.sql` |
+> | `hr_credit_kills__ungated` | **7** | 2 | `2026-09-01-kill-daily-credit.sql` |
+> | `hr_credit_combat_xp__ungated` | **4** | 1 | `2026-08-31-combat-xp-credit.sql` |
+> | `hr_farm_plant` | **4** | 3 | `2026-08-22-server-farming-complete.sql` |
+> | `hr_create_character` | **2** | 2 | `2026-08-14-character-bootstrap.sql` |
+>
+> Twelve further bodies sit at depth 1 and are under the rule but not over it. `hr_rpc_gate` is at **1** — twelve restatements have kept it honest, the last on `2026-08-29`, so the audit's "24" is a count of restatements, not of an unauthored stack; it should drop down slice 7's queue. Ordering note: `hr_apply`'s depth of 10 comes from only **three** files (`rested-record` ×2, `recovering-until` ×6, `cadence-recovery-floor` ×2) — restating it is the cheapest large win on the board.
+>>>>>>> worktree-agent-a28e0a63e40d0eaa8
 >
 > **Slice 4 result (2026-09-07):** farm dual path removed (`7cbfdb4b`, fail-closed, guard `tests/no-client-farm-mint.mjs`). RPC consolidation refused with proof (`HearthriseRpc` is the decision seam, not the transport; `hr_clan_browser` is legitimately anonymous) — a ratchet landed instead (`9544d21f`). Blob/offline deletion refused: `isBlobRetired()` is NOT constant — it reads the live b353 kill switch `hr:serverAccrual`, so all 13 forks are reachable; that switch is itself a client-authored fallback §1 forbids. **Decision owed (Coordinator + Security): retire the b353 kill switch, then slice 8 deletes the blob machinery.** Gold: 24 deferred rows are a migration backlog with named server blockers, not twins. Surfaced bug: farm goal counters `planted/harvested` have had no writer since b454 (lane-A fix dispatched).

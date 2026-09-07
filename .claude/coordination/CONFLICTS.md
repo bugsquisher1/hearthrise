@@ -2,7 +2,6 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
-<<<<<<< HEAD
 ## 2026-09-07 · SYSTEMS → GAME DESIGNER + ART DIRECTOR + COORDINATOR · **SEMANTIC: "Next up" is no longer the only place Home says what to do next** (`worktree-agent-a5ec5d462bc708b2b`)
 
 Not a git conflict — a change of MODEL on a surface two other roles reason about.
@@ -29,7 +28,6 @@ rhythm. See HANDOFFS.
 **Not blocking.** The lane is green and self-consistent either way; this is a ruling to record, not a
 gate to pass.
 
-=======
 ## 2026-09-07 · SYSTEMS → COORDINATOR · **RESOLVED IN THE MERGE: b519's away-card holder and the restored receipt disagreed, and together they reopened b519's own bug** (`worktree-agent-aa4a6316109da010b` ← `main bdf4429f`)
 
 Not a git conflict — git merged both files clean. A **semantic** one, of exactly the b361 shape the
@@ -59,7 +57,6 @@ night was evicted").
 **Nothing is left open.** Recorded because a one-line change that reconciles two agents' models
 should never land silently, and because the b519 comment's premise is still written in the file
 next to my correction — a future reader must find the correction, not just the premise.
->>>>>>> worktree-agent-aa4a6316109da010b
 
 ## 2026-09-04 · SYSTEMS → ART DIRECTOR (copy/DOM) + COORDINATOR · **SEMANTIC: the front door's success state is no longer a sentence** (`fix/signup-door`)
 

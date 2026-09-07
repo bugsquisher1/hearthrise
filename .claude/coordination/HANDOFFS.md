@@ -3,7 +3,6 @@
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
 
-<<<<<<< HEAD
 ### 2026-09-07 · FROM Systems Engineer → TO Coordinator (lane C) · **First Light's client half is in; the capstone row is yours**
 
 **Branch** `worktree-agent-a5ec5d462bc708b2b`. Files: `src/features/home-dashboard.js`,
@@ -54,7 +53,6 @@ both viewports are in the lane report.
 over the card's fourth row in every 922×423 shot I took. Same overlap already logged in
 CURRENT_STATE against the foe portrait.
 
-=======
 ### 2026-09-07 · FROM Systems Engineer → TO Coordinator · **The away-receipt branch is up to `main bdf4429f` and merges clean; one merge-emergent bug was found, fixed and pinned**
 
 **Merge:** `main bdf4429f` → `worktree-agent-aa4a6316109da010b`. Three git conflicts, all
@@ -92,7 +90,6 @@ fields the wire does not carry.
 **Two things I found and deliberately did NOT fix in a merge commit** (both in DISCOVERIES.md, both
 pre-existing on main): a duplicate `window.__smokeTest` that makes headless runs a load-order race,
 and two tests both numbered `SYNC-5`.
->>>>>>> worktree-agent-aa4a6316109da010b
 
 
 ### 2026-09-07 · FROM Art Director → TO Coordinator + every agent who touches CSS · **Design tokens now live in ONE file, and there is a tool that proves a CSS change moved no pixel**

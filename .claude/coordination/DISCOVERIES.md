@@ -4,7 +4,6 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
-<<<<<<< HEAD
 ### 2026-09-07 — Systems Engineer — **A hero row that repeats a row directly below it is a CLASS on Home, not a First Light collision.** (P2, fixed)
 
 `HearthriseLaunchpad.getNextMilestone()` picks the closest OPEN GOAL out of skills + `G.quests` +
@@ -56,7 +55,6 @@ save-migration surface** — `q.claimed`, `q.done` and `q.progress` already ride
 
 ---
 
-=======
 ### 2026-09-07 — Systems Engineer — **There are TWO `window.__smokeTest` definitions and which one a headless driver gets is a load-order RACE. The loser runs 20 stale tests, 5 of them red, and reports them as the suite.** (P2, pre-existing on main and on the merge-base — NOT fixed here)
 
 `src/legacy.js:18826` defines a "Smoke Test v1" runner over its own 20-entry `TESTS` array;
@@ -94,7 +92,6 @@ test inside a merge commit changes an ID the Coordinator and CI logs refer to.
 the newer one (`SYNC-6`). Note the file already carries 9 other duplicate IDs
 (`B349-1 B431-1 COMBAT-UI-23 FARM-TIER-1/2/3 WAVE1/2/3`) — the class is worth one sweep and a
 uniqueness guard, not nine one-off fixes.
->>>>>>> worktree-agent-aa4a6316109da010b
 
 ### 2026-09-07 — Art Director — **`background: var(--panel, var(--panel-2))` in legacy.css names two tokens that do not exist, so that surface paints nothing.** (P3, found by the new token guard, deliberately NOT fixed here)
 

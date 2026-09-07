@@ -1212,16 +1212,35 @@ const TESTS = [
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const prevTab = window.activeTab;
     const laidOut = (el) => { const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1; };
+    /* ── WAIT FOR THE OUTCOME, NEVER FOR A GUESSED DURATION (b514) ──────────
+       MEASURED on an idle machine: a forwarded click reaches "Step 4 of 6"
+       420-445 ms later — ftue.js chains `setTimeout(next, 220)` (let the panel
+       they navigated to paint) with next()'s own 200 ms card fade. This test
+       used to sleep a flat 450 ms and read once, i.e. it asserted the tour had
+       advanced with an 8 ms margin, on a suite whose own rule is that a loaded
+       machine stretches timers (b461). It went red on b513+1 not because the
+       forward broke but because a 1 Hz repaint landed inside the 8 ms.
+       Polling to a bounded deadline is STRICTER, not weaker: the assertion is
+       unchanged and a genuinely unforwarded click still fails — it just fails
+       after 3 s of the tour provably not advancing instead of after one
+       early read. Mutation: delete ftue.js's `.ftue-shade` click listener →
+       both halves red (the deadline expires, the label stays "Step 3 of 6"). */
+    const until = async (pred, ms) => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < ms) { if (pred()) return true; await sleep(25); }
+      return !!pred();
+    };
     try {
       window.startFTUE();
-      await sleep(400);
       const stepLabel = () => (document.querySelector('.ftue-step') || { textContent: '' }).textContent;
+      await until(() => /Step \d+ of/.test(stepLabel()), 3000);
       // Advance card-primary until the SKILLS step (step 3), the first autoAdvanceOnClick step.
       for (let i = 0; i < 4 && !/Step 3 of/.test(stepLabel()); i++) {
         const primary = [...document.querySelectorAll('.ftue-card .ftue-btn')].filter(laidOut).pop();
         assert(primary, 'the tour card lost its primary button at ' + stepLabel());
+        const was = stepLabel();
         primary.click();
-        await sleep(350);
+        await until(() => stepLabel() !== was, 3000);
       }
       assert(/Step 3 of/.test(stepLabel()), 'could not reach the skills step, stuck at ' + stepLabel());
       const tgt = [...document.querySelectorAll('button[data-tab="skills"]')].filter(laidOut)[0];
@@ -1236,7 +1255,7 @@ const TESTS = [
         'the spotlit centre is not covered by the shade — the bug shape changed; re-derive this test (got ' + (atPoint && atPoint.tagName) + ')');
       // …and the FIX: a click there is forwarded — it navigates AND advances.
       shade.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: cx, clientY: cy }));
-      await sleep(450);
+      await until(() => /Step 4 of/.test(stepLabel()), 3000);
       const skillsPanel = document.getElementById('panel-skills');
       assert(skillsPanel && getComputedStyle(skillsPanel).display !== 'none',
         'clicking the spotlit Skills tab through the shade did not navigate');
@@ -1246,7 +1265,10 @@ const TESTS = [
       if (wrong) {
         const wr = wrong.getBoundingClientRect();
         shade.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: wr.left + wr.width / 2, clientY: wr.top + wr.height / 2 }));
-        await sleep(300);
+        /* 300 ms here was BLIND: an advance needs ~420 ms (220 + 200), so the
+           old wait expired before the thing this guard forbids could show up.
+           Wait past the full budget, then read. */
+        await sleep(900);
         assert(/Step 4 of/.test(stepLabel()), 'a click on a non-target tab advanced/changed the tour: ' + stepLabel());
         const housePanel = document.getElementById('panel-house');
         assert(!housePanel || getComputedStyle(housePanel).display === 'none',

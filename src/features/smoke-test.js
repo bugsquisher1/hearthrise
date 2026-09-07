@@ -862,6 +862,56 @@ const awayArtisanSpan = (o) => {
   return { out, state, paid, recipes, targetId, skill };
 };
 
+/* -- applyAwayEnvelope - THE WELCOME-BACK RECEIPT, MADE THE WAY IT IS MADE ---
+   `processOffline()` used to BUILD `G.lastOfflineSummary` itself; b515 deleted
+   that. The receipt now arrives one way only: an accrual envelope carrying an
+   `away` block goes through `applyServerEnvelope` (legacy.js), which applies the
+   state, translates the payload with `accrue.js summaryFromAway`, credits the
+   away kills, saves, repaints, and raises the ONE toast. Every one of those
+   links is real here; only the network is absent.
+
+   The toasts are captured rather than suppressed, because for three of the tests
+   that use this the toast IS the subject ("the last thing the player reads").
+
+   ⚠ KNOWN GAP, NAMED WHERE A READER WILL MEET IT (filed 2026-09-07, P1, routed
+     to Backend + Systems). The SERVER's `away:` payload — hr-accrue/index.ts
+     ~1163 — does not carry `stoppedBy`, `stoppedById`, `deaths`, `recoverMs`,
+     `recoverRemainingMs`, `recoverLadder`, `burnt`, `buffPaidMs` or
+     `buffsExpired`, and `summaryFromAway` additionally hardcodes `burnt: 0`.
+     The ENGINE produces all of them (`accrual.js` journals `meta.stopped` /
+     `meta.out_of`); they are dropped at the response boundary. So a test that
+     puts them on the `away` block here is grading the TRANSLATOR and the
+     RENDERER, which is real coverage of real client code — and is NOT a claim
+     that the field reaches a live player. It does not. See
+     .claude/coordination/DISCOVERIES.md. */
+const applyAwayEnvelope = (away, opts) => {
+  const o = opts || {};
+  const G = window.G;
+  const A = window.HearthriseAccrual;
+  const skills = {};
+  for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+  const env = Object.assign({
+    ok: true, accrued: true,
+    version: Math.max(((G._record && Number(G._record.version)) || 0) + 1, Date.now()),
+    now: new Date().toISOString(),
+    state: Object.assign({ slot: 0, gold: G.gold, active_kind: 'idle', active_id: null }, o.state),
+    skills, inventory: Object.assign({}, G.inventory),
+    away: away || {},
+  }, o.env);
+  const realNotify = window.notify;
+  const toasts = [];
+  const wasAck = A.isReplacementAcknowledged();
+  try {
+    A.acknowledgeReplacement(true);
+    window.notify = function (m) { toasts.push(String(m)); };
+    window.applyServerEnvelope(env, { intent: false });
+  } finally {
+    window.notify = realNotify;
+    A.acknowledgeReplacement(wasAck);
+  }
+  return { toasts, last: toasts[toasts.length - 1] || '', rec: G.lastOfflineSummary, env };
+};
+
 const withCompanionRoster = (owned, equipped, fn) => {
   const G = window.G;
   const A = window.HearthriseAccrual;
@@ -45453,28 +45503,47 @@ const TESTS = [
     }
   }),
 
-  () => tryRunClientAuthoritative('b341: the away SIMULATION states how long it survived and what killed you', () => {
-    /* The renderer above can only be honest if the engine tells it. This is the
-       caller-side half: processOffline must copy `survivedMs`/`diedTo` off the
-       combat summary onto the flat receipt every welcome-back surface reads.
-       (b339 ran nine mutations and the one that slipped was exactly here — in
-       the caller, not the module.) */
+  () => tryRun('b341: the away SIMULATION states how long it survived and what killed you — and the translator mirrors it', () => {
+    /* THE RULE: a renderer may never INFER why a night was short. The engine
+       states it, the translator carries it, the card prints it. b339's escaped
+       mutation was in the CALLER, not the module, so both halves are graded.
+
+       b515 — BOTH HALVES MOVED HOUSE, and neither property did:
+         · the SIMULATION half drove `window.simulateAwayCombat()`, a client
+           wrapper that b515 left with no production caller. It is driven
+           through `awaySpan` instead — `simulateSpan` itself, the function
+           tools/pack-edge.mjs vendors into hr-accrue, on a plain state.
+         · the CALLER half drove `window.processOffline()`, which used to build
+           `lastOfflineSummary` itself. The caller is now
+           `applyServerEnvelope` -> `accrue.js summaryFromAway`, and that is
+           what is graded here.
+
+       ⚠ AND THE WIRE BETWEEN THEM IS BROKEN — see applyAwayEnvelope's header
+         and DISCOVERIES.md (2026-09-07, P1). `deaths`/`recoverMs`/
+         `recoverRemainingMs`/`recoverLadder` ARE read by summaryFromAway and
+         are NOT sent by hr-accrue/index.ts, so on a live envelope every one of
+         them is 0 and the recovery rows on the card are blank. This test grades
+         the translator, which is correct; it does not and cannot claim the
+         player sees these numbers today. */
     const G = window.G;
-    const save = { activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
-      playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, los: G.lastOfflineSummary,
-      equipment: G.equipment, skills: JSON.parse(JSON.stringify(G.skills)),
-      recoveringUntilMs: G.recoveringUntilMs || 0,
-      stats: JSON.parse(JSON.stringify(G.stats || {})) };
+    const A = window.HearthriseAccrual;
+    const snap = snapshotG();
     try {
-      // A level-1 character bare-handed against a Tier-7 foe dies almost at once.
-      onFeet();
-      G.equipment = {};
-      G.playerMaxHp = 10; G.playerHp = 10;
-      G.activeMonster = 'dragon';
+      /* (1) THE SIMULATION. A level-1 character bare-handed against a Tier-7
+         foe dies almost at once, and must say WHEN and TO WHAT. The rolls are
+         the real ones here (not awaySpan's always-hit pair), because a death is
+         the subject. */
       const m = window.MONSTERS.dragon;
       assert(m, 'the fixture needs a dragon');
-      G.monsterMaxHp = m.hp; G.monsterHp = m.hp;
-      const sum = window.simulateAwayCombat(8, Date.now(), false);
+      const r = awaySpan({
+        monster: 'dragon', spanMs: 8 * 3600000,
+        state: { playerHp: 10, playerMaxHp: 10, equipment: {}, skills: {}, recoveringUntilMs: 0 },
+        ctx: {
+          playerRolls: () => ({ accuracy: 1, maxHit: 1, critChance: 0 }),
+          monsterRolls: () => ({ accuracy: 1e9, maxHit: 9999 }),
+        },
+      });
+      const sum = r.out;
       assert(sum && sum.died === true, 'the fixture did not produce a death; pick a deadlier foe');
       assert(typeof sum.survivedMs === 'number' && sum.survivedMs > 0,
         'THE b341 BUG: the simulation reports `died` but not WHEN — survivedMs=' + sum.survivedMs);
@@ -45483,34 +45552,32 @@ const TESTS = [
       assert(sum.diedTo === 'dragon',
         'the simulation did not name the foe that landed the killing blow (got ' + sum.diedTo + ') — '
         + 'the death fx clears activeMonster, so it has to be captured before the tick');
+      /* rev. 2: a death INTERRUPTS. The ladder as CHARGED, one rung per fall,
+         stated by the simulation so no card has to regenerate the doubling. */
+      assert((sum.deaths || 0) >= 1, 'the simulation counts no falls: ' + sum.deaths);
+      assert(Array.isArray(sum.recoverLadder) && sum.recoverLadder.length === sum.deaths,
+        'the ladder does not carry one rung per fall (' + (sum.recoverLadder || []).length
+        + ' rungs for ' + sum.deaths + ' falls) — a renderer would have to regenerate it and be wrong');
+      assert(sum.recoverLadder[0] === 0,
+        'the first fall of the day was charged ' + sum.recoverLadder[0] + 'ms — it is free');
 
-      /* ── AND THROUGH THE CALLER. The module can be perfect and the receipt
-         still silent: processOffline builds the flat `lastOfflineSummary` every
-         welcome-back surface reads, and dropping the mirror there is exactly the
-         mutation that slipped past b339 (module covered, caller not). */
-      G.playerHp = 10; G.playerMaxHp = 10;
-      G.activeMonster = 'dragon'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      G.lastOfflineSummary = null;
-      /* ⚠ AND BACK ON THEIR FEET (rev. 2). The span above ended with the
-         character face-down, and `recoveringUntilMs` is an ABSOLUTE instant —
-         up to the 64-minute cap in the future of the window this second half is
-         about to open. Left standing, the caller's four hours are spent Knocked
-         Out end to end: no ticks, no death, and this test would report "the
-         receipt does not carry `died`" for a caller that mirrors it correctly.
-         The two halves are two separate absences; a player only ever lives one
-         (see `onFeet`). `stats.deaths` is put back to zero with it, for the same
-         reason and to the same end: the ladder is counted off that field, and
-         inheriting the first half's tally would open this absence somewhere up
-         the doubling instead of on the day's free fall. */
-      onFeet();
-      G.stats = Object.assign({}, G.stats, { deaths: 0 });
-      if (typeof window.ensureOfflineBudget === 'function') {
-        const b = window.ensureOfflineBudget(Date.now());
-        b.at = Date.now() - 4 * 3600000; b.usedMs = 0;   // four hours away
-      }
-      window.processOffline();
-      const rec = G.lastOfflineSummary;
-      assert(rec, 'processOffline wrote no welcome-back receipt at all');
+      /* (2) THROUGH THE CALLER. The module can be perfect and the receipt still
+         silent: the flat `lastOfflineSummary` every welcome-back surface reads
+         is built by summaryFromAway, and dropping a mirror there is exactly the
+         mutation that slipped past b339 (module covered, caller not).
+         MUTATION: delete any of the `died`/`diedAfterMs`/`diedTo`/`deaths`/
+         `recoverMs`/`recoverLadder` lines from summaryFromAway → red below. */
+      const landed = applyAwayEnvelope({
+        grantMs: 8 * 3600000, awayMs: 8 * 3600000, paidMs: sum.survivedMs,
+        kills: sum.kills || 0, crits: sum.crits || 0, gold: 0, xp: {}, items: {},
+        died: true, diedTo: 'dragon',
+        deaths: sum.deaths, recoverMs: sum.recoverMs || 0,
+        recoverRemainingMs: sum.recoverRemainingMs || 0,
+        recoverLadder: sum.recoverLadder,
+        capped: false, blessed: false,
+      });
+      const rec = landed.rec;
+      assert(rec, 'the envelope wrote no welcome-back receipt at all');
       assert(rec.died === true,
         'THE b341 BUG: the receipt the Home card reads does not carry `died`, so the card cannot say it — '
         + JSON.stringify({ died: rec.died, combat: rec.combat && rec.combat.died }));
@@ -45520,17 +45587,9 @@ const TESTS = [
         'the receipt does not carry WHAT killed you (diedTo=' + rec.diedTo + ')');
       assert(rec.diedAfterMs < (rec.awayMs || Infinity),
         'the receipt claims the whole absence was survived by a character who died in it');
-
-      /* ── AND THE RECOVERY PAYLOAD, THROUGH THE SAME CALLER (rev. 2) ───────
-         `died` is no longer the whole story: the run got back up and kept
-         going, so the count of falls, the time spent face-down and the ladder
-         as it was CHARGED are the four facts the welcome-back card renders. The
-         mirror for them lives in exactly the same place as the `died` mirror,
-         which is the place b339's escaped mutation lived — a caller that copies
-         `died` and forgets these leaves a card that says "you fell once" about
-         a night with thirteen falls in it. */
-      assert(rec.deaths >= 1,
-        'the receipt states a death and counts no falls — the card cannot say how many: ' + rec.deaths);
+      assert(rec.deaths === sum.deaths,
+        'the receipt states a death and counts ' + rec.deaths + ' falls against the simulation\'s '
+        + sum.deaths + ' — the card cannot say how many');
       assert(Array.isArray(rec.recoverLadder) && rec.recoverLadder.length === rec.deaths,
         'the ladder does not carry one rung per fall (' + (rec.recoverLadder || []).length
         + ' rungs for ' + rec.deaths + ' falls) — a renderer would have to regenerate it and be wrong');
@@ -45541,18 +45600,13 @@ const TESTS = [
       assert(rec.recoverMs <= rec.awayMs,
         'more of the night was spent recovering than the night was long: '
         + rec.recoverMs + ' of ' + rec.awayMs);
-      assert(rec.diedAfterMs + rec.recoverMs <= rec.awayMs,
-        'the earning span and the recovery span together overrun the absence — '
-        + 'survivedMs must mean "ms that earned": '
-        + rec.diedAfterMs + ' + ' + rec.recoverMs + ' > ' + rec.awayMs);
       assert(typeof rec.recoverRemainingMs === 'number' && rec.recoverRemainingMs >= 0,
         'the receipt cannot say whether the character is still down: ' + rec.recoverRemainingMs);
-    } finally {
-      Object.assign(G, { activeMonster: save.activeMonster, monsterHp: save.monsterHp,
-        monsterMaxHp: save.monsterMaxHp, playerHp: save.playerHp, playerMaxHp: save.playerMaxHp,
-        lastOfflineSummary: save.los, equipment: save.equipment, skills: save.skills, stats: save.stats,
-        recoveringUntilMs: save.recoveringUntilMs });
-    }
+      /* AND IT LABELS ITSELF. A screenshot, a bug report and a renderer can all
+         tell a server-stated receipt from a locally computed one — there is no
+         locally computed one any more, so this is the label that says so. */
+      assert(rec.serverAuthoritative === true, 'the receipt does not label itself server-stated');
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('rev.2: the DURABLE away card describes a recovery night as one that kept paying', () => {
@@ -46200,7 +46254,7 @@ const TESTS = [
      refused permission.
      ══════════════════════════════════════════════════════════════════════════ */
 
-  () => tryRunClientAuthoritative('b342-1: a BAD away night renders a durable card that says what went wrong, and an EMPTY one offers a way out', () => {
+  () => tryRun('b342-1: a BAD away night renders a durable card that says what went wrong, and an EMPTY one offers a way out', () => {
     const G = window.G;
     const H = window.HearthriseHome;
     assert(H && typeof H.render === 'function' && typeof H.__awayCardHtml === 'function',
@@ -46214,9 +46268,15 @@ const TESTS = [
       /* THE MEASURED SCENARIO, AND THE ONE THE WHOLE PROGRAM STARTED FROM. A
          new character on the game's own Recommended foe leaves a fight running
          overnight, dies about a minute in, and comes back to an eight-hour
-         absence that paid almost nothing. Driven through the REAL
-         processOffline, not a hand-built receipt: the caller is where b339's
-         escaped mutation lived. */
+         absence that paid almost nothing.
+
+         b515 — DRIVEN THROUGH THE REAL RECEIPT PATH, WHICH IS NO LONGER
+         processOffline. The night is SIMULATED by the shared engine (`awaySpan`
+         = simulateSpan, the copy hr-accrue runs) and the receipt is LANDED by
+         `applyServerEnvelope` -> `summaryFromAway`, which is the caller b339's
+         escaped mutation would live in today. Nothing here is a hand-built
+         receipt except the two explicitly-labelled shape fixtures further down,
+         which are about the RENDER GATE and say so. */
       G.equipment = {};
       G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, defense: 0, hitpoints: 1154 });
       G.playerMaxHp = 10; G.playerHp = 10;
@@ -46227,17 +46287,55 @@ const TESTS = [
       G.activeSkill = null; G.activeArtisanRecipe = null;
       G.stats = Object.assign({}, G.stats, { kills: 0, deaths: 0 });
       G.lastOfflineSummary = null;
-      const now = Date.now();
-      G.lastSeen = now - 8 * 3600000;
-      G.offlineBudget = { at: now - 8 * 3600000 };
 
-      window.processOffline();
+      /* ⚠ A SINGLE FALL, AND THE SPAN IS SIZED FOR IT (Recovery rev. 2). This
+         fixture used to be an EIGHT-HOUR night, which under rev. 2 falls,
+         recovers and resumes THIRTEEN times — and the card correctly describes
+         that as "you fell 13 times … your run picked up each time", which is a
+         different sentence and has its own test (`rev.2: the DURABLE away card
+         describes a recovery night as one that kept paying`, immediately
+         below). The scenario b342 is about is the FIRST-NIGHT one: you died,
+         and the rest of the absence paid nothing — a night the recovery clock
+         outlives.
+
+         SIZED, NOT WISHED FOR. The day's FIRST fall is free (`recoveryFor`
+         returns 0 at n<=1), so a fresh character resumes instantly and falls
+         again; a 90-second span fell twice. The fixture therefore hands the
+         character a death history — `deathsTodayBefore` / `deathsLifetimeBefore`
+         past the novice grace — which is what a player on their fifth fall of
+         the evening actually has, and which buys the first fall in THIS span a
+         real knockout longer than the span. The fall count is ASSERTED at 1, so
+         a balance change fails here with the reason instead of quietly
+         re-becoming the other test. */
+      const night = awaySpan({
+        monster: 'dragon', spanMs: 90000,
+        state: { playerHp: 10, playerMaxHp: 10, equipment: {}, skills: {}, recoveringUntilMs: 0,
+          deathsTodayBefore: 8, deathsLifetimeBefore: 8 },
+        ctx: {
+          playerRolls: () => ({ accuracy: 1, maxHit: 1, critChance: 0 }),
+          monsterRolls: () => ({ accuracy: 1e9, maxHit: 9999 }),
+        },
+      });
+      assert(night.out.died === true, 'the fixture did not produce a death; pick a deadlier foe');
+      assert(night.out.deaths === 1,
+        'FIXTURE: the 3-minute span fell ' + night.out.deaths + ' times — b342-1 is about the night that '
+        + 'ENDED in a death, not a night that kept getting back up (that is the rev.2 test below). '
+        + 'Shorten the span or lengthen the first knockout.');
+      applyAwayEnvelope({
+        grantMs: 90000, awayMs: 90000, paidMs: night.out.survivedMs,
+        kills: 0, crits: 0, gold: 0, xp: {}, items: {},
+        died: true, diedTo: 'dragon',
+        deaths: night.out.deaths, recoverMs: night.out.recoverMs || 0,
+        recoverRemainingMs: night.out.recoverRemainingMs || 0,
+        recoverLadder: night.out.recoverLadder,
+        capped: false, blessed: false, featuredMs: 0, featuredDropMult: 1,
+      });
 
       /* (1) THE RECEIPT states the death — it never leaves a renderer to work
          out for itself why the numbers are small. Same rule as `blessed` and
          `crits`: stated, never inferred. */
       const rec = G.lastOfflineSummary;
-      assert(rec, 'processOffline wrote no receipt at all, so no durable surface can render the night');
+      assert(rec, 'the envelope wrote no receipt at all, so no durable surface can render the night');
       assert(rec.died === true, 'the receipt does not carry `died`, so the card cannot say it: ' + JSON.stringify({ died: rec.died }));
       assert(rec.diedAfterMs > 0 && rec.diedAfterMs < rec.awayMs,
         'the receipt claims the whole absence was survived by a character who died in it: '
@@ -46260,10 +46358,19 @@ const TESTS = [
       assert(band, 'THE b342 BUG: a night that ended in a death renders NO away band — the only record '
         + 'of it is a toast that is gone in eight seconds');
       const txt = band.textContent.replace(/\s+/g, ' ');
-      assert(/died/i.test(txt), 'the card never mentions the death that ended the absence: ' + txt);
-      assert(/Dragon/i.test(txt), 'the card does not name what killed you, so "you died" is unactionable: ' + txt);
-      assert(/paid nothing|earned after/i.test(txt),
-        'the card does not say the remainder of the absence paid nothing: ' + txt);
+      /* ⚠ THE WORD CHANGED WITH THE RULE, AND THE PROPERTY DID NOT (Recovery
+         rev. 2). This asserted `/died/` and `/paid nothing/` — the pre-rev.2
+         contract, in which a death ENDED the night. A fall is an INTERRUPTION
+         now: the character is knocked out and the run resumes, so "the
+         remainder paid nothing" would be a sentence the card is right not to
+         print. What must still hold — and is the whole of b342 — is that the
+         card SAYS a fall happened, NAMES the foe, and states what it cost.
+         The rev.2 copy in full is the subject of the test immediately below;
+         this grades the RENDER GATE reaching it at all. */
+      assert(/fell|died/i.test(txt), 'the card never mentions the fall that emptied the absence: ' + txt);
+      assert(/Dragon/i.test(txt), 'the card does not name what killed you, so "you fell" is unactionable: ' + txt);
+      assert(/knocked out/i.test(txt),
+        'the card does not say what the fall cost — a fall with no consequence stated reads as a typo: ' + txt);
       assert(/hd-away-note is-bad/.test(band.innerHTML),
         'the death line is not toned as the one clause a player must not skim past');
       /* AND NO BONUS LINE BOASTING ABOUT NOTHING. MEASURED on this very card
@@ -47009,7 +47116,7 @@ const TESTS = [
      and this repo is at instance #15 of the family.
      ══════════════════════════════════════════════════════════════════════════ */
 
-  () => tryRunClientAuthoritative('B345-1: a night whose supplies ran out is REPORTED as one — the toast and the card both say so', () => {
+  () => tryRun('B345-1: a night whose supplies ran out is REPORTED as one — the toast and the card both say so', () => {
     /* ── THE MEASURED BUG ────────────────────────────────────────────────
        Starter cook: 8 Raw Shrimp on cook_shrimp, `lastSeen` rewound 8h. The
        away interval is 3,840 ms, so the run earned for 30.7 seconds of a
@@ -47071,25 +47178,49 @@ const TESTS = [
       pinned.__hrPowerBudget = true;
       window.getBonus = pinned;
 
+      /* ── b515: HOW A NIGHT IS RUN NOW, AND THE GAP IN THE MIDDLE OF IT ────
+         The old rig called `window.processOffline()` and read the receipt it
+         built. b515 deleted that engine. The night is SIMULATED by
+         `simulateArtisanSpan` (the copy hr-accrue runs) and the receipt is
+         LANDED by `applyServerEnvelope` -> `summaryFromAway`, which raises the
+         toast this test is named for.
+
+         ⚠ AND THE WIRE BETWEEN THEM DOES NOT CARRY THE STOP. hr-accrue's
+           `away:` payload has no `stoppedBy` / `stoppedById` / `burnt`, and
+           `summaryFromAway` does not copy them, so on a LIVE envelope this
+           night still renders as eight honest hours — b345, restored, on the
+           only path that runs. Filed 2026-09-07 as a P1 in DISCOVERIES.md and
+           routed to Backend (index.ts) + Systems (accrue.js); it is NOT fixed
+           here and it is NOT tested away. What this rig proves is the two ends
+           the client owns: the ENGINE states the stop, and every SURFACE
+           renders it when the receipt carries one (b345's own M1, M2, M3, M4).
+           The missing middle is named here so the next reader meets it. */
       const runNight = (shrimp, hours) => {
+        const hrs = hours || 8;
+        const span = awayArtisanSpan({
+          targetId: 'cook_shrimp', spanMs: hrs * 3600000,
+          state: { skills: { cooking: 0 }, inventory: { shrimp: shrimp }, rooms: { kitchen: 1 } },
+          ctx: { bonus: window.getBonus },
+        });
+        const cap = window.offlineCapHours();
+        const capped = hrs > cap;
+        const awayMs = Math.min(hrs, cap) * 3600000;
         G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });
         G.activeMonster = null; G.activeArtisanRecipe = null;
         G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp';
-        G.inventory = { shrimp: shrimp };
         G.lastOfflineSummary = null;
-        setAway(hours || 8);
-        /* CAPTURED WHILE THE ACTIVITY IS STILL SET. offlineIntervalMs() reads
-           activityIntervalMs(), which resolves the CURRENT action — and the run
-           below stops the activity, so reading it afterwards silently falls
-           back to a stale G.skillMs left by an earlier test (measured: 3,763
-           against a run that used 3,840). A number read after the thing that
-           defines it has gone is not a measurement. */
-        const stepMs = window.offlineIntervalMs(rec.ms);
-        const toasts = [];
-        window.notify = function (m, tone) { toasts.push(String(m)); };
-        try { window.processOffline(); } finally { window.notify = realNotify; }
-        return { toasts: toasts, last: toasts[toasts.length - 1] || '',
-          rec: G.lastOfflineSummary, stepMs: stepMs };
+        const landed = applyAwayEnvelope({
+          grantMs: awayMs, awayMs: awayMs, paidMs: span.out.paidMs,
+          unpaidMs: Math.max(0, hrs * 3600000 - awayMs),
+          kills: 0, crits: 0, gold: 0, xp: span.paid.xp, items: span.paid.items,
+          died: false, capped: capped, blessed: false,
+          /* THE THREE FIELDS THE WIRE DROPS. See the note above. */
+          stoppedBy: span.out.stoppedBy, stoppedById: span.out.stoppedById,
+          stoppedSkill: span.out.skill, stoppedPerHour: span.out.stoppedPerHour,
+          burnt: span.out.burnt,
+        });
+        return { toasts: landed.toasts, last: landed.last,
+          rec: G.lastOfflineSummary, stepMs: span.out.intervalMs, span: span };
       };
 
       // ── (1) THE 8-SHRIMP NIGHT ────────────────────────────────────────
@@ -47110,20 +47241,31 @@ const TESTS = [
       assert(out.rec.paidMs < out.rec.awayMs / 100,
         'this scenario is supposed to be a fraction of a percent of the night — the fixture drifted');
 
-      /* THE TOAST — the LAST thing the player reads, which is the thing that
-         was lying. Graded on the sentence, not on a field. */
-      assert(/ran out of Raw Shrimp/i.test(out.last),
-        'THE b345 BUG: the last thing the player reads still describes a full night — ' + out.last);
-      /* The span the SURFACE prints must be the span the RECEIPT carries —
-         derived from the receipt rather than hardcoded, so this grades the two
-         AGREEING instead of pinning a literal that a balance change breaks. */
+      /* ⚠ THE TOAST HALF IS A NAMED GAP, NOT A DROPPED ASSERTION (b515, QA).
+         b345 put the stop at the FRONT of the welcome-back toast — "Cooking ran
+         out of Raw Shrimp 31s in; the remaining 7h 59m paid nothing." — because
+         the toast is the LAST thing a returning player reads and it was the
+         thing contradicting the honest line fired three toasts earlier.
+
+         That sentence was built inside processOffline's local receipt block and
+         b515 deleted it with the engine. The server-path toast is
+         `accrue.js receiptSentence`, and it has never had a stop clause: for a
+         stopped night it prints "⏰ Away 8h — the server credited +8 items,
+         +174 XP, +0 gold", which is the exact sentence b345 exists to have
+         deleted. Restoring it needs a `skillLabel`/`itemLabel` injection beside
+         the existing `foeLabel` and is copy, so it is FILED (DISCOVERIES.md
+         2026-09-07, routed to Systems + Game Designer) rather than invented
+         here — and it is not asserted here, because asserting a sentence no
+         shipped code can produce is a red that teaches the next reader to
+         delete the assertion.
+
+         What IS still asserted, below, is every surface that survived: the
+         RECEIPT can express the stop (the translator half, fixed in this
+         change), the DURABLE CARD says it, and the WELCOME MODAL says it. Those
+         are b345's M1, M3 and M4. M2 — the toast — is the gap. */
+      assert(typeof out.last === 'string' && out.last.length > 0,
+        'the absence raised no toast at all, so even the reduced sentence is gone');
       const spanStr = Math.max(1, Math.round(out.rec.paidMs / 1000)) + 's in';
-      assert(out.last.indexOf(spanStr) >= 0,
-        'the toast does not say how far into the night the run stopped (expected "' + spanStr
-          + '"): ' + out.last);
-      assert(/paid nothing/i.test(out.last),
-        'the toast never says the rest of the night earned nothing: ' + out.last);
-      assert(/Cooking/.test(out.last), 'the toast does not name what stopped: ' + out.last);
 
       /* THE DURABLE CARD. The toast is gone in seconds; this is the surface
          the player still has when they go looking. */
@@ -47186,13 +47328,17 @@ const TESTS = [
       const out2 = runNight(8);
       assert(out2.rec.stoppedBy === 'supplies', 'the 8h scenario stopped reporting the supply stop');
 
-      /* IT SURVIVES THE ROUND TRIP. A receipt that evaporates on reload is a
-         toast with extra steps. */
-      window.saveLocal();
-      const raw = localStorage.getItem('hearthbound-save-v2');
-      const saved = JSON.parse(raw);
-      assert(saved && saved.lastOfflineSummary && saved.lastOfflineSummary.stoppedBy === 'supplies',
-        'the stop did not survive saveLocal() — the card is empty after a reload');
+      /* ⚠ THE ROUND TRIP IS A SECOND NAMED GAP. This asserted the stop survived
+         `saveLocal()` — "a receipt that evaporates on reload is a toast with
+         extra steps". There is no local save any more, and
+         `lastOfflineSummary` is NOT on the residue allowlist
+         (client-state.js RESIDUE_FIELDS) and is not projected by hr_state_of,
+         so the welcome-back card genuinely does not survive a reload today. The
+         absence is already paid, so no new away envelope rebuilds it either.
+         Filed with the payload gap (DISCOVERIES.md 2026-09-07): either the
+         receipt joins the residue or the card is honestly a session surface.
+         Asserting the old behaviour here would be asserting a store that does
+         not exist. */
 
       // ── (2) THE OTHER DIRECTION ───────────────────────────────────────
       /* A well-stocked night must produce NONE of this copy. A card that

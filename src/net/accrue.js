@@ -3195,7 +3195,51 @@ export function summaryFromAway(away, res) {
     gainedXp: xp,
     gainedGold: Number(a.gold) || 0,
     gainedKills: Number(a.kills) || 0,
-    burnt: 0,
+    /* ── WHY THE RUN STOPPED, AND ON WHAT (b515, QA) ────────────────────────
+       `burnt` was a hardcoded 0 and `stoppedBy`/`stoppedById` were not read at
+       all — while FOUR client sites render them (home-dashboard.js's away card
+       at :531/:536/:625/:758 and legacy.js's welcome modal at :14295/:14298).
+       Under the local away engine `processOffline` filled the flat receipt
+       itself, so the omission was invisible; b515 deleted that engine and made
+       this function the ONLY translator, at which point a supply-exhausted
+       night — the exact b345 scenario, 8 Raw Shrimp against an 8-hour absence
+       that earns for 31 seconds — renders as eight hours of honest pay.
+
+       These three now come off the payload, STATED and never inferred: a
+       renderer that derived the stop from `paidMs < awayMs` would print a
+       shortage on every ordinary night, because tick flooring guarantees the
+       inequality (B345-1's own third case).
+
+       ⚠ THE SERVER HALF IS STILL MISSING AND IS FILED, NOT FIXED HERE.
+         supabase/functions/hr-accrue/index.ts (~1163) does not put `stoppedBy`,
+         `stoppedById` or `burnt` on the `away:` payload, although `out.summary`
+         holds all three and `accrual.js` already journals them as
+         `meta.stopped` / `meta.out_of`. Until that ships these read null/0 on a
+         live envelope — which is the honest degradation (say nothing) rather
+         than the old one (claim a full night). See DISCOVERIES.md 2026-09-07,
+         routed to Backend + Systems with the edge redeploy it needs. */
+    burnt: Math.max(0, Number(a.burnt) || 0),
+    /* A STOP IS A STRING OR IT IS NOTHING. An empty string, a number or an
+       object would each reach a renderer as a truthy "something stopped" with
+       nothing to say about it, which is worse than silence. */
+    stoppedBy: (typeof a.stoppedBy === 'string' && a.stoppedBy) ? a.stoppedBy : null,
+    stoppedById: (typeof a.stoppedById === 'string' && a.stoppedById) ? a.stoppedById : null,
+    /* WHICH BENCH, and HOW FAST it eats. Both are stated by the simulation
+       (`skill`, `stoppedPerHour`) for the same reason the stop is: the card
+       says "Cooking ran out of Raw Shrimp 31s in — it eats about 940/hr, so
+       stock up", and every one of those numbers has to come from the run that
+       actually happened. A card that re-derived the rate would be a second
+       estimator of a night that is already settled. */
+    stoppedSkill: (typeof a.stoppedSkill === 'string' && a.stoppedSkill) ? a.stoppedSkill : null,
+    stoppedPerHour: Math.max(0, Number(a.stoppedPerHour) || 0),
+    /* HOW MUCH OF THE WINDOW ACTUALLY EARNED. `awayMs` is the CREDITED span;
+       `paidMs` is the part of it the run was alive for, and it is what
+       home-dashboard.js :524 prints as "…31s in". The server has always sent it
+       (index.ts `paidMs: out.summary.paidMs`); this function simply never read
+       it, so the card fell back to the whole window and a run that stopped 31
+       seconds in read as the full night. Defaults to the credited span, which
+       is the truthful reading when nothing stopped. */
+    paidMs: Number.isFinite(Number(a.paidMs)) ? Math.max(0, Number(a.paidMs)) : ms,
     combat: a.kills ? { kills: Number(a.kills) || 0, crits: Number(a.crits) || 0, died: !!a.died } : null,
     /* ── DEATH, AT THE TOP LEVEL (ruling 2b, 2026-08-31) ─────────────────────
        These three are the shape legacy.js's own summary has carried since b341

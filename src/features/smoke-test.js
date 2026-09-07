@@ -46417,17 +46417,92 @@ const TESTS = [
       assert(!/You died/.test(dtext), 'nobody died on this receipt and the modal said they did: ' + dtext);
       assert(!/licen[cs]e/i.test(dtext), 'the retired permit copy is back on the welcome-back modal: ' + dtext);
 
-      /* No fresh receipt → the modal falls back to the clock and simply says
-         less. It must never invent a night it has no record of. */
+      /* No fresh receipt → the modal simply says less. It must never invent a
+         night it has no record of — and since b514 that includes the LENGTH of
+         the night: the old fallback printed `Date.now() - G.lastSeen`, a
+         residue stamp, which live said "13h 8m" two hours after the last
+         session. With no receipt and no boot watermark there is no span to
+         state, so the card greets the player and states none. */
       G.lastOfflineSummary = null; G.lastWelcome = 0;
+      if (window.HearthriseAccrual) window.HearthriseAccrual.__setBootAccruedToForTest(0);
       window.__maybeShowWelcome();
       const ntext = document.getElementById('welcome-rows').textContent.replace(/\s+/g, ' ');
       assert(!/XP earned|Gold earned|You died/.test(ntext),
         'with no receipt the modal reported a night anyway: ' + ntext);
-      assert(/Time away/.test(ntext), 'the fallback still owes the player the span: ' + ntext);
+      assert(!/Time away/.test(ntext),
+        'with no server span the modal still printed one — that is the residue stamp: ' + ntext);
     } finally {
       const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
       Object.assign(G, save);
+    }
+  }),
+
+  () => tryRun('b514: "Time away" is the SERVER-priced absence, never a residue stamp', () => {
+    /* THE MEASURED BUG (QA slot, b513): the welcome-back card said
+       "Time away 13h 8m" on a reload roughly two hours after the last session
+       on that account, and earlier the same day "64h 53m" while the server
+       receipt for the same boot said `awayMs 15,934,121` (4.4h). The card read
+       `Date.now() - G.lastSeen` — a client-held stamp, per-device, advanced
+       only by the saves that happen to run. Under CLAUDE.md §1/§6 the absence
+       is the server's span.
+       MUTATION PROVEN: restore `v: _fresh ? _awayLbl : label` in
+       maybeShowWelcome and case A (residue 64h vs receipt 4.4h) still passes
+       but case B prints 64h and case C prints a span nobody measured. */
+    const G = window.G;
+    const AC = window.HearthriseAccrual;
+    assert(AC && typeof AC.serverAwaySpanMs === 'function',
+      'the server-span seam is missing — every welcome surface would re-derive one from residue');
+    const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary };
+    const rowText = () => (document.getElementById('welcome-rows').textContent || '').replace(/\s+/g, ' ');
+    try {
+      /* A. A 64-HOUR RESIDUE STAMP LOSES TO A 4.4-HOUR RECEIPT. */
+      AC.__setBootAccruedToForTest(0);
+      G.lastSeen = Date.now() - 64 * 3600000;
+      G.lastOfflineSummary = {
+        hrs: 4.4, awayMs: 15934121, gainedXp: 0, gainedItems: 0, gainedGold: 0,
+        gainedKills: 0, burnt: 0, combat: null, died: false, at: Date.now(),
+      };
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const a = rowText();
+      assert(/Time away\s*4h 26m/.test(a),
+        "the card did not print the receipt's credited span (4h 26m): " + a);
+      assert(!/64h/.test(a), 'THE b513 BUG: the residue stamp is still on the card: ' + a);
+
+      /* B. IDLE BOOT, NO RECEIPT → the boot watermark, i.e. the last instant
+            the server had priced before this boot. */
+      G.lastOfflineSummary = null;
+      G.lastSeen = Date.now() - 64 * 3600000;
+      AC.__setBootAccruedToForTest(Date.now() - 2 * 3600000);
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const b = rowText();
+      assert(/Time away\s*2h 0m/.test(b),
+        'an idle boot did not price the absence off the server watermark: ' + b);
+
+      /* C. NO SERVER SPAN AT ALL → no number. A greeting with no length beats
+            a length nobody measured. */
+      AC.__setBootAccruedToForTest(0);
+      G.lastOfflineSummary = null;
+      G.lastSeen = Date.now() - 8 * 3600000;
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const c = rowText();
+      assert(!/Time away/.test(c), 'the card invented a span the server never stated: ' + c);
+
+      /* D. A THREE-MINUTE SERVER SPAN IS PRINTED AS THREE MINUTES, even under a
+            64-hour residue stamp. The door is still the residue's (it decides
+            only whether to greet); the FIGURE is never. */
+      AC.__setBootAccruedToForTest(Date.now() - 3 * 60000);
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const d = rowText();
+      assert(/Time away\s*3m/.test(d) && !/64h|13h/.test(d),
+        'the card printed the residue stamp instead of the three minutes the server priced: ' + d);
+    } finally {
+      AC.__setBootAccruedToForTest(0);
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      G.lastSeen = save.lastSeen; G.lastWelcome = save.lastWelcome; G.lastOfflineSummary = save.los;
     }
   }),
 

@@ -951,6 +951,13 @@ let recoveringUntil = 0;
    not the presence of a recovery line — is what "the server has answered"
    means: the day's free first fall is answered with no timer at all. */
 let accruedToAt = 0;
+/* THE FIRST priced instant this page session ever saw — i.e. the watermark as
+   it stood BEFORE this boot's settle advanced it. `accruedToAt` is useless as a
+   measure of an absence for exactly that reason: by the time anything renders,
+   the server has already priced the span up to now and the difference is zero.
+   This one is written ONCE and never again, so "now - bootAccruedToAt" is the
+   server's own statement of how long the character went unpriced. */
+let bootAccruedToAt = 0;
 /* The server's own death counters, off `state.deaths_today` / `deaths_lifetime`
    (hr_state_of, 2026-09-06-recovering-until.sql). Rendered, never derived: the
    client's `G.stats.deaths` is a LIFETIME tally, and `resolveDeath` reading it
@@ -980,6 +987,41 @@ export const FALL_CONFIRM_TIMEOUT_MS = 2 * 60000;
  *  Exported (not just published on window) so tests/attended-fall.mjs can drive
  *  the whole state machine headlessly. */
 export function accruedToMs() { return accruedToAt; }
+export function bootAccruedToMs() { return bootAccruedToAt; }
+
+/** THE ABSENCE, AS THE SERVER PRICED IT (b514).
+ *
+ *  The welcome-back card used to print `Date.now() - G.lastSeen` — a residue
+ *  stamp this client writes for itself. Measured live on b513: it said
+ *  "13h 8m" on a reload two hours after the last session, and "64h 53m" for a
+ *  boot whose server receipt said `awayMs 15,934,121` (4.4h). A residue stamp
+ *  is per-device, only advances on the saves that happen to run, and under §1
+ *  is not authority for anything — least of all for a span the server owns.
+ *
+ *  Order of truth:
+ *    1. the fresh away RECEIPT's credited span (`awayMs`), the same number the
+ *       Home away card and `classifyReceipt` quote — one absence, one figure;
+ *    2. otherwise the boot watermark: now - the first `accrued_to` this session
+ *       saw, i.e. the last instant the server had priced before this boot;
+ *    3. otherwise NULL — and null means the surface says nothing at all. An
+ *       unknown span is never rendered as a number.
+ *  @returns {number|null} milliseconds, or null when the server stated none. */
+export function serverAwaySpanMs(g, now) {
+  const st = g || (typeof window !== 'undefined' ? window.G : null);
+  const t = Number(now) > 0 ? Number(now) : nowMs();
+  const off = st && st.lastOfflineSummary;
+  if (off && Number(off.at) > 0 && (t - Number(off.at)) < 30 * 60000 && Number(off.awayMs) > 0) {
+    return Number(off.awayMs);
+  }
+  if (bootAccruedToAt > 0) return Math.max(0, t - bootAccruedToAt);
+  return null;
+}
+
+/** Test seam only: drive the boot watermark from the in-page suite. Never
+ *  called by game code — the watermark is written by an envelope or not at all. */
+export function __setBootAccruedToForTest(ms) {
+  bootAccruedToAt = Number(ms) > 0 ? Number(ms) : 0;
+}
 export function deathsToday() { return deathsTodayCount; }
 export function deathsLifetime() { return deathsLifetimeCount; }
 
@@ -2237,7 +2279,10 @@ export function applyEnvelopeState(G, res, ownKey) {
      promise on a fall the server charged nothing for. */
   if (st && Object.prototype.hasOwnProperty.call(st, 'accrued_to')) {
     const a = st.accrued_to ? Date.parse(st.accrued_to) : 0;
-    if (Number.isFinite(a) && a > 0) { accruedToAt = a; written.accruedTo = a; }
+    if (Number.isFinite(a) && a > 0) {
+      accruedToAt = a; written.accruedTo = a;
+      if (!bootAccruedToAt) bootAccruedToAt = a;
+    }
   }
   if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
     const n = Math.floor(Number(st.deaths_today));
@@ -4290,6 +4335,9 @@ if (typeof window !== 'undefined') {
     noteFall, clearFall, fallState, isKnockedOut, FALL_CONFIRM_TIMEOUT_MS,
     FALL_REASK_MARGIN_MS, nextFallReaskAt, fallReaskAt, fallAsks,
     accruedToMs, deathsToday, deathsLifetime,
+    /* THE SERVER-PRICED ABSENCE, for every "welcome back" surface. Read it;
+       never re-derive one from `G.lastSeen` (b514). */
+    bootAccruedToMs, serverAwaySpanMs, __setBootAccruedToForTest,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,

@@ -10952,8 +10952,37 @@ function openInvDetail(id){
   if(it.seed){
     acts.push(`<button class="btn" onclick="showTab('farming');closeInvDetail()">Open Farm</button>`);
   }
+  /* b521: Bury STARTS THE ALTAR BENCH; it does not burn the stack. The `else`
+     branch this used to carry wrote `G.skills.prayer` and `removeItem()`
+     inline — a second copy of the very mint buryBones() just stopped doing, and
+     the reason a fallback is not re-added: an unreachable client-authored twin
+     is what the b514 farm cleanup deleted for the same reason. If buryBones is
+     absent the button does nothing, which is honest. The XP figure comes from
+     the RECIPE THE SERVER PRICES, not from ITEMS[].buryXp. */
   if(it.buryXp){
-    acts.push(`<button class="btn" onclick="if(typeof buryBones==='function'){buryBones('${id}');}else{G.skills.prayer=(G.skills.prayer||0)+${it.buryXp};removeItem('${id}',1);notify('Buried (+${it.buryXp} prayer XP)','info');}closeInvDetail();renderInvNew()">Bury</button>`);
+    const _br = (typeof buryRecipeFor==='function') ? buryRecipeFor(id) : null;
+    const _bx = _br ? _br.xp : it.buryXp;
+    /* THE REQUIREMENT IS STATED BEFORE THE CLICK, not after it. The Prayer
+       screen's own row is `disabled` when the bench cannot run, and the food
+       block above already answers a dead-end with a named button rather than a
+       live one that does nothing ("Already at full health", b224). This surface
+       now agrees with both. The gates are READ, never re-implemented — one
+       wrong copy of "can I bury?" is how the three bury buttons diverged in the
+       first place (b265). */
+    let _bWhy = null;
+    if(!_br) _bWhy = 'No altar rite for this yet';
+    else if(window.HearthriseHomestead && typeof window.HearthriseHomestead.hasWorkbench==='function'){
+      const _wb = window.HearthriseHomestead.hasWorkbench('prayer');
+      if(_wb && !_wb.ok) _bWhy = _wb.reason;
+    }
+    if(!_bWhy && _br && typeof getLevel==='function' && getLevel('prayer') < _br.req){
+      _bWhy = 'Needs Prayer ' + _br.req;
+    }
+    if(_bWhy){
+      acts.push(`<button class="btn" disabled title="${_bWhy}">Bury — ${_bWhy}</button>`);
+    } else {
+      acts.push(`<button class="btn" title="Starts the altar bench — ${_bx} Prayer XP per bone, and it keeps burying while you are away" onclick="if(typeof buryBones==='function'){buryBones('${id}');}closeInvDetail();renderInvNew()">Bury</button>`);
+    }
   }
   if(qty > 0){
     /* b240: sell-lock. A locked item shows no sell buttons — just Unlock — so an
@@ -11497,23 +11526,77 @@ window.repurchase = repurchase;
    above calls renderBuyback() bare (resolves to the global) and shop.js's inline
    onclick="openBuyback()" is unchanged. Pure refactor — identical DOM. */
 
-/* b265: ONE bury path. The three inventory bury buttons had DIVERGED — the
-   context menu (inv-context-menu.js) and the inv detail (below) fell back to
-   burying a SINGLE bone because window.buryBones was never defined, while the
-   item-ux quantity slider buried the chosen qty. Tester: "sometimes it lets you
-   bury them all, sometimes 1 by 1." A plain Bury now buries the WHOLE stack; the
-   slider still passes an explicit qty. Returns the number buried. */
-function buryBones(id, qty){
+/* ── b521: THE BURY GESTURE IS AN INTENT, NOT A GRANT ───────────────────────
+   paione, 2026-09-07: "I got like 2k bones which I can bury a gazillion times
+   and get the exp and keep the bones."
+
+   He was right, and the symptom was the smaller half of it. This function used
+   to be `removeItem(id,n)` + `addXp('prayer', it.buryXp*n)` + a toast: a
+   client-authored XP grant and a client-authored inventory debit, with NO
+   intent, NO RPC and NO settle behind either. The realm never saw a burial, so
+   a reload restored the bones and snapped Prayer back to the server's number —
+   which is exactly "bury a gazillion times and keep the bones". Leaderboards
+   read the server's XP, so it was never a rank exploit; it was a LIE told to
+   the player for 256 builds, and §1 forbids the client computing an
+   authoritative number whether or not anyone can profit from it. (b265 unified
+   the three call sites onto this one function; that unification is kept — what
+   changes is what the one function does.)
+
+   THE HONEST PATH ALREADY EXISTED. Prayer is a payable artisan lane
+   (`ARTISAN_SETTLEMENT.prayer` in src/data/item-authority.js), its three rows
+   are in the server catalogue (2026-08-11-catalogue.generated.sql:
+   bury_bones/bury_big/bury_dragon), `benchPayable('prayer')` is true, and the
+   accrual engine settles a burial exactly as it settles a smelt. So the Bury
+   GESTURE now starts that bench and does nothing else. Every gate the Prayer
+   screen enforces — level, the Shrine workbench, knocked-out recovery, the
+   activity mutex — applies here for free, because this is literally the same
+   call the Prayer screen's own row makes. That is the point: one path, one set
+   of rules, one place the server is told.
+
+   ⚠ IT IS A RUN, NOT A STACK BURN. The bench consumes one bone per action
+   (1.2 s at base) and keeps going while you are away, instead of vanishing
+   2,000 bones into a number that evaporates on reload. The copy says so.
+
+   ⚠ `G.stats.buried` IS GONE, deliberately, and not replaced. It had exactly
+   one writer (this line) and one reader (`wk_bury`, which is `blocked:` and
+   never dealt because there is no server counter to verify it against —
+   BENCH_COUNTERS has no `prayer` row, and tests/artisan-accrual.mjs asserts it
+   must not grow one). A client counter nothing server-side stamps is the same
+   dishonesty at a smaller scale. */
+
+/** The prayer recipe that buries `id`, or null. DERIVED from ARTISAN_RECIPES by
+ *  `input` — never a hand-written bones→bury_bones map — so a fourth bone with
+ *  a fourth recipe works here with no edit, and a bone with NO recipe is
+ *  answerable ("no rite yet") instead of silently doing nothing. */
+function buryRecipeFor(id){
+  const rows = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.prayer) || [];
+  for(let i=0;i<rows.length;i++){ if(rows[i] && rows[i].input === id) return rows[i]; }
+  return null;
+}
+window.buryRecipeFor = buryRecipeFor;
+
+/** Start the altar bench on `id`. Returns the recipe id actually started, or
+ *  null. Authors NOTHING: no debit, no XP, no counter. */
+function buryBones(id){
   const it = (typeof ITEMS !== 'undefined') && ITEMS[id];
-  if(!it || !it.buryXp) return 0;
-  const have = (G.inventory && G.inventory[id]) || 0;
-  const n = (qty && qty > 0) ? Math.min(qty, have) : have;   // default: the whole stack
-  if(n <= 0) return 0;
-  removeItem(id, n);
-  addXp('prayer', it.buryXp * n);
-  G.stats = G.stats || {}; G.stats.buried = (G.stats.buried || 0) + n;
-  notify('Buried ' + n + '× ' + it.n + ' (+' + Math.round(it.buryXp * n) + ' Prayer XP)', 'levelup');
-  return n;
+  if(!it) return null;
+  const r = buryRecipeFor(id);
+  if(!r){
+    if(typeof notify==='function') notify('There is no altar rite for ' + it.n + ' yet','kill');
+    return null;
+  }
+  if(typeof window.startArtisan !== 'function') return null;
+  window.startArtisan('prayer', r.id);
+  /* THE ONLY HONEST SUCCESS SIGNAL IS THE POINTER startArtisan SET. It refuses
+     by notifying and returning undefined (no level, no Shrine, knocked out, no
+     input), so reading its return value would report every refusal as a
+     success — and a "Burying…" toast on top of "Build the Shrine first" is
+     worse than no toast at all. */
+  if(!(G.activeSkill === 'prayer' && G.skillTargetId === r.id)) return null;
+  if(typeof notify==='function'){
+    notify('Burying ' + it.n + ' at the altar — ' + r.xp + ' Prayer XP each', 'info');
+  }
+  return r.id;
 }
 window.buryBones = buryBones;
 
@@ -15889,16 +15972,26 @@ function calcRichCatchup(){
 }
 window._calcRichCatchup = calcRichCatchup;
 
-/* Apply gathered XP/items (same effect as before) */
-function applyRichCatchup(s){
-  if(!s) return;
-  Object.keys(s.xp||{}).forEach(function(sk){
-    if(typeof addXp === 'function') addXp(sk, s.xp[sk]);
-  });
-  Object.keys(s.itemsGained||{}).forEach(function(id){
-    if(typeof addItem === 'function') addItem(id, s.itemsGained[id]);
-  });
-}
+/* ── `applyRichCatchup(s)` — DELETED (b521). DO NOT RE-ADD. ────────────────
+   It walked `s.xp` into addXp() and `s.itemsGained` into addItem(): a client
+   authoring a night's progression off an estimate, which is the b214 double-pay
+   and CLAUDE.md §1 in one nine-line function. b516 deleted its twin
+   (`_applyCatchup`) but LEFT this one, module-scope with zero callers, so that
+   build's diff stayed the capability removal it claimed to be — and wrote the
+   instruction that finishes the job: "IF applyRichCatchup IS EVER EXPORTED, OR
+   calcRichCatchup EVER GROWS A CREDIT … delete it the way b516 deleted the
+   first one, rather than unreferencing it" (the note above renderModal, below).
+
+   b521 collected it because tests/no-client-xp-mint.mjs now RATCHETS the count
+   of client-authored addXp call sites, and this was the last one that was not a
+   reconciled prediction or a server-credited value. Unreferenced is not
+   unreachable: the b516 note's own argument is that anything able to run one
+   line in this page can call a function that exists.
+
+   `calcRichCatchup` above STAYS: it is pure, it credits nothing, and it is the
+   welcome modal's numbers. The absence a player is PAID for is the server's
+   receipt (`G.lastOfflineSummary`), and there is now no code path in this file
+   that can pay a second one. */
 
 /* ─── Render the new modal ──────────────────────────────── */
 function buildOverlay(){
@@ -20234,11 +20327,22 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
        This quest was dealt in 13 of any 52 weeks and its Claim button was DEAD:
        hr_claim_goal answers `unknown_goal` because `wk_bury` is deliberately
        absent from public.hr_goal_rewards, and the migration's own §GATE(b)
-       RAISES if anyone catalogues it — burying is a pure client function
-       (buryBones: removeItem + addXp + G.stats.buried) with no intent, no RPC
-       and no settle, so there is no server number to verify 1,800 gold against.
-       It is the Designer's own standing rule, already recorded two rows below
-       on gold_500: *a quest that cannot pay must not be dealt.*
+       RAISES if anyone catalogues it — there is no server number to verify
+       1,800 gold against. It is the Designer's own standing rule, already
+       recorded two rows below on gold_500: *a quest that cannot pay must not
+       be dealt.*
+
+       b521 UPDATE — the premise changed by HALF and the row still cannot pay.
+       Burying is no longer a pure client function: buryBones() now starts the
+       server-settled `bury_bones` artisan run, so there IS an intent, an RPC
+       and a settle. What there still is not is a COUNTER: BENCH_COUNTERS
+       (src/core/artisan.js) has no `prayer` row, so neither the live tick nor
+       the away settle stamps "bones buried" anywhere, client or server —
+       tests/artisan-accrual.mjs asserts the counter loop must not invent one.
+       `G.stats.buried` was this row's only source and it was deleted with the
+       mint, so the source now reads 0 forever. `blocked` therefore STANDS.
+       Unblocking it is a lane-C job: give prayer a BENCH_COUNTERS row, catalogue
+       wk_bury in hr_goal_rewards, and delete `blocked` in the same build.
 
        WHY A MARKER AND NOT A DELETION. The weekly picker indexes into THIS
        array, so removing the row would shift every later index and re-deal the

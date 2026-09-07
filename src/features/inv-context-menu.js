@@ -163,15 +163,19 @@
       }});
     }
 
-    // Bones — bury for prayer XP
+    /* Bones — START THE ALTAR BENCH (b521). The `else` this carried wrote
+       `G.skills.prayer` and removeItem() straight into G: a client-authored XP
+       grant with no intent, no RPC and no settle, which a reload erased along
+       with the bones (paione: "bury a gazillion times and keep the bones").
+       There is no fallback now — window.buryBones is defined in legacy.js,
+       which loads before this module, and a silent client-side twin is the
+       thing being deleted, not a safety net. The XP figure is read from the
+       recipe the SERVER prices. */
     if(def.buryXp && def.buryXp > 0){
-      opts.push({ label: 'Bury (+' + def.buryXp + ' Prayer XP)', action: function(){
+      var _bRec = (typeof window.buryRecipeFor === 'function') ? window.buryRecipeFor(id) : null;
+      var _bXp = _bRec ? _bRec.xp : def.buryXp;
+      opts.push({ label: 'Bury at the altar (' + _bXp + ' Prayer XP each)', action: function(){
         if(typeof window.buryBones === 'function') window.buryBones(id);
-        else {
-          G.skills = G.skills || {}; G.skills.prayer = (G.skills.prayer || 0) + def.buryXp;
-          if(typeof window.removeItem === 'function') window.removeItem(id, 1);
-          if(typeof window.notify === 'function') window.notify('Buried (+' + def.buryXp + ' Prayer XP)', 'info');
-        }
       }});
     }
 

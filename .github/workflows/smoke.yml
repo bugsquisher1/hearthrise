@@ -1042,6 +1042,19 @@ jobs:
           node tests/no-client-farm-mint.mjs --selftest
           node tests/no-client-farm-mint.mjs
 
+      # NO CLIENT XP MINT (b521): the same shape as the farm guard, one rung up.
+      # buryBones() was `removeItem + addXp('prayer', …)` with no intent, no RPC
+      # and no settle for 256 builds — paione: "I can bury a gazillion times and
+      # get the exp and keep the bones." A grep for addXp is not a verdict (most
+      # sites are legitimate predictions or apply a value the server returned),
+      # so this RATCHETS the count of call sites OUTSIDE a written-down
+      # classification, at 0, plus the three named direct `G.skills.x =` writes.
+      # --selftest plants the exact deleted line back and requires it red.
+      - name: No client XP mint — every addXp is a prediction or a server value
+        run: |
+          node tests/no-client-xp-mint.mjs --selftest
+          node tests/no-client-xp-mint.mjs
+
       # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
       # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a
       # transport — folding them is the wrong abstraction), and the mayCall

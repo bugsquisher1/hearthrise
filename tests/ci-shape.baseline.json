@@ -76,6 +76,8 @@
     "node tests/dead-css.mjs": "client-guards",
     "node tests/no-client-farm-mint.mjs --selftest": "client-guards",
     "node tests/no-client-farm-mint.mjs": "client-guards",
+    "node tests/no-client-xp-mint.mjs --selftest": "client-guards",
+    "node tests/no-client-xp-mint.mjs": "client-guards",
     "node tests/no-duplicate-rpc-callers.mjs --selftest": "client-guards",
     "node tests/no-duplicate-rpc-callers.mjs": "client-guards",
     "node tests/no-blob-branches.mjs --selftest": "client-guards",

@@ -1138,3 +1138,65 @@ Measured on the live gate: 19 s window, hp untouched, `accrued_to` advanced to t
 Off the death path now, but still true of every fast stop/start. Cheapest honest fix: journal it, by
 extending `forceCloseWindow`'s ledger row to the `below_min_span` case. Lowering the floor is
 Security's call and has been refused before (see `ACCRUE_MIN_SPAN_MS`'s comment in src/net/accrue.js).
+
+---
+
+## 2026-09-07 · SYSTEMS → GAME DESIGNER · b521 · **BURY IS NOW A SERVER BENCH — and it inherits a tier-4 gate** (`worktree-agent-a4bd50bfbdabbad36`)
+
+**What changed.** `buryBones()` (src/legacy.js) was `removeItem(id,n)` + `addXp('prayer', it.buryXp*n)`
+with no intent, no RPC and no settle — a client-authored XP grant AND a client-authored inventory
+debit (CLAUDE.md §1). paione, 2026-09-07: *"I got like 2k bones which I can bury a gazillion times
+and get the exp and keep the bones."* Server facts confirm it: prayer XP 47,802, bones 2,027, and
+**zero** bury intents or ledger rows in 7 days. The gesture now starts the existing server-settled
+`bury_bones` artisan run (`ARTISAN_SETTLEMENT.prayer === 'payable'`; the engine prices it —
+`tests/artisan-accrual.mjs` reports `bury_bones (prayer) · 22500 actions · {bones:-22500} ·
+{prayer:22500}`). Two inline client-authored fallbacks (inv-context-menu.js, item-ux.js) were
+deleted with it, and the dead `applyRichCatchup()` was collected.
+
+### ⚠ FOR THE GAME DESIGNER — a design consequence I did NOT decide (P1)
+
+Routing Bury onto the bench necessarily adopts **every gate the Prayer screen already enforces**,
+and one of them is expensive:
+
+| gate | source | effect |
+|---|---|---|
+| **Shrine workbench** | `WORKBENCH.prayer = 'shrine'` (src/features/homestead.js:84); the Shrine is in the **tier-4 `Ironvale Keep`** room list (40,000g + 50 maple planks + 35 steel bars + 20 big bones + 5 bear pelts + 12 ashlar) | a player below tier 4 **cannot bury at all** |
+| prayer level | catalogue rows: `bury_bones` req 1, `bury_big` req 15, `bury_dragon` req 35 | dragon bones now need Prayer 35; they needed nothing before |
+
+**This is not a capability I removed — it is a capability that was never real.** Below tier 4 the old
+button granted XP that evaporated on the next reload; the Prayer *skill screen* has always refused
+the same players with "Build the Shrine at your homestead first". The fix makes the two surfaces
+agree, and states the requirement on a **disabled** button before the click (the same shape as
+b224's "Already at full health") instead of a live button that refuses after it.
+
+**The open question is yours, not mine:** *should burying bones require a tier-4 property at all?*
+The measured argument that it should not: **the server does not enforce it.** The catalogue row is
+`('artisan','bury_bones','prayer',1,null,false)` — level only, no room — and `benchPayable('prayer')`
+is true, so a declared bury is settled whether or not a Shrine exists. The Shrine gate is a
+**client-only rule the realm does not share**: the mirror image of the residue-ahead class
+(CLAUDE.md §6). Cooking already has the precedent for relaxing exactly this (b225, the campfire
+ruling: `UNGATED = { cooking: true }` — "they can cook with the fire in the first tier camp").
+
+If you rule prayer ungated it is a one-word change — `var UNGATED = { cooking: true, prayer: true };`
+— **plus** the smoke assertion that currently pins it (src/features/smoke-test.js ~L2186:
+`['smithing','crafting','prayer'].forEach(s => assert(H.hasWorkbench(s).ok === false))` and
+`assert(!H.UNGATED.prayer)`). I did **not** touch either: that assertion says the gate is a decision
+somebody made on purpose, and a balance ruling is not a systems fix. Prayer XP rate and the Shrine's
+value proposition are yours.
+
+### Smaller flags
+
+* **Two numbers for one thing.** `ITEMS[id].buryXp` (4.5 / 15 / 72) and the recipe's `xp`
+  (4.5 / 15 / 72) agree today and nothing binds them. Every surface I touched now reads the
+  **recipe**, because that is what the server prices; `buryXp` survives only as the "is this a bone"
+  predicate (bag filters, glyph routing, the `bones` category). A guard binding the two is cheap if
+  you want it.
+* **`G.stats.buried` is deleted.** One writer (the mint), one reader (`wk_bury`, which carries
+  `blocked:` and is therefore never dealt). `BENCH_COUNTERS` (src/core/artisan.js) has no `prayer`
+  row and `tests/artisan-accrual.mjs` asserts the counter loop must not invent one, so nothing
+  stamps a burial count client- OR server-side. `wk_bury` stays blocked; unblocking it is lane C
+  (add the BENCH_COUNTERS row + catalogue the goal + delete `blocked`, one build).
+* **The gesture is a RUN, not a stack burn.** 2,027 bones is ~40 minutes of bench at 1.2 s/bone
+  (and it accrues while away). If you want burying to be faster than a smelt, the `ms` on the three
+  prayer rows is the dial — it is data, and it is yours.
+* **Not a rank exploit, and never was.** Leaderboards read server XP, which never moved.

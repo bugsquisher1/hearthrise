@@ -216,16 +216,15 @@ export function awardCompanionXp(amount) {
   const next = Math.min(COMPANION_XP_CAP, before + amount);
   window.G.companions.xp[eq] = next;
   const afterLv = companionLevelFromXp(next);
-  if (afterLv > beforeLv) {
-    emit('companionLevelUp', { id: eq, level: afterLv });
-    /* b313 (paione — companion stats mismatch): the equipment doll's Companion
-       pane is only rebuilt when the doll is, so after a pet LEVELS UP it kept
-       showing the old level/stats while inventory + combat (which read the live
-       companion bonus every call) already showed the higher numbers. Refresh the
-       doll on the level change so both agree. Guarded; only fires on a level-up. */
-    try { if (typeof window.refreshAllDolls === 'function') window.refreshAllDolls(); } catch (e) {}
-    try { if (typeof window.renderStable === 'function' && window.activeTab === 'stable') window.renderStable(); } catch (e) {}
-  }
+  /* ⚠ b313 rev.2 — THE LEVEL-UP EVENT AND ITS REPAINT ARE NOT HERE ANY MORE.
+     Both gates above return for every caller, so this level-up branch was
+     unreachable code holding the ONLY copy of paione's doll refresh while the
+     level itself moved somewhere else entirely: the envelope. The detector and
+     the two repaints now live in `accrue.js reconcileCompanions`
+     (announceCompanionLevelUps), which is where the level actually changes.
+     Nothing is restated here, because a second implementation of a repaint is
+     how this defect came back the first time. */
+  if (afterLv > beforeLv) emit('companionLevelUp', { id: eq, level: afterLv });
 }
 
 /**

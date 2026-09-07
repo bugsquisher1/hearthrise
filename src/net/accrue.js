@@ -1556,6 +1556,13 @@ import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=518';
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
 import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=518';
+/* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
+   pure core copy (src/core/companion-perk.js), not the feature module's twin:
+   companions.js imports the event bus and reaches for window, and this file is
+   driven headlessly by the suite. The two curves are pinned equal to each other
+   by tests/perk-channel.mjs, so reading the level here can never disagree with
+   the level the doll and getCompanionBonus read. */
+import { companionLevelFromXp } from '../core/companion-perk.js?v=518';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1774,8 +1781,60 @@ export function reconcileCompanions(G, res) {
      hr_companion_equip's ownership gate enforces. */
   let equipped = (typeof c.equipped === 'string' && c.equipped) ? c.equipped : null;
   if (equipped && !owned.has(equipped)) equipped = null;
+  /* ── b313 rev.2 — THE LEVEL-UP REPAINT LIVES ON THE RECONCILE NOW ──────────
+     paione's original report was "companion stats mismatch": the equipment
+     doll's Companion pane is only rebuilt when the doll is, so a pet that
+     LEVELLED UP kept showing the old level while inventory and combat — which
+     read the live bonus on every call — already showed the higher numbers. The
+     original fix hung a refreshAllDolls() off the client-side level-up inside
+     `companions.js awardCompanionXp`. That function is gated off for every
+     caller (companion XP is a server-owned aggregate), so the repaint became
+     unreachable while the LEVEL kept arriving — here, in the envelope.
+
+     So the detector is here, where the level actually changes, and it reads
+     ONLY envelope values: the previous MIRROR (what the last envelope stated)
+     versus the incoming one. The client authors nothing; it notices.
+
+     NO PRIOR STATEMENT, NO NOTICE. An id with no finite xp cell in the previous
+     mirror is a first sight — the boot hydration, or a pet that just joined the
+     roster — and announcing a "level-up" for it would throw a party on every
+     reload. Two levels crossed in one envelope are ONE event naming the level
+     the player is now, because that is the number the doll will show. */
+  const prevXp = (G.companions && G.companions.xp && typeof G.companions.xp === 'object'
+                  && !Array.isArray(G.companions.xp)) ? G.companions.xp : null;
+  const leveled = [];
+  if (prevXp) {
+    for (const id of owned) {
+      const p = Number(prevXp[id]);
+      if (!Number.isFinite(p)) continue;
+      const from = companionLevelFromXp(p);
+      const to = companionLevelFromXp(xp[id]);
+      if (to > from) leveled.push({ id, from, to });
+    }
+  }
   G.companions = { ownedIds: Array.from(owned), xp, equipped };
-  return { mode: 'server', owned: owned.size, equipped };
+  if (leveled.length) announceCompanionLevelUps(leveled);
+  return { mode: 'server', owned: owned.size, equipped, leveled };
+}
+
+/* The b313 sentence, fired from the reconcile: the same two repaints and the
+   same `companionLevelUp` event `awardCompanionXp` used to fire, no more. Every
+   hop is window-guarded and try//caught so a headless driver (and a renderer
+   that throws) can never break the reconcile that just wrote server truth — the
+   roster is already committed to G before this runs. ONE doll refresh and ONE
+   stable repaint for the whole envelope, however many pets levelled. */
+function announceCompanionLevelUps(leveled) {
+  const w = (typeof window !== 'undefined') ? window : null;
+  if (!w) return;
+  for (const ev of leveled) {
+    try {
+      if (w.HearthriseEvents && typeof w.HearthriseEvents.emit === 'function') {
+        w.HearthriseEvents.emit('companionLevelUp', { id: ev.id, level: ev.to, from: ev.from, source: 'server' });
+      }
+    } catch (e) {}
+  }
+  try { if (typeof w.refreshAllDolls === 'function') w.refreshAllDolls(); } catch (e) {}
+  try { if (typeof w.renderStable === 'function' && w.activeTab === 'stable') w.renderStable(); } catch (e) {}
 }
 
 /* ── THE OWNED PERMANENT TRAITS, HYDRATED FROM THE ENVELOPE ───────────────────

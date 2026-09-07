@@ -57869,6 +57869,81 @@ const TESTS = [
       + 'and it is now published for nobody');
   }),
 
+  /* ── 2026-09-07 regression — THE COLLECTION LOG "DISCOVERS" WHAT YOU ALREADY OWN
+     paione, with a screenshot: a Stonemason at Lv 43 holding 14,800 granite and
+     19,300 rubble was told "New discovery: Granite Stone (80/623)" — and until
+     that toast the log drew his 14.8K stack as an undiscovered "???".
+
+     `G.collection` has ONE writer (legacy.js trackCollection, reached only from
+     the client-side addItem). Everything a semi-idle player earns AWAY lands
+     through src/net/accrue.js reconcileInventory, which assigns G.inventory
+     wholesale and has never heard of the log — so the log is blind to away
+     progress, and the first attended tick that re-credits a long-held id
+     announces it as brand new. The fix reconciles the log against the bag the
+     realm STATES before deciding anything is new.
+
+     THREE ASSERTIONS AND A CONTROL, because "no toast fired" is satisfiable by
+     a hook that is simply dead: the control proves the discovery machinery is
+     live in this page, so the negative has teeth. */
+  () => tryRun('COLLECT-HELD-1: an item the realm says you already HOLD is never a "New discovery" — the collection log reconciles against the bag', () => {
+    const C = window.HearthriseCollection;
+    assert(C && typeof C.reconcileHeld === 'function',
+      'HearthriseCollection.reconcileHeld is missing — the log has no way to level itself '
+      + 'with the bag the realm states, so every long-held away-earned item is still a "discovery"');
+
+    const snap = snapshotG();
+    const G = window.G;
+    const colBefore = G.collection ? JSON.parse(JSON.stringify(G.collection)) : undefined;
+    const origNotify = window.notify;
+    const said = [];
+    try {
+      window.notify = function (m, k) { said.push(String(m)); };
+      /* A REAL id from the report. Fixtures, not the live character: the bag and
+         the log are both replaced for the duration and put back in the finally. */
+      const HELD = 'granite';                 // ITEMS.granite === 'Granite Stone'
+      const UNSEEN = 'bones';                 // held by nobody here, logged by nobody here
+      assert(window.ITEMS && window.ITEMS[HELD] && window.ITEMS[UNSEEN],
+        'setup: this build does not know ' + HELD + ' / ' + UNSEEN + ' — the test would pass vacuously');
+
+      G.inventory = {}; G.inventory[HELD] = 14800;   // the realm's statement of the bag
+      G.collection = {};                             // …and a log that has never heard of it
+
+      // (1) THE RECONCILE ITSELF. Holding it IS the proof you obtained it.
+      assert(C.getStats(G).item.found === 0, 'setup: the log should start empty for this fixture');
+      C.reconcileHeld(G);
+      assert(G.collection[HELD] >= 14800,
+        'the log still does not count an item the realm says the player is holding 14,800 of');
+      assert(C.getStats(G).item.found === 1,
+        'the completion counter still under-reports a held item — this is the "80/623 climbing from 79" the player saw');
+
+      // (2) THE TOAST. A credit of a long-held id is a backfill, not a discovery.
+      G.collection = {};                             // back to the reported state: log blind, bag full
+      C.__setRealmStated(true);                      // realm picture landed; debounce zeroed
+      said.length = 0;
+      window.addItem(HELD, 1);
+      const cried = said.filter((m) => /New discovery/i.test(m));
+      assert(cried.length === 0,
+        'the game announced "' + (cried[0] || '') + '" for an item the player has held for days');
+      assert(G.collection[HELD] > 0,
+        'the credit was silenced but not recorded — the log must still learn the item, just without the fanfare');
+
+      // (3) THE CONTROL. A genuinely new id MUST still be celebrated, or the
+      //     assertion above is only measuring a dead hook.
+      C.__setRealmStated(true);                      // re-zero the 700 ms debounce
+      said.length = 0;
+      delete G.collection[UNSEEN];
+      const ok = window.addItem(UNSEEN, 1);
+      assert(ok !== false, 'setup: the control pickup was refused (bank full?) — the control cannot report');
+      assert(said.some((m) => /New discovery/i.test(m)),
+        'a genuinely NEW item no longer announces itself — the discovery moment was fixed into silence');
+    } finally {
+      try { C.__setRealmStated(null); } catch (e) {}
+      window.notify = origNotify;
+      if (colBefore === undefined) delete G.collection; else G.collection = colBefore;
+      restoreG(snap);
+    }
+  }),
+
 ];
 
 export async function runSmokeTest(opts = {}) {

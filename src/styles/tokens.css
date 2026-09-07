@@ -1,0 +1,655 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   tokens.css — THE SINGLE SOURCE OF DESIGN TOKENS   (cleanup slice 5, step 1)
+
+   Every custom property declared on a root-ish selector — :root,
+   html[data-theme…], body[data-theme…] — lives HERE and nowhere else.
+
+   Before this file, 367 token declarations were spread across four
+   stylesheets at four different points in the load order, and answering
+   "what is --ink actually?" meant replaying nine <link> tags by hand. 41 of
+   those 367 were dead on arrival: the same property, on the same selector,
+   redeclared later in the load order with a DIFFERENT value. They are gone;
+   the winners are unchanged. This move changes no pixel.
+
+   ── HOW TO READ IT ────────────────────────────────────────────────────────
+   The blocks below are in the ORIGINAL load order (legacy → theme-cozy →
+   art-direction → board-and-shop) because for custom properties the cascade
+   is decided by specificity first and document order second, and this file
+   reproduces both exactly. A token's live value is therefore its LAST
+   appearance here at the winning specificity. DO NOT reorder blocks to tidy
+   them — that is a visual change, and it belongs to a pass with the visual
+   gate behind it, not to a cleanup.
+
+   ── THE RULES ─────────────────────────────────────────────────────────────
+   1. A new token is declared here, in the theme block it belongs to.
+   2. A component-scoped variable stays on its component. The allowlist is
+      --td-cell, --cs-bleed, --cs-inset, --tier-tint; a fifth needs a reason
+      written into tests/token-single-source.mjs.
+   3. Raw colour literals are allowed here and NOWHERE else — this file is
+      the value ladder. tests/css-literal-ratchet.mjs exempts token
+      declarations inside theme blocks for exactly that reason.
+   4. This sheet loads FIRST, ahead of legacy.css. Everything downstream may
+      read var(--x); nothing downstream may declare one on a root selector.
+   5. hearthlight (dark) is the default theme and is declared on :root as
+      well as on body[data-theme="hearthlight"], so a token resolved outside
+      the body scope is still dark. cozy-light is the retired secondary.
+
+   Guard: tests/token-single-source.mjs  ·  Ratchet: tests/css-literal-ratchet.mjs
+   ══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   1 · from legacy.css — the original v2 ladder, the two viewport dials, and
+   the two legacy themes (lane1, dark). Most of the base :root ladder here was
+   shadowed later by theme-cozy and art-direction; what survives is what still
+   wins somewhere.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── legacy.css · the v2 base ladder — only what still wins after §2 and §3
+   · 10 tokens ── */
+:root {
+  /* forge-stone additions (b197) */
+  --steel:#7a8791;         /* cool neutral accent */
+  --accent:#c9a24a;        /* = gold: the single interactive accent */
+  --tab-active:linear-gradient(180deg,rgba(201,162,74,.24),rgba(201,162,74,.10)); /* one active-tab token (gilt, not the old red/aqua) */
+
+  /* b227: the rail holds nothing but text, so it scales with the UI-scale
+     dial. Without this, 130% pushed the wordmark flush against the left edge
+     and wrapped "Bounty Board" onto two lines — the dial was making the type
+     bigger without giving it anywhere to go. At 100% this computes to exactly
+     the 180px it has always been. The 64px icon-rail below is deliberately
+     NOT scaled: it shows no labels, so its width is an icon measurement. */
+  --nav-w:calc(180px * var(--ui-scale, 1));
+  --top-h:54px;
+  --gap:10px;
+  --r-sm:8px;
+  --r:12px;
+  --r-lg:16px;
+  --tap:44px;            /* min touch target */
+}
+
+/* ── legacy.css · tablet dial — the nav collapses to a 64px icon rail
+   · 1 token ── */
+@media (max-width: 1180px) {
+  :root {--nav-w:64px}
+}
+
+/* ── legacy.css · Steam Deck / short-landscape dial
+   · 2 tokens ── */
+@media (min-width: 1280px) and (max-height: 800px) {
+  :root {--nav-w:calc(170px * var(--ui-scale, 1));--top-h:48px}
+}
+
+/* ── legacy.css · ultra-wide dial
+   · 1 token ── */
+@media (min-width: 1900px) {
+  :root {--nav-w:calc(220px * var(--ui-scale, 1))}
+}
+
+/* ── legacy.css · theme "lane1" (Stardew retheme, behind data-theme)
+   · 26 tokens ── */
+body[data-theme="lane1"] {
+  --bg-0:#3a1812;
+  --bg-1:#5b2618;
+  --bg-2:#793930;
+  --bg-3:#945540;
+  --bg-card:#f8d878;
+
+  --line:#5b2618;
+  --line-soft:rgba(77,38,19,.18);
+  --line-strong:#f9c54e;
+
+  --ink:#4d2613;
+  --ink-2:#7a4623;
+  --ink-3:#a07045;
+
+  --gold:#e8a838;
+  --gold-2:#f9c54e;
+  --gold-bg:rgba(249,197,78,.18);
+
+  --aqua:#8a8272;
+  --aqua-2:#a49a86;
+  --aqua-bg:rgba(98,150,180,.16);
+
+  --green:#5e9f4a;
+  --green-bg:rgba(94,159,74,.20);
+  --red:#c44a2c;
+  --red-bg:rgba(196,74,44,.20);
+
+  --r-sm:6px;
+  --r:10px;
+  --r-lg:14px;
+
+  --f-display:'Fredoka','Quicksand',system-ui,sans-serif;
+  --f-ui:'Quicksand',system-ui,'Segoe UI',Roboto,sans-serif;
+}
+
+/* ── legacy.css · theme "dark" (cozy dark wood, behind data-theme)
+   · 26 tokens ── */
+body[data-theme="dark"] {
+  --bg-0:#1f0f08;
+  --bg-1:#3a1812;
+  --bg-2:#4d2418;
+  --bg-3:#5b2618;
+  --bg-card:#5b2618;
+
+  --line:#7a4225;
+  --line-soft:rgba(232,200,150,.10);
+  --line-strong:#f9c54e;
+
+  --ink:#fdde98;
+  --ink-2:#e8c896;
+  --ink-3:#a88458;
+
+  --gold:#c8881e;
+  --gold-2:#f9c54e;
+  --gold-bg:rgba(249,197,78,.14);
+
+  --aqua:#a49a86;
+  --aqua-2:#c0b49a;
+  --aqua-bg:rgba(139,184,212,.14);
+
+  --green:#8bc26a;
+  --green-bg:rgba(139,194,106,.16);
+  --red:#e8746a;
+  --red-bg:rgba(232,116,106,.16);
+
+  --r-sm:6px; --r:10px; --r-lg:14px;
+
+  --f-display:'Fredoka','Quicksand',system-ui,sans-serif;
+  --f-ui:'Quicksand',system-ui,'Segoe UI',Roboto,sans-serif;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2 · from theme-cozy.css — Cozy Day (the retired secondary), Cozy Dark,
+   Classic, and the HEARTHLIGHT base block that puts dark on :root so a token
+   resolved outside the body scope is still dark.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── theme-cozy.css · Cozy Day base — the RETIRED secondary; kept declared so no token can go undefined, shadowed on :root by §2 Hearthlight
+   · 34 tokens ── */
+:root {
+  /* Typography — break out of the "AI default" Inter/Roboto trap:
+     • Cinzel for display — wide-set engraved serif, reads as
+       "carved into a homestead sign." Already preloaded.
+     • Quicksand for body — soft humanist, warmer than Inter.
+     • Caveat as the accent / hand-written voice for special
+       moments (welcome modal title, key callouts). */
+  --f-display:  'Cinzel', 'Cormorant Garamond', 'Georgia', serif;
+  --f-ui:       'Quicksand', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --f-accent:   'Caveat', 'Patrick Hand', cursive;
+
+  /* Surfaces — parchment ramp */
+  --bg-0:        #f4e4bc;             /* outermost wash */
+  --bg-1:        #ede0b8;             /* sidebar surface */
+  --bg-2:        #faf0d4;             /* card surface */
+  --bg-3:        #fff7e0;             /* elevated surface (modal) */
+  --bg-card:     linear-gradient(180deg,#fff7e0,#faf0d4);
+
+  /* Shell surfaces (b151) — tokenized so themes drive them, not hardcoded
+     values in component rules. These MUST match the old cozy look exactly. */
+  --sidebar-bg:  linear-gradient(180deg, #e8d4a0 0%, #ddc28a 50%, #d8b878 100%);
+  --topbar-bg:   linear-gradient(90deg, #ede0b8, #e8d4a0);
+  --app-bg:
+    radial-gradient(ellipse 80% 50% at 75% 5%, rgba(232,178,96,.35) 0%, rgba(232,178,96,0) 60%),
+    linear-gradient(180deg, #9c6f38 0%, #8a673a 14%, #75663c 28%, #62633a 42%, #4e5e2a 56%, #3a4e1c 70%, #243214 86%, #14180a 100%);
+
+  /* Lines + borders */
+  --line:        rgba(122,94,58,.20);
+  --line-soft:   rgba(122,94,58,.10);
+  --line-strong: rgba(122,94,58,.45);
+
+  /* b330 — the SUNK WELL behind a text input / select. Every field in the clan
+     surfaces hardcoded `rgba(0,0,0,.30)`, which is exactly the debt the
+     no-hardcoded-colour rule exists to stop: a theme could not retune an input
+     without editing components. Declared here on :root ONLY, so every theme
+     inherits it and any theme may override it. The value is deliberately the
+     one the components already carried, so this conversion moves no pixel —
+     cozy-light is unchanged, and Hearthlight keeps the same well. */
+  --field-sunk:  rgba(0,0,0,.30);
+
+  /* Text */
+  --ink:         #3d2817;             /* primary — dark cocoa */
+  --ink-2:       #7a5e3a;             /* secondary — muted brown */
+  --ink-3:       #a5896a;             /* hint */
+
+  /* Accents */
+  --gold:        #c8862a;             /* rust gold — primary accent */
+  --gold-2:      #e0a64a;             /* lighter gold for highlights */
+  --gold-bg:     rgba(200,134,42,.14);
+
+  --aqua:        #4f8b7a;              /* sage teal — used for info chips */
+  --aqua-2:      #8f8a72;
+  --aqua-bg:     rgba(79,139,122,.14);
+
+  --green:       #5a7c3d;              /* forest green — XP/skill bars */
+  --green-bg:    rgba(90,124,61,.14);
+  --green-line:  rgba(90,124,61,.34);   /* b326: the moss HAIRLINE — was inlined per component */
+
+  --red:         #a04830;              /* rust red — danger/warn */
+  --red-bg:      rgba(160,72,48,.14);
+  /* b357: the danger EDGE. --red is a fill value; a 2px ring drawn in it on a
+     near-black plate reads as a dark smudge, which is why the foe portrait had
+     a hardcoded #e36161 for years. One token, four themes, no literal. */
+  --red-line:    #a04830;
+
+  --purple:      #7a5b9a;              /* dusty lavender */
+  --purple-bg:   rgba(122,91,154,.14);
+
+  --gem:         #5b8fa8;              /* dusty blue — premium */
+  --gem-bg:      rgba(91,143,168,.14);
+}
+
+/* ── theme-cozy.css · theme "cozy-dark"
+   · 30 tokens ── */
+body[data-theme="cozy-dark"] {
+  --bg-0:        #2a1f15;              /* deep warm chocolate */
+  --bg-1:        #36281b;              /* sidebar */
+  --bg-2:        #3f2f20;              /* card */
+  --bg-3:        #4a3825;              /* elevated */
+  --bg-card:     linear-gradient(180deg,#3f2f20,#2f2317);
+  --sidebar-bg:  linear-gradient(180deg, #36281b, #2a1f15);
+  --topbar-bg:   linear-gradient(90deg, #3a2b1d, #2f2317);
+  --app-bg:      radial-gradient(ellipse 80% 50% at 75% 5%, rgba(224,184,95,.10) 0%, rgba(224,184,95,0) 60%), linear-gradient(180deg, #2a1f15, #1f1710);
+
+  --line:        rgba(232,184,96,.18);
+  --line-soft:   rgba(255,235,200,.05);
+  --line-strong: rgba(232,184,96,.40);
+
+  --ink:         #f4e4bc;
+  --ink-2:       #c8b088;
+  --ink-3:       #8a7656;
+
+  --gold:        #e0b85f;
+  --gold-2:      #f3d181;
+  --gold-bg:     rgba(224,184,95,.14);
+
+  --aqua:        #8f8a72;
+  --aqua-2:      #b3a98c;
+  --aqua-bg:     rgba(111,168,150,.18);
+
+  --green:       #7da563;
+  --green-bg:    rgba(125,165,99,.18);
+  --green-line:  rgba(125,165,99,.38);
+
+  --red:         #d56a4f;
+  --red-bg:      rgba(213,106,79,.18);
+  --red-line:    #e0836a;
+
+  --purple:      #a685c4;
+  --purple-bg:   rgba(166,133,196,.18);
+
+  --gem:         #7fb8d8;
+  --gem-bg:      rgba(127,184,216,.18);
+}
+
+/* ── theme-cozy.css · theme "classic" (behind the beta toggle)
+   · 35 tokens ── */
+body[data-theme="classic"] {
+  --bg-0:        #2b2620;              /* dark stone */
+  --bg-1:        #1f1a14;              /* sidebar */
+  --bg-2:        #d4b896;              /* parchment cards */
+  --bg-3:        #e0c8a4;
+  --bg-card:     #d4b896;
+  --sidebar-bg:  linear-gradient(180deg, #1f1a14, #171310);
+  --topbar-bg:   linear-gradient(90deg, #2b2620, #211d18);
+  --app-bg:      linear-gradient(180deg, #2b2620, #201c17);
+
+  --line:        #5c4a2e;
+  --line-soft:   rgba(92,74,46,.18);
+  --line-strong: #b8893e;
+
+  --ink:         #1f1a14;              /* dark text on parchment */
+  --ink-2:       #4a3a22;
+  --ink-3:       #7a6643;
+
+  --gold:        #b8893e;              /* brass */
+  --gold-2:      #d4a55a;
+  --gold-bg:     rgba(184,137,62,.18);
+
+  --aqua:        #5a7c8b;
+  --aqua-2:      #7898a8;
+  --aqua-bg:     rgba(90,124,139,.18);
+
+  --green:       #5e7d2a;
+  --green-bg:    rgba(94,125,42,.18);
+  --green-line:  rgba(94,125,42,.38);
+
+  --red:         #8b2e1f;
+  --red-bg:      rgba(139,46,31,.18);
+  --red-line:    #b8452e;
+
+  --purple:      #6a4a78;
+  --purple-bg:   rgba(106,74,120,.18);
+
+  --gem:         #4a6f8b;
+  --gem-bg:      rgba(74,111,139,.18);
+
+  --r-sm:        4px;
+  --r:           6px;
+  --r-lg:        8px;
+
+  --f-display:   'Cinzel','Times New Roman',serif;
+  --f-ui:        'Courier New','Lucida Console',monospace;
+}
+
+/* ── theme-cozy.css · iOS safe-area insets
+   · 4 tokens ── */
+:root {
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+/* ── theme-cozy.css · HEARTHLIGHT base — the default. Declared on :root as well as on the body scope, so a token resolved outside <body> is still dark
+   · 55 tokens ── */
+:root,
+body[data-theme="hearthlight"] {
+  --line-strong: rgba(201,162,74,.42);
+
+  /* Text — aged parchment ramp */
+  --ink:         #ece1cc;
+  --ink-2:       #c4b79e;
+  /* b216: was #8f7d63 — every section label (TODAY / BUFFS / Total Lv) sat at
+     3.4-3.9:1 on the card surface, under the 4.5:1 readability floor. This
+     clears it at ~4.9:1 while staying clearly subordinate to --ink-2. */
+  --ink-3:       #9d8b70;
+
+  /* Gilt gold — aged, candlelit (the unifying accent) */
+  --gold:        #c9a24a;
+  --gold-2:      #e3c77e;
+  /* b410 debt-paydown: --gold-3 is the DARKER third rung of the gold ladder,
+     used for the low end of skill-bar / progress fills. It was referenced as
+     `var(--gold-3, #b8893e)` in src/features/character-page.js with NO definition
+     anywhere, so the literal fallback #b8893e rendered in EVERY theme — a hidden
+     hardcoded colour. Defined here on the default :root so all themes inherit the
+     exact value they already rendered (zero visual change); a theme may now
+     override it. Widens the surface value-ladder rather than flattening it. */
+  --gold-3:      #b8893e;
+  --gold-bg:     rgba(201,162,74,.14);
+
+  /* Semantic seals — richer, more material (oxblood / moss / steel) */
+  --green:       #7f9a4f;              /* moss — gathering / XP */
+  --green-bg:    rgba(127,154,79,.15);
+  --green-line:  rgba(127,154,79,.34);
+
+  --red:         #b23a2c;              /* oxblood — combat / danger */
+  --red-bg:      rgba(178,58,44,.16);
+  --red-line:    #cf5340;              /* b357: danger EDGE — see the note in the cozy-light block */
+
+  --aqua:        #5c8f89;              /* weathered teal — info */
+  --aqua-2:      #a89a80;
+  --aqua-bg:     rgba(92,143,137,.15);
+
+  --steel:       #7a8791;              /* forged steel — gear / cool accent */
+
+  --purple:      #6a4560;              /* deep heraldic plum (was lavender) */
+  --purple-bg:   rgba(106,69,96,.20);
+
+  --gem:         #5262b3;              /* sapphire — gems / premium */
+  --gem-bg:      rgba(82,98,179,.18);
+
+  /* Shell surfaces — stone-dark, candle-lit */
+  --sidebar-bg:  linear-gradient(180deg, #17140f, #100d09);
+  --topbar-bg:   linear-gradient(90deg, #201b15, #17130f);
+
+  /* ── Scene palette (b219) ────────────────────────────────────────────────
+     Painted atmosphere is still colour, so it is still tokens. These are the
+     values the Home hearth band and the global backdrop scene are drawn from
+     (src/features/backdrop.js paints SVG classes, never literals): a Forge &
+     Stone dusk — stone sky bleeding to an ember horizon, black silhouettes,
+     candlelight the only saturated thing in the picture. */
+  --scene-sky-0:     #0c0a08;   /* zenith */
+  --scene-sky-1:     #16120e;
+  --scene-sky-2:     #241d15;
+  --scene-sky-3:     #48311d;
+  --scene-sky-4:     #7d4b23;   /* ember horizon */
+  --scene-glow-1:    rgba(255,186,110,.46);
+  --scene-glow-2:    rgba(206,116,50,.13);
+  --scene-glow-0:    rgba(206,116,50,0);
+  --scene-rim:       rgba(255,190,118,.20);
+  --scene-track:     rgba(214,164,104,.10);
+  --scene-star:      #e0d3b6;
+  --scene-haze-0:    rgba(182,162,132,0);
+  --scene-haze-1:    rgba(182,162,132,.15);
+  --scene-ridge-far: #1a150f;
+  --scene-ridge-mid: #120e0a;
+  --scene-ridge-near:#0b0806;
+  --scene-tree:      #080605;
+  --scene-build:     #090705;
+  --scene-build-2:   #16100b;
+  --scene-furrow:    rgba(236,225,204,.05);
+  --scene-lit:       #ffb457;   /* candle / hearth window */
+  --scene-litglow:   rgba(255,168,74,.30);
+  --scene-firelight: rgba(255,178,92,.16);
+  --scene-fire-0:    rgba(255,178,92,0);
+  --scene-smoke:     rgba(206,190,166,.14);
+  /* Scrims that keep UI legible on top of the picture. */
+  --scene-scrim-1:   rgba(9,7,5,.20);
+  --scene-scrim-2:   rgba(9,7,5,.72);
+  /* Type that sits ON the picture gets its own ink role: its background is the
+     scene under a dark scrim, not the theme's surface, so it stays light in
+     BOTH themes. Reading --ink here put cocoa text on a sunset in Cozy Day. */
+  --scene-ink:       #f4ecda;
+  --scene-ink-2:     #d8cbb1;
+  --scene-ink-3:     #b0a186;
+  --scene-gilt:      #ecd7a0;
+}
+
+/* ── theme-cozy.css · Hearthlight card surface
+   · 1 token ── */
+body[data-theme="hearthlight"] { --bg-card: linear-gradient(180deg,#26201a,#1a1610);}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3 · from art-direction.css — Forge & Stone: the type scale, the spacing
+   rhythm, the surface ladder and the widened value ladder (b217/b361). Loads
+   after §2 and wins where they overlap.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── art-direction.css · the --ui-scale dial (<html> and nothing else)
+   · 1 token ── */
+:root { --ui-scale: 1;}
+
+/* ── art-direction.css · Forge & Stone — type scale, spacing rhythm, surfaces
+   · 24 tokens ── */
+:root,
+body[data-theme="hearthlight"] {
+  --f-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --f-ui: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+  --f-label: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
+  --f-accent: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
+
+  /* One scale, eight steps. If a size isn't on this list it shouldn't exist.
+     b218 raised the whole ramp ~13% (body 14 -> 16). Tyler said it was STILL
+     too small. b225 answered with a FLOOR (13.5px) instead of a multiplier,
+     and moved 1,093 sub-floor elements onto it. Tyler said it was STILL too
+     small — a THIRD time — and the measurement says exactly why:
+
+       after b225, 1,093 of 2,112 visible text elements (51.8%) sat at
+       EXACTLY 13.5px. Half the game's text was standing ON the floor, so
+       the floor value *was* the reading experience, and 13.5px is under
+       what a desktop monitor at arm's length comfortably resolves.
+
+     b227 raises the floor to 14.5 and lifts every step by the same +1, so
+     the ramp keeps its separations exactly (13.5/15/16/17.5 -> 14.5/16/17/
+     18.5). A floor that half the game sits on has to be a comfortable size,
+     not a minimum-acceptable one — and the dial above is the honest answer
+     to "still too small" that a fourth hardcoded bump would not be.
+
+     --t-h3 keeps its +1 over its tier because it is set in Alegreya Sans SC:
+     genuine small caps have no ascenders and a cap-height near the x-height
+     of the regular face, so 15.5px SC reads roughly like 13.5px regular. */
+  --t-micro: calc(14.5px * var(--ui-scale, 1)); /* unit labels, counts — THE FLOOR */
+  --t-small: calc(16px   * var(--ui-scale, 1)); /* supporting text */
+  --t-body:  calc(17px   * var(--ui-scale, 1)); /* default */
+  --t-lead:  calc(18.5px * var(--ui-scale, 1)); /* row titles, emphasis */
+  --t-h3:    calc(16.5px * var(--ui-scale, 1)); /* small-caps section label (+1 for the SC face) */
+  --t-h2:    calc(22.5px * var(--ui-scale, 1)); /* panel title */
+  --t-h1:    calc(31px   * var(--ui-scale, 1)); /* screen title */
+  --t-num:   calc(27px   * var(--ui-scale, 1)); /* hero value */
+
+  /* ── 2. SHAPE ──────────────────────────────────────────────────────────
+   * Near-square. Stone and iron have arrises, not 16px fillets. A 3px radius
+   * still knocks the harshness off a corner without reading as a web card. */
+  --r-sm: 2px;
+  --r: 3px;
+  --r-lg: 5px;
+
+  /* Creature portraits are SQUARE — one mask for every place a monster, foe or
+   * companion is shown. A circle cropped the corners of the frame, and the
+   * corners are where a creature keeps the information a bestiary is read by:
+   * antlers, horns, a scythe, ears, a crest. An inscribed circle also throws
+   * away ~21% of a square source and silently imposes a "keep the subject
+   * inside the circle" rule on every future generation — a constraint paid
+   * 600 times over for a mask nobody asked for. The plate keeps the frame,
+   * the plinth and the gilt edge; only the mask changed. */
+  --r-portrait: 6px;
+
+  /* ── 3. COLOUR ROLES ───────────────────────────────────────────────────
+   * Every accent below has exactly one job. Nothing in the UI may use a hue
+   * for a purpose not on this list. */
+  --role-action: var(--gold);      /* interactive, selected, currency */
+  --role-danger: var(--red);       /* destructive + lethal only */
+  --role-success: var(--green);    /* XP, growth, completion */
+  --role-premium: var(--gem);      /* real-money currency only */
+  --role-quiet: var(--steel);      /* informational, disabled */
+
+  /* ── 4. SURFACES ───────────────────────────────────────────────────────
+   * Four treatments, each with a distinct meaning:
+   *   sunken — a well that holds objects (inventory slots, plots, wells)
+   *   raised — a physical thing you press (buttons, tiles)
+   *   panel  — grouped content that is dense enough to need an edge
+   *   (nothing) — the default. Most content sits directly on the world. */
+  --surf-sunken: rgba(0, 0, 0, .30);
+  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .65), inset 0 -1px 0 rgba(255, 232, 190, .045);
+
+  /* Rules. A section divider is a fading hairline, not a full-width line —
+   * it reads as an incised rule rather than a table border. */
+  --rule-fade: linear-gradient(90deg, var(--line-strong), rgba(201, 162, 74, .10) 62%, transparent);
+}
+
+/* ── art-direction.css · the widened value ladder (b361) — hues unchanged, value only
+   · 11 tokens ── */
+:root,
+body[data-theme="hearthlight"] {
+  --bg-0: #0a0806;   /* the world behind everything */
+  --bg-1: #14110c;   /* sidebar / rails */
+  --bg-2: #241d16;   /* panel + card surface */
+  --bg-3: #322920;   /* elevated: modals, hovered objects */
+  --bg-card: linear-gradient(180deg, #2a2219, #1b160f);
+
+  /* Edges have to catch light or the new levels won't be legible as levels. */
+  --line-soft: rgba(255, 236, 200, .075);
+  --line: rgba(201, 162, 74, .24);
+
+  --surf-raised: linear-gradient(180deg, rgba(255, 236, 200, .10), rgba(255, 236, 200, .03) 55%, rgba(0, 0, 0, .12));
+  --surf-raised-edge: inset 0 1px 0 rgba(255, 240, 210, .14), 0 1px 0 rgba(0, 0, 0, .5);
+  --surf-panel: rgba(236, 225, 204, .035);
+
+  /* App background drops well below the panel so the panel reads as lifted,
+     and the ember glow up top gives the whole thing a direction of light. */
+  --app-bg:
+    radial-gradient(120% 60% at 76% -6%, rgba(226, 154, 82, .16) 0%, rgba(226, 154, 82, 0) 62%),
+    linear-gradient(180deg, #121009 0%, #0b0906 46%, #070504 100%);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   4 · from board-and-shop.css — the bounty board and shopfront palettes.
+   Scene-local names (--bb-*, --sc-*) but declared on the theme root, so they
+   are part of the ladder, not component-scoped variables.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── board-and-shop.css · bounty board + shopfront palettes
+   · 65 tokens ── */
+:root,
+body[data-theme="hearthlight"] {
+  /* The board, as an object in the world */
+  --bb-frame-0:   #2b2119;
+  --bb-frame-1:   #191209;
+  --bb-plank-0:   #241b13;
+  --bb-plank-1:   #1a130d;
+  --bb-seam:      rgba(0,0,0,.55);
+  --bb-grain:     rgba(236,225,204,.028);
+  --bb-iron:      #100c08;
+  --bb-iron-2:    #1c150e;
+  --bb-flame:     #ffd08a;
+
+  /* Paper. Light in BOTH themes — it is paper. */
+  --bb-paper-0:   #e7d9bd;
+  --bb-paper-1:   #d5c39e;
+  --bb-paper-2:   #c3ae85;
+  --bb-fold:      rgba(96,72,40,.16);
+  --bb-ink:       #2b2117;
+  --bb-ink-2:     #55432f;
+  /* was #715c41 — 4.3:1 on the parchment mid-tone, under the readability floor */
+  --bb-ink-3:     #63503a;
+  --bb-rule:      rgba(70,50,26,.32);
+  --bb-seal:      #8e3324;
+  --bb-nail-0:    #b9ac95;
+  --bb-nail-1:    #2a2119;
+  --bb-plate:     #221803;   /* ink on a struck-brass control */
+  /* The rail sits on the timber frame, which is a mid-to-dark wood in BOTH
+     themes — so its type is light in both, like the scene ink roles. */
+  --bb-rail-ink:  #cbbc9e;
+
+  /* The shopfront */
+  --sc-wall-0:      #14100b;
+  --sc-wall-1:      #241a11;
+  --sc-wall-seam:   rgba(0,0,0,.30);
+  --sc-vig:         rgba(6,4,3,.72);
+  --sc-vig-0:       rgba(6,4,3,0);
+  --sc-window:      #6d451f;
+  --sc-window-2:    #3a2513;
+  --sc-iron:        #100c08;
+  --sc-lit:         #ffb457;
+  --sc-flame:       #ffe0a8;
+  /* Rim light. It is the only thing separating a silhouette from the wall
+     behind it — at --scene-rim's .20 alpha the keeper read as a flat blob. */
+  --sc-rimlight:    rgba(255,196,128,.60);
+  --sc-contact:     rgba(0,0,0,.40);
+  --sc-timber:      #0d0a07;
+  --sc-timber-2:    #17110b;
+  --sc-shelf:       #120d08;
+  --sc-prop:        #0d0a06;
+  --sc-prop-lit:    #6b5233;
+  --sc-figure:      #0a0806;
+  --sc-figure-2:    #241a10;   /* cloth (coif, apron) — must separate from the body */
+  --sc-comb:        #7d2d20;
+  --sc-counter-face:#130e08;
+  --sc-counter-lip: #7a5c31;
+  --sc-counter-far: #3a2b1b;
+  --sc-counter-near:#241a10;
+  --sc-counter-grain: rgba(0,0,0,.34);
+  --sc-top-0:     #2c2015;
+  --sc-top-1:     #1d150d;
+  --sc-mat:       #4a3623;
+  --sc-mat-2:     #2c2013;
+  --sc-stitch:    rgba(228,206,164,.20);
+  --sc-tag:       #d8c69f;
+  --sc-tag-ink:   #33261a;
+  /* Premium is sapphire and only sapphire (art-direction.css §6). */
+  --sc-prem-ink:  #b3bcec;
+  --sc-prem-ink2: #e2e6fc;
+  --sc-prem-line: rgba(120,136,220,.34);
+  --sc-prem-bg:   rgba(120,136,220,.09);
+  --sc-gem-tag:   #cdd4f0;
+  --sc-gem-ink:   #1e2350;
+  /* b371 (F24) — THE REAL-MONEY BUTTON IS A JEWEL SET IN GOLD, not a web link.
+     The sapphire ROLE was right (art-direction.css §6: only real money is
+     allowed this hue) and the EXECUTION was a flat #5f6fc4→#38447f periwinkle
+     pill with a lavender border — three literal hexes, no relationship to any
+     other surface in the game, and the one control on the one screen that takes
+     a credit card looked like a default Bootstrap primary. It is now a deep,
+     saturated stone under a gilt rim: sapphire keeps the meaning, the gilt keeps
+     it inside Forge & Stone, and both ends are tokens so the retired light
+     theme re-tints instead of inheriting a dark-theme hex. */
+  --gem-face-0:   #4d5fc0;   /* lit top facet */
+  --gem-face-1:   #35459a;
+  --gem-face-2:   #232e6d;   /* deep bottom */
+  --gem-rim:      rgba(201,162,74,.62);   /* the gilt setting */
+  --gem-face-ink: #f2f4ff;
+}

@@ -1004,6 +1004,18 @@ jobs:
           node tests/breakpoint-guard.mjs --report
           node tests/breakpoint-guard.mjs --selftest
 
+      # slice 5 step 1 - src/styles/tokens.css is the single source of design
+      # tokens. Before it, 367 token declarations lived in four sheets at four
+      # points in the load order and 41 of them were shadowed later with a
+      # DIFFERENT value. This guard keeps the source single, keeps the four
+      # legitimate component-scoped variables on an allowlist with reasons, and
+      # ratchets the bare var() reads that nothing declares.
+      - name: Presentation floor - one source for design tokens
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/token-single-source.mjs --report
+          node tests/token-single-source.mjs --selftest
+
       # slice 3 — deletions proven dead (derived censuses, never hand-pinned).
       # Appended at the END of the file on purpose: slice 2 is appending its own
       # steps here too, and two blocks under distinct comments merge cleanly.

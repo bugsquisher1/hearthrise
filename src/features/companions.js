@@ -13,8 +13,8 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=518';
-import { emit } from '../net/events.js?v=518';
+import { COMPANIONS } from '../data/companions.js?v=519';
+import { emit } from '../net/events.js?v=519';
 /* THE SERVER-OF-RECORD ARM SWITCH for companion XP. While false (DORMANT) the
    client awards companion XP locally exactly as before. When flipped true, the
    accrual engine becomes the sole writer (a `stat companion_xp:<id>` op priced
@@ -22,7 +22,7 @@ import { emit } from '../net/events.js?v=518';
    the server accrues the same role-matched actions this client seam does. The
    passive bonus already reads server companion XP through hr_perks_of, so under
    arm the level shown reconciles to server truth. */
-import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=518';
+import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=519';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -216,16 +216,15 @@ export function awardCompanionXp(amount) {
   const next = Math.min(COMPANION_XP_CAP, before + amount);
   window.G.companions.xp[eq] = next;
   const afterLv = companionLevelFromXp(next);
-  if (afterLv > beforeLv) {
-    emit('companionLevelUp', { id: eq, level: afterLv });
-    /* b313 (paione — companion stats mismatch): the equipment doll's Companion
-       pane is only rebuilt when the doll is, so after a pet LEVELS UP it kept
-       showing the old level/stats while inventory + combat (which read the live
-       companion bonus every call) already showed the higher numbers. Refresh the
-       doll on the level change so both agree. Guarded; only fires on a level-up. */
-    try { if (typeof window.refreshAllDolls === 'function') window.refreshAllDolls(); } catch (e) {}
-    try { if (typeof window.renderStable === 'function' && window.activeTab === 'stable') window.renderStable(); } catch (e) {}
-  }
+  /* ⚠ b313 rev.2 — THE LEVEL-UP EVENT AND ITS REPAINT ARE NOT HERE ANY MORE.
+     Both gates above return for every caller, so this level-up branch was
+     unreachable code holding the ONLY copy of paione's doll refresh while the
+     level itself moved somewhere else entirely: the envelope. The detector and
+     the two repaints now live in `accrue.js reconcileCompanions`
+     (announceCompanionLevelUps), which is where the level actually changes.
+     Nothing is restated here, because a second implementation of a repaint is
+     how this defect came back the first time. */
+  if (afterLv > beforeLv) emit('companionLevelUp', { id: eq, level: afterLv });
 }
 
 /**

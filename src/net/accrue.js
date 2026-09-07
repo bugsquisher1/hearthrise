@@ -1511,14 +1511,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=518';
+import * as itemLedger from './item-ledger.js?v=519';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=518';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=519';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1527,7 +1527,7 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=518';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=519';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -1545,17 +1545,24 @@ import { serverAccruedSkill } from '../data/skill-authority.js?v=518';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=518';
+import * as pendingConsume from './pending-consume.js?v=519';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=518';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=519';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=518';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=519';
+/* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
+   pure core copy (src/core/companion-perk.js), not the feature module's twin:
+   companions.js imports the event bus and reaches for window, and this file is
+   driven headlessly by the suite. The two curves are pinned equal to each other
+   by tests/perk-channel.mjs, so reading the level here can never disagree with
+   the level the doll and getCompanionBonus read. */
+import { companionLevelFromXp } from '../core/companion-perk.js?v=519';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1774,8 +1781,60 @@ export function reconcileCompanions(G, res) {
      hr_companion_equip's ownership gate enforces. */
   let equipped = (typeof c.equipped === 'string' && c.equipped) ? c.equipped : null;
   if (equipped && !owned.has(equipped)) equipped = null;
+  /* ── b313 rev.2 — THE LEVEL-UP REPAINT LIVES ON THE RECONCILE NOW ──────────
+     paione's original report was "companion stats mismatch": the equipment
+     doll's Companion pane is only rebuilt when the doll is, so a pet that
+     LEVELLED UP kept showing the old level while inventory and combat — which
+     read the live bonus on every call — already showed the higher numbers. The
+     original fix hung a refreshAllDolls() off the client-side level-up inside
+     `companions.js awardCompanionXp`. That function is gated off for every
+     caller (companion XP is a server-owned aggregate), so the repaint became
+     unreachable while the LEVEL kept arriving — here, in the envelope.
+
+     So the detector is here, where the level actually changes, and it reads
+     ONLY envelope values: the previous MIRROR (what the last envelope stated)
+     versus the incoming one. The client authors nothing; it notices.
+
+     NO PRIOR STATEMENT, NO NOTICE. An id with no finite xp cell in the previous
+     mirror is a first sight — the boot hydration, or a pet that just joined the
+     roster — and announcing a "level-up" for it would throw a party on every
+     reload. Two levels crossed in one envelope are ONE event naming the level
+     the player is now, because that is the number the doll will show. */
+  const prevXp = (G.companions && G.companions.xp && typeof G.companions.xp === 'object'
+                  && !Array.isArray(G.companions.xp)) ? G.companions.xp : null;
+  const leveled = [];
+  if (prevXp) {
+    for (const id of owned) {
+      const p = Number(prevXp[id]);
+      if (!Number.isFinite(p)) continue;
+      const from = companionLevelFromXp(p);
+      const to = companionLevelFromXp(xp[id]);
+      if (to > from) leveled.push({ id, from, to });
+    }
+  }
   G.companions = { ownedIds: Array.from(owned), xp, equipped };
-  return { mode: 'server', owned: owned.size, equipped };
+  if (leveled.length) announceCompanionLevelUps(leveled);
+  return { mode: 'server', owned: owned.size, equipped, leveled };
+}
+
+/* The b313 sentence, fired from the reconcile: the same two repaints and the
+   same `companionLevelUp` event `awardCompanionXp` used to fire, no more. Every
+   hop is window-guarded and try//caught so a headless driver (and a renderer
+   that throws) can never break the reconcile that just wrote server truth — the
+   roster is already committed to G before this runs. ONE doll refresh and ONE
+   stable repaint for the whole envelope, however many pets levelled. */
+function announceCompanionLevelUps(leveled) {
+  const w = (typeof window !== 'undefined') ? window : null;
+  if (!w) return;
+  for (const ev of leveled) {
+    try {
+      if (w.HearthriseEvents && typeof w.HearthriseEvents.emit === 'function') {
+        w.HearthriseEvents.emit('companionLevelUp', { id: ev.id, level: ev.to, from: ev.from, source: 'server' });
+      }
+    } catch (e) {}
+  }
+  try { if (typeof w.refreshAllDolls === 'function') w.refreshAllDolls(); } catch (e) {}
+  try { if (typeof w.renderStable === 'function' && w.activeTab === 'stable') w.renderStable(); } catch (e) {}
 }
 
 /* ── THE OWNED PERMANENT TRAITS, HYDRATED FROM THE ENVELOPE ───────────────────
@@ -3364,6 +3423,32 @@ export function applyEnvelope(G, res) {
      the receipt for the delta that was just applied. See legacy.js:~2034. */
   written.paidReceipt = G.lastOfflineSummary;
 
+  /* ── THE AWAY RECEIPT OUTLIVES THE NEXT SYNC (b519) ─────────────────────
+     `lastOfflineSummary` is the LATEST receipt, whatever kind it is, and it
+     has to stay that way: the toast, the welcome modal and the bug report all
+     want the thing that just happened. But the Home "While you were away"
+     card is not about the latest receipt — it is about the ABSENCE, and the
+     absence is news for thirty minutes (home-dashboard.js's own box).
+
+     Because the settle loop lands an envelope every 90 seconds, the line
+     above overwrote the night's receipt with a sync receipt roughly a minute
+     and a half into play, and the card vanished mid-read. Design ruling
+     (game-designer, 2026-09-07): a sync receipt must never CREATE or RE-LABEL
+     an away card, and must not EVICT a fresh one either.
+
+     So the away receipt gets its own holder, written ONLY when the shared
+     classifier says 'away' (>= SYNC_MAX_MS, or a death on any span — b343's
+     rule, read through `classifyReceipt` rather than re-decided here, which
+     is what keeps b361's one-classifier property). A sync never touches it;
+     a LATER away receipt replaces it, which is correct — two absences in one
+     30-minute box means the second one is the news.
+
+     Deliberately module-scope and NOT persisted: it is display state about
+     one session's return, not progression (§6 — a field that only exists in
+     the client is lost on reload BY DESIGN, and on reload the very next
+     envelope re-states the absence anyway). */
+  if (classifyReceipt(G.lastOfflineSummary) === 'away') lastAwayReceipt = G.lastOfflineSummary;
+
   /* The server owns `accrued_to`. Parking it here is what makes it visible to
      the countdown UI and to a bug report; nothing reads it as authority. */
   G._serverAccrual = {
@@ -3425,6 +3510,37 @@ export function reconcileAwayReceipt(G, res) {
   if (Number.isFinite(at) && at > 0) summary.at = at;
   summary.restored = true;          // scratch marker for the renderers/QA; not authority
   G.lastOfflineSummary = summary;
+  /* ── AND INTO THE AWAY HOLDER, OR THE RESTORED CARD LIVES 90 SECONDS ───────
+     MERGE-EMERGENT (b519 + this branch, measured on the merged tree
+     2026-09-07). Neither change is wrong alone and together they reopened the
+     exact bug b519 closed, for the one case this function exists to serve.
+
+     b519 moved the Home away card off `G.lastOfflineSummary` — every settle
+     overwrites it — onto a module-scope holder written in `applyEnvelope` when
+     the receipt classifies away. Its header reasons that the holder need not
+     survive a reload because "on reload the very next envelope re-states the
+     absence anyway". THAT PREMISE IS THE ONE THIS BRANCH MEASURED FALSE: once
+     a night has been paid, the next boot's hr-accrue answers
+     `{accrued:false, reason:'idle'}`, `applyEnvelope` never runs, and nothing
+     re-states anything. It is why `last_away_receipt` exists.
+
+     So on the merged tree the seed above drew the card, and the first
+     90-second sync — which sets `G.lastOfflineSummary` to a sync receipt and
+     leaves the holder null — evicted it. Measured: card DRAWS at boot, NONE
+     after one sync. That is b519's own bug wearing this feature's clothes.
+
+     One line closes it, and it obeys both of b519's rules rather than
+     restating them:
+       · ONE CLASSIFIER — `classifyReceipt`, never a local re-decision, so the
+         holder and the toast can never disagree about which night this was
+         (b361's property). A restored receipt classifies away by construction;
+         asking anyway is what keeps that true if the stored shape ever drifts.
+       · HOLE-FILLING ONLY — same as rule 1 above. A holder already populated
+         belongs to an absence THIS session applied, which is the fresher
+         statement; a restore may never evict it. (In practice the holder is
+         always null here: it is module-scope, so a boot starts it empty.)
+     Nothing is credited by either write — see this function's rule 2. */
+  if (!lastAwayReceipt && classifyReceipt(summary) === 'away') lastAwayReceipt = summary;
   return summary;
 }
 
@@ -3769,6 +3885,19 @@ export function receiptAttended(summary, visibleSinceMs) {
   return vs <= (at - span);
 }
 
+/* The most recent receipt that CLASSIFIED AS AWAY, held apart from
+   `G.lastOfflineSummary` so a 90-second sync cannot evict the night's card.
+   Written in exactly one place (applyEnvelope, above); read by the Home away
+   card; cleared by `__resetAwayReceipt` for tests that land an away fixture. */
+let lastAwayReceipt = null;
+
+/** The away card's source of truth. Null when this session has seen no absence. */
+export function getLastAwayReceipt() { return lastAwayReceipt; }
+
+/** TEST SEAM ONLY. An away fixture landed by one test would otherwise stay on
+    the Home screen for the next thirty minutes of the suite. */
+export function __resetAwayReceipt() { lastAwayReceipt = null; }
+
 /**
  * 'switch' | 'sync' | 'away' — the three genuinely different events that share
  * one receipt shape. Callers pick a sentence from this and nothing else.
@@ -3808,6 +3937,92 @@ export function receiptNotice(summary, opts) {
   const attended = (kind === 'sync') && receiptAttended(summary, o.visibleSince);
   const announce = !attended && (credit.any || receiptDied(summary) || kind !== 'sync');
   return { kind, credit, attended, announce };
+}
+
+/* ── THE TWO CLAUSES THE TOAST LOST WHEN THE LOCAL ENGINE DIED ──────────────
+   b345 gave the away receipt a "your supplies ran out" line and Recovery rev. 2
+   gave it a "you got back up" line; b515 deleted the local `processOffline`
+   that produced both, and `receiptSentence` — the ONLY sentence source since —
+   never had either. So the two absences that most need explaining, a night
+   that stopped 31 seconds in and a night with four falls in it, toasted as
+   eight hours of honest, uninterrupted pay. b518 put the fields on the away
+   payload (`stoppedBy`, `stoppedById`, `stoppedSkill`, `stoppedPerHour`,
+   `deaths`, `recoverMs`, `recoverLadder`); these two read them.
+
+   Both are pure and STATED-ONLY (b341's rule — nothing is inferred, and in
+   particular `paidMs < awayMs` is NOT a stop test), and both speak the
+   vocabulary of the two surfaces that already render these fields: the Home
+   away card (`features/home-dashboard.js` — STOP_COPY and its "You fell"
+   block) and the welcome-back modal (`legacy.js` — the stop row and the
+   picked-up row). Three surfaces describing one night in three voices is how a
+   player learns to distrust all three, so the toast is the SHORT FORM of the
+   same sentence, never a fourth reading.
+
+   Exported so the suite can read them without a live envelope, for the same
+   reason `receiptSentence` is. */
+
+/* WHICH STOP REASONS THIS SENTENCE CAN HONESTLY DESCRIBE — a table, not a
+   negation, and the same shape (and the same single row) as the away card's
+   STOP_COPY. `stoppedBy` carries reasons that are NOT "you ran out of
+   something": 'idle' is no activity at all, 'gate' is a locked recipe, 'level'
+   is a level gate, 'budget' is the accrual engine asking for a smaller
+   proposal. Speaking "ran out of materials" for any of those would be a
+   fabricated cause on the one surface that exists to state a real one, so an
+   unknown reason is SILENT and a new reason is a row here. 'death' is
+   excluded for the card's own reason: it reports through this seam but owns
+   richer copy of its own. */
+const STOP_CLAUSE = Object.freeze({
+  supplies: true,
+});
+
+/** "Cooking ran out of Raw Shrimp 31s in — nothing was earned after", or null. */
+export function receiptStopClause(summary, opts) {
+  const o = opts || {};
+  const s = summary || {};
+  const by = (typeof s.stoppedBy === 'string' && s.stoppedBy) ? s.stoppedBy : null;
+  if (!by || !STOP_CLAUSE[by]) return null;
+  /* Names are resolved by the CALLER (`itemLabel` / `skillLabel`, the same
+     injection shape as `foeLabel`) because ITEMS and SKILLS_DEF are data this
+     pure module must not reach for. The fallbacks are the away card's own
+     ("materials" / "Your run"), so an unwired call site says something true
+     rather than "undefined". */
+  const what = (typeof o.itemLabel === 'function' && s.stoppedById)
+    ? (o.itemLabel(s.stoppedById) || 'materials') : 'materials';
+  const skill = (typeof o.skillLabel === 'function' && s.stoppedSkill)
+    ? (o.skillLabel(s.stoppedSkill) || 'Your run') : 'Your run';
+  /* HOW FAR IN. `paidMs` is stated; the span is printed only when a formatter
+     was injected, because a second formatter here would round differently from
+     the card's and the two would then disagree about one instant. */
+  const paid = Math.max(0, Number(s.paidMs) || 0);
+  const when = (paid > 0 && typeof o.spanLabel === 'function') ? o.spanLabel(paid) : null;
+  return skill + ' ran out of ' + what + (when ? (' ' + when + ' in') : '')
+    + ' — nothing was earned after';
+}
+
+/** "You fell 4 times to the Goblin — knocked out for 8m in total; your run
+ *  picked up each time", or null. Gated exactly as the card and the modal gate
+ *  it: `deaths` STATED (a `died` with no count is one pre-Recovery fall and has
+ *  no recovery story to tell), and the run did not actually stop on the death. */
+export function receiptRecoveryClause(summary, opts) {
+  const o = opts || {};
+  const s = summary || {};
+  const deaths = Math.max(0, Number(s.deaths) || 0);
+  if (deaths < 1 || s.stoppedBy === 'death') return null;
+  const foeName = (typeof o.foeLabel === 'function') ? o.foeLabel(s.diedTo) : null;
+  const foe = foeName ? (' to the ' + foeName) : '';
+  const recMs = Math.max(0, Number(s.recoverMs) || 0);
+  const held = (recMs > 0 && typeof o.spanLabel === 'function') ? o.spanLabel(recMs) : null;
+  /* THE SINGLE FALL KEEPS ITS OWN SHAPE, exactly as the card does: one fall is
+     one event, many falls are a night, and quoting the first one's span would
+     read as the only one. */
+  if (deaths === 1) {
+    return 'You fell' + foe
+      + (held ? (' — knocked out for ' + held + ', then your run picked up')
+              : ' — your run picked up');
+  }
+  return 'You fell ' + deaths + ' times' + foe
+    + (held ? (' — knocked out for ' + held + ' in total; your run picked up each time')
+            : ' — your run picked up each time');
 }
 
 /**
@@ -3869,7 +4084,26 @@ export function receiptSentence(summary, opts) {
      the CALLER (`opts.foeLabel`, the same injection shape as `spanLabel`)
      because this module is pure and MONSTERS is data — the away card and the
      welcome modal resolve `diedTo` the same way. */
-  if (receiptDied(s)) {
+  /* ── THE AWAY BRANCH, AND ONLY THE AWAY BRANCH, SAYS WHAT HAPPENED ──────
+     An away receipt owes the player the shape of the night, not just its
+     total: WHY it stopped and WHETHER they got back up. Both clauses are
+     confined here on purpose — b510's silence ruling means an attended live
+     settle narrates nothing, and a 'switch' is a window the player closed
+     themselves. Ordered as the Home card orders its notes: what happened to
+     the character first, then what happened to the run. */
+  const recovery = receiptRecoveryClause(s, o);
+  const stop = receiptStopClause(s, o);
+  const extra = (recovery ? (' · ' + recovery) : '') + (stop ? (' · ' + stop) : '');
+  /* A RECOVERED NIGHT IS NOT A DEATH NOTICE. The b343 sentence ends "nothing
+     was earned after", which was true when a death was terminal and is a lie
+     under Recovery rev. 2 — the run picked up and kept paying. So a receipt
+     that STATES a recovery takes the away sentence with the fall clause on it
+     (still announced, still leading with the fall — b343's rule is that a
+     death is never a QUIET toast, not that it must wear these exact words),
+     and the terminal death keeps b343's branch untouched. Same switch the away
+     card uses (`deaths` stated and `stoppedBy !== 'death'`), so the durable
+     surface and the toast cannot disagree about which night this was. */
+  if (receiptDied(s) && !recovery) {
     const foe = (typeof o.foeLabel === 'function') ? o.foeLabel(s.diedTo) : null;
     const why = receiptDeathCause(s);
     const gains = [];
@@ -3880,10 +4114,10 @@ export function receiptSentence(summary, opts) {
       + (why ? why.clause + (gains.length ? '. Credited ' + gains.join(', ') : '')
              : (gains.length ? 'credited ' + gains.join(', ') + ' before it'
                              : 'nothing was earned after'))
-      + tail;
+      + extra + tail;
   }
   return '⏰ Away ' + s.hrs + 'h — the server credited +' + c.items + ' items, +'
-    + c.xp + ' XP, +' + c.gold + ' gold' + tail;
+    + c.xp + ' XP, +' + c.gold + ' gold' + extra + tail;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -4551,6 +4785,8 @@ if (typeof window !== 'undefined') {
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
+    getLastAwayReceipt, __resetAwayReceipt,
+    receiptStopClause, receiptRecoveryClause,
     noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

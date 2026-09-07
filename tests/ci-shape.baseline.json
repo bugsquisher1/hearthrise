@@ -68,6 +68,8 @@
     "node tests/css-literal-ratchet.mjs --selftest": "client-guards",
     "node tests/breakpoint-guard.mjs --report": "client-guards",
     "node tests/breakpoint-guard.mjs --selftest": "client-guards",
+    "node tests/token-single-source.mjs --report": "client-guards",
+    "node tests/token-single-source.mjs --selftest": "client-guards",
     "node tests/dead-exports.mjs --selftest": "client-guards",
     "node tests/dead-exports.mjs": "client-guards",
     "node tests/dead-css.mjs --selftest": "client-guards",

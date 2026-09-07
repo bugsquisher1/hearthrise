@@ -1,0 +1,102 @@
+{
+  "note": "BARE var(--x) reads — no fallback — whose token is declared nowhere in CSS, in JS setProperty, or in JS-authored style text. Each one makes its whole declaration invalid at computed-value time, so the property silently reverts to its initial value. This is a ratchet: the list may only shrink. A new one is red; fixing one prints a note and is re-recorded with --write. These are real bugs, not exemptions.",
+  "measured": "2026-09-07",
+  "single_source": "src/styles/tokens.css",
+  "component_scoped_allowlist": {
+    "--td-cell": "paper-doll cell size; .td-doll re-declares it per breakpoint",
+    "--cs-bleed": "clan-seat scene bleed; local to .hr-cs",
+    "--cs-inset": "clan-seat scene inset; local to .hr-cs",
+    "--tier-tint": "combat scrim tint, one value per [data-foe-tier]; varies per element"
+  },
+  "runtime_root": {
+    "--vh": "src/mobile.js — real viewport unit for mobile URL-bar chrome",
+    "--reduce-fx": "src/legacy.js + src/settings-page.js — the reduce-visual-effects switch"
+  },
+  "known_undefined": [
+    {
+      "token": "--panel-2",
+      "used_by": [
+        "legacy.css"
+      ]
+    }
+  ],
+  "optional_hooks_note": "var(--x, fallback) reads whose token is declared nowhere. Deliberate hooks, not failures; recorded only so the list cannot grow unnoticed.",
+  "optional_hooks": [
+    {
+      "token": "--card",
+      "used_by": [
+        "homestead-rooms.css"
+      ]
+    },
+    {
+      "token": "--danger",
+      "used_by": [
+        "art-direction.css",
+        "src/features/recipe-book.js"
+      ]
+    },
+    {
+      "token": "--gold-1",
+      "used_by": [
+        "legacy.css"
+      ]
+    },
+    {
+      "token": "--ink-1",
+      "used_by": [
+        "src/features/pet-session.js"
+      ]
+    },
+    {
+      "token": "--ink-inv",
+      "used_by": [
+        "homestead-rooms.css"
+      ]
+    },
+    {
+      "token": "--panel",
+      "used_by": [
+        "legacy.css"
+      ]
+    },
+    {
+      "token": "--rail-edge",
+      "used_by": [
+        "theme-cozy.css"
+      ]
+    },
+    {
+      "token": "--rail-w",
+      "used_by": [
+        "theme-cozy.css"
+      ]
+    },
+    {
+      "token": "--rr-color",
+      "used_by": [
+        "src/features/rarity.js"
+      ]
+    },
+    {
+      "token": "--rr-glow",
+      "used_by": [
+        "src/features/rarity.js"
+      ]
+    },
+    {
+      "token": "--surface-2",
+      "used_by": [
+        "homestead-rooms.css",
+        "src/features/death-sheet.js",
+        "src/features/identity.js",
+        "src/features/muster.js"
+      ]
+    },
+    {
+      "token": "--surface-3",
+      "used_by": [
+        "homestead-rooms.css"
+      ]
+    }
+  ]
+}

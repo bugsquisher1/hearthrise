@@ -4,6 +4,76 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-09-07 — Systems Engineer — **There are TWO `window.__smokeTest` definitions and which one a headless driver gets is a load-order RACE. The loser runs 20 stale tests, 5 of them red, and reports them as the suite.** (P2, pre-existing on main and on the merge-base — NOT fixed here)
+
+`src/legacy.js:18826` defines a "Smoke Test v1" runner over its own 20-entry `TESTS` array;
+`src/features/smoke-test.js setupSmokeTest()` later overwrites `window.__smokeTest` with the real
+1,174-test suite. **Measured, not theorised:** a driver that waits on
+`typeof window.__smokeTest === 'function'` and calls it immediately got the LEGACY one — which
+ignores `opts.only` entirely — and reported `F icons: skill icons mapped`, `F renders: skills +
+activities`, `F companions: data + state` and two more as failures of a filtered run that should
+have matched nothing. A second call in the same page hit the real runner. Same page, same build,
+different answer.
+
+`tests/run-smoke.mjs:3868` waits on the same ambiguous predicate. It has presumably always won the
+race (the ESM module is evaluated before `load` fires), but "presumably" is the exact shape §4
+calls a flake: the failure mode is a GREEN-looking 15/20 that is not the suite at all.
+
+**The unambiguous sentinel that exists today:** `window.__hrAddSmokeButton`, set only by
+`setupSmokeTest` under `__HR_TEST_HARNESS__`. Waiting on it cannot resolve early.
+
+**AFFECTED SYSTEMS:** `src/legacy.js` (the dead v1 suite), `src/features/smoke-test.js`,
+`tests/run-smoke.mjs`, any headless driver. **REQUIRED ACTION:** delete the v1 suite from
+legacy.js (it is ~200 lines of dead, stale-red duplicate — a cleanup-slice candidate) and, until
+then, harden the wait in `run-smoke.mjs` to the sentinel. Both are their own branch with their own
+gate; neither belongs in a merge commit.
+
+### 2026-09-07 — Systems Engineer — **Two different in-page tests are both numbered `SYNC-5`.** (P3, main's own collision, introduced by b519 `7284e6f0` — deliberately NOT renamed by me)
+
+`SYNC-5: an away receipt says WHY it stopped and that you got back up` (new in b519) and
+`SYNC-5: an ATTENDED live settle says nothing; an absence and a death still speak` (pre-existing).
+Both pass today, so nothing is red — but a CI line reading "SYNC-5 failed" names two tests, and
+`opts.only 'SYNC-5'` runs both. Confirmed present on `main` before this merge and absent from the
+merge-base, so it is not a merge artefact. Not renamed here: silently renumbering another lane's
+test inside a merge commit changes an ID the Coordinator and CI logs refer to.
+
+**AFFECTED SYSTEMS:** `src/features/smoke-test.js`. **REQUIRED ACTION:** whoever owns b519 renames
+the newer one (`SYNC-6`). Note the file already carries 9 other duplicate IDs
+(`B349-1 B431-1 COMBAT-UI-23 FARM-TIER-1/2/3 WAVE1/2/3`) — the class is worth one sweep and a
+uniqueness guard, not nine one-off fixes.
+
+### 2026-09-07 — Art Director — **`background: var(--panel, var(--panel-2))` in legacy.css names two tokens that do not exist, so that surface paints nothing.** (P3, found by the new token guard, deliberately NOT fixed here)
+
+`src/styles/legacy.css:3006` reads
+`background:var(--panel, var(--panel-2));border:1px solid var(--gold-2);`
+and neither `--panel` nor `--panel-2` is declared anywhere — not in CSS, not via `setProperty`, not
+in JS-authored style text. A `var()` chain whose last resort is also undefined makes the whole
+declaration **invalid at computed-value time**, so `background` reverts to its initial value and the
+element is transparent. It has presumably looked "fine" because the surface behind it is dark.
+
+This is the only one of its kind: the guard separates a BARE `var(--x)` (fatal) from
+`var(--x, fallback)` (an intentional hook, 12 of those and all harmless). It is ratcheted at 1 in
+`tests/token-single-source.baseline.json`, so a second one is red.
+
+**AFFECTED SYSTEMS:** `src/styles/legacy.css`. **REQUIRED ACTION:** whoever next touches that rule
+decides what the surface should be and points it at a real token — it is a pixel-changing fix, so
+it needs the visual gate and does not belong in a zero-delta cleanup commit.
+
+### 2026-09-07 — Art Director — **Two screenshots of the same unchanged build differ by up to 38,799 pixels. Any "the refactor changed nothing" claim based on comparing two browser runs is worthless.** (Method, affects every visual verification)
+
+Measured on this tree, twice, at 1440x900 and 922x423 with a pinned clock and a seeded PRNG: an
+unchanged codebase produced 38,799 differing pixels on inventory (a transient toast) and thousands
+more at Delta 1 across gradients — Chromium's dithering is not bit-stable between rasters. Even
+within ONE page load, a stylesheet swap forces a re-raster, so the two captures must follow the
+same NUMBER of swaps or the byte-identical control still shows 14,124 px.
+
+The working method, now shipped as `tools/css-ab-pixel-diff.mjs`: one page load, freeze the DOM
+(clear every timer and stub rAF), warm-up swap, capture, swap, capture. Control floor 0; a planted
+`--ink` change shows 44,607 px on 8/8 screens.
+
+**AFFECTED SYSTEMS:** every visual verification claim. **REQUIRED ACTION:** if you assert a CSS
+change is invisible, run the tool with `--control` in the same session and quote both numbers.
+
 ### 2026-09-07 — Systems Engineer — **Two of the three defects named in the last-away-receipt security follow-up do not exist; the coverage hole is the OTHER map bound.** (measured, not read)
 
 **F3 (`awayMs` classifies the b345 night as 31 s).** FALSE. `accrual.js` `windowEnvelope` publishes

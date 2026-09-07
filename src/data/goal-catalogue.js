@@ -198,11 +198,12 @@ export const BLOCKED_DAILY = Object.freeze({
    The date-seeded shuffle above is a pure 3-of-8 draw with no notion of what
    the player can actually DO. On 2026-08-23 it dealt a fresh account
    "Craft 8 items" + "Smith 8 items" — 900 of the day's 1300 gold — and at
-   level 1 there is not one craftable or smithable recipe in the game:
-   `HearthriseHomestead.hasWorkbench()` gates crafting behind the Workshop and
-   smithing behind the Forge (src/features/homestead.js WORKBENCH), and both
-   rooms need the tier-3 property, two upgrades away. Home's "Next up" panel
-   routed the player onto a wall of padlocks on their first session.
+   level 1 there was not one craftable or smithable recipe in the game:
+   `hasWorkbench()` gated both behind rooms the Fieldworth Farmstead unlocks,
+   two property upgrades away. Home's "Next up" panel routed the player onto a
+   wall of padlocks on their first session. THAT BENCH GATE IS GONE (2026-09-07
+   — a room sells speed, a level sells permission), so the padlocks are not the
+   reason these two rows are still gated below; see that table's own note.
 
    ── THE RULE ────────────────────────────────────────────────────────────
    A task whose prerequisite is not met is SKIPPED and the next task in the
@@ -245,8 +246,16 @@ export const BLOCKED_DAILY = Object.freeze({
 
 /* Task id → what it needs. A row absent from here needs nothing.
    `room` is the src/features/homestead.js WORKBENCH room id; `skill` is the
-   artisan skill that room gates. Adding a gated daily is a row here plus a
-   `when` arm in the SQL — the drift test fails the build if only one moves. */
+   artisan skill that room SPEEDS UP. Adding a gated daily is a row here plus a
+   `when` arm in the SQL — the drift test fails the build if only one moves.
+
+   ⚠ THIS IS AN OFFER GATE, NOT A PERMISSION GATE, AND THE TWO NOW DIVERGE.
+   Since 2026-09-07 a level-1 smith may smith with no Forge at all; what the
+   Forge still decides is whether the 40-item DAILY is worth dealing to them.
+   The requirement is DELIBERATELY left standing (game-designer, same ruling):
+   its twin lives in 2026-08-29-daily-task-eligibility.sql, so relaxing it is a
+   migration, and a 40-item smith with no speed rungs is a bad deal, not a
+   padlock — the recipes themselves are open either way. */
 export const DAILY_TASK_REQUIREMENTS = Object.freeze({
   daily_smith: Object.freeze({ room: 'forge', skill: 'smithing' }),
   daily_craft: Object.freeze({ room: 'workshop', skill: 'crafting' }),

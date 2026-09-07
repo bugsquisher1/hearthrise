@@ -5,20 +5,19 @@
 // NO workbenches all the way to Hearthrise Castle. Each tier is a real
 // resource sink (gold + crafted materials) and unlocks:
 //   • farm-plot capacity        (2 → 12)
-//   • which house ROOMS you may build — rooms ARE the workbenches:
-//       forge→smithing, workshop→crafting. kitchen and shrine are MAPPED to
-//       cooking and prayer but gate neither: the campfire and altar rulings
-//       sell reliability and speed, never permission. See UNGATED below.
+//   • which house ROOMS you may build. A room is a WORKSHOP, never a licence:
+//       kitchen→cooking, forge→smithing, workshop→crafting, shrine→prayer are
+//       mapped so the room can sell SPEED and QUALITY. Permission is the
+//       skill LEVEL and only the skill level. See UNGATED below.
 //   • worker slots (see features/workers.js — idle resource production)
 //   • bonus offline-cap hours (wired into processOffline like renown)
 //   • castle capstone: +5% all XP (wired into getBonus)
 //
-// Grandfathering: ensureState() infers a tier from rooms/plots/XP and restores
-// lv-1 workbenches — for GATED skills only (see UNGATED).
+// ensureState() infers a tier from OWNED rooms and plots once the server has stated a rung; XP infers nothing.
 //
 // Integration points touched in legacy.js (all guarded):
-//   upgradeRoom (tier gate) · buildPlot (plot cap) · startArtisan
-//   (workbench gate) · processOffline (bonus hours) · getBonus (castle XP)
+//   upgradeRoom (tier gate) · buildPlot (plot cap) · processOffline
+//   (bonus hours) · getBonus (castle XP)
 // ============================================================
 (function () {
   'use strict';
@@ -78,27 +77,25 @@
       rooms: [] }
   ];
 
-  // room → the artisan skill it enables (rooms ARE the workbenches)
+  // skill → the room that makes it FASTER and BETTER (never the room that allows it)
   var WORKBENCH = { cooking: 'kitchen', smithing: 'forge', crafting: 'workshop', prayer: 'shrine' };
 
-  /* TWO ROOMS SELL A BONUS, NOT PERMISSION. Exempted here rather than unmapped,
-     because the speed/noBurn lookups, the House copy, the "Go to X" cards and
-     the grandfather pass all still read kitchen→cooking and shrine→prayer.
-       • THE CAMPFIRE RULING (Tyler, 2026-08-08; DECISIONS.md,
-         homestead-deepening §2): a tier-1 camp has a fire, so it cooks — badly.
-         The Kitchen sells cookSpeed and `noBurn` (src/features/cooking-fire.js).
-       • THE ALTAR RULING (game-designer, 2026-09-07): "Prayer is NOT gated on
-         the Shrine at any tier." `hr_activities` gates an activity on
-         (req_skill, req_lv) and has NO room column, so hr_apply admits
-         bury_bones at Prayer 1 from a bedroll — the gate was a client-held
-         property tier in front of a server capability, the residue-ahead class
-         CLAUDE §6 forbids by name. The Shrine sells `prayerSpeed`. */
-  var UNGATED = { cooking: true, prayer: true };
+  /* ONE RULE FOR ALL FOUR (game-designer, 2026-09-07): a LEVEL grants
+     permission, a ROOM grants speed and quality. Kept as an exemption SET
+     rather than by deleting WORKBENCH, because that mapping is still the data
+     — which room speeds which skill — and goal-catalogue's
+     DAILY_TASK_REQUIREMENTS is authored against it.
 
-  /* Which UNGATED skills are EVIDENCE of their room when grandfathering: only
-     where the room was REQUIRED to earn the XP. Cooking is the campfire
-     ruling's carve-out; prayer is not (bones bury at the camp). */
-  var GRANDFATHER_ROOM_FROM_XP = { cooking: true };
+     The evidence is in the schema, not in taste: `hr_activities` gates an
+     activity on (req_skill, req_lv) and has NO room column, and hr_apply
+     re-checks that level against server XP and nothing else. A client-held
+     property tier in front of a server capability is the residue-ahead class
+     CLAUDE §6 forbids by name; it padlocked every smithing and crafting
+     recipe for two whole property tiers.
+
+     ⚠ THE SET IS THE RULE, and hasWorkbench is its ONE reader, so a gate can
+     only return by editing this line — which the suite asserts nobody has. */
+  var UNGATED = { cooking: true, smithing: true, crafting: true, prayer: true };
 
   // min property tier at which each room may be built
   function roomMinTier(roomId) {
@@ -115,53 +112,30 @@
     if (!G || typeof G !== 'object') return;
     if (G.homestead && typeof G.homestead.tier === 'number') return;
 
-    // ---- grandfather existing saves ----
+    /* THE ONLY EVIDENCE THIS MAY READ IS A SERVER FACT. Skill XP is not one,
+       in either direction: one buried bone would infer Ironvale Keep and one
+       smelted bar Fieldworth Farmstead, written into the residue as a rung
+       nobody bought — the paione residue-ahead deadlock, where a phantom tier
+       refuses every room purchase because only a COMPLETE progress statement
+       may heal it back down — and a local `G.rooms[x] = 1` forges an unlock
+       hr_unlock_buy never sold.
+
+       AND WITH NO SERVER RUNG STATED THIS SESSION, NOTHING IS INFERRED: the
+       plot count below is RESIDUE, so it may not raise a server-owned rung on
+       its own. getTier()'s heal conforms the 0 up when the envelope lands. */
     var tier = 0;
-    /* b431 — rooms READ accessor (src/net/rooms-record.js), DORMANT no-op today.
-       Under the rooms arm this reads the server-confirmed map and fail-closes to
-       an empty map, so a boot-time UNKNOWN grandfathers as a fresh tier rather
-       than throwing. (Post-wipe there are no legacy saves to grandfather.) */
     var RR = window.HearthriseRooms;
     var rooms = (RR && typeof RR.roomsMap === 'function') ? RR.roomsMap(G) : (G.rooms || {});
     var hasAnyRoom = Object.keys(rooms).some(function (r) { return (rooms[r] || 0) > 0; });
     var plotCount = (G.plotBuildings || []).filter(function (b) { return b.id === 'farm_plot'; }).length;
-    /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today. */
-    var SR = window.HearthriseSkillRecord;
-    var srXp = function (id) {
-      if (SR && typeof SR.skillXpForDisplayOr === 'function') return SR.skillXpForDisplayOr(G, id, 0);
-      return (SR && typeof SR.skillXpOr === 'function') ? SR.skillXpOr(G, id, 0) : ((G.skills && G.skills[id]) || 0);
-    };
-    var artisanXp = ['cooking', 'smithing', 'crafting', 'prayer'].some(function (s) { return srXp(s) > 0; });
-    var existing = hasAnyRoom || plotCount > 0 || artisanXp || ((G.stats && G.stats.kills) || 0) > 20;
 
-    if (existing) {
+    if (serverRungKnown() && (hasAnyRoom || plotCount > 0)) {
       tier = 1;
-      // tier must cover every room they built + every artisan skill they trained
+      // the tier must cover every room the server sold them…
       Object.keys(rooms).forEach(function (r) { if ((rooms[r] || 0) > 0) tier = Math.max(tier, roomMinTier(r)); });
-      /* AN UNGATED SKILL'S XP INFERS NO TIER: a bone buried at the camp would
-         otherwise infer IRONVALE KEEP — residue-ahead, and unhealable behind a
-         truncated progress read (paione, 2026-09-04). */
-      Object.keys(WORKBENCH).forEach(function (skill) {
-        if (UNGATED[skill]) return;
-        if (srXp(skill) > 0) tier = Math.max(tier, roomMinTier(WORKBENCH[skill]));
-      });
-      // tier must cover their existing plots
-      for (var t = 0; t < TIERS.length; t++) { if (TIERS[t].plots >= plotCount) { tier = Math.max(tier, 0) ; break; } }
+      // …and every plot they already hold
       for (var t2 = TIERS.length - 1; t2 >= 0; t2--) { if (plotCount > (TIERS[t2 - 1] ? TIERS[t2 - 1].plots : 0)) { tier = Math.max(tier, t2); break; } }
       tier = Math.min(tier, TIERS.length - 1);
-      // auto-grant lv-1 workbenches for artisan skills they already trained.
-      // b431 — GATED: under the rooms arm the server owns the rung (a local grant
-      // would forge a room the server never confirmed, and G.rooms is stripped),
-      // so this client write is skipped. Pre-arm it grandfathers exactly as before.
-      var mayWriteRooms = (typeof window.clientMayWriteRecordField !== 'function') || window.clientMayWriteRecordField('rooms');
-      if (mayWriteRooms) {
-        G.rooms = G.rooms || {};
-        Object.keys(WORKBENCH).forEach(function (skill) {
-          var room = WORKBENCH[skill];
-          if (UNGATED[skill] && !GRANDFATHER_ROOM_FROM_XP[skill]) return;  // nor forge the room
-          if (srXp(skill) > 0 && !(G.rooms[room] > 0)) G.rooms[room] = 1;
-        });
-      }
     }
     G.homestead = { tier: tier };
   }
@@ -192,9 +166,9 @@
      rule and the truncation carve-out.
 
      Read through the window global at CALL time, exactly as this file already
-     reads HearthriseRooms / HearthriseSkillRecord: this is a classic script and
-     the accessor is an ESM module. Absent (Node, a boot frame before main.js) it
-     degrades to the residue read this line has always been.
+     reads HearthriseRooms: this is a classic script and the accessor is an ESM
+     module. Absent (Node, a boot frame before main.js) it degrades to the
+     residue read this line has always been.
 
      ⚠ CLAMPED TO THE TABLE. Every consumer indexes TIERS with this number, and
      `TIERS[6].plots` is a TypeError that takes the whole House screen (and the
@@ -291,16 +265,12 @@
     };
   }
 
-  // Workbench gate. No room mapped, or UNGATED (cooking, prayer) → it passes.
+  /* NO ARTISAN SKILL CARRIES A ROOM GATE, so this answers ok for everything.
+     Kept rather than deleted because it is the ONE seam the callers ask, and a
+     rule with one reader is a rule that can be changed in one place. */
   function hasWorkbench(skill) {
     if (UNGATED[skill]) return { ok: true, ungated: true };
-    var room = WORKBENCH[skill];
-    if (!room) return { ok: true };
-    ensureState();
-    var built = roomLevel(room) > 0;
-    if (built) return { ok: true };
-    var roomName = (window.ROOMS && window.ROOMS[room] && window.ROOMS[room].name) || room;
-    return { ok: false, room: room, reason: 'Build the ' + roomName + ' at your homestead first' };
+    return { ok: true };
   }
 
   /* ONE HOLDING READ for this whole file — `k === 'gold' ? (G.gold || 0) : …`
@@ -621,7 +591,7 @@
                 go: { label: 'Go to Cooking',  tab: 'skills', skill: 'cooking' } },
     garden:   { theme: 'garden',   flavour: 'Rows, a watering can, and the smell of turned earth. The only room whose bonus you watch land, one harvest at a time.',
                 go: { label: 'Go to the Farm', tab: 'farming' } },
-    workshop: { theme: 'workshop', flavour: 'Sawdust, a vice, and every plank in the game. The room the rest of the homestead is built out of — its planks pay for three other rooms.',
+    workshop: { theme: 'workshop', flavour: 'Sawdust, a vice, and a rack of drying planks. The room the rest of the homestead is built out of — it saws faster, and now and then for nothing.',
                 go: { label: 'Go to Crafting', tab: 'skills', skill: 'crafting' } },
     cellar:   { theme: 'cellar',   flavour: 'Cold stone, low light, shelves of stoppered bottles and one cask you are saving. The room where things keep.',
                 go: { label: 'Feasts & Draughts', tab: 'skills', skill: 'cooking', lane: 'feasts' } },
@@ -739,9 +709,9 @@
     var now = rungEffects(cur).map(function (e) {
       return { label: KEY_LABEL[e.key] || e.key, value: fmtKey(e.key, e.value) };
     });
-    var gatedSkill = null;
-    Object.keys(WORKBENCH).forEach(function (s) { if (WORKBENCH[s] === id && !UNGATED[s]) gatedSkill = s; });
-    if (gatedSkill) now.push({ label: 'Gates', value: gatedSkill.charAt(0).toUpperCase() + gatedSkill.slice(1) });
+    /* NO "Gates: <Skill>" FACT: a card may only advertise what the room does.
+       Printing a permission the server does not check is how the Shrine card
+       told 296 builds' worth of players that bones were vendor trash. */
 
     var ladder = r.levels.map(function (rung, i) {
       var level = i + 1;
@@ -1374,7 +1344,6 @@
     TIERS: TIERS,
     WORKBENCH: WORKBENCH,
     UNGATED: UNGATED,
-    GRANDFATHER_ROOM_FROM_XP: GRANDFATHER_ROOM_FROM_XP,
     ensureState: ensureState,
     getTier: getTier,
     tierDef: tierDef,

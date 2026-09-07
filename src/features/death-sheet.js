@@ -819,6 +819,20 @@
        DOM keeps waking the tab once a second forever, which on a phone is a
        battery bug nobody attributes to a death modal. */
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    /* ── THE DISMISSAL IS REMEMBERED, AND SEPARATELY FROM THE RAISE ───────
+       `raisedForUntil` says "this window has been ANNOUNCED"; this says "the
+       player has ANSWERED it". They look like the same fact and are not, and
+       the difference is what the sheet gets wrong when anything re-arms the
+       raise latch: `_resetRaise()` sets `raisedForUntil` back to 0, and the
+       very next envelope of a knockout that is still running re-opens a sheet
+       the player just put away — every few seconds, for the whole recovery.
+       Read from the SERVER's own line first and from what is on screen second,
+       so a sheet rendered from a stated moment is dismissable too. */
+    try {
+      var f = serverFall();
+      var untilNow = (f.until > 0) ? f.until : ((shown && Number(shown.until)) || 0);
+      if (untilNow > 0) dismissedUntil = untilNow;
+    } catch (e) {}
     shown = null;
     var el = document.getElementById(ROOT_ID);
     if (el) el.classList.remove('show');
@@ -1163,15 +1177,46 @@
      ⚠ The mark is set BEFORE the sheet opens and also when one is already
        showing, so an exception in `show()` cannot turn this into a loop. */
   var raisedForUntil = 0;
+  /* The window the PLAYER closed, kept apart from the one this module opened —
+     see close(). A reset of the raise latch must not resurrect a dismissal. */
+  var dismissedUntil = 0;
 
   function maybeRaiseRecovery() {
     var f = serverFall();
+    /* NO CURRENT WINDOW, NO SHEET. `recovering` with an instant still ahead of
+       the clock is the only state this raise exists for. `up` and `unconfirmed`
+       mean nobody is down; `pending` belongs to the fall moment in the live
+       tick, which opens its own sheet with the run's own detail on it; and an
+       `until` the clock has passed is a knockout that is over. */
     if (f.phase !== 'recovering' || !(f.until > Date.now())) return false;
-    if (raisedForUntil === f.until) return false;
+    if (raisedForUntil === f.until || dismissedUntil === f.until) return false;
     raisedForUntil = f.until;
     var el = document.getElementById(ROOT_ID);
     if (el && el.classList.contains('show')) return false;   // the watch is already on it
     return !!show(null, null);
+  }
+
+  /* See the export note below for why this exists. */
+  function __resetForTest() {
+    close();
+    raisedForUntil = 0;
+    dismissedUntil = 0;
+    try {
+      var AC = window.HearthriseAccrual;
+      /* The pending fall, and the re-ask timer it owns. */
+      if (AC && typeof AC.clearFall === 'function') AC.clearFall();
+      /* The recovery line is SERVER-OWNED and has no client setter by design
+         (RECOVER-8 pins the absence of one), so it is retired the only way this
+         client is allowed to retire it: an envelope that states the character
+         is up. That dispatches `hearthrise:fall`, which is why the sheet is put
+         away once more below. */
+      if (AC && typeof AC.applyEnvelopeState === 'function') {
+        AC.applyEnvelopeState(window.G || {}, { state: { recovering_until: null } });
+      }
+    } catch (e) {}
+    close();
+    raisedForUntil = 0;
+    dismissedUntil = 0;
   }
 
   try {
@@ -1190,7 +1235,24 @@
     describeDeath: describeDeath,
     show: show,
     maybeRaiseRecovery: maybeRaiseRecovery,
+    /* Clears the RAISE latch only, and that restriction is the fix: the
+       dismissal is a separate fact (see close()) precisely so that re-arming
+       the announcement cannot resurrect a sheet the player has put away while
+       the same knockout is still running. Use `__resetForTest` below to retire
+       a fall outright. */
     _resetRaise: function () { raisedForUntil = 0; },
+    /* ── ONE TEARDOWN FOR EVERY FIXTURE THAT STATES A FALL ────────────────
+       A test that puts this sheet on screen and does not take it off hands
+       every later test a FULL-SCREEN overlay, and the failure then lands
+       wherever the next hit-test happens to be — thousands of lines away,
+       intermittently, reporting a row of this sheet as "something is covering
+       the buy control" (measured: b221's shop scene, `COVER=<span>.hr-death-t`).
+       Closing is only half of the job: the client's pending fall and the
+       server's recovery line are what raise it AGAIN on the next envelope, and
+       the raise latch that would have refused that is exactly what a bare
+       `_resetRaise()` teardown clears. So the four facts are retired together,
+       here, or they are not retired at all. */
+    __resetForTest: __resetForTest,
     close: close,
     _readMoment: readMoment,
     _syncToServer: syncToServer,

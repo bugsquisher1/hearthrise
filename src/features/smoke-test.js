@@ -147,6 +147,63 @@ const analyzeAssertionCoverage = (plan, results) => {
    So the ledger is cleared at every test boundary. Session scratch is not
    fixture state, and nothing here is asserting the ledger's lifetime — the
    EAT-RESTOCK tests build their own `G` objects or set up inside one test. */
+/* ── TEST ISOLATION: A FULL-SCREEN OVERLAY IS NOT ALLOWED TO OUTLIVE ITS TEST ─
+   THE CLASS, measured three times now. b483: an eat fixture left the
+   replacement-gate sheet up and "b221: the shop renders the counter scene"
+   failed on a bare "something is covering the buy control". b513 (2026-09-07):
+   the same test failed twice more, once on `COVER=<span>.hr-death-t` (the death
+   sheet, raised by an away simulation that had not been told it was away) and
+   once on `COVER=<div>.hr-rn-cele` (the renown celebration, fired by the 4 s
+   watcher off a fixture's score). Every instance has the same shape: a modal
+   raised inside test A, still on screen in test Z, and the failure lands on Z —
+   hundreds of tests and thousands of lines away from the fixture that owns it,
+   intermittently, naming an innocent surface.
+
+   So the boundary asks. A test that ends with one of these on screen FAILS,
+   by name, at its own boundary — and the overlay is taken down, because
+   otherwise one leak reds every remaining test in the run and the FIRST report
+   is the only true one. This is not a substitute for the teardown: it is what
+   makes a missing teardown say so where it happened.
+
+   The list is deliberately short and specific — the dialogs the game raises
+   over the whole screen and expects a tap to clear. Anything a test legitimately
+   leaves up (a panel, a tab, an inline card) is untouched. */
+const OVERLAY_LEAK_SELECTORS = [
+  { sel: '#hr-death-scrim.show', what: 'the death sheet (HearthriseDeathSheet.__resetForTest() in your finally)' },
+  { sel: '#hr-rn-cele', what: 'the renown rank-up celebration (remove the #hr-rn-cele node in your finally)' },
+];
+const __overlayLeak = () => {
+  try {
+    for (const o of OVERLAY_LEAK_SELECTORS) {
+      const el = document.querySelector(o.sel);
+      if (el) return o;
+    }
+  } catch (e) {}
+  return null;
+};
+const __clearOverlayLeak = (o) => {
+  try {
+    if (o.sel === '#hr-death-scrim.show') {
+      const D = window.HearthriseDeathSheet;
+      if (D && typeof D.__resetForTest === 'function') { D.__resetForTest(); return; }
+      if (D && typeof D.close === 'function') { D.close(); return; }
+    }
+    const el = document.querySelector(o.sel);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  } catch (e) {}
+};
+/* Returns the ORIGINAL result unless a leak was found, in which case the test
+   is failed with the fixture's own name on it. A test that already failed keeps
+   its own reason — the leak is a consequence, not the story. */
+const withOverlayCheck = (name, r) => {
+  const leak = __overlayLeak();
+  if (!leak) return r;
+  __clearOverlayLeak(leak);
+  if (r && r.status === 'FAIL') return r;
+  return fail(name, 'OVERLAY LEAK: this test ended with ' + leak.what + ' still on screen. A '
+    + 'full-screen overlay that outlives its fixture covers every later test and the failure then '
+    + 'lands somewhere else entirely (b483, and twice on b513). Put it away in your finally.');
+};
 const clearConsumeHolds = () => {
   try {
     const P = window.HearthrisePendingConsume;
@@ -165,8 +222,8 @@ const tryRun = (name, fn) => {
         + 'await it, so it would report PASS without running a single assertion. Register it with tryRunAsync().'));
     }
     if (__skipReason !== null) return withAsserts(skipResult(name, __skipReason));
-    return withAsserts(pass(name));
-  } catch (e) { return withAsserts(fail(name, e && (e.message || e))); }
+    return withAsserts(withOverlayCheck(name, pass(name)));
+  } catch (e) { return withAsserts(withOverlayCheck(name, fail(name, e && (e.message || e)))); }
   finally { clearConsumeHolds(); }
 };
 /* b337 — THE SUITE CAN NOW AWAIT.
@@ -183,8 +240,8 @@ const tryRunAsync = (name, fn) => Promise.resolve()
   // SA-013: reset the counter + skip flag and call fn() in the SAME microtask,
   // so nothing can slip an assert between the reset and the body.
   .then(() => { clearConsumeHolds(); __assertCount = 0; __skipReason = null; return fn(); })
-  .then(() => { clearConsumeHolds(); return withAsserts(__skipReason !== null ? skipResult(name, __skipReason) : pass(name)); },
-        (e) => { clearConsumeHolds(); return withAsserts(fail(name, e && (e.message || e))); });
+  .then(() => { clearConsumeHolds(); return withAsserts(__skipReason !== null ? skipResult(name, __skipReason) : withOverlayCheck(name, pass(name))); },
+        (e) => { clearConsumeHolds(); return withAsserts(withOverlayCheck(name, fail(name, e && (e.message || e)))); });
 /* SA-013: count every assertion that EXECUTES (increment before the check, so a
    throwing assert is still counted as "reached"). The counter is reset by the
    runner before each test body. Cost: one increment per call. */
@@ -12244,7 +12301,7 @@ const TESTS = [
         'the fight resumed against a foe still on 0 HP, which is a free kill for having died: '
         + G.monsterHp);
     } finally {
-      try { D.close(); } catch (e) {}
+      try { D.__resetForTest(); } catch (e) {}
       window.declareActivity = realDeclare;
       A.noteSettleEvent = realNote;
       try { A.clearFall(); } catch (e) {}
@@ -12432,7 +12489,7 @@ const TESTS = [
     } finally {
       try { A.setSettleEnv(null); } catch (e) {}
       try { A.clearFall(); } catch (e) {}
-      try { if (window.HearthriseDeathSheet) window.HearthriseDeathSheet.close(); } catch (e) {}
+      try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
       timers.clear();
       A.setServerAccrualEnabled(!!wasOn);
       restoreG(snap);
@@ -12462,7 +12519,7 @@ const TESTS = [
     try {
       A.setServerAccrualEnabled(true);
       A.clearFall();
-      D.close(); D._resetRaise();
+      D.__resetForTest();
 
       const mid = window.MONSTERS.slime ? 'slime' : Object.keys(window.MONSTERS)[0];
       const mon = window.MONSTERS[mid];
@@ -12522,7 +12579,7 @@ const TESTS = [
           'the bar stayed knocked out after the server stood the player up: ' + nameEl.textContent);
       }
     } finally {
-      try { D.close(); D._resetRaise(); } catch (e) {}
+      try { D.__resetForTest(); } catch (e) {}
       try { A.clearFall(); } catch (e) {}
     }
   }),
@@ -12562,7 +12619,7 @@ const TESTS = [
     try {
       A.setServerAccrualEnabled(true);
       A.clearFall();
-      D.close(); D._resetRaise();
+      D.__resetForTest();
       A.applyEnvelopeState(G, { state: { recovering_until: null } });
 
       const mid = window.MONSTERS.slime ? 'slime' : Object.keys(window.MONSTERS)[0];
@@ -12626,7 +12683,7 @@ const TESTS = [
           'the bar stayed knocked out after the envelope stood the player up: ' + nameEl.textContent);
       }
     } finally {
-      try { D.close(); D._resetRaise(); } catch (e) {}
+      try { D.__resetForTest(); } catch (e) {}
       try { A.clearFall(); } catch (e) {}
       try { A.applyEnvelopeState(window.G, { state: { recovering_until: null } }); } catch (e) {}
       A.setServerAccrualEnabled(!!wasOn);
@@ -12777,17 +12834,112 @@ const TESTS = [
          page with a modal over it (measured on the assembled tree: "b221: the
          shop renders the counter scene" failed on `something is covering the buy
          control COVER=<span>.hr-death-t`, once RECOVER-12 started reaching this
-         far). `_resetRaise` clears the raise-once-per-`until` latch with it, so
-         the NEXT test to state a recovery still gets its sheet. This is the same
-         teardown RECOVER-13 already carries. */
-      try {
-        const D = window.HearthriseDeathSheet;
-        if (D) {
-          if (typeof D.close === 'function') D.close();
-          if (typeof D._resetRaise === 'function') D._resetRaise();
-        }
-      } catch (e) {}
+         far). `__resetForTest()` is the ONE teardown every fall fixture uses: it
+         closes the sheet AND retires the pending fall, the recovery line and both
+         raise latches together — closing alone leaves the line running, and the
+         next envelope of the same knockout puts the sheet straight back up. */
+      try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
       try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('RECOVER-15: a DISMISSED knockout is never re-raised, and one teardown retires the whole fall', () => {
+    /* ══ THE LEAK THIS CLOSES (measured on b513, 2026-09-07) ══════════════
+       "b221: the shop renders the counter scene with every offer reachable"
+       went red intermittently — three runs in five — on
+       `something is covering the buy control COVER=<span>.hr-death-t`. That
+       span is a ROW OF THIS SHEET. Nothing near b221 goes anywhere near a
+       death: the sheet had been raised hundreds of tests earlier and was still
+       on screen, and the shop test was simply the next thing to hit-test a
+       control.
+
+       THE MECHANISM. `maybeRaiseRecovery` raises once per recovery window,
+       latched on the server's absolute `until` — correct, and the whole reason
+       a settle every few seconds does not re-open a sheet the player just
+       dismissed. But the latch was the ONLY memory of the dismissal, and the
+       teardown every fall fixture carried was `close(); _resetRaise();` —
+       which clears exactly that latch while the recovery line is still
+       RUNNING. The next envelope of the same knockout then re-opened the sheet
+       behind the suite's back, over whatever screen the run had reached.
+
+       So the dismissal is now its own fact (`dismissedUntil`), which a reset of
+       the raise latch cannot resurrect, and `__resetForTest()` retires all four
+       things a fall leaves behind — the sheet, both latches, the pending fall
+       and its re-ask timer, and the server's recovery line — because retiring
+       three of them is what left this running.
+
+       MUTATION: drop the `dismissedUntil === f.until` clause in
+       maybeRaiseRecovery -> ② RED. Reduce `__resetForTest()` to a bare
+       `close()` -> ④ RED. */
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const D = window.HearthriseDeathSheet;
+    if (!A || typeof A.applyEnvelopeState !== 'function' || typeof A.noteFall !== 'function'
+        || !D || typeof D.__resetForTest !== 'function') { skip('the recovery seam is not wired'); return; }
+
+    const snap = snapshotG();
+    const wasOn = A.isServerAccrualEnabled();
+    const scrim = () => document.getElementById('hr-death-scrim');
+    const up = () => { const el = scrim(); return !!(el && el.classList.contains('show')); };
+    const envelope = (until) => A.applyEnvelopeState(G, {
+      state: {
+        accrued_to: new Date().toISOString(),
+        recovering_until: until ? new Date(until).toISOString() : null,
+      },
+    });
+    try {
+      A.setServerAccrualEnabled(true);
+      D.__resetForTest();
+      G.playerMaxHp = 13; G.playerHp = 5;
+
+      /* ① THE KNOCKOUT ARRIVES ON AN ENVELOPE AND THE SHEET GOES UP ONCE. */
+      const first = Date.now() + 9 * 60000;
+      envelope(first);
+      assert(A.fallState().phase === 'recovering',
+        'the fixture did not reach a recovery window: ' + A.fallState().phase);
+      assert(up(), 'a stated knockout did not raise the sheet at all — the fixture is not exercising the raise');
+
+      /* ② DISMISSED, THEN THE RAISE LATCH IS RE-ARMED UNDER IT — exactly what
+            the old `close(); _resetRaise();` teardown did — and the next
+            envelope of THE SAME knockout must still find the sheet closed. */
+      D.close();
+      D._resetRaise();
+      envelope(first);
+      assert(!up(),
+        'THE b513 LEAK: a recovery window the player had already dismissed re-opened its sheet as '
+        + 'soon as the raise latch was cleared under it. From here the sheet sits over every later '
+        + 'screen in the run, and the failure surfaces hundreds of tests away as "something is '
+        + 'covering the buy control COVER=<span>.hr-death-t" on a test that has nothing to do with '
+        + 'dying.');
+
+      /* ③ AND IT IS A DISMISSAL, NOT A MUTE. A NEW knockout — a new `until` —
+            is still announced, or the fix would have deleted the feature. */
+      const second = Date.now() + 21 * 60000;
+      envelope(second);
+      assert(up(), 'a SECOND, later knockout was swallowed: the dismissal must be per window, not a mute switch');
+
+      /* ④ ONE TEARDOWN RETIRES THE WHOLE FALL. Not just the DOM: the pending
+            fall (and the re-ask timer it owns) and the server's recovery line
+            are what put the sheet back up, so a teardown that only closes is
+            the leak wearing a tidy name. */
+      A.noteFall(Date.now());
+      D.__resetForTest();
+      assert(!up(), '__resetForTest left the sheet on screen');
+      assert(A.fallState().phase !== 'recovering' && A.recoveringUntilMs() === 0,
+        '__resetForTest left the recovery line running, so the next envelope raises the sheet again: '
+        + JSON.stringify({ phase: A.fallState().phase, until: A.recoveringUntilMs() }));
+      assert(A.fallState().phase === 'up' && A.fallReaskAt() === 0,
+        '__resetForTest left a pending fall (and its re-ask timer) behind: '
+        + JSON.stringify({ phase: A.fallState().phase, reaskAt: A.fallReaskAt() }));
+
+      /* AND NOTHING RAISES ON A CLIENT THAT IS UP. An envelope that states no
+         recovery line is the ordinary case, thousands of times a session. */
+      envelope(null);
+      assert(!up(), 'an envelope with no recovery line raised the knockout sheet');
+    } finally {
+      try { D.__resetForTest(); } catch (e) {}
+      A.setServerAccrualEnabled(!!wasOn);
       restoreG(snap);
     }
   }),
@@ -33252,6 +33404,12 @@ const TESTS = [
       assert(dieOnce(true) === 1, 'an AWAY death must increment stats.deaths');
       assert(dieOnce(false) === 1, 'a LIVE death must increment stats.deaths');
     } finally {
+      /* THE LIVE HALF ABOVE IS A REAL DEATH, so it raises the real death sheet
+         — a full-screen overlay that closes on a tap nobody in a suite gives
+         it. Left up it covered every screen for the remaining ~370 tests
+         (measured on b513). One teardown, the same one every fall fixture
+         uses. */
+      try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
       window.HearthriseDropLog = realLog;
       window.HearthriseFarm = realFarm;
       window.updateDaily = realDaily;
@@ -42327,7 +42485,7 @@ const TESTS = [
         'a foodless sheet does not explain why Rest is closed: "' + noteText() + '"');
     } finally {
       window.HearthriseGoalClaim = savedGC;
-      D.close();
+      D.__resetForTest();
     }
   }),
 
@@ -53804,6 +53962,14 @@ const TESTS = [
     try {
       window.G.playerMaxHp = 1e6; window.G.playerHp = 1e6;
       window.startCombat('dragon');
+      /* AND AGAIN AFTER THE TAP. `startCombat` SEEDS the bar from the server's
+         last stated hp (b511, "the server owns the HP bar") and then takes one
+         swing itself — so a low server reading left by an earlier battery puts
+         this fixture in front of a dragon on single-figure health and it dies
+         inside the setup, raising the real death sheet over the rest of the run.
+         The subject here is the pointer reconcile; dying in the fixture is noise
+         with a full-screen overlay attached. */
+      window.G.playerMaxHp = 1e6; window.G.playerHp = 1e6;
       window.G.monsterHp = 5;                       // the player has nearly won
       /* The carry is a CHECKPOINT from the last settle, so it is always older
          than a fight this client is watching. Writing it over a running fight
@@ -53814,6 +53980,9 @@ const TESTS = [
         'a stale checkpoint reverted a live fight: the dragon went back to ' + window.G.monsterHp);
     } finally {
       try { window.stopCombat(); } catch (e) {}
+      /* A fight in a fixture can still end in a death (the opening swing lands
+         before the line above runs), and a death raises a full-screen sheet. */
+      try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
       restoreG(snap);
     }
   }),
@@ -53854,6 +54023,7 @@ const TESTS = [
     } finally {
       window.showTab = realShowTab;
       try { window.stopCombat(); } catch (e) {}
+      try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
       restoreG(snap);
     }
   }),
@@ -55527,6 +55697,21 @@ export async function runSmokeTest(opts = {}) {
      state it explicitly inside their own bodies and restore it, exactly as
      before. Restored from the captured pair in the finally, so a live session
      never loses a rung a real envelope had already delivered. */
+  /* ── AND THE RENOWN RANK-UP WATCHER, for the same reason (2026-09-07) ────
+     `HearthriseRenown` polls every 4 s and, on a rank boundary, appends a
+     FULL-SCREEN celebration scrim that closes only on a click. The suite hands
+     `G` kills, gold and levels by the dozen, so a fixture crosses a rank the
+     account never earned, the scrim goes up, and nothing in the suite ever
+     clicks it — it then covers every later screen. MEASURED on b513: "b221: the
+     shop renders the counter scene" failed on
+     `something is covering the buy control COVER=<div>.hr-rn-cele`, ~340 tests
+     after whichever battery moved the score, intermittently, because it depends
+     on where the 4 s poll lands. Same class as the settle loop and the autosave
+     above; same answer. RENOWN tests that are ABOUT the celebration call
+     `celebrate()` directly, which the park does not touch. */
+  const _Rn = window.HearthriseRenown;
+  let _rnPollWasOn = true;
+  try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _rnPollWasOn = _Rn.__setPollEnabled(false); } catch (e) {}
   const _Prop = window.HearthriseProperty;
   let _propParked = null;
   try {
@@ -55549,6 +55734,7 @@ export async function runSmokeTest(opts = {}) {
     try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__parkGrants === 'function') _Comp.__parkGrants(_grantsWereParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
+    try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _Rn.__setPollEnabled(_rnPollWasOn); } catch (e) {}
     try {
       /* THE RECEIPT, not the pair: __resetPropertyRecord round-trips the
          exact/floor provenance too, so a live session whose record was only a

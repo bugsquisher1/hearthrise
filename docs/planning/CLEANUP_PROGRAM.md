@@ -111,3 +111,5 @@ Hearthrise is not architecturally broken — zero circular imports, one combat e
 | RLS initplan / multi-permissive warnings | 27 / 35 | 0 / < 10 | later |
 | CI wall clock | 40–60 min | < 15 min | 8 |
 | Migrations recorded in `supabase_migrations` | 27 of 149 | 149 of 149 | 7 |
+
+> **Slice 4 result (2026-09-07):** farm dual path removed (`7cbfdb4b`, fail-closed, guard `tests/no-client-farm-mint.mjs`). RPC consolidation refused with proof (`HearthriseRpc` is the decision seam, not the transport; `hr_clan_browser` is legitimately anonymous) — a ratchet landed instead (`9544d21f`). Blob/offline deletion refused: `isBlobRetired()` is NOT constant — it reads the live b353 kill switch `hr:serverAccrual`, so all 13 forks are reachable; that switch is itself a client-authored fallback §1 forbids. **Decision owed (Coordinator + Security): retire the b353 kill switch, then slice 8 deletes the blob machinery.** Gold: 24 deferred rows are a migration backlog with named server blockers, not twins. Surfaced bug: farm goal counters `planted/harvested` have had no writer since b454 (lane-A fix dispatched).

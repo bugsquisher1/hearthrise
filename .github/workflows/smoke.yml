@@ -69,8 +69,21 @@ jobs:
     # 30 could not fit the work even when nothing failed. A timeout is a red
     # build with no failing assertion in it -- indistinguishable from the
     # forty reds this workflow just came out of.
-    timeout-minutes: 50
+    # MEASURED 2026-09-07 (b514, 899e42f1): the job ran 50.2 min against this 50-minute
 
+    # budget and GitHub CANCELLED it mid-step (the visual gate happened to be current) --
+
+    # a red with no failing assertion, the exact failure this comment warns about. The
+
+    # workflow grew to 58 sequential steps with cleanup slices 1-2 (three presentation
+
+    # guards, six new selftests); run-ci-local measures ~47 min locally. The budget below
+
+    # is the measured cost x1.8 while the job is still one serial chain; cleanup slice 8a
+
+    # (in flight) splits it into a matrix by guard family and derives per-job budgets.
+
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:

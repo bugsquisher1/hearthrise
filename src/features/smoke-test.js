@@ -624,7 +624,7 @@ const unpinClientAuthoritative = (A) => {
   /* PRISTINE, not "off" and not "whatever it was". The suite mutates the live
      page a player is sitting in; leaving them client-authoritative because a
      test needed that position would be the flip silently un-flipping itself. */
-  try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+  try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
   /* gold-arm: a client-authoritative test that moved gold/gems (or restored them
      in its finally) leaves the boot stamp STALE for the ambient live G, which
      would fail-close the next reader test's balance. Re-establish the stamp the
@@ -37424,45 +37424,59 @@ const TESTS = [
      harness is talking to a stub, not to the gateway. */
 
   /* ══════════════════════════════════════════════════════════════════════════
-     B353-1 — THE FLIP. THE ONE TEST THAT SAYS THE SWITCH-ON HAPPENED.
+     B353-1 (INVERTED, b515) — THE SWITCH NO LONGER EXISTS.
      ══════════════════════════════════════════════════════════════════════════
-     This test used to assert the exact opposite ("the kill switch DEFAULTS
-     OFF"), and that inversion is the whole of b353: the polarity was right
-     while the seam was dark and is wrong the moment the server IS the game.
+     This test asserted, twice over, that `hr:serverAccrual` WAS a working kill
+     switch: absent ⇒ ON, the literal 'off' ⇒ OFF, every consumer family
+     agreeing, the value persisting across a re-read. It has now inverted a
+     second time, and the reason is worth stating because "we deleted the test
+     that was in the way" is exactly what this file exists to prevent.
 
-     It asserts FOUR things, and each one is a different way the flip could be
-     half-shipped:
+     Security measured what the OFF position actually did (2026-09-07). It was
+     not, as its own header claimed, "the pre-cutover client". It was a
+     divergent SINGLE-DEVICE LOCAL GAME: the authoritative save blob uploaded to
+     game_saves, away time computed from the device clock, gold and gems minted
+     locally, `mayClientWrite` answering yes for EVERY server-owned field, every
+     intent dark, the v1 market writing rows directly, the boot veil off — and
+     all of it silently discarded the moment the key was cleared. CLAUDE.md §1
+     forbids a client-authored fallback, in exactly those words, and this one
+     could not even keep what it authored.
 
-       (a) ABSENT ⇒ ON. This is the switch-on itself. A player who has never
-           opened devtools — i.e. every player — is server-authoritative.
-       (b) ONLY the literal 'off' turns it off. A garbage value, a leftover
-           'on', an empty string, a stale b352 key all resolve to ON. The
-           dangerous direction is now "the client owns the economy", so that is
-           the direction that must require somebody to have typed something.
-       (c) THE b352 STATE LANDS ON. A real pre-cutover device carries the key
-           absent (never armed) or the string 'on' (a tester). Both boot armed,
-           with no migration and nothing to remember.
-       (d) ONE DEFINITION, NOT SEVEN. Every consumer family —
-           activity / gold / character / record / market / legacy.js — is
-           re-read after each flip. A polarity that lived in more than one place
-           could be half-flipped, and the half that stayed client-authoritative
-           would be invisible: it would just quietly go on paying.
+     So the switch is retired and this test now proves the retirement, in the
+     three places a half-retirement would hide:
 
-     MUTATION THIS FAILS ON: re-invert the predicate in accrue.js
-     (`=== 'on'` instead of `!== 'off'`) and (a), (c) and (d) all go red. */
-  () => tryRun('b353: the server-authority switch DEFAULTS ON — only the literal \'off\' disables it', () => {
+       (a) THE PREDICATE IS A CONSTANT. `isServerAccrualEnabled()` is true with
+           a stale `hr:serverAccrual=off` sitting in localStorage — which is the
+           state of every device that ever tested the switch, and the one a
+           player could still be booting with today.
+       (b) THE SETTER IS INERT. `setServerAccrualEnabled(false)` leaves both the
+           predicate and `isBlobRetired()` true. It is kept for one release as a
+           logging no-op, because a SILENTLY inert setter is how a tester ends up
+           believing they are in a state they are not.
+       (c) NOBODY WRITES THE BLOB. `snapshotIfDue` issues ZERO requests to
+           game_saves — measured on the wire, not asserted from a flag — while
+           still making its residue write. That is the property the staged
+           2026-09-07-game-saves-revoke.sql enforces server-side, checked here
+           on the client where it originates.
+
+     Consumer-family agreement (the old (d)) is preserved: every family must
+     answer TRUE, permanently, with no way to make one disagree.
+
+     MUTATION THIS FAILS ON: restore the localStorage read in accrue.js
+     `isServerAccrualEnabled` and (a) goes red; make the setter mutate anything
+     and (b) goes red; restore the blob upsert in sync.js `snapshotIfDue` and
+     (c) goes red. */
+  () => tryRunAsync('b515: the b353 kill switch is RETIRED — no stale key, setter or blob write can bring it back', async () => {
     const A = window.HearthriseAccrual;
+    const C = window.HearthriseCapstone;
+    const S = window.HearthriseSync;
     assert(A, 'src/net/accrue.js did not load — the whole slice is absent and nothing below means anything');
+    assert(C, 'src/net/capstone.js did not load');
+    const KEY = 'hr:serverAccrual';        // named LITERALLY: the export is gone, and that is the point
     const G = window.G;
-    /* b339: flipping the switch stamps the local away watermarks (see
-       stampAwayWatermarks). This test flips it several times on the LIVE G, so a
-       player running the suite in-game would otherwise lose their banked rested
-       charges to a test. Put them back. */
     const save = { offlineBudget: G && G.offlineBudget, restedAt: G && G.restedAt };
-    const KEY = A.ACCRUE_KILL_KEY;
-    const pristine = () => { A.__clearAccrualOverride(); try { localStorage.removeItem(KEY); } catch (e) {} };
-    /* Every family, re-read from scratch each time. Named, so a failure says
-       WHICH half of the client stayed behind rather than "false !== true". */
+    /* Every family, re-read from scratch. Named, so a failure says WHICH half of
+       the client believes it can still be switched off. */
     const families = () => {
       const out = {};
       out['legacy.js serverAccrualActive'] = window.serverAccrualActive();
@@ -37470,74 +37484,73 @@ const TESTS = [
       if (M && M.isActivityIntentEnabled) out['activity.js isActivityIntentEnabled'] = M.isActivityIntentEnabled();
       const gold = window.HearthriseGold;
       if (gold && gold.isGoldIntentEnabled) out['gold.js isGoldIntentEnabled'] = gold.isGoldIntentEnabled();
-      const C = window.HearthriseCharacter;
-      if (C && C.isCharacterIntentEnabled) out['character.js isCharacterIntentEnabled'] = C.isCharacterIntentEnabled();
+      const CH = window.HearthriseCharacter;
+      if (CH && CH.isCharacterIntentEnabled) out['character.js isCharacterIntentEnabled'] = CH.isCharacterIntentEnabled();
       const R = window.HearthriseRecord;
       if (R && R.isRecordActive) out['record.js isRecordActive'] = R.isRecordActive();
       const mk = window.HearthriseMarket;
       if (mk && typeof mk.serverMarketActive === 'function') out['market.js serverMarketActive'] = mk.serverMarketActive();
       return out;
     };
-    const allAgree = (want) => {
+    const allOn = (why) => {
       const f = families();
       const names = Object.keys(f);
-      assert(names.length >= 4, 'fewer than four switch consumers were reachable — B353-1(d) compared almost nothing');
+      assert(names.length >= 4, 'fewer than four consumer families were reachable — this compared almost nothing');
       for (const n of names) {
-        assert(f[n] === want, n + ' answers ' + f[n] + ' while the switch is ' + (want ? 'ON' : 'OFF')
-          + ' — the polarity is not living at one definition, and the half that stayed behind goes on '
-          + 'letting this client author the economy');
+        assert(f[n] === true, n + ' answers ' + f[n] + ' ' + why + ' — a consumer that can still be turned '
+          + 'off is a consumer that can still author the economy on somebody\'s device');
       }
       return names.length;
     };
     try {
-      // ── (a) ABSENT ⇒ ON. The switch-on. ───────────────────────────────────
-      pristine();
-      assert(A.isServerAccrualEnabled() === true,
-        'server accrual is OFF by default — the flip did not ship: every player boots client-authoritative, '
-        + 'which is the state the whole server-authority program exists to end');
-      const checked = allAgree(true);
-      assert(checked >= 4, 'consumer families: ' + checked);
-
-      // ── (b) ONLY 'off'. Everything else is ON. ────────────────────────────
-      A.__clearAccrualOverride();
+      // ── (a) A STALE 'off' IN STORAGE CHANGES NOTHING. ─────────────────────
       try { localStorage.setItem(KEY, 'off'); } catch (e) {}
-      assert(A.isServerAccrualEnabled() === false, "the literal 'off' does not disable the switch — there is then no kill switch at all");
-      allAgree(false);
-      for (const junk of ['on', 'ON', 'OFF', '', 'true', 'false', '0', 'yes']) {
-        A.__clearAccrualOverride();
-        try { localStorage.setItem(KEY, junk); } catch (e) {}
-        assert(A.isServerAccrualEnabled() === true,
-          'the value ' + JSON.stringify(junk) + ' disabled server authority. Only the exact string '
-          + JSON.stringify(A.ACCRUE_OFF_VALUE) + ' may — a typo that hands the economy back to the client '
-          + 'is a typo nobody would notice.');
-      }
+      A.__clearAccrualOverride();
+      assert(A.isServerAccrualEnabled() === true,
+        'a leftover hr:serverAccrual=off still disables server authority. Every device that ever tested '
+        + 'the switch is carrying that key, and this build would hand each of them a local game.');
+      assert(C.isBlobRetired() === true, 'the capstone still reads the retired kill switch');
+      const checked = allOn('with a stale off key in storage');
+      assert(checked >= 4, 'consumer families: ' + checked);
+      assert(A.ACCRUE_KILL_KEY === undefined && A.ACCRUE_OFF_VALUE === undefined,
+        'accrue.js still publishes the kill-switch key/value. The names are the invitation: they are what '
+        + 'a future reader wires a new fork to.');
 
-      // ── (c) A REAL b352 DEVICE BOOTS ARMED. ──────────────────────────────
-      for (const legacyState of [null, 'on']) {
-        A.__clearAccrualOverride();
+      // ── (b) THE SETTER IS INERT, IN BOTH DIRECTIONS. ─────────────────────
+      assert(A.setServerAccrualEnabled(false) === true, 'setServerAccrualEnabled(false) claims it turned it off');
+      assert(A.isServerAccrualEnabled() === true, 'the setter turned server accrual off');
+      assert(C.isBlobRetired() === true, 'the setter un-retired the save blob');
+      allOn('after setServerAccrualEnabled(false)');
+      assert(A.setServerAccrualEnabled(true) === true, 'setServerAccrualEnabled(true) does not answer true');
+      assert(typeof A.stampAwayWatermarks !== 'function',
+        'stampAwayWatermarks survived. Its only job was to stop a FLIP minting a span the other side had '
+        + 'already paid for; with no flip it is a client writer of two watermarks the server owns.');
+
+      // ── (c) NOTHING WRITES game_saves. MEASURED ON THE WIRE. ─────────────
+      if (S && typeof S.snapshotIfDue === 'function' && typeof S.__withConfig === 'function') {
+        const realFetch = window.fetch;
+        const urls = [];
+        window.fetch = (u, init) => {
+          urls.push(String((u && u.url) || u));
+          return Promise.resolve(new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }));
+        };
         try {
-          if (legacyState === null) localStorage.removeItem(KEY);
-          else localStorage.setItem(KEY, legacyState);
-        } catch (e) {}
-        assert(A.isServerAccrualEnabled() === true,
-          'a b352 device whose key is ' + JSON.stringify(legacyState) + ' boots with server authority OFF — '
-          + 'the flip would then reach only players who clear their storage');
+          await S.__withConfig({
+            snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+            apiKey: 'anon', userId: () => 'u1', authToken: () => 'jwt',
+            onSyncFailure: () => {}, onSyncRecovered: () => {},
+          }, async () => { await S.snapshotIfDue(true, false); });
+        } catch (e) { /* a refused write is fine; the URLs are the evidence */ }
+        finally { window.fetch = realFetch; }
+        const blobWrites = urls.filter((u) => u.indexOf('game_saves') !== -1);
+        assert(blobWrites.length === 0,
+          'snapshotIfDue issued ' + blobWrites.length + ' request(s) to game_saves (' + blobWrites.join(', ')
+          + '). The client-authored save blob is retired: the only periodic write is the self-only residue '
+          + 'through hr_put_client_state, and 2026-09-07-game-saves-revoke.sql takes the grant away.');
       }
-
-      // ── The switch is still a switch, in both directions, and it persists. ─
-      assert(A.setServerAccrualEnabled(false) === false, 'the switch will not turn off');
-      A.__clearAccrualOverride();
-      assert(localStorage.getItem(KEY) === A.ACCRUE_OFF_VALUE,
-        'turning it off did not persist the off value, so a reload would silently re-arm the player mid-incident');
-      assert(A.isServerAccrualEnabled() === false, 'the persisted off value does not survive a re-read');
-      assert(A.setServerAccrualEnabled(true) === true, 'the switch will not turn back on');
-      A.__clearAccrualOverride();
-      assert(localStorage.getItem(KEY) === null,
-        'turning it on left a key behind — ON is the ABSENCE of the key, so a later reader can tell a '
-        + 'deliberate decision from a pristine device');
-      assert(A.isServerAccrualEnabled() === true, 'the switch will not read back on');
     } finally {
-      pristine();
+      A.__clearAccrualOverride();
+      try { localStorage.removeItem(KEY); } catch (e) {}
       if (G) { G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt; }
     }
   }),
@@ -37566,7 +37579,7 @@ const TESTS = [
     const A = window.HearthriseAccrual;
     const R = window.HearthriseRecord;
     assert(A && R, 'accrue.js / record.js did not load');
-    const KEY = A.ACCRUE_KILL_KEY;
+    const KEY = 'hr:serverAccrual';   // b515: named literally; the export is gone
     const G = window.G;
     const save = { offlineBudget: G && G.offlineBudget, restedAt: G && G.restedAt,
       gold: G && G.gold, gems: G && G.gems, _record: G && G._record };
@@ -40156,14 +40169,11 @@ const TESTS = [
     const wasParked = window.__saveParked;
     try {
       window.__saveParked = true;
-      /* b339: THE FLIP COMES FIRST, and that is not cosmetic. Turning the switch
-         on now STAMPS both local watermarks to now (see stampAwayWatermarks —
-         a switch whose off position re-pays a span the server already paid is
-         not a kill switch), so a flip after the fixture below would move the
-         very watermark this test asserts did not move. Nothing here is
-         weakened: the fixture is written after the flip and the assertion is
-         unchanged. */
-      A.setServerAccrualEnabled(true);
+      /* b515: this used to flip the kill switch ON first, because the flip
+         stamped both local watermarks and a flip AFTER the fixture would have
+         moved the very watermark the assertion reads. There is no flip: server
+         accrual is unconditional and nothing stamps. The fixture and the
+         assertion are unchanged. */
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
       /* A real absence: an activity running, and lastSeen four hours ago. With
          the switch OFF this is a paying absence (b337 asserts that separately). */
@@ -40228,36 +40238,17 @@ const TESTS = [
     }
   }),
 
-  /* b353: retitled with the polarity. What this test is FOR has not changed —
-     the character intent must follow the accrual switch and never acquire one of
-     its own — and that is why the default assertion moved with the flip instead
-     of being deleted: a client that creates characters it will never accrue
-     against, or accrues against one it never created, is the failure either way
-     round. B353-1 owns the polarity itself; this owns the SHARING of it. */
-  () => tryRun('B338-7: the character intent is behind the SAME kill switch as b337, and it defaults ON (b353)', () => {
-    const A = window.HearthriseAccrual;
-    const C = window.HearthriseCharacter;
-    const G = window.G;
-    const save = { offlineBudget: G && G.offlineBudget, restedAt: G && G.restedAt };  // b339, see b337 test 1
-    try {
-      assert(C.ACCRUE_KILL_KEY === A.ACCRUE_KILL_KEY,
-        'two different kill switches — a state exists where the client creates characters it will never '
-        + 'accrue against, or accrues against one it never created');
-      A.setServerAccrualEnabled(true);
-      A.__clearAccrualOverride();
-      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
-      assert(C.isCharacterIntentEnabled() === true, 'the character intent is OFF on a pristine device — it '
-        + 'is not sharing the b353 switch, so the flip reached accrual and not the character bootstrap');
-      A.setServerAccrualEnabled(false);
-      assert(C.isCharacterIntentEnabled() === false, 'the switch does not disarm the character intent');
-      A.setServerAccrualEnabled(true);
-      assert(C.isCharacterIntentEnabled() === true, 'the b337 switch does not re-arm the character intent');
-    } finally {
-      A.__clearAccrualOverride();
-      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
-      if (G) { G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt; }
-    }
-  }),
+  /* B338-7 IS RETIRED (b515), and the reason it is retired rather than rewritten
+     is the whole point of the retirement. It proved that the character intent
+     shared ONE kill switch with accrual (`C.ACCRUE_KILL_KEY === A.ACCRUE_KILL_KEY`)
+     and followed it in both directions, so no state could exist where the client
+     created characters it would never accrue against, or accrued against one it
+     never created. There is no switch left to share: `isCharacterIntentEnabled()`
+     is a constant, the re-export is gone, and the two-state problem it defended
+     against cannot be expressed. The surviving half of its subject — the intent
+     answering TRUE on a pristine device, and every other family agreeing with it
+     — is asserted by the inverted B353-1 above, which reads the SAME families
+     through `families()`. */
 
   /* ══ b339 — CLEARING SECURITY'S CONDITIONS ON THE CLIENT REWIRE ══════════
      Six findings from the CLEAR-WITH-CONDITIONS review, each with the property
@@ -40466,73 +40457,20 @@ const TESTS = [
     assert(got2.character, 'a throw in the accrual wiring also skipped the character wiring');
   }),
 
-  () => tryRun('B339-4: flipping the switch stamps BOTH away watermarks, in BOTH directions — so OFF cannot re-pay', () => {
-    const A = window.HearthriseAccrual;
-    const G = window.G;
-    const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt };
-    try {
-      /* b353: START FROM OFF EXPLICITLY. This used to clear the key, because
-         absent WAS off. Absent is now ON, and every assertion below turns on a
-         CHANGE of position — so leaving it pristine would have made
-         `setServerAccrualEnabled(true)` a no-op re-assert, no stamp, and a red
-         test that says nothing about the property it guards. */
-      try { localStorage.setItem(A.ACCRUE_KILL_KEY, A.ACCRUE_OFF_VALUE); } catch (e) {}
-      A.__clearAccrualOverride();
-      assert(A.isServerAccrualEnabled() === false, 'B339-4 could not reach the OFF position to start from');
+  /* B339-4 IS RETIRED (b515). It proved that FLIPPING the kill switch stamped
+     both away watermarks in BOTH directions, because a flip that did not was a
+     flip whose OFF position minted progress: the server owns `accrued_to` and
+     never advances the local watermarks, so an OFF that measured from before the
+     armed span re-paid everything the server had already paid, capped only by
+     offlineCapHours. Every assertion in it turned on a CHANGE OF POSITION.
 
-      /* An eight-hour-old pair of watermarks: with the switch OFF this is a
-         paying absence, and the server has no idea it exists. */
-      const old = Date.now() - 8 * 3600000;
-      G.offlineBudget = { at: old }; G.restedAt = old;
-
-      A.setServerAccrualEnabled(true);
-      assert(G.offlineBudget.at > old && G.restedAt > old,
-        'turning the switch ON left the local watermarks at ' + G.offlineBudget.at + '/' + G.restedAt
-        + ' — the span is now owned by the server, and a local path that still measures from before it '
-        + 'would pay it a second time');
-
-      /* THE LOAD-BEARING DIRECTION. While ON, nothing advances these — correctly,
-         because the server owns accrued_to and a client that advanced a watermark
-         it does not own confiscates real absences. So OFF must hand the span
-         back, or the first local processOffline re-pays everything the server
-         paid for. MUTATION: stamp only in the `on` branch → red here. */
-      const onAt = G.offlineBudget.at;
-      G.offlineBudget.at = old; G.restedAt = old;      // as if ON had never touched them
-      A.setServerAccrualEnabled(false);
-      assert(G.offlineBudget.at > old && G.restedAt > old,
-        'turning the switch OFF left the local watermarks in the past — the very next processOffline '
-        + 'pays out a span the server has already paid for, capped only by offlineCapHours. '
-        + 'A kill switch whose off position mints progress is not a kill switch');
-      assert(onAt > old, 'control: the ON direction never stamped, so the OFF assertion proves nothing');
-
-      /* IDEMPOTENCE. Re-asserting the CURRENT position must not move anything,
-         or every boot (and every suite run) quietly confiscates the player's
-         absence. MUTATION: stamp unconditionally → red. */
-      const settled = G.offlineBudget.at;
-      G.offlineBudget.at = old; G.restedAt = old;
-      A.setServerAccrualEnabled(false);
-      assert(G.offlineBudget.at === old && G.restedAt === old,
-        're-asserting the switch\'s current position moved the watermarks — a page that calls this on '
-        + 'every boot would mean the player was never away');
-      assert(settled > old, 'control: the OFF flip never stamped');
-
-      /* The pure function is exported and takes its target explicitly, so this
-         is drivable without a live G. */
-      const probe = {};
-      const w = A.stampAwayWatermarks(probe, 1234);
-      assert(probe.offlineBudget && probe.offlineBudget.at === 1234 && probe.restedAt === 1234 && w.restedAt === 1234,
-        'stampAwayWatermarks did not create the budget object on a G that has none: ' + JSON.stringify(probe));
-      assert(A.stampAwayWatermarks(null, 1) === null, 'stampAwayWatermarks accepted a null target');
-    } finally {
-      G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt;
-      /* b353: back to PRISTINE, which is now ON. Leaving it OFF here would hand
-         the rest of the suite — and the live page a player ran it from — a
-         client-authoritative session that nothing later would restore. */
-      A.__clearAccrualOverride();
-      try { localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
-      G.offlineBudget = save.offlineBudget; G.restedAt = save.restedAt;
-    }
-  }),
+     There are no positions. The switch is retired, `stampAwayWatermarks` is
+     deleted with it (its only production caller was the flip), and the local
+     `processOffline` that would have re-measured the span is deleted too. The
+     property it defended — a local path paying a span the server already paid —
+     is now unreachable by construction rather than by a stamp, and B353-1 above
+     asserts the deletion (`typeof A.stampAwayWatermarks !== 'function'`) so the
+     watermark writer cannot quietly come back as a client-side helper. */
 
   () => tryRun('B339-5: the server character REPLACES local progress, and it says so before it does it', () => {
     const A = window.HearthriseAccrual;
@@ -41579,7 +41517,7 @@ const TESTS = [
         'the field is reported KNOWN without the server ever having answered: ' + JSON.stringify(v));
     } finally {
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, savedRecordFields);
       Object.assign(G, save);
@@ -41681,7 +41619,7 @@ const TESTS = [
         'a missing record.js silently restored a cloud save carrying server-owned fields');
     } finally {
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
     }
   }),
@@ -42583,7 +42521,7 @@ const TESTS = [
           + 'makes the blob\'s shape depend on a kill switch: ' + JSON.stringify(snap.offlineBudget));
       }
     } finally {
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       G.offlineBudget = save.offlineBudget;
     }
@@ -42638,7 +42576,7 @@ const TESTS = [
       window.fetch = realFetch;
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       A.resetAccrualGate(); A.configureAccrual(null);
       C.resetCharacterIntent(); C.configureCharacter(null);
       R.resetRecord(); R.configureRecord(null);
@@ -42729,7 +42667,7 @@ const TESTS = [
     } finally {
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
@@ -42791,7 +42729,7 @@ const TESTS = [
         + JSON.stringify(R.recordValue(on, 'offlineBudget')));
     } finally {
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
     }
   }),
@@ -42891,7 +42829,7 @@ const TESTS = [
         + 'silently answering "not moved" is the failure this pairing exists to prevent');
     } finally {
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
     }
   }),
@@ -43020,7 +42958,7 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
@@ -43131,7 +43069,7 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       A.resetAccrualGate(); A.configureAccrual(null);
@@ -43220,7 +43158,7 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
@@ -43296,7 +43234,7 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
@@ -43353,7 +43291,7 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
@@ -43461,7 +43399,7 @@ const TESTS = [
     } finally {
       window.declareActivity = realDeclare;
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
@@ -43585,7 +43523,7 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}
@@ -43848,7 +43786,7 @@ const TESTS = [
       M.declare = realDeclare;
       M.setConfirmedActivity(null);
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       try { window.stopSkill(); } catch (e) {}
       Object.assign(G, save);
@@ -43917,7 +43855,7 @@ const TESTS = [
       try { A.hideReplacementSheet(); } catch (e) {}
       A.acknowledgeReplacement(hadAck ? true : false);
       A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}
@@ -44206,7 +44144,7 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
@@ -44442,7 +44380,7 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
@@ -44596,7 +44534,7 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       if (savedListings === null) localStorage.removeItem('hearthrise:market:listings');
       else localStorage.setItem('hearthrise:market:listings', savedListings);
@@ -44960,7 +44898,7 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
@@ -51024,7 +50962,7 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       if (wasOn) A.setServerAccrualEnabled(true); else A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem(A.ACCRUE_KILL_KEY); } catch (e) {}
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       E.resetEquip();
       if (prevCfg) E.configureEquip(prevCfg);
     }

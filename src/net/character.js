@@ -406,7 +406,7 @@ export function ensureThenAccrue(opts) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseCharacter = {
-    CHARACTER_OUTCOMES, ACCRUE_KILL_KEY, CHARACTER_TIMEOUT_MS,
+    CHARACTER_OUTCOMES, CHARACTER_TIMEOUT_MS,
     isCharacterIntentEnabled, configureCharacter, getCharacterConfig,
     characterEndpoint, latchKey, buildCreateCharacterRequest, classifyCreateResponse,
     isCharacterConfirmation, isCharacterPresent, isCharacterConfirmed,

@@ -148,6 +148,58 @@ export async function runAll() {
       + 'or is downgraded to `idle` is `declarationFor`\'s decision; the call site has to exist either way.');
   }
 
+  /* ── S2b: THE OTHER HALF OF THE SEAM — CAN THE RECONCILE REPRESENT IT? ──
+     b520 (Paione, live 2026-09-07): "when I log out doing any quarry granite or
+     rubble, when I log back in it says I am idle." The realm was right —
+     `active_kind='artisan'`, `active_id='quarry_granite'`, 24 `craft` ledger
+     rows in three days — and `reconcileActivityPointer` had a `combat` branch, a
+     `gather` branch and nothing for `artisan`, so the boot resume handed the
+     server's pointer to a function that could not represent it.
+
+     THAT IS THE THIRD TIME. b347 wired `combat` only; b348 paid for `gather`
+     with a switch-on test that recorded zero intents; b356 put `artisan` on the
+     wire and this branch was missed again. S1/S2 above check that a settable
+     kind can be DECLARED and has a call site — the outbound half — and every one
+     of those passed while the INBOUND half was missing. A seam has two
+     directions and this file only ever guarded one.
+
+     Deliberately the same narrow shape as S2: a literal kind compared inside
+     `reconcileActivityPointer`. A computed kind would slip past, which is what
+     the browser suite's B348-7 / B520-1 drive; a literal is what every branch in
+     that function actually uses, so the mutation "delete the branch" is caught
+     rather than argued about. `idle` is exempt: it is the function's fallthrough
+     and is asserted by name below rather than as a payable kind. */
+  const reconcileBody = (() => {
+    const i = legacy.indexOf('function reconcileActivityPointer(');
+    if (i === -1) return null;
+    /* To the end of the function: the next top-level `\n}` after the opening. */
+    const end = legacy.indexOf('\nwindow.reconcileActivityPointer=', i);
+    return end === -1 ? legacy.slice(i) : legacy.slice(i, end);
+  })();
+  if (!reconcileBody) {
+    fail('ACTIVITY SEAM S2b: `reconcileActivityPointer` could not be found in src/legacy.js. That is the '
+      + 'function the server\'s answer lands in — without it the client cannot be corrected by any '
+      + 'envelope, and this guard cannot see whether it represents the kinds the server can set.');
+  } else {
+    for (const kind of settable) {
+      if (kind === 'idle') continue;
+      const re = new RegExp(`kind\\s*===\\s*['"]${kind}['"]`);
+      if (!re.test(reconcileBody)) {
+        fail(`ACTIVITY SEAM S2b: \`reconcileActivityPointer\` in src/legacy.js has no branch for '${kind}'. `
+          + `The server can SET that kind, the client DECLARES it (S1/S2 above are green) — and when the `
+          + `envelope says the player is doing it, the one function whose contract is "the envelope is the `
+          + `truth" falls through and applies nothing. Live symptom: the activity strip reads `
+          + `"Idle — pick an activity" over a run the server is settling and paying (b520, artisan). Add `
+          + `the branch, resolving the id through the SAME index the accrual engine reads.`);
+      }
+    }
+    if (!/kind\s*===\s*['"]idle['"]/.test(reconcileBody)) {
+      fail('ACTIVITY SEAM S2b: `reconcileActivityPointer` no longer handles `idle`, so a server that says '
+        + '"you stopped" cannot stop the client. That is the b519 phantom loop: a run the server does not '
+        + 'own kept painting client-authored items and XP for four minutes.');
+    }
+  }
+
   /* ── S6: THE PER-RECIPE DOWNGRADE (b356) ────────────────────────────────
      `artisan` is settable and 261 of its 290 recipes are payable. The COOKING
      bench is held back because `noBurn`'s Kitchen rung is READ from server

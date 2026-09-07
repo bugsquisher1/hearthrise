@@ -45786,6 +45786,166 @@ const TESTS = [
     }
   }),
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     B520-1 — A BOOT RECORD THAT SAYS `artisan` MUST RESUME THE BENCH.
+
+     REPORTED LIVE (Paione, 2026-09-07 18:32 UTC): "when I log out doing any
+     quarry granite or rubble, when I log back in it says I am idle."
+
+     THE REALM WAS RIGHT AND THE CLIENT WAS WRONG. Read-only on his account:
+     `player_state.active_kind='artisan'`, `active_id='quarry_granite'`, the
+     declaration accepted at 18:31:07, 24 `craft` ledger rows in three days —
+     the bench ran and PAID all night. `reconcileActivityPointer` had a `combat`
+     branch (b347), a `gather` branch (b348) and nothing for `artisan`, so the
+     boot resume in src/net/record.js handed the server's own pointer to a
+     function that could not represent it and fell through to `return null`.
+     The strip then read "Idle — pick an activity" over a run the server was
+     settling, which is the worst state an idle game has: the player believes
+     they stopped earning and re-taps (or worse, does not).
+
+     DRIVEN THROUGH THE REAL BOOT, not through the reconcile alone. The bug is
+     half in legacy.js and half in the wiring, so the test stubs `hr_load` and
+     runs `requestRecord()` → `settle()` → `hydrationStep('activity-resume')` →
+     `reconcileActivityPointer`, exactly as INV-HYDRATE-1 does for the bag. A
+     test that called the reconcile by hand would have stayed green through the
+     b456 wiring bug as well as this one.
+
+     FOUR PROPERTIES, and each is a distinct way this has been got wrong:
+       ① the local pointer resumes the BENCH, with its loop armed — a pointer
+         without a timer is the b237 "active tile earning nothing" bug;
+       ② the strip NAMES it ("Stonemason — quarry granite"), because "Idle" is
+         the entire player-visible symptom;
+       ③ NOTHING is declared back — the server just told us; echoing it spends
+         an idempotency key, a rate budget and a COLLECT to say nothing;
+       ④ the server's own statement counts as CONFIRMATION, so the next
+         visibility-resume does not re-declare it (`assertActivityDeclaration`)
+         and a later authoritative `idle` is a quiet stop rather than the b519
+         "the hearth did not take that" surprise.
+
+     MUTATION: delete the `kind==='artisan'` branch in reconcileActivityPointer
+     → ① ② RED. Delete the setConfirmedActivity/setLastServerActivity pair in
+     record.js's activity-resume step → ④ RED. ─────────────────────────────── */
+  () => tryRunAsync('B520-1: a boot record that says `artisan` resumes the bench — the strip names it, '
+    + 'nothing is re-declared, and the server\'s own statement counts as confirmation', async () => {
+    const R = window.HearthriseRecord;
+    const M = window.HearthriseActivity;
+    const C = window.HearthriseCore;
+    const G = window.G;
+    const RID = 'quarry_granite';
+    const hit = (C && typeof C.artisanRecipe === 'function') ? C.artisanRecipe(RID) : null;
+    assert(hit && hit.skill && hit.recipe,
+      'the recipe this bug was reported against (`' + RID + '`) is not in this build\'s artisan index, so '
+      + 'the fixture would be testing nothing. If the id genuinely moved, repoint it at another '
+      + 'input-free bench recipe rather than deleting the test');
+    const SKILL = hit.skill;
+    const snap = snapshotG();
+    const realFetch = window.fetch;
+    const realDeclare = M.declare;
+    let calls = [];
+    try {
+      /* Start from a stopped character: these stops are REAL and declare a real
+         `idle`, so they happen before the spy is cleared, not after. */
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      M.setConfirmedActivity(null);
+      M.setLastServerActivity(null);
+      /* Below the quiet counter and above the transport, for the reason
+         B348-5/6/7 states: spying on `declareActivity` would delete the very
+         mechanism under test. Nothing reaches the network. */
+      M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
+
+      /* THE ENVELOPE, BUILT FROM THE LIVE CHARACTER so `applyRecord` is very
+         nearly idempotent and the only thing that MOVES is the pointer. The one
+         raised value is the bench's own level: `startArtisan` gates on it, and
+         the honest way to satisfy a server-of-record gate is to have the SERVER
+         supply the number — poking `G.skills` would leave it UNKNOWN and the
+         gate would refuse for a reason that has nothing to do with this bug. */
+      const skills = {};
+      const cur = (G.skills && typeof G.skills === 'object') ? G.skills : {};
+      for (const k in cur) { const n = Number(cur[k]); if (Number.isFinite(n) && n >= 0) skills[k] = Math.floor(n); }
+      const needXp = (C && C.xp && typeof C.xp.xpForLevel === 'function')
+        ? C.xp.xpForLevel(Math.min(99, (hit.recipe.req || 1) + 1)) : 0;
+      skills[SKILL] = Math.max(skills[SKILL] || 0, needXp);
+      const version = Math.max(((G._record && Number(G._record.version)) || 0) + 1, Date.now());
+      const body = {
+        ok: true, version, now: new Date(version).toISOString(),
+        state: {
+          slot: 0,
+          gold: Number(G.gold) || 0,
+          gems: Number(G.gems) || 0,
+          /* THE TWO FIELDS THIS TEST IS ABOUT. `activityOf` reads `state.active_kind`
+             / `active_id` — the shape hr_state_of really projects. */
+          active_kind: 'artisan', active_id: RID,
+        },
+        skills,
+        inventory: { ...(G.inventory || {}) },
+        equipment: { ...(G.equipment || {}) },
+      };
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+      };
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      calls = [];
+      const v = await R.requestRecord();
+      assert(v.outcome === 'loaded', 'the stubbed boot read did not load: ' + JSON.stringify(v));
+
+      /* ① THE RUN RESUMED, AND IT IS ACTUALLY RUNNING. */
+      assert(G.activeSkill === SKILL && G.skillTargetId === RID,
+        'THE B520 BUG: the boot record said artisan:' + RID + ' and the local pointer is '
+        + G.activeSkill + '/' + G.skillTargetId + '. The server is settling and PAYING this bench; a '
+        + 'reconcile that cannot represent a settable kind is a client that silently disagrees with the '
+        + 'realm about what the player is doing');
+      assert(window.__isSkillLoopArmed(),
+        'the pointer moved but no artisan timer was armed — the player sits on an "active" bench that '
+        + 'produces nothing locally, which is the b237 bug arriving through a new door');
+
+      /* ② AND THE STRIP SAYS SO. "Idle — pick an activity" over a paying run is
+         the whole player-visible defect; asserting the pointer alone would let
+         it come back through the renderer. */
+      window.refreshActivityBar();
+      const nameEl = document.getElementById('ab-name');
+      assert(nameEl, 'the activity strip is missing from the page, so the reported symptom cannot be measured');
+      const txt = String(nameEl.textContent || '');
+      const benchName = (window.SKILLS_DEF && window.SKILLS_DEF[SKILL] && window.SKILLS_DEF[SKILL].name) || SKILL;
+      assert(txt.indexOf(benchName) !== -1 && txt.indexOf(RID.replace(/_/g, ' ')) !== -1,
+        'the activity strip reads "' + txt + '" — it must name the bench and the recipe ("' + benchName
+        + ' — ' + RID.replace(/_/g, ' ') + '"), which is the sentence the player said was missing');
+      assert(!/^Idle/.test(txt), 'THE REPORTED SYMPTOM VERBATIM: the strip still reads "' + txt + '"');
+
+      /* ③ NOTHING WENT BACK ON THE WIRE. */
+      assert(calls.length === 0,
+        'the boot resume DECLARED the activity back at the server (' + JSON.stringify(calls) + '). The '
+        + 'server is where this pointer came from; telling it spends an idempotency key, a rate budget '
+        + 'and a COLLECT to say something it just said');
+
+      /* ④ THE RECORD IS AN ACKNOWLEDGEMENT. Without this, every visibility
+         resume asks `assertActivityDeclaration`, is told the run is unconfirmed,
+         and re-declares an activity the server is already settling. */
+      assert(M.isActivityConfirmed('artisan', RID) === true,
+        'the server STATED artisan:' + RID + ' in the boot record and `isActivityConfirmed` says no. Every '
+        + 'resumeActiveActivity from here re-declares a run the server already owns, and the b519 '
+        + 'unconfirmed-stop path will treat the player\'s own Stop as a surprise');
+      const st = M.getActivityState();
+      assert(st && st.lastServerActivity && st.lastServerActivity.kind === 'artisan'
+        && st.lastServerActivity.id === RID,
+        '`confirmed` was filed without `lastServerActivity` (' + JSON.stringify(st && st.lastServerActivity)
+        + ') — a module state the transport can never produce, and it leaves a later no-envelope refusal '
+        + 'with nothing to reconcile TO');
+    } finally {
+      window.fetch = realFetch;
+      try { R.resetRecord(); } catch (e) {}
+      try { R.configureRecord(null); } catch (e) {}
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      restoreGAndRecord(snap);
+      M.setConfirmedActivity(null);
+      M.setLastServerActivity(null);
+      M.declare = realDeclare;
+    }
+  }),
+
   () => tryRunAsync('B348-8: b339 is NOT reopened — a gated envelope moves the loops and moves no gold', async () => {
     const A = window.HearthriseAccrual;
     const M = window.HearthriseActivity;

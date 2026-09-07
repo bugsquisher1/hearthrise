@@ -12505,7 +12505,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('RECOVER-13: the ENVELOPE repaints the sheet and the bar — a phase change is not '
+  () => tryRun('RECOVER-14: the ENVELOPE repaints the sheet and the bar — a phase change is not '
     + 'something a throttled timer notices a minute later', () => {
     /* ══ MEASURED LIVE, b513, ~02:15 UTC 2026-09-07 ══════════════════════
        The character fell, the sheet opened on `pending`, and 75 s later the

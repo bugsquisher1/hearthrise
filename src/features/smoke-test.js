@@ -120,19 +120,14 @@ const analyzeAssertionCoverage = (plan, results) => {
   }
   return { zeroAssertPasses, assertTrueSites, earlyReturn, throwOnlyPasses, assertsNothing, totalTrueSkips };
 };
-/* b348 — A SYNC RUNNER HANDED AN ASYNC BODY IS AN ALWAYS-GREEN TEST.
+/* A SYNC RUNNER HANDED AN ASYNC BODY IS AN ALWAYS-GREEN TEST.
    `tryRun` calls fn() inside a try/catch. Give it an `async` function and it
    receives a PROMISE: nothing throws synchronously, so the catch is unreachable
    and `pass(name)` is returned before a single assertion has run. The test then
-   passes whatever it claims, forever, and looks identical to a real one in the
-   output.
-   MEASURED: I wrote two of these while fixing Xarn's reports and only found out
-   because seven separate mutations — including restoring the exact bug — all
-   came back GREEN. This file's own recurring lesson ("a test can pass while
-   asserting nothing, and the giveaway is a mutation that stays green") applied
-   to the runner rather than to an assertion.
-   Detect it instead of documenting it: a thenable return is now a LOUD failure
-   naming the fix. `tryRunAsync` is the awaiting runner. */
+   passes whatever it claims, forever, and looks identical to a real one — two
+   shipped that way, and seven mutations (including restoring the exact bug) all
+   came back green. Detected rather than documented: a thenable return is a LOUD
+   failure naming the fix. `tryRunAsync` is the awaiting runner. */
 /* ── TEST ISOLATION: THE PENDING-CONSUMPTION LEDGER IS SESSION STATE ────────
    A test that eats (there are a dozen: maybeAutoEat fixtures, eatFood fixtures,
    the auto-eat threshold slider) leaves a HOLD on the live `G` —
@@ -148,16 +143,13 @@ const analyzeAssertionCoverage = (plan, results) => {
    fixture state, and nothing here is asserting the ledger's lifetime — the
    EAT-RESTOCK tests build their own `G` objects or set up inside one test. */
 /* ── TEST ISOLATION: A FULL-SCREEN OVERLAY IS NOT ALLOWED TO OUTLIVE ITS TEST ─
-   THE CLASS, measured three times now. b483: an eat fixture left the
-   replacement-gate sheet up and "b221: the shop renders the counter scene"
-   failed on a bare "something is covering the buy control". b513 (2026-09-07):
-   the same test failed twice more, once on `COVER=<span>.hr-death-t` (the death
-   sheet, raised by an away simulation that had not been told it was away) and
-   once on `COVER=<div>.hr-rn-cele` (the renown celebration, fired by the 4 s
-   watcher off a fixture's score). Every instance has the same shape: a modal
-   raised inside test A, still on screen in test Z, and the failure lands on Z —
-   hundreds of tests and thousands of lines away from the fixture that owns it,
-   intermittently, naming an innocent surface.
+   THE CLASS, measured three times now: an eat fixture leaving the
+   replacement-gate sheet up, a death sheet raised by an away simulation that had
+   not been told it was away, a renown celebration fired by the 4 s watcher off a
+   fixture's score. Every instance has the same shape — a modal raised inside
+   test A, still on screen in test Z, so the failure lands on Z, hundreds of
+   tests away from the fixture that owns it, intermittently, naming an innocent
+   surface.
 
    So the boundary asks. A test that ends with one of these on screen FAILS,
    by name, at its own boundary — and the overlay is taken down, because
@@ -1026,7 +1018,7 @@ const applyAwayEnvelope = (away, opts) => {
   const o = opts || {};
   const G = window.G;
   const A = window.HearthriseAccrual;
-  /* b519 - DO NOT CLEAR THE AWAY HOLDER HERE. It is tempting (an away fixture
+  /* DO NOT CLEAR THE AWAY HOLDER HERE. It is tempting (an away fixture
      landed by an earlier test is otherwise still on the Home screen for thirty
      minutes of suite time) and it is WRONG: accrue.js holds the last
      away-classified receipt precisely so that the 90-second syncs a test lands
@@ -11922,7 +11914,7 @@ const TESTS = [
      ⚠ THE CLAIM IS STUBBED, and it must be. This suite runs on a live signed-in
        account during the play gate; an unstubbed `updateQuest('gather',15)`
        would post a real hr_claim_quest for the QA character and pay a real
-       quest out of a test. The stub is the b414 idiom two hundred lines up. */
+       quest out of a test. The stub is the same idiom two hundred lines up. */
   () => tryRun('FIRST-LIGHT-1: Home pins the whole first-day chain, row 1 lit; finishing step 1 lights step 2', () => {
     const snap = snapshotG();
     const origClaim = window.HearthriseGoalClaim;
@@ -11964,7 +11956,7 @@ const TESTS = [
         'no step past the first is current, and none is "locked" — they all count from minute one');
 
       /* The rows are DOORS, resolved by the one shared resolver — never a
-         private route table in the dashboard (the b227 finding). */
+         private route table in the dashboard. */
       const QN = window.HearthriseQuestNav;
       assert(QN && typeof QN.destination === 'function', 'CONTROL: the quest-nav resolver must be loaded');
       m0.steps.forEach((s) => {
@@ -14134,7 +14126,7 @@ const TESTS = [
        server clock, BEFORE hr_apply, so `player_intents` held no
        `set_activity:gather:shrimp_s` row at all and server fishing xp stayed
        at 604. The client was refused twice and kept painting anyway, because
-       the b348 ruling read the refusal's `idle` as "the server was never told"
+       the retired ruling read the refusal's `idle` as "the server was never told"
        and re-declared instead of stopping.
 
        Everything the player saw for four minutes was client-authored and
@@ -14145,8 +14137,8 @@ const TESTS = [
        server's own gate, which is asserted where it lives — the away path
        cannot start an activity at all.
 
-       MUTATION: delete the `recovering(...)` line from block 22's startSkill
-       wrapper → ② and ③ RED. Make `hrRefuseWhileRecovering` ignore
+       MUTATION: pass `null` for `kind` in block 22's startSkill call to
+       `clearToStart` → ② and ③ RED. Make `hrRefuseWhileRecovering` ignore
        `hrCombatDownPeek()` → ⑤ RED (the control stops proving anything). */
     const G = window.G;
     const A = window.HearthriseAccrual;
@@ -14269,29 +14261,22 @@ const TESTS = [
 
 
   /* ══════════════════════════════════════════════════════════════════════════
-     RECOVER-17 / RECOVER-18 (b520) — THE RELOAD THAT STOOD A KNOCKED-OUT HERO UP.
+     RECOVER-17 / RECOVER-18 — THE RELOAD THAT STOOD A KNOCKED-OUT HERO UP.
 
-     MEASURED LIVE — hearthrise.net, QA account, 2026-09-07 17:55 UTC, b519.
-     Server `player_state`: `active_kind` idle, `recovering_until` 18:06Z — 11
-     minutes ahead. The page was reloaded and the client came up believing it
-     was fine: `HearthriseAccrual.fallState()` = {phase:'up', answered:false,
-     deathsToday:0}, `isKnockedOut()` false, `recoveringUntilMs()` 0,
-     `hrCombatDownPeek()` false. No banner, no sheet, no countdown.
+     ROOT CAUSE — THE IDLE-BOOT HYDRATION CLASS, INSTANCE SIX (inventory, crew,
+     hero slots, bank rungs, hp, now recovery). The whole recovery mirror —
+     `recovering_until`, `accrued_to`, `deaths_today`, `deaths_lifetime` — lived
+     ONLY inside `applyEnvelopeState`, which runs ONLY on an ACCRUED envelope.
+     An idle hero boots through record.js's hr_load hydration and hr-accrue
+     answers {accrued:false, reason:'idle'}, so nothing ever read the line. None
+     of the four is residue or server-of-record: there was no other source, and
+     a reloaded hero with 11 minutes still to serve came up reading `up`.
 
-     ROOT CAUSE — THE IDLE-BOOT HYDRATION CLASS, INSTANCE SIX (b467 inventory,
-     b477 crew, SA-016 hero slots, SA-010 bank rungs, b511 hp, now recovery).
-     The whole recovery mirror — `recovering_until`, `accrued_to`,
-     `deaths_today`, `deaths_lifetime` — lived ONLY inside `applyEnvelopeState`,
-     which runs ONLY on an ACCRUED envelope. An idle hero boots through
-     record.js's hr_load hydration and hr-accrue answers {accrued:false,
-     reason:'idle'}, so nothing ever read the line. None of the four is a
-     residue field and none is server-of-record: there was no other source.
-
-     WHAT IT COST THE PLAYER. b519's `hrRefuseWhileRecovering` mirrors the
-     server's gate by asking `hrCombatDownPeek()` — which was blind. So the tap
-     started a local run, declared it, was refused 409 `recovering` by
-     set-activity.js §(1b), and was stopped by the reconcile with the generic
-     "the hearth did not take that" line instead of the knocked-out sheet.
+     WHAT IT COST THE PLAYER. `hrRefuseWhileRecovering` mirrors the server's gate
+     by asking `hrCombatDownPeek()` — which was blind. So the tap started a local
+     run, declared it, was refused 409 `recovering` by set-activity.js §(1b), and
+     was stopped by the reconcile with the generic "the hearth did not take that"
+     line instead of the knocked-out sheet.
 
      THESE TWO TESTS DRIVE THE REAL BOOT PATH — a stubbed `hr_load` through
      `HearthriseRecord.requestRecord()`, not a hand-called `applyEnvelopeState`
@@ -14326,10 +14311,17 @@ const TESTS = [
     try {
       D.__resetForTest();                 // stands the fixture up, through an envelope
       A.clearFall();
-      /* THE MEASURED SHAPE: nothing declared, hurt, and down. */
-      G.activeMonster = null; G.activeSkill = null; G.skillTargetId = null;
-      G.activeArtisanRecipe = null; G.activeAction = null;
+      /* THE MEASURED SHAPE: nothing declared, hurt, and down. STOPPED rather
+         than seeded null — the pointer and the TIMER move together that way, and
+         a fixture that nulls the pointer while an interval is still armed is the
+         exact phantom this test exists to catch. */
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      try { if (typeof window._stopArtisan === 'function') window._stopArtisan(); } catch (e) {}
       G.playerMaxHp = 13; G.playerHp = 5;
+      assert(!G.activeMonster && !G.activeSkill && !G.skillTargetId && !G.activeArtisanRecipe,
+        'the fixture could not stop everything (' + G.activeMonster + '/' + G.activeSkill + '/'
+        + G.activeArtisanRecipe + '), so "the boot did not resume a run" would prove nothing');
       assert(!A.isKnockedOut() && A.fallState().phase === 'up',
         'the fixture did not start on its feet, so nothing below would prove anything: '
         + JSON.stringify(A.fallState()));
@@ -14383,7 +14375,7 @@ const TESTS = [
       assert(A.accruedToMs() > 0, 'the boot did not hydrate the priced-window watermark');
 
       /* ③ THE ALWAYS-ON READOUT NAMES THE COUNTDOWN. The pointer is IDLE, which
-            before b520 fell straight through to "Idle — pick an activity": the
+            used to fall straight through to "Idle — pick an activity": the
             one surface on screen for every second of the knockout said nothing
             about it. */
       window.refreshActivityBar();
@@ -26593,10 +26585,10 @@ const TESTS = [
     }, function(){ /* offline in harness is fine */ });
   }),
 
-  /* ── b519 REGRESSION: the "verify cloud save" diagnostic must not read a
+  /* ── REGRESSION: the "verify cloud save" diagnostic must not read a
      RETIRED table, and must describe the truth a player's progress lives in ────
      THE BUG. verifyCloudSave forced an upload and then read `game_saves` back.
-     The blob stopped being uploaded at b515 and 2026-09-07-game-saves-revoke.sql
+     The blob stopped being uploaded pre-cutover and 2026-09-07-game-saves-revoke.sql
      took the client's write grants away, so the read-back was always empty and
      every player who pressed the button — in the ONE tool you open when you are
      afraid of losing progress — was told "Uploaded, but reading it back returned
@@ -26687,7 +26679,7 @@ const TESTS = [
     }
   }),
 
-  // b295: bug-report screenshots crashed with "unsupported color function
+  // Bug-report screenshots crashed with "unsupported color function
   // 'color'" because html2canvas can't parse the color(srgb …) form that
   // browsers serialise our color-mix() rules into. convertColorFns() rewrites
   // those to rgb()/rgba() in the cloned DOM before capture. Guard the converter.
@@ -27686,25 +27678,16 @@ const TESTS = [
     }
   }),
 
-  /* ── b345: THE LAST THREE UNSEEDED ROLLS ON THE AWAY PATH ─────────────────
+  /* ── NO BARE Math.random() IS REACHABLE FROM THE AWAY REPLAY ──────────────
      The server recomputes an absence from (user_id, slot, accrued_to) and its
-     answer must equal the client's. Any bare Math.random() reachable from the
-     away replay breaks that BY CONSTRUCTION — not probabilistically, not
-     rarely: every single time.
+     answer must equal the client's. Any bare Math.random() on that path breaks
+     it BY CONSTRUCTION — not probabilistically, every single time.
 
-     Three sites were left, and they were found by INSTRUMENTING the real
-     global across a set of away nights, not by grep. Measured before the fix:
-
-       companions.js rollProc     23 draws in a 30-min away night on the lich,
-                                  400 in a 400-action away gather night
-       pets.js       rollSkillPet 400 draws (it hangs off addXp)
-       pets.js       rollBossPet  23 draws (it hangs off killMonster)
-
-     …and with the SEED PINNED and only Math.random() varied, that same night
-     paid 7,899 gold against 7,789 (the Raccoon's +5-a-kill proc), unlocked
-     `lichling` in one replay and not the other, and unlocked `beaver` in one
-     and not the other. After the fix the same measurement reports ZERO bare
-     draws on both nights.
+     The three sites that were left (companions.js rollProc, pets.js
+     rollSkillPet and rollBossPet) were found by INSTRUMENTING the real global
+     across a set of away nights, not by grep: hundreds of draws a night, and
+     with the SEED PINNED and only Math.random() varied the same night paid
+     7,899 gold against 7,789 and unlocked a different pet in each replay.
 
      THE TEST HAS THREE LAYERS, and it needs all three:
 
@@ -39838,29 +39821,25 @@ const TESTS = [
   }),
 
   /* ══ b337 — SERVER-AUTHORITATIVE AWAY TIME (the client rewire, slice 1) ════
-     One vertical slice of roadmap item 2: on return from an absence the client
-     ASKS `hr-accrue` what it earned and renders the answer, instead of
-     computing it. The property every test below exists to hold is a NEGATIVE
-     one, and it is the only thing that makes the slice worth anything:
+     On return from an absence the client ASKS `hr-accrue` what it earned and
+     renders the answer. The property every test below exists to hold is a
+     NEGATIVE one, and it is the only thing that makes the slice worth anything:
 
        WITH THE SWITCH ON, THERE IS NO PATH THROUGH processOffline() THAT
        GRANTS A NUMBER THIS DEVICE COMPUTED — including when the server is
        unreachable, rate-limited, 500ing, or says the character does not exist.
 
      A silent fallback would look exactly like success while the client quietly
-     kept authoring the economy, and would be discovered only by an economy that
-     no longer balances. So the failure tests below are the load-bearing ones,
-     not the happy path.
+     kept authoring the economy, and would be found only by an economy that no
+     longer balances — so the failure tests below are the load-bearing ones.
 
      THE TRANSPORT IS REAL. These swap `window.fetch` and return real Response
-     objects, the way the b331 battery does — a test that cannot observe an
-     actual request is not a test of a network path.
+     objects: a test that cannot observe an actual request is not a test of a
+     network path.
 
-     KNOWN, AND DELIBERATE: the deployed function has no CORS headers yet (the
-     fix is staged, awaiting a redeploy), so against production every one of
-     these calls lands on `unreachable`. tests/cors-preflight.mjs C4 is the live
-     gate for that; nothing here can stand in for it, because Chromium in this
-     harness is talking to a stub, not to the gateway. */
+     tests/cors-preflight.mjs C4 is the live gate for the transport; nothing
+     here can stand in for it, because Chromium in this harness is talking to a
+     stub, not to the gateway. */
 
   /* ══════════════════════════════════════════════════════════════════════════
      B353-1 (INVERTED, b515) — THE SWITCH NO LONGER EXISTS.
@@ -39871,18 +39850,14 @@ const TESTS = [
      second time, and the reason is worth stating because "we deleted the test
      that was in the way" is exactly what this file exists to prevent.
 
-     Security measured what the OFF position actually did (2026-09-07). It was
-     not, as its own header claimed, "the pre-cutover client". It was a
-     divergent SINGLE-DEVICE LOCAL GAME: the authoritative save blob uploaded to
-     game_saves, away time computed from the device clock, gold and gems minted
-     locally, `mayClientWrite` answering yes for EVERY server-owned field, every
-     intent dark, the v1 market writing rows directly, the boot veil off — and
-     all of it silently discarded the moment the key was cleared. CLAUDE.md §1
-     forbids a client-authored fallback, in exactly those words, and this one
-     could not even keep what it authored.
+     Security measured what the OFF position actually did (2026-09-07): not
+     "the pre-cutover client" its header claimed, but a divergent SINGLE-DEVICE
+     LOCAL GAME — see accrue.js's kill-switch block for the inventory — all of
+     it silently discarded the moment the key was cleared. CLAUDE.md §1 forbids
+     a client-authored fallback in exactly those words.
 
-     So the switch is retired and this test now proves the retirement, in the
-     three places a half-retirement would hide:
+     So the switch is retired and this test proves the retirement, in the three
+     places a half-retirement would hide:
 
        (a) THE PREDICATE IS A CONSTANT. `isServerAccrualEnabled()` is true with
            a stale `hr:serverAccrual=off` sitting in localStorage — which is the
@@ -42376,20 +42351,17 @@ const TESTS = [
      F1b — THE RESTORED NIGHT SURVIVES THE SYNC THAT FOLLOWS IT.
 
      A MERGE-EMERGENT REGRESSION, measured on the assembled tree 2026-09-07,
-     and the reason this test exists rather than a comment: b519 and this
-     branch are each correct alone and together they reopened b519's own bug
-     for the one case F1 was built to serve.
+     and the reason this test exists rather than a comment.
 
-     b519 moved the Home away card off `G.lastOfflineSummary` (every 90-second
-     settle overwrites it) onto a module-scope holder in accrue.js, written in
-     `applyEnvelope` when the receipt classifies away. It reasoned the holder
-     need not survive a reload because "on reload the very next envelope
-     re-states the absence anyway". That premise is exactly what F1 measured
-     FALSE: after a night has been paid, the next boot's hr-accrue answers
-     `{accrued:false, reason:'idle'}`, `applyEnvelope` never runs, and the
-     absence is re-stated by nothing. So the restore seeded `G` alone, the card
-     drew, and the first sync ninety seconds later evicted it — the player
-     reloaded, started reading the night and it vanished under them.
+     The Home away card reads a module-scope holder in accrue.js (written in
+     `applyEnvelope` when the receipt classifies away) rather than
+     `G.lastOfflineSummary`, which every 90-second settle overwrites. The holder
+     was reasoned not to need a reload because "the very next envelope re-states
+     the absence anyway" — and that premise is what F1 measured FALSE: after a
+     night has been paid the next boot answers `{accrued:false, reason:'idle'}`,
+     `applyEnvelope` never runs, and nothing re-states it. So the restore seeded
+     `G` alone, the card drew, and the first sync ninety seconds later evicted
+     it — the player reloaded, started reading the night, and it vanished.
 
      GRADED ON THE RENDERED BAND, through the real path both times (the boot
      seed, then `applyAwayEnvelope` -> applyServerEnvelope -> applyEnvelope),
@@ -44815,11 +44787,11 @@ const TESTS = [
        live G under an armed record — and that is what the player was shown on
        2026-08-29 when the boot read failed.
 
-       b515 — THE ANCHOR MOVED WITH THE BRANCH IT ANCHORED ON. This used to find
+       THE ANCHOR MOVED WITH THE BRANCH IT ANCHORED ON. This used to find
        `isBlobRetired()` inside loadLocal and assert the forget sat BEFORE the
-       early `return;`. There is no branch and no early return: b515 deleted the
-       ~120-line blob read that followed it, so loadLocal's whole body is the
-       two lines the forget used to guard. That makes the ordering assertion
+       early `return;`. There is no branch and no early return: the cutover
+       deleted the ~120-line blob read that followed it, so loadLocal's whole
+       body is the two lines the forget used to guard. That makes the ordering
        unsatisfiable-by-construction (there is no `return;` to be before), and an
        assertion that cannot fail is the family this program keeps meeting.
 
@@ -46147,7 +46119,7 @@ const TESTS = [
     } finally {
       window.declareActivity = realDeclare;
       try { window.stopCombat(); } catch (e) {}
-      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // b519: the away holder outlives G
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // the away holder outlives G
       restoreGAndRecord(snap);
     }
   }),
@@ -46371,7 +46343,8 @@ const TESTS = [
          actually does. Unless the mutex's inner stop is quiet, one tap sends
          `idle` and then the real kind: two idempotency keys, two rate spends,
          and a second collect pricing a span of milliseconds.
-         MUTATION: drop the `q(...)` wrapper in block 22 → RED. */
+         MUTATION: make block 22's `clearToStart` call `stop()` directly
+         instead of through `activityQuietly` → RED. */
       const SWITCHES = [
         { from: () => window.startSkill('woodcutting', tree.id, tree.ms), to: 'combat',
           go: () => window.startCombat(mid) },
@@ -46443,7 +46416,7 @@ const TESTS = [
          the state the bound applies to. */
       A.setServerAccrualEnabled(true);
       M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
-      /* PRECONDITION, STATED RATHER THAN ASSUMED (b519). Every `startSkill`
+      /* PRECONDITION, STATED RATHER THAN ASSUMED. Every `startSkill`
          below now passes the recovery gate, so a fall left standing by an
          earlier test would make this test REFUSE instead of fail — and a
          refusal that looks like a failure of the thing under test is how a
@@ -46473,7 +46446,7 @@ const TESTS = [
         'reconciling ECHOED a declaration back at the server (' + JSON.stringify(calls) + ') — that is a '
         + 'loop with a round trip in it, and the quiet counter exists to stop it');
 
-      /* ── B348-5, RE-SPECIFIED (b519). THE RULING IT ASSERTED IS RETIRED.
+      /* ── B348-5, RE-SPECIFIED. THE RULING IT ASSERTED IS RETIRED.
          ═══════════════════════════════════════════════════════════════════
          This arm used to assert the OPPOSITE: that a server `idle` must not
          stop an unconfirmed run, and must re-declare it instead. That was
@@ -46512,7 +46485,7 @@ const TESTS = [
         + '`idle`; telling it so spends an idempotency key and a rate budget to say nothing');
 
       /* ── B348-5b: AN ARTISAN RUN AND A SERVER `idle` ARE IN AGREEMENT.
-         Kept verbatim from b348 because it still holds and it is the one case
+         Kept verbatim from before because it still holds, and it is the one case
          the stop above would get catastrophically wrong: `declarationFor`
          downgrades an unpayable recipe to `idle`, so the server saying `idle`
          is the server repeating what this client told it. Reading that as a
@@ -48345,7 +48318,7 @@ const TESTS = [
          locally computed one any more, so this is the label that says so. */
       assert(rec.serverAuthoritative === true, 'the receipt does not label itself server-stated');
     } finally {
-      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // b519: the away holder outlives G
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // the away holder outlives G
       restoreGAndRecord(snap);
     }
   }),
@@ -48354,11 +48327,11 @@ const TESTS = [
     /* THE MEASURED LIE. The welcome-back modal was reconciled with the Recovery
        Rule; the Home dashboard's away card — the surface that is still there
        after the modal is dismissed, and the only one a player can go back and
-       read — was not. It rendered b341's terminal-death sentence off
+       read — was not. It rendered the terminal-death sentence off
        `diedAfterMs || survivedMs`: "You died to Slime 50s in — the remaining
        11h 59m paid nothing." on a night that fell thirteen times, got back up
        thirteen times and banked the lot. Two surfaces, one receipt, opposite
-       stories, and the durable one was the wrong one.
+       stories, and the durable one was wrong.
 
        Everything below reads a field the receipt STATES (`deaths`, `recoverMs`,
        `recoverRemainingMs`, `stoppedBy`) — nothing is re-derived, which is the
@@ -49220,9 +49193,9 @@ const TESTS = [
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
       else { try { delete document.hidden; } catch (e) {} }
       G.lastOfflineSummary = prevSummary;
-      /* THE FIXTURE LEAK (b519). This test lands a 90-second DEATH receipt
+      /* THE FIXTURE LEAK. This test lands a 90-second DEATH receipt
          through the real envelope path, and a death classifies as AWAY on any
-         span (b343) — so accrue.js's away holder keeps it, with `at` = now, and
+         span — so accrue.js's away holder keeps it, with `at` = now, and
          every Home render for the next THIRTY MINUTES of the suite draws this
          fixture's card. Restoring `G.lastOfflineSummary` is no longer enough,
          because the card deliberately no longer reads only `G`. Any test that
@@ -50215,7 +50188,7 @@ const TESTS = [
       else { try { delete document.hidden; } catch (e) {} }
       G.lastOfflineSummary = prevSummary;
       G.lastWelcome = prevWelcome;
-      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // b519: the away holder outlives G
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // the away holder outlives G
       restoreG(snap);
       try { H.render(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -56262,7 +56235,7 @@ const TESTS = [
 
   () => tryRun('SYNC-3: a sync never draws an away card, never re-labels one, and never evicts a fresh one', () => {
     /* -- WHAT THIS TEST IS FOR --------------------------------------------
-       b361 pinned half a property: the Home card and the toast read ONE
+       An earlier guard pinned half a property: the Home card and the toast read ONE
        classifier, so a 90-second settle cannot be narrated as an absence.
        That half stayed true and the OTHER half was never stated, so it broke
        in silence: `applyEnvelope` overwrote `G.lastOfflineSummary` on every
@@ -58856,7 +58829,7 @@ const TESTS = [
      the launchpad ruling makes an open chain quest the leading milestone, and
      the card draws that same quest four rows above, so day-one Home printed
      "Cook 5 dishes · 0/5 · [Go cook]" twice within ten pixels. Each half was
-     individually correct, which is the b361 shape and the reason the visual
+     individually correct, which is the classic shape and the reason the visual
      gate exists. This asserts the ASSEMBLED result. */
   () => tryRun('FIRST-LIGHT-2b: Home draws the leading chain quest ONCE — the card and "Next up" never duplicate', () => {
     const snap = snapshotG();
@@ -58991,7 +58964,7 @@ const TESTS = [
   }),
 
   /* ── FIRST-LIGHT-4 — the tour may not teach a rule the engine dropped ────
-     FEATURE_SLATE fix #2. Two sentences in the b459 tour described a game that
+     FEATURE_SLATE fix #2. Two sentences in the tour described a game that
      stopped existing at Recovery Rule rev.2 and at the Auto-Eat tier table, and
      the tour is the FIRST place a player hears either rule. This guard pins the
      retired sentences out and binds the replacement to the constants it quotes,
@@ -59037,9 +59010,9 @@ const TESTS = [
   }),
 
   /* ── FIRST-LIGHT-5 — the away card and the cooking arm, bound ────────────
-     FEATURE_SLATE fix #3. b388 wrote "fighting, gathering and crafting bank"
+     FEATURE_SLATE fix #3. The empty-night note said "fighting, gathering and crafting bank"
      while cooking was unpayable, and left a note saying to restore cooking when
-     it paid. b431 armed it; nobody came back. That is a copy/flag pair with no
+     it paid. The arm landed; nobody came back. That is a copy/flag pair with no
      test between them, which is exactly how it survived a hundred builds — so
      the pair, not the sentence, is what this asserts. */
   () => tryRun('FIRST-LIGHT-5: the empty-night note names every channel that actually banks — bound to the cooking arm', () => {
@@ -59155,7 +59128,7 @@ export async function runSmokeTest(opts = {}) {
      The default is unchanged: no `only`, every test, exactly as CI and the
      🧪 button have always called it. It exists because the assembled suite is
      a several-minute in-page run and the project's own rule is that parallel
-     suites blow the budget and read as flakes (b461) — so an agent proving a
+     suites blow the budget and read as flakes — so an agent proving a
      single new battery had no way to do it without either running the whole
      thing or not running it at all, and "not running it at all" is how a test
      ships unproven.

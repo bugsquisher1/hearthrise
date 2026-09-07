@@ -3464,3 +3464,111 @@ eight CI commands together run in **under 3 s**, inside a 5-minute job budget.
   untouched. Two migrations sit outside `tests/schema-apply-order.json`
   (`2026-08-10-dr-legacy-cloud-save.sql`, `2026-08-12-clan-members-rls-drop.sql`); the second is in
   `excluded` with a reason, the first is in neither and is reported as a note on every run.
+
+---
+
+## 2026-09-07 — the three red ratchets on `21f3b5bf`, made green honestly (+ one P1 found on the way)
+
+### MONO-3 — `src/legacy.js` top-level function-consts 3 -> 4 (CODE, not the guard)
+
+Block 22's mutex held TWO module-level primitives after the knocked-out fix: `q` (the quiet
+cross-stop) and `recovering` (the recovery gate). They are ONE ORDERED DECISION — the gate must land
+ahead of the cross-stop, the pointer write and the timers, and that is the whole fix — so they are
+now one primitive, `clearToStart(kind, id, stop)`, returning FALSE when the caller must not start.
+Two bindings became one; the count is back to 3 (NetClient, IAP, clearToStart) and the baseline was
+NOT moved.
+
+**Why not "inline the three call sites":** the helper's body is a `typeof` guard plus a `try/catch`,
+which cannot be inlined into an `if` condition without three copies or losing the degrade-open
+behaviour. **Why not indent it out of the guard's column-0 predicate:** that is gaming, not fixing.
+
+**The behaviour-identity argument, in full.** `stop` is a THUNK, invoked only after the gate passes,
+so each wrapper's own precondition (`G.activeMonster && typeof stopCombat === 'function'`) is read at
+exactly the moment it was read before — no argument-evaluation-order change. `activityQuietly` is a
+balanced `_activityQuiet++/--` bracket around `fn()`, so bracketing a no-op thunk is unobservable,
+which is what lets startSkill/startArtisan move their conditional inside. `q`'s return value was
+discarded at all three call sites, so turning it into a boolean breaks nobody. Independently:
+`hrRefuseWhileRecovering` has NO side effects on any path that returns false (`_activityQuiet`,
+`hrCombatDownPeek` -> `fallState().phase`, `declarationFor` — all pure reads), so even the
+non-thunked form would have been safe.
+
+### CR — the prose ratchet: 116 build tokens paid, and CR-1 re-specified
+
+CR-2/CR-3 were paid as briefed: every build token in a comment line added since the baseline tree
+(**`762a1672`**, NOT `51011d13` — the ratchets branched one commit earlier, so b520's own prose was
+also unmeasured) is gone, plus enough older archaeology to clear the per-file ceilings. Corpus
+4,290 -> **4,174** (the brief asked for <= 4,233). 94 lines rewritten in place, 22 deleted with the
+paragraph they belonged to. **Zero code lines changed in accrue.js / record.js / sync.js /
+settings-page.js / home-dashboard.js** — verified line-by-line through the ratchet's own classifier,
+not by eye.
+
+CR-1 was WRONG as specified and is re-specified with a mutation proof — see CONFLICTS.md for the two
+measurements. The short version: a whole-file ratio ceiling goes red when CODE IS DELETED, so it
+fought the extraction MONO-1/4/5 rewards, in the same commit. Marginal form now; identical to the old
+rule wherever code grew (asserted); `--write` pins the rate only downward.
+
+**What I did NOT do:** waive anybody's debt. `accrue.js` needed -107 comment lines under BOTH specs
+and got them; `home-dashboard.js` -76; `smoke-test.js` -27; `record.js` -44; `settings-page.js` -7.
+
+### TF-1/TF-2 — a corpus AVERAGE is not a ceiling
+
+Re-specified per the brief: CODE lines per test (the sibling ratchet's `classify()` is IMPORTED, so a
+line cannot be a comment to one guard and code to the other), an absolute +1% band, `--write` pinning
+only downward. Baseline re-measured on today's tree: **33.32 code lines** and **50.24 physical** per
+test, over 1,176 tests; seeds 2.0404 pinned, today 2.0570 (inside the band, and the pin did not move
+up). TF-2 came in one seed over the band, so the RECOVER-17 fixture stopped seeding five activity
+pointers to `null` and now calls `stopSkill/stopCombat/_stopArtisan` and ASSERTS the pointer is
+clear — which is also the better fixture, since nulling a pointer while its interval is still armed
+is the exact phantom that test exists to catch.
+
+### The P1 nobody was looking for
+
+`src/legacy.js:12487` called `setActivityIcon(...)` bare after the icon extraction namespaced it.
+Every repaint of a KNOCKED-OUT player's activity bar threw `ReferenceError`; the countdown never
+drew and `refreshPanelProgress()` never ran. `RECOVER-17` was red on the assembled tree because of
+it, and I would not have found it without running the filtered suite rather than trusting the guards.
+Full write-up + the open guard gap in CONFLICTS.md.
+
+### Learnings
+
+1. **An arm that measures a delta from TODAY only bites while the tree sits ON its ceiling.** Both
+   re-specified selftests had this: CR-2/CR-3's `+1` arms and TF's `+400` arm reported themselves
+   green the moment this build paid debt down. Every arm is now anchored on the BASELINE (`bp`,
+   `atRatio(mult)`), so the proof holds however much slack the corpus has. This is the same family as
+   "a guard that has never been red is not a guard" — a guard whose MUTATION PROOF has gone quiet is
+   worse, because it still prints green.
+2. **When two guards land in one commit, check them against each other before checking them against
+   the tree.** MONO-1/4/5 and CR-1 were written by the same hand on the same day and disagree about
+   an extraction. Nothing caught that but running both on a tree that had actually extracted
+   something.
+3. **A band's width is arithmetic, not a feeling.** I wrote "+1% is narrow enough that a 400-line
+   scaffold is red", then the selftest proved it is not (+1% of 1,176 tests is 392 code lines). The
+   header now states the measured number and the arms are sized to it — and the honest answer to "a
+   400-line scaffold fits" is clause (c): the band is spent ONCE, because `--write` never pins a
+   drift upward. That arm is now in the proof.
+4. **The baseline tree is not always the merge-base you were told.** These baselines were cut at
+   `762a1672`, one commit before `51011d13`, so b520's own prose was invisible to the brief's
+   accounting. Measure the baseline commit before attributing a delta to a lane.
+
+### Handoffs
+
+* **Coordinator:** three baselines re-pinned by `--write` IN THIS COMMIT, every number tightening —
+  `monolith-ratchet` (lines 21936->21132, fns 516->506, consts 3->3, render floor 11->12 files /
+  1505->2550 lines), `comment-ratio-ratchet` (corpus b-lines 4233->4174; legacy.js's marginal RATE
+  held at the historical 0.698525 rather than today's 0.711 — the down-only rule biting as designed),
+  `test-file-ratchet` (new `codeLinesPerTest` metric pinned at 33.3206; `seedsPerTest` held at
+  2.040378). `live-hash-drift.baseline.json` and `ci-shape.baseline.json` untouched.
+* **`patch-chain-guard` is STILL RED** and is not mine: `2026-09-07-last-away-receipt.sql` adds 1
+  anchored patch to `hr_state_of` (chain 12) and 5 to `hr_apply` (chain 10). It is a lane-C item with
+  its own documented escape (`-- RESTATEMENT-DEBT-ACK:`), and the release cannot be green until
+  backend-architect either restates a body or acknowledges the debt in the file header.
+* **Whoever takes slice 8b onward:** read the `setActivityIcon` entry in CONFLICTS.md BEFORE moving
+  the next unit. The bare-identifier census is the guard that would have caught it and does not exist.
+* **qa-engineer, latent and pre-existing:** `opts.only` (the focused-runner affordance) exposes a
+  test-isolation leak the full suite hides. Under `only: 'settings'`, `B495-4` runs immediately
+  before `F7-1` and leaves the auto-eat trait / foodSlot state it set; `F7-1` then fails on "the
+  threshold slider is live for a character without the trait". Verified on the PRISTINE tree
+  (`git checkout HEAD -- src/settings-page.js`, same filter, same failure) and `F7-1` passes alone,
+  so it is B495-4's teardown, not the subject under test. A test that passes only because of what a
+  neighbour happened to leave behind is the class CLAUDE.md §4 keeps meeting, and `opts.only` is
+  now the thing that makes it visible.

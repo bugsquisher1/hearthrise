@@ -4,13 +4,13 @@
   "measured": "2026-09-07",
   "monolith": {
     "file": "src/legacy.js",
-    "lines": 21936,
-    "functions": 516,
+    "lines": 21132,
+    "functions": 506,
     "functionConsts": 3
   },
   "render": {
     "dir": "src/render",
-    "files": 11,
-    "lines": 1505
+    "files": 12,
+    "lines": 2550
   }
 }

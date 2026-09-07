@@ -395,111 +395,30 @@ export const SERVER_OF_RECORD = Object.freeze([
   Object.freeze({ field: 'restedAt', from: 'rested_at', since: 'b437',
     armed: () => isRestedRecordArmed(),
     decode: decodeRestedAt, fingerprint: fingerprintRestedAt }),
-  /* ── b353 — WHY GOLD AND GEMS WERE HELD BACK, AND THIS IS THE MEASUREMENT ────
-     ⚠ THE HISTORY BELOW is kept because the reason they were not armed earlier is
-       a FACT that was cheap to discover and expensive to rediscover, and because
-       the next agent to read the flip list will otherwise re-derive it from
-       scratch. The two entries are now ARMED above; the prose is history.
+  /* ── WHY GOLD AND GEMS SIT AT THE END OF THIS TABLE ────────────────────
+     The ordering rule: a field may move to the record only once EVERY path that
+     mutates it has moved. Money satisfies it — one choke point
+     (`HearthriseGold.settleCurrency`, whose local write is a PREDICTION with a
+     terminating lifecycle), one absolute envelope write through one registered
+     seam, and `hr_load` carrying both columns. The LOAD path is what this entry
+     adds on top: a save blob is not a gesture, so without it `Object.assign(G,
+     blob)` would put an edited balance back into a live G every boot under the
+     server's name.
 
-     The b353 flip commit was scoped as "add gold (and gems) to SERVER_OF_RECORD
-     — the record follows the writer, and the writer has moved". Every
-     server-side precondition for that is genuinely met: one payment choke point
-     with a terminating prediction lifecycle, absolute envelope writes through
-     one registered seam, `hr_load` carrying both columns.
+     THE COST IS PLAYER-VISIBLE AND IT IS PAID IN src/net/balance.js: between a
+     load and the first envelope a balance is UNKNOWN — absent, not zero and not
+     stale. Every display renders a pending em dash, every affordability check is
+     FAIL-CLOSED on UNKNOWN, and no path does arithmetic on a balance it has not
+     been told. `0` is never substituted for an absent value.
 
-     What is NOT met is the READ side of the client, and it is not a detail.
-     Adding the two entries and running the suite produced, on the very first
-     boot:
+     `gems` rides with `gold` rather than following later because they are ONE
+     prediction (`settleCurrency` covers both, so they cannot acquire separate
+     lifecycles) and one absolute write. Moving one and not the other would give
+     two halves of one gesture two different records.
 
-         Cold-load guard — 1 uncaught error: Cannot read properties of
-         undefined (reading 'toLocaleString')
-         ...and 6 of 22 browser arms red, the engine never booted.
-
-     The site is `src/legacy.js` in `updateTopbar`:
-     `document.getElementById('top-gold').textContent = G.gold.toLocaleString()`
-     — one of 359 `G.gold` reads in src/**, none of which has an UNKNOWN case.
-     That is what "the field is UNKNOWN until an envelope arrives" costs when
-     nothing renders unknown: not a blank balance, a client that does not start.
-     And it is WORSE in production than in the harness, because a player whose
-     `hr_load` is slow, rate-limited or offline stays in that state.
-
-     SO THE BLOCKER IS NAMED, AND IT IS NOT "wire more gold sites": it is **a
-     rendering contract for an UNKNOWN balance** — one accessor every read site
-     goes through, which answers a placeholder the player understands and which
-     can never be spent, saved or uploaded. That is presentation work with an
-     owner (Art Director) and it is the last thing standing between the gold
-     seam and the record.
-
-     ✅ b356 — THAT BLOCKER IS CLEARED. `src/net/balance.js` is the accessor and
-        the whole client read side goes through it: every display renders a
-        pending em dash rather than a number, every affordability check is
-        FAIL-CLOSED on UNKNOWN, and no code path does arithmetic on a balance
-        it has not been told. Measured with both fields deleted from a live G,
-        at 1440×900 and 922×423, in hearthlight AND cozy-light: seven render
-        paths, zero throws, zero page errors, zero "NaN"/"undefined"/"0" in any
-        balance slot, all ten shop Buy controls correctly disabled.
-
-        WHAT REMAINS BEFORE THE TWO ENTRIES BELOW ARE UNCOMMENTED is no longer
-        a client-rendering problem. It is item (5) of the operational list in
-        docs/design/HANDOFF-server-authority.md: Security's look at the 33
-        deferred-site behaviours in src/net/gold-sites.js, each of which is
-        already declared by `flipBehaviourOf`. Arming these entries is that
-        commit's one-line change; this file and the screens are ready for it.
-
-     `B353-3` in src/features/smoke-test.js is the guard that makes this
-     mechanical instead of remembered: every field on SERVER_OF_RECORD must
-     survive being UNKNOWN through a real render. `B353-3b` beside it runs the
-     same sweep over the CANDIDATES — gold and gems — so the flip is proven in
-     CI before it is proven in production, and it additionally asserts the
-     pending state is honest (no "0", a real glyph, a labelled element). The two
-     entries that once sat here, commented, are now ARMED at the top of this
-     array; this block is the surviving rationale, not the definition.
-
-     The decoders are LIVE below (not commented) and unit-tested, because they
-     are the half of this that was reviewed and is correct — a balance off the
-     wire is accepted only when it is certain, and `0` is never substituted for
-     an absent value.
-
-     ── the original rationale, kept verbatim for the day it is armed ─────────
-     THE RECORD FOLLOWS THE WRITER, AND THE WRITER HAS MOVED.
-     The ordering rule in the table above put these here and not earlier: a
-     field may move only once EVERY path that mutates it has moved. What
-     satisfies that rule is not "all ~44 client sites were rewritten" — 31 of
-     them are still `deferred` in src/net/gold-sites.js and say so by name. It
-     is that the ones that remain no longer AUTHOR a balance:
-
-       · every player gesture that moves gold goes through ONE choke point,
-         `HearthriseGold.settleCurrency`, and under the switch its local write
-         is a PREDICTION with a terminating lifecycle (gold.js's F1 block) —
-         not a record;
-       · every server envelope — away grant, activity collect, gold verb,
-         market verb — writes gold and gems ABSOLUTELY through
-         `applyEnvelopeState`, and retires/sweeps the predictions in the same
-         call through the one registered seam;
-       · so the only thing a client write can still do is be optimistic for the
-         length of a round trip. A deferred site is WRONG for that long and
-         then corrected, which is exactly what `flipBehaviourOf` documents per
-         row — it is no longer a second RECORD.
-
-     What this entry adds on top of that is the LOAD path, which the prediction
-     ledger cannot reach: a save blob is not a gesture, and `Object.assign(G,
-     blob)` would put a devtools-edited balance back into a live G every boot,
-     under the server's name. Stripping it is what makes "the snapshot is a
-     cache" true of money.
-
-     ⚠ THE COST, STATED PLAINLY BECAUSE IT IS PLAYER-VISIBLE. Between a load and
-       the first envelope, gold and gems are UNKNOWN — `G.gold` is absent, not
-       zero and not stale. That is the honest state and it is the safe one (a
-       substituted local number is the two-sources bug), but nothing renders
-       "unknown", so the balance reads blank for the width of one `hr_load`.
-       Making that an honest piece of UI is presentation work and is filed as
-       such; it is NOT a reason to leave a client-authored number in place.
-
-     `gems` rides with `gold` rather than following later for one reason: they
-     are ONE prediction (`settleCurrency` covers both fields so they cannot
-     acquire separate lifecycles) and one absolute write (`reconcilePredictions`
-     sets `G.gems` from every envelope). Moving one and not the other would give
-     two halves of one gesture two different records. */
+     `B353-3` / `B353-3b` in src/features/smoke-test.js are what make this
+     mechanical instead of remembered: every field on SERVER_OF_RECORD, and every
+     candidate for it, must survive being UNKNOWN through a real render. */
 ]);
 
 /* ── A BALANCE OFF THE WIRE ──────────────────────────────────────────────────
@@ -1779,21 +1698,19 @@ function settle(verdict) {
          preserved by uid). */
       reconcileWorkers(G, verdict.body);
     });
-    /* ── THE RECOVERY MIRROR, HYDRATED FROM THE SAME ENVELOPE (b520) ─────────
-       INSTANCE SIX OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477 crew,
-       SA-016 hero slots, SA-010 bank rungs, b511 hp, now `recovering_until` +
-       `accrued_to` + the death counters). The whole recovery mirror lived ONLY
-       in accrue.js's applyEnvelopeState, which runs ONLY on `accrued:true`; an
-       idle boot answers {accrued:false, reason:'idle'} and NOTHING read the
-       line. None of the four fields is residue or server-of-record, so there
-       was no other source — measured live on b519 (QA account, 17:55 UTC
-       2026-09-07): server `recovering_until` 11 minutes ahead, client
-       `fallState()` = {phase:'up'} and `isKnockedOut()` false after the reload.
-       No countdown, no sheet, and `hrRefuseWhileRecovering` blind, so a tap
-       started a local run the edge had already decided to refuse.
-       The hr_load body is the ALWAYS-FULL statement of the character and
-       carries all four keys (hr_state_of), so it goes through the SAME shared
-       reader the accrue path uses.
+    /* ── THE RECOVERY MIRROR, HYDRATED FROM THE SAME ENVELOPE ─────────
+       INSTANCE SIX OF THE IDLE-BOOT HYDRATION CLASS (inventory, crew, hero
+       slots, bank rungs, hp, now `recovering_until` + `accrued_to` + the death
+       counters). The whole recovery mirror lived ONLY in accrue.js's
+       applyEnvelopeState, which runs ONLY on `accrued:true`; an idle boot
+       answers {accrued:false, reason:'idle'} and NOTHING read the line. None of
+       the four fields is residue or server-of-record, so there was no other
+       source — measured live 2026-09-07: `recovering_until` 11 minutes ahead on
+       the server, `isKnockedOut()` false on the client after the reload, so a
+       tap started a local run the edge had already decided to refuse. The
+       hr_load body is the ALWAYS-FULL statement of the character and carries
+       all four keys (hr_state_of), so it goes through the SAME shared reader
+       the accrue path uses.
 
        ⚠ ORDER MATTERS, AND IT IS NOT NEXT TO 'hp'. reconcileRecovery
          dispatches `hearthrise:fall`, which RAISES the knocked-out sheet

@@ -3330,3 +3330,66 @@ number happens to be zero: `up / pending / recovering / down-free / unconfirmed`
 * **Art Director:** while a fall is pending/recovering the combat panel now shows a PAUSED fight
   behind the sheet (pointer intact, monster at 0 HP) instead of an emptied one. The sheet covers it,
   but the panel itself has no "knocked out" state yet. Small, visible, and not mine.
+
+---
+
+## 2026-09-07 — CLEANUP SLICE 1b: THE FOUR DEBT RATCHETS
+
+**Branch** `worktree-agent-a28e0a63e40d0eaa8`, off `762a1672`. No file under `src/**` or
+`supabase/migrations/**` touched — a guard slice that edits product code cannot be trusted as a
+baseline.
+
+### What landed
+`tests/monolith-ratchet.mjs` (MONO-1..5), `tests/comment-ratio-ratchet.mjs` (CR-1..4),
+`tests/patch-chain-guard.mjs` (PATCH-1..5), `tests/test-file-ratchet.mjs` (TF-1..3), each with a
+`--write` baseline JSON and a `--selftest`, registered in `.github/workflows/smoke.yml` under
+`client-guards` and re-registered in `tests/ci-shape.baseline.json` (90 commands / 5 jobs). All
+eight CI commands together run in **under 3 s**, inside a 5-minute job budget.
+
+### Learnings worth keeping
+1. **Three of the audit's four headline numbers do not reproduce, and the difference is METHOD, not
+   drift.** Colour literals 2,317 → 2,009 (the ratchet exempts theme-block token definitions);
+   breakpoint spellings 14 → 28; seeds:gestures 9:1 → 6.2:1. `hr_state_of`'s "39 patch chains" is
+   really 12 anchored edits plus 9 restatements, and `hr_rpc_gate`'s "24" is **twelve restatements
+   and a chain of one** — it is the best-maintained body on that list, not the worst, and the audit's
+   ordering would have sent slice 7 at it first. This is why the scoreboard now carries an
+   **Instrument** column: a number with no named instrument is folklore, and it was about to
+   misdirect a day of server work.
+2. **Normalisation is not a patch.** Half the programmatic blocks open with
+   `replace(def, chr(13), '')` (CR-tolerance for a body applied from a CRLF working copy) or
+   `regexp_replace(def, '[[:space:]]+', ' ')` to hash it. Counting those inflated every chain by one
+   and made twelve one-edit bodies read as two. The reader also runs a **backwards reachability
+   closure** from each `execute`, so a scratch variable that never reaches it is not counted, and a
+   `do` block that READS a body without executing it is a §4 self-check, not a patch.
+3. **Apply order is not filename order and it changes the answer.** `2026-08-22-rested-record.sql`
+   applies AFTER `2026-08-25-workers.sql`, and `2026-09-08-hero-slot-buy.sql` before
+   `2026-09-06-recovering-until.sql`. "Since the last restatement" computed on filenames would be a
+   history that never happened, so the guard takes its order from `tests/schema-apply-order.json` —
+   the same list `schema-drift` replays — and reports the two files that are in neither.
+4. **A ratchet must survive the refactor it exists to protect.** `test-file-ratchet` measures a
+   CORPUS (`smoke-test.js` + `src/features/smoke/**`), not a file, so slice 6's pure-move split
+   leaves every number identical; `--selftest` simulates that split across 20 modules and requires
+   silence. A guard that goes red on the planned work is a guard that gets switched off.
+5. **`src/render` is ratcheted with a FLOOR, which is unusual on purpose.** 11 files landed
+   2026-08-24 and nothing has been extracted since, while `legacy.js` grew 6,885 lines. The failure
+   mode here is not growth, it is an extraction being quietly undone while the plan reads as done.
+6. **Every guard proves its READER as well as its comparator.** Bending numbers only proves the
+   comparison; a broken reader reports zero problems forever and every arm still passes. So
+   `monolith-ratchet` plants its five defects again as real text in a temp tree, `patch-chain-guard`
+   builds a temp migrations tree with a real apply-order file and a real ack header, and the other
+   two grade their classifiers on synthetic sources with known answers.
+
+### Handoffs
+* **Slice 7 (backend-architect + Security):** the target list is now printed by
+  `node tests/patch-chain-guard.mjs --report` and pinned in CLEANUP_PROGRAM. **`hr_apply` first** —
+  depth 10 but from only THREE files (`rested-record` ×2, `recovering-until` ×6,
+  `cadence-recovery-floor` ×2), the cheapest large restatement on the board. `hr_state_of` is depth
+  12 across 11 files and is the expensive one. `hr_rpc_gate` should drop down the queue (depth 1).
+* **Everyone authoring a migration:** a new anchored patch onto a body already ≥ 2 deep is now RED.
+  The escape is one line in the file header — `-- RESTATEMENT-DEBT-ACK: <reason ≥ 20 chars>` — and it
+  is deliberately in the diff and in `git blame` forever.
+* **Coordinator:** `tests/ci-shape.baseline.json` was re-written with `--write` in this commit (8 new
+  commands registered); nothing else derived was touched. `tests/live-hash-drift.baseline.json`
+  untouched. Two migrations sit outside `tests/schema-apply-order.json`
+  (`2026-08-10-dr-legacy-cloud-save.sql`, `2026-08-12-clan-members-rls-drop.sql`); the second is in
+  `excluded` with a reason, the first is in neither and is reported as a note on every run.

@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 514 — 2026-09-07 (The knockout repaints the moment the realm answers)
+
+- 🔁 **The knocked-out sheet and the activity bar update the instant the realm answers, not on a timer.** Both used to repaint only on a clock tick, and a browser throttles a background tab's clocks to once a minute — so a player who tabbed away while "Asking the hearth…" could come back to a stale sheet long after the realm had set the recovery clock. Both now repaint on the same event that carries the answer.
+- 🧹 Cleanup program, slice 1 — the guard floor: three new standing CI guards ratchet the stylesheets (2,011 hardcoded colour literals and 1,096 `!important` today, may only go down), freeze the set of media-query spellings (28 today; the documented mobile query was corrected to the one actually used), and compare each build's visual findings against the last so a new layout regression fails the build instead of waiting for someone to read screenshots.
+- 🧹 Cleanup slice 3a: 31 exports nothing could reach and 23 stylesheet rules for elements nothing renders are gone, each with a census guard so they cannot creep back; the edge payload is byte-identical (nothing vendored was touched). The audit's claim that a whole skill-authority module was dead was wrong — it is the anti-forgery carve-out for skill XP — and the program was corrected rather than the module deleted.
+- 🧪 The first-time-tour click test had an 8 ms timing margin and went red under load; it now waits on the outcome instead of a stopwatch, and its "over-forwarding" half, which could never fail, now can.
+- 🛡️ Two overlay leaks closed at the source: an away-fight simulation run outside the offline replay could raise the *attended* death sheet, and a recovery window you had dismissed could be raised again by the next sync. Neither happens now, and a boundary guard in the suite names any test that leaves a modal standing instead of letting it cover a screen thousands of lines later.
+
 ## v0.9.2-beta build 513 — 2026-09-07 (The fight fits its card)
 
 - 🥊 **The fight stage now fits inside its card at every size.** It never had: on a 900-px-tall window the stage was 33 px taller than its card, so the session tally and metrics were painted below the fold and the Eat button sat a coin-flip away from spilling out (the style row measured 98 or 133 px on identical boots). The foe portrait now absorbs the variance instead of the controls; Eat sits 73 px inside on desktop and is on screen and tappable on a landscape phone, where the log row was also swallowing taps on Eat and Stop.

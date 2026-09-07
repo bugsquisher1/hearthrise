@@ -985,7 +985,7 @@ export const FALL_CONFIRM_TIMEOUT_MS = 2 * 60000;
  *  Exported (not just published on window) so tests/attended-fall.mjs can drive
  *  the whole state machine headlessly. */
 export function accruedToMs() { return accruedToAt; }
-export function bootAccruedToMs() { return bootAccruedToAt; }
+function bootAccruedToMs() { return bootAccruedToAt; }
 
 /** THE ABSENCE, AS THE SERVER PRICED IT (b514).
  *

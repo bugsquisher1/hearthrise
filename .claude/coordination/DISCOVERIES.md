@@ -2241,3 +2241,30 @@ only carrier of in EVERY run. Verified green by running the real suite under six
 **Class to sweep (routed to QA, not urgent).** Any test that reads the wall clock and branches on it
 is a test that mostly does not run. Worth a grep for `todaysWindows()`/`Date.now()`-shaped branching
 with an early `return` in the suite.
+
+---
+
+## 2026-09-07 · QA · P3 (flake, unowned) — `F18-2` stale-carry assertion failed once in three runs
+
+While gating the b231 clock fix I ran the full suite three times (twice with the fix, once on
+baseline). `F18-2: a reconcile RESUMES the carried fight instead of restarting the foe` failed in
+exactly ONE of the three, on the stale-carry leg:
+
+    a carry for ANOTHER monster was applied to this one
+
+i.e. after `stopCombat()` + `reconcileActivityPointer({kind:'combat',id:'dragon'}, {monster:'goblin',
+hp:5, kills:99})` the dragon was still on ≤5 HP instead of being restarted at the catalogue 520. It
+did NOT reproduce on the two runs either side, including the run with the identical build, so it is
+timing-dependent — the most likely shape is a combat tick or a deferred render from the preceding leg
+landing between `stopCombat()` and the reconcile, so `startCombat()` sees a fight it thinks is
+already running and does not reset `monsterHp`.
+
+NOT caused by the b231 change (the b231 test restores skew, pledge, muster state and the tab, and the
+run WITH the change was green). Two of three runs green is not a verdict either way — this needs a
+loop, not another single sample. Routed to **QA** to reproduce under repetition, and to **Systems
+Engineer** if the root cause is `startCombat()`/`stopCombat()` racing a tick rather than the test.
+A flaky guard on the fight-carry column is worth killing: that column is what stops a settle throwing
+away a boss fight.
+
+Also standing red in every run, unrelated and already known: `2026-09-06: the market backend opens no
+Realtime channel` — "the Supabase market backend is not published — this test would pass vacuously".

@@ -12427,31 +12427,55 @@ function refreshActivityBar(){
   const nameEl = document.getElementById('ab-name');
   const metaEl = document.getElementById('ab-meta');
   const stopBtn = document.getElementById('ab-stop');
-  /* Cleared here so every branch below starts from "on your feet"; the combat
-     branch is the only one that re-adds it. */
+  /* Cleared here so every branch below starts from "on your feet"; the
+     knocked-out branch immediately below is the only one that re-adds it. */
   bar.classList.remove('knocked-out');
+
+  /* ── KNOCKED OUT: THE BAR SAYS SO, WHATEVER THE POINTER (2026-09-06, b520) ──
+     The always-on readout must not claim the player is doing anything while the
+     server has them on the floor. Measured live on b510: after a reload the bar
+     read "Fighting Goblin" for 27 minutes in which nothing could earn.
+
+     HOISTED OUT OF THE COMBAT BRANCH (b520). It used to live inside
+     `if(G.activeMonster)`, which is exactly the case the second live report was
+     NOT: b519, QA account, 17:55 UTC — `active_kind` idle with
+     `recovering_until` 11 minutes ahead. The pointer was idle, so the bar fell
+     through to "Idle — pick an activity" and the one surface that is on screen
+     for every second of the knockout said nothing about it at all. ONE check,
+     ABOVE the pointer dispatch, so no branch added later can forget it.
+
+     THE POINTER IS STILL THE TRUTH — a declared run resumes by itself — so the
+     meta line states both facts and Stop keeps working, because leaving is the
+     one thing a knocked-out player may still choose. With nothing declared
+     there is nothing to stop, and Stop is hidden.
+
+     `hrRecoveryMinutesLeft()` reads the SERVER's absolute instant through
+     `fallState()` on every repaint; nothing here is stored or counted down. */
+  const _koMin = hrRecoveryMinutesLeft();
+  if(_koMin !== null){
+    const _koMon = G.activeMonster ? MONSTERS[G.activeMonster] : null;
+    const _koResumes = _koMon ? (_koMon.name || 'Your run')
+      : (G.activeSkill || G.activeAction || G.activeArtisanRecipe) ? 'Your run' : null;
+    /* NOT `idle` — a knocked-out character is not idle, and `.ab-name` is muted
+       under that class. `combat` only when a fight is genuinely declared. */
+    bar.classList.remove('idle');
+    bar.classList.toggle('combat', !!G.activeMonster);
+    bar.classList.add('knocked-out');
+    setActivityIcon(iconEl, 'navCombat', 'var(--red)');
+    if(nameEl) nameEl.textContent = `Knocked out — back on your feet in ${_koMin}m`;
+    if(metaEl) metaEl.textContent = _koResumes
+      ? `${_koResumes} resumes automatically · nothing earns while you recover`
+      : 'Nothing earns while you recover';
+    if(stopBtn) stopBtn.style.display = _koResumes ? '' : 'none';
+    refreshPanelProgress();
+    return;
+  }
 
   /* Combat */
   if(G.activeMonster){
     const m = MONSTERS[G.activeMonster];
     bar.classList.remove('idle'); bar.classList.add('combat');
     setActivityIcon(iconEl, 'navCombat', 'var(--red)');
-    /* ── KNOCKED OUT: THE BAR SAYS SO (2026-09-06) ────────────────────────
-       The always-on readout must not claim the player is fighting while the
-       server has them on the floor. Measured live on b510: after a reload the
-       bar read "Fighting Goblin" for 27 minutes in which nothing could earn.
-       The pointer is still the truth — the run resumes by itself — so the line
-       states both facts and Stop keeps working, because leaving is the one
-       thing a knocked-out player may still choose. */
-    const _koMin = hrRecoveryMinutesLeft();
-    if(_koMin !== null){
-      bar.classList.add('knocked-out');
-      if(nameEl) nameEl.textContent = `Knocked out — back on your feet in ${_koMin}m`;
-      if(metaEl) metaEl.textContent = `${m?.name||'Your run'} resumes automatically · nothing earns while you recover`;
-      if(stopBtn) stopBtn.style.display = '';
-      refreshPanelProgress();
-      return;
-    }
     if(nameEl) nameEl.textContent = `Fighting ${m?.name||'?'}`;
     if(metaEl){
       // Show kill count for the current foe (resets when the player picks a

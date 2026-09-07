@@ -2368,64 +2368,10 @@ export function applyEnvelopeState(G, res, ownKey) {
   } catch (e) {}
   written.absolute = absolute;
 
-  /* ── THE RECOVERY LINE, OBSERVED (First-Night Idle Rescue) ────────────────
-     `player_state.recovering_until` — an ABSOLUTE server instant. Recorded off
-     every envelope and NEVER decremented here: a client-side countdown is a
-     number that survives a reload, and Recovery is precisely the thing that
-     must not (exploit R1). Renderers subtract it from the clock to draw and
-     compute nothing else from it.
-     ⚠ KEY PRESENCE, not truthiness. `null` means "this character is up" and
-       must CLEAR the stored line; an ABSENT key means an older server and must
-       leave it alone, or a mixed-deploy window would show a stale knockout. */
-  if (st && Object.prototype.hasOwnProperty.call(st, 'recovering_until')) {
-    const t = st.recovering_until ? Date.parse(st.recovering_until) : 0;
-    recoveringUntil = (Number.isFinite(t) && t > 0) ? t : 0;
-    written.recoveringUntil = recoveringUntil;
-  }
-
-  /* ── THE PRICED WINDOW AND THE DEATH COUNTERS, OBSERVED ───────────────
-     Same KEY-PRESENCE rule the recovery line above follows, for the same
-     reason: an ABSENT key is an older server and must leave the reading alone,
-     while a present one is the truth. `accrued_to` is what answers a pending
-     fall (see `noteFallAnswer`); `deaths_today` / `deaths_lifetime` are what
-     the death sheet renders instead of re-deriving a ladder rung from
-     `G.stats.deaths`, which is a lifetime tally and produced a two-minute
-     promise on a fall the server charged nothing for. */
-  if (st && Object.prototype.hasOwnProperty.call(st, 'accrued_to')) {
-    const a = st.accrued_to ? Date.parse(st.accrued_to) : 0;
-    if (Number.isFinite(a) && a > 0) {
-      accruedToAt = a; written.accruedTo = a;
-      if (!bootAccruedToAt) bootAccruedToAt = a;
-    }
-  }
-  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
-    const n = Math.floor(Number(st.deaths_today));
-    deathsTodayCount = (Number.isFinite(n) && n >= 0) ? n : 0;
-    written.deathsToday = deathsTodayCount;
-  }
-  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_lifetime')) {
-    const n = Math.floor(Number(st.deaths_lifetime));
-    deathsLifetimeCount = (Number.isFinite(n) && n >= 0) ? n : 0;
-    written.deathsLifetime = deathsLifetimeCount;
-  }
-  /* AFTER all three, because the answer is a function of every one of them. */
-  noteFallAnswer(res);
-
-  /* ── THE FALL IS ANNOUNCED, ONCE PER ENVELOPE (2026-09-06, boot-raise P1) ──
-     Measured live on b510: a character with `recovering_until` 27 minutes ahead
-     RELOADED and got a normal "Fighting Goblin" bar — no sheet, no countdown,
-     no Rest button, nothing saying that 27 minutes would earn nothing. The
-     sheet was never broken; its only trigger was the fall MOMENT in the live
-     tick, and a reload has no such moment.
-     A one-way NOTIFICATION, not a call: this module must not know the death
-     sheet exists, and a listener that throws must not be able to poison an
-     envelope apply. The listener owns the once-per-window rule. */
-  try {
-    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
-        && typeof CustomEvent === 'function') {
-      window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
-    }
-  } catch (e) {}
+  /* THE RECOVERY LINE, THE PRICED WINDOW, THE DEATH COUNTERS AND THE
+     ANNOUNCEMENT — ONE READER, BOTH PATHS (b520). Extracted VERBATIM; see
+     reconcileRecovery for the narrative and for the idle-boot gap it closes. */
+  Object.assign(written, reconcileRecovery(G, res) || {});
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
@@ -3033,6 +2979,113 @@ export function serverHp() {
 }
 /** TEST-ONLY. Forget the observation. */
 export function __resetServerHp() { lastServerHp = null; return lastServerHp; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE RECOVERY MIRROR — ONE READER, BOTH PATHS (b520).
+
+   THE MEASURED BUG (live b519, hearthrise.net, QA account, 17:55 UTC
+   2026-09-07). Server `player_state`: `active_kind` idle, `recovering_until`
+   11 minutes ahead. After a page reload the client answered
+   `fallState()` = {phase:'up', answered:false, deathsToday:0},
+   `isKnockedOut()` false, `recoveringUntilMs()` 0, `hrCombatDownPeek()` false.
+   No banner, no sheet, no countdown — and because `hrRefuseWhileRecovering`
+   reads `hrCombatDownPeek`, the client's own mirror of the server's gate was
+   BLIND: a tap on a gather node started a local run, declared it, was refused
+   409 `recovering` by the edge, and was stopped by the reconcile with the
+   generic "the hearth did not take that" line instead of the knocked-out
+   sheet the player is owed.
+
+   THE ROOT CAUSE IS THE IDLE-BOOT HYDRATION CLASS, INSTANCE SIX (b467
+   inventory, b477 crew, SA-016 hero slots, b511 hp, SA-010 bank rungs, now
+   the recovery mirror). `recovering_until`, `accrued_to`, `deaths_today` and
+   `deaths_lifetime` lived ONLY inside `applyEnvelopeState`, which runs ONLY on
+   an ACCRUED envelope. An idle hero boots through record.js's hr_load
+   hydration, hr-accrue answers {accrued:false, reason:'idle'}, and NOTHING
+   ever read the recovery line. None of these four is a residue field and none
+   is server-of-record, so there was no other source: the client simply came up
+   believing it was on its feet.
+
+   THE FIX IS THE SAME SHAPE AS reconcileHp's: extract the apply VERBATIM and
+   call it from record.js's boot settle too, so there is ONE reader of the
+   server's recovery statement and no second idea of when a character is down.
+
+   WHY THE ANNOUNCEMENT TRAVELS WITH THE READ. The `hearthrise:fall` dispatch
+   is part of the mirror, not part of the accrue path: it is what raises the
+   knocked-out sheet (death-sheet.js) and repaints the activity bar
+   (legacy.js), and both are exactly as owed after a reload as after a settle.
+   One-way, guarded, and the listeners own the once-per-window latch.
+
+   IT AUTHORS NOTHING AND PERSISTS NOTHING. Every value is read off the
+   envelope by KEY PRESENCE, the line is never decremented here, and a reload
+   starts from zero again — the whole point of exploit R1. Pure apart from the
+   module observations it exists to write; never throws.
+
+   @param G kept for signature symmetry with the other reconcilers (and so a
+          future G-facing mirror needs no caller edit); unused today.
+   @returns a receipt fragment. */
+export function reconcileRecovery(G, res) {
+  const st = (res && res.state) || {};
+  const written = {};
+  /* ── THE RECOVERY LINE, OBSERVED (First-Night Idle Rescue) ────────────────
+     `player_state.recovering_until` — an ABSOLUTE server instant. Recorded off
+     every envelope and NEVER decremented here: a client-side countdown is a
+     number that survives a reload, and Recovery is precisely the thing that
+     must not (exploit R1). Renderers subtract it from the clock to draw and
+     compute nothing else from it.
+     ⚠ KEY PRESENCE, not truthiness. `null` means "this character is up" and
+       must CLEAR the stored line; an ABSENT key means an older server and must
+       leave it alone, or a mixed-deploy window would show a stale knockout. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'recovering_until')) {
+    const t = st.recovering_until ? Date.parse(st.recovering_until) : 0;
+    recoveringUntil = (Number.isFinite(t) && t > 0) ? t : 0;
+    written.recoveringUntil = recoveringUntil;
+  }
+
+  /* ── THE PRICED WINDOW AND THE DEATH COUNTERS, OBSERVED ───────────────
+     Same KEY-PRESENCE rule the recovery line above follows, for the same
+     reason: an ABSENT key is an older server and must leave the reading alone,
+     while a present one is the truth. `accrued_to` is what answers a pending
+     fall (see `noteFallAnswer`); `deaths_today` / `deaths_lifetime` are what
+     the death sheet renders instead of re-deriving a ladder rung from
+     `G.stats.deaths`, which is a lifetime tally and produced a two-minute
+     promise on a fall the server charged nothing for. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'accrued_to')) {
+    const a = st.accrued_to ? Date.parse(st.accrued_to) : 0;
+    if (Number.isFinite(a) && a > 0) {
+      accruedToAt = a; written.accruedTo = a;
+      if (!bootAccruedToAt) bootAccruedToAt = a;
+    }
+  }
+  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
+    const n = Math.floor(Number(st.deaths_today));
+    deathsTodayCount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    written.deathsToday = deathsTodayCount;
+  }
+  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_lifetime')) {
+    const n = Math.floor(Number(st.deaths_lifetime));
+    deathsLifetimeCount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    written.deathsLifetime = deathsLifetimeCount;
+  }
+  /* AFTER all three, because the answer is a function of every one of them. */
+  noteFallAnswer(res);
+
+  /* ── THE FALL IS ANNOUNCED, ONCE PER ENVELOPE (2026-09-06, boot-raise P1) ──
+     Measured live on b510: a character with `recovering_until` 27 minutes ahead
+     RELOADED and got a normal "Fighting Goblin" bar — no sheet, no countdown,
+     no Rest button, nothing saying that 27 minutes would earn nothing. The
+     sheet was never broken; its only trigger was the fall MOMENT in the live
+     tick, and a reload has no such moment.
+     A one-way NOTIFICATION, not a call: this module must not know the death
+     sheet exists, and a listener that throws must not be able to poison an
+     envelope apply. The listener owns the once-per-window rule. */
+  try {
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
+        && typeof CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
+    }
+  } catch (e) {}
+  return written;
+}
 
 export function reconcileHp(G, res) {
   if (!G || typeof G !== 'object') return null;
@@ -4674,7 +4727,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileRecovery, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

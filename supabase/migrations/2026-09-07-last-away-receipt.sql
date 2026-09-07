@@ -1,3 +1,4 @@
+-- RESTATEMENT-DEBT-ACK: applied to production 2026-09-07 18:30 UTC (Security GO F1–F5) as anchored patches on hr_apply (depth 10 → 11) and hr_state_of (depth 12 → 13); authored before tests/patch-chain-guard.mjs existed. A restatement of either body is cleanup slice 7's first target; this header changes no function body (live-hash bodies unchanged).
 -- ════════════════════════════════════════════════════════════════════════
 -- 2026-09-07-last-away-receipt.sql — THE AWAY RECEIPT THE SERVER PAID FOR
 --                                    AND THEN FORGOT.

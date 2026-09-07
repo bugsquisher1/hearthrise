@@ -2,6 +2,77 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-09-07 — FIRST LIGHT: the feature was built, it had no renderer, and the tie-break was the bug
+
+**Branch** `worktree-agent-a5ec5d462bc708b2b`, off `08b34654`. Client-only. Not bumped, not pushed.
+FIRST-LIGHT 6/6 + OFFLINE-CLARITY 1 + b227 57/58 (1 pre-existing skip) + RETUNE-2, 0 console errors,
+0 failed requests. Nine mutations planted, nine caught by the right test.
+
+### The three things I want future-me to have
+
+1. **Before authoring a surface for a "missing" feature, check whether the gap is a RENDERER.** The
+   designer wrote this and it held twice more inside one lane: the first-day chain was five
+   server-credited quests with no card, and the away card's "cooking does not pay" line was prose
+   standing where `COOKING_SETTLEMENT_ARM_ENABLED` had been true for a hundred builds. Both fixes are
+   reads, not systems. The tell in both cases is a comment that names its own expiry condition
+   ("restore cooking to this line only when it pays away") with no test holding it to that.
+   **A copy/flag pair with no test between them WILL drift.** FIRST-LIGHT-5 now binds the sentence to
+   `benchPayable('cooking')` in BOTH directions, so flipping the arm reddens the copy.
+
+2. **The mutation proof deleted code I had already written and believed.** I shipped a
+   started/unstarted rank term in `getNextMilestone` to implement "a 0% skill loses to an open
+   quest", planted the obvious mutation, and the guard did not bite: every case the term fired on,
+   the `_cmp`/`_tier` comparison had already answered the same way. A level's floor is
+   `xpForLevel(lv)` exactly, so "zero progress" IS the tie — the ruling's case and the tie-break case
+   are the same case. The term was decoration that read load-bearing. Removed, with the finding
+   written at the site so nobody re-adds it without a case where the two disagree.
+   **A mutation that escapes is not always a missing test; sometimes it is redundant code.**
+
+3. **Each half was individually correct and the assembled screen was wrong.** The launchpad ruling
+   makes the chain quest the leading milestone; the new card draws that same quest four rows above.
+   Nothing in either change is wrong, and day-one Home printed "Cook 5 dishes · 0/5 · [Go cook]"
+   twice within ten pixels. I only saw it because I read the screenshot. That is the b361 shape and
+   the reason the visual gate exists. While fixing it I found the SAME class already shipped: the
+   milestone can restate a daily task it is about to list ("Kill 60 monsters" over "Kill 60
+   monsters"). Killed the class, not the instance.
+
+### Model notes (so nobody re-derives them)
+
+* **The chain is `QUEST_DEFS` in authored order, joined to `G.quests` by id.** Uncapped and
+  unwindowed on purpose — a cap would let a lane-C row ship and never be shown, which is the exact
+  failure the feature exists to end. The contract is written at the site: a quest that is not part of
+  a new player's first session does not belong in `QUEST_DEFS`.
+* **There is no "claim" verb for these quests and there must not be one.** `completeQuest` fires
+  `hr_claim_quest` on the completion tick and `hrSweepUnclaimedQuests` recovers a dropped one; the
+  card's `claimable` state is `done && !claimed && server-payable`, a state the player passes THROUGH
+  and never acts on. It therefore says so and offers no button — a "Claim" that re-fires a
+  60-second-throttled sweep would be a dead affordance 59 seconds out of 60.
+* **`questServerPays` reads the SAME catalogue the sweep does** (`HearthriseCore.goalCatalogue
+  .questItemsAreServerCredited`) and fails to FALSE when the bridge has not settled, so the card can
+  never claim a reward is on its way that nothing is waiting for.
+* **A SIGNED-OUT reload proves nothing about persistence.** `saveLocal` is a `lastSeen` stamp (b515
+  deleted the blob write) and the residue rides `putClientState` to the server, so my first
+  reload-and-compare measured the absence of an account, not a defect. The assertable property is
+  that `quests` and `stats` are already on `RESIDUE_FIELDS` and the model round-trips through the
+  JSON the residue is made of — which is what the verifier checks now. **No new persisted field:
+  zero save-migration surface.**
+* **The suite runs signed in during the play gate**, so any test that drives `updateQuest` to
+  completion MUST stub `HearthriseGoalClaim` or it posts a real `hr_claim_quest` for the QA
+  character. FIRST-LIGHT-1 stubs it and asserts the fire, which is strictly better than avoiding it.
+
+### The focused-verification recipe (no full suite, no run-ci-local)
+ONE headless page, static-serve the worktree, `__HR_TEST_HARNESS__=true`, then
+`window.__smokeTest({silent:true, only:'FIRST-LIGHT'})` — the runner's `only` is a SOURCE-TEXT match
+on the registration closure, so a shared name prefix makes a battery filterable. Same page then
+takes the Home screenshots at 1440×900 and 922×423. **Reload before screenshotting**: the batteries
+leave the Chronicle/Collection overlays up, and a screenshot of a modal is a screenshot of nothing.
+Scripts kept at the session scratchpad (`fl-verify.mjs`, `fl-mutate.mjs`), deliberately NOT added to
+`tests/` — they are a lane affordance, not a standing guard.
+
+### Handoffs raised
+Art Director (First Light phone rhythm + the standing `.ach-toast` overlap), Coordinator (lane-C
+capstone row + no edge/DB work in this lane). See HANDOFFS.
+
 ## 2026-09-04 — THE SIGN-UP DOOR: the lesson is that the assertion I most wanted to write is the one that proves nothing
 
 **Branch:** `fix/signup-door` (worktree `.claude/worktrees/agent-abdad166ac278fc2e`), base main

@@ -116,8 +116,32 @@
          the audit's very first fight ended with eight uneaten shrimp in the
          bag. The death sheet already teaches this beautifully; it should not
          have to be the first place a player hears it. Naming Cooking closes
-         the other half — where food comes from at all. */
-      body: 'Combat is the part you play with your hands. Monsters hit back, so you eat between kills — press Eat yourself, nobody does it for you yet, and food comes from Cooking. A fight ends when you fall. Your fights carry on while you\'re away, but only until you fall, so learn a foe here before you leave one running overnight.',
+         the other half — where food comes from at all.
+
+         ── 2026-09-07 (FEATURE_SLATE fix #2): TWO DEAD RULES, REPLACED ────────
+         This step taught two things the engine no longer does, and the tour is
+         the first place a player hears either of them:
+
+         1. "nobody does it for you yet" — half true and pointed the wrong way.
+            Auto-Eat is real, it is `trait:auto_eat` (src/core/auto-eat.js, tier
+            I at 25%), and it costs 15 Bounty Marks on the Bounty Board. "Yet"
+            promised a future feature; the truth is a purchase the player can
+            walk to. The tour never named the Board, which is where the thing
+            it was complaining about actually lives.
+         2. "A fight ends when you fall" — FALSE since Recovery Rule rev.2
+            (src/core/away.js). A fall knocks you out — the first one each day
+            costs nothing, the next 2 minutes, doubling, and a character with
+            five or fewer lifetime deaths never pays more than that one rung —
+            and then you stand back up at 40% and the SAME fight resumes. That
+            is the single most important thing a new player can know about
+            dying here, and the tour was telling them the opposite.
+
+         Every clause below is checkable against a constant: RECOVERY_BASE_MS
+         (2 min), NOVICE_GRACE_DEATHS (5), RESUME_HP_FRACTION (0.40),
+         AUTO_EAT_TIERS[1] (15 marks / 25%). The FTUE-COPY-1 regression asserts
+         the retired sentences cannot come back and that the live numbers are
+         still the ones the sentence quotes. */
+      body: 'Combat is the part you play with your hands. Monsters hit back, so you eat between kills — press Eat yourself until you own Auto-Eat, 15 Marks on the Bounty Board, and food comes from Cooking. Falling does not end the run: you are knocked out for a spell, stand back up on part of your health and carry on with the same fight, and the first fall of each day costs you no time at all. Your fights keep going while you are away under exactly the same rule.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },
@@ -153,8 +177,16 @@
          with no single next action, which is the exact moment the audit heard
          "…so what do I do now?". The game already answers it — the "Next up"
          list on Home routes every goal to the screen it is played on — and the
-         tour was the one surface that never pointed at it. */
-      body: 'Start with "Next up" on the Home screen — every row takes you straight to where it is played. Set a skill running before you close the tab and it pays the whole time you\'re gone. A fight pays too, but only until you fall, so leave one running with food to spare. Good luck out there.',
+         tour was the one surface that never pointed at it.
+
+         2026-09-07: the closing line carried the SAME dead rule as the combat
+         step ("a fight pays, but only until you fall"), and it now points at
+         "Your first day" — the pinned chain card that sits above "Next up" for
+         exactly as long as a first-day quest is open, which is precisely the
+         audience this sentence is written for. It names both, in that order,
+         so a returning player whose chain is finished still reads a true
+         sentence about the surface they DO have. */
+      body: 'Start on the Home screen: "Your first day" lists the steps in front of you, and "Next up" is there when they are done — every row takes you straight to where it is played. Set a skill or a fight running before you close the tab and it banks the whole time you are gone; a fight that falls picks itself back up and carries on. Good luck out there.',
       primary: 'Start playing',
       onPrimary: function(){ endFTUE(true); },
     },

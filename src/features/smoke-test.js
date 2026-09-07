@@ -11908,6 +11908,107 @@ const TESTS = [
   // outcome, then restores. NEVER pollutes the player's save.
   // ─────────────────────────────────────────────────────────────
 
+  /* ── FIRST-LIGHT-1 — the first day, played ──────────────────────────────
+     THE HAPPY PATH for docs/planning/FEATURE_SLATE.md §1: a brand-new
+     character opens Home and sees the whole first-day chain, with the first
+     step lit; they finish it and the card moves on WITHOUT being re-rendered
+     by hand, because the card is a read of the rows the engine already keeps.
+
+     It drives the REAL engine (`updateQuest`), not a hand-set `done` flag, so
+     it also proves the completion path still fires `hr_claim_quest` — the
+     claimable state the card draws is the server's outstanding claim, never a
+     client-invented one.
+
+     ⚠ THE CLAIM IS STUBBED, and it must be. This suite runs on a live signed-in
+       account during the play gate; an unstubbed `updateQuest('gather',15)`
+       would post a real hr_claim_quest for the QA character and pay a real
+       quest out of a test. The stub is the b414 idiom two hundred lines up. */
+  () => tryRun('FIRST-LIGHT-1: Home pins the whole first-day chain, row 1 lit; finishing step 1 lights step 2', () => {
+    const snap = snapshotG();
+    const origClaim = window.HearthriseGoalClaim;
+    const fired = [];
+    try {
+      const H = window.HearthriseHome;
+      assert(H && typeof H.__firstDayModel === 'function' && typeof H.__firstDayHtml === 'function',
+        'the First Light seams are not published — this test would pass vacuously');
+      assert(Array.isArray(window.QUEST_DEFS) && window.QUEST_DEFS.length > 0,
+        'CONTROL: QUEST_DEFS is the chain; without it there is nothing to render');
+
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => false,     // the recovery sweep must not also fire
+        claimQuest: (id) => { fired.push(id); return Promise.resolve({ ok: false, error: 'test_stub' }); },
+      };
+
+      /* A FRESH CHARACTER. The two MIRRORED rows (farmhand, hundred_kills)
+         read their progress off G.stats, so a live account's lifetime counters
+         would complete them before the card ever drew — zero the counters and
+         the fixture is a first boot rather than whoever ran the suite. */
+      window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
+      window.G.quests = [];
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      window.ensureRetentionState();
+
+      const m0 = H.__firstDayModel();
+      assert(m0, 'a fresh character has an open chain — the card must draw');
+      /* THE COUNT IS THE DATA'S, NEVER FIVE. Five today, six the day the
+         `first_light` capstone row lands; asserting a literal here is how a
+         lane-C row would arrive and silently not be shown. */
+      assert(m0.total === window.QUEST_DEFS.length,
+        'the card must render every chain row the data declares: QUEST_DEFS has '
+        + window.QUEST_DEFS.length + ', the card drew ' + m0.total);
+      assert(m0.steps.length === m0.total, 'model.total must equal the rows drawn');
+      assert(m0.steps[0].id === 'gatherer', 'row 1 must be the first authored step, got ' + m0.steps[0].id);
+      assert(m0.currentIndex === 0 && m0.steps[0].state === 'current',
+        'row 1 must be the lit step on a fresh character, got ' + m0.steps[0].state);
+      assert(m0.steps.every((s, i) => i === 0 || s.state === 'ahead'),
+        'no step past the first is current, and none is "locked" — they all count from minute one');
+
+      /* The rows are DOORS, resolved by the one shared resolver — never a
+         private route table in the dashboard (the b227 finding). */
+      const QN = window.HearthriseQuestNav;
+      assert(QN && typeof QN.destination === 'function', 'CONTROL: the quest-nav resolver must be loaded');
+      m0.steps.forEach((s) => {
+        const d = QN.destination(s.goalRow);
+        assert(d && d.tab && d.via !== 'fallback',
+          'chain step "' + s.id + '" has no resolved destination — its row would be a dead door');
+      });
+
+      const html0 = H.__firstDayHtml(m0);
+      assert(/Your first day/.test(html0), 'the card must be titled: ' + html0.slice(0, 200));
+      assert(new RegExp('Step 1 of ' + m0.total).test(html0),
+        'the header states the step, derived: ' + html0.slice(0, 300));
+      assert(/is-current/.test(html0), 'the lit step carries its state class');
+
+      // ── the player finishes step one, through the real engine ──
+      window.updateQuest('gather', 15);
+      assert(fired.indexOf('gatherer') !== -1,
+        'completing a chain quest must fire hr_claim_quest for it — the "reward on the way" row is the '
+        + 'server\'s outstanding claim, not a label the card invented');
+
+      const m1 = H.__firstDayModel();
+      assert(m1, 'four steps are still open — the card must still draw');
+      assert(m1.steps[0].state === 'claimable',
+        'a finished, server-payable, unconfirmed step reads claimable, got ' + m1.steps[0].state);
+      assert(m1.currentIndex === 1 && m1.steps[1].state === 'current',
+        'step 2 must light up, got currentIndex ' + m1.currentIndex);
+      assert(m1.steps[1].id === window.QUEST_DEFS[1].id,
+        'step 2 must be the second AUTHORED row, got ' + m1.steps[1].id);
+
+      const html1 = H.__firstDayHtml(m1);
+      assert(/is-claimable/.test(html1) && /Reward on the way/.test(html1),
+        'the claimable step must say so: ' + html1.slice(0, 400));
+      assert(new RegExp('Step 2 of ' + m1.total).test(html1), 'the header must advance with the chain');
+
+      /* NOTHING WAS AUTHORED CLIENT-SIDE. The card is a read; the only writes
+         are the engine's own (done + progress), and no gold/xp/item crossed. */
+      assert(m1.steps[0].goalRow.claimed !== true,
+        'a refused claim must never mark the row paid — the sweep has to be able to retry it');
+    } finally {
+      window.HearthriseGoalClaim = origClaim;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('action: gain XP from a skill tick', () => {
     const snap = snapshotG();
     try {
@@ -36440,7 +36541,13 @@ const TESTS = [
       // ...and the card renders its quiet branch, telling them what banks.
       const html = window.HearthriseHome.__awayCardHtml(rec);
       assert(/While you were away/.test(html), 'the idle receipt must render the welcome-back card');
-      assert(/Fighting, gathering and crafting bank/.test(html),
+      /* 2026-09-07: RE-PINNED with cooking in the list. b388 wrote this line
+         WITHOUT cooking because cooking did not pay away; b431 armed it and the
+         sentence was never updated, so the card spent a hundred builds telling
+         players the stove earns nothing overnight. FL-AWAY-COOK-1 (regression
+         suite) binds the clause to the arm itself so the pair can never drift
+         again in either direction. */
+      assert(/Fighting, gathering, cooking and crafting all bank/.test(html),
         'the idle card must explain what banks offline: ' + html);
       assert(!/Earned while/.test(html), 'an idle night attributes no activity');
     } finally {
@@ -57668,6 +57775,274 @@ const TESTS = [
     assert(window.Chat && typeof window.Chat.setBackend === 'function',
       'window.Chat is gone — chat_messages is the ONE table this trim keeps published, '
       + 'and it is now published for nobody');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     2026-09-07 regression suite — FIRST LIGHT (FEATURE_SLATE §1 + fixes 1–3)
+
+     The whole battery is prefixed FIRST-LIGHT- so one lane runs with
+     `__smokeTest({only:'FIRST-LIGHT'})`. The happy path is FIRST-LIGHT-1, up in
+     "player actions"; these four are the regressions that hold it honest.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* ── FIRST-LIGHT-2 — the card LEAVES ────────────────────────────────────
+     A pinned card that never unpins is a permanent tutorial. The chain is the
+     first day; on day two it must be gone, and "Next up" (which is written for
+     a player with history) is what stands there instead. */
+  () => tryRun('FIRST-LIGHT-2: a completed chain removes the card entirely — it is the first DAY, not a permanent rail', () => {
+    const snap = snapshotG();
+    try {
+      const H = window.HearthriseHome;
+      assert(H && typeof H.__firstDayModel === 'function', 'the First Light seam is not published');
+
+      // CONTROL: with one row open the card draws. Without this the assertion
+      // below is satisfied by a card that never draws at all.
+      window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
+      window.G.quests = [];
+      window.ensureRetentionState();
+      assert(H.__firstDayModel(), 'CONTROL: an open chain must draw, or this test proves nothing');
+
+      // Every step finished and paid — a veteran.
+      window.G.quests.forEach((q) => { q.done = true; q.claimed = true; q.progress = q.goal; });
+      assert(H.__firstDayModel() === null,
+        'a finished chain must yield no model — the card would be pinned above "Next up" forever');
+      assert(H.__firstDayHtml(H.__firstDayModel()) === '',
+        'a null model must render NOTHING, not an empty shell with a heading');
+
+      /* A last step whose reward is still in flight is still FINISHED. The card
+         goes; the recovery sweep is what pays it, and the sweep needs no card. */
+      window.G.quests.forEach((q) => { q.claimed = false; });
+      assert(H.__firstDayModel() === null,
+        'an unclaimed-but-finished chain still has nothing left for the player to DO — the card goes');
+
+      /* A row the player does not hold is never invented. `G.quests` is the
+         projected state; drawing a def with no row would be residue-ahead one
+         surface over (CLAUDE §6). */
+      window.G.quests = [];
+      assert(H.__firstDayModel() === null,
+        'with no quest rows the card must draw nothing rather than invent 0/15 progress');
+    } finally { restoreG(snap); }
+  }),
+
+  /* ── FIRST-LIGHT-2b — the card and "Next up" may not say the same thing ──
+     FOUND BY LOOKING AT THE ASSEMBLED SCREEN, not by reading either change:
+     the launchpad ruling makes an open chain quest the leading milestone, and
+     the card draws that same quest four rows above, so day-one Home printed
+     "Cook 5 dishes · 0/5 · [Go cook]" twice within ten pixels. Each half was
+     individually correct, which is the b361 shape and the reason the visual
+     gate exists. This asserts the ASSEMBLED result. */
+  () => tryRun('FIRST-LIGHT-2b: Home draws the leading chain quest ONCE — the card and "Next up" never duplicate', () => {
+    const snap = snapshotG();
+    const panel = document.getElementById('panel-profile');
+    const hadActive = !!(panel && panel.classList.contains('active'));
+    try {
+      assert(panel, 'CONTROL: there is no #panel-profile to render into');
+      window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
+      window.G.quests = [];
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      window.ensureRetentionState();
+      const lead = window.G.quests.find((q) => !q.done);
+      assert(lead, 'CONTROL: the fixture must leave a chain quest open');
+
+      panel.classList.add('active');
+      window.HearthriseHome.render();
+      const root = document.getElementById('hd-root');
+      assert(root, 'the dashboard did not render at all');
+      assert(root.querySelector('.hd-firstlight'),
+        'CONTROL: the First Light card must be on screen, or a duplicate is impossible and this passes vacuously');
+
+      const titles = Array.from(root.querySelectorAll('.hd-qtitle, .hd-mile-title'))
+        .map((e) => (e.textContent || '').trim());
+      const drawn = titles.filter((t) => t === lead.label).length;
+      assert(drawn === 1,
+        '"' + lead.label + '" is drawn ' + drawn + ' times on Home — the pinned card and "Next up" are '
+        + 'duplicating the same quest. Titles: ' + JSON.stringify(titles));
+
+      /* And with no dailies behind it, the emptied section is REMOVED rather
+         than left as a heading over a line about a different quest system.
+         CONDITIONAL ON ITS OWN PRECONDITION: this only applies when the leading
+         milestone really is a chain quest (i.e. when suppressing it empties the
+         section). Asserting it unconditionally made this test go red for
+         FIRST-LIGHT-3's defect as well, and a test that fails for two different
+         reasons names neither. */
+      const lead2 = window.HearthriseLaunchpad.getNextMilestone();
+      const leadIsChain = !!(lead2 && lead2.kind === 'quest' && lead2.goal
+        && window.G.quests.some((q) => q.id === lead2.goal.id));
+      if (leadIsChain) {
+        assert(!/Next up/.test(root.textContent || ''),
+          'the "Next up" heading survived with nothing left to put under it');
+      }
+
+      /* ── THE SAME CLASS, ONE SYSTEM OVER ────────────────────────────────
+         The milestone picks the closest OPEN GOAL, and daily tasks are in that
+         pool AND rendered underneath it — so with the chain finished, "Next up"
+         restated a daily task it was about to list ("Kill 60 monsters" over
+         "Kill 60 monsters"). Same defect, different source; both are suppressed
+         by the same rule, so this half is asserted here rather than filed. */
+      window.G.quests.forEach((q) => { q.done = true; q.claimed = true; q.progress = q.goal; });
+      window.generateDailyTasks(false);
+      window.HearthriseHome.render();
+      const root2 = document.getElementById('hd-root');
+      const open = (window.G.daily.tasks || []).filter((t) => !t.done).slice(0, 3);
+      if (open.length) {
+        const t2 = Array.from(root2.querySelectorAll('.hd-qtitle, .hd-mile-title'))
+          .map((e) => (e.textContent || '').trim());
+        open.forEach((t) => {
+          const n = t2.filter((x) => x === t.label).length;
+          assert(n <= 1,
+            'daily task "' + t.label + '" is drawn ' + n + ' times — the milestone hero row is restating '
+            + 'a row directly below it. Titles: ' + JSON.stringify(t2));
+        });
+      }
+    } finally {
+      if (panel && !hadActive) panel.classList.remove('active');
+      restoreG(snap);
+      try { window.HearthriseHome.render(); } catch (e) {}
+    }
+  }),
+
+  /* ── FIRST-LIGHT-3 — the 0%-vs-0% tie ───────────────────────────────────
+     FEATURE_SLATE fix #1, Designer ruling 2026-09-07. This is the defect that
+     made the whole feature invisible: skills were evaluated first with a strict
+     `>`, so on a fresh account "Next up" said *Attack Lv 1 → 2* while five
+     finishable quests sat open underneath it.
+
+     Both halves are asserted, because the ruling is narrow: an UNSTARTED skill
+     loses to an open quest, and a STARTED one still wins on closeness. Half of
+     this test is the veteran the slate's "must not re-order Next up" protects. */
+  () => tryRun('FIRST-LIGHT-3: an open chain quest outranks a 0%-progress skill milestone — and never a started one', () => {
+    const snap = snapshotG();
+    const origSR = window.HearthriseSkillRecord;
+    try {
+      const LP = window.HearthriseLaunchpad;
+      assert(LP && typeof LP.getNextMilestone === 'function', 'the launchpad milestone API must be published');
+      assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
+        'CONTROL: the level maths must be loaded or every skill candidate is skipped and this passes vacuously');
+
+      /* The XP a milestone is measured from is read through the display seam
+         (src/net/skill-record.js), not off G.skills — under the skills record
+         arm a G.skills fixture measures nothing. Stub the READ, restore it. */
+      const stubXp = (fn) => { window.HearthriseSkillRecord = { skillXpForDisplayOr: fn }; };
+
+      window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
+      window.G.quests = [];
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      window.ensureRetentionState();
+      const first = window.G.quests.find((q) => !q.done);
+      assert(first, 'CONTROL: the fixture must leave a chain quest open');
+      assert((first.progress | 0) === 0, 'CONTROL: the tie under test is 0% vs 0%, got ' + first.progress);
+
+      // ── every skill unstarted: the quest leads ──
+      stubXp(() => 0);
+      const tie = LP.getNextMilestone();
+      assert(tie && tie.kind === 'quest',
+        'a 0% skill must not beat an open quest — got a ' + (tie && tie.kind) + ' milestone: '
+        + (tie && tie.label));
+      assert(tie.label === first.label,
+        'the leading row must be the FIRST open chain quest (the same row the card lights), got ' + tie.label);
+      assert(tie._cmp === undefined && tie._tier === undefined,
+        'the ranking keys must not leak onto the returned milestone');
+
+      // ── one skill half-way to its next level: the SKILL leads again ──
+      const half = Math.floor((window.xpForLevel(2) - window.xpForLevel(1)) / 2) + window.xpForLevel(1);
+      stubXp((G, id) => (id === 'attack' ? half : 0));
+      const started = LP.getNextMilestone();
+      assert(started && started.kind === 'skill',
+        'a STARTED skill must still win on closeness — the ruling is about unstarted levels only; got '
+        + (started && started.kind));
+
+      // ── a nearly-finished quest beats a barely-started skill, as before ──
+      stubXp((G, id) => (id === 'attack' ? window.xpForLevel(1) + 1 : 0));
+      first.progress = first.goal - 1;
+      const close = LP.getNextMilestone();
+      assert(close && close.kind === 'quest',
+        'closeness must still decide above zero — a 93% quest lost to a 1% skill');
+    } finally {
+      window.HearthriseSkillRecord = origSR;
+      restoreG(snap);
+    }
+  }),
+
+  /* ── FIRST-LIGHT-4 — the tour may not teach a rule the engine dropped ────
+     FEATURE_SLATE fix #2. Two sentences in the b459 tour described a game that
+     stopped existing at Recovery Rule rev.2 and at the Auto-Eat tier table, and
+     the tour is the FIRST place a player hears either rule. This guard pins the
+     retired sentences out and binds the replacement to the constants it quotes,
+     so the copy cannot drift away from the engine again in silence. */
+  () => tryRun('FIRST-LIGHT-4: the FTUE teaches the LIVE death and auto-eat rules, and names the Bounty Board', () => {
+    const F = window.HearthriseFTUE;
+    assert(F && typeof F.steps === 'function', 'the FTUE step table is not published — this would pass vacuously');
+    const steps = F.steps();
+    assert(steps.length > 0, 'CONTROL: no tour steps were read');
+    const all = steps.map((s) => String(s.body || '')).join(' • ');
+
+    // THE TWO DEAD RULES.
+    assert(!/nobody does it for you/i.test(all),
+      'the tour still says nobody feeds you: Auto-Eat exists (src/core/auto-eat.js AUTO_EAT_TIERS) and is buyable today');
+    assert(!/fight ends when you fall/i.test(all),
+      'the tour still says a fall ENDS the fight — Recovery Rule rev.2 knocks you out and RESUMES the same run');
+    assert(!/only until you fall/i.test(all),
+      'the tour still gates away combat on the first fall — src/core/away.js resumes it after recoveryFor()');
+
+    // WHAT MUST BE THERE INSTEAD, each clause bound to the constant behind it.
+    const combat = steps.find((s) => s.id === 'combat');
+    assert(combat, 'CONTROL: the tour has no combat step to check');
+    const body = String(combat.body || '');
+    assert(/Bounty Board/.test(body),
+      'the combat step names Auto-Eat and must name where it is sold — the Bounty Board (index.html data-tab="bounty")');
+    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+    if (AE && AE.AUTO_EAT_TIERS) {
+      const marks = AE.AUTO_EAT_TIERS[1].marks;
+      assert(new RegExp('\\b' + marks + ' Marks\\b').test(body),
+        'the tour quotes an Auto-Eat I price the tier table does not charge; the table says ' + marks);
+    }
+    assert(/knocked out/i.test(body) && /carry on with the same fight/i.test(body),
+      'the combat step must state the LIVE rule: knocked out, then the same run resumes: ' + body);
+    const AW = window.HearthriseCore && window.HearthriseCore.away;
+    if (AW && typeof AW.recoveryFor === 'function') {
+      assert(AW.recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: 0 }) === 0,
+        'the tour promises the day\'s first fall costs no time — recoveryFor() disagrees, so the copy is now a lie');
+    }
+    // And the tour must point at the surface this build gave it.
+    const wrap = steps.find((s) => s.id === 'wrap');
+    assert(wrap && /Your first day/.test(String(wrap.body || '')),
+      'the closing step must point at the pinned chain card it now ships beside');
+  }),
+
+  /* ── FIRST-LIGHT-5 — the away card and the cooking arm, bound ────────────
+     FEATURE_SLATE fix #3. b388 wrote "fighting, gathering and crafting bank"
+     while cooking was unpayable, and left a note saying to restore cooking when
+     it paid. b431 armed it; nobody came back. That is a copy/flag pair with no
+     test between them, which is exactly how it survived a hundred builds — so
+     the pair, not the sentence, is what this asserts. */
+  () => tryRun('FIRST-LIGHT-5: the empty-night note names every channel that actually banks — bound to the cooking arm', () => {
+    const H = window.HearthriseHome;
+    const AS = window.HearthriseCore && window.HearthriseCore.artisanSim;
+    assert(H && typeof H.__awayCardHtml === 'function', 'the away-card seam is not published');
+    assert(AS && typeof AS.benchPayable === 'function',
+      'CONTROL: the artisan-sim bridge must be up or the binding below is vacuous');
+
+    const html = H.__awayCardHtml({
+      at: Date.now(), awayMs: 8 * 3600000, idle: true,
+      gainedXp: 0, gainedItems: 0, gainedGold: 0, gainedKills: 0,
+    });
+    assert(/Nothing was running that pays/.test(html),
+      'CONTROL: this fixture must reach the quiet-night branch: ' + html.slice(0, 200));
+
+    /* THE BINDING. Whether the sentence may name cooking is not a style
+       question — it is `benchPayable('cooking')`, the same predicate the
+       accrual engine reads. Both directions are asserted, so flipping the arm
+       back without following it here goes red instead of shipping a new lie. */
+    const pays = AS.benchPayable('cooking');
+    if (pays) {
+      assert(/cooking/i.test(html),
+        'cooking is payable away (serverOwnedBonusKeys includes noBurn) and the card still omits it: ' + html);
+    } else {
+      assert(!/cooking/i.test(html),
+        'cooking is NOT payable away right now and the card promises it — that is the b388 defect inverted');
+    }
+    assert(/Fighting/.test(html) && /gathering/.test(html) && /crafting/.test(html),
+      'the note must still list the channels that always banked: ' + html);
   }),
 
 ];

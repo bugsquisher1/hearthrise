@@ -8653,49 +8653,63 @@ const TESTS = [
        at 50% each, with `lastSeen` never refreshed between them. Every returning
        gatherer banked 2-3x their offline yield.
 
-       b515 — THE GRANTING SYSTEM IS GONE, THE OTHER TWO ARE NOT, and that is
-       exactly why this test still has a job. processOffline no longer grants
+       b515 — THE GRANTING SYSTEM IS GONE. processOffline no longer grants
        anything (it asks hr-accrue and applies the envelope), so the ONE payer is
-       the server. The two catch-up calculators still ship, still read the same
-       clock, and still feed the welcome modal — so the property to hold is the
-       half that can still break: they must CALCULATE and never CREDIT.
-       MUTATION: put an `addItem`/`addXp` back into `_applyCatchup` → red. */
+       the server.
+
+       b516 — THIS GUARD IS NOW INVERTED, AND THAT IS THE POINT. Until b516 it
+       asserted that `_applyCatchup` was merely UNCALLED, and its own note filed
+       the residue as P3: "dead client-authored mint with no call site; it should
+       be deleted, not merely unreferenced." It has been. `calcCatchup`,
+       `window._catchupCalc` and `window._applyCatchup` no longer exist, so the
+       property to hold is no longer "they calculate without crediting" — it is
+       THEY MUST NOT EXIST. An unreferenced global is still a capability: the
+       applier called `addXp`/`addItem` off a device-clock estimate, and anything
+       able to run one line in the page (devtools, a bookmarklet, a future line
+       of glue) could dial it. Absence is the only state that cannot be dialled.
+
+       WHAT IS STILL ASSERTED, AND WHY BOTH HALVES ARE HERE:
+         (a) neither name is back on `window` — the capability;
+         (b) the welcome modal still quotes the RECEIPT (`lastOfflineSummary`)
+             and never a catch-up CALCULATOR — the wire. `calcRichCatchup` is
+             still published and still pure, so the caller is what must not
+             exist, exactly as before.
+
+       MUTATIONS (both proved, b516):
+         · re-add `window._applyCatchup = function(){}` to legacy.js → (a) red.
+         · put `calcCatchup()` back into __maybeShowWelcome        → (b) red. */
     const snap = snapshotG();
     try {
       const G = window.G;
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
       G.inventory = {};
-      setAway(2);                                     // 2h away
-      const before = JSON.stringify(G.inventory);
-      const goldBefore = goldOf();
+      setAway(2);                            // 2h away — the fixture that used to mint +1,200 logs
 
-      /* The calculators may still RUN — they are the modal's numbers. */
-      let rewards = null;
-      if (typeof window._catchupCalc === 'function') {
-        rewards = window._catchupCalc();
-        assert(rewards === null || typeof rewards === 'object', 'calcCatchup still returns a summary');
-      } else { skip('no catch-up calculator in this build'); return; }
+      /* ── (a) THE CAPABILITY IS GONE, NOT MERELY UNUSED ────────────────────
+         Named one at a time so a red says WHICH one came back. `_applyCatchup`
+         is the one that credited; `_catchupCalc` is the estimate it was fed,
+         and it is refused too because a lone estimator is how the pair grows
+         back. Deleted in b516 (src/legacy.js section 3 carries the tombstone). */
+      for (const name of ['_applyCatchup', '_catchupCalc']) {
+        assert(!(name in window),
+          '`window.' + name + '` is back (typeof ' + (typeof window[name]) + '). b516 DELETED the '
+          + 'client-side catch-up estimator and its crediting applier: the pair reads the DEVICE clock, '
+          + 'invents an absence and pays it through addXp/addItem, which is a client authoring progression '
+          + '(CLAUDE.md \u00a71) and the b214 double-pay. Unreferenced is not unreachable — anything that '
+          + 'can run one line in this page can call it. If an offline estimate is wanted, read the server '
+          + 'RECEIPT (G.lastOfflineSummary); do not re-add a second opinion.');
+      }
+      assert(JSON.stringify(G.inventory) === '{}',
+        'the 2h-away fixture credited items on its own: ' + JSON.stringify(G.inventory)
+        + ' — something still grants an absence client-side');
 
-      /* (a) CALCULATING IS NOT CREDITING. `calcCatchup` is the estimate the
-         welcome modal used to print; running it must move nothing at all. */
-      assert(JSON.stringify(G.inventory) === before,
-        'merely CALCULATING the catch-up credited items: ' + before + ' -> ' + JSON.stringify(G.inventory));
-      assert(goldOf() === goldBefore,
-        'merely CALCULATING the catch-up credited gold (' + goldBefore + ' -> ' + goldOf() + ')');
-
-      /* (b) THE APPLIER STILL MINTS, AND IT IS DISARMED BY HAVING NO TRIGGER —
-         so the trigger is what this test guards. `window._applyCatchup` calls
-         `addXp` and `addItem` off a client-side ESTIMATE; measured here, it
-         credits (the fixture below is a real +1,200 logs). It is safe today for
-         exactly one reason: nothing calls it. The injector that used to poll for
-         `#welcome-rows` and prepend its rows was deleted in b342, and the modal
-         reads the RECEIPT instead.
-         So: assert the modal still reads the receipt and not the estimate. That
-         is the wire that, re-attached, recreates the b214 double-pay — and it is
-         a stronger guard than watching the applier, because the applier is
-         supposed to credit; it is the CALLER that must not exist.
-         ⚠ FILED (P3, Systems Engineer): `_applyCatchup` is dead client-authored
-         mint with no call site. It should be deleted, not merely unreferenced. */
+      /* ── (b) AND THE WIRE STILL CANNOT BE RE-ATTACHED ─────────────────────
+         `calcRichCatchup` IS still published (`window._calcRichCatchup`) and is
+         still pure — it is the modal's numbers. So the property that survives
+         deletion is about the CALLER: the welcome modal must quote the RECEIPT
+         the server wrote, never a catch-up calculator. This is the wire b342
+         cut; re-attaching any of these names recreates the double-SPEAK, and
+         (with a crediting applier) the b214 double-PAY. */
       const rawModal = String(window.__maybeShowWelcome || '');
       assert(rawModal.length > 200,
         'the welcome modal is not reachable under __maybeShowWelcome — this guard would be vacuous');
@@ -8709,10 +8723,12 @@ const TESTS = [
       assert(/lastOfflineSummary/.test(modalSrc),
         'the welcome-back modal no longer reads `lastOfflineSummary` — the RECEIPT the server actually '
         + 'wrote. Whatever it reads instead is a second estimate of the same night.');
-      assert(!/(calcCatchup|_catchupCalc|_applyCatchup)\s*\(/.test(modalSrc),
-        'the welcome-back modal is quoting the catch-up ESTIMATE again. b214 stopped it double-PAYING and '
-        + 'b342 stopped it double-SPEAKING; wiring `_applyCatchup` back in re-creates the double-pay, '
-        + 'because that function credits.');
+      assert(!/(calcCatchup|_catchupCalc|_applyCatchup|_calcRichCatchup|applyRichCatchup)\s*\(/.test(modalSrc),
+        'the welcome-back modal is quoting a catch-up CALCULATOR again. b214 stopped it double-PAYING, '
+        + 'b342 stopped it double-SPEAKING and b516 deleted the crediting pair outright. The modal has '
+        + 'exactly one source for the absence — `G.lastOfflineSummary`, the receipt the server wrote. A '
+        + 'second estimate is a second answer to one question, and it is wrong on every absence that '
+        + 'ended in a death or hit the cap.');
     } finally { restoreG(snap); }
   }),
 
@@ -39671,6 +39687,149 @@ const TESTS = [
         'balanceOf lost the post-purchase gold: ' + JSON.stringify(bal));
       assert(B.canAfford(g, 300, 'gold') === true && B.canAfford(g, 501, 'gold') === false,
         'canAfford fail-closed on a known post-purchase balance — the exact symptom this prerequisite prevents');
+    } finally {
+      Gd.resetGold();
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b516 REGRESSION — applyGoldEnvelope HANDS applyRecord THE **BODY**, NOT THE
+     NARROWED ENVELOPE. Two directions, one seam.
+     ══════════════════════════════════════════════════════════════════════════
+     THE BUG (b515, QA-found, a live P1). `envelopeOf()` narrows a server answer
+     to what the BALANCE applier needs — `ok, version, now, state, skills,
+     inventory, equipment` — and `progress` is NOT on that list. But `progress`
+     is how a ROOM RUNG and a PROPERTY TIER travel: hr_state_of returns
+     `progress[] = {kind:'unlock', key:'room:<id>', value:<rung>}` on every verb
+     answer, and record.js's `pickRooms` is its only reader. Passing the narrowed
+     `env` to applyRecord therefore dropped the rung on the floor: `upgradeRoom`
+     sends `room.forge.1` and advances NOTHING locally (under the armed rooms
+     record the rung moves only on the server's ok), so the ok arrived, the gold
+     moved, the toast said "the Forge is yours" — and the House kept rendering
+     `Build` at the next price until an unrelated hr_load or the 90s settle
+     happened to carry a full envelope. A player who taps again inside that
+     window buys the NEXT rung. That is the b227 double-build report, restored by
+     omission. The fix passes `body` (a strict superset of `env`).
+
+     WHY THE ok:false HALF IS HERE AND IS NOT A SEPARATE TEST. The two directions
+     are the SAME line — `applyRecord(G, body)` vs `applyRecord(G, env)` — read
+     from opposite ends, and the ok:false half is what makes the fix safe rather
+     than merely effective:
+
+       ⚠ `envelopeOf()` FORCES `ok: true` ON ITS RESULT (measured — it never
+         reads `body.ok`). So the OLD code handed applyRecord an answer stamped
+         ok:true no matter what the server actually said, and a refusal body that
+         happens to carry `state`/`skills`/`inventory` — which settleVerdict
+         routes to onEnvelope purely on SHAPE, independent of the 4xx outcome —
+         got its `progress` and its record fields written as though the verb had
+         landed. Passing the BODY restores the server's own verdict to the only
+         function that writes record fields: `decodeRecord` refuses `ok !== true`
+         outright (`reason:'not_ok'`), so nothing is written and nothing is
+         stamped. The widening is therefore also a TIGHTENING, and this half is
+         the assertion that keeps it one.
+
+     MUTATION-PROVED, BOTH DIRECTIONS (b516, at module level against the real
+     record.js — revert the tail of applyGoldEnvelope in src/net/gold.js to
+     `applyRecord(G, env)`):
+       · ok:true  → `written` is ["gold","gems"] and `G.rooms` is undefined:
+                    (B2) and (B2's recordValue check) go red. With the fix the
+                    written list is ["gold","gems","rooms"].
+       · ok:false → the forced-ok env is DECODABLE, so gold/gems are written and
+                    `_record` IS stamped: (A3) goes red. (A2) stays green in that
+                    mutant for a second reason — `env` also dropped `progress`, so
+                    the rung had nothing to arrive on. Both assertions are kept:
+                    A2 catches a future widening of envelopeOf that keeps the
+                    forced `ok`, A3 catches the refusal being believed today.
+
+     ⚠ MEASURED-OPEN, FOR SECURITY — NOT ASSERTED EITHER WAY HERE, DELIBERATELY.
+     gold.js's module-local monotonic `lastVersion` DOES still advance on an
+     ok:false body (measured: after an ok:false envelope at v=1000, a later v=999
+     answer comes back `{stale:true, current:1000}`), because `lastVersion =
+     env.version` sits above the applyRecord call and is not gated on `body.ok`.
+     The same is true of the BALANCE write, which applyEnvelopeState performs
+     absolutely from a refusal body. Neither is a mint — only the server can
+     produce those numbers, and RECORD state is now correctly withheld — but
+     gating them is a change to a money path's semantics (it would flip
+     settleVerdict from retiring a prediction to abandoning it), and CLAUDE.md §2
+     puts that behind a Security GO rather than inside a test-only commit. This
+     test asserts the RECORD watermark (`_record.version`), which IS gated and IS
+     the one the record path reads. Filed for the Security lane. */
+  () => tryRun('b516 regression: the gold envelope hands applyRecord the BODY — progress lands, a refusal does not', () => {
+    const R = window.HearthriseRecord;
+    const Gd = window.HearthriseGold;
+    assert(R && typeof R.applyRecord === 'function' && typeof R.recordValue === 'function',
+      'record.js did not load — this whole contract is about its only writer');
+    assert(Gd && typeof Gd.applyGoldEnvelope === 'function' && typeof Gd.envelopeOf === 'function',
+      'gold.js applyGoldEnvelope/envelopeOf must be published');
+
+    /* PRIVATE Gs, never window.G — so nothing global moves and the destructive-
+       replacement gate sees no local progress to lose. The server balance is
+       kept ABOVE the local one for the same reason: a spend reads as destructive
+       on arithmetic alone and would divert both halves into the consent sheet
+       (a known limitation of this path), which would make the test vacuous. */
+    const vBase = Date.now();          // clear whatever lastVersion the suite left
+    const mkBody = (ok, version) => ({
+      ok, verb: 'unlock_buy', version, now: new Date(version).toISOString(),
+      state: { gold: 500, gems: 0 }, skills: {}, inventory: {},
+      progress: [{ kind: 'unlock', key: 'room:forge', value: 1 }],
+    });
+
+    try {
+      /* ── PRECONDITION: the narrowing is real, and it is what makes this test
+         non-vacuous. If `progress` ever joins envelopeOf's result the two halves
+         below stop measuring anything, and this says so instead of passing. */
+      const env = Gd.envelopeOf(mkBody(true, vBase + 1));
+      assert(env && !('progress' in env),
+        'envelopeOf now carries `progress`, so passing `env` and passing `body` are no longer '
+        + 'distinguishable and this regression measures nothing. Either narrow it again or retire '
+        + 'this test deliberately — do not leave it green and hollow.');
+      assert(env.ok === true,
+        'envelopeOf no longer forces ok:true. That is arguably better, but half (A) below is written '
+        + 'to prove the BODY carries the refusal — re-read this test before changing it.');
+
+      /* ══ (A) A REFUSAL THAT CARRIES STATE + PROGRESS WRITES NO RECORD ══════ */
+      Gd.resetGold();
+      const gA = { gold: 10, gems: 0, skills: {}, inventory: {} };
+      const wA = Gd.applyGoldEnvelope(gA, mkBody(false, vBase + 1), Gd.newIntentKey());
+      // (A1) The call was NOT diverted into the consent sheet or the stale branch —
+      //      without this, (A2)/(A3) would pass for the wrong reason.
+      assert(wA && !wA.stale,
+        'the ok:false fixture never reached the apply path (' + JSON.stringify(wA) + ') — the assertions '
+        + 'below would be vacuous. Check the replacement gate and the monotonic branch.');
+      // (A2) THE POINT. `progress` rode in on a body the server marked NOT ok.
+      assert(gA.rooms === undefined,
+        'a gold answer with `ok:false` still granted the room rung: G.rooms = ' + JSON.stringify(gA.rooms)
+        + '. decodeRecord refuses `ok !== true`, so this can only happen if applyGoldEnvelope handed '
+        + 'applyRecord the NARROWED envelope, whose `ok` is forced true — i.e. the client believed a '
+        + 'purchase the server refused.');
+      // (A3) …and no record field was written, so the watermark did not move.
+      assert(gA._record === undefined,
+        'a refused gold answer stamped the record anyway: ' + JSON.stringify(gA._record)
+        + '. Stamping is an assertion that an authoritative write happened; on a refusal none did.');
+      assert(R.recordValue(gA, 'rooms').known === false,
+        'the rooms record reads KNOWN after a refusal — it must stay UNKNOWN so the House fails closed '
+        + 'rather than rendering a room the player does not own');
+
+      /* ══ (B) AN ok:true ANSWER MARKS THE ROOM OWNED — ON THIS ENVELOPE ═════
+         "Without a second envelope" is the whole P1: no hr_load, no settle, no
+         further call happens between the answer and the assertion. */
+      Gd.resetGold();
+      const gB = { gold: 10, gems: 0, skills: {}, inventory: {} };
+      const wB = Gd.applyGoldEnvelope(gB, mkBody(true, vBase + 2), Gd.newIntentKey());
+      assert(wB && !wB.stale && wB.gold === 500,
+        'the ok:true fixture did not apply its balance: ' + JSON.stringify(wB));
+      // (B2) THE FIX. The rung arrives as a `progress` row and record.js is its only writer.
+      assert(gB.rooms && gB.rooms.forge === 1,
+        'the purchased room did not land from the answer: G.rooms = ' + JSON.stringify(gB.rooms)
+        + '. The rung travels as `progress[]`, which `envelopeOf` drops — so passing the narrowed '
+        + 'envelope to applyRecord leaves the House rendering `Build` at the next price and the next '
+        + 'tap buys the NEXT rung. That is the b227 double-build report.');
+      assert(R.recordValue(gB, 'rooms').known === true,
+        'the rooms record is still UNKNOWN after a successful unlock_buy — the rung was written to G '
+        + 'by something other than applyRecord, which is a second writer for a server-owned field');
+      // (B3) The record watermark followed the verb (the b395 property, on this body).
+      assert(gB._record && Number(gB._record.version) === vBase + 2,
+        'the record version did not advance to the verb envelope: ' + JSON.stringify(gB._record));
     } finally {
       Gd.resetGold();
     }

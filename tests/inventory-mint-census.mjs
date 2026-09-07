@@ -120,9 +120,20 @@ const BASELINE = {
      deleted. The farm's only remaining credit is reconcileFarmResult applying
      the SERVER's `res.produce`/`res.qty` in src/net/farm-sync.js, which is a
      different lane and a different token. */
+  /* b516 (Security GO-WITH-CHANGES): `rewards.itemId` LEFT this lane. It was
+     `addItem(rewards.itemId, rewards.itemQty)` inside `window._applyCatchup` —
+     the client-side catch-up APPLIER, which credited an absence that
+     `calcCatchup()` had invented from the DEVICE clock. b214 stopped it
+     double-PAYING and b342 deleted its caller, but both functions stayed
+     published on `window`, so the mint was one console line from reachable.
+     Both are deleted (tombstone at src/legacy.js section 3); the absence is
+     computed and paid by hr-accrue alone and the welcome modal quotes the
+     server RECEIPT. The `b214: an absence is granted exactly ONCE` in-page test
+     is now an EXISTENCE guard on both names, so the lane cannot come back
+     silently. */
   'src/legacy.js': [
     "'hearth_token'", 'b.id', 'cur', 'id', 'kv[0]',
-    'r.item', 'r.output', 'res.produced.id', 'rewards.itemId',
+    'r.item', 'r.output', 'res.produced.id',
     'inv:id', 'inv:old',
   ],
   'src/features/muster.js': ["'muster_seal'", 'it.id'],

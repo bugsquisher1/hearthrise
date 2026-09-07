@@ -15202,41 +15202,31 @@ function checkAchievements(){
    calls it by bare name, which resolves to window.showLevelupCelebration. */
 
 /* =========================================================
-   3. CATCHUP REWARDS (offline progress)
+   3. CATCHUP REWARDS - DELETED (b516). DO NOT RE-ADD.
+   =========================================================
+   `calcCatchup()`, `window._catchupCalc` and `window._applyCatchup` lived here
+   and are gone. They were the last client-side OFFLINE ESTIMATOR: calcCatchup
+   read `G.lastSeen` against the DEVICE clock and the active node's rate to
+   invent an absence, and `_applyCatchup` then CREDITED that invention through
+   `addXp` / `addItem`. Measured before deletion, it minted a real +1,200 logs
+   for a 2h fixture.
+
+   It was already unreachable - b214 stopped it double-PAYING, b342 deleted the
+   injector that called it - but "unreferenced" is not "unreachable". It hung
+   off `window`, so any devtools console, any bookmarklet, any future line of
+   glue could call `window._applyCatchup(window._catchupCalc())` and mint XP and
+   items into a save the SERVER owns. CLAUDE.md §1: the client never authors a
+   number, and dead code that can still be dialled is a capability, not debt.
+
+   THE ABSENCE IS THE SERVER'S AND ONLY THE SERVER'S: hr-accrue computes it from
+   activity plus the server clock, and the welcome modal quotes the RECEIPT
+   (`G.lastOfflineSummary`) rather than any estimate. There is no second opinion
+   to reconcile because there is no second calculator.
+
+   GUARDED BY: `b214: an absence is granted exactly ONCE`, which is now an
+   EXISTENCE guard - it fails if either name returns on `window`, and it still
+   asserts the welcome modal quotes the receipt and never a calculator.
    ========================================================= */
-function calcCatchup(){
-  if(typeof G !== 'object' || !G) return null;
-  var since = Date.now() - (G.lastSeen || Date.now());
-  var hoursAway = since / 3600000;
-  if(hoursAway < 0.5) return null;            // <30 min — no catchup
-  hoursAway = Math.min(hoursAway, 12);        // cap at 12 hours
-  var rewards = {hours: hoursAway, xp: {}, gold: 0};
-  if(G.activeSkill && G.skillTargetId){
-    var node = null;
-    if(typeof TREES !== 'undefined') node = TREES.find(function(a){return a.id===G.skillTargetId;});
-    if(!node && typeof ROCKS !== 'undefined') node = ROCKS.find(function(a){return a.id===G.skillTargetId;});
-    if(!node && typeof FISH_SPOTS !== 'undefined') node = FISH_SPOTS.find(function(a){return a.id===G.skillTargetId;});
-    if(node){
-      var aph = 3600000 / Math.max(500, node.ms);
-      var actions = Math.floor(hoursAway * aph * 0.5); // 50% efficiency offline
-      var xpGain = actions * node.xp;
-      rewards.xp[G.activeSkill] = xpGain;
-      rewards.itemId = node.prod;
-      rewards.itemQty = Math.floor(actions * (node.qty[0]+node.qty[1])/2);
-    }
-  }
-  return rewards;
-}
-window._catchupCalc = calcCatchup;
-window._applyCatchup = function(rewards){
-  if(!rewards) return;
-  Object.keys(rewards.xp||{}).forEach(function(sk){
-    if(typeof addXp === 'function') addXp(sk, rewards.xp[sk]);
-  });
-  if(rewards.itemId && rewards.itemQty){
-    if(typeof addItem === 'function') addItem(rewards.itemId, rewards.itemQty);
-  }
-};
 
 /* =========================================================
    4. BESTIARY
@@ -15313,9 +15303,10 @@ window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
 
    The modal now reads `G.lastOfflineSummary` — the receipt processOffline (or
    the server accrual) actually wrote — so there is ONE number for one fact and
-   it is the number the save holds. `calcCatchup()` itself is left in place: it
-   is still exported as `window._catchupCalc` and covered by a smoke test, and
-   deleting a pure function is a separate, larger cleanup than this fix.
+   it is the number the save holds. `calcCatchup()` ITSELF IS NOW GONE TOO
+   (b516, see the tombstone at section 3): leaving the estimator on `window`
+   with no caller kept a client-side minting path one console line away, and
+   the receipt made it redundant rather than merely unused.
    ════════════════════════════════════════════════════════════════════════ */
 
 /* Add Achievements + Bestiary buttons to the Profile panel */
@@ -15897,9 +15888,24 @@ window._renderWelcomeV2 = renderModal;
     if(!s) return;
     G.lastWelcome = Date.now();
     G.lastSessionSummary = s;
-    /* b214 (correctness fix): display-only — see the note by calcCatchup's
-       caller above. processOffline() already granted; this second grant was
-       double-paying every returning gatherer. renderModal shows the estimate. */
+    /* b214 (correctness fix): display-only. processOffline() already granted;
+       this second grant was double-paying every returning gatherer. renderModal
+       shows the estimate.
+       ⚠ WHY THIS ESTIMATOR SURVIVED THE b516 SWEEP AND `calcCatchup` DID NOT.
+       The test for deletion was REACHABILITY-AS-A-MINT, not deadness:
+         · `calcCatchup` + `window._applyCatchup` — pure estimate PLUS a
+           crediting applier, BOTH on `window`. One console line joined them
+           into `addXp`/`addItem`. DELETED (tombstone at section 3).
+         · `calcRichCatchup` + `window._calcRichCatchup` — on `window`, but
+           PURE: it returns a summary and credits nothing. It is the modal's
+           numbers, and it stays.
+         · `applyRichCatchup` (just above) — DOES credit, but is module-scope
+           with zero callers and is NOT published on `window`, so nothing
+           outside this file can reach it. Dead, not dialable; left in place so
+           this build's diff stays the capability removal it claims to be.
+       ⚠ IF `applyRichCatchup` IS EVER EXPORTED, OR `calcRichCatchup` EVER
+       GROWS A CREDIT, that pairing recreates the b214 double-pay — delete it
+       the way b516 deleted the first one, rather than unreferencing it. */
     renderModal(s);
   }, 1800);
 })();

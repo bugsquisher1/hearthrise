@@ -91,8 +91,20 @@
 --                            mentions any of the eleven names. Nothing calls
 --                            them. (§4(e) re-executes this scan.)
 --   · proacl:                none of the eleven is executable by anon or
---                            authenticated today. Six carry a service_role
---                            EXECUTE that this drop removes for good.
+--                            authenticated today. FIVE carry a service_role
+--                            EXECUTE that this drop removes for good:
+--                            clan_withdraw, clan_withdraw_cancel,
+--                            clan_withdraw_settle, clan_set_role,
+--                            clan_claim_leadership. clan_upkeep_pay and the
+--                            five hr_* are postgres-only (owner) already.
+--                            Re-verified live 2026-09-07, read-only:
+--                              select p.proname,
+--                                     pg_get_function_identity_arguments(p.oid),
+--                                     p.proacl
+--                                from pg_proc p
+--                                join pg_namespace n on n.oid = p.pronamespace
+--                               where n.nspname = 'public'
+--                                 and p.proname = any(<the eleven>);
 --   · hr_assert_grant_hygiene(false) baseline BEFORE the change: every bucket
 --                            empty except platform_schema_defacls_open =
 --                            ["supabase_admin:public"], which is a Supabase
@@ -131,12 +143,30 @@
 --   · tests/live-hash-drift.baseline.json tracks clan_upkeep_pay(p_clan_id uuid).
 --     Agents never edit that file. After apply the entry must be removed by the
 --     Coordinator via `node tests/live-hash-drift.mjs --live --write`.
---   · Four NON-CI tests exercise dropped functions against a live database and
---     will need retiring in the client half of this slice (none is a step in
---     .github/workflows/smoke.yml, so CI does not go red on apply):
---       tests/client-write-sweep-4.mjs:693-720 (all six clan_*)
---       tests/cutover-import.mjs               (hr_import_apply)
---       tests/auto-eat-at-creation.mjs:296     (hr_import_apply dry-run)
+--   · THE TEST HALF IS DONE IN THIS SAME COMMIT, corrected from the review
+--     draft, which mis-stated both the blast radius and the CI exposure:
+--       tests/cutover-import.mjs + tools/cutover-import.mjs — DELETED. The guard
+--         drove the real hr_import_apply on a FULL chain replay, so it goes red
+--         the moment this file lands. It WAS a CI step (imported and invoked by
+--         tests/run-smoke.mjs, which .github/workflows/smoke.yml runs) — the
+--         review draft's "none is a step in smoke.yml" was wrong, it only
+--         checked the yml for a direct `node tests/cutover-import.mjs` line.
+--         Its registration in run-smoke.mjs is replaced by a named comment so
+--         it reads as deliberately retired, not silently unregistered.
+--       tests/auto-eat-at-creation.mjs — arm A9 (the empty-plan import dry run)
+--         and the `import_verify_unreconciled` mutation that only A9 detected
+--         are REMOVED. Full-chain replay, so it too would go red. The property
+--         worth keeping — the bootstrap writes exactly one progress row, leaves
+--         version at 0 and journals one ledger row — is A2b/A2c and is untouched.
+--       tests/client-write-sweep-4.mjs:693-720 — NOT TOUCHED, and the review
+--         draft was wrong to list it. It boots with `upTo: MIG` where MIG is
+--         2026-08-16-client-write-grant-sweep-4.sql, so THIS FILE NEVER APPLIES
+--         in that replay and all six clan_* bodies still exist there. It is an
+--         as-of-batch-4 assertion about grants, not a claim that the RPCs are
+--         live today. Deleting the six drives would in fact BREAK it: C4
+--         COVERAGE requires every writer named in that migration's c_writers to
+--         be driven, and clan_withdraw / _cancel / _settle are the only drivers
+--         of clan_withdrawals, one of the seventeen swept tables.
 --     tests/market-offers-guard.mjs greps MIGRATION FILE TEXT, which this file
 --     does not edit, so it is unaffected.
 -- ============================================================================
@@ -288,13 +318,21 @@ begin
 
   -- (e) no surviving function body references a dropped name. A dangling call
   --     is a runtime 42883 on some future code path, not a compile error, so
-  --     the only way to know is to read every body.
+  --     the only way to know is to read every body. Scope: FUNCTIONS AND
+  --     PROCEDURES ('f','p' -- a procedure can `call` a dead name just as an
+  --     unresolved 42883) across EVERY non-catalog schema, not just public:
+  --     a trigger helper parked in a private schema is exactly where a
+  --     dangling call hides. Aggregates/windows ('a','w') have no body to read
+  --     and pg_get_functiondef errors on them, so they stay excluded.
   select string_agg(p.oid::regprocedure::text || ' -> ' || d.n, ', ')
     into v_bad
     from pg_proc p
-    join pg_namespace ns on ns.oid = p.pronamespace and ns.nspname = 'public'
+    join pg_namespace ns on ns.oid = p.pronamespace
     join unnest(c_dead) d(n) on pg_get_functiondef(p.oid) ~ ('\m' || d.n || '\M')
-   where p.prokind = 'f';
+   where p.prokind in ('f', 'p')
+     and ns.nspname not in ('pg_catalog', 'information_schema')
+     and ns.nspname not like 'pg_toast%'
+     and ns.nspname not like 'pg_temp%';
   if v_bad is not null then
     raise exception 'SELF-CHECK (e) FAILED: surviving body references a dropped function: %', v_bad;
   end if;

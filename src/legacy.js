@@ -21537,7 +21537,8 @@ console.log('[Bundle Icons v1] applied:',
        ⚠ NO CONVERSION: an existing phantom G.skills.combat is NOT migrated into
        hitpoints anywhere. It was never server-authored, so converting it would
        mint ranked HP XP. The cutover importer drops the key by name
-       (2026-08-17-cutover-import.sql; tests/cutover-import.mjs C7/C8). */
+       (2026-08-17-cutover-import.sql; its guard tests/cutover-import.mjs was
+       retired 2026-09-07 with the drop of hr_import_apply). */
     kill_any:    {gold: 200, xp:{hitpoints:100}},
     kill_more:   {gold: 600, xp:{hitpoints:300}, gems: 1},
     /* b497 — the gathering retune. Targets moved in DAILY_GOAL_POOL (25→60,

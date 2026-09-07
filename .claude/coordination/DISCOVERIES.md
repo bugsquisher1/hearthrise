@@ -2206,3 +2206,38 @@ for a semi-idle game and it sits below the fold of the stat grid. Consider promo
 (legacy.js ~20094) prints the RAW skill id while the claim toast resolves it through
 `SKILLS_DEF.name`. Already filed by Systems in the b492 handoff; I am confirming it from the design
 side — "300 hitpoints xp" is a debug string on a reward.
+
+---
+
+## 2026-09-07 · QA · P3 (test-only) — the b231 "Switch to <the other rally>" test was hour-shaped and half-dead
+
+**Symptom.** `src/features/smoke-test.js` `b231: the pledged card offers "Switch to <the other rally>"
+until its window opens` went red at 00:02 UTC 2026-09-07 with `a pledged card must still offer the
+switch`, and green in four daytime runs the same day. Its comment claimed "the test never depends on
+the hour". It did.
+
+**Root cause — NOT a rollover bug in muster.js.** Two independent defects in the test:
+
+1. The rally slots are 01:00 and 13:00 UTC. The test's main path required BOTH of today's slots to
+   still be ahead (`todaysWindows().filter(w => now < w.startMs).length >= 2`), which is true only
+   between 00:00 and 01:00 UTC. For the other 23 hours it took an early return that asserted a pure
+   seam and rendered nothing — so the DOM half of this test ran in ~4% of runs.
+2. In that one hour it asserted DOM that b385/b465 had already removed: the muster card, pill and
+   modal are all behind `CLAN_LAUNCHED === false`, so `#hr-muster-card` renders the coming-soon panel
+   and `[data-mu="pledge"]` cannot exist. Reproduced with a pinned clock: at 00:01, 00:02 and 00:59
+   UTC the card is 418 bytes of coming-soon copy and the button is absent; lift the clan flag at the
+   same instants and the button renders correctly with `data-key` = the other rally and the text
+   "Switch to The Forge Levy". **muster.js is correct — there is no rollover rendering bug and no
+   player-facing defect.**
+
+**Fix (QA lane, test only).** The test now pins the module clock with `M._setSkew` to 00:30 UTC of
+the current UTC day (relative, so the offset stays inside the `|0` int32 `_setSkew` takes), lifts the
+`clanLaunched` product gate for the render only and restores it in `finally`, asserts anti-vacuity
+(`.mu-slots` present) before looking for the button, keeps every original assertion at full strength,
+and now runs the switch-target/canPledge invariant that the dead early-return branch used to be the
+only carrier of in EVERY run. Verified green by running the real suite under six emulated wall clocks
+(00:02, 00:45, 06:00, 11:00, 13:30, 23:59 UTC).
+
+**Class to sweep (routed to QA, not urgent).** Any test that reads the wall clock and branches on it
+is a test that mostly does not run. Worth a grep for `todaysWindows()`/`Date.now()`-shaped branching
+with an early `return` in the suite.

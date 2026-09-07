@@ -15779,25 +15779,49 @@ const TESTS = [
   () => tryRun('b231: the pledged card offers "Switch to <the other rally>" until its window opens', () => {
     const M = window.HearthriseMuster, G = window.G;
     const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
+    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
     const prevTab = window.activeTab;
+    const CL = window.HearthriseClans;
+    const savedLaunched = CL ? CL.clanLaunched : null;
     try {
       M._forceSupport(true);
-      // Pledge whichever of TODAY's two rallies has not opened yet, so the
-      // switch is genuinely available and the test never depends on the hour.
+      /* ── PIN THE CLOCK (QA, 2026-09-07) ───────────────────────────────────
+         This test used to read the wall clock: it took `todaysWindows()` and
+         pledged into a real slot. The two slots are 01:00 and 13:00 UTC, so
+         BOTH are still ahead only between 00:00 and 01:00 UTC — for the other
+         23 hours the test fell into a weak early-return that asserted a pure
+         seam and never rendered anything, and inside that one hour it asserted
+         DOM that b385/b465 had already removed. Result: green in every daytime
+         run and red at 00:02 UTC on 2026-09-07, with the real rendering path
+         effectively untested. `_setSkew` is the module's one clock seam — it
+         moves now(), dayKeyAt, windowsAround, canPledge and the render
+         together, so nothing can disagree about which UTC day this is. Pinning
+         to 00:30 UTC of the CURRENT day (not a hardcoded date, so the offset
+         stays inside the |0 int32 `_setSkew` takes) makes the full path run in
+         every run, at every hour, with no assertion weakened. */
+      const _n = new Date();
+      const pinned = Date.UTC(_n.getUTCFullYear(), _n.getUTCMonth(), _n.getUTCDate(), 0, 30, 0);
+      M._setSkew(pinned - Date.now());
+      /* The muster SURFACE is behind the CLAN_LAUNCHED product gate (b385 for
+         the card, b465 for the pill and modal), so while clans are unlaunched
+         nothing renders a slot at all — that is why the DOM half of this test
+         could only ever be red. The gate has its own test; this one is about
+         what the card does once the gate opens, and it must not rot while the
+         gate is shut. Lift the flag for the render only, restore in `finally`. */
+      if (CL && typeof CL.clanLaunched === 'function') CL.clanLaunched = function () { return true; };
       const open = M.todaysWindows().filter((w) => M.now() < w.startMs);
-      if (open.length < 2) {
-        // After 13:00 UTC neither of today's slots can be pledged. The rule
-        // still has to hold, so it is asserted through the pure seam instead.
-        const ctx = M._pledgeContext();
-        assert(M._switchTarget(ctx) === null || M.canPledge(M._switchTarget(ctx).eventKey, ctx).ok,
-          'a switch target must always be one the pledge gate would actually accept');
-        return;
-      }
+      assert(open.length === 2,
+        'the pinned instant (00:30 UTC) must have both of the day’s rallies still ahead, got ' +
+        open.length + ' — the slot schedule moved and this test needs re-pinning');
       const mine = open[0], other = open[1];
       M._writePledge({ dayKey: mine.dayKey, eventKey: mine.eventKey, slot: mine.slot,
                        startMs: mine.startMs, at: M.now(), joined: false, provisional: false });
       window.showTab('events'); M.render();
       const card = document.getElementById('hr-muster-card');
+      // Anti-vacuity: if the gate lift or the pin failed, the card is the
+      // coming-soon panel and every assertion below would be about nothing.
+      assert(card && card.querySelector('.mu-slots'),
+        'the muster card rendered no slots — the clan gate is still shut, so the switch assertions below would be vacuous');
       const btn = card.querySelector('[data-mu="pledge"]');
       assert(btn, 'a pledged card must still offer the switch');
       assert(btn.getAttribute('data-key') === other.eventKey,
@@ -15814,9 +15838,19 @@ const TESTS = [
       const ctxOpen = Object.assign(M._pledgeContext(), { nowMs: mine.startMs + 60000 });
       assert(M._switchTarget(ctxOpen) === null,
         'the switch must disappear once the pledged rally has begun');
+      // The invariant the old post-13:00 branch used to be the only carrier of,
+      // kept and now asserted in EVERY run: whatever the card offers as a
+      // switch must be something the pledge gate would actually accept.
+      const ctxNow = M._pledgeContext();
+      const tgt = M._switchTarget(ctxNow);
+      assert(tgt === null || M.canPledge(tgt.eventKey, ctxNow).ok,
+        'a switch target must always be one the pledge gate would actually accept');
     } finally {
+      M._setSkew(0);
       M._forceSupport(null);
+      if (CL && savedLaunched) CL.clanLaunched = savedLaunched;
       if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
+      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
       try { window.showTab(prevTab || 'profile'); } catch {}
     }
   }),

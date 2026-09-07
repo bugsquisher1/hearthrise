@@ -667,7 +667,37 @@ export function applyGoldEnvelope(G, body, ownKey) {
      background sync re-stamps. Same shape applyRecord expects on the reference
      path (`{ok:true, version, state, now}`), which `env` already is. Monotonic
      on `version`, so a slower answer cannot rewind. */
-  try { if (typeof window !== 'undefined' && window.HearthriseRecord) window.HearthriseRecord.applyRecord(G, env); } catch (e) {}
+  /* ⚠ THE **BODY**, NOT THE NARROWED ENVELOPE (b515, QA — a live P1).
+     `envelopeOf()` deliberately keeps only what the BALANCE applier needs
+     (`ok, version, now, state, skills, inventory, equipment`) — and `progress`
+     is not on that list. But `progress` is how a ROOM RUNG and a PROPERTY TIER
+     travel: `hr_state_of` returns `progress[] = {kind:'unlock', key:'room:<id>',
+     value:<rung>}` verbatim on every verb answer, and `record.js pickRooms` is
+     its only reader.
+
+     So passing `env` here made b500's whole design unreachable. `upgradeRoom`
+     sends `room.<id>.<rung>` and, under the armed rooms record, advances NOTHING
+     locally ("the rung advances ONLY on the server's ok"). The ok arrived, the
+     gold moved, the toast said "the Forge is yours" — and the rung stayed
+     UNKNOWN, so the House kept rendering `Build` at the next price until an
+     unrelated hr_load or 90-second settle happened to carry a full envelope. A
+     player who taps again inside that window buys the NEXT rung. That is the
+     b227 double-build report, restored by omission.
+
+     `body` is a superset of `env` — same `version`, same `state`, same `skills`
+     — so this is strictly more of what the server said, never a different
+     reading of it, and `applyRecord`'s own `decodeRecord` re-validates. Falls
+     back to `env` if the body is not an object, so a malformed answer degrades
+     to today's behaviour rather than to none.
+     GUARDED BY: `b227 regression: building a room repaints the House`, which now
+     drives the real gesture against a stubbed transport and asserts the rung
+     lands from the answer. */
+  try {
+    if (typeof window !== 'undefined' && window.HearthriseRecord) {
+      const forRecord = (body && typeof body === 'object' && !Array.isArray(body)) ? body : env;
+      window.HearthriseRecord.applyRecord(G, forRecord);
+    }
+  } catch (e) {}
   return written;
 }
 

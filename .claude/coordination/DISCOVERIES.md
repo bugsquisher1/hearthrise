@@ -2506,3 +2506,55 @@ code — the re-pointed away tests drive `simulateSpan` directly instead. `windo
 it is a loaded gun with no trigger — the injector that used to call it was deleted in b342 and the
 b214 double-pay is exactly what re-attaching it would recreate. All three should be deleted rather
 than left unreferenced; `tests/dead-exports.mjs` is the natural home for the guard.
+
+---
+
+## 2026-09-07 · QA · **P1 (LIVE, player-visible)** — a room or property purchase never shows as owned on its own answer: `applyGoldEnvelope` drops `progress`
+
+**⚠ THIS ONE IS FIXED IN THIS BRANCH (one line, `src/net/gold.js`), and it sits on the gold-verb
+path, so it wants a Systems read and a Security glance before it ships even though it moves no
+value.** Filed here in full because the fix is small and the reasoning is not.
+
+**THE DEFECT.** `src/net/gold.js applyGoldEnvelope` ended with:
+
+    window.HearthriseRecord.applyRecord(G, env);        // env = envelopeOf(body)
+
+`envelopeOf()` deliberately narrows a verb answer to what the BALANCE applier needs —
+`{ok, version, now, state, skills, inventory, equipment}`. `progress` is not on that list. But
+`progress` is *how a room rung and a property tier travel*: `hr_state_of` returns
+`progress[] = {kind:'unlock', key:'room:<id>', value:<rung>}` verbatim (2026-08-11-apply-engine.sql
+~254), `hr_unlock_buy`'s answer is `{...res}` so it carries it, and `record.js pickRooms` is its only
+reader. So the rung was stripped one line before the only function that could have applied it.
+
+**WHY THAT IS b227's DOUBLE-BUILD REPORT, RESTORED BY OMISSION.** b500 moved the rung write to the
+server on purpose — `upgradeRoom` sends `room.<id>.<rung>` and, under the armed rooms record,
+`clientMayWriteRecordField('rooms')` is false so it advances NOTHING locally ("the rung advances ONLY
+on the server's ok"). The ok arrives, the gold moves, the toast says *"the Forge is yours"* — and the
+rung stays UNKNOWN, so `renderHouse` keeps drawing **Build** at the next price. A player who taps
+again inside that window buys the NEXT rung. The window closes only when an unrelated `hr_load` or a
+90-second settle happens to carry a full envelope, so it is up to ~90 seconds of a lit Build button
+on a room that has already been paid for. That is the exact report b227 exists to guard, and the
+guard could not see it because the test was running client-authoritative and writing `G.rooms`
+itself.
+
+**THE FIX.** Pass the BODY, falling back to `env` when the body is not an object:
+
+    const forRecord = (body && typeof body === 'object' && !Array.isArray(body)) ? body : env;
+    window.HearthriseRecord.applyRecord(G, forRecord);
+
+`body` is a superset of `env` — same `version`, same `state`, same `skills` — so this is strictly
+more of what the server said, never a different reading of it, and `applyRecord`'s own
+`decodeRecord` re-validates and stays monotonic on `version`. It cannot mint: `pickRooms` reads the
+server's own rows and the client supplies nothing.
+
+**MUTATION PROVEN.** Reverting the line to `const forRecord = env;` turns
+`b227 regression: building a room repaints the House` red with *"the build did not land"*; restoring
+it turns it green. The test drives the real `upgradeRoom` against a stubbed transport, asserts the
+intent is exactly one `unlock_buy` naming `room.forge.1` with no price field, and reads the balance
+back as the SERVER's number (deliberately not `before - 800`, so it cannot pass on a client debit).
+
+**ROUTED:** Systems Engineer to review the applier change; Security for a glance because it is on the
+gold-verb path (it is an APPLY-what-the-server-sent change, not a value movement). Worth checking
+whether any other verb answer carries a field `envelopeOf` drops — `farm`, `companions` and
+`hero_slots` are all on `hr_state_of` and all reconciled elsewhere, so `progress` may not be the only
+one.

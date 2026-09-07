@@ -667,10 +667,35 @@ const withServerBacked = (opts, fn) => {
     Gd.resetGold();
     Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
   }
+  /* ── THE TWO GATES A REAL SESSION HAS ALREADY PASSED ──────────────────────
+     `applyGoldEnvelope` refuses to write for two reasons that have nothing to
+     do with the gesture under test, and BOTH are true of this harness and of no
+     real player:
+
+       · isReconcilePending() — the b314 snapshot hold. It is held until the
+         cloud reconcile settles, which never happens here because there is no
+         cloud. Held, every verb envelope is DEFERRED and applies nothing.
+       · isReplacementAcknowledged() — the b366 first-contact consent. Any
+         envelope whose gold is LOWER than G's reads `destructive` on plain
+         arithmetic, and a purchase always lowers gold, so an unacknowledged
+         client refuses its own successful purchase.
+
+     Both are released for the duration and restored exactly as found, which is
+     the same pair B354-1 and the b371 sync tests already manage by hand. A test
+     ABOUT either gate must not use this fixture — `ACCRUE-REPLACE-HANDOFF` owns
+     the deferral and drives it directly. */
+  const A = window.HearthriseAccrual;
+  const Sy = window.HearthriseSync;
+  const wasAck = A ? A.isReplacementAcknowledged() : null;
+  const wasHeld = (Sy && typeof Sy.isSnapshotHeld === 'function') ? Sy.isSnapshotHeld() : null;
+  if (A) A.acknowledgeReplacement(true);
+  if (wasHeld === true) Sy.releaseSnapshots();
 
   const restore = () => {
     window.fetch = realFetch;
     if (Gd && typeof Gd.configureGold === 'function') { Gd.resetGold(); Gd.configureGold(hadGoldCfg || null); }
+    if (A && wasAck !== null) A.acknowledgeReplacement(wasAck);
+    if (wasHeld === true) Sy.holdSnapshots();
   };
   let r;
   try { r = fn(rig); } catch (e) { restore(); throw e; }
@@ -679,6 +704,36 @@ const withServerBacked = (opts, fn) => {
   }
   restore();
   return r;
+};
+
+/* -- withRoomServer - THE ROOM RUNG COMES BACK ON THE ANSWER (b515) ---------
+   `upgradeRoom` / `upgradeProperty` are `hr_unlock_buy` gestures: the offer id
+   is `room.<id>.<rung>` (or `property.<tierId>`), NO price crosses, and the rung
+   advances ONLY on the server's ok — `clientMayWriteRecordField('rooms')` is
+   false, so the local `G.rooms[id] = lv+1` is skipped and the rung arrives on
+   the envelope as a `progress` row that `record.js pickRooms` shapes into the
+   map. Anything that asserts "the room is built" therefore has to let the
+   server say so.
+
+   This wraps `withServerBacked` with the two things a room purchase needs: the
+   `progress` rows for what is now owned, and the SERVER's post-purchase gold
+   (deliberately a number the client did not compute, so a test cannot pass by
+   the client having debited). The gesture is async — `buyUnlock` resolves with
+   the verdict — so `await rig.drain()` before reading anything.
+
+   `owned` is `{roomId: rung}` and/or `{'property:<tierId>': 1}`; `gold` is the
+   absolute balance the server is left holding. */
+const withRoomServer = (owned, gold, fn) => {
+  const progress = [];
+  for (const k of Object.keys(owned || {})) {
+    progress.push(k.indexOf(':') >= 0
+      ? { kind: 'unlock', key: k, value: Number(owned[k]) || 1, period: '' }
+      : { kind: 'unlock', key: 'room:' + k, value: Number(owned[k]) || 1, period: '' });
+  }
+  return withServerBacked({
+    state: (typeof gold === 'number') ? { gold: gold } : undefined,
+    extra: { progress },
+  }, fn);
 };
 
 /* -- serverGrants - "THE SERVER SAYS YOU NOW HAVE THIS", WITH NO ROUND TRIP --
@@ -2172,7 +2227,7 @@ const TESTS = [
   // gold-arm: gold is ARMED, so the affordability READ still needs the balance
   // stamped after it is set (stampBalanceLikeLoad below) even in the switch-OFF
   // position — canAfford fail-closes on an unstamped balance.
-  () => tryRunClientAuthoritative('b227 regression: building a room repaints the House (the double-build report)', () => {
+  () => tryRunAsync('b227 regression: building a room repaints the House (the double-build report)', async () => {
     // THE BUG. refreshAll() renders profile/inventory/skills/combat/shop and
     // has never rendered the House; nothing else repainted it after a mutation
     // either. So the row kept its old level, its old price and its "Build"
@@ -2195,17 +2250,41 @@ const TESTS = [
       assert(panel, 'house-panel missing');
       assert(!/Lv 1/.test(panel.textContent), 'precondition: the Forge should not read as owned yet');
 
+      /* b515 — THE BUILD IS THE SERVER'S, so the fixture supplies a server.
+         `upgradeRoom` sends `room.forge.1` and advances NOTHING locally (the
+         rooms record is armed); the rung and the balance both come back on the
+         envelope. The gold the server is left holding is deliberately NOT
+         `goldBefore - 800` — it is a number the client could not have computed
+         — so "the build charged" cannot pass by the client having debited. */
       const goldBefore = window.G.gold;
-      window.upgradeRoom('forge');
-      assert(window.G.rooms.forge === 1, 'the build should have happened in state');
-      assert(window.G.gold === goldBefore - 800, 'the build should have charged exactly the L1 price');
+      const SERVER_GOLD = goldBefore - 800 - 7;      // the client's guess, minus a number only the server knows
+      await withRoomServer({ forge: 1 }, SERVER_GOLD, async (rig) => {
+        window.upgradeRoom('forge');
+        await rig.drain();
 
-      // THE ASSERTION THE OLD CODE FAILED. No manual renderHouse() here on
-      // purpose — upgradeRoom itself must leave the screen agreeing with state.
-      const after = document.getElementById('house-panel').textContent;
-      assert(/Lv 1/.test(after),
-        'the House still does not show the Forge as owned after building it — this is the double-build report');
-    } finally { restoreG(snap); }
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'unlock_buy',
+          'the build sent ' + JSON.stringify(rig.sent) + ' — it must be exactly one unlock_buy intent');
+        assert(rig.sent[0].offer === 'room.forge.1',
+          'the build named the wrong offer: ' + rig.sent[0].offer);
+        for (const forbidden of ['gold', 'price', 'cost', 'amount']) {
+          assert(!(forbidden in rig.sent[0]),
+            'the build body carries a `' + forbidden + '` field — the server reads the price off '
+            + 'hr_unlock_offers, and a client that can name one can name a cheaper one');
+        }
+        assert(window.G.rooms.forge === 1,
+          'the build did not land: the rung arrives as a `progress` row on the answer, and '
+          + 'record.js is its only writer — got ' + JSON.stringify(window.G.rooms));
+        assert(window.G.gold === SERVER_GOLD,
+          'the balance is ' + window.G.gold + ' and the server said ' + SERVER_GOLD
+          + ' — the client either kept its own debit or applied the answer additively');
+
+        // THE ASSERTION THE OLD CODE FAILED. No manual renderHouse() here on
+        // purpose — upgradeRoom itself must leave the screen agreeing with state.
+        const after = document.getElementById('house-panel').textContent;
+        assert(/Lv 1/.test(after),
+          'the House still does not show the Forge as owned after building it — this is the double-build report');
+      });
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('b227 regression: a maxed room refuses another build, out loud', () => {

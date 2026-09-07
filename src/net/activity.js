@@ -691,14 +691,14 @@ export function isActivityConfirmed(kind, id) {
   return confirmed.kind === kind && confirmed.id === want;
 }
 
-/** Mirrors setLastServerActivity. Diagnostic seam AND a production caller since
- *  b520: src/net/record.js's boot resume files the pointer `hr_load` STATED as
- *  both the server's last word and an acknowledgement, because a record naming
- *  the activity is a stronger statement than a switch answer agreeing with one.
+/** Mirrors setLastServerActivity. A diagnostic seam AND a production caller:
+ *  src/net/record.js's boot resume files the pointer `hr_load` STATED as both
+ *  the server's last word and an acknowledgement, because a record naming the
+ *  activity is a stronger statement than a switch answer agreeing with one.
  *  Without it every visibility-resume re-declared an activity the server was
- *  already settling, and the b519 unconfirmed-stop path treated the player's own
- *  Stop as a surprise. Always set with `setLastServerActivity`: `confirmed`
- *  alone is a state the transport itself can never produce. */
+ *  already settling, and the unconfirmed-stop path treated the player's own Stop
+ *  as a surprise. Always set with `setLastServerActivity`: `confirmed` alone is
+ *  a state the transport itself can never produce. */
 export function setConfirmedActivity(a) {
   confirmed = (a && typeof a === 'object' && typeof a.kind === 'string')
     ? { kind: a.kind, id: a.id == null ? null : String(a.id) } : null;
@@ -706,7 +706,7 @@ export function setConfirmedActivity(a) {
 }
 
 /** What the server last SAID the player is doing. Diagnostic seam, and the boot
- *  record's way in since b520 — see setConfirmedActivity above. */
+ *  record's way in — see setConfirmedActivity above. */
 export function setLastServerActivity(a) {
   lastServerActivity = (a && typeof a === 'object' && typeof a.kind === 'string')
     ? { kind: a.kind, id: a.id == null ? null : String(a.id) } : null;

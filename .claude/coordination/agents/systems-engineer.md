@@ -3572,3 +3572,81 @@ Full write-up + the open guard gap in CONFLICTS.md.
   so it is B495-4's teardown, not the subject under test. A test that passes only because of what a
   neighbour happened to leave behind is the class CLAUDE.md §4 keeps meeting, and `opts.only` is
   now the thing that makes it visible.
+
+---
+
+## cleanup slice 1d — the three ratchets, red again after three lanes, paid the same way (2026-09-07)
+
+Branch `worktree-agent-ad408251ef743025a`, on top of `dbd31eb0`. artisan-after-reload, collection-log
+and bury→bench moved MONO-1 +161, CR-1/2/3 +7 counts, TF-2 past its band. Nothing was waived and no
+ratchet was re-pinned upward.
+
+**MONO-1 21,293 → 21,123** (ceiling was 21,132), top-level fns 506 → 504. Three extractions, all into
+`src/core-bridge.js` because `src/core/*` is VENDORED into the Edge bundle and touching it would have
+forced an `hr-accrue` redeploy for a cleanup lane:
+* `resumeTarget(kind,id)` — the gather/artisan pointer resolver plus the one WARN-and-decline voice
+  the two reconcile branches were duplicating. The BRANCHES stay in legacy.js: `activity-seam` S2b
+  greps for a literal `kind==='artisan'` inside `reconcileActivityPointer`, and moving them out would
+  have meant editing that guard, i.e. loosening it.
+* `carriedFight(fight,id,maxHp)` — the fail-closed carry decision (stale monster, hp>0, clamp to max,
+  kills floor) is now pure and testable; `applyCarriedFight` is 6 lines of assignment.
+* `artisanRecipeFor(skill,itemId)` + a memoised REVERSE index (input item → benches), keyed on the
+  forward index's identity. It reads `recipeInputs()`, so it finds a modern `inputs:{}` row as well as
+  a legacy `input:` one — the lane's hand-rolled `rows[i].input === id` found only the second.
+
+**The bury gesture moved to `src/features/inv-context-menu.js`** (`buryRecipeFor` / `buryGate` /
+`buryBones`, published as `window.HearthriseBury`). It belongs outside legacy.js because all THREE
+surfaces that offer it — this menu, the item-ux slider, the inv-detail flyout — are outside legacy's
+render path, and a lookup living in one of the three is a lookup the other two may disagree with.
+legacy.js's `openInvDetail` now READS `HearthriseBury.gate(id)` instead of re-implementing the
+workbench/level gate inline.
+
+**CR: all 35 b-number comment lines the three lanes added are gone**, plus 8 pre-existing ones inside
+passages that had started LYING and were rewritten rather than trimmed:
+* `record.js`'s "ORDER OF MIGRATION" table listed gold/inventory/skills/hearth_token as "may move
+  when…" — every one of them has been on `SERVER_OF_RECORD` since the cutover. Replaced by the rule
+  itself (ratio 1.733 → 1.689, the worst file in the repo).
+* legacy.js's `wk_bury` block said "UNBLOCKING IS ONE WORD: delete `blocked` the day burying is
+  server-settled" directly under a paragraph explaining that burying IS now server-settled and the row
+  still cannot pay. One statement now, naming the real blocker (no `prayer` row in `BENCH_COUNTERS`).
+* the `renderModal` note still pointed at `applyRichCatchup` "just above" after b521 deleted it.
+
+**TF-2 2.0645 → 2.0560** (ceiling 2.0608), −10 seeds, every one converted rather than deleted:
+* the bury test's bag now arrives through `HearthriseAccrual.reconcileInventory` — the away path — and
+  the count is READ back, so "the stack is untouched" measures a real number instead of a fabricated 20;
+* COLLECT-HELD-1's 14,800 granite arrives the same way, which is the path the log was blind to, so the
+  fixture is now the bug;
+* `G.skills.prayer = 0` deleted — the XP baseline is what the character really holds, which is a
+  stronger "no client XP" measurement than a seeded zero;
+* `stopBench()` no longer nulls the pointer after calling the player's own Stop (that would hide a Stop
+  that stopped neither), and the rite-less probe no longer seeds an inventory `buryBones` never reads.
+
+**Two baselines re-pinned DOWNWARD in this commit, and only downward** — `monolith` (21,132→21,123,
+506→504) and `test-file` (TF-3 floor 1176→1178; `codeLinesPerTest` and `seedsPerTest` UNCHANGED, held
+by `pinDown`). Not cosmetic: **all three `--selftest`s are CI steps, and two were RED until the re-pin**
+— with slack over the baseline the MONO-2 arm ("one new top-level function") and the TF-3 arm ("a test
+deleted") no longer fire, so an unpinned pay-down silently disarms the guard's own mutation proof.
+`comment-ratio` was NOT written: its `--write` re-pins per-file comment counts from today, which would
+have RAISED smoke-test.js's ceiling 16,249 → 16,333. Its notes name what it wants; that is the
+Coordinator's call at integration.
+
+**Verified:** three gates + three `--selftest`s green; 10 static guards green (`activity-seam`,
+`no-client-xp-mint`, `artisan-accrual`, `modal-goal-claim`, `dead-exports`, `window-globals-exist`,
+`cache-buster-guard`, `core-purity`, `no-duplicate-toplevel-fns`, `activity-intent`) plus the four
+client-write sweeps and the presentation guards; ONE headless page, 28/28 in-page tests across
+`b521:` · B520-1 · COLLECT-HELD-1 · B348-* · RECOVER-10..18 · F18-1..4 · AWAY-20 · INV-HYDRATE-1 ·
+b140 (context menu) · openInvDetail, 0 fail, 0 skip, 0 runtime errors, 0 console errors; a runtime
+probe proved `carriedFight` reproduces the old truth table row for row (stale monster→null, hp 0→null,
+hp 99 clamped to max 10, kills −3→0, null fight→null, max 0→null) and that `buryRecipeFor` answers all
+three bones, refuses a rite-less bone AND refuses `iron_ore` (the reverse index's skill filter).
+
+**No save-migration surface:** nothing added to `G`, the residue or `SERVER_OF_RECORD`; the one field
+the lanes deleted (`G.stats.buried`) stays deleted. No `src/core/*` change, so the Edge payload hash is
+untouched and no redeploy is owed.
+
+* **Known limitation:** the bury gesture living in `inv-context-menu.js` is the smallest correct home
+  today, not the final one. If a second item→bench gesture appears ("Cook this", "Smelt this"), promote
+  the trio to a `src/features/bench-gestures.js` keyed on `(skill, inputId)` — `artisanRecipeFor`
+  already takes that shape, so the promotion is a move.
+* **Owed to whoever runs the assembled gate:** `comment-ratio-ratchet` wants a `--write` it must not be
+  given blind — read the four "fell" notes first.

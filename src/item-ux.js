@@ -352,14 +352,13 @@
   function resolveAction(itemId){
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item) return null;
-    /* Bones → Bury AT THE ALTAR (b521). This was the third copy of a
-       client-authored mint: removeItem + addXp('prayer', …) with no intent and
-       no settle, so the XP evaporated on the next reload and the bones came
-       back. Burying is now the `bury_bones` artisan run the server settles, and
-       a bench run HAS NO QUANTITY — it consumes one bone per action until the
-       stack is gone or you stop it. `noQty` tells the summary row not to print
-       a count it cannot honour; the Sell half of this slider is unchanged and
-       still quantity-based. */
+    /* Bones → Bury AT THE ALTAR. This was the third copy of a client-authored
+       mint (removeItem + addXp('prayer', …) with no intent and no settle), so
+       the XP evaporated on the next reload and the bones came back. Burying is
+       the `bury_bones` artisan run the server settles, and a bench run HAS NO
+       QUANTITY — it consumes one bone per action until the stack is gone or you
+       stop it. `noQty` tells the summary row not to print a count it cannot
+       honour; the Sell half of this slider is unchanged and still qty-based. */
     if(item.buryXp){
       var bRec = (typeof window.buryRecipeFor === 'function') ? window.buryRecipeFor(itemId) : null;
       return {
@@ -524,9 +523,9 @@
     var lines = [];
     lines.push('<div class="qs-sum-row">' + _iuGly('gold',13,'--gold-2') + ' Sell ' + qty + ' for <b>' + totalSell.toLocaleString() + 'g</b> <i>(' + sellEach + 'g each)</i></div>');
     if(sliderState.action && sliderState.action.hint){
-      /* b521: an action that is a BENCH START or a deep-link has no quantity to
-         state, and printing the slider's number next to it ("Bury 2027 — …")
-         promises something the action does not do. `noQty` opts out. */
+      /* An action that is a BENCH START or a deep-link has no quantity to state,
+         and printing the slider's number next to it ("Bury 2027 — …") promises
+         something the action does not do. `noQty` opts out. */
       var actCount = sliderState.action.noQty ? '' : (' ' + qty);
       lines.push('<div class="qs-sum-row">' + _iuGly(sliderState.action.glyph, 13) + ' ' + sliderState.action.label + actCount + ' — <b>' + sliderState.action.hint + '</b></div>');
     }

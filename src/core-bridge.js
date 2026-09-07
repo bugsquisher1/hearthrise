@@ -172,6 +172,87 @@ function artisanRecipe(id) {
   return artisanRecipes()[id] || null;
 }
 
+/* The same index read BACKWARDS: input item id → the benches that consume it.
+   Built here rather than in src/core/artisan-sim.js only because that file is
+   vendored into the Edge bundle and the server has no use for it. Memoised on
+   the forward index's identity, so it is rebuilt exactly when that is.
+   `recipeInputs` is the reader, so a modern `inputs:{}` row is found as well as
+   a legacy `input:` one — one dialect reader, the artisan.js rule. */
+let _byInputIdx = null;
+let _byInputSrc = null;
+function recipesByInput() {
+  const idx = artisanRecipes();
+  if (_byInputIdx && _byInputSrc === idx) return _byInputIdx;
+  const out = Object.create(null);
+  for (const id of Object.keys(idx)) {
+    const hit = idx[id];
+    if (!hit || !hit.recipe) continue;
+    for (const input of Object.keys(artisan.recipeInputs(hit.recipe))) {
+      (out[input] || (out[input] = [])).push(hit);
+    }
+  }
+  _byInputIdx = out; _byInputSrc = idx;
+  return out;
+}
+
+/** The first recipe on `skill`'s bench that consumes `itemId`, or null. Derived,
+    never a hand-written item→recipe map, so a fourth bone with a fourth recipe
+    needs no code. */
+function artisanRecipeFor(skill, itemId) {
+  if (typeof skill !== 'string' || typeof itemId !== 'string') return null;
+  const rows = recipesByInput()[itemId];
+  if (!rows) return null;
+  for (const hit of rows) { if (hit.skill === skill) return hit.recipe; }
+  return null;
+}
+
+/** What a server activity pointer NAMES in this build — `{skill, node}` for a
+    `gather` id, `{skill, recipe}` for an `artisan` one, null for anything this
+    build cannot resolve. Both sides read the SAME indexes the accrual engine
+    reads, so the client and the engine cannot disagree about which skill a
+    target belongs to.
+
+    A miss is NOT a reason to stop the player: the catalogues are guarded
+    identical to the server's, so it means the guard is wrong or the build is
+    old, and the honest move is to leave the run alone and say so. Saying so
+    lives here, in one voice, instead of once per branch in the monolith. */
+/** The carried fight the client may resume, as `{hp, kills}`, or null when the
+    carry is unusable. `player_state.fight` has been server state since
+    2026-08-17-fight-carry.sql and the server resumes from it in every accrual
+    span; a client that ignored it handed the player a full-health monster and
+    threw away the damage the server was still holding — the whole fight, on a
+    520-hp dragon.
+
+    FAIL-CLOSED, mirroring the Edge engine's own guard
+    (functions/hr-accrue/accrual.js: `fight.monster === activeId && fight.hp > 0`):
+    a carry naming a DIFFERENT monster is stale, and pouring its hp into the
+    current foe would be a free half-killed boss. The `min` against `max` is the
+    client's half of the SQL re-clamp against `hr_activities.max_hp` — a
+    monster's hp can be lowered in src/data/monsters.js while a fight is
+    carried, and a foe starting with more hp than it has cannot be killed. */
+function carriedFight(fight, id, maxHp) {
+  if (!fight || typeof fight !== 'object') return null;
+  if (fight.monster !== id) return null;
+  const hp = Number(fight.hp);
+  if (!isFinite(hp) || !(hp > 0)) return null;
+  const max = Number(maxHp);
+  if (!isFinite(max) || !(max > 0)) return null;
+  const k = Number(fight.kills);
+  return { hp: Math.min(hp, max), kills: (isFinite(k) && k >= 0) ? Math.floor(k) : 0 };
+}
+
+function resumeTarget(kind, id) {
+  const hit = kind === 'gather' ? gatherNode(id)
+    : kind === 'artisan' ? artisanRecipe(id)
+      : null;
+  if (!hit) {
+    console.warn('[activity] the server says ' + kind + ':' + id + ", which this build's " + kind
+      + ' index cannot resolve — leaving the local activity alone rather than acting on a target it '
+      + 'cannot name');
+  }
+  return hit;
+}
+
 /* The perk stack. On the client this is a chain seven wrappers deep
    (world-events, companions, clans, clan-seat-ui, muster + two in
    legacy.js); core must not know that, so it only ever sees a function. */
@@ -298,8 +379,9 @@ window.HearthriseCore = {
   bonus, toolSpeed, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
   /* b348 — the gather index and its lookup, shared with the accrual engine. */
   gatherNodes, gatherNode,
-  /* …and the artisan index, on the same contract. */
-  artisanRecipes, artisanRecipe,
+  /* …and the artisan index, on the same contract, plus its reverse (item →
+     bench) and the one resolver both reconcile branches share. */
+  artisanRecipes, artisanRecipe, artisanRecipeFor, resumeTarget, carriedFight,
   items: ITEMS,
 };
 

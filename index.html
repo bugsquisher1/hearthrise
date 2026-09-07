@@ -1031,6 +1031,17 @@
   <script src="src/features/farm-progression.js?v=518"></script>
   <!-- b138: Profile launchpad (resume / today / milestone / rename) -->
   <script src="src/features/profile-launchpad.js?v=518"></script>
+  <!-- THE ICON LAYER (first unit of the legacy.js extraction, cleanup slice 8b).
+       Loads BEFORE legacy.js, unlike every other src/render/* module, because it
+       is a DEPENDENCY of legacy.js rather than a screen controller legacy calls
+       back into: the monolith's render functions call itemArt()/skillIconHTML()/
+       itemFallbackIcon() as bare globals, so those names must be on window
+       before legacy.js is parsed. It is a classic script for the same reason a
+       module would not work — an ESM would be deferred and evaluate AFTER
+       legacy.js. legacy.js installs the icon maps + the b371 readiness edge by
+       calling HearthriseIcons.installIconLayer() at the exact point block 38
+       used to run; tests/icon-boot-order.mjs guards that ordering. -->
+  <script src="src/render/icons.js?v=518"></script>
   <script src="src/legacy.js?v=518"></script>
   <!-- b372: every ITEM REQUIREMENT is a link to the bag's own item flyout.
        Loads right after legacy.js because it wraps openInvDetail and because

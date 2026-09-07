@@ -26754,24 +26754,126 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('b265: buryBones is unified — a plain Bury clears the whole stack (tester: sometimes 1, sometimes all)', () => {
+  /* ── b521 regression suite — THE BURY GESTURE AUTHORS NOTHING ─────────────
+     paione, 2026-09-07: "I got like 2k bones which I can bury a gazillion times
+     and get the exp and keep the bones." buryBones() was removeItem + addXp
+     with no intent, no RPC and no settle: the client authored both the debit
+     and the XP, the realm never saw it, and a reload restored the bones and
+     snapped Prayer back to the server's number. (This REPLACES the b265 test,
+     whose asserted contract — "a plain Bury clears the whole stack" locally —
+     was the bug written down. b265's real property, that all three surfaces
+     take ONE path, is kept and asserted below.)
+
+     It fails without the fix in both directions: the old body burns the stack
+     (so `bones` is 0, not 20) and grants XP locally (so prayer moves), and it
+     never sets an activity pointer (so the run is never declared). */
+  () => tryRun('b521: Bury starts the SERVER-SETTLED altar bench — no client XP, no client debit (paione: "bury a gazillion times and keep the bones")', () => {
     if(typeof window.buryBones !== 'function'){ skip('no buryBones'); return; }
     const snap = snapshotG();
+    const realNotify = window.notify;
+    /* The bench arms two setIntervals. Leaving them running would tick
+       doArtisanAction() through the REST of the suite — eating bones and
+       moving Prayer inside other tests. stopSkill() clears the timers AND the
+       pointer; _stopArtisan is the timers-only fallback (b228). */
+    const stopBench = () => {
+      try {
+        if(typeof window.stopSkill === 'function') window.stopSkill();
+        else if(typeof window._stopArtisan === 'function') window._stopArtisan();
+      } catch(e) {}
+      window.G.activeSkill = null; window.G.skillTargetId = null;
+    };
     try {
       const G = window.G;
+      // The recipe map is DERIVED, never hardcoded — assert the derivation too.
+      assert(typeof window.buryRecipeFor === 'function', 'buryRecipeFor seam missing');
+      const rec = window.buryRecipeFor('bones');
+      assert(rec && rec.id === 'bury_bones',
+        'bones must resolve to the bury_bones prayer recipe, got ' + JSON.stringify(rec));
+
+      /* 0. THE REQUIREMENT IS STATED BEFORE THE CLICK. Prayer is NOT in
+         homestead's UNGATED set (only cooking is — the campfire ruling), and
+         the Shrine is a tier-4 room, so MOST players meet this branch. It used
+         to be the branch that handed out phantom XP; it must now name the room
+         on a disabled button rather than look live and refuse. */
+      G.inventory = Object.assign({}, G.inventory, { bones: 20 });
+      G.homestead = { tier: 0 }; G.rooms = {};
+      stampRecordLikeLoad(G);
+      if(typeof window.openInvDetail === 'function'){
+        window.openInvDetail('bones');
+        const html = document.body.innerHTML;
+        const m = /<button[^>]*disabled[^>]*>Bury[^<]*<\/button>/.exec(html);
+        assert(m, 'with no Shrine the Bury button must be DISABLED and say why; found: '
+          + (/(<button[^>]*>Bury[^<]*<\/button>)/.exec(html) || ['none'])[0]);
+        assert(/Shrine/i.test(m[0]), 'the disabled Bury must name the Shrine, got: ' + m[0]);
+        if(typeof window.closeInvDetail === 'function') window.closeInvDetail();
+      }
+
+      // The Shrine is the bench's room — grant it through the RECORD (b456) or
+      // every probe below refuses for the wrong reason (same recipe as b228).
+      G.rooms = Object.assign({}, G.rooms, { shrine: 1 });
+      stampRecordLikeLoad(G);
       G.inventory = Object.assign({}, G.inventory, { bones: 20 });
       G.skills = Object.assign({}, G.skills, { prayer: 0 });
+      G.activeSkill = null; G.skillTargetId = null;
+      window.notify = () => {};
+
       const p0 = xpOf('prayer');
-      // Plain bury (no qty) buries the WHOLE stack.
-      const n = window.buryBones('bones');
-      assert(n === 20, 'a plain Bury must bury the whole stack, buried ' + n);
-      assert((G.inventory.bones || 0) === 0, 'the stack must be emptied, left ' + G.inventory.bones);
-      assert(xpOf('prayer') > p0, 'prayer XP must be awarded for the buried bones');
-      // An explicit quantity buries exactly that many (the slider path).
-      G.inventory.bones = 10;
-      const n2 = window.buryBones('bones', 3);
-      assert(n2 === 3 && (G.inventory.bones || 0) === 7, 'a qty Bury must bury exactly that many, left ' + G.inventory.bones);
-    } finally { restoreG(snap); }
+      const started = window.buryBones('bones');
+
+      // 1. THE RUN IS DECLARED — the gesture reached the activity pointer.
+      assert(started === 'bury_bones', 'Bury must start the bury_bones run, returned ' + started);
+      assert(G.activeSkill === 'prayer' && G.skillTargetId === 'bury_bones',
+        'the artisan pointer must be prayer/bury_bones, got '
+        + G.activeSkill + '/' + G.skillTargetId);
+
+      // 2. NO CLIENT-AUTHORED XP. Starting a bench grants nothing; the settle does.
+      assert(xpOf('prayer') === p0,
+        'starting the bench must not grant Prayer XP locally (' + p0 + ' → ' + xpOf('prayer') + ')');
+
+      // 3. NO CLIENT-AUTHORED DEBIT. The stack is untouched until an action ticks.
+      assert((G.inventory.bones || 0) === 20,
+        'starting the bench must not burn the stack, left ' + G.inventory.bones);
+
+      // 4. NO CLIENT COUNTER. G.stats.buried had one writer and one blocked
+      //    reader; it went with the mint rather than ticking into the void.
+      assert(!(G.stats && G.stats.buried),
+        'G.stats.buried is back — a counter nothing server-side stamps');
+
+      // 5. ONE PATH, ALL SURFACES (the b265 property, kept). The inv-detail
+      //    button's `else` branch used to write G.skills.prayer inline.
+      const detailSrc = String(window.openInvDetail || '');
+      assert(detailSrc.length > 0, 'openInvDetail is not published — this check would pass vacuously');
+      assert(!/G\.skills\.prayer\s*=/.test(detailSrc) && !/addXp\(\s*['"]prayer/.test(detailSrc),
+        'the inv-detail Bury button still carries a client-authored prayer grant');
+
+      // 5b. THE SLIDER TELLS THE TRUTH. A bench run has no quantity, so the
+      //     summary may not promise one ("Bury 20 — …" was the old copy).
+      if(typeof window.openQtySlider === 'function'){
+        window.openQtySlider('bones');
+        const sum = (document.getElementById('qs-summary') || {}).textContent || '';
+        assert(/Bury/.test(sum), 'the slider must still offer Bury, got: ' + sum.slice(0, 160));
+        assert(!/Bury\s*\d/.test(sum),
+          'the slider still promises a bury QUANTITY the bench cannot honour: ' + sum.slice(0, 160));
+        const cancel = document.getElementById('qs-cancel');
+        if(cancel) cancel.click();
+      }
+
+      // 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED. bone_chips
+      //    is a real drop with no prayer recipe — the honest answer is a
+      //    refusal that says so, never a no-op click.
+      stopBench();
+      let said = '';
+      window.notify = (m) => { said += ' ' + m; };
+      G.inventory = Object.assign({}, G.inventory, { bone_chips: 5 });
+      const none = window.buryBones('bone_chips');
+      assert(none === null, 'an item with no prayer recipe must not start a run');
+      assert(!G.activeSkill, 'a rite-less item must leave the activity pointer alone');
+      assert(/no altar rite/i.test(said), 'the refusal must say why, got: "' + said.trim() + '"');
+    } finally {
+      window.notify = realNotify;
+      stopBench();
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b264: auto-accept bounty switches combat to the new target (tester: left grinding the old monster)', () => {

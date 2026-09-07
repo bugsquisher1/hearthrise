@@ -39693,143 +39693,193 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
-     b516 REGRESSION — applyGoldEnvelope HANDS applyRecord THE **BODY**, NOT THE
-     NARROWED ENVELOPE. Two directions, one seam.
+     b517 REGRESSION — A REFUSAL ENVELOPE IS RECONCILIATION, NOT A RECEIPT.
+     Three cases, one seam: `applyRecord(G, { ...body, ok: true })`.
      ══════════════════════════════════════════════════════════════════════════
-     THE BUG (b515, QA-found, a live P1). `envelopeOf()` narrows a server answer
-     to what the BALANCE applier needs — `ok, version, now, state, skills,
-     inventory, equipment` — and `progress` is NOT on that list. But `progress`
-     is how a ROOM RUNG and a PROPERTY TIER travel: hr_state_of returns
-     `progress[] = {kind:'unlock', key:'room:<id>', value:<rung>}` on every verb
-     answer, and record.js's `pickRooms` is its only reader. Passing the narrowed
-     `env` to applyRecord therefore dropped the rung on the floor: `upgradeRoom`
-     sends `room.forge.1` and advances NOTHING locally (under the armed rooms
-     record the rung moves only on the server's ok), so the ok arrived, the gold
-     moved, the toast said "the Forge is yours" — and the House kept rendering
-     `Build` at the next price until an unrelated hr_load or the 90s settle
-     happened to carry a full envelope. A player who taps again inside that
-     window buys the NEXT rung. That is the b227 double-build report, restored by
-     omission. The fix passes `body` (a strict superset of `env`).
+     THE SHAPE OF THE BUG, AND WHY IT IS A MONEY-PATH P1 RATHER THAN A DETAIL.
+     `applyGoldEnvelope` writes the balance and stamps the record from the SAME
+     server answer, and until b517 those two halves disagreed about what an
+     answer is:
 
-     WHY THE ok:false HALF IS HERE AND IS NOT A SEPARATE TEST. The two directions
-     are the SAME line — `applyRecord(G, body)` vs `applyRecord(G, env)` — read
-     from opposite ends, and the ok:false half is what makes the fix safe rather
-     than merely effective:
+       · `applyEnvelopeState` writes `G.gold` ABSOLUTELY from any body that
+         `envelopeOf()` validated. settleVerdict routes a body to the applier on
+         SHAPE, independent of the 4xx outcome — so a REFUSAL that carries state
+         moves the displayed balance.
+       · `decodeRecord` (record.js, the only writer of record fields) refuses
+         `ok !== true` outright.
 
-       ⚠ `envelopeOf()` FORCES `ok: true` ON ITS RESULT (measured — it never
-         reads `body.ok`). So the OLD code handed applyRecord an answer stamped
-         ok:true no matter what the server actually said, and a refusal body that
-         happens to carry `state`/`skills`/`inventory` — which settleVerdict
-         routes to onEnvelope purely on SHAPE, independent of the 4xx outcome —
-         got its `progress` and its record fields written as though the verb had
-         landed. Passing the BODY restores the server's own verdict to the only
-         function that writes record fields: `decodeRecord` refuses `ok !== true`
-         outright (`reason:'not_ok'`), so nothing is written and nothing is
-         stamped. The widening is therefore also a TIGHTENING, and this half is
-         the assertion that keeps it one.
+     So a refusal left `G.gold` at the server's new number and `_record.stamp.gold`
+     at the OLD fingerprint. A stamped-but-mismatched field is exactly what
+     `recordValue` reports as `source:'client-overwrote'` → `balanceOf('gold')`
+     UNKNOWN → `canAfford` fail-closed → every Buy / Sell / List control disabled
+     until an unrelated hr_load or the 90-second settle happened to re-stamp.
+     That is the b395 class ("the record must follow the gold verb"), restored by
+     omission — and it fires on the single most common refusal there is,
+     `version_conflict`, which a second tab or a racing settle produces routinely.
+     b516 asserted the WRONG half of it (that a refusal writes no record at all)
+     and this test replaces that contract with the reviewed one.
 
-     MUTATION-PROVED, BOTH DIRECTIONS (b516, at module level against the real
-     record.js — revert the tail of applyGoldEnvelope in src/net/gold.js to
-     `applyRecord(G, env)`):
-       · ok:true  → `written` is ["gold","gems"] and `G.rooms` is undefined:
-                    (B2) and (B2's recordValue check) go red. With the fix the
-                    written list is ["gold","gems","rooms"].
-       · ok:false → the forced-ok env is DECODABLE, so gold/gems are written and
-                    `_record` IS stamped: (A3) goes red. (A2) stays green in that
-                    mutant for a second reason — `env` also dropped `progress`, so
-                    the rung had nothing to arrive on. Both assertions are kept:
-                    A2 catches a future widening of envelopeOf that keeps the
-                    forced `ok`, A3 catches the refusal being believed today.
+     WHY BELIEVING THE REFUSAL'S STATE IS CORRECT — the Security ruling, and it
+     rests on a fact about the server, not on a preference. A refusal envelope is
+     a DELIBERATE reconciliation aid: `supabase/functions/hr-accrue/envelope.js
+     refusalBody()` attaches a **fresh `hr_state_of` read taken on the refusal
+     path**, precisely because the refusal that most needs one is
+     `version_conflict`, which means BY DEFINITION that the pre-call read was
+     stale. The `state` / `version` / `progress` in a refusal body is therefore
+     CURRENT SERVER TRUTH about this character. It is not a receipt for the verb
+     — and nothing here treats it as one: the PREDICTION is still rolled back or
+     abandoned by settleVerdict on the outcome, untouched by this seam. The
+     record's question is only ever "what does the server say the value is", and
+     a refusal body answers it with the newest reading that exists.
 
-     ⚠ MEASURED-OPEN, FOR SECURITY — NOT ASSERTED EITHER WAY HERE, DELIBERATELY.
-     gold.js's module-local monotonic `lastVersion` DOES still advance on an
-     ok:false body (measured: after an ok:false envelope at v=1000, a later v=999
-     answer comes back `{stale:true, current:1000}`), because `lastVersion =
-     env.version` sits above the applyRecord call and is not gated on `body.ok`.
-     The same is true of the BALANCE write, which applyEnvelopeState performs
-     absolutely from a refusal body. Neither is a mint — only the server can
-     produce those numbers, and RECORD state is now correctly withheld — but
-     gating them is a change to a money path's semantics (it would flip
-     settleVerdict from retiring a prediction to abandoning it), and CLAUDE.md §2
-     puts that behind a Security GO rather than inside a test-only commit. This
-     test asserts the RECORD watermark (`_record.version`), which IS gated and IS
-     the one the record path reads. Filed for the Security lane. */
-  () => tryRun('b516 regression: the gold envelope hands applyRecord the BODY — progress lands, a refusal does not', () => {
+     THE GATE IS `envelopeOf`, AND CASE (B) IS THE ASSERTION THAT KEEPS IT ONE.
+     A STATELESS refusal — the shape and pre-database codes, which the server's
+     `refusalCarriesState` answers false for — has no `state`, so
+     `applyGoldEnvelope` returns null at the top and writes nothing at all. The
+     `ok:true` this seam adds is a statement about the ENVELOPE (validated,
+     monotonic, freshly read), never about the verb.
+
+     MUTATION-PROVED (b517, at module level against the real record.js — drop the
+     `, ok: true` from the applyRecord call at the tail of applyGoldEnvelope in
+     src/net/gold.js):
+       · (A3), (A4) and (A5) go RED, and (A4)/(A5) report exactly
+         `client-overwrote` — the live symptom, reproduced from the seam. That
+         fidelity is why case (A) primes the record with a good envelope first:
+         on a virgin G the same mutant only reports `unknown`, which is the
+         weaker (merely uninformed) failure, not the one players hit. (A6) stays
+         green in the mutant because the priming envelope already carried the
+         rung; it guards the refusal's `progress` against a future narrowing.
+       · (B) and (C) stay green, which is why all three are here: (B) proves the
+         widening did not swallow a stateless refusal, (C) is the b515/b227
+         double-build property that the body-passing fix bought in the first
+         place and that this change must not regress. */
+  () => tryRun('b517 regression: a refusal envelope reconciles the record, a stateless refusal writes nothing', () => {
     const R = window.HearthriseRecord;
     const Gd = window.HearthriseGold;
+    const B = window.HearthriseBalance;
     assert(R && typeof R.applyRecord === 'function' && typeof R.recordValue === 'function',
       'record.js did not load — this whole contract is about its only writer');
-    assert(Gd && typeof Gd.applyGoldEnvelope === 'function' && typeof Gd.envelopeOf === 'function',
-      'gold.js applyGoldEnvelope/envelopeOf must be published');
+    assert(Gd && typeof Gd.applyGoldEnvelope === 'function' && typeof Gd.envelopeOf === 'function'
+      && typeof Gd.getGoldState === 'function',
+      'gold.js applyGoldEnvelope/envelopeOf/getGoldState must be published');
+    assert(B && typeof B.balanceOf === 'function',
+      'balance.js balanceOf must be published — it is the reader the player actually feels');
 
     /* PRIVATE Gs, never window.G — so nothing global moves and the destructive-
        replacement gate sees no local progress to lose. The server balance is
        kept ABOVE the local one for the same reason: a spend reads as destructive
-       on arithmetic alone and would divert both halves into the consent sheet
+       on arithmetic alone and would divert every case into the consent sheet
        (a known limitation of this path), which would make the test vacuous. */
     const vBase = Date.now();          // clear whatever lastVersion the suite left
-    const mkBody = (ok, version) => ({
+    const mkBody = (ok, version, gold) => ({
       ok, verb: 'unlock_buy', version, now: new Date(version).toISOString(),
-      state: { gold: 500, gems: 0 }, skills: {}, inventory: {},
+      state: { gold: (gold === undefined ? 500 : gold), gems: 0 }, skills: {}, inventory: {},
       progress: [{ kind: 'unlock', key: 'room:forge', value: 1 }],
+      ...(ok ? {} : { error: 'version_conflict', stage: 'apply' }),
     });
 
     try {
-      /* ── PRECONDITION: the narrowing is real, and it is what makes this test
-         non-vacuous. If `progress` ever joins envelopeOf's result the two halves
-         below stop measuring anything, and this says so instead of passing. */
-      const env = Gd.envelopeOf(mkBody(true, vBase + 1));
+      /* ── PRECONDITIONS. Both halves of the seam are only measurable while
+         these hold, and a silent change to either would leave this test green
+         and hollow — so it says so instead of passing. */
+      const env = Gd.envelopeOf(mkBody(true, vBase + 1, 500));
       assert(env && !('progress' in env),
         'envelopeOf now carries `progress`, so passing `env` and passing `body` are no longer '
-        + 'distinguishable and this regression measures nothing. Either narrow it again or retire '
-        + 'this test deliberately — do not leave it green and hollow.');
-      assert(env.ok === true,
-        'envelopeOf no longer forces ok:true. That is arguably better, but half (A) below is written '
-        + 'to prove the BODY carries the refusal — re-read this test before changing it.');
+        + 'distinguishable and case (C) measures nothing. Either narrow it again or retire that half '
+        + 'deliberately — do not leave it green and hollow.');
+      assert(Gd.envelopeOf({ ok: false, verb: 'unlock_buy', version: vBase + 1, error: 'bad_offer' }) === null,
+        'envelopeOf accepted a body with no state/skills/inventory. That gate is the ONLY thing keeping '
+        + 'a stateless refusal out of the record writer, and case (B) below is written to prove it holds.');
 
-      /* ══ (A) A REFUSAL THAT CARRIES STATE + PROGRESS WRITES NO RECORD ══════ */
+      /* ══ (A) A REFUSAL THAT CARRIES STATE **RECONCILES** THE RECORD ════════
+         The refusal body is a fresh hr_state_of read. The balance moves; the
+         record must move WITH it, or the player's gold reads UNKNOWN. */
       Gd.resetGold();
       const gA = { gold: 10, gems: 0, skills: {}, inventory: {} };
-      const wA = Gd.applyGoldEnvelope(gA, mkBody(false, vBase + 1), Gd.newIntentKey());
-      // (A1) The call was NOT diverted into the consent sheet or the stale branch —
-      //      without this, (A2)/(A3) would pass for the wrong reason.
+      /* PRIMED WITH A GOOD ENVELOPE FIRST, AND THAT IS THE FIDELITY OF THIS
+         FIXTURE. A player who reaches a refusal has ALREADY had a successful
+         answer, so `_record` is stamped at the old fingerprint when the refusal
+         arrives — which is the difference between the mutant reporting `unknown`
+         (a virgin G, merely uninformed) and `client-overwrote` (the live b395
+         symptom: a stamp that now contradicts G). Start from where a player is. */
+      Gd.applyGoldEnvelope(gA, mkBody(true, vBase + 1, 300), Gd.newIntentKey());
+      assert(R.recordValue(gA, 'gold').source === 'server' && gA.gold === 300,
+        'the priming envelope did not stamp gold — the refusal case below would then measure an '
+        + 'uninformed record rather than a contradicted one, which is the weaker of the two.');
+      const wA = Gd.applyGoldEnvelope(gA, mkBody(false, vBase + 2, 500), Gd.newIntentKey());
+      // (A1) The call reached the apply path — not the consent sheet, not the stale branch.
       assert(wA && !wA.stale,
         'the ok:false fixture never reached the apply path (' + JSON.stringify(wA) + ') — the assertions '
         + 'below would be vacuous. Check the replacement gate and the monotonic branch.');
-      // (A2) THE POINT. `progress` rode in on a body the server marked NOT ok.
-      assert(gA.rooms === undefined,
-        'a gold answer with `ok:false` still granted the room rung: G.rooms = ' + JSON.stringify(gA.rooms)
-        + '. decodeRecord refuses `ok !== true`, so this can only happen if applyGoldEnvelope handed '
-        + 'applyRecord the NARROWED envelope, whose `ok` is forced true — i.e. the client believed a '
-        + 'purchase the server refused.');
-      // (A3) …and no record field was written, so the watermark did not move.
-      assert(gA._record === undefined,
-        'a refused gold answer stamped the record anyway: ' + JSON.stringify(gA._record)
-        + '. Stamping is an assertion that an authoritative write happened; on a refusal none did.');
-      assert(R.recordValue(gA, 'rooms').known === false,
-        'the rooms record reads KNOWN after a refusal — it must stay UNKNOWN so the House fails closed '
-        + 'rather than rendering a room the player does not own');
+      // (A2) The balance was written absolutely, which is the half that was never in doubt…
+      assert(gA.gold === 500,
+        'the refusal envelope did not write the balance absolutely (G.gold = ' + gA.gold + '). If this '
+        + 'ever stops being true the split this test is about no longer exists — re-read the seam.');
+      // (A3) …and the record was stamped from the SAME answer, at the same version.
+      assert(gA._record && Number(gA._record.version) === vBase + 2,
+        'the record watermark did not follow the refusal envelope: ' + JSON.stringify(gA._record)
+        + '. The balance moved from this answer; the record must move with it or they disagree.');
+      // (A4) THE POINT, in the vocabulary the bug spoke.
+      const rvA = R.recordValue(gA, 'gold');
+      assert(rvA.known === true && rvA.source === 'server',
+        'gold reads `' + rvA.source + '` after a refusal envelope (expected `server`). '
+        + '`client-overwrote` is the live b395 symptom: applyEnvelopeState moved G.gold while the stamp '
+        + 'stayed at the old fingerprint, so the record cannot vouch for a number the server itself sent.');
+      // (A5) …and the reader the player actually feels.
+      const bA = B.balanceOf(gA, 'gold');
+      assert(bA.known === true && bA.value === 500,
+        'balanceOf reports UNKNOWN (' + bA.reason + ') after a refusal envelope. That is a top bar showing '
+        + 'an em dash and every Buy / Sell / List control disabled until an unrelated sync re-stamps.');
+      // (A6) The rung in `progress` is current truth too, from the same fresh read.
+      assert(gA.rooms && gA.rooms.forge === 1,
+        'the refusal envelope’s `progress` was dropped: G.rooms = ' + JSON.stringify(gA.rooms)
+        + '. It is the same fresh hr_state_of read as the balance — a refusal is not a receipt, but it '
+        + 'IS the newest statement of what this character owns.');
+      // (A7) The module watermark advanced, so a genuinely older answer is refused after it.
+      assert(Gd.getGoldState().version === vBase + 2,
+        'gold.js lastVersion did not advance on the refusal envelope (' + Gd.getGoldState().version
+        + '). It is the same envelope the balance was written from; leaving it behind would let a '
+        + 'strictly older answer overwrite it.');
 
-      /* ══ (B) AN ok:true ANSWER MARKS THE ROOM OWNED — ON THIS ENVELOPE ═════
-         "Without a second envelope" is the whole P1: no hr_load, no settle, no
-         further call happens between the answer and the assertion. */
+      /* ══ (B) A **STATELESS** REFUSAL WRITES NOTHING AT ALL ═════════════════
+         No state, no skills, no inventory — the server refused on shape or
+         before any database work, so there is no reading to reconcile to. */
       Gd.resetGold();
       const gB = { gold: 10, gems: 0, skills: {}, inventory: {} };
-      const wB = Gd.applyGoldEnvelope(gB, mkBody(true, vBase + 2), Gd.newIntentKey());
-      assert(wB && !wB.stale && wB.gold === 500,
-        'the ok:true fixture did not apply its balance: ' + JSON.stringify(wB));
-      // (B2) THE FIX. The rung arrives as a `progress` row and record.js is its only writer.
-      assert(gB.rooms && gB.rooms.forge === 1,
-        'the purchased room did not land from the answer: G.rooms = ' + JSON.stringify(gB.rooms)
+      const wB = Gd.applyGoldEnvelope(gB,
+        { ok: false, verb: 'unlock_buy', version: vBase + 5, error: 'bad_offer' }, Gd.newIntentKey());
+      assert(wB === null,
+        'a stateless refusal was applied as an envelope (' + JSON.stringify(wB) + '). envelopeOf must '
+        + 'refuse it at the top of applyGoldEnvelope; anything else is the client believing a body that '
+        + 'contains no server reading.');
+      assert(gB.gold === 10 && gB._record === undefined,
+        'a stateless refusal moved state: gold=' + gB.gold + ', _record=' + JSON.stringify(gB._record));
+      assert(R.recordValue(gB, 'gold').known === false,
+        'gold reads KNOWN after a stateless refusal — nothing authoritative arrived to know it from');
+      assert(Gd.getGoldState().version === -1,
+        'gold.js lastVersion advanced on a body carrying no envelope (' + Gd.getGoldState().version
+        + '). A refusal with no reading must not raise the watermark that gates real ones.');
+
+      /* ══ (C) AN ok:true ANSWER MARKS THE ROOM OWNED — ON THIS ENVELOPE ═════
+         Kept verbatim in intent from b516: this is the b515 fix (pass the BODY,
+         not the narrowed envelope) and the b227 double-build report. "Without a
+         second envelope" is the whole P1 — no hr_load, no settle, no further
+         call between the answer and the assertion. */
+      Gd.resetGold();
+      const gC = { gold: 10, gems: 0, skills: {}, inventory: {} };
+      const wC = Gd.applyGoldEnvelope(gC, mkBody(true, vBase + 3), Gd.newIntentKey());
+      assert(wC && !wC.stale && wC.gold === 500,
+        'the ok:true fixture did not apply its balance: ' + JSON.stringify(wC));
+      assert(gC.rooms && gC.rooms.forge === 1,
+        'the purchased room did not land from the answer: G.rooms = ' + JSON.stringify(gC.rooms)
         + '. The rung travels as `progress[]`, which `envelopeOf` drops — so passing the narrowed '
         + 'envelope to applyRecord leaves the House rendering `Build` at the next price and the next '
         + 'tap buys the NEXT rung. That is the b227 double-build report.');
-      assert(R.recordValue(gB, 'rooms').known === true,
+      assert(R.recordValue(gC, 'rooms').known === true,
         'the rooms record is still UNKNOWN after a successful unlock_buy — the rung was written to G '
         + 'by something other than applyRecord, which is a second writer for a server-owned field');
-      // (B3) The record watermark followed the verb (the b395 property, on this body).
-      assert(gB._record && Number(gB._record.version) === vBase + 2,
-        'the record version did not advance to the verb envelope: ' + JSON.stringify(gB._record));
+      assert(gC._record && Number(gC._record.version) === vBase + 3,
+        'the record version did not advance to the verb envelope: ' + JSON.stringify(gC._record));
     } finally {
       Gd.resetGold();
     }

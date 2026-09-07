@@ -692,10 +692,51 @@ export function applyGoldEnvelope(G, body, ownKey) {
      GUARDED BY: `b227 regression: building a room repaints the House`, which now
      drives the real gesture against a stubbed transport and asserts the rung
      lands from the answer. */
+  /* ⚠ AND `ok: true` IS RESTORED ON THE WAY IN (b517 — SECURITY RULING, money
+     path). This is the half b516 got backwards, and the bug it caused is the
+     b395 class restored by omission.
+
+     THE SPLIT: `applyEnvelopeState` above writes `G.gold` ABSOLUTELY from any
+     body that `envelopeOf()` validated — including a REFUSAL body, because
+     settleVerdict routes to the applier on SHAPE, not on the 4xx outcome.
+     `decodeRecord`, meanwhile, refuses `ok !== true` outright. So a refusal that
+     carried state moved the DISPLAYED balance while leaving `_record.stamp.gold`
+     at the OLD fingerprint — and a stamped-but-mismatched field is exactly what
+     `recordValue` reports as `source:'client-overwrote'`. gold IS armed (no
+     `armed()` on its registry entry, master switch on), so that answer makes
+     `balanceOf('gold')` UNKNOWN, `canAfford` fail-closed, and every Buy / Sell /
+     List control disable until an unrelated hr_load or the 90s settle re-stamps.
+
+     WHY BELIEVING A REFUSAL IS CORRECT HERE, AND IS NOT THE CLIENT AUTHORING
+     ANYTHING: a refusal envelope is a DELIBERATE reconciliation aid, not a
+     leftover. `supabase/functions/hr-accrue/envelope.js refusalBody()` attaches a
+     **fresh `hr_state_of` read** taken ON the refusal path — precisely because
+     the refusal that most needs one is `version_conflict`, which means BY
+     DEFINITION that the pre-call read was stale. The `state`/`version`/`progress`
+     in a refusal body is therefore CURRENT SERVER TRUTH about this character; it
+     is simply not a receipt for the verb. The verb's outcome is settleVerdict's
+     business (the prediction is rolled back or abandoned there, unchanged by this
+     line). The RECORD's business is "what does the server say the value is", and
+     the answer in hand is the newest one that exists.
+
+     THE GATE IS `env`, AND IT IS THE WHOLE SAFETY ARGUMENT. We only reach this
+     line when `envelopeOf(body)` returned non-null — a finite `version` plus
+     object `state`, `skills` and `inventory`. A stateless refusal (the shape and
+     pre-database codes, which `refusalCarriesState` answers false for) has none
+     of that, so `applyGoldEnvelope` returns null at the top: nothing is written,
+     nothing is stamped, `lastVersion` does not move. The `ok:true` we add is a
+     statement about the ENVELOPE (validated, monotonic, freshly read), never
+     about the verb.
+
+     `applyRecord` is still monotonic on `version` and still fail-closed per
+     field, so an older or gappy answer cannot rewind a known field.
+     GUARDED BY: `b517 regression: a refusal envelope is reconciliation, not a
+     receipt` (three cases + the no-envelope case), mutation-proved by dropping
+     the `ok: true` spread. */
   try {
     if (typeof window !== 'undefined' && window.HearthriseRecord) {
       const forRecord = (body && typeof body === 'object' && !Array.isArray(body)) ? body : env;
-      window.HearthriseRecord.applyRecord(G, forRecord);
+      window.HearthriseRecord.applyRecord(G, { ...forRecord, ok: true });
     }
   } catch (e) {}
   return written;

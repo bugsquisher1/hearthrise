@@ -48,11 +48,11 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=516';
+import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=517';
 /* b492 — the property/worker rung OBSERVER. See applyClientState for why the
    boot observation belongs in THIS module. property-record.js imports nothing,
    so it cannot form a cycle with either this file or accrue.js. */
-import { notePropertyUnlocks } from './property-record.js?v=516';
+import { notePropertyUnlocks } from './property-record.js?v=517';
 
 /* ── THE ARM (SUPERSEDED BY THE CAPSTONE — THIS CONST IS INERT) ─────────────
    THE VALUE IS false AND STAYS false, BUT THE STORE IS SERVER-BACKED IN PROD.

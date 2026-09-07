@@ -4,6 +4,13 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 517 — 2026-09-07 (Cleanup: proofs, deletions, and the farm's last client twin)
+
+- 🧪 **Every CI guard now proves it can fail.** Six gating guards had no mutation proof (the version-lockstep check among them had been blind for 400+ builds); all carry one now, six orphaned guards were adopted or deleted with reasons, and a meta-guard fails the build if a guard is ever registered without a real proof again. A second pass found a guard whose cross-character arm had no assertion at all (a projection pooling every character on an account into one credit window would have passed) — covered now.
+- 🗑️ **Eleven dead server objects dropped** after a design ruling and a security review: six v1 clan verbs the clan overhaul rejects in full, the cutover import tool (the last caller-supplied whole-character writer), and four orphaned market trigger bodies whose invariants live in the market RPCs. Nothing a player can reach changed; the clan tables and the market rules are intact.
+- 🌾 **The farm's client-side twin is gone.** Plant, water, water-all and harvest have exactly one path — the realm's — and refuse cleanly if it is unavailable; a guard fails the build if a local mint ever returns. A goal-catalogue constraint now makes it impossible to point a paying goal at a lifetime counter by mistake, and the daily "Plant N crops" goal never baselines against a count the realm hasn't stated yet.
+- 🧪 The "no icon arrives after first paint" guard raced the engine's boot under load and reported "could not observe" as a failure; the engine now writes a one-shot first-paint marker and the guard waits on it — measured 5/5 idle and 2/2 under load, mutations still caught.
+
 ## v0.9.2-beta build 516 — 2026-09-07 (Fix-forward: a census red)
 
 - 🧪 b515 went out red on the new dead-exports census: a helper added for the welcome card was exported but only read inside its own module. It is module-internal now. No player-facing change; this build exists so the CI gate is reachable again for what follows.

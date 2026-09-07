@@ -13,15 +13,15 @@
 // new-bar / gated-recipe chains were all dead. This module is now the
 // single source of truth.
 
-import { GEAR_RECIPES } from './gear-tiers.js?v=516';
-import { WAVE3_RECIPES } from './wave3-uniques.js?v=516';
-import { SLOT_RECIPES } from './slot-ladders.js?v=516';
+import { GEAR_RECIPES } from './gear-tiers.js?v=517';
+import { WAVE3_RECIPES } from './wave3-uniques.js?v=517';
+import { SLOT_RECIPES } from './slot-ladders.js?v=517';
 /* b356 — the review-book catalogue's faucets. APPENDED ONLY: this import and
    the two `LIB2_RECIPES.*` terms in ARTISAN_RECIPES below are the whole edit,
    so the parallel Runecrafting/Stonemason lanes merge without a conflict. */
-import { LIB2_RECIPES } from './library2-items.js?v=516';
-import { ITEMS, foodClassOf } from './items.js?v=516';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=516';
+import { LIB2_RECIPES } from './library2-items.js?v=517';
+import { ITEMS, foodClassOf } from './items.js?v=517';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=517';
 
 const BASE_RECIPES = {
   cooking: [

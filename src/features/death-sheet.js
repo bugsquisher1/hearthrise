@@ -819,6 +819,7 @@
        DOM keeps waking the tab once a second forever, which on a phone is a
        battery bug nobody attributes to a death modal. */
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    shown = null;
     var el = document.getElementById(ROOT_ID);
     if (el) el.classList.remove('show');
   }
@@ -915,20 +916,19 @@
        It compares only the two cheap server reads and rebuilds the whole moment
        exactly when one of them moved; `render` clears this handle on entry, so
        the re-render owns the next tick and there is never a second timer. */
-    var watch = { phase: model.fallPhase || '', until: Number(moment && moment.recoveringUntilMs) || 0 };
+    /* WHAT IS CURRENTLY ON SCREEN, at module scope so the ENVELOPE can compare
+       against it too (see syncToServer). A per-render closure variable made the
+       poll the only thing that could ever notice a phase change. */
+    shown = { info: info, phase: model.fallPhase || '',
+      until: Number(moment && moment.recoveringUntilMs) || 0 };
     countdownTimer = setInterval(function () {
       var el = document.getElementById(ROOT_ID);
       if (!el || !el.classList.contains('show')) { clearInterval(countdownTimer); countdownTimer = null; return; }
-      var now = serverFall();
-      if ((now.phase && now.phase !== watch.phase) || now.until !== watch.until) {
-        var next = readMoment(info);
-        render(describeDeath(next), next, info);
-        return;
-      }
+      if (syncToServer()) return;
       var lead = el.querySelector('.hr-death-lead');
       if (!lead) { clearInterval(countdownTimer); countdownTimer = null; return; }
-      if (!(watch.until > 0)) return;              // nothing to count down
-      var left = watch.until - Date.now();
+      if (!(shown && shown.until > 0)) return;     // nothing to count down
+      var left = shown.until - Date.now();
       if (left > 0) { lead.textContent = 'Back on your feet in ' + mmss(left) + '.'; return; }
       lead.textContent = 'You are back on your feet.';
       var h2 = el.querySelector('.hr-death-top h2');
@@ -942,6 +942,41 @@
      renderer started, which is the only way to guarantee one sheet's timer
      cannot outlive it into the next. */
   var countdownTimer = null;
+
+  /* WHAT THE OPEN SHEET IS A VIEW OF: the engine's death info plus the two
+     server-stated facts it was drawn from. Module-scope, and the reason is the
+     bug this pair of lines closes. */
+  var shown = null;
+
+  /* ── THE PHASE CHANGE IS AN EVENT, NOT A POLL (P1, measured live on b513) ──
+     MEASURED: the b512 re-ask worked — `fallState()` answered
+     `{phase:'recovering', msLeft:1007205}` — and the sheet went on reading
+     "Asking the hearth how long you are down" with the countdown never
+     starting. The model was right; only the SCREEN was stale.
+
+     WHY. The re-render lived exclusively inside the 1 Hz `setInterval` above,
+     and a timer is precisely the thing that stops being 1 Hz: Chrome throttles
+     timers in a background or occluded tab to once a second, and to once a
+     MINUTE after five minutes hidden. Every other surface in this file is
+     server-truth-derived and correct at the instant it is asked; the only
+     broken link was WHEN it was asked. `hearthrise:fall` already fires
+     synchronously out of applyEnvelopeState on every envelope (accrue.js), and
+     a network response is not throttled — so the answer arrives with its own
+     trigger and the poll goes back to being what it says it is, a ticker for
+     the seconds digit.
+
+     Idempotent by construction: it re-renders only when a server-stated fact
+     has actually moved away from what is on screen, so firing it on every
+     envelope costs one cheap read. */
+  function syncToServer() {
+    var el = document.getElementById(ROOT_ID);
+    if (!el || !el.classList.contains('show') || !shown) return false;
+    var now = serverFall();
+    if (!((now.phase && now.phase !== shown.phase) || now.until !== shown.until)) return false;
+    var next = readMoment(shown.info);
+    render(describeDeath(next), next, shown.info);
+    return true;
+  }
 
   function nav(tab) {
     if (typeof window.showTab === 'function') window.showTab(tab);
@@ -1141,7 +1176,13 @@
 
   try {
     window.addEventListener('hearthrise:fall', function () {
+      /* RAISE FIRST, THEN SYNC, and the order matters: `maybeRaiseRecovery`
+         claims the window (`raisedForUntil`) even when a sheet is already open,
+         so a sheet the player later dismisses is not re-raised by the next
+         envelope of the same knockout. It opens a sheet only when there is
+         none; `syncToServer` then finds nothing to do. */
       try { maybeRaiseRecovery(); } catch (e) {}
+      try { syncToServer(); } catch (e) {}
     });
   } catch (e) {}
 
@@ -1152,6 +1193,7 @@
     _resetRaise: function () { raisedForUntil = 0; },
     close: close,
     _readMoment: readMoment,
+    _syncToServer: syncToServer,
     _bestProvision: bestProvision,
     _ateThisFight: ateThisFight,
     _restRefusalText: restRefusalText,

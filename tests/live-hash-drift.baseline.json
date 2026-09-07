@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-07",
- "replay_ms": 11796,
+ "replay_ms": 12024,
  "counts": {
-  "tracked_names": 43,
-  "entries": 43
+  "tracked_names": 44,
+  "entries": 42
  },
  "functions": [
   {
@@ -74,28 +74,6 @@
    "replay": {
     "md5": "d84d880319b3427b0220333462821036",
     "norm_len": 362,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "clan_upkeep_pay(p_clan_id uuid)",
-   "name": "clan_upkeep_pay",
-   "tracked_by": [
-    "pin"
-   ],
-   "touched_by": [
-    "2026-08-11-authenticated-surface-lockdown.sql"
-   ],
-   "live": {
-    "md5": "c7cc52ec200e74e6b73a2c6fea4d26df",
-    "norm_len": 2359,
-    "measured": "2026-09-07",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "c7cc52ec200e74e6b73a2c6fea4d26df",
-    "norm_len": 2359,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -565,30 +543,6 @@
    "agree": true
   },
   {
-   "sig": "hr_import_apply(p_user uuid, p_slot integer, p_plan jsonb, p_meta jsonb, p_commit boolean)",
-   "name": "hr_import_apply",
-   "tracked_by": [
-    "floor",
-    "pin"
-   ],
-   "touched_by": [
-    "2026-09-04-auto-eat-at-creation.sql",
-    "2026-09-09-import-apply-slot-entitlement.sql"
-   ],
-   "live": {
-    "md5": "eae7ce383cba37450c30137f17c559e2",
-    "norm_len": 40781,
-    "measured": "2026-09-07",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "eae7ce383cba37450c30137f17c559e2",
-    "norm_len": 40781,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_intent_replay(p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
    "name": "hr_intent_replay",
    "tracked_by": [
@@ -606,6 +560,28 @@
    "replay": {
     "md5": "97f6c74e00fa9e8419b9c6437efc0685",
     "norm_len": 1645,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_market_list(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_item_id text, p_qty bigint, p_ask_each bigint)",
+   "name": "hr_market_list",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-07-drop-dead-server-objects.sql"
+   ],
+   "live": {
+    "md5": "b527321e54deb4699ba20155d9b1af30",
+    "norm_len": 12598,
+    "measured": "2026-09-07",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b527321e54deb4699ba20155d9b1af30",
+    "norm_len": 12598,
     "source": "computed-from-replay"
    },
    "agree": true

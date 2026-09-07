@@ -381,3 +381,74 @@ export function utcDaySegments(fromMs, toMs) {
        slice's actions FIRST, drain the clock AFTER. A buff alive when the
        action happens pays for that action, exactly as it would live.
    ══════════════════════════════════════════════════════════════════════════ */
+
+/* ══ THE RETREAT (Recovery Rule rev. 3, Game Designer 2026-09-07) ═══════════
+   THE REALM DOES NOT KEEP SWINGING A FIGHT IT HAS PROVEN THE HERO CANNOT WIN.
+
+   WHAT IT FIXES, measured on the QA account 2026-09-07: a hero with max_hp 13
+   and no food, pointed at a dark wizard, fell 28 times in one day (42 lifetime).
+   Every fall charged the 64-minute cap, stood the character up on 6 HP, and they
+   were face-down again inside a minute. ~22 falls a day, about ONE KILL AN HOUR,
+   for ever. Rev. 2 removed the cliff and left a silent busy-wait in its place:
+   the run never ends, so nothing ever tells the player it is not working.
+
+   THE TRIGGER IS CONSECUTIVE FALLS, AND `resolveKill` RESETS IT TO ZERO.
+   That word is the whole design (the ruling rejects "N deaths per day then
+   stop" for it): a hero who can win AT ALL never retreats, however many times
+   they die, because every kill clears the counter. Only a hero who cannot land
+   a single kill between falls reaches these numbers.
+
+     foodless AT THE FALL  → retreat on the 3rd consecutive fall
+     any hero, fed or not  → retreat on the 6th
+
+   WHY TWO RUNGS AND NOT ONE. They answer two different questions, and the copy
+   proves it: three foodless falls means "bring provisions" (the player owns the
+   fix), six fed falls means "this is out of your league" (the target is wrong).
+   One number could only ever say one of those.
+
+   WHY NOT THE FIRST FOODLESS FALL. That is the pre-rev.2 cliff, and it was the
+   largest retention loss measured on the beta. Rungs 1-2 stay
+   interrupt-don't-terminate. The Retreat is a floor under the ladder, not a
+   replacement for it.
+
+   IT IS A TABLE, NEXT TO THE LADDER, AND IT IS DELIBERATELY *NOT* AN
+   `AWAY_SCOPE` ENTRY — for exactly the reason the ladder above is not. AWAY_SCOPE
+   answers "does this bonus CHANNEL pay while away"; the Retreat is a property of
+   the RUN, evaluated identically by the live tick and the away replay because
+   there is only one `resolveDeath`. An AWAY_SCOPE key would have made it an
+   away-only rule, which is the shape docs/design/away-time-ruling.md forbids,
+   and the ruling names that rejection explicitly.
+
+   NO HEAL, NO CLOCK RELIEF. The retreating fall charges its own ladder rung and
+   stamps `recovering_until` BEFORE the retreat; `hr_rest` remains the only cure.
+   Ending the run is the mercy; it is not amnesty. */
+
+/** Consecutive falls with an EMPTY BAG at the fall that end the run. */
+export const RETREAT_FOODLESS_FALLS = 3;
+/** Consecutive falls that end the run whatever the bag held. */
+export const RETREAT_ANY_FALLS = 6;
+
+/**
+ * Does THIS fall end the run?
+ *
+ * PURE, and the ONLY definition of the rule — both runtimes import it, so there
+ * is no second copy to drift, exactly as `recoveryFor` above.
+ *
+ * @param o { consecFalls, foodless }  `consecFalls` is the count INCLUDING this
+ *          fall (1 on the first). `foodless` is read from the LIVE simulated bag
+ *          inside `resolveDeath`, never from a window-open snapshot: a hero who
+ *          started the night with forty Trout and ate the last one two hours ago
+ *          is foodless NOW, and NOW is when the decision is made.
+ * @returns true when the hero pulls back to camp.
+ */
+export function retreatAtFall(o) {
+  const c = o || {};
+  const n = Math.floor(Number(c.consecFalls));
+  if (!isFinite(n) || n <= 0) return false;
+  /* `>=`, never `===`. A counter that arrives already past the rung (a column
+     restored from a server that counted higher, a clamp that landed above the
+     threshold) must still retreat; an equality test would sail straight past it
+     and reinstate the busy-wait this rule exists to end. */
+  if (n >= RETREAT_ANY_FALLS) return true;
+  return !!c.foodless && n >= RETREAT_FOODLESS_FALLS;
+}

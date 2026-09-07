@@ -47303,6 +47303,279 @@ const TESTS = [
       'a run that stopped on the death still tells the player it picked back up — ' + stopped);
   }),
 
+  () => tryRun('RETREAT-A/W5: the Retreat, attended — one engine, one sentence, no lock', () => {
+    /* ══ THE RETREAT (Recovery Rule rev. 3, Game Designer 2026-09-07) ═══════
+       "The realm does not keep swinging a fight it has proven the hero cannot
+       win." On the 3rd CONSECUTIVE fall with an empty bag AT THE FALL — or the
+       6th consecutive fall whatever the bag held — the run ENDS. ANY kill
+       resets the count.
+
+       THE MEASURED NIGHT THIS EXISTS FOR (QA account, 2026-09-07): max_hp 13,
+       dark wizard, empty bag — 28 falls in one day, every one charging the
+       ladder's 64-minute cap, resuming at 6 HP and face-down again inside a
+       minute. About one kill an hour, for ever, and no surface said why.
+
+       THE AWAY HALF IS tests/accrual-engine.mjs (RETREAT-W1..W7, FORECAST-1).
+       THIS IS THE ATTENDED HALF and the two RENDERED surfaces, which is the
+       split CLAUDE.md §4 asks for by name: "b509 tested the away death nine
+       ways while the attended death handed out a free full heal".
+
+       ⚠ NOTHING HERE TOUCHES `window.G`. The in-page suite runs against a REAL
+         SAVE, and this fixture drives the engine on a synthetic state and reads
+         the two renderers through their PURE seams (`describeDeath`,
+         `__awayCardHtml`, `retreatSentence`). A test that fought on the live
+         character to prove the character stops fighting would be its own bug. */
+    const C = window.HearthriseCore;
+    const CS = C && C.combatSim;
+    const AW = C && C.away;
+    assert(CS && typeof CS.simulateTick === 'function' && typeof CS.forecastFight === 'function',
+      'the combat-sim seam is missing — the Retreat cannot be exercised');
+    assert(AW && typeof AW.retreatAtFall === 'function',
+      'src/core/away.js does not export retreatAtFall — the rule has no table');
+
+    const FOE = window.MONSTERS.dark_wizard ? 'dark_wizard' : 'slime';
+    const FOOD = window.ITEMS && window.ITEMS.cooked_shrimp ? 'cooked_shrimp' : null;
+    const MAXHP = 13;
+
+    /* A SYNTHETIC CHARACTER, built field by field — never a clone of G. */
+    const mkState = (inv) => ({
+      activeMonster: FOE,
+      playerHp: MAXHP, playerMaxHp: MAXHP,
+      monsterHp: window.MONSTERS[FOE].hp, monsterMaxHp: window.MONSTERS[FOE].hp,
+      stats: {}, inventory: inv || {}, skills: {},
+      deathsTodayBefore: 0, deathsLifetimeBefore: 60,
+      consecFalls: 0,
+    });
+    /* The LIVE ctx shape, with an inert sink: no XP anywhere, no items, no
+       toast. `fx.autoEat` is absent on purpose in the foodless fixtures — a
+       character with an empty bag cannot eat, and stubbing one would be
+       simulating a different character. */
+    const mkCtx = (fx) => ({
+      away: false, rng: C.rng, monsters: window.MONSTERS, items: window.ITEMS,
+      bonus: () => 0, style: null,
+      playerRolls: (m) => window.getPlayerCombatRolls(m, window.getEquipmentStats()),
+      monsterRolls: (m) => window.getMonsterCombatRolls(m, window.getEquipmentStats()),
+      weakness: (m) => window.getWeaknessInfo(m, window.getEquipmentStats()),
+      botd: { killBonuses: () => ({ dropMult: 1, xpMult: 1 }) },
+      fx: fx || {},
+    });
+    /* Drive the tick the way legacy.js `combatTick` does — swing, and on a fall
+       stand back up at 40% against a full-HP foe, exactly as `hrCombatDown` /
+       `hrStandUp` do. Returns every death `info` the run produced. */
+    const runUntil = (st, ctx, maxFalls, maxTicks) => {
+      const falls = [];
+      let lastInfo = null;
+      const sink = Object.assign({}, ctx.fx, {
+        onDeath: (c, info) => { lastInfo = info; },
+      });
+      const c2 = Object.assign({}, ctx, { fx: sink });
+      for (let i = 0; i < (maxTicks || 40000) && falls.length < maxFalls; i++) {
+        const r = CS.simulateTick(st, c2);
+        if (r.outcome === 'death') {
+          falls.push(Object.assign({ retreat: !!r.retreat, foodless: !!r.foodless,
+            consecFalls: r.consecFalls }, lastInfo || {}));
+          if (r.retreat) break;
+          st.monsterMaxHp = window.MONSTERS[st.activeMonster].hp;
+          st.monsterHp = st.monsterMaxHp;
+          st.playerHp = AW.resumeHpFor(st.playerMaxHp);
+        }
+        if (r.outcome === 'stop') break;
+      }
+      return falls;
+    };
+
+    /* ── RETREAT-A1 — THE THIRD FOODLESS FALL ENDS THE RUN ─────────────────
+       MUTATION PROVEN: delete the `hasCounter && retreatAtFall(...)` term from
+       resolveDeath and this goes red at `retreat` on the third fall. */
+    {
+      const st = mkState({});
+      const falls = runUntil(st, mkCtx(), 8);
+      assert(falls.length === AW.RETREAT_FOODLESS_FALLS,
+        'A1: the foodless run produced ' + falls.length + ' falls before it ended; the rung is '
+        + AW.RETREAT_FOODLESS_FALLS + '. This is the QA night and it must STOP.');
+      assert(falls[0].retreat === false && falls[1].retreat === false,
+        'A1: the run ended on fall 1 or 2. Rungs 1-2 stay interrupt-don\'t-terminate — ending on '
+        + 'the first foodless fall is the pre-rev.2 CLIFF, which was the largest retention loss '
+        + 'measured on the beta.');
+      const last = falls[falls.length - 1];
+      assert(last.retreat === true && last.foodless === true,
+        'A1: the third foodless fall did not retreat (retreat=' + last.retreat
+        + ', foodless=' + last.foodless + ')');
+      assert(st.playerHp === AW.resumeHpFor(MAXHP),
+        'A1: the hero stood up on ' + st.playerHp + ' HP, not the 40% resume ('
+        + AW.resumeHpFor(MAXHP) + '). A retreat is not a heal.');
+      assert(last.recoverMs > 0,
+        'A1: the retreating fall was charged ' + last.recoverMs + ' ms. It charges its own ladder '
+        + 'rung BEFORE the run ends — a free last fall is a dodge, not a mercy.');
+      assert(st.consecFalls === AW.RETREAT_FOODLESS_FALLS,
+        'A1: the durable counter reads ' + st.consecFalls + ' — it is what the settle proposes to '
+        + 'hr_apply, so a wrong number here is a wrong number on the server.');
+
+      /* AND THE SHEET SAYS SO. `describeDeath` is the sheet's own pure model —
+         no DOM, no G. */
+      const DS = window.HearthriseDeathSheet;
+      assert(DS && typeof DS.describeDeath === 'function', 'A1: the death-sheet model seam is gone');
+      const m = DS.describeDeath({ monsterName: window.MONSTERS[FOE].name, maxHp: MAXHP,
+        deaths: 3, deathsToday: 3, recoveryMs: last.recoverMs, resumeHp: st.playerHp,
+        recoveringUntilMs: Date.now() + 240000, nowMs: Date.now(), hadFood: false,
+        retreat: true });
+      assert(m.title === 'You pulled back',
+        'A1: the death sheet is titled "' + m.title + '". Ended BY CHOICE is not the same as '
+        + 'FAILED, and the ruling names the words.');
+      assert(/Three falls with an empty bag/.test(m.lead) && /pick the fight back up/.test(m.lead),
+        'A1: the sheet does not carry the ruled lead line — ' + m.lead);
+      assert(m.recoverMsLeft === 0,
+        'A1: the sheet is counting down ' + m.recoverMsLeft + ' ms on a retreat. That countdown is '
+        + 'a promise that the fight RESUMES when it hits zero, and after a retreat it does not.');
+      /* AND AN ORDINARY FALL IS UNTOUCHED — the regression this override could
+         most easily cause. */
+      const ord = DS.describeDeath({ monsterName: window.MONSTERS[FOE].name, maxHp: MAXHP,
+        deaths: 2, deathsToday: 2, recoveryMs: 120000, resumeHp: 6,
+        recoveringUntilMs: Date.now() + 120000, nowMs: Date.now(), hadFood: false });
+      assert(ord.title === 'Knocked out' && ord.recoverMsLeft > 0,
+        'A1: an ORDINARY fall was rendered as a retreat — title "' + ord.title + '"');
+    }
+
+    /* ── RETREAT-A2 — A KILL RESETS THE COUNT ──────────────────────────────
+       The ruling's whole premise, and the reason the trigger is CONSECUTIVE
+       falls rather than "N deaths a day".
+       MUTATION PROVEN: delete `state.consecFalls = 0` from resolveKill and the
+       run retreats on the third fall despite the kill in the middle. */
+    {
+      const st = mkState({});
+      runUntil(st, mkCtx(), 2);
+      assert(st.consecFalls === 2, 'A2: the fixture did not reach two falls (' + st.consecFalls + ')');
+      /* A KILL, through the same resolveKill the live tick and the away replay
+         both run — not a hand-written `consecFalls = 0`. */
+      CS.resolveKill(st, window.MONSTERS[FOE], mkCtx());
+      assert(st.consecFalls === 0,
+        'A2: the counter reads ' + st.consecFalls + ' after a kill. "Reset by ANY kill" is what '
+        + 'makes a hero who can win at all never retreat.');
+      const more = runUntil(st, mkCtx(), 2);
+      assert(more.length === 2 && more.every((f) => f.retreat === false),
+        'A2: the run ended within two falls of a kill. The count restarts from zero, so it takes '
+        + AW.RETREAT_FOODLESS_FALLS + ' fresh consecutive falls to end it again.');
+    }
+
+    /* ── RETREAT-A3 — A FED HERO GETS THE OTHER RUNG ───────────────────────
+       Six falls, never three: the two rungs answer two different questions
+       ("bring provisions" vs "this is out of your league") and must not
+       collapse into one.
+       ⚠ AUTO-EAT IS OFF here on purpose. The point is the BAG, not the eating:
+         a hero carrying 400 provisions is not foodless even if nothing ever
+         feeds them, which is what proves the read is `chooseFood(inventory)`
+         and not "did anything heal you". */
+    if (FOOD) {
+      const st = mkState({ [FOOD]: 400 });
+      const falls = runUntil(st, mkCtx(), 9);
+      assert(falls.length === AW.RETREAT_ANY_FALLS,
+        'A3: the fed run ended after ' + falls.length + ' falls; the any-hero rung is '
+        + AW.RETREAT_ANY_FALLS);
+      assert(falls.slice(0, AW.RETREAT_ANY_FALLS - 1).every((f) => f.retreat === false),
+        'A3: a hero with 400 provisions in the bag was sent home on the foodless rung. Foodless is '
+        + 'read from the bag AT THE FALL, and this bag is full.');
+      assert(falls[falls.length - 1].foodless === false,
+        'A3: the fed hero\'s last fall was reported foodless with a full bag');
+    }
+
+    /* ── RETREAT-A5 — WARN, NEVER REFUSE ───────────────────────────────────
+       The ruling REJECTED refusing an overmatched fight by name (the
+       residue-ahead class: beating something you should not be able to beat is
+       a reward). So the pre-fight check is ADVISORY, the default button is
+       "Fight anyway", and the server never reads it. */
+    {
+      assert(typeof window.__hrPreFightWarning === 'function',
+        'A5: the pre-fight warning seam is missing');
+      const w = window.__hrPreFightWarning(FOE);
+      /* The warning is a FORECAST of the LIVE character, so on a well-equipped
+         QA save there may legitimately be nothing to warn about. What must be
+         true either way: it never REFUSES, and when it does speak it speaks the
+         ruled words. */
+      if (w) {
+        assert(w.kind === 'no-food' || w.kind === 'unwinnable',
+          'A5: an unknown warning kind "' + w.kind + '" — the ruling has exactly two');
+        if (w.kind === 'no-food') {
+          assert(/^You have no food\./.test(w.body)
+            && /every fall today costs longer to shake off\.$/.test(w.body),
+            'A5: the no-food warning is not the ruled sentence — ' + w.body);
+        } else {
+          assert(/would take you down before you took it down/.test(w.body)
+            && /better gear or a few more levels\.$/.test(w.body),
+            'A5: the unwinnable warning is not the ruled sentence — ' + w.body);
+        }
+      }
+      /* AND THE FORECAST IS PURE — asked twice, the live save is unchanged and
+         the answer is the same. A warning that flickered between two taps of
+         one button teaches the player to ignore it. */
+      const hpBefore = window.G.playerHp;
+      const invBefore = JSON.stringify(window.G.inventory || {});
+      const w2 = window.__hrPreFightWarning(FOE);
+      assert(window.G.playerHp === hpBefore && JSON.stringify(window.G.inventory || {}) === invBefore,
+        'A5: asking "should I fight?" CHANGED the character. forecastFight must clone.');
+      assert(JSON.stringify(w) === JSON.stringify(w2),
+        'A5: two forecasts of the same state disagreed — the seed is not fixed');
+    }
+
+    /* ── RETREAT-W5 — THE TWO RENDERED SURFACES, ONE SENTENCE ──────────────
+       MUTATION PROVEN: drop the `&& !retreat` from the away card's death block
+       and the "picked up each time" assertion goes red — which is the exact
+       contradiction this guards: rev. 2's headline promise printed beside a
+       sentence saying the hero went home. */
+    {
+      const H = window.HearthriseHome;
+      const flat = (rec) => String(H.__awayCardHtml(rec))
+        .replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ');
+      const BASE = {
+        hrs: 12, awayMs: 12 * 3600000, gainedXp: 10, gainedItems: 0, gainedGold: 0,
+        gainedKills: 0, crits: 0, featuredMs: 0, featuredDropMult: 1,
+        capped: false, blessed: false, buffsPaused: false, rateMult: 1, at: Date.now(),
+        died: true, diedTo: FOE, diedAfterMs: 8040000, deaths: 3,
+        recoverMs: 360000, recoverRemainingMs: 0, recoverLadder: [0, 120000, 240000],
+        stoppedBy: 'retreat', paidMs: 8040000,
+        combat: { kills: 0, died: true, survivedMs: 8040000, diedTo: FOE, crits: 0 },
+      };
+      /* (i) THE FOODLESS SENTENCE, VERBATIM. */
+      const foodless = Object.assign({}, BASE,
+        { retreatMs: 8040000, retreatFalls: 3, retreatFoodless: true });
+      const fTxt = flat(foodless);
+      assert(/You ran out of food and fell three times in a row, so you pulled back to camp 2h 14m in\./
+        .test(fTxt), 'W5: the foodless retreat sentence is not the ruled copy — ' + fTxt);
+      assert(/The rest of the night was rest — bring provisions before the next hunt\./.test(fTxt),
+        'W5: the foodless retreat lost its second clause, which is the only actionable one — ' + fTxt);
+      assert(!/picked up each time|picked up\./.test(fTxt),
+        'W5: the card promises the run "picked up" on a night the hero went home. Two sentences '
+        + 'about one night that contradict each other is how a player learns to distrust both — '
+        + fTxt);
+      assert(!/ran out of materials/.test(fTxt),
+        'W5: the retreat fell through to the SUPPLIES sentence — a fabricated cause on the one '
+        + 'surface that exists to state a real one — ' + fTxt);
+      /* (ii) THE FED SENTENCE names the foe and points at the target, not the bag. */
+      const fed = Object.assign({}, BASE,
+        { retreatMs: 10920000, retreatFalls: 6, retreatFoodless: false, deaths: 6 });
+      const dTxt = flat(fed);
+      assert(/Six falls in a row to the .+, so you pulled back to camp 3h 02m in\./.test(dTxt),
+        'W5: the fed retreat sentence is not the ruled copy — ' + dTxt);
+      assert(/out of your league for now — try a softer target or better gear\./.test(dTxt),
+        'W5: the fed retreat lost the advice that distinguishes it from the foodless one — ' + dTxt);
+      /* (iii) "STILL RECOVERING" SURVIVES A RETREAT. The retreating fall
+         charged its rung; that clock is the player's next constraint, and the
+         ruling says this sentence is unchanged. */
+      const down = flat(Object.assign({}, foodless, { recoverRemainingMs: 47000 }));
+      assert(/Still recovering — 47s to go\./.test(down),
+        'W5: a retreat with a live clock does not tell the player they are still down. Pulling '
+        + 'back is mercy, not amnesty — ' + down);
+      /* (iv) ONE AUTHOR. The welcome-back modal reads this very function, so
+         the two surfaces cannot grow two voices for one night. */
+      assert(typeof H.retreatSentence === 'function', 'W5: the shared retreat sentence is not exported');
+      const s = H.retreatSentence(foodless);
+      assert(s && fTxt.indexOf(s) >= 0,
+        'W5: the away card and the shared sentence disagree. The modal renders the shared one, so '
+        + 'a divergence here IS two voices — ' + s);
+      assert(H.retreatSentence(Object.assign({}, foodless, { stoppedBy: null })) === null,
+        'W5: a night that did not retreat was handed a retreat sentence');
+    }
+  }),
+
   () => tryRun('b341: NO monster row can start a fight on one tap — however the list was painted', () => {
     /* THE MEASURED BUG. Two wrappers re-pointed monster rows at the preview
        after every render, both hooked on `renderMonsterList` / `showTab`.

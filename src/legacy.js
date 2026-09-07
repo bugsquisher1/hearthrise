@@ -5827,8 +5827,110 @@ function retimeCombat(){
 }
 window.retimeCombat=retimeCombat;
 window.__combatIntervalMs=function(){ return _combatIntervalMs; };   // test seam (COMBAT-RETIME-1)
-function startCombat(mId){
+/* ══ THE PRE-FIGHT WARNING (Recovery Rule rev. 3, item 7) ═══════════════════
+   "NEVER REFUSE A FIGHT — WARN ONCE."
+
+   The ruling REJECTED refusing an overmatched fight by name, as the
+   residue-ahead class: beating something you should not be able to beat is a
+   reward, and a client that decides a player may not try has taken an authority
+   it does not own. So this is ADVISORY and the DEFAULT button is "Fight anyway".
+   The server never reads it, nothing is proposed, and no state is written.
+
+   THE FORECAST IS THE SIMULATION, not a DPS formula — `forecastFight` runs
+   `simulateSpan` on a deep clone with a fixed seed for 30 simulated minutes
+   (src/core/combat-sim.js). A closed-form estimate would be a SECOND combat
+   model, which AWAY-12 exists to forbid, and it would be wrong in exactly the
+   ways the real loop is subtle: crits, the accuracy distribution, auto-eat,
+   ammo running dry, the weakness multiplier, the Boss of the Day.
+
+   WARN ONCE, per foe per kind per session. A modal on every re-tap trains the
+   player to dismiss it without reading, which is the same as not warning. The
+   latch is CLEARED BY A RETREAT (`hrRetreat`), because a retreat is a new and
+   much stronger signal than the forecast was — the ruling's A5 case, where a
+   player who pulls back and immediately re-engages is told again. */
+let _fightWarned=Object.create(null);
+function hrClearFightWarnings(){ _fightWarned=Object.create(null); }
+/* Returns {kind,title,body} or null. PURE apart from the forecast it runs; the
+   caller owns the latch, so the suite can ask the question repeatedly. */
+function hrPreFightWarning(mId){
+  const C=window.HearthriseCore;
+  const CS=C&&C.combatSim;
+  if(!CS||typeof CS.forecastFight!=='function'||typeof CS.forecastWarning!=='function')return null;
+  const m=MONSTERS[mId];
+  if(!m)return null;
+  let f=null;
+  try{
+    /* The LIVE ctx, so the forecast fights with the gear, style, perks and
+       featured boss the next half hour would actually have. `forecastFight`
+       replaces the rng, the window and the effect sink itself — see its header
+       — so nothing the client owns can leak a side effect into it. */
+    const ctx=combatSimCtx();
+    ctx.away=false;
+    let eat=null;
+    try{ const A=window.HearthriseAuto; if(A&&typeof A.getEat==='function') eat=A.getEat(); }catch(e){}
+    let owned=false;
+    try{
+      const AE=C&&C.autoEat;
+      owned=(AE&&typeof AE.autoEatTier==='function')?AE.autoEatTier(G.traits||{})>0
+                                                    :!!(G.traits&&G.traits.auto_eat);
+    }catch(e){}
+    let thr;
+    try{ thr=(typeof eatThreshold==='function')?eatThreshold():undefined; }catch(e){}
+    f=CS.forecastFight(G,ctx,{
+      monsterId:mId,
+      autoEat:{ enabled:!!(eat&&eat.enabled), owned:owned,
+                threshold:thr, foodId:eat?eat.foodId:null },
+    });
+  }catch(e){ return null; }   /* a forecast that throws must never block a fight */
+  const kind=CS.forecastWarning(f);
+  if(!kind)return null;
+  const W=CS.FORECAST_WARNING||{};
+  const foe='A '+m.name;
+  if(kind===W.NO_FOOD){
+    /* THE SPAN IS THE SIMULATION'S OWN (`firstDeathMs`), not an estimate — and
+       it is omitted rather than guessed when the forecast never fell. */
+    const ms=Number(f.firstDeathMs);
+    const when=(isFinite(ms)&&ms>0)
+      ? (ms<60000 ? ('about '+Math.max(5,Math.round(ms/5000)*5)+' seconds')
+                  : ('about '+Math.max(1,Math.round(ms/60000))+' minutes'))
+      : null;
+    return { kind:kind, title:'No food in your bag',
+      body:'You have no food. '+foe+' will put you down'+(when?(' in '+when):'')
+        +', and every fall today costs longer to shake off.' };
+  }
+  return { kind:kind, title:'Out of your league',
+    body:foe+' would take you down before you took it down. Come back with better gear '
+      +'or a few more levels.' };
+}
+window.__hrPreFightWarning=hrPreFightWarning;          // test seam (FORECAST-COPY)
+window.__hrClearFightWarnings=hrClearFightWarnings;    // test seam
+
+function startCombat(mId,opts){
   if(G.activeMonster===mId){stopCombat();return;}
+  /* THE ADVISORY GATE. It never refuses: the dialog's confirm re-enters this
+     function with `{confirmed:true}` and the fight starts. Cancel does nothing
+     at all — no state written, no declaration sent, no latch consumed beyond
+     "we have said this once".
+     ⚠ HearthriseDialog, NEVER window.confirm. A native dialog blocks the
+       renderer's main thread and has frozen this game twice (b371, b373);
+       tests/native-dialog.mjs is the standing guard. */
+  if(!(opts&&opts.confirmed)){
+    const _w=hrPreFightWarning(mId);
+    if(_w&&!_fightWarned[mId+':'+_w.kind]){
+      _fightWarned[mId+':'+_w.kind]=true;
+      const D=window.HearthriseDialog;
+      if(D&&typeof D.confirm==='function'){
+        try{
+          D.confirm({ title:_w.title, body:_w.body,
+                      confirmLabel:'Fight anyway', cancelLabel:'Not yet' })
+           .then(function(yes){ if(yes) startCombat(mId,{confirmed:true}); });
+          return;
+        }catch(e){ /* a dialog that throws must never block a fight */ }
+      }
+      /* NO DIALOG MODULE ⇒ FALL THROUGH AND FIGHT. The warning is advisory, so
+         its absence must never cost the player the fight. */
+    }
+  }
   /* b347 SEAM 1. The inner stopCombat is QUIET: one gesture is one declaration
      and one idempotency key, and declaring idle-then-combat would run two
      collects for a single tap — the second of which prices a span of
@@ -5977,6 +6079,37 @@ function hrStandUp(){
   }
   if(Array.isArray(G.combatLog))G.combatLog.push('Back on your feet — the fight goes on.');
   renderCombat();updateTopbar();
+}
+/* ── THE RETREAT, ON THE ATTENDED PATH (Recovery Rule rev. 3) ───────────────
+   THE RUN IS OVER — BUT THE WINDOW IS NOT, AND THAT DISTINCTION IS THE WHOLE
+   FUNCTION. It is the b510 attended-fall P0 written down as code rather than as
+   a comment: `stopCombat()` DECLARES idle, hr_apply stamps `accrued_to = now()`
+   on ANY activity delta, and the collect that runs before a switch REFUSES a
+   window under the 60 s server floor — so ending the run the obvious way would
+   arithmetically ERASE the very window this retreat happened in. No
+   `recovering_until`, no `consec_falls`, no death row, no ledger row, and a
+   sheet counting down from a rung the client invented.
+
+   So the client stops SWINGING and stops SHOWING a fight, and says NOTHING to
+   the server. `hrKnockOut()` has already queued the settle
+   (`noteLiveSettleEvent('death')`); that settle prices the window with the one
+   engine, finds the retreat, stamps the line, writes the counter and idles the
+   pointer ITSELF (accrual.js, the same seam the level gate uses). The client
+   then reconciles to the envelope, which is the contract in CLAUDE.md §1: the
+   client renders the state the server returns and never authors it.
+
+   ⚠ NO `declareActivity` HERE, EVER. If a future author "tidies" this into a
+     stopCombat() call, the retreat becomes unpayable and the mechanic silently
+     costs the player the window it fires in. That is what happened to the
+     attended fall on b509 and it took a live play-gate to find. */
+function hrRetreat(){
+  G.activeMonster=null;
+  if(Array.isArray(G.combatLog))G.combatLog.push('You pulled back to camp. The fight is over for now.');
+  /* THE WARNING LATCH IS RELEASED (ruling item 7 / acceptance A5). A retreat is
+     a far stronger signal than the forecast was, so the player who immediately
+     re-engages is told again rather than being let back in silently. */
+  if(typeof hrClearFightWarnings==='function') hrClearFightWarnings();
+  renderCombat();renderMonsterList();
 }
 /* THE ONE QUESTION THE LIVE TICK ASKS. True ⇒ do not swing. The transition back
    to false is where the stand-up happens, so a resume is the absence of a
@@ -6306,6 +6439,15 @@ const COMBAT_FX={
     /* THE ONE BRANCH. Server-owned fall ⇒ pause and ask; otherwise the b373
        behaviour, byte-for-byte, because with no server there is nobody to ask. */
     if(_served) hrKnockOut(); else stopCombat();
+    /* ── THE RETREAT (Recovery Rule rev. 3) ──────────────────────────────
+       `info.retreat` is the ENGINE's answer — the same `resolveDeath` the away
+       replay runs, reading the same durable `G.consecFalls` the server
+       projects — so the attended path and the away path cannot disagree about
+       which fall was the last one. Nothing is re-derived here.
+       Only when the server owns the fall: without an accrue module there is
+       nobody to price the window, `stopCombat()` above has already ended the
+       run, and a second stop would be noise. */
+    if(_served&&info&&info.retreat) hrRetreat();
     /* The toast stays for the case the sheet declined (away, or no body yet) —
        two statements of the same fact stacked on screen is noise. */
     if(!_sheet) notify(_served?'You fell!':'You died!','kill');
@@ -14320,7 +14462,30 @@ function maybeShowWelcome(){
        the two surfaces cannot tell different stories about one absence — the
        exact failure b342 was built to correct. Death keeps its own richer row
        below; this speaks only for the other stop reasons. */
-    if(_off.stoppedBy && _off.stoppedBy !== 'death'){
+    /* ── THE RETREAT COMES FIRST AND IT IS THE SAME SENTENCE (rev. 3) ──────
+       The ruling requires the welcome-back modal to carry the away card's
+       retreat sentence VERBATIM, so it is READ from the card's own author
+       (`HearthriseHome.retreatSentence`) rather than restated here. The
+       `supplies` row directly below is the cautionary precedent: that sentence
+       exists three times in this codebase and the three have already drifted.
+       ⚠ AND THE SUPPLIES ROW MUST NOT FIRE ON A RETREAT. Before this branch a
+         `stoppedBy:'retreat'` fell straight through to it and the modal read
+         "Your run ran out of materials", which is a fabricated cause on the one
+         surface that exists to state a real one. If the home module is not
+         loaded the modal says NOTHING about the stop, which is the honest
+         degradation — never the wrong sentence. */
+    var _retreated = _off.stoppedBy === 'retreat';
+    if(_retreated){
+      var _rs = null;
+      try{
+        var _HH = window.HearthriseHome;
+        if(_HH && typeof _HH.retreatSentence === 'function') _rs = _HH.retreatSentence(_off);
+      }catch(e){}
+      if(_rs) rows.push({g:'uiHourglass', bad:true, t:_rs,
+        v: (typeof _off.retreatMs === 'number' && isFinite(_off.retreatMs))
+             ? fmtSince(_off.retreatMs) + ' in' : ''});
+    }
+    else if(_off.stoppedBy && _off.stoppedBy !== 'death'){
       var _skN = _skillLabel(_off.stoppedSkill);
       rows.push({g:'uiHourglass', bad:true,
         t: _skN + ' ran out of ' + _itemLabel(_off.stoppedById) + ' — nothing was earned after',
@@ -14417,7 +14582,11 @@ function maybeShowWelcome(){
          run. Same sentence as the death sheet (features/death-sheet.js), because
          two surfaces describing one rule in two voices is how a player learns to
          distrust both. Suppressed when the run really did stop on the death. */
-      if(_statedDeaths >= 1 && _off.stoppedBy !== 'death'){
+      /* ⚠ AND NOT ON A RETREAT (rev. 3). "Your run picked up after every fall"
+         and "you pulled back to camp and the rest of the night was rest" are
+         the same night described two contradictory ways, and the modal would
+         print both. The retreat row above is this night's account. */
+      if(_statedDeaths >= 1 && _off.stoppedBy !== 'death' && !_retreated){
         rows.push({g:'uiSword',
           t: _nm ? 'Your run picked up against the ' + _nm + ' after every fall'
                  : 'Your run picked up again after every fall',

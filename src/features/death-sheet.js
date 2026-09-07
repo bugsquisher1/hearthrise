@@ -287,6 +287,17 @@
        has not priced the window the fall is in yet) and `unconfirmed` (it did,
        and there was no death in it). */
     var phase = String(d.fallPhase || '') || (recoverLeft > 0 ? 'recovering' : 'down-free');
+    /* ── THE RETREAT (Recovery Rule rev. 3) ────────────────────────────────
+       STATED by the engine (`resolveDeath` -> info.retreat), never derived here
+       from a count and a bag: the sheet and the server must not be able to
+       disagree about which fall was the last one. It is deliberately NOT a
+       sixth `phase` — the phases answer "what is the SERVER's answer about this
+       fall yet?" (pending / unconfirmed / recovering / down-free), and a
+       retreating fall passes through every one of those exactly as any other
+       fall does. Retreat is a fact about the RUN, not about the fall's
+       settlement, so it overrides the title and the lead and leaves the phase
+       machinery — including the countdown re-render — untouched. */
+    var retreat = !!d.retreat;
 
     /* THE TIP RULE. Held-and-unused beats everything, because it is the only
        branch where the player already owned the answer — that is the most
@@ -398,14 +409,25 @@
          THAT first — "The Slime got you" describes a thing that already
          finished, and the sheet would then be silent about the only fact that
          governs their next tap. */
-      title: phase === 'pending'
+      /* ── THE RETREAT OVERRIDES BOTH (rev. 3), and it sits ABOVE the phase
+         ladder deliberately. A retreating fall is still "recovering" — its rung
+         was charged before the run ended — so without this the sheet would say
+         "Knocked out / Back on your feet in 3:47", which describes a player who
+         is about to carry on. They are not: the server has idled their pointer.
+         The ruling's own words: ENDED BY CHOICE is not the same as FAILED. */
+      title: retreat
+        ? 'You pulled back'
+        : (phase === 'pending'
         ? 'You fell'
         : (phase === 'unconfirmed'
           ? 'Still standing'
           : (recoverLeft > 0
             ? 'Knocked out'
-            : (monsterName ? 'The ' + monsterName + ' got you' : 'You fell'))),
-      lead: phase === 'pending'
+            : (monsterName ? 'The ' + monsterName + ' got you' : 'You fell')))),
+      lead: retreat
+        ? 'Three falls with an empty bag — you retreated to camp rather than keep going down. '
+          + 'Cook or buy something, then pick the fight back up.'
+        : (phase === 'pending'
         /* ⚠ THE WAIT IS NAMED, NEVER AN OPEN-ENDED SPINNER (P1, b511 live).
            The server floor is 60 s, so this sentence is on screen for up to a
            minute by design — and a player looking at "…" with no stated bound
@@ -428,13 +450,24 @@
             ? 'Back on your feet in ' + mmss(recoverLeft) + '.'
             : (nToday <= 1
               ? 'Your first fall today. Nothing is lost but a moment — here is what happened.'
-              : 'You have fallen ' + nToday + ' times today. Each one takes longer to shake off.'))),
+              : 'You have fallen ' + nToday + ' times today. Each one takes longer to shake off.')))),
       /* STATED on the model so the renderer can tell a re-render it must do
          (the phase moved) from one it must not (a second ticked by). */
       fallPhase: phase,
+      /* STATED for the same reason `fallPhase` is: the renderer's countdown
+         rewrites the lead every second, and it must not rewrite a retreat's
+         lead into "Back on your feet in 3:47" — that clock is running, but the
+         run it would resume is over. */
+      retreat: retreat,
       /* The renderer re-draws the lead from this every second. Stated rather
-         than re-derived there, so one function owns the arithmetic. */
-      recoverMsLeft: recoverLeft,
+         than re-derived there, so one function owns the arithmetic.
+         ⚠ ZERO ON A RETREAT, deliberately. The rung was still charged (the
+           away card's "Still recovering — Nm to go" says so, and hr_rest is
+           still the cure) — but this sheet's countdown is a promise that the
+           fight RESUMES when it hits zero, and after a retreat it does not.
+           Suppressing the countdown is how the sheet keeps from making a
+           promise the server will not honour. */
+      recoverMsLeft: retreat ? 0 : recoverLeft,
       deaths: deaths,
       rows: rows,
       tipKey: tipKey,
@@ -666,6 +699,19 @@
         return Math.max(0, Number(info && info.nextRecoverMs) || 0);
       })(),
       resumeHp: Math.max(0, Number(info && info.resumeHp) || Number(G.playerHp) || 0),
+      /* ── THE RETREAT (Recovery rev. 3) ──────────────────────────────────
+         STATED BY THE ENGINE and by nothing else. `info.retreat` is
+         `resolveDeath`'s own answer, computed from the durable server counter
+         (`G.consecFalls`, projected by hr_state_of) and the LIVE bag at the
+         instant of the fall — so the sheet cannot decide a player retreated on
+         a fall the server will price as an ordinary one.
+         ⚠ NO CLIENT FALLBACK, for the same reason `recoveringUntilMs` above has
+           none since the attended-death P0: re-deriving it here from a count
+           and a bag would be a second copy of the rule, and the second copy is
+           the one that is wrong. A boot-raised sheet (`show(null, null)`) has
+           no `info` and therefore never claims a retreat — which is right: by
+           then the server has idled the pointer and the combat screen says so. */
+      retreat: !!(info && info.retreat),
       /* What "Rest at the Hearth" costs, in health. The SERVER recomputes it
          under the row lock and this number never crosses back — it is a label. */
       missingHp: Math.max(0, (Number(G.playerMaxHp) || 0) - (Number(G.playerHp) || 0)),

@@ -2408,6 +2408,33 @@ export function applyEnvelopeState(G, res, ownKey) {
     deathsLifetimeCount = (Number.isFinite(n) && n >= 0) ? n : 0;
     written.deathsLifetime = deathsLifetimeCount;
   }
+  /* ── THE RETREAT COUNTER, OBSERVED (Recovery rev. 3) ─────────────────────
+     `player_state.consec_falls` — consecutive falls with no kill between them.
+     It is written straight onto `G` and not into a module-local like the two
+     counters above, and that is deliberate: `G` IS the state the live combat
+     tick hands to `src/core/combat-sim.js` `resolveDeath`, so this one
+     assignment is the whole of what makes the ATTENDED path evaluate the same
+     rule the away path does, off the same durable number, with no second copy.
+
+     ⚠ KEY PRESENCE, not truthiness — the same rule the recovery line follows,
+       and here it is load-bearing in an additional way: `resolveDeath` gates
+       the ENTIRE Retreat on this field being a NUMBER, so an ABSENT key (a
+       server that predates the migration) must leave `G.consecFalls`
+       `undefined` and the client must never invent a 0. Inventing one would arm
+       a client-side rule against a database that cannot back it — which is the
+       residue-ahead class, pointed at a mechanic that STOPS the player.
+     ⚠ PREDICTION ONLY. The tick's own increments are display state; the next
+       envelope overwrites them with the server's number. That is the standard
+       contract (CLAUDE.md §1) and it is why no `?v=` of this value is ever
+       proposed back: the client sends intents, the server owns the count. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'consec_falls')) {
+    const n = Math.floor(Number(st.consec_falls));
+    const v = (Number.isFinite(n) && n >= 0) ? n : 0;
+    /* `G` is this function's own first parameter — the very object the live
+       tick passes to `simulateTick`. One identity, not a copy. */
+    if (G) G.consecFalls = v;
+    written.consecFalls = v;
+  }
   /* AFTER all three, because the answer is a function of every one of them. */
   noteFallAnswer(res);
 
@@ -3546,6 +3573,22 @@ export function summaryFromAway(away, res) {
        that met the novice clamp or the 64-minute cap. */
     recoverLadder: Array.isArray(a.recoverLadder)
       ? a.recoverLadder.map((v) => Math.max(0, Number(v) || 0)) : [],
+    /* ── THE RETREAT (Recovery Rule rev. 3) ────────────────────────────────
+       `stoppedBy === 'retreat'` is already carried above; these are what let
+       the card and the modal say WHICH sentence and WHEN. Every one is
+       pass-through — nothing here is inferred, and in particular `retreatMs`
+       stays `null` rather than 0 when the server did not state one, because 0
+       is the meaningful value "on the very first tick" and a truthiness test
+       would render the worst night as a clean one (the `dryMs` trap).
+       `retreatFoodless` is the bag AT THE FALL and is deliberately not the same
+       fact as `autoEat.hadFood` (window-open); they answer different questions
+       and are rendered by different sentences. */
+    retreatMs: Number.isFinite(Number(a.retreatMs)) ? Math.max(0, Number(a.retreatMs)) : null,
+    retreatFoodless: !!a.retreatFoodless,
+    retreatFalls: Math.max(0, Number(a.retreatFalls) || 0),
+    /* The slice of the credited window that paid nothing because the hero had
+       already gone home. 0 on every night that did not retreat. */
+    idleMs: Math.max(0, Number(a.idleMs) || 0),
     capped: !!a.capped,
     blessed: !!a.blessed,
     buffsPaused: !!a.buffsPaused,
@@ -3898,7 +3941,15 @@ export function receiptRecoveryClause(summary, opts) {
   const o = opts || {};
   const s = summary || {};
   const deaths = Math.max(0, Number(s.deaths) || 0);
-  if (deaths < 1 || s.stoppedBy === 'death') return null;
+  /* ⚠ AND SILENT ON A RETREAT (Recovery rev. 3). "your run picked up each time"
+     is rev. 2's headline promise and it is FALSE of a night the hero ended by
+     going home — the run did not pick up, that was the point. The retreat has
+     its own sentence on the two surfaces the ruling names (the away card and
+     the welcome-back modal, one author: HearthriseHome.retreatSentence); this
+     toast stays quiet rather than becoming a third voice for the same night,
+     which is the same call STOP_CLAUSE above makes for every reason it cannot
+     honestly describe. */
+  if (deaths < 1 || s.stoppedBy === 'death' || s.stoppedBy === 'retreat') return null;
   const foeName = (typeof o.foeLabel === 'function') ? o.foeLabel(s.diedTo) : null;
   const foe = foeName ? (' to the ' + foeName) : '';
   const recMs = Math.max(0, Number(s.recoverMs) || 0);

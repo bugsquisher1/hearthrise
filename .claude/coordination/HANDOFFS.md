@@ -2844,3 +2844,60 @@ de-owns every theme and cosmetic every player already bought, instantly. Full wr
 Also owed, same verb family: `redeemHearthToken` needs an atomic consume-token/credit-gems intent
 (today the client can only do one half and both halves lose the player value), and the gem bank rung
 needs a `bank.gem.<n>` offer that does not exist in any catalogue.
+
+---
+
+## QA → Coordinator / Systems / Backend: the b515 suite is GREEN, and it found four things — 2026-09-07
+
+Branch `worktree-agent-a1aed2177931a2206`. The 83 in-page reds the kill-switch retirement left are
+closed: **1143 passed / 0 failed / 16 skipped / 0 runtime errors** in-page (the 16 skips are the
+same declared set as before this work — mobile-only rules, https-only, signed-out seams). Nothing
+was disabled and no assertion was relaxed. Every test is either RETIRED with the covering test named
+where it stood, or RE-POINTED at the seam its property moved to.
+
+### ⚠ ONE MERGE CONFLICT IS CERTAIN
+
+This branch is based on `dd8125d1` and does **not** contain cleanup slice 4's farm work
+(`7cbfdb4b`), which rewrites ~610 lines of `src/features/smoke-test.js` around
+`withLocalFarm` → `withFarmServer`. Both changes touch the helper block at the top of the file.
+The two are compatible in intent — `withFarmServer` is the same pattern as the four fixtures added
+here — and the resolution is "take both helpers". Nothing here touches `withLocalFarm` or any farm
+test.
+
+### FOUR PRODUCT FINDINGS, all filed in DISCOVERIES.md with repro + routing
+
+| # | sev | what | owner | state |
+|---|---|---|---|---|
+| 1 | **P1** | `applyGoldEnvelope` passed the NARROWED envelope to `applyRecord`, dropping `progress` — so a room/property purchase could not show as owned on its own answer. b227's double-build report, restored by omission, up to ~90s of a lit Build button on a room already paid for. | Systems (+ Security glance: gold-verb path) | **FIXED HERE**, one line, mutation-proven both ways |
+| 2 | **P1** | `summaryFromAway` dropped SEVEN fields the welcome-back renderers read (`paidMs`, `burnt` hardcoded 0, `stoppedBy`, `stoppedById`, `stoppedSkill`, `stoppedPerHour`). The b345 supply-stop bug, restored on the only path that runs. | Systems | **client half FIXED HERE**; the SERVER still does not SEND them (`hr-accrue/index.ts` ~1163) — **Backend, needs an edge redeploy** |
+| 3 | **P2** | b515 deleted the b345 stop toast and the rev.2 recovery toast; `receiptSentence` has never had either clause, so a stopped night still prints "⏰ Away 8h — the server credited …". | Systems + Game Designer (copy) | filed, named in `B345-1` |
+| 4 | **P2** | b313 is back: `awardCompanionXp`'s level-up branch is unreachable and `reconcileCompanions` repaints nothing, so a pet that levels server-side leaves a stale doll. | Systems | filed, named in `b313` |
+
+Plus **P2**: `lastOfflineSummary` is not residue and not projected, so the "durable" away card does
+not survive a reload; and **P3**: three orphans b515 left — `simulateAwayCombat`, `withOfflineReplay`
+and `_applyCatchup` (which still MINTS off a client estimate and is safe only because nothing calls
+it). All in DISCOVERIES.md.
+
+### FIVE SHARED FIXTURES ADDED (the brief asked for one; the seams genuinely differ)
+
+  · `withServerBacked(opts, fn)` — stubs ONE thing (`window.fetch`) and leaves the request builder,
+    classifier, envelope reader, applier and prediction ledger real. Also releases the b314 snapshot
+    hold and acknowledges the b366 consent, because every verb envelope is deferred under the first
+    and any gold-reducing answer reads `destructive` under the second.
+  · `withRoomServer(owned, gold, fn)` — the `progress` rows + the server's post-purchase gold.
+  · `withClaimServer(answer, fn)` — the `hr_claim_*` RPC transport, with the reward arriving on a
+    later absolute envelope rather than for free.
+  · `awaySpan` / `awayGatherSpan` / `awayArtisanSpan` — the three core sims on a PLAIN state with a
+    recording `fx` and a pinned seed: the bytes `tools/pack-edge.mjs` vendors into hr-accrue, in the
+    shape Deno runs them.
+  · `withCompanionRoster(owned, equipped, fn)` — the roster through the real `reconcileCompanions`.
+
+### ONE CLASS WORTH A SWEEP (not done here)
+
+A HARD-CODED envelope `version` in a test is a test that works until somebody stamps first.
+`applyRecord` is monotonic and a stale envelope only fills GAPS, so `version: 9000001` is silently
+refused once any earlier test has stamped with `Date.now()`. That is what made
+`combat style FAMILY follows the actual weapon` pass alone and fail in the suite — a guard failing
+in a way that looks exactly like the bug it guards. Fixed there and in `withServerBacked`; there are
+~5 more literal versions in the file (`grep -n "version: [0-9]\{5,\}"`), all currently safe because
+their tests `delete G._record` first, none of them guarded against a future one that does not.

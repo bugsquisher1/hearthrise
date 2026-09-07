@@ -4,6 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 513 — 2026-09-07 (The fight fits its card)
+
+- 🥊 **The fight stage now fits inside its card at every size.** It never had: on a 900-px-tall window the stage was 33 px taller than its card, so the session tally and metrics were painted below the fold and the Eat button sat a coin-flip away from spilling out (the style row measured 98 or 133 px on identical boots). The foe portrait now absorbs the variance instead of the controls; Eat sits 73 px inside on desktop and is on screen and tappable on a landscape phone, where the log row was also swallowing taps on Eat and Stop.
+- 🧪 Two tests that were failing on their own schedule are honest again: the rally-pledge test only ran its real path between 00:00 and 01:00 UTC and asserted a card the clan flag has hidden since b385; the Eat-button test now grades a hostile state too and demands real headroom. With both green the GitHub gate is reachable again — b512 shipped green locally and red there for exactly this reason.
+
 ## v0.9.2-beta build 512 — 2026-09-07 (A fight never freezes silently)
 
 - ⚔️ **The swing bar no longer sweeps forever after the realm knocks you out.** (Reported by Tyler.) When a settle came back saying you had fallen, the fight stopped dealing damage — correctly — but nothing said so: the monster stayed on screen, the swing bar kept moving, kills stayed at zero. The knockout is now announced the moment it arrives, whoever stated it, and the swing bar parks while you are down and resumes on its own.

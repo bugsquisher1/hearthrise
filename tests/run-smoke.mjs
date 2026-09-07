@@ -3125,7 +3125,9 @@ const run = async () => {
        escalation), that NONE fires on a healthy database, that the sensitivity
        scale which makes the first half testable cannot be raised into an off
        switch, and that the detector's own tables are bounded and unreachable by
-       a client. `--selftest` plants eight real defects; every one must read RED. */
+       a client. `--selftest` plants eight real defects (every one must read RED) plus three
+       HARNESS defects — a second sample that never arrived — which must abort
+       loudly instead of reading as "the arm did not fire". */
     try {
       const { cronHealthGuard } = await import('./cron-health.mjs');
       const cronProblems = await cronHealthGuard();
@@ -3138,7 +3140,12 @@ const run = async () => {
           + 'the scale cannot be raised, retention bounds the detector itself.');
       }
     } catch (e) {
-      console.log('\nCron-health guard — FAILED:\n' + String(e.message || e));
+      // A HARNESS fault means the guard could not take its own measurement (the
+      // second hr_db_samples row never arrived, the replay would not boot), so
+      // NOTHING was graded. Saying "FAILED" there blames the detector for the
+      // harness, which is how a real red gets read as a flake and re-run.
+      console.log(`\nCron-health guard — ${e.harness ? 'HARNESS FAULT (nothing graded)' : 'FAILED'}:\n`
+        + String(e.message || e));
       exitCode = e.harness ? 2 : 1;
     }
 

@@ -7,6 +7,11 @@
 //   node tests/cron-health.mjs --list      # the mutation catalogue
 //   node tests/cron-health.mjs --selftest  # every mutation must be CAUGHT
 //   node tests/cron-health.mjs --mutate=<id>
+//   node tests/cron-health.mjs --plant=<id>  # a HARNESS defect; must abort loudly
+//
+// EXIT CODES:  0 green · 1 a property failed / a mutation was missed ·
+//              2 HARNESS FAULT — the harness could not take its own measurement,
+//                so NOTHING was graded. Not a repo failure; re-run alone.
 //
 // Ships with: supabase/migrations/2026-09-03-cron-health-generalized.sql
 //
@@ -32,6 +37,9 @@
 //     never-ran escalation can be exercised at all.
 //   · Synthetic hr_db_samples rows, back-dated, to give the 24h rate window
 //     something to measure. A rate cannot be tested by waiting a day.
+//   · `ANALYZE` before anything is sampled: the sample's ROW half reads
+//     pg_stat_all_tables.n_live_tup, and cumulative stats do not survive a
+//     restore of a cached data directory (see the note at the call site).
 //
 // ── WHAT IT CANNOT PROVE ────────────────────────────────────────────────
 //   · A REAL 400 MB database or a REAL exhausted connection pool. The arms are
@@ -46,6 +54,171 @@ const MIG = '2026-09-03-cron-health-generalized.sql';
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
+
+/* ── HARNESS FAULT vs. PROPERTY FAILURE ────────────────────────────────────
+   REPORTED 2026-09-07: H4's row-delta arm went red twice — "produced 0
+   alert(s), expected at least 1" — while two worktree suites ran side by side
+   (another lane took `Array buffer allocation failed` from PGlite in the same
+   minute), and green when run alone. MEASURED here, which is a different and
+   worse story: the arm's input was `player_ledger` gaining rows, `r` came from
+   `pg_stat_all_tables.n_live_tup`, and n_live_tup measured 3 after a COLD
+   replay and 0 after a template RESTORE — PostgreSQL discards cumulative
+   statistics on recovery, and loading a cached data directory is a recovery.
+   The arm was therefore firing on a cache MISS and silently reporting "0
+   alerts" on a HIT. Memory pressure is one way to land on that path; it was
+   never the property failing. Fixed at the source by the ANALYZE scaffold.
+
+   The reason it could read as a property failure is structural. The arm needs
+   TWO samples: a synthetic 24h-old row this file inserts, and a REAL one that
+   `hr_cron_health` takes for itself by calling `hr_db_sample(10)`. The second
+   one contributes `r` from `pg_stat_all_tables.n_live_tup` — a stats-collector
+   value, not a count(*) — for the top ten tables by size. If that second
+   sample is not taken, or comes back with no tables, or comes back with a null
+   `r`, then `v_rows - prev.r` is `0 - 0`, the arm correctly does not fire, and
+   the assertion below reports the DETECTOR as broken. That is decoration: the
+   guard's own sample step failed and the message blames the migration.
+
+   So every sample the arm consumes is asserted BEFORE the arm is graded, and a
+   sample that did not arrive throws a `HARNESS:` error naming the step. Loud,
+   distinct exit code 2, never a ✗ against the detector. `--plant=` proves the
+   rejection path fires; a rejection path that has never fired is a hope. */
+class HarnessError extends Error {
+  constructor(step, why) {
+    super(`HARNESS: ${step} — ${why}`);
+    this.harness = true;
+    this.step = step;
+  }
+}
+/* An allocation failure is the machine, not the repo. REPRODUCED 2026-09-07 by
+   running this guard six times back to back beside another lane's suite:
+   `RangeError: WebAssembly.Memory(): could not allocate memory` came out of
+   PGlite.create inside bootReplay, unflagged, and exited 1 — indistinguishable
+   from "a property failed" to anything reading the exit code. It is a harness
+   fault and it exits 2. (A hard V8 `Fatal process out of memory` kills the
+   process outright; nothing in JS can label that one.) */
+const ALLOC_FAULT = /could not allocate|allocation failed|out of memory|WebAssembly\.Memory|Aborted\(/i;
+const isHarness = (e) => !!(e && (e.harness === true
+  || /^HARNESS:/.test(String(e.message || ''))
+  || ALLOC_FAULT.test(String(e.message || ''))));
+const harness = (step, why) => { throw new HarnessError(step, why); };
+
+/** A count that is present, finite and non-negative — `null`, `undefined`,
+ *  `NaN` and a non-numeric string are all "not measured", not "zero". */
+const measured = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+
+/**
+ * Assert one hr_db_samples row is a sample that was actually TAKEN: a row
+ * exists, it has a clock and a database size, it names at least one table, and
+ * every table it names carries a byte count AND a row count that are present
+ * and non-NaN. Throws HarnessError naming the step; returns the parsed tables.
+ */
+function assertSample(step, row, { requireTables = [] } = {}) {
+  if (!row) harness(step, 'no sample row — hr_db_sample did not insert one (the second sample '
+    + 'could not be taken; nothing was measured, so nothing below is gradeable)');
+  if (!row.at) harness(step, 'the sample row has no `at` timestamp');
+  if (measured(row.db_bytes) === null || Number(row.db_bytes) <= 0) {
+    harness(step, `the sample recorded db_bytes=${JSON.stringify(row.db_bytes)} — pg_database_size `
+      + 'did not produce a size');
+  }
+  const tables = row.tables && typeof row.tables === 'object' ? row.tables : null;
+  if (!tables) harness(step, `the sample's \`tables\` is ${JSON.stringify(row.tables)}, not an object`);
+  const names = Object.keys(tables);
+  if (!names.length) harness(step, 'the sample named ZERO tables — hr_db_sample observed nothing');
+  const out = new Map();
+  for (const t of names) {
+    const b = measured(tables[t]?.b);
+    const r = measured(tables[t]?.r);
+    if (b === null || r === null) {
+      harness(step, `table "${t}" was sampled with b=${JSON.stringify(tables[t]?.b)} `
+        + `r=${JSON.stringify(tables[t]?.r)} — a missing/NaN count is NOT a count of zero. `
+        + '(n_live_tup unavailable is the shape this takes under memory pressure.)');
+    }
+    out.set(t, { b, r });
+  }
+  for (const t of requireTables) {
+    if (!out.has(t)) {
+      harness(step, `"${t}" is not in this sample (${names.join(', ')}). The arm compares the two `
+        + 'samples table by table, so it cannot fire for a reason that is not the property.');
+    }
+  }
+  return out;
+}
+
+/* ── PLANTED HARNESS DEFECTS ───────────────────────────────────────────────
+   Each replaces hr_db_sample with a version that models one way the SECOND
+   sample fails to arrive, installed immediately before H4 takes it. Every one
+   of them leaves the detector raising ZERO row alerts without any error — i.e.
+   each reproduces exactly the red H4 saw — and must be reported as a HARNESS
+   fault, never as "the arm did not fire". */
+const PLANTS = {
+  /* The one plant that never reaches the database: a RAW PGlite allocation
+     failure, thrown exactly as it arrives from PGlite.create — unflagged, with
+     no `harness` property. Verbatim from the reproduction above; it must be
+     classified as a harness fault by its MESSAGE, or the machine running out of
+     memory reads as this repo's detector being broken. */
+  alloc_failure_from_pglite: {
+    why: 'PGlite cannot allocate its WASM heap (a co-resident suite took the memory). The error is '
+       + 'an ordinary RangeError with no marker on it; classifying it is the only thing standing '
+       + 'between "the machine is busy" and "the alarm arm is dead".',
+    expect: /could not allocate memory/i,
+    beforeBoot: () => { throw new RangeError('WebAssembly.Memory(): could not allocate memory'); },
+  },
+  second_sample_missing: {
+    why: 'hr_db_sample returns an all-NULL row and inserts nothing: the second sample was never '
+       + 'taken. Every arm then compares against NULL, fires nothing, and raises no error.',
+    expect: /no sample row|second sample/i,
+    sql: `create or replace function public.hr_db_sample(p_top int default 10)
+          returns public.hr_db_samples language plpgsql security definer
+          set search_path = public, pg_catalog as $plant$
+          declare v_row public.hr_db_samples%rowtype;
+          begin return v_row; end $plant$;`,
+  },
+  second_sample_empty: {
+    why: 'the sample row arrives but names ZERO tables (the per-table query produced nothing). '
+       + 'jsonb_each over an empty object loops zero times, so every per-table arm is silent.',
+    expect: /ZERO tables/i,
+    sql: `create or replace function public.hr_db_sample(p_top int default 10)
+          returns public.hr_db_samples language plpgsql security definer
+          set search_path = public, pg_catalog as $plant$
+          declare v_row public.hr_db_samples%rowtype;
+          begin
+            insert into public.hr_db_samples (at, db_bytes, max_conns, used_conns, tables, jobs)
+            values (now(), pg_database_size(current_database()), 60, 1,
+                    '{}'::jsonb, '{}'::jsonb)
+            on conflict (at) do update set db_bytes = excluded.db_bytes
+            returning * into v_row;
+            return v_row;
+          end $plant$;`,
+  },
+  second_sample_rows_unmeasured: {
+    why: 'the sample arrives with byte counts but a NULL row count for every table — the shape '
+       + 'n_live_tup takes when the stats collector has not reported. The migration coalesces it '
+       + 'to 0, the row delta is 0-0, and H4 reads as "the arm did not fire".',
+    expect: /is NOT a count of zero|r=null/i,
+    sql: `create or replace function public.hr_db_sample(p_top int default 10)
+          returns public.hr_db_samples language plpgsql security definer
+          set search_path = public, pg_catalog as $plant$
+          declare v_row public.hr_db_samples%rowtype; v_tables jsonb;
+          begin
+            select coalesce(jsonb_object_agg(t.relname, jsonb_build_object('b', t.bytes, 'r', null)),
+                            '{}'::jsonb) into v_tables
+              from (select c.relname::text as relname, pg_total_relation_size(c.oid) as bytes
+                      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                     where n.nspname = 'public' and c.relkind in ('r','m','p')
+                     order by pg_total_relation_size(c.oid) desc
+                     limit greatest(1, coalesce(p_top, 10))) t;
+            insert into public.hr_db_samples (at, db_bytes, max_conns, used_conns, tables, jobs)
+            values (now(), pg_database_size(current_database()), 60, 1, v_tables, '{}'::jsonb)
+            on conflict (at) do update set db_bytes = excluded.db_bytes
+            returning * into v_row;
+            return v_row;
+          end $plant$;`,
+  },
+};
 
 const MUTATIONS = {
   fuse_scale_unclamped: {
@@ -106,12 +279,29 @@ const MUTATIONS = {
   },
 };
 
-async function run(mutate) {
+async function run(mutate, plant) {
   const patches = mutate
     ? new Map([[MIG, MUTATIONS[mutate].pairs
         || [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
     : undefined;
+  /* The chain is rebuilt through bootReplay, which shares the snapshot template
+     in tests/pglite-template.mjs — one PGlite instance per run, and the eight
+     mutations here all patch the SAME file, so the unpatched prefix is built
+     once and restored seven times. There is deliberately no second PGlite and
+     no second full replay in this file; that is the memory budget. The instance
+     is CLOSED in the finally below (it was not, before 2026-09-07: --selftest
+     held all eight WASM heaps live at once, which is what put this guard within
+     reach of an allocation failure in the first place). */
+  if (plant && PLANTS[plant].beforeBoot) PLANTS[plant].beforeBoot();
   const { db } = await bootReplay({ patches });
+  try {
+    return await probe(db, plant);
+  } finally {
+    try { await db.close(); } catch { /* closing a replay is best-effort */ }
+  }
+}
+
+async function probe(db, plant) {
   const q = async (sql, p) => (await db.query(sql, p)).rows;
 
   /* SCAFFOLD (declared in the header): pg_cron's run-history table, which the
@@ -120,6 +310,18 @@ async function run(mutate) {
   await q(`create table if not exists cron.job_run_details (
              runid bigserial primary key, jobid bigint, status text,
              return_message text, start_time timestamptz)`);
+
+  /* SCAFFOLD 3 (2026-09-07): ANALYZE, because the ROW half of the sample is
+     `pg_stat_all_tables.n_live_tup` and CUMULATIVE STATISTICS DO NOT SURVIVE A
+     DATA-DIRECTORY RESTORE. PostgreSQL discards pgstat on recovery, and
+     restoring a tests/pglite-template.mjs snapshot IS a recovery — the same
+     class as the unlogged-table note in that file. MEASURED here: player_ledger
+     holds 3 rows either way, but n_live_tup is 3 after a cold replay and 0 after
+     a restore, so H4's row-delta arm was firing only on a cache MISS and
+     silently reading "0 alerts" on every cache HIT. ANALYZE recomputes it from
+     the heap, so the arm's input is the same on both paths. The HARNESS
+     assertions in H4 are the backstop if it ever is not. */
+  await q('analyze');
 
   const alerts = async (like) => q(
     'select ref, severity, message from public.maintenance_alerts where ref like $1 order by ref',
@@ -174,10 +376,41 @@ async function run(mutate) {
            values (now() - interval '25 hours', 1, 60, 1,
                    jsonb_build_object('player_ledger', jsonb_build_object('b', 0, 'r', 0)),
                    '{}'::jsonb)`);
+  // A planted HARNESS defect, if one was asked for: from here the SECOND sample
+  // fails in one of the ways it fails for real. (--plant, exercised by --selftest.)
+  if (plant && PLANTS[plant].sql) await q(PLANTS[plant].sql);
   await scaled(0.0000000001);
   obs.h4_db_growth = await alerts('db-growth:%');
   obs.h4_tbl_growth = await alerts('table-growth:%');
   obs.h4_rows = await alerts('table-rows:%');
+
+  /* ── H4's SAMPLES, ASSERTED BEFORE ITS ARMS ARE GRADED ─────────────────
+     Two rows must exist: the synthetic 24h-old one inserted above, and the one
+     hr_cron_health took for itself. Anything less and the arms above were
+     comparing against a measurement that was never made. */
+  const rows = await q('select at, db_bytes::text as db_bytes, tables '
+    + 'from public.hr_db_samples order by at asc');
+  if (rows.length < 2) {
+    harness('H4 second sample', `hr_cron_health left ${rows.length} sample row(s) where 2 were `
+      + 'expected (the synthetic 24h-old one + the one it takes itself). The second sample could '
+      + 'not be taken, so every growth arm compared against nothing and correctly stayed silent.');
+  }
+  const prev = assertSample('H4 first sample (synthetic)', rows[0]);
+  const now = assertSample('H4 second sample', rows[rows.length - 1],
+    { requireTables: [...prev.keys()] });
+  /* And the pair must be capable of firing the row arm at all: `r` comes from
+     pg_stat_all_tables.n_live_tup, which is stats-collector state rather than a
+     count, so "every shared table gained zero rows" means the second sample did
+     not observe live tuples — not that the detector is broken. */
+  const deltas = [...prev.keys()].map((t) => [t, now.get(t).r - prev.get(t).r]);
+  if (!deltas.some(([, d]) => d > 0)) {
+    harness('H4 second sample', 'no table shared by the two samples has a POSITIVE 24h row delta '
+      + `(${deltas.map(([t, d]) => `${t}:${d >= 0 ? '+' : ''}${d}`).join(', ')}). The arm is being `
+      + 'asked to fire on an input that cannot fire it: the sample step observed no live tuples '
+      + '(n_live_tup), which is what happens when PGlite is starved of memory by a co-resident '
+      + 'suite. Re-run this guard ALONE; if it repeats, HR_PGLITE_CACHE=0.');
+  }
+  obs.h4_sample_ok = true;
 
   // ── H5. RETENTION: SAMPLES, LOG, AND ONLY *ACKED* ALERTS ──────────────
   await q(`insert into public.hr_db_samples (at, db_bytes) values (now() - interval '31 days', 1)`);
@@ -277,6 +510,14 @@ function grade(o) {
     + 'and the failure is total.');
 
   // ── H4 ────────────────────────────────────────────────────────────────
+  // Nothing here is gradeable unless BOTH samples were taken and every table in
+  // them carries counts (see assertSample). run() has already thrown if not;
+  // this is the backstop for any future caller that grades an obs it built
+  // elsewhere, because "0 alerts" must never be reportable without it.
+  if (o.h4_sample_ok !== true) {
+    harness('H4', 'the sample integrity check did not run, so "0 alerts" cannot be told apart '
+      + 'from "the second sample was never taken"');
+  }
   ok(o.h4_db_growth.length === 1,
     `H4: the DATABASE GROWTH arm produced ${o.h4_db_growth.length} alert(s) against a 24h-old `
     + 'sample, expected 1. Growth is the signal that arrives first — b319 was four days of ~57 '
@@ -338,28 +579,90 @@ const RUN_DIRECTLY = !!process.argv[1]
 if (RUN_DIRECTLY) {
   if (argv.includes('--list')) {
     for (const [id, m] of Object.entries(MUTATIONS)) console.log(`${id.padEnd(26)} ${m.why}`);
+    for (const [id, p] of Object.entries(PLANTS)) console.log(`${`(plant) ${id}`.padEnd(26)} ${p.why}`);
     process.exit(0);
   }
 
   const mutateArg = argv.find((a) => a.startsWith('--mutate='));
+  const plantArg = argv.find((a) => a.startsWith('--plant='));
   const selftest = argv.includes('--selftest');
+
+  // A typo'd id must not arrive as `undefined[...]` three seconds into a replay.
+  const known = (arg, table, what) => {
+    const id = arg.split('=').slice(1).join('=');
+    if (!table[id]) {
+      console.error(`unknown ${what} "${id}" — try --list`);
+      process.exit(1);
+    }
+    return id;
+  };
+
+  /** A harness fault is never a verdict about the repo: it aborts, distinctly. */
+  const die = (e) => {
+    console.error(`\ncron-health: HARNESS FAULT — nothing was graded.\n  ${e.message}`);
+    process.exit(2);
+  };
 
   if (selftest) {
     let bad = 0;
+    /* ── THE PLANTS RUN FIRST. They are the guard on the guard: each makes the
+       second sample fail in a way that leaves the row arm silent, and each must
+       come back as a HARNESS error naming the step — not as a ✗ against the
+       detector, and not as a "CAUGHT" that would let a harness fault masquerade
+       as a successful mutation. */
+    for (const [id, p] of Object.entries(PLANTS)) {
+      let verdict = 'MISSED ';
+      let detail = p.why;
+      try {
+        problems.length = 0;
+        grade(await run(undefined, id));
+        detail = `no error at all; graded ${problems.length} ordinary problem(s): `
+          + `${problems[0] || '(none — it read as GREEN)'}`;
+      } catch (e) {
+        if (!isHarness(e)) { detail = `threw a NON-harness error: ${e.message}`; }
+        else if (!p.expect.test(e.message)) { detail = `HARNESS error, but not the expected one: ${e.message}`; }
+        else { verdict = 'HARNESS'; detail = e.message.split('\n')[0]; }
+      }
+      console.log(`${verdict} (plant) ${id}`);
+      console.log(`         ${detail}`);
+      if (verdict !== 'HARNESS') bad++;
+    }
+
     for (const id of Object.keys(MUTATIONS)) {
       problems.length = 0;
       let caught = false;
+      let note = '';
       try { grade(await run(id)); caught = problems.length > 0; }
-      catch (e) { caught = true; }
+      catch (e) {
+        // A harness fault under a mutation is NOT the mutation being caught.
+        // Before 2026-09-07 every throw counted as CAUGHT, so an allocation
+        // failure or a mangled patch anchor read as a successful detection.
+        if (isHarness(e)) die(e);
+        caught = true;
+        note = `caught by an exception: ${String(e.message).split('\n')[0]}`;
+      }
       console.log(`${caught ? 'CAUGHT ' : 'MISSED '} ${id}`);
+      if (note) console.log(`         ${note}`);
       if (!caught) { bad++; console.log(`         ${MUTATIONS[id].why}`); }
     }
-    console.log(bad ? `\n${bad} mutation(s) NOT caught — the guard is blind to them.`
-      : `\nall ${Object.keys(MUTATIONS).length} mutations caught.`);
+    console.log(bad ? `\n${bad} defect(s) NOT caught — the guard is blind to them.`
+      : `\nall ${Object.keys(MUTATIONS).length} mutations caught, `
+        + `all ${Object.keys(PLANTS).length} harness plants rejected.`);
     process.exit(bad ? 1 : 0);
   }
 
-  grade(await run(mutateArg ? mutateArg.split('=')[1] : undefined));
+  if (plantArg) {
+    try { grade(await run(undefined, known(plantArg, PLANTS, "plant"))); }
+    catch (e) {
+      if (isHarness(e)) { console.log(`the plant was REJECTED as a harness fault:\n  ${e.message}`); process.exit(0); }
+      throw e;
+    }
+    console.error('the planted harness defect was NOT reported as a harness fault');
+    process.exit(1);
+  }
+
+  try { grade(await run(mutateArg ? known(mutateArg, MUTATIONS, "mutation") : undefined)); }
+  catch (e) { if (isHarness(e)) die(e); throw e; }
   if (problems.length) {
     console.error(`cron-health: ${problems.length} problem(s)\n`);
     for (const p of problems) console.error(`  ✗ ${p}`);

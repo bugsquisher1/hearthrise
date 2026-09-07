@@ -2,6 +2,58 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-09-07 — I played b518 as a new player and found the onboarding we already shipped
+
+Wrote `docs/planning/FEATURE_SLATE.md` (6 ranked features + 5 existing-feature fixes). The thing I
+want to remember is not on the slate: **I nearly designed a first-30-minutes hook that already
+exists.** The brief asked for "a goal the new player can complete and feel", I started sketching a
+starter chain, and then found `QUEST_DEFS` — Gather 15 → Cook 5 → Defeat 5 → Harvest 6 → 100 kills,
+five rows, server-credited by `hr_claim_quest`, seeded into `G.quests` on every fresh boot, every
+one open. The feature was built. It has no surface. Home's launchpad renders ONE milestone and the
+skill candidate wins the 0%-vs-0% tie (`profile-launchpad.js`: skills evaluated first, strict `>`),
+so a brand-new account is told to train Attack; the "All quests →" link opens a modal that only has
+Daily and Weekly tabs. Designing a second chain would have shipped a duplicate on top of a bug.
+
+**The lesson generalises: before authoring content for a gap, check whether the gap is a RENDERER.**
+Two of my five fixes turned out to be this shape — the quest chain, and the away card telling players
+cooking does not pay while away (`home-dashboard.js:695`) when `COOKING_SETTLEMENT_ARM_ENABLED` has
+been true since b431. Both are prose standing where a live system already is.
+
+**Measured, not argued** (the real client, running, not a read of the tables):
+* `G.quests.filter(q=>!q.done).length === 5`; Home's Next-up rows = *Attack Lv 1 → 2* + the three
+  dailies. Zero quest rows.
+* `declarationFor('artisan','cook_shrimp')` → `{kind:'artisan'}`, `isPayableRecipe` true,
+  `serverOwnedBonusKeys()` → `['noBurn']`. Cooking pays away. The card's copy is stale, not the arm.
+* `START_CURRENCY.farmPlots = 4` vs `homestead TIERS[0].plots = 2`.
+* 432 drop rows scanned: rarest chance in the whole game is **0.005** (hell_ember), and
+  `DROP_BAND_MAX.rare = 0.05`. Tyler's "WOW I got something rare" moment has no substrate at all —
+  a 1-in-20 drop is called "rare" and nothing is rarer than 1-in-200.
+* Combat 25 = ~24,000 combat XP ≈ 260 goblin kills ≈ 1.5–2 h. **The gate is not the problem.** I came
+  in expecting to argue for lowering it and the arithmetic said the opposite: the problem is that a
+  new player's Combat rail is four grey cards (45 / 60 / 25 / locked) with no distance stated and no
+  event inside the first two hours. Ruled: the gates stay, a Champion goes underneath them.
+
+**RULINGS (delegated authority):**
+- **The two welcome modals resolve to b341's.** `legacy.js:14583` documents that the v2 block's
+  `window.maybeShowWelcome = function(){}` suppresses nothing (boot captured the lexical reference
+  first), and calls the choice a design call. It is mine: **v2 retires, b341 survives** — it is the
+  modal players actually see and the one that states deaths, recovery and dry-out honestly.
+- **`START_CURRENCY.farmPlots` loses to the property tier.** The camp's 2 plots is the number every
+  other system was tuned against (`farmhand` goal 6 = one 2-plot harvest round, b497). The kit
+  constant becomes derived rather than authored, so the two cannot disagree again.
+- **Auto-Eat I becomes the first-day chain's capstone, granted by `hr_claim_quest`.** The b495 ruling
+  ("grant tier I at creation") never shipped and the FTUE still says *"nobody does it for you yet"*.
+  Granting at creation teaches nothing; granting as the fifth rung of a chain the player completes
+  teaches the whole loop and then switches the idle pillar on. The 15-Marks purchase stays — a player
+  who buys it early simply completes the quest.
+- **No dungeon level gate moves.** Reachability is bought with content (a scaled Champion that drops
+  the Bone Key), never by deflating the ladder.
+
+**HANDOFFS raised:** Systems owns the launchpad tie-break + the farm-plot constant + the away-card
+copy; Art Director owns the Hearthfind reveal plate and the "Your heroes" gem block sitting above the
+fold on a brand-new account (four locked purchases and a dead *"Checking…"* as the first impression,
+on a product whose own premium shop says nothing is sold before it is built).
+
 ## 2026-08-31 — four rulings, and the one I got by pricing an item nobody asked me to price
 
 Four questions queued off b497/b498. Three of them I answered roughly where I expected. The

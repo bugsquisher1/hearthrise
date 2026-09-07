@@ -30,6 +30,7 @@ When two rules conflict, the earlier section wins: **§1 Mission constraints →
 - **Production DB writes happen only through `node tools/apply-migration.mjs <file>` (one file per call), never inside `begin/commit`, never during 00:00–00:10 UTC, never by an agent.** The Coordinator applies; agents stage and self-check.
 - **Guards are never loosened, skipped or deleted to get green.** A red guard is read first. If the guard is wrong, fix the guard with a mutation proof that shows it still bites.
 - **`tests/live-hash-drift.baseline.json` is Coordinator-only** (re-measured with `--live --write` after an apply, whys written from `--codediff`). Agents never edit it; they report what it wanted.
+- **No `git stash` in any worktree.** The stash is repo-global: a `stash pop` in one lane can take another lane's uncommitted work (happened 2026-09-07). Commit WIP on the branch instead.
 - **Worktrees are never recursively deleted.** Killed lanes keep uncommitted work; re-dispatch into the existing `.claude/worktrees/agent-<id>` without isolation to recover it.
 
 ---

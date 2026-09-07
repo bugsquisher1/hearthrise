@@ -614,7 +614,14 @@ const withServerBacked = (opts, fn) => {
   const realFetch = window.fetch;
   const hadGoldCfg = (Gd && typeof Gd.getGoldConfig === 'function') ? Gd.getGoldConfig() : null;
   const sent = [];
-  let version = 1000;
+  /* ⚠ NEWER THAN WHATEVER IS ALREADY STAMPED. `applyRecord` is MONOTONIC on
+     `version` and only fills GAPS from an older envelope — so a fixture that
+     stamped a known value (a room rung, a balance) with `stampRecordLikeLoad`,
+     which uses `Date.now()`, would silently refuse every answer this rig gives
+     if the rig started counting from a small number. Measured: the room-rung
+     assertion in b227's property-gate test failed for exactly this and for no
+     other reason. */
+  let version = Math.max(((G && G._record && Number(G._record.version)) || 0) + 1, Date.now());
   let nextState = null;
   let nextExtra = null;
   let replyFn = null;
@@ -2319,7 +2326,7 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRunClientAuthoritative('b227 regression: the property gate is enforced on EVERY rung, not just the first', () => {
+  () => tryRunAsync('b227 regression: the property gate is enforced on EVERY rung, not just the first', async () => {
     // The old gate ran only at `lv === 0`. Harmless while a room's three rungs
     // shared one gate; a hole the moment L4 needs a Manor. A tier-2 player who
     // owns a Forge could otherwise buy the tier-3 and tier-4 rungs outright.
@@ -2329,20 +2336,39 @@ const TESTS = [
       window.G.homestead = { tier: 2 };                 // farmstead — below the L4 gate of 3
       window.G.rooms = { forge: 3 };                    // owns every ungated rung
       window.G.gold = 9000000;
-      stampBalanceLikeLoad(window.G);
+      /* b515: the rooms record is ARMED, so `roomRungG` reads the RECORD and a
+         bare `G.rooms = {forge:3}` is UNKNOWN — the gate would be measuring a
+         character who owns nothing. Stamped through the real applyRecord. */
+      stampRecordLikeLoad(window.G);
       const inv = {};
       Object.keys(window.ROOMS.forge.levels[3].cost).forEach((k) => { if (k !== 'gold') inv[k] = 9999; });
       window.G.inventory = Object.assign({}, window.G.inventory, inv);
       const goldBefore = window.G.gold;
-      assert(window.upgradeRoom('forge') === false, 'rung 4 must be refused below its property tier');
-      assert(window.G.rooms.forge === 3, 'a tier-gated rung must not be granted');
-      assert(window.G.gold === goldBefore, 'a tier-refused build must not charge the player');
-      // Raise the property and the same call now succeeds — proving the refusal
-      // was the TIER and not the cost.
-      window.G.homestead = { tier: 3 };
-      assert(window.upgradeRoom('forge') === true, 'rung 4 must be buildable at Stonecross Manor');
-      assert(window.G.rooms.forge === 4, 'the fitted rung should be owned');
-    } finally { restoreG(snap); }
+
+      /* THE REFUSAL IS THE CLIENT'S, AND IT MUST NOT COST A ROUND TRIP. A
+         pre-flight gate that still calls the server is a rate budget spent to be
+         told what the client already knew — the same property the farm refusal
+         tests hold. So the refusal half runs inside the fixture and asserts ZERO
+         intents left. */
+      await withRoomServer({ forge: 4 }, goldBefore - 1, async (rig) => {
+        assert(window.upgradeRoom('forge') === false, 'rung 4 must be refused below its property tier');
+        await rig.drain();
+        assert(rig.sent.length === 0,
+          'a tier-refused build still spent a server round trip: ' + JSON.stringify(rig.sent));
+        assert(window.G.rooms.forge === 3, 'a tier-gated rung must not be granted');
+        assert(window.G.gold === goldBefore, 'a tier-refused build must not charge the player');
+
+        /* Raise the property and the same call now succeeds — proving the
+           refusal was the TIER and not the cost. The rung arrives on the
+           answer, because the client may not write it. */
+        window.G.homestead = { tier: 3 };
+        assert(window.upgradeRoom('forge') === true, 'rung 4 must be dispatched at Stonecross Manor');
+        await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].offer === 'room.forge.4',
+          'the fitted rung sent ' + JSON.stringify(rig.sent) + ' — one unlock_buy naming room.forge.4');
+        assert(window.G.rooms.forge === 4, 'the fitted rung should be owned once the server records it');
+      });
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRunAsync('unlock_buy client transport: offer id crosses, a price never does', async () => {
@@ -2787,11 +2813,19 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRunClientAuthoritative('unlock_buy slice: upgradeProperty resolves property.<tierId> and debits once (client-authoritative)', () => {
-    // Client-authoritative (switch off), goldSettle is the plain local debit that
-    // shipped before, so this asserts the rewiring preserved the exact charge and
-    // did not double-debit. The offer id the site would send is
-    // `property.<nextTierId>`, and it must match a real sellable offer.
+  () => tryRunAsync('unlock_buy slice: upgradeProperty resolves property.<tierId>, and the TIER comes back on the answer', async () => {
+    /* b515 — "DEBITS ONCE" WAS A CLIENT PROPERTY AND THERE IS NO CLIENT DEBIT.
+       This ran with the b353 kill switch off, where `goldSettle` was the plain
+       local subtraction that shipped pre-seam, and asserted the rewiring had not
+       double-debited. Under the shipping arm `gold` is SERVER-OF-RECORD: the
+       gesture sends ONE `unlock_buy` naming `property.<nextTierId>`, no price
+       crosses, and the balance is whatever the answer states — absolutely.
+
+       So the three things worth holding are held, and the third is the one the
+       old shape could not see: exactly ONE intent, the right offer id with no
+       price on it, and the balance ending at the SERVER's number rather than at
+       the client's arithmetic (a double-debit would now show up as the client
+       having computed anything at all). */
     const H = window.HearthriseHomestead;
     if (!H || typeof H.upgradeProperty !== 'function') return;
     const snap = snapshotG();
@@ -2816,14 +2850,29 @@ const TESTS = [
       stampBalanceLikeLoad(window.G);   // armed: upgradeProperty's affordability read is registry-first
       window.G.inventory = Object.assign({}, window.G.inventory, { copper_ore: 500, normal_log: 500 });
       const goldBefore = window.G.gold;
-      const ok = H.upgradeProperty();
-      assert(ok === true, 'the property upgrade from camp should succeed with funds in hand');
-      assert(window.G.homestead.tier === 1,
-        'the tier should advance to homestead; got ' + window.G.homestead.tier
-        + ' (if this is > 1 the property-record ratchet was not reset — see the note above)');
-      assert(window.G.gold === goldBefore - 400,
-        'the homestead upgrade must debit exactly 400 gold once (offer property.homestead); got '
-        + (goldBefore - window.G.gold));
+      /* NOT `goldBefore - 400`: a number the client could not have computed, so
+         "the tier was bought" cannot pass on a client debit. */
+      const SERVER_GOLD = goldBefore - 400 - 3;
+      await withRoomServer({ 'property:homestead': 1 }, SERVER_GOLD, async (rig) => {
+        const ok = H.upgradeProperty();
+        await rig.drain();
+        assert(ok === true, 'the property upgrade from camp should be accepted with funds in hand');
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'unlock_buy',
+          'the upgrade sent ' + JSON.stringify(rig.sent) + ' — exactly one unlock_buy');
+        assert(rig.sent[0].offer === 'property.homestead',
+          'the upgrade named the wrong offer: ' + rig.sent[0].offer);
+        for (const forbidden of ['gold', 'price', 'cost', 'amount', 'tier']) {
+          assert(!(forbidden in rig.sent[0]),
+            'the upgrade body carries a `' + forbidden + '` field — the server reads price and prereq off '
+            + 'hr_unlock_offers, and a client that can name a TIER can name any tier');
+        }
+        assert(window.G.homestead.tier === 1,
+          'the tier should advance to homestead; got ' + window.G.homestead.tier
+          + ' (if this is > 1 the property-record ratchet was not reset — see the note above)');
+        assert(window.G.gold === SERVER_GOLD,
+          'the balance is ' + window.G.gold + ' and the server said ' + SERVER_GOLD
+          + ' — the client either kept its own debit or applied the answer additively');
+      });
     } finally {
       if (prevProp && propRec) {
         try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {}
@@ -3877,52 +3926,68 @@ const TESTS = [
     });
   }),
 
-  () => tryRunClientAuthoritative('unlock_buy slices 2-3: hire/buildPlot/bank debit EXACTLY ONCE (client-authoritative)', () => {
-    // Switch OFF, goldSettle is the plain local debit that shipped before, so this
-    // asserts the rewiring preserved the exact charge and did not double-debit —
-    // the same shape as slice 1's upgradeProperty test.
+  () => tryRunAsync('unlock_buy slices 2-3: buildPlot and bank each send ONE intent, and the balance is the SERVER\'s', async () => {
+    /* b515 — "DEBITS EXACTLY ONCE" WAS A CLIENT PROPERTY AND THERE IS NO CLIENT
+       DEBIT. This ran with the b353 kill switch off, where `goldSettle` was the
+       plain local subtraction that shipped pre-seam. Under the shipping arm
+       `gold` is SERVER-OF-RECORD: each gesture sends ONE `unlock_buy` naming an
+       offer id, no price crosses, and the balance is whatever the answer states
+       — absolutely. A double-debit is not expressible; what IS expressible, and
+       is the same defect wearing today's clothes, is a double-SEND (two intents
+       for one tap, two charges server-side) or a client that keeps its own
+       arithmetic on top of the answer. Both are asserted, per gesture.
+
+       The WORKER block is gone from this test rather than converted: with
+       WORKER_PRODUCTION_SERVER_BACKED armed (the live default) `hire()` is
+       HIRE-FIRST and async — it materialises against the server's paid cap and
+       debits only on a real crew_cap_reached round trip — so it is a different
+       shape with its own tests (worker-settlement / HIRE-OWNED-1 /
+       HIRE-STRANDED-1). A converted copy here would duplicate them badly.
+
+       The BYTES (offer id crosses, price never does) are the sibling test
+       immediately above, unchanged. */
     const snap = snapshotG();
     try {
-      /* The WORKER block is the FLAG-OFF (legacy, client-mints) path only. With
-         WORKER_PRODUCTION_SERVER_BACKED armed (the live default) the hire is
-         HIRE-FIRST and async — it materialises against the server's paid cap and
-         debits only on a real crew_cap_reached round-trip — so a synchronous
-         single-debit assertion no longer describes it. That armed path is covered
-         by the dedicated async tests (worker-settlement / HIRE-OWNED-1 /
-         HIRE-STRANDED-1). buildPlot + bank below are unchanged and still sync. */
-      const workerArmed = !!(window.HearthriseItemAuthority && window.HearthriseItemAuthority.WORKER_PRODUCTION_SERVER_BACKED);
-      if (!workerArmed && window.HearthriseWorkers && typeof window.HearthriseWorkers.hire === 'function' && window.HearthriseHomestead) {
-        window.G.homestead = { tier: 1 };            // 1 worker slot
-        window.G.workers = { hired: [] };
-        window.G.gold = 100000;
-        stampBalanceLikeLoad(window.G);   // armed: hire()'s affordability read is registry-first
-        const before = window.G.gold;
-        window.HearthriseWorkers.hire();
-        assert(window.G.workers.hired.length === 1, 'the first worker should be hired');
-        assert(window.G.gold === before - 500, 'hire must debit exactly 500 gold once; got ' + (before - window.G.gold));
-      }
       if (typeof window.buildPlot === 'function' && window.HearthriseHomestead) {
         window.G.homestead = { tier: 1 };
         window.G.plotBuildings = [];
         window.G.gold = 100000;
-        stampBalanceLikeLoad(window.G);   // armed: buildPlot's affordability read is registry-first
+        stampBalanceLikeLoad(window.G);
         window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 100 });
         const before = window.G.gold;
-        window.buildPlot('farm_plot');
-        assert(window.G.plotBuildings.filter((x) => x.id === 'farm_plot').length === 1, 'a farm plot should be built');
-        assert(window.G.gold === before - 100, 'buildPlot must debit exactly 100 gold once; got ' + (before - window.G.gold));
+        const SERVER_GOLD = before - 100 - 5;   // NOT the client's arithmetic
+        await withServerBacked({ state: { gold: SERVER_GOLD } }, async (rig) => {
+          window.buildPlot('farm_plot');
+          await rig.drain();
+          assert(window.G.plotBuildings.filter((x) => x.id === 'farm_plot').length === 1,
+            'a farm plot should be built');
+          assert(rig.sent.length === 1 && rig.sent[0].verb === 'unlock_buy'
+            && rig.sent[0].offer === 'farm_land.1',
+            'buildPlot must send exactly one unlock_buy naming farm_land.1: ' + JSON.stringify(rig.sent));
+          assert(window.G.gold === SERVER_GOLD,
+            'buildPlot left the balance at ' + window.G.gold + ' and the server said ' + SERVER_GOLD
+            + ' — the client kept its own debit, or applied the answer additively');
+        });
       }
       if (typeof window.buyBankSpaceGold === 'function' && typeof window.bankGoldCost === 'function') {
         window.G.bank = { goldBuys: 0 };
         window.G.gold = 1000000;
-        stampBalanceLikeLoad(window.G);   // armed: buyBankSpaceGold's affordability read is registry-first
+        stampBalanceLikeLoad(window.G);
         const cost = window.bankGoldCost();
         const before = window.G.gold;
-        window.buyBankSpaceGold();
-        assert(window.G.bank.goldBuys === 1, 'a bank rung should be bought');
-        assert(window.G.gold === before - cost, 'buyBankSpaceGold must debit exactly bankGoldCost once; got ' + (before - window.G.gold));
+        const SERVER_GOLD = before - cost - 5;
+        await withServerBacked({ state: { gold: SERVER_GOLD } }, async (rig) => {
+          window.buyBankSpaceGold();
+          await rig.drain();
+          assert(window.G.bank.goldBuys === 1, 'a bank rung should be bought');
+          assert(rig.sent.length === 1 && rig.sent[0].verb === 'unlock_buy'
+            && rig.sent[0].offer === 'bank.0',
+            'buyBankSpaceGold must send exactly one unlock_buy naming bank.0: ' + JSON.stringify(rig.sent));
+          assert(window.G.gold === SERVER_GOLD,
+            'buyBankSpaceGold left the balance at ' + window.G.gold + ' and the server said ' + SERVER_GOLD);
+        });
       }
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('unlock_buy slices 2-3: each site sends offer.<next rung> and NOTHING else on the wire', () => {
@@ -8569,7 +8634,7 @@ const TESTS = [
 
   // gold-arm: upgradeRoom's gold debit is gated by clientMayWriteRecordField
   // (switch-OFF position); the stamp makes the affordability read known.
-  () => tryRunClientAuthoritative('WAVE2: upgradeRoom requires AND consumes the housing blueprint (P0)', () => {
+  () => tryRunAsync('WAVE2: upgradeRoom requires AND consumes the housing blueprint (P0)', async () => {
     // The most common dungeon reward was inert — upgradeRoom never touched it.
     const G = window.G;
     if (typeof window.upgradeRoom !== 'function' || !window.ROOMS || !window.ROOMS.kitchen || !window.ITEMS) return;
@@ -8581,15 +8646,60 @@ const TESTS = [
       G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });   // built; upgrading to tier 2
       const inv = {}; Object.keys(window.ITEMS).forEach(id => inv[id] = 100000); delete inv[bp]; // everything EXCEPT the blueprint
       G.inventory = inv; G.gold = 1e9;
-      stampBalanceLikeLoad(G);   // armed: upgradeRoom reads gold via canAfford
+      /* b515: the rooms record is ARMED, so the "already built at 1" premise has
+         to arrive through applyRecord or `roomRungG` reads UNKNOWN and this
+         would be testing the FIRST build, not the upgrade. */
+      stampRecordLikeLoad(G);
       const before = G.rooms.kitchen;
-      const noBp = window.upgradeRoom('kitchen');
-      assert(noBp === false && G.rooms.kitchen === before, 'kitchen tier 2 must be blocked without the blueprint');
-      G.inventory[bp] = 1;
-      const withBp = window.upgradeRoom('kitchen');
-      assert(withBp === true && G.rooms.kitchen === before + 1, 'with the blueprint kitchen must upgrade');
-      assert((G.inventory[bp] || 0) === 0, 'the blueprint must be consumed on upgrade');
-    } finally { G.rooms = snap.rooms; G.homestead = snap.homestead; G.inventory = snap.inv; G.gold = snap.gold; }
+      /* ⚠ THE BLUEPRINT GATE IS THE CLIENT'S, AND THAT IS DELIBERATE — b500's
+         own note: "THE ITEM COST + BLUEPRINT STAY CLIENT-SIDE — item authority
+         is a separate program; hr_unlock_buy consumes them server-side, so this
+         predicts the gold half." So the refusal must cost NO round trip, and the
+         consumption is still a local write (inventory is not on the record). */
+      await withRoomServer({ kitchen: before + 1 }, G.gold - 1, async (rig) => {
+        const noBp = window.upgradeRoom('kitchen');
+        await rig.drain();
+        assert(noBp === false && G.rooms.kitchen === before, 'kitchen tier 2 must be blocked without the blueprint');
+        assert(rig.sent.length === 0,
+          'a blueprint-refused build spent a server round trip to be told what the client already knew: '
+          + JSON.stringify(rig.sent));
+
+        G.inventory[bp] = 1;
+        /* WHO EATS THE BLUEPRINT, AND WHY THE CLIENT MAY NOT PREDICT IT.
+           Under b500 the client's `_debitRoom()` — which removed the blueprint
+           and the item costs — runs ONLY on the client-authoritative branch. On
+           the server branch `hr_unlock_buy` consumes them inside the transaction
+           that took them, and the client predicts nothing, deliberately: the
+           general bag is still MERGE (`isInventoryAbsolute()` is false in
+           production — the inventory arm has not landed), so an envelope cannot
+           REMOVE an item, and a local removal would therefore be a subtraction
+           nothing can ever reconcile. The b362 report is the same shape pointed
+           the other way (14 Dragon Scales decaying 14 -> 2 -> 1 as envelopes
+           arrived).
+
+           So the assertion is that the client does NOT author the consumption,
+           and the intent does not name the materials. The blueprint disappearing
+           from the player's bag is the INVENTORY ARM's to deliver; asserting it
+           here would be asserting a bag the client is currently right not to
+           write. Named, not tested away.
+           MUTATION: restore `_debitRoom()` on the server branch of upgradeRoom
+           → red on the "predicted" assertion below. */
+        const withBp = window.upgradeRoom('kitchen');
+        await rig.drain();
+        assert(withBp === true, 'with the blueprint the upgrade must be dispatched');
+        assert(rig.sent.length === 1 && rig.sent[0].offer === 'room.kitchen.' + (before + 1),
+          'the upgrade named the wrong offer: ' + JSON.stringify(rig.sent));
+        assert(!('blueprint' in (rig.sent[0] || {})) && !('items' in (rig.sent[0] || {})),
+          'the upgrade body names the materials — the server reads them off hr_unlock_offers, and a '
+          + 'client that can name them can name none: ' + JSON.stringify(rig.sent[0]));
+        assert(G.rooms.kitchen === before + 1, 'with the blueprint kitchen must upgrade');
+        assert((G.inventory[bp] || 0) === 1,
+          'the client PREDICTED the blueprint consumption. The bag is merge-mode, so an envelope cannot '
+          + 'put an item back — a local removal here is a permanent subtraction nothing reconciles, which '
+          + 'is the b362 Dragon-Scale decay in reverse. hr_unlock_buy is the consumer.');
+      });
+    } finally { G.rooms = snap.rooms; G.homestead = snap.homestead; G.inventory = snap.inv; G.gold = snap.gold;
+      try { stampRecordLikeLoad(G); } catch (e) {} }
   }),
 
   () => tryRun('WAVE2: the damage food buff actually raises max hit (Cooked Shark honest)', () => {
@@ -11652,7 +11762,7 @@ const TESTS = [
 
   // gold-arm: upgradeRoom's debit is gated by clientMayWriteRecordField
   // (switch-OFF position); the stamp makes the affordability read known.
-  () => tryRunClientAuthoritative('action: upgrade a house room (state-level)', () => {
+  () => tryRunAsync('action: upgrade a house room (state-level)', async () => {
     const snap = snapshotG();
     try {
       if (typeof window.upgradeRoom !== 'function') return;
@@ -11667,11 +11777,19 @@ const TESTS = [
       // Pre-pay every possible mat cost in absurd quantity.
       const mats = ['normal_log','oak_log','willow_log','copper_bar','iron_bar','stone','normal_plank','oak_plank'];
       for (const m of mats) window.G.inventory[m] = 999;
+      /* b515: the rung is the SERVER's — `clientMayWriteRecordField('rooms')` is
+         false and `upgradeRoom` advances nothing locally, so the build has to be
+         answered before it can be read. */
       const beforeLv = window.G.rooms?.kitchen || 0;
-      window.upgradeRoom('kitchen');
-      const afterLv = window.G.rooms?.kitchen || 0;
-      assert(afterLv === beforeLv + 1, `kitchen should be Lv ${beforeLv + 1}, got ${afterLv}`);
-    } finally { restoreG(snap); }
+      await withRoomServer({ kitchen: beforeLv + 1 }, window.G.gold - 1, async (rig) => {
+        window.upgradeRoom('kitchen');
+        await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'unlock_buy',
+          'the build must send exactly one unlock_buy: ' + JSON.stringify(rig.sent));
+        const afterLv = window.G.rooms?.kitchen || 0;
+        assert(afterLv === beforeLv + 1, `kitchen should be Lv ${beforeLv + 1}, got ${afterLv}`);
+      });
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('action: create + cancel a market listing', () => {
@@ -48882,7 +49000,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
   // gold-arm: the room Build click deducts gold via a clientMayWriteRecordField-
   // gated path (switch-OFF position); the stamps make the affordability reads known.
-  () => tryRunClientAuthoritative('b354: the Build button renders above the scrollable details (homestead room + castle wing)', () => {
+  () => tryRunAsync('b354: the Build button renders above the scrollable details (homestead room + castle wing)', async () => {
     const RM = window.HearthriseRoomModal, H = window.HearthriseHomestead;
     if (!RM || !H || typeof H.openRoom !== 'function') { skip('seam absent'); return; }
 
@@ -48935,9 +49053,20 @@ const TESTS = [
       assert(/Gold/i.test(seen.bar.textContent) && /\d+\s*\/\s*\d+/.test(seen.bar.textContent),
         'the cost must travel WITH the button — a price on the other side of a scroll is the same bug: "'
         + seen.bar.textContent.replace(/\s+/g, ' ') + '"');
-      // It really acts from up there.
-      seen.btn.click();
-      assert((window.G.rooms || {}).kitchen === 1, 'clicking Build in the bar did not build the room');
+      /* It really ACTS from up there. b515: the rung is the server's — the click
+         sends `room.kitchen.1` and advances nothing locally — so the press is
+         answered before it is read. What this pillar owns is the BUTTON (it is
+         pinned, priced, and its click reaches the gesture); the rung landing is
+         b227's subject and is asserted here only so "the click did nothing" and
+         "the click worked" stay distinguishable. */
+      await withRoomServer({ kitchen: 1 }, window.G.gold - 1, async (rig) => {
+        seen.btn.click();
+        await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].offer === 'room.kitchen.1',
+          'clicking Build in the bar sent ' + JSON.stringify(rig.sent) + ' — the pinned button is not '
+          + 'wired to the gesture, which is the bug wearing a different hat');
+        assert((window.G.rooms || {}).kitchen === 1, 'clicking Build in the bar did not build the room');
+      });
 
       // Unaffordable: still pinned, still priced, and it NAMES what is short.
       predZero(); window.G.gold = 0; stampBalanceLikeLoad(window.G); window.G.inventory = {};
@@ -48970,7 +49099,7 @@ const TESTS = [
             'the pinned button must carry its action data, or pressing it does nothing');
         } finally { UI._reset(); }
       }
-    } finally { restoreG(snap); RM.close(); }
+    } finally { restoreGAndRecord(snap); RM.close(); }
   }),
 
   // ══════════════════════════════════════════════════════════════════════

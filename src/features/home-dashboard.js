@@ -238,6 +238,40 @@
       R + '.hd-qmeta .p{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3) !important;font-weight:600;font-variant-numeric:tabular-nums}',
       R + '.hd-qmeta .r{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--gold-2) !important;font-weight:600;display:inline-flex;align-items:center;gap:4px}',
 
+      /* ── FIRST LIGHT — "Your first day" (Feature Slate §1) ────────────────
+         The chain rows are `.hd-quest` wholesale — same 34px slot, same
+         title / meta / bar / CTA rhythm as the daily rows directly beneath
+         them — so the card reads as one more section of Home rather than a
+         widget bolted on top of it. Everything below contributes STATE, never
+         a second layout, and every colour is a token.
+
+         `.hd-qic` carries the step ORDINAL instead of a door glyph: that one
+         substitution is what makes this read as a numbered checklist at a
+         glance, which is the whole promise ("your first day has N steps").
+         The door is still named — by the row's own CTA verb, resolved through
+         HearthriseQuestNav, so nothing is lost by dropping the picture. */
+      R + '.hd-fl-row{cursor:pointer}',
+      R + '.hd-fl-step{font-family:var(--f-label);font-weight:700;font-variant-numeric:tabular-nums;',
+      'font-size:calc(15px * var(--ui-scale, 1));color:var(--ink-3) !important;line-height:1}',
+      /* THE LIT STEP. A left spine plus a gilt title — the daily card's "this
+         one is yours now" vocabulary at a quieter volume, because the chain is
+         a plan and only one row of it is the next thing you do. */
+      R + '.hd-fl-row.is-current{box-shadow:inset 3px 0 0 var(--gold)}',
+      R + '.hd-fl-row.is-current .hd-qtitle{color:var(--gold-2) !important}',
+      R + '.hd-fl-row.is-current .hd-fl-step{color:var(--gold-2) !important}',
+      /* Finished steps stay READABLE. Striking them through would make the
+         card harder to read the further along you got, which is backwards for
+         a surface whose job is to show you how far you have come. */
+      R + '.hd-fl-row.is-done{opacity:.62}',
+      /* The step the server has not paid yet. It is a state the player passes
+         THROUGH (the claim fires on completion and the recovery sweep re-fires
+         anything left), so it announces itself and offers no button: there is
+         no second verb to press, and a dead affordance would be the lie. */
+      R + '.hd-fl-row.is-claimable .hd-fl-wait{color:var(--gold) !important;font-weight:700}',
+      R + '.hd-fl-count{font-family:var(--f-label);font-weight:700;font-variant-numeric:tabular-nums;',
+      'font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3) !important}',
+      R + '.hd-fl-sep{color:var(--ink-3) !important;font-weight:400;opacity:.7}',
+
       /* Buttons follow the global hierarchy: gilt = primary, quiet = the rest.
          Every row used to ship a filled gold slab, so nothing was primary. */
       R + '.hd-cta{flex:0 0 auto;align-self:center;min-height:34px;display:inline-flex;align-items:center;',
@@ -384,7 +418,23 @@
         /* P2: Claim/Train/Build/Play buttons were 34px — under the 44px touch min. */
         R + '.hd-cta,' + R + '.hd-cta.ghost{min-height:44px;padding:0 18px}' +
         /* P3: rename glyph was an ~18px target beside the name — grow it, keep glyph centred. */
-        R + '.hd-rename{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1}}',
+        R + '.hd-rename{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1}' +
+        /* First Light: the whole row is the tap target on a phone, so it gets
+           the 44px minimum too — the CTA above it already has one, and a row
+           that only responds on its button is a row a thumb misses.
+
+           MEASURED at 922x423 (the landscape-phone gate viewport): five rows at
+           the desktop rhythm run the card past the fold, so the header — the
+           one line that says how many steps there are — scrolls off the thing
+           it is counting. The gauge is dropped on every row EXCEPT the lit one,
+           which loses no fact: the bar is a second drawing of "0 / 5", and that
+           number stays on the row. Nothing that is only said by the bar is lost.
+           (Flagged to the Art Director; a phone-native rhythm for this card is
+           theirs, this is the honest density floor.) */
+        R + '.hd-fl-row{min-height:44px;padding:9px 4px}' +
+        R + '.hd-fl-row .hd-qic{flex:0 0 26px}' +
+        R + '.hd-fl-row .hd-qmeta{margin:3px 0 0}' +
+        R + '.hd-fl-row:not(.is-current) .hd-bar{display:none}}',
       /* P3: relocated ledger shown wherever the in-band .hd-ledger hides
          (max-width:760px), so no 541–760px gap loses the figures. */
       '@media(max-width:760px){' + R + '.hd-ledger-m{display:flex}}',
@@ -693,12 +743,21 @@
     var quiet = !bits.length && !combatBits.length;
     if (quiet && !death) {
       notes.push({ tone: 'held', icon: 'uiSprout',
-        /* b388 — do NOT promise cooking here: cooking is not server-paid yet
-           (declarationFor downgrades it to idle), so it earns NOTHING while away.
-           List only what actually banks offline: combat, gathering, and non-cooking
-           crafting/smithing. Restore cooking to this line only when it pays away. */
-        text: 'Nothing was running that pays while you are away. Fighting, gathering '
-          + 'and crafting bank the whole time you are gone — set one going before you close the tab.' });
+        /* b388 withheld cooking from this list because cooking was not
+           server-paid: `declarationFor` downgraded it to idle and a night at
+           the stove earned nothing. b431 ARMED it — artisan-sim.js and
+           item-authority.js both carry COOKING_SETTLEMENT_ARM_ENABLED = true,
+           `serverOwnedBonusKeys()` includes `noBurn`, so `benchPayable
+           ('cooking')` is true and the engine settles the cook at the server's
+           own burn rate. b388's own condition ("restore cooking to this line
+           only when it pays away") is met, and it has been met for a hundred
+           builds while this sentence went on telling players otherwise.
+           CONTRACT: this clause is bound to the arm by the FL-AWAY-COOK-1
+           regression — it goes red if the flag is ever flipped back without
+           this copy following it. */
+        text: 'Nothing was running that pays while you are away. Fighting, gathering, '
+          + 'cooking and crafting all bank the whole time you are gone — set one going '
+          + 'before you close the tab.' });
     }
     /* "At the base rate" on a night that paid nothing is noise standing where
        an explanation should be. Every other case keeps it. */
@@ -904,6 +963,167 @@
         : (typeof G[id] === 'number' ? G[id] : null);
     }
     return (G.inventory && G.inventory[id]) || 0;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     FIRST LIGHT — "Your first day" (docs/planning/FEATURE_SLATE.md §1)
+
+     THE FEATURE WAS ALREADY BUILT; IT HAD NO SURFACE. legacy.js QUEST_DEFS is a
+     five-row onboarding chain, seeded into `G.quests` on every fresh boot,
+     server-credited by `hr_claim_quest` — and Home rendered ONE milestone,
+     which the skill candidate won on a 0%-vs-0% tie. A brand-new account was
+     told to train Attack while five finishable quests sat open. So this card
+     renders no new content and computes no new number: it is a READ of rows the
+     engine already keeps and the server already verifies.
+
+     THE CHAIN IS `QUEST_DEFS`, IN ITS AUTHORED ORDER. Not a list of ids here.
+     Two properties fall out of that and both are load-bearing:
+       · It is DATA. Five rows today; six the moment the `first_light` capstone
+         row lands in the catalogue — no edit in this file, and no count typed
+         anywhere in it (the header reads "Step 2 of N", derived).
+       · It never invents progress. A def with no matching row in `G.quests` is
+         not drawn at all. `G.quests` is the projected save state; a card that
+         showed 0/15 for a quest the player does not hold would be the
+         residue-ahead shape one surface over (CLAUDE §6).
+
+     THE CONTRACT AT SCALE, so the next hand knows what they are joining:
+     `QUEST_DEFS` is the FIRST DAY, and legacy.js's own header says so. Adding
+     a row there adds a step to this card, uncapped and unwindowed on purpose —
+     a cap would mean a lane-C row could ship and never be shown, which is the
+     exact failure this whole feature exists to end. A quest that is not part
+     of a new player's first session therefore does not belong in QUEST_DEFS;
+     it belongs in a pool (DAILY_TASK_POOL, the goal catalogue) that has its own
+     surface. If a long-arc quest LINE is ever wanted, it wants its own table
+     and its own section, not a thirtieth row under "Your first day".
+
+     WHAT THIS MAY NOT DO, stated so the next hand does not have to re-derive
+     it: it may not grant, complete, claim or persist anything. `completeQuest`
+     fires the claim; `hrSweepUnclaimedQuests` recovers a dropped one. This
+     module owns the picture and nothing else.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* Does the SERVER pay this row — i.e. is `q.claimed` a fact we should be
+     waiting for? Same two clauses `hrSweepUnclaimedQuests` uses to build its
+     pending set, read from the SAME catalogue the SQL seed and the parity guard
+     read, so the card cannot disagree with the sweep about what is outstanding.
+     Fails to FALSE when the core bridge has not settled: a row we cannot vouch
+     for renders as plain "done", never as a reward we claim is on its way. */
+  function questServerPays(q) {
+    var r = (q && q.reward) || {};
+    if ((r.gold || 0) > 0) return true;
+    try {
+      var gc = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+      if (gc && typeof gc.questItemsAreServerCredited === 'function') {
+        return !!gc.questItemsAreServerCredited(q.id);
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  /* The chain, as a MODEL — separate from the markup so the suite can quote a
+     state instead of grepping HTML (the same reason `__awayCardHtml` exists).
+     Returns null when there is no open chain, which is exactly when the card
+     must not draw. `state` is one of:
+       done       finished, and either paid or carrying nothing the server pays
+       claimable  finished, server-payable, `hr_claim_quest` has not confirmed
+       current    the FIRST open step
+       ahead      an open step further down. NOT "locked" — every row in the
+                  chain counts from the first minute, and a padlock would be
+                  this card's first lie. */
+  function firstDayModel() {
+    var G = window.G;
+    if (!G || !Array.isArray(G.quests)) return null;
+    var defs = Array.isArray(window.QUEST_DEFS) ? window.QUEST_DEFS : [];
+    if (!defs.length) return null;
+    var byId = {};
+    G.quests.forEach(function (q) { if (q && q.id && !byId[q.id]) byId[q.id] = q; });
+
+    var steps = [];
+    var currentIndex = -1;
+    defs.forEach(function (def) {
+      if (!def || !def.id) return;
+      var q = byId[def.id];
+      if (!q) return;
+      var goal = Math.max(1, Number(q.goal) || 0);
+      var progress = Math.max(0, Math.min(goal, Number(q.progress) || 0));
+      var state;
+      if (q.done) state = (!q.claimed && questServerPays(q)) ? 'claimable' : 'done';
+      else if (currentIndex < 0) { state = 'current'; currentIndex = steps.length; }
+      else state = 'ahead';
+      steps.push({
+        id: q.id,
+        label: q.label || q.id,
+        goal: goal,
+        progress: progress,
+        pct: Math.max(0, Math.min(100, Math.round((progress / goal) * 100))),
+        state: state,
+        reward: q.reward || {},
+        goalRow: q,
+      });
+    });
+    /* THE WHOLE CARD'S VISIBILITY, in one line: an open step, or nothing. A
+       chain that is finished — including one whose last reward is still in
+       flight — has nothing left to tell a player, so it leaves the screen. */
+    if (currentIndex < 0) return null;
+    return { steps: steps, currentIndex: currentIndex, total: steps.length };
+  }
+
+  /* The reward, in the player's words. Names come from ITEMS via itemName()
+     (`.n`, the display name) — never the id: "5x small_bones" is a bug this
+     project has already shipped once, from a renderer in another scope that
+     could not see the name table. */
+  function questRewardHtml(r) {
+    var bits = [];
+    if ((r.gold || 0) > 0) {
+      bits.push(gly('gold', 13, '', 'var(--gold-2)') + '<span>' + num(r.gold) + '</span>');
+    }
+    if (r.item) bits.push('<span>' + num(r.qty || 1) + '× ' + esc(itemName(r.item)) + '</span>');
+    if ((r.combatXp || 0) > 0) bits.push('<span>' + num(r.combatXp) + ' combat XP</span>');
+    /* A separator, because two rewards on one row read as one number followed
+       by a stray quantity ("200 30× Raw Shrimp"). Same middot the rest of Home
+       uses between facts. */
+    return bits.join('<span class="hd-fl-sep">·</span>');
+  }
+
+  function firstDayHtml(model) {
+    if (!model) return '';
+    var out = '<div class="hd-firstlight"><div class="hd-h"><h3>Your first day</h3>' +
+      '<span class="hd-fl-count">Step ' + (model.currentIndex + 1) + ' of ' + model.total + '</span>' +
+      '</div><div class="hd-rows">';
+    model.steps.forEach(function (s, i) {
+      var done = s.state === 'done' || s.state === 'claimable';
+      var slot = done
+        ? gly('uiCheck', 20, '', 'var(--green)')
+        : '<span class="hd-fl-step">' + (i + 1) + '</span>';
+      var reward = questRewardHtml(s.reward);
+      /* The meta line answers a different question per state, and only one:
+         a finished step says what it paid, an open one says how far along it
+         is. Printing both on a done row restates the goal it already met. */
+      var meta = done
+        ? (s.state === 'claimable'
+            ? '<span class="r hd-fl-wait">Reward on the way</span>'
+            : (reward ? '<span class="r">' + reward + '</span>' : '<span class="p">Done</span>'))
+        : '<span class="p">' + num(s.progress) + ' / ' + num(s.goal) + '</span>' +
+          (reward ? '<span class="r">' + reward + '</span>' : '');
+      var r = questRoute(s.goalRow);
+      out += '<div class="hd-card hd-quest hd-fl-row is-' + s.state + '" data-hd="fl" data-i="' + i + '"' +
+        (r.label ? ' title="' + esc(r.label) + '"' : '') + '>' +
+        '<div class="hd-qic">' + slot + '</div>' +
+        '<div class="hd-qbody">' +
+        '<div class="hd-qtitle">' + esc(s.label) + '</div>' +
+        '<div class="hd-qmeta">' + meta + '</div>' +
+        (done ? '' : '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + s.pct + '%"></i></div>') +
+        '</div>' +
+        /* Only the OPEN steps carry a button, and it deliberately carries NO
+           `data-hd` of its own: the ROW is the door on every step, the button
+           is a visible handle on that same door, and its click bubbles to the
+           row's one handler. Wiring both would run the navigation twice — the
+           shape of a double-open that only shows up on the slowest screen. */
+        (done ? '' : '<button class="hd-cta' + (s.state === 'current' ? '' : ' ghost') +
+          '">' + esc(r.verb) + '</button>') +
+        '</div>';
+    });
+    return out + '</div></div>';
   }
 
   function playerName() {
@@ -1136,10 +1356,51 @@
       } catch (e) { /* daily optional */ }
     }
 
+    /* ── FIRST LIGHT, pinned ABOVE "Next up" ───────────────────────────────
+       Position is the feature: "Next up" is one row chosen by closeness, and
+       for a brand-new account that one row was a skill. The chain goes above
+       it because on day one it IS the game, and it removes itself the moment
+       the last step is finished — see firstDayModel(). */
+    var firstDay = firstDayModel();
+    html += firstDayHtml(firstDay);
+
+    /* ── AND THEN "NEXT UP" MUST NOT SAY IT AGAIN ──────────────────────────
+       The launchpad ruling makes an open chain quest the leading milestone,
+       and this card draws that same quest four rows above — so on day one Home
+       printed "Cook 5 dishes · 0/5 · [Go cook]" twice, ten pixels apart.
+       Measured on the assembled screen, not reasoned about from either half.
+
+       IT IS A CLASS, NOT ONE ROW. `getNextMilestone()` picks the closest OPEN
+       GOAL, and the goals it picks from are the same two lists Home renders
+       underneath it — so the milestone has always been able to restate a daily
+       task as well ("Kill 60 monsters" over "Kill 60 monsters", visible on any
+       account with a fresh slate). Both are suppressed here, by identity and by
+       id, because the defect is "the hero row repeats a row below it", not
+       "First Light collides with the launchpad".
+
+       The SELECTION is untouched: `getNextMilestone()` is the answer for every
+       consumer and it stays right. What is suppressed is the second RENDER of a
+       row the player is already looking at. `mile` is nulled rather than
+       filtered at the markup so `wire()` inherits the same decision — a
+       `data-hd="mile"` handler bound to a row nobody drew is the kind of loose
+       end that becomes a null-deref two builds later. */
+    var mileWasDup = false;
+    if (mile && mile.kind === 'quest' && mile.goal) {
+      var mid = mile.goal.id;
+      var inChain = !!(firstDay && mid && firstDay.steps.some(function (s) { return s.id === mid; }));
+      var inTasks = tasks.some(function (t) { return t === mile.goal || (mid && t && t.id === mid); });
+      mileWasDup = inChain || inTasks;
+      if (mileWasDup) mile = null;
+    }
+
     // ── LEFT: what to do ──────────────────────────────────────────────────
     // Milestone + quests are one list ("Next up"), not four separate hero
     // cards competing for the same job. Renown moved to the status rail: it
     // is a measure of how you're doing, not an action.
+    /* The section is built in place and REWOUND below if it turns out to have
+       nothing the card above has not already said — cheaper and more legible
+       than threading a second accumulator through forty lines of markup. */
+    var nextUpAt = html.length;
     html += '<div><div class="hd-h"><h3>Next up</h3><a data-hd="allquests">All quests →</a></div><div class="hd-rows">';
     var anyNext = false;
     if (mile) {
@@ -1191,6 +1452,12 @@
         '</div><div>All daily quests done — new ones at reset.</div></div>';
     }
     html += '</div></div>';
+    /* REWIND. The only row this section had was the chain quest the card above
+       is already showing, and there are no dailies behind it — so "Next up"
+       would be a heading over an empty-state line about a different quest
+       system, printed underneath five open quests. A section with nothing to
+       add is removed, not filled. */
+    if (mileWasDup && !anyNext) html = html.slice(0, nextUpAt);
 
     // ── Your holding ──────────────────────────────────────────────────────
     // The game is called Idle Homestead and the homestead was nowhere on Home.
@@ -1439,10 +1706,10 @@
     html += '</div></div></div>';
 
     root.innerHTML = html;
-    wire(root, tasks, mile, resume);
+    wire(root, tasks, mile, resume, firstDay);
   }
 
-  function wire(root, tasks, mile, resume) {
+  function wire(root, tasks, mile, resume, firstDay) {
     // Your heroes — switch / buy, both routed through the SHARED helpers so Home
     // and the drawer act identically (switchSlot → reload is preserved inside
     // selectSlot). Separate from the [data-hd] table below because these carry a
@@ -1495,6 +1762,15 @@
           else if (kind === 'mile' && mile && mile.deepLink) { mile.deepLink(); }
           else if (kind === 'allquests') { openQuests(); }
           else if (kind === 'q') { var i = +el.getAttribute('data-i'); var t = tasks[i]; if (t) questRoute(t).go(); }
+          /* First Light. The ROW is the door on every step — its CTA carries no
+             `data-hd`, so a click on the button bubbles to exactly this one
+             handler — and it routes through the shared resolver, never a
+             private route table. */
+          else if (kind === 'fl') {
+            var fi = +el.getAttribute('data-i');
+            var step = firstDay && firstDay.steps && firstDay.steps[fi];
+            if (step && step.goalRow) questRoute(step.goalRow).go();
+          }
           else if (kind === 'active') { nav('profile'); if (window.G.activeMonster) nav('combat'); else nav('skills'); }
           else if (kind === 'resume' && resume && resume.action) { resume.action(); }
           else if (kind === 'cook') { nav('skills'); openSkill('cooking'); }
@@ -1532,6 +1808,17 @@
      seconds in" stayed unsaid for a whole build. A renderer that no test can
      quote is a renderer that will lie again. It takes a summary and returns
      HTML; it touches nothing. */
-  window.HearthriseHome = { render: render, __awayCardHtml: awayCardHtml, __awayBankingRow: awayBankingRow };
+  /* `__firstDayModel` / `__firstDayHtml` are TEST SEAMS for the same reason
+     `__awayCardHtml` is one: a card whose whole job is telling a new player
+     what their first day is has to be quotable by the suite without booting a
+     panel and grepping innerHTML. The model is pure (it reads G, writes
+     nothing); the renderer takes a model and returns a string. */
+  window.HearthriseHome = {
+    render: render,
+    __awayCardHtml: awayCardHtml,
+    __awayBankingRow: awayBankingRow,
+    __firstDayModel: firstDayModel,
+    __firstDayHtml: firstDayHtml,
+  };
   console.log('[home-dashboard] loaded');
 })();

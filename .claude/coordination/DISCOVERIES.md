@@ -4,6 +4,57 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-09-07 — Systems Engineer — **A hero row that repeats a row directly below it is a CLASS on Home, not a First Light collision.** (P2, fixed)
+
+`HearthriseLaunchpad.getNextMilestone()` picks the closest OPEN GOAL out of skills + `G.quests` +
+`G.daily.tasks` — and `home-dashboard.js` renders that pick as a hero row **directly above the same
+two lists**. So the milestone has always been able to restate a row it is about to print: with a
+fresh daily slate Home shows "Kill 60 monsters" as the milestone and "Kill 60 monsters" as the first
+daily, ten pixels apart, with two buttons. It became visible when the First Light card made it happen
+on day one with a chain quest, but it predates that by builds.
+
+**AFFECTED:** `src/features/home-dashboard.js` (render), `src/features/profile-launchpad.js`
+(selection — untouched, and it should stay untouched: the SELECTION is right for every consumer,
+including `legacy.js`'s hidden `dash-milestone-body`).
+
+**ACTION / the rule now in the code:** the milestone is nulled before render when its goal is one of
+the rows Home is about to draw (by identity and by id, against both the chain and the first three
+daily tasks). If that empties the "Next up" section, the section is removed rather than filled with
+an empty state about a different quest system. `FIRST-LIGHT-2b` asserts the assembled DOM draws each
+label at most once, mutation-proven.
+
+---
+
+### 2026-09-07 — Systems Engineer — **`window.__smokeTest({only:'PREFIX'})` makes a battery runnable in ~40 s, and a shared NAME PREFIX is what makes it usable.** (method)
+
+`runSmokeTest`'s `only` is a **source-text match on the registration closure** (`String(fn)
+.indexOf(only)`), not a tag system. So a lane whose tests all start with the same token —
+`FIRST-LIGHT-1..5` here — is filterable as one battery, and a lane whose tests are each named after
+their own build number is not. **Name a lane's tests with a shared prefix.** One headless page can
+then run the battery, mutation-prove it, and take the screenshots, which is the whole verification
+budget for a lane-B branch that must not run the full suite.
+
+⚠ **Two traps in that page.** (1) The suite leaves the Chronicle/Collection overlays OPEN — reload
+before screenshotting or you photograph a modal. (2) The suite runs SIGNED IN during the play gate,
+so a test that drives `updateQuest` to a completion posts a real `hr_claim_quest` for the QA
+character unless it stubs `HearthriseGoalClaim`.
+
+---
+
+### 2026-09-07 — Systems Engineer — **A signed-out reload cannot test persistence any more, and a test that tries is measuring the absence of an account.** (correction to a habit)
+
+`saveLocal()` is now a `lastSeen` stamp and nothing else (b515 deleted the blob write; the b455
+capstone made the server the sole copy), and the residue rides `putClientState` to the SERVER. A
+headless harness page is signed out, so "set state → reload → compare" reports total loss for
+correct code. It did, for me, once.
+
+**The assertable property instead:** the field is on `RESIDUE_FIELDS` (`src/net/client-state.js`) and
+the consumer survives the JSON round trip the residue is made of. `quests` and `stats` are both on
+the list (51 fields), which is why the First Light card needs **no new persisted state and has zero
+save-migration surface** — `q.claimed`, `q.done` and `q.progress` already ride the quest rows.
+
+---
+
 
 ### 2026-09-07 — Art Director — **`background: var(--panel, var(--panel-2))` in legacy.css names two tokens that do not exist, so that surface paints nothing.** (P3, found by the new token guard, deliberately NOT fixed here)
 

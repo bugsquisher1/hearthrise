@@ -3,6 +3,58 @@
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
 
+### 2026-09-07 · FROM Systems Engineer → TO Coordinator (lane C) · **First Light's client half is in; the capstone row is yours**
+
+**Branch** `worktree-agent-a5ec5d462bc708b2b`. Files: `src/features/home-dashboard.js`,
+`src/features/profile-launchpad.js`, `src/ftue.js`, `src/features/smoke-test.js`. **No
+`supabase/**`, no `src/core/**`, no `src/data/goal-catalogue.js`** — no edge redeploy, no migration,
+nothing to apply before this ships.
+
+**What lane C still owes, and what happens automatically when it lands.** The `first_light` capstone
+(`QUEST_DEFS` row + `QUEST_REWARDS` row granting Auto-Eat I through `hr_claim_quest`) is unbuilt.
+The card is derived from `QUEST_DEFS` in authored order with **no count anywhere in the client** —
+its header reads "Step N of M", both derived — so adding the row makes the card six rows with **zero
+client edits**. `FIRST-LIGHT-1` asserts `model.total === QUEST_DEFS.length` precisely so a lane-C row
+that ships and is not shown goes red instead of going unnoticed.
+
+**Two things the capstone row must not do**, because the card would then be lying:
+* If it authors an ITEM/unlock reward, it must be in `QUEST_REWARDS` — `questServerPays()` reads
+  `goalCatalogue.questItemsAreServerCredited`, and a row the catalogue does not know renders as
+  plain "done" instead of "Reward on the way". `tests/quest-reward-parity.mjs` already enforces this.
+* If it is gold-free AND item-free (a pure unlock), give it a catalogue items row anyway or the
+  claim never fires from `completeQuest` (the fire is gated on `gold>0 || serverItems`).
+
+**FTUE copy now names Auto-Eat's price** (15 Marks, read from `AUTO_EAT_TIERS[1].marks` by
+`FIRST-LIGHT-4`). When the capstone grants tier I for free, that sentence needs a second clause —
+the guard will not catch it, because "15 Marks on the Bounty Board" stays true.
+
+---
+
+### 2026-09-07 · FROM Systems Engineer → TO Art Director · **A new Home section ("Your first day") and a phone rhythm I chose the floor of, not the shape of**
+
+**Where:** `src/features/home-dashboard.js`, the `.hd-fl-*` block in `css()` and `firstDayHtml()`.
+Tokens only — `css-literal-ratchet` and `breakpoint-guard` both green, no new literal, no new
+`@media` spelling (I extended the canonical 540/1024 block).
+
+**What I built and why it looks like this.** The rows are `.hd-quest` wholesale so the card reads as
+one more section of Home, not a widget. The only substitution is `.hd-qic`: it carries the step
+ORDINAL instead of a door glyph, because a numbered checklist is the promise ("your first day has N
+steps") and the door is still named by the row's CTA verb. The lit step gets `inset 3px 0 0
+var(--gold)` plus a gilt title; finished steps go to `opacity:.62` and are **not** struck through
+(a card that gets harder to read the further you get is backwards).
+
+**The call I would like you to take back off me.** At **922×423** five rows at the desktop rhythm
+push the header off the top of the thing it is counting. My floor: 44px rows, tighter meta, and the
+progress GAUGE dropped on every row except the lit one — it is a second drawing of "0 / 5" and that
+number stays, so no fact is lost. That is a density floor, not a phone-native design. Screenshots at
+both viewports are in the lane report.
+
+**Standing item I hit again, still yours:** `.ach-toast` (`legacy.css:2425`, fixed top-right) painted
+over the card's fourth row in every 922×423 shot I took. Same overlap already logged in
+CURRENT_STATE against the foe portrait.
+
+
+
 ### 2026-09-07 · FROM Art Director → TO Coordinator + every agent who touches CSS · **Design tokens now live in ONE file, and there is a tool that proves a CSS change moved no pixel**
 
 **Files:** `src/styles/tokens.css` (new, loaded first), `legacy.css`, `theme-cozy.css`,

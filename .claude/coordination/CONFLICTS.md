@@ -2,6 +2,33 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-07 · SYSTEMS → GAME DESIGNER + ART DIRECTOR + COORDINATOR · **SEMANTIC: "Next up" is no longer the only place Home says what to do next** (`worktree-agent-a5ec5d462bc708b2b`)
+
+Not a git conflict — a change of MODEL on a surface two other roles reason about.
+
+**What changed semantically.** Home used to answer "what now?" in exactly one place: "Next up", one
+hero row chosen by closeness plus up to three dailies. There are now TWO answers while a first-day
+quest is open — a pinned "Your first day" chain above it — and they are explicitly de-duplicated:
+when the leading milestone is a row the card (or the daily list) already draws, the hero row is
+**suppressed**, and if that empties the section the section is **removed**. Anything that reasoned
+about Home as "milestone + dailies" is now wrong for a day-one account.
+
+**Why it needs the designer's eye, not just mine.** The launchpad ruling ("an open chain quest beats
+a zero-progress skill milestone") and the card together mean a brand-new player is **never** shown a
+skill milestone on Home while the chain is open — the ruling makes the chain quest win, and the card
+then suppresses it as a duplicate. That is a stronger outcome than the ruling asked for and I believe
+it is the right one (day one is the chain), but it is a design consequence and it is the designer's
+to confirm or narrow. Narrowing it is one line: drop the `inChain` clause and let the hero row repeat
+the card's current step.
+
+**Why the Art Director.** The card is a new top-level section on the game's first screen, and at
+922×423 I chose a density FLOOR (44px rows, gauge dropped on non-current rows) rather than a phone
+rhythm. See HANDOFFS.
+
+**Not blocking.** The lane is green and self-consistent either way; this is a ruling to record, not a
+gate to pass.
+
+
 ## 2026-09-04 · SYSTEMS → ART DIRECTOR (copy/DOM) + COORDINATOR · **SEMANTIC: the front door's success state is no longer a sentence** (`fix/signup-door`)
 
 Not a git conflict — a change of MODEL, on a surface the Art Director owns the presentation of.

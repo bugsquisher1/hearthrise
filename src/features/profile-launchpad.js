@@ -222,7 +222,51 @@
   // Picks the single "closest to completion" target out of:
   //   - all skills (XP needed to next level)
   //   - all open quests (progress / goal)
-  // Pct closeness is the comparison. Ties broken by lower XP-to-go.
+  // Pct closeness is the comparison.
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE 0%-vs-0% TIE (Game Designer ruling, 2026-09-07 — FEATURE_SLATE fix #1)
+
+     THE DEFECT, measured on a fresh account: every skill is at 0% of its next
+     level (the kit's Hitpoints XP is EXACTLY level 10, so even that one sits at
+     the rung's floor) and every open quest is at 0/goal. Skills were evaluated
+     FIRST and the comparison was a strict `cand._cmp > best._cmp`, so 0 never
+     beat 0 and the very first thing Hearthrise told a new player to do was
+     "Attack Lv 1 → 2" — while five finishable, server-credited quests sat open
+     underneath it, unmentioned.
+
+     THE RULING, and it is narrower than "quests win": a skill milestone at
+     ZERO progress has not been STARTED — it is not a milestone, it is the
+     whole level — so an open quest outranks it. Above zero, closeness decides
+     exactly as before, so a veteran three hundred XP from Mining 87 is never
+     shoved aside by a quest they have not touched. "Must not re-order Next up
+     for veterans" is the slate's own binding condition on this change.
+
+     THE IMPLEMENTATION IS A TIE-BREAK, AND THAT IS EXACTLY THE RULING — not an
+     approximation of it. "A skill at zero progress" and "a goal at zero
+     progress" are both `pct === 0` on the nose (a level's floor is
+     `xpForLevel(lv)`, so a fresh character's every skill is EXACTLY 0.0), so
+     the ruling's case IS the tie; and the tie is broken toward the more
+     finishable candidate: chain quest (2) > daily task (1) > skill (0).
+
+     ⚠ THERE IS DELIBERATELY NO SEPARATE started/unstarted TERM. One was
+       written (`_started`: rank a 0% skill below everything before comparing
+       closeness) and the mutation proof showed it changed NO outcome the tier
+       term does not already decide — every case it fired on, `_cmp` or `_tier`
+       had already answered the same way. It was removed rather than shipped as
+       a second rule that reads load-bearing and is not. Re-adding one needs a
+       case where the two disagree.
+
+     On a fresh account this resolves to the FIRST chain quest in QUEST_DEFS
+     order — `gatherer` — which is also the first row of Home's "Your first
+     day" card, so the two surfaces agree by construction, not by coincidence.
+     ══════════════════════════════════════════════════════════════════════ */
+  var TIER_CHAIN = 2, TIER_DAILY = 1, TIER_SKILL = 0;
+  function _outranks(cand, best){
+    if(!best) return true;
+    if(cand._cmp !== best._cmp) return cand._cmp > best._cmp;
+    return (cand._tier | 0) > (best._tier | 0);
+  }
 
   function getNextMilestone(){
     if(!window.G) return null;
@@ -258,18 +302,25 @@
             if(typeof window.openSkillDetail === 'function') window.openSkillDetail(sid);
           },
           _cmp: pct,
+          _tier: TIER_SKILL,
         };
-        if(!best || cand._cmp > best._cmp) best = cand;
+        if(_outranks(cand, best)) best = cand;
       }
     }
 
     // Quests — pick the closest open one. Daily tasks count too.
+    /* The chain and the daily slate are collected separately so each candidate
+       can carry its own tie-break tier: a QUEST_DEFS row is the first-day
+       chain (the surface Home pins above "Next up"), a daily task resets at
+       midnight. Both are "open goals"; only their tie-break rank differs. */
     var open = [];
-    if(Array.isArray(window.G.quests)) open = open.concat(window.G.quests.filter(q => !q.done));
+    if(Array.isArray(window.G.quests))
+      open = open.concat(window.G.quests.filter(q => !q.done).map(q => ({ q: q, tier: TIER_CHAIN })));
     if(window.G.daily && Array.isArray(window.G.daily.tasks))
-      open = open.concat(window.G.daily.tasks.filter(t => !t.done));
+      open = open.concat(window.G.daily.tasks.filter(t => !t.done).map(t => ({ q: t, tier: TIER_DAILY })));
     for(var j = 0; j < open.length; j++){
-      let q = open[j];                       // per-iteration binding — see above
+      let q = open[j].q;                     // per-iteration binding — see above
+      let qtier = open[j].tier;
       if(!q.goal) continue;
       var pq = (q.progress || 0) / q.goal;
       /* b227 (audit finding #2): this deepLink opened the Quests modal, which
@@ -297,12 +348,14 @@
           if(typeof window.openQuestsModal === 'function') window.openQuestsModal();
         },
         _cmp: pq,
+        _tier: qtier,
       };
-      if(!best || qcand._cmp > best._cmp) best = qcand;
+      if(_outranks(qcand, best)) best = qcand;
     }
 
     if(!best) return null;
     delete best._cmp;
+    delete best._tier;
     return best;
   }
 

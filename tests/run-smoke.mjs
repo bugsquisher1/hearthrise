@@ -1114,13 +1114,17 @@ async function saveSlotGuard(browser, url) {
 
     const r = await page.evaluate(async () => {
       const P = window.HearthriseProfile;
-      /* b459: this guard's subject is the game_saves autosave ADDRESSING (blob →
-         the active slot) — the DORMANT save path. Under the armed capstone the
-         autosave ships residue via hr_put_client_state instead and this capture
-         goes vacuous (the exact blindness the burn-down flagged). Drive the
-         dormant path via the seam; the armed write's addressing rides
-         putClientState's own pinnedSlot contract. */
-      try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(false); } catch (e) {}
+      /* b515 — RE-POINTED, NOT RETIRED. The subject was the game_saves autosave
+         ADDRESSING, driven on the DORMANT blob path through the capstone seam
+         because the armed path ships residue instead. That dormant path is
+         DELETED (the kill switch that kept it reachable is retired), so the old
+         capture went vacuous — "no autosave request was captured" — which is the
+         exact blindness this guard's own vacuity check exists to catch.
+         The property still matters and still has a subject: the periodic save
+         must address the character being PLAYED. It is now the p_slot of the
+         hr_put_client_state RPC, and there is no cloud READ any more (the blob
+         reconcile went with it), so the read half is asserted ABSENT instead —
+         a returning GET on game_saves would mean the reconcile is back. */
       // Become a player with three characters, on the third — through the REAL
       // slot API (unlockSlot/switchSlot), not by writing the profile record.
       P.init();
@@ -1172,35 +1176,31 @@ async function saveSlotGuard(browser, url) {
         await new Promise((res) => setTimeout(res, 300));
       } finally { window.fetch = realFetch; }
 
-      const pull = seen.find((s) => /game_saves\?/.test(s.url) && s.method === 'GET');
-      const post = seen.find((s) => /game_saves/.test(s.url) && s.method === 'POST');
+      const blobAny = seen.filter((s) => /game_saves/.test(s.url));
+      const post = seen.find((s) => /rpc\/hr_put_client_state/.test(s.url) && s.method === 'POST');
       let writeSlot = null;
-      if (post && post.body) { try { writeSlot = JSON.parse(post.body).slot; } catch (e) {} }
-      const m = pull ? String(pull.url).match(/slot=eq\.(\d+)/) : null;
+      if (post && post.body) { try { writeSlot = JSON.parse(post.body).p_slot; } catch (e) {} }
       return {
         activeSlot,
-        sawPull: !!pull, sawWrite: !!post,
-        readSlot: m ? Number(m[1]) : null,
+        sawWrite: !!post,
         writeSlot,
-        pullUrl: pull ? pull.url : null,
+        blobUrls: blobAny.map((s) => s.method + ' ' + s.url),
       };
     });
 
     // Vacuity first: a guard that silently observed nothing is the failure this
     // program has met eleven times.
     if (r.activeSlot !== 2) problems.push(`the harness never reached character 3 (activeSlot=${r.activeSlot}) — nothing below was tested`);
-    if (!r.sawWrite) problems.push('no autosave request was captured — the write assertion would pass vacuously');
-    if (!r.sawPull) problems.push('no cloud-read request was captured — the read assertion would pass vacuously');
+    if (!r.sawWrite) problems.push('no residue autosave (rpc/hr_put_client_state) was captured — the write '
+      + 'assertion would pass vacuously');
     if (r.sawWrite && r.writeSlot !== 2) {
-      problems.push(`the autosave wrote slot ${r.writeSlot} while the player is on character 3 (slot 2) — `
-        + 'game_saves is UNIQUE (user_id, slot), so this silently overwrites another character\'s cloud save');
+      problems.push(`the residue autosave wrote p_slot ${r.writeSlot} while the player is on character 3 (slot 2) — `
+        + 'player_state is keyed (user_id, slot), so this silently overwrites another character\'s residue');
     }
-    if (r.sawPull && r.readSlot !== 2) {
-      problems.push(`the cloud read asked for slot ${r.readSlot} while the player is on character 3 (${r.pullUrl}) — `
-        + 'decideRestore compares by freshness, so a different character\'s save would be restored over the live game');
-    }
-    if (r.sawPull && r.sawWrite && r.readSlot !== r.writeSlot) {
-      problems.push(`read slot ${r.readSlot} != write slot ${r.writeSlot} — the save is read from one character and written to another`);
+    if (r.blobUrls.length) {
+      problems.push(`the client touched game_saves ${r.blobUrls.length} time(s) (${r.blobUrls.join('; ')}). The `
+        + 'client-authored save blob is retired (b515): there is no upsert and no reconcile read. A request here '
+        + 'means one of them came back — and 2026-09-07-game-saves-revoke.sql will answer it with a 403.');
     }
   } catch (err) {
     problems.push('harness failure: ' + err.message);

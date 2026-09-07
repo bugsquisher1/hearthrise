@@ -34,6 +34,8 @@
     "node tests/dungeon-marketability.mjs --selftest": "economy-selftests",
     "node tests/dungeon-scrip-reload.mjs --selftest": "economy-selftests",
     "node tests/state-of-farm-projection.mjs --selftest": "economy-selftests",
+    "node tests/away-receipt-journal.mjs --selftest": "economy-selftests",
+    "node tests/away-receipt-journal.mjs": "economy-selftests",
     "node tests/bank-cap-rungs.mjs --selftest": "economy-selftests",
     "node tests/bank-cap-rungs.mjs": "economy-selftests",
     "node tests/recovery-rest.mjs --selftest": "economy-selftests",

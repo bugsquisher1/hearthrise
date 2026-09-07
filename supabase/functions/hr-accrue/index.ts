@@ -71,6 +71,7 @@
 
 import postgres from 'npm:postgres@3.4.5';
 import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested } from './accrual.js';
+import { withAwayReceipt } from './away-receipt.js';
 /* THE DORMANT COMPANION-XP ARM SWITCH. Threaded into computeAccrual's input as
    `companionXpBacked` (A14-mirrored in set-activity.js). False → the engine
    emits no companion_xp op; the client keeps awarding. One line to arm. */
@@ -1066,7 +1067,22 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return applied?.res as Record<string, any>;
     };
 
-    let res = await apply(mergeAux(out.delta), 0);
+    /* ── THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07) ──────────────
+       A receipt the server PAID is progression, not preference. Built by
+       ./away-receipt.js — plain ESM so tests/away-receipt-journal.mjs grades THE
+       SHIPPED FUNCTION rather than a transcription of it, which is the only way
+       a guard on a Deno TypeScript shell can bite.
+
+       ⚠ RECOMPUTED ON EVERY DEGRADE ATTEMPT, never computed once. The clamp
+         ladder HALVES the span, and a halved span can fall under SYNC_MAX_MS —
+         at which point hr_apply would answer `bad_receipt` and 409 the WHOLE
+         absence over a card. Recomputed, the receipt is simply the first thing
+         dropped: pay the player, then tell them, in that order.
+
+       ⚠ Composed OUTSIDE mergeAux deliberately. mergeAux is the crew + rested
+         bank and also rides the POINTER-IDLE settle above, which has no span and
+         must never carry a receipt. */
+    let res = await apply(withAwayReceipt(mergeAux(out.delta), out), 0);
     let degraded: Record<string, unknown> | null = null;
 
     /* THE DEGRADE LADDER (S8). Only ever entered on a clamp — never on a
@@ -1100,7 +1116,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          instead of grinding down to the forfeit. */
       if (Number(next.summary?.ticks) >= Number(out.summary?.ticks)) break;
       out = next;
-      res = await apply(mergeAux(out.delta), attempt);
+      res = await apply(withAwayReceipt(mergeAux(out.delta), out), attempt);
     }
 
     if (res && res.ok !== true && degraded && DEGRADABLE.has(String(res.error))) {

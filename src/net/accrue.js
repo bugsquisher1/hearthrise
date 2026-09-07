@@ -2622,6 +2622,12 @@ export function applyEnvelopeState(G, res, ownKey) {
      populated farm. */
   written.farm = reconcileFarm(G, res);
 
+  /* THE LAST AWAY-CLASSIFIED RECEIPT IS THE SERVER'S (ruling 2026-09-07).
+     Seeded from `state.last_away_receipt` so the Home "While you were away" card
+     survives a reload — see reconcileAwayReceipt's header for why it can only
+     ever fill a hole and never overwrite this session's receipt. */
+  written.awayReceipt = reconcileAwayReceipt(G, res);
+
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   /* ══════════════════════════════════════════════════════════════════════
      PHASE 1 (b364) — DEBITS ABSOLUTE, CREDITS BY MAX. live-settlement.md §5.2.
@@ -3348,6 +3354,59 @@ export function applyEnvelope(G, res) {
     at: nowMs(),
   };
   return written;
+}
+
+/* ── THE LAST AWAY-CLASSIFIED RECEIPT, ACROSS A RELOAD (ruling 2026-09-07) ──
+   `G.lastOfflineSummary` is a NO_SYNC field (src/net/events.js:93), so it lives
+   for exactly one page life: reload once and the Home "While you were away"
+   card, the welcome-back modal and the combat recap all render nothing for a
+   night the server already paid, journalled and banked. The DESIGN RULING is
+   that a receipt the server paid is PROGRESSION, not preference — so it now
+   lives in `player_state.last_away_receipt`, written by the accrual engine on
+   AWAY-classified settles only and projected by hr_state_of.
+
+   ── THE TWO RULES THIS FUNCTION KEEPS ─────────────────────────────────────
+   1. IT ONLY EVER FILLS A HOLE. A receipt written THIS session is the fresher
+      statement of the same character by definition — it came from the settle
+      that is still on screen — so a stored receipt never overwrites one. This is
+      also what stops a stale projection re-announcing last night's absence after
+      every envelope: the seed happens once, on the boot envelope, and every
+      envelope after it finds the holder already populated.
+   2. IT IS A READ, NOT AN AUTHORITY. Nothing here credits anything. The value
+      the receipt DESCRIBES was moved by hr_apply in the same delta that wrote
+      it; this is the sentence, not the payment. A garbage or absent projection
+      therefore degrades to today's behaviour (silence), never to a guess —
+      PRESENCE is tested, never coalesced, so a database that predates the column
+      says nothing rather than rendering a fabricated empty night.
+
+   Returns the seeded summary, or null when nothing was seeded. */
+export function reconcileAwayReceipt(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const st = (res && res.state) || null;
+  if (!st || typeof st !== 'object') return null;
+  /* PRESENCE, never coalescing: an ABSENT key means "this database predates the
+     receipt" and a NULL means "this character has never been away". Both are
+     silence; neither is a fabricated night. */
+  if (!('last_away_receipt' in st)) return null;
+  const stored = st.last_away_receipt;
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return null;
+  /* RULE 1: this session's receipt wins. It is the same character's fresher
+     statement, and it is the one the player is looking at. */
+  if (G.lastOfflineSummary) return null;
+  /* ONE TRANSLATOR. summaryFromAway is the only away-receipt translator on the
+     client (a second one would be two opinions about a settled night), and the
+     stored object is deliberately in the SAME shape as the `away:` payload so it
+     can go straight through it. */
+  const summary = summaryFromAway(stored, res);
+  /* `at` is the SERVER's instant, stated on the stored receipt. Kept as-is
+     rather than restamped to `nowMs()`: serverAwaySpanMs treats a receipt older
+     than 30 minutes as stale and falls back to the boot watermark, and
+     restamping would make every reload look like a fresh absence. */
+  const at = Number(stored.at);
+  if (Number.isFinite(at) && at > 0) summary.at = at;
+  summary.restored = true;          // scratch marker for the renderers/QA; not authority
+  G.lastOfflineSummary = summary;
+  return summary;
 }
 
 /** The away receipt, translated into the shape lastOfflineSummary renderers read. */
@@ -4471,7 +4530,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,

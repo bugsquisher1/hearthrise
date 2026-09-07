@@ -70,19 +70,19 @@
 
 /* ── legacy.css · tablet dial — the nav collapses to a 64px icon rail
    · 1 token ── */
-@media (max-width:1180px) {
+@media (max-width: 1180px) {
   :root {--nav-w:64px}
 }
 
 /* ── legacy.css · Steam Deck / short-landscape dial
    · 2 tokens ── */
-@media (min-width:1280px) and (max-height:800px) {
+@media (min-width: 1280px) and (max-height: 800px) {
   :root {--nav-w:calc(170px * var(--ui-scale, 1));--top-h:48px}
 }
 
 /* ── legacy.css · ultra-wide dial
    · 1 token ── */
-@media (min-width:1900px) {
+@media (min-width: 1900px) {
   :root {--nav-w:calc(220px * var(--ui-scale, 1))}
 }
 

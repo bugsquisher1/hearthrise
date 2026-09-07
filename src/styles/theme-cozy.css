@@ -2084,7 +2084,7 @@ body[data-theme="classic"] .modal-card {
 }
 
 /* Portrait-only: 2x2 grid; landscape gets a horizontal scroll */
-@media (max-height: 540px) and (max-width: 1024px) and (orientation: landscape) {
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
   #panel-profile .feat-buttons {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
@@ -2151,7 +2151,7 @@ header.topbar .top-stats {
 
   /* Landscape phones can fit a tiny bit more — undo overflow scroll */
 }
-@media (max-height: 540px) and (max-width: 1024px) and (orientation: landscape) {
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
   .topbar .top-stats { overflow-x: visible !important; }
   .topbar .t-stat .lab { display: inline !important; }
 }

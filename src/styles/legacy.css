@@ -660,7 +660,7 @@ img,svg{display:block;max-width:100%}
    ===================================================================== */
 
 /* ─── tablet (<=1180px): smaller nav, condensed dashboard ─── */
-@media (max-width:1180px) {
+@media (max-width: 1180px) {
   /* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
   /* b213 (phase 2): in icon-rail mode the section headers ("Adventure",
      "Economy", "Homestead") clipped to garbage like "ADV" — hide them
@@ -686,7 +686,7 @@ img,svg{display:block;max-width:100%}
 }
 
 /* ─── phone (<=900px): bottom nav, single column ─── */
-@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
+@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
   .app{grid-template-columns:1fr}
   .sidebar{display:none}
   .main{grid-column:1}
@@ -758,12 +758,12 @@ img,svg{display:block;max-width:100%}
      still stacks, because there 220px really is the whole screen. */
   .iap-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 }
-@media (max-width:540px) {
+@media (max-width: 540px) {
   .iap-grid{grid-template-columns:1fr}
 }
 
 /* ─── tiny phone (<=380px) ─── */
-@media (max-width:380px) {
+@media (max-width: 380px) {
   .top-stats{gap:3px}
   .t-stat{padding:4px 6px;font-size:calc(14.5px * var(--ui-scale, 1))}
   .player-name{max-width:80px}
@@ -771,7 +771,7 @@ img,svg{display:block;max-width:100%}
 }
 
 /* ─── Steam landscape (1280x720 minimum, fixed) ─── */
-@media (min-width:1280px) and (max-height:800px) {
+@media (min-width: 1280px) and (max-height: 800px) {
   /* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
   .panel{padding:8px}
   .card{padding:10px}
@@ -779,13 +779,13 @@ img,svg{display:block;max-width:100%}
 }
 
 /* ─── ultra-wide ─── */
-@media (min-width:1900px) {
+@media (min-width: 1900px) {
   /* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
   body{font-size:calc(18px * var(--ui-scale, 1))}
 }
 
 /* ─── prefers-reduced-motion ─── */
-@media (prefers-reduced-motion:reduce) {
+@media (prefers-reduced-motion: reduce) {
   *{transition:none !important;animation:none !important}
 }
 
@@ -1091,7 +1091,7 @@ img,svg{display:block;max-width:100%}
 .cbt-food-note{line-height:1.5;max-width:62ch}
 .inv-detail-close{position:absolute;top:12px;right:14px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:calc(17px * var(--ui-scale, 1));cursor:pointer}
 
-@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
+@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
   #panel-inventory.active{display:block !important}
   #panel-inventory .card{margin-bottom:8px;max-height:none}
   .inv-doll{grid-template-columns:1fr 1fr 1fr}
@@ -1242,7 +1242,7 @@ img,svg{display:block;max-width:100%}
 }
 .ab-stop:hover{background:rgba(248,81,73,.3);color:#fff}
 
-@media (max-width:600px) {
+@media (max-width: 600px) {
   .activity-bar{padding:6px 10px;gap:8px;font-size:calc(14.5px * var(--ui-scale, 1));min-height:38px}
   .ab-icon{width:26px;height:26px;font-size:calc(18px * var(--ui-scale, 1))}
   .ab-name{font-size:calc(14.5px * var(--ui-scale, 1))}
@@ -1793,7 +1793,7 @@ body[data-theme="lane1"] .topbar .idle-hint{color:#fdde98 !important;text-shadow
   gap:16px;align-items:start;
 }
 .hmstead-col{display:flex;flex-direction:column;min-width:0}
-@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
+@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
   .hmstead-grid{grid-template-columns:1fr;gap:10px}
 }
 
@@ -2888,12 +2888,12 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
    and the doll 808px tall in a 423px viewport. Sizing is `--td-cell` now and
    the mobile value is set once, in theme-cozy.css beside the other
    mobile-landscape density rules. Nothing here may re-declare a track. */
-@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
+@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
   .td-doll .td-slot{font-size:calc(33px * var(--ui-scale, 1))}
   .td-doll .td-slot small{font-size:calc(14.5px * var(--ui-scale, 1))}
 }
 /* Mobile: collapse to single column */
-@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
+@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
   .invc-main{grid-template-columns:1fr}
   .invc-cat-strip{flex-direction:row}
   .invc-equip-col{order:-1}
@@ -3051,10 +3051,10 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   pointer-events:none;
 }
 
-@media (max-width:1100px) {
+@media (max-width: 1100px) {
   .act-grid{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
 }
-@media (max-width:780px) {
+@media (max-width: 780px) {
   .act-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
 }
 
@@ -3415,7 +3415,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .cr-rate-row .cr-rate-val{color:var(--gold-2);font-weight:800;font-size:calc(16px * var(--ui-scale, 1))}
 .cr-rate-row .cr-rate-meta{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))}
 
-@media (max-width:1100px) {
+@media (max-width: 1100px) {
   .cr-hero{grid-template-columns:120px 1fr;}
   .cr-hero-portrait{width:120px;height:120px}
   .cr-hero-stats{grid-column:1/-1}
@@ -3633,7 +3633,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .qm-info-text{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.6}
 .qm-reset{margin-top:auto;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-family:monospace;text-align:center;padding-top:10px;border-top:1px dashed var(--line)}
 
-@media (max-width:900px), (max-height:540px) and (max-width:1024px) {
+@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
   .global-quests-strip{flex-wrap:wrap;gap:6px}
   .qm-body{grid-template-columns:1fr}
   .qm-aside{border-left:none;border-top:1px solid var(--line)}

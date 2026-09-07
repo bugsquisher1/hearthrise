@@ -47303,7 +47303,7 @@ const TESTS = [
       'a run that stopped on the death still tells the player it picked back up — ' + stopped);
   }),
 
-  () => tryRun('RETREAT-A/W5: the Retreat, attended — one engine, one sentence, no lock', () => {
+  () => tryRunAsync('RETREAT-A/W5: the Retreat, attended — one engine, one sentence, no lock', async () => {
     /* ══ THE RETREAT (Recovery Rule rev. 3, Game Designer 2026-09-07) ═══════
        "The realm does not keep swinging a fight it has proven the hero cannot
        win." On the 3rd CONSECUTIVE fall with an empty bag AT THE FALL — or the
@@ -47411,22 +47411,51 @@ const TESTS = [
         'A1: the durable counter reads ' + st.consecFalls + ' — it is what the settle proposes to '
         + 'hr_apply, so a wrong number here is a wrong number on the server.');
 
-      /* AND THE SHEET SAYS SO. `describeDeath` is the sheet's own pure model —
-         no DOM, no G. */
+      /* ── AND THE SHEET SAYS SO, IN THE RULED WORDS ──────────────────────
+         `describeDeath` is the sheet's own pure model — no DOM, no G — and it
+         is driven HERE from the fields the ENGINE just stated (`foodless`,
+         `consecFalls`), never from hand-typed ones. That is the wiring half:
+         a sheet that renders the right sentence off a fixture nobody produces
+         is a sentence no player ever reads.
+         ⚠ THE CLOCK IS `recovering_until` MINUS NOW, exactly as the away card
+           subtracts it — 41 minutes here so the assertion pins the ruling's own
+           example verbatim. */
       const DS = window.HearthriseDeathSheet;
       assert(DS && typeof DS.describeDeath === 'function', 'A1: the death-sheet model seam is gone');
+      const T0 = Date.now();
       const m = DS.describeDeath({ monsterName: window.MONSTERS[FOE].name, maxHp: MAXHP,
         deaths: 3, deathsToday: 3, recoveryMs: last.recoverMs, resumeHp: st.playerHp,
-        recoveringUntilMs: Date.now() + 240000, nowMs: Date.now(), hadFood: false,
-        retreat: true });
+        recoveringUntilMs: T0 + 41 * 60000, nowMs: T0, hadFood: false,
+        retreat: true, retreatFoodless: last.foodless, retreatFalls: last.consecFalls });
       assert(m.title === 'You pulled back',
         'A1: the death sheet is titled "' + m.title + '". Ended BY CHOICE is not the same as '
         + 'FAILED, and the ruling names the words.');
-      assert(/Three falls with an empty bag/.test(m.lead) && /pick the fight back up/.test(m.lead),
-        'A1: the sheet does not carry the ruled lead line — ' + m.lead);
-      assert(m.recoverMsLeft === 0,
-        'A1: the sheet is counting down ' + m.recoverMsLeft + ' ms on a retreat. That countdown is '
-        + 'a promise that the fight RESUMES when it hits zero, and after a retreat it does not.');
+      /* THE RULED COPY, VERBATIM AND WHOLE. Asserted as one equality rather than
+         three regexes: this sentence is the ruling, and a partial match is how
+         half of it quietly goes missing. */
+      assert(m.lead === 'Three falls in a row on an empty bag — you retreated to camp rather than '
+        + 'keep going down. Still recovering — 41m to go. The clock runs down on its own; the '
+        + 'fight does not restart itself. Bring food, then pick the fight back up.',
+        'A1: the sheet does not carry the ruled lead — ' + m.lead);
+      /* THE COUNT IS THE ENGINE'S. Mutation: change RETREAT_FOODLESS_FALLS and
+         this word moves with it, because it is looked up rather than typed. */
+      assert(/^Three falls/.test(m.lead) && last.consecFalls === 3,
+        'A1: the lead does not name the rung the engine actually charged ('
+        + last.consecFalls + ') — ' + m.lead);
+      assert(m.recoverMsLeft > 0 && m.retreat === true,
+        'A1: the model reads recoverMsLeft=' + m.recoverMsLeft + ' retreat=' + m.retreat
+        + '. The recovery clock on a retreat is REAL (the retreating fall charged its rung and '
+        + 'hr_rest is still the cure); what must not be promised is the RESUME, and that is what '
+        + 'the retreat flag says.');
+      /* THE CLOCK CLAUSE DISAPPEARS ONCE THE LINE HAS PASSED — never "0s to go",
+         which is a sentence about a state the player is no longer in. */
+      const upAgain = DS.describeDeath({ monsterName: window.MONSTERS[FOE].name, maxHp: MAXHP,
+        deaths: 3, deathsToday: 3, recoveryMs: last.recoverMs, resumeHp: st.playerHp,
+        recoveringUntilMs: 0, nowMs: T0, hadFood: false,
+        retreat: true, retreatFoodless: true, retreatFalls: last.consecFalls });
+      assert(upAgain.lead === 'Three falls in a row on an empty bag — you retreated to camp rather '
+        + 'than keep going down. Bring food, then pick the fight back up.',
+        'A1: the retreat lead kept a dead clock clause — ' + upAgain.lead);
       /* AND AN ORDINARY FALL IS UNTOUCHED — the regression this override could
          most easily cause. */
       const ord = DS.describeDeath({ monsterName: window.MONSTERS[FOE].name, maxHp: MAXHP,
@@ -47476,6 +47505,66 @@ const TESTS = [
         + 'read from the bag AT THE FALL, and this bag is full.');
       assert(falls[falls.length - 1].foodless === false,
         'A3: the fed hero\'s last fall was reported foodless with a full bag');
+      /* AND THE OTHER SENTENCE. The two rungs answer two different questions and
+         the copy is where that distinction actually reaches the player — a fed
+         hero told to "bring food" has been given advice they already took. */
+      const last3 = falls[falls.length - 1];
+      const T3 = Date.now();
+      const m3 = window.HearthriseDeathSheet.describeDeath({
+        monsterName: window.MONSTERS[FOE].name, maxHp: MAXHP, deaths: 6, deathsToday: 6,
+        recoveryMs: last3.recoverMs, resumeHp: st.playerHp,
+        recoveringUntilMs: T3 + 41 * 60000, nowMs: T3, hadFood: true,
+        retreat: true, retreatFoodless: last3.foodless, retreatFalls: last3.consecFalls });
+      assert(m3.lead === 'Six falls in a row — you retreated to camp. That fight is out of your '
+        + 'league for now. Still recovering — 41m to go. The clock runs down on its own; the '
+        + 'fight does not restart itself. Pick a softer target when you are back up.',
+        'A3: the fed rung does not carry the ruled lead — ' + m3.lead);
+      assert(!/Bring food/.test(m3.lead),
+        'A3: a hero with 400 provisions was told to bring food — ' + m3.lead);
+    }
+
+    /* ── RETREAT-A6 — THE COUNTDOWN MUST NOT UN-SAY THE RETREAT ────────────
+       THE DEFECT THIS EXISTS FOR, and it shipped in rev. 3: the model stated
+       `retreat` with a comment saying it was there so "the renderer's countdown
+       must not rewrite a retreat's lead into 'Back on your feet in 3:47'" — and
+       the renderer never read it. The 1 Hz tick only tested whether the server's
+       recovery instant was in the future, which it IS on a retreat (the
+       retreating fall charged its rung), so the ruled lead was replaced by the
+       exact wrong promise one second after the sheet opened, on the one screen
+       that exists to say the run is over.
+
+       IT WAS UNREACHABLE FROM ANY TEST because it was three lines inside a
+       `setInterval`. So the tick's decision is now a pure function
+       (`__leadTick`) and this asks it directly — no clock, no DOM, no waiting.
+       MUTATION PROVEN: delete the `model.retreat` branch from leadTick and the
+       first assertion goes red with the promise the ruling forbids. */
+    {
+      const DS = window.HearthriseDeathSheet;
+      assert(DS && typeof DS.__leadTick === 'function',
+        'A6: the countdown\'s decision is inline again. A branch no test can call is the branch '
+        + 'that shipped unread in rev. 3.');
+      const retreatModel = { retreat: true, retreatFoodless: true, retreatFalls: 3,
+        title: 'You pulled back' };
+      const t41 = DS.__leadTick(retreatModel, 41 * 60000);
+      assert(t41 === 'Three falls in a row on an empty bag — you retreated to camp rather than '
+        + 'keep going down. Still recovering — 41m to go. The clock runs down on its own; the '
+        + 'fight does not restart itself. Bring food, then pick the fight back up.',
+        'A6: the tick rewrote the retreat lead — ' + t41);
+      assert(!/Back on your feet/.test(t41),
+        'A6: one second after the sheet opened it promised the fight resumes. After a retreat the '
+        + 'settle has idled the pointer and it does not.');
+      /* AND AT ZERO IT STILL DOES NOT PROMISE A RESUME — the clock clause drops,
+         the rest of the sentence stands. */
+      const t0 = DS.__leadTick(retreatModel, 0);
+      assert(t0 === 'Three falls in a row on an empty bag — you retreated to camp rather than '
+        + 'keep going down. Bring food, then pick the fight back up.',
+        'A6: the expired retreat lead is wrong — ' + t0);
+      /* AND THE ORDINARY COUNTDOWN IS BYTE-FOR-BYTE WHAT IT WAS. This extraction
+         must change nothing for a fall that DOES resume. */
+      assert(DS.__leadTick({ retreat: false }, 107000) === 'Back on your feet in 1:47.',
+        'A6: the ordinary countdown changed — ' + DS.__leadTick({ retreat: false }, 107000));
+      assert(DS.__leadTick({ retreat: false }, 0) === 'You are back on your feet.',
+        'A6: the ordinary countdown\'s zero case changed');
     }
 
     /* ── RETREAT-A5 — WARN, NEVER REFUSE ───────────────────────────────────
@@ -47515,60 +47604,175 @@ const TESTS = [
       assert(JSON.stringify(w) === JSON.stringify(w2),
         'A5: two forecasts of the same state disagreed — the seed is not fixed');
 
-      /* ── THE REAL GATE, DRIVEN END TO END ────────────────────────────────
-         `startCombat` SKIPS this dialog under `__HR_TEST_HARNESS__`, and it has
-         to: a blocking modal has no meaning where nobody can answer it, and the
-         suite calls `startCombat` about thirty times — MEASURED 2026-09-07, a
-         foodless character left `activeMonster` null AND a full-screen overlay
-         over the game for every later test (the b221 cascade). That skip is a
-         statement about who is watching, so THIS fixture takes the flag off and
-         proves the gate itself works: warned tap withholds the fight and raises
-         the dialog, the escape hatch goes straight through, and the latch means
-         the second tap is not nagged.
+      /* ══ THE REAL GATE, DRIVEN END TO END (Designer ruling, 2026-09-07) ═══
+         The ruling states the gate as four properties, and all four are driven
+         here against the LIVE `startCombat` on the ruling's own population —
+         empty bag, 13 max HP — rather than against the pure forecast:
+
+           ONCE PER MONSTER ID PER TAB SESSION (not per kind)
+           NEVER WHILE A FIGHT IS ALREADY RUNNING
+           NEVER WHEN THE BAG HAS FOOD
+           ANY DISMISSAL — Escape, the backdrop, the button, the test harness —
+             resolves as "Fight anyway" and STARTS the fight.
+
+         The last one is why this battery is now `tryRunAsync`: a dismissal
+         resolves a promise, and a synchronous runner would assert on the tick
+         BEFORE the fight it is supposed to prove.
          ⚠ try/finally, and the fight and the dialog are torn down in it. A
            fixture that puts a modal up and leaves it there is the exact defect
-           it exists to prevent. */
+           it exists to prevent (b221), and `withOverlayCheck` fails this test
+           if one survives. */
       const D = window.HearthriseDialog;
       const hadFlag = window.__HR_TEST_HARNESS__;
       const wasFighting = window.G.activeMonster;
       const savedInv = window.G.inventory;
       const savedMax = window.G.playerMaxHp; const savedHp = window.G.playerHp;
+      /* ⚠ MICROTASKS ONLY — NEVER `setTimeout`, AND THIS IS A MEASURED FLAKE,
+         NOT A PREFERENCE. Every dismissal below starts a REAL fight on the
+         ruling's own population: 13 max HP, empty bag, against a dark wizard.
+         The fixture stops it on the very next line, so it is alive for exactly
+         as long as this helper yields for — and a `setTimeout(0)` yield CROSSES
+         A MACROTASK BOUNDARY, which is precisely when `setInterval(combatTick)`
+         is allowed to run. Measured 2026-09-07 at roughly 1 run in 3: the tick
+         landed, the doomed character fell, `COMBAT_FX.onDeath` raised the death
+         sheet, and the fixture ended with a full-screen overlay over the game —
+         the b221/b483 cascade, caused by the test that exists to prevent it.
+         `HearthriseDialog` resolves synchronously inside `finish()` and the
+         `.then(go,go)` that starts the fight is a MICROTASK, so awaiting the
+         microtask queue is both sufficient and incapable of letting a timer
+         fire. Two turns because `go` itself is queued behind the resolve. */
+      const settle = () => Promise.resolve().then(() => {}).then(() => {});
       try {
         window.stopCombat();
         /* THE POPULATION THE RULING IS ABOUT: empty bag, 13 max HP. Restored in
            the finally below — this is the live save. */
         window.G.inventory = {};
         window.G.playerMaxHp = MAXHP; window.G.playerHp = MAXHP;
+
+        /* ── (0) THE HARNESS IS ONE MORE DISMISSAL ─────────────────────────
+           ASSERTED FIRST, AND WITH THE FLAG STILL ON, because it is the
+           property the other thirty `startCombat` callers in this suite depend
+           on: under the harness the fight starts SYNCHRONOUSLY and no modal is
+           raised. MEASURED 2026-09-07 — before this rule a foodless
+           `startCombat('slime')` left `activeMonster` null AND a full-screen
+           overlay over the game that nothing would ever answer. */
+        window.__HR_TEST_HARNESS__ = true;
+        window.__hrClearFightWarnings();
+        assert(!!window.__hrFightGate(FOE),
+          'A5: the gate had nothing to say about ' + FOE + ' on an empty bag at 13 max HP, so the '
+          + 'harness case below would prove nothing. This is the exact state the ruling was '
+          + 'written about.');
+        window.startCombat(FOE);
+        assert(window.G.activeMonster === FOE,
+          'A5: under the test harness the warned tap did not start the fight. The harness is one '
+          + 'more DISMISSAL, and a dismissal starts the fight — a warning may delay a tap, it may '
+          + 'never eat one.');
+        assert(!(D && D.isOpen && D.isOpen()),
+          'A5: the harness raised a modal nothing in this run can answer. That is the b221 overlay '
+          + 'cascade: one leaked modal fails the next thirty tests, thousands of lines away.');
+        window.stopCombat();
+        /* AND THE LATCH IS SPENT. This is the assertion that tells the RULE from
+           the blanket skip it replaces — MEASURED: with the old
+           `&& !window.__HR_TEST_HARNESS__` put back on startCombat's gate, every
+           other assertion in this fixture still passes, because a skipped gate also
+           starts the fight. A DISMISSAL does both: it starts the fight AND
+           spends this foe's one warning for the session. */
+        assert(window.__hrFightGate(FOE) === null,
+          'A5: the harness tap did not consume the latch, so the harness is SKIPPING the gate '
+          + 'rather than dismissing it. The ruling makes the harness one more dismissal, and a '
+          + 'dismissal spends the warning.');
+
         window.__HR_TEST_HARNESS__ = false;
         window.__hrClearFightWarnings();
-        const warned = window.__hrPreFightWarning(FOE);
+        const warned = window.__hrFightGate(FOE);
         assert(warned && warned.kind === 'no-food',
-          'A5: a 13-HP hero with an empty bag was not warned about ' + FOE + '. This is the exact '
-          + 'state the ruling was written about.');
+          'A5: a 13-HP hero with an empty bag was not warned about ' + FOE + '.');
         assert(!/\b1 minutes\b/.test(warned.body),
           'A5: the warning says "1 minutes" — ' + warned.body);
+
+        /* ── (1) A WARNED TAP WITHHOLDS THE FIGHT AND RAISES THE DIALOG ─── */
         window.startCombat(FOE);
         assert(!window.G.activeMonster,
-          'A5: the warned tap started the fight anyway. The ruled button is "Fight anyway", which '
-          + 'means the fight has not started yet.');
+          'A5: the warned tap started the fight without saying anything. The player is owed the '
+          + 'sentence before the swing.');
         assert(D && D.isOpen && D.isOpen(),
           'A5: no dialog was raised, so the player is refused in silence — which is the one thing '
           + 'the ruling forbids.');
-        D.close();
-        /* NEVER REFUSED: the confirmed path goes straight through, synchronously. */
+        /* ONE BUTTON, because every exit means the same thing. A "Not yet"
+           control beside a dialog whose Escape starts the fight would be a
+           label that does not describe what the control does. */
+        const ov = document.getElementById(D.OVERLAY_ID);
+        assert(ov && !ov.querySelector('[data-hrc="no"]'),
+          'A5: the warning still carries a cancel button. ANY dismissal starts the fight, so a '
+          + 'second control labelled "Not yet" is a lie about what it does.');
+        assert(/Fight anyway/.test(((ov.querySelector('[data-hrc="yes"]') || {}).textContent) || ''),
+          'A5: the one button is not "Fight anyway" — the ruling names the words.');
+
+        /* ── (2) ESCAPE IS A DISMISSAL, AND A DISMISSAL STARTS THE FIGHT ── */
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await settle();
+        assert(!D.isOpen(), 'A5: Escape did not close the warning');
+        assert(window.G.activeMonster === FOE,
+          'A5: Escape ATE the tap. Every exit from this dialog — Escape, the backdrop, the button '
+          + '— resolves as "Fight anyway"; a warning may delay a tap, it may never eat one.');
+        window.stopCombat();
+
+        /* ── (3) WARN ONCE PER MONSTER ID, PER TAB SESSION ───────────────── */
+        window.startCombat(FOE);
+        assert(window.G.activeMonster === FOE && !D.isOpen(),
+          'A5: the second tap was warned again. A modal on every re-tap trains the player to '
+          + 'dismiss it without reading, which is the same as not warning.');
+        window.stopCombat();
+        assert(window.__hrFightGate(FOE) === null,
+          'A5: the latch is keyed by KIND rather than by monster id — the same foe can then warn '
+          + 'twice about one decision (no food, then out of your league).');
+
+        /* ── (4) NEVER WHILE A FIGHT IS ALREADY RUNNING ──────────────────── */
+        window.__hrClearFightWarnings();
+        assert(!!window.__hrFightGate(FOE), 'A5: control — the gate must speak again once cleared');
         window.startCombat(FOE, { confirmed: true });
         assert(window.G.activeMonster === FOE,
           'A5: "Fight anyway" did not start the fight. The warning is ADVISORY — refusing an '
           + 'overmatched fight was rejected by name as the residue-ahead class.');
+        assert(window.__hrFightGate(FOE) === null,
+          'A5: the gate spoke mid-fight. A tap while a fight is running is a SWITCH, and answering '
+          + 'the dialog re-enters startCombat — so the warning would interrupt the run it exists '
+          + 'to protect.');
         window.stopCombat();
-        /* WARN ONCE: the latch is consumed, so a re-tap is not nagged. */
+
+        /* ── (5) NEVER WHEN THE BAG HAS FOOD ────────────────────────────── */
+        if (FOOD) {
+          window.__hrClearFightWarnings();
+          window.G.inventory = {};
+          assert(!!window.__hrFightGate(FOE), 'A5: control — the empty bag must still warn');
+          window.G.inventory = { [FOOD]: 5 };
+          assert(window.__hrFightGate(FOE) === null,
+            'A5: a hero carrying provisions was warned. This warning exists for the empty-bag '
+            + 'population the Retreat was written about; a fed hero who is outmatched finds that '
+            + 'out by fighting, and finding out by fighting is the reward the ruling refused to '
+            + 'take away.');
+          window.G.inventory = {};
+        }
+
+        /* ── (6) THE BACKDROP IS A DISMISSAL TOO ─────────────────────────── */
+        window.__hrClearFightWarnings();
         window.startCombat(FOE);
-        assert(window.G.activeMonster === FOE,
-          'A5: the second tap was warned again. "Warn once" — a modal on every re-tap trains the '
-          + 'player to dismiss it without reading, which is the same as not warning.');
+        assert(!window.G.activeMonster && D.isOpen(), 'A5: the warned tap did not raise the dialog');
+        const ov2 = document.getElementById(D.OVERLAY_ID);
+        ov2.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        await settle();
+        assert(!D.isOpen() && window.G.activeMonster === FOE,
+          'A5: clicking the backdrop ate the tap. Every way out of this dialog starts the fight.');
+        window.stopCombat();
       } finally {
         try { if (D && D.isOpen && D.isOpen()) D.close(); } catch (e) {}
         try { window.stopCombat(); } catch (e) {}
+        /* AND THE DEATH SHEET, BELT AND BRACES. The yields above are microtask
+           -only so no tick can land, but this fixture is the one place in the
+           suite that deliberately points a doomed character at a real fight —
+           if it ever DOES fall, the sheet must not outlive the fixture. Cheap,
+           idempotent, and the exact teardown the overlay guard names. */
+        try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
         window.__HR_TEST_HARNESS__ = hadFlag;
         window.G.inventory = savedInv;
         window.G.playerMaxHp = savedMax; window.G.playerHp = savedHp;
@@ -47634,6 +47838,30 @@ const TESTS = [
         + 'a divergence here IS two voices — ' + s);
       assert(H.retreatSentence(Object.assign({}, foodless, { stoppedBy: null })) === null,
         'W5: a night that did not retreat was handed a retreat sentence');
+      /* (v) AND ONE AUTHOR FOR THE CLOCK LINE. The away card and the retreat
+         death sheet both tell the player how long the recovery still has to
+         run, and the ruling asks for them in the SAME words. The sentence is
+         composed once, in death-sheet.js, and read by both — the cautionary
+         precedent is the SUPPLIES sentence in this very file, which exists
+         three times and has already drifted in punctuation.
+         MUTATION PROVEN: change either surface's wording and this goes red at
+         the surface that moved, because both are compared to the one author. */
+      const DS2 = window.HearthriseDeathSheet;
+      assert(DS2 && typeof DS2.stillRecovering === 'function',
+        'W5: the shared recovery sentence is not exported from death-sheet.js');
+      const shared = DS2.stillRecovering(47000);
+      assert(shared === 'Still recovering — 47s to go.',
+        'W5: the shared recovery sentence is not the ruled copy — ' + shared);
+      assert(down.indexOf(shared) >= 0,
+        'W5: the away card no longer prints the shared sentence — ' + down);
+      const T5 = Date.now();
+      const sheet5 = DS2.describeDeath({ monsterName: window.MONSTERS[FOE].name, maxHp: MAXHP,
+        deaths: 3, deathsToday: 3, recoveryMs: 240000, resumeHp: 5,
+        recoveringUntilMs: T5 + 47000, nowMs: T5, hadFood: false,
+        retreat: true, retreatFoodless: true, retreatFalls: 3 }).lead;
+      assert(sheet5.indexOf(shared) >= 0,
+        'W5: the death sheet words the recovery clock differently from the away card. Two surfaces '
+        + 'describing one clock in two voices is how a player learns to distrust both — ' + sheet5);
     }
   }),
 

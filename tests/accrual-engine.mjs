@@ -2112,6 +2112,10 @@ function retreatGuard() {
       : ((typeof o.consecFalls === 'number') ? o.consecFalls : 0),
     deathsTodayBefore: o.deathsTodayBefore || 0,
     deathsLifetimeBefore: (typeof o.deathsLifetimeBefore === 'number') ? o.deathsLifetimeBefore : VETERAN,
+    /* THE ATTENDED KILL LEDGER, threaded so RETREAT-W8 can drive it. `null` on
+       every other fixture, which is what index.ts passes when the database has
+       no `hr_attended_kills` — so nothing above this line changes shape. */
+    attended: o.attended || null,
     items: ITEMS, monsters: MONSTERS,
   });
 
@@ -2423,6 +2427,110 @@ function retreatGuard() {
     ok(off.summary.deaths > 3,
       `RETREAT-W6b: the control night only fell ${off.summary.deaths} times — it must run long past `
       + 'the rung, or it is not proving that the rule is off.');
+  }
+
+  // ── RETREAT-W8 — ONLY A *SERVER-ACCEPTED* KILL CLEARS THE COUNTER ─────────
+  // Designer ruling 4, 2026-09-07: "`consecFalls` cleared by an accepted
+  // attended kill is ACCEPTED as under-charging in the player's favour — keep
+  // the guard that only a SERVER-ACCEPTED kill clears it; a client-claimed kill
+  // never does."
+  //
+  // WHY THE GUARD MATTERS. `resolveKill` zeroes `state.consecFalls` (combat-sim.js,
+  // "THE RETREAT COUNTER IS RESET BY *ANY* KILL"), and the attended top-up pays
+  // its kills by CALLING `resolveKill` — so a kill count that reached the engine
+  // from the client would be a client-authored reset of a server-owned counter,
+  // and the Retreat would be disarmed by anyone who could say "I killed nine".
+  // Two independent things stop that, and both are asserted here because either
+  // one alone is an argument rather than a guard:
+  //
+  //   PROVENANCE — `attended` is read from `hr_attended_kills` inside the seed
+  //     transaction (index.ts), a projection over `hr_kill_credit_log`: a table
+  //     no client role may write, holding counts `hr_credit_kills` already
+  //     clamped against the SERVER clock. The request body carries no kill
+  //     count, no monster and no window. Source-scanned below, because no
+  //     runtime test of the engine can see where its argument came from.
+  //   ARITHMETIC — even a forged claim pays nothing the server's own simulation
+  //     does not corroborate: `attTopUp = min(claimed, cap, sim x FIDELITY) - sim`,
+  //     so `sim === 0` makes the top-up ZERO by arithmetic rather than by a
+  //     special case, and the counter is never touched.
+  //
+  // MUTATION PROVEN: drop `attSim * ATTENDED_MAX_FIDELITY` from the `Math.min`
+  // in accrual.js and the forged night below tops up 500 kills, clears the
+  // counter and mints the loot — red on all three assertions.
+  {
+    const forgeKills = 500;
+    const clean = night({ spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13 });
+    ok(clean.summary.stoppedBy === 'retreat' && clean.summary.kills === 0,
+      `RETREAT-W8: the control night stopped with ${JSON.stringify(clean.summary.stoppedBy)} after `
+      + `${clean.summary.kills} kills. The fixture must be a hero the server simulates as landing `
+      + 'NOTHING, or the forged claim below has real kills to hide behind.');
+    /* THE FORGERY, IN THE SHAPE `hr_attended_kills` PROJECTS — so what is being
+       tested is the ENGINE's treatment of a number, not its parser. */
+    const forged = night({
+      spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13,
+      attended: {
+        ok: true,
+        kills: { [WIZARD]: forgeKills },
+        from: new Date(FROM_MS).toISOString(),
+        to: new Date(FROM_MS + 12 * 3600000).toISOString(),
+      },
+    });
+    ok(forged.delta.consec_falls === RETREAT_FOODLESS_FALLS,
+      `RETREAT-W8: a claim of ${forgeKills} kills moved the proposed counter to `
+      + `${forged.delta.consec_falls}. Only a kill the SERVER's own simulation corroborates may `
+      + 'clear it; a claim the simulation does not back is not a kill.');
+    ok(forged.summary.stoppedBy === 'retreat',
+      `RETREAT-W8: the forged claim stopped the night with ${JSON.stringify(forged.summary.stoppedBy)} `
+      + '— a claim that cancels the Retreat is a claim that disarms it.');
+    /* AND THE WHOLE PAID DELTA IS UNTOUCHED, not merely the counter. The
+       top-up is skipped in one branch, so an uncorroborated claim must be
+       indistinguishable from no claim at all in everything that MOVES — gold,
+       items, XP, hp, activity, accrued_to, the deaths ledger, and the counter.
+       ⚠ `journal.meta.att` IS EXCLUDED, AND ASSERTED SEPARATELY BELOW, because
+         it is the one field that SHOULD differ: it is the dispute-replay record
+         of what was claimed against what was paid, and a forgery that left no
+         trace would be worse than one that changed a number. Excluded by
+         DELETION rather than by comparing a whitelist, so a future field added
+         beside it is compared rather than silently skipped. */
+    const stripAtt = (d) => {
+      const c = JSON.parse(JSON.stringify(d));
+      const meta = (c.journal && c.journal.meta) || null;
+      const att = meta ? meta.att : undefined;
+      if (meta) delete meta.att;
+      return { rest: c, att };
+    };
+    const cleanS = stripAtt(clean.delta);
+    const forgedS = stripAtt(forged.delta);
+    ok(JSON.stringify(forgedS.rest) === JSON.stringify(cleanS.rest),
+      'RETREAT-W8: a claim the simulation does not corroborate MOVED something. Every paid field '
+      + `must be byte-identical to the same night with no ledger at all.\n  clean:  ${JSON.stringify(cleanS.rest)}\n  forged: ${JSON.stringify(forgedS.rest)}`);
+    /* AND THE CLAIM IS ON THE RECORD, PAYING NOTHING. "Refused silently" and
+       "refused and journalled" are different systems, and only the second one
+       can be audited after the fact. */
+    ok(cleanS.att === undefined,
+      'RETREAT-W8: a night with no attended ledger journalled an att block anyway');
+    ok(forgedS.att && forgedS.att.claimed === forgeKills && forgedS.att.sim === 0
+       && forgedS.att.top === 0,
+      `RETREAT-W8: the forged claim journalled ${JSON.stringify(forgedS.att)}. It must be recorded `
+      + `as claimed=${forgeKills}, sim=0, top=0 — the claim is auditable and it paid nothing.`);
+    /* THE OTHER HALF, STATED SO THE RULING'S ACCEPTANCE IS PINNED RATHER THAN
+       ASSUMED: a kill the server DID accept clears the counter, because the
+       top-up runs `resolveKill`. That is the under-charge the designer accepted
+       — it can only ever make the counter SMALLER, i.e. fewer retreats, and a
+       retreat pays nothing, so there is no economic exploit in never triggering
+       one. Asserted through the span's own kill rather than the top-up's,
+       because the top-up cannot reach a night the span landed nothing in (the
+       `sim x FIDELITY` bound above) — which is itself the property. */
+    const won = night({
+      spanMs: 30 * 60000, monster: SLIME, skills: MAXED, maxHp: 99,
+      consecFalls: 2,
+    });
+    ok(won.summary.kills > 0,
+      `RETREAT-W8: the winning control landed ${won.summary.kills} kills — it cannot show a reset.`);
+    ok(won.delta.consec_falls === 0,
+      `RETREAT-W8: a night with ${won.summary.kills} SERVER-simulated kills proposed `
+      + `consec_falls=${won.delta.consec_falls}. Any accepted kill clears the count — that is what `
+      + 'makes a hero who can win at all never retreat.');
   }
 
   // ── FORECAST-1 — THE WARNING IS THE SIMULATION, NOT A DPS FORMULA ─────────
@@ -3393,6 +3501,37 @@ async function shapeGuard() {
       `SOURCE: index.ts appears to write ${table} directly — Edge Functions never write tables`);
   }
   ok(/hr_apply\(/.test(shellCode), 'SOURCE: index.ts must go through hr_apply');
+  /* ── RETREAT-W8's PROVENANCE HALF (Designer ruling 4, 2026-09-07) ─────────
+     The attended kill ledger is the ONE input that can make `resolveKill` run
+     outside the simulation, and `resolveKill` clears the Retreat counter. So
+     where the shell got that value from is a security property, and it is not
+     visible to any runtime test of the engine: `runAccrual` cannot tell a
+     projection from a request body.
+     TWO SHAPES ARE LEGAL — `attendedIn` (the value read out of the seed
+     transaction) and `step.attended` (the degrade ladder's copy of it, which
+     is `null` on every rung). Anything else assigned to `attended:` is a new
+     door, and this goes red until somebody names it here. */
+  /* THE TERMINATOR IS LOAD-BEARING. `attended: Record<string, unknown> | null`
+     is a TYPE annotation, not a value, and it is the shape the degrade ladder's
+     own interface is declared with — so the scan requires the identifier to be
+     followed by an object/statement terminator, which a generic never is. */
+  const attendedArgs = [...shellCode.matchAll(/\battended\s*:\s*([A-Za-z_$][\w$.]*)\s*[,;}]/g)]
+    .map((mm) => mm[1]);
+  ok(attendedArgs.length > 0, 'SOURCE: index.ts no longer passes an attended ledger at all');
+  for (const a of attendedArgs) {
+    ok(a === 'attendedIn' || a === 'step.attended',
+      `SOURCE: index.ts passes attended: ${a}. The attended kill ledger may only come from the `
+      + 'hr_attended_kills projection read inside the seed transaction — it pays kills through '
+      + 'resolveKill, which clears the Retreat counter, so a body-sourced value would let a client '
+      + 'disarm a server-owned rule by claiming kills.');
+  }
+  ok(/const\s+attendedEnv\s*=\s*seedRow\s*\??\.\s*attended\b/.test(shellCode),
+    'SOURCE: attendedEnv is no longer read off the seed row — the projection IS the provenance');
+  /* AND THE COUNTER ITSELF IS NEVER CLIENT-SOURCED. `consecFalls` is seeded
+     from hr_state_of's projection and proposed back; an assignment reading the
+     parsed intent would be the same defect one field over. */
+  ok(!/consecFalls\s*:\s*(intent|body|req|payload)\b/.test(shellCode),
+    'SOURCE: index.ts seeds consecFalls from the request — the retreat counter is server-owned');
   ok(/hr_offline_cap_ms\(/.test(shellCode), 'SOURCE: the cap must be read from Postgres, not computed in the engine');
   ok(/hr_seed\(/.test(shellCode), 'SOURCE: the PRNG seed must come from hr_seed (server secret), never from visible values');
 }

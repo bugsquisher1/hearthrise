@@ -745,8 +745,18 @@
     var recLeft = Math.max(0, Number(off.recoverRemainingMs) || 0);
     if (recLeft > 0 && (retreat || (death && Math.max(0, Number(off.deaths) || 0) >= 1
                                     && off.stoppedBy !== 'death'))) {
-      notes.push({ tone: 'bad', icon: 'uiClock',
-        text: 'Still recovering — ' + fmtSince(recLeft) + ' to go.' });
+      /* ⚠ ONE AUTHOR FOR THIS SENTENCE (Designer ruling, 2026-09-07). The
+         retreat death sheet prints the same clock line, and the ruling asks for
+         it in the same words — so the sentence is composed by
+         `HearthriseDeathSheet.stillRecovering` and by nothing here. That module
+         loads FIRST (index.html ~1064 vs ~1120), so the call cannot race the
+         load; the guard is for a module that failed to load at all, and the
+         degradation is the one legacy.js already uses for the shared retreat
+         sentence — say NOTHING rather than say a second version. */
+      var DS = window.HearthriseDeathSheet;
+      if (DS && typeof DS.stillRecovering === 'function') {
+        notes.push({ tone: 'bad', icon: 'uiClock', text: DS.stillRecovering(recLeft) });
+      }
     }
     /* ── b345: THE RUN THAT STOPPED, on the same durable surface and for the
        same reason the death line is here — it changes the meaning of every

@@ -5843,11 +5843,20 @@ window.__combatIntervalMs=function(){ return _combatIntervalMs; };   // test sea
    ways the real loop is subtle: crits, the accuracy distribution, auto-eat,
    ammo running dry, the weakness multiplier, the Boss of the Day.
 
-   WARN ONCE, per foe per kind per session. A modal on every re-tap trains the
-   player to dismiss it without reading, which is the same as not warning. The
-   latch is CLEARED BY A RETREAT (`hrRetreat`), because a retreat is a new and
-   much stronger signal than the forecast was — the ruling's A5 case, where a
-   player who pulls back and immediately re-engages is told again. */
+   WARN ONCE PER MONSTER ID PER TAB SESSION (Designer ruling, 2026-09-07).
+   Per FOE, not per foe-and-kind: a player told "no food" and then, two taps
+   later, "out of your league" about the same monster has been warned twice
+   about one decision, and a modal on every re-tap trains the player to dismiss
+   it without reading — which is the same as not warning.
+
+   ✗ RETRACTED BY THE SAME RULING: the latch used to be released by `hrRetreat`,
+     "because a retreat is a new and much stronger signal than the forecast
+     was". Once per tab session is now the whole rule and it has no exceptions.
+     The retreat already owns a surface of its own — the death sheet's "You
+     pulled back", which states the clock and the fix — and a second modal on
+     the fight the player has just decided to take again is exactly the nag this
+     latch exists to prevent. `hrClearFightWarnings` survives as the suite's
+     teardown seam and has no production caller. */
 let _fightWarned=Object.create(null);
 function hrClearFightWarnings(){ _fightWarned=Object.create(null); }
 /* Returns {kind,title,body} or null. PURE apart from the forecast it runs; the
@@ -5912,6 +5921,76 @@ function hrPreFightWarning(mId){
 window.__hrPreFightWarning=hrPreFightWarning;          // test seam (FORECAST-COPY)
 window.__hrClearFightWarnings=hrClearFightWarnings;    // test seam
 
+/* ── THE THREE SUPPRESSIONS (Designer ruling, 2026-09-07) ───────────────────
+   `hrPreFightWarning` decides whether there is anything to SAY. This decides
+   whether the player is in a position to be told it. All three are refusals to
+   speak, and each is here because speaking would cost the player something:
+
+     A FIGHT IS ALREADY RUNNING — the tap is a SWITCH, mid-run. A dialog here
+       would be raised over a fight that is still swinging, and answering it
+       re-enters `startCombat`, so the warning would end up interrupting the
+       very run it was trying to protect.
+     THE BAG HAS FOOD — the ruling's own line. This warning exists for the
+       empty-bag population the Retreat was written about. A fed hero who is
+       outmatched finds that out by fighting, and finding out by fighting is the
+       reward the ruling refused by name to take away.
+     ALREADY WARNED ABOUT THIS FOE THIS TAB SESSION — the latch above.
+
+   ⚠ `awayHadFood()` RETURNS `undefined` WHEN CORE IS NOT UP, and the test is
+     `=== true` on purpose: "we could not ask" is not "the bag has food". The
+     honest fallback is to let the forecast answer, and the forecast has its own
+     try/catch and returns null on any trouble.
+   ⚠ ONE READER FOR THE BAG. `awayHadFood` is the same `chooseFood` call the
+     simulation's auto-eat gate and the away receipt both use, so the warning
+     and the night cannot disagree about whether this character had provisions. */
+function hrFightGate(mId){
+  if(G.activeMonster)return null;
+  if(_fightWarned[mId])return null;
+  if(awayHadFood()===true)return null;
+  return hrPreFightWarning(mId);
+}
+window.__hrFightGate=hrFightGate;                      // test seam (RETREAT-A5)
+
+/* RAISE IT, AND TREAT EVERY EXIT AS "FIGHT ANYWAY".
+   Returns TRUE when the modal is up and therefore owns the fight; FALSE when it
+   could not be raised at all, in which case the caller fights IMMEDIATELY. The
+   ruling's words: a warning may delay a tap, it may never eat one — so if the
+   modal cannot be shown, the fight still starts.
+
+   ⚠ `alert`, NOT `confirm`, and that is the ruling expressed in the widget.
+     Every exit from this dialog starts the fight — the button, Escape, the
+     backdrop, a page with no DOM — so a second "Not yet" button would be a
+     control that does not do what its label says. One button, one meaning.
+   ⚠ HearthriseDialog, NEVER window.confirm. A native dialog blocks the
+     renderer's main thread and has frozen this game twice (b371, b373);
+     tests/native-dialog.mjs is the standing guard. */
+function hrRaiseFightWarning(mId,w){
+  /* THE TEST HARNESS IS ONE MORE DISMISSAL, which is the ruling's own framing
+     and a strictly better rule than the blanket skip it replaces. A blocking
+     modal has no meaning where nobody can answer it — MEASURED 2026-09-07: a
+     foodless character in the in-page suite left `activeMonster` null AND a
+     full-screen overlay over the game that nothing would ever answer, the b221
+     cascade reached through a brand-new door. Under the harness the dialog is
+     not raised and the fight starts SYNCHRONOUSLY, which is also what keeps
+     `startCombat` synchronous for the thirty-odd suite callers. The coverage is
+     not given up: RETREAT-A5 clears the flag itself and drives the real gate. */
+  if(window.__HR_TEST_HARNESS__)return false;
+  const D=window.HearthriseDialog;
+  if(!D||typeof D.alert!=='function')return false;
+  const go=function(){ try{ startCombat(mId,{confirmed:true}); }catch(e){} };
+  try{
+    const p=D.alert({ title:w.title, body:w.body, confirmLabel:'Fight anyway' });
+    /* `then(go,go)` — a REJECTED promise is a dismissal too. This dialog never
+       rejects today; relying on that is how the tap gets eaten the day it does. */
+    if(p&&typeof p.then==='function'){ p.then(go,go); return true; }
+    /* A non-thenable answer means the module answered synchronously. Still a
+       dismissal, so the fight starts here and the caller must not start it
+       again — hence TRUE. */
+    go();
+    return true;
+  }catch(e){ return false; }
+}
+
 /* ⚠ CONTRACT CHANGE (rev. 3), STATED BECAUSE IT IS NOT LOCAL, AND MEASURED.
    `startCombat(mId)` is CONDITIONALLY ASYNCHRONOUS from this build: when the
    forecast has something to warn about it raises a dialog and RETURNS WITHOUT
@@ -5921,21 +6000,18 @@ window.__hrClearFightWarnings=hrClearFightWarnings;    // test seam
    THAT IS CORRECT FOR EVERY PRODUCTION CALLER — the monster list, the Fight
    button, the death sheet's "Fight again", Resume on the launchpad and the Boss
    of the Day are all PLAYER GESTURES, and a gesture is exactly when a player
-   should be warned. It is WRONG FOR AN AUTOMATED ONE, and not merely
-   inconvenient: MEASURED 2026-09-07 on a foodless character,
-   `startCombat('slime')` left `activeMonster` null AND a FULL-SCREEN DIALOG
-   over the game that nothing would ever answer — which is the b221 overlay
-   cascade (a modal one test leaves up fails the next thirty, thousands of lines
-   away, reporting "something is covering the buy control"), reached through a
-   brand-new door. The in-page suite calls this function about thirty times.
+   should be warned.
 
-   SO THE GATE IS SKIPPED UNDER `__HR_TEST_HARNESS__`, which is the SAME signal
-   the invite gate already uses for the same reason: a blocking modal has no
-   meaning where nobody can answer it. The coverage that would otherwise be lost
-   is NOT lost — the suite's RETREAT-A5 fixture clears the flag itself, drives a
-   real warned tap, asserts the dialog and the withheld pointer, answers it, and
-   puts the flag back. Skipping the modal is therefore a statement about who is
-   watching, never about whether the rule works.
+   AND IT IS NARROWLY BOUNDED, which is what makes the asynchrony safe rather
+   than merely documented. `hrFightGate` can only answer non-null on a tap that
+   (a) STARTS a fight rather than switching one, (b) comes from a character with
+   an EMPTY BAG, and (c) is the FIRST tap on that foe this tab session. Every
+   other call — including every automated one — is synchronous exactly as it was
+   before rev. 3, and under `__HR_TEST_HARNESS__` the raiser declines and this
+   function fights on the spot (MEASURED 2026-09-07: before that rule, a
+   foodless `startCombat('slime')` in the suite left `activeMonster` null AND a
+   full-screen dialog nothing would ever answer — the b221 overlay cascade,
+   reached through a brand-new door).
 
    THE GATE LIVES INSIDE THE ONE DOOR, and not in a second
    `startCombatWithWarning` wrapper the gesture sites would call. A second door
@@ -5943,28 +6019,22 @@ window.__hrClearFightWarnings=hrClearFightWarnings;    // test seam
    this warning must not be is optional-by-omission. */
 function startCombat(mId,opts){
   if(G.activeMonster===mId){stopCombat();return;}
-  /* THE ADVISORY GATE. It never refuses: the dialog's confirm re-enters this
-     function with `{confirmed:true}` and the fight starts. Cancel does nothing
-     at all — no state written, no declaration sent, no latch consumed beyond
-     "we have said this once".
-     ⚠ HearthriseDialog, NEVER window.confirm. A native dialog blocks the
-       renderer's main thread and has frozen this game twice (b371, b373);
-       tests/native-dialog.mjs is the standing guard. */
-  if(!(opts&&opts.confirmed)&&!window.__HR_TEST_HARNESS__){
-    const _w=hrPreFightWarning(mId);
-    if(_w&&!_fightWarned[mId+':'+_w.kind]){
-      _fightWarned[mId+':'+_w.kind]=true;
-      const D=window.HearthriseDialog;
-      if(D&&typeof D.confirm==='function'){
-        try{
-          D.confirm({ title:_w.title, body:_w.body,
-                      confirmLabel:'Fight anyway', cancelLabel:'Not yet' })
-           .then(function(yes){ if(yes) startCombat(mId,{confirmed:true}); });
-          return;
-        }catch(e){ /* a dialog that throws must never block a fight */ }
-      }
-      /* NO DIALOG MODULE ⇒ FALL THROUGH AND FIGHT. The warning is advisory, so
-         its absence must never cost the player the fight. */
+  /* THE ADVISORY GATE. It never refuses, and since the 2026-09-07 ruling it
+     cannot even delay a tap indefinitely: the dialog carries ONE button, every
+     exit from it re-enters this function with `{confirmed:true}`, and a dialog
+     that could not be raised is treated as already dismissed. */
+  if(!(opts&&opts.confirmed)){
+    const _w=hrFightGate(mId);
+    if(_w){
+      /* THE LATCH IS CONSUMED BY THE ATTEMPT, never by an answer. Shown,
+         dismissed, or impossible to raise — this foe has had its one warning
+         this tab session either way, because the alternative is a player who
+         closes a modal by reflex and is handed the same one on the next tap. */
+      _fightWarned[mId]=true;
+      /* RAISED ⇒ the dialog owns the fight and every exit from it starts one,
+         so return. NOT RAISED (the harness, no dialog module, a throw, no DOM)
+         ⇒ fall through and fight NOW. */
+      if(hrRaiseFightWarning(mId,_w))return;
     }
   }
   /* b347 SEAM 1. The inner stopCombat is QUIET: one gesture is one declaration
@@ -6141,10 +6211,13 @@ function hrStandUp(){
 function hrRetreat(){
   G.activeMonster=null;
   if(Array.isArray(G.combatLog))G.combatLog.push('You pulled back to camp. The fight is over for now.');
-  /* THE WARNING LATCH IS RELEASED (ruling item 7 / acceptance A5). A retreat is
-     a far stronger signal than the forecast was, so the player who immediately
-     re-engages is told again rather than being let back in silently. */
-  if(typeof hrClearFightWarnings==='function') hrClearFightWarnings();
+  /* ⚠ THE WARNING LATCH IS *NOT* RELEASED HERE (Designer ruling, 2026-09-07).
+     rev. 3 cleared it, reasoning that a retreat is a stronger signal than the
+     forecast was. The ruling replaced that with a flat "once per monster id per
+     tab session": the retreat already owns its own surface — the death sheet,
+     which states the clock and the fix in the ruling's own words — and a modal
+     on top of the fight the player has just chosen to take again is precisely
+     the nag the latch exists to prevent. */
   renderCombat();renderMonsterList();
 }
 /* THE ONE QUESTION THE LIVE TICK ASKS. True ⇒ do not swing. The transition back

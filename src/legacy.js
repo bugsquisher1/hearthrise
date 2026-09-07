@@ -14989,14 +14989,33 @@ function paintStreak(){
 /* ─── Welcome-back modal (fires once per session if returning after 30min+) ─── */
 function maybeShowWelcome(){
   if(typeof G !== 'object' || !G) return;
+  /* ── THE ABSENCE IS THE SERVER'S SPAN, NEVER A RESIDUE STAMP (b514) ───────
+     MEASURED LIVE on b513: this card said "Time away 13h 8m" on a reload two
+     hours after the last session on that account, and earlier the same day
+     "64h 53m" while the server receipt for the same boot said awayMs 4.4h.
+     Both numbers came from `Date.now() - G.lastSeen` — a stamp this client
+     writes for itself, per-device, advanced only by the saves that happen to
+     run, and under §1 authority for nothing. `serverAwaySpanMs` returns the
+     receipt's credited span, else the boot watermark, else NULL; null means
+     the card greets the player and states no length at all, which is the only
+     honest thing to say about a span nobody measured. */
+  var _srvSpan = null;
+  try{
+    var _AC = window.HearthriseAccrual;
+    if(_AC && typeof _AC.serverAwaySpanMs === 'function') _srvSpan = _AC.serverAwaySpanMs(G);
+  }catch(e){}
   var since = Date.now() - (G.lastSeen || Date.now());
   var minutesAway = since / 60000;
-  if(minutesAway < 30) return;          // less than 30 minutes — skip
+  /* The 30-minute door still reads the residue stamp, DELIBERATELY: it decides
+     only WHETHER to greet a returning player, never a figure, and a client-held
+     "when this device last saw you" is a defensible trigger where it is not a
+     defensible measurement. (Making the door server-priced too is a design
+     call — it would suppress the card on a same-device reload — and it is not
+     this fix's to make.) */
+  if(minutesAway < 30) return;
   if(Date.now() - (G.lastWelcome||0) < 5000) return; // already shown this session
   G.lastWelcome = Date.now();
   buildWelcomeOverlay();
-  var hours = Math.floor(minutesAway/60), mins = Math.round(minutesAway%60);
-  var label = hours > 0 ? (hours + 'h ' + mins + 'm') : (mins + 'm');
   var rows = [];
   /* ── b342: THE RECEIPT IS THE SOURCE, AND IT IS THE ONLY SOURCE ───────────
      Measured on a returning player: this modal showed "While away 8.0h" AND
@@ -15015,19 +15034,18 @@ function maybeShowWelcome(){
      `lastOfflineSummary` is the receipt processOffline (or the server accrual)
      wrote for the absence THIS modal is about. Everything below is read from
      it — the span, the gains, the death, the licence — and nothing is
-     inferred. When there is no fresh receipt the modal falls back to the
-     clock-derived label and simply says less, which is the honest degradation.
+     inferred. When there is no fresh receipt the modal simply says less — and
+     since b514 the SPAN is the server's or absent, never the clock's.
      Glyphs, not emoji: the four this row list used to carry were pre-existing
      Final Directive debt and are cleared here rather than copied forward. */
   var _off = G.lastOfflineSummary;
   var _fresh = !!(_off && _off.at && (Date.now() - _off.at) < 30*60000);
-  var _awayMs = _fresh && _off.awayMs > 0 ? _off.awayMs : since;
-  var _awayLbl = (function(ms){
+  var _awayLbl = _srvSpan === null ? null : (function(ms){
     var m = Math.max(0, Math.round(ms/60000));
     if(m < 60) return m + 'm';
     return Math.floor(m/60) + 'h ' + (m%60) + 'm';
-  })(_awayMs);
-  rows.push({g:'uiHourglass', t: 'Time away', v: _fresh ? _awayLbl : label});
+  })(_srvSpan);
+  if(_awayLbl !== null) rows.push({g:'uiHourglass', t: 'Time away', v: _awayLbl});
   if(_fresh){
     /* WHAT THE NIGHT ACTUALLY PAID. One row per channel that moved, and none
        at all for a channel that did not — a "+0 gold" row is noise, and a

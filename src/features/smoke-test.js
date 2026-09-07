@@ -2171,14 +2171,11 @@ const TESTS = [
      room gate — derived over ARTISAN_RECIPES and over ROOMS, so a skill or a
      room added tomorrow is covered without anyone editing this file.
 
-     Why there is a rule at all: `hr_activities` gates an activity on
-     (req_skill, req_lv) and has NO room column, so every room gate the client
-     held was a client-side property tier standing in front of a server
-     capability — CLAUDE §6's residue-ahead class — and it cost a level-1 smith
-     two whole property tiers of padlocks over recipes the server would have
-     run for them. Three independent mechanisms could put it back (the
-     exemption set, the seam's refusal branch, the room card's copy) and this
-     bites on each of them separately. */
+     Why: `hr_activities` gates on (req_skill, req_lv) and has NO room column,
+     so every client room gate was a property tier in front of a server
+     capability (CLAUDE §6, residue-ahead) — two tiers of padlocks over recipes
+     the server would run. Three mechanisms could put it back (the exemption
+     set, the seam's refusal branch, the room card's copy); this bites on each. */
   () => tryRun('no artisan skill carries a client room gate — a room sells speed, a level sells permission', () => {
     const H = window.HearthriseHomestead;
     const G = window.G;

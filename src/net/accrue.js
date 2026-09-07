@@ -3398,6 +3398,32 @@ export function applyEnvelope(G, res) {
   G.lastOfflineSummary = summaryFromAway(res.away, res);
   written.summary = true;
 
+  /* ── THE AWAY RECEIPT OUTLIVES THE NEXT SYNC (b519) ─────────────────────
+     `lastOfflineSummary` is the LATEST receipt, whatever kind it is, and it
+     has to stay that way: the toast, the welcome modal and the bug report all
+     want the thing that just happened. But the Home "While you were away"
+     card is not about the latest receipt — it is about the ABSENCE, and the
+     absence is news for thirty minutes (home-dashboard.js's own box).
+
+     Because the settle loop lands an envelope every 90 seconds, the line
+     above overwrote the night's receipt with a sync receipt roughly a minute
+     and a half into play, and the card vanished mid-read. Design ruling
+     (game-designer, 2026-09-07): a sync receipt must never CREATE or RE-LABEL
+     an away card, and must not EVICT a fresh one either.
+
+     So the away receipt gets its own holder, written ONLY when the shared
+     classifier says 'away' (>= SYNC_MAX_MS, or a death on any span — b343's
+     rule, read through `classifyReceipt` rather than re-decided here, which
+     is what keeps b361's one-classifier property). A sync never touches it;
+     a LATER away receipt replaces it, which is correct — two absences in one
+     30-minute box means the second one is the news.
+
+     Deliberately module-scope and NOT persisted: it is display state about
+     one session's return, not progression (§6 — a field that only exists in
+     the client is lost on reload BY DESIGN, and on reload the very next
+     envelope re-states the absence anyway). */
+  if (classifyReceipt(G.lastOfflineSummary) === 'away') lastAwayReceipt = G.lastOfflineSummary;
+
   /* The server owns `accrued_to`. Parking it here is what makes it visible to
      the countdown UI and to a bug report; nothing reads it as authority. */
   G._serverAccrual = {
@@ -3749,6 +3775,19 @@ export function receiptAttended(summary, visibleSinceMs) {
   if (!Number.isFinite(at) || at <= 0 || span <= 0) return false;
   return vs <= (at - span);
 }
+
+/* The most recent receipt that CLASSIFIED AS AWAY, held apart from
+   `G.lastOfflineSummary` so a 90-second sync cannot evict the night's card.
+   Written in exactly one place (applyEnvelope, above); read by the Home away
+   card; cleared by `__resetAwayReceipt` for tests that land an away fixture. */
+let lastAwayReceipt = null;
+
+/** The away card's source of truth. Null when this session has seen no absence. */
+export function getLastAwayReceipt() { return lastAwayReceipt; }
+
+/** TEST SEAM ONLY. An away fixture landed by one test would otherwise stay on
+    the Home screen for the next thirty minutes of the suite. */
+export function __resetAwayReceipt() { lastAwayReceipt = null; }
 
 /**
  * 'switch' | 'sync' | 'away' — the three genuinely different events that share
@@ -4637,6 +4676,7 @@ if (typeof window !== 'undefined') {
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
+    getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,
     noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,

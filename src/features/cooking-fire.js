@@ -16,8 +16,10 @@
 // nothing (homestead-deepening.md §0, finding 2). This module is its reader;
 // legacy.js ROOMS.kitchen is its producer.
 //
-// Forge / Workshop / Shrine gates are UNCHANGED. Smithing on a campfire
-// would be silly; cooking on one is the entire point of a campfire.
+// Forge / Workshop gates are UNCHANGED. Smithing on a campfire would be silly;
+// cooking on one is the entire point of a campfire. (The Shrine joined the
+// exemption set under the altar ruling, for the same reason and by the
+// same test: the server gates burying on Prayer LEVEL alone.)
 //
 // ── WHY THIS FILE IS PURE ────────────────────────────────────────────────
 // burnChance() is the ONE source of truth for the odds. Three callers need

@@ -76,13 +76,14 @@
 // a test's override is the transport, the same rule accrue.js follows.
 // ============================================================================
 
-import { ACCRUE_KILL_KEY, isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=514';
+import { resolveActiveSlot } from './accrue.js?v=514';
 
-/* THE SAME SWITCH AS b337, DELIBERATELY. Two switches would mean a state where
-   the client creates characters it will never accrue against, or asks for
-   accrual against a character it never created. One switch, one authority. */
-export { ACCRUE_KILL_KEY };
-export function isCharacterIntentEnabled() { return isServerAccrualEnabled(); }
+/* THE SAME SWITCH AS b337 — retired in b515, so this is a constant. There is no
+   longer a state where the client creates characters it will never accrue
+   against, or asks for accrual against a character it never created.
+   (`ACCRUE_KILL_KEY` was re-exported from here for the harnesses; the key no
+   longer exists, so the re-export went with it.) */
+export function isCharacterIntentEnabled() { return true; }
 
 let config = null;      // {url, apiKey, authToken, userId, slot}
 let latch = null;       // the (endpoint, user, slot) whose existence the server confirmed

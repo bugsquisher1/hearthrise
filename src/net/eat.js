@@ -49,10 +49,10 @@ let config = null;
 let hooks = { onEnvelope: null, onOutcome: null };
 let last = null;
 
-/* Deliberately the accrual switch itself, not a copy of the key. Five switches
-   would produce a client that eats against a server that never heard of the
-   character. */
-export function isEatIntentEnabled() { return isServerAccrualEnabled(); }
+/* Was the accrual kill switch itself; retired in b515. Unconditional — there is
+   no local eat path to fall back to, and a client that healed itself is the
+   whole class this retirement closes. */
+export function isEatIntentEnabled() { return true; }
 
 export const EAT_OUTCOMES = Object.freeze([
   'eaten',          // 200 ok:true — the debit+heal landed; the envelope is truth
@@ -65,7 +65,7 @@ export const EAT_OUTCOMES = Object.freeze([
   'unreachable',    // no answer at all (CORS, DNS, offline)
   'timeout',        // aborted — also no answer
   'unconfigured',   // no endpoint / no token on this device
-  'switch-off',     // the kill switch is off; nothing was sent
+  'switch-off',     // RETIRED (b515) — vocabulary only; nothing produces it now
   'unsendable',     // the client refused its own request before sending it
 ]);
 
@@ -210,7 +210,6 @@ function record(verdict) {
  */
 export async function sendEat(foodId, o = {}) {
   const id = String(foodId == null ? '' : foodId);
-  if (!isEatIntentEnabled()) return record({ outcome: 'switch-off', key: o.key || null });
   if (!config) return record({ outcome: 'unconfigured', reason: 'no_endpoint', key: o.key || null });
   const token = tokenOf();
   if (!token) return record({ outcome: 'unconfigured', reason: 'no_token', key: o.key || null });

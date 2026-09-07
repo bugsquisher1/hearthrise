@@ -171,8 +171,9 @@ export const MAX_QTY = 1000;
  *  before it becomes a public listing. */
 export const MAX_ASK = 1000000000;
 
-/* Deliberately the accrual switch itself, not a copy of the key. */
-export function isGoldIntentEnabled() { return isServerAccrualEnabled(); }
+/* Was the accrual kill switch itself; retired in b515. Unconditional: the OFF
+   position of that switch is what let gold be minted on the client. */
+export function isGoldIntentEnabled() { return true; }
 
 /* ══════════════════════════════════════════════════════════════════════════
    THE OFFER RESOLVER — an ITEM the shop sells → the OFFER the server prices.
@@ -540,7 +541,7 @@ export function receiptOf(body) {
      unreachable    no answer at all
      timeout        aborted — also no answer
      unconfigured   no endpoint / no token on this device
-     switch-off     the kill switch is off; nothing was sent
+     switch-off     RETIRED (b515) — vocabulary only; nothing produces it now
      unsendable     the client refused its own request before sending it */
 
 export function classifyGoldResponse(status, body) {
@@ -801,9 +802,10 @@ export function getGoldState() {
  *   refusal seven calls earlier.
  *
  * REVERSED, not merely dropped, because nothing was sent: there is no server
- * effect for the local write to be a prediction OF. The one exception is the
- * kill switch going off between the payment and the send — with the switch off
- * the local payment is the real payment, so that one is dropped and kept.
+ * effect for the local write to be a prediction OF. The one exception WAS the
+ * kill switch going off between the payment and the send; that switch is retired
+ * (b515), so `switch-off` is never produced and the `dropPrediction` arm below is
+ * vocabulary-only — the rollback contract's shape, not a fork on a flag.
  */
 function inert(outcome, verb, reason, detail, key) {
   if (key) {
@@ -831,7 +833,6 @@ function inert(outcome, verb, reason, detail, key) {
  */
 export async function sendGoldIntent(req, key) {
   const verb = req && req.verb;
-  if (!isGoldIntentEnabled()) return inert('switch-off', verb, null, null, key);
   if (!config) return inert('unconfigured', verb, 'no_endpoint', null, key);
   const token = tokenOf();
   if (!token) return inert('unconfigured', verb, 'no_token', null, key);

@@ -1709,21 +1709,8 @@ export function reconcileBankRungs(G, res) {
    window. Read the capstone flag off the window global at CALL time — accrue.js is
    imported BY capstone.js, so importing back would be a cycle (the same rule
    isReconcilePending uses). */
-function companionAuthorityArmed() {
-  try {
-    const w = (typeof window !== 'undefined') ? window
-      : (typeof globalThis !== 'undefined' ? globalThis.window : null);
-    return !!(w && w.HearthriseCapstone
-      && typeof w.HearthriseCapstone.isBlobRetired === 'function'
-      && w.HearthriseCapstone.isBlobRetired());
-  } catch (e) { return false; }
-}
-
 export function reconcileCompanions(G, res) {
   if (!G || typeof G !== 'object') return null;
-  /* DORMANT: the client owns G.companions exactly as today. A pure no-op — this
-     is what keeps the un-armed load path byte-for-byte unchanged. */
-  if (!companionAuthorityArmed()) return { mode: 'dormant' };
   const c = res && res.companions;
   /* FAIL-CLOSED: an un-projecting/partial envelope leaves the roster alone. */
   if (!c || typeof c !== 'object' || Array.isArray(c) || !Array.isArray(c.owned)) {
@@ -1994,10 +1981,10 @@ export function reconcileCombatStyle(G, res) {
        display-only: the finite-perennial wither LIMIT is enforced server-side in
        hr_farm_harvest, so a client that under-counts regrows cannot exceed it.
 
-   ⚠ ARM-GATED (companionAuthorityArmed / isBlobRetired), like reconcileCompanions
-   and for the same reason: G.farmPlots is CLIENT-authored today, so running this
-   dormant would overwrite the live client farm and break byte-parity. Dormant it
-   is a pure no-op ({mode:'dormant'}).
+   b515: this WAS arm-gated (companionAuthorityArmed / isBlobRetired) because
+   G.farmPlots used to be client-authored when the kill switch was off. The
+   switch is retired, the client farm twin is gone, and this reconcile is the
+   only writer — so the dormant no-op went with it.
 
    FAIL-CLOSED on absence: no readable `res.farm` ARRAY leaves G.farmPlots
    UNTOUCHED — a server build predating the projection, or a partial we cannot
@@ -2064,9 +2051,6 @@ function farmPlotReady(p) {
 
 export function reconcileFarm(G, res, opts) {
   if (!G || typeof G !== 'object') return null;
-  /* DORMANT: the client owns G.farmPlots exactly as today — a pure no-op that
-     keeps the un-armed load path byte-for-byte unchanged. */
-  if (!companionAuthorityArmed()) return { mode: 'dormant' };
   const rows = res && res.farm;
   /* FAIL-CLOSED: absence is not a claim the farm is empty. Leave it alone. */
   if (!Array.isArray(rows)) return { mode: 'absent' };
@@ -3169,21 +3153,12 @@ export function applyEnvelope(G, res) {
      at CALL time (cycle-avoidance, same as isReconcilePending above). While dormant
      it is false and the sheet behaves byte-for-byte as today. Deleting the sheet +
      its plumbing is a POST-ARM cleanup once proven live post-wipe. */
-  let __blobRetired = false;
-  try {
-    __blobRetired = typeof window !== 'undefined' && window.HearthriseCapstone
-      && typeof window.HearthriseCapstone.isBlobRetired === 'function'
-      && window.HearthriseCapstone.isBlobRetired();
-  } catch (e) { __blobRetired = false; }
-  const firstContact = envelopeDrift.applied <= 1;
-  if (!__blobRetired && loss.destructive && !isReplacementAcknowledged()
-      && (!isEnvelopeAbsolute() || firstContact)) {
-    console.warn('[accrue] REFUSING to overwrite local progress with the server character '
-      + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp
-      + ' skill XP and ' + loss.items + ' item(s). This is permanent and there is no merge.');
-    showReplacementSheet(loss, G, res);
-    return null;
-  }
+  /* b515: the replacement sheet is GONE, not gated. It asked the player to
+     confirm before the server envelope "replaced" a rival local character; the
+     capstone retired that rival, and the flag that could bring it back (the b353
+     kill switch) is retired too. `describeReplacement` / `showReplacementSheet`
+     remain exported for the tests that pin the copy; nothing calls the sheet on
+     the load path any more. */
   const st = res.state || {};
   const written = applyEnvelopeState(G, res);
 

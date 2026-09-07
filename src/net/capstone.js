@@ -96,17 +96,21 @@ import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=514
    "for safety" — the game is online-only and refusing to proceed is correct. */
 export const BLOB_RETIRED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — the save blob is retired
 let armOverride = null;
+/* THE ONE EXPRESSION. `isBlobRetired()` and `__setBlobRetired()` both read it, so
+   the predicate is written once and nothing in this module CALLS the exported
+   name — which is what lets tests/no-blob-branches.mjs hold the fork census at
+   zero without excusing this file. */
+function armed() { return armOverride !== null ? !!armOverride : !!BLOB_RETIRED; }
 export function isBlobRetired() {
-  /* A CONSTANT since b515 (the `&& isServerAccrualEnabled()` conjunction went
-     with the retired kill switch). The override seam stays: the suite still
-     drives the DORMANT direction to prove the armed path is not merely the only
-     path that compiles. Production has one answer and it is `true`. */
-  return armOverride !== null ? !!armOverride : !!BLOB_RETIRED;
+  /* A CONSTANT in production since b515: the `&& isServerAccrualEnabled()`
+     conjunction went with the retired b353 kill switch. The override seam stays
+     because ~40 harness sites drive it; nothing in src/ forks on it any more. */
+  return armed();
 }
 /** Test seam, same spirit as record.js's __setSkillsRecordArm. */
 export function __setBlobRetired(v) {
   armOverride = (v === null || v === undefined) ? null : !!v;
-  return isBlobRetired();
+  return armed();
 }
 
 /* ── THE RESIDUE CENSUS ──────────────────────────────────────────────────────
@@ -219,7 +223,7 @@ export function firstUnmetArmPrecondition(G) {
 }
 
 export function canProceedArmed(G, opts) {
-  if (!isBlobRetired()) return true;             // dormant — old path decides
+  if (!armed()) return true;                     // seam only — there is no dormant path left
   const o = opts || {};
   if (o.noCharacter === true) return true;       // server said fresh account — proceed clean
   const rec = G && G._record;

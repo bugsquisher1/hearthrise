@@ -47,7 +47,7 @@
 // same bytes the browser runs.
 // ============================================================================
 
-import { markEquipAuthorityLive, isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=514';
+import { markEquipAuthorityLive, resolveActiveSlot } from './accrue.js?v=514';
 
 export const EQUIP_VERB = 'equip';
 
@@ -83,7 +83,7 @@ export const EQUIP_OUTCOMES = Object.freeze([
   'unreachable',    // no answer at all (CORS, DNS, offline)
   'timeout',        // aborted — also no answer
   'unconfigured',   // no endpoint / no token on this device
-  'switch-off',     // server accrual is off; nothing was sent
+  'switch-off',     // RETIRED (b515) — vocabulary only; nothing produces it now
   'undeliverable',  // the client refused its own request before sending it
 ]);
 
@@ -111,7 +111,7 @@ export const EQUIP_OUTCOMES = Object.freeze([
    ⚠ THE COUNTERS ARE NOT DECORATION — `acknowledged` IS THE FLIP'S ARMING
      CONDITION. See `noteAck` below. */
 export const EQUIP_DROP_REASONS = Object.freeze([
-  'switch-off',        // the kill switch is off; nothing was sent
+  'switch-off',        // RETIRED (b515) — vocabulary only; nothing produces it now
   'unconfigured',      // no endpoint on this device
   'no-token',          // configured, but this device has no session token
   'token-threw',       // the token accessor threw
@@ -452,10 +452,6 @@ export async function sendEquip(ops, o = {}) {
      line, not a server row — so "the flip is armed but nothing is delivered"
      was invisible from inside a running client. If you add an early return
      here, count it; the reason list is `EQUIP_DROP_REASONS`. */
-  if (!isServerAccrualEnabled()) {
-    noteDrop('switch-off');
-    return noteVerdict({ outcome: 'switch-off', key: o.key || null });
-  }
   if (!config) {
     noteDrop('unconfigured', 'configureEquip() has never been called with a url on this client');
     return noteVerdict({ outcome: 'unconfigured', key: o.key || null, dropReason: 'unconfigured' });

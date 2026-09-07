@@ -34,11 +34,11 @@
 //    that is the one case where the client genuinely does not know whether the
 //    intent landed, and reuse is what makes THAT retry safe.
 //
-// 2. THE SAME KILL SWITCH AS ACCRUAL. `isServerAccrualEnabled()`, imported, not
-//    re-read. Two switches would produce a state where the client starts
-//    activities the server never hears about, or accrues against a pointer it
-//    never set — and "which half is on" is not a question anybody should have to
-//    ask during an incident.
+// 2. NO SWITCH AT ALL (b515). This used to delegate to the b353 accrual kill
+//    switch so that one flip could not leave the client starting activities the
+//    server never hears about. That switch is retired: declaring an activity is
+//    unconditional, and `isActivityIntentEnabled()` is a constant kept only as
+//    the greppable name its call sites already use.
 //
 // 3. FIRE AND RECONCILE, NEVER AWAIT-THEN-RENDER. The caller moves the local
 //    pointer immediately (an idle game must feel instant) and this module
@@ -162,8 +162,10 @@ let confirmed = null;
 export const ACTIVITY_TIMEOUT_MS = 15000;
 export const ACTIVITY_MAX_TRIES = 2;
 
-/* Deliberately the accrual switch itself, not a copy of the key. */
-export function isActivityIntentEnabled() { return isServerAccrualEnabled(); }
+/* Was the accrual kill switch itself; the switch is retired (b515), so the
+   activity intent is unconditional — there is no local activity model to fall
+   back to. */
+export function isActivityIntentEnabled() { return true; }
 
 /* ── THE IDEMPOTENCY KEY ────────────────────────────────────────────────────
    A canonical v4 uuid or the server answers `missing_intent_id` (400, before
@@ -360,7 +362,9 @@ export function buildActivityRequest(opts) {
      unreachable    no answer at all (CORS, DNS, offline)
      timeout        aborted after ACTIVITY_TIMEOUT_MS — also no answer
      unconfigured   no endpoint / no token on this device
-     switch-off     the kill switch is off; nothing was sent
+     switch-off     RETIRED (b515) — kept in the vocabulary so a ledger row or
+                    a stored outcome from before the retirement still reads;
+                    nothing produces it any more
      undeclarable   the client refused its own request before sending it */
 
 /**
@@ -979,7 +983,6 @@ export async function declareActivity(rawKind, rawId, opts) {
   if (!decl) return inert('undeclarable', rawKind, rawId, 'not_a_declarable_activity');
   const kind = decl.kind;
   const id = decl.id;
-  if (!isActivityIntentEnabled()) return inert('switch-off', kind, id);
   if (!isDeclarableActivity(kind, id)) return inert('undeclarable', kind, id);
   if (!config) return inert('unconfigured', kind, id, 'no_endpoint');
   if (!tokenOf()) return inert('unconfigured', kind, id, 'no_token');

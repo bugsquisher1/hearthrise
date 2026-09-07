@@ -138,17 +138,10 @@ export function companionLevelFromXp(xp) {
   return 1;
 }
 
-/* Is the blob-retire capstone armed? Read at call time off the window global —
-   companions.js must stay free of an import cycle with the net layer, and the
-   capstone flag is published there. Dormant (prod) → false, so every gate below is
-   byte-for-byte today's behaviour. */
-function blobRetired() {
-  try {
-    return !!(window.HearthriseCapstone
-      && typeof window.HearthriseCapstone.isBlobRetired === 'function'
-      && window.HearthriseCapstone.isBlobRetired());
-  } catch (e) { return false; }
-}
+/* The blob-retire capstone is ARMED, unconditionally, since b515 (it used to AND
+   the b353 kill switch and was therefore read off the window global at call time).
+   Kept as a named predicate so the gates below still read as what they are. */
+function blobRetired() { return true; }
 
 function ensureState() {
   const G = window.G;

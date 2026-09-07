@@ -58,57 +58,92 @@
 //   see a CI-environment problem, and the GitHub run cannot be waited on while a
 //   release is being assembled.
 //
+// ── THE MATRIX (cleanup slice 8a, 2026-09-07) ────────────────────────
+// smoke.yml is now FIVE jobs (in-page, db-replay, economy-selftests,
+// client-guards, edge) so CI's wall clock is the slowest family instead of the
+// sum of all of them. This file reads every job, in file order, and
+// concatenates their steps: the list it produces is the same SET of commands it
+// produced when there was one job. The split changed WHERE a guard runs, never
+// WHETHER it runs, and tests/ci-shape.mjs is the guard that proves it.
+//
+//   node tests/run-ci-local.mjs --jobs            the families and their budgets
+//   node tests/run-ci-local.mjs --job db-replay   one family, nothing else
+//
 // Exit: 0 every step green · 1 a step failed · 2 a harness problem (the workflow
-// could not be parsed, or a declared skip no longer exists).
+// could not be parsed, a declared skip no longer exists, or --job named a job
+// that is not there).
 // ════════════════════════════════════════════════════════════════════════
-
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-const WORKFLOW = join(ROOT, '.github', 'workflows', 'smoke.yml');
-
-const argv = process.argv.slice(2);
-const ALL = argv.includes('--all');
-const LIST = argv.includes('--list');
+export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
+export const WORKFLOW = join(ROOT, '.github', 'workflows', 'smoke.yml');
 
 /* THE DECLARED SKIPS. Each names a step that exists in the workflow and says
    what running it locally would mean. Nothing else is ever skipped, and a name
    that stops matching a step is a harness failure — that is what stops this from
    drifting into "runs most of CI". */
-const SKIP = [
+export const SKIP = [
   ['Install Playwright + Chromium',
     'environment setup, not a gate: npm install + npx playwright install --with-deps installs '
     + 'system packages and needs root on Linux. If a guard fails here for a missing dependency, '
     + 'run those two commands by hand once.'],
+  ['Install node modules (no browser)',
+    'environment setup, not a gate: `npm install` in every non-browser job of the matrix. A dev '
+    + 'machine already has node_modules; re-installing it four times per local run would cost '
+    + 'more than the guards do.'],
   ['Smoke suite (headless)',
     'the ONE step that already runs locally today (node tests/run-smoke.mjs) and the one this '
     + 'file exists to complement. Pass --all to include it and run the whole workflow.'],
 ];
 
 // ── the parser ───────────────────────────────────────────────────────────
-// smoke.yml is a plain, regular workflow: `steps:` at indent 4, each step at
-// indent 6 opening with "- ", its keys at indent 8, and block `run:` bodies at
-// indent 10. Deliberately NOT a general YAML implementation — a third-party
-// parser would be a dependency running inside the thing that gates the build,
-// and the shape it has to read is four lines of rules.
-function parseSteps(text) {
-  const lines = text.split('\n');
-  const at = lines.findIndex((l) => /^ {4}steps:\s*$/.test(l));
-  if (at < 0) throw new Error('no "    steps:" block in ' + WORKFLOW);
-  const steps = [];
+// smoke.yml is a plain, regular workflow: `jobs:` at indent 0, each job at
+// indent 2, its keys (`runs-on`, `timeout-minutes`, `steps:`) at indent 4, each
+// step at indent 6 opening with "- ", its keys at indent 8, and block `run:`
+// bodies at indent 10. Deliberately NOT a general YAML implementation — a
+// third-party parser would be a dependency running inside the thing that gates
+// the build, and the shape it has to read is five lines of rules.
+//
+// SINCE THE SLICE-8a MATRIX there are five jobs, not one. They are read in FILE
+// ORDER and their steps are concatenated in file order, so the list this file
+// produces still contains exactly the commands CI runs — the split changed
+// where they run, not what runs.
+export function parseWorkflow(text) {
+  const lines = text.split('\r\n').join('\n').split('\n');
+  const at = lines.findIndex((l) => /^jobs:\s*$/.test(l));
+  if (at < 0) throw new Error('no "jobs:" block in ' + WORKFLOW);
+  const jobs = [];
+  let job = null;
+  let inSteps = false;
   let cur = null;
   let inRun = false;
   for (let i = at + 1; i < lines.length; i++) {
     const l = lines[i];
     if (/^\s*$/.test(l)) { if (inRun && cur) cur.run.push(''); continue; }
     const indent = l.length - l.trimStart().length;
-    if (indent < 6) break;                       // left the steps: block
+    if (indent === 0) break;                      // left the jobs: block
+    if (indent === 2 && /^[A-Za-z0-9_-]+:\s*$/.test(l.trim())) {
+      job = { name: l.trim().slice(0, -1), timeoutMinutes: null, steps: [] };
+      jobs.push(job);
+      inSteps = false; cur = null; inRun = false;
+      continue;
+    }
+    if (!job) continue;
+    if (indent === 4) {
+      inSteps = false; inRun = false; cur = null;
+      const t = l.trim();
+      if (/^steps:\s*$/.test(t)) { inSteps = true; continue; }
+      const m = /^timeout-minutes:\s*(\d+)/.exec(t);
+      if (m) job.timeoutMinutes = Number(m[1]);
+      continue;
+    }
+    if (!inSteps) continue;
     if (indent === 6 && l.trimStart().startsWith('- ')) {
       cur = { name: null, run: [], uses: null };
-      steps.push(cur);
+      job.steps.push(cur);
       inRun = false;
       applyKey(cur, l.trimStart().slice(2));
       if (cur._runBlock) { inRun = true; cur._runBlock = false; }
@@ -123,13 +158,23 @@ function parseSteps(text) {
     }
     if (inRun && indent >= 10) cur.run.push(l.slice(10));
   }
-  if (!steps.length) throw new Error('the steps: block parsed to zero steps');
-  return steps.map((s) => ({
-    name: s.name,
-    uses: s.uses,
-    run: s.run.join('\n').split('\n').map((x) => x.trim()).filter((x) => x && !x.startsWith('#')),
-  }));
+  if (!jobs.length) throw new Error('the jobs: block parsed to zero jobs');
+  for (const j of jobs) {
+    j.steps = j.steps.map((s) => ({
+      name: s.name,
+      uses: s.uses,
+      run: s.run.join('\n').split('\n').map((x) => x.trim()).filter((x) => x && !x.startsWith('#')),
+    }));
+  }
+  if (!jobs.some((j) => j.steps.length)) throw new Error('every job parsed to zero steps');
+  return jobs;
 }
+
+/** Every job's steps, flattened in file order, each tagged with its job. */
+export function flatSteps(jobs) {
+  return jobs.flatMap((j) => j.steps.map((s) => ({ ...s, job: j.name })));
+}
+
 function applyKey(step, s) {
   const m = /^([A-Za-z_-]+):\s*(.*)$/.exec(s);
   if (!m) return;
@@ -159,81 +204,132 @@ function runCommand(cmd) {
   return { status: r.status === null ? 2 : r.status };
 }
 
-/* CRLF, because smoke.yml has them and a `\r` left on the end of `name:` makes
-   every skip-list comparison fail — which is exactly the harness error this file
-   raises, arriving for the wrong reason. Normalise once, at the boundary. */
-const text = (await readFile(WORKFLOW, 'utf8')).split('\r\n').join('\n');
-let steps;
-try { steps = parseSteps(text); } catch (e) {
-  console.error('CI-LOCAL: could not read the workflow — ' + e.message);
-  console.error('  This file DERIVES its step list from .github/workflows/smoke.yml so the two');
-  console.error('  cannot drift. Fix the parser against the workflow\'s real shape; do NOT');
-  console.error('  hardcode a second copy of the list here.');
-  process.exit(2);
-}
-
-// The skip list must still describe reality.
-const names = steps.map((s) => s.name);
-const missing = SKIP.filter(([n]) => !names.includes(n)).map(([n]) => n);
-if (missing.length) {
-  console.error('CI-LOCAL: these steps are on the skip list but no longer exist in smoke.yml: '
-    + missing.join(', '));
-  console.error('  A skip that no longer matches a step means this run is quietly doing LESS than');
-  console.error('  CI. Update SKIP in tests/run-ci-local.mjs in the same commit as the workflow.');
-  process.exit(2);
-}
-
-const skipNames = new Set(
-  SKIP.filter(([n]) => !(ALL && n === 'Smoke suite (headless)')).map(([n]) => n));
-const plan = [];
-for (const s of steps) {
-  if (!s.run.length) continue;                   // `uses:` steps: checkout, setup-node, upload
-  if (skipNames.has(s.name)) { plan.push({ name: s.name, skipped: true }); continue; }
-  plan.push({ name: s.name, cmds: s.run });
-}
-
-const live = plan.filter((p) => !p.skipped);
-const total = live.reduce((n, p) => n + p.cmds.length, 0);
-console.log(`CI-LOCAL — ${live.length} step(s), ${total} command(s), derived from `
-  + `.github/workflows/smoke.yml${ALL ? '  (--all: the in-page suite included)' : ''}`);
-for (const [n, why] of SKIP) {
-  if (skipNames.has(n)) console.log(`  skipped: ${n}\n           ${why}`);
-}
-console.log('');
-
-if (LIST) {
-  for (const p of plan) {
-    if (p.skipped) { console.log(`  (skipped) ${p.name}`); continue; }
-    console.log(`  ${p.name}`);
-    for (const c of p.cmds) console.log(`      ${c}`);
+/**
+ * The plan: every step of every job, in file order, with the declared skips
+ * marked. `job` filters to one family; `all` un-skips the in-page suite.
+ */
+export function buildPlan(jobs, { all = false, job = null } = {}) {
+  const skipNames = new Set(
+    SKIP.filter(([n]) => !(all && n === 'Smoke suite (headless)')).map(([n]) => n));
+  const plan = [];
+  for (const s of flatSteps(jobs)) {
+    if (job && s.job !== job) continue;
+    if (!s.run.length) continue;                 // `uses:` steps: checkout, setup-node, upload
+    if (skipNames.has(s.name)) { plan.push({ job: s.job, name: s.name, skipped: true }); continue; }
+    plan.push({ job: s.job, name: s.name, cmds: s.run });
   }
-  process.exit(0);
+  return plan;
 }
 
-const t0 = Date.now();
-const results = [];
-for (const p of live) {
-  for (const cmd of p.cmds) {
-    const started = Date.now();
-    console.log(`\n${''.padEnd(78, '-')}\n> ${p.name}\n  $ ${cmd}\n`);
-    const r = runCommand(cmd);
-    const secs = ((Date.now() - started) / 1000).toFixed(1);
-    results.push({ step: p.name, cmd, status: r.status, secs, error: r.error });
-    console.log(`\n  ${r.status === 0 ? 'GREEN' : `EXIT ${r.status}`} · ${secs}s`);
+async function main() {
+  const argv = process.argv.slice(2);
+  const ALL = argv.includes('--all');
+  const LIST = argv.includes('--list');
+  const jobArgIdx = argv.indexOf('--job');
+  const JOB = jobArgIdx >= 0 ? argv[jobArgIdx + 1] : null;
+  if (jobArgIdx >= 0 && !JOB) {
+    console.error('CI-LOCAL: --job needs a job name. Try --jobs to list them.');
+    process.exit(2);
   }
+
+  /* CRLF, because smoke.yml has them and a `\r` left on the end of `name:` makes
+     every skip-list comparison fail — which is exactly the harness error this file
+     raises, arriving for the wrong reason. Normalise once, at the boundary. */
+  const text = (await readFile(WORKFLOW, 'utf8')).split('\r\n').join('\n');
+  let jobs;
+  try { jobs = parseWorkflow(text); } catch (e) {
+    console.error('CI-LOCAL: could not read the workflow — ' + e.message);
+    console.error('  This file DERIVES its step list from .github/workflows/smoke.yml so the two');
+    console.error('  cannot drift. Fix the parser against the workflow\'s real shape; do NOT');
+    console.error('  hardcode a second copy of the list here.');
+    process.exit(2);
+  }
+
+  if (argv.includes('--jobs')) {
+    for (const j of jobs) {
+      const cmds = j.steps.reduce((n, s) => n + s.run.length, 0);
+      console.log(`  ${j.name.padEnd(20)} ${String(j.steps.length).padStart(3)} step(s)  `
+        + `${String(cmds).padStart(3)} command(s)  timeout ${j.timeoutMinutes ?? '—'}m`);
+    }
+    process.exit(0);
+  }
+
+  if (JOB && !jobs.some((j) => j.name === JOB)) {
+    console.error(`CI-LOCAL: no job named "${JOB}" in the workflow. Known: `
+      + jobs.map((j) => j.name).join(', '));
+    process.exit(2);
+  }
+
+  // The skip list must still describe reality.
+  const names = flatSteps(jobs).map((s) => s.name);
+  const missing = SKIP.filter(([n]) => !names.includes(n)).map(([n]) => n);
+  if (missing.length) {
+    console.error('CI-LOCAL: these steps are on the skip list but no longer exist in smoke.yml: '
+      + missing.join(', '));
+    console.error('  A skip that no longer matches a step means this run is quietly doing LESS than');
+    console.error('  CI. Update SKIP in tests/run-ci-local.mjs in the same commit as the workflow.');
+    process.exit(2);
+  }
+
+  const plan = buildPlan(jobs, { all: ALL, job: JOB });
+  const live = plan.filter((p) => !p.skipped);
+  const total = live.reduce((n, p) => n + p.cmds.length, 0);
+  console.log(`CI-LOCAL — ${live.length} step(s), ${total} command(s), derived from `
+    + `.github/workflows/smoke.yml${JOB ? `  (--job ${JOB})` : ''}`
+    + `${ALL ? '  (--all: the in-page suite included)' : ''}`);
+  const skipped = new Set(plan.filter((p) => p.skipped).map((p) => p.name));
+  for (const [n, why] of SKIP) {
+    if (skipped.has(n)) console.log(`  skipped: ${n}\n           ${why}`);
+  }
+  console.log('');
+
+  if (LIST) {
+    let job = null;
+    for (const p of plan) {
+      if (p.job !== job) { job = p.job; console.log(`  [job ${job}]`); }
+      if (p.skipped) { console.log(`  (skipped) ${p.name}`); continue; }
+      console.log(`  ${p.name}`);
+      for (const c of p.cmds) console.log(`      ${c}`);
+    }
+    process.exit(0);
+  }
+
+  const t0 = Date.now();
+  const results = [];
+  for (const p of live) {
+    for (const cmd of p.cmds) {
+      const started = Date.now();
+      console.log(`\n${''.padEnd(78, '-')}\n> [${p.job}] ${p.name}\n  $ ${cmd}\n`);
+      const r = runCommand(cmd);
+      const secs = ((Date.now() - started) / 1000).toFixed(1);
+      results.push({ job: p.job, step: p.name, cmd, status: r.status, secs, error: r.error });
+      console.log(`\n  ${r.status === 0 ? 'GREEN' : `EXIT ${r.status}`} · ${secs}s`);
+    }
+  }
+
+  console.log(`\n${''.padEnd(78, '=')}\nCI-LOCAL RESULTS\n${''.padEnd(78, '-')}`);
+  for (const r of results) {
+    console.log(`  ${r.status === 0 ? 'GREEN  ' : 'RED    '} ${String(r.secs).padStart(7)}s  ${r.cmd}`
+      + (r.error ? `  (${r.error})` : ''));
+  }
+  const red = results.filter((r) => r.status !== 0);
+  console.log(''.padEnd(78, '-'));
+  // Per-job wall clock: the matrix runs these families in PARALLEL, so the CI
+  // wall clock is the slowest family, not this sum.
+  const byJob = new Map();
+  for (const r of results) byJob.set(r.job, (byJob.get(r.job) || 0) + Number(r.secs));
+  for (const [j, secs] of byJob) {
+    console.log(`  job ${j.padEnd(20)} ${(secs / 60).toFixed(1)} min`);
+  }
+  console.log(`  ${results.length - red.length}/${results.length} green · `
+    + `${((Date.now() - t0) / 1000).toFixed(1)}s sequential`);
+  if (red.length) {
+    console.log('\n  A RELEASE IS GREEN ONLY WHEN BOTH THIS RUN AND THE GITHUB RUN ON THE RELEASE');
+    console.log('  COMMIT ARE GREEN. Fix the guard, never the guard\'s teeth.');
+  }
+  process.exitCode = red.length ? 1 : 0;
 }
 
-console.log(`\n${''.padEnd(78, '=')}\nCI-LOCAL RESULTS\n${''.padEnd(78, '-')}`);
-for (const r of results) {
-  console.log(`  ${r.status === 0 ? 'GREEN  ' : 'RED    '} ${String(r.secs).padStart(7)}s  ${r.cmd}`
-    + (r.error ? `  (${r.error})` : ''));
+if (process.argv[1]?.replace(/\\/g, '/').endsWith('tests/run-ci-local.mjs')) {
+  await main();
 }
-const red = results.filter((r) => r.status !== 0);
-console.log(''.padEnd(78, '-'));
-console.log(`  ${results.length - red.length}/${results.length} green · `
-  + `${((Date.now() - t0) / 1000).toFixed(1)}s`);
-if (red.length) {
-  console.log('\n  A RELEASE IS GREEN ONLY WHEN BOTH THIS RUN AND THE GITHUB RUN ON THE RELEASE');
-  console.log('  COMMIT ARE GREEN. Fix the guard, never the guard\'s teeth.');
-}
-process.exitCode = red.length ? 1 : 0;

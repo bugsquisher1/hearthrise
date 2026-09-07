@@ -58,6 +58,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { bootTemplated, prefixLength, MIN_PREFIX_FILES } from './pglite-template.mjs';
 
 export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -214,19 +215,58 @@ export async function bootChain({ patches, extra } = {}) {
     }
   }
 
-  const db = await PGlite.create();
   const fixture = await readFile(join(ROOT, 'tests', 'sql', 'pglite-fixture.sql'), 'utf8');
-  await db.exec("select set_config('hearthrise.market_wipe_ok','yes',false)");
-  await db.exec(fixture);
-  await db.exec(SCAFFOLD);
+  // set_config(..., false) is SESSION state and is not inside a data-directory
+  // snapshot, so it runs on every boot — cached or not.
+  const session = async (d) =>
+    d.exec("select set_config('hearthrise.market_wipe_ok','yes',false)");
 
+  // Wrapped, because that is how apply_migration runs a file on this project:
+  // atomically. A self-check `raise` must abort the whole file, not leave
+  // half of it installed.
+  const applyOne = (d, name) => d.exec(`begin;\n${sources.get(name)}\ncommit;`);
+
+  // ── THE SNAPSHOT PREFIX (tests/pglite-template.mjs) ──────────────────────
+  // The unpatched leading run of the chain produces identical state on every
+  // boot, and a mutation harness boots it once per mutation. So it is applied
+  // once and restored from a data-directory snapshot after that, keyed on the
+  // exact SQL TEXT of every file in it. Nothing about WHAT is applied changes.
+  const cut = prefixLength(chain, patches ? patches.keys() : []);
   const applied = [];
-  for (const [name] of chain) {
-    // Wrapped, because that is how apply_migration runs a file on this project:
-    // atomically. A self-check `raise` must abort the whole file, not leave
-    // half of it installed.
-    await db.exec(`begin;\n${sources.get(name)}\ncommit;`);
+  // Closed once the tail is applied — see bootTemplated's timer note.
+  let endCapture = () => 0;
+  let db;
+  if (cut >= MIN_PREFIX_FILES) {
+    const prefix = chain.slice(0, cut);
+    const boot = await bootTemplated({
+      PGlite,
+      keyParts: ['pglite-chain', fixture, SCAFFOLD,
+        ...prefix.flatMap(([name]) => [name, sources.get(name)])],
+      session,
+      // A PATCHED prefix is used once (the next mutation patches a different
+      // file), so it lives in memory only; the canonical chain is what every
+      // guard and every process shares, and that is what goes to disk.
+      persist: !patches,
+      build: async (d) => {
+        await d.exec(fixture);
+        await d.exec(SCAFFOLD);
+        for (const [name] of prefix) await applyOne(d, name);
+      },
+    });
+    db = boot.db;
+    endCapture = boot.endCapture || (() => 0);
+    for (const [name] of prefix) applied.push(name);
+  } else {
+    db = await PGlite.create();
+    await session(db);
+    await db.exec(fixture);
+    await db.exec(SCAFFOLD);
+  }
+
+  for (const [name] of chain.slice(applied.length)) {
+    await applyOne(db, name);
     applied.push(name);
   }
+  endCapture();
   return { db, applied };
 }

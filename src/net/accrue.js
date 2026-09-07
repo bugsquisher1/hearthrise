@@ -3732,6 +3732,92 @@ export function receiptNotice(summary, opts) {
   return { kind, credit, attended, announce };
 }
 
+/* ── THE TWO CLAUSES THE TOAST LOST WHEN THE LOCAL ENGINE DIED ──────────────
+   b345 gave the away receipt a "your supplies ran out" line and Recovery rev. 2
+   gave it a "you got back up" line; b515 deleted the local `processOffline`
+   that produced both, and `receiptSentence` — the ONLY sentence source since —
+   never had either. So the two absences that most need explaining, a night
+   that stopped 31 seconds in and a night with four falls in it, toasted as
+   eight hours of honest, uninterrupted pay. b518 put the fields on the away
+   payload (`stoppedBy`, `stoppedById`, `stoppedSkill`, `stoppedPerHour`,
+   `deaths`, `recoverMs`, `recoverLadder`); these two read them.
+
+   Both are pure and STATED-ONLY (b341's rule — nothing is inferred, and in
+   particular `paidMs < awayMs` is NOT a stop test), and both speak the
+   vocabulary of the two surfaces that already render these fields: the Home
+   away card (`features/home-dashboard.js` — STOP_COPY and its "You fell"
+   block) and the welcome-back modal (`legacy.js` — the stop row and the
+   picked-up row). Three surfaces describing one night in three voices is how a
+   player learns to distrust all three, so the toast is the SHORT FORM of the
+   same sentence, never a fourth reading.
+
+   Exported so the suite can read them without a live envelope, for the same
+   reason `receiptSentence` is. */
+
+/* WHICH STOP REASONS THIS SENTENCE CAN HONESTLY DESCRIBE — a table, not a
+   negation, and the same shape (and the same single row) as the away card's
+   STOP_COPY. `stoppedBy` carries reasons that are NOT "you ran out of
+   something": 'idle' is no activity at all, 'gate' is a locked recipe, 'level'
+   is a level gate, 'budget' is the accrual engine asking for a smaller
+   proposal. Speaking "ran out of materials" for any of those would be a
+   fabricated cause on the one surface that exists to state a real one, so an
+   unknown reason is SILENT and a new reason is a row here. 'death' is
+   excluded for the card's own reason: it reports through this seam but owns
+   richer copy of its own. */
+const STOP_CLAUSE = Object.freeze({
+  supplies: true,
+});
+
+/** "Cooking ran out of Raw Shrimp 31s in — nothing was earned after", or null. */
+export function receiptStopClause(summary, opts) {
+  const o = opts || {};
+  const s = summary || {};
+  const by = (typeof s.stoppedBy === 'string' && s.stoppedBy) ? s.stoppedBy : null;
+  if (!by || !STOP_CLAUSE[by]) return null;
+  /* Names are resolved by the CALLER (`itemLabel` / `skillLabel`, the same
+     injection shape as `foeLabel`) because ITEMS and SKILLS_DEF are data this
+     pure module must not reach for. The fallbacks are the away card's own
+     ("materials" / "Your run"), so an unwired call site says something true
+     rather than "undefined". */
+  const what = (typeof o.itemLabel === 'function' && s.stoppedById)
+    ? (o.itemLabel(s.stoppedById) || 'materials') : 'materials';
+  const skill = (typeof o.skillLabel === 'function' && s.stoppedSkill)
+    ? (o.skillLabel(s.stoppedSkill) || 'Your run') : 'Your run';
+  /* HOW FAR IN. `paidMs` is stated; the span is printed only when a formatter
+     was injected, because a second formatter here would round differently from
+     the card's and the two would then disagree about one instant. */
+  const paid = Math.max(0, Number(s.paidMs) || 0);
+  const when = (paid > 0 && typeof o.spanLabel === 'function') ? o.spanLabel(paid) : null;
+  return skill + ' ran out of ' + what + (when ? (' ' + when + ' in') : '')
+    + ' — nothing was earned after';
+}
+
+/** "You fell 4 times to the Goblin — knocked out for 8m in total; your run
+ *  picked up each time", or null. Gated exactly as the card and the modal gate
+ *  it: `deaths` STATED (a `died` with no count is one pre-Recovery fall and has
+ *  no recovery story to tell), and the run did not actually stop on the death. */
+export function receiptRecoveryClause(summary, opts) {
+  const o = opts || {};
+  const s = summary || {};
+  const deaths = Math.max(0, Number(s.deaths) || 0);
+  if (deaths < 1 || s.stoppedBy === 'death') return null;
+  const foeName = (typeof o.foeLabel === 'function') ? o.foeLabel(s.diedTo) : null;
+  const foe = foeName ? (' to the ' + foeName) : '';
+  const recMs = Math.max(0, Number(s.recoverMs) || 0);
+  const held = (recMs > 0 && typeof o.spanLabel === 'function') ? o.spanLabel(recMs) : null;
+  /* THE SINGLE FALL KEEPS ITS OWN SHAPE, exactly as the card does: one fall is
+     one event, many falls are a night, and quoting the first one's span would
+     read as the only one. */
+  if (deaths === 1) {
+    return 'You fell' + foe
+      + (held ? (' — knocked out for ' + held + ', then your run picked up')
+              : ' — your run picked up');
+  }
+  return 'You fell ' + deaths + ' times' + foe
+    + (held ? (' — knocked out for ' + held + ' in total; your run picked up each time')
+            : ' — your run picked up each time');
+}
+
 /**
  * THE SENTENCE ITSELF, as a pure function — receipt (+ an optional market
  * ledger line) in, the exact toast text or null out.
@@ -3791,7 +3877,26 @@ export function receiptSentence(summary, opts) {
      the CALLER (`opts.foeLabel`, the same injection shape as `spanLabel`)
      because this module is pure and MONSTERS is data — the away card and the
      welcome modal resolve `diedTo` the same way. */
-  if (receiptDied(s)) {
+  /* ── THE AWAY BRANCH, AND ONLY THE AWAY BRANCH, SAYS WHAT HAPPENED ──────
+     An away receipt owes the player the shape of the night, not just its
+     total: WHY it stopped and WHETHER they got back up. Both clauses are
+     confined here on purpose — b510's silence ruling means an attended live
+     settle narrates nothing, and a 'switch' is a window the player closed
+     themselves. Ordered as the Home card orders its notes: what happened to
+     the character first, then what happened to the run. */
+  const recovery = receiptRecoveryClause(s, o);
+  const stop = receiptStopClause(s, o);
+  const extra = (recovery ? (' · ' + recovery) : '') + (stop ? (' · ' + stop) : '');
+  /* A RECOVERED NIGHT IS NOT A DEATH NOTICE. The b343 sentence ends "nothing
+     was earned after", which was true when a death was terminal and is a lie
+     under Recovery rev. 2 — the run picked up and kept paying. So a receipt
+     that STATES a recovery takes the away sentence with the fall clause on it
+     (still announced, still leading with the fall — b343's rule is that a
+     death is never a QUIET toast, not that it must wear these exact words),
+     and the terminal death keeps b343's branch untouched. Same switch the away
+     card uses (`deaths` stated and `stoppedBy !== 'death'`), so the durable
+     surface and the toast cannot disagree about which night this was. */
+  if (receiptDied(s) && !recovery) {
     const foe = (typeof o.foeLabel === 'function') ? o.foeLabel(s.diedTo) : null;
     const why = receiptDeathCause(s);
     const gains = [];
@@ -3802,10 +3907,10 @@ export function receiptSentence(summary, opts) {
       + (why ? why.clause + (gains.length ? '. Credited ' + gains.join(', ') : '')
              : (gains.length ? 'credited ' + gains.join(', ') + ' before it'
                              : 'nothing was earned after'))
-      + tail;
+      + extra + tail;
   }
   return '⏰ Away ' + s.hrs + 'h — the server credited +' + c.items + ' items, +'
-    + c.xp + ' XP, +' + c.gold + ' gold' + tail;
+    + c.xp + ' XP, +' + c.gold + ' gold' + extra + tail;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -4473,6 +4578,7 @@ if (typeof window !== 'undefined') {
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
+    receiptStopClause, receiptRecoveryClause,
     noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,
     showAccrualHaltedSheet, hideAccrualHaltedSheet, verifyHaltedState,

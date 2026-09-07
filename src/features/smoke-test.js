@@ -55000,6 +55000,67 @@ const TESTS = [
       'a switch must keep its own sentence, got ' + A.receiptSentence(sw, { spanLabel: () => '1m' }));
   }),
 
+  () => tryRun('SYNC-5: an away receipt says WHY it stopped and that you got back up', () => {
+    /* THE REGRESSION. b515 deleted the local `processOffline`, and with it the
+       b345 stop toast and the Recovery rev. 2 fall toast; `receiptSentence`,
+       the only sentence source since, never had either clause. b518 put the
+       fields on the away payload, so a supply-exhausted night with two falls in
+       it arrived carrying every fact it needed and toasted as "⏰ Away 8h — the
+       server credited …" and nothing else: eight hours of honest, uninterrupted
+       pay over a run that earned for thirty-one seconds and fell twice.
+
+       The clauses belong to the AWAY branch alone (b510: an attended live
+       settle narrates nothing) and a terminal death keeps b343's own sentence,
+       so all three readings are pinned here together. */
+    const A = window.HearthriseAccrual;
+    const label = { spanLabel: (ms) => (ms < 60000 ? Math.max(1, Math.round(ms / 1000)) + 's'
+                                                   : Math.round(ms / 60000) + 'm'),
+                    itemLabel: (id) => (id === 'raw_shrimp' ? 'Raw Shrimp' : null),
+                    skillLabel: (k) => (k === 'cooking' ? 'Cooking' : null),
+                    foeLabel: (id) => (id === 'goblin' ? 'Goblin' : null) };
+    const night = { awayMs: 8 * 3600000, hrs: 8, gainedItems: 11, gainedXp: 80, gainedGold: 0,
+      paidMs: 30700, stoppedBy: 'supplies', stoppedById: 'raw_shrimp', stoppedSkill: 'cooking',
+      stoppedPerHour: 940, deaths: 2, recoverMs: 240000, diedTo: 'goblin' };
+    const said = A.receiptSentence(night, label);
+    assert(/You fell 2 times to the Goblin — knocked out for 4m in total; your run picked up each time/.test(said),
+      'the away receipt states two falls and 4m of recovery and said nothing about either: ' + said);
+    assert(/Cooking ran out of Raw Shrimp 31s in — nothing was earned after/.test(said),
+      'the away receipt states a supply stop 31s into an 8h night and said nothing about it: ' + said);
+    /* THE CREDIT IS STILL QUOTED, unchanged: these clauses explain the numbers,
+       they do not replace them. */
+    assert(said.indexOf('⏰ Away 8h — the server credited +11 items, +80 XP, +0 gold') === 0,
+      'the away sentence lost its own receipt: ' + said);
+    /* STATED, NOT INFERRED — the same rule the card and the modal follow. A
+       receipt with no stop and no death count says neither thing. */
+    const plain = { awayMs: 8 * 3600000, hrs: 8, gainedItems: 11, gainedXp: 80, gainedGold: 0 };
+    assert(A.receiptSentence(plain, label) === '⏰ Away 8h — the server credited +11 items, +80 XP, +0 gold',
+      'an ordinary night grew a stop or a fall clause out of nothing: ' + A.receiptSentence(plain, label));
+    /* A REASON THIS SENTENCE CANNOT HONESTLY DESCRIBE IS SILENT. `stoppedBy`
+       also carries 'idle', 'gate', 'level' and 'budget', none of which mean
+       "you ran out of something"; inventing a cause is the failure this clause
+       exists to prevent, pointed the other way. */
+    const gated = Object.assign({}, night, { stoppedBy: 'gate', deaths: 0 });
+    assert(A.receiptSentence(gated, label).indexOf('ran out') === -1,
+      'a locked-recipe stop was reported as running out of materials: ' + A.receiptSentence(gated, label));
+    /* THE ATTENDED LIVE SETTLE NARRATES NOTHING (b510). The same two fields on
+       a 90-second sync must not put an absence's story on the player's screen
+       while they are watching it happen. */
+    const sync = { awayMs: 90000, hrs: 0, gainedItems: 13, gainedXp: 104, gainedGold: 0,
+      paidMs: 30700, stoppedBy: 'supplies', stoppedById: 'raw_shrimp', stoppedSkill: 'cooking',
+      deaths: 2, recoverMs: 240000 };
+    const syncLine = A.receiptSentence(sync, label);
+    assert(syncLine === 'Synced — +13 items, +104 XP',
+      'a live settle narrated the away story: ' + syncLine);
+    /* A TERMINAL DEATH STILL TAKES b343's BRANCH, word for word: the run really
+       did stop, so "nothing was earned after" is true and must not be traded
+       for a recovery line that claims the night carried on. */
+    const died = { awayMs: 8 * 3600000, hrs: 8, gainedItems: 0, gainedXp: 0, gainedGold: 0,
+      died: true, diedTo: 'goblin', diedAfterMs: 60000, stoppedBy: 'death', deaths: 1 };
+    const deathLine = A.receiptSentence(died, label);
+    assert(deathLine === 'You died to Goblin — nothing was earned after',
+      'a terminal death left the b343 branch: ' + deathLine);
+  }),
+
   () => tryRun('SYNC-3: the Home away card and the toast read ONE classifier', () => {
     /* The b342 failure was two surfaces telling different stories about one
        absence. The card's liveness gate is now the same function the toast

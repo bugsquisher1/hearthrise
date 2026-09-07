@@ -1068,7 +1068,7 @@
     var verify = root.querySelector('#set-cloud-verify');
     if(verify) verify.addEventListener('click', async function(){
       var old = verify.textContent; verify.disabled = true; verify.textContent = 'Testing…';
-      if(vout) vout.textContent = 'Running a cloud save round-trip test…';
+      if(vout) vout.textContent = 'Asking the realm what it holds for you…';
       var r = { ok:false, error:'Cloud sync is unavailable in this build.' };
       try { if(window.HearthriseSync && window.HearthriseSync.verifyCloudSave) r = await window.HearthriseSync.verifyCloudSave(); }
       catch(e){ r = { ok:false, error:(e && e.message) || String(e) }; }
@@ -1084,15 +1084,18 @@
       } catch(e){}
       verify.textContent = old; verify.disabled = false;
       if(!vout) return;
-      if(r.ok){
-        vout.textContent = '✓ Cloud save verified — your progress uploaded and read back correctly.' + devLine;
-      } else {
-        var lines = ['✗ ' + (r.error || 'Cloud save could not be verified.')];
-        (r.checks || []).forEach(function(c){
-          lines.push((c.match ? '✓ ' : '✗ ') + c.label + ': cloud ' + c.cloud + ' / local ' + c.local);
-        });
-        vout.textContent = lines.join('\n') + devLine;
-      }
+      /* b519 — RENDER THE DIAGNOSTIC'S OWN SENTENCES. The old renderer printed a
+         cloud/local diff of a round trip through `game_saves`, a table retired at
+         b515 and write-revoked 2026-09-07; it read back nothing and told healthy
+         players their save had vanished. verifyCloudSave now returns `lines` —
+         the realm's projection (version, last settle, gold, total level) and the
+         residue — already worded, each with its own ✓/✗. A `lines`-less answer
+         (not signed in, offline, unconfigured) still shows its one error line. */
+      var out = [];
+      if(r.error) out.push((r.ok ? '' : '✗ ') + r.error);
+      (r.lines || []).forEach(function(l){ out.push((l.ok ? '✓ ' : '✗ ') + l.text); });
+      if(!out.length) out.push(r.ok ? '✓ Your save is healthy.' : '✗ Cloud save could not be checked.');
+      vout.textContent = out.join('\n') + devLine;
     });
 
     // ── Theme picker ──

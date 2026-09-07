@@ -26018,6 +26018,100 @@ const TESTS = [
     }, function(){ /* offline in harness is fine */ });
   }),
 
+  /* ── b519 REGRESSION: the "verify cloud save" diagnostic must not read a
+     RETIRED table, and must describe the truth a player's progress lives in ────
+     THE BUG. verifyCloudSave forced an upload and then read `game_saves` back.
+     The blob stopped being uploaded at b515 and 2026-09-07-game-saves-revoke.sql
+     took the client's write grants away, so the read-back was always empty and
+     every player who pressed the button — in the ONE tool you open when you are
+     afraid of losing progress — was told "Uploaded, but reading it back returned
+     nothing." A false data-loss alarm on a perfectly healthy account.
+
+     THREE PROPERTIES, and each one fails without the fix:
+       1. the diagnostic issues ZERO requests to `game_saves` (the retired read
+          is gone, not merely unused);
+       2. it renders the realm's projection — version + last settle + the figures
+          — from the hr_load envelope;
+       3. when that projection read FAILS it says so, fail-closed, and does not
+          imply a loss it has not observed. */
+  () => tryRunAsync('b519 regression: "verify cloud save" reads the realm projection, never the retired game_saves', async () => {
+    const S = window.HearthriseSync;
+    assert(S && typeof S.verifyCloudSave === 'function', 'verifyCloudSave must be exposed');
+    assert(typeof S.describeCloudSave === 'function', 'describeCloudSave (the pure copy) must be exposed');
+    assert(typeof S.readRealmProjection === 'function', 'readRealmProjection must be exposed');
+    const realFetch = window.fetch;
+    /* The forced residue save inside the diagnostic stamps this display field on
+       success; the probe must not leave a fabricated save time on the live G. */
+    const hadSyncedAt = window.G ? window.G.cloudSyncedAt : undefined;
+    const urls = [];
+    const now = Date.now();
+    const envelope = {
+      ok: true, version: 42, now: new Date(now).toISOString(),
+      state: { slot: 0, gold: 1234, gems: 7, hp: 10, max_hp: 10, bank_cap: 100,
+        active_kind: 'idle', active_id: null, active_since: null,
+        accrued_to: new Date(now - 600000).toISOString() },
+      skills: { woodcutting: { xp: 100, level: 5 }, mining: { xp: 50, level: 3 } },
+      inventory: {}, equipment: {}, farm: [], progress: [],
+    };
+    try {
+      S.resetAuthGate();
+      window.fetch = function (u, init) {
+        const url = String((u && u.url) || u || '');
+        urls.push(url);
+        if (/rpc\/hr_load/.test(url)) return Promise.resolve(new Response(JSON.stringify(envelope), { status: 200 }));
+        return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+      };
+      const r = await S.__withConfig({
+        endpoint: 'https://example.invalid/rest/v1/game_events',
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        claimEndpoint: null,
+        apiKey: 'anon', userId: () => 'u1', authToken: () => 'tok',
+        onSyncFailure: () => {}, onSyncRecovered: () => {}, onAuthExpired: () => {},
+      }, () => S.verifyCloudSave());
+
+      // (1) THE RETIRED TABLE IS NEVER TOUCHED. Note the config still NAMES
+      //     game_saves (it is the base every other url is derived from), so this
+      //     is a real test of the call sites and not of the string.
+      const saves = urls.filter((u) => /game_saves/.test(u));
+      assert(saves.length === 0,
+        'the diagnostic must issue ZERO game_saves requests, saw ' + saves.length + ': ' + saves.join(', '));
+      assert(urls.some((u) => /rpc\/hr_load/.test(u)),
+        'the diagnostic must read the server projection (hr_load), urls: ' + urls.join(', '));
+
+      // (2) IT RENDERS THE PROJECTION.
+      assert(r && r.realm && r.realm.ok, 'the stubbed projection must read as ok: ' + JSON.stringify(r && r.realm));
+      assert(r.realm.version === 42, 'version must come off the envelope, got ' + r.realm.version);
+      assert(r.realm.totalLevel === 8, 'total level must be the SERVER levels summed (5+3), got ' + r.realm.totalLevel);
+      const realmLine = (r.lines || [])[0];
+      assert(realmLine && realmLine.ok, 'the first line must be the realm verdict: ' + JSON.stringify(r.lines));
+      assert(/version 42/.test(realmLine.text), 'the realm line must name the version: ' + realmLine.text);
+      assert(/last settled 10 min ago/.test(realmLine.text), 'the realm line must name the last settle: ' + realmLine.text);
+      assert(/1[,.\s]?234 gold/.test(realmLine.text), 'the realm line must name the gold it holds: ' + realmLine.text);
+      assert(!/returned nothing/i.test(r.lines.map((l) => l.text).join(' ')),
+        'the retired round-trip copy must be gone entirely');
+
+      // (3) A FAILED PROJECTION READ FAILS CLOSED, AND SAYS SO.
+      const bad = await S.__withConfig({
+        endpoint: 'https://example.invalid/rest/v1/game_events',
+        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+        claimEndpoint: null,
+        apiKey: 'anon', userId: () => 'u1', authToken: () => 'tok',
+        onSyncFailure: () => {}, onSyncRecovered: () => {}, onAuthExpired: () => {},
+      }, () => S.verifyCloudSave({ readRealm: async () => ({ ok: false, outcome: 'unavailable' }) }));
+      assert(bad && bad.ok === false, 'a failed projection read must not report ok');
+      const badLine = (bad.lines || [])[0];
+      assert(badLine && badLine.ok === false, 'the first line must be the failure: ' + JSON.stringify(bad.lines));
+      assert(/unavailable/.test(badLine.text), 'the failure line must name the outcome: ' + badLine.text);
+      assert(/not lost progress/i.test(badLine.text),
+        'an unreadable server is NOT evidence of loss and the copy must say so: ' + badLine.text);
+    } finally {
+      window.fetch = realFetch;
+      if (window.G) { if (typeof hadSyncedAt === 'undefined') delete window.G.cloudSyncedAt; else window.G.cloudSyncedAt = hadSyncedAt; }
+      S.resetAuthGate();
+      if (typeof S.__resetSyncHealth === 'function') S.__resetSyncHealth();
+    }
+  }),
+
   // b295: bug-report screenshots crashed with "unsupported color function
   // 'color'" because html2canvas can't parse the color(srgb …) form that
   // browsers serialise our color-mix() rules into. convertColorFns() rewrites

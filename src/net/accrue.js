@@ -376,8 +376,8 @@ export function classifyAccrueResponse(status, body) {
    player is told about exactly once. The difference in kind is that b331's
    terminal state stops WRITES; this one stops nothing, because nothing was ever
    being granted — it exists to stop the pretending. */
-export const ACCRUE_BACKOFF_BASE_MS = 5000;
-export const ACCRUE_BACKOFF_MAX_MS = 300000;
+const ACCRUE_BACKOFF_BASE_MS = 5000;
+const ACCRUE_BACKOFF_MAX_MS = 300000;
 export const ACCRUE_HALT_AFTER_TRIES = 3;
 
 /** Outcomes that mean "the server did not tell us what we earned". Pure. */
@@ -721,7 +721,6 @@ export function registerPredictionSeam(fn) {
   predictionSeam = (typeof fn === 'function') ? fn : null;
   return predictionSeam;
 }
-export function getPredictionSeam() { return predictionSeam; }
 
 /**
  * @param ownKey the intent key of the call this envelope answers, when there is
@@ -851,7 +850,6 @@ export function markEquipAuthorityLive(v) {
   equipAuthorityLive = v !== false;
   return equipAuthorityLive;
 }
-export function isEquipAuthorityLive() { return equipAuthorityLive; }
 
 /* ── INVENTORY AUTHORITY IS ITS OWN FLAG (P1 mitigation, 2026-08-17) ─────────
    THE BUG THIS DECOUPLES. `isEnvelopeAbsolute()` was armed by EQUIP authority
@@ -1075,7 +1073,6 @@ function scheduleFallReask(now) {
 
 /** DIAGNOSTIC / TEST SEAM: when the next re-ask is due (0 = none pending). */
 export function fallReaskAt() { return fall.reaskAt || 0; }
-export function fallAsks() { return fall.asks || 0; }
 
 function fallReaskTick() {
   fallTimer = null;
@@ -1313,7 +1310,6 @@ export function __resetAutoArm() {
   inventoryArmEnabled = INVENTORY_ARM_ENABLED === true;
   return { autoArmDisarmed, inventoryArmEnabled };
 }
-export function isInventoryArmEnabled() { return inventoryArmEnabled; }
 
 export function maybeAutoArm() {
   try {
@@ -4288,14 +4284,14 @@ if (typeof window !== 'undefined') {
        envelope's own scalars, functions for the same reason the recovery line
        is one — a caller must not be able to capture a stale number. */
     noteFall, clearFall, fallState, isKnockedOut, FALL_CONFIRM_TIMEOUT_MS,
-    FALL_REASK_MARGIN_MS, nextFallReaskAt, fallReaskAt, fallAsks,
+    FALL_REASK_MARGIN_MS, nextFallReaskAt, fallReaskAt,
     accruedToMs, deathsToday, deathsLifetime,
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,
     flipDriftSummary, reportFlipDrift, startFlipDriftReporter, __resetFlipDriftReport,
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
-    maybeAutoArm, isInventoryArmEnabled, __setInventoryArmEnabledForTest, __resetAutoArm,
+    maybeAutoArm, __setInventoryArmEnabledForTest, __resetAutoArm,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,

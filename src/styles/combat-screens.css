@@ -929,10 +929,6 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
 #panel-combat .fs-style .combat-style-block .csb-btn .csb-swing {
   display: none;
 }
-#panel-combat .fss-lbl {
-  font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
-  font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
-}
 #panel-combat .fs-style .csb-btn {
   padding: 3px 9px; font-size: var(--t-micro, 11px); font-weight: 700;
   background: var(--field-sunk, rgba(0,0,0,.3));

@@ -68,9 +68,6 @@ export function marksOf(G) {
   return { known: true, value: Math.floor(n), reason: 'ok', source: 'local' };
 }
 
-/** Is the marks balance known at all? */
-export function isMarksKnown(G) { return marksOf(G).known; }
-
 /** THE ARITHMETIC FORM — a number, or null for UNKNOWN. Branch on null (or use
  *  marksOr for a deliberate fallback). */
 export function marksNum(G) {
@@ -106,6 +103,6 @@ export function fmtMarks(G, opts) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseMarks = {
-    marksOf, isMarksKnown, marksNum, marksOr, canAffordMarks, fmtMarks,
+    marksOf, marksNum, marksOr, canAffordMarks, fmtMarks,
   };
 }

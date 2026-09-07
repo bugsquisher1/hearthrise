@@ -508,7 +508,7 @@ const HUD = (() => {
   return { refresh, openLoot, openStats, close: closeMine, _forecast: forecast, _eatState: eatState };
 })();
 
-export function setupArenaHud() {
+function setupArenaHud() {
   window.HearthriseCombatHud = HUD;
   HUD.refresh();
 }

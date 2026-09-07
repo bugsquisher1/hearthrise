@@ -306,7 +306,6 @@ img,svg{display:block;max-width:100%}
   grid-template-rows:minmax(0,1fr);
   gap:var(--gap);
 }
-.layout-stack{grid-template-columns:1fr;gap:var(--gap)}
 
 /* card */
 .card{
@@ -1432,8 +1431,6 @@ body[data-theme="lane1"]{
   font-size:calc(17px * var(--ui-scale, 1));
 }
 
-body[data-theme="lane1"] .gpi{image-rendering:pixelated;image-rendering:crisp-edges}
-
 /* ─── Topbar — wood beam ─── */
 body[data-theme="lane1"] .topbar{
   background:linear-gradient(180deg,#793930 0%,#5b2618 100%);
@@ -1950,8 +1947,6 @@ body[data-theme="dark"]{
   font-weight:500;
 }
 
-body[data-theme="dark"] .gpi{image-rendering:pixelated;image-rendering:crisp-edges}
-
 /* ─── Topbar ─── */
 body[data-theme="dark"] .topbar{
   background:linear-gradient(180deg,#5b2618 0%,#3a1812 100%);
@@ -2463,9 +2458,6 @@ body[data-theme="dark"] .lane1-toggle{
 
 /* ─── Inventory total value indicator ─── */
 .inv-summary{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(243,209,129,.06);border:1px solid rgba(243,209,129,.25);border-radius:6px;margin-bottom:10px}
-.inv-summary .iv-label{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
-.inv-summary .iv-value{font-size:calc(21.5px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2);font-family:var(--f-display)}
-.inv-summary .iv-meta{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}
 
 /* ===== block 17: five-feat-css ===== */
 /* ─── Level-up celebration ─── */
@@ -2527,8 +2519,6 @@ body[data-theme="dark"] .lane1-toggle{
 .bestiary-row .br-kills{font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2)}
 
 /* ─── Friends stub ─── */
-.friends-section{margin-top:12px;padding:12px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:6px}
-.friends-section h4{margin:0 0 8px;font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.12em;text-transform:uppercase;color:var(--gold-2)}
 .friend-row{display:flex;align-items:center;gap:10px;padding:6px 8px;background:rgba(0,0,0,.1);border-radius:4px;margin-bottom:4px;opacity:.5}
 /* b217: dashed border + italics is the visual language of an unbuilt
    component. An empty state is a real state — draw it like one. */
@@ -2642,10 +2632,6 @@ body.hide-profile-overflow #daily-goals-host{grid-column:1;grid-row:2}
   border-radius:6px;padding:10px 12px;margin-bottom:10px;
 }
 .combat-xp-forecast h4{margin:0 0 6px;font-size:calc(14.5px * var(--ui-scale, 1));text-transform:uppercase;letter-spacing:.1em;color:var(--gold-2)}
-.combat-xp-forecast .cxr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
-.combat-xp-forecast .cxr-stat{padding:6px 8px;background:rgba(0,0,0,.2);border-radius:4px}
-.combat-xp-forecast .cxr-stat b{display:block;font-size:calc(17px * var(--ui-scale, 1));color:var(--gold-2);font-weight:800}
-.combat-xp-forecast .cxr-stat span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
 
 .combat-drops-list{display:flex;flex-direction:column;gap:4px;margin-top:6px}
 .combat-drop-row{display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(255,255,255,.03);border-left:3px solid var(--ink-3);border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))}
@@ -2802,9 +2788,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 
 /* ─────── INVENTORY (v3 simplified): doll inline, no panel restructure ─────── */
 .inv-summary{padding:6px 10px !important;margin-bottom:6px !important}
-.inv-summary .iv-value{font-size:calc(17px * var(--ui-scale, 1)) !important}
-.inv-summary .iv-label{font-size:calc(14.5px * var(--ui-scale, 1)) !important}
-.inv-summary .iv-meta{font-size:calc(14.5px * var(--ui-scale, 1)) !important}
 .inv-grid{grid-template-columns:repeat(auto-fill,minmax(38px,1fr)) !important;gap:3px !important}
 .inv-slot,.inv-item{min-height:38px}
 /* Tibia doll inline replacement for the old paper-doll */

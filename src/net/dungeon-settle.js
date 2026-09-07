@@ -121,8 +121,6 @@ function tokenOf() {
   try { return typeof config.authToken === 'function' ? config.authToken() : config.authToken; }
   catch (e) { return null; }
 }
-export function setDungeonSettleHooks(h) { hooks = { ...hooks, ...(h || {}) }; }
-export function getDungeonSettleHooks() { return { ...hooks }; }
 function fire(name, a, b) {
   const fn = hooks && hooks[name];
   if (typeof fn !== 'function') return null;
@@ -222,10 +220,6 @@ function record(verdict) {
   fire('onOutcome', last);
   return verdict;
 }
-export function getDungeonSettleState() {
-  return { enabled: isDungeonSettleEnabled(), armed: isDungeonSettleArmed(), configured: !!config, last };
-}
-
 /**
  * SEND ONE DUNGEON RUN AND RECONCILE.
  *
@@ -393,10 +387,9 @@ if (typeof window !== 'undefined') {
   window.HearthriseDungeonSettle = {
     DUNGEON_SETTLE_VERB, DUNGEON_OUTCOMES, UNANSWERED_OUTCOMES, DUNGEON_REFUSALS,
     dungeonRefusalMessage, configureDungeonSettle, getDungeonSettleConfig,
-    setDungeonSettleHooks, getDungeonSettleHooks, buildDungeonSettleRequest,
+    buildDungeonSettleRequest,
     classifyDungeonSettleResponse, envelopeOf, reconcileFromEnvelope,
     newIntentKey, isIntentKey, isAnswered, isDungeonSettleEnabled, sendDungeonSettle,
-    getDungeonSettleState,
     /* increment 3 — the Quartermaster spend transport */
     QM_BUY_VERB, buildQuartermasterBuyRequest, reconcileQuartermasterFromEnvelope,
     sendQuartermasterBuy,

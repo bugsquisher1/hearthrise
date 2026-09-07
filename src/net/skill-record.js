@@ -319,21 +319,9 @@ function resolveLevelFn(levelFn) {
   return null;
 }
 
-/** One line for a diagnostic / bug report — never player-facing. */
-export function skillState(G, ids) {
-  const out = {};
-  const list = Array.isArray(ids) ? ids
-    : (G && G.skills && typeof G.skills === 'object') ? Object.keys(G.skills) : [];
-  for (const id of list) {
-    const b = skillXpOf(G, id);
-    out[id] = b.known ? b.value : ('UNKNOWN:' + b.reason);
-  }
-  return out;
-}
-
 if (typeof window !== 'undefined') {
   window.HearthriseSkillRecord = {
-    skillXpOf, isSkillXpKnown, skillXpNum, skillXpOr, skillLevelOf, skillState,
+    skillXpOf, isSkillXpKnown, skillXpNum, skillXpOr, skillLevelOf,
     skillXpForDisplay, skillXpForDisplayOr, skillLevelForDisplay, skillsForDisplay,
   };
 }

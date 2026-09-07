@@ -21,7 +21,6 @@
 //   findUiOverlaps()        → array of { kind, a, b, ra, rb, note } violations
 //   watchUiOverlaps(opts)   → starts a debounced watcher that re-runs
 //                              after each showTab + after window resize
-//   stopWatchUiOverlaps()   → cancel the watcher
 //
 // The smoke test imports findUiOverlaps and adds it as a test step, so
 // every smoke run is also a layout regression run.
@@ -249,12 +248,6 @@ export function watchUiOverlaps(opts){
   // Initial pass after layout settles
   setTimeout(debouncedRun, 800);
   console.log('[ui-overlap] watcher live — set window.__uiOverlapStrict=true to enable generic checks');
-}
-export function stopWatchUiOverlaps(){
-  watcherInstalled = false;
-  clearTimeout(watcherTimer);
-  window.removeEventListener('resize', debouncedRun);
-  seenSig.clear();
 }
 export function resetUiOverlapDedup(){
   seenSig.clear();

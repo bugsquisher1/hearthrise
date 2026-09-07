@@ -76,25 +76,6 @@ export const EAT_OUTCOMES = Object.freeze([
 export const UNANSWERED_OUTCOMES = Object.freeze(['unreachable', 'timeout']);
 export function isAnswered(outcome) { return UNANSWERED_OUTCOMES.indexOf(outcome) === -1; }
 
-/* ── WHAT THE PLAYER IS TOLD WHEN THE SERVER SAYS NO ────────────────────────
-   Keyed on the error code and nothing else. An unknown code still names itself
-   so a player can quote it in a bug report. */
-export const EAT_REFUSALS = Object.freeze({
-  insufficient_item: 'The server says you do not have that food.',
-  item_not_food: 'That is not something you can eat.',
-  unknown_item: "The server does not have that item yet — it may be a newer build than the server's.",
-  bad_item: 'That food could not be read. Nothing was changed.',
-  rate_limited: 'Slow down a moment — too many actions.',
-  no_character: 'The server has no character in this slot yet.',
-  version_conflict: 'Your state changed elsewhere. Try again.',
-  intent_mismatch: 'That did not match the food the server recorded.',
-});
-export function eatRefusalMessage(code) {
-  const k = String(code || '');
-  if (Object.prototype.hasOwnProperty.call(EAT_REFUSALS, k)) return EAT_REFUSALS[k];
-  return k ? `The server refused that (${k}).` : 'The server refused that.';
-}
-
 export function newIntentKey() {
   try {
     const c = (typeof crypto !== 'undefined') ? crypto : null;
@@ -211,10 +192,6 @@ function record(verdict) {
   fire('onOutcome', last);
   return verdict;
 }
-export function getEatState() {
-  return { enabled: isEatIntentEnabled(), configured: !!config, last };
-}
-
 /**
  * SEND ONE EAT GESTURE AND RECONCILE.
  *
@@ -284,9 +261,9 @@ export async function sendEat(foodId, o = {}) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseEat = {
-    EAT_VERB, EAT_OUTCOMES, UNANSWERED_OUTCOMES, EAT_REFUSALS, eatRefusalMessage,
+    EAT_VERB, EAT_OUTCOMES, UNANSWERED_OUTCOMES,
     configureEat, getEatConfig, setEatHooks, getEatHooks,
     buildEatRequest, classifyEatResponse, envelopeOf,
-    newIntentKey, isIntentKey, isAnswered, isEatIntentEnabled, sendEat, getEatState,
+    newIntentKey, isIntentKey, isAnswered, isEatIntentEnabled, sendEat,
   };
 }

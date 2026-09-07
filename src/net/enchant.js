@@ -59,7 +59,6 @@ export function configureEnchant(cfg) {
   config = cfg && cfg.url ? { ...cfg, authToken: cfg.authToken || cfg.token || null } : null;
   return config;
 }
-export function getEnchantConfig() { return config; }
 export function setEnchantHooks(h) { hooks = { ...hooks, ...(h || {}) }; }
 export function getEnchantHooks() { return { ...hooks }; }
 export function resetEnchant() { config = null; hooks = { onEnvelope: null }; }
@@ -220,7 +219,7 @@ export async function sendEnchant(rune, o = {}) {
 if (typeof window !== 'undefined') {
   window.HearthriseEnchant = {
     ENCHANT_VERB, ENCHANT_SLOT, UNANSWERED_OUTCOMES, ENCHANT_REFUSALS, enchantRefusalMessage,
-    configureEnchant, getEnchantConfig, setEnchantHooks, getEnchantHooks, resetEnchant,
+    configureEnchant, setEnchantHooks, getEnchantHooks, resetEnchant,
     validateRune, buildEnchantRequest, classifyEnchantResponse, envelopeOf,
     newIntentKey, isIntentKey, isAnswered, sendEnchant,
   };

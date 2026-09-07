@@ -2014,6 +2014,63 @@ function reconcileActivityPointer(a,fight){
       }
       return {kind:'gather',id:id};
     }
+    /* ── b520: IT CAN NOW REPRESENT `artisan` TOO, AND THIS IS THE THIRD TIME ──
+       REPORTED LIVE (Paione, 2026-09-07 18:32 UTC): "when I log out doing any
+       quarry granite or rubble, when I log back in it says I am idle." Server
+       side he was right and the realm was right: `player_state.active_kind =
+       'artisan'`, `active_id = 'quarry_granite'`, the declaration accepted at
+       18:31:07, 24 `craft` ledger rows in three days. The BENCH RAN AND PAID all
+       night. Only this function disagreed — `artisan` fell past the two branches
+       above onto `return null`, so the boot resume in src/net/record.js handed
+       the server's pointer to a function that could not represent it and the
+       strip read "Idle — pick an activity" over a run the server was settling.
+
+       That is b348's hole a THIRD time (combat only → gather added → artisan
+       added to the wire in b356 and not to the reconcile), and it is the same
+       shape every time: a kind joins `ACTIVITY_KINDS`, the declaration sites
+       follow by derivation, and the one function whose contract is "the envelope
+       is the truth" silently applies a subset of it. `tests/activity-seam.mjs`
+       now has a fourth reader — the RECONCILE's branches — so a fifth kind
+       cannot arrive with this branch missing.
+
+       ⚠ THROUGH `startArtisan`, NEVER BY ASSIGNING THE POINTER, for the reason
+         the combat branch states: that function owns `_armArtisanTimers`, the
+         interval derivation and the two renders, and a second way to open a
+         bench is a second thing that forgets one of the three. The id resolves
+         through `HearthriseCore.artisanRecipe` — the SAME index the accrual
+         engine reads — so this side and the engine cannot disagree about which
+         bench `quarry_granite` belongs to.
+
+       ⚠ AND THE START CAN STILL REFUSE. `startArtisan` gates on the workbench
+         rung, the level, the recipe scroll and the materials; every one of those
+         is server-of-record and hydrated from THIS envelope, so a refusal here
+         means the two sides genuinely disagree. Saying `{kind:'artisan'}` anyway
+         would be this function claiming an application it did not make — so the
+         start is VERIFIED and an unstarted bench is reported honestly instead. */
+    if(kind==='artisan'&&id){
+      const C=window.HearthriseCore;
+      const hit=(C&&typeof C.artisanRecipe==='function')?C.artisanRecipe(id):null;
+      /* Same ruling as the gather branch above: an id this build cannot resolve
+         means the guard is wrong or the build is old, and the honest move is to
+         leave the run alone rather than act on a bench we cannot name. */
+      if(!hit){
+        console.warn('[activity] the server says artisan:'+id+', which is not in this build\'s '
+          +'recipe index — leaving the local activity alone rather than acting on a bench it cannot resolve');
+        return null;
+      }
+      if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
+      if(!(G.activeSkill===hit.skill&&G.skillTargetId===id)){
+        if(typeof window.startArtisan!=='function')return null;
+        window.startArtisan(hit.skill,id);
+        if(!(G.activeSkill===hit.skill&&G.skillTargetId===id)){
+          console.warn('[activity] the server says artisan:'+id+' ('+hit.skill+') and this client\'s own '
+            +'start gates refused it — workbench, level, recipe scroll or materials. The bench keeps '
+            +'settling server-side; the local loop stays idle until the two agree');
+          return null;
+        }
+      }
+      return {kind:'artisan',id:id};
+    }
     if(!kind||kind==='idle'){
       const local=localActivityPointer();
       if(local.kind==='idle')return {kind:'idle',id:null};

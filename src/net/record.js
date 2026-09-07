@@ -1898,6 +1898,30 @@ function settle(verdict) {
       if (HA && typeof HA.activityOf === 'function' && typeof rap === 'function') {
         const act = HA.activityOf(verdict.body);
         if (act && act.kind && act.kind !== 'idle') {
+          /* ── b520: THE RECORD IS AN ACKNOWLEDGEMENT, AND IT HAS TO BE FILED AS ONE.
+             `hr_load` is the server STATING its own pointer, which is a stronger
+             statement than the acknowledgement `settle()` files after a switch —
+             yet the two module fields that hold "what the server said" and "what
+             the server agreed to" stayed null through the whole boot. Two costs,
+             both real and both measured on the artisan resume this build fixes:
+               • `assertActivityDeclaration()` (resumeActiveActivity, every
+                 visibility-resume) asks `isActivityConfirmed` about a run the
+                 server itself just named, is told no, and spends an intent key, a
+                 rate budget and a COLLECT re-declaring the activity the server is
+                 already settling;
+               • the b519 unconfirmed-stop path then treats a later authoritative
+                 `idle` as a surprise and shows "The hearth did not take that" over
+                 the player's own Stop.
+             Filed BEFORE the reconcile so the reconcile can ask about it, exactly
+             as settle() takes `acked` before firing its hook. Both fields, never
+             one: `confirmed` without `lastServerActivity` is a module state the
+             transport can never produce, and it would leave a later no-envelope
+             refusal with nothing to reconcile TO. The carried FIGHT is deliberately
+             not filed here — `rap` below is handed it directly for this boot, and a
+             checkpoint from boot-time is stale by the time a mid-session refusal
+             would read it. */
+          if (typeof HA.setLastServerActivity === 'function') HA.setLastServerActivity(act);
+          if (typeof HA.setConfirmedActivity === 'function') HA.setConfirmedActivity(act);
           rap(act, typeof HA.fightOf === 'function' ? HA.fightOf(verdict.body) : null);
         }
       }

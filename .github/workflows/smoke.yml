@@ -98,6 +98,17 @@ jobs:
           node tests/arm-flag-honesty.mjs --selftest
           node tests/arm-flag-honesty.mjs
 
+      # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
+      # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their
+      # client-authored twins — the yield roll, the perennial ladder, the seed
+      # debit, the watering window, the deed/gold spend, the plot_level write —
+      # had survived the b454 cutover unreachable for 60 builds and are now
+      # deleted. This is what stops them returning a line at a time.
+      - name: No client farm mint — the farm gestures author nothing
+        run: |
+          node tests/no-client-farm-mint.mjs --selftest
+          node tests/no-client-farm-mint.mjs
+
       # DUPLICATE TOP-LEVEL FUNCTIONS: two declarations of one name in one scope
       # means the later hoists over the earlier and the earlier body is dead code
       # that can be edited, reviewed and shipped while changing nothing. Also

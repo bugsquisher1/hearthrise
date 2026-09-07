@@ -4,8 +4,12 @@
 // Server-side correctness of hr_farm_plant / hr_farm_water / hr_farm_harvest /
 // hr_farm_upgrade_plot is proven by the §10 self-check inside
 // 2026-08-22-server-farming-complete.sql. This is the CLIENT half:
-//   · DORMANT (FARM_SERVER_ARM_ENABLED=false): the arm predicate is false, so
-//     the legacy farm writers run client-side as today (no regression).
+//   · THE ARM IS A CONSTANT (b514, cleanup slice 4): isFarmServerArmed() returns
+//     FARM_SERVER_ARM_ENABLED with no override seam, because the client-authored
+//     fall-through it used to select has been DELETED from every caller. The
+//     "dormant no-regression" half of this guard is therefore gone — there is no
+//     second position left to hold — and what replaces it is stronger: the const
+//     must ship true, and the predicate must be pure.
 //   · ARMED: the four gestures build the right RPC calls (endpoint + body shape,
 //     only ids/slots/plot indices cross the wire), reconcileFarmResult renders
 //     the RESPONSE into G, harvest applies the server's produce ONCE (no local
@@ -37,31 +41,21 @@ export async function farmSyncGuard() {
     return problems;
   }
 
-  const reset = () => { try { IA.__setFarmServerArm(null); } catch (e) {} };
-
   try {
-    /* ── b456: ARMED IS NOW THE SHIPPED DEFAULT, so the const assertion inverts.
-       The b454 cutover flipped FARM_SERVER_ARM_ENABLED; asserting the dormant
-       value afterwards only proves this guard was not updated. What still has to
-       be held is BOTH positions, and neither is weaker than before:
-         · the ARM is the contract — a silent revert would put the farm's produce,
-           XP and deed spend back in the client's hands, which is the forgeable
-           surface the whole program closes;
-         · the DORMANT fall-through is the kill-switch position and still ships,
-           so it is driven explicitly through the seam rather than assumed. */
-    // ── ARMED (default): the flip is the shipped state ───────────────────────
-    reset();
+    /* ── THE ARM IS THE CONTRACT, AND IT IS NOW THE ONLY POSITION ─────────────
+       b456 inverted this assertion when the cutover flipped the flag. b514
+       removed the flip: `__setFarmServerArm` is gone with the branch it selected,
+       so the thing to hold is that the const ships TRUE (a revert would put crop
+       produce, XP, the seed debit and the deed spend back under client authority
+       — the forgeable surface the whole program closes) and that the predicate
+       reports it without a hidden override. */
     if (IA.FARM_SERVER_ARM_ENABLED !== true) fail('FARM_SERVER_ARM_ENABLED must ship true (ARMED) — a revert '
       + 'puts crop produce, XP, the seed debit and the deed spend back under client authority');
-    if (!F.isFarmServerArmed()) fail('ARMED: isFarmServerArmed must be true by default');
-
-    // ── ARM OFF (test seam): the kill-switch position must still be a clean no-op
-    if (IA.__setFarmServerArm(false) !== false) fail('ARM OFF: __setFarmServerArm(false) did not disarm');
-    if (F.isFarmServerArmed()) fail('ARM OFF: farm-sync must see the disarmed state (shared module instance)');
-
-    // ── ARM ON (test seam) ────────────────────────────────────────────────────
-    if (!IA.__setFarmServerArm(true)) fail('ARM ON: __setFarmServerArm(true) did not arm');
-    if (!F.isFarmServerArmed()) fail('ARM ON: farm-sync must see the armed state (shared module instance)');
+    if (!F.isFarmServerArmed()) fail('ARMED: isFarmServerArmed must be true');
+    if (typeof IA.__setFarmServerArm === 'function') fail('the farm arm OVERRIDE SEAM is back. It can only '
+      + 'select a branch that no longer exists (plantCrop/waterPlot/waterAllPlots/harvestPlot/upgradePlot '
+      + 'have one path each), so a caller that disarms would silently drop the gesture. A kill switch for '
+      + 'the farm is a SERVER one.');
 
     // ── THE TRANSPORT BUILDS THE RIGHT RPC CALLS (injected fetch) ─────────────
     {
@@ -215,9 +209,7 @@ export async function farmSyncGuard() {
         globalThis.fetch = realFetch2;
       }
     }
-  } finally {
-    reset();
-  }
+  } finally { /* nothing to restore: the arm is a constant */ }
 
   return problems;
 }
@@ -226,5 +218,5 @@ const SELF = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace
 if (SELF) {
   const probs = await farmSyncGuard();
   if (probs.length) { console.error('FAIL:\n' + probs.map((p) => '  - ' + p).join('\n')); process.exit(1); }
-  console.log('farm-sync: dormant no-regression + armed RPC shape + reconcile-from-response (produce once, no double credit) + fail-safe — all green');
+  console.log('farm-sync: the arm is a seamless constant + armed RPC shape + reconcile-from-response (produce once, no double credit) + fail-safe — all green');
 }

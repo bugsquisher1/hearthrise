@@ -7622,22 +7622,29 @@ function farmPlotCap(){
   return (window.HearthriseHomestead && typeof window.HearthriseHomestead.maxPlots==='function')
     ? window.HearthriseHomestead.maxPlots() : 8;
 }
-/* ── SERVER-AUTHORITY FARM ROUTING (b435 RPCs) — ARMED SINCE b454 ────────────
-   isFarmServerArmed() is TRUE in the shipped build (src/data/item-authority.js
-   FARM_SERVER_ARM_ENABLED, armed 2026-08-22 in the post-wipe cutover), so
-   farmSyncArmed() is true whenever src/net/farm-sync.js is loaded and every
-   gesture below takes the SERVER path; the client fall-through remains only as
-   the fail-safe for a missing farm-sync module. Under arm the gesture sends an
-   INTENT to the hr_farm_* RPC and
-   reconciles G.farmPlots / G.plotLevels from the RESPONSE (src/net/farm-sync.js),
-   rather than authoring the outcome locally. Crop PRODUCE, XP, the seed debit
-   and the deed spend are SERVER-owned — reconcileFarmResult applies the server's
-   own numbers ONCE, and the local yield roll / addXp / seed removal are SKIPPED,
-   so there is no double credit. */
-function farmSyncArmed(){
-  return !!(window.HearthriseFarmSync
-    && typeof window.HearthriseFarmSync.isFarmServerArmed==='function'
-    && window.HearthriseFarmSync.isFarmServerArmed());
+/* ── SERVER-AUTHORITY FARM ROUTING (b435 RPCs) — THE ONLY PATH SINCE b454 ────
+   Every farm gesture sends an INTENT to its hr_farm_* RPC and reconciles
+   G.farmPlots / G.plotLevels from the RESPONSE (src/net/farm-sync.js). Crop
+   PRODUCE, XP, the seed debit and the deed spend are SERVER-owned:
+   reconcileFarmResult applies the server's own numbers ONCE and the client never
+   rolls a yield, never calls addXp('farming', ...) and never debits a seed.
+
+   b514 (cleanup slice 4) DELETED the client-authoring fall-through that used to
+   sit under `if(farmSyncArmed())` in plantCrop / waterPlot / waterAllPlots /
+   harvestPlot. It had been unreachable since the 2026-08-22 cutover armed
+   FARM_SERVER_ARM_ENABLED, and an unreachable twin of the farm's whole ruleset is
+   exactly the forgeable surface the cutover closed — plus a standing invitation
+   to "fix" the farm in the copy nobody runs.
+
+   THE MISSING-MODULE POSITION IS FAIL-CLOSED, NOT FALL-THROUGH. If
+   src/net/farm-sync.js is absent the gesture is REFUSED with a sentence; the
+   client does not author the outcome instead. `farmSyncApi()` is that one check,
+   stated once. */
+function farmSyncApi(){
+  const FS=window.HearthriseFarmSync;
+  if(FS&&typeof FS.farmPlant==='function') return FS;
+  notify('The farm is offline for a moment — try again','kill');
+  return null;
 }
 /* The reconcile deps: the server already credited its own row, so these keep the
    CLIENT CACHE in step with it (applied once from the response, never a second
@@ -7674,10 +7681,11 @@ function farmPlantRefusal(res,cropId){
   return 'Could not plant — please report this';
 }
 function farmSyncPlant(plotIdx,cropId){
+  const FS=farmSyncApi(); if(!FS) return;
   const prev=G.farmPlots[plotIdx];
   G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
   renderFarm();
-  window.HearthriseFarmSync.farmPlant(plotIdx,cropId).then(function(res){
+  FS.farmPlant(plotIdx,cropId).then(function(res){
     if(res&&res.ok){ farmSyncReconcile('plant',res); }
     else {
       G.farmPlots[plotIdx]=prev||null;
@@ -7695,13 +7703,15 @@ function farmSyncPlant(plotIdx,cropId){
   });
 }
 function farmSyncWater(plotIdx){
-  window.HearthriseFarmSync.farmWater(plotIdx).then(function(res){
+  const FS=farmSyncApi(); if(!FS) return;
+  FS.farmWater(plotIdx).then(function(res){
     if(res&&res.ok){ farmSyncReconcile('water',res); }
     renderFarm();
   });
 }
 function farmSyncHarvest(plotIdx){
-  window.HearthriseFarmSync.farmHarvest(plotIdx).then(function(res){
+  const FS=farmSyncApi(); if(!FS) return;
+  FS.farmHarvest(plotIdx).then(function(res){
     if(res&&res.ok){
       farmSyncReconcile('harvest',res);
       if(res.produce&&res.qty>0){ const crop=CROPS[res.crop]; notify(`+${res.qty} ${crop?crop.name:res.crop}`,'loot'); }
@@ -7750,33 +7760,19 @@ function plantCrop(plotIdx,cropId){
     notify('Crop locked — upgrade Farm Plot in House → Plot','kill');
     return;
   }
-  // Server-authority routing (DORMANT): the server owns the seed debit + plant
-  // XP + plot timestamps; the client sends the intent and renders the response.
-  if(farmSyncArmed()){ farmSyncPlant(plotIdx,cropId); return; }
-  removeItem(seedId,1);
-  /* b220: a new plot is DRY and that is now correct — it grows at the base
-     rate and matures on its own. That is what makes auto-replant work
-     unattended. b222: the `watered` mirror is no longer written. */
-  G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
-  G.stats.planted=(G.stats.planted||0)+1;
-  /* b226: 28, not 2 — farming's ×14 (spec §8.3) applies to the whole skill,
-     not only the harvest, or planting stops being worth the click. Farming is
-     exempt from PACE.xp, so this is the grant. */
-  addXp('farming',28);renderFarm();
+  /* Server-authority routing: the server owns the seed debit, the plant XP and
+     the plot timestamps. Every check above is a PRE-FLIGHT for the copy — the
+     decision, and every number, is hr_farm_plant's. */
+  farmSyncPlant(plotIdx,cropId);
 }
 /* b220: watering opens a 2h double-speed window. It is rejected while a window
    is already open — that single rule is both the anti-abuse mechanism and the
-   affordance ("this plot is thirsty again"). One tap, no confirm, no modal. */
-function applyWatering(i){
-  const p=(G.farmPlots||[])[i];
-  if(!p||!plotIsWaterable(p))return false;
-  const A=farmApi();
-  const ws=(Array.isArray(p.waterings)?p.waterings.slice():[]);
-  ws.push(Date.now());
-  G.farmPlots[i]={...p,waterings:ws};   // b222: no `watered` mirror
-  addXp('farming',(A&&A.waterXp)?A.waterXp(p):1);
-  return true;
-}
+   affordance ("this plot is thirsty again"). One tap, no confirm, no modal.
+   b514: the rule is ENFORCED BY hr_farm_water. `plotIsWaterable` survives as the
+   client-side eligibility READ — it decides which tiles "Water all" bothers the
+   server about, and it supplies the refusal sentence. The local `applyWatering`
+   WRITER (waterings.push + addXp) is deleted: it authored a watering window the
+   server never recorded, which is b462 in miniature. */
 function waterPlot(i){
   const p=(G.farmPlots||[])[i];if(!p)return;
   /* A tile the player taps while it is already ready should harvest, not
@@ -7785,14 +7781,14 @@ function waterPlot(i){
     if(p.state!=='ready')G.farmPlots[i]={...p,state:'ready'};
     harvestPlot(i);return;
   }
-  // Server-authority routing (DORMANT): the server owns the watering window +
-  // water XP; the client sends the intent and renders the response.
-  if(farmSyncArmed()){ farmSyncWater(i); return; }
-  if(!applyWatering(i)){
+  /* The server owns the watering window and the water XP. The client still says
+     the "already watered" sentence itself: it is the side that knows what the
+     player is looking at, and hr_farm_water would answer the same. */
+  if(!plotIsWaterable(p)){
     notify(`Still watered — thirsty again in ${fmtClock(plotWindowMs(p))}`,'kill');
     return;
   }
-  renderFarm();
+  farmSyncWater(i);
 }
 /* b220: header action — one tap tucks the whole farm in before bed. */
 window.waterAllPlots=function waterAllPlots(){
@@ -7803,17 +7799,11 @@ window.waterAllPlots=function waterAllPlots(){
      called applyWatering() locally for every plot, so the next envelope (server
      truth: never watered) dried them all again — Tyler, beta morning: "i water
      plants, they go back to being dry". Same eligibility test, server verb. */
-  if(farmSyncArmed()){
-    for(let i=0;i<G.farmPlots.length;i++){
-      const p=G.farmPlots[i];
-      if(p&&plotIsWaterable(p)){ farmSyncWater(i); n++; }
-    }
-    notify(n?`Watering ${n} plot${n===1?'':'s'}…`:'Nothing to water right now',n?'loot':'kill');
-    return n;
+  for(let i=0;i<G.farmPlots.length;i++){
+    const p=G.farmPlots[i];
+    if(p&&plotIsWaterable(p)){ farmSyncWater(i); n++; }
   }
-  for(let i=0;i<G.farmPlots.length;i++){ if(applyWatering(i))n++; }
-  notify(n?`Watered ${n} plot${n===1?'':'s'}`:'Nothing to water right now',n?'loot':'kill');
-  renderFarm();
+  notify(n?`Watering ${n} plot${n===1?'':'s'}…`:'Nothing to water right now',n?'loot':'kill');
   return n;
 };
 /* b228 (bonus-rebase.md §5.3) — STOP FLOORING A FLAT BONUS.
@@ -7839,43 +7829,14 @@ function rollFlatBonus(v,_rand01){
 window.rollFlatBonus=rollFlatBonus;
 function harvestPlot(i){
   const p=G.farmPlots[i];if(!p||p.state!=='ready')return;
-  // Server-authority routing (DORMANT): the server owns the seeded yield roll,
-  // the farmYield perk, the finite-perennial wither and the harvest goal
-  // counters. The client sends the intent and renders the returned plot state +
-  // the server-credited produce/XP ONCE — no local roll, no double credit.
-  if(farmSyncArmed()){ farmSyncHarvest(i); return; }
-  const crop=CROPS[p.cropId];
-  const yieldBonus=rollFlatBonus(getBonus('farmYield'));
-  const qty=rand(crop.yield[0],crop.yield[1])+yieldBonus;
-  addItem(crop.prod,qty);
-  G.stats.harvested=(G.stats.harvested||0)+qty;
-  updateDaily('harvest',qty);updateQuest('harvest',qty);
-  addXp('farming',crop.xp*qty);
-  notify(`+${qty} ${crop.name}`,'loot');
-  /* b220: a regrow restarts dry — and now that dry crops actually finish,
-     that is a fresh cycle rather than the permanent stall it used to be.
-     b420 (design ruling): a perennial is FINITE. One seed buys `regrowLimit`
-     regrows (regrowLimit+1 total harvests); after the final harvest the plant
-     withers and the plot clears — so a tomato/emberfruit DEPLETES like a player
-     expects, instead of yielding free food forever and locking the plot. The
-     count lives on the plot (`regrowCount`), defaulting 0 for legacy plots. */
-  if(crop.regrows){
-    const done=(p.regrowCount||0)+1;
-    const limit=crop.regrowLimit||0;   // 0/undefined ⇒ legacy infinite perennial
-    if(limit>0 && done>limit){
-      G.farmPlots[i]=null;
-      notify(`${crop.name} plant withered after its last harvest`,'kill');
-    }else{
-      G.farmPlots[i]={...p,plantedAt:Date.now(),state:'growing',waterings:[],regrowCount:done};   // b222: no `watered` mirror
-    }
-  }
-  else G.farmPlots[i]=null;
-  // b136: auto-replant hook. Only fires when the plot is now empty
-  // (regrow path skips it because the plot is already replanted).
-  if(!G.farmPlots[i] && window.HearthriseAuto && typeof window.HearthriseAuto.maybeReplant === 'function'){
-    window.HearthriseAuto.maybeReplant(i);
-  }
-  renderFarm();updateTopbar();
+  /* Server-authority routing: the server owns the seeded yield roll, the
+     farmYield perk, the finite-perennial wither and the harvest goal counters.
+     The client sends the intent and renders the returned plot state + the
+     server-credited produce/XP ONCE — no local roll, no double credit.
+     b514: the local roll (rand(crop.yield) + rollFlatBonus + addXp + the regrow
+     ladder) is DELETED. farmSyncHarvest reconciles from the response and fires
+     the auto-replant hook when the SERVER clears the plot. */
+  farmSyncHarvest(i);
 }
 
 /* ─── notifications ─── */

@@ -124,7 +124,7 @@ import { homedir, tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { ROOT, bootReplay } from './schema-replay.mjs';
+import { ROOT, bootReplay, manifest } from './schema-replay.mjs';
 
 const MIGDIR = join(ROOT, 'supabase', 'migrations');
 const BASELINE = join(ROOT, 'tests', 'live-hash-drift.baseline.json');
@@ -163,6 +163,10 @@ const RULES = {
   floor: 'named by the server-authority program — see FLOOR in this file',
 };
 
+const RULES_DROP = 'a name marked [DROPPED] is derived by a rule above but a migration that '
+  + 'applies AFTER its last create/patch drops it. No baseline entry is expected; it is still '
+  + 'MEASURED on both sides, so a drop that did not take goes red.';
+
 // ════════════════════════════════════════════════════════════════════════
 // THE SWEEP
 // ════════════════════════════════════════════════════════════════════════
@@ -172,6 +176,51 @@ const CHAIN_AT = 3;
 /** Strip whole-line `--` comments so prose about a function is not a hit. */
 const codeOnly = (src) => src.replace(/\r\n/g, '\n').split('\n')
   .filter((l) => !/^\s*--/.test(l)).join('\n');
+
+// ── A DELIBERATE DROP (2026-09-07-drop-dead-server-objects.sql) ────────────
+// Before this grammar existed the sweep could only ever ADD a function to the
+// tracked set. 2026-09-07 dropped eleven dead server objects, two of them
+// tracked (clan_upkeep_pay, hr_import_apply); after the live re-measure their
+// baseline entries were correctly gone — they exist neither on production nor
+// in the replay — and the sweep went on DERIVING them from their creating
+// migrations, so `untracked` fired forever on two functions that no longer
+// exist. A guard that cannot be told "this is gone" is a guard that gets its
+// red edited away.
+//
+// The grammar is ONE shape and deliberately narrow:
+//     drop function [if exists] [public.]name[(args)] [cascade|restrict] ['] ;
+// (the trailing quote is the `execute 'drop function public.x()';` form, which
+// is a real drop). Anything else — a comma-separated multi-drop, an argument
+// list with nested parens, a name built by format() — is a LOUD harness error,
+// exactly like the unreadable-patcher rule above: a drop the sweep half-reads
+// would remove a body from the tracked set silently, which is the one failure
+// this file cannot afford. Do not widen it to a match-all.
+//
+// The DECISION is ordering, and the order is the APPLY order
+// (tests/schema-apply-order.json), never the filename order — filename order
+// does not replay (schema-replay.mjs header). A name is dropped only when its
+// last drop applies AFTER its last create-or-replace / patch; a name dropped
+// and later re-created (or re-created in the SAME file) stays tracked. A
+// dropped name is not deleted from the tracked set: it keeps being MEASURED on
+// both sides, so if production or the replay still carries it, the drop is
+// reported rather than believed (see classifyLive/classifyReplay).
+const DROP_STMT = /\bdrop\s+function\s+(?:if\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s*(?:\([^()]*\))?\s*(?:cascade|restrict)?\s*'?\s*;/gi;
+const DROP_ANY = /\bdrop\s+function\b/gi;
+
+/**
+ * file -> position in the APPLY order. Files that never apply (the manifest's
+ * `excluded`, or anything absent from it) get -1: their drops are ignored,
+ * which is the fail-closed direction — an ignored drop leaves a body TRACKED.
+ */
+async function applyOrder(sources) {
+  if (sources) {
+    const k = [...sources.keys()].sort();
+    return new Map(k.map((f, i) => [f, i]));
+  }
+  const m = await manifest();
+  const seq = [...(m.pre_schema || []), ...m.order];
+  return new Map(seq.map((f, i) => [f, i]));
+}
 
 /**
  * Every function whose LIVE body this repo has an opinion about.
@@ -191,9 +240,17 @@ export async function sweep(sources) {
     const e = byName.get(name);
     e.rules.add(rule);
     if (file) e.files.add(file);
+    // A `pin` file READS the body back — to hash-pin it or to patch it at an
+    // anchor. Either way the body it touches is one the chain still builds, so
+    // it counts as a build for the drop-ordering decision below.
+    if (file && rule === 'pin') addTo(builtIn, name, file);
   };
   const restated = new Map();
   const shapeless = [];
+  const ord = await applyOrder(sources);
+  const builtIn = new Map();   // name -> Set(file) that CREATES or PATCHES it
+  const dropsIn = new Map();   // name -> Set(file) that drops it
+  const addTo = (map, n, f) => map.set(n, (map.get(n) || new Set()).add(f));
 
   for (const f of files) {
     const sql = codeOnly(sources ? sources.get(f) : await readFile(join(MIGDIR, f), 'utf8'));
@@ -203,7 +260,18 @@ export async function sweep(sources) {
     for (const m of sql.matchAll(/create\s+or\s+replace\s+function\s+public\.([a-z_0-9]+)\s*\(/gi)) {
       authored.add(m[1]);
     }
-    for (const n of authored) restated.set(n, (restated.get(n) || new Set()).add(f));
+    for (const n of authored) { restated.set(n, (restated.get(n) || new Set()).add(f)); addTo(builtIn, n, f); }
+
+    // (drop) the one shape above — read BEFORE any early `continue`, since a
+    // file may drop a function without ever reading a body back.
+    let dropHits = 0;
+    for (const m of sql.matchAll(DROP_STMT)) { addTo(dropsIn, m[1].toLowerCase(), f); dropHits += 1; }
+    const dropMentions = (sql.match(DROP_ANY) || []).length;
+    if (dropMentions !== dropHits) {
+      shapeless.push(`${f}: ${dropMentions - dropHits} of ${dropMentions} "drop function" statement(s) `
+        + 'in a shape sweep() cannot read (it reads only: drop function [if exists] '
+        + '[public.]name[(args)] [cascade|restrict];)');
+    }
 
     /* (pin, prosrc shape — 2026-09-06-companion-grant-hardening.sql) a migration
        that reads a body via `select prosrc from pg_proc where oid = <var>` with
@@ -289,8 +357,29 @@ export async function sweep(sources) {
 
   for (const [n, fs_] of restated) if (fs_.size >= CHAIN_AT) for (const f of fs_) note(n, 'chain', f);
   for (const n of Object.keys(FLOOR)) note(n, 'floor', null);
+
+  /* The drop decision, in APPLY order. `>=` on the build side means a file that
+     drops and then re-creates a signature (the market_v2 idiom) counts as a
+     BUILD, and a FLOOR name is not exempt: the program floor names bodies whose
+     live state matters, and "it was deliberately deleted" is a live state. The
+     entry stays in the map — dropped, not forgotten — so both sides keep
+     measuring it. */
+  for (const [n, dfiles] of dropsIn) {
+    const e = byName.get(n);
+    if (!e) continue;                       // nothing tracked this name anyway
+    const at = (f) => (ord.has(f) ? ord.get(f) : -1);
+    const lastDrop = [...dfiles].reduce((a, f) => Math.max(a, at(f)), -1);
+    if (lastDrop < 0) continue;             // dropped only by a file that never applies
+    const lastBuild = [...(builtIn.get(n) || [])].reduce((a, f) => Math.max(a, at(f)), -1);
+    if (lastBuild >= lastDrop) continue;    // re-created or re-patched after the drop
+    e.dropped = [...dfiles].filter((f) => at(f) === lastDrop)[0];
+  }
   return byName;
 }
+
+/** name -> the migration that dropped it, for the entries sweep() marked. */
+export const droppedIn = (tracked) => new Map(
+  [...tracked].filter(([, t]) => t.dropped).map(([n, t]) => [n, t.dropped]));
 
 // ════════════════════════════════════════════════════════════════════════
 // THE MEASUREMENT — one query shape, run on production AND on the replay
@@ -369,11 +458,15 @@ function censusOk(rows, where) {
  * Production rows vs the baseline. No IO, no exit.
  * @returns {{findings:{key:string,detail:string}[], checked:number}}
  */
-export function classifyLive(prodRows, base) {
+export function classifyLive(prodRows, base, dropped = new Map()) {
   const findings = [];
   const say = (key, detail) => findings.push({ key, detail });
   const prod = asMap(prodRows);
-  const tracked = new Set(base.functions.map((e) => e.name));
+  /* A DROPPED name has no baseline entry, so without this it would stop being
+     "ours to police" and production could keep a deleted privileged body
+     forever, unwatched. A dropped name is still tracked for the live-extra arm
+     below — that is the whole point of measuring it after the drop. */
+  const tracked = new Set([...base.functions.map((e) => e.name), ...dropped.keys()]);
 
   for (const e of base.functions) {
     const p = prod.get(e.sig);
@@ -422,6 +515,14 @@ export function classifyLive(prodRows, base) {
     if (known.has(sig)) continue;
     const name = sig.split('(')[0];
     if (!tracked.has(name)) continue;   // not ours to police
+    if (dropped.has(name)) {
+      say(`live-extra ${sig}`,
+        `the repo chain DROPS this function (${dropped.get(name)}) and production still carries `
+        + `it, md5 ${r.body_md5}. Either the drop was never applied or something re-created it; `
+        + 'a body the repo believes is deleted is a body nobody is watching. Apply the drop, or '
+        + 'restore the create and re-baseline.');
+      continue;
+    }
     say(`live-extra ${sig}`,
       `production carries this signature under the tracked name "${name}" and the baseline `
       + `does not list it (md5 ${r.body_md5}). Every hash pin in this repo names an EXACT `
@@ -433,14 +534,28 @@ export function classifyLive(prodRows, base) {
 }
 
 /** The repo replay vs the baseline. Credential-free; this is the CI half. */
-export function classifyReplay(replayRows, base, derivedNames) {
+export function classifyReplay(replayRows, base, derivedNames, dropped = new Map()) {
   const findings = [];
   const say = (key, detail) => findings.push({ key, detail });
   const rep = asMap(replayRows);
   const byName = new Set(base.functions.map((e) => e.name));
+  const builtInReplay = new Set([...rep.keys()].map((s) => s.split('(')[0]));
 
   for (const n of derivedNames) {
     if (byName.has(n)) continue;
+    /* Deliberately dropped, and the replay agrees it is gone: no entry is the
+       CORRECT state. But the drop is believed only as far as it is measured —
+       if the chain still builds a body under this name, the drop did not take
+       (a later file re-creates it, or it was dropped at a different arity) and
+       the function goes straight back to being untracked. */
+    if (dropped.has(n)) {
+      if (!builtInReplay.has(n)) continue;
+      say(`untracked ${n}`,
+        `${dropped.get(n)} drops this function and the repo chain STILL BUILDS it. A drop that `
+        + 'does not take is worse than no drop: the sweep stops watching the body and the body '
+        + 'is still there. Fix the drop (arity? a later file re-creating it?) or delete it.');
+      continue;
+    }
     say(`untracked ${n}`,
       'the sweep derives this function as hash-pinned, programmatically patched or restated '
       + `by ${CHAIN_AT}+ migrations, and the baseline has no entry for it. A tracked body with `
@@ -838,19 +953,68 @@ function selftestCases(base) {
     rows: () => liveRows.map((r) => ({ ...r, mojibake: false })),
   };
 
+  /* ── THE DROP, AS THE CLASSIFIERS SEE IT ────────────────────────────────
+     sweep() deciding "dropped" is only half of it. The other half is that a
+     dropped name must not go silent: it stays in the measurement, so if either
+     side still carries the body the guard says so. DROPPED is the name the
+     sweep retired; DEAD_SIG is the signature that must no longer exist. */
+  const DROPPED = 'hr_selftest_dropped_verb';
+  const DEAD_SIG = `${DROPPED}(p_slot integer)`;
+  const DROPMAP = () => new Map([[DROPPED, '9000-02-drop.sql']]);
+
+  cases.dropped_and_gone_is_quiet = {
+    what: 'a genuinely dropped function — absent from the replay and from the baseline — must '
+        + 'produce NO finding. Without this the guard is red forever after any cleanup migration, '
+        + 'and a permanently red guard is a deleted guard',
+    side: 'replay',
+    expectNone: true,
+    dropped: DROPMAP,
+    names: () => new Set([...names, DROPPED]),
+    rows: () => repRows,
+  };
+
+  cases.drop_did_not_take_replay = {
+    what: 'the chain says drop and the chain STILL BUILDS the body (a later file re-creates it at '
+        + 'another arity, say). The drop must not be believed on its own word — the body is '
+        + 'tracked again',
+    side: 'replay',
+    expect: `untracked ${DROPPED}`,
+    dropped: DROPMAP,
+    names: () => new Set([...names, DROPPED]),
+    rows: () => {
+      const out = [...repRows, { sig: DEAD_SIG, body_md5: 'f'.repeat(32), norm_len: 50, mojibake: false }];
+      return out.map((r) => (r.sig === '__census__' ? { ...r, norm_len: out.length - 1 } : r));
+    },
+  };
+
+  cases.dropped_but_live_still_has_it = {
+    what: 'the repo dropped the function and PRODUCTION still carries it — the drop was never '
+        + 'applied, or something re-created it. A deleted-in-the-repo privileged body still '
+        + 'callable on production is exactly what this guard exists to see',
+    side: 'live',
+    expect: `live-extra ${DEAD_SIG}`,
+    dropped: DROPMAP,
+    rows: () => {
+      const out = [...liveRows, { sig: DEAD_SIG, body_md5: 'f'.repeat(32), norm_len: 50, mojibake: false }];
+      return out.map((r) => (r.sig === '__census__' ? { ...r, norm_len: out.length - 1 } : r));
+    },
+  };
+
   return { cases, liveRows, repRows, names };
 }
 
 async function selftest() {
   const base = await loadBaseline();
-  const derived = [...(await sweep()).keys()];
+  const trackedNow = await sweep();
+  const derived = [...trackedNow.keys()];
+  const gone = droppedIn(trackedNow);
   const { cases, liveRows, repRows, names } = selftestCases(base);
 
   // THE FALSE-POSITIVE FLOOR. If a production identical to the baseline already
   // produces findings, every case below would "pass" on the noise floor.
   censusOk(liveRows, 'synthetic live');
-  const cleanLive = classifyLive(liveRows, base).findings;
-  const cleanRep = classifyReplay(repRows, base, derived).findings;
+  const cleanLive = classifyLive(liveRows, base, gone).findings;
+  const cleanRep = classifyReplay(repRows, base, derived, gone).findings;
   if (cleanLive.length || cleanRep.length) {
     throw harness('--selftest: a database identical to the baseline produced '
       + `${cleanLive.length + cleanRep.length} finding(s), so every planted defect below would `
@@ -872,6 +1036,13 @@ async function selftest() {
          + '  v_src := pg_get_functiondef(some_helper(v_target));\n'
          + '  execute replace(v_src, \'a\', \'b\');\nend $$;',
       expect: 'yielded NO signature',
+    },
+    unparseable_drop: {
+      what: 'a migration drops functions in a shape sweep() cannot read (here: the comma-separated '
+          + 'multi-drop). Half-reading a drop would retire a body from the tracked set silently',
+      sql: "select pg_get_functiondef('public.hr_sel_x(p_slot integer)'::regprocedure);\n"
+         + 'drop function if exists public.hr_sel_x(p_slot integer), public.hr_sel_y(p_slot integer);',
+      expect: 'in a shape sweep() cannot read',
     },
     unresolvable_variable: {
       what: 'a patcher loops over signatures held somewhere sweep() cannot follow',
@@ -902,15 +1073,57 @@ async function selftest() {
   }
   console.log(`  ok  ${'sweep_no_false_positive'.padEnd(26)} a body-free migration adds nothing`);
 
+  /* ── THE DROP GRAMMAR, PROVEN IN BOTH DIRECTIONS ────────────────────────
+     A drop is the only rule in this file that REMOVES something from the
+     tracked set, so it is the only one that can quietly stop watching a live
+     body. Each arm below plants a whole synthetic chain (nothing is written to
+     a real migration) and asserts the DECISION, not just that sweep() ran. */
+  const V = 'hr_selftest_dropped_verb';
+  const PIN = `select pg_get_functiondef('public.${V}(p_slot integer)'::regprocedure);`;
+  const DROP = `drop function if exists public.${V}(p_slot integer);`;
+  const MAKE = `create or replace function public.${V}(p_slot integer) returns int language sql as $b$ select 1 $b$;`;
+  const CHAINS = {
+    genuine_drop_retires: {
+      what: 'a real drop — nothing re-creates the body — retires the name, so the baseline is '
+          + 'ALLOWED to have no entry for it (2026-09-07-drop-dead-server-objects.sql)',
+      files: [['9000-01-a.sql', PIN], ['9000-02-drop.sql', DROP]],
+      want: (t) => t.get(V) && t.get(V).dropped === '9000-02-drop.sql',
+      why: 'expected sweep() to mark it dropped by 9000-02-drop.sql',
+    },
+    fake_drop_recreated_later: {
+      what: 'a file says drop and a LATER file re-creates the body. The chain still builds it, so '
+          + 'it must stay tracked — believing the drop would stop watching a live function',
+      files: [['9000-01-a.sql', PIN], ['9000-02-drop.sql', DROP], ['9000-03-make.sql', MAKE]],
+      want: (t) => t.get(V) && !t.get(V).dropped,
+      why: 'expected the name to stay TRACKED (no .dropped mark) because a later file re-creates it',
+    },
+    drop_then_recreate_same_file: {
+      what: 'the market_v2 idiom: one file drops a signature and re-creates it a few lines later. '
+          + 'Ordering alone cannot separate them, so a build in the dropping file wins',
+      files: [['9000-01-a.sql', PIN], ['9000-02-drop.sql', `${DROP}\n${MAKE}`]],
+      want: (t) => t.get(V) && !t.get(V).dropped,
+      why: 'expected the name to stay TRACKED when its dropping file also re-creates it',
+    },
+  };
+  for (const [id, c] of Object.entries(CHAINS)) {
+    const t = await sweep(new Map(c.files));
+    if (c.want(t)) console.log(`  ok  ${id.padEnd(26)} ${t.get(V)?.dropped ? `dropped by ${t.get(V).dropped}` : 'stays tracked'}`);
+    else {
+      console.error(`  ✗  ${id} — ${c.why}; got ${JSON.stringify(t.get(V)?.dropped ?? null)}\n     ${c.what}`);
+      process.exitCode = 1; bad += 1;
+    }
+  }
+
   for (const [id, c] of Object.entries(cases)) {
     const b = c.base ? c.base() : base;
     const nm = c.names ? [...c.names()] : derived;
+    const dm = c.dropped ? c.dropped() : gone;
     let got = [];
     let harnessMsg = null;
     try {
       const rows = c.rows();
-      if (c.side === 'live') { censusOk(rows, 'planted'); got = classifyLive(rows, b).findings; }
-      else got = classifyReplay(rows, b, nm).findings;
+      if (c.side === 'live') { censusOk(rows, 'planted'); got = classifyLive(rows, b, dm).findings; }
+      else got = classifyReplay(rows, b, nm, dm).findings;
     } catch (e) {
       if (!e.harness) throw e;
       harnessMsg = String(e.message);
@@ -930,6 +1143,16 @@ async function selftest() {
       console.error(`  ✗  ${id} — UNEXPECTED HARNESS ERROR: ${harnessMsg.split('\n')[0]}\n     ${c.what}`);
       bad += 1; continue;
     }
+    /* An expectNone case asserts SILENCE, which is only meaningful because the
+       clean floor above proved the same inputs are otherwise quiet. */
+    if (c.expectNone) {
+      if (!got.length) console.log(`  ok  ${id.padEnd(26)} no finding, as required`);
+      else {
+        console.error(`  ✗  ${id} — expected NO finding; got: ${got.map((f) => f.key).join(', ')}\n     ${c.what}`);
+        bad += 1;
+      }
+      continue;
+    }
     const hit = got.find((f) => f.key === c.expect);
     if (hit) console.log(`  ok  ${id.padEnd(26)} ${hit.key}`);
     else {
@@ -942,8 +1165,8 @@ async function selftest() {
     console.error(`\n${bad} planted defect(s) were not caught by the assertion written for them.`);
     process.exit(1);
   }
-  console.log(`\nall ${Object.keys(cases).length + Object.keys(SHAPES).length + 1} planted defects `
-    + 'caught by their NAMED assertion');
+  console.log(`\nall ${Object.keys(cases).length + Object.keys(SHAPES).length
+    + Object.keys(CHAINS).length + 1} planted defects caught by their NAMED assertion`);
 }
 
 // ── --mutate: the same proof, against the REAL migration text ──────────────
@@ -991,7 +1214,9 @@ const MUTATIONS = {
 
 async function mutate() {
   const base = await loadBaseline();
-  const derived = [...(await sweep()).keys()];
+  const trackedNow = await sweep();
+  const derived = [...trackedNow.keys()];
+  const goneNow = droppedIn(trackedNow);
   let slipped = 0;
   for (const [id, m] of Object.entries(MUTATIONS)) {
     /* LF, always. bootReplay normalises the migration it reads; .gitattributes
@@ -1003,7 +1228,7 @@ async function mutate() {
     let got = [];
     try {
       const { rows } = await measureReplay(patches);
-      got = classifyReplay(rows, base, derived).findings;
+      got = classifyReplay(rows, base, derived, goneNow).findings;
     } catch (e) {
       if (e.harness && !e.replay) { console.error(`HARNESS  ${id}: ${e.message}`); process.exit(2); }
       // A file that stops APPLYING is a catch too, but not the one written down.
@@ -1126,10 +1351,12 @@ async function main() {
     const tracked = await sweep();
     console.log(`${tracked.size} tracked function names:\n`);
     for (const [n, t] of [...tracked].sort()) {
-      console.log(`${n.padEnd(34)} ${[...t.rules].sort().join('+')}`);
+      console.log(`${n.padEnd(34)} ${[...t.rules].sort().join('+')}`
+        + (t.dropped ? `  [DROPPED by ${t.dropped} — no baseline entry expected]` : ''));
     }
     console.log('\nrules:');
     for (const [k, v] of Object.entries(RULES)) console.log(`  ${k.padEnd(7)} ${v}`);
+    console.log(`  ${'drop'.padEnd(7)} ${RULES_DROP}`);
     return;
   }
   const cdAt = argv.indexOf('--codediff');
@@ -1146,16 +1373,17 @@ async function main() {
   const cmpAt = argv.indexOf('--live-compare');
   if (cmpAt !== -1 || argv.includes('--live')) {
     const base = await loadBaseline();
+    const trackedLive = await sweep();
     let rows;
     if (cmpAt !== -1) {
       const file = argv[cmpAt + 1];
       if (!file) throw harness('--live-compare needs the JSON produced by running --live-sql on production');
       rows = readRows(JSON.parse(await readFile(file, 'utf8')));
     } else {
-      rows = readRows(await fetchLive(bodyQuery([...(await sweep()).keys()])));
+      rows = readRows(await fetchLive(bodyQuery([...trackedLive.keys()])));
     }
     censusOk(rows, 'live');
-    const { findings, checked } = classifyLive(rows, base);
+    const { findings, checked } = classifyLive(rows, base, droppedIn(trackedLive));
     console.log(`live-hash-drift: ${checked} tracked bodies compared against production `
       + `(baseline measured ${base.live_measured}).`);
     if (!findings.length) {
@@ -1172,10 +1400,12 @@ async function main() {
 
   // ── the credential-free half (CI) ────────────────────────────────────────
   const base = await loadBaseline();
-  const derived = [...(await sweep()).keys()];
+  const tracked = await sweep();
+  const derived = [...tracked.keys()];
+  const gone = droppedIn(tracked);
   const { rows, ms } = await measureReplay();
   censusOk(rows, 'replay');
-  const { findings } = classifyReplay(rows, base, derived);
+  const { findings } = classifyReplay(rows, base, derived, gone);
 
   console.log(`live-hash-drift: ${derived.length} tracked names, ${base.functions.length} baselined `
     + `bodies, replayed in ${(ms / 1000).toFixed(1)}s`);
@@ -1198,6 +1428,11 @@ async function main() {
   if (absent.length) {
     console.log(`  ${absent.length} recorded as NOT on production:`);
     for (const e of absent) console.log(`    · ${e.sig} — ${e.why || '(no reason recorded)'}`);
+  }
+  if (gone.size) {
+    console.log(`  ${gone.size} derived name(s) DROPPED by the chain — no baseline entry expected,`);
+    console.log('  and still measured on both sides so a drop that did not take goes red:');
+    for (const [n, f] of [...gone].sort()) console.log(`    · ${n.padEnd(30)} dropped by ${f}`);
   }
   const age = base.live_measured
     ? Math.round((Date.now() - Date.parse(base.live_measured)) / 86400000) : null;

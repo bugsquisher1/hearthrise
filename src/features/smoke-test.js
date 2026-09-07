@@ -554,6 +554,181 @@ const withLocalFarm = (fn) => {
   try { return fn(); } finally { if (had) F.isFarmServerArmed = prev; }
 };
 
+/* ==========================================================================
+   b515 - withServerBacked: THE ONE FIXTURE FOR "THE SERVER OWNS THE OUTCOME".
+   ==========================================================================
+   WHAT IT REPLACES, AND WHY THE THING IT REPLACES WAS NEVER A TEST OF THE GAME.
+   Twenty-six gameplay tests in this file ran under `tryRunClientAuthoritative`,
+   which turned the b353 kill switch OFF for the duration. Off, `isRecordActive()`
+   was false, so `clientMayWriteRecordField()` answered TRUE for every field and
+   the client authored its own gold, gems, marks, skills and room rungs. Those
+   tests therefore measured a pre-cutover client that has not shipped since b454
+   and no longer exists at all: the switch is retired (b515) and the OFF branches
+   are deleted. Every one of them went red in the same run, and the honest
+   reading of that red is not "the suite broke" - it is "these tests were never
+   watching the shipping game".
+
+   THE SHIPPING GAME, stated exactly, because the fixture has to be shaped like
+   it (src/net/gold.js `sendGoldIntent` -> `settleVerdict`):
+
+     gesture -> buildGoldRequest -> fetch(hr-accrue) -> the answer body carries
+     an ENVELOPE -> the `onEnvelope` hook (the REAL applier, wired by legacy.js)
+     -> `G.gold` / `G.gems` / the record are written ABSOLUTELY from the SERVER's
+     numbers -> the local prediction is retired.
+
+   So the fixture stubs exactly ONE thing - `window.fetch` - and leaves every
+   other link real: the request builder, the intent key, the classifier, the
+   envelope reader, the applier, the prediction ledger. A test written on it
+   proves the two halves the client actually owns now (the gesture became the
+   right INTENT, and the SERVER's answer was applied once) and cannot pass by
+   the client having authored the number, because the client cannot.
+
+   THE DRAIN IS NOT OPTIONAL AND A MICROTASK DRAIN IS NOT ENOUGH. `res.json()`
+     resolves on a TASK. B354-1 learned this the hard way: eighty
+     `await Promise.resolve()`s asserted on a balance the envelope had not
+     reached and reported the double-pay window as OPEN when it was closed. Use
+     `await rig.drain()` after any gesture and before any assertion.
+
+   IT IS NOT A LICENCE TO ASSERT A CLIENT NUMBER. The envelope this fixture
+     answers with is the SERVER's, and a test must assert the server's value
+     landed - never that the client's arithmetic did. `grant` is deliberately an
+     ABSOLUTE state, not a delta, for that reason: a test that wants "+50 gold"
+     has to state the total it expects the server to have reached, which is the
+     only thing the player will ever see.
+
+   rig = {
+     sent,                  every intent body that reached the wire, in order
+     drain(),               await this before asserting (see above)
+     grant(state, extra),   set the NEXT answer's `state` overrides / body extras
+     reply(fn),             full control: (body, url) => Response | body | null
+     envelope(state, extra) build one by hand (for a test that applies its own)
+   }
+   `opts.state` seeds the answer's state for every call; `opts.urlRe` (default
+   /hr-accrue/) selects which requests are intercepted - anything else falls
+   through to the real fetch, so an icon or a stylesheet still loads. */
+const withServerBacked = (opts, fn) => {
+  const o = opts || {};
+  const G = window.G;
+  const Gd = window.HearthriseGold;
+  const urlRe = o.urlRe || /hr-accrue/;
+  const realFetch = window.fetch;
+  const hadGoldCfg = (Gd && typeof Gd.getGoldConfig === 'function') ? Gd.getGoldConfig() : null;
+  const sent = [];
+  let version = 1000;
+  let nextState = null;
+  let nextExtra = null;
+  let replyFn = null;
+
+  /* The answer body. `state`, `skills` and `inventory` are all REQUIRED by
+     src/net/gold.js `envelopeOf` - a body missing any of them is not an
+     envelope, is not applied, and would make every assertion below measure the
+     ABANDONED branch instead of the applied one. Built from what G holds now so
+     the fixture never silently rewrites a field the test did not name. */
+  const envelope = (state, extra) => {
+    const skills = {};
+    for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+    return Object.assign({
+      ok: true,
+      version: ++version,
+      now: new Date().toISOString(),
+      state: Object.assign(
+        { gold: G.gold, gems: G.gems, active_kind: 'idle', active_id: null, accrued_to: null },
+        o.state, state
+      ),
+      skills,
+      inventory: Object.assign({}, G.inventory),
+    }, o.extra, extra);
+  };
+
+  const rig = {
+    sent,
+    envelope,
+    drain: async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); },
+    grant: (state, extra) => { nextState = state || null; nextExtra = extra || null; return rig; },
+    reply: (f) => { replyFn = f; return rig; },
+  };
+
+  window.fetch = function (u, init) {
+    const url = String(u);
+    if (!urlRe.test(url)) return realFetch.apply(this, arguments);
+    let body = null;
+    try { body = JSON.parse((init && init.body) || 'null'); } catch (e) { body = null; }
+    sent.push(body);
+    if (replyFn) {
+      const custom = replyFn(body, url, sent);
+      if (custom) {
+        return Promise.resolve(custom instanceof Response
+          ? custom : new Response(JSON.stringify(custom), { status: 200 }));
+      }
+    }
+    return Promise.resolve(new Response(JSON.stringify(envelope(nextState, nextExtra)), { status: 200 }));
+  };
+  if (Gd && typeof Gd.configureGold === 'function') {
+    Gd.resetGold();
+    Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+  }
+
+  const restore = () => {
+    window.fetch = realFetch;
+    if (Gd && typeof Gd.configureGold === 'function') { Gd.resetGold(); Gd.configureGold(hadGoldCfg || null); }
+  };
+  let r;
+  try { r = fn(rig); } catch (e) { restore(); throw e; }
+  if (r && typeof r.then === 'function') {
+    return r.then((v) => { restore(); return v; }, (e) => { restore(); throw e; });
+  }
+  restore();
+  return r;
+};
+
+/* -- serverGrants - "THE SERVER SAYS YOU NOW HAVE THIS", WITH NO ROUND TRIP --
+   The sibling of `withServerBacked` for the tests whose subject is NOT the
+   gesture. A collection milestone's REWARD is claimed through a verb (that is
+   `withServerBacked`'s job); a Renown PERK, a property rung or a marks balance
+   is simply a number the server states and the client renders - and a test of
+   the RENDER should not have to fake a purchase to get one.
+
+   It is the same faithful path `stampRecordLikeLoad` documents: values are set
+   on G, then pushed through the REAL `applyRecord` as a properly shaped hr_load
+   envelope, so `recordValue`/`balanceOf`/`roomsOf`/`marksOf` all report `server`
+   afterwards. Nothing pokes `_record`.
+
+   FIELDS THAT ARE NOT FLAT SCALARS GO ON G FIRST. `rooms` ships as `progress[]`
+     rows and `skills`/`equipment` as top-level siblings, which is why they are
+     read off G rather than passed here: `G.rooms = {kitchen: 1}; serverGrants()`
+     is the whole idiom, and it is the same three placements hr_state_of uses. */
+const serverGrants = (state) => stampRecordLikeLoad(window.G, { state: state || {} });
+
+/* -- withCompanionRoster - THE ROSTER ARRIVES THE WAY THE SERVER SENDS IT ----
+   Under the capstone the starter fox is NOT seeded by the client: companions.js
+   `ensureState` fails CLOSED to an empty roster and `accrue.js
+   reconcileCompanions` rebuilds it from `res.companions` on every envelope
+   (seeding fox locally before that envelope lands would silently reset a player
+   who owns more). Six tests in this file were passing only because an EARLIER
+   test had left a fox in the ambient `G.companions` - order-dependent, and
+   invisible until the tests that seeded it were retired.
+
+   So the roster is installed the one honest way: through the real
+   `reconcileCompanions`, from an envelope shaped like the server's. Restored
+   afterwards, because `G.companions` is ambient state the next test inherits. */
+const withCompanionRoster = (owned, equipped, fn) => {
+  const G = window.G;
+  const A = window.HearthriseAccrual;
+  const prev = G.companions ? JSON.parse(JSON.stringify(G.companions)) : undefined;
+  const xp = {};
+  const ids = [];
+  for (const e of (owned || [])) {
+    if (typeof e === 'string') ids.push(e);
+    else if (e && e.id) { ids.push(e.id); if (e.xp) xp[e.id] = e.xp; }
+  }
+  if (A && typeof A.reconcileCompanions === 'function') {
+    A.reconcileCompanions(G, { companions: { owned: ids, xp, equipped: equipped || null } });
+  }
+  try { return fn(); } finally {
+    if (prev === undefined) { try { delete G.companions; } catch (e) {} } else G.companions = prev;
+  }
+};
+
 /* ── b369 — HOW THE SUITE ARMS THE ENVELOPE FLIP, AND THE ONLY WAY IT MAY ────
    From b369 the absolute envelope arms on ONE fact: the server acknowledged an
    equip round trip in this session (src/net/equip.js, the arming block). There
@@ -4030,56 +4205,64 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('HATCH-REFUSE-4: DORMANT is byte-unchanged — the local add is inline and NO grant call is made', () => {
-    /* THE CONTROL for the three above. Every one of them pins the arm ON; if the
-       confirm path were unconditional, a dormant client (and every offline test
-       run) would stop delivering companions entirely. */
-    const CO = window.HearthriseCompanions;
-    const Cap = window.HearthriseCapstone;
-    if (!CO || typeof CO.needsServerConfirm !== 'function' || !Cap || !Cap.__setBlobRetired) return;
-    const id = Object.keys(window.COMPANIONS || {}).find((k) => String(window.COMPANIONS[k].source || '').indexOf('drop:') === 0);
-    const shopId = Object.keys(window.COMPANIONS || {}).find((k) => String(window.COMPANIONS[k].source || '').indexOf('shop') === 0);
-    if (!id) return;
-    const snap = snapshotG();
-    const origFetch = window.fetch;
-    let grantCalls = 0;
-    try {
-      window.fetch = function (url) {
-        if (String(url).indexOf('hr_companion_grant') !== -1) grantCalls++;
-        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
-      };
-      Cap.__setBlobRetired(false);
-      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
-      assert(CO.needsServerConfirm(id) === false, 'dormant must never take the confirm path');
-      let cheered = 0;
-      const r = window.unlockCompanion(id, () => { cheered++; });
-      assert(r === true, 'dormant unlockCompanion must still return true');
-      assert(window.G.companions.ownedIds.indexOf(id) >= 0, 'dormant must add the companion inline');
-      assert(cheered === 1, 'dormant must run the celebration synchronously (it did ' + cheered + ' times)');
-      assert(grantCalls === 0, 'dormant fired a grant RPC — the dormant path must be byte-unchanged');
+  /* HATCH-REFUSE-4 IS RETIRED (b515). It was the DORMANT control for the three
+     tests above: with the capstone disarmed, `needsServerConfirm()` must answer
+     false, the companion must be added inline, the celebration must run
+     synchronously and NO hr_companion_grant may be fired — otherwise a dormant
+     client (and every offline suite run) would stop delivering companions.
 
-      /* THE POSITIVE CONTROL. Without it every assertion above is satisfied by a
-         needsServerConfirm() that answers false for everything — which is the
-         pre-b499 behaviour this test is supposed to be able to see. */
-      Cap.__setBlobRetired(true);
-      if (Cap.isBlobRetired() === true && window.HearthriseGoalClaim
-          && typeof window.HearthriseGoalClaim.grantCompanion === 'function') {
-        assert(CO.needsServerConfirm(id) === true,
-          'CONTROL FAILED: with the capstone armed a drop companion must be server-confirmed. Everything '
-          + 'above is measuring a confirm path that never engages.');
-        /* SHOP companions never take it on EITHER setting: their server row comes
-           from hr_unlock_buy, and hr_companion_grant refuses them `not_grantable`
-           (2026-09-06-companion-grant-hardening.sql §4(d)). */
-        if (shopId) {
-          assert(CO.needsServerConfirm(shopId) === false,
-            'a SHOP companion must not be routed through hr_companion_grant — the server refuses it not_grantable');
-        }
-      }
-    } finally {
-      Cap.__setBlobRetired(null);
-      window.fetch = origFetch;
-      restoreG(snap);
+     companions.js's `blobRetired()` is now `return true`, a literal, not a read
+     of `window.HearthriseCapstone`. That is deliberate and it is documented at
+     the definition: the capstone predicate ANDed the b353 kill switch, so its
+     false position only existed on a device holding `hr:serverAccrual=off`.
+     `__setBlobRetired(false)` therefore selects nothing here, and a "dormant"
+     assertion would have been grading the armed path under a dormant name —
+     which is worse than no test.
+
+     Its OTHER half is not about a position at all and is kept, below: which
+     acquisitions route through hr_companion_grant and which must not. That fork
+     is live, it is the one a wrong answer breaks (a shop companion sent to the
+     grant verb is refused `not_grantable` and the player never receives it), and
+     it is the positive control HATCH-REFUSE-1..3 need in order to mean anything. */
+  () => tryRun('HATCH-REFUSE-4b: WHICH acquisitions are server-confirmed is a fork, and shop/starter are not on it', () => {
+    const CO = window.HearthriseCompanions;
+    if (!CO || typeof CO.needsServerConfirm !== 'function') { skip('companions seam absent'); return; }
+    if (!(window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.grantCompanion === 'function')) {
+      skip('hr_companion_grant transport absent'); return;
     }
+    const src = window.COMPANIONS || {};
+    const bySource = (pfx) => Object.keys(src).find((k) => String(src[k].source || '').indexOf(pfx) === 0);
+    const dropId = bySource('drop:');
+    const shopId = bySource('shop');
+    const starterId = bySource('starter');
+    assert(dropId, 'no drop-sourced companion in the catalogue — this guard would be vacuous');
+
+    /* A DROP is the case the ladder exists for: it has no other server writer,
+       so it MUST be confirmed before it appears, or a reload takes it back. */
+    assert(CO.needsServerConfirm(dropId) === true,
+      'a drop companion (' + dropId + ') is not server-confirmed — it would be added locally, the residue '
+      + 'would not carry it, and reconcileCompanions would delete it on the next envelope');
+
+    /* A SHOP companion already gets its row from hr_unlock_buy, and
+       hr_companion_grant refuses it `not_grantable`
+       (2026-09-06-companion-grant-hardening.sql §4(d)) — routing it here would
+       be a purchase the player pays for and never receives. */
+    if (shopId) {
+      assert(CO.needsServerConfirm(shopId) === false,
+        'a SHOP companion (' + shopId + ') was routed through hr_companion_grant — the server refuses it '
+        + 'not_grantable, so the purchase would complete and the companion would never arrive');
+    }
+    /* The starter fox is owned by GRAMMAR — reconcileCompanions unions it into
+       every roster and there is no row to grant. */
+    if (starterId) {
+      assert(CO.needsServerConfirm(starterId) === false,
+        'the starter companion (' + starterId + ') was routed through the grant verb — it has no server row '
+        + 'and never will; reconcileCompanions owns it');
+    }
+    /* CONTROL: an id the catalogue does not know must not be confirmable, or the
+       three answers above could all be a function that says whatever it likes. */
+    assert(CO.needsServerConfirm('no_such_companion_xyz') === false,
+      'an unknown id was declared server-confirmable');
   }),
 
   () => tryRunAsync('server-credited (Tier-1 collection): under arm a milestone claim PROCEEDS, fires hr_claim_milestone WITH the slot, and does not double-pay locally', async () => {
@@ -9836,20 +10019,29 @@ const TESTS = [
     // point). Behavioral, not source-based — saveLocal is wrapped (multi-char),
     // so inspecting its source would miss the underlying call. Spy passes
     // through, so the real save still happens.
-    /* b456: the capstone RETIRES the blob, so `saveLocal()` returns before it
-       writes anything and this spy would see nothing — which says nothing about
-       the SEAM. What is being guarded is that when the save DOES write, it goes
-       through the platform facade (the Steam/mobile swap point), so it is driven
-       in the position where a write happens. The armed no-op has its own test
-       (CAPSTONE-NOOP). */
-    if (typeof window.saveLocal === 'function') {
-      withLocalBlob(() => {
-        const origSet = S.setJSON;
-        let sawSaveKey = false;
-        S.setJSON = function (k) { if (k === 'hearthbound-save-v2') sawSaveKey = true; return origSet.apply(S, arguments); };
-        try { window.saveLocal(); } finally { S.setJSON = origSet; }
-        assert(sawSaveKey, 'saveLocal should persist the game save through the Storage seam');
-      });
+    /* b515 — RE-POINTED AT THE CALL SITE THAT STILL EXISTS. This half used to
+       spy on `saveLocal()` writing the save blob through the facade, driven with
+       the blob live (`withLocalBlob`). There is no blob write at ANY position now:
+       b515 deleted the ~65 lines under saveLocal's capstone gate, and `saveLocal`
+       is one `G.lastSeen = Date.now()`. Driving a deleted branch would be a test
+       of nothing wearing the name of the platform-swap guard.
+
+       `loadLocal()` is the surviving user of the facade, and it uses the half
+       that matters most for a platform swap: the REMOVE. It drops any leftover
+       blob on the way past (CAPSTONE-NOOP owns the behaviour; this owns the
+       ROUTING), so a Steam/mobile backend that implemented get/set but not
+       remove would leave a stale rival save on disk forever.
+       MUTATION: change `_removeSave` to call `localStorage.removeItem` directly
+       → red here. */
+    if (typeof window.loadLocal === 'function') {
+      const origRemove = S.remove;
+      let sawSaveKey = false;
+      S.remove = function (k) { if (k === 'hearthbound-save-v2') sawSaveKey = true; return origRemove.apply(S, arguments); };
+      try { window.loadLocal(); } finally { S.remove = origRemove; }
+      assert(sawSaveKey,
+        'loadLocal dropped the leftover save without going through the Storage seam — the platform swap '
+        + 'point has a hole in it, and a backend that does not implement remove() would keep a stale '
+        + 'client-authored rival on disk');
     }
   }),
   () => tryRun('b162: cozy chips use a light face (no dark-tint-on-cream)', () => {
@@ -11177,25 +11369,46 @@ const TESTS = [
       // hr_load re-supplies it, so a save→reload deliberately does NOT round-trip
       // gold through the blob (that is the whole point of the record move). Prove
       // the round-trip on a genuinely-persisted, non-record field instead.
-      /* b456: the blob is RETIRED by default (saveLocal/loadLocal both no-op),
-         so the round-trip is driven in the position it is about. What it guards is
-         unchanged and still live code: loadLocal must mutate G IN PLACE (b127 — a
-         reassignment silently breaks every holder of `window.G`) and a genuinely
-         client-owned field must survive the trip. */
-      if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') return;
-      withLocalBlob(() => {
-        const tag = 12345;  // distinctive offset so we can detect it
-        window.G.stats = window.G.stats || {};
-        const killsBefore = window.G.stats.kills || 0;
-        const gRef = window.G;
-        window.G.stats.kills = killsBefore + tag;
-        window.saveLocal();
-        window.G.stats.kills = -1;            // mutate in memory only
-        window.loadLocal();
-        assert(window.G === gRef, 'loadLocal replaced the G reference instead of mutating it in place (b127)');
-        assert((window.G.stats && window.G.stats.kills) === killsBefore + tag,
-          `save/load round-trip lost a persisted field: expected ${killsBefore + tag}, got ${window.G.stats && window.G.stats.kills}`);
-      });
+      /* b515 — THERE IS NO LOCAL ROUND-TRIP LEFT, AND THE DURABILITY MOVED.
+         This drove a save→load round-trip with the blob pinned live and asserted
+         a client-owned counter came back. b515 deleted both halves of that trip:
+         `saveLocal` is one `lastSeen` stamp and `loadLocal` reads nothing and
+         DROPS what it finds. Pinning the blob no longer selects a branch — it
+         selects a branch that is gone — so the assertion would report a field
+         surviving a journey nothing took.
+
+         The two properties are re-pointed at where they live now:
+           · b127 (loadLocal mutates G IN PLACE — a reassignment silently breaks
+             every module holding `window.G`) is asserted against the real
+             loadLocal, unpinned. It is the same defect and the same call.
+           · DURABILITY of a client-owned counter is the RESIDUE's job now
+             (`stats` is on RESIDUE_FIELDS), and it is proven end to end through
+             the real `buildResiduePatch` → `hydrateInto` pair — the two functions
+             the capstone save and the capstone load actually use. `hydrateInto`
+             is the security boundary that must not trust an arbitrary bag key,
+             so exercising it here is strictly more than the blob trip was. */
+      if (typeof window.loadLocal !== 'function') return;
+      const CAP = window.HearthriseCapstone, CS = window.HearthriseClientState;
+      assert(CAP && typeof CAP.buildResiduePatch === 'function'
+        && CS && typeof CS.hydrateInto === 'function',
+        'the capstone residue pair is not published — there is then no durable store for a client-owned field at all');
+      const tag = 12345;
+      window.G.stats = window.G.stats || {};
+      const killsBefore = window.G.stats.kills || 0;
+      const gRef = window.G;
+      window.G.stats.kills = killsBefore + tag;
+
+      const patch = CAP.buildResiduePatch(window.G);
+      assert(patch && patch.stats && patch.stats.kills === killsBefore + tag,
+        'the residue patch does not carry `stats` — a client-owned counter would be lost on every reload: '
+        + JSON.stringify(patch && patch.stats));
+
+      window.G.stats = { kills: -1 };          // mutate in memory only
+      window.loadLocal();
+      assert(window.G === gRef, 'loadLocal replaced the G reference instead of mutating it in place (b127)');
+      CS.hydrateInto(window.G, patch);
+      assert((window.G.stats && window.G.stats.kills) === killsBefore + tag,
+        `the residue round-trip lost a persisted field: expected ${killsBefore + tag}, got ${window.G.stats && window.G.stats.kills}`);
     } finally {
       /* Restore + persist cleanup so we don't leave the player +12345g.
          b456: restoreGAndRecord, because the real loadLocal above ends in
@@ -21091,28 +21304,20 @@ const TESTS = [
      while closed" half would pass for the wrong reason — the worst pair a guard
      can have. The gate still ships and is still the thing that stops a
      factory-default G being written over a real player's save at the door. */
-  () => tryRun('b224: saveLocal() cannot overwrite a local save while the gate is closed', () => withLocalBlob(() => {
-    const gate = window.HearthriseGate;
-    const KEY = 'hearthbound-save-v2';
-    const store = window.HearthriseStorage;
-    assert(store, 'storage seam missing');
-    const before = store.get(KEY);
-    const sentinel = JSON.stringify({ __b224Probe: true, gold: 123456 });
-    const realIsOpen = gate.isOpen;
-    try {
-      store.set(KEY, sentinel);
-      gate.isOpen = () => false;                       // stand at the door
-      window.saveLocal();
-      assert(store.get(KEY) === sentinel,
-        'saveLocal() wrote through a closed gate — this is how a beta player loses their save');
-      gate.isOpen = realIsOpen;
-      window.saveLocal();
-      assert(store.get(KEY) !== sentinel, 'saveLocal() must resume writing once the gate is open');
-    } finally {
-      gate.isOpen = realIsOpen;
-      if (before == null) store.remove(KEY); else store.set(KEY, before);
-    }
-  })),
+  /* b224-SAVEGATE IS RETIRED (b515). It proved that `saveLocal()` refused to
+     write while the account wall was closed — "this is how a beta player loses
+     their save". `saveLocal()` no longer writes a save at ANY position: b515
+     deleted the blob upsert under its capstone gate, and what remains is a
+     single `G.lastSeen = Date.now()` stamp that rides the residue. There is
+     nothing left for the gate to protect at this call site, and driving it
+     would grade a branch that does not exist.
+
+     The WALL itself is untouched and better covered than it was: the headless
+     harness's own wall pass (tests/run-smoke.mjs, "the wall guard") boots with
+     NO harness flag on a clean context and asserts the gate is up, the engine
+     did not boot behind it, the console is clean AND that nothing was written
+     to the player's save — which is this assertion, made about a real closed
+     gate rather than a stubbed one. CAPSTONE-NOOP holds the write-nothing half. */
 
   // #8 ADOPTION. A beta player signing in for the first time brings a local
   // save and an empty cloud. "Adoption" is mechanically: we change nothing,
@@ -29498,23 +29703,31 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b228: a milestone is PERMANENT — it survives a real save/load round-trip', () => withLocalBlob(() => {
-    /* b456: the local half of this round-trip is driven with the blob LIVE — the
-       capstone retires saveLocal/loadLocal, so the trip would be a no-op and the
-       assertion would report a field surviving a journey it never took. The CLOUD
-       half (events.snapshot, the denylist) is unaffected by the capstone and is
-       asserted at the shipping default. */
+  () => tryRun('b228: a milestone is PERMANENT — it survives the round-trip that actually persists it', () => {
+    /* b515 — THE ROUND-TRIP MOVED, THE PROPERTY DID NOT. This drove
+       saveLocal→loadLocal with the blob pinned live. Both halves are deleted, so
+       that trip is now a no-op and the assertion would report a milestone
+       surviving a journey nothing took. `chronicle` is RESIDUE (client-state.js
+       RESIDUE_FIELDS: "the permanent achievement log"), so the trip that keeps
+       it permanent is `buildResiduePatch` → `hydrateInto` — the exact pair
+       sync.js's `snapshotIfDue` and the load-path hydrate use. Same property,
+       asserted where the bytes really travel. */
     const C = window.HearthriseChronicle;
-    if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') return;
+    const CAP = window.HearthriseCapstone, CS = window.HearthriseClientState;
+    assert(CAP && typeof CAP.buildResiduePatch === 'function'
+      && CS && typeof CS.hydrateInto === 'function',
+      'the capstone residue pair is not published — a milestone then has no durable home at all');
     const snap = snapshotG();
     try {
       window.G.chronicle = { v: 1, entries: [], seenAt: 0, seeded: Date.now() };
       C.record('rank', 'Rose to Viscount', { id: 'rank:b228roundtrip' });
-      window.saveLocal();
+      const patch = CAP.buildResiduePatch(window.G);
+      assert(patch && patch.chronicle && Array.isArray(patch.chronicle.entries),
+        'G.chronicle is not on the residue allowlist — every achievement would be gone on the next reload');
       window.G.chronicle = { v: 1, entries: [], seenAt: 0, seeded: Date.now() };   // memory only
-      window.loadLocal();
+      CS.hydrateInto(window.G, patch);
       const found = (window.G.chronicle.entries || []).filter((e) => e.id === 'rank:b228roundtrip');
-      assert(found.length === 1, 'the milestone did not survive save/load');
+      assert(found.length === 1, 'the milestone did not survive the residue round-trip');
       assert(found[0].keep === 1, 'a rank-up must be flagged protected on the way through the save');
       // …and it must reach the cloud too, or a restore hands back a blank history.
       const cloud = window.HearthriseEvents.snapshot(window.G);
@@ -29523,7 +29736,7 @@ const TESTS = [
       assert(cloud.chronicle.entries.some((e) => e.id === 'rank:b228roundtrip'),
         'the cloud snapshot carries a chronicle without the milestone in it');
     } finally { restoreGAndRecord(snap); try { window.saveLocal(); } catch {} }
-  })),
+  }),
 
   () => tryRun('b228: compaction holds the cap and never drops a rank-up or a 99', () => {
     const C = window.HearthriseChronicle;
@@ -31937,7 +32150,7 @@ const TESTS = [
     }
   })),
 
-  () => tryRun('b371: a slot purchase that cannot be saved charges nothing (atomic-or-nothing)', () => withClientOwnedSlots(() => {
+  () => tryRun('b371: a slot purchase survives a save that throws — the durable store is the server, not a local file', () => withClientOwnedSlots(() => {
     const HP = window.HearthriseProfile, G = window.G;
     if (!HP || !HP.profile) return;
     const next = HP.canUnlockNext();
@@ -31948,28 +32161,41 @@ const TESTS = [
     try {
       G.gems = next.cost + 1000;
       stampBalanceLikeLoad(G);   // armed: unlockSlot's affordability read must be KNOWN so it reaches the save step
-      /* b459: under the capstone the LOCAL blob is retired, so the b371
-         read-back proof is MOOT there (the durable store is the server — the
-         residue save + the gems record; the local-blob split the proof stopped
-         cannot exist). The atomic-or-nothing property is still the contract for
-         the DORMANT path, so it is driven through the capstone seam. Armed, the
-         same forced save-failure must NOT block the purchase. */
-      const CAP = window.HearthriseCapstone;
+      /* b515 — THE DORMANT HALF IS RETIRED AND THE PROPERTY INVERTED. This test
+         used to grade two positions. DORMANT: `unlockSlot` read the save blob
+         back and refused the purchase ("Couldn't save your purchase") if both
+         halves were not in it — atomic-or-nothing against a local file. ARMED:
+         the same forced save failure must NOT block the purchase.
+
+         b515 deleted the read-back proof and its refund arm from
+         multi-character.js, because the else-arm that reached it was live only
+         on a device holding the retired `hr:serverAccrual=off` — i.e. a GEM
+         SPEND proved against a local file. There is one position now and it is
+         the armed one, so that is what is asserted, unconditionally.
+
+         WHAT REPLACED THE PROOF, and why this is not a weakening: the b371 dupe
+         was a LOCAL-BLOB SPLIT (the entitlement outlived the payment because the
+         two halves landed in one file and only one of them was written). The
+         armed model cannot express that split — the entitlement rides the
+         residue PUT and the gem debit is a SERVER record field reconciled by the
+         next envelope — and the ownership half is asserted against the server by
+         the SLOT-SRV battery below. What must hold HERE is that a throwing
+         `saveLocal` (a full disk, a private-mode quota) can no longer take a
+         purchase down with it, because it is no longer on the path.
+         MUTATION: re-introduce a `try{saveLocal()}catch{ return {ok:false} }`
+         around the grant → red on the first assertion. */
       window.saveLocal = function () { throw new Error('quota exceeded'); };
-      // ── DORMANT: the b371 contract, byte-for-byte ──
-      if (CAP && typeof CAP.__setBlobRetired === 'function') CAP.__setBlobRetired(false);
       const r = HP.unlockSlot(next.slotId);
-      assert(r && !r.ok, 'a purchase whose save failed reported success');
-      assert(/couldn.t save/i.test(r.reason || ''), 'the failure must say the purchase did not go through: ' + r.reason);
-      assert(G.gems === next.cost + 1000, 'the player was charged for a purchase that could not be saved');
-      assert(HP.unlockedCount() === next.slotId, 'the slot was granted even though the purchase failed');
-      // ── ARMED: no local blob to fail — the purchase must go through ──
-      if (CAP && typeof CAP.__setBlobRetired === 'function') {
-        CAP.__setBlobRetired(true);
-        const r2 = HP.unlockSlot(next.slotId);
-        assert(r2 && r2.ok, 'ARMED: the retired local blob must not brick slot purchases (SLOT-BUY-1): ' + JSON.stringify(r2));
-        CAP.__setBlobRetired(null);
-      }
+      assert(r && r.ok,
+        'a throwing saveLocal blocked the purchase: ' + JSON.stringify(r) + ' — the local blob is retired, '
+        + 'so a local write failure is not evidence about a purchase and must not brick one (b459)');
+      assert(HP.unlockedCount() === next.slotId + 1,
+        'the purchase reported ok but the slot was not granted: ' + HP.unlockedCount());
+      /* AND NOTHING WAS PROVED AGAINST A LOCAL FILE. The refusal vocabulary that
+         only the deleted read-back could produce must never come back — a gem
+         spend adjudicated by localStorage is the shape b515 removed. */
+      assert(!/couldn.t save/i.test(r.reason || ''),
+        'the local-blob read-back proof is back: ' + r.reason);
     } finally {
       try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(null); } catch (e) {}
       window.saveLocal = realSave;
@@ -32349,88 +32575,21 @@ const TESTS = [
      uploaded over another) and still ships behind the flag.
      ⚠ It also drives a REAL load, which strips the record off the live G — so the
        finally takes a FULL snapshot back and re-stamps it (see restoreGAndRecord). */
-  () => tryRun('b372: loadLocal parks a save stamped for another hero slot instead of adopting it', () => withLocalBlob(() => {
-    const HP = window.HearthriseProfile, G = window.G;
-    if (!HP || !HP.profile) return;
-    const snapAll = snapshotG();
-    const SAVE_KEY = 'hearthbound-save-v2';
-    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
-    const prevSave = localStorage.getItem(SAVE_KEY);
-    const prevGold = G.gold;
-    const parked = [];
-    /* loadLocal() ends by crediting away time and re-arming the live loops.
-       Neither is under test and both would perturb the suite's controlled G, so
-       they are stubbed for the three loads below and restored in the finally. */
-    const realProcessOffline = window.processOffline, realResume = window.resumeActiveActivity;
-    try {
-      window.processOffline = function () {};
-      window.resumeActiveActivity = function () {};
-      // (1) THE STAMP. saveLocal must write down which character these bytes are.
-      HP.profile = { activeSlot: 0, unlockedSlots: 2, version: 1, slots: [{ id: 0 }, { id: 1 }] };
-      window.saveLocal();
-      const stamped = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
-      assert(stamped._saveSlot === 0,
-        'the local save carries no _saveSlot stamp (' + stamped._saveSlot + ') — a blob written by one '
-        + 'character is then indistinguishable from the next one\'s, which is how the b372 clone survived boot');
+  /* b372-PARK IS RETIRED (b515). It proved that `loadLocal()` PARKED (never
+     deleted) a blob stamped for a different hero slot rather than adopting it —
+     "a blob written by one character is then indistinguishable from the next
+     one's, which is how the b372 clone survived boot".
 
-      // (2) THE REFUSAL. Same blob, profile now on slot 1: it is NOT this hero.
-      const clone = { ...stamped, gold: 999999, _saveSlot: 0 };
-      localStorage.setItem(SAVE_KEY, JSON.stringify(clone));
-      HP.profile = { activeSlot: 1, unlockedSlots: 2, version: 1, slots: [{ id: 0 }, { id: 1 }] };
-      G.gold = 5;
-      window.loadLocal();
-      assert(G.gold !== 999999,
-        'THE b372 CLONE, AT BOOT: a save stamped for hero slot 0 was loaded as the slot-1 character. '
-        + 'decideRestore then sees a "newer local" and the next autosave uploads it over slot 1\'s cloud row');
-      assert(localStorage.getItem(SAVE_KEY) === null,
-        'the mis-slotted save is still live in ' + SAVE_KEY + ' — the very next autosave re-adopts it');
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.indexOf('hearthrise:save-backup:mis-slotted-') === 0) parked.push(k);
-      }
-      assert(parked.length > 0,
-        'the mis-slotted save was DELETED rather than parked — those bytes are somebody\'s real progress '
-        + 'and every set-aside in this codebase is recoverable (b318 policy)');
-
-      // (3) AND AN UNSTAMPED (pre-b372) SAVE IS NOT ACCUSED — that would park the live beta on upgrade.
-      /* gold-arm: gold is now a SERVER_OF_RECORD field, stripped on the way in and
-         re-supplied by hr_load, so it can no longer be the "was this save adopted"
-         proxy (G.gold is UNKNOWN straight after any load until an envelope lands).
-         The thing actually under test is that an unstamped save is ADOPTED rather
-         than parked — assert THAT directly: the blob stays live and no mis-slotted
-         backup was cut. A surviving NON-record marker confirms the bytes landed. */
-      const backupsBefore = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.indexOf('hearthrise:save-backup:mis-slotted-') === 0) backupsBefore.push(k);
-      }
-      const legacyBlob = { ...stamped, gold: 4242, lastSeen: 424242 };
-      delete legacyBlob._saveSlot;
-      localStorage.setItem(SAVE_KEY, JSON.stringify(legacyBlob));
-      window.loadLocal();
-      assert(localStorage.getItem(SAVE_KEY) !== null && G.lastSeen === 424242,
-        'an UNSTAMPED save was refused — every save written before b372 has no stamp, so this would park '
-        + 'every existing player on upgrade');
-      let newBackups = 0;
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.indexOf('hearthrise:save-backup:mis-slotted-') === 0 && backupsBefore.indexOf(k) === -1) newBackups++;
-      }
-      assert(newBackups === 0, 'an unstamped save was parked as mis-slotted — it must be adopted, not accused');
-    } finally {
-      if (realProcessOffline) window.processOffline = realProcessOffline;
-      if (realResume) window.resumeActiveActivity = realResume;
-      parked.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} });
-      HP.profile = prevProfile;
-      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
-      G.gold = prevGold;
-      try { if (prevSave === null) localStorage.removeItem(SAVE_KEY); else localStorage.setItem(SAVE_KEY, prevSave); } catch (e) {}
-      try { window.loadLocal(); } catch (e) {}
-      restoreGAndRecord(snapAll);
-      try { window.saveLocal(); } catch (e) {}
-      try { window.updateTopbar(); } catch (e) {}
-    }
-  })),
+     `loadLocal()` does not adopt ANY blob now, stamped or not: b515 deleted the
+     ~120-line read, and what remains is `_removeSave(SAVE_KEY)` plus
+     `forgetServerOfRecord(G)`. The clone this defended against cannot be
+     expressed, and the replacement is STRICTER than parking, not weaker — a
+     foreign blob is dropped rather than set aside, and CAPSTONE-NOOP asserts
+     exactly that ("loadLocal left the leftover blob in place — a later disarm
+     would resurrect a pre-wipe save"). The slot-identity half of b372 that is
+     still live — a switch quiesces the upload so an in-flight save is addressed
+     to the OUTGOING character — is `switchQuiesced()` in sync.js and is covered
+     by tests/slot-switch.mjs. */
 
   () => tryRun('b232: every route still resolves (character overview / skills activity / profile)', () => {
     const prevPane = window._charPane;
@@ -33763,12 +33922,14 @@ const TESTS = [
     assert(guaranteed3 === 3, 'a multi-guarantee row must also be unscaled, got ' + guaranteed3);
   }),
 
-  () => tryRun('AWAY-11: toolCarry survives a save/load round-trip AND reaches the cloud snapshot (it never did as _toolCarry)', () => withLocalBlob(() => {
-    /* b456: the local half of this round-trip is driven with the blob LIVE — the
-       capstone retires saveLocal/loadLocal, so the trip would be a no-op and the
-       assertion would report a field surviving a journey it never took. The CLOUD
-       half (events.snapshot, the denylist) is unaffected by the capstone and is
-       asserted at the shipping default. */
+  () => tryRun('AWAY-11: toolCarry survives the trip that persists it AND reaches the cloud snapshot (it never did as _toolCarry)', () => {
+    /* b515 — SAME MOVE AS b228 ABOVE. The local save/load round-trip is deleted;
+       `toolCarry` is RESIDUE ("fractional gather carry-over per tool"), so the
+       journey that keeps it is `buildResiduePatch` → the client_state PUT. The
+       whole point of the b-number is the RENAME (`_toolCarry` → `toolCarry`):
+       an underscore-prefixed field is scratch and is skipped by BOTH the cloud
+       snapshot's denylist and the residue builder, so under the old name a
+       device switch discarded the carry. Both exclusions are asserted. */
     const G = window.G;
     const snap = snapshotG();
     try {
@@ -33781,13 +33942,13 @@ const TESTS = [
       assert(cloud.toolCarry && cloud.toolCarry.mining === 0.42,
         'toolCarry must reach the cloud snapshot — as _toolCarry it never did, so a device switch discarded the carry');
       assert(cloud._toolCarry === undefined, 'the old underscored key must not be uploaded');
-      /* Local round-trip through the real save path. */
-      window.saveLocal();
-      const raw = localStorage.getItem('hearthbound-save-v2');
-      assert(raw, 'saveLocal wrote nothing');
-      const parsed = JSON.parse(raw);
-      assert(parsed.toolCarry && parsed.toolCarry.mining === 0.42,
-        'toolCarry must survive saveLocal, found ' + JSON.stringify(parsed.toolCarry));
+      /* The trip through the real persistence path — the residue PUT. */
+      const CAP = window.HearthriseCapstone;
+      assert(CAP && typeof CAP.buildResiduePatch === 'function', 'capstone.js does not publish buildResiduePatch');
+      const patch = CAP.buildResiduePatch(G);
+      assert(patch && patch.toolCarry && patch.toolCarry.mining === 0.42,
+        'toolCarry must reach the residue PUT, found ' + JSON.stringify(patch && patch.toolCarry));
+      assert(patch._toolCarry === undefined, 'the old underscored key must not be persisted');
       /* And the migration that renames it is registered and idempotent. */
       const MIG = window.HEARTHRISE_MIGRATIONS || [];
       const step = MIG.find((s) => s.from === 12 && s.to === 13);
@@ -33801,7 +33962,7 @@ const TESTS = [
       step.apply(fresh);
       assert(fresh.toolCarry && Object.keys(fresh.toolCarry).length === 0, 'a save with no carry must get an empty object, not undefined');
     } finally { restoreGAndRecord(snap); try { window.saveLocal(); } catch {} }
-  })),
+  }),
 
   () => tryRun('AWAY-12: the second combat loop is GONE and cannot come back unnoticed', () => {
     assert(typeof window.processOfflineCombat === 'undefined',
@@ -35910,12 +36071,19 @@ const TESTS = [
     const S = window.HearthriseSync;
     assert(typeof S.saveHealthLine === 'function',
       'sync.js no longer exposes a WRITE-health verdict — the header is back to asserting save health from connectivity');
-    /* b459: this test's subject is the game_saves-upsert health accounting —
-       the DORMANT save path. Under the armed capstone snapshotIfDue takes the
-       putClientState branch (whose test-cfg has no jwt → "not configured" →
-       the claim can never restore). Drive the dormant path via the seam; the
-       armed write's health rides its own fetchWithAuthRetry wiring. */
-    try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(false); } catch (e) {}
+    /* b515 — THE WRITE UNDER TEST IS THE RESIDUE PUT, AND IT ALWAYS SHOULD
+       HAVE BEEN. This used to pin `__setBlobRetired(false)` and grade the
+       `game_saves` upsert, because that was the branch the health accounting
+       had been written against. b515 deleted the upsert (the staged
+       `2026-09-07-game-saves-revoke.sql` takes the grant away server-side too),
+       so the pin selects a branch that no longer exists and the whole test
+       would run against a `snapshotIfDue` that returns before the network.
+
+       `hr_put_client_state` is THE periodic save now, it reports through the
+       same `noteSaveOutcome`, and the reported bug — "a 200 on a READ is not a
+       saved game" — is about the accounting, not the endpoint. So: unpinned,
+       against the shipping write. The one thing that changes is which URL the
+       stub sees; every assertion below is untouched. */
     const realFetch = window.fetch;
     const G = window.G;
     const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
@@ -35934,7 +36102,13 @@ const TESTS = [
         const method = (init && init.method) || 'GET';
         if (method === 'GET') { reads++; return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })); }
         writes++;
-        return Promise.resolve(new Response('{"message":"canceling statement due to statement timeout"}', { status: writeStatus }));
+        /* b515: the residue write is an RPC, so a 200 must carry the RPC's own
+           `{ok:true}` — `putClientState` reads the BODY, not just the status, and
+           a bare `{}` would report the save as failed and make the "a confirmed
+           write restores the claim" half unreachable. */
+        return Promise.resolve(new Response(
+          writeStatus === 200 ? '{"ok":true}' : '{"message":"canceling statement due to statement timeout"}',
+          { status: writeStatus }));
       };
       S.setClockTrusted(true);
       S.resetAuthGate();
@@ -36036,7 +36210,6 @@ const TESTS = [
       assert(recovered === 1, 'recovery must be announced exactly once by the WRITE that earned it, got ' + recovered);
       assert(S.getSaveHealth().failStreak === 0, 'a successful save must clear the failure streak');
     } finally {
-      try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(null); } catch (e) {}
       window.fetch = realFetch;
       if (wasHeld) S.holdSnapshots();
       if (savedAuth) window.HearthriseAuth = savedAuth; else try { delete window.HearthriseAuth; } catch (e) {}
@@ -36082,7 +36255,7 @@ const TESTS = [
         if (!/example\.invalid/.test(String(u))) return realFetch.apply(this, arguments);
         const status = plan[Math.min(attempts, plan.length - 1)];
         attempts++;
-        return Promise.resolve(new Response(status === 200 ? '{}' : '{"message":"timeout"}', { status }));
+        return Promise.resolve(new Response(status === 200 ? '{"ok":true}' : '{"message":"timeout"}', { status }));
       };
       S.setClockTrusted(true); S.resetAuthGate(); S.__resetSyncHealth();
       const cfg = {
@@ -36092,14 +36265,17 @@ const TESTS = [
         onSyncFailure: () => { failures++; }, onSyncRecovered: () => { recovered++; },
       };
 
-      /* ⚠ b456 — (1)-(3) DRIVE THE BLOB UPSERT, WHICH IS NOW THE OFF POSITION.
-         Under the b455 capstone `snapshotIfDue` takes an entirely different
-         branch: it PUTs the self-only residue through `hr_put_client_state`
-         instead of upserting `game_saves`. The three cases below are about
-         `fetchWithAuthRetry(..., { retryWrite })`, which only the blob upsert
-         passes — so they run where that code runs. (4) below then asks whether
-         the SAME hardening reached the write that replaced it. */
-      await withLocalBlobAsync(async () => {
+      /* b515 — (1)-(3) NOW DRIVE THE WRITE THAT EXISTS. They used to be pinned
+         to the blob upsert (`withLocalBlobAsync`) because that was the only
+         caller passing `fetchWithAuthRetry(..., { retryWrite })`. b515 deleted
+         the upsert, and b459 had already routed the residue PUT through the
+         same hardened transport — so the three cases below and the separate
+         "(4) RED ON PURPOSE" case that used to follow them are now ONE test of
+         ONE write, which is what they were always trying to be. (4) is folded
+         in rather than deleted: its assertion — a 503 on the periodic save
+         costs two attempts, not one — is (1) and (2) below, against the same
+         endpoint it named. */
+      {
       // (1) killed in flight, then fine. The player must never learn of it.
       await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
       assert(attempts === 2, 'the killed write was not retried exactly once — ' + attempts + ' attempt(s)');
@@ -36123,35 +36299,19 @@ const TESTS = [
       attempts = 0; plan = [500, 200];
       await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
       assert(attempts === 1, 'a 500 is a real answer and must not be retried — got ' + attempts + ' attempts');
-      });
 
-      /* ══════════════════════════════════════════════════════════════════════
-         ⚠ (4) RED ON PURPOSE — THE HARDENING DID NOT FOLLOW THE WRITE.
-         ══════════════════════════════════════════════════════════════════════
-         b371's incident was measured, not theorised: Supabase was killing
-         in-flight statements at ~50/hr and the `game_saves` upsert was the only
-         request of ours long enough and body-heavy enough to be caught mid-flight
-         — so it takes ONE jittered retry on 502/503/504 and the player is told
-         nothing, because nothing happened to them.
-
-         The b455 capstone REPLACED that upsert with an `hr_put_client_state` PUT
-         (src/net/sync.js snapshotIfDue, the `isBlobRetired()` branch, via
-         src/net/client-state.js `putClientState`). It is the same kind of request
-         to the same backend and it is now the ONLY periodic save write — but it
-         does not go through `fetchWithAuthRetry`, so it carries no retry at all.
-         MEASURED on this build: a single 503 costs the save outright, one attempt,
-         no retry.
-         The fix is to route the client_state PUT through the same one-retry rule
-         (or give putClientState its own), NOT to relax this assertion.
-         Owner: Systems Engineer. */
-      if (window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()) {
-        attempts = 0; plan = [503, 200];
-        S.__resetSyncHealth();
-        await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
-        assert(attempts === 2,
-          'the capstone save write (hr_put_client_state) took ' + attempts + ' attempt(s) on a 503 — the b371 '
-          + 'gateway-casualty retry did not follow the write when the blob upsert was replaced, so the one '
-          + 'periodic save the game still makes now loses a whole cadence to a blip the player never caused');
+      /* (4) THE KEEPALIVE EXEMPTION, and it is the half a fold-in could lose.
+         `retryWrite: !keepalive` — on the parting shot there is no page left to
+         sleep 500ms in, and a second keepalive body would double-spend the
+         browser's small shared inflight quota. So the pagehide save must take
+         exactly ONE attempt on the same 503 the cadence save retries.
+         MUTATION: make it `retryWrite: true` in sync.js → red here. */
+      attempts = 0; plan = [503, 200];
+      S.__resetSyncHealth();
+      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, true); });
+      assert(attempts === 1,
+        'the pagehide residue save was retried (' + attempts + ' attempts) — there is no page left to wait '
+        + 'in and a second keepalive body double-spends the browser quota the parting send depends on');
       }
     } finally {
       window.fetch = realFetch;
@@ -39091,42 +39251,17 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b337: with the switch OFF, the local away path still credits an absence (b303 unchanged)', () => {
-    if (typeof window.processOffline !== 'function' || !window.TREES || !window.TREES.length) { skip('no gather'); return; }
-    const A = window.HearthriseAccrual;
-    const G = window.G;
-    const save = { skills: G.skills, activeSkill: G.activeSkill, skillTargetId: G.skillTargetId,
-      activeMonster: G.activeMonster, activeArtisanRecipe: G.activeArtisanRecipe,
-      inventory: G.inventory, offlineBudget: G.offlineBudget, lastSeen: G.lastSeen, los: G.lastOfflineSummary };
-    const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    const realFetch = window.fetch;
-    let requests = 0;
-    try {
-      A.setServerAccrualEnabled(false);
-      window.fetch = function (u) { if (/hr-accrue/.test(String(u))) requests++; return realFetch.apply(this, arguments); };
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      const tree = window.TREES[0];
-      G.skills = Object.assign({}, G.skills, { woodcutting: 5_000_000 });
-      G.activeMonster = null; G.activeArtisanRecipe = null;
-      G.activeSkill = 'woodcutting'; G.skillTargetId = tree.id;
-      G.inventory = Object.assign({}, G.inventory);
-      const beforeXp = xpOf('woodcutting');
-      const now = Date.now();
-      G.lastSeen = now - 3600000;
-      G.offlineBudget = { at: now - 3600000 };
-      window.processOffline();
-      assert(G.skills.woodcutting > beforeXp,
-        'with the switch OFF the local path granted nothing — b337 changed b336 behaviour it was not allowed to touch');
-      assert(requests === 0, 'the switch is off and the client called hr-accrue anyway (' + requests + 'x)');
-    } finally {
-      window.fetch = realFetch;
-      if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
-      Object.assign(G, { skills: save.skills, activeSkill: save.activeSkill, skillTargetId: save.skillTargetId,
-        activeMonster: save.activeMonster, activeArtisanRecipe: save.activeArtisanRecipe, inventory: save.inventory,
-        offlineBudget: save.offlineBudget, lastSeen: save.lastSeen, lastOfflineSummary: save.los });
-      if (typeof window.stopSkill === 'function' && !save.activeSkill) try { window.stopSkill(); } catch (e) {}
-    }
-  }),
+  /* b337-OFF IS RETIRED (b515). It drove `processOffline()` with the b353 kill
+     switch OFF and asserted that the LOCAL away engine still credited an
+     absence, because a kill switch whose off position is untested is not a kill
+     switch. There is no off position and there is no local away engine: b515
+     deleted `processOffline`'s ~500-line client-side replay, and the shipping
+     ON twin immediately below ("with the switch ON, processOffline puts the
+     CONTRACT request on the wire") is now the whole of the away path from this
+     caller. The SIMULATION those assertions were really about (an absence pays,
+     from kill zero, through the same engine the Edge Function runs) is asserted
+     by tests/accrual-engine.mjs `parityGuard` + `gatherParityGuard` against
+     `computeAccrual` itself. */
 
   /* b338 made this async. NOTHING WAS WEAKENED — every assertion below is
      unchanged, including `seen.length === 1`. What changed is the timing: the
@@ -40516,40 +40651,45 @@ const TESTS = [
          their own save file loading.
          Both positions are asserted, and the DORMANT one still pins the whole
          original gate — including the mutation it was written for. */
-      const armedSheetRetired = !!(window.HearthriseCapstone
-        && typeof window.HearthriseCapstone.isBlobRetired === 'function'
-        && window.HearthriseCapstone.isBlobRetired());
-      if (armedSheetRetired) {
-        A.acknowledgeReplacement(false);
-        A.hideReplacementSheet();
-        const GArmed = veteran();
-        const wroteArmed = A.applyEnvelope(GArmed, envelope);
-        assert(wroteArmed, 'ARMED: the envelope was refused even though the local blob is retired — there is no '
-          + 'rival copy to protect, so this is a load the player can never get past');
-        assert(GArmed.gold === 500, 'ARMED: the server gold did not land: ' + GArmed.gold);
-        assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-          'ARMED: the replacement consent sheet was shown with the blob retired — under the capstone this '
-          + 'fires on a normal load and the only way through it is to consent, so it protects nothing '
-          + 'while making the game unusable');
-      }
+      /* ══ THE SHEET IS GONE, AND THAT IS THE ASSERTION NOW (b515) ═══════════
+         This test used to grade TWO positions: with the local blob live the
+         envelope was REFUSED until the player consented, and with it retired the
+         envelope applied silently. b515 deleted the consent branch from
+         accrue.js applyEnvelope outright (its header says so in as many words:
+         "the replacement sheet is GONE, not gated"), because the rival local
+         character it protected no longer exists on any device — the b353 kill
+         switch that could bring one back is retired too.
 
-      /* THE GATE. MUTATION: delete the `loss.destructive && !acked` branch from
-         applyEnvelope → the veteran's save is silently replaced and this is red. */
-      withLocalBlob(() => {
-        A.acknowledgeReplacement(false);
-        A.hideReplacementSheet();
-        const G1 = veteran();
-        assert(A.applyEnvelope(G1, envelope) === null,
-          'applyEnvelope destroyed a real save without asking');
-        assert(G1.gold === 900000 && G1.skills.woodcutting === 5000000 && G1.inventory.normal_log === 400,
-          'the target was mutated before the refusal: ' + JSON.stringify(G1));
-        assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-          'nothing was shown to the player — a refusal nobody is told about is a game that silently stops '
-          + 'crediting away time');
-        const copy = document.getElementById(A.ACCRUE_REPLACE_SHEET_ID).textContent;
-        assert(/899500|899,500/.test(copy) && /permanently/i.test(copy),
-          'the sheet does not state what is lost, in numbers: ' + copy.slice(0, 200));
-      });
+         So the surviving property is the ARMED one, and it is asserted
+         unconditionally rather than behind an `if (isBlobRetired())` that can
+         only be true: a cold load applies, the SERVER's gold lands, and the
+         "permanently gone" modal is never raised on a path the player cannot
+         get past. `describeReplacement` is still exported and still measured
+         above, because the DRIFT COUNTER (`envelopeDrift.destructive`, which the
+         inventory-arm decision reads) is built on it.
+         MUTATION: make `applyEnvelope` return null when `loss.destructive` →
+         'ARMED: the envelope was refused' goes red. */
+      A.acknowledgeReplacement(false);
+      A.hideReplacementSheet();
+      const GArmed = veteran();
+      const wroteArmed = A.applyEnvelope(GArmed, envelope);
+      assert(wroteArmed, 'ARMED: the envelope was refused even though the local blob is retired — there is no '
+        + 'rival copy to protect, so this is a load the player can never get past');
+      assert(GArmed.gold === 500, 'ARMED: the server gold did not land: ' + GArmed.gold);
+      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'ARMED: the replacement consent sheet was shown with the blob retired — under the capstone this '
+        + 'fires on a normal load and the only way through it is to consent, so it protects nothing '
+        + 'while making the game unusable');
+      /* AND THE COPY IS STILL RIGHT, because `showReplacementSheet` remains
+         exported and a future caller must not find a sheet that lies. Driven
+         directly — it has no load-path caller left to reach it through. */
+      A.showReplacementSheet(loss, veteran(), envelope, () => {});
+      const sheet = document.getElementById(A.ACCRUE_REPLACE_SHEET_ID);
+      assert(sheet, 'showReplacementSheet renders nothing at all');
+      const copy = sheet.textContent;
+      assert(/899500|899,500/.test(copy) && /permanently/i.test(copy),
+        'the sheet does not state what is lost, in numbers: ' + copy.slice(0, 200));
+      A.hideReplacementSheet();
 
       /* …and once acknowledged it applies, silently, forever after.
          b359 — WHAT "APPLIES" MEANS NARROWED, AND THE OLD MEANING WAS THE P0.
@@ -40832,29 +40972,25 @@ const TESTS = [
       // ── reconcile SETTLED — the gate is NOT softened, only re-ordered ──────
       S.releaseSnapshots();
       assert(A.isReconcilePending() === false, 'releasing the gate must end the deferral');
-      /* b456: the DEFERRAL above is independent of the capstone and is asserted at
-         the shipping default; the SHEET itself is retired with the local blob (see
-         B339-5), so the "still refuses" half is driven with the blob live — that is
-         the position where a rival local copy exists to be protected. */
-      withLocalBlob(() => {
-        A.acknowledgeReplacement(false);
-        A.hideReplacementSheet();
-        const G2 = stalePhoneSave();
-        assert(A.applyEnvelope(G2, envelope) === null, 'a genuinely destructive envelope must still refuse');
-        assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-          'once reconcile has settled, genuine divergence must STILL ask the player — the deferral is ordering, not amnesty');
-      });
-      /* …and with the blob RETIRED it applies instead, silently: there is no rival
-         local character, so the envelope is the load. */
-      if (window.HearthriseCapstone && window.HearthriseCapstone.isBlobRetired()) {
-        A.hideReplacementSheet();
-        A.acknowledgeReplacement(false);
-        const G3 = stalePhoneSave();
-        assert(A.applyEnvelope(G3, envelope) && G3.gold === 40,
-          'ARMED: a post-reconcile envelope was refused with the blob retired — the player cannot get past it');
-        assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-          'ARMED: the retired-blob path still raised the "permanently gone" sheet');
-      }
+      /* …and once it HAS settled the envelope applies, silently. b515 deleted
+         the consent branch (see B339-5), so the second position this test used
+         to grade — "genuine divergence must STILL ask the player", driven with
+         the local blob live — no longer exists to be graded: there is no rival
+         local character for the sheet to protect. What remains, and what this
+         test is named for, is that the DEFERRAL is ordering and not amnesty:
+         while the reconcile is unresolved nothing is written, and the moment it
+         resolves the same envelope lands.
+         MUTATION: remove the `isReconcilePending()` branch from applyEnvelope →
+         the 'deferred envelope must write nothing' assertion above goes red. */
+      A.hideReplacementSheet();
+      A.acknowledgeReplacement(false);
+      const G3 = stalePhoneSave();
+      assert(A.applyEnvelope(G3, envelope) && G3.gold === 40,
+        'a post-reconcile envelope was refused — the deferral became a permanent block and the player '
+        + 'cannot get past it');
+      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
+        'the load path raised the "permanently gone" sheet — it is deleted, and a normal load must never '
+        + 'ask the player to approve their own save file loading');
     } finally {
       A.hideReplacementSheet();
       A.acknowledgeReplacement(wasAck);
@@ -41461,70 +41597,20 @@ const TESTS = [
      absence of a read. The seam still ships and still matters the moment the
      capstone is disarmed — and it is the ONLY thing standing between a devtools
      watermark and a full capped window. The armed no-op is CAPSTONE-NOOP's job. */
-  () => tryRun('B340-3: loadLocal() DELETES the server-owned field from the save blob — the caller, not the callee', () => withLocalBlob(() => {
-    const A = window.HearthriseAccrual;
-    const R = window.HearthriseRecord;
-    if (typeof window.saveLocal !== 'function' || typeof window.loadLocal !== 'function') { skip('no save'); return; }
-    const G = window.G;
-    const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt, lastSeen: G.lastSeen };
-    /* b456: this test drives a REAL loadLocal on the LIVE G, and loadLocal ends in
-       forgetServerOfRecord — which strips every record field off G and, because
-       `playerMaxHp` is derived from the Hitpoints level, leaves the ambient
-       character at 1/1 hp and level 1 for everything that runs afterwards.
-       MEASURED: ACT-1 and four COMBAT-UI tests went red the moment this test
-       started performing a real load (startCombat refused at 1 max hp).
-       So: a FULL snapshot, restored and re-stamped, not just the three fields this
-       test names. */
-    const snapAll = snapshotG();
-    const savedRecordFields = {};
-    for (const f of window.HearthriseRecord.serverOfRecordFields()) {
-      if (Object.prototype.hasOwnProperty.call(G, f)) savedRecordFields[f] = G[f];
-    }
-    const wasOn = A.isServerAccrualEnabled();
-    try {
-      A.setServerAccrualEnabled(false);
-      /* A FORGED WATERMARK, of exactly the shape devtools produces: back-date it
-         and the local away path pays a whole capped window on the next boot.
-         That is CLAUDE.md save-invariant #5's entire subject, and today the cap
-         is the only thing standing between it and an unbounded mint. */
-      G.offlineBudget = { at: 0 };
-      window.saveLocal();
-      const raw = localStorage.getItem('hearthbound-save-v2');
-      assert(raw && /"offlineBudget"/.test(raw),
-        'the forged watermark never reached the blob, so this test would pass while asserting nothing');
+  /* B340-3 IS RETIRED (b515), and its subject is deleted rather than moved.
+     It proved that `loadLocal()` ran `stripRecordFields()` on the blob BEFORE
+     `Object.assign(G, …)` — the caller, not the callee — so a forged
+     `offlineBudget` in a devtools-edited save could not become the record.
+     b515 deleted the blob read, and `stripRecordFields` with it (its only
+     caller was that read). There is no `Object.assign(G, parsedBlob)` left in
+     legacy.js for a forged field to travel through.
 
-      A.setServerAccrualEnabled(true);
-      window.__hrRecordStrip = null;
-      window.loadLocal();
-      /* THE STRIP RAN, AT THIS SEAM, ON THIS BLOB. This assertion exists because
-         the first version of this test did NOT have it and stayed GREEN under a
-         mutation that deleted the strip from loadLocal entirely: the
-         belt-and-braces forgetServerOfRecord() further down cleared G, and the
-         test could not tell the two mechanisms apart. Two defences that a test
-         can only see one of is a defence that rots silently.
-         MUTATION: revert `Object.assign(G, stripRecordFields(migrated))` to
-         `Object.assign(G, migrated)` → RED here, and only here. */
-      const receipt = window.__hrRecordStrip;
-      assert(receipt && receipt.stripped.indexOf('offlineBudget') !== -1,
-        'loadLocal did not strip the blob — the server-owned field reached Object.assign(G, …) and only the '
-        + 'belt-and-braces forget cleared it afterwards, which is not the same seam: ' + JSON.stringify(receipt));
-      assert(!G.offlineBudget,
-        'loadLocal read a server-owned field back out of the client-authored save blob (got '
-        + JSON.stringify(G.offlineBudget) + ') — the field now has two sources, which is the exact '
-        + 'divergence class that produced the starting-kit bug');
-      const v = R.recordValue(G, 'offlineBudget');
-      assert(v.known === false && typeof v.value === 'undefined',
-        'the field is reported KNOWN without the server ever having answered: ' + JSON.stringify(v));
-    } finally {
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
-      Object.assign(G, savedRecordFields);
-      Object.assign(G, save);
-      restoreGAndRecord(snapAll);
-      try { window.saveLocal(); } catch (e) {}
-    }
-  })),
+     What replaced it is strictly stronger and is asserted by CAPSTONE-NOOP
+     immediately above: loadLocal reads NOTHING and DROPS any leftover blob, so
+     a forged field cannot reach G by that route at all — there is no field
+     list to keep in sync and no strip to forget to call. The CLOUD twin of the
+     same seam (B340-4, `stripRecordFieldsForOverlay`) is live, still forks, and
+     is still tested. */
 
   /* ══════════════════════════════════════════════════════════════════════════
      b456 CAPSTONE-NOOP — THE SHIPPING DEFAULT: THE LOCAL BLOB IS RETIRED.
@@ -41595,14 +41681,15 @@ const TESTS = [
         '`lastSeen` is on the registry now — pick a different unmoved control for this test');
       const snap = { lastSeen: 7, offlineBudget: { at: 5 } };
 
-      // Switch OFF: byte-for-byte b339 behaviour. The b305 restore paths are untouched.
-      A.setServerAccrualEnabled(false);
-      const off = Auth.stripRecordFieldsForOverlay(snap, window);
-      assert(off === snap, 'the overlay was rewritten with the switch off — b305 restore behaviour changed');
-
-      // Switch ON: the field never reaches G from the cloud either.
-      A.setServerAccrualEnabled(true);
+      /* b515: the "switch OFF returns the snapshot untouched" control is gone
+         with the switch. `stripRecordFieldsForOverlay` strips unconditionally
+         now, so the honest control is the COMPLEMENT rather than a position:
+         the unmoved field must survive the strip, which the assertion below
+         states directly (`on.lastSeen === 7`). A strip that returned an empty
+         object would pass "offlineBudget is gone" and fail that. */
       const on = Auth.stripRecordFieldsForOverlay(snap, window);
+      assert(on !== snap, 'the overlay strip returned its ARGUMENT — it must never mutate the caller\'s '
+        + 'parsed snapshot (the log would then lie about what arrived)');
       assert(!('offlineBudget' in on) && on.lastSeen === 7,
         'the cloud overlay still carries the server-owned field — the local seam was closed and the cloud '
         + 'one left open, which is a hole, not a slice: ' + JSON.stringify(on));
@@ -42050,21 +42137,35 @@ const TESTS = [
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
        fresh-G factory literal (attack 0 … hitpoints 1154, gold 500) stayed in a
        live G under an armed record — and that is what the player was shown on
-       2026-08-29 when the boot read failed. */
-    /* ANCHORED ON loadLocal, not on the first `isBlobRetired()` in the file —
-       saveLocal has one too, and matching that instead would prove nothing about
-       the load path (and would pass while the load path was broken, which is the
-       assertion-that-asserts-nothing family this program keeps meeting). */
+       2026-08-29 when the boot read failed.
+
+       b515 — THE ANCHOR MOVED WITH THE BRANCH IT ANCHORED ON. This used to find
+       `isBlobRetired()` inside loadLocal and assert the forget sat BEFORE the
+       early `return;`. There is no branch and no early return: b515 deleted the
+       ~120-line blob read that followed it, so loadLocal's whole body is the
+       two lines the forget used to guard. That makes the ordering assertion
+       unsatisfiable-by-construction (there is no `return;` to be before), and an
+       assertion that cannot fail is the family this program keeps meeting.
+
+       So the anchor is the FUNCTION, and the property is stated as what must be
+       true of the whole body: it forgets, and it does NOT read a blob back into
+       G. The second half is what stops the deleted read quietly returning.
+       MUTATION: put `Object.assign(G, JSON.parse(_readSave(SAVE_KEY)))` back
+       into loadLocal → red on the second assertion. */
     const fn = src.indexOf('function loadLocal(');
     assert(fn !== -1, 'loadLocal is gone from legacy.js');
-    const cap = src.indexOf('isBlobRetired()', fn);
-    assert(cap !== -1 && cap - fn < 2000, 'the capstone branch is gone from loadLocal');
-    const branch = src.slice(cap, cap + 2600);
+    const close = src.indexOf('\n}', fn);
+    assert(close !== -1 && close - fn < 4000, 'loadLocal has no readable body');
+    const branch = src.slice(fn, close);
     assert(/forgetServerOfRecord\(G\)/.test(branch),
-      'loadLocal\'s capstone early return does NOT forget the server-of-record fields — the fresh-G '
-      + 'factory literal survives into a live G and IS what the player is shown when the boot read fails');
-    assert(branch.indexOf('forgetServerOfRecord(G)') < branch.indexOf('return;'),
-      'the forget is after the early return, so it never runs');
+      'loadLocal does NOT forget the server-of-record fields — the fresh-G factory literal survives into '
+      + 'a live G and IS what the player is shown when the boot read fails');
+    assert(/_removeSave\(SAVE_KEY\)/.test(branch),
+      'loadLocal no longer DROPS the leftover blob — a save from before the wipe would survive on disk '
+      + 'and any future read would resurrect it');
+    assert(!/Object\.assign\(G\s*,/.test(branch),
+      'loadLocal is assigning a parsed blob into G again — the client-authored rival copy is back, and '
+      + 'it is the stale-state loop the live cutover failed on');
 
     /* (2) THE CHAIN. `p.then(fn)` is a ONE-ARGUMENT then: it runs on fulfilment
        only. A rejected ensure — or one whose promise never settled, which is
@@ -42494,18 +42595,24 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('B340-7: with the switch OFF nothing moves, snapshot() is untouched, and NO_SYNC gained nothing', () => {
+  () => tryRun('B340-7: the moved field is still UPLOADED — a record move is not a NO_SYNC addition', () => {
     const A = window.HearthriseAccrual;
     const R = window.HearthriseRecord;
     const G = window.G;
     assert(R && A, 'record.js and accrue.js must load together — the load-strip reads the switch from one '
       + 'and the field list from the other, so a missing record.js must be impossible, not merely unlikely');
-    const wasOn = A.isServerAccrualEnabled();
     const save = { offlineBudget: G.offlineBudget };
     try {
-      A.setServerAccrualEnabled(false);
-      assert(R.isRecordActive() === false, 'the record seam is armed while the accrual switch is off — '
-        + 'two switches means "which half is on" becomes a question during an incident');
+      /* b515: this test opened by turning the b353 kill switch OFF and asserting
+         `isRecordActive() === false` — "two switches means which half is on
+         becomes a question during an incident". There is ONE switch's worth of
+         state left and it is a constant, so that assertion has become
+         `false === false` by construction and is retired with the switch; the
+         inverted B353-1 asserts the constant itself. The half worth keeping is
+         the one in the title, and it is asserted at the SHIPPING default, which
+         is where it matters. */
+      assert(R.isRecordActive() === true,
+        'the record system is inert — every assertion about a MOVED field below would be vacuous');
 
       /* THE DENYLIST IS UNCHANGED. CLAUDE.md save-invariant #3: adding a
          persistent-progress field to NO_SYNC is silent cloud data loss and is
@@ -42521,8 +42628,6 @@ const TESTS = [
           + 'makes the blob\'s shape depend on a kill switch: ' + JSON.stringify(snap.offlineBudget));
       }
     } finally {
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       G.offlineBudget = save.offlineBudget;
     }
   }),
@@ -42540,10 +42645,20 @@ const TESTS = [
     const G = window.G;
     const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt, lastSeen: G.lastSeen,
       activeSkill: G.activeSkill, activeMonster: G.activeMonster };
+    const savedRecord = G._record;
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
     const realFetch = window.fetch;
     const hits = { load: 0, accrue: 0, create: 0 };
     try {
+      /* ⚠ THE FIXTURE MUST START UNKNOWN, AND IT DID NOT (found b515). The final
+         assertion is that a `no_character` load leaves the record UNKNOWN —
+         which is only meaningful if it was unknown to begin with. `R.resetRecord()`
+         clears the MODULE's config; the provenance stamp lives on `G._record`,
+         on the live G every test shares, and any earlier test that called
+         `stampRecordLikeLoad`/`stampBalanceLikeLoad` leaves `offlineBudget` on
+         its `known` list. This test passed alone and failed in the suite for
+         exactly that reason. Forgotten here, restored in the finally. */
+      R.forgetServerOfRecord(G);
       window.fetch = function (u) {
         const s = String(u);
         if (/hr_load/.test(s)) { hits.load++; return Promise.resolve(new Response('{"ok":false,"error":"no_character"}', { status: 200 })); }
@@ -42581,6 +42696,8 @@ const TESTS = [
       C.resetCharacterIntent(); C.configureCharacter(null);
       R.resetRecord(); R.configureRecord(null);
       Object.assign(G, save);
+      if (savedRecord === undefined) { try { delete G._record; } catch (e) {} } else G._record = savedRecord;
+      try { stampRecordLikeLoad(G); } catch (e) {}
     }
   }),
 
@@ -42621,31 +42738,34 @@ const TESTS = [
     const save = { offlineBudget: G.offlineBudget, restedAt: G.restedAt, lastSeen: G.lastSeen,
       _record: G._record };
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
-    const wasOn = A.isServerAccrualEnabled();
     try {
       /* saveLocal only advances the watermark WHILE VISIBLE (b261). The harness
          reports hidden, so a test that did not force this would pass with the
          line deleted, the fix reverted, or anything at all. */
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
 
-      /* ── THE CONTROL. Switch OFF, the client owns the field, and saveLocal
-         MUST still advance it. Byte-for-byte b346: the b226 budget watermark and
-         the b305 battery both depend on this, and a "fix" that stops the write
-         unconditionally breaks a shipping game to protect a field nothing owns
-         yet. A guard with no control is a guard that cannot tell the two apart. */
-      A.setServerAccrualEnabled(false);
-      const stale = Date.now() - 3600000;
-      G.offlineBudget = { at: stale };
+      /* ── THE CONTROL, RE-POINTED (b515). It used to be a POSITION: turn the
+         b353 kill switch off, and saveLocal must still advance the watermark,
+         because a "fix" that stops the write unconditionally breaks a shipping
+         game to protect a field nothing owns yet. There is no off position any
+         more, so the control is now the one thing saveLocal still writes at all
+         — `lastSeen`, which is NOT on the registry. Same job, and a stronger
+         one: it proves the refusal below is scoped to the FIELD rather than
+         being saveLocal having stopped writing.
+         b515 note: the blob write is gone; this stamp is all that remains. */
+      assert(R.serverOfRecordFields().indexOf('lastSeen') === -1,
+        '`lastSeen` is on the registry now — pick a different client-owned control for this test');
+      G.lastSeen = 0;
       window.saveLocal();
-      assert(G.offlineBudget.at > stale,
-        'with the switch OFF saveLocal stopped advancing the local watermark — the client still owns this '
-        + 'field, and freezing it means every returning-player catch-up measures from the wrong instant');
+      assert(G.lastSeen > 0,
+        'saveLocal stopped advancing `lastSeen`, a field the client still owns — the write guard has '
+        + 'become an unconditional freeze rather than a per-field refusal, and everything below would '
+        + 'then pass for the wrong reason');
 
-      /* ── THE FIX. Switch ON, the server has ANSWERED (applyRecord wrote a real
+      /* ── THE FIX. The server has ANSWERED (applyRecord wrote a real
          watermark), and saveLocal must leave it alone.
          MUTATION: drop `clientMayWriteRecordField('offlineBudget')` from the
          condition in legacy.js's saveLocal → RED here. */
-      A.setServerAccrualEnabled(true);
       const serverAt = Date.parse('2026-08-15T06:00:00Z');
       G._record = null;
       const wrote = R.applyRecord(G, { ok: true, version: 900, now: '2026-08-15T06:00:00Z',
@@ -42666,9 +42786,6 @@ const TESTS = [
         'after an honest save the record no longer reports as the server\'s: ' + JSON.stringify(v));
     } finally {
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try { delete document.hidden; } catch (e) {} }
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -42681,37 +42798,26 @@ const TESTS = [
     assert(Auth && typeof Auth.applyCloudOverlay === 'function',
       'auth.js does not expose the cloud→G seam — the strip and the re-stamp were undoing each other and '
       + 'the only way to check either would be to re-derive it, which proves nothing about auth.js');
-    const wasOn = A.isServerAccrualEnabled();
     try {
       const cloudAt = Date.parse('2026-08-15T09:30:00Z');
       const serverAt = Date.parse('2026-08-15T06:00:00Z');
 
-      /* ── THE CONTROL. Switch OFF: b305's restore behaviour, unchanged. The
-         overlay lands whole and the watermark IS re-stamped to the cloud's save
-         time, which is what makes a returning player's catch-up measure from
-         when the ACCOUNT was last active rather than when this device saved. */
-      A.setServerAccrualEnabled(false);
-      /* b456: `restedAt` used to be the unmoved control; the cutover armed it, so
-         the overlay correctly strips it under the switch and it can no longer
-         stand for "a field the client DOES own". `stats` is the control now, and
-         its unmoved-ness is ASSERTED rather than assumed so the next arm rots this
-         loudly instead of silently. */
+      /* b515: the CONTROL was a POSITION — switch the b353 kill switch off and
+         the overlay must land whole, watermark re-stamped, byte-for-byte b305.
+         There is no off position, so the control moves to the COMPLEMENT and is
+         asserted inside the one remaining path: a field that is NOT on the
+         registry must still be overlaid, and `lastSeen` must still be stamped.
+         That is what stops "the re-stamp was removed" and "the overlay stopped
+         working" looking the same. */
       assert(R.serverOfRecordFields().indexOf('stats') === -1,
         '`stats` is on the registry now — pick a different client-owned control for this test');
-      const off = { offlineBudget: { at: 1 }, stats: { kills: 3 } };
-      const rOff = Auth.applyCloudOverlay(off, { stats: { kills: 7 }, offlineBudget: { at: 5 } }, cloudAt, window);
-      assert(off.stats.kills === 7 && off.lastSeen === cloudAt && off.offlineBudget.at === cloudAt
-        && rOff.restampedWatermark === true,
-        'with the switch OFF the cloud overlay changed shape — every b305 restore path reads this: '
-        + JSON.stringify({ g: off, r: rOff }));
 
-      /* ── THE FIX. Switch ON with a SERVER-SUPPLIED watermark already in place.
-         The strip removes `offlineBudget` from the snapshot; the re-stamp used
-         to put a blob-derived number straight back over the server's, three
-         lines later, in the same function.
+      /* ── THE FIX. A SERVER-SUPPLIED watermark is already in place. The strip
+         removes `offlineBudget` from the snapshot; the re-stamp used to put a
+         blob-derived number straight back over the server's, three lines later,
+         in the same function.
          MUTATION: restore `if (G.offlineBudget) G.offlineBudget.at = cloudAt;`
          unguarded in auth.js applyCloudOverlay → RED here. */
-      A.setServerAccrualEnabled(true);
       const on = {};
       R.applyRecord(on, { ok: true, version: 901, now: '2026-08-15T06:00:00Z',
         state: { accrued_to: '2026-08-15T06:00:00Z' } });
@@ -42727,11 +42833,7 @@ const TESTS = [
       assert(R.recordValue(on, 'offlineBudget').source === 'server',
         'after a restore the record no longer reports as the server\'s: '
         + JSON.stringify(R.recordValue(on, 'offlineBudget')));
-    } finally {
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
-    }
+    } finally { /* nothing pinned — the seam has one position */ }
   }),
 
   () => tryRun('B347-R3: the accessor cannot report a CLIENT number under the server\'s name', () => {
@@ -42798,14 +42900,12 @@ const TESTS = [
   () => tryRun('B347-R4: the write guard is ONE implementation, and it fails CLOSED', () => {
     const A = window.HearthriseAccrual;
     const R = window.HearthriseRecord;
-    const wasOn = A.isServerAccrualEnabled();
     try {
-      A.setServerAccrualEnabled(false);
-      assert(A.mayClientWrite('offlineBudget', window) === true,
-        'with the switch OFF the client was refused its own field — that is not a fix, that is a freeze');
-      assert(R.clientMayWrite('offlineBudget') === true, 'record.js disagrees with the switch');
-
-      A.setServerAccrualEnabled(true);
+      /* b515: the guard used to be graded in two POSITIONS — switch off, the
+         client may write its own field; switch on, it may not. The switch is
+         retired, so what distinguishes "the registry is the list" from "nothing
+         may ever be written" is the unmoved exemplar below, which was already
+         here and is now doing the whole job of the control. */
       assert(A.mayClientWrite('offlineBudget', window) === false,
         'with the switch ON a client site is still allowed to write the record');
       /* b456: `restedAt` armed in the cutover, so it is no longer an unmoved
@@ -42825,13 +42925,10 @@ const TESTS = [
          stripRecordFieldsForOverlay holds, same reason.
          MUTATION: `if (!R) return true;` in accrue.js mayClientWrite → RED. */
       assert(A.mayClientWrite('offlineBudget', { HearthriseAccrual: A }) === false,
-        'with record.js absent and the switch ON, the client was told it may write — a missing module '
-        + 'silently answering "not moved" is the failure this pairing exists to prevent');
-    } finally {
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
-    }
+        'with record.js absent, the client was told it may write — a missing module silently answering '
+        + '"not moved" is the failure this pairing exists to prevent');
+      assert(R.clientMayWrite('offlineBudget') === false, 'record.js disagrees with accrue.js');
+    } finally { /* nothing pinned — the seam has one position */ }
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -43243,8 +43340,18 @@ const TESTS = [
     }
   }),
 
-  () => tryRunAsync('ACT-5: the SAME kill switch as accrual — off means nothing reaches the wire', async () => {
-    const A = window.HearthriseAccrual;
+  /* ACT-5 IS RETIRED (b515). Its subject was the SHARED kill switch: the
+     activity seam had to follow accrual in both directions, because two
+     switches would let the client start activities the server never hears
+     about. `isActivityIntentEnabled()` is a one-line delegation to a constant
+     now — there is no second state to be in and no direction to follow — and
+     the inverted B353-1 asserts every family answers TRUE on a pristine device.
+
+     Its two OTHER refusals were not about the switch at all and are kept, in
+     ACT-5b below: a tokenless client and an unsupported kind are both refused
+     BY THE CLIENT, before the wire. They matter more now than they did, because
+     they are the only inert positions left. */
+  () => tryRunAsync('ACT-5b: an intent nobody can authorise never reaches the wire — tokenless is inert, and an unsupported kind is refused by the client', async () => {
     const M = window.HearthriseActivity;
     const G = window.G;
     const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS || {})[0];
@@ -43252,7 +43359,6 @@ const TESTS = [
       combatLog: G.combatLog, gold: G.gold, playerHp: G.playerHp, inventory: G.inventory,
       skills: G.skills, offlineBudget: G.offlineBudget, restedAt: G.restedAt };
     const realFetch = window.fetch;
-    const wasOn = A.isServerAccrualEnabled();
     let hits = 0;
     try {
       window.fetch = function (u) {
@@ -43260,24 +43366,10 @@ const TESTS = [
         return realFetch.apply(this, arguments);
       };
       M.resetActivity();
-      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-      A.setServerAccrualEnabled(false);
-      assert(M.isActivityIntentEnabled() === false,
-        'the activity seam is armed while the accrual switch is off — TWO switches means a state where the '
-        + 'client starts activities the server never hears about, and "which half is on" becomes a question '
-        + 'during an incident');
-      window.startCombat(mid);
-      window.stopCombat();
-      for (let i = 0; i < 40; i++) await Promise.resolve();
-      await new Promise((r) => setTimeout(r, 0));
-      assert(hits === 0,
-        'the seam sent ' + hits + ' request(s) with the kill switch OFF — this ships DARK, and b346 combat '
-        + 'behaviour must be byte-for-byte unchanged');
 
-      /* Configured-but-unauthenticated is inert too: an intent with no token is
-         a request that can only be refused, and sending it spends a rate budget
+      /* Configured-but-unauthenticated is inert: an intent with no token is a
+         request that can only be refused, and sending it spends a rate budget
          to learn that. */
-      A.setServerAccrualEnabled(true);
       M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => null });
       const v = await window.declareActivity('combat', mid);
       assert(v && v.outcome === 'unconfigured' && hits === 0,
@@ -43288,11 +43380,18 @@ const TESTS = [
       const bad = await M.declareActivity('woodcutting', 'oak');
       assert(bad && bad.outcome === 'undeclarable' && hits === 0,
         'an unsupported kind was declared: ' + JSON.stringify(bad));
+
+      /* THE CONTROL, and it is the whole reason the two zeros above mean
+         anything: with a token and a supported kind the SAME spy must see a
+         request. Without it, a seam that had stopped sending altogether would
+         satisfy every assertion here. */
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      await M.declareActivity('combat', mid);
+      assert(hits === 1,
+        'CONTROL FAILED: an authorised, supported declaration sent ' + hits + ' request(s) — the two '
+        + 'inert cases above are then indistinguishable from a dead transport');
     } finally {
       window.fetch = realFetch;
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, save);
@@ -44151,72 +44250,19 @@ const TESTS = [
     }
   }),
 
-  () => tryRunAsync('B354-5: with the switch OFF nothing leaves the client and the balance is unchanged', async () => {
-    const A = window.HearthriseAccrual;
-    const Gd = window.HearthriseGold;
-    const G = window.G;
-    const D = window.HearthriseDaily;
-    const realFetch = window.fetch;
-    const wasOn = A.isServerAccrualEnabled();
-    const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };
-    const save = { gold: G.gold, gems: G.gems, streak: G.streak, dailyReward: G.dailyReward,
-      inventory: JSON.parse(JSON.stringify(G.inventory)) };
-    let sent = 0;
-    try {
-      A.setServerAccrualEnabled(false);
-      Gd.resetGold();
-      Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-      window.fetch = function (u) {
-        if (/hr-accrue/.test(String(u))) { sent++; return Promise.resolve(new Response('{}', { status: 200 })); }
-        return realFetch.apply(this, arguments);
-      };
-      G.streak = { count: 1, lastDay: 0 }; G.dailyReward = { lastClaimDay: 0 }; G.gold = 1000;
-      const rw = D.rewardFor(G);
-      D.claim(G);
-      /* The bag, too — the shop button and Sell 1 share the same seam. */
-      const before = G.gold;
-      G.inventory = Object.assign({}, G.inventory, { normal_log: 7 });
-      const bid = window.vendorPrice('normal_log');
-      window.invSellOne('normal_log');
-      await drain();
+  /* B354-5 IS RETIRED (b515), and it is the clearest case in the batch. Every
+     one of its assertions was about the DARK position: with the b353 kill
+     switch off, no gold verb may reach hr-accrue, the daily claim and the
+     vendor sale pay LOCALLY byte-for-byte as they did pre-seam, and `settle()`
+     records no prediction because nothing will ever retire one. That client
+     does not exist: the switch is retired, `isGoldIntentEnabled()` is a
+     constant, and a local payment of a server-owned balance is exactly the
+     client-authored fallback CLAUDE.md §1 forbids.
 
-      assert(sent === 0,
-        sent + ' request(s) reached hr-accrue with the kill switch OFF. Dark means dark: b354 must be '
-        + 'inert until the flip, and a client that talks to the economy verbs before the server owns the '
-        + 'balance is the half-moved gold surface §9 says cannot be made safe.');
-      assert(G.gold === before + bid,
-        'switch OFF, the vendor sale paid ' + (G.gold - before) + ' and the bid is ' + bid
-        + ' — the flag-off path must be byte-for-byte the behaviour that shipped before the seam');
-      assert(before === 1000 + rw.gold,
-        'switch OFF, the daily claim paid ' + (before - 1000) + ' instead of ' + rw.gold);
-      assert(Gd.goldPredictions().length === 0,
-        'the switch is OFF and a prediction was recorded — nothing will ever reconcile it');
-
-      /* ⚠ ASSERTED DIRECTLY, BECAUSE THE GESTURE-LEVEL CHECK ABOVE CANNOT SEE
-         IT. Mutation run: deleting the kill-switch test inside `settle()`
-         SLIPPED — with the switch off `goldIntentKey()` returns null, so the
-         key gate stops the prediction on its own and the two guards are
-         indistinguishable from one. Fail-closed guards are allowed to be
-         redundant; they are not allowed to be unobservable, because the day the
-         key gate changes shape the switch is the only thing left and nobody
-         will know whether it works. So: a key IS supplied, and `settle` must
-         still record nothing. */
-      const forced = Gd.settle(G, 100, 'shop.buy', '11111111-2222-4333-8444-555555555555');
-      assert(Gd.goldPredictions().length === 0 && forced.predicted === false,
-        'settle() recorded a prediction with the kill switch OFF even though the key was supplied ('
-        + JSON.stringify(forced) + '). With the switch off there is no server call and nothing will '
-        + 'ever retire it, so it becomes a permanent offset on every future envelope.');
-      assert(G.gold === before + bid + 100,
-        'settle() with the switch off must still MOVE the gold — it is the payment path, not just the '
-        + 'prediction ledger. Gold is ' + G.gold + ', expected ' + (before + bid + 100));
-    } finally {
-      window.fetch = realFetch;
-      Gd.resetGold(); Gd.configureGold(null);
-      if (wasOn) A.setServerAccrualEnabled(true);
-      Object.assign(G, save);
-      try { window.saveLocal(); } catch (e) {}
-    }
-  }),
+     The LIT position — one payment, the SERVER's number, applied absolutely,
+     with the prediction retired, rolled back or abandoned according to what the
+     server actually said — is B354-1 through B354-4 immediately above, and the
+     prediction LIFECYCLE is B354-6 onward. Nothing it covered is uncovered. */
 
   /* b373: the sweep's confirmation moved off window.confirm (which blocks the
      renderer) onto the shared modal, so the quote is no longer observable by
@@ -44549,17 +44595,15 @@ const TESTS = [
     const G = window.G;
     assert(M && typeof M.placeBuyOffer === 'function', 'src/market.js buy-offer API is absent');
 
-    const wasOn = A.isServerAccrualEnabled();
     const save = { gold: G.gold };
     const savedOffers = localStorage.getItem('hearthrise:market:offers');
     const savedListings = localStorage.getItem('hearthrise:market:listings');
     try {
-      /* ── SWITCH ON: every buy-offer gesture is refused BEFORE it moves gold.
-         The bug this guards: placeBuyOffer/cancelBuyOffer escrow and refund with
-         a bare `G.gold -=` / `+=` that NO server verb reconciles, so under the
-         absolute-envelope switch they would be silently refunded/minted at the
-         next envelope. Inert = the gesture is refused and gold is UNCHANGED. */
-      A.setServerAccrualEnabled(true);
+      /* EVERY buy-offer gesture is refused BEFORE it moves gold. The bug this
+         guards: placeBuyOffer/cancelBuyOffer escrow and refund with a bare
+         `G.gold -=` / `+=` that NO server verb reconciles, so under the
+         absolute envelope they would be silently refunded/minted at the next
+         envelope. Inert = the gesture is refused and gold is UNCHANGED. */
       G.gold = 100000;
       stampBalanceLikeLoad(G);   // armed: prove inertness comes from the SEAM flag, not a fail-closed read
       G.inventory = { normal_log: 0 };
@@ -44586,18 +44630,21 @@ const TESTS = [
         'cancelBuyOffer refunded escrow under the seam (gold ' + before + ' -> ' + G.gold + ') — that '
         + 'is a mint of gold the server never saw leave');
 
-      /* ── SWITCH OFF: the sub-market is the pre-seam behaviour, byte for byte —
-         the gating is a flag, not a deletion (the row stays `deferred`). */
-      A.setServerAccrualEnabled(false);
-      G.gold = 100000;
-      stampBalanceLikeLoad(G);   // armed: placeBuyOffer reads gold via canAfford before escrowing
-      localStorage.setItem('hearthrise:market:offers', JSON.stringify([]));
-      const off = M.placeBuyOffer('normal_log', 5, 100);
-      assert(off && off.ok === true, 'placeBuyOffer refused with the switch OFF: ' + JSON.stringify(off)
-        + ' — the gating must be the flag, not a removal of the feature');
-      assert(G.gold === 100000 - 500, 'the switch-off offer did not escrow its gold (5 x 100)');
+      /* b515: the second half of this test drove the SWITCH-OFF position and
+         asserted the sub-market still worked there — "the gating must be the
+         flag, not a removal of the feature". The b353 switch is retired, so that
+         position is gone and the refusal above is now unconditional. That is a
+         REAL PRODUCT GAP and it is named rather than tested away: the buy-offer
+         sub-market is OFF for every player until a server verb exists, exactly
+         as the theme/cosmetic gem purchases are (see HANDOFFS.md, "the GEM
+         PURCHASE VERB"). What this test still holds is the property that
+         matters while it is off — the refusal costs the player NOTHING.
+
+         The refusal must also be HONEST rather than silent, because a button
+         that does nothing is how a player concludes their gold vanished. */
+      assert(typeof p.reason === 'string' && p.reason.length > 0,
+        'placeBuyOffer refused without a reason the UI can say out loud: ' + JSON.stringify(p));
     } finally {
-      if (!wasOn) A.setServerAccrualEnabled(false);
       if (savedOffers === null) localStorage.removeItem('hearthrise:market:offers');
       else localStorage.setItem('hearthrise:market:offers', savedOffers);
       if (savedListings === null) localStorage.removeItem('hearthrise:market:listings');
@@ -50901,22 +50948,21 @@ const TESTS = [
       + 'whole diagnosis in one paste, and its absence is the b367 blindness returning');
     const prevCfg = E.getEquipConfig();
     const realFetch = window.fetch;
-    const wasOn = A.isServerAccrualEnabled();
     const before = { ...E.stats.drops };
     const moved = (r) => (E.stats.drops[r] || 0) - (before[r] || 0);
     const OPS = { weapon: 'iron_sword' };
     try {
-      // 1. THE KILL SWITCH IS OFF — nothing is sent, deliberately, and counted.
-      E.configureEquip({ url: 'https://drop.test', apiKey: 'k', token: 't', slot: 0, gestureWired: true });
-      A.setServerAccrualEnabled(false);
-      let v = await E.sendEquip(OPS, {});
-      assert(v.outcome === 'switch-off', 'the switch being off must answer switch-off — got ' + v.outcome);
-      assert(moved('switch-off') === 1, 'the switch-off drop must be counted — got ' + moved('switch-off'));
-      A.setServerAccrualEnabled(true);
+      /* 1. THE KILL SWITCH IS OFF — RETIRED (b515). `switch-off` was the first
+            and loudest of the six drops; the switch is gone and nothing
+            produces that outcome any more. The NAME survives in the vocabulary
+            on purpose (a stored outcome from an old session must still read),
+            which is exactly why it is worth saying here that it is now
+            unreachable rather than quietly deleting the step. The five below
+            are untouched, and they are the ones an incident actually meets. */
 
       // 2. NO ENDPOINT. The state a client is in before auth wires it.
       E.resetEquip();
-      v = await E.sendEquip(OPS, {});
+      let v = await E.sendEquip(OPS, {});
       assert(v.outcome === 'unconfigured' && v.dropReason === 'unconfigured',
         'an unconfigured transport must name itself — got ' + JSON.stringify(v));
       assert(moved('unconfigured') === 1, 'the unconfigured drop must be counted');
@@ -50961,8 +51007,6 @@ const TESTS = [
       assert(A.isEnvelopeAbsolute() === false, 'and therefore the envelope must still be merged');
     } finally {
       window.fetch = realFetch;
-      if (wasOn) A.setServerAccrualEnabled(true); else A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       E.resetEquip();
       if (prevCfg) E.configureEquip(prevCfg);
     }

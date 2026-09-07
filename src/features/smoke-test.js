@@ -41489,6 +41489,112 @@ const TESTS = [
     }
   }),
 
+  /* ── REGRESSION (security F1, 2026-09-07): A RESTORED RECEIPT IS NEVER PAID ──
+     The realm now KEEPS the last away-classified receipt in
+     `player_state.last_away_receipt` (ruling 2026-09-07) and the client seeds
+     `G.lastOfflineSummary` from the projection on boot, so the Home "While you
+     were away" card survives a reload. That seed classifies as 'away' by
+     construction — same span, same kills — and `creditServerAwayKills` credits
+     on exactly that classification.
+
+     LEFT ALONE IT IS AN EXPLOIT, NOT A DISPLAY BUG. The kill total goes to
+     lifetime `stats.kills`, the this-fight streak, `updateQuest`, and
+     `updateDaily('kill_any')` — the wrapper chain the Muster hangs off
+     (src/features/muster.js), which turns the count into
+     `world_event_contribute(p_event_key, p_points)` with CLIENT-SUPPLIED points
+     against a SHARED world-event meter. Reload, switch activity, repeat: last
+     night's kills re-credited into a live leaderboard every time.
+
+     BOTH HALVES ARE ASSERTED, and so is the CONTROL — without the control, a
+     build where `creditServerAwayKills` credited NOTHING AT ALL would pass this
+     test while silently reopening the Paione 2026-08-18 regression.
+     Fails without the fix: the restored receipt moves all four counters. */
+  () => tryRun('F1: a server-RESTORED away receipt renders the card and reaches NO crediting seam', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.reconcileAwayReceipt === 'function',
+      'reconcileAwayReceipt is not exported — the projection would arrive and nothing would read it');
+    const G = window.G;
+    const saved = {
+      kills: (G.stats && G.stats.kills) || 0,
+      foe: G.combatKillsThisFoe || 0,
+      active: G.activeMonster,
+      quests: G.quests,
+      los: G.lastOfflineSummary,
+      muster: G.muster,
+      updateDaily: window.updateDaily,
+    };
+    /* The stored receipt is in the SERVER's `away` payload shape (flat `kills`),
+       which is what hr_state_of projects raw — not the client's card shape. */
+    const STORED = { grantMs: 8 * 3600000, awayMs: 8 * 3600000, paidMs: 8 * 3600000,
+      at: Date.now() - 40 * 60000, gold: 1234, kills: 42, crits: 3,
+      xp: { attack: 5000 }, items: { oak_log: 40 }, died: false, deaths: 0 };
+    const BOOT = { ok: true, version: 7, state: { last_away_receipt: STORED } };
+    let dailyCalls = [];
+    try {
+      G.stats = G.stats || {};
+      G.stats.kills = 100;
+      G.combatKillsThisFoe = 3;
+      G.activeMonster = 'slime';
+      G.quests = [{ id: '__restored_probe', type: 'kill_any', progress: 0, goal: 1000, done: false }];
+      G.muster = { dayKey: null, eventKey: null, slot: null, startMs: 0, endMs: 0,
+                   points: 0, pending: 0, rallied: false, claimed: false, server: false };
+      G.lastOfflineSummary = null;
+
+      /* WATCH THE SEAM ITSELF, not only its effects. `updateDaily` is the single
+         call that reaches the Muster's pending queue and therefore the wire; a
+         test that only checked G.muster.pending would pass on a build where the
+         wrapper chain happened to be unwired in the harness. */
+      window.updateDaily = function (type, amt) { dailyCalls.push([type, amt]); };
+
+      // ── (1) THE BOOT SEED RENDERS THE CARD ──────────────────────────────
+      const seeded = A.reconcileAwayReceipt(G, BOOT);
+      assert(!!seeded && G.lastOfflineSummary === seeded,
+        'the boot envelope did not seed the away card from state.last_away_receipt');
+      assert(seeded.gainedKills === 42 && seeded.combat && seeded.combat.kills === 42,
+        'the restored card does not render the 42 kills the server paid, got ' + JSON.stringify(seeded.combat));
+      assert(seeded.gainedGold === 1234 && seeded.awayMs === 8 * 3600000,
+        'the restored card lost the totals the server stated');
+      assert(seeded.restored === true,
+        'the seeded summary is not marked `restored` — nothing downstream can tell it from a paid receipt');
+
+      // ── (2) AND IT REACHES NO CREDITING SEAM ────────────────────────────
+      const credited = window.creditServerAwayKills(G.lastOfflineSummary);
+      assert(credited === 0, 'a RESTORED receipt was credited (' + credited + ' kills) — a night already paid, '
+        + 'journalled and banked was paid again');
+      assert((G.stats.kills || 0) === 100, 'a restored receipt moved lifetime stats.kills');
+      assert((G.combatKillsThisFoe || 0) === 3, 'a restored receipt moved the this-fight streak');
+      assert(G.quests[0].progress === 0, 'a restored receipt advanced a kill quest');
+      assert(dailyCalls.length === 0,
+        'a restored receipt called updateDaily(' + JSON.stringify(dailyCalls) + ') — that is the seam the Muster '
+        + 'wraps, so this is a world_event_contribute on a SHARED meter');
+      assert((G.muster.pending || 0) === 0,
+        'a restored receipt queued ' + G.muster.pending + ' points for world_event_contribute');
+
+      // ── (3) THE CONTROL: THE SAME NIGHT, PAID NOW, STILL CREDITS ────────
+      const paid = Object.assign({}, seeded); delete paid.restored;
+      const n = window.creditServerAwayKills(paid);
+      assert(n === 42, 'a genuine away receipt stopped crediting (' + n + ') — the Paione 2026-08-18 regression '
+        + 'is reopened and away kills reach no counter at all');
+      assert((G.stats.kills || 0) === 142, 'the control did not move lifetime kills, got ' + G.stats.kills);
+      assert(dailyCalls.length === 1 && dailyCalls[0][0] === 'kill_any' && dailyCalls[0][1] === 42,
+        'the control did not reach updateDaily(kill_any, 42), got ' + JSON.stringify(dailyCalls));
+
+      // ── (4) THE SEED YIELDS TO THIS SESSION'S RECEIPT ───────────────────
+      G.lastOfflineSummary = { gainedKills: 7, marker: 'this session' };
+      assert(A.reconcileAwayReceipt(G, BOOT) === null
+        && G.lastOfflineSummary.marker === 'this session',
+        'the stored receipt overwrote the settle the player is looking at');
+    } finally {
+      G.stats.kills = saved.kills;
+      G.combatKillsThisFoe = saved.foe;
+      G.activeMonster = saved.active;
+      G.quests = saved.quests;
+      G.lastOfflineSummary = saved.los;
+      G.muster = saved.muster;
+      window.updateDaily = saved.updateDaily;
+    }
+  }),
+
   () => tryRun('b337: the accrual endpoint is DERIVED from the project URL, and the intent carries one integer', () => {
     const A = window.HearthriseAccrual;
     assert(A.accrueEndpoint('https://x.supabase.co') === 'https://x.supabase.co/functions/v1/hr-accrue', 'bad endpoint derivation');

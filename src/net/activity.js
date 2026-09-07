@@ -765,6 +765,14 @@ export function applyIntentEnvelope(G, body) {
     s.activity = activityOf(body);
     G.lastOfflineSummary = s;
     written.summary = true;
+    /* THE RECEIPT THIS ENVELOPE PAID FOR, by identity — accrue.js's applyEnvelope
+       carries the same field for the same reason. legacy.js's applyServerEnvelope
+       credits away kills from THIS object and never from `G.lastOfflineSummary`,
+       because a switch that collected nothing leaves the ambient holder carrying
+       whatever seeded it — which after a reload is the RESTORED receipt for a
+       night already paid, and crediting that re-feeds `updateDaily('kill_any')`
+       into the Muster's shared world-event meter on every switch. */
+    written.paidReceipt = s;
     written.collected = collected;
   }
 

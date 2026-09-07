@@ -170,3 +170,42 @@ export function withAwayReceipt(delta, out, nowMs) {
   const receipt = awayReceiptFor(out, nowMs);
   return receipt ? { ...delta, last_away_receipt: receipt } : delta;
 }
+
+/**
+ * THE CARD IS NEVER WORTH THE NIGHT (F2, security 2026-09-07).
+ *
+ * `bad_receipt` is deliberately NOT in index.ts's `DEGRADABLE` set, and that is
+ * right: shortening a span cannot repair a malformed object. But hr_apply
+ * refuses the DELTA, not the key, and `bad_receipt` is not a clamp — so the
+ * degrade ladder is never entered and ONE receipt the database disagrees with
+ * (a builder field `c_receipt_keys` has not learnt yet, a bound the two sides
+ * read differently, an `at` outside the clock slack) would 409 EVERY away
+ * settle for EVERY player until a redeploy: watermark frozen, night unpaid,
+ * over a Home card.
+ *
+ * So a refusal of the receipt costs the RECEIPT and nothing else. Given
+ * hr_apply's answer and the delta that produced it, this returns the delta to
+ * RETRY — the same delta with `last_away_receipt` DELETED — or `null` when
+ * there is nothing to rescue.
+ *
+ * It lives HERE, next to the builder, for the reason this whole module exists:
+ * index.ts is Deno TypeScript that no test can import, so a decision written
+ * inline there could only be graded by transcribing it, and a guard that grades
+ * a transcription stays green while the shipped code drifts.
+ *
+ * ⚠ NOT A GENERAL RETRY. It fires on `bad_receipt` and on nothing else, and
+ *   only when the delta ACTUALLY CARRIED a receipt: a `bad_receipt` answer to a
+ *   delta with no receipt in it is a different defect and must not be masked by
+ *   a retry that changes nothing. The caller is responsible for retrying at a
+ *   DIFFERENT `attempt`, so the derived intent key is a fresh apply and never a
+ *   replay of the rejected one.
+ */
+export function receiptRescue(res, delta) {
+  if (!res || typeof res !== 'object') return null;
+  if (res.ok === true || String(res.error) !== 'bad_receipt') return null;
+  if (!delta || typeof delta !== 'object' || Array.isArray(delta)) return null;
+  if (!('last_away_receipt' in delta)) return null;
+  const rescued = { ...delta };
+  delete rescued.last_away_receipt;
+  return rescued;
+}

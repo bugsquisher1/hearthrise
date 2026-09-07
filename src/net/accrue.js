@@ -2625,8 +2625,17 @@ export function applyEnvelopeState(G, res, ownKey) {
   /* THE LAST AWAY-CLASSIFIED RECEIPT IS THE SERVER'S (ruling 2026-09-07).
      Seeded from `state.last_away_receipt` so the Home "While you were away" card
      survives a reload — see reconcileAwayReceipt's header for why it can only
-     ever fill a hole and never overwrite this session's receipt. */
-  written.awayReceipt = reconcileAwayReceipt(G, res);
+     ever fill a hole and never overwrite this session's receipt.
+
+     ⚠ NAMED `restoredReceipt`, NEVER `receipt`, AND THE NAME IS LOAD-BEARING.
+       This is a RESTATEMENT of a night that was paid, journalled and banked
+       some time ago; `paidReceipt` (set by applyEnvelope / applyIntentEnvelope
+       below) is the receipt for the payment THIS envelope carried. Exactly one
+       of them may reach a crediting seam and it is never this one — see the
+       block above `creditServerAwayKills` in legacy.js. Two fields with two
+       names, because one field with two meanings is how a restored receipt
+       comes to be credited twice. */
+  written.restoredReceipt = reconcileAwayReceipt(G, res);
 
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   /* ══════════════════════════════════════════════════════════════════════
@@ -3344,6 +3353,16 @@ export function applyEnvelope(G, res) {
      is the flag that lets a renderer (or a bug report) tell the two apart. */
   G.lastOfflineSummary = summaryFromAway(res.away, res);
   written.summary = true;
+  /* ── THE RECEIPT THIS ENVELOPE PAID FOR, HANDED BACK BY IDENTITY ───────────
+     `creditServerAwayKills` (legacy.js) replays the server's away KILL TOTAL
+     through the live counter seams — `stats.kills`, the this-fight streak,
+     `updateQuest` and `updateDaily`, and `updateDaily` is the wrapper chain the
+     Muster contributes to (`world_event_contribute`, a SHARED surface). It used
+     to read `G.lastOfflineSummary`, an ambient holder that ANY applier may have
+     seeded — including reconcileAwayReceipt with a night that was credited
+     hours ago. Handed the object instead, the crediting seam can only ever see
+     the receipt for the delta that was just applied. See legacy.js:~2034. */
+  written.paidReceipt = G.lastOfflineSummary;
 
   /* The server owns `accrued_to`. Parking it here is what makes it visible to
      the countdown UI and to a bug report; nothing reads it as authority. */

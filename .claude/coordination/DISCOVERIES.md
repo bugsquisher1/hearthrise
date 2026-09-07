@@ -4,6 +4,32 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-09-07 — Systems Engineer — **Two of the three defects named in the last-away-receipt security follow-up do not exist; the coverage hole is the OTHER map bound.** (measured, not read)
+
+**F3 (`awayMs` classifies the b345 night as 31 s).** FALSE. `accrual.js` `windowEnvelope` publishes
+two spans on adjacent lines and they are not the same number:
+`awayMs: credit.paidMs` is the **credited window**, `paidMs: earned` is the **span that earned**.
+Driven through the shipped engine (8 raw shrimp, cooking bench, 12 h window, seed 0x5eed1234):
+`awayMs = 43,200,000` · `paidMs = 30,720` · `classifiesAway = true` · **receipt stored**. The
+headline case works. Changing the classifier to the elapsed window would have bought nothing and
+cost a `player_state` write per tab-away, which is the journal-rule-6 failure the classifier exists
+to prevent. Pinned instead: `AWAY-RECEIPT-40..42` drive the real engine, and the mutation
+`classifier_reads_the_earning_span` (`s.awayMs` → `s.paidMs`) is now RED.
+
+**F5 (the §4(e) oversized probe trips the 64-entry cap first).** INVERTED. `hr_apply` checks V2
+(size, 2 KB) **before** V7 (entries, 64), and the fixture is 10,490 bytes across 400 entries — so
+it trips SIZE and the 2 KB rule already had its proof. The rule with **no executing proof anywhere**
+was the entry cap: 65 short-named entries serialise to ~915 bytes, under the size door, and that
+shape existed in no probe. Added on both sides (migration §4(e) `too_many_entries` + `(e-ii)` 64-entry
+control; guard `AWAY-RECEIPT-35b/c/d`), plus `sql_drops_the_entry_cap` as a mutation. Before this,
+deleting V7 outright stayed green.
+
+**AFFECTED:** `supabase/functions/hr-accrue/{accrual.js,away-receipt.js}`,
+`supabase/migrations/2026-09-07-last-away-receipt.sql`, `tests/away-receipt-journal.mjs`.
+**REQUIRED ACTION:** none outstanding — but the lesson generalises: when a brief names a line
+number and a symptom, execute the line before changing it. Both of these read correctly and
+measured wrong.
+
 ### 2026-09-06 — Art Director — **The arena stage has NEVER fitted its card at 900px, and every b227 red was a symptom of that.** (P1, fixed in b513)
 
 Two builds in a row diagnosed the b227 flake as a text-measurement accident one row above the Eat

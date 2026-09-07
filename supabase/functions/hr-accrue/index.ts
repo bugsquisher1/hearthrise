@@ -71,7 +71,7 @@
 
 import postgres from 'npm:postgres@3.4.5';
 import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested } from './accrual.js';
-import { withAwayReceipt } from './away-receipt.js';
+import { withAwayReceipt, receiptRescue } from './away-receipt.js';
 /* THE DORMANT COMPANION-XP ARM SWITCH. Threaded into computeAccrual's input as
    `companionXpBacked` (A14-mirrored in set-activity.js). False → the engine
    emits no companion_xp op; the client keeps awarding. One line to arm. */
@@ -1028,8 +1028,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         ...(Array.isArray((env as Record<string, any>).workers) ? { workers: (env as Record<string, any>).workers } : {}) });
     }
 
-    // ── APPLY. The single writer. ──────────────────────────────────────────
-    const apply = async (delta: unknown, attempt: number) => {
+    // ── APPLY. The single writer — `applyOnce` is the statement, `apply`
+    //    below is the statement PLUS the one rescue it is allowed to make. ──
+    const applyOnce = async (delta: unknown, attempt: number) => {
       /* THE DERIVED KEY. Named arguments, and `version` is one of them — the
          anti-deadlock half documented above `intentIdFor` in ./intents.js. It
          MUST be the same version this statement names below, and it must match
@@ -1065,6 +1066,45 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         return r as Row;
       });
       return applied?.res as Record<string, any>;
+    };
+
+    /* ── THE CARD IS NEVER WORTH THE NIGHT (F2, security 2026-09-07) ─────────
+       `bad_receipt` is deliberately NOT in DEGRADABLE and that is right —
+       shortening a span cannot repair a malformed object. But it left the whole
+       absence hostage to the card: hr_apply refuses the DELTA, not the key, and
+       `bad_receipt` is not a clamp, so the degrade ladder is never entered. One
+       receipt the database disagrees with — a builder field `c_receipt_keys` has
+       not learnt yet, a bound the two sides read differently, an `at` outside the
+       clock slack — would 409 EVERY away settle for EVERY player until a
+       redeploy, watermark frozen and night unpaid, over a Home card.
+
+       So a refusal of the receipt now costs the RECEIPT and nothing else: the
+       single writer retries the SAME delta once with the key DELETED. Placed
+       here rather than at the two call sites because this is the one function
+       that talks to hr_apply — a future apply site inherits the rescue instead
+       of re-learning this lesson.
+
+       ⚠ The retry carries its own `attempt` number, so `intentIdFor` derives a
+         DIFFERENT key: this is a fresh apply, never a replay of the rejected
+         one. `RECEIPT_RETRY_BASE` is past both the degrade rungs (1..MAX_DEGRADE)
+         and the forfeit (MAX_DEGRADE + 1), so no two paths can collide on a key.
+       ⚠ Retried ONCE, and only when the delta ACTUALLY CARRIED a receipt. A
+         `bad_receipt` on a delta with no receipt in it is a different defect and
+         must not be masked by a retry that changes nothing.
+       ⚠ hr_apply has already journalled the refusal (hr_record_rejection) and
+         `receiptRejected` puts it on the response, so "the card is missing" and
+         "the engine and the database disagree about the receipt shape" are never
+         the same observation from outside. Pay the player, then tell them. */
+    const RECEIPT_RETRY_BASE = MAX_DEGRADE + 2;
+    let receiptRejected: string | null = null;
+    const apply = async (delta: unknown, attempt: number) => {
+      const r = await applyOnce(delta, attempt);
+      const rescued = receiptRescue(r, delta);
+      if (!rescued) return r;
+      receiptRejected = String((r as Row).why ?? 'refused');
+      console.warn('[hr-accrue] hr_apply refused the away receipt (' + receiptRejected
+        + ') — retrying the same delta WITHOUT it so the night is still paid');
+      return await applyOnce(rescued, RECEIPT_RETRY_BASE + attempt);
     };
 
     /* ── THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07) ──────────────
@@ -1228,6 +1268,16 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
            DO NOT re-add the three "for the welcome-back card": the card states
            what was PAID (gold, items, kills), and the top-up is already inside
            those totals — that is the entire point of §3.5. */
+        /* ── DID THE STORED RECEIPT LAND? (F2) ───────────────────────────────
+           OMITTED ENTIRELY on the ordinary path, present with hr_apply's own
+           `why` when the receipt was REFUSED and the delta was re-applied
+           without it. It is a deployment fact of the same family as
+           `perkChannel` / `attendedChannel` and it names no number: without it,
+           "this night was paid but the Home card is empty after a reload" and
+           "the engine and the database disagree about the receipt shape" are
+           the same observation from outside, which is exactly how a
+           disagreement about a jsonb key would survive a verification pass. */
+        ...(receiptRejected ? { receiptRefused: receiptRejected } : {}),
         kills: out.summary.kills,
         crits: out.summary.crits,
         died: out.summary.died,

@@ -42,6 +42,32 @@
 //   5. index.ts RECOMPUTES the receipt on every degrade attempt. The clamp
 //      ladder halves the span; a receipt computed ONCE would be refused as
 //      sync-sized after a halving and 409 the whole absence over a card.
+//   6. A RESTORED RECEIPT REACHES NO CREDITING SEAM (F1, security 2026-09-07).
+//      The client seeds `G.lastOfflineSummary` from the projection so the Home
+//      card survives a reload — and a seeded receipt classifies as 'away' by
+//      construction, which is exactly what legacy.js's `creditServerAwayKills`
+//      credits on. Uncorrected, every reload-then-switch re-credited last
+//      night's kills into lifetime `stats.kills`, the kill dailies and — through
+//      the `updateDaily` wrapper chain the Muster hangs off — into
+//      `world_event_contribute(p_event_key, p_points)` on a SHARED world-event
+//      meter, with client-supplied points. Both defences are graded: the seam
+//      refuses a `restored` summary AT SOURCE, and the one shipped call site
+//      passes the receipt THIS envelope paid for (`written.paidReceipt`) rather
+//      than reading the ambient holder.
+//   7. THE CLASSIFIER READS THE CREDITED SPAN, NOT THE EARNING SPAN, driven
+//      through the real engine on the b345 night (12 h absence, eight Raw Shrimp
+//      gone in 30 s). `windowEnvelope` publishes both onto one summary on
+//      adjacent lines; reading the wrong one deletes the receipt from the exact
+//      absence the card exists to explain.
+//   8. THE CARD IS NEVER WORTH THE NIGHT (F2). `bad_receipt` is not a clamp, so
+//      the degrade ladder never sees it: one receipt the database disagrees with
+//      would 409 EVERY away settle for EVERY player until a redeploy.
+//      `receiptRescue` re-applies the same delta with the key deleted, and the
+//      SQL half proves hr_apply then accepts it.
+//   9. BOTH MAP BOUNDS ARE PROVED SEPARATELY. The 2 KB size door (V2) is checked
+//      BEFORE the 64-entry cap (V7), and the oversized fixture is 10 KB across
+//      400 entries — so it trips SIZE and, until AWAY-RECEIPT-35c, the entry cap
+//      had no executing proof anywhere and could have been deleted silently.
 //
 // Run GREEN:  node tests/away-receipt-journal.mjs
 // Prove RED:  node tests/away-receipt-journal.mjs --selftest
@@ -54,15 +80,22 @@ import { fileURLToPath } from 'node:url';
 import { join, normalize } from 'node:path';
 import { bootReplay } from './schema-replay.mjs';
 import {
-  awayReceiptFor, withAwayReceipt, classifiesAway,
+  awayReceiptFor, withAwayReceipt, classifiesAway, receiptRescue,
   AWAY_RECEIPT_KEYS, AWAY_RECEIPT_SYNC_MAX_MS, AWAY_RECEIPT_MAX_LADDER,
+  AWAY_RECEIPT_MAX_MAP,
 } from '../supabase/functions/hr-accrue/away-receipt.js';
+import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { GATHER_NODES, ARTISAN_RECIPES_ALL } from '../supabase/functions/hr-accrue/catalogue.js';
+import { ITEMS } from '../src/data/items.js';
+import { MONSTERS } from '../src/data/monsters.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = '2026-09-07-last-away-receipt.sql';
 const MIG_PATH = join(ROOT, 'supabase', 'migrations', MIG);
 const INDEX_TS = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts');
 const CLIENT = join(ROOT, 'src', 'net', 'accrue.js');
+const LEGACY = join(ROOT, 'src', 'legacy.js');
+const RECORD = join(ROOT, 'src', 'net', 'record.js');
 
 const SELFTEST = process.argv.includes('--selftest');
 let failed = 0;
@@ -89,6 +122,31 @@ const AWAY_NIGHT = () => ({
     blessed: false, featuredMs: 0,
   },
 });
+/* ── THE b345 HEADLINE NIGHT, AS THE ENGINE ACTUALLY COMPUTES IT ────────────
+   Not a hand-written summary: assertion (g) below exists precisely because the
+   two spans on a real summary are produced by real code, and a fixture that
+   set them by hand would be asserting that this file can type. Same anchor and
+   seed as tests/artisan-accrual.mjs — a window that differs between guards is
+   how two away paths come to disagree about when a night happened. */
+const STARVE_FROM = Date.UTC(2026, 2, 14, 20, 0, 0);
+const STARVE_SKILLS = Object.freeze({
+  cooking: 13034431, smithing: 13034431, crafting: 13034431, prayer: 13034431,
+  woodcutting: 13034431, mining: 13034431, fishing: 13034431,
+  attack: 1000, strength: 1000, defense: 1000, hitpoints: 1000,
+});
+const STARVE_NIGHT = () => computeAccrual({
+  userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+  nowMs: STARVE_FROM + 12 * 3600000, accruedToMs: STARVE_FROM, activeSinceMs: STARVE_FROM,
+  activeKind: 'artisan', activeId: 'cook_shrimp', capMs: 12 * 3600000, seed: 0x5eed1234,
+  hp: 60, maxHp: 60, gold: 0, skills: STARVE_SKILLS, equipment: {},
+  inventory: { [ARTISAN_RECIPES_ALL.cook_shrimp.recipe.input]: 8 },
+  autoEatEnabled: false, autoEatFood: null, autoEatPct: 0, toolCarry: {}, perks: null,
+  unlockedRecipes: { cook_shrimp: true },
+  items: ITEMS, monsters: MONSTERS, nodes: GATHER_NODES, recipes: ARTISAN_RECIPES_ALL,
+});
+/* Assertions 43-47 and the rescue mutation drive the same refusal/delta pair. */
+const RESCUE_REFUSAL = Object.freeze({ ok: false, error: 'bad_receipt', why: 'unknown key' });
+
 /* THE 90-SECOND CADENCE SETTLE. This is the one that must store NOTHING. */
 const SYNC_TICK = () => ({
   grantMs: 90000, foodEaten: 0,
@@ -210,10 +268,63 @@ function builderSection(migSql) {
     + 'being the one that decides what an absence is');
   ok(AWAY_RECEIPT_SYNC_MAX_MS === 600000,
     'AWAY-RECEIPT-21: away-receipt.js SYNC_MAX_MS drifted from src/net/accrue.js:3545');
+
+  /* ── (g) THE CLASSIFIER READS THE CREDITED SPAN, NOT THE EARNING SPAN ──────
+     Driven through the REAL engine, because this is the one property of the
+     classifier that cannot be checked by reading it: `windowEnvelope`
+     (accrual.js) publishes TWO spans onto one summary and they differ by three
+     orders of magnitude on the headline night —
+
+       awayMs  the CREDITED span   (12 h — what the server paid time for)
+       paidMs  the EARNING span    (30.7 s — where the eight Raw Shrimp ran out)
+
+     `classifiesAway` must read the first. Reading the second would silently
+     delete the receipt from the exact absence the card exists to explain
+     (b345's "eight Raw Shrimp against an eight-hour absence"), and the two
+     fields sit on adjacent lines of windowEnvelope, so the mistake is one
+     rename away. Measured 2026-09-07 against the shipped catalogue: 8 shrimp on
+     the cooking bench over a 12 h window stop the run at 30,720 ms. */
+  const twelveHourStarve = STARVE_NIGHT();
+  const starve = twelveHourStarve.summary || {};
+  ok(twelveHourStarve.accrued === true && starve.paidMs > 0 && starve.paidMs < 60000
+     && starve.awayMs === 12 * 3600000,
+    'AWAY-RECEIPT-40 HARNESS: the b345 fixture no longer produces "a twelve-hour window that earned for half '
+    + `a minute" (accrued=${twelveHourStarve.accrued}, awayMs=${starve.awayMs}, paidMs=${starve.paidMs}) — `
+    + 'the assertion below would then prove nothing. Re-pick a bench/stock that exhausts early.');
+  ok(classifiesAway(twelveHourStarve) === true,
+    'AWAY-RECEIPT-41: a TWELVE-HOUR absence whose supplies ran out 30 seconds in does not classify as away — '
+    + 'the classifier is reading `paidMs` (the earning span) where it must read `awayMs` (the credited span). '
+    + 'This is the b345 headline night, the one the card exists to explain, and it would store nothing');
+  ok(!!awayReceiptFor(twelveHourStarve),
+    'AWAY-RECEIPT-42: the b345 headline night (12 h absence, supplies gone in 30 s) stored NO receipt');
+
+  /* ── (h) THE CARD IS NEVER WORTH THE NIGHT (F2) ────────────────────────────
+     `bad_receipt` is not a clamp, so index.ts's degrade ladder never sees it:
+     without a rescue, one receipt the database disagrees with 409s EVERY away
+     settle for EVERY player until a redeploy. `receiptRescue` is the shipped
+     decision, graded here rather than transcribed. */
+  const refusal = RESCUE_REFUSAL;
+  const carried = withAwayReceipt({ accrued_to: 'now', gold: 2000 }, AWAY_NIGHT());
+  const rescued = receiptRescue(refusal, carried);
+  ok(!!rescued && !('last_away_receipt' in rescued) && rescued.gold === 2000
+     && rescued.accrued_to === 'now',
+    `AWAY-RECEIPT-43: a bad_receipt refusal is not rescued into the SAME delta minus the key (${JSON.stringify(rescued)}) `
+    + '— the whole absence stays hostage to the card: watermark frozen, night unpaid, until a redeploy');
+  ok(carried.last_away_receipt && !('last_away_receipt' in (rescued || { last_away_receipt: 1 })),
+    'AWAY-RECEIPT-44: the rescue MUTATED the delta it was handed instead of returning a copy — the caller still '
+    + 'holds the rejected object and the degrade ladder would re-send it');
+  ok(receiptRescue({ ok: false, error: 'gold_clamp', why: 'x' }, carried) === null,
+    'AWAY-RECEIPT-45: the rescue fires on a CLAMP — that is the degrade ladder’s job, and dropping the card '
+    + 'would hide a real clamp behind a silently smaller-looking apply');
+  ok(receiptRescue({ ok: true }, carried) === null,
+    'AWAY-RECEIPT-46: the rescue fires on a SUCCESSFUL apply — it would re-apply the delta a second time');
+  ok(receiptRescue(refusal, { accrued_to: 'now', gold: 12 }) === null,
+    'AWAY-RECEIPT-47: a bad_receipt answer to a delta that carried NO receipt was "rescued" — that is a '
+    + 'different defect, and a retry that changes nothing would double the write and mask it');
 }
 
 // ── 2. THE SHELL: index.ts ──────────────────────────────────────────────────
-function shellSection(shell, client) {
+function shellSection(shell, client, legacy, record) {
   const code = shell.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   ok(/from '\.\/away-receipt\.js'/.test(code),
     'AWAY-RECEIPT-22: index.ts does not import ./away-receipt.js — an inline copy cannot be graded by this guard');
@@ -242,6 +353,62 @@ function shellSection(shell, client) {
   ok(/if \(!\('last_away_receipt' in st\)\) return null;/.test(client),
     'AWAY-RECEIPT-28: the client COALESCES the projection instead of testing PRESENCE — a database that '
     + 'predates the column would render a fabricated empty night instead of saying nothing');
+  /* ── GRADE THE CODE, NOT A MENTION OF IT ───────────────────────────────────
+     Every assertion below anchors on a CALL or an assignment, against a
+     comment-stripped copy. Measured: the first cut of AWAY-RECEIPT-54 matched
+     `reconcileAwayReceipt` anywhere in record.js, so deleting the hydration step
+     left the import line and the block comment behind and the guard stayed
+     green — a guard that reads prose is a guard that reads nothing. */
+  const strip = (src) => String(src || '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const clientCode = strip(client);
+  const legacyCode = strip(legacy);
+  const recordCode = strip(record);
+  ok(/summary\.restored = true;/.test(clientCode),
+    'AWAY-RECEIPT-48: the seeded summary is no longer MARKED `restored` — it is the only thing that tells a '
+    + 'crediting seam apart from a paid one, and without it a restored night is indistinguishable from a '
+    + 'night that was just paid');
+
+  /* ── THE SEAM. A RESTORED RECEIPT MUST REACH NO CREDITING PATH (F1) ────────
+     `creditServerAwayKills` replays the server's away KILL TOTAL through the
+     LIVE counter seams: `stats.kills`, the this-fight streak, `updateQuest`,
+     and `updateDaily('kill_any')` — which is the wrapper chain the Muster hangs
+     off (src/features/muster.js), turning the count into
+     `world_event_contribute(p_event_key, p_points)` with CLIENT-SUPPLIED points
+     against a SHARED world-event meter.
+
+     A restored receipt classifies as 'away' by construction, so before this
+     lane every reload-then-switch would have re-credited last night's kills
+     into another player's leaderboard, bounded only by the per-player event cap.
+     Both defences are asserted, because either alone is one careless caller from
+     being reopened. */
+  ok(/if\(s\.restored===true\)return 0;/.test(legacyCode),
+    'AWAY-RECEIPT-49: creditServerAwayKills no longer refuses a RESTORED receipt at source. A receipt the '
+    + 'server restored from player_state describes a night that was paid, journalled and banked hours ago; '
+    + 'crediting it re-feeds updateDaily(‘kill_any’) into the Muster’s SHARED world_event_contribute meter '
+    + 'on every reload');
+  ok(!/const s=summary\|\|G\.lastOfflineSummary;/.test(legacyCode),
+    'AWAY-RECEIPT-50: creditServerAwayKills fell back to the ambient `G.lastOfflineSummary` again. "Credit '
+    + 'whatever is lying in the holder" IS the bug: any applier may have seeded that holder, including the '
+    + 'boot seed with a night from hours ago');
+  ok(/creditServerAwayKills\(written&&written\.paidReceipt\)/.test(legacyCode),
+    'AWAY-RECEIPT-51: applyServerEnvelope no longer credits from `written.paidReceipt` — the receipt for the '
+    + 'delta THIS envelope applied. Reading G.lastOfflineSummary here is what let a restored receipt reach the '
+    + 'kill counters and the shared world-event meter');
+  ok(/written\.paidReceipt = /.test(clientCode),
+    'AWAY-RECEIPT-52: accrue.js applyEnvelope no longer hands back `written.paidReceipt`, so the call site '
+    + 'above has nothing to credit and an away night would stop moving the kill counters entirely (the Paione '
+    + '2026-08-18 regression, reopened)');
+  ok(/written\.restoredReceipt = reconcileAwayReceipt\(/.test(clientCode),
+    'AWAY-RECEIPT-53: the RESTORED seed and the PAID receipt share a field name again. One field with two '
+    + 'meanings is exactly how a restored receipt comes to be credited as a paid one');
+
+  /* THE BOOT SEED. Without it the feature is inert on the case it was built
+     for: applyEnvelopeState runs ONLY on `accrued:true`, and the boot after an
+     absence has been paid answers {accrued:false, reason:'idle'}. */
+  ok(/reconcileAwayReceipt\(G, verdict\.body\)/.test(recordCode),
+    'AWAY-RECEIPT-54: record.js no longer hydrates the away receipt from the hr_load body. applyEnvelopeState '
+    + 'runs only on accrued:true, so on an IDLE boot nothing seeds the card and the whole feature renders '
+    + 'nothing for a night the server paid — the original bug, now with a storage bill attached');
 }
 
 // ── 3. THE SQL, EXECUTED ────────────────────────────────────────────────────
@@ -331,21 +498,68 @@ async function sqlSection(db) {
       'a 90 s / 5 min cadence receipt was ACCEPTED — the server must be the one that refuses it, because the '
       + 'edge is one deploy away from sending it'],
     ['unknown key', { ...receipt, freeGold: 999999 },
-      'an un-allowlisted key was ACCEPTED — unknown keys must be REFUSED, never stripped'],
+      'an un-allowlisted key was ACCEPTED — unknown keys must be REFUSED, never stripped', 'unknown key'],
     ['negative', { ...receipt, kills: -1 }, 'a negative count was ACCEPTED'],
     ['over-window', { ...receipt, awayMs: 9 * 86400000, grantMs: 9 * 86400000 },
       'a NINE-DAY span was accepted against a THREE-HOUR window — the card could narrate a night that did not elapse'],
     ['oversized', { ...receipt, items: Object.fromEntries(Array.from({ length: 400 }, (_, i) => [`padpadpad_${i}`, i + 1])) },
-      'a receipt over the 2 KB bound was ACCEPTED'],
+      'a receipt over the 2 KB bound was ACCEPTED', 'too large'],
     ['gold over delta', { ...receipt, gold: 999999999 },
       'the receipt claimed more gold than the apply moved — a player-facing lie with a number on it'],
     ['not an object', 'a string', 'a non-object receipt was ACCEPTED'],
   ];
-  for (const [name, bad, why] of probes) {
+  for (const [name, bad, why, expectWhy] of probes) {
     const r = await applyDelta({ accrued_to: 'now', gold: 2000, journal, last_away_receipt: bad });
     ok(r && r.ok === false && r.error === 'bad_receipt',
       `AWAY-RECEIPT-35 [${name}]: expected bad_receipt, got ${JSON.stringify(r)} — ${why}`);
+    /* ── AND FOR THE REASON IT SAYS IT IS ──────────────────────────────────
+       Two bounds guard the maps — the 2 KB SIZE door (V2, checked first) and
+       the 64-ENTRY cap (V7, checked later) — and until this line the guard read
+       only the CODE, which both produce. Measured 2026-09-07: the `oversized`
+       fixture is 10,490 bytes across 400 entries, so it trips SIZE and the
+       entry cap had NO executing proof anywhere; a build that deleted the entry
+       cap outright stayed green on both halves. Asserting the `why` is what
+       keeps the two rules from silently trading places. */
+    if (expectWhy) {
+      ok(r && r.why === expectWhy,
+        `AWAY-RECEIPT-35b [${name}]: refused for "${r && r.why}", expected "${expectWhy}". The two map bounds `
+        + 'are checked in order (size, then entry count) and a probe that trips the wrong one leaves the other '
+        + 'rule unproven');
+    }
   }
+  /* THE 64-ENTRY CAP, PROVED, AND ITS CONTROL. 65 short-named entries serialise
+     to well under the 2 KB door (measured: 915 bytes), so this is the only
+     shape that can reach V7 at all — and the 64-entry twin must be ACCEPTED, or
+     "refused" would prove nothing but that the map was present. */
+  const shortMap = (n) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`i${i}`, i + 1]));
+  const over = await applyDelta({ accrued_to: 'now', gold: 2000, journal,
+    last_away_receipt: { ...receipt, items: shortMap(AWAY_RECEIPT_MAX_MAP + 1) } });
+  ok(over && over.ok === false && over.error === 'bad_receipt' && over.why === 'too many entries',
+    `AWAY-RECEIPT-35c: a ${AWAY_RECEIPT_MAX_MAP + 1}-entry items map UNDER the 2 KB door was not refused for `
+    + `"too many entries" (${JSON.stringify(over)}) — the entry cap is the bound that stops a pathological map `
+    + 'reaching the size door in the first place, and nothing else executes it');
+  const under = await applyDelta({ accrued_to: 'now', gold: 2000, journal,
+    last_away_receipt: { ...receipt, items: shortMap(AWAY_RECEIPT_MAX_MAP) } });
+  ok(under && under.ok === true,
+    `AWAY-RECEIPT-35d CONTROL: a legal ${AWAY_RECEIPT_MAX_MAP}-entry map was REFUSED (${JSON.stringify(under)}) — `
+    + 'the cap is off by one and an honest night with a full bag would 409');
+
+  /* ── THE RESCUE, END TO END (F2) ───────────────────────────────────────────
+     Assertions 43-47 grade the shipped DECISION; this proves the thing it
+     decides is actually true of the database: hr_apply refuses the delta over
+     the receipt, and the SAME delta with the key deleted is accepted. Without
+     that, "retry without the receipt" would be a hope rather than a rescue. */
+  const poisoned = { accrued_to: 'now', gold: 2000, journal,
+    last_away_receipt: { ...receipt, freeGold: 999999 } };
+  const refused = await applyDelta(poisoned);
+  ok(refused && refused.error === 'bad_receipt',
+    `AWAY-RECEIPT-35e HARNESS: the poisoned delta was not refused (${JSON.stringify(refused)})`);
+  const rescuedDelta = receiptRescue(refused, poisoned);
+  const paid = rescuedDelta ? await applyDelta(rescuedDelta) : null;
+  ok(paid && paid.ok === true,
+    `AWAY-RECEIPT-35f: the RESCUED delta (the same apply with last_away_receipt deleted) was refused too `
+    + `(${JSON.stringify(paid)}). The rescue is the only thing standing between one receipt the database `
+    + 'disagrees with and EVERY away settle 409ing until a redeploy');
   // Without an accrual there is no window to bound the span against.
   const noWin = await db.query(
     `select public.hr_apply($1::uuid, 0, $2::bigint, gen_random_uuid(), $3::text::jsonb) as res`,
@@ -433,6 +647,14 @@ const MUTATIONS = {
     find: '        foreach v_rkey in array c_receipt_ms_keys loop\n          if coalesce((v_receipt->>v_rkey)::bigint, 0) > v_window_ms then',
     repl: '        foreach v_rkey in array c_receipt_ms_keys loop\n          if false and coalesce((v_receipt->>v_rkey)::bigint, 0) > v_window_ms then',
   },
+  sql_drops_the_entry_cap: {
+    kind: 'sql',
+    why: 'the per-map entry cap is gone. It is the bound that stops a pathological xp/items map reaching the '
+       + '2 KB door at all, and until AWAY-RECEIPT-35c it had NO executing proof anywhere: the oversized probe '
+       + 'is 10 KB across 400 entries, so it trips the SIZE rule first and this one could be deleted silently',
+    find: "            if (select count(*) from jsonb_object_keys(v_receipt->v_rkey) as t(rk)) > c_max_receipt_keys then",
+    repl: "            if false and (select count(*) from jsonb_object_keys(v_receipt->v_rkey) as t(rk)) > c_max_receipt_keys then",
+  },
   sql_strips_unknown_keys: {
     kind: 'sql',
     why: 'unknown keys are ignored instead of refused — the door hr_apply exists to keep shut',
@@ -445,6 +667,47 @@ const MUTATIONS = {
        + 'the original bug with a storage bill attached',
     find: "      'last_away_receipt', v_st.last_away_receipt,$anc$);",
     repl: "      'lastAwayReceipt', v_st.last_away_receipt,$anc$);",
+  },
+  classifier_reads_the_earning_span: {
+    kind: 'js',
+    why: 'classifiesAway reads `paidMs` (the span that EARNED) where it must read `awayMs` (the span that was '
+       + 'CREDITED). They sit on adjacent lines of accrual.js windowEnvelope and differ by three orders of '
+       + 'magnitude on the b345 night - a twelve-hour absence whose supplies ran out 30 s in would store '
+       + 'nothing, which is the one night the card exists to explain',
+    find: '  return num(s.awayMs) >= AWAY_RECEIPT_SYNC_MAX_MS',
+    repl: '  return num(s.paidMs) >= AWAY_RECEIPT_SYNC_MAX_MS',
+  },
+  rescue_never_fires: {
+    kind: 'js',
+    why: 'a bad_receipt refusal is no longer rescued, so ONE receipt the database disagrees with 409s EVERY '
+       + 'away settle for EVERY player until a redeploy - watermark frozen, night unpaid, over a Home card',
+    find: "  if (!('last_away_receipt' in delta)) return null;",
+    repl: '  return null;',
+  },
+  legacy_credits_a_restored_receipt: {
+    kind: 'client',
+    file: 'legacy',
+    why: 'the SOURCE defence is gone: a receipt the server RESTORED (a night paid, journalled and banked hours '
+       + 'ago) is credited again - lifetime kills, the kill dailies, and through updateDaily the Muster\u2019s '
+       + 'SHARED world_event_contribute meter, on every reload',
+    find: '  if(s.restored===true)return 0;',
+    repl: '  if(false)return 0;',
+  },
+  legacy_credits_the_ambient_holder: {
+    kind: 'client',
+    file: 'legacy',
+    why: 'the STRUCTURAL defence is gone: the crediting seam reads the ambient G.lastOfflineSummary again '
+       + 'instead of the receipt this envelope paid for, so whatever any applier last seeded gets credited',
+    find: 'creditServerAwayKills(written&&written.paidReceipt)',
+    repl: 'creditServerAwayKills(G.lastOfflineSummary)',
+  },
+  record_stops_seeding_the_boot: {
+    kind: 'client',
+    file: 'record',
+    why: 'the boot hydration is gone, and applyEnvelopeState runs ONLY on accrued:true - so on an IDLE boot '
+       + 'nothing seeds the card and the whole feature renders nothing for a night the server paid',
+    find: "hydrationStep('away-receipt', () => reconcileAwayReceipt(G, verdict.body));",
+    repl: "hydrationStep('away-receipt', () => {});",
   },
   client_overwrites_the_session: {
     kind: 'client',
@@ -459,21 +722,26 @@ async function main() {
   const migSql = (await readFile(MIG_PATH, 'utf8')).replace(/\r\n/g, '\n');
   const shell = await readFile(INDEX_TS, 'utf8');
   const client = (await readFile(CLIENT, 'utf8')).replace(/\r\n/g, '\n');
+  const legacy = (await readFile(LEGACY, 'utf8')).replace(/\r\n/g, '\n');
+  const record = (await readFile(RECORD, 'utf8')).replace(/\r\n/g, '\n');
 
   if (!SELFTEST) {
     builderSection(migSql);
-    shellSection(shell, client);
+    shellSection(shell, client, legacy, record);
     const { db } = await bootReplay();
     await sqlSection(db);
     if (failed) {
       console.error(`\naway-receipt-journal: ${failed} failure(s).`);
       process.exit(1);
     }
-    console.log('away-receipt journal: the builder stores an away night and NOTHING on the 90 s cadence; a death '
-      + 'always speaks; the two allowlists and the three copies of SYNC_MAX_MS agree; index.ts recomputes the '
-      + 'receipt on every degrade attempt; and hr_apply — executed — accepts the shipped builder\'s own output, '
-      + 'projects it, keeps it across a settle that omits it, and refuses sync-sized, over-window, oversized, '
-      + 'unknown-key, negative, gold-over-delta, window-less and non-object receipts with bad_receipt.');
+    console.log('away-receipt journal: the builder stores an away night — including the b345 night that earned for '
+      + 'thirty seconds — and NOTHING on the 90 s cadence; a death always speaks; the two allowlists and the '
+      + 'three copies of SYNC_MAX_MS agree; index.ts recomputes the receipt on every degrade attempt and rescues '
+      + 'a refused one instead of 409ing the night; a RESTORED receipt renders the card and reaches no crediting '
+      + 'seam; and hr_apply — executed — accepts the shipped builder\'s own output, projects it, keeps it across '
+      + 'a settle that omits it, accepts the rescued delta and a map at exactly the entry cap, and refuses '
+      + 'sync-sized, over-window, oversized, over-entry-cap, unknown-key, negative, gold-over-delta, window-less '
+      + 'and non-object receipts with bad_receipt.');
     return;
   }
 
@@ -497,9 +765,28 @@ async function main() {
           const sqlKeys = sqlReceiptKeys(migSql) || [];
           ok(Object.keys(r || {}).every((k) => sqlKeys.includes(k)), 'mutation: the builder grew an un-allowlisted key');
         }
+        if (name === 'classifier_reads_the_earning_span') {
+          /* The SAME engine-computed night assertion 41 reads, against the
+             mutated module - not a hand-made summary, or the mutation would be
+             graded on a fixture instead of on the b345 case. */
+          ok(mod.classifiesAway(STARVE_NIGHT()) === true,
+            'mutation: the b345 night (12 h absence, supplies gone in 30 s) stopped classifying as away');
+        }
+        if (name === 'rescue_never_fires') {
+          const carried = mod.withAwayReceipt({ accrued_to: 'now', gold: 2000 }, AWAY_NIGHT());
+          ok(!!mod.receiptRescue(RESCUE_REFUSAL, carried),
+            'mutation: a bad_receipt refusal is no longer rescued into the same delta minus the key');
+        }
       } else if (m.kind === 'client') {
-        if (!client.includes(m.find)) { console.error(`  HARNESS: anchor missing for ${name}`); missed++; continue; }
-        shellSection(shell, client.replace(m.find, m.repl));
+        /* THREE client-side files carry rules this guard grades - the seed
+           (src/net/accrue.js), the crediting seam (src/legacy.js) and the boot
+           hydration (src/net/record.js) - so a mutation names WHICH. Defaulting
+           to `client` leaves the original entries unchanged. */
+        const src = { client, legacy, record };
+        const which = m.file || 'client';
+        if (!src[which].includes(m.find)) { console.error(`  HARNESS: anchor missing for ${name} in ${which}`); missed++; continue; }
+        src[which] = src[which].replace(m.find, m.repl);
+        shellSection(shell, src.client, src.legacy, src.record);
       } else {
         if (!migSql.includes(m.find)) { console.error(`  HARNESS: anchor missing for ${name}`); missed++; continue; }
         /* GATE-BLIND: SEC4 is short-circuited, so the only thing left that can

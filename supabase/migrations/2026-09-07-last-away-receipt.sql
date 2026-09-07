@@ -718,16 +718,27 @@ begin
       v_probe text;
       v_bad   jsonb;
     begin
-      foreach v_probe in array array['oversized','unknown_key','negative','sync','window','not_object','no_accrual','gold_over'] loop
+      foreach v_probe in array array['oversized','too_many_entries','unknown_key','negative','sync','window','not_object','no_accrual','gold_over'] loop
         update public.player_state
            set accrued_to = now() - interval '3 hours'
          where user_id = v_uid and slot = v_slot;
         select version into v_ver from public.player_state where user_id = v_uid and slot = v_slot;
         v_bad := case v_probe
-          -- 3 KB of text in one string field: over the 2 KB bound.
+          -- 400 entries: ~10 KB, so it trips the SIZE door (V2) - measured, not
+          -- assumed. V2 is checked BEFORE V7, which is why the entry cap needs a
+          -- probe of its own directly below rather than sharing this one.
           when 'oversized'  then c_ok || jsonb_build_object('items',
                                    (select jsonb_object_agg('pad_' || g, g)
                                       from generate_series(1, 400) g))
+          -- (V7) THE ENTRY CAP, WHICH NOTHING ELSE REACHES. 65 SHORT names
+          -- serialise to well under the 2 KB door (~900 bytes measured), so this
+          -- is the only shape that gets past V2 to be refused by V7 at all. Its
+          -- 64-entry twin is applied as a CONTROL after the loop: a cap that
+          -- refused 64 as well would be an off-by-one that 409s an honest night
+          -- with a full bag, and "refused" alone cannot tell the two apart.
+          when 'too_many_entries' then c_ok || jsonb_build_object('items',
+                                   (select jsonb_object_agg('i' || g, g)
+                                      from generate_series(1, 65) g))
           when 'unknown_key' then c_ok || jsonb_build_object('freeGold', 999999)
           when 'negative'    then c_ok || jsonb_build_object('kills', -1)
           -- Sync-sized and nobody died: the 90 s cadence must never write here.
@@ -778,6 +789,23 @@ begin
             v_probe, v_code, v_r;
         end if;
       end loop;
+      -- (e-ii) THE CONTROL FOR THE ENTRY CAP. Exactly c_max_receipt_keys entries,
+      --        the same shape and the same short names: it must be ACCEPTED. A
+      --        refusal here is an off-by-one that 409s an honest night whose bag
+      --        happens to be full, and the loop above cannot see the difference.
+      update public.player_state
+         set accrued_to = now() - interval '3 hours'
+       where user_id = v_uid and slot = v_slot;
+      select version into v_ver from public.player_state where user_id = v_uid and slot = v_slot;
+      v_r := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
+               jsonb_build_object('accrued_to','now','gold',2000,
+                 'journal', jsonb_build_object('kind','admin','intent','selfcheck:receipt'),
+                 'last_away_receipt', c_ok || jsonb_build_object('items',
+                   (select jsonb_object_agg('i' || g, g)
+                      from generate_series(1, 64) g))));
+      if coalesce(v_r->>'ok','false') <> 'true' then
+        raise exception 'receipt self-check (e-ii): a receipt with exactly 64 map entries was REFUSED (%) - the entry cap is off by one and an honest full-bag night would 409', v_r;
+      end if;
     end refusals;
 
     -- (g) A DEATH ALWAYS CLASSIFIES AWAY, WHATEVER THE SPAN (b343). The sync

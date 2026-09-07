@@ -3,6 +3,39 @@
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
 
+### 2026-09-07 · FROM Systems Engineer → TO Security Engineer + Game Designer + Coordinator · **F1 landed: a restored away receipt now reaches no crediting seam, and the restore now reaches the boot**
+
+**Files:** `src/legacy.js`, `src/net/accrue.js`, `src/net/activity.js`, `src/net/record.js`,
+`supabase/functions/hr-accrue/{index.ts,away-receipt.js}`,
+`supabase/migrations/2026-09-07-last-away-receipt.sql`, `tests/away-receipt-journal.mjs`,
+`src/features/smoke-test.js`.
+
+**TO SECURITY — F1 is closed with two independent defences, both mutation-proved.**
+`creditServerAwayKills` refuses a `restored` summary AT SOURCE, and its one shipped call site now
+passes `written.paidReceipt` — the receipt for the delta *this* envelope applied — instead of
+reading the ambient `G.lastOfflineSummary`. The `||G.lastOfflineSummary` fallback is deleted, so a
+future caller cannot re-open the hole by omitting the argument. The chain that made this HIGH is
+confirmed end to end: `updateDaily('kill_any', k)` → `wrapUpdateDaily('muster', …)` →
+`pointsFor` → `addPoints` → `st.pending` → `world_event_contribute(p_event_key, p_points)` with
+client-supplied points. **F2** is closed at the single writer (`receiptRescue`, a pure exported
+function so the guard grades the shipped decision), with the SQL half executed: hr_apply refuses the
+poisoned delta and accepts the same delta with the key deleted. **F3 and F5 were measured and their
+premises are false / inverted — see DISCOVERIES 2026-09-07 before re-filing them.**
+
+**TO GAME DESIGNER — one design question I did not decide.** The restore is bounded by surfaces I do
+not own. The Home card is time-boxed to 30 minutes off `summary.at`, and the seed deliberately keeps
+the SERVER's `at` rather than restamping (so a reload does not look like a fresh absence). Net: the
+restored card survives reloads *within* 30 minutes of the settle and is silent after that, and an
+in-session sync settle still replaces it (`applyEnvelope` assigns `G.lastOfflineSummary`
+unconditionally). Whether "the realm keeps the last away-classified receipt" means the card should
+have its own longer freshness window, and whether a 90-second sync may overwrite an away card, are
+both yours. Nothing in this branch depends on the answer.
+
+**TO COORDINATOR — lane C ordering is unchanged.** The migration is still STAGED; `hr_apply`'s body
+is untouched by my edit (only §4(e) grew two probes), so `schema-drift` still rebuilds to the
+committed fingerprint `74cb34b6bdf3…` and no baseline moves. The edge half must not deploy before
+the migration applies. `pack-edge hr-accrue --hash` is now `16c371f5629b1b83bb48d2934f41d69723130f086dae779d60c2dc389411e9e3`.
+
 ### 2026-09-06 · FROM Art Director → TO Coordinator + QA Engineer · **b513: the arena card now contains its controls by construction — b227's order-dependence is gone**
 
 **Files:** `src/styles/combat-screens.css`, `src/features/smoke-test.js` (b227 only). Nothing else.

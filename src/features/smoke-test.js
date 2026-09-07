@@ -14841,42 +14841,115 @@ const TESTS = [
       };
       await settle();
 
-      const btn = document.querySelector('#arena-act-player .arena-eat');
-      assert(btn, 'no Eat button on the player side of the arena');
+      const btn0 = document.querySelector('#arena-act-player .arena-eat');
+      assert(btn0, 'no Eat button on the player side of the arena');
 
       // It must not live inside the scrolling box — that is the whole bug.
       const scroller = document.getElementById('combat-area');
-      assert(scroller && !scroller.contains(btn),
+      assert(scroller && !scroller.contains(btn0),
         'the Eat button is back inside #combat-area, the box that scrolls');
-      const stage = document.querySelector('#panel-combat .combat-arena > .arena-vs');
-      assert(stage && stage.contains(btn), 'the Eat button must sit on the arena stage');
-      assert(getComputedStyle(stage).flexShrink === '0',
+      const stage0 = document.querySelector('#panel-combat .combat-arena > .arena-vs');
+      assert(stage0 && stage0.contains(btn0), 'the Eat button must sit on the arena stage');
+      assert(getComputedStyle(stage0).flexShrink === '0',
         'the stage must not be compressible, or the log will squeeze the champion off-screen');
 
-      // And it must actually be on screen, inside the arena card, right now.
-      const r = btn.getBoundingClientRect();
-      const card = document.querySelector('#panel-combat .combat-arena').getBoundingClientRect();
-      assert(r.width > 0 && r.height > 0, 'the Eat button has no box');
-      assert(r.top >= 0 && r.bottom <= window.innerHeight,
-        'the Eat button is off-screen at ' + Math.round(r.top) + '–' + Math.round(r.bottom) +
-        ' in a ' + window.innerHeight + 'px viewport');
-      /* A geometry failure that does not say BY HOW MUCH, or what the page
-         looked like when it was measured, costs a whole suite run to diagnose —
-         this one did. The numbers are the message. */
-      assert(r.bottom <= card.bottom + 1 && r.top >= card.top - 1,
-        'the Eat button escaped the arena card: button ' + Math.round(r.top) + '–' + Math.round(r.bottom)
-        + ' vs card ' + Math.round(card.top) + '–' + Math.round(card.bottom)
-        + ' (over bottom by ' + Math.round(r.bottom - card.bottom)
-        + ', over top by ' + Math.round(card.top - r.top) + '); viewport ' + window.innerHeight
-        + '; card height ' + Math.round(card.height)
-        + '; scroller height ' + Math.round((document.getElementById('combat-area') || {getBoundingClientRect:()=>({height:0})}).getBoundingClientRect().height)
-        + '; eat=' + JSON.stringify(window.HearthriseAuto && window.HearthriseAuto.getEat && window.HearthriseAuto.getEat())
-        + '; traits=' + JSON.stringify({ ae: !!(G.traits && G.traits.auto_eat), ae2: !!(G.traits && G.traits.auto_eat_2) })
-        + '; buffs=' + ((G.buffs && G.buffs.length) | 0)
-        + '; log=' + ((G.combatLog && G.combatLog.length) | 0)
-        + '; scale=' + (document.documentElement.style.getPropertyValue('--ui-scale') || 'unset')
-        + '; overlays=' + document.querySelectorAll('.hr-room-scrim, .hr-modal, #aep-overlay').length);
+      /* ── THE GEOMETRY, GRADED IN MORE THAN ONE STATE (b513) ──────────────
+         This assertion has now gone red twice for the same reason and it was
+         BOTH times blamed on something narrower — first on a transient (b499,
+         real but not the whole story), then on the style row's labels (b512,
+         also real, also not the whole story). What was actually true is that
+         the arena card had ELEVEN pixels of headroom while the ten rows on the
+         stage are TYPE, so any state that spends a line spends the headroom: a
+         longer provision name, a knocked-out line on the activity bar, a style
+         label that wraps. MEASURED on the pre-b513 tree at 1440x900, five fresh
+         boots, nothing else running: the style row alone came back 98.5px or
+         133.1px — a 34.6px swing between two identical boots, with all four
+         buttons at 47px in both (which is why b512's equal-height guard is
+         green in both modes and cannot see this). 34.6 > 11, so the suite's
+         verdict was decided by whichever mode the boot landed in and by what
+         the tests before it had left on the screen.
+         b513 made row 1 of the stage elastic and clamped the stage to the card,
+         so the PLATE — not the player's controls — absorbs that swing. This
+         guard is therefore graded in TWO states and asks for real headroom,
+         which is a STRONGER property than the one it replaced, not a weaker
+         one: it still fails the instant the button leaves the card, and it now
+         also fails if the card merely stops containing it in a state the
+         previous version never rendered. */
+      const check = async (what) => {
+        await settle();
+        const r = document.querySelector('#arena-act-player .arena-eat').getBoundingClientRect();
+        const card = document.querySelector('#panel-combat .combat-arena').getBoundingClientRect();
+        const stageR = document.querySelector('#panel-combat .combat-arena > .arena-vs').getBoundingClientRect();
+        const h = (sel) => Math.round(((document.querySelector(sel) || { getBoundingClientRect: () => ({ height: 0 }) }).getBoundingClientRect().height));
+        const why = (msg, over) => msg
+          + ' [state: ' + what + '] button ' + Math.round(r.top) + '–' + Math.round(r.bottom)
+          + ' vs card ' + Math.round(card.top) + '–' + Math.round(card.bottom)
+          + ' (over bottom by ' + Math.round(over) + '); viewport ' + window.innerHeight
+          + '; card height ' + Math.round(card.height)
+          + '; stage height ' + Math.round(stageR.height)
+          + '; stage over card by ' + Math.round(stageR.bottom - card.bottom)
+          + '; scroller height ' + h('#combat-area')
+          + '; style row ' + h('#panel-combat .fs-style')
+          + '; foe plate ' + h('#panel-combat .arena-vs.fs-stage .arena-side.foe .arena-portrait')
+          + '; eat=' + JSON.stringify(window.HearthriseAuto && window.HearthriseAuto.getEat && window.HearthriseAuto.getEat())
+          + '; traits=' + JSON.stringify({ ae: !!(G.traits && G.traits.auto_eat), ae2: !!(G.traits && G.traits.auto_eat_2) })
+          + '; buffs=' + ((G.buffs && G.buffs.length) | 0)
+          + '; log=' + ((G.combatLog && G.combatLog.length) | 0)
+          + '; body="' + document.body.className + '"'
+          + '; activity="' + ((document.getElementById('activity-bar') || {}).className || '-') + '"'
+          + '; scale=' + (document.documentElement.style.getPropertyValue('--ui-scale') || 'unset')
+          + '; overlays=' + document.querySelectorAll('.hr-room-scrim, .hr-modal, #aep-overlay').length;
+        assert(r.width > 0 && r.height > 0, 'the Eat button has no box [state: ' + what + ']');
+        assert(r.top >= 0 && r.bottom <= window.innerHeight,
+          'the Eat button is off-screen at ' + Math.round(r.top) + '–' + Math.round(r.bottom)
+          + ' in a ' + window.innerHeight + 'px viewport [state: ' + what + ']');
+        /* THE STRUCTURAL INVARIANT, ASSERTED FIRST BECAUSE IT IS THE CAUSE.
+           The stage is where every control lives, so "the stage fits the card"
+           implies "every control fits the card" — and when it is false it says
+           WHY the button moved instead of only that it did. Pre-b513 this was
+           false in the DEFAULT state at 1440x900 (stage 723 inside a 690 card):
+           the metrics strip and the session tally were already being painted
+           outside the card and Eat was next in the queue. */
+        assert(stageR.bottom <= card.bottom + 1 && stageR.top >= card.top - 1,
+          why('the arena stage does not fit inside the arena card', stageR.bottom - card.bottom));
+        /* EIGHT PIXELS OF REAL HEADROOM, not "did not quite touch the edge".
+           A control flush against the edge of its container is a layout that
+           has already failed and has not been told yet — that is the margin
+           both previous reds lived inside. Measured on b513 at 1440x900,
+           1280x800, 1366x768 and 1024x900: 73px in every one. */
+        assert(r.bottom <= card.bottom - 8,
+          why('the Eat button has no headroom inside the arena card', r.bottom - card.bottom));
+        assert(r.top >= card.top - 1, why('the Eat button escaped the top of the arena card', 0));
+      };
 
+      await check('default · slime, 5 shrimp, 30/100 HP');
+
+      /* STATE 2 — THE ONE THAT USED TO DECIDE THE VERDICT. Everything here
+         spends type on the rows around Eat: the longest healing item in the
+         catalogue in the provisions tile, a full combat log, and the activity
+         bar's knocked-out line (b511), which is the tallest state the shell
+         above the card has. If the card holds its controls here it holds them
+         in whatever a preceding test left behind. */
+      const heals = window.ITEMS || {};
+      const hostile = Object.keys(heals)
+        .filter((id) => (heals[id] || {}).heal > 0)
+        .sort((a, b) => String((heals[b] || {}).name || b).length - String((heals[a] || {}).name || a).length)[0];
+      const bar = document.getElementById('activity-bar');
+      if (hostile) G.inventory = Object.assign({}, G.inventory, { [hostile]: 5 });
+      G.combatLog = new Array(40).fill('The slime strikes for 1.');
+      document.body.classList.add('knocked-out');
+      if (bar) bar.classList.add('knocked-out');
+      window.renderCombat();
+      await check('hostile · longest provision "' + (hostile || 'n/a') + '", 40-line log, knocked-out shell');
+      if (bar) bar.classList.remove('knocked-out');
+      document.body.classList.remove('knocked-out');
+      G.combatLog = [];
+      G.inventory = { cooked_shrimp: 5 };
+      window.renderCombat();
+      await settle();
+
+      const btn = document.querySelector('#arena-act-player .arena-eat');
+      assert(btn, 'the Eat button vanished when the hostile state was undone');
       // It reads as the primary action, and its disabled state stays legible
       // rather than dropping to the global 38% — an unreadable reason is not a
       // reason (this is the "hard to read" half of the report).

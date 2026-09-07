@@ -3,6 +3,57 @@
 _Important things agents learn about the codebase, game, or constraints. Append new entries at the top. Every entry: DATE · AGENT · DISCOVERY · AFFECTED SYSTEMS · REQUIRED ACTION. This is how the team avoids rediscovering the same knowledge._
 
 ---
+
+### 2026-09-06 — Art Director — **The arena stage has NEVER fitted its card at 900px, and every b227 red was a symptom of that.** (P1, fixed in b513)
+
+Two builds in a row diagnosed the b227 flake as a text-measurement accident one row above the Eat
+button (b499's transient, b512's style-row wrap). Both were real. Neither was the cause.
+
+**MEASURED, pre-b513, 1440x900, fresh boot, nothing else running:** the arena card is **690px** and
+the stage inside it is **723px**. In the DEFAULT state, with no test having run before it, the
+metrics strip (871–893) and the session tally (897–918) were already being painted **outside the
+card and below the 900px fold**, and the Eat button had **23px** of margin left. On five fresh
+boots the style row alone came back **98.5px or 133.1px** — a **34.6px swing between two identical
+boots**, with all four buttons at 47px in both. 34.6 > 23, so which way b227 fell was decided by a
+coin flip and by whatever the preceding tests had left on the screen. It was never "the state the
+suite leaves behind" in the sense of one findable class or flag; it was a layout with less headroom
+than its own measurement noise.
+
+**Why the old cure could not work.** The foe plate was sized
+`min(42vh, 340px, calc(100vh - 540px))`, where 540 was a hand-derivation of "376px of fixed rows +
+~148px of shell + 16px cushion" written into the comment. Nine of the stage's ten rows are TYPE.
+Any state that spends a line — a longer provision name, b511's knocked-out activity line, a style
+label that wraps — spends a pixel the constant does not know about. Re-tuning the constant buys
+one build.
+
+**AFFECTED SYSTEMS:** `src/styles/combat-screens.css` (the `.arena-vs.fs-stage` grid, the plate
+rules, `.fs-logrow`), `src/features/smoke-test.js` (b227), and any future geometry guard on this
+screen.
+
+**REQUIRED ACTION / what to reuse:**
+1. **Never size an elastic row with a `calc()` derived from a comment.** Row 1 is now
+   `minmax(0, min(42vh, 340px))` and the stage carries `max-height: 100%`; the browser measures the
+   nine rows below and the plate takes the remainder. `1fr` is the wrong spelling and was tried
+   first — a `fr` track collapses to min-content whenever the grid's own height is indefinite, and
+   the foe measured 96px on a 1080p screen.
+2. **`align-self: stretch` does nothing to an `aspect-ratio` box** (it is not auto-sized in either
+   axis). Use `height: 100%` + `width: auto` + `aspect-ratio`.
+3. **`minmax(0, X)` lets a track be 0 when free space is negative.** That is right on a desktop and
+   wrong on a phone: at 922x423 it rendered a 0px track with the fixed 64px plate hanging out of the
+   TOP of the card, over the screen's own header. The phone keeps explicit row heights and
+   `align-content: start`, so its overflow goes downward into the log's space where §3.9's scroll
+   can reach it.
+4. **A geometry guard must ask for HEADROOM, not for "did not quite touch the edge".** b227 now
+   asserts the stage fits the card, and that Eat clears the card's bottom edge by >=8px, in two
+   states.
+
+**STILL OPEN (not blocking, filed for whoever next touches this screen):** the style row's 34.6px
+bimodality is still there — `.fs-style` occasionally lays its four buttons out in three rows
+instead of two. b513 makes it harmless (the plate absorbs it) but b512's guard cannot see it,
+because all four BUTTONS are 47px in both modes; only the ROW changes. A guard on the row's height
+across repeated paints would catch it.
+
+---
 ### 2026-09-06 — Art Director — **A geometry guard can go red with an empty diff: the b512 "layout regression" was a WRAP COINCIDENCE, not a code change.** (P1)
 
 `b227: the Eat button is on the stage and reachable without scrolling` failed deterministically on

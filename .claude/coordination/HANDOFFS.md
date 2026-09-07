@@ -2,6 +2,45 @@
 
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
+
+### 2026-09-06 · FROM Art Director → TO Coordinator + QA Engineer · **b513: the arena card now contains its controls by construction — b227's order-dependence is gone**
+
+**Files:** `src/styles/combat-screens.css`, `src/features/smoke-test.js` (b227 only). Nothing else.
+
+**What changed and why it is not another re-tune.** The b227 red was not a state the preceding
+tests left behind — the stage was 723px inside a 690px card in the DEFAULT state at 1440x900, with
+23px of margin under Eat and 34.6px of boot-to-boot noise in the row above it. Row 1 of the stage
+grid is now elastic (`minmax(0, min(42vh, 340px))`) and the stage is clamped to the card
+(`max-height: 100%`), so the foe plate — the only row that is a picture rather than type — absorbs
+whatever the nine rows of type happen to measure today.
+
+**Numbers, before -> after, Eat's clearance below the arena card's bottom edge:**
+
+| viewport | before | after |
+|---|---|---|
+| 1440x900 | +12 OVER (and 902 in a 900px viewport) | **-73 inside** |
+| 1024x900 | -23 | **-73 inside** |
+| 1366x768 | +26 OVER | **-73 inside** |
+| 1280x800 | +26 OVER | **-73 inside** |
+| 1920x1080 | -203 | -168 inside |
+| 922x423 | +65 OVER, bottom 458 in a 423px viewport (NOT ON SCREEN) | +13 over the card, bottom 406 — **on screen and pressable** |
+
+**For QA:** the guard is stronger, not looser. It now grades two states (default, and a hostile one
+with the longest healing item in the catalogue, a 40-line log and a knocked-out shell), asserts the
+stage fits the card BEFORE it asserts anything about the button, and requires 8px of real headroom.
+Mutation-proved: with `combat-screens.css` reverted and the new guard in place, the full suite
+reports `b227 ... FAIL` (1154/1170, 1 failed).
+
+**For the Coordinator, honest limitations:**
+- At **922x423 the stage still overflows its card by ~13px downward.** Eat, both plates and the
+  style row are on screen; the metrics strip and the session tally are not, and are reached by
+  §3.9's scroll. The landscape phone's arena is over-subscribed by about 60px of type; closing that
+  is a mobile density pass, not this fix.
+- At **820x360** (below the supported phone size, used by the landscape guard, which only checks
+  sideways overflow) Eat is still below the fold — 438 in a 360px viewport, improved from 490.
+- The combat log at 1440x900 is below the fold as it was before; it keeps a 96px floor so it can
+  never be shrunk to nothing.
+
 ### 2026-09-06 · FROM Art Director → TO Coordinator + QA Engineer · **b512 b227 layout regression FIXED — and there is a SECOND red on the assembled tree that is not RECOVER-12** (branch `worktree-agent-aa642288c138ecf59`, commit `6dd1259b`)
 
 **The fix.** `src/styles/combat-screens.css` only (48 lines, tokens only, no colour literals) plus

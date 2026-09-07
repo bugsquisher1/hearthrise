@@ -54,9 +54,17 @@ let armOverride = null;
     read server-first while nothing populated it. */
 function serverActive() {
   try {
-    if (typeof window !== 'undefined' && window.HearthriseAccrue
-        && typeof window.HearthriseAccrue.isServerAccrualEnabled === 'function') {
-      return !!window.HearthriseAccrue.isServerAccrualEnabled();
+    /* ⚠ THE GLOBAL IS `HearthriseAccrual` (src/net/accrue.js publishes that exact
+       name). b511 shipped this read as `HearthriseAccrue` — a name NOTHING ever
+       assigns — so serverActive() was permanently false and the armed READ was
+       unreachable in production while the flag said ON: every clear fell into the
+       client mint the next envelope erased. Both tests agreed with the typo (the
+       in-page one forced the override, the Node one stubbed the misspelt name), so
+       tests/window-globals-exist.mjs now audits every window.Hearthrise* READ in
+       src/** against its assignments. Do not rename this without that guard. */
+    const A = (typeof window !== 'undefined') ? window.HearthriseAccrual : null;
+    if (A && typeof A.isServerAccrualEnabled === 'function') {
+      return !!A.isServerAccrualEnabled();
     }
   } catch (e) { /* fall through */ }
   return false;

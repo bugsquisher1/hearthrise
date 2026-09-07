@@ -7955,7 +7955,12 @@ const TESTS = [
     if (!entry) return;
     const [id, d] = entry;
     const snap = snapshotG();
-    try {
+    const R = window.HearthriseDungeonScrip;
+    /* BOTH ARMS (b515). The key debit moved to the SERVER when the settle arm went
+       live, so "the client spends the key" is now the DORMANT contract only. Until
+       b515 the arm was unreachable in a browser (it read a global nothing assigns),
+       so this test was silently only ever exercising the dormant half. */
+    const runOnce = () => {
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
       G.gold = (G.gold || 0) + 100000;
@@ -7964,12 +7969,30 @@ const TESTS = [
       const before = G.inventory[d.cost.key];
       window.startManualDungeonRun(id);
       const after = G.inventory[d.cost.key] || 0;
-      // close the run overlay the call opened
+      /* CLOSE THE RUN PROPERLY. Hiding the overlay (what this test used to do)
+         leaves runState and its phase interval alive, and a second run then ticks
+         against half-built phaseData — `Cannot read properties of undefined
+         (reading 'type')` in phaseTick. The close button is the game's own teardown:
+         it clears the interval and nulls runState. */
+      const btn = document.querySelector('#drm-modal .drm-close');
+      if (btn) btn.click();
       const ov = document.getElementById('dgn-run-overlay');
       if (ov) ov.classList.remove('open');
-      assert(after === before - 1,
-        'manual run must consume 1 ' + d.cost.key + ' (before ' + before + ', after ' + after + ')');
-    } finally { restoreG(snap); }
+      return { before, after };
+    };
+    try {
+      if (R) R.__setDungeonSettleArm(false);
+      const dorm = runOnce();
+      assert(dorm.after === dorm.before - 1,
+        'dormant: manual run must consume 1 ' + d.cost.key + ' (before ' + dorm.before + ', after ' + dorm.after + ')');
+      if (R) {
+        R.__setDungeonSettleArm(true);
+        const armed = runOnce();
+        assert(armed.after === armed.before,
+          'armed: the entry key is consumed by the SERVER at settle — a local debit here double-spends it'
+          + ' (before ' + armed.before + ', after ' + armed.after + ')');
+      }
+    } finally { if (R) R.__setDungeonSettleArm(null); restoreG(snap); }
   }),
 
   () => tryRun('b214: no PvE loot table mints the premium hearth_token', () => {
@@ -8280,6 +8303,13 @@ const TESTS = [
 
       // 5. DUNGEON -> SCRIP -> 6. SPEND (the b281 cohesion loop, end to end)
       if (typeof window.awardDungeonScrip === 'function' && typeof window.buyFromQuartermaster === 'function') {
+        /* The dungeon leg walks the DORMANT economy on purpose (b515): armed, the
+           earn and the spend are both server calls with no local mint, and that round
+           trip is walked end-to-end against a real database in tests/dungeon-settle.mjs
+           + tests/dungeon-scrip-reload.mjs. What this E2E proves is that the CLIENT
+           loop hands off step to step. */
+        const R = window.HearthriseDungeonScrip;
+        if (R) R.__setDungeonSettleArm(false);
         const dId = Object.keys(window.DUNGEONS)[0];
         delete G.inventory.dungeon_scrip; delete G.inventory.bone_key;
         window.awardDungeonScrip(dId, 1);
@@ -8290,7 +8320,10 @@ const TESTS = [
         assert(window.buyFromQuartermaster('bone_key') === true, 'scrip must buy the key');
         assert((G.inventory.bone_key || 0) === 1, 'the purchase must deliver the item');
       }
-    } finally { restoreG(snap); }
+    } finally {
+      if (window.HearthriseDungeonScrip) window.HearthriseDungeonScrip.__setDungeonSettleArm(null);
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b292: "Earn 500 gold" counts INCOME, not net balance (paione: sold 10k, no credit)', () => {
@@ -8584,8 +8617,16 @@ const TESTS = [
   () => tryRun('WAVE3d: dungeon Scrip economy — earn on clear, spend at the Quartermaster', () => {
     const G = window.G;
     if (typeof window.awardDungeonScrip !== 'function' || typeof window.buyFromQuartermaster !== 'function' || !window.DUNGEONS) return;
-    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})) };
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), scrip: G.dungeonScrip };
+    const R = window.HearthriseDungeonScrip;
     try {
+      /* THE DORMANT ECONOMY (b515). Earn-and-spend in the BAG is the fallback a
+         client without live server accrual takes; armed, both legs are the server's
+         (hr_dungeon_settle / hr_quartermaster_buy), pinned by DGN-SETTLE-2/3 and
+         tests/dungeon-settle.mjs. The armed no-mint contract is asserted at the end
+         of this test. Before b515 the arm could not be reached in a browser at all,
+         so this ran dormant by accident rather than by statement. */
+      if (R) R.__setDungeonSettleArm(false);
       G.inventory = Object.assign({}, G.inventory); delete G.inventory.dungeon_scrip; delete G.inventory.bone_key;
       const dId = Object.keys(window.DUNGEONS)[0];
       const got = window.awardDungeonScrip(dId, 1);
@@ -8599,7 +8640,17 @@ const TESTS = [
       assert((G.inventory.dungeon_scrip || 0) === 0, 'the scrip must be spent');
       // can't overspend
       assert(window.buyFromQuartermaster('dragonfang_pike') === false, 'must refuse a purchase you can\'t afford');
-    } finally { G.inventory = snap.inv; }
+      /* ARMED: the clear mints NOTHING locally — the balance comes from the settle
+         envelope. A local mint is exactly the reward the next envelope erased. */
+      if (R) {
+        R.__setDungeonSettleArm(true);
+        delete G.inventory.dungeon_scrip; G.dungeonScrip = 0;
+        const predicted = window.awardDungeonScrip(dId, 1);
+        assert(predicted > 0, 'armed: awardDungeonScrip still returns the PREDICTED amount for display');
+        assert(!(G.inventory.dungeon_scrip > 0) && (G.dungeonScrip || 0) === 0,
+          'armed: awardDungeonScrip must write NOTHING — scrip is credited by hr_dungeon_settle only');
+      }
+    } finally { if (R) R.__setDungeonSettleArm(null); G.inventory = snap.inv; G.dungeonScrip = snap.scrip; }
   }),
 
   () => tryRun('WAVE4b: every combat/dungeon drop has a downstream use (no dead-end loot)', () => {
@@ -8752,6 +8803,25 @@ const TESTS = [
     const minted = [];
     let sent = null;
     try {
+      /* THE REAL PREDICATE FIRST (b515). Everything below forces the arm through
+         __setDungeonSettleArm, which short-circuits isDungeonSettleArmed() entirely —
+         so this test passed for four builds while PRODUCTION was dormant: the arm read
+         `window.HearthriseAccrue`, a global nothing assigns, and serverActive() was
+         permanently false. These three assertions drive the production expression
+         itself against the REAL published accrual global. */
+      const A = window.HearthriseAccrual;
+      assert(A && typeof A.isServerAccrualEnabled === 'function',
+        'the accrual module must publish window.HearthriseAccrual — the arm predicate reads it BY NAME');
+      const wasAccrualOn = A.isServerAccrualEnabled();
+      try {
+        A.setServerAccrualEnabled(true);
+        assert(R.isDungeonSettleArmed() === true,
+          'REAL predicate (no override): flag ON + live accrual → ARMED. Red means the arm reads a global nothing assigns.');
+        A.setServerAccrualEnabled(false);
+        assert(R.isDungeonSettleArmed() === false,
+          'REAL predicate: accrual OFF → dormant (never read server-first while nothing populates the server value)');
+      } finally { A.setServerAccrualEnabled(wasAccrualOn); }
+
       R.__setDungeonSettleArm(true);
       G.inventory = Object.assign({}, G.inventory);
       G.inventory[d.cost.key] = 1;                       // a real key, so canRun passes

@@ -137,7 +137,10 @@ const EXTERNAL_URL = argOf('--url');
    their own Chromium suite blew the 120s in-page budget three times in a row on
    code that passed 999/999 alone). Only the wall-clock budget flexes — every
    assertion still has to pass. `HR_SUITE_TIMEOUT_MS=300000 node tests/run-smoke.mjs`. */
-const SUITE_TIMEOUT_MS = Number(process.env.HR_SUITE_TIMEOUT_MS) > 0 ? Number(process.env.HR_SUITE_TIMEOUT_MS) : 120_000;
+/* MEASURED 2026-09-07: the in-page run is ~135 s on an idle dev machine at 1,174 tests and
+   more under load; the old 120 000 default timed the harness out and reported "suite timed
+   out" as if a test had failed (CI sets 600 000 in smoke.yml). Local default = CI budget. */
+const SUITE_TIMEOUT_MS = Number(process.env.HR_SUITE_TIMEOUT_MS) > 0 ? Number(process.env.HR_SUITE_TIMEOUT_MS) : 600_000;
 
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',

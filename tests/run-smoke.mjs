@@ -2597,7 +2597,7 @@ const run = async () => {
       for (const p of farmSyncProblems) console.log(`  ✗ ${p}`);
       exitCode = 1;
     } else {
-      console.log('\nFarm-sync transport guard — dormant no-regression + armed RPC shape + reconcile-from-response (produce once, no double credit) + fail-safe.');
+      console.log('\nFarm-sync transport guard — the arm is a seamless constant + armed RPC shape + reconcile-from-response (produce once, no double credit) + fail-safe.');
     }
 
     /* ⚠ The blob-retire capstone guard runs LATE (search "blob-retire capstone

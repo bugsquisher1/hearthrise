@@ -518,40 +518,56 @@ const withClientOwnedSlots = (fn) => {
   }
 };
 
-/* ── b456 — THE SAME PROBLEM FOR THE FARM ────────────────────────────────────
-   `FARM_SERVER_ARM_ENABLED` armed in the cutover, so plant/water/harvest/upgrade
-   now send an INTENT to the hr_farm_* RPCs and reconcile from the RESPONSE
-   instead of authoring the outcome locally. In this harness there is no server,
-   so every gesture's fetch fails and the optimistic plot state reverts — which
-   means five tests that measure the LOCAL farm arithmetic (the watering window,
-   the perennial regrow ladder, the yield, the deed spend) stopped measuring
-   anything at all.
+/* ── b514 (cleanup slice 4) — THE FARM IS DRIVEN AGAINST A STUBBED SERVER ────
+   b456 tested the farm by turning the SERVER ROUTING OFF (`withLocalFarm`) and
+   measuring the client-authored twin underneath. That twin is now DELETED —
+   plantCrop / waterPlot / waterAllPlots / harvestPlot / upgradePlot send an
+   hr_farm_* intent and author nothing (tests/no-client-farm-mint.mjs is the
+   standing guard) — so a harness that disarms the routing would measure code
+   that does not exist. Worse, it was never testing the shipping path.
 
-   That local path still ships behind the flag and is still the whole of the
-   farm's rules; the RPC's job is to run the same rules server-side. So the
-   arithmetic is tested in the position where it executes, pinned per test and
-   restored. The armed ROUTING (a gesture becomes a request and never a local
-   credit — no double credit) is covered by tests/farm-sync.mjs, which drives the
-   transport with a stubbed fetch; duplicating it here would prove less, not more.
+   What replaces it tests MORE, not less: `withFarmServer` swaps the four
+   transport methods on `window.HearthriseFarmSync` for recorders that answer
+   with a canned SERVER ENVELOPE, and leaves `reconcileFarmResult` REAL. Each
+   test therefore proves the two halves the client actually owns now:
+     · the GESTURE became the right intent (or was refused by the pre-flight
+       without one — a refusal that still calls the server is a bug), and
+     · the RESPONSE was rendered exactly once, with the server's numbers.
+   The RULES themselves (the yield roll, the watering window, the perennial
+   ladder, gold-before-deeds) are hr_farm_*'s and are proven by the §10 self-check
+   in 2026-08-22-server-farming-complete.sql + 2026-09-06-plot-tier-reachable.sql.
 
-   ⚠ A TEST WRAPPED HERE DOES **NOT** COVER THE SHIPPING DEFAULT.
-
-   ⚠ IT OVERRIDES THE PREDICATE, NOT THE FLAG, AND ONLY BECAUSE THE FLAG HAS NO
-     PUBLISHED SEAM. Every other arm in this program exposes a `__set*Arm` on a
-     window global (record.js, capstone.js, artisan-sim.js); `__setFarmServerArm`
-     lives in src/data/item-authority.js and is NOT re-exported onto
-     `window.HearthriseItemAuthority` or `window.HearthriseFarmSync`, so an
-     in-page test cannot reach it. Overriding `HearthriseFarmSync.isFarmServerArmed`
-     drives exactly the branch legacy.js's `farmSyncArmed()` reads, which is the
-     same fork, but it is one indirection further from the flag than it should be.
-     FILED as a small handoff: publish `__setFarmServerArm` beside
-     `isFarmServerArmed` and this helper becomes a two-liner like the others. */
-const withLocalFarm = (fn) => {
+   ⚠ THE STUB'S `then` IS SYNCHRONOUS ON PURPOSE. The call sites are
+   `FS.farmX(...).then(cb)`; a real Promise would defer `cb` to a microtask and
+   every assertion below would run before the reconcile. A thenable that calls
+   back inline keeps these tests synchronous without changing what they read. */
+const withFarmServer = (respond, fn) => {
   const F = window.HearthriseFarmSync;
-  const had = !!(F && typeof F.isFarmServerArmed === 'function');
-  const prev = had ? F.isFarmServerArmed : null;
-  if (had) F.isFarmServerArmed = () => false;
-  try { return fn(); } finally { if (had) F.isFarmServerArmed = prev; }
+  if (!F) return undefined;   // module absent ⇒ nothing to drive; the guard covers the source
+  const VERBS = ['farmPlant', 'farmWater', 'farmHarvest', 'farmUpgradePlot'];
+  const saved = {};
+  const calls = [];
+  const inline = (res) => ({ then(cb) { cb(res); return this; } });
+  for (const v of VERBS) {
+    saved[v] = F[v];
+    F[v] = function (...args) { calls.push({ verb: v, args }); return inline(respond(v, args, calls)); };
+  }
+  /* ⚠ `G._serverPlotLevel` LEAKS PAST restoreG AND THE HARNESS MUST CONTAIN IT.
+     reconcileFarmResult writes BOTH `G.plotLevels` and the `_`-prefixed mirror
+     (src/net/farm-sync.js), and `_` fields are scratch by design — snapshotG
+     does not carry them, so a tier this harness hands the client would otherwise
+     stay authoritative for every later test (getPlotLevel() prefers the mirror
+     and rewrites plotLevels from it). That is a HARNESS artifact, not a product
+     one: in a real session the mirror IS the server's tier and outliving a
+     reload is the point. Saved and restored here, beside the transport it
+     travels with, so no test has to remember. */
+  const G = window.G || {};
+  const hadMirror = Object.prototype.hasOwnProperty.call(G, '_serverPlotLevel');
+  const prevMirror = G._serverPlotLevel;
+  try { return fn(calls); } finally {
+    for (const v of VERBS) F[v] = saved[v];
+    try { if (hadMirror) G._serverPlotLevel = prevMirror; else delete G._serverPlotLevel; } catch (e) {}
+  }
 };
 
 /* ── b369 — HOW THE SUITE ARMS THE ENVELOPE FLIP, AND THE ONLY WAY IT MAY ────
@@ -1755,7 +1771,8 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('b213: farm plots respect the property-tier cap', () => {
+  () => tryRun('b213: farm plots respect the property-tier cap', () => withFarmServer((verb, args) => ({ ok: true, plot: args[0], crop: args[1] || 'turnip',
+      planted_at: new Date().toISOString(), seed_spent: (args[1] || 'turnip') + '_seed', plant_xp: 28 }), () => {
     // Regression: the farm rendered 8 plantable plots at every tier, making
     // the homestead ladder's plot counts a fake perk. plantCrop must refuse
     // an empty plot index beyond HearthriseHomestead.maxPlots().
@@ -1770,7 +1787,7 @@ const TESTS = [
       window.plantCrop(5, 'turnip');
       assert(!window.G.farmPlots[5], 'plot 5 (beyond camp cap of 2) must refuse to plant');
     } finally { restoreG(snap); }
-  }),
+  })),
 
   /* ══════════════════════════════════════════════════════════════════════
      b227 — THE HOUSE IS A PLACE (homestead-deepening.md §3, §5, §6)
@@ -11066,84 +11083,80 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('action: plant + harvest a farm plot (state-level)', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    const snap = snapshotG();
-    try {
-      // Plant a turnip in plot 0. plantCrop(plotIdx, cropId) is the canonical API.
-      // Plot is stored as { cropId, plantedAt, watered, state } — note `cropId`,
-      // not `id`. b127 fixed this assertion.
-      if (typeof window.plantCrop !== 'function') return;
-      window.G.inventory = window.G.inventory || {};
-      window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 1;
-      window.G.farmPlots = window.G.farmPlots || [];
-      window.G.farmPlots[0] = null;
-      window.plantCrop(0, 'turnip');
-      const plot = window.G.farmPlots[0];
-      assert(plot && plot.cropId === 'turnip', `plot[0] should hold turnip, got ${JSON.stringify(plot)}`);
-      // Fast-forward + harvest
-      if (plot && typeof window.harvestPlot === 'function') {
+  () => tryRun('action: plant + harvest a farm plot (state-level)', () => withFarmServer(
+    (verb, args) => (verb === 'farmPlant'
+      ? { ok: true, plot: args[0], crop: args[1], planted_at: new Date().toISOString(), seed_spent: 'turnip_seed', plant_xp: 28 }
+      : { ok: true, plot: args[0], crop: 'turnip', produce: 'turnip', qty: 3, xp: 30, regrew: false, withered: false }),
+    (calls) => {
+      /* b514: the gesture is an INTENT and the plot is what the SERVER said.
+         Planting a turnip must reach hr_farm_plant with this plot and this crop
+         and nothing else; harvesting must credit the server's qty, once. */
+      const snap = snapshotG();
+      try {
+        if (typeof window.plantCrop !== 'function') return;
+        window.G.inventory = window.G.inventory || {};
+        window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 1;
+        window.G.farmPlots = window.G.farmPlots || [];
+        window.G.farmPlots[0] = null;
+        window.plantCrop(0, 'turnip');
+        assert(calls.length === 1 && calls[0].verb === 'farmPlant',
+          'planting must send exactly one hr_farm_plant intent, got ' + JSON.stringify(calls.map((c) => c.verb)));
+        assert(calls[0].args[0] === 0 && calls[0].args[1] === 'turnip',
+          'the intent carries the plot and the crop id only, got ' + JSON.stringify(calls[0].args));
+        const plot = window.G.farmPlots[0];
+        assert(plot && plot.cropId === 'turnip' && plot.state === 'growing',
+          `plot[0] should hold the server's growing turnip, got ${JSON.stringify(plot)}`);
+        // Fast-forward + harvest: the produce is the SERVER's number, applied once.
         plot.state = 'ready';
-        plot.plantedAt = Date.now() - 24 * 3600 * 1000;
         const beforeQty = window.G.inventory.turnip || 0;
         window.harvestPlot(0);
+        assert(calls.length === 2 && calls[1].verb === 'farmHarvest',
+          'harvesting must send one hr_farm_harvest intent, got ' + JSON.stringify(calls.map((c) => c.verb)));
         const afterQty = window.G.inventory.turnip || 0;
-        assert(afterQty > beforeQty, `harvest should add turnips: before=${beforeQty} after=${afterQty}`);
-      }
-    } finally { restoreG(snap); }
-  })),
+        assert(afterQty - beforeQty === 3,
+          `harvest must credit the SERVER's qty (3) exactly once: before=${beforeQty} after=${afterQty}`);
+        assert(window.G.farmPlots[0] == null, 'a non-regrowing crop leaves the plot cleared');
+      } finally { restoreG(snap); }
+    })),
 
   // b420 regression: a perennial (tomato/emberfruit) is FINITE. It regrows
   // `regrowLimit` times after the first harvest, then the plant withers and
   // the plot clears — it must NOT yield free food forever (the reported bug).
-  () => tryRun('action: perennial tomato regrows a finite number of times then withers', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    const snap = snapshotG();
-    try {
-      if (typeof window.harvestPlot !== 'function' || !window.CROPS || !window.CROPS.tomato) return;
-      const crop = window.CROPS.tomato;
-      const limit = crop.regrowLimit || 0;
-      assert(crop.regrows === true && limit > 0,
-        `tomato must be a finite perennial (regrows + regrowLimit>0), got regrows=${crop.regrows} limit=${limit}`);
-      window.G.inventory = window.G.inventory || {};
-      window.G.farmPlots = window.G.farmPlots || [];
-      const readyPlot = (regrowCount) => ({ cropId: 'tomato', plantedAt: Date.now() - 30 * 24 * 3600 * 1000, waterings: [], state: 'ready', regrowCount });
-      // First harvest (regrowCount 0) + each regrow up to the final one should
-      // leave a fresh growing plot behind — the plant is still alive.
-      // regrowLimit = number of regrows ⇒ limit+1 total harvests from one seed.
-      // The first `limit` harvests each leave a fresh growing plot (a regrow);
-      // the (limit+1)-th withers and clears the plot.
-      let harvests = 0;
-      window.G.farmPlots[0] = readyPlot(0);
-      for (let n = 0; n < limit; n++) {
-        window.G.farmPlots[0].state = 'ready';
-        window.G.farmPlots[0].plantedAt = Date.now() - 30 * 24 * 3600 * 1000;
+  () => tryRun('action: perennial tomato regrows then withers (the SERVER decides which)', () => {
+    /* b420 regression, restated for the cutover. The FINITE-PERENNIAL RULE is
+       hr_farm_harvest's (2026-08-22-server-farming-complete.sql §10 asserts the
+       ladder); the client's job is to render whichever of `regrew` / `withered`
+       comes back, and to keep regrowCount in step. Both are asserted here, plus
+       the catalogue fact the two sides share: tomato must still BE a finite
+       perennial, or neither half has a ladder to run. */
+    if (typeof window.harvestPlot !== 'function' || !window.CROPS || !window.CROPS.tomato) return;
+    const crop = window.CROPS.tomato;
+    assert(crop.regrows === true && (crop.regrowLimit || 0) > 0,
+      `tomato must be a finite perennial (regrows + regrowLimit>0), got regrows=${crop.regrows} limit=${crop.regrowLimit}`);
+    // A regrow: the plot comes back growing with the count advanced.
+    withFarmServer(() => ({ ok: true, plot: 0, crop: 'tomato', produce: 'tomato', qty: 4, xp: 60, regrew: true, withered: false }), (calls) => {
+      const snap = snapshotG();
+      try {
+        window.G.farmPlots = window.G.farmPlots || [];
+        window.G.farmPlots[0] = { cropId: 'tomato', plantedAt: Date.now() - 3600000, waterings: [], state: 'ready', regrowCount: 2 };
         window.harvestPlot(0);
-        harvests++;
+        assert(calls.length === 1 && calls[0].verb === 'farmHarvest', 'a harvest must send one intent');
         const p = window.G.farmPlots[0];
-        assert(p && p.state === 'growing' && (p.regrowCount || 0) === n + 1,
-          `after harvest ${n + 1} the perennial should regrow with regrowCount=${n + 1}, got ${JSON.stringify(p)}`);
-      }
-      // Final (limit+1)-th harvest: the plant withers, plot clears — it does NOT
-      // yield forever (the reported bug).
-      window.G.farmPlots[0].state = 'ready';
-      window.G.farmPlots[0].plantedAt = Date.now() - 30 * 24 * 3600 * 1000;
-      window.harvestPlot(0);
-      harvests++;
-      assert(window.G.farmPlots[0] == null,
-        `after ${harvests} harvests (limit=${limit}) the perennial must wither and clear the plot, got ${JSON.stringify(window.G.farmPlots[0])}`);
-    } finally { restoreG(snap); }
-  })),
+        assert(p && p.state === 'growing' && p.regrowCount === 3,
+          `a server regrow must leave a growing plot with regrowCount 3, got ${JSON.stringify(p)}`);
+      } finally { restoreG(snap); }
+    });
+    // The wither: the plant does NOT yield forever (the reported bug).
+    withFarmServer(() => ({ ok: true, plot: 0, crop: 'tomato', produce: 'tomato', qty: 4, xp: 60, regrew: false, withered: true }), () => {
+      const snap = snapshotG();
+      try {
+        window.G.farmPlots[0] = { cropId: 'tomato', plantedAt: Date.now() - 3600000, waterings: [], state: 'ready', regrowCount: crop.regrowLimit };
+        window.harvestPlot(0);
+        assert(window.G.farmPlots[0] == null,
+          `a server wither must clear the plot, got ${JSON.stringify(window.G.farmPlots[0])}`);
+      } finally { restoreG(snap); }
+    });
+  }),
 
   // gold-arm: upgradeRoom's debit is gated by clientMayWriteRecordField
   // (switch-OFF position); the stamp makes the affordability read known.
@@ -13433,55 +13446,62 @@ const TESTS = [
   }),
 
   // b136: upgradePlot consumes deeds and unlocks the next tier.
-  () => tryRun('b136: upgradePlot spends deeds + advances plot level', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    try {
-      window.G.plotLevels = 1;
-      window.G.inventory.farm_deed = 5;
-      /* b510: deeds are the FALLBACK payment now — gold is charged first — and
-         the tier sits behind a farming level. Broke + eligible is the state
-         that exercises the deed path. */
-      window.G.gold = 0;
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 20000;
-      const need = window.HearthriseFarm.getDeedsRequiredForNextLevel();
-      assert(need === 1, 'Lv 1 → 2 should cost 1 deed, got ' + need);
-      const ok = window.HearthriseFarm.upgradePlot();
-      assert(ok === true, 'upgradePlot should succeed');
-      assert(window.G.plotLevels === 2, 'plotLevels should be 2 after upgrade, got ' + window.G.plotLevels);
-      assert((window.G.inventory.farm_deed | 0) === 4, 'should have 5-1=4 deeds left, got ' + window.G.inventory.farm_deed);
-      assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot should now be plantable at Lv 2');
-      assert(window.HearthriseFarm.canPlantCrop('wheat') === true, 'wheat should now be plantable at Lv 2');
-      assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato should still be locked at Lv 2');
-    } finally {
-      restoreG(snap);
-    }
-  })),
+  () => tryRun('b136: upgradePlot sends the intent and renders the deed spend', () => withFarmServer(
+    () => ({ ok: true, plot_level: 2, paid_with: 'deeds', deeds_spent: 1 }),
+    (calls) => {
+      /* b514: the PRICE and the DEBIT are hr_farm_upgrade_plot's. What the client
+         still owns, and what this measures, is: the pre-flight lets an eligible
+         broke-but-deeded farmer through, exactly one intent goes out, and the
+         server's answer (tier 2, one deed) is rendered ONCE — including the crop
+         unlocks that hang off the tier. */
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.inventory.farm_deed = 5;
+        /* b510: deeds are the FALLBACK payment now — gold is charged first — and
+           the tier sits behind a farming level. Broke + eligible is the state
+           that exercises the deed path. */
+        window.G.gold = 0;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 20000;
+        const need = window.HearthriseFarm.getDeedsRequiredForNextLevel();
+        assert(need === 1, 'Lv 1 → 2 should cost 1 deed, got ' + need);
+        const ok = window.HearthriseFarm.upgradePlot();
+        assert(ok === true, 'upgradePlot should take the gesture');
+        assert(calls.length === 1 && calls[0].verb === 'farmUpgradePlot',
+          'exactly one hr_farm_upgrade_plot intent, got ' + JSON.stringify(calls.map((c) => c.verb)));
+        assert(window.G.plotLevels === 2, "plotLevels should be the server's 2, got " + window.G.plotLevels);
+        assert((window.G.inventory.farm_deed | 0) === 4, 'should have 5-1=4 deeds left, got ' + window.G.inventory.farm_deed);
+        assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot should now be plantable at Lv 2');
+        assert(window.HearthriseFarm.canPlantCrop('wheat') === true, 'wheat should now be plantable at Lv 2');
+        assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato should still be locked at Lv 2');
+      } finally { restoreG(snap); }
+    })),
 
   // b136: upgradePlot rejects when player lacks deeds.
-  () => tryRun('b136: upgradePlot fails without enough deeds', () => {
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    try {
-      window.G.plotLevels = 1;
-      window.G.inventory.farm_deed = 0;
-      window.G.gold = 0;                 // b510: gold is the first payment
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 20000;   // ...so isolate the MONEY refusal
-      const ok = window.HearthriseFarm.upgradePlot();
-      assert(ok === false, 'upgradePlot should refuse without deeds');
-      assert(window.G.plotLevels === 1, 'plotLevels should remain 1');
-    } finally {
-      restoreG(snap);
-    }
-  }),
+  () => tryRun('b136: upgradePlot fails without enough deeds — and never calls the server', () => withFarmServer(
+    () => { throw new Error('the server must not be called for a refused upgrade'); },
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.inventory.farm_deed = 0;
+        window.G.gold = 0;                 // b510: gold is the first payment
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 20000;   // ...so isolate the MONEY refusal
+        const ok = window.HearthriseFarm.upgradePlot();
+        assert(ok === false, 'upgradePlot should refuse without deeds');
+        assert(window.G.plotLevels === 1, 'plotLevels should remain 1');
+        /* b514: the pre-flight exists to say a sentence, not to spend a round
+           trip. A refusal that still fires the intent turns every mis-tap into
+           server load and a second refusal message. */
+        assert(calls.length === 0, 'a client-side refusal must send NO intent, got ' + calls.length);
+      } finally { restoreG(snap); }
+    })),
 
   // ════════════════════════════════════════════════════════════════════════
   // b510 — THE PLOT TIER IS A PRICE AGAIN (farm plants/day hit ZERO for nine
@@ -13489,87 +13509,101 @@ const TESTS = [
   // Player action: farm turnips to Farming 5, walk into House -> Plot with
   // 500 gold, buy tier 2, plant a carrot's worth of unlock.
   // ════════════════════════════════════════════════════════════════════════
-  () => tryRun('FARM-TIER-1: a farmer buys plot tier 2 with GOLD', () => withLocalFarm(() => {
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    const _mayWrite = window.clientMayWriteRecordField;
-    window.clientMayWriteRecordField = function(){ return true; };
-    try {
-      window.G.plotLevels = 1;
-      window.G.inventory.farm_deed = 0;          // no deed anywhere in sight
-      window.G.gold = 500;
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 512;             // exactly Farming 5
-      const price = window.HearthriseFarm.getUpgradePrice();
-      assert(price && price.level === 2, 'there must be a next-tier price at Lv 1');
-      assert(price.gold === 500, 'tier 2 must cost 500 gold, got ' + price.gold);
-      assert(price.farming === 5, 'tier 2 must need Farming 5, got ' + price.farming);
-      assert(window.HearthriseFarm.getFarmingLevel() >= 5,
-        'the harness must reach Farming 5, got ' + window.HearthriseFarm.getFarmingLevel());
-      const chk = window.HearthriseFarm.getUpgradeCheck();
-      assert(chk.ok === true && chk.pay === 'gold',
-        'a farmer with the gold and no deeds pays GOLD, got ' + JSON.stringify(chk));
-      const ok = window.HearthriseFarm.upgradePlot();
-      assert(ok === true, 'the upgrade should succeed');
-      assert(window.G.plotLevels === 2, 'plot level should be 2, got ' + window.G.plotLevels);
-      assert((window.G.gold | 0) === 0, 'the 500 gold should be spent, got ' + window.G.gold);
-      assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot must now be unlocked');
-      assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato is tier 3 — still locked');
-    } finally {
-      window.clientMayWriteRecordField = _mayWrite;
-      restoreG(snap);
-    }
-  })),
+  () => tryRun('FARM-TIER-1: a farmer buys plot tier 2 with GOLD', () => withFarmServer(
+    () => ({ ok: true, plot_level: 2, paid_with: 'gold', gold_spent: 500, gold: 0 }),
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.inventory.farm_deed = 0;          // no deed anywhere in sight
+        window.G.gold = 500;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 512;             // exactly Farming 5
+        const price = window.HearthriseFarm.getUpgradePrice();
+        assert(price && price.level === 2, 'there must be a next-tier price at Lv 1');
+        assert(price.gold === 500, 'tier 2 must cost 500 gold, got ' + price.gold);
+        assert(price.farming === 5, 'tier 2 must need Farming 5, got ' + price.farming);
+        assert(window.HearthriseFarm.getFarmingLevel() >= 5,
+          'the harness must reach Farming 5, got ' + window.HearthriseFarm.getFarmingLevel());
+        const chk = window.HearthriseFarm.getUpgradeCheck();
+        assert(chk.ok === true && chk.pay === 'gold',
+          'a farmer with the gold and no deeds pays GOLD, got ' + JSON.stringify(chk));
+        const ok = window.HearthriseFarm.upgradePlot();
+        assert(ok === true, 'the upgrade should be taken');
+        assert(calls.length === 1 && calls[0].verb === 'farmUpgradePlot', 'exactly one intent');
+        /* b514: the balance below is the SERVER's absolute post-debit figure
+           (res.gold), not a client subtraction — no price crosses the wire. */
+        assert(window.G.plotLevels === 2, 'plot level should be 2, got ' + window.G.plotLevels);
+        assert((window.G.gold | 0) === 0, "the server's post-debit balance should be rendered, got " + window.G.gold);
+        assert(window.HearthriseFarm.canPlantCrop('carrot') === true, 'carrot must now be unlocked');
+        assert(window.HearthriseFarm.canPlantCrop('potato') === false, 'potato is tier 3 — still locked');
+      } finally { restoreG(snap); }
+    })),
 
   // b510: the FARMING LEVEL is the pace, and it bites before the money — a
   // rich level-1 farmer cannot buy the ladder out from under the crops.
-  () => tryRun('FARM-TIER-2: gold cannot skip the farming level', () => withLocalFarm(() => {
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    try {
-      window.G.plotLevels = 1;
-      window.G.gold = 1e9;
-      window.G.inventory.farm_deed = 0;
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 0;
-      const chk = window.HearthriseFarm.getUpgradeCheck();
-      assert(chk.ok === false && chk.error === 'farm_level_too_low',
-        'a Farming-1 millionaire must be refused on LEVEL, got ' + JSON.stringify(chk));
-      assert(window.HearthriseFarm.upgradePlot() === false, 'the upgrade must refuse');
-      assert(window.G.plotLevels === 1, 'plot level must not move');
-      assert(window.G.gold === 1e9, 'a refused upgrade must charge nothing');
-    } finally {
-      restoreG(snap);
-    }
-  })),
+  () => tryRun('FARM-TIER-2: gold cannot skip the farming level', () => withFarmServer(
+    () => { throw new Error('a level-refused upgrade must not reach the server'); },
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.gold = 1e9;
+        window.G.inventory.farm_deed = 0;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 0;
+        const chk = window.HearthriseFarm.getUpgradeCheck();
+        assert(chk.ok === false && chk.error === 'farm_level_too_low',
+          'a Farming-1 millionaire must be refused on LEVEL, got ' + JSON.stringify(chk));
+        assert(window.HearthriseFarm.upgradePlot() === false, 'the upgrade must refuse');
+        assert(calls.length === 0, 'and must not spend a round trip doing it');
+        assert(window.G.plotLevels === 1, 'plot level must not move');
+        assert(window.G.gold === 1e9, 'a refused upgrade must charge nothing');
+        /* The BINDING copy of this rule is hr_farm_upgrade_plot's (it answers
+           farm_level_too_low with its own need/have); this is the pre-flight that
+           keeps the button honest before the player taps it. */
+      } finally { restoreG(snap); }
+    })),
 
   // b510: GOLD FIRST. A deed is worth 500g at tier 2 and 12,500g at tier 5 and
   // it is tradeable, so the game must never quietly spend the rarer currency
   // while the player is holding the cheaper one.
-  () => tryRun('FARM-TIER-3: holding both, the player pays gold and keeps the deed', () => withLocalFarm(() => {
-    if (!window.HearthriseFarm) return;
-    const snap = snapshotG();
-    const _mayWrite = window.clientMayWriteRecordField;
-    window.clientMayWriteRecordField = function(){ return true; };
-    try {
-      window.G.plotLevels = 1;
-      window.G.gold = 5000;
-      window.G.inventory.farm_deed = 4;
-      window.G.skills = window.G.skills || {};
-      window.G.skills.farming = 20000;
-      assert(window.HearthriseFarm.upgradePlot() === true, 'the upgrade should succeed');
-      assert(window.G.plotLevels === 2, 'plot level should be 2');
-      assert((window.G.gold | 0) === 4500, 'gold should be 5000-500, got ' + window.G.gold);
-      assert((window.G.inventory.farm_deed | 0) === 4,
-        'the deeds must be untouched, got ' + window.G.inventory.farm_deed);
-    } finally {
-      window.clientMayWriteRecordField = _mayWrite;
-      restoreG(snap);
-    }
-  })),
+  () => tryRun('FARM-TIER-3: holding both, the player pays gold and keeps the deed', () => withFarmServer(
+    () => ({ ok: true, plot_level: 2, paid_with: 'gold', gold_spent: 500, gold: 4500 }),
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G.gold = 5000;
+        window.G.inventory.farm_deed = 4;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 20000;
+        /* b514: GOLD-BEFORE-DEEDS IS THE SERVER'S CHOICE now (the RPC picks and
+           reports it as paid_with). Two things stay the client's and are what
+           this measures: the pre-flight says GOLD, so the button's copy does not
+           promise the rarer currency; and a gold answer must leave the deeds
+           ALONE — reconcile debits farm_deed only on deeds_spent. */
+        const chk = window.HearthriseFarm.getUpgradeCheck();
+        assert(chk.ok === true && chk.pay === 'gold',
+          'holding both, the pre-flight must name GOLD, got ' + JSON.stringify(chk));
+        assert(window.HearthriseFarm.upgradePlot() === true, 'the upgrade should be taken');
+        assert(calls.length === 1, 'exactly one intent');
+        assert(window.G.plotLevels === 2, 'plot level should be 2');
+        assert((window.G.gold | 0) === 4500, "the server's balance should render as 4500, got " + window.G.gold);
+        assert((window.G.inventory.farm_deed | 0) === 4,
+          'the deeds must be untouched, got ' + window.G.inventory.farm_deed);
+      } finally { restoreG(snap); }
+    })),
 
   // b136: plantCrop respects the plot-level gate.
-  () => tryRun('b136: plantCrop is gated by plot level', () => {
+  () => tryRun('b136: plantCrop is gated by plot level', () => withFarmServer((verb, args) => ({ ok: true, plot: args[0], crop: args[1] || 'turnip',
+      planted_at: new Date().toISOString(), seed_spent: (args[1] || 'turnip') + '_seed', plant_xp: 28 }), () => {
     if (typeof window.plantCrop !== 'function' || !window.HearthriseFarm) return;
     const snap = snapshotG();
     try {
@@ -13597,10 +13631,11 @@ const TESTS = [
     } finally {
       restoreG(snap);
     }
-  }),
+  })),
 
   // b136: maybeReplant fires when enabled + seeds present + plot empty.
-  () => tryRun('b136: maybeReplant plants configured crop on empty plot', () => {
+  () => tryRun('b136: maybeReplant plants configured crop on empty plot', () => withFarmServer((verb, args) => ({ ok: true, plot: args[0], crop: args[1] || 'turnip',
+      planted_at: new Date().toISOString(), seed_spent: (args[1] || 'turnip') + '_seed', plant_xp: 28 }), () => {
     if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeReplant !== 'function') return;
     const snap = snapshotG();
     const fr = window.HearthriseAuto.getFarmReplant();
@@ -13619,10 +13654,11 @@ const TESTS = [
       window.HearthriseAuto.setFarmReplant(fr);
       restoreG(snap);
     }
-  }),
+  })),
 
   // b136: maybeReplant respects the plot-level gate (locked crop = no-op).
-  () => tryRun('b136: maybeReplant skips locked crops', () => {
+  () => tryRun('b136: maybeReplant skips locked crops', () => withFarmServer((verb, args) => ({ ok: true, plot: args[0], crop: args[1] || 'turnip',
+      planted_at: new Date().toISOString(), seed_spent: (args[1] || 'turnip') + '_seed', plant_xp: 28 }), () => {
     if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeReplant !== 'function') return;
     const snap = snapshotG();
     const fr = window.HearthriseAuto.getFarmReplant();
@@ -13640,7 +13676,7 @@ const TESTS = [
       window.HearthriseAuto.setFarmReplant(fr);
       restoreG(snap);
     }
-  }),
+  })),
 
   // b136: deed roll honours tier gate (Tier 1 mob = no roll).
   () => tryRun('b136: rollKillDeed never grants for Tier 1 monsters', () => {
@@ -15633,33 +15669,36 @@ const TESTS = [
     assert(F.isWaterable(done) === false, 'a ready crop is not waterable');
   }),
 
-  () => tryRun('b220: waterPlot opens one window and refuses a second', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    const snap = snapshotG();
-    try {
-      if (typeof window.waterPlot !== 'function') return;
-      window.G.farmPlots = window.G.farmPlots || [];
-      window.G.farmPlots[0] = { cropId: 'turnip', plantedAt: Date.now() - 3600000, waterings: [], state: 'growing' };
-      window.waterPlot(0);
-      let p = window.G.farmPlots[0];
-      assert(Array.isArray(p.waterings) && p.waterings.length === 1,
-        'first watering must be recorded, got ' + JSON.stringify(p.waterings));
-      // b222: the `watered` dual-write is DELETED. b220 mirrored it purely so a
-      // rollback to b219 read a sane value; two builds have shipped since, and
-      // a field that is written but never read is state waiting to be trusted
-      // by accident. `waterings[]` is the only source now.
-      assert(!('watered' in p), 'the `watered` dual-write must be gone — waterings[] is the only source');
-      window.waterPlot(0);
-      p = window.G.farmPlots[0];
-      assert(p.waterings.length === 1, 'a second watering inside the open window must be rejected');
-      assert(typeof window.waterAllPlots === 'function', 'waterAllPlots (farm header action) missing');
-    } finally { restoreG(snap); }
-  })),
+  () => tryRun('b220: waterPlot opens one window and refuses a second', () => withFarmServer(
+    (verb, args) => ({ ok: true, plot: args[0], crop: 'turnip', watered_at: new Date().toISOString(), water_xp: 7 }),
+    (calls) => {
+      /* b514: the WINDOW is hr_farm_water's rule. The client's half — and b462's
+         actual bug — is that the first tap becomes an intent, the reconcile
+         records the server's watered_at, and the second tap inside the open
+         window is refused WITHOUT a second round trip. */
+      const snap = snapshotG();
+      try {
+        if (typeof window.waterPlot !== 'function') return;
+        window.G.farmPlots = window.G.farmPlots || [];
+        window.G.farmPlots[0] = { cropId: 'turnip', plantedAt: Date.now() - 3600000, waterings: [], state: 'growing' };
+        window.waterPlot(0);
+        assert(calls.length === 1 && calls[0].verb === 'farmWater',
+          'the first tap must send one hr_farm_water intent, got ' + JSON.stringify(calls.map((c) => c.verb)));
+        let p = window.G.farmPlots[0];
+        assert(Array.isArray(p.waterings) && p.waterings.length === 1,
+          "the server's watering must be recorded, got " + JSON.stringify(p.waterings));
+        // b222: the `watered` dual-write is DELETED. b220 mirrored it purely so a
+        // rollback to b219 read a sane value; a field that is written but never
+        // read is state waiting to be trusted by accident. `waterings[]` is the
+        // only source now.
+        assert(!('watered' in p), 'the `watered` dual-write must be gone — waterings[] is the only source');
+        window.waterPlot(0);
+        p = window.G.farmPlots[0];
+        assert(p.waterings.length === 1, 'a second watering inside the open window must be rejected');
+        assert(calls.length === 1, 'and rejected LOCALLY — no second intent, got ' + calls.length);
+        assert(typeof window.waterAllPlots === 'function', 'waterAllPlots (farm header action) missing');
+      } finally { restoreG(snap); }
+    })),
 
   // The migration is what un-sticks every plot broken on live right now.
   () => tryRun('b220: save migration un-sticks stalled plots', () => {
@@ -18797,37 +18836,38 @@ const TESTS = [
   // mirrored it purely so a rollback to b219 read a sane value; two builds have
   // shipped since. A field written by four code paths and read by one migration
   // is state waiting to be trusted by accident.
-  () => tryRun('b222: the farming `watered` dual-write is deleted from every writer', () => withLocalFarm(() => {
-    /* b456: driven with the farm's SERVER ROUTING off (withLocalFarm). Under the
-       armed default plant/water/harvest/upgrade send an hr_farm_* intent and
-       reconcile from the response, so in a harness with no server the gesture's
-       fetch fails, the optimistic plot reverts, and the arithmetic below measures
-       nothing. The rules themselves still live in the client path (and are what
-       the RPC mirrors), so they are asserted where they execute. */
-    const snap = snapshotG();
-    try {
-      window.G.farmPlots = window.G.farmPlots || [];
-      // plantCrop
-      window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 2;
-      window.G.farmPlots[0] = null;
-      window.plantCrop(0, 'turnip');
-      const planted = window.G.farmPlots[0];
-      assert(planted && Array.isArray(planted.waterings), 'plantCrop must write waterings[]');
-      assert(!('watered' in planted), 'plantCrop still writes the `watered` mirror');
-      // waterPlot
-      planted.plantedAt = Date.now() - 3600000;
-      window.waterPlot(0);
-      assert(window.G.farmPlots[0].waterings.length === 1, 'waterPlot must record a watering');
-      assert(!('watered' in window.G.farmPlots[0]), 'waterPlot still writes the `watered` mirror');
-      // The one surviving READER — the legacy-save conversion — must stay.
-      const legacy = { cropId: 'turnip', plantedAt: 1000, watered: true };
-      window.HearthriseFarm.normalizePlot(legacy);
-      assert(legacy.waterings.length === 1 && legacy.waterings[0] === 1000,
-        'the legacy watered→waterings conversion was removed — old saves would stall');
-      const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
-      assert(M, 'the v6 → v7 migration that reads `watered` must not be deleted');
-    } finally { restoreG(snap); }
-  })),
+  () => tryRun('b222: the farming `watered` dual-write is deleted from every writer', () => withFarmServer(
+    (verb, args) => (verb === 'farmPlant'
+      ? { ok: true, plot: args[0], crop: args[1], planted_at: new Date().toISOString(), seed_spent: 'turnip_seed', plant_xp: 28 }
+      : { ok: true, plot: args[0], crop: 'turnip', watered_at: new Date().toISOString(), water_xp: 7 }),
+    () => {
+      /* b514: the writers are now the OPTIMISTIC prediction in farmSyncPlant and
+         reconcileFarmResult. Both must still write waterings[] and neither may
+         resurrect the `watered` mirror. */
+      const snap = snapshotG();
+      try {
+        window.G.farmPlots = window.G.farmPlots || [];
+        // plantCrop
+        window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 2;
+        window.G.farmPlots[0] = null;
+        window.plantCrop(0, 'turnip');
+        const planted = window.G.farmPlots[0];
+        assert(planted && Array.isArray(planted.waterings), 'plantCrop must write waterings[]');
+        assert(!('watered' in planted), 'plantCrop still writes the `watered` mirror');
+        // waterPlot
+        planted.plantedAt = Date.now() - 3600000;
+        window.waterPlot(0);
+        assert(window.G.farmPlots[0].waterings.length === 1, 'waterPlot must record a watering');
+        assert(!('watered' in window.G.farmPlots[0]), 'waterPlot still writes the `watered` mirror');
+        // The one surviving READER — the legacy-save conversion — must stay.
+        const legacy = { cropId: 'turnip', plantedAt: 1000, watered: true };
+        window.HearthriseFarm.normalizePlot(legacy);
+        assert(legacy.waterings.length === 1 && legacy.waterings[0] === 1000,
+          'the legacy watered→waterings conversion was removed — old saves would stall');
+        const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
+        assert(M, 'the v6 → v7 migration that reads `watered` must not be deleted');
+      } finally { restoreG(snap); }
+    })),
 
   // #10k: the contribution formula. Every row here is lifted verbatim from
   // clan-overhaul v2 §3.4's worked table, computed against the REAL item

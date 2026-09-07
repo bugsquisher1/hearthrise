@@ -131,32 +131,14 @@ export function isRecordActive() { return true; }
    and so the set of moved fields is greppable in one place rather than being an
    emergent property of scattered `if` statements.
 
-   ORDER OF MIGRATION, and the rule behind it: **the record follows the writer.**
-   A field may move only after EVERY path that mutates it has moved, because a
-   field with a server record and a live client writer is precisely the
-   two-sources bug above — the server's copy goes stale, the strip throws away
-   the fresh local value, and the player loses progress. That rule is what puts
-   `offlineBudget` first and everything else later:
-
-   | field                    | writer today                  | may move when |
-   |--------------------------|-------------------------------|---------------|
-   | offlineBudget (accrued_to)| SERVER already (b337 owns it — | NOW. This is  |
-   |                          | processOffline returns before  | the only field|
-   |                          | claimOfflineMs under the switch| whose writer  |
-   |                          | and accrue.js deliberately     | has already   |
-   |                          | never advances the watermark)  | moved.        |
-   | gold                     | ~40 client sites               | after a gold  |
-   |                          |                               | intent surface|
-   | inventory qty            | addItem/removeItem everywhere  | after craft/  |
-   |                          |                               | gather intents|
-   | skills xp                | addXp                          | after the     |
-   |                          |                               | activity      |
-   |                          |                               | intents       |
-   | hearth_token             | 1 mint (IAP) + 4 spends        | after a spend |
-   |                          | (dungeons ×3, redeem)          | intent — it is|
-   |                          |                               | the smallest  |
-   |                          |                               | surface after |
-   |                          |                               | this one      |
+   THE RULE BEHIND THE ORDER: **the record follows the writer.** A field may
+   move only after EVERY path that mutates it has moved, because a field with a
+   server record and a live client writer is precisely the two-sources bug above
+   — the server's copy goes stale, the strip throws away the fresh local value,
+   and the player loses progress. `offlineBudget` went first because the server
+   already owned its writer; the cutover has since brought the rest of the list
+   (gold, gems, skills, equipment, rooms, marks, scrip, rested) across behind
+   their own intent surfaces, and the rule is what a NEW entry must satisfy.
 
    `from` names a key inside the envelope's `state` object. `decode` turns the
    wire value into the client's representation and MUST return `null` for
@@ -1860,28 +1842,16 @@ function settle(verdict) {
       if (HA && typeof HA.activityOf === 'function' && typeof rap === 'function') {
         const act = HA.activityOf(verdict.body);
         if (act && act.kind && act.kind !== 'idle') {
-          /* ── b520: THE RECORD IS AN ACKNOWLEDGEMENT, AND IT HAS TO BE FILED AS ONE.
-             `hr_load` is the server STATING its own pointer, which is a stronger
-             statement than the acknowledgement `settle()` files after a switch —
-             yet the two module fields that hold "what the server said" and "what
-             the server agreed to" stayed null through the whole boot. Two costs,
-             both real and both measured on the artisan resume this build fixes:
-               • `assertActivityDeclaration()` (resumeActiveActivity, every
-                 visibility-resume) asks `isActivityConfirmed` about a run the
-                 server itself just named, is told no, and spends an intent key, a
-                 rate budget and a COLLECT re-declaring the activity the server is
-                 already settling;
-               • the b519 unconfirmed-stop path then treats a later authoritative
-                 `idle` as a surprise and shows "The hearth did not take that" over
-                 the player's own Stop.
-             Filed BEFORE the reconcile so the reconcile can ask about it, exactly
-             as settle() takes `acked` before firing its hook. Both fields, never
-             one: `confirmed` without `lastServerActivity` is a module state the
-             transport can never produce, and it would leave a later no-envelope
-             refusal with nothing to reconcile TO. The carried FIGHT is deliberately
-             not filed here — `rap` below is handed it directly for this boot, and a
-             checkpoint from boot-time is stale by the time a mid-session refusal
-             would read it. */
+          /* THE RECORD IS AN ACKNOWLEDGEMENT AND IS FILED AS ONE. `hr_load` is
+             the server STATING its pointer, so filing it stops every later
+             visibility-resume re-declaring (an intent key, a rate budget and a
+             COLLECT) a run the server already owns, and stops a later
+             authoritative `idle` reading as a surprise over the player's own
+             Stop. BEFORE the reconcile, so the reconcile can ask. BOTH fields,
+             never one: `confirmed` without `lastServerActivity` is a state the
+             transport cannot produce. The carried FIGHT is deliberately not
+             filed — `rap` is handed it directly, and a boot-time checkpoint is
+             stale by the time a mid-session refusal would read it. */
           if (typeof HA.setLastServerActivity === 'function') HA.setLastServerActivity(act);
           if (typeof HA.setConfirmedActivity === 'function') HA.setConfirmedActivity(act);
           rap(act, typeof HA.fightOf === 'function' ? HA.fightOf(verdict.body) : null);

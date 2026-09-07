@@ -1945,39 +1945,20 @@ window.explainUnownedStop=explainUnownedStop;
        gated, with a test that asserts a reconcile arriving while the gate is
        refusing moves the loops and moves no gold (B348-8).
    ══════════════════════════════════════════════════════════════════════════ */
-/* ── THE CARRIED FIGHT, APPLIED (b372 / F18) ───────────────────────────────
-   `startCombat()` sets `monsterHp = m.hp` — it starts a fight, which is the
-   right thing for a tap on the War Table and the WRONG thing for a reconcile
-   that is meant to RESUME one. `player_state.fight` has been server state since
-   2026-08-17-fight-carry.sql and the server has been resuming from it in every
-   accrual span; the client never read it back, so a reload or any reconcile that
-   had to move the pointer handed the player a full-health monster and threw away
-   the damage the server was still holding. On a 520-hp dragon that is the whole
-   fight, every time.
-
-   This runs AFTER startCombat, never instead of it: startCombat owns the
-   interval, the combat log and the repaint, and a second way into a fight is a
-   second thing that forgets one of the three (the same reason the reconcile goes
-   through it at all). All this does is correct the two numbers it just reset.
-
-   FAIL-CLOSED, mirroring the Edge engine's own guard
-   (functions/hr-accrue/accrual.js: `fight.monster === activeId && fight.hp > 0`):
-   a carried fight that names a DIFFERENT monster is stale, and pouring its hp
-   into the current foe would be a free half-killed boss. The `min` against
-   `monsterMaxHp` is the client's half of the SQL re-clamp against
-   `hr_activities.max_hp` — a monster's hp can be lowered in src/data/monsters.js
-   while a fight is carried, and starting a foe with more hp than it has is how
-   you get one that cannot be killed. */
+/* ── THE CARRIED FIGHT, APPLIED ────────────────────────────────────────────
+   `startCombat()` sets `monsterHp = m.hp` — it STARTS a fight, which is right
+   for a tap on the War Table and wrong for a reconcile meant to RESUME one. So
+   this runs AFTER startCombat, never instead of it (startCombat owns the
+   interval, the combat log and the repaint), and does nothing but correct the
+   two numbers it just reset. Which carry is usable — and the clamp that keeps a
+   lowered monster killable — is decided in core-bridge's `carriedFight`,
+   fail-closed against the Edge engine's own guard. */
 function applyCarriedFight(id, fight){
-  if(!fight||typeof fight!=='object')return false;
-  if(fight.monster!==id)return false;
-  const hp=Number(fight.hp);
-  if(!isFinite(hp)||!(hp>0))return false;
-  const max=Number(G.monsterMaxHp);
-  if(!isFinite(max)||!(max>0))return false;
-  G.monsterHp=Math.min(hp,max);
-  const k=Number(fight.kills);
-  G.combatKillsThisFoe=(isFinite(k)&&k>=0)?Math.floor(k):0;
+  const C=window.HearthriseCore;
+  const c=(C&&typeof C.carriedFight==='function')?C.carriedFight(fight,id,G.monsterMaxHp):null;
+  if(!c)return false;
+  G.monsterHp=c.hp;
+  G.combatKillsThisFoe=c.kills;
   return true;
 }
 window.applyCarriedFight=applyCarriedFight;
@@ -1997,68 +1978,31 @@ function reconcileActivityPointer(a,fight){
       }
       return {kind:'combat',id:id};
     }
+    /* The id resolves — and a miss is WARNED and declined — in core-bridge's
+       `resumeTarget`, off the same indexes the accrual engine reads. */
     if(kind==='gather'&&id){
       const C=window.HearthriseCore;
-      const hit=(C&&typeof C.gatherNode==='function')?C.gatherNode(id):null;
-      /* An id the client cannot resolve is NOT a reason to stop the player.
-         The two catalogues are guarded to be identical, so this means the
-         guard is wrong or the build is old — either way the honest move is to
-         leave the run alone and say so, not to act on a node we cannot name. */
-      if(!hit){
-        console.warn('[activity] the server says gather:'+id+', which is not in this build\'s '
-          +'gather index — leaving the local activity alone rather than acting on a node it cannot resolve');
-        return null;
-      }
+      const hit=(C&&typeof C.resumeTarget==='function')?C.resumeTarget('gather',id):null;
+      if(!hit)return null;
       if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
       if(!(G.activeSkill===hit.skill&&G.skillTargetId===id)&&typeof startSkill==='function'){
         startSkill(hit.skill,id,hit.node.ms);
       }
       return {kind:'gather',id:id};
     }
-    /* ── b520: IT CAN NOW REPRESENT `artisan` TOO, AND THIS IS THE THIRD TIME ──
-       REPORTED LIVE (Paione, 2026-09-07 18:32 UTC): "when I log out doing any
-       quarry granite or rubble, when I log back in it says I am idle." Server
-       side he was right and the realm was right: `player_state.active_kind =
-       'artisan'`, `active_id = 'quarry_granite'`, the declaration accepted at
-       18:31:07, 24 `craft` ledger rows in three days. The BENCH RAN AND PAID all
-       night. Only this function disagreed — `artisan` fell past the two branches
-       above onto `return null`, so the boot resume in src/net/record.js handed
-       the server's pointer to a function that could not represent it and the
-       strip read "Idle — pick an activity" over a run the server was settling.
+    /* A bench opens THROUGH `startArtisan`, never by assigning the pointer, for
+       the reason the combat branch states: that function owns the timers, the
+       interval derivation and the two renders.
 
-       That is b348's hole a THIRD time (combat only → gather added → artisan
-       added to the wire in b356 and not to the reconcile), and it is the same
-       shape every time: a kind joins `ACTIVITY_KINDS`, the declaration sites
-       follow by derivation, and the one function whose contract is "the envelope
-       is the truth" silently applies a subset of it. `tests/activity-seam.mjs`
-       now has a fourth reader — the RECONCILE's branches — so a fifth kind
-       cannot arrive with this branch missing.
-
-       ⚠ THROUGH `startArtisan`, NEVER BY ASSIGNING THE POINTER, for the reason
-         the combat branch states: that function owns `_armArtisanTimers`, the
-         interval derivation and the two renders, and a second way to open a
-         bench is a second thing that forgets one of the three. The id resolves
-         through `HearthriseCore.artisanRecipe` — the SAME index the accrual
-         engine reads — so this side and the engine cannot disagree about which
-         bench `quarry_granite` belongs to.
-
-       ⚠ AND THE START CAN STILL REFUSE. `startArtisan` gates on the workbench
-         rung, the level, the recipe scroll and the materials; every one of those
-         is server-of-record and hydrated from THIS envelope, so a refusal here
-         means the two sides genuinely disagree. Saying `{kind:'artisan'}` anyway
-         would be this function claiming an application it did not make — so the
-         start is VERIFIED and an unstarted bench is reported honestly instead. */
+       AND THE START CAN STILL REFUSE — on the workbench rung, the level, the
+       recipe scroll or the materials, every one of them hydrated from THIS
+       envelope. Returning `{kind:'artisan'}` on a refusal would claim an
+       application this function did not make, so the start is VERIFIED and an
+       unstarted bench is reported honestly instead. */
     if(kind==='artisan'&&id){
       const C=window.HearthriseCore;
-      const hit=(C&&typeof C.artisanRecipe==='function')?C.artisanRecipe(id):null;
-      /* Same ruling as the gather branch above: an id this build cannot resolve
-         means the guard is wrong or the build is old, and the honest move is to
-         leave the run alone rather than act on a bench we cannot name. */
-      if(!hit){
-        console.warn('[activity] the server says artisan:'+id+', which is not in this build\'s '
-          +'recipe index — leaving the local activity alone rather than acting on a bench it cannot resolve');
-        return null;
-      }
+      const hit=(C&&typeof C.resumeTarget==='function')?C.resumeTarget('artisan',id):null;
+      if(!hit)return null;
       if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
       if(!(G.activeSkill===hit.skill&&G.skillTargetId===id)){
         if(typeof window.startArtisan!=='function')return null;
@@ -10953,36 +10897,19 @@ function openInvDetail(id){
   if(it.seed){
     acts.push(`<button class="btn" onclick="showTab('farming');closeInvDetail()">Open Farm</button>`);
   }
-  /* b521: Bury STARTS THE ALTAR BENCH; it does not burn the stack. The `else`
-     branch this used to carry wrote `G.skills.prayer` and `removeItem()`
-     inline — a second copy of the very mint buryBones() just stopped doing, and
-     the reason a fallback is not re-added: an unreachable client-authored twin
-     is what the b514 farm cleanup deleted for the same reason. If buryBones is
-     absent the button does nothing, which is honest. The XP figure comes from
-     the RECIPE THE SERVER PRICES, not from ITEMS[].buryXp. */
+  /* Bury STARTS THE ALTAR BENCH; it does not burn the stack, and it authors no
+     XP — see the gesture unit in src/features/inv-context-menu.js. The
+     requirement is stated BEFORE the click (the Prayer screen's own row is
+     `disabled` when the bench cannot run, and the food block above already
+     answers a dead-end with a named button), and the gates are READ from that
+     one unit, never re-implemented here: one wrong copy of "can I bury?" is how
+     the three bury buttons diverged in the first place. */
   if(it.buryXp){
-    const _br = (typeof buryRecipeFor==='function') ? buryRecipeFor(id) : null;
-    const _bx = _br ? _br.xp : it.buryXp;
-    /* THE REQUIREMENT IS STATED BEFORE THE CLICK, not after it. The Prayer
-       screen's own row is `disabled` when the bench cannot run, and the food
-       block above already answers a dead-end with a named button rather than a
-       live one that does nothing ("Already at full health", b224). This surface
-       now agrees with both. The gates are READ, never re-implemented — one
-       wrong copy of "can I bury?" is how the three bury buttons diverged in the
-       first place (b265). */
-    /* THE SHRINE BRANCH IS GONE (the altar ruling). It read
-       hasWorkbench('prayer') and disabled this button for every player below
-       Ironvale Keep. The two gates left are the two the server enforces: a
-       rite must exist, and hr_apply re-checks `req_lv` against server XP. */
-    let _bWhy = null;
-    if(!_br) _bWhy = 'No altar rite for this yet';
-    if(!_bWhy && _br && typeof getLevel==='function' && getLevel('prayer') < _br.req){
-      _bWhy = 'Needs Prayer ' + _br.req;
-    }
-    if(_bWhy){
-      acts.push(`<button class="btn" disabled title="${_bWhy}">Bury — ${_bWhy}</button>`);
+    const _bg = (window.HearthriseBury && window.HearthriseBury.gate(id)) || {why:'No altar rite for this yet'};
+    if(_bg.why){
+      acts.push(`<button class="btn" disabled title="${_bg.why}">Bury — ${_bg.why}</button>`);
     } else {
-      acts.push(`<button class="btn" title="Starts the altar bench — ${_bx} Prayer XP per bone, and it keeps burying while you are away" onclick="if(typeof buryBones==='function'){buryBones('${id}');}closeInvDetail();renderInvNew()">Bury</button>`);
+      acts.push(`<button class="btn" title="Starts the altar bench — ${_bg.xp} Prayer XP per bone, and it keeps burying while you are away" onclick="if(typeof buryBones==='function'){buryBones('${id}');}closeInvDetail();renderInvNew()">Bury</button>`);
     }
   }
   if(qty > 0){
@@ -11526,84 +11453,6 @@ window.repurchase = repurchase;
    strangler-fig, task #129). Both remain global via window.* there; repurchase()
    above calls renderBuyback() bare (resolves to the global) and shop.js's inline
    onclick="openBuyback()" is unchanged. Pure refactor — identical DOM. */
-
-/* ── b521: THE BURY GESTURE IS AN INTENT, NOT A GRANT ───────────────────────
-   paione, 2026-09-07: "I got like 2k bones which I can bury a gazillion times
-   and get the exp and keep the bones."
-
-   He was right, and the symptom was the smaller half of it. This function used
-   to be `removeItem(id,n)` + `addXp('prayer', it.buryXp*n)` + a toast: a
-   client-authored XP grant and a client-authored inventory debit, with NO
-   intent, NO RPC and NO settle behind either. The realm never saw a burial, so
-   a reload restored the bones and snapped Prayer back to the server's number —
-   which is exactly "bury a gazillion times and keep the bones". Leaderboards
-   read the server's XP, so it was never a rank exploit; it was a LIE told to
-   the player for 256 builds, and §1 forbids the client computing an
-   authoritative number whether or not anyone can profit from it. (b265 unified
-   the three call sites onto this one function; that unification is kept — what
-   changes is what the one function does.)
-
-   THE HONEST PATH ALREADY EXISTED. Prayer is a payable artisan lane
-   (`ARTISAN_SETTLEMENT.prayer` in src/data/item-authority.js), its three rows
-   are in the server catalogue (2026-08-11-catalogue.generated.sql:
-   bury_bones/bury_big/bury_dragon), `benchPayable('prayer')` is true, and the
-   accrual engine settles a burial exactly as it settles a smelt. So the Bury
-   GESTURE now starts that bench and does nothing else. Every gate the Prayer
-   screen enforces — level, knocked-out recovery, the activity mutex — applies
-   here for free, because this is literally the same call the Prayer screen's
-   own row makes. That is the point: one path, one set of rules, one place the
-   server is told.
-
-   ⚠ AND THE SHRINE IS NOT ONE OF THEM (the altar ruling). It was, in this
-   function's first cut. `hr_activities` has no room column and hr_apply checks
-   `req_lv` alone, so that gate was a client-held property tier in front of a
-   server capability — CLAUDE §6's residue-ahead class.
-
-   ⚠ IT IS A RUN, NOT A STACK BURN. The bench consumes one bone per action
-   (1.2 s at base) and keeps going while you are away, instead of vanishing
-   2,000 bones into a number that evaporates on reload. The copy says so.
-
-   ⚠ `G.stats.buried` IS GONE, deliberately, and not replaced. It had exactly
-   one writer (this line) and one reader (`wk_bury`, which is `blocked:` and
-   never dealt because there is no server counter to verify it against —
-   BENCH_COUNTERS has no `prayer` row, and tests/artisan-accrual.mjs asserts it
-   must not grow one). A client counter nothing server-side stamps is the same
-   dishonesty at a smaller scale. */
-
-/** The prayer recipe that buries `id`, or null. DERIVED from ARTISAN_RECIPES by
- *  `input` — never a hand-written bones→bury_bones map — so a fourth bone with
- *  a fourth recipe works here with no edit, and a bone with NO recipe is
- *  answerable ("no rite yet") instead of silently doing nothing. */
-function buryRecipeFor(id){
-  const rows = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.prayer) || [];
-  for(let i=0;i<rows.length;i++){ if(rows[i] && rows[i].input === id) return rows[i]; }
-  return null;
-}
-window.buryRecipeFor = buryRecipeFor;
-
-/** Start the altar bench on `id`. Returns the recipe id actually started, or
- *  null. Authors NOTHING: no debit, no XP, no counter. */
-function buryBones(id){
-  const it = (typeof ITEMS !== 'undefined') && ITEMS[id];
-  if(!it) return null;
-  const r = buryRecipeFor(id);
-  if(!r){
-    if(typeof notify==='function') notify('There is no altar rite for ' + it.n + ' yet','kill');
-    return null;
-  }
-  if(typeof window.startArtisan !== 'function') return null;
-  window.startArtisan('prayer', r.id);
-  /* THE ONLY HONEST SUCCESS SIGNAL IS THE POINTER startArtisan SET. It refuses
-     by notifying and returning undefined (no level, knocked out, no input), so
-     reading its return value would report every refusal as a success — and a
-     "Burying…" toast on top of "Need Lv 35 prayer" is worse than no toast. */
-  if(!(G.activeSkill === 'prayer' && G.skillTargetId === r.id)) return null;
-  if(typeof notify==='function'){
-    notify('Burying ' + it.n + ' at the altar — ' + r.xp + ' Prayer XP each', 'info');
-  }
-  return r.id;
-}
-window.buryBones = buryBones;
 
 /* ───── Render: equipment paper-doll + loadouts + bag w/ filters ───── */
 function renderInvNew(){
@@ -15977,26 +15826,17 @@ function calcRichCatchup(){
 }
 window._calcRichCatchup = calcRichCatchup;
 
-/* ── `applyRichCatchup(s)` — DELETED (b521). DO NOT RE-ADD. ────────────────
+/* ── `applyRichCatchup(s)` — DELETED. DO NOT RE-ADD. ───────────────────────
    It walked `s.xp` into addXp() and `s.itemsGained` into addItem(): a client
-   authoring a night's progression off an estimate, which is the b214 double-pay
-   and CLAUDE.md §1 in one nine-line function. b516 deleted its twin
-   (`_applyCatchup`) but LEFT this one, module-scope with zero callers, so that
-   build's diff stayed the capability removal it claimed to be — and wrote the
-   instruction that finishes the job: "IF applyRichCatchup IS EVER EXPORTED, OR
-   calcRichCatchup EVER GROWS A CREDIT … delete it the way b516 deleted the
-   first one, rather than unreferencing it" (the note above renderModal, below).
-
-   b521 collected it because tests/no-client-xp-mint.mjs now RATCHETS the count
-   of client-authored addXp call sites, and this was the last one that was not a
-   reconciled prediction or a server-credited value. Unreferenced is not
-   unreachable: the b516 note's own argument is that anything able to run one
-   line in this page can call a function that exists.
+   authoring a night's progression off an ESTIMATE, which is the double-pay
+   CLAUDE.md §1 forbids, in nine lines. Unreferenced is not unreachable —
+   anything able to run one line in this page can call a function that exists,
+   and tests/no-client-xp-mint.mjs now ratchets the count of client-authored
+   addXp sites, of which this was the last unclassifiable one.
 
    `calcRichCatchup` above STAYS: it is pure, it credits nothing, and it is the
    welcome modal's numbers. The absence a player is PAID for is the server's
-   receipt (`G.lastOfflineSummary`), and there is now no code path in this file
-   that can pay a second one. */
+   receipt (`G.lastOfflineSummary`); no path in this file can pay a second. */
 
 /* ─── Render the new modal ──────────────────────────────── */
 function buildOverlay(){
@@ -16170,21 +16010,18 @@ window._renderWelcomeV2 = renderModal;
     /* b214 (correctness fix): display-only. processOffline() already granted;
        this second grant was double-paying every returning gatherer. renderModal
        shows the estimate.
-       ⚠ WHY THIS ESTIMATOR SURVIVED THE b516 SWEEP AND `calcCatchup` DID NOT.
-       The test for deletion was REACHABILITY-AS-A-MINT, not deadness:
+       ⚠ WHY THIS ESTIMATOR SURVIVED THE SWEEP AND `calcCatchup` DID NOT. The
+       test for deletion was REACHABILITY-AS-A-MINT, not deadness:
          · `calcCatchup` + `window._applyCatchup` — pure estimate PLUS a
            crediting applier, BOTH on `window`. One console line joined them
            into `addXp`/`addItem`. DELETED (tombstone at section 3).
          · `calcRichCatchup` + `window._calcRichCatchup` — on `window`, but
            PURE: it returns a summary and credits nothing. It is the modal's
            numbers, and it stays.
-         · `applyRichCatchup` (just above) — DOES credit, but is module-scope
-           with zero callers and is NOT published on `window`, so nothing
-           outside this file can reach it. Dead, not dialable; left in place so
-           this build's diff stays the capability removal it claims to be.
-       ⚠ IF `applyRichCatchup` IS EVER EXPORTED, OR `calcRichCatchup` EVER
-       GROWS A CREDIT, that pairing recreates the b214 double-pay — delete it
-       the way b516 deleted the first one, rather than unreferencing it. */
+         · `applyRichCatchup` — DID credit, off this estimate. DELETED too
+           (tombstone above `buildOverlay`): unreferenced is not unreachable.
+       ⚠ IF `calcRichCatchup` EVER GROWS A CREDIT that pairing is back — delete
+       it the same way, rather than unreferencing it. */
     renderModal(s);
   }, 1800);
 })();
@@ -20346,39 +20183,28 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
      desc:'Sixty turns at the bench. Runecrafting and Stonemason work counts here too.'},
     {id:'wk_harvest',  glyph:'uiWheat', name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}},
      desc:'Crops pulled from your plots. They ripen while you are away — come back and gather.'},
-    /* ── b487 (#41 follow-up, live: "we also have a problem with claiming the
-       quests reward") — `blocked` MEANS "NOT DEALT", AND THE ROW STAYS PUT.
+    /* ── `blocked` MEANS "NOT DEALT", AND THE ROW STAYS PUT ────────────────
        This quest was dealt in 13 of any 52 weeks and its Claim button was DEAD:
        hr_claim_goal answers `unknown_goal` because `wk_bury` is deliberately
        absent from public.hr_goal_rewards, and the migration's own §GATE(b)
        RAISES if anyone catalogues it — there is no server number to verify
-       1,800 gold against. It is the Designer's own standing rule, already
-       recorded two rows below on gold_500: *a quest that cannot pay must not
-       be dealt.*
+       1,800 gold against. It is the Designer's own standing rule, recorded two
+       rows below on gold_500: *a quest that cannot pay must not be dealt.*
 
-       b521 UPDATE — the premise changed by HALF and the row still cannot pay.
-       Burying is no longer a pure client function: buryBones() now starts the
-       server-settled `bury_bones` artisan run, so there IS an intent, an RPC
-       and a settle. What there still is not is a COUNTER: BENCH_COUNTERS
-       (src/core/artisan.js) has no `prayer` row, so neither the live tick nor
-       the away settle stamps "bones buried" anywhere, client or server —
-       tests/artisan-accrual.mjs asserts the counter loop must not invent one.
-       `G.stats.buried` was this row's only source and it was deleted with the
-       mint, so the source now reads 0 forever. `blocked` therefore STANDS.
-       Unblocking it is a lane-C job: give prayer a BENCH_COUNTERS row, catalogue
-       wk_bury in hr_goal_rewards, and delete `blocked` in the same build.
+       Burying is server-settled now — the Bury gesture starts the `bury_bones`
+       artisan run — and the row STILL cannot pay, because what is missing is a
+       COUNTER: BENCH_COUNTERS (src/core/artisan.js) has no `prayer` row, so
+       nothing stamps "bones buried" client or server and `stats.buried` reads 0
+       forever. Unblocking it is a lane-C job: a prayer BENCH_COUNTERS row,
+       wk_bury catalogued in hr_goal_rewards, `blocked` deleted in that build.
 
        WHY A MARKER AND NOT A DELETION. The weekly picker indexes into THIS
        array, so removing the row would shift every later index and re-deal the
        whole game's mid-week slate — the exact hazard DAILY_TASK_POOL_ORDER
-       warns about ("dropping it here would shift every index and desync the
-       selection"). Marking it keeps every week that did NOT pick it
+       warns about. Marking it keeps every week that did NOT pick it
        byte-identical, and a week that DID pick it takes the next id in the same
-       shuffle order — the eligibility rule dailyTaskSetIndexes already uses.
-
-       UNBLOCKING IS ONE WORD: delete `blocked` the day burying is
-       server-settled and catalogued. The guard in tests/modal-goal-claim.mjs
-       binds the two, so it can never be dealt while it cannot pay. */
+       shuffle order. tests/modal-goal-claim.mjs binds the two, so it can never
+       be dealt while it cannot pay. */
     {id:'wk_bury',     glyph:'uiBone', name:'Bury 150 bones',    target:150, source:'stats.buried',          reward:{gold:1800, xp:{prayer:500}},
      blocked:'burying has no server counter, so hr_claim_goal refuses it unknown_goal',
      desc:'Bones off anything you kill. Every burial is Prayer XP you would otherwise vendor.'},

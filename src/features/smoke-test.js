@@ -27246,33 +27246,26 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  /* ── b521 regression suite — THE BURY GESTURE AUTHORS NOTHING ─────────────
+  /* ── THE BURY GESTURE AUTHORS NOTHING ─────────────────────────────
      paione, 2026-09-07: "I got like 2k bones which I can bury a gazillion times
      and get the exp and keep the bones." buryBones() was removeItem + addXp
-     with no intent, no RPC and no settle: the client authored both the debit
-     and the XP, the realm never saw it, and a reload restored the bones and
-     snapped Prayer back to the server's number. (This REPLACES the b265 test,
-     whose asserted contract — "a plain Bury clears the whole stack" locally —
-     was the bug written down. b265's real property, that all three surfaces
-     take ONE path, is kept and asserted below.)
-
-     It fails without the fix in both directions: the old body burns the stack
-     (so `bones` is 0, not 20) and grants XP locally (so prayer moves), and it
-     never sets an activity pointer (so the run is never declared). */
+     with no intent and no settle — the client authored the debit AND the XP, so
+     a reload restored the bones. It REPLACES the older test, whose contract ("a
+     plain Bury clears the whole stack") was the bug written down; that test's
+     real property, all three surfaces on ONE path, is kept below. */
   () => tryRun('b521: Bury starts the SERVER-SETTLED altar bench — no client XP, no client debit (paione: "bury a gazillion times and keep the bones")', () => {
     if(typeof window.buryBones !== 'function'){ skip('no buryBones'); return; }
     const snap = snapshotG();
     const realNotify = window.notify;
-    /* The bench arms two setIntervals. Leaving them running would tick
-       doArtisanAction() through the REST of the suite — eating bones and
-       moving Prayer inside other tests. stopSkill() clears the timers AND the
-       pointer; _stopArtisan is the timers-only fallback (b228). */
+    /* The bench arms two setIntervals; left running they would tick
+       doArtisanAction() through the REST of the suite. The player's own Stop
+       clears the timers AND the pointer — nulling it by hand would hide one
+       that stopped neither. */
     const stopBench = () => {
       try {
         if(typeof window.stopSkill === 'function') window.stopSkill();
         else if(typeof window._stopArtisan === 'function') window._stopArtisan();
       } catch(e) {}
-      window.G.activeSkill = null; window.G.skillTargetId = null;
     };
     try {
       const G = window.G;
@@ -27336,6 +27329,7 @@ const TESTS = [
       G.inventory = Object.assign({}, G.inventory, { bones: 20 });
       G.skills = Object.assign({}, G.skills, { prayer: 0 });
       G.activeSkill = null; G.skillTargetId = null;
+      stopBench();
       window.notify = () => {};
 
       const p0 = xpOf('prayer');
@@ -27352,23 +27346,20 @@ const TESTS = [
         'starting the bench must not grant Prayer XP locally (' + p0 + ' → ' + xpOf('prayer') + ')');
 
       // 3. NO CLIENT-AUTHORED DEBIT. The stack is untouched until an action ticks.
-      assert((G.inventory.bones || 0) === 20,
-        'starting the bench must not burn the stack, left ' + G.inventory.bones);
+      assert((G.inventory.bones || 0) === bones0,
+        'starting the bench must not burn the stack: ' + bones0 + ' → ' + G.inventory.bones);
 
-      // 4. NO CLIENT COUNTER. G.stats.buried had one writer and one blocked
-      //    reader; it went with the mint rather than ticking into the void.
+      // 4. NO CLIENT COUNTER — G.stats.buried went with the mint.
       assert(!(G.stats && G.stats.buried),
         'G.stats.buried is back — a counter nothing server-side stamps');
 
-      // 5. ONE PATH, ALL SURFACES (the b265 property, kept). The inv-detail
-      //    button's `else` branch used to write G.skills.prayer inline.
+      // 5. ONE PATH, ALL SURFACES — the inv-detail `else` wrote XP inline.
       const detailSrc = String(window.openInvDetail || '');
       assert(detailSrc.length > 0, 'openInvDetail is not published — this check would pass vacuously');
       assert(!/G\.skills\.prayer\s*=/.test(detailSrc) && !/addXp\(\s*['"]prayer/.test(detailSrc),
         'the inv-detail Bury button still carries a client-authored prayer grant');
 
-      // 5b. THE SLIDER TELLS THE TRUTH. A bench run has no quantity, so the
-      //     summary may not promise one ("Bury 20 — …" was the old copy).
+      // 5b. THE SLIDER TELLS THE TRUTH — a bench run has no quantity to promise.
       if(typeof window.openQtySlider === 'function'){
         window.openQtySlider('bones');
         const sum = (document.getElementById('qs-summary') || {}).textContent || '';
@@ -27379,13 +27370,11 @@ const TESTS = [
         if(cancel) cancel.click();
       }
 
-      // 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED. bone_chips
-      //    is a real drop with no prayer recipe — the honest answer is a
-      //    refusal that says so, never a no-op click.
+      // 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED (bone_chips
+      //    is a real drop with no prayer recipe).
       stopBench();
       let said = '';
       window.notify = (m) => { said += ' ' + m; };
-      G.inventory = Object.assign({}, G.inventory, { bone_chips: 5 });
       const none = window.buryBones('bone_chips');
       assert(none === null, 'an item with no prayer recipe must not start a run');
       assert(!G.activeSkill, 'a rite-less item must leave the activity pointer alone');
@@ -46750,42 +46739,30 @@ const TESTS = [
   /* ═══════════════════════════════════════════════════════════════════════
      B520-1 — A BOOT RECORD THAT SAYS `artisan` MUST RESUME THE BENCH.
 
-     REPORTED LIVE (Paione, 2026-09-07 18:32 UTC): "when I log out doing any
-     quarry granite or rubble, when I log back in it says I am idle."
+     REPORTED LIVE (Paione, 2026-09-07): "when I log out doing any quarry
+     granite or rubble, when I log back in it says I am idle." The realm was
+     right — `active_kind='artisan'`, `active_id='quarry_granite'`, 24 `craft`
+     ledger rows in three days, the bench ran and PAID all night — while
+     `reconcileActivityPointer` had a `combat` branch, a `gather` branch and
+     nothing for `artisan`, so the boot resume handed the server's own pointer
+     to a function that could not represent it. The strip read "Idle — pick an
+     activity" over a run the server was settling.
 
-     THE REALM WAS RIGHT AND THE CLIENT WAS WRONG. Read-only on his account:
-     `player_state.active_kind='artisan'`, `active_id='quarry_granite'`, the
-     declaration accepted at 18:31:07, 24 `craft` ledger rows in three days —
-     the bench ran and PAID all night. `reconcileActivityPointer` had a `combat`
-     branch (b347), a `gather` branch (b348) and nothing for `artisan`, so the
-     boot resume in src/net/record.js handed the server's own pointer to a
-     function that could not represent it and fell through to `return null`.
-     The strip then read "Idle — pick an activity" over a run the server was
-     settling, which is the worst state an idle game has: the player believes
-     they stopped earning and re-taps (or worse, does not).
+     DRIVEN THROUGH THE REAL BOOT, not the reconcile alone — the bug is half in
+     legacy.js and half in the wiring, so this stubs `hr_load` and runs
+     `requestRecord()` → `settle()` → `hydrationStep` → the reconcile.
 
-     DRIVEN THROUGH THE REAL BOOT, not through the reconcile alone. The bug is
-     half in legacy.js and half in the wiring, so the test stubs `hr_load` and
-     runs `requestRecord()` → `settle()` → `hydrationStep('activity-resume')` →
-     `reconcileActivityPointer`, exactly as INV-HYDRATE-1 does for the bag. A
-     test that called the reconcile by hand would have stayed green through the
-     b456 wiring bug as well as this one.
+     FOUR PROPERTIES, each a distinct way this has been got wrong:
+       ① the pointer resumes the BENCH with its loop ARMED (a pointer without a
+         timer is the "active tile earning nothing" bug);
+       ② the strip NAMES it — "Idle" is the entire player-visible symptom;
+       ③ NOTHING is declared back — echoing the server spends an idempotency
+         key, a rate budget and a COLLECT to say what it just said;
+       ④ the server's statement counts as CONFIRMATION, so the next resume does
+         not re-declare it and a later `idle` is a quiet stop, not a surprise.
 
-     FOUR PROPERTIES, and each is a distinct way this has been got wrong:
-       ① the local pointer resumes the BENCH, with its loop armed — a pointer
-         without a timer is the b237 "active tile earning nothing" bug;
-       ② the strip NAMES it ("Stonemason — quarry granite"), because "Idle" is
-         the entire player-visible symptom;
-       ③ NOTHING is declared back — the server just told us; echoing it spends
-         an idempotency key, a rate budget and a COLLECT to say nothing;
-       ④ the server's own statement counts as CONFIRMATION, so the next
-         visibility-resume does not re-declare it (`assertActivityDeclaration`)
-         and a later authoritative `idle` is a quiet stop rather than the b519
-         "the hearth did not take that" surprise.
-
-     MUTATION: delete the `kind==='artisan'` branch in reconcileActivityPointer
-     → ① ② RED. Delete the setConfirmedActivity/setLastServerActivity pair in
-     record.js's activity-resume step → ④ RED. ─────────────────────────────── */
+     MUTATION: delete the `kind==='artisan'` branch → ① ② RED; delete the
+     setConfirmedActivity/setLastServerActivity pair in record.js → ④ RED. */
   () => tryRunAsync('B520-1: a boot record that says `artisan` resumes the bench — the strip names it, '
     + 'nothing is re-declared, and the server\'s own statement counts as confirmation', async () => {
     const R = window.HearthriseRecord;
@@ -46804,23 +46781,22 @@ const TESTS = [
     const realDeclare = M.declare;
     let calls = [];
     try {
-      /* Start from a stopped character: these stops are REAL and declare a real
-         `idle`, so they happen before the spy is cleared, not after. */
+      /* Start stopped. These stops are REAL and declare a real `idle`, so they
+         happen before the spy is cleared, not after. */
       try { window.stopSkill(); } catch (e) {}
       try { window.stopCombat(); } catch (e) {}
       M.setConfirmedActivity(null);
       M.setLastServerActivity(null);
       /* Below the quiet counter and above the transport, for the reason
-         B348-5/6/7 states: spying on `declareActivity` would delete the very
+         B348-5/6/7 states: spying on `declareActivity` would delete the
          mechanism under test. Nothing reaches the network. */
       M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
 
-      /* THE ENVELOPE, BUILT FROM THE LIVE CHARACTER so `applyRecord` is very
-         nearly idempotent and the only thing that MOVES is the pointer. The one
-         raised value is the bench's own level: `startArtisan` gates on it, and
-         the honest way to satisfy a server-of-record gate is to have the SERVER
-         supply the number — poking `G.skills` would leave it UNKNOWN and the
-         gate would refuse for a reason that has nothing to do with this bug. */
+      /* THE ENVELOPE, BUILT FROM THE LIVE CHARACTER so `applyRecord` is nearly
+         idempotent and the only thing that MOVES is the pointer. The one raised
+         value is the bench's level: the honest way to satisfy a server-of-record
+         gate is to have the SERVER supply the number — poking `G.skills` leaves
+         it UNKNOWN and the gate refuses for an unrelated reason. */
       const skills = {};
       const cur = (G.skills && typeof G.skills === 'object') ? G.skills : {};
       for (const k in cur) { const n = Number(cur[k]); if (Number.isFinite(n) && n >= 0) skills[k] = Math.floor(n); }
@@ -46834,8 +46810,8 @@ const TESTS = [
           slot: 0,
           gold: Number(G.gold) || 0,
           gems: Number(G.gems) || 0,
-          /* THE TWO FIELDS THIS TEST IS ABOUT. `activityOf` reads `state.active_kind`
-             / `active_id` — the shape hr_state_of really projects. */
+          /* THE TWO FIELDS THIS TEST IS ABOUT — `activityOf` reads them off
+             `state`, the shape hr_state_of really projects. */
           active_kind: 'artisan', active_id: RID,
         },
         skills,
@@ -46862,9 +46838,8 @@ const TESTS = [
         'the pointer moved but no artisan timer was armed — the player sits on an "active" bench that '
         + 'produces nothing locally, which is the b237 bug arriving through a new door');
 
-      /* ② AND THE STRIP SAYS SO. "Idle — pick an activity" over a paying run is
-         the whole player-visible defect; asserting the pointer alone would let
-         it come back through the renderer. */
+      /* ② AND THE STRIP SAYS SO — asserting the pointer alone would let the
+         reported symptom come back through the renderer. */
       window.refreshActivityBar();
       const nameEl = document.getElementById('ab-name');
       assert(nameEl, 'the activity strip is missing from the page, so the reported symptom cannot be measured');
@@ -46881,9 +46856,7 @@ const TESTS = [
         + 'server is where this pointer came from; telling it spends an idempotency key, a rate budget '
         + 'and a COLLECT to say something it just said');
 
-      /* ④ THE RECORD IS AN ACKNOWLEDGEMENT. Without this, every visibility
-         resume asks `assertActivityDeclaration`, is told the run is unconfirmed,
-         and re-declares an activity the server is already settling. */
+      // ④ THE RECORD IS AN ACKNOWLEDGEMENT — without it every resume re-declares.
       assert(M.isActivityConfirmed('artisan', RID) === true,
         'the server STATED artisan:' + RID + ' in the boot record and `isActivityConfirmed` says no. Every '
         + 'resumeActiveActivity from here re-declares a run the server already owns, and the b519 '
@@ -59368,22 +59341,17 @@ const TESTS = [
   }),
 
 
-  /* ── 2026-09-07 regression — THE COLLECTION LOG "DISCOVERS" WHAT YOU ALREADY OWN
-     paione, with a screenshot: a Stonemason at Lv 43 holding 14,800 granite and
-     19,300 rubble was told "New discovery: Granite Stone (80/623)" — and until
-     that toast the log drew his 14.8K stack as an undiscovered "???".
-
-     `G.collection` has ONE writer (legacy.js trackCollection, reached only from
-     the client-side addItem). Everything a semi-idle player earns AWAY lands
-     through src/net/accrue.js reconcileInventory, which assigns G.inventory
-     wholesale and has never heard of the log — so the log is blind to away
-     progress, and the first attended tick that re-credits a long-held id
-     announces it as brand new. The fix reconciles the log against the bag the
-     realm STATES before deciding anything is new.
-
-     THREE ASSERTIONS AND A CONTROL, because "no toast fired" is satisfiable by
-     a hook that is simply dead: the control proves the discovery machinery is
-     live in this page, so the negative has teeth. */
+  /* ── THE COLLECTION LOG "DISCOVERS" WHAT YOU ALREADY OWN ──────────────
+     paione, with a screenshot: a Stonemason holding 14,800 granite was told
+     "New discovery: Granite Stone (80/623)", and until that toast the log drew
+     his 14.8K stack as an undiscovered "???". `G.collection` has ONE writer
+     (trackCollection, reached only from the client-side addItem), while
+     everything earned AWAY lands through src/net/accrue.js reconcileInventory,
+     which assigns G.inventory wholesale and has never heard of the log. So the
+     log is blind to away progress and the first attended tick that re-credits a
+     long-held id announces it as new. The fix levels the log against the bag the
+     realm STATES. Three assertions and a CONTROL, because "no toast fired" is
+     satisfiable by a dead hook. */
   () => tryRun('COLLECT-HELD-1: an item the realm says you already HOLD is never a "New discovery" — the collection log reconciles against the bag', () => {
     const C = window.HearthriseCollection;
     assert(C && typeof C.reconcileHeld === 'function',
@@ -59397,14 +59365,17 @@ const TESTS = [
     const said = [];
     try {
       window.notify = function (m, k) { said.push(String(m)); };
-      /* A REAL id from the report. Fixtures, not the live character: the bag and
-         the log are both replaced for the duration and put back in the finally. */
+      // A REAL id from the report; bag and log are restored in the finally.
       const HELD = 'granite';                 // ITEMS.granite === 'Granite Stone'
       const UNSEEN = 'bones';                 // held by nobody here, logged by nobody here
       assert(window.ITEMS && window.ITEMS[HELD] && window.ITEMS[UNSEEN],
         'setup: this build does not know ' + HELD + ' / ' + UNSEEN + ' — the test would pass vacuously');
 
-      G.inventory = {}; G.inventory[HELD] = 14800;   // the realm's statement of the bag
+      // THE BAG ARRIVES AS THE REPORTED ONE DID — the reconcile named above.
+      G.inventory = {};
+      window.HearthriseAccrual.reconcileInventory(G, { inventory: { [HELD]: 14800 } }, false, false);
+      assert((G.inventory[HELD] || 0) === 14800,
+        'setup: the envelope did not state the bag (' + G.inventory[HELD] + ')');
       G.collection = {};                             // …and a log that has never heard of it
 
       // (1) THE RECONCILE ITSELF. Holding it IS the proof you obtained it.
@@ -59426,8 +59397,7 @@ const TESTS = [
       assert(G.collection[HELD] > 0,
         'the credit was silenced but not recorded — the log must still learn the item, just without the fanfare');
 
-      // (3) THE CONTROL. A genuinely new id MUST still be celebrated, or the
-      //     assertion above is only measuring a dead hook.
+      // (3) THE CONTROL. A genuinely new id MUST still be celebrated.
       C.__setRealmStated(true);                      // re-zero the 700 ms debounce
       said.length = 0;
       delete G.collection[UNSEEN];

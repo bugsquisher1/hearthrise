@@ -12299,15 +12299,6 @@ console.log('Combat life: loaded');
   bar.querySelector('#ab-stop').addEventListener('click', stopCurrentActivity);
 })();
 
-/* b217: the activity bar's icon slot took a raw emoji (💤 when idle, the
- * monster's or skill's emoji when busy) and sits under the topbar on every
- * screen — the single most-seen pictograph in the build. This paints a gilt
- * glyph instead, falling back to nothing rather than to an emoji. */
-function setActivityIcon(el, glyphKey, color){
-  if(!el) return;
-  var g = (window.HR && window.HR.icon) ? window.HR.icon(glyphKey, 18, color || 'currentColor') : null;
-  el.innerHTML = g || '';
-}
 function stopCurrentActivity(){
   if(G.activeMonster && typeof stopCombat === 'function'){ stopCombat(); return; }
   if(G.activeSkill && typeof stopSkill === 'function'){ stopSkill(); return; }
@@ -12475,7 +12466,7 @@ function refreshActivityBar(){
   if(G.activeMonster){
     const m = MONSTERS[G.activeMonster];
     bar.classList.remove('idle'); bar.classList.add('combat');
-    setActivityIcon(iconEl, 'navCombat', 'var(--red)');
+    HearthriseIcons.setActivityIcon(iconEl, 'navCombat', 'var(--red)');
     if(nameEl) nameEl.textContent = `Fighting ${m?.name||'?'}`;
     if(metaEl){
       // Show kill count for the current foe (resets when the player picks a
@@ -12553,7 +12544,7 @@ function refreshActivityBar(){
   if(G.activeSkill){
     const s = SKILLS_DEF[G.activeSkill];
     bar.classList.remove('idle','combat');
-    setActivityIcon(iconEl, G.activeSkill, 'var(--green)');
+    HearthriseIcons.setActivityIcon(iconEl, G.activeSkill, 'var(--green)');
     let actName = G.skillTargetId ? G.skillTargetId.replace(/_/g,' ') : '';
     if(nameEl) nameEl.textContent = `${s?.name||G.activeSkill}${actName?' — '+actName:''}`;
     const xph = _activityXpHr();
@@ -12575,7 +12566,7 @@ function refreshActivityBar(){
     const map = {smelt:'uiFire',saw:'uiAxe',forge:'uiAnvil',cook:'cooking',craft:'crafting',enchant:'uiSpark',pray:'prayer'};
     const labelMap = {smelt:'Smelting',saw:'Sawing',forge:'Forging',cook:'Cooking',craft:'Crafting',enchant:'Enchanting',pray:'Bury'};
     bar.classList.remove('idle','combat');
-    setActivityIcon(iconEl, map[a.kind] || 'uiAnvil', 'var(--gold-2)');
+    HearthriseIcons.setActivityIcon(iconEl, map[a.kind] || 'uiAnvil', 'var(--gold-2)');
     if(nameEl) nameEl.textContent = `${labelMap[a.kind]||a.kind} — ${(a.targetId||'').replace(/_/g,' ')}`;
     if(metaEl) metaEl.innerHTML = '';
     if(stopBtn) stopBtn.style.display = '';
@@ -12590,7 +12581,7 @@ function refreshActivityBar(){
     const map = {cooking:'cooking', smithing:'smithing', crafting:'crafting', prayer:'prayer'};
     const skill = G.activeArtisanSkill || 'cooking';
     bar.classList.remove('idle','combat');
-    setActivityIcon(iconEl, map[skill] || 'uiAnvil', 'var(--gold-2)');
+    HearthriseIcons.setActivityIcon(iconEl, map[skill] || 'uiAnvil', 'var(--gold-2)');
     if(nameEl){
       const recipeName = G.activeArtisanRecipe.replace(/^[a-z]+_/,'').replace(/_/g,' ');
       nameEl.textContent = `${skill[0].toUpperCase()}${skill.slice(1)} — ${recipeName}`;
@@ -12605,7 +12596,7 @@ function refreshActivityBar(){
   }
   /* Idle */
   bar.classList.add('idle'); bar.classList.remove('combat');
-  setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
+  HearthriseIcons.setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
   if(nameEl) nameEl.textContent = 'Idle — pick an activity';
   if(metaEl) metaEl.innerHTML = '';
   if(stopBtn) stopBtn.style.display = 'none';
@@ -13926,69 +13917,7 @@ window._itemSVG = window._itemSVG || {};
 window._skillIcon = {};
 window._monsterIcon = {};
 
-/* ─── b217: material tinting ───────────────────────────────────────────────
- * Several progression ladders share one sprite because the icon pack only
- * ships one (all wood is one log; all wood is one plank). Rendering the same
- * image for five tiers makes a ladder look unfinished — the player levels up
- * and nothing changes.
- *
- * Rather than buy or fake five sprites, tint the shared one. Wood genuinely
- * differs by species — pale sapwood, dark oak, grey willow, red maple, deep
- * yew — so a hue/saturation shift is honest material colour, not decoration.
- * Items that HAVE their own art get no class and render untouched.
- *
- * Returns a class name for <img>; the .tint-* rules live in art-direction.css.
- */
-window.itemTintClass = function (id) {
-  if (!id) return '';
-  if (/^oak_(log|plank)$/.test(id)) return 'tint-oak';
-  if (/^duskwood_(log|plank)$/.test(id)) return 'tint-dusk';
-  if (/^willow_(log|plank)$/.test(id)) return 'tint-willow';
-  if (/^maple_(log|plank)$/.test(id)) return 'tint-maple';
-  if (/^yew_(log|plank)$/.test(id)) return 'tint-yew';
-  if (/^runewood_(log|plank)$/.test(id)) return 'tint-rune';
-  return '';
-};
-
-/* ─── DOM walkers — replace emoji with <img> after each render ─── */
-function paintSkillIcons(){
-  document.querySelectorAll('.skill-tile, .skill-card').forEach(function(el){
-    var oc = el.getAttribute('onclick') || '';
-    var m = oc.match(/openSkillDetail\('([^']+)'\)/) || oc.match(/showSkill\('([^']+)'\)/);
-    if(!m) return;
-    var sk = m[1];
-    var path = window._skillIcon[sk];
-    if(!path) return;
-    var iconEl = el.querySelector('.sicon, .icon');
-    if(!iconEl) return;
-    if(iconEl.querySelector('.poneti-skill-img')) return;
-    iconEl.innerHTML = '<img src="' + path + '" class="poneti-skill-img" alt="" loading="lazy" />';
-  });
-}
-function paintMonsterIcons(){
-  document.querySelectorAll('.monster-row').forEach(function(el){
-    /* b341: the row's id moved from an inline onclick to `data-monster` when
-       row clicks became delegated. This reader is a HIDDEN DEPENDENCY on that
-       attribute — it has no name fallback, so missing it here would have
-       silently stopped every painted monster portrait rather than throwing.
-       The onclick match stays as the fallback for any row still authored the
-       old way (the skills panel reuses this class with inline handlers). */
-    var id = el.getAttribute('data-monster');
-    if(!id){
-      var oc = el.getAttribute('onclick') || '';
-      var m = oc.match(/startCombat\('([^']+)'\)/) || oc.match(/openMonster\('([^']+)'\)/);
-      if(!m) return;
-      id = m[1];
-    }
-    var path = window._monsterIcon[id];
-    if(!path) return;
-    var iconEl = el.querySelector('.mi');
-    if(!iconEl) return;
-    if(iconEl.querySelector('.poneti-mon-img')) return;
-    iconEl.innerHTML = '<img src="' + path + '" class="poneti-mon-img" alt="" loading="lazy" />';
-  });
-}
-function paintAll(){ paintSkillIcons(); paintMonsterIcons(); }
+function paintAll(){ HearthriseIcons.paintSkillIcons(); HearthriseIcons.paintMonsterIcons(); }
 
 /* Hook common renderers */
 ['renderSkills','renderMonsterList','renderProfile','showTab','renderInvNew','renderCombat','renderLoadout'].forEach(function(name){
@@ -17183,17 +17112,6 @@ function lockGlyph(){
   return (window.HR && window.HR.icon) ? (window.HR.icon('uiLock', 12, 'currentColor') || '') : '';
 }
 
-/* Top-level item art. Two `itemImg` helpers already exist but both live inside
- * IIFEs, so the monolith's own render functions (shop rows, farm rows) could
- * not reach them and fell back to the emoji in the data. */
-function itemArt(id, px){
-  var path = window._itemPath && window._itemPath[id];
-  if(path){
-    var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(id) : '';
-    return '<img src="'+path+'" class="hr-item-art '+tint+'" alt="" loading="lazy" draggable="false" />';
-  }
-  return itemFallbackIcon(id, px || 26);
-}
 function _gp(v){
   var s = (typeof v === 'number') ? v.toLocaleString() : v;
   return (window.HR && window.HR.amount) ? window.HR.amount('gold', s, 13, '--gold-2') : s + ' gp';
@@ -17246,142 +17164,6 @@ function _costPart(itemId, qty){
 }
 
 
-/* ─── b217: the no-emoji backstop ──────────────────────────────────────────
- * ~1,400 emoji live in the DATA tables as `icon:` fallbacks, and every item
- * renderer fell through to them when no painted art was mapped. Deleting the
- * data fields would leave blanks; the durable fix is to make the RENDERERS
- * incapable of drawing an emoji, so no future data entry can leak one onto the
- * screen either.
- *
- * The fallback picks a gilt glyph from the shipped icon set by inspecting what
- * the item IS (weapon / armour / food / seed / bone / ore / log …), which
- * gives a category-correct icon in the game's own style. Only if the atlas has
- * nothing does it fall back to a plain gilt disc — deliberate-looking, never
- * a system pictograph. */
-/* 2026-08-23 — WIDENED, because "not an emoji" was only half the job.
-   A live boot showed FORTY-NINE unmapped ids landing on the `uiChest` default,
-   and the Inventory screenshot is what that costs: a bag whose bottom four
-   rows are the SAME chest repeated, which reads as "unfinished asset pipeline"
-   just as loudly as an emoji does. Every rule added below was derived from that
-   list of 49 — no speculative patterns.
-   Order matters: the `def` tests are facts the data states outright, the id
-   patterns underneath are inference and only run when the data is silent.
-   `uiChest` is now a genuine last resort rather than the common case. */
-function itemGlyphKey(id, def){
-  def = def || ((typeof ITEMS !== 'undefined') && ITEMS[id]) || null;
-  if(def){
-    if(def.type === 'weapon')    return 'uiSword';
-    if(def.type === 'armor')     return 'uiBody';
-    if(def.type === 'jewelry')   return 'uiAmulet';
-    if(def.type === 'companion') return 'uiPaw';
-    if(def.type === 'ammo')      return 'uiArrow';
-    if(def.heals)   return 'uiFood';
-    if(def.seed)    return 'uiSeed';
-    if(def.buryXp)  return 'uiBone';
-    if(def.recipe)  return 'uiScroll';
-    /* the enchant/rune family states its own element; `tag:'rune'` and the
-       `rune_of_*` ids both land here rather than on a chest — the defect the
-       Runecrafting report filed (a CHEST beside two painted rune-stones). */
-    if(def.tag === 'rune' || def.element) return 'runecrafting';
-    if(def.slot)    return 'uiBody';
-  }
-  var s = String(id || '');
-  /* b225: burnt food is carbon, not a chest — and the flame reads as "the fire
-     got this one". Prefix-matched so per-food burnt variants would inherit it. */
-  if(/^burnt_/.test(s))                   return 'uiFlame';
-  if(/_log$|_plank$|wood/.test(s))        return 'uiLog';
-  if(/_ore$|_bar$|coal|stone|ingot/.test(s)) return 'uiOre';
-  if(/seed/.test(s))                      return 'uiSeed';
-  if(/bone/.test(s))                      return 'uiBone';
-  if(/potion|brew|draught/.test(s))       return 'uiPotion';
-  if(/gem|ruby|sapphire|emerald|diamond/.test(s)) return 'uiGem';
-  if(/fish|shrimp|trout|lobster|shark/.test(s))   return 'uiFish';
-  if(/token/.test(s))                     return 'token';
-  /* ── the 49, grouped ───────────────────────────────────────────────────── */
-  if(/rune/.test(s))                      return 'runecrafting';
-  if(/blueprint|_deed$|scroll|tome|codex|manual/.test(s)) return 'uiScroll';
-  if(/^.*_key$|^key_|sigil|seal$|_seal_/.test(s))         return 'uiKey';
-  if(/fang|claw|tooth|tusk|horn|scale|chitin|shell/.test(s)) return 'uiBone';
-  if(/pelt|hide|leather|fur|veil|cloth|silk|thread|wool/.test(s)) return 'uiCape';
-  if(/ichor|sac|venom|essence|dust|ash|blood|heart|eye/.test(s)) return 'uiPotion';
-  if(/meat|steak|ration|bread|pie|stew|soup|cake/.test(s)) return 'uiFood';
-  if(/medal|badge|trophy|crown|relic|totem|standard|banner/.test(s)) return 'uiMedal';
-  if(/arrow|bolt|dart|quiver/.test(s))    return 'uiArrow';
-  if(/herb|leaf|root|flower|bloom/.test(s)) return 'uiHerb';
-  if(/egg/.test(s))                       return 'uiEgg';
-  if(/steel|plate|ember|frag/.test(s))    return 'uiOre';
-  return 'uiChest';
-}
-function itemFallbackIcon(id, px, def){
-  var g = (window.HR && window.HR.icon)
-    ? window.HR.icon(itemGlyphKey(id, def), px || 28, 'var(--ink-3)')
-    : null;
-  return g || '<span class="hr-blank-icon" aria-hidden="true"></span>';
-}
-/* EXPLICIT exports. These two ARE the no-emoji backstop, and renderers outside
-   this file (dungeons.js, market.js, item-ux.js, collection-log.js, the render/
-   modules) are exactly the ones that were still falling through to `it.icon`.
-   Relying on "a top-level function declaration lands on window" is the
-   cross-IIFE trap this file has already been bitten by four times (b127, b130,
-   b224, b366) — every one of them silent. */
-window.itemGlyphKey = itemGlyphKey;
-window.itemFallbackIcon = itemFallbackIcon;
-window.itemArt = window.itemArt || itemArt;
-
-/* ─── THE SAME BACKSTOP FOR THE OTHER THREE SUBJECT KINDS ──────────────────
- * b217 built the ITEM backstop and it has held. Monsters, skills and equipment
- * slots never got one, so ~40 render sites across nine files still ended in
- * `|| m.icon` / `|| s.icon` / `|| meta.icon` — i.e. in the data file's emoji.
- * Most are cold paths (an unmapped monster, a skill with no medallion, a slot
- * meta), which is exactly why they survived four emoji purges: they are
- * invisible until the day a content row lands without art, and then a
- * pictograph appears on the combat screen.
- *
- * The rule is the same one that worked for items: make the RENDERER incapable
- * of drawing a pictograph. Every helper below returns painted art, else a
- * shipped glyph, else an empty deliberate blank — never a character. */
-
-/* MONSTER — painted portrait ▸ gilt creature medallion ▸ a red-ringed skull.
- * The skull is honest: it says "a foe" without pretending to be a species. */
-function monsterFallbackIcon(id, px){
-  var IS = window.HearthriseIconSet;
-  if(IS && IS.medallionMon){
-    var med = IS.medallionMon(id, px || 34);
-    if(med) return med;
-  }
-  var g = (window.HR && window.HR.icon) ? window.HR.icon('uiSkull', Math.round((px||34)*0.7), '--red') : null;
-  return g || '<span class="hr-blank-icon" aria-hidden="true"></span>';
-}
-function monsterArt(id, px){
-  var p = window._monsterIcon && window._monsterIcon[id];
-  if(p) return '<img src="'+p+'" class="hr-mon-art" alt="" loading="lazy" draggable="false" />';
-  return monsterFallbackIcon(id, px);
-}
-
-/* SKILL — the struck medallion the skills rail already uses, so a skill looks
- * the same on the rail, the character sheet, the activity bar and a level-up
- * toast. `uiStar` covers a skill id with no baked glyph (there were two:
- * runecrafting and stonemason, now drawn in src/data/glyphs-extra.js). */
-function skillIconHTML(id, px){
-  var IS = window.HearthriseIconSet;
-  if(IS && IS.medallion){
-    var med = IS.medallion(id, px || 34);
-    if(med) return med;
-  }
-  var g = (window.HR && window.HR.icon) ? window.HR.icon('uiStar', Math.round((px||34)*0.7), '--gold-2') : null;
-  return g || '<span class="hr-blank-icon" aria-hidden="true"></span>';
-}
-
-/* EQUIPMENT SLOT — the line-glyph set defined in block 24 (slotGlyphSVG) is
- * the ONE empty-slot vocabulary; `EQUIP_SLOT_META[slot].icon` is a raw emoji
- * and must never reach a screen. */
-function slotIconHTML(slot){
-  return (typeof window.slotGlyphSVG === 'function') ? window.slotGlyphSVG(slot) : '';
-}
-window.monsterFallbackIcon = monsterFallbackIcon;
-window.monsterArt = monsterArt;
-window.skillIconHTML = skillIconHTML;
-window.slotIconHTML = slotIconHTML;
 
 (function(){
 "use strict";
@@ -17984,23 +17766,6 @@ function fmtQty(n){
   return String(n);
 }
 
-/* `fallbackSkillId` (was `fallbackEmoji`, and the callers really were passing
-   `action.icon` — the node's emoji — into it). Nothing here has drawn that
-   emoji since b217, but a parameter NAMED fallbackEmoji is an invitation, and
-   the ESM twin in features/activities-grid.js was still honouring it. */
-function actIconHtml(prod, fallbackSkillId){
-  var path = prod && window._itemPath && window._itemPath[prod];
-  if(path){
-    /* b217: tier tint (window.itemTintClass) so ladders that share one sprite
-       still read as distinct materials. This is the live copy — the ESM
-       renderer in features/activities-grid.js has the same helper, but this
-       one is what actually paints the Skills screen. */
-    var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(prod) : '';
-    return '<img src="'+path+'" class="'+tint+'" alt="" loading="lazy" draggable="false" />';
-  }
-  if(prod) return '<span class="at-emoji">'+itemFallbackIcon(prod, 34)+'</span>';
-  return '<span class="at-emoji">'+skillIconHTML(fallbackSkillId, 34)+'</span>';
-}
 
 /* ── Patch the Skills list (left card) to filter out combat ── */
 function patchSkillsList(){
@@ -18104,7 +17869,7 @@ function tileForGather(action, skillId){
        BOTTOM — the subject of the card was the last thing you reached, and the
        tile was mostly empty. A material's art is its identity, so it leads.
        "Qty: 0" is not information: the count appears once you own some. */
-    +'<div class="at-icon">'+actIconHtml(action.prod, skillId)+'</div>'
+    +'<div class="at-icon">'+HearthriseIcons.actIconHtml(action.prod, skillId)+'</div>'
     +'<div class="at-name">'+(action.name||action.id)+'</div>'
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(ms)+'</div>'
     +(unlocked ? toolLine : '')
@@ -18230,7 +17995,7 @@ function tileForArtisan(recipe, skillId){
     +'data-prod="'+outId+'" '
     +'onclick="'+click+'" '
     +'title="'+tileTitle.replace(/"/g,'&quot;')+'">'
-    +'<div class="at-icon">'+actIconHtml(outId, skillId)+'</div>'
+    +'<div class="at-icon">'+HearthriseIcons.actIconHtml(outId, skillId)+'</div>'
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
     /* Cross-skill lane honesty (kept identical to the ESM twin's xpSkillLabel):
        a quarry rung on the Stonemason page pays MINING XP by design — say so. */
@@ -20216,798 +19981,21 @@ setTimeout(function(){ console.log('[Buff Queue v1] loaded — '+Object.keys(DEF
   console.log('[stopSkill re-render fix] applied');
 })();
 
-// ===== block 38: bundle-icons-js =====
-(function(){
-"use strict";
+// ===== block 38: bundle-icons-js — MOVED to src/render/icons.js =====
+/* The icon layer (the LOCAL_*_ICON maps, the Hearthfire applier, the
+   generated-gear pass and the icon-readiness edge) lives in
+   src/render/icons.js, which loads BEFORE this file. It is INSTALLED here, at
+   the exact position block 38 used to run, because what it does depends on
+   this point in the boot and not on the moment icons.js was parsed: the
+   generated-gear pass reads window.ITEMS, the maps land in window._itemPath
+   before the engine's first paint, and the DOMContentLoaded arm is registered
+   while the document is still loading. tests/icon-boot-order.mjs guards it.
 
-var BUNDLE_SKILL_ICON = {
-  "attack": "assets/raw-bundle/sword-rpg-icons/shadow/1.png",
-  "bountyHunter": "assets/raw-bundle/weapon-achievement-vector-rpg-icons/1.png",
-  "cooking": "assets/raw-bundle/rpg-medieval-food-icons/background/5.png",
-  "crafting": "assets/raw-bundle/crafting-material-vector-icons/shadow/1.png",
-  "defense": "assets/raw-bundle/50-shields-rpg-icon-pack/background/1.png",
-  "farming": "assets/raw-bundle/48-rpg-farming-game-icons/shadow/5.png",
-  "fishing": "assets/raw-bundle/rpg-fishing-game-icons/shadow/1.png",
-  "hitpoints": "assets/raw-bundle/48-magic-potion-rpg-icons/shadow/5.png",
-  "magic": "assets/raw-bundle/50-rpg-staff-icons/background/1.png",
-  "mining": "assets/raw-bundle/48-mining-rpg-icons/shadow/1.png",
-  "prayer": "assets/raw-bundle/48-scroll-rpg-icons/shadow/5.png",
-  "ranged": "assets/raw-bundle/bow-and-crossbow-vector-icons/shadow/1.png",
-  "smithing": "assets/raw-bundle/48-mineral-rpg-icons/shadow/1.png",
-  "strength": "assets/raw-bundle/50-rpg-axe-icons/background/1.png",
-  "woodcutting": "assets/raw-bundle/50-rpg-axe-icons/background/8.png",
-};
-// ── Bundle icon maps (audited & remapped May 2026) ─────────────
-// Visual audit performed by walking every relevant pack via
-// assets/icon-audit.html. Notes on weak/placeholder mappings live
-// inline; a complete missing-asset shopping list is at the bottom
-// of this block in the BUNDLE_ICON_GAPS comment. Until those packs
-// are purchased, we route those items to the closest thematic
-// substitute (marked with a /* PLACEHOLDER */ comment).
-var BUNDLE_ITEM_ICON  = {
-  "alpha_cloak": "assets/raw-bundle/trousers-rpg-icon-pack/shadow/45.png",
-  "alpha_fang": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/45.png",
-  "ancient_claw": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/48.png",
-  "ancient_fragment": "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/10.png",
-  "ancient_rune": "assets/raw-bundle/48-magic-rune-rpg-icons-pack/runes+bricks/shadow/30.png",
-  "apprentice_staff": "assets/raw-bundle/50-rpg-staff-icons/background/5.png",
-  "bat_wing": "assets/raw-bundle/fairy-loot-game-icons/shadow/15.png",
-  "bear_claw": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/38.png",
-  "bear_pelt": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/32.png",
-  // Bones — was pointing at skull icons. Reassigned to actual bone visuals.
-  "big_bones": "assets/raw-bundle/skull-and-bone-rpg-icons/shadow/14.png",     // bone pile
-  "bone_chips": "assets/raw-bundle/skull-and-bone-rpg-icons/shadow/15.png",    // single bone
-  "bones": "assets/raw-bundle/skull-and-bone-rpg-icons/shadow/13.png",         // crossed femurs
-  "bronze_belt": "assets/raw-bundle/belt-game-icons/shadow/2.png",
-  "bronze_sword": "assets/raw-bundle/sword-rpg-icons/shadow/3.png",
-  "brute_plate": "assets/raw-bundle/battle-loot-vector-rpg-icons/shadow/30.png",
-  "captain_medal": "assets/raw-bundle/weapon-achievement-vector-rpg-icons/28.png",
-  "captains_ribblade": "assets/raw-bundle/sword-rpg-icons/shadow/48.png",
-  "carrot": "assets/raw-bundle/rpg-vegetable-game-icons/background/12.png",
-  "carrot_seed": "assets/raw-bundle/berries-and-seeds-icons/background/12.png",
-  "chief_blade": "assets/raw-bundle/sword-rpg-icons/shadow/42.png",
-  "coal": "assets/raw-bundle/48-mineral-rpg-icons/shadow/22.png",
-  "copper_ore": "assets/raw-bundle/48-mineral-rpg-icons/shadow/5.png",
-  "copper_ring": "assets/raw-bundle/rings-and-jewelry-game-icons/shadow/3.png",
-  "cracked_spellstone": "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/8.png",
-  "dark_sigil": "assets/raw-bundle/rpg-undead-loot-icons/background/35.png",
-  "death_steel": "assets/raw-bundle/48-mineral-rpg-icons/shadow/40.png",
-  "demon_shard": "assets/raw-bundle/battle-loot-vector-rpg-icons/shadow/12.png",
-  "dire_fang": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/28.png",
-  "dragon_bones": "assets/raw-bundle/skull-and-bone-rpg-icons/shadow/48.png",
-  "dragon_gem": "assets/raw-bundle/rpg-gems-vector-icons/shadow/35.png",
-  "dragon_scale": "assets/raw-bundle/dragon-loot-vector-rpg-icons/shadow/18.png",
-  "fox_companion": "assets/raw-bundle/monster-rpg-256x256-icons/shadow/18.png",
-  "goblin_ear": "assets/raw-bundle/rpg-kobold-loot-icons/background/10.png",
-  "goblin_totem": "assets/raw-bundle/rpg-kobold-loot-icons/background/30.png",
-  "gold_ore": "assets/raw-bundle/48-mineral-rpg-icons/shadow/32.png",
-  "grave_dust": "assets/raw-bundle/rpg-undead-loot-icons/background/12.png",
-  "hell_ember": "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/35.png",
-  "hollow_sigil": "assets/raw-bundle/rpg-undead-loot-icons/background/48.png",
-  "hunter_necklace": "assets/raw-bundle/rings-and-jewelry-game-icons/shadow/25.png",
-  "iron_arrows": "assets/raw-bundle/bow-and-crossbow-vector-icons/shadow/48.png",
-  "iron_helm": "assets/raw-bundle/rpg-helmet-icons/background/8.png",
-  "iron_ore": "assets/raw-bundle/48-mineral-rpg-icons/shadow/12.png",
-  "iron_platebody": "assets/raw-bundle/50-rpg-armor-icons/background/10.png",
-  "iron_sword": "assets/raw-bundle/sword-rpg-icons/shadow/12.png",
-  "iron_warhammer": "assets/raw-bundle/mace-rpg-game-icons/shadow/18.png",
-  "leather_boots": "assets/raw-bundle/trousers-rpg-icon-pack/shadow/3.png",
-  "leather_gloves": "assets/raw-bundle/50-rpg-glove-icons/background/4.png",
-  "lich_soul": "assets/raw-bundle/rpg-undead-loot-icons/background/25.png",
-  "lobster": "assets/raw-bundle/rpg-fishing-game-icons/shadow/32.png",
-  "longbow": "assets/raw-bundle/bow-and-crossbow-vector-icons/shadow/22.png",
-  "magic_essence": "assets/raw-bundle/48-magic-rune-rpg-icons-pack/bricks/shadow/5.png",
-  // ── Logs ──
-  // earthly-loot-rpg-icon-pack/shadow/17 is the only actual cut-log icon
-  // in the entire 92-pack bundle (rings visible on a tree-section).
-  // We use it for normal_log and tint-shift via re-using twig/branch
-  // variants for the higher-tier woods. Still a partial PLACEHOLDER —
-  // see ICON_GAPS.md for the dedicated log pack we should buy.
-  "normal_log":  "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/17.png",  /* PARTIAL — actual log */
-  "oak_log":     "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/16.png",  /* PLACEHOLDER — twig bundle */
-  "willow_log":  "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/14.png",  /* PLACEHOLDER — dark stick */
-  "maple_log":   "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/47.png",  /* PLACEHOLDER — sheaf */
-  "yew_log":     "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/35.png",  /* PLACEHOLDER — grain */
-
-  "mithril_ore": "assets/raw-bundle/48-mineral-rpg-icons/shadow/42.png",
-  "night_fang": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/40.png",
-  "oak_staff": "assets/raw-bundle/50-rpg-staff-icons/background/18.png",
-  "plague_ichor": "assets/raw-bundle/48-magic-potion-rpg-icons/shadow/18.png",
-  "potato": "assets/raw-bundle/rpg-vegetable-game-icons/background/28.png",
-  "potato_seed": "assets/raw-bundle/berries-and-seeds-icons/background/28.png",
-  "pumpkin": "assets/raw-bundle/rpg-vegetable-game-icons/background/48.png",
-  "pumpkin_seed": "assets/raw-bundle/berries-and-seeds-icons/background/44.png",
-  "rat_tail": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/35.png",
-  "razor_claw": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/48.png",
-  "ruby": "assets/raw-bundle/rpg-gems-vector-icons/shadow/8.png",
-  "rune_frag": "assets/raw-bundle/48-magic-rune-rpg-icons-pack/bricks/shadow/25.png",
-  "rune_sword": "assets/raw-bundle/sword-rpg-icons/shadow/35.png",
-  "shadow_pelt": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/42.png",
-  "shadow_thread": "assets/raw-bundle/rpg-spider-loot-icons/background/38.png",
-  "shark": "assets/raw-bundle/rpg-fishing-game-icons/shadow/48.png",
-  "shortbow": "assets/raw-bundle/bow-and-crossbow-vector-icons/shadow/3.png",
-  "shrimp": "assets/raw-bundle/rpg-fishing-game-icons/shadow/5.png",
-  "silk_thread": "assets/raw-bundle/rpg-spider-loot-icons/background/21.png",
-  "slime_gel": "assets/raw-bundle/fairy-loot-game-icons/shadow/8.png",
-  "small_fang": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/12.png",
-  "spider_eye": "assets/raw-bundle/rpg-spider-loot-icons/background/28.png",
-  "steel_helm": "assets/raw-bundle/rpg-helmet-icons/background/22.png",
-  "steel_platebody": "assets/raw-bundle/50-rpg-armor-icons/background/25.png",
-  "steel_sword": "assets/raw-bundle/sword-rpg-icons/shadow/25.png",
-  "sticky_core": "assets/raw-bundle/fairy-loot-game-icons/shadow/22.png",
-  "stone_maul": "assets/raw-bundle/mace-rpg-game-icons/shadow/6.png",
-  "swarm_heart": "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/25.png",
-  "tomato": "assets/raw-bundle/rpg-vegetable-game-icons/background/38.png",
-  "tomato_seed": "assets/raw-bundle/berries-and-seeds-icons/background/36.png",
-  "traveler_cape": "assets/raw-bundle/trousers-rpg-icon-pack/shadow/30.png",
-  "troll_hide": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/20.png",
-  "trout": "assets/raw-bundle/rpg-fishing-game-icons/shadow/18.png",
-  "turnip": "assets/raw-bundle/rpg-vegetable-game-icons/background/3.png",
-  "turnip_seed": "assets/raw-bundle/berries-and-seeds-icons/background/5.png",
-  "vamp_dust": "assets/raw-bundle/rpg-undead-loot-icons/background/8.png",
-  "venom_sac": "assets/raw-bundle/rpg-spider-loot-icons/background/11.png",
-  "void_chitin": "assets/raw-bundle/rpg-spider-loot-icons/background/45.png",
-  "void_core": "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/45.png",
-  "war_crown": "assets/raw-bundle/weapon-achievement-vector-rpg-icons/30.png",
-  "warlord_badge": "assets/raw-bundle/weapon-achievement-vector-rpg-icons/18.png",
-  "wheat": "assets/raw-bundle/48-rpg-farming-game-icons/shadow/22.png",
-  "wheat_seed": "assets/raw-bundle/berries-and-seeds-icons/background/20.png",
-  "wolf_pelt": "assets/raw-bundle/claw-loot-vector-game-icons/shadow/5.png",
-  "wraith_veil": "assets/raw-bundle/rpg-undead-loot-icons/background/42.png",
-
-  // ─── Bind-on-Pickup dungeon keys ───
-  // The mining pack actually has good key icons at slots 44 (gold key)
-  // and 45 (lock-and-key). For the rest we use scroll-pack tomes since
-  // there's no dedicated key pack large enough to cover six unique keys.
-  "bone_key":        "assets/raw-bundle/48-mining-rpg-icons/shadow/44.png",     /* literal key */
-  "goblin_seal":     "assets/raw-bundle/48-mining-rpg-icons/shadow/45.png",     /* lock+key */
-  "arcane_tome":     "assets/raw-bundle/magic-book-game-icons/shadow/29.png",   /* purple tome */
-  "obsidian_sigil":  "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/40.png", /* dark sigil */
-  "void_fragment":   "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/42.png", /* purple fragment */
-  "dragonsbane_key": "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/44.png", /* legendary artifact */
-
-  // ─── Bind-on-Pickup housing blueprints ───
-  // Magic-book pack has 48 distinct tome icons — perfect for blueprints.
-  "kitchen_blueprint_t2": "assets/raw-bundle/magic-book-game-icons/shadow/5.png",
-  "kitchen_blueprint_t3": "assets/raw-bundle/magic-book-game-icons/shadow/18.png",
-  "forge_blueprint_t2":   "assets/raw-bundle/magic-book-game-icons/shadow/7.png",
-  "forge_blueprint_t3":   "assets/raw-bundle/magic-book-game-icons/shadow/27.png",
-  "library_blueprint_t2": "assets/raw-bundle/magic-book-game-icons/shadow/14.png",
-  "library_blueprint_t3": "assets/raw-bundle/magic-book-game-icons/shadow/30.png",
-  "trophy_blueprint_t2":  "assets/raw-bundle/magic-book-game-icons/shadow/32.png",
-  "trophy_blueprint_t3":  "assets/raw-bundle/magic-book-game-icons/shadow/47.png",
-
-  // ─── Bind-on-Pickup raid currencies ───
-  "dragon_relic":  "assets/raw-bundle/dragon-loot-vector-rpg-icons/shadow/30.png",
-  "void_essence":  "assets/raw-bundle/48-magic-artifact-rpg-icons/shadow/30.png",
-  "hearth_token":  "assets/raw-bundle/weapon-achievement-vector-rpg-icons/12.png",  /* medal */
-
-  // ─── Cooking outputs ───
-  // The current ITEMS table defines cooked food. Map them to the medieval
-  // food pack which has 50 plated/cooked food icons.
-  "cooked_shrimp":  "assets/raw-bundle/rpg-medieval-food-icons/background/8.png",
-  "cooked_trout":   "assets/raw-bundle/rpg-medieval-food-icons/background/14.png",
-  "cooked_lobster": "assets/raw-bundle/rpg-medieval-food-icons/background/22.png",
-  "cooked_shark":   "assets/raw-bundle/rpg-medieval-food-icons/background/35.png",
-  "wheat_bread":    "assets/raw-bundle/rpg-medieval-food-icons/background/3.png",
-  "tomato_soup":    "assets/raw-bundle/rpg-medieval-food-icons/background/19.png",
-  "roasted_pumpkin":"assets/raw-bundle/rpg-medieval-food-icons/background/27.png",
-  "vegetable_stew": "assets/raw-bundle/rpg-medieval-food-icons/background/30.png",
-  "baked_potato":   "assets/raw-bundle/rpg-medieval-food-icons/background/26.png",
-  "pumpkin_pie":    "assets/raw-bundle/rpg-medieval-food-icons/background/40.png",
-  "carrot_stew":    "assets/raw-bundle/rpg-medieval-food-icons/background/32.png",
-  "bear_claw_pie":  "assets/raw-bundle/rpg-medieval-food-icons/background/41.png",
-  "hunters_feast":  "assets/raw-bundle/rpg-medieval-food-icons/background/45.png",
-  "dragon_stew":    "assets/raw-bundle/rpg-medieval-food-icons/background/48.png",
-  "lich_soul_soup": "assets/raw-bundle/rpg-medieval-food-icons/background/49.png",
-  "void_banquet":   "assets/raw-bundle/rpg-medieval-food-icons/background/50.png",
-
-  // ─── Bars + planks ───
-  "bronze_bar":   "assets/raw-bundle/48-mineral-rpg-icons/shadow/3.png",
-  "iron_bar":     "assets/raw-bundle/48-mineral-rpg-icons/shadow/19.png",
-  "steel_bar":    "assets/raw-bundle/48-mineral-rpg-icons/shadow/29.png",
-  "gold_bar":     "assets/raw-bundle/48-mineral-rpg-icons/shadow/11.png",
-  "mithril_bar":  "assets/raw-bundle/48-mineral-rpg-icons/shadow/25.png",
-  "rune_bar":     "assets/raw-bundle/48-mineral-rpg-icons/shadow/38.png",
-  // Planks: same gap as logs — no dedicated plank pack. Earthly-loot
-  // textures used as placeholders.
-  "normal_plank": "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/3.png",   /* PLACEHOLDER */
-  "oak_plank":    "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/9.png",   /* PLACEHOLDER */
-  "willow_plank": "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/15.png",  /* PLACEHOLDER */
-  "maple_plank":  "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/21.png",  /* PLACEHOLDER */
-  "yew_plank":    "assets/raw-bundle/earthly-loot-rpg-icon-pack/shadow/27.png",  /* PLACEHOLDER */
-};
-// Monster icon mapping (audited May 2026). The monster-rpg-256x256-icons
-// pack only contains 48 distinct creatures, several of which are
-// mushroom/plant variants — not enough variety to give every Hearthrise
-// foe a perfectly thematic match. This remap maximises uniqueness using
-// the closest available icons. Items marked /* THEME-MISMATCH */ are
-// playable but warrant a future icon-pack purchase to upgrade.
-var BUNDLE_MONSTER_ICON = {
-  // Tier 1 — local threats
-  "slime":          "assets/raw-bundle/monster-rpg-256x256-icons/shadow/19.png", // pink slime
-  "rat":            "assets/raw-bundle/monster-rpg-256x256-icons/shadow/13.png", // gray rat
-  "goblin":         "assets/raw-bundle/monster-rpg-256x256-icons/shadow/15.png", // red gnome
-  "weak_skeleton":  "assets/raw-bundle/monster-rpg-256x256-icons/shadow/37.png", // ghost (no skeleton in pack) /* THEME-MISMATCH */
-  "small_wolf":     "assets/raw-bundle/monster-rpg-256x256-icons/shadow/16.png", // brown beast
-
-  // Tier 2 — wilderness threats
-  "giant_bat":      "assets/raw-bundle/monster-rpg-256x256-icons/shadow/22.png", // bat
-  "hobgoblin":      "assets/raw-bundle/monster-rpg-256x256-icons/shadow/4.png",  // red goblin
-  "wolf":           "assets/raw-bundle/monster-rpg-256x256-icons/shadow/24.png", // bear-like beast
-  "skeleton":       "assets/raw-bundle/monster-rpg-256x256-icons/shadow/32.png", // green spirit /* THEME-MISMATCH (no skeleton art) */
-  "dark_wizard":    "assets/raw-bundle/monster-rpg-256x256-icons/shadow/12.png", // owl-mage
-
-  // Tier 3 — dangerous creatures
-  "venom_spider":   "assets/raw-bundle/spider-vector-icons/shadow/5.png",        // dedicated spider pack
-  "goblin_brute":   "assets/raw-bundle/monster-rpg-256x256-icons/shadow/17.png", // yellow demon
-  "dire_wolf":      "assets/raw-bundle/monster-rpg-256x256-icons/shadow/28.png", // gray boar (closest beast)  /* THEME-MISMATCH */
-  "zombie":         "assets/raw-bundle/monster-rpg-256x256-icons/shadow/18.png", // green wraith
-  "warlock":        "assets/raw-bundle/monster-rpg-256x256-icons/shadow/30.png", // red sorcerer
-
-  // Tier 4 — elite monsters
-  "plague_swarm":   "assets/raw-bundle/monster-rpg-256x256-icons/shadow/39.png", // yellow scorpion
-  "goblin_warlord": "assets/raw-bundle/monster-rpg-256x256-icons/shadow/25.png", // red devil
-  "bear":           "assets/raw-bundle/monster-rpg-256x256-icons/shadow/24.png", // small bear  (NOTE: shares with wolf; bear is canonical)
-  "wraith":         "assets/raw-bundle/monster-rpg-256x256-icons/shadow/1.png",  // brown wraith
-  "lesser_demon":   "assets/raw-bundle/monster-rpg-256x256-icons/shadow/2.png",  // red mushroom-demon
-  "mountain_troll": "assets/raw-bundle/monster-rpg-256x256-icons/shadow/5.png",  // brown ent
-
-  // Tier 5 — mythic threats
-  "shadow_creeper": "assets/raw-bundle/monster-rpg-256x256-icons/shadow/27.png", // spider
-  "warband_captain":"assets/raw-bundle/monster-rpg-256x256-icons/shadow/26.png", // armored warrior
-  "panther":        "assets/raw-bundle/monster-rpg-256x256-icons/shadow/16.png", // brown beast (no panther) /* THEME-MISMATCH */
-  "death_knight":   "assets/raw-bundle/monster-rpg-256x256-icons/shadow/14.png", // pumpkin-knight
-  "archmage":       "assets/raw-bundle/monster-rpg-256x256-icons/shadow/35.png", // green ent-mage
-
-  // Tier 6 — legendary
-  "void_parasite":  "assets/raw-bundle/monster-rpg-256x256-icons/shadow/9.png",  // worm/snail
-  "war_king":       "assets/raw-bundle/monster-rpg-256x256-icons/shadow/4.png",  // shares hobgoblin /* THEME-MISMATCH */
-  "ancient_bear":   "assets/raw-bundle/monster-rpg-256x256-icons/shadow/8.png",  // pink mushroom — large beast slot /* THEME-MISMATCH */
-  "lich":           "assets/raw-bundle/monster-rpg-256x256-icons/shadow/31.png", // mushroom-spirit /* THEME-MISMATCH */
-  "dragon":         "assets/raw-bundle/monster-rpg-256x256-icons/shadow/48.png", // red dragon (canonical)
-};
-
-/* ════════════════════════════════════════════════════════════════════
-   BUNDLE_ICON_GAPS — assets to purchase before next icon pass
-   ════════════════════════════════════════════════════════════════════
-   These items are currently using PLACEHOLDER icons (marked above).
-   Purchase the listed pack types to upgrade the visuals. Each gap is
-   sized so a typical 48-icon pack covers it.
-
-   1. WOOD / LOGS / PLANKS PACK  (~48 icons)
-      Affected items: normal_log, oak_log, willow_log, maple_log,
-        yew_log, normal_plank, oak_plank, willow_plank, maple_plank,
-        yew_plank
-      Why: no current pack contains felled-tree or sawn-plank visuals.
-      Look for: search "log icons", "lumber pack", "wood material icons"
-        on Itch.io / GameDev Market / GraphicRiver.
-      Currently using: earthly-loot-rpg-icon-pack textures (best fit but
-        not actually logs).
-
-   2. SKELETAL UNDEAD MONSTER PACK  (~48 icons)
-      Affected: weak_skeleton, skeleton, death_knight, lich
-      Why: monster-rpg-256x256 has zero skeleton-shaped creatures, only
-        mushroom/spirit/wraith variants.
-      Look for: "rpg skeleton enemies", "undead monster pack",
-        "boss skeleton icons"
-      Currently using: ghosts and spirits as substitutes (theme-mismatch).
-
-   3. WOLF / FELINE BEAST PACK  (~24 icons)
-      Affected: dire_wolf, panther, ancient_bear (shares with bear)
-      Why: monster-rpg-256x256 has one bear and one beast — not enough
-        for big-cat / dire-wolf differentiation.
-      Look for: "wolf monster icons", "panther beast pack"
-
-   4. BLUEPRINT / SCROLL VARIETY PACK  (~24 icons)
-      Currently OK using magic-book-game-icons (8 of 48 used) but a
-      dedicated "architectural blueprint" pack would read better for
-      the housing system specifically.
-
-   5. KEY PACK (10–20 icons)
-      Affected: bone_key, goblin_seal, arcane_tome, obsidian_sigil,
-        void_fragment, dragonsbane_key
-      Why: currently borrowing two literal keys from mining pack and
-        four artifact icons. A dedicated "fantasy keys" pack would let
-        each dungeon key feel distinct.
-
-   Total recommended spend: ~$20–40 on Itch.io.
-   ──────────────────────────────────────────────────────────────────── */
-
-// b125 cleanup: BUNDLE_*_ICON maps point at `assets/raw-bundle/...`
-// which is NOT shipped — those paths 404 in production. The
-// applyLocalIcons() IIFE below maps the curated subset we DO ship to
-// `assets/icons-bundle/...`. Anything not in the curated subset falls
-// through to the emoji glyph from the data file (m.icon).
-//
-// The BUNDLE_*_ICON literals stay above as the canonical "shopping
-// list" of art we want once the raw packs are shipped. For now we
-// don't apply them — they'd just create broken-image squares.
-window._skillIcon   = window._skillIcon   || {};
-window._itemPath    = window._itemPath    || {};
-window._monsterIcon = window._monsterIcon || {};
-
-// ============================================================
-// Bundle availability probe (b101) → local-icons override (b103)
-//
-// The `assets/raw-bundle/` paths above 404 on the public deploy
-// (those raw packs aren't committed). The probe used to clear the
-// maps so emoji rendered cleanly. b103 supersedes that with a real
-// fix: ship a small curated set of hand-painted PNGs under
-// `assets/icons-bundle/` and override the bundle paths for the
-// game IDs we have actual art for. Anything unmapped continues to
-// fall through to the emoji glyph (m.icon) as before.
-//
-// Curated subfolders under assets/icons-bundle/ (b103 first batch):
-//   buildings/ — 57 hand-painted homestead structures
-//   resources/ — 169 hand-painted materials (logs, bars, stones)
-//   medieval/  — 30 hand-painted crafting tools (anvil, sword)
-//
-// To add more, copy more icons3 subfolders into the bundle dir and
-// add entries to the LOCAL_*_ICON maps below.
-// ============================================================
-(function applyLocalIcons(){
-  // Items we ship art for — keys match game item IDs in ITEMS / MONSTERS / SKILLS.
-  // If a key is missing here the renderer falls through to the emoji (m.icon).
-  var LOCAL_ITEM_ICON = {
-    /* b217 — WOOD.
-       Every log tier pointed at Res_124_woodlog.png and every plank tier at
-       Res_04_wood.png, so the Woodcutting screen showed the SAME sprite for
-       Normal / Oak / Willow / Maple / Yew. Identical art across a progression
-       ladder is the clearest "placeholder" signal a player can be given: it
-       says nothing changed when everything did.
-
-       Two fixes. First, the art was also mis-assigned — Res_124 is a sawn
-       PLANK and Res_24 is a round LOG with end-grain rings, so logs were
-       showing planks. Second, the shared sprite is now tinted per tier in CSS
-       (see itemTintClass + the .tint-* rules), which is how real wood differs
-       anyway: pale sapwood, dark oak, grey willow, red maple, deep yew. One
-       asset, five readable materials, no new art budget. */
-    normal_log:  'assets/icons-bundle/resources/Res_24_log.png',
-    oak_log:     'assets/icons-bundle/resources/Res_24_log.png',
-    willow_log:  'assets/icons-bundle/resources/Res_24_log.png',
-    maple_log:   'assets/icons-bundle/resources/Res_24_log.png',
-    yew_log:     'assets/icons-bundle/resources/Res_24_log.png',
-    duskwood_log:'assets/icons-bundle/resources/Res_24_log.png',
-    runewood_log:'assets/icons-bundle/resources/Res_24_log.png',
-    normal_plank:'assets/icons-bundle/resources/Res_04_wood.png',
-    oak_plank:   'assets/icons-bundle/resources/Res_04_wood.png',
-    willow_plank:'assets/icons-bundle/resources/Res_04_wood.png',
-    maple_plank: 'assets/icons-bundle/resources/Res_04_wood.png',
-    yew_plank:   'assets/icons-bundle/resources/Res_04_wood.png',
-    duskwood_plank:'assets/icons-bundle/resources/Res_04_wood.png',
-    runewood_plank:'assets/icons-bundle/resources/Res_04_wood.png',
-    /* b217 — ORE. Every ore rendered its own smelted BAR, so a player mining
-       copper saw a finished copper ingot come out of the rock, and ore and bar
-       were indistinguishable in the inventory. The pack ships proper ore
-       chunks (Res_14–20) in the right colours; use them. */
-    copper_ore:    'assets/icons-bundle/resources/Res_15_stone.png',   // brown
-    iron_ore:      'assets/icons-bundle/resources/Res_14_stone.png',   // grey
-    silver_ore:    'assets/icons-bundle/resources/Res_18_stone.png',   // pale grey
-    gold_ore:      'assets/icons-bundle/resources/Res_20_goldmine.png',// gold-veined
-    mithril_ore:   'assets/icons-bundle/resources/Res_19_stone.png',   // blue
-    emberstone_ore:'assets/icons-bundle/resources/Res_16_stone.png',   // red
-    dawnstone_ore: 'assets/icons-bundle/resources/Res_17_stone.png',   // violet
-    coal:          'assets/icons-bundle/resources/Res_14_stone.png',
-    copper_bar:  'assets/icons-bundle/resources/Res_02_cooperbar.png',
-    bronze_bar:  'assets/icons-bundle/resources/Res_02_cooperbar.png',
-    iron_bar:    'assets/icons-bundle/resources/Res_07_ironbar.png',
-    steel_bar:   'assets/icons-bundle/resources/Res_01_silverbar.png',
-    silver_bar:  'assets/icons-bundle/resources/Res_01_silverbar.png',
-    gold_bar:    'assets/icons-bundle/resources/Res_03_goldenbar.png',
-    mithril_bar: 'assets/icons-bundle/resources/Res_05_magicbar.png',
-    rune_bar:    'assets/icons-bundle/resources/Res_06_magicbar.png',
-    ember_bar:   'assets/icons-bundle/resources/Res_06_magicbar.png',
-    dawn_bar:    'assets/icons-bundle/resources/Res_03_goldenbar.png',
-    stone:       'assets/icons-bundle/resources/Res_08_stones.png',
-    mushroom:    'assets/icons-bundle/resources/Res_125_mushroom.png',
-    dragon_egg:  'assets/icons-bundle/resources/Res_127_dragonegg.png',
-    // Misc craft items
-    anvil:       'assets/icons-bundle/medieval/BlacksmithInstruments.png',
-    /* b224 (Asset pass) — the four b222 Castle Stores goods. Promoted from
-       _archive/reserve-art after judging fit against every candidate in
-       materials-bars/, ore-stone-piles/, gems-crystals/, food/ and
-       props-and-tools/. `keystone` is deliberately absent: no reserve-art
-       reads as a cut masonry block, so it keeps its gilt atlas glyph
-       (itemGlyphKey()) rather than wear a wrong painting. */
-    timber_beam:  'assets/icons-bundle/resources/Res_23_oldwood.png',
-    field_ration: 'assets/icons-bundle/resources/Res_137_bread.png',
-    iron_fitting: 'assets/icons-bundle/medieval/Cog.png',
-    // b186: PAINTED gear (weapons/armor/jewelry) — CraftPix packs, 128px.
-    // Tier ornateness climbs with rarity; rarity BORDER (not sprite tint)
-    // shows the upgrade (see itemRarity() + .rarity-* frame CSS).
-    bronze_sword:      'assets/icons-bundle/painted/gear/bronze_sword.png',
-    iron_sword:        'assets/icons-bundle/painted/gear/iron_sword.png',
-    steel_sword:       'assets/icons-bundle/painted/gear/steel_sword.png',
-    rune_sword:        'assets/icons-bundle/painted/gear/rune_sword.png',
-    chief_blade:       'assets/icons-bundle/painted/gear/chief_blade.png',
-    captains_ribblade: 'assets/icons-bundle/painted/gear/captains_ribblade.png',
-    apprentice_staff:  'assets/icons-bundle/painted/gear/apprentice_staff.png',
-    oak_staff:         'assets/icons-bundle/painted/gear/oak_staff.png',
-    shortbow:          'assets/icons-bundle/painted/gear/shortbow.png',
-    longbow:           'assets/icons-bundle/painted/gear/longbow.png',
-    stone_maul:        'assets/icons-bundle/painted/gear/stone_maul.png',
-    iron_warhammer:    'assets/icons-bundle/painted/gear/iron_warhammer.png',
-    iron_helm:         'assets/icons-bundle/painted/gear/iron_helm.png',
-    steel_helm:        'assets/icons-bundle/painted/gear/steel_helm.png',
-    iron_platebody:    'assets/icons-bundle/painted/gear/iron_platebody.png',
-    steel_platebody:   'assets/icons-bundle/painted/gear/steel_platebody.png',
-    leather_gloves:    'assets/icons-bundle/painted/gear/leather_gloves.png',
-    bronze_belt:       'assets/icons-bundle/painted/gear/bronze_belt.png',
-    copper_ring:       'assets/icons-bundle/painted/gear/copper_ring.png',
-    hunter_necklace:   'assets/icons-bundle/painted/gear/hunter_necklace.png',
-    // b193: PAINTED consumables / crops / drops / gems (CraftPix veg + food +
-    // monster-loot + gems packs). Replaces the emoji that clashed with the art.
-    turnip:        'assets/icons-bundle/painted/items/turnip.png',
-    carrot:        'assets/icons-bundle/painted/items/carrot.png',
-    potato:        'assets/icons-bundle/painted/items/potato.png',
-    tomato:        'assets/icons-bundle/painted/items/tomato.png',
-    pumpkin:       'assets/icons-bundle/painted/items/pumpkin.png',
-    wheat:         'assets/icons-bundle/painted/items/wheat.png',
-    /* b217: SEEDS. All six seed items rendered the same 🌱 emoji, so the seed
-       shop was six identical rows and the farm's crop list showed one green
-       sprout per crop. Seeds now show the crop they grow — the standard RPG
-       convention, and it uses painted art the game already ships instead of
-       adding six new assets. */
-    turnip_seed:   'assets/icons-bundle/painted/items/turnip.png',
-    carrot_seed:   'assets/icons-bundle/painted/items/carrot.png',
-    potato_seed:   'assets/icons-bundle/painted/items/potato.png',
-    tomato_seed:   'assets/icons-bundle/painted/items/tomato.png',
-    pumpkin_seed:  'assets/icons-bundle/painted/items/pumpkin.png',
-    wheat_seed:    'assets/icons-bundle/painted/items/wheat.png',
-    cooked_shrimp: 'assets/icons-bundle/painted/items/cooked_shrimp.png',
-    cooked_trout:  'assets/icons-bundle/painted/items/cooked_trout.png',
-    cooked_lobster:'assets/icons-bundle/painted/items/cooked_lobster.png',
-    cooked_shark:  'assets/icons-bundle/painted/items/cooked_shark.png',
-    slime_gel:     'assets/icons-bundle/painted/items/slime_gel.png',
-    sticky_core:   'assets/icons-bundle/painted/items/sticky_core.png',
-    bat_wing:      'assets/icons-bundle/painted/items/bat_wing.png',
-    wolf_pelt:     'assets/icons-bundle/painted/items/wolf_pelt.png',
-    troll_hide:    'assets/icons-bundle/painted/items/troll_hide.png',
-    vamp_dust:     'assets/icons-bundle/painted/items/vamp_dust.png',
-    demon_shard:   'assets/icons-bundle/painted/items/demon_shard.png',
-    dragon_scale:  'assets/icons-bundle/painted/items/dragon_scale.png',
-    lich_soul:     'assets/icons-bundle/painted/items/lich_soul.png',
-    magic_essence: 'assets/icons-bundle/painted/items/magic_essence.png',
-    razor_claw:    'assets/icons-bundle/painted/items/razor_claw.png',
-    ancient_claw:  'assets/icons-bundle/painted/items/ancient_claw.png',
-    goblin_ear:    'assets/icons-bundle/painted/items/goblin_ear.png',
-    shadow_pelt:   'assets/icons-bundle/painted/items/shadow_pelt.png',
-    bones:         'assets/icons-bundle/painted/items/bones.png',
-    big_bones:     'assets/icons-bundle/painted/items/big_bones.png',
-    dragon_bones:  'assets/icons-bundle/painted/items/dragon_bones.png',
-    ruby:          'assets/icons-bundle/painted/items/ruby.png',
-    dragon_gem:    'assets/icons-bundle/painted/items/dragon_gem.png',
-    // b202: painted TOOL icons (SYS-3 ladder — no emoji in the item grid).
-    // Picks/rods share a base per type; rarity borders convey the tier.
-    bronze_axe:      'assets/icons-bundle/painted/gear/bronze_axe.png',
-    iron_axe:        'assets/icons-bundle/painted/gear/iron_axe.png',
-    steel_axe:       'assets/icons-bundle/painted/gear/steel_axe.png',
-    mithril_axe:     'assets/icons-bundle/painted/gear/mithril_axe.png',
-    rune_axe:        'assets/icons-bundle/painted/gear/rune_axe.png',
-    bronze_pickaxe:  'assets/icons-bundle/painted/gear/bronze_pickaxe.png',
-    iron_pickaxe:    'assets/icons-bundle/painted/gear/iron_pickaxe.png',
-    steel_pickaxe:   'assets/icons-bundle/painted/gear/steel_pickaxe.png',
-    mithril_pickaxe: 'assets/icons-bundle/painted/gear/mithril_pickaxe.png',
-    rune_pickaxe:    'assets/icons-bundle/painted/gear/rune_pickaxe.png',
-    willow_rod:      'assets/icons-bundle/painted/gear/willow_rod.png',
-    oak_rod:         'assets/icons-bundle/painted/gear/oak_rod.png',
-    maple_rod:       'assets/icons-bundle/painted/gear/maple_rod.png',
-    yew_rod:         'assets/icons-bundle/painted/gear/yew_rod.png',
-    runewood_rod:    'assets/icons-bundle/painted/gear/runewood_rod.png',
-    /* b217: these six all pointed at ONE seed.png, and being later in the
-       object literal they overwrote the per-crop mapping added above — so the
-       seed shop was six identical rows again and the crop each seed grows was
-       unreadable. Seeds show their crop (the standard RPG convention, and it
-       uses art the game already ships). See the turnip_seed…wheat_seed block
-       further up; nothing is mapped here so that block wins. */
-  };
-
-
-  /* ══════════════════════════════════════════════════════════════════════
-     HEARTHFIRE ITEM ART — the full batch  ·  Art Director, 2026-08-16
-     Supersedes the 7-line b357 pilot literal that used to sit here.
-
-     THE MAP MOVED TO `src/data/item-art.js` and this is only the applier.
-     Same reasoning as the b356 monster move: at 386 entries a hand-written
-     literal can only be wrong (a mis-map, or a path that drifts from the
-     filename), so the manifest DERIVES `<id>.png` from the id and
-     `tests/run-smoke.mjs` reconciles it against the real filesystem in both
-     directions. What art exists is data; where it goes is code.
-
-     WHY AN APPLIER RATHER THAN AN IMPORT: this IIFE runs while legacy.js
-     loads, BEFORE main.js merges the ESM data. main.js calls this function
-     once the manifest is imported, which is still BEFORE the 1500 ms
-     `__mapGeneratedGearIcons()` re-run below — so hearthfire art is already
-     in `LOCAL_ITEM_ICON` when the generated-tier slot art looks for gaps,
-     and the `if (LOCAL_ITEM_ICON[id]) return` guard there keeps a generic
-     tier silhouette from overwriting a real painting. That merge order is
-     the whole trap; it is asserted by the b358 smoke guard.
-
-     Source art: 1024² RGBA exports in `assets/art-pilot/batch-items/` (NOT
-     shipped — raws stay out of the bundle). Processed by
-     `tools/art-batch-process.mjs` (alpha-normalised, projection-cropped,
-     long edge 128 px, PNG-24 RGBA). 128 and not the pilot's 256: see the
-     measured argument at the top of `src/data/item-art.js`.
-     ══════════════════════════════════════════════════════════════════════ */
-  window.__applyHearthfireItemIcons = function applyHearthfireItemIcons(map){
-    if (!map) return 0;
-    var n = 0;
-    Object.keys(map).forEach(function(k){
-      LOCAL_ITEM_ICON[k] = map[k];
-      window._itemPath = window._itemPath || {};
-      window._itemPath[k] = map[k];
-      window._itemSVG = window._itemSVG || {};
-      window._itemSVG[k] = '<img src="'+map[k]+'" alt="" loading="lazy" draggable="false" style="width:100%;height:100%;object-fit:contain" />';
-      n++;
-    });
-    return n;
-  };
-
-
-  // House rooms — the ROOMS dict has 6 entries (kitchen, forge, library,
-  // garden, trophy, cellar). We render these with a custom icon attribute
-  // on the room card. b103 maps each to a hand-painted building.
-  var LOCAL_ROOM_ICON = {
-    kitchen: 'assets/icons-bundle/buildings/House_01_nobg.png',
-    forge:   'assets/icons-bundle/buildings/Building_02_blacksmith_nobg.png',
-    library: 'assets/icons-bundle/buildings/Building_18_tower_nobg.png',
-    garden:  'assets/icons-bundle/buildings/Windmill_01_nobg.png',
-    trophy:  'assets/icons-bundle/buildings/Building_20_citadel_nobg.png',
-    cellar:  'assets/icons-bundle/buildings/Building_07_house_nobg.png'
-  };
-
-  // Plot buildings on the Farm
-  var LOCAL_PLOT_ICON = {
-    farm_plot:   'assets/icons-bundle/buildings/Farm_01_nobg.png',
-    toolshed:    'assets/icons-bundle/buildings/Building_06_house_nobg.png',
-    watchtower:  'assets/icons-bundle/buildings/Tower_01_nobg.png'
-    // scarecrow intentionally omitted — no scarecrow art in pack, emoji fits
-  };
-
-  /* b216: the b215 tier ladder generated ~70 armour/weapon pieces that had no
-     painted art, so every one fell back to a generic emoji — the equipment doll
-     showed the same blue shield in every slot. Per the locked art direction
-     ("gear tier = RARITY BORDER, not a recoloured sprite"), a slot shares one
-     silhouette across tiers and the border conveys the tier. Map each generated
-     piece to the shipped art for its slot, using the closest tier we own. */
-  window.__mapGeneratedGearIcons = function mapGeneratedGear(){
-    var byTier = function(list){            // pick the closest owned tier art
-      return function(tier){ return list[Math.min(tier, list.length) - 1] || list[list.length - 1]; };
-    };
-    var G_ = 'assets/icons-bundle/painted/gear/';
-    var SLOT_ART = {
-      helm:      byTier([G_+'iron_helm.png',      G_+'iron_helm.png',      G_+'steel_helm.png']),
-      platebody: byTier([G_+'iron_platebody.png', G_+'iron_platebody.png', G_+'steel_platebody.png']),
-      gauntlets: byTier([G_+'leather_gloves.png']),
-      belt:      byTier([G_+'bronze_belt.png']),
-      sword:     byTier([G_+'bronze_sword.png', G_+'iron_sword.png', G_+'steel_sword.png', G_+'steel_sword.png', G_+'rune_sword.png']),
-      warhammer: byTier([G_+'stone_maul.png', G_+'iron_warhammer.png']),
-      bow:       byTier([G_+'shortbow.png', G_+'longbow.png']),
-      staff:     byTier([G_+'apprentice_staff.png', G_+'oak_staff.png']),
-    };
-    var ITEMS_ = window.ITEMS || {};
-    Object.keys(ITEMS_).forEach(function(id){
-      if (LOCAL_ITEM_ICON[id]) return;                  // hand-mapped art wins
-      var def = ITEMS_[id];
-      if (!def || !def.tier) return;                    // only generated tier gear
-      /* b282 fix (Tyler: "hovering an item shows a completely different asset"):
-         the b278 armour triangle added leather/cloth lines whose ids (leather_helmet,
-         apprentice_helmet, …) match the plate SLOT_ART suffixes ('_helm', 'belt'),
-         so a cloth mage-hat and a leather coif were being painted as an IRON PLATE
-         HELM — the wrong silhouette, worse than an emoji. Only the PLATE line may
-         borrow the plate art here; leather/cloth fall to their honest fallback until
-         their own art ships (asset backlog). Weapons carry no armourClass, so they
-         pass through unaffected. */
-      if (def.type === 'armor' && def.armourClass && def.armourClass !== 'plate') return;
-      /* b224 fix: a bare `id.indexOf(k) === id.length - k.length` is TRUE by
-         coincidence whenever k is absent (indexOf === -1) AND k is exactly one
-         character longer than id (id.length - k.length === -1 too) — it was
-         never actually checking "ends with k". That silently painted `keystone`
-         (a Castle Stores good, not gear) as a steel platebody, because
-         'platebody'/'gauntlets'/'warhammer' are all 9 chars and 'keystone' is
-         8. Require a REAL suffix match: the substring must be found (idx>=0)
-         at exactly the tail of id. */
-      var key = Object.keys(SLOT_ART).filter(function(k){
-        var idx = id.indexOf(k);
-        return id.indexOf('_' + k) > 0 || (idx >= 0 && idx === id.length - k.length);
-      })[0];
-      if (!key) return;
-      LOCAL_ITEM_ICON[id] = SLOT_ART[key](def.tier);
-      window._itemPath = window._itemPath || {};
-      window._itemPath[id] = LOCAL_ITEM_ICON[id];
-      window._itemSVG = window._itemSVG || {};
-      window._itemSVG[id] = '<img src="'+LOCAL_ITEM_ICON[id]+'" alt="" loading="lazy" draggable="false" style="width:100%;height:100%;object-fit:contain" />';
-    });
-  };
-  window.__mapGeneratedGearIcons();
-
-  /* ══════════════════════════════════════════════════════════════════════
-     b371 — THE ICON-READINESS EDGE. Replaces a `setTimeout(…, 1500)`.
-
-     THE MEASURED PROBLEM (Tyler: "strange flickering of old assets";
-     LIVE-AUDIT F13 / F13-addendum / F15). This IIFE runs while legacy.js
-     LOADS, so at that moment `window._itemPath` holds 109 of the 490 paths
-     the game ships — the rest arrive when main.js (a module, therefore
-     deferred) merges `src/data/*` and applies the Hearthfire manifest.
-     Anything painted in that window renders `hr-blank-icon` for ~78% of its
-     items and is NEVER repainted, because nothing told it the map had grown.
-     Instrumented boot, worst observed ordering:
-
-         905 ms  renderInvNew()   _itemPath = 109   ← blank tiles, kept
-         ~960 ms main.js merge    _itemPath = 484
-        1006 ms  showTab('profile')                 ← repaints PROFILE only
-        1732 ms  the old 1500 ms timer               _itemPath = 490
-
-     That is exactly the audit's "28 slots, ~7 icons visible, all 28 painted
-     four seconds later": 109/484 ≈ the 7/28 he counted.
-
-     THE SHAPE OF THE FIX. Not a gate (delaying first paint to protect an
-     icon would trade a cosmetic pop for a blank screen), and not a
-     per-surface hack. ONE readiness edge that main.js drives:
-
-       • it is IDEMPOTENT and one-shot, so a double call is free;
-       • it runs the generated-gear pass at the only moment it can succeed —
-         after the ESM ITEMS merge — instead of guessing 1500 ms;
-       • it repaints the ACTIVE SCREEN through `showTab(activeTab)`, the
-         engine's own "render this destination" entry point, so a surface
-         added at 10× content is covered with no registry to maintain;
-       • it repaints ONLY if `boot()` has already run — i.e. a screen was
-         painted against the short map. In the fast ordering (and behind the
-         account wall, where boot is deferred until the gate opens) the edge
-         lands FIRST and the correct action is to do nothing at all, so this
-         costs one boolean read on the common path. `#panel-profile` ships
-         `class="panel active"` in index.html, so "is a panel active" is NOT
-         a usable proxy for "has the engine painted" — it is true before
-         `loadLocal()` has even run, and repainting there would render a
-         screen from default state.
-
-     The timer survives ONLY as a fallback for the case where main.js never
-     executes (module parse error, blocked asset). It is idempotent against
-     the real call, so the normal path costs one no-op.
-
-     THE LATCH IS `window.__hrIconsReadyAt`, NOT A PRIVATE BOOLEAN. The edge
-     is a fact about this page load, and a fact worth recording is the same
-     fact worth latching on — one piece of state instead of two that can
-     disagree. It also means the guard in tests/icon-boot-order.mjs can re-arm
-     the edge and drive the late-merge branch for real, rather than asserting
-     about source text; a branch no test can reach is a branch that rots.
-     ══════════════════════════════════════════════════════════════════════ */
-
-  /* The repaint itself, named because it is the load-bearing half and the
-     thing a test must be able to falsify on its own. `showTab(activeTab)` is
-     the engine's own "render this destination" entry point, so every current
-     AND future icon-bearing screen is covered without a registry.
-
-     KNOWN LIMITATION: showTab() calls closeAllModals(). The edge that uses
-     this fires during boot, before the player can have opened anything, so
-     there is nothing to close — but do not repurpose this as a general
-     "refresh" for a running session without addressing that. */
-  window.__hrRepaintActive = function repaintActive(){
-    var tab = (typeof activeTab !== 'undefined' && activeTab) ? activeTab : null;
-    if (tab && typeof window.showTab === 'function') { window.showTab(tab); return true; }
-    if (typeof refreshAll === 'function') { refreshAll(); return true; }
-    return false;
-  };
-
-  window.__hrIconsReady = function iconsReady(){
-    if (window.__hrIconsReadyAt) return false;
-    window.__hrIconsReadyAt = Date.now();
-    try {
-      window.__mapGeneratedGearIcons();
-      /* The doll is built once and cached (buildTibiaDoll bails when a
-         .td-doll already exists), so drop it to force a rebuild with the
-         freshly-mapped art. */
-      document.querySelectorAll('.td-wrap, .td-doll').forEach(function(n){ n.remove(); });
-      /* Did the engine already paint a screen with the short map? */
-      if (window.__hrBooted) {
-        window.__hrIconRepaint = true;
-        window.__hrRepaintActive();
-      }
-    } catch(e){ try { window.captureException && window.captureException(e); } catch(_){} }
-    return true;
-  };
-  setTimeout(function(){ try { window.__hrIconsReady(); } catch(e){} }, 1500);
-
-  // Apply: override window._itemPath for known IDs. Item-render code
-  // already prefers _itemPath over emoji.
-  window._itemPath = window._itemPath || {};
-  Object.keys(LOCAL_ITEM_ICON).forEach(function(k){
-    window._itemPath[k] = LOCAL_ITEM_ICON[k];
-  });
-  // Rebuild _itemSVG for the items we just overrode
-  window._itemSVG = window._itemSVG || {};
-  Object.keys(LOCAL_ITEM_ICON).forEach(function(k){
-    var p = LOCAL_ITEM_ICON[k];
-    window._itemSVG[k] = '<img src="'+p+'" alt="" loading="lazy" draggable="false" style="width:100%;height:100%;object-fit:contain" />';
-  });
-
-  // Expose the room/plot maps so renderHouse / renderFarm can read them.
-  window._roomIcon = LOCAL_ROOM_ICON;
-  window._plotBuildingIcon = LOCAL_PLOT_ICON;
-
-  // b122: Skill icons. BUNDLE_SKILL_ICON points at assets/raw-bundle/...
-  // which is NOT shipped (only assets/icons-bundle/ is). Every skill
-  // tile was 404'ing and rendering as a broken-image square. Until we
-  // curate proper hand-painted skill icons into icons-bundle/, clear
-  // _skillIcon entirely so the renderer falls through to each skill's
-  // emoji glyph (matches the rest of the cozy theme anyway).
-  window._skillIcon = {};
-
-  // b186: PAINTED monster portraits — the locked art direction (2026-08-08).
-  // Each game monster id maps to a downscaled (128px, transparent) painted
-  // character portrait from the CraftPix avatar packs (undead-avatar =
-  // enemies, monster-256 creature pack = beasts). Filenames match the game
-  // id exactly (built by scratchpad/paint_pipeline.py from icons4/*.zip).
-  // Reused/placeholder art flagged for later refinement: wolf/dire_wolf share
-  // the one creature-pack wolf; bear/ancient_bear share the boar; dragon uses
-  // a vampire-lord portrait (no painted dragon pack yet — grab one or AI-gen).
-  /* b356: the 30-entry literal that used to live here MOVED to
-     `src/data/monster-art.js`, which is now the single source of truth for
-     monster portrait paths and is applied by main.js.
-
-     Why it moved rather than growing: the roster went from 31 to 111, and
-     80 of those have no portrait yet. A hand-written map cannot express
-     "expected but not yet delivered" — it can only be wrong in one of two
-     ways, a 404 for art that has not landed or a silent omission for art
-     that has. The manifest expresses both, DERIVES the filename from the id
-     (so the PNG name and the map can no longer disagree), and is reconciled
-     against the actual filesystem by tests/run-smoke.mjs.
-
-     Item/room/skill icon maps below are unchanged — this is scoped to
-     monsters, which is where the scale problem is. */
-  var LOCAL_MONSTER_ICON = {};
-  window._monsterIcon = window._monsterIcon || {};
-  Object.keys(LOCAL_MONSTER_ICON).forEach(function(k){
-    window._monsterIcon[k] = LOCAL_MONSTER_ICON[k];
-  });
-
-  // b186: canonical painted player portrait (dwarf/human avatar pack).
-  // Arena, topbar, and character page all read this.
-  window._playerAvatar = 'assets/icons-bundle/painted/npc/player.png';
-
-  console.info('[icons-bundle b103] applied:',
-    Object.keys(LOCAL_ITEM_ICON).length, 'items,',
-    Object.keys(LOCAL_ROOM_ICON).length, 'rooms,',
-    Object.keys(LOCAL_PLOT_ICON).length, 'plot buildings');
-})();
-
-// Rebuild _itemSVG which is consumed by older render paths
-window._itemSVG = window._itemSVG || {};
-Object.keys(window._itemPath).forEach(function(id){
-  var p = window._itemPath[id];
-  if(p) window._itemSVG[id] = '<img src="'+p+'" alt="" loading="lazy" draggable="false" style="width:100%;height:100%;object-fit:contain" />';
-});
-
-// Force a paint refresh of UI surfaces that show icons
-function refreshAll(){
-  try { if(typeof renderInvFancy==='function') renderInvFancy(); } catch(e){}
-  try { if(typeof renderInvNew==='function') renderInvNew(); } catch(e){}
-  try { if(typeof renderInventory==='function') renderInventory(); } catch(e){}
-  try { if(typeof renderSkillsList==='function') renderSkillsList(); } catch(e){}
-  try {
-    if(typeof renderSkillDetail==='function' && window.openSkill){
-      // Force full rebuild by clearing cache
-      window._actLastRender = {skillId:null, activeKey:null};
-      renderSkillDetail(window.openSkill);
-    }
-  } catch(e){}
-  try { if(typeof renderMonsterList==='function') renderMonsterList(); } catch(e){}
-  try { if(typeof renderLoadout==='function') renderLoadout(); } catch(e){}
-  try { if(typeof renderProfile==='function') renderProfile(); } catch(e){}
-}
-
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded', function(){ setTimeout(refreshAll, 200); });
-} else {
-  setTimeout(refreshAll, 200);
-}
-
-console.log('[Bundle Icons v1] applied:',
-  Object.keys(BUNDLE_SKILL_ICON).length, 'skills,',
-  Object.keys(BUNDLE_ITEM_ICON).length, 'items,',
-  Object.keys(BUNDLE_MONSTER_ICON).length, 'monsters');
-})();
+   `activeTab` is passed in because it is declared `let` at this file's script
+   scope — a lexical binding, NOT a window property, so the repaint half of the
+   readiness edge cannot see it from another file. Reading it through a closure
+   keeps __hrRepaintActive() picking the same screen it always did. */
+HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; } });
 
 // ===== block 39: script-39 =====
 (function(){
@@ -22090,3 +21078,4 @@ console.log('[Bundle Icons v1] applied:',
     }, 100);
   };
 })();
+

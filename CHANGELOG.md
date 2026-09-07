@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 516 — 2026-09-07 (Fix-forward: a census red)
+
+- 🧪 b515 went out red on the new dead-exports census: a helper added for the welcome card was exported but only read inside its own module. It is module-internal now. No player-facing change; this build exists so the CI gate is reachable again for what follows.
+
 ## v0.9.2-beta build 515 — 2026-09-07 (The welcome card tells the realm's time)
 
 - ⏱️ **"Time away" on the welcome-back card is now the realm's number.** Unless your away receipt was under half an hour old, the card printed a per-device stamp that only some saves refreshed — hence "13h 8m" two hours after you last played, or "64h" beside a 4-hour receipt. It now shows the span the realm priced (the same figure the Home away card uses), or the span since the realm's own watermark on an idle boot, and shows no number at all when the realm has none.

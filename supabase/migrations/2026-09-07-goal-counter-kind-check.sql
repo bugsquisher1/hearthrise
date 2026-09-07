@@ -217,7 +217,10 @@ begin
   --     CASE, which no constraint on this table can reach. If a branch for
   --     'ev:planted' is ever added there, the backfill pays retroactively by a
   --     path this file does not cover - so this file refuses to land next to it.
-  select pg_get_functiondef(p.oid) into v_src
+  -- prosrc, not the functiondef helper: this is a READ of the installed body, not a patch,
+  -- and tests/live-hash-drift.mjs treats every caller of that helper as a function patcher
+  -- that must yield a signature (fail-closed). The body text is identical for position().
+  select p.prosrc into v_src
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname = 'hr_claim_quest__ungated' limit 1;
   if v_src is null then

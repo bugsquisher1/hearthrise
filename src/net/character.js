@@ -77,7 +77,6 @@
 // ============================================================================
 
 import { ACCRUE_KILL_KEY, isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=517';
-import { resolveActiveSlot } from './accrue.js?v=516';
 
 /* THE SAME SWITCH AS b337 — retired in b515, so this is a constant. There is no
    longer a state where the client creates characters it will never accrue

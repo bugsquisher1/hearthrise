@@ -49,7 +49,6 @@
 // ============================================================================
 
 import { isServerAccrualEnabled, resolveActiveSlot } from './accrue.js?v=517';
-import { resolveActiveSlot } from './accrue.js?v=516';
 /* b492 — the property/worker rung OBSERVER. See applyClientState for why the
    boot observation belongs in THIS module. property-record.js imports nothing,
    so it cannot form a cycle with either this file or accrue.js. */

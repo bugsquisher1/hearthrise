@@ -83,7 +83,6 @@
 
 import { isServerAccrualEnabled } from './accrue.js?v=517';
 import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=517';
-import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=516';
 
 /* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al): one

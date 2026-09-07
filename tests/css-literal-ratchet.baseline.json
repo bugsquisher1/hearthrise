@@ -1,0 +1,174 @@
+{
+  "method": "comments stripped; declaration VALUES only; quoted strings dropped; custom properties in :root / html[data-theme…] / body[data-theme…] blocks exempt; literal = hex(3/4/6/8) | rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color( | one of 149 CSS named colours as a whole token (transparent/currentColor/inherit excluded); !important = raw occurrences; js table = hex inside string literals in src/**/*.js",
+  "measured": "2026-09-07",
+  "note": "Ceilings, not targets. Counts may only fall. Regenerate with `node tests/css-literal-ratchet.mjs --write` when they do — never to make a red build green.",
+  "css": {
+    "art-direction.css": {
+      "literals": 315,
+      "important": 53
+    },
+    "audit-overrides.css": {
+      "literals": 531,
+      "important": 159
+    },
+    "board-and-shop.css": {
+      "literals": 52,
+      "important": 36
+    },
+    "clan-seat.css": {
+      "literals": 22,
+      "important": 0
+    },
+    "combat-hud.css": {
+      "literals": 0,
+      "important": 12
+    },
+    "combat-screens.css": {
+      "literals": 24,
+      "important": 56
+    },
+    "homestead-rooms.css": {
+      "literals": 7,
+      "important": 2
+    },
+    "legacy.css": {
+      "literals": 889,
+      "important": 189
+    },
+    "theme-cozy.css": {
+      "literals": 171,
+      "important": 589
+    }
+  },
+  "js": {
+    "src/admin.js": {
+      "literals": 22
+    },
+    "src/beta-banner.js": {
+      "literals": 8
+    },
+    "src/bug-report.js": {
+      "literals": 21
+    },
+    "src/desktop-mode-detector.js": {
+      "literals": 3
+    },
+    "src/dungeons.js": {
+      "literals": 1
+    },
+    "src/error-boundary.js": {
+      "literals": 5
+    },
+    "src/features/backdrop.js": {
+      "literals": 12
+    },
+    "src/features/boot-hydration.js": {
+      "literals": 9
+    },
+    "src/features/character-page.js": {
+      "literals": 2
+    },
+    "src/features/chronicle.js": {
+      "literals": 25
+    },
+    "src/features/collection-log.js": {
+      "literals": 27
+    },
+    "src/features/combat-screens.js": {
+      "literals": 1
+    },
+    "src/features/companions.js": {
+      "literals": 6
+    },
+    "src/features/daily-reward.js": {
+      "literals": 19
+    },
+    "src/features/death-sheet.js": {
+      "literals": 15
+    },
+    "src/features/home-dashboard.js": {
+      "literals": 13
+    },
+    "src/features/homestead.js": {
+      "literals": 1
+    },
+    "src/features/icon-set.js": {
+      "literals": 8
+    },
+    "src/features/identity.js": {
+      "literals": 20
+    },
+    "src/features/inv-context-menu.js": {
+      "literals": 2
+    },
+    "src/features/muster.js": {
+      "literals": 2
+    },
+    "src/features/pet-session.js": {
+      "literals": 3
+    },
+    "src/features/raids.js": {
+      "literals": 2
+    },
+    "src/features/rarity.js": {
+      "literals": 7
+    },
+    "src/features/recipe-book.js": {
+      "literals": 3
+    },
+    "src/features/renown.js": {
+      "literals": 43
+    },
+    "src/features/smoke-test.js": {
+      "literals": 12
+    },
+    "src/features/workers.js": {
+      "literals": 1
+    },
+    "src/ftue.js": {
+      "literals": 23
+    },
+    "src/item-ux.js": {
+      "literals": 2
+    },
+    "src/legacy.js": {
+      "literals": 57
+    },
+    "src/main.js": {
+      "literals": 2
+    },
+    "src/net/account-gate.js": {
+      "literals": 47
+    },
+    "src/net/accrue.js": {
+      "literals": 12
+    },
+    "src/net/auth.js": {
+      "literals": 29
+    },
+    "src/net/build-watch.js": {
+      "literals": 8
+    },
+    "src/network-status.js": {
+      "literals": 1
+    },
+    "src/post-signup-welcome.js": {
+      "literals": 12
+    },
+    "src/render/active-effects.js": {
+      "literals": 1
+    },
+    "src/settings-page.js": {
+      "literals": 30
+    },
+    "src/utils/safe.js": {
+      "literals": 2
+    },
+    "src/vendor/html2canvas-1.4.1.min.js": {
+      "literals": 1
+    },
+    "src/welcome-modal.js": {
+      "literals": 13
+    }
+  }
+}

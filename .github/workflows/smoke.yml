@@ -650,6 +650,54 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/edge-jwt-gate.mjs --strict
 
+      # -- THE PRESENTATION-LAYER FLOOR (cleanup slice 1) --------------------
+      # Three ratchets on the things CLAUDE.md has asserted for months while
+      # nothing measured them. None of them asks for the existing debt to be paid
+      # today; each one freezes today's number and goes red when it grows.
+      #
+      # 1. HARDCODED COLOURS. Section 7 says "every colour is a CSS token from
+      #    theme-cozy.css". Nine stylesheets carry 2,011 raw colour literals and
+      #    1,096 !important. Per file, per metric, that is now the ceiling.
+      #    Token definitions inside :root / body[data-theme...] are exempt - the
+      #    ladder is the fix, not the debt. A second table ratchets hex colours
+      #    inside JS strings (533 across 43 files), the other door the same debt
+      #    walks through.
+      # 2. BREAKPOINTS. Twenty-eight distinct @media spellings across nine
+      #    sheets, including three different spellings of the mobile rail. The
+      #    set is frozen; a NEW spelling is red. (Measured: the mobile rail is
+      #    540/1024 x25 vs 900/1024 x8, and the string section 7 documents
+      #    appears zero times.)
+      # 3. THE PLAYER'S-EYE PASS, with teeth. tests/visual-qa.mjs has always
+      #    exited 0 by design - "a REPORT, not a gate" - so a clipped heading
+      #    could ship at no cost. The wrapper fails ONLY on a P0/ERR or on a P1
+      #    at a (screen, viewport, kind, selector) key that is not in the
+      #    committed baseline. Pixel and copy deltas on a known finding are not
+      #    regressions. `.hr-desktopmode-banner` is excluded as environmental -
+      #    all 84 under-fixed-bar findings sit under that harness strip.
+      #
+      # Every one carries --selftest: planted mutations that must be caught by
+      # THAT guard. A ratchet that has never bitten is a decoration.
+      - name: Presentation floor - colour and !important ratchet
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/css-literal-ratchet.mjs --report
+          node tests/css-literal-ratchet.mjs --selftest
+
+      - name: Presentation floor - one set of breakpoints
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/breakpoint-guard.mjs --report
+          node tests/breakpoint-guard.mjs --selftest
+
+      # Needs the Chromium installed above. The gate half is a pure function and
+      # is proven by --selftest without a browser, so a Chromium problem shows up
+      # as exit 2 (harness) rather than as a visual verdict.
+      - name: Presentation floor - visual QA gate (P0 / new P1)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/visual-qa-gate.mjs --selftest
+          node tests/visual-qa-gate.mjs
+
       # A failing run is far easier to diagnose with the page state attached.
       - name: Upload failure artifacts
         if: failure()

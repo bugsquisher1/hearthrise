@@ -1,5 +1,37 @@
 # Art Director — running log
 
+## 2026-09-06 · CLEANUP SLICE 1 — the guard floor (branch worktree-agent-a4ed2f9edfbffb615)
+
+Three standing guards. **No file under `src/**` was touched** — this slice measures and freezes,
+it does not converge. The presentation layer had three rules that CLAUDE.md has asserted for
+months and that nothing measured; a rule nothing measures is a preference.
+
+- **`tests/css-literal-ratchet.mjs`** (+ `tests/css-literal-ratchet.baseline.json`) —
+  **2,011 raw colour literals / 1,096 `!important`** across the nine sheets, plus **533
+  hex-in-a-JS-string** across 43 files under `src/**`. Per file, per metric, today is the ceiling.
+  Custom-property definitions inside `:root` / `body[data-theme…]` are exempt: counting the token
+  ladder would punish the fix. My numbers differ from the earlier audit's because **comments are
+  stripped** — combat-hud.css is 12 `!important`, not 19; seven of them live in comments. legacy.css
+  measures 889 literals against the audit's 1,201 (that count read the whole file, not just values).
+- **`tests/breakpoint-guard.mjs`** (+ `tests/breakpoints.json`) — **28 canonical `@media` spellings
+  over 83 blocks**, after folding five whitespace-only duplicates. THE FINDING: the mobile rail
+  CLAUDE.md §7 documents — `(max-width: 540px), (max-height: 540px) and (max-width: 900px)` —
+  **appears zero times in the codebase.** What is actually there: **540/1024 ×25**, 900/1024 ×8,
+  640/1024 ×1. §7 should be corrected to the 1024px form.
+- **`tests/visual-qa-gate.mjs`** — `visual-qa.mjs` has always exited 0 by design ("a REPORT, not a
+  gate"), so a clipped heading could ship at no cost. The wrapper is red only on a P0/ERR or a P1 at
+  a **NEW (screen, viewport, kind, selector)** key; pixel and copy deltas on a known finding are not
+  regressions, and P2/P3 never gate. `.hr-desktopmode-banner` is excluded as environmental — all 84
+  `under-fixed-bar` findings sit under that harness strip. 36 comparable findings today, green.
+
+All three carry `--selftest` mutation proofs (6 + 3 + 11 planted defects, each required to be caught
+by *that* guard) and `--write` for their baseline, and all three are registered in
+`.github/workflows/smoke.yml`, so `run-ci-local` derives them with no second copy of the list.
+
+**Slice-2 queue, in order:** converge the eight 900px mobile rules onto 540/1024; retire the
+thirteen one-off widths (380/400/420/600/640/768/780/900/1100/1180/1200/1280/1900); then walk
+theme-cozy.css's 589 `!important` down, which is where the specificity war actually lives.
+
 ## 2026-09-06 · THE 6px THAT CAME FROM AN EMPTY DIFF — b512's b227 red, and why the fix is a COLUMN
 
 **The finding I would put first, because it is what the whole pass turns on.** I was handed a

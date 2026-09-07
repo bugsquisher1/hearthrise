@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 520 — 2026-09-07 (A knocked-out hero cannot start a phantom run)
+
+- 🛌 **While you are knocked out, starting a fight, a gather or a craft now shows the recovery sheet instead of a run that only your screen could see.** Measured live: a knocked-out hero tapped Shrimp Spot and the client ran a local fishing loop for four minutes — the bag count climbed, the level bar crossed a level — while the realm had refused the start and owned none of it, so all of it vanished on the next reload. The client now refuses exactly what the realm refuses (the same list, read from the same declaration), opens the sheet with the countdown and Rest as the first action, and a run the realm never acknowledged is stopped rather than re-declared (the old "declare it rather than stop the player" path from the pre-cutover days is gone).
+
 ## v0.9.2-beta build 519 — 2026-09-07 (The receipt says what stopped you)
 
 - 🧾 **Away receipts now say what stopped you and how you fell.** The realm has been sending the fields since b518; the toast never read them. An away receipt now adds "Stopped after Nh Nm — you ran out of <food/seeds/…>" and "You fell N times; knocked out for Nm in total, back on your feet each time", in the same words the Home away card uses. Attended live syncs still say nothing; a death at the keyboard still gets its own sentence.

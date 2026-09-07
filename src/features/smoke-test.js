@@ -1026,6 +1026,14 @@ const applyAwayEnvelope = (away, opts) => {
   const o = opts || {};
   const G = window.G;
   const A = window.HearthriseAccrual;
+  /* b519 - DO NOT CLEAR THE AWAY HOLDER HERE. It is tempting (an away fixture
+     landed by an earlier test is otherwise still on the Home screen for thirty
+     minutes of suite time) and it is WRONG: accrue.js holds the last
+     away-classified receipt precisely so that the 90-second syncs a test lands
+     AFTER a night cannot evict the night's card, and a reset on this path would
+     make that property untestable by erasing it one line before it is graded.
+     The hygiene half belongs in the TEARDOWN of every test that states an away
+     receipt (`__resetAwayReceipt()` in its finally). */
   const skills = {};
   for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
   const env = Object.assign({
@@ -45171,6 +45179,7 @@ const TESTS = [
     } finally {
       window.declareActivity = realDeclare;
       try { window.stopCombat(); } catch (e) {}
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // b519: the away holder outlives G
       restoreGAndRecord(snap);
     }
   }),
@@ -47157,7 +47166,10 @@ const TESTS = [
          tell a server-stated receipt from a locally computed one — there is no
          locally computed one any more, so this is the label that says so. */
       assert(rec.serverAuthoritative === true, 'the receipt does not label itself server-stated');
-    } finally { restoreGAndRecord(snap); }
+    } finally {
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // b519: the away holder outlives G
+      restoreGAndRecord(snap);
+    }
   }),
 
   () => tryRun('rev.2: the DURABLE away card describes a recovery night as one that kept paying', () => {
@@ -48030,6 +48042,14 @@ const TESTS = [
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
       else { try { delete document.hidden; } catch (e) {} }
       G.lastOfflineSummary = prevSummary;
+      /* THE FIXTURE LEAK (b519). This test lands a 90-second DEATH receipt
+         through the real envelope path, and a death classifies as AWAY on any
+         span (b343) — so accrue.js's away holder keeps it, with `at` = now, and
+         every Home render for the next THIRTY MINUTES of the suite draws this
+         fixture's card. Restoring `G.lastOfflineSummary` is no longer enough,
+         because the card deliberately no longer reads only `G`. Any test that
+         STATES an away receipt clears the holder here. */
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}
       restoreG(snap);
       try { H.render(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -49017,6 +49037,7 @@ const TESTS = [
       else { try { delete document.hidden; } catch (e) {} }
       G.lastOfflineSummary = prevSummary;
       G.lastWelcome = prevWelcome;
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // b519: the away holder outlives G
       restoreG(snap);
       try { H.render(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -55000,32 +55021,123 @@ const TESTS = [
       'a switch must keep its own sentence, got ' + A.receiptSentence(sw, { spanLabel: () => '1m' }));
   }),
 
-  () => tryRun('SYNC-3: the Home away card and the toast read ONE classifier', () => {
-    /* The b342 failure was two surfaces telling different stories about one
-       absence. The card's liveness gate is now the same function the toast
-       reads, so this asserts they cannot drift apart again. */
+  () => tryRun('SYNC-3: a sync never draws an away card, never re-labels one, and never evicts a fresh one', () => {
+    /* -- WHAT THIS TEST IS FOR --------------------------------------------
+       b361 pinned half a property: the Home card and the toast read ONE
+       classifier, so a 90-second settle cannot be narrated as an absence.
+       That half stayed true and the OTHER half was never stated, so it broke
+       in silence: `applyEnvelope` overwrote `G.lastOfflineSummary` on every
+       settle, the card read only that field, and the eight-hour night the
+       player opened the game to read VANISHED about ninety seconds into play.
+       Nothing was red. The card was simply gone by the time they looked.
+
+       DESIGN RULING (game-designer, 2026-09-07, binding): a fresh
+       classified-away card stays on Home for its thirty minutes while live
+       settles continue. A sync receipt must never CREATE or RE-LABEL an away
+       card - and does not EVICT a fresh one either.
+
+       Driven through the REAL path both times (`applyAwayEnvelope` ->
+       applyServerEnvelope -> accrue.applyEnvelope), because the bug lived in
+       the caller, not in the classifier: a test that hand-assigned
+       `G.lastOfflineSummary` graded the render gate and could never have seen
+       the overwrite that actually shipped.
+
+       MUTATION PROOF: delete the `lastAwayReceipt` write in accrue.js (or
+       point the card back at `G.lastOfflineSummary` alone) and part (3) goes
+       red on "the night's card was evicted by a 90-second sync". */
     const A = window.HearthriseAccrual;
     const H = window.HearthriseHome;
     assert(H && typeof H.__awayCardHtml === 'function', 'the away card test seam must exist');
+    assert(typeof A.getLastAwayReceipt === 'function' && typeof A.__resetAwayReceipt === 'function',
+      'the away-receipt holder seam must be published - the card has no source of truth without it');
     const G = window.G;
-    const snap = G.lastOfflineSummary;
+    const snap = snapshotG();
+    const prevSummary = G.lastOfflineSummary;
+    const prevTab = window.activeTab;
+    const bandText = () => {
+      H.render();
+      const b = document.querySelector('#hd-root .hd-awayband');
+      return b ? b.textContent.replace(/\s+/g, ' ').trim() : null;
+    };
     try {
-      const settle = { at: Date.now(), awayMs: 90000, hrs: 0.0, gainedItems: 13, gainedXp: 104,
-        gainedGold: 0, gainedKills: 2, serverAuthoritative: true };
-      G.lastOfflineSummary = settle;
-      assert(A.classifyReceipt(settle) === 'sync', 'fixture must classify as a sync');
+      A.__resetAwayReceipt();
+      G.lastOfflineSummary = null;
       window.showTab('profile');
-      const home = document.getElementById('panel-profile') || document.body;
-      assert(home.innerHTML.indexOf('While you were away') === -1,
-        'a 90s live settle drew the "While you were away" card — the card and the toast disagree');
-      // ...and a real night still draws it, so this is a gate and not a delete.
-      const night = Object.assign({}, settle, { awayMs: 8 * 3600000, hrs: 8 });
-      assert(A.classifyReceipt(night) === 'away', 'an 8h absence must classify as away');
-      const card = H.__awayCardHtml(night);
-      assert(card.indexOf('While you were away') >= 0, 'a real absence must still render the full away card');
-      assert(card.indexOf('+13') >= 0 && card.indexOf('104') >= 0,
-        'the away card must still state what the night paid');
-    } finally { G.lastOfflineSummary = snap; }
+
+      /* (1) A SYNC ARRIVING WITH NO PRIOR ABSENCE DRAWS NOTHING. */
+      const sync = () => applyAwayEnvelope({
+        grantMs: 90000, awayMs: 90000, paidMs: 90000,
+        kills: 2, crits: 0, gold: 0, xp: {}, items: {},
+        died: false, capped: false, blessed: false,
+      });
+      A.__resetAwayReceipt();
+      const s1 = sync();
+      assert(A.classifyReceipt(s1.rec) === 'sync', 'a 90s settle must classify as a sync, got '
+        + A.classifyReceipt(s1.rec));
+      assert(A.getLastAwayReceipt() === null,
+        'a SYNC wrote itself into the away holder - the next Home render will invent an absence '
+        + 'that never happened: ' + JSON.stringify(A.getLastAwayReceipt()));
+      assert(bandText() === null,
+        'a 90s live settle drew the "While you were away" card - the card and the toast disagree');
+
+      /* (2) AND IT IS NEVER RE-LABELLED. The sync receipt keeps a sync's
+         sentence; nothing anywhere turns those numbers into a night. */
+      assert(String(A.receiptSentence(s1.rec) || '').indexOf('Away') === -1,
+        'a live settle was narrated as an absence: ' + A.receiptSentence(s1.rec));
+
+      /* (3) THE HALF THAT WAS MISSING, AND THE BUG. A fresh eight-hour night
+         is on screen; ninety seconds of play land a sync; the night is STILL
+         on screen, unchanged, still stating the night's numbers. */
+      const night = applyAwayEnvelope({
+        grantMs: 8 * 3600000, awayMs: 8 * 3600000, paidMs: 8 * 3600000,
+        kills: 41, crits: 0, gold: 6750, xp: { attack: 14208 }, items: { shrimp: 13 },
+        died: false, capped: false, blessed: false,
+      });
+      assert(A.classifyReceipt(night.rec) === 'away', 'an 8h absence must classify as away');
+      assert(A.getLastAwayReceipt() === night.rec,
+        'the night was not held apart from the latest receipt, so the next settle overwrites it');
+      const before = bandText();
+      assert(before && before.indexOf('While you were away') >= 0,
+        'a real absence must draw the full away card');
+      assert(/41/.test(before), 'the card must state what the night paid: ' + before);
+
+      const s2 = sync();                       // ~90 seconds of ordinary play
+      assert(A.classifyReceipt(s2.rec) === 'sync', 'the second settle must still be a sync');
+      assert(G.lastOfflineSummary === s2.rec,
+        'the LATEST receipt must still be the latest - the toast and the bug report read it');
+      const after = bandText();
+      assert(after !== null,
+        'THE BUG: the night\'s card was evicted by a 90-second sync - the player opened the game to '
+        + 'read what happened overnight and it disappeared under them ninety seconds in');
+      assert(after === before,
+        'the away card CHANGED when a sync landed - a settle must not re-state the night:\n  before: '
+        + before + '\n  after:  ' + after);
+
+      /* (4) A LATER ABSENCE IS THE NEWS. Two absences inside one 30-minute box
+         means the SECOND one is what the card is about - the holder is "the
+         last absence", not "the first one that got there". */
+      const second = applyAwayEnvelope({
+        grantMs: 3600000, awayMs: 3600000, paidMs: 3600000,
+        kills: 7, crits: 0, gold: 11, xp: {}, items: {},
+        died: false, capped: false, blessed: false,
+      });
+      assert(A.getLastAwayReceipt() === second.rec, 'a later absence must replace the earlier one');
+      const latest = bandText();
+      assert(latest && latest !== after, 'the newer absence is not the one on screen: ' + latest);
+
+      /* (5) THE CARD EXPIRES WITH THE BOX, NOT LATER. Freshness is still
+         thirty minutes off `at` and is still the only thing that ends a card;
+         holding the receipt longer must not make it live longer. */
+      second.rec.at = Date.now() - 31 * 60000;
+      assert(bandText() === null, 'a 31-minute-old absence is not news any more and must not lead the '
+        + 'dashboard; the 30-minute box is what retires the card');
+    } finally {
+      A.__resetAwayReceipt();
+      G.lastOfflineSummary = prevSummary;
+      restoreG(snap);
+      try { H.render(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
   }),
 
   () => tryRun('SYNC-5: an ATTENDED live settle says nothing; an absence and a death still speak', () => {

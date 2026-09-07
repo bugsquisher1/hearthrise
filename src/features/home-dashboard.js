@@ -1073,7 +1073,6 @@
        the absence that most needs explaining is the one that ended sixty
        seconds in, and a receipt whose paid span rounds to nothing is exactly
        that receipt. FRESHNESS is unchanged: 30 minutes off `summary.at`. */
-    var _bad = !!(_off && (_off.died || (_off.combat && _off.combat.died)));
     /* b361: the LIVENESS gate is now the SAME classifier the toast reads
        (`HearthriseAccrual.receiptNotice`), so a live settle cannot be narrated
        as an absence on one surface and a sync on the other — the exact
@@ -1085,10 +1084,33 @@
        for a build where the accrual module never published.
        FRESHNESS is unchanged: 30 minutes off `summary.at`. */
     var _A = window.HearthriseAccrual;
-    var _away = _off && (_A && typeof _A.classifyReceipt === 'function'
-      ? _A.classifyReceipt(_off) === 'away'
-      : ((_off.hrs || 0) >= 0.1 || _bad));
-    if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000 && _away) {
+    var _isAway = function (r) {
+      if (!r) return false;
+      var bad = !!(r.died || (r.combat && r.combat.died));
+      return (_A && typeof _A.classifyReceipt === 'function')
+        ? _A.classifyReceipt(r) === 'away'
+        : ((r.hrs || 0) >= 0.1 || bad);
+    };
+    /* ── THE CARD READS THE ABSENCE, NOT THE LATEST RECEIPT (b519) ────────
+       `G.lastOfflineSummary` is overwritten by EVERY settle, and the settle
+       loop runs every 90 seconds — so reading it alone meant the night's card
+       was replaced by a sync receipt (which classifies as a sync, so nothing
+       drew) about a minute and a half into play. The player opened the game to
+       read the night and it disappeared under them.
+
+       accrue.js now holds the last AWAY-classified receipt separately
+       (`getLastAwayReceipt`). Both are considered and the NEWER absence wins,
+       which keeps three properties at once:
+         · a sync never creates or re-labels a card — neither candidate
+           classifies as away, so nothing draws (SYNC-3, b361);
+         · a sync never evicts a fresh card — the holder survives it;
+         · a receipt written straight into `G` (an older build, a fixture, the
+           b342-1 short-death card) still draws, because `G` is still read.
+       The 30-minute freshness box is unchanged and still does the expiring. */
+    var _hold = (_A && typeof _A.getLastAwayReceipt === 'function') ? _A.getLastAwayReceipt() : null;
+    if (!_isAway(_off)) _off = null;
+    if (_isAway(_hold) && (!_off || (Number(_hold.at) || 0) > (Number(_off.at) || 0))) _off = _hold;
+    if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000) {
       html += awayCardHtml(_off);
     }
 

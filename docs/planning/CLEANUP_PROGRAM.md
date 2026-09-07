@@ -72,6 +72,8 @@ Hearthrise is not architecturally broken — zero circular imports, one combat e
 - **Size:** open-ended; never more than one extraction unit per build.
 - **Must NOT touch:** more than one unit at a time — and nothing here starts until slices 3–4 have been live a week.
 
+> **Correction (2026-09-07):** `src/data/skill-authority.js` is NOT dead — `serverAccruedSkill` is a live import in `src/net/accrue.js` (the anti-forgery carve-out that lets an absolute envelope lower a skill) and `window.HearthriseSkillAuthority` is read by `legacy.js` and `home-dashboard.js`. Only four helper exports (`buildSkillAuthority`, `skillAuthority`, `rebuildSkillAuthority`, `classifySkill`) are unused; unexporting them is cosmetic and touches a security-relevant module — leave it. Slice 3a landed 31 dead exports + 23 dead CSS rules instead.
+
 ## Do not touch
 
 1. **The module graph pattern.** Zero circular imports is the property that makes extraction possible at all. A change that would introduce one is rejected, not worked around.

@@ -63,7 +63,7 @@ Rules that apply to every lane:
 - **Push = live** (Pages deploys `main`). The Coordinator runs `git push` itself. After Pages serves the new `BUILD.cache`, play-gate, then post the release note with `node tools/post-changelog.mjs <file>` (dry-run first; 2000-char cap).
 
 ### 3.4 Dead-feature vitals
-Refusals are journalled server-side (one row per user/verb/reason/minute; farming first). At the start of every session run the read-only vitals query (plants, claims, upgrades, kills, trades per day for the last 7 days). A feature at zero for two days is a P1 by definition. Farming sat at zero from 2026-08-27 to 2026-09-06 and nobody could see it.
+At the start of every session run `node tools/vitals.mjs` (read-only, management endpoint, token from `~/.supabase-token`): plants/waters/harvests, fights/deaths, gathers/crafts/workers, buys/rooms, claims, market listings/sales, refused intents, users — per day for the last 7 days. `player_intents` journals ACCEPTED intents only (measured 2026-09-07: 2,305 rows, zero non-ok); refusals with a reason are not journalled yet — that is a queued lane-C item, and until it lands a refusal is invisible unless a player reports it. A feature at zero for two days is a P1 by definition. Farming sat at zero from 2026-08-27 to 2026-09-06 and nobody could see it.
 
 ---
 

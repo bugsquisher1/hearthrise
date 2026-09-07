@@ -2459,3 +2459,39 @@ Verified assembled main working tree (not committed). Pure-refactor extraction o
 - Desktop 1440x900 + mobile-landscape 922x423 both verified; modal centered, no clip/overflow, no horiz body overflow.
 - Dense screens: combat + inventory render full-size, no emergent breakage. Only console errors are Supabase 401 (planted fake session) — unrelated.
 Verified via DOM geometry/computed colors (screenshots don't composite in this harness).
+
+### 2026-09-06 · b513 — the arena card contains its controls, by construction
+
+Follow-up to 6dd1259b. The brief asked me to find the STATE that added 8px. There isn't one, and
+that is the finding: **the stage has never fitted its card at 900px.** Fresh boot, 1440x900, no
+suite: card 690, stage 723, metrics and session tally painted outside the card and below the fold,
+Eat with 23px of margin — and the style row measuring 98.5px or 133.1px depending on the boot
+(five runs, all four buttons 47px in both modes). 34.6px of noise against 23px of margin: b227's
+verdict was a coin flip that the preceding tests only nudged.
+
+So I stopped hunting the pixel and removed the margin as a concept. Row 1 of the stage grid is
+`minmax(0, min(42vh, 340px))` and the stage carries `max-height: 100%`; the plate takes whatever the
+nine rows of type leave. Eat's clearance is now -73px at 1440x900, 1024x900, 1366x768 and 1280x800
+alike — the same number at four different heights, which is the point.
+
+Three things I got wrong on the way, all measured rather than reasoned:
+- `1fr` on row 1 collapses to min-content when the grid height is indefinite; the foe rendered 96px.
+- `align-self: stretch` is ignored by an `aspect-ratio` box. `height: 100%` + `width: auto` works.
+- `minmax(0, X)` can resolve to 0 when free space is negative — right on a desktop, catastrophic at
+  922x423, where the fixed 64px plate then hung out of the TOP of the card over the screen header.
+  The phone keeps explicit heights and packs from the top instead.
+
+On the phone I also cut the style row from 144px to 48px of a 227px stage (63% of a landscape
+phone's arena was four buttons: `width: min(100%,300px)` gave each 44%-basis cell 132px, b512's
+stacked label then wrapped again inside it, three lines per button, two rows of buttons). One row
+of four with `nowrap` labels. That is what paid for the plates staying inside the card. It was
+bimodal 48/92 until I told BOTH candidate flex containers to stop wrapping — legacy renders the
+buttons directly in `.combat-style-block` on some paints and inside `.combat-style-buttons` on
+others.
+
+Verified: 1440x900, 1024x900, 1366x768, 1280x800, 1920x1080, 922x423, 820x360 measured; screenshots
+read at 1440x900, 1024x900, 1920x1080 and 922x423. Suite twice green on b227; mutation-proved red
+with the stylesheet reverted.
+
+Limitations are in today's HANDOFFS entry, and the style row's remaining 34.6px desktop bimodality
+is in DISCOVERIES — harmless now, but b512's guard cannot see it.

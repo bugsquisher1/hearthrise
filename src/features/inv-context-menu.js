@@ -116,11 +116,9 @@
     var def = (window.ITEMS && window.ITEMS[id]) || null;
     var out = { recipe: r, xp: r ? r.xp : (def && def.buryXp) || 0, why: null };
     if(!r){ out.why = 'No altar rite for this yet'; return out; }
-    var H = window.HearthriseHomestead;
-    if(H && typeof H.hasWorkbench === 'function'){
-      var wb = H.hasWorkbench('prayer');
-      if(wb && !wb.ok){ out.why = wb.reason; return out; }
-    }
+    /* No room read here: Prayer carries no client room gate (the altar ruling);
+       the two gates left are the two the server enforces — a rite must exist,
+       and hr_apply re-checks req_lv against server XP. */
     if(typeof window.getLevel === 'function' && window.getLevel('prayer') < r.req){
       out.why = 'Needs Prayer ' + r.req;
     }

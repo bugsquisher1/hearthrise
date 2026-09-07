@@ -2164,25 +2164,57 @@ const TESTS = [
   }),
   /* b225 — this test used to assert the OPPOSITE ("no kitchen, no cooking").
      The campfire ruling (Tyler, 2026-08-08, binding) reversed it: a tier-1
-     camp has a fire, so it cooks. The gate on the other three artisan skills
-     is unchanged, and this test now guards BOTH halves of that — the exemption
-     is worthless if it quietly leaks to smithing. */
-  () => tryRun('b225: cooking is never gated on the Kitchen; Forge/Workshop/Shrine still are', () => {
+     camp has a fire, so it cooks. The gate on the other artisan skills is
+     unchanged, and this test guards BOTH halves of that — an exemption is
+     worthless if it quietly leaks to smithing.
+
+     PRAYER JOINED IT — the altar ruling (game-designer, 2026-09-07).
+     The Shrine is a tier-4 room whose every rung buys prayerSpeed, and the
+     server's gate on bury_bones/bury_big/bury_dragon is `req_lv` alone
+     (hr_activities has no room column; hr_apply's `activity_locked` branch
+     re-checks the LEVEL against server XP and nothing else). A client-held
+     property tier standing in front of a server capability is CLAUDE §6's
+     residue-ahead class, so the client gate went. This test now pins the
+     exemption SET rather than one member of it: the two rooms that sell a
+     bonus are exempt, the two that sell access are not. */
+  () => tryRun('b225/b521: cooking and prayer are never gated on a room; Forge/Workshop still are', () => {
     const H = window.HearthriseHomestead;
     const G = window.G;
     const savedHomestead = G.homestead, savedRooms = G.rooms, savedSkills = G.skills;
     try {
-      // Fresh camp: no rooms at all → cooking is allowed, everything else is not
+      // Fresh camp: no rooms at all → the two exemptions run, the other two do not
       G.homestead = { tier: 0 }; G.rooms = {}; G.skills = {};
       assert(H.hasWorkbench('cooking').ok === true, 'the open fire cooks — cooking must not be gated');
-      ['smithing', 'crafting', 'prayer'].forEach((s) => {
+      assert(H.hasWorkbench('prayer').ok === true,
+        'b521: the altar takes a bone at the camp — prayer must not be gated on the Shrine');
+      ['smithing', 'crafting'].forEach((s) => {
         const r = H.hasWorkbench(s);
         assert(r.ok === false, s + ' must still require its workbench room');
         assert(typeof r.reason === 'string' && r.reason.length > 0, s + ' must say which room it needs');
       });
-      assert(H.UNGATED && H.UNGATED.cooking === true, 'cooking must be the declared exemption');
-      assert(!H.UNGATED.smithing && !H.UNGATED.crafting && !H.UNGATED.prayer,
-        'only cooking is exempt from the workbench gate');
+      assert(H.UNGATED && H.UNGATED.cooking === true, 'cooking must be a declared exemption');
+      assert(H.UNGATED.prayer === true, 'b521: prayer must be a DECLARED exemption, not an accident of a caller');
+      assert(!H.UNGATED.smithing && !H.UNGATED.crafting,
+        'the exemption leaked to a bench that sells access');
+      /* THE MAPPING SURVIVES THE EXEMPTION. prayerSpeed's lookup, the House
+         room copy and the "Go to Prayer" card all read shrine→prayer, so
+         deleting the row (rather than exempting the skill) would take the
+         Shrine's whole purpose with it — the same reason the campfire kept
+         cooking→kitchen. */
+      assert(H.WORKBENCH.prayer === 'shrine', 'the shrine→prayer mapping must survive the exemption');
+      /* AND THE ROOM CARD MUST STOP CLAIMING TO GATE IT. roomDescriptor pushes
+         a "Gates: <Skill>" fact for any room whose skill is not exempt; the
+         Shrine's card said "Gates: Prayer" for 296 builds. */
+      if (typeof H.roomDescriptor === 'function') {
+        const shrineCard = H.roomDescriptor('shrine');
+        assert(!(shrineCard.now || []).some((f) => f.label === 'Gates'),
+          'the Shrine card still advertises a Gates fact — it sells prayerSpeed, not permission');
+        /* THE CONTROL, so the line above cannot pass because the descriptor
+           stopped emitting Gates facts altogether. */
+        const forgeCard = H.roomDescriptor('forge');
+        assert((forgeCard.now || []).some((f) => f.label === 'Gates' && /Smithing/i.test(f.value)),
+          'the Forge card must still advertise "Gates: Smithing" — without it the Shrine check above is vacuous');
+      }
       /* The Kitchen is still cooking's ROOM (cookSpeed + noBurn come off it), so
          the grandfather pass must still restore it for a veteran cook — in the
          position where the CLIENT is allowed to author a rung.
@@ -27250,28 +27282,57 @@ const TESTS = [
       assert(rec && rec.id === 'bury_bones',
         'bones must resolve to the bury_bones prayer recipe, got ' + JSON.stringify(rec));
 
-      /* 0. THE REQUIREMENT IS STATED BEFORE THE CLICK. Prayer is NOT in
-         homestead's UNGATED set (only cooking is — the campfire ruling), and
-         the Shrine is a tier-4 room, so MOST players meet this branch. It used
-         to be the branch that handed out phantom XP; it must now name the room
-         on a disabled button rather than look live and refuse. */
+      /* 0. NO ROOM GATE REMAINS ON PRAYER (the altar ruling).
+
+         This block used to assert the OPPOSITE — that with no Shrine the Bury
+         button is DISABLED and names the room. The designer re-ruled it on
+         2026-09-07: the Shrine is a tier-4 room that sells prayerSpeed, the
+         server's gate on bury_bones is `req_lv` alone (hr_activities has no
+         room column), and a client-held property tier in front of a server
+         capability is CLAUDE §6's residue-ahead class. So the character below
+         is the one the old gate refused — WANDERER'S CAMP, no rooms at all —
+         and the bench must start for them.
+
+         Deliberately driven through the REAL inventory-detail button rather
+         than by calling buryBones() directly: the gate that shipped lived in
+         that renderer, and a test that only calls the function would have
+         stayed green with the disabled button still on screen. */
       G.inventory = Object.assign({}, G.inventory, { bones: 20 });
       G.homestead = { tier: 0 }; G.rooms = {};
+      G.skills = Object.assign({}, G.skills, { prayer: 0 });   // bury_bones is Prayer 1 = level 1
+      G.activeSkill = null; G.skillTargetId = null;
       stampRecordLikeLoad(G);
+      assert(window.HearthriseHomestead.hasWorkbench('prayer').ok === true,
+        'the Shrine gate is back on prayer — hasWorkbench refused a tier-0 character');
       if(typeof window.openInvDetail === 'function'){
         window.openInvDetail('bones');
         const html = document.body.innerHTML;
-        const m = /<button[^>]*disabled[^>]*>Bury[^<]*<\/button>/.exec(html);
-        assert(m, 'with no Shrine the Bury button must be DISABLED and say why; found: '
+        const live = /<button(?![^>]*disabled)[^>]*onclick="[^"]*buryBones[^"]*"[^>]*>Bury<\/button>/.exec(html);
+        assert(live, 'at the camp, with bones and the level, Bury must be a LIVE button; found: '
           + (/(<button[^>]*>Bury[^<]*<\/button>)/.exec(html) || ['none'])[0]);
-        assert(/Shrine/i.test(m[0]), 'the disabled Bury must name the Shrine, got: ' + m[0]);
+        assert(!/Shrine/i.test(html.slice(Math.max(0, html.indexOf('>Bury') - 400), html.indexOf('>Bury') + 40)),
+          'the Bury affordance still mentions the Shrine');
         if(typeof window.closeInvDetail === 'function') window.closeInvDetail();
       }
+      /* AND THE LEVEL GATE — the one the server DOES enforce — survived the
+         removal. bury_dragon is Prayer 35; at level 1 it must still refuse, or
+         this build traded a wrong gate for no gate at all. */
+      {
+        const deep = window.buryRecipeFor('dragon_bones');
+        assert(deep && deep.req > 1, 'dragon_bones must resolve to a level-gated rite; got ' + JSON.stringify(deep));
+        G.inventory = Object.assign({}, G.inventory, { dragon_bones: 5 });
+        window.openInvDetail && window.openInvDetail('dragon_bones');
+        const dhtml = document.body.innerHTML;
+        const dm = /<button[^>]*disabled[^>]*>Bury[^<]*<\/button>/.exec(dhtml);
+        assert(dm, 'a rite above your Prayer level must still be DISABLED; found: '
+          + (/(<button[^>]*>Bury[^<]*<\/button>)/.exec(dhtml) || ['none'])[0]);
+        assert(/Prayer\s*\d/.test(dm[0]), 'the disabled Bury must name the LEVEL it needs, got: ' + dm[0]);
+        if(typeof window.closeInvDetail === 'function') window.closeInvDetail();
+        delete G.inventory.dragon_bones;
+      }
 
-      // The Shrine is the bench's room — grant it through the RECORD (b456) or
-      // every probe below refuses for the wrong reason (same recipe as b228).
-      G.rooms = Object.assign({}, G.rooms, { shrine: 1 });
-      stampRecordLikeLoad(G);
+      // Still at the CAMP for every probe below — no room is granted, because
+      // none is required. (This is where the first cut granted `shrine:1`.)
       G.inventory = Object.assign({}, G.inventory, { bones: 20 });
       G.skills = Object.assign({}, G.skills, { prayer: 0 });
       G.activeSkill = null; G.skillTargetId = null;
@@ -27333,6 +27394,65 @@ const TESTS = [
       window.notify = realNotify;
       stopBench();
       restoreG(snap);
+    }
+  }),
+
+  /* THE HAZARD THE EXEMPTION CREATED, CLOSED IN THE SAME BUILD.
+
+     ensureState()'s grandfather pass reads "XP in S → you owned WORKBENCH[S]
+     → you were at least at its tier". Until this build that implication held
+     for prayer BY CONSTRUCTION: you could not earn Prayer XP without the
+     Shrine, and the Shrine needs Ironvale Keep. Exempting prayer killed it —
+     from now on a bone is buried at the Wanderer's Camp, and a fresh player
+     who buries one and reloads before ever opening the House tab would have
+     had a TIER-4 KEEP inferred into their residue.
+
+     That is paione's residue-ahead deadlock (2026-09-04) with a bigger number
+     on it: the property heal conforms the residue DOWN to a KNOWN rung, but
+     only a COMPLETE `progress` statement is a known rung, so a truncated one
+     (the 1000-row cap) leaves the phantom keep in place forever — and a
+     phantom keep refuses every room purchase with prereq_property_tier.
+
+     Fails without the `if (UNGATED[skill]) return;` guard in the tier loop and
+     the GRANDFATHER_ROOM_FROM_XP check in the room loop. */
+  () => tryRun('b521: a buried bone must not grandfather Ironvale Keep (the residue-ahead hazard the exemption created)', () => {
+    const H = window.HearthriseHomestead;
+    if(!H || typeof H.ensureState !== 'function' || typeof H.roomMinTier !== 'function'){ skip('homestead API absent'); return; }
+    const G = window.G;
+    const savedHomestead = G.homestead, savedRooms = G.rooms, savedSkills = G.skills;
+    try {
+      const shrineTier = H.roomMinTier('shrine'), forgeTier = H.roomMinTier('forge');
+      assert(shrineTier > 0 && forgeTier > 0, 'both rooms must sit above the camp for this test to mean anything');
+
+      delete G.homestead; G.rooms = {}; G.skills = { prayer: 5000 };
+      stampRecordLikeLoad(G);
+      H.ensureState();
+      assert(G.homestead.tier < shrineTier,
+        'prayer XP inferred a tier-' + G.homestead.tier + ' property from a bone buried at the camp '
+        + '(the Shrine is tier ' + shrineTier + ') — residue-ahead, and unhealable behind a truncated progress read');
+      assert(!((G.rooms || {}).shrine > 0),
+        'prayer XP forged a Shrine rung the server never sold — rooms is server-of-record');
+
+      /* THE CONTROL. A GATED skill's XP still infers its room's tier, so the
+         assertions above cannot pass because the grandfather stopped working
+         altogether. Smithing is not exempt and the Forge is a real gate. */
+      delete G.homestead; G.rooms = {}; G.skills = { smithing: 5000 };
+      stampRecordLikeLoad(G);
+      H.ensureState();
+      assert(G.homestead.tier >= forgeTier,
+        'smithing XP must still infer the Forge tier (' + forgeTier + '), got ' + G.homestead.tier
+        + ' — the grandfather is broken, not selective, and the prayer checks above are vacuous');
+
+      /* AND COOKING KEEPS ITS CAMPFIRE CARVE-OUT: exempt from the GATE but
+         still hands the veteran cook their Kitchen back, which is why the
+         exemption set and the grandfather-evidence set are two lists. */
+      assert(H.GRANDFATHER_ROOM_FROM_XP && H.GRANDFATHER_ROOM_FROM_XP.cooking === true,
+        'b225: cooking must stay in the grandfather-evidence set');
+      assert(!H.GRANDFATHER_ROOM_FROM_XP.prayer,
+        'prayer must not be grandfather evidence — its room was never required to earn the XP');
+    } finally {
+      G.homestead = savedHomestead; G.rooms = savedRooms; G.skills = savedSkills;
+      stampRecordLikeLoad(G);
     }
   }),
 

@@ -453,11 +453,12 @@ const ROOMS={
     {nm:'The Cask Room',    cost:{gold:70000,timber_beam:12,field_ration:20,goldenroot_roast:6}, tier:3, bonus:'Food buffs last +80% longer',  bk:'buffDuration',bv:.80},
     {nm:'The Deep Cellar',  cost:{gold:320000,keystone:2,moonbloom_elixir:4,duskwood_plank:20},  tier:5, bonus:'Food buffs last +100% longer', bk:'buffDuration',bv:1.0}]},
   /* b201 (SYS-1): rooms ARE workbenches — forge gates smithing, workshop gates
-     crafting, shrine gates prayer. See features/homestead.js (property tiers
-     gate which rooms can be built).
-     b225: the Kitchen is NO LONGER one of them — the campfire ruling makes
-     cooking possible from the tier-1 camp and the Kitchen sells reliability
-     (noBurn) instead of permission. Forge/Workshop/Shrine are unchanged. */
+     crafting. See features/homestead.js (property tiers gate which rooms can
+     be built).
+     TWO rooms are NOT permission and their `desc` must never claim to be: the
+     Kitchen (campfire ruling — sells `noBurn`) and the Shrine (altar ruling —
+     the server gates burying on LEVEL; the room sells `prayerSpeed`). The set
+     is UNGATED in features/homestead.js. Forge/Workshop are unchanged. */
   workshop:{name:'Workshop',icon:'🪚',desc:'Craft items faster. Required for Crafting.',levels:[
     /* b227 P1 — THE ROOM-COST DEADLOCK, found by Tyler and confirmed in data.
        This rung cost `normal_plank:15`. The ONLY source of a plank is the
@@ -481,7 +482,7 @@ const ROOMS={
     {nm:'The Sawpit',       cost:{gold:11000,willow_plank:30},                        bonus:'Craft +6%',                  bk:'craftSpeed',bv:.06},
     {nm:'The Lathe',        cost:{gold:50000,iron_fitting:12,maple_plank:30,silk_thread:10}, tier:3, bonus:'Craft +8% · 4% of crafts cost nothing',  bk:'craftSpeed',bv:.08,bx:{craftSave:.04}},
     {nm:"The Master's Shop",cost:{gold:260000,keystone:2,duskwood_plank:25,rune_bar:6},      tier:4, bonus:'Craft +10% · 8% of crafts cost nothing', bk:'craftSpeed',bv:.10,bx:{craftSave:.08}}]},
-  shrine:{name:'Shrine',icon:'⛪',desc:'Bury bones faster. Required for Prayer.',levels:[
+  shrine:{name:'Shrine',icon:'⛪',desc:'Bury bones faster.',levels:[
     {nm:'Wayside Shrine',   cost:{gold:900,bones:40},                                 bonus:'Prayer +2%',                 bk:'prayerSpeed',bv:.02},
     {nm:'Stone Altar',      cost:{gold:3500,big_bones:25},                            bonus:'Prayer +4%',                 bk:'prayerSpeed',bv:.04},
     {nm:'The Chapel',       cost:{gold:13000,dragon_bones:8},                         bonus:'Prayer +6%',                 bk:'prayerSpeed',bv:.06},
@@ -10969,12 +10970,12 @@ function openInvDetail(id){
        now agrees with both. The gates are READ, never re-implemented — one
        wrong copy of "can I bury?" is how the three bury buttons diverged in the
        first place (b265). */
+    /* THE SHRINE BRANCH IS GONE (the altar ruling). It read
+       hasWorkbench('prayer') and disabled this button for every player below
+       Ironvale Keep. The two gates left are the two the server enforces: a
+       rite must exist, and hr_apply re-checks `req_lv` against server XP. */
     let _bWhy = null;
     if(!_br) _bWhy = 'No altar rite for this yet';
-    else if(window.HearthriseHomestead && typeof window.HearthriseHomestead.hasWorkbench==='function'){
-      const _wb = window.HearthriseHomestead.hasWorkbench('prayer');
-      if(_wb && !_wb.ok) _bWhy = _wb.reason;
-    }
     if(!_bWhy && _br && typeof getLevel==='function' && getLevel('prayer') < _br.req){
       _bWhy = 'Needs Prayer ' + _br.req;
     }
@@ -11548,10 +11549,15 @@ window.repurchase = repurchase;
    bury_bones/bury_big/bury_dragon), `benchPayable('prayer')` is true, and the
    accrual engine settles a burial exactly as it settles a smelt. So the Bury
    GESTURE now starts that bench and does nothing else. Every gate the Prayer
-   screen enforces — level, the Shrine workbench, knocked-out recovery, the
-   activity mutex — applies here for free, because this is literally the same
-   call the Prayer screen's own row makes. That is the point: one path, one set
-   of rules, one place the server is told.
+   screen enforces — level, knocked-out recovery, the activity mutex — applies
+   here for free, because this is literally the same call the Prayer screen's
+   own row makes. That is the point: one path, one set of rules, one place the
+   server is told.
+
+   ⚠ AND THE SHRINE IS NOT ONE OF THEM (the altar ruling). It was, in this
+   function's first cut. `hr_activities` has no room column and hr_apply checks
+   `req_lv` alone, so that gate was a client-held property tier in front of a
+   server capability — CLAUDE §6's residue-ahead class.
 
    ⚠ IT IS A RUN, NOT A STACK BURN. The bench consumes one bone per action
    (1.2 s at base) and keeps going while you are away, instead of vanishing
@@ -11588,10 +11594,9 @@ function buryBones(id){
   if(typeof window.startArtisan !== 'function') return null;
   window.startArtisan('prayer', r.id);
   /* THE ONLY HONEST SUCCESS SIGNAL IS THE POINTER startArtisan SET. It refuses
-     by notifying and returning undefined (no level, no Shrine, knocked out, no
-     input), so reading its return value would report every refusal as a
-     success — and a "Burying…" toast on top of "Build the Shrine first" is
-     worse than no toast at all. */
+     by notifying and returning undefined (no level, knocked out, no input), so
+     reading its return value would report every refusal as a success — and a
+     "Burying…" toast on top of "Need Lv 35 prayer" is worse than no toast. */
   if(!(G.activeSkill === 'prayer' && G.skillTargetId === r.id)) return null;
   if(typeof notify==='function'){
     notify('Burying ' + it.n + ' at the altar — ' + r.xp + ' Prayer XP each', 'info');
@@ -16560,8 +16565,9 @@ window.startArtisan = function(skillId, recipeId){
   var r = recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
   /* b201 (SYS-1): rooms are workbenches — no forge, no smithing.
-     b225: cooking is exempt (hasWorkbench returns ok for it — the campfire
-     ruling). The Forge / Workshop / Shrine gates below are unchanged. */
+     The exemptions live in ONE place (homestead.js UNGATED): cooking and
+     prayer return ok with no room. Forge/Workshop are unchanged — the
+     game-designer's to re-rule, not this seam's. */
   if(window.HearthriseHomestead){
     var wb = window.HearthriseHomestead.hasWorkbench(skillId);
     if(!wb.ok){ if(typeof notify==='function') notify(''+wb.reason,'kill'); return; }

@@ -6,17 +6,15 @@
 // resource sink (gold + crafted materials) and unlocks:
 //   • farm-plot capacity        (2 → 12)
 //   • which house ROOMS you may build — rooms ARE the workbenches:
-//       kitchen→cooking, forge→smithing, workshop→crafting, shrine→prayer
-//     …with ONE exception since b225: cooking. The tier-1 camp has a fire,
-//     so it cooks — badly. The Kitchen sells reliability, not permission.
-//     See UNGATED below and src/features/cooking-fire.js.
+//       forge→smithing, workshop→crafting. kitchen and shrine are MAPPED to
+//       cooking and prayer but gate neither: the campfire and altar rulings
+//       sell reliability and speed, never permission. See UNGATED below.
 //   • worker slots (see features/workers.js — idle resource production)
 //   • bonus offline-cap hours (wired into processOffline like renown)
 //   • castle capstone: +5% all XP (wired into getBonus)
 //
-// Grandfathering: existing saves must never lose an ability they had.
-// ensureState() infers a fair starting tier from rooms/plots/XP and
-// auto-grants lv-1 workbenches for artisan skills that already have XP.
+// Grandfathering: ensureState() infers a tier from rooms/plots/XP and restores
+// lv-1 workbenches — for GATED skills only (see UNGATED).
 //
 // Integration points touched in legacy.js (all guarded):
 //   upgradeRoom (tier gate) · buildPlot (plot cap) · startArtisan
@@ -83,24 +81,24 @@
   // room → the artisan skill it enables (rooms ARE the workbenches)
   var WORKBENCH = { cooking: 'kitchen', smithing: 'forge', crafting: 'workshop', prayer: 'shrine' };
 
-  /* b225 — THE CAMPFIRE RULING (Tyler, 2026-08-08, binding; DECISIONS.md and
-     homestead-deepening.md §2 PRODUCT-OWNER AMENDMENT).
+  /* TWO ROOMS SELL A BONUS, NOT PERMISSION. Exempted here rather than unmapped,
+     because the speed/noBurn lookups, the House copy, the "Go to X" cards and
+     the grandfather pass all still read kitchen→cooking and shrine→prayer.
+       • THE CAMPFIRE RULING (Tyler, 2026-08-08; DECISIONS.md,
+         homestead-deepening §2): a tier-1 camp has a fire, so it cooks — badly.
+         The Kitchen sells cookSpeed and `noBurn` (src/features/cooking-fire.js).
+       • THE ALTAR RULING (game-designer, 2026-09-07): "Prayer is NOT gated on
+         the Shrine at any tier." `hr_activities` gates an activity on
+         (req_skill, req_lv) and has NO room column, so hr_apply admits
+         bury_bones at Prayer 1 from a bedroll — the gate was a client-held
+         property tier in front of a server capability, the residue-ahead class
+         CLAUDE §6 forbids by name. The Shrine sells `prayerSpeed`. */
+  var UNGATED = { cooking: true, prayer: true };
 
-     "We can't restrict cooking when users don't have a kitchen. They can cook
-      with the fire in the first tier camp, it just has a chance to burn."
-
-     Cooking is the ONE exception to "rooms are workbenches": the tier-1 camp
-     is a bedroll and A FIRE, and a fire cooks. So the Kitchen keeps its
-     mapping above — it is still cooking's room, still the source of cookSpeed,
-     and now the source of `noBurn` — but it no longer grants PERMISSION.
-     What it sells instead is reliability (src/features/cooking-fire.js).
-
-     Expressed as an explicit exemption set rather than by deleting the mapping
-     because three other readers need cooking→kitchen intact: the grandfather
-     pass below (a veteran with cooking XP still gets their Kitchen back), the
-     cookSpeed bonus lookup, and the House room copy. Smithing on a campfire
-     would be silly; cooking on one is the entire point of a campfire. */
-  var UNGATED = { cooking: true };
+  /* Which UNGATED skills are EVIDENCE of their room when grandfathering: only
+     where the room was REQUIRED to earn the XP. Cooking is the campfire
+     ruling's carve-out; prayer is not (bones bury at the camp). */
+  var GRANDFATHER_ROOM_FROM_XP = { cooking: true };
 
   // min property tier at which each room may be built
   function roomMinTier(roomId) {
@@ -140,7 +138,11 @@
       tier = 1;
       // tier must cover every room they built + every artisan skill they trained
       Object.keys(rooms).forEach(function (r) { if ((rooms[r] || 0) > 0) tier = Math.max(tier, roomMinTier(r)); });
+      /* AN UNGATED SKILL'S XP INFERS NO TIER: a bone buried at the camp would
+         otherwise infer IRONVALE KEEP — residue-ahead, and unhealable behind a
+         truncated progress read (paione, 2026-09-04). */
       Object.keys(WORKBENCH).forEach(function (skill) {
+        if (UNGATED[skill]) return;
         if (srXp(skill) > 0) tier = Math.max(tier, roomMinTier(WORKBENCH[skill]));
       });
       // tier must cover their existing plots
@@ -156,6 +158,7 @@
         G.rooms = G.rooms || {};
         Object.keys(WORKBENCH).forEach(function (skill) {
           var room = WORKBENCH[skill];
+          if (UNGATED[skill] && !GRANDFATHER_ROOM_FROM_XP[skill]) return;  // nor forge the room
           if (srXp(skill) > 0 && !(G.rooms[room] > 0)) G.rooms[room] = 1;
         });
       }
@@ -288,8 +291,7 @@
     };
   }
 
-  // Workbench gate for artisan skills. Skills without a workbench room pass,
-  // and so does anything in UNGATED (b225: cooking — see the ruling above).
+  // Workbench gate. No room mapped, or UNGATED (cooking, prayer) → it passes.
   function hasWorkbench(skill) {
     if (UNGATED[skill]) return { ok: true, ungated: true };
     var room = WORKBENCH[skill];
@@ -1372,6 +1374,7 @@
     TIERS: TIERS,
     WORKBENCH: WORKBENCH,
     UNGATED: UNGATED,
+    GRANDFATHER_ROOM_FROM_XP: GRANDFATHER_ROOM_FROM_XP,
     ensureState: ensureState,
     getTier: getTier,
     tierDef: tierDef,

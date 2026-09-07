@@ -14267,6 +14267,279 @@ const TESTS = [
     }
   }),
 
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     RECOVER-17 / RECOVER-18 (b520) — THE RELOAD THAT STOOD A KNOCKED-OUT HERO UP.
+
+     MEASURED LIVE — hearthrise.net, QA account, 2026-09-07 17:55 UTC, b519.
+     Server `player_state`: `active_kind` idle, `recovering_until` 18:06Z — 11
+     minutes ahead. The page was reloaded and the client came up believing it
+     was fine: `HearthriseAccrual.fallState()` = {phase:'up', answered:false,
+     deathsToday:0}, `isKnockedOut()` false, `recoveringUntilMs()` 0,
+     `hrCombatDownPeek()` false. No banner, no sheet, no countdown.
+
+     ROOT CAUSE — THE IDLE-BOOT HYDRATION CLASS, INSTANCE SIX (b467 inventory,
+     b477 crew, SA-016 hero slots, SA-010 bank rungs, b511 hp, now recovery).
+     The whole recovery mirror — `recovering_until`, `accrued_to`,
+     `deaths_today`, `deaths_lifetime` — lived ONLY inside `applyEnvelopeState`,
+     which runs ONLY on an ACCRUED envelope. An idle hero boots through
+     record.js's hr_load hydration and hr-accrue answers {accrued:false,
+     reason:'idle'}, so nothing ever read the line. None of the four is a
+     residue field and none is server-of-record: there was no other source.
+
+     WHAT IT COST THE PLAYER. b519's `hrRefuseWhileRecovering` mirrors the
+     server's gate by asking `hrCombatDownPeek()` — which was blind. So the tap
+     started a local run, declared it, was refused 409 `recovering` by
+     set-activity.js §(1b), and was stopped by the reconcile with the generic
+     "the hearth did not take that" line instead of the knocked-out sheet.
+
+     THESE TWO TESTS DRIVE THE REAL BOOT PATH — a stubbed `hr_load` through
+     `HearthriseRecord.requestRecord()`, not a hand-called `applyEnvelopeState`
+     — because that hand-call is exactly what kept RECOVER-11 green through this
+     bug for a whole build.
+
+     MUTATION PROOF: delete `hydrationStep('recovery', …)` from src/net/record.js
+     → both RED at their first assertion (`isKnockedOut()` false, phase 'up').
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  () => tryRunAsync('RECOVER-17 (b520): an IDLE BOOT hydrates the recovery line — the reload no longer '
+    + 'stands a knocked-out hero up', async () => {
+    const G = window.G;
+    const R = window.HearthriseRecord;
+    const A = window.HearthriseAccrual;
+    const D = window.HearthriseDeathSheet;
+    if (!R || typeof R.requestRecord !== 'function' || typeof R.getRecordState !== 'function'
+        || !A || typeof A.reconcileRecovery !== 'function' || !D || typeof D.__resetForTest !== 'function'
+        || typeof window.refreshActivityBar !== 'function') {
+      skip('the boot-record / recovery seam is not wired'); return;
+    }
+    /* An honest SKIP rather than a race: if a real load already holds the
+       single-flight latch, `requestRecord` would hand us ITS verdict. */
+    if (R.getRecordState().pending) { skip('a record load is already in flight'); return; }
+
+    const snap = snapshotG();
+    const realFetch = window.fetch;
+    const recBefore = (G && G._record) ? JSON.parse(JSON.stringify(G._record)) : null;
+    const hadConfig = !!(typeof R.getRecordConfig === 'function' && R.getRecordConfig());
+    const until = Date.now() + 11 * 60000;
+    let asked = 0;
+    try {
+      D.__resetForTest();                 // stands the fixture up, through an envelope
+      A.clearFall();
+      /* THE MEASURED SHAPE: nothing declared, hurt, and down. */
+      G.activeMonster = null; G.activeSkill = null; G.skillTargetId = null;
+      G.activeArtisanRecipe = null; G.activeAction = null;
+      G.playerMaxHp = 13; G.playerHp = 5;
+      assert(!A.isKnockedOut() && A.fallState().phase === 'up',
+        'the fixture did not start on its feet, so nothing below would prove anything: '
+        + JSON.stringify(A.fallState()));
+
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        asked++;
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          version: ((recBefore && Number(recBefore.version)) || 0) + 1,
+          now: new Date().toISOString(),
+          state: {
+            slot: 0,
+            gold: Math.floor(Number(G.gold) || 0),      // a no-op write; the record needs one field
+            accrued_to: new Date().toISOString(),
+            active_kind: 'idle', active_id: null,       // ← THE IDLE BOOT
+            hp: 5, max_hp: 13,
+            recovering_until: new Date(until).toISOString(),
+            deaths_today: 2, deaths_lifetime: 5,
+          },
+        }), { status: 200 }));
+      };
+      if (!hadConfig) {
+        R.configureRecord({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      }
+
+      const verdict = await R.requestRecord();
+      assert(asked === 1 && verdict && verdict.outcome === 'loaded',
+        'the fixture boot read did not land (' + asked + ' asks): ' + JSON.stringify(verdict));
+
+      /* ① THE LINE ARRIVED. This is the whole bug: before the fix the boot body
+            carried `recovering_until` and NOTHING read it. */
+      assert(A.isKnockedOut(),
+        'an IDLE boot carrying a live `recovering_until` came up ON ITS FEET. That is the b519 bug: '
+        + 'the hero is down for 11 more minutes, the server refuses every payable kind, and the client '
+        + 'does not know: ' + JSON.stringify(A.fallState()));
+      const st = A.fallState();
+      assert(st.phase === 'recovering' && Math.abs(st.until - until) < 1500,
+        'the fall-state machine did not end in `recovering` at the SERVER instant: ' + JSON.stringify(st));
+      assert(A.recoveringUntilMs() === st.until && typeof window.hrCombatDownPeek === 'function'
+        && window.hrCombatDownPeek() === true,
+        'the gate every start reads (`hrCombatDownPeek`) is still blind after the boot: '
+        + window.hrCombatDownPeek());
+
+      /* ② AND THE DEATH COUNTERS CAME WITH IT — the sheet renders the server's
+            ladder rung from these rather than re-deriving one from the lifetime
+            tally, which is how it once promised 2 minutes for a free fall. */
+      assert(A.deathsToday() === 2 && A.deathsLifetime() === 5,
+        'the boot did not hydrate the server\'s death counters: today=' + A.deathsToday()
+        + ' lifetime=' + A.deathsLifetime());
+      assert(A.accruedToMs() > 0, 'the boot did not hydrate the priced-window watermark');
+
+      /* ③ THE ALWAYS-ON READOUT NAMES THE COUNTDOWN. The pointer is IDLE, which
+            before b520 fell straight through to "Idle — pick an activity": the
+            one surface on screen for every second of the knockout said nothing
+            about it. */
+      window.refreshActivityBar();
+      const nameEl = document.getElementById('ab-name');
+      if (nameEl) {
+        assert(/Knocked out/.test(nameEl.textContent) && /1[01]m/.test(nameEl.textContent),
+          'the activity bar does not name the knockout after an IDLE boot: ' + nameEl.textContent);
+      }
+      const bar = document.getElementById('activity-bar');
+      if (bar) {
+        assert(bar.classList.contains('knocked-out') && !bar.classList.contains('idle'),
+          'the bar is still styled as an idle character while the server has them on the floor: '
+          + bar.className);
+      }
+
+      /* ④ AND THE SHEET RAISED ITSELF OFF THE SAME BOOT, with the bag already
+            hydrated — which is why the recovery step runs AFTER inventory. */
+      const scrim = document.getElementById('hr-death-scrim');
+      assert(scrim && scrim.classList.contains('show'),
+        'a reload into a live knockout showed the player NOTHING — no sheet, no countdown, no Rest');
+
+      /* ⑤ AND NO STEP THREW ON THE WAY. `partial` is the boot's own casualty list. */
+      const boot = (typeof R.bootHydrationState === 'function') ? R.bootHydrationState() : null;
+      assert(!boot || !Array.isArray(boot.partial) || boot.partial.indexOf('recovery') === -1,
+        'the recovery hydration step THREW: ' + JSON.stringify(boot && boot.partial));
+    } finally {
+      window.fetch = realFetch;
+      if (!hadConfig) { try { R.configureRecord(null); } catch (e) {} }
+      try { D.__resetForTest(); } catch (e) {}   // retires the line the only legal way
+      try { A.clearFall(); } catch (e) {}
+      restoreG(snap);
+      try { if (recBefore) window.G._record = recBefore; else delete window.G._record; } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('RECOVER-18 (b520): after that boot, a tap on a gather node is REFUSED and answered '
+    + 'by the sheet — the b519 gate is no longer blind on a reload', async () => {
+    const G = window.G;
+    const R = window.HearthriseRecord;
+    const A = window.HearthriseAccrual;
+    const D = window.HearthriseDeathSheet;
+    const M = window.HearthriseActivity;
+    const spot = (window.FISH_SPOTS || []).find((f) => f.id === 'shrimp_s') || (window.FISH_SPOTS || [])[0];
+    if (!R || typeof R.requestRecord !== 'function' || typeof R.getRecordState !== 'function'
+        || !A || typeof A.reconcileRecovery !== 'function' || !D || typeof D.__resetForTest !== 'function'
+        || !M || typeof M.declare !== 'function' || !spot
+        || typeof window.startSkill !== 'function' || typeof window.__isSkillLoopArmed !== 'function') {
+      skip('the boot-record / recovery / activity seam is not wired'); return;
+    }
+    if (R.getRecordState().pending) { skip('a record load is already in flight'); return; }
+
+    const snap = snapshotG();
+    const realFetch = window.fetch;
+    const realDeclare = M.declare;
+    const recBefore = (G && G._record) ? JSON.parse(JSON.stringify(G._record)) : null;
+    const hadConfig = !!(typeof R.getRecordConfig === 'function' && R.getRecordConfig());
+    const until = Date.now() + 11 * 60000;
+    let calls = [];
+    const scrim = () => document.getElementById('hr-death-scrim');
+    const up = () => { const el = scrim(); return !!(el && el.classList.contains('show')); };
+    try {
+      D.__resetForTest();
+      A.clearFall();
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      M.setConfirmedActivity(null);
+      /* THE SPY IS THE LAST THING BEFORE THE TRANSPORT (the B348 family's
+         placement): it proves no declaration was even attempted, and it is what
+         keeps this test off the network. */
+      M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
+      G.activeMonster = null; G.activeSkill = null; G.skillTargetId = null;
+      G.playerMaxHp = 13; G.playerHp = 5;
+
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true,
+          version: ((recBefore && Number(recBefore.version)) || 0) + 1,
+          now: new Date().toISOString(),
+          state: {
+            slot: 0, gold: Math.floor(Number(G.gold) || 0),
+            accrued_to: new Date().toISOString(),
+            active_kind: 'idle', active_id: null,
+            hp: 5, max_hp: 13,
+            recovering_until: new Date(until).toISOString(),
+            deaths_today: 2, deaths_lifetime: 5,
+          },
+        }), { status: 200 }));
+      };
+      if (!hadConfig) {
+        R.configureRecord({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      }
+
+      const verdict = await R.requestRecord();
+      assert(verdict && verdict.outcome === 'loaded',
+        'the fixture boot read did not land: ' + JSON.stringify(verdict));
+      assert(A.isKnockedOut(),
+        'the boot did not hydrate the knockout, so the tap below would prove nothing: '
+        + JSON.stringify(A.fallState()));
+
+      /* THE PLAYER DISMISSES the sheet the boot raised. From here only the TAP
+         can put one back for this window (`dismissedUntil` refuses every
+         envelope-driven raise), so ② cannot pass by accident. */
+      D.close();
+      assert(!up(), 'the fixture could not put the sheet away, so the tap would prove nothing');
+      const invBefore = JSON.stringify(G.inventory || {});
+      calls = [];
+
+      /* ① THE TAP — the exact gesture measured live at 17:22 UTC. */
+      window.startSkill('fishing', spot.id, spot.ms);
+
+      assert(!G.activeSkill && !G.skillTargetId,
+        'a knocked-out character started a gathering run after a RELOAD (' + G.activeSkill + '/'
+        + G.skillTargetId + '). The server refuses every payable kind inside a recovery window, so '
+        + 'every item this run paints is invented and gone on the next reload');
+      assert(!window.__isSkillLoopArmed(),
+        'the pointer stayed clear and the TIMER was armed anyway — a phantom loop with nothing on '
+        + 'screen to explain it');
+      assert(calls.length === 0,
+        'the refused start still DECLARED (' + JSON.stringify(calls) + '): a round trip bought to be '
+        + 'told `recovering` by a server the client could already have asked itself');
+
+      /* ② AND THE PLAYER IS TOLD, on the surface that owns the fact. */
+      assert(up(),
+        'the tap was refused in SILENCE after a reload. A player who taps a fishing spot and sees '
+        + 'nothing happen files "the game ignored me", and they are right to');
+      assert(/Back on your feet in|Knocked out/.test((scrim().textContent) || ''),
+        'the sheet that answered the tap is not the recovery sheet: '
+        + ((scrim().textContent) || '').slice(0, 140));
+      assert(JSON.stringify(G.inventory || {}) === invBefore,
+        'the refused tap still moved the bag: ' + JSON.stringify(G.inventory || {}).slice(0, 160));
+
+      /* ③ THE CONTROL. Stand the hero up and the same tap must work completely,
+            or a gate that refused everything forever would pass everything above. */
+      D.__resetForTest();
+      assert(!A.isKnockedOut(), 'the control could not stand the hero up: ' + JSON.stringify(A.fallState()));
+      calls = [];
+      window.startSkill('fishing', spot.id, spot.ms);
+      assert(G.activeSkill === 'fishing' && G.skillTargetId === spot.id,
+        'CONTROL: a hero who is UP could not start fishing (' + G.activeSkill + '/' + G.skillTargetId
+        + ') — the gate is refusing more than the server does');
+      assert(calls.length === 1 && calls[0].kind === 'gather' && calls[0].id === spot.id,
+        'CONTROL: the run did not declare itself (' + JSON.stringify(calls) + ')');
+    } finally {
+      window.fetch = realFetch;
+      M.declare = realDeclare;
+      if (!hadConfig) { try { R.configureRecord(null); } catch (e) {} }
+      try { M.setConfirmedActivity(null); } catch (e) {}
+      try { window.stopSkill(); } catch (e) {}
+      try { D.__resetForTest(); } catch (e) {}
+      try { A.clearFall(); } catch (e) {}
+      restoreG(snap);
+      try { if (recBefore) window.G._record = recBefore; else delete window.G._record; } catch (e) {}
+    }
+  }),
+
   () => tryRun('RECOVER-9: the one-time Auto-Eat switch-on is offered ONCE and never after a decision', () => {
     const A = window.HearthriseAccrual;
     const AU = window.HearthriseAuto;

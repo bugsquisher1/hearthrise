@@ -1798,6 +1798,83 @@ function assertActivityDeclaration(){
   return declareActivity(p.kind,p.id);
 }
 window.assertActivityDeclaration=assertActivityDeclaration;
+/* ══════════════════════════════════════════════════════════════════════════
+   b519 — THE CLIENT MIRROR OF THE SERVER'S RECOVERY GATE.
+
+   CONTRACT: supabase/functions/hr-accrue/set-activity.js §(1b). While
+   `player_state.recovering_until` is ahead of the SERVER clock, `set_activity`
+   refuses EVERY payable kind — `PAYABLE_KINDS = ['combat','gather','artisan']`
+   — with a 409 `recovering`, before `hr_apply` and therefore before any
+   `player_intents` row exists. `idle` is always allowed and nothing
+   non-payable is gated: a knockout stops the character EARNING, it does not
+   lock the player out of building, shopping, travelling, the market or the clan.
+
+   MEASURED LIVE (hearthrise.net, QA slot 2, 2026-09-07 17:22 UTC): knocked out
+   with 44 minutes left, the player tapped a fishing spot and the client started
+   the local gather loop anyway. Four minutes of "Fishing — shrimp s", an
+   "Active" badge, a Qty badge climbing 37 → 51 and a header inventing
+   "Level 7 · 712/857 XP" — every byte of it client-authored, refused by the
+   server the whole time, gone on reload. The server was right; the client
+   simply never asked itself the question the server was about to answer.
+
+   ⚠ THE PREDICATE IS `declarationFor`, NOT A LIST OF KINDS, and that is what
+     keeps this a MIRROR rather than a second opinion. The server gates on the
+     kind of the DECLARATION it built (so a cooking recipe, which downgrades to
+     `idle`, is not gated); this asks the same module the wire asks, so the two
+     answers are the same answer by construction — and the day the cooking bench
+     becomes payable, both sides start gating it with no edit here.
+
+   ⚠ `_activityQuiet` IS THE ESCAPE HATCH AND IT IS LOAD-BEARING. The reconcile
+     restarts a run by calling these same start functions inside
+     `activityQuietly` — the server telling the client to resume the fight it
+     already owns. Refusing there would be the client overruling an envelope,
+     which is the exact inverse of this fix.
+
+   Returns true when the caller must NOT start. The player is told on the
+   surface that owns the fact: the knocked-out sheet, with the countdown drawn
+   from the server's absolute instant and Rest as the primary action. `show()`
+   directly rather than `maybeRaiseRecovery()` because this is an ANSWER TO A
+   TAP — the raise latch exists to stop envelopes re-opening a dismissed sheet,
+   and a player who dismissed it and then tapped a fishing spot has asked the
+   question again and is owed the answer again. */
+function hrRefuseWhileRecovering(kind,id){
+  if(_activityQuiet)return false;                       // the SERVER is driving
+  if(typeof hrCombatDownPeek!=='function'||!hrCombatDownPeek())return false;
+  const M=window.HearthriseActivity;
+  const d=(M&&typeof M.declarationFor==='function')?M.declarationFor(kind,id):{kind:kind,id:id};
+  if(!d||d.kind==='idle')return false;                  // idle and unpayable are never gated
+  try{
+    const S=window.HearthriseDeathSheet;
+    if(S&&typeof S.show==='function'){ S.show(null,null); }
+    else if(typeof notify==='function'){ notify('Still recovering — nothing earns until you are up.','kill'); }
+  }catch(e){}
+  return true;
+}
+window.hrRefuseWhileRecovering=hrRefuseWhileRecovering;
+/* ── A STOP THE PLAYER DID NOT ASK FOR IS OWED A REASON (b519) ─────────────
+   The reconcile stops an unconfirmed run because the server does not own it.
+   Silently, that is indistinguishable from the game losing the player's tap —
+   and "it just stops by itself" is a worse bug report than the one this fixes.
+   The knockout is BY FAR the commonest cause and it has a surface of its own,
+   so it gets the sheet; everything else gets one line and the console keeps the
+   detail. Never throws: every caller is inside a network answer nobody sees. */
+function explainUnownedStop(was){
+  try{
+    const what=was?(was.kind+(was.id?':'+was.id:'')):'an activity';
+    const down=(typeof hrCombatDownPeek==='function')&&hrCombatDownPeek();
+    console.warn('[activity] the server says idle and never acknowledged '+what
+      +' — stopping it. A run the server does not own earns nothing'
+      +(down?' (this character is knocked out; the server refuses every payable kind until the '
+              +'recovery line passes)':''));
+    const S=window.HearthriseDeathSheet;
+    if(down&&S&&typeof S.show==='function'){ S.show(null,null); return; }
+    if(typeof notify==='function'){
+      notify(down?'Still recovering — nothing earns until you are up.'
+                 :'The hearth did not take that — the activity stopped.','kill');
+    }
+  }catch(e){}
+}
+window.explainUnownedStop=explainUnownedStop;
 /* Move the local pointer to what the SERVER says, without declaring it back.
    ══════════════════════════════════════════════════════════════════════════
    b348 — TWO CHANGES, AND THE SECOND IS A RULING.
@@ -1811,37 +1888,61 @@ window.assertActivityDeclaration=assertActivityDeclaration;
        ACCRUAL ENGINE reads — rather than through a fresh if/else per skill is
        what keeps the two sides agreeing about which skill a node belongs to.
 
-   (2) A SERVER `idle` MAY NOT STOP A RUN THE SERVER WAS NEVER TOLD ABOUT.
-       This is the ruling, and it is narrow on purpose.
+   (2) A SERVER `idle` STOPS AN UNCONFIRMED RUN. **THE b348 RULING IS RETIRED**
+       (b519, measured live on hearthrise.net 2026-09-07 17:22 UTC).
 
-       `idle` on the wire is two different sentences: "you stopped, and I know
-       because you told me" and "I have no idea what you are doing". The first
-       is authority and the client must obey it. The second is the ABSENCE of
-       authority — the server holds `active_kind='idle'` for every character
-       that has never declared anything, which after b348 is every existing beta
-       save and, for the whole of Tyler's failed test, his — and obeying it
-       ends the player's session on the strength of a statement nobody made.
+       b348 read `idle` as two different sentences — "you stopped, and I know
+       because you told me" (authority) and "I have no idea what you are doing"
+       (a pre-seam save) — and answered the second by RE-DECLARING rather than
+       stopping, so a player whose save predated the seam was not thrown out of
+       their session. That was correct for exactly as long as such saves
+       existed. The cutover is complete and the beta was wiped: there is no
+       character left whose activity the server has never heard of unless the
+       server REFUSED to hear it, and in that state re-declaring is not
+       self-healing, it is a client running a loop the server has said no to.
 
-       `isActivityConfirmed` is what tells them apart: it is true only for a
-       {kind,id} this client SENT and the server then reported back as its own.
-       So:
+       WHAT IT COST, MEASURED. QA slot 2, hero KNOCKED OUT
+       (`recovering_until` 44 minutes ahead), server `active_kind=idle`. The
+       player taps a fishing spot. `startSkill` arms the local loop and declares
+       `gather:shrimp_s`; the server refuses it — `set-activity.js` §(1b)
+       refuses EVERY payable kind inside a recovery window, BEFORE `hr_apply`,
+       so there is not even a `player_intents` row — and answers with its own
+       pointer, `idle`. This branch then re-declared, was refused again, and
+       gave up on the latch. The LOOP never stopped: for four minutes the Qty
+       badge climbed 37 → 51 and the Fishing header invented a level-up, all of
+       it client-authored, none of it real, and all of it gone on reload. That
+       is §1 ("nothing is authored by the client — ever") failing in the one
+       place the seam exists to hold.
+
+       THE RULE NOW. `isActivityConfirmed` still tells the two `idle`s apart,
+       and both answers now converge on the server:
          • confirmed → the server was told and now says idle → STOP. Authority.
-         • not confirmed → the server was never told → do NOT stop; DECLARE,
-           once, and let the answer settle it. Self-correcting rather than
-           destructive, and it converges in one round trip.
+         • not confirmed → the server does not own this run → STOP, and TELL the
+           player why (the recovery sheet when they are down, a line otherwise).
+           A run the server will not own earns nothing; letting it keep painting
+           is the one thing a client may never do.
+       TWO NARROW EXCEPTIONS, both of them "this answer is not about this run":
+         • an artisan run and a server `idle` are in AGREEMENT (`declarationFor`
+           downgrades an unpayable recipe to `idle`), so there is nothing to
+           reconcile — kept verbatim from b348;
+         • a NEWER gesture is already queued in the transport, which makes this
+           answer stale by construction; the queued declaration owns the
+           outcome. Without this, a fast second tap would be stopped by the
+           answer to the first.
+       An UNANSWERED call (`unreachable`/`timeout`) never reaches this function
+       at all — src/net/activity.js `settle` marks it `unresolved` and fires no
+       reconcile — so a network blip still cannot stop a player's run.
 
        WHY THIS DOES NOT REOPEN b339. The replacement sheet exists because
        `applyEnvelopeState` REPLACES gold, skills and inventory with the server
        character's, permanently. That gate is on the ENVELOPE and is untouched:
        `applyIntentEnvelope` still calls `describeReplacement` and still refuses
        until the player consents. This function writes no game value at all — it
-       starts and stops loops — and re-declaring sends an intent, it does not
-       apply an envelope. The two are orthogonal, and a test asserts it: a
-       reconcile that arrives while the replacement gate is refusing must move
-       the loops and must not move gold. What WOULD reopen b339 is the opposite
-       change — letting an unconfirmed `idle` stop the run and then applying the
-       fresh server character over the top — which is precisely the pair of
-       events Tyler hit.
+       starts and stops loops. The pair of events Tyler hit in b348 was an
+       unconfirmed stop FOLLOWED BY the fresh server character being applied
+       over the top; the second half is what did the damage and it is still
+       gated, with a test that asserts a reconcile arriving while the gate is
+       refusing moves the loops and moves no gold (B348-8).
    ══════════════════════════════════════════════════════════════════════════ */
 /* ── THE CARRIED FIGHT, APPLIED (b372 / F18) ───────────────────────────────
    `startCombat()` sets `monsterHp = m.hp` — it starts a fight, which is the
@@ -1926,25 +2027,30 @@ function reconcileActivityPointer(a,fight){
       const d=(M&&typeof M.declarationFor==='function')?M.declarationFor(local.kind,local.id):null;
       const told=!!(d&&typeof M.isActivityConfirmed==='function'&&M.isActivityConfirmed(d.kind,d.id));
       if(d&&d.kind==='idle'&&told)return {kind:'idle',id:null,agreed:true};
-      if(!told){
-        /* THE b348 RULING. Not an error and not a warning the player sees — it
-           is the ordinary state of a save written before the seam existed. */
-        console.log('[activity] the server says idle but was never told about '
-          +local.kind+(local.id?':'+local.id:'')+' — declaring it rather than stopping the player');
-        return {kind:local.kind,id:local.id,undeclared:true};
-      }
-      /* Told, acknowledged, and now the server says the run is over. Authority. */
+      /* STALE BY CONSTRUCTION. The transport coalesces — one gesture in flight,
+         the newest tap queued behind it — so an answer that arrives while a
+         NEWER declaration is queued is an answer about the previous tap. Acting
+         on it would stop the run the player just started, one round trip before
+         its own declaration was even sent. */
+      const st=(M&&typeof M.getActivityState==='function')?M.getActivityState():null;
+      if(st&&st.queued)return {kind:local.kind,id:local.id,stale:true};
+      /* SERVER AUTHORITY, BOTH WAYS (b519 — see ruling (2) above). Told or
+         never told, the server does not own this run, so it stops. Quiet: the
+         server already holds `idle`, and declaring it back would be the client
+         telling the server something the server just said. */
       if(G.activeMonster&&typeof stopCombat==='function')stopCombat();
       if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
-      return {kind:'idle',id:null};
+      return {kind:'idle',id:null,stopped:told?'confirmed':'unconfirmed',
+        was:{kind:local.kind,id:local.id==null?null:local.id}};
     }
     return null;
   });
-  /* OUTSIDE the quiet block, deliberately: this is the one declaration the
-     reconcile is allowed to make, and making it inside would be swallowed by
-     the very counter that stops a reconcile from echoing. Bounded by
-     `assertActivityDeclaration`'s own latch. */
-  if(applied&&applied.undeclared)assertActivityDeclaration();
+  /* OUTSIDE the quiet block, deliberately, for the same reason the declaration
+     that used to live here was: a stop the PLAYER did not ask for is owed an
+     explanation, and rendering it inside the quiet block would put a sheet up
+     from underneath a reconcile. Only the unconfirmed case is a surprise — a
+     confirmed stop is the player's own Stop coming back. */
+  if(applied&&applied.stopped==='unconfirmed')explainUnownedStop(applied.was);
   return applied||{kind:kind||'idle',id:id==null?null:id};
 }
 window.reconcileActivityPointer=reconcileActivityPointer;
@@ -16463,10 +16569,35 @@ var q = function(fn){
   if(typeof window.activityQuietly === 'function') return window.activityQuietly(fn);
   return fn();
 };
+/* ── b519: THE RECOVERY GATE RIDES THE MUTEX ───────────────────────────────
+   The three payable kinds have three separate start functions in three
+   separate blocks, and the client's mirror of the server's recovery refusal
+   (`hrRefuseWhileRecovering`, block 0) is one policy over all three. This is
+   already the one place that holds a cross-cutting policy over exactly that
+   set, so the gate goes HERE rather than into a fourth wrapper per kind — the
+   `showTab`-is-wrapped-23-times mistake, which is how combat came to be the
+   only kind b347 wired.
+
+   ⚠ OUTERMOST, BEFORE ANY LOCAL STATE MOVES. The whole defect is a local loop
+     that started before the answer came back, so the refusal has to land ahead
+     of the cross-stop, the pointer write and the timers — a gate that fires
+     after `orig` has armed the interval is not a gate.
+   ⚠ AND IT DEGRADES OPEN. If block 0 did not load there is no gate, exactly as
+     `q` degrades to a plain call: a client that refuses to start anything
+     because a helper is missing is a worse bug than the one being fixed. */
+var recovering = function(kind, id){
+  if(typeof window.hrRefuseWhileRecovering !== 'function') return false;
+  try{ return !!window.hrRefuseWhileRecovering(kind, id); }catch(e){ return false; }
+};
 (function(){
   var orig = window.startCombat;
   if(typeof orig !== 'function') return;
   window.startCombat = function(mId){
+    /* THE TOGGLE-OFF IS A STOP, AND A STOP IS NEVER GATED — `idle` is always
+       allowed, server-side too. startCombat(activeMonster) means "stop this
+       fight", and refusing it would trap a knocked-out player in a fight they
+       are trying to leave. */
+    if(G.activeMonster !== mId && recovering('combat', mId)) return;
     q(function(){
       if(typeof stopSkill === 'function') stopSkill();
       if(typeof window._stopArtisan === 'function') window._stopArtisan();
@@ -16478,6 +16609,7 @@ var q = function(fn){
   var orig = window.startSkill;
   if(typeof orig !== 'function') return;
   window.startSkill = function(type, targetId, ms){
+    if(recovering('gather', targetId)) return;
     if(G.activeMonster && typeof stopCombat === 'function') q(stopCombat);
     return orig.apply(this, arguments);
   };
@@ -16486,6 +16618,7 @@ var q = function(fn){
   var orig = window.startArtisan;
   if(typeof orig !== 'function') return;
   window.startArtisan = function(skillId, recipeId){
+    if(recovering('artisan', recipeId)) return;
     if(G.activeMonster && typeof stopCombat === 'function') q(stopCombat);
     return orig.apply(this, arguments);
   };

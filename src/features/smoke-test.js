@@ -14017,6 +14017,155 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('RECOVER-16 (b519): KNOCKED OUT, a tap on a gather node starts NO local loop — the sheet '
+    + 'answers the tap and nothing is painted the server will not own', () => {
+    /* ══ MEASURED LIVE — hearthrise.net, QA slot 2, 2026-09-07 17:22 UTC ═════
+       Hero KNOCKED OUT (`fallState()` = {phase:'recovering'}, 44 minutes to
+       go), server `active_kind=idle` after a Stop. The player taps Fishing →
+       Shrimp Spot and the client starts the LOCAL gather loop: banner
+       "Fishing — shrimp s", an "Active" badge, the Shrimp card's Qty badge
+       climbing 37 → 51 over four minutes, and the Fishing header reading
+       "Level 7 · 712/857 XP" while the left rail still said 6 — a display
+       prediction that invented a level-up out of a run that did not exist.
+
+       WHAT THE SERVER DID. Nothing, because it refused: set-activity.js §(1b)
+       refuses EVERY payable kind while `recovering_until` is ahead of the
+       server clock, BEFORE hr_apply, so `player_intents` held no
+       `set_activity:gather:shrimp_s` row at all and server fishing xp stayed
+       at 604. The client was refused twice and kept painting anyway, because
+       the b348 ruling read the refusal's `idle` as "the server was never told"
+       and re-declared instead of stopping.
+
+       Everything the player saw for four minutes was client-authored and
+       vanished on reload. That is §1 failing at the seam that exists to hold
+       it, and it is the "it doesn't stay" class Paione reported.
+
+       THIS TEST IS THE ATTENDED HALF (§4 both-path). The away half is the
+       server's own gate, which is asserted where it lives — the away path
+       cannot start an activity at all.
+
+       MUTATION: delete the `recovering(...)` line from block 22's startSkill
+       wrapper → ② and ③ RED. Make `hrRefuseWhileRecovering` ignore
+       `hrCombatDownPeek()` → ⑤ RED (the control stops proving anything). */
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const D = window.HearthriseDeathSheet;
+    const M = window.HearthriseActivity;
+    const SR = window.HearthriseSkillRecord;
+    const spot = (window.FISH_SPOTS || []).find((f) => f.id === 'shrimp_s') || (window.FISH_SPOTS || [])[0];
+    if (!A || typeof A.applyEnvelopeState !== 'function' || !D || typeof D.__resetForTest !== 'function'
+        || !M || typeof M.declare !== 'function' || !spot
+        || typeof window.startSkill !== 'function' || typeof window.__isSkillLoopArmed !== 'function') {
+      skip('the recovery/activity seam is not wired'); return;
+    }
+
+    const snap = snapshotG();
+    const wasOn = A.isServerAccrualEnabled();
+    const realDeclare = M.declare;
+    let calls = [];
+    const scrim = () => document.getElementById('hr-death-scrim');
+    const up = () => { const el = scrim(); return !!(el && el.classList.contains('show')); };
+    const envelope = (until) => A.applyEnvelopeState(G, {
+      state: {
+        accrued_to: new Date().toISOString(),
+        recovering_until: until ? new Date(until).toISOString() : null,
+      },
+    });
+    /* THE DISPLAY read, not the raw blob — the header that invented "Level 7"
+       reads through exactly this. */
+    const shownXp = () => (SR && typeof SR.skillXpForDisplay === 'function'
+      ? SR.skillXpForDisplay(G, 'fishing').value : (G.skills && G.skills.fishing) || 0);
+    try {
+      A.setServerAccrualEnabled(true);
+      D.__resetForTest();
+      /* THE SPY IS THE LAST THING BEFORE THE TRANSPORT (same placement as the
+         B348 family): it proves no declaration was even attempted, and it is
+         what keeps this test off the network. */
+      M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      M.setConfirmedActivity(null);
+      /* HURT, so the relief valve is on the sheet at all: `Rest at the Hearth`
+         is offered only while the timer runs AND there is health to buy back,
+         because `hr_rest` refuses both of those cases server-side. */
+      G.playerMaxHp = 13; G.playerHp = 5;
+
+      /* ① THE SERVER STATES THE KNOCKOUT, and the player DISMISSES the sheet
+            it raises. From here the only thing that can put a sheet back on
+            screen for this window is the tap itself — `dismissedUntil` refuses
+            every envelope-driven raise — so ③ cannot pass by accident. */
+      envelope(Date.now() + 44 * 60000);
+      assert(A.isKnockedOut(), 'the fixture never reached a knockout: ' + JSON.stringify(A.fallState()));
+      D.close();
+      assert(!up(), 'the fixture could not put the sheet away, so ③ would prove nothing');
+
+      const invBefore = JSON.stringify(G.inventory || {});
+      const xpBefore = shownXp();
+      calls = [];
+
+      /* ② THE TAP. */
+      window.startSkill('fishing', spot.id, spot.ms);
+
+      assert(!G.activeSkill && !G.skillTargetId,
+        'a knocked-out character started a gathering run (' + G.activeSkill + '/' + G.skillTargetId
+        + '). The server refuses every payable kind inside a recovery window, so this run can never be '
+        + 'paid, can never be reloaded, and every item it paints is invented');
+      assert(!window.__isSkillLoopArmed(),
+        'the pointer stayed clear and the TIMER was armed anyway — an invisible loop calling '
+        + 'doSkillAction is the same phantom production with nothing on screen to explain it');
+      assert(calls.length === 0,
+        'the refused start still DECLARED (' + JSON.stringify(calls) + '). The client knows the answer '
+        + 'before it asks: spending an idempotency key and a rate budget to be told `recovering` is a '
+        + 'round trip bought to learn nothing');
+
+      /* ③ AND THE PLAYER IS TOLD, on the surface that owns the fact. A refusal
+            with no answer on screen is indistinguishable from a dropped tap —
+            which is the bug report this fix would otherwise trade for. */
+      assert(up(),
+        'the tap was refused in SILENCE. A player who taps a fishing spot and sees nothing happen files '
+        + '"the game ignored me", and they are right to');
+      assert(/Back on your feet in|Knocked out/.test((scrim().textContent) || ''),
+        'the sheet that answered the tap is not the recovery sheet: '
+        + ((scrim().textContent) || '').slice(0, 140));
+      assert(!!scrim().querySelector('[data-act="rest"]'),
+        'the recovery sheet offered no Rest control — the one action that shortens the wait is the reason '
+        + 'this sheet is the right answer to the tap rather than a toast. Asserted as the CONTROL rather '
+        + 'than its label, because the label is "No food to rest with" for a player with an empty bag and '
+        + 'that is still the right answer to the tap');
+
+      /* ④ AND NOTHING MOVED. The bag and the DISPLAY xp — the two surfaces the
+            live bug painted — are byte-identical to before the tap. */
+      assert(JSON.stringify(G.inventory || {}) === invBefore,
+        'the refused tap still moved the bag: ' + JSON.stringify(G.inventory || {}).slice(0, 160));
+      assert(shownXp() === xpBefore,
+        'the refused tap moved the DISPLAYED fishing xp from ' + xpBefore + ' to ' + shownXp()
+        + '. The header level is server xp + the client prediction, so a phantom run does not just show '
+        + 'a wrong bar — it shows a level the server has never granted');
+
+      /* ⑤ THE CONTROL. Stand the player up and the same tap must work
+            completely: pointer, loop and declaration. Without this arm, a gate
+            that refused everything forever would pass every assertion above. */
+      D.__resetForTest();
+      envelope(null);
+      assert(!A.isKnockedOut(), 'the control could not stand the player up: ' + JSON.stringify(A.fallState()));
+      calls = [];
+      window.startSkill('fishing', spot.id, spot.ms);
+      assert(G.activeSkill === 'fishing' && G.skillTargetId === spot.id,
+        'CONTROL: a character who is UP could not start fishing (' + G.activeSkill + '/' + G.skillTargetId
+        + ') — the gate is refusing more than the server does');
+      assert(window.__isSkillLoopArmed(), 'CONTROL: the run started with no loop armed');
+      assert(calls.length === 1 && calls[0].kind === 'gather' && calls[0].id === spot.id,
+        'CONTROL: the run did not declare itself (' + JSON.stringify(calls) + ')');
+    } finally {
+      M.declare = realDeclare;
+      try { M.setConfirmedActivity(null); } catch (e) {}
+      try { window.stopSkill(); } catch (e) {}
+      try { D.__resetForTest(); } catch (e) {}
+      A.setServerAccrualEnabled(!!wasOn);
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('RECOVER-9: the one-time Auto-Eat switch-on is offered ONCE and never after a decision', () => {
     const A = window.HearthriseAccrual;
     const AU = window.HearthriseAuto;
@@ -45495,7 +45644,8 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('B348-5/6/7: a server `idle` stops a run it was TOLD about, and declares one it was not', () => {
+  () => tryRun('B348-5/6/7 (re-spec b519): a server `idle` stops the run — told or not — and an artisan '
+    + '`idle` is agreement, not a contradiction', () => {
     const A = window.HearthriseAccrual;
     const M = window.HearthriseActivity;
     const G = window.G;
@@ -45518,6 +45668,13 @@ const TESTS = [
          the state the bound applies to. */
       A.setServerAccrualEnabled(true);
       M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
+      /* PRECONDITION, STATED RATHER THAN ASSUMED (b519). Every `startSkill`
+         below now passes the recovery gate, so a fall left standing by an
+         earlier test would make this test REFUSE instead of fail — and a
+         refusal that looks like a failure of the thing under test is how a
+         fixture becomes a false accusation. Retired the only way the client
+         may retire a server-owned line: an envelope that says it is gone. */
+      try { A.clearFall(); A.applyEnvelopeState(G, { state: { recovering_until: null } }); } catch (e) {}
 
       /* ── B348-7: THE RECONCILE CAN REPRESENT `gather` AT ALL. Before b348 it
          had a `combat` branch and an `idle` branch, so a server saying "you are
@@ -45541,32 +45698,74 @@ const TESTS = [
         'reconciling ECHOED a declaration back at the server (' + JSON.stringify(calls) + ') — that is a '
         + 'loop with a round trip in it, and the quiet counter exists to stop it');
 
-      /* ── B348-5: THE RULING. Never told → do not stop; declare. */
+      /* ── B348-5, RE-SPECIFIED (b519). THE RULING IT ASSERTED IS RETIRED.
+         ═══════════════════════════════════════════════════════════════════
+         This arm used to assert the OPPOSITE: that a server `idle` must not
+         stop an unconfirmed run, and must re-declare it instead. That was
+         right while pre-seam saves existed — every beta character held a
+         running activity the server had never heard of, and obeying `idle`
+         would have ended their session on a statement nobody made.
+
+         The cutover is complete and the beta was wiped. The only way a run is
+         unconfirmed now is that the server was asked and did not agree, and
+         the live proof is a knockout: set-activity.js §(1b) refuses every
+         PAYABLE kind inside a recovery window BEFORE hr_apply, so the answer
+         carries the server's own pointer (`idle`) and there is not even a
+         `player_intents` row. Under the old ruling the client re-declared, was
+         refused again, spent its latch — and left the LOCAL loop running.
+         Measured on hearthrise.net 2026-09-07: four minutes of fishing, a Qty
+         badge climbing 37 → 51 and an invented level-up, none of it real.
+
+         So the property is now the same in both directions — the client does
+         not run what the server does not own.
+         MUTATION: restore `if(!told) return {…undeclared:true}` → RED here. */
       M.setConfirmedActivity(null);
       calls = [];
       let out = window.reconcileActivityPointer({ kind: 'idle', id: null });
-      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id,
-        'a server `idle` STOPPED a gathering run the server was never told about. `active_kind=idle` is the '
-        + 'default for every character that has never declared anything — obeying it as authority ends the '
-        + 'session of every player whose save predates the seam, which is exactly what happened to Tyler');
-      assert(out && out.undeclared === true, 'the reconcile did not report the undeclared case: ' + JSON.stringify(out));
-      assert(calls.length === 1 && calls[0].kind === 'gather' && calls[0].id === tree.id,
-        'the undeclared pointer was not DECLARED (' + JSON.stringify(calls) + ') — leaving it alone is safe '
-        + 'but not self-correcting; the recovery for "we never told it" is to tell it');
-
-      /* BOUNDED. A server that keeps refusing must not be re-told forever. */
-      calls = [];
-      window.reconcileActivityPointer({ kind: 'idle', id: null });
-      window.reconcileActivityPointer({ kind: 'idle', id: null });
+      assert(!G.activeSkill && !G.skillTargetId,
+        'a server `idle` left an UNCONFIRMED gathering run alive (' + G.activeSkill + '/' + G.skillTargetId
+        + '). A run the server does not own earns nothing and vanishes on reload — every item and every '
+        + 'XP point the loop paints from here is client-authored, which is the one thing §1 forbids');
+      assert(!window.__isSkillLoopArmed(),
+        'the pointer was cleared and the TIMER was left running — a headless loop still calling '
+        + 'doSkillAction is the same phantom production with nothing on screen to explain it');
+      assert(out && out.stopped === 'unconfirmed',
+        'the reconcile did not report WHICH stop this was: ' + JSON.stringify(out) + '. The caller owes '
+        + 'the player an explanation for an unconfirmed stop and owes nothing for a confirmed one');
       assert(calls.length === 0,
-        're-asserting the same pointer is unbounded (' + calls.length + ' more declarations) — an id the '
-        + 'server does not have in its catalogue would then cost one intent and one rate spend per answer, '
-        + 'forever');
+        'the stop DECLARED back at the server (' + JSON.stringify(calls) + ') — the server already holds '
+        + '`idle`; telling it so spends an idempotency key and a rate budget to say nothing');
 
-      /* ── B348-6: AND IT MUST STOP ONE IT WAS TOLD ABOUT. Authority. Without
-         this half, "do not stop" would just be the client ignoring the server,
-         which is the opposite failure and a worse one.
+      /* ── B348-5b: AN ARTISAN RUN AND A SERVER `idle` ARE IN AGREEMENT.
+         Kept verbatim from b348 because it still holds and it is the one case
+         the stop above would get catastrophically wrong: `declarationFor`
+         downgrades an unpayable recipe to `idle`, so the server saying `idle`
+         is the server repeating what this client told it. Reading that as a
+         contradiction stops a player mid-smelt.
+         MUTATION: drop the `d.kind==='idle'&&told` early return → RED. */
+      const cookRecipe = ((window.ARTISAN_RECIPES || {}).cooking || [])
+        .filter((r) => r && r.id && M.isPayableRecipe && !M.isPayableRecipe(r.id))[0];
+      if (cookRecipe) {
+        G.activeSkill = 'cooking'; G.skillTargetId = cookRecipe.id;
+        M.setConfirmedActivity({ kind: 'idle', id: null });
+        calls = [];
+        const agreed = window.reconcileActivityPointer({ kind: 'idle', id: null });
+        assert(G.activeSkill === 'cooking' && G.skillTargetId === cookRecipe.id,
+          'a server `idle` stopped an ARTISAN run that had itself declared `idle`. The two are in perfect '
+          + 'agreement — reading agreement as a contradiction is the same class of bug as the one the '
+          + 'stop above fixes, pointed the other way');
+        assert(agreed && agreed.agreed === true,
+          'the agreement was not reported as one: ' + JSON.stringify(agreed));
+        assert(calls.length === 0, 'the agreement declared something: ' + JSON.stringify(calls));
+        G.activeSkill = null; G.skillTargetId = null;
+      }
+
+      /* ── B348-6: AND IT STOPS ONE IT WAS TOLD ABOUT. Authority. This half
+         has always held and still does; it is now the same code path as the
+         unconfirmed stop, differing only in what the player is told.
          MUTATION: make the idle branch return early unconditionally → RED. */
+      try { window.stopSkill(); } catch (e) {}
+      window.startSkill('woodcutting', tree.id, tree.ms);
       M.setConfirmedActivity({ kind: 'gather', id: tree.id });
       calls = [];
       window.reconcileActivityPointer({ kind: 'idle', id: null });

@@ -332,9 +332,16 @@ async function runAll(db) {
   ok(man.order.filter((f) => f === MIG).length === 1,
      `${MIG} appears exactly once in the apply order`);
   const note = (man._order_notes || {})[MIG] || '';
-  ok(note.startsWith(STAGED_PREFIX),
-     `its note opens with the exact "${STAGED_PREFIX}" prefix — an operator reading the record to `
-     + 'decide what still has to be run must not be told a staged file is live, or the reverse');
+  /* Two truthful forms and nothing else: the exact STAGED prefix while the file is a draft,
+     or an APPLIED note dated by the Coordinator that still quotes the former STAGED prefix
+     (the flip pattern every applied file carries, verified against the live baseline by
+     tests/apply-order-honesty.mjs). Anything else - a staged file described as live, or an
+     applied file still described as staged - is the lie this assertion exists to catch. */
+  const appliedForm = /^APPLIED [0-9]{4}-[0-9]{2}-[0-9]{2} /.test(note) && note.includes("(Was " + STAGED_PREFIX);
+  ok(note.startsWith(STAGED_PREFIX) || appliedForm,
+     `its note opens with the exact "${STAGED_PREFIX}" prefix, or is a dated APPLIED note quoting it - an `
+     + 'operator reading the record to decide what still has to be run must not be told a staged file '
+     + 'is live, or the reverse');
 }
 
 const argv = process.argv.slice(2);

@@ -109,6 +109,17 @@ jobs:
           node tests/no-client-farm-mint.mjs --selftest
           node tests/no-client-farm-mint.mjs
 
+      # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
+      # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a
+      # transport — folding them is the wrong abstraction), and the mayCall
+      # adoption floor may rise but never fall. Adopting it in the other five was
+      # tried and turned b340/F5 red: hr_clan_browser is legitimately session-free.
+      - name: RPC callers — the copies do not grow and the b349 guard floor holds
+        run: |
+          node tests/no-duplicate-rpc-callers.mjs --selftest
+          node tests/no-duplicate-rpc-callers.mjs
+
+
       # DUPLICATE TOP-LEVEL FUNCTIONS: two declarations of one name in one scope
       # means the later hoists over the earlier and the earlier body is dead code
       # that can be edited, reviewed and shipped while changing nothing. Also

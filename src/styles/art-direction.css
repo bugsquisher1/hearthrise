@@ -48,106 +48,8 @@
  * different levels of the hierarchy at once, flattening all of them.
  * ------------------------------------------------------------------------ */
 
-/* The dial's own rule — <html> and nothing else. See the note below. */
-:root { --ui-scale: 1; }
-
-:root,
-body[data-theme="hearthlight"] {
-  --f-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
-  --f-ui: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
-  --f-label: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
-  --f-accent: 'Alegreya Sans SC', 'Alegreya Sans', system-ui, sans-serif;
-
-  /* ── THE UI SCALE DIAL ────────────────────────────────────────────────
-   * Settings › Display › UI scale writes this onto <html> (0.90–1.30, 5%
-   * steps, default 1). It is the ONE choke-point for text size in the game:
-   * every font-size in every sheet — and in every JS-injected <style> — is
-   * written as `calc(<step>px * var(--ui-scale, 1))`, so one variable moves
-   * all of it. That form is mandatory. A bare `font-size:calc(15px * var(--ui-scale, 1))` is a size
-   * the player's dial cannot reach, and the smoke guard fails on one.
-   *
-   * The `, 1` fallback is not decoration: injected <style> blocks and the
-   * account wall paint before this sheet is guaranteed to have applied, and
-   * an unresolved var() would invalidate the whole declaration and drop the
-   * element to its inherited size.
-   *
-   * It is declared in its OWN :root rule below, deliberately NOT in this
-   * shared `:root, body[data-theme=...]` block — a copy on <body> would
-   * re-declare 1 one level below <html> and swallow the dial's inline value
-   * whole. (Measured: the first cut of this shipped a dial that moved 0 of
-   * 1,694 rendered elements for exactly that reason.) */
-
-  /* One scale, eight steps. If a size isn't on this list it shouldn't exist.
-     b218 raised the whole ramp ~13% (body 14 -> 16). Tyler said it was STILL
-     too small. b225 answered with a FLOOR (13.5px) instead of a multiplier,
-     and moved 1,093 sub-floor elements onto it. Tyler said it was STILL too
-     small — a THIRD time — and the measurement says exactly why:
-
-       after b225, 1,093 of 2,112 visible text elements (51.8%) sat at
-       EXACTLY 13.5px. Half the game's text was standing ON the floor, so
-       the floor value *was* the reading experience, and 13.5px is under
-       what a desktop monitor at arm's length comfortably resolves.
-
-     b227 raises the floor to 14.5 and lifts every step by the same +1, so
-     the ramp keeps its separations exactly (13.5/15/16/17.5 -> 14.5/16/17/
-     18.5). A floor that half the game sits on has to be a comfortable size,
-     not a minimum-acceptable one — and the dial above is the honest answer
-     to "still too small" that a fourth hardcoded bump would not be.
-
-     --t-h3 keeps its +1 over its tier because it is set in Alegreya Sans SC:
-     genuine small caps have no ascenders and a cap-height near the x-height
-     of the regular face, so 15.5px SC reads roughly like 13.5px regular. */
-  --t-micro: calc(14.5px * var(--ui-scale, 1)); /* unit labels, counts — THE FLOOR */
-  --t-small: calc(16px   * var(--ui-scale, 1)); /* supporting text */
-  --t-body:  calc(17px   * var(--ui-scale, 1)); /* default */
-  --t-lead:  calc(18.5px * var(--ui-scale, 1)); /* row titles, emphasis */
-  --t-h3:    calc(16.5px * var(--ui-scale, 1)); /* small-caps section label (+1 for the SC face) */
-  --t-h2:    calc(22.5px * var(--ui-scale, 1)); /* panel title */
-  --t-h1:    calc(31px   * var(--ui-scale, 1)); /* screen title */
-  --t-num:   calc(27px   * var(--ui-scale, 1)); /* hero value */
-
-  /* ── 2. SHAPE ──────────────────────────────────────────────────────────
-   * Near-square. Stone and iron have arrises, not 16px fillets. A 3px radius
-   * still knocks the harshness off a corner without reading as a web card. */
-  --r-sm: 2px;
-  --r: 3px;
-  --r-lg: 5px;
-
-  /* Creature portraits are SQUARE — one mask for every place a monster, foe or
-   * companion is shown. A circle cropped the corners of the frame, and the
-   * corners are where a creature keeps the information a bestiary is read by:
-   * antlers, horns, a scythe, ears, a crest. An inscribed circle also throws
-   * away ~21% of a square source and silently imposes a "keep the subject
-   * inside the circle" rule on every future generation — a constraint paid
-   * 600 times over for a mask nobody asked for. The plate keeps the frame,
-   * the plinth and the gilt edge; only the mask changed. */
-  --r-portrait: 6px;
-
-  /* ── 3. COLOUR ROLES ───────────────────────────────────────────────────
-   * Every accent below has exactly one job. Nothing in the UI may use a hue
-   * for a purpose not on this list. */
-  --role-action: var(--gold);      /* interactive, selected, currency */
-  --role-danger: var(--red);       /* destructive + lethal only */
-  --role-success: var(--green);    /* XP, growth, completion */
-  --role-premium: var(--gem);      /* real-money currency only */
-  --role-quiet: var(--steel);      /* informational, disabled */
-
-  /* ── 4. SURFACES ───────────────────────────────────────────────────────
-   * Four treatments, each with a distinct meaning:
-   *   sunken — a well that holds objects (inventory slots, plots, wells)
-   *   raised — a physical thing you press (buttons, tiles)
-   *   panel  — grouped content that is dense enough to need an edge
-   *   (nothing) — the default. Most content sits directly on the world. */
-  --surf-sunken: rgba(0, 0, 0, .30);
-  --surf-sunken-edge: inset 0 1px 2px rgba(0, 0, 0, .65), inset 0 -1px 0 rgba(255, 232, 190, .045);
-  --surf-raised: linear-gradient(180deg, rgba(255, 236, 200, .075), rgba(255, 236, 200, .018) 55%, rgba(0, 0, 0, .10));
-  --surf-raised-edge: inset 0 1px 0 rgba(255, 240, 210, .10), 0 1px 0 rgba(0, 0, 0, .45);
-  --surf-panel: rgba(236, 225, 204, .022);
-
-  /* Rules. A section divider is a fading hairline, not a full-width line —
-   * it reads as an incised rule rather than a table border. */
-  --rule-fade: linear-gradient(90deg, var(--line-strong), rgba(201, 162, 74, .10) 62%, transparent);
-}
+/* The --ui-scale dial and the Forge & Stone ladder this sheet declares both
+   live in src/styles/tokens.css §3 now. Everything below READS them. */
 
 /* Body type. The shell sets font-family from --f-ui, so this only needs to fix
  * size/leading and turn on the figure behaviour the whole game depends on:
@@ -1971,28 +1873,7 @@ body[data-theme] .activity-bar.v2 .ab-stop {
  * lit room has, which is what makes a dark screen read as a place rather than
  * as an absence of light. Hues are unchanged; this is value only.
  * ---------------------------------------------------------------------- */
-:root,
-body[data-theme="hearthlight"] {
-  --bg-0: #0a0806;   /* the world behind everything */
-  --bg-1: #14110c;   /* sidebar / rails */
-  --bg-2: #241d16;   /* panel + card surface */
-  --bg-3: #322920;   /* elevated: modals, hovered objects */
-  --bg-card: linear-gradient(180deg, #2a2219, #1b160f);
-
-  /* Edges have to catch light or the new levels won't be legible as levels. */
-  --line-soft: rgba(255, 236, 200, .075);
-  --line: rgba(201, 162, 74, .24);
-
-  --surf-raised: linear-gradient(180deg, rgba(255, 236, 200, .10), rgba(255, 236, 200, .03) 55%, rgba(0, 0, 0, .12));
-  --surf-raised-edge: inset 0 1px 0 rgba(255, 240, 210, .14), 0 1px 0 rgba(0, 0, 0, .5);
-  --surf-panel: rgba(236, 225, 204, .035);
-
-  /* App background drops well below the panel so the panel reads as lifted,
-     and the ember glow up top gives the whole thing a direction of light. */
-  --app-bg:
-    radial-gradient(120% 60% at 76% -6%, rgba(226, 154, 82, .16) 0%, rgba(226, 154, 82, 0) 62%),
-    linear-gradient(180deg, #121009 0%, #0b0906 46%, #070504 100%);
-}
+/* tokens → src/styles/tokens.css (slice 5: one source for the ladder) */
 
 /* The panel is the lit ground the screen stands on.
  *
@@ -2268,7 +2149,6 @@ body[data-theme] .brand-word {
 /* Cozy-light (retired secondary theme): the gilt reads on parchment as-is;
    only the contact shadow has to change side — a black drop on cream is a
    smudge, a pale one is an emboss. */
-
 
 
 /* Icon-rail sidebar (<=1180px, --nav-w:64px): the crest alone, centred.

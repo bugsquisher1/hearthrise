@@ -24,8 +24,7 @@
         "theme-cozy.css": 14
       },
       "spellings": [
-        "(max-width: 540px), (max-height: 540px) and (max-width: 1024px)",
-        "(max-width:540px),(max-height:540px) and (max-width:1024px)"
+        "(max-width: 540px), (max-height: 540px) and (max-width: 1024px)"
       ]
     },
     {
@@ -41,8 +40,7 @@
         "legacy.css": 2
       },
       "spellings": [
-        "(prefers-reduced-motion: reduce)",
-        "(prefers-reduced-motion:reduce)"
+        "(prefers-reduced-motion: reduce)"
       ]
     },
     {
@@ -54,8 +52,31 @@
         "legacy.css": 6
       },
       "spellings": [
-        "(max-width: 900px), (max-height: 540px) and (max-width: 1024px)",
-        "(max-width:900px), (max-height:540px) and (max-width:1024px)"
+        "(max-width: 900px), (max-height: 540px) and (max-width: 1024px)"
+      ]
+    },
+    {
+      "query": "(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)",
+      "count": 6,
+      "files": {
+        "art-direction.css": 1,
+        "theme-cozy.css": 5
+      },
+      "spellings": [
+        "(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)"
+      ]
+    },
+    {
+      "query": "(max-width: 1180px)",
+      "count": 5,
+      "files": {
+        "art-direction.css": 2,
+        "combat-hud.css": 1,
+        "legacy.css": 1,
+        "tokens.css": 1
+      },
+      "spellings": [
+        "(max-width: 1180px)"
       ]
     },
     {
@@ -71,30 +92,6 @@
       ]
     },
     {
-      "query": "(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)",
-      "count": 4,
-      "files": {
-        "art-direction.css": 1,
-        "theme-cozy.css": 3
-      },
-      "spellings": [
-        "(max-height: 540px) and (orientation: landscape) and (max-width: 1024px)"
-      ]
-    },
-    {
-      "query": "(max-width: 1180px)",
-      "count": 4,
-      "files": {
-        "art-direction.css": 2,
-        "combat-hud.css": 1,
-        "legacy.css": 1
-      },
-      "spellings": [
-        "(max-width: 1180px)",
-        "(max-width:1180px)"
-      ]
-    },
-    {
       "query": "(max-width: 1100px)",
       "count": 3,
       "files": {
@@ -102,18 +99,7 @@
         "legacy.css": 2
       },
       "spellings": [
-        "(max-width: 1100px)",
-        "(max-width:1100px)"
-      ]
-    },
-    {
-      "query": "(max-height: 540px) and (max-width: 1024px) and (orientation: landscape)",
-      "count": 2,
-      "files": {
-        "theme-cozy.css": 2
-      },
-      "spellings": [
-        "(max-height: 540px) and (max-width: 1024px) and (orientation: landscape)"
+        "(max-width: 1100px)"
       ]
     },
     {
@@ -135,8 +121,7 @@
         "legacy.css": 1
       },
       "spellings": [
-        "(max-width: 380px)",
-        "(max-width:380px)"
+        "(max-width: 380px)"
       ]
     },
     {
@@ -147,8 +132,29 @@
         "legacy.css": 1
       },
       "spellings": [
-        "(max-width: 600px)",
-        "(max-width:600px)"
+        "(max-width: 600px)"
+      ]
+    },
+    {
+      "query": "(min-width: 1280px) and (max-height: 800px)",
+      "count": 2,
+      "files": {
+        "legacy.css": 1,
+        "tokens.css": 1
+      },
+      "spellings": [
+        "(min-width: 1280px) and (max-height: 800px)"
+      ]
+    },
+    {
+      "query": "(min-width: 1900px)",
+      "count": 2,
+      "files": {
+        "legacy.css": 1,
+        "tokens.css": 1
+      },
+      "spellings": [
+        "(min-width: 1900px)"
       ]
     },
     {
@@ -218,7 +224,7 @@
         "legacy.css": 1
       },
       "spellings": [
-        "(max-width:540px)"
+        "(max-width: 540px)"
       ]
     },
     {
@@ -258,7 +264,7 @@
         "legacy.css": 1
       },
       "spellings": [
-        "(max-width:780px)"
+        "(max-width: 780px)"
       ]
     },
     {
@@ -289,26 +295,6 @@
       },
       "spellings": [
         "(min-width: 1200px)"
-      ]
-    },
-    {
-      "query": "(min-width: 1280px) and (max-height: 800px)",
-      "count": 1,
-      "files": {
-        "legacy.css": 1
-      },
-      "spellings": [
-        "(min-width:1280px) and (max-height:800px)"
-      ]
-    },
-    {
-      "query": "(min-width: 1900px)",
-      "count": 1,
-      "files": {
-        "legacy.css": 1
-      },
-      "spellings": [
-        "(min-width:1900px)"
       ]
     },
     {

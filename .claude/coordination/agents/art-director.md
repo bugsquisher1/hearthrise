@@ -1,5 +1,73 @@
 # Art Director — running log
 
+
+## 2026-09-07 · CLEANUP SLICE 5, steps 1-2 — the token ladder has one home; breakpoints have one spelling (branch worktree-agent-afb743e864c4e79d2, commits 5af5bb36 + 7e9303b2)
+
+Zero-visual-delta only. No numeric value, no colour, no layout rule changed. Everything below is
+measured, and where it is measured by a new instrument the instrument was made to fail first.
+
+**What was actually there.** 367 custom-property declarations on root-ish selectors across FOUR
+sheets at four points in the load order (legacy 96, theme-cozy 167, art-direction 39,
+board-and-shop 65). **41 of them were dead on arrival** — same property, same selector, redeclared
+later with a DIFFERENT value. `--bg-0` was written three times; two were never read by anything.
+The comment above theme-cozy's base block already said the ramp was "inert on :root" and that the
+shadowed literals "can be trimmed in the follow-on token pass" — this was that pass.
+
+`src/styles/tokens.css` (639 lines, loaded FIRST) now holds all 326 winners in the ORIGINAL load
+order with the ORIGINAL selectors, so specificity-then-document-order resolves exactly as before.
+The 16 source blocks are gone from the four sheets; a declaration's prose travelled with it, and
+comments left annotating nothing were deleted rather than silently re-pointed at the next
+declaration down (that re-pointing is how `/* restrained gilt */` ends up above `--steel`).
+
+**Three independent proofs, because "it should be identical" is not a proof.**
+1. *Cascade stream.* The ordered (at-rule, selector, property) winner list derived from the sheets
+   in `<link>` order: 326 winners, same order, same values, before and after. The at-rule context
+   is compared semantically so step 2's respelling does not read as a change.
+2. *Pixels.* `tools/css-ab-pixel-diff.mjs` (new, shipped): ONE page load, ONE frozen DOM (every
+   pending timer and rAF killed), two stylesheet states swapped under it. **0 differing pixels**
+   on combat / inventory / home / farm at 1440x900 AND 922x423, against the pre-slice base.
+3. *Ratchets.* Every per-file colour and `!important` count identical (2009 / 1093); tokens.css
+   enters at 0/0 because the ratchet already exempts token declarations inside theme blocks.
+   Visual gate run twice: 36 comparable findings vs 36.
+
+**The pixel harness lied twice and both lies are worth knowing.**
+- Naive before/after screenshots of an UNCHANGED tree differ by up to **38,799 px** (a toast, and
+  Chromium's gradient dithering at Delta-1 after a re-raster). Two browser runs cannot be compared.
+  Even inside one session, both captures must follow the SAME number of stylesheet swaps — without
+  a warm-up swap the byte-identical A/A control still showed 14,124 px at Delta 1. With it: 0.
+- The tool once reported **385,201 differing pixels** at 922x423 on combat. The reference frame was
+  the combat screen rendered with `theme-cozy.css` missing: `link.sheet` can still expose the
+  PREVIOUS CSSOM object mid-swap, so the readiness poll passed on a stale sheet. Readiness now
+  requires `sheet.href === link.href` and a non-empty rule list. **The control and the mutation
+  proof were both re-run after that fix** rather than the new green being pocketed.
+- Before any of it: the first version of the swap regex never matched (`src/styles/...` has no
+  leading slash), so the harness ran a whole pass swapping NOTHING and reported a perfect zero.
+  It now asserts its own swap count. A zero from an instrument that has never been non-zero is a
+  decoration.
+
+**The guard: `tests/token-single-source.mjs`** (`--selftest`, 11 planted mutations, registered in
+smoke.yml + ci-shape). (A) no token declared on a root selector outside tokens.css; (B) the four
+genuinely element-scoped variables are an allowlist WITH WRITTEN REASONS — `--td-cell`,
+`--cs-bleed`, `--cs-inset`, `--tier-tint` vary per element, which is the one thing the ladder
+cannot express, so moving them would be wrong; (C) a BARE `var(--x)` that nothing declares is
+ratcheted at 1. Check C was nearly shipped wrong: my first cut called 18 tokens "undefined debt",
+but 7 are declared from JS-authored style text (`style="--gsz:18px"`) and 12 more are read as
+`var(--x, fallback)`, which is a deliberate optional hook. Gating on those would have been a guard
+people learn to ignore. What survives is one real bug (below).
+
+**Step 2.** 35 raw @media spellings -> 27, one per canonical query; canonical 28 -> 27 (the single
+merge is two `and`-joined features reordered, which is commutative). No numeric value touched.
+Converging the eight 900px mobile-rail rules onto 540/1024 is slice 5b and needs the visual gate at
+922x423 per rule — it is a real layout change wearing a cleanup's clothes.
+
+**Recommendation for the next pass:** `audit-overrides.css` -> `components.css` is the right next
+absorption (531 literals / 159 `!important`, the second-largest debt pool and the sheet whose name
+tells you nothing), but it is NOT zero-delta — it is a specificity move between three sheets that
+fight, so it needs the pixel tool per component, not per commit. `combat-hud.css` into
+`combat-screens.css` is the cheap one and should go first: 330 lines, 0 literals, 12 `!important`,
+one screen, and the load-order comment in index.html already says combat-screens is "the last
+statement about #panel-combat".
+
 ## 2026-09-06 · CLEANUP SLICE 1 — the guard floor (branch worktree-agent-a4ed2f9edfbffb615)
 
 Three standing guards. **No file under `src/**` was touched** — this slice measures and freezes,

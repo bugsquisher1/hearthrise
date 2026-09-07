@@ -4,6 +4,39 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+
+### 2026-09-07 — Art Director — **`background: var(--panel, var(--panel-2))` in legacy.css names two tokens that do not exist, so that surface paints nothing.** (P3, found by the new token guard, deliberately NOT fixed here)
+
+`src/styles/legacy.css:3006` reads
+`background:var(--panel, var(--panel-2));border:1px solid var(--gold-2);`
+and neither `--panel` nor `--panel-2` is declared anywhere — not in CSS, not via `setProperty`, not
+in JS-authored style text. A `var()` chain whose last resort is also undefined makes the whole
+declaration **invalid at computed-value time**, so `background` reverts to its initial value and the
+element is transparent. It has presumably looked "fine" because the surface behind it is dark.
+
+This is the only one of its kind: the guard separates a BARE `var(--x)` (fatal) from
+`var(--x, fallback)` (an intentional hook, 12 of those and all harmless). It is ratcheted at 1 in
+`tests/token-single-source.baseline.json`, so a second one is red.
+
+**AFFECTED SYSTEMS:** `src/styles/legacy.css`. **REQUIRED ACTION:** whoever next touches that rule
+decides what the surface should be and points it at a real token — it is a pixel-changing fix, so
+it needs the visual gate and does not belong in a zero-delta cleanup commit.
+
+### 2026-09-07 — Art Director — **Two screenshots of the same unchanged build differ by up to 38,799 pixels. Any "the refactor changed nothing" claim based on comparing two browser runs is worthless.** (Method, affects every visual verification)
+
+Measured on this tree, twice, at 1440x900 and 922x423 with a pinned clock and a seeded PRNG: an
+unchanged codebase produced 38,799 differing pixels on inventory (a transient toast) and thousands
+more at Delta 1 across gradients — Chromium's dithering is not bit-stable between rasters. Even
+within ONE page load, a stylesheet swap forces a re-raster, so the two captures must follow the
+same NUMBER of swaps or the byte-identical control still shows 14,124 px.
+
+The working method, now shipped as `tools/css-ab-pixel-diff.mjs`: one page load, freeze the DOM
+(clear every timer and stub rAF), warm-up swap, capture, swap, capture. Control floor 0; a planted
+`--ink` change shows 44,607 px on 8/8 screens.
+
+**AFFECTED SYSTEMS:** every visual verification claim. **REQUIRED ACTION:** if you assert a CSS
+change is invisible, run the tool with `--control` in the same session and quote both numbers.
+
 ### 2026-09-06 — Art Director — **The arena stage has NEVER fitted its card at 900px, and every b227 red was a symptom of that.** (P1, fixed in b513)
 
 Two builds in a row diagnosed the b227 flake as a text-measurement accident one row above the Eat

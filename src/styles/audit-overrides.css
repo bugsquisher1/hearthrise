@@ -683,7 +683,7 @@ body.in-combat #combat-area {
 /* b357: a pet is a creature, so it takes the creature treatment — same square
    plate, same `contain`. A circle here cropped a hawk's wings at 38px. */
 .arena-vs .arena-side.player .arena-portrait .arena-pet img { width: 100% !important; height: 100% !important; object-fit: contain; border-radius: calc(var(--r-portrait, 6px) - 2px); }
-@media (max-width:540px),(max-height:540px) and (max-width:1024px){ .arena-vs .arena-side.player .arena-portrait .arena-pet { width: 28px; height: 28px; } }
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) { .arena-vs .arena-side.player .arena-portrait .arena-pet { width: 28px; height: 28px; } }
 .arena-vs .arena-name {
   font-family: var(--f-display); font-weight: 800; font-size:calc(17px * var(--ui-scale, 1));
   letter-spacing: .04em; color: var(--ink); text-transform: uppercase;
@@ -2225,7 +2225,7 @@ body.in-combat #combat-area {
 }
 
 /* Mobile tweaks for market */
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px){
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .mk-toolbar { flex-direction: column; align-items: stretch; }
   .mk-toolbar #mk-sort { min-width: 0; width: 100%; }
   .mk-stats { font-size:calc(14.5px * var(--ui-scale, 1)); gap: 6px; }
@@ -2418,7 +2418,7 @@ body.in-combat #combat-area {
   filter: none;
 }
 
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px){
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   #buy-modal .bm-stat-row { grid-template-columns: 1fr; gap: 6px; }
   #buy-modal .bm-qty-row { flex-direction: column; align-items: stretch; }
   #buy-modal #bm-qty { width: 100%; }

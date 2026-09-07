@@ -85,11 +85,11 @@ Hearthrise is not architecturally broken — zero circular imports, one combat e
 
 | Metric | Today (2026-09-06) | Target | Slice |
 |---|---|---|---|
-| Hardcoded colour literals (CSS) | 2,317 (44% of colour usage) | < 400 | 1, 5 |
-| `!important` | 1,160 | < 500 | 1, 5 |
-| Stylesheets / CSS lines | 9 / 17,398 | 5 / < 12,000 | 5 |
+| Hardcoded colour literals (CSS) | 2,009 measured (comments stripped) | < 400 | 1, 5c |
+| `!important` | 1,093 measured | < 500 | 1, 5c |
+| Stylesheets / CSS lines | 10 / 17,436 (was 9 / 17,398; tokens.css extracted) | 5 / < 12,000 | 5 |
 | Dead CSS class rules | 101 | 0 | 3 |
-| Breakpoint spellings | 14 | 2 | 1, 5 |
+| Breakpoint spellings | 27 canonical / 27 raw (was 28 / 35) | 2 | 1, 5b |
 | Inline `style=` in JS / hex in JS | ~300 / ~250 | < 50 / 0 | 5 |
 | CI-gating guards without `--selftest` | 14 | 0 | 2 |
 | Orphan guards (incl. `visual-qa.mjs`) | 6 | 0 | 2 |
@@ -112,4 +112,29 @@ Hearthrise is not architecturally broken — zero circular imports, one combat e
 | CI wall clock | 40–60 min | < 15 min | 8 |
 | Migrations recorded in `supabase_migrations` | 27 of 149 | 149 of 149 | 7 |
 
+> **Slice 5 steps 1-2 result (2026-09-07):** the token ladder has one home and breakpoints have
+> one spelling, both at **zero visual delta, measured** (`5af5bb36`, `7e9303b2`).
+> **Step 1:** 367 root-ish custom-property declarations across four sheets -> `src/styles/tokens.css`
+> (loaded first), in the original load order with the original selectors. **41 were dead on arrival**
+> — same property, same selector, redeclared later with a different value; `--bg-0` was written three
+> times and two were never read. 326 winners survive, byte-identical. Guard:
+> `tests/token-single-source.mjs --selftest` (no token declared on a root selector outside
+> tokens.css; four element-scoped variables on an allowlist with reasons; bare-`var()`-with-no-
+> declaration ratcheted at 1). **Step 2:** 35 raw @media spellings -> 27, canonical 28 -> 27 (one
+> commutative `and`-reorder); no numeric value touched.
+> **Proof, not assertion:** the ordered cascade-winner list is identical before and after, every
+> per-file ratchet count is unchanged (2009 / 1093, tokens.css enters at 0/0), the visual gate is
+> 36 vs 36 twice, and `tools/css-ab-pixel-diff.mjs` (new) reports **0 differing pixels** on
+> combat/inventory/home/farm at 1440x900 AND 922x423 against the pre-slice base — with an A/A
+> control floor of 0 and a `--mutate` proof of 44,607 px. That tool exists because naive
+> before/after screenshots of an UNCHANGED tree differ by up to 38,799 px; see DISCOVERIES.
+> **Still open in slice 5:** (5b) converge the eight 900px mobile-rail rules onto 540/1024 — a real
+> layout change, visual gate at 922x423 per rule, NOT a spelling pass; (5c) literal -> token, combat
+> and inventory, one component per pass. **Next absorption, recommended in this order:**
+> `combat-hud.css` -> `combat-screens.css` (330 lines, 0 literals, one screen, and index.html
+> already calls combat-screens "the last statement about #panel-combat"), then
+> `audit-overrides.css` -> `components.css` (531 literals / 159 `!important`) — the second is a
+> specificity move between three sheets that fight, so it is per-component with the pixel tool, not
+> per-commit.
+>
 > **Slice 4 result (2026-09-07):** farm dual path removed (`7cbfdb4b`, fail-closed, guard `tests/no-client-farm-mint.mjs`). RPC consolidation refused with proof (`HearthriseRpc` is the decision seam, not the transport; `hr_clan_browser` is legitimately anonymous) — a ratchet landed instead (`9544d21f`). Blob/offline deletion refused: `isBlobRetired()` is NOT constant — it reads the live b353 kill switch `hr:serverAccrual`, so all 13 forks are reachable; that switch is itself a client-authored fallback §1 forbids. **Decision owed (Coordinator + Security): retire the b353 kill switch, then slice 8 deletes the blob machinery.** Gold: 24 deferred rows are a migration backlog with named server blockers, not twins. Surfaced bug: farm goal counters `planted/harvested` have had no writer since b454 (lane-A fix dispatched).

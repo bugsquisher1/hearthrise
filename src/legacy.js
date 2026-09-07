@@ -15429,6 +15429,104 @@ var DAILY_GOAL_POOL = [
   {id:'level_up',  glyph:'uiXp', name:'Gain a skill level', target:1,  source:'stats.levelups',
    desc:'Any skill, any level. Your lowest skill is the cheapest way to finish this.'},
 ];
+/* ══ THE BASELINE MUST NOT BE TAKEN AGAINST AN UNKNOWN COUNTER ══════════════
+   THE BUG (Security P2 follow-up to 2026-09-07-farm-plant-lifetime-counter.sql,
+   display-only). A daily goal grades `readSource(source) - startValues[id]`,
+   and the baseline was captured ONCE, the first time the day's slate was rolled
+   — including for a counter whose value the client had not been told yet.
+   `stats.planted` is now MIRRORED from the server's lifetime `ev:planted` row
+   (accrue.js reconcileEventCounters); before the first complete `progress`
+   statement lands it reads 0 through readSource's `cur || 0`. So on the first
+   boot after the lifetime backfill the sequence was:
+       roll the slate  → baseline plant = 0        (0 because UNKNOWN, not because zero)
+       envelope lands  → stats.planted = 120       (a real lifetime count)
+       render          → 120 - 0 = 120 >= 3        → "Plant 3 crops — Complete!"
+   for work done days ago. Nothing is paid — hr_claim_goal grades the server's
+   own DAILY counter and refuses `not_complete` — but the player is shown a
+   finished goal and a Claim button that cannot work, which is the dead-button
+   defect b461 removed, arriving through the baseline instead of the catalogue.
+
+   THE RULE IS THE ONE `balKnown('gold')` ALREADY ENFORCES for the day-start
+   gold watermark (see checkDailyGold): A BASELINE NOBODY CAN MEASURE IS NOT
+   TAKEN AT ALL. It is taken later, once the number is known, and until then the
+   goal reads 0 / target — never complete. Same shape, same reason, and this is
+   the third time this class has been fixed (b224 re-baselined every weekly that
+   was captured through a broken readSource; the gold watermark was the second).
+
+   WHICH SOURCES NEED IT IS DERIVED, NEVER LISTED. The mirrored set is
+   accrue.js's EVENT_COUNTER_PROJECTION — the one table that says which
+   `G.stats.*` leaves the server owns. Adding a counter there (a row, not a
+   branch) protects any goal reading it automatically; hardcoding 'plant' here
+   would have to be found again by the next author.
+
+   WHY A SEPARATE `counterBaselined` MAP RATHER THAN "is the key present".
+   `dailyGoals` is a RESIDUE field, so a slate rolled by the OLD build is on
+   disk right now carrying `startValues.plant = 0` — the poisoned baseline — and
+   presence alone would read it as valid for the rest of the day. The flag is
+   written only when the baseline was taken against a KNOWN counter, so a
+   pre-fix slate re-baselines itself once the envelope lands, while every
+   non-mirrored goal (kills, logs, ore) keeps the baseline it has and loses no
+   progress. */
+function goalSourceMirrored(source){
+  var A = (typeof window !== 'undefined') && window.HearthriseAccrual;
+  var rows = A && A.EVENT_COUNTER_PROJECTION;
+  if(!Array.isArray(rows) || !source) return false;
+  for(var i = 0; i < rows.length; i++){
+    if(rows[i] && rows[i].stat && ('stats.' + rows[i].stat) === source) return true;
+  }
+  return false;
+}
+/* KNOWN means a COMPLETE progress statement has landed this session
+   (`progress_truncated === false` — accrue.js stamps the scratch flag). Scratch,
+   `_`-prefixed, so it is never persisted: a reload starts UNKNOWN again, which
+   is the fail-safe direction. */
+function goalCountersKnown(){ return !!(typeof G === 'object' && G && G._eventCountersKnown); }
+function goalSourceKnown(source){ return !goalSourceMirrored(source) || goalCountersKnown(); }
+/** {known, value} — the ONLY reader of startValues. `known:false` means "do not
+ *  grade this goal yet", not "the baseline is zero". */
+function goalBaselineOf(stateObj, goal){
+  if(!stateObj || !goal) return {known:false, value:0};
+  var sv = stateObj.startValues;
+  if(!sv || !Object.prototype.hasOwnProperty.call(sv, goal.id)) return {known:false, value:0};
+  if(goalSourceMirrored(goal.source)
+     && !(stateObj.counterBaselined && stateObj.counterBaselined[goal.id])) return {known:false, value:0};
+  var n = Number(sv[goal.id]);
+  return {known:true, value: isFinite(n) ? n : 0};
+}
+/** Take the baseline IF the counter can be measured. Returns whether it was. */
+function takeGoalBaseline(stateObj, goal){
+  if(!stateObj || !goal || !goalSourceKnown(goal.source)) return false;
+  if(!stateObj.startValues) stateObj.startValues = {};
+  stateObj.startValues[goal.id] = readSource(goal.source);
+  if(goalSourceMirrored(goal.source)){
+    if(!stateObj.counterBaselined) stateObj.counterBaselined = {};
+    stateObj.counterBaselined[goal.id] = true;
+  }
+  return true;
+}
+/** The late pass: every goal still without a valid baseline tries again. Called
+ *  from the goal getters, which the renderers call on every paint, so the
+ *  baseline lands on the first frame after the envelope and no timer is added. */
+function rebaselineGoals(stateObj, goals){
+  if(!stateObj || !goals || !goals.length) return;
+  for(var i = 0; i < goals.length; i++){
+    var g = goals[i];
+    if(g && !goalBaselineOf(stateObj, g).known) takeGoalBaseline(stateObj, g);
+  }
+}
+/** Progress against a baseline, 0 while the baseline is unknown. */
+function goalProgressFrom(stateObj, goal){
+  var b = goalBaselineOf(stateObj, goal);
+  return b.known ? Math.max(0, readSource(goal.source) - b.value) : 0;
+}
+/* Exported because the Quests modal lives in its own IIFE (blocks 16 vs 40) and
+   reached for these by bare name once already — the b224/b130 cross-IIFE trap,
+   whose failure mode is a silent 0 forever. */
+window.__hrGoalBaseline = goalBaselineOf;
+window.__hrTakeGoalBaseline = takeGoalBaseline;
+window.__hrRebaselineGoals = rebaselineGoals;
+window.__hrGoalSourceMirrored = goalSourceMirrored;
+
 function getGoalsForToday(){
   var key = todayKey();
   if(!G.dailyGoals || G.dailyGoals.dayKey !== key){
@@ -15443,12 +15541,20 @@ function getGoalsForToday(){
     }
     G.dailyGoals = {dayKey: key, picks: picks.map(function(g){return g.id;}), startValues: {}};
     picks.forEach(function(g){
-      G.dailyGoals.startValues[g.id] = readSource(g.source);
+      /* Was an unconditional `startValues[id] = readSource(source)`. A mirrored
+         counter that has not arrived yet is now SKIPPED rather than baselined
+         at a 0 nobody measured — see the header above. */
+      takeGoalBaseline(G.dailyGoals, g);
     });
   }
-  return G.dailyGoals.picks.map(function(id){
+  var today = G.dailyGoals.picks.map(function(id){
     return DAILY_GOAL_POOL.find(function(p){return p.id===id;});
   }).filter(Boolean);
+  /* THE LATE BASELINE. Every caller is a renderer or the strip poller, so the
+     first paint after the envelope lands takes the baseline that could not be
+     taken at roll time — and heals a slate rolled by the pre-fix build. */
+  rebaselineGoals(G.dailyGoals, today);
+  return today;
 }
 // b130: explicit window assignment so the Quests modal renderer in
 // the wrapped IIFE below can find it. Same fix pattern as b127's
@@ -15495,8 +15601,10 @@ function renderDailyGoals(host){
   var goals = getGoalsForToday();
   host.innerHTML = '<div class="card"><div class="card-head"><div class="card-title">Daily Goals</div><span class="card-sub">Resets at UTC midnight</span></div><div class="card-body"><div class="daily-goals">' +
     goals.map(function(g){
-      var startVal = (G.dailyGoals.startValues||{})[g.id] || 0;
-      var current = Math.max(0, readSource(g.source) - startVal);
+      /* 0 while the baseline is unknown — NOT `readSource - 0`, which is how a
+         freshly-mirrored lifetime counter rendered "Complete!" on the first
+         boot after the backfill. */
+      var current = goalProgressFrom(G.dailyGoals, g);
       var done = current >= g.target;
       return '<div class="daily-goal'+(done?' done':'')+'">'+
         /* was `g.emoji` — the pool ships glyph keys now, not characters. */
@@ -15507,6 +15615,9 @@ function renderDailyGoals(host){
       '</div>';
     }).join('') + '</div></div></div>';
 }
+/* b130-style export: the strip renderer is reached from other IIFEs and by the
+   suite, which asserts the RENDERED "n / target" rather than an internal. */
+window.renderDailyGoals = renderDailyGoals;
 function hoursTillUTCMidnight(){
   var d = new Date(); return Math.max(1, 24 - d.getUTCHours());
 }
@@ -21781,7 +21892,15 @@ console.log('[Bundle Icons v1] applied:',
     if(!G.weeklyGoals || G.weeklyGoals.weekKey !== key){
       var picks = pickWeeklyIds(key);
       G.weeklyGoals = {weekKey: key, picks: picks.map(function(g){return g.id;}), startValues: {}, claimed:{}, sv:1};
-      picks.forEach(function(g){ G.weeklyGoals.startValues[g.id] = src(g.source); });
+      /* Same rule as the daily slate: a SERVER-MIRRORED counter that has not
+         arrived is not baselined at a 0 nobody measured. No weekly source is
+         mirrored today (wk_harvest reads stats.cropsHarvested, a local tally),
+         so this is by construction rather than for a live bug — the next
+         EVENT_COUNTER_PROJECTION row must not have to find this line. */
+      picks.forEach(function(g){
+        if(typeof window.__hrTakeGoalBaseline === 'function') window.__hrTakeGoalBaseline(G.weeklyGoals, g);
+        else G.weeklyGoals.startValues[g.id] = src(g.source);
+      });
     } else if((G.weeklyGoals.picks||[]).some(function(id){
         return !goalDealable(WEEKLY_GOAL_POOL.find(function(p){return p.id===id;}));
       })){
@@ -21818,9 +21937,13 @@ console.log('[Bundle Icons v1] applied:',
       });
       G.weeklyGoals.sv = 1;
     }
-    return G.weeklyGoals.picks.map(function(id){
+    var week = G.weeklyGoals.picks.map(function(id){
       return WEEKLY_GOAL_POOL.find(function(p){return p.id===id;});
     }).filter(Boolean);
+    /* THE LATE BASELINE (the daily getter's twin) — a baseline that could not be
+       measured when the slate rolled is taken on the first paint after it can. */
+    if(typeof window.__hrRebaselineGoals === 'function') window.__hrRebaselineGoals(G.weeklyGoals, week);
+    return week;
   };
 
   // ── Helpers to compute progress ──
@@ -21875,12 +21998,25 @@ console.log('[Bundle Icons v1] applied:',
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
   window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; };
 
+  /* ── THE ONE READER OF startValues IN THIS IIFE ────────────────────────────
+     Delegates to block 16's goalBaselineOf (exported on window because this is
+     a different IIFE — the b224/b130 cross-scope trap). {known:false} means the
+     source is a SERVER-MIRRORED counter that has not arrived yet, and a goal
+     graded against a baseline nobody measured reads as instantly complete; see
+     the header on goalSourceMirrored.
+     FALLBACK, deliberately the OLD behaviour and not "unknown": if the export
+     ever goes missing, every goal reading 0 forever is a worse, louder bug than
+     the one this fixes, and tests/…/smoke asserts the export exists. */
+  function baselineOf(goal, isWeekly){
+    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
+    if(typeof window.__hrGoalBaseline === 'function') return window.__hrGoalBaseline(stateObj, goal);
+    return {known: true, value: (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0};
+  }
   function getProgress(goal, isWeekly){
     var sg = srvGoal(goal, isWeekly);
     if(sg) return sg.have;
-    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
-    var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
-    return Math.max(0, src(goal.source) - startVal);
+    var b = baselineOf(goal, isWeekly);
+    return b.known ? Math.max(0, src(goal.source) - b.value) : 0;
   }
   function isClaimed(goal, isWeekly){
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
@@ -21920,9 +22056,8 @@ console.log('[Bundle Icons v1] applied:',
   var _goalShown = Object.create(null);
   var _goalCelebrated = Object.create(null);
   function localProgress(goal, isWeekly){
-    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
-    var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
-    return Math.max(0, src(goal.source) - startVal);
+    var b = baselineOf(goal, isWeekly);
+    return b.known ? Math.max(0, src(goal.source) - b.value) : 0;
   }
   function goalDisplayKey(goal, isWeekly){
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
@@ -21935,8 +22070,11 @@ console.log('[Bundle Icons v1] applied:',
        from being pinned at the prior instance's shown value — and it is exactly
        the distinction between R1's "hold on a server reconcile-down" (baseline
        unchanged, predicted still high) and a genuine restart (baseline moved). */
-    var startVal = (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0;
-    return per + ':' + goal.id + ':' + startVal;
+    /* An UNKNOWN baseline is its own epoch: when the counter finally lands and
+       the baseline is taken, the key changes, so the monotonic high-water does
+       not pin the bar at a number that was only ever rendered as 0. */
+    var b = baselineOf(goal, isWeekly);
+    return per + ':' + goal.id + ':' + (b.known ? b.value : 'pending');
   }
   function goalDisplay(goal, isWeekly){
     var confirmed = getProgress(goal, isWeekly);

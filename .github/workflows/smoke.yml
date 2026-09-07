@@ -412,6 +412,28 @@ jobs:
       - name: State-of farm projection - plot tier and watering history survive a reload
         if: ${{ !cancelled() }}
         run: node tests/state-of-farm-projection.mjs --selftest
+
+      # THE BACKFILLED LIFETIME PLANT COUNTER MUST STAY UNPAYABLE (Security P2 on
+      # supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql). That file
+      # backfilled a lifetime stat/'ev:planted' row for 27 (user, slot) pairs from
+      # the plant ledger - a stock of already-completed work that no catalogue
+      # grades today. Two independent paths could make it payable, and neither is
+      # covered by the other: a row in hr_goal_rewards naming a lifetime kind
+      # (now refused by a CHECK constraint), and a fifth branch in
+      # hr_claim_quest__ungated's hardcoded CASE over LIFETIME stat keys, which
+      # no constraint anywhere can reach. The guard proves the constraint EXISTS,
+      # is VALIDATED and bites (an executed counter_kind='stat' insert must raise
+      # 23514 after a control insert succeeds), that the quest body names no
+      # ev:planted, AND - the property that actually matters - drives a character
+      # holding 40x the target as a LIFETIME counter through the real
+      # hr_goal_state / hr_claim_goal and requires have=0 and a 'not_complete'
+      # refusal, with a non-vacuity arm showing the same reads do say yes to a
+      # real daily counter. 4 defects x 2 arms (gate / SEC-4-blind) plus a GREEN
+      # control that deletes the CREATE TABLE's inline check so the migration's
+      # own ADD path is exercised rather than assumed. No credentials.
+      - name: Goal counter kinds - the backfilled lifetime ev:planted stock cannot be claimed
+        if: ${{ !cancelled() }}
+        run: node tests/goal-counter-kinds.mjs --selftest
       # SA-010 / Q-4: PURCHASED BANK SPACE WAS ENFORCED AT THE BASE CAP.
       # hr_unlock_buy sells bank space as a 30-rung ladder and files it as a
       # player_progress unlock row; NOTHING ever wrote player_state.bank_cap,

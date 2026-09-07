@@ -1951,8 +1951,15 @@ export function reconcileHeroSlots(G, res) {
    server-side `ev:<type>` write — never a branch. Keys are the src/core/goals.js
    `ev:` namespace; targets are leaves of the G.stats residue bag.
 
-   ⚠ `ev:planted` HAS NO LIFETIME TWIN YET — a lane-C follow-up, and the ONE
-   asymmetry between the two rows below. hr_farm_plant stamps `ev:planted` as a
+   ✔ `ev:planted` GREW ITS LIFETIME TWIN on 2026-09-07
+   (supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql, APPLIED
+   09:20 UTC): hr_farm_plant now stamps the `kind='stat', period=''` row in
+   lockstep with the daily one, and 27 (user, slot) pairs were backfilled from
+   the plant ledger. The paragraph below is the history that explains the row —
+   it is no longer inert. The FIRST boot after that backfill is what exposed the
+   goal-baseline defect the `_eventCountersKnown` stamp at the bottom of
+   reconcileEventCounters now closes.
+   HISTORY: hr_farm_plant stamped `ev:planted` as a
    DAILY row only (kind='daily', period=<UTC day>), added by the b461 patch in
    2026-08-23-modal-goal-claims.sql §5, whose own comment says it deliberately:
    "there is no lifetime twin because no quest reads one". hr_farm_harvest, by
@@ -1961,11 +1968,11 @@ export function reconcileHeroSlots(G, res) {
    written and is not true now: legacy.js's DAILY_GOAL_POOL 'plant' row grades
    `readSource('stats.planted') - startValue`, i.e. a LIFETIME counter with a
    client-held day baseline, so a daily row cannot answer it.
-   The `ev:planted` row below is therefore correct and INERT until hr_farm_plant
-   grows the same two-line lifetime insert hr_farm_harvest already carries.
-   Until then "Plant 3 crops" cannot complete, and that MUST NOT be papered over
-   with a client increment — that is the forged-counter direction, and a
-   client-minted goal counter is a client-authored reward.
+   The `ev:planted` row below was therefore correct and INERT until hr_farm_plant
+   grew the same two-line lifetime insert hr_farm_harvest already carried, which
+   it now has. Papering over the gap with a client increment was refused
+   throughout — that is the forged-counter direction, and a client-minted goal
+   counter is a client-authored reward.
    (The QUEST-MODAL plant goal is unaffected: hr_claim_goal verifies it against
    the daily row directly and never reads G.)
 
@@ -1990,8 +1997,10 @@ export function reconcileHeroSlots(G, res) {
    a window. */
 export const EVENT_COUNTER_PROJECTION = Object.freeze([
   Object.freeze({ key: 'ev:harvest', stat: 'harvested' }),
-  /* Inert until hr_farm_plant mints it — see the header. Kept so the client half
-     is already right the hour that migration lands. */
+  /* LIVE since 2026-09-07 (hr_farm_plant stamps the twin; 27 pairs backfilled).
+     This table is also what legacy.js derives its "which goal sources are
+     server-mirrored" set from — add a row, and any goal reading that stat is
+     baseline-protected without touching the goal code. */
   Object.freeze({ key: 'ev:planted', stat: 'planted' }),
 ]);
 
@@ -2022,6 +2031,19 @@ export function reconcileEventCounters(G, res) {
     G.stats[row.stat] = next;
     written[row.stat] = next;
   }
+  /* ── "THE COUNTER IS KNOWN" — the tell the goal baseline needs ────────────
+     A COMPLETE statement is the first moment these lifetime counters mean
+     anything: before it, `G.stats.planted` is absent and every reader gets 0
+     through a `|| 0`, which is indistinguishable from a real zero. legacy.js's
+     daily-goal baseline used to capture that 0 and then grade the arriving
+     lifetime count against it, rendering "Plant 3 crops — Complete!" for work
+     done days earlier (display-only; hr_claim_goal grades the server's own
+     DAILY counter and refuses `not_complete`). Same class as the day-start gold
+     watermark, which `balKnown('gold')` already gates.
+     SCRATCH, `_`-prefixed: never persisted, so a reload starts UNKNOWN again —
+     the fail-safe direction. Set only on `complete`; a TRUNCATED statement is
+     explicitly not a statement of the total. */
+  if (complete) G._eventCountersKnown = true;
   return { mode: complete ? 'server' : 'floor', written };
 }
 

@@ -743,6 +743,66 @@ const withRoomServer = (owned, gold, fn) => {
   }, fn);
 };
 
+/* -- withClaimServer - A CLAIM IS A ROUND TRIP, AND THE REWARD IS NOT LOCAL --
+   Every period reward in the game — a Collection milestone, a Renown rank, a
+   daily login, a quest — pays in gold / gems / skill XP / items, and every one
+   of those four is SERVER-OF-RECORD and armed. So each claim site makes the
+   SAME test ("is any component of this reward server-owned?") and takes the same
+   branch when the answer is yes: send the intent, WAIT for the verdict, and
+   write NOTHING locally except the once-guard mark. `renown.js claimRank`,
+   `collection-log.js claimMilestone` and `legacy.js claimQuestReward` all say so
+   in those words at their call sites.
+
+   The tests for those sites used to run client-authoritative, where the local
+   grant WAS the payout, and asserted `G.gold` went up. That is now the one thing
+   that must NOT happen. This fixture drives the branch that ships:
+
+     · `HearthriseGoalClaim` is the transport (a plain PostgREST RPC, not a gold
+       verb), so it is stubbed — `isSignedIn` true, every `claim*` recorded and
+       answered — and the CLIENT logic above it is left entirely real;
+     · the reward lands the way it really does, on a later envelope, which a
+       test asks for explicitly with `rig.credit({gold: N})` rather than getting
+       for free — because "the balance moved" and "the claim was recorded" are
+       two different properties and conflating them is what the old shape did.
+
+   rig = { calls, reply(fn), credit(state) }. `answer` seeds the verdict for
+   every verb; `reply` overrides per call. */
+const withClaimServer = (answer, fn) => {
+  const GC = window.HearthriseGoalClaim;
+  if (!GC) return fn({ calls: [], reply: () => {}, credit: () => {} });
+  const VERBS = ['claimDaily', 'claimQuest', 'claimMilestone', 'claimRank', 'claimGoal', 'grantCompanion'];
+  const saved = {};
+  const calls = [];
+  let replyFn = null;
+  for (const v of VERBS) {
+    if (typeof GC[v] !== 'function') continue;
+    saved[v] = GC[v];
+    GC[v] = function (...args) {
+      calls.push({ verb: v, args });
+      const r = replyFn ? replyFn(v, args, calls) : null;
+      return Promise.resolve(r || answer || { ok: true });
+    };
+  }
+  const savedSignedIn = GC.isSignedIn;
+  GC.isSignedIn = () => true;
+  const rig = {
+    calls,
+    reply: (f) => { replyFn = f; return rig; },
+    /* THE REWARD, ARRIVING THE WAY IT ARRIVES: an absolute server state through
+       the real applyRecord. Never a local `G.gold +=`. */
+    credit: (state) => serverGrants(state || {}),
+  };
+  const restore = () => {
+    for (const v of Object.keys(saved)) GC[v] = saved[v];
+    GC.isSignedIn = savedSignedIn;
+  };
+  let r;
+  try { r = fn(rig); } catch (e) { restore(); throw e; }
+  if (r && typeof r.then === 'function') return r.then((v) => { restore(); return v; }, (e) => { restore(); throw e; });
+  restore();
+  return r;
+};
+
 /* -- serverGrants - "THE SERVER SAYS YOU NOW HAVE THIS", WITH NO ROUND TRIP --
    The sibling of `withServerBacked` for the tests whose subject is NOT the
    gesture. A collection milestone's REWARD is claimed through a verb (that is
@@ -10258,7 +10318,7 @@ const TESTS = [
   }),
   // gold-arm: claimMilestone credits gold via clientMayWriteRecordField (a
   // deferred GRANT, blocked on the server collection model) — switch-OFF position.
-  () => tryRunAsyncClientAuthoritative('b167: Collection Log tracks completion + claims milestones', async () => {
+  () => tryRunAsync('b167: Collection Log tracks completion + claims milestones', async () => {
     const C = window.HearthriseCollection;
     assert(C && typeof C.getStats === 'function' && typeof C.claimMilestone === 'function', 'HearthriseCollection missing');
     const G = window.G;
@@ -10274,19 +10334,41 @@ const TESTS = [
       Object.keys(window.MONSTERS).slice(0, 12).forEach(function (id) { G.bestiary[id] = { kills: 1, firstKill: 0 }; });
       G.collectionLog = { claimed: [] };
       assert(C.claimable(G).some(function (m) { return m.id === 'hunter10'; }), 'hunter10 should be claimable at 12 monsters');
-      const before = G.gold || 0;
-      // b494: claimMilestone is a Promise (a claim is a server round-trip). In
-      // this client-authoritative position the grant is local and immediate.
-      const rw = await C.claimMilestone('hunter10', G);
-      assert(rw && (G.gold || 0) > before, 'claiming a milestone should grant its reward');
+      const before = goldOf();
+      /* b515 — THE MILESTONE'S REWARD IS THE SERVER'S. `claimMilestone` takes
+         its armed branch (the reward is gold/gems, both server-of-record), so it
+         awaits the verdict and `msGrantLocally` writes only the claimed mark —
+         `msMayWrite('gold')` is false. The old assertion (`G.gold` went up) was
+         the one thing the shipping path must not do. */
+      const rw = await withClaimServer({ ok: true }, async (rig) => {
+        const r = await C.claimMilestone('hunter10', G);
+        assert(rig.calls.length === 1 && rig.calls[0].verb === 'claimMilestone'
+          && rig.calls[0].args[0] === 'hunter10',
+          'the claim sent ' + JSON.stringify(rig.calls) + ' — one hr_claim_milestone naming hunter10');
+        assert(goldOf() === before,
+          'the client PAID a server-owned milestone itself (' + before + ' -> ' + goldOf()
+          + ') — the next envelope takes it straight back');
+        return r;
+      });
+      assert(rw, 'a confirmed claim must report the reward it was granted');
       assert(!C.claimable(G).some(function (m) { return m.id === 'hunter10'; }), 'a claimed milestone should not be claimable again');
+      /* A REFUSED claim marks nothing. hr_claim_milestone is once-guarded, so a
+         client that marked first would lose the reward permanently on any
+         transient refusal. */
+      G.collectionLog = { claimed: [] };
+      await withClaimServer({ ok: false, error: 'rate_limited' }, async (rig) => {
+        await C.claimMilestone('hunter10', G);
+        assert(rig.calls.length === 1, 'the refused claim did not reach the wire');
+      });
+      assert(C.claimable(G).some(function (m) { return m.id === 'hunter10'; }),
+        'a REFUSED milestone was marked claimed — the reward is gone and nothing was paid for it');
     } finally {
       G.gold = sGold;
       if (sBest === undefined) delete G.bestiary; else G.bestiary = sBest;
       if (sCL === undefined) delete G.collectionLog; else G.collectionLog = sCL;
     }
   }),
-  () => tryRunClientAuthoritative('b166: daily login reward claims once per day + escalates with streak', () => {
+  () => tryRunAsync('b166: daily login reward claims once per day + escalates with streak', async () => {
     const D = window.HearthriseDaily;
     assert(D && typeof D.claim === 'function' && typeof D.isClaimable === 'function', 'HearthriseDaily missing');
     const G = window.G;
@@ -10302,9 +10384,29 @@ const TESTS = [
       assert(D.cycleDay(G) === 3, 'cycle day should track streak count (expected 3), got ' + D.cycleDay(G));
       const rw = D.rewardFor(G);
       assert(rw && rw.gold > 0, 'reward should include gold');
-      const before = G.gold || 0;
-      const claimed = D.claim(G);
-      assert(claimed && (G.gold || 0) > before, 'claim should grant its reward');
+      /* b515 — THE PAYMENT IS THE SERVER'S, AND IT IS A GOLD VERB. `D.claim`
+         sends `claim_reward {kind:'daily', key:'login'}` through hr-accrue and
+         the balance arrives ABSOLUTELY on the answer — B354-1 owns that
+         arithmetic in full. What this test owns is the DAY RULE either side of
+         it: claimable once, not twice, and the streak drives the cycle. So the
+         claim is answered with a server balance the client could not have
+         computed, and the once-per-day half is asserted around it. */
+      const before = goldOf();
+      const SERVER_GOLD = before + rw.gold + 11;
+      const claimed = await withServerBacked({ state: { gold: SERVER_GOLD } }, async (rig) => {
+        const c = D.claim(G);
+        await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'claim_reward',
+          'the claim sent ' + JSON.stringify(rig.sent) + ' — one claim_reward intent');
+        assert(rig.sent[0].reward && rig.sent[0].reward.kind === 'daily'
+          && rig.sent[0].reward.key === 'login',
+          'the claim named ' + JSON.stringify(rig.sent[0].reward) + ' instead of {daily, login}');
+        assert(goldOf() === SERVER_GOLD,
+          'the balance is ' + goldOf() + ' and the server said ' + SERVER_GOLD
+          + ' — the local payment is a PREDICTION and the envelope must be applied absolutely');
+        return c;
+      });
+      assert(claimed, 'the claim was not accepted at all');
       assert(!D.isClaimable(G), 'should not be claimable again the same day');
       assert(D.claim(G) === null, 'a second same-day claim must return null');
     } finally {
@@ -10416,7 +10518,7 @@ const TESTS = [
   }),
   // gold-arm: claimRank credits gold via clientMayWriteRecordField (deferred
   // GRANT, blocked on server-side Renown) — switch-OFF position.
-  () => tryRunAsyncClientAuthoritative('b164: Renown ladder scores, ranks up, claims, and perks apply', async () => {
+  () => tryRunAsync('b164: Renown ladder scores, ranks up, claims, and perks apply', async () => {
     const R = window.HearthriseRenown;
     assert(R && typeof R.compute === 'function' && typeof R.getState === 'function', 'HearthriseRenown missing');
     // ladder thresholds strictly increase
@@ -10437,12 +10539,37 @@ const TESTS = [
       G.stats.kills = 60000;                 // → very high renown, top ranks reached
       const claimables = R.getClaimable(G);
       assert(claimables.length > 0, 'high renown should expose claimable rewards');
-      const before = G.gold || 0;
-      // b494: claimRank is a Promise (a claim is a server round-trip). In this
-      // client-authoritative position the grant is local and immediate.
-      const granted = await R.claimRank(claimables[0].id, G);
-      assert(granted && (G.gold || 0) > before, 'claiming a rank should grant its reward');
+      const before = goldOf();
+      /* b515 — THE REWARD IS THE SERVER'S. `claimRank` tests each component and
+         takes the armed branch when any is server-owned: it awaits the verdict
+         and writes NOTHING but the once-guard mark. So the assertions are the
+         three that are actually true of the shipping path — the intent went, the
+         mark landed, and the client paid nothing itself. */
+      const granted = await withClaimServer({ ok: true }, async (rig) => {
+        const g = await R.claimRank(claimables[0].id, G);
+        assert(rig.calls.length === 1 && rig.calls[0].verb === 'claimRank',
+          'the claim sent ' + JSON.stringify(rig.calls) + ' — one hr_claim_rank intent');
+        assert(rig.calls[0].args[0] === claimables[0].id,
+          'the claim named the wrong rank: ' + rig.calls[0].args[0]);
+        assert(goldOf() === before,
+          'the client PAID a server-owned reward itself (' + before + ' -> ' + goldOf() + ') — the next '
+          + 'envelope takes it straight back and the player watches it vanish');
+        return g;
+      });
+      assert(granted, 'a confirmed claim must report the reward it was granted');
       assert(R.getClaimable(G).length < claimables.length, 'a claimed reward should no longer be claimable');
+      /* AND A REFUSAL MARKS NOTHING — the half the old client-authoritative
+         shape could not express at all, because there was no verdict to refuse.
+         MUTATION: mark the rank claimed before awaiting the verdict → red. */
+      const stillOpen = R.getClaimable(G);
+      if (stillOpen.length) {
+        await withClaimServer({ ok: false, error: 'rate_limited' }, async (rig) => {
+          await R.claimRank(stillOpen[0].id, G);
+          assert(rig.calls.length === 1, 'the refused claim did not reach the wire');
+        });
+        assert(R.getClaimable(G).some((c) => c.id === stillOpen[0].id),
+          'a REFUSED claim was marked claimed — the reward is gone and nothing was ever paid for it');
+      }
       const perks = R.getPerks(G);
       assert(typeof perks.allXP === 'number' && perks.allXP > 0, 'top ranks should aggregate an allXP perk');
       if (typeof window.getBonus === 'function') {
@@ -20761,7 +20888,7 @@ const TESTS = [
   // ══════════════════════════════════════════════════════════════════════════
   // gold-arm: claimQuestReward credits gold via clientMayWriteRecordField
   // (deferred GRANT, blocked on server daily/quest counters) — switch-OFF position.
-  () => tryRunClientAuthoritative('b224: a player action moves the RENDERED quest number (strip, modal, claim)', () => {
+  () => tryRunAsync('b224: a player action moves the RENDERED quest number (strip, modal, claim)', async () => {
     assert(typeof window.readSource === 'function',
       'window.readSource is not exported — the Quests strip/modal cannot compute any progress');
     assert(typeof window.getGoalsForToday === 'function', 'getGoalsForToday missing');
@@ -20822,20 +20949,54 @@ const TESTS = [
       repaint();
       const claim = document.querySelector('#quests-modal-overlay .qm-q-claim');
       assert(claim, 'a completed quest offered no Claim button');
-      const goldBefore = G.gold;
+      const goldBefore = goldOf();
       const hpBefore = Number(G.skills.hitpoints) || 0;
-      window.claimQuestReward('kill_more', false);
-      assert(G.gold > goldBefore, 'claiming a completed quest paid nothing');
-      /* b492 — THE XP HALF IS PAID, AND IT LANDS IN A REAL SKILL. kill_more is
-         authored at 300 hitpoints XP; an AUTHORED payout may be raised by perks
-         or a rested charge but must never be shrunk (the b226 PACE rule), so the
-         authored figure is the floor. */
+      /* ── b515 — THE CLAIM IS A ROUND TRIP AND THE REWARD IS THE SERVER'S ────
+         `claimQuestReward` tests each reward component and takes the armed
+         branch when any is server-owned — gold, gems, skill XP and items ALL
+         are — so it awaits `hr_claim_goal` and writes nothing but the
+         once-guard mark. `G.gold` going up was only true in the retired
+         client-authoritative position; today it would be a client paying itself
+         a period reward, which the next envelope takes straight back.
+
+         The b492 property is UNCHANGED and is the reason this block still
+         exists: the reward must name a CONSTANT REAL SKILL. Asserted on the
+         REWARD DEFINITION and on what the claim writes, rather than on a local
+         grant — the phantom `combat` skill was invented by the client, so "the
+         client wrote nothing" and "the client did not write `combat`" are now
+         the same assertion made twice, and both are worth having. */
+      await withClaimServer({ ok: true }, async (rig) => {
+        window.claimQuestReward('kill_more', false);
+        await new Promise((r) => setTimeout(r, 0));
+        for (let i = 0; i < 20; i++) await Promise.resolve();
+        assert(rig.calls.length === 1,
+          'the quest claim sent ' + JSON.stringify(rig.calls) + ' — exactly one claim intent');
+        assert(String(rig.calls[0].args[0]) === 'kill_more',
+          'the claim named the wrong goal: ' + rig.calls[0].args[0]);
+      });
+      assert(goldOf() === goldBefore,
+        'the client PAID a server-owned quest reward itself (' + goldBefore + ' -> ' + goldOf()
+        + ') — the next envelope takes it back and the player watches it vanish');
       const hpAfter = Number(G.skills.hitpoints) || 0;
-      assert(hpAfter >= hpBefore + 300,
-        'THE b492 BUG: claiming a kill goal paid ' + (hpAfter - hpBefore) + ' hitpoints XP, but the '
-        + 'reward line promises 300. The kill goals used to price their XP as the phantom skill '
-        + '`combat`, which the server silently skipped and the client invented — the player was '
-        + 'quoted a price and paid less than it.');
+      assert(hpAfter === hpBefore,
+        'the client authored ' + (hpAfter - hpBefore) + ' hitpoints XP for a claim the server pays — '
+        + '`skills` is SERVER-OF-RECORD and this number dies at the next settle');
+      /* THE b492 CLASS, AT ITS SOURCE. `combat` is a DERIVED level, not an
+         hr_skills row: a reward that names it lands in the server's
+         `skipped_xp` and the player is quoted a price they are never paid. */
+      const rewardOf = (id) => {
+        const pool = (window.HearthriseGoalCatalogue && window.HearthriseGoalCatalogue.DAILY_GOAL_POOL)
+          || window.DAILY_GOAL_POOL || [];
+        return (pool.filter((g) => g && g.id === id)[0] || {}).reward || null;
+      };
+      const rw = rewardOf('kill_more');
+      if (rw && rw.xp) {
+        assert(!Object.prototype.hasOwnProperty.call(rw.xp, 'combat'),
+          'THE b492 CLASS IS BACK: the kill goal prices its XP as the phantom skill `combat`, which the '
+          + 'server drops into skipped_xp — the modal quotes a number nobody pays');
+        assert(Object.keys(rw.xp).length > 0 && Object.keys(rw.xp).every((k) => k !== 'combat'),
+          'the kill goal must name a CONSTANT real skill: ' + JSON.stringify(rw.xp));
+      }
       const combatAfter = Object.prototype.hasOwnProperty.call(G.skills, 'combat')
         ? G.skills.combat : undefined;
       assert(combatAfter === combatBefore,
@@ -47897,7 +48058,7 @@ const TESTS = [
      within the same turn — so the balance correctly nets zero and the test's
      instrument reads nothing. The interaction it guards is unchanged; only its
      yardstick needs the position where a local payment IS the payment. */
-  () => tryRunClientAuthoritative('B345-2: the daily-reward sheet never swallows a click in silence, and the next click reaches the game', () => {
+  () => tryRunAsync('B345-2: the daily-reward sheet never swallows a click in silence, and the next click reaches the game', async () => {
     /* ── THE MEASURED BUG ────────────────────────────────────────────────
        Real first boot (storage cleared, tour finished, Skills › Woodcutting):
        `.hr-dl-box` — the 420x242 panel, dead centre — sat on top of the first
@@ -48026,12 +48187,27 @@ const TESTS = [
          reward button into another way to close the sheet. */
       toasts.length = 0;
       G.dailyReward = { lastClaimDay: 0 };
-      const before = G.gold || 0;
+      const before = goldOf();
       kill(); D.open();
       const claimBtn = document.querySelector('#hr-dl-modal [data-dl-claim]');
       assert(claimBtn, 'the claimable sheet has no claim button');
-      claimBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-      assert((G.gold || 0) > before, 'clicking Claim paid nothing: ' + before + ' -> ' + G.gold);
+      /* b515 — THE CLICK IS THE SUBJECT; THE PAYMENT IS THE SERVER'S. This
+         asserted `G.gold` went up, which was only ever true in the retired
+         client-authoritative position — `D.claim` sends a `claim_reward` intent
+         and the balance arrives ABSOLUTELY on the answer (B354-1 owns that
+         arithmetic). What this test is about is that the button still REACHES
+         the claim rather than having become a second way to close the sheet, so
+         it is answered by a server and graded on the server's number. */
+      const SERVER_GOLD = before + 1234;
+      await withServerBacked({ state: { gold: SERVER_GOLD } }, async (rig) => {
+        claimBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'claim_reward',
+          'clicking Claim sent ' + JSON.stringify(rig.sent) + ' — the button has become another way to '
+          + 'close the sheet, which is the fix over-correcting into the same silence');
+        assert(goldOf() === SERVER_GOLD,
+          'clicking Claim left the balance at ' + goldOf() + ' and the server said ' + SERVER_GOLD);
+      });
       assert(!document.getElementById('hr-dl-modal'), 'claiming did not close the sheet');
       assert(D.isClaimable(G) === false, 'the reward is still claimable after being claimed');
       assert(!toasts.some((t) => /still waiting/i.test(t)),

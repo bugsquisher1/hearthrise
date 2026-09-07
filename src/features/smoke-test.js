@@ -49043,32 +49043,141 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('AWAY-HONEST-5: the FTUE promises exactly what the engine pays — a skill banks the night, a fight banks until you fall', () => {
+  /* ── AWAY-HONEST-5 — THE TOUR'S AWAY PROMISE, BOUND TO THE AWAY ENGINE ──────────────────────────
+     One question since b340 — "does the tour promise what the engine pays?" — re-specified whenever
+     the answer changes, never deleted. It used to pin the qualification "only until you fall" IN;
+     Recovery Rule rev. 2 (src/core/away.js) made a fall an INTERRUPTION — Knocked Out for
+     `recoveryFor()` (free on the day's first), back up on `resumeHpFor()` of maximum, SAME fight
+     resumed — so that pin is now the honesty defect this test exists to catch, wearing its badge.
+     It therefore binds the NEW sentences, clause by clause, to MEASURED SPANS rather than to
+     constants: `recoveryFor(0,0) === 0` is the ladder's promise, but what a player is promised is a
+     NIGHT. Each clause is asserted against `simulateSpan`/`simulateSkillSpan` — the bytes
+     tools/pack-edge.mjs vendors into hr-accrue — over an 8h absence on a foodless character who
+     really does fall. FIRST-LIGHT-4 pins the RETIRED sentences OUT; this pins the REPLACEMENT in and
+     ties it to the payout — the two fail for different reasons, which is why they are two tests.
+     MUTATIONS PROVEN 2026-09-07, six, each RED with the clause named:
+       copy   wrap "…picks itself back up and carries on" → "…banks only until you fall"  → clause 3
+       engine combat-sim ends the run on a fall                                           → clause 2
+       engine away.js `RESUME_HP_FRACTION = 1.00` (the free full heal security BLOCKED)   → clause 5
+       engine away.js `recoveryFor` charges the day's first fall                          → clause 4
+       engine combat-sim doubles the clock when `ctx.away` (the away-only rule forbidden) → clause 6
+       engine skill-sim caps a gather span at one hour                                    → clause 1 */
+  () => tryRun('AWAY-HONEST-5: the FTUE promises exactly what the engine pays — a skill banks the whole night, and a fight that falls picks itself back up', () => {
     const F = window.HearthriseFTUE;
+    const C = window.HearthriseCore;
     assert(F && typeof F.steps === 'function', 'the FTUE must publish its steps for this assertion');
+    assert(C && C.combatSim && C.skillSim && C.away,
+      'CONTROL: the away engine must be published or every binding below is vacuous');
     const steps = F.steps();
     const byId = {}; steps.forEach((s) => { byId[s.id] = s; });
     assert(byId.combat && byId.wrap && byId.skills, 'the FTUE lost a step: ' + Object.keys(byId).join(','));
-    assert(/hit back/i.test(byId.combat.body) && /fall/i.test(byId.combat.body),
-      'the combat step must say that monsters hit back and a fight ends when you fall');
-    /* The exact sentence that was false in b340: one line promising away
-       rewards for "any skill" and "anything that moves" on equal terms. */
-    assert(!/check back tomorrow for offline rewards/i.test(byId.wrap.body),
+    const combatBody = String(byId.combat.body || '');
+    const wrapBody = String(byId.wrap.body || '');
+
+    /* The b340 sentence: away rewards for "any skill" and "anything that moves", in one breath. */
+    assert(!/check back tomorrow for offline rewards/i.test(wrapBody),
       'the wrap step still promises away rewards for combat and skills in one breath');
-    /* b343: away combat pays, so the tour may SAY so — but it must qualify it
-       with the limit that is actually real, or it is the b340 sentence again
-       in new words. Both steps carry the qualification because both mention
-       leaving a fight running.
-       MUTATION PROVEN: drop "but only until you fall" from the wrap body and
-       this fails; put the retired permit sentence back and the last one does. */
-    assert(/until you fall/i.test(byId.wrap.body),
-      'the wrap step sells an away fight without naming what ends it: ' + byId.wrap.body);
-    assert(/while you're away|while you are away/i.test(byId.combat.body)
-      && /until you fall/i.test(byId.combat.body),
-      'the combat step must state the away deal AND its limit in the same breath: ' + byId.combat.body);
-    /* And the promise the game DOES keep is untouched. */
-    assert(/offline, progress continues/i.test(byId.skills.body),
-      'the skills step must still promise offline progress — it is true, and it is the promise the game keeps');
+
+    const NIGHT_MS = 8 * 3600000;
+
+    /* CLAUSE 1 · "even when you're offline, progress continues" — bound to a whole NIGHT, not the
+       hour AWAY-HONEST-4 measures: "continues" is `paidMs === awayMs`, never merely "> 0". */
+    assert(/offline, progress continues/i.test(String(byId.skills.body || '')),
+      'the skills step must promise offline progress — it is true, and it is the promise the game keeps');
+    const gather = awayGatherSpan({ spanMs: NIGHT_MS });
+    assert(gather.out.paidMs === NIGHT_MS && gather.out.stopped === false,
+      'the tour promises a skill keeps running while you are offline; an 8h gather span paid '
+      + gather.out.paidMs + 'ms of ' + NIGHT_MS + ' (stopped=' + gather.out.stopped + ')');
+    assert((gather.paid.xp[gather.skill] || 0) > 0 && Object.keys(gather.paid.items).length > 0,
+      'the whole night counted as paid and granted nothing: ' + JSON.stringify(gather.paid));
+
+    /* THE NIGHT THAT FALLS. A foodless character on slimes: hits for 3, is hit for 2, 120 max HP.
+       Deterministic (pinned seed, fixed rolls) over a whole number of 2.4s ticks, so the identity
+       below is an equality and not a tolerance; `fromMs` is stated because the truncated twin
+       derives from it. MEASURED: 132 kills, 13 falls, first fall at 4.24 min. */
+    const FROM = Date.UTC(2026, 0, 15, 6, 0, 0);
+    const fixture = {
+      fromMs: FROM,
+      state: { playerHp: 120, playerMaxHp: 120 },
+      ctx: {
+        playerRolls: () => ({ accuracy: 1e9, maxHit: 3, critChance: 0 }),
+        monsterRolls: () => ({ accuracy: 1e9, maxHit: 2 }),
+      },
+    };
+    const night = awaySpan({ ...fixture, spanMs: NIGHT_MS });
+    assert(night.out.deaths > 0 && night.out.kills > 0,
+      'CONTROL: this fixture must both kill and fall or nothing below is measuring the rule — '
+      + JSON.stringify({ kills: night.out.kills, deaths: night.out.deaths }));
+
+    /* CLAUSE 2 · "it banks the whole time you are gone" — THE ACCOUNTING IDENTITY. Every ms of the
+       absence either EARNED (`survivedMs`) or was a recovery clock (`recoverMs`); none of it is "the
+       run ended", whose shape is a remainder that goes nowhere. */
+    assert(/banks the whole time you are gone/i.test(wrapBody),
+      'the wrap step no longer states the deal it is being held to here: ' + wrapBody);
+    assert(night.out.survivedMs + night.out.recoverMs === NIGHT_MS,
+      'the tour says the night banks whole; the engine accounted for only '
+      + (night.out.survivedMs + night.out.recoverMs) + 'ms of ' + NIGHT_MS
+      + ' (earned ' + night.out.survivedMs + ', knocked out ' + night.out.recoverMs
+      + ') — the rest of the absence went nowhere, which is what "the fight ended" looks like');
+
+    /* CLAUSE 3 · "a fight that falls picks itself back up and carries on" — a DELTA, because
+       "kills > 0" is satisfied by a run that STOPPED at the first fall. The twin is the identical
+       seeded run truncated at that fall, so the difference IS what resuming is worth. */
+    assert(/picks itself back up/i.test(wrapBody),
+      'the wrap step dropped the resume promise this test binds: ' + wrapBody);
+    const firstFall = night.out.deathLog[0];
+    assert(firstFall, 'CONTROL: the night recorded no fall, so the resume below is unmeasured');
+    const upToTheFall = awaySpan({ ...fixture, spanMs: firstFall.atMs - FROM });
+    assert(upToTheFall.out.deaths === 1,
+      'CONTROL: the truncated twin must end ON the first fall, not before or after it — deaths='
+      + upToTheFall.out.deaths);
+    assert(night.out.kills > upToTheFall.out.kills,
+      'the night paid ' + night.out.kills + ' kills and the run up to the first fall paid '
+      + upToTheFall.out.kills + ' — nothing was earned after the character fell, so the tour is '
+      + 'selling a resume the engine does not perform');
+    assert(night.out.deaths >= 2,
+      'the character fell once in eight hours and never again — a run that ended at the first fall '
+      + 'cannot fall twice, so this is the retired rule wearing the new copy');
+    assert(night.state.activeMonster === 'slime',
+      'the fight resumed against ' + night.state.activeMonster + ' — the copy says the SAME fight '
+      + 'carries on, and src/core/combat-sim.js restores the target the death fx cleared');
+
+    /* CLAUSE 4 · "the first fall of each day costs you no time at all" — as the ladder actually
+       CHARGED it inside a span, not as the pure function (FIRST-LIGHT-4's), because a span is where
+       a caller could stamp a clock the ladder never asked for. */
+    assert(/first fall of each day costs you no time at all/i.test(combatBody),
+      'the combat step dropped the free-first-fall promise: ' + combatBody);
+    assert(night.out.recoverLadder[0] === 0,
+      'the tour promises the day\'s first fall is free; the span charged '
+      + night.out.recoverLadder[0] + 'ms for it. Ladder: ' + night.out.recoverLadder.join(','));
+
+    /* CLAUSE 5 · "stand back up on part of your health" — PART, not all: the full heal this replaced
+       made dying the cheapest top-up. The span must agree with `resumeHpFor`, the one definition. */
+    assert(/part of your health/i.test(combatBody),
+      'the combat step no longer says a fall returns PART of your health: ' + combatBody);
+    assert(firstFall.resumeHp > 0 && firstFall.resumeHp < 120,
+      'the character stood up on ' + firstFall.resumeHp + ' of 120 max HP — "part of your health" is '
+      + 'false at both ends: 0 is a corpse and a full bar is the free heal the ladder exists to remove');
+    assert(firstFall.resumeHp === C.away.resumeHpFor(120),
+      'the span stood the character up on ' + firstFall.resumeHp + ' while away.js resumeHpFor(120) says '
+      + C.away.resumeHpFor(120) + ' — two definitions of the same rule');
+
+    /* CLAUSE 6 · "while you are away … under exactly the same rule" — the SAME span run with
+       `away: false` must be byte-identical: AWAY-1 parity restated as a copy binding, so an
+       away-only recovery table (the shape away.js forbids) fails here. */
+    assert(/while you're away|while you are away/i.test(combatBody)
+      && /the same rule/i.test(combatBody),
+      'the combat step must state the away deal AND that it is the same rule: ' + combatBody);
+    const attended = awaySpan({ ...fixture, spanMs: NIGHT_MS, away: false });
+    const fingerprint = (r) => JSON.stringify({
+      kills: r.out.kills, deaths: r.out.deaths, survivedMs: r.out.survivedMs,
+      recoverMs: r.out.recoverMs, ladder: r.out.recoverLadder,
+      resumeHps: r.out.deathLog.map((d) => d.resumeHp),
+    });
+    assert(fingerprint(night) === fingerprint(attended),
+      'the tour says an away fight runs under exactly the same rule as an attended one, and the same '
+      + 'seeded span paid differently:\n  away:     ' + fingerprint(night)
+      + '\n  attended: ' + fingerprint(attended));
   }),
 
   () => tryRunAsync('B342-1: the SAVE BLOB addresses the active character — both directions — and auth.js pins no slot', async () => {

@@ -1241,6 +1241,16 @@ const goldOf = () => {
   }
   return (window.G && Number(window.G.gold)) || 0;
 };
+/** The GEM twin, for the same reason — `gems` is server-of-record and armed, so
+ *  a bare `G.gems` is not what any affordability read or any surface uses. */
+const gemsOf = () => {
+  const B = window.HearthriseBalance;
+  if (B && typeof B.balanceNumForDisplay === 'function') {
+    const n = B.balanceNumForDisplay(window.G, 'gems');
+    if (typeof n === 'number') return n;
+  }
+  return (window.G && Number(window.G.gems)) || 0;
+};
 
 const snapshotG = () => {
   const G = window.G;
@@ -7988,7 +7998,7 @@ const TESTS = [
      tests. The gem path and the cap arithmetic are switch-independent.
      gold-arm: gold/gems are ARMED, so the debit lands and the affordability check
      reads a KNOWN balance only after the stamp — stampBalanceLikeLoad below. */
-  () => tryRunClientAuthoritative('b269: buying bank space raises the cap; gold escalates; gems are the better deal', () => {
+  () => tryRunAsync('b269: buying bank space raises the cap; gold escalates; and the gem rung has no server verb', async () => {
     const G = window.G;
     assert(typeof window.buyBankSpaceGold === 'function', 'buyBankSpaceGold missing');
     assert(typeof window.buyBankSpaceGem === 'function', 'buyBankSpaceGem missing');
@@ -8000,29 +8010,59 @@ const TESTS = [
       const cap0 = window.bankCap();
       assert(cap0 === BS.BASE_CAP, 'fresh cap must equal BASE_CAP, got ' + cap0);
 
-      // GOLD path: raises cap by the gold slot count, spends the escalating cost.
+      /* ── GOLD PATH: an hr_unlock_buy gesture (b500). The cap moves on the
+         server's OK and the balance is whatever the answer states — the client
+         does not debit, so "deduct exactly the quoted cost" is now "send the
+         right rung and render the server's number". */
       G.gold = 10_000_000; G.gems = 10_000;
       stampBalanceLikeLoad(G);   // armed: buyBankSpace* read via canAfford
       const c0 = window.bankGoldCost();
-      assert(window.buyBankSpaceGold() === true, 'gold buy should succeed when affordable');
-      assert(window.bankCap() === cap0 + BS.gold.slots, 'gold buy must add gold.slots to the cap');
-      assert(G.gold === 10_000_000 - c0, 'gold buy must deduct exactly the quoted cost');
+      const SERVER_GOLD = 10_000_000 - c0 - 7;     // NOT the client's arithmetic
+      await withServerBacked({ state: { gold: SERVER_GOLD } }, async (rig) => {
+        assert(window.buyBankSpaceGold() === true, 'gold buy should succeed when affordable');
+        await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'unlock_buy' && rig.sent[0].offer === 'bank.0',
+          'the bank rung sent ' + JSON.stringify(rig.sent) + ' — one unlock_buy naming bank.0');
+        assert(!('gold' in rig.sent[0]) && !('price' in rig.sent[0]),
+          'the bank rung named a price: ' + JSON.stringify(rig.sent[0]));
+        assert(window.bankCap() === cap0 + BS.gold.slots, 'gold buy must add gold.slots to the cap');
+        assert(goldOf() === SERVER_GOLD,
+          'the balance is ' + goldOf() + ' and the server said ' + SERVER_GOLD);
+      });
       const c1 = window.bankGoldCost();
       assert(c1 > c0, 'gold cost must ESCALATE after a purchase (' + c1 + ' > ' + c0 + ')');
 
-      // GEM path: bigger jump per purchase = better value than a single gold buy.
-      const gemsBefore = G.gems, capBeforeGem = window.bankCap();
-      assert(window.buyBankSpaceGem() === true, 'gem buy should succeed when affordable');
-      assert(window.bankCap() === capBeforeGem + BS.gem.slots, 'gem buy must add gem.slots to the cap');
-      assert(G.gems === gemsBefore - BS.gem.cost, 'gem buy must deduct exactly the gem cost');
+      /* ── GEM PATH: THE LADDER IS AUTHORED AND THE VERB IS NOT. `gems` is
+         SERVER-OF-RECORD and armed, and there is NO gem rung in
+         src/data/gold-ladders.js (hr_unlock_offers prices in gold only), so
+         `buyBankSpaceGem` REFUSES by name rather than granting the rung and
+         letting the next envelope refund the gems — the b371 dupe's shape.
+         That is a real PRODUCT GAP, filed in HANDOFFS.md ("the GEM PURCHASE
+         VERB"), and it is named here rather than tested away.
+         What must hold while it is off: the refusal costs NOTHING, and it SAYS
+         so — a button that silently does nothing is how a player concludes
+         their gems vanished (b494). And the LADDER DATA is still asserted, so
+         the day the verb lands the balance question is the only open one. */
+      const gemsBefore = gemsOf(), capBeforeGem = window.bankCap();
+      const gemBuy = window.buyBankSpaceGem();
+      assert(gemBuy !== true,
+        'the gem bank rung was GRANTED with no server verb behind it — the rung sticks and the next '
+        + 'envelope refunds the gems, which is the b371 free-purchase dupe');
+      assert(window.bankCap() === capBeforeGem, 'a refused gem buy moved the cap: ' + window.bankCap());
+      assert(gemsOf() === gemsBefore, 'a refused gem buy spent gems: ' + gemsBefore + ' -> ' + gemsOf());
       assert(BS.gem.slots > BS.gold.slots, 'the gem path must grant more slots per buy than gold');
+      assert(BS.gem.cost > 0, 'the gem rung must still carry a price for the day it is sellable');
 
-      // Can't overspend either currency. Re-stamp so the refusal is measured on a
-      // genuinely-KNOWN zero balance (the "you are broke" path), not on UNKNOWN.
+      // Can't overspend. Re-stamp so the refusal is measured on a genuinely-KNOWN
+      // zero balance (the "you are broke" path), not on UNKNOWN.
       G.gold = 0; stampBalanceLikeLoad(G);
-      assert(window.buyBankSpaceGold() === false && G.gold === 0, 'must refuse gold buy with no gold');
-      G.gems = 0; stampBalanceLikeLoad(G);
-      assert(window.buyBankSpaceGem() === false && G.gems === 0, 'must refuse gem buy with no gems');
+      await withServerBacked({}, async (rig) => {
+        assert(window.buyBankSpaceGold() === false, 'must refuse gold buy with no gold');
+        await rig.drain();
+        assert(rig.sent.length === 0,
+          'a broke player still spent a round trip to be told they are broke: ' + JSON.stringify(rig.sent));
+        assert(goldOf() === 0, 'a refused buy moved the balance');
+      });
     } finally {
       G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank;
     }
@@ -8128,17 +8168,63 @@ const TESTS = [
      REFUSES rather than burning the IAP-only bond for gems the next envelope
      erases; that behaviour has its own test (GEM-TOKEN-1) and this one would
      otherwise fail for a reason that has nothing to do with the arithmetic. */
-  () => tryRunClientAuthoritative('b206: hearth token — real tradable item + redemption math', () => {
+  () => tryRun('b206: hearth token — a real tradable item, and a redemption that REFUSES rather than burning it', () => {
     assert(window.ITEMS.hearth_token && window.ITEMS.hearth_token.premium, 'hearth_token item exists + premium flag');
     const G = window.G;
     const saved = { gems: G.gems, inv: JSON.parse(JSON.stringify(G.inventory || {})) };
     try {
-      G.inventory.hearth_token = 2; G.gems = 10;
-      window.redeemHearthToken();
-      assert(G.inventory.hearth_token === 1, 'redeem consumes exactly 1 token');
-      assert(G.gems === 160, 'redeem grants exactly 150 gems, got ' + G.gems);
+      /* ── b515 — THE REDEMPTION INVERTS, AND THAT IS THE FIX, NOT A REGRESSION.
+         This asserted the client burned a token and paid itself 150 gems. It
+         ran with the b353 kill switch off, where a local gem credit WAS the
+         payment; under the shipping arm `gems` is SERVER-OF-RECORD, nothing
+         server-side has ever heard of this redemption, and the old path was the
+         single worst trade in the game — it destroyed the IAP-only bond (the
+         most valuable object a player can hold, and the ONE sanctioned
+         cash→value path) with a local `removeItem`, and paid 150 gems the next
+         envelope erased. The token does not come back either: the inventory
+         absolute arm is dormant, so nothing restores it.
+
+         `redeemHearthToken` therefore REFUSES while the client may not write the
+         balance, and keeping the token is the only outcome here that is not a
+         loss. What must hold is exactly that: nothing is consumed, nothing is
+         credited, and the player is TOLD — a premium item that silently does
+         nothing when tapped is how a bug report about a missing token starts.
+         The server half is filed (HANDOFFS.md: an `hr_redeem_token`-shaped verb
+         that consumes the token and credits the gems in ONE transaction).
+         MUTATION: drop the `gemSpendIsClientAuthored()` gate → the token is
+         burnt and the first assertion goes red. */
+      G.inventory.hearth_token = 2;
+      G.gems = 10;
+      stampBalanceLikeLoad(G);
+      const toasts = [];
+      const realNotify = window.notify;
+      window.notify = function (m) { toasts.push(String(m)); };
+      try { window.redeemHearthToken(); } finally { window.notify = realNotify; }
+
+      if (window.clientMayWriteRecordField('gems')) {
+        // Pre-arm (or a future armed verb): the redemption pays, exactly once.
+        assert(G.inventory.hearth_token === 1, 'redeem consumes exactly 1 token');
+        assert(gemsOf() === 160, 'redeem grants exactly 150 gems, got ' + gemsOf());
+      } else {
+        assert((G.inventory.hearth_token || 0) === 2,
+          'THE WORST TRADE IN THE GAME: the client BURNT a Hearth Token — the IAP-only bond — for gems '
+          + 'the next envelope erases. Nothing server-side has heard of this redemption and the bag is '
+          + 'merge-mode, so the token does not come back. Tokens left: ' + G.inventory.hearth_token);
+        assert(gemsOf() === 10, 'the client credited itself gems for a redemption no server recorded: ' + gemsOf());
+        assert(toasts.length >= 1 && /token/i.test(toasts.join(' ')),
+          'the refusal was SILENT — a premium item that does nothing when tapped is how a bug report '
+          + 'about a missing token starts: ' + JSON.stringify(toasts));
+        assert(!/redeemed/i.test(toasts.join(' ')),
+          'the refusal claimed the redemption happened: ' + JSON.stringify(toasts));
+      }
+      /* AND THE BOND IS NEVER MINTED IN PvE, whichever way the redemption goes.
+         That is the Final Directive's line and it is asserted beside the thing
+         most likely to break it. */
+      assert(window.ITEMS.hearth_token.premium === true,
+        'hearth_token lost its premium flag — the drop-table guards key on it');
     } finally {
       G.gems = saved.gems; G.inventory = saved.inv;
+      try { stampBalanceLikeLoad(G); } catch (e) {}
     }
   }),
   () => tryRun('b208: market — live-backend seam present, sane offline defaults', () => {
@@ -17170,7 +17256,7 @@ const TESTS = [
   // never the community share, never twice, and never before the day is over.
   // gold-arm: the half-honors payout credits gold client-side via a
   // clientMayWriteRecordField-gated grant — switch-OFF position.
-  () => tryRunClientAuthoritative('b228: answering in absence pays exactly half the base band, once, and only after the day closes', () => {
+  () => tryRun('b228: answering in absence pays exactly half the base band, once, and only after the day closes', () => {
     const M = window.HearthriseMuster, G = window.G;
     assert(M.ABSENT_SHARE === 0.5, 'the consolation share drifted: ' + M.ABSENT_SHARE);
     assert(M.ABSENT_BAND.gold === Math.round(M.SOLO_BAND.gold * 0.5) && M.ABSENT_BAND.gold === 750,
@@ -17228,12 +17314,45 @@ const TESTS = [
       // remainder, and the whole chest is still worth no more than the band.
       const expect = M.absentChest(pastKey + '#1', M.ABSENT_BAND.gold, M.ABSENT_BAND.gems);
       assert(M.chestValue(expect) <= M.ABSENT_BAND.gold, 'half honors exceeded its band');
+      /* ── b515 — WHAT "LANDS" MEANS, NOW THAT THE CURRENCY IS THE SERVER'S ───
+         This asserted `G.gold` and `G.gems` went up. `payChest` gates BOTH on
+         the record seam, and muster.js says why at the line: world_event_claim
+         PRICES the chest server-side but does not credit `player_state.gold`,
+         so a local grant would be erased by the next absolute envelope. Under
+         the shipping arm both gates are closed and the balances correctly do
+         not move.
+
+         The chest's OTHER halves are not server-owned and still land — seals
+         and XP are excluded from item-authority on purpose — so those are what
+         "the chest was paid" is measured on, and the ONCE-NESS (the whole point
+         of the test: a pledge that is not consumed pays every boot) is measured
+         on the pledge and on those same halves.
+         MUTATION: drop the `_mayGold` gate in payChest → the "authored nothing"
+         assertion goes red; drop the pledge clear in settlePledge → the
+         paid-twice assertions do. */
+      const sealsOf = () => (G.inventory && G.inventory.muster_seal) || 0;
+      const seals0 = sealsOf();
+      const goldKnown0 = goldOf(), gemsKnown0 = gemsOf();
       M.settlePledge();
-      assert(G.gold === gold0 + expect.gold, 'half honors did not land: ' + (G.gold - gold0));
-      assert(G.gems === gems0 + 1, 'half honors gems did not land: ' + (G.gems - gems0));
       assert(M.getPledge() === null, 'a settled pledge must be cleared, or it pays again on the next boot');
+      assert(goldOf() === goldKnown0 && gemsOf() === gemsKnown0,
+        'the client AUTHORED half honors in a currency the server owns (' + goldKnown0 + ' -> ' + goldOf()
+        + ' gold, ' + gemsKnown0 + ' -> ' + gemsOf() + ' gems) — world_event_claim prices the chest but '
+        + 'does not credit player_state, so the next envelope erases this and the player watches it go');
+      /* The client-owned halves of the same chest DID land — otherwise the
+         assertion above is satisfied by a settle that did nothing at all. */
+      const paidSomething = sealsOf() > seals0
+        || (expect.items || []).some((it) => (G.inventory[it.id] || 0) > 0)
+        || (expect.xp || []).length > 0;
+      assert(paidSomething || (expect.items || []).length === 0,
+        'the settle paid NOTHING at all — the currency gate is doing the work of the whole function, and '
+        + 'the assertion above would then be vacuous');
+      const sealsAfter = sealsOf();
       M.settlePledge();
-      assert(G.gold === gold0 + expect.gold, 'half honors paid twice — the pledge was not consumed');
+      assert(sealsOf() === sealsAfter,
+        'half honors paid twice — the pledge was not consumed (seals ' + sealsAfter + ' -> ' + sealsOf() + ')');
+      assert(goldOf() === goldKnown0 && gemsOf() === gemsKnown0,
+        'the second settle authored a currency the server owns');
     } finally {
       G.gold = gold0; G.gems = gems0;
       if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
@@ -28064,11 +28183,25 @@ const TESTS = [
      §8.4 Quarry ruling actually closes the loop: if stone had no faucet, step
      one would produce nothing and every later assertion would be vacuous.
      ══════════════════════════════════════════════════════════════════════════ */
-  () => tryRunClientAuthoritative('b357 E2E: a Runecrafter starts with nothing, quarries stone, and ends up holding cast-ready runes', () => {
+  () => tryRun('b357 E2E: a Runecrafter starts with nothing, quarries stone, and ends up holding cast-ready runes', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const snap = snapshotG();
     const realNotify = window.notify;
+    /* -- b515 - THE XP IS RECORDED AT THE SEAM, NOT READ OFF `G.skills` -------
+       This ran client-authoritative and read `G.skills.mining` after each rung.
+       `skills` is SERVER-OF-RECORD and armed, so `window.addXp` refuses and the
+       raw map never moves - the XP assertions would have been reading a number
+       the client is right not to write.
+
+       The BAG is unchanged and is still read off `G` (inventory is client-owned
+       and the whole point of this test is a supply chain filling one), so only
+       the XP half moves: the fx already routes every grant through one call,
+       and that call is now RECORDED as well as forwarded. What is asserted is
+       what the ENGINE PAID - which is exactly what the server's copy of this
+       engine will credit - rather than what the client managed to write down. */
+    const paidXp = {};
+    const xpOfSkill = (sk) => paidXp[sk] || 0;
     try {
       window.notify = function () {};
       const recipes = C.artisanRecipes();
@@ -28091,7 +28224,10 @@ const TESTS = [
           fx: {
             addItem: (id, q) => window.addItem(id, q),
             removeItem: (id, q) => window.removeItem(id, q),
-            addXp: (sk, amt) => window.addXp(sk, amt),
+            /* RECORDED AND FORWARDED. The forward keeps every consequence
+               `addXp` owns (PACE, the fuse, level-ups) in the loop; the record
+               is what this test reads, because the write itself is refused. */
+            addXp: (sk, amt) => { paidXp[sk] = (paidXp[sk] || 0) + amt; window.addXp(sk, amt); },
             updateDaily: () => {}, updateQuest: () => {},
           },
         });
@@ -28116,9 +28252,9 @@ const TESTS = [
       assert(q.ticks === 200, 'the quarry ran ' + q.ticks + ' of 200 actions');
       assert(have('rubble') >= 200 * 5,
         'quarrying 200 times should yield at least 1000 rubble, got ' + have('rubble'));
-      assert((G.skills.mining || 0) > 0, 'quarrying must pay MINING XP (b374 — gathering rock is mining)');
-      assert((G.skills.stonemason || 0) === 0,
-        'quarrying must NOT pay Stonemason XP any more — refining does (got ' + (G.skills.stonemason || 0) + ')');
+      assert(xpOfSkill('mining') > 0, 'quarrying must pay MINING XP (b374 — gathering rock is mining)');
+      assert(xpOfSkill('stonemason') === 0,
+        'quarrying must NOT pay Stonemason XP any more — refining does (got ' + xpOfSkill('stonemason') + ')');
 
       /* ── 2. DRESS (Cut Stone Block). Stone → the common trunk every lane
          branches off. THIS is the "refining" half, and it pays Stonemason. */
@@ -28127,7 +28263,7 @@ const TESTS = [
       assert(d.ticks === 100 && d.stoppedBy === null, 'dressing stopped early: ' + d.stoppedBy);
       assert(have('dressed_block') === 200, 'expected 200 dressed blocks, got ' + have('dressed_block'));
       assert(have('rubble') === rubbleBefore - 400, 'dressing must consume 4 rubble per action');
-      assert((G.skills.stonemason || 0) > 0, 'dressing (refining) must pay Stonemason XP (b374)');
+      assert(xpOfSkill('stonemason') > 0, 'dressing (refining) must pay Stonemason XP (b374)');
 
       /* ── 3. CUT BLANKS — the Stonemason → Runecrafting seam. */
       const b = work('cut_rune_blanks', 50);
@@ -28138,13 +28274,13 @@ const TESTS = [
          paid out of a different XP pool. `simulateArtisanSpan` derives the
          bench from the recipe index rather than the pointer, so this is also a
          check that the new lane is actually indexed. */
-      const rcBefore = G.skills.runecrafting || 0;
+      const rcBefore = xpOfSkill('runecrafting');
       const r = work('bind_air_runes', 40);
       assert(r.skill === 'runecrafting',
         'binding runes must pay the runecrafting bench, got ' + r.skill);
       assert(r.ticks === 40 && r.stoppedBy === null, 'binding stopped early: ' + r.stoppedBy);
       assert(have('air_rune') === 40 * 42, 'expected 1680 air runes, got ' + have('air_rune'));
-      assert((G.skills.runecrafting || 0) > rcBefore, 'binding must pay Runecrafting XP');
+      assert(xpOfSkill('runecrafting') > rcBefore, 'binding must pay Runecrafting XP');
       assert(have('rune_blank') === 600 - 40 * 6, 'binding must consume 6 blanks per action');
 
       /* ── 5. THE THING IT WAS ALL FOR: the rune is equippable ammo that a
@@ -28174,11 +28310,19 @@ const TESTS = [
      other skills are still at zero at the end. That is why they are not
      decoration at the bottom — they ARE the test.
      ══════════════════════════════════════════════════════════════════════════ */
-  () => tryRunClientAuthoritative('b432 E2E: a pure Runecrafter — level 1, no other skill trained — buys blanks at the Local Shop, binds runes, and enchants a weapon with one', () => {
+  () => tryRunAsync('b432 E2E: a pure Runecrafter — level 1, no other skill trained — buys blanks at the Local Shop, binds runes, and enchants a weapon with one', async () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const snap = snapshotG();
     const realNotify = window.notify;
+    /* b515: the XP is RECORDED at the fx seam and the shop purchase is answered
+       by a server — the same two moves as the b357 E2E above, for the same
+       reason. `skills` and `gold` are both SERVER-OF-RECORD and armed, so
+       reading either off `G` after a gesture would be reading a number the
+       client is right not to write. Everything else — the bag, the catalogue,
+       the price inequality, the element maths — is unchanged. */
+    const paidXp = {};
+    const xpOfSkill = (sk) => paidXp[sk] || 0;
     try {
       window.notify = function () {};
       const recipes = C.artisanRecipes();
@@ -28198,7 +28342,7 @@ const TESTS = [
           fx: {
             addItem: (id, q) => window.addItem(id, q),
             removeItem: (id, q) => window.removeItem(id, q),
-            addXp: (sk, amt) => window.addXp(sk, amt),
+            addXp: (sk, amt) => { paidXp[sk] = (paidXp[sk] || 0) + amt; window.addXp(sk, amt); },
             updateDaily: () => {}, updateQuest: () => {},
           },
         });
@@ -28235,7 +28379,17 @@ const TESTS = [
         + 'is an infinite gold printer, and the shop price must always sit ABOVE book value');
 
       /* ── 2. BUY. The real button, not a hand-poked inventory. ─────────── */
-      window.buyShopItem('rune_blank', offer.qty, offer.cost);
+      /* …and a real ANSWER, because `shop_buy` is a gold verb and the balance
+         it leaves is the server's, not the client's subtraction. */
+      const purseBefore = goldOf();
+      await withServerBacked({ state: { gold: purseBefore - offer.cost } }, async (rig) => {
+        window.buyShopItem('rune_blank', offer.qty, offer.cost);
+        await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'shop_buy',
+          'the counter purchase sent ' + JSON.stringify(rig.sent) + ' — one shop_buy intent');
+        assert(!('cost' in rig.sent[0]) && !('gold' in rig.sent[0]),
+          'the shop purchase named its own price: ' + JSON.stringify(rig.sent[0]));
+      });
       assert(have('rune_blank') === offer.qty,
         'buying the Blank Rune bundle put ' + have('rune_blank') + ' in the bag, expected ' + offer.qty);
 
@@ -28273,11 +28427,11 @@ const TESTS = [
       assert(r.ticks === runs && r.stoppedBy === null,
         'the opening rung stopped after ' + r.ticks + '/' + runs + ' actions (' + r.stoppedBy + ')');
       assert(have(rung.output) > 0, 'the opening rung produced no ' + rung.output);
-      assert((G.skills.runecrafting || 0) > 0, 'the opening rung paid no Runecrafting XP');
+      assert(xpOfSkill('runecrafting') > 0, 'the opening rung paid no Runecrafting XP');
 
       /* ── 4. THE POINT OF THE WHOLE TEST. Nothing else was trained. ─────── */
       ['stonemason', 'mining', 'crafting', 'smithing', 'woodcutting', 'fishing'].forEach((sk) => {
-        assert((G.skills[sk] || 0) === 0,
+        assert(xpOfSkill(sk) === 0,
           'a pure Runecrafter ended up with ' + sk + ' XP — the skill must be startable with '
           + 'NOTHING else trained, which was exactly the wall this change removes');
       });
@@ -29049,37 +29203,96 @@ const TESTS = [
     assert(tip.style.display === 'none', 'a touch anywhere must clear a stray tooltip (it used to stick until you scrolled)');
   }),
 
-  () => tryRunClientAuthoritative('b240: sell-lock protects items from selling + vendor buy-back undoes a sale', () => {
+  () => tryRunAsync('b240: sell-lock protects items from selling + vendor buy-back undoes a sale', async () => {
     const G = window.G;
     const snap = snapshotG();
     try {
       const id = 'normal_log';
       G.inventory = G.inventory || {}; G.inventory[id] = 100;
       G.gold = 100000; G.buyback = []; G.lockedItems = {};
-      // LOCK — a locked item cannot be sold.
+      stampBalanceLikeLoad(G);
+      // LOCK — a locked item cannot be sold, and must not cost a round trip.
       window.toggleItemLock(id);
       assert(window.isItemLocked(id) === true, 'toggleItemLock must lock the item');
-      window.invSellOne(id);
-      assert(G.inventory[id] === 100, 'a LOCKED item must not sell (protected from the accidental tap)');
+      await withServerBacked({}, async (rig) => {
+        window.invSellOne(id);
+        await rig.drain();
+        assert(G.inventory[id] === 100, 'a LOCKED item must not sell (protected from the accidental tap)');
+        assert(rig.sent.length === 0,
+          'a locked item still reached the vendor verb: ' + JSON.stringify(rig.sent));
+      });
       // UNLOCK + sell — the sale is recorded for buy-back.
       window.toggleItemLock(id);
       assert(window.isItemLocked(id) === false, 'toggleItemLock must unlock');
-      const goldBefore = G.gold;
-      window.invSellOne(id);
-      assert(G.inventory[id] === 99, 'an unlocked item sells');
-      assert(G.gold > goldBefore, 'selling pays gold');
+      /* ── b515 — "SELLING PAYS GOLD" IS THE SERVER'S SENTENCE NOW. `invSellOne`
+         predicts the credit through `goldSettle` and sends a `vendor_sell`
+         intent; `gold` is SERVER-OF-RECORD, so what the player ends up holding
+         is what the ANSWER says, absolutely, and the prediction is retired by
+         it. The answer here is deliberately NOT `before + price`, so "selling
+         pays" cannot pass on the client's own arithmetic. */
+      const goldBefore = goldOf();
+      const price = window.vendorPrice(id);
+      const SERVER_GOLD = goldBefore + price + 3;
+      await withServerBacked({ state: { gold: SERVER_GOLD } }, async (rig) => {
+        window.invSellOne(id);
+        await rig.drain();
+        assert(G.inventory[id] === 99, 'an unlocked item sells');
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'vendor_sell'
+          && rig.sent[0].item === id && rig.sent[0].qty === 1,
+          'the sale sent ' + JSON.stringify(rig.sent) + ' — one vendor_sell naming the item and qty');
+        assert(!('price' in rig.sent[0]) && !('gold' in rig.sent[0]),
+          'the sale named its own price: ' + JSON.stringify(rig.sent[0]));
+        assert(goldOf() === SERVER_GOLD,
+          'selling left the balance at ' + goldOf() + ' and the server said ' + SERVER_GOLD
+          + ' — the local credit is a PREDICTION and the envelope must retire it, not add to it');
+        assert(window.HearthriseGold.goldPredictions().length === 0,
+          'the sale left a prediction the answer did not retire: '
+          + JSON.stringify(window.HearthriseGold.goldPredictions()));
+      });
       assert(G.buyback.length === 1 && G.buyback[0].id === id, 'the sale must be recorded for buy-back');
-      // BUY BACK — repurchase restores the item at exactly the price you were paid.
-      const goldAfterSell = G.gold;
-      // armed: repurchase() reads gold via canAfford; the sell just moved it, so
-      // stamp the post-sell balance the way an envelope would before the buy-back.
-      stampBalanceLikeLoad(G);
-      const cost = G.buyback[0].unit * G.buyback[0].qty;
-      window.repurchase(0);
-      assert(G.inventory[id] === 100, 'buy-back must restore the item');
-      assert(G.gold === goldAfterSell - cost, 'buy-back costs exactly what you were paid (no minting)');
-      assert(G.buyback.length === 0, 'the buy-back entry is consumed');
-    } finally { restoreG(snap); }
+      assert(G.buyback[0].unit === price && G.buyback[0].qty === 1,
+        'the buy-back entry must record the price you were PAID, or the undo is not an undo: '
+        + JSON.stringify(G.buyback[0]));
+
+      /* ── BUY BACK: REFUSED, AND THAT IS THE FIX. `repurchase` re-buys at the
+         EXACT price the vendor paid, read off a 15-entry LOCAL list — a
+         client-supplied PAST PRICE. The moment `gold` joined SERVER_OF_RECORD
+         that became a mint (the client naming a price that crosses into an
+         armed balance), and there is no server verb for it yet, so legacy.js
+         fails CLOSED by name. This test used to assert the debit; asserting it
+         now would be asserting the mint.
+
+         ⚠ A REAL PRODUCT GAP, named rather than tested away: buy-back is OFF
+           for every player until a `BUYBACK_LEDGER` verb exists (the vendor's
+           own ledger, priced server-side). Filed with the gem-purchase family
+           in HANDOFFS.md. What must hold while it is off is that the refusal
+           costs the player NOTHING and SAYS so — a silent no-op on an undo
+           button is how a player concludes the item is gone for good.
+           MUTATION: drop the `clientMayWriteRecordField('gold')` gate from
+           repurchase → the "authored" assertion goes red. */
+      const goldAfterSell = goldOf();
+      const heldAfterSell = G.inventory[id];
+      const toasts = [];
+      const realNotify = window.notify;
+      window.notify = function (m) { toasts.push(String(m)); };
+      try { window.repurchase(0); } finally { window.notify = realNotify; }
+      if (window.clientMayWriteRecordField('gold')) {
+        const cost = G.buyback[0].unit * G.buyback[0].qty;
+        assert(G.inventory[id] === 100, 'buy-back must restore the item');
+        assert(goldOf() === goldAfterSell - cost, 'buy-back costs exactly what you were paid (no minting)');
+        assert(G.buyback.length === 0, 'the buy-back entry is consumed');
+      } else {
+        assert(goldOf() === goldAfterSell,
+          'buy-back DEBITED an armed balance from a client-supplied past price (' + goldAfterSell + ' -> '
+          + goldOf() + ') — that price never crossed a server and the entry is a 15-item local list');
+        assert(G.inventory[id] === heldAfterSell,
+          'buy-back handed back the item without a server verb behind it: ' + G.inventory[id]);
+        assert(G.buyback.length === 1,
+          'a REFUSED buy-back consumed its entry — the undo is gone and nothing was undone');
+        assert(toasts.length >= 1 && !/bought back/i.test(toasts.join(' ')),
+          'the refusal was silent, or claimed the buy-back happened: ' + JSON.stringify(toasts));
+      }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('b239: the Recipe Book lists every recipe; locked ones stay grayscale but still show inputs + requirement', () => {
@@ -31610,13 +31823,34 @@ const TESTS = [
       /* b228: the cap used to be a flat 50,000 against a curve that needs
          792,783, so every pet stopped at level 14 on a bar drawn as "/ 30". */
       assert(capXp > 50000, 'the companion XP cap must be derived from the curve, not a stale 50,000');
-      /* b456: the AWARD path is gated off under the blob-retire capstone (the
-         accrual engine owns companion XP), so the clamp is driven in the position
-         where the client is the writer. The clamp itself is unchanged and is what
-         stops a 50,000-flat cap reappearing against a 792,783 curve. */
-      window.G.companions.xp.forge_imp = 1e12;
-      withLocalBlob(() => { window.awardCompanionXp(0); });
-      assert(window.G.companions.xp.forge_imp <= capXp, 'the award path must clamp to the curve cap');
+      /* ── b515 — THE CLAMP MOVED TO THE RECONCILE, so that is where it is
+         driven. b456 drove it through `awardCompanionXp` with the capstone
+         pinned OFF, on the premise that the client is the writer in that
+         position. There is no such position: `companions.js blobRetired()` is
+         the literal `true`, so the award no-ops for every caller and the pin
+         selected nothing — the clamp would have been graded on dead code.
+
+         The writer is `accrue.js reconcileCompanions`, and the property is the
+         same one and matters more there: the number arrives from OUTSIDE, so a
+         garbage or hostile total must be floored into the curve rather than
+         rendered. What must never come back is the flat 50,000 cap against a
+         792,783 curve — the bar drawn "/ 30" that stopped every pet at 14.
+         MUTATION: have reconcileCompanions pass `xp` through unclamped → the
+         level assertion below reads past 30. */
+      const A = window.HearthriseAccrual;
+      A.reconcileCompanions(window.G,
+        { companions: { owned: ['forge_imp'], xp: { forge_imp: 1e12 }, equipped: 'forge_imp' } });
+      const landed = window.G.companions.xp.forge_imp;
+      assert(window.companionLevelFromXp(landed) <= 30,
+        'a hostile companion-XP total from the wire produced level '
+        + window.companionLevelFromXp(landed) + ' — the curve stops at 30, and a pet past it is a bonus '
+        + 'nobody budgeted');
+      /* …and a NEGATIVE or non-finite one reads as zero rather than as a level.
+         The wire is not trusted; `reconcileCompanions` floors every cell. */
+      A.reconcileCompanions(window.G,
+        { companions: { owned: ['forge_imp'], xp: { forge_imp: -5 }, equipped: 'forge_imp' } });
+      assert(window.G.companions.xp.forge_imp === 0,
+        'a negative companion XP from the wire was kept: ' + window.G.companions.xp.forge_imp);
       window.G.companions.xp.forge_imp = capXp;
       const maxed = window.getCompanionBonus().smithSpeed;
       assert(Math.abs(maxed - 0.0245) < 1e-9, 'a level-30 pet is worth +2.45%, got ' + maxed);
@@ -31644,12 +31878,27 @@ const TESTS = [
   // gold-arm: the companion extraGold proc credits gold via
   // clientMayWriteRecordField (deferred GRANT, live-action intents) — switch-OFF
   // position. The test reads gold raw (G.gold - gold0), so no stamp is needed.
-  () => tryRunClientAuthoritative('b342 P0: a companion proc applies EXACTLY ONCE per trigger', () => {
+  () => tryRun('b342 P0: a companion proc applies EXACTLY ONCE per trigger', () => {
     if (!window.COMPANIONS || !window.COMPANIONS.raccoon || !window.COMPANIONS.fox
         || typeof window.killMonster !== 'function' || typeof window.addItem !== 'function') {
       skip('no companion proc surface'); return;
     }
-    const MARK = 1e7;                    // no kill or gather reward is near this
+    /* ── b515 — THE MARKER CANNOT BE GOLD ANY MORE, AND THAT IS THE POINT ────
+       This counted procs by their PAYOUT: a 1e7 `extraGold` effect, divided out
+       of `G.gold`. Under the gold arm `rollProc` DEFERS a gold/extraGold proc
+       entirely and fires nothing — deliberately, and companions.js says why at
+       the branch: the away twin is priced by combat-sim but the LIVE tick is not
+       server-credited, so paying locally would show a "+Xg" animation and record
+       a contribution the pet did not make. A gold marker therefore measures the
+       DEFERRAL, not the duplication.
+
+       So the marker moves to an effect the arm does not gate (`guaranteedRare`,
+       which sets one scratch flag and moves no balance) and the count is taken
+       at `showProc`, the ONE seam both copies of the duplicated handler went
+       through. That is a strictly better
+       instrument for "exactly once": it is the seam, not a side effect of one
+       particular effect kind, so a proc that duplicated with a DIFFERENT effect
+       would still be caught. */
     const LABEL = '__b342proc__';
     const G = window.G;
     const snap = snapshotG();
@@ -31663,63 +31912,91 @@ const TESTS = [
     // Count showProc() at the seam BOTH copies go through, so neither can hide.
     const countTrigger = (setup, fire) => {
       toasts = 0;
-      const gold0 = G.gold;
       setup();
       fire();
-      return { applied: Math.floor((G.gold - gold0) / MARK), toasts };
+      return { toasts };
     };
+    /* AND THE GATE ITSELF IS ASSERTED ONCE, so "the proc fired once" and "gold
+       procs are deferred" cannot be confused for each other by a future reader
+       who wonders why the marker is not gold. */
+    const goldProcDeferred = !window.clientMayWriteRecordField('gold');
     try {
       window.notify = function (msg) { if (String(msg).indexOf(LABEL) >= 0) toasts++; };
 
       // ── kill ── Raccoon: kill-triggered, role 'utility' → 0.5 XP per kill.
       G.companions = { ownedIds: ['raccoon'], xp: { raccoon: 0 }, equipped: 'raccoon' };
       Object.assign(window.COMPANIONS.raccoon.proc,
-        { trigger: 'kill', chance: 1, effect: 'extraGold', amount: MARK, label: LABEL });
+        { trigger: 'kill', chance: 1, effect: 'guaranteedRare', label: LABEL });
       const kill = countTrigger(() => {
         G.activeMonster = 'goblin';
         G.monsterHp = 999999; G.monsterMaxHp = 999999;
         G.playerHp = 999999; G.playerMaxHp = 999999;
       }, () => window.killMonster(window.MONSTERS.goblin));
-      assert(kill.applied === 1, 'one kill paid the proc ' + kill.applied + ' times, expected exactly 1');
       assert(kill.toasts === 1, 'one kill showed ' + kill.toasts + ' proc toasts, expected exactly 1');
-      assert(G.companions.xp.raccoon === 0.5,
-        'one kill gave the pet ' + G.companions.xp.raccoon + ' XP; a utility pet earns 0.5, awarded once');
+      /* THE PET'S OWN XP IS THE SERVER'S. `awardCompanionXp` no-ops under the
+         arm (companion XP is a player_progress aggregate the accrual engine
+         writes and reconcileCompanions rebuilds), so the old "0.5 XP, awarded
+         once" assertion would now be asserting a client write that must not
+         happen. Inverted: the client authors none of it. */
+      assert((G.companions.xp.raccoon || 0) === 0,
+        'the client authored ' + G.companions.xp.raccoon + ' companion XP — that aggregate is the '
+        + 'accrual engine\'s and reconcileCompanions rebuilds it from every envelope, so a local award '
+        + 'climbs and then snaps back to server truth');
+      /* AND THE GOLD PROC REALLY IS DEFERRED, asserted once, here, so the choice
+         of marker above is a stated fact rather than a quiet workaround. */
+      if (goldProcDeferred) {
+        toasts = 0;
+        Object.assign(window.COMPANIONS.raccoon.proc,
+          { trigger: 'kill', chance: 1, effect: 'extraGold', amount: 1e7, label: LABEL });
+        const g0 = goldOf();
+        G.activeMonster = 'goblin';
+        G.monsterHp = 999999; G.monsterMaxHp = 999999;
+        G.playerHp = 999999; G.playerMaxHp = 999999;
+        window.killMonster(window.MONSTERS.goblin);
+        /* The kill itself pays LOOT gold, which is a different thing and is
+           allowed to move — so the marker is the 1e7, not "gold did not move
+           at all". A test that asserted the latter would fail on a slime's
+           three coins and read as a defect in the proc gate. */
+        assert(toasts === 0,
+          'a GOLD proc ANNOUNCED itself while gold is server-owned (' + toasts + ' toasts) — the pet is '
+          + 'credited on screen with a contribution it did not make');
+        assert(goldOf() - g0 < 1e7,
+          'a GOLD proc PAID itself while gold is server-owned (' + g0 + ' -> ' + goldOf()
+          + ') — the balance is reconciled away at the next envelope and the player watches it vanish');
+      }
 
       // ── combatHit ── Fox, combatHit-triggered.
       G.companions = { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' };
       Object.assign(window.COMPANIONS.fox.proc,
-        { trigger: 'combatHit', chance: 1, effect: 'extraGold', amount: MARK, label: LABEL });
+        { trigger: 'combatHit', chance: 1, effect: 'guaranteedRare', label: LABEL });
       const hit = countTrigger(() => {
         G.activeMonster = 'goblin';
         G.monsterHp = 999999; G.monsterMaxHp = 999999;
         G.playerHp = 999999; G.playerMaxHp = 999999;
       }, () => { try { window.combatTick(); } catch (e) { throw new Error('combatTick threw: ' + e.message); } });
-      assert(hit.applied === 1, 'one combat tick paid the proc ' + hit.applied + ' times, expected exactly 1');
       assert(hit.toasts === 1, 'one combat tick showed ' + hit.toasts + ' proc toasts, expected exactly 1');
 
       // ── gather ── the addItem seam, with a gathering skill active.
       G.companions = { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' };
       Object.assign(window.COMPANIONS.fox.proc,
-        { trigger: 'gather', chance: 1, effect: 'extraGold', amount: MARK, label: LABEL });
+        { trigger: 'gather', chance: 1, effect: 'guaranteedRare', label: LABEL });
       const gather = countTrigger(() => {
         G.activeMonster = null; G.activeArtisanRecipe = null; G.activeSkill = 'mining';
       }, () => window.addItem('copper_ore', 1));
-      assert(gather.applied === 1, 'one gather paid the proc ' + gather.applied + ' times, expected exactly 1');
       assert(gather.toasts === 1, 'one gather showed ' + gather.toasts + ' proc toasts, expected exactly 1');
-      assert(G.companions.xp.fox === 0.5,
-        'one gather gave the pet ' + G.companions.xp.fox + ' XP; a utility pet earns 0.5, awarded once');
+      assert((G.companions.xp.fox || 0) === 0,
+        'the client authored ' + G.companions.xp.fox + ' companion XP on a gather — see the kill case');
 
       // ── cook (artisan) ── the same seam, with a recipe active.
       G.companions = { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' };
       Object.assign(window.COMPANIONS.fox.proc,
-        { trigger: 'cook', chance: 1, effect: 'extraGold', amount: MARK, label: LABEL });
+        { trigger: 'cook', chance: 1, effect: 'guaranteedRare', label: LABEL });
       const cook = countTrigger(() => {
         G.activeSkill = null; G.activeArtisanRecipe = 'wheat_bread';
       }, () => window.addItem('wheat_bread', 1));
-      assert(cook.applied === 1, 'one artisan output paid the proc ' + cook.applied + ' times, expected exactly 1');
       assert(cook.toasts === 1, 'one artisan output showed ' + cook.toasts + ' proc toasts, expected exactly 1');
-      assert(G.companions.xp.fox === 0.5,
-        'one artisan output gave the pet ' + G.companions.xp.fox + ' XP; a utility pet earns 0.5, awarded once');
+      assert((G.companions.xp.fox || 0) === 0,
+        'the client authored ' + G.companions.xp.fox + ' companion XP on an artisan output — see the kill case');
     } finally {
       window.notify = savedNotify;
       window.COMPANIONS.raccoon.proc = savedProcs.raccoon;
@@ -46549,12 +46826,33 @@ const TESTS = [
       'getTodayDelta no longer returns xpGained — the dashboard reads that name');
 
     const G = window.G;
-    const save = { skills: JSON.parse(JSON.stringify(G.skills)), daily: G.daily, stats: JSON.parse(JSON.stringify(G.stats || {})) };
+    const save = { skills: JSON.parse(JSON.stringify(G.skills)), daily: G.daily, stats: JSON.parse(JSON.stringify(G.stats || {})),
+      record: G._record, gold: G.gold, hadGold: Object.prototype.hasOwnProperty.call(G, 'gold') };
     try {
+      /* ⚠ b515 — THE SNAPSHOT REFUSES TO BE TAKEN AGAINST AN UNKNOWN BALANCE,
+         and that refusal is deliberate: `ensureDailySnapshot` returns NULL while
+         `balKnown('gold')` is false, because a midnight baseline of `G.gold | 0`
+         recorded ZERO for a client that had simply not been told the balance yet
+         — and the next envelope's entire fortune then read as "earned today" on
+         two surfaces. `gold` is SERVER-OF-RECORD and armed, and this harness
+         never runs a real hr_load, so the snapshot was never taken, every field
+         came back 0, and this test failed on a number that has nothing to do
+         with the field name it is about. Stamped like a load, through the real
+         applyRecord, which is the state a signed-in player is always in by the
+         time they can read a ledger. */
+      if (typeof G.gold !== 'number') G.gold = 1000;   // a figure to baseline against
+      stampRecordLikeLoad(G);
+      assert(window.balKnown('gold') === true,
+        'the balance is UNKNOWN, so the daily snapshot correctly refuses to exist and every delta below '
+        + 'would be a hardcoded 0 — the fixture is wrong, not the ledger');
       G.daily = Object.assign({}, G.daily, { snapshot: null });
-      LP.getTodayDelta();                       // capture a fresh baseline
+      const base = LP.getTodayDelta();           // capture a fresh baseline
+      assert(base && base.xpGained === 0,
+        'the baseline was not fresh (xpGained ' + base.xpGained + ') — everything below measures the '
+        + 'wrong window');
       const first = Object.keys(G.skills)[0];
       G.skills[first] = (G.skills[first] || 0) + 4321;
+      stampRecordLikeLoad(G);                    // …as an envelope would state it
       G.stats = Object.assign({}, G.stats, { kills: (G.stats.kills || 0) + 7 });
       const after = LP.getTodayDelta();
       assert(after.xpGained === 4321, 'getTodayDelta miscounted XP: ' + after.xpGained);
@@ -46574,6 +46872,9 @@ const TESTS = [
         + 'the tile is reading a field getTodayDelta does not return, so it can only ever print 0');
     } finally {
       G.skills = save.skills; G.daily = save.daily; G.stats = save.stats;
+      if (save.hadGold) G.gold = save.gold; else { try { delete G.gold; } catch (e) {} }
+      G._record = save.record;
+      try { stampRecordLikeLoad(G); } catch (e) {}
       try { window.showTab('profile'); } catch (e) {}
     }
   }),
@@ -48614,23 +48915,30 @@ const TESTS = [
          you next find an item. Measured before the fix: 88 tiles at cap 100, 88
          at cap 160, 88 at cap 200 — the purchase was invisible until the player
          outgrew it. */
-      G.gems = 10_000;
-      stampBalanceLikeLoad(G);   // armed: buyBankSpaceGem reads gems via canAfford
-      /* ⚠ PIN THE CLIENT-AUTHORED ARM FOR THE PURCHASE ITSELF. This test's
-         SUBJECT is the bag renderer — it uses a real gem buy only as the cheapest
-         way to raise bankCap(). Under the live gems arm buyBankSpaceGem now
-         REFUSES (GEM-REFUSE-1: gems are server-of-record, so a local debit is
-         refunded while the rung sticks), which would fail this test for a reason
-         that has nothing to do with what it measures. Driving the switch-OFF path
-         keeps the real function in the loop — a stub would stop testing that a
-         purchase moves the cap at all — while leaving the arm behaviour to the
-         battery that owns it. */
-      const _bagArm = pinClientAuthoritative();
-      try { assert(window.buyBankSpaceGem() === true, 'the gem purchase must succeed'); }
-      finally { unpinClientAuthoritative(_bagArm); }
+      /* ⚠ b515 — THE PURCHASE MOVES TO THE RUNG THAT CAN ACTUALLY BE BOUGHT.
+         This test's SUBJECT is the bag renderer; it used a gem buy only as the
+         cheapest way to raise `bankCap()`, and b456 kept that working by pinning
+         the b353 kill switch off. That position is retired, and the gem rung is
+         genuinely unbuyable today — `buyBankSpaceGem` refuses by name because
+         there is no gem offer in `gold-ladders.js` (filed in HANDOFFS.md, "the
+         GEM PURCHASE VERB"). Pinning a seam that selects nothing would have made
+         this test grade the refusal.
+
+         So the cap is raised by the GOLD rung, which is a real, live
+         `hr_unlock_buy` gesture — the real function stays in the loop (a stub
+         would stop testing that a purchase moves the cap at all) and it is the
+         path a player actually has. b269 owns the gem refusal. */
+      G.gold = 10_000_000;
+      stampBalanceLikeLoad(G);   // armed: buyBankSpaceGold reads gold via canAfford
+      await withServerBacked({ state: { gold: 9_000_000 } }, async (rig) => {
+        assert(window.buyBankSpaceGold() === true, 'the bank rung purchase must succeed');
+        await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].offer === 'bank.0',
+          'the bank rung sent ' + JSON.stringify(rig.sent));
+      });
       const after = await paint();
-      assert(after.total - before.total === window.BANK_SPACE.gem.slots,
-        'THE b348 BUG: buying +' + window.BANK_SPACE.gem.slots + ' stacks changed the bag by '
+      assert(after.total - before.total === window.BANK_SPACE.gold.slots,
+        'THE b348 BUG: buying +' + window.BANK_SPACE.gold.slots + ' stacks changed the bag by '
           + (after.total - before.total) + ' tiles — the purchase is invisible until you outgrow it');
       assert(after.filled === before.filled, 'a space purchase must not change what you are holding');
 

@@ -656,6 +656,46 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/recovery-rest.mjs --selftest
 
+      # THE HEARTHFIND (Feature Slate 2) -- the super-rare drop moment.
+      # THE CATALOGUE IS GENERATED, NEVER HAND-TYPED. hr_hearthfind_items /
+      # hr_hearthfind_sources are machine-written from src/data/hearthfind.js +
+      # src/data/items.js; a hand edit to the .sql is reverted by the next
+      # generation, and here the copy would be the CLAMP on the rarest odds in the
+      # game, so drift would silently widen them.
+      - name: Hearthfind catalogue - generated from src/data, never hand-typed
+        if: ${{ !cancelled() }}
+        run: node tools/gen-hearthfind.mjs --check
+
+      # THE ENGINE HALF + THE MINT GUARD. The roll is seeded and replayable (an
+      # away grant that cannot be re-derived cannot be audited); a source with NO
+      # table row draws NO random number, which is what keeps every pre-existing
+      # seeded replay byte-identical to its pre-Hearthfind self; an away span and
+      # an attended replay find the SAME trophy at the SAME tick (AWAY-1, one
+      # engine); no drop multiplier, dropRate buff or featured boss moves the roll
+      # at all ("must NOT be boostable by anything paid"); there is exactly ONE
+      # roll site per engine file and NONE in legacy.js (AWAY-12); and no trophy
+      # is tradeable, vendorable, a priced currency, or reachable from any other
+      # faucet -- drop table, recipe, start kit, dungeon loot or Quartermaster.
+      # 5 mutations, no credentials, production untouched.
+      - name: Hearthfind - the seeded roll, AWAY-1 parity, and the mint guard
+        if: ${{ !cancelled() }}
+        run: node tests/hearthfind-roll.mjs --selftest
+
+      # THE SQL HALF, ON A REAL DATABASE (PGlite, the ordered migration chain).
+      # An honest find pays ONE trophy + ONE ledger row + ONE broadcast + a
+      # receipt, with the SERVER's odds read from the catalogue (there is no delta
+      # field that could supply them); every shape forgery is bad_hearthfind and
+      # moves nothing; the ordinary `items` delta CANNOT mint a trophy, so the
+      # hearthfind arm is the only door and "broadcast what the ledger journalled"
+      # is true by construction; the 3-per-UTC-day clamp DROPS the find without
+      # costing the player the rest of the apply; the 60-second clamp suppresses
+      # only the public line, never the value; world_finds is public-read and
+      # client-unwritable; and re-applying the migration is a no-op.
+      # 10 mutations, no credentials, production untouched.
+      - name: Hearthfind - hr_apply grants, journals, broadcasts, and clamps
+        if: ${{ !cancelled() }}
+        run: node tests/hearthfind-authority.mjs --selftest
+
       # SECURITY F1 -- THE ATTENDED HALF OF THE SAME RULE.
       # The Recovery Rule shipped with a hole its own header named: the AWAY path
       # pays nothing inside the window, but the ATTENDED cadence RPCs

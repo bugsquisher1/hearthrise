@@ -1,0 +1,681 @@
+-- ============================================================================
+-- 2026-09-08-hearthfind.sql — THE HEARTHFIND (Feature Slate §2).
+--
+-- ⚠⚠⚠ REVIEW ONLY — NOT AUTO-APPLIED. Applied by the Coordinator after a
+--     Security GO, via tools/apply-migration.mjs, in this order:
+--       2026-08-11-catalogue.generated.sql   (regenerated: +4 trophy items)
+--       2026-09-08-hearthfind-catalogue.generated.sql
+--       THIS FILE
+--     …and the hr-accrue redeploy in the same breath (see REVERSIBILITY).
+--
+-- "Once in a very long while the realm stops what it is doing to look at what
+-- you found." DROP_BAND_MAX.rare is 5% and the rarest shipped drop is 0.5%:
+-- before this file there is no such thing as a rare drop in Hearthrise.
+--
+-- Governing rule: CLAUDE.md §1 "Mission constraints". Nothing here is authored
+-- by the client, and nothing here is authored by the Edge Function either: the
+-- engine proposes a PAIR (source_kind, source_id) and an item id, and this
+-- function looks all three up in a generated catalogue before it pays anything.
+--
+-- Engine halves that ship with this file (EDGE REDEPLOY REQUIRED):
+--   src/data/hearthfind.js                   the table (10 sources, 4 trophies)
+--   src/data/items.js                        the 4 trophies, hearthfind:true
+--   src/core/hearthfind.js                   the seeded roll — the ONE engine
+--   src/core/combat-sim.js                   the monster roll site (resolveKill)
+--   src/core/skill-sim.js                    the node roll site (resolveGatherTick)
+--   supabase/functions/hr-accrue/accrual.js  proposes delta.hearthfind
+--
+-- ── WHAT IS ADDED ───────────────────────────────────────────────────────────
+--   §1  world_finds — the public board. PUBLIC READ, RPC-INSERT-ONLY.
+--   §1b player_ledger_kind_check gains 'hearthfind'.
+--   §1c hr_state_of — projects `hearthfind_ready` (the engine's order-safety
+--       switch), programmatic, anchored, exactly-once.
+--   §2  hr_apply — allowlists 'hearthfind', re-derives it from the catalogue,
+--       grants the trophy, journals it, broadcasts it, and returns it on the
+--       receipt (programmatic, anchored, exactly-once).
+--   §3  hr_world_finds_prune — the retention valve.
+--   §4  self-check — every load-bearing property, proven by executing SQL.
+--
+-- ── RESTATEMENT-DEBT-ACK ────────────────────────────────────────────────────
+-- §2 is PROGRAMMATIC, not a `create or replace`. It edits `pg_get_functiondef`
+-- output at guarded exactly-once anchors (the 2026-08-22-rested-record.sql /
+-- 2026-09-06-recovering-until.sql idiom), so this file is a member of NO
+-- derivation chain and takes over NO last-toucher role. That is deliberate and
+-- it is the ONLY safe shape here: hr_apply's live body is
+-- 2026-08-25-workers.sql's restatement PLUS the rested allowlist, the
+-- recovering_until arm and the death-ledger fan-out, all applied
+-- programmatically on top of it. A restated `create or replace` derived from
+-- the last static link would compile, self-check green, and silently erase
+-- every one of them — the single most destructive statement in this repo.
+--
+-- THE DEBT IS ACKNOWLEDGED AND NAMED: hr_apply's body now exists only as the
+-- accumulated result of five programmatic patches over one static ancestor.
+-- Its patch depth is FIVE after this file (rested-record, combat-style,
+-- recovering_until ×3 arms counted as one, farm-plant-lifetime, THIS). Reading
+-- the live body requires `pg_get_functiondef`, not a file. The repayment is a
+-- single audited restatement in a dedicated lane-C slice with a byte-diff of
+-- the live body against the restated one — it is NOT this file's to pay, and
+-- paying it here would put a 1,400-line rewrite inside a feature review.
+--
+-- Every patch NO-OPS on re-apply (each tests for its own marker first), so the
+-- file is idempotent and `node tests/schema-drift.mjs` replays it byte-identically.
+--
+-- ── WHY THE ENGINE DOES NOT GRANT THE ITEM ──────────────────────────────────
+-- The roll happens in src/core, which the Edge Function runs — so the find is a
+-- CLAIM made by code the server operates but does not, in the threat model,
+-- trust with a mint. The engine therefore does NOT call `addItem`, and the
+-- trophy does NOT appear in `delta.items`. §2 refuses a hearthfind item id
+-- inside `delta.items` outright (`bad_hearthfind`), so there is EXACTLY ONE
+-- DOOR through which a trophy can be created and it is the one that writes the
+-- ledger row and the broadcast row in the same transaction. "Broadcast what the
+-- ledger journalled" is then true by construction rather than by discipline —
+-- the Feature Slate's explicit "must NOT".
+--
+-- ── THE THREE CLAMPS, AND WHY TWO OF THEM DROP RATHER THAN REFUSE ───────────
+--   (i)  SHAPE — malformed, unknown item, unknown source, wrong pair, more than
+--        one find in a delta: HARD REFUSAL, `bad_hearthfind`. The whole apply
+--        rolls back. These are states an honest engine cannot produce, so
+--        proceeding would mean paying an apply we know to be wrong.
+--   (ii) ≤3 FINDS PER CHARACTER PER UTC DAY — counted from player_ledger, the
+--        append-only journal, under the character lock. Over the cap the FIND IS
+--        DROPPED (no item, no ledger row, no broadcast) and a rejection is
+--        recorded; THE REST OF THE APPLY PROCEEDS. Refusing the whole apply
+--        would cost the player their entire night's accrual because they got
+--        lucky a fourth time, which is the wrong failure direction. The clamp is
+--        an anti-automation ceiling, not a balance number: at the shipped odds a
+--        fourth find in one UTC day is not reachable by playing.
+--  (iii) ONE BROADCAST PER 60 s PER CHARACTER — the world_finds insert only.
+--        The trophy and the ledger row are still written; only the public line
+--        is suppressed. The board is a social surface and a burst on it is
+--        indistinguishable from a spam attack on every other player's screen.
+--
+-- ── WHY THE ODDS ARE RE-DERIVED AND NOT ACCEPTED ────────────────────────────
+-- `one_in` is journalled ("the odds it beat" is the reveal's headline) and is
+-- therefore a number a player will read and compare. It is looked up from
+-- hr_hearthfind_sources under the lock, never taken from the delta — there is
+-- no delta field for it at all. The floor (5,000) is asserted in §4 against the
+-- stored rows, so an operator cannot make a find common by hand.
+--
+-- ── WHY world_finds STORES NO NAME ──────────────────────────────────────────
+-- A display name that crossed to another player from a client value is the
+-- exact shape CLAUDE.md §1 forbids. The row holds `user_id` only; the reader
+-- joins `profiles` for the name at read time, so a rename is retroactive and a
+-- forged name is not expressible.
+--
+-- ── COST, AT 100× PLAYERS ───────────────────────────────────────────────────
+-- world_finds is bounded by (ii): ≤3 rows per character per day, and the real
+-- rate at the shipped odds is a small number of rows per day across the whole
+-- server. At 100× today's population (≈3,600 characters) the CEILING is 10,800
+-- rows/day (~1.5 MB/day) and the EXPECTATION is under 20. §3 prunes to 90 days
+-- and 20,000 rows. This is the opposite end of the scale from game_events (1.6M
+-- rows / 229 MB from six players in four days, by journalling every kill), and
+-- it is journal rule 6's permitted class: rare, aggregate-free, audit-relevant.
+-- No per-tick row is added anywhere. hr_apply gains at most three catalogue
+-- lookups on the vanishingly rare applies that carry the key, and ZERO on the
+-- ~100% that do not (`p_delta ? 'hearthfind'` short-circuits).
+--
+-- ── REVERSIBILITY ───────────────────────────────────────────────────────────
+-- Additive. The two patches are anchored inserts, so reverting is
+-- `pg_get_functiondef` minus the inserted blocks; world_finds may be left in
+-- place (an engine that never proposes the key never writes it). THE TWO HALVES
+-- ARE SAFE IN EITHER ORDER: an engine that proposes `hearthfind` against an
+-- hr_apply that does not know it gets `unknown_delta_key` — a 409 that costs a
+-- player their night — so the ENGINE'S SWITCH IS THE KEY'S ACCEPTANCE, not a
+-- deploy flag: accrual.js omits `delta.hearthfind` unless the envelope reports
+-- the feature (see its `hearthfind_ready` note). DB-first is therefore the safe
+-- order and edge-first is merely inert.
+--
+-- ⚠ KNOWN LIMITATION, TRACKED, NOT FIXED HERE. The 'crop' source kind has no
+--   roll site: the farm harvest is settled by a Postgres RPC, not by src/core,
+--   so a crop find would have to be rolled in SQL — a SECOND engine, which
+--   AWAY-12 forbids. The catalogue's CHECK constraint admits only
+--   ('monster','node') so a crop row cannot be added silently. Wiring crops
+--   means moving the harvest roll into src/core first; it is a separate slice.
+-- ============================================================================
+
+-- ── 0. PRECONDITIONS — FAIL CLOSED ───────────────────────────────────────────
+do $mig$
+declare v_apply text; v_n int;
+  c_anchor_keys  constant text := $anc$    'gold','gems','hp','items','xp','equip','activity','accrued_to',$anc$;
+  c_anchor_codes constant text := $anc$    'version_conflict',$anc$;
+  c_anchor_decl  constant text := $anc$  v_fight jsonb;$anc$;
+  c_anchor_valid constant text := $anc$    if p_delta ? 'workers' then$anc$;
+  c_anchor_post  constant text := $anc$    v_out := public.hr_state_of(v_uid, v_slot);$anc$;
+  -- EXACTLY-ONCE, asserted for every anchor before a single byte is written. A
+  -- `replace()` whose anchor is absent is a silent no-op that leaves a function
+  -- half-patched and a migration reporting success; an anchor that matches
+  -- TWICE inserts the block into the wrong arm as well as the right one.
+  procedure_once text;
+begin
+  if to_regclass('public.hr_hearthfind_items') is null
+     or to_regclass('public.hr_hearthfind_sources') is null then
+    raise exception 'the hearthfind catalogue is absent - apply 2026-09-08-hearthfind-catalogue.generated.sql first';
+  end if;
+  if to_regclass('public.hr_items') is null then
+    raise exception 'hr_items is absent - apply 2026-08-11-catalogue.generated.sql first';
+  end if;
+  if to_regclass('public.player_ledger') is null or to_regclass('public.player_state') is null then
+    raise exception 'player_state/player_ledger missing - run the player-state chain first';
+  end if;
+  if to_regprocedure('public.hr_reject(text,jsonb)') is null
+     or to_regprocedure('public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)') is null then
+    raise exception 'hr_reject / hr_record_rejection missing - apply the apply-engine chain first';
+  end if;
+  select pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure) into v_apply;
+  if v_apply is null then raise exception 'hr_apply missing - apply the player-state chain first'; end if;
+
+  foreach procedure_once in array array[c_anchor_keys, c_anchor_codes, c_anchor_decl,
+                                        c_anchor_valid, c_anchor_post] loop
+    v_n := (length(v_apply) - length(replace(v_apply, procedure_once, ''))) / length(procedure_once);
+    if v_n <> 1 then
+      raise exception 'hr_apply: anchor % occurs % times, expected exactly 1', procedure_once, v_n;
+    end if;
+  end loop;
+
+  -- The catalogue must not be vacuous. An allowlist with no rows accepts nothing
+  -- and rejects everything, which reads as a control in review while the feature
+  -- is silently dead. (apply-engine.sql:110, the same reasoning.)
+  if (select count(*) from public.hr_hearthfind_sources) = 0
+     or (select count(*) from public.hr_hearthfind_items) = 0 then
+    raise exception 'the hearthfind catalogue is empty - the allowlist would be vacuous';
+  end if;
+
+  -- §1b widens player_ledger_kind_check by UNION, not by restatement. Measured
+  -- on the replayed chain: the live constraint already admits 24 kinds, nine of
+  -- which (trait, hero_slot, dungeon, daily, collection, renown, bounty, rally,
+  -- bank) were added by later migrations. A hardcoded list here would silently
+  -- NARROW it and break whichever feature owns the dropped kind - which is
+  -- exactly what the first revision of this file did, and what this check
+  -- caught on the PGlite replay. So §1b READS the existing set and adds one
+  -- element to it; this precondition only proves the set is READABLE.
+  select count(*) into v_n from pg_constraint
+   where conname = 'player_ledger_kind_check' and conrelid = 'public.player_ledger'::regclass;
+  if v_n <> 1 then
+    raise exception 'player_ledger_kind_check is missing or ambiguous (% found) - §1b cannot widen what it cannot read', v_n;
+  end if;
+end $mig$;
+
+-- ── 1. world_finds — THE PUBLIC BOARD ────────────────────────────────────────
+-- PUBLIC READ, RPC-INSERT-ONLY. There is NO insert/update/delete policy and no
+-- client write grant, so the ONLY writer is a SECURITY DEFINER function running
+-- as the owner (hr_apply). A player cannot post a find they did not make, edit
+-- one, or delete someone else's — not because a policy says so but because no
+-- policy grants it at all, which is the stronger form.
+--
+-- `one_in` is stored so the board can say "1 in 30,000" without re-reading a
+-- catalogue that a future retune will change: a find's odds are a FACT ABOUT
+-- THAT MOMENT and must not silently restate themselves when the table is
+-- rebalanced. Same reason `item_id` is stored rather than joined at read time.
+create table if not exists public.world_finds (
+  id          bigserial primary key,
+  user_id     uuid        not null,
+  slot        int         not null,
+  item_id     text        not null,
+  source_kind text        not null check (source_kind in ('monster','node')),
+  source_id   text        not null,
+  one_in      bigint      not null check (one_in > 0),
+  found_at    timestamptz not null default now()
+);
+-- The board's own read pattern (newest first) and the 60-second broadcast
+-- clamp's lookup (this character, newest first). Two indexes, both narrow.
+create index if not exists world_finds_at_idx   on public.world_finds (found_at desc);
+create index if not exists world_finds_char_idx on public.world_finds (user_id, slot, found_at desc);
+
+alter table public.world_finds enable row level security;
+
+-- READ: everyone signed in, plus anon (the board is the shareable surface — the
+-- whole point of the feature is that it is seen). No name is stored, so nothing
+-- personal crosses; the reader joins profiles for the display name.
+drop policy if exists world_finds_read on public.world_finds;
+create policy world_finds_read on public.world_finds for select to anon, authenticated using (true);
+
+-- WRITE: revoked, explicitly and BEFORE anything is granted (§3 of the house
+-- rules). SELECT is the only privilege any client role holds.
+do $$
+begin
+  revoke all on public.world_finds from public, anon, authenticated;
+  grant select on public.world_finds to anon, authenticated;
+  -- The sequence is NOT granted: a client with insert revoked has no use for it,
+  -- and a granted sequence is a free row-count oracle.
+  revoke all on sequence public.world_finds_id_seq from public, anon, authenticated;
+end $$;
+
+-- ── 1b. THE LEDGER KIND ──────────────────────────────────────────────────────
+-- journal kind 'hearthfind' must be a legal player_ledger.kind or the insert in
+-- §2 violates player_ledger_kind_check and the WHOLE apply comes back bad_delta
+-- (23514) — i.e. the luckiest moment in the game would cost the player their
+-- night. The table constraint mirrors hr_apply's c_ledger_kinds; both gain
+-- 'hearthfind'. §0 has already proven the live list holds nothing this drops.
+do $$
+declare v_kinds text[]; v_sql text;
+begin
+  -- Read the CURRENT admitted set out of the live constraint definition, add
+  -- 'hearthfind', re-add. Widening by union is the only shape that is safe
+  -- against a constraint some other migration has already extended - and it is
+  -- idempotent, because 'hearthfind' is added to a set.
+  select array(
+    select distinct btrim(k, '''')
+      from unnest(regexp_split_to_array(
+             regexp_replace(pg_get_constraintdef(c.oid), '::text|ARRAY|[()\[\]]|[[:space:]]|CHECK|kind|=|ANY|IN', '', 'g'),
+             ',')) as k
+     where btrim(k, '''') <> '')
+    into v_kinds
+    from pg_constraint c
+   where c.conname = 'player_ledger_kind_check'
+     and c.conrelid = 'public.player_ledger'::regclass;
+  if v_kinds is null or array_length(v_kinds, 1) < 13 then
+    raise exception 'could not read player_ledger_kind_check (% kinds parsed) - refusing to replace a constraint I cannot reproduce', coalesce(array_length(v_kinds,1), 0);
+  end if;
+  if not ('hearthfind' = any (v_kinds)) then v_kinds := array_append(v_kinds, 'hearthfind'); end if;
+  alter table public.player_ledger drop constraint player_ledger_kind_check;
+  v_sql := 'alter table public.player_ledger add constraint player_ledger_kind_check check (kind in ('
+           || (select string_agg(quote_literal(k), ',' order by k) from unnest(v_kinds) as k) || '))';
+  execute v_sql;
+end $$;
+
+-- ── 1c. hr_state_of — THE SELF-CONFIGURING SWITCH (programmatic, additive) ───
+-- One boolean, always true once this file has run. It is not a feature flag and
+-- nothing can turn it off: it exists so the ENGINE can tell whether the database
+-- it is talking to allowlists the `hearthfind` delta key.
+--
+-- WHY IT MATTERS. An edge deployed BEFORE this migration that proposed the key
+-- would get `unknown_delta_key` - a 409 that rolls back the WHOLE settle and
+-- costs the player their night, on the one apply they most want to keep. With
+-- the switch the engine simply omits the key on an old database and the accrual
+-- is byte-for-byte its pre-Hearthfind self. The two halves are therefore safe in
+-- EITHER order, and the switch is the envelope rather than a deploy flag - the
+-- recovering_until idiom, for the same reason.
+--
+-- PROGRAMMATIC for the reason §2 is: hr_state_of's live body carries rested_xp,
+-- bank, client_state, combat_style, dungeon_scrip, recovering_until and the
+-- death counters, every one applied on top of the last static link. A restated
+-- create-or-replace here would erase all of them.
+do $mig$
+declare v_def text; v_n int;
+  c_anchor constant text := $anc$      'fight', v_st.fight,$anc$;
+begin
+  v_def := pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure);
+  if strpos(v_def, 'hearthfind_ready') > 0 then
+    raise notice 'hr_state_of already projects hearthfind_ready - skipping';
+  else
+    v_n := (length(v_def) - length(replace(v_def, c_anchor, ''))) / length(c_anchor);
+    if v_n <> 1 then
+      raise exception 'hr_state_of: the projection anchor occurs % times, expected exactly 1', v_n;
+    end if;
+    v_def := replace(v_def, c_anchor,
+      $anc$      -- THE HEARTHFIND's self-configuring switch. Always true once
+      -- 2026-09-08-hearthfind.sql has run; read by hr-accrue to decide whether
+      -- to propose delta.hearthfind at all. Not a feature flag.
+      'hearthfind_ready', true,
+      'fight', v_st.fight,$anc$);
+    execute v_def;
+  end if;
+end $mig$;
+
+-- ── 2. hr_apply — ALLOWLIST + RE-DERIVE + GRANT + JOURNAL + BROADCAST ────────
+-- PROGRAMMATIC. See RESTATEMENT-DEBT-ACK in the header.
+do $mig$
+declare v_def text;
+begin
+  v_def := pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure);
+  if strpos(v_def, 'hearthfind') > 0 then
+    raise notice 'hr_apply already handles hearthfind - skipping';
+  else
+    -- 2a. THE ALLOWLIST. Inserted at the HEAD of the array, never appended to
+    --     its terminator: the terminator is whatever the most recent
+    --     programmatic patcher left there, and an anchor that moves with every
+    --     future slice is one that eventually matches nothing in silence.
+    v_def := replace(v_def,
+      $anc$    'gold','gems','hp','items','xp','equip','activity','accrued_to',$anc$,
+      $anc$    'gold','gems','hp','items','xp','equip','activity','accrued_to',
+    -- THE HEARTHFIND (Feature Slate §2). An OBJECT: {item, source_kind,
+    -- source_id}. AT MOST ONE PER APPLY. Everything else about the find - the
+    -- odds, the trophy's legitimacy, the pairing, the day count, the broadcast
+    -- window and the instant - is re-derived server-side at (4a-h)/(4z-h).
+    -- There is no quantity field: a find is exactly one trophy, always.
+    'hearthfind',$anc$);
+
+    -- 2b. THE RELEASE CODE. `bad_hearthfind` is a SHAPE refusal whose answer
+    --     depends on nothing but the delta and the catalogue, so it takes the
+    --     bad_fight / bad_recovering posture: releasing the idempotency key is
+    --     harmless (the block rolled back) and withholding it would brick a key
+    --     for up to 25 hours on an engine bug a redeploy fixes.
+    v_def := replace(v_def,
+      $anc$    'version_conflict',$anc$,
+      $anc$    'version_conflict', 'bad_hearthfind',$anc$);
+
+    -- 2c. THE DECLARE.
+    v_def := replace(v_def,
+      $anc$  v_fight jsonb;$anc$,
+      $anc$  -- THE HEARTHFIND. v_hf_* are all SERVER-DERIVED: the only values that
+  -- come from the delta are the item id and the (kind,id) pair, and each of
+  -- those is used ONLY as a lookup key against a generated catalogue.
+  v_hf        jsonb;
+  v_hf_item   text;
+  v_hf_kind   text;
+  v_hf_src    text;
+  v_hf_one    bigint;
+  v_hf_today  bigint;
+  v_hf_last   timestamptz;
+  v_hf_have   bigint;
+  v_hf_out    jsonb;
+  -- AT MOST ONE FIND PER APPLY. The engine's own roll cannot produce two in one
+  -- action, and a window that legitimately contained two is settled as two
+  -- applies. Accepting an array would make the daily clamp a per-array clamp.
+  c_max_hf_per_apply constant int := 1;
+  -- THREE PER CHARACTER PER UTC DAY (Feature Slate §2). An anti-automation
+  -- ceiling, not a balance number: at 1-in-6,000 to 1-in-40,000 a fourth find in
+  -- one day is not reachable by playing.
+  c_max_hf_per_day   constant int := 3;
+  -- ONE BROADCAST PER 60 s PER CHARACTER. Suppresses the world_finds ROW ONLY;
+  -- the trophy and the ledger row are unaffected.
+  c_hf_broadcast     constant interval := interval '60 seconds';
+  v_fight jsonb;$anc$);
+
+    -- 2d. THE VALIDATION BLOCK (4a-h), inserted before the worker block, i.e.
+    --     INSIDE the protected block and under the character row lock. Server
+    --     authority §1: the Edge Function decides WHAT should happen, Postgres
+    --     decides WHETHER IT MAY. Nothing below is taken on the engine's word.
+    v_def := replace(v_def,
+      $anc$    if p_delta ? 'workers' then$anc$,
+      $anc$    -- (4a-h) THE HEARTHFIND. Shape first, then the catalogue, then the pair.
+    if p_delta ? 'hearthfind' then
+      v_hf := p_delta->'hearthfind';
+      if jsonb_typeof(v_hf) <> 'object' then
+        perform public.hr_reject('bad_hearthfind',
+          jsonb_build_object('why', 'not an object', 'type', jsonb_typeof(v_hf)));
+      end if;
+      -- Unknown sub-keys are an error, not a shrug - the same rule the top-level
+      -- delta follows. A field this arm does not implement must never look like
+      -- it worked (there is deliberately no `one_in`, no `qty` and no `at`:
+      -- the odds come from the catalogue and the instant comes from now()).
+      if exists (select 1 from jsonb_object_keys(v_hf) as t(hk)
+                  where hk <> all (array['item','source_kind','source_id'])) then
+        perform public.hr_reject('bad_hearthfind',
+          jsonb_build_object('why', 'unknown key',
+            'keys', (select jsonb_agg(hk) from jsonb_object_keys(v_hf) as t(hk)
+                      where hk <> all (array['item','source_kind','source_id']))));
+      end if;
+      v_hf_item := v_hf->>'item';
+      v_hf_kind := v_hf->>'source_kind';
+      v_hf_src  := v_hf->>'source_id';
+      if v_hf_item is null or v_hf_kind is null or v_hf_src is null then
+        perform public.hr_reject('bad_hearthfind', jsonb_build_object('why', 'missing field'));
+      end if;
+      -- Bounded before they are used as lookup keys, so a megabyte string can
+      -- never reach an index scan or a rejection payload.
+      if length(v_hf_item) > 64 or length(v_hf_kind) > 16 or length(v_hf_src) > 64 then
+        perform public.hr_reject('bad_hearthfind', jsonb_build_object('why', 'field too long'));
+      end if;
+      -- THE PAIR, THE TROPHY AND THE ODDS, ALL IN ONE LOOKUP. A source that does
+      -- not exist, a trophy that is not a trophy, and a source paying the WRONG
+      -- trophy are one refusal, because they are one question: is this find a
+      -- thing the catalogue says can happen?
+      select s.one_in into v_hf_one
+        from public.hr_hearthfind_sources s
+        join public.hr_hearthfind_items  i on i.item_id = s.item_id
+       where s.source_kind = v_hf_kind and s.source_id = v_hf_src and s.item_id = v_hf_item;
+      if v_hf_one is null then
+        perform public.hr_reject('bad_hearthfind',
+          jsonb_build_object('why', 'no such source/item pair',
+                             'source_kind', v_hf_kind, 'source_id', v_hf_src, 'item', v_hf_item));
+      end if;
+      -- THE FLOOR, re-asserted at RUNTIME and not only at migration time. §4(a)
+      -- proves the stored rows are in band today; this proves it for the row
+      -- being paid, so an out-of-band row that somehow reached the table pays
+      -- nothing instead of paying a common trophy.
+      if v_hf_one < 5000 then
+        perform public.hr_reject('bad_hearthfind',
+          jsonb_build_object('why', 'one_in below the floor', 'one_in', v_hf_one));
+      end if;
+    end if;
+
+    -- (4a-h2) THE ONE DOOR. A hearthfind trophy may NOT be minted through the
+    -- ordinary `items` delta - not by this engine, not by any future one. The
+    -- hearthfind arm is the only path that creates one, and it is the path that
+    -- journals and broadcasts, so "broadcast what the ledger journalled" is true
+    -- by construction. (A NEGATIVE items delta is untouched: a player may still
+    -- spend or lose a trophy through whatever consumes it later.)
+    if p_delta ? 'items' and jsonb_typeof(p_delta->'items') = 'object' then
+      if exists (
+        select 1 from jsonb_each_text(p_delta->'items') as t(ik, iv)
+         where coalesce(nullif(iv,'')::bigint, 0) > 0
+           and exists (select 1 from public.hr_hearthfind_items h where h.item_id = t.ik)) then
+        perform public.hr_reject('bad_hearthfind',
+          jsonb_build_object('why', 'a hearthfind trophy cannot be minted through items'));
+      end if;
+    end if;
+
+    if p_delta ? 'workers' then$anc$);
+
+    -- 2e. THE GRANT + THE JOURNAL + THE BROADCAST (4z-h). AFTER the single
+    --     journal row hr_apply always writes, still inside the protected block
+    --     and still under the character lock, so the day count below cannot race
+    --     a concurrent apply for the same character.
+    v_def := replace(v_def,
+      $anc$    v_out := public.hr_state_of(v_uid, v_slot);$anc$,
+      $anc$    if p_delta ? 'hearthfind' then
+      -- (i) THE DAILY CLAMP, counted from the append-only journal - the only
+      --     durable record - under the character lock. NOTE `now() at time zone
+      --     'utc'`: the UTC day, matching the accrual engine's day key, never
+      --     the server's local zone and never a client's.
+      select count(*) into v_hf_today
+        from public.player_ledger
+       where user_id = v_uid and slot = v_slot and kind = 'hearthfind'
+         and at >= date_trunc('day', now() at time zone 'utc') at time zone 'utc';
+      if v_hf_today >= c_max_hf_per_day then
+        -- DROPPED, NOT REFUSED. Refusing the apply would cost the player the
+        -- whole window's accrual because they got lucky a fourth time. Recorded
+        -- so a real ceiling breach is visible tomorrow, not just for a minute.
+        perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'hearthfind_daily_cap',
+          jsonb_build_object('today', v_hf_today, 'limit', c_max_hf_per_day,
+                             'item', v_hf_item, 'source_kind', v_hf_kind, 'source_id', v_hf_src));
+      else
+        -- (ii) THE TROPHY. One unit, always: there is no quantity anywhere in
+        --      this arm to inflate. Same upsert shape as the items delta.
+        select qty into v_hf_have from public.player_inventory
+          where user_id = v_uid and slot = v_slot and item_id = v_hf_item for update;
+        insert into public.player_inventory as pi (user_id, slot, item_id, qty)
+          values (v_uid, v_slot, v_hf_item, coalesce(v_hf_have, 0) + 1)
+          on conflict (user_id, slot, item_id) do update set qty = excluded.qty;
+
+        -- (iii) THE JOURNAL. qty_in = 1 so the trophy enters the daily item
+        --       budget like any other granted unit; gold_in/xp_in are ZERO and
+        --       stay zero, because a find moves no gold and no XP - which is
+        --       what tests/hearthfind-mint-guard.mjs asserts.
+        insert into public.player_ledger
+          (user_id, slot, kind, intent, item_id, qty, gold, gold_in, xp_in, qty_in, meta)
+        values
+          (v_uid, v_slot, 'hearthfind', 'hearthfind', v_hf_item, 1, 0, 0, 0, 1,
+           jsonb_build_object('item', v_hf_item, 'source_kind', v_hf_kind,
+                              'source_id', v_hf_src, 'one_in', v_hf_one,
+                              'nth_today', v_hf_today + 1));
+
+        -- (iv) THE BROADCAST, at most one row per 60 s per character. The
+        --      trophy and the journal above are already written; only the public
+        --      line is suppressed, so a suppressed broadcast never costs value.
+        select max(found_at) into v_hf_last from public.world_finds
+         where user_id = v_uid and slot = v_slot;
+        if v_hf_last is null or v_hf_last < now() - c_hf_broadcast then
+          insert into public.world_finds (user_id, slot, item_id, source_kind, source_id, one_in)
+            values (v_uid, v_slot, v_hf_item, v_hf_kind, v_hf_src, v_hf_one);
+        end if;
+
+        -- (v) THE RECEIPT. Attached to the apply's return value below, so an
+        --     AWAY find comes back on the settle receipt and the client can
+        --     reveal it on return without a second round trip. Server-authored
+        --     in full: every field here was looked up or derived above.
+        v_hf_out := jsonb_build_object(
+          'item', v_hf_item, 'source_kind', v_hf_kind, 'source_id', v_hf_src,
+          'one_in', v_hf_one, 'nth_today', v_hf_today + 1,
+          'broadcast', (v_hf_last is null or v_hf_last < now() - c_hf_broadcast),
+          'at', now());
+      end if;
+    end if;
+
+    v_out := public.hr_state_of(v_uid, v_slot);
+    if v_hf_out is not null then
+      v_out := jsonb_set(v_out, '{hearthfind}', v_hf_out);
+    end if;$anc$);
+
+    execute v_def;
+  end if;
+end $mig$;
+
+-- ── 3. hr_world_finds_prune — THE RETENTION VALVE ────────────────────────────
+-- Batched for the reason hr_ledger_prune is: an unbounded delete on a table left
+-- alone for a month competes with live traffic. Owner-only; no client grant.
+create or replace function public.hr_world_finds_prune(
+  p_older interval default interval '90 days',
+  p_keep  int      default 20000,
+  p_limit int      default 5000)
+returns int language plpgsql volatile security definer
+  set search_path = public, pg_temp as $fn$
+declare v_n int; v_cut bigint;
+begin
+  select id into v_cut from public.world_finds order by id desc offset greatest(p_keep, 0) limit 1;
+  with doomed as (
+    select id from public.world_finds
+      where found_at < now() - p_older or (v_cut is not null and id <= v_cut)
+      order by id limit greatest(p_limit, 0))
+  delete from public.world_finds w using doomed d where w.id = d.id;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $fn$;
+revoke all on function public.hr_world_finds_prune(interval, int, int) from public, anon, authenticated;
+
+-- ── 4. SELF-CHECK — properties PROVEN BY EXECUTING SQL, not by markers ───────
+do $chk$
+declare v_n bigint; v_apply text; v_min bigint; v_def text;
+begin
+  v_apply := pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure);
+
+  -- (a) THE PER-SOURCE oneIn FLOOR, against the STORED rows. The headline
+  --     property of the whole feature: a hearthfind is rare or it is nothing.
+  select min(one_in) into v_min from public.hr_hearthfind_sources;
+  if v_min is null or v_min < 5000 then
+    raise exception 'hearthfind self-check (a): the shortest odds are 1 in % - the floor is 5000', v_min;
+  end if;
+  select count(*) into v_n from public.hr_hearthfind_sources where one_in > 50000;
+  if v_n > 0 then
+    raise exception 'hearthfind self-check (a2): % sources are longer than 1 in 50000 - outside the authored band', v_n;
+  end if;
+
+  -- (b) THE ALLOWLIST IS LIVE. Without this key every settle carrying a find
+  --     would 409 unknown_delta_key and cost the player their night.
+  if strpos(v_apply, $x$'hearthfind',$x$) = 0 then
+    raise exception 'hearthfind self-check (b): c_delta_keys does not carry hearthfind';
+  end if;
+  if strpos(v_apply, 'bad_hearthfind') = 0 then
+    raise exception 'hearthfind self-check (c): the bad_hearthfind release code is missing';
+  end if;
+
+  -- (d) THE CLAMPS ARE PRESENT IN THE BODY, each by the expression that
+  --     implements it rather than by a comment.
+  if strpos(v_apply, 'c_max_hf_per_day') = 0 or strpos(v_apply, 'v_hf_today >= c_max_hf_per_day') = 0 then
+    raise exception 'hearthfind self-check (d): the 3-per-UTC-day clamp is missing';
+  end if;
+  if strpos(v_apply, $x$interval '60 seconds'$x$) = 0 or strpos(v_apply, 'now() - c_hf_broadcast') = 0 then
+    raise exception 'hearthfind self-check (e): the 60-second broadcast clamp is missing';
+  end if;
+  if strpos(v_apply, 'a hearthfind trophy cannot be minted through items') = 0 then
+    raise exception 'hearthfind self-check (f): the one-door guard is missing - items could mint a trophy';
+  end if;
+  -- The odds must be READ, never accepted: there is no `one_in` sub-key.
+  if strpos(v_apply, $x$array['item','source_kind','source_id']$x$) = 0 then
+    raise exception 'hearthfind self-check (g): the sub-key allowlist is missing';
+  end if;
+
+  -- (h) NO CLIENT WRITE PATH TO world_finds. The load-bearing property of the
+  --     public board: it is readable by everyone and writable by nobody.
+  select count(*) into v_n from pg_policies
+   where schemaname = 'public' and tablename = 'world_finds' and cmd in ('INSERT','UPDATE','DELETE','ALL');
+  if v_n > 0 then
+    raise exception 'hearthfind self-check (h): % write policies on world_finds', v_n;
+  end if;
+  select count(*) into v_n from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'world_finds'
+     and grantee in ('anon','authenticated','PUBLIC')
+     and privilege_type in ('INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES');
+  if v_n > 0 then
+    raise exception 'hearthfind self-check (i): % client write grants on world_finds', v_n;
+  end if;
+  select count(*) into v_n from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
+   where ns.nspname = 'public' and c.relname = 'world_finds' and c.relrowsecurity;
+  if v_n <> 1 then raise exception 'hearthfind self-check (j): RLS is not enabled on world_finds'; end if;
+  -- …but it MUST be readable, or the board is invisible and the feature is a
+  -- private ledger row. An absent read grant is as much a bug as a write grant.
+  select count(*) into v_n from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'world_finds'
+     and grantee = 'authenticated' and privilege_type = 'SELECT';
+  if v_n <> 1 then raise exception 'hearthfind self-check (k): world_finds is not readable by authenticated'; end if;
+
+  -- (l) THE TROPHIES CANNOT MINT VALUE. Proven on the database against the MAIN
+  --     catalogue: every hearthfind item is untradeable (never reaches the
+  --     market) and worth 0 (never reaches the vendor). This is the SQL half of
+  --     tests/hearthfind-mint-guard.mjs.
+  select count(*) into v_n from public.hr_hearthfind_items h
+    join public.hr_items i on i.item_id = h.item_id
+   where i.tradeable or i.value <> 0;
+  if v_n > 0 then
+    raise exception 'hearthfind self-check (l): % trophies are tradeable or vendorable', v_n;
+  end if;
+  -- and no trophy IS a priced currency.
+  select count(*) into v_n from public.hr_hearthfind_items
+   where item_id in ('hearth_token','muster_seal','dungeon_scrip');
+  if v_n > 0 then
+    raise exception 'hearthfind self-check (m): a priced currency is on the hearthfind allowlist';
+  end if;
+
+  -- (n) THE LEDGER KIND IS LEGAL. Without it the insert in §2 raises 23514 and
+  --     the luckiest apply in the game comes back as bad_delta.
+  --     ⚠ ASSERTED AGAINST THE CONSTRAINT ITSELF, not by inserting a probe row.
+  --       CLAUDE.md §2: player state is never fabricated - and a probe insert
+  --       into the append-only journal is a fabricated row even when it is
+  --       deleted a statement later. `pg_get_constraintdef` answers the same
+  --       question with no write at all, and §1b's union-widen is what makes it
+  --       true rather than a hope.
+  select count(*) into v_n from pg_constraint c
+   where c.conname = 'player_ledger_kind_check'
+     and c.conrelid = 'public.player_ledger'::regclass
+     and pg_get_constraintdef(c.oid) like '%''hearthfind''%';
+  if v_n <> 1 then
+    raise exception 'hearthfind self-check (n): player_ledger_kind_check does not admit kind=hearthfind (%)',
+      (select pg_get_constraintdef(c.oid) from pg_constraint c
+        where c.conname = 'player_ledger_kind_check' and c.conrelid = 'public.player_ledger'::regclass);
+  end if;
+  -- …and the widen must not have DROPPED a kind another feature owns. The live
+  -- constraint carried 24 before this file; it must carry 24 + hearthfind.
+  select count(*) into v_n from pg_constraint c
+   where c.conname = 'player_ledger_kind_check'
+     and c.conrelid = 'public.player_ledger'::regclass
+     and pg_get_constraintdef(c.oid) like all (array['%''accrue''%','%''worker''%','%''enchant''%','%''dungeon''%','%''renown''%','%''bank''%']);
+  if v_n <> 1 then
+    raise exception 'hearthfind self-check (n2): the widen dropped a pre-existing ledger kind';
+  end if;
+
+  -- (o) THE PRUNE IS NOT CLIENT-EXECUTABLE.
+  select count(*) into v_n from information_schema.role_routine_grants
+   where routine_schema = 'public' and routine_name = 'hr_world_finds_prune'
+     and grantee in ('anon','authenticated','PUBLIC');
+  if v_n > 0 then raise exception 'hearthfind self-check (o): hr_world_finds_prune is client-executable'; end if;
+
+  -- (p) hr_apply is still executable by exactly the engine and nothing a
+  --     request can arrive as. Re-asserted here because this file rewrote its
+  --     body, and a rewritten body is the moment a grant is most likely to move.
+  select count(*) into v_n from information_schema.role_routine_grants
+   where routine_schema = 'public' and routine_name = 'hr_apply'
+     and grantee in ('anon','authenticated','PUBLIC');
+  if v_n > 0 then raise exception 'hearthfind self-check (p): hr_apply is client-executable'; end if;
+
+  -- (q) THE SELF-CONFIGURING SWITCH IS PROJECTED. Without it the engine never
+  --     proposes a find and the whole feature is silently inert on a database
+  --     that has this migration - the worst of both halves.
+  v_def := pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure);
+  if strpos(v_def, 'hearthfind_ready') = 0 then
+    raise exception 'hearthfind self-check (q): hr_state_of does not project hearthfind_ready - the engine would never propose a find';
+  end if;
+
+  raise notice 'hearthfind self-check: PASS (% sources, shortest odds 1 in %)',
+    (select count(*) from public.hr_hearthfind_sources), v_min;
+end $chk$;

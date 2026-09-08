@@ -6,8 +6,8 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: fbd5307d5cf380174f929387e766411982d433a434635c09e7591a3e7e2494c3
---   rows: 515 items (16 untradeable) ·
+--   catalogue digest: ac421ec251c46b9f7b50b86b8d6c1481b93655da1ea5e34e999c8ac28a6e8fb2
+--   rows: 519 items (20 untradeable) ·
 --         275 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 473 activities ·
 --         3 runes
@@ -320,6 +320,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('death_steel','Death Steel',true,null,550,null,null,null,false),
   ('deathsteel_bar','Deathsteel Ingot',true,null,1500,null,null,null,false),
   ('deep_rune_blank','Deep Blank Rune',true,null,60,null,null,null,false),
+  ('deepvein_geode','Deepvein Geode',false,'trophy',0,null,null,null,false),
   ('demon_shard','Demon Shard',true,null,200,null,null,null,false),
   ('demoncaller_staff','Demoncaller',true,'weapon',13600,'magic',68,null,false),
   ('dire_fang','Dire Fang',true,null,150,null,null,null,false),
@@ -368,6 +369,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('emberfruit','Emberfruit',true,null,480,null,null,16,true),
   ('emberfruit_seed','Emberfruit Seed',true,null,160,null,null,null,false),
   ('emberhead_arrows','Emberhead Arrows',true,'ammo',9,'ranged',75,null,false),
+  ('emberheart_core','Emberheart Core',false,'trophy',0,null,null,null,false),
   ('emberstone_ore','Emberstone Ore',true,null,520,null,null,null,false),
   ('fang_studs','Fang Studs',true,'jewelry',130,'defense',18,null,false),
   ('fangdart_recurve','Fangdart Recurve',true,'weapon',7200,'ranged',36,null,false),
@@ -595,6 +597,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('swarm_heart','Swarm Heart',true,null,650,null,null,null,false),
   ('swordfish','Raw Swordfish',true,null,220,null,null,14,true),
   ('tally_ring','Tally Ring',true,'jewelry',180,null,null,null,false),
+  ('tidecallers_pearl','Tidecaller''s Pearl',false,'trophy',0,null,null,null,false),
   ('timber_beam','Timber Beam',true,null,300,null,null,null,false),
   ('tithe_box','Tithe Box',true,null,6000,null,null,null,false),
   ('tomato','Tomato',true,null,90,null,null,4,true),
@@ -675,6 +678,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('wolf_pelt','Wolf Pelt',true,null,35,null,null,null,false),
   ('wolfbone_torc','Wolfbone Torc',true,'jewelry',260,'defense',16,null,false),
   ('woolen_cloak','Woollen Cloak',true,'armor',145,'defense',12,null,false),
+  ('worldroot_seed','Worldroot Seed',false,'trophy',0,null,null,null,false),
   ('wraith_veil','Wraith Veil',true,null,420,null,null,null,false),
   ('wraithglass_drops','Wraithglass Drops',true,'jewelry',1500,'defense',50,null,false),
   ('wraithsilk_shroud','Wraithsilk Shroud',true,'armor',10400,'defense',52,null,false),
@@ -1521,7 +1525,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'fbd5307d5cf380174f929387e766411982d433a434635c09e7591a3e7e2494c3', now())
+  values (true, 'ac421ec251c46b9f7b50b86b8d6c1481b93655da1ea5e34e999c8ac28a6e8fb2', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1549,10 +1553,10 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 515 then raise exception 'hr_items has % rows, generator emitted 515', v_n; end if;
+  if v_n <> 519 then raise exception 'hr_items has % rows, generator emitted 519', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
-  if v_n <> 16 then
-    raise exception 'untradeable count is %, generator emitted 16', v_n;
+  if v_n <> 20 then
+    raise exception 'untradeable count is %, generator emitted 20', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
   if v_n <> 473 then raise exception 'hr_activities has % rows, expected 473', v_n; end if;
@@ -1686,7 +1690,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest fbd5307d5cf380174f929387e766411982d433a434635c09e7591a3e7e2494c3',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ac421ec251c46b9f7b50b86b8d6c1481b93655da1ea5e34e999c8ac28a6e8fb2',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

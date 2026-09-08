@@ -6,17 +6,17 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-09-07",
- "digest": "ae62d3cc444ac651440e548b818a292e16fc6dc8fec045e614c4c311463fa495",
+ "generated": "2026-09-08",
+ "digest": "2507e4e437148d889358c836c04279909076d558ed5c0d279b8b980d3ed758a7",
  "counts": {
-  "relations": 107,
-  "functions": 267,
-  "policies": 84,
-  "indexes": 147,
+  "relations": 111,
+  "functions": 268,
+  "policies": 85,
+  "indexes": 152,
   "triggers": 20,
-  "constraints": 281,
-  "columns": 640,
-  "rls": 95,
+  "constraints": 289,
+  "columns": 654,
+  "rls": 98,
   "event_triggers": 1
  },
  "known_production_delta": {
@@ -71,6 +71,7 @@
    "S maintenance_log_id_seq",
    "S market_sales_id_seq",
    "S player_ledger_id_seq",
+   "S world_finds_id_seq",
    "m leaderboard_ranked",
    "r active_bounty",
    "r beta_invites",
@@ -116,6 +117,8 @@
    "r hr_farm_yield_perk",
    "r hr_feast_foods",
    "r hr_goal_rewards",
+   "r hr_hearthfind_items",
+   "r hr_hearthfind_sources",
    "r hr_hero_slots",
    "r hr_hunt_boss_reward",
    "r hr_hunt_bosses",
@@ -167,6 +170,7 @@
    "r world_event_joins",
    "r world_event_pledges",
    "r world_event_totals",
+   "r world_finds",
    "v market_price_history"
   ],
   "functions": [
@@ -417,6 +421,7 @@
    "hr_week_start(p_week text)",
    "hr_worker_assign(p_slot integer, p_uid text, p_skill text, p_target text, p_idem uuid)",
    "hr_worker_hire(p_slot integer, p_idem uuid)",
+   "hr_world_finds_prune(p_older interval, p_keep integer, p_limit integer)",
    "hr_xp_for_level(p_level integer)",
    "market_sales_prune(p_older interval)",
    "raid_claim(p_scope text, p_clan_id uuid, p_week text, p_slot integer)",
@@ -522,7 +527,8 @@
    "session_claims :: session_claims_update_own",
    "world_event_joins :: own muster join readable",
    "world_event_pledges :: own rally pledge readable",
-   "world_event_totals :: muster totals readable"
+   "world_event_totals :: muster totals readable",
+   "world_finds :: world_finds_read"
   ],
   "indexes": [
    "active_bounty_pkey",
@@ -597,6 +603,8 @@
    "hr_farm_yield_perk_pkey",
    "hr_feast_foods_pkey",
    "hr_goal_rewards_pkey",
+   "hr_hearthfind_items_pkey",
+   "hr_hearthfind_sources_pkey",
    "hr_hero_slots_pkey",
    "hr_hunt_boss_reward_pkey",
    "hr_hunt_bosses_pkey",
@@ -671,7 +679,10 @@
    "world_event_joins_pkey",
    "world_event_pledges_open_idx",
    "world_event_pledges_pkey",
-   "world_event_totals_pkey"
+   "world_event_totals_pkey",
+   "world_finds_at_idx",
+   "world_finds_char_idx",
+   "world_finds_pkey"
   ],
   "triggers": [
    "beta_signup_log :: beta_signup_log_no_truncate",
@@ -824,6 +835,11 @@
    "hr_goal_rewards :: hr_goal_rewards_pkey",
    "hr_goal_rewards :: hr_goal_rewards_target_check",
    "hr_goal_rewards :: hr_goal_rewards_xp_check",
+   "hr_hearthfind_items :: hr_hearthfind_items_pkey",
+   "hr_hearthfind_sources :: hr_hearthfind_sources_item_id_fkey",
+   "hr_hearthfind_sources :: hr_hearthfind_sources_one_in_check",
+   "hr_hearthfind_sources :: hr_hearthfind_sources_pkey",
+   "hr_hearthfind_sources :: hr_hearthfind_sources_source_kind_check",
    "hr_hero_slots :: hr_hero_slots_cost_gems_check",
    "hr_hero_slots :: hr_hero_slots_pkey",
    "hr_hero_slots :: hr_hero_slots_slot_id_check",
@@ -976,7 +992,10 @@
    "session_claims :: session_claims_user_id_fkey",
    "world_event_joins :: world_event_joins_pkey",
    "world_event_pledges :: world_event_pledges_pkey",
-   "world_event_totals :: world_event_totals_pkey"
+   "world_event_totals :: world_event_totals_pkey",
+   "world_finds :: world_finds_one_in_check",
+   "world_finds :: world_finds_pkey",
+   "world_finds :: world_finds_source_kind_check"
   ],
   "columns": [
    "active_bounty.accepted_at timestamp with time zone NOT NULL",
@@ -1265,6 +1284,12 @@
    "hr_goal_rewards.target bigint NOT NULL",
    "hr_goal_rewards.weekly boolean NOT NULL",
    "hr_goal_rewards.xp jsonb NOT NULL",
+   "hr_hearthfind_items.item_id text NOT NULL",
+   "hr_hearthfind_items.name text NOT NULL",
+   "hr_hearthfind_sources.item_id text NOT NULL",
+   "hr_hearthfind_sources.one_in bigint NOT NULL",
+   "hr_hearthfind_sources.source_id text NOT NULL",
+   "hr_hearthfind_sources.source_kind text NOT NULL",
    "hr_hero_slots.cost_gems bigint NOT NULL",
    "hr_hero_slots.name text NOT NULL",
    "hr_hero_slots.premium_waived boolean NOT NULL",
@@ -1618,7 +1643,15 @@
    "world_event_totals.goal_frozen_at timestamp with time zone",
    "world_event_totals.met_at timestamp with time zone",
    "world_event_totals.participants integer NOT NULL",
-   "world_event_totals.progress bigint NOT NULL"
+   "world_event_totals.progress bigint NOT NULL",
+   "world_finds.found_at timestamp with time zone NOT NULL",
+   "world_finds.id bigint NOT NULL",
+   "world_finds.item_id text NOT NULL",
+   "world_finds.one_in bigint NOT NULL",
+   "world_finds.slot integer NOT NULL",
+   "world_finds.source_id text NOT NULL",
+   "world_finds.source_kind text NOT NULL",
+   "world_finds.user_id uuid NOT NULL"
   ],
   "rls": [
    "active_bounty rls=true force=false",
@@ -1665,6 +1698,8 @@
    "hr_farm_yield_perk rls=true force=false",
    "hr_feast_foods rls=true force=false",
    "hr_goal_rewards rls=true force=false",
+   "hr_hearthfind_items rls=true force=false",
+   "hr_hearthfind_sources rls=true force=false",
    "hr_hero_slots rls=true force=false",
    "hr_hunt_boss_reward rls=true force=false",
    "hr_hunt_bosses rls=true force=false",
@@ -1715,7 +1750,8 @@
    "session_claims rls=true force=false",
    "world_event_joins rls=true force=false",
    "world_event_pledges rls=true force=false",
-   "world_event_totals rls=true force=false"
+   "world_event_totals rls=true force=false",
+   "world_finds rls=true force=false"
   ],
   "event_triggers": [
    "ensure_rls on ddl_command_end"

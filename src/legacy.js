@@ -14669,7 +14669,14 @@ function maybeShowWelcome(){
      glyph row in the list — the moment the others stopped being emoji, every
      row would have rendered as an alarm. A tone that is a side effect of an
      icon choice is a tone that breaks the next time an icon changes. */
-  document.getElementById('welcome-rows').innerHTML = rows.map(function(r){
+  /* THE HEARTHFIND AWAY BAND (slate §2) owns the TOP of the return card, full width, never a loot row. Empty unless this return's envelope carried a find; guarded, because it must not break the welcome card. */
+  var _hfBand = '';
+  try {
+    if (window.HearthriseHearthfind && typeof window.HearthriseHearthfind.claimAwayBand === 'function') {
+      _hfBand = window.HearthriseHearthfind.claimAwayBand() || '';
+    }
+  } catch (e) { _hfBand = ''; }
+  document.getElementById('welcome-rows').innerHTML = _hfBand + rows.map(function(r){
     var icon = r.g ? _hrGly(r.g, 17) : (r.e || '');
     return '<div class="wb-row'+(r.bad?' wb-row-bad':'')+'"><span class="wb-emoji">'+icon+'</span>'
       +'<span style="flex:1">'+r.t+'</span><b>'+r.v+'</b></div>';

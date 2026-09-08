@@ -474,11 +474,21 @@
     }
     // items — drilled into one item's detail?
     if (detailItem && ITEMS[detailItem] && col[detailItem]) return itemDetailHtml(detailItem);
+    /* THE FOUR HEARTHFINDS lead the items tab (slate §2). The section is
+       OWNED by src/features/hearthfind.js — its rows read the same server
+       record the reveal reads, and this file only asks for them. Absent
+       module ⇒ absent section, never a throw. */
+    var hfSection = '';
+    try {
+      if (window.HearthriseHearthfind && typeof window.HearthriseHearthfind.collectionSection === 'function') {
+        hfSection = window.HearthriseHearthfind.collectionSection(G) || '';
+      }
+    } catch (e) { hfSection = ''; }
     // group by simple category
     function catOf(it) { return it.slot || (it.heals ? 'Food' : it.buryXp ? 'Bones' : it.equip ? 'Equipment' : 'Materials'); }
     var byCat = {};
     Object.keys(ITEMS).forEach(function (id) { var c = catOf(ITEMS[id]); (byCat[c] = byCat[c] || []).push(id); });
-    return Object.keys(byCat).sort().map(function (c) {
+    return hfSection + Object.keys(byCat).sort().map(function (c) {
       var ids = byCat[c];
       var found = ids.filter(function (id) { return col[id]; }).length;
       var cells = ids.map(function (id) { return cellItem(id, window.itemArt(id, 26), ITEMS[id].n, !!col[id]); }).join('');

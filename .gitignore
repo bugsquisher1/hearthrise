@@ -113,3 +113,6 @@ docs/reports/css-ab/
 
 # agent scratch tooling (one-off migration scripts, before/after snapshots)
 .scratch/
+
+# Lane screenshots from tools/*-page.mjs — evidence for a review, never shipped.
+.tmp-shots/

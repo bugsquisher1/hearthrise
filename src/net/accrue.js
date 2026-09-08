@@ -2348,6 +2348,13 @@ export function applyEnvelopeState(G, res, ownKey) {
     if (w && w.HearthriseDaily && typeof w.HearthriseDaily.noteServerStreak === 'function') {
       w.HearthriseDaily.noteServerStreak(res);
     }
+    /* THE HEARTHFIND (slate §2) — the WHOLE envelope to the reveal, from the one funnel
+       every envelope passes (settle AND switch). It reads `res.hearthfind` (hr_apply's
+       receipt, present only on the ORIGINAL response) and falls back to
+       `state.hearthfind_last`, so a lost reply loses no more than the trophy's moment. */
+    if (w && w.HearthriseHearthfind && typeof w.HearthriseHearthfind.noteEnvelope === 'function') {
+      w.HearthriseHearthfind.noteEnvelope(res);
+    }
   } catch (e) {}
   written.absolute = absolute;
 

@@ -663,6 +663,22 @@
     msgsEl.innerHTML = html;
     msgsEl.scrollTop = msgsEl.scrollHeight;
 
+    /* Bind an injected line's inline link. ONE action is registered today
+       ('hearthfind' → open the trophy card); an unknown action is a no-op
+       rather than a throw, because the renderer must not depend on which
+       feature modules happen to be loaded. */
+    msgsEl.querySelectorAll('[data-chat-action]').forEach(function(el){
+      el.addEventListener('click', function(e){
+        e.preventDefault(); e.stopPropagation();
+        var act = el.getAttribute('data-chat-action');
+        var arg = el.getAttribute('data-chat-arg');
+        if(act === 'hearthfind' && window.HearthriseHearthfind
+           && typeof window.HearthriseHearthfind.openCardFor === 'function'){
+          window.HearthriseHearthfind.openCardFor(arg);
+        }
+      });
+    });
+
     // Bind name-click → context menu
     msgsEl.querySelectorAll('[data-from-id]').forEach(function(el){
       el.addEventListener('click', function(e){
@@ -683,7 +699,23 @@
     var mentionsMe = (m.mentions || []).indexOf(meId) !== -1;
     var hilite = mentionsMe ? ' mentions-me' : '';
     if(m.system){
-      return '<div class="chat-msg' + systemClass + hilite + '"><span class="cm-body">' + bodyHtml + '</span></div>';
+      /* An injected line may carry ONE accent and ONE inline link (the
+         Hearthfind board line: the item name opens its card). Both are opt-in
+         fields on an injected message — an ordinary system line is unchanged,
+         and `link.label` is matched against the ESCAPED body so the anchor can
+         never be smuggled in through the text. */
+      var accentClass = m.accent ? ' accent-' + escapeAttr(String(m.accent).replace(/[^a-z0-9_-]/gi,'')) : '';
+      if(m.link && m.link.label && m.link.action){
+        var lab = escapeHtml(String(m.link.label));
+        var idx = bodyHtml.indexOf(lab);
+        if(idx !== -1){
+          bodyHtml = bodyHtml.slice(0, idx)
+            + '<a class="cm-link" href="#" data-chat-action="' + escapeAttr(m.link.action) + '"'
+            + ' data-chat-arg="' + escapeAttr(m.link.item || '') + '">' + lab + '</a>'
+            + bodyHtml.slice(idx + lab.length);
+        }
+      }
+      return '<div class="chat-msg' + systemClass + accentClass + hilite + '"><span class="cm-body">' + bodyHtml + '</span></div>';
     }
     return ''
       + '<div class="chat-msg' + mineClass + hilite + '">'
@@ -948,6 +980,44 @@
         cache[channel].push(msg);
         if(state.active === channel) renderActive();
       });
+    },
+    /**
+     * LOCAL-ONLY APPEND. Renders one line into a channel WITHOUT sending it
+     * anywhere — `backend.send` is deliberately not called.
+     *
+     * ⚠ THIS IS THE DIFFERENCE BETWEEN A BROADCAST AND A CLAIM. `send` puts a
+     *   row in chat_messages, which means a client can author any line it
+     *   likes and every other player will read it as fact. The Hearthfind line
+     *   must not work that way: chat_messages has no idea what a find is and
+     *   could never check one. So each client reads the PUBLIC, RPC-INSERT-ONLY
+     *   `world_finds` board itself and injects the line here from a row the
+     *   server wrote. One server row, one line per reader, and a forged client
+     *   can lie only to its own dock.
+     *
+     * Idempotent on `id`: a poll that re-reads the same row twice renders once.
+     */
+    inject: function(channel, msg){
+      if(!channel || !msg || !msg.body) return false;
+      var m = {
+        id: msg.id || ('inj-' + Date.now().toString(36)),
+        channel: channel,
+        fromId: 'system',
+        fromName: 'System',
+        body: String(msg.body),
+        ts: Number(msg.ts) || Date.now(),
+        mentions: [],
+        system: true,
+        accent: msg.accent || null,
+        link: msg.link || null,
+      };
+      cache[channel] = cache[channel] || [];
+      for(var i = 0; i < cache[channel].length; i++){
+        if(cache[channel][i] && cache[channel][i].id === m.id) return false;
+      }
+      cache[channel].push(m);
+      if(cache[channel].length > MSG_CAP) cache[channel] = cache[channel].slice(-MSG_CAP);
+      if(state.active === channel) renderActive();
+      return true;
     },
     openWhisper: openWhisper,
     block:       blockPlayer,

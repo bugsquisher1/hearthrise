@@ -6591,6 +6591,50 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
+  () => tryRun('b521: the Forge and Workshop rung-1 CARD names the proc it pays', () => {
+    /* Designer ruling 1b. With the permission gate gone, the first rung has to
+       SELL the room, and a player reads the ladder line before they ever feel a
+       proc. So the copy and the payload are asserted together: the line the card
+       shows for rung 1 must name the mechanic, and the rung must actually carry
+       it. A rung whose copy promises an extra bar and whose bx is empty is the
+       Scarecrow bug (b228) again — description and grant wrong in different
+       directions, each looking fine on its own. */
+    const H = window.HearthriseHomestead;
+    assert(H && typeof H.roomDescriptor === 'function', 'roomDescriptor is not published');
+    const CASES = [
+      ['forge',    'yield_smithing', /extra bar/i,           'Extra bar'],
+      ['workshop', 'craftSave',      /crafts cost nothing/i, 'Free crafts'],
+    ];
+    const snap = snapshotG();
+    try {
+      window.G.homestead = { tier: 5 };
+      window.G.rooms = { forge: 1, workshop: 1 };
+      stampRecordLikeLoad(window.G);
+      CASES.forEach(([id, key, copyRe, label]) => {
+        const d = H.roomDescriptor(id);
+        const line = d.ladder[0].effects || '';
+        assert(copyRe.test(line), id + ' rung 1 reads "' + line + '" — it must name the proc it pays');
+        assert(/1%/.test(line), id + ' rung 1 must state the 1% magnitude, reads "' + line + '"');
+        const rung = window.ROOMS[id].levels[0];
+        assert(rung.bx && Math.abs(rung.bx[key] - 0.01) < 1e-9,
+          id + ' rung 1 promises the proc in copy but grants ' + ((rung.bx || {})[key]) + ' of ' + key);
+        // And the owned-room panel shows it as a live effect, by its label.
+        assert((d.now || []).some((e) => e.label === label),
+          id + ' at rung 1 does not list "' + label + '" among what the room does right now');
+      });
+      // The ladder climbs 1/2/4/6/8 in the copy too, so no rung reads as a
+      // downgrade of the one below it.
+      CASES.forEach(([id]) => {
+        const pcts = window.ROOMS[id].levels.map((r, i) => {
+          const m = /·\s*(\d+)%/.exec(r.bonus || '');
+          assert(m, id + ' L' + (i + 1) + ' states no proc percentage: "' + r.bonus + '"');
+          return Number(m[1]);
+        });
+        assert(pcts.join(',') === '1,2,4,6,8', id + ' proc copy ladders ' + pcts.join('/') + ', expected 1/2/4/6/8');
+      });
+    } finally { restoreG(snap); }
+  }),
+
   () => tryRun('b227: every room opens a themed modal through the shared seam', () => {
     const H = window.HearthriseHomestead;
     if (!H || typeof H.modalDescriptor !== 'function' || !window.HearthriseRoomModal) return;

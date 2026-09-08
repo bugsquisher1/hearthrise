@@ -375,9 +375,20 @@ const ROOMS={
      The three proc keys (yield_cooking, yield_smithing, craftSave) were NOT
      named in the directive. Left at the old 10-25% they would tower over the
      +10% speed they sit beside on the same rung, so they are brought into the
-     same grammar at 4 / 8% — larger than a speed rung because a proc fires
-     rarely and is felt weakly, which is the same reasoning the duration column
-     uses. Flagged for the Designer's parallel global retune to ratify.
+     same grammar — larger than a speed rung because a proc fires rarely and is
+     felt weakly, which is the same reasoning the duration column uses.
+
+     b521 (Designer ruling 1b, 2026-09-07): with the Forge/Workshop PERMISSION
+     gate gone, each room needs its identity mechanic from the rung a player
+     actually buys, not from a tier-3 rung most accounts never see. So
+     yield_smithing and craftSave now ladder on the Garden's shape,
+
+       Forge yield_smithing / Workshop craftSave   1 / 2 / 4 / 6 / 8%
+
+     starting at rung 1. The TOP is unchanged at 8% — the b227 power budget the
+     suite asserts is untouched — and no rung is devalued: L4 rises 4 → 6.
+     Kitchen yield_cooking keeps 4 / 8, because the Kitchen already sells its
+     identity (noBurn) from rung 1 and needs no rebase.
 
      Power budget (spec §6/H2) as retuned, which the smoke suite asserts:
      allXP +5% (Library L5 — and it does not move again at any rung), combatXP
@@ -390,10 +401,10 @@ const ROOMS={
     {nm:'Twin Range',       cost:{gold:45000,timber_beam:12,willow_log:40,field_ration:25},   tier:3, bonus:'Cook +8% · 4% extra portion',  bk:'cookSpeed',bv:.08,bx:{noBurn:.25,yield_cooking:.04}},
     {nm:'The Great Hearth', cost:{gold:250000,keystone:2,duskwood_plank:30,dragon_scale:8},   tier:5, bonus:'Cook +10% · 8% extra portion', bk:'cookSpeed',bv:.10,bx:{noBurn:.25,yield_cooking:.08}}]},
   forge:{name:'Forge',icon:'🔥',desc:'Smith items faster. Required for Smithing.',levels:[
-    {nm:'Field Forge',      cost:{gold:800,copper_ore:30},                            bonus:'Smith +2%',                  bk:'smithSpeed',bv:.02},
-    {nm:'Stone Forge',      cost:{gold:3000,iron_ore:50},                             bonus:'Smith +4%',                  bk:'smithSpeed',bv:.04},
-    {nm:'Double Bellows',   cost:{gold:12000,iron_ore:100},                           bonus:'Smith +6%',                  bk:'smithSpeed',bv:.06},
-    {nm:'The Great Bellows',cost:{gold:55000,iron_fitting:15,steel_bar:60,coal:20},          tier:3, bonus:'Smith +8% · 4% extra bar',   bk:'smithSpeed',bv:.08,bx:{yield_smithing:.04}},
+    {nm:'Field Forge',      cost:{gold:800,copper_ore:30},                            bonus:'Smith +2% · 1% extra bar',   bk:'smithSpeed',bv:.02,bx:{yield_smithing:.01}},
+    {nm:'Stone Forge',      cost:{gold:3000,iron_ore:50},                             bonus:'Smith +4% · 2% extra bar',   bk:'smithSpeed',bv:.04,bx:{yield_smithing:.02}},
+    {nm:'Double Bellows',   cost:{gold:12000,iron_ore:100},                           bonus:'Smith +6% · 4% extra bar',   bk:'smithSpeed',bv:.06,bx:{yield_smithing:.04}},
+    {nm:'The Great Bellows',cost:{gold:55000,iron_fitting:15,steel_bar:60,coal:20},          tier:3, bonus:'Smith +8% · 6% extra bar',   bk:'smithSpeed',bv:.08,bx:{yield_smithing:.06}},
     {nm:'The Deep Forge',   cost:{gold:280000,keystone:2,mithril_bar:20,dragon_scale:6},     tier:4, bonus:'Smith +10% · 8% extra bar',  bk:'smithSpeed',bv:.10,bx:{yield_smithing:.08}}]},
   library:{name:'Library',icon:'📚',desc:'+XP for all skills — and it pays you for the hours you were away.',levels:[
     {nm:'Shelf',            cost:{gold:1000,normal_log:50},                           bonus:'All XP +1%',                 bk:'allXP',bv:.01},
@@ -476,10 +487,10 @@ const ROOMS={
        so 40 is a deliberate premium for the labour the player is no longer
        doing, and logs come from woodcutting, which needs no bench at all.
        Cost-side fix only — anyone who already owns a Workshop keeps it. */
-    {nm:'Work Bench',       cost:{gold:700,normal_log:40},                            bonus:'Craft +2%',                  bk:'craftSpeed',bv:.02},
-    {nm:"Joiner's Bench",   cost:{gold:2800,oak_plank:25},                            bonus:'Craft +4%',                  bk:'craftSpeed',bv:.04},
-    {nm:'The Sawpit',       cost:{gold:11000,willow_plank:30},                        bonus:'Craft +6%',                  bk:'craftSpeed',bv:.06},
-    {nm:'The Lathe',        cost:{gold:50000,iron_fitting:12,maple_plank:30,silk_thread:10}, tier:3, bonus:'Craft +8% · 4% of crafts cost nothing',  bk:'craftSpeed',bv:.08,bx:{craftSave:.04}},
+    {nm:'Work Bench',       cost:{gold:700,normal_log:40},                            bonus:'Craft +2% · 1% of crafts cost nothing',  bk:'craftSpeed',bv:.02,bx:{craftSave:.01}},
+    {nm:"Joiner's Bench",   cost:{gold:2800,oak_plank:25},                            bonus:'Craft +4% · 2% of crafts cost nothing',  bk:'craftSpeed',bv:.04,bx:{craftSave:.02}},
+    {nm:'The Sawpit',       cost:{gold:11000,willow_plank:30},                        bonus:'Craft +6% · 4% of crafts cost nothing',  bk:'craftSpeed',bv:.06,bx:{craftSave:.04}},
+    {nm:'The Lathe',        cost:{gold:50000,iron_fitting:12,maple_plank:30,silk_thread:10}, tier:3, bonus:'Craft +8% · 6% of crafts cost nothing',  bk:'craftSpeed',bv:.08,bx:{craftSave:.06}},
     {nm:"The Master's Shop",cost:{gold:260000,keystone:2,duskwood_plank:25,rune_bar:6},      tier:4, bonus:'Craft +10% · 8% of crafts cost nothing', bk:'craftSpeed',bv:.10,bx:{craftSave:.08}}]},
   shrine:{name:'Shrine',icon:'⛪',desc:'Bury bones faster. Required for Prayer.',levels:[
     {nm:'Wayside Shrine',   cost:{gold:900,bones:40},                                 bonus:'Prayer +2%',                 bk:'prayerSpeed',bv:.02},

@@ -17,7 +17,7 @@
 //   copy therefore makes the two sides wrong TOGETHER — caught at the build
 //   gate — rather than wrong APART, which nothing would catch.
 //
-//   perk digest: 872f53ce1100532f63adaec936bab849119d802236ea63986864da625260f492
+//   perk digest: 2a2e902622cd33bcf4aec421ae065ca15ea9ddc0a9d6e09e80c8cc4028053139
 //   8 rooms x 5 rungs = 40 rung payloads · keys: allXP, buffDuration, combatXP, cookSpeed, craftSave, craftSpeed, farmYield, noBurn, prayerSpeed, smithSpeed, yield_cooking, yield_smithing
 //
 // THE SHAPE
@@ -45,10 +45,10 @@ export const ROOM_PERKS = Object.freeze({
     {"buffDuration":1},
   ],
   forge: [
-    {"smithSpeed":0.02},
-    {"smithSpeed":0.04},
-    {"smithSpeed":0.06},
-    {"smithSpeed":0.08,"yield_smithing":0.04},
+    {"smithSpeed":0.02,"yield_smithing":0.01},
+    {"smithSpeed":0.04,"yield_smithing":0.02},
+    {"smithSpeed":0.06,"yield_smithing":0.04},
+    {"smithSpeed":0.08,"yield_smithing":0.06},
     {"smithSpeed":0.1,"yield_smithing":0.08},
   ],
   garden: [
@@ -87,10 +87,10 @@ export const ROOM_PERKS = Object.freeze({
     {"combatXP":0.05},
   ],
   workshop: [
-    {"craftSpeed":0.02},
-    {"craftSpeed":0.04},
-    {"craftSpeed":0.06},
-    {"craftSpeed":0.08,"craftSave":0.04},
+    {"craftSpeed":0.02,"craftSave":0.01},
+    {"craftSpeed":0.04,"craftSave":0.02},
+    {"craftSpeed":0.06,"craftSave":0.04},
+    {"craftSpeed":0.08,"craftSave":0.06},
     {"craftSpeed":0.1,"craftSave":0.08},
   ],
 });
@@ -109,4 +109,4 @@ export const ROOM_PERK_KEYS = Object.freeze(["allXP","buffDuration","combatXP","
 
 /* The digest of the extracted payload. tools/gen-perks.mjs --check recomputes
    it; a mismatch names which side moved. */
-export const PERK_DIGEST = '872f53ce1100532f63adaec936bab849119d802236ea63986864da625260f492';
+export const PERK_DIGEST = '2a2e902622cd33bcf4aec421ae065ca15ea9ddc0a9d6e09e80c8cc4028053139';

@@ -16,15 +16,15 @@
     "the change was intended. Never edit a hash by hand to make a build green —",
     "a red hash is the check working."
   ],
-  "generated": "2026-09-07",
+  "generated": "2026-09-08",
   "project": "nezapsylztqbbwuwembx",
   "postgres": {
     "production": "17.x",
     "replay": "PGlite (PG18) — see tests/schema-replay.mjs"
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
-  "live_measured": "2026-09-07",
-  "replay_ms": 8848,
+  "live_measured": "2026-09-08",
+  "replay_ms": 1168,
   "counts": {
     "tracked_names": 44,
     "entries": 42
@@ -44,7 +44,7 @@
       "live": {
         "md5": "e3f895cda2cd6f376ddc59bdf5558512",
         "norm_len": 365,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -68,7 +68,7 @@
       "live": {
         "md5": "d84d880319b3427b0220333462821036",
         "norm_len": 362,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -93,7 +93,7 @@
       "live": {
         "md5": "c6b86f79de9a80138a1649ba40b5de97",
         "norm_len": 5758,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -125,21 +125,23 @@
         "2026-08-25-workers.sql",
         "2026-09-06-cadence-recovery-floor.sql",
         "2026-09-06-recovering-until.sql",
-        "2026-09-07-last-away-receipt.sql"
+        "2026-09-07-last-away-receipt.sql",
+        "2026-09-07-retreat.sql",
+        "2026-09-08-hearthfind.sql"
       ],
       "live": {
-        "md5": "da30ec1c7ad4a191003988306050a721",
-        "norm_len": 96274,
-        "measured": "2026-09-07",
+        "md5": "bc3f60af970d64e3131d34b18859e21a",
+        "norm_len": 114580,
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
-        "md5": "3223e79068dba79e632393927c23a040",
-        "norm_len": 96404,
+        "md5": "d1261c0a15b6be4090cd5fde077f06e7",
+        "norm_len": 114710,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "2026-09-07 18:30 UTC: 2026-09-07-last-away-receipt.sql applied by the Coordinator (Security GO F1–F5). hr_apply now accepts the engine-only `last_away_receipt` delta key (V2 size cap 2 KB, V7 entry cap 64, V8 window re-derived from the locked row + now()) and writes player_state.last_away_receipt. --codediff: CODE-IDENTICAL to the replay (40,621 code chars; the 130-char delta is comments/whitespace)."
+      "why": "2026-09-08 18:33 UTC: 2026-09-07-retreat.sql (consec_falls allowlisted/validated [0,64], written absolute; RESTATEMENT-DEBT-ACK) and 2026-09-08-hearthfind.sql (hearthfind delta key, world_finds/player_cosmetics writes, clamps 3/day + 30 s; anchored on the c_release_codes head) applied by the Coordinator after Security GO. --codediff: comments/whitespace only vs the replay."
     },
     {
       "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -164,7 +166,7 @@
       "live": {
         "md5": "638425ee833c49065936d390a44c3484",
         "norm_len": 26804,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -186,7 +188,7 @@
       "live": {
         "md5": "aa4a12e183acd6ed37de9affc191bd50",
         "norm_len": 6269,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -208,7 +210,7 @@
       "live": {
         "md5": "db1826672c8a43de334b0a0bbf582d63",
         "norm_len": 4445,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -230,7 +232,7 @@
       "live": {
         "md5": "c3ac903821cd7ab09590ce0f979922a4",
         "norm_len": 9772,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -252,7 +254,7 @@
       "live": {
         "md5": "0a3515fb34ba30de9f331069c030bf86",
         "norm_len": 3761,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -276,7 +278,7 @@
       "live": {
         "md5": "36a972a99b24ddcb4564694e50a978b0",
         "norm_len": 3995,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -299,7 +301,7 @@
       "live": {
         "md5": "f538e493cc118188511d16a050d30f67",
         "norm_len": 8503,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -322,7 +324,7 @@
       "live": {
         "md5": "10372c9994729fabbff1ba492933f81e",
         "norm_len": 4749,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -345,7 +347,7 @@
       "live": {
         "md5": "81b5a41b4861f284f25b0dc1046d941f",
         "norm_len": 8482,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -370,7 +372,7 @@
       "live": {
         "md5": "134be3455bb53bebcb37200523054472",
         "norm_len": 10842,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -393,7 +395,7 @@
       "live": {
         "md5": "ba877ea314565bdd7e39ab99c65878fb",
         "norm_len": 15583,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -418,7 +420,7 @@
       "live": {
         "md5": "ab39935430da4abf223626bb72a82363",
         "norm_len": 29458,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -442,7 +444,7 @@
       "live": {
         "md5": "9cdfde85f2d243619627d452bb0641bf",
         "norm_len": 2299,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -464,7 +466,7 @@
       "live": {
         "md5": "dc29fafa960cc07eb59198b00cea27f6",
         "norm_len": 7384,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -488,7 +490,7 @@
       "live": {
         "md5": "c006cd569329bd320b24810ac28c1bb0",
         "norm_len": 7227,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -511,7 +513,7 @@
       "live": {
         "md5": "bfb53ac1dd77bc27d6885274e3c21f7e",
         "norm_len": 6057,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -533,7 +535,7 @@
       "live": {
         "md5": "73ffa7a89b02fd773b7cc9dbb2975fe6",
         "norm_len": 3958,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -555,7 +557,7 @@
       "live": {
         "md5": "97f6c74e00fa9e8419b9c6437efc0685",
         "norm_len": 1645,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -577,7 +579,7 @@
       "live": {
         "md5": "b527321e54deb4699ba20155d9b1af30",
         "norm_len": 12598,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -602,7 +604,7 @@
       "live": {
         "md5": "abe004d3ba1bc85dcaa555659a8afd23",
         "norm_len": 5999,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -625,7 +627,7 @@
       "live": {
         "md5": "e54b07a6a5ae2388e4cab0186550ccee",
         "norm_len": 3558,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live",
         "mojibake": true
       },
@@ -652,7 +654,7 @@
       "live": {
         "md5": "1d4b32ddac88a883dab862e8ff1e8996",
         "norm_len": 2175,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -676,7 +678,7 @@
       "live": {
         "md5": "7b622332590f6af8b29d3d44c19258d2",
         "norm_len": 4652,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -700,7 +702,7 @@
       "live": {
         "md5": "c583b4545f4ae41e378340e8c1b101e2",
         "norm_len": 3922,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -722,7 +724,7 @@
       "live": {
         "md5": "4fe27ae0417cfd242df90a7a37af9d8b",
         "norm_len": 7771,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -764,7 +766,7 @@
       "live": {
         "md5": "0ec2b179abbe5eacfd670ff6f81c5a69",
         "norm_len": 2621,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -789,7 +791,7 @@
       "live": {
         "md5": "114a18f05ea2e423d85470a7442de49e",
         "norm_len": 6350,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -812,7 +814,7 @@
       "live": {
         "md5": "aaa43577cb9de2fadfa813705427c7b6",
         "norm_len": 5357,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -850,22 +852,24 @@
         "2026-09-06-recovering-until.sql",
         "2026-09-06-state-of-farm-projection.sql",
         "2026-09-07-last-away-receipt.sql",
+        "2026-09-07-retreat.sql",
+        "2026-09-08-hearthfind.sql",
         "2026-09-08-hero-slot-buy.sql",
         "2026-09-10-dungeon-scrip.sql"
       ],
       "live": {
-        "md5": "4aab817152404ad34ffdd9a24927a527",
-        "norm_len": 14358,
-        "measured": "2026-09-07",
+        "md5": "bfcc389b73586f2568aa7deb701347ae",
+        "norm_len": 17678,
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
-        "md5": "efc1d360ed618b3bbfe063e041e239bf",
-        "norm_len": 15106,
+        "md5": "80613869d56de2fba23a47cbe1797d69",
+        "norm_len": 18426,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "2026-09-07 18:30 UTC: 2026-09-07-last-away-receipt.sql applied by the Coordinator (Security GO F1–F5). hr_state_of projects player_state.last_away_receipt so the client can restore the last AWAY-classified receipt after a reload. --codediff: CODE-IDENTICAL to the replay (5,387 code chars; the 748-char delta is comments/whitespace)."
+      "why": "2026-09-08 18:33 UTC: retreat projects consec_falls; hearthfind projects hearthfind_last, hearthfind_titles, hearthfind_plinth. Applied after Security GO. --codediff: comments/whitespace only vs the replay."
     },
     {
       "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",
@@ -880,7 +884,7 @@
       "live": {
         "md5": "89916214f9aa67785acac0103db9dcef",
         "norm_len": 10518,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -902,7 +906,7 @@
       "live": {
         "md5": "40f1ead2515b0c3f898db0bd4bf97a35",
         "norm_len": 20059,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -924,7 +928,7 @@
       "live": {
         "md5": "11394712df724d52990bce2c6ca6c7d6",
         "norm_len": 1235,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -951,7 +955,7 @@
       "live": {
         "md5": "0d0ed3b05cde0bbdac584696fb159f90",
         "norm_len": 220,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -975,7 +979,7 @@
       "live": {
         "md5": "6ec96537a3581e36ab6568c8f53817e2",
         "norm_len": 235,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -997,7 +1001,7 @@
       "live": {
         "md5": "4bed83b13c3b484f3fea328dee6580b6",
         "norm_len": 3903,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -1020,7 +1024,7 @@
       "live": {
         "md5": "2d4fd7ed73e16782653d457ce8d0a84b",
         "norm_len": 3526,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -1044,7 +1048,7 @@
       "live": {
         "md5": "7a0bf95efdf3fa959e73f846ed74ca3e",
         "norm_len": 405,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {
@@ -1069,7 +1073,7 @@
       "live": {
         "md5": "0ae1c264bf0fce09e76834d16a446972",
         "norm_len": 10176,
-        "measured": "2026-09-07",
+        "measured": "2026-09-08",
         "source": "measured-live"
       },
       "replay": {

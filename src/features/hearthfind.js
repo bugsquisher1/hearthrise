@@ -148,7 +148,7 @@
     var e = entryFor(id);
     var key = e ? e.glyph : 'uiStar';
     if (window.HR && typeof window.HR.icon === 'function') {
-      var svg = window.HR.icon(key, px || 22, 'var(--rr-glow)');
+      var svg = window.HR.icon(key, px || 22, 'var(--rr-glow, var(--gold-2))');
       if (svg) return svg;
     }
     return '';

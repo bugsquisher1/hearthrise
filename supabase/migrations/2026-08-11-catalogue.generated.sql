@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: ac421ec251c46b9f7b50b86b8d6c1481b93655da1ea5e34e999c8ac28a6e8fb2
+--   catalogue digest: 5909e7be490efc033dbd3c3b8a00fd4dd22a05675ffec8e621061218cd28344e
 --   rows: 519 items (20 untradeable) ·
 --         275 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 473 activities ·
@@ -320,7 +320,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('death_steel','Death Steel',true,null,550,null,null,null,false),
   ('deathsteel_bar','Deathsteel Ingot',true,null,1500,null,null,null,false),
   ('deep_rune_blank','Deep Blank Rune',true,null,60,null,null,null,false),
-  ('deepvein_geode','Deepvein Geode',false,'trophy',0,null,null,null,false),
+  ('deepvein_lodestar','Deepvein Lodestar',false,'trophy',0,null,null,null,false),
   ('demon_shard','Demon Shard',true,null,200,null,null,null,false),
   ('demoncaller_staff','Demoncaller',true,'weapon',13600,'magic',68,null,false),
   ('dire_fang','Dire Fang',true,null,150,null,null,null,false),
@@ -369,7 +369,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('emberfruit','Emberfruit',true,null,480,null,null,16,true),
   ('emberfruit_seed','Emberfruit Seed',true,null,160,null,null,null,false),
   ('emberhead_arrows','Emberhead Arrows',true,'ammo',9,'ranged',75,null,false),
-  ('emberheart_core','Emberheart Core',false,'trophy',0,null,null,null,false),
+  ('emberheart','Emberheart',false,'trophy',0,null,null,null,false),
   ('emberstone_ore','Emberstone Ore',true,null,520,null,null,null,false),
   ('fang_studs','Fang Studs',true,'jewelry',130,'defense',18,null,false),
   ('fangdart_recurve','Fangdart Recurve',true,'weapon',7200,'ranged',36,null,false),
@@ -1525,7 +1525,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'ac421ec251c46b9f7b50b86b8d6c1481b93655da1ea5e34e999c8ac28a6e8fb2', now())
+  values (true, '5909e7be490efc033dbd3c3b8a00fd4dd22a05675ffec8e621061218cd28344e', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1690,7 +1690,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ac421ec251c46b9f7b50b86b8d6c1481b93655da1ea5e34e999c8ac28a6e8fb2',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 5909e7be490efc033dbd3c3b8a00fd4dd22a05675ffec8e621061218cd28344e',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

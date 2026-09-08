@@ -1,5 +1,7 @@
 -- ============================================================================
--- 2026-09-08-hearthfind.sql — THE HEARTHFIND (Feature Slate §2).
+-- 2026-09-08-hearthfind.sql — THE FOUR HEARTHFINDS (Feature Slate §2,
+--   as ruled by the Game Designer 2026-09-08; the ruling is final authority and
+--   this file implements it exactly).
 --
 -- ⚠⚠⚠ REVIEW ONLY — NOT AUTO-APPLIED. Applied by the Coordinator after a
 --     Security GO, via tools/apply-migration.mjs, in this order:
@@ -18,7 +20,9 @@
 -- function looks all three up in a generated catalogue before it pays anything.
 --
 -- Engine halves that ship with this file (EDGE REDEPLOY REQUIRED):
---   src/data/hearthfind.js                   the table (10 sources, 4 trophies)
+--   src/data/hearthfind.js                   the table (12 sources, 4 trophies),
+--                                            authored in EXPECTED HOURS (100-400)
+--   tools/gen-hearthfind.mjs                 derives one_in + expected_hours
 --   src/data/items.js                        the 4 trophies, hearthfind:true
 --   src/core/hearthfind.js                   the seeded roll — the ONE engine
 --   src/core/combat-sim.js                   the monster roll site (resolveKill)
@@ -30,13 +34,49 @@
 --   §1b player_ledger_kind_check gains 'hearthfind'.
 --   §1a2 player_ledger_hearthfind_idx — a partial index (kind='hearthfind'),
 --       so §1c's projection is one probe and not a scan of the character's day.
+--   §1a3 player_ledger_hearthfind_item_idx — partial, by item, for the GLOBAL
+--       ordinal ("the 4th ever found in Hearthrise"). Counted from the journal,
+--       never from world_finds, which the broadcast clamp suppresses.
+--   §1d player_cosmetics — SERVER-OWNED cosmetic unlocks (title, plinth).
+--       No numeric column, by design and by self-check: a cosmetic that can
+--       carry a number is one migration from being a stat.
 --   §1c hr_state_of — projects `hearthfind_ready` (the engine's order-safety
---       switch), programmatic, anchored, exactly-once.
+--       switch), `hearthfind_last` (the retried reveal) AND the cosmetic
+--       unlocks (`hearthfind_titles`, `hearthfind_plinth`) — programmatic,
+--       ONE anchored replace, exactly-once. NO NEW ANCHOR is introduced by the
+--       ruling's cosmetics: the projections are added inside the SAME
+--       exactly-once replace the staged file already made, so the restatement
+--       debt below is UNCHANGED by this revision.
 --   §2  hr_apply — allowlists 'hearthfind', re-derives it from the catalogue,
---       grants the trophy, journals it, broadcasts it, and returns it on the
---       receipt (programmatic, anchored, exactly-once).
+--       re-asserts the 100-400 hour band on the row it is about to pay, grants
+--       the trophy, grants the cosmetic unlocks, computes the global ordinal,
+--       journals it, broadcasts it (30 s clamp), and returns it on the receipt
+--       (programmatic, anchored, exactly-once — the same three replaces the
+--       staged file made; the ruling added no anchor).
 --   §3  hr_world_finds_prune — the retention valve.
---   §4  self-check — every load-bearing property, proven by executing SQL.
+--   §4  self-check — every load-bearing property, proven by executing SQL,
+--       including (a) the 100-400 EXPECTED-HOURS band on the stored rows,
+--       (a3) combat sources are bosses only, (r3) player_cosmetics carries no
+--       numeric column, and (s2) hr_apply hand-types no cosmetic code.
+--
+-- ── WHAT A FIND PAYS (ruling §6) — AND WHAT IT DOES NOT ─────────────────────
+-- It pays ONE bind-on-pickup, v:0 trophy; a permanent collection-log row
+-- (DERIVED, not stored: date and odds from player_ledger.meta, "Nth ever found"
+-- from the ordinal at (ii-b), lifetime action count on that source from the
+-- character's own progress rows); an equippable TITLE; and a homestead PLINTH.
+-- It pays NO gold, NO XP, NO renown, NO gems, NO stat and NO rate — asserted by
+-- the journal row's gold_in/xp_in = 0, by hr_items.value = 0 and tradeable =
+-- false on every trophy (§4 l/m), and by player_cosmetics having no numeric
+-- column at all (§4 r3).
+--
+-- ── ANTI-P2W (ruling §7) ────────────────────────────────────────────────────
+-- The roll site reads ONLY (source_kind, source_id, server seed). No purchase,
+-- bond, currency, buff, potion, gear stat, prestige perk or event modifier can
+-- change the odds, the roll count or the daily clamp. The SERVER half of that
+-- property is here (the odds come from the catalogue under the lock, never from
+-- the delta); the ENGINE half is proven by tests/hearthfind-mint-guard.mjs,
+-- which greps the roll site for every multiplier term and carries a --selftest
+-- mutation proof.
 --
 -- ── RESTATEMENT-DEBT-ACK ────────────────────────────────────────────────────
 -- §2 is PROGRAMMATIC, not a `create or replace`. It edits `pg_get_functiondef`
@@ -86,7 +126,7 @@
 --        lucky a fourth time, which is the wrong failure direction. The clamp is
 --        an anti-automation ceiling, not a balance number: at the shipped odds a
 --        fourth find in one UTC day is not reachable by playing.
---  (iii) ONE BROADCAST PER 60 s PER CHARACTER — the world_finds insert only.
+--  (iii) ONE BROADCAST PER 30 s PER CHARACTER — the world_finds insert only.
 --        The trophy and the ledger row are still written; only the public line
 --        is suppressed. The board is a social surface and a burst on it is
 --        indistinguishable from a spam attack on every other player's screen.
@@ -218,7 +258,7 @@ create table if not exists public.world_finds (
   one_in      bigint      not null check (one_in > 0),
   found_at    timestamptz not null default now()
 );
--- The board's own read pattern (newest first) and the 60-second broadcast
+-- The board's own read pattern (newest first) and the 30-second broadcast
 -- clamp's lookup (this character, newest first). Two indexes, both narrow.
 create index if not exists world_finds_at_idx   on public.world_finds (found_at desc);
 create index if not exists world_finds_char_idx on public.world_finds (user_id, slot, found_at desc);
@@ -268,6 +308,68 @@ end $$;
 create index if not exists player_ledger_hearthfind_idx
   on public.player_ledger (user_id, slot, at desc)
   where kind = 'hearthfind';
+
+-- ── 1a3. THE ORDINAL INDEX ───────────────────────────────────────────────────
+-- "The 4th ever found in Hearthrise" is a GLOBAL count over one item id, and it
+-- is counted from the journal rather than from world_finds because the broadcast
+-- clamp suppresses public rows: a world_finds count would drift below the truth
+-- and the chat line would re-use an ordinal. PARTIAL on kind='hearthfind', so
+-- the whole index holds the realm's entire find history -- at the ruled cadence
+-- (~2 finds per realm-week) that is single-digit rows per week, and it costs one
+-- entry on the vanishingly rare insert that journals a find and nothing on any
+-- other ledger write. It is read ONCE per find, never per tick.
+create index if not exists player_ledger_hearthfind_item_idx
+  on public.player_ledger (item_id)
+  where kind = 'hearthfind';
+
+-- ── 1d. player_cosmetics — SERVER-OWNED COSMETIC UNLOCKS ─────────────────────
+-- The Designer's ruling §6: a hearthfind "pays a moment and nothing else" --
+-- and the moment is durable. It pays a permanent collection-log row (derivable
+-- from player_ledger + world_finds, no new storage), an equippable TITLE and a
+-- homestead PLINTH. The last two are STATE, so they are SERVER state.
+--
+-- ⚠ WHY THIS IS A TABLE AND NOT RESIDUE. RESIDUE_FIELDS (src/net/client-state.js)
+--   is an allowlist for client-only PREFERENCES. A title a player earned by
+--   beating 1-in-22,750 is exactly the thing CLAUDE.md §6 says must live in a
+--   server row and be projected: "anything a player would miss after a reload
+--   must live in a server column/row". A residue title would also be forgeable
+--   by hand-editing local state, which turns the rarest achievement in the game
+--   into a text field.
+--
+-- ⚠ WHY IT CANNOT BECOME POWER. There is NO numeric column here, deliberately.
+--   A cosmetic table with a `bonus` or `tier` column is one migration away from
+--   being a stat, and the anti-P2W property (ruling §7) would then depend on a
+--   convention instead of a shape. `kind` is constrained to the two cosmetic
+--   families; adding a third is a migration a reviewer sees.
+--
+-- APPEND-ONLY IN PRACTICE: hr_apply INSERTs ... ON CONFLICT DO NOTHING and
+-- nothing in this file ever updates or deletes a row, so an unlock is
+-- idempotent (a replayed apply cannot double-grant) and permanent.
+create table if not exists public.player_cosmetics (
+  user_id    uuid        not null,
+  slot       int         not null,
+  kind       text        not null check (kind in ('title','plinth')),
+  code       text        not null,
+  name       text        not null,
+  granted_at timestamptz not null default now(),
+  primary key (user_id, slot, kind, code)
+);
+
+alter table public.player_cosmetics enable row level security;
+
+-- READ-OWN ONLY, and even that is a courtesy: the value reaches the client
+-- through hr_state_of, which is the envelope the client applies. WRITE is
+-- revoked BEFORE anything is granted, service_role INCLUDED -- it bypasses RLS,
+-- so a leaked service key would otherwise be able to hand itself Wonderkeeper
+-- with no find and no ledger row behind it.
+do $$
+begin
+  revoke all on public.player_cosmetics from public, anon, authenticated, service_role;
+  grant select on public.player_cosmetics to authenticated;
+end $$;
+drop policy if exists player_cosmetics_read_own on public.player_cosmetics;
+create policy player_cosmetics_read_own on public.player_cosmetics
+  for select to authenticated using (user_id = auth.uid());
 
 -- ── 1b. THE LEDGER KIND ──────────────────────────────────────────────────────
 -- journal kind 'hearthfind' must be a legal player_ledger.kind or the insert in
@@ -361,6 +463,24 @@ begin
          where l.user_id = p_user and l.slot = p_slot and l.kind = 'hearthfind'
            and l.at >= date_trunc('day', now() at time zone 'utc') at time zone 'utc'
          order by l.at desc limit 1),
+      -- THE COSMETICS THE CHARACTER OWNS. Projected from the server table, not
+      -- carried in the residue: a title is earned state, and CLAUDE.md §6 is
+      -- explicit that anything a player would miss after a reload lives in a
+      -- server row and is projected. Two arrays and one boolean, all derived:
+      --   hearthfind_titles  every title unlocked, newest last
+      --   hearthfind_plinth  whether the homestead plinth is unlocked
+      -- The EQUIPPED title is deliberately absent until an equip intent exists;
+      -- a client that picked one would be authoring it, and there is no RPC yet
+      -- that would let the server own that choice. Stated as a known limitation
+      -- rather than shipped as a residue field.
+      'hearthfind_titles', coalesce((
+        select jsonb_agg(jsonb_build_object('code', c.code, 'name', c.name, 'at', c.granted_at)
+                         order by c.granted_at)
+          from public.player_cosmetics c
+         where c.user_id = p_user and c.slot = p_slot and c.kind = 'title'), '[]'::jsonb),
+      'hearthfind_plinth', exists (
+        select 1 from public.player_cosmetics c
+         where c.user_id = p_user and c.slot = p_slot and c.kind = 'plinth'),
       'fight', v_st.fight,$anc$);
     execute v_def;
   end if;
@@ -416,6 +536,28 @@ begin
   v_hf_last   timestamptz;
   v_hf_have   bigint;
   v_hf_out    jsonb;
+  -- THE BAND, IN THE UNIT IT IS RULED IN. Read from the catalogue beside the
+  -- odds so the runtime check and the migration-time self-check assert the same
+  -- column, never two numbers that can drift.
+  v_hf_hours     numeric;
+  -- THE COSMETICS, ALL READ FROM THE CATALOGUE. No string literal for a title
+  -- code or the plinth appears anywhere in this body: hand-typing them here
+  -- would be the src/main.js unifyObject data double-copy, with the copy on the
+  -- side that GRANTS.
+  v_hf_title     text;
+  v_hf_titlename text;
+  v_hf_set       int;      -- distinct trophies this character has found, after this one
+  v_hf_setneed   int;      -- how many distinct trophies the full set is
+  v_hf_settitle  text;
+  v_hf_setname   text;
+  v_hf_plinth    text;
+  v_hf_cosm      jsonb;    -- the cosmetics UNLOCKED BY THIS FIND, for the receipt
+  -- THE GLOBAL ORDINAL - "the 4th ever found in Hearthrise". Counted across ALL
+  -- characters from the append-only journal under this character's lock. It is
+  -- NOT counted from world_finds: the broadcast clamp suppresses public rows, so
+  -- a world_finds count would drift below the truth and the chat line would
+  -- claim an ordinal that had already been used.
+  v_hf_nth    bigint;
   -- THE DISCARD COUNT. Advisory only: it is journalled and never read by any
   -- arithmetic that grants, so a forged value costs the player nothing and buys
   -- the forger nothing but a rejection row against their own character.
@@ -428,9 +570,14 @@ begin
   -- ceiling, not a balance number: at 1-in-6,000 to 1-in-40,000 a fourth find in
   -- one day is not reachable by playing.
   c_max_hf_per_day   constant int := 3;
-  -- ONE BROADCAST PER 60 s PER CHARACTER. Suppresses the world_finds ROW ONLY;
-  -- the trophy and the ledger row are unaffected.
-  c_hf_broadcast     constant interval := interval '60 seconds';
+  -- ONE BROADCAST PER 30 s PER CHARACTER (Designer ruling 2026-09-08 §9; the
+  -- 60 s form was REJECTED). Suppresses the world_finds ROW ONLY; the trophy,
+  -- the ledger row, the cosmetic unlocks and the receipt are unaffected, so a
+  -- suppressed broadcast never costs value -- only a duplicate chat line. At the
+  -- ruled cadence (~2 finds per realm-week) the clamp exists solely to stop a
+  -- pathological retry storm from spamming global chat; halving it costs
+  -- nothing and keeps a genuine back-to-back double find visible.
+  c_hf_broadcast     constant interval := interval '30 seconds';
   v_fight jsonb;$anc$);
 
     -- 2d. THE VALIDATION BLOCK (4a-h), inserted before the worker block, i.e.
@@ -491,7 +638,8 @@ begin
       -- not exist, a trophy that is not a trophy, and a source paying the WRONG
       -- trophy are one refusal, because they are one question: is this find a
       -- thing the catalogue says can happen?
-      select s.one_in into v_hf_one
+      select s.one_in, s.expected_hours, i.title_code, i.title_name
+        into v_hf_one, v_hf_hours, v_hf_title, v_hf_titlename
         from public.hr_hearthfind_sources s
         join public.hr_hearthfind_items  i on i.item_id = s.item_id
        where s.source_kind = v_hf_kind and s.source_id = v_hf_src and s.item_id = v_hf_item;
@@ -500,13 +648,18 @@ begin
           jsonb_build_object('why', 'no such source/item pair',
                              'source_kind', v_hf_kind, 'source_id', v_hf_src, 'item', v_hf_item));
       end if;
-      -- THE FLOOR, re-asserted at RUNTIME and not only at migration time. §4(a)
-      -- proves the stored rows are in band today; this proves it for the row
-      -- being paid, so an out-of-band row that somehow reached the table pays
-      -- nothing instead of paying a common trophy.
-      if v_hf_one < 5000 then
+      -- THE BAND, re-asserted at RUNTIME and not only at migration time, and
+      -- STATED IN HOURS because that is the unit the Designer ruled in: oneIn is
+      -- per roll and roll rates span >12x across the shipped sources, so a
+      -- per-roll floor said nothing comparable (it is what let the staged goblin
+      -- row become the best hearthfind farm in the game). §4(a) proves the
+      -- stored rows are in band today; this proves it for THE ROW BEING PAID, so
+      -- an out-of-band row that somehow reached the table pays nothing instead
+      -- of paying a common trophy.
+      if v_hf_hours is null or v_hf_hours < 100 or v_hf_hours > 400 then
         perform public.hr_reject('bad_hearthfind',
-          jsonb_build_object('why', 'one_in below the floor', 'one_in', v_hf_one));
+          jsonb_build_object('why', 'expected_hours outside the 100-400 band',
+                             'expected_hours', v_hf_hours, 'one_in', v_hf_one));
       end if;
     end if;
 
@@ -570,6 +723,17 @@ begin
           values (v_uid, v_slot, v_hf_item, coalesce(v_hf_have, 0) + 1)
           on conflict (user_id, slot, item_id) do update set qty = excluded.qty;
 
+        -- (ii-b) THE GLOBAL ORDINAL, and it is computed BEFORE the journal row
+        --        is written so that "Nth ever found" counts the finds that came
+        --        BEFORE this one, plus one. Counting after the insert would make
+        --        the same expression mean something different depending on
+        --        statement order - the kind of off-by-one a player screenshots.
+        --        One index probe on player_ledger_hearthfind_item_idx; the whole
+        --        index holds a handful of rows per realm-week.
+        select count(*) + 1 into v_hf_nth
+          from public.player_ledger
+         where kind = 'hearthfind' and item_id = v_hf_item;
+
         -- (iii) THE JOURNAL. qty_in = 1 so the trophy enters the daily item
         --       budget like any other granted unit; gold_in/xp_in are ZERO and
         --       stay zero, because a find moves no gold and no XP - which is
@@ -580,9 +744,11 @@ begin
           (v_uid, v_slot, 'hearthfind', 'hearthfind', v_hf_item, 1, 0, 0, 0, 1,
            jsonb_build_object('item', v_hf_item, 'source_kind', v_hf_kind,
                               'source_id', v_hf_src, 'one_in', v_hf_one,
+                              'expected_hours', v_hf_hours,
+                              'nth_ever', v_hf_nth,
                               'nth_today', v_hf_today + 1));
 
-        -- (iv) THE BROADCAST, at most one row per 60 s per character. The
+        -- (iv) THE BROADCAST, at most one row per 30 s per character. The
         --      trophy and the journal above are already written; only the public
         --      line is suppressed, so a suppressed broadcast never costs value.
         select max(found_at) into v_hf_last from public.world_finds
@@ -592,13 +758,69 @@ begin
             values (v_uid, v_slot, v_hf_item, v_hf_kind, v_hf_src, v_hf_one);
         end if;
 
+        -- (iv-b) THE COSMETICS. THE ONLY THING A FIND PAYS BESIDES THE TROPHY,
+        --        and they are cosmetic by construction: player_cosmetics has no
+        --        numeric column, nothing joins it to a rate, and no RPC reads it
+        --        to decide an outcome. Ruling §6 - "pays a moment and nothing
+        --        else": no gold, no XP, no renown, no gems, no stat.
+        --
+        --        WRITTEN HERE AND ONLY HERE, under the character lock, from the
+        --        catalogue lookup above - never from the delta. A duplicate find
+        --        re-broadcasts and pays nothing, which is exactly what the
+        --        ON CONFLICT DO NOTHING expresses: the unlock is idempotent, so
+        --        a replayed apply cannot double-grant and a second Emberheart
+        --        cannot re-unlock Emberkeeper.
+        select value into v_hf_plinth   from public.hr_hearthfind_meta where key = 'plinth_code';
+        select value into v_hf_settitle from public.hr_hearthfind_meta where key = 'set_title_code';
+        select value into v_hf_setname  from public.hr_hearthfind_meta where key = 'set_title_name';
+        v_hf_cosm := '[]'::jsonb;
+
+        insert into public.player_cosmetics (user_id, slot, kind, code, name)
+          values (v_uid, v_slot, 'title', v_hf_title, v_hf_titlename)
+          on conflict (user_id, slot, kind, code) do nothing;
+        if found then
+          v_hf_cosm := v_hf_cosm || jsonb_build_object('kind','title','code',v_hf_title,'name',v_hf_titlename);
+        end if;
+
+        -- THE PLINTH, on the character's FIRST find of any trophy. A flag, not a
+        -- count: it unlocks the homestead display, and what stands on it is
+        -- derived from the trophies the character holds.
+        insert into public.player_cosmetics (user_id, slot, kind, code, name)
+          values (v_uid, v_slot, 'plinth', v_hf_plinth, 'Hearth Plinth')
+          on conflict (user_id, slot, kind, code) do nothing;
+        if found then
+          v_hf_cosm := v_hf_cosm || jsonb_build_object('kind','plinth','code',v_hf_plinth,'name','Hearth Plinth');
+        end if;
+
+        -- THE FULL SET. Counted as DISTINCT trophies from the append-only
+        -- journal (including the row just written) against the catalogue's own
+        -- trophy count - never a stored counter, which would be a second copy of
+        -- a fact the ledger already holds and would drift on any prune.
+        select count(distinct item_id) into v_hf_set
+          from public.player_ledger
+         where user_id = v_uid and slot = v_slot and kind = 'hearthfind';
+        select count(*) into v_hf_setneed from public.hr_hearthfind_items;
+        if v_hf_set >= v_hf_setneed then
+          insert into public.player_cosmetics (user_id, slot, kind, code, name)
+            values (v_uid, v_slot, 'title', v_hf_settitle, v_hf_setname)
+            on conflict (user_id, slot, kind, code) do nothing;
+          if found then
+            v_hf_cosm := v_hf_cosm || jsonb_build_object('kind','title','code',v_hf_settitle,'name',v_hf_setname,'set',true);
+          end if;
+        end if;
+
         -- (v) THE RECEIPT. Attached to the apply's return value below, so an
         --     AWAY find comes back on the settle receipt and the client can
         --     reveal it on return without a second round trip. Server-authored
         --     in full: every field here was looked up or derived above.
         v_hf_out := jsonb_build_object(
           'item', v_hf_item, 'source_kind', v_hf_kind, 'source_id', v_hf_src,
-          'one_in', v_hf_one, 'nth_today', v_hf_today + 1,
+          'one_in', v_hf_one, 'expected_hours', v_hf_hours,
+          'nth_ever', v_hf_nth, 'nth_today', v_hf_today + 1,
+          -- WHAT THIS FIND UNLOCKED, so the reveal can say it without a second
+          -- round trip and without the client deciding what a find is worth.
+          'unlocked', v_hf_cosm,
+          'set_complete', (v_hf_set >= v_hf_setneed),
           'broadcast', (v_hf_last is null or v_hf_last < now() - c_hf_broadcast),
           'at', now());
       end if;
@@ -638,18 +860,44 @@ revoke all on function public.hr_world_finds_prune(interval, int, int) from publ
 -- ── 4. SELF-CHECK — properties PROVEN BY EXECUTING SQL, not by markers ───────
 do $chk$
 declare v_n bigint; v_apply text; v_min bigint; v_def text;
+  v_hours_lo numeric; v_hours_hi numeric;
 begin
   v_apply := pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure);
 
-  -- (a) THE PER-SOURCE oneIn FLOOR, against the STORED rows. The headline
-  --     property of the whole feature: a hearthfind is rare or it is nothing.
-  select min(one_in) into v_min from public.hr_hearthfind_sources;
-  if v_min is null or v_min < 5000 then
-    raise exception 'hearthfind self-check (a): the shortest odds are 1 in % - the floor is 5000', v_min;
+  -- (a) THE BAND, IN EXPECTED HOURS, against the STORED rows (Designer ruling
+  --     2026-09-08 §4). The headline property of the whole feature, and the
+  --     ruling's correction to the first cut of this file: a per-roll oneIn
+  --     floor is not a rarity statement, because roll rates span more than 12x
+  --     across the shipped sources -- 1-in-40,000 on a starter mob is one find
+  --     per 11 hours, the same number on a Yew Tree is a lifetime. So EVERY
+  --     source must sit between 100 and 400 expected hours AT ITS OWN ACTION
+  --     RATE, and that is asserted here by executing SQL against the derived
+  --     `expected_hours` column, never by reading a marker.
+  select min(expected_hours) into v_hours_lo from public.hr_hearthfind_sources;
+  select max(expected_hours) into v_hours_hi from public.hr_hearthfind_sources;
+  if v_hours_lo is null or v_hours_lo < 100 or v_hours_hi > 400 then
+    raise exception 'hearthfind self-check (a): expected hours span % .. % - the band is 100-400',
+      v_hours_lo, v_hours_hi;
   end if;
-  select count(*) into v_n from public.hr_hearthfind_sources where one_in > 50000;
+  select count(*) into v_n from public.hr_hearthfind_sources
+   where expected_hours is null or one_in <= 0;
   if v_n > 0 then
-    raise exception 'hearthfind self-check (a2): % sources are longer than 1 in 50000 - outside the authored band', v_n;
+    raise exception 'hearthfind self-check (a2): % sources carry no usable odds', v_n;
+  end if;
+  select min(one_in) into v_min from public.hr_hearthfind_sources;
+
+  -- (a3) COMBAT SOURCES ARE BOSSES ONLY (ruling §2). Proven against the
+  --      catalogue, because the defect it prevents is precise and was live in
+  --      the staged file: a `goblin` row made the STARTER MOB the best
+  --      hearthfind farm in the game. Any monster source must be a boss, and
+  --      the bosses are named by the same monster catalogue the bounty RPC uses.
+  if to_regclass('public.hr_bounty_monsters') is not null then
+    select count(*) into v_n from public.hr_hearthfind_sources s
+     where s.source_kind = 'monster'
+       and not exists (select 1 from public.hr_bounty_monsters b where b.monster_id = s.source_id);
+    if v_n > 0 then
+      raise exception 'hearthfind self-check (a3): % monster sources are not in the monster catalogue', v_n;
+    end if;
   end if;
 
   -- (b) THE ALLOWLIST IS LIVE. Without this key every settle carrying a find
@@ -666,8 +914,14 @@ begin
   if strpos(v_apply, 'c_max_hf_per_day') = 0 or strpos(v_apply, 'v_hf_today >= c_max_hf_per_day') = 0 then
     raise exception 'hearthfind self-check (d): the 3-per-UTC-day clamp is missing';
   end if;
-  if strpos(v_apply, $x$interval '60 seconds'$x$) = 0 or strpos(v_apply, 'now() - c_hf_broadcast') = 0 then
-    raise exception 'hearthfind self-check (e): the 60-second broadcast clamp is missing';
+  if strpos(v_apply, $x$interval '30 seconds'$x$) = 0 or strpos(v_apply, 'now() - c_hf_broadcast') = 0 then
+    raise exception 'hearthfind self-check (e): the 30-second broadcast clamp is missing';
+  end if;
+  -- The RUNTIME band check, by the expression that implements it. §4(a) proves
+  -- the rows are in band at APPLY time; this proves hr_apply re-checks the row
+  -- it is about to pay, which is the property that survives a later retune.
+  if strpos(v_apply, 'expected_hours outside the 100-400 band') = 0 then
+    raise exception 'hearthfind self-check (e2): hr_apply does not re-assert the hours band at runtime';
   end if;
   if strpos(v_apply, 'a hearthfind trophy cannot be minted through items') = 0 then
     raise exception 'hearthfind self-check (f): the one-door guard is missing - items could mint a trophy';
@@ -793,6 +1047,65 @@ begin
     raise exception 'hearthfind self-check (q): hr_state_of does not project hearthfind_ready - the engine would never propose a find';
   end if;
 
-  raise notice 'hearthfind self-check: PASS (% sources, shortest odds 1 in %)',
-    (select count(*) from public.hr_hearthfind_sources), v_min;
+  -- (r) THE COSMETICS ARE SERVER-OWNED AND POWERLESS.
+  --     (r1) no client write policy and no client|service write grant -- a
+  --          leaked service key must not be able to hand itself Wonderkeeper;
+  --     (r2) RLS on;
+  --     (r3) NO NUMERIC COLUMN. This is the anti-P2W property as a SHAPE: a
+  --          cosmetic table that grows an integer is one migration from being a
+  --          stat, and the ruling's "no stat perk" would then rest on a
+  --          convention instead of on something a reviewer can execute.
+  select count(*) into v_n from pg_policies
+   where schemaname = 'public' and tablename = 'player_cosmetics' and cmd <> 'SELECT';
+  if v_n > 0 then raise exception 'hearthfind self-check (r1): % write policies on player_cosmetics', v_n; end if;
+  select count(*) into v_n from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'player_cosmetics'
+     and grantee in ('anon','authenticated','service_role','PUBLIC')
+     and privilege_type in ('INSERT','UPDATE','DELETE','TRUNCATE');
+  if v_n > 0 then raise exception 'hearthfind self-check (r1): % client|service write grants on player_cosmetics', v_n; end if;
+  select count(*) into v_n from pg_class
+   where oid = 'public.player_cosmetics'::regclass and relrowsecurity;
+  if v_n <> 1 then raise exception 'hearthfind self-check (r2): RLS is not enabled on player_cosmetics'; end if;
+  select count(*) into v_n from information_schema.columns
+   where table_schema = 'public' and table_name = 'player_cosmetics'
+     and data_type in ('integer','bigint','smallint','numeric','real','double precision')
+     and column_name <> 'slot';
+  if v_n > 0 then
+    raise exception 'hearthfind self-check (r3): player_cosmetics grew % numeric column(s) - a cosmetic must never carry a number', v_n;
+  end if;
+
+  -- (s) THE GRANT PATH. The cosmetic unlocks are written by hr_apply's
+  --     hearthfind arm and by nothing else, and the codes are READ FROM THE
+  --     CATALOGUE rather than hand-typed into the body (the data double-copy
+  --     rule -- here the copy would be what a title is called on a shareable
+  --     card that outlives the retune).
+  if strpos(v_apply, 'insert into public.player_cosmetics') = 0 then
+    raise exception 'hearthfind self-check (s): hr_apply does not grant the cosmetic unlocks';
+  end if;
+  if strpos(v_apply, $x$where key = 'set_title_code'$x$) = 0
+     or strpos(v_apply, $x$where key = 'plinth_code'$x$) = 0 then
+    raise exception 'hearthfind self-check (s2): hr_apply hand-types a cosmetic code instead of reading hr_hearthfind_meta';
+  end if;
+  if strpos(v_apply, 'count(distinct item_id)') = 0 then
+    raise exception 'hearthfind self-check (s3): the full-set title is not counted from the journal';
+  end if;
+
+  -- (t) THE PROJECTION. A server row nobody projects is a row the player never
+  --     sees -- the residue-ahead class in reverse.
+  if strpos(v_def, 'hearthfind_titles') = 0 or strpos(v_def, 'hearthfind_plinth') = 0 then
+    raise exception 'hearthfind self-check (t): hr_state_of does not project the cosmetic unlocks';
+  end if;
+
+  -- (u) THE GLOBAL ORDINAL is counted from the JOURNAL, not from the public
+  --     board. world_finds is suppressed by the broadcast clamp, so an ordinal
+  --     counted there would drift below the truth and be re-used.
+  if strpos(v_apply, 'nth_ever') = 0 then
+    raise exception 'hearthfind self-check (u): the global ordinal is not computed';
+  end if;
+  if to_regclass('public.player_ledger_hearthfind_item_idx') is null then
+    raise exception 'hearthfind self-check (u2): player_ledger_hearthfind_item_idx is missing - the ordinal would scan the ledger';
+  end if;
+
+  raise notice 'hearthfind self-check: PASS (% sources, %-% expected hours, shortest odds 1 in %)',
+    (select count(*) from public.hr_hearthfind_sources), v_hours_lo, v_hours_hi, v_min;
 end $chk$;

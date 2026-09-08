@@ -42,9 +42,9 @@
 
 import { readFile } from 'node:fs/promises';
 import {
-  HEARTHFIND_TABLE, HEARTHFIND_ITEMS, HEARTHFIND_ONE_IN_MIN, HEARTHFIND_ONE_IN_MAX,
+  HEARTHFIND_TABLE, HEARTHFIND_ITEMS, HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX,
 } from '../src/data/hearthfind.js';
-import { indexHearthfind, rollHearthfind } from '../src/core/hearthfind.js';
+import { indexHearthfind, rollHearthfind, deriveOneIn } from '../src/core/hearthfind.js';
 import { simulateSpan } from '../src/core/combat-sim.js';
 import { mulberry32, rngFrom } from '../src/core/rng.js';
 import { ITEMS } from '../src/data/items.js';
@@ -107,9 +107,22 @@ function span({ seed, away, monsterId, table }) {
 /* ── THE MUTATION CATALOGUE. Each returns a mutated view of the data. ────── */
 const MUTATIONS = {
   band_widened: {
-    why: 'a source is retuned to 1-in-500 — "the rarest thing in the game" becomes an hourly event '
-       + 'and the whole feature is a common drop with a fanfare',
+    why: 'a source is retuned to 5 expected hours — "the rarest thing in the game" becomes a '
+       + 'twice-a-day event and the whole feature is a common drop with a fanfare',
+    table: () => HEARTHFIND_TABLE.map((r, i) => (i === 0 ? { ...r, hours: 5 } : r)),
+  },
+  odds_hand_authored: {
+    why: 'a row types its own oneIn instead of authoring hours — the odds stop being a function of '
+       + 'the source\'s action rate, which is precisely how a starter mob became the best '
+       + 'hearthfind farm in the game (the cut goblin row)',
     table: () => HEARTHFIND_TABLE.map((r, i) => (i === 0 ? { ...r, oneIn: 500 } : r)),
+  },
+  non_boss_combat_source: {
+    why: 'a non-boss monster is added as a combat source — the ruling is BOSSES ONLY, because a '
+       + 'starter mob is killed an order of magnitude faster than a boss and would become the '
+       + 'fastest hearthfind farm in the game at any oneIn a designer picks',
+    table: () => [...HEARTHFIND_TABLE,
+      { kind: 'monster', id: 'goblin', item: HEARTHFIND_ITEMS[0], hours: 250, killsPerHour: 400 }],
   },
   trophy_tradeable: {
     why: 'a trophy becomes tradeable — the rarest event in the game turns into a second gold bridge '
@@ -144,6 +157,13 @@ function view(mut) {
   };
 }
 
+/* A PROBE ROW: the shipped source at the shortest odds the data model can
+   express — HEARTHFIND_HOURS_MIN hours at one kill per hour, i.e. 1 in 100.
+   Built from `hours` and a rate, never from a typed oneIn, so the probe cannot
+   express odds the shipped table could not. */
+const PROBE = (row) => ({ kind: row.kind, id: row.id, item: row.item,
+  hours: HEARTHFIND_HOURS_MIN, killsPerHour: 1 });
+
 async function runAll(mut) {
   const V = view(mut);
   const idx = indexHearthfind(V.table);
@@ -151,21 +171,60 @@ async function runAll(mut) {
   const monsterRow = rows.find((r) => r.kind === 'monster');
   ok(!!monsterRow, 'SETUP: the table names no monster source, so the span tests are vacuous');
 
-  // ── THE BAND. Asserted here as well as in the generator and the migration,
-  //    because it is the one number the whole feature is made of.
+  // ── THE BAND, IN EXPECTED HOURS (Designer ruling 2026-09-08 §4). Asserted
+  //    here as well as in the generator and the migration, because it is the one
+  //    number the whole feature is made of — and because a per-roll oneIn band
+  //    was the wrong unit: roll rates span >12x across the shipped sources.
+  //
+  //    ⚠ THIS ASSERTION IS ONLY HONEST BESIDE tests/hearthfind-boss-rate.mjs.
+  //      The derived hours are a function of the authored hours, so on their own
+  //      they are self-consistent by construction. What makes them MEAN
+  //      something is that the per-source rate is independently checked: nodes
+  //      against src/data/gathering.js `ms`, and bosses against a live
+  //      simulateSpan measurement. A killsPerHour that drifts from the engine
+  //      turns the boss-rate guard red, not this one.
   for (const r of rows) {
-    ok(Number.isInteger(r.oneIn) && r.oneIn >= HEARTHFIND_ONE_IN_MIN && r.oneIn <= HEARTHFIND_ONE_IN_MAX,
-      `${r.kind}:${r.id} pays 1 in ${r.oneIn}, outside the authored `
-      + `[${HEARTHFIND_ONE_IN_MIN}, ${HEARTHFIND_ONE_IN_MAX}] band`);
+    ok(r.oneIn === undefined,
+      `${r.kind}:${r.id} authors its own oneIn — the odds are DERIVED from hours x the source's `
+      + 'action rate, and a hand-typed denominator is the second copy of the clamp');
+    ok(Number.isFinite(r.hours) && r.hours >= HEARTHFIND_HOURS_MIN && r.hours <= HEARTHFIND_HOURS_MAX,
+      `${r.kind}:${r.id} is authored at ${r.hours} expected hours, outside the `
+      + `[${HEARTHFIND_HOURS_MIN}, ${HEARTHFIND_HOURS_MAX}] band`);
+    const one = deriveOneIn(r);
+    ok(Number.isInteger(one) && one > 0,
+      `${r.kind}:${r.id} derives a non-positive oneIn (${one})`);
+  }
+
+  // ── BOSSES ONLY (ruling §2). Every combat source must be a boss: a starter
+  //    mob dies an order of magnitude faster than a boss, so at ANY oneIn a
+  //    designer picks it is the fastest hearthfind farm in the game. That is
+  //    not a tuning opinion, it is the defect the goblin row was cut for.
+  for (const r of rows) {
+    if (r.kind !== 'monster') continue;
+    const m = V.monsters[r.id];
+    ok(!!m, `monster source ${r.id} is not in src/data/monsters.js`);
+    ok(!!(m && m.boss),
+      `${r.id} is a hearthfind combat source but is not a boss — ruling §2 is BOSSES ONLY`);
+    ok(Number.isFinite(r.killsPerHour) && r.killsPerHour > 0,
+      `${r.id} carries no measured killsPerHour — its odds cannot be derived`);
+  }
+  for (const r of rows) {
+    if (r.kind === 'node') {
+      ok(r.killsPerHour === undefined,
+        `node ${r.id} carries killsPerHour — a node's rate comes from its own \`ms\`, and a second `
+        + 'source for it is a number that can drift');
+    }
   }
 
   // ── ROLL-1  DETERMINISM. ────────────────────────────────────────────────
   {
-    /* The odds are deliberately shortened for the SPAN tests only — a 1-in-6,000
+    /* The odds are deliberately shortened for the SPAN tests only — a 1-in-22,750
        roll would need a span nobody wants to simulate. The BAND is asserted
        above against the shipped table; this is a probe table, and shortening it
-       here cannot make the shipped one common. */
-    const probe = [{ ...monsterRow, oneIn: HEARTHFIND_ONE_IN_MIN }];
+       here cannot make the shipped one common. Note it is shortened THE WAY THE
+       DATA MODEL ALLOWS — by claiming a slow kill rate at an in-band hours
+       target — never by typing an oneIn, which indexHearthfind now refuses. */
+    const probe = [PROBE(monsterRow)];
     const a = span({ seed: 12345, away: true, monsterId: monsterRow.id, table: probe });
     const b = span({ seed: 12345, away: true, monsterId: monsterRow.id, table: probe });
     ok(JSON.stringify(a.finds) === JSON.stringify(b.finds),
@@ -195,7 +254,7 @@ async function runAll(mut) {
 
   // ── ROLL-3  AWAY-1 PARITY, BOTH PATHS. ──────────────────────────────────
   {
-    const probe = [{ ...monsterRow, oneIn: HEARTHFIND_ONE_IN_MIN }];
+    const probe = [PROBE(monsterRow)];
     const awaySpan = span({ seed: 424242, away: true, monsterId: monsterRow.id, table: probe });
     const attended = span({ seed: 424242, away: false, monsterId: monsterRow.id, table: probe });
     ok(awaySpan.finds.length > 0 || attended.finds.length > 0,
@@ -208,7 +267,7 @@ async function runAll(mut) {
 
   // ── ROLL-4  NOTHING SCALES IT. ──────────────────────────────────────────
   {
-    const probe = [{ ...monsterRow, oneIn: HEARTHFIND_ONE_IN_MIN }];
+    const probe = [PROBE(monsterRow)];
     const plain = span({ seed: 31337, away: true, monsterId: monsterRow.id, table: probe });
     /* The same seed, but every drop multiplier in the game turned up as far as it
        goes: a x3 weakness, a +500% dropRate buff and a x2 featured boss. An

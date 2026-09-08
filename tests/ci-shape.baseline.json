@@ -39,6 +39,7 @@
     "node tests/recovery-rest.mjs --selftest": "economy-selftests",
     "node tools/gen-hearthfind.mjs --check": "economy-selftests",
     "node tests/hearthfind-roll.mjs --selftest": "economy-selftests",
+    "node tests/hearthfind-boss-rate.mjs --selftest": "economy-selftests",
     "node tests/hearthfind-authority.mjs --selftest": "economy-selftests",
     "node tests/cadence-recovery-floor.mjs --selftest": "economy-selftests",
     "node tests/conservation-fuzz.mjs --selftest --ops=400": "economy-selftests",

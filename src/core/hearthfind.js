@@ -42,12 +42,18 @@
 // ⚠ A SOURCE WITH NO ROW DRAWS NO RANDOM NUMBER. `rollHearthfind` returns null
 //   BEFORE touching `rng` when the source is not in the table. Every existing
 //   seeded replay in tests/accrual-engine.mjs is therefore byte-identical to
-//   its pre-Hearthfind self except for the ten authored sources — which is the
+//   its pre-Hearthfind self except for the twelve authored sources — which is the
 //   only honest way to add a draw to a stream other tests are pinned to.
 //
 // ⚠ THE DRAW IS THE LAST THING ITS CALLER DOES. Both call sites roll AFTER every
 //   other RNG use in the action (gold, drop table, tool doubles), so adding the
 //   roll cannot shift the numbers that decide an ordinary kill or swing.
+//
+// ⚠ THE ODDS ARE DERIVED, NEVER AUTHORED. src/data/hearthfind.js authors
+//   EXPECTED HOURS at the source (100–400, the Designer's band); `deriveOneIn`
+//   below turns that into the per-roll denominator using the source's own
+//   action rate — the node's base `ms`, or the MEASURED kills/hour for a boss.
+//   `indexHearthfind` REFUSES a row that types its own `oneIn`.
 //
 // THIS FILE GRANTS NOTHING. It reports `{ item, kind, id, oneIn }` and the
 // caller hands it to `fx.onHearthfind`. The inventory row, the ledger row and
@@ -59,12 +65,65 @@
 
 import {
   HEARTHFIND_TABLE, HEARTHFIND_SOURCE_KINDS,
-  HEARTHFIND_ONE_IN_MIN, HEARTHFIND_ONE_IN_MAX,
+  HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX,
 } from '../data/hearthfind.js?v=520';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=520';
 
-export { HEARTHFIND_ONE_IN_MIN, HEARTHFIND_ONE_IN_MAX, HEARTHFIND_SOURCE_KINDS };
+export { HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX, HEARTHFIND_SOURCE_KINDS };
 
 const key = (kind, id) => `${kind}:${id}`;
+
+/* THE NODE RATE TABLE, built once from the gathering data. `ms` is the node's
+   BASE action interval, which is what the ruling's formula names. */
+const NODE_MS = (() => {
+  const out = Object.create(null);
+  for (const n of [...TREES, ...ROCKS, ...FISH_SPOTS]) {
+    if (n && typeof n.id === 'string' && !(n.id in out)) out[n.id] = Number(n.ms);
+  }
+  return out;
+})();
+
+/**
+ * ACTIONS PER HOUR AT A SOURCE — the denominator of the whole feature.
+ *
+ *   node    3600000 / node.ms   (the BASE interval; a tool makes a player
+ *                                FASTER, so a tooled player reaches the trophy
+ *                                in FEWER hours than the authored target —
+ *                                the authored number is their ceiling)
+ *   monster row.killsPerHour    (MEASURED with simulateSpan — see the header of
+ *                                src/data/hearthfind.js; measured on the ceiling
+ *                                character, so a worse-geared player takes MORE
+ *                                hours than the authored target)
+ *
+ * ONE EXPRESSION, TWO READERS: tools/gen-hearthfind.mjs imports this function
+ * rather than re-deriving the arithmetic, so the odds the engine rolls and the
+ * odds the server clamps against cannot drift.
+ */
+export function actionsPerHour(row) {
+  if (!row) return 0;
+  if (row.kind === 'monster') {
+    const k = Number(row.killsPerHour);
+    if (!isFinite(k) || k <= 0) {
+      throw new Error(`hearthfind: monster:${row.id} has no measured killsPerHour`);
+    }
+    return k;
+  }
+  const ms = NODE_MS[row.id];
+  if (!isFinite(ms) || ms <= 0) {
+    throw new Error(`hearthfind: node:${row.id} is not a TREES/ROCKS/FISH_SPOTS node`);
+  }
+  return 3600000 / ms;
+}
+
+/** oneIn = round(rate x hours). The ruling's formula, in one place. */
+export function deriveOneIn(row) {
+  return Math.round(actionsPerHour(row) * Number(row.hours));
+}
+
+/** The hours a STORED oneIn actually buys back. What the §4 self-check asserts. */
+export function derivedHours(row, oneIn) {
+  return (Number(oneIn) || 0) / actionsPerHour(row);
+}
 
 /**
  * Build the lookup the engine carries on `ctx`.
@@ -89,15 +148,32 @@ export function indexHearthfind(table) {
     if (!HEARTHFIND_SOURCE_KINDS.includes(r.kind)) {
       throw new Error(`hearthfind: source kind ${JSON.stringify(r.kind)} has no roll site in the engine`);
     }
-    if (!Number.isInteger(r.oneIn) || r.oneIn < HEARTHFIND_ONE_IN_MIN || r.oneIn > HEARTHFIND_ONE_IN_MAX) {
-      throw new Error(`hearthfind: ${r.kind}:${r.id} oneIn ${r.oneIn} is outside `
-        + `[${HEARTHFIND_ONE_IN_MIN},${HEARTHFIND_ONE_IN_MAX}]`);
+    if (r.oneIn !== undefined) {
+      /* A ROW MAY NOT AUTHOR ITS OWN ODDS. `oneIn` is derived from `hours` and
+         the source's action rate; a hand-typed oneIn would be the second copy
+         of the clamp, which is the exact failure the hours band exists to end. */
+      throw new Error(`hearthfind: ${r.kind}:${r.id} authors oneIn — author \`hours\` instead`);
+    }
+    if (!Number.isFinite(r.hours) || r.hours < HEARTHFIND_HOURS_MIN || r.hours > HEARTHFIND_HOURS_MAX) {
+      throw new Error(`hearthfind: ${r.kind}:${r.id} hours ${r.hours} is outside `
+        + `[${HEARTHFIND_HOURS_MIN},${HEARTHFIND_HOURS_MAX}]`);
+    }
+    const oneIn = deriveOneIn(r);
+    if (!Number.isInteger(oneIn) || oneIn <= 0) {
+      throw new Error(`hearthfind: ${r.kind}:${r.id} derived a non-positive oneIn`);
+    }
+    /* THE BAND, ASSERTED ON THE DERIVED VALUE — the same statement the
+       migration's §4 self-check makes in SQL against `expected_hours`. */
+    const hrs = derivedHours(r, oneIn);
+    if (hrs < HEARTHFIND_HOURS_MIN - 1 || hrs > HEARTHFIND_HOURS_MAX + 1) {
+      throw new Error(`hearthfind: ${r.kind}:${r.id} derives ${hrs.toFixed(1)} h, outside `
+        + `[${HEARTHFIND_HOURS_MIN},${HEARTHFIND_HOURS_MAX}]`);
     }
     const k = key(r.kind, r.id);
     if (Object.prototype.hasOwnProperty.call(out, k)) {
       throw new Error(`hearthfind: duplicate source ${k}`);
     }
-    out[k] = { kind: r.kind, id: r.id, item: r.item, oneIn: r.oneIn };
+    out[k] = { kind: r.kind, id: r.id, item: r.item, oneIn, hours: r.hours, expectedHours: hrs };
   }
   return out;
 }

@@ -22,7 +22,7 @@
 //      then true by construction.
 //   5. THE DAILY CLAMP: the 4th find in a UTC day is DROPPED — no item, no
 //      ledger row, no broadcast — while the rest of the apply still lands.
-//   6. THE BROADCAST CLAMP: a second find inside 60 s still pays the trophy and
+//   6. THE BROADCAST CLAMP: a second find inside 30 s still pays the trophy and
 //      the ledger row but writes NO second world_finds row.
 //   7. NO CLIENT WRITE PATH: world_finds has no insert/update/delete policy and
 //      no client write grant, and IS readable by `authenticated`.
@@ -58,21 +58,22 @@ const MUTATIONS = {
     why: 'the catalogue lookup is disarmed — the engine names any (source, item) pair it likes and '
        + 'hr_apply pays it, so a compromised engine mints the rarest item in the game from a slime',
     find: "      if v_hf_one is null then\n        perform public.hr_reject('bad_hearthfind',",
-    repl: "      if v_hf_one is null then v_hf_one := 5000; end if;\n      if false then\n        perform public.hr_reject('bad_hearthfind',",
+    repl: "      if v_hf_one is null then v_hf_one := 5000; v_hf_hours := 250; end if;\n      if false then\n        perform public.hr_reject('bad_hearthfind',",
   },
   band_check_off: {
     file: CAT,
-    why: 'the catalogue CHECK on one_in is gone — an operator (or a bad generation) can store a '
-       + '1-in-3 "hearthfind", and Postgres, the last line of defence on the band, stops refusing it',
-    find: '  one_in      bigint not null check (one_in >= 5000 and one_in <= 50000),',
-    repl: '  one_in      bigint not null check (one_in > 0),',
+    why: 'the catalogue CHECK on expected_hours is gone — an operator (or a bad generation) can '
+       + 'store a 2-hour "hearthfind", and Postgres, the last line of defence on the Designer\'s '
+       + '100-400 hour band, stops refusing it',
+    find: '      check (expected_hours is not null\n             and expected_hours >= 100 and expected_hours <= 400);',
+    repl: '      check (expected_hours is not null);',
   },
   floor_off: {
     file: FILE,
-    why: 'the RUNTIME one_in floor is gone — defence-in-depth against a row that reached the table '
+    why: 'the RUNTIME hours band is gone — defence-in-depth against a row that reached the table '
        + 'past the CHECK (a hand INSERT, a restored dump, a future generator bug) is deleted, and '
        + 'such a row would pay a "hearthfind" at any rate at all',
-    find: '      if v_hf_one < 5000 then',
+    find: '      if v_hf_hours is null or v_hf_hours < 100 or v_hf_hours > 400 then',
     repl: '      if false then',
   },
   one_door_off: {
@@ -89,9 +90,25 @@ const MUTATIONS = {
     find: '      if v_hf_today >= c_max_hf_per_day then',
     repl: '      if false then',
   },
+  cosmetics_client_writable: {
+    file: FILE,
+    why: 'player_cosmetics is granted to the client roles — a player (or a leaked service key) can '
+       + 'INSERT themselves the Wonderkeeper title with no find, no ledger row and no 1-in-22,750 '
+       + 'roll behind it, which turns the rarest achievement in the game into a text field',
+    find: '  grant select on public.player_cosmetics to authenticated;',
+    repl: '  grant select, insert, update on public.player_cosmetics to authenticated, service_role;',
+  },
+  cosmetic_carries_a_number: {
+    file: FILE,
+    why: 'the cosmetic table grows a numeric column — a cosmetic that can carry a number is one '
+       + 'migration from being a STAT, and the ruling\'s "no stat perk, ever" would then rest on a '
+       + 'convention instead of on a shape a reviewer can execute',
+    find: '  granted_at timestamptz not null default now(),',
+    repl: '  granted_at timestamptz not null default now(),\n  power int not null default 0,',
+  },
   broadcast_clamp_off: {
     file: FILE,
-    why: 'the 60-second broadcast clamp is gone — one character can flood every other player\'s '
+    why: 'the 30-second broadcast clamp is gone — one character can flood every other player\'s '
        + 'global channel, which is a social-surface denial of service',
     find: '        if v_hf_last is null or v_hf_last < now() - c_hf_broadcast then',
     repl: '        if true then',
@@ -224,7 +241,8 @@ async function runAll(db) {
      test that hard-coded an item id would silently start testing nothing the day
      the designer retunes src/data/hearthfind.js. */
   const src = (await db.query(
-    `select source_kind, source_id, item_id, one_in from public.hr_hearthfind_sources
+    `select source_kind, source_id, item_id, one_in, expected_hours
+       from public.hr_hearthfind_sources
       order by one_in asc, source_id asc`)).rows;
   ok(src.length >= 2, 'SETUP: the hearthfind catalogue carries fewer than two sources');
   const S = src[0];
@@ -268,6 +286,76 @@ async function runAll(db) {
        && r.hearthfind.broadcast === true && Number(r.hearthfind.nth_today) === 1,
       `the apply receipt does not carry the find (${JSON.stringify(r && r.hearthfind)}) — an away `
       + 'find would be silently banked with nothing to reveal');
+
+    // ── THE COSMETICS (Designer ruling §6). A find pays a moment: one trophy,
+    //    one collection-log row, an equippable TITLE and a homestead PLINTH —
+    //    and NOTHING else. All server-owned, written here under the lock.
+    const cos = (await db.query(
+      `select kind, code, name from public.player_cosmetics
+        where user_id=$1 and slot=0 order by kind, code`, [A])).rows;
+    ok(cos.some((c) => c.kind === 'title'),
+      `the find granted no title (${JSON.stringify(cos)}) — the ruling pays an equippable title`);
+    ok(cos.some((c) => c.kind === 'plinth'),
+      'the find granted no plinth — the ruling pays a homestead plinth on the first find');
+    const cat = (await db.query(
+      `select title_code, title_name from public.hr_hearthfind_items where item_id=$1`,
+      [S.item_id])).rows[0];
+    ok(!!cat && cos.some((c) => c.kind === 'title' && c.code === cat.title_code
+                                && c.name === cat.title_name),
+      'the granted title is not the CATALOGUE\'s title for this trophy — the code and the name '
+      + 'must be looked up server-side, never hand-typed into hr_apply and never taken from a delta');
+    ok(Array.isArray(r.hearthfind.unlocked) && r.hearthfind.unlocked.length === 2,
+      `the receipt reports ${JSON.stringify(r.hearthfind && r.hearthfind.unlocked)} unlocked, `
+      + 'expected the title and the plinth — the reveal must not have to ask a second time');
+    ok(r.hearthfind.set_complete === false,
+      'one trophy reported the FULL SET complete — Wonderkeeper is four distinct trophies');
+
+    // THE GLOBAL ORDINAL. "The Nth ever found in Hearthrise", counted from the
+    // journal (never from world_finds, which the broadcast clamp suppresses).
+    ok(Number(r.hearthfind.nth_ever) === 1,
+      `the first find in an empty realm reported ordinal ${r.hearthfind && r.hearthfind.nth_ever}, `
+      + 'expected 1 — the ordinal counts the finds BEFORE this one, plus one');
+    ok(led.length === 1 && Number(led[0].meta.nth_ever) === 1,
+      'the ordinal is not journalled — a shareable card would outlive the only record of its claim');
+
+    // THE PROJECTION. A server row nobody projects is a row the player never
+    // sees (the residue-ahead class in reverse), and CLAUDE.md §6 forbids
+    // parking earned state in the residue as a shortcut.
+    const st = ((await db.query(`select public.hr_state_of($1,0) s`, [A])).rows[0].s || {}).state || {};
+    ok(Array.isArray(st.hearthfind_titles) && st.hearthfind_titles.length === 1
+       && st.hearthfind_titles[0].code === cat.title_code,
+      `hr_state_of projects ${JSON.stringify(st.hearthfind_titles)} — the earned title must come `
+      + 'back on the envelope, not out of the client residue');
+    ok(st.hearthfind_plinth === true,
+      'hr_state_of does not project the plinth unlock — it would be lost on reload');
+  }
+
+  // ── 2b. A DUPLICATE PAYS NOTHING NEW (ruling §6). ────────────────────────
+  // "Duplicates increment + re-broadcast, pay nothing." The trophy stacks and
+  // the ordinal advances, but the unlock is idempotent: a second Emberheart
+  // must not re-unlock Emberkeeper, and a replayed apply must not double-grant.
+  {
+    const A2 = uidFor('ac');
+    await seed(db, A2);
+    const apply = applier(db, A2);
+    const first = await apply(find());
+    const before = Number((await db.query(
+      `select count(*) n from public.player_cosmetics where user_id=$1`, [A2])).rows[0].n);
+    const r2 = await apply(find());
+    const after = Number((await db.query(
+      `select count(*) n from public.player_cosmetics where user_id=$1`, [A2])).rows[0].n);
+    ok(r2 && r2.ok === true, 'a duplicate find was refused');
+    ok(after === before,
+      `a duplicate find granted ${after - before} extra cosmetic row(s) — the unlock must be `
+      + 'idempotent, or a replayed apply double-grants');
+    ok(Array.isArray(r2.hearthfind.unlocked) && r2.hearthfind.unlocked.length === 0,
+      'the receipt claims a duplicate unlocked something');
+    /* RELATIVE, not absolute: the ordinal is GLOBAL, so it counts every find
+       every earlier block in this file made. Asserting a literal here would be
+       asserting the order of the test file, not the behaviour. */
+    ok(Number(r2.hearthfind.nth_ever) === Number(first.hearthfind.nth_ever) + 1,
+      `the duplicate reported ordinal ${r2.hearthfind.nth_ever} after ${first.hearthfind.nth_ever} — `
+      + 'the realm ordinal advances even when the unlock does not');
   }
 
   // ── 3. EVERY SHAPE REFUSAL IS bad_hearthfind AND MOVES NOTHING. ──────────
@@ -347,12 +435,12 @@ async function runAll(db) {
     const apply = applier(db, E);
     await apply(find());
     const r2 = await apply(find());
-    ok(r2 && r2.ok === true, `the second find inside 60 s was refused: ${JSON.stringify(r2 && r2.error)}`);
+    ok(r2 && r2.ok === true, `the second find inside 30 s was refused: ${JSON.stringify(r2 && r2.error)}`);
     ok((await ledgerRows(db, E)).length === 2,
       'the broadcast clamp suppressed the LEDGER row — it must only suppress the public line');
     ok(await invQty(db, E, S.item_id) === 2, 'the broadcast clamp suppressed the TROPHY');
     ok((await findRows(db, E)).length === 1,
-      `${(await findRows(db, E)).length} broadcast rows inside 60 s — one character can flood the world channel`);
+      `${(await findRows(db, E)).length} broadcast rows inside 30 s — one character can flood the world channel`);
     ok(r2.hearthfind && r2.hearthfind.broadcast === false,
       'the receipt claims a broadcast that was suppressed');
   }
@@ -471,12 +559,18 @@ async function runAll(db) {
       `hearthfind rows have minted ${minted.g} gold / ${minted.x} XP across the whole suite`);
   }
 
-  // ── 10. THE RUNTIME FLOOR is defence in depth, and it BITES. ────────────
-  // The catalogue CHECK refuses an out-of-band row, so the floor inside hr_apply
-  // is only reachable by a row that got past it — a hand INSERT, a restored
-  // dump, a future generator bug. To PROVE the floor rather than assume it, this
-  // block removes the CHECK (on a throwaway PGlite database, never production),
-  // plants a 1-in-10 source, and demands hr_apply still pays nothing.
+  // ── 10. THE RUNTIME HOURS BAND is defence in depth, and it BITES. ───────
+  // The catalogue CHECK refuses an out-of-band row, so the band check inside
+  // hr_apply is only reachable by a row that got past it — a hand INSERT, a
+  // restored dump, a future generator bug. To PROVE it rather than assume it,
+  // this block removes the CHECK (on a throwaway PGlite database, never
+  // production), plants a 2-hour source, and demands hr_apply pays nothing.
+  //
+  // ⚠ THE UNIT IS HOURS, not a per-roll denominator (Designer ruling §4). A
+  //   2-hour source is the defect: at the shipped rates that is a find every
+  //   couple of sessions, i.e. the rarest event in the game becomes routine.
+  //   The old form of this block planted a 1-in-10 oneIn, which said nothing
+  //   comparable across sources whose roll rates differ by more than 12x.
   {
     const F = uidFor('f6');
     await seed(db, F);
@@ -488,33 +582,33 @@ async function runAll(db) {
     const conDef = (await db.query(
       `select pg_get_constraintdef(c.oid) d from pg_constraint c
         where c.conrelid = 'public.hr_hearthfind_sources'::regclass and c.contype = 'c'
-          and pg_get_constraintdef(c.oid) like '%one_in%'`)).rows[0];
-    ok(!!conDef, 'SETUP: hr_hearthfind_sources has no CHECK on one_in at all');
-    await db.exec('alter table public.hr_hearthfind_sources drop constraint hr_hearthfind_sources_one_in_check');
+          and c.conname = 'hr_hearthfind_sources_hours_band'`)).rows[0];
+    ok(!!conDef, 'SETUP: hr_hearthfind_sources has no CHECK on expected_hours at all');
+    await db.exec('alter table public.hr_hearthfind_sources drop constraint hr_hearthfind_sources_hours_band');
     await db.query(
-      `update public.hr_hearthfind_sources set one_in = 10 where source_kind=$1 and source_id=$2`,
+      `update public.hr_hearthfind_sources set expected_hours = 2 where source_kind=$1 and source_id=$2`,
       [S.source_kind, S.source_id]);
     const r = await apply(find());
     ok(r && r.error === 'bad_hearthfind',
-      `a 1-in-10 "hearthfind" was PAID (${JSON.stringify(r && (r.error || r.ok))}) — the runtime floor `
-      + 'is the only thing standing between a corrupt catalogue row and a common drop with a fanfare');
-    ok((await ledgerRows(db, F)).length === 0, 'the below-floor find still journalled');
-    ok(await invQty(db, F, S.item_id) === 0, 'the below-floor find still paid a trophy');
+      `a 2-expected-hour "hearthfind" was PAID (${JSON.stringify(r && (r.error || r.ok))}) — the runtime `
+      + 'band is the only thing standing between a corrupt catalogue row and a common drop with a fanfare');
+    ok((await ledgerRows(db, F)).length === 0, 'the out-of-band find still journalled');
+    ok(await invQty(db, F, S.item_id) === 0, 'the out-of-band find still paid a trophy');
     await db.query(
-      `update public.hr_hearthfind_sources set one_in = $3 where source_kind=$1 and source_id=$2`,
-      [S.source_kind, S.source_id, S.one_in]);
-    await db.exec('alter table public.hr_hearthfind_sources add constraint hr_hearthfind_sources_one_in_check '
-      + (conDef ? conDef.d : 'check (one_in > 0)'));
+      `update public.hr_hearthfind_sources set expected_hours = $3 where source_kind=$1 and source_id=$2`,
+      [S.source_kind, S.source_id, S.expected_hours]);
+    await db.exec('alter table public.hr_hearthfind_sources add constraint hr_hearthfind_sources_hours_band '
+      + (conDef ? conDef.d : 'check (expected_hours >= 100 and expected_hours <= 400)'));
     // …and the CHECK itself refuses the row, so the floor is a SECOND lock and
     // not the only one. band_check_off is the mutation that proves this bites.
     let refused = false;
     try {
       await db.query(
-        `update public.hr_hearthfind_sources set one_in = 10 where source_kind=$1 and source_id=$2`,
+        `update public.hr_hearthfind_sources set expected_hours = 2 where source_kind=$1 and source_id=$2`,
         [S.source_kind, S.source_id]);
     } catch { refused = true; }
-    ok(refused, 'the catalogue CHECK admits a 1-in-10 source — Postgres has stopped refusing to STORE '
-      + 'an out-of-band rate, which is the last line of defence on the band');
+    ok(refused, 'the catalogue CHECK admits a 2-hour source — Postgres has stopped refusing to STORE '
+      + 'an out-of-band rate, which is the last line of defence on the Designer\'s 100-400 hour band');
   }
 
   // ── 9. IDEMPOTENT RE-APPLY. ─────────────────────────────────────────────
@@ -566,7 +660,7 @@ if (argv.includes('--selftest')) {
   console.log('hearthfind-authority: all assertions passed (an honest find pays one trophy + one '
     + 'ledger row + one broadcast + a receipt, with the SERVER\'s odds; every shape forgery is '
     + 'bad_hearthfind and moves nothing; the items delta cannot mint a trophy; the 3-per-UTC-day '
-    + 'clamp drops the find without costing the apply; the 60s clamp suppresses only the public '
+    + 'clamp drops the find without costing the apply; the 30s clamp suppresses only the public '
     + 'line; world_finds is public-read and client-unwritable; no hearthfind row mints gold, XP or '
     + 'a priced currency; re-apply is a no-op).');
   process.exit(0);

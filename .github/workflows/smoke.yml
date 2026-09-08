@@ -676,10 +676,28 @@ jobs:
       # roll site per engine file and NONE in legacy.js (AWAY-12); and no trophy
       # is tradeable, vendorable, a priced currency, or reachable from any other
       # faucet -- drop table, recipe, start kit, dungeon loot or Quartermaster.
-      # 5 mutations, no credentials, production untouched.
+      # 7 mutations, no credentials, production untouched.
       - name: Hearthfind - the seeded roll, AWAY-1 parity, and the mint guard
         if: ${{ !cancelled() }}
         run: node tests/hearthfind-roll.mjs --selftest
+
+      # THE MEASUREMENT BEHIND THE ODDS (Designer ruling 2026-09-08 SS4).
+      # A hearthfind is authored as EXPECTED HOURS at its source and the build
+      # derives the per-roll denominator: nodes from the node's own `ms`, bosses
+      # from a MEASURED kills/hour. For a node that is self-checking; for a boss
+      # it is a number somebody wrote down -- and every other guard in the repo
+      # still passes if it is wrong, because expected_hours is oneIn/killsPerHour
+      # and oneIn is round(killsPerHour x hours), i.e. the band is true by
+      # construction whatever the rate says. This step re-measures the rate with
+      # the ONE engine (simulateSpan, 1 h, fixed seed, the tier-8 level-90 band
+      # character, fed) and demands the pinned number match EXACTLY, so a combat
+      # balance change that moves the kill rate turns this red instead of
+      # silently retuning the rarest event in the game. It also enforces the
+      # ruling's BOSSES-ONLY rule on combat sources (the cut goblin row).
+      # 4 mutations + a clean-tree negative control, no credentials, no DB.
+      - name: Hearthfind - the boss kill rate IS what the one engine does
+        if: ${{ !cancelled() }}
+        run: node tests/hearthfind-boss-rate.mjs --selftest
 
       # THE SQL HALF, ON A REAL DATABASE (PGlite, the ordered migration chain).
       # An honest find pays ONE trophy + ONE ledger row + ONE broadcast + a
@@ -688,10 +706,10 @@ jobs:
       # moves nothing; the ordinary `items` delta CANNOT mint a trophy, so the
       # hearthfind arm is the only door and "broadcast what the ledger journalled"
       # is true by construction; the 3-per-UTC-day clamp DROPS the find without
-      # costing the player the rest of the apply; the 60-second clamp suppresses
+      # costing the player the rest of the apply; the 30-second clamp suppresses
       # only the public line, never the value; world_finds is public-read and
       # client-unwritable; and re-applying the migration is a no-op.
-      # 10 mutations, no credentials, production untouched.
+      # 15 mutations, no credentials, production untouched.
       - name: Hearthfind - hr_apply grants, journals, broadcasts, and clamps
         if: ${{ !cancelled() }}
         run: node tests/hearthfind-authority.mjs --selftest

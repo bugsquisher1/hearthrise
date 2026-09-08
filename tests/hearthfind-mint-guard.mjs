@@ -83,6 +83,13 @@ import { rollHearthfind } from '../src/core/hearthfind.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = join(ROOT, 'src', 'core', 'hearthfind.js');
+/* THE TWO ROLL SITES. MINT-G5 reads them: a signature with nowhere to put a
+   multiplier proves nothing if the CALLER computes one and smuggles it in
+   through `index` or through a hand-built row. */
+const CALL_SITES = [
+  ['src/core/combat-sim.js', join(ROOT, 'src', 'core', 'combat-sim.js')],
+  ['src/core/skill-sim.js', join(ROOT, 'src', 'core', 'skill-sim.js')],
+];
 
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
@@ -195,12 +202,73 @@ function checkItems(items, allowlist) {
     + 'from the allowlist; the economic flags live on the item. They must name the same trophies.');
 }
 
+// ── MINT-G5  THE ROLL SITE READS ONLY (source_kind, source_id, server seed) ─
+// The Designer's anti-P2W property (ruling §7) is a statement about the CALL,
+// not only about the signature: "the roll reads only (source_kind, source_id,
+// server seed) — never a drop-rate multiplier". MINT-G1 proves the callee has
+// nowhere to put a modifier; this proves the CALLER does not compute one.
+//
+// `resolveHearthfind(state, kind, id, ctx)` is the one call shape both engines
+// use. What it may pass to `rollHearthfind` is exactly:
+//   · ctx.hearthfind — the INDEX (the catalogue), or the shipped index
+//   · kind, id       — the source pair, both string literals at the call sites
+//   · ctx.rng        — the server-seeded stream
+// Anything else — a weakness dropMult, a `bonus('dropRate')`, a featured
+// multiplier, a luck perk, an ammo term — reaching the same expression is the
+// defect. Both call sites are checked by TEXT, because the numeric proof
+// (ROLL-4 in tests/hearthfind-roll.mjs, which turns every multiplier in the
+// game up to its cap and demands an identical find stream) can only sample the
+// multipliers that exist TODAY; this catches the one added tomorrow.
+function checkCallSites(sites) {
+  for (const [label, src] of sites) {
+    const calls = [...src.matchAll(/resolveHearthfind\s*\(([^)]*)\)/g)];
+    ok(calls.length === 1,
+      `${label} has ${calls.length} hearthfind roll sites — exactly one, or the live tick and the `
+      + 'away replay can come to disagree (AWAY-12).');
+    for (const c of calls) {
+      const args = c[1].split(',').map((x) => x.trim());
+      ok(args.length === 4,
+        `${label}: resolveHearthfind is called with ${args.length} arguments (${c[1]}) — the shape `
+        + 'is (state, kind, id, ctx) and a fifth argument is a modifier by default.');
+      /* The SOURCE PAIR is a literal or a plain identifier at the call site —
+         never an expression, which is where a conditional source id ("roll the
+         boss table while a buff is up") would hide. */
+      const kind = args[1] || '';
+      ok(/^'[a-z]+'$/.test(kind),
+        `${label}: the source kind is \`${kind}\`, not a string literal — a computed kind is a `
+        + 'roll whose odds depend on something other than what you are fighting.');
+      const id = args[2] || '';
+      /* A plain identifier, a guarded property read (`node && node.id` — the
+         gather site's null check), or a literal. Never an expression with an
+         operator that could select a DIFFERENT source under some condition. */
+      ok(/^([A-Za-z_$][\w$]*\s*&&\s*)?[A-Za-z_$][\w$.]*$/.test(id) || /^'[a-z0-9_]+'$/.test(id),
+        `${label}: the source id is the expression \`${id}\` — it must be the plain id of the `
+        + 'thing being fought or gathered.');
+      const ctxArg = args[3] || '';
+      ok(/^[A-Za-z_$][\w$]*$/.test(ctxArg),
+        `${label}: the ctx argument is the expression \`${ctxArg}\` — a call site that BUILDS an `
+        + 'object here is a call site that can add a term to it.');
+    }
+    /* AND NO MULTIPLIER IN THE SAME STATEMENT. Comments are stripped first, so
+       the long explanatory headers above both call sites do not count. */
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+    for (const m of code.matchAll(/resolveHearthfind\s*\([^)]*\)/g)) {
+      const lower = m[0].toLowerCase();
+      for (const w of SCALING_WORDS) {
+        ok(!lower.includes(w),
+          `${label}: the hearthfind call site mentions "${w}" (${m[0]}) — the odds are the `
+          + 'catalogue\'s number and nothing at the call site may scale them.');
+      }
+    }
+  }
+}
+
 // ── THE MUTATIONS ──────────────────────────────────────────────────────────
 // Each returns { items, allowlist, src }. Nothing on disk is modified.
 const MUTATIONS = {
   tradeable_trophy: {
     why: 'a trophy is tradeable (bop dropped) — it could be sold on the player market',
-    apply: (V) => { V.items.emberheart_core = { ...V.items.emberheart_core, bop: false }; },
+    apply: (V) => { V.items.emberheart = { ...V.items.emberheart, bop: false }; },
   },
   vendorable_trophy: {
     why: 'a trophy has vendor value — a find would mint gold',
@@ -208,7 +276,7 @@ const MUTATIONS = {
   },
   currency_trophy: {
     why: 'a trophy is tagged as a currency — a find would pay a priced unit',
-    apply: (V) => { V.items.deepvein_geode = { ...V.items.deepvein_geode, tag: 'currency' }; },
+    apply: (V) => { V.items.deepvein_lodestar = { ...V.items.deepvein_lodestar, tag: 'currency' }; },
   },
   unflagged_allowlist_member: {
     why: 'the allowlist names a trophy that carries no hearthfind:true flag (server-mintable, '
@@ -233,6 +301,34 @@ const MUTATIONS = {
         'if (!rng.chance((1 / row.oneIn) * (row.dropRate || 1))) return null;');
     },
   },
+  call_site_multiplier: {
+    why: 'a call site multiplies the roll by a drop-rate buff — the SIGNATURE is still clean, so '
+       + 'MINT-G1 stays green while the odds become purchasable at the one place that actually '
+       + 'rolls them (ruling §7: the roll reads only source_kind, source_id and the server seed)',
+    apply: (V) => {
+      V.sites = V.sites.map(([label, src]) => [label, src.replace(
+        /resolveHearthfind\(state, 'monster', id, ctx\)/,
+        "resolveHearthfind(state, 'monster', id, ctx, bonus('dropRate'))")]);
+    },
+  },
+  call_site_luck_ctx: {
+    why: 'a call site builds its own ctx for the roll — an object literal at the call site is a '
+       + 'place to put a luck term, and the next person to touch it will',
+    apply: (V) => {
+      V.sites = V.sites.map(([label, src]) => [label, src.replace(
+        /resolveHearthfind\(state, 'monster', id, ctx\)/,
+        "resolveHearthfind(state, 'monster', id, { ...ctx, luck: 2 })")]);
+    },
+  },
+  second_roll_site: {
+    why: 'a second roll site is added to one engine — the live tick and the away replay then roll '
+       + 'a different number of times for the same span, and AWAY-1 parity is gone',
+    apply: (V) => {
+      V.sites = V.sites.map(([label, src]) => [label, src.replace(
+        /resolveHearthfind\(state, 'monster', id, ctx\)/,
+        "resolveHearthfind(state, 'monster', id, ctx) || resolveHearthfind(state, 'monster', id, ctx)")]);
+    },
+  },
   vacuous_flag: {
     why: 'nothing carries hearthfind:true any more — the item half of the guard would pass '
        + 'while asserting nothing',
@@ -249,10 +345,13 @@ async function runAll(mutation) {
     items: { ...ITEMS },
     allowlist: [...HEARTHFIND_ITEMS],
     src: await readFile(ENGINE, 'utf8'),
+    sites: await Promise.all(CALL_SITES.map(async ([label, path]) =>
+      [label, await readFile(path, 'utf8')])),
   };
   if (mutation) MUTATIONS[mutation].apply(V);
   checkSignature(V.src);
   checkItems(V.items, V.allowlist);
+  checkCallSites(V.sites);
 }
 
 // ── CLI ────────────────────────────────────────────────────────────────────
@@ -281,7 +380,8 @@ if (argv.includes('--selftest')) {
   await runAll(null);
   if (failed) { console.error(`\nhearthfind-mint-guard: ${failed} assertion(s) FAILED.`); process.exit(1); }
   console.log('hearthfind-mint-guard: all assertions passed (rollHearthfind takes exactly '
-    + '(index, kind, id, rng) and scales its odds by nothing; every hearthfind trophy is v:0, '
-    + 'bind-on-pickup and not a currency; the flagged set and HEARTHFIND_ITEMS are one set).');
+    + '(index, kind, id, rng) and scales its odds by nothing; both roll sites pass only the source '
+    + 'pair and the server-seeded ctx, with no multiplier in the call; every hearthfind trophy is '
+    + 'v:0, bind-on-pickup and not a currency; the flagged set and HEARTHFIND_ITEMS are one set).');
   process.exit(0);
 }

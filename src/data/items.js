@@ -611,9 +611,12 @@ export const ITEMS={
   void_fragment:   {n:'Void Fragment',   icon:'🌑', v:0, bop:true, rarity:'epic',      tag:'key', unlocks:'voidbringer'},
   dragonsbane_key: {n:'Dragonsbane Key', icon:'🗡️', v:0, bop:true, rarity:'legendary', tag:'key', unlocks:'ancient_wyrm'},
 
-  /* ── THE HEARTHFIND TROPHIES (Feature Slate §2) ───────────────────────────
-     The rarest things in the game: one roll in 6,000–40,000 at their source,
-     rolled by the ONE engine and granted ONLY by hr_apply's `hearthfind` arm.
+  /* ── THE FOUR HEARTHFINDS (Feature Slate §2; Designer ruling 2026-09-08) ──
+     The set is named "The Four Hearthfinds" (HEARTHFIND_SET_NAME in
+     src/data/hearthfind.js). The rarest things in the game: authored as an
+     EXPECTED-HOURS target (100–400 h at the source's own action rate) and
+     turned into per-roll odds by tools/gen-hearthfind.mjs. Rolled by the ONE
+     engine and granted ONLY by hr_apply's `hearthfind` arm.
 
      `hearthfind:true` is the SERVER-SIDE ALLOWLIST KEY. tools/gen-hearthfind.mjs
      mirrors exactly these ids into hr_hearthfind_items, and hr_apply refuses a
@@ -629,9 +632,9 @@ export const ITEMS={
                 a hearthfind pays one untradeable, unsellable trophy and nothing
                 else — never gold, gems, hearth_token or muster_seal.
      Which sources pay which trophy is src/data/hearthfind.js. */
-  emberheart_core:   {n:'Emberheart Core',    icon:'❤️‍🔥', v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
+  emberheart:        {n:'Emberheart',         icon:'❤️‍🔥', v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
   worldroot_seed:    {n:'Worldroot Seed',     icon:'🌰',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
-  deepvein_geode:    {n:'Deepvein Geode',     icon:'💎',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
+  deepvein_lodestar: {n:'Deepvein Lodestar',  icon:'💎',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
   tidecallers_pearl: {n:"Tidecaller's Pearl", icon:'🫧',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
 };
 

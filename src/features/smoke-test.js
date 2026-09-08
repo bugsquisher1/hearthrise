@@ -48575,6 +48575,328 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     HF-1 … HF-5 — THE HEARTHFIND, CLIENT HALF (Feature Slate §2)
+
+     The client half renders a moment the SERVER decided. So what these tests
+     grade is not a rate and not a roll — there is neither in the client — but
+     five properties:
+
+       1. a forced envelope carrying a find produces the reveal, in the ruled
+          copy, and the reveal STAYS until it is dismissed (HF-1);
+       2. an AWAY find never opens a modal: it leads the return card in its own
+          full-width band, and the collection row flips (HF-2);
+       3. the global chat line is rendered from a world_finds ROW, character for
+          character, with the first-ever variant (HF-3);
+       4. a find moves NOTHING — no gold, no XP, no inventory, no skills. The
+          rarest event in the game pays a trophy and a moment, and a client that
+          could add a coin to it is a client that could add a thousand (HF-4);
+       5. the line is never SENT. This client cannot put a hearthfind into
+          chat_messages, so it cannot announce a find the server never
+          journalled (HF-5) — the "must NOT: broadcast what the ledger did not
+          journal" clause of the slate, as an executable property.
+
+     THE FIXTURES ARE SERVER SHAPES, not client ones: `envelope.hearthfind` and
+     `state.hearthfind_last` exactly as hr_apply and hr_state_of build them.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /** One find, in the server's own receipt shape. */
+  () => tryRun('HF-1: an envelope carrying a find opens the reveal in the ruled copy, and it NEVER auto-dismisses', () => {
+    const HF = window.HearthriseHearthfind;
+    assert(HF && typeof HF.noteEnvelope === 'function',
+      'HearthriseHearthfind.noteEnvelope is missing — the whole client half hangs off this seam');
+    const snap = snapshotG();
+    const G = window.G;
+    const savedLos = G.lastOfflineSummary;
+    try {
+      HF.__forgetSeen();
+      HF.dismissReveal();
+      G.lastOfflineSummary = null;                 // ⇒ attended, not a return
+      G.bestiary = G.bestiary || {};
+      G.bestiary.dragon = { kills: 4211, firstKill: 1 };
+      HF.__setBoardCount('emberheart', 3);
+
+      const find = HF.findOn({
+        version: 9, state: {},
+        hearthfind: {
+          item: 'emberheart', source_kind: 'monster', source_id: 'dragon',
+          one_in: 26000, nth_today: 1, broadcast: true, at: '2026-09-08T12:00:00Z',
+        },
+      });
+      assert(find && find.item === 'emberheart' && find.oneIn === 26000,
+        'the receipt shape hr_apply actually returns did not normalise — ' + JSON.stringify(find));
+
+      /* THE COPY, EXACTLY AS RULED. Asserted on the strings, not on the DOM,
+         so a renderer refactor cannot quietly reword the rarest sentence in
+         the game. */
+      const L = HF.revealLines(find, G);
+      assert(L.headline === 'A HEARTHFIND', 'the headline is not the ruled one: ' + L.headline);
+      assert(L.odds === 'You beat 1 in 26,000.', 'the odds line drifted: ' + L.odds);
+      assert(/^3rd ever found · [\d,]+ swings for this one$/.test(L.meta),
+        'the provenance line drifted from "{ordinal} ever found · {n} swings for this one": ' + L.meta);
+      assert(L.meta.indexOf('4,211 swings') !== -1,
+        'the swing count is not the lifetime kills on that source — ' + L.meta);
+
+      const veil = HF.showReveal(find, G);
+      assert(veil && document.getElementById('hr-hf-veil'),
+        'the reveal did not mount');
+      /* NOT A TOAST. The toast dock is where every other drop goes; this one
+         must own the screen. */
+      assert(veil.className.indexOf('hr-hf-veil') !== -1 && !veil.closest('#toasts'),
+        'the reveal rendered inside the toast dock — the one thing the ruling forbids');
+      const txt = veil.textContent.replace(/\s+/g, ' ');
+      assert(txt.indexOf('A HEARTHFIND') !== -1 && txt.indexOf('You beat 1 in 26,000.') !== -1,
+        'the mounted reveal does not carry the ruled copy — ' + txt);
+      /* NEVER AUTO-DISMISSED. Nothing in this module schedules a removal, and
+         this is the assertion that keeps it that way: the entrance is ~3.5s, so
+         a card still on screen after 4s has no timeout behind it. */
+      const t0 = Date.now();
+      while (Date.now() - t0 < 40) { /* one paint's worth, sync */ }
+      assert(document.getElementById('hr-hf-veil'),
+        'the reveal removed itself — a rare drop that can vanish while the player looks away');
+      assert(HF.dismissReveal() === true, 'the reveal is not dismissible');
+    } finally {
+      HF.dismissReveal();
+      const v = document.getElementById('hr-hf-veil'); if (v) v.remove();
+      G.lastOfflineSummary = savedLos;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('HF-2: an AWAY find leads the return card as a band — never a modal — and the collection row flips', () => {
+    const HF = window.HearthriseHearthfind;
+    const snap = snapshotG();
+    const G = window.G;
+    const savedLos = G.lastOfflineSummary;
+    try {
+      HF.__forgetSeen();
+      HF.dismissReveal();
+      HF.__setBoardCount('worldroot_seed', 1);
+      /* THE RETURN. An eight-hour absence receipt is what makes this find an
+         away find; without it the same envelope is an attended reveal. */
+      G.lastOfflineSummary = {
+        hrs: 8, awayMs: 8 * 3600000, gainedItems: 12, gainedXp: 900,
+        gainedKills: 0, at: Date.now(), source: 'away',
+      };
+      const find = HF.findOn({
+        version: 9,
+        state: {
+          hearthfind_last: {
+            item: 'worldroot_seed', source_kind: 'node', source_id: 'normal_tree',
+            one_in: 420000, nth_today: 1, at: new Date().toISOString(),
+          },
+        },
+      });
+      assert(find, 'state.hearthfind_last (the durable projection) did not normalise');
+      assert(HF.classify(find, G) === 'away',
+        'a find inside an eight-hour absence receipt was classified attended — it would open a modal over the return card');
+
+      HF.__setPending(find);
+      const band = HF.claimAwayBand();
+      assert(band && band.indexOf('hr-hf-band') !== -1, 'the away band did not render');
+      const bandTxt = band.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      assert(bandTxt.indexOf('Something happened while you were away.') !== -1,
+        'the away band lead line drifted — ' + bandTxt);
+      assert(bandTxt.indexOf('Worldroot Seed — 1 in 420,000. The 1st ever found.') !== -1,
+        'the away band body drifted from the ruled sentence — ' + bandTxt);
+      assert(!document.getElementById('hr-hf-veil'),
+        'an away find ALSO opened the attended modal — the player returns to a dialog over their receipt');
+
+      /* IT OWNS THE TOP OF THE RETURN CARD. Not a loot row: the band must be
+         the FIRST child of #welcome-rows, above the XP/loot summary. */
+      HF.__setPending(find);
+      G.lastSeen = Date.now() - 8 * 3600000;
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      const rowsEl = document.getElementById('welcome-rows');
+      assert(rowsEl, 'the return card did not build');
+      const first = rowsEl.firstElementChild;
+      assert(first && first.className.indexOf('hr-hf-band') !== -1,
+        'the hearthfind band is not the first thing on the return card — it is: '
+        + (first ? first.className : '(nothing)'));
+
+      /* THE COLLECTION ROW FLIPS. Locked prints the ruled sentence; held
+         prints the record. */
+      G.collection = G.collection || {};
+      delete G.collection.worldroot_seed;
+      let rows = HF.collectionRows(G);
+      assert(rows.length === 4, 'The Four Hearthfinds is not four rows: ' + rows.length);
+      const locked = rows.filter((r) => r.id === 'worldroot_seed')[0];
+      assert(locked && locked.found === false
+        && locked.text === 'Worldroot Seed — not yet found. Somewhere in ordinary trees, yews, duskwood.',
+        'the locked collection row drifted from the ruled sentence — ' + (locked && locked.text));
+
+      G.collection.worldroot_seed = 1;
+      HF.__setLastShown(find);
+      rows = HF.collectionRows(G);
+      const found = rows.filter((r) => r.id === 'worldroot_seed')[0];
+      assert(found && found.found === true && found.text === 'Worldroot Seed',
+        'the collection row did not flip once the trophy was held');
+      assert(/beat 1 in 420,000/.test(found.sub) && /1st ever found/.test(found.sub),
+        'the found row does not carry the odds beaten and the ordinal — ' + found.sub);
+    } finally {
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      HF.__setPending(null); HF.__setLastShown(null); HF.dismissReveal();
+      G.lastOfflineSummary = savedLos;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('HF-3: the global chat line is rendered FROM A world_finds ROW, in the ruled copy, first-ever included', () => {
+    const HF = window.HearthriseHearthfind;
+    /* A world_finds row, exactly as the migration defines it (snake_case, one_in
+       stored on the row so a later retune cannot restate a past find's odds). */
+    const row = {
+      id: 7, user_id: '00000000-0000-0000-0000-0000000000aa',
+      item_id: 'emberheart', source_kind: 'monster', source_id: 'dragon',
+      one_in: 26000, found_at: '2026-09-08T12:00:00Z',
+    };
+    const dragonName = HF.sourceName('monster', 'dragon');
+    const third = HF.chatLine(row, 'Paione', 3);
+    assert(third === '✦ HEARTHFIND — Paione pulled the Emberheart from ' + dragonName
+      + '. 1 in 26,000. The 3rd ever found in Hearthrise.',
+      'the global chat line drifted from the ruled copy — ' + third);
+
+    const first = HF.chatLine(row, 'Paione', 1);
+    assert(first === '✦ HEARTHFIND — Paione pulled the Emberheart from ' + dragonName
+      + '. 1 in 26,000. Nobody in Hearthrise has ever found one before.',
+      'the FIRST-EVER variant drifted — ' + first);
+    assert(HF.chatLine(row, 'Paione', null) === first,
+      'an unknown ordinal did not fall back to the first-ever sentence');
+
+    /* THE BOARD STORES NO NAME. A row whose display name could not be joined
+       must still render — as "An adventurer", never as a raw uuid. */
+    const anon = HF.chatLine(row, null, 2);
+    assert(anon.indexOf('An adventurer pulled') !== -1 && anon.indexOf(row.user_id) === -1,
+      'a nameless board row leaked the account id into global chat — ' + anon);
+
+    assert(HF.ordinal(1) === '1st' && HF.ordinal(2) === '2nd' && HF.ordinal(3) === '3rd'
+      && HF.ordinal(11) === '11th' && HF.ordinal(12) === '12th' && HF.ordinal(13) === '13th'
+      && HF.ordinal(21) === '21st' && HF.ordinal(112) === '112th',
+      'the ordinal is wrong on the cases English is weird about');
+  }),
+
+  () => tryRun('HF-4: a find moves NOTHING — no gold, no XP, no inventory, no skills', () => {
+    const HF = window.HearthriseHearthfind;
+    const G = window.G;
+    const savedLos = G.lastOfflineSummary;
+    const snap = snapshotG();
+    try {
+      HF.__forgetSeen();
+      HF.dismissReveal();
+      G.lastOfflineSummary = null;
+      /* THE WHOLE ECONOMY OF THIS CHARACTER, BEFORE. Compared as one object,
+         because the failure this guards against is a single field. */
+      const before = JSON.stringify({
+        gold: G.gold, gems: G.gems, marks: G.marks,
+        inventory: G.inventory, skills: G.skills, bank: G.bank,
+      });
+      const env = {
+        version: 9, state: {},
+        hearthfind: {
+          item: 'tidecallers_pearl', source_kind: 'node', source_id: 'shrimp_s',
+          one_in: 360000, nth_today: 1, broadcast: true, at: '2026-09-08T13:00:00Z',
+        },
+      };
+      HF.noteEnvelope(env);
+      const find = HF.findOn(env);
+      HF.showReveal(find, G);
+      HF.awayBandHtml(find);
+      HF.collectionSection(G);
+      const after = JSON.stringify({
+        gold: G.gold, gems: G.gems, marks: G.marks,
+        inventory: G.inventory, skills: G.skills, bank: G.bank,
+      });
+      assert(before === after,
+        'THE ANTI-P2W / ANTI-MINT PROPERTY: the client half moved a value while rendering a find. '
+        + 'Before ' + before.slice(0, 220) + ' … after ' + after.slice(0, 220));
+      /* And it never grants the trophy either — the inventory row is hr_apply's. */
+      assert(!(G.inventory && G.inventory.tidecallers_pearl),
+        'the client GRANTED the trophy — the item row belongs to hr_apply and to nothing else');
+    } finally {
+      HF.dismissReveal();
+      const v = document.getElementById('hr-hf-veil'); if (v) v.remove();
+      G.lastOfflineSummary = savedLos;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('HF-5: the client can never SEND a hearthfind line — it injects one it read from the board', () => {
+    const HF = window.HearthriseHearthfind;
+    assert(window.Chat && typeof window.Chat.inject === 'function',
+      'Chat.inject is missing — the board line would have to go through Chat.send, which is a CLAIM');
+    const sent = [];
+    const origSend = window.Chat.send;
+    const injected = [];
+    const origInject = window.Chat.inject;
+    try {
+      window.Chat.send = function (ch, body) { sent.push([ch, body]); };
+      window.Chat.inject = function (ch, msg) { injected.push([ch, msg]); return true; };
+      const row = {
+        id: 42, user_id: 'u1', item_id: 'deepvein_lodestar', source_kind: 'node',
+        source_id: 'copper_rock', one_in: 420000, found_at: '2026-09-08T14:00:00Z',
+      };
+      const body = HF.announce(row, 'Tyler', 1);
+      assert(sent.length === 0,
+        'THE PROPERTY: the client SENT the hearthfind line into chat_messages. A client that can send it '
+        + 'can send one for a find that never happened, and chat_messages cannot check.');
+      assert(injected.length === 1 && injected[0][0] === 'global',
+        'the line did not land on the global tab, locally — ' + JSON.stringify(injected));
+      const msg = injected[0][1];
+      assert(msg.system === true && msg.id === 'hf-42',
+        'the injected line is not keyed on the board row id, so a re-poll would render it twice');
+      assert(msg.body === body && /^✦ HEARTHFIND — Tyler pulled the/.test(msg.body),
+        'the injected body is not the rendered board line — ' + msg.body);
+      assert(msg.link && msg.link.action === 'hearthfind' && msg.link.item === 'deepvein_lodestar'
+        && msg.link.label === 'Deepvein Lodestar',
+        'the item name is not clickable through to its card — ' + JSON.stringify(msg.link));
+    } finally {
+      window.Chat.send = origSend;
+      window.Chat.inject = origInject;
+    }
+  }),
+
+  () => tryRunAsync('HF-6: a world_finds table that has not been migrated yet is learned ONCE, not polled forever', async () => {
+    const HF = window.HearthriseHearthfind;
+    assert(typeof HF.__boardMissing === 'function' && typeof HF.__resetProbe === 'function',
+      'the board has no capability probe — the client half would 404 every 90s until the lane-C migration lands');
+    HF.__resetProbe();
+    assert(HF.__boardMissing() === false, 'the probe did not reset');
+    /* The self-configuring switch, driven for real: one 404 from the board and
+       the poll stands down. Without it, shipping the client half before the
+       migration means a 404 in every player's console forever — and the two
+       halves of this feature are explicitly allowed to land in either order. */
+    const origFetch = window.fetch;
+    let calls = 0;
+    try {
+      window.fetch = function (u) {
+        if (String(u).indexOf('world_finds') !== -1) {
+          calls++;
+          return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve(null) });
+        }
+        return origFetch.apply(this, arguments);
+      };
+      const first = await HF.refreshBoard();
+      if (calls === 0) {
+        /* No Supabase config in this page ⇒ the poll never dispatches at all,
+           which is the same property by a shorter road. Assert THAT, honestly,
+           rather than passing on a call that never happened. */
+        assert(first === false, 'an unconfigured client still claimed a board read');
+        return;
+      }
+      assert(HF.__boardMissing() === true,
+        'a 404 from world_finds did not arm the negative probe');
+      const before = calls;
+      await HF.refreshBoard();
+      await HF.refreshBoard();
+      assert(calls === before,
+        'the client kept polling a table it had already learned does not exist — ' + calls + ' calls');
+    } finally {
+      window.fetch = origFetch;
+      HF.__resetProbe();
+    }
+  }),
+
   () => tryRun('b341: the away card SAYS you died, when, and that the rest paid nothing', () => {
     const HD = window.HearthriseHome;
     assert(HD && typeof HD.__awayCardHtml === 'function',

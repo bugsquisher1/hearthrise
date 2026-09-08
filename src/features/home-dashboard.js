@@ -49,6 +49,10 @@
          edge; .hd-wrap carries the old 1120px measure for everything else. */
       '#panel-profile #' + ROOT_ID + '{display:block;margin:0;padding:0 0 20px;font-family:var(--f-ui);color:var(--ink) !important}',
       R + '.hd-wrap{max-width:1120px;margin:0 auto;padding:0 4px}',
+      /* Set the Night. Same measure and rhythm as `.hd-bank-txt` beside it —
+         one sentence, no second tone, colour from tokens only. */
+      R + '.hd-night .hd-night-txt{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);line-height:1.4}',
+      R + '.hd-night{align-items:flex-start}',
 
       /* ── THE HEARTH BAND ──────────────────────────────────────────────────
          Every `.panel` paints an opaque surface, so the global backdrop scene
@@ -1507,6 +1511,15 @@
        cap by hitting it. Truthful: combat / gathering / crafting bank the whole
        time you are away; cooking, farming and an idle camp do not. */
     html += awayBankingRow(G);
+    /* SET THE NIGHT (slate §3) — how far tonight's supplies carry the CURRENT
+       activity, beneath the row that says whether tonight banks at all. The
+       two read the same `serverAccruedSkill` predicate, so they cannot
+       disagree. Advisory only: the module authors nothing and the server
+       never reads it. Absent module / idle character ⇒ empty string. */
+    try {
+      var STN = window.HearthriseSetTheNight;
+      if (STN && typeof STN.strip === 'function') html += STN.strip(G);
+    } catch (e) { /* a forecast is never worth a broken Home */ }
     html += '</div>';
 
     // Renown — the long game. Status, so it lives in the status rail.

@@ -1792,9 +1792,15 @@ const TESTS = [
     const names = R.tapNames();
     // Every migrated site registers a tap under a stable label. If any is absent,
     // that navigation trigger was dropped in the migration.
+    /* b520 — 'profile-button' was REMOVED from this census, not lost. It was the
+       welcome-v2 "Last Session Summary" tap, retired wholesale with the second
+       welcome modal (a779c9cf, Set the Night, FEATURE_SLATE.md §3). The site is
+       gone, so a tap for it would be a tap on nothing. This list is the census of
+       SURVIVING migrated sites: a name here that the registry does not report is
+       still a dropped trigger, which is the property this test exists to hold. */
     const EXPECTED = [
       'inv-new', 'bounty-tab', 'combat-style-selector', 'character-render', 'panel-extras',
-      'clan-activity', 'profile-button', 'inv-fancy', 'inv-dragdrop', 'auto-open-activity',
+      'clan-activity', 'inv-fancy', 'inv-dragdrop', 'auto-open-activity',
       'character-rebuild', 'dungeons-render', 'nav-consol-bootall', 'obs-tabchange',
       'character-page', 'activities-autoopen', 'stable-render', 'combat-tier-chips',
       'combat-screens-nav', 'identity-decorate', 'home-dashboard', 'ui-overlap',
@@ -11779,7 +11785,21 @@ const TESTS = [
   () => tryRun('clicks: profile feat-buttons (achievements/bestiary/etc)', () => {
     window.showTab('profile');
     const btns = document.querySelectorAll('#panel-profile .feat-buttons button, #panel-profile .feat-buttons .stats-btn-trigger');
-    assert(btns.length >= 4, 'expected >=4 feat buttons, got ' + btns.length);
+    /* b520 — this was a bare `>= 4`, which silently encoded a FOURTH button that
+       no longer exists: welcome-v2's "Last Session Summary" (retired in a779c9cf,
+       Set the Night, FEATURE_SLATE.md §3). A count threshold cannot tell "the row
+       shrank by ruling" from "a button was dropped by accident", so it is now the
+       NAMED census of the surviving row:
+         · Achievements + Bestiary — injectProfileButtons(), src/legacy.js
+         · Lifetime Stats          — src/render/lifetime-stats.js
+       Both directions bite: a missing entry is a lost button, an unexpected entry
+       is a button added without being clicked-through here. */
+    const EXPECT_FEATS = ['achievements', 'bestiary', 'lifetime stats'];
+    const labels = [...btns].map((b) => (b.textContent || '').trim().toLowerCase());
+    const missing = EXPECT_FEATS.filter((n) => !labels.some((l) => l.includes(n)));
+    assert(missing.length === 0, 'profile feat button(s) missing from the row: ' + missing.join(', ') + ' (present: ' + labels.join(' | ') + ')');
+    const extra = labels.filter((l) => !EXPECT_FEATS.some((n) => l.includes(n)));
+    assert(extra.length === 0, 'unexpected profile feat button(s) not in the census: ' + extra.join(' | '));
     for (const b of btns) {
       try { b.click(); } catch (e) { throw new Error(`feat button "${b.textContent.trim()}" threw: ${e.message}`); }
       // Close any modal opened

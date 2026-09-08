@@ -96,6 +96,10 @@ import * as goalCatalogue from './data/goal-catalogue.js?v=521';
    twice and the PACED ANCHOR it is a fraction of existed nowhere, which is how
    the b389 rebalance shipped at 1.60x its stated size. */
 import * as workers from './core/workers.js?v=521';
+/* The hearthfind roll AND its table (re-exported by the core module), so the
+   suite can derive "which sources pay which trophy" from the one catalogue
+   instead of naming the four trophies by hand. */
+import * as hearthfind from './core/hearthfind.js?v=521';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -357,7 +361,7 @@ window.HearthriseCore = {
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, bane, elements, drops, pacing, rested, tools, farm, progression,
   styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, artisanSim,
-  autoEat, perks, ammo, goalCatalogue, workers,
+  autoEat, perks, ammo, goalCatalogue, workers, hearthfind,
 
   /* The session RNG. */
   get rng() { return rng; },

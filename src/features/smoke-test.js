@@ -30607,6 +30607,32 @@ const TESTS = [
     Object.values(window.DUNGEONS || {}).forEach((d) => (d.loot || []).forEach((l) => add(l.id)));
     // The clan Hunt's signature materials (raids.js) — obtainable via the weekly boss.
     ['slagheart_core', 'abyssal_pearl', 'choirbone', 'warden_seal', 'wyrm_gilding', 'hollow_sigil', 'wyrm_scale', 'void_core'].forEach(add);
+    /* HEARTHFIND — the fifth source class (Feature Slate §2). The four
+       trophies are rolled by the ONE engine off src/data/hearthfind.js, which
+       no drop table mentions, so before this block they read as four dead
+       items. This DERIVES the class from the catalogue the engine itself
+       reads (published through core-bridge as HearthriseCore.hearthfind), so
+       a fifth find is covered the day its row lands, and a find whose source
+       id no longer exists goes red instead of quietly becoming unobtainable.
+       Naming the four ids here would have been an exemption, not a source. */
+    const HF = (window.HearthriseCore || {}).hearthfind;
+    const hfRows = (HF && HF.HEARTHFIND_TABLE) || null;
+    assert(Array.isArray(hfRows) && hfRows.length >= 4,
+      'the hearthfind catalogue must be published on HearthriseCore.hearthfind — without it this guard '
+      + 'cannot tell a trophy from a dead item (got ' + (hfRows ? hfRows.length + ' rows' : typeof hfRows) + ')');
+    const nodeExists = (id) => [window.TREES, window.ROCKS, window.FISH_SPOTS]
+      .some((pool) => (pool || []).some((n) => n && n.id === id));
+    const hfBroken = [];
+    hfRows.forEach((row) => {
+      if (!row || !row.item) { hfBroken.push('a row with no item: ' + JSON.stringify(row)); return; }
+      const liveSource = row.kind === 'monster' ? !!(M || {})[row.id] : nodeExists(row.id);
+      if (!liveSource) { hfBroken.push(row.item + ' ← ' + row.kind + ':' + row.id); return; }
+      add(row.item);
+    });
+    assert(hfBroken.length === 0,
+      'hearthfind rows whose source no longer exists — the trophy is unobtainable and the roll is dead '
+      + 'code: ' + hfBroken.join(', '));
+
     // Coded drops the engine grants outside the drop tables.
     ['farm_deed', 'hearth_token', 'dungeon_scrip'].forEach(add);  // b281: scrip awarded on dungeon clears
 
@@ -34452,7 +34478,6 @@ const TESTS = [
     } finally {
       const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
       const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
-      const v2ov = document.getElementById('wbv-overlay'); if (v2ov) v2ov.classList.remove('show');
       D.noteServerStreak(null);
       restoreG(snap);
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
@@ -51114,12 +51139,24 @@ const TESTS = [
       'the beta banner must publish its don\'t-stack predicate for this to be assertable at all');
     const G = window.G;
     const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary };
+    const parked = [];   // visible to `finally`
     try {
       /* Clear the screen first, and do it the way Escape does. The assertion
          below is a DELTA (closed → open), so it only means something from a
          clear start — and leaving that to test ordering is how a guard becomes
          intermittent. */
-      document.querySelectorAll('.modal.show').forEach((m) => m.classList.remove('show'));
+      /* EVERY surface in the queue's own list, not just `.modal.show`: on a
+         cold boot the FTUE shade is up, so a fixture that clears one class
+         passes only because some earlier test happened to dismiss the rest.
+         Derived from the list itself, so a sixth surface does not silently
+         re-introduce the ordering dependency. Restored in `finally`. */
+      BB.__blockingModals.split(', ').forEach((sel) => {
+        if (sel === '#welcome-overlay.show') return;      // the surface under test
+        document.querySelectorAll(sel).forEach((n) => {
+          if (sel.endsWith('.show')) { n.classList.remove('show'); parked.push(n); }
+          else if (n.parentNode) { parked.push({ node: n, parent: n.parentNode }); n.parentNode.removeChild(n); }
+        });
+      });
       const before = BB.__modalAlreadyOpen();
       assert(before === false,
         'the fixture needs a clear screen — something else is already modal: ' + BB.__blockingModals);
@@ -51135,13 +51172,29 @@ const TESTS = [
       assert(BB.__modalAlreadyOpen() === false,
         'the banner is blocked forever once the modal has been shown — a queue that never drains');
       /* The other real overlays are in the list too; a queue that only knows
-         one of them is a queue that will collide with the next one. */
-      ['#wbv-overlay.show', '#hr-dl-modal', '.ftue-shade.show'].forEach((sel) => {
+         one of them is a queue that will collide with the next one. Each entry names a surface that CURRENTLY exists: `#welcome-overlay`
+         (the welcome-back modal the fixture above raised), `#hr-dl-modal` (daily-reward,
+         presence-only — it has no `.show` state), `.ach-overlay` and the two FTUE
+         nodes. Set the Night (a779c9cf) adds NO overlay of its own: its morning
+         half renders INSIDE `#welcome-overlay`, which is the entry proven above,
+         so it has nothing of its own to list. */
+      ['#welcome-overlay.show', '#hr-dl-modal', '.ftue-shade.show', '.ftue-card.show',
+       '.ach-overlay.show'].forEach((sel) => {
         assert(BB.__blockingModals.indexOf(sel) >= 0,
           'the don\'t-stack list lost ' + sel + ': ' + BB.__blockingModals);
       });
+      /* AND NOTHING DEAD. The bug this guard was written for was not a missing
+         selector — it was a
+         selector that matched nothing, sitting in the list LOOKING like coverage.
+         `#wbv-overlay` is the welcome-v2 modal Set the Night retired (deleted,
+         not unwired — see NIGHT-4); back in this list it is the same silent
+         hole again. */
+      assert(BB.__blockingModals.indexOf('wbv-overlay') < 0,
+        'the don\'t-stack list carries a DEAD selector (#wbv-overlay was retired with '
+        + 'welcome-v2): ' + BB.__blockingModals);
     } finally {
       const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      parked.forEach((p) => { if (p && p.node) p.parent.appendChild(p.node); else if (p) p.classList.add('show'); });
       Object.assign(G, save);
     }
   }),

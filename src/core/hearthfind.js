@@ -69,7 +69,10 @@ import {
 } from '../data/hearthfind.js?v=521';
 import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=521';
 
-export { HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX, HEARTHFIND_SOURCE_KINDS };
+/* Re-exported so there is ONE path to the table for every reader — the
+   engine, the generator and the in-page suite all read the same rows through
+   this module rather than each importing the data file on its own. */
+export { HEARTHFIND_TABLE, HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX, HEARTHFIND_SOURCE_KINDS };
 
 const key = (kind, id) => `${kind}:${id}`;
 

@@ -427,12 +427,22 @@ function selftest() {
      moment a build pays some debt down, the arm goes quiet and reports itself
      green. Each arm below therefore SETS the ratio to a stated multiple of the
      baseline, so the proof holds however much slack the corpus has. */
-  const atRatio = (mult) => ({
-    codeLines: Math.round(base.codeLinesPerTest * mult * base.tests), tests: base.tests,
+  /* PINNED ON EVERY AXIS, not just the one under test. Bending one ratio while
+     leaving the other counters at TODAY's values silently bends the other ratio
+     too, because `tests` is pinned to base.tests and the corpus has grown past
+     it: at 1,180 tests against a pinned 1,178 the "+0.5% — inside the band"
+     CONTROL carried 1,180 tests' worth of seeds over 1,178 tests and reported
+     TF-2 (MEASURED on the assembled tree, 2026-09-08). Every arm therefore
+     starts from the baseline corpus exactly and multiplies ONE ratio. */
+  const pinned = ({ code = 1, seed = 1 }) => ({
+    tests: base.tests,
+    lines: Math.round(base.linesPerTest * base.tests),
+    codeLines: Math.round(base.codeLinesPerTest * code * base.tests),
+    seeds: Math.round(base.seedsPerTest * seed * base.tests),
+    gestures: real.gestures,
   });
-  const atSeeds = (mult) => ({
-    seeds: Math.round(base.seedsPerTest * mult * base.tests) + 1, tests: base.tests,
-  });
+  const atRatio = (mult) => pinned({ code: mult });
+  const atSeeds = (mult) => pinned({ seed: mult });
   const bend = (patch) => compare(derived({ ...real, ...patch }), base);
 
   const arms = [
@@ -477,8 +487,7 @@ function selftest() {
 
   const silent = [
     ['ALLOWED: the cost per test is +0.5% — inside the band', atRatio(1.005)],
-    ['ALLOWED: the seeds per test are +0.5% — inside the band',
-      { seeds: Math.floor(base.seedsPerTest * 1.005 * base.tests), tests: base.tests }],
+    ['ALLOWED: the seeds per test are +0.5% — inside the band', atSeeds(1.005)],
     /* (a) OF THE RE-SPEC, AS AN ASSERTION: 2,000 lines of PROSE and not one line
        of code. Under the old physical-line rule this was a TF-1 failure — the
        guard charged a test for being explained. The prose is still ratcheted, in

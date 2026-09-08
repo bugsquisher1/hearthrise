@@ -64,7 +64,21 @@ import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=5
 import { rollDropTable } from './drops.js?v=521';
 import { hitXpRoute, killXpRoute } from './styles.js?v=521';
 import { applyGoldFind } from './pacing.js?v=521';
-import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, recoveryFor, resumeHpFor, utcDaySegments } from './away.js?v=521';
+/* `retreatAtFall` ONLY — the two rungs stay in away.js beside the recovery
+   ladder, where the design tables live. This file asks the table; it does not
+   restate it, so a designer moving a rung moves it in exactly one place. */
+import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, recoveryFor, resumeHpFor, utcDaySegments,
+         retreatAtFall } from './away.js?v=521';
+/* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
+   `resolveAutoEat` asks and the same one accrual.js derives the receipt's
+   `hadFood` from — one definition of "is there anything here I could eat", so
+   the trigger and the sentence explaining it cannot disagree. It draws no
+   random numbers and mutates nothing, so it is safe to call inside a seeded
+   fight (§2.1's contract on `spendForSwings` applies for the same reason). */
+import { chooseFood, resolveAutoEat } from './auto-eat.js?v=521';
+/* THE FORECAST's seeded dice (ruling item 7). A fixed seed, never a clock —
+   see `forecastFight` at the foot of this file. */
+import { createRng } from './rng.js?v=521';
 import { NO_BONUS } from './botd.js?v=521';
 import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=521';
 /* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
@@ -86,6 +100,20 @@ function call(fx, name, ...args) {
 export const OUTCOME = {
   HIT: 'hit', KILL: 'kill', DEATH: 'death', STOP: 'stop',
 };
+
+/* WHY A COMBAT SPAN STOPPED BEFORE THE ABSENCE DID — the same contract
+   src/core/skill-sim.js and src/core/artisan-sim.js already publish under this
+   name, and for the same reason: STATED by the simulation, never inferred by a
+   renderer. `null` means "it ran the whole window", which is the ordinary night
+   and is NOT the same thing as `paidMs < awayMs` (flooring a tick count already
+   makes that true on a perfectly honest night).
+   Imported by accrual.js as `COMBAT_STOP`, beside `STOP_REASON` (skill) and
+   `ARTISAN_STOP`, so three tables with one shape cannot be confused for one. */
+export const STOP_REASON = Object.freeze({
+  /* Recovery rev. 3. The hero pulled back to camp: consecutive falls with no
+     kill between them reached the rung in src/core/away.js `retreatAtFall`. */
+  RETREAT: 'retreat',
+});
 
 /**
  * Resolve a KILL: gold, drops, kill XP, and every counter a kill feeds.
@@ -112,6 +140,22 @@ export function resolveKill(state, m, ctx) {
   state.stats = state.stats || {};
   state.stats.kills = (state.stats.kills || 0) + 1;
   state.combatKillsThisFoe = (state.combatKillsThisFoe || 0) + 1;
+  /* ── THE RETREAT COUNTER IS RESET BY *ANY* KILL (rev. 3) ─────────────────
+     This one line is what makes the rule "CONSECUTIVE falls" rather than
+     "falls today", and it is the whole reason the ruling rejected a daily cap:
+     a hero who can win at all never retreats, because winning once clears the
+     count. It lives at the TOP of the kill, before any drop or XP branch can
+     return early, so there is no kill in this engine that fails to clear it.
+     Written on `state` (the same object `resolveDeath` increments and hr_apply
+     re-validates from the engine proposal) — never a per-window tally, which
+     would be re-zeroed by every 90-second settle and make the rule unreachable.
+     ⚠ ONLY WHEN THE COUNTER EXISTS. `undefined`/`null` is the "no such column"
+       sentinel `resolveDeath` gates the whole rule on; writing 0 over it here
+       would silently ARM the Retreat on a database that has never heard of it,
+       which is the deploy-order hazard the sentinel exists to remove. */
+  if (state.consecFalls !== null && typeof state.consecFalls !== 'undefined') {
+    state.consecFalls = 0;
+  }
 
   /* b254 Boss of the Day. Per the ruling this applies AWAY, resolved for
      THIS SEGMENT's instant — an absence crossing UTC midnight pays each
@@ -200,6 +244,57 @@ export function resolveDeath(state, ctx) {
   const todayBefore = base(state.deathsTodayBefore) + soFar;
   const lifeBefore  = base(state.deathsLifetimeBefore) + soFar;
   const recoverMs = recoveryFor({ deathsTodayBefore: todayBefore, deathsLifetimeBefore: lifeBefore });
+  /* ── WAS THE BAG EMPTY *AT THIS FALL*? (Recovery rev. 3) ──────────────────
+     Read from the LIVE SIMULATED BAG, here, at the instant of the fall — NOT
+     from accrual.js's `hadFood`, which is a window-OPEN snapshot. The ruling is
+     explicit about the difference and it is not a nicety: a hero who left home
+     with forty Trout and ate the last one two hours into the night is foodless
+     NOW, and now is when the decision is made. `hadFood` stays exactly what it
+     is (the receipt's "you had no cooked food" sentence) and is untouched.
+
+     ONE OBJECT, BOTH RUNTIMES. `state.inventory` IS the live bag by identity —
+     `G.inventory` on the client, and accrual.js's `bag` (`startInv + every
+     addItem - every autoEat`) on the server, assigned `state.inventory = bag`
+     for exactly this reason. There is nothing here to plumb and nothing to
+     keep in step.
+
+     ⚠ THE NOMINATION IS DELIBERATELY `null`, AND THE ANSWER IS THE SAME EITHER
+       WAY. `chooseFood(nominated, …)` returns `nominated` only when it is
+       auto-eatable AND held, and otherwise falls through to the SAME scan of
+       the whole bag — so as a BOOLEAN ("is there anything here I could eat")
+       the nomination cannot change the result. Passing null keeps this call
+       free of a per-runtime auto-eat config that would then have to be
+       mirrored, checked and eventually drift. RETREAT-A5 pins the equivalence.
+
+     ⚠ NO CATALOGUE ⇒ NOT FOODLESS, which is the opposite fail-direction from
+       `recoveryFor`'s `harsh()`, and deliberately so. Those two counters only
+       ever buy RELIEF, so garbage must buy none. This one only ever buys a
+       SHORTER run, so an unreadable catalogue must not buy the harsher rung —
+       a bare `simulateTick(state, {})` in a test would otherwise retreat a fed
+       character three falls early. Every production caller passes `ctx.items`. */
+  const cat = ctx && ctx.items;
+  const foodless = cat ? !chooseFood(null, state.inventory, cat, Infinity) : false;
+  /* ── THE CONSECUTIVE-FALL COUNT, INCLUDING THIS FALL ─────────────────────
+     Seeded from `player_state.consec_falls` (projected by hr_state_of, written
+     ONLY by hr_apply from this engine's proposal) and reset to 0 by ANY kill in
+     `resolveKill`. Incremented here rather than in `simulateSpan` because the
+     ATTENDED tick has no span: one engine, one counter, one place it moves.
+
+     ⚠ THE FIELD'S PRESENCE IS THE SWITCH, and it has to be, because THE EDGE
+       DEPLOY AND THE MIGRATION CAN LAND IN EITHER ORDER. `undefined`/`null` here
+       means "this database has no consec_falls column" (accrual.js seeds null
+       for exactly that case) or "this client has not had an envelope yet", and a
+       character with no counter NEVER RETREATS — the pre-Retreat behaviour, byte
+       for byte. Without this gate an engine deployed ahead of its migration
+       would start pulling every foodless character back to camp off a counter
+       that lives only inside one window and that nothing durable backs, which is
+       a behaviour change nobody applied. Every other self-configuring input in
+       this system (tool_carry, fight, ammo_carry, recovering_until) has the same
+       property and it is the reason the two halves are safe in either order. */
+  const hasCounter = state.consecFalls !== null && typeof state.consecFalls !== 'undefined';
+  const consecFalls = hasCounter ? base(state.consecFalls) + 1 : 0;
+  if (hasCounter) state.consecFalls = consecFalls;
+  const retreat = hasCounter && retreatAtFall({ consecFalls, foodless });
   state.stats.deaths = soFar + 1;
   state.playerHp = resumeHpFor(state.playerMaxHp);
   state.monsterHp = 0;
@@ -224,6 +319,20 @@ export function resolveDeath(state, ctx) {
     deathsLifetime: lifeBefore + 1,
     nextRecoverMs: recoveryFor({ deathsTodayBefore: todayBefore + 1, deathsLifetimeBefore: lifeBefore + 1 }),
     resumeHp: state.playerHp,
+    /* ── THE RETREAT, AS DATA (rev. 3) ────────────────────────────────────
+       Three facts, stated once here and read without re-derivation by all four
+       consumers — `simulateSpan` (which owns the timeline and ends the run),
+       accrual.js (which idles the pointer and proposes the counter), the
+       attended death sheet ("You pulled back") and the away card's copy. A
+       renderer that recomputed `retreat` from a count and a bag would be the
+       second copy of the rule, and the second copy is always the one that is
+       wrong six months later.
+       ⚠ `foodless` is the fact AT THIS FALL. It is what decides WHICH sentence
+         the player reads, and it is not interchangeable with the receipt's
+         window-open `hadFood`. */
+    consecFalls,
+    foodless,
+    retreat,
   };
   /* The caller stops the fight: on the client that is `stopCombat()`, which
      also tells the launchpad the activity ended and clears the interval.
@@ -325,8 +434,14 @@ export function simulateTick(state, ctx) {
        caller that re-derived it would be a second copy of the first-death
        grace. */
     const d = resolveDeath(state, ctx);
+    /* `retreat` / `foodless` / `consecFalls` ride the outcome for the same
+       reason `recoverMs` does: the span has to know whether THIS fall ended the
+       run, and a caller that re-derived it would be a second copy of the rule.
+       The attended tick reads `retreat` too (legacy.js COMBAT_FX.onDeath), so
+       both paths branch off one boolean computed in one place. */
     return { outcome: OUTCOME.DEATH, crit: didCrit, pDmg, mDmg, ate, supply,
-             recoverMs: d.recoverMs };
+             recoverMs: d.recoverMs, retreat: d.retreat, foodless: d.foodless,
+             consecFalls: d.consecFalls };
   }
   /* `supply` rides on EVERY outcome, kill included, because the span's
      `consumed` tally is built from it and an arrow spent on a killing blow is
@@ -458,6 +573,27 @@ export function simulateSpan(state, ctx) {
      per-death row is affordable here and a per-TICK row never would be. */
   const deathLog = [];
   const baseCount = (v) => { const n = Math.floor(Number(v)); return isFinite(n) && n >= 0 ? n : 0; };
+
+  /* ── THE RETREAT (rev. 3) ────────────────────────────────────────────────
+     WHAT ENDED THE RUN, stated by the simulation exactly as skill-sim.js and
+     artisan-sim.js state their own stops. `null` is the ordinary night.
+
+     THE ORDER INSIDE THE FALL IS THE RULING AND IT IS LOAD-BEARING: the
+     retreating fall is a FALL FIRST. It charges its own ladder rung, stamps
+     `recoverUntilMs`, and writes its `deathLog` row — and only THEN does the
+     run end. Retreating before charging would make the third foodless fall the
+     cheapest fall in the game and turn "pull back" into a way to dodge the
+     ladder; RETREAT-W3 is the assertion that it cannot.
+
+     Everything after the retreat is IDLE: no swing, no XP, no drop, no food
+     burn, no death row, and no recovery tick either — the span simply stops
+     being simulated, which is why `idleMs` is a field and not a subtraction a
+     renderer performs. */
+  let stopReason = null;
+  let retreatAtMs = null;       // the absolute instant the hero pulled back
+  let retreatUntilMs = 0;       // the recovery line the retreating fall stamped
+  let retreatFoodless = false;  // was the bag empty AT that fall? decides the copy
+  let retreatFalls = 0;         // consecutive falls at the retreat (3 or 6 today)
 
   /* ── THE BUFF CLOCK, DRIVEN BY THIS TIMELINE ────────────────────────────
      Timed buffs are PERSONAL, so they pay away (src/core/away.js `AWAY_SCOPE`
@@ -643,6 +779,23 @@ export function simulateSpan(state, ctx) {
             deathsLifetime: baseCount(state.deathsLifetimeBefore) + deaths,
             resumeHp: state.playerHp,
           });
+          /* THE RETREAT, AFTER THE FALL HAS BEEN PAID FOR IN FULL. Every line
+             above has already run for this fall — the rung charged, the line
+             stamped, the ledger row written, `stats.deaths` incremented — which
+             is the ruling's "the triggering fall charges its rung and stamps
+             recovering_until BEFORE the retreat", expressed as ORDER rather
+             than as a comment nobody can execute.
+             `r.retreat` is `resolveDeath`'s own answer; nothing is re-derived
+             here, so the attended tick and this span cannot disagree about
+             which fall was the last one (RETREAT-W1, the AWAY-1 property). */
+          if (r.retreat) {
+            stopReason = STOP_REASON.RETREAT;
+            retreatAtMs = atMs + tickMs;
+            retreatUntilMs = recoverUntilMs;
+            retreatFoodless = !!r.foodless;
+            retreatFalls = Math.max(0, Math.floor(Number(r.consecFalls) || 0));
+            break;
+          }
           continue;
         }
         if (r.outcome === OUTCOME.STOP) break;
@@ -669,6 +822,11 @@ export function simulateSpan(state, ctx) {
       featuredDropMult = Math.max(featuredDropMult, featBonus.dropMult || 1);
     }
     segLog.push({ fromMs: seg.fromMs, toMs: seg.toMs, ticks: ran, featured: wasFeatured });
+    /* THE ONE `break` THE LOOP IS ALLOWED, and it is not the one below. The
+       segment's own bookkeeping runs FIRST (a retreat two minutes into a
+       segment must still report the two minutes it earned and the featured
+       time it spent), and only then does the span stop. */
+    if (stopReason) break;
     /* NO `if (died) break;`. That line WAS the cliff: one death two minutes into
        a twelve-hour night ended the simulation and the remaining eleven hours
        fifty-eight minutes paid nothing. A death is now a pause, and the pause is
@@ -692,6 +850,16 @@ export function simulateSpan(state, ctx) {
   const toMs = Number(ctx.toMs) || 0;
   const recoverRemainingMs = Math.max(0, recoverUntilMs - toMs);
   state.recoveringUntilMs = recoverRemainingMs > 0 ? recoverUntilMs : 0;
+
+  /* ── THE IDLE TAIL (rev. 3) ──────────────────────────────────────────────
+     The slice of the span that accrued as NOTHING because the hero had already
+     pulled back to camp. STATED, for the same b341 reason every other field
+     here is: `paidMs + recoverMs + idleMs === awayMs` is then an equality a
+     test can assert and a card can quote, and no renderer has to discover the
+     tail by subtracting two numbers whose flooring it does not own.
+     0 on every night that did not retreat, so nothing about the shipped
+     surfaces moves by a byte. */
+  const idleMs = stopReason ? Math.max(0, spanMs - survivedMs - recoverMs) : 0;
 
   return {
     kills,
@@ -735,6 +903,37 @@ export function simulateSpan(state, ctx) {
        the 64-minute cap does not match the bare doubling and a regenerated
        ladder would OVERSTATE the penalty. */
     recoverLadder: deathLog.map((d) => d.recoverMs),
+    /* ── THE RETREAT PAYLOAD (rev. 3) ─────────────────────────────────────
+       `stoppedBy` is the same key skill-sim and artisan-sim publish, so the
+       three away paths answer "what ended this?" in one vocabulary and the
+       away card's STOP_COPY table needs no combat special case. It is `null`
+       on every ordinary night, which is what keeps every shipped renderer
+       byte-identical.
+
+         stoppedBy       'retreat' | null
+         retreatMs       ms INTO the span at which the hero pulled back — the
+                         same shape as `dryMs` above, and the number the copy
+                         quotes ("you pulled back to camp 2h 14m in").
+                         ⚠ null means "no retreat"; ZERO would mean one at the
+                           very first tick, so test `!== null`, never truthiness
+                           — the same trap `dryMs` documents.
+         retreatUntilMs  the ABSOLUTE recovery line the retreating fall stamped.
+                         Stated because `recoveringUntilMs` may have elapsed by
+                         the end of a long window, and "the fall was charged" is
+                         then unprovable from the end state alone (RETREAT-W3).
+         retreatFoodless was the bag empty AT that fall? Decides WHICH of the
+                         two ruled sentences the player reads. Not `hadFood`.
+         retreatFalls    the consecutive-fall count that tripped it (3 or 6).
+                         Read by the copy so the sentence cannot promise a rung
+                         the table no longer charges.
+         idleMs          the tail that paid nothing. See its note above. */
+    stoppedBy: stopReason,
+    retreatMs: (stopReason && retreatAtMs !== null)
+      ? Math.max(0, retreatAtMs - (Number(ctx.fromMs) || 0)) : null,
+    retreatUntilMs: stopReason ? retreatUntilMs : 0,
+    retreatFoodless: stopReason ? retreatFoodless : false,
+    retreatFalls: stopReason ? retreatFalls : 0,
+    idleMs,
     crits,
     ticks,
     hrs: +(spanMs / 3600000).toFixed(2),
@@ -807,4 +1006,204 @@ export function simulateSpan(state, ctx) {
     rateMult: rate,
     segments: segLog,
   };
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   THE FORECAST (Recovery Rule rev. 3, item 7 — "NEVER REFUSE A FIGHT, WARN ONCE")
+
+   The ruling REJECTED refusing an overmatched fight, by name, as the
+   residue-ahead class: beating something you should not be able to beat is a
+   reward, and a client that decides a player may not try has taken an authority
+   it does not own. So the answer is a warning the player can walk straight
+   past, and the warning has to be TRUE.
+
+   WHICH IS WHY IT IS THE SIMULATION AND NOT A DPS FORMULA. A closed-form
+   "time to kill vs time to die" would be a SECOND combat model — the exact
+   thing docs/design/away-time-ruling.md and AWAY-12 exist to forbid — and it
+   would be wrong in all the ways the real loop is subtle: crit rolls, the
+   accuracy distribution, auto-eat, ammo running dry, the weakness multiplier,
+   the Boss of the Day. A player warned by a formula would be warned about a
+   fight that does not exist. `forecastFight` runs `simulateSpan`, which is the
+   fight that does exist. FORECAST-1 is that assertion.
+
+   FOUR PROPERTIES, each deliberate:
+     1. PURE. The caller's state is DEEP-CLONED first, so a forecast cannot heal
+        a character, eat their food, spend an arrow, move a counter or advance a
+        buff. `simulateSpan` mutates in place by design; this is the one caller
+        that must not let it.
+     2. FIXED SEED. Same state, same answer, every time it is asked — a warning
+        that flickered between two taps of the same button would teach the
+        player to ignore it. The seed is a constant, not a clock.
+     3. ADVISORY ONLY. Nothing here is proposed to the server, journalled, or
+        read back. `fx` is EMPTY: no `addItem`, no `addXp`, no `killMonster`, no
+        toast. The only handler is an auto-eat bound to the CLONE.
+     4. SHORT. 30 simulated minutes — long enough for a foodless character to
+        fall two or three times and for a hopeless matchup to score zero kills,
+        short enough that the whole thing is ~750 ticks of arithmetic.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/** The forecast horizon. 30 simulated minutes (the ruling's number). */
+export const FORECAST_MS = 1800000;
+/** The forecast's seed. A CONSTANT: an unstable warning is a warning nobody reads. */
+export const FORECAST_SEED = 0x4845_4152;   // "HEAR"
+
+/* A deep clone that cannot be defeated by a save growing a new field.
+   ⚠ DELIBERATELY NOT AN ALLOWLIST. The obvious implementation copies "the
+     fields the simulation touches", and that list is the `snapshotG` mistake in
+     miniature: the day someone adds a field to the loop, the forecast starts
+     simulating a character who does not have it, silently and only in the
+     warning. Structure in, structure out.
+   Functions, class instances and anything else exotic are DROPPED rather than
+   shared, because a shared reference is precisely the mutation this exists to
+   prevent. Plain data is all the simulation reads. */
+function cloneState(v) {
+  if (v === null || typeof v !== 'object') return v;
+  if (Array.isArray(v)) {
+    const out = new Array(v.length);
+    for (let i = 0; i < v.length; i++) out[i] = cloneState(v[i]);
+    return out;
+  }
+  /* Object.getPrototypeOf(v) !== Object.prototype is NOT the test: a save
+     restored through JSON.parse has a null-prototype object in it here and
+     there, and both are plain data. Anything with a constructor that is not
+     Object or that is callable is not state. */
+  if (typeof v === 'function') return undefined;
+  const out = {};
+  for (const k of Object.keys(v)) {
+    const c = cloneState(v[k]);
+    if (typeof c !== 'undefined') out[k] = c;
+  }
+  return out;
+}
+
+/**
+ * What would the next half hour of this fight look like?
+ *
+ * @param state  the live player state. NOT MUTATED — cloned first.
+ * @param ctx    the same ctx the live tick builds (rolls, bonus, style, items,
+ *               monsters, botd). Its `rng`, `fx`, `away`, `fromMs`, `toMs`,
+ *               `capped` and `botdFor` are all REPLACED here, so a caller
+ *               cannot accidentally hand the forecast the live effect sink.
+ * @param opts   { monsterId?, autoEat?: {enabled, owned, threshold, foodId},
+ *                 spanMs?, seed?, tickMs? }
+ * @returns { kills, deaths, foodEaten, foodless, retreat, ticks, spanMs,
+ *            survivedMs, summary }  — `foodless` is the bag at the END of the
+ *            forecast, which is the question the warning asks.
+ */
+export function forecastFight(state, ctx, opts) {
+  const o = opts || {};
+  const src = ctx || {};
+  const sim = cloneState(state) || {};
+  if (o.monsterId) sim.activeMonster = o.monsterId;
+  const monsters = src.monsters || {};
+  const m0 = monsters[sim.activeMonster];
+  /* NO TARGET, NO FORECAST. `null` rather than a zeroed object: "we did not
+     look" and "we looked and it is hopeless" are different answers and the
+     caller must not be able to render one as the other. */
+  if (!m0) return null;
+  /* Start the imagined fight from a FULL-HP foe and the character's REAL
+     health. Anything else forecasts a fight nobody is about to have — a boss
+     already on 5 HP would forecast as trivially winnable. */
+  sim.monsterMaxHp = m0.hp;
+  sim.monsterHp = m0.hp;
+  if (!(sim.playerMaxHp > 0)) sim.playerMaxHp = 10;
+  if (!(sim.playerHp > 0)) sim.playerHp = sim.playerMaxHp;
+  /* THE FORECAST IS NOT KNOCKED OUT. The recovery line is a fact about NOW;
+     the question here is "if you fight, what happens", and a live clock would
+     make the first minutes of every forecast pay nothing and read as hopeless. */
+  sim.recoveringUntilMs = 0;
+
+  const eat = o.autoEat || {};
+  const items = src.items || {};
+  let foodEaten = 0;
+  const spanMs = Math.max(0, Number(o.spanMs) || FORECAST_MS);
+
+  const fctx = Object.assign({}, src, {
+    /* ATTENDED SCOPE. The player is about to sit and watch this, so the
+       forecast is priced the way the next half hour will actually be priced. */
+    away: false,
+    rng: createRng(Number.isFinite(Number(o.seed)) ? Number(o.seed) : FORECAST_SEED),
+    fromMs: 0,
+    toMs: spanMs,
+    capped: false,
+    /* PINNED to the caller's already-resolved boss, never re-resolved per
+       segment: `fromMs` is 0 here, and `botdFor(0)` would ask which monster was
+       featured at the epoch. */
+    botdFor: null,
+    botd: src.botd,
+    tickMs: Number(o.tickMs) || src.tickMs || COMBAT_BALANCE.tickMs,
+    /* THE EMPTY SINK. Every reward handler is absent, so `resolveKill` runs its
+       arithmetic against the clone and reaches nothing outside it. The ONE
+       handler present is auto-eat, because a forecast that could not eat would
+       tell a fully-provisioned character they are about to die. It is the SAME
+       `resolveAutoEat` the live tick and the server both ask — the forecast
+       cannot be optimistic about food in a way the fight is not. */
+    fx: {
+      autoEat() {
+        const d = resolveAutoEat({
+          enabled: !!eat.enabled,
+          owned: !!eat.owned,
+          hp: sim.playerHp,
+          maxHp: sim.playerMaxHp,
+          threshold: eat.threshold,
+          foodId: eat.foodId || null,
+          inventory: sim.inventory,
+          items,
+        });
+        if (!d) return false;
+        sim.playerHp = d.hp;
+        sim.inventory[d.foodId] -= 1;
+        if (sim.inventory[d.foodId] <= 0) delete sim.inventory[d.foodId];
+        foodEaten++;
+        return true;
+      },
+    },
+  });
+
+  const summary = simulateSpan(sim, fctx);
+  return {
+    kills: summary.kills,
+    deaths: summary.deaths,
+    foodEaten,
+    /* THE BAG AT THE END OF THE FORECAST, asked with the same chooser
+       `resolveDeath` asks — so "you have no food" and "you fell foodless" are
+       one fact and cannot contradict each other on screen. */
+    foodless: !chooseFood(eat.foodId || null, sim.inventory, items, Infinity),
+    retreat: summary.stoppedBy === STOP_REASON.RETREAT,
+    ticks: summary.ticks,
+    survivedMs: summary.survivedMs,
+    /* HOW LONG UNTIL THE FIRST FALL — the number the warning quotes ("will put
+       you down in about 40 seconds"). Taken from the simulation's own deathLog
+       rather than from a time-to-die formula, for the reason this whole
+       function exists: a warning derived from a second model is a warning about
+       a fight that does not happen. `null` when the forecast never fell, so the
+       copy omits the clause rather than inventing a number. */
+    firstDeathMs: (summary.deathLog && summary.deathLog.length)
+      ? Math.max(0, summary.deathLog[0].atMs) : null,
+    spanMs,
+    summary,
+  };
+}
+
+/* ── THE WARNING RULE (ruling item 7), AS A FUNCTION AND NOT AS FOUR ifs ────
+   Two conditions, exactly as ruled, and NOTHING else:
+     · the forecast contains deaths AND the bag is foodless  → "no food"
+     · the forecast lands zero kills                          → "out of league"
+   A fed character who dies twice and still kills things is NOT warned: they are
+   playing the game. Returns null when there is nothing to say, so the caller is
+   one truthy check and can never invent a third case. */
+export const FORECAST_WARNING = Object.freeze({
+  NO_FOOD: 'no-food',
+  UNWINNABLE: 'unwinnable',
+});
+
+export function forecastWarning(f) {
+  if (!f) return null;
+  const deaths = Math.max(0, Math.floor(Number(f.deaths) || 0));
+  const kills = Math.max(0, Math.floor(Number(f.kills) || 0));
+  /* ORDER IS THE RULING'S. A foodless character who also kills nothing is told
+     about the food first, because that is the fix they own. */
+  if (deaths > 0 && f.foodless) return FORECAST_WARNING.NO_FOOD;
+  if (kills === 0) return FORECAST_WARNING.UNWINNABLE;
+  return null;
 }

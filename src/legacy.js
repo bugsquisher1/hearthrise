@@ -5968,8 +5968,18 @@ function retimeCombat(){
 }
 window.retimeCombat=retimeCombat;
 window.__combatIntervalMs=function(){ return _combatIntervalMs; };   // test seam (COMBAT-RETIME-1)
-function startCombat(mId){
+function startCombat(mId,opts){   // warning: src/render/fight-warning.js
   if(G.activeMonster===mId){stopCombat();return;}
+  if(!(opts&&opts.confirmed)){   // THE ADVISORY GATE never refuses; every exit re-enters {confirmed:true}
+    const _FW=window.HearthriseFightWarning;
+    if(_FW&&typeof _FW.gate==='function'){
+      const _w=_FW.gate(mId);
+      if(_w){
+        _FW.markWarned(mId);
+        if(_FW.raise(mId,_w))return;   /* raised => the dialog owns the fight */
+      }
+    }
+  }
   /* b347 SEAM 1. The inner stopCombat is QUIET: one gesture is one declaration
      and one idempotency key, and declaring idle-then-combat would run two
      collects for a single tap — the second of which prices a span of
@@ -6119,6 +6129,7 @@ function hrStandUp(){
   if(Array.isArray(G.combatLog))G.combatLog.push('Back on your feet — the fight goes on.');
   renderCombat();updateTopbar();
 }
+function hrRetreat(){ window.HearthriseRetreat.retreat(); }   // src/render/retreat.js
 /* THE ONE QUESTION THE LIVE TICK ASKS. True ⇒ do not swing. The transition back
    to false is where the stand-up happens, so a resume is the absence of a
    decision rather than a second timer. */
@@ -6447,6 +6458,7 @@ const COMBAT_FX={
     /* THE ONE BRANCH. Server-owned fall ⇒ pause and ask; otherwise the b373
        behaviour, byte-for-byte, because with no server there is nobody to ask. */
     if(_served) hrKnockOut(); else stopCombat();
+    if(_served&&info&&info.retreat) hrRetreat();   // the ENGINE's answer, off the durable G.consecFalls
     /* The toast stays for the case the sheet declined (away, or no body yet) —
        two statements of the same fact stacked on screen is noise. */
     if(!_sheet) notify(_served?'You fell!':'You died!','kill');
@@ -14420,7 +14432,18 @@ function maybeShowWelcome(){
        the two surfaces cannot tell different stories about one absence — the
        exact failure b342 was built to correct. Death keeps its own richer row
        below; this speaks only for the other stop reasons. */
-    if(_off.stoppedBy && _off.stoppedBy !== 'death'){
+    var _retreated = _off.stoppedBy === 'retreat';
+    if(_retreated){   // ⚠ the SUPPLIES row must not fire on a retreat; sentence READ from HearthriseHome
+      var _rs = null;
+      try{
+        var _HH = window.HearthriseHome;
+        if(_HH && typeof _HH.retreatSentence === 'function') _rs = _HH.retreatSentence(_off);
+      }catch(e){}
+      if(_rs) rows.push({g:'uiHourglass', bad:true, t:_rs,
+        v: (typeof _off.retreatMs === 'number' && isFinite(_off.retreatMs))
+             ? fmtSince(_off.retreatMs) + ' in' : ''});
+    }
+    else if(_off.stoppedBy && _off.stoppedBy !== 'death'){
       var _skN = _skillLabel(_off.stoppedSkill);
       rows.push({g:'uiHourglass', bad:true,
         t: _skN + ' ran out of ' + _itemLabel(_off.stoppedById) + ' — nothing was earned after',
@@ -14517,7 +14540,8 @@ function maybeShowWelcome(){
          run. Same sentence as the death sheet (features/death-sheet.js), because
          two surfaces describing one rule in two voices is how a player learns to
          distrust both. Suppressed when the run really did stop on the death. */
-      if(_statedDeaths >= 1 && _off.stoppedBy !== 'death'){
+      /* ⚠ NOT ON A RETREAT: "picked up after every fall" contradicts "pulled back to camp". */
+      if(_statedDeaths >= 1 && _off.stoppedBy !== 'death' && !_retreated){
         rows.push({g:'uiSword',
           t: _nm ? 'Your run picked up against the ' + _nm + ' after every fall'
                  : 'Your run picked up again after every fall',

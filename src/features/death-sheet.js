@@ -233,6 +233,13 @@
    *                            warning cannot promise a rung nobody charges.
    *   resumeHp       {number}  the health the character stood back up on — 40%
    *                            of max since rev. 2, NOT a full heal.
+   *   retreat        {boolean} rev. 3: did THIS fall end the run (the Retreat).
+   *                            STATED by the engine, never derived here.
+   *   retreatFoodless {boolean|undefined} which rung fired — the empty-bag one
+   *                            or the any-hero one. Decides which sentence and
+   *                            which tail the player reads.
+   *   retreatFalls   {number}  how many consecutive falls the engine charged,
+   *                            i.e. the rung, written into the lead as a word.
    *   missingHp      {number}  maxHp - hp, the price of `Rest at the Hearth`.
    * @returns {{title,lead,rows:Array,tipKey:string,tip:string,actions:Array,
    *            recoverMsLeft:number}}
@@ -254,6 +261,135 @@
   function fmtDur(ms) {
     var m = Math.max(0, Math.round((Number(ms) || 0) / 60000));
     return m + 'm';
+  }
+
+  /* ══ THE RECOVERY SENTENCE — ONE AUTHOR, TWO SURFACES ═══════════════════
+     (Designer ruling, 2026-09-07.) The retreat death sheet and the durable
+     away card both have to tell the player the same thing — how long the
+     recovery clock still has to run — and the ruling asks for them in the
+     SAME words: "both surfaces print the identical 'Still recovering — Nm to
+     go.'"
+
+     SO IT IS WRITTEN ONCE, HERE, AND EXPORTED. src/features/home-dashboard.js
+     reads `HearthriseDeathSheet.stillRecovering` for the away card's clock
+     note; nothing composes that sentence a second time. The cautionary
+     precedent is in that very file: the SUPPLIES sentence exists three times
+     (the away card, legacy.js's welcome modal, accrue.js's receipt clause) and
+     the three have already drifted in punctuation.
+
+     WHY THIS MODULE OWNS IT rather than home-dashboard, which had it first:
+     index.html loads death-sheet.js (line ~1064) BEFORE home-dashboard.js
+     (~1120), so the dependency runs with the load order rather than against it,
+     and `describeDeath` stays PURE — it composes the sentence from a local
+     function instead of reaching for a global, which is the property that lets
+     the whole model be unit-tested with no DOM and no window.G.
+
+     `recoverySpan` IS the away card's `fmtSince` semantics, restated here as
+     the single implementation: SECONDS below a minute ("47s" — the case a
+     minutes-only formatter renders as "0m"), whole minutes below an hour
+     ("41m"), and hours FLOORED past that, dropping a remainder under five
+     minutes so the line can never claim a minute it did not pay. */
+  function recoverySpan(ms) {
+    var n = Math.max(0, Number(ms) || 0);
+    if (n < 60000) return Math.max(1, Math.round(n / 1000)) + 's';
+    var mins = Math.floor(n / 60000);
+    if (mins < 60) return mins + 'm';
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return m >= 5 ? (h + 'h ' + m + 'm') : (h + 'h');
+  }
+  function stillRecovering(ms) {
+    return 'Still recovering — ' + recoverySpan(ms) + ' to go.';
+  }
+
+  /* "3" -> "three". The retreat lead names its own rung in words, and the rung
+     is DATA (`RETREAT_FOODLESS_FALLS` / `RETREAT_ANY_FALLS` in src/core/away.js,
+     carried here as `retreatFalls` off the engine's own death info) — so the
+     word is looked up from the number the engine actually charged rather than
+     typed into the sentence. A designer moving the table to 4 gets "Four falls
+     in a row"; a number this table does not know falls back to the digit, which
+     is plain rather than wrong.
+     ⚠ home-dashboard.js has the same table for the AWAY card's sentence. Two
+       copies of a twelve-word lookup is not the drift hazard a duplicated
+       SENTENCE is — and the sentences themselves are single-authored, which is
+       the property that actually matters. */
+  var NUM_WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+    'eight', 'nine', 'ten', 'eleven', 'twelve'];
+  function numWord(n) {
+    var i = Math.max(0, Math.floor(Number(n) || 0));
+    return NUM_WORD[i] || String(i);
+  }
+  function cap(w) { return String(w).charAt(0).toUpperCase() + String(w).slice(1); }
+
+  /* ══ THE RETREAT LEAD (Designer ruling, 2026-09-07) — VERBATIM ═══════════
+     Three parts, in this order, and the ruling gives each of them by name:
+
+       THE CAUSE   which rung fired, and what it means. Two sentences because
+                   the two rungs answer two different questions — "you own the
+                   fix, bring provisions" vs "this target is wrong for you" —
+                   and one sentence could only ever say one of them.
+       THE CLOCK   `Still recovering — 41m to go.` (the SHARED sentence above,
+                   so this and the away card cannot word it differently)
+                   followed by the half a player cannot infer: the clock runs
+                   down on its own, and the fight does NOT restart itself.
+                   That pair is the whole reason this lead replaced rev. 3's:
+                   a retreat leaves a live recovery clock AND an idled pointer,
+                   and a player told only about the clock reasonably expects the
+                   run to pick up when it expires. It does not.
+       THE TAIL    the one thing to do differently, chosen by the rung.
+
+     ⚠ READ FROM `recovering_until`, NEVER FROM AN "ms to resume". `msLeft` is
+       the SERVER's absolute instant minus the clock (see `recoverLeft` in
+       describeDeath) — the same number the away card subtracts. An engine-side
+       "how long this fall was charged" would be a different question with a
+       nearly identical answer, which is the worst kind of wrong number.
+     ⚠ THE CLOCK SENTENCE IS OMITTED, NOT ZEROED, once the line has passed.
+       "Still recovering — 0s to go" is a sentence about a state the player is
+       no longer in. */
+  function retreatLead(o) {
+    o = o || {};
+    var falls = numWord(o.falls);
+    var lead = o.foodless
+      ? cap(falls) + ' falls in a row on an empty bag — you retreated to camp rather than '
+        + 'keep going down.'
+      : cap(falls) + ' falls in a row — you retreated to camp. That fight is out of your '
+        + 'league for now.';
+    var msLeft = Math.max(0, Number(o.msLeft) || 0);
+    var clock = msLeft > 0
+      ? (' ' + stillRecovering(msLeft) + ' The clock runs down on its own; the fight does not '
+         + 'restart itself.')
+      : '';
+    var tail = o.foodless
+      ? ' Bring food, then pick the fight back up.'
+      : ' Pick a softer target when you are back up.';
+    return lead + clock + tail;
+  }
+
+  /* ══ WHAT THE 1 Hz TICK WRITES INTO THE LEAD ════════════════════════════
+     A pure function of the model and the milliseconds still on the server's
+     clock. EXTRACTED BECAUSE OF THE DEFECT IT CLOSES, which is worth stating
+     plainly: rev. 3 stated `retreat` on the model with a comment saying it was
+     there so "the renderer's countdown must not rewrite a retreat's lead into
+     'Back on your feet in 3:47'" — and NOTHING READ IT. The branch was three
+     inline lines inside a `setInterval`, i.e. code no test can reach without a
+     real clock and a real DOM, so the flag sat unread for a whole build and the
+     ruled lead was replaced by the wrong promise one second after the sheet
+     opened. A named function is a function the suite can ask.
+
+     A RETREAT COUNTS DOWN IN ITS OWN WORDS. Its recovery clock is REAL — the
+     retreating fall charged its rung and hr_rest is still the cure — so there
+     IS something true to redraw. What must never be redrawn is "Back on your
+     feet in 3:47", because the fight the player would be back on their feet FOR
+     has been ended: the settle idles the pointer. Rebuilt through the SAME
+     `retreatLead` `describeDeath` used, so the sheet cannot grow a second voice
+     one second after opening, and the clock clause drops itself when the line
+     passes. */
+  function leadTick(model, msLeft) {
+    var left = Math.max(0, Number(msLeft) || 0);
+    if (model && model.retreat) {
+      return retreatLead({ foodless: model.retreatFoodless, falls: model.retreatFalls,
+        msLeft: left });
+    }
+    return left > 0 ? ('Back on your feet in ' + mmss(left) + '.') : 'You are back on your feet.';
   }
 
   function describeDeath(d) {
@@ -287,6 +423,27 @@
        has not priced the window the fall is in yet) and `unconfirmed` (it did,
        and there was no death in it). */
     var phase = String(d.fallPhase || '') || (recoverLeft > 0 ? 'recovering' : 'down-free');
+    /* ── THE RETREAT (Recovery Rule rev. 3) ────────────────────────────────
+       STATED by the engine (`resolveDeath` -> info.retreat), never derived here
+       from a count and a bag: the sheet and the server must not be able to
+       disagree about which fall was the last one. It is deliberately NOT a
+       sixth `phase` — the phases answer "what is the SERVER's answer about this
+       fall yet?" (pending / unconfirmed / recovering / down-free), and a
+       retreating fall passes through every one of those exactly as any other
+       fall does. Retreat is a fact about the RUN, not about the fall's
+       settlement, so it overrides the title and the lead and leaves the phase
+       machinery — including the countdown re-render — untouched. */
+    var retreat = !!d.retreat;
+    /* WHICH RUNG FIRED, AND HOW MANY FALLS IT TOOK — both STATED by the engine
+       (`resolveDeath` -> info.foodless / info.consecFalls) and neither derived
+       here, for the reason `retreat` itself is not: the sheet and the server
+       must not be able to disagree about the fall that ended the run.
+       `retreatFoodless` falls back to the receipt's `hadFood` only when the
+       engine said nothing, and `=== false` is the test there because
+       `undefined` means nobody stated it. */
+    var retreatFoodless = (typeof d.retreatFoodless === 'boolean')
+      ? d.retreatFoodless : (d.hadFood === false);
+    var retreatFalls = Math.max(0, Math.floor(Number(d.retreatFalls) || 0));
 
     /* THE TIP RULE. Held-and-unused beats everything, because it is the only
        branch where the player already owned the answer — that is the most
@@ -398,14 +555,24 @@
          THAT first — "The Slime got you" describes a thing that already
          finished, and the sheet would then be silent about the only fact that
          governs their next tap. */
-      title: phase === 'pending'
+      /* ── THE RETREAT OVERRIDES BOTH (rev. 3), and it sits ABOVE the phase
+         ladder deliberately. A retreating fall is still "recovering" — its rung
+         was charged before the run ended — so without this the sheet would say
+         "Knocked out / Back on your feet in 3:47", which describes a player who
+         is about to carry on. They are not: the server has idled their pointer.
+         The ruling's own words: ENDED BY CHOICE is not the same as FAILED. */
+      title: retreat
+        ? 'You pulled back'
+        : (phase === 'pending'
         ? 'You fell'
         : (phase === 'unconfirmed'
           ? 'Still standing'
           : (recoverLeft > 0
             ? 'Knocked out'
-            : (monsterName ? 'The ' + monsterName + ' got you' : 'You fell'))),
-      lead: phase === 'pending'
+            : (monsterName ? 'The ' + monsterName + ' got you' : 'You fell')))),
+      lead: retreat
+        ? retreatLead({ foodless: retreatFoodless, falls: retreatFalls, msLeft: recoverLeft })
+        : (phase === 'pending'
         /* ⚠ THE WAIT IS NAMED, NEVER AN OPEN-ENDED SPINNER (P1, b511 live).
            The server floor is 60 s, so this sentence is on screen for up to a
            minute by design — and a player looking at "…" with no stated bound
@@ -428,12 +595,36 @@
             ? 'Back on your feet in ' + mmss(recoverLeft) + '.'
             : (nToday <= 1
               ? 'Your first fall today. Nothing is lost but a moment — here is what happened.'
-              : 'You have fallen ' + nToday + ' times today. Each one takes longer to shake off.'))),
+              : 'You have fallen ' + nToday + ' times today. Each one takes longer to shake off.')))),
       /* STATED on the model so the renderer can tell a re-render it must do
          (the phase moved) from one it must not (a second ticked by). */
       fallPhase: phase,
-      /* The renderer re-draws the lead from this every second. Stated rather
-         than re-derived there, so one function owns the arithmetic. */
+      /* STATED for the same reason `fallPhase` is: the renderer's 1 Hz tick
+         rewrites the lead, and it must not rewrite a retreat's lead into "Back
+         on your feet in 3:47" — that clock IS running, but the run it would
+         resume is over. `render` branches on this and redraws the retreat lead
+         through the same `retreatLead` this model used, so the minutes tick
+         down in the ruled words instead of being replaced by the wrong promise.
+         ⚠ THIS FLAG WAS STATED HERE IN rev. 3 AND NEVER READ. The comment
+           claimed the protection; the renderer's countdown only ever tested
+           `shown.until > 0`, which is > 0 on a retreat — so the ruled lead was
+           overwritten one second after the sheet opened. Fixed in `render`. */
+      retreat: retreat,
+      /* THE TWO FACTS THE LEAD IS BUILT FROM, restated on the model so the 1 Hz
+         redraw can rebuild the same sentence without re-deriving the rule. */
+      retreatFoodless: retreatFoodless,
+      retreatFalls: retreatFalls,
+      /* WHAT THE SERVER'S RECOVERY LINE STILL HAS TO RUN. Stated rather than
+         re-derived by the renderer, so one function owns the arithmetic.
+         ⚠ NO LONGER ZEROED ON A RETREAT (Designer ruling, 2026-09-07). rev. 3
+           suppressed it so the sheet could not promise a resume it would not
+           honour — but the ruling puts the clock ON the retreat sheet in words
+           ("Still recovering — 41m to go") precisely because the player needs
+           it: `hr_rest` is still the cure and the recovery is still real. The
+           thing that must not be promised is the RESUME, and that is what the
+           `retreat` flag above now actually suppresses. A model that says 0
+           while its own lead quotes 41 minutes is a model that disagrees with
+           itself. */
       recoverMsLeft: recoverLeft,
       deaths: deaths,
       rows: rows,
@@ -666,6 +857,26 @@
         return Math.max(0, Number(info && info.nextRecoverMs) || 0);
       })(),
       resumeHp: Math.max(0, Number(info && info.resumeHp) || Number(G.playerHp) || 0),
+      /* ── THE RETREAT (Recovery rev. 3) ──────────────────────────────────
+         STATED BY THE ENGINE and by nothing else. `info.retreat` is
+         `resolveDeath`'s own answer, computed from the durable server counter
+         (`G.consecFalls`, projected by hr_state_of) and the LIVE bag at the
+         instant of the fall — so the sheet cannot decide a player retreated on
+         a fall the server will price as an ordinary one.
+         ⚠ NO CLIENT FALLBACK, for the same reason `recoveringUntilMs` above has
+           none since the attended-death P0: re-deriving it here from a count
+           and a bag would be a second copy of the rule, and the second copy is
+           the one that is wrong. A boot-raised sheet (`show(null, null)`) has
+           no `info` and therefore never claims a retreat — which is right: by
+           then the server has idled the pointer and the combat screen says so. */
+      retreat: !!(info && info.retreat),
+      /* WHICH RUNG, AND HOW MANY FALLS — STATED BY THE ENGINE beside `retreat`
+         itself (`resolveDeath` returns `foodless` and `consecFalls` in the same
+         object) so the sheet's sentence names the rung the server charged. Both
+         omitted when there is no `info`, which is the same boot-raised case
+         `retreat` above is false for — so the lead they feed is unreachable. */
+      retreatFoodless: (info && typeof info.foodless === 'boolean') ? info.foodless : undefined,
+      retreatFalls: Math.max(0, Math.floor(Number(info && info.consecFalls) || 0)),
       /* What "Rest at the Hearth" costs, in health. The SERVER recomputes it
          under the row lock and this number never crosses back — it is a label. */
       missingHp: Math.max(0, (Number(G.playerMaxHp) || 0) - (Number(G.playerHp) || 0)),
@@ -943,8 +1154,14 @@
       if (!lead) { clearInterval(countdownTimer); countdownTimer = null; return; }
       if (!(shown && shown.until > 0)) return;     // nothing to count down
       var left = shown.until - Date.now();
-      if (left > 0) { lead.textContent = 'Back on your feet in ' + mmss(left) + '.'; return; }
-      lead.textContent = 'You are back on your feet.';
+      /* ONE DECISION, IN ONE PLACE (see `leadTick`). This line is the whole of
+         what the tick writes; everything it could have opinions about lives in
+         a function the suite can call without a clock. */
+      lead.textContent = leadTick(model, left);
+      /* THE HEADLINE FOLLOWS THE LEAD ONLY WHEN THE FIGHT ACTUALLY RESUMES. A
+         retreat keeps "You pulled back" for ever: the clock ran out, the run
+         did not come back with it. */
+      if (model.retreat || left > 0) return;
       var h2 = el.querySelector('.hr-death-top h2');
       if (h2) h2.textContent = model.title === 'Knocked out' ? 'Back up' : model.title;
     }, 1000);
@@ -1232,6 +1449,16 @@
   } catch (e) {}
 
   window.HearthriseDeathSheet = {
+    /* THE SHARED RECOVERY SENTENCE. src/features/home-dashboard.js renders the
+       away card's clock note with this exact function so the two surfaces
+       cannot word one fact two ways (Designer ruling, 2026-09-07). Exported
+       beside the model rather than hidden behind it: it is copy, and copy that
+       two files depend on is API. */
+    stillRecovering: stillRecovering,
+    /* THE 1 Hz TICK'S DECISION, as a pure function. A test seam and nothing
+       else: the renderer is the only production caller. It exists because the
+       branch it replaces was unreachable from any test (see leadTick). */
+    __leadTick: leadTick,
     describeDeath: describeDeath,
     show: show,
     maybeRaiseRecovery: maybeRaiseRecovery,

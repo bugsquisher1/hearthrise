@@ -92,7 +92,11 @@ import {
    `window.killMonster`. The attended top-up below pays a kill by CALLING IT —
    never by re-implementing a drop roll, a gold roll or a rarity flag. If you
    find yourself typing `m.drops` in this file, stop. */
-import { simulateSpan, resolveKill } from '../../../src/core/combat-sim.js';
+/* `COMBAT_STOP` is the THIRD stop table imported into this file, beside
+   skill-sim's `STOP_REASON` and artisan-sim's `ARTISAN_STOP`. Aliased on the
+   way in for the same reason those two are: three tables with one shape, and a
+   bare `STOP_REASON` in a 3,500-line file is a coin toss. */
+import { simulateSpan, resolveKill, STOP_REASON as COMBAT_STOP } from '../../../src/core/combat-sim.js';
 import { simulateSkillSpan, STOP_REASON, SKILL_ACTION_STAT } from '../../../src/core/skill-sim.js';
 /* The third simulation. `simulateArtisanSpan` runs the SAME `sliceSpan` the
    gather path runs, over the same `resolveArtisanAction` the live bench runs —
@@ -984,6 +988,16 @@ export function accrueRested({ nowMs, restedAtMs, restedXp, libraryCap }) {
  *                mechanic must never depend on a read that can silently answer
  *                "you have never died". Absent ⇒ 0 ⇒ the day's-first-fall
  *                grace, the UNDER-charging direction.
+ *   consecFalls  player_state.consec_falls — CONSECUTIVE falls with no kill
+ *                between them (Recovery rev. 3, THE RETREAT). Durable and
+ *                server-owned for exactly the reason `recovering_until` is
+ *                absolute: a per-window count would be re-zeroed by every ~90 s
+ *                settle and the third fall would never arrive.
+ *                **NULL means the column does not exist**; 0 means the column
+ *                exists and this character has killed something since their
+ *                last fall. Null ⇒ the engine omits `consec_falls` from the
+ *                delta and the counter never leaves 0, so `retreatAtFall` never
+ *                fires and the span is byte-for-byte pre-Retreat.
  *   fight        player_state.fight — the IN-FLIGHT FIGHT at `accrued_to`,
  *                `{ monster, hp, kills }` or `{}` for none. **NULL means the
  *                column does not exist yet**, the same self-configuring switch
@@ -1477,6 +1491,33 @@ export function computeAccrual(input) {
      depend on a read that can silently answer "you have never died". */
   state.deathsTodayBefore    = nat(inp.deathsTodayBefore, 0);
   state.deathsLifetimeBefore = nat(inp.deathsLifetimeBefore, 0);
+
+  /* ── THE RETREAT COUNTER, SEEDED FROM THE ROW (Recovery rev. 3) ──────────
+     `player_state.consec_falls` — consecutive falls with no kill between them,
+     as they stood when this window OPENED. It is a DURABLE SERVER COUNTER and
+     that is the entire point: a per-window count would be re-zeroed by every
+     ~90 s settle, so the third fall would never arrive and the rule would be
+     unreachable through ordinary play — the same defect shape `recovering_until`
+     was made absolute to avoid (R1), reached through a different door.
+
+     ⚠ SELF-CONFIGURING, exactly like recovering_until / fight / ammo_carry:
+       `inp.consecFalls === null` (or undefined) means THE COLUMN DOES NOT EXIST
+       on this database. The engine then never proposes `consec_falls` — an
+       unknown delta key is a 409 that costs the player their whole night — and,
+       because the counter starts and stays at 0, `retreatAtFall` never fires and
+       the span behaves byte-for-byte as it did before the Retreat shipped. The
+       column's presence IS the switch; there is no flag to forget to flip.
+       ⚠ Unlike `recovering_until` the column is `not null default 0`, so
+         `?? null` WOULD be a correct switch here. Presence-of-key is used anyway
+         so that all four self-configuring inputs read the same way at the call
+         sites (index.ts / set-activity.js, A14-mirrored) — one idiom, not two. */
+  const consecCol = inp.consecFalls !== null && typeof inp.consecFalls !== 'undefined';
+  /* `null`, NOT 0, for "no column" — and the difference is the whole safety
+     property. `resolveDeath` gates the entire Retreat on this field being a
+     number, so a 0 here would ARM the rule off a counter that lives only inside
+     one window; a null leaves the span byte-for-byte pre-Retreat. That is what
+     lets the Edge deploy and the migration land in either order. */
+  state.consecFalls = consecCol ? nat(inp.consecFalls, 0) : null;
 
   /* DID THE BAG HOLD ANY AUTO-EATABLE FOOD WHEN THE WINDOW OPENED?
      Derived HERE, at window start, from the SAME `chooseFood` inputs the
@@ -2003,6 +2044,24 @@ export function computeAccrual(input) {
       state.monsterHp = keepMonsterHp;
       state.monsterMaxHp = keepMonsterMaxHp;
       state.activeMonster = keepActive;
+      /* ⚠ `state.consecFalls` IS *NOT* RESTORED, AND THAT IS A DECISION (rev. 3).
+         `resolveKill` zeroes the retreat counter, so every top-up kill above has
+         already cleared it — and it is left cleared ON PURPOSE. `attClaimed` is
+         the server's OWN append-only record of attended kills it accepted and
+         clamped (hr_kill_credit_log, a table no client role may write), so it is
+         evidence of a kill inside this very window. Retreating a character the
+         server's own log says was winning is the one way this mechanic could
+         punish somebody for playing well.
+         SAFE IN BOTH DIRECTIONS: it can only ever make the counter SMALLER, i.e.
+         fewer retreats, and a retreat pays nothing — there is no economic
+         exploit in never triggering one, only a longer hopeless grind, which is
+         the state that existed before this build.
+         KNOWN LIMITATION, deliberate: the top-up carries no ORDERING, so a
+         window whose span retreated AND whose log holds kills still proposes the
+         retreat (the pointer idles once) while the counter comes back 0. The
+         player taps Fight and carries on; it is a single spurious sheet, not a
+         lock, and vetoing it here would be a second copy of the rule living
+         outside the one engine. */
     }
   }
 
@@ -2255,6 +2314,52 @@ export function computeAccrual(input) {
      pointer buys nothing but a catalogue lookup — AND, since 2026-08-17, VOIDS
      the in-flight fight unconditionally. */
   if (!state.activeMonster) delta.activity = { kind: 'idle', id: null };
+
+  /* ── THE RETREAT IDLES THE POINTER (Recovery rev. 3) ─────────────────────
+     THE SAME SEAM THE LEVEL GATE ALREADY USES, three hundred lines below:
+     `if (summary.stoppedBy === STOP_REASON.LEVEL) delta.activity = {kind:'idle',
+     id:null}`. The run ended, so the pointer must end with it — otherwise the
+     next settle re-opens the same hopeless fight and the Retreat is a pause
+     rather than a stop.
+
+     WHY THIS AND NOT `state.activeMonster = null` IN CORE. Nulling the pointer
+     inside `simulateSpan` would make the RETREAT indistinguishable from an
+     unknown monster, would fire on the ATTENDED tick as well (where the client
+     owns the pointer and a client-side pointer write is exactly the thing the
+     b510 attended-fall P0 was caused by), and would put a server-authority
+     decision in a file the client also runs. The engine STATES what happened;
+     this line is the server deciding what that means.
+
+     ⚠ AND IT IS AN `activity` KEY, WHICH STAMPS `accrued_to = now()`. That is
+       correct HERE and was catastrophic on the attended fall (b510): the retreat
+       is proposed by the settle that has ALREADY priced this window in the same
+       delta, so nothing is forfeited. It must never be proposed by a client.
+     ⚠ `recovering_until` is NOT voided by this key (migration §3e / self-check
+       (c)) — the retreating fall's rung stands. Pulling back is mercy, not
+       amnesty. */
+  if (summary.stoppedBy === COMBAT_STOP.RETREAT) delta.activity = { kind: 'idle', id: null };
+
+  /* ── THE RETREAT COUNTER (Recovery rev. 3) ───────────────────────────────
+     ABSOLUTE, not a delta — the fifth key in this contract that is, for the
+     reason `tool_carry` / `fight` / `ammo_carry` / `recovering_until` already
+     state: the engine computes the RESULTING counter from a starting one it was
+     handed, and adding two partial counts is arithmetic nobody defined.
+
+     ALWAYS SENT when the column exists, INCLUDING the 0 that means "this
+     character has just killed something". An absent key would leave a stale
+     count in place and a hero who fought their way out would still be carrying
+     two falls into their next run.
+
+     `if (consecCol)` is the self-configuring switch. hr_apply refuses an unknown
+     delta key with a 409 that costs the player the whole window, so a database
+     without the column must never see this key.
+
+     SERVER-DERIVED END TO END: the count comes from `resolveDeath` /
+     `resolveKill` running on server-owned state, hr_apply re-clamps it into
+     [0, c_max_consec_falls], and no client ever authors it. */
+  if (consecCol) {
+    delta.consec_falls = Math.max(0, Math.floor(Number(state.consecFalls) || 0));
+  }
 
   /* ── THE END-OF-WINDOW CHECKPOINT (Phase 0) ──────────────────────────────
      ABSOLUTE, not a delta — the second key in this contract that is, and for

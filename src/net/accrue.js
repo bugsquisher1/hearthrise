@@ -2358,10 +2358,25 @@ export function applyEnvelopeState(G, res, ownKey) {
   } catch (e) {}
   written.absolute = absolute;
 
-  /* THE RECOVERY LINE, THE PRICED WINDOW, THE DEATH COUNTERS AND THE
-     ANNOUNCEMENT — ONE READER, BOTH PATHS. See reconcileRecovery for the
-     idle-boot gap this closes. */
-  Object.assign(written, reconcileRecovery(G, res) || {});
+  /* THE PRICED WINDOW, OBSERVED - same KEY-PRESENCE rule; `accrued_to` answers
+     a pending fall (see `noteFallAnswer`). SITED HERE AND ONLY HERE, read
+     BEFORE `reconcileFall` exactly as it always was, and deliberately not
+     inside it: `bootAccruedToAt` is the welcome-back card's statement of the
+     absence, and letting the boot body write it first would move a number. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'accrued_to')) {
+    const a = st.accrued_to ? Date.parse(st.accrued_to) : 0;
+    if (Number.isFinite(a) && a > 0) {
+      accruedToAt = a; written.accruedTo = a;
+      if (!bootAccruedToAt) bootAccruedToAt = a;
+    }
+  }
+
+  /* WHERE THE CHARACTER STANDS - the recovery line, the death counters, the
+     retreat counter, the pending-fall answer and the announcement. ONE
+     implementation, shared with the BOOT hr_load path: applyEnvelopeState runs
+     only on `accrued:true` and a retreat always leaves the pointer idle, so the
+     one state the Retreat produces is the one the client would be blind to. */
+  Object.assign(written, reconcileFall(G, res) || {});
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
@@ -2943,80 +2958,49 @@ export function __resetServerAutoEat() {
    the exception can no longer launder a stale full bar through a whole fight.
 
    Returns a receipt fragment; never throws. */
-let lastServerHp = null;   /* {hp, maxHp, at} — the last hp the SERVER stated. */
-
-/** The last server-stated hp, or null if this session has never seen one.
- *  A copy; the observation is not the caller's to edit. */
-export function serverHp() {
-  return lastServerHp ? { hp: lastServerHp.hp, maxHp: lastServerHp.maxHp, at: lastServerHp.at } : null;
-}
-/** TEST-ONLY. Forget the observation. */
-export function __resetServerHp() { lastServerHp = null; return lastServerHp; }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   THE RECOVERY MIRROR — ONE READER, BOTH PATHS.
-
-   THE IDLE-BOOT HYDRATION CLASS, INSTANCE SIX (inventory, crew, hero slots,
-   hp, bank rungs, now the recovery mirror). `recovering_until`, `accrued_to`,
-   `deaths_today` and `deaths_lifetime` lived ONLY inside `applyEnvelopeState`,
-   which runs ONLY on an ACCRUED envelope — so an idle hero, whose boot answers
-   {accrued:false, reason:'idle'}, came up believing it was on its feet. None of
-   the four is residue or server-of-record, so there was no other source, and
-   `hrRefuseWhileRecovering` (which reads `hrCombatDownPeek`) was blind with it:
-   a tap started a local run the edge had already decided to refuse. Measured
-   live 2026-09-07 with the server line 11 minutes ahead.
-
-   Same shape as reconcileHp's fix: the apply is extracted VERBATIM and called
-   from record.js's boot settle too, so there is ONE reader of the server's
-   recovery statement and no second idea of when a character is down.
-
-   WHY THE ANNOUNCEMENT TRAVELS WITH THE READ. The `hearthrise:fall` dispatch
-   is part of the mirror, not part of the accrue path: it is what raises the
-   knocked-out sheet (death-sheet.js) and repaints the activity bar
-   (legacy.js), and both are exactly as owed after a reload as after a settle.
-   One-way, guarded, and the listeners own the once-per-window latch.
-
-   IT AUTHORS NOTHING AND PERSISTS NOTHING. Every value is read off the
-   envelope by KEY PRESENCE, the line is never decremented here, and a reload
-   starts from zero again — the whole point of exploit R1. Pure apart from the
-   module observations it exists to write; never throws.
-
-   @param G kept for signature symmetry with the other reconcilers (and so a
-          future G-facing mirror needs no caller edit); unused today.
-   @returns a receipt fragment. */
-export function reconcileRecovery(G, res) {
+/* ══════════════════════════════════════════════════════════════════════════
+   reconcileFall - WHERE THE CHARACTER STANDS, OFF ANY SERVER ENVELOPE.
+   ONE observer, TWO callers: `applyEnvelopeState` (the settle, the activity and
+   gold envelopes) and record.js's boot `hr_load` settle. Extracted verbatim, so
+   the two paths cannot develop two ideas of whether a player is on the floor.
+   THE MEASURED BUG THIS EXISTS FOR (RETREAT-A4). applyEnvelopeState only runs
+   on `accrued:true`, and a RETREAT leaves the activity pointer IDLE - so the
+   next boot is answered `{accrued:false, reason:'idle'}` and it never runs.
+   Measured against the real boot path with `recovering_until` 32 minutes ahead
+   and `consec_falls: 3`: the client came up `phase:'up'`, `G.consecFalls`
+   UNDEFINED and no sheet - 27 minutes earning nothing with no countdown and no
+   Rest button, reached through the IDLE-BOOT door instead of the reload door
+   RECOVER-11 closed, the FIFTH instance of the class record.js names. It bites
+   twice: no reason is given for the 5/13 HP, and the rule that just ended a
+   hopeless run forgets it did. The fix is the shape record.js prescribes for
+   the other four: route the always-full boot body through the SAME function.
+   ⚠ `accrued_to` IS DELIBERATELY NOT IN HERE. It feeds `bootAccruedToAt`, the
+     welcome-back card's statement of how long the player was away; moving its
+     first observation to the boot read would change a player-visible number
+     this change has no business touching. `noteFallAnswer` reads it, but only
+     when `fall.at` is set - which at boot it never is.
+   Returns a receipt fragment; never throws. */
+export function reconcileFall(G, res) {
   const st = (res && res.state) || {};
   const written = {};
-  /* ── THE RECOVERY LINE, OBSERVED (First-Night Idle Rescue) ────────────────
-     `player_state.recovering_until` — an ABSOLUTE server instant. Recorded off
-     every envelope and NEVER decremented here: a client-side countdown is a
-     number that survives a reload, and Recovery is precisely the thing that
-     must not (exploit R1). Renderers subtract it from the clock to draw and
-     compute nothing else from it.
-     ⚠ KEY PRESENCE, not truthiness. `null` means "this character is up" and
-       must CLEAR the stored line; an ABSENT key means an older server and must
-       leave it alone, or a mixed-deploy window would show a stale knockout. */
+
+  /* THE RECOVERY LINE, OBSERVED - `player_state.recovering_until`, an ABSOLUTE
+     server instant, recorded off every envelope and NEVER decremented here: a
+     client-side countdown survives a reload and Recovery is precisely the thing
+     that must not (exploit R1). Renderers subtract it from the clock to draw.
+     ⚠ KEY PRESENCE, not truthiness. `null` means "up" and must CLEAR the stored
+       line; an ABSENT key means an older server and must leave it alone, or a
+       mixed-deploy window would show a stale knockout. */
   if (st && Object.prototype.hasOwnProperty.call(st, 'recovering_until')) {
     const t = st.recovering_until ? Date.parse(st.recovering_until) : 0;
     recoveringUntil = (Number.isFinite(t) && t > 0) ? t : 0;
     written.recoveringUntil = recoveringUntil;
   }
 
-  /* ── THE PRICED WINDOW AND THE DEATH COUNTERS, OBSERVED ───────────────
-     Same KEY-PRESENCE rule the recovery line above follows, for the same
-     reason: an ABSENT key is an older server and must leave the reading alone,
-     while a present one is the truth. `accrued_to` is what answers a pending
-     fall (see `noteFallAnswer`); `deaths_today` / `deaths_lifetime` are what
-     the death sheet renders instead of re-deriving a ladder rung from
-     `G.stats.deaths`, which is a lifetime tally and produced a two-minute
-     promise on a fall the server charged nothing for. */
-  if (st && Object.prototype.hasOwnProperty.call(st, 'accrued_to')) {
-    const a = st.accrued_to ? Date.parse(st.accrued_to) : 0;
-    if (Number.isFinite(a) && a > 0) {
-      accruedToAt = a; written.accruedTo = a;
-      if (!bootAccruedToAt) bootAccruedToAt = a;
-    }
-  }
+  /* THE DEATH COUNTERS, OBSERVED - same KEY-PRESENCE rule, same reason.
+     `deaths_today` / `deaths_lifetime` are what the death sheet renders instead
+     of re-deriving a ladder rung from `G.stats.deaths`, a lifetime tally that
+     produced a two-minute promise on a fall the server charged nothing for. */
   if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
     const n = Math.floor(Number(st.deaths_today));
     deathsTodayCount = (Number.isFinite(n) && n >= 0) ? n : 0;
@@ -3027,24 +3011,48 @@ export function reconcileRecovery(G, res) {
     deathsLifetimeCount = (Number.isFinite(n) && n >= 0) ? n : 0;
     written.deathsLifetime = deathsLifetimeCount;
   }
-  /* AFTER all three, because the answer is a function of every one of them. */
+  /* THE RETREAT COUNTER, OBSERVED - consecutive falls with no kill between them.
+     Written straight onto `G`, not a module-local: `G` IS the state the live
+     tick hands to `resolveDeath`, so this assignment is what makes the ATTENDED
+     path evaluate the same rule the away path does.
+     ⚠ KEY PRESENCE. `resolveDeath` gates the ENTIRE Retreat on this being a
+       NUMBER, so an ABSENT key must leave `G.consecFalls` undefined - inventing
+       a 0 arms a client rule against a database that cannot back it, pointed at
+       a mechanic that STOPS the player. PREDICTION ONLY: the next envelope
+       overwrites it with the server's number. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'consec_falls')) {
+    const n = Math.floor(Number(st.consec_falls));
+    const v = (Number.isFinite(n) && n >= 0) ? n : 0;
+    if (G && typeof G === 'object') G.consecFalls = v;
+    written.consecFalls = v;
+  }
+  /* AFTER all three: a no-op unless the CLIENT saw itself fall this session
+     (`fall.at`), which on the boot path it never has. */
   noteFallAnswer(res);
-
-  /* ── THE FALL IS ANNOUNCED, ONCE PER ENVELOPE (2026-09-06, boot-raise P1) ──
-     The sheet was never broken; its only trigger was the fall MOMENT in the
-     live tick, and a reload has no such moment — so a reloaded character with
-     27 minutes still to serve got a normal activity bar and no countdown.
-     A one-way NOTIFICATION, not a call: this module must not know the death
-     sheet exists, and a listener that throws must not be able to poison an
-     envelope apply. The listener owns the once-per-window rule. */
+  /* THE ANNOUNCEMENT. Measured live: a character with `recovering_until` 27
+     minutes ahead RELOADED and got a normal "Fighting Goblin" bar - no sheet,
+     no countdown, no Rest button. The sheet was never broken; its only trigger
+     was the fall MOMENT in the live tick, and a reload has no such moment.
+     One-way: a listener that throws must not poison an envelope apply. */
   try {
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
         && typeof CustomEvent === 'function') {
       window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
     }
   } catch (e) {}
+
   return written;
 }
+
+let lastServerHp = null;   /* {hp, maxHp, at} — the last hp the SERVER stated. */
+
+/** The last server-stated hp, or null if this session has never seen one.
+ *  A copy; the observation is not the caller's to edit. */
+export function serverHp() {
+  return lastServerHp ? { hp: lastServerHp.hp, maxHp: lastServerHp.maxHp, at: lastServerHp.at } : null;
+}
+/** TEST-ONLY. Forget the observation. */
+export function __resetServerHp() { lastServerHp = null; return lastServerHp; }
 
 export function reconcileHp(G, res) {
   if (!G || typeof G !== 'object') return null;
@@ -3594,6 +3602,17 @@ export function summaryFromAway(away, res) {
        that met the novice clamp or the 64-minute cap. */
     recoverLadder: Array.isArray(a.recoverLadder)
       ? a.recoverLadder.map((v) => Math.max(0, Number(v) || 0)) : [],
+    /* THE RETREAT's pass-through fields. Nothing is inferred, and `retreatMs`
+       stays `null` rather than 0 when the server stated none, because 0 means
+       "on the very first tick" and a truthiness test would render the worst
+       night as a clean one (the `dryMs` trap). `retreatFoodless` is the bag AT
+       THE FALL, deliberately not `autoEat.hadFood` (window-open). */
+    retreatMs: Number.isFinite(Number(a.retreatMs)) ? Math.max(0, Number(a.retreatMs)) : null,
+    retreatFoodless: !!a.retreatFoodless,
+    retreatFalls: Math.max(0, Number(a.retreatFalls) || 0),
+    /* The slice of the credited window that paid nothing because the hero had
+       already gone home. 0 on every night that did not retreat. */
+    idleMs: Math.max(0, Number(a.idleMs) || 0),
     capped: !!a.capped,
     blessed: !!a.blessed,
     buffsPaused: !!a.buffsPaused,
@@ -3946,7 +3965,10 @@ export function receiptRecoveryClause(summary, opts) {
   const o = opts || {};
   const s = summary || {};
   const deaths = Math.max(0, Number(s.deaths) || 0);
-  if (deaths < 1 || s.stoppedBy === 'death') return null;
+  /* ⚠ AND SILENT ON A RETREAT. "your run picked up each time" is rev. 2's
+     headline promise and it is FALSE of a night the hero ended by going home;
+     the retreat has its own sentence, one author (HearthriseHome). */
+  if (deaths < 1 || s.stoppedBy === 'death' || s.stoppedBy === 'retreat') return null;
   const foeName = (typeof o.foeLabel === 'function') ? o.foeLabel(s.diedTo) : null;
   const foe = foeName ? (' to the ' + foeName) : '';
   const recMs = Math.max(0, Number(s.recoverMs) || 0);
@@ -4722,7 +4744,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileRecovery, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

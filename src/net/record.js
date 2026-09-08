@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp, reconcileRecovery, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=521';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=521';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1700,33 +1700,32 @@ function settle(verdict) {
          preserved by uid). */
       reconcileWorkers(G, verdict.body);
     });
-    /* ── THE RECOVERY MIRROR, HYDRATED FROM THE SAME ENVELOPE ─────────
-       INSTANCE SIX OF THE IDLE-BOOT HYDRATION CLASS (inventory, crew, hero
-       slots, bank rungs, hp, now `recovering_until` + `accrued_to` + the death
-       counters). The whole recovery mirror lived ONLY in accrue.js's
-       applyEnvelopeState, which runs ONLY on `accrued:true`; an idle boot
-       answers {accrued:false, reason:'idle'} and NOTHING read the line. None of
-       the four fields is residue or server-of-record, so there was no other
-       source — measured live 2026-09-07: `recovering_until` 11 minutes ahead on
-       the server, `isKnockedOut()` false on the client after the reload, so a
-       tap started a local run the edge had already decided to refuse. The body
-       carries all four keys (hr_state_of), so it goes through the SAME shared
-       reader the accrue path uses.
-
-       ⚠ ORDER MATTERS, AND IT IS NOT NEXT TO 'hp'. reconcileRecovery
-         dispatches `hearthrise:fall`, which RAISES the knocked-out sheet
-         synchronously. That sheet reads hp/max_hp (`missingHp`, the cost of
-         Rest) AND `G.inventory` (`hadFood`, which decides whether Rest is
-         offered or reads "No food to rest with"). Raised before the bag
-         hydrates, a player holding food would be told they have none. So this
-         runs AFTER 'hp' and AFTER 'inventory+bank+workers' — the sheet is
-         raised against a hydrated character or not at all.
-
+    /* THE RECOVERY MIRROR, HYDRATED FROM THE SAME ENVELOPE - instance six of
+       the idle-boot hydration class (inventory, crew, hero slots, bank rungs,
+       hp, now `recovering_until`, the death counters and the Retreat's durable
+       `consec_falls`). The mirror lived ONLY in accrue.js's applyEnvelopeState,
+       which runs ONLY on `accrued:true`; an idle boot answers {accrued:false,
+       reason:'idle'} and NOTHING read the line. No field here is residue or
+       server-of-record, so there was no other source - measured live with
+       `recovering_until` 11 minutes ahead and `isKnockedOut()` false after the
+       reload, and again for the Retreat with `consec_falls: 3` coming back
+       UNDEFINED, so the rule that ended a hopeless run forgot it had.
+       ORDER MATTERS, AND IT IS NOT NEXT TO 'hp'. reconcileFall dispatches
+         `hearthrise:fall`, which RAISES the knocked-out sheet synchronously.
+         That sheet reads hp/max_hp (the cost of Rest) AND `G.inventory` (which
+         decides whether Rest is offered), so raised before the bag hydrates a
+         player holding food is told they have none. Runs AFTER 'hp' and
+         'inventory+bank+workers' or not at all.
+       `accrued_to` IS DELIBERATELY NOT IN `reconcileFall` - it feeds the
+         welcome-back card's statement of how long the player was away, and
+         moving its first observation here would change a player-visible number
+         this seam does not own. It does not touch the activity pointer either:
+         the server idled that, and `activity-resume` below no-ops on an idle
+         answer, which keeps a retreat from restarting the fight it just ended.
        IDEMPOTENT on a non-idle boot, where applyEnvelopeState also runs it:
-       every field is an absolute read of the same server statement, and the
-       sheet's raise latch (`raisedForUntil`) makes the second announcement a
-       no-op for the same window. Guarded — a throw must never break the load. */
-    hydrationStep('recovery', () => reconcileRecovery(G, verdict.body));
+       every field is an absolute read of the same server statement and the
+       sheet's raise latch makes the second announcement a no-op. Guarded. */
+    hydrationStep('fall', () => reconcileFall(G, verdict.body));
     /* ── HYDRATE THE OWNED HERO SLOTS FROM THE SAME ENVELOPE (SA-016). ───────────
        THE THIRD INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
        crew, now hero slots). reconcileHeroSlots existed and was called ONLY from

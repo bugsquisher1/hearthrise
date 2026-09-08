@@ -533,12 +533,49 @@
      the same seam, but it already owns richer copy above (who killed you).
      One reason, one line. A future reason — a full bank, a despawn — is a new
      row in COPY below and nothing else. */
+  /* "3" -> "three". The rung is DATA (`RETREAT_FOODLESS_FALLS` /
+     `RETREAT_ANY_FALLS`, away.js), so the word is looked up from the number the
+     engine charged; an unknown number falls back to the digit. */
+  var NUM_WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+    'eight', 'nine', 'ten', 'eleven', 'twelve'];
+  function numWord(n) {
+    var i = Math.max(0, Math.floor(Number(n) || 0));
+    return NUM_WORD[i] || String(i);
+  }
+  /* "2h 14m" / "45s" - HOW FAR INTO THE NIGHT. ⚠ NOT `fmtSince`: `fmtSpanShort`
+     DROPS a remainder under five minutes, right for the featured-boss stretch
+     and wrong here, where the number IS the fact. Minutes are zero-padded. */
+  function fmtInto(ms) {
+    var n = Math.max(0, Number(ms) || 0);
+    if (n < 60000) return Math.max(1, Math.round(n / 1000)) + 's';
+    var mins = Math.floor(n / 60000);
+    if (mins < 60) return mins + 'm';
+    var h = Math.floor(mins / 60), m = mins % 60;
+    return m ? (h + 'h ' + (m < 10 ? '0' : '') + m + 'm') : (h + 'h');
+  }
   var STOP_COPY = {
     supplies: function (s) {
       return s.skill + ' ran out of ' + s.what + ' ' + fmtSince(s.paidMs) + ' in'
         + (s.restMs >= 60000
             ? ' — the remaining ' + fmtSpanShort(s.restMs) + ' paid nothing.'
             : ' — nothing was earned after that.');
+    },
+    /* THE RETREAT - TWO SENTENCES, because the rungs answer two questions:
+       three foodless falls means "bring provisions"; six falls whatever you
+       carried means "this target is wrong for you". Every number is STATED by
+       the simulation, so the row cannot promise a rung nobody charges. */
+    retreat: function (s) {
+      if (s.foodless) {
+        return 'You ran out of food and fell ' + numWord(s.falls) + ' times in a row, so you '
+          + 'pulled back to camp ' + fmtInto(s.atMs) + ' in. The rest of the night was rest — '
+          + 'bring provisions before the next hunt.';
+      }
+      var foe = s.foe ? (' to the ' + s.foe) : '';
+      /* Sentence-leading, so the count is capitalised here and nowhere else. */
+      var word = numWord(s.falls);
+      return word.charAt(0).toUpperCase() + word.slice(1) + ' falls in a row' + foe + ', so you '
+        + 'pulled back to camp ' + fmtInto(s.atMs) + ' in. It is out of your league for now — '
+        + 'try a softer target or better gear.';
     },
   };
   function awayStop(off) {
@@ -549,6 +586,14 @@
     var paidMs = Math.max(0, Number(off.paidMs) || 0);
     var id = off.stoppedById || null;
     var sk = off.stoppedSkill || null;
+    var M = window.MONSTERS;
+    var foeId = off.diedTo || null;
+    /* ⚠ `retreatMs` IS TESTED FOR NULL, NEVER FOR TRUTH. Zero means "pulled back
+       on the very first tick", the single most important night this row can
+       describe; a truthiness check would fall back to `paidMs` and quote a span
+       nobody ran. */
+    var atMs = (typeof off.retreatMs === 'number' && isFinite(off.retreatMs) && off.retreatMs >= 0)
+      ? off.retreatMs : paidMs;
     return {
       by: by,
       paidMs: paidMs,
@@ -556,6 +601,12 @@
       what: (id && window.ITEMS && window.ITEMS[id] && window.ITEMS[id].n) || 'materials',
       skill: (sk && window.SKILLS_DEF && window.SKILLS_DEF[sk] && window.SKILLS_DEF[sk].name) || 'Your run',
       perHour: Math.max(0, Number(off.stoppedPerHour) || 0),
+      /* THE RETREAT'S OWN FACTS, defaulting to the UNDER-claiming values: a
+         receipt predating rev. 3 states no rung and no span. */
+      atMs: atMs,
+      falls: Math.max(0, Number(off.retreatFalls) || 0),
+      foodless: !!off.retreatFoodless,
+      foe: (foeId && M && M[foeId] && M[foeId].name) || null,
     };
   }
 
@@ -588,7 +639,12 @@
            i.e. the death landed in the last minute of the window).
        See docs/design/away-time-ruling.md §"Player-facing honesty". */
     var death = awayDeath(off);
-    if (death) {
+    /* THE RETREAT OWNS THE WHOLE STORY - a retreat night MUST NOT print the
+       death block too. Both are about the same falls and contradict each other:
+       the death block ends "your run picked up each time" while the retreat row
+       says the hero went home. "Still recovering" survives regardless. */
+    var retreat = off && off.stoppedBy === 'retreat';
+    if (death && !retreat) {
       var awayMs = (typeof off.awayMs === 'number' && isFinite(off.awayMs) && off.awayMs > 0)
         ? off.awayMs : Math.max(0, off.hrs || 0) * 3600000;
       var restMs = death.afterMs > 0 ? Math.max(0, awayMs - death.afterMs) : 0;
@@ -662,14 +718,21 @@
          is the durable surface that owes both. */
       if (why) t += ' ' + why.sentence;
       notes.push({ tone: 'bad', icon: 'uiSkull', text: t });
-      /* STILL DOWN. Without this the card describes a character who is up and
-         fighting while the server will refuse their next swing — and this is
-         the DURABLE surface, still readable after the modal has been dismissed.
-         STATED only: no `recoverRemainingMs`, no claim. */
-      var recLeft = Math.max(0, Number(off.recoverRemainingMs) || 0);
-      if (recovered && recLeft > 0) {
-        notes.push({ tone: 'bad', icon: 'uiClock',
-          text: 'Still recovering — ' + fmtSince(recLeft) + ' to go.' });
+    }
+    /* STILL DOWN - without this the card describes a character who is up while
+       the server will refuse their next swing, on the DURABLE surface.
+       ⚠ HOISTED OUT OF THE DEATH BLOCK so a RETREAT night keeps it: that fall
+         charged its rung like any other. */
+    var recLeft = Math.max(0, Number(off.recoverRemainingMs) || 0);
+    if (recLeft > 0 && (retreat || (death && Math.max(0, Number(off.deaths) || 0) >= 1
+                                    && off.stoppedBy !== 'death'))) {
+      /* ⚠ ONE AUTHOR FOR THIS SENTENCE - the death sheet prints the same clock
+         line, so it is composed by `HearthriseDeathSheet.stillRecovering` and
+         by nothing here. It loads FIRST, so this cannot race it; if it failed
+         to load the degradation is to say NOTHING, never a second version. */
+      var DS = window.HearthriseDeathSheet;
+      if (DS && typeof DS.stillRecovering === 'function') {
+        notes.push({ tone: 'bad', icon: 'uiClock', text: DS.stillRecovering(recLeft) });
       }
     }
     /* ── b345: THE RUN THAT STOPPED, on the same durable surface and for the
@@ -1731,6 +1794,15 @@
      seconds in" stayed unsaid for a whole build. A renderer that no test can
      quote is a renderer that will lie again. It takes a summary and returns
      HTML; it touches nothing. */
+  /* ONE SENTENCE, TWO SURFACES: the durable away card (here) and the
+     welcome-back modal (legacy.js), verbatim in both - `supplies` above is the
+     cautionary precedent, existing THREE times and already drifted. Returns
+     null when there was no retreat, never a fabricated cause. */
+  function retreatSentence(off) {
+    if (!off || off.stoppedBy !== 'retreat') return null;
+    var s = awayStop(off);
+    return s ? STOP_COPY.retreat(s) : null;
+  }
   /* `__firstDayModel` / `__firstDayHtml` are TEST SEAMS for the same reason
      `__awayCardHtml` is one: a card whose whole job is telling a new player
      what their first day is has to be quotable by the suite without booting a
@@ -1742,6 +1814,7 @@
     __awayBankingRow: awayBankingRow,
     __firstDayModel: firstDayModel,
     __firstDayHtml: firstDayHtml,
+    retreatSentence: retreatSentence,
   };
   console.log('[home-dashboard] loaded');
 })();

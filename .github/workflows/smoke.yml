@@ -350,6 +350,45 @@ jobs:
           node tests/apply-order-honesty.mjs
           node tests/apply-order-honesty.mjs --selftest
 
+      # AND DOES THE MIGRATION'S VALIDATION ACTUALLY *RUN*?
+      # 2026-09-07-retreat.sql adds player_state.consec_falls and teaches hr_apply
+      # to allowlist, validate and write it. Its own §4 self-check is strong, but it
+      # proves the validation BY strpos — it asserts that the strings
+      # 'bad_consec_falls' and 'v_consec <> trunc(v_consec)' appear in the installed
+      # body. Text is not behaviour: a body can carry every one of those markers in
+      # a branch that never runs, and §4 reports success. This repo has shipped a
+      # guard that asserted nothing twelve times and they all had that shape.
+      #
+      # So this replays the REAL ordered chain and CALLS hr_apply as the engine
+      # role with each value a buggy engine or an attacker would send: 2.5, -1, 65,
+      # the string "3", null, true and 1e30 are each refused as bad_consec_falls
+      # with the column UNMOVED (a rejection has to roll back, not merely report);
+      # 0 — a kill's reset, which IS the rule — and 64, the blast radius, are
+      # admitted and written; the retreat delta (counter + idle pointer) applies as
+      # ONE write; an ACTIVITY key does not void the counter, which is the exploit
+      # that bites hardest here because every retreat carries one; an unknown delta
+      # key is still refused; hr_state_of projects the column; no client role holds
+      # EXECUTE and a real call as `authenticated` is refused 42501; and a second
+      # apply of the file leaves both bodies byte-identical with exactly one CHECK
+      # constraint (it patches bodies that are ten patches deep — a double-apply
+      # would be a silent corruption of the engine).
+      #
+      # --selftest plants two defects in the REAL migration text, both chosen
+      # because they APPLY CLEAN: the range predicate loses its ceiling arm (65 is
+      # admitted by the function and only the table CHECK stops it) and the type
+      # predicate is disarmed (a client-shaped STRING writes a server counter).
+      # Neither is covered by §4, which is exactly why an EXECUTED guard has to be.
+      # Per C4, base AND selftest: a selftest-only registration cannot tell a
+      # broken migration from a working guard.
+      #
+      # No credentials; production untouched. Measured 2026-09-07: 1 s base + 2 s
+      # selftest on the shared PGlite snapshot, so the 12-minute budget is unmoved.
+      - name: Retreat apply — hr_apply's consec_falls validation, by execution
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/retreat-apply.mjs
+          node tests/retreat-apply.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that

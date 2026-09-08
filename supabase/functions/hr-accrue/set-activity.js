@@ -791,6 +791,14 @@ export async function collectCurrentWindow(o) {
        Mirrors set-activity.js field for field (A14). */
     deathsTodayBefore:    Number(st.deaths_today) || 0,
     deathsLifetimeBefore: Number(st.deaths_lifetime) || 0,
+    /* THE RETREAT COUNTER (Recovery rev. 3) — and this call site matters as much
+       as the accrue one: a COLLECT that forgot the counter would price the
+       window from a fresh 0, so "switch to fishing, switch back" would clear two
+       falls and the third would never arrive. That is the R2 shape (a switch
+       curing a cost) reached through the retreat instead of through the clock.
+       Presence-of-key — see the field's note in index.ts.
+       Mirrors index.ts field for field (A14). */
+    consecFalls: ('consec_falls' in st) ? (Number(st.consec_falls) || 0) : null,
     /* THE WEAPON ENCHANT (ELEMENTS v1). Read-only input to
        `equipmentStats(equipment, items, enchant)`, so a collect and an accrue
        over the same window price the element identically. `|| {}` is safe (no

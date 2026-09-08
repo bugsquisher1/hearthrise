@@ -785,6 +785,16 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          Mirrors set-activity.js field for field (A14). */
       deathsTodayBefore:    Number(st.deaths_today) || 0,
       deathsLifetimeBefore: Number(st.deaths_lifetime) || 0,
+      /* THE RETREAT COUNTER (Recovery rev. 3). `player_state.consec_falls` —
+         consecutive falls with no kill between them, written ONLY by hr_apply
+         from the engine's own proposal. Presence-of-key, not `?? null`: the
+         column is `not null default 0` so `??` would work, but all four
+         self-configuring inputs read the same way here on purpose — one idiom
+         at the call site, not two. Absent column ⇒ absent key ⇒ null ⇒ the
+         engine omits `consec_falls` and no character ever retreats, which is
+         byte-for-byte the pre-Retreat behaviour.
+         Mirrors set-activity.js field for field (A14). */
+      consecFalls: ('consec_falls' in st) ? (Number(st.consec_falls) || 0) : null,
       /* THE WEAPON ENCHANT (ELEMENTS v1). `{ <equip_slot>: <element> }` from
          hr_state_of, or `{}` when the column is absent. Unlike tool_carry/fight
          it is a READ-ONLY input to `equipmentStats(equipment, items, enchant)` —
@@ -1349,6 +1359,35 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         recoverLadder: Array.isArray(out.summary.recoverLadder)
           ? out.summary.recoverLadder.map((v: any) => Math.max(0, Math.floor(Number(v) || 0)))
           : [],
+        /* ── THE RETREAT ROWS (Recovery Rule rev. 3) ────────────────────────
+           `stoppedBy` above already carries 'retreat' — these three are what
+           turn it into a sentence, and every one of them is STATED by
+           src/core/combat-sim.js rather than inferred here:
+             retreatMs        ms INTO the credited window at which the hero
+                              pulled back. `null` (never 0) when there was no
+                              retreat, because ZERO means "on the very first
+                              tick" and a renderer testing truthiness would
+                              report the worst possible night as a good one —
+                              the same trap `dryMs` carries.
+             retreatFoodless  was the bag empty AT THAT FALL? It decides WHICH
+                              of the two ruled sentences the player reads
+                              ("bring provisions" vs "out of your league"), and
+                              it is NOT `autoEat.hadFood`, which is a
+                              window-OPEN snapshot and belongs to a different
+                              sentence.
+             retreatFalls     the consecutive-fall count that tripped it, so the
+                              copy cannot promise a rung the table no longer
+                              charges.
+           `idleMs` rides with them: the slice of the credited window that paid
+           NOTHING because the hero had already gone home. Without it the card
+           has to subtract two numbers whose flooring it does not own, which is
+           exactly the inference b341 forbids. */
+        retreatMs: (out.summary.stoppedBy === 'retreat'
+                    && Number.isFinite(Number(out.summary.retreatMs)))
+          ? Math.max(0, Math.floor(Number(out.summary.retreatMs))) : null,
+        retreatFoodless: !!out.summary.retreatFoodless,
+        retreatFalls: Math.max(0, Math.floor(Number(out.summary.retreatFalls) || 0)),
+        idleMs: Math.max(0, Math.floor(Number(out.summary.idleMs) || 0)),
         blessed: out.summary.blessed,
         buffsPaused: out.summary.buffsPaused,
         featuredMs: out.summary.featuredMs,

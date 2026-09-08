@@ -378,17 +378,11 @@ const ROOMS={
      same grammar — larger than a speed rung because a proc fires rarely and is
      felt weakly, which is the same reasoning the duration column uses.
 
-     b521 (Designer ruling 1b, 2026-09-07): with the Forge/Workshop PERMISSION
-     gate gone, each room needs its identity mechanic from the rung a player
-     actually buys, not from a tier-3 rung most accounts never see. So
-     yield_smithing and craftSave now ladder on the Garden's shape,
-
-       Forge yield_smithing / Workshop craftSave   1 / 2 / 4 / 6 / 8%
-
-     starting at rung 1. The TOP is unchanged at 8% — the b227 power budget the
-     suite asserts is untouched — and no rung is devalued: L4 rises 4 → 6.
-     Kitchen yield_cooking keeps 4 / 8, because the Kitchen already sells its
-     identity (noBurn) from rung 1 and needs no rebase.
+     Designer ruling (2026-09-07): with the Forge/Workshop permission gate gone,
+     each room's identity mechanic ladders from rung 1 on the Garden's shape —
+     yield_smithing / craftSave 1 / 2 / 4 / 6 / 8% — top unchanged at 8% (the
+     asserted power budget), L4 rises 4 → 6; Kitchen keeps 4 / 8 (it already
+     sells noBurn from rung 1).
 
      Power budget (spec §6/H2) as retuned, which the smoke suite asserts:
      allXP +5% (Library L5 — and it does not move again at any rung), combatXP

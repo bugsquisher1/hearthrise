@@ -1374,7 +1374,10 @@ const snapshotG = () => {
        pollution this list exists to prevent. */
     traits: G.traits,
     foodSlot: G.foodSlot,
+    autoEatPct: G.autoEatPct,
     lastSeen: G.lastSeen,
+    lastWelcome: G.lastWelcome || 0,   // a forgotten restore re-opens a dismissed card
+
     /* b345: the BESTIARY, and the reason is worth stating because it caught a
        real cross-test failure the moment a test finally killed a boss.
        `killMonster` stamps `G.bestiary[id] = {kills, firstKill}` (legacy.js),
@@ -1519,6 +1522,30 @@ const restoreG = (snap) => {
 const restoreGAndRecord = (snap) => {
   restoreG(snap);
   try { stampRecordLikeLoad(window.G); } catch (e) {}
+};
+
+/* nightWorld — ONE FIXTURE FOR THE RITUAL, NOT ONE PER TEST. Seventeen `G.x =`
+   writes across the NIGHT- tests were one world stated seventeen times. Stated
+   once, it ENDS THE WAY A BOOT ENDS — pushed through the REAL
+   `applyRecord` (`stampRecordLikeLoad`'s shaped `hr_load` envelope), so the
+   forecast reads `server` fields, not fail-closed UNKNOWN: a stubbed load is an
+   ENVELOPE, not a seed. Stands the character up (`onFeet`) and COPIES the bag. */
+const nightWorld = (o) => {
+  const G = window.G, w = o || {};
+  G.activeMonster = w.foe || null;
+  G.activeSkill = w.skill || null;
+  G.skillTargetId = w.target || null;
+  G.inventory = Object.assign({}, w.inventory || {});
+  G.monsterHp = G.monsterMaxHp = 0;
+  G.playerMaxHp = G.playerHp = 30;
+  if (w.food) {
+    G.foodSlot = w.food;
+    G.traits = Object.assign({}, G.traits, { auto_eat: 1 });
+    try { window.HearthriseAuto.setEat({ enabled: true, foodId: w.food }); } catch (e) {}
+  }
+  onFeet();
+  try { stampRecordLikeLoad(G); } catch (e) {}
+  return G;
 };
 
 /* ── b227 type-floor helpers (used by guards 19a-19e, far below) ──────────
@@ -8354,8 +8381,7 @@ const TESTS = [
     assert(M.backendActive() === false || !!window.HearthriseAuth, 'backendActive only with auth');
     // signed-out: seeding still allowed (dev), listing flow still local + sync
     const G = window.G;
-    const savedInv = JSON.parse(JSON.stringify(G.inventory || {}));
-    const savedGold = G.gold;
+    const snap = snapshotG();
     try {
       G.inventory.normal_log = (G.inventory.normal_log || 0) + 5;
       const r = M.listItem('normal_log', 5, 3);
@@ -8366,7 +8392,7 @@ const TESTS = [
       const l = all.filter(x => x.itemId === 'normal_log').slice(-1)[0];
       if (l) M.cancelListing(l.id);
     } finally {
-      G.inventory = savedInv; G.gold = savedGold;
+      restoreGAndRecord(snap);
     }
   }),
   () => tryRun('b216: the light theme never paints under the dark theme', () => {
@@ -10592,7 +10618,10 @@ const TESTS = [
     // ensureShape (via HearthriseAuto) carries it over to G.autoActions.eat.
     assert(window.HearthriseAuto && typeof window.HearthriseAuto.getEat === 'function', 'HearthriseAuto.getEat missing');
     const G = window.G;
-    const savedAA = G.autoActions, savedFS = G.foodSlot, savedPct = G.autoEatPct;
+    /* `autoEatPct` was unsnapshotted — a throw past its hand-rolled restore wrote
+       a fixture threshold into the player's auto-eat config. */
+    const snap = snapshotG();
+    const savedAA = G.autoActions;
     try {
       delete G.autoActions;
       G.foodSlot = 'shrimp';
@@ -10603,7 +10632,7 @@ const TESTS = [
       assert(Math.abs((eat.threshold || 0) - 0.4) < 1e-9, 'migrated threshold should be 0.4, got ' + eat.threshold);
     } finally {
       if (savedAA === undefined) delete G.autoActions; else G.autoActions = savedAA;
-      G.foodSlot = savedFS; G.autoEatPct = savedPct;
+      restoreG(snap);
     }
   }),
   // gold-arm: claimMilestone credits gold via clientMayWriteRecordField (a
@@ -48363,14 +48392,7 @@ const TESTS = [
     try {
       const foe = (window.MONSTERS && window.MONSTERS.slime) ? 'slime'
         : Object.keys(window.MONSTERS || {})[0];
-      G.activeMonster = foe;
-      G.activeSkill = null; G.skillTargetId = null;
-      G.playerMaxHp = 30; G.playerHp = 30;
-      G.monsterHp = 0; G.monsterMaxHp = 0;
-      G.inventory = { cooked_shrimp: 107 };
-      G.foodSlot = 'cooked_shrimp';
-      G.traits = Object.assign({}, G.traits, { auto_eat: 1 });
-      try { window.HearthriseAuto.setEat({ enabled: true, foodId: 'cooked_shrimp' }); } catch (e) {}
+      nightWorld({ foe, inventory: { cooked_shrimp: 107 }, food: 'cooked_shrimp' });
 
       /* THE PROPERTY THAT MATTERS MOST. A forecast is eight hours of the live
          combat engine; if it ran against the real save it would hand the
@@ -48429,12 +48451,8 @@ const TESTS = [
       + 'without that this test would be asserting the wrong branch');
     const snap = snapshotG();
     try {
-      G.activeMonster = null;
-      G.activeSkill = 'cooking';
-      G.skillTargetId = 'cook_shrimp';
-
       // A bench with more raw than a night can eat: the honest answer is "all night".
-      G.inventory = { shrimp: 100000 };
+      nightWorld({ skill: 'cooking', target: 'cook_shrimp', inventory: { shrimp: 100000 } });
       const deep = STN.forecast(G);
       assert(deep && deep.kind === 'bench' && deep.allNight === true,
         'a bench with 100k inputs must run all night, got ' + JSON.stringify(deep && { k: deep.kind, a: deep.allNight }));
@@ -48442,7 +48460,7 @@ const TESTS = [
         'the payable-bench copy is the slate\'s literal string, got: ' + JSON.stringify(STN.sentence(deep)));
 
       // And a bench that will dry out states the number, not a vibe.
-      G.inventory = { shrimp: 5 };
+      nightWorld({ skill: 'cooking', target: 'cook_shrimp', inventory: { shrimp: 5 } });
       const thin = STN.forecast(G);
       assert(thin && thin.allNight === false && thin.actions === 5,
         'a 5-input bench must forecast 5 actions and NOT all night, got '
@@ -48458,7 +48476,7 @@ const TESTS = [
       const unpaid = (window.SKILLS_DEF ? Object.keys(window.SKILLS_DEF) : [])
         .filter((id) => SA.serverAccruedSkill(id) === false)[0];
       if (unpaid) {
-        G.activeSkill = unpaid; G.skillTargetId = 'nothing_in_particular';
+        nightWorld({ skill: unpaid, target: 'nothing_in_particular' });
         const u = STN.forecast(G);
         assert(u && u.banks === false && /only earns while you are here\.$/.test(STN.sentence(u)),
           'an unsettled skill must be told it does not bank, got: ' + JSON.stringify(STN.sentence(u)));
@@ -48538,11 +48556,11 @@ const TESTS = [
       'the welcome-v2 overlay is in the DOM again — one ritual, one modal');
 
     const snap = snapshotG();
-    const prevSeen = G.lastSeen, prevWel = G.lastWelcome;
     try {
       assert(typeof window.__maybeShowWelcome === 'function',
         'CONTROL: the surviving b341 modal must still be drivable, or this test proves nothing');
-      G.lastSeen = Date.now() - 8 * 3600e3;
+      /* `setAway` moves the watermark that is the real clock; the seed is the field under test. */
+      setAway(8);
       G.lastWelcome = 0;
       window.__maybeShowWelcome();
       /* THE COUNT, over every welcome surface the game has ever had. A second
@@ -48553,7 +48571,6 @@ const TESTS = [
         + [...open].map((n) => n.id || n.className).join(', '));
     } finally {
       const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
-      G.lastSeen = prevSeen; G.lastWelcome = prevWel;
       restoreG(snap);
     }
   }),

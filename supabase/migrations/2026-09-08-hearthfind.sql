@@ -769,7 +769,7 @@ begin
         --        re-broadcasts and pays nothing, which is exactly what the
         --        ON CONFLICT DO NOTHING expresses: the unlock is idempotent, so
         --        a replayed apply cannot double-grant and a second Emberheart
-        --        cannot re-unlock Emberkeeper.
+        --        cannot re-unlock Emberborn.
         select value into v_hf_plinth   from public.hr_hearthfind_meta where key = 'plinth_code';
         select value into v_hf_settitle from public.hr_hearthfind_meta where key = 'set_title_code';
         select value into v_hf_setname  from public.hr_hearthfind_meta where key = 'set_title_name';

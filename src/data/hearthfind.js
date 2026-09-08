@@ -104,10 +104,10 @@ export const HEARTHFIND_SOURCE_KINDS = Object.freeze(['monster', 'node']);
      A title grants no stat, no rate and no access — ruling §6, "pays a moment
      and nothing else". */
 export const HEARTHFIND_TROPHIES = Object.freeze([
-  Object.freeze({ item: 'emberheart',        title: 'emberkeeper',  titleName: 'Emberkeeper' }),
+  Object.freeze({ item: 'emberheart',        title: 'emberborn',    titleName: 'Emberborn' }),
   Object.freeze({ item: 'worldroot_seed',    title: 'rootwarden',   titleName: 'Rootwarden' }),
   Object.freeze({ item: 'deepvein_lodestar', title: 'deepdelver',   titleName: 'Deepdelver' }),
-  Object.freeze({ item: 'tidecallers_pearl', title: 'tidelistener', titleName: 'Tidelistener' }),
+  Object.freeze({ item: 'tidecallers_pearl', title: 'tidesworn',    titleName: 'Tidesworn' }),
 ]);
 
 /** The flat id list, kept for the callers that only need the allowlist. */

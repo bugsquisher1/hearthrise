@@ -11,7 +11,7 @@
 --   from. Any hand edit is reverted by the next generation and FAILS
 --   `node tools/gen-hearthfind.mjs --check`.
 --
---   hearthfind digest: 85af9e8038b718b89cee818c02b1dcc2449018f70b34afaf570a793a16f33594
+--   hearthfind digest: 053c39221493052b5fb276c4e9d345758dc1ca220b98ccd34af4e26093cd3eb0
 --   4 trophies · 12 sources · odds 1 in 14940 … 1 in 420000
 --   band: EXPECTED HOURS 100–400 at the source
 --
@@ -88,8 +88,8 @@ delete from public.hr_hearthfind_items;
 delete from public.hr_hearthfind_meta;
 insert into public.hr_hearthfind_items (item_id, name, title_code, title_name) values
   ('deepvein_lodestar', 'Deepvein Lodestar', 'deepdelver', 'Deepdelver'),
-  ('emberheart', 'Emberheart', 'emberkeeper', 'Emberkeeper'),
-  ('tidecallers_pearl', 'Tidecaller''s Pearl', 'tidelistener', 'Tidelistener'),
+  ('emberheart', 'Emberheart', 'emberborn', 'Emberborn'),
+  ('tidecallers_pearl', 'Tidecaller''s Pearl', 'tidesworn', 'Tidesworn'),
   ('worldroot_seed', 'Worldroot Seed', 'rootwarden', 'Rootwarden');
 insert into public.hr_hearthfind_meta (key, value) values
   ('set_name', 'The Four Hearthfinds'),

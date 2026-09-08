@@ -333,7 +333,7 @@ async function runAll(db) {
   // ── 2b. A DUPLICATE PAYS NOTHING NEW (ruling §6). ────────────────────────
   // "Duplicates increment + re-broadcast, pay nothing." The trophy stacks and
   // the ordinal advances, but the unlock is idempotent: a second Emberheart
-  // must not re-unlock Emberkeeper, and a replayed apply must not double-grant.
+  // must not re-unlock Emberborn, and a replayed apply must not double-grant.
   {
     const A2 = uidFor('ac');
     await seed(db, A2);

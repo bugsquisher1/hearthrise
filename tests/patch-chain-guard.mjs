@@ -671,11 +671,26 @@ function selftest() {
     return compare({ rows, perFile, order: [...real.order, name], unordered: [] }, base);
   };
 
+  const baseKnown = new Set((base && base.knownMigrations) || []);
+  const patch2Target = real.rows.find((r) => (base.chains || {})[r.fn]
+    && r.files.every((f) => baseKnown.has(f)));
+  if (!patch2Target) {
+    console.error('SELFTEST HARNESS: no baselined chain whose files are all known — PATCH-2 unplantable.');
+    return 2;
+  }
+
   const arms = [
     [`a NEW migration patches public.${deepest.fn} (chain ${deepest.depth}) with no ack`, 'PATCH-1',
       () => withNewFile('2026-09-30-planted.sql', deepest.fn, 1, null)],
+    /* ANCHORED ON A CHAIN WHOSE EVERY CONTRIBUTING FILE THE BASELINE ALREADY
+       KNOWS. PATCH-2 fires only when a chain deepened with NO new migration to
+       explain it, so planting into a chain that also has a new (or newly-ACK'd)
+       file is self-suppressing: on 2026-09-07 the deepest chain, hr_apply,
+       gained 2026-09-07-last-away-receipt.sql, and this arm — anchored on
+       `deepest` — went quiet and reported itself green (MEASURED 2026-09-08).
+       `patch2Target` is chosen by the property the check actually needs. */
     ['an anchored edit added to an EXISTING applied migration', 'PATCH-2', () => {
-      const rows = real.rows.map((r) => (r.fn === deepest.fn ? { ...r, depth: r.depth + 1 } : r));
+      const rows = real.rows.map((r) => (r.fn === patch2Target.fn ? { ...r, depth: r.depth + 1 } : r));
       return compare({ rows, perFile: real.perFile, order: real.order, unordered: [] }, base);
     }],
     ['a function the baseline never saw, already 2 patches deep', 'PATCH-3', () => {

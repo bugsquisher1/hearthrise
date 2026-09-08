@@ -427,19 +427,24 @@ function selftest() {
      moment a build pays some debt down, the arm goes quiet and reports itself
      green. Each arm below therefore SETS the ratio to a stated multiple of the
      baseline, so the proof holds however much slack the corpus has. */
-  /* ⚠ AND EACH ARM HOLDS THE OTHER RATIO AT ITS PINNED VALUE. `tests` is set to
-     `base.tests`, so an arm that patched only ONE numerator left the other one
-     divided by the wrong denominator — at 1,205 tests against a pinned 1,178
-     that made the TF-1 arm report TF-2 and the TF-2 arm report TF-1, and the two
-     "inside the band" arms below read as false positives. MEASURED 2026-09-08. */
-  const atRatio = (mult) => ({
-    codeLines: Math.round(base.codeLinesPerTest * mult * base.tests), tests: base.tests,
-    seeds: Math.round(base.seedsPerTest * base.tests),
+  /* ⚠ AND EACH ARM HOLDS EVERY OTHER AXIS AT ITS PINNED VALUE, not just the one
+     under test. `tests` is set to `base.tests`, so an arm that patched only ONE
+     numerator left the other ratios divided by the wrong denominator — at 1,205
+     tests against a pinned 1,178 that made the TF-1 arm report TF-2 and the TF-2
+     arm report TF-1, and at 1,180 the "+0.5% — inside the band" CONTROL carried
+     1,180 tests' worth of seeds over 1,178 tests and reported TF-2. Both were
+     harness bugs, not regressions (MEASURED on the assembled tree, 2026-09-08).
+     Every arm therefore starts from the baseline corpus exactly on every axis
+     and multiplies ONE ratio. */
+  const pinned = ({ code = 1, seed = 1 }) => ({
+    tests: base.tests,
+    lines: Math.round(base.linesPerTest * base.tests),
+    codeLines: Math.round(base.codeLinesPerTest * code * base.tests),
+    seeds: Math.round(base.seedsPerTest * seed * base.tests),
+    gestures: real.gestures,
   });
-  const atSeeds = (mult) => ({
-    seeds: Math.round(base.seedsPerTest * mult * base.tests) + 1, tests: base.tests,
-    codeLines: Math.round(base.codeLinesPerTest * base.tests),
-  });
+  const atRatio = (mult) => pinned({ code: mult });
+  const atSeeds = (mult) => pinned({ seed: mult });
   const bend = (patch) => compare(derived({ ...real, ...patch }), base);
 
   const arms = [
@@ -489,9 +494,7 @@ function selftest() {
 
   const silent = [
     ['ALLOWED: the cost per test is +0.5% — inside the band', atRatio(1.005)],
-    ['ALLOWED: the seeds per test are +0.5% — inside the band',
-      { seeds: Math.floor(base.seedsPerTest * 1.005 * base.tests), tests: base.tests,
-        codeLines: Math.round(base.codeLinesPerTest * base.tests) }],
+    ['ALLOWED: the seeds per test are +0.5% — inside the band', atSeeds(1.005)],
     /* (a) OF THE RE-SPEC, AS AN ASSERTION: 2,000 lines of PROSE and not one line
        of code. Under the old physical-line rule this was a TF-1 failure — the
        guard charged a test for being explained. The prose is still ratcheted, in

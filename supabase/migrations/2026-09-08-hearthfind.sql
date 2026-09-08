@@ -28,6 +28,8 @@
 -- ── WHAT IS ADDED ───────────────────────────────────────────────────────────
 --   §1  world_finds — the public board. PUBLIC READ, RPC-INSERT-ONLY.
 --   §1b player_ledger_kind_check gains 'hearthfind'.
+--   §1a2 player_ledger_hearthfind_idx — a partial index (kind='hearthfind'),
+--       so §1c's projection is one probe and not a scan of the character's day.
 --   §1c hr_state_of — projects `hearthfind_ready` (the engine's order-safety
 --       switch), programmatic, anchored, exactly-once.
 --   §2  hr_apply — allowlists 'hearthfind', re-derives it from the catalogue,
@@ -231,14 +233,41 @@ create policy world_finds_read on public.world_finds for select to anon, authent
 
 -- WRITE: revoked, explicitly and BEFORE anything is granted (§3 of the house
 -- rules). SELECT is the only privilege any client role holds.
+--
+-- ⚠ service_role IS IN THE REVOKE LIST. Supabase's default ACL hands every new
+--   public table to anon, authenticated AND service_role; revoking three of the
+--   four leaves the privilege intact on the fourth, and service_role bypasses
+--   RLS entirely -- so a leaked service key would be a direct INSERT into the
+--   public board: a forged world-record find with no ledger row and no grant
+--   behind it. The board is written by hr_apply (SECURITY DEFINER, owner) or by
+--   nothing at all. Same idiom, same reason, as
+--   2026-08-11-catalogue.generated.sql:1544-1545.
 do $$
 begin
-  revoke all on public.world_finds from public, anon, authenticated;
+  revoke all on public.world_finds from public, anon, authenticated, service_role;
   grant select on public.world_finds to anon, authenticated;
   -- The sequence is NOT granted: a client with insert revoked has no use for it,
   -- and a granted sequence is a free row-count oracle.
-  revoke all on sequence public.world_finds_id_seq from public, anon, authenticated;
+  revoke all on sequence public.world_finds_id_seq
+    from public, anon, authenticated, service_role;
 end $$;
+
+-- ── 1a2. THE REVEAL INDEX ────────────────────────────────────────────────────
+-- A PARTIAL index over the hearthfind ledger rows ONLY, so hr_state_of's
+-- projection below (§1c) is a single index probe rather than a scan of the
+-- character's day.
+--
+-- WHY IT MUST BE PARTIAL. player_ledger_user_idx is (user_id, slot, at desc)
+-- with no kind, so "the latest hearthfind for this character" would walk every
+-- ledger row the character wrote today until it found one -- on the HOTTEST
+-- read in the system (hr_state_of runs on every load and every apply, up to 240
+-- applies/min/player at the rate limit). The partial index contains at most 3
+-- rows per character per UTC day by the clamp at (i), i.e. it is smaller than
+-- the pruned world_finds board, and it costs one entry on the vanishingly rare
+-- insert that journals a find and NOTHING on every other ledger write.
+create index if not exists player_ledger_hearthfind_idx
+  on public.player_ledger (user_id, slot, at desc)
+  where kind = 'hearthfind';
 
 -- ── 1b. THE LEDGER KIND ──────────────────────────────────────────────────────
 -- journal kind 'hearthfind' must be a legal player_ledger.kind or the insert in
@@ -307,6 +336,31 @@ begin
       -- 2026-09-08-hearthfind.sql has run; read by hr-accrue to decide whether
       -- to propose delta.hearthfind at all. Not a feature flag.
       'hearthfind_ready', true,
+      -- THE DAY'S LATEST FIND, so a RETRIED SETTLE DOES NOT LOSE THE REVEAL.
+      -- hr_apply's replay path returns `hr_state_of(...) || {replayed:true}` --
+      -- a FRESH envelope, deliberately, because storing the receipt would put a
+      -- full snapshot in player_intents (revision 2 did, at ~690 MB per player
+      -- per day). The consequence is that the `hearthfind` field of the
+      -- ORIGINAL receipt exists only on the first response: a settle whose
+      -- reply is lost to a dropped connection is retried, comes back ok, and
+      -- the player is never told about the rarest thing that has ever happened
+      -- to them. The trophy and the ledger row were never at risk; only the
+      -- MOMENT was, and the moment is the entire feature.
+      --
+      -- Projected from the append-only journal (the only durable record) rather
+      -- than from world_finds, because the public row is suppressed by the
+      -- 60-second broadcast clamp while the ledger row never is. Scoped to the
+      -- UTC day so it is self-expiring: there is no state to clear, no flag to
+      -- reset, and a client that has already revealed it simply sees the same
+      -- object again (it carries `at`, so the client can tell). One index probe
+      -- on player_ledger_hearthfind_idx; null on the ~100% of reads with no
+      -- find today.
+      'hearthfind_last', (
+        select jsonb_build_object('item', l.item_id, 'at', l.at) || coalesce(l.meta, '{}'::jsonb)
+          from public.player_ledger l
+         where l.user_id = p_user and l.slot = p_slot and l.kind = 'hearthfind'
+           and l.at >= date_trunc('day', now() at time zone 'utc') at time zone 'utc'
+         order by l.at desc limit 1),
       'fight', v_st.fight,$anc$);
     execute v_def;
   end if;
@@ -329,7 +383,10 @@ begin
       $anc$    'gold','gems','hp','items','xp','equip','activity','accrued_to',$anc$,
       $anc$    'gold','gems','hp','items','xp','equip','activity','accrued_to',
     -- THE HEARTHFIND (Feature Slate §2). An OBJECT: {item, source_kind,
-    -- source_id}. AT MOST ONE PER APPLY. Everything else about the find - the
+    -- source_id, dropped?}. AT MOST ONE PER APPLY; `dropped` is the COUNT the
+    -- engine had to throw away in the same span and grants nothing at all - it
+    -- exists so a discarded find is journalled instead of vanishing. Everything
+    -- else about the find - the
     -- odds, the trophy's legitimacy, the pairing, the day count, the broadcast
     -- window and the instant - is re-derived server-side at (4a-h)/(4z-h).
     -- There is no quantity field: a find is exactly one trophy, always.
@@ -359,6 +416,10 @@ begin
   v_hf_last   timestamptz;
   v_hf_have   bigint;
   v_hf_out    jsonb;
+  -- THE DISCARD COUNT. Advisory only: it is journalled and never read by any
+  -- arithmetic that grants, so a forged value costs the player nothing and buys
+  -- the forger nothing but a rejection row against their own character.
+  v_hf_drop   int;
   -- AT MOST ONE FIND PER APPLY. The engine's own roll cannot produce two in one
   -- action, and a window that legitimately contained two is settled as two
   -- applies. Accepting an array would make the daily clamp a per-array clamp.
@@ -390,11 +451,30 @@ begin
       -- it worked (there is deliberately no `one_in`, no `qty` and no `at`:
       -- the odds come from the catalogue and the instant comes from now()).
       if exists (select 1 from jsonb_object_keys(v_hf) as t(hk)
-                  where hk <> all (array['item','source_kind','source_id'])) then
+                  where hk <> all (array['item','source_kind','source_id','dropped'])) then
         perform public.hr_reject('bad_hearthfind',
           jsonb_build_object('why', 'unknown key',
             'keys', (select jsonb_agg(hk) from jsonb_object_keys(v_hf) as t(hk)
-                      where hk <> all (array['item','source_kind','source_id']))));
+                      where hk <> all (array['item','source_kind','source_id','dropped']))));
+      end if;
+      -- `dropped` - THE DISCARD COUNT, VALIDATED LIKE ANY OTHER CLIENT NUMBER
+      -- even though it can buy nothing. A second find inside ONE settled span is
+      -- thrown away by the engine (hr_apply takes one find per apply and
+      -- re-derives it); before this key the discard was SILENT, which is exactly
+      -- the shape of a bug nobody can see. It is journalled at (4z-h) as a
+      -- rejection row - aggregated per character/code/day by
+      -- hr_record_rejection, never one row per event (the game_events lesson).
+      if v_hf ? 'dropped' then
+        if jsonb_typeof(v_hf->'dropped') <> 'number'
+           or (v_hf->>'dropped') !~ '^[0-9]+$'
+           or (v_hf->>'dropped')::bigint > 99 then
+          perform public.hr_reject('bad_hearthfind',
+            jsonb_build_object('why', 'dropped must be a non-negative integer <= 99',
+                               'dropped', v_hf->'dropped'));
+        end if;
+        v_hf_drop := (v_hf->>'dropped')::int;
+      else
+        v_hf_drop := 0;
       end if;
       v_hf_item := v_hf->>'item';
       v_hf_kind := v_hf->>'source_kind';
@@ -455,6 +535,17 @@ begin
     v_def := replace(v_def,
       $anc$    v_out := public.hr_state_of(v_uid, v_slot);$anc$,
       $anc$    if p_delta ? 'hearthfind' then
+      -- (0) THE DISCARD, JOURNALLED. If the engine rolled more than one find in
+      --     the span it settled, it proposes the first and reports the rest
+      --     here. Recorded BEFORE the clamp and unconditionally, because the
+      --     question "did a player ever lose a find to the one-per-apply rule?"
+      --     must be answerable from the database rather than from an argument
+      --     about probability. One aggregated row per character/code/day.
+      if coalesce(v_hf_drop, 0) > 0 then
+        perform public.hr_record_rejection(v_uid, v_slot, 'apply', 'hearthfind_span_discard',
+          jsonb_build_object('dropped', v_hf_drop, 'kept_item', v_hf_item,
+                             'kept_source_kind', v_hf_kind, 'kept_source_id', v_hf_src));
+      end if;
       -- (i) THE DAILY CLAMP, counted from the append-only journal - the only
       --     durable record - under the character lock. NOTE `now() at time zone
       --     'utc'`: the UTC day, matching the accrual engine's day key, never
@@ -581,9 +672,35 @@ begin
   if strpos(v_apply, 'a hearthfind trophy cannot be minted through items') = 0 then
     raise exception 'hearthfind self-check (f): the one-door guard is missing - items could mint a trophy';
   end if;
-  -- The odds must be READ, never accepted: there is no `one_in` sub-key.
-  if strpos(v_apply, $x$array['item','source_kind','source_id']$x$) = 0 then
+  -- The odds must be READ, never accepted: there is no `one_in` sub-key. The
+  -- allowlist is item/source_kind/source_id/dropped and NOTHING else; `dropped`
+  -- is journalled, never granted, and is checked separately below.
+  if strpos(v_apply, $x$array['item','source_kind','source_id','dropped']$x$) = 0 then
     raise exception 'hearthfind self-check (g): the sub-key allowlist is missing';
+  end if;
+  -- (c2) THE REVEAL SURVIVES A RETRY. hr_state_of must project the day's latest
+  --      find, and the partial index that makes that projection cheap must
+  --      exist -- an unindexed projection on the hottest read is a performance
+  --      regression disguised as a feature.
+  if strpos(pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure),
+            'hearthfind_last') = 0 then
+    raise exception 'hearthfind self-check (c2): hr_state_of does not project hearthfind_last';
+  end if;
+  if not exists (select 1 from pg_indexes where schemaname = 'public'
+                  and tablename = 'player_ledger'
+                  and indexname = 'player_ledger_hearthfind_idx') then
+    raise exception 'hearthfind self-check (c2): player_ledger_hearthfind_idx is missing';
+  end if;
+
+  -- (g2) A DROPPED SECOND FIND IS JOURNALLED, NOT VANISHED. hr_apply grants one
+  --      find per apply; if the engine rolled two in one settled span the
+  --      surplus is reported as `dropped` and recorded through
+  --      hr_record_rejection (aggregated per character/code/day, never one row
+  --      per event). Without this row the loss is invisible and the question
+  --      "has anyone ever lost a find?" is unanswerable from the database.
+  if strpos(v_apply, 'hearthfind_span_discard') = 0
+     or strpos(v_apply, 'dropped must be a non-negative integer') = 0 then
+    raise exception 'hearthfind self-check (g2): the dropped-find journal or its validation is missing';
   end if;
 
   -- (h) NO CLIENT WRITE PATH TO world_finds. The load-bearing property of the
@@ -595,10 +712,10 @@ begin
   end if;
   select count(*) into v_n from information_schema.role_table_grants
    where table_schema = 'public' and table_name = 'world_finds'
-     and grantee in ('anon','authenticated','PUBLIC')
+     and grantee in ('anon','authenticated','service_role','PUBLIC')
      and privilege_type in ('INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES');
   if v_n > 0 then
-    raise exception 'hearthfind self-check (i): % client write grants on world_finds', v_n;
+    raise exception 'hearthfind self-check (i): % client|service write grants on world_finds', v_n;
   end if;
   select count(*) into v_n from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
    where ns.nspname = 'public' and c.relname = 'world_finds' and c.relrowsecurity;

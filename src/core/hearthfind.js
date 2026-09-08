@@ -9,6 +9,36 @@
 // is what makes a find auditable: given (user, slot, accrued_to) the server can
 // re-run the span and prove the roll.
 //
+// ⚠ AWAY-1 IS A STATEMENT ABOUT ONE STREAM, AND THERE ARE TWO. The corrected
+//   truth, because the paragraph above used to imply an equality that does not
+//   hold end to end:
+//
+//     · THE SPAN. simulateSpan / the gather loop run from `seed`, and an away
+//       settle and an attended replay of the same window draw the same numbers
+//       in the same order. Here AWAY-1 holds exactly, and it is what
+//       tests/hearthfind-roll.mjs ROLL-3 measures.
+//     · THE ATTENDED TOP-UP. An attended window ALSO runs the loot fidelity
+//       top-up, and that runs on a DELIBERATELY DIFFERENT stream —
+//       `createRng((seed ^ ATTENDED_RNG_SALT) >>> 0)` at
+//       supabase/functions/hr-accrue/accrual.js:1925 — so its kills are not the
+//       span's kills replayed, they are additional rolls.
+//
+//   CONSEQUENCE, STATED PLAINLY: an attended session rolls the hearthfind more
+//   times than the away settle of the same wall-clock window. Playing attended
+//   is therefore very slightly the better way to hunt a trophy. This is
+//   ACCEPTED, not overlooked:
+//     (a) it is BOUNDED by the top-up's own claim cap, and above it by the
+//         server's ≤3 finds per character per UTC day (the migration's clamp
+//         (i), counted from the append-only ledger under the character lock);
+//     (b) it moves NO TRADEABLE VALUE — every trophy is bop:true and v:0, so
+//         the advantage cannot be sold, banked, gifted or ranked; and
+//     (c) removing it would mean either deleting the attended top-up (which is
+//         what pays honest attended loot at all) or sharing one stream between
+//         span and top-up, which would make the top-up's kills shift the span's
+//         numbers — a far worse property than a bounded, unsellable edge.
+//   If a future change makes a trophy tradeable, rankable or contributable,
+//   THIS PARAGRAPH BECOMES A BUG and the top-up must stop rolling.
+//
 // ⚠ A SOURCE WITH NO ROW DRAWS NO RANDOM NUMBER. `rollHearthfind` returns null
 //   BEFORE touching `rng` when the source is not in the table. Every existing
 //   seeded replay in tests/accrual-engine.mjs is therefore byte-identical to

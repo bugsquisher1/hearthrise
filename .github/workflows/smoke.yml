@@ -874,6 +874,22 @@ jobs:
       - name: Cache-buster invariant
         run: bash bump-version.sh --check
 
+      # THE HEARTHFIND MINT GUARD -- cited by name in src/core/hearthfind.js,
+      # src/data/hearthfind.js and src/data/items.js as the reason "a find mints
+      # nothing and nothing scales it" is safe to rely on. It lives HERE rather
+      # than in economy-selftests because it needs no database and no engine: it
+      # reads two data modules and one source file in milliseconds. The roll has
+      # exactly the parameters (index, kind, id, rng) and scales its odds by
+      # nothing (the structural half of "must NOT be boostable by anything paid";
+      # hearthfind-roll.mjs ROLL-4 is the behavioural half, in a real span), every
+      # hearthfind:true item is v:0, bind-on-pickup and not a currency, and the
+      # flagged set is the same set as HEARTHFIND_ITEMS -- the allowlist the
+      # server catalogue is generated from.
+      # 7 mutations + a clean-tree negative control, no credentials.
+      - name: Hearthfind mint guard - no gold, no market, no multiplier
+        if: ${{ !cancelled() }}
+        run: node tests/hearthfind-mint-guard.mjs --selftest
+
       # The cache-buster rule, mutation-proven: 6 defects caught (stale tag,
       # stale ESM specifier = the b493 double-load, the b511 bare quoted pin, a
       # stripped ?v=, build-info moved alone, build-info unreadable) AND 2

@@ -106,7 +106,7 @@ const MUTATIONS = {
        + 'player reads and screenshots ("1 in 40,000") becomes a client-authored claim',
     pairs: [
       ['      if exists (select 1 from jsonb_object_keys(v_hf) as t(hk)' + "\n"
-       + "                  where hk <> all (array['item','source_kind','source_id'])) then",
+       + "                  where hk <> all (array['item','source_kind','source_id','dropped'])) then",
        '      if false then'],
       ["                              'source_id', v_hf_src, 'one_in', v_hf_one,",
        "                              'source_id', v_hf_src, 'one_in', coalesce((p_delta->'hearthfind'->>'one_in')::bigint, v_hf_one),"],
@@ -116,7 +116,7 @@ const MUTATIONS = {
     file: FILE,
     why: 'unknown sub-keys are accepted — a field this arm does not implement (one_in, qty, at) '
        + 'looks like it worked, which is the b341 failure class on the rarest event in the game',
-    find: "      if exists (select 1 from jsonb_object_keys(v_hf) as t(hk)\n                  where hk <> all (array['item','source_kind','source_id'])) then",
+    find: "      if exists (select 1 from jsonb_object_keys(v_hf) as t(hk)\n                  where hk <> all (array['item','source_kind','source_id','dropped'])) then",
     repl: '      if false then',
   },
   world_finds_writable: {
@@ -127,6 +127,29 @@ const MUTATIONS = {
     repl: "create policy world_finds_read on public.world_finds for select to anon, authenticated using (true);\n"
         + "create policy world_finds_forge on public.world_finds for insert to authenticated with check (true);\n"
         + "grant insert on public.world_finds to authenticated;",
+  },
+  reveal_lost_on_retry: {
+    file: FILE,
+    why: 'hr_state_of projects hearthfind_last as NULL for a character who DID find something today '
+       + '- so a settle whose reply is lost to a dropped connection is retried, comes back ok, and '
+       + 'the rarest thing that has ever happened to that player is never shown to them',
+    find: '         order by l.at desc limit 1),',
+    repl: '         order by l.at desc limit 0),',
+  },
+  world_finds_service_writable: {
+    file: FILE,
+    why: 'service_role keeps its default INSERT on world_finds - and service_role bypasses RLS, so '
+       + 'a leaked service key posts forged world-record finds with no ledger row behind them',
+    find: '  revoke all on public.world_finds from public, anon, authenticated, service_role;',
+    repl: '  revoke all on public.world_finds from public, anon, authenticated;\n'
+        + '  grant insert on public.world_finds to service_role;',
+  },
+  discard_not_journalled: {
+    file: FILE,
+    why: 'a second find inside one span is dropped SILENTLY - the player loses a 1-in-thousands '
+       + 'roll and no query in the database can ever say that it happened',
+    find: '      if coalesce(v_hf_drop, 0) > 0 then',
+    repl: '      if false then',
   },
   trophy_vendorable: {
     file: CAT,
@@ -170,14 +193,14 @@ async function seed(db, uid) {
    request can arrive as; the version is read BEFORE the role switch because
    hr_engine holds no table grants at all (that is the point of the role). */
 function applier(db, uid) {
-  return async (delta) => {
+  return async (delta, key) => {
     const v = Number((await db.query(
       `select version from public.player_state where user_id=$1 and slot=0`, [uid])).rows[0].version);
     await db.exec('set role hr_engine');
     try {
       const r = await db.query(
         'select public.hr_apply($1::uuid,$2::int,$3::bigint,$4::uuid,$5::jsonb) as res',
-        [uid, 0, v, uuid(), JSON.stringify(delta)]);
+        [uid, 0, v, key || uuid(), JSON.stringify(delta)]);
       return r.rows[0].res;
     } finally { await db.exec('reset role'); }
   };
@@ -260,6 +283,13 @@ async function runAll(db) {
       ['unknown source kind', find({ kind: 'crop' })],
       ['mismatched pair', find({ item: other.item_id === S.item_id ? 'bronze_sword' : other.item_id })],
       ['over-long field', find({ id: 'x'.repeat(200) })],
+      // `dropped` IS ACCEPTED AS A COUNT AND NOTHING ELSE. It journals a
+      // rejection row and grants nothing, so every non-integer, negative,
+      // fractional or absurd value is a hard refusal like any other forgery.
+      ['dropped not a number', find({ extra: { dropped: '2' } })],
+      ['dropped negative', find({ extra: { dropped: -1 } })],
+      ['dropped fractional', find({ extra: { dropped: 1.5 } })],
+      ['dropped absurd', find({ extra: { dropped: 1000 } })],
     ];
     for (const [name, delta] of cases) {
       const r = await apply(delta);
@@ -327,6 +357,72 @@ async function runAll(db) {
       'the receipt claims a broadcast that was suppressed');
   }
 
+  // ── 6a. A RETRIED SETTLE DOES NOT LOSE THE REVEAL. ──────────────────────
+  // hr_apply's replay path returns a FRESH hr_state_of envelope, never the
+  // stored receipt (revision 2 stored the whole envelope per intent: ~690 MB
+  // per player per day at the rate limit). So the receipt's `hearthfind` field
+  // exists only on the FIRST response, and a settle whose reply is lost to a
+  // dropped connection would come back ok with nothing to reveal -- the trophy
+  // safe, the moment gone. `hearthfind_last` is the projection that closes it.
+  {
+    const F = uidFor('f5');
+    await seed(db, F);
+    const apply = applier(db, F);
+    const key = uuid();
+    const first = await apply(find(), key);
+    ok(first && first.ok === true, `the first apply failed: ${JSON.stringify(first && first.error)}`);
+    ok(first.hearthfind && first.hearthfind.item === S.item_id, 'the first apply carried no receipt');
+    const again = await apply(find(), key);
+    ok(again && again.replayed === true,
+      `the same intent key did not replay (${JSON.stringify(again && (again.error || again.ok))})`);
+    ok((await ledgerRows(db, F)).length === 1, 'the replay granted a SECOND find — idempotency is broken');
+    ok((again.state||{}).hearthfind_last && (again.state||{}).hearthfind_last.item === S.item_id
+       && Number((again.state||{}).hearthfind_last.one_in) === Number(S.one_in),
+      `a retried settle lost the reveal (hearthfind_last=${JSON.stringify(again && (again.state||{}).hearthfind_last)}) `
+      + '— the rarest thing that has ever happened to this player would never be shown to them');
+    // A character with no find today projects null, so the client cannot
+    // re-reveal yesterday's trophy on every load.
+    const E = uidFor('f6');
+    await seed(db, E);
+    const st = (await db.query('select public.hr_state_of($1, 0) s', [E])).rows[0].s;
+    ok(st && st.state && (st.state.hearthfind_last ?? null) === null,
+      `hearthfind_last is ${JSON.stringify(st && st.state && st.state.hearthfind_last)} for a character with no find today`);
+  }
+
+  // ── 6b. A DROPPED SECOND FIND IS JOURNALLED, NOT VANISHED. ──────────────
+  // hr_apply grants ONE find per apply. If the engine rolled two in one settled
+  // span the surplus is reported as `dropped` and recorded through
+  // hr_record_rejection — aggregated per (character, code, day), never one row
+  // per event (the game_events lesson: 1.6M rows from six players in four days).
+  // Before this, the second find simply ceased to exist and no query could ever
+  // have told you so.
+  {
+    const G = uidFor('e6');
+    await seed(db, G);
+    const apply = applier(db, G);
+    const r = await apply(find({ extra: { dropped: 1 } }));
+    ok(r && r.ok === true, `a find reporting a discard was refused: ${JSON.stringify(r && r.error)}`);
+    // The discard grants NOTHING extra: still one trophy, still one ledger row.
+    ok(await invQty(db, G, S.item_id) === 1,
+      `${await invQty(db, G, S.item_id)} trophies paid for a find with dropped:1 — the discard count `
+      + 'must never become a quantity');
+    ok((await ledgerRows(db, G)).length === 1, 'dropped:1 wrote more than one ledger row');
+    const rej = (await db.query(
+      `select count(*)::int c from public.hr_rejections
+        where user_id = $1 and code = 'hearthfind_span_discard'`, [G])).rows[0].c;
+    ok(Number(rej) === 1,
+      `${rej} hearthfind_span_discard rejection rows, expected exactly 1 — a find the player rolled `
+      + 'and never received must be visible in the database, not only in an argument about probability');
+    // …and an ORDINARY find writes NO discard row, or the counter would be noise.
+    const H = uidFor('e7');
+    await seed(db, H);
+    await applier(db, H)(find());
+    const none = (await db.query(
+      `select count(*)::int c from public.hr_rejections
+        where user_id = $1 and code = 'hearthfind_span_discard'`, [H])).rows[0].c;
+    ok(Number(none) === 0, 'a find with nothing dropped still journalled a discard');
+  }
+
   // ── 7. NO CLIENT WRITE PATH TO world_finds; it IS publicly readable. ─────
   {
     const w = (await db.query(
@@ -336,9 +432,13 @@ async function runAll(db) {
     const g = (await db.query(
       `select count(*)::int c from information_schema.role_table_grants
         where table_schema='public' and table_name='world_finds'
-          and grantee in ('anon','authenticated','PUBLIC')
+          and grantee in ('anon','authenticated','service_role','PUBLIC')
           and privilege_type in ('INSERT','UPDATE','DELETE','TRUNCATE')`)).rows[0].c;
-    ok(Number(g) === 0, `${g} client write grants on world_finds`);
+    // service_role IS IN THIS LIST. Supabase's default ACL grants all three
+    // roles on a new public table, and service_role bypasses RLS entirely, so
+    // "no client write path" is only true if the revoke named all four. This is
+    // the assertion behind the migration's self-check (i).
+    ok(Number(g) === 0, `${g} client/service write grants on world_finds`);
     const rls = (await db.query(
       `select c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
         where n.nspname='public' and c.relname='world_finds'`)).rows[0];

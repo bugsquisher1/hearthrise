@@ -7,12 +7,12 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-08",
- "digest": "2507e4e437148d889358c836c04279909076d558ed5c0d279b8b980d3ed758a7",
+ "digest": "cf6d8d2903260a952ba64df1c358873dc16343a579aba0ed7a8b5ba4afb652b5",
  "counts": {
   "relations": 111,
   "functions": 268,
   "policies": 85,
-  "indexes": 152,
+  "indexes": 153,
   "triggers": 20,
   "constraints": 289,
   "columns": 654,
@@ -662,6 +662,7 @@
    "player_inventory_item_idx",
    "player_inventory_pkey",
    "player_ledger_bounty_idx",
+   "player_ledger_hearthfind_idx",
    "player_ledger_pkey",
    "player_ledger_rollup_pkey",
    "player_ledger_user_idx",

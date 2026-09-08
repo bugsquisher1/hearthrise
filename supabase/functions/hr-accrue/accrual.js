@@ -1546,8 +1546,16 @@ export function computeAccrual(input) {
   /* THE HEARTHFIND claims this span produced. At most the FIRST becomes
      delta.hearthfind - hr_apply accepts one find per apply. A second find inside
      ONE settle window needs two independent 1-in-6,000-or-longer rolls in the
-     same span; it is dropped rather than banked, and it is said out loud here
-     because a silent drop is a lie. KNOWN LIMITATION, tracked. */
+     same span; it is dropped rather than banked.
+
+     ⚠ THE DROP IS NO LONGER SILENT. `delta.hearthfind.dropped` carries the
+       COUNT that was thrown away, and hr_apply journals it through
+       hr_record_rejection as `hearthfind_span_discard` (aggregated per
+       character/code/day, not one row per event). It grants nothing and is
+       validated like any other client number; it exists so that "did anyone
+       ever lose a find to the one-per-apply rule?" is answered by the database
+       instead of by an argument about probability. KNOWN LIMITATION, tracked
+       AND now measurable. */
   const finds = [];
   const fx = {
     /* Per-tick clock, so addXp can decide whether this tick's XP falls in the
@@ -2261,7 +2269,11 @@ export function computeAccrual(input) {
      ONE per apply, because hr_apply accepts one and re-derives everything about
      it - the trophy, the source, the odds - from its own catalogue. Nothing here
      is a grant; this is a claim. */
-  if (inp.hearthfindReady && finds.length) delta.hearthfind = finds[0];
+  if (inp.hearthfindReady && finds.length) {
+    delta.hearthfind = finds.length > 1
+      ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) }
+      : finds[0];
+  }
 
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
@@ -2610,8 +2622,16 @@ function accrueGather(inp, span) {
   /* THE HEARTHFIND claims this span produced. At most the FIRST becomes
      delta.hearthfind - hr_apply accepts one find per apply. A second find inside
      ONE settle window needs two independent 1-in-6,000-or-longer rolls in the
-     same span; it is dropped rather than banked, and it is said out loud here
-     because a silent drop is a lie. KNOWN LIMITATION, tracked. */
+     same span; it is dropped rather than banked.
+
+     ⚠ THE DROP IS NO LONGER SILENT. `delta.hearthfind.dropped` carries the
+       COUNT that was thrown away, and hr_apply journals it through
+       hr_record_rejection as `hearthfind_span_discard` (aggregated per
+       character/code/day, not one row per event). It grants nothing and is
+       validated like any other client number; it exists so that "did anyone
+       ever lose a find to the one-per-apply rule?" is answered by the database
+       instead of by an argument about probability. KNOWN LIMITATION, tracked
+       AND now measurable. */
   const finds = [];
   const fx = {
     addXp(skillId, amt) {
@@ -2797,7 +2817,11 @@ function accrueGather(inp, span) {
      ONE per apply, because hr_apply accepts one and re-derives everything about
      it - the trophy, the source, the odds - from its own catalogue. Nothing here
      is a grant; this is a claim. */
-  if (inp.hearthfindReady && finds.length) delta.hearthfind = finds[0];
+  if (inp.hearthfindReady && finds.length) {
+    delta.hearthfind = finds.length > 1
+      ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) }
+      : finds[0];
+  }
   if (summary.stoppedBy === STOP_REASON.LEVEL) delta.activity = { kind: 'idle', id: null };
 
   return {

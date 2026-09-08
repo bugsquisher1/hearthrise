@@ -1691,7 +1691,8 @@ const retreatFixture = () => {
    setup is genuinely large, it is a helper, and a helper is written once").
    Sixteen COMBAT-UI tests opened with the same four lines and closed with the
    same four; the save/restore pair is now ONE object, so a test that keeps half
-   of the teardown - the b221 overlay-cascade class - cannot exist. */
+   of the teardown - the leaked-overlay cascade, where one unclosed modal fails
+   the next thirty tests thousands of lines away - cannot exist. */
 const combatScreen = () => {
   const CS = window.HearthriseCombatScreens;
   assert(CS, 'the two screens did not boot');

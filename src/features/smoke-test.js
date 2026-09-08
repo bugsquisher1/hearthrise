@@ -33510,17 +33510,16 @@ const TESTS = [
       ov.classList.remove('show');
       G.lastSeen = prevSeen; G.lastWelcome = prevWel;
 
-      // ── 4. THE WELCOME-V2 MODAL (reachable from Profile > Last Session). ───
-      if (typeof window._renderWelcomeV2 === 'function') {
-        window._renderWelcomeV2({ hoursAway: 8, xp: {}, itemsGained: {}, gold: 0 });
-        const v2 = document.getElementById('wbv-modal');
-        if (v2) {
-          assert(!/day streak/i.test(v2.textContent || ''),
-            'welcome-v2 must not say "Day streak" — same collision, second modal. Got: '
-            + (v2.textContent || '').replace(/\s+/g, ' ').slice(0, 160));
-          const v2ov = document.getElementById('wbv-overlay'); if (v2ov) v2ov.classList.remove('show');
-        }
-      }
+      /* ── 4. THE SECOND MODAL THAT USED TO SAY IT TOO ─────────────────
+         welcome-v2 carried its own copy of this row and therefore its own copy
+         of the streak-label collision. It is RETIRED (Set the Night, slate
+         §3 — "v2 retires, b341 survives"), so the strongest form of "it does
+         not repeat the label" is that it does not exist. NIGHT-4 owns the
+         deletion property; this line keeps the streak suite honest about why
+         it is only checking one modal now. */
+      assert(!('_renderWelcomeV2' in window),
+        'welcome-v2 is back, and with it a second surface that can disagree with the reward sheet '
+        + 'about what a "streak" is. See NIGHT-4.');
 
       // ── 5. THE ACHIEVEMENTS that read streak.count must not say "login". ───
       const ACH = window.ACHIEVEMENTS || (window.__LEGACY_INLINE || {}).ACHIEVEMENTS || [];
@@ -47205,6 +47204,229 @@ const TESTS = [
      another. They are grouped because the fix for each is "make the surface
      read the authority that already exists" — not new mechanics.
      ══════════════════════════════════════════════════════════════════════════ */
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     NIGHT- · SET THE NIGHT (feature slate §3) — the return ritual
+
+     Two halves of one promise: before the tab closes the game says how far
+     tonight's supplies carry the CURRENT activity; in the morning it says how
+     right that was, FROM THE SERVER'S RECEIPT. The forecast is advisory
+     display — nothing reads it, nothing is credited from it — so what these
+     tests guard is not a number but four properties:
+
+       1. the forecast comes out of THE ONE ENGINE and touches nothing
+          (`simulateSpan` on a deep clone; the real `G` is byte-identical
+          after a forecast that simulated eight hours of fighting);
+       2. the bench half tells the truth about materials rather than
+          promising a night the inputs cannot pay for;
+       3. the MORNING line is derived from `G.lastOfflineSummary` — the
+          receipt — and never from the prediction it is grading;
+       4. exactly ONE welcome modal exists (the b341 ruling), and the
+          retired one is DELETED rather than unreferenced.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  () => tryRun('NIGHT-1: the Tonight forecast runs the ONE engine on a clone and never touches G', () => {
+    const STN = window.HearthriseSetTheNight;
+    assert(STN && typeof STN.forecast === 'function',
+      'HearthriseSetTheNight.forecast is missing — the whole ritual hangs off this seam');
+    const snap = snapshotG();
+    try {
+      const foe = (window.MONSTERS && window.MONSTERS.slime) ? 'slime'
+        : Object.keys(window.MONSTERS || {})[0];
+      G.activeMonster = foe;
+      G.activeSkill = null; G.skillTargetId = null;
+      G.playerMaxHp = 30; G.playerHp = 30;
+      G.monsterHp = 0; G.monsterMaxHp = 0;
+      G.inventory = { cooked_shrimp: 107 };
+      G.foodSlot = 'cooked_shrimp';
+      G.traits = Object.assign({}, G.traits, { auto_eat: 1 });
+      try { window.HearthriseAuto.setEat({ enabled: true, foodId: 'cooked_shrimp' }); } catch (e) {}
+
+      /* THE PROPERTY THAT MATTERS MOST. A forecast is eight hours of the live
+         combat engine; if it ran against the real save it would hand the
+         player a night's gold, XP, kills and eaten food for free — the b214
+         double-pay through a colder door. Compared as a whole object, not
+         field by field, so a future forecast that starts touching some other
+         part of G goes red here rather than in production. */
+      const before = JSON.stringify({ inv: G.inventory, gold: G.gold, stats: G.stats, hp: G.playerHp });
+      const f = STN.forecast(G);
+      const after = JSON.stringify({ inv: G.inventory, gold: G.gold, stats: G.stats, hp: G.playerHp });
+      assert(before === after,
+        'forecasting MUTATED the live save. The simulation must run on a deep clone with a bare `fx`; '
+        + 'anything else credits a night that has not happened.\n  before: ' + before + '\n  after:  ' + after);
+
+      assert(f && f.kind === 'combat', 'an active fight must forecast as combat, got ' + JSON.stringify(f && f.kind));
+      assert(f.foodQty === 107 && /shrimp/i.test(f.foodName || ''),
+        'the forecast must NAME the bag it is talking about, got ' + f.foodQty + ' ' + f.foodName);
+      assert(f.spanMs > 0 && f.spanMs <= STN.HORIZON_MS,
+        'the forecast span must sit inside the night, got ' + f.spanMs);
+      assert(f.kills > 0, 'a fed character fighting a weak foe must forecast at least one kill, got ' + f.kills);
+
+      const s = STN.sentence(f);
+      assert(/^Tonight: your 107 /.test(s),
+        'the sentence must open with the bag, got: ' + JSON.stringify(s));
+      assert(/carry you/.test(s), 'the sentence must say what the food DOES, got: ' + JSON.stringify(s));
+      assert(f.allNight
+        ? /through the night/.test(s)
+        : /then you fall and the night ends in recovery\.$/.test(s),
+        'a night that ends in a fall must SAY so (Recovery Rule rev.2 — it is a knock-out, not a stop), got: '
+          + JSON.stringify(s));
+
+      /* DETERMINISM. A forecast that moved on every repaint would be noise
+         dressed as advice, and the strip repaints on every Home render. */
+      const f2 = STN.forecast(G);
+      assert(f2 && f2.spanMs === f.spanMs && f2.kills === f.kills,
+        'the forecast is not deterministic — the seed is being drawn from the live stream. '
+        + f.spanMs + '/' + f.kills + ' vs ' + f2.spanMs + '/' + f2.kills);
+
+      /* AND IT RENDERS. Home drops this string straight into "Right now". */
+      const html = STN.strip(G);
+      assert(/hd-night/.test(html) && html.indexOf('Tonight:') > 0,
+        'the Home strip did not render the forecast, got: ' + String(html).slice(0, 160));
+      assert(!/#[0-9a-f]{3}\b|#[0-9a-f]{6}\b/i.test(html),
+        'the Tonight strip carries a hardcoded colour — tokens only (CLAUDE.md §7): ' + html.slice(0, 200));
+    } finally {
+      try { STN.forget(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('NIGHT-2: a payable bench runs all night, or states exactly what it runs out of', () => {
+    const STN = window.HearthriseSetTheNight;
+    const SA = window.HearthriseSkillAuthority;
+    assert(SA && SA.serverAccruedSkill('cooking') === true,
+      'CONTROL: cooking must be a server-settled skill (COOKING_SETTLEMENT_ARM_ENABLED) — '
+      + 'without that this test would be asserting the wrong branch');
+    const snap = snapshotG();
+    try {
+      G.activeMonster = null;
+      G.activeSkill = 'cooking';
+      G.skillTargetId = 'cook_shrimp';
+
+      // A bench with more raw than a night can eat: the honest answer is "all night".
+      G.inventory = { shrimp: 100000 };
+      const deep = STN.forecast(G);
+      assert(deep && deep.kind === 'bench' && deep.allNight === true,
+        'a bench with 100k inputs must run all night, got ' + JSON.stringify(deep && { k: deep.kind, a: deep.allNight }));
+      assert(STN.sentence(deep) === 'Tonight: this bench runs all night.',
+        'the payable-bench copy is the slate\'s literal string, got: ' + JSON.stringify(STN.sentence(deep)));
+
+      // And a bench that will dry out states the number, not a vibe.
+      G.inventory = { shrimp: 5 };
+      const thin = STN.forecast(G);
+      assert(thin && thin.allNight === false && thin.actions === 5,
+        'a 5-input bench must forecast 5 actions and NOT all night, got '
+          + JSON.stringify(thin && { a: thin.actions, n: thin.allNight }));
+      const s = STN.sentence(thin);
+      assert(/runs out after 5\.$/.test(s) && /shrimp/i.test(s),
+        'the honest limit must name the input and the count, got: ' + JSON.stringify(s));
+
+      /* THE UNPAYABLE CASE. A skill the accrual engine does not settle must
+         never be promised as a night — this is the same `serverAccruedSkill`
+         predicate the banking row beside it reads, so the two lines on one
+         card cannot contradict each other (b388 shipped exactly that bug). */
+      const unpaid = (window.SKILLS_DEF ? Object.keys(window.SKILLS_DEF) : [])
+        .filter((id) => SA.serverAccruedSkill(id) === false)[0];
+      if (unpaid) {
+        G.activeSkill = unpaid; G.skillTargetId = 'nothing_in_particular';
+        const u = STN.forecast(G);
+        assert(u && u.banks === false && /only earns while you are here\.$/.test(STN.sentence(u)),
+          'an unsettled skill must be told it does not bank, got: ' + JSON.stringify(STN.sentence(u)));
+      }
+    } finally {
+      try { STN.forget(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('NIGHT-3: the morning line is graded from the RECEIPT, never from the prediction', () => {
+    const STN = window.HearthriseSetTheNight;
+    const AC = window.HearthriseAccrual;
+    assert(AC && typeof AC.receiptStopClause === 'function' && typeof AC.receiptRecoveryClause === 'function',
+      'CONTROL: the receipt clauses must exist — the morning line quotes them rather than re-writing them');
+    const snap = snapshotG();
+    const setAt = Date.now() - 8 * 3600e3;
+    try {
+      STN.forget();
+      assert(STN.morningLine({ at: Date.now(), paidMs: 3600e3 }) === null,
+        'with NO remembered forecast the modal must say nothing at all — a ritual degrades to silence, never to a guess');
+
+      STN.remember({ at: setAt, kind: 'combat', spanMs: 6 * 3600e3 + 20 * 60e3, allNight: false,
+                     banks: true, targetName: 'Goblin' });
+
+      /* THE FORECAST HELD. `paidMs` is the SERVER's credited span. */
+      const held = STN.morningLine({ at: Date.now(), paidMs: 6 * 3600e3 });
+      assert(held === 'You set about 6h 20m; the night paid 6h — the forecast held.',
+        'the close-enough morning line is wrong, got: ' + JSON.stringify(held));
+
+      /* A NIGHT THAT RAN SHORT, and WHY — the why is the receipt's own clause,
+         not a sentence this module invented. */
+      const short = STN.morningLine({ at: Date.now(), paidMs: 40 * 60e3,
+        stoppedBy: 'supplies', stoppedById: 'shrimp', stoppedSkill: 'cooking' });
+      assert(/the night ran short\./.test(short),
+        'a 40m payout against a 6h20m forecast is short, got: ' + JSON.stringify(short));
+      assert(/ran out of/.test(short),
+        'the morning line must carry the receipt\'s OWN stop clause, got: ' + JSON.stringify(short));
+
+      /* A DEATH NIGHT reads the recovery clause — the receipt says the run
+         picked up, so the line must not imply the night simply ended. */
+      const fell = STN.morningLine({ at: Date.now(), paidMs: 7 * 3600e3, deaths: 4,
+        diedTo: 'slime', recoverMs: 8 * 60e3 });
+      assert(/You fell 4 times/.test(fell) && /picked up/.test(fell),
+        'a night with deaths must quote receiptRecoveryClause, got: ' + JSON.stringify(fell));
+
+      /* A RECEIPT WITH NO SPAN GRADES NOTHING. */
+      assert(STN.morningLine({ at: Date.now(), paidMs: 0 }) === null,
+        'a receipt that credited no span cannot grade a forecast');
+      /* AND A RECEIPT OLDER THAN THE FORECAST IS A DIFFERENT ABSENCE. */
+      assert(STN.morningLine({ at: setAt - 1000, paidMs: 6 * 3600e3 }) === null,
+        'a receipt written BEFORE the forecast is about another night and must not be graded against it');
+    } finally {
+      try { STN.forget(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('NIGHT-4: exactly ONE welcome modal exists, and the retired one is DELETED not unreferenced', () => {
+    /* THE RULING (docs/planning/FEATURE_SLATE.md §3): "v2 retires, b341
+       survives." Hearthrise shipped two welcome-back modals whose only
+       relationship was a suppression that did not suppress — the v2 block's
+       `window.maybeShowWelcome = function(){}` ran AFTER boot had already
+       captured the lexical reference in `setTimeout(maybeShowWelcome, 1500)`.
+       So the property is not "v2 is switched off"; it is that v2 IS NOT
+       THERE. Unreferenced is not unreachable (the b516 rule): anything that
+       can run one line in this page can call a function still on `window`. */
+    for (const name of ['_renderWelcomeV2', '_closeWelcomeV2', '_calcRichCatchup']) {
+      assert(!(name in window),
+        '`window.' + name + '` is back (typeof ' + (typeof window[name]) + '). The welcome-v2 modal was '
+        + 'RETIRED, not disabled: it built a second welcome-back card from a THIRD client-side estimate '
+        + 'of the absence (`Date.now() - G.lastSeen`, the device clock — §1 says the client clock is '
+        + 'never authority) and raced the b341 card that reads the server receipt. If a session summary '
+        + 'is wanted again, render it from `G.lastOfflineSummary`.');
+    }
+    assert(!document.getElementById('wbv-overlay'),
+      'the welcome-v2 overlay is in the DOM again — one ritual, one modal');
+
+    const snap = snapshotG();
+    const prevSeen = G.lastSeen, prevWel = G.lastWelcome;
+    try {
+      assert(typeof window.__maybeShowWelcome === 'function',
+        'CONTROL: the surviving b341 modal must still be drivable, or this test proves nothing');
+      G.lastSeen = Date.now() - 8 * 3600e3;
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      /* THE COUNT, over every welcome surface the game has ever had. A second
+         one appearing here is the exact regression the ruling closed. */
+      const open = document.querySelectorAll('#welcome-overlay.show, #wbv-overlay.show, #hr-welcome-modal');
+      assert(open.length === 1,
+        'expected exactly ONE welcome modal open, got ' + open.length + ': '
+        + [...open].map((n) => n.id || n.className).join(', '));
+    } finally {
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      G.lastSeen = prevSeen; G.lastWelcome = prevWel;
+      restoreG(snap);
+    }
+  }),
 
   () => tryRun('b341: the away card SAYS you died, when, and that the rest paid nothing', () => {
     const HD = window.HearthriseHome;

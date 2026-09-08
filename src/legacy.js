@@ -14410,6 +14410,20 @@ function maybeShowWelcome(){
   })(_srvSpan);
   if(_awayLbl !== null) rows.push({g:'uiHourglass', t: 'Time away', v: _awayLbl});
   if(_fresh){
+    /* ── SET THE NIGHT, THE MORNING HALF (slate §3) ────────────────────────
+       The ritual's second sentence: how right last night's forecast was. It
+       LEADS, because "what you set" beside "what you got" is the whole point
+       of the return; every figure in it that describes the night comes from
+       THIS receipt (`paidMs`, `stoppedBy`, `deaths`) and only the predicted
+       span comes from the client's stored forecast. No forecast, a stale one,
+       or one belonging to another character ⇒ null, and the modal simply says
+       less. Spoken once: the forecast is dropped after it is graded, so a
+       second reload cannot re-grade last night against tonight's receipt. */
+    try{
+      var _STN = window.HearthriseSetTheNight;
+      var _nightLine = _STN && _STN.morningLine ? _STN.morningLine(_off) : null;
+      if(_nightLine){ rows.push({g:'uiHourglass', t:_nightLine, v:''}); _STN.forget(); }
+    }catch(e){}
     /* WHAT THE NIGHT ACTUALLY PAID. One row per channel that moved, and none
        at all for a channel that did not — a "+0 gold" row is noise, and a
        missing row for a channel that DID pay is the bug this fixes. */
@@ -15758,322 +15772,48 @@ window._stopArtisan = function(){
   };
 })();
 
-// ===== block 20: welcome-v2-js =====
-(function(){
-"use strict";
+// ===== block 20: welcome-v2 — RETIRED (Set the Night, slate §3) =========
+/* ═══ TOMBSTONE: THE SECOND WELCOME MODAL IS GONE ═════════════════════════
+   Designer ruling (FEATURE_SLATE.md §3, 2026-09-07): "v2 retires, b341
+   survives." Hearthrise had TWO welcome-back modals and neither knew about
+   the other:
 
-/* ─── Rich catchup calculation ──────────────────────────── */
-function calcRichCatchup(){
-  if(typeof G !== 'object' || !G) return null;
-  var since = Date.now() - (G.lastSeen || Date.now());
-  var hoursAway = since / 3600000;
-  if(hoursAway < 0.5) return null;
-  var capped = Math.min(hoursAway, 12);
-  var summary = {
-    hoursAway: hoursAway,
-    cappedHours: capped,
-    xp: {},
-    itemsGained: {},
-    itemsLost: {},
-    gold: 0,
-    activities: []
-  };
-  /* Active gathering skill */
-  if(G.activeSkill && G.skillTargetId){
-    var node = null;
-    if(typeof TREES !== 'undefined') node = TREES.find(function(a){return a.id===G.skillTargetId;});
-    if(!node && typeof ROCKS !== 'undefined') node = ROCKS.find(function(a){return a.id===G.skillTargetId;});
-    if(!node && typeof FISH_SPOTS !== 'undefined') node = FISH_SPOTS.find(function(a){return a.id===G.skillTargetId;});
-    if(node){
-      var aph = 3600000 / Math.max(500, node.ms);
-      var actions = Math.floor(capped * aph * 0.5);
-      var xpGain = Math.floor(actions * node.xp);
-      var avgQ = (node.qty[0]+node.qty[1])/2;
-      var itemQty = Math.floor(actions * avgQ);
-      summary.xp[G.activeSkill] = xpGain;
-      summary.itemsGained[node.prod] = itemQty;
-      summary.activities.push({
-        type: G.activeSkill, label: node.name + ' (×' + actions + ' actions)',
-        glyphKey: 'uiPickaxe'
-      });
-    }
-  }
-  /* Farm plots that finished while away.
-     b220: reads the same HearthriseFarm.isReady() the live tick does — one
-     source of truth for growth. The old copy re-derived it here AND carried
-     `&& p.watered`, so a dry plot was never counted as ready offline either.
-     Farm growth is deliberately NOT subject to the 12h offline cap: crops
-     mature off plantedAt however long you were away. */
-  if(typeof G.farmPlots !== 'undefined' && G.farmPlots){
-    var readyPlots = 0, soonPlots = 0;
-    var FA = window.HearthriseFarm;
-    G.farmPlots.forEach(function(p){
-      if(!p) return;
-      var crop = (typeof CROPS !== 'undefined') ? CROPS[p.cropId] : null;
-      if(!crop) return;
-      if(FA && FA.isReady(p)){ readyPlots++; return; }
-      if(FA && FA.readyInMs(p) <= 3600000) soonPlots++;
-    });
-    if(readyPlots > 0){
-      summary.activities.push({
-        type:'farming',
-        label: readyPlots + ' farm plot' + (readyPlots>1?'s':'') + ' ready to harvest'
-               + (soonPlots > 0 ? ' · ' + soonPlots + ' more within the hour' : ''),
-        glyphKey:'navFarm', readyPlots: readyPlots
-      });
-    } else if(soonPlots > 0){
-      summary.activities.push({
-        type:'farming', label: soonPlots + ' farm plot' + (soonPlots>1?'s':'') + ' ready within the hour',
-        glyphKey:'navFarm', readyPlots: 0
-      });
-    }
-  }
-  /* Bounty progress reminders */
-  if(G.bountyHunter && G.bountyHunter.active){
-    var bh = G.bountyHunter.active;
-    if(bh.progress < bh.required){
-      summary.activities.push({
-        type:'bounty', label:'Bounty in progress: ' + (bh.progress||0) + ' / ' + bh.required,
-        glyphKey:'navBounty'
-      });
-    } else {
-      summary.activities.push({
-        type:'bounty', label:'Bounty ready to turn in!',
-        glyphKey:'navBounty', ready: true
-      });
-    }
-  }
-  return summary;
-}
-window._calcRichCatchup = calcRichCatchup;
+     · b341's `#welcome-overlay` (maybeShowWelcome, this file ~line 14353) —
+       built entirely from `G.lastOfflineSummary`, the RECEIPT the server
+       wrote for the absence. Deaths, recovery, dry-out, the base rate. It is
+       the one players actually saw, and it is the one that survives.
+     · this block's `#wbv-overlay` — built from `calcRichCatchup()`, a THIRD
+       client-side estimate of the same night off `Date.now() - G.lastSeen`,
+       the device clock (§1: never authority). It "suppressed" the b341 modal
+       with `window.maybeShowWelcome = function(){}` — which suppressed
+       NOTHING, because boot had already captured the lexical reference in
+       `setTimeout(maybeShowWelcome, 1500)` before that line ever ran. So the
+       suppression was dead code guarding a modal that raced the real one.
 
-/* Apply gathered XP/items (same effect as before) */
-function applyRichCatchup(s){
-  if(!s) return;
-  Object.keys(s.xp||{}).forEach(function(sk){
-    if(typeof addXp === 'function') addXp(sk, s.xp[sk]);
-  });
-  Object.keys(s.itemsGained||{}).forEach(function(id){
-    if(typeof addItem === 'function') addItem(id, s.itemsGained[id]);
-  });
-}
+   DELETED, not unreferenced — the b516 rule for this exact family: an
+   estimator that is merely unwired is one console line from being wired
+   again. Gone with it:
+     · `calcRichCatchup` / `window._calcRichCatchup` (the estimate)
+     · `applyRichCatchup`                            (its crediting applier)
+     · `buildOverlay` / `renderModal` / `window._renderWelcomeV2`
+       / `window._closeWelcomeV2`                    (the modal)
+     · the 1800ms boot auto-show                     (the second ritual)
+     · the Profile "Last Session Summary" button — it re-opened THIS modal
+       from `G.lastSessionSummary`, which only the deleted boot block ever
+       wrote, so it would have said "No previous session summary yet"
+       forever. The return story now lives on ONE surface: the b341 card,
+       plus the Set the Night morning line above it.
 
-/* ─── Render the new modal ──────────────────────────────── */
-function buildOverlay(){
-  if(document.getElementById('wbv-overlay')) return;
-  var ov = document.createElement('div');
-  ov.id = 'wbv-overlay';
-  ov.className = 'wbv-overlay';
-  ov.innerHTML = '<div class="wbv-modal" id="wbv-modal" onclick="event.stopPropagation()"></div>';
-  ov.addEventListener('click', function(e){ if(e.target===ov) closeModal(); });
-  document.body.appendChild(ov);
-}
-function closeModal(){
-  var ov = document.getElementById('wbv-overlay');
-  if(ov) ov.classList.remove('show');
-}
-window._closeWelcomeV2 = closeModal;
+   `G.lastSessionSummary` stays in `RESIDUE_FIELDS` (src/net/events.js) for
+   now: removing an allowlist entry is a residue-guard change and belongs
+   with that guard's own mutation proof, not in this feature's diff. Nothing
+   writes it any more, so it is inert.
 
-function fmtTime(hours){
-  var h = Math.floor(hours), m = Math.round((hours-h)*60);
-  if(h > 0) return h + 'h ' + m + 'm';
-  return m + 'm';
-}
-function fmtNum(n){
-  if(n >= 1000000) return (n/1000000).toFixed(1)+'M';
-  if(n >= 1000) return (n/1000).toFixed(1)+'k';
-  return Math.floor(n).toLocaleString();
-}
-function itemImg(id){
-  var path = window._itemPath && window._itemPath[id];
-  if(path){
-    var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(id) : '';
-    return '<img src="'+path+'" class="wbr-img '+tint+'" alt="" />';
-  }
-  return '<span class="wbr-emoji">'+itemFallbackIcon(id, 24)+'</span>';
-}
-function itemName(id){
-  return (typeof ITEMS!=='undefined' && ITEMS[id]) ? ITEMS[id].n : id;
-}
-function skillName(sk){
-  return (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF[sk]) ? SKILLS_DEF[sk].name : sk;
-}
-function skillIcon(sk){
-  if(window._skillIcon && window._skillIcon[sk]) return '<img src="'+window._skillIcon[sk]+'" class="wbr-img" alt="" />';
-  var med = window.HearthriseIconSet && window.HearthriseIconSet.medallion && window.HearthriseIconSet.medallion(sk, 26);
-  return med || '<span class="hr-blank-icon" aria-hidden="true"></span>';
-}
-
-function renderModal(summary){
-  buildOverlay();
-  var modal = document.getElementById('wbv-modal');
-  if(!modal) return;
-  var streakCount = (G.streak && G.streak.count) || 1;
-  var totalKills = (G.stats && G.stats.kills) || 0;
-
-  var sections = '';
-
-  /* XP Section */
-  var xpKeys = Object.keys(summary.xp||{}).filter(function(k){return summary.xp[k]>0;});
-  var xpTotal = xpKeys.reduce(function(a,k){return a+summary.xp[k];},0);
-  if(xpKeys.length){
-    sections += '<div class="wbv-section open"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">'+_hrGly('uiStar',16,'--gold-2')+'</span>'+
-      '<span class="wbs-title">XP Gained</span>'+
-      '<span class="wbs-summary">+'+fmtNum(xpTotal)+'</span>'+
-      '<span class="wbs-arrow">▶</span></div>'+
-      '<div class="wbv-section-body">'+
-      xpKeys.map(function(sk){
-        return '<div class="wbv-row gain">'+skillIcon(sk)+'<span class="wbr-text">'+skillName(sk)+'</span><span class="wbr-val">+'+fmtNum(summary.xp[sk])+'</span></div>';
-      }).join('') +
-      '</div></div>';
-  }
-
-  /* Items gained */
-  var gainKeys = Object.keys(summary.itemsGained||{}).filter(function(k){return summary.itemsGained[k]>0;});
-  if(gainKeys.length){
-    var totalGained = gainKeys.reduce(function(a,k){return a+summary.itemsGained[k];},0);
-    sections += '<div class="wbv-section"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">'+_hrGly('uiChest',16,'--gold-2')+'</span>'+
-      '<span class="wbs-title">Items Gathered</span>'+
-      '<span class="wbs-summary">+'+totalGained+' items</span>'+
-      '<span class="wbs-arrow">▶</span></div>'+
-      '<div class="wbv-section-body">'+
-      gainKeys.map(function(id){
-        return '<div class="wbv-row gain">'+itemImg(id)+'<span class="wbr-text">'+itemName(id)+'</span><span class="wbr-val">+'+summary.itemsGained[id]+'</span></div>';
-      }).join('') +
-      '</div></div>';
-  }
-
-  /* Items consumed (placeholder — combat catchup coming in Phase 2) */
-  var lossKeys = Object.keys(summary.itemsLost||{}).filter(function(k){return summary.itemsLost[k]>0;});
-  if(lossKeys.length){
-    sections += '<div class="wbv-section"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">'+_hrGly('uiFood',16,'--gold-2')+'</span>'+
-      '<span class="wbs-title">Items Consumed</span>'+
-      '<span class="wbs-summary">-'+lossKeys.length+' types</span>'+
-      '<span class="wbs-arrow">▶</span></div>'+
-      '<div class="wbv-section-body">'+
-      lossKeys.map(function(id){
-        return '<div class="wbv-row loss">'+itemImg(id)+'<span class="wbr-text">'+itemName(id)+'</span><span class="wbr-val">-'+summary.itemsLost[id]+'</span></div>';
-      }).join('') +
-      '</div></div>';
-  }
-
-  /* Activities awaiting */
-  var awaiting = (summary.activities||[]).filter(function(a){return a.ready||a.readyPlots;});
-  if(awaiting.length){
-    sections += '<div class="wbv-section open"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">'+_hrGly('uiBell',16,'--gold-2')+'</span>'+
-      '<span class="wbs-title">Awaiting Your Attention</span>'+
-      '<span class="wbs-summary">'+awaiting.length+'</span>'+
-      '<span class="wbs-arrow">▶</span></div>'+
-      '<div class="wbv-section-body">'+
-      awaiting.map(function(a){
-        return '<div class="wbv-row"><span class="wbr-emoji">'+_hrGly(a.glyphKey||'uiStar',16,'--gold-2')+'</span><span class="wbr-text">'+a.label+'</span></div>';
-      }).join('') +
-      '</div></div>';
-  }
-
-  /* Active session continuing */
-  var ongoing = (summary.activities||[]).filter(function(a){return !a.ready && !a.readyPlots;});
-  if(ongoing.length){
-    sections += '<div class="wbv-section"><div class="wbv-section-head" onclick="this.parentElement.classList.toggle(\'open\')">'+
-      '<span class="wbs-icon">'+_hrGly('uiHourglass',16,'--gold-2')+'</span>'+
-      '<span class="wbs-title">Continuing Activity</span>'+
-      '<span class="wbs-summary">'+ongoing.length+'</span>'+
-      '<span class="wbs-arrow">▶</span></div>'+
-      '<div class="wbv-section-body">'+
-      ongoing.map(function(a){
-        return '<div class="wbv-row"><span class="wbr-emoji">'+_hrGly(a.glyphKey||'uiStar',16,'--gold-2')+'</span><span class="wbr-text">'+a.label+'</span></div>';
-      }).join('') +
-      '</div></div>';
-  }
-
-  if(!sections){
-    sections = '<div class="wbv-empty" style="text-align:center;padding:14px">No active progress while away. Pick a skill to start training!</div>';
-  }
-
-  modal.innerHTML =
-    '<h2>Welcome back, adventurer</h2>'+
-    '<div class="wbv-sub">Your homestead missed you.</div>'+
-    '<div class="wbv-statrow">'+
-      '<div class="wbv-stat"><b>'+fmtTime(summary.hoursAway)+'</b><span>Time away</span></div>'+
-      /* b499 — "Days running", never "Day streak": this is the PLAY streak and
-         the daily-reward sheet owns no streak word at all. See the ruling note
-         at the old welcome modal's own streak row. */
-      '<div class="wbv-stat"><b>'+streakCount+'</b><span>Days running</span></div>'+
-      '<div class="wbv-stat"><b>'+balMarkup('gold',{format:fmtNum})+'</b><span>Gold pouch</span></div>'+
-    '</div>'+
-    sections +
-    '<button class="wbv-claim" onclick="window._closeWelcomeV2()">Continue</button>';
-
-  document.getElementById('wbv-overlay').classList.add('show');
-}
-window._renderWelcomeV2 = renderModal;
-
-/* ─── Replace the boot path: don't show old modal, show v2 ─── */
-(function(){
-  /* Intercept the old maybeShowWelcome flow */
-  var origMaybe = window.maybeShowWelcome;
-  if(typeof origMaybe === 'function'){
-    window.maybeShowWelcome = function(){ /* suppress old modal */ };
-  }
-  /* Run our own check on boot */
-  setTimeout(function(){
-    if(typeof G !== 'object' || !G) return;
-    if(Date.now() - (G.lastWelcome||0) < 5000) return; // already shown
-    var s = calcRichCatchup();
-    if(!s) return;
-    G.lastWelcome = Date.now();
-    G.lastSessionSummary = s;
-    /* b214 (correctness fix): display-only. processOffline() already granted;
-       this second grant was double-paying every returning gatherer. renderModal
-       shows the estimate.
-       ⚠ WHY THIS ESTIMATOR SURVIVED THE b516 SWEEP AND `calcCatchup` DID NOT.
-       The test for deletion was REACHABILITY-AS-A-MINT, not deadness:
-         · `calcCatchup` + `window._applyCatchup` — pure estimate PLUS a
-           crediting applier, BOTH on `window`. One console line joined them
-           into `addXp`/`addItem`. DELETED (tombstone at section 3).
-         · `calcRichCatchup` + `window._calcRichCatchup` — on `window`, but
-           PURE: it returns a summary and credits nothing. It is the modal's
-           numbers, and it stays.
-         · `applyRichCatchup` (just above) — DOES credit, but is module-scope
-           with zero callers and is NOT published on `window`, so nothing
-           outside this file can reach it. Dead, not dialable; left in place so
-           this build's diff stays the capability removal it claims to be.
-       ⚠ IF `applyRichCatchup` IS EVER EXPORTED, OR `calcRichCatchup` EVER
-       GROWS A CREDIT, that pairing recreates the b214 double-pay — delete it
-       the way b516 deleted the first one, rather than unreferencing it. */
-    renderModal(s);
-  }, 1800);
-})();
-
-/* ─── Profile button: re-open last summary ──────────────── */
-function injectProfileButton(){
-  var panel = document.getElementById('panel-profile');
-  if(!panel) return;
-  if(panel.querySelector('.wbv-reopen-btn')) return;
-  var btn = document.createElement('button');
-  btn.className = 'btn wbv-reopen-btn';
-  btn.style.cssText = 'margin-left:8px';
-  btn.innerHTML = _hrGly('uiScroll',14)+' Last Session Summary';
-  btn.addEventListener('click', function(){
-    if(G.lastSessionSummary){ renderModal(G.lastSessionSummary); }
-    else if(typeof notify === 'function') notify('No previous session summary yet','info');
-  });
-  /* Insert into the existing feat-buttons row if present */
-  var row = panel.querySelector('.feat-buttons');
-  if(row) row.appendChild(btn);
-}
-setTimeout(injectProfileButton, 800);
-window.HearthriseShowTab.wrapShowTab('profile-button', function(t){
-  // b407 flicker fix: inject synchronously in the activating task (was 50ms defer).
-  if(t === 'profile') injectProfileButton();
-});
-
-console.log('Welcome v2 loaded');
-})();
+   The `.wbv-*` rules in src/styles/legacy.css and the `#wbv-overlay.show`
+   entries in the blocking-overlay selector lists (beta-banner.js,
+   daily-reward.js, renown.js, smoke-test.js) now match nothing. They are
+   inert and are left for the CSS cleanup slice rather than swept here.
+   ════════════════════════════════════════════════════════════════════════ */
 
 // ===== block 21: phase-a1-recipes =====
 (function(){

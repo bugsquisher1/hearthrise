@@ -7400,7 +7400,7 @@ function closeAllModals(){
   // Pattern D: #quests-modal-overlay — element-removal pattern
   if(typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
   // Pattern E: legacy fixed-position dim layers tagged by id
-  ['settings-modal','more-modal','session-modal','wbv-modal']
+  ['settings-modal','more-modal','session-modal']
     .forEach(id=>{var el=document.getElementById(id); if(el) el.classList.remove('show');});
   // Restore body scroll if a modal locked it
   document.body.style.overflow='';
@@ -15819,10 +15819,10 @@ window._stopArtisan = function(){
    with that guard's own mutation proof, not in this feature's diff. Nothing
    writes it any more, so it is inert.
 
-   The `.wbv-*` rules in src/styles/legacy.css and the `#wbv-overlay.show`
-   entries in the blocking-overlay selector lists (beta-banner.js,
-   daily-reward.js, renown.js, smoke-test.js) now match nothing. They are
-   inert and are left for the CSS cleanup slice rather than swept here.
+   SWEPT (cleanup slice, 2026-09-08): the `.wbv-*` rules in legacy.css and the
+   `#wbv-overlay`/`wbv-modal` entries in the blocking-overlay and closeAllModals
+   lists (beta-banner.js, daily-reward.js, renown.js, this file) matched nothing
+   and are gone. smoke-test.js keeps one on purpose: it asserts ABSENCE.
    ════════════════════════════════════════════════════════════════════════ */
 
 // ===== block 21: phase-a1-recipes =====

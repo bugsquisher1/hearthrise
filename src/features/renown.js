@@ -853,7 +853,7 @@
   // when it fires, so deferring just waits for the screen to clear.
   function anotherModalUp() {
     return !!document.querySelector(
-      '.ftue-root,#hr-welcome-modal,.wbv-overlay,.beta-overlay,[class*="welcome-overlay"],.hr-dl-scrim,.hr-cl-scrim,.acq-overlay,.ach-overlay'
+      '.ftue-root,#hr-welcome-modal,.beta-overlay,[class*="welcome-overlay"],.hr-dl-scrim,.hr-cl-scrim,.acq-overlay,.ach-overlay'
     );
   }
   /* ── THE WATCHER CAN BE PARKED (suite isolation) ──────────────────────────

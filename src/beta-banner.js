@@ -53,7 +53,6 @@
   var BLOCKING_MODALS = [
     '.modal.show',
     '#welcome-overlay.show',      // legacy.js maybeShowWelcome()
-    '#wbv-overlay.show',          // legacy.js welcome-v2
     /* daily-reward.js has no `.show` state at all — the scrim IS the modal and
        it is removed on dismiss, so PRESENCE is the condition. A `.show` here
        would have been a third selector that matches nothing. */

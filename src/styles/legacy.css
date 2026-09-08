@@ -2393,42 +2393,13 @@ body[data-theme="dark"] .lane1-toggle{
    component. An empty state is a real state — draw it like one. */
 .friend-row.coming-soon,.friend-row.is-empty{opacity:1;border:0;background:rgba(0,0,0,.22);border-radius:var(--r);color:var(--ink-3);font-style:normal;text-align:center;justify-content:center;padding:20px 14px}
 
-/* ===== block 18: welcome-v2-css ===== */
-.wbv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
-.wbv-overlay.show{display:flex;animation:fade-in .3s}
-.wbv-modal{max-width:540px;width:100%;max-height:88vh;overflow-y:auto;background:var(--bg-card);border:3px solid var(--gold-2);border-radius:var(--r);padding:22px;box-shadow:0 0 80px rgba(243,209,129,.3)}
-.wbv-modal h2{font-family:var(--f-display);color:var(--gold-2);margin:0 0 4px;font-size:calc(28px * var(--ui-scale, 1));text-align:center}
-.wbv-modal .wbv-sub{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));margin-bottom:14px;text-align:center}
-
-/* Compact header stat row */
-.wbv-statrow{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px}
-.wbv-stat{padding:8px;background:rgba(243,209,129,.08);border:1px solid rgba(243,209,129,.25);border-radius:6px;text-align:center}
-.wbv-stat b{display:block;font-size:calc(19px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2)}
-.wbv-stat span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
-
-/* Collapsible section */
-.wbv-section{margin-bottom:8px;background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:6px;overflow:hidden}
-.wbv-section-head{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;user-select:none;transition:background .15s}
-.wbv-section-head:hover{background:rgba(243,209,129,.08)}
-.wbv-section-head .wbs-icon{font-size:calc(21.5px * var(--ui-scale, 1));flex-shrink:0}
-.wbv-section-head .wbs-title{flex:1;font-weight:700;font-size:calc(16px * var(--ui-scale, 1));color:var(--ink)}
-.wbv-section-head .wbs-summary{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-weight:600}
-.wbv-section-head .wbs-arrow{margin-left:8px;transition:transform .2s;color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))}
-.wbv-section.open .wbs-arrow{transform:rotate(90deg)}
-.wbv-section-body{display:none;padding:0 12px 12px;border-top:1px solid var(--line-soft);background:rgba(0,0,0,.18)}
-.wbv-section.open .wbv-section-body{display:block}
-.wbv-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);border-bottom:1px dashed rgba(255,255,255,.05)}
-.wbv-row:last-child{border-bottom:0}
-.wbv-row .wbr-emoji{font-size:calc(17px * var(--ui-scale, 1))}
-.wbv-row .wbr-text{flex:1}
-.wbv-row .wbr-val{font-weight:800;color:var(--gold-2)}
-.wbv-row.gain .wbr-val{color:#7f9a4f}
-.wbv-row.loss .wbr-val{color:#e8746a}
-.wbv-row .wbr-img{width:18px;height:18px;border-radius:3px;object-fit:contain}
-
-.wbv-empty{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));font-style:italic;padding:6px 0}
-.wbv-claim{display:block;width:100%;padding:11px;margin-top:14px;background:linear-gradient(180deg,#f9c54e,#e8a838);color:#3a1812;border:2px solid #5b2618;border-radius:8px;font-weight:800;cursor:pointer;font-size:calc(17px * var(--ui-scale, 1));text-align:center}
-.wbv-claim:hover{background:linear-gradient(180deg,#fdd779,#f9c54e)}
+/* ===== block 18: welcome-v2-css — DELETED (cleanup slice: dead CSS) =====
+   The `#wbv-overlay` modal was retired in src/legacy.js block 20 (Set the
+   Night, FEATURE_SLATE.md §3): v2 retires, b341 survives. Its 35 `.wbv-*` /
+   `.wbs-*` / `.wbr-*` rules styled elements nothing builds any more, so they
+   are deleted rather than left inert — an unreferenced rule block is one
+   copy-paste from styling something it was never written for, and
+   tests/dead-css.mjs is red while it exists. ===================== */
 
 /* ===== block 19: ui-rework-v2-css ===== */
 /* ─── Farm plot cells: shrink + 4-column layout (b139 QA §2.8.1) ─── */

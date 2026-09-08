@@ -1811,7 +1811,7 @@ const TESTS = [
     const names = R.tapNames();
     // Every migrated site registers a tap under a stable label. If any is absent,
     // that navigation trigger was dropped in the migration.
-    /* b520 — 'profile-button' was REMOVED from this census, not lost. It was the
+    /* 'profile-button' was REMOVED from this census (welcome-v2 retired), not lost. It was the
        welcome-v2 "Last Session Summary" tap, retired wholesale with the second
        welcome modal (a779c9cf, Set the Night, FEATURE_SLATE.md §3). The site is
        gone, so a tap for it would be a tap on nothing. This list is the census of
@@ -11804,7 +11804,7 @@ const TESTS = [
   () => tryRun('clicks: profile feat-buttons (achievements/bestiary/etc)', () => {
     window.showTab('profile');
     const btns = document.querySelectorAll('#panel-profile .feat-buttons button, #panel-profile .feat-buttons .stats-btn-trigger');
-    /* b520 — this was a bare `>= 4`, which silently encoded a FOURTH button that
+    /* This was a bare `>= 4`, which silently encoded a FOURTH button that
        no longer exists: welcome-v2's "Last Session Summary" (retired in a779c9cf,
        Set the Night, FEATURE_SLATE.md §3). A count threshold cannot tell "the row
        shrank by ruling" from "a button was dropped by accident", so it is now the

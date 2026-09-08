@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 522 — 2026-09-08 (The Retreat, the Night, and the first Hearthfinds)
+
+**The Retreat (Recovery Rule rev.3).** The realm now stops swinging a fight it has proven you cannot win. Three falls in a row with no food (six with food) and the run halts on a Retreat, not a fourth knockout: the fight sheet says so, the forecast warns you once before the fatal tap, and nothing is healed or hurried — the recovery clock is untouched. Server-owned (`consec_falls`, written only by the engine), attended and away alike; a fresh win resets the count.
+
+**Set the Night.** One return ritual instead of a welcome screen: before you leave, a forecast of what the night will bring at your current activity; when you return, a receipt of what it actually brought (kills, drops, XP, food eaten, falls) drawn from the server's away receipt. The old welcome-v2 panel is retired.
+
+**Hearthfind — the super-rare drop moment.** Four once-ever trophies (Emberheart, Worldroot Seed, Deepvein Lodestar, Tidecaller's Pearl) roll only from boss fights, tuned in hours not odds, journalled server-side with a 3/day and 30-second clamp. A find gets a reveal that waits for you if you were away, a chat line the whole realm sees, and a first-finder title (Emberborn, Rootwarden, Deepdelver, Tidesworn; Wonderkeeper for all four). Titles live in a new server-owned cosmetics row.
+
+**The Forge and the Workshop sell their identity from rung 1.** Each room's first rung now grants its signature perk instead of a bare unlock.
+
+**Under the hood.** Five new tables classified in the restore census; live-hash baseline re-measured after the four production applies; 35 dead `.wbv-*` CSS rules deleted; monolith ratchet pinned down to 20,879 lines / 494 functions; stale profile censuses re-specified.
+
 ## v0.9.2-beta build 521 — 2026-09-07 (Your first day, made visible; the monolith starts to shrink)
 
 - 🌅 **Your first day now has a card.** Five steps were always there — gather 15, cook 5, defeat 5, harvest 6, a hundred kills — credited by the realm and open on every new character, and none of them were visible: Home showed one milestone and minute five said "train Attack". A pinned "Your first day" card now leads Home while any step is open, the current step lit, each row taking you where it happens. (FIRST LIGHT — client half; the capstone reward that hands out Auto-Eat I comes with the realm-side change.)

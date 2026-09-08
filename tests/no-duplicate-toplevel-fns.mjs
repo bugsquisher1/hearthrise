@@ -64,9 +64,7 @@ const SEG_RE = /^\}\)\(\);?\s*$/;
 export const KNOWN_SPLIT_NAMES = {
   applyAll: 'two per-module "repaint everything I own" helpers, different IIFEs',
   boot: 'the script-level boot (script scope) plus two per-module boots inside their own IIFEs',
-  buildOverlay: 'two overlay builders in different UI modules',
   fmtQty: 'two quantity formatters in different UI modules',
-  itemImg: 'two item-thumbnail helpers in different UI modules',
   migrate: 'two per-module save/shape migrators, different IIFEs',
   paintAll: 'two per-module full-repaint helpers, different IIFEs',
   /* refreshAll: UNPINNED 2026-09-07 by cleanup slice 8b. The second body was

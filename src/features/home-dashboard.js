@@ -1511,11 +1511,7 @@
        cap by hitting it. Truthful: combat / gathering / crafting bank the whole
        time you are away; cooking, farming and an idle camp do not. */
     html += awayBankingRow(G);
-    /* SET THE NIGHT (slate §3) — how far tonight's supplies carry the CURRENT
-       activity, beneath the row that says whether tonight banks at all. The
-       two read the same `serverAccruedSkill` predicate, so they cannot
-       disagree. Advisory only: the module authors nothing and the server
-       never reads it. Absent module / idle character ⇒ empty string. */
+    /* Set the Night (slate §3): advisory strip, same `serverAccruedSkill` predicate as the banking row; authors nothing. */
     try {
       var STN = window.HearthriseSetTheNight;
       if (STN && typeof STN.strip === 'function') html += STN.strip(G);

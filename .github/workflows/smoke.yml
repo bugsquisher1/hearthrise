@@ -14,7 +14,9 @@ name: smoke
 
 on:
   push:
-    branches: [main]
+    # main deploys (Pages); release/** and next are GATE-ONLY branches — the same
+    # five-job matrix runs there so a release never waits on a developer machine.
+    branches: [main, 'release/**', next]
     # DOCS-ONLY COMMITS DO NOT GATE CODE. The ledger and the audit
     # reports are updated many times a day; each one was starting a full
     # ~40-minute run, which queues behind the real ones and delays the

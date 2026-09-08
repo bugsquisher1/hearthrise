@@ -54,6 +54,8 @@ Player-visible bugs first, in the order a player meets them. No new feature trac
 | **C. DB / economy lane** | any migration or RPC body change | author + §4 self-check + `schema-drift` replay + `apply-order-honesty` → **Security GO** → Coordinator applies (`tools/apply-migration.mjs`, one file) → read-only post-apply verification agent → `live-hash-drift --live --write` + whys + apply-order note flipped to APPLIED + `restore-census` (classify any new table) → edge deploy if the engine half moved → THEN the client half ships via lane A or B | apply happens BEFORE the client push that depends on it |
 
 Rules that apply to every lane:
+- **The record gate runs on GitHub, not on Tyler's PC (2026-09-08).** Every release candidate is pushed to `release/<build>` (and staging to `next`); the workflow runs the full five-job matrix on those branches without deploying. Tyler's machine runs only filtered checks and `tools/lane-done.mjs`. A local suite is a convenience when memory allows, never the thing a release waits on.
+- **The Coordinator never resolves a conflict by hand (2026-09-08).** Integration is `git merge` with zero conflict hunks or nothing: a branch that conflicts goes back to its authoring lane, which merges main/next into itself, re-runs its own tests and reports. Two of today's shipped bugs were Coordinator-resolved hunks with no test behind them.
 - **One suite at a time on a quiet machine** (parallel suites blow the in-page budget and look like flakes). When several branches are ready, merge the set and run ONE suite; bisect only if red. Never run the suite after every merge of a set.
 - **Never bundle a lane-A fix behind lane-B/C work.** The slowest branch must never gate the fastest.
 - **A release is green only when the in-page suite, `run-ci-local` AND the GitHub Actions run on the release SHA are green, AND it has been played.** In lane A the two CI halves run after the push; a red one is fixed forward within the hour, never "flaky" until read. In lanes B/C the local half runs before the push.
@@ -62,13 +64,17 @@ Rules that apply to every lane:
 - **Edge deploy before push** whenever `supabase/functions/**` changed: `node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue` + copy `supabase/config.toml`, then `npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> --project-ref nezapsylztqbbwuwembx`, then verify the live `payload_sha256` equals `pack-edge --hash`. The in-page payload guard is red until they match.
 - **Push = live** (Pages deploys `main`). The Coordinator runs `git push` itself. After Pages serves the new `BUILD.cache`, play-gate, then post the release note with `node tools/post-changelog.mjs <file>` (dry-run first; 2000-char cap).
 
-### 3.4 Dead-feature vitals
+### 3.4 Play first, then vitals, then lanes (2026-09-08)
+The first hour of every session is PLAY: the QA account on live through the real loop (reload → claim → fight → gather → buy → water → reload) and a fresh account through the first thirty minutes. Every real bug this week came from someone playing, none from an audit. Only then the vitals, only then new feature lanes.
+
 At the start of every session run `node tools/vitals.mjs` (read-only, management endpoint, token from `~/.supabase-token`): plants/waters/harvests, fights/deaths, gathers/crafts/workers, buys/rooms, claims, market listings/sales, refused intents, users — per day for the last 7 days. `player_intents` journals ACCEPTED intents only (measured 2026-09-07: 2,305 rows, zero non-ok); refusals with a reason are not journalled yet — that is a queued lane-C item, and until it lands a refusal is invisible unless a player reports it. A feature at zero for two days is a P1 by definition. Farming sat at zero from 2026-08-27 to 2026-09-06 and nobody could see it.
 
 ---
 
 ## 4. Testing discipline
 
+- **A lane is not done until `node tools/lane-done.mjs` is green in its worktree (2026-09-08).** It runs the four debt ratchets, no-client-xp-mint, property-gate-census, dead-exports, window-globals-exist, no-duplicate-toplevel-fns, token-single-source, css-literal-ratchet, ci-shape, guard-hygiene and `bump-version.sh --check`. Paydown happens where the code is written, once — never by a second lane after the merge.
+- **A claim in a commit message or a report is gated on the guard's exit code, never on expectation (2026-09-08).** `( cmd || echo RED )` returns 0; run the guard, branch on `$?`, then write the word "green".
 - **Every fix and feature ships with a test in the same commit.** Bug → regression under "regression suite" in `src/features/smoke-test.js` that fails without the fix. Feature → a happy-path test under "player actions"/"interactive coverage" that plays it. Full mechanics in `TESTING.md`.
 - **Both-path tests.** Anything touching combat, death, activity, accrual or receipts ships an ATTENDED test and an AWAY test. b509 tested the away death nine ways while the attended death handed out a free full heal.
 - **Mutate the caller; one sample is not a verdict.** A guard that has never been red is not a guard: every standing guard carries `--selftest`/`--mutate` proof.
@@ -115,6 +121,8 @@ At the start of every session run `node tools/vitals.mjs` (read-only, management
 ---
 
 ## 8. Reporting to Tyler
+
+- **Brevity is a rule, not a style (2026-09-08).** A status is one table plus at most three sentences. A commit message is at most eight lines. The priority board's status section is GENERATED (`node tools/board-from-git.mjs`), never typed; hand-written narrative goes only in the decisions and backlog sections.
 
 - **Status is a table:** item → status (live / applied / staged / in flight / open) → what's needed. Lead with it. No walls of text; no "I'll…" without a tool call behind it.
 - Report outcomes faithfully: red is red, unplayed is unplayed, a skipped step is named.

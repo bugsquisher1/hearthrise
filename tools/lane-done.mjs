@@ -13,6 +13,7 @@ const STEPS = [
   ['node', ['tests/no-client-xp-mint.mjs']],
   ['node', ['tests/property-gate-census.mjs']],
   ['node', ['tests/dead-exports.mjs']],
+  ['node', ['tests/dead-css.mjs']],
   ['node', ['tests/window-globals-exist.mjs']],
   ['node', ['tests/no-duplicate-toplevel-fns.mjs']],
   ['node', ['tests/token-single-source.mjs']],
@@ -28,7 +29,7 @@ for (const [cmd, args] of STEPS) {
   if (r.status === 0) { console.log(`  ok    ${label}`); continue; }
   red++;
   console.log(`  RED   ${label}`);
-  const out = `${r.stdout || ''}\n${r.stderr || ''}`.split('\n').filter((l) => /✗|RED|MONO-|CR-|TF-|PATCH-|XP-|not classified|ORPHAN/.test(l)).slice(0, 4);
+  const out = `${r.stdout || ''}\n${r.stderr || ''}`.split('\n').filter((l) => /✗|RED|FAIL |MONO-|CR-|TF-|PATCH-|XP-|not classified|ORPHAN/.test(l)).slice(0, 4);
   for (const l of out) console.log('        ' + l.trim().slice(0, 160));
   if (process.argv.includes('--fail-fast')) break;
 }

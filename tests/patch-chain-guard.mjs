@@ -40,10 +40,15 @@
 // ── THE ASSERTIONS ──────────────────────────────────────────────────────────
 //   PATCH-1  a NEW migration adds an anchored patch to a function whose chain is
 //            already >= 2 deep, and the file carries no RESTATEMENT-DEBT-ACK.
-//   PATCH-2  a GRANDFATHERED chain got DEEPER without any new migration — i.e.
-//            somebody added an anchored edit to a migration that already exists.
-//            (An applied migration is history; editing it changes what a rebuild
-//            produces without changing production.)
+//   PATCH-2  a GRANDFATHERED chain got DEEPER by MORE than the new migrations
+//            account for — i.e. somebody added an anchored edit to a migration
+//            that already exists. (An applied migration is history; editing it
+//            changes what a rebuild produces without changing production.)
+//            Budgeted, not all-or-nothing: the old form suppressed PATCH-2 for
+//            the whole chain as soon as ONE new file touched it, so five edits
+//            smuggled into applied files were invisible whenever a single new
+//            migration rode along. The depth a new file may add is exactly the
+//            patch count it declares; anything above that came from history.
 //   PATCH-3  a NEW function has grown a chain >= 2 deep and is not in the
 //            baseline. Same rule, applied to bodies the audit never saw.
 //   PATCH-4  a RESTATEMENT-DEBT-ACK header on a file that patches nothing, or
@@ -372,14 +377,25 @@ export function compare(now, base) {
     }
   }
 
-  // PATCH-2 — a grandfathered chain deepened with no new file.
+  // PATCH-2 — a grandfathered chain deepened by more than the new files declare.
+  // The budget is derived from the census itself: every migration the baseline
+  // has not seen may raise the chain by the patch count IT contributes, and not
+  // one more. Depth beyond that budget can only have come from editing a file
+  // that was already applied.
   for (const [fn, b] of baseChains) {
     const r = now.rows.find((x) => x.fn === fn);
     const depth = r ? r.depth : 0;
     if (depth > b.depth) {
       const newFiles = (r ? r.files : []).filter((f) => !known.has(f));
-      if (!newFiles.length) {
-        fail('PATCH-2', `public.${fn}: chain deepened ${b.depth} → ${depth} with no new migration. `
+      let budget = 0;
+      for (const f of newFiles) {
+        const rec = now.perFile.get(f);
+        const p = rec && rec.patched.get(fn);
+        budget += p ? p.count : 0;
+      }
+      if (depth > b.depth + budget) {
+        fail('PATCH-2', `public.${fn}: chain deepened ${b.depth} → ${depth}, but the `
+          + `${newFiles.length} new migration(s) touching it only account for ${budget}. `
           + 'An anchored edit was added to a migration that has already been applied — production '
           + 'did not change, but a rebuild from this repo now produces a different body.');
       }

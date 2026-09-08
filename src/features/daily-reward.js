@@ -592,7 +592,7 @@
   // reading the code. Every other first-run flow in the build already names
   // them; this one had been quietly exempt since b169.
   var BLOCKING_OVERLAYS = '.ftue-root,.hr-rn-scrim,.hr-id-scrim,.hr-gate,#hr-account-gate,' +
-    '#hr-welcome-modal,#hr-post-signup-modal,.wbv-overlay,.beta-overlay,' +
+    '#hr-welcome-modal,#hr-post-signup-modal,.beta-overlay,' +
     '[class*="welcome-overlay"],.acq-overlay,.ach-overlay';
   function anotherModalUp() {
     return !!document.querySelector(BLOCKING_OVERLAYS);

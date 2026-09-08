@@ -14,7 +14,9 @@ name: smoke
 
 on:
   push:
-    branches: [main]
+    # main deploys (Pages); release/** and next are GATE-ONLY branches — the same
+    # five-job matrix runs there so a release never waits on a developer machine.
+    branches: [main, 'release/**', next]
     # DOCS-ONLY COMMITS DO NOT GATE CODE. The ledger and the audit
     # reports are updated many times a day; each one was starting a full
     # ~40-minute run, which queues behind the real ones and delays the
@@ -350,6 +352,45 @@ jobs:
           node tests/apply-order-honesty.mjs
           node tests/apply-order-honesty.mjs --selftest
 
+      # AND DOES THE MIGRATION'S VALIDATION ACTUALLY *RUN*?
+      # 2026-09-07-retreat.sql adds player_state.consec_falls and teaches hr_apply
+      # to allowlist, validate and write it. Its own §4 self-check is strong, but it
+      # proves the validation BY strpos — it asserts that the strings
+      # 'bad_consec_falls' and 'v_consec <> trunc(v_consec)' appear in the installed
+      # body. Text is not behaviour: a body can carry every one of those markers in
+      # a branch that never runs, and §4 reports success. This repo has shipped a
+      # guard that asserted nothing twelve times and they all had that shape.
+      #
+      # So this replays the REAL ordered chain and CALLS hr_apply as the engine
+      # role with each value a buggy engine or an attacker would send: 2.5, -1, 65,
+      # the string "3", null, true and 1e30 are each refused as bad_consec_falls
+      # with the column UNMOVED (a rejection has to roll back, not merely report);
+      # 0 — a kill's reset, which IS the rule — and 64, the blast radius, are
+      # admitted and written; the retreat delta (counter + idle pointer) applies as
+      # ONE write; an ACTIVITY key does not void the counter, which is the exploit
+      # that bites hardest here because every retreat carries one; an unknown delta
+      # key is still refused; hr_state_of projects the column; no client role holds
+      # EXECUTE and a real call as `authenticated` is refused 42501; and a second
+      # apply of the file leaves both bodies byte-identical with exactly one CHECK
+      # constraint (it patches bodies that are ten patches deep — a double-apply
+      # would be a silent corruption of the engine).
+      #
+      # --selftest plants two defects in the REAL migration text, both chosen
+      # because they APPLY CLEAN: the range predicate loses its ceiling arm (65 is
+      # admitted by the function and only the table CHECK stops it) and the type
+      # predicate is disarmed (a client-shaped STRING writes a server counter).
+      # Neither is covered by §4, which is exactly why an EXECUTED guard has to be.
+      # Per C4, base AND selftest: a selftest-only registration cannot tell a
+      # broken migration from a working guard.
+      #
+      # No credentials; production untouched. Measured 2026-09-07: 1 s base + 2 s
+      # selftest on the shared PGlite snapshot, so the 12-minute budget is unmoved.
+      - name: Retreat apply — hr_apply's consec_falls validation, by execution
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/retreat-apply.mjs
+          node tests/retreat-apply.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that
@@ -611,6 +652,41 @@ jobs:
       - name: State-of farm projection - plot tier and watering history survive a reload
         if: ${{ !cancelled() }}
         run: node tests/state-of-farm-projection.mjs --selftest
+
+      # THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07,
+      # supabase/migrations/2026-09-07-last-away-receipt.sql). A receipt the
+      # server PAID is progression, not preference: G.lastOfflineSummary is a
+      # NO_SYNC field (src/net/events.js:93), so ONE reload deleted the Home
+      # "While you were away" card, the welcome-back modal and the combat recap
+      # for a night the server had already paid, journalled and banked.
+      # The feature can fail in two OPPOSITE directions and the guard asserts
+      # both: it can write TOO LITTLE (the card is still empty), or TOO OFTEN --
+      # a receipt on every 90 s settle is ~40 column writes/hour/character on the
+      # hottest row in the database, which is the game_events mistake with a new
+      # name (1.6M rows / 229 MB from SIX players in FOUR days).
+      # It grades the SHIPPED code, not a transcription: awayReceiptFor lives in
+      # supabase/functions/hr-accrue/away-receipt.js (plain ESM, imports in Node
+      # AND Deno) exactly so this file can import what deploys, and hr_apply is
+      # CALLED FOR REAL on a replayed chain -- the builder's own output lands, is
+      # projected, round-trips through summaryFromAway and survives a settle that
+      # omits the key, while sync-sized / over-window / oversized / unknown-key /
+      # negative / gold-over-delta / window-less / non-object receipts are all
+      # refused with bad_receipt. It also holds the two allowlists and the three
+      # copies of SYNC_MAX_MS to each other, and proves index.ts recomputes the
+      # receipt on EVERY degrade attempt (the ladder halves the span; a receipt
+      # computed once would be refused as sync-sized and 409 the whole absence).
+      # 8 mutations; the four SQL arms are run GATE-BLIND (the migration's own
+      # SEC4 short-circuited) so the tick is the guard's and not the migration's.
+      # No credentials; production untouched.
+      - name: Away receipt journal - the night the server keeps, and the 90s one it must not
+        if: ${{ !cancelled() }}
+        run: node tests/away-receipt-journal.mjs --selftest
+
+      # Security C4 (2026-09-06): a --selftest-only registration cannot tell a broken
+      # migration from a working guard (every arm throws either way). Run the base too.
+      - name: Away receipt journal - base run (the migration itself is green)
+        if: ${{ !cancelled() }}
+        run: node tests/away-receipt-journal.mjs
 
       # SA-010 / Q-4: PURCHASED BANK SPACE WAS ENFORCED AT THE BASE CAP.
       # hr_unlock_buy sells bank space as a 30-rung ladder and files it as a
@@ -1081,6 +1157,19 @@ jobs:
           node tests/no-client-farm-mint.mjs --selftest
           node tests/no-client-farm-mint.mjs
 
+      # NO CLIENT XP MINT (b521): the same shape as the farm guard, one rung up.
+      # buryBones() was `removeItem + addXp('prayer', …)` with no intent, no RPC
+      # and no settle for 256 builds — paione: "I can bury a gazillion times and
+      # get the exp and keep the bones." A grep for addXp is not a verdict (most
+      # sites are legitimate predictions or apply a value the server returned),
+      # so this RATCHETS the count of call sites OUTSIDE a written-down
+      # classification, at 0, plus the three named direct `G.skills.x =` writes.
+      # --selftest plants the exact deleted line back and requires it red.
+      - name: No client XP mint — every addXp is a prediction or a server value
+        run: |
+          node tests/no-client-xp-mint.mjs --selftest
+          node tests/no-client-xp-mint.mjs
+
       # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
       # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a
       # transport — folding them is the wrong abstraction), and the mayCall
@@ -1122,6 +1211,74 @@ jobs:
       - name: Sign-up door — base run
         if: ${{ !cancelled() }}
         run: node tests/signup-door.mjs
+
+      # ── CLEANUP SLICE 1b: THE DEBT RATCHETS ─────────────────────────────
+      # Four numbers that CLEANUP_PROGRAM's scoreboard tracked and nothing
+      # enforced, measured from git on 2026-09-07:
+      #   src/legacy.js  15,050 lines (08-10) → 22,511 (09-06) → 21,935
+      #   src/render/*   0 files (08-10) → 11 (08-24) → 11, FLAT for two weeks
+      #   smoke-test.js  16,008 lines → 57,853
+      #   migrations     15 → 156, with hr_apply patched by anchored regex into a
+      #                  body that exists in no file
+      # Every one of those was added by somebody who had read the rule and agreed
+      # with it. An unmeasured rule loses every argument it has with a deadline.
+      # These four do not ask the debt to be paid — they refuse to let it grow,
+      # and each prints the target list for the slice that pays it. All four are
+      # pure text scans: credential-free, database-free, milliseconds.
+
+      # THE MONOLITH MAY ONLY SHRINK, AND src/render MAY ONLY GROW. Five
+      # ratchets (lines, top-level fns, the `const f = () =>` dodge, render file
+      # count, render lines); the render pair are FLOORS, because an extraction
+      # that gets reverted is worse than one that never happened. --selftest
+      # plants each defect twice — once as a bent number to prove the comparator
+      # and once as REAL TEXT in a temp tree to prove the reader — and requires
+      # the three debt-payments to be notes rather than failures.
+      - name: Monolith ratchet — legacy.js down, src/render up
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/monolith-ratchet.mjs --selftest
+          node tests/monolith-ratchet.mjs --report
+
+      # THE NARRATIVE MAY NOT OUTGROW THE CODE. src/net/record.js is 1,145
+      # comment lines over 655 code lines. The comments here are unusually good,
+      # which is precisely why nobody has ever been told no. Per-file ratio
+      # ceilings on the 16 largest files, plus a corpus-wide ceiling on lines
+      # that narrate a BUILD NUMBER — archaeology that git log already holds,
+      # and that starts lying three builds later (the b454 arm-flag class).
+      - name: Comment-ratio ratchet — prose may not outgrow code
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/comment-ratio-ratchet.mjs --selftest
+          node tests/comment-ratio-ratchet.mjs --report
+
+      # A BODY THAT EXISTS ONLY AS A STACK OF REGEXES IS NOT AUTHORED. hr_state_of
+      # has taken 12 anchored programmatic edits from 11 migrations since its last
+      # full restatement, hr_apply 10 from 3. The text production actually runs is
+      # in no file — it must be replayed to be read or reviewed — and each new
+      # anchor depends on what the previous patch happened to leave behind, the
+      # failure mode being a patch that matches nothing and no-ops IN SILENCE.
+      # Today's chains are grandfathered and named so slice 7 has its target list;
+      # a NEW migration may not patch a chain already >= 2 deep without writing
+      # `-- RESTATEMENT-DEBT-ACK: <why>` into its own header. Text-only: no
+      # database, no replay, no credential.
+      - name: Patch-chain guard — no new patch onto a chain 2+ deep
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/patch-chain-guard.mjs --selftest
+          node tests/patch-chain-guard.mjs --report
+
+      # THE SUITE MAY GROW; THE COST PER TEST MAY NOT. smoke-test.js tripled in
+      # four weeks. Ratchets lines-per-test and direct-G.*-seeds-per-test, with a
+      # FLOOR under the test count so the ratios cannot be satisfied by deleting
+      # tests. Measured over a CORPUS (smoke-test.js + src/features/smoke/**), so
+      # slice 6's pure-move split leaves every number identical and arrives at a
+      # green build — a guard that goes red on the refactor it was written to
+      # protect is a guard that gets switched off.
+      - name: Test-file ratchet — lines and seeds per test may not rise
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/test-file-ratchet.mjs --selftest
+          node tests/test-file-ratchet.mjs --report
 
       # THE META-GUARD. Every tests/*.mjs must be registered here, invoked by
       # run-smoke.mjs, chained from another guard, or listed in

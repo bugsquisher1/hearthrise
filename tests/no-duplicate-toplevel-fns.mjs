@@ -64,12 +64,15 @@ const SEG_RE = /^\}\)\(\);?\s*$/;
 export const KNOWN_SPLIT_NAMES = {
   applyAll: 'two per-module "repaint everything I own" helpers, different IIFEs',
   boot: 'the script-level boot (script scope) plus two per-module boots inside their own IIFEs',
-  buildOverlay: 'two overlay builders in different UI modules',
   fmtQty: 'two quantity formatters in different UI modules',
-  itemImg: 'two item-thumbnail helpers in different UI modules',
   migrate: 'two per-module save/shape migrators, different IIFEs',
   paintAll: 'two per-module full-repaint helpers, different IIFEs',
-  refreshAll: 'the script-level refreshAll (script scope) plus one module-local one',
+  /* refreshAll: UNPINNED 2026-09-07 by cleanup slice 8b. The second body was
+     block 38's icon-repaint helper; it left with the icon layer for
+     src/render/icons.js, so only the script-scope refreshAll remains and the
+     name is no longer duplicated. The pin is removed rather than kept "just in
+     case" — with it gone this guard now FAILS if a second refreshAll is ever
+     declared in legacy.js again, which is stricter than the pin was. */
 };
 
 /** Pure core: parse declarations + segment indices out of a source string. */

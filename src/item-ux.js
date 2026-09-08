@@ -352,20 +352,23 @@
   function resolveAction(itemId){
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item) return null;
-    // Bones → Bury (prayer XP)
+    /* Bones → Bury AT THE ALTAR. This was the third copy of a client-authored
+       mint (removeItem + addXp('prayer', …) with no intent and no settle), so
+       the XP evaporated on the next reload and the bones came back. Burying is
+       the `bury_bones` artisan run the server settles, and a bench run HAS NO
+       QUANTITY — it consumes one bone per action until the stack is gone or you
+       stop it. `noQty` tells the summary row not to print a count it cannot
+       honour; the Sell half of this slider is unchanged and still qty-based. */
     if(item.buryXp){
+      var bRec = (typeof window.buryRecipeFor === 'function') ? window.buryRecipeFor(itemId) : null;
       return {
         label: 'Bury',
         glyph: 'prayer',
-        hint: '+' + item.buryXp + ' Prayer XP each',
-        fn: function(qty){
-          // b265: route through the one bury path so every surface buries + awards
-          // XP identically (slider passes an explicit qty; a plain Bury = whole stack).
-          if(typeof window.buryBones === 'function'){ window.buryBones(itemId, qty); return; }
-          if(typeof window.removeItem === 'function') window.removeItem(itemId, qty);
-          else { window.G.inventory[itemId] = Math.max(0, (window.G.inventory[itemId]||0) - qty); }
-          if(typeof window.addXp === 'function') window.addXp('prayer', item.buryXp * qty);
-          if(typeof window.notify === 'function') window.notify('Buried ' + qty + '× ' + item.n + ' for ' + (item.buryXp * qty) + ' Prayer XP', 'levelup');
+        noQty: true,
+        hint: (bRec ? bRec.xp : item.buryXp) + ' Prayer XP each, at the altar',
+        fn: function(){
+          if(typeof window.buryBones === 'function') window.buryBones(itemId);
+          closeSlider();
         },
       };
     }
@@ -520,7 +523,11 @@
     var lines = [];
     lines.push('<div class="qs-sum-row">' + _iuGly('gold',13,'--gold-2') + ' Sell ' + qty + ' for <b>' + totalSell.toLocaleString() + 'g</b> <i>(' + sellEach + 'g each)</i></div>');
     if(sliderState.action && sliderState.action.hint){
-      lines.push('<div class="qs-sum-row">' + _iuGly(sliderState.action.glyph, 13) + ' ' + sliderState.action.label + ' ' + qty + ' — <b>' + sliderState.action.hint + '</b></div>');
+      /* An action that is a BENCH START or a deep-link has no quantity to state,
+         and printing the slider's number next to it ("Bury 2027 — …") promises
+         something the action does not do. `noQty` opts out. */
+      var actCount = sliderState.action.noQty ? '' : (' ' + qty);
+      lines.push('<div class="qs-sum-row">' + _iuGly(sliderState.action.glyph, 13) + ' ' + sliderState.action.label + actCount + ' — <b>' + sliderState.action.hint + '</b></div>');
     }
     document.getElementById('qs-summary').innerHTML = lines.join('');
   }

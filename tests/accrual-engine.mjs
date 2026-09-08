@@ -45,10 +45,19 @@ import {
   COMBAT_BALANCE, WEAPON_SPEED_MOD, DEFAULT_PROFILE,
   equipmentStats, armorSetBonus, playerCombatRolls, monsterCombatRolls, weaknessInfo,
 } from '../src/core/combat.js';
-import { simulateSpan } from '../src/core/combat-sim.js';
+/* `simulateTick` is imported for RETREAT-W1's ATTENDED column only — the parity
+   test drives the tick the way legacy.js `combatTick` does, so the two columns
+   are an independent second construction rather than one function compared to
+   itself. `forecastFight`/`forecastWarning` are the ruling's advisory half. */
+import { simulateSpan, simulateTick, forecastFight, forecastWarning, FORECAST_WARNING }
+  from '../src/core/combat-sim.js';
+import { NO_BONUS } from '../src/core/botd.js';
 import { killBonusesFor, botdFor } from '../src/core/botd.js';
+/* THE TWO RETREAT RUNGS are READ from the table, never restated here: a test
+   that hardcoded 3 and 6 would agree with itself for ever and would go silently
+   vacuous the moment a designer retuned them. */
 import { creditWindow, DAY_MS, RECOVERY_BASE_MS, RECOVERY_CAP_MS, NOVICE_GRACE_DEATHS,
-  recoveryFor, resumeHpFor }
+  recoveryFor, resumeHpFor, RETREAT_FOODLESS_FALLS, RETREAT_ANY_FALLS }
   from '../src/core/away.js';
 import { createRng } from '../src/core/rng.js';
 import { grantXp, resolveGatherAction } from '../src/core/progression.js';
@@ -1467,9 +1476,20 @@ function recoveryGuard() {
     nowMs: FROM_MS + o.spanMs, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
     activeKind: 'combat', activeId: o.monster || SLIME,
     capMs: 24 * 3600000, seed: SEED,
-    hp: 10, maxHp: 10, gold: 0, skills: {}, equipment: {}, inventory: {},
-    autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+    hp: o.maxHp || 10, maxHp: o.maxHp || 10, gold: 0, skills: {}, equipment: {},
+    /* THE BAG. Empty by default — the ruling's population, and the one the
+       Retreat's foodless rung is about. A fixture that wants a FED character
+       (RECOVER-1's pointer control, RETREAT-W4/W7) states its own. */
+    inventory: o.inventory || {},
+    autoEatEnabled: !!o.autoEatEnabled, autoEatOwned: !!o.autoEatOwned,
+    autoEatFood: o.autoEatFood || null, autoEatPct: o.autoEatPct || 0,
     recoveringUntilMs: o.recoveringUntilMs,
+    /* THE RETREAT COUNTER (rev. 3). 0 by default — the column exists and this
+       character has not fallen yet. `null` is the OTHER meaningful value: "no
+       such column", which must reproduce the pre-Retreat engine exactly
+       (RETREAT-W6). */
+    consecFalls: (o.consecFalls === null) ? null
+      : ((typeof o.consecFalls === 'number') ? o.consecFalls : 0),
     /* THE LADDER'S TWO DURABLE ANCHORS. Defaulted to a VETERAN so the fixtures
        measure the raw ladder rather than the novice clamp; RECOVER-5 drives the
        clamp deliberately. */
@@ -1499,29 +1519,51 @@ function recoveryGuard() {
      the window ends inside a rung. So the equality is stated across the SERVED
      and the OWED halves together, which is the same fact without the fixture
      having to be re-picked every time a balance change moves the death rate. */
-  ok(S.recoverMs + S.recoverRemainingMs === sumLadder(S.deaths, VETERAN),
-    `RECOVER-1: ${S.deaths} deaths spent ${S.recoverMs} ms Knocked Out; the LADDER says `
-    + `${sumLadder(S.deaths, VETERAN)} ms served+owed (free, then 2m, 4m, 8m … to the `
+  /* ⚠ REV. 3 — AND THIS FIXTURE NOW *RETREATS*, WHICH IS THE RULE WORKING.
+     A foodless character reaches three consecutive falls with no kill between
+     them and pulls back to camp (src/core/away.js `retreatAtFall`). The
+     retreating fall CHARGES its rung and STAMPS the line and only then does the
+     run end — so those milliseconds are charged and NEVER SERVED inside this
+     window, because nothing ticks after a retreat.
+     `unserved` is stated rather than dropped, because "charged but unserved"
+     and "never charged" are exactly the two cases RETREAT-W3 exists to tell
+     apart: a retreat that skipped its own rung would make the third foodless
+     fall the cheapest fall in the game. */
+  const retreated = S.stoppedBy === 'retreat';
+  const unserved = retreated ? S.recoverLadder[S.recoverLadder.length - 1] : 0;
+  ok(S.recoverMs + S.recoverRemainingMs + unserved === sumLadder(S.deaths, VETERAN),
+    `RECOVER-1: ${S.deaths} deaths spent ${S.recoverMs} ms Knocked Out (+${S.recoverRemainingMs} owed, `
+    + `+${unserved} charged-at-the-retreat); the LADDER says `
+    + `${sumLadder(S.deaths, VETERAN)} ms (free, then 2m, 4m, 8m … to the `
     + `${RECOVERY_CAP_MS} ms cap). `
-    + 'A mismatch means either the day\'s free fall is being re-armed inside the window or a '
-    + 'knockout is being skipped.');
+    + 'A mismatch means either the day\'s free fall is being re-armed inside the window, or a '
+    + 'knockout is being skipped, or the retreating fall dodged its rung.');
   /* THE LADDER, AS CHARGED, ONE ENTRY PER FALL. Stated by the simulation so the
      receipt can print "free, 2m, 4m" without regenerating it — and regenerating
      it is exactly what a novice clamp or the cap would make wrong. */
   ok(Array.isArray(S.recoverLadder) && S.recoverLadder.length === S.deaths,
     `RECOVER-1: recoverLadder has ${(S.recoverLadder || []).length} entries for ${S.deaths} deaths`);
-  ok(S.recoverLadder.reduce((a, b) => a + b, 0) === S.recoverMs + S.recoverRemainingMs,
-    'RECOVER-1: the stated ladder does not add up to the recovery charged (served + still owed)');
+  ok(S.recoverLadder.reduce((a, b) => a + b, 0) === S.recoverMs + S.recoverRemainingMs + unserved,
+    'RECOVER-1: the stated ladder does not add up to the recovery charged (served + still owed + '
+    + 'the retreating fall\'s own rung)');
   ok(S.recoverLadder[0] === 0 && S.recoverLadder[1] === RECOVERY_BASE_MS,
     `RECOVER-1: the ladder opened ${S.recoverLadder.slice(0, 2)} — the day's FIRST fall is free and `
     + `the second costs one rung (${RECOVERY_BASE_MS} ms)`);
-  /* THE CAP IS REACHED AND HELD. A twelve-hour foodless night walks the whole
-     ladder; if the top rung is not the cap the doubling is unbounded and one
-     bad night becomes a permanent lockout. */
-  ok(S.recoverLadder[S.recoverLadder.length - 1] === RECOVERY_CAP_MS,
-    `RECOVER-1: the last rung of a twelve-hour night was ${S.recoverLadder[S.recoverLadder.length - 1]} `
-    + `ms, not the ${RECOVERY_CAP_MS} ms cap — the doubling is either not reaching the cap on a `
-    + 'night this long (re-pick the span) or not capped at all');
+  /* EVERY RUNG IS THE TABLE'S OWN ANSWER FOR ITS INDEX.
+     ⚠ THIS REPLACED "the last rung is the 64-minute cap" (rev. 2). That
+       assertion was a claim about THE FIXTURE — it only held while a foodless
+       night ran long enough to walk seven rungs, and rev. 3 ends such a night at
+       the third fall, so it started failing for a reason that had nothing to do
+       with the ladder. Restated as a per-entry equality against `recoveryFor`
+       it is fixture-independent and strictly stronger: it catches a wrong rung
+       ANYWHERE in the ladder, not only at the top. The cap itself is asserted
+       against the table directly in RECOVER-5, which is where a claim about the
+       table belongs. */
+  ok(S.recoverLadder.every((ms, i) =>
+       ms === recoveryFor({ deathsTodayBefore: i, deathsLifetimeBefore: VETERAN + i })),
+    `RECOVER-1: the charged ladder ${JSON.stringify(S.recoverLadder)} does not match the table `
+    + `(${S.recoverLadder.map((_, i) => recoveryFor({ deathsTodayBefore: i, deathsLifetimeBefore: VETERAN + i }))}). `
+    + 'A rung the simulation charges that the table does not know is a penalty nobody reviewed.');
   /* THE PER-DEATH LEDGER (N3). One row per fall, no more — and BOUNDED, which is
      the property that makes it affordable at all. */
   ok(Array.isArray(twelve.delta.deaths) && twelve.delta.deaths.length === S.deaths,
@@ -1555,8 +1597,15 @@ function recoveryGuard() {
      KNOCKED OUT — there is no third state and none may be lost. This is the
      assertion that catches a recovery tick counted twice, or a segment boundary
      that drops one. */
-  ok(S.paidMs + S.recoverMs === S.awayMs,
-    `RECOVER-1: paid ${S.paidMs} + recovered ${S.recoverMs} = ${S.paidMs + S.recoverMs}, but the `
+  /* ⚠ REV. 3 ADDS THE THIRD STATE. There are now exactly three things a
+     millisecond of the credited window can be — EARNING, KNOCKED OUT, or IDLE
+     because the hero already pulled back to camp — and `idleMs` is STATED by
+     the simulation so this stays an equality rather than a subtraction the test
+     performs on the simulation's behalf. `idleMs` is 0 on every night that did
+     not retreat, so this is the rev. 2 assertion unchanged for those. */
+  ok(S.paidMs + S.recoverMs + S.idleMs === S.awayMs,
+    `RECOVER-1: paid ${S.paidMs} + recovered ${S.recoverMs} + idle ${S.idleMs} = `
+    + `${S.paidMs + S.recoverMs + S.idleMs}, but the `
     + `credited window was ${S.awayMs} ms. Time is being created or destroyed.`);
   ok(S.paidMs < S.awayMs,
     'RECOVER-1: paidMs equals the whole window on a night with deaths in it — recovery CONSUMES the '
@@ -1586,10 +1635,39 @@ function recoveryGuard() {
     + 'cliff, with extra steps.');
   /* AND THE POINTER SURVIVES. `delta.activity` is what the settle tells the
      server the character is doing; idling it on a death is the half of the old
-     defect that outlived the night and cost the NEXT one too. */
-  ok(!('activity' in twelve.delta),
+     defect that outlived the night and cost the NEXT one too.
+     ⚠ MEASURED ON A *FED* NIGHT, DELIBERATELY (rev. 3). The foodless fixture
+       above now ends in a RETREAT, and a retreat idles the pointer ON PURPOSE —
+       so asserting the absence there would have been asserting the absence of
+       the new feature. The property under test is "a DEATH does not idle the
+       pointer", and the honest fixture for it is a character who falls many
+       times and keeps killing: 13 falls across twelve hours, ~1,997 kills,
+       counter reset by every kill, pointer untouched. That is a strictly better
+       control than the old one — it proves the survival of the pointer across
+       THIRTEEN falls rather than across a night the engine now stops at three. */
+  const fedNight = night({
+    spanMs: 12 * 3600000, recoveringUntilMs: 0,
+    autoEatEnabled: true, autoEatOwned: true, autoEatPct: 50,
+    autoEatFood: 'cooked_shrimp', inventory: { cooked_shrimp: 400 },
+  });
+  ok(fedNight.summary.deaths >= 3,
+    `RECOVER-1: the fed control fell ${fedNight.summary.deaths} times — under three and it is not `
+    + 'exercising the property at all (re-pick the fixture).');
+  ok(fedNight.summary.stoppedBy === null,
+    `RECOVER-1: a FED hero with ${fedNight.summary.kills} kills retreated (${fedNight.summary.stoppedBy}). `
+    + 'The ruling\'s premise is that a hero who can win at all never retreats, because every kill '
+    + 'resets the counter. If this is red the reset in resolveKill is not firing.');
+  ok(!('activity' in fedNight.delta),
     'RECOVER-1: the settle proposed an activity change after a night with deaths in it. A death '
     + 'must not idle the pointer — that is what made the cliff permanent rather than nightly.');
+  /* AND THE RETREAT *DOES* IDLE IT — the other half of the same rule, asserted
+     here so the pair is readable in one place. A retreat that left the pointer
+     alone would re-open the same hopeless fight on the next settle. */
+  ok(retreated && twelve.delta.activity
+     && twelve.delta.activity.kind === 'idle' && twelve.delta.activity.id === null,
+    `RECOVER-1 (rev. 3): the foodless night stopped with ${JSON.stringify(S.stoppedBy)} and proposed `
+    + `activity ${JSON.stringify(twelve.delta.activity)}. A retreat must idle the pointer through the `
+    + 'same seam the level gate uses, or the run restarts itself for ever.');
   /* THE ENGINE STATES THE BAG, at window start. A foodless character must read
      `hadFood:false`, which is what unlocks the receipt naming the one real fix. */
   ok(S.autoEat && S.autoEat.hadFood === false,
@@ -1985,6 +2063,585 @@ function recoveryGuard() {
       `RECOVER-8 (R4): the capped band pays ${(share(1800 * 1000) * 100).toFixed(1)}% against rev. 1's `
       + '93.75%. Above 60% the ladder is no longer a meaningful improvement on the flat rule that '
       + 'was rejected.');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// THE RETREAT (Recovery Rule rev. 3, Game Designer 2026-09-07)
+//
+// "The realm does not keep swinging a fight it has proven the hero cannot win."
+// On the 3rd CONSECUTIVE fall with an empty bag AT THE FALL — or the 6th
+// consecutive fall whatever the bag held — the run ENDS: the pointer is idled
+// and the remainder of the window accrues as nothing. ANY kill resets the count.
+//
+// WHAT IT FIXES, measured on the QA account 2026-09-07: max_hp 13, dark wizard,
+// empty bag — 28 falls in a day, every one charging the 64-minute cap, resuming
+// at 6 HP and face-down again inside a minute. About one kill an hour, for ever,
+// with nothing on any surface saying why. rev. 2 removed the death CLIFF and
+// left a silent busy-wait in its place; W2 is the regression that proves that
+// night cannot recur.
+//
+// ⚠ THE ARCHITECTURAL PROPERTY THESE GUARD, above every individual number:
+//   THERE IS STILL ONE ENGINE. The rule lives in `resolveDeath`, which the live
+//   2.4 s tick and the away replay both run, so W1 asserts BYTE PARITY between
+//   an independently-constructed attended tick loop and `simulateSpan` — not
+//   that they are "close", that they retreat on the same fall index with the
+//   same kills and the same XP. AWAY-12 forbids a second loop; this is what
+//   makes that enforceable for the Retreat as well as for the ladder.
+// ════════════════════════════════════════════════════════════════════════════
+function retreatGuard() {
+  const SLIME = MONSTERS.slime ? 'slime' : MONSTER;
+  /* THE QA ACCOUNT'S ACTUAL TARGET where the catalogue still has it. Falling
+     back keeps the guard runnable if the row is ever renamed, and the fixture
+     states which one it used in every failure message. */
+  const WIZARD = MONSTERS.dark_wizard ? 'dark_wizard' : SLIME;
+  const VETERAN = NOVICE_GRACE_DEATHS + 50;
+  const PROVISION = ITEMS.cooked_shrimp ? 'cooked_shrimp' : null;
+
+  const night = (o) => computeAccrual({
+    userId: '00000000-0000-4000-8000-000000000009', slot: 0,
+    nowMs: FROM_MS + o.spanMs, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    activeKind: 'combat', activeId: o.monster || SLIME,
+    capMs: 24 * 3600000, seed: (typeof o.seed === 'number') ? o.seed : SEED,
+    hp: o.maxHp || 10, maxHp: o.maxHp || 10, gold: 0, skills: o.skills || {}, equipment: {},
+    inventory: o.inventory || {},
+    autoEatEnabled: !!o.autoEatEnabled, autoEatOwned: !!o.autoEatOwned,
+    autoEatFood: o.autoEatFood || null, autoEatPct: o.autoEatPct || 0,
+    recoveringUntilMs: 0,
+    consecFalls: (o.consecFalls === null) ? null
+      : ((typeof o.consecFalls === 'number') ? o.consecFalls : 0),
+    deathsTodayBefore: o.deathsTodayBefore || 0,
+    deathsLifetimeBefore: (typeof o.deathsLifetimeBefore === 'number') ? o.deathsLifetimeBefore : VETERAN,
+    /* THE ATTENDED KILL LEDGER, threaded so RETREAT-W8 can drive it. `null` on
+       every other fixture, which is what index.ts passes when the database has
+       no `hr_attended_kills` — so nothing above this line changes shape. */
+    attended: o.attended || null,
+    items: ITEMS, monsters: MONSTERS,
+  });
+
+  // ── RETREAT-W2 — THE QA NIGHT, AS A REGRESSION ────────────────────────────
+  // MUTATION PROVEN, twice, and the FIRST attempt at this assertion is worth
+  // recording because it was too weak:
+  //   · `RETREAT_FOODLESS_FALLS = 99` in src/core/away.js — the night still
+  //     retreated, on the ANY-hero rung, so `stoppedBy === 'retreat'` and
+  //     `deathLog.length <= 99` both stayed green while the mechanic the ruling
+  //     is actually about was disabled. That is why the count is asserted as an
+  //     EQUALITY against the FOODLESS rung and why `retreatFoodless` is asserted
+  //     beside it: together they pin WHICH rung fired, not merely that one did.
+  //     With the equality in place that mutation goes red here.
+  //   · deleting the whole `if (r.retreat)` block from simulateSpan — red at
+  //     `stoppedBy` (null) and at deathLog (22 falls, the measured QA night).
+  {
+    const qa = night({ spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13 });
+    const S = qa.summary;
+    ok(qa.accrued === true, `RETREAT-W2: the QA night accrued nothing (${qa.reason})`);
+    ok(S.stoppedBy === 'retreat',
+      `RETREAT-W2: a 12h foodless night against ${WIZARD} at 13 max HP stopped with `
+      + `${JSON.stringify(S.stoppedBy)} after ${S.deaths} falls. This is the measured QA night — `
+      + '28 falls in a day at the 64-minute cap, about one kill an hour — and it must END.');
+    ok(S.deathLog.length === RETREAT_FOODLESS_FALLS && S.retreatFoodless === true,
+      `RETREAT-W2: the night contained ${S.deathLog.length} falls and reported `
+      + `retreatFoodless=${S.retreatFoodless}. An empty bag takes the FOODLESS rung `
+      + `(${RETREAT_FOODLESS_FALLS}) and no other — a night that stops on a different rung, or `
+      + 'keeps falling past this one, is a rule that is not firing on the population it was '
+      + 'written for. (It was ~22 falls.)');
+    /* THE REMAINING SPAN PAYS ZERO — the ruling's own wording, asserted as
+       three separate absences rather than as one aggregate, because "the night
+       paid a little" and "the night paid after the retreat" are different bugs
+       and only one aggregate would tell them apart. */
+    ok(S.idleMs > 0 && S.paidMs + S.recoverMs + S.idleMs === S.awayMs,
+      `RETREAT-W2: paid ${S.paidMs} + recovered ${S.recoverMs} + idle ${S.idleMs} <> ${S.awayMs}. `
+      + 'Every millisecond of a retreat night is earning, knocked out, or idle — there is no fourth '
+      + 'state and none may be lost.');
+    ok(S.idleMs > 11 * 3600000,
+      `RETREAT-W2: only ${Math.round(S.idleMs / 60000)} minutes of a twelve-hour night went idle. The `
+      + 'retreat is supposed to happen minutes in, not hours in.');
+    /* AND THE POINTER IS IDLED, so the next settle does not re-open the fight. */
+    ok(qa.delta.activity && qa.delta.activity.kind === 'idle' && qa.delta.activity.id === null,
+      `RETREAT-W2: the settle proposed activity ${JSON.stringify(qa.delta.activity)}. Without the idle `
+      + 'the same hopeless fight restarts on the next window and the busy-wait is back.');
+    /* AND THE COUNTER IS PROPOSED, at the rung that fired. Without this the
+       count lives only inside the window and the rule is unreachable through
+       ordinary play, because the live settle cadence is ~90 seconds. */
+    ok(qa.delta.consec_falls === S.deathLog.length,
+      `RETREAT-W2: the delta proposed consec_falls=${qa.delta.consec_falls} for ${S.deathLog.length} `
+      + 'consecutive falls. A per-window count would be re-zeroed by every settle.');
+  }
+
+  // ── RETREAT-W1 — AWAY-1 PARITY: ONE ENGINE, TWO CALLERS ───────────────────
+  // The attended column is built HERE, from `simulateTick`, the way legacy.js's
+  // `combatTick` drives it — NOT by calling simulateSpan — so this is an
+  // independent second construction, which is the only kind of parity test
+  // worth having (this file's own claim 1).
+  {
+    const fixture = () => ({
+      activeMonster: WIZARD,
+      playerHp: 13, playerMaxHp: 13,
+      monsterHp: MONSTERS[WIZARD].hp, monsterMaxHp: MONSTERS[WIZARD].hp,
+      stats: {}, inventory: {}, skills: {},
+      deathsTodayBefore: 0, deathsLifetimeBefore: VETERAN,
+      consecFalls: 0, recoveringUntilMs: 0,
+    });
+    const SPAN = 12 * 3600000;
+    const TICK = COMBAT_BALANCE.tickMs;
+    const mkCtx = (xp) => ({
+      away: true, monsters: MONSTERS, items: ITEMS,
+      bonus: () => 0, style: null,
+      playerRolls: (m) => playerCombatRolls(m, { eq: equipmentStats({}, ITEMS), equipment: {}, items: ITEMS, skills: {}, bonus: () => 0, setBonus: {}, profile: DEFAULT_PROFILE, style: null }),
+      monsterRolls: (m) => monsterCombatRolls(m, { eq: equipmentStats({}, ITEMS), skills: {}, bonus: () => 0 }),
+      weakness: (m) => weaknessInfo(m, equipmentStats({}, ITEMS)),
+      botd: { killBonuses: () => NO_BONUS },
+      fx: { addXp(skill, n) { xp[skill] = (xp[skill] || 0) + n; } },
+    });
+
+    /* THE SPAN COLUMN. */
+    const sState = fixture();
+    const sXp = {};
+    const sCtx = Object.assign(mkCtx(sXp), {
+      fromMs: FROM_MS, toMs: FROM_MS + SPAN, tickMs: TICK,
+      rng: createRng(SEED),
+    });
+    const span = simulateSpan(sState, sCtx);
+
+    /* THE ATTENDED COLUMN — the tick loop, written out. Recovery gating and the
+       stand-up are restated here on purpose: they are what the live client's
+       `hrCombatDown` / `hrStandUp` pair does, and a parity test that borrowed
+       simulateSpan's own copy of them would be comparing a function to itself. */
+    const aState = fixture();
+    const aXp = {};
+    const aCtx = Object.assign(mkCtx(aXp), { rng: createRng(SEED) });
+    let aKills = 0; let aDeaths = 0; let aRetreatIndex = -1; let aRetreated = false;
+    let until = 0; let downed = false;
+    for (let i = 0; i < Math.floor(SPAN / TICK); i++) {
+      const atMs = FROM_MS + i * TICK;
+      if (until > atMs) continue;                       // knocked out: no swing
+      if (downed) {                                     // up again, full-HP foe, 40%
+        downed = false; until = 0;
+        aState.monsterMaxHp = MONSTERS[aState.activeMonster].hp;
+        aState.monsterHp = aState.monsterMaxHp;
+        aState.playerHp = resumeHpFor(aState.playerMaxHp);
+      }
+      const facing = aState.activeMonster;
+      const r = simulateTick(aState, aCtx);
+      if (r.outcome === 'kill') aKills++;
+      if (r.outcome === 'death') {
+        aDeaths++;
+        aState.activeMonster = facing;
+        downed = true;
+        const rec = Number(r.recoverMs) || 0;
+        if (rec > 0) until = atMs + TICK + rec;
+        if (r.retreat) { aRetreated = true; aRetreatIndex = aDeaths; break; }
+      }
+      if (r.outcome === 'stop') break;
+    }
+
+    ok(aRetreated && span.stoppedBy === 'retreat',
+      `RETREAT-W1: attended retreated=${aRetreated}, span stoppedBy=${JSON.stringify(span.stoppedBy)}. `
+      + 'Both callers run the SAME resolveDeath; if only one of them ends the run there is a second '
+      + 'code path (AWAY-12).');
+    ok(aRetreatIndex === span.deathLog.length,
+      `RETREAT-W1: the attended tick retreated on fall ${aRetreatIndex}, the span on fall `
+      + `${span.deathLog.length}. Byte parity means the SAME fall index, not a similar one.`);
+    eq(aKills, span.kills, 'RETREAT-W1: kills diverged between the attended tick and the span');
+    eq(aDeaths, span.deaths, 'RETREAT-W1: deaths diverged between the attended tick and the span');
+    eq(aXp, sXp, 'RETREAT-W1: the XP grants diverged between the attended tick and the span');
+    eq(aState.playerHp, sState.playerHp,
+      'RETREAT-W1: the two callers stood the character up on different health');
+    eq(aState.consecFalls, sState.consecFalls,
+      'RETREAT-W1: the two callers hold different consecutive-fall counts. The counter is proposed '
+      + 'to hr_apply, so a divergence here is a divergence in what the server is told.');
+  }
+
+  // ── RETREAT-W3 — THE RETREATING FALL IS A FALL FIRST ──────────────────────
+  // MUTATION PROVEN: move the `if (r.retreat) break;` in simulateSpan ABOVE the
+  // recoverUntilMs stamp / deathLog push and this goes red — which is exactly
+  // the bug worth guarding, because it would make the third foodless fall the
+  // cheapest fall in the game and turn "pull back" into a way to dodge the ladder.
+  {
+    const qa = night({ spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13 });
+    const S = qa.summary;
+    const last = S.deathLog[S.deathLog.length - 1];
+    ok(S.deathLog.length === S.retreatFalls,
+      `RETREAT-W3: ${S.deathLog.length} death rows for a retreat at fall ${S.retreatFalls} — the `
+      + 'retreating fall must be journalled like any other.');
+    ok(last && last.recoverMs > 0,
+      `RETREAT-W3: the retreating fall was charged ${last && last.recoverMs} ms. It charges its own `
+      + 'ladder rung BEFORE the run ends; a free last fall is a dodge, not a mercy.');
+    ok(last.recoverMs === recoveryFor({ deathsTodayBefore: S.deathLog.length - 1,
+                                        deathsLifetimeBefore: VETERAN + S.deathLog.length - 1 }),
+      `RETREAT-W3: the retreating fall was charged ${last.recoverMs} ms, not the table's rung for `
+      + 'its index. A retreat must not get its own cheaper ladder.');
+    ok(S.retreatUntilMs === last.atMs + last.recoverMs,
+      `RETREAT-W3: the recovery line was stamped at ${S.retreatUntilMs}, not at the retreating `
+      + `fall's own instant + rung (${last.atMs + last.recoverMs}).`);
+    /* AND THE DELTA CARRIES IT. The stamp is only real if hr_apply is told. */
+    ok(Array.isArray(qa.delta.deaths) && qa.delta.deaths.length === S.deathLog.length,
+      `RETREAT-W3: the delta proposed ${(qa.delta.deaths || []).length} ledger rows for `
+      + `${S.deathLog.length} falls — the retreating fall's row is not optional.`);
+    /* "A RETREAT THAT CHARGES NO FALL NEVER OCCURS", asserted as an invariant
+       over the whole night rather than only over the last row. */
+    ok(S.recoverLadder.length === S.deaths && S.recoverLadder.every((v, i) => v >= 0),
+      'RETREAT-W3: the charged ladder does not have one entry per fall');
+  }
+
+  // ── RETREAT-W4 — A HERO WHO CAN WIN NEVER RETREATS ────────────────────────
+  // The ruling's whole premise, and the reason the trigger is CONSECUTIVE falls
+  // rather than "N deaths a day": every kill resets the count.
+  // MUTATION PROVEN: delete `state.consecFalls = 0` from resolveKill and this
+  // goes red — a fed hero with 13 falls retreats before the night is out.
+  if (PROVISION) {
+    const fed = night({
+      spanMs: 12 * 3600000, monster: SLIME,
+      autoEatEnabled: true, autoEatOwned: true, autoEatPct: 50,
+      autoEatFood: PROVISION, inventory: { [PROVISION]: 400 },
+    });
+    const S = fed.summary;
+    ok(S.deaths >= 3,
+      `RETREAT-W4: the fed fixture fell only ${S.deaths} time(s) — it is not exercising the property. `
+      + 'Re-pick the target or the provision count.');
+    ok(S.kills > 100,
+      `RETREAT-W4: the fed fixture landed ${S.kills} kills — it must be a hero who plainly CAN win, `
+      + 'or "a hero who can win never retreats" is not what is being measured.');
+    ok(S.stoppedBy === null,
+      `RETREAT-W4: a fed hero with ${S.kills} kills across ${S.deaths} falls retreated `
+      + `(${S.stoppedBy}). Every kill resets the counter, so a hero who is winning must never be `
+      + 'sent home however many times they go down.');
+    ok(S.idleMs === 0 && !('activity' in fed.delta),
+      'RETREAT-W4: a night that did not retreat reported idle time or idled the pointer');
+    /* THE COUNTER NEVER REACHES THE RUNG. Deliberately not `=== 0`: a twelve-
+       hour window can perfectly well CLOSE on a fall, and the counter is then
+       legitimately 1 or 2 going into the next window. The property is that
+       across 13 falls and ~2,000 kills it never accumulates to the any-hero
+       rung, which is what "reset by ANY kill" buys. Asserted against the TABLE
+       rather than a literal, so moving the rung moves the assertion with it. */
+    ok(fed.delta.consec_falls < RETREAT_ANY_FALLS,
+      `RETREAT-W4: the counter came back ${fed.delta.consec_falls} against a rung of `
+      + `${RETREAT_ANY_FALLS} after a night with ${S.kills} kills in it. A count that survives a `
+      + 'kill is a count that eventually retreats a winning hero.');
+  }
+
+  // ── RETREAT-W7 — "FOODLESS" IS READ AT THE FALL, NOT AT THE WINDOW ────────
+  // The ruling is explicit (item 4): the trigger reads the LIVE simulated bag
+  // inside resolveDeath, NOT accrual.js's `hadFood`, which is a window-OPEN
+  // snapshot and is fine for the receipt sentence and wrong as a trigger.
+  // MUTATION PROVEN: read `hadFood` instead and this goes red — the fed-then-
+  // empty night keeps the 6-fall rung for the whole window and never retreats
+  // at 3, while the receipt still says the bag was full.
+  if (PROVISION) {
+    /* A HERO WHO STARTS WITH FOOD AND EATS IT ALL. `hadFood` at window open is
+       TRUE; by the time the falls come the bag is empty and those falls ARE
+       foodless. The two facts genuinely disagree, which is the whole point. */
+    const drain = night({
+      spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13,
+      autoEatEnabled: true, autoEatOwned: true, autoEatPct: 50,
+      autoEatFood: PROVISION, inventory: { [PROVISION]: 3 },
+    });
+    const S = drain.summary;
+    ok(S.autoEat.hadFood === true,
+      'RETREAT-W7: the fixture did not start with food — it cannot show the disagreement it exists '
+      + 'to show.');
+    ok(S.foodEaten > 0,
+      `RETREAT-W7: the fixture ate ${S.foodEaten} meals; it must actually drain the bag.`);
+    ok(S.stoppedBy === 'retreat' && S.retreatFoodless === true,
+      `RETREAT-W7: stoppedBy=${JSON.stringify(S.stoppedBy)} retreatFoodless=${S.retreatFoodless}. `
+      + 'The falls happened AFTER the last meal, so they are foodless falls even though the window '
+      + 'opened with a full bag — and the receipt must still be able to say hadFood:true.');
+    ok(S.retreatFalls === RETREAT_FOODLESS_FALLS,
+      `RETREAT-W7: retreated on fall ${S.retreatFalls}, not the foodless rung of `
+      + `${RETREAT_FOODLESS_FALLS}. Falls that happen with an empty bag take the `
+      + 'foodless rung, whatever the bag held when the window opened.');
+    /* AND THE MIRROR IMAGE: a hero CARRYING food they never eat (auto-eat off)
+       is NOT foodless, and takes the 6-fall rung. This is the half that proves
+       the read is about the BAG and not about the eating. */
+    const carried = night({
+      spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13,
+      inventory: { [PROVISION]: 400 },       // auto-eat OFF: never eaten
+    });
+    ok(carried.summary.foodEaten === 0,
+      'RETREAT-W7: the carried-food control ate something — auto-eat must be off for it to isolate '
+      + 'the bag read.');
+    ok(carried.summary.retreatFoodless === false,
+      'RETREAT-W7: a hero carrying 400 provisions was read as FOODLESS. The trigger asks what is in '
+      + 'the bag, not what was eaten out of it.');
+    ok(carried.summary.retreatFalls === RETREAT_ANY_FALLS,
+      `RETREAT-W7: the carried-food hero retreated on fall ${carried.summary.retreatFalls}, not the `
+      + `any-hero rung of ${RETREAT_ANY_FALLS}. The two rungs answer two different questions and `
+      + 'must not collapse.');
+  }
+
+  // ── RETREAT-W6 — WHAT A RETREAT MUST *NOT* DO ─────────────────────────────
+  // Three absences, and an absence is not otherwise reviewable.
+  {
+    const qa = night({ spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13 });
+    const S = qa.summary;
+    /* (i) IT DOES NOT CLEAR THE RECOVERY LINE. Pulling back is mercy, not
+       amnesty — hr_rest remains the only cure. The line here has already
+       elapsed by the end of a twelve-hour window, so the CHARGE is asserted
+       (W3 above) and what is asserted here is that nothing VOIDED it: the
+       proposal is a real stamp derived from the fall, never a null. */
+    ok(S.retreatUntilMs > 0,
+      'RETREAT-W6: the retreat produced no recovery line at all. A retreat that clears the clock is '
+      + 'a free cure for the fall that triggered it.');
+    /* (ii) IT DOES NOT TOUCH THE DAY'S DEATH COUNTERS. The falls that happened
+       are still falls: `stats.deaths` and both progress rows count them. */
+    const rows = (qa.delta.progress || []).filter((o) => o.kind === 'stat' && o.key === 'deaths');
+    ok(rows.length === 2 && rows.every((r) => r.add === S.deaths),
+      `RETREAT-W6: the delta filed ${rows.length} deaths row(s) with adds `
+      + `${JSON.stringify(rows.map((r) => r.add))} against ${S.deaths} falls. A retreat does not `
+      + 'un-happen the falls that caused it.');
+    /* (iii) IT CANNOT RE-GRANT THE FREE FALL. The day's first fall is free and
+       exactly once — a retreat that reset the DAY counter would hand a fresh
+       free fall to every restart, which is the R1 exploit through a new door. */
+    ok(S.recoverLadder[0] === 0 && (S.recoverLadder.length < 2 || S.recoverLadder[1] > 0),
+      `RETREAT-W6: the ladder opened ${JSON.stringify(S.recoverLadder)} — exactly one free fall a day.`);
+    const second = night({
+      spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13,
+      /* The SAME day, after a retreat: the durable day counter carries the
+         earlier falls forward and the counter carries the earlier retreat. */
+      deathsTodayBefore: S.deaths, consecFalls: 0,
+    });
+    ok(second.summary.recoverLadder[0] > 0,
+      `RETREAT-W6: a restart on the same day opened at ${second.summary.recoverLadder[0]} ms — the `
+      + 'free fall was re-granted. The ladder is anchored to a SERVER day row precisely so that a '
+      + 'restart cannot re-arm it.');
+  }
+
+  // ── RETREAT-W6b — NO COLUMN, NO RETREAT (deploy order is free) ────────────
+  // The Edge and the migration may land in either order, and the property is
+  // enforced in the ENGINE rather than asserted in prose: accrual.js seeds NULL
+  // when hr_state_of does not project the key, and resolveDeath gates the whole
+  // rule on the field being a number.
+  // MUTATION PROVEN: seed 0 instead of null in accrual.js and this goes red —
+  // an Edge deployed ahead of its migration starts retreating every foodless
+  // character off a counter nothing durable backs.
+  {
+    const off = night({ spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13, consecFalls: null });
+    ok(off.summary.stoppedBy === null,
+      `RETREAT-W6b: a database with no consec_falls column still retreated (${off.summary.stoppedBy}). `
+      + 'The column\'s presence IS the switch; without it the span must be byte-for-byte pre-Retreat.');
+    ok(!('consec_falls' in off.delta),
+      'RETREAT-W6b: the engine proposed consec_falls against a database that has no such column — '
+      + 'an unknown delta key is a 409 that costs the player their whole night.');
+    ok(!('activity' in off.delta),
+      'RETREAT-W6b: the engine idled the pointer on a database that cannot back the rule.');
+    ok(off.summary.deaths > 3,
+      `RETREAT-W6b: the control night only fell ${off.summary.deaths} times — it must run long past `
+      + 'the rung, or it is not proving that the rule is off.');
+  }
+
+  // ── RETREAT-W8 — ONLY A *SERVER-ACCEPTED* KILL CLEARS THE COUNTER ─────────
+  // Designer ruling 4, 2026-09-07: "`consecFalls` cleared by an accepted
+  // attended kill is ACCEPTED as under-charging in the player's favour — keep
+  // the guard that only a SERVER-ACCEPTED kill clears it; a client-claimed kill
+  // never does."
+  //
+  // WHY THE GUARD MATTERS. `resolveKill` zeroes `state.consecFalls` (combat-sim.js,
+  // "THE RETREAT COUNTER IS RESET BY *ANY* KILL"), and the attended top-up pays
+  // its kills by CALLING `resolveKill` — so a kill count that reached the engine
+  // from the client would be a client-authored reset of a server-owned counter,
+  // and the Retreat would be disarmed by anyone who could say "I killed nine".
+  // Two independent things stop that, and both are asserted here because either
+  // one alone is an argument rather than a guard:
+  //
+  //   PROVENANCE — `attended` is read from `hr_attended_kills` inside the seed
+  //     transaction (index.ts), a projection over `hr_kill_credit_log`: a table
+  //     no client role may write, holding counts `hr_credit_kills` already
+  //     clamped against the SERVER clock. The request body carries no kill
+  //     count, no monster and no window. Source-scanned below, because no
+  //     runtime test of the engine can see where its argument came from.
+  //   ARITHMETIC — even a forged claim pays nothing the server's own simulation
+  //     does not corroborate: `attTopUp = min(claimed, cap, sim x FIDELITY) - sim`,
+  //     so `sim === 0` makes the top-up ZERO by arithmetic rather than by a
+  //     special case, and the counter is never touched.
+  //
+  // MUTATION PROVEN: drop `attSim * ATTENDED_MAX_FIDELITY` from the `Math.min`
+  // in accrual.js and the forged night below tops up 500 kills, clears the
+  // counter and mints the loot — red on all three assertions.
+  {
+    const forgeKills = 500;
+    const clean = night({ spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13 });
+    ok(clean.summary.stoppedBy === 'retreat' && clean.summary.kills === 0,
+      `RETREAT-W8: the control night stopped with ${JSON.stringify(clean.summary.stoppedBy)} after `
+      + `${clean.summary.kills} kills. The fixture must be a hero the server simulates as landing `
+      + 'NOTHING, or the forged claim below has real kills to hide behind.');
+    /* THE FORGERY, IN THE SHAPE `hr_attended_kills` PROJECTS — so what is being
+       tested is the ENGINE's treatment of a number, not its parser. */
+    const forged = night({
+      spanMs: 12 * 3600000, monster: WIZARD, hp: 13, maxHp: 13,
+      attended: {
+        ok: true,
+        kills: { [WIZARD]: forgeKills },
+        from: new Date(FROM_MS).toISOString(),
+        to: new Date(FROM_MS + 12 * 3600000).toISOString(),
+      },
+    });
+    ok(forged.delta.consec_falls === RETREAT_FOODLESS_FALLS,
+      `RETREAT-W8: a claim of ${forgeKills} kills moved the proposed counter to `
+      + `${forged.delta.consec_falls}. Only a kill the SERVER's own simulation corroborates may `
+      + 'clear it; a claim the simulation does not back is not a kill.');
+    ok(forged.summary.stoppedBy === 'retreat',
+      `RETREAT-W8: the forged claim stopped the night with ${JSON.stringify(forged.summary.stoppedBy)} `
+      + '— a claim that cancels the Retreat is a claim that disarms it.');
+    /* AND THE WHOLE PAID DELTA IS UNTOUCHED, not merely the counter. The
+       top-up is skipped in one branch, so an uncorroborated claim must be
+       indistinguishable from no claim at all in everything that MOVES — gold,
+       items, XP, hp, activity, accrued_to, the deaths ledger, and the counter.
+       ⚠ `journal.meta.att` IS EXCLUDED, AND ASSERTED SEPARATELY BELOW, because
+         it is the one field that SHOULD differ: it is the dispute-replay record
+         of what was claimed against what was paid, and a forgery that left no
+         trace would be worse than one that changed a number. Excluded by
+         DELETION rather than by comparing a whitelist, so a future field added
+         beside it is compared rather than silently skipped. */
+    const stripAtt = (d) => {
+      const c = JSON.parse(JSON.stringify(d));
+      const meta = (c.journal && c.journal.meta) || null;
+      const att = meta ? meta.att : undefined;
+      if (meta) delete meta.att;
+      return { rest: c, att };
+    };
+    const cleanS = stripAtt(clean.delta);
+    const forgedS = stripAtt(forged.delta);
+    ok(JSON.stringify(forgedS.rest) === JSON.stringify(cleanS.rest),
+      'RETREAT-W8: a claim the simulation does not corroborate MOVED something. Every paid field '
+      + `must be byte-identical to the same night with no ledger at all.\n  clean:  ${JSON.stringify(cleanS.rest)}\n  forged: ${JSON.stringify(forgedS.rest)}`);
+    /* AND THE CLAIM IS ON THE RECORD, PAYING NOTHING. "Refused silently" and
+       "refused and journalled" are different systems, and only the second one
+       can be audited after the fact. */
+    ok(cleanS.att === undefined,
+      'RETREAT-W8: a night with no attended ledger journalled an att block anyway');
+    ok(forgedS.att && forgedS.att.claimed === forgeKills && forgedS.att.sim === 0
+       && forgedS.att.top === 0,
+      `RETREAT-W8: the forged claim journalled ${JSON.stringify(forgedS.att)}. It must be recorded `
+      + `as claimed=${forgeKills}, sim=0, top=0 — the claim is auditable and it paid nothing.`);
+    /* THE OTHER HALF, STATED SO THE RULING'S ACCEPTANCE IS PINNED RATHER THAN
+       ASSUMED: a kill the server DID accept clears the counter, because the
+       top-up runs `resolveKill`. That is the under-charge the designer accepted
+       — it can only ever make the counter SMALLER, i.e. fewer retreats, and a
+       retreat pays nothing, so there is no economic exploit in never triggering
+       one. Asserted through the span's own kill rather than the top-up's,
+       because the top-up cannot reach a night the span landed nothing in (the
+       `sim x FIDELITY` bound above) — which is itself the property. */
+    const won = night({
+      spanMs: 30 * 60000, monster: SLIME, skills: MAXED, maxHp: 99,
+      consecFalls: 2,
+    });
+    ok(won.summary.kills > 0,
+      `RETREAT-W8: the winning control landed ${won.summary.kills} kills — it cannot show a reset.`);
+    ok(won.delta.consec_falls === 0,
+      `RETREAT-W8: a night with ${won.summary.kills} SERVER-simulated kills proposed `
+      + `consec_falls=${won.delta.consec_falls}. Any accepted kill clears the count — that is what `
+      + 'makes a hero who can win at all never retreat.');
+  }
+
+  // ── FORECAST-1 — THE WARNING IS THE SIMULATION, NOT A DPS FORMULA ─────────
+  // Ruling item 7. Refusing an overmatched fight was REJECTED by name (the
+  // residue-ahead class), so the answer is an advisory warning — and a warning
+  // derived from a second combat model would be a warning about a fight that
+  // does not happen. AWAY-12 forbids the second model; this asserts its absence
+  // by construction: the forecast's kills and deaths come out of simulateSpan.
+  {
+    const base = () => ({
+      activeMonster: WIZARD,
+      playerHp: 13, playerMaxHp: 13,
+      monsterHp: 1, monsterMaxHp: MONSTERS[WIZARD].hp,   // a half-dead foe on the live state
+      stats: { kills: 7 }, inventory: PROVISION ? { [PROVISION]: 5 } : {}, skills: {},
+      deathsTodayBefore: 0, deathsLifetimeBefore: VETERAN,
+      consecFalls: 2, recoveringUntilMs: FROM_MS + 9e9,
+    });
+    const ctx = {
+      away: false, monsters: MONSTERS, items: ITEMS, bonus: () => 0, style: null,
+      playerRolls: (m) => playerCombatRolls(m, { eq: equipmentStats({}, ITEMS), equipment: {}, items: ITEMS, skills: {}, bonus: () => 0, setBonus: {}, profile: DEFAULT_PROFILE, style: null }),
+      monsterRolls: (m) => monsterCombatRolls(m, { eq: equipmentStats({}, ITEMS), skills: {}, bonus: () => 0 }),
+      weakness: (m) => weaknessInfo(m, equipmentStats({}, ITEMS)),
+      botd: { killBonuses: () => NO_BONUS },
+      /* A LOUD SINK. If any of these fires the forecast has reached the world. */
+      fx: { addItem() { throw new Error('forecast reached fx.addItem'); },
+            addXp() { throw new Error('forecast reached fx.addXp'); },
+            killMonster() { throw new Error('forecast reached fx.killMonster'); },
+            onKill() { throw new Error('forecast reached fx.onKill'); } },
+      rng: createRng(1),
+    };
+
+    /* (a) PURE. The caller's state is untouched — not the HP, not the bag, not
+       the counters, not the in-flight monster HP, not the recovery line. */
+    const live = base();
+    const before = JSON.stringify(live);
+    const f1 = forecastFight(live, ctx, { autoEat: { enabled: false, owned: false } });
+    ok(JSON.stringify(live) === before,
+      'FORECAST-1 (a): forecastFight MUTATED the caller\'s state. simulateSpan mutates in place by '
+      + 'design; this is the one caller that must clone first, or asking "should I fight?" would '
+      + 'heal the character, eat their food and move their fall counter.');
+
+    /* (b) DETERMINISTIC. A warning that flickered between two taps of the same
+       button teaches the player to ignore it. */
+    const f2 = forecastFight(base(), ctx, { autoEat: { enabled: false, owned: false } });
+    eq({ k: f1.kills, d: f1.deaths, t: f1.ticks }, { k: f2.kills, d: f2.deaths, t: f2.ticks },
+      'FORECAST-1 (b): two forecasts of the same state disagreed — the seed is not fixed');
+
+    /* (c) IT IS THE SIMULATION. `summary` IS a simulateSpan summary, and the
+       headline numbers are ITS numbers rather than a second estimate laid over
+       the top. A DPS formula has no tick count, no death log and no ladder. */
+    ok(f1.summary && typeof f1.summary.ticks === 'number' && Array.isArray(f1.summary.deathLog)
+       && Array.isArray(f1.summary.segments),
+      'FORECAST-1 (c): the forecast did not come from simulateSpan — no tick count, no death log, '
+      + 'no segments. A closed-form estimate would be a SECOND combat model (AWAY-12).');
+    eq(f1.kills, f1.summary.kills, 'FORECAST-1 (c): the forecast kills are not the simulation\'s');
+    eq(f1.deaths, f1.summary.deaths, 'FORECAST-1 (c): the forecast deaths are not the simulation\'s');
+    ok(f1.ticks > 0, 'FORECAST-1 (c): the forecast simulated no ticks at all');
+
+    /* (d) IT STARTS FROM A REAL FIGHT — full-HP foe, and NOT knocked out.
+       The `base()` state above deliberately carries a 1-HP monster and a
+       recovery line nine million seconds ahead, and BOTH are answers to
+       questions nobody asked: "if you fight, what happens" is not "what happens
+       while you are face-down against a foe that is already nearly dead".
+       ASSERTED BY COMPARISON, not by a magic number: a clean state and the
+       poisoned one must forecast IDENTICALLY. That catches an inherited clock
+       and an inherited monster HP at once, and it cannot go vacuously green the
+       way an `=== 0` on a field with two sources can (`recoverMs` also counts
+       knockouts served INSIDE the forecast, which is correct and would have
+       made the first draft of this assertion a lie about what it measured). */
+    const clean = forecastFight(
+      Object.assign(base(), { monsterHp: MONSTERS[WIZARD].hp, recoveringUntilMs: 0 }),
+      ctx, { autoEat: { enabled: false, owned: false } });
+    eq({ k: f1.kills, d: f1.deaths, t: f1.ticks, s: f1.survivedMs },
+       { k: clean.kills, d: clean.deaths, t: clean.ticks, s: clean.survivedMs },
+      'FORECAST-1 (d): the forecast inherited the caller\'s recovery clock or the in-flight '
+      + 'monster HP. A knocked-out player would be told every fight is hopeless, and a player one '
+      + 'hit from a kill would be told every fight is trivial.');
+
+    /* (e) THE WARNING RULE IS THE RULING'S TWO CONDITIONS AND NOTHING ELSE. */
+    eq(forecastWarning(null), null, 'FORECAST-1 (e): a missing forecast produced a warning');
+    eq(forecastWarning({ deaths: 0, kills: 5, foodless: true }), null,
+      'FORECAST-1 (e): a foodless hero who is WINNING was warned. Foodless alone is not a warning — '
+      + 'the ruling warns on deaths AND foodless, or on zero kills.');
+    eq(forecastWarning({ deaths: 4, kills: 9, foodless: false }), null,
+      'FORECAST-1 (e): a fed hero who dies but keeps killing was warned. That is playing the game.');
+    eq(forecastWarning({ deaths: 2, kills: 3, foodless: true }), FORECAST_WARNING.NO_FOOD,
+      'FORECAST-1 (e): deaths + an empty bag did not raise the no-food warning');
+    eq(forecastWarning({ deaths: 0, kills: 0, foodless: false }), FORECAST_WARNING.UNWINNABLE,
+      'FORECAST-1 (e): zero kills did not raise the out-of-your-league warning');
+    eq(forecastWarning({ deaths: 3, kills: 0, foodless: true }), FORECAST_WARNING.NO_FOOD,
+      'FORECAST-1 (e): a foodless hero who also kills nothing must be told about the food first — '
+      + 'that is the fix they own.');
+
+    /* (f) THE QA MATCHUP IS ACTUALLY WARNED. A rule nobody's real state trips
+       is a rule with no consumers. */
+    const hopeless = forecastFight(
+      { activeMonster: WIZARD, playerHp: 13, playerMaxHp: 13, stats: {}, inventory: {}, skills: {},
+        deathsTodayBefore: 0, deathsLifetimeBefore: VETERAN, consecFalls: 0 },
+      ctx, { autoEat: { enabled: false, owned: false } });
+    ok(forecastWarning(hopeless) !== null,
+      `FORECAST-1 (f): the QA matchup (13 HP, ${WIZARD}, empty bag) produced NO warning — `
+      + `${hopeless.kills} kills, ${hopeless.deaths} deaths, foodless=${hopeless.foodless}. `
+      + 'This is the exact state the ruling was written about.');
+    ok(hopeless.firstDeathMs !== null && hopeless.firstDeathMs > 0,
+      'FORECAST-1 (f): the forecast could not say WHEN the first fall comes, so the warning cannot '
+      + 'quote a span and has to guess one.');
+
+    /* (g) NO TARGET, NO FORECAST — `null`, never a zeroed object. "We did not
+       look" and "we looked and it is hopeless" must not render the same. */
+    eq(forecastFight({ activeMonster: 'no_such_monster' }, ctx, {}), null,
+      'FORECAST-1 (g): an unknown target produced a forecast instead of null');
   }
 }
 
@@ -2844,6 +3501,37 @@ async function shapeGuard() {
       `SOURCE: index.ts appears to write ${table} directly — Edge Functions never write tables`);
   }
   ok(/hr_apply\(/.test(shellCode), 'SOURCE: index.ts must go through hr_apply');
+  /* ── RETREAT-W8's PROVENANCE HALF (Designer ruling 4, 2026-09-07) ─────────
+     The attended kill ledger is the ONE input that can make `resolveKill` run
+     outside the simulation, and `resolveKill` clears the Retreat counter. So
+     where the shell got that value from is a security property, and it is not
+     visible to any runtime test of the engine: `runAccrual` cannot tell a
+     projection from a request body.
+     TWO SHAPES ARE LEGAL — `attendedIn` (the value read out of the seed
+     transaction) and `step.attended` (the degrade ladder's copy of it, which
+     is `null` on every rung). Anything else assigned to `attended:` is a new
+     door, and this goes red until somebody names it here. */
+  /* THE TERMINATOR IS LOAD-BEARING. `attended: Record<string, unknown> | null`
+     is a TYPE annotation, not a value, and it is the shape the degrade ladder's
+     own interface is declared with — so the scan requires the identifier to be
+     followed by an object/statement terminator, which a generic never is. */
+  const attendedArgs = [...shellCode.matchAll(/\battended\s*:\s*([A-Za-z_$][\w$.]*)\s*[,;}]/g)]
+    .map((mm) => mm[1]);
+  ok(attendedArgs.length > 0, 'SOURCE: index.ts no longer passes an attended ledger at all');
+  for (const a of attendedArgs) {
+    ok(a === 'attendedIn' || a === 'step.attended',
+      `SOURCE: index.ts passes attended: ${a}. The attended kill ledger may only come from the `
+      + 'hr_attended_kills projection read inside the seed transaction — it pays kills through '
+      + 'resolveKill, which clears the Retreat counter, so a body-sourced value would let a client '
+      + 'disarm a server-owned rule by claiming kills.');
+  }
+  ok(/const\s+attendedEnv\s*=\s*seedRow\s*\??\.\s*attended\b/.test(shellCode),
+    'SOURCE: attendedEnv is no longer read off the seed row — the projection IS the provenance');
+  /* AND THE COUNTER ITSELF IS NEVER CLIENT-SOURCED. `consecFalls` is seeded
+     from hr_state_of's projection and proposed back; an assignment reading the
+     parsed intent would be the same defect one field over. */
+  ok(!/consecFalls\s*:\s*(intent|body|req|payload)\b/.test(shellCode),
+    'SOURCE: index.ts seeds consecFalls from the request — the retreat counter is server-owned');
   ok(/hr_offline_cap_ms\(/.test(shellCode), 'SOURCE: the cap must be read from Postgres, not computed in the engine');
   ok(/hr_seed\(/.test(shellCode), 'SOURCE: the PRNG seed must come from hr_seed (server secret), never from visible values');
 }
@@ -4630,6 +5318,7 @@ export async function runAll() {
   attendedSettleAutoEatGuard();
   receiptLevelUpsGuard();
   recoveryGuard();
+  retreatGuard();
   gatherParityGuard();
   gatherBuffTimelineGuard();
   toolCarryContinuityGuard();

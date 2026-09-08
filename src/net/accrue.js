@@ -65,51 +65,34 @@
 //              `receiptLevelUpsGuard` in tests/accrual-engine.mjs). Render it
 //              verbatim — never re-derive it from a client preview.
 //
-// ── WHAT ACTUALLY GATES THIS (b339 — the previous paragraph was FALSE) ──────
-// This block used to say: "the DEPLOYED function has no CORS headers, so a
-// browser preflight fails and every call here lands on `unreachable`." That was
-// true when it was written and is NOT true now. Verified against production:
-// a preflight from hearthrise.net returns 204 with the right
-// `Access-Control-Allow-Origin`, a POST reaches the function's own body (it
-// answers `not_signed_in`), and the deployed `payload_sha256` equals
-// `node tools/pack-edge.mjs hr-accrue --hash`.
-//
-// ⚠ b515 — THERE IS NO SWITCH. The b353 kill switch (`hr:serverAccrual`) is
-// RETIRED: server accrual is unconditional, `isServerAccrualEnabled()` is a
-// constant `true`, and nothing in this file or any consumer forks on it. The
-// only remaining gate is the one that was always real — a deployed function,
-// applied migrations, and a signed-in player. A pre-b338 server is refused
-// rather than latched (B339-6); `tests/cors-preflight.mjs` C4 remains the live
-// gate for the transport, and `tests/no-blob-branches.mjs` fails if a fork on
-// the retired switch ever returns.
-//
-// What the switch's OFF position actually did, measured before removal: a
-// divergent single-device local game — blob upload to `game_saves`, local
-// `processOffline`, local gold/gem mint, `mayClientWrite` true for every field,
-// every intent dark, v1 market client writes, boot veil off — all of it
-// silently discarded the moment the key was cleared. That is a client-authored
-// fallback and CLAUDE.md §1 forbids it. Nothing it authored could cross into
-// another player's economy (the server grants refuse a client value), so this
-// was an honesty and dead-code problem rather than an exploit.
+// ── WHAT ACTUALLY GATES THIS ────────────────────────────────────────────────
+// ⚠ THERE IS NO SWITCH. The old kill switch (`hr:serverAccrual`) is RETIRED:
+// server accrual is unconditional, `isServerAccrualEnabled()` is a constant
+// `true`, and nothing in this file or any consumer forks on it — see the block
+// below for what its OFF position actually did. The only remaining gate is the
+// one that was always real: a deployed function, applied migrations, and a
+// signed-in player. A pre-cutover server is refused rather than latched
+// (B339-6); `tests/cors-preflight.mjs` C4 is the live gate for the transport,
+// and `tests/no-blob-branches.mjs` fails if a fork on the retired switch ever
+// returns.
 //
 // DOM-free except for one honesty sheet at the bottom, which is guarded on
 // `typeof document` and is the ONLY thing in this file that touches the page.
 // ============================================================================
 
-/* ── THE KILL SWITCH IS RETIRED (b515) ──────────────────────────────────────
-   `hr:serverAccrual` shipped in b353 as an operator escape hatch: the literal
-   string 'off' in localStorage dropped ONE device back to the pre-cutover
-   client without a redeploy. Security measured what "off" actually did on
-   2026-09-07 and it is not a pre-cutover client — it is a DIVERGENT SINGLE-
-   DEVICE LOCAL GAME: the authoritative save blob uploads to `game_saves`
-   again, `processOffline` computes away time from the device clock, gold and
-   gems mint locally, `mayClientWrite` answers yes for every field, every
-   intent goes dark, the v1 market writes from the client and the boot veil is
-   off. None of it can cross into another player's economy (the server grants
-   refuse a client value), so it was never an exploit — but it IS a client-
-   authored fallback, and everything it "saved" is silently discarded the
-   moment the key is cleared. CLAUDE.md §1 forbids exactly that: nothing is
-   authored by the client, ever, and there is no back-compat path.
+/* ── THE KILL SWITCH IS RETIRED ─────────────────────────────────────────────
+   `hr:serverAccrual` shipped as an operator escape hatch: the literal string
+   'off' in localStorage dropped ONE device back to the pre-cutover client
+   without a redeploy. Security measured what "off" actually did (2026-09-07)
+   and it is not a pre-cutover client — it is a DIVERGENT SINGLE-DEVICE LOCAL
+   GAME: the save blob uploads to `game_saves` again, `processOffline` computes
+   away time from the device clock, gold and gems mint locally, `mayClientWrite`
+   answers yes for every field, every intent goes dark, the v1 market writes
+   from the client and the boot veil is off. None of it can cross into another
+   player's economy (the server grants refuse a client value), so it was never
+   an exploit — but it IS a client-authored fallback, and everything it "saved"
+   is silently discarded the moment the key is cleared. CLAUDE.md §1 forbids
+   exactly that: nothing is authored by the client, ever.
 
    So the switch is GONE, not defaulted-on. `isServerAccrualEnabled()` is a
    constant `true`, the localStorage key is never read, and a device that
@@ -1511,14 +1494,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=520';
+import * as itemLedger from './item-ledger.js?v=521';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=520';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=521';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1527,7 +1510,7 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=520';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=521';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -1545,24 +1528,24 @@ import { serverAccruedSkill } from '../data/skill-authority.js?v=520';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=520';
+import * as pendingConsume from './pending-consume.js?v=521';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=520';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=521';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=520';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=521';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
    driven headlessly by the suite. The two curves are pinned equal to each other
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
-import { companionLevelFromXp } from '../core/companion-perk.js?v=520';
+import { companionLevelFromXp } from '../core/companion-perk.js?v=521';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -2365,32 +2348,21 @@ export function applyEnvelopeState(G, res, ownKey) {
     if (w && w.HearthriseDaily && typeof w.HearthriseDaily.noteServerStreak === 'function') {
       w.HearthriseDaily.noteServerStreak(res);
     }
+    /* THE HEARTHFIND (slate §2) — the WHOLE envelope to the reveal, from the one funnel
+       every envelope passes (settle AND switch). It reads `res.hearthfind` (hr_apply's
+       receipt, present only on the ORIGINAL response) and falls back to
+       `state.hearthfind_last`, so a lost reply loses no more than the trophy's moment. */
+    if (w && w.HearthriseHearthfind && typeof w.HearthriseHearthfind.noteEnvelope === 'function') {
+      w.HearthriseHearthfind.noteEnvelope(res);
+    }
   } catch (e) {}
   written.absolute = absolute;
 
-  /* ── THE RECOVERY LINE, OBSERVED (First-Night Idle Rescue) ────────────────
-     `player_state.recovering_until` — an ABSOLUTE server instant. Recorded off
-     every envelope and NEVER decremented here: a client-side countdown is a
-     number that survives a reload, and Recovery is precisely the thing that
-     must not (exploit R1). Renderers subtract it from the clock to draw and
-     compute nothing else from it.
-     ⚠ KEY PRESENCE, not truthiness. `null` means "this character is up" and
-       must CLEAR the stored line; an ABSENT key means an older server and must
-       leave it alone, or a mixed-deploy window would show a stale knockout. */
-  if (st && Object.prototype.hasOwnProperty.call(st, 'recovering_until')) {
-    const t = st.recovering_until ? Date.parse(st.recovering_until) : 0;
-    recoveringUntil = (Number.isFinite(t) && t > 0) ? t : 0;
-    written.recoveringUntil = recoveringUntil;
-  }
-
-  /* ── THE PRICED WINDOW AND THE DEATH COUNTERS, OBSERVED ───────────────
-     Same KEY-PRESENCE rule the recovery line above follows, for the same
-     reason: an ABSENT key is an older server and must leave the reading alone,
-     while a present one is the truth. `accrued_to` is what answers a pending
-     fall (see `noteFallAnswer`); `deaths_today` / `deaths_lifetime` are what
-     the death sheet renders instead of re-deriving a ladder rung from
-     `G.stats.deaths`, which is a lifetime tally and produced a two-minute
-     promise on a fall the server charged nothing for. */
+  /* THE PRICED WINDOW, OBSERVED - same KEY-PRESENCE rule; `accrued_to` answers
+     a pending fall (see `noteFallAnswer`). SITED HERE AND ONLY HERE, read
+     BEFORE `reconcileFall` exactly as it always was, and deliberately not
+     inside it: `bootAccruedToAt` is the welcome-back card's statement of the
+     absence, and letting the boot body write it first would move a number. */
   if (st && Object.prototype.hasOwnProperty.call(st, 'accrued_to')) {
     const a = st.accrued_to ? Date.parse(st.accrued_to) : 0;
     if (Number.isFinite(a) && a > 0) {
@@ -2398,34 +2370,13 @@ export function applyEnvelopeState(G, res, ownKey) {
       if (!bootAccruedToAt) bootAccruedToAt = a;
     }
   }
-  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
-    const n = Math.floor(Number(st.deaths_today));
-    deathsTodayCount = (Number.isFinite(n) && n >= 0) ? n : 0;
-    written.deathsToday = deathsTodayCount;
-  }
-  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_lifetime')) {
-    const n = Math.floor(Number(st.deaths_lifetime));
-    deathsLifetimeCount = (Number.isFinite(n) && n >= 0) ? n : 0;
-    written.deathsLifetime = deathsLifetimeCount;
-  }
-  /* AFTER all three, because the answer is a function of every one of them. */
-  noteFallAnswer(res);
 
-  /* ── THE FALL IS ANNOUNCED, ONCE PER ENVELOPE (2026-09-06, boot-raise P1) ──
-     Measured live on b510: a character with `recovering_until` 27 minutes ahead
-     RELOADED and got a normal "Fighting Goblin" bar — no sheet, no countdown,
-     no Rest button, nothing saying that 27 minutes would earn nothing. The
-     sheet was never broken; its only trigger was the fall MOMENT in the live
-     tick, and a reload has no such moment.
-     A one-way NOTIFICATION, not a call: this module must not know the death
-     sheet exists, and a listener that throws must not be able to poison an
-     envelope apply. The listener owns the once-per-window rule. */
-  try {
-    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
-        && typeof CustomEvent === 'function') {
-      window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
-    }
-  } catch (e) {}
+  /* WHERE THE CHARACTER STANDS - the recovery line, the death counters, the
+     retreat counter, the pending-fall answer and the announcement. ONE
+     implementation, shared with the BOOT hr_load path: applyEnvelopeState runs
+     only on `accrued:true` and a retreat always leaves the pointer idle, so the
+     one state the Retreat produces is the one the client would be blind to. */
+  Object.assign(written, reconcileFall(G, res) || {});
 
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
@@ -2507,35 +2458,21 @@ export function applyEnvelopeState(G, res, ownKey) {
          PHASE 1: MAX. Kept behind the switch, not deleted, because it is the
          incident lever — and it is now ALSO the client-only-skill floor. */
       const next = skillAbsolute ? xp : Math.max(have, xp);
-      /* ── THE PENDING FOLD-BACK USED TO BE HERE, AND IT IS GONE (b495) ──────
-         b487 added `if (skillAbsolute) next = xp + pending` so the DISPLAY was
-         server truth plus still-uncredited attended combat XP — the fix for
-         "sync reverts my exp mid-fight" (reported live 08-23 → 08-27). The
-         intent was right; this was the wrong LAYER, and by b494 it was doing
-         nothing here and harm where it survived:
-
-           · DEAD on the normal path. `G.skills` is a MOVED field. record.js
-             `applyRecord` runs microseconds after this function on the very same
-             envelope (legacy.js:2124 then :2144) and REPLACES `G.skills`
-             wholesale from `dec.fields.skills`, then re-stamps it. Whatever is
-             folded in here is overwritten before any reader sees it.
-           · ACTIVELY WRONG where it survived. On a STALE envelope applyRecord
-             fills only the fields the record cannot vouch for, so a folded
-             `G.skills` stays — and it then no longer matches `_record.stamp`, so
-             `recordValue` answers `client-overwrote`, `skillXpForDisplay` drops
-             from the `server` rung to the `local` rung, and that rung ADDS the
-             prediction on top of a number which already contains it. That is the
-             b491 double-count — "watched XP appears and then snaps away" —
-             recreated by the very thing meant to prevent it.
+      /* ── THE PENDING FOLD-BACK USED TO BE HERE, AND IT IS GONE ─────────────
+         Folding still-uncredited attended XP into `next` here was the wrong
+         LAYER twice over: `G.skills` is a MOVED field, so applyRecord replaces
+         it wholesale from the same envelope microseconds later (dead on the
+         normal path), and on a STALE envelope the folded value survives without
+         matching `_record.stamp` — `skillXpForDisplay` then drops to the local
+         rung, which ADDS the prediction on top of a number that already contains
+         it. That is the double-count it was meant to prevent.
 
          THE PROTECTION NOW LIVES IN THE LAYER THAT SURVIVES applyRecord: the
          prediction bag. `addXp` records the attended gain as a `credit`-tagged
          bucket (predict.js `predictXp`), `skillXpForDisplay` renders record truth
          PLUS the un-retired bucket, and `reconcileCreditedXp` retires it by the
          AMOUNT the record actually advanced rather than by a watermark the credit
-         never moves. Same player-facing property — a settle can never shrink
-         watched combat XP — now asserted at the layer that owns it, by
-         XP-FOLDBACK and XP-CREDIT-RETIRE in smoke-test.js.
+         never moves. Asserted by XP-FOLDBACK / XP-CREDIT-RETIRE in smoke-test.js.
 
          ⚠ DO NOT REINTRODUCE A CLIENT WRITE OF `G.skills` HERE. Under the armed
          record it is not a display buffer; it is a field with provenance, and
@@ -2680,6 +2617,21 @@ export function applyEnvelopeState(G, res, ownKey) {
      function. Fail-closed on an absent res.farm — a lean envelope never wipes a
      populated farm. */
   written.farm = reconcileFarm(G, res);
+
+  /* THE LAST AWAY-CLASSIFIED RECEIPT IS THE SERVER'S (ruling 2026-09-07).
+     Seeded from `state.last_away_receipt` so the Home "While you were away" card
+     survives a reload — see reconcileAwayReceipt's header for why it can only
+     ever fill a hole and never overwrite this session's receipt.
+
+     ⚠ NAMED `restoredReceipt`, NEVER `receipt`, AND THE NAME IS LOAD-BEARING.
+       This is a RESTATEMENT of a night that was paid, journalled and banked
+       some time ago; `paidReceipt` (set by applyEnvelope / applyIntentEnvelope
+       below) is the receipt for the payment THIS envelope carried. Exactly one
+       of them may reach a crediting seam and it is never this one — see the
+       block above `creditServerAwayKills` in legacy.js. Two fields with two
+       names, because one field with two meanings is how a restored receipt
+       comes to be credited twice. */
+  written.restoredReceipt = reconcileAwayReceipt(G, res);
 
   const inv = (G.inventory && typeof G.inventory === 'object') ? { ...G.inventory } : {};
   /* ══════════════════════════════════════════════════════════════════════
@@ -2944,23 +2896,18 @@ export function __resetServerAutoEat() {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   THE BAG, RECONCILED FROM AN ENVELOPE — ONE IMPLEMENTATION (b46x).
+   THE BAG, RECONCILED FROM AN ENVELOPE — ONE IMPLEMENTATION.
 
-   Extracted VERBATIM from applyEnvelopeState so that record.js's boot hr_load
-   settle() can hydrate the bag on an IDLE boot. Root cause of the P1: inventory
-   hydration lived ONLY here, reached ONLY through applyEnvelopeState — which runs
-   ONLY on `accrued:true`. On an idle boot hr-accrue answers
-   {accrued:false, reason:'idle'}, so the bag was never applied and the player saw
-   a stale ~3-stack remnant while the server held the full inventory. settle()
-   (record.js) already rebuilds companions/farm/traits/activity from the always-
-   full hr_load body for exactly this reason; inventory + bank were the omission.
-   This function is now the shared apply, called from BOTH paths.
+   The FIRST of the idle-boot hydration class: bag hydration lived only inside
+   applyEnvelopeState, which runs only on `accrued:true`, so an idle boot left
+   the player looking at a stale remnant of the inventory the server held. This
+   function is the shared apply, called from BOTH paths.
 
-   The merge/absolute split, the b364 debit handling (consumedKeysOf), the b362
-   equip-dupe discount (unaccountedEquipped), the serverOwnedItem carve-out, the
-   never-delete rule and itemLedger.reconcile are all preserved EXACTLY. The ONLY
-   behavioural change from the inlined version is that the prediction sweep is NOT
-   run here: applyEnvelopeState runs it once after this returns, and the load path
+   The merge/absolute split, the debit handling (consumedKeysOf), the equip-dupe
+   discount (unaccountedEquipped), the serverOwnedItem carve-out, the never-delete
+   rule and itemLedger.reconcile are preserved EXACTLY. The ONLY behavioural
+   difference from the inlined version is that the prediction sweep is NOT run
+   here: applyEnvelopeState runs it once after this returns, and the load path
    deliberately does not (it would re-offset the gold applyRecord already wrote).
 
    IDEMPOTENCY (the double-apply concern, non-idle boot). On a non-idle boot
@@ -2980,37 +2927,24 @@ export function __resetServerAutoEat() {
    baselineComplete are OPTIONAL — computed from isInventoryAbsolute() /
    envelopeBaselineComplete(res) when a caller (settle) does not pass them. */
 /* ══════════════════════════════════════════════════════════════════════════
-   HP IS SERVER-OWNED — ONE IMPLEMENTATION, BOTH DIRECTIONS (b511).
+   HP IS SERVER-OWNED — ONE IMPLEMENTATION, BOTH DIRECTIONS.
 
-   THE MEASURED BUG (QA slot, live b510, 14:40 UTC 2026-09-06). The server held
-   `player_state.hp = 6 / max_hp 13` — a 40% resume after a recovery window
-   expired at 14:17. The client booted and displayed 13/13, the player opened a
-   Dark Wizard fight from a full bar, and 40 s in the screen still read 11/13
-   "Fighting Dark Wizard" while the server's settle — simulating from hp 6 —
-   recorded death #8 and started a new recovery clock. `fallState()` flipped to
-   {phase:'recovering', serverDied:true, deathsToday:8} with `fellAt: 0`: the
-   client never fell, because the client never had the server's hp.
-
-   TWO CAUSES, BOTH CLOSED HERE.
-   (1) THE RAISE-ONLY FLOOR. b373 ("an idle player cannot be wounded by an
-       envelope") let an envelope RAISE hp freely and lower it only mid-fight.
+   TWO CAUSES, BOTH CLOSED HERE, of a client that booted at 13/13 while the
+   server held a 40% resume at 6/13 and settled the next fight into a death.
+   (1) THE RAISE-ONLY FLOOR. The old rule ("an idle player cannot be wounded by
+       an envelope") let an envelope RAISE hp freely and lower it only mid-fight.
        Its evidence was real for its time: `resolveDeath` full-healed on the
-       CLIENT, and a late envelope for a window that ended before that death
-       wrote the server's mid-fight hp over the respawn, so a new player fought
-       on at 2/10. That world is gone. Death, the recovery window and the
-       resume-at-fraction are now SERVER state (2026-09-06-recovering-until.sql,
-       the Recovery rev.2 program): out of combat the server's hp is not a stale
-       reading of a superseded window, it is the answer. Raise-only inverted
-       that into "the client keeps whatever is higher" — i.e. the client
-       overwrote a 40% resume with a stale full bar, exactly the b373 bug with
-       the sign flipped. CLAUDE.md §1: the server owns it, down as well as up.
+       CLIENT, so a late envelope for a superseded window wrote a mid-fight hp
+       over the respawn. That world is gone — death, the recovery window and the
+       resume-at-fraction are SERVER state (2026-09-06-recovering-until.sql).
+       Out of combat the server's hp is the answer, and raise-only inverted that
+       into "the client keeps whatever is higher": a stale full bar overwriting a
+       40% resume. CLAUDE.md §1 — the server owns it, down as well as up.
    (2) THE BOOT PATH NEVER ASKED. hp lived ONLY in applyEnvelopeState, which
        runs ONLY on `accrued:true`; an idle boot answers {accrued:false} and
        nothing ever read `state.hp`. `playerHp` is in NO_SYNC, so there was no
-       other source and the bar defaulted to full. Same idle-boot hydration
-       class as inventory (b467), crew (b477) and hero slots (SA-016), and the
-       fix is the same shape: extract the apply and call it from record.js's
-       boot settle too.
+       other source and the bar defaulted to full — the same idle-boot hydration
+       class as inventory, crew and hero slots, with the same shape of fix.
 
    WHAT IS PRESERVED. The Paione P0 rule is unchanged and is the ONLY exception:
    during an ATTENDED fight (`G.activeMonster` set) a NON-away envelope carries
@@ -3024,6 +2958,92 @@ export function __resetServerAutoEat() {
    the exception can no longer launder a stale full bar through a whole fight.
 
    Returns a receipt fragment; never throws. */
+/* ══════════════════════════════════════════════════════════════════════════
+   reconcileFall - WHERE THE CHARACTER STANDS, OFF ANY SERVER ENVELOPE.
+   ONE observer, TWO callers: `applyEnvelopeState` (the settle, the activity and
+   gold envelopes) and record.js's boot `hr_load` settle. Extracted verbatim, so
+   the two paths cannot develop two ideas of whether a player is on the floor.
+   THE MEASURED BUG THIS EXISTS FOR (RETREAT-A4). applyEnvelopeState only runs
+   on `accrued:true`, and a RETREAT leaves the activity pointer IDLE - so the
+   next boot is answered `{accrued:false, reason:'idle'}` and it never runs.
+   Measured against the real boot path with `recovering_until` 32 minutes ahead
+   and `consec_falls: 3`: the client came up `phase:'up'`, `G.consecFalls`
+   UNDEFINED and no sheet - 27 minutes earning nothing with no countdown and no
+   Rest button, reached through the IDLE-BOOT door instead of the reload door
+   RECOVER-11 closed, the FIFTH instance of the class record.js names. It bites
+   twice: no reason is given for the 5/13 HP, and the rule that just ended a
+   hopeless run forgets it did. The fix is the shape record.js prescribes for
+   the other four: route the always-full boot body through the SAME function.
+   ⚠ `accrued_to` IS DELIBERATELY NOT IN HERE. It feeds `bootAccruedToAt`, the
+     welcome-back card's statement of how long the player was away; moving its
+     first observation to the boot read would change a player-visible number
+     this change has no business touching. `noteFallAnswer` reads it, but only
+     when `fall.at` is set - which at boot it never is.
+   Returns a receipt fragment; never throws. */
+export function reconcileFall(G, res) {
+  const st = (res && res.state) || {};
+  const written = {};
+
+  /* THE RECOVERY LINE, OBSERVED - `player_state.recovering_until`, an ABSOLUTE
+     server instant, recorded off every envelope and NEVER decremented here: a
+     client-side countdown survives a reload and Recovery is precisely the thing
+     that must not (exploit R1). Renderers subtract it from the clock to draw.
+     ⚠ KEY PRESENCE, not truthiness. `null` means "up" and must CLEAR the stored
+       line; an ABSENT key means an older server and must leave it alone, or a
+       mixed-deploy window would show a stale knockout. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'recovering_until')) {
+    const t = st.recovering_until ? Date.parse(st.recovering_until) : 0;
+    recoveringUntil = (Number.isFinite(t) && t > 0) ? t : 0;
+    written.recoveringUntil = recoveringUntil;
+  }
+
+  /* THE DEATH COUNTERS, OBSERVED - same KEY-PRESENCE rule, same reason.
+     `deaths_today` / `deaths_lifetime` are what the death sheet renders instead
+     of re-deriving a ladder rung from `G.stats.deaths`, a lifetime tally that
+     produced a two-minute promise on a fall the server charged nothing for. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_today')) {
+    const n = Math.floor(Number(st.deaths_today));
+    deathsTodayCount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    written.deathsToday = deathsTodayCount;
+  }
+  if (st && Object.prototype.hasOwnProperty.call(st, 'deaths_lifetime')) {
+    const n = Math.floor(Number(st.deaths_lifetime));
+    deathsLifetimeCount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    written.deathsLifetime = deathsLifetimeCount;
+  }
+  /* THE RETREAT COUNTER, OBSERVED - consecutive falls with no kill between them.
+     Written straight onto `G`, not a module-local: `G` IS the state the live
+     tick hands to `resolveDeath`, so this assignment is what makes the ATTENDED
+     path evaluate the same rule the away path does.
+     ⚠ KEY PRESENCE. `resolveDeath` gates the ENTIRE Retreat on this being a
+       NUMBER, so an ABSENT key must leave `G.consecFalls` undefined - inventing
+       a 0 arms a client rule against a database that cannot back it, pointed at
+       a mechanic that STOPS the player. PREDICTION ONLY: the next envelope
+       overwrites it with the server's number. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'consec_falls')) {
+    const n = Math.floor(Number(st.consec_falls));
+    const v = (Number.isFinite(n) && n >= 0) ? n : 0;
+    if (G && typeof G === 'object') G.consecFalls = v;
+    written.consecFalls = v;
+  }
+  /* AFTER all three: a no-op unless the CLIENT saw itself fall this session
+     (`fall.at`), which on the boot path it never has. */
+  noteFallAnswer(res);
+  /* THE ANNOUNCEMENT. Measured live: a character with `recovering_until` 27
+     minutes ahead RELOADED and got a normal "Fighting Goblin" bar - no sheet,
+     no countdown, no Rest button. The sheet was never broken; its only trigger
+     was the fall MOMENT in the live tick, and a reload has no such moment.
+     One-way: a listener that throws must not poison an envelope apply. */
+  try {
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
+        && typeof CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
+    }
+  } catch (e) {}
+
+  return written;
+}
+
 let lastServerHp = null;   /* {hp, maxHp, at} — the last hp the SERVER stated. */
 
 /** The last server-stated hp, or null if this session has never seen one.
@@ -3344,50 +3364,12 @@ export function applyEnvelope(G, res) {
       + 'so the local save being compared against may not be the one that wins.');
     return null;
   }
-  /* ══════════════════════════════════════════════════════════════════════
-     PHASE 2 (b366) — THE GATE NARROWS TO THE CASE IT WAS BUILT FOR.
-
-     §8 says the replacement-ack sheet RETIRES at Phase 2 and should be deleted
-     outright. That is right about the end state and wrong about the transition,
-     and the difference matters on a live beta: under ABSOLUTE, `destructive` is
-     no longer an alarm — it is the NORMAL, EXPECTED answer every time the
-     client predicted a drop the server did not roll (§6's own table says so:
-     "Phase 2: it disappears at the next settle"). Leaving the gate as it stands
-     would put a consent modal in front of the player every 90 seconds, and the
-     only way through it is to consent, so it would protect nothing while
-     making the game unusable.
-
-     Deleting it outright is the other wrong answer, because the case it was
-     genuinely built for still exists and is still permanent: a COLD LOAD on a
-     device whose local save is real progress, answered by a server character
-     that is fresh or belongs to a different slot. That apply is not a 90-second
-     prediction correcting itself; it is one save overwriting another.
-
-     The line between them is measurable and is not a feeling: has this session
-     already applied an envelope? If it has, the client and the server have
-     already agreed once and every later difference is drift. If it has not,
-     this is the first contact and the sheet is exactly right.
-
-     ⏳ THE SHEET RETIRES FULLY when the client stops holding a rival copy at
-     all — i.e. when `gold`/`skills`/`inventory` are on SERVER_OF_RECORD and the
-     load strip deletes them, at which point `describeReplacement` is
-     permanently non-destructive and this branch is unreachable. That is a
-     record.js change, not this one, and it is named in the report. */
-  /* ── THE CAPSTONE RETIRES THIS SHEET (blob-retire, DORMANT) ─────────────────
-     The ⏳ comment above ("THE SHEET RETIRES FULLY when the client stops holding
-     a rival copy at all") names exactly this: once the save blob is retired there
-     is NO local authored character to be "replaced", so applying the server
-     envelope IS the load, not an overwrite of a rival, and this modal is never the
-     right thing to show. Gated on the one capstone flag, read off the window global
-     at CALL time (cycle-avoidance, same as isReconcilePending above). While dormant
-     it is false and the sheet behaves byte-for-byte as today. Deleting the sheet +
-     its plumbing is a POST-ARM cleanup once proven live post-wipe. */
-  /* b515: the replacement sheet is GONE, not gated. It asked the player to
-     confirm before the server envelope "replaced" a rival local character; the
-     capstone retired that rival, and the flag that could bring it back (the b353
-     kill switch) is retired too. `describeReplacement` / `showReplacementSheet`
-     remain exported for the tests that pin the copy; nothing calls the sheet on
-     the load path any more. */
+  /* THE REPLACEMENT SHEET IS GONE, NOT GATED. It asked the player to confirm
+     before the server envelope "replaced" a rival local character; the capstone
+     retired that rival — there is no locally-authored character left for an
+     envelope to overwrite, so applying it IS the load. `describeReplacement` /
+     `showReplacementSheet` remain exported for the tests that pin the copy;
+     nothing calls the sheet on the load path any more. */
   const st = res.state || {};
   const written = applyEnvelopeState(G, res);
 
@@ -3397,31 +3379,34 @@ export function applyEnvelope(G, res) {
      is the flag that lets a renderer (or a bug report) tell the two apart. */
   G.lastOfflineSummary = summaryFromAway(res.away, res);
   written.summary = true;
+  /* ── THE RECEIPT THIS ENVELOPE PAID FOR, HANDED BACK BY IDENTITY ───────────
+     `creditServerAwayKills` (legacy.js) replays the server's away KILL TOTAL
+     through the live counter seams — `stats.kills`, the this-fight streak,
+     `updateQuest` and `updateDaily`, and `updateDaily` is the wrapper chain the
+     Muster contributes to (`world_event_contribute`, a SHARED surface). It used
+     to read `G.lastOfflineSummary`, an ambient holder that ANY applier may have
+     seeded — including reconcileAwayReceipt with a night that was credited
+     hours ago. Handed the object instead, the crediting seam can only ever see
+     the receipt for the delta that was just applied. See legacy.js:~2034. */
+  written.paidReceipt = G.lastOfflineSummary;
 
-  /* ── THE AWAY RECEIPT OUTLIVES THE NEXT SYNC (b519) ─────────────────────
-     `lastOfflineSummary` is the LATEST receipt, whatever kind it is, and it
-     has to stay that way: the toast, the welcome modal and the bug report all
-     want the thing that just happened. But the Home "While you were away"
-     card is not about the latest receipt — it is about the ABSENCE, and the
-     absence is news for thirty minutes (home-dashboard.js's own box).
+  /* ── THE AWAY RECEIPT OUTLIVES THE NEXT SYNC ────────────────────────────
+     `lastOfflineSummary` is the LATEST receipt of any kind and must stay that
+     way (the toast, the welcome modal and the bug report all want the thing
+     that just happened). The Home "While you were away" card is not about the
+     latest receipt — it is about the ABSENCE, which is news for thirty minutes
+     — and the 90-second settle loop overwrote the night's receipt with a sync
+     receipt a minute and a half into play. Design ruling (game-designer,
+     2026-09-07): a sync receipt must never CREATE or RE-LABEL an away card,
+     and must not EVICT a fresh one either.
 
-     Because the settle loop lands an envelope every 90 seconds, the line
-     above overwrote the night's receipt with a sync receipt roughly a minute
-     and a half into play, and the card vanished mid-read. Design ruling
-     (game-designer, 2026-09-07): a sync receipt must never CREATE or RE-LABEL
-     an away card, and must not EVICT a fresh one either.
-
-     So the away receipt gets its own holder, written ONLY when the shared
-     classifier says 'away' (>= SYNC_MAX_MS, or a death on any span — b343's
-     rule, read through `classifyReceipt` rather than re-decided here, which
-     is what keeps b361's one-classifier property). A sync never touches it;
-     a LATER away receipt replaces it, which is correct — two absences in one
-     30-minute box means the second one is the news.
-
-     Deliberately module-scope and NOT persisted: it is display state about
-     one session's return, not progression (§6 — a field that only exists in
-     the client is lost on reload BY DESIGN, and on reload the very next
-     envelope re-states the absence anyway). */
+     So the away receipt gets its own module-scope holder, written ONLY when the
+     SHARED classifier says 'away' (>= SYNC_MAX_MS, or a death on any span) —
+     read through `classifyReceipt` rather than re-decided here, which is what
+     keeps one classifier for the whole client. A sync never touches it; a LATER
+     away receipt replaces it, because two absences in one 30-minute box means
+     the second is the news. It is display state, not progression (§6), so it is
+     not persisted; the boot seed below is what restates it after a reload. */
   if (classifyReceipt(G.lastOfflineSummary) === 'away') lastAwayReceipt = G.lastOfflineSummary;
 
   /* The server owns `accrued_to`. Parking it here is what makes it visible to
@@ -3433,6 +3418,77 @@ export function applyEnvelope(G, res) {
     at: nowMs(),
   };
   return written;
+}
+
+/* ── THE LAST AWAY-CLASSIFIED RECEIPT, ACROSS A RELOAD (ruling 2026-09-07) ──
+   `G.lastOfflineSummary` is a NO_SYNC field (src/net/events.js:93), so it lives
+   for exactly one page life: reload once and the Home "While you were away"
+   card, the welcome-back modal and the combat recap all render nothing for a
+   night the server already paid, journalled and banked. The DESIGN RULING is
+   that a receipt the server paid is PROGRESSION, not preference — so it now
+   lives in `player_state.last_away_receipt`, written by the accrual engine on
+   AWAY-classified settles only and projected by hr_state_of.
+
+   ── THE TWO RULES THIS FUNCTION KEEPS ─────────────────────────────────────
+   1. IT ONLY EVER FILLS A HOLE. A receipt written THIS session is the fresher
+      statement of the same character by definition — it came from the settle
+      that is still on screen — so a stored receipt never overwrites one. This is
+      also what stops a stale projection re-announcing last night's absence after
+      every envelope: the seed happens once, on the boot envelope, and every
+      envelope after it finds the holder already populated.
+   2. IT IS A READ, NOT AN AUTHORITY. Nothing here credits anything. The value
+      the receipt DESCRIBES was moved by hr_apply in the same delta that wrote
+      it; this is the sentence, not the payment. A garbage or absent projection
+      therefore degrades to today's behaviour (silence), never to a guess —
+      PRESENCE is tested, never coalesced, so a database that predates the column
+      says nothing rather than rendering a fabricated empty night.
+
+   Returns the seeded summary, or null when nothing was seeded. */
+export function reconcileAwayReceipt(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const st = (res && res.state) || null;
+  if (!st || typeof st !== 'object') return null;
+  /* PRESENCE, never coalescing: an ABSENT key means "this database predates the
+     receipt" and a NULL means "this character has never been away". Both are
+     silence; neither is a fabricated night. */
+  if (!('last_away_receipt' in st)) return null;
+  const stored = st.last_away_receipt;
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return null;
+  /* RULE 1: this session's receipt wins. It is the same character's fresher
+     statement, and it is the one the player is looking at. */
+  if (G.lastOfflineSummary) return null;
+  /* ONE TRANSLATOR. summaryFromAway is the only away-receipt translator on the
+     client (a second one would be two opinions about a settled night), and the
+     stored object is deliberately in the SAME shape as the `away:` payload so it
+     can go straight through it. */
+  const summary = summaryFromAway(stored, res);
+  /* `at` is the SERVER's instant, stated on the stored receipt. Kept as-is
+     rather than restamped to `nowMs()`: serverAwaySpanMs treats a receipt older
+     than 30 minutes as stale and falls back to the boot watermark, and
+     restamping would make every reload look like a fresh absence. */
+  const at = Number(stored.at);
+  if (Number.isFinite(at) && at > 0) summary.at = at;
+  summary.restored = true;          // scratch marker for the renderers/QA; not authority
+  G.lastOfflineSummary = summary;
+  /* ── AND INTO THE AWAY HOLDER, OR THE RESTORED CARD LIVES 90 SECONDS ───────
+     MERGE-EMERGENT, and the seed above is only half the restore without it: the
+     holder starts a boot null, so the first 90-second sync — which writes a sync
+     receipt to `lastOfflineSummary` and leaves the holder alone — evicted the
+     restored card. Measured on the merged tree 2026-09-07: card DRAWS at boot,
+     NONE after one sync.
+
+     One line, obeying the two rules the holder already has rather than
+     restating them:
+       · ONE CLASSIFIER — `classifyReceipt`, never a local re-decision, so the
+         holder and the toast can never disagree about which night this was. A
+         restored receipt classifies away by construction; asking anyway is what
+         keeps that true if the stored shape ever drifts.
+       · HOLE-FILLING ONLY — a holder already populated belongs to an absence
+         THIS session applied, which is the fresher statement; a restore may
+         never evict it.
+     Nothing is credited by either write — see this function's rule 2. */
+  if (!lastAwayReceipt && classifyReceipt(summary) === 'away') lastAwayReceipt = summary;
+  return summary;
 }
 
 /** The away receipt, translated into the shape lastOfflineSummary renderers read. */
@@ -3546,6 +3602,17 @@ export function summaryFromAway(away, res) {
        that met the novice clamp or the 64-minute cap. */
     recoverLadder: Array.isArray(a.recoverLadder)
       ? a.recoverLadder.map((v) => Math.max(0, Number(v) || 0)) : [],
+    /* THE RETREAT's pass-through fields. Nothing is inferred, and `retreatMs`
+       stays `null` rather than 0 when the server stated none, because 0 means
+       "on the very first tick" and a truthiness test would render the worst
+       night as a clean one (the `dryMs` trap). `retreatFoodless` is the bag AT
+       THE FALL, deliberately not `autoEat.hadFood` (window-open). */
+    retreatMs: Number.isFinite(Number(a.retreatMs)) ? Math.max(0, Number(a.retreatMs)) : null,
+    retreatFoodless: !!a.retreatFoodless,
+    retreatFalls: Math.max(0, Number(a.retreatFalls) || 0),
+    /* The slice of the credited window that paid nothing because the hero had
+       already gone home. 0 on every night that did not retreat. */
+    idleMs: Math.max(0, Number(a.idleMs) || 0),
     capped: !!a.capped,
     blessed: !!a.blessed,
     buffsPaused: !!a.buffsPaused,
@@ -3898,7 +3965,10 @@ export function receiptRecoveryClause(summary, opts) {
   const o = opts || {};
   const s = summary || {};
   const deaths = Math.max(0, Number(s.deaths) || 0);
-  if (deaths < 1 || s.stoppedBy === 'death') return null;
+  /* ⚠ AND SILENT ON A RETREAT. "your run picked up each time" is rev. 2's
+     headline promise and it is FALSE of a night the hero ended by going home;
+     the retreat has its own sentence, one author (HearthriseHome). */
+  if (deaths < 1 || s.stoppedBy === 'death' || s.stoppedBy === 'retreat') return null;
   const foeName = (typeof o.foeLabel === 'function') ? o.foeLabel(s.diedTo) : null;
   const foe = foeName ? (' to the ' + foeName) : '';
   const recMs = Math.max(0, Number(s.recoverMs) || 0);
@@ -4674,7 +4744,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

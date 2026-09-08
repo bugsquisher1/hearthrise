@@ -2,6 +2,77 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-09-07 — FIRST LIGHT: the feature was built, it had no renderer, and the tie-break was the bug
+
+**Branch** `worktree-agent-a5ec5d462bc708b2b`, off `08b34654`. Client-only. Not bumped, not pushed.
+FIRST-LIGHT 6/6 + OFFLINE-CLARITY 1 + b227 57/58 (1 pre-existing skip) + RETUNE-2, 0 console errors,
+0 failed requests. Nine mutations planted, nine caught by the right test.
+
+### The three things I want future-me to have
+
+1. **Before authoring a surface for a "missing" feature, check whether the gap is a RENDERER.** The
+   designer wrote this and it held twice more inside one lane: the first-day chain was five
+   server-credited quests with no card, and the away card's "cooking does not pay" line was prose
+   standing where `COOKING_SETTLEMENT_ARM_ENABLED` had been true for a hundred builds. Both fixes are
+   reads, not systems. The tell in both cases is a comment that names its own expiry condition
+   ("restore cooking to this line only when it pays away") with no test holding it to that.
+   **A copy/flag pair with no test between them WILL drift.** FIRST-LIGHT-5 now binds the sentence to
+   `benchPayable('cooking')` in BOTH directions, so flipping the arm reddens the copy.
+
+2. **The mutation proof deleted code I had already written and believed.** I shipped a
+   started/unstarted rank term in `getNextMilestone` to implement "a 0% skill loses to an open
+   quest", planted the obvious mutation, and the guard did not bite: every case the term fired on,
+   the `_cmp`/`_tier` comparison had already answered the same way. A level's floor is
+   `xpForLevel(lv)` exactly, so "zero progress" IS the tie — the ruling's case and the tie-break case
+   are the same case. The term was decoration that read load-bearing. Removed, with the finding
+   written at the site so nobody re-adds it without a case where the two disagree.
+   **A mutation that escapes is not always a missing test; sometimes it is redundant code.**
+
+3. **Each half was individually correct and the assembled screen was wrong.** The launchpad ruling
+   makes the chain quest the leading milestone; the new card draws that same quest four rows above.
+   Nothing in either change is wrong, and day-one Home printed "Cook 5 dishes · 0/5 · [Go cook]"
+   twice within ten pixels. I only saw it because I read the screenshot. That is the b361 shape and
+   the reason the visual gate exists. While fixing it I found the SAME class already shipped: the
+   milestone can restate a daily task it is about to list ("Kill 60 monsters" over "Kill 60
+   monsters"). Killed the class, not the instance.
+
+### Model notes (so nobody re-derives them)
+
+* **The chain is `QUEST_DEFS` in authored order, joined to `G.quests` by id.** Uncapped and
+  unwindowed on purpose — a cap would let a lane-C row ship and never be shown, which is the exact
+  failure the feature exists to end. The contract is written at the site: a quest that is not part of
+  a new player's first session does not belong in `QUEST_DEFS`.
+* **There is no "claim" verb for these quests and there must not be one.** `completeQuest` fires
+  `hr_claim_quest` on the completion tick and `hrSweepUnclaimedQuests` recovers a dropped one; the
+  card's `claimable` state is `done && !claimed && server-payable`, a state the player passes THROUGH
+  and never acts on. It therefore says so and offers no button — a "Claim" that re-fires a
+  60-second-throttled sweep would be a dead affordance 59 seconds out of 60.
+* **`questServerPays` reads the SAME catalogue the sweep does** (`HearthriseCore.goalCatalogue
+  .questItemsAreServerCredited`) and fails to FALSE when the bridge has not settled, so the card can
+  never claim a reward is on its way that nothing is waiting for.
+* **A SIGNED-OUT reload proves nothing about persistence.** `saveLocal` is a `lastSeen` stamp (b515
+  deleted the blob write) and the residue rides `putClientState` to the server, so my first
+  reload-and-compare measured the absence of an account, not a defect. The assertable property is
+  that `quests` and `stats` are already on `RESIDUE_FIELDS` and the model round-trips through the
+  JSON the residue is made of — which is what the verifier checks now. **No new persisted field:
+  zero save-migration surface.**
+* **The suite runs signed in during the play gate**, so any test that drives `updateQuest` to
+  completion MUST stub `HearthriseGoalClaim` or it posts a real `hr_claim_quest` for the QA
+  character. FIRST-LIGHT-1 stubs it and asserts the fire, which is strictly better than avoiding it.
+
+### The focused-verification recipe (no full suite, no run-ci-local)
+ONE headless page, static-serve the worktree, `__HR_TEST_HARNESS__=true`, then
+`window.__smokeTest({silent:true, only:'FIRST-LIGHT'})` — the runner's `only` is a SOURCE-TEXT match
+on the registration closure, so a shared name prefix makes a battery filterable. Same page then
+takes the Home screenshots at 1440×900 and 922×423. **Reload before screenshotting**: the batteries
+leave the Chronicle/Collection overlays up, and a screenshot of a modal is a screenshot of nothing.
+Scripts kept at the session scratchpad (`fl-verify.mjs`, `fl-mutate.mjs`), deliberately NOT added to
+`tests/` — they are a lane affordance, not a standing guard.
+
+### Handoffs raised
+Art Director (First Light phone rhythm + the standing `.ach-toast` overlap), Coordinator (lane-C
+capstone row + no edge/DB work in this lane). See HANDOFFS.
+
 ## 2026-09-04 — THE SIGN-UP DOOR: the lesson is that the assertion I most wanted to write is the one that proves nothing
 
 **Branch:** `fix/signup-door` (worktree `.claude/worktrees/agent-abdad166ac278fc2e`), base main
@@ -3330,3 +3401,367 @@ number happens to be zero: `up / pending / recovering / down-free / unconfirmed`
 * **Art Director:** while a fall is pending/recovering the combat panel now shows a PAUSED fight
   behind the sheet (pointer intact, monster at 0 HP) instead of an emptied one. The sheet covers it,
   but the panel itself has no "knocked out" state yet. Small, visible, and not mine.
+
+---
+
+## 2026-09-07 — CLEANUP SLICE 1b: THE FOUR DEBT RATCHETS
+
+**Branch** `worktree-agent-a28e0a63e40d0eaa8`, off `762a1672`. No file under `src/**` or
+`supabase/migrations/**` touched — a guard slice that edits product code cannot be trusted as a
+baseline.
+
+### What landed
+`tests/monolith-ratchet.mjs` (MONO-1..5), `tests/comment-ratio-ratchet.mjs` (CR-1..4),
+`tests/patch-chain-guard.mjs` (PATCH-1..5), `tests/test-file-ratchet.mjs` (TF-1..3), each with a
+`--write` baseline JSON and a `--selftest`, registered in `.github/workflows/smoke.yml` under
+`client-guards` and re-registered in `tests/ci-shape.baseline.json` (90 commands / 5 jobs). All
+eight CI commands together run in **under 3 s**, inside a 5-minute job budget.
+
+### Learnings worth keeping
+1. **Three of the audit's four headline numbers do not reproduce, and the difference is METHOD, not
+   drift.** Colour literals 2,317 → 2,009 (the ratchet exempts theme-block token definitions);
+   breakpoint spellings 14 → 28; seeds:gestures 9:1 → 6.2:1. `hr_state_of`'s "39 patch chains" is
+   really 12 anchored edits plus 9 restatements, and `hr_rpc_gate`'s "24" is **twelve restatements
+   and a chain of one** — it is the best-maintained body on that list, not the worst, and the audit's
+   ordering would have sent slice 7 at it first. This is why the scoreboard now carries an
+   **Instrument** column: a number with no named instrument is folklore, and it was about to
+   misdirect a day of server work.
+2. **Normalisation is not a patch.** Half the programmatic blocks open with
+   `replace(def, chr(13), '')` (CR-tolerance for a body applied from a CRLF working copy) or
+   `regexp_replace(def, '[[:space:]]+', ' ')` to hash it. Counting those inflated every chain by one
+   and made twelve one-edit bodies read as two. The reader also runs a **backwards reachability
+   closure** from each `execute`, so a scratch variable that never reaches it is not counted, and a
+   `do` block that READS a body without executing it is a §4 self-check, not a patch.
+3. **Apply order is not filename order and it changes the answer.** `2026-08-22-rested-record.sql`
+   applies AFTER `2026-08-25-workers.sql`, and `2026-09-08-hero-slot-buy.sql` before
+   `2026-09-06-recovering-until.sql`. "Since the last restatement" computed on filenames would be a
+   history that never happened, so the guard takes its order from `tests/schema-apply-order.json` —
+   the same list `schema-drift` replays — and reports the two files that are in neither.
+4. **A ratchet must survive the refactor it exists to protect.** `test-file-ratchet` measures a
+   CORPUS (`smoke-test.js` + `src/features/smoke/**`), not a file, so slice 6's pure-move split
+   leaves every number identical; `--selftest` simulates that split across 20 modules and requires
+   silence. A guard that goes red on the planned work is a guard that gets switched off.
+5. **`src/render` is ratcheted with a FLOOR, which is unusual on purpose.** 11 files landed
+   2026-08-24 and nothing has been extracted since, while `legacy.js` grew 6,885 lines. The failure
+   mode here is not growth, it is an extraction being quietly undone while the plan reads as done.
+6. **Every guard proves its READER as well as its comparator.** Bending numbers only proves the
+   comparison; a broken reader reports zero problems forever and every arm still passes. So
+   `monolith-ratchet` plants its five defects again as real text in a temp tree, `patch-chain-guard`
+   builds a temp migrations tree with a real apply-order file and a real ack header, and the other
+   two grade their classifiers on synthetic sources with known answers.
+
+### Handoffs
+* **Slice 7 (backend-architect + Security):** the target list is now printed by
+  `node tests/patch-chain-guard.mjs --report` and pinned in CLEANUP_PROGRAM. **`hr_apply` first** —
+  depth 10 but from only THREE files (`rested-record` ×2, `recovering-until` ×6,
+  `cadence-recovery-floor` ×2), the cheapest large restatement on the board. `hr_state_of` is depth
+  12 across 11 files and is the expensive one. `hr_rpc_gate` should drop down the queue (depth 1).
+* **Everyone authoring a migration:** a new anchored patch onto a body already ≥ 2 deep is now RED.
+  The escape is one line in the file header — `-- RESTATEMENT-DEBT-ACK: <reason ≥ 20 chars>` — and it
+  is deliberately in the diff and in `git blame` forever.
+* **Coordinator:** `tests/ci-shape.baseline.json` was re-written with `--write` in this commit (8 new
+  commands registered); nothing else derived was touched. `tests/live-hash-drift.baseline.json`
+  untouched. Two migrations sit outside `tests/schema-apply-order.json`
+  (`2026-08-10-dr-legacy-cloud-save.sql`, `2026-08-12-clan-members-rls-drop.sql`); the second is in
+  `excluded` with a reason, the first is in neither and is reported as a note on every run.
+
+---
+
+## 2026-09-07 — the three red ratchets on `21f3b5bf`, made green honestly (+ one P1 found on the way)
+
+### MONO-3 — `src/legacy.js` top-level function-consts 3 -> 4 (CODE, not the guard)
+
+Block 22's mutex held TWO module-level primitives after the knocked-out fix: `q` (the quiet
+cross-stop) and `recovering` (the recovery gate). They are ONE ORDERED DECISION — the gate must land
+ahead of the cross-stop, the pointer write and the timers, and that is the whole fix — so they are
+now one primitive, `clearToStart(kind, id, stop)`, returning FALSE when the caller must not start.
+Two bindings became one; the count is back to 3 (NetClient, IAP, clearToStart) and the baseline was
+NOT moved.
+
+**Why not "inline the three call sites":** the helper's body is a `typeof` guard plus a `try/catch`,
+which cannot be inlined into an `if` condition without three copies or losing the degrade-open
+behaviour. **Why not indent it out of the guard's column-0 predicate:** that is gaming, not fixing.
+
+**The behaviour-identity argument, in full.** `stop` is a THUNK, invoked only after the gate passes,
+so each wrapper's own precondition (`G.activeMonster && typeof stopCombat === 'function'`) is read at
+exactly the moment it was read before — no argument-evaluation-order change. `activityQuietly` is a
+balanced `_activityQuiet++/--` bracket around `fn()`, so bracketing a no-op thunk is unobservable,
+which is what lets startSkill/startArtisan move their conditional inside. `q`'s return value was
+discarded at all three call sites, so turning it into a boolean breaks nobody. Independently:
+`hrRefuseWhileRecovering` has NO side effects on any path that returns false (`_activityQuiet`,
+`hrCombatDownPeek` -> `fallState().phase`, `declarationFor` — all pure reads), so even the
+non-thunked form would have been safe.
+
+### CR — the prose ratchet: 116 build tokens paid, and CR-1 re-specified
+
+CR-2/CR-3 were paid as briefed: every build token in a comment line added since the baseline tree
+(**`762a1672`**, NOT `51011d13` — the ratchets branched one commit earlier, so b520's own prose was
+also unmeasured) is gone, plus enough older archaeology to clear the per-file ceilings. Corpus
+4,290 -> **4,174** (the brief asked for <= 4,233). 94 lines rewritten in place, 22 deleted with the
+paragraph they belonged to. **Zero code lines changed in accrue.js / record.js / sync.js /
+settings-page.js / home-dashboard.js** — verified line-by-line through the ratchet's own classifier,
+not by eye.
+
+CR-1 was WRONG as specified and is re-specified with a mutation proof — see CONFLICTS.md for the two
+measurements. The short version: a whole-file ratio ceiling goes red when CODE IS DELETED, so it
+fought the extraction MONO-1/4/5 rewards, in the same commit. Marginal form now; identical to the old
+rule wherever code grew (asserted); `--write` pins the rate only downward.
+
+**What I did NOT do:** waive anybody's debt. `accrue.js` needed -107 comment lines under BOTH specs
+and got them; `home-dashboard.js` -76; `smoke-test.js` -27; `record.js` -44; `settings-page.js` -7.
+
+### TF-1/TF-2 — a corpus AVERAGE is not a ceiling
+
+Re-specified per the brief: CODE lines per test (the sibling ratchet's `classify()` is IMPORTED, so a
+line cannot be a comment to one guard and code to the other), an absolute +1% band, `--write` pinning
+only downward. Baseline re-measured on today's tree: **33.32 code lines** and **50.24 physical** per
+test, over 1,176 tests; seeds 2.0404 pinned, today 2.0570 (inside the band, and the pin did not move
+up). TF-2 came in one seed over the band, so the RECOVER-17 fixture stopped seeding five activity
+pointers to `null` and now calls `stopSkill/stopCombat/_stopArtisan` and ASSERTS the pointer is
+clear — which is also the better fixture, since nulling a pointer while its interval is still armed
+is the exact phantom that test exists to catch.
+
+### The P1 nobody was looking for
+
+`src/legacy.js:12487` called `setActivityIcon(...)` bare after the icon extraction namespaced it.
+Every repaint of a KNOCKED-OUT player's activity bar threw `ReferenceError`; the countdown never
+drew and `refreshPanelProgress()` never ran. `RECOVER-17` was red on the assembled tree because of
+it, and I would not have found it without running the filtered suite rather than trusting the guards.
+Full write-up + the open guard gap in CONFLICTS.md.
+
+### Learnings
+
+1. **An arm that measures a delta from TODAY only bites while the tree sits ON its ceiling.** Both
+   re-specified selftests had this: CR-2/CR-3's `+1` arms and TF's `+400` arm reported themselves
+   green the moment this build paid debt down. Every arm is now anchored on the BASELINE (`bp`,
+   `atRatio(mult)`), so the proof holds however much slack the corpus has. This is the same family as
+   "a guard that has never been red is not a guard" — a guard whose MUTATION PROOF has gone quiet is
+   worse, because it still prints green.
+2. **When two guards land in one commit, check them against each other before checking them against
+   the tree.** MONO-1/4/5 and CR-1 were written by the same hand on the same day and disagree about
+   an extraction. Nothing caught that but running both on a tree that had actually extracted
+   something.
+3. **A band's width is arithmetic, not a feeling.** I wrote "+1% is narrow enough that a 400-line
+   scaffold is red", then the selftest proved it is not (+1% of 1,176 tests is 392 code lines). The
+   header now states the measured number and the arms are sized to it — and the honest answer to "a
+   400-line scaffold fits" is clause (c): the band is spent ONCE, because `--write` never pins a
+   drift upward. That arm is now in the proof.
+4. **The baseline tree is not always the merge-base you were told.** These baselines were cut at
+   `762a1672`, one commit before `51011d13`, so b520's own prose was invisible to the brief's
+   accounting. Measure the baseline commit before attributing a delta to a lane.
+
+### Handoffs
+
+* **Coordinator:** three baselines re-pinned by `--write` IN THIS COMMIT, every number tightening —
+  `monolith-ratchet` (lines 21936->21132, fns 516->506, consts 3->3, render floor 11->12 files /
+  1505->2550 lines), `comment-ratio-ratchet` (corpus b-lines 4233->4174; legacy.js's marginal RATE
+  held at the historical 0.698525 rather than today's 0.711 — the down-only rule biting as designed),
+  `test-file-ratchet` (new `codeLinesPerTest` metric pinned at 33.3206; `seedsPerTest` held at
+  2.040378). `live-hash-drift.baseline.json` and `ci-shape.baseline.json` untouched.
+* **`patch-chain-guard` is STILL RED** and is not mine: `2026-09-07-last-away-receipt.sql` adds 1
+  anchored patch to `hr_state_of` (chain 12) and 5 to `hr_apply` (chain 10). It is a lane-C item with
+  its own documented escape (`-- RESTATEMENT-DEBT-ACK:`), and the release cannot be green until
+  backend-architect either restates a body or acknowledges the debt in the file header.
+* **Whoever takes slice 8b onward:** read the `setActivityIcon` entry in CONFLICTS.md BEFORE moving
+  the next unit. The bare-identifier census is the guard that would have caught it and does not exist.
+* **qa-engineer, latent and pre-existing:** `opts.only` (the focused-runner affordance) exposes a
+  test-isolation leak the full suite hides. Under `only: 'settings'`, `B495-4` runs immediately
+  before `F7-1` and leaves the auto-eat trait / foodSlot state it set; `F7-1` then fails on "the
+  threshold slider is live for a character without the trait". Verified on the PRISTINE tree
+  (`git checkout HEAD -- src/settings-page.js`, same filter, same failure) and `F7-1` passes alone,
+  so it is B495-4's teardown, not the subject under test. A test that passes only because of what a
+  neighbour happened to leave behind is the class CLAUDE.md §4 keeps meeting, and `opts.only` is
+  now the thing that makes it visible.
+
+---
+
+## cleanup slice 1d — the three ratchets, red again after three lanes, paid the same way (2026-09-07)
+
+Branch `worktree-agent-ad408251ef743025a`, on top of `dbd31eb0`. artisan-after-reload, collection-log
+and bury→bench moved MONO-1 +161, CR-1/2/3 +7 counts, TF-2 past its band. Nothing was waived and no
+ratchet was re-pinned upward.
+
+**MONO-1 21,293 → 21,123** (ceiling was 21,132), top-level fns 506 → 504. Three extractions, all into
+`src/core-bridge.js` because `src/core/*` is VENDORED into the Edge bundle and touching it would have
+forced an `hr-accrue` redeploy for a cleanup lane:
+* `resumeTarget(kind,id)` — the gather/artisan pointer resolver plus the one WARN-and-decline voice
+  the two reconcile branches were duplicating. The BRANCHES stay in legacy.js: `activity-seam` S2b
+  greps for a literal `kind==='artisan'` inside `reconcileActivityPointer`, and moving them out would
+  have meant editing that guard, i.e. loosening it.
+* `carriedFight(fight,id,maxHp)` — the fail-closed carry decision (stale monster, hp>0, clamp to max,
+  kills floor) is now pure and testable; `applyCarriedFight` is 6 lines of assignment.
+* `artisanRecipeFor(skill,itemId)` + a memoised REVERSE index (input item → benches), keyed on the
+  forward index's identity. It reads `recipeInputs()`, so it finds a modern `inputs:{}` row as well as
+  a legacy `input:` one — the lane's hand-rolled `rows[i].input === id` found only the second.
+
+**The bury gesture moved to `src/features/inv-context-menu.js`** (`buryRecipeFor` / `buryGate` /
+`buryBones`, published as `window.HearthriseBury`). It belongs outside legacy.js because all THREE
+surfaces that offer it — this menu, the item-ux slider, the inv-detail flyout — are outside legacy's
+render path, and a lookup living in one of the three is a lookup the other two may disagree with.
+legacy.js's `openInvDetail` now READS `HearthriseBury.gate(id)` instead of re-implementing the
+workbench/level gate inline.
+
+**CR: all 35 b-number comment lines the three lanes added are gone**, plus 8 pre-existing ones inside
+passages that had started LYING and were rewritten rather than trimmed:
+* `record.js`'s "ORDER OF MIGRATION" table listed gold/inventory/skills/hearth_token as "may move
+  when…" — every one of them has been on `SERVER_OF_RECORD` since the cutover. Replaced by the rule
+  itself (ratio 1.733 → 1.689, the worst file in the repo).
+* legacy.js's `wk_bury` block said "UNBLOCKING IS ONE WORD: delete `blocked` the day burying is
+  server-settled" directly under a paragraph explaining that burying IS now server-settled and the row
+  still cannot pay. One statement now, naming the real blocker (no `prayer` row in `BENCH_COUNTERS`).
+* the `renderModal` note still pointed at `applyRichCatchup` "just above" after b521 deleted it.
+
+**TF-2 2.0645 → 2.0560** (ceiling 2.0608), −10 seeds, every one converted rather than deleted:
+* the bury test's bag now arrives through `HearthriseAccrual.reconcileInventory` — the away path — and
+  the count is READ back, so "the stack is untouched" measures a real number instead of a fabricated 20;
+* COLLECT-HELD-1's 14,800 granite arrives the same way, which is the path the log was blind to, so the
+  fixture is now the bug;
+* `G.skills.prayer = 0` deleted — the XP baseline is what the character really holds, which is a
+  stronger "no client XP" measurement than a seeded zero;
+* `stopBench()` no longer nulls the pointer after calling the player's own Stop (that would hide a Stop
+  that stopped neither), and the rite-less probe no longer seeds an inventory `buryBones` never reads.
+
+**Two baselines re-pinned DOWNWARD in this commit, and only downward** — `monolith` (21,132→21,123,
+506→504) and `test-file` (TF-3 floor 1176→1178; `codeLinesPerTest` and `seedsPerTest` UNCHANGED, held
+by `pinDown`). Not cosmetic: **all three `--selftest`s are CI steps, and two were RED until the re-pin**
+— with slack over the baseline the MONO-2 arm ("one new top-level function") and the TF-3 arm ("a test
+deleted") no longer fire, so an unpinned pay-down silently disarms the guard's own mutation proof.
+`comment-ratio` was NOT written: its `--write` re-pins per-file comment counts from today, which would
+have RAISED smoke-test.js's ceiling 16,249 → 16,333. Its notes name what it wants; that is the
+Coordinator's call at integration.
+
+**Verified:** three gates + three `--selftest`s green; 10 static guards green (`activity-seam`,
+`no-client-xp-mint`, `artisan-accrual`, `modal-goal-claim`, `dead-exports`, `window-globals-exist`,
+`cache-buster-guard`, `core-purity`, `no-duplicate-toplevel-fns`, `activity-intent`) plus the four
+client-write sweeps and the presentation guards; ONE headless page, 28/28 in-page tests across
+`b521:` · B520-1 · COLLECT-HELD-1 · B348-* · RECOVER-10..18 · F18-1..4 · AWAY-20 · INV-HYDRATE-1 ·
+b140 (context menu) · openInvDetail, 0 fail, 0 skip, 0 runtime errors, 0 console errors; a runtime
+probe proved `carriedFight` reproduces the old truth table row for row (stale monster→null, hp 0→null,
+hp 99 clamped to max 10, kills −3→0, null fight→null, max 0→null) and that `buryRecipeFor` answers all
+three bones, refuses a rite-less bone AND refuses `iron_ore` (the reverse index's skill filter).
+
+**No save-migration surface:** nothing added to `G`, the residue or `SERVER_OF_RECORD`; the one field
+the lanes deleted (`G.stats.buried`) stays deleted. No `src/core/*` change, so the Edge payload hash is
+untouched and no redeploy is owed.
+
+* **Known limitation:** the bury gesture living in `inv-context-menu.js` is the smallest correct home
+  today, not the final one. If a second item→bench gesture appears ("Cook this", "Smelt this"), promote
+  the trio to a `src/features/bench-gestures.js` keyed on `(skill, inputId)` — `artisanRecipeFor`
+  already takes that shape, so the promotion is a move.
+* **Owed to whoever runs the assembled gate:** `comment-ratio-ratchet` wants a `--write` it must not be
+  given blind — read the four "fell" notes first.
+
+## 2026-09-07 — the forge/workshop ruling: rooms sell speed, levels sell permission
+
+Two rulings, one branch. **1a** — smithing and crafting join cooking and prayer in
+`homestead.js` `UNGATED`, so every consumer corrects from one line; then the machinery the
+exemption made unreachable was DELETED rather than left dormant: `hasWorkbench`'s refusal branch,
+`startArtisan` seam 7's `if(!wb.ok)` arm, `hrArtisanGateClick`'s route-to-House arm,
+`tileForArtisan`'s `wbInfo/wbOk` bench-lock chip, `roomDescriptor`'s "Gates: <Skill>" fact, and the
+"Required for Smithing/Crafting" copy on both rooms. **2** — `GRANDFATHER_ROOM_FROM_XP` and BOTH XP
+arms of `ensureState` are gone; the inference reads OWNED rooms and plots only, and only when
+`serverRungKnown()`.
+
+### What the mutation proof taught (three of nine mutations first came back GREEN)
+
+* **A guard on a SEAM does not cover the GESTURE.** Restoring `hasWorkbench`'s refusal alone left
+  the played happy path green, because the *caller* in legacy.js had also been deleted. Only
+  restoring both (M9) turned it red. Two mechanisms, two mutations — a single-mechanism mutation
+  against a two-part gate proves nothing and looks like a passing proof.
+* **Plant the mutation where the historical code actually lived.** Re-adding the XP tier loop
+  INSIDE `if (serverRungKnown() && (hasAnyRoom || plotCount > 0))` never fired: the shipped bug set
+  `existing` from `artisanXp` FIRST. A faithful re-plant (`|| xpMut`) went red at once.
+* **Deleting code can turn a comment ratchet red.** CR-1's allowance is
+  `base.comment + rate * max(0, code - base.code)`; while a file sits ABOVE its baseline code count,
+  removing code REMOVES earned allowance. This branch shed 19 code lines from legacy.js and went
+  from 98 to 109 comment lines over — with no prose added. Budget prose against the DELETION, not
+  against the file.
+
+### The one real judgement call
+
+`serverRungKnown()` gating the room/plot inference is belt-and-braces for rooms (the rooms map
+already fail-closes to empty when the record is UNKNOWN) but LOAD-BEARING for plots: `plotBuildings`
+is a RESIDUE field, so without the gate a client-held array raises a server-owned rung. The narrow
+cost: a session whose residue is lost AND whose `progress` was truncated in a way that dropped the
+`property:` row while keeping a `room:` row now reads Wanderer's Camp until the next complete
+envelope, where before it inferred the room's tier. Self-healing, ~zero population, and the
+alternative is the class CLAUDE §6 forbids by name.
+
+### Handoffs
+
+* **Coordinator:** the three cleanup ratchets are RED ON `main` BEFORE THIS BRANCH (proved on a
+  pristine `git archive HEAD` tree — see CONFLICTS.md). Every number here moves the right way
+  (legacy 21299→21264 lines; smoke-test 63.5→58.0 comment lines over allowance; corpus b-lines
+  4201→4187; seeds/test 2.072→2.069; homestead.js stays green) and none of them clears. They need a
+  re-pin or a payment pass of their own; a lane-A branch cannot close a 109-line prose debt.
+* **game-designer / backend-architect:** `DAILY_TASK_REQUIREMENTS` now gates an OFFER that no
+  longer gates the ability. Left standing per the ruling; the twin is in
+  `2026-08-29-daily-task-eligibility.sql`, so changing it is lane C. Written up in CONFLICTS.md.
+* **art-director:** two room `desc` strings are the designer's exact copy; the Workshop's ROOM_META
+  `flavour` said "every plank in the game", which was an exclusivity claim after the ruling, so it
+  now reads "a rack of drying planks … it saws faster, and now and then for nothing". Re-voice
+  freely — the constraint is only that no room copy may claim permission.
+* **qa-engineer:** the WAVE1 "artisan tiles show a persistent workbench lock" test was RETIRED (it
+  had been a bare `skip` since SA-013, and its name asserted the opposite of the shipped rule). The
+  SA-013 seam-exposure debt is still real and still parked on the gather twin beside it.
+
+## 2026-09-07 · The Retreat, second pass — the honest guard note, the reload, the adversarial replay
+`worktree-agent-a4fe88a314834df6b` · Security signed GO-WITH-CHANGES; this is the three changes.
+
+### C1 — the deployment record stopped naming a file that does not exist
+`tests/schema-apply-order.json`'s note for `2026-09-07-retreat.sql` claimed
+`tests/retreat-attended.mjs (RETREAT-A1..A5)`. There is no such file and there never was: the
+attended battery is registered inside `src/features/smoke-test.js` as `RETREAT-A/W5`. The note now
+names (a) that in-page battery test by test, (b) `tests/accrual-engine.mjs`'s RETREAT-W1..W8 +
+FORECAST-1 (and says WHY there is no W5 there), (c) `tests/retreat-apply.mjs`, (d) schema-drift +
+apply-order-honesty. Still `STAGED, NOT APPLIED` — the Coordinator flips it.
+
+### C2 — RETREAT-A4, and the P1 it found
+**Measured, not inferred.** Driving the real `record.js` boot (`requestRecord` → settle →
+`applyRecord`) with an `hr_load` body carrying `recovering_until +32m`, `active_kind idle`,
+`consec_falls 3`, the client came up: `phase 'up'`, `recoveringUntilMs() 0`, `G.consecFalls
+undefined`, bar "Idle — pick an activity", no sheet. `applyEnvelopeState` — where every one of
+those observations lived — runs ONLY on `accrued:true`, and a retreat ALWAYS ends with the pointer
+idle, so the next boot is answered `{accrued:false, reason:'idle'}` and the observation never ran.
+b510 verbatim, through the idle-boot door, PLUS the rule forgetting itself: a reload restarted the
+consecutive-fall count at zero and handed the player back the grind the realm had just ended.
+
+**Fix, in the shape the codebase already prescribes for this class.** `reconcileFall(G, res)`
+extracted VERBATIM from `applyEnvelopeState` (`src/net/accrue.js`) and called from `record.js`
+settle as `hydrationStep('fall')` — the fifth instance of the idle-boot hydration class record.js
+names in its own comments (inventory b467, crew b477, hero slots SA-016, hp b511). Plus the
+activity bar's knocked-out readout got its IDLE twin (`refreshActivityBar`, `src/legacy.js`); the
+combat branch has had one since b510 and a retreat never reaches it.
+
+### C3 — `tests/retreat-apply.mjs`
+Security's adversarial harness, adapted to the repo's PGlite chain template. Proves `hr_apply`'s
+`consec_falls` contract BY EXECUTION, not by strpos (which is all the migration's own §4 can do).
+`--selftest` plants two defects that APPLY CLEAN — the range predicate's ceiling arm dropped, the
+JSON-type predicate disarmed — because a mutation that stops the file installing proves nothing.
+Registered in `db-replay`; `tests/ci-shape.baseline.json` regenerated (84 → 86 commands).
+
+### Learnings worth keeping
+1. **`applyEnvelopeState` is not "every envelope" — it is "every PAID envelope".** Anything a
+   player must still see when the server has nothing to pay them belongs in a shared reconcile that
+   the boot `hr_load` path also calls. The idle-boot hydration class has now bitten five times and
+   every instance had the same tell: state that only exists after an `accrued:true` answer.
+2. **A mechanic that ENDS an activity is structurally the worst case for envelope-gated state**,
+   because ending the activity is exactly what makes the next envelope say `accrued:false`. Any
+   future "the server stops you" feature should assume the boot path is the ONLY path it gets.
+3. **A mutation that makes a migration fail to APPLY proves nothing.** The two mutations here were
+   chosen from the predicates §4 does not assert, precisely so the mutated file installs green and
+   only the executed guard can see the defect.
+4. **`window.G` swap + `finally` is not a full teardown for the accrual singleton.** The recovery
+   line is module state; restoring G leaves a live 32-minute knockout gating the tick for every
+   later test. The only sanctioned retirement is an envelope stating the character is up.
+
+### Handoffs
+* **Coordinator:** no `supabase/**` and no `src/core/**` change — the edge pack hash is still
+  `3f22ab0f…0f5b7e61`, so no redeploy for this lane. The migration body is untouched (schema-drift
+  fingerprint unchanged, `4faa7eb33c35…`). One new `db-replay` step; `ci-shape.baseline.json`
+  regenerated with `--write`. `tests/live-hash-drift.baseline.json` NOT touched (Coordinator-only).
+* **Game Designer / Art Director:** see CONFLICTS.md 2026-09-07 — after a reload a retreated player
+  is currently shown an ORDINARY knockout ("Back on your feet in 31:47" + "Your run picks up the
+  moment you are up · automatic"), which the idled pointer will not honour. The distinguishing fact
+  is server-stated (`active_kind idle` + a running `recovering_until`), so it needs no second copy
+  of the rule — but the words are the Designer's. My new bar meta line is provisional.

@@ -7,58 +7,19 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-08",
- "digest": "9a9c2a35485421402d47aed118123cb2828a27c0e5c1ee32b940bc69761fd7f5",
+ "digest": "8922275a124284cebd78976ad4b17a18cc71530770793fe54536853002f89a21",
  "counts": {
   "relations": 113,
   "functions": 268,
   "policies": 86,
   "indexes": 156,
   "triggers": 20,
-  "constraints": 293,
-  "columns": 665,
+  "constraints": 295,
+  "columns": 667,
   "rls": 100,
   "event_triggers": 1
  },
- "known_production_delta": {
-  "measured": "2026-08-30",
-  "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17, us-west-2)",
-  "how": [
-   "node tests/schema-drift.mjs --live-sql            -> read-only SQL, run it on production",
-   "node tests/schema-drift.mjs --live-compare r.json -> classify what came back",
-   "Level 1 sends nothing and returns a checksum per category plus one per table for",
-   "columns/constraints, so a clean surface costs ~180 short rows and names nothing.",
-   "Level 2 (--live-sql=<category>) returns the full name list for one category.",
-   "Both are pure SELECTs against the catalog. Production is never written."
-  ],
-  "result_2026_08_30": [
-   "7 of 9 categories are BYTE-IDENTICAL between production and a fresh replay of",
-   "this repo: relations (102), functions (261), policies (84), indexes (142),",
-   "triggers (18), rls (90), event_triggers (1). Identical hashes, not just counts.",
-   "That is the strongest statement this project has ever been able to make about",
-   "the repo matching the database, and it means NO whole object exists in",
-   "production and in no file, and NO object the chain builds is missing there.",
-   "columns and constraints each disagree on exactly ONE table; both are acknowledged",
-   "below. pg_cron was checked separately and OFF-fingerprint: 12 jobs, every one",
-   "scheduled by a migration in this repo, no orphans.",
-   "2026-08-30 later: hr_crops nullability FIXED on prod by 2026-09-03-crops-notnull-and-xp-prune-schedule.sql (columns now not null + defaults, matching the repo); acknowledgement retired in the same change."
-  ],
-  "acknowledged": [
-   {
-    "key": "tbl constraints hr_bounty_monsters",
-    "what": "a fresh replay builds TWO semantically identical checks — hr_bounty_monsters_hp_check (auto-named, from the inline  hp int not null default 1 check (hp >= 1)  in the create table) and hr_bounty_monsters_hp_chk (explicitly named) — where production has only hp_chk.",
-    "why": "PATH-DEPENDENT, NOT A HAND-PATCH. 2026-08-23-bounty-monsters.generated.sql creates the table only  if to_regclass(...) is null . On production the table already existed from the pre-2026-08-30 revision of that generated file (which had no hp column at all), so the create-table branch was skipped and only the ADDITIVE  add column if not exists hp  +  add constraint hp_chk  ran. A fresh replay takes the create branch and gets both.",
-    "consequence": "Cosmetic and permanent. Both databases enforce hp >= 1; the replay just enforces it twice under two names. The columns of this table match production exactly. Nothing to fix; recorded so a future reader does not mistake it for a missing migration and so --live-compare does not go red on it every run.",
-    "risk": "None.",
-    "first_seen": "2026-08-30"
-   }
-  ],
-  "open": [
-   "supabase_migrations.schema_migrations still holds 27 rows, the newest 2026-08-11; 12 of them have no file in this repo (anon_lockdown_public_default_fix, profiles_identity_authority_and_global_default_acl, profiles_drop_dead_update_policy, grant_hygiene_v2_detector, hr_rate_sample_weight_pin_search_path, player_tables_rls_initplan, cron_health_no_false_stale_on_new_jobs, maintenance_fn_revoke_service_role, revoke_hr_engine_from_authenticator, disarm_broken_market_crons, clan_leaderboard_join_policy, clan_join_policy_merge_r4_tolerance). RE-VERIFIED 2026-08-30: their effects are still fully reproduced — the object diff is clean in all 7 name-bearing categories — so no object is lost. Their SQL remains recoverable from that table s  statements  column. Nothing applied after 2026-08-11 is recorded there at all, because every later file was applied with execute_sql rather than apply_migration; that is why this checksum comparison, not the migrations table, is the source of truth for what production actually has.",
-   "NOT CHECKED HERE — grants and role memberships. hr_assert_grant_hygiene() owns that surface (cron  hr-grant-hygiene , 04:50 daily) and is a stronger check than a fingerprint. Do not duplicate it.",
-   "NOT CHECKED SYSTEMATICALLY — function BODIES. The fingerprint carries signatures only; all 261 match by signature, which does NOT mean the bodies match. Spot-checked 3 on 2026-08-30: hr_rpc_gate and hr_cron_health are md5-IDENTICAL to the replay (the hr_rpc_gate hotfix restore was folded back into the repo correctly); hr_apply differs by 138 chars, which is exactly one two-line comment present in the file and absent from the deployed body — code identical, behaviour identical. The header note this replaces claimed hr_apply was a stale 25,966-char revision against a 40,754-char file; both numbers were three revisions out of date. See blind spot (C).",
-   "NOT CHECKED — whether any row survives a restore. As of 2026-08-30 no restore test has ever been run against this project. See blind spot (B)."
-  ]
- },
+ "known_production_delta": null,
  "inventory": {
   "relations": [
    "S beta_signup_log_id_seq",
@@ -982,11 +943,13 @@
    "player_state :: player_state_auto_eat_pct_chk",
    "player_state :: player_state_bank_cap_check",
    "player_state :: player_state_combat_style_chk",
+   "player_state :: player_state_consec_falls_sane",
    "player_state :: player_state_fight_object",
    "player_state :: player_state_gems_check",
    "player_state :: player_state_gold_check",
    "player_state :: player_state_hearth_tokens_check",
    "player_state :: player_state_hp_check",
+   "player_state :: player_state_last_away_receipt_bounded",
    "player_state :: player_state_max_hp_check",
    "player_state :: player_state_pkey",
    "player_state :: player_state_plot_level_ck",
@@ -1583,6 +1546,7 @@
    "player_state.combat_style jsonb NOT NULL",
    "player_state.combat_xp_accrued_to timestamp with time zone NOT NULL",
    "player_state.companion_equipped text",
+   "player_state.consec_falls integer NOT NULL",
    "player_state.created_at timestamp with time zone NOT NULL",
    "player_state.dungeon_scrip bigint NOT NULL",
    "player_state.enchant jsonb",
@@ -1591,6 +1555,7 @@
    "player_state.gold bigint NOT NULL",
    "player_state.hearth_tokens bigint NOT NULL",
    "player_state.hp integer NOT NULL",
+   "player_state.last_away_receipt jsonb",
    "player_state.marks bigint NOT NULL",
    "player_state.max_hp integer NOT NULL",
    "player_state.plot_level integer NOT NULL",

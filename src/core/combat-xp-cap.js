@@ -54,10 +54,10 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================================
 
-import { maxHitCeil, MIN_TICK_MS, PLAUSIBILITY_HEADROOM } from './kill-time.js?v=520';
-import { HIT_XP_PER_DAMAGE, HIT_HP_XP_PER_DAMAGE } from './styles.js?v=520';
-import { WEEKLY_BONUS } from './botd.js?v=520';
-import { MONSTERS } from '../data/monsters.js?v=520';
+import { maxHitCeil, MIN_TICK_MS, PLAUSIBILITY_HEADROOM } from './kill-time.js?v=521';
+import { HIT_XP_PER_DAMAGE, HIT_HP_XP_PER_DAMAGE } from './styles.js?v=521';
+import { WEEKLY_BONUS } from './botd.js?v=521';
+import { MONSTERS } from '../data/monsters.js?v=521';
 
 /* The largest XP-per-HP ratio any monster in the catalogue carries, rounded UP.
    Derived at load so a new high-XP monster loosens the cap (never throttles)

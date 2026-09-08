@@ -78,14 +78,14 @@ import {
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
   isReconcilePending, isAccrualFailure,
-} from './accrue.js?v=520';
+} from './accrue.js?v=521';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
    `computeAccrual` and the intent's shape check read, so the client, the engine
    and the intent cannot disagree about which benches exist tonight. Precedent:
    src/net/gold.js already imports src/data/shops.js for exactly this reason. */
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=520';
-import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=520';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=521';
+import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=521';
 
 export const ACTIVITY_VERB = 'set_activity';
 
@@ -691,14 +691,22 @@ export function isActivityConfirmed(kind, id) {
   return confirmed.kind === kind && confirmed.id === want;
 }
 
-/** Test/diagnostic seam, mirroring setLastServerActivity. */
+/** Mirrors setLastServerActivity. A diagnostic seam AND a production caller:
+ *  src/net/record.js's boot resume files the pointer `hr_load` STATED as both
+ *  the server's last word and an acknowledgement, because a record naming the
+ *  activity is a stronger statement than a switch answer agreeing with one.
+ *  Without it every visibility-resume re-declared an activity the server was
+ *  already settling, and the unconfirmed-stop path treated the player's own Stop
+ *  as a surprise. Always set with `setLastServerActivity`: `confirmed` alone is
+ *  a state the transport itself can never produce. */
 export function setConfirmedActivity(a) {
   confirmed = (a && typeof a === 'object' && typeof a.kind === 'string')
     ? { kind: a.kind, id: a.id == null ? null : String(a.id) } : null;
   return confirmed;
 }
 
-/** Test/diagnostic seam: what the server last SAID the player is doing. */
+/** What the server last SAID the player is doing. Diagnostic seam, and the boot
+ *  record's way in — see setConfirmedActivity above. */
 export function setLastServerActivity(a) {
   lastServerActivity = (a && typeof a === 'object' && typeof a.kind === 'string')
     ? { kind: a.kind, id: a.id == null ? null : String(a.id) } : null;
@@ -765,6 +773,14 @@ export function applyIntentEnvelope(G, body) {
     s.activity = activityOf(body);
     G.lastOfflineSummary = s;
     written.summary = true;
+    /* THE RECEIPT THIS ENVELOPE PAID FOR, by identity — accrue.js's applyEnvelope
+       carries the same field for the same reason. legacy.js's applyServerEnvelope
+       credits away kills from THIS object and never from `G.lastOfflineSummary`,
+       because a switch that collected nothing leaves the ambient holder carrying
+       whatever seeded it — which after a reload is the RESTORED receipt for a
+       night already paid, and crediting that re-feeds `updateDaily('kill_any')`
+       into the Muster's shared world-event meter on every switch. */
+    written.paidReceipt = s;
     written.collected = collected;
   }
 

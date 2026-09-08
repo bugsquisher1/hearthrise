@@ -29,36 +29,36 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=520';
-import * as xp from './core/xp.js?v=520';
-import * as combat from './core/combat.js?v=520';
-import * as bane from './core/bane.js?v=520';
-import * as elements from './core/elements.js?v=520';
-import * as drops from './core/drops.js?v=520';
-import * as pacing from './core/pacing.js?v=520';
-import * as rested from './core/rested.js?v=520';
-import * as tools from './core/tools.js?v=520';
-import * as farm from './core/farm.js?v=520';
-import * as progression from './core/progression.js?v=520';
-import * as styles from './core/styles.js?v=520';
-import * as artisan from './core/artisan.js?v=520';
-import * as bounty from './core/bounty.js?v=520';
-import * as away from './core/away.js?v=520';
-import * as botd from './core/botd.js?v=520';
-import * as buffs from './core/buffs.js?v=520';
-import * as combatSim from './core/combat-sim.js?v=520';
+import * as rngMod from './core/rng.js?v=521';
+import * as xp from './core/xp.js?v=521';
+import * as combat from './core/combat.js?v=521';
+import * as bane from './core/bane.js?v=521';
+import * as elements from './core/elements.js?v=521';
+import * as drops from './core/drops.js?v=521';
+import * as pacing from './core/pacing.js?v=521';
+import * as rested from './core/rested.js?v=521';
+import * as tools from './core/tools.js?v=521';
+import * as farm from './core/farm.js?v=521';
+import * as progression from './core/progression.js?v=521';
+import * as styles from './core/styles.js?v=521';
+import * as artisan from './core/artisan.js?v=521';
+import * as bounty from './core/bounty.js?v=521';
+import * as away from './core/away.js?v=521';
+import * as botd from './core/botd.js?v=521';
+import * as buffs from './core/buffs.js?v=521';
+import * as combatSim from './core/combat-sim.js?v=521';
 /* The gather half of the same unification. `skillSim.sliceSpan` IS
    `replayAwaySpan` (legacy.js:1153), lifted; `simulateSkillSpan` is the loop
    the away gather branch and the accrual Edge Function both run. Published
    here because a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as skillSim from './core/skill-sim.js?v=520';
+import * as skillSim from './core/skill-sim.js?v=521';
 /* The ARTISAN half. `simulateArtisanSpan` is what legacy.js's artisan away
    branch (`replayAwaySpan` over `window.doArtisanAction`) becomes — 290 of the
    344 catalogue rows, and the last simulation in the game with no DOM-free
    form. It runs on `skillSim.sliceSpan`, so there is still exactly one
    buff-expiry timeline. */
-import * as artisanSim from './core/artisan-sim.js?v=520';
+import * as artisanSim from './core/artisan-sim.js?v=521';
 /* b357 — the consumption seam (R1: one field, one carry, one guard). Published
    because BOTH the pre-flight supply projection and the away card are client
    surfaces, and §4.5 requires them to call the same `hoursOfSupply`/`dryAtMs`
@@ -66,11 +66,11 @@ import * as artisanSim from './core/artisan-sim.js?v=520';
    will disagree, and the player will be told a number the night does not
    honour." WIRED into the fight since E1 (2026-08-31) — `simulateTick` charges
    one swing per tick through `spendForSwings`; see src/core/ammo.js's header. */
-import * as ammo from './core/ammo.js?v=520';
+import * as ammo from './core/ammo.js?v=521';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
-import * as autoEat from './core/auto-eat.js?v=520';
+import * as autoEat from './core/auto-eat.js?v=521';
 /* The PERMANENT PERK CHANNEL, shared with the server accrual engine. Layer 0
    of the getBonus chain — room rungs, plot buildings and the property
    capstone — is this module now, on both sides, so the client's `noBurn` and
@@ -79,7 +79,7 @@ import * as autoEat from './core/auto-eat.js?v=520';
    `hr_perks_of` returns. Published rather than inlined for the reason every
    other core module is: a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as perks from './core/perks.js?v=520';
+import * as perks from './core/perks.js?v=521';
 /* THE DAILY-TASK SELECTION, shared with the server. `src/data/goal-catalogue.js`
    owns the date-seeded shuffle AND the eligibility filter that stops a level-1
    account being dealt "Craft 8 items" behind a room it cannot build for two
@@ -88,14 +88,14 @@ import * as perks from './core/perks.js?v=520';
    second copy of the selection, which is exactly the drift the SQL port and
    tests/goal-catalogue-drift.mjs exist to prevent. Note this is a `src/data`
    module rather than `src/core`; the seam is the same. */
-import * as goalCatalogue from './data/goal-catalogue.js?v=520';
+import * as goalCatalogue from './data/goal-catalogue.js?v=521';
 /* THE HIRED-CREW RATE MODEL (b497). src/features/workers.js is a classic script
    and cannot import, so it reads the crew's efficiency curve and tick interval
    from here — the same functions the authoritative settle
    (hr-accrue/accrual.js `accrueWorkers`) runs. Before this, the curve existed
    twice and the PACED ANCHOR it is a fraction of existed nowhere, which is how
    the b389 rebalance shipped at 1.60x its stated size. */
-import * as workers from './core/workers.js?v=520';
+import * as workers from './core/workers.js?v=521';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -170,6 +170,87 @@ function artisanRecipes() {
 function artisanRecipe(id) {
   if (typeof id !== 'string' || !id) return null;
   return artisanRecipes()[id] || null;
+}
+
+/* The same index read BACKWARDS: input item id → the benches that consume it.
+   Built here rather than in src/core/artisan-sim.js only because that file is
+   vendored into the Edge bundle and the server has no use for it. Memoised on
+   the forward index's identity, so it is rebuilt exactly when that is.
+   `recipeInputs` is the reader, so a modern `inputs:{}` row is found as well as
+   a legacy `input:` one — one dialect reader, the artisan.js rule. */
+let _byInputIdx = null;
+let _byInputSrc = null;
+function recipesByInput() {
+  const idx = artisanRecipes();
+  if (_byInputIdx && _byInputSrc === idx) return _byInputIdx;
+  const out = Object.create(null);
+  for (const id of Object.keys(idx)) {
+    const hit = idx[id];
+    if (!hit || !hit.recipe) continue;
+    for (const input of Object.keys(artisan.recipeInputs(hit.recipe))) {
+      (out[input] || (out[input] = [])).push(hit);
+    }
+  }
+  _byInputIdx = out; _byInputSrc = idx;
+  return out;
+}
+
+/** The first recipe on `skill`'s bench that consumes `itemId`, or null. Derived,
+    never a hand-written item→recipe map, so a fourth bone with a fourth recipe
+    needs no code. */
+function artisanRecipeFor(skill, itemId) {
+  if (typeof skill !== 'string' || typeof itemId !== 'string') return null;
+  const rows = recipesByInput()[itemId];
+  if (!rows) return null;
+  for (const hit of rows) { if (hit.skill === skill) return hit.recipe; }
+  return null;
+}
+
+/** What a server activity pointer NAMES in this build — `{skill, node}` for a
+    `gather` id, `{skill, recipe}` for an `artisan` one, null for anything this
+    build cannot resolve. Both sides read the SAME indexes the accrual engine
+    reads, so the client and the engine cannot disagree about which skill a
+    target belongs to.
+
+    A miss is NOT a reason to stop the player: the catalogues are guarded
+    identical to the server's, so it means the guard is wrong or the build is
+    old, and the honest move is to leave the run alone and say so. Saying so
+    lives here, in one voice, instead of once per branch in the monolith. */
+/** The carried fight the client may resume, as `{hp, kills}`, or null when the
+    carry is unusable. `player_state.fight` has been server state since
+    2026-08-17-fight-carry.sql and the server resumes from it in every accrual
+    span; a client that ignored it handed the player a full-health monster and
+    threw away the damage the server was still holding — the whole fight, on a
+    520-hp dragon.
+
+    FAIL-CLOSED, mirroring the Edge engine's own guard
+    (functions/hr-accrue/accrual.js: `fight.monster === activeId && fight.hp > 0`):
+    a carry naming a DIFFERENT monster is stale, and pouring its hp into the
+    current foe would be a free half-killed boss. The `min` against `max` is the
+    client's half of the SQL re-clamp against `hr_activities.max_hp` — a
+    monster's hp can be lowered in src/data/monsters.js while a fight is
+    carried, and a foe starting with more hp than it has cannot be killed. */
+function carriedFight(fight, id, maxHp) {
+  if (!fight || typeof fight !== 'object') return null;
+  if (fight.monster !== id) return null;
+  const hp = Number(fight.hp);
+  if (!isFinite(hp) || !(hp > 0)) return null;
+  const max = Number(maxHp);
+  if (!isFinite(max) || !(max > 0)) return null;
+  const k = Number(fight.kills);
+  return { hp: Math.min(hp, max), kills: (isFinite(k) && k >= 0) ? Math.floor(k) : 0 };
+}
+
+function resumeTarget(kind, id) {
+  const hit = kind === 'gather' ? gatherNode(id)
+    : kind === 'artisan' ? artisanRecipe(id)
+      : null;
+  if (!hit) {
+    console.warn('[activity] the server says ' + kind + ':' + id + ", which this build's " + kind
+      + ' index cannot resolve — leaving the local activity alone rather than acting on a target it '
+      + 'cannot name');
+  }
+  return hit;
 }
 
 /* The perk stack. On the client this is a chain seven wrappers deep
@@ -298,8 +379,9 @@ window.HearthriseCore = {
   bonus, toolSpeed, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
   /* b348 — the gather index and its lookup, shared with the accrual engine. */
   gatherNodes, gatherNode,
-  /* …and the artisan index, on the same contract. */
-  artisanRecipes, artisanRecipe,
+  /* …and the artisan index, on the same contract, plus its reverse (item →
+     bench) and the one resolver both reconcile branches share. */
+  artisanRecipes, artisanRecipe, artisanRecipeFor, resumeTarget, carriedFight,
   items: ITEMS,
 };
 

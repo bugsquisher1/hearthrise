@@ -179,7 +179,19 @@
 do $mig$
 declare v_apply text; v_n int;
   c_anchor_keys  constant text := $anc$    'gold','gems','hp','items','xp','equip','activity','accrued_to',$anc$;
-  c_anchor_codes constant text := $anc$    'version_conflict',$anc$;
+  -- THE RELEASE-CODE ANCHOR IS THE ARRAY *HEAD*, NOT 'version_conflict'.
+  -- Every anchored patch on this list historically anchored on
+  -- $anc$    'version_conflict',$anc$ and inserted immediately after it, so
+  -- each new migration wedged its code into the middle of the CONTIGUOUS
+  -- literal the previous one asserts in its own self-check
+  -- (2026-09-06-recovering-until.sql line 862, 2026-09-07-retreat.sql line
+  -- 453). Measured on the replayed chain: with the Retreat applied first, the
+  -- old anchor turned a re-apply of 2026-09-07-retreat.sql red. The array head
+  -- is consumed by no patcher, so it stays exactly-once forever, and inserting
+  -- at the head leaves every existing literal byte-identical. These are a SET
+  -- of release codes; position carries no meaning.
+  c_anchor_codes constant text := $anc$  c_release_codes constant text[] := array[
+$anc$;
   c_anchor_decl  constant text := $anc$  v_fight jsonb;$anc$;
   c_anchor_valid constant text := $anc$    if p_delta ? 'workers' then$anc$;
   c_anchor_post  constant text := $anc$    v_out := public.hr_state_of(v_uid, v_slot);$anc$;
@@ -517,9 +529,16 @@ begin
     --     bad_fight / bad_recovering posture: releasing the idempotency key is
     --     harmless (the block rolled back) and withholding it would brick a key
     --     for up to 25 hours on an engine bug a redeploy fixes.
+    --     ANCHORED ON THE ARRAY HEAD (c_anchor_codes), so `bad_hearthfind`
+    --     lands on its own line at the TOP of the list and no earlier
+    --     migration's contiguous release-code literal is split. See the
+    --     c_anchor_codes declaration for the measurement behind that choice.
     v_def := replace(v_def,
-      $anc$    'version_conflict',$anc$,
-      $anc$    'version_conflict', 'bad_hearthfind',$anc$);
+      $anc$  c_release_codes constant text[] := array[
+$anc$,
+      $anc$  c_release_codes constant text[] := array[
+    'bad_hearthfind',
+$anc$);
 
     -- 2c. THE DECLARE.
     v_def := replace(v_def,

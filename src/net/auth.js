@@ -5,8 +5,13 @@
 // he calls setupAuth({url, anonKey}). When he does, signIn() / signUp() / signOut()
 // become live, and cloud-sync auto-upgrades from offline to live.
 
-import { setupSync, pullLatestDetailed, holdSnapshots, releaseSnapshots,
-         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=520';
+/* b519 — `pullLatestDetailed` used to be imported here and is not called: the
+   post-cutover boot restores from the hr_load envelope (record.js), not from a
+   `game_saves` row, so the reference was left over from the pre-cutover restore
+   gate. Dropped rather than kept "in case" — an unused import of a retired
+   table's reader is how a retired path finds its way back. */
+import { setupSync, holdSnapshots, releaseSnapshots,
+         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=521';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}

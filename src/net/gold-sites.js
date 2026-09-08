@@ -861,6 +861,12 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     kind: 'false-positive', status: 'none',
     why: '`a.gold += amount` accumulates a per-session PROC TALLY for the pet card. No balance moves.',
   },
+  'src/net/sync.js#readRealmProjection': {
+    kind: 'false-positive', status: 'none',
+    why: '`out.gold = …` copies the figure OFF the hr_load envelope into the cloud-save '
+      + "diagnostic's report object (b519). It is a read of the server's own number for "
+      + 'display in Settings; it never touches G, and no balance moves.',
+  },
 });
 
 /** Is this site one whose prediction a server envelope will actually settle? */

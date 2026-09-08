@@ -2408,6 +2408,24 @@ const run = async () => {
       console.log('\nRooms record guard — dormant no-regression + armed server-read/fail-closed-empty/no-forged-room/never-throws.');
     }
 
+    /* ── Room identity perks (b521, Designer ruling 1b) ─────────────────────
+       With the Forge/Workshop PERMISSION gate gone, each room must sell its
+       identity mechanic from the rung a player can afford: the extra bar and
+       the free craft ladder 1/2/4/6/8% from rung 1 instead of appearing at the
+       tier-3 rung most accounts never reach. Graded through src/core/perks.js
+       — the adapter BOTH sides read — so a rung-1 owner's proc chance is
+       proven to arrive, not merely to exist in the generated table. The 8%
+       ceiling (b227 power budget) is pinned in the same pass. */
+    const { roomIdentityPerksGuard } = await import('./room-identity-perks.mjs');
+    const identityProblems = await roomIdentityPerksGuard();
+    if (identityProblems.length) {
+      console.log('\nRoom identity perks guard — FAILED:');
+      for (const p of identityProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('\nRoom identity perks guard — Forge yield_smithing / Workshop craftSave pay from rung 1; ceiling still 8%.');
+    }
+
     /* ── The property gate census (b502) ────────────────────────────────────
        ONE integer — `G.homestead.tier`, a RESIDUE field — gates which rooms may
        be built, how much land may be bought, how many workers may be hired and

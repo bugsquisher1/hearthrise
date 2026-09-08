@@ -326,7 +326,7 @@
       'background:radial-gradient(circle,var(--rr-glow,transparent) 0%,rgba(0,0,0,0) 68%);',
       'opacity:0;transition:transform 2600ms ease-out,opacity 2600ms ease-out}',
       '.hr-hf-veil.bloom .hr-hf-bloom{transform:translate(-50%,-50%) scale(1);opacity:.85}',
-      '.hr-hf-eyebrow{font-size:calc(12px * var(--ui-scale,1));letter-spacing:.24em;',
+      '.hr-hf-eyebrow{font-size:var(--t-micro);letter-spacing:.24em;',
       'text-transform:uppercase;color:var(--gold-2,var(--gold));margin-bottom:14px}',
       /* THE PLATE: ~1.6× a drop plate (drop plates render their art at 40px). */
       '.hr-hf-plate{width:104px;height:104px;margin:0 auto 14px;display:flex;',
@@ -337,10 +337,10 @@
       '.hr-hf-odds,.hr-hf-meta{opacity:0;transition:opacity 900ms ease}',
       '.hr-hf-veil.odds .hr-hf-odds,.hr-hf-veil.odds .hr-hf-meta{opacity:1}',
       '.hr-hf-odds{font-size:calc(17px * var(--ui-scale,1));color:var(--gold-2,var(--gold))}',
-      '.hr-hf-meta{font-size:calc(12px * var(--ui-scale,1));color:var(--ink-2,currentColor);margin-top:6px}',
+      '.hr-hf-meta{font-size:var(--t-micro);color:var(--ink-2,currentColor);margin-top:6px}',
       '.hr-hf-acts{display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap}',
       '.hr-hf-btn{padding:9px 16px;border-radius:9px;cursor:pointer;',
-      'font-size:calc(13px * var(--ui-scale,1));color:var(--ink,currentColor);',
+      'font-size:var(--t-micro);color:var(--ink,currentColor);',
       'background:var(--btn,rgba(255,255,255,.06));',
       'border:1px solid var(--line-soft,rgba(255,255,255,.16))}',
       /* THE AWAY BAND — full width, owning the top of the return card. */
@@ -352,7 +352,7 @@
       '.hr-hf-band-ic{flex:0 0 auto;width:38px;height:38px;display:flex;',
       'align-items:center;justify-content:center}',
       '.hr-hf-band-ic svg,.hr-hf-band-ic img{width:34px;height:34px}',
-      '.hr-hf-band-lead{font-size:calc(12px * var(--ui-scale,1));letter-spacing:.14em;',
+      '.hr-hf-band-lead{font-size:var(--t-micro);letter-spacing:.14em;',
       'text-transform:uppercase;color:var(--ink-2,currentColor)}',
       '.hr-hf-band-body{font-size:calc(15px * var(--ui-scale,1));color:var(--gold-2,var(--gold))}',
       /* THE COLLECTION SECTION. */
@@ -363,8 +363,39 @@
       '.hr-hf-cl-row.found{box-shadow:0 0 18px -6px var(--rr-glow,transparent)}',
       '.hr-hf-cl-row.miss{opacity:.62}',
       '.hr-hf-cl-ic{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center}',
-      '.hr-hf-cl-tx{flex:1;font-size:calc(13px * var(--ui-scale,1));color:var(--ink,currentColor)}',
-      '.hr-hf-cl-sub{font-size:calc(11px * var(--ui-scale,1));color:var(--ink-2,currentColor);margin-top:3px}',
+      '.hr-hf-cl-tx{flex:1;font-size:var(--t-micro);color:var(--ink,currentColor)}',
+      '.hr-hf-cl-sub{font-size:var(--t-micro);color:var(--ink-2,currentColor);margin-top:3px}',
+      /* THE TITLE BESIDE THE NAME. Tokens only: the trophy gold the rest of
+         this feature already uses, on the same quiet pill the clan tag and the
+         status pill wear, so the topbar row gains a third chip rather than a
+         new visual language. `min-width:0` + ellipsis because the row it sits
+         in is a flex row that must not push the status pill off a 922px
+         landscape phone. */
+      /* 18ch, MEASURED not guessed: at 14ch the longest title in the ruling
+         ("Wonderkeeper", the full-set reward) ellipsised to "Wonderkeep…" on a
+         1440px desktop — the rarest thing in the game, chopped. `ch` is the "0"
+         advance of a proportional serif, so 12 characters of title need ~16ch
+         of box plus the pill's padding. The cap stays because a future title is
+         not this file's to predict, and the row it sits in must not push the
+         status pill off a 922px landscape phone. */
+      '.hr-hf-title{display:inline-block;max-width:18ch;overflow:hidden;',
+      'text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom;',
+      'font-size:var(--t-micro);letter-spacing:.06em;',
+      'padding:1px 7px;border-radius:999px;color:var(--gold-2,var(--gold));',
+      'background:var(--panel-2,rgba(0,0,0,.28));',
+      'border:1px solid var(--line-soft,rgba(255,255,255,.14))}',
+      '.hr-hf-title.hide{display:none}',
+      /* THE CHOOSER. */
+      '.hr-hf-titles{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px}',
+      '.hr-hf-tchip{padding:5px 11px;border-radius:999px;cursor:pointer;',
+      'font-size:var(--t-micro);color:var(--ink-2,currentColor);',
+      'background:var(--panel-2,rgba(0,0,0,.22));',
+      'border:1px solid var(--line-soft,rgba(255,255,255,.12))}',
+      '.hr-hf-tchip.on{color:var(--gold-2,var(--gold));',
+      'border-color:var(--gold-2,var(--gold));',
+      'box-shadow:0 0 14px -6px var(--rr-glow,transparent)}',
+      '.hr-hf-tnote{font-size:var(--t-micro);',
+      'color:var(--ink-2,currentColor);opacity:.8;margin-bottom:8px}',
       /* THE GLOBAL CHAT LINE — one ✦ accent, the name in the trophy colour. */
       '.chat-msg.system.accent-hearthfind .cm-body{color:var(--gold-2,var(--gold))}',
       '.chat-msg.system.accent-hearthfind{border-left:2px solid var(--rr-glow,transparent);padding-left:7px}',
@@ -522,6 +553,187 @@
       }).join('') + '</div>';
   }
 
+  // ── THE TITLES ──────────────────────────────────────────────────────────
+  /* WHERE A TITLE COMES FROM, AND WHY IT CANNOT COME FROM ANYWHERE ELSE.
+     hr_apply writes the unlock into public.player_cosmetics under the character
+     lock, from ITS OWN catalogue lookup of the trophy it just granted;
+     hr_state_of projects the set as `state.hearthfind_titles`, an array of
+     {code, name, at} ordered oldest-first. THIS MODULE HOLDS THAT ARRAY AND
+     NOTHING ELSE. There is no client-side derivation from the inventory ("you
+     hold an Emberheart, so you must be Emberborn"), no RESIDUE_FIELDS entry and
+     no key on `G`. A client that has never seen the projection shows NO TITLE —
+     CLAUDE.md §6's fail-safe of "not unlocked" — which is why `projected`
+     starts empty and only a projected key can fill it.
+
+     ⚠ KEY PRESENCE, not truthiness — the same rule reconcileFall uses for
+       `consec_falls`. An ABSENT key is a server that predates the projection
+       and must leave the last one alone; an EMPTY ARRAY is a server saying
+       "this character has earned none" and must clear it. Conflating the two
+       would make a mixed-deploy window either erase an earned title or keep
+       showing one the server no longer projects.
+
+     ⚠ THE NAME IS THE SERVER'S STRING. Rendered from `row.name`, never looked
+       up in this file's CATALOGUE: if the designer renames a title the rename
+       reaches every client through the projection with no client deploy, and a
+       code this build has never heard of still renders its real name rather
+       than a raw id. */
+  var projected = [];
+
+  function normaliseTitles(raw) {
+    if (!Array.isArray(raw)) return [];
+    var out = [];
+    for (var i = 0; i < raw.length; i++) {
+      var r = raw[i];
+      if (!r || typeof r !== 'object') continue;
+      var code = String(r.code == null ? '' : r.code);
+      var name = String(r.name == null ? '' : r.name);
+      /* A row with no code cannot be chosen and a row with no name cannot be
+         drawn; neither is renderable, so neither is kept. */
+      if (!code || !name) continue;
+      out.push({ code: code, name: name, at: r.at || null });
+    }
+    return out;
+  }
+
+  /** Called from noteEnvelope on EVERY envelope. Returns the new list, or null
+      when this envelope said nothing about titles. */
+  function noteTitles(res) {
+    var st = res && res.state;
+    if (!st || typeof st !== 'object') return null;
+    if (!Object.prototype.hasOwnProperty.call(st, 'hearthfind_titles')) return null;
+    projected = normaliseTitles(st.hearthfind_titles);
+    try { paintTitle(); } catch (e) {}
+    return projected.slice();
+  }
+
+  /** Every title this character has EARNED, as the server states them. */
+  function earnedTitles() { return projected.slice(); }
+
+  /* WHICH ONE IS SHOWN — a DEVICE-LOCAL PREFERENCE OVER A SERVER-OWNED SET.
+     The ruling's addendum (2026-09-08 18:15 UTC) defers the equip INTENT to a
+     fast follow, so there is no server column to write and this lane authors no
+     migration. What is safe without one, and what is not:
+
+       · SAFE. The pick only ever SELECTS from `projected`. It is validated
+         against that array on every read, so a hand-edited storage value cannot
+         make this client render a title the server never granted — the worst a
+         forged value can do is fall back to the default.
+       · SAFE. The surfaces it drives (the topbar and the player's own profile
+         card) are SELF-ONLY. Nothing here writes to chat, display_names,
+         world_finds, a leaderboard or any other player's screen, so no other
+         player can ever read a value this client authored. That is the line
+         CLAUDE.md §1 draws, and this stays on the right side of it.
+       · NOT DONE HERE. Making the choice visible to OTHER players needs the
+         server to own it — one column plus an intent, lane C, with the
+         anti-impersonation review the addendum asks for.
+
+     The default is the NEWEST earned title (the projection is oldest-first), so
+     a character who has never opened the log still wears the thing they just
+     did. NO_TITLE is the explicit "show none" pick: a reserved sentinel that
+     cannot be mistaken for a server code, because every comparison that could
+     accept a code is made against `projected`, which only the server fills. */
+  var NO_TITLE = '-none-';
+  var TITLE_KEY = 'hearthrise:hearthfind:title';
+
+  function pickedCode() {
+    var s = store();
+    if (!s) return '';
+    try { return String(s.get(TITLE_KEY) || ''); } catch (e) { return ''; }
+  }
+
+  /** The title to DRAW, or null. Never invents a row. */
+  function activeTitle() {
+    if (!projected.length) return null;
+    var pick = pickedCode();
+    if (pick === NO_TITLE) return null;
+    if (pick) {
+      for (var i = 0; i < projected.length; i++) {
+        if (projected[i].code === pick) return projected[i];
+      }
+      /* The pick names a title this character has not earned (another
+         character's choice, or a stale code). Fall through to the default
+         rather than render it. */
+    }
+    return projected[projected.length - 1];
+  }
+
+  /** Choose the shown title. `code` must be an earned code or NO_TITLE;
+      anything else clears the pick back to the default. Returns what will now
+      be drawn (or null for none). */
+  function chooseTitle(code) {
+    var c = String(code == null ? '' : code);
+    var ok = (c === NO_TITLE);
+    for (var i = 0; !ok && i < projected.length; i++) if (projected[i].code === c) ok = true;
+    var s = store();
+    try {
+      if (s) { if (ok) s.set(TITLE_KEY, c); else s.remove(TITLE_KEY); }
+    } catch (e) {}
+    try { paintTitle(); } catch (e) {}
+    return activeTitle();
+  }
+
+  /** The badge beside a rendered name. Empty string when there is nothing to
+      say — a caller can concatenate it unconditionally. */
+  function titleBadgeHtml() {
+    var t = activeTitle();
+    if (!t) return '';
+    /* The sheet is this module's, and a caller that only ever asks for the
+       badge (the profile card) may never have opened a reveal, so the styles
+       are ensured HERE rather than assumed. The leading space is the separator:
+       the badge is an inline pill after a name, not a flex child there. */
+    ensureStyle();
+    return ' <span class="hr-hf-title">' + esc(t.name) + '</span>';
+  }
+
+  /* THE TOPBAR SLOT. Painted by this module and by nothing else, from the two
+     moments the answer can change: a new projection (noteTitles) and a new pick
+     (chooseTitle). Deliberately NOT hooked into updateTopbar — `#player-title`
+     is static markup in index.html that nothing ever replaces (the topbar
+     writes textContent, never innerHTML), so a per-frame repaint would be a
+     second writer bought for nothing, and this feature does not need to wrap
+     another legacy entry point to be correct. An absent element is not an
+     error: the topbar does not exist behind the boot veil. */
+  function paintTitle() {
+    if (typeof document === 'undefined') return '';
+    var el = document.getElementById('player-title');
+    if (!el) return '';
+    var t = activeTitle();
+    ensureStyle();
+    el.textContent = t ? t.name : '';
+    if (t) el.classList.remove('hide'); else el.classList.add('hide');
+    return t ? t.name : '';
+  }
+
+  /* THE CHOOSER, in the collection log beside the trophies that earned them —
+     where the ruling put it ("unlocked + shown in the collection log is
+     enough"). Absent when the character has earned none: an empty rail that
+     advertises a feature nobody has unlocked is noise on every other screen. */
+  function titlesSection() {
+    if (!projected.length) return '';
+    var active = activeTitle();
+    var chips = projected.map(function (t) {
+      var on = !!(active && active.code === t.code);
+      return '<button type="button" class="hr-hf-tchip' + (on ? ' on' : '') + '"'
+        + ' data-hf-title="' + esc(t.code) + '"'
+        + ' aria-pressed="' + (on ? 'true' : 'false') + '">' + esc(t.name) + '</button>';
+    });
+    chips.push('<button type="button" class="hr-hf-tchip' + (active ? '' : ' on') + '"'
+      + ' data-hf-title="' + NO_TITLE + '"'
+      + ' aria-pressed="' + (active ? 'false' : 'true') + '">None</button>');
+    return '<div class="hr-cl-sec">Titles · ' + projected.length + '</div>'
+      + '<div class="hr-hf-titles">' + chips.join('') + '</div>'
+      + '<div class="hr-hf-tnote">Shown beside your name on this device.</div>';
+  }
+
+  /** TEST-ONLY. Forget the projection and the pick. */
+  function __resetTitles() {
+    projected = [];
+    var s = store();
+    try { if (s) s.remove(TITLE_KEY); } catch (e) {}
+    try { paintTitle(); } catch (e) {}
+    return projected;
+  }
+
   // ── THE SHAREABLE CARD ──────────────────────────────────────────────────
   /* Portrait PNG, canvas-rendered, copied to the clipboard.
      WHAT IS DELIBERATELY NOT ON IT: level, gold, gear, clan, playtime, account
@@ -623,6 +835,11 @@
   var lastShown = null;
 
   function noteEnvelope(res) {
+    /* THE TITLES FIRST, AND UNCONDITIONALLY. The cosmetic projection is on
+       EVERY envelope, not only the one that paid a find: a player who earned
+       Emberborn last week must see it on the reload that grants nothing. This
+       is why it is read before the `findOn` early return. */
+    try { noteTitles(res); } catch (e) {}
     var f = findOn(res);
     if (!f) return null;
     if (f.at && seenAt() === String(f.at)) return null;   // already lived through
@@ -830,12 +1047,17 @@
     showReveal: showReveal, dismissReveal: dismissReveal,
     awayBandHtml: awayBandHtml, claimAwayBand: claimAwayBand,
     collectionRows: collectionRows, collectionSection: collectionSection,
+    // titles (server-projected; the pick is a device-local preference)
+    noteTitles: noteTitles, earnedTitles: earnedTitles, activeTitle: activeTitle,
+    chooseTitle: chooseTitle, titleBadgeHtml: titleBadgeHtml,
+    titlesSection: titlesSection, paintTitle: paintTitle, NO_TITLE: NO_TITLE,
     drawCard: drawCard, copyCard: copyCard, openCardFor: openCardFor,
     // board
     refreshBoard: refreshBoard, announce: announce, ordinalFor: ordinalFor,
     // test seams
     __setBoardCount: __setBoardCount,
     __resetProbe: __resetProbe,
+    __resetTitles: __resetTitles,
     __boardMissing: boardMissing,
     __forgetSeen: __forgetSeen,
     __pending: function () { return pending; },

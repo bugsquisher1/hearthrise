@@ -7660,7 +7660,7 @@ function renderProfile(){
       return `<div class="activity-card">
       <div class="ac-icon">${_hrGly('navCharacter',26)}</div>
       <div style="flex:1;min-width:0">
-        <b>${escapeHtml(acctName || G.playerName)}${renameBtn}</b>
+        <b>${escapeHtml(acctName || G.playerName)}${(window.HearthriseHearthfind&&window.HearthriseHearthfind.titleBadgeHtml&&window.HearthriseHearthfind.titleBadgeHtml())||''/* the earned Hearthfind title, from hr_state_of's projection ONLY; '' when the server has granted none */}${renameBtn}</b>
         <span>${subtitle}</span>
       </div>
       ${isOnline?'':'<button class="btn btn-sm btn-primary" onclick="openSettings()">Sign in</button>'}

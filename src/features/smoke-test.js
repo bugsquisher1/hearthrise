@@ -49058,6 +49058,103 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('HF-7: an earned title is PROJECTED onto the name — topbar, profile badge and a chooser that only offers what the server granted', () => {
+    const HF = window.HearthriseHearthfind;
+    assert(HF && typeof HF.noteTitles === 'function' && typeof HF.paintTitle === 'function',
+      'the title seam is missing — the client half of the cosmetic projection does not exist');
+    const slot = document.getElementById('player-title');
+    assert(slot, '#player-title is not in the topbar markup — nothing can render the earned title beside the name');
+    try {
+      HF.__resetTitles();
+      /* THE SERVER'S OWN SHAPE. hr_state_of builds hearthfind_titles as
+         jsonb_agg(... order by granted_at) over player_cosmetics, so it is
+         oldest-first and every row carries the SERVER's name string. Two rows
+         so the "which one" question is real. */
+      HF.noteTitles({ state: { hearthfind_titles: [
+        { code: 'rootwarden', name: 'Rootwarden', at: '2026-09-01T00:00:00Z' },
+        { code: 'emberborn',  name: 'Emberborn',  at: '2026-09-08T00:00:00Z' }
+      ] } });
+
+      const earned = HF.earnedTitles();
+      assert(earned.length === 2 && earned[1].code === 'emberborn',
+        'the projection did not normalise oldest-first — ' + JSON.stringify(earned));
+      /* THE DEFAULT is the newest earned: the thing the player just did. */
+      const active = HF.activeTitle();
+      assert(active && active.code === 'emberborn', 'the default shown title is not the newest earned — '
+        + JSON.stringify(active));
+      assert(slot.textContent === 'Emberborn' && slot.classList.contains('hide') === false,
+        'the topbar slot did not paint the projected title — "' + slot.textContent + '"');
+      assert(HF.titleBadgeHtml().indexOf('Emberborn') !== -1,
+        'the profile-card badge does not carry the projected title — ' + HF.titleBadgeHtml());
+
+      /* THE CHOICE. Only codes the server projected are accepted; the pick is
+         a preference over a server-owned set, never a new fact. */
+      const chips = HF.titlesSection();
+      assert(chips.indexOf('data-hf-title="rootwarden"') !== -1
+        && chips.indexOf('data-hf-title="emberborn"') !== -1,
+        'the chooser does not offer both earned titles — ' + chips);
+      const picked = HF.chooseTitle('rootwarden');
+      assert(picked && picked.code === 'rootwarden', 'choosing an earned title did not take');
+      assert(slot.textContent === 'Rootwarden', 'the topbar did not repaint on the choice — "' + slot.textContent + '"');
+      assert(HF.chooseTitle(HF.NO_TITLE) === null && slot.textContent === ''
+        && slot.classList.contains('hide'),
+        'choosing None did not clear the badge — "' + slot.textContent + '"');
+    } finally {
+      HF.__resetTitles();
+    }
+  }),
+
+  () => tryRun('HF-8: NO projection ⇒ NO title — an absent key, an empty grant and a forged pick all render nothing', () => {
+    const HF = window.HearthriseHearthfind;
+    const slot = document.getElementById('player-title');
+    assert(slot, '#player-title is not in the topbar markup');
+    try {
+      HF.__resetTitles();
+      /* (1) A CLIENT THAT HAS SEEN NOTHING wears nothing. This is the fail-safe
+         CLAUDE.md §6 asks for: the absence of a server statement is "not
+         unlocked", never a guess from the inventory. */
+      assert(HF.activeTitle() === null && HF.titleBadgeHtml() === '' && HF.titlesSection() === '',
+        'a client with no projection rendered a title anyway');
+      HF.paintTitle();
+      assert(slot.textContent === '' && slot.classList.contains('hide'),
+        'the topbar slot showed something with nothing projected — "' + slot.textContent + '"');
+
+      /* (2) AN ENVELOPE THAT SAYS NOTHING ABOUT TITLES changes nothing — key
+         presence, not truthiness, so a mixed-deploy window cannot erase an
+         earned title. */
+      HF.noteTitles({ state: { hearthfind_titles: [{ code: 'tidesworn', name: 'Tidesworn', at: null }] } });
+      assert(HF.activeTitle().code === 'tidesworn', 'the projection did not land');
+      assert(HF.noteTitles({ state: { gold: 5 } }) === null && HF.activeTitle().code === 'tidesworn',
+        'an envelope with no hearthfind_titles key wiped the last projection');
+
+      /* (3) AN EMPTY GRANT IS A STATEMENT and must clear. */
+      HF.noteTitles({ state: { hearthfind_titles: [] } });
+      assert(HF.activeTitle() === null && slot.textContent === '',
+        'an empty projection did not clear the title');
+
+      /* (4) A FORGED PICK CANNOT MINT ONE. The pick is stored client-side, so
+         the property that matters is that it only ever SELECTS from the
+         projection: a code the server never granted renders nothing here and
+         falls back to the default when there is one. */
+      const st = window.HearthriseStorage;
+      assert(st && typeof st.set === 'function', 'the storage seam is missing — the pick has nowhere honest to live');
+      st.set('hearthrise:hearthfind:title', 'wonderkeeper');   // hand-edited, as an attacker would
+      assert(HF.activeTitle() === null && HF.titleBadgeHtml() === '',
+        'a forged pick rendered with nothing projected — the client authored a cosmetic the server did not grant');
+      HF.noteTitles({ state: { hearthfind_titles: [{ code: 'deepdelver', name: 'Deepdelver', at: null }] } });
+      assert(HF.activeTitle().code === 'deepdelver',
+        'the forged pick beat the server projection — "wonderkeeper" was never granted to this character');
+
+      /* (5) A MALFORMED ROW IS NOT RENDERABLE and is dropped rather than drawn
+         as a raw id. */
+      HF.noteTitles({ state: { hearthfind_titles: [{ code: 'ghost' }, null, { name: 'Nameless' }] } });
+      assert(HF.activeTitle() === null && HF.titlesSection() === '',
+        'a row with no name or no code survived normalisation');
+    } finally {
+      HF.__resetTitles();
+    }
+  }),
+
   () => tryRun('b341: the away card SAYS you died, when, and that the rest paid nothing', () => {
     const HD = window.HearthriseHome;
     assert(HD && typeof HD.__awayCardHtml === 'function',

@@ -383,7 +383,6 @@ const ROOMS={
      yield_smithing / craftSave 1 / 2 / 4 / 6 / 8% — top unchanged at 8% (the
      asserted power budget), L4 rises 4 → 6; Kitchen keeps 4 / 8 (it already
      sells noBurn from rung 1).
-
      Power budget (spec §6/H2) as retuned, which the smoke suite asserts:
      allXP +5% (Library L5 — and it does not move again at any rung), combatXP
      +5%, the four artisan speeds +10% each, farmYield +8 flat, restedXp +8%,

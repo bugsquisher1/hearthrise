@@ -87,6 +87,75 @@
     return { itemId: id, slot: null, source: 'bag' };
   }
 
+  /* ══ THE BURY GESTURE ═══════════════════════════════════════════════════
+     Burying is a server-settled artisan run on the Prayer bench, not a stack
+     burn: the gesture STARTS the run and authors nothing — no debit, no XP, no
+     counter. It used to be `removeItem` + `addXp('prayer', …)` in three places,
+     so the XP evaporated on the next reload and the bones came back.
+
+     It lives here, in the inventory-actions module, because all THREE surfaces
+     that offer it are outside legacy.js's render path — this menu, the
+     item-ux.js slider and the inv-detail flyout — and a lookup that lives in
+     one of the three is a lookup the other two are free to disagree with. The
+     recipe is DERIVED (`HearthriseCore.artisanRecipeFor`, the same index the
+     accrual engine reads), never a hand-written bones→bury_bones map, so a
+     fourth bone with a fourth recipe needs no edit here. */
+
+  /** The prayer recipe that buries `id`, or null. */
+  function buryRecipeFor(id){
+    var C = window.HearthriseCore;
+    return (C && typeof C.artisanRecipeFor === 'function') ? C.artisanRecipeFor('prayer', id) : null;
+  }
+
+  /** `{recipe, xp, why}` — `why` is the reason the bench cannot run, or null.
+      The gates are READ from the systems that own them (the workbench rung from
+      HearthriseHomestead, the level from getLevel), never re-implemented: one
+      wrong copy of "can I bury?" is how the three bury buttons diverged. */
+  function buryGate(id){
+    var r = buryRecipeFor(id);
+    var def = (window.ITEMS && window.ITEMS[id]) || null;
+    var out = { recipe: r, xp: r ? r.xp : (def && def.buryXp) || 0, why: null };
+    if(!r){ out.why = 'No altar rite for this yet'; return out; }
+    /* No room read here: Prayer carries no client room gate (the altar ruling);
+       the two gates left are the two the server enforces — a rite must exist,
+       and hr_apply re-checks req_lv against server XP. */
+    if(typeof window.getLevel === 'function' && window.getLevel('prayer') < r.req){
+      out.why = 'Needs Prayer ' + r.req;
+    }
+    return out;
+  }
+
+  /** Start the altar bench on `id`. Returns the recipe id actually started, or
+      null. The bench consumes one bone per action and keeps going while the
+      player is away; `startArtisan` owns the timers, the interval derivation
+      and the renders, which is why this never assigns the pointer itself. */
+  function buryBones(id){
+    var G = window.G;
+    var it = (window.ITEMS || {})[id];
+    if(!it || !G) return null;
+    var r = buryRecipeFor(id);
+    if(!r){
+      if(typeof window.notify === 'function') window.notify('There is no altar rite for ' + it.n + ' yet','kill');
+      return null;
+    }
+    if(typeof window.startArtisan !== 'function') return null;
+    window.startArtisan('prayer', r.id);
+    /* THE ONLY HONEST SUCCESS SIGNAL IS THE POINTER startArtisan SET. It refuses
+       by notifying and returning undefined (no level, no Shrine, knocked out, no
+       input), so reading its return value would report every refusal as a
+       success — and a "Burying…" toast on top of "Build the Shrine first" is
+       worse than no toast at all. */
+    if(!(G.activeSkill === 'prayer' && G.skillTargetId === r.id)) return null;
+    if(typeof window.notify === 'function'){
+      window.notify('Burying ' + it.n + ' at the altar — ' + r.xp + ' Prayer XP each', 'info');
+    }
+    return r.id;
+  }
+
+  window.buryRecipeFor = buryRecipeFor;
+  window.buryBones = buryBones;
+  window.HearthriseBury = { recipeFor: buryRecipeFor, gate: buryGate, start: buryBones };
+
   // ── Build menu options for a given context ───────────────
   function buildOptions(ctx){
     var opts = [];
@@ -163,16 +232,12 @@
       }});
     }
 
-    // Bones — bury for prayer XP
+    /* Bones — START THE ALTAR BENCH. There is no client-side fallback: a silent
+       twin that grants XP nothing settles is the thing that was deleted, not a
+       safety net. The XP figure is read from the recipe the SERVER prices. */
     if(def.buryXp && def.buryXp > 0){
-      opts.push({ label: 'Bury (+' + def.buryXp + ' Prayer XP)', action: function(){
-        if(typeof window.buryBones === 'function') window.buryBones(id);
-        else {
-          G.skills = G.skills || {}; G.skills.prayer = (G.skills.prayer || 0) + def.buryXp;
-          if(typeof window.removeItem === 'function') window.removeItem(id, 1);
-          if(typeof window.notify === 'function') window.notify('Buried (+' + def.buryXp + ' Prayer XP)', 'info');
-        }
-      }});
+      opts.push({ label: 'Bury at the altar (' + buryGate(id).xp + ' Prayer XP each)',
+        action: function(){ buryBones(id); } });
     }
 
     // Always: Inspect, Sell 1

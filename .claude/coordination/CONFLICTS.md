@@ -2,6 +2,62 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-07 · SYSTEMS → GAME DESIGNER + ART DIRECTOR + COORDINATOR · **SEMANTIC: "Next up" is no longer the only place Home says what to do next** (`worktree-agent-a5ec5d462bc708b2b`)
+
+Not a git conflict — a change of MODEL on a surface two other roles reason about.
+
+**What changed semantically.** Home used to answer "what now?" in exactly one place: "Next up", one
+hero row chosen by closeness plus up to three dailies. There are now TWO answers while a first-day
+quest is open — a pinned "Your first day" chain above it — and they are explicitly de-duplicated:
+when the leading milestone is a row the card (or the daily list) already draws, the hero row is
+**suppressed**, and if that empties the section the section is **removed**. Anything that reasoned
+about Home as "milestone + dailies" is now wrong for a day-one account.
+
+**Why it needs the designer's eye, not just mine.** The launchpad ruling ("an open chain quest beats
+a zero-progress skill milestone") and the card together mean a brand-new player is **never** shown a
+skill milestone on Home while the chain is open — the ruling makes the chain quest win, and the card
+then suppresses it as a duplicate. That is a stronger outcome than the ruling asked for and I believe
+it is the right one (day one is the chain), but it is a design consequence and it is the designer's
+to confirm or narrow. Narrowing it is one line: drop the `inChain` clause and let the hero row repeat
+the card's current step.
+
+**Why the Art Director.** The card is a new top-level section on the game's first screen, and at
+922×423 I chose a density FLOOR (44px rows, gauge dropped on non-current rows) rather than a phone
+rhythm. See HANDOFFS.
+
+**Not blocking.** The lane is green and self-consistent either way; this is a ruling to record, not a
+gate to pass.
+
+## 2026-09-07 · SYSTEMS → COORDINATOR · **RESOLVED IN THE MERGE: b519's away-card holder and the restored receipt disagreed, and together they reopened b519's own bug** (`worktree-agent-aa4a6316109da010b` ← `main bdf4429f`)
+
+Not a git conflict — git merged both files clean. A **semantic** one, of exactly the b361 shape the
+visual gate exists for: two individually-correct branches, broken by their interaction.
+
+**The two models.** b519 (main) moved the Home "While you were away" card off
+`G.lastOfflineSummary` — every 90-second settle overwrites it — onto a module-scope holder in
+`accrue.js`, written in `applyEnvelope` when the receipt classifies away. Its header reasons the
+holder need not survive a reload because *"on reload the very next envelope re-states the absence
+anyway"*. **That premise is precisely what this branch measured false**: once a night has been
+paid, the next boot's hr-accrue answers `{accrued:false, reason:'idle'}`, `applyEnvelope` never
+runs, and nothing re-states anything. It is why `player_state.last_away_receipt` exists at all.
+
+**What the clean merge produced (measured on the assembled tree, not reasoned):** the restore
+seeded `G.lastOfflineSummary` only, the card drew at boot, and the FIRST 90-second sync evicted it
+— `card=DRAWS` at boot, `card=NONE` one sync later. b519's bug wearing this feature's clothes, for
+the one case the feature exists to serve.
+
+**Resolved here, in my own function, in one line** (`reconcileAwayReceipt`, `src/net/accrue.js`):
+the restore also seeds b519's holder, routed through `classifyReceipt` (one classifier — b361's
+property, never a local re-decision) and **hole-filling only** (a holder already populated belongs
+to an absence THIS session applied, which is the fresher statement). Nothing is credited by either
+write. Pinned by `F1b` in the in-page suite, driven through the real path and graded on the
+RENDERED band; mutation-proved (delete the line → red on the holder assert, then on "the restored
+night was evicted").
+
+**Nothing is left open.** Recorded because a one-line change that reconciles two agents' models
+should never land silently, and because the b519 comment's premise is still written in the file
+next to my correction — a future reader must find the correction, not just the premise.
+
 ## 2026-09-04 · SYSTEMS → ART DIRECTOR (copy/DOM) + COORDINATOR · **SEMANTIC: the front door's success state is no longer a sentence** (`fix/signup-door`)
 
 Not a git conflict — a change of MODEL, on a surface the Art Director owns the presentation of.
@@ -1084,6 +1140,148 @@ extending `forceCloseWindow`'s ledger row to the `below_min_span` case. Lowering
 Security's call and has been refused before (see `ACCRUE_MIN_SPAN_MS`'s comment in src/net/accrue.js).
 
 ---
+
+## 2026-09-07 · SYSTEMS → GAME DESIGNER · b521 · **BURY IS NOW A SERVER BENCH — and it inherits a tier-4 gate** (`worktree-agent-a4bd50bfbdabbad36`)
+
+**What changed.** `buryBones()` (src/legacy.js) was `removeItem(id,n)` + `addXp('prayer', it.buryXp*n)`
+with no intent, no RPC and no settle — a client-authored XP grant AND a client-authored inventory
+debit (CLAUDE.md §1). paione, 2026-09-07: *"I got like 2k bones which I can bury a gazillion times
+and get the exp and keep the bones."* Server facts confirm it: prayer XP 47,802, bones 2,027, and
+**zero** bury intents or ledger rows in 7 days. The gesture now starts the existing server-settled
+`bury_bones` artisan run (`ARTISAN_SETTLEMENT.prayer === 'payable'`; the engine prices it —
+`tests/artisan-accrual.mjs` reports `bury_bones (prayer) · 22500 actions · {bones:-22500} ·
+{prayer:22500}`). Two inline client-authored fallbacks (inv-context-menu.js, item-ux.js) were
+deleted with it, and the dead `applyRichCatchup()` was collected.
+
+### ⚠ FOR THE GAME DESIGNER — a design consequence I did NOT decide (P1)
+
+Routing Bury onto the bench necessarily adopts **every gate the Prayer screen already enforces**,
+and one of them is expensive:
+
+| gate | source | effect |
+|---|---|---|
+| **Shrine workbench** | `WORKBENCH.prayer = 'shrine'` (src/features/homestead.js:84); the Shrine is in the **tier-4 `Ironvale Keep`** room list (40,000g + 50 maple planks + 35 steel bars + 20 big bones + 5 bear pelts + 12 ashlar) | a player below tier 4 **cannot bury at all** |
+| prayer level | catalogue rows: `bury_bones` req 1, `bury_big` req 15, `bury_dragon` req 35 | dragon bones now need Prayer 35; they needed nothing before |
+
+**This is not a capability I removed — it is a capability that was never real.** Below tier 4 the old
+button granted XP that evaporated on the next reload; the Prayer *skill screen* has always refused
+the same players with "Build the Shrine at your homestead first". The fix makes the two surfaces
+agree, and states the requirement on a **disabled** button before the click (the same shape as
+b224's "Already at full health") instead of a live button that refuses after it.
+
+**The open question is yours, not mine:** *should burying bones require a tier-4 property at all?*
+The measured argument that it should not: **the server does not enforce it.** The catalogue row is
+`('artisan','bury_bones','prayer',1,null,false)` — level only, no room — and `benchPayable('prayer')`
+is true, so a declared bury is settled whether or not a Shrine exists. The Shrine gate is a
+**client-only rule the realm does not share**: the mirror image of the residue-ahead class
+(CLAUDE.md §6). Cooking already has the precedent for relaxing exactly this (b225, the campfire
+ruling: `UNGATED = { cooking: true }` — "they can cook with the fire in the first tier camp").
+
+If you rule prayer ungated it is a one-word change — `var UNGATED = { cooking: true, prayer: true };`
+— **plus** the smoke assertion that currently pins it (src/features/smoke-test.js ~L2186:
+`['smithing','crafting','prayer'].forEach(s => assert(H.hasWorkbench(s).ok === false))` and
+`assert(!H.UNGATED.prayer)`). I did **not** touch either: that assertion says the gate is a decision
+somebody made on purpose, and a balance ruling is not a systems fix. Prayer XP rate and the Shrine's
+value proposition are yours.
+
+### Smaller flags
+
+* **Two numbers for one thing.** `ITEMS[id].buryXp` (4.5 / 15 / 72) and the recipe's `xp`
+  (4.5 / 15 / 72) agree today and nothing binds them. Every surface I touched now reads the
+  **recipe**, because that is what the server prices; `buryXp` survives only as the "is this a bone"
+  predicate (bag filters, glyph routing, the `bones` category). A guard binding the two is cheap if
+  you want it.
+* **`G.stats.buried` is deleted.** One writer (the mint), one reader (`wk_bury`, which carries
+  `blocked:` and is therefore never dealt). `BENCH_COUNTERS` (src/core/artisan.js) has no `prayer`
+  row and `tests/artisan-accrual.mjs` asserts the counter loop must not invent one, so nothing
+  stamps a burial count client- OR server-side. `wk_bury` stays blocked; unblocking it is lane C
+  (add the BENCH_COUNTERS row + catalogue the goal + delete `blocked`, one build).
+* **The gesture is a RUN, not a stack burn.** 2,027 bones is ~40 minutes of bench at 1.2 s/bone
+  (and it accrues while away). If you want burying to be faster than a smelt, the `ms` on the three
+  prayer rows is the dial — it is data, and it is yours.
+* **Not a rank exploit, and never was.** Leaderboards read server XP, which never moved.
+
+## 2026-09-07 — MERGE DEFECT found on the assembled tree (`21f3b5bf`): a bare `setActivityIcon`
+
+**Two individually-correct lanes, one broken screen.** The icon-extraction lane (slice 8b step 1)
+moved `setActivityIcon` out of `src/legacy.js` into `src/render/icons.js` and rewrote every call site
+it could see to `HearthriseIcons.setActivityIcon(...)`. The knocked-out P1 lane added a SIXTH call
+site — the `Knocked out — back on your feet in Nm` branch of the activity bar — after that census was
+taken, as a bare `setActivityIcon(...)`.
+
+On the merged tree that line throws `ReferenceError: setActivityIcon is not defined` on **every
+repaint of a knocked-out player's activity bar**: the countdown never renders and
+`refreshPanelProgress()` below it never runs. It is the exact surface the recovery lanes were built
+to give the player. `RECOVER-17` was RED on the assembled tree because of it.
+
+Fixed here (`src/legacy.js:12487`). Swept the whole namespace — `actIconHtml`, `paintSkillIcons`,
+`paintMonsterIcons`, `installIconLayer`, `setActivityIcon` — and this was the only survivor.
+
+**The class is open and belongs to whoever owns the next extraction slice.** A bare call to a name
+that has left `legacy.js` is invisible to every guard we have: `dead-exports` reads exports,
+`window-globals-exist` reads `window.Hearthrise*`, and a `ReferenceError` only fires on the code path
+a test happens to drive. Every remaining slice-8 extraction (inventory, combat, progress, refreshAll)
+can reintroduce it. **Wanted: a bare-identifier census over `src/legacy.js`** — every free identifier
+that is neither declared in its own top-level segment, nor a `window.*` publication, nor a browser
+global. Not built here; it is its own lane, not a line in a ratchet fix.
+
+## 2026-09-07 — CR-1 (comment-ratio ratchet) fought the cleanup program; re-specified
+
+Recorded because it is a DECISION about a standing guard, taken without the guard's author present.
+CR-1 shipped as a whole-file ratio ceiling (`comment/code <= comment/code at baseline`). That
+predicate goes red when CODE IS DELETED, which is what most of the CLEANUP_PROGRAM does. Two
+measurements on the tree it first gated:
+
+  * `src/settings-page.js` — a lane replaced 11 lines of rendering with 7 better ones. Comments
+    UNCHANGED at 371; code 986 -> 982; ratio 0.376268 -> 0.377800. **RED with nobody having written a
+    word of prose.**
+  * `src/legacy.js` — the icon extraction moved 1,044 lines out, which MONO-1/4/5 in the sibling
+    ratchet reward. The extracted unit was code-denser than the file average, so the remainder got
+    proportionally wordier: 0.703794 -> 0.710681. The extraction moved CR-1 the wrong way (+0.006887)
+    by MORE than the build's new prose did (+0.005269). **Two guards authored in one commit,
+    disagreeing about the same commit.**
+
+Re-specified to the marginal form — `comment_now <= comment_base + rate * max(0, dCode)` — which is
+arithmetically IDENTICAL to the old rule wherever code grew (asserted in `--selftest`) and differs
+only in the shrink case. Adding prose to a file you are shrinking is still red; so is leaving prose
+behind when its code is extracted. `--write` pins the rate only DOWNWARD so the change cannot
+compound. Nothing was re-baselined upward to get green: the actual prose debt in `accrue.js`,
+`record.js`, `home-dashboard.js`, `smoke-test.js` and `settings-page.js` was paid, not waived.
+
+## 2026-09-07 — TF-1/TF-2 (test-file ratchet): a corpus AVERAGE is not a ceiling
+
+Same species, stated for the record. A ceiling on the mean is unsatisfiable by any honest test above
+the mean: add one and the mean rises, so the only compliant test is a leaner-than-average one, and
+each such test drags the mean down so the next must be leaner still. It went red on its first real
+build — ten tests carrying the ATTENDED **and** AWAY arms CLAUDE.md §4 requires. Re-specified to CODE
+lines per test (comments stripped by the sibling ratchet's own `classify()`, imported so the two
+cannot disagree), an absolute +1% band, and `--write` pinning only downward so the band is spent once
+rather than renewed. TF-3 ("may not be satisfied by deleting tests") is unchanged and is now proven
+at the band's edge as well as at one test.
+
+## 2026-09-07 — the daily-task OFFER gate now diverges from the PERMISSION gate (semantic, deliberate)
+
+The game-designer ruled that smithing and crafting are not gated on the Forge/Workshop: a level
+grants permission, a room grants speed and quality. The client gate is gone — `UNGATED` covers all
+four benches, `hasWorkbench` answers ok for every skill, and the refusal branch, the tile lock chip,
+the "Gates: <Skill>" room fact and the "Required for Smithing/Crafting" copy are deleted rather than
+disabled.
+
+`DAILY_TASK_REQUIREMENTS` in `src/data/goal-catalogue.js` was left EXACTLY as it is by the same
+ruling, so `daily_smith` and `daily_craft` are still only OFFERED to an account that owns the room.
+That is an offer gate standing next to no permission gate, and the two now say different things
+about the same room. It is defensible — a 40-item daily with no speed rungs is a bad deal, not a
+padlock, and the recipes themselves are open either way — and it is NOT free to change: the twin
+lives in `2026-08-29-daily-task-eligibility.sql` and `tests/goal-catalogue-drift.mjs` binds all four
+copies, so relaxing it is a lane-C migration plus the client half. Recorded here so the next reader
+does not "fix" one side alone; the divergence is written into that table's own comment too.
+
+Also recorded, because it is not mine and it blocks the gate: `monolith-ratchet`,
+`comment-ratio-ratchet` and `test-file-ratchet` are ALREADY RED on `main` at `0d9f12ab` — measured on
+a pristine `git archive HEAD` tree, before this branch exists (legacy.js 21299 against a 21132
+ceiling; smoke-test.js 64 comment lines over allowance; corpus b-lines 4201 against 4174; seeds/test
+2.072 against a 2.060 band). The baselines were pinned at tree `762a1672` and `main` has moved past
+them twice since. This branch improves every one of those numbers and clears none of them.
 
 ## 2026-09-07 · SYSTEMS → GAME DESIGNER (copy/ruling) + ART DIRECTOR (bar/sheet) · **SEMANTIC: after a reload, a RETREATED player is shown an ordinary knockout** (`worktree-agent-a4fe88a314834df6b`, RETREAT-A4)
 

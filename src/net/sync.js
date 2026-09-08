@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=519';
+//   import { setupSync } from './net/sync.js?v=521';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,23 +16,27 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=519';
+import { on, snapshot } from './events.js?v=521';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=519';
-/* Read-only, for the cloud-save self-test's report. A balance the client has
-   not been told is a different fact from a balance of zero. */
-import { balanceState } from './balance.js?v=519';
+import { resolveActiveSlot } from './accrue.js?v=521';
+/* THE CLOUD-SAVE SELF-TEST READS THE REALM'S PROJECTION, so it borrows
+   record.js's own request builder and response classifier rather than growing a
+   second copy of the hr_load shape. NO CYCLE: record.js imports accrue /
+   client-state / predict / property-record / dungeon-scrip-record, none of which
+   import sync.js. (The old `balanceState` import went with the round-trip diff
+   the projection replaced — the figures now come from the server, not from G.) */
+import { buildLoadRequest, classifyLoadResponse } from './record.js?v=521';
 /* ── THE CAPSTONE SAVE PATH (blob-retire — the ONLY path since b515) ─────────
    The authoritative snapshot() blob is NOT uploaded: the authority fields flow
    through their own server writes (record / RPCs / accrual) and only the
    self-only residue is persisted, via putClientState. buildResiduePatch is the
    census→patch. No cycle: neither capstone.js nor client-state.js imports
    sync.js. */
-import { buildResiduePatch } from './capstone.js?v=519';
-import { putClientState } from './client-state.js?v=519';
+import { buildResiduePatch } from './capstone.js?v=521';
+import { putClientState, isClientStateFromServer } from './client-state.js?v=521';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -1145,48 +1149,169 @@ export async function pullLatest() {
   return r.snap;
 }
 
+/* ── HOW LONG AGO, IN WORDS A PLAYER READS ───────────────────────────────────
+   Pure. `now` is passed in (the SERVER's clock when we have it — see
+   readRealmProjection) so the one tool a worried player opens does not describe
+   the realm's timestamps through a device clock that may be wrong. */
+export function agoText(atMs, nowMs) {
+  const at = Number(atMs) || 0;
+  const now = Number(nowMs) || 0;
+  if (!at || !now) return 'unknown';
+  const s = Math.round((now - at) / 1000);
+  if (s < 0) return 'just now';                 // clock skew is not a story worth telling
+  if (s < 45) return 'just now';
+  if (s < 5400) return Math.max(1, Math.round(s / 60)) + ' min ago';
+  if (s < 172800) return Math.max(1, Math.round(s / 3600)) + ' hr ago';
+  return Math.round(s / 86400) + ' days ago';
+}
+
+/* ── READ THE REALM'S PROJECTION OF THIS CHARACTER ───────────────────────────
+   THE BUG THIS REPLACES. This diagnostic used to force an upload and then read
+   `game_saves` straight back. That table is RETIRED: the blob stopped being
+   uploaded before the cutover and 2026-09-07-game-saves-revoke.sql took the client's write
+   grants away, so the read could only ever return the pre-cutover row or
+   nothing — and "Uploaded, but reading it back returned nothing" was shown to a
+   HEALTHY player, in the exact tool they open when they are frightened about
+   losing progress. A diagnostic that manufactures a data-loss scare is worse
+   than no diagnostic.
+
+   WHAT A PLAYER ACTUALLY DEPENDS ON, post-cutover, is two things:
+     1. the SERVER PROJECTION of their character (`hr_load` → `hr_state_of`):
+        its `version`, the instant it was last settled (`state.accrued_to`), and
+        a couple of figures they recognise (gold, total level);
+     2. the RESIDUE (client_state) — their preferences and self-only display
+        state, written by hr_put_client_state on the save cadence.
+   So this reads exactly those and says what it saw.
+
+   READ-ONLY BY CONSTRUCTION. It builds the request with record.js's own
+   `buildLoadRequest` and classifies the answer with record.js's own
+   `classifyLoadResponse` (one shape, no second copy to drift) but deliberately
+   does NOT go through `requestRecord`, because a diagnostic must not apply an
+   envelope to the live session as a side effect of being run.
+   FAIL-CLOSED: anything short of a `loaded` envelope returns ok:false with the
+   outcome named — never a soothing default, never a fabricated version. */
+export async function readRealmProjection() {
+  const out = { ok: false, outcome: 'unconfigured', version: null, settledAt: null,
+    serverNow: null, gold: null, totalLevel: null };
+  const base = String(config?.snapshotEndpoint || '').replace(/\/rest\/v1\/.*$/, '');
+  const apiKey = typeof config?.apiKey === 'function' ? config.apiKey() : config?.apiKey;
+  const token = typeof config?.authToken === 'function' ? config.authToken() : config?.authToken;
+  if (!base || !apiKey || !token) return out;
+  const { url, init } = buildLoadRequest({ url: base, apiKey, token, slot: resolveActiveSlot(config.slot) });
+  let res = null;
+  try { res = await fetchWithAuthRetry(url, () => init, 'verify-record'); }
+  catch (e) { out.outcome = 'unreachable'; return out; }
+  if (!res) { out.outcome = 'unreachable'; return out; }
+  let body = null;
+  try { body = await res.json(); } catch (e) { body = null; }
+  const v = classifyLoadResponse(res.status, body);
+  out.outcome = v.outcome;
+  if (v.outcome !== 'loaded') return out;
+  const b = v.body || {};
+  out.ok = true;
+  out.version = Number.isFinite(Number(b.version)) ? Number(b.version) : null;
+  out.serverNow = b.now ? Date.parse(b.now) : null;
+  if (!Number.isFinite(out.serverNow)) out.serverNow = null;
+  const st = b.state || {};
+  const settled = st.accrued_to ? Date.parse(st.accrued_to) : NaN;
+  out.settledAt = Number.isFinite(settled) && settled > 0 ? settled : null;
+  const gold = Number(st.gold);
+  out.gold = Number.isFinite(gold) && gold >= 0 ? Math.floor(gold) : null;
+  /* Total level from the SERVER's own per-skill levels (hr_level_from_xp), never
+     re-derived here — a second derivation is a second thing to drift, and the
+     player is being shown what the realm holds. Absent levels stay null. */
+  if (b.skills && typeof b.skills === 'object') {
+    let sum = 0; let seen = 0;
+    for (const k of Object.keys(b.skills)) {
+      const lv = Number(b.skills[k] && b.skills[k].level);
+      if (Number.isFinite(lv)) { sum += lv; seen++; }
+    }
+    if (seen) out.totalLevel = sum;
+  }
+  return out;
+}
+
+/* ── THE WORDS, SEPARATED FROM THE I/O ───────────────────────────────────────
+   PURE, so the copy a frightened player reads is testable without a network.
+   `realm` is a readRealmProjection() result; `residue` is
+   {ok, savedAt, fromServer, reason}. Returns {ok, lines:[{text, ok}]}. */
+export function describeCloudSave(realm, residue, nowMs) {
+  const lines = [];
+  const r = realm || {};
+  const q = residue || {};
+  const now = r.serverNow || nowMs || Date.now();
+  if (r.ok) {
+    const bits = [];
+    if (r.version !== null && typeof r.version !== 'undefined') bits.push('version ' + r.version);
+    bits.push('last settled ' + agoText(r.settledAt, now));
+    let text = 'The realm has your character at ' + bits.join(', ') + '.';
+    const facts = [];
+    if (r.gold !== null && typeof r.gold !== 'undefined') facts.push(r.gold.toLocaleString() + ' gold');
+    if (r.totalLevel !== null && typeof r.totalLevel !== 'undefined') facts.push('total level ' + r.totalLevel);
+    if (facts.length) text += ' It holds ' + facts.join(', ') + '.';
+    lines.push({ ok: true, text });
+  } else {
+    /* FAIL-CLOSED AND CALM. We could not READ; that is not evidence of loss, and
+       the line says so in as many words — this is the tool a player opens when
+       they are afraid, and it must never imply a loss it has not observed. */
+    lines.push({ ok: false,
+      text: 'Could not read your character from the realm (' + (r.outcome || 'no answer')
+        + '). Your progress is stored on the server — this is a connection problem, '
+        + 'not lost progress. Try again in a moment.' });
+  }
+  if (q.ok) {
+    lines.push({ ok: true, text: 'Your preferences were saved ' + agoText(q.savedAt, nowMs || now) + '.' });
+  } else if (q.savedAt) {
+    lines.push({ ok: false, text: 'Your preferences did not save just now ('
+      + (q.reason || 'server did not confirm') + '); the last confirmed save was '
+      + agoText(q.savedAt, nowMs || now) + '. Progress is unaffected.' });
+  } else {
+    lines.push({ ok: false, text: 'Your preferences have not saved this session ('
+      + (q.reason || 'server did not confirm') + '). Progress is unaffected — settings and '
+      + 'display state may not follow you to another device yet.' });
+  }
+  return { ok: !!(r.ok && q.ok), lines };
+}
+
 /**
- * b299 — CLOUD SAVE SELF-TEST. Forces an upload, pulls it straight back, and
- * diffs the round-tripped fields against the live game. This is the answer to
- * "how do I know cloud save is actually working?": it exercises the real write
- * AND read path end-to-end and reports, in plain terms, what matched.
- * Returns { ok, error, offline, signedIn, checks:[{label,cloud,local,match}] }.
+ * THE CLOUD SAVE SELF-TEST, REBUILT FOR THE POST-CUTOVER CLIENT.
+ *
+ * WAS: force a blob upload, read `game_saves` back, diff the round-trip. Both
+ * halves are gone post-cutover (see readRealmProjection's header) and the read
+ * half told healthy players their save had vanished.
+ *
+ * IS: save the residue, then report the two things a player's progress actually
+ * lives in — the server projection of their character, and their preferences.
+ * Adds NO write beyond the residue save this button already performed.
+ * Returns { ok, error, offline, signedIn, realm, residue, lines:[{text,ok}] }.
+ * `opts.readRealm` is a test seam (an injected projection reader).
  */
-export async function verifyCloudSave() {
-  const out = { ok: false, error: null, offline: false, signedIn: false, checks: [] };
+export async function verifyCloudSave(opts) {
+  const out = { ok: false, error: null, offline: false, signedIn: false,
+    realm: null, residue: null, lines: [] };
   try {
     if (!config?.snapshotEndpoint) { out.error = 'Cloud is not configured (offline mode).'; return out; }
-    if (!navigator.onLine) { out.offline = true; out.error = 'You are offline — connect to test cloud save.'; return out; }
+    if (!navigator.onLine) { out.offline = true; out.error = 'You are offline — connect to check your save.'; return out; }
     const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
     if (!userId) { out.error = 'Not signed in — cloud save needs an account.'; return out; }
     out.signedIn = true;
 
-    const uploaded = await snapshotIfDue(true, false);      // force a fresh upload
-    if (!uploaded) { out.error = 'Upload was rejected (auth or network). Try again in a moment.'; return out; }
+    const uploaded = await snapshotIfDue(true, false);      // force a residue save
+    const residue = {
+      ok: !!uploaded,
+      savedAt: Number(saveHealth.lastOkAt) || 0,
+      fromServer: isClientStateFromServer(),
+      reason: uploaded ? null : (saveHealth.lastReason || 'not sent'),
+    };
+    const readRealm = (opts && typeof opts.readRealm === 'function') ? opts.readRealm : readRealmProjection;
+    const realm = await readRealm();
 
-    const cloud = await pullLatest();                        // read it straight back
-    if (!cloud) { out.error = 'Uploaded, but reading it back returned nothing.'; return out; }
-
-    const G = window.G || {};
-    const invCount = (o) => (o && typeof o === 'object') ? Object.keys(o).length : 0;
-    const rows = [
-      ['Total level', cloud.totalLevel, (typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : undefined)],
-      /* THE ROUND-TRIP CHECK REPORTS WHAT IT CAN SEE, AND SAYS SO WHEN IT
-         CANNOT. Once a balance is on SERVER_OF_RECORD the local copy is
-         stripped at load, so `G.gold` is legitimately absent — and printing
-         `undefined` beside a cloud figure would read as data loss in the one
-         tool a worried player opens to check for data loss. `balanceState`
-         gives the honest word ("UNKNOWN:absent"), and the row still compares:
-         a genuine mismatch is still a mismatch. */
-      ['Gold', cloud.gold, balanceState(G).gold],
-      ['Gems', cloud.gems, balanceState(G).gems],
-      ['Kills', cloud.stats && cloud.stats.kills, G.stats && G.stats.kills],
-      ['Inventory item types', invCount(cloud.inventory), invCount(G.inventory)],
-      ['Name', cloud.playerName, G.playerName],
-    ];
-    out.checks = rows.map(([label, c, l]) => ({ label, cloud: c, local: l, match: String(c) === String(l) }));
-    out.ok = out.checks.every((c) => c.match);
-    if (!out.ok) out.error = 'Round-trip completed but some fields did not match — see the details.';
+    out.realm = realm; out.residue = residue;
+    const d = describeCloudSave(realm, residue, Date.now());
+    out.lines = d.lines; out.ok = d.ok;
+    if (!out.ok) out.error = realm && realm.ok
+      ? 'Your character is safe on the realm, but one check did not pass — see below.'
+      : 'The realm did not answer — see below.';
     return out;
   } catch (e) {
     out.error = (e && e.message) || String(e);
@@ -1591,6 +1716,9 @@ export function setupSync(opts = {}) {
 window.HearthriseSync = {
   setupSync, flush, snapshotIfDue, pullLatest, buildSnapshotRequest, isAuthError,
   derivedSnapshotFields, countBossKills, verifyCloudSave, checkConcurrentDevice,
+  /* The projection read and the (pure) copy it renders, exposed so the suite
+     drives the REAL diagnostic rather than a reimplementation of it. */
+  readRealmProjection, describeCloudSave, agoText,
   claimSession, checkSessionClaim, pauseSync, pullLatestDetailed,
   // b366 device-handoff: the pure verdicts, exported so the suite drives the
   // REAL decision functions rather than a reimplementation of them.

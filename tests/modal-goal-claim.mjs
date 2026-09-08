@@ -527,10 +527,12 @@ async function bindGuard(cat) {
   /* Goals the server deliberately cannot verify. Being on this list is a
      DECISION with a reason; being on neither side is a build failure. */
   const UNCATALOGUED = new Map([
-    ['wk_bury', 'legacy.js buryBones() is a pure client function (removeItem + addXp + '
-      + 'G.stats.buried). No intent, no RPC, no settle — and BENCH_COUNTERS has no `prayer` row, '
-      + 'so the bury_bones artisan recipe stamps nothing either. There is no server number to '
-      + 'verify it against.'],
+    ['wk_bury', 'BENCH_COUNTERS (src/core/artisan.js) has no `prayer` row, so neither the live '
+      + 'tick nor the away settle stamps a "bones buried" counter — client or server. (b521 '
+      + 'changed the other half: buryBones() no longer mints removeItem + addXp, it starts the '
+      + 'server-settled bury_bones artisan run, and G.stats.buried was deleted with the mint. '
+      + 'The XP is real and server-owned; the COUNT is still nobody\'s.) There is no server '
+      + 'number to verify it against.'],
   ]);
 
   for (const r of [...dailyRows, ...weeklyRows]) {

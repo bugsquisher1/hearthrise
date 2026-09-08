@@ -164,9 +164,8 @@
     if(typeof d.reduceFx      !== 'boolean') d.reduceFx      = false;
     if(typeof d.leftHand      !== 'boolean') d.leftHand      = false;
     if(typeof d.uiScale       !== 'number')  d.uiScale       = readDeviceScale();
-    // b227: `scale` was a 6-option select nothing read (click-through audit
-    // finding #2). It is replaced by `uiScale`; drop the dead key so it stops
-    // riding every save.
+    // `scale` was a 6-option select nothing read; `uiScale` replaced it. Drop
+    // the dead key so it stops riding every save.
     if('scale' in d) delete d.scale;
     if(typeof d.theme         !== 'string')  d.theme         = 'dark';
     if(typeof d.showDamage    !== 'boolean') d.showDamage    = true;
@@ -190,14 +189,12 @@
   function pct(n){ return Math.round(n * 100) + '%'; }
 
   // ── Invite code validation (A11; single-sourced 2026-08-23) ─────────────
-  // THE IMPLEMENTATION MOVED to src/net/account-gate.js and this delegates to
-  // it. It used to be duplicated here, and a duplicated predicate is the b332
-  // shape: two copies, one of them eventually wrong. account-gate.js owns it
-  // because account-gate.js IS the front door — it has to work when nothing
-  // else on the page has loaded, so it cannot depend on this file, and the
-  // dependency therefore has to run this way round. It loads first
-  // (index.html:918 vs :1082), so the seam is always present by the time
-  // anything here can be clicked.
+  // THE IMPLEMENTATION LIVES IN src/net/account-gate.js and this delegates to
+  // it: two copies of a predicate is two copies, one of them eventually wrong.
+  // account-gate.js owns it because account-gate.js IS the front door — it has
+  // to work when nothing else on the page has loaded, so it cannot depend on
+  // this file, and it loads first (index.html:918 vs :1082), so the seam is
+  // always present by the time anything here can be clicked.
   //
   // The rule it enforces is unchanged and still worth restating: NEVER read
   // `beta_invites` directly. Its SELECT policy was world-readable to the anon
@@ -674,11 +671,10 @@
     var liveSession = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
     var auth;
     if (liveSession && liveSession.user) {
-      /* b371 — THIS LINE WAS A HARDCODED STRING. It claimed "Cloud save active"
-         to anyone with a session, through any number of failed upserts, and
-         advertised a 30s cadence the game stopped using when snapshotIntervalMs
-         became 60000. Both halves are now derived: the claim from the last
-         CONFIRMED game_saves upsert, the cadence from the live sync config. */
+      /* BOTH HALVES ARE DERIVED, never asserted: the claim from the last
+         CONFIRMED upsert, the cadence from the live sync config. Hardcoded, it
+         said "Cloud save active" to anyone with a session through any number of
+         failed writes, at a cadence the game had stopped using. */
       var health = (window.cloudSaveLine ? window.cloudSaveLine() : { level: 'unknown', text: 'Cloud save connecting…' });
       var syncCfg = null;
       try { syncCfg = window.HearthriseSync && window.HearthriseSync.getConfig && window.HearthriseSync.getConfig(); } catch (e) {}
@@ -1068,7 +1064,7 @@
     var verify = root.querySelector('#set-cloud-verify');
     if(verify) verify.addEventListener('click', async function(){
       var old = verify.textContent; verify.disabled = true; verify.textContent = 'Testing…';
-      if(vout) vout.textContent = 'Running a cloud save round-trip test…';
+      if(vout) vout.textContent = 'Asking the realm what it holds for you…';
       var r = { ok:false, error:'Cloud sync is unavailable in this build.' };
       try { if(window.HearthriseSync && window.HearthriseSync.verifyCloudSave) r = await window.HearthriseSync.verifyCloudSave(); }
       catch(e){ r = { ok:false, error:(e && e.message) || String(e) }; }
@@ -1084,15 +1080,15 @@
       } catch(e){}
       verify.textContent = old; verify.disabled = false;
       if(!vout) return;
-      if(r.ok){
-        vout.textContent = '✓ Cloud save verified — your progress uploaded and read back correctly.' + devLine;
-      } else {
-        var lines = ['✗ ' + (r.error || 'Cloud save could not be verified.')];
-        (r.checks || []).forEach(function(c){
-          lines.push((c.match ? '✓ ' : '✗ ') + c.label + ': cloud ' + c.cloud + ' / local ' + c.local);
-        });
-        vout.textContent = lines.join('\n') + devLine;
-      }
+      /* RENDER THE DIAGNOSTIC'S OWN SENTENCES. verifyCloudSave returns `lines`
+         — the realm's projection (version, last settle, gold, total level) and
+         the residue — already worded, each with its own ✓/✗. A `lines`-less
+         answer (not signed in, offline, unconfigured) shows its error line. */
+      var out = [];
+      if(r.error) out.push((r.ok ? '' : '✗ ') + r.error);
+      (r.lines || []).forEach(function(l){ out.push((l.ok ? '✓ ' : '✗ ') + l.text); });
+      if(!out.length) out.push(r.ok ? '✓ Your save is healthy.' : '✗ Cloud save could not be checked.');
+      vout.textContent = out.join('\n') + devLine;
     });
 
     // ── Theme picker ──

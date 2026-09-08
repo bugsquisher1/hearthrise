@@ -1,22 +1,14 @@
 // ============================================================
-// src/features/home-dashboard.js  (revamp b154)
+// src/features/home-dashboard.js — the Home/Profile screen.
 //
-// A REAL rebuild of the Home/Profile screen — not a recolor of the
-// old layout. Matches the revamp pitch: header + legible pills, an
-// illuminated "next milestone" hero, actionable quests ("every card
-// is a door"), today tiles, resume, and buffs.
+// The first screen of the component layer, and the pattern the rest follow:
+// header + legible pills, an illuminated "next milestone" hero, actionable
+// quests ("every card is a door"), today tiles, resume, buffs.
 //
-// Architecture note (per CLAUDE.md): this is the first screen of the
-// new component layer. It is styled with DESIGN TOKENS ONLY, so it
-// renders correctly in every theme automatically — cream on Cozy Day,
-// warm-dark on Hearthlight — with zero per-theme overrides. That is
-// the whole point: build it right once, and theming is free.
-//
-// Integration is non-destructive: it renders into #panel-profile and
-// hides the legacy dash cards via a scoped rule. The old renderer keeps
-// running harmlessly against the (hidden) legacy nodes, so nothing else
-// that depends on them breaks. Reads real state through the existing
-// HearthriseLaunchpad API + window.G.
+// Styled with DESIGN TOKENS ONLY, so it renders correctly in every theme with
+// zero per-theme overrides. It renders into #panel-profile and hides the legacy
+// dash cards with a scoped rule; state is read through the HearthriseLaunchpad
+// API + window.G.
 // ============================================================
 (function () {
   'use strict';
@@ -57,19 +49,18 @@
          edge; .hd-wrap carries the old 1120px measure for everything else. */
       '#panel-profile #' + ROOT_ID + '{display:block;margin:0;padding:0 0 20px;font-family:var(--f-ui);color:var(--ink) !important}',
       R + '.hd-wrap{max-width:1120px;margin:0 auto;padding:0 4px}',
+      /* Set the Night. Same measure and rhythm as `.hd-bank-txt` beside it —
+         one sentence, no second tone, colour from tokens only. */
+      R + '.hd-night .hd-night-txt{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);line-height:1.4}',
+      R + '.hd-night{align-items:flex-start}',
 
-      /* ── b219 · THE HEARTH BAND ───────────────────────────────────────────
-         Home had no background at all: `body` and every `.panel` paint an
-         opaque surface, so the global backdrop scene (backdrop.js, b158) was
-         occluded on literally every screen — the atmosphere existed in code
-         and was invisible in the game. Rather than un-paint the shell (which
-         would drag every other panel with it), Home composes the scene INTO
-         the page: a dusk vista of the player's own holding, with identity
-         standing on the ridge in front of it.
-
-         It is a picture, so it is allowed to be a contained object — that is
-         what "containment is earned" means. It is also the only such object
-         above the fold, so it reads as the focal point instead of card #18. */
+      /* ── THE HEARTH BAND ──────────────────────────────────────────────────
+         Every `.panel` paints an opaque surface, so the global backdrop scene
+         (backdrop.js) is occluded on every screen. Rather than un-paint the
+         shell, Home composes the scene INTO the page: a dusk vista of the
+         player's own holding, identity standing on the ridge in front of it.
+         It is a picture, so it is allowed to be a contained object — and it is
+         the only such object above the fold, so it reads as the focal point. */
       /* Height scales with the viewport instead of stepping at breakpoints: the
          picture is always ~a quarter of the screen, so it stays generous on a
          desktop monitor and never eats a landscape phone's working area. */
@@ -83,7 +74,7 @@
          is not a colour, so it is not a token, but its fallback surface above
          is. */
       R + '.hd-hearth::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
-      'background:url(assets/brand/hearthrise-splash.jpg?v=519) 50% 40%/cover no-repeat}',
+      'background:url(assets/brand/hearthrise-splash.jpg?v=521) 50% 40%/cover no-repeat}',
       /* Scrim, legibility-aware. The identity block sits bottom-left and the
          ledger bottom-right, so both flanks and the floor darken to
          --scene-scrim-2 while the centre-top stays open for the painting. Two
@@ -131,18 +122,15 @@
         R + '.hd-name{font-size:23px}' + R + '.hd-ava{width:52px;height:52px}' +
         R + '.hd-sub{font-size:calc(14.5px * var(--ui-scale, 1))}' + R + '.hd-hearth-in{padding:0 12px 11px;gap:12px}}',
 
-      /* b315 · COMPACT HERO STRIP for the short landscape phone.
-         On a ~430px-tall landscape screen the clamp(104px…) picture plus its
-         22px skirt ate a third of the viewport and shoved "Next up" off the
-         bottom. Here the band collapses to a single ~56px strip: a small
-         avatar beside the name, rank/status on a tight second line, the
-         backdrop reduced to a thin lit horizon. The homestead eyebrow is the
-         one line dropped — it is the least load-bearing, and the name below it
-         already carries identity. Every readable string stays ≥14.5px; only
-         the CHROME (backdrop height, avatar, vertical padding, the big ledger
-         numerals) shrinks. Same #panel-profile #hd-root prefix + later source
-         order as the base rules, so it wins without a specificity fight.
-         Scoped to the landscape-rail query only → desktop + portrait untouched. */
+      /* COMPACT HERO STRIP for the short landscape phone, where the full band
+         ate a third of the viewport and shoved "Next up" off the bottom. It
+         collapses to a single ~56px strip: small avatar beside the name,
+         rank/status on a tight second line, backdrop reduced to a lit horizon.
+         The homestead eyebrow is the one line dropped (the name carries
+         identity). Every readable string stays ≥14.5px; only the CHROME shrinks.
+         Same #panel-profile #hd-root prefix + later source order as the base
+         rules, so it wins without a specificity fight, and it is scoped to the
+         landscape-rail query → desktop + portrait untouched. */
       '@media (max-height:540px) and (orientation:landscape) and (max-width:1024px){' +
         R + '.hd-hearth{height:56px;margin:-10px -10px 10px}' +
         R + '.hd-hearth-in{padding:0 12px;align-items:center;gap:12px}' +
@@ -155,18 +143,11 @@
         R + '.hd-led b{font-size:19px}' +
       '}',
 
-      /* ── b217 art direction ───────────────────────────────────────────────
-         Home was seventeen bordered rounded boxes of identical weight: five
-         stat pills that duplicated the topbar verbatim, six hero/quest cards,
-         three "Today" tiles and three mini cards. Squinting at it produced a
-         uniform grey field with no focal point, and the right column ran out
-         of content two-thirds of the way down, leaving ~700px of unexplained
-         black.
-
-         Rebuilt around one idea: the LEFT column is what to DO, the RIGHT
-         column is how you're DOING. Grouping comes from small-caps headings
-         over an incised rule; only the claimable reward is allowed to be a lit
-         object, because it is the only thing on the screen that is urgent. */
+      /* ── ART DIRECTION: ONE IDEA ──────────────────────────────────────────
+         The LEFT column is what to DO, the RIGHT column is how you're DOING.
+         Grouping comes from small-caps headings over an incised rule; only the
+         claimable reward is allowed to be a lit object, because it is the only
+         thing on the screen that is urgent. */
 
       R + '.hd-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:34px;align-items:start}',
       '@media(max-width:900px), (max-height:540px) and (max-width:1024px){' + R + '.hd-grid{grid-template-columns:1fr;gap:22px}}',
@@ -238,6 +219,34 @@
       R + '.hd-qmeta .p{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3) !important;font-weight:600;font-variant-numeric:tabular-nums}',
       R + '.hd-qmeta .r{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--gold-2) !important;font-weight:600;display:inline-flex;align-items:center;gap:4px}',
 
+      /* ── FIRST LIGHT — "Your first day" (Feature Slate §1) ────────────────
+         The chain rows are `.hd-quest` wholesale — same 34px slot, same
+         title / meta / bar / CTA rhythm as the daily rows beneath them — so the
+         card reads as one more section of Home. Everything below contributes
+         STATE, never a second layout, and every colour is a token. `.hd-qic`
+         carries the step ORDINAL instead of a door glyph, which is what makes
+         this read as a numbered checklist at a glance; the door is still named
+         by the row's own CTA verb, resolved through HearthriseQuestNav. */
+      R + '.hd-fl-row{cursor:pointer}',
+      R + '.hd-fl-step{font-family:var(--f-label);font-weight:700;font-variant-numeric:tabular-nums;',
+      'font-size:calc(15px * var(--ui-scale, 1));color:var(--ink-3) !important;line-height:1}',
+      /* THE LIT STEP. A left spine plus a gilt title — the daily card's "this
+         one is yours now" vocabulary at a quieter volume, because the chain is
+         a plan and only one row of it is the next thing you do. */
+      R + '.hd-fl-row.is-current{box-shadow:inset 3px 0 0 var(--gold)}',
+      R + '.hd-fl-row.is-current .hd-qtitle{color:var(--gold-2) !important}',
+      R + '.hd-fl-row.is-current .hd-fl-step{color:var(--gold-2) !important}',
+      /* Finished steps stay READABLE — striking them through would make the
+         card harder to read the further along you got. */
+      R + '.hd-fl-row.is-done{opacity:.62}',
+      /* The step the server has not paid yet — a state the player passes
+         THROUGH (the claim fires on completion, the recovery sweep re-fires
+         anything left), so it announces itself and offers no button. */
+      R + '.hd-fl-row.is-claimable .hd-fl-wait{color:var(--gold) !important;font-weight:700}',
+      R + '.hd-fl-count{font-family:var(--f-label);font-weight:700;font-variant-numeric:tabular-nums;',
+      'font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3) !important}',
+      R + '.hd-fl-sep{color:var(--ink-3) !important;font-weight:400;opacity:.7}',
+
       /* Buttons follow the global hierarchy: gilt = primary, quiet = the rest.
          Every row used to ship a filled gold slab, so nothing was primary. */
       R + '.hd-cta{flex:0 0 auto;align-self:center;min-height:34px;display:inline-flex;align-items:center;',
@@ -296,17 +305,13 @@
       R + '.hd-duo .s{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3) !important;margin-top:3px;line-height:1.35}',
       R + '.hd-duo .when{flex:0 0 auto;font-family:var(--f-label);font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.05em;',
       'text-transform:uppercase;color:var(--ink-3) !important;font-weight:700;padding-top:3px;white-space:nowrap}',
-      /* ── b326: the welcome-back honesty band ──────────────────────────────
+      /* ── THE WELCOME-BACK HONESTY BAND ────────────────────────────────────
          Deliberately NOT a card. The dashboard is a rhythm of unframed rows
-         under section headings (b217 killed the wall-of-cards); this band earns
-         its emphasis from POSITION — it leads the whole grid — and from its own
-         note ladder, not from a box. Every colour is a token, so it keeps its
-         meaning in either theme and cannot drift to a raw gilt.
-
-         The band is a two-part flex: the TOTALS (what you got) and the NOTES
-         (why that is the number). Side by side on desktop, where the width
-         exists; stacked below 640px, where it does not. `flex:1 1 <basis>` on
-         both halves is what makes that one rule instead of two media queries. */
+         under section headings; this band earns its emphasis from POSITION — it
+         leads the whole grid — and from its own note ladder, not from a box.
+         It is a two-part flex: the TOTALS (what you got) beside the NOTES (why
+         that is the number), stacked below 640px. `flex:1 1 <basis>` on both
+         halves is what makes that one rule instead of two media queries. */
       R + '.hd-awayband{margin-bottom:20px}',
       R + '.hd-away{display:flex;align-items:flex-start;gap:10px 22px;flex-wrap:wrap;padding:10px 4px 2px}',
       R + '.hd-away-sum{flex:1 1 260px;min-width:0;display:flex;align-items:flex-start;gap:11px}',
@@ -384,7 +389,18 @@
         /* P2: Claim/Train/Build/Play buttons were 34px — under the 44px touch min. */
         R + '.hd-cta,' + R + '.hd-cta.ghost{min-height:44px;padding:0 18px}' +
         /* P3: rename glyph was an ~18px target beside the name — grow it, keep glyph centred. */
-        R + '.hd-rename{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1}}',
+        R + '.hd-rename{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1}' +
+        /* First Light: the whole row is the tap target on a phone, so it gets
+           the 44px minimum too — a row that only responds on its button is a
+           row a thumb misses. MEASURED at 922x423: five rows at the desktop
+           rhythm run the card past the fold, so the gauge is dropped on every
+           row EXCEPT the lit one. No fact is lost — the bar is a second drawing
+           of "0 / 5" and that number stays on the row. (A phone-native rhythm
+           for this card is the Art Director's; this is the density floor.) */
+        R + '.hd-fl-row{min-height:44px;padding:9px 4px}' +
+        R + '.hd-fl-row .hd-qic{flex:0 0 26px}' +
+        R + '.hd-fl-row .hd-qmeta{margin:3px 0 0}' +
+        R + '.hd-fl-row:not(.is-current) .hd-bar{display:none}}',
       /* P3: relocated ledger shown wherever the in-band .hd-ledger hides
          (max-width:760px), so no 541–760px gap loses the figures. */
       '@media(max-width:760px){' + R + '.hd-ledger-m{display:flex}}',
@@ -428,14 +444,12 @@
       'display:inline-block;vertical-align:middle" aria-hidden="true"><path fill="' + (color || 'var(--gold-2)') + '" d="' + p + '"/></svg>';
   }
   /* ══════════════════════════════════════════════════════════════════════
-     b326 — THE WELCOME-BACK HONESTY CARD
+     THE WELCOME-BACK HONESTY CARD
      (docs/design/away-time-ruling.md §"Player-facing honesty", items 1–3)
 
-     The ruling's point is not decoration: "the silent penalty was the actual
-     sin", so the game must now SAY what it paid you. Every clause below is
-     read from `G.lastOfflineSummary`'s honesty payload — `blessed`,
-     `buffsPaused`, `crits`, `featuredMs`, `featuredDropMult`, `capped`,
-     `rateMult` — and NOTHING is inferred. A renderer that infers a bonus will
+     "The silent penalty was the actual sin", so the game must SAY what it paid
+     you. Every clause below is read from `G.lastOfflineSummary`'s honesty
+     payload and NOTHING is inferred: a renderer that infers a bonus will
      eventually quote one nobody paid, which is the failure being fixed.
 
      Two conditional clauses are deliberately conditional:
@@ -447,8 +461,8 @@
          paused" beside an empty buff list is a lie in the other direction.
      ══════════════════════════════════════════════════════════════════════ */
 
-  /* "8h 12m" / "47m". Prefers the exact span (`awayMs`, b326); falls back to
-     the 0.1h-rounded `hrs` for summaries written by an older build. */
+  /* "8h 12m" / "47m". Prefers the exact span (`awayMs`); falls back to the
+     0.1h-rounded `hrs` for summaries written by an older build. */
   function fmtAway(off) {
     var ms = (off && typeof off.awayMs === 'number' && isFinite(off.awayMs) && off.awayMs > 0)
       ? off.awayMs : Math.max(0, (off && off.hrs) || 0) * 3600000;
@@ -506,11 +520,11 @@
     return fmtSpanShort(n);
   }
 
-  /* ── b345 — DID THE RUN END BEFORE THE ABSENCE DID, AND WHAT ENDED IT? ──
-     `lastOfflineSummary` had 21 fields and not one could express "the supplies
-     ran out", so a cooking session that burned through eight shrimp in 30.7
-     seconds rendered here as "8h away — +11 items · +80 XP · at the base rate".
-     Every clause below reads a field processOffline STATED (`stoppedBy`,
+  /* ── DID THE RUN END BEFORE THE ABSENCE DID, AND WHAT ENDED IT? ─────────
+     Without a stated stop reason, a cooking session that burned through its
+     supplies in half a minute renders as "8h away — +11 items · +80 XP · at the
+     base rate". Every clause below reads a field processOffline STATED
+     (`stoppedBy`,
      `stoppedById`, `stoppedSkill`, `paidMs`, `stoppedPerHour`); nothing is
      inferred, and in particular "paidMs < awayMs" is NOT the test — flooring a
      tick count makes that true on a perfectly ordinary night.
@@ -519,25 +533,18 @@
      the same seam, but it already owns richer copy above (who killed you).
      One reason, one line. A future reason — a full bank, a despawn — is a new
      row in COPY below and nothing else. */
-  /* "3" -> "three". The RETREAT sentence names its own rung in words, and the
-     rung is DATA (`RETREAT_FOODLESS_FALLS` / `RETREAT_ANY_FALLS` in
-     src/core/away.js) — so the word is looked up from the number the engine
-     actually charged rather than typed into the sentence. A designer moving the
-     table to 4 gets "four falls in a row"; a number this table does not know
-     falls back to the digit, which is plain rather than wrong. */
+  /* "3" -> "three". The rung is DATA (`RETREAT_FOODLESS_FALLS` /
+     `RETREAT_ANY_FALLS`, away.js), so the word is looked up from the number the
+     engine charged; an unknown number falls back to the digit. */
   var NUM_WORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
     'eight', 'nine', 'ten', 'eleven', 'twelve'];
   function numWord(n) {
     var i = Math.max(0, Math.floor(Number(n) || 0));
     return NUM_WORD[i] || String(i);
   }
-  /* "2h 14m" / "3h 02m" / "45s" — HOW FAR INTO THE NIGHT.
-     ⚠ NOT `fmtSince`, and the difference is the point. `fmtSpanShort` DROPS a
-       remainder under five minutes ("3h 02m" renders as "3h"), which is right
-       for the featured-boss stretch it was written for — a line that must never
-       claim a minute it did not pay — and wrong here, where the number IS the
-       fact the sentence exists to deliver. The minutes are zero-padded so the
-       two halves of the figure read as one clock. */
+  /* "2h 14m" / "45s" - HOW FAR INTO THE NIGHT. ⚠ NOT `fmtSince`: `fmtSpanShort`
+     DROPS a remainder under five minutes, right for the featured-boss stretch
+     and wrong here, where the number IS the fact. Minutes are zero-padded. */
   function fmtInto(ms) {
     var n = Math.max(0, Number(ms) || 0);
     if (n < 60000) return Math.max(1, Math.round(n / 1000)) + 's';
@@ -553,16 +560,10 @@
             ? ' — the remaining ' + fmtSpanShort(s.restMs) + ' paid nothing.'
             : ' — nothing was earned after that.');
     },
-    /* ── THE RETREAT (Recovery Rule rev. 3, Game Designer 2026-09-07) ───────
-       TWO SENTENCES, because the two rungs answer two different questions and
-       the copy is where that distinction is actually delivered to the player:
-       three foodless falls means "you own the fix, bring provisions"; six falls
-       whatever you were carrying means "this target is wrong for you".
-       One sentence could only ever say one of them.
-       Every number is STATED by the simulation — `retreatFalls` (the rung the
-       engine charged), `retreatMs` (how far in), `diedTo` (the foe) — so this
-       row cannot promise a rung the table no longer charges or a span the
-       night did not run. */
+    /* THE RETREAT - TWO SENTENCES, because the rungs answer two questions:
+       three foodless falls means "bring provisions"; six falls whatever you
+       carried means "this target is wrong for you". Every number is STATED by
+       the simulation, so the row cannot promise a rung nobody charges. */
     retreat: function (s) {
       if (s.foodless) {
         return 'You ran out of food and fell ' + numWord(s.falls) + ' times in a row, so you '
@@ -587,10 +588,10 @@
     var sk = off.stoppedSkill || null;
     var M = window.MONSTERS;
     var foeId = off.diedTo || null;
-    /* ⚠ `retreatMs` IS TESTED FOR NULL, NEVER FOR TRUTH. Zero means "the hero
-       pulled back on the very first tick", which is the single most important
-       night this row can describe; a truthiness check would silently fall back
-       to `paidMs` and quote a span nobody ran. */
+    /* ⚠ `retreatMs` IS TESTED FOR NULL, NEVER FOR TRUTH. Zero means "pulled back
+       on the very first tick", the single most important night this row can
+       describe; a truthiness check would fall back to `paidMs` and quote a span
+       nobody ran. */
     var atMs = (typeof off.retreatMs === 'number' && isFinite(off.retreatMs) && off.retreatMs >= 0)
       ? off.retreatMs : paidMs;
     return {
@@ -600,9 +601,8 @@
       what: (id && window.ITEMS && window.ITEMS[id] && window.ITEMS[id].n) || 'materials',
       skill: (sk && window.SKILLS_DEF && window.SKILLS_DEF[sk] && window.SKILLS_DEF[sk].name) || 'Your run',
       perHour: Math.max(0, Number(off.stoppedPerHour) || 0),
-      /* THE RETREAT'S OWN THREE FACTS. Defaults are the UNDER-claiming ones: a
-         receipt from a server that predates rev. 3 states no rung and no span,
-         and the sentence then says less rather than inventing a number. */
+      /* THE RETREAT'S OWN FACTS, defaulting to the UNDER-claiming values: a
+         receipt predating rev. 3 states no rung and no span. */
       atMs: atMs,
       falls: Math.max(0, Number(off.retreatFalls) || 0),
       foodless: !!off.retreatFoodless,
@@ -639,19 +639,10 @@
            i.e. the death landed in the last minute of the window).
        See docs/design/away-time-ruling.md §"Player-facing honesty". */
     var death = awayDeath(off);
-    /* ── THE RETREAT OWNS THE WHOLE STORY (Recovery rev. 3) ────────────────
-       A retreat night MUST NOT print the death block below as well. Both
-       sentences are about the same falls, and side by side they contradict each
-       other on the one fact that matters: the death block ends "your run picked
-       up each time" (rev. 2's headline promise) while the retreat row says the
-       hero went home and the rest of the night was rest. Two surfaces telling
-       one player two stories about one night is how they learn to distrust
-       both — the exact failure b341 and b345 were each filed for.
-       So the retreat's own row (STOP_COPY.retreat, printed below) is the death
-       line for this night: it names the foe, the count, the span and the fix,
-       which is strictly more than the death block could say. The "Still
-       recovering — Nm to go" note survives, because the retreating fall charged
-       its rung and that clock is still the player's next constraint. */
+    /* THE RETREAT OWNS THE WHOLE STORY - a retreat night MUST NOT print the
+       death block too. Both are about the same falls and contradict each other:
+       the death block ends "your run picked up each time" while the retreat row
+       says the hero went home. "Still recovering" survives regardless. */
     var retreat = off && off.stoppedBy === 'retreat';
     if (death && !retreat) {
       var awayMs = (typeof off.awayMs === 'number' && isFinite(off.awayMs) && off.awayMs > 0)
@@ -681,20 +672,15 @@
         if (AC && typeof AC.receiptDeathCause === 'function') why = AC.receiptDeathCause(off);
       } catch (e) {}
       /* ══ REV. 2 — A DEATH NO LONGER ENDS THE NIGHT (Recovery Rule, 2026-09-06)
-         Under the Recovery Rule the character is KNOCKED OUT for `recoverMs`,
-         gets back up at 40% and the run carries on: `survivedMs` is the TOTAL
-         span that earned across a night that may contain many falls. The
-         sentence below it — "nothing was earned after that" — was written when
-         a death was terminal, and on a recovery night it describes a night that
-         kept paying as if it had stopped. That is the same species of defect
-         b341 filed: the durable surface stating one thing while the engine did
-         another, pointed the other way.
+         The character is KNOCKED OUT for `recoverMs`, gets back up at 40% and
+         the run carries on: `survivedMs` is the TOTAL span that earned across a
+         night that may contain many falls, so "nothing was earned after that"
+         would describe a night that kept paying as if it had stopped.
 
          The switch is `deaths` being STATED, exactly as the welcome-back modal
-         reads it (`_statedDeaths || (_dead ? 1 : 0)`), and for the same reason:
-         the currently-deployed hr-accrue writes `died` with NO `deaths`, and a
-         receipt like that is exactly ONE known fall with no recovery story to
-         tell — it must keep the pre-Recovery wording rather than be handed an
+         reads it (`_statedDeaths || (_dead ? 1 : 0)`): a receipt carrying `died`
+         with NO `deaths` is exactly ONE known fall with no recovery story to
+         tell, and must keep the pre-Recovery wording rather than be handed an
          invented one. A receipt that genuinely stopped (`stoppedBy === 'death'`)
          keeps it too, because for that night the old sentence is true.
 
@@ -733,26 +719,17 @@
       if (why) t += ' ' + why.sentence;
       notes.push({ tone: 'bad', icon: 'uiSkull', text: t });
     }
-    /* STILL DOWN. Without this the card describes a character who is up and
-       fighting while the server will refuse their next swing — and this is
-       the DURABLE surface, still readable after the modal has been dismissed.
-       STATED only: no `recoverRemainingMs`, no claim.
-       ⚠ HOISTED OUT OF THE DEATH BLOCK (rev. 3) so a RETREAT night keeps it.
-         The ruling is explicit that this sentence is unchanged while the clock
-         is live, and the retreating fall charges its rung like any other — so
-         the one night where the player most needs to know they are still down
-         is exactly the night the old nesting would have hidden it on. */
+    /* STILL DOWN - without this the card describes a character who is up while
+       the server will refuse their next swing, on the DURABLE surface.
+       ⚠ HOISTED OUT OF THE DEATH BLOCK so a RETREAT night keeps it: that fall
+         charged its rung like any other. */
     var recLeft = Math.max(0, Number(off.recoverRemainingMs) || 0);
     if (recLeft > 0 && (retreat || (death && Math.max(0, Number(off.deaths) || 0) >= 1
                                     && off.stoppedBy !== 'death'))) {
-      /* ⚠ ONE AUTHOR FOR THIS SENTENCE (Designer ruling, 2026-09-07). The
-         retreat death sheet prints the same clock line, and the ruling asks for
-         it in the same words — so the sentence is composed by
-         `HearthriseDeathSheet.stillRecovering` and by nothing here. That module
-         loads FIRST (index.html ~1064 vs ~1120), so the call cannot race the
-         load; the guard is for a module that failed to load at all, and the
-         degradation is the one legacy.js already uses for the shared retreat
-         sentence — say NOTHING rather than say a second version. */
+      /* ⚠ ONE AUTHOR FOR THIS SENTENCE - the death sheet prints the same clock
+         line, so it is composed by `HearthriseDeathSheet.stillRecovering` and
+         by nothing here. It loads FIRST, so this cannot race it; if it failed
+         to load the degradation is to say NOTHING, never a second version. */
       var DS = window.HearthriseDeathSheet;
       if (DS && typeof DS.stillRecovering === 'function') {
         notes.push({ tone: 'bad', icon: 'uiClock', text: DS.stillRecovering(recLeft) });
@@ -788,12 +765,16 @@
     var quiet = !bits.length && !combatBits.length;
     if (quiet && !death) {
       notes.push({ tone: 'held', icon: 'uiSprout',
-        /* b388 — do NOT promise cooking here: cooking is not server-paid yet
-           (declarationFor downgrades it to idle), so it earns NOTHING while away.
-           List only what actually banks offline: combat, gathering, and non-cooking
-           crafting/smithing. Restore cooking to this line only when it pays away. */
-        text: 'Nothing was running that pays while you are away. Fighting, gathering '
-          + 'and crafting bank the whole time you are gone — set one going before you close the tab.' });
+        /* COOKING IS ON THIS LIST BECAUSE IT PAYS. artisan-sim.js and
+           item-authority.js both carry COOKING_SETTLEMENT_ARM_ENABLED = true and
+           `serverOwnedBonusKeys()` includes `noBurn`, so `benchPayable('cooking')`
+           is true and the engine settles the cook at the server's own burn rate.
+           CONTRACT: this clause is bound to that arm by the FL-AWAY-COOK-1
+           regression — it goes red if the flag is ever flipped back without this
+           copy following it. */
+        text: 'Nothing was running that pays while you are away. Fighting, gathering, '
+          + 'cooking and crafting all bank the whole time you are gone — set one going '
+          + 'before you close the tab.' });
     }
     /* "At the base rate" on a night that paid nothing is noise standing where
        an explanation should be. Every other case keeps it. */
@@ -1001,6 +982,161 @@
     return (G.inventory && G.inventory[id]) || 0;
   }
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     FIRST LIGHT — "Your first day" (docs/planning/FEATURE_SLATE.md §1)
+
+     A READ of rows the engine already keeps and the server already verifies:
+     legacy.js QUEST_DEFS is the onboarding chain, seeded into `G.quests` on a
+     fresh boot and credited by `hr_claim_quest`. This card renders no new
+     content and computes no new number.
+
+     THE CHAIN IS `QUEST_DEFS`, IN ITS AUTHORED ORDER. Not a list of ids here.
+     Two properties fall out of that and both are load-bearing:
+       · It is DATA. Five rows today; six the moment the `first_light` capstone
+         row lands in the catalogue — no edit in this file, and no count typed
+         anywhere in it (the header reads "Step 2 of N", derived).
+       · It never invents progress. A def with no matching row in `G.quests` is
+         not drawn at all. `G.quests` is the projected save state; a card that
+         showed 0/15 for a quest the player does not hold would be the
+         residue-ahead shape one surface over (CLAUDE §6).
+
+     THE CONTRACT AT SCALE: `QUEST_DEFS` is the FIRST DAY. Adding a row there
+     adds a step to this card, uncapped and unwindowed on purpose — a cap would
+     mean a catalogue row could ship and never be shown, the exact failure this
+     feature exists to end. A quest that is not part of a new player's first
+     session belongs in a pool (DAILY_TASK_POOL, the goal catalogue) with its own
+     surface; a long-arc quest LINE wants its own table and its own section, not
+     a thirtieth row under "Your first day".
+
+     WHAT THIS MAY NOT DO: grant, complete, claim or persist anything.
+     `completeQuest` fires the claim; `hrSweepUnclaimedQuests` recovers a dropped
+     one. This module owns the picture and nothing else.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* Does the SERVER pay this row — i.e. is `q.claimed` a fact we should be
+     waiting for? Same two clauses `hrSweepUnclaimedQuests` uses to build its
+     pending set, read from the SAME catalogue the SQL seed and the parity guard
+     read, so the card cannot disagree with the sweep about what is outstanding.
+     Fails to FALSE when the core bridge has not settled: a row we cannot vouch
+     for renders as plain "done", never as a reward we claim is on its way. */
+  function questServerPays(q) {
+    var r = (q && q.reward) || {};
+    if ((r.gold || 0) > 0) return true;
+    try {
+      var gc = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+      if (gc && typeof gc.questItemsAreServerCredited === 'function') {
+        return !!gc.questItemsAreServerCredited(q.id);
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  /* The chain, as a MODEL — separate from the markup so the suite can quote a
+     state instead of grepping HTML (the same reason `__awayCardHtml` exists).
+     Returns null when there is no open chain, which is exactly when the card
+     must not draw. `state` is one of:
+       done       finished, and either paid or carrying nothing the server pays
+       claimable  finished, server-payable, `hr_claim_quest` has not confirmed
+       current    the FIRST open step
+       ahead      an open step further down. NOT "locked" — every row in the
+                  chain counts from the first minute, and a padlock would be
+                  this card's first lie. */
+  function firstDayModel() {
+    var G = window.G;
+    if (!G || !Array.isArray(G.quests)) return null;
+    var defs = Array.isArray(window.QUEST_DEFS) ? window.QUEST_DEFS : [];
+    if (!defs.length) return null;
+    var byId = {};
+    G.quests.forEach(function (q) { if (q && q.id && !byId[q.id]) byId[q.id] = q; });
+
+    var steps = [];
+    var currentIndex = -1;
+    defs.forEach(function (def) {
+      if (!def || !def.id) return;
+      var q = byId[def.id];
+      if (!q) return;
+      var goal = Math.max(1, Number(q.goal) || 0);
+      var progress = Math.max(0, Math.min(goal, Number(q.progress) || 0));
+      var state;
+      if (q.done) state = (!q.claimed && questServerPays(q)) ? 'claimable' : 'done';
+      else if (currentIndex < 0) { state = 'current'; currentIndex = steps.length; }
+      else state = 'ahead';
+      steps.push({
+        id: q.id,
+        label: q.label || q.id,
+        goal: goal,
+        progress: progress,
+        pct: Math.max(0, Math.min(100, Math.round((progress / goal) * 100))),
+        state: state,
+        reward: q.reward || {},
+        goalRow: q,
+      });
+    });
+    /* THE WHOLE CARD'S VISIBILITY, in one line: an open step, or nothing. A
+       chain that is finished — including one whose last reward is still in
+       flight — has nothing left to tell a player, so it leaves the screen. */
+    if (currentIndex < 0) return null;
+    return { steps: steps, currentIndex: currentIndex, total: steps.length };
+  }
+
+  /* The reward, in the player's words. Names come from ITEMS via itemName()
+     (`.n`, the display name) — never the id: "5x small_bones" is a bug this
+     project has already shipped once, from a renderer in another scope that
+     could not see the name table. */
+  function questRewardHtml(r) {
+    var bits = [];
+    if ((r.gold || 0) > 0) {
+      bits.push(gly('gold', 13, '', 'var(--gold-2)') + '<span>' + num(r.gold) + '</span>');
+    }
+    if (r.item) bits.push('<span>' + num(r.qty || 1) + '× ' + esc(itemName(r.item)) + '</span>');
+    if ((r.combatXp || 0) > 0) bits.push('<span>' + num(r.combatXp) + ' combat XP</span>');
+    /* A separator, because two rewards on one row read as one number followed
+       by a stray quantity ("200 30× Raw Shrimp"). Same middot the rest of Home
+       uses between facts. */
+    return bits.join('<span class="hd-fl-sep">·</span>');
+  }
+
+  function firstDayHtml(model) {
+    if (!model) return '';
+    var out = '<div class="hd-firstlight"><div class="hd-h"><h3>Your first day</h3>' +
+      '<span class="hd-fl-count">Step ' + (model.currentIndex + 1) + ' of ' + model.total + '</span>' +
+      '</div><div class="hd-rows">';
+    model.steps.forEach(function (s, i) {
+      var done = s.state === 'done' || s.state === 'claimable';
+      var slot = done
+        ? gly('uiCheck', 20, '', 'var(--green)')
+        : '<span class="hd-fl-step">' + (i + 1) + '</span>';
+      var reward = questRewardHtml(s.reward);
+      /* The meta line answers a different question per state, and only one:
+         a finished step says what it paid, an open one says how far along it
+         is. Printing both on a done row restates the goal it already met. */
+      var meta = done
+        ? (s.state === 'claimable'
+            ? '<span class="r hd-fl-wait">Reward on the way</span>'
+            : (reward ? '<span class="r">' + reward + '</span>' : '<span class="p">Done</span>'))
+        : '<span class="p">' + num(s.progress) + ' / ' + num(s.goal) + '</span>' +
+          (reward ? '<span class="r">' + reward + '</span>' : '');
+      var r = questRoute(s.goalRow);
+      out += '<div class="hd-card hd-quest hd-fl-row is-' + s.state + '" data-hd="fl" data-i="' + i + '"' +
+        (r.label ? ' title="' + esc(r.label) + '"' : '') + '>' +
+        '<div class="hd-qic">' + slot + '</div>' +
+        '<div class="hd-qbody">' +
+        '<div class="hd-qtitle">' + esc(s.label) + '</div>' +
+        '<div class="hd-qmeta">' + meta + '</div>' +
+        (done ? '' : '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + s.pct + '%"></i></div>') +
+        '</div>' +
+        /* Only the OPEN steps carry a button, and it deliberately carries NO
+           `data-hd` of its own: the ROW is the door on every step, the button
+           is a visible handle on that same door, and its click bubbles to the
+           row's one handler. Wiring both would run the navigation twice — the
+           shape of a double-open that only shows up on the slowest screen. */
+        (done ? '' : '<button class="hd-cta' + (s.state === 'current' ? '' : ' ghost') +
+          '">' + esc(r.verb) + '</button>') +
+        '</div>';
+    });
+    return out + '</div></div>';
+  }
+
   function playerName() {
     // Route ALL name display through the server-authoritative identity seam
     // (HearthriseIdentity.getDisplayName). Never derive a name from the account
@@ -1149,35 +1285,21 @@
     // ── grid ──
     html += '<div class="hd-wrap">';
 
-    /* b326 — "While you were away" LEADS THE DASHBOARD, full width, above the
-       two columns (docs/design/away-time-ruling.md §"Player-facing honesty").
-
-       It used to sit in the right-hand rail, fifth item down, and the rail is
-       the SECOND column — so on the 852x339 landscape phone the grid collapses
-       to one column and the one thing a returning player opens the game to read
-       was three screens down, after Next up and Your holding. A welcome-back
-       summary below the fold is not a welcome-back summary.
-
-       Full width also earns its keep on desktop: the ledger of notes lays out
-       beside the totals instead of wrapping in a 300px rail. It is time-boxed
-       to 30 minutes off `summary.at`, so it leads only while it is news and
-       then vanishes — the rest of the session's composition is unchanged. */
+    /* "While you were away" LEADS THE DASHBOARD, full width, above the two
+       columns (docs/design/away-time-ruling.md §"Player-facing honesty"). In
+       the right-hand rail it fell below the fold on a landscape phone, where the
+       grid collapses to one column — and a welcome-back summary below the fold
+       is not a welcome-back summary. Full width also lets the ledger of notes
+       lay out beside the totals instead of wrapping in a 300px rail. Time-boxed
+       to 30 minutes off `summary.at`, so it leads only while it is news. */
     var _off = G.lastOfflineSummary;
-    /* The `>= 0.1h` liveness gate keeps a tab-flip off the dashboard. b343:
-       a DEATH is admitted on its own terms regardless of the claimed hours —
-       the absence that most needs explaining is the one that ended sixty
-       seconds in, and a receipt whose paid span rounds to nothing is exactly
-       that receipt. FRESHNESS is unchanged: 30 minutes off `summary.at`. */
-    /* b361: the LIVENESS gate is now the SAME classifier the toast reads
+    /* THE LIVENESS GATE IS THE SAME CLASSIFIER THE TOAST READS
        (`HearthriseAccrual.receiptNotice`), so a live settle cannot be narrated
-       as an absence on one surface and a sync on the other — the exact
-       two-surfaces-one-absence failure b342 was built to end. It is a strictly
-       tighter gate than the `>= 0.1h` it replaces (6 min → 10 min) and keeps
-       b343's ruling verbatim: a DEATH is admitted on its own terms regardless
-       of the claimed span, because the absence that most needs explaining is
-       the one that ended sixty seconds in. `>= 0.1h` survives as the fallback
-       for a build where the accrual module never published.
-       FRESHNESS is unchanged: 30 minutes off `summary.at`. */
+       as an absence on one surface and a sync on the other. A DEATH is admitted
+       on its own terms regardless of the claimed span, because the absence that
+       most needs explaining is the one that ended sixty seconds in. `>= 0.1h`
+       survives as the fallback for a build where the accrual module never
+       published. FRESHNESS is unchanged: 30 minutes off `summary.at`. */
     var _A = window.HearthriseAccrual;
     var _isAway = function (r) {
       if (!r) return false;
@@ -1186,21 +1308,16 @@
         ? _A.classifyReceipt(r) === 'away'
         : ((r.hrs || 0) >= 0.1 || bad);
     };
-    /* ── THE CARD READS THE ABSENCE, NOT THE LATEST RECEIPT (b519) ────────
-       `G.lastOfflineSummary` is overwritten by EVERY settle, and the settle
-       loop runs every 90 seconds — so reading it alone meant the night's card
-       was replaced by a sync receipt (which classifies as a sync, so nothing
-       drew) about a minute and a half into play. The player opened the game to
-       read the night and it disappeared under them.
-
-       accrue.js now holds the last AWAY-classified receipt separately
-       (`getLastAwayReceipt`). Both are considered and the NEWER absence wins,
-       which keeps three properties at once:
-         · a sync never creates or re-labels a card — neither candidate
-           classifies as away, so nothing draws (SYNC-3, b361);
+    /* ── THE CARD READS THE ABSENCE, NOT THE LATEST RECEIPT ───────────────
+       `G.lastOfflineSummary` is overwritten by EVERY settle, and the loop runs
+       every 90 seconds, so reading it alone lost the night's card a minute and
+       a half into play. accrue.js holds the last AWAY-classified receipt
+       separately (`getLastAwayReceipt`); both are considered and the NEWER
+       absence wins, which keeps three properties at once:
+         · a sync never creates or re-labels a card (SYNC-3);
          · a sync never evicts a fresh card — the holder survives it;
-         · a receipt written straight into `G` (an older build, a fixture, the
-           b342-1 short-death card) still draws, because `G` is still read.
+         · a receipt written straight into `G` (an older build, a fixture, a
+           short-death card) still draws, because `G` is still read.
        The 30-minute freshness box is unchanged and still does the expiring. */
     var _hold = (_A && typeof _A.getLastAwayReceipt === 'function') ? _A.getLastAwayReceipt() : null;
     if (!_isAway(_off)) _off = null;
@@ -1231,10 +1348,44 @@
       } catch (e) { /* daily optional */ }
     }
 
+    /* ── FIRST LIGHT, pinned ABOVE "Next up" ───────────────────────────────
+       Position is the feature: "Next up" is one row chosen by closeness, and
+       for a brand-new account that one row was a skill. The chain goes above
+       it because on day one it IS the game, and it removes itself the moment
+       the last step is finished — see firstDayModel(). */
+    var firstDay = firstDayModel();
+    html += firstDayHtml(firstDay);
+
+    /* ── AND THEN "NEXT UP" MUST NOT SAY IT AGAIN ──────────────────────────
+       IT IS A CLASS, NOT ONE ROW. `getNextMilestone()` picks the closest OPEN
+       GOAL from the same two lists Home renders underneath it, so the hero row
+       can restate a chain quest AND a daily task ("Kill 60 monsters" over "Kill
+       60 monsters" on any fresh slate). Both are suppressed here, by identity
+       and by id, because the defect is "the hero row repeats a row below it".
+
+       The SELECTION is untouched: `getNextMilestone()` is the answer for every
+       consumer and it stays right. What is suppressed is the second RENDER of a
+       row the player is already looking at. `mile` is nulled rather than
+       filtered at the markup so `wire()` inherits the same decision — a
+       `data-hd="mile"` handler bound to a row nobody drew is the kind of loose
+       end that becomes a null-deref two builds later. */
+    var mileWasDup = false;
+    if (mile && mile.kind === 'quest' && mile.goal) {
+      var mid = mile.goal.id;
+      var inChain = !!(firstDay && mid && firstDay.steps.some(function (s) { return s.id === mid; }));
+      var inTasks = tasks.some(function (t) { return t === mile.goal || (mid && t && t.id === mid); });
+      mileWasDup = inChain || inTasks;
+      if (mileWasDup) mile = null;
+    }
+
     // ── LEFT: what to do ──────────────────────────────────────────────────
     // Milestone + quests are one list ("Next up"), not four separate hero
     // cards competing for the same job. Renown moved to the status rail: it
     // is a measure of how you're doing, not an action.
+    /* The section is built in place and REWOUND below if it turns out to have
+       nothing the card above has not already said — cheaper and more legible
+       than threading a second accumulator through forty lines of markup. */
+    var nextUpAt = html.length;
     html += '<div><div class="hd-h"><h3>Next up</h3><a data-hd="allquests">All quests →</a></div><div class="hd-rows">';
     var anyNext = false;
     if (mile) {
@@ -1286,6 +1437,12 @@
         '</div><div>All daily quests done — new ones at reset.</div></div>';
     }
     html += '</div></div>';
+    /* REWIND. The only row this section had was the chain quest the card above
+       is already showing, and there are no dailies behind it — so "Next up"
+       would be a heading over an empty-state line about a different quest
+       system, printed underneath five open quests. A section with nothing to
+       add is removed, not filled. */
+    if (mileWasDup && !anyNext) html = html.slice(0, nextUpAt);
 
     // ── Your holding ──────────────────────────────────────────────────────
     // The game is called Idle Homestead and the homestead was nowhere on Home.
@@ -1369,20 +1526,16 @@
               '<div class="mi">' + gly('uiLock', 20, '', 'var(--ink-3)') + '</div>' +
               '<div class="bd"><div class="t">Hero slot ' + (r.slotId + 1) + '</div>' +
                 '<div class="s">' + (r.free ? 'Included with Hearth Hall' : (r.cost + ' gems')) + '</div></div>' +
-              /* b465 — see the ruling on slotRows().afford in multi-character.js.
-                 A lit "Buy" beside "200 gems" on an account holding one gem is
-                 the first thing a new player taps and the first thing that does
-                 nothing. Disabled + the shortfall in the label. And the
-                 not-your-turn case says WHY rather than the bare word "locked",
-                 which the drawer has always done and this rail never did. */
-              /* 2026-09-08 — and a Buy the SERVER cannot yet be asked about is
-                 disabled too. The purchase moved to hr_buy_hero_slot; until the
-                 envelope has told us which slots this account owns, a lit button
-                 is the b465 lie in a new place — and it WAS, live: the click
-                 dead-ended through a confirm modal with no visible outcome.
-                 Checked FIRST, because "we do not know whether this is possible"
-                 outranks "you are short". Shared with the topbar drawer through
-                 slotRows().serverKnown so both surfaces move together. */
+              /* A BUTTON THAT CANNOT WORK IS NEVER LIT — the ruling on
+                 slotRows().afford in multi-character.js. A lit "Buy" beside
+                 "200 gems" on an account holding one gem is the first thing a
+                 new player taps and the first thing that does nothing; disabled,
+                 with the shortfall in the label, and the not-your-turn case says
+                 WHY rather than the bare word "locked". A Buy the SERVER cannot
+                 yet be asked about is disabled too, and checked FIRST: "we do not
+                 know whether this is possible" outranks "you are short". Shared
+                 with the topbar drawer through slotRows().serverKnown so both
+                 surfaces move together. */
               (r.canBuy
                 ? (!r.serverKnown
                   ? '<button class="hd-cta ghost" disabled title="Waiting for the server to confirm '
@@ -1421,6 +1574,11 @@
        cap by hitting it. Truthful: combat / gathering / crafting bank the whole
        time you are away; cooking, farming and an idle camp do not. */
     html += awayBankingRow(G);
+    /* Set the Night (slate §3): advisory strip, same `serverAccruedSkill` predicate as the banking row; authors nothing. */
+    try {
+      var STN = window.HearthriseSetTheNight;
+      if (STN && typeof STN.strip === 'function') html += STN.strip(G);
+    } catch (e) { /* a forecast is never worth a broken Home */ }
     html += '</div>';
 
     // Renown — the long game. Status, so it lives in the status rail.
@@ -1534,10 +1692,10 @@
     html += '</div></div></div>';
 
     root.innerHTML = html;
-    wire(root, tasks, mile, resume);
+    wire(root, tasks, mile, resume, firstDay);
   }
 
-  function wire(root, tasks, mile, resume) {
+  function wire(root, tasks, mile, resume, firstDay) {
     // Your heroes — switch / buy, both routed through the SHARED helpers so Home
     // and the drawer act identically (switchSlot → reload is preserved inside
     // selectSlot). Separate from the [data-hd] table below because these carry a
@@ -1590,6 +1748,15 @@
           else if (kind === 'mile' && mile && mile.deepLink) { mile.deepLink(); }
           else if (kind === 'allquests') { openQuests(); }
           else if (kind === 'q') { var i = +el.getAttribute('data-i'); var t = tasks[i]; if (t) questRoute(t).go(); }
+          /* First Light. The ROW is the door on every step — its CTA carries no
+             `data-hd`, so a click on the button bubbles to exactly this one
+             handler — and it routes through the shared resolver, never a
+             private route table. */
+          else if (kind === 'fl') {
+            var fi = +el.getAttribute('data-i');
+            var step = firstDay && firstDay.steps && firstDay.steps[fi];
+            if (step && step.goalRow) questRoute(step.goalRow).go();
+          }
           else if (kind === 'active') { nav('profile'); if (window.G.activeMonster) nav('combat'); else nav('skills'); }
           else if (kind === 'resume' && resume && resume.action) { resume.action(); }
           else if (kind === 'cook') { nav('skills'); openSkill('cooking'); }
@@ -1627,23 +1794,27 @@
      seconds in" stayed unsaid for a whole build. A renderer that no test can
      quote is a renderer that will lie again. It takes a summary and returns
      HTML; it touches nothing. */
-  /* ── ONE SENTENCE, THREE SURFACES (Recovery rev. 3) ──────────────────────
-     The retreat is explained on the durable away card (here), on the
-     welcome-back modal (legacy.js `maybeShowWelcome`) and nowhere else, and the
-     ruling's copy is quoted verbatim in both. `supplies` is the cautionary
-     precedent directly above: its sentence exists THREE times — here, in
-     legacy's modal and in accrue.js `receiptStopClause` — and the three have
-     already drifted in punctuation. This one is authored once and read, so the
-     modal cannot grow a second voice for the same night.
-     Returns null when there was no retreat, so the caller is one truthy check
-     and an older receipt simply says nothing rather than being handed the
-     supplies sentence, which for a retreat night would be a fabricated cause. */
+  /* ONE SENTENCE, TWO SURFACES: the durable away card (here) and the
+     welcome-back modal (legacy.js), verbatim in both - `supplies` above is the
+     cautionary precedent, existing THREE times and already drifted. Returns
+     null when there was no retreat, never a fabricated cause. */
   function retreatSentence(off) {
     if (!off || off.stoppedBy !== 'retreat') return null;
     var s = awayStop(off);
     return s ? STOP_COPY.retreat(s) : null;
   }
-  window.HearthriseHome = { render: render, __awayCardHtml: awayCardHtml,
-    __awayBankingRow: awayBankingRow, retreatSentence: retreatSentence };
+  /* `__firstDayModel` / `__firstDayHtml` are TEST SEAMS for the same reason
+     `__awayCardHtml` is one: a card whose whole job is telling a new player
+     what their first day is has to be quotable by the suite without booting a
+     panel and grepping innerHTML. The model is pure (it reads G, writes
+     nothing); the renderer takes a model and returns a string. */
+  window.HearthriseHome = {
+    render: render,
+    __awayCardHtml: awayCardHtml,
+    __awayBankingRow: awayBankingRow,
+    __firstDayModel: firstDayModel,
+    __firstDayHtml: firstDayHtml,
+    retreatSentence: retreatSentence,
+  };
   console.log('[home-dashboard] loaded');
 })();

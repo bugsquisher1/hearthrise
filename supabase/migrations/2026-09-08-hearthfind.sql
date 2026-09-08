@@ -3,6 +3,20 @@
 --   as ruled by the Game Designer 2026-09-08; the ruling is final authority and
 --   this file implements it exactly).
 --
+-- RESTATEMENT-DEBT-ACK: hr_apply is 20 anchored patches deep and hr_state_of
+-- 14, and this file applies AFTER 2026-09-07-retreat.sql, which patches both
+-- programmatically. A `create or replace` restatement here could only be
+-- derived from the last STATIC chain link (2026-08-25-workers.sql /
+-- 2026-08-26-marks-record.sql), so it would silently ERASE every programmatic
+-- patch applied since — rested XP, bank, client_state, combat_style,
+-- combat_xp_accrued_to, dungeon_scrip, recovering_until, the death ledger and
+-- the Retreat's own consec_falls — and it would self-check GREEN while doing
+-- it. Restating is cleanup slice 7's work, against a replayed body to diff.
+-- This file takes the same anchored-insert idiom every predecessor used and
+-- asserts EXACTLY-ONCE on all five anchors before any replace runs; its
+-- release-code anchor was moved to the c_release_codes array HEAD precisely so
+-- that it cannot split the contiguous literal an earlier file self-checks.
+--
 -- ⚠⚠⚠ REVIEW ONLY — NOT AUTO-APPLIED. Applied by the Coordinator after a
 --     Security GO, via tools/apply-migration.mjs, in this order:
 --       2026-08-11-catalogue.generated.sql   (regenerated: +4 trophy items)

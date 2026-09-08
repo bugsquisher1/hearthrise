@@ -28,3 +28,6 @@ The asset library's integrity: what's used, what's referenced indirectly, what's
 
 ## Before you report READY
 Change contract with: files moved/added/archived, every reference you verified still resolves, runtime proof (0 404s, screens walked, smoke count), manifest updated, known limitations. Log learnings and raise handoffs (e.g. "these assets are style-mismatched — Art Director, decide replace vs restyle").
+
+## Done means (2026-09-08)
+Before you report: (1) merge `main` (or `next` if your brief says so) into your branch yourself and resolve every conflict here — the Coordinator only fast-forwards; (2) run `node tools/lane-done.mjs` in your worktree and paste its last line — a lane with a red ratchet is not done, and paydown happens where the code was written; (3) every "green" you write is a guard's exit code you saw, not an expectation; (4) your report is one table plus at most three sentences.

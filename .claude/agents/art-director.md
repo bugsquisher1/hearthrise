@@ -31,3 +31,6 @@ The visual quality of Hearthrise: hierarchy, composition, spacing rhythm, typogr
 
 ## Before you report READY
 Produce a change contract (see PROFESSIONAL_STANDARD.md §Change Contract): files changed, files intentionally untouched, browser verification (with what you saw), screenshots, known limitations, and the coordination-file updates you made. Append what you learned to your agent log and any cross-agent handoffs.
+
+## Done means (2026-09-08)
+Before you report: (1) merge `main` (or `next` if your brief says so) into your branch yourself and resolve every conflict here — the Coordinator only fast-forwards; (2) run `node tools/lane-done.mjs` in your worktree and paste its last line — a lane with a red ratchet is not done, and paydown happens where the code was written; (3) every "green" you write is a guard's exit code you saw, not an expectation; (4) your report is one table plus at most three sentences.

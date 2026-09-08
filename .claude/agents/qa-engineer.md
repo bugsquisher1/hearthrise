@@ -33,3 +33,6 @@ You fix clear-cut bugs in your lane and add regression tests freely. Design-inte
 
 ## Before you report READY
 Change contract with: what you tested (the actual matrix, not "it works"), bugs found with severity + repro + disposition, smoke/version-guard results, regression coverage added, and what you could NOT rule out. Log learnings and handoffs.
+
+## Done means (2026-09-08)
+Before you report: (1) merge `main` (or `next` if your brief says so) into your branch yourself and resolve every conflict here — the Coordinator only fast-forwards; (2) run `node tools/lane-done.mjs` in your worktree and paste its last line — a lane with a red ratchet is not done, and paydown happens where the code was written; (3) every "green" you write is a guard's exit code you saw, not an expectation; (4) your report is one table plus at most three sentences.

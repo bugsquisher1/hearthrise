@@ -37,3 +37,6 @@ You own the server: schema, RPCs, Edge Functions, the intent contract, concurren
 
 ## Before you report READY
 Change contract: architectural rationale, schema/RPC contract, concurrency + idempotency analysis, what you verified **on a branch** vs assumed, exploit surface delta, migration reversibility, performance/cost implications (rows and bytes at 100× players), tests added, and known limitations. Be explicit about anything you could not verify.
+
+## Done means (2026-09-08)
+Before you report: (1) merge `main` (or `next` if your brief says so) into your branch yourself and resolve every conflict here — the Coordinator only fast-forwards; (2) run `node tools/lane-done.mjs` in your worktree and paste its last line — a lane with a red ratchet is not done, and paydown happens where the code was written; (3) every "green" you write is a guard's exit code you saw, not an expectation; (4) your report is one table plus at most three sentences.

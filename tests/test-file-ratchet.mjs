@@ -427,11 +427,18 @@ function selftest() {
      moment a build pays some debt down, the arm goes quiet and reports itself
      green. Each arm below therefore SETS the ratio to a stated multiple of the
      baseline, so the proof holds however much slack the corpus has. */
+  /* ⚠ AND EACH ARM HOLDS THE OTHER RATIO AT ITS PINNED VALUE. `tests` is set to
+     `base.tests`, so an arm that patched only ONE numerator left the other one
+     divided by the wrong denominator — at 1,205 tests against a pinned 1,178
+     that made the TF-1 arm report TF-2 and the TF-2 arm report TF-1, and the two
+     "inside the band" arms below read as false positives. MEASURED 2026-09-08. */
   const atRatio = (mult) => ({
     codeLines: Math.round(base.codeLinesPerTest * mult * base.tests), tests: base.tests,
+    seeds: Math.round(base.seedsPerTest * base.tests),
   });
   const atSeeds = (mult) => ({
     seeds: Math.round(base.seedsPerTest * mult * base.tests) + 1, tests: base.tests,
+    codeLines: Math.round(base.codeLinesPerTest * base.tests),
   });
   const bend = (patch) => compare(derived({ ...real, ...patch }), base);
 
@@ -446,9 +453,14 @@ function selftest() {
     ['a second 400-line scaffold, after the first already spent the band', 'TF-1',
       { codeLines: real.codeLines + 800, lines: real.lines + 800, tests: real.tests + 2 }],
     ['the seeds per test are +2% — outside the band', 'TF-2', atSeeds(1.02)],
-    ['20 new `G.x = …` seeds added for 1 new test', 'TF-2',
-      { lines: real.lines + 40, codeLines: real.codeLines + 30, tests: real.tests + 1,
-        seeds: real.seeds + 20 }],
+    /* THE COUNT IS ARITHMETIC, NOT A TASTE. The band is 1% of the CORPUS's
+       seeds, so at the pinned 1,178 tests it is ~24 seeds wide: an arm written
+       as "20 seeds for one test" asserted something the band ALLOWS and passed
+       only while the anchoring bug above made it fire for the wrong reason.
+       60 is the same defect, stated at a size this band can see. */
+    ['60 new `G.x = …` seeds added for 1 new test', 'TF-2',
+      { lines: real.lines + 40, codeLines: Math.round(base.codeLinesPerTest * base.tests) + 30,
+        tests: base.tests + 1, seeds: Math.round(base.seedsPerTest * base.tests) + 60 }],
     /* `base.tests - 1`, NOT `real.tests - 1` — the ⚠ above, which this arm was
        the one exception to. TF-3 fires on `now.tests < baseline.tests`, so a
        delta off TODAY goes quiet the moment the suite grows past the pin: at
@@ -478,7 +490,8 @@ function selftest() {
   const silent = [
     ['ALLOWED: the cost per test is +0.5% — inside the band', atRatio(1.005)],
     ['ALLOWED: the seeds per test are +0.5% — inside the band',
-      { seeds: Math.floor(base.seedsPerTest * 1.005 * base.tests), tests: base.tests }],
+      { seeds: Math.floor(base.seedsPerTest * 1.005 * base.tests), tests: base.tests,
+        codeLines: Math.round(base.codeLinesPerTest * base.tests) }],
     /* (a) OF THE RE-SPEC, AS AN ASSERTION: 2,000 lines of PROSE and not one line
        of code. Under the old physical-line rule this was a TF-1 failure — the
        guard charged a test for being explained. The prose is still ratcheted, in

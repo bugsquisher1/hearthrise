@@ -1687,6 +1687,25 @@ const retreatFixture = () => {
     foodless, fTxt, down };
 };
 
+/* THE COMBAT-SCREEN FIXTURE, written once (test-file ratchet TF-1: "if the
+   setup is genuinely large, it is a helper, and a helper is written once").
+   Sixteen COMBAT-UI tests opened with the same four lines and closed with the
+   same four; the save/restore pair is now ONE object, so a test that keeps half
+   of the teardown - the leaked-overlay cascade, where one unclosed modal fails
+   the next thirty tests thousands of lines away - cannot exist. */
+const combatScreen = () => {
+  const CS = window.HearthriseCombatScreens;
+  assert(CS, 'the two screens did not boot');
+  const snap = snapshotG();
+  const prevTab = window.activeTab;
+  const restore = () => {
+    try { window.stopCombat(); } catch (e) {}
+    restoreG(snap);
+    try { window.showTab(prevTab || 'profile'); } catch (e) {}
+  };
+  return { CS, G: window.G, restore };
+};
+
 const TESTS = [
   () => tryRun('boot: G defined', () => {
     assert(typeof window.G === 'object' && window.G, 'G not defined');
@@ -49677,11 +49696,9 @@ const TESTS = [
       }
   }),
   () => tryRun('RETREAT-W5a: the foodless retreat sentence, verbatim on the away card', () => {
-    const { FOE, H, flat, BASE } = retreatFixture();
-          /* (i) THE FOODLESS SENTENCE, VERBATIM. */
-          const foodless = Object.assign({}, BASE,
-            { retreatMs: 8040000, retreatFalls: 3, retreatFoodless: true });
-          const fTxt = flat(foodless);
+    /* (i) THE FOODLESS SENTENCE, VERBATIM. The receipt and its flattened text
+       are the fixture's - built there once for every battery that reads them. */
+    const { fTxt } = retreatFixture();
           assert(/You ran out of food and fell three times in a row, so you pulled back to camp 2h 14m in\./
             .test(fTxt), 'W5: the foodless retreat sentence is not the ruled copy — ' + fTxt);
           assert(/The rest of the night was rest — bring provisions before the next hunt\./.test(fTxt),
@@ -53338,11 +53355,7 @@ const TESTS = [
        tap into a menu when you wanted your fight is a wrong-screen every
        session. MUTATION PROVEN: make openFromNav() always route to 'table' and
        the second half fails. */
-    const CS = window.HearthriseCombatScreens;
-    assert(CS, 'the two screens did not boot');
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { CS, G, restore } = combatScreen();
     try {
       const panel = document.getElementById('panel-combat');
       try { window.stopCombat(); } catch (e) {}
@@ -53367,19 +53380,11 @@ const TESTS = [
       window.showTab('combat');
       assert(panel.dataset.combatView === 'fight',
         'with a fight live, the Combat nav must open the fight, got ' + panel.dataset.combatView);
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-02: the War Table carries a return ribbon while a fight is live', () => {
-    const CS = window.HearthriseCombatScreens;
-    assert(CS, 'the two screens did not boot');
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { CS, G, restore } = combatScreen();
     try {
       window.showTab('combat');
       try { window.stopCombat(); } catch (e) {}
@@ -53404,11 +53409,7 @@ const TESTS = [
       go.click();
       assert(document.getElementById('panel-combat').dataset.combatView === 'fight',
         'Return to the fight did not return to the fight');
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-03: the War Table shows a WHOLE TIER at once — the hub is not a sliver', () => {
@@ -53416,11 +53417,7 @@ const TESTS = [
        list IS the screen now. A menu that shows three items on a 1900px screen
        is a failure, so this asserts every monster in the tier is PAINTED and
        that the grid is a multi-column layout rather than a 280px column. */
-    const CS = window.HearthriseCombatScreens;
-    assert(CS, 'the two screens did not boot');
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { CS, G, restore } = combatScreen();
     try {
       window.showTab('combat');
       try { window.stopCombat(); } catch (e) {}
@@ -53443,18 +53440,11 @@ const TESTS = [
         'a card is missing name / weakness+HP / kill-count — those are the decision inputs');
       assert(/NEW|×\d|Lv \d/.test(first.querySelector('.wtc-kills').textContent),
         'the card must say NEW, a kill count or its unlock level: ' + first.querySelector('.wtc-kills').textContent);
-    } finally {
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-15: the preview state is the fight screen with the fight not started', () => {
-    const CS = window.HearthriseCombatScreens;
-    assert(CS, 'the two screens did not boot');
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { CS, G, restore } = combatScreen();
     try {
       window.showTab('combat');
       try { window.stopCombat(); } catch (e) {}
@@ -53487,11 +53477,7 @@ const TESTS = [
       /* AND THE VOID IS GONE. */
       assert(!document.querySelector('#panel-combat .ce-standby'),
         'AWAITING A FOE is back — the largest element on the screen is a placeholder again');
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-12b: the Fight screen carries a PERSISTENT loadout / food / drops rail', () => {
@@ -53503,11 +53489,7 @@ const TESTS = [
        rail is on screen BEFORE the fight, wearing real data.
        MUTATION PROVEN: delete `renderManage(m)` from renderFight and the doll,
        food and drop assertions all fail. */
-    const CS = window.HearthriseCombatScreens;
-    assert(CS, 'the two screens did not boot');
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { CS, G, restore } = combatScreen();
     try {
       window.showTab('combat');
       try { window.stopCombat(); } catch (e) {}
@@ -53556,21 +53538,14 @@ const TESTS = [
       assert(/Gold/.test(dtxt), 'the drop table omits coin, which every foe pays');
       assert(/what it drops/i.test(document.getElementById('fsm-drops-head').textContent),
         'the drops block is not labelled as the foe\'s table before the fight');
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-12c: a loadout slot swaps gear WITHOUT leaving the fight', () => {
     /* Showing twelve slots you cannot change is what b362 shipped. The picker
        equips through legacy's own `equipItem`, so the wield gate and the
        inventory bookkeeping cannot diverge from the Inventory screen's. */
-    const CS = window.HearthriseCombatScreens;
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { CS, G, restore } = combatScreen();
     try {
       window.showTab('combat');
       try { window.stopCombat(); } catch (e) {}
@@ -53590,8 +53565,7 @@ const TESTS = [
         'swapping gear threw the player off the fight screen');
     } finally {
       try { if (window.HearthriseRoomModal) window.HearthriseRoomModal.close(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+      restore();
     }
   }),
 
@@ -53602,10 +53576,7 @@ const TESTS = [
        scaleX animation whose duration IS the swing — one clock, no per-tick
        geometry. MUTATION PROVEN: restore the `i.style.width` writes and the
        inline-width assertion fails. */
-    const CS = window.HearthriseCombatScreens;
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { CS, G, restore } = combatScreen();
     try {
       window.showTab('combat');
       window.startCombat('slime');
@@ -53658,11 +53629,7 @@ const TESTS = [
       }
       assert(hides === 0,
         hides + ' rule(s) hide the swing bar\'s label — the swing timer disappears at that breakpoint');
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-22 (b368): the champion plate SHOWS THE CHOSEN AVATAR and follows a change', () => {
@@ -53689,9 +53656,7 @@ const TESTS = [
     assert(typeof I._installHarnessIdentity === 'function', 'the signed-in harness seam is missing');
     assert(I._harnessAllowed() === true,
       'the harness seam refused to arm under the smoke harness — no signed-in surface can be tested');
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { G, restore } = combatScreen();
     const A = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#e100b4"/></svg>');
     const B = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#00d9ff"/></svg>');
     const priorAvatar = window._playerAvatar;
@@ -53755,8 +53720,7 @@ const TESTS = [
       try { I._clearHarnessIdentity(); } catch (e) {}
       window._playerAvatar = priorAvatar;
       try { CS._champion(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+      restore();
     }
   }),
 
@@ -53769,10 +53733,7 @@ const TESTS = [
        row names the hands rather than the engine's weapon CLASS.
        MUTATION PROVEN: restore `|| weaponLabel(eq.weaponType) || 'Unarmed'` →
        the label reads "Neutral · 2.40s" and the last assertion fails. */
-    const CS = window.HearthriseCombatScreens;
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { CS, G, restore } = combatScreen();
     try {
       window.showTab('combat');
       try { window.stopCombat(); } catch (e) {}
@@ -53794,11 +53755,7 @@ const TESTS = [
       const lbl = (document.querySelector('#fs-player-swing span').textContent || '');
       assert(/unarmed/i.test(lbl), 'empty hands are labelled "' + lbl + '" — a player is not swinging a damage class');
       assert(/\d\.\d\ds/.test(lbl), 'the unarmed swing row quotes no swing time: ' + lbl);
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-19c (b368): a legacy .arena-vs is RECLAIMED — the swing bar cannot be lost on resume', () => {
@@ -53816,11 +53773,7 @@ const TESTS = [
        render, and demand the b365/b366 stage back.
        MUTATION PROVEN: restore `if (arena.querySelector(':scope > .arena-vs')) return;`
        in buildStage → every assertion below fails. */
-    const CS = window.HearthriseCombatScreens;
-    assert(CS, 'the two screens did not boot');
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { CS, G, restore } = combatScreen();
     try {
       window.showTab('combat');
       window.startCombat('slime');
@@ -53866,11 +53819,7 @@ const TESTS = [
         'the combat log lost its row wrapper during the reclaim');
       assert(document.querySelectorAll('#panel-combat .fs-logrow').length === 1,
         'the reclaim double-wrapped the combat log');
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-13: the action bar carries Eat with its real food, and a reachable Stop', () => {
@@ -53881,9 +53830,7 @@ const TESTS = [
            `.btn-danger` in the arena with `display:none !important` because the
            card header was hidden, so a fight could be started with no visible
            way out. That hack is deleted; this is what stops it coming back. */
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { G, restore } = combatScreen();
     try {
       window.showTab('combat');
       G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 12 });
@@ -53919,11 +53866,7 @@ const TESTS = [
       assert(G.activeMonster === null, 'Stop did not end the fight');
       assert(document.getElementById('panel-combat').dataset.combatView === 'table',
         'after a fight ends the camera must land somewhere real, not on an empty stage');
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-21: the metrics strip refuses to quote a rate it has not measured', () => {
@@ -53936,9 +53879,7 @@ const TESTS = [
        has a beautiful theoretical rate and pays nothing for twenty minutes. */
     const CS = window.HearthriseCombatScreens;
     assert(CS && CS._ledger, 'the ledger seam is not published');
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { G, restore } = combatScreen();
     try {
       window.showTab('combat');
       window.startCombat('slime');
@@ -53952,11 +53893,7 @@ const TESTS = [
       /* The one thing it may always say is the SURVIVAL span, because that
          comes from the shared estimator rather than from a promise about pay. */
       assert(/last/i.test(early), 'the strip dropped the survival clause: ' + early);
-    } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
+    } finally { restore(); }
   }),
 
   () => tryRun('COMBAT-UI-23: the session tally is its own row, one line, and never lands on a control', () => {
@@ -53987,9 +53924,7 @@ const TESTS = [
        and (2) fail together; drop the `!important` colour reclaim and (4) fails. */
     const CS = window.HearthriseCombatScreens;
     assert(CS && CS._session, 'the session-tally seam is not published');
-    const G = window.G;
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { G, restore } = combatScreen();
     const panel = document.getElementById('panel-combat');
     const prevView = panel ? panel.dataset.combatView : null;
     try {
@@ -54080,8 +54015,6 @@ const TESTS = [
       assert(/Session\s/.test(sess.textContent),
         'the clauses have no whitespace between them: ' + sess.textContent.slice(0, 60));
     } finally {
-      try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
       /* Put the CAMERA back too. `setView('fight')` writes an attribute that
          the 200ms tick only corrects on its next pass, so without this the
          next synchronous test inherits a fight stage that is laid out but has
@@ -54091,7 +54024,7 @@ const TESTS = [
         if (prevView) panel.dataset.combatView = prevView;
         else delete panel.dataset.combatView;
       }
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+      restore();
     }
   }),
 
@@ -54113,8 +54046,7 @@ const TESTS = [
        declaration in COMBAT_FX.addItem and the real-drop assertion fails. */
     const CS = window.HearthriseCombatScreens;
     assert(CS && CS._ledger, 'the ledger seam is not published');
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { restore } = combatScreen();
     try {
       window.showTab('combat');
       window.startCombat('slime');
@@ -54160,8 +54092,7 @@ const TESTS = [
     } finally {
       try { window.stopCombat(); } catch (e) {}
       try { delete window.__hrCombatCredits; } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+      restore();
     }
   }),
 
@@ -54214,8 +54145,7 @@ const TESTS = [
        silently stop reaching the rail with COMBAT-UI-22 still green. */
     const CS = window.HearthriseCombatScreens;
     assert(CS && CS._ledger, 'the ledger seam is not published');
-    const snap = snapshotG();
-    const prevTab = window.activeTab;
+    const { restore } = combatScreen();
     const prevMon = window.MONSTERS.slime;
     try {
       /* A foe that always pays, so the assertion is about wiring, not luck. */
@@ -54241,8 +54171,7 @@ const TESTS = [
       window.MONSTERS.slime = prevMon;
       try { window.stopCombat(); } catch (e) {}
       try { delete window.__hrCombatCredits; } catch (e) {}
-      restoreG(snap);
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+      restore();
     }
   }),
 

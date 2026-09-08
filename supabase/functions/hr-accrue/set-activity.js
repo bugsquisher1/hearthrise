@@ -780,6 +780,12 @@ export async function collectCurrentWindow(o) {
        the settle cadence. Presence-of-key, not `?? null` — see the field's note
        in index.ts. Mirrors index.ts field for field (A14). */
     recoveringUntilMs: ('recovering_until' in st) ? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,
+    /* THE HEARTHFIND's self-configuring switch, passed HERE TOO. The collect a
+       switch runs is the same engine pricing the same window: a field present at
+       one call site and absent at the other prices the same span differently,
+       silently. tests/accrual-engine.mjs PARITY asserts the two input objects
+       carry identical keys, and it caught exactly this omission. */
+    hearthfindReady: st.hearthfind_ready === true,
     /* THE RECOVERY LADDER'S TWO ANCHORS (Recovery rev. 2). player_progress
        kind='stat' key='deaths' under period=<UTC day> and period='', read by
        hr_state_of as its OWN scalars and NOT dug out of the `progress` array:

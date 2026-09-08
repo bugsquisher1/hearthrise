@@ -610,6 +610,32 @@ export const ITEMS={
   obsidian_sigil:  {n:'Obsidian Sigil',  icon:'⬛', v:0, bop:true, rarity:'epic',      tag:'key', unlocks:'obsidian_keep'},
   void_fragment:   {n:'Void Fragment',   icon:'🌑', v:0, bop:true, rarity:'epic',      tag:'key', unlocks:'voidbringer'},
   dragonsbane_key: {n:'Dragonsbane Key', icon:'🗡️', v:0, bop:true, rarity:'legendary', tag:'key', unlocks:'ancient_wyrm'},
+
+  /* ── THE FOUR HEARTHFINDS (Feature Slate §2; Designer ruling 2026-09-08) ──
+     The set is named "The Four Hearthfinds" (HEARTHFIND_SET_NAME in
+     src/data/hearthfind.js). The rarest things in the game: authored as an
+     EXPECTED-HOURS target (100–400 h at the source's own action rate) and
+     turned into per-roll odds by tools/gen-hearthfind.mjs. Rolled by the ONE
+     engine and granted ONLY by hr_apply's `hearthfind` arm.
+
+     `hearthfind:true` is the SERVER-SIDE ALLOWLIST KEY. tools/gen-hearthfind.mjs
+     mirrors exactly these ids into hr_hearthfind_items, and hr_apply refuses a
+     `hearthfind` delta naming anything else (`bad_hearthfind`). It ALSO refuses
+     these ids inside the ordinary `items` delta, so there is exactly ONE door
+     through which a trophy can be minted and it is the one that journals.
+
+     bop:true and v:0, both load-bearing rather than flavour:
+       · bop  — never reaches the player market, so the rarest event in the game
+                cannot become a gold bridge (the muster_seal rule).
+       · v:0  — never reaches the vendor, so a find mints ZERO gold. Together
+                they are what makes tests/hearthfind-mint-guard.mjs a proof:
+                a hearthfind pays one untradeable, unsellable trophy and nothing
+                else — never gold, gems, hearth_token or muster_seal.
+     Which sources pay which trophy is src/data/hearthfind.js. */
+  emberheart:        {n:'Emberheart',         icon:'❤️‍🔥', v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
+  worldroot_seed:    {n:'Worldroot Seed',     icon:'🌰',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
+  deepvein_lodestar: {n:'Deepvein Lodestar',  icon:'💎',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
+  tidecallers_pearl: {n:"Tidecaller's Pearl", icon:'🫧',   v:0, bop:true, rarity:'mythic', tag:'trophy', type:'trophy', hearthfind:true},
 };
 
 /* b215: backfill tier + rarity onto the hand-authored pieces that sit on the

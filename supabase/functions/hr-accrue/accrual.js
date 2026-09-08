@@ -1584,6 +1584,20 @@ export function computeAccrual(input) {
   let curAtMs = credit.fromMs;
   const eligibleXp = Object.create(null);
 
+  /* THE HEARTHFIND claims this span produced. At most the FIRST becomes
+     delta.hearthfind - hr_apply accepts one find per apply. A second find inside
+     ONE settle window needs two independent 1-in-6,000-or-longer rolls in the
+     same span; it is dropped rather than banked.
+
+     ⚠ THE DROP IS NO LONGER SILENT. `delta.hearthfind.dropped` carries the
+       COUNT that was thrown away, and hr_apply journals it through
+       hr_record_rejection as `hearthfind_span_discard` (aggregated per
+       character/code/day, not one row per event). It grants nothing and is
+       validated like any other client number; it exists so that "did anyone
+       ever lose a find to the one-per-apply rule?" is answered by the database
+       instead of by an argument about probability. KNOWN LIMITATION, tracked
+       AND now measurable. */
+  const finds = [];
   const fx = {
     /* Per-tick clock, so addXp can decide whether this tick's XP falls in the
        window the live credit has NOT already covered. A no-op for the client. */
@@ -1668,6 +1682,11 @@ export function computeAccrual(input) {
       itemDelta[id] = (itemDelta[id] || 0) - take;
     },
     onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
+    /* THE HEARTHFIND (Feature Slate 2). The engine's roll (src/core/hearthfind.js)
+       reports here; NOTHING is granted edge-side. `hearthfind` is proposed as a
+       CLAIM and hr_apply re-derives the trophy, the source and the odds from its
+       own generated catalogue under the character lock before it pays anything. */
+    onHearthfind(f) { if (f && f.item) finds.push({ item: f.item, source_kind: f.kind, source_id: f.id }); },
 
     /* ── AUTO-EAT ─ survival, not a bonus. The ruling is explicit that it
        stays away and keeps consuming, and combat-sim.js calls it after the
@@ -1935,6 +1954,11 @@ export function computeAccrual(input) {
           bag[id] = (bag[id] || 0) + n;
         },
         onDrop(ev) { if (ev && ev.rare) events.push({ type: 'rare_drop', item: ev.id }); },
+        /* THE HEARTHFIND (Feature Slate 2). The engine's roll (src/core/hearthfind.js)
+           reports here; NOTHING is granted edge-side. `hearthfind` is proposed as a
+           CLAIM and hr_apply re-derives the trophy, the source and the odds from its
+           own generated catalogue under the character lock before it pays anything. */
+        onHearthfind(f) { if (f && f.item) finds.push({ item: f.item, source_kind: f.kind, source_id: f.id }); },
       };
       /* THE CTX FOR THE TOP-UP, CONSTRUCTED FIELD BY FIELD — no spread, not even
          of the engine's own `ctx`. The rule at §4 exists because `minTickMs`
@@ -2298,6 +2322,18 @@ export function computeAccrual(input) {
     },
   };
   if (goldDelta > 0) delta.gold = goldDelta;
+  /* THE HEARTHFIND. `inp.hearthfindReady` is the self-configuring switch (the
+     recoverCol idiom): a database that does not allowlist the key never sees it
+     proposed, so the edge and the migration are safe in either order. AT MOST
+     ONE per apply, because hr_apply accepts one and re-derives everything about
+     it - the trophy, the source, the odds - from its own catalogue. Nothing here
+     is a grant; this is a claim. */
+  if (inp.hearthfindReady && finds.length) {
+    delta.hearthfind = finds.length > 1
+      ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) }
+      : finds[0];
+  }
+
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
   if (progress.length) delta.progress = progress;
@@ -2688,6 +2724,20 @@ function accrueGather(inp, span) {
      combat path — one contract, not a gather-flavoured copy of one. */
   const goals = makeGoalCounter();
 
+  /* THE HEARTHFIND claims this span produced. At most the FIRST becomes
+     delta.hearthfind - hr_apply accepts one find per apply. A second find inside
+     ONE settle window needs two independent 1-in-6,000-or-longer rolls in the
+     same span; it is dropped rather than banked.
+
+     ⚠ THE DROP IS NO LONGER SILENT. `delta.hearthfind.dropped` carries the
+       COUNT that was thrown away, and hr_apply journals it through
+       hr_record_rejection as `hearthfind_span_discard` (aggregated per
+       character/code/day, not one row per event). It grants nothing and is
+       validated like any other client number; it exists so that "did anyone
+       ever lose a find to the one-per-apply rule?" is answered by the database
+       instead of by an argument about probability. KNOWN LIMITATION, tracked
+       AND now measurable. */
+  const finds = [];
   const fx = {
     addXp(skillId, amt) {
       const res = grantXp(state, skillId, amt, {
@@ -2865,6 +2915,18 @@ function accrueGather(inp, span) {
      same statement `died` makes for combat. Sent only when it happened,
      because an `activity` key is a complete, re-validated activity statement
      and restating an unchanged pointer buys nothing but a catalogue lookup. */
+
+  /* THE HEARTHFIND. `inp.hearthfindReady` is the self-configuring switch (the
+     recoverCol idiom): a database that does not allowlist the key never sees it
+     proposed, so the edge and the migration are safe in either order. AT MOST
+     ONE per apply, because hr_apply accepts one and re-derives everything about
+     it - the trophy, the source, the odds - from its own catalogue. Nothing here
+     is a grant; this is a claim. */
+  if (inp.hearthfindReady && finds.length) {
+    delta.hearthfind = finds.length > 1
+      ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) }
+      : finds[0];
+  }
   if (summary.stoppedBy === STOP_REASON.LEVEL) delta.activity = { kind: 'idle', id: null };
 
   return {

@@ -62,6 +62,7 @@
 
 import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=521';
 import { rollDropTable } from './drops.js?v=521';
+import { resolveHearthfind } from './hearthfind.js?v=521';
 import { hitXpRoute, killXpRoute } from './styles.js?v=521';
 import { applyGoldFind } from './pacing.js?v=521';
 /* `retreatAtFall` ONLY — the two rungs stay in away.js beside the recovery
@@ -193,7 +194,18 @@ export function resolveKill(state, m, ctx) {
   call(fx, 'updateQuest', 'kill_monster', 1, { target: id });
   call(fx, 'handleBountyKill', id, m);
 
+  /* THE HEARTHFIND (Feature Slate §2). LAST, after every other draw this kill
+     makes, so a monster with no table row is byte-identical to its
+     pre-Hearthfind self and one WITH a row cannot shift its own gold or drops.
+     Nothing scales it — no dropMult, no dropRate buff, no featured multiplier
+     — because "never boostable by anything paid" is cheapest to keep true by
+     giving the roll no modifier to take. The GRANT is not here: hr_apply looks
+     the pair up in its own catalogue and writes the item, the ledger row and
+     the world_finds row itself. */
+  const found = resolveHearthfind(state, 'monster', id, ctx);
+
   const info = { gp, monster: m, monsterId: id, drops: rolled.dropped, events: rolled.events, featured: feat };
+  if (found) info.hearthfind = found;
   call(fx, 'onKill', info, ctx);
 
   /* Respawn the same foe and keep fighting — the behaviour both loops had. */

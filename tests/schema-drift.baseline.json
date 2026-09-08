@@ -7,58 +7,19 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-08",
- "digest": "2ad3926e65ba504c2d43c52b8109186b729433267236f2ebde087f22efa8d8b2",
+ "digest": "8922275a124284cebd78976ad4b17a18cc71530770793fe54536853002f89a21",
  "counts": {
-  "relations": 107,
-  "functions": 267,
-  "policies": 84,
-  "indexes": 147,
+  "relations": 113,
+  "functions": 268,
+  "policies": 86,
+  "indexes": 156,
   "triggers": 20,
-  "constraints": 283,
-  "columns": 642,
-  "rls": 95,
+  "constraints": 295,
+  "columns": 667,
+  "rls": 100,
   "event_triggers": 1
  },
- "known_production_delta": {
-  "measured": "2026-08-30",
-  "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17, us-west-2)",
-  "how": [
-   "node tests/schema-drift.mjs --live-sql            -> read-only SQL, run it on production",
-   "node tests/schema-drift.mjs --live-compare r.json -> classify what came back",
-   "Level 1 sends nothing and returns a checksum per category plus one per table for",
-   "columns/constraints, so a clean surface costs ~180 short rows and names nothing.",
-   "Level 2 (--live-sql=<category>) returns the full name list for one category.",
-   "Both are pure SELECTs against the catalog. Production is never written."
-  ],
-  "result_2026_08_30": [
-   "7 of 9 categories are BYTE-IDENTICAL between production and a fresh replay of",
-   "this repo: relations (102), functions (261), policies (84), indexes (142),",
-   "triggers (18), rls (90), event_triggers (1). Identical hashes, not just counts.",
-   "That is the strongest statement this project has ever been able to make about",
-   "the repo matching the database, and it means NO whole object exists in",
-   "production and in no file, and NO object the chain builds is missing there.",
-   "columns and constraints each disagree on exactly ONE table; both are acknowledged",
-   "below. pg_cron was checked separately and OFF-fingerprint: 12 jobs, every one",
-   "scheduled by a migration in this repo, no orphans.",
-   "2026-08-30 later: hr_crops nullability FIXED on prod by 2026-09-03-crops-notnull-and-xp-prune-schedule.sql (columns now not null + defaults, matching the repo); acknowledgement retired in the same change."
-  ],
-  "acknowledged": [
-   {
-    "key": "tbl constraints hr_bounty_monsters",
-    "what": "a fresh replay builds TWO semantically identical checks — hr_bounty_monsters_hp_check (auto-named, from the inline  hp int not null default 1 check (hp >= 1)  in the create table) and hr_bounty_monsters_hp_chk (explicitly named) — where production has only hp_chk.",
-    "why": "PATH-DEPENDENT, NOT A HAND-PATCH. 2026-08-23-bounty-monsters.generated.sql creates the table only  if to_regclass(...) is null . On production the table already existed from the pre-2026-08-30 revision of that generated file (which had no hp column at all), so the create-table branch was skipped and only the ADDITIVE  add column if not exists hp  +  add constraint hp_chk  ran. A fresh replay takes the create branch and gets both.",
-    "consequence": "Cosmetic and permanent. Both databases enforce hp >= 1; the replay just enforces it twice under two names. The columns of this table match production exactly. Nothing to fix; recorded so a future reader does not mistake it for a missing migration and so --live-compare does not go red on it every run.",
-    "risk": "None.",
-    "first_seen": "2026-08-30"
-   }
-  ],
-  "open": [
-   "supabase_migrations.schema_migrations still holds 27 rows, the newest 2026-08-11; 12 of them have no file in this repo (anon_lockdown_public_default_fix, profiles_identity_authority_and_global_default_acl, profiles_drop_dead_update_policy, grant_hygiene_v2_detector, hr_rate_sample_weight_pin_search_path, player_tables_rls_initplan, cron_health_no_false_stale_on_new_jobs, maintenance_fn_revoke_service_role, revoke_hr_engine_from_authenticator, disarm_broken_market_crons, clan_leaderboard_join_policy, clan_join_policy_merge_r4_tolerance). RE-VERIFIED 2026-08-30: their effects are still fully reproduced — the object diff is clean in all 7 name-bearing categories — so no object is lost. Their SQL remains recoverable from that table s  statements  column. Nothing applied after 2026-08-11 is recorded there at all, because every later file was applied with execute_sql rather than apply_migration; that is why this checksum comparison, not the migrations table, is the source of truth for what production actually has.",
-   "NOT CHECKED HERE — grants and role memberships. hr_assert_grant_hygiene() owns that surface (cron  hr-grant-hygiene , 04:50 daily) and is a stronger check than a fingerprint. Do not duplicate it.",
-   "NOT CHECKED SYSTEMATICALLY — function BODIES. The fingerprint carries signatures only; all 261 match by signature, which does NOT mean the bodies match. Spot-checked 3 on 2026-08-30: hr_rpc_gate and hr_cron_health are md5-IDENTICAL to the replay (the hr_rpc_gate hotfix restore was folded back into the repo correctly); hr_apply differs by 138 chars, which is exactly one two-line comment present in the file and absent from the deployed body — code identical, behaviour identical. The header note this replaces claimed hr_apply was a stale 25,966-char revision against a 40,754-char file; both numbers were three revisions out of date. See blind spot (C).",
-   "NOT CHECKED — whether any row survives a restore. As of 2026-08-30 no restore test has ever been run against this project. See blind spot (B)."
-  ]
- },
+ "known_production_delta": null,
  "inventory": {
   "relations": [
    "S beta_signup_log_id_seq",
@@ -71,6 +32,7 @@
    "S maintenance_log_id_seq",
    "S market_sales_id_seq",
    "S player_ledger_id_seq",
+   "S world_finds_id_seq",
    "m leaderboard_ranked",
    "r active_bounty",
    "r beta_invites",
@@ -116,6 +78,9 @@
    "r hr_farm_yield_perk",
    "r hr_feast_foods",
    "r hr_goal_rewards",
+   "r hr_hearthfind_items",
+   "r hr_hearthfind_meta",
+   "r hr_hearthfind_sources",
    "r hr_hero_slots",
    "r hr_hunt_boss_reward",
    "r hr_hunt_bosses",
@@ -150,6 +115,7 @@
    "r market_listings",
    "r market_sales",
    "r player_bank",
+   "r player_cosmetics",
    "r player_equipment",
    "r player_farm",
    "r player_intents",
@@ -167,6 +133,7 @@
    "r world_event_joins",
    "r world_event_pledges",
    "r world_event_totals",
+   "r world_finds",
    "v market_price_history"
   ],
   "functions": [
@@ -417,6 +384,7 @@
    "hr_week_start(p_week text)",
    "hr_worker_assign(p_slot integer, p_uid text, p_skill text, p_target text, p_idem uuid)",
    "hr_worker_hire(p_slot integer, p_idem uuid)",
+   "hr_world_finds_prune(p_older interval, p_keep integer, p_limit integer)",
    "hr_xp_for_level(p_level integer)",
    "market_sales_prune(p_older interval)",
    "raid_claim(p_scope text, p_clan_id uuid, p_week text, p_slot integer)",
@@ -504,6 +472,7 @@
    "market_listings :: listings readable",
    "market_sales :: own sales readable",
    "player_bank :: player_bank own read",
+   "player_cosmetics :: player_cosmetics_read_own",
    "player_equipment :: player_equipment own read",
    "player_farm :: player_farm own read",
    "player_inventory :: player_inventory own read",
@@ -522,7 +491,8 @@
    "session_claims :: session_claims_update_own",
    "world_event_joins :: own muster join readable",
    "world_event_pledges :: own rally pledge readable",
-   "world_event_totals :: muster totals readable"
+   "world_event_totals :: muster totals readable",
+   "world_finds :: world_finds_read"
   ],
   "indexes": [
    "active_bounty_pkey",
@@ -597,6 +567,9 @@
    "hr_farm_yield_perk_pkey",
    "hr_feast_foods_pkey",
    "hr_goal_rewards_pkey",
+   "hr_hearthfind_items_pkey",
+   "hr_hearthfind_meta_pkey",
+   "hr_hearthfind_sources_pkey",
    "hr_hero_slots_pkey",
    "hr_hunt_boss_reward_pkey",
    "hr_hunt_bosses_pkey",
@@ -647,6 +620,7 @@
    "market_sales_pkey",
    "market_sales_seller_idx",
    "player_bank_pkey",
+   "player_cosmetics_pkey",
    "player_equipment_pkey",
    "player_farm_pkey",
    "player_intents_at_idx",
@@ -654,6 +628,8 @@
    "player_inventory_item_idx",
    "player_inventory_pkey",
    "player_ledger_bounty_idx",
+   "player_ledger_hearthfind_idx",
+   "player_ledger_hearthfind_item_idx",
    "player_ledger_pkey",
    "player_ledger_rollup_pkey",
    "player_ledger_user_idx",
@@ -671,7 +647,10 @@
    "world_event_joins_pkey",
    "world_event_pledges_open_idx",
    "world_event_pledges_pkey",
-   "world_event_totals_pkey"
+   "world_event_totals_pkey",
+   "world_finds_at_idx",
+   "world_finds_char_idx",
+   "world_finds_pkey"
   ],
   "triggers": [
    "beta_signup_log :: beta_signup_log_no_truncate",
@@ -824,6 +803,13 @@
    "hr_goal_rewards :: hr_goal_rewards_pkey",
    "hr_goal_rewards :: hr_goal_rewards_target_check",
    "hr_goal_rewards :: hr_goal_rewards_xp_check",
+   "hr_hearthfind_items :: hr_hearthfind_items_pkey",
+   "hr_hearthfind_meta :: hr_hearthfind_meta_pkey",
+   "hr_hearthfind_sources :: hr_hearthfind_sources_hours_band",
+   "hr_hearthfind_sources :: hr_hearthfind_sources_item_id_fkey",
+   "hr_hearthfind_sources :: hr_hearthfind_sources_one_in_check",
+   "hr_hearthfind_sources :: hr_hearthfind_sources_pkey",
+   "hr_hearthfind_sources :: hr_hearthfind_sources_source_kind_check",
    "hr_hero_slots :: hr_hero_slots_cost_gems_check",
    "hr_hero_slots :: hr_hero_slots_pkey",
    "hr_hero_slots :: hr_hero_slots_slot_id_check",
@@ -923,6 +909,8 @@
    "market_sales :: market_sales_tax_check",
    "player_bank :: player_bank_pkey",
    "player_bank :: player_bank_qty_pos",
+   "player_cosmetics :: player_cosmetics_kind_check",
+   "player_cosmetics :: player_cosmetics_pkey",
    "player_equipment :: player_equipment_pkey",
    "player_equipment :: player_equipment_user_id_slot_fkey",
    "player_farm :: player_farm_pkey",
@@ -978,7 +966,10 @@
    "session_claims :: session_claims_user_id_fkey",
    "world_event_joins :: world_event_joins_pkey",
    "world_event_pledges :: world_event_pledges_pkey",
-   "world_event_totals :: world_event_totals_pkey"
+   "world_event_totals :: world_event_totals_pkey",
+   "world_finds :: world_finds_one_in_check",
+   "world_finds :: world_finds_pkey",
+   "world_finds :: world_finds_source_kind_check"
   ],
   "columns": [
    "active_bounty.accepted_at timestamp with time zone NOT NULL",
@@ -1267,6 +1258,17 @@
    "hr_goal_rewards.target bigint NOT NULL",
    "hr_goal_rewards.weekly boolean NOT NULL",
    "hr_goal_rewards.xp jsonb NOT NULL",
+   "hr_hearthfind_items.item_id text NOT NULL",
+   "hr_hearthfind_items.name text NOT NULL",
+   "hr_hearthfind_items.title_code text",
+   "hr_hearthfind_items.title_name text",
+   "hr_hearthfind_meta.key text NOT NULL",
+   "hr_hearthfind_meta.value text NOT NULL",
+   "hr_hearthfind_sources.expected_hours numeric",
+   "hr_hearthfind_sources.item_id text NOT NULL",
+   "hr_hearthfind_sources.one_in bigint NOT NULL",
+   "hr_hearthfind_sources.source_id text NOT NULL",
+   "hr_hearthfind_sources.source_kind text NOT NULL",
    "hr_hero_slots.cost_gems bigint NOT NULL",
    "hr_hero_slots.name text NOT NULL",
    "hr_hero_slots.premium_waived boolean NOT NULL",
@@ -1468,6 +1470,12 @@
    "player_bank.qty bigint NOT NULL",
    "player_bank.slot integer NOT NULL",
    "player_bank.user_id uuid NOT NULL",
+   "player_cosmetics.code text NOT NULL",
+   "player_cosmetics.granted_at timestamp with time zone NOT NULL",
+   "player_cosmetics.kind text NOT NULL",
+   "player_cosmetics.name text NOT NULL",
+   "player_cosmetics.slot integer NOT NULL",
+   "player_cosmetics.user_id uuid NOT NULL",
    "player_equipment.equip_slot text NOT NULL",
    "player_equipment.item_id text NOT NULL",
    "player_equipment.slot integer NOT NULL",
@@ -1622,7 +1630,15 @@
    "world_event_totals.goal_frozen_at timestamp with time zone",
    "world_event_totals.met_at timestamp with time zone",
    "world_event_totals.participants integer NOT NULL",
-   "world_event_totals.progress bigint NOT NULL"
+   "world_event_totals.progress bigint NOT NULL",
+   "world_finds.found_at timestamp with time zone NOT NULL",
+   "world_finds.id bigint NOT NULL",
+   "world_finds.item_id text NOT NULL",
+   "world_finds.one_in bigint NOT NULL",
+   "world_finds.slot integer NOT NULL",
+   "world_finds.source_id text NOT NULL",
+   "world_finds.source_kind text NOT NULL",
+   "world_finds.user_id uuid NOT NULL"
   ],
   "rls": [
    "active_bounty rls=true force=false",
@@ -1669,6 +1685,9 @@
    "hr_farm_yield_perk rls=true force=false",
    "hr_feast_foods rls=true force=false",
    "hr_goal_rewards rls=true force=false",
+   "hr_hearthfind_items rls=true force=false",
+   "hr_hearthfind_meta rls=true force=false",
+   "hr_hearthfind_sources rls=true force=false",
    "hr_hero_slots rls=true force=false",
    "hr_hunt_boss_reward rls=true force=false",
    "hr_hunt_bosses rls=true force=false",
@@ -1703,6 +1722,7 @@
    "market_listings rls=true force=false",
    "market_sales rls=true force=false",
    "player_bank rls=true force=false",
+   "player_cosmetics rls=true force=false",
    "player_equipment rls=true force=false",
    "player_farm rls=true force=false",
    "player_intents rls=true force=false",
@@ -1719,7 +1739,8 @@
    "session_claims rls=true force=false",
    "world_event_joins rls=true force=false",
    "world_event_pledges rls=true force=false",
-   "world_event_totals rls=true force=false"
+   "world_event_totals rls=true force=false",
+   "world_finds rls=true force=false"
   ],
   "event_triggers": [
    "ensure_rls on ddl_command_end"

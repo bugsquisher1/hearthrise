@@ -774,6 +774,14 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          the pre-Recovery behaviour. Present-and-null ⇒ 0 ⇒ the engine owns it.
          Mirrors set-activity.js field for field (A14). */
       recoveringUntilMs: ('recovering_until' in st) ? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,
+      /* THE HEARTHFIND's SELF-CONFIGURING SWITCH (Feature Slate 2). hr_state_of
+         projects `hearthfind_ready:true` only on a database whose hr_apply
+         allowlists the `hearthfind` delta key. Without it the engine OMITS the
+         key, so an edge deployed BEFORE the migration is inert rather than
+         409-ing `unknown_delta_key` and costing a player their night. The switch
+         is the ENVELOPE, never a deploy flag - the two halves are safe in either
+         order, which is the property every column in this schema is built for. */
+      hearthfindReady: st.hearthfind_ready === true,
       /* THE RECOVERY LADDER'S TWO ANCHORS (Recovery rev. 2). player_progress
          kind='stat' key='deaths' under period=<UTC day> and period='', read by
          hr_state_of as its OWN scalars and NOT dug out of the `progress` array:

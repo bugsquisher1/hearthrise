@@ -74,6 +74,7 @@ import { actionIntervalMs, MIN_ACTION_MS, GATHER_SKILLS } from './pacing.js?v=52
 import { CHANNEL, channelApplies, rateMult } from './away.js?v=521';
 import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=521';
 import { levelOf } from './xp.js?v=521';
+import { resolveHearthfind } from './hearthfind.js?v=521';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {
@@ -268,10 +269,17 @@ export function resolveGatherTick(state, node, ctx) {
      not away. */
   call(fx, 'addXp', skill, res.xpAmount);
 
+  /* THE HEARTHFIND (Feature Slate §2). LAST, after resolveGatherAction has made
+     every draw this swing makes, so a node with no table row keeps the exact
+     stream it had before this feature existed. Nothing scales it. The GRANT is
+     hr_apply's, from its own catalogue lookup of (node, id). */
+  const found = resolveHearthfind(state, 'node', node && node.id, c);
+
   return {
     outcome: OUTCOME.GATHER,
     qty: res.qty, product: res.product,
     toolDoubles: res.toolDoubles, xpAmount: res.xpAmount,
+    hearthfind: found || undefined,
   };
 }
 

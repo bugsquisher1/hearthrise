@@ -283,6 +283,13 @@ export async function armHomingGuard() {
        hr_trait_buy writes) into G.traits on every load. A paid entitlement with
        a server row must be homed HERE, not duplicated into the residue bag. */
     'traits',
+    /* b522: consecFalls — accrue.js reconcileFall mirrors state.consec_falls (the
+       Retreat counter, Recovery rev.3) onto G on every envelope, and record.js
+       calls reconcileFall(G, …) from the idle-boot hydration step, so a reload
+       cannot strand it. Server-owned, written only by hr_apply within [0, 64].
+       VERIFIED below by driving the real reconcileFall through a projected
+       envelope, the same way farmPlots/plotLevels are. */
+    'consecFalls',
   ]);
   /* Derived / never-uploaded — homed by definition (recomputed at runtime, or
      re-supplied by the envelope on every load). EXPLICIT: a name here is a
@@ -616,6 +623,47 @@ export async function armHomingGuard() {
        + (e && e.message));
   }
 
+  /* ── EXECUTED: consecFalls (b522). The claim above is a name until reconcileFall
+     is DRIVEN. The projection needle is the §2 splice line of the Retreat
+     migration — if hr_state_of stops projecting consec_falls, the fixture below
+     would assert against a key the server never sends. */
+  try {
+    const PROJ = '2026-09-07-retreat.sql';
+    const sql = await readFile(new URL('supabase/migrations/' + PROJ, ROOT), 'utf8');
+    if (!sql.includes("      'consec_falls', v_st.consec_falls,$anc$);")) {
+      fail(`${PROJ} no longer splices the 'consec_falls' projection into hr_state_of, so the consecFalls `
+         + 'fixture below is asserting against a key the server does not send. The Retreat would arm off a '
+         + 'number the client never receives. Do not "fix" this by editing the fixture.');
+    }
+    const A = await import(mod('src/net/accrue.js'));
+    if (typeof A.reconcileFall !== 'function') {
+      fail("accrue.js no longer exports reconcileFall, so the 'consecFalls' mechanism claim in "
+         + 'SERVER_MECHANISM_FIELDS is unverifiable.');
+    } else {
+      const G = {};
+      A.reconcileFall(G, { ok: true, state: { consec_falls: 3 } });
+      if (G.consecFalls !== 3) {
+        fail("SERVER_MECHANISM_FIELDS claims 'consecFalls' is homed by reconcileFall, but driving the real "
+           + `reconcile with state.consec_falls=3 left G.consecFalls = ${G.consecFalls}. On reload the Retreat `
+           + 'counter is stranded and a fourth foodless fall goes through.');
+      }
+      // Fail-safe direction: an ABSENT key must leave the field alone (an
+      // invented 0 arms a client rule against a database that cannot back it).
+      const G2 = { consecFalls: 2 };
+      A.reconcileFall(G2, { ok: true, state: {} });
+      if (G2.consecFalls !== 2) {
+        fail(`an envelope without state.consec_falls must leave G.consecFalls UNTOUCHED; got ${G2.consecFalls}.`);
+      }
+      const G3 = {};
+      A.reconcileFall(G3, { ok: true, state: {} });
+      if (Object.prototype.hasOwnProperty.call(G3, 'consecFalls')) {
+        fail('an envelope without state.consec_falls must not INVENT G.consecFalls (resolveDeath gates the whole '
+           + `Retreat on this being a number); got ${G3.consecFalls}.`);
+      }
+    }
+  } catch (e) {
+    fail('the EXECUTED consecFalls-mechanism check threw, so the claim went unverified: ' + (e && e.message));
+  }
   // Bank purchase counters (goldBuys/gemBuys/grandfather) ride inside G.bank —
   // covered by the bank mechanism; no separate assertion. bountyHunter.marks was
   // the historic nested-authority trap — now top-level G.marks (b443), asserted above.

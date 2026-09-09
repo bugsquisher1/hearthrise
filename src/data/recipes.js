@@ -69,8 +69,31 @@ const BASE_RECIPES = {
   smithing: [
     // Bar smelting — full chain so steel_bar + rune_bar exist as ingredients for forging.
     {id:'smelt_copper',  name:'Copper Bar',  icon:'🟤', input:'copper_ore',  output:'copper_bar',  xp:15,  req:1,  ms:2400},
-    {id:'smelt_bronze',  name:'Bronze Bar',  icon:'🟫', inputs:{copper_ore:2, coal:1},                        output:'bronze_bar',  xp:20,  req:8,  ms:2600},
-    {id:'smelt_iron',    name:'Iron Bar',    icon:'⬜', input:'iron_ore',    output:'iron_bar',    xp:30,  req:15, ms:3000, secondary:{coal:1}},
+    /* Game-design ruling, found by playing: THE BRONZE WALL. Bronze bar
+       used to cost 1 coal at Smithing 8, and the only coal source in the game is
+       Coal Rock at MINING 30 (or a mid-tier monster drop). So the tier-1 armour
+       chain a brand-new player is pointed at — mine copper, smelt, forge a helm —
+       was gated on a level-30 mining grind, and Iron gear (Mining 15) was
+       reachable BEFORE Bronze. The whole starter tier was unreachable in the
+       order the game teaches it.
+       THE RULING: coal is the TIER-3 reagent and its first gate is Steel, which
+       already sits at Smithing 35 next to Coal Rock's Mining 30. Bronze and Iron
+       are single-ore smelts. Bronze drops to req 1 so a fresh smith's very first
+       action produces the bar the starter armour is made of (gear-tiers.js has
+       always declared bronze smith:1 — the bar was the one row that disagreed),
+       and costs 2 copper_ore so it is ore-hungrier than the copper bar it beats
+       on xp/sec (20/2.6 = 7.69 vs 15/2.4 = 6.25): a real choice, not a dead rung.
+       Deliberately NOT done: a new tin ore or a low-level coal seam. Both add a
+       faucet — coal is v:40, four times copper ore, so a Mining-5 coal node would
+       hand a starter 600 g/min — and a new item id needs a catalogue row, an
+       icon and drop-table work for zero extra decisions. Removing a reagent that
+       nothing else in the tier can supply is the smaller, stronger fix.
+       Coal keeps every one of its OTHER sinks (steel 2, gold 2, mithril 3, rune 4,
+       ember 4, dawn 5, and the steel forge lines), so the Mining-30 seam and the
+       Mining-52 rich seam lose no demand — they lose only the demand they could
+       not legally serve. */
+    {id:'smelt_bronze',  name:'Bronze Bar',  icon:'🟫', inputs:{copper_ore:2},                                output:'bronze_bar',  xp:20,  req:1,  ms:2600},
+    {id:'smelt_iron',    name:'Iron Bar',    icon:'⬜', input:'iron_ore',    output:'iron_bar',    xp:30,  req:15, ms:3000},
     {id:'smelt_steel',   name:'Steel Bar',   icon:'⬜', inputs:{iron_bar:1, coal:2},                          output:'steel_bar',   xp:70,  req:35, ms:3600},
     {id:'smelt_gold',    name:'Gold Bar',    icon:'🟡', input:'gold_ore',    output:'gold_bar',    xp:60,  req:40, ms:4000, secondary:{coal:2}},
     {id:'smelt_mithril', name:'Mithril Bar', icon:'🔵', input:'mithril_ore', output:'mithril_bar', xp:120, req:55, ms:5000, secondary:{coal:3}},

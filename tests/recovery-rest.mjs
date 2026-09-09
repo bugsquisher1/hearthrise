@@ -26,6 +26,10 @@
 //   8. hr_set_auto_eat STAMPS `auto_eat_set_at` on EVERY call — including the
 //      "Keep it off" call — and hr_state_of projects `auto_eat_touched`, so the
 //      one-time switch-on offer can never be made twice.
+//   9. THE RECOVERY WINDOW REFUSES COMBAT AND NOTHING ELSE (rev. 3) — and the
+//      engine PAYS the gather window it allows: (f) runs the real collect over
+//      five minutes inside a knockout and demands xp, items and an advanced
+//      `accrued_to`; (g) demands hr_rest is not jammed behind `collect_first`.
 //
 // ── THE MUTATION PROOF (run: node tests/recovery-rest.mjs --selftest) ──────
 // Each entry plants a REAL defect this suite claims to catch; --selftest demands
@@ -127,6 +131,16 @@ const MUTATIONS = {
     find: "      'auto_eat_touched', (v_st.auto_eat_set_at is not null),",
     repl: "      'auto_eat_touched_x', (v_st.auto_eat_set_at is not null),",
   },
+  recovery_floor_forfeits_gather: {
+    js: 'supabase/functions/hr-accrue/accrual.js',
+    why: 'the rev. 2 prefix subtraction is put back in the ENGINE - the declaration is accepted '
+       + '(section 10c) and then the whole knockout overlap is forfeited, so the client arms a run '
+       + 'the server never pays and it vanishes on reload (the b519 phantom class), AND the unpayable '
+       + 'window jams hr_rest behind collect_first for ever',
+    find: '  const recoverFloorMs = (recoverColIn && recoveryRefuses(inp.activeKind)\n'
+        + '    && !simulatesRecovery(inp.activeKind))',
+    repl: '  const recoverFloorMs = (recoverColIn && !simulatesRecovery(inp.activeKind))',
+  },
   recovery_refuses_gathering: {
     js: 'supabase/functions/hr-accrue/set-activity.js',
     why: 'the recovery refusal widens back to every payable kind (rev. 2) — a knocked-out player is '
@@ -194,7 +208,12 @@ async function loadIntent(mutate) {
   await cp(join(root, 'supabase/functions/hr-accrue'), join(base, 'supabase/functions/hr-accrue'), { recursive: true });
   await cp(join(root, 'src'), join(base, 'src'), { recursive: true });
   await writeFile(join(base, m.js), after, 'utf8');
-  return import(pathToFileURL(join(base, m.js)).href);
+  /* ALWAYS the intent module, never `m.js`: a mutation may plant its defect in
+     a file set-activity.js IMPORTS (accrual.js is the engine half of the same
+     rule), and importing the mutated file itself would hand this suite an
+     object with no runSetActivity on it. The whole tree is copied above, so the
+     relative import resolves to the mutated copy either way. */
+  return import(pathToFileURL(join(base, 'supabase/functions/hr-accrue/set-activity.js')).href);
 }
 
 /* Call as the PLAYER. auth.uid() reads `request.jwt.claim.sub` — the GUC
@@ -597,6 +616,121 @@ async function runAll(db, mutate) {
         'declaring a gather run CLEARED the recovery line — gathering during recovery must not be a '
         + 'free way off the floor (exploit R2: the window is not voided by an activity switch)');
 
+      /* -- (f) AND THE ENGINE PAYS IT. THE OTHER HALF OF THE RULING --------
+         (c) proves the DECLARATION is accepted. On its own that is worse than
+         a refusal: the server agrees, the client arms the loop and paints Qty
+         climbing, and `recoverFloorMs` in accrual.js forfeits the whole
+         overlap - a phantom run that vanishes on reload (the b519 class, with
+         the server's consent). This arm runs the REAL collect the switch verb
+         runs (`collectCurrentWindow`, the same bytes pack-edge ships) over a
+         window that lies entirely INSIDE the knockout, and demands it PAYS.
+
+         Both-path rule (section 4): this is the SERVER/ENGINE door for "the
+         window pays"; src/features/smoke-test.js RECOVER-16 (2) is the attended
+         door for "the run starts". Neither alone is the property. */
+      const back = async (secs) => db.exec(
+        `update public.player_state
+            set accrued_to = now() - interval '${secs} seconds',
+                active_since = now() - interval '${secs + 60} seconds'
+          where user_id = '${K}' and slot = 0;`);
+      const readState = async () => (await db.query(
+        `select accrued_to, recovering_until, consec_falls, active_kind, active_id
+           from public.player_state where user_id=$1 and slot=0`, [K])).rows[0];
+      const skillXpTotal = async () => Number((await db.query(
+        'select coalesce(sum(xp),0) x from public.player_skills where user_id=$1 and slot=0',
+        [K])).rows[0].x);
+      const bagTotal = async () => Number((await db.query(
+        'select coalesce(sum(qty),0) q from public.player_inventory where user_id=$1 and slot=0',
+        [K])).rows[0].q);
+      const readEnv = async () => (await exec(
+        `select public.hr_state_of($1::uuid, $2::int) as state,
+                public.hr_offline_cap_ms($1::uuid, $2::int) as cap_ms,
+                now() as now`, [K, 0]))[0];
+      const collect = async () => {
+        const r = await readEnv();
+        return sa.collectCurrentWindow({
+          exec, user: K, slot: 0, env: r.state, st: r.state.state,
+          nowMs: new Date(r.now).getTime(), capMs: Number(r.cap_ms) || 0,
+        });
+      };
+
+      await back(300);                                   // five unpaid minutes
+      const before = await readState();
+      const xpBefore = await skillXpTotal();
+      const bagBefore = await bagTotal();
+      ok(before.active_kind === 'gather'
+         && new Date(before.recovering_until).getTime() > Date.now(),
+        'SETUP (f): the fixture is not "gathering while knocked out" - '
+        + JSON.stringify({ kind: before.active_kind, until: before.recovering_until }));
+
+      const paid = await collect();
+      ok(paid.outcome === 'paid',
+        `a five-minute gather window inside a knockout was not paid: ${JSON.stringify(paid).slice(0, 240)}. `
+        + 'Rev. 3 says gathering pays IN FULL through a recovery; a server that accepts the '
+        + 'declaration (c) and then pays nothing is the phantom run, not the rule');
+      const grantMs = Number(paid.receipt && paid.receipt.ms) || 0;
+      ok(Math.abs(grantMs - 300000) <= 10000,
+        `the paid span was ${grantMs} ms, not the ~300000 ms that elapsed. A shortened span is the `
+        + "rev. 2 prefix subtraction (accrual.js's recoverFloorMs) surviving the ruling");
+
+      const after = await readState();
+      const xpAfter = await skillXpTotal();
+      const bagAfter = await bagTotal();
+      ok(xpAfter > xpBefore && bagAfter > bagBefore,
+        `the paid window moved no xp (${xpBefore}->${xpAfter}) or no items (${bagBefore}->${bagAfter}). `
+        + '"Paid" that credits nothing is the same phantom one layer down');
+      ok(new Date(after.accrued_to).getTime() > new Date(before.accrued_to).getTime(),
+        'accrued_to did not advance on a paid window - the same five minutes would be paid again');
+      ok(String(after.recovering_until) === String(before.recovering_until)
+         && new Date(after.recovering_until).getTime() > Date.now(),
+        `paying a gather window moved the recovery line (${before.recovering_until} -> `
+        + `${after.recovering_until}). Gathering neither creates nor clears a knockout: a collect `
+        + 'that shortened it would be a free way off the floor (exploit R2)');
+      ok(String(after.consec_falls) === String(before.consec_falls),
+        `paying a gather window moved consec_falls (${before.consec_falls} -> ${after.consec_falls}). `
+        + 'Only the combat path writes the ladder counter; a gather collect that re-zeroed it would '
+        + 'make "fish for five minutes" the cure for the ladder');
+
+      /* -- (g) AND THE RELIEF VALVE IS NOT JAMMED ---------------------------
+         hr_rest refuses `collect_first` when the pointer is non-idle and
+         `accrued_to` is more than 60 s stale (section 5). Under rev. 2 a gather
+         window inside a knockout could never be paid - every accrue answered
+         `too_soon` and never stamped `accrued_to` - so "start fishing while
+         down" meant Rest was refused until you Stopped, and the death sheet's
+         "try Rest again in a moment" was a lie. Without the engine half of this
+         change the arm below is red by construction, which is the point. */
+      const restNow = await rest(db, K, uuid());
+      ok(!(restNow && restNow.ok === false && restNow.error === 'collect_first'),
+        `hr_rest was refused collect_first immediately after the window was PAID `
+        + `(${JSON.stringify(restNow).slice(0, 200)}). The valve is jammed: a knocked-out gatherer `
+        + 'cannot Rest and cannot be told why');
+
+      /* And the round trip a real player makes: let the window go stale, watch
+         Rest refuse, PAY it through the same collect, and Rest goes through. */
+      await back(300);
+      const jammed = await rest(db, K, uuid());
+      ok(jammed && jammed.ok === false && jammed.error === 'collect_first',
+        `CONTROL: a stale gather window did NOT produce collect_first `
+        + `(${JSON.stringify(jammed).slice(0, 200)}) - the arm above proves nothing`);
+      await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty)
+                     values ('${K}', 0, '${STRONG}', 99)
+                     on conflict (user_id, slot, item_id) do update set qty = 99;`);
+      await db.exec(`update public.player_state set hp = 1 where user_id='${K}' and slot=0;`);
+      const paid2 = await collect();
+      ok(paid2.outcome === 'paid',
+        `the second gather window was not paid either: ${JSON.stringify(paid2).slice(0, 200)}`);
+      const freed = await rest(db, K, uuid());
+      ok(freed && freed.ok === true,
+        `after PAYING the gather window, hr_rest still refused: ${JSON.stringify(freed).slice(0, 200)}. `
+        + 'Pay-then-rest is the only exit a knocked-out gatherer has; if it does not work the player '
+        + 'is stuck until they Stop, which is the rule the ruling deleted');
+      /* Re-arm the fixture (d) and (e) read: hr_rest CLEARS the line, and the
+         pointer must be back where (c) left it. Stated, not left implicit. */
+      await knock(900);
+      await db.exec(`update public.player_state
+                        set active_kind = 'gather', active_id = '${GATHER.id}'
+                      where user_id = '${K}' and slot = 0;`);
+
       // (d) THE LADDER DID NOT MOVE. The refusal narrowed; the price of falling did not.
       ok(away.recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: 99 }) === 0
         && away.recoveryFor({ deathsTodayBefore: 1, deathsLifetimeBefore: 99 }) === away.RECOVERY_BASE_MS
@@ -647,6 +781,8 @@ if (argv.includes('--selftest')) {
     + 'value-free row per death and bounded; hr_set_auto_eat stamps the touch on every call and '
     + 'hr_state_of projects it; the ladder counters survive a truncated progress array; and '
     + 'set_activity §1b refuses COMBAT alone inside the window while gathering runs at full rate, '
-    + 'without clearing the line or moving the ladder).');
+    + 'without clearing the line or moving the ladder — and the ENGINE pays that window through the '
+    + 'real collect, so the xp and items land, accrued_to advances, and hr_rest is not jammed behind '
+    + 'collect_first).');
   process.exit(0);
 }

@@ -1483,8 +1483,18 @@
     } catch (e) { return false; }
   }
 
+  /* TEST SEAM, and it is the ONE this function needs. The whole point of
+     answerTap is that the sheet and `notify` are INDEPENDENT failure modes, so
+     the floor can only be proven with the sheet taken away — and a suite cannot
+     take it away from outside (`show` is a closure, and stubbing `isOpen`
+     instead proves nothing, because show() would still have opened it). Null in
+     production; the only writer is `__setOpenerForTest`, which coerces anything
+     that is not a function back to null so a forgotten teardown cannot leave a
+     dead stub wired into a player's refusal. */
+  var openerForTest = null;
+
   function answerTap(why) {
-    try { show(null, null); } catch (e) {}
+    try { (openerForTest || show)(null, null); } catch (e) {}
     if (isOpen()) return true;
     try {
       if (typeof window.notify === 'function') { window.notify(why, 'kill'); return true; }
@@ -1601,6 +1611,9 @@
        the same knockout is still running. Use `__resetForTest` below to retire
        a fall outright. */
     _resetRaise: function () { raisedForUntil = 0; },
+    /* See `openerForTest`. Pass a function to take the sheet away from
+       answerTap; pass anything else (or nothing) to put it back. */
+    __setOpenerForTest: function (fn) { openerForTest = (typeof fn === 'function') ? fn : null; },
     /* ── ONE TEARDOWN FOR EVERY FIXTURE THAT STATES A FALL ────────────────
        A test that puts this sheet on screen and does not take it off hands
        every later test a FULL-SCREEN overlay, and the failure then lands

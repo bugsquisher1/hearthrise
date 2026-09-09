@@ -14683,6 +14683,79 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('RECOVER-20 (rev. 3): with the sheet taken away, a refused tap is still ANSWERED by '
+    + 'notify — and with no surface at all answerTap admits it failed', () => {
+    /* RECOVER-16 ④ proves the SHEET answers the tap. It cannot prove the FLOOR:
+       `answerTap` tries the sheet first, so on every green run `notify` is
+       never reached and that branch has never executed in a test — while the
+       measured symptom was a refusal with NO surface at all.
+       MUTATION: drop the `window.notify(...)` line from answerTap → ② RED. */
+    const D = window.HearthriseDeathSheet;
+    if (!D || typeof D.answerTap !== 'function' || typeof D.__setOpenerForTest !== 'function'
+        || typeof D.__resetForTest !== 'function') {
+      skip('the death-sheet answer seam is not wired'); return;
+    }
+    const realNotify = window.notify;
+    const scrim = () => document.getElementById('hr-death-scrim');
+    const up = () => { const el = scrim(); return !!(el && el.classList.contains('show')); };
+    let said = [];
+    try {
+      D.__resetForTest();
+      D.__setOpenerForTest(function () { return null; });   // the sheet, taken away
+      assert(!up(), 'the fixture could not put the sheet away, so the floor cannot be reached');
+
+      /* ① AND IT STAYS AWAY. If the stub did not take, ② would pass on the
+            sheet and this test would measure nothing. */
+      window.notify = function (msg, kind) { said.push({ msg, kind }); };
+      const LINE = 'Knocked out — back on your feet in 12m';
+      const told = D.answerTap(LINE);
+      assert(!up(), 'the opener stub did not take — the sheet is on screen, so the notify floor was '
+        + 'never reached and this test proves nothing');
+
+      /* ② THE FLOOR CARRIES THE LINE, not a generic ping: the player has to
+            learn WHY the tap did nothing, in the same gesture. */
+      assert(told === true, 'answerTap reported the player was NOT told, although notify was wired: '
+        + 'a refusal that reports itself unanswered will make its caller retry or fall silent');
+      assert(said.length === 1 && said[0].msg === LINE,
+        'the floor did not carry the refusal line (' + JSON.stringify(said).slice(0, 160) + '): a toast '
+        + 'that says nothing is the dead tap with extra steps');
+
+    } finally {
+      D.__setOpenerForTest(null);
+      if (typeof realNotify === 'function') window.notify = realNotify;
+      else { try { delete window.notify; } catch (e) {} }
+      try { D.__resetForTest(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('RECOVER-21 (rev. 3): with NO surface at all — no sheet, no notify — answerTap admits '
+    + 'the player was not told', () => {
+    /* The other half, and its own test because it is its own property: "reports
+       true" is worthless without "reports false when nothing was said". A
+       function that always claims the player was told is the swallowed refusal
+       wearing a return value, and its callers stop looking.
+       MUTATION: `return true` at the end of answerTap → RED. */
+    const D = window.HearthriseDeathSheet;
+    if (!D || typeof D.answerTap !== 'function' || typeof D.__setOpenerForTest !== 'function'
+        || typeof D.__resetForTest !== 'function') {
+      skip('the death-sheet answer seam is not wired'); return;
+    }
+    const realNotify = window.notify;
+    try {
+      D.__resetForTest();
+      D.__setOpenerForTest(function () { return null; });
+      try { delete window.notify; } catch (e) { window.notify = undefined; }
+      assert(D.answerTap('Knocked out') === false,
+        'with no sheet and no notify, answerTap still claimed the player was told — the dropped-tap '
+        + 'report is then unreproducible, because the code says it answered');
+    } finally {
+      D.__setOpenerForTest(null);
+      if (typeof realNotify === 'function') window.notify = realNotify;
+      else { try { delete window.notify; } catch (e) {} }
+      try { D.__resetForTest(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('RECOVER-19 (b524): a BOOT RESUME while knocked out raises no pre-fight warning and '
     + 'runs no local fight — the knocked-out sheet is the only surface', () => {
     /* MEASURED LIVE — QA account, 2026-09-08 23:30 UTC. Knocked out,

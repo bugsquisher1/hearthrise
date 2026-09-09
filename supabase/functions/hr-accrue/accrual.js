@@ -114,7 +114,7 @@ import { killBonusesFor } from '../../../src/core/botd.js';
    both the server and (through core-bridge) the client — the flip from
    last-window to first-window crediting is a property of the away model, not a
    line of arithmetic each side gets to write for itself. */
-import { creditWindow, utcDaySegments } from '../../../src/core/away.js';
+import { creditWindow, utcDaySegments, recoveryRefuses } from '../../../src/core/away.js';
 import { createRng } from '../../../src/core/rng.js';
 /* RESTED XP (b437), banked SERVER-SIDE. The SAME watermarked accrual the client
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
@@ -1142,26 +1142,36 @@ export function computeAccrual(input) {
   // paid for more time than the activity has actually existed.
   const sinceMs = nat(inp.activeSinceMs, accruedToMs);
 
-  /* ── (1-r) KNOCKED OUT TIME IS NOT PAYABLE TIME (Recovery rev. 2, R2) ─────
+  /* ── (1-r) KNOCKED OUT TIME IS NOT PAYABLE TIME (Recovery rev. 3, R2) ─────
      `player_state.recovering_until` is an ABSOLUTE server instant before which
-     this character earns NOTHING — and rev. 1 only enforced that for combat,
-     which made the whole rule optional: fall over, switch to fishing, fish
-     through the knockout, switch back. Recovery is a property of the CHARACTER,
-     so it costs every PAYABLE kind.
-       · COMBAT is excluded HERE and gated inside the simulation instead
-         (`simulateSpan` spends recovery ticks without swinging), because the
-         combat path is the one that can CREATE a recovery mid-window and so
-         needs a timeline rather than a subtraction.
-       · GATHER and ARTISAN have no timeline and cannot create one: for them the
-         overlap is a prefix of the window, and moving the paid window's floor
-         forward past `recovering_until` IS the subtraction — it shortens
-         `grantMs` and repositions the credited span in one statement, so the
-         two can never disagree.
+     this character may not FIGHT. Rev. 2 read it as "earns nothing" and made
+     the floor apply to every payable kind except combat; the designer ruling
+     of 2026-09-08 (rev. 3) narrows it: a knockout stops you fighting, it does
+     not lock you out of the world. Gathering and the benches pay in FULL
+     through a knockout, at the ordinary rate, with no tax.
+       · There is ONE definition of "which kinds does recovery refuse", and it
+         is `recoveryRefuses()` in src/core/away.js — the same predicate the
+         declaration gate in set-activity.js asks. This file does not restate
+         `'combat'`; the day the catalogue changes, it changes there.
+       · COMBAT — the one kind the predicate refuses — is NOT subtracted here
+         either: it is gated inside the simulation (`simulateSpan` spends
+         recovery ticks without swinging), because the combat path is the one
+         that can CREATE a recovery mid-window and so needs a timeline rather
+         than a subtraction. The floor stays in the code as the seam the
+         predicate drives, so a future refused kind WITHOUT a timeline gets the
+         prefix subtraction for free.
      Clamped to `nowMs` so a line in the future cannot push the floor past the
      present and mint a negative span. Self-configuring on the column exactly
      like the combat seed below: absent ⇒ 0 ⇒ byte-for-byte the old behaviour. */
   const recoverColIn = inp.recoveringUntilMs !== null && typeof inp.recoveringUntilMs !== 'undefined';
-  const recoverFloorMs = (recoverColIn && inp.activeKind !== 'combat')
+  /* The second clause is NOT a second copy of the recovery catalogue: it names
+     a different property — this kind is SIMULATED tick by tick below, so its
+     recovery is spent on the timeline (RECOVER-2 pins that a pure-recovery
+     combat window still applies and carries the line forward; a prefix
+     subtraction here would skip it and re-price the knockout for ever). */
+  const simulatesRecovery = (kind) => kind === 'combat';
+  const recoverFloorMs = (recoverColIn && recoveryRefuses(inp.activeKind)
+    && !simulatesRecovery(inp.activeKind))
     ? Math.min(nat(inp.recoveringUntilMs, 0), nowMs) : 0;
   /* The floor the paid window starts at. `accrued_to` still advances to now()
      in the delta — the forfeited knockout is a FORFEIT, not a deferral, exactly

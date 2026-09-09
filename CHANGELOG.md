@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 525 — 2026-09-09 (No warning for a fight you cannot start)
+
+**The pre-fight food warning no longer fires on a reload while you are knocked out.** The server-driven resume was treated like a tap, so a plain reload during recovery stacked "No food in your bag — Fight anyway" over the knocked-out sheet. The resume is not a gesture: it mirrors the server's pointer and asks nothing. While you are down the warning cannot appear at all, and its once-per-foe latch is kept for the tap that matters.
+
 ## v0.9.2-beta build 524 — 2026-09-09 (A Retreat survives a reload)
 
 **The Retreat sheet after a reload tells the truth.** If the realm halted your run on a Retreat and you reloaded, the sheet came back as a plain knockout — a clock, and a promise that your run would pick up by itself. It now reads the server's fall counter and says what actually happened: you pulled back, and the run does not restart itself. No number is invented when the server sends none.

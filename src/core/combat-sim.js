@@ -60,33 +60,33 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=522';
-import { rollDropTable } from './drops.js?v=522';
-import { resolveHearthfind } from './hearthfind.js?v=522';
-import { hitXpRoute, killXpRoute } from './styles.js?v=522';
-import { applyGoldFind } from './pacing.js?v=522';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit } from './combat.js?v=523';
+import { rollDropTable } from './drops.js?v=523';
+import { resolveHearthfind } from './hearthfind.js?v=523';
+import { hitXpRoute, killXpRoute } from './styles.js?v=523';
+import { applyGoldFind } from './pacing.js?v=523';
 /* `retreatAtFall` ONLY — the two rungs stay in away.js beside the recovery
    ladder, where the design tables live. This file asks the table; it does not
    restate it, so a designer moving a rung moves it in exactly one place. */
 import { AWAY_RATE_MULT, CHANNEL, channelApplies, rateMult, recoveryFor, resumeHpFor, utcDaySegments,
-         retreatAtFall } from './away.js?v=522';
+         retreatAtFall } from './away.js?v=523';
 /* THE RETREAT'S FOODLESS FACT (rev. 3). `chooseFood` is the SAME chooser
    `resolveAutoEat` asks and the same one accrual.js derives the receipt's
    `hadFood` from — one definition of "is there anything here I could eat", so
    the trigger and the sentence explaining it cannot disagree. It draws no
    random numbers and mutates nothing, so it is safe to call inside a seeded
    fight (§2.1's contract on `spendForSwings` applies for the same reason). */
-import { chooseFood, resolveAutoEat } from './auto-eat.js?v=522';
+import { chooseFood, resolveAutoEat } from './auto-eat.js?v=523';
 /* THE FORECAST's seeded dice (ruling item 7). A fixed seed, never a clock —
    see `forecastFight` at the foot of this file. */
-import { createRng } from './rng.js?v=522';
-import { NO_BONUS } from './botd.js?v=522';
-import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=522';
+import { createRng } from './rng.js?v=523';
+import { NO_BONUS } from './botd.js?v=523';
+import { tickBuffs, pruneBuffs, hasActiveBuff } from './buffs.js?v=523';
 /* THE CONSUMPTION SEAM (design item E1). The arithmetic lives in ./ammo.js and
    is imported rather than restated — one field, one carry, one guard. Nothing
    below branches on `ctx.away`, which is what keeps the AWAY-1 parity property
    true of the quiver as well as of the XP. */
-import { spendForSwings, applyAmmoMult } from './ammo.js?v=522';
+import { spendForSwings, applyAmmoMult } from './ammo.js?v=523';
 
 export { AWAY_RATE_MULT };
 

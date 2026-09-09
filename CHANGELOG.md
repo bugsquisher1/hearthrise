@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 523 — 2026-09-08 (Cancel a listing, for real)
+
+**Market Cancel now actually cancels.** Cancelling one of your listings did nothing on live: the row was painted with a temporary id before the server's came back, so the button pointed at nothing, and the refusal was swallowed. Cancel now sends the intent and the bag changes only when the server answers — the client never refunds itself. Refusals show their reason.
+
 ## v0.9.2-beta build 522 — 2026-09-08 (The Retreat, the Night, and the first Hearthfinds)
 
 **The Retreat (Recovery Rule rev.3).** The realm now stops swinging a fight it has proven you cannot win. Three falls in a row with no food (six with food) and the run halts on a Retreat, not a fourth knockout: the fight sheet says so, the forecast warns you once before the fatal tap, and nothing is healed or hurried — the recovery clock is untouched. Server-owned (`consec_falls`, written only by the engine), attended and away alike; a fresh win resets the count.

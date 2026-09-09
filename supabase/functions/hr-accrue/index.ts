@@ -883,6 +883,36 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       d.items = items;
       d.workers = wout.workers;
       d.workers_accrued_to = 'now';
+      /* C2 (2026-09-08 security review) — JOURNAL THE CREW SHARE. On this merged
+         path the crew's items ride the POINTER's delta and the row keeps the
+         pointer's kind/intent/meta.ms, so the ledger showed a `gather` row whose
+         item count no rate could explain: the first-hire backlog mint was found
+         only by dividing meta.ms by the node rate. `meta.crew` names the crew
+         half of the row explicitly — span, quantity, worker count and the exact
+         items — so the next crew defect is one query away instead of arithmetic.
+         hr_apply already merges `journal.meta` into the row
+         (jsonb_build_object('delta', v_meta) || coalesce(v_j->'meta','{}')), so
+         this needs no SQL change and adds no write surface; a <=6-worker item map
+         is far inside the 2 KB journal backstop. Spread-merged so a caller that
+         already set a journal (the standalone worker settle below) keeps its
+         kind/intent and its own meta keys. */
+      /* Folded into an EXISTING journal only. Both call sites (the pointer's
+         out.delta and the standalone settle below) always carry one with a
+         `kind`; hr_apply coalesces a kindless journal to kind='admin', so
+         inventing one here to hang meta.crew off would mislabel the row. */
+      if (d.journal && typeof d.journal === 'object') {
+        const j: Record<string, any> = { ...(d.journal as Record<string, any>) };
+        j.meta = {
+          ...((j.meta as Record<string, any>) || {}),
+          crew: {
+            ms: wout.summary.spanMs,
+            qty: wout.summary.qty,
+            workers: wout.summary.workers,
+            items: wout.items,
+          },
+        };
+        d.journal = j;
+      }
       return d;
     };
 

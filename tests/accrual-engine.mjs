@@ -5334,7 +5334,12 @@ function ammoGuard() {
 // whole backlog. Aldric was hired at 03:00:33; six minutes later he was paid a
 // day. The mint signs itself: 1,800 ticks is 18,900 worker xp, which is worker
 // level 4, and every worker row after it lands at 38.7 s — exactly the level-4
-// tick that burst created. It is repeatable: fire the crew, wait a day, rehire.
+// tick that burst created. It is NOT a one-off and it is NOT a fire/re-hire
+// exploit — there is no dismiss RPC and hr_worker_hire is player_workers'
+// only writer. The repeat vectors are ordinary play: every character's FIRST
+// hire made 24h+ after the character was created (the case measured here), a
+// hire into a fresh SLOT on an older account, and a WHOLE crew left idle then
+// re-assigned (the assigned_at half, which hired_at does not close).
 //
 // BOTH HALVES ARE ASSERTED, because a fix must not pay for itself out of the
 // honest one: the player's own 91 ore and their mining XP are unchanged.
@@ -5428,6 +5433,62 @@ function crewBacklogGuard() {
   ok(oreOf(blind) === 0,
     `${C}8: a crew row with no hired_at was paid ${oreOf(blind)} ${PROD}. A missing hire time `
     + 'must fail CLOSED — an under-paying crew is a redeploy, a backlog faucet is a wipe.');
+
+  // ── 5. THE CREW'S SHARE IS JOURNALLED (C2, 2026-09-08 security review). ───
+  /* This mint was found by DIVIDING meta.ms by the node rate, because on the
+     merged path the crew's items disappear into the pointer's `meta.delta.i`
+     under the pointer's own kind/intent/ms. After the floor lands the faucet is
+     shut, but the NEXT crew defect would be exactly as invisible — so
+     `mergeWorkers` folds `journal.meta.crew` into the delta and hr_apply's
+     existing `|| coalesce(v_j->'meta','{}')` merge carries it onto the row.
+
+     EXECUTED, not string-matched, and executed on the SHIPPED BYTES: Node
+     cannot import a Deno .ts file, so `mergeWorkers` is sliced out of index.ts's
+     source, its (only) type annotations stripped, and run — the
+     tests/delta-transport.mjs T1 idiom. Deleting, renaming or gutting the merge
+     makes this red; so does a type annotation the strip does not know, which
+     throws rather than passing vacuously. */
+  if (paid.accrued) {
+    const shell = readFileSync(join(FN_DIR, 'index.ts'), 'utf8').replace(/\r\n/g, '\n');
+    const OPEN = 'const mergeWorkers = ';
+    const CLOSE = '\n    };\n';
+    const from = shell.indexOf(OPEN);
+    const to = from < 0 ? -1 : shell.indexOf(CLOSE, from);
+    if (from < 0 || to < 0) {
+      ok(false, `${C}9: index.ts no longer contains a \`${OPEN}…\` arrow closing at the expected `
+        + 'indent, so this guard can no longer see the merge it grades. That is a failure, not a '
+        + 'pass.');
+    } else {
+      const js = shell.slice(from, to + CLOSE.length - 1)
+        .replace(/\s+as\s+Record<string,\s*any>/g, '')
+        .replace(/:\s*Record<string,\s*(?:any|number)>/g, '');
+      const pointerDelta = {
+        journal: { kind: 'gather', intent: 'accrue', meta: { ms: t.grantMs } },
+        items: { [PROD]: 91 },
+      };
+      let merged = null;
+      let boom = null;
+      try {
+        merged = new Function('wout', js + '\nreturn mergeWorkers;')(paid)(pointerDelta);
+      } catch (e) { boom = e; }
+      ok(!boom, `${C}9: index.ts's mergeWorkers could not be executed off its own bytes `
+        + `(${boom && boom.message}) — most likely a new TypeScript annotation the strip above `
+        + 'does not know about.');
+      const fold = merged && merged.journal && merged.journal.meta && merged.journal.meta.crew;
+      eq(JSON.stringify(fold && fold.items), JSON.stringify(paid.items),
+        `${C}10: the merged delta's journal.meta.crew.items must be EXACTLY the crew half `
+        + `(${JSON.stringify(paid.items)}), and it is ${JSON.stringify(fold && fold.items)}. `
+        + "Without it a merged row's crew contribution cannot be reconstructed — which is how "
+        + 'the 1,800-ore mint hid inside a `gather` row for a day.');
+      eq(merged && merged.journal && merged.journal.kind, 'gather',
+        `${C}11: folding meta.crew disturbed the pointer's journal kind. hr_apply coalesces a `
+        + "kindless journal to kind='admin', so the row would be mislabelled in the ledger.");
+      eq(merged && merged.journal && merged.journal.meta && merged.journal.meta.ms, t.grantMs,
+        `${C}12: the pointer's own meta.ms was overwritten by the crew fold. meta.crew.ms is the `
+        + "crew's span; meta.ms stays the pointer's, or the arithmetic that found this bug stops "
+        + 'working.');
+    }
+  }
 }
 
 /* THE MUTATION SEAM. `computeAccrualInputParity` is exported for the same

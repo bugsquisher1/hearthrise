@@ -3571,6 +3571,8 @@ export function accrueWorkers(input) {
   let workingCount = 0;
   let produced = false;
   let paidSpanMs = 0;
+  // R1 (2026-09-08 security review): wrong-order visibility. See the warn below.
+  let missingHiredAt = 0;
 
   for (const w of crew) {
     if (!w || typeof w.uid !== 'string' || !/^[a-z0-9_]{1,64}$/.test(w.uid)) continue;
@@ -3600,7 +3602,16 @@ export function accrueWorkers(input) {
        48,000 ms per tick). The mint is self-confirming: 1,800 ticks credited
        the worker 18,900 xp, which is level 4, and every subsequent worker row
        lands at 38.7 s — exactly the level-4 tick this settle created.
-       It is also REPEATABLE: fire the crew, wait a day, re-hire.
+       It is NOT a one-off, and it is not an exploit that needs a fire/re-hire
+       (there is no dismiss RPC and no client write path: hr_worker_hire is the
+       only writer on this table). The repeat vectors are ORDINARY PLAY:
+         (a) EVERY character's first hire made 24h or more after the character
+             was created — the common case, and the one measured above;
+         (b) a hire into a FRESH SLOT on an old account, same arithmetic;
+         (c) the WHOLE crew left idle (a producing member advances the shared
+             watermark for the parked ones, so it takes all of them) and then
+             re-assigned — the second half, which hired_at does NOT close and
+             which needs `assigned_at` (its own lane-C item).
 
        The fix is the honest floor, and it is PER WORKER because the watermark
        is shared and a crew is heterogeneous: this worker's payable window opens
@@ -3616,6 +3627,7 @@ export function accrueWorkers(input) {
        preserved, so only the un-settled span is lost) — an outage a redeploy
        fixes, rather than a faucet a wipe fixes. */
     const hiredAtMs = Number(w.hired_at ? Date.parse(String(w.hired_at)) : NaN);
+    if (!Number.isFinite(hiredAtMs)) missingHiredAt++;
     const payFromMs = Number.isFinite(hiredAtMs) ? Math.max(fromMs, hiredAtMs) : nowMs;
     const spanMs = Math.min(Math.max(0, nowMs - payFromMs), WORKER_ACCRUE_CAP_MS);
 
@@ -3662,6 +3674,19 @@ export function accrueWorkers(input) {
       if (xpGain > 0) { out.xp = xpGain; produced = true; }
     }
     workerOut[w.uid] = out;
+  }
+
+  /* R1 — WRONG-ORDER VISIBILITY (2026-09-08 security review). The fail-closed
+     branch above is safe (it defers, it never mints) but it is SILENT: neither
+     the payload guard nor apply-order-honesty can see "engine deployed,
+     projection absent", and the only downstream signal is `vitals` workers
+     falling to zero a day later. One line per settle, not per worker, so a
+     six-worker crew cannot spam the function log. */
+  if (missingHiredAt > 0 && typeof console !== 'undefined' && console && console.warn) {
+    console.warn('accrueWorkers: ' + missingHiredAt + ' assigned crew row(s) carry no hired_at — '
+      + 'they are paid NOTHING this settle (fail-closed). Apply '
+      + '2026-09-12-worker-hired-at-projection.sql; the deferred span is refunded on the next '
+      + 'settle once hr_state_of projects it.');
   }
 
   for (const id in itemDelta) itemKinds++;

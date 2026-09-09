@@ -27,10 +27,22 @@
 --  1,800 a worker hired 384 seconds earlier, paid a full 24 hours
 --        (86,400,000 / 48,000 ms at copper_rock).
 -- The crew items ride the pointer's delta (index.ts `mergeWorkers`), which is
--- why the mint wore a `gather` label. It is REPEATABLE: fire the crew, wait a
--- day, re-hire. The engine's fix is the honest floor — a worker's payable window
--- opens at its OWN `hired_at`, never at a shared watermark that predates it —
--- and that floor needs this key.
+-- why the mint wore a `gather` label — and why that merge now also journals
+-- `meta.crew`, so the crew's share of a merged row is readable instead of
+-- reconstructed from arithmetic.
+--
+-- IT IS NOT A ONE-OFF, and it is not a "fire the crew and re-hire" exploit:
+-- there is no dismiss RPC and no client write path (`hr_worker_hire` is the
+-- only writer on player_workers). The repeat vectors are ORDINARY PLAY:
+--   (a) EVERY character's first hire made 24h or more after the character was
+--       created — the common case, and the one measured above;
+--   (b) a hire into a FRESH SLOT on an older account — same arithmetic;
+--   (c) the WHOLE crew left idle and then re-assigned; a single producing
+--       member advances the shared watermark for the parked ones, so it takes
+--       all of them. That third one is the `assigned_at` half, below.
+-- The engine's fix is the honest floor — a worker's payable window opens at its
+-- OWN `hired_at`, never at a shared watermark that predates it — and that floor
+-- needs this key.
 --
 -- ── WHAT THIS FILE IS NOT ───────────────────────────────────────────────────
 -- It does not repair the ore already minted (that is the Coordinator's call
@@ -119,6 +131,32 @@ revoke execute on function public.hr_state_of(uuid, int)
   from public, anon, authenticated, service_role;
 grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
 
+-- ── 1b. player_workers — REVOKE THE DEAD CLIENT WRITE GRANT (C1) ───────────
+-- 2026-08-16-client-write-grant-sweep-3.sql measured production's schema
+-- DEFAULT ACL as `grant all on tables to anon, authenticated`
+-- (pg_default_acl {anon=arwdm, authenticated=arwdm}), so every table created
+-- after it — player_workers is 2026-08-25 — is BORN holding INSERT/UPDATE/
+-- DELETE/TRUNCATE/REFERENCES/TRIGGER (and MAINTAIN on PG17+) for both browser
+-- roles, and no migration in this repo has revoked them. RLS with no write
+-- policy is what actually stops the write today, and it does; the grant is
+-- dead weight. This file reads `hired_at` into an economy floor, so it takes
+-- the grant away rather than relying on one layer. Sweep-3's idiom, table-
+-- local: ENUMERATED (never `revoke all` — SELECT must survive, the client
+-- reads its own crew) and MAINTAIN version-guarded, because an unguarded
+-- `revoke maintain` is a SYNTAX error on PG16 and would fail this apply for a
+-- privilege that server cannot name.
+-- Idempotent by nature: a revoke of a privilege already absent is a no-op, so
+-- this replays byte-identically on the drift harness and on production.
+do $$
+declare
+  v_priv constant text := 'insert, update, delete, truncate, references, trigger'
+    || case when current_setting('server_version_num')::int >= 170000
+            then ', maintain' else '' end;
+begin
+  execute format('revoke %s on public.player_workers from public, anon, authenticated', v_priv);
+  raise notice 'player_workers: client write grants revoked (%), select preserved', v_priv;
+end $$;
+
 -- ── 2. SELF-VERIFYING COMMIT GATE (§4) ─────────────────────────────────────
 -- Proves the load-bearing properties by EXECUTING them. Apply is atomic, so a
 -- raise reverts §1. The row-writing probe lives in a subtransaction discarded by
@@ -150,6 +188,47 @@ begin
   --     roles a browser can hold; service_role is a backend key that never
   --     reaches a client and is deliberately not asserted here (it holds the
   --     Supabase default write grant on every table in this schema).
+  --
+  --     ASSERTED ON THE REAL INVARIANT (C1, 2026-09-08 security review). The
+  --     first draft of this gate raised on any non-SELECT entry in
+  --     role_table_grants, which on PRODUCTION is expected to be non-empty for
+  --     a reason that protects nothing and blocks nothing: the schema default
+  --     ACL grants all to anon/authenticated at CREATE TABLE time (sweep-3).
+  --     A dead grant is not a write path — RLS is — so the apply must not fail
+  --     closed on it. §1b now revokes those grants, and this gate asserts the
+  --     property that actually holds the line, in this order:
+  --       (b1) RLS is ENABLED on the table, and
+  --       (b2) there is NO policy other than SELECT reachable by anon /
+  --            authenticated / public,
+  --     which together mean a browser role cannot insert, update or delete a
+  --     row no matter what the table-level ACL says. (b3) then re-checks the
+  --     ACL as a POST-CONDITION OF §1b — by now it is true by construction, so
+  --     a raise here means §1b did not run or something re-granted after it.
+  if not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                  where n.nspname = 'public' and c.relname = 'player_workers'
+                    and c.relrowsecurity) then
+    raise exception 'GATE(b1): RLS is OFF on player_workers — hired_at would be player-authored, '
+                    'and the floor this file feeds would be forgeable';
+  end if;
+
+  select string_agg(polname || ':' || polcmd::text, ', ')
+    into v_bad
+    from pg_policy p
+    join pg_class c on c.oid = p.polrelid
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relname = 'player_workers'
+     -- polcmd: 'r' select, 'a' insert, 'w' update, 'd' delete, '*' all
+     and p.polcmd <> 'r'
+     -- polroles = '{}' is PUBLIC (every role, including anon/authenticated)
+     and (p.polroles = '{0}'::oid[]
+          or p.polroles && (select coalesce(array_agg(oid), '{}'::oid[]) from pg_roles
+                             where rolname in ('anon', 'authenticated', 'public')));
+  if v_bad is not null then
+    raise exception 'GATE(b2): a NON-SELECT RLS policy on player_workers is reachable by a browser '
+                    'role (%) — the crew would no longer be RPC-written only and hired_at would be '
+                    'player-authored', v_bad;
+  end if;
+
   select string_agg(grantee || ':' || privilege_type, ', ')
     into v_bad
     from information_schema.role_table_grants
@@ -157,8 +236,9 @@ begin
      and grantee in ('anon', 'authenticated', 'PUBLIC')
      and privilege_type <> 'SELECT';
   if v_bad is not null then
-    raise exception 'GATE(b): a client write grant exists on player_workers (%) — hired_at would '
-                    'be player-authored, and the floor this file feeds would be forgeable', v_bad;
+    raise exception 'GATE(b3): §1b was supposed to leave player_workers with SELECT only for the '
+                    'browser roles, and did not (%). RLS still blocks the write, but this file no '
+                    'longer knows what state it changed.', v_bad;
   end if;
 
   -- (c) EXECUTED — hr_state_of returns the hire time, verbatim, in a discarded

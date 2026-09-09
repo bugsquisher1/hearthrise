@@ -131,6 +131,18 @@ _Prior overnight note (2026-08-18 → 08-19):_
 > 3. Core screens on CSS tokens (no hardcoded colors on shipped surfaces). §9.
 > 4. `hr-accrue` load-tested at target concurrency. §9.
 
+## 2026-09-08 23:35 UTC — b522 LIVE and PLAYED (Coordinator)
+
+Play-gate on the QA account (b522, 90c19331): reload → what's-new → Set the Night receipt (server away receipt: 4.45 h, fell to Goblin, hadFood:false) → knocked-out sheet consistent with the server (consec_falls 1 projected, clock re-derived after reload) → daily claim (gold +2,000, gems +5, server) → Market: listed 1× Bones @ 7g (server toast, 1/12) → reload. Discord note posted.
+
+Live findings from the gate (bugs first, in the order a player meets them):
+- **P1 — Market listing Cancel does nothing** (lane A dispatched). `cancelListing` in src/market.js is a pre-cutover path: local list, CLIENT-SIDE refund via `addItem`, server cancel fire-and-forget. Live click: no dialog, no toast, escrow stuck 48 h. Fix = server intent first, render from the response, delete the client refund.
+- **P2 — Pre-fight food warning raised on BOOT while knocked out**, stacked on the knocked-out sheet (lane A dispatched). Resume path calls the start-fight gate during recovery; b520 class.
+- **P3 — Home night strip forecasts from a pre-envelope bag** ("your 29 Cooked Shrimp carry you…" for ~10 s, then "with nothing to eat…" after the envelope). Render the strip only after hydration.
+- **P3 — Knocked-out clock jumps up once after boot** (34:25 → 38:11) when the server projection replaces the client's first guess. Draw nothing until the projection lands.
+- Not exercised: the Retreat halt itself (needs 3 consecutive foodless falls; character knocked out 31 m). Server counter observed at 1 on live. Next session's play must reach it.
+- Market had zero listings/sales for 8 days (vitals). The sell path works; demand, not breakage — but the Cancel P1 would have stranded anyone who tried.
+
 ## 1a · WHAT SHIPPED (the 2026-08-17 push, now closed) + WHAT'S PAUSED
 
 | Item | Status | Pri | Notes |

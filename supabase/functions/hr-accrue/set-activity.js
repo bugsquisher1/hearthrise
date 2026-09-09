@@ -40,7 +40,7 @@
 //   a function that re-validates every invariant".
 // ============================================================================
 
-import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS } from './accrual.js';
+import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS, deltaHasValue } from './accrual.js';
 /* THE DORMANT COMPANION-XP ARM SWITCH — mirrored from index.ts (A14): a collect
    must price companion XP identically to an accrue over the same window. */
 import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
@@ -675,11 +675,33 @@ export async function collectCurrentWindow(o) {
 
   const accruedToMs = st.accrued_to ? new Date(st.accrued_to).getTime() : nowMs;
 
-  /* CHEAP EXIT. Below the minimum span nothing can be produced, so the two
-     seed round trips and the whole simulation are skipped — and, exactly as in
-     the accrue verb, NOTHING IS WRITTEN, so a sub-threshold window is not
-     confiscated by having been looked at. */
-  if (nowMs - accruedToMs < ACCRUE_MIN_MS) {
+  /* ⚠ THE CHEAP EXIT IS GONE (b531), AND ITS REMOVAL IS THE FIX.
+     It read: "below the minimum span nothing can be produced … a sub-threshold
+     window is not confiscated by having been looked at." The first clause was
+     false and the second was false HERE specifically.
+
+     MEASURED LIVE (QA account, 2026-09-09 16:36 and 16:40 UTC): a smithing run
+     started at 16:40:14 and the client declared `idle` 37 s later when its local
+     loop predicted the bag would run out. This exit answered `below_min_span`,
+     the switch then applied `activityDelta(..., restart: true)`, hr_apply stamped
+     `active_since = now()`, and computeAccrual's `sinceActivityMs` clamp made the
+     37 s unpayable FOREVER. Five iron platebodies, twice, with `accrued_to`
+     untouched and therefore nothing in the ledger to explain it. Every craft or
+     gather run whose inputs run out inside a minute paid nothing at all.
+
+     A sub-threshold window IS confiscated by this verb, because this verb is the
+     one that replaces the pointer. So the collect now prices it: `finalWindow`
+     tells the engine the floor does not apply to a window with no next call, and
+     `deltaHasValue` below keeps the DB cost where it was — a short window that
+     produced nothing writes nothing, exactly as this exit did.
+
+     THE COST THIS TRADES. A switch inside a minute of the last settle now pays
+     for one SEED_SQL round trip and a simulation of at most 60 s of ticks, where
+     it used to pay for nothing. That is deliberate: it is bounded (the verb is
+     rate-gated at the first statement of READ_SQL), it is small (tens of ticks),
+     and the thing it buys back is the player's output. Only a genuinely EMPTY
+     span is still free. */
+  if (nowMs - accruedToMs <= 0) {
     return { outcome: 'nothing', version: env.version, reason: 'below_min_span' };
   }
 
@@ -888,6 +910,15 @@ export async function collectCurrentWindow(o) {
        two literals by FIELD NAME, and "absent here, present there" is exactly
        the divergence that guard exists to catch. */
     actionBudget: null,
+    /* ── THE FLOOR EXEMPTION (b531). TRUE HERE AND ONLY HERE ────────────────
+       "This window has no next call." The switch that follows this collect
+       stamps `active_since = now()`, which clamps every later grant to the new
+       pointer's age — so a window this call declines to price is not deferred,
+       it is destroyed. index.ts's accrue path passes `false`: there the pointer
+       survives, the watermark is untouched, and the next cadence poll prices a
+       longer span, which is what the floor was written for.
+       Mirrors index.ts field for field (A14). */
+    finalWindow: true,
   });
 
   if (!out.accrued) {
@@ -911,6 +942,21 @@ export async function collectCurrentWindow(o) {
          unpredictable to the player. */
       salt,
     };
+  }
+
+  /* ── THE SUB-MINUTE WINDOW THAT EARNED NOTHING (b531) ────────────────────
+     `finalWindow` above let the engine price a window shorter than
+     ACCRUE_MIN_MS. Most such windows are switch-spam and produce nothing: a
+     player retargeting three times in five seconds. Writing an apply, a version
+     bump and a `craft`/`gather` ledger row for each of them would be the ledger
+     noise the floor's cheap exit used to prevent, so the policy that replaces
+     the exit lives here — pay a short window IF IT PAYS, otherwise write
+     nothing and leave `accrued_to` where it is so the next collect can price it
+     again. Above the floor this branch is unreachable by construction: a
+     full-minute window that produced literally nothing is still worth stamping,
+     because the alternative is re-simulating it forever. */
+  if (out.grantMs < ACCRUE_MIN_MS && !deltaHasValue(out.delta)) {
+    return { outcome: 'nothing', version: env.version, reason: 'below_min_span' };
   }
 
   /* THE DERIVED KEY. Named arguments and `version` among them — see the block

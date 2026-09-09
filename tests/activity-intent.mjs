@@ -951,6 +951,118 @@ async function run(mutate) {
     }
   }
 
+  /* ── A3e. THE SUB-MINUTE RUN THAT ENDED ON SUPPLIES (b531) ──────────────
+     LIVE, MEASURED TWICE (QA account, 2026-09-09 16:36:13→16:36:49 and
+     16:40:14→16:40:51 UTC, b530). 28 iron bars, Smithing 25,
+     `set_activity:artisan:forge_iron_platebody` ACCEPTED and journalled — then
+     the client's local loop predicted the bag would run out and declared
+     `set_activity:idle` 37 s later. The collect answered `below_min_span` and
+     paid nothing; the switch then stamped `active_since = now()`, which clamps
+     every later grant to the new pointer's age, so the 37 s was not deferred,
+     it was DESTROYED. Zero platebodies, 28 bars still in the bag, and the
+     client had already painted seven of them (an `equip` on one came back
+     `insufficient_item`). Every craft or gather run whose inputs run out inside
+     a minute paid NOTHING.
+
+     ACCRUE_MIN_MS is a property of the ACCRUE verb — that verb leaves the
+     pointer alone, so a span it declines is genuinely deferred. A
+     COLLECT-BEFORE-SWITCH has no next call. `finalWindow` is that distinction,
+     and this is the door that proves it end to end: a real hr_apply, a real
+     signed item map, a real ledger row, on a window of 37 seconds.
+
+     BOTH ARMS, because "pay every short window" is a different rule from the
+     one shipped: the second arm holds the DB cost where it was, so switch-spam
+     still writes nothing. */
+  {
+    const bronzeEntry = cat.ARTISAN_RECIPES_ALL.smelt_bronze;
+    const bronzeRecipe = bronzeEntry && (bronzeEntry.recipe || bronzeEntry);
+    const need = Object.assign({},
+      bronzeRecipe.inputs || (bronzeRecipe.input ? { [bronzeRecipe.input]: 1 } : {}),
+      bronzeRecipe.secondary || {});
+    /* FIVE BARS' WORTH AND NO MORE. The bench runs ~4.2 s an action, so a 37 s
+       window has time for ~8 — the run therefore ends on SUPPLIES, inside the
+       floor, which is exactly the live shape. Every other item is zeroed so the
+       arm below can assert an empty bag honestly. */
+    await db.query('delete from public.player_inventory where user_id=$1 and slot=0', [UID]);
+    for (const [id, n] of Object.entries(need)) {
+      await db.query(
+        `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3)
+         on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID, id, n * 5]);
+    }
+    await db.query(
+      `update public.player_state
+          set active_kind = 'artisan', active_id = 'smelt_bronze',
+              accrued_to = now() - interval '37 seconds',
+              active_since = now() - interval '37 seconds'
+        where user_id = $1 and slot = 0`, [UID]);
+    const before = await state(db, UID);
+    const beforeXp = await skillXp(db, UID, 'smithing');
+    const beforeLedger = (await ledger(db, UID)).length;
+
+    const r = await call({ intentId: uuid(), activity: { kind: 'idle', id: null } });
+    ok(r.status === 200 && r.body.ok === true,
+      `A3e: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
+    ok(r.body.collected,
+      'A3e: THE 37-SECOND WINDOW WAS CONFISCATED — the stop carried no collection receipt. This is '
+      + 'the live b530 defect: ACCRUE_MIN_MS applied to a collect-before-switch, which has no next '
+      + 'call, so the span was destroyed rather than deferred.');
+
+    const invRows = (await db.query(
+      'select item_id, qty from public.player_inventory where user_id=$1 and slot=0', [UID])).rows;
+    const qty = (id) => Number(invRows.find((x) => x.item_id === id)?.qty ?? 0);
+    const bars = qty('bronze_bar');
+    ok(bars === 5,
+      `A3e: the 37 s run banked ${bars} bronze_bar, expected exactly 5 — the supply, not the clock, `
+      + 'is what ended it. 0 means the sub-minute window paid nothing (the shipped defect); more than '
+      + '5 means the simulation is not spending the server inventory.');
+    for (const [id, n] of Object.entries(need)) {
+      ok(qty(id) === 0,
+        `A3e: after 5 bars the bag holds ${qty(id)} ${id}, expected 0 — the inputs were not debited `
+        + 'through the same signed item map the output rode in on.');
+    }
+    ok((await skillXp(db, UID, 'smithing')) - beforeXp > 0, 'A3e: the sub-minute run paid no smithing XP');
+
+    const rows = (await ledger(db, UID)).slice(beforeLedger);
+    const accrue = rows.find((x) => x.intent === 'accrue');
+    ok(!!accrue && accrue.kind === 'craft',
+      `A3e: no 'craft' accrue ledger row for the paid sub-minute window (${rows.map((x) => x.intent)}) — `
+      + 'a payment with no journal is unauditable.');
+    const st = await state(db, UID);
+    ok(new Date(st.accrued_to).getTime() > new Date(before.accrued_to).getTime(),
+      'A3e: accrued_to did not advance after a PAID window — the same 37 s could be collected again');
+    ok(st.active_kind === 'idle' && st.active_id === null,
+      `A3e: the stop did not happen (${st.active_kind}/${st.active_id})`);
+
+    /* ── ARM 2: A SHORT WINDOW THAT EARNED NOTHING STILL WRITES NOTHING ────
+       The cheap exit this fix removed was also the ledger's cost control: three
+       taps in five seconds must not buy three applies, three version bumps and
+       three zero-value `craft` rows. `deltaHasValue` is what replaces it, and
+       without this arm "pay every short window" would pass A3e's first half
+       just as well as the rule that actually shipped. Same bench, same floor,
+       EMPTY bag — so the engine prices the span and proposes nothing. */
+    await db.query('delete from public.player_inventory where user_id=$1 and slot=0', [UID]);
+    await db.query(
+      `update public.player_state
+          set active_kind = 'artisan', active_id = 'smelt_bronze',
+              accrued_to = now() - interval '20 seconds',
+              active_since = now() - interval '20 seconds'
+        where user_id = $1 and slot = 0`, [UID]);
+    const before2 = await state(db, UID);
+    const beforeLedger2 = (await ledger(db, UID)).length;
+    const r2 = await call({ intentId: uuid(), activity: { kind: 'idle', id: null } });
+    ok(r2.status === 200 && r2.body.ok === true,
+      `A3e/2: ${r2.status} ${JSON.stringify(r2.body).slice(0, 300)}`);
+    const rows2 = (await ledger(db, UID)).slice(beforeLedger2);
+    ok(!rows2.find((x) => x.intent === 'accrue'),
+      `A3e/2: a sub-minute window that produced NOTHING still wrote an accrue ledger row `
+      + `(${rows2.map((x) => x.intent)}). Switch-spam would now cost one apply and one zero-value row `
+      + 'per tap; the cheap exit in the floor existed to prevent exactly that.');
+    const st2 = await state(db, UID);
+    ok(Number(st2.version) === Number(before2.version) + 1,
+      `A3e/2: version ${before2.version} → ${st2.version} — a valueless collect must not bump the `
+      + 'version; only the declaration itself may.');
+  }
+
   /* ── A3d. THE ESCAPE HATCH FROM AN UNPRICEABLE POINTER (Security C3) ─────
      A REFUSING skip defers the window rather than confiscating it, which is
      right and has one consequence nobody had written down: the collect refuses,

@@ -5827,8 +5827,14 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origClaim = window.HearthriseGoalClaim;
+    const origLatch = !!(window.HearthriseAccrual && window.HearthriseAccrual.awaySettleDone
+      && window.HearthriseAccrual.awaySettleDone());
     try {
       assert(typeof window.hrCreditCombatXpFlush === 'function', 'hrCreditCombatXpFlush transport must exist');
+      /* The flush is suppressed until the session's away window has been settled
+         (2026-09-09 settle-first). This test is about the ATTENDED path, so stand
+         in for "the boot settle already landed" rather than assert around it. */
+      window.HearthriseAccrual.__resetAwaySettleLatch(true);
 
       // ── accumulation: armed, signed OUT → addXp buffers combat XP, no flush ──
       window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
@@ -5898,6 +5904,57 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.HearthriseGoalClaim = origClaim;
+      window.HearthriseAccrual.__resetAwaySettleLatch(origLatch);
+      restoreG(snap);
+    }
+  }),
+
+  /* COMBAT-XP-SETTLE-FIRST-1 (regression suite) — Paione: "I did some offline
+     combat. The items and kills are given but the experience is not." The booting
+     client fired THREE attended combat-XP credits before the away settle landed;
+     each stamped combat_xp_accrued_to = now(), and the settle credits combat XP
+     only from max(fromMs, that watermark) — so a 4h02m / 828-kill window paid
+     23,068 gold and every item, and ZERO XP. THE CLIENT HALF: the flush must not
+     fire until the session's away window has been settled. THE SERVER HALF (the
+     one that holds against a forged client) is hr_credit_combat_xp's
+     `settle_first` refusal, proven by its own §4 gates and by
+     tests/combat-xp-settle-first.mjs.
+     MUTATION: delete the awaySettleDone() guard in hrCreditCombatXpFlush → the
+     first assertion goes RED (the credit fires before any settle). */
+  () => tryRunAsync('COMBAT-XP-SETTLE-FIRST-1: the attended combat-XP credit does not fire before the session away settle (would trim the whole absence)', async () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.awaySettleDone === 'function' && typeof A.__resetAwaySettleLatch === 'function',
+      'the settle-first latch is missing — a boot can credit XP over an away window the server has not paid');
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    const origLatch = !!A.awaySettleDone();
+    try {
+      const calls = [];
+      window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: (m) => { calls.push(m); return Promise.resolve({ ok: true, credited: m }); },
+      };
+      window.G._combatXpPending = { attack: 400, strength: 250 };
+
+      // BEFORE the settle: suppressed, and the XP is KEPT (never thrown away).
+      A.__resetAwaySettleLatch(false);
+      await window.hrCreditCombatXpFlush(true);
+      assert(calls.length === 0,
+        'THE BUG: a credit fired before the away settle — it stamps combat_xp_accrued_to and the settle then pays 0 combat XP for the whole absence');
+      assert((window.G._combatXpPending.attack || 0) === 400,
+        'the suppressed XP must stay pending — a deferred credit is not a lost one');
+
+      // AFTER the settle: the attended credit resumes and sends the backlog.
+      A.__resetAwaySettleLatch(true);
+      await window.hrCreditCombatXpFlush(true);
+      assert(calls.length === 1 && (calls[0].attack || 0) === 400,
+        'the credit did not resume once the away window was settled — attended XP would be priced unattended forever');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseGoalClaim = origClaim;
+      A.__resetAwaySettleLatch(origLatch);
       restoreG(snap);
     }
   }),
@@ -55920,8 +55977,12 @@ const TESTS = [
     const origClaim = window.HearthriseGoalClaim;
     const origCtx = C.xpGrantCtx;
     const wasA = A.isServerAccrualEnabled();
+    const origLatch = !!(A.awaySettleDone && A.awaySettleDone());
     try {
       if (!wasA) A.setServerAccrualEnabled(true);
+      /* Settle-first (2026-09-09): the attended credit is suppressed until the
+         session's away window has been paid. This test is the ATTENDED path. */
+      A.__resetAwaySettleLatch(true);
       R.__setSkillsRecordArm(true);
       assert(R.isServerOfRecord('skills') === true, 'skills must be ARMED for this test (precondition)');
       window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
@@ -56048,6 +56109,7 @@ const TESTS = [
       window.clientMayWriteRecordField = origMay;
       window.HearthriseGoalClaim = origClaim;
       try { R.__setSkillsRecordArm(null); } catch (e) {}
+      try { A.__resetAwaySettleLatch(origLatch); } catch (e) {}
       if (!wasA) { try { A.setServerAccrualEnabled(false); } catch (e) {} }
       restoreGAndRecord(snap);
     }

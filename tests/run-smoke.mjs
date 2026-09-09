@@ -2355,6 +2355,28 @@ const run = async () => {
       exitCode = 1;
     }
 
+    /* ── The combat-XP SETTLE-FIRST guard (2026-09-09, Paione) ──────────────
+       The other side of the same watermark: a credit must not be able to stamp
+       combat_xp_accrued_to over an away window the settle has not paid yet. Live,
+       three boot-time credits worth 222 XP trimmed a 4h02m / 828-kill settle to
+       ZERO combat XP while it paid every coin and item. Proves the rule, the
+       settle's behaviour over Paione's own window, and the client ordering. */
+    try {
+      const { combatXpSettleFirstGuard } = await import('./combat-xp-settle-first.mjs');
+      const r = await combatXpSettleFirstGuard();
+      if (!r.ok) {
+        console.log('\nCombat-XP settle-first guard — FAILED:');
+        for (const p of r.problems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nCombat-XP settle-first guard — a credit cannot trim an unpaid away window (rule + settle + client ordering).');
+      }
+    } catch (e) {
+      console.log('\nCombat-XP settle-first guard — FAILED:');
+      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    }
+
     /* ── The Bounty-Marks record guard (server-of-record slice) ─────────────
        Proves the CLIENT half of 2026-08-26-marks-record.sql: arm OFF is a no-op
        (marksOf reads G.bountyHunter.marks); arm ON reads the server's record and

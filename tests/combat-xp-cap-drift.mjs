@@ -19,11 +19,15 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { COMBAT_XP_CAP_SQL_CONSTANTS, combatXpCap } from '../src/core/combat-xp-cap.js';
+import {
+  COMBAT_XP_CAP_SQL_CONSTANTS, combatXpCap,
+  COMBAT_XP_SETTLE_FIRST_MS, combatXpCreditRefusal,
+} from '../src/core/combat-xp-cap.js';
 import { KILL_TIME_SQL_CONSTANTS } from '../src/core/kill-time.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SQL = join(ROOT, 'supabase', 'migrations', '2026-08-31-combat-xp-credit.sql');
+const SETTLE_FIRST_SQL = join(ROOT, 'supabase', 'migrations', '2026-09-09-combat-xp-settle-first.sql');
 
 export async function combatXpCapDriftGuard() {
   const problems = [];
@@ -64,6 +68,24 @@ export async function combatXpCapDriftGuard() {
   // ── (4) internal sanity: monotone in level, zero at zero elapsed ──────────
   ok(combatXpCap(1, 60000) < combatXpCap(99, 60000), 'combatXpCap is not monotone in level');
   ok(combatXpCap(50, 0) === 0, 'zero elapsed must cap zero');
+
+  // ── (5) THE SETTLE-FIRST THRESHOLD ⟷ its SQL mirror (2026-09-09) ──────────
+  // The rule that stops a boot-time credit stamping combat_xp_accrued_to over an
+  // UNPAID away window and trimming every hour of it (Paione: 4h02m, 828 kills,
+  // 0 XP). If the two runtimes disagree the client suppresses a call the server
+  // would take, or makes one the server refuses — either way the ordering that
+  // protects the away window stops being one rule. The SQL side is a separate
+  // FILE, so its absence is a failure here as well as a drift.
+  const sfSql = (await readFile(SETTLE_FIRST_SQL, 'utf8').catch(() => '')).replace(/\r\n/g, '\n');
+  ok(sfSql.length > 0,
+    'supabase/migrations/2026-09-09-combat-xp-settle-first.sql is missing — the settle-first rule exists only on the client');
+  ok(new RegExp(`c_settle_first_ms\\s+constant\\s+bigint\\s*:=\\s*${COMBAT_XP_SETTLE_FIRST_MS}\\b`).test(sfSql),
+    `SQL c_settle_first_ms does not equal COMBAT_XP_SETTLE_FIRST_MS (${COMBAT_XP_SETTLE_FIRST_MS})`);
+  ok(/error'\s*,\s*'settle_first'/.test(sfSql),
+    'the SQL does not return the `settle_first` refusal code the client and the design name');
+  ok(combatXpCreditRefusal(1e12, 1e12 - (COMBAT_XP_SETTLE_FIRST_MS + 1)) === 'settle_first'
+     && combatXpCreditRefusal(1e12, 1e12 - (COMBAT_XP_SETTLE_FIRST_MS - 1)) === null,
+    'combatXpCreditRefusal does not switch exactly at COMBAT_XP_SETTLE_FIRST_MS');
 
   if (problems.length) {
     const e = new Error('combat-xp-cap drift:\n  - ' + problems.join('\n  - '));

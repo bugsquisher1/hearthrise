@@ -4414,8 +4414,8 @@ let _hrCombatXpAt=0, _hrCombatXpInFlight=false, _hrCombatXpInFlightP=null;
 function hrCreditCombatXpFlush(force){
   const _armed=(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('skills'));
   const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());
-  const _GC=window.HearthriseGoalClaim;
-  if(!_armed || !_live || !_GC || typeof _GC.creditCombatXp!=='function' || !(_GC.isSignedIn&&_GC.isSignedIn())) return Promise.resolve(null);
+  const _GC=window.HearthriseGoalClaim, _AC=window.HearthriseAccrual;   // _AC.awaySettleDone = SETTLE-FIRST (accrue.js): never credit over an away window the server has not paid — the stamp would trim it. R2: it is also false all session when accrual is `unconfigured` — deliberate (no settle = no paid window; the server would refuse anyway and the away sim pays the span), do not "fix" it by defaulting the latch true
+  if(!_armed || !_live || !_GC || typeof _GC.creditCombatXp!=='function' || !(_GC.isSignedIn&&_GC.isSignedIn()) || !(_AC&&typeof _AC.awaySettleDone==='function'&&_AC.awaySettleDone())) return Promise.resolve(null);
   /* ── THE IN-FLIGHT RACE (b486 settle undercount) ────────────────────────────
      force=true is the credit-BEFORE-settle guarantee: accrue.js awaits this so
      the server has advanced combat_xp_accrued_to before the settle prices the
@@ -4466,13 +4466,12 @@ function hrCreditCombatXpFlush(force){
         if(got>0) G._combatXpPending[k]=Math.max(0,(Number(G._combatXpPending[k])||0)-got);
       }
     }
-    /* On !ok (rate_limited / daily_budget / bad_skill / network) keep the pending
-       XP untouched — the next flush retries.
-       ⚠ AND ON NEITHER PATH IS A PREDICTION TOUCHED. The display prediction is
-       retired when the RECORD carrying this credit arrives (record.js →
-       predict.js `reconcileCreditedXp`), never here: retiring at credit time
-       would drop the number for the up-to-90 s until the next envelope restates
-       it, which is the same rewind seen from the other side. */
+    else if(cr && cr.ok===false && cr.error==='settle_first'){ if(_AC&&typeof _AC.dropPendingCombatXp==='function') _AC.dropPendingCombatXp(snap,G); }   // C1: the refused window is the away settle's and WILL be paid by simulation — keeping it pending would credit the same fights twice. Gains during the call are re-read from the live map and survive.
+    /* On any OTHER !ok (rate_limited / daily_budget / bad_skill / network) keep the
+       pending XP untouched — the next flush retries. ⚠ AND ON NO PATH IS A
+       PREDICTION TOUCHED: it is retired when the RECORD carrying this credit
+       arrives (record.js → predict.js `reconcileCreditedXp`), never here —
+       retiring at credit time would blank the number until the next envelope. */
     return cr;
   }).catch(function(){ _hrCombatXpInFlight=false; _hrCombatXpInFlightP=null; return null; });
   /* Publish the FULL chain (incl. the subtract + in-flight clear) as the awaitable

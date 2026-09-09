@@ -59527,6 +59527,72 @@ const TESTS = [
     assert(D._TIP_KEYS.length === 4, 'the tip branch list drifted from the four states');
   }),
 
+  () => tryRun('b525: an empty bag can be answered with gold — the counter sells a meal', () => {
+    /* THE PLAYED MOMENT (live, QA account, 2026-09-09 01:30 UTC): Combat
+       14, 10,290 gold, empty food bag, knocked out 45 minutes. Recovery
+       refuses every payable kind, so fishing and the fire were both shut; the
+       Market was empty and the Premium Store sells no food. The player's only
+       legal move was to wait. Two halves close it and both are asserted here:
+       the Supplies counter STOCKS a meal at a price that is not a gold loop,
+       and the sheet that names the empty bag now carries the door to it. */
+    const G_ = window.G;
+    const seed = window.SEED_SHOP;
+    assert(Array.isArray(seed), 'SEED_SHOP is not published');
+    const shrimp = seed.find(r => r.id === 'cooked_shrimp');
+    const trout  = seed.find(r => r.id === 'cooked_trout');
+    assert(shrimp && trout, 'the Supplies counter stocks no cooked food');
+
+    /* NO GOLD LOOP, IN EITHER DIRECTION. Cooked food is not `raw`, so the
+       vendor pays the FULL `v` — the buyback is the number this price has to
+       beat, and beating it by a hair is not enough to survive a rounding
+       change. Asserted as a RULE (price > buyback), not as 150 and 450. */
+    for (const row of [shrimp, trout]) {
+      const buyback = (window.ITEMS[row.id] || {}).v * row.qty;
+      assert(row.cost > buyback,
+        row.id + ' sells back for ' + buyback + ' and costs ' + row.cost
+        + ' — that is an infinite gold faucet, not a shop row');
+    }
+
+    /* The server prices it, or the button is decoration. `resolvePurchase` is
+       the same resolver the live gesture runs; a row the catalogue cannot
+       name comes back `no_offer` and the purchase is never sent. */
+    const Gold = window.HearthriseGold;
+    assert(Gold && typeof Gold.resolvePurchase === 'function',
+      'the gold module does not publish the offer resolver');
+    const r = Gold.resolvePurchase('cooked_shrimp', shrimp.qty, shrimp.cost);
+    assert(!r.error && r.offer === 'seed.cooked_shrimp' && r.count === 1,
+      'the server cannot price the shop row a player is about to tap: ' + JSON.stringify(r));
+    /* And it still refuses a price the shop did not show. */
+    const bad = Gold.resolvePurchase('cooked_shrimp', shrimp.qty, 1);
+    assert(bad.error === 'price_mismatch', 'a forged price resolved: ' + JSON.stringify(bad));
+
+    /* THE DOOR. Both empty-bag tips carry it; the two tips that are NOT about
+       an empty bag must not, or the affordance stops meaning anything. */
+    const D = window.HearthriseDeathSheet;
+    const base = { monsterName: 'Goblin', killsThisFoe: 1, maxHp: 14, deaths: 2, foodName: 'Cooked Shrimp' };
+    const cases = [
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: true,  autoEatOn: true  }, 'auto-eat-idle', true],
+      [{ foodQty: 0, ateThisFight: 0, autoEatOwned: false, autoEatOn: false }, 'no-food',       true],
+      [{ foodQty: 3, ateThisFight: 0, autoEatOwned: false, autoEatOn: false }, 'food-unused',   false],
+      [{ foodQty: 0, ateThisFight: 5, autoEatOwned: true,  autoEatOn: true  }, 'outmatched',    false],
+    ];
+    for (const [d, wantTip, wantDoor] of cases) {
+      const m = D.describeDeath(Object.assign({}, base, d));
+      assert(m.tipKey === wantTip, 'tip drifted: ' + m.tipKey + ' expected ' + wantTip);
+      assert(m.foodShopLink === wantDoor,
+        wantTip + ' had foodShopLink=' + m.foodShopLink + ', expected ' + wantDoor);
+      /* One affordance slot, never two things in it. */
+      assert(!(m.foodShopLink && m.shopLink), wantTip + ' offered two shop doors at once');
+    }
+    /* The empty-bag copy has to NAME the counter, or the button is the only
+       hint and a player who dismissed the sheet never learns the shop sells
+       food at all. */
+    const empty = D.describeDeath(Object.assign({}, base,
+      { foodQty: 0, ateThisFight: 0, autoEatOwned: false, autoEatOn: false }));
+    assert(/Local Shop/.test(empty.tip), 'the empty-bag tip never names where to buy: ' + empty.tip);
+    void G_;
+  }),
+
   () => tryRun('b497: death sheet — the free entry trait changed what the tip may claim', () => {
     const D = window.HearthriseDeathSheet;
     const base = { monsterName: 'Goblin', killsThisFoe: 1, maxHp: 10, deaths: 1,

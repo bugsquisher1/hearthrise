@@ -1800,54 +1800,52 @@ function assertActivityDeclaration(){
 }
 window.assertActivityDeclaration=assertActivityDeclaration;
 /* ══════════════════════════════════════════════════════════════════════════
-   b519 — THE CLIENT MIRROR OF THE SERVER'S RECOVERY GATE.
+   b519 — THE CLIENT MIRROR OF THE SERVER'S RECOVERY GATE (rev. 3, b527).
 
    CONTRACT: supabase/functions/hr-accrue/set-activity.js §(1b). While
    `player_state.recovering_until` is ahead of the SERVER clock, `set_activity`
-   refuses EVERY payable kind — `PAYABLE_KINDS = ['combat','gather','artisan']`
-   — with a 409 `recovering`, before `hr_apply` and therefore before any
-   `player_intents` row exists. `idle` is always allowed and nothing
-   non-payable is gated: a knockout stops the character EARNING, it does not
-   lock the player out of building, shopping, travelling, the market or the clan.
+   refuses a declared `combat` run with a 409 `recovering`, before `hr_apply`
+   and therefore before any `player_intents` row exists. Rev. 2 refused every
+   payable kind; live on b524 that left a solvent, foodless character with NO
+   LEGAL MOVE for 45 minutes, so rev. 3 narrowed it — gathering and the benches
+   pay at full rate while the line runs, and nothing non-payable was ever gated.
 
-   MEASURED LIVE (hearthrise.net, QA slot 2, 2026-09-07 17:22 UTC): knocked out
-   with 44 minutes left, the player tapped a fishing spot and the client started
-   the local gather loop anyway. Four minutes of "Fishing — shrimp s", an
-   "Active" badge, a Qty badge climbing 37 → 51 and a header inventing
-   "Level 7 · 712/857 XP" — every byte of it client-authored, refused by the
-   server the whole time, gone on reload. The server was right; the client
-   simply never asked itself the question the server was about to answer.
+   MEASURED LIVE (QA slot 2, 2026-09-07 17:22 UTC): knocked out with 44 minutes
+   left, a tap on a fishing spot started the local gather loop anyway — four
+   minutes of an "Active" badge, a Qty badge climbing 37 → 51 and a header
+   inventing "Level 7 · 712/857 XP", every byte client-authored, refused by the
+   server throughout and gone on reload. That tap is legal now; the same client
+   must still never paint a refused FIGHT.
 
-   ⚠ THE PREDICATE IS `declarationFor`, NOT A LIST OF KINDS, and that is what
-     keeps this a MIRROR rather than a second opinion. The server gates on the
-     kind of the DECLARATION it built (so a cooking recipe, which downgrades to
-     `idle`, is not gated); this asks the same module the wire asks, so the two
-     answers are the same answer by construction — and the day the cooking bench
-     becomes payable, both sides start gating it with no edit here.
+   ⚠ THE KIND COMES FROM `declarationFor` AND THE RULE FROM
+     `HearthriseCore.away.recoveryRefuses` — the SAME frozen array
+     set-activity.js imports. Both halves are the server's, so this is a MIRROR
+     and cannot become a second opinion. The fallback when the core module has
+     not loaded is the literal `combat`, never `true`: locking a knocked-out
+     player out of fishing over a missing bundle is the defect rev. 3 deletes.
 
-   ⚠ `_activityQuiet` IS THE ESCAPE HATCH AND IT IS LOAD-BEARING. The reconcile
+   ⚠ `_activityQuiet` IS THE ESCAPE HATCH AND IT IS LOAD-BEARING: the reconcile
      restarts a run by calling these same start functions inside
-     `activityQuietly` — the server telling the client to resume the fight it
-     already owns. Refusing there would be the client overruling an envelope,
-     which is the exact inverse of this fix.
+     `activityQuietly`, and refusing there is the client overruling an envelope.
 
-   Returns true when the caller must NOT start. The player is told on the
-   surface that owns the fact: the knocked-out sheet, with the countdown drawn
-   from the server's absolute instant and Rest as the primary action. `show()`
-   directly rather than `maybeRaiseRecovery()` because this is an ANSWER TO A
-   TAP — the raise latch exists to stop envelopes re-opening a dismissed sheet,
-   and a player who dismissed it and then tapped a fishing spot has asked the
-   question again and is owed the answer again. */
+   Returns true when the caller must NOT start. The answer is the knocked-out
+   sheet through `answerTap`, which VERIFIES it reached the glass (live on b524
+   a refused tap produced nothing at all) — not `maybeRaiseRecovery`, because a
+   player who dismissed it and then tapped is owed the answer again. */
+const HR_RECOVERING_LINE='Fights wait while you recover \u2014 gathering and cooking still earn.';
 function hrRefuseWhileRecovering(kind,id){
   if(_activityQuiet)return false;                       // the SERVER is driving
   if(typeof hrCombatDownPeek!=='function'||!hrCombatDownPeek())return false;
   const M=window.HearthriseActivity;
   const d=(M&&typeof M.declarationFor==='function')?M.declarationFor(kind,id):{kind:kind,id:id};
   if(!d||d.kind==='idle')return false;                  // idle and unpayable are never gated
+  const AW=window.HearthriseCore&&window.HearthriseCore.away;
+  const refuses=(AW&&typeof AW.recoveryRefuses==='function')?AW.recoveryRefuses(d.kind):(d.kind==='combat');
+  if(!refuses)return false;
   try{
     const S=window.HearthriseDeathSheet;
-    if(S&&typeof S.show==='function'){ S.show(null,null); }
-    else if(typeof notify==='function'){ notify('Still recovering — nothing earns until you are up.','kill'); }
+    if(S&&typeof S.answerTap==='function')S.answerTap(HR_RECOVERING_LINE);
+    else if(typeof notify==='function')notify(HR_RECOVERING_LINE,'kill');
   }catch(e){}
   return true;
 }
@@ -1865,13 +1863,12 @@ function explainUnownedStop(was){
     const down=(typeof hrCombatDownPeek==='function')&&hrCombatDownPeek();
     console.warn('[activity] the server says idle and never acknowledged '+what
       +' — stopping it. A run the server does not own earns nothing'
-      +(down?' (this character is knocked out; the server refuses every payable kind until the '
-              +'recovery line passes)':''));
+      +(down?' (this character is knocked out; the server refuses combat until the '
+              +'recovery line passes \u2014 gathering and the benches still pay)':''));
     const S=window.HearthriseDeathSheet;
-    if(down&&S&&typeof S.show==='function'){ S.show(null,null); return; }
+    if(down&&S&&typeof S.answerTap==='function'){ S.answerTap(HR_RECOVERING_LINE); return; }
     if(typeof notify==='function'){
-      notify(down?'Still recovering — nothing earns until you are up.'
-                 :'The hearth did not take that — the activity stopped.','kill');
+      notify(down?HR_RECOVERING_LINE:'The hearth did not take that — the activity stopped.','kill');
     }
   }catch(e){}
 }
@@ -12492,9 +12489,12 @@ function refreshActivityBar(){
     bar.classList.add('knocked-out');
     HearthriseIcons.setActivityIcon(iconEl, 'navCombat', 'var(--red)');
     if(nameEl) nameEl.textContent = `Knocked out — back on your feet in ${_koMin}m`;
+    /* NAMES THE ONE THING THAT IS REFUSED (rev. 3). "Nothing earns while you
+       recover" was true under rev. 2; §1b now refuses `combat` alone, so it
+       talked a knocked-out player out of the one move they had left. */
     if(metaEl) metaEl.textContent = _koResumes
-      ? `${_koResumes} resumes automatically · nothing earns while you recover`
-      : 'Nothing earns while you recover';
+      ? `${_koResumes} resumes automatically · fights wait, gathering and cooking still earn`
+      : 'Fights wait while you recover — gathering and cooking still earn';
     if(stopBtn) stopBtn.style.display = _koResumes ? '' : 'none';
     refreshPanelProgress();
     return;

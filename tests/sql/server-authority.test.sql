@@ -1065,8 +1065,22 @@ begin
     '{"gold":100000,"items":{"normal_log":30,"copper_ore":20}}'::jsonb);
 
   -- (a) HIRE BEFORE ANY HOMESTEAD — property gate on worker_hire.1 (needs tier 1).
-  perform pg_temp.ok((pg_temp.ehire(c))->>'error' = 'crew_cap_reached',
+  --     REGRESSION, live 2026-09-09 (QA slot 2): the cap read was
+  --     coalesce(greatest(0, least(max(pp.value), 6)), 0) and LEAST/GREATEST DROP
+  --     nulls, so a player with NO worker_hire row got least(NULL,6) = 6 — a FREE
+  --     crew of six, gold never debited, ledger row gold=NULL paid_cap=6. The
+  --     error-code assertion alone did not catch it because nothing here ran
+  --     against a database. Assert the CAP NUMBER, the GOLD and the CREW too.
+  v_gold := pg_temp.gold(c);
+  r := pg_temp.ehire(c);
+  perform pg_temp.ok(r->>'error' = 'crew_cap_reached',
     'a tier-0 character has paid cap 0 — the hire answers crew_cap_reached');
+  perform pg_temp.ok((r->>'paid_cap')::int = 0,
+    'THE FREE-CREW FIX: an UNPAID worker_hire cap reads 0, never the 6 that least(NULL,6) returned');
+  perform pg_temp.ok(pg_temp.crew(c) = 0,
+    'and no worker was materialised without a paid rung');
+  perform pg_temp.ok(pg_temp.gold(c) = v_gold,
+    'and no gold moved on a refused hire');
   r := pg_temp.ebuy(c, pg_temp.ver(c), 'worker_hire.1');
   perform pg_temp.ok(r->>'ok' is distinct from 'true' and r->>'error' = 'prereq_property_tier',
     'worker_hire.1 is refused with prereq_property_tier before a homestead exists');

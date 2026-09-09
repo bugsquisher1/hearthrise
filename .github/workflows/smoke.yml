@@ -711,6 +711,25 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bank-cap-rungs.mjs
 
+      # THE FREE CREW (live 2026-09-09, b527). hr_worker_hire read its paid crew
+      # cap as coalesce(greatest(0, least(max(pp.value), 6)), 0) — and LEAST/GREATEST
+      # DROP null arguments, so a player who had bought NOTHING got least(NULL,6)=6
+      # and up to six workers for zero gold. This drives the REAL hr_unlock_buy and
+      # the REAL hr_worker_hire on a replayed chain (PGlite, no credentials): the
+      # unpaid hire must be refused with paid_cap 0, the six-rung price must be the
+      # one src/data/gold-ladders.js declares, the paid path must debit 500g exactly
+      # once, and the chain is replayed a SECOND time stopping BEFORE the migration
+      # to REPRODUCE the bug. Four mutations, each required to be caught.
+      - name: Worker hire cap — an unpaid crew cap is zero, not six
+        if: ${{ !cancelled() }}
+        run: node tests/worker-hire-cap.mjs --selftest
+
+      # Security C4 (2026-09-06): a --selftest-only registration cannot tell a broken
+      # migration from a working guard. Run the base too.
+      - name: Worker hire cap — base run (the migration itself is green)
+        if: ${{ !cancelled() }}
+        run: node tests/worker-hire-cap.mjs
+
       # THE RECOVERY RULE'S SQL HALF (First-Night Idle Rescue, rev. 2).
       # A death INTERRUPTS a run; it does not terminate it. The JS half -- the
       # escalating ladder, the 40% resume, the gating of every payable kind --

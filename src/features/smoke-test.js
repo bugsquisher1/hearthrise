@@ -1687,6 +1687,107 @@ const retreatFixture = () => {
     foodless, fTxt, down };
 };
 
+/* THE RETREAT-RELOAD FIXTURE, written once (TF-1: "if the setup is genuinely
+   large, it is a helper, and a helper is written once"). A reload after a
+   Retreat arrives through TWO doors and only one of them was ever tested, so
+   this drives both from one description of the server state: `settle(falls)` is
+   the ATTENDED door (`applyEnvelopeState`, the `accrued:true` answer a reload
+   with an unpriced window gets) and `boot(falls)` is the AWAY door (the
+   `accrued:false` idle boot, through the real record.js path). `falls === null`
+   omits `consec_falls` entirely — an older server, the case that must claim
+   nothing. Both return the raised sheet's flattened text.
+   ⚠ NOTHING HERE TOUCHES THE LIVE CHARACTER: `window.G` is swapped for a
+     synthetic object and `done()` restores it with the pointer, the transport,
+     the recovery line, the raise latch and the sheet — kept together because a
+     test that keeps half of this teardown leaks a full-screen overlay into the
+     next thirty tests. */
+const retreatReload = () => {
+  const A = window.HearthriseAccrual;
+  const D = window.HearthriseDeathSheet;
+  const R = window.HearthriseRecord;
+  const AW = window.HearthriseCore && window.HearthriseCore.away;
+  assert(A && typeof A.applyEnvelopeState === 'function' && typeof A.clearFall === 'function',
+    'the envelope seam is missing — the reload cannot be exercised');
+  assert(R && typeof R.requestRecord === 'function', 'the boot record path is not wired');
+  assert(D && typeof D.__resetForTest === 'function', 'the death-sheet seams are missing');
+  assert(AW && typeof AW.RETREAT_FOODLESS_FALLS === 'number'
+    && typeof AW.RETREAT_ANY_FALLS === 'number',
+    'src/core/away.js does not export the Retreat table');
+
+  const realFetch = window.fetch;
+  const savedG = window.G;
+  const savedPtr = { m: savedG.activeMonster, s: savedG.activeSkill,
+    a: savedG.activeAction, r: savedG.activeArtisanRecipe };
+  const wasOn = A.isServerAccrualEnabled();
+  savedG.activeMonster = null; savedG.activeSkill = null;
+  savedG.activeAction = null; savedG.activeArtisanRecipe = null;
+
+  /* A FRESHLY BOOTED CLIENT: nothing known, no fight. That IS what a reload is
+     — the fall moment went with the page, so every retreat fact below has to
+     come off the envelope or not exist. */
+  const freshG = () => (window.G = { inventory: {}, offlineBudget: {}, playerHp: 5,
+    playerMaxHp: 13, activeMonster: null, skills: {}, stats: {}, combatLog: [] });
+  /* THE SERVER STATE A RETREAT LEAVES BEHIND: pointer idled, recovery line 32
+     minutes ahead (the ruling's own number, inside the 64-minute cap and far
+     from any boundary a slow page could round to zero), 40% resume banked. */
+  const stateFor = (falls, until) => {
+    const st = { slot: 0, accrued_to: new Date().toISOString(), hp: 5, max_hp: 13,
+      active_kind: 'idle', active_id: null,
+      recovering_until: new Date(until).toISOString(), deaths_today: 3, deaths_lifetime: 63 };
+    if (falls !== null) st.consec_falls = falls;
+    return st;
+  };
+  const sheetText = (label) => {
+    const el = document.getElementById('hr-death-scrim');
+    assert(el && el.classList.contains('show'),
+      label + ': the reload raised no sheet at all — no countdown, no Rest button, for 32 minutes '
+      + 'in which nothing earns');
+    return el.textContent || '';
+  };
+  const reset = () => {
+    try { R.resetRecord(); R.configureRecord(null); } catch (e) {}
+    try { D.__resetForTest(); } catch (e) {}
+    try { A.clearFall(); } catch (e) {}
+    /* The recovery line is SERVER-OWNED with no client setter (RECOVER-8 pins
+       the absence of one), so it is retired the only sanctioned way. */
+    try { A.applyEnvelopeState(window.G || {}, { state: { recovering_until: null } }); } catch (e) {}
+    try { D.__resetForTest(); } catch (e) {}
+  };
+  const settle = (falls) => {
+    reset(); A.setServerAccrualEnabled(true); freshG();
+    A.applyEnvelopeState(window.G, { state: stateFor(falls, Date.now() + 32 * 60000) });
+    return sheetText('settle(' + falls + ')');
+  };
+  const boot = async (falls) => {
+    reset(); A.setServerAccrualEnabled(true);
+    const st = stateFor(falls, Date.now() + 32 * 60000);
+    window.fetch = function (u) {
+      if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, version: 9,
+        now: new Date().toISOString(), state: st, skills: {}, inventory: {} }), { status: 200 }));
+    };
+    freshG(); R.resetRecord();
+    R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key',
+      authToken: () => 'jwt-token', slot: 0 });
+    const v = await R.requestRecord();
+    assert(v.outcome === 'loaded', 'boot(' + falls + '): the boot read did not load: '
+      + JSON.stringify(v));
+    return sheetText('boot(' + falls + ')');
+  };
+  const done = () => {
+    window.fetch = realFetch;
+    reset();
+    window.G = savedG;
+    savedG.activeMonster = savedPtr.m; savedG.activeSkill = savedPtr.s;
+    savedG.activeAction = savedPtr.a; savedG.activeArtisanRecipe = savedPtr.r;
+    try { A.setServerAccrualEnabled(wasOn); } catch (e) {}
+    try { A.applyEnvelopeState(window.G || {}, { state: { recovering_until: null } }); } catch (e) {}
+    try { D.__resetForTest(); } catch (e) {}
+    try { window.refreshActivityBar(); } catch (e) {}
+  };
+  return { A, D, R, AW, settle, boot, done };
+};
+
 /* THE COMBAT-SCREEN FIXTURE, written once (test-file ratchet TF-1: "if the
    setup is genuinely large, it is a helper, and a helper is written once").
    Sixteen COMBAT-UI tests opened with the same four lines and closed with the
@@ -49963,16 +50064,22 @@ const TESTS = [
       assert(scrim && scrim.classList.contains('show'),
         'A4: the reload showed the player NOTHING — no sheet, no countdown, no Rest button, for '
         + '32 minutes in which nothing earns.');
-      assert(/Back on your feet in 3[12]:/.test(scrim.textContent || ''),
+      /* COUNTING THE SERVER'S LINE DOWN, IN THE RUN'S OWN WORDS. This read
+         "Back on your feet in 31:47" until 2026-09-08, which was the sheet
+         promising a resume the idled pointer will never honour (RETREAT-A4b/c);
+         the clock is the same server instant, the sentence around it is now the
+         ruled one. */
+      assert(/Still recovering — 3[12]m to go/.test(scrim.textContent || ''),
         'A4: the raised sheet is not counting the SERVER\'s line down — '
         + (scrim.textContent || '').slice(0, 140));
 
       /* (3) THE RETREAT COPY, DRIVEN BY THE SERVER'S OWN COUNTER - the ruled
          sentence built from the number the RELOAD hydrated, not a typed 3.
-         ⚠ `describeDeath` is asked directly: a boot-raised sheet carries no
-           engine `info` and never CLAIMS a retreat (re-deriving the rule would
-           be the second copy). Whether it should say "You pulled back" is
-           raised in CONFLICTS.md. */
+         ⚠ `describeDeath` is asked DIRECTLY here, with the numbers the reload
+           hydrated, because this leg is about the COPY surviving a reload. That
+           the raised sheet itself now claims the retreat (it did not until
+           2026-09-08) is RETREAT-A4b/A4c's subject, asserted there off the
+           rendered DOM rather than off a hand-built model. */
       const m = D.describeDeath({
         monsterName: window.MONSTERS[FOE].name, maxHp: 13,
         deaths: RUNG, deathsToday: RUNG, recoveryMs: 32 * 60000, resumeHp: window.G.playerHp,
@@ -50069,6 +50176,119 @@ const TESTS = [
       try { D.__resetForTest(); } catch (e) {}
       try { window.refreshActivityBar(); } catch (e) {}
     }
+  }),
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     RETREAT-A4b / A4c / A4d — THE RELOADED SHEET SAYS THE RUN ENDED.
+     WHAT RETREAT-A4 LEFT OPEN (CONFLICTS.md 2026-09-07, ruled by the brief of
+     2026-09-08). A4 hydrates `recovering_until` and `consec_falls` on a reload
+     and raises a sheet; but a boot-raised sheet carries no engine `info`, and
+     EVERY retreat field was gated on `info` — so the player whose run the realm
+     ENDED came back to "Knocked out" / "Back on your feet in 31:47" / a row
+     reading "Your run picks up the moment you are up · automatic", all three of
+     which describe somebody about to carry on. They are not: the retreat idled
+     the server's pointer. RETREAT-A6's defect through the BOOT door.
+     THE FIX IS AN OBSERVATION, NOT A SECOND RULE: `bootRetreat`
+     (src/features/death-sheet.js) takes the SERVER's durable counter to
+     src/core/away.js `retreatAtFall`, the one definition both runtimes import.
+     BOTH DOORS, because only one was ever tested — A4b the ATTENDED settle, A4c
+     the AWAY idle boot (see the `retreatReload` fixture); A4d is the
+     no-client-invented-number half.
+     THE MUTATIONS THIS BATTERY IS PROVEN AGAINST (run 2026-09-08):
+       - `retreat:` back to `!!(info && info.retreat)` → A4b, A4c and RETREAT-A4
+         go red: the ended run reads "Knocked out" again.
+       - `bootRetreat` defaulting an ABSENT counter to the rung → A4d goes red
+         (RECOVER-13/16 with it): silence becomes an ending nothing backs.
+       - restoring the unconditional "picks up · automatic" row → A4b and A4c. */
+  () => tryRun('RETREAT-A4b: the ATTENDED reload settle raises a sheet that says the run ENDED, '
+    + 'not one that promises it resumes', () => {
+    const F = retreatReload();
+    try {
+      const txt = F.settle(F.AW.RETREAT_FOODLESS_FALLS);
+      assert(window.G.consecFalls === F.AW.RETREAT_FOODLESS_FALLS,
+        'A4b: the settle did not hydrate the durable counter (' + window.G.consecFalls + ')');
+      assert(/You pulled back/.test(txt),
+        'A4b: the reloaded sheet reads "' + txt.slice(0, 60) + '". The server states consec_falls '
+        + F.AW.RETREAT_FOODLESS_FALLS + ' with the pointer idled — the realm ENDED this run, and '
+        + 'the sheet is telling the player they were merely knocked out.');
+      assert(/on an empty bag/.test(txt),
+        'A4b: the foodless rung fired but the sheet does not name the bag — ' + txt.slice(0, 200));
+      assert(/the fight does not restart itself/.test(txt),
+        'A4b: the ruled clock sentence is missing from the reloaded lead — ' + txt.slice(0, 220));
+      assert(!/picks up the moment you are up/.test(txt),
+        'A4b: the sheet still promises the run picks up automatically. The server idled the '
+        + 'pointer BECAUSE the run ended; that row is a false promise on a retreat.');
+      assert(!/Back on your feet in/.test(txt),
+        'A4b: the reloaded lead promises a resume the idled pointer will not honour');
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('RETREAT-A4c: the AWAY idle boot says the run ENDED and words the FED rung as '
+    + 'the fight, not the bag', async () => {
+    const F = retreatReload();
+    try {
+      /* Six falls in a row ends the run whatever the bag held, and the ruled
+         sentence for it names the FIGHT. The count is the server's; which rung
+         it is at is away.js's. */
+      const fed = await F.boot(F.AW.RETREAT_ANY_FALLS);
+      assert(/You pulled back/.test(fed),
+        'A4c: the idle boot shows an ordinary knockout after a retreat — ' + fed.slice(0, 60));
+      assert(/out of your league for now/.test(fed),
+        'A4c: consec_falls ' + F.AW.RETREAT_ANY_FALLS + ' is the FED rung and must not be worded '
+        + 'as an empty bag — ' + fed.slice(0, 220));
+      assert(!/on an empty bag/.test(fed),
+        'A4c: the sheet invented a foodless retreat at the fed rung — ' + fed.slice(0, 220));
+      assert(!/picks up the moment you are up/.test(fed),
+        'A4c: the sheet promises the run resumes automatically after a retreat');
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('RETREAT-A4c2: the FOODLESS rung survives the idle boot, worded as the bag and '
+    + 'still carrying the recovery clock', async () => {
+    const F = retreatReload();
+    try {
+      /* One rung below the fed one, and the wording matters: the bag is the
+         cure this player can act on. */
+      const lean = await F.boot(F.AW.RETREAT_FOODLESS_FALLS);
+      assert(/You pulled back/.test(lean) && /on an empty bag/.test(lean),
+        'A4c2: the foodless rung does not survive the idle boot — ' + lean.slice(0, 220));
+      assert(/Still recovering/.test(lean),
+        'A4c2: the retreat sheet dropped the recovery clock the ruling puts on it (hr_rest is '
+        + 'still the cure and the recovery is still real) — ' + lean.slice(0, 220));
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('RETREAT-A4d: no server counter, no retreat — the reload never invents the one '
+    + 'number that ends a run', async () => {
+    const F = retreatReload();
+    try {
+      /* AN ENVELOPE WITH NO `consec_falls` IS AN OLDER SERVER, and a sheet that
+         ends a run on a number nobody stated is exactly the second copy of the
+         rule this fix refuses to be. The ordinary knockout still renders in
+         full — the absence must cost the player nothing. */
+      const silent = await F.boot(null);
+      assert(!/You pulled back/.test(silent),
+        'A4d: with NO consec_falls in the envelope the sheet still claimed a retreat. The client '
+        + 'invented the one number the ruling says only the server may hold.');
+      assert(/Knocked out|Back on your feet/.test(silent),
+        'A4d: the ordinary knockout sheet stopped rendering — ' + silent.slice(0, 200));
+      assert(/picks up the moment you are up/.test(silent),
+        'A4d: the ordinary knockout lost its resume row; only a RETREAT may take it away');
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('RETREAT-A4d2: two consecutive falls interrupt, they do not terminate — through '
+    + 'BOTH reload doors', async () => {
+    const F = retreatReload();
+    try {
+      /* Rungs 1–2 are the ruling's "interrupt, don't terminate" case, named by
+         number. Both doors read the same counter, so both are asked. */
+      assert(!/You pulled back/.test(await F.boot(2)),
+        'A4d2: two consecutive falls ended the run at the boot door. The ruling fires at '
+        + F.AW.RETREAT_FOODLESS_FALLS + ' foodless / ' + F.AW.RETREAT_ANY_FALLS + ' fed.');
+      assert(!/You pulled back/.test(F.settle(2)),
+        'A4d2: two consecutive falls ended the run at the settle door');
+    } finally { F.done(); }
   }),
 
   () => tryRun('b341: NO monster row can start a fight on one tap — however the list was painted', () => {

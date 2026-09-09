@@ -1328,3 +1328,25 @@ change a player-visible number on a surface this change has no business touching
 body is the MORE correct source ("the last instant the server had priced before this boot" is
 literally what `player_state.accrued_to` is at boot). Someone should decide that on purpose; today
 it is unchanged by design.
+
+## 2026-09-08 · SYSTEMS → GAME DESIGNER (copy only) · **RESOLVED, one string left provisional** (`worktree-agent-a66d4bb2c074fad34`, RETREAT-A4b/c/d)
+
+The open item above ("after a reload, a RETREATED player is shown an ordinary knockout") is CLOSED.
+The Coordinator's 2026-09-08 brief ruled it: the boot-raised sheet reads exactly what the server
+says. `bootRetreat` in `src/features/death-sheet.js` takes the server's own `consec_falls`
+(hydrated by `reconcileFall`) to `src/core/away.js` `retreatAtFall` — the one definition both
+runtimes import — and asks which rung it is at; fed (6) is tested first because it is the weaker
+condition, so only a count that misses it can be the foodless rung's. No bag is read, nothing is
+counted, an absent key claims nothing (RETREAT-A4d), and a character still pointed at a fight is
+never a retreat whatever the count reads.
+
+**The one thing that is copy, and it is provisional.** The sheet's `resume` row read "Your run
+picks up against the <foe> the moment you are up · automatic" unconditionally — false on a retreat
+for the same reason RETREAT-A6 removed the promise from the lead. It now reads, on a retreat only,
+**"You pulled back — your run does not restart itself · ended"**. That is one string in one branch,
+written to state the ruled lead's own fact rather than to leave the slot silent (a sheet that goes
+quiet about the pointer lets the player assume the reassuring answer). Rewrite it freely; the row
+key `resume` and the suppression are the load-bearing parts.
+
+RETREAT-A4's own assertion moved with it: the boot sheet counts the same server instant down in the
+ruled sentence ("Still recovering — 32m to go") instead of "Back on your feet in 31:47".

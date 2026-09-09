@@ -33399,6 +33399,71 @@ const TESTS = [
     }
   }),
 
+  /* LIVE ×2 (QA account, 2026-09-09 16:36 and 16:40 UTC): a smithing run was
+     accepted server-side, the client's local loop predicted the bag would run
+     out 37 s later, and the run paid NOTHING. The server half of that defect is
+     `finalWindow` in supabase/functions/hr-accrue/accrual.js — a collect has no
+     next call, so ACCRUE_MIN_MS may not apply to it.
+
+     THIS is the client half of the same contract, and no server fix can rescue
+     it: the ONLY thing that makes the server collect the run at all is that the
+     exhaustion stop DECLARES. The honest-stop test above asserts the pointer,
+     the tile and the toast and says nothing about the wire — so a future "just
+     kill the timers" simplification (`window._stopArtisan()`, which clears
+     intervals and declares nothing) would pass it while confiscating the window
+     again, from the client side, for a completely different reason.
+
+     The declaration must also be `idle` — a stop that re-declares the bench it
+     just stopped would collect and then immediately restart a run with no
+     inputs, which is the residue-ahead shape (the client gating the server on a
+     bag figure only the client believes). */
+  () => tryRun('b531: an artisan run that runs out of inputs DECLARES idle — the server collect is what pays it', () => {
+    if (typeof window.startArtisan !== 'function') { skip('no startArtisan'); return; }
+    const snap = snapshotG();
+    const realNotify = window.notify, realDeclare = window.declareActivity;
+    const stopBench = () => {
+      try { if (typeof window._stopArtisan === 'function') window._stopArtisan(); } catch (e) {}
+      window.G.activeSkill = null; window.G.skillTargetId = null;
+    };
+    try {
+      const G = window.G;
+      const declares = [];
+      window.notify = () => {};
+      window.declareActivity = (kind, id) => { declares.push({ kind, id }); return null; };
+      /* DERIVED from the catalogue, never restated: the recipe's own inputs,
+         seeded for EXACTLY ONE action, so the second tick is the exhaustion. */
+      const r = (window.ARTISAN_RECIPES.smithing || []).find((x) => x.req <= 1
+        && (x.input || (x.inputs && Object.keys(x.inputs).length)));
+      assert(r, 'no level-1 smithing recipe for the probe');
+      const feed = {};
+      if (r.inputs) Object.keys(r.inputs).forEach((k) => { feed[k] = r.inputs[k]; });
+      else feed[r.input] = 1;
+      G.rooms = Object.assign({}, G.rooms, { forge: 1 });
+      G.inventory = Object.assign({}, G.inventory, feed);
+      G.skills = Object.assign({}, G.skills, { smithing: 100000 });
+      stampRecordLikeLoad(G);
+      window.startArtisan('smithing', r.id);
+      assert(declares.some((d) => d.kind === 'artisan' && d.id === r.id),
+        'the run did not declare at all — nothing server-side knows it happened');
+      declares.length = 0;
+      window.doArtisanAction('smithing', r.id);   // spends the only feed
+      window.doArtisanAction('smithing', r.id);   // and now the inputs are gone
+      assert(G.activeSkill === null,
+        'the run did not stop on exhaustion (b228 regression), activeSkill=' + G.activeSkill);
+      assert(declares.length > 0,
+        'THE EXHAUSTION STOP DECLARED NOTHING. The server never hears the run ended, so no collect '
+        + 'runs, and the window the player just worked is paid by nobody. A stop that only clears '
+        + 'timers is the client half of the b531 confiscation.');
+      assert(declares.every((d) => d.kind === 'idle'),
+        'the exhaustion stop declared ' + JSON.stringify(declares) + ' — it must declare idle. '
+        + 'Re-declaring the bench restarts a run the client already believes has no inputs, which '
+        + 'gates a server capability on a client-held bag figure.');
+    } finally {
+      window.notify = realNotify; window.declareActivity = realDeclare;
+      stopBench(); restoreGAndRecord(snap);
+    }
+  }),
+
   // b228 (Tyler / spun-off task, folded in): the offline catch-up summary only
   // reached the player as a transient toast — its numbers were also written into
   // the display:none #dash-active panel. It now has a visible home: a "While you

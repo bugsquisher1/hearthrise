@@ -186,6 +186,38 @@ import {
 export const ACCRUE_MIN_MS = 60000;
 
 /**
+ * Does an engine delta MOVE ANY VALUE? (b531)
+ *
+ * The sub-minute exemption above is opened by `finalWindow`, and its cost
+ * control is here: a collect that priced a short window into a delta carrying
+ * nothing a player would notice must write NOTHING — no apply, no ledger row,
+ * no version bump — so a burst of rapid switches still costs the database
+ * exactly what it cost before the exemption existed. Deferring such a window is
+ * free and safe: `accrued_to` is left alone, so the next collect prices it
+ * again from the same watermark.
+ *
+ * VALUE is items / xp / gold / progress. Deliberately NOT hp, `fight` or
+ * `tool_carry`: those are the *state of a run in flight*, and a switch throws
+ * the run away anyway (hr_apply voids a `fight` checkpoint whenever the delta
+ * also carries an `activity` key). Counting them would make every switch write
+ * a row that granted nothing.
+ *
+ * A NEGATIVE item quantity IS value — an artisan window that consumed inputs
+ * and burnt the output cost the player something real, and skipping it would
+ * hand back the ingredients.
+ */
+export function deltaHasValue(delta) {
+  if (!delta || typeof delta !== 'object') return false;
+  const anyNonZero = (m) => !!m && typeof m === 'object'
+    && Object.keys(m).some((k) => Number(m[k]) !== 0);
+  if (anyNonZero(delta.items)) return true;
+  if (anyNonZero(delta.xp)) return true;
+  if (Number(delta.gold) !== 0 && Number.isFinite(Number(delta.gold))) return true;
+  if (Array.isArray(delta.progress) && delta.progress.length > 0) return true;
+  return false;
+}
+
+/**
  * ── THE INVENTORY-COMPLETENESS CONTRACT (inventory-flip Step B1) ────────────
  *
  * The dormant absolute-replace flip (src/net/accrue.js) may only fire on an
@@ -226,6 +258,18 @@ export const ACCRUE_MIN_MS = 60000;
  *   inconsistent), the flag MUST gain an explicit engine-STAMPED completeness
  *   column and this contract must be revisited. Stated so a future change to the
  *   settle shape cannot silently invalidate the flip.
+ *
+ * ⚠ b531 NARROWED THIS, AND THE INVENTORY FLIP MUST NOT BE ARMED WITHOUT
+ *   READING THIS PARAGRAPH. `finalWindow` (see the floor in computeAccrual)
+ *   lets a COLLECT-BEFORE-SWITCH pay a window shorter than ACCRUE_MIN_MS. So
+ *   the predicate below — and the `interval '60 seconds'` in hr_state_of it is
+ *   pinned to — no longer means "no window could grant"; it means "no window
+ *   the ACCRUE cadence would pay could grant". A sub-minute artisan run ended
+ *   by a switch grants ownable items while this reads true. That is harmless
+ *   today (the absolute-replace flip is dormant, `inventoryArmEnabled` is false
+ *   in prod) and it is exactly the "if either guarantee is ever weakened"
+ *   condition below: arming the flip now requires the engine-STAMPED
+ *   completeness column, not this predicate.
  *
  * @returns true when a pointer in state `{activeKind, accruedToMs, activeSinceMs}`
  *   has NO pending grant window at `nowMs` — the exact predicate hr_state_of's
@@ -1183,7 +1227,37 @@ export function computeAccrual(input) {
   const grantMs = Math.min(elapsedMs, sinceActivityMs, capMs);
 
   if (!(capMs > 0)) return { accrued: false, reason: SKIP.NO_CAP };
-  if (grantMs < ACCRUE_MIN_MS) return { accrued: false, reason: SKIP.TOO_SOON };
+  /* ── THE FLOOR, AND THE ONE CALLER IT MAY NOT APPLY TO (b531) ─────────────
+     LIVE, MEASURED 2026-09-09 (QA account, twice): 28 iron bars, a platebody
+     bench, `set_activity:artisan:forge_iron_platebody` accepted at 16:40:14 and
+     `set_activity:idle` declared 37 s later when the client's local loop
+     predicted the bag would run out. The switch's collect priced a 37 s window,
+     answered `below_min_span`, and paid NOTHING — then the switch stamped
+     `active_since = now()` (activityDelta's `restart:true`), which clamps every
+     later grant to the NEW pointer's age. The 37 s was not deferred, it was
+     DESTROYED, and with it five iron platebodies. Any craft or gather run whose
+     inputs run out inside a minute yields nothing at all.
+
+     The floor's own header states its justification: a sub-threshold window is
+     "not confiscated by having been looked at", because `accrued_to` is left
+     alone and the NEXT call sees a longer span. That reasoning is TRUE for the
+     `accrue` verb (a cadence poll; the pointer survives) and FALSE for a
+     COLLECT-BEFORE-SWITCH (the pointer is about to be replaced; there is no
+     next call for this window). So the floor is a property of the CALLER, and
+     `finalWindow` is the caller saying "this window has no next call".
+
+     WHY THIS CANNOT BE GAMED. Paying it grants exactly what the simulation
+     computes for the elapsed span and advances `accrued_to` to `now()`, so time
+     is conserved: switching twice pays the same total as switching once. The
+     cap (`capMs`) and the day budget still bound the output, and the collect
+     caller additionally refuses to WRITE a sub-minute window that produced
+     nothing of value (see collectCurrentWindow), so switch-spam still writes no
+     rows and no ledger noise. `grantMs > 0` is required either way — a
+     zero-length window has nothing to simulate. */
+  if (grantMs <= 0) return { accrued: false, reason: SKIP.TOO_SOON };
+  if (grantMs < ACCRUE_MIN_MS && inp.finalWindow !== true) {
+    return { accrued: false, reason: SKIP.TOO_SOON };
+  }
   const capped = elapsedMs > grantMs;
 
   /* ── (1a) WHICH hours of the absence those are (Ruling 2, 2026-08-15) ─────

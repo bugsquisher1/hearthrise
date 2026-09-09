@@ -151,6 +151,15 @@
     if(idx < 0) return;
     list[idx].id = serverId;
     saveListings(list);
+    /* RE-RENDER, OR THE ROW ON SCREEN KEEPS THE DEAD ID: painted with the local
+       'L…' id at the tap, rewritten to the uuid a round trip later. Without this
+       the button still says `data-cancel="L…"`, matching nothing: the no-op. */
+    rerenderMarketIfOpen();
+  }
+  function rerenderMarketIfOpen(){
+    if(typeof window.renderMarket === 'function' && document.querySelector('#panel-market.active')){
+      try { window.renderMarket(); } catch(e){}
+    }
   }
 
   function recordSale(itemId, eachPrice, qty){
@@ -357,13 +366,9 @@
         return l.id && String(l.id).indexOf('L') === 0 && l.sellerId === currentSellerId();
       });
       saveListings(rows.concat(mine));
-      if(typeof window.renderMarket === 'function' &&
-         /* b230: #market-root now ALWAYS exists (it is static markup), so it
-            can no longer stand in for "the market is on screen". Only the
-            panel's own active state means that. */
-         document.querySelector('#panel-market.active')) {
-        try { window.renderMarket(); } catch(e){}
-      }
+      /* #market-root ALWAYS exists (static markup), so it cannot stand in for
+         "the market is on screen"; only the panel's active state means that. */
+      rerenderMarketIfOpen();
       return true;
     }).catch(function(){ return false; });
   }
@@ -557,25 +562,58 @@
     return { ok:true };
   }
 
+  /** The ANSWER half of a server-first cancel. The envelope — applied by the
+   *  gold seam's onEnvelope hook — is what puts the items back in the bag; this
+   *  only retires the mirror row and reports what the server said. It never
+   *  touches G.inventory, on either branch. */
+  function finishCancel(serverId, why){
+    var list = serverId ? loadListings() : null;
+    var idx = list ? list.findIndex(function(l){ return l.id === serverId; }) : -1;
+    if(idx >= 0){ list.splice(idx, 1); saveListings(list); }
+    if(typeof window.notify === 'function'){
+      window.notify(why ? ('Cancel refused — ' + why) : 'Listing cancelled — items returned',
+        why ? 'kill' : 'info');
+    }
+    rerenderMarketIfOpen();
+    if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
+    if(typeof window.updateTopbar === 'function') window.updateTopbar();
+  }
+
   function cancelListing(listingId){
     var list = loadListings();
     var idx = list.findIndex(function(l){ return l.id === listingId; });
     if(idx < 0) return { ok:false, reason:'Listing not found' };
     var l = list[idx];
     if(l.sellerId !== currentSellerId()) return { ok:false, reason:'Not your listing' };
+
+    /* ══ CANCEL IS SERVER-FIRST, LIKE EVERY OTHER VALUE MOVE ════════════════
+       The server owns the escrow: the goods come back inside
+       hr_market_cancel's envelope, so a client that also `addItem`s them is
+       double-paying on a refusal and minting outright when the DELETE never
+       happened. Send the intent; render from the ANSWER. */
+    if(serverMarketActive()){
+      if(!isServerListingId(l.id)){
+        return { ok:false, reason:'Listing is still reaching the market — try again in a moment' };
+      }
+      var _ck2 = marketIntentKey();
+      var _cS2 = _ck2 && marketApi();
+      if(!_cS2) return { ok:false, reason:'Not connected to the market right now' };
+      var _cp2 = _cS2.cancelMarketListing(l.id, _ck2);
+      var _cid = l.id;
+      if(_cp2 && _cp2.then) _cp2.then(function(v){
+        var out = v && v.outcome;
+        if(out === 'applied' || out === 'replayed') finishCancel(_cid, null);
+        else finishCancel(null, (v && (v.reason || out)) || 'refused');
+      }, function(){ finishCancel(null, 'network error'); });
+      return { ok:true, pending:true };
+    }
+
+    // ── v1 (seam OFF): the pre-cutover local model, unchanged ──
     // Refund escrow.
     if(typeof window.addItem === 'function') window.addItem(l.itemId, l.qty);
     list.splice(idx, 1);
     saveListings(list);
-    // b355: the seam owns the cancel when it is on — hr_market_cancel's DELETE
-    // is the arbiter that makes "the escrow comes back exactly once" true even
-    // against a racing expiry sweep, which no client-side check can be.
-    var _ck = isServerListingId(l.id) ? marketIntentKey() : null;
-    var _cS = _ck && marketApi();
-    if(_cS){
-      var _cp = _cS.cancelMarketListing(l.id, _ck);
-      if(_cp && _cp.catch) _cp.catch(function(){});
-    } else if(!serverMarketActive() && backendActive() && String(l.id).indexOf('L') !== 0){
+    if(backendActive() && String(l.id).indexOf('L') !== 0){
       // b208: mirror the cancel server-side (uuid ids are server rows)
       backend.cancelListing(l.id).catch(function(){});
     }
@@ -1414,7 +1452,9 @@
     panel.querySelectorAll('button.mk-cancel[data-cancel]').forEach(function(b){
       b.addEventListener('click', function(){
         var r = cancelListing(this.dataset.cancel);
-        if(r.ok) render();
+        // A swallowed refusal is why the live no-op was silent.
+        if(r.ok){ if(!r.pending) render(); }
+        else if(typeof window.notify === 'function') window.notify(r.reason || 'Could not cancel that listing', 'kill');
       });
     });
   }

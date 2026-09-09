@@ -10049,6 +10049,59 @@ const TESTS = [
       delete window.__mktXss;
     }
   }),
+  /* ── regression: Market Cancel is SERVER-FIRST ─────────────────────
+     Live: clicking Cancel on your own listing did nothing — no toast, no
+     refund, listing stayed. cancelListing() was the pre-cutover path: it
+     refunded the escrow with a client addItem, deleted the mirror row, and
+     fired hr_market_cancel with .catch(noop), the verdict discarded; the click
+     handler swallowed the refusal reason, so a stale row id read as silence.
+     This test drives the real button under the seam and asserts the two
+     properties the cutover requires: exactly one market_cancel intent goes
+     out, and G.inventory does NOT move before the answer applies. */
+  () => tryRun('b523: market Cancel sends one market_cancel intent and does not refund client-side', () => {
+    const M = window.HearthriseMarket;
+    if (!M || typeof M.listItem !== 'function') { skip('HearthriseMarket seam absent'); return; }
+    const KEY = 'hearthrise:market:listings';
+    const saved = { rows: localStorage.getItem(KEY), gold: window.HearthriseGold, key: window.goldIntentKey, g: snapshotG() };
+    const UUID = '11111111-2222-4333-8444-555555555555';
+    const calls = [];
+    try {
+      /* 1. A listing owned by THIS seller, made with the seam off, then given a
+            server uuid — the shape a live listing has once the receipt is adopted. */
+      window.HearthriseGold = { isGoldIntentEnabled: () => false };
+      window.G.inventory = window.G.inventory || {};
+      window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 5;
+      assert(M.listItem('normal_log', 1, 5).ok, 'setup: listItem should succeed');
+      const rows = M.list();
+      assert(rows[rows.length - 1].itemId === 'normal_log', 'setup: my listing is the last row');
+      rows[rows.length - 1].id = UUID;
+      localStorage.setItem(KEY, JSON.stringify(rows));
+      // 2. Seam ON, with the cancel verb captured instead of sent and left unanswered.
+      window.HearthriseGold = {
+        isGoldIntentEnabled: () => true,
+        isListingId: (id) => /^[0-9a-f-]{36}$/.test(String(id)),
+        cancelMarketListing: (id, key) => { calls.push({ id, key }); return new Promise(() => {}); },
+      };
+      window.goldIntentKey = () => '99999999-8888-4777-8666-555555555555';
+      window.showTab('market');
+      const btn = document.querySelector('#panel-market button.mk-cancel[data-cancel="' + UUID + '"]');
+      assert(btn, 'my server listing rendered no Cancel button — this guard must not pass vacuously');
+      const bagBefore = window.G.inventory.normal_log || 0;
+      btn.click();
+      assert(calls.length === 1, 'Cancel must send exactly ONE market_cancel intent, sent ' + calls.length);
+      assert(calls[0].id === UUID && !!calls[0].key, 'the intent must name the SERVER listing id and carry a key');
+      assert((window.G.inventory.normal_log || 0) === bagBefore,
+        'the client refunded the escrow itself — the bag moved before the server answered');
+      assert(M.list().filter((l) => l.id === UUID).length === 1,
+        'the row was deleted locally before the server answered — the mirror is not the arbiter');
+    } finally {
+      window.HearthriseGold = saved.gold;
+      window.goldIntentKey = saved.key;
+      if (saved.rows === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved.rows);
+      restoreG(saved.g);
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
   () => tryRun('b209: raids — weekly boss rotation, clamped real-roll strikes, solo pool state', () => {
     const R = window.HearthriseRaids;
     assert(R && R.BOSSES.length >= 3, 'raid bosses present');

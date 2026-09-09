@@ -16,14 +16,14 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: dfee670ed22a38d4cc17cf5d0e98536319aab0777891f02966b026c3c504ff6c
-//   127 offers · 223 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: be3d18ecf0101db9605d140620f8bbfd28f2fb5f5d43dc7af94fed34ba7865b5
+//   129 offers · 225 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
 //   theme              6  src/legacy.js
-//   seed              10  src/legacy.js
+//   seed              12  src/legacy.js
 //   equip             20  src/legacy.js
 //   bounty             5  src/legacy.js
 //   trait              2  src/legacy.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "dfee670ed22a38d4cc17cf5d0e98536319aab0777891f02966b026c3c504ff6c";
+export const SHOPS_DIGEST = "be3d18ecf0101db9605d140620f8bbfd28f2fb5f5d43dc7af94fed34ba7865b5";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -746,6 +746,20 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
+    id: "seed.cooked_shrimp", table: "seed",
+    name: "Cooked Shrimp",
+    cost: [{ kind: "currency", id: "gold", amount: 150 }],
+    grant: [{ kind: "item", id: "cooked_shrimp", amount: 5 }],
+    repeatable: true,
+  },
+  {
+    id: "seed.cooked_trout", table: "seed",
+    name: "Cooked Trout",
+    cost: [{ kind: "currency", id: "gold", amount: 450 }],
+    grant: [{ kind: "item", id: "cooked_trout", amount: 5 }],
+    repeatable: true,
+  },
+  {
     id: "seed.emberfruit_seed", table: "seed",
     name: "Emberfruit Seed",
     cost: [{ kind: "currency", id: "gold", amount: 900 }],
@@ -944,7 +958,7 @@ export const SHOP_TABLES = [
     "anchor": "const SEED_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
     "note": "the price is per BUNDLE of qty, not per unit",
-    "count": 10
+    "count": 12
   },
   {
     "table": "equip",

@@ -187,11 +187,18 @@
     },
     'auto-eat-idle': function () {
       return 'Auto-Eat is watching your health, but your bag had no provisions left to eat. ' +
-        'Cook or buy food before the next fight and it will do the rest.';
+        'Cook or buy food at the Local Shop before the next fight and it will do the rest.';
     },
     'no-food': function () {
-      return 'You went in with no provisions. Cook something at the fire — even a Shrimp buys ' +
-        'you another few swings — and press Eat when your health runs low.';
+      /* b526 — THE SECOND HALF OF THE SENTENCE IS NOW TRUE. "Cook something"
+         was the only advice this tip could honestly give while the knockout
+         refused every payable kind: a player told to cook, who could not fish
+         and could not buy, was told to do nothing. The Supplies counter sells
+         Cooked Shrimp, shopping is never gated by recovery, and the button
+         below goes straight there. */
+      return 'You went in with no provisions. Cook something at the fire, or buy a few Cooked ' +
+        'Shrimp at the Local Shop — even a Shrimp buys you another few swings — and press Eat ' +
+        'when your health runs low.';
     },
     outmatched: function (d) {
       return 'You ate everything you had and still fell. ' + d.monsterName +
@@ -651,6 +658,14 @@
       /* The Bounty Shop link only appears when it is actually the answer —
          an offer to buy something you already own is noise. */
       shopLink: tipKey === 'food-unused' && !d.autoEatOwned,
+      /* ── b526 · THE EMPTY BAG GETS A DOOR ─────────────────────────────────
+         The two tips whose whole content is "you had nothing to eat" are the
+         two that can now be ACTED ON from the sheet, because the Supplies
+         counter stocks Cooked Shrimp and `set_activity`'s recovery refusal
+         does not touch shopping. Mutually exclusive with `shopLink` by
+         construction — that one is the food-unused tip, these are the two
+         empty-bag tips — so the single affordance slot never holds two. */
+      foodShopLink: tipKey === 'no-food' || tipKey === 'auto-eat-idle',
       /* THE ONE-TAP RE-ENABLE (Designer ruling 2b condition 3, 2026-08-31).
          The exact complement of `shopLink`: the same tip, the same slot, the
          other population. An owner who has it switched OFF is the only player
@@ -1163,6 +1178,7 @@
         '<div class="hr-death-tip" data-tip="' + esc(model.tipKey) + '">' +
           '<b>What to do differently</b>' + esc(model.tip) +
           (model.shopLink ? '<button class="hr-death-shop" data-act="shop">Open the Bounty Shop</button>' : '') +
+          (model.foodShopLink ? '<button class="hr-death-shop" data-act="foodshop">Buy food at the Local Shop</button>' : '') +
           /* Same class as the shop link — one affordance in this slot, so the
              two never look like different kinds of thing. */
           (model.enableAutoEat ? '<button class="hr-death-shop" data-act="autoeat">Turn Auto-Eat back on</button>' : '') +
@@ -1346,6 +1362,16 @@
       /* The Bounty Shop is a card on the `bounty` panel, not the gem store —
          Auto-Eat is bought with Marks (legacy.js injectBountyPanel). */
       if (kind === 'shop') { nav('bounty'); return; }
+      /* b526: the Supplies counter, not the gem store — Cooked Shrimp is a
+         GOLD offer (`seed.cooked_shrimp`). The tab is selected before the nav
+         so the panel paints on the right sub-tab in one frame; `setShopTab`
+         is a legacy global and its absence must not swallow the navigation,
+         which is the part the player actually asked for. */
+      if (kind === 'foodshop') {
+        try { if (typeof window.setShopTab === 'function') window.setShopTab('seeds'); } catch (e) {}
+        nav('shop');
+        return;
+      }
       /* ── REST AT THE HEARTH (rev. 2, N1) ────────────────────────────────
          One call to the SERVER, which owns every number in it: which
          provisions are eligible (hr_items.auto_eatable), how much each heals,

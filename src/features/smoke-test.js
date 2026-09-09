@@ -14654,6 +14654,61 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('RECOVER-19 (b524): a BOOT RESUME while knocked out raises no pre-fight warning and '
+    + 'runs no local fight — the knocked-out sheet is the only surface', () => {
+    /* MEASURED LIVE — QA account, 2026-09-08 23:30 UTC. Knocked out,
+       `recovering_until` ~31 minutes ahead ("Knocked out — back on your feet in
+       31m · Goblin resumes automatically"), a PLAIN RELOAD put the pre-fight
+       food warning over the knocked-out sheet: no tap, and no fight can start
+       for half an hour. ROOT CAUSE: the advisory gate lives inside
+       `startCombat`, whose header assumes "every production caller is a player
+       GESTURE". `reconcileActivityPointer` is not one — it is the envelope
+       naming the fight the SERVER owns, at boot, inside `activityQuietly` (the
+       escape hatch `hrRefuseWhileRecovering` honours). Cost: a modal nobody asked
+       for; the once-per-foe latch spent so the real tap goes unwarned; and an
+       ASYNCHRONOUS `startCombat` leaving ③'s pointer unwritten.
+       MUTATION: remove BOTH halves (`{confirmed:true}` in legacy.js's resume, the
+       `hrCombatDownPeek` line in hrFightGate) — today's code — and ② goes RED with
+       the live sentence. Either alone covers this boot; both ship because a tap reaches the gate from the death sheet too. */
+    const G = window.G, A = window.HearthriseAccrual;
+    const D = window.HearthriseDialog, DS = window.HearthriseDeathSheet;
+    const FOE = (window.MONSTERS || {}).goblin ? 'goblin' : Object.keys(window.MONSTERS || {})[0];
+    if (!A || typeof A.applyEnvelopeState !== 'function' || !DS || typeof DS.__resetForTest !== 'function' || !D || typeof D.isOpen !== 'function' || !FOE || typeof window.__hrFightGate !== 'function' || typeof window.reconcileActivityPointer !== 'function') { skip('the recovery / fight-warning seam is not wired'); return; }
+    const snap = snapshotG(), wasOn = A.isServerAccrualEnabled(), savedInv = G.inventory;
+    const hadFlag = window.__HR_TEST_HARNESS__;
+    const overlay = () => document.getElementById('hr-confirm-overlay');
+    const envelope = (until) => A.applyEnvelopeState(G, { state: { accrued_to: new Date().toISOString(), recovering_until: until ? new Date(until).toISOString() : null } });
+    try {
+      /* Empty bag, 13 max HP — the population. The harness flag is OFF for
+         RETREAT-A5's reason: under it no dialog is raised at all. */
+      A.setServerAccrualEnabled(true); DS.__resetForTest(); window.__HR_TEST_HARNESS__ = false;
+      try { window.stopCombat(); } catch (e) {}
+      G.inventory = {}; G.playerMaxHp = 13; G.playerHp = 13; window.__hrClearFightWarnings();
+      /* ① THE FIXTURE BITES: on their feet, this state warns. */
+      assert(!!window.__hrFightGate(FOE), 'the fixture (empty bag, 13 max HP, ' + FOE + ') produced no warning at all, so this test could not observe the boot warning it forbids');
+      /* ② THE BOOT: the knockout, then the fight the server still owns. */
+      window.__hrClearFightWarnings(); envelope(Date.now() + 31 * 60000);
+      const hpBefore = G.playerHp;
+      assert(A.isKnockedOut(), 'no knockout: ' + JSON.stringify(A.fallState()));
+      window.reconcileActivityPointer({ kind: 'combat', id: FOE });
+      assert(!overlay() && !D.isOpen(), 'a plain reload raised the pre-fight warning over the knocked-out sheet: no tap was made, no fight can start for half an hour, and the once-per-foe latch is spent so the tap that IS a gesture goes unwarned');
+      assert(G.activeMonster === FOE, 'the resume did not mirror the server pointer (' + G.activeMonster + '): a warning makes startCombat asynchronous, so the reconcile reports a fight that has not started');
+      const mBefore = G.monsterHp;
+      try { window.combatTick(); window.combatTick(); } catch (e) {}
+      assert(G.playerHp === hpBefore && G.monsterHp === mBefore, 'a knocked-out resume SWUNG (hp ' + hpBefore + '→' + G.playerHp + ', foe ' + mBefore + '→' + G.monsterHp + '): the server refuses every payable kind in the window, so every point of it is gone on reload');
+      DS.__resetForTest(); envelope(null);   /* ⑤ CONTROL: the latch is intact */
+      try { window.stopCombat(); } catch (e) {}
+      assert(!A.isKnockedOut(), 'the control could not stand up: ' + JSON.stringify(A.fallState()));
+      assert(!!window.__hrFightGate(FOE), 'CONTROL: the boot spent the once-per-foe latch, so the tap the player makes when they are back up is never warned');
+    } finally {
+      try { const _ov = overlay(); if (_ov) _ov.remove(); if (D.isOpen()) D.close(); } catch (e) {}
+      try { window.stopCombat(); window.__hrClearFightWarnings(); DS.__resetForTest(); } catch (e) {}
+      window.__HR_TEST_HARNESS__ = hadFlag; G.inventory = savedInv;
+      A.setServerAccrualEnabled(!!wasOn); restoreG(snap);
+    }
+  }),
+
+
 
   /* ══════════════════════════════════════════════════════════════════════════
      RECOVER-17 / RECOVER-18 — THE RELOAD THAT STOOD A KNOCKED-OUT HERO UP.

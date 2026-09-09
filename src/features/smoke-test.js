@@ -33399,20 +33399,19 @@ const TESTS = [
     }
   }),
 
-  /* b531 (LIVE, QA account, 2026-09-09 16:36 and 16:40 UTC): a smithing run was
+  /* LIVE ×2 (QA account, 2026-09-09 16:36 and 16:40 UTC): a smithing run was
      accepted server-side, the client's local loop predicted the bag would run
      out 37 s later, and the run paid NOTHING. The server half of that defect is
      `finalWindow` in supabase/functions/hr-accrue/accrual.js — a collect has no
      next call, so ACCRUE_MIN_MS may not apply to it.
 
-     THIS is the client half of the same contract, and it is the half no server
-     fix can rescue: the ONLY thing that makes the server collect the run at all
-     is that the exhaustion stop DECLARES. b228 above asserts the stop is
-     HONEST (pointer cleared, tile cleared, toast spoken) and says nothing about
-     the wire — so a future "just kill the timers" simplification
-     (`window._stopArtisan()`, which clears intervals and declares nothing)
-     would pass b228 while silently confiscating the window again, from the
-     client side, for a completely different reason.
+     THIS is the client half of the same contract, and no server fix can rescue
+     it: the ONLY thing that makes the server collect the run at all is that the
+     exhaustion stop DECLARES. The honest-stop test above asserts the pointer,
+     the tile and the toast and says nothing about the wire — so a future "just
+     kill the timers" simplification (`window._stopArtisan()`, which clears
+     intervals and declares nothing) would pass it while confiscating the window
+     again, from the client side, for a completely different reason.
 
      The declaration must also be `idle` — a stop that re-declares the bench it
      just stopped would collect and then immediately restart a run with no

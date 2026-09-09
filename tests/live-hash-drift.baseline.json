@@ -24,7 +24,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-09-09",
-  "replay_ms": 7807,
+  "replay_ms": 1027,
   "counts": {
     "tracked_names": 44,
     "entries": 42
@@ -390,17 +390,18 @@
         "pin"
       ],
       "touched_by": [
-        "2026-09-06-cadence-recovery-floor.sql"
+        "2026-09-06-cadence-recovery-floor.sql",
+        "2026-09-09-combat-xp-settle-first.sql"
       ],
       "live": {
-        "md5": "ba877ea314565bdd7e39ab99c65878fb",
-        "norm_len": 15583,
+        "md5": "6cf400561308115d03d7d9780c98f796",
+        "norm_len": 16710,
         "measured": "2026-09-09",
         "source": "measured-live"
       },
       "replay": {
-        "md5": "ba877ea314565bdd7e39ab99c65878fb",
-        "norm_len": 15583,
+        "md5": "6cf400561308115d03d7d9780c98f796",
+        "norm_len": 16710,
         "source": "computed-from-replay"
       },
       "agree": true

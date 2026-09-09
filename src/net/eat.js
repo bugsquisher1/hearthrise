@@ -37,7 +37,7 @@
 
 import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
-} from './accrue.js?v=526';
+} from './accrue.js?v=527';
 
 export const EAT_VERB = 'eat';
 

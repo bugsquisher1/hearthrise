@@ -131,6 +131,9 @@ _Prior overnight note (2026-08-18 → 08-19):_
 > 3. Core screens on CSS tokens (no hardcoded colors on shipped surfaces). §9.
 > 4. `hr-accrue` load-tested at target concurrency. §9.
 
+## 2026-09-09 12:10 UTC — Paione: away combat pays items and kills but NO XP (P1, root-caused)
+- Ledger (bf18bd7f slot 0): three attended `xp_credit` calls at 11:51:40 / 11:52:05 / 11:52:27, THEN the 4 h 02 m away `accrue` at 11:52:30 with 828 kills and xp_in 0 (no `x` in the delta). Each credit advances `combat_xp_accrued_to` to now(); the settle pays XP only after that watermark (accrual.js ~1580) → the whole night trimmed. 30-day census: `x` present in 141 of ~900 combat accrue rows — every player who returns to a running fight loses the night's XP. Backend lane: server rule (settle-first / bounded watermark, staged migration, Security) + client boot ordering (settle before the cadence) + owed-XP numbers for a make-good ruling (Tyler).
+
 ## 2026-09-08 23:35 UTC — b522 LIVE and PLAYED (Coordinator) · b523/b524/b525/b526 followed the same night
 
 **2026-09-09 01:30 UTC — Tyler's correction (standing):** when the QA character is stuck, do the regular player's move first (fish → cook → fight), not a rule change. The Retreat was built while the bag was simply empty. Live: recovery refuses gathering and cooking starts and the tap gets no sheet; no shop sells food; market empty → designer ruling in flight (food during recovery, shop food, first-30-min teaching).

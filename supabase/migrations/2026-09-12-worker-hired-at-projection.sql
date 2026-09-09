@@ -42,6 +42,20 @@
 -- a much smaller faucet — it needs a worker already owned and deliberately
 -- parked. Named here so it cannot be mistaken for fixed.
 --
+-- RESTATEMENT-DEBT-ACK: hr_state_of is nine anchored patches deep since
+-- 2026-08-26-marks-record.sql and this file makes it ten, which the patch-chain
+-- guard is right to refuse. The debt is taken knowingly and it is not a
+-- preference: a restatement must equal the LIVE body plus one key, an agent
+-- cannot read the live body (apply-migration and the live-hash baseline are
+-- Coordinator-only), and a restatement authored from the repo replay is exactly
+-- the b484-b487 class where the restated body silently reverts whichever file
+-- patched last — on the one function every screen reads. This file is a P0
+-- economy fix on the critical path and adds a single key; trading a one-key
+-- splice for a blind 150-line restatement of that body is the worse risk.
+-- THE PAYDOWN, owned by the Coordinator and scheduled with this apply: restate
+-- hr_state_of ONCE from pg_get_functiondef of the LIVE body (the only correct
+-- source), re-pin live-hash-drift, and the chain resets to zero for everyone.
+--
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Additive to one projected object. To revert, re-apply the current last-toucher
 -- of hr_state_of (2026-09-10-dungeon-scrip.sql's patch chain) — but do NOT do so

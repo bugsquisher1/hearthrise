@@ -521,12 +521,22 @@
     }
     /* THE POINTER SURVIVES. The single most important thing this sheet can say
        to somebody who just watched a twelve-hour night end at minute four
-       before rev. 1: the run is not over, and they do not have to do anything. */
-    rows.push({ g: 'uiTarget', tone: 'ok', k: 'resume',
-      t: monsterName
-        ? 'Your run picks up against the ' + monsterName + ' the moment you are up'
-        : 'Your run picks up the moment you are up',
-      v: 'automatic' });
+       before rev. 1: the run is not over, and they do not have to do anything.
+       ⚠ EXCEPT ON A RETREAT, WHERE IT IS FALSE. The realm ENDED the run and the
+         server idled the pointer, so "picks up · automatic" is the same wrong
+         promise RETREAT-A6 removed from the lead, one row lower. The retreat
+         row states the ruled lead's own fact instead of suppressing the slot,
+         because a sheet that simply goes quiet about the pointer leaves the
+         player to assume the reassuring answer. Copy is provisional and is
+         flagged to the Designer in CONFLICTS.md. */
+    rows.push(retreat
+      ? { g: 'uiTarget', tone: 'bad', k: 'resume',
+          t: 'You pulled back — your run does not restart itself', v: 'ended' }
+      : { g: 'uiTarget', tone: 'ok', k: 'resume',
+          t: monsterName
+            ? 'Your run picks up against the ' + monsterName + ' the moment you are up'
+            : 'Your run picks up the moment you are up',
+          v: 'automatic' });
     /* THE WARNING, only once there is something to warn about. Shown from the
        second fall so the doubling is learned at the rung where it starts
        costing, not announced on a free one. */
@@ -732,6 +742,55 @@
     return n;
   }
 
+  /* ── THE BOOT-RAISED SHEET'S RETREAT, OBSERVED OFF THE ENVELOPE ──────────
+     THE MEASURED GAP (CONFLICTS.md 2026-09-07, systems → designer; closed by
+     the 2026-09-08 brief). RETREAT-A4 gave the reload its sheet, but a sheet
+     raised at BOOT carries no engine `info` — so a player whose run the realm
+     ENDED came back to "Knocked out / Back on your feet in 31:47" with a row
+     promising "Your run picks up the moment you are up · automatic". After a
+     retreat the server has IDLED the pointer and it does not pick up: the same
+     defect RETREAT-A6 exists for, reached through the boot door.
+
+     THIS IS AN OBSERVATION, NOT A SECOND COPY OF THE RULE. `readMoment` still
+     re-derives NOTHING: it does not look at the bag, does not count anything
+     and does not decide when a run ends. It reads the SERVER's own durable
+     counter (`player_state.consec_falls` → `G.consecFalls`, projected by
+     hr_state_of and hydrated by `reconcileFall`) and asks src/core/away.js's
+     `retreatAtFall` — the ONE definition both runtimes import — which rung that
+     number is at. The rule has exactly one author either way.
+
+     ⚠ KEY PRESENCE, THE SAME CONTRACT `reconcileFall` KEEPS. `G.consecFalls` is
+       left UNDEFINED by an older server, and an undefined counter must claim
+       NOTHING: inventing a 0 (or a 3) would put the ruled ending on a sheet the
+       database cannot back. Non-number ⇒ no retreat, full stop.
+     ⚠ THE POINTER IS THE OTHER HALF. An ordinary knockout mid-fight boots with
+       `active_kind:'combat'` and record.js re-points `G.activeMonster`; a
+       retreat ALWAYS boots idle. A character still pointed at a fight has not
+       pulled back, whatever their fall count reads, so the fight wins the tie.
+     ⚠ WHICH RUNG DECIDES THE COPY, and nothing else does. Fed (6) is asked
+       FIRST because it is the strictly weaker condition — a count at 6 is a
+       retreat whatever the bag held, and the ruled fed sentence ("out of your
+       league") is the honest one there. Only a count the fed rung does not
+       reach can be the foodless rung's, and that is the only inference here. */
+  function bootRetreat(G) {
+    var none = { retreat: false, foodless: undefined, falls: 0 };
+    try {
+      if (!G || typeof G.consecFalls !== 'number' || !isFinite(G.consecFalls)) return none;
+      var n = Math.floor(G.consecFalls);
+      if (!(n > 0)) return none;
+      if (G.activeMonster) return none;
+      var A = window.HearthriseCore && window.HearthriseCore.away;
+      if (!A || typeof A.retreatAtFall !== 'function') return none;
+      if (A.retreatAtFall({ consecFalls: n, foodless: false })) {
+        return { retreat: true, foodless: false, falls: n };
+      }
+      if (A.retreatAtFall({ consecFalls: n, foodless: true })) {
+        return { retreat: true, foodless: true, falls: n };
+      }
+      return none;
+    } catch (e) { return none; }
+  }
+
   /**
    * Build the model from live state. `info` is combat-sim's death info.
    *
@@ -750,6 +809,9 @@
   function readMoment(info) {
     var G = window.G || {};
     var MON = window.MONSTERS || {};
+    /* Asked ONCE, and only where there is no engine `info` to state it: the
+       engine's answer always wins, so a live fall is untouched by this. */
+    var _boot = info ? null : bootRetreat(G);
     var id = (info && info.monsterId) || G.activeMonster || null;
     var m = id && MON[id];
     var food = bestProvision(G);
@@ -866,17 +928,27 @@
          ⚠ NO CLIENT FALLBACK, for the same reason `recoveringUntilMs` above has
            none since the attended-death P0: re-deriving it here from a count
            and a bag would be a second copy of the rule, and the second copy is
-           the one that is wrong. A boot-raised sheet (`show(null, null)`) has
-           no `info` and therefore never claims a retreat — which is right: by
-           then the server has idled the pointer and the combat screen says so. */
-      retreat: !!(info && info.retreat),
+           the one that is wrong.
+         A BOOT-RAISED SHEET (`show(null, null)`) HAS NO `info`, and until
+         2026-09-08 therefore claimed nothing — which left a retreated player
+         reading "Knocked out / Back on your feet in 31:47" beside a row
+         promising an automatic resume the idled pointer will never honour. It
+         now reads `bootRetreat` above: the SERVER's own `consec_falls` put to
+         away.js's `retreatAtFall`. That is an observation of state, not a
+         second copy of the rule; an absent counter still claims nothing. */
+      retreat: !!(info ? info.retreat : (_boot && _boot.retreat)),
       /* WHICH RUNG, AND HOW MANY FALLS — STATED BY THE ENGINE beside `retreat`
          itself (`resolveDeath` returns `foodless` and `consecFalls` in the same
-         object) so the sheet's sentence names the rung the server charged. Both
-         omitted when there is no `info`, which is the same boot-raised case
-         `retreat` above is false for — so the lead they feed is unreachable. */
-      retreatFoodless: (info && typeof info.foodless === 'boolean') ? info.foodless : undefined,
-      retreatFalls: Math.max(0, Math.floor(Number(info && info.consecFalls) || 0)),
+         object) so the sheet's sentence names the rung the server charged.
+         WITH NO `info` they come from `bootRetreat` — the server's counter and
+         nothing else — and are omitted entirely unless it claimed a retreat, so
+         a sheet that claims nothing still feeds the lead nothing. */
+      retreatFoodless: info
+        ? ((typeof info.foodless === 'boolean') ? info.foodless : undefined)
+        : ((_boot && _boot.retreat) ? _boot.foodless : undefined),
+      retreatFalls: info
+        ? Math.max(0, Math.floor(Number(info.consecFalls) || 0))
+        : ((_boot && _boot.retreat) ? _boot.falls : 0),
       /* What "Rest at the Hearth" costs, in health. The SERVER recomputes it
          under the row lock and this number never crosses back — it is a label. */
       missingHp: Math.max(0, (Number(G.playerMaxHp) || 0) - (Number(G.playerHp) || 0)),

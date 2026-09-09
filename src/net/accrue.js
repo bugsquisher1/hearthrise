@@ -3082,6 +3082,14 @@ export function reconcileHp(G, res) {
   return written;
 }
 
+/** Has an envelope stated this character's bag on THIS page load? Fail-closed —
+ *  an unstamped G answers false. `__forgetBagHydrated` is the test seam. */
+export function bagHydrated(G) {
+  const at = G && Number(G._bagFromServerAt);
+  return Number.isFinite(at) && at > 0;
+}
+export function __forgetBagHydrated(G) { if (G) delete G._bagFromServerAt; }
+
 export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   if (!G || typeof G !== 'object') return null;
   if (typeof invAbsolute !== 'boolean') invAbsolute = isInventoryAbsolute();
@@ -3144,6 +3152,14 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
      so it wrote nothing before and writes nothing now. */
   const invNamedRaw = (res && res.inventory && typeof res.inventory === 'object' && !Array.isArray(res.inventory))
     ? res.inventory : null;
+  /* THE BAG HAS NOW BEEN STATED BY THE SERVER. Stamped here because this is the
+     ONE apply both doors run (the idle-boot hr_load hydrate and
+     applyEnvelopeState): until the first envelope `G.inventory` is still the
+     fresh-G factory literal, which loadLocal cannot strip because `inventory` is
+     not a SERVER_OF_RECORD field, so any SERVER-DERIVED statement about the bag
+     waits for this. hr_state_of coalesces the projection to `{}`, so an empty
+     bag stamps; an absent key is not a statement. `_`: scratch, never persisted. */
+  if (invNamedRaw) { try { G._bagFromServerAt = Date.now(); } catch (e) {} }
   const consumedIds = consumedKeysOf(res);
   const invNamed = pendingConsume.foldPendingConsume(G, invNamedRaw, {
     omissionIsZero: (invAbsolute && baselineComplete) ? true : consumedIds,
@@ -4744,7 +4760,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

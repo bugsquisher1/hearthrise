@@ -1545,6 +1545,16 @@ const nightWorld = (o) => {
   }
   onFeet();
   try { stampRecordLikeLoad(G); } catch (e) {}
+  /* AND THE BAG ARRIVES THE WAY A BOOT'S BAG ARRIVES. The ritual now
+     refuses to speak before an envelope has STATED the bag (the strip used to
+     price the fresh-G factory literal for the first ~10s of every reload), so
+     a fixture that only assigned `G.inventory` would be describing a bag no
+     server ever named. Pushed through the REAL door — `reconcileInventory`,
+     the one apply both the idle-boot hr_load hydrate and applyEnvelopeState
+     run — naming exactly the bag this world holds. */
+  try {
+    window.HearthriseAccrual.reconcileInventory(G, { ok: true, inventory: Object.assign({}, G.inventory) });
+  } catch (e) {}
   return G;
 };
 
@@ -48902,6 +48912,75 @@ const TESTS = [
     } finally {
       try { STN.forget(); } catch (e) {}
       restoreG(snap);
+    }
+  }),
+
+  () => tryRun('NIGHT-5: the Tonight strip never speaks before the SERVER has stated the bag', () => {
+    /* THE LIVE BUG (QA account, 2026-09-09, reproduced twice).
+       On a plain reload Home read "Tonight: your 29 Cooked Shrimp carry you
+       about 26m against Goblin" for ~10 seconds, then flipped to "with nothing
+       to eat you last about 5m" when the envelope landed. The server bag had
+       held no food for hours (the away receipt said autoEat.hadFood:false).
+
+       THE 29 WAS THE FRESH-G FACTORY LITERAL: src/legacy.js seeds
+       `inventory:{turnip_seed:5,carrot_seed:3,shrimp:10,cooked_shrimp:20}` —
+       30 auto-eatable units, one already eaten by the live tick before the
+       screenshot. `loadLocal()` cannot strip it, because `inventory` is not a
+       SERVER_OF_RECORD field and `forgetServerOfRecord` deletes only those; it
+       is corrected only when `reconcileInventory` applies an envelope.
+
+       THE PROPERTY: the forecast is a SERVER-DERIVED statement, so before an
+       envelope has stated the bag the surface says NOTHING — no placeholder,
+       no number, an empty strip — and it does not REMEMBER a guess either (a
+       remembered pre-envelope forecast would go on to grade the morning line
+       against a bag that never existed). Once the envelope lands, the same
+       surface tells the truth about an empty bag. */
+    const STN = window.HearthriseSetTheNight;
+    const AC = window.HearthriseAccrual;
+    assert(AC && typeof AC.bagHydrated === 'function',
+      'HearthriseAccrual.bagHydrated is missing — the strip has no way to ask whether the bag is real');
+    const snap = snapshotG();
+    const hadStamp = window.G._bagFromServerAt;
+    try {
+      const foe = (window.MONSTERS && window.MONSTERS.slime) ? 'slime'
+        : Object.keys(window.MONSTERS || {})[0];
+
+      // ── BOOT, PRE-ENVELOPE: the factory literal is in the bag and nothing has stated it.
+      nightWorld({ foe, inventory: { cooked_shrimp: 20, shrimp: 10 }, food: 'cooked_shrimp' });
+      STN.forget();
+      AC.__forgetBagHydrated(window.G);
+      assert(AC.bagHydrated(window.G) === false,
+        'CONTROL: the stamp must be gone, or this test is measuring a hydrated boot');
+      const early = STN.strip(window.G);
+      assert(early === '',
+        'THE b525 BUG: the Tonight strip painted a forecast before any envelope stated the bag — '
+        + 'that is the fresh-G literal being read to the player as their supplies. Got: '
+        + JSON.stringify(String(early).slice(0, 200)));
+      assert(STN.forecast(window.G) === null,
+        'the forecast itself must be null pre-envelope, not merely unrendered — every sentence in the '
+        + 'ritual is priced off the bag');
+      assert(STN.recall() === null,
+        'a pre-envelope guess was REMEMBERED. It would be graded against the server receipt in the '
+        + 'morning, turning an unhydrated boot into a wrong statement about a night that did happen.');
+
+      // ── THE ENVELOPE LANDS, AND THE BAG IS EMPTY. Same surface, now honest.
+      nightWorld({ foe, inventory: {}, food: 'cooked_shrimp' });
+      assert(AC.bagHydrated(window.G) === true,
+        'reconcileInventory did not stamp the bag as server-stated — the strip would stay silent forever');
+      const f = STN.forecast(window.G);
+      assert(f && f.kind === 'combat' && f.foodQty === 0,
+        'after the envelope the forecast must run against the SERVER bag (empty), got '
+        + JSON.stringify(f && { k: f.kind, q: f.foodQty }));
+      const s = STN.sentence(f);
+      assert(/^Tonight: with nothing to eat you last /.test(s),
+        'an empty server bag must read as "with nothing to eat", got: ' + JSON.stringify(s));
+      assert(STN.strip(window.G).indexOf('Tonight:') > 0,
+        'the strip must render once the bag is real');
+    } finally {
+      try { STN.forget(); } catch (e) {}
+      restoreG(snap);
+      if (typeof hadStamp === 'undefined') { try { AC.__forgetBagHydrated(window.G); } catch (e) {} }
+      else window.G._bagFromServerAt = hadStamp;
     }
   }),
 

@@ -24,7 +24,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-09-09",
-  "replay_ms": 1027,
+  "replay_ms": 12464,
   "counts": {
     "tracked_names": 44,
     "entries": 42
@@ -856,22 +856,23 @@
         "2026-09-07-retreat.sql",
         "2026-09-08-hearthfind.sql",
         "2026-09-08-hero-slot-buy.sql",
+        "2026-09-09-bounty-progress-projection.sql",
         "2026-09-10-dungeon-scrip.sql",
         "2026-09-12-worker-hired-at-projection.sql"
       ],
       "live": {
-        "md5": "58f88b4eeba4da452d21d27c94f12e8b",
-        "norm_len": 17963,
+        "md5": "6bf525681946ecc5d3c5a110c3f23e55",
+        "norm_len": 18943,
         "measured": "2026-09-09",
         "source": "measured-live"
       },
       "replay": {
-        "md5": "2af53c70c36246bf7635e73a4eb01739",
-        "norm_len": 18711,
+        "md5": "654ba8cfb095c8bf12f6f2761a775c3b",
+        "norm_len": 19691,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "2026-09-09 04:20 UTC: 2026-09-12-worker-hired-at-projection.sql applied by the Coordinator after Security GO-WITH-CHANGES (C1/C2 landed) — hr_state_of projects player_workers.hired_at; player_workers write grants revoked for browser roles. --codediff: additive."
+      "why": "2026-09-09 16:10 UTC: 2026-09-09-bounty-progress-projection.sql applied by the Coordinator after Security GO — hr_state_of projects the active bounty progress (kill_monster − baseline). --codediff: additive."
     },
     {
       "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",

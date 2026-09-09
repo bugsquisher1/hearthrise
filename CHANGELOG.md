@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 531 — 2026-09-09 (Your bounty counts every kill)
+
+**The Bounty Board now shows the server's count.** The server always counted every kill toward your contract — attended, away, or with the tab in the background — but the board only showed the kills it had watched you make, so an overnight cull came back at 0/20. The board now reads the server's progress, offers the turn-in the moment the contract is met, and the reward comes from the server's answer.
+
+**An away night no longer pretends to chain contracts.** The client used to finish and re-draw bounties locally during the away replay while the server held exactly one contract; it now waits for the server's receipt before a contract is ever cleared.
+
 ## v0.9.2-beta build 530 — 2026-09-09 (Your night's XP is yours)
 
 **Away combat XP was being lost on the way back in.** When you returned to a running fight, your client credited a few seconds of attended XP before the night's settlement ran, and the server treated that credit as "paid up to now" — so the night paid kills and drops and zero XP. Reported by Paione; it hit two accounts over the last month. The server now refuses an attended credit while a night is unpaid (the settlement owns that window), and the client settles first on every boot. What those nights were owed is being computed row by row and will be announced separately.

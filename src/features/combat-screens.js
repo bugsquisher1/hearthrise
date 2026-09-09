@@ -41,9 +41,9 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=530';
-import { ITEMS } from '../data/items.js?v=530';
-import * as ST from './session-tally.js?v=530';
+import { MONSTERS } from '../data/monsters.js?v=531';
+import { ITEMS } from '../data/items.js?v=531';
+import * as ST from './session-tally.js?v=531';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (

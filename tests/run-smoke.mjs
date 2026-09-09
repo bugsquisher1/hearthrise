@@ -62,10 +62,33 @@ import { guard as skillRowUpsertGuard } from './skill-row-upsert.mjs';
 import { guard as leaderboardSourceGuard } from './leaderboard-server-source.mjs';
 import { itemsCatalogueGuard, itemsCatalogueMutationGuard } from './items-catalogue.mjs';
 /* tests/cutover-import.mjs was DELETED 2026-09-07 with
+
    supabase/migrations/2026-09-07-drop-dead-server-objects.sql: it drove the real
    hr_import_apply RPC, which that migration drops. The cutover is complete and the
    beta was wiped, so there is no ceremony left to guard and no surviving path the
    assertion could be rewritten onto. Deliberately unregistered, not forgotten. */
+/* GITHUB_ACTIONS annotation hook (2026-09-09). The record gate runs on GitHub and the
+   job log needs a signed-in session to read; the run's public summary shows
+   annotations. Every line this runner prints with a ✗ becomes an ::error
+   annotation on CI so a red step names its tests without the log. Output is
+   otherwise untouched; off outside Actions. GitHub caps annotations per step,
+   so only the first 10 reds are promoted. */
+if (process.env.GITHUB_ACTIONS === 'true') {
+  let promoted = 0;
+  for (const k of ['log', 'error']) {
+    const orig = console[k].bind(console);
+    console[k] = (...args) => {
+      orig(...args);
+      const line = args.map((a) => (typeof a === 'string' ? a : String(a))).join(' ');
+      if (promoted < 10 && line.includes('✗')) {
+        promoted++;
+        const msg = line.split(String.fromCharCode(13)).join('').split(String.fromCharCode(10)).join(' ').split('%').join('%25').trim().slice(0, 600);
+        process.stdout.write('::error title=smoke red::' + msg + String.fromCharCode(10));
+      }
+    };
+  }
+}
+
 import { clientWriteSweep2Guard } from './client-write-sweep-2.mjs';
 import { clientWriteSweep3Guard } from './client-write-sweep-3.mjs';
 import { clientWriteSweep4Guard } from './client-write-sweep-4.mjs';

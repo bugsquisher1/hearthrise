@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 528 — 2026-09-09 (A knockout no longer locks away its own cure)
+
+**You can gather and cook while you recover.** Being knocked out used to refuse every activity for the whole recovery — including fishing the dinner that would have prevented the next fall. Recovery now waits only for fights. Gathering and benches start, and they PAY at full rate for the whole window (the engine used to accept the start and then forfeit the span; both halves ship together, reviewed). The knocked-out bar says it plainly: fights wait while you recover — gathering and cooking still earn.
+
+**A refused tap always answers.** Tapping a fishing spot while knocked out used to do nothing at all; it now shows the sheet, or a notice if the sheet cannot draw.
+
 ## v0.9.2-beta build 527 — 2026-09-09 (There is always a meal for sale)
 
 **The Local Shop now always stocks food.** Cooked Shrimp (5 for 150g) and Cooked Trout (5 for 450g) sit on the Supplies counter, priced above what the vendor pays for them, so gold can always buy a meal but never mint one. Cooking your own is still the better deal.

@@ -40,6 +40,8 @@
     "node tests/away-receipt-journal.mjs": "economy-selftests",
     "node tests/bank-cap-rungs.mjs --selftest": "economy-selftests",
     "node tests/bank-cap-rungs.mjs": "economy-selftests",
+    "node tests/worker-hire-cap.mjs --selftest": "economy-selftests",
+    "node tests/worker-hire-cap.mjs": "economy-selftests",
     "node tests/recovery-rest.mjs --selftest": "economy-selftests",
     "node tools/gen-hearthfind.mjs --check": "economy-selftests",
     "node tests/hearthfind-roll.mjs --selftest": "economy-selftests",

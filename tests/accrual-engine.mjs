@@ -1928,14 +1928,18 @@ function recoveryGuard() {
       + 'one free death per reload, which is Recovery deleted.');
   }
 
-  // ── RECOVER-7 (R2) — GATHERING AND CRAFTING ARE GATED TOO ─────────────────
-  // rev. 1 gated only combat, which made the whole rule optional: fall over,
-  // switch to fishing, work through the knockout, switch back. Being knocked out
-  // is a property of the CHARACTER, so the recovery overlap is subtracted from
-  // the paid window of EVERY payable kind.
+  // ── RECOVER-7 (rev. 3) — GATHERING PAYS IN FULL THROUGH A KNOCKOUT ────────
+  // rev. 2 subtracted the recovery overlap from the paid window of every
+  // payable kind. The designer ruling of 2026-09-08 (rev. 3) narrows recovery
+  // to the ONE thing it forbids — fighting — and `recoveryRefuses()` in
+  // src/core/away.js is the single catalogue both the declaration gate and the
+  // engine ask. A knockout must therefore cost a gather run NOTHING: the
+  // declaration is accepted AND the window pays at the ordinary rate, or the
+  // server accepts a run it never pays for (the b519 phantom class).
   //
-  // MUTATION PROVEN: drop the `&& inp.activeKind !== 'combat'` guard's sibling —
-  // i.e. force `recoverFloorMs = 0` in accrual.js — and both halves go red.
+  // MUTATION PROVEN: force the rev. 2 floor back in accrual.js
+  // (`recoverFloorMs = Math.min(nat(inp.recoveringUntilMs,0), nowMs)` for
+  // gather) and the grantMs and ticks halves both go red.
   {
     const node = GATHER_INDEX ? Object.keys(GATHER_INDEX)[0] : null;
     if (node) {
@@ -1954,13 +1958,15 @@ function recoveryGuard() {
         `RECOVER-7: the control gather window did not accrue (${clear.reason}) — the fixture is vacuous`);
       ok(downed.accrued === true,
         `RECOVER-7: a gather window with 10 payable minutes in it was skipped (${downed.reason})`);
-      ok(downed.grantMs === 10 * 60000,
-        `RECOVER-7 (R2): a 30-minute gather window overlapping 20 minutes of recovery paid `
-        + `${downed.grantMs} ms; only the 600000 ms after the character got up may be paid. `
-        + 'Gathering through a knockout is the whole rule made optional.');
-      ok(downed.summary.ticks > 0 && downed.summary.ticks < clear.summary.ticks,
-        'RECOVER-7 (R2): the shortened gather window ran the same number of actions as the full '
-        + 'one — the deduction reached grantMs but not the simulation');
+      ok(downed.grantMs === 30 * 60000,
+        `RECOVER-7 (rev. 3): a 30-minute gather window with 20 minutes of recovery inside it paid `
+        + `${downed.grantMs} ms instead of ${30 * 60000}. Recovery refuses COMBAT only; a knocked-out `
+        + 'character who fishes is paid for every minute they fished, or the server accepted a run '
+        + 'it never pays for.');
+      ok(downed.summary.ticks === clear.summary.ticks,
+        `RECOVER-7 (rev. 3): the knocked-out gather window ran ${downed.summary.ticks} actions and the `
+        + `clear one ${clear.summary.ticks}. Full rate means the SIMULATION is untouched too, not just `
+        + 'grantMs — a shortened action count is the rev. 2 subtraction surviving one layer down.');
       /* AND THE GATHER PATH MUST NOT AUTHOR THE LINE. It cannot create a
          recovery and must not clear one: an absent key leaves the column alone. */
       ok(!('recovering_until' in downed.delta),

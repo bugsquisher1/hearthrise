@@ -26,6 +26,10 @@
 //   8. hr_set_auto_eat STAMPS `auto_eat_set_at` on EVERY call — including the
 //      "Keep it off" call — and hr_state_of projects `auto_eat_touched`, so the
 //      one-time switch-on offer can never be made twice.
+//   9. THE RECOVERY WINDOW REFUSES COMBAT AND NOTHING ELSE (rev. 3) — and the
+//      engine PAYS the gather window it allows: (f) runs the real collect over
+//      five minutes inside a knockout and demands xp, items and an advanced
+//      `accrued_to`; (g) demands hr_rest is not jammed behind `collect_first`.
 //
 // ── THE MUTATION PROOF (run: node tests/recovery-rest.mjs --selftest) ──────
 // Each entry plants a REAL defect this suite claims to catch; --selftest demands
@@ -127,6 +131,31 @@ const MUTATIONS = {
     find: "      'auto_eat_touched', (v_st.auto_eat_set_at is not null),",
     repl: "      'auto_eat_touched_x', (v_st.auto_eat_set_at is not null),",
   },
+  recovery_floor_forfeits_gather: {
+    js: 'supabase/functions/hr-accrue/accrual.js',
+    why: 'the rev. 2 prefix subtraction is put back in the ENGINE - the declaration is accepted '
+       + '(section 10c) and then the whole knockout overlap is forfeited, so the client arms a run '
+       + 'the server never pays and it vanishes on reload (the b519 phantom class), AND the unpayable '
+       + 'window jams hr_rest behind collect_first for ever',
+    find: '  const recoverFloorMs = (recoverColIn && recoveryRefuses(inp.activeKind)\n'
+        + '    && !simulatesRecovery(inp.activeKind))',
+    repl: '  const recoverFloorMs = (recoverColIn && !simulatesRecovery(inp.activeKind))',
+  },
+  recovery_refuses_gathering: {
+    js: 'supabase/functions/hr-accrue/set-activity.js',
+    why: 'the recovery refusal widens back to every payable kind (rev. 2) — a knocked-out player is '
+       + 'refused the fishing that is the CURE the knockout exists to teach, which is the 45-minute '
+       + 'dead sit measured on live b524',
+    find: '  if (recoveryRefuses(decl.kind)) {',
+    repl: '  if (PAYABLE_KINDS.includes(decl.kind)) {',
+  },
+  recovery_refuses_nothing: {
+    js: 'supabase/functions/hr-accrue/set-activity.js',
+    why: 'the recovery refusal is disarmed entirely — a knocked-out character starts a FIGHT, which '
+       + 'is exploit R1: earning combat output while down, and the whole ladder deleted',
+    find: '  if (recoveryRefuses(decl.kind)) {',
+    repl: '  if (false) {',
+  },
   counters_not_projected: {
     file: FILE,
     why: 'hr_state_of stops projecting deaths_today, so the ladder always reads 0 and EVERY fall is '
@@ -140,11 +169,51 @@ let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
 
 async function boot(mutate) {
-  const patches = mutate
-    ? new Map([[MUTATIONS[mutate].file, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
+  const m = mutate ? MUTATIONS[mutate] : null;
+  const patches = (m && !m.js)
+    ? new Map([[m.file, [[m.find, m.repl]]]])
     : undefined;
   const { db } = await bootReplay(patches ? { patches } : {});
   return db;
+}
+
+/* ── THE EDGE INTENT, IMPORTED — AND PATCHABLE (b527) ───────────────────
+   §10 asserts a rule that lives in JAVASCRIPT (set-activity.js §1b) against the
+   real SQL chain this file already boots, so the mutation catalogue had to learn
+   to patch a JS file as well as a migration. Same contract as the SQL half: the
+   anchor must match EXACTLY ONCE and must change the text — a planted bug that
+   was never planted is decoration.
+
+   THE WHOLE FUNCTION DIRECTORY IS COPIED, at the same depth relative to the repo
+   root, because these modules reach ../../../src/core/** and a lone patched file
+   would import the UNPATCHED siblings (which is how a mutation slips). */
+const REPO = new URL('..', import.meta.url);
+async function loadIntent(mutate) {
+  const { readFile, writeFile, mkdtemp, cp } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { fileURLToPath, pathToFileURL } = await import('node:url');
+  const root = fileURLToPath(REPO);
+  const m = mutate ? MUTATIONS[mutate] : null;
+  if (!m || !m.js) {
+    return import(pathToFileURL(join(root, 'supabase/functions/hr-accrue/set-activity.js')).href
+      + `?t=${Date.now()}${Math.random()}`);
+  }
+  const src = (await readFile(join(root, m.js), 'utf8')).replace(/\r\n/g, '\n');
+  const n = src.split(m.find).length - 1;
+  if (n !== 1) throw new Error(`mutation ${mutate}: anchor matched ${n} times (need exactly 1)`);
+  const after = src.replace(m.find, m.repl);
+  if (after === src) throw new Error(`mutation ${mutate}: produced identical text`);
+  const base = await mkdtemp(join(tmpdir(), 'hr-rr-'));
+  await cp(join(root, 'supabase/functions/hr-accrue'), join(base, 'supabase/functions/hr-accrue'), { recursive: true });
+  await cp(join(root, 'src'), join(base, 'src'), { recursive: true });
+  await writeFile(join(base, m.js), after, 'utf8');
+  /* ALWAYS the intent module, never `m.js`: a mutation may plant its defect in
+     a file set-activity.js IMPORTS (accrual.js is the engine half of the same
+     rule), and importing the mutated file itself would hand this suite an
+     object with no runSetActivity on it. The whole tree is copied above, so the
+     relative import resolves to the mutated copy either way. */
+  return import(pathToFileURL(join(base, 'supabase/functions/hr-accrue/set-activity.js')).href);
 }
 
 /* Call as the PLAYER. auth.uid() reads `request.jwt.claim.sub` — the GUC
@@ -191,7 +260,7 @@ const invQty = async (db, uid, id) => {
   return r.rows.length ? Number(r.rows[0].q) : 0;
 };
 
-async function runAll(db) {
+async function runAll(db, mutate) {
   /* THE PROVISION IS READ OUT OF THE SERVER'S OWN CATALOGUE, never named here:
      a test that hard-coded an item id would silently start testing nothing the
      day src/data changes. The weakest auto-eatable food is the one hr_rest's
@@ -450,6 +519,234 @@ async function runAll(db) {
       'the death counters vanished when the progress array truncated. A survival mechanic must not '
       + 'depend on a truncatable read — that is the whole reason they are their own scalars.');
   }
+
+  // ── 10. THE RECOVERY WINDOW REFUSES **COMBAT**, AND NOTHING ELSE. ────────
+  /* THE RULING (game-designer, 2026-09-08, rev. 3). Rev. 2's set-activity.js
+     §1b refused every payable kind while `recovering_until` was ahead. Measured
+     on live b524 that left a solvent Fishing-9 / Cooking-15 character with an
+     empty food bag NO LEGAL MOVE for 45 minutes: the rule blocked the very
+     gathering that is the CURE the knockout exists to teach. Rev. 3 refuses
+     `combat` alone — `RECOVERY_REFUSED_KINDS` in src/core/away.js, the ONE array
+     both runtimes read.
+
+     THIS IS THE AWAY/ENGINE DOOR of §4's both-path rule (the attended door is
+     src/features/smoke-test.js RECOVER-16). It runs the REAL intent module — the
+     same bytes tools/pack-edge.mjs ships — against the REAL migration chain this
+     file already boots, so neither half is modelled.
+
+     WHAT IT DOES NOT PROVE, stated rather than implied: the `hr_engine` role.
+     The seam here runs as the owner; tests/activity-intent.mjs drives the same
+     module under `set local role hr_engine` and that is where the grants are
+     asserted. This section is about ONE branch — which declared kinds §1b
+     refuses — and the role does not participate in it.
+
+     ⚠ THE LADDER IS UNTOUCHED BY DESIGN AND §10d SAYS SO. `recoveryFor` prices
+       FIGHTERS; its bands are ratios of a foodless fighter to a fed one, both
+       fighting. If a change to the refusal ever moved a rung, that is a repricing
+       nobody asked for and it fails here rather than in a player's night. */
+  {
+    const sa = await loadIntent(mutate);
+    const away = await import('../src/core/away.js');
+    /* The seam index.ts hands the module: one statement, rows out. */
+    const exec = async (text, params) => (await db.query(text, params)).rows;
+
+    const K = uidFor('c1');
+    await db.exec(`insert into auth.users (id) values ('${K}') on conflict (id) do nothing;`);
+    /* Made the way a real player's is — hr_create_character reads auth.uid(),
+       so it is called AS the player, exactly as PostgREST would. */
+    const made = await asPlayer(db, K, 'select public.hr_create_character(0) as r');
+    ok(made && made.r && (made.r.ok === true || made.r.error === 'already_exists'),
+      `SETUP: hr_create_character returned ${JSON.stringify(made && made.r)}`);
+
+    /* THE TARGETS COME OUT OF THE SERVER'S OWN CATALOGUE. A test that named a
+       node id would silently start testing nothing the day src/data changes. */
+    const pick = async (kind) => (await db.query(
+      `select activity_id as id from public.hr_activities
+        where kind = $1 and coalesce(req_lv, 1) <= 1 order by activity_id limit 1`, [kind])).rows[0];
+    const GATHER = await pick('gather');
+    const COMBAT = await pick('combat');
+    ok(!!GATHER && !!COMBAT,
+      `SETUP: the catalogue has no level-1 gather/combat row (${JSON.stringify({ GATHER, COMBAT })})`);
+
+    const knock = async (aheadSecs) => db.exec(
+      `update public.player_state
+          set recovering_until = ${aheadSecs === null ? 'null' : `now() + interval '${aheadSecs} seconds'`},
+              active_kind = 'idle', active_id = null, accrued_to = now()
+        where user_id = '${K}' and slot = 0;`);
+    const call = (kind, id) => sa.runSetActivity({
+      exec, user: K, slot: 0, intentId: uuid(), activity: { kind, id },
+    });
+
+    if (GATHER && COMBAT) {
+      // (a) THE RULE ITSELF, from its one definition.
+      ok(away.recoveryRefuses('combat') && !away.recoveryRefuses('gather')
+        && !away.recoveryRefuses('artisan'),
+        'RECOVERY_REFUSED_KINDS is not the rev. 3 set (combat only): '
+        + JSON.stringify(away.RECOVERY_REFUSED_KINDS));
+      ok(away.RECOVERY_REFUSED_KINDS.every((k) => sa.SETTABLE_KINDS.includes(k)),
+        'a refused kind is not even SETTABLE — §1b is gating a door that does not exist');
+
+      // (b) KNOCKED OUT: the fight is refused, with the countdown on the refusal.
+      await knock(900);
+      const fight = await call('combat', COMBAT.id);
+      ok(fight.status === 409 && fight.body && fight.body.error === 'recovering',
+        `a knocked-out character was allowed to declare COMBAT: ${fight.status} `
+        + `${JSON.stringify(fight.body).slice(0, 200)}. That is exploit R1 — earning combat output `
+        + 'while down — and it deletes the ladder the whole Recovery Rule is made of');
+      ok(Number(fight.body.remaining_ms) > 0 && !!fight.body.until,
+        `the refusal carried no countdown (${JSON.stringify(fight.body).slice(0, 160)}): a client `
+        + 'that cannot render the wait polls instead');
+      const afterFight = (await db.query(
+        'select active_kind, active_id from public.player_state where user_id=$1 and slot=0', [K])).rows[0];
+      ok(afterFight.active_kind === 'idle' && afterFight.active_id === null,
+        `the refused fight still moved the pointer to ${afterFight.active_kind}:${afterFight.active_id}`);
+
+      // (c) AND THE CURE IS OPEN, at full rate, in the same window.
+      const fish = await call('gather', GATHER.id);
+      ok(fish.status === 200 && fish.body && fish.body.ok === true,
+        `a knocked-out character was REFUSED gathering: ${fish.status} `
+        + `${JSON.stringify(fish.body).slice(0, 200)}. Rev. 3 allows it: refusing the cure is the `
+        + '45-minute dead sit measured on live b524, where a solvent player had no legal move');
+      const afterFish = (await db.query(
+        'select active_kind, active_id, recovering_until from public.player_state '
+        + 'where user_id=$1 and slot=0', [K])).rows[0];
+      ok(afterFish.active_kind === 'gather' && afterFish.active_id === GATHER.id,
+        `the allowed gather run did not land on the pointer (${afterFish.active_kind}:${afterFish.active_id})`);
+      ok(afterFish.recovering_until && new Date(afterFish.recovering_until).getTime() > Date.now(),
+        'declaring a gather run CLEARED the recovery line — gathering during recovery must not be a '
+        + 'free way off the floor (exploit R2: the window is not voided by an activity switch)');
+
+      /* -- (f) AND THE ENGINE PAYS IT. THE OTHER HALF OF THE RULING --------
+         (c) proves the DECLARATION is accepted. On its own that is worse than
+         a refusal: the server agrees, the client arms the loop and paints Qty
+         climbing, and `recoverFloorMs` in accrual.js forfeits the whole
+         overlap - a phantom run that vanishes on reload (the b519 class, with
+         the server's consent). This arm runs the REAL collect the switch verb
+         runs (`collectCurrentWindow`, the same bytes pack-edge ships) over a
+         window that lies entirely INSIDE the knockout, and demands it PAYS.
+
+         Both-path rule (section 4): this is the SERVER/ENGINE door for "the
+         window pays"; src/features/smoke-test.js RECOVER-16 (2) is the attended
+         door for "the run starts". Neither alone is the property. */
+      const back = async (secs) => db.exec(
+        `update public.player_state
+            set accrued_to = now() - interval '${secs} seconds',
+                active_since = now() - interval '${secs + 60} seconds'
+          where user_id = '${K}' and slot = 0;`);
+      const readState = async () => (await db.query(
+        `select accrued_to, recovering_until, consec_falls, active_kind, active_id
+           from public.player_state where user_id=$1 and slot=0`, [K])).rows[0];
+      const skillXpTotal = async () => Number((await db.query(
+        'select coalesce(sum(xp),0) x from public.player_skills where user_id=$1 and slot=0',
+        [K])).rows[0].x);
+      const bagTotal = async () => Number((await db.query(
+        'select coalesce(sum(qty),0) q from public.player_inventory where user_id=$1 and slot=0',
+        [K])).rows[0].q);
+      const readEnv = async () => (await exec(
+        `select public.hr_state_of($1::uuid, $2::int) as state,
+                public.hr_offline_cap_ms($1::uuid, $2::int) as cap_ms,
+                now() as now`, [K, 0]))[0];
+      const collect = async () => {
+        const r = await readEnv();
+        return sa.collectCurrentWindow({
+          exec, user: K, slot: 0, env: r.state, st: r.state.state,
+          nowMs: new Date(r.now).getTime(), capMs: Number(r.cap_ms) || 0,
+        });
+      };
+
+      await back(300);                                   // five unpaid minutes
+      const before = await readState();
+      const xpBefore = await skillXpTotal();
+      const bagBefore = await bagTotal();
+      ok(before.active_kind === 'gather'
+         && new Date(before.recovering_until).getTime() > Date.now(),
+        'SETUP (f): the fixture is not "gathering while knocked out" - '
+        + JSON.stringify({ kind: before.active_kind, until: before.recovering_until }));
+
+      const paid = await collect();
+      ok(paid.outcome === 'paid',
+        `a five-minute gather window inside a knockout was not paid: ${JSON.stringify(paid).slice(0, 240)}. `
+        + 'Rev. 3 says gathering pays IN FULL through a recovery; a server that accepts the '
+        + 'declaration (c) and then pays nothing is the phantom run, not the rule');
+      const grantMs = Number(paid.receipt && paid.receipt.ms) || 0;
+      ok(Math.abs(grantMs - 300000) <= 10000,
+        `the paid span was ${grantMs} ms, not the ~300000 ms that elapsed. A shortened span is the `
+        + "rev. 2 prefix subtraction (accrual.js's recoverFloorMs) surviving the ruling");
+
+      const after = await readState();
+      const xpAfter = await skillXpTotal();
+      const bagAfter = await bagTotal();
+      ok(xpAfter > xpBefore && bagAfter > bagBefore,
+        `the paid window moved no xp (${xpBefore}->${xpAfter}) or no items (${bagBefore}->${bagAfter}). `
+        + '"Paid" that credits nothing is the same phantom one layer down');
+      ok(new Date(after.accrued_to).getTime() > new Date(before.accrued_to).getTime(),
+        'accrued_to did not advance on a paid window - the same five minutes would be paid again');
+      ok(String(after.recovering_until) === String(before.recovering_until)
+         && new Date(after.recovering_until).getTime() > Date.now(),
+        `paying a gather window moved the recovery line (${before.recovering_until} -> `
+        + `${after.recovering_until}). Gathering neither creates nor clears a knockout: a collect `
+        + 'that shortened it would be a free way off the floor (exploit R2)');
+      ok(String(after.consec_falls) === String(before.consec_falls),
+        `paying a gather window moved consec_falls (${before.consec_falls} -> ${after.consec_falls}). `
+        + 'Only the combat path writes the ladder counter; a gather collect that re-zeroed it would '
+        + 'make "fish for five minutes" the cure for the ladder');
+
+      /* -- (g) AND THE RELIEF VALVE IS NOT JAMMED ---------------------------
+         hr_rest refuses `collect_first` when the pointer is non-idle and
+         `accrued_to` is more than 60 s stale (section 5). Under rev. 2 a gather
+         window inside a knockout could never be paid - every accrue answered
+         `too_soon` and never stamped `accrued_to` - so "start fishing while
+         down" meant Rest was refused until you Stopped, and the death sheet's
+         "try Rest again in a moment" was a lie. Without the engine half of this
+         change the arm below is red by construction, which is the point. */
+      const restNow = await rest(db, K, uuid());
+      ok(!(restNow && restNow.ok === false && restNow.error === 'collect_first'),
+        `hr_rest was refused collect_first immediately after the window was PAID `
+        + `(${JSON.stringify(restNow).slice(0, 200)}). The valve is jammed: a knocked-out gatherer `
+        + 'cannot Rest and cannot be told why');
+
+      /* And the round trip a real player makes: let the window go stale, watch
+         Rest refuse, PAY it through the same collect, and Rest goes through. */
+      await back(300);
+      const jammed = await rest(db, K, uuid());
+      ok(jammed && jammed.ok === false && jammed.error === 'collect_first',
+        `CONTROL: a stale gather window did NOT produce collect_first `
+        + `(${JSON.stringify(jammed).slice(0, 200)}) - the arm above proves nothing`);
+      await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty)
+                     values ('${K}', 0, '${STRONG}', 99)
+                     on conflict (user_id, slot, item_id) do update set qty = 99;`);
+      await db.exec(`update public.player_state set hp = 1 where user_id='${K}' and slot=0;`);
+      const paid2 = await collect();
+      ok(paid2.outcome === 'paid',
+        `the second gather window was not paid either: ${JSON.stringify(paid2).slice(0, 200)}`);
+      const freed = await rest(db, K, uuid());
+      ok(freed && freed.ok === true,
+        `after PAYING the gather window, hr_rest still refused: ${JSON.stringify(freed).slice(0, 200)}. `
+        + 'Pay-then-rest is the only exit a knocked-out gatherer has; if it does not work the player '
+        + 'is stuck until they Stop, which is the rule the ruling deleted');
+      /* Re-arm the fixture (d) and (e) read: hr_rest CLEARS the line, and the
+         pointer must be back where (c) left it. Stated, not left implicit. */
+      await knock(900);
+      await db.exec(`update public.player_state
+                        set active_kind = 'gather', active_id = '${GATHER.id}'
+                      where user_id = '${K}' and slot = 0;`);
+
+      // (d) THE LADDER DID NOT MOVE. The refusal narrowed; the price of falling did not.
+      ok(away.recoveryFor({ deathsTodayBefore: 0, deathsLifetimeBefore: 99 }) === 0
+        && away.recoveryFor({ deathsTodayBefore: 1, deathsLifetimeBefore: 99 }) === away.RECOVERY_BASE_MS
+        && away.recoveryFor({ deathsTodayBefore: 20, deathsLifetimeBefore: 99 }) === away.RECOVERY_CAP_MS,
+        'the recovery LADDER moved with the refusal narrowing. It prices FIGHTERS and its bands are '
+        + 'ratios of a foodless fighter to a fed one, both fighting — letting a downed character fish '
+        + 'changes no number in that table, so any change here is an unasked-for repricing');
+
+      // (e) THE CONTROL. Stand them up and the fight goes through, or (b) proves nothing.
+      await knock(null);
+      const up = await call('combat', COMBAT.id);
+      ok(up.status === 200 && up.body && up.body.ok === true,
+        `CONTROL: a character who is UP could not declare combat: ${up.status} `
+        + `${JSON.stringify(up.body).slice(0, 200)} — §1b is refusing more than the window`);
+    }
+  }
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────
@@ -461,7 +758,7 @@ if (argv.includes('--selftest')) {
     const saveFail = failed; failed = 0; let threw = false;
     try {
       const db = await boot(name);
-      await runAll(db);
+      await runAll(db, name);
     } catch (e) {
       threw = true;
       console.log(`  ${name}: RED (threw / failed to apply: ${String(e.message).split('\n')[0]})`);
@@ -476,12 +773,16 @@ if (argv.includes('--selftest')) {
   process.exit(0);
 } else {
   const db = await boot(null);
-  await runAll(db);
+  await runAll(db, null);
   if (failed) { console.error(`\nrecovery-rest: ${failed} assertion(s) FAILED.`); process.exit(1); }
   console.log('recovery-rest: all assertions passed (hr_rest eats/heals/clears, all-or-nothing, '
     + 'replay-safe, not_hurt + not_recovering + collect_first fuses; hr_apply admits the 64-minute '
     + 'ladder cap, refuses a forgery, is not voided by an activity switch; the death ledger is one '
     + 'value-free row per death and bounded; hr_set_auto_eat stamps the touch on every call and '
-    + 'hr_state_of projects it; the ladder counters survive a truncated progress array).');
+    + 'hr_state_of projects it; the ladder counters survive a truncated progress array; and '
+    + 'set_activity §1b refuses COMBAT alone inside the window while gathering runs at full rate, '
+    + 'without clearing the line or moving the ladder — and the ENGINE pays that window through the '
+    + 'real collect, so the xp and items land, accrued_to advances, and hr_rest is not jammed behind '
+    + 'collect_first).');
   process.exit(0);
 }

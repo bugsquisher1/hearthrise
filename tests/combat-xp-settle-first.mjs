@@ -126,7 +126,10 @@ export async function combatXpSettleFirstGuard() {
     const flushes = [];
     try {
       A.__resetAwaySettleLatch(false);
-      globalThis.window = { hrCreditCombatXpFlush: (f) => { flushes.push(!!f); return Promise.resolve(null); } };
+      // C1: XP observed BEFORE the first settle. The settle is about to pay this
+      // same window by simulation, so it must not still be pending afterwards.
+      const G = { _combatXpPending: { attack: 500, hitpoints: 170 } };
+      globalThis.window = { G, hrCreditCombatXpFlush: (f) => { flushes.push(!!f); return Promise.resolve(null); } };
       // "nothing to pay" — accrued:false, the simplest verdict that still means the
       // server has closed the window (accrued_to = now()).
       globalThis.fetch = async () => ({ status: 200, json: async () => ({ ok: true, accrued: false, reason: 'none' }) });
@@ -144,6 +147,39 @@ export async function combatXpSettleFirstGuard() {
       ok(second && second.outcome, 'the second accrual did not answer');
       ok(flushes.length === 1 && flushes[0] === true,
         'credit-before-settle did not resume once the away window was paid — attended XP would be priced unattended');
+
+      // ── C1, over-pay in the other direction ────────────────────────────────
+      const pendAfter = Object.values(G._combatXpPending || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+      ok(pendAfter === 0,
+        `THE DOUBLE-CREDIT: ${pendAfter} XP observed before the boot settle is still pending after it — the settle paid that window by simulation and the next flush would pay it again`);
+
+      // A `settle_first` refusal is the same statement from the server side: the
+      // window is the settle's, so the flushed snapshot is dropped, not retried.
+      ok(typeof A.dropPendingCombatXp === 'function',
+        'accrue.js publishes no dropPendingCombatXp — legacy.js has no shared subtract for a settle_first refusal');
+      if (typeof A.dropPendingCombatXp === 'function') {
+        const G2 = { _combatXpPending: { attack: 900, strength: 40 } };
+        const snap = { attack: 900, strength: 40 };
+        G2._combatXpPending.attack += 25;                       // a gain DURING the call
+        A.dropPendingCombatXp(snap, G2);
+        ok((Number(G2._combatXpPending.attack) || 0) === 25 && (Number(G2._combatXpPending.strength) || 0) === 0,
+          `a settle_first refusal left ${JSON.stringify(G2._combatXpPending)} pending — the refused window is paid by the settle and must not be re-credited (gains during the call must survive)`);
+      }
+      // …and legacy.js's flush must actually RUN that drop on the refusal. The
+      // branch body is extracted from the source and EXECUTED against stubs, so a
+      // branch that is present but inert (the mutation) is red, not green.
+      const legacySrc = await readFile(new URL('src/legacy.js', ROOT), 'utf8');
+      const branch = legacySrc.match(/cr\.error==='settle_first'\)(\{[\s\S]{0,400}?\})/);
+      ok(!!branch,
+        'hrCreditCombatXpFlush has no settle_first branch — a refused window stays pending and is credited a second time');
+      if (branch) {
+        const G3 = { _combatXpPending: { attack: 700 } };
+        const snap3 = { attack: 700 };
+        // eslint-disable-next-line no-new-func
+        new Function('_AC', 'snap', 'G', branch[1])({ dropPendingCombatXp: A.dropPendingCombatXp }, snap3, G3);
+        ok((Number(G3._combatXpPending.attack) || 0) === 0,
+          `the settle_first branch ran and left ${G3._combatXpPending.attack} XP pending — the settle already pays that window, so this is a second credit`);
+      }
     } finally {
       A.__resetAwaySettleLatch(false);
       if (prevWindow === undefined) delete globalThis.window; else globalThis.window = prevWindow;

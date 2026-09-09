@@ -391,6 +391,42 @@ let inFlight = null;
 let awaySettleClosed = false;
 export function awaySettleDone() { return awaySettleClosed; }             // has this session's absence been paid?
 export function __resetAwaySettleLatch(v) { awaySettleClosed = !!v; }     // test seam: (true) = "the boot settle already landed"
+
+/* ── C1: A REFUSED OR LATCHED WINDOW IS OWNED BY THE SETTLE ─────────────────
+   The settle-first rule makes the server refuse (`settle_first`) — or makes the
+   client skip — a credit whose window the away sim is about to pay. The observed
+   XP for that window therefore stays in `G._combatXpPending`, and the NEXT
+   admitted flush would drain it on top of the XP the settle already paid: the
+   same window credited twice on a ranked surface. So whoever learns that the
+   settle owns the window drops exactly the snapshot it saw. Gains that arrive
+   during the call are never captured (the live map is re-read here) and survive.
+   Shared with legacy.js's flush so there is ONE subtract shape, not two. */
+export function dropPendingCombatXp(snap, g) {
+  if (!snap || typeof snap !== 'object') return 0;
+  const G = g || (typeof window !== 'undefined' ? window.G : null);
+  if (!G) return 0;
+  if (!G._combatXpPending || typeof G._combatXpPending !== 'object') G._combatXpPending = {};
+  let dropped = 0;
+  for (const k in snap) {
+    const n = Math.max(0, Math.floor(Number(snap[k]) || 0));
+    if (n <= 0) continue;
+    const have = Math.max(0, Number(G._combatXpPending[k]) || 0);
+    const take = Math.min(have, n);
+    G._combatXpPending[k] = have - take;
+    dropped += take;
+  }
+  return dropped;
+}
+
+/* The pending map as a plain snapshot, for the skipped-flush case below. */
+function snapshotPendingCombatXp() {
+  const G = (typeof window !== 'undefined') ? window.G : null;
+  const pend = G && G._combatXpPending;
+  if (!pend || typeof pend !== 'object') return null;
+  const out = {}; let any = false;
+  for (const k in pend) { const n = Math.floor(Number(pend[k]) || 0); if (n > 0) { out[k] = n; any = true; } }
+  return any ? out : null;
+}
 let haltAnnounced = false;
 
 export function getAccrualState() {
@@ -449,6 +485,7 @@ export async function requestAccrual(opts) {
   const slot = resolveActiveSlot(Number.isInteger(o.slot) ? o.slot : config.slot);
   const { url, init } = buildAccrueRequest({ url: config.url, apiKey: config.apiKey, token, slot });
 
+  let skippedSnap = null;
   inFlight = (async () => {
     /* bug #5 root pt2 — CREDIT ATTENDED COMBAT XP BEFORE THE SETTLE PRICES IT.
        hr_credit_combat_xp advances combat_xp_accrued_to; the settle then reads
@@ -464,6 +501,14 @@ export async function requestAccrual(opts) {
     if (awaySettleClosed
         && typeof window !== 'undefined' && typeof window.hrCreditCombatXpFlush === 'function') {
       try { await window.hrCreditCombatXpFlush(true); } catch (e) {}
+    } else if (!awaySettleClosed) {
+      /* C1: the flush was SKIPPED because this settle's window is the unpaid
+         absence. The settle is about to pay it, so the XP the client observed up
+         to this moment belongs to the settle, not to a later credit. Snapshot it
+         now and drop that snapshot once the server confirms it closed the window
+         (`accrued`/`nothing`); a refusal drops nothing. This is the boot path,
+         where no `settle_first` refusal is ever seen. */
+      skippedSnap = snapshotPendingCombatXp();
     }
     let res = null;
     try {
@@ -479,7 +524,13 @@ export async function requestAccrual(opts) {
     return settle({ ...classifyAccrueResponse(res.status, body), status: res.status }, nowMs());
   })();
 
-  try { return await inFlight; } finally { inFlight = null; }
+  try {
+    const out = await inFlight;
+    if (skippedSnap && out && (out.outcome === 'accrued' || out.outcome === 'nothing')) {
+      dropPendingCombatXp(skippedSnap);
+    }
+    return out;
+  } finally { inFlight = null; }
 }
 
 /** The ONE place an outcome becomes state. Everything funnels here. */
@@ -4777,7 +4828,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    awaySettleDone, __resetAwaySettleLatch,   // settle-first, read by legacy.js's combat-XP cadence
+    awaySettleDone, __resetAwaySettleLatch, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,

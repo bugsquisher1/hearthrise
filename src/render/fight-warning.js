@@ -131,7 +131,7 @@
          server held `recovering_until` 31 minutes ahead put "No food in your
          bag - a Goblin will put you down in about 55 seconds" over the
          knocked-out sheet, with no tap behind it). While the server refuses
-         every payable kind there is nothing for the advisory to delay: a
+         combat (rev. 3, 2026-09-08) there is nothing for the advisory to delay: a
          warning is about the fight the next tap starts, and the next tap
          cannot start one for half an hour. Worse than noise - the once-per-foe
          latch is spent, so the warning the player IS owed, on the tap they

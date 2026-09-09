@@ -44,6 +44,12 @@ import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS } from './accrual.js';
 /* THE DORMANT COMPANION-XP ARM SWITCH — mirrored from index.ts (A14): a collect
    must price companion XP identically to an accrue over the same window. */
 import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
+/* THE RECOVERY REFUSAL'S ONE DEFINITION (rev. 3, Designer ruling 2026-09-08).
+   Imported from the dual-runtime core rather than restated here, because the
+   BROWSER mirror of this same gate reads the same frozen array through
+   `HearthriseCore.away` — which is what makes the two sides the same answer
+   instead of two agreeing opinions (b519 was the day they disagreed). */
+import { recoveryRefuses, RECOVERY_REFUSED_KINDS } from '../../../src/core/away.js';
 import {
   collectGate, classifySkip, intentNameFor, intentIdFor, INTENT_ERRORS,
   rateBucketFor, requiresKey, collectsFirst, catalogueHas, mayForceCloseWindow,
@@ -63,6 +69,21 @@ import { MONSTERS } from '../../../src/data/monsters.js';
    part: when gathering accrual lands, `PAYABLE_KINDS` grows and this grows with
    it, in one edit, with no second list to remember. */
 export const SETTABLE_KINDS = Object.freeze(['idle', ...PAYABLE_KINDS]);
+
+/* ── §4 SELF-CHECK: THE RECOVERY REFUSAL IS A SUBSET OF WHAT IS PAYABLE ───
+   Asserted by EXECUTION at module load, in the same style the migrations use:
+   a property proven, not a marker claimed. §1b refuses a declared kind while
+   `recovering_until` is ahead; refusing a kind this intent cannot even SET
+   would be a gate on a door that does not exist, and a typo in
+   `RECOVERY_REFUSED_KINDS` (`'Combat'`, `'combat '`) would silently open the
+   fight door to a knocked-out character with nothing anywhere going red.
+   THROWS rather than warns: the Edge Function failing to boot is a visible,
+   revertible outage; a fight gate that quietly stopped gating is not. */
+for (const k of RECOVERY_REFUSED_KINDS) {
+  if (!SETTABLE_KINDS.includes(k)) {
+    throw new Error(`set-activity §1b: RECOVERY_REFUSED_KINDS names '${k}', which is not settable`);
+  }
+}
 
 /** The verb's own name, used to build `journal.intent`. */
 export const VERB = 'set_activity';
@@ -364,22 +385,34 @@ export async function runSetActivity(o) {
        is unspent, and the elapsed window is still there to be paid by the
        `accrue` verb. This refusal costs a tap, never a night.
 
-     ⚠ EVERY PAYABLE KIND, NOT JUST COMBAT (rev. 2, R2). Rev. 1 refused only a
-       fight, which made the whole rule optional: fall over, switch to fishing,
-       work through the knockout, switch back. Being knocked out is a property
-       of the CHARACTER, so it costs combat, gathering AND the artisan bench —
-       exactly the set `PAYABLE_KINDS` names, read from that array rather than
-       restated, so a fourth payable kind is gated the day it is added.
-       `idle` is ALWAYS allowed, and nothing non-payable is touched: building,
-       shopping, travelling, the market, the clan and the whole UI stay open. A
-       knockout stops the character EARNING; it does not lock the player out.
+     ⚠ COMBAT ONLY (rev. 3, 2026-09-08) — AND THE REASONING IS IN ONE PLACE.
+       Rev. 1 refused only a fight. Rev. 2 widened that to every payable kind on
+       the argument that a knockout is a property of the CHARACTER. Rev. 3
+       narrows it back to `combat`, because measured on live b524 rev. 2 left a
+       solvent, skilled, food-less character with NO LEGAL MOVE for 45 minutes:
+       it refused the very gathering that is the CURE the knockout exists to
+       teach. `RECOVERY_REFUSED_KINDS` in src/core/away.js carries the whole
+       ruling and is the ONLY definition — asked here through
+       `recoveryRefuses()`, and by the browser mirror through
+       `HearthriseCore.away`, so the two cannot drift.
+
+       ⚠ THE SUBSET RELATION IS ASSERTED, NOT ASSUMED. A refused kind that is
+         not payable would be a gate on something this intent never priced, and
+         a typo in the array would silently open the fight door. Checked once at
+         module load rather than per call: it is a property of two frozen
+         constants, so a request is the wrong place to discover it.
+
+       Everything else stays exactly as rev. 2 left it. `idle` is ALWAYS
+       allowed; gathering and the benches now pay at their normal rate while the
+       line runs; nothing non-payable was ever touched (building, shopping,
+       travelling, the market, the clan and the whole UI stay open).
        `st.recovering_until` absent (the column does not exist) is
        `Date.parse(undefined) = NaN`, and `NaN > nowMs` is false — the check
        self-configures off exactly like every other reader of that column.
 
      THE SERVER CLOCK, NEVER THE CLIENT'S. `read.now` is Postgres's `now()` from
      the transaction that produced this envelope. */
-  if (PAYABLE_KINDS.includes(decl.kind)) {
+  if (recoveryRefuses(decl.kind)) {
     const untilMs = Date.parse(st.recovering_until);
     const nowMs_ = new Date(read.now).getTime();
     if (untilMs > nowMs_) {

@@ -14515,50 +14515,53 @@ const TESTS = [
     }
   }),
 
-  () => tryRun('RECOVER-16 (b519): KNOCKED OUT, a tap on a gather node starts NO local loop — the sheet '
-    + 'answers the tap and nothing is painted the server will not own', () => {
-    /* ══ MEASURED LIVE — hearthrise.net, QA slot 2, 2026-09-07 17:22 UTC ═════
-       Hero KNOCKED OUT (`fallState()` = {phase:'recovering'}, 44 minutes to
-       go), server `active_kind=idle` after a Stop. The player taps Fishing →
-       Shrimp Spot and the client starts the LOCAL gather loop: banner
-       "Fishing — shrimp s", an "Active" badge, the Shrimp card's Qty badge
-       climbing 37 → 51 over four minutes, and the Fishing header reading
-       "Level 7 · 712/857 XP" while the left rail still said 6 — a display
-       prediction that invented a level-up out of a run that did not exist.
+  () => tryRun('RECOVER-16 (b527, rev. 3): KNOCKED OUT, a gather tap RUNS and a combat tap is refused '
+    + 'and answered by the sheet — the window costs the fight, not the game', () => {
+    /* ══ THE RULING THIS TEST HOLDS (game-designer, 2026-09-08, rev. 3) ══════════
+       Rev. 2 refused EVERY payable kind inside a recovery window and this test
+       was written to hold that. Measured live: a solvent Fishing-9 / Cooking-15
+       character with an empty food bag was refused fishing for 45 minutes, with
+       no Market listings and no counter selling food — NO LEGAL MOVE. The
+       knockout punishes fighting badly, and fishing for your own dinner is the
+       CURE it is supposed to teach. Rev. 3 narrows `set-activity.js` §1b
+       and its client mirror to `combat` alone (`RECOVERY_REFUSED_KINDS` in
+       src/core/away.js — ONE array, both runtimes).
 
-       WHAT THE SERVER DID. Nothing, because it refused: set-activity.js §(1b)
-       refuses EVERY payable kind while `recovering_until` is ahead of the
-       server clock, BEFORE hr_apply, so `player_intents` held no
-       `set_activity:gather:shrimp_s` row at all and server fishing xp stayed
-       at 604. The client was refused twice and kept painting anyway, because
-       the retired ruling read the refusal's `idle` as "the server was never told"
-       and re-declared instead of stopping.
+       So the contract is TWO-SIDED and both sides are asserted here: a gate
+       that refuses nothing passes ②, one that refuses everything passes ③.
 
-       Everything the player saw for four minutes was client-authored and
-       vanished on reload. That is §1 failing at the seam that exists to hold
-       it, and it is the "it doesn't stay" class Paione reported.
+       WHAT DID NOT SOFTEN, only move to the combat arm: the client must never
+       paint a run the server refuses. Measured 2026-09-07 17:22 UTC — a
+       knocked-out client painted four minutes of fishing, a Qty badge climbing
+       37 → 51 and a header inventing "Level 7 · 712/857 XP", while
+       `player_intents` held no row and server fishing xp stayed at 604. ④ is
+       the other live symptom: the refused tap did NOTHING AT ALL, no run and no
+       sheet, which reads as a dropped input. The answer is VERIFIED now, so ④
+       asserts the player was TOLD, not that `show()` was called.
 
-       THIS TEST IS THE ATTENDED HALF (§4 both-path). The away half is the
-       server's own gate, which is asserted where it lives — the away path
-       cannot start an activity at all.
-
-       MUTATION: pass `null` for `kind` in block 22's startSkill call to
-       `clearToStart` → ② and ③ RED. Make `hrRefuseWhileRecovering` ignore
-       `hrCombatDownPeek()` → ⑤ RED (the control stops proving anything). */
+       MUTATION: make `hrRefuseWhileRecovering` refuse every declared kind
+       (rev. 2) → ② RED; refuse nothing → ③ and ④ RED; make the sheet's
+       `show()` a no-op → ④ RED; ignore `hrCombatDownPeek()` → ⑥ RED.
+       Mutating `isOpen` alone does NOT go red, and correctly so. */
     const G = window.G;
     const A = window.HearthriseAccrual;
     const D = window.HearthriseDeathSheet;
     const M = window.HearthriseActivity;
     const SR = window.HearthriseSkillRecord;
+    const AW = window.HearthriseCore && window.HearthriseCore.away;
     const spot = (window.FISH_SPOTS || []).find((f) => f.id === 'shrimp_s') || (window.FISH_SPOTS || [])[0];
+    const FOE = (window.MONSTERS || {}).goblin ? 'goblin' : Object.keys(window.MONSTERS || {})[0];
     if (!A || typeof A.applyEnvelopeState !== 'function' || !D || typeof D.__resetForTest !== 'function'
-        || !M || typeof M.declare !== 'function' || !spot
-        || typeof window.startSkill !== 'function' || typeof window.__isSkillLoopArmed !== 'function') {
+        || !M || typeof M.declare !== 'function' || !spot || !FOE
+        || !AW || typeof AW.recoveryRefuses !== 'function'
+        || typeof window.startSkill !== 'function' || typeof window.startCombat !== 'function'
+        || typeof window.__isSkillLoopArmed !== 'function') {
       skip('the recovery/activity seam is not wired'); return;
     }
 
     const snap = snapshotG();
     const wasOn = A.isServerAccrualEnabled();
+    const hadFlag = window.__HR_TEST_HARNESS__;
     const realDeclare = M.declare;
     let calls = [];
     const scrim = () => document.getElementById('hr-death-scrim');
@@ -14576,9 +14579,12 @@ const TESTS = [
     try {
       A.setServerAccrualEnabled(true);
       D.__resetForTest();
+      /* The pre-fight advisory is not what this test measures; RECOVER-19 owns
+         it. Suppressed so ③ reaches the recovery gate and not a dialog. */
+      window.__HR_TEST_HARNESS__ = true;
       /* THE SPY IS THE LAST THING BEFORE THE TRANSPORT (same placement as the
-         B348 family): it proves no declaration was even attempted, and it is
-         what keeps this test off the network. */
+         B348 family): it proves what was and was not declared, and it is what
+         keeps this test off the network. */
       M.declare = function (kind, id) { calls.push({ kind, id }); return null; };
       try { window.stopSkill(); } catch (e) {}
       try { window.stopCombat(); } catch (e) {}
@@ -14590,75 +14596,88 @@ const TESTS = [
 
       /* ① THE SERVER STATES THE KNOCKOUT, and the player DISMISSES the sheet
             it raises. From here the only thing that can put a sheet back on
-            screen for this window is the tap itself — `dismissedUntil` refuses
-            every envelope-driven raise — so ③ cannot pass by accident. */
+            screen for this window is a tap itself — `dismissedUntil` refuses
+            every envelope-driven raise — so ④ cannot pass by accident. */
       envelope(Date.now() + 44 * 60000);
       assert(A.isKnockedOut(), 'the fixture never reached a knockout: ' + JSON.stringify(A.fallState()));
       D.close();
-      assert(!up(), 'the fixture could not put the sheet away, so ③ would prove nothing');
+      assert(!up(), 'the fixture could not put the sheet away, so ④ would prove nothing');
 
+      /* ⓪ THE RULE ITSELF, from its one definition: if the array ever grows
+            back, THIS should fail, not a mystery about a fishing rod. */
+      assert(AW.recoveryRefuses('combat') && !AW.recoveryRefuses('gather') && !AW.recoveryRefuses('artisan'),
+        'RECOVERY_REFUSED_KINDS is not the rev. 3 set (combat only): '
+        + JSON.stringify(AW.RECOVERY_REFUSED_KINDS) + '. The server imports this same array');
+
+      /* ② THE CURE IS NOT LOCKED: the gather tap must work COMPLETELY —
+            pointer, loop and declaration — or dinner is unreachable. */
+      calls = [];
+      window.startSkill('fishing', spot.id, spot.ms);
+      assert(G.activeSkill === 'fishing' && G.skillTargetId === spot.id,
+        'a knocked-out character could not start fishing (' + G.activeSkill + '/' + G.skillTargetId
+        + '): rev. 3 pays gathering in full during recovery, and refusing it is the 45-minute dead sit');
+      assert(window.__isSkillLoopArmed(), 'the gather run started with no loop armed');
+      assert(calls.length === 1 && calls[0].kind === 'gather' && calls[0].id === spot.id,
+        'the allowed gather run did not DECLARE itself (' + JSON.stringify(calls) + '): a run the '
+        + 'server was never told about is unpaid and gone on reload');
+
+      /* ③ AND THE FIGHT IS STILL SHUT. This is the exploit the ladder prices
+            (R1: earning COMBAT output while down) and it does not move. */
+      try { window.stopSkill(); } catch (e) {}
+      D.close();
+      G.activeMonster = null;
       const invBefore = JSON.stringify(G.inventory || {});
       const xpBefore = shownXp();
+      const hpBefore = G.playerHp;
       calls = [];
-
-      /* ② THE TAP. */
-      window.startSkill('fishing', spot.id, spot.ms);
-
-      assert(!G.activeSkill && !G.skillTargetId,
-        'a knocked-out character started a gathering run (' + G.activeSkill + '/' + G.skillTargetId
-        + '). The server refuses every payable kind inside a recovery window, so this run can never be '
-        + 'paid, can never be reloaded, and every item it paints is invented');
-      assert(!window.__isSkillLoopArmed(),
-        'the pointer stayed clear and the TIMER was armed anyway — an invisible loop calling '
-        + 'doSkillAction is the same phantom production with nothing on screen to explain it');
+      window.startCombat(FOE);
+      assert(!G.activeMonster,
+        'a knocked-out character started a FIGHT (' + G.activeMonster + '): the server refuses combat '
+        + 'for the whole window before hr_apply, so every swing it paints is gone on reload');
       assert(calls.length === 0,
-        'the refused start still DECLARED (' + JSON.stringify(calls) + '). The client knows the answer '
-        + 'before it asks: spending an idempotency key and a rate budget to be told `recovering` is a '
-        + 'round trip bought to learn nothing');
+        'the refused fight still DECLARED (' + JSON.stringify(calls) + '): an idempotency key and a '
+        + 'rate budget spent to be told `recovering` is a round trip bought to learn nothing');
 
-      /* ③ AND THE PLAYER IS TOLD, on the surface that owns the fact. A refusal
-            with no answer on screen is indistinguishable from a dropped tap —
-            which is the bug report this fix would otherwise trade for. */
-      assert(up(),
-        'the tap was refused in SILENCE. A player who taps a fishing spot and sees nothing happen files '
-        + '"the game ignored me", and they are right to');
+      /* ④ AND THE PLAYER IS TOLD — measured live, the refused tap did nothing
+            visible, which is indistinguishable from a dropped input. */
+      assert(up(), 'the combat tap was refused in SILENCE — a player who taps a monster and sees '
+        + 'nothing happen files "the game ignored me", and they are right to');
       assert(/Back on your feet in|Knocked out/.test((scrim().textContent) || ''),
         'the sheet that answered the tap is not the recovery sheet: '
         + ((scrim().textContent) || '').slice(0, 140));
+      /* The CONTROL, not its label: "No food to rest with" is still the right
+         answer to the tap for a player with an empty bag. */
       assert(!!scrim().querySelector('[data-act="rest"]'),
-        'the recovery sheet offered no Rest control — the one action that shortens the wait is the reason '
-        + 'this sheet is the right answer to the tap rather than a toast. Asserted as the CONTROL rather '
-        + 'than its label, because the label is "No food to rest with" for a player with an empty bag and '
-        + 'that is still the right answer to the tap');
+        'the recovery sheet offered no Rest control — the one action that shortens the wait is why '
+        + 'this sheet is the right answer to the tap rather than a toast');
 
-      /* ④ AND NOTHING MOVED. The bag and the DISPLAY xp — the two surfaces the
-            live bug painted — are byte-identical to before the tap. */
+      /* ⑤ AND NOTHING MOVED for the refused tap. */
       assert(JSON.stringify(G.inventory || {}) === invBefore,
-        'the refused tap still moved the bag: ' + JSON.stringify(G.inventory || {}).slice(0, 160));
-      assert(shownXp() === xpBefore,
-        'the refused tap moved the DISPLAYED fishing xp from ' + xpBefore + ' to ' + shownXp()
-        + '. The header level is server xp + the client prediction, so a phantom run does not just show '
-        + 'a wrong bar — it shows a level the server has never granted');
+        'the refused fight still moved the bag: ' + JSON.stringify(G.inventory || {}).slice(0, 160));
+      assert(shownXp() === xpBefore && G.playerHp === hpBefore,
+        'the refused fight moved the DISPLAYED state (fishing xp ' + xpBefore + '→' + shownXp()
+        + ', hp ' + hpBefore + '→' + G.playerHp + '): the header is server xp + prediction, so a '
+        + 'phantom run shows a level the server never granted');
 
-      /* ⑤ THE CONTROL. Stand the player up and the same tap must work
-            completely: pointer, loop and declaration. Without this arm, a gate
-            that refused everything forever would pass every assertion above. */
+      /* ⑥ CONTROL: stand them up and the FIGHT must work, or a gate that
+            refused combat forever would pass everything above. */
       D.__resetForTest();
       envelope(null);
       assert(!A.isKnockedOut(), 'the control could not stand the player up: ' + JSON.stringify(A.fallState()));
       calls = [];
-      window.startSkill('fishing', spot.id, spot.ms);
-      assert(G.activeSkill === 'fishing' && G.skillTargetId === spot.id,
-        'CONTROL: a character who is UP could not start fishing (' + G.activeSkill + '/' + G.skillTargetId
+      window.startCombat(FOE);
+      assert(G.activeMonster === FOE,
+        'CONTROL: a character who is UP could not start a fight (' + G.activeMonster
         + ') — the gate is refusing more than the server does');
-      assert(window.__isSkillLoopArmed(), 'CONTROL: the run started with no loop armed');
-      assert(calls.length === 1 && calls[0].kind === 'gather' && calls[0].id === spot.id,
-        'CONTROL: the run did not declare itself (' + JSON.stringify(calls) + ')');
+      assert(calls.length === 1 && calls[0].kind === 'combat' && calls[0].id === FOE,
+        'CONTROL: the fight did not declare itself (' + JSON.stringify(calls) + ')');
     } finally {
       M.declare = realDeclare;
       try { M.setConfirmedActivity(null); } catch (e) {}
       try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
       try { D.__resetForTest(); } catch (e) {}
+      window.__HR_TEST_HARNESS__ = hadFlag;
       A.setServerAccrualEnabled(!!wasOn);
       restoreG(snap);
     }
@@ -14705,7 +14724,7 @@ const TESTS = [
       assert(G.activeMonster === FOE, 'the resume did not mirror the server pointer (' + G.activeMonster + '): a warning makes startCombat asynchronous, so the reconcile reports a fight that has not started');
       const mBefore = G.monsterHp;
       try { window.combatTick(); window.combatTick(); } catch (e) {}
-      assert(G.playerHp === hpBefore && G.monsterHp === mBefore, 'a knocked-out resume SWUNG (hp ' + hpBefore + '→' + G.playerHp + ', foe ' + mBefore + '→' + G.monsterHp + '): the server refuses every payable kind in the window, so every point of it is gone on reload');
+      assert(G.playerHp === hpBefore && G.monsterHp === mBefore, 'a knocked-out resume SWUNG (hp ' + hpBefore + '→' + G.playerHp + ', foe ' + mBefore + '→' + G.monsterHp + '): the server refuses COMBAT for the whole window (rev. 3), so every point of it is gone on reload');
       DS.__resetForTest(); envelope(null);   /* ⑤ CONTROL: the latch is intact */
       try { window.stopCombat(); } catch (e) {}
       assert(!A.isKnockedOut(), 'the control could not stand up: ' + JSON.stringify(A.fallState()));
@@ -14816,7 +14835,7 @@ const TESTS = [
             carried `recovering_until` and NOTHING read it. */
       assert(A.isKnockedOut(),
         'an IDLE boot carrying a live `recovering_until` came up ON ITS FEET. That is the b519 bug: '
-        + 'the hero is down for 11 more minutes, the server refuses every payable kind, and the client '
+        + 'the hero is down for 11 more minutes, the server refuses combat, and the client '
         + 'does not know: ' + JSON.stringify(A.fallState()));
       const st = A.fallState();
       assert(st.phase === 'recovering' && Math.abs(st.until - until) < 1500,
@@ -14871,15 +14890,23 @@ const TESTS = [
     }
   }),
 
-  () => tryRunAsync('RECOVER-18 (b520): after that boot, a tap on a gather node is REFUSED and answered '
-    + 'by the sheet — the b519 gate is no longer blind on a reload', async () => {
+  () => tryRunAsync('RECOVER-18 (b520, rev. 3 b527): after that boot, a COMBAT tap is refused and '
+    + 'answered by the sheet while a gather tap runs — the gate is not blind on a reload', async () => {
+    /* REV. 3: the refused kind is `combat` alone (`RECOVERY_REFUSED_KINDS`).
+       What this test proves is unchanged and was never about which kind — that
+       a knockout hydrated by the BOOT READ, not by a live envelope, arms the
+       gate at all — so the tap simply became the one still refused, and ③ now
+       holds the other half of the ruling too. MUTATION: drop
+       `recovering_until` from the record hydration → ①/② RED. */
     const G = window.G;
     const R = window.HearthriseRecord;
     const A = window.HearthriseAccrual;
     const D = window.HearthriseDeathSheet;
     const M = window.HearthriseActivity;
     const spot = (window.FISH_SPOTS || []).find((f) => f.id === 'shrimp_s') || (window.FISH_SPOTS || [])[0];
+    const FOE = (window.MONSTERS || {}).goblin ? 'goblin' : Object.keys(window.MONSTERS || {})[0];
     if (!R || typeof R.requestRecord !== 'function' || typeof R.getRecordState !== 'function'
+        || !FOE || typeof window.startCombat !== 'function'
         || !A || typeof A.reconcileFall !== 'function' || !D || typeof D.__resetForTest !== 'function'
         || !M || typeof M.declare !== 'function' || !spot
         || typeof window.startSkill !== 'function' || typeof window.__isSkillLoopArmed !== 'function') {
@@ -14892,6 +14919,7 @@ const TESTS = [
     const realDeclare = M.declare;
     const recBefore = (G && G._record) ? JSON.parse(JSON.stringify(G._record)) : null;
     const hadConfig = !!(typeof R.getRecordConfig === 'function' && R.getRecordConfig());
+    const hadFlag = window.__HR_TEST_HARNESS__;
     const until = Date.now() + 11 * 60000;
     let calls = [];
     const scrim = () => document.getElementById('hr-death-scrim');
@@ -14899,6 +14927,9 @@ const TESTS = [
     try {
       D.__resetForTest();
       A.clearFall();
+      /* RECOVER-19 owns the pre-fight advisory; suppressed so ① reaches the
+         recovery gate rather than a dialog. */
+      window.__HR_TEST_HARNESS__ = true;
       try { window.stopSkill(); } catch (e) {}
       try { window.stopCombat(); } catch (e) {}
       M.setConfirmedActivity(null);
@@ -14944,23 +14975,20 @@ const TESTS = [
       const invBefore = JSON.stringify(G.inventory || {});
       calls = [];
 
-      /* ① THE TAP — the exact gesture measured live at 17:22 UTC. */
-      window.startSkill('fishing', spot.id, spot.ms);
+      /* ① THE TAP that is still refused after the reload. */
+      window.startCombat(FOE);
 
-      assert(!G.activeSkill && !G.skillTargetId,
-        'a knocked-out character started a gathering run after a RELOAD (' + G.activeSkill + '/'
-        + G.skillTargetId + '). The server refuses every payable kind inside a recovery window, so '
-        + 'every item this run paints is invented and gone on the next reload');
-      assert(!window.__isSkillLoopArmed(),
-        'the pointer stayed clear and the TIMER was armed anyway — a phantom loop with nothing on '
-        + 'screen to explain it');
+      assert(!G.activeMonster,
+        'a knocked-out character started a FIGHT after a RELOAD (' + G.activeMonster + '). The server '
+        + 'refuses combat for the whole recovery window before hr_apply, so every swing this paints '
+        + 'is invented and gone on the next reload');
       assert(calls.length === 0,
         'the refused start still DECLARED (' + JSON.stringify(calls) + '): a round trip bought to be '
         + 'told `recovering` by a server the client could already have asked itself');
 
       /* ② AND THE PLAYER IS TOLD, on the surface that owns the fact. */
       assert(up(),
-        'the tap was refused in SILENCE after a reload. A player who taps a fishing spot and sees '
+        'the tap was refused in SILENCE after a reload. A player who taps a monster and sees '
         + 'nothing happen files "the game ignored me", and they are right to');
       assert(/Back on your feet in|Knocked out/.test((scrim().textContent) || ''),
         'the sheet that answered the tap is not the recovery sheet: '
@@ -14968,20 +14996,32 @@ const TESTS = [
       assert(JSON.stringify(G.inventory || {}) === invBefore,
         'the refused tap still moved the bag: ' + JSON.stringify(G.inventory || {}).slice(0, 160));
 
-      /* ③ THE CONTROL. Stand the hero up and the same tap must work completely,
-            or a gate that refused everything forever would pass everything above. */
-      D.__resetForTest();
-      assert(!A.isKnockedOut(), 'the control could not stand the hero up: ' + JSON.stringify(A.fallState()));
+      /* ③ AND THE CURE IS OPEN ON THE SAME BOOT. A gate armed by the record
+            read must be armed with the rev. 3 RULE, not merely armed. */
+      D.close();
       calls = [];
       window.startSkill('fishing', spot.id, spot.ms);
       assert(G.activeSkill === 'fishing' && G.skillTargetId === spot.id,
-        'CONTROL: a hero who is UP could not start fishing (' + G.activeSkill + '/' + G.skillTargetId
+        'a knocked-out hero could not start fishing after a RELOAD (' + G.activeSkill + '/'
+        + G.skillTargetId + '): the boot path re-widened the refusal past combat');
+      try { window.stopSkill(); } catch (e) {}
+
+      /* ④ CONTROL: stand the hero up and the refused tap must work, or a
+            gate that refused combat forever would pass everything above. */
+      D.__resetForTest();
+      assert(!A.isKnockedOut(), 'the control could not stand the hero up: ' + JSON.stringify(A.fallState()));
+      calls = [];
+      window.startCombat(FOE);
+      assert(G.activeMonster === FOE,
+        'CONTROL: a hero who is UP could not start a fight (' + G.activeMonster
         + ') — the gate is refusing more than the server does');
-      assert(calls.length === 1 && calls[0].kind === 'gather' && calls[0].id === spot.id,
-        'CONTROL: the run did not declare itself (' + JSON.stringify(calls) + ')');
+      assert(calls.length === 1 && calls[0].kind === 'combat' && calls[0].id === FOE,
+        'CONTROL: the fight did not declare itself (' + JSON.stringify(calls) + ')');
     } finally {
       window.fetch = realFetch;
       M.declare = realDeclare;
+      window.__HR_TEST_HARNESS__ = hadFlag;
+      try { window.stopCombat(); } catch (e) {}
       if (!hadConfig) { try { R.configureRecord(null); } catch (e) {} }
       try { M.setConfirmedActivity(null); } catch (e) {}
       try { window.stopSkill(); } catch (e) {}

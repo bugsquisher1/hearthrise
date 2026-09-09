@@ -1459,6 +1459,40 @@
    * Returns the model it rendered, or null when it declined (away death,
    * or a headless/harness context with no body yet).
    */
+  /* ── ANSWER A TAP THAT WAS REFUSED — AND VERIFY THE ANSWER LANDED ────────
+     MEASURED LIVE (b524, QA account): knocked out, the player tapped a fishing
+     spot and NOTHING happened — no run, no sheet, no line. The recovery gate
+     was working perfectly; the ANSWER was swallowed, because the caller invoked
+     `show()` inside a bare `try{}catch(e){}`, and any throw — or any state in
+     which the sheet is built but never reaches the glass — turned a deliberate
+     refusal into a dead tap. That is indistinguishable from the game losing the
+     input, and it is a WORSE bug report than the refusal it hid.
+
+     So the answer is VERIFIED rather than attempted, and it lives HERE rather
+     than in the caller for one reason: only this module knows what "a sheet is
+     up" means. `show()` returns a MODEL, which is not the same fact. `notify`
+     is the floor and it is tried SEPARATELY — the two are independent failure
+     modes, and collapsing them is how the first one got away with it.
+
+     Returns true if the player was told something. Never throws: every caller
+     is a tap handler or a network answer nobody is watching. */
+  function isOpen() {
+    try {
+      var el = document.getElementById(ROOT_ID);
+      return !!(el && el.classList && el.classList.contains('show'));
+    } catch (e) { return false; }
+  }
+
+  function answerTap(why) {
+    try { show(null, null); } catch (e) {}
+    if (isOpen()) return true;
+    try {
+      if (typeof window.notify === 'function') { window.notify(why, 'kill'); return true; }
+    } catch (e) {}
+    try { console.warn('[recovery] refused a tap and had no surface to say so'); } catch (e) {}
+    return false;
+  }
+
   function show(ctx, info) {
     if (ctx && ctx.away) return null;                     // the welcome-back receipt owns this
     if (!document || !document.body) return null;
@@ -1559,6 +1593,7 @@
     __leadTick: leadTick,
     describeDeath: describeDeath,
     show: show,
+    answerTap: answerTap,
     maybeRaiseRecovery: maybeRaiseRecovery,
     /* Clears the RAISE latch only, and that restriction is the fix: the
        dismissal is a separate fact (see close()) precisely so that re-arming

@@ -3697,7 +3697,7 @@ function addXp(sk,amt,opts){
   if(window.HearthrisePetSession){ try{ window.HearthrisePetSession.recordXp(res.base); }catch(e){} }
   for(const ev of res.events){
     if(ev.type!=='levelup') continue;
-    if(ev.skill==='hitpoints')G.playerMaxHp=ev.to;
+    if(ev.skill==='hitpoints' && Number(ev.to) > (Number(G.playerMaxHp)||0)) G.playerMaxHp=Number(ev.to);   // RAISE-ONLY, like hrSyncMaxHp: playerMaxHp is projected from player_state.max_hp and may sit above the bare level; a bare assignment here rolled a server value back
     /* b374 (Tyler: "No popup for raising skill"). Leveling was only a corner
        toast — easy to miss in an idle burst, and it never said what the level
        actually GAVE you. hrLevelUpNotice() keeps the toast (for the corner log

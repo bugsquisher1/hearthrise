@@ -29847,7 +29847,36 @@ const TESTS = [
       // ── 5. Switching style mid-fight retimes the running loop.
       assert(typeof window.retimeCombat === 'function',
         'retimeCombat() must exist — otherwise picking a style changes nothing until you re-tap the monster');
-    } finally { G.combatStyle = savedStyle; restoreG(snap); }
+    } finally {
+      G.combatStyle = savedStyle;
+      /* ⚠ THE RECORD GOES BACK TOO, NOT JUST `G`: step 2 STAMPS a shortbow through applyRecord and
+         `restoreG` alone left it standing, so every later test fought as an unarmed RANGED
+         character — the away parity rig died on it. */
+      restoreGAndRecord(snap);
+    }
+  }),
+
+  /* THE STANDING DETECTOR FOR THE LEAK ABOVE. The equipment record is not a snapshotG field, and
+     getWeaponType() does not fail closed when it goes UNKNOWN — it falls back to the last-known
+     server display cache, which is what carries a stamped loadout forward. MUTATION PROVEN. */
+  () => tryRun('SUITE-HYGIENE-REC-1: a test that stamps the equipment RECORD puts it back — the combat family follows the weapon G says is worn', () => {
+    /* "shortbow" is in the BODY so --only=shortbow runs offender and detector. */
+    const G = window.G;
+    if (typeof window.getWeaponType !== 'function') { skip('getWeaponType is not exposed'); return; }
+    const wid = (G && G.equipment && typeof G.equipment.weapon === 'string') ? G.equipment.weapon : null;
+    const def = (wid && window.ITEMS) ? window.ITEMS[wid] : null;
+    /* Derived from the catalogue for a worn weapon; 'sword' for an empty slot is
+       getWeaponType()'s own stated unarmed default (src/legacy.js) and is the one
+       literal here — everything else follows the data. */
+    const expect = (def && def.weaponType) ? def.weaponType : 'sword';
+    const got = window.getWeaponType();
+    assert(got === expect,
+      'THE WORN SET LEAKED. The game fights as ' + got + '; G says the weapon slot holds '
+      + JSON.stringify(wid) + ' (family ' + expect + '). A test above stamped a loadout with '
+      + 'stampRecordLikeLoad and restored with restoreG instead of restoreGAndRecord — snapshotG '
+      + 'does not cover the equipment record, and getWeaponType falls back to the b455 last-known '
+      + 'server cache when the record goes UNKNOWN, so the stamped weapon is ambient for every '
+      + 'test after it. Fix the test that stamped it.');
   }),
 
   () => tryRun('b244: the item-id migration layer remaps a renamed/retired id across every store', () => {
@@ -36368,19 +36397,35 @@ const TESTS = [
     const snap = snapshotG();
     try {
       const m = window.MONSTERS.goblin;
-      G.activeMonster = 'goblin';
-      G.monsterHp = 1; G.monsterMaxHp = m.hp;
-      G.playerMaxHp = 60; G.playerHp = 60;
-      G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, hitpoints: 0, defense: 0 });
-      const before = xpMap();
-      P._withOfflineReplay(() => { window.killMonster(m); });
-      const after = xpMap();
-      const gained = Object.keys(after).reduce((s, k) => s + Math.max(0, (after[k] || 0) - (before[k] || 0)), 0);
-      /* PACE.xp scales the grant, so the assertion is derived from the dial
-         rather than pinned to a number that will rot at the next re-anchor. */
-      const expectFloor = Math.max(1, Math.floor(C.pacing.pacedXp('attack', m.xp)));
-      assert(gained >= expectFloor,
-        'an away kill paid ' + gained + ' XP; m.xp alone should be worth at least ' + expectFloor);
+      /* ⚠ THE EXPECTATION IS THE LIVE KILL, NOT ARITHMETIC. `gained >= floor(pacedXp('attack',
+         m.xp))` assumes the grant lands in ONE skill; killXpRoute splits it and floors each share,
+         paying 3 on a three-way melee route where that predicts 5, and it only passed because the
+         record leak fixed above forced the one-skill RANGED route. The kill played LIVE is the
+         route-proof oracle. */
+      const runKill = (away) => {
+        G.activeMonster = 'goblin';
+        G.monsterHp = 1; G.monsterMaxHp = m.hp;
+        G.playerMaxHp = 60; G.playerHp = 60;
+        G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, hitpoints: 0, defense: 0 });
+        /* IDENTICAL STARTING STATE (the AWAY-1 rig's rule) — the hundred-kill quest
+           and a leftover knockout each pay one run and not the other. */
+        G.quests = [];
+        onFeet();
+        predZero();
+        const before = xpMap();
+        const body = () => { window.killMonster(m); };
+        if (away) P._withOfflineReplay(body); else body();
+        const after = xpMap();
+        return Object.keys(after).reduce((s, k) => s + Math.max(0, (after[k] || 0) - (before[k] || 0)), 0);
+      };
+      const liveGain = runKill(false);
+      const awayGain = runKill(true);
+      assert(liveGain > 0,
+        'the LIVE kill paid nothing — the comparison below would be vacuous (the rig is broken, not the away path)');
+      assert(awayGain === liveGain,
+        'an away kill paid ' + awayGain + ' XP where the same kill played live paid ' + liveGain
+        + '. m.xp is the ~21% of combat XP the retired second loop never granted; away and live '
+        + 'run one engine and must route a kill identically.');
     } finally { restoreG(snap); }
   }),
 
@@ -36608,6 +36653,35 @@ const TESTS = [
       window.advanceBuffClock(60000);
       assert(G.buffs[0].remainingMs === before - 60000, 'and it must drain again while an activity runs');
     } finally { C.randomSeed(); restoreG(snap); }
+  }),
+
+  /* AWAY-5b — THE FIXTURE'S CEILING, AND THE REAL BUG BEHIND IT. AWAY-5 stands a 5,000 HP rig up
+     for an hour and asserts `died === false`; a hitpoints level-up in the span ran a bare
+     `G.playerMaxHp = ev.to`, cut the ceiling to 35, and killed it at tick 991 of 1000. playerMaxHp
+     is projected from player_state.max_hp and may sit above the bare level — hrSyncMaxHp is
+     raise-only for that reason, and lowering it is the client rolling a server value back. */
+  () => tryRun('AWAY-5b: a hitpoints level-up RAISES max HP and never lowers it — the client cannot roll back a server-projected ceiling', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      if (typeof window.addXp !== 'function') { skip('addXp is not exposed'); return; }
+      G.skills = Object.assign({}, G.skills, { hitpoints: 0 });
+      stampRecordLikeLoad(G);          // so the display has a base to level FROM
+      G.playerMaxHp = 500; G.playerHp = 500;
+      const ceilingBefore = G.playerMaxHp;
+      window.addXp('hitpoints', 100000, { authored: true });
+      assert(G.playerMaxHp >= ceilingBefore,
+        'a hitpoints level-up CUT max HP from ' + ceilingBefore + ' to ' + G.playerMaxHp
+        + '. G.playerMaxHp is projected from player_state.max_hp and may sit above the bare '
+        + 'hitpoints level; a level-up may only ever RAISE it, exactly as hrSyncMaxHp does.');
+      /* The raise half is still real, so this cannot pass with the write deleted. */
+      G.playerMaxHp = 1; G.playerHp = 1;
+      G.skills = Object.assign({}, G.skills, { hitpoints: 0 });
+      stampRecordLikeLoad(G);
+      window.addXp('hitpoints', 100000, { authored: true });
+      assert(G.playerMaxHp > 1,
+        'a hitpoints level-up must still RAISE a ceiling that is below the new level, got ' + G.playerMaxHp);
+    } finally { restoreGAndRecord(snap); }
   }),
 
   /* AWAY-16 IS RETIRED (b515), and its own header says why in advance: "this

@@ -355,6 +355,12 @@
                  A button, not a span, so it is reachable by keyboard and
                  announces itself; styled to stay the quiet tag it always was. -->
             <button type="button" id="clan-tag" class="clan-tag hide" title="Open the Clan Seat" onclick="showTab('clan')"></button>
+            <!-- The earned Hearthfind title, beside the name. Ships EMPTY and
+                 hidden: it is filled only by src/features/hearthfind.js from
+                 hr_state_of's `hearthfind_titles` projection, so a client with
+                 no projection wears nothing (CLAUDE.md §6 fail-safe). No
+                 markup here ever names a title. -->
+            <span id="player-title" class="hr-hf-title hide"></span>
             <!-- b224: shipped label was "Offline play". Accounts are required,
                  so the pre-auth markup says what it is doing, not what mode
                  the player is in. -->

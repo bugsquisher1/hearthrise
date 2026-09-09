@@ -383,6 +383,14 @@ export function accrualGateStep(st, outcome, now, reason) {
 
 let gate = newAccrualGate();
 let inFlight = null;
+
+/* THE SETTLE-FIRST LATCH — false until the server has closed this session's away
+   window once. While false the attended combat-XP credit must not fire: it stamps
+   `combat_xp_accrued_to = now()`, arming the settle's `xpEligibleFromMs` trim over
+   the whole unpaid absence (rationale + census: src/core/combat-xp-cap.js). */
+let awaySettleClosed = false;
+export function awaySettleDone() { return awaySettleClosed; }             // has this session's absence been paid?
+export function __resetAwaySettleLatch(v) { awaySettleClosed = !!v; }     // test seam: (true) = "the boot settle already landed"
 let haltAnnounced = false;
 
 export function getAccrualState() {
@@ -448,8 +456,13 @@ export async function requestAccrual(opts) {
        settle ran FIRST it would price the attended window UNATTENDED and the
        credit would then re-pay it — a double-count on a rankable surface. Awaiting
        the flush here makes credit-before-settle a hard ordering. A no-op off the
-       arm, when signed out, or with nothing pending (a cold-load / away settle). */
-    if (typeof window !== 'undefined' && typeof window.hrCreditCombatXpFlush === 'function') {
+       arm, when signed out, or with nothing pending (a cold-load / away settle).
+
+       ⚠ NOT BEFORE THE FIRST SETTLE OF THE SESSION: on a BOOT this settle's window
+       is the player's ABSENCE, which the credit has no standing to speak for, and
+       flushing first stamps the watermark and trims it — see the latch above. */
+    if (awaySettleClosed
+        && typeof window !== 'undefined' && typeof window.hrCreditCombatXpFlush === 'function') {
       try { await window.hrCreditCombatXpFlush(true); } catch (e) {}
     }
     let res = null;
@@ -481,6 +494,10 @@ function settle(verdict, now) {
      the bookkeeping must never lose a grant. */
   try { if (settleState) settleState.lastSettleAt = now; } catch (e) {}
   gate = accrualGateStep(gate, verdict.outcome, now, verdict.reason);
+  /* The latch closes on the two verdicts that mean `accrued_to` is now: a window
+     was paid, or there was none. Any other outcome leaves an away window OPEN, so
+     the credit stays suppressed. Never re-opened by a later failure. */
+  if (verdict.outcome === 'accrued' || verdict.outcome === 'nothing') awaySettleClosed = true;
   let applied = false;
   if (verdict.outcome === 'accrued') {
     fire('onApplied', verdict.body);
@@ -4760,6 +4777,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
+    awaySettleDone, __resetAwaySettleLatch,   // settle-first, read by legacy.js's combat-XP cadence
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,

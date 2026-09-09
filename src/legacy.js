@@ -4414,8 +4414,8 @@ let _hrCombatXpAt=0, _hrCombatXpInFlight=false, _hrCombatXpInFlightP=null;
 function hrCreditCombatXpFlush(force){
   const _armed=(typeof clientMayWriteRecordField==='function' && !clientMayWriteRecordField('skills'));
   const _live=(typeof inOfflineReplay!=='function' || !inOfflineReplay());
-  const _GC=window.HearthriseGoalClaim;
-  if(!_armed || !_live || !_GC || typeof _GC.creditCombatXp!=='function' || !(_GC.isSignedIn&&_GC.isSignedIn())) return Promise.resolve(null);
+  const _GC=window.HearthriseGoalClaim, _AC=window.HearthriseAccrual;   // _AC.awaySettleDone = SETTLE-FIRST (accrue.js): never credit over an away window the server has not paid — the stamp would trim it
+  if(!_armed || !_live || !_GC || typeof _GC.creditCombatXp!=='function' || !(_GC.isSignedIn&&_GC.isSignedIn()) || !(_AC&&typeof _AC.awaySettleDone==='function'&&_AC.awaySettleDone())) return Promise.resolve(null);
   /* ── THE IN-FLIGHT RACE (b486 settle undercount) ────────────────────────────
      force=true is the credit-BEFORE-settle guarantee: accrue.js awaits this so
      the server has advanced combat_xp_accrued_to before the settle prices the

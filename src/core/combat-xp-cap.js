@@ -132,3 +132,54 @@ export const COMBAT_XP_CAP_SQL_CONSTANTS = Object.freeze({
   // the max-hit coefficients are kill-time.js's — re-asserted by the drift test
   // so this cap and the kill cap cannot diverge on the shared max-hit model.
 });
+
+/* ── THE SETTLE-FIRST RULE (2026-09-09 — Paione: "I did some offline combat.
+   The items and kills are given but the experience is not.") ────────────────
+   THE BUG. hr_credit_combat_xp advanced `combat_xp_accrued_to` to now() on EVERY
+   accepted call, including one made while an UNPAID away window was still open
+   (`accrued_to` hours in the past). The settle's eligible-from is
+   max(credit.fromMs, combat_xp_accrued_to) (accrual.js ~1593), so a single
+   boot-time credit worth 12 XP armed a trim of the WHOLE absence: Paione's
+   4h02m / 828-kill settle paid gold, loot and kills and ZERO combat XP. Measured
+   over 30 days of live ledger: 17 away settles, 2 players, 3,991 kills, 60h of
+   combat, not one `x` key in the delta.
+
+   THE RULE. A credit may only speak for a window the settle has already closed.
+   While `now() - accrued_to` exceeds SETTLE_FIRST_MS the RPC REFUSES with
+   `settle_first` and writes NOTHING — no XP, no ledger row, no idempotency row
+   and, decisively, NO WATERMARK MOVE. The client keeps its pending XP, the settle
+   runs, `accrued_to` becomes now(), and the next flush credits the attended
+   residue against a small honest elapsed.
+
+   WHY THIS ONE AND NOT THE OTHERS. Advancing the watermark only to accrued_to
+   would still let the credit's own elapsed span hours of unsettled time — and that
+   window is also the CAP's basis, so Paione's forgery headroom was four hours of
+   physical-max XP rather than three minutes. Teaching the settle to ignore a
+   "suspicious" watermark needs new state describing WHEN the watermark moved, and
+   leaves the inflated cap standing. Refusal removes both at once and cannot be
+   gamed by ordering: after a settle `accrued_to = now()`, so the credit's window
+   (floored at accrued_to by Condition 2) is ~0 and it can double-pay nothing.
+
+   IT COSTS NOTHING WHEN IT IS WRONG. A false refusal (a live player whose settle
+   is late) DEFERS, never loses: the claim stays pending client-side and the next
+   flush's cap — a deliberate over-estimate, ~500k XP per minute at level 99 —
+   clears the backlog many times over.
+
+   THE THRESHOLD is above the client's ~90 s live-settle cadence plus a missed
+   beat, and far below any absence worth crediting. Mirrored as c_settle_first_ms
+   in 2026-09-09-combat-xp-settle-first.sql and pinned by
+   tests/combat-xp-cap-drift.mjs. */
+export const COMBAT_XP_SETTLE_FIRST_MS = 180000;
+
+/**
+ * Should hr_credit_combat_xp refuse this call because an unpaid away window is
+ * still open? Pure, integer, clock-free — BOTH timestamps are the SERVER's
+ * (`now()` and `player_state.accrued_to`); the client supplies neither.
+ * @returns the refusal code, or null when the credit may proceed.
+ */
+export function combatXpCreditRefusal(nowMs, accruedToMs) {
+  const now = Number(nowMs) || 0;
+  const acc = Number(accruedToMs) || 0;
+  if (!acc) return null;                       // no settle watermark yet: nothing is owed
+  return (now - acc) > COMBAT_XP_SETTLE_FIRST_MS ? 'settle_first' : null;
+}

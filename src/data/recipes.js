@@ -69,7 +69,7 @@ const BASE_RECIPES = {
   smithing: [
     // Bar smelting — full chain so steel_bar + rune_bar exist as ingredients for forging.
     {id:'smelt_copper',  name:'Copper Bar',  icon:'🟤', input:'copper_ore',  output:'copper_bar',  xp:15,  req:1,  ms:2400},
-    /* b525 (game-design ruling, found by playing: THE BRONZE WALL). Bronze bar
+    /* Game-design ruling, found by playing: THE BRONZE WALL. Bronze bar
        used to cost 1 coal at Smithing 8, and the only coal source in the game is
        Coal Rock at MINING 30 (or a mid-tier monster drop). So the tier-1 armour
        chain a brand-new player is pointed at — mine copper, smelt, forge a helm —

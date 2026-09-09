@@ -59950,71 +59950,43 @@ const TESTS = [
        obtain, and walks the chain forward. It fails on the pre-ruling data
        because bronze_bar's coal input has no producer in that reachable set. */
     const R = window.ARTISAN_RECIPES, ROCKS = window.ROCKS, TREES = window.TREES;
-    assert(R && R.smithing && Array.isArray(ROCKS) && Array.isArray(TREES),
-      'the recipe/gather tables are not published');
-    const costOf = (r) => Object.assign({},
-      r.input ? { [r.input]: r.inputQty || 1 } : {}, r.inputs || {}, r.secondary || {});
+    assert(R && R.smithing && Array.isArray(ROCKS) && Array.isArray(TREES), 'the recipe/gather tables are not published');
+    /* Every cost shape, one reader — the same fold src/core/artisan.js does. */
+    const costOf = (r) => Object.assign({}, r.input ? { [r.input]: r.inputQty || 1 } : {}, r.inputs || {}, r.secondary || {});
 
-    /* WHAT A LEVEL-1 CHARACTER CAN GATHER. Nothing else is granted: no shop, no
-       drop, no bank. If the chain needs it, a node at req 1 has to produce it. */
-    const STARTER_LV = 1;
-    const bag = new Set();
-    for (const n of ROCKS.concat(TREES)) if (n.req <= STARTER_LV) bag.add(n.prod);
+    /* WHAT A LEVEL-1 CHARACTER HAS: no shop, no drop, no bank — if the chain
+       needs it, a req-1 node produces it. Then smelt forward to a fixpoint. */
+    const bag = new Set(ROCKS.concat(TREES).filter((n) => n.req <= 1).map((n) => n.prod));
     assert(bag.has('copper_ore'), 'no Mining-1 node produces copper ore any more');
+    for (let pass = 0, grew = true; grew && pass < 8; pass++) {
+      grew = R.smithing.filter((r) => r.req <= 1 && !bag.has(r.output)
+        && Object.keys(costOf(r)).every((k) => bag.has(k))).map((r) => bag.add(r.output)).length > 0;
+    }
+    assert(bag.has('bronze_bar'), 'a Smithing-1 character cannot make a bronze bar from Mining-1 ore — the tier-1 chain is walled: '
+      + JSON.stringify(costOf(R.smithing.find((r) => r.output === 'bronze_bar') || {})));
 
-    /* SMELT. Walk every smithing recipe the starter's level allows, repeatedly,
-       adding each output whose whole cost is already in the bag. */
-    const reachable = () => {
-      let grew = true;
-      while (grew) {
-        grew = false;
-        for (const r of R.smithing) {
-          if (r.req > STARTER_LV || bag.has(r.output)) continue;
-          if (Object.keys(costOf(r)).every((k) => bag.has(k))) { bag.add(r.output); grew = true; }
-        }
-      }
-    };
-    reachable();
-    assert(bag.has('bronze_bar'),
-      'a Smithing-1 character cannot produce a bronze bar from Mining-1 ore — '
-      + 'the tier-1 chain is walled: ' + JSON.stringify(costOf(
-        R.smithing.find((r) => r.output === 'bronze_bar') || {})));
-
-    /* FORGE. The bronze ARMOUR pieces are the point of the bar; each one must be
-       reachable from bars a starter can already smelt, at its own stated level. */
-    const armour = ['bronze_helm', 'bronze_platebody', 'bronze_platelegs'];
-    for (const out of armour) {
+    /* FORGE. The armour is the POINT of the bar: reachable at its own level. */
+    for (const out of ['bronze_helm', 'bronze_platebody', 'bronze_platelegs']) {
       const r = R.smithing.find((x) => x.output === out);
-      assert(r, 'the generated bronze armour recipe for ' + out + ' is gone');
-      assert(r.req <= 15, out + ' is forged at Smithing ' + r.req + ' — outside the starter band');
-      for (const k of Object.keys(costOf(r))) {
-        assert(bag.has(k) || k === out,
-          out + ' needs ' + k + ', which a starter cannot obtain on the ruled path');
-      }
+      assert(r && r.req <= 15, out + ' is missing or forged outside the starter band: ' + (r && r.req));
+      const missing = Object.keys(costOf(r)).filter((k) => !bag.has(k) && k !== out);
+      assert(!missing.length, out + ' needs ' + missing + ', which a starter cannot obtain on the ruled path');
     }
 
-    /* THE RULING ITSELF, as a rule and not as a number: coal may not be demanded
-       by any recipe a player can reach before coal is minable. This is the guard
-       that bites if someone re-adds coal to a low bar. */
+    /* THE RULING AS A RULE, not a number: nothing reachable before coal is
+       minable may demand coal — every skill, so a low bar cannot regrow one. */
     const coalNode = ROCKS.filter((n) => n.prod === 'coal').sort((a, b) => a.req - b.req)[0];
     assert(coalNode, 'nothing mines coal at all');
-    for (const skill of Object.keys(R)) {
-      for (const r of R[skill]) {
-        if (!costOf(r).coal) continue;
-        assert(r.req >= coalNode.req,
-          skill + '/' + r.id + ' demands coal at level ' + r.req
-          + ' but the first coal node (' + coalNode.id + ') is Mining ' + coalNode.req);
-      }
+    for (const skill of Object.keys(R)) for (const r of R[skill]) {
+      assert(!costOf(r).coal || r.req >= coalNode.req, skill + '/' + r.id + ' demands coal at level ' + r.req
+        + ' but the first coal node (' + coalNode.id + ') is Mining ' + coalNode.req);
     }
 
-    /* AND THE RUNG IS STILL A CHOICE, not a strict replacement: bronze beats
-       copper on xp/sec and costs more ore, or one of the two is dead content. */
-    const cu = R.smithing.find((r) => r.id === 'smelt_copper');
-    const br = R.smithing.find((r) => r.id === 'smelt_bronze');
-    const rate = (r) => r.xp / (r.ms / 1000);
+    /* AND STILL A CHOICE: bronze beats copper on xp/sec AND costs more ore. */
+    const rate = (r) => r.xp / (r.ms / 1000), ore = (r) => costOf(r).copper_ore || 0;
+    const cu = R.smithing.find((r) => r.id === 'smelt_copper'), br = R.smithing.find((r) => r.id === 'smelt_bronze');
     assert(rate(br) > rate(cu), 'bronze bar is not faster xp than copper bar');
-    assert((costOf(br).copper_ore || 0) > (costOf(cu).copper_ore || 0),
-      'bronze bar is strictly better than copper bar in every way — copper is dead');
+    assert(ore(br) > ore(cu), 'bronze bar is strictly better than copper bar in every way — copper is dead');
   }),
 
   () => tryRun('b497: death sheet — the free entry trait changed what the tip may claim', () => {

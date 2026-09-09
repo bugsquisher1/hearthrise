@@ -125,11 +125,19 @@ for (const [xp, lvl] of [[0, 1], [1999, 1], [2000, 2], [8000, 3], [18000, 4], [2
   ok(Math.abs(workerEff(xp) - (0.10 + 0.008 * (lvl - 1))) < 1e-12, `workerEff(${xp}) == 0.10 + 0.008*${lvl - 1}`);
 }
 
+/* EVERY CREW ROW CARRIES A HIRE TIME, because every row in player_workers does
+   (`hired_at timestamptz not null default now()`) and since the CREW-BACKLOG fix
+   (2026-09-08) the engine pays a worker only for time it has existed. The epoch
+   is older than every watermark in this file, so each fixture below keeps the
+   exact span — and the exact expectation — it was written against. W14 is the
+   test that the floor is real. */
+const HIRED = new Date(0).toISOString();
+
 wlog('W1 — determinism: same inputs, byte-identical output');
 const crew = [
-  { uid: 'w1', skill: 'woodcutting', target_id: 'normal_tree', xp: 0 },
-  { uid: 'w2', skill: 'mining', target_id: 'coal_rock', xp: 50000 },
-  { uid: 'w3', skill: 'fishing', target_id: 'trout_s', xp: 8000 },
+  { uid: 'w1', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, hired_at: HIRED },
+  { uid: 'w2', skill: 'mining', target_id: 'coal_rock', xp: 50000, hired_at: HIRED },
+  { uid: 'w3', skill: 'fishing', target_id: 'trout_s', xp: 8000, hired_at: HIRED },
 ];
 const now = 1_000_000_000_000;
 const from = now - 12 * 3600000;   // 12h span
@@ -159,16 +167,16 @@ wlog('W2 — away == live: server yield == client accrueWorker over the same spa
 
 wlog('W4 — idle / inconsistent / sub-tick workers produce nothing');
 {
-  const idle = [{ uid: 'x', skill: null, target_id: null, xp: 0 }];
+  const idle = [{ uid: 'x', skill: null, target_id: null, xp: 0, hired_at: HIRED }];
   ok(accrueWorkers({ nowMs: now, workersAccruedToMs: from, crew: idle, nodes: GATHER_NODES, items: ITEMS }).accrued === false,
      'an all-idle crew does not accrue');
-  const wrongSkill = [{ uid: 'x', skill: 'mining', target_id: 'normal_tree', xp: 0 }];   // tree under mining
+  const wrongSkill = [{ uid: 'x', skill: 'mining', target_id: 'normal_tree', xp: 0, hired_at: HIRED }];   // tree under mining
   ok(accrueWorkers({ nowMs: now, workersAccruedToMs: from, crew: wrongSkill, nodes: GATHER_NODES, items: ITEMS }).accrued === false,
      'a skill≠node assignment produces nothing (never mispriced against the wrong node)');
-  const badId = [{ uid: 'x', skill: 'woodcutting', target_id: '__proto__', xp: 0 }];
+  const badId = [{ uid: 'x', skill: 'woodcutting', target_id: '__proto__', xp: 0, hired_at: HIRED }];
   ok(accrueWorkers({ nowMs: now, workersAccruedToMs: from, crew: badId, nodes: GATHER_NODES, items: ITEMS }).accrued === false,
      'a __proto__ target id resolves to nothing (own-property lookup)');
-  const subTick = [{ uid: 'x', skill: 'woodcutting', target_id: 'normal_tree', xp: 0 }];
+  const subTick = [{ uid: 'x', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, hired_at: HIRED }];
   // normal_tree ms=3000 → anchor pacedActionMs(3000)=4800, eff lv1 0.10 → perTick 48s
   const stPer = workerTickMs(3000, 0);
   const st = accrueWorkers({ nowMs: now, workersAccruedToMs: now - 20000, crew: subTick, nodes: GATHER_NODES, items: ITEMS });
@@ -218,7 +226,7 @@ function runLoop(crew0, fromMs, toMs, stepMs) {
 wlog('W7 — a SLOW worker (perTick > settle cadence) eventually produces, never silently zero');
 {
   // normal_tree ms=3000, lv1 eff 0.10 → perTick = 48s (paced anchor). Settle every 10s.
-  const slow = [{ uid: 'wslow', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0 }];
+  const slow = [{ uid: 'wslow', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0, hired_at: HIRED }];
   const from = 0, to = 6 * 3600000;      // 6h
   const loop = runLoop(slow, from, to, 10000);   // 10s settles — well under the perTick
   const perTick = workerTickMs(3000, 0), avgQty = 1;
@@ -231,7 +239,7 @@ wlog('W7 — a SLOW worker (perTick > settle cadence) eventually produces, never
 wlog('W8 — away == live byte-identical WITH carry (one big settle == many small)');
 {
   // MAXED worker → eff constant (E=172) → exact across settle granularities.
-  const maxed = [{ uid: 'wmax', skill: 'mining', target_id: 'coal_rock', xp: 200000, acc_ms: 0 }];
+  const maxed = [{ uid: 'wmax', skill: 'mining', target_id: 'coal_rock', xp: 200000, acc_ms: 0, hired_at: HIRED }];
   const from = 0, to = 24 * 3600000;
   const oneShot = accrueWorkers({ nowMs: to, workersAccruedToMs: from, crew: maxed, nodes: GATHER_NODES, items: ITEMS });
   const many = runLoop(maxed, from, to, 7000);       // 7s settles (deliberately not a divisor of perTick)
@@ -256,7 +264,7 @@ wlog('W8 — away == live byte-identical WITH carry (one big settle == many smal
 
 wlog('W9 — a pure sub-tick settle REFUSES (watermark not advanced, no write)');
 {
-  const slow = [{ uid: 'w', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0 }];
+  const slow = [{ uid: 'w', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0, hired_at: HIRED }];
   // 20s span, 48s perTick, no prior carry → 0 ticks → refuse.
   const r = accrueWorkers({ nowMs: 20000, workersAccruedToMs: 0, crew: slow, nodes: GATHER_NODES, items: ITEMS });
   ok(r.accrued === false && r.reason === 'nothing_accrued', 'sub-tick settle refuses (defers, no watermark move)');
@@ -265,8 +273,8 @@ wlog('W9 — a pure sub-tick settle REFUSES (watermark not advanced, no write)')
 wlog('W10 — carry stays in range; a mixed fast+slow crew loses nothing');
 {
   const mixed = [
-    { uid: 'wfast', skill: 'mining', target_id: 'coal_rock', xp: 200000, acc_ms: 0 },   // fast (maxed)
-    { uid: 'wslow', skill: 'woodcutting', target_id: 'duskwood_tree', xp: 0, acc_ms: 0 }, // slow (ms=13000, lv1)
+    { uid: 'wfast', skill: 'mining', target_id: 'coal_rock', xp: 200000, acc_ms: 0, hired_at: HIRED },   // fast (maxed)
+    { uid: 'wslow', skill: 'woodcutting', target_id: 'duskwood_tree', xp: 0, acc_ms: 0, hired_at: HIRED }, // slow (ms=13000, lv1)
   ];
   const from = 0, to = 24 * 3600000;
   const oneShot = accrueWorkers({ nowMs: to, workersAccruedToMs: from, crew: mixed, nodes: GATHER_NODES, items: ITEMS });
@@ -348,7 +356,7 @@ wlog('W12 — a carry banked under the OLD faster anchor neither bursts nor is f
   const maxOldCarry = oldPerTick - 1;
   const burst = accrueWorkers({
     nowMs: 1, workersAccruedToMs: 0,
-    crew: [{ uid: 'wcarry', skill: 'woodcutting', target_id: 'normal_tree', xp: XP, acc_ms: maxOldCarry }],
+    crew: [{ uid: 'wcarry', skill: 'woodcutting', target_id: 'normal_tree', xp: XP, acc_ms: maxOldCarry, hired_at: HIRED }],
     nodes: GATHER_NODES, items: ITEMS,
   });
   ok(burst.accrued === false,
@@ -360,12 +368,12 @@ wlog('W12 — a carry banked under the OLD faster anchor neither bursts nor is f
   const span = Math.ceil(newPerTick - maxOldCarry);
   const withCarry = accrueWorkers({
     nowMs: span, workersAccruedToMs: 0,
-    crew: [{ uid: 'wcarry', skill: 'woodcutting', target_id: 'normal_tree', xp: XP, acc_ms: maxOldCarry }],
+    crew: [{ uid: 'wcarry', skill: 'woodcutting', target_id: 'normal_tree', xp: XP, acc_ms: maxOldCarry, hired_at: HIRED }],
     nodes: GATHER_NODES, items: ITEMS,
   });
   const without = accrueWorkers({
     nowMs: span, workersAccruedToMs: 0,
-    crew: [{ uid: 'wcarry', skill: 'woodcutting', target_id: 'normal_tree', xp: XP, acc_ms: 0 }],
+    crew: [{ uid: 'wcarry', skill: 'woodcutting', target_id: 'normal_tree', xp: XP, acc_ms: 0, hired_at: HIRED }],
     nodes: GATHER_NODES, items: ITEMS,
   });
   ok(withCarry.accrued === true && (withCarry.items.normal_log || 0) === 1,
@@ -417,7 +425,57 @@ wlog('W13 — the largest carry the real node catalogue can produce fits inside 
 //   node tests/worker-accrual.mjs --selftest
 //   node tests/worker-accrual.mjs --list
 // ============================================================================
+wlog('W14 — the HIRE FLOOR: a worker is never paid for time before it existed');
+{
+  /* THE MINT THIS CLOSES (live, 2026-09-09 03:06:57Z, QA 0a47ba77 slot 2):
+     `workers_accrued_to` is a SHARED watermark that index.ts advances only on a
+     settle that PRODUCED, and a character with no crew never produces — so the
+     watermark sat at character creation while the calendar ran, and the first
+     accrual after the first hire paid a full 24h cap. A worker hired six
+     minutes earlier was paid 1,800 copper_ore. The whole live row is
+     reconstructed in tests/accrual-engine.mjs CREW-BACKLOG; this is the unit. */
+  const t0 = 1_000_000_000_000;
+  const stale = t0 - 40 * 3600000;               // no producing settle for 40h
+  const HIRED_5M = new Date(t0 - 300000).toISOString();
+  const call = (hired_at) => accrueWorkers({
+    nowMs: t0, workersAccruedToMs: stale, nodes: GATHER_NODES, items: ITEMS,
+    crew: [{ uid: 'w', skill: 'mining', target_id: 'copper_rock', xp: 0, acc_ms: 0, hired_at }],
+  });
+  const fresh = call(HIRED_5M);
+  const perTick = workerTickMs(nodeById('mining', 'copper_rock').ms, 0);
+  const owed = Math.floor(300000 / perTick);
+  eq(fresh.accrued ? (fresh.items.copper_ore || 0) : 0, owed,
+    'a five-minute-old worker is paid five minutes, not the 24h backlog of a watermark '
+    + 'that predates it');
+  /* AND THE CARRY IS NOT INFLATED EITHER — a mint banked as time is still a
+     mint, one settle later. */
+  ok(fresh.workers.w.acc_ms < perTick,
+    `the new carry (${fresh.workers.w.acc_ms}ms) is under one tick (${perTick}ms)`);
+
+  const veteran = call(new Date(stale - 3600000).toISOString());
+  ok(veteran.accrued && veteran.items.copper_ore > owed,
+    'a worker older than the watermark still collects its full (capped) backlog — the floor '
+    + 'is a hire date, not a second cap');
+
+  const blind = call(undefined);
+  ok(blind.accrued === false,
+    'a crew row with NO hired_at pays NOTHING. The engine cannot read a column hr_state_of '
+    + 'does not project, and here "absent = previous behaviour" IS the mint, so absence must '
+    + 'fail closed: 2026-09-12-worker-hired-at-projection.sql is applied BEFORE this engine '
+    + 'is deployed, and an under-paying crew is a redeploy where a faucet is a wipe.');
+}
+
 const WA_MUTATIONS = [
+  { id: 'WA7-hire-floor-removed',
+    why: 'THE 2026-09-09 MINT: pay the crew from the SHARED watermark again. It is stale by '
+       + 'construction for a character who has never had a crew (index.ts advances it only on a '
+       + 'settle that PRODUCED), so the first accrual after the first hire pays a 24h cap — 1,800 '
+       + 'copper_ore to a six-minute-old worker on the live QA account, and repeatable by firing '
+       + 'the crew and re-hiring a day later',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    from: 'const payFromMs = Number.isFinite(hiredAtMs) ? Math.max(fromMs, hiredAtMs) : nowMs;',
+    to:   'const payFromMs = fromMs;' },
+
   { id: 'WA1-crew-rate-drifts-from-the-core-model',
     why: 'THE b389 SHAPE: the efficiency curve is edited in one place and not the other, so the '
        + 'engine and the shared rate model disagree and a crew silently pays the wrong rate',

@@ -86,9 +86,13 @@ import { indexArtisanRecipes, benchPayable } from '../src/core/artisan-sim.js';
 import { resolveAutoEat, thresholdFromPct, pctFromThreshold, bestHealingFood, DEFAULT_THRESHOLD,
          maxPctForTier, chooseFood, cheapestSufficientFood } from '../src/core/auto-eat.js';
 import {
-  computeAccrual, deriveTickMs, deriveProfile, zeroBonus,
-  ACCRUE_MIN_MS, ACCRUE_MAX_SPAN_MS,
+  computeAccrual, deriveTickMs, deriveProfile, zeroBonus, accrueWorkers,
+  ACCRUE_MIN_MS, ACCRUE_MAX_SPAN_MS, WORKER_ACCRUE_CAP_MS,
 } from '../supabase/functions/hr-accrue/accrual.js';
+/* CREW-BACKLOG reads the crew's rate from the SHARED model both engines import,
+   never from a number retyped here: a retuned efficiency curve must retune the
+   expectation, not turn the guard red. */
+import { workerTickMs } from '../src/core/workers.js';
 import { parseIntent, readSlot, MAX_SLOT, INTENT_KEYS } from '../supabase/functions/hr-accrue/request.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -5298,6 +5302,128 @@ function ammoGuard() {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// CREW-BACKLOG — a worker is never paid for time before it was hired.
+//
+// THE LIVE ROW THIS REPRODUCES (QA 0a47ba77, slot 2, 2026-09-09 03:06:57Z,
+// b527, engine payload 50c6d492): one `player_ledger` kind='gather'
+// intent='accrue' row, node copper_rock, meta.ms = 440,102, and
+// meta.delta.i.copper_ore = 1,891 — about 21x the node's rate, against
+// neighbouring rows of 62,862 ms -> 13 and 64,016 ms -> 13. Mining XP over the
+// window did NOT move by 21x, and that asymmetry is the whole diagnosis:
+// gathering XP is granted per ACTION, so no per-action multiplier can inflate
+// the items and leave the XP alone. The 1,891 is a SUM of two settles that
+// index.ts merges into one delta and one journal line (`mergeWorkers`):
+//
+//      91  the player's own gathering   floor(440,102 / 4,800 ms)
+//   1,800  the hired crew               a full 24h WORKER_ACCRUE_CAP at
+//                                       copper_rock (86,400,000 / 48,000 ms)
+//   -----
+//   1,891
+//
+// The crew half is the mint. `workers_accrued_to` is a SHARED watermark that
+// index.ts advances only on a settle that PRODUCED, and a character with no
+// crew never produces — so the watermark sits where the character was created
+// while the calendar runs, and the first accrual after the first hire pays the
+// whole backlog. Aldric was hired at 03:00:33; six minutes later he was paid a
+// day. The mint signs itself: 1,800 ticks is 18,900 worker xp, which is worker
+// level 4, and every worker row after it lands at 38.7 s — exactly the level-4
+// tick that burst created. It is repeatable: fire the crew, wait a day, rehire.
+//
+// BOTH HALVES ARE ASSERTED, because a fix must not pay for itself out of the
+// honest one: the player's own 91 ore and their mining XP are unchanged.
+// ════════════════════════════════════════════════════════════════════════════
+const CREW_ROW = {
+  nowMs: Date.parse('2026-09-09T03:06:57Z'),
+  grantMs: 440102,                      // meta.ms, verbatim
+  nodeId: 'copper_rock',
+  hiredAgoMs: 384000,                   // 03:00:33 -> 03:06:57
+  staleWatermarkAgoMs: 40 * 3600000,    // no producing settle since the character existed
+  liveMint: 1891,
+};
+
+function crewBacklogGuard() {
+  const C = 'CREW-BACKLOG';
+  const t = CREW_ROW;
+  const entry = GATHER_INDEX[t.nodeId];
+  const node = entry && entry.node;
+  if (!node) {
+    ok(false, `${C}0: ${t.nodeId} is not in the gather index — the fixture cannot be built`);
+    return;
+  }
+  const PROD = node.prod;
+  const crew = (over) => [{
+    uid: 'w1', name: 'Aldric', skill: 'mining', target_id: t.nodeId, xp: 0, acc_ms: 0,
+    hired_at: new Date(t.nowMs - t.hiredAgoMs).toISOString(), ...over,
+  }];
+  const settle = (over) => accrueWorkers({
+    nowMs: t.nowMs,
+    workersAccruedToMs: t.nowMs - t.staleWatermarkAgoMs,
+    crew: crew(),
+    nodes: GATHER_INDEX, items: ITEMS, ...over,
+  });
+  const oreOf = (r) => (r && r.accrued && r.items && r.items[PROD]) ? r.items[PROD] : 0;
+
+  // ── 1. THE MINT ITSELF. ───────────────────────────────────────────────────
+  /* The ceiling is DERIVED from the shared rate model, never a typed 8. */
+  const perTickMs = workerTickMs(node.ms, 0);
+  const honest = Math.floor(t.hiredAgoMs / perTickMs);
+  const paid = settle({});
+  ok(oreOf(paid) <= honest,
+    `${C}1: a worker hired ${Math.round(t.hiredAgoMs / 1000)}s ago was paid ${oreOf(paid)} `
+    + `${PROD} against a ceiling of ${honest}. The shared workers_accrued_to watermark, stale `
+    + 'since before the hire existed, is being paid out as a backlog — the live 1,800-ore mint.');
+  ok(oreOf(paid) === honest,
+    `${C}2: the crew was paid ${oreOf(paid)} ${PROD} where its lifetime buys exactly ${honest} — `
+    + 'a worker is paid for every ms it HAS existed, and not one before.');
+
+  // ── 2. THE FULL LIVE ROW, COMPOSED THE WAY index.ts COMPOSES IT. ──────────
+  /* `mergeWorkers` folds the crew items into the pointer's `items` map while the
+     journal keeps the POINTER's kind and ms — which is why this mint arrived
+     wearing a `gather` label and a 440-second window. */
+  const pointer = computeAccrual({
+    userId: '00000000-0000-4000-8000-000000000001', slot: 2,
+    nowMs: t.nowMs, accruedToMs: t.nowMs - t.grantMs, activeSinceMs: t.nowMs - t.grantMs,
+    activeKind: 'gather', activeId: t.nodeId, capMs: 12 * 3600000, seed: SEED,
+    hp: 60, maxHp: 60, gold: 0, skills: { mining: 0 }, equipment: {},
+    inventory: {}, autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+    items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
+  });
+  ok(pointer.accrued === true,
+    `${C}3: the pointer half of the live row did not accrue (${pointer.reason}) — the fixture `
+    + 'would be vacuous');
+  if (pointer.accrued) {
+    const own = (pointer.delta.items && pointer.delta.items[PROD]) || 0;
+    eq(own, Math.floor(t.grantMs / pacedActionMs(node.ms)),
+      `${C}4: the PLAYER's own half of the row moved. The crew fix must not touch it — this is `
+      + `the ore a ${t.grantMs} ms window at ${t.nodeId} is worth.`);
+    ok(pointer.delta.xp && pointer.delta.xp.mining > 0,
+      `${C}5: the player's mining XP left the row. The diagnosis rests on XP being per-action `
+      + 'and honest, so a fix that moved it would have moved the wrong thing.');
+    ok(own + oreOf(paid) < t.liveMint,
+      `${C}6: the composed delta still totals ${own + oreOf(paid)} ${PROD} — the live mint was `
+      + `${t.liveMint}.`);
+  }
+
+  // ── 3. NOT A NEW CONFISCATION. ────────────────────────────────────────────
+  const ancient = settle({
+    crew: crew({ hired_at: new Date(t.nowMs - 40 * 3600000).toISOString() }),
+  });
+  ok(oreOf(ancient) > 0 && oreOf(ancient) <= Math.floor(WORKER_ACCRUE_CAP_MS / perTickMs),
+    `${C}7: a genuinely long-serving worker must still be paid its (24h-capped) backlog — the `
+    + `fix is a floor at hire time, not a second cap. Paid ${oreOf(ancient)}.`);
+
+  // ── 4. FAIL CLOSED. ───────────────────────────────────────────────────────
+  /* The engine cannot read a column hr_state_of does not project, and here the
+     "absent => previous behaviour" default IS the mint. So absence pays NOTHING.
+     This is the deploy-order contract in executable form:
+     2026-09-12-worker-hired-at-projection.sql is applied BEFORE this engine. */
+  const blind = settle({ crew: crew({ hired_at: undefined }) });
+  ok(oreOf(blind) === 0,
+    `${C}8: a crew row with no hired_at was paid ${oreOf(blind)} ${PROD}. A missing hire time `
+    + 'must fail CLOSED — an under-paying crew is a redeploy, a backlog faucet is a wipe.');
+}
+
 /* THE MUTATION SEAM. `computeAccrualInputParity` is exported for the same
    reason: a guard whose failures cannot be reproduced in isolation is a guard
    nobody mutation-proves, and `runAll` costs a network round trip. This runs the
@@ -5322,6 +5448,7 @@ export async function runAll() {
   gatherParityGuard();
   gatherBuffTimelineGuard();
   toolCarryContinuityGuard();
+  crewBacklogGuard();
   hostileGuard();
   await shapeGuard();
   requestGuard();

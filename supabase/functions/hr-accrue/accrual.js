@@ -3560,6 +3560,7 @@ export function accrueWorkers(input) {
   let totalQty = 0;
   let workingCount = 0;
   let produced = false;
+  let paidSpanMs = 0;
 
   for (const w of crew) {
     if (!w || typeof w.uid !== 'string' || !/^[a-z0-9_]{1,64}$/.test(w.uid)) continue;
@@ -3572,6 +3573,41 @@ export function accrueWorkers(input) {
     const node = entry.node;
     const ms = nat(node.ms, 0);
     if (!(ms > 0)) continue;
+
+    /* ── A WORKER IS NEVER PAID FOR TIME BEFORE IT EXISTED (2026-09-08, P0) ──
+       `workers_accrued_to` is a SHARED watermark that rule 1 above deliberately
+       does NOT advance on a settle that produced nothing — and a character with
+       NO crew produces nothing, for as long as they have no crew. So the
+       watermark sits at wherever it was last left (character creation, for a
+       player who never hired) while the calendar runs, and the FIRST settle
+       after the first hire pays the whole backlog, clamped only by the 24h cap.
+
+       MEASURED LIVE (QA 0a47ba77, slot 2, 2026-09-09 03:06:57Z, b527): Aldric
+       was hired at 03:00:33 and the very next accrue — a 440,102 ms window —
+       journaled 1,891 copper_ore. 91 of those were the player's own gathering
+       (440,102 / 4,800 ms); the other 1,800 were this function paying a
+       six-minute-old worker a full 24 hours at copper_rock (86,400,000 ms /
+       48,000 ms per tick). The mint is self-confirming: 1,800 ticks credited
+       the worker 18,900 xp, which is level 4, and every subsequent worker row
+       lands at 38.7 s — exactly the level-4 tick this settle created.
+       It is also REPEATABLE: fire the crew, wait a day, re-hire.
+
+       The fix is the honest floor, and it is PER WORKER because the watermark
+       is shared and a crew is heterogeneous: this worker's payable window opens
+       at `hired_at`, never before. A worker hired mid-window is paid the part
+       of the window it was alive for, so nothing legitimate is confiscated.
+
+       FAIL CLOSED ON A MISSING `hired_at`, which is the opposite of the
+       tool_carry self-configuring switch and deliberately so: the "absent =
+       previous behaviour" default IS the mint. `hired_at` is projected by
+       hr_state_of as of 2026-09-12-worker-hired-at-projection.sql, so THAT
+       MIGRATION MUST BE APPLIED BEFORE THIS ENGINE IS DEPLOYED. If it is not,
+       every worker's span is zero and the crew under-pays (its `acc_ms` is
+       preserved, so only the un-settled span is lost) — an outage a redeploy
+       fixes, rather than a faucet a wipe fixes. */
+    const hiredAtMs = Number(w.hired_at ? Date.parse(String(w.hired_at)) : NaN);
+    const payFromMs = Number.isFinite(hiredAtMs) ? Math.max(fromMs, hiredAtMs) : nowMs;
+    const spanMs = Math.min(Math.max(0, nowMs - payFromMs), WORKER_ACCRUE_CAP_MS);
 
     // EXACT-ARITHMETIC TICK SPLIT. eff = E/1000 with E an integer and the anchor
     // is integer ms, so perTickMs = anchorMs·1000/E and the whole-tick / leftover
@@ -3590,7 +3626,7 @@ export function accrueWorkers(input) {
        disagree. Integer, so the split below stays exact. */
     const divScaled = workerAnchorMs(ms) * 1000;       // perTick in (ms·E) units
     const carryScaled = Math.round(accMs * E);         // exact remainder, (ms·E) units
-    const nScaled = baseMs * E + carryScaled;          // total available, (ms·E) units
+    const nScaled = spanMs * E + carryScaled;          // total available, (ms·E) units
     const ticks = Math.floor(nScaled / divScaled);
     const remScaled = nScaled - ticks * divScaled;     // leftover, (ms·E) units, < divScaled
     const newAccMs = remScaled / E;                    // back to ms (the stored carry)
@@ -3598,6 +3634,7 @@ export function accrueWorkers(input) {
 
     if (ticks > 0) {
       workingCount++;
+      if (spanMs > paidSpanMs) paidSpanMs = spanMs;
       // avgQty = the band MIDPOINT, un-floored (workers.js), so [1,2] nodes keep
       // their exact live yield — a deliberate parity decision, not a rebalance.
       const q0 = nat(node.qty && node.qty[0], 0);
@@ -3640,7 +3677,11 @@ export function accrueWorkers(input) {
     // the slow worker's remainder rides forward past this producing settle.
     workers: workerOut,
     summary: {
-      spanMs: baseMs, itemKinds, qty: totalQty, workers: workingCount,
+      /* THE SPAN THAT WAS ACTUALLY PAID, which is the LONGEST per-worker window
+         and no longer the shared one: since the hired_at floor a worker hired
+         inside this window is paid less than `baseMs`, and a journal that kept
+         quoting `baseMs` would be describing time the crew was not paid for. */
+      spanMs: paidSpanMs, itemKinds, qty: totalQty, workers: workingCount,
       capped: (nowMs - fromMs) > baseMs,
     },
   };

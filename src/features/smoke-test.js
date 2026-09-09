@@ -59824,6 +59824,86 @@ const TESTS = [
     assert(/Local Shop/.test(empty.tip), 'the empty-bag tip never names where to buy: ' + empty.tip);
   }),
 
+  () => tryRun('b525: a level-1 smith can reach bronze armour without a level-30 mining grind', () => {
+    /* THE PLAYED MOMENT (live, QA account, 2026-09-09 03:00 UTC): Combat 14 with
+       no armour, following the game's own teaching order — mine copper, smelt,
+       forge bronze. Bronze Bar wanted 1 coal, and the ONLY gatherable coal in the
+       game is Coal Rock at MINING 30. The starter tier was unreachable, and Iron
+       (Mining 15) sat BELOW Bronze on the real ladder. The ruling made coal a
+       tier-3 reagent whose first sink is Steel (Smithing 35, beside Coal Rock's
+       Mining 30) and dropped Bronze to req 1.
+       This test PLAYS the ruled path as a level-1 character: it closes over the
+       set of things a Mining-1 / Smithing-1 / Woodcutting-1 player can actually
+       obtain, and walks the chain forward. It fails on the pre-ruling data
+       because bronze_bar's coal input has no producer in that reachable set. */
+    const R = window.ARTISAN_RECIPES, ROCKS = window.ROCKS, TREES = window.TREES;
+    assert(R && R.smithing && Array.isArray(ROCKS) && Array.isArray(TREES),
+      'the recipe/gather tables are not published');
+    const costOf = (r) => Object.assign({},
+      r.input ? { [r.input]: r.inputQty || 1 } : {}, r.inputs || {}, r.secondary || {});
+
+    /* WHAT A LEVEL-1 CHARACTER CAN GATHER. Nothing else is granted: no shop, no
+       drop, no bank. If the chain needs it, a node at req 1 has to produce it. */
+    const STARTER_LV = 1;
+    const bag = new Set();
+    for (const n of ROCKS.concat(TREES)) if (n.req <= STARTER_LV) bag.add(n.prod);
+    assert(bag.has('copper_ore'), 'no Mining-1 node produces copper ore any more');
+
+    /* SMELT. Walk every smithing recipe the starter's level allows, repeatedly,
+       adding each output whose whole cost is already in the bag. */
+    const reachable = () => {
+      let grew = true;
+      while (grew) {
+        grew = false;
+        for (const r of R.smithing) {
+          if (r.req > STARTER_LV || bag.has(r.output)) continue;
+          if (Object.keys(costOf(r)).every((k) => bag.has(k))) { bag.add(r.output); grew = true; }
+        }
+      }
+    };
+    reachable();
+    assert(bag.has('bronze_bar'),
+      'a Smithing-1 character cannot produce a bronze bar from Mining-1 ore — '
+      + 'the tier-1 chain is walled: ' + JSON.stringify(costOf(
+        R.smithing.find((r) => r.output === 'bronze_bar') || {})));
+
+    /* FORGE. The bronze ARMOUR pieces are the point of the bar; each one must be
+       reachable from bars a starter can already smelt, at its own stated level. */
+    const armour = ['bronze_helm', 'bronze_platebody', 'bronze_platelegs'];
+    for (const out of armour) {
+      const r = R.smithing.find((x) => x.output === out);
+      assert(r, 'the generated bronze armour recipe for ' + out + ' is gone');
+      assert(r.req <= 15, out + ' is forged at Smithing ' + r.req + ' — outside the starter band');
+      for (const k of Object.keys(costOf(r))) {
+        assert(bag.has(k) || k === out,
+          out + ' needs ' + k + ', which a starter cannot obtain on the ruled path');
+      }
+    }
+
+    /* THE RULING ITSELF, as a rule and not as a number: coal may not be demanded
+       by any recipe a player can reach before coal is minable. This is the guard
+       that bites if someone re-adds coal to a low bar. */
+    const coalNode = ROCKS.filter((n) => n.prod === 'coal').sort((a, b) => a.req - b.req)[0];
+    assert(coalNode, 'nothing mines coal at all');
+    for (const skill of Object.keys(R)) {
+      for (const r of R[skill]) {
+        if (!costOf(r).coal) continue;
+        assert(r.req >= coalNode.req,
+          skill + '/' + r.id + ' demands coal at level ' + r.req
+          + ' but the first coal node (' + coalNode.id + ') is Mining ' + coalNode.req);
+      }
+    }
+
+    /* AND THE RUNG IS STILL A CHOICE, not a strict replacement: bronze beats
+       copper on xp/sec and costs more ore, or one of the two is dead content. */
+    const cu = R.smithing.find((r) => r.id === 'smelt_copper');
+    const br = R.smithing.find((r) => r.id === 'smelt_bronze');
+    const rate = (r) => r.xp / (r.ms / 1000);
+    assert(rate(br) > rate(cu), 'bronze bar is not faster xp than copper bar');
+    assert((costOf(br).copper_ore || 0) > (costOf(cu).copper_ore || 0),
+      'bronze bar is strictly better than copper bar in every way — copper is dead');
+  }),
+
   () => tryRun('b497: death sheet — the free entry trait changed what the tip may claim', () => {
     const D = window.HearthriseDeathSheet;
     const base = { monsterName: 'Goblin', killsThisFoe: 1, maxHp: 10, deaths: 1,

@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 5909e7be490efc033dbd3c3b8a00fd4dd22a05675ffec8e621061218cd28344e
+--   catalogue digest: 75cc80bd9d30a1a0a989aa8785923c9ac5a998e332117c20ad69cc97204505f1
 --   rows: 519 items (20 untradeable) ·
 --         275 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 473 activities ·
@@ -1342,7 +1342,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','saw_runewood','crafting',75,null,false),
   ('artisan','saw_willow','crafting',30,null,false),
   ('artisan','saw_yew','crafting',60,null,false),
-  ('artisan','smelt_bronze','smithing',8,null,false),
+  ('artisan','smelt_bronze','smithing',1,null,false),
   ('artisan','smelt_copper','smithing',1,null,false),
   ('artisan','smelt_dawn','smithing',92,null,false),
   ('artisan','smelt_deathsteel_ingot','smithing',62,null,false),
@@ -1525,7 +1525,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '5909e7be490efc033dbd3c3b8a00fd4dd22a05675ffec8e621061218cd28344e', now())
+  values (true, '75cc80bd9d30a1a0a989aa8785923c9ac5a998e332117c20ad69cc97204505f1', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1690,7 +1690,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 5909e7be490efc033dbd3c3b8a00fd4dd22a05675ffec8e621061218cd28344e',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 75cc80bd9d30a1a0a989aa8785923c9ac5a998e332117c20ad69cc97204505f1',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

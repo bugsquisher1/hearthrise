@@ -190,7 +190,7 @@
         'Cook or buy food at the Local Shop before the next fight and it will do the rest.';
     },
     'no-food': function () {
-      /* b525 — THE SECOND HALF OF THE SENTENCE IS NOW TRUE. "Cook something"
+      /* b526 — THE SECOND HALF OF THE SENTENCE IS NOW TRUE. "Cook something"
          was the only advice this tip could honestly give while the knockout
          refused every payable kind: a player told to cook, who could not fish
          and could not buy, was told to do nothing. The Supplies counter sells
@@ -658,7 +658,7 @@
       /* The Bounty Shop link only appears when it is actually the answer —
          an offer to buy something you already own is noise. */
       shopLink: tipKey === 'food-unused' && !d.autoEatOwned,
-      /* ── b525 · THE EMPTY BAG GETS A DOOR ─────────────────────────────────
+      /* ── b526 · THE EMPTY BAG GETS A DOOR ─────────────────────────────────
          The two tips whose whole content is "you had nothing to eat" are the
          two that can now be ACTED ON from the sheet, because the Supplies
          counter stocks Cooked Shrimp and `set_activity`'s recovery refusal
@@ -1362,7 +1362,7 @@
       /* The Bounty Shop is a card on the `bounty` panel, not the gem store —
          Auto-Eat is bought with Marks (legacy.js injectBountyPanel). */
       if (kind === 'shop') { nav('bounty'); return; }
-      /* b525: the Supplies counter, not the gem store — Cooked Shrimp is a
+      /* b526: the Supplies counter, not the gem store — Cooked Shrimp is a
          GOLD offer (`seed.cooked_shrimp`). The tab is selected before the nav
          so the panel paints on the right sub-tab in one frame; `setShopTab`
          is a legacy global and its absence must not swallow the navigation,

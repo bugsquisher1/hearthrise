@@ -59758,7 +59758,7 @@ const TESTS = [
     assert(D._TIP_KEYS.length === 4, 'the tip branch list drifted from the four states');
   }),
 
-  () => tryRun('b525: an empty bag can be answered with gold — the counter sells a meal', () => {
+  () => tryRun('b526: an empty bag can be answered with gold — the counter sells a meal', () => {
     /* THE PLAYED MOMENT (live, QA account, 2026-09-09 01:30 UTC): Combat
        14, 10,290 gold, empty food bag, knocked out 45 minutes. Recovery
        refuses every payable kind, so fishing and the fire were both shut; the
@@ -59766,7 +59766,6 @@ const TESTS = [
        legal move was to wait. Two halves close it and both are asserted here:
        the Supplies counter STOCKS a meal at a price that is not a gold loop,
        and the sheet that names the empty bag now carries the door to it. */
-    const G_ = window.G;
     const seed = window.SEED_SHOP;
     assert(Array.isArray(seed), 'SEED_SHOP is not published');
     const shrimp = seed.find(r => r.id === 'cooked_shrimp');
@@ -59796,7 +59795,9 @@ const TESTS = [
     /* And it still refuses a price the shop did not show. */
     const bad = Gold.resolvePurchase('cooked_shrimp', shrimp.qty, 1);
     assert(bad.error === 'price_mismatch', 'a forged price resolved: ' + JSON.stringify(bad));
+  }),
 
+  () => tryRun('b526: the empty-bag death sheet carries the door to the counter', () => {
     /* THE DOOR. Both empty-bag tips carry it; the two tips that are NOT about
        an empty bag must not, or the affordance stops meaning anything. */
     const D = window.HearthriseDeathSheet;
@@ -59821,7 +59822,6 @@ const TESTS = [
     const empty = D.describeDeath(Object.assign({}, base,
       { foodQty: 0, ateThisFight: 0, autoEatOwned: false, autoEatOn: false }));
     assert(/Local Shop/.test(empty.tip), 'the empty-bag tip never names where to buy: ' + empty.tip);
-    void G_;
   }),
 
   () => tryRun('b497: death sheet — the free entry trait changed what the tip may claim', () => {

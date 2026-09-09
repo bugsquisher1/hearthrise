@@ -247,6 +247,40 @@ const assert = (cond, msg) => { __assertCount++; if (!cond) throw new Error(msg)
    test. Never use skip() to silence a failing real assertion: a skip means "this
    was not run", not "this was checked". */
 const skip = (reason) => { __skipReason = String(reason == null ? '' : reason); };
+
+/* Shared rig for the bounty-envelope battery: one target, one save/restore of
+   bountyHunter, one GoalClaim stub that LOGS its calls and HOLDS the claim, one
+   envelope builder. `credit` is overridable; the claim is always held, so no
+   test built on this can reach finalizeBounty's celebration path. */
+function bountyRig(opts) {
+  const G = window.G, o = opts || {};
+  const savedBh = JSON.parse(JSON.stringify(G.bountyHunter || {}));
+  const savedGC = window.HearthriseGoalClaim;
+  const calls = [];
+  window.HearthriseGoalClaim = Object.assign({}, savedGC, {
+    isSignedIn: () => true,
+    creditKills: (t, c) => { calls.push({ fn: 'credit', claimed: c }); return Promise.resolve(o.credit || { ok: false, error: 'held' }); },
+    claimBounty: () => { calls.push({ fn: 'claim' }); return Promise.resolve({ ok: false, error: 'held' }); },
+  });
+  const target = (window.MONSTERS && window.MONSTERS.goblin) ? 'goblin' : Object.keys(window.MONSTERS || {})[0];
+  return {
+    calls, target,
+    armed: typeof window.clientMayWriteRecordField === 'function' && window.clientMayWriteRecordField('gold') === false,
+    set(b) { if (window.ensureBountyState) window.ensureBountyState(); G.bountyHunter.active = b; return b; },
+    // hr_state_of's shape: the contract plus greatest(0, kills - baseline).
+    envelope(id, progress) {
+      const a = G.bountyHunter.active || {};
+      return { state: { bounty: { bounty_id: id, target, required: a.required, baseline: 100,
+        kills_now: 100 + progress, progress } } };
+    },
+    restore() {
+      window.HearthriseGoalClaim = savedGC;
+      const ab = G.bountyHunter && G.bountyHunter.active;
+      if (ab && window.hrClearBountyRetry) { try { window.hrClearBountyRetry(ab); } catch (e) {} }
+      G.bountyHunter = savedBh;
+    },
+  };
+}
 /* SA-013 (increment 2): a "this must not throw" contract, as a COUNTED
    assertion. The interactive tests used to wrap each call in try/catch and
    re-throw — a guard that only ran (and only counted) when the call actually
@@ -8233,6 +8267,85 @@ const TESTS = [
       window.HearthriseGoalClaim = saved.gc;
       G.bountyHunter = saved.bh;
     }
+  }),
+  /* ── SETTLED KILLS REACH THE BAR (found by playing) ────────────────────────
+     Measured on the QA account: ev:kill_monster:mandrake = 218 real kills, board
+     reading 9/20, contract never turned in. hr_claim_bounty has judged the
+     turn-in as hr_bounty_kills - baseline since the bounty schema landed, so
+     every away kill ALREADY counted; the client rendered a local attended-only
+     counter and could not see them. hr_state_of now projects
+     `state.bounty.progress`, and these three tests are its contract. See
+     bountyRig() above for the shared stub. */
+  () => tryRun('bounty: the envelope\'s server progress renders OVER the local attended counter', () => {
+    const G = window.G, rig = bountyRig();
+    try {
+      assert(typeof window.hrNoteServerBounty === 'function' && typeof window.bountyShownProgress === 'function',
+        'the server-bounty seam is missing — hrNoteServerBounty/bountyShownProgress are the whole fix');
+      // The live shape: 9 attended kills locally, 218 real kills server-side.
+      const ab = rig.set({ id: 'b_settled', type: 'cull', target: rig.target, difficulty: 'normal',
+        required: 20, progress: 9, rewards: { gold: 100, marks: 6, xp: 40 } });
+      assert(window.bountyShownProgress(ab) === 9, 'precondition: with no server value the local counter shows');
+      const rec = window.hrNoteServerBounty(rig.envelope('b_settled', 218));
+      assert(rec && rec.noted === true, 'a matching envelope bounty must be adopted; got ' + JSON.stringify(rec));
+      assert(ab._serverConfirmed === 20, 'the server progress must land clamped to `required` (20), got ' + ab._serverConfirmed);
+      assert(window.bountyShownProgress(ab) === 20, 'the bar must show the SERVER 20, not the local 9 — got ' + window.bountyShownProgress(ab));
+      assert(window.bountyProgressText(ab) === '20 / 20', 'the text must read the server count, got "' + window.bountyProgressText(ab) + '"');
+      // A finished contract offering only "Fight target" is the bug with a full bar.
+      assert(/hrTurnInBounty\(\)/.test(String(window.renderBountyPanel() || '')),
+        'a finished contract must show the Claim control on the board');
+
+      // THE OTHER DIRECTION ("full bar that will not pay"): local never exceeds server.
+      const ah = rig.set({ id: 'b_ahead', type: 'cull', target: rig.target, difficulty: 'normal',
+        required: 20, progress: 19, rewards: { gold: 100, marks: 6, xp: 40 } });
+      window.hrNoteServerBounty(rig.envelope('b_ahead', 4));
+      assert(window.bountyShownProgress(ah) === 4, 'a local 19 must never exceed the server 4; got ' + window.bountyShownProgress(ah));
+
+      // FAIL-SAFE + IDENTITY: a foreign id, or no key at all, writes nothing.
+      const miss = window.hrNoteServerBounty(rig.envelope('someone_elses', 20));
+      assert(miss.noted === false && miss.reason === 'mismatch', 'an envelope for a DIFFERENT bounty must be refused: ' + JSON.stringify(miss));
+      const none = window.hrNoteServerBounty({ state: { gold: 5 } });
+      assert(none.noted === false && none.reason === 'no_key', 'an envelope without the key must be a no-op: ' + JSON.stringify(none));
+      assert(ah._serverConfirmed === 4, 'neither refusal may move the confirmed count, got ' + ah._serverConfirmed);
+    } finally { rig.restore(); }
+  }),
+  /* A FINISHED CONTRACT IS NEVER BURNED WITHOUT A RECEIPT (P2). The away replay
+     reaches completeBounty with inOfflineReplay() true, so control fell through
+     to finalizeBounty(), which nulls the active bounty — and under the ARM that
+     finalize pays NOTHING, so a contract FINISHED away vanished with its Marks
+     unclaimed and nothing left to claim from. */
+  () => tryRun('bounty: the away replay never finalizes a cull contract without the server\'s claim receipt', () => {
+    const G = window.G, P = window.HearthrisePresence, rig = bountyRig();
+    try {
+      if (!rig.armed) { skip('the hold only applies under the gold arm'); return; }
+      G.bountyHunter.completed = 0;
+      const held = rig.set({ id: 'b_away', type: 'cull', target: rig.target, difficulty: 'normal',
+        required: 5, progress: 5, rewards: { gold: 320, marks: 6, xp: 45 } });
+      P._withOfflineReplay(function () { window.completeBounty(); });
+      assert(G.bountyHunter.active === held, 'the away replay CLEARED the active bounty — a finished contract lost with its Marks unclaimed');
+      assert(held._awaitingServerClaim === true, 'the held contract must be latched as awaiting the server claim');
+      assert(!held._confirmed, 'nothing may be marked confirmed without a server receipt');
+      assert(G.bountyHunter.completed === 0, 'the replay must not count a completion the server has not paid, got ' + G.bountyHunter.completed);
+    } finally { rig.restore(); }
+  }),
+  /* The turn-in the player came back to: a projected progress at/above the
+     requirement fires the EXISTING two-phase server turn-in (credit → claim),
+     reward from the RESPONSE. Without the schedule the contract sits
+     finished-but-unclaimed forever — the local counter never gets there. */
+  () => tryRunAsync('bounty: a server-finished contract fires the hr_claim_bounty turn-in on the envelope', async () => {
+    const G = window.G, rig = bountyRig({ credit: { ok: true, progress: 12 } });
+    try {
+      if (!rig.armed) { skip('the server-gated turn-in only runs under the gold arm'); return; }
+      // Local counter STUCK at 2 (two attended kills); the server has 21 of 12.
+      rig.set({ id: 'b_return', type: 'cull', target: rig.target, difficulty: 'normal',
+        required: 12, progress: 2, rewards: { gold: 320, marks: 6, xp: 45 } });
+      const rec = window.hrNoteServerBounty(rig.envelope('b_return', 21));
+      assert(rec.turnIn === true, 'a server-finished contract must schedule the turn-in; got ' + JSON.stringify(rec));
+      assert(rig.calls.length === 1 && rig.calls[0].fn === 'credit', 'the two-phase path credits first; log: ' + JSON.stringify(rig.calls));
+      await Promise.resolve(); await Promise.resolve();
+      assert(rig.calls.some((c) => c.fn === 'claim'), 'the claim must go through hr_claim_bounty; log: ' + JSON.stringify(rig.calls));
+      assert(G.bountyHunter.active && !G.bountyHunter.active._confirmed,
+        'a REFUSED claim must leave the contract active — the client never finalizes on its own');
+    } finally { rig.restore(); }
   }),
   /* bug #5 ROOT (Paione, live): the b484 credit only fired at target, and the
      cap grows with elapsed — so a burst of fast kills reached the bar while the
@@ -28117,6 +28230,13 @@ const TESTS = [
     if (typeof window.simulateAwayCombat !== 'function' || typeof window.completeBounty !== 'function') { skip('seam absent'); return; }
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
     const snap = snapshotG();
+    /* ── THE AWAY CHAIN IS A DORMANT-PATH BEHAVIOUR, and driving it means SAYING
+       so. Under the gold ARM a cull turn-in may not settle client-side at all:
+       completeBounty HOLDS it for hr_claim_bounty, so no away night auto-accepts
+       anything. The switch MACHINERY is what this test guards and it is shared,
+       so it is driven where it still runs; the ARM gets its own leg at the end. */
+    const origMay = window.clientMayWriteRecordField;
+    window.clientMayWriteRecordField = function () { return true; };   // DORMANT
     try {
       /* The 11pm situation: mid-fight on GOBLIN, one kill from finishing a
          goblin cull, a WOLF bounty next on the board, Auto-Accept owned. */
@@ -28196,7 +28316,25 @@ const TESTS = [
       assert(G.activeMonster === 'goblin',
         'LIVE must NOT switch synchronously inside the tick (startCombat re-enters combatTick); activeMonster=' + G.activeMonster);
       assert(window.__bountySwitchPending() === null, 'live must not leave a pending away-switch queued');
+
+      /* ── AND UNDER THE ARM THE SAME NIGHT HOLDS THE CONTRACT INSTEAD ───────
+         The server owns the turn-in and holds only ONE active_bounty, so an
+         armed away night settles and chains nothing: the contract must still be
+         there at sunrise for hr_claim_bounty. Without the hold it is finalized
+         for a reward the client may not pay, and the contract is lost. */
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'marks'; };
+      fixture();
+      const heldAway = G.bountyHunter.active;
+      C.reseed(0xB0117A);
+      P._withOfflineReplay(() => { window.simulateAwayCombat(1, Date.now(), false); });
+      assert(G.bountyHunter.active === heldAway,
+        'ARMED: the away night settled the cull contract client-side — a finished contract lost with '
+        + 'its Marks unclaimed; active is now '
+        + JSON.stringify(G.bountyHunter.active && G.bountyHunter.active.target));
+      assert(heldAway._awaitingServerClaim === true,
+        'ARMED: the held contract must be latched as awaiting the server claim');
     } finally {
+      window.clientMayWriteRecordField = origMay;
       try { window.G.bountyHunter.autoBounty = 0; window.G.bountyHunter.active = null; window.G.bountyHunter.board = []; } catch (e) {}
       try { window.__drainBountySwitch(); } catch (e) {}
       if (typeof window.stopCombat === 'function') window.stopCombat();
@@ -28214,6 +28352,11 @@ const TESTS = [
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
     const snap = snapshotG();
     const realRandom = Math.random;
+    /* The 10% bonus is drawn inside finalizeBounty, which under the gold ARM an
+       away cull turn-in no longer reaches (the contract is HELD for
+       hr_claim_bounty). Determinism is a property of the DRAW, so it is
+       measured where the draw still happens: the dormant path. */
+    const origMay = window.clientMayWriteRecordField;
     try {
       /* A night of one-kill bounties, so a single span turns in dozens of
          them and the 10% bonus is drawn dozens of times. */
@@ -28250,8 +28393,10 @@ const TESTS = [
         fixture();
         if (rngOverride) C.setRng(rngOverride); else C.reseed(0xB0117B);
         Math.random = () => mathRandomValue;
+        // DORMANT for the night only — leg (b) below needs the REAL arm.
+        window.clientMayWriteRecordField = function () { return true; };
         try { P._withOfflineReplay(() => { window.simulateAwayCombat(0.5, 1767225600000, false); }); }
-        finally { Math.random = realRandom; }
+        finally { Math.random = realRandom; window.clientMayWriteRecordField = origMay; }
         return { marks: G.marks, completed: G.bountyHunter.completed, gold: G.gold };
       };
 
@@ -28390,6 +28535,7 @@ const TESTS = [
       }
     } finally {
       Math.random = realRandom;
+      window.clientMayWriteRecordField = origMay;
       try { C.setRng(null); C.randomSeed(); } catch (e) {}
       try { window.G.bountyHunter.autoBounty = 0; window.G.bountyHunter.active = null; window.G.bountyHunter.board = []; } catch (e) {}
       try { window.__drainBountySwitch(); } catch (e) {}

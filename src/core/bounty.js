@@ -289,6 +289,80 @@ export function isOfferableType(type, clientMayPay) {
   return bountyTurnIn(type) === 'server' ? true : !!clientMayPay;
 }
 
+/* ── WHOSE COUNT IS ON THE BAR (2026-09-09) ─────────────────────────────────
+   THE BUG THIS ENDS. A bounty carries a CLIENT-LOCAL `progress`, incremented on
+   ATTENDED kills only. In a semi-idle game most kills are SETTLED (away): a QA
+   character finished 218 real kills of its target while the board read 9/20 and
+   the contract could never be turned in. The server has always judged the
+   turn-in as hr_bounty_kills(target) - baseline, so those kills COUNTED — the
+   client simply could not see them. hr_state_of now projects that number, and
+   `_serverConfirmed` is where it lands (written from two places, both server
+   receipts: hr_credit_kills' returned progress, and the envelope's).
+
+   THE RULE, one line: WHEN THE SERVER HAS SPOKEN, THE SERVER WINS. The local
+   counter is a PRE-ECHO — it exists so an attended kill moves the bar in the
+   same frame rather than after a round trip — and it may never exceed or
+   replace a present server value in EITHER direction. Local 12 / server 3
+   renders 3 (the "full bar that will not pay" class); local 9 / server 20
+   renders 20 (this bug). Clamped to `required` because that is all a bar can
+   show; the surplus is not lost, the claim RPC still reads the raw counter.
+
+   FAIL-SAFE: no `_serverConfirmed` (no envelope yet, a server without the
+   projection, a type the server does not verify) ⇒ the local counter, exactly
+   as before.
+
+   @param proofHave the caller's inventory-derived count for a `proof` bounty
+                    (this module is pure and holds no inventory). */
+export function shownProgress(b, proofHave) {
+  if (!b) return 0;
+  const req = Math.max(1, Math.floor(Number(b.required) || 1));
+  const sc = Number(b._serverConfirmed);
+  if (Number.isFinite(sc) && sc >= 0) return Math.max(0, Math.min(req, Math.floor(sc)));
+  const local = (b.type === 'proof') ? (Number(proofHave) || 0) : (Number(b.progress) || 0);
+  return Math.max(0, Math.min(req, Math.floor(local)));
+}
+
+/* The display reader above is deliberately not the only one, and the difference
+   is load-bearing. Two questions, two answers:
+     "what number do I SHOW?"                  → the server's, always
+     "does the player BELIEVE this is done?"   → the HIGHER of the two (here)
+   The hold-retry timer and the "Verifying your kills…" label hang off the
+   second. The whole reason that retry exists is the case where the LOCAL count
+   is at target and the server's is still catching up under the elapsed-time
+   plausibility cap — gating it on the server number alone would disarm it in
+   exactly the situation it was written for. */
+export function attemptProgress(b, proofHave) {
+  if (!b) return 0;
+  const local = (b.type === 'proof') ? (Number(proofHave) || 0) : (Number(b.progress) || 0);
+  const sc = Number(b._serverConfirmed);
+  return Math.max(Math.max(0, Math.floor(local)),
+                  Number.isFinite(sc) ? Math.max(0, Math.floor(sc)) : 0);
+}
+
+/* THE ENVELOPE'S BOUNTY, JUDGED. `hr_state_of` projects one read-only key
+   carrying the active contract and `progress = greatest(0, kills - baseline)`.
+   This decides whether it may be adopted; it MUTATES NOTHING and it authors
+   nothing — a mismatched or malformed projection yields a refusal with a
+   reason, never a guess.
+
+   IDENTITY IS CHECKED BOTH WAYS. An envelope can land after the player
+   abandoned this contract and accepted another, and writing one bounty's
+   progress onto another manufactures the exact desync this exists to remove.
+
+   @returns {ok, reason, progress} — progress already clamped to `required`. */
+export function adoptServerBounty(active, sb) {
+  if (!sb || typeof sb !== 'object') return { ok: false, reason: 'no_server_bounty', progress: null };
+  if (!active) return { ok: false, reason: 'no_active', progress: null };
+  if (String(sb.bounty_id || '') !== String(active.id || '')
+      || String(sb.target || '') !== String(active.target || '')) {
+    return { ok: false, reason: 'mismatch', progress: null };
+  }
+  const p = Math.floor(Number(sb.progress));
+  if (!Number.isFinite(p) || p < 0) return { ok: false, reason: 'bad_progress', progress: null };
+  const req = Math.max(1, Math.floor(Number(active.required) || 1));
+  return { ok: true, reason: '', progress: Math.max(0, Math.min(req, p)) };
+}
+
 /** Weapon types the player can actually satisfy a `weapon` bounty with.
     Sword is always in the set — you are never handed an impossible task
     because you sold your only blade. */

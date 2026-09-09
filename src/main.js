@@ -401,6 +401,11 @@ import './utils/data-integrity.js?v=530';
 import './utils/image-fallback.js?v=530';
 
 // 3. Feature modules — each registers itself on setup()
+// Whose count is on the bounty bar: the server's projected progress (settled
+// kills included) over the client's attended-only pre-echo, plus the Claim
+// control it makes reachable. Published on window for legacy.js's render sites
+// and the envelope hook in net/accrue.js.
+import { setupBountyProgress } from './render/bounty-progress.js?v=530';
 import { setupSmokeTest } from './features/smoke-test.js?v=530';
 import { setupCompanions } from './features/companions.js?v=530';
 import { setupActivitiesGrid } from './features/activities-grid.js?v=530';
@@ -438,6 +443,7 @@ function tryBootFeatures() {
      overflow on mobile). Each is independent; one failing must not cost the
      others. */
   const boot = (name, fn) => { try { fn(); } catch (e) { console.error('[ESM boot] ' + name + ' failed', e); } };
+  boot('bounty-progress', setupBountyProgress);
   boot('smoke-test', setupSmokeTest);
   boot('companions', setupCompanions);
   boot('activities-grid', setupActivitiesGrid);

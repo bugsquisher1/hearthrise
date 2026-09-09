@@ -4004,6 +4004,7 @@ function ensureBountyState(){
        which is exactly when a persisted stale timer would be present. */
     if(_firstEnsure){
       delete _a._retryTimer; delete _a._creditAt; delete _a._confirmed; delete _a._serverConfirmed;
+      delete _a._awaitingServerClaim;   // transient too: re-derived from the envelope
       /* ── THE RESCUE (2026-08-31) ─────────────────────────────────────────
          A save written before the BOUNTY_TURN_IN filter can still hold an
          ACTIVE contract of a type nothing can settle — that is the live bug:
@@ -4155,31 +4156,8 @@ function generateBountyBoard(){
 function bountyProofHave(b){
   return Math.max(0, (G.inventory[b.proofItem]||0) - (b.proofBaseline||0));
 }
-function bountyLabel(b){
-  const m=MONSTERS[b.target];
-  if(!m)return 'Unknown Bounty';
-  /* b372: a proof bounty is a requirement like any other — "Collect 5 Wolf
-     Pelt" is only actionable if you know which monster drops one. The item
-     name opens its flyout, where the reverse index names the drop. */
-  if(b.type==='proof'){
-    const _pn = ITEMS[b.proofItem]?.n || b.proofItem;
-    return `Collect ${b.required} ${typeof window.hrInspectSpan==='function' ? window.hrInspectSpan(b.proofItem, _pn) : _pn}`;
-  }
-  /* b356: the `neutral` branch is gone — DEC-NEUT-01 retired it, so every
-     weapon bounty now names a real weapon type. */
-  if(b.type==='weapon')return `Defeat ${b.required} ${m.name}s using ${WEAPON_TYPES[b.requiredWeaponType]||'any weapon'}`;
-  if(b.type==='streak')return `Defeat ${b.required} ${m.name}s without dying`;
-  return `Defeat ${b.required} ${m.name}s`;
-}
-function bountyProgressText(b){
-  if(!b)return '';
-  if(b.type==='proof')return `${Math.min(bountyProofHave(b),b.required)} / ${b.required}`;
-  return `${Math.min(b.progress||0,b.required)} / ${b.required}`;
-}
-
-/* b228 (Tyler): "nothing tells me anywhere on the screen what my active bounty
-   is until I refresh." Accept/abandon/reroll only repainted combat. One helper
-   repaints whichever bounty surface exists, called from all three. */
+/* Repaints whichever bounty surface exists; called from accept, abandon and
+   reroll, which used to repaint only combat. */
 function repaintBounty(){
   try{ if(typeof renderBountyPanel==='function') renderBountyPanel(); }catch(e){}
   try{ if(typeof window.renderBountyTab==='function') window.renderBountyTab(); }catch(e){}
@@ -4522,7 +4500,8 @@ function hrScheduleBountyRetry(b){
     b._retryTimer=null;
     if(!G.bountyHunter || G.bountyHunter.active!==b) return;
     if(b._confirmed) return;
-    if((Number(b.progress)||0)>=b.required){
+    // EITHER count re-arms it: a contract finished AWAY never reaches it locally.
+    if(bountyAttemptProgress(b)>=b.required){
       completeBounty();                 // re-enters the two-phase credit+claim
       hrScheduleBountyRetry(b);         // and keep the timer alive until it lands
     }
@@ -4819,6 +4798,22 @@ function completeBounty(){
     }).catch(function(){ b._confirming=false; });
     return;
   }
+  /* A CULL CONTRACT IS NEVER FINALIZED WITHOUT THE SERVER'S RECEIPT. The AWAY REPLAY
+     runs this same chain with `inOfflineReplay()` true, so the two-phase branch
+     above was skipped and control fell into finalizeBounty(), which nulls the
+     active bounty. Under the ARM that finalize pays NOTHING (gold and
+     Marks are server-of-record), so a FINISHED contract vanished from the client
+     with its Marks unclaimed while the server's active_bounty row lived on and
+     nothing was left to claim it from. Scoped to the REPLAY: a live turn-in that cannot
+     reach the server is the two-phase branch's own, already-handled problem.
+     HOLD instead — the turn-in then fires from the next envelope, attended kill
+     or board Claim, all through hr_claim_bounty, whose active_bounty row is the
+     once-guard. `_awaitingServerClaim` is a latch, never a gate (AWAY-1). */
+  if(_isCull && _armed && !_live){
+    b._awaitingServerClaim=true;
+    try{ repaintBounty(); }catch(e){}
+    return;
+  }
   finalizeBounty(b, r, _isCull);
 }
 /* The client-authored finalize: celebration + credit (display-prediction under
@@ -5075,21 +5070,19 @@ const BB_LANTERN=`<svg class="bb-lantern" viewBox="0 0 60 78" aria-hidden="true"
   <path d="M30 27c3 4 4 6 4 9s-1.8 5-4 5-4-2-4-5 1-5 4-9z" fill="var(--bb-flame)"/>
   <path d="M17 51h26l-2 5H19z" fill="var(--bb-iron)"/>
 </svg>`;
-function _bbNail(){return '<span class="bb-nail" aria-hidden="true"></span>';}
-function _bbCut(id){
-  const src=window._monsterIcon && window._monsterIcon[id];
-  /* The painted portrait is printed onto the notice, not pasted on top of it:
-     sepia-toned inside an inked oval, the way a woodcut would sit on paper. */
-  return '<span class="bb-cut">'+(src?'<img src="'+src+'" alt="" loading="lazy" draggable="false" />':'')+'</span>';
-}
 function renderBountyPanel(){
   ensureBountyState();
   const bh=G.bountyHunter,active=bh.active;
   let notices='';
   if(active){
     const m=MONSTERS[active.target];
-    const current=active.type==='proof'?Math.min(bountyProofHave(active),active.required):(active.progress||0);
+    // One reader for text, bar AND Claim gate — the count hr_claim_bounty honours.
+    const current=bountyShownProgress(active);
     const pct=Math.min(100,(current/active.required)*100);
+    const _claimable=current>=active.required && !active._confirming;
+    const _claimBtn=_claimable
+      ? `<button class="btn btn-sm btn-primary" onclick="hrTurnInBounty()">Claim reward</button>`
+      : `<button class="btn btn-sm btn-primary" onclick="fightBountyTarget('${active.target}')">${G.activeMonster===active.target?'Go to fight':'Fight target'}</button>`;
     /* The claimed notice stays ON the board, over-stamped. One strong device —
        a clerk's oxblood stamp — rather than three weak ones. */
     notices=`<article class="bb-notice is-taken" style="--bb-rot:-0.6deg;--bb-pin:47%">
@@ -5106,7 +5099,7 @@ function renderBountyPanel(){
       <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}</p>
       <div class="bb-prog"><span class="bb-prog-t">${bountyProgressText(active)}</span><span class="bb-bar"><i style="width:${pct}%"></i></span></div>
       <div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>
-      <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="fightBountyTarget('${active.target}')">${G.activeMonster===active.target?'Go to fight':'Fight target'}</button><button class="btn btn-sm btn-danger" onclick="abandonBounty()">Abandon</button></div>
+      <div class="bb-foot">${_claimBtn}<button class="btn btn-sm btn-danger" onclick="abandonBounty()">Abandon</button></div>
     </article>`;
   }else{
     notices=bh.board.map((b,i)=>{
@@ -12171,8 +12164,8 @@ window.renderBountyPanel = function(){
   const a = bh && bh.active;
   if(!a) return '';
   const m = MONSTERS[a.target];
-  const cur = a.type === 'proof' ? Math.min(bountyProofHave(a), a.required) : Math.min(a.progress||0, a.required);
-  const _confirming = !!(a._confirming || a._syncNoticed) && (a.progress||0) >= a.required;
+  const cur = bountyShownProgress(a);
+  const _confirming = !!(a._confirming || a._syncNoticed) && bountyAttemptProgress(a) >= a.required;
   /* Decision 1 (bug #5): while the server catches up, show the SERVER-CONFIRMED
      count (never the phantom local total), reconciled DOWN to server truth by the
      credit RPC's returned progress. Never below what the server has confirmed. */
@@ -12518,10 +12511,9 @@ function refreshActivityBar(){
       let bountyChip = '';
       const _ab = G.bountyHunter && G.bountyHunter.active;
       if(_ab && _ab.target === G.activeMonster){
-        const _cur = _ab.type==='proof'
-          ? Math.min((typeof bountyProofHave==='function'?bountyProofHave(_ab):0), _ab.required)
-          : Math.min(_ab.progress||0, _ab.required);
-        const _abConfirming = !!(_ab._confirming || _ab._syncNoticed) && (_ab.progress||0) >= _ab.required;
+        const _cur = (typeof bountyShownProgress==='function') ? bountyShownProgress(_ab) : Math.min(_ab.progress||0,_ab.required);
+        const _abConfirming = !!(_ab._confirming || _ab._syncNoticed)
+          && ((typeof bountyAttemptProgress==='function'?bountyAttemptProgress(_ab):(_ab.progress||0)) >= _ab.required);
         const _abConfirmed = Math.max(0, Math.min(_ab.required, Math.floor(Number(_ab._serverConfirmed)||0)));
         bountyChip = _abConfirming
           ? '<span class="ab-bounty confirming">Bounty <b>'+_abConfirmed+'/'+_ab.required+' confirmed</b></span>'

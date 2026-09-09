@@ -818,7 +818,7 @@ async function run(mutate) {
        · `qty_in`. The daily budget is computed from the delta's GROSS positive
          inflow, so the consumed inputs must not net it down.
 
-     Bronze bars: `smelt_bronze` needs Smithing 8, 2 copper_ore + 1 coal, and
+     Bronze bars: `smelt_bronze` inputs are read from the catalogue (2 copper_ore since the 2026-09-09 ruling; Smithing 1), and
      ~4.2s an action, so a three-hour window is bounded by the SUPPLY rather
      than by the clock — which is the property the exhaustion arm asserts. */
   {
@@ -828,10 +828,24 @@ async function run(mutate) {
     /* Enough for ~30 bars and no more: the run must STOP on supplies inside the
        three hours, which is what makes the debit observable as a floor rather
        than as an arbitrary number. */
-    await db.query(
-      `insert into public.player_inventory (user_id, slot, item_id, qty)
-       values ($1, 0, 'copper_ore', 60), ($1, 0, 'coal', 40)
-       on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID]);
+    /* THE RECIPE IS READ, NOT RESTATED (b529): the designer moved coal out of
+       bronze (2026-09-09 ruling), and a hard-coded "2 ore + 1 coal" here went
+       red for the wrong reason. Seed exactly 30 bars' worth of every input the
+       CATALOGUE names, plus 40 coal as a control that an item the recipe does
+       not consume is left untouched by the debit. */
+    const bronzeEntry = cat.ARTISAN_RECIPES_ALL.smelt_bronze;
+    const bronzeRecipe = bronzeEntry && (bronzeEntry.recipe || bronzeEntry);
+    ok(!!bronzeRecipe, 'A3c: smelt_bronze is not in the edge catalogue');
+    const bronzeNeed = Object.assign({},
+      bronzeRecipe.inputs || (bronzeRecipe.input ? { [bronzeRecipe.input]: 1 } : {}),
+      bronzeRecipe.secondary || {});
+    ok(Object.keys(bronzeNeed).length > 0, 'A3c: smelt_bronze names no inputs — the clamp would be vacuous');
+    const seed = Object.assign({ coal: 40 }, Object.fromEntries(Object.entries(bronzeNeed).map(([id, n]) => [id, n * 30])));
+    for (const [id, q] of Object.entries(seed)) {
+      await db.query(
+        `insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, $3)
+         on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [UID, id, q]);
+    }
     await db.query(
       `update public.player_state
           set active_kind = 'artisan', active_id = 'smelt_bronze',
@@ -856,13 +870,17 @@ async function run(mutate) {
        exactly 30 bars; the run must have stopped there rather than smelting for
        three hours off an inventory it only READ. */
     ok(bars === 30,
-      `A3c: the run produced ${bars} bars from 60 copper_ore + 40 coal. Two ore and one coal per bar caps `
-      + 'it at 30 — anything more means the simulation is not spending the server\'s inventory, and the '
+      `A3c: the run produced ${bars} bars from ${JSON.stringify(seed)} with per-bar need ${JSON.stringify(bronzeNeed)}. `
+      + 'The supply caps it at 30 — anything more means the simulation is not spending the server inventory, and the '
       + 'delta it proposed would be refused by hr_apply as insufficient_item (a 409, not a degrade, so '
       + 'the whole night is lost).');
-    ok(qty('copper_ore') === 0 && qty('coal') === 10,
-      `A3c: after 30 bars the bag holds ${qty('copper_ore')} copper_ore and ${qty('coal')} coal — expected `
-      + '0 and 10. The inputs were not debited through the same signed item map the output rode in on.');
+    for (const [id, q] of Object.entries(seed)) {
+      const expect = q - 30 * (bronzeNeed[id] || 0);
+      ok(qty(id) === expect,
+        `A3c: after 30 bars the bag holds ${qty(id)} ${id} — expected ${expect} (seeded ${q}, per-bar ${bronzeNeed[id] || 0}). `
+        + (bronzeNeed[id] ? 'The inputs were not debited through the same signed item map the output rode in on.'
+                          : 'An item the recipe does not consume was touched by the debit.'));
+    }
     ok((await skillXp(db, UID, 'smithing')) - beforeXp > 0,
       'A3c: the smelting paid no smithing XP');
 

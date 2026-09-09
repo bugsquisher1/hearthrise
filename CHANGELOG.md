@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 529 — 2026-09-09 (Bronze without coal, and an honest first hire)
+
+**Bronze and iron no longer need coal.** A Bronze Bar is two copper ore at Smithing 1 (it was Smithing 8 plus coal that only a Mining-30 rock or a mid-tier monster could supply), and an Iron Bar is one iron ore. Coal is now what it should be: the tier-3 reagent that Steel and everything above it burn. Coal you already hold keeps its value and its uses from Smithing 35 up.
+
+**A new worker earns from the day you hire them.** The first hire on a character used to be paid a full day of backlog from before the worker existed (the account's crew clock sat at character creation). Each worker is now paid from their own hire time, the crew's share is written into the ledger row, and the engine refuses to pay a worker it cannot date. Two characters received such a backlog in the past; how that is settled is a separate, announced decision.
+
 ## v0.9.2-beta build 528 — 2026-09-09 (A knockout no longer locks away its own cure)
 
 **You can gather and cook while you recover.** Being knocked out used to refuse every activity for the whole recovery — including fishing the dinner that would have prevented the next fall. Recovery now waits only for fights. Gathering and benches start, and they PAY at full rate for the whole window (the engine used to accept the start and then forfeit the span; both halves ship together, reviewed). The knocked-out bar says it plainly: fights wait while you recover — gathering and cooking still earn.

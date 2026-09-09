@@ -24,7 +24,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-09-09",
-  "replay_ms": 8235,
+  "replay_ms": 7807,
   "counts": {
     "tracked_names": 44,
     "entries": 42
@@ -855,21 +855,22 @@
         "2026-09-07-retreat.sql",
         "2026-09-08-hearthfind.sql",
         "2026-09-08-hero-slot-buy.sql",
-        "2026-09-10-dungeon-scrip.sql"
+        "2026-09-10-dungeon-scrip.sql",
+        "2026-09-12-worker-hired-at-projection.sql"
       ],
       "live": {
-        "md5": "bfcc389b73586f2568aa7deb701347ae",
-        "norm_len": 17678,
+        "md5": "58f88b4eeba4da452d21d27c94f12e8b",
+        "norm_len": 17963,
         "measured": "2026-09-09",
         "source": "measured-live"
       },
       "replay": {
-        "md5": "80613869d56de2fba23a47cbe1797d69",
-        "norm_len": 18426,
+        "md5": "2af53c70c36246bf7635e73a4eb01739",
+        "norm_len": 18711,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "2026-09-08 18:33 UTC: retreat projects consec_falls; hearthfind projects hearthfind_last, hearthfind_titles, hearthfind_plinth. Applied after Security GO. --codediff: comments/whitespace only vs the replay."
+      "why": "2026-09-09 04:20 UTC: 2026-09-12-worker-hired-at-projection.sql applied by the Coordinator after Security GO-WITH-CHANGES (C1/C2 landed) — hr_state_of projects player_workers.hired_at; player_workers write grants revoked for browser roles. --codediff: additive."
     },
     {
       "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",

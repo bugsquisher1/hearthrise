@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=524' directly.
+// modularised, will import { G } from '../state/game.js?v=526' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=524';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=524';
+import { on, snapshot } from '../net/events.js?v=526';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=526';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=524';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=526';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1545,6 +1545,16 @@ const nightWorld = (o) => {
   }
   onFeet();
   try { stampRecordLikeLoad(G); } catch (e) {}
+  /* AND THE BAG ARRIVES THE WAY A BOOT'S BAG ARRIVES. The ritual now
+     refuses to speak before an envelope has STATED the bag (the strip used to
+     price the fresh-G factory literal for the first ~10s of every reload), so
+     a fixture that only assigned `G.inventory` would be describing a bag no
+     server ever named. Pushed through the REAL door — `reconcileInventory`,
+     the one apply both the idle-boot hr_load hydrate and applyEnvelopeState
+     run — naming exactly the bag this world holds. */
+  try {
+    window.HearthriseAccrual.reconcileInventory(G, { ok: true, inventory: Object.assign({}, G.inventory) });
+  } catch (e) {}
   return G;
 };
 
@@ -8963,7 +8973,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=524');
+    const S = await import('../data/shops.js?v=526');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -9864,7 +9874,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=524');
+    const mod = await import('../data/dungeons.js?v=526');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -9895,7 +9905,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=524');
+    const mod = await import('../data/dungeons.js?v=526');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -14653,6 +14663,61 @@ const TESTS = [
       restoreG(snap);
     }
   }),
+
+  () => tryRun('RECOVER-19 (b524): a BOOT RESUME while knocked out raises no pre-fight warning and '
+    + 'runs no local fight — the knocked-out sheet is the only surface', () => {
+    /* MEASURED LIVE — QA account, 2026-09-08 23:30 UTC. Knocked out,
+       `recovering_until` ~31 minutes ahead ("Knocked out — back on your feet in
+       31m · Goblin resumes automatically"), a PLAIN RELOAD put the pre-fight
+       food warning over the knocked-out sheet: no tap, and no fight can start
+       for half an hour. ROOT CAUSE: the advisory gate lives inside
+       `startCombat`, whose header assumes "every production caller is a player
+       GESTURE". `reconcileActivityPointer` is not one — it is the envelope
+       naming the fight the SERVER owns, at boot, inside `activityQuietly` (the
+       escape hatch `hrRefuseWhileRecovering` honours). Cost: a modal nobody asked
+       for; the once-per-foe latch spent so the real tap goes unwarned; and an
+       ASYNCHRONOUS `startCombat` leaving ③'s pointer unwritten.
+       MUTATION: remove BOTH halves (`{confirmed:true}` in legacy.js's resume, the
+       `hrCombatDownPeek` line in hrFightGate) — today's code — and ② goes RED with
+       the live sentence. Either alone covers this boot; both ship because a tap reaches the gate from the death sheet too. */
+    const G = window.G, A = window.HearthriseAccrual;
+    const D = window.HearthriseDialog, DS = window.HearthriseDeathSheet;
+    const FOE = (window.MONSTERS || {}).goblin ? 'goblin' : Object.keys(window.MONSTERS || {})[0];
+    if (!A || typeof A.applyEnvelopeState !== 'function' || !DS || typeof DS.__resetForTest !== 'function' || !D || typeof D.isOpen !== 'function' || !FOE || typeof window.__hrFightGate !== 'function' || typeof window.reconcileActivityPointer !== 'function') { skip('the recovery / fight-warning seam is not wired'); return; }
+    const snap = snapshotG(), wasOn = A.isServerAccrualEnabled(), savedInv = G.inventory;
+    const hadFlag = window.__HR_TEST_HARNESS__;
+    const overlay = () => document.getElementById('hr-confirm-overlay');
+    const envelope = (until) => A.applyEnvelopeState(G, { state: { accrued_to: new Date().toISOString(), recovering_until: until ? new Date(until).toISOString() : null } });
+    try {
+      /* Empty bag, 13 max HP — the population. The harness flag is OFF for
+         RETREAT-A5's reason: under it no dialog is raised at all. */
+      A.setServerAccrualEnabled(true); DS.__resetForTest(); window.__HR_TEST_HARNESS__ = false;
+      try { window.stopCombat(); } catch (e) {}
+      G.inventory = {}; G.playerMaxHp = 13; G.playerHp = 13; window.__hrClearFightWarnings();
+      /* ① THE FIXTURE BITES: on their feet, this state warns. */
+      assert(!!window.__hrFightGate(FOE), 'the fixture (empty bag, 13 max HP, ' + FOE + ') produced no warning at all, so this test could not observe the boot warning it forbids');
+      /* ② THE BOOT: the knockout, then the fight the server still owns. */
+      window.__hrClearFightWarnings(); envelope(Date.now() + 31 * 60000);
+      const hpBefore = G.playerHp;
+      assert(A.isKnockedOut(), 'no knockout: ' + JSON.stringify(A.fallState()));
+      window.reconcileActivityPointer({ kind: 'combat', id: FOE });
+      assert(!overlay() && !D.isOpen(), 'a plain reload raised the pre-fight warning over the knocked-out sheet: no tap was made, no fight can start for half an hour, and the once-per-foe latch is spent so the tap that IS a gesture goes unwarned');
+      assert(G.activeMonster === FOE, 'the resume did not mirror the server pointer (' + G.activeMonster + '): a warning makes startCombat asynchronous, so the reconcile reports a fight that has not started');
+      const mBefore = G.monsterHp;
+      try { window.combatTick(); window.combatTick(); } catch (e) {}
+      assert(G.playerHp === hpBefore && G.monsterHp === mBefore, 'a knocked-out resume SWUNG (hp ' + hpBefore + '→' + G.playerHp + ', foe ' + mBefore + '→' + G.monsterHp + '): the server refuses every payable kind in the window, so every point of it is gone on reload');
+      DS.__resetForTest(); envelope(null);   /* ⑤ CONTROL: the latch is intact */
+      try { window.stopCombat(); } catch (e) {}
+      assert(!A.isKnockedOut(), 'the control could not stand up: ' + JSON.stringify(A.fallState()));
+      assert(!!window.__hrFightGate(FOE), 'CONTROL: the boot spent the once-per-foe latch, so the tap the player makes when they are back up is never warned');
+    } finally {
+      try { const _ov = overlay(); if (_ov) _ov.remove(); if (D.isOpen()) D.close(); } catch (e) {}
+      try { window.stopCombat(); window.__hrClearFightWarnings(); DS.__resetForTest(); } catch (e) {}
+      window.__HR_TEST_HARNESS__ = hadFlag; G.inventory = savedInv;
+      A.setServerAccrualEnabled(!!wasOn); restoreG(snap);
+    }
+  }),
+
 
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -43052,7 +43117,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=524');
+    const KIT = await import('../data/start-kit.js?v=526');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -43134,7 +43199,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=524');
+    const KIT = await import('../data/start-kit.js?v=526');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -43248,7 +43313,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=524');
+    const KIT = await import('../data/start-kit.js?v=526');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -45361,7 +45426,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=524')).text();
+    const src = await (await fetch('src/legacy.js?v=526')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -48850,6 +48915,75 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('NIGHT-5: the Tonight strip never speaks before the SERVER has stated the bag', () => {
+    /* THE LIVE BUG (QA account, 2026-09-09, reproduced twice).
+       On a plain reload Home read "Tonight: your 29 Cooked Shrimp carry you
+       about 26m against Goblin" for ~10 seconds, then flipped to "with nothing
+       to eat you last about 5m" when the envelope landed. The server bag had
+       held no food for hours (the away receipt said autoEat.hadFood:false).
+
+       THE 29 WAS THE FRESH-G FACTORY LITERAL: src/legacy.js seeds
+       `inventory:{turnip_seed:5,carrot_seed:3,shrimp:10,cooked_shrimp:20}` —
+       30 auto-eatable units, one already eaten by the live tick before the
+       screenshot. `loadLocal()` cannot strip it, because `inventory` is not a
+       SERVER_OF_RECORD field and `forgetServerOfRecord` deletes only those; it
+       is corrected only when `reconcileInventory` applies an envelope.
+
+       THE PROPERTY: the forecast is a SERVER-DERIVED statement, so before an
+       envelope has stated the bag the surface says NOTHING — no placeholder,
+       no number, an empty strip — and it does not REMEMBER a guess either (a
+       remembered pre-envelope forecast would go on to grade the morning line
+       against a bag that never existed). Once the envelope lands, the same
+       surface tells the truth about an empty bag. */
+    const STN = window.HearthriseSetTheNight;
+    const AC = window.HearthriseAccrual;
+    assert(AC && typeof AC.bagHydrated === 'function',
+      'HearthriseAccrual.bagHydrated is missing — the strip has no way to ask whether the bag is real');
+    const snap = snapshotG();
+    const hadStamp = window.G._bagFromServerAt;
+    try {
+      const foe = (window.MONSTERS && window.MONSTERS.slime) ? 'slime'
+        : Object.keys(window.MONSTERS || {})[0];
+
+      // ── BOOT, PRE-ENVELOPE: the factory literal is in the bag and nothing has stated it.
+      nightWorld({ foe, inventory: { cooked_shrimp: 20, shrimp: 10 }, food: 'cooked_shrimp' });
+      STN.forget();
+      AC.__forgetBagHydrated(window.G);
+      assert(AC.bagHydrated(window.G) === false,
+        'CONTROL: the stamp must be gone, or this test is measuring a hydrated boot');
+      const early = STN.strip(window.G);
+      assert(early === '',
+        'THE b525 BUG: the Tonight strip painted a forecast before any envelope stated the bag — '
+        + 'that is the fresh-G literal being read to the player as their supplies. Got: '
+        + JSON.stringify(String(early).slice(0, 200)));
+      assert(STN.forecast(window.G) === null,
+        'the forecast itself must be null pre-envelope, not merely unrendered — every sentence in the '
+        + 'ritual is priced off the bag');
+      assert(STN.recall() === null,
+        'a pre-envelope guess was REMEMBERED. It would be graded against the server receipt in the '
+        + 'morning, turning an unhydrated boot into a wrong statement about a night that did happen.');
+
+      // ── THE ENVELOPE LANDS, AND THE BAG IS EMPTY. Same surface, now honest.
+      nightWorld({ foe, inventory: {}, food: 'cooked_shrimp' });
+      assert(AC.bagHydrated(window.G) === true,
+        'reconcileInventory did not stamp the bag as server-stated — the strip would stay silent forever');
+      const f = STN.forecast(window.G);
+      assert(f && f.kind === 'combat' && f.foodQty === 0,
+        'after the envelope the forecast must run against the SERVER bag (empty), got '
+        + JSON.stringify(f && { k: f.kind, q: f.foodQty }));
+      const s = STN.sentence(f);
+      assert(/^Tonight: with nothing to eat you last /.test(s),
+        'an empty server bag must read as "with nothing to eat", got: ' + JSON.stringify(s));
+      assert(STN.strip(window.G).indexOf('Tonight:') > 0,
+        'the strip must render once the bag is real');
+    } finally {
+      try { STN.forget(); } catch (e) {}
+      restoreG(snap);
+      if (typeof hadStamp === 'undefined') { try { AC.__forgetBagHydrated(window.G); } catch (e) {} }
+      else window.G._bagFromServerAt = hadStamp;
+    }
+  }),
+
   () => tryRun('NIGHT-4: exactly ONE welcome modal exists, and the retired one is DELETED not unreferenced', () => {
     /* THE RULING (docs/planning/FEATURE_SLATE.md §3): "v2 retires, b341
        survives." Hearthrise shipped two welcome-back modals whose only
@@ -49209,6 +49343,103 @@ const TESTS = [
     } finally {
       window.fetch = origFetch;
       HF.__resetProbe();
+    }
+  }),
+
+  () => tryRun('HF-7: an earned title is PROJECTED onto the name — topbar, profile badge and a chooser that only offers what the server granted', () => {
+    const HF = window.HearthriseHearthfind;
+    assert(HF && typeof HF.noteTitles === 'function' && typeof HF.paintTitle === 'function',
+      'the title seam is missing — the client half of the cosmetic projection does not exist');
+    const slot = document.getElementById('player-title');
+    assert(slot, '#player-title is not in the topbar markup — nothing can render the earned title beside the name');
+    try {
+      HF.__resetTitles();
+      /* THE SERVER'S OWN SHAPE. hr_state_of builds hearthfind_titles as
+         jsonb_agg(... order by granted_at) over player_cosmetics, so it is
+         oldest-first and every row carries the SERVER's name string. Two rows
+         so the "which one" question is real. */
+      HF.noteTitles({ state: { hearthfind_titles: [
+        { code: 'rootwarden', name: 'Rootwarden', at: '2026-09-01T00:00:00Z' },
+        { code: 'emberborn',  name: 'Emberborn',  at: '2026-09-08T00:00:00Z' }
+      ] } });
+
+      const earned = HF.earnedTitles();
+      assert(earned.length === 2 && earned[1].code === 'emberborn',
+        'the projection did not normalise oldest-first — ' + JSON.stringify(earned));
+      /* THE DEFAULT is the newest earned: the thing the player just did. */
+      const active = HF.activeTitle();
+      assert(active && active.code === 'emberborn', 'the default shown title is not the newest earned — '
+        + JSON.stringify(active));
+      assert(slot.textContent === 'Emberborn' && slot.classList.contains('hide') === false,
+        'the topbar slot did not paint the projected title — "' + slot.textContent + '"');
+      assert(HF.titleBadgeHtml().indexOf('Emberborn') !== -1,
+        'the profile-card badge does not carry the projected title — ' + HF.titleBadgeHtml());
+
+      /* THE CHOICE. Only codes the server projected are accepted; the pick is
+         a preference over a server-owned set, never a new fact. */
+      const chips = HF.titlesSection();
+      assert(chips.indexOf('data-hf-title="rootwarden"') !== -1
+        && chips.indexOf('data-hf-title="emberborn"') !== -1,
+        'the chooser does not offer both earned titles — ' + chips);
+      const picked = HF.chooseTitle('rootwarden');
+      assert(picked && picked.code === 'rootwarden', 'choosing an earned title did not take');
+      assert(slot.textContent === 'Rootwarden', 'the topbar did not repaint on the choice — "' + slot.textContent + '"');
+      assert(HF.chooseTitle(HF.NO_TITLE) === null && slot.textContent === ''
+        && slot.classList.contains('hide'),
+        'choosing None did not clear the badge — "' + slot.textContent + '"');
+    } finally {
+      HF.__resetTitles();
+    }
+  }),
+
+  () => tryRun('HF-8: NO projection ⇒ NO title — an absent key, an empty grant and a forged pick all render nothing', () => {
+    const HF = window.HearthriseHearthfind;
+    const slot = document.getElementById('player-title');
+    assert(slot, '#player-title is not in the topbar markup');
+    try {
+      HF.__resetTitles();
+      /* (1) A CLIENT THAT HAS SEEN NOTHING wears nothing. This is the fail-safe
+         CLAUDE.md §6 asks for: the absence of a server statement is "not
+         unlocked", never a guess from the inventory. */
+      assert(HF.activeTitle() === null && HF.titleBadgeHtml() === '' && HF.titlesSection() === '',
+        'a client with no projection rendered a title anyway');
+      HF.paintTitle();
+      assert(slot.textContent === '' && slot.classList.contains('hide'),
+        'the topbar slot showed something with nothing projected — "' + slot.textContent + '"');
+
+      /* (2) AN ENVELOPE THAT SAYS NOTHING ABOUT TITLES changes nothing — key
+         presence, not truthiness, so a mixed-deploy window cannot erase an
+         earned title. */
+      HF.noteTitles({ state: { hearthfind_titles: [{ code: 'tidesworn', name: 'Tidesworn', at: null }] } });
+      assert(HF.activeTitle().code === 'tidesworn', 'the projection did not land');
+      assert(HF.noteTitles({ state: { gold: 5 } }) === null && HF.activeTitle().code === 'tidesworn',
+        'an envelope with no hearthfind_titles key wiped the last projection');
+
+      /* (3) AN EMPTY GRANT IS A STATEMENT and must clear. */
+      HF.noteTitles({ state: { hearthfind_titles: [] } });
+      assert(HF.activeTitle() === null && slot.textContent === '',
+        'an empty projection did not clear the title');
+
+      /* (4) A FORGED PICK CANNOT MINT ONE. The pick is stored client-side, so
+         the property that matters is that it only ever SELECTS from the
+         projection: a code the server never granted renders nothing here and
+         falls back to the default when there is one. */
+      const st = window.HearthriseStorage;
+      assert(st && typeof st.set === 'function', 'the storage seam is missing — the pick has nowhere honest to live');
+      st.set('hearthrise:hearthfind:title', 'wonderkeeper');   // hand-edited, as an attacker would
+      assert(HF.activeTitle() === null && HF.titleBadgeHtml() === '',
+        'a forged pick rendered with nothing projected — the client authored a cosmetic the server did not grant');
+      HF.noteTitles({ state: { hearthfind_titles: [{ code: 'deepdelver', name: 'Deepdelver', at: null }] } });
+      assert(HF.activeTitle().code === 'deepdelver',
+        'the forged pick beat the server projection — "wonderkeeper" was never granted to this character');
+
+      /* (5) A MALFORMED ROW IS NOT RENDERABLE and is dropped rather than drawn
+         as a raw id. */
+      HF.noteTitles({ state: { hearthfind_titles: [{ code: 'ghost' }, null, { name: 'Nameless' }] } });
+      assert(HF.activeTitle() === null && HF.titlesSection() === '',
+        'a row with no name or no code survived normalisation');
+    } finally {
+      HF.__resetTitles();
     }
   }),
 
@@ -51749,7 +51980,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=524');
+    const S = await import('../data/shops.js?v=526');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -53290,7 +53521,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=524');
+    const S = await import('../data/shops.js?v=526');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -57873,7 +58104,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=524')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=526')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -59812,7 +60043,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=524');
+    const A = await import('../net/accrue.js?v=526');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -59837,7 +60068,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=524');
+    const A = await import('../net/accrue.js?v=526');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -59864,7 +60095,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=524');
+    const A = await import('../net/accrue.js?v=526');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -60017,7 +60248,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=524')).text();
+      const raw = await (await fetch(f + '?v=526')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -60067,7 +60298,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=524')).text();
+    const raw = await (await fetch('src/observability.js?v=526')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -60171,7 +60402,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=524');
+    const _art = await import('../data/monster-art.js?v=526');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

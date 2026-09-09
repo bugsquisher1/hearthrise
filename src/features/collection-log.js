@@ -483,7 +483,13 @@
       if (window.HearthriseHearthfind && typeof window.HearthriseHearthfind.collectionSection === 'function') {
         hfSection = window.HearthriseHearthfind.collectionSection(G) || '';
       }
-    } catch (e) { hfSection = ''; }
+      /* THE TITLES the trophies unlocked, under the trophies themselves — the
+         ruling's own home for them. Empty string when the server has projected
+         none, so a character who has never found one sees no extra section. */
+      if (window.HearthriseHearthfind && typeof window.HearthriseHearthfind.titlesSection === 'function') {
+        hfSection += (window.HearthriseHearthfind.titlesSection() || '');
+      }
+    } catch (e) { hfSection = hfSection || ''; }
     // group by simple category
     function catOf(it) { return it.slot || (it.heals ? 'Food' : it.buryXp ? 'Bones' : it.equip ? 'Equipment' : 'Materials'); }
     var byCat = {};
@@ -546,6 +552,19 @@
       if (t.getAttribute('data-cl-back')) { detailMon = null; detailItem = null; open(); return; }
       var tab = t.getAttribute('data-cl-tab');
       if (tab) { activeTab = tab; detailMon = null; detailItem = null; open(); return; }
+      /* THE TITLE CHIPS. Checked BEFORE the item/monster cells because the
+         chooser sits inside the items tab; hearthfind.js validates the code
+         against the server projection and owns the repaint, this file only
+         re-draws the log so the pressed state is honest. */
+      var chip = t.closest && t.closest('[data-hf-title]');
+      if (chip) {
+        try {
+          if (window.HearthriseHearthfind && typeof window.HearthriseHearthfind.chooseTitle === 'function')
+            window.HearthriseHearthfind.chooseTitle(chip.getAttribute('data-hf-title'));
+        } catch (e) {}
+        open();
+        return;
+      }
       var monCell = t.closest && t.closest('[data-mon]');
       if (monCell) { detailMon = monCell.getAttribute('data-mon'); open(); return; }
       var itemCell = t.closest && t.closest('[data-item]');

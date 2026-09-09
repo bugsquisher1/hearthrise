@@ -300,10 +300,37 @@
     return String(tid).replace(/_/g, ' ');
   }
 
+  /* ── THE BAG MUST HAVE COME FROM THE SERVER (b525) ─────────────────────
+     LIVE, twice (QA account, b522 and b524): on a plain reload the strip read
+     "Tonight: your 29 Cooked Shrimp carry you about 26m against Goblin" for
+     ~10s, then flipped to "with nothing to eat you last about 5m" when the
+     envelope landed. The server bag had held no food for hours. The 29 was the
+     FRESH-G FACTORY LITERAL (src/legacy.js `inventory:{turnip_seed:5,
+     carrot_seed:3,shrimp:10,cooked_shrimp:20}` — 30 auto-eatable units, one
+     already eaten by the live tick). `loadLocal()` cannot strip it: `inventory`
+     is not a SERVER_OF_RECORD field, so `forgetServerOfRecord` leaves it, and
+     it is only overwritten when an envelope reconciles the bag.
+
+     Every sentence this file speaks is priced off that bag, so the whole
+     forecast waits for the stamp `reconcileInventory` sets on BOTH doors (the
+     idle-boot `hr_load` hydrate in record.js and `applyEnvelopeState`). Gated
+     HERE rather than in `strip()` so the pre-envelope guess is also never
+     REMEMBERED — a stale forecast in storage would go on to grade the morning
+     line. Before the stamp the surface says nothing at all: no placeholder, no
+     number, an empty strip. Fail-closed — an accrual module that failed to load
+     answers "not hydrated" and the strip stays silent. */
+  function bagIsServerStated(G) {
+    try {
+      var AC = window.HearthriseAccrual;
+      return !!(AC && typeof AC.bagHydrated === 'function' && AC.bagHydrated(G));
+    } catch (e) { return false; }
+  }
+
   /** The forecast for whatever is running right now, or null when idle. */
   function forecast(G) {
     G = G || window.G;
     if (!G || typeof G !== 'object') return null;
+    if (!bagIsServerStated(G)) return null;
     if (G.activeMonster) return combatForecast(G);
     if (G.activeSkill) return benchForecast(G);
     return null;

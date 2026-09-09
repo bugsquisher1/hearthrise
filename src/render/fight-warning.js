@@ -113,7 +113,7 @@
   window.__hrPreFightWarning=hrPreFightWarning;          // test seam (FORECAST-COPY)
   window.__hrClearFightWarnings=hrClearFightWarnings;    // test seam
 
-  /* THE THREE SUPPRESSIONS. `hrPreFightWarning` decides whether there is anything
+  /* THE FOUR SUPPRESSIONS. `hrPreFightWarning` decides whether there is anything
      to SAY; this decides whether the player is in a position to be told it. Each
      is here because speaking would cost the player something:
        A FIGHT IS ALREADY RUNNING - the tap is a SWITCH, and a dialog would
@@ -125,9 +125,24 @@
      `awayHadFood()` RETURNS `undefined` WHEN CORE IS NOT UP, and the test is
        `=== true` on purpose: "we could not ask" is not "the bag has food". It is
        the same `chooseFood` the simulation and the away receipt use, so the
-       warning and the night cannot disagree about provisions. */
+       warning and the night cannot disagree about provisions.
+       KNOCKED OUT - THERE IS NO FIGHT TO WARN ABOUT (b523, measured live on
+         b522, QA account 2026-09-08 23:30 UTC: a plain page reload while the
+         server held `recovering_until` 31 minutes ahead put "No food in your
+         bag - a Goblin will put you down in about 55 seconds" over the
+         knocked-out sheet, with no tap behind it). While the server refuses
+         every payable kind there is nothing for the advisory to delay: a
+         warning is about the fight the next tap starts, and the next tap
+         cannot start one for half an hour. Worse than noise - the once-per-foe
+         latch is spent, so the warning the player IS owed, on the tap they
+         eventually make, never comes. The knocked-out sheet is the only
+         surface that owns this fact (b520). `hrCombatDownPeek` is the
+         side-effect-free read: `hrCombatDown` owns the stand-up transition and
+         a gate must never fire it. Missing (core not up) reads as "up", which
+         degrades to today's behaviour rather than swallowing warnings. */
   function hrFightGate(mId){
     if(window.G.activeMonster)return null;
+    if(typeof window.hrCombatDownPeek==='function'&&window.hrCombatDownPeek())return null;
     if(_fightWarned[mId])return null;
     if(window.awayHadFood()===true)return null;
     return hrPreFightWarning(mId);

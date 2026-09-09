@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 526 — 2026-09-09 (Your title, and an honest first paint)
+
+**Hearthfind titles show.** An earned title (Emberborn, Rootwarden, Deepdelver, Tidesworn, Wonderkeeper) now paints beside your name on the Character screen and in the collection log, read from the server's cosmetics row; a title the server has not granted cannot render. Choosing which earned title to wear is next and server-owned.
+
+**The Tonight strip no longer guesses from a fake bag.** Every boot painted a factory starter bag (20 cooked shrimp) for the first seconds before the server's real bag arrived, so the forecast promised food you did not have. The strip now waits for the hydrated bag and says nothing until then.
+
+## v0.9.2-beta build 525 — 2026-09-09 (No warning for a fight you cannot start)
+
+**The pre-fight food warning no longer fires on a reload while you are knocked out.** The server-driven resume was treated like a tap, so a plain reload during recovery stacked "No food in your bag — Fight anyway" over the knocked-out sheet. The resume is not a gesture: it mirrors the server's pointer and asks nothing. While you are down the warning cannot appear at all, and its once-per-foe latch is kept for the tap that matters.
+
 ## v0.9.2-beta build 524 — 2026-09-09 (A Retreat survives a reload)
 
 **The Retreat sheet after a reload tells the truth.** If the realm halted your run on a Retreat and you reloaded, the sheet came back as a plain knockout — a clock, and a promise that your run would pick up by itself. It now reads the server's fall counter and says what actually happened: you pulled back, and the run does not restart itself. No number is invented when the server sends none.

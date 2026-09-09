@@ -1969,7 +1969,7 @@ function reconcileActivityPointer(a,fight){
     if(kind==='combat'&&id&&MONSTERS[id]){
       if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
       if(G.activeMonster!==id&&typeof startCombat==='function'){
-        startCombat(id);
+        startCombat(id,{confirmed:true});   // A RESUME IS NOT A TAP: the pre-fight advisory inside startCombat assumes a gesture; this is the envelope naming the fight the server owns (gate half: fight-warning.js hrFightGate)
         /* Only on a RESTART. When the pointer already names this foe the local
            fight is live and further along than any envelope — the server's
            carry is a checkpoint from the last settle, so writing it over a
@@ -7660,7 +7660,7 @@ function renderProfile(){
       return `<div class="activity-card">
       <div class="ac-icon">${_hrGly('navCharacter',26)}</div>
       <div style="flex:1;min-width:0">
-        <b>${escapeHtml(acctName || G.playerName)}${renameBtn}</b>
+        <b>${escapeHtml(acctName || G.playerName)}${(window.HearthriseHearthfind&&window.HearthriseHearthfind.titleBadgeHtml&&window.HearthriseHearthfind.titleBadgeHtml())||''/* the earned Hearthfind title, from hr_state_of's projection ONLY; '' when the server has granted none */}${renameBtn}</b>
         <span>${subtitle}</span>
       </div>
       ${isOnline?'':'<button class="btn btn-sm btn-primary" onclick="openSettings()">Sign in</button>'}

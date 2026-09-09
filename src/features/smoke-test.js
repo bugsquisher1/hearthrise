@@ -27224,26 +27224,46 @@ const TESTS = [
      paione's 71->71 report is therefore still guarded end to end; what is gone
      is the client that used to answer it. */
 
-  () => tryRun('b267: auto-eat works OFFLINE — a fighter with food set survives and consumes it (Tyler asked to verify)', () => {
-    if(typeof window.processOfflineCombat !== 'function'){ skip('no offline combat'); return; }
-    const snap = snapshotG();
+  /* b267 — RE-POINTED at the one combat engine. This arm asked for
+     `window.processOfflineCombat`, deleted when the away-time ruling collapsed the
+     two loops into one, so it has declared an honest skip on every run since and
+     guarded nothing. The rig is AWAY-1b's: the SHIPPED combat ctx (whose
+     `fx.autoEat` is the real `resolveAutoEat` decision) inside `_withOfflineReplay`.
+     THE SAME SEEDED SPAN RUNS TWICE, bag and empty: the empty run MUST fall. */
+  () => tryRun('b267: auto-eat works AWAY — the same seeded span kills a fighter with an empty bag and is survived with food (Tyler asked to verify)', () => {
+    const C = window.HearthriseCore, P = window.HearthrisePresence, A = window.HearthriseAuto, S = window.HearthriseCombatSim;
+    assert(C && C.combatSim && S && typeof S.ctx === 'function' && P && typeof P._withOfflineReplay === 'function' && A && typeof A.setEat === 'function',
+      'the engine, the away-replay seam and the eat setting must all be reachable');
+    const snap = snapshotG(), origBonus = window.getBonus, beforeEat = A.getEat();
+    let wasParked = false;
     try {
-      const G = window.G;
-      // Weak defence vs a monster that hurts, with auto-eat food configured.
-      G.skills = Object.assign({}, G.skills, { attack: 3000, strength: 3000, defense: 0, hitpoints: 5000 });
-      G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 40;
-      G.playerHp = G.playerMaxHp;
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 500 });
-      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });  // b459: tier II = the pre-tier behaviour these fixtures assert
-      if(window.HearthriseAuto && window.HearthriseAuto.setEat) window.HearthriseAuto.setEat({ foodId:'cooked_shrimp', enabled:true, threshold:0.6 });
-      G.activeMonster = 'wolf';
-      const m = window.MONSTERS.wolf; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      const before = G.inventory.cooked_shrimp;
-      const r = window.processOfflineCombat(0.5);
-      assert(r && r.foodEaten > 0, 'auto-eat must fire during offline combat, foodEaten=' + (r && r.foodEaten));
-      assert(!r.died, 'with food set the offline fighter should survive, died=' + (r && r.died));
-      assert((before - (G.inventory.cooked_shrimp || 0)) === r.foodEaten, 'consumed food must match foodEaten');
-    } finally { restoreG(snap); }
+      wasParked = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
+      window.getBonus = () => 0;
+      const G = window.G, FOOD = 'cooked_shrimp', STOCK = 500, m = window.MONSTERS.wolf;
+      const arm = () => { G.activeMonster = 'wolf'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp; };
+      const run = (stock) => {
+        G.buffs = []; G.quests = []; G.recoveringUntilMs = 0; G.playerMaxHp = 40; G.playerHp = 40;
+        G.skills = Object.assign({}, G.skills, { attack: 3000, strength: 3000, defense: 0, hitpoints: 5000 });
+        G.inventory = Object.assign({}, G.inventory, { [FOOD]: stock });
+        G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
+        G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
+        A.setEat({ foodId: FOOD, enabled: true, threshold: 0.6 });
+        arm(); C.reseed(0x267AEA7);
+        /* Re-arm the foe each fall: a dead wolf stops swinging. */
+        P._withOfflineReplay(() => { const ctx = S.ctx();
+          for (let i = 0; i < 600 && G.playerHp > 0; i++) { if (!G.activeMonster) arm(); C.combatSim.simulateTick(G, ctx); } });
+        return { died: G.stats.deaths > 0 || G.playerHp <= 0, ate: stock - (Number(G.inventory[FOOD]) || 0), hp: G.playerHp };
+      };
+      const starved = run(0), fed = run(STOCK);
+      assert(starved.died, 'the rig is not lethal, so surviving proves nothing: ' + JSON.stringify(starved));
+      assert(fed.ate > 0, 'auto-eat must fire on the away path, ate=' + fed.ate);
+      assert(!fed.died, 'with food set the away fighter must survive, ' + JSON.stringify(fed));
+    } finally {
+      window.getBonus = origBonus;
+      try { A.setEat(beforeEat); } catch (e) {}
+      if (typeof A._parkEatSync === 'function') A._parkEatSync(wasParked);
+      restoreG(snap);
+    }
   }),
 
   // b297: a killing blow must be VISIBLE on the stage. killMonster() respawns

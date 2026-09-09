@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 530 — 2026-09-09 (Your night's XP is yours)
+
+**Away combat XP was being lost on the way back in.** When you returned to a running fight, your client credited a few seconds of attended XP before the night's settlement ran, and the server treated that credit as "paid up to now" — so the night paid kills and drops and zero XP. Reported by Paione; it hit two accounts over the last month. The server now refuses an attended credit while a night is unpaid (the settlement owns that window), and the client settles first on every boot. What those nights were owed is being computed row by row and will be announced separately.
+
 ## v0.9.2-beta build 529 — 2026-09-09 (Bronze without coal, and an honest first hire)
 
 **Bronze and iron no longer need coal.** A Bronze Bar is two copper ore at Smithing 1 (it was Smithing 8 plus coal that only a Mining-30 rock or a mid-tier monster could supply), and an Iron Bar is one iron ore. Coal is now what it should be: the tier-3 reagent that Steel and everything above it burn. Coal you already hold keeps its value and its uses from Smithing 35 up.

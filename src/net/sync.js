@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=529';
+//   import { setupSync } from './net/sync.js?v=530';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,27 +16,27 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=529';
+import { on, snapshot } from './events.js?v=530';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=529';
+import { resolveActiveSlot } from './accrue.js?v=530';
 /* THE CLOUD-SAVE SELF-TEST READS THE REALM'S PROJECTION, so it borrows
    record.js's own request builder and response classifier rather than growing a
    second copy of the hr_load shape. NO CYCLE: record.js imports accrue /
    client-state / predict / property-record / dungeon-scrip-record, none of which
    import sync.js. (The old `balanceState` import went with the round-trip diff
    the projection replaced — the figures now come from the server, not from G.) */
-import { buildLoadRequest, classifyLoadResponse } from './record.js?v=529';
+import { buildLoadRequest, classifyLoadResponse } from './record.js?v=530';
 /* ── THE CAPSTONE SAVE PATH (blob-retire — the ONLY path since b515) ─────────
    The authoritative snapshot() blob is NOT uploaded: the authority fields flow
    through their own server writes (record / RPCs / accrual) and only the
    self-only residue is persisted, via putClientState. buildResiduePatch is the
    census→patch. No cycle: neither capstone.js nor client-state.js imports
    sync.js. */
-import { buildResiduePatch } from './capstone.js?v=529';
-import { putClientState, isClientStateFromServer } from './client-state.js?v=529';
+import { buildResiduePatch } from './capstone.js?v=530';
+import { putClientState, isClientStateFromServer } from './client-state.js?v=530';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';

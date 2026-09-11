@@ -412,12 +412,16 @@ jobs:
       # an ACCEPTED call writes nothing, and that the journal cannot become
       # game_events: one row per (user, slot, day, code) however many verbs, at
       # most 25 keys in the map however many a caller invents, at most one
-      # occurrence per transaction. --selftest plants nine defects (a verb
-      # dropped from the seam, the wrapper sweep skipping the claim verbs, the
-      # map cap loosened, the decorator editing the envelope, success
-      # journalled, the verb map not maintained, the service_role revoke
-      # narrowed, the table opened to players, the once-per-transaction rule
-      # removed) and requires each to be caught here.
+      # occurrence per transaction, and — the four the security review found in
+      # the first revision — rate_limited never journalled here (a 200-call
+      # storm costs 63 writes, MEASURED with pg_stat_get_xact_*, not 203), a
+      # client-chosen slot folded to -1 instead of multiplying rows in the
+      # primary key, a caller-shaped code folded to malformed_code, and a
+      # wrapper that does not return jsonb SKIPPED rather than decorated —
+      # claim_beta_invite returns json, and json -> jsonb is an ASSIGNMENT cast,
+      # so decorating it installs clean, passes every text sweep and kills the
+      # signup door at first execution. That one is why P6c CALLS it.
+      # --selftest plants thirteen defects and requires each to be caught here.
       #
       # No credentials; production untouched. Base AND selftest, per C4.
       - name: Rejections journal — a refusal is recorded, and nothing else moves

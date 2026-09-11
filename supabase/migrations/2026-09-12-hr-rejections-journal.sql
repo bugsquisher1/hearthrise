@@ -283,33 +283,90 @@ revoke execute on function public.hr_detail_bound(jsonb)
 --     specific rejection therefore wins, and a wrapper cannot double-count it.
 --     PostgREST gives each client call its own transaction, so this is also the
 --     rate bound: one request can add at most one occurrence.
+--   - it NEVER journals `rate_limited` (R1), and
+--   - every value it uses as an aggregate KEY is folded into a bounded domain
+--     BEFORE it reaches the table (R2, R3).
 -- It takes NO user argument. A recorder that accepts a victim is a recorder
 -- that can be pointed at one; auth.uid() is read here and nowhere else.
+--
+-- ── R1. rate_limited IS NOT JOURNALLED HERE. THIS IS THE 6c-ii AMPLIFIER. ──
+-- hr_rpc_gate already records its own refusals, and it SAMPLES them precisely
+-- because a rate-limit storm is the one refusal a client can produce as fast as
+-- it can open sockets. Section 6 skips the wrappers' `rate_limited` early return
+-- for that reason - but section 7 sweeps EVERY literal refusal site in the seven
+-- self-gating verbs, and their `rate_limited` return is one of them, so the
+-- sweep silently re-created the amplifier on hr_bank_move and the four farm
+-- verbs. MEASURED by the security review: 400 hr_farm_water calls with the gate
+-- tripped produced 400 durable upserts on ONE tuple and a journal reading n=387
+-- for 340 real refusals - i.e. a client-driven write rate AND a wrong number.
+-- The fix belongs here rather than in the sweep: one predicate covers every
+-- present and future caller, and it cannot be forgotten by the next patcher.
+-- The observation is not lost - the gate's own sampled record is the record.
+--
+-- ── R2/R3. A KEY IS NOT A PAYLOAD. ────────────────────────────────────────
+-- `slot` and `code` are both part of the primary key of hr_rejections, and both
+-- arrive from the caller. Unfolded, each is a row multiplier:
+--   R2  p_slot is whatever the client sent the RPC. hr_farm_water(99999, ...),
+--       hr_bank_move(2147483647, ...) and hr_claim_daily(..., -7) are all
+--       refused by the body - AFTER this function has filed a new row under a
+--       slot that does not exist. Characters are 0..5 (the bound
+--       hr_create_character enforces, player-state.sql:961); anything else is
+--       folded to -1, which is a real answer ("a refusal on no character of
+--       yours") rather than a silently invented slot 0.
+--   R3  `error` is server-authored today and therefore trusted today. One
+--       future body that leaks sqlerrm into it writes a 385-character primary
+--       key; a non-string `error` (123, {"a":1}) becomes a key as well. The
+--       code is now required to LOOK like a machine code - [a-z0-9_]{1,64} -
+--       and anything else becomes the literal `malformed_code`, with the first
+--       120 characters of what was actually sent kept in the detail where it is
+--       diagnostic instead of structural. A defect in an error path must not be
+--       able to grow the table.
 create or replace function public.hr_note_rejection(p_verb text, p_slot int, p_result jsonb)
 returns jsonb language plpgsql volatile security definer
 set search_path = public, pg_catalog as $$
 declare
-  v_uid uuid;
+  v_uid  uuid;
+  v_err  text;
+  v_code text;
+  v_slot int;
 begin
   if p_result is null or coalesce(p_result ->> 'ok', 'true') <> 'false' then
+    return p_result;
+  end if;
+  -- R1: hr_rpc_gate owns this code, and it samples it. See the header.
+  if p_result ->> 'error' = 'rate_limited' then
     return p_result;
   end if;
   if coalesce(current_setting('hearthrise.rejection_noted', true), '') = '1' then
     return p_result;
   end if;
-  v_uid := auth.uid();
-  if v_uid is null then return p_result; end if;
-  perform public.hr_record_rejection(
-    v_uid, coalesce(p_slot, 0), left(coalesce(p_verb, ''), 64),
-    coalesce(nullif(p_result ->> 'error', ''), 'unlabelled_refusal'),
-    jsonb_strip_nulls(jsonb_build_object(
-      'outcome', p_result ->> 'outcome',
-      'detail',  p_result -> 'detail')),
-    1);
-  return p_result;
-exception when others then
-  -- Same posture hr_record_rejection already takes: losing one observation is
-  -- acceptable, turning a clean refusal into a 500 is not.
+
+  -- The EXCEPTION handler starts HERE rather than at the top of the function so
+  -- that the ACCEPTED path - by far the common one, on every gated RPC in the
+  -- database - does not open a subtransaction per call. It still covers every
+  -- statement that can raise: auth.uid() casts a GUC, and the recorder writes.
+  begin
+    v_uid := auth.uid();
+    if v_uid is null then return p_result; end if;
+    v_slot := case when p_slot between 0 and 5 then p_slot else -1 end;      -- R2
+    v_err  := p_result ->> 'error';                                          -- R3
+    v_code := case when v_err ~ '^[a-z0-9_]{1,64}$' then v_err else 'malformed_code' end;
+    perform public.hr_record_rejection(
+      v_uid, v_slot, left(coalesce(p_verb, ''), 64), v_code,
+      jsonb_strip_nulls(jsonb_build_object(
+        'outcome',   p_result ->> 'outcome',
+        'detail',    p_result -> 'detail',
+        'raw_error', case when v_code = 'malformed_code'
+                          then left(coalesce(v_err, '(null)'), 120) end)),
+      1);
+  exception when others then
+    -- Same posture hr_record_rejection already takes: losing one observation is
+    -- acceptable, turning a clean refusal into a 500 is not. It is no longer
+    -- SILENT, though - a recorder that swallows its own failures is how a
+    -- journal quietly stops journalling. WARNING reaches the Postgres log
+    -- without touching the response the player gets.
+    raise warning 'hr_note_rejection(%) could not record: % [%]', p_verb, sqlerrm, sqlstate;
+  end;
   return p_result;
 end $$;
 revoke execute on function public.hr_note_rejection(text, int, jsonb)
@@ -393,6 +450,20 @@ end $$;
 -- names, which the wrapper preserves verbatim) and 0 when it does not - an
 -- account-scoped verb has no character. `p_slot_id` (hr_buy_hero_slot) is NOT
 -- p_slot and the pattern says so.
+--
+-- ── R4. A WRAPPER THAT DOES NOT RETURN jsonb IS SKIPPED, NOT PATCHED. ─────
+-- hr_note_rejection takes and returns jsonb. `claim_beta_invite` returns
+-- **json** (and so does its twin), and json -> jsonb is an ASSIGNMENT cast, not
+-- an implicit one: the patched body PARSES, INSTALLS, passes the length
+-- arithmetic below and passes every static sweep in section 8 - and then raises
+-- `function hr_note_rejection(unknown, integer, json) does not exist` the first
+-- time anyone claims a beta invite, because PL/pgSQL resolves a call at first
+-- EXECUTION. That is a live outage on the signup door produced by a guard that
+-- could only read text. The predicate is a TYPE check on both halves, it runs
+-- BEFORE the patch, and section 8(i) re-asserts it from the catalogue so a
+-- future non-jsonb wrapper is skipped rather than broken. Adding the cast
+-- instead was rejected: it would change what claim_beta_invite returns to
+-- PostgREST for an observability feature.
 do $$
 declare
   r          record;
@@ -403,10 +474,15 @@ declare
   v_hits     int;
   v_patched  int := 0;
   v_already  int := 0;
+  v_skipped  int := 0;
 begin
   for r in
     select p.oid, p.proname,
            pg_get_function_arguments(p.oid) as args,
+           pg_get_function_result(p.oid) as ret,
+           (select pg_get_function_result(q.oid) from pg_proc q
+              join pg_namespace m on m.oid = q.pronamespace
+             where m.nspname = 'public' and q.proname = p.proname || '__ungated' limit 1) as twin_ret,
            coalesce((select string_agg(format_type(a.t, null), ',' order by a.o)
                        from unnest(p.proargtypes) with ordinality a(t, o)), '') as types
       from pg_proc p
@@ -419,6 +495,13 @@ begin
     v_src := replace(pg_get_functiondef(r.oid), chr(13), '');
     if position('hr_note_rejection' in v_src) > 0 then
       v_already := v_already + 1;
+      continue;
+    end if;
+    -- R4, before anything else touches the body.
+    if r.ret is distinct from 'jsonb' or r.twin_ret is distinct from 'jsonb' then
+      raise notice 'hr-rejections-journal: SKIPPING % - returns %/% , not jsonb; the decorator '
+                   'would resolve at first execution and fail there', r.proname, r.ret, r.twin_ret;
+      v_skipped := v_skipped + 1;
       continue;
     end if;
 
@@ -451,8 +534,8 @@ begin
     raise exception 'hr-rejections-journal: found NO gated wrappers - the discovery query is wrong, '
                     'and a coverage change that covers nothing must not report success';
   end if;
-  raise notice 'hr-rejections-journal: % gated wrapper(s) decorated, % already carried the seam',
-    v_patched, v_already;
+  raise notice 'hr-rejections-journal: % gated wrapper(s) decorated, % already carried the seam, '
+               '% skipped as non-jsonb (R4)', v_patched, v_already, v_skipped;
 end $$;
 
 -- ========================================================================
@@ -765,27 +848,183 @@ begin
                          'recorded (n=%s, expected 2)', v_n);
     end if;
 
+    -- ── (g2/g3/g4) THE THREE KEY BOUNDS, DRIVEN THROUGH THE DECORATOR ─────
+    --    These need an ATTRIBUTABLE caller, so the synthetic subject is set
+    --    transaction-locally and the once-flag is cleared before each probe.
+    --    Both are undone below; the whole sub-block rolls back regardless.
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+    if auth.uid() is distinct from v_uid then
+      raise exception using errcode = 'HR840',
+        message = 'GATE(g2): the synthetic subject did not take, so the decorator probes below '
+               || 'would pass by writing nothing and would prove nothing';
+    end if;
+
+    -- (g2) R1: rate_limited is NEVER journalled here. hr_rpc_gate owns it and
+    --      SAMPLES it; sweeping it in the seven re-created the 6c-ii write
+    --      amplifier - 400 gate-tripped calls, 400 durable upserts on one tuple.
+    perform set_config('hearthrise.rejection_noted', '', true);
+    select count(*) into v_n from public.hr_rejections where user_id = v_uid and code = 'rate_limited';
+    perform public.hr_note_rejection('farm_water', 0, '{"ok":false,"error":"rate_limited"}'::jsonb);
+    perform public.hr_note_rejection('bank_move', 0,
+      '{"ok":false,"outcome":"refused","error":"rate_limited"}'::jsonb);
+    if (select count(*) from public.hr_rejections where user_id = v_uid and code = 'rate_limited') <> v_n then
+      raise exception using errcode = 'HR840',
+        message = 'GATE(g2): the decorator journalled rate_limited - that is a client-driven write '
+               || 'rate on one tuple and a double count against the gate''s own sampled record';
+    end if;
+    if coalesce(current_setting('hearthrise.rejection_noted', true), '') = '1' then
+      raise exception using errcode = 'HR840',
+        message = 'GATE(g2): a rate_limited call still burned the once-per-transaction flag, so the '
+               || 'real refusal that followed it in the same request would be suppressed';
+    end if;
+
+    -- (g3) R2: p_slot is an aggregate KEY and it is whatever the client sent.
+    --      Characters are 0..5; anything else is folded to -1 rather than
+    --      filed under an invented slot 0 or under a new row per integer.
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('farm_water', 99999, '{"ok":false,"error":"empty_plot"}'::jsonb);
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('bank_move', 2147483647, '{"ok":false,"error":"empty_plot"}'::jsonb);
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('farm_water', -7, '{"ok":false,"error":"empty_plot"}'::jsonb);
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('farm_water', null, '{"ok":false,"error":"empty_plot"}'::jsonb);
+    select count(*) into v_n from public.hr_rejections
+     where user_id = v_uid and code = 'empty_plot';
+    if v_n <> 1 then
+      raise exception using errcode = 'HR840',
+        message = format('GATE(g3): four out-of-range slots produced %s rows - a client-chosen '
+                         'integer is multiplying rows in the primary key', v_n);
+    end if;
+    if (select slot from public.hr_rejections where user_id = v_uid and code = 'empty_plot') <> -1 then
+      raise exception using errcode = 'HR840',
+        message = 'GATE(g3): an out-of-range slot was stored as itself or silently as 0';
+    end if;
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('farm_water', 3, '{"ok":false,"error":"empty_plot"}'::jsonb);
+    if not exists (select 1 from public.hr_rejections
+                    where user_id = v_uid and code = 'empty_plot' and slot = 3) then
+      raise exception using errcode = 'HR840',
+        message = 'GATE(g3): a LEGAL slot (3) was folded away too - the bound is not a bound, it is '
+               || 'a bug that loses attribution';
+    end if;
+
+    -- (g4) R3: `code` is the other half of the key, and it is caller-shaped.
+    --      A body that one day leaks sqlerrm must not be able to write a
+    --      385-character primary key, and a non-string `error` must not become
+    --      a key at all. Both become the literal `malformed_code`, with what
+    --      was actually sent kept in the detail where it is diagnostic.
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('farm_water', 0,
+      jsonb_build_object('ok', false, 'error', repeat('E', 385)));
+    -- asserted HERE, against the 385-character probe, rather than after the
+    -- shorter ones below: last_detail is last-writer-wins, so a bound checked
+    -- after a 22-character probe is a bound that is never tested.
+    select * into v_row from public.hr_rejections where user_id = v_uid and code = 'malformed_code';
+    if v_row.code is null then
+      raise exception using errcode = 'HR840',
+        message = 'GATE(g4): a 385-character code was not folded into malformed_code';
+    end if;
+    if length(v_row.last_detail ->> 'raw_error') <> 120 then
+      raise exception using errcode = 'HR840',
+        message = format('GATE(g4): the 385-character error was carried into the detail as %s '
+                         'characters, expected 120', length(v_row.last_detail ->> 'raw_error'));
+    end if;
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('farm_water', 0,
+      jsonb_build_object('ok', false, 'error', jsonb_build_object('a', 1)));
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('farm_water', 0,
+      '{"ok":false,"error":"Vault; DROP TABLE x --"}'::jsonb);
+    select count(*) into v_n from public.hr_rejections
+     where user_id = v_uid and code not in ('version_conflict', 'still_watered', 'empty_plot');
+    if v_n <> 1 then
+      raise exception using errcode = 'HR840',
+        message = format('GATE(g4): three malformed codes produced %s row(s) instead of one '
+                         'malformed_code bucket - the code column is unbounded', v_n);
+    end if;
+    select * into v_row from public.hr_rejections
+     where user_id = v_uid and code not in ('version_conflict', 'still_watered', 'empty_plot');
+    if v_row.code <> 'malformed_code' then
+      raise exception using errcode = 'HR840',
+        message = format('GATE(g4): a caller-shaped code was stored verbatim: %s', left(v_row.code, 80));
+    end if;
+    if v_row.n <> 3 then
+      raise exception using errcode = 'HR840',
+        message = format('GATE(g4): the malformed bucket counts %s of 3 - folding lost occurrences', v_row.n);
+    end if;
+    if v_row.last_detail ->> 'raw_error' is null then
+      raise exception using errcode = 'HR840',
+        message = 'GATE(g4): the malformed code was dropped without keeping what was sent - the '
+               || 'bucket is then undiagnosable';
+    end if;
+    -- a WELL-FORMED code still arrives as itself
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('farm_water', 0, '{"ok":false,"error":"insufficient_seed"}'::jsonb);
+    if not exists (select 1 from public.hr_rejections
+                    where user_id = v_uid and code = 'insufficient_seed') then
+      raise exception using errcode = 'HR840',
+        message = 'GATE(g4): a legitimate machine code was rejected by the shape test - the filter '
+               || 'is eating real codes';
+    end if;
+    perform set_config('request.jwt.claim.sub', '', true);
+
     raise exception using errcode = 'HR841', message = 'hr-rejections-journal self-check complete - rolling back';
   exception
     when sqlstate 'HR840' then raise;
     when sqlstate 'HR841' then null;
   end;
   perform set_config('hearthrise.rejection_noted', '', true);
+  perform set_config('request.jwt.claim.sub', '', true);
 
   -- (h) THE PROBES LEFT NOTHING BEHIND ------------------------------------
   if exists (select 1 from public.hr_rejections where user_id = v_uid) then
     raise exception 'GATE(h): the self-check LEAKED a synthetic rejection row';
   end if;
 
-  -- (i) COVERAGE - every gated wrapper carries the seam, exactly once ------
+  -- (i) COVERAGE - every jsonb gated wrapper carries the seam, exactly once -
+  --     The jsonb predicate is R4's and it is stated in BOTH directions: a
+  --     non-jsonb wrapper must be SKIPPED (below), and anything that WAS
+  --     decorated must return jsonb on both halves (i2). A text-only sweep is
+  --     what let a body install that could not resolve at runtime.
   select string_agg(p.proname, ', ') into v_bad
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.prokind = 'f'
      and exists (select 1 from pg_proc q join pg_namespace m on m.oid = q.pronamespace
                   where m.nspname = 'public' and q.proname = p.proname || '__ungated')
+     and pg_get_function_result(p.oid) = 'jsonb'
+     and coalesce((select pg_get_function_result(q.oid) from pg_proc q
+                     join pg_namespace m on m.oid = q.pronamespace
+                    where m.nspname = 'public' and q.proname = p.proname || '__ungated' limit 1), '')
+         = 'jsonb'
      and (select count(*) from regexp_matches(p.prosrc, 'hr_note_rejection\(', 'g')) <> 1;
   if v_bad is not null then
     raise exception 'GATE(i): gated wrapper(s) without exactly one seam: %', v_bad;
+  end if;
+
+  -- (i2) NOTHING NON-jsonb WAS DECORATED. The other half of R4: if a json
+  --      wrapper ever carries the seam, the call cannot resolve and the verb is
+  --      dead for every player the moment one of them uses it.
+  select string_agg(p.proname || ' (' || pg_get_function_result(p.oid) || '/'
+                    || coalesce((select pg_get_function_result(q.oid) from pg_proc q
+                                   join pg_namespace m on m.oid = q.pronamespace
+                                  where m.nspname = 'public'
+                                    and q.proname = p.proname || '__ungated' limit 1), '?') || ')',
+                    ', ') into v_bad
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f'
+     and position('hr_note_rejection' in p.prosrc) > 0
+     and exists (select 1 from pg_proc q join pg_namespace m on m.oid = q.pronamespace
+                  where m.nspname = 'public' and q.proname = p.proname || '__ungated')
+     and (pg_get_function_result(p.oid) <> 'jsonb'
+       or coalesce((select pg_get_function_result(q.oid) from pg_proc q
+                      join pg_namespace m on m.oid = q.pronamespace
+                     where m.nspname = 'public' and q.proname = p.proname || '__ungated' limit 1), '')
+           <> 'jsonb');
+  if v_bad is not null then
+    raise exception 'GATE(i2): a NON-jsonb wrapper carries the decorator: %. json -> jsonb is an '
+                    'assignment cast, so that body installs and then raises "function does not '
+                    'exist" the first time a player calls it', v_bad;
   end if;
   select count(*) into v_n
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace

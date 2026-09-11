@@ -143,9 +143,9 @@ const MUTATIONS = {
        + 'and it is the shape a well-meaning "let the client know it was logged" patch takes. P5 '
        + 'must catch it (the migration\'s own GATE(b) is neutered here so the guard has to).',
     pairs: [
-      ['  v_uid := auth.uid();\n  if v_uid is null then return p_result; end if;',
-        "  v_uid := auth.uid();\n  if v_uid is null then return p_result; end if;\n"
-        + "  p_result := p_result || jsonb_build_object('journalled', true);"],
+      ['    v_uid := auth.uid();\n    if v_uid is null then return p_result; end if;',
+        '    v_uid := auth.uid();\n    if v_uid is null then return p_result; end if;\n'
+        + "    p_result := p_result || jsonb_build_object('journalled', true);"],
       ["  if public.hr_note_rejection('probe', 0, '{\"ok\":false,\"error\":\"insufficient_gold\",\"need\":9}'::jsonb)\n"
         + "       is distinct from '{\"ok\":false,\"error\":\"insufficient_gold\",\"need\":9}'::jsonb then",
         '  if false then'],
@@ -204,6 +204,59 @@ const MUTATIONS = {
         + "              where table_schema = 'public' and table_name = 'hr_rejections'\n"
         + "                and grantee in ('anon', 'authenticated', 'PUBLIC')) then",
         '  if false then'],
+    ],
+  },
+  /* R1-R4 — the four defects the security review found in the first revision.
+     Each one SHIPPED in 9a29ce71 and each one is now a mutation, because a fix
+     with no failing test behind it is a fix that comes back. The shared second
+     pair neuters the migration's own HR840 self-check so that THIS guard has to
+     be the thing that notices; `raise` -> `null` on one handler is the smallest
+     edit that does it. */
+  rate_limited_decorated: {
+    why: 'R1 REGRESSED: the decorator journals rate_limited again. hr_rpc_gate SAMPLES that code '
+       + 'because a rate-limit storm is the one refusal a client produces as fast as it can open '
+       + 'sockets; decorating it makes the server do MORE durable work the harder it is hammered, '
+       + 'all serialised on one tuple, and double-counts against the gate. MEASURED: 200 gate-tripped '
+       + 'hr_farm_water calls go from 63 writes to ~203. P11 must catch it.',
+    pairs: [
+      ["  -- R1: hr_rpc_gate owns this code, and it samples it. See the header.\n"
+        + "  if p_result ->> 'error' = 'rate_limited' then\n    return p_result;\n  end if;\n", ''],
+      ["    when sqlstate 'HR840' then raise;", "    when sqlstate 'HR840' then null;"],
+    ],
+  },
+  slot_unfolded: {
+    why: 'R2 REGRESSED: p_slot goes back to coalesce(p_slot, 0). It is part of the PRIMARY KEY and '
+       + 'the client chooses it, so hr_farm_water(99999,…), hr_bank_move(2147483647,…) and '
+       + 'hr_claim_daily(…,-7) each file a NEW row before the body refuses them — a row multiplier '
+       + 'reachable from a browser, and every impossible slot blamed on slot 0. P12 must catch it.',
+    pairs: [
+      ['    v_slot := case when p_slot between 0 and 5 then p_slot else -1 end;      -- R2',
+        '    v_slot := coalesce(p_slot, 0);'],
+      ["    when sqlstate 'HR840' then raise;", "    when sqlstate 'HR840' then null;"],
+    ],
+  },
+  code_unbounded: {
+    why: 'R3 REGRESSED: `error` is written to the key column verbatim. It is server-authored today, '
+       + 'so this is latent — until one body leaks sqlerrm into it and writes a 385-character primary '
+       + 'key, or an `error` that is a number or an object becomes a key. A defect in an error path '
+       + 'must not be able to grow the table. P13 must catch it.',
+    pairs: [
+      ["    v_code := case when v_err ~ '^[a-z0-9_]{1,64}$' then v_err else 'malformed_code' end;",
+        "    v_code := coalesce(nullif(v_err, ''), 'unlabelled_refusal');"],
+      ["    when sqlstate 'HR840' then raise;", "    when sqlstate 'HR840' then null;"],
+    ],
+  },
+  non_jsonb_wrapper_patched: {
+    why: 'R4 REGRESSED: the jsonb predicate is removed, so claim_beta_invite (json/json) is decorated. '
+       + 'json -> jsonb is an ASSIGNMENT cast and PL/pgSQL resolves a call at FIRST EXECUTION, so the '
+       + 'body installs, passes the length arithmetic, passes every static sweep — and the signup door '
+       + 'raises "function hr_note_rejection(unknown, integer, json) does not exist" for the next '
+       + 'player who claims an invite. P6b and P6c (the only executed probe) must catch it.',
+    pairs: [
+      ["    if r.ret is distinct from 'jsonb' or r.twin_ret is distinct from 'jsonb' then",
+        '    if false then'],
+      ["  if v_bad is not null then\n    raise exception 'GATE(i2)",
+        "  if false then\n    raise exception 'GATE(i2)"],
     ],
   },
   once_per_transaction_dropped: {
@@ -328,14 +381,144 @@ async function run(mutate) {
            n::text as n
       from public.hr_rejections where user_id = $1 and code = 'version_conflict'`, [uid]))[0];
 
+  // ── P11. R1: THE §6c-ii WRITE AMPLIFIER MUST NOT COME BACK ────────────
+  //    hr_rpc_gate SAMPLES its rate_limited records precisely because a
+  //    rate-limit storm is the one refusal a client can produce as fast as it
+  //    can open sockets. The S7 sweep decorated the seven verbs' `rate_limited`
+  //    early return and re-created the amplifier on hr_bank_move and the four
+  //    farm verbs. This is measured, not read: 200 calls with the gate tripped,
+  //    inside ONE transaction so pg_stat_get_xact_* gives an EXACT write count
+  //    (the once-flag is cleared between calls, which is what N separate
+  //    requests do). Nothing here is typed: the gate's limit is derived from
+  //    how many real refusals got through, and the expected sampled total from
+  //    the server's own hr_rate_sample_weight.
+  await q('delete from public.hr_rejections where user_id = $1', [uid]);
+  await gate();
+  await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);
+  const STORM = 200;
+  /* A DELTA, not an absolute. MEASURED 2026-09-12: PGlite does not reset the
+     pg_stat_get_xact_* counters between transactions the way a server backend
+     does, so reading them once after the storm charges it with every write the
+     earlier probes made (P4 alone does 200). A guard that reports 267 writes
+     for a 63-write storm is a guard that fires on its own bookkeeping. */
+  await db.exec(`begin;
+    create temp table __storm0 as
+      select (pg_stat_get_xact_tuples_inserted(c.oid)
+            + pg_stat_get_xact_tuples_updated(c.oid))::bigint as w
+        from pg_class c where c.oid = 'public.hr_rejections'::regclass;
+    do $storm$ declare i int; begin
+      for i in 1 .. ${STORM} loop
+        perform set_config('hearthrise.rejection_noted', '', true);
+        perform public.hr_farm_water(0, 0, gen_random_uuid());
+      end loop;
+    end $storm$;
+    create temp table __storm as
+      select (pg_stat_get_xact_tuples_inserted(c.oid)
+            + pg_stat_get_xact_tuples_updated(c.oid)
+            - (select w from __storm0))::bigint as w
+        from pg_class c where c.oid = 'public.hr_rejections'::regclass;
+    commit;`);
+  obs.p11 = (await q(`
+    select (select w::text from __storm) as writes,
+           (select coalesce(sum(n), 0)::text from public.hr_rejections
+             where user_id = $1 and code = 'rate_limited') as n_rate_limited,
+           (select coalesce(sum(n), 0)::text from public.hr_rejections
+             where user_id = $1 and code <> 'rate_limited') as n_passed,
+           (select coalesce(sum(public.hr_rate_sample_weight(i)), 0)::text
+              from generate_series(1, greatest(0, ${STORM}
+                   - (select coalesce(sum(n), 0)::int from public.hr_rejections
+                       where user_id = $1 and code <> 'rate_limited'))) i) as expected_sampled`,
+  [uid]))[0];
+  await q('drop table if exists __storm');
+  await q('drop table if exists __storm0');
+
+  // ── P12. R2: p_slot IS AN AGGREGATE KEY AND THE CLIENT CHOOSES IT ─────
+  //    Driven through the REAL RPC, with the slot the client would send.
+  await q('delete from public.hr_rejections where user_id = $1', [uid]);
+  await gate();
+  obs.p12_env = await asUser(uid, 'select public.hr_farm_water(99999, 0, $1) as r', [UUID()]);
+  await gate();
+  await asUser(uid, 'select public.hr_farm_water(2147483647, 0, $1) as r', [UUID()]);
+  await gate();
+  await asUser(uid, 'select public.hr_farm_water(-7, 0, $1) as r', [UUID()]);
+  obs.p12_rows = await rows();
+
+  // ── P13. R3: SO IS `code`, AND ONE DAY A BODY WILL LEAK sqlerrm INTO IT
+  await q('delete from public.hr_rejections where user_id = $1', [uid]);
+  await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);
+  await db.exec(`begin;
+    select set_config('hearthrise.rejection_noted', '', true);
+    select public.hr_note_rejection('farm_water', 0,
+      jsonb_build_object('ok', false, 'error', repeat('E', 385)));
+    commit;`);
+  obs.p13_long = (await q(
+    'select code, n::text as n, last_detail from public.hr_rejections where user_id = $1', [uid]))[0];
+  await db.exec(`begin;
+    select set_config('hearthrise.rejection_noted', '', true);
+    select public.hr_note_rejection('farm_water', 0,
+      jsonb_build_object('ok', false, 'error', jsonb_build_object('a', 1)));
+    commit;`);
+  await db.exec(`begin;
+    select set_config('hearthrise.rejection_noted', '', true);
+    select public.hr_note_rejection('farm_water', 0,
+      '{"ok":false,"error":"Vault; DROP TABLE x --"}'::jsonb);
+    commit;`);
+  await db.exec(`begin;
+    select set_config('hearthrise.rejection_noted', '', true);
+    select public.hr_note_rejection('farm_water', 0,
+      '{"ok":false,"error":"insufficient_seed"}'::jsonb);
+    commit;`);
+  obs.p13_rows = await rows();
+
   // ── P6. CHAIN-END SWEEP ───────────────────────────────────────────────
+  //    The jsonb predicate is R4's: hr_note_rejection takes and returns jsonb,
+  //    json -> jsonb is an ASSIGNMENT cast, and PL/pgSQL resolves a call at
+  //    first EXECUTION — so a json wrapper (claim_beta_invite) decorated here
+  //    installs clean, passes every text sweep, and kills the signup door the
+  //    first time a player claims an invite. Those wrappers must be SKIPPED,
+  //    and P6b asserts the skip from both sides.
   obs.p6_wrappers_missing = (await q(`
     select coalesce(string_agg(p.proname, ', ' order by p.proname), '') as r
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'public' and p.prokind = 'f'
        and exists (select 1 from pg_proc q2 join pg_namespace m on m.oid = q2.pronamespace
                     where m.nspname = 'public' and q2.proname = p.proname || '__ungated')
+       and pg_get_function_result(p.oid) = 'jsonb'
+       and coalesce((select pg_get_function_result(q2.oid) from pg_proc q2
+                       join pg_namespace m on m.oid = q2.pronamespace
+                      where m.nspname = 'public' and q2.proname = p.proname || '__ungated' limit 1), '')
+           = 'jsonb'
        and (select count(*) from regexp_matches(p.prosrc, 'hr_note_rejection\\(', 'g')) <> 1`))[0].r;
+  obs.p6b_non_jsonb_decorated = (await q(`
+    select coalesce(string_agg(p.proname, ', ' order by p.proname), '') as r
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind = 'f'
+       and position('hr_note_rejection' in p.prosrc) > 0
+       and exists (select 1 from pg_proc q2 join pg_namespace m on m.oid = q2.pronamespace
+                    where m.nspname = 'public' and q2.proname = p.proname || '__ungated')
+       and (pg_get_function_result(p.oid) <> 'jsonb'
+         or coalesce((select pg_get_function_result(q2.oid) from pg_proc q2
+                        join pg_namespace m on m.oid = q2.pronamespace
+                       where m.nspname = 'public' and q2.proname = p.proname || '__ungated' limit 1), '')
+             <> 'jsonb')`))[0].r;
+  /* POSITIVE CONTROL. If claim_beta_invite ever returns jsonb the R4 predicate
+     stops being exercised by anything, and P6b would go green by covering
+     nothing — the always-null-probe family. Name it, so that day is loud. */
+  obs.p6b_control = (await q(
+    "select pg_get_function_result(oid) as r from pg_proc where oid = 'public.claim_beta_invite(text)'::regprocedure"))[0]?.r;
+  /* AND THE RUNTIME PROOF, which is the only thing that could have caught this:
+     call the json wrapper for real. A decorated body raises 42883 "function
+     hr_note_rejection(unknown, integer, json) does not exist" HERE and nowhere
+     earlier. */
+  /* Called as the OWNER, not as `authenticated`: the PGlite fixture does not
+     reproduce the platform's grant on this verb (`permission denied for
+     function claim_beta_invite`), and the defect being probed is CALL
+     RESOLUTION, which does not care about the caller's role. */
+  await gate();
+  await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);
+  obs.p6c_json_call = await db.query('select public.claim_beta_invite($1) as r', ['__no_such_code__'])
+    .then((r) => ({ ok: true, r: r.rows[0]?.r }))
+    .catch((e) => ({ ok: false, err: String(e?.message || e) }));
   obs.p6_wrapper_count = Number((await q(`
     select count(*)::text as r
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -483,6 +666,50 @@ function grade(obs, migText) {
     `P4: the map totals ${cap?.total} and n is ${cap?.n} of 200 refusals — the two disagree, so the `
     + 'breakdown cannot be trusted against the count');
 
+  // ── P11. R1 — the rate-limit storm, measured
+  const st = obs.p11;
+  const writes = Number(st?.writes);
+  const passed = Number(st?.n_passed);
+  ok(passed > 0 && passed < 200,
+    `P11: the storm produced ${passed} gate-passing refusals out of 200 — the gate did not trip, so `
+    + 'nothing about rate_limited was measured');
+  ok(writes <= passed + 3,
+    `P11: 200 gate-tripped calls made ${writes} durable writes to hr_rejections (budget ${passed + 3} `
+    + `= ${passed} real refusals + the gate's 3 sampled records). The §6c-ii write amplifier is back: `
+    + 'a client can drive one tuple as fast as it can open sockets');
+  ok(Number(st?.n_rate_limited) === Number(st?.expected_sampled),
+    `P11: rate_limited counts ${st?.n_rate_limited}, but hr_rate_sample_weight accounts for `
+    + `${st?.expected_sampled}. The journal is double-counting against the gate's own sampled record, `
+    + 'so the number an operator reads is wrong in the one place it is easiest to flood');
+
+  // ── P12. R2 — a client-chosen slot cannot multiply rows
+  ok(obs.p12_env && obs.p12_env.ok === false,
+    `P12: hr_farm_water on slot 99999 did not refuse: ${JSON.stringify(obs.p12_env)}`);
+  ok(obs.p12_rows.length === 1,
+    `P12: three out-of-range slots produced ${obs.p12_rows.length} rows — p_slot is part of the `
+    + 'primary key and the client picks it, so this is a row multiplier reachable from a browser');
+  ok(obs.p12_rows[0] && Number(obs.p12_rows[0].slot) === -1,
+    `P12: an impossible slot was filed as ${obs.p12_rows[0]?.slot} — either stored verbatim, or `
+    + 'silently blamed on slot 0, which attributes a refusal to a character that did not make it');
+
+  // ── P13. R3 — a caller-shaped code cannot become an unbounded key
+  ok(obs.p13_long?.code === 'malformed_code',
+    `P13: a 385-character error was stored as the primary key ("${String(obs.p13_long?.code).slice(0, 40)}…")`);
+  ok(String(obs.p13_long?.last_detail?.raw_error ?? '').length === 120,
+    `P13: the raw error was carried into the detail as `
+    + `${String(obs.p13_long?.last_detail?.raw_error ?? '').length} characters, expected 120 — `
+    + 'bounded, and kept, so the bucket stays diagnosable');
+  {
+    const mal = obs.p13_rows.find((r) => r.code === 'malformed_code');
+    ok(obs.p13_rows.length === 2,
+      `P13: three malformed codes and one good one produced ${obs.p13_rows.length} rows, expected 2 `
+      + '(one malformed_code bucket + insufficient_seed)');
+    ok(mal && Number(mal.n) === 3,
+      `P13: the malformed bucket counts ${mal?.n} of 3 — folding lost occurrences`);
+    ok(obs.p13_rows.some((r) => r.code === 'insufficient_seed'),
+      'P13: a legitimate machine code was eaten by the shape test');
+  }
+
   // ── P6. chain-end sweep
   ok(obs.p6_wrappers_missing === '',
     `P6: gated wrapper(s) without exactly one seam at CHAIN END: ${obs.p6_wrappers_missing} — a later `
@@ -491,6 +718,19 @@ function grade(obs, migText) {
   ok(obs.p6_wrapper_count >= 40,
     `P6: only ${obs.p6_wrapper_count} gated wrappers exist — discovery is broken or the client surface `
     + 'shrank unnoticed (49 measured 2026-09-11)');
+
+  // ── P6b/P6c. R4 — a wrapper that does not return jsonb is SKIPPED
+  ok(obs.p6b_non_jsonb_decorated === '',
+    `P6b: non-jsonb wrapper(s) carry the decorator: ${obs.p6b_non_jsonb_decorated}. json → jsonb is an `
+    + 'ASSIGNMENT cast, so that body installs, passes every text sweep, and then raises "function '
+    + 'hr_note_rejection(unknown, integer, json) does not exist" the first time a player calls it');
+  ok(obs.p6b_control === 'json',
+    `P6b: claim_beta_invite now returns "${obs.p6b_control}", not json — it was the ONLY non-jsonb `
+    + 'wrapper measured (2026-09-11) and therefore the only thing exercising the R4 predicate. '
+    + 'Find another control or this check is covering nothing');
+  ok(obs.p6c_json_call?.ok === true,
+    `P6c: calling the json wrapper claim_beta_invite RAISED: ${obs.p6c_json_call?.err}. This is the `
+    + 'only probe that can see R4 — the signup door is dead and every static sweep was green');
   for (const [sig, r] of Object.entries(obs.p6_seven)) {
     ok(r && r.seam === true, `P6: ${sig} carries no seam at CHAIN END`);
     ok(r && r.bare === false, `P6: ${sig} still returns a refusal that nothing records`);
@@ -588,9 +828,12 @@ async function main() {
   }
   console.log('rejections-journal: OK — a refusal leaves one attributable row with its verb, an '
     + 'accepted call leaves none, two verbs of one code stay one row with both counted, the map is '
-    + 'capped at 25 keys with an exact total, every gated wrapper and all seven self-gating verbs '
-    + 'carry the seam at chain end, the envelope is byte-identical across the decorator, one '
-    + 'occurrence per transaction, and a second apply is a no-op.');
+    + 'capped at 25 keys with an exact total, every JSONB gated wrapper and all seven self-gating '
+    + 'verbs carry the seam at chain end while the json one is skipped and still callable, a '
+    + '200-call rate-limit storm costs 63 writes and leaves the gate\'s sampled count exact, an '
+    + 'out-of-range slot folds to -1 and a caller-shaped code to malformed_code, the envelope is '
+    + 'byte-identical across the decorator, one occurrence per transaction, and a second apply is '
+    + 'a no-op.');
   return 0;
 }
 

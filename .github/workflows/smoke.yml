@@ -413,6 +413,45 @@ jobs:
           node tests/retreat-apply.mjs
           node tests/retreat-apply.mjs --selftest
 
+      # DOES A REFUSAL LEAVE A TRACE, WITH ITS VERB, AND CHANGE NOTHING?
+      # 2026-09-11: Paione needed 4-8 taps to equip a staff and stop-combat
+      # snapped back into the fight — version_conflict refusals during a fight.
+      # His hr_rejections row for the day read `version_conflict | accrue | n=10`
+      # and the equips were IN that 10, unreadable: the aggregate key is (user,
+      # slot, day, code) and `intent` was last-writer-wins. Worse, most refusals
+      # never reached the journal at all — hr_farm_plant had 12 refusal sites and
+      # 0 recorder calls, and farming sat at zero for ten days with nobody able
+      # to see it.
+      #
+      # 2026-09-12-hr-rejections-journal.sql fixes both by PATCHING 56 bodies it
+      # does not own, so CHAIN END is the only place the property can be
+      # asserted: a later migration restating any of them from a template
+      # silently deletes the seam (the b484-b487 wave). This replays the WHOLE
+      # chain and drives a real player through the REAL rate-gated RPCs.
+      #
+      # The load-bearing assertion is not "a row appears". It is that the
+      # envelope the PLAYER receives is byte-identical across the decorator, that
+      # an ACCEPTED call writes nothing, and that the journal cannot become
+      # game_events: one row per (user, slot, day, code) however many verbs, at
+      # most 25 keys in the map however many a caller invents, at most one
+      # occurrence per transaction, and — the four the security review found in
+      # the first revision — rate_limited never journalled here (a 200-call
+      # storm costs 63 writes, MEASURED with pg_stat_get_xact_*, not 203), a
+      # client-chosen slot folded to -1 instead of multiplying rows in the
+      # primary key, a caller-shaped code folded to malformed_code, and a
+      # wrapper that does not return jsonb SKIPPED rather than decorated —
+      # claim_beta_invite returns json, and json -> jsonb is an ASSIGNMENT cast,
+      # so decorating it installs clean, passes every text sweep and kills the
+      # signup door at first execution. That one is why P6c CALLS it.
+      # --selftest plants thirteen defects and requires each to be caught here.
+      #
+      # No credentials; production untouched. Base AND selftest, per C4.
+      - name: Rejections journal — a refusal is recorded, and nothing else moves
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/rejections-journal.mjs
+          node tests/rejections-journal.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that

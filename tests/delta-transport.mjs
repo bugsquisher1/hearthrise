@@ -106,49 +106,43 @@ import { join, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
-import { bootChain, ROOT } from './pglite-chain.mjs';
+import { bootReplay, ROOT } from './schema-replay.mjs';
 
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 
-/* The same EXTRA chain tests/activity-intent.mjs appends, and for the same
-   reasons — hr_apply fails closed without the daily budget, the collect reads
-   hr_offline_cap_ms, key-hygiene must be LAST of anything that replaces
-   hr_apply. Kept as a literal rather than imported so a change to that file's
-   ordering cannot silently change what this one runs against. */
-const EXTRA = [
-  ['catalogue', MIG('2026-08-11-catalogue.generated.sql')],
-  ['daily-budget', MIG('2026-08-11-daily-budget.sql')],
-  ['accrual', MIG('2026-08-11-accrual.sql')],
-  ['apply-engine', MIG('2026-08-11-apply-engine.sql')],
-  ['character-bootstrap', MIG('2026-08-14-character-bootstrap.sql')],
-  ['activity-intent', MIG('2026-08-15-activity-intent.sql')],
-  ['key-hygiene', MIG('2026-08-15-intent-key-hygiene.sql')],
-  ['auto-eat', MIG('2026-08-15-auto-eat.sql')],
-  ['tool-carry', MIG('2026-08-15-tool-carry.sql')],
-  /* T7's chain. claim-reward.sql adds hr_claim_lookup and hr_rate_gate's
-     `claim` bucket and touches nothing else, so it may sit after tool-carry —
-     it is deliberately NOT a file that replaces hr_apply. Without it the claim
-     verb cannot be driven at all and T7 would be a harness failure rather than
-     a result.
+/* ── THE CHAIN: tests/schema-apply-order.json, WHOLE, NOT A HAND-PICKED SET ──
+   This file used to append a 13-entry EXTRA list to the clan chain — the same
+   literal tests/activity-intent.mjs keeps, copied here so that file's ordering
+   could not silently change this one's. That was right about ORDER and wrong
+   about COVERAGE, and b532 is the bill: the list ended at 2026-08-16, while
+   `SEED_SQL` in set-activity.js grew a call to `hr_perks_of` (b349) and then to
+   `hr_attended_kills` (b502). Neither function existed in the chain, and over
+   pglite-socket that absence is not a 42883 the module's fallback ladder can
+   catch — it is a CLOSED SOCKET (see the T3 seam note), reported for two days
+   as a memory leak.
 
-     ⚠ gold-intents AND gem-daily-budget ARE REQUIRED PREDECESSORS as of
-       2026-08-16, and their absence is a REFUSAL rather than a subtle
-       divergence. claim-reward's gate body is derived from gold-intents' (it
-       carries the `shop` arm) and its §0 refuses to install against a live gate
-       that has none — precisely so that staging it onto a database production
-       does not resemble cannot silently delete that arm. gem-daily-budget is
-       here because it is the CURRENT last toucher of hr_apply, so the body this
-       harness drives is the one production runs rather than one revision back. */
-  ['gold-intents', MIG('2026-08-15-gold-intents.sql')],
-  ['gem-daily-budget', MIG('2026-08-15-gem-daily-budget.sql')],
-  ['claim-reward', MIG('2026-08-16-claim-reward.sql')],
-];
+   A hand-maintained subset can only ever describe the database on the day it
+   was written, and the transitive dependency closure of the attended read is
+   ~135 of the 162 files in the manifest — so re-deriving it here would be the
+   second copy of the apply order that tests/schema-replay.mjs's header was
+   written about ("the order needed to rebuild the database was written down
+   NOWHERE: two test files each held a hand-maintained const array covering a
+   different subset"). `bootReplay()` replays the MANIFEST, which is the single
+   source of that order, is reconciled against the directory on every boot, and
+   is snapshot-cached, so this guard now runs against the shape production has
+   and stays that shape as migrations land. T9 below is the assertion that says
+   so out loud, by name, before the wire is opened. */
 
 const UID = '00000000-0000-4000-b7d1-000000000001';
+/* T8's account. A SECOND USER rather than a second slot on the first one:
+   2026-09-08-hero-slot-buy.sql made slot > 0 an entitlement (`slot_not_owned`),
+   so a fixture that creates slot 1 out of nothing describes a character no
+   player can have. See the note at T8. */
+const UID_T8 = '00000000-0000-4000-b7d1-000000000002';
 
 const FIXTURE = `
-insert into auth.users (id) values ('${UID}') on conflict (id) do nothing;
+insert into auth.users (id) values ('${UID}'), ('${UID_T8}') on conflict (id) do nothing;
 create or replace function public.__b7d1_create(p_uid uuid, p_slot int)
 returns jsonb language plpgsql as $$
 declare v jsonb;
@@ -217,6 +211,21 @@ const MUTATIONS = {
      MIN_ACTION_MS (500), so the clamp cannot mask it, and it does not touch the
      transport at all — which is the point: T3/T7 and T1/T2/T6 all still pass
      under it. Only an INDEPENDENTLY transcribed expectation can see it. */
+  /* ── T9's mutation. A FOURTH shape: it edits no file at all. It drops
+     `hr_attended_kills` from the booted database AFTER the chain has applied,
+     which is not a forgery — it is the CONFIGURATION production is in until
+     2026-09-10-attended-loot-credit.sql is applied, and the one
+     `collectCurrentWindow`'s 42883 ladder was written for. Over pglite-socket
+     that ladder cannot run (a SQL error closes the connection), so without T9
+     this arm reproduces b532 verbatim: `harness/runtime failure: write
+     CONNECTION_CLOSED`, naming no test, no function and no file. CAUGHT here
+     means the guard now says which function is missing and which migration
+     defines it, before it opens the wire. */
+  chain_missing_attended_kills: {
+    dropFn: 'public.hr_attended_kills(uuid, int, timestamptz)',
+    why: 'the booted chain lacks a function SEED_SQL calls — the b532 red, which over pglite-socket '
+       + 'surfaces as CONNECTION_CLOSED instead of 42883 and names nothing.',
+  },
   gather_interval_halved: {
     stagedFile: 'src/core/skill-sim.js',
     why: 'the gather action interval is derived at HALF its honest value — a night pays twice the '
@@ -300,6 +309,14 @@ async function loadSources(mutate) {
     }
     await writeFile(target, before.replace(m.find, m.repl), 'utf8');
     return { src, importDir: dir, tempBase };
+  }
+
+  /* A `dropFn` mutation changes no source at all — it removes a function from
+     the booted DATABASE (see the catalogue entry and `run`). The payload is
+     read and staged exactly as in a clean run, which is the point: the only
+     difference between this arm and the control is the shape of the chain. */
+  if (mutate && MUTATIONS[mutate] && MUTATIONS[mutate].dropFn) {
+    return { src, importDir, tempBase };
   }
 
   if (mutate && MUTATIONS[mutate] && MUTATIONS[mutate].plant) {
@@ -399,6 +416,24 @@ function lastArg(args) {
     else if (c === ',' && depth === 0) start = i + 1;
   }
   return args.slice(start).trim();
+}
+
+/** Which migration file DEFINES a given function, read off disk rather than
+ *  remembered. Used only to make T9's refusal actionable: "hr_attended_kills is
+ *  missing, and 2026-09-10-attended-loot-credit.sql is the file that creates
+ *  it" is a fix; "CONNECTION_CLOSED" is an afternoon. */
+async function definersOf(names) {
+  const dir = join(ROOT, 'supabase', 'migrations');
+  const out = new Map(names.map((n) => [n, []]));
+  for (const f of (await readdir(dir)).filter((f) => f.endsWith('.sql'))) {
+    const text = (await readFile(join(dir, f), 'utf8')).replace(/\r\n/g, '\n');
+    for (const n of names) {
+      if (new RegExp(`create\\s+(?:or\\s+replace\\s+)?function\\s+public\\.${n}\\s*\\(`, 'i').test(text)) {
+        out.get(n).push(f);
+      }
+    }
+  }
+  return out;
 }
 
 /** Every .js/.ts/.mjs file in the deployed payload directory, recursively. */
@@ -523,10 +558,72 @@ async function run(mutate) {
 
   let db = null, server = null, sql = null;
   try {
-    ({ db } = await bootChain({ extra: EXTRA }));
+    ({ db } = await bootReplay());
     await db.exec(FIXTURE);
+
+    /* A `dropFn` mutation models a database ONE MIGRATION BEHIND the payload —
+       the real production configuration the 42883 ladder in
+       `collectCurrentWindow` exists for — rather than a corrupted migration
+       file. It is planted here, after the chain has applied honestly, because
+       that is the only shape that reproduces what b532 actually hit. */
+    if (mutate && MUTATIONS[mutate] && MUTATIONS[mutate].dropFn) {
+      await db.exec(`drop function ${MUTATIONS[mutate].dropFn}`);
+    }
     const made = (await db.query('select public.__b7d1_create($1,0) as v', [UID])).rows[0].v;
     ok(made.ok === true, `harness: hr_create_character returned ${JSON.stringify(made)}`);
+
+    /* ── T9. PRECONDITION: THE DATABASE MUST BE PROD-SHAPED FOR `SEED_SQL`. ──
+       THE FAILURE THIS REPLACES (b532, every candidate ff2c60ac..828996a3):
+       `✗ harness/runtime failure: write CONNECTION_CLOSED 127.0.0.1:<port>`,
+       with no test named, no function named and no file named — read for two
+       days as a memory leak in the page harness.
+
+       WHAT IT ACTUALLY WAS: `SEED_SQL` calls four server functions, and this
+       harness's chain defined only two of them. Over pglite-socket a SQL error
+       does not come back as an ErrorResponse — it CLOSES THE CONNECTION (see
+       the seam note in T3) — so `collectCurrentWindow`'s 42883 ladder, which
+       handles exactly this absence in production, cannot run here and the
+       missing function surfaces as a dead socket instead of `42883`. Before
+       b531 removed `collectCurrentWindow`'s sub-ACCRUE_MIN_MS exit, a fresh
+       character never reached `SEED_SQL` at all and the gap was invisible.
+
+       So the chain is asserted BEFORE the wire is opened, and the names are
+       READ OUT OF `SEED_SQL` rather than listed here: the fifth function the
+       next verb adds is covered the day it is added, which is the only version
+       of this assertion that does not rot. `--mutate=chain_missing_perks_of`
+       is the proof it bites — it renames hr_perks_of out of its migration and
+       requires this legible refusal, not CONNECTION_CLOSED. */
+    {
+      const seedSql = (/const SEED_SQL\s*=\s*`([\s\S]*?)`/.exec(src.setActivity) || [])[1];
+      ok(!!seedSql,
+        'T9: set-activity.js no longer declares `const SEED_SQL = `...`` — this precondition reads '
+        + 'the function names out of that literal, so it can no longer tell whether the chain '
+        + 'booted below can answer the collect at all');
+      const named = [...new Set([...seedSql.matchAll(/public\.(hr_\w+)\s*\(/g)].map((m) => m[1]))];
+      ok(named.length >= 3,
+        `T9: SEED_SQL names ${named.length} server function(s) (${named.join(', ') || 'none'}), `
+        + 'expected at least three — the extractor has stopped matching the real syntax, so this '
+        + 'precondition is vacuous and the next missing function is a CONNECTION_CLOSED again');
+      const missing = [];
+      for (const fn of named) {
+        const [r] = (await db.query(
+          'select count(*)::int as n from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace '
+          + 'where ns.nspname = $1 and p.proname = $2', ['public', fn])).rows;
+        if (!r || Number(r.n) === 0) missing.push(fn);
+      }
+      if (missing.length) {
+        const defs = await definersOf(missing);
+        ok(false,
+          `T9: the booted chain is missing ${missing.length} of the ${named.length} function(s) `
+          + `SEED_SQL calls — ${missing.map((n) => `${n} (defined by `
+            + `${defs.get(n).join(', ') || 'NO migration in supabase/migrations/ — it exists only in '
+              + 'production'})`).join('; ')}. `
+          + 'T3 would drive the real collect into that absence, and over pglite-socket a SQL error '
+          + 'closes the connection instead of returning 42883, so the failure would read as '
+          + '`harness/runtime failure: write CONNECTION_CLOSED` and name nothing. Add the migration '
+          + 'to the apply order this file boots (tests/schema-apply-order.json).');
+      }
+    }
 
     const port = await freePort();
     const { PGLiteSocketServer } = await import('@electric-sql/pglite-socket');
@@ -581,7 +678,27 @@ async function run(mutate) {
       /* index.ts:256-260, verbatim in behaviour: one statement, its own
          transaction, `set local role hr_engine` re-issued inside it. This is
          the seam the intent modules are written against, and it is the ONE
-         thing tests/activity-intent.mjs substitutes. */
+         thing tests/activity-intent.mjs substitutes.
+
+         ⚠ ONE PROPERTY OF THIS WIRE THAT PRODUCTION DOES NOT HAVE, AND IT COST
+           TWO DAYS (b532): over @electric-sql/pglite-socket, A SQL ERROR CLOSES
+           THE CONNECTION instead of coming back as an ErrorResponse. Against
+           real Postgres (and against a PGlite `exec`, which is what
+           tests/activity-intent.mjs injects) a `42883 undefined_function` is a
+           catchable error with a `code`, which is exactly what
+           `collectCurrentWindow`'s three-rung SEED_SQL fallback ladder — and
+           index.ts's copy of it — is built on. HERE that ladder is UNREACHABLE:
+           the socket dies on the first statement and the run reports
+           `harness/runtime failure: write CONNECTION_CLOSED 127.0.0.1:<port>`,
+           with no test, no statement and no function named. So:
+             · this harness can only ever exercise the TOP rung, which is why
+               the chain it boots must be the whole manifest and why T9 asserts
+               that before the server starts;
+             · the 42883 FALLBACKS themselves are not testable on this wire and
+               are not claimed here — tests/activity-intent.mjs's PGlite `exec`
+               is where that ladder is exercised;
+             · a CONNECTION_CLOSED from this file is a MISSING or FAILING
+               statement, never a memory leak. Read the SQL, not the heap. */
       const exec = async (text, params) => await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
         return await tx.unsafe(text, params);
@@ -728,7 +845,16 @@ async function run(mutate) {
          pacing dials, never from the simulation, which is what lets it see the
          `gather_interval_halved` mutation that nothing else in this file can. */
     {
-      const SLOT = 1;
+      /* A SECOND ACCOUNT AT SLOT 0 — not a second slot on the first one.
+         2026-09-08-hero-slot-buy.sql made every slot above 0 an ENTITLEMENT:
+         hr_create_character answers `slot_not_owned` unless the player bought
+         it. The old fixture created slot 1 out of nothing, which only worked
+         because this file booted a chain that stopped at 2026-08-16 — i.e. the
+         fixture described a character no player can have. Every account owns
+         slot 0, so a SECOND USER is the shape a real player has, and nothing is
+         fabricated to get it. */
+      const USER = UID_T8;
+      const SLOT = 0;
       const SPAN_H = 4;
       /* oak_tree, not normal_tree: `req: 15` means the fixture must satisfy a
          level gate the server re-checks, so a pass is not available to a
@@ -737,7 +863,7 @@ async function run(mutate) {
          — the pin below would otherwise be a distribution, not a number. */
       const NODE = { id: 'oak_tree', ms: 4000, product: 'oak_log', skill: 'woodcutting' };
 
-      const made1 = (await db.query('select public.__b7d1_create($1,$2) as v', [UID, SLOT])).rows[0].v;
+      const made1 = (await db.query('select public.__b7d1_create($1,$2) as v', [USER, SLOT])).rows[0].v;
       ok(made1.ok === true, `T8: hr_create_character(slot ${SLOT}) returned ${JSON.stringify(made1)}`);
 
       /* The fixture. Level 16 woodcutting (3,000 XP) clears oak's 15, and the
@@ -746,20 +872,20 @@ async function run(mutate) {
          hoped for, a few lines down. */
       await db.query(
         "update public.player_skills set xp = 3000 "
-        + "where user_id=$1 and slot=$2 and skill_id='woodcutting'", [UID, SLOT]);
-      await db.query('delete from public.player_inventory where user_id=$1 and slot=$2', [UID, SLOT]);
+        + "where user_id=$1 and slot=$2 and skill_id='woodcutting'", [USER, SLOT]);
+      await db.query('delete from public.player_inventory where user_id=$1 and slot=$2', [USER, SLOT]);
       await db.query(
         "update public.player_state set active_kind='gather', active_id=$3, "
         + "accrued_to = now() - ($4 || ' hours')::interval, "
         + "active_since = now() - ($4 || ' hours')::interval "
-        + 'where user_id=$1 and slot=$2', [UID, SLOT, NODE.id, String(SPAN_H)]);
+        + 'where user_id=$1 and slot=$2', [USER, SLOT, NODE.id, String(SPAN_H)]);
 
       // ── index.ts's READ, over the real driver, in the engine role. ────────
       const read = await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
         const [r] = await tx`
-          select public.hr_state_of(${UID}::uuid, ${SLOT}::int)       as state,
-                 public.hr_offline_cap_ms(${UID}::uuid, ${SLOT}::int) as cap_ms,
+          select public.hr_state_of(${USER}::uuid, ${SLOT}::int)       as state,
+                 public.hr_offline_cap_ms(${USER}::uuid, ${SLOT}::int) as cap_ms,
                  now()                                                as now`;
         return r;
       });
@@ -777,7 +903,7 @@ async function run(mutate) {
       const seedRow = await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
         const [r] = await tx`
-          select (public.hr_seed(${UID}::uuid, ${SLOT}::int,
+          select (public.hr_seed(${USER}::uuid, ${SLOT}::int,
                                  ${'accrue:' + String(st.accrued_to)}) & 4294967295)::bigint as seed`;
         return r;
       });
@@ -814,7 +940,7 @@ async function run(mutate) {
         + 'Clear it, or the pricing pin below passes or fails for the wrong reason.');
 
       const out = computeAccrual({
-        userId: UID,
+        userId: USER,
         slot: SLOT,
         nowMs,
         accruedToMs: st.accrued_to ? new Date(st.accrued_to).getTime() : nowMs,
@@ -876,13 +1002,13 @@ async function run(mutate) {
       // ── index.ts's APPLY, with index.ts's OWN cast, over the real driver. ─
       const beforeLedger = Number((await db.query(
         'select count(*) as n from public.player_ledger where user_id=$1 and slot=$2',
-        [UID, SLOT])).rows[0].n);
+        [USER, SLOT])).rows[0].n);
       const applied = await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
         const [r] = await tagged(tx,
           ['select public.hr_apply(', '::uuid, ', '::int, ', '::bigint, ', '::uuid, ',
             `${idx.cast || '::text::jsonb'}) as res`],
-          UID, SLOT, env.version, crypto.randomUUID(), JSON.stringify(out.delta));
+          USER, SLOT, env.version, crypto.randomUUID(), JSON.stringify(out.delta));
         return r;
       });
       const res = applied?.res;
@@ -895,21 +1021,21 @@ async function run(mutate) {
       // ── THE MONEY. A receipt without a balance change proves nothing. ─────
       const gotQty = Number((await db.query(
         'select qty from public.player_inventory where user_id=$1 and slot=$2 and item_id=$3',
-        [UID, SLOT, NODE.product])).rows[0]?.qty ?? 0);
+        [USER, SLOT, NODE.product])).rows[0]?.qty ?? 0);
       ok(gotQty === expectedQty,
         `T8: hr_apply reported success but player_inventory holds ${gotQty} ${NODE.product}, not `
         + `the ${expectedQty} the engine priced — the 200 above is not evidence that anything landed`);
 
       const gotXp = Number((await db.query(
         'select xp from public.player_skills where user_id=$1 and slot=$2 and skill_id=$3',
-        [UID, SLOT, NODE.skill])).rows[0]?.xp ?? 0);
+        [USER, SLOT, NODE.skill])).rows[0]?.xp ?? 0);
       ok(gotXp === 3000 + Number(out.delta.xp?.[NODE.skill] ?? 0),
         `T8: ${NODE.skill} XP is ${gotXp} after a night the delta priced at `
         + `+${out.delta.xp?.[NODE.skill]} from 3000`);
 
       const [after] = (await db.query(
         'select version, accrued_to from public.player_state where user_id=$1 and slot=$2',
-        [UID, SLOT])).rows;
+        [USER, SLOT])).rows;
       ok(Number(after.version) === Number(env.version) + 1,
         `T8: player_state.version is ${after.version} (was ${env.version}) — the apply did not commit`);
       ok(new Date(after.accrued_to).getTime() > new Date(st.accrued_to).getTime(),
@@ -927,7 +1053,7 @@ async function run(mutate) {
          is the receipt for what per-action journalling costs. */
       const rows = (await db.query(
         'select kind, intent, gold_in, xp_in, qty_in from public.player_ledger '
-        + 'where user_id=$1 and slot=$2 order by at', [UID, SLOT])).rows.slice(beforeLedger);
+        + 'where user_id=$1 and slot=$2 order by at', [USER, SLOT])).rows.slice(beforeLedger);
       ok(rows.length === 1,
         `T8: the accrual wrote ${rows.length} ledger rows for one night (expected exactly 1). `
         + 'The journal is an AGGREGATE by contract; a row per action is the failure that took the '

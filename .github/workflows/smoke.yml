@@ -412,11 +412,12 @@ jobs:
       # an ACCEPTED call writes nothing, and that the journal cannot become
       # game_events: one row per (user, slot, day, code) however many verbs, at
       # most 25 keys in the map however many a caller invents, at most one
-      # occurrence per transaction. --selftest plants eight defects (a verb
-      # dropped from the seam, the map cap loosened, the decorator editing the
-      # envelope, success journalled, the verb map not maintained, the
-      # service_role revoke narrowed, the table opened to players, the
-      # once-per-transaction rule removed) and requires each to be caught here.
+      # occurrence per transaction. --selftest plants nine defects (a verb
+      # dropped from the seam, the wrapper sweep skipping the claim verbs, the
+      # map cap loosened, the decorator editing the envelope, success
+      # journalled, the verb map not maintained, the service_role revoke
+      # narrowed, the table opened to players, the once-per-transaction rule
+      # removed) and requires each to be caught here.
       #
       # No credentials; production untouched. Base AND selftest, per C4.
       - name: Rejections journal — a refusal is recorded, and nothing else moves

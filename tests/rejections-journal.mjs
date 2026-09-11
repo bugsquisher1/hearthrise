@@ -113,6 +113,22 @@ const MUTATIONS = {
         + "    'public.hr_worker_hire(int,uuid)'];\nbegin"],
     ],
   },
+  wrapper_family_partly_skipped: {
+    why: 'the wrapper sweep quietly skips every hr_claim_* verb — the shape a "let us not touch the '
+       + 'claim verbs in the same change" note takes. Every daily, quest, rank, milestone and bounty '
+       + 'claim goes back to refusing invisibly, which is the class that hid a broken goal board for '
+       + 'a week. P1b (executed) and P6 (chain-end sweep) must both catch it.',
+    pairs: [
+      ["    v_src := replace(pg_get_functiondef(r.oid), chr(13), '');\n"
+        + "    if position('hr_note_rejection' in v_src) > 0 then",
+        "    v_src := replace(pg_get_functiondef(r.oid), chr(13), '');\n"
+        + "    if r.proname like 'hr_claim%' then continue; end if;\n"
+        + "    if position('hr_note_rejection' in v_src) > 0 then"],
+      ['  if v_bad is not null then\n'
+        + "    raise exception 'GATE(i): gated wrapper(s) without exactly one seam: %', v_bad;\n"
+        + '  end if;', '  if false then null; end if;'],
+    ],
+  },
   cap_loosened: {
     why: 'the verb-map cap is raised from 24 to 100000, so a caller that can get 10,000 distinct '
        + 'verb labels refused in a day writes a 10,000-key jsonb into one row. That is game_events '
@@ -261,6 +277,18 @@ async function run(mutate) {
   obs.p1_envelope = await asUser(uid, 'select public.hr_farm_water(0, 0, $1) as r', [UUID()]);
   obs.p1_rows = await rows();
 
+  // ── P1b. A REFUSED GATED WRAPPER ──────────────────────────────────────
+  //    The wrapper family is decorated by a DIFFERENT edit from the seven, and
+  //    plpgsql resolves a body's identifiers on FIRST CALL, not at creation —
+  //    so a wrapper whose `p_slot` reference were wrong would compile, install,
+  //    pass every static sweep, and blow up at runtime on the refusal path. It
+  //    has to be executed, not read.
+  await q('delete from public.hr_rejections where user_id = $1', [uid]);
+  await gate();
+  obs.p1b_envelope = await asUser(uid,
+    'select public.hr_claim_daily($1, 0) as r', ['__no_such_task__']);
+  obs.p1b_rows = await rows();
+
   // ── P2. AN ACCEPTED CALL WRITES NOTHING ───────────────────────────────
   await q('delete from public.hr_rejections where user_id = $1', [uid]);
   await gate();
@@ -408,6 +436,21 @@ function grade(obs, migText) {
   // ── P5. the envelope did not move
   ok(env && Object.keys(env).length === 2 && 'ok' in env && 'error' in env,
     `P5: the refusal envelope grew or lost keys across the decorator: ${JSON.stringify(env)}`);
+
+  // ── P1b. a refused GATED WRAPPER, executed
+  const envB = obs.p1b_envelope;
+  ok(envB && envB.ok === false,
+    `P1b: hr_claim_daily on an unknown task did not refuse: ${JSON.stringify(envB)}`);
+  ok(obs.p1b_rows.length === 1,
+    `P1b: a refused gated wrapper wrote ${obs.p1b_rows.length} row(s), expected exactly 1 — the `
+    + 'wrapper family is decorated by a different edit from the seven and has to be executed');
+  if (obs.p1b_rows.length === 1) {
+    const r = obs.p1b_rows[0];
+    ok(r.code === envB?.error,
+      `P1b: the journal recorded "${r.code}" but the player was told "${envB?.error}"`);
+    ok(r.verbs && Number(r.verbs.hr_claim_daily) === 1,
+      `P1b: the wrapper's verb was not recorded (verbs=${JSON.stringify(r.verbs)})`);
+  }
 
   // ── P2. an accepted call writes nothing
   ok(obs.p2_envelope && obs.p2_envelope.ok === true,

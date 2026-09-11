@@ -1317,7 +1317,8 @@ const snapshotG = () => {
     activeSkill: G.activeSkill,
     skillTargetId: G.skillTargetId,
     activeMonster: G.activeMonster,
-    activeArtisanRecipe: G.activeArtisanRecipe,
+    /* ⚠ ALL FOUR STRIP POINTERS, AND `|| null` IS LOAD-BEARING: `JSON.stringify` DROPS an undefined property, so a plain entry for a field nothing on G initialises restores nothing, and one test's run then stands for the whole suite. */
+    activeArtisanRecipe: G.activeArtisanRecipe || null, activeArtisanSkill: G.activeArtisanSkill || null, activeAction: G.activeAction || null,
     gold: G.gold,
     gems: G.gems,
     inventory: G.inventory,

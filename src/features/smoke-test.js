@@ -62058,6 +62058,62 @@ const TESTS = [
       restoreG(snap);
     }
   }),
+
+  /* ── THE NODE YOU CAME FROM (regression suite) ────────────────────────────
+     Reproduced three times on live: chop Willow → fight a Goblin → open Skills
+     and tap Willow again → nothing at all. No intent, no toast, the header
+     still reading "Fighting Goblin". Tapping OAK switched instantly and paid
+     the window; smithing → Willow worked. The dead tile was always the node the
+     player CAME FROM — because both renderers baked the handler at PAINT time,
+     and combat's cross-stop clears the pointer and strips the badge in place
+     without rebuilding the panel (nor does returning to the Skills tab), so
+     that tile kept a stop handler while looking idle and the stop returned in
+     silence. The fix routes both directions through render/activity-tile.js,
+     which reads the live pointer at the click. This drives the PLAYER'S gesture
+     — a real .click() on the real tile element, real declaration path. Prefixed
+     B533- to run alone with `__smokeTest({only:'B533'})`. */
+  () => tryRunAsync('B533-1: after a fight, tapping the node you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
+    const G = window.G; const A = window.HearthriseAccrual; const M = window.HearthriseActivity;
+    const tree = (window.TREES || []).find((t) => t.id === 'willow_tree') || (window.TREES || [])[1];
+    const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+    assert(!!tree && !!mid && !!A && !!M && typeof window.openSkillDetail === 'function', 'setup: no tree/monster/activity-seam fixture — the reported gesture cannot be driven');
+    const snap = snapshotG(); const realFetch = window.fetch; const wasOn = A.isServerAccrualEnabled(); const sent = [];
+    const drain = async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); for (let i = 0; i < 60; i++) await Promise.resolve(); };
+    const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')].find((e) => e.getAttribute('data-prod') === tree.prod);
+    try {
+      /* ACCEPT, AND ECHO THE DECLARED POINTER BACK as the server's own: a stub
+         answering with a fixed activity reconciles the client onto something this
+         gesture never asked for. */
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let body = null; try { body = JSON.parse(init && init.body); } catch (e) {}
+        if (body && body.verb === 'set_activity') sent.push(body);
+        const act = (body && body.activity) || { kind: 'idle', id: null };
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 700 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: {} }), { status: 200 }));
+      };
+      M.resetActivity(); M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' }); A.setServerAccrualEnabled(true);
+      G.skills = Object.assign({}, G.skills, { woodcutting: 14000000 }); G.playerHp = G.playerMaxHp || G.playerHp;
+      window.openSkillDetail('woodcutting'); await drain();
+      window.startSkill('woodcutting', tree.id, tree.ms); await drain(); const painted = tileOf();
+      assert(!!painted && painted.classList.contains('active'), 'CONTROL: the tile must paint ACTIVE while the node runs (pointer ' + G.activeSkill + '/' + G.skillTargetId + '), or this cannot reproduce the stale paint');
+      window.startCombat(mid); await drain();
+      assert(G.activeMonster === mid && !G.activeSkill && !G.skillTargetId, 'setup: the fight or the cross-stop never happened (' + G.activeMonster + ', ' + G.activeSkill + ') — the scenario under test is gone');
+      window.showTab('skills'); await drain();                       // the player walks back; measured: this does NOT repaint the grid
+      const tile = tileOf(); const stalePaint = tile === painted; sent.length = 0;
+      assert(!!tile && tile.isConnected, 'the ' + tree.id + ' tile is no longer on the Skills screen');
+      tile.click(); await drain();
+      const sw = sent.filter((b) => b.activity && b.activity.kind === 'gather' && b.activity.id === tree.id);
+      assert(sw.length >= 1, 'tapping the node the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time, the cross-stop cleared the pointer without rebuilding the panel, and the stop returned in silence. The player cannot get back to their own node with one tap');
+      assert(M.isIntentKey(sw[sw.length - 1].intentId), 'the switch carried no canonical uuid key: ' + sw[sw.length - 1].intentId);
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster + ' — the header would still read as a fight');
+    } finally {
+      window.fetch = realFetch; A.setServerAccrualEnabled(false); if (!wasOn) A.setServerAccrualEnabled(false);
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {}
+      restoreG(snap); window.showTab('profile');
+    }
+  }),
 ];
 
 export async function runSmokeTest(opts = {}) {

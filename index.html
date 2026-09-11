@@ -1050,6 +1050,10 @@
   <script src="src/render/icons.js?v=532"></script>
   <script src="src/render/fight-warning.js?v=532"></script>
   <script src="src/render/retreat.js?v=532"></script>
+  <!-- The activity tile's click router. Classic and BEFORE legacy.js for the
+       reason icons.js is: both tile renderers name hrActivityTileClick inside
+       an onclick attribute, so it has to exist before the first grid paints. -->
+  <script src="src/render/activity-tile.js?v=532"></script>
   <script src="src/legacy.js?v=532"></script>
   <!-- b372: every ITEM REQUIREMENT is a link to the bag's own item flyout.
        Loads right after legacy.js because it wraps openInvDetail and because

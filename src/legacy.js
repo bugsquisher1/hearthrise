@@ -8830,7 +8830,7 @@ function renderActivities(acts,skillId){
   const lv=getLevel(skillId);
   return acts.map(a=>{
     const unlocked=lv>=a.req;const active=G.activeSkill===skillId&&G.skillTargetId===a.id;
-    return `<button class="monster-row ${active?'fighting':''}" ${unlocked?'':'disabled'} onclick="${active?'stopSkill()':`startSkill('${skillId}','${a.id}',${a.ms})`}">
+    return `<button class="monster-row ${active?'fighting':''}" ${unlocked?'':'disabled'} onclick="hrActivityTileClick('${skillId}','${a.id}',${a.ms})">
       <span class="mi">${a.prod ? itemArt(a.prod,26) : skillIconHTML(skillId,30)}</span>
       <div style="flex:1;min-width:0"><span class="mn">${a.name}</span><span class="ms">Lv ${a.req} · ${Math.max(1,Math.floor(pacedXp(skillId,a.xp)))} XP · ${(pacedActionMs(a.ms)/1000).toFixed(1)}s · ${ITEMS[a.prod]?.n||a.prod}</span></div>
       ${!unlocked?`<span class="mr-lock">${lockGlyph()}Lv ${a.req}</span>`:active?'<span class="mr-active">Active</span>':''}
@@ -17657,11 +17657,9 @@ function tileForGather(action, skillId){
   var toolLine = (typeof window.hrToolLineHtml === 'function') ? window.hrToolLineHtml(skillId) : '';
   // b129: locked tiles toast their req level instead of dead-clicking
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
-  var click = active
-    ? "stopSkill()"
-    : (unlocked
-        ? "startSkill('"+skillId+"','"+action.id+"',"+action.ms+")"
-        : "notify('Requires "+skillName+" Lv "+action.req+"','kill')");
+  var click = unlocked   /* ONE handler both ways: the toggle resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` below is paint only */
+    ? "hrActivityTileClick('"+skillId+"','"+action.id+"',"+action.ms+")"
+    : "notify('Requires "+skillName+" Lv "+action.req+"','kill')";
   var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
   return '<div class="act-tile '+(unlocked?'':'locked')+' '+(active?'active':'')+'" '
     +'data-prod="'+action.prod+'" '

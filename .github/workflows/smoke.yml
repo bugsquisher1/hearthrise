@@ -192,13 +192,17 @@ jobs:
       # test code — 36% of all the JavaScript a cold boot delivers — was paid by
       # every player before the account gate was usable ("it takes long to
       # start", Paione, 2026-09-11). It is a dynamic import now, and this boots a
-      # real Chromium twice to hold both halves: a player boot never fetches the
+      # real Chromium to hold all four: a player boot never fetches the
       # suite (BOOT-1), and a harness boot does and publishes it (BOOT-2) —
       # without which every runner here would silently fall through to
       # legacy.js block 29's ~40-test v1 __smokeTest and report a green that
-      # means nothing. It lives in THIS family because it needs the Chromium
-      # installed above; client-guards installs no browser. Measured ~35 s for
-      # both commands (4 cold boots + 3 mutated ones) on the dev machine.
+      # means nothing; every page runner pins the ESM suite by its signature
+      # (BOOT-3); and Ctrl+Shift+T still fetches it on demand (BOOT-4), because a
+      # dynamic import is one keystroke away from a dead control. It lives in
+      # THIS family because it needs the Chromium
+      # installed above; client-guards installs no browser. Measured 14 s + 71 s for
+      # the two commands (5 cold boots, then 2 controls + 4 mutated ones) on the dev
+      # machine: ~1.5 min on a ~15.5 min family, so the 30 min budget stands.
       - name: Boot budget - the player never downloads the test suite
         if: ${{ !cancelled() }}
         run: |

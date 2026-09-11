@@ -96,8 +96,12 @@ function addButton() {
   b.id = 'smoke-test-btn';
   b.textContent = '🧪 Test';
   b.title = 'Run smoke test (Ctrl+Shift+T)';
+  /* CLAUDE.md §7 — no hardcoded colours. The three hex literals this control
+     carried since b141 (#3a4154 / #dfe9ee / #5fcc7c) were a slate-blue that
+     belonged to no theme; moving the button here was the moment to convert it,
+     and tests/css-literal-ratchet.mjs is what refused the copy-paste. */
   b.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:99999;'
-    + 'background:#3a4154;color:#dfe9ee;border:1px solid #5fcc7c;border-radius:4px;'
+    + 'background:var(--bg-2);color:var(--ink);border:1px solid var(--green);border-radius:4px;'
     + 'padding:4px 10px;font-size:11px;cursor:pointer;opacity:.6;font-weight:700';
   b.onmouseenter = () => (b.style.opacity = '1');
   b.onmouseleave = () => (b.style.opacity = '.6');

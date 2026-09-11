@@ -2,17 +2,8 @@
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
 // modularised, will import { G } from '../state/game.js?v=534' directly.
 //
-// b535 — THIS FILE IS NEVER SENT TO A PLAYER. At 3.75 MB it is the largest
-// file in the repo and 36% of all the JavaScript a cold boot delivered, and
-// main.js imported it statically, so every player downloaded, parsed and
-// evaluated the whole suite before the account gate was usable. It is a DYNAMIC
-// import now, owned by src/features/smoke-test-loader.js, which is the only
-// thing that ever pulls it in. tests/boot-budget.mjs is the guard.
-//
-// Triggered by (all three go through the loader):
-//   - Floating 🧪 button bottom-left
-//   - Ctrl+Shift+T keyboard shortcut
-//   - Programmatically via window.__smokeTest() (after __HR_TEST_HARNESS__ boot)
+// b535 — NEVER SENT TO A PLAYER. A dynamic import owned by smoke-test-loader.js,
+// which owns all three triggers too; read its header. Guard: boot-budget.mjs.
 
 import { on, snapshot } from '../net/events.js?v=534';
 import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=534';
@@ -16413,17 +16404,12 @@ const TESTS = [
     }
   }),
 
-  // b141: smoke test 🧪 button is hidden for non-admin players.
-  // The button only appears when localStorage hearthrise:admin === '1'.
-  // SA-013 (increment 2): this WAS a soft self-check — `assert(true, 'gate
-  // verified in source')` — a test that asserted nothing at runtime. It now
-  // drives the REAL addButton() through the harness-only hook (b535: it is
-  // smoke-test-loader.js that publishes window.__hrAddSmokeButton now, still
-  // only under __HR_TEST_HARNESS__, because addButton moved there with the key
-  // and the button — they are the controls that fetch this file) and
-  // asserts the actual gate: no button when admin is off, a button when admin is
-  // on. On a live admin run (Ctrl+Shift+T) the hook is absent, so it declares an
-  // honest skip instead of a fake pass.
+  // b141: the 🧪 button appears only when localStorage hearthrise:admin === '1'.
+  // SA-013 (increment 2): this WAS `assert(true, 'gate verified in source')` — a
+  // test that asserted nothing. It drives the REAL addButton() through the
+  // harness-only __hrAddSmokeButton hook (b535: published by
+  // smoke-test-loader.js now) and asserts both directions; on a live admin run
+  // the hook is absent, so it declares an honest skip instead of a fake pass.
   () => tryRun('b141: smoke-test 🧪 button hidden when not admin', () => {
     const KEY = 'hearthrise:admin';
     const orig = localStorage.getItem(KEY);
@@ -62415,20 +62401,9 @@ export async function runSmokeTest(opts = {}) {
 
 export function setupSmokeTest() {
   window.__smokeTest = runSmokeTest;
-  /* b535 — WHICH __smokeTest IS THIS? legacy.js block 29 publishes its own
-     ~40-test v1 `window.__smokeTest`, and it is on the page before this module
-     is even fetched. That was survivable while this file was a STATIC import
-     (the overwrite happened in the same parse); now that the suite is a dynamic
-     import there is a real window in which `typeof window.__smokeTest ===
-     'function'` is true and answers the WRONG suite. So the ESM suite signs its
-     work, and every headless runner waits on the signature rather than on the
-     bare global — otherwise a 1,232-test gate quietly becomes a 40-test one and
-     still prints "passed". tests/boot-budget.mjs BOOT-3 is what holds the
-     runners to it. */
+  /* b535 — the suite SIGNS its work: legacy.js block 29 publishes a rival
+     ~40-test __smokeTest, so runners wait on this, not on the bare global. */
   window.__smokeTestSource = 'esm';
-  /* The 🧪 button, the Ctrl+Shift+T key and the __hrAddSmokeButton hook live in
-     src/features/smoke-test-loader.js — they are the controls that must exist
-     BEFORE this file does, since pressing them is what fetches it. */
   // Live watcher — logs any new overlaps that appear during normal play
   // (debounced 250ms after every tab change / resize). Deduped by signature
   // so the same violation only logs once per session.

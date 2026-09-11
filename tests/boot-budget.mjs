@@ -29,6 +29,10 @@
 //           legacy monolith publishes its own window.__smokeTest, so a bare
 //           `typeof window.__smokeTest === 'function'` resolves on the WRONG
 //           suite. Source scan; no browser.
+//   BOOT-4  Ctrl+Shift+T on a player page fetches the suite on demand. A
+//           dynamic import is one keystroke away from a DEAD CONTROL — the
+//           defect class this repo ships most often (the button looks fine and
+//           silently does nothing).
 //
 // It also MEASURES and prints, over three runs, the medians a player feels:
 // time to the account gate painted, time to window.HearthriseCore, JS bytes and
@@ -115,8 +119,9 @@ const ms = (n) => (n == null ? '  n/a' : String(Math.round(n)).padStart(5) + ' m
  * @param {object} o
  * @param {boolean} o.harness      set __HR_TEST_HARNESS__ before load
  * @param {(page:any)=>Promise<void>} [o.mutate]  plant a defect in what the browser loads
+ * @param {boolean} [o.press]      after the boot settles, press Ctrl+Shift+T as a player would
  */
-async function boot(browser, url, { harness, mutate } = {}) {
+async function boot(browser, url, { harness, mutate, press } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
   const requested = [];
@@ -141,6 +146,33 @@ async function boot(browser, url, { harness, mutate } = {}) {
     // deferred boot queue all run after `load`. If the suite were going to be
     // pulled in late, this is where it would show up.
     await page.waitForTimeout(2500);
+  }
+
+  /* BOOT-4 — the control an admin actually uses. Moving the suite behind a
+     dynamic import is one keystroke away from moving it behind a DEAD CONTROL,
+     which is this codebase's most-shipped defect class: the button looks fine
+     and silently does nothing.
+
+     The setup call is explicit because the account wall DEFERS the engine boot:
+     signed out, window.G and window.showTab never arrive, so main.js's
+     tryBootFeatures() poll never calls any setup — the key was equally dead at
+     the wall before this change. Arming it here is exactly the call main.js
+     makes a moment after sign-in, and the specifier is derived from
+     HearthriseBuild.cache so this is the SAME module instance main.js imported
+     (a different ?v= would be a second module with its own state — b493). */
+  if (press) {
+    const armed = await page.evaluate(async () => {
+      const v = window.HearthriseBuild && window.HearthriseBuild.cache;
+      if (!v) return 'no build number on the page';
+      const m = await import(`/src/features/smoke-test-loader.js?v=${v}`);
+      if (typeof m.setupSmokeTestLoader !== 'function') return 'the loader exports no setup';
+      m.setupSmokeTestLoader();
+      return null;
+    }).catch((e) => String(e && e.message || e));
+    out.armError = armed;
+    out.beforePress = requested.length;
+    await page.keyboard.press('Control+Shift+T');
+    await page.waitForFunction(() => window.__smokeTestSource === 'esm', { timeout: 60_000 }).catch(() => {});
   }
 
   const m = await page.evaluate(() => ({
@@ -276,11 +308,19 @@ async function selftest(browser, url) {
       harness: true,
       mutate: rewrite('**/src/features/smoke-test-loader.js*', () => 'export function setupSmokeTestLoader(){}\nexport function loadSmokeTest(){return Promise.resolve(null);}\n'),
       check: (r) => ((!r.requested.some(isSuite) || r.smokeSource !== 'esm') ? 'BOOT-2' : null) },
+
+    { id: 'M6-key-unwired', want: 'BOOT-4',
+      why: 'a dynamic import is one keystroke away from a DEAD CONTROL — the 🧪 button and Ctrl+Shift+T '
+        + 'are the only doors left, and a door that silently does nothing is this repo\'s most-shipped defect',
+      harness: false, press: true,
+      mutate: rewrite('**/src/features/smoke-test-loader.js*',
+        (t) => t.replace("e.ctrlKey && e.shiftKey && e.key === 'T'", 'false')),
+      check: (r) => ((!r.requested.some(isSuite) || r.smokeSource !== 'esm') ? 'BOOT-4' : null) },
   ];
 
   console.log('boot-budget --selftest: each mutation must be caught by its named property');
   for (const c of cases) {
-    const r = await boot(browser, url, { harness: c.harness, mutate: c.mutate });
+    const r = await boot(browser, url, { harness: c.harness, mutate: c.mutate, press: c.press });
     const got = c.check(r);
     if (c.want === null) {
       if (got) { console.log(`  ✗ ${c.id} — the clean control is RED (${got})`); bad++; }
@@ -323,7 +363,7 @@ async function selftest(browser, url) {
 
   console.log();
   if (bad) { console.error(`boot-budget --selftest FAILED — ${bad} unproven`); return 1; }
-  console.log('boot-budget --selftest PASSED — 2 clean controls green, 4/4 mutations caught.');
+  console.log('boot-budget --selftest PASSED — 2 clean controls green, 5/5 mutations caught.');
   return 0;
 }
 
@@ -364,6 +404,19 @@ async function selftest(browser, url) {
         problems.push(`BOOT-2  after a harness boot window.__smokeTestSource is ${JSON.stringify(h.smokeSource)} `
           + `and typeof window.__smokeTest is "${h.smokeType}" — the ESM suite never published itself.`);
       }
+      const pressed = await boot(browser, url, { harness: false, press: true });
+      if (pressed.armError) {
+        problems.push(`BOOT-4  could not arm the loader the way main.js does: ${pressed.armError}`);
+      } else if (pressed.requested.slice(0, pressed.beforePress).some(isSuite)) {
+        problems.push('BOOT-4  the control test is worthless: the suite was already fetched before the key '
+          + 'was pressed, so BOOT-1 and BOOT-4 are measuring the same boot.');
+      } else if (!pressed.requested.some(isSuite) || pressed.smokeSource !== 'esm') {
+        problems.push('BOOT-4  Ctrl+Shift+T on a player page did NOT load the suite '
+          + `(requested=${pressed.requested.some(isSuite)}, source=${JSON.stringify(pressed.smokeSource)}). `
+          + 'The 🧪 control and the key are the only way in now — a dead control here is a feature that no '
+          + 'longer exists.');
+      }
+
       const runners = await scanRunners();
       problems.push(...runners.problems);
 
@@ -378,7 +431,8 @@ async function selftest(browser, url) {
         code = 1;
       } else {
         console.log('  ✓ BOOT-1 player boot never fetches the suite · BOOT-2 harness boot does, and publishes it '
-          + `· BOOT-3 all ${runners.count} page runners set the harness flag and pin the ESM suite`);
+          + `· BOOT-3 all ${runners.count} page runners set the harness flag and pin the ESM suite `
+          + '· BOOT-4 Ctrl+Shift+T fetches it on demand');
       }
     }
   } catch (e) {

@@ -1856,19 +1856,19 @@ window.hrRefuseWhileRecovering=hrRefuseWhileRecovering;
    and "it just stops by itself" is a worse bug report than the one this fixes.
    The knockout is BY FAR the commonest cause and it has a surface of its own,
    so it gets the sheet; everything else gets one line and the console keeps the
-   detail. Never throws: every caller is inside a network answer nobody sees. */
-function explainUnownedStop(was){
+   detail. Never throws: every caller is inside a network answer nobody sees. b533: the REFUSAL that caused the stop rides in as `verdict`, and `activityRefusalMessage` (src/net/activity.js, the same frozen-map+naming-default shape src/net/equip.js uses for gear) turns the server's own code into the line — absent verdict keeps the generic one. */
+function explainUnownedStop(was,verdict){
   try{
     const what=was?(was.kind+(was.id?':'+was.id:'')):'an activity';
-    const down=(typeof hrCombatDownPeek==='function')&&hrCombatDownPeek();
+    const down=(typeof hrCombatDownPeek==='function')&&hrCombatDownPeek(), why=(verdict&&verdict.outcome==='refused'&&verdict.reason)?String(verdict.reason):null;
     console.warn('[activity] the server says idle and never acknowledged '+what
-      +' — stopping it. A run the server does not own earns nothing'
+      +' — stopping it. A run the server does not own earns nothing'+(why?' (refused: '+why+')':'')
       +(down?' (this character is knocked out; the server refuses combat until the '
               +'recovery line passes \u2014 gathering and the benches still pay)':''));
-    const S=window.HearthriseDeathSheet;
+    const S=window.HearthriseDeathSheet, M=window.HearthriseActivity;
     if(down&&S&&typeof S.answerTap==='function'){ S.answerTap(HR_RECOVERING_LINE); return; }
     if(typeof notify==='function'){
-      notify(down?HR_RECOVERING_LINE:'The hearth did not take that — the activity stopped.','kill');
+      notify(down?HR_RECOVERING_LINE:((why&&M&&typeof M.activityRefusalMessage==='function')?M.activityRefusalMessage(why):'The hearth did not take that — the activity stopped.'),'kill');
     }
   }catch(e){}
 }
@@ -1959,7 +1959,7 @@ function applyCarriedFight(id, fight){
   return true;
 }
 window.applyCarriedFight=applyCarriedFight;
-function reconcileActivityPointer(a,fight){
+function reconcileActivityPointer(a,fight,verdict){
   if(!a||typeof a!=='object')return null;
   const kind=a.kind, id=a.id;
   const applied=activityQuietly(function(){
@@ -2049,7 +2049,7 @@ function reconcileActivityPointer(a,fight){
      explanation, and rendering it inside the quiet block would put a sheet up
      from underneath a reconcile. Only the unconfirmed case is a surprise — a
      confirmed stop is the player's own Stop coming back. */
-  if(applied&&applied.stopped==='unconfirmed')explainUnownedStop(applied.was);
+  if(applied&&applied.stopped==='unconfirmed')explainUnownedStop(applied.was,verdict);
   return applied||{kind:kind||'idle',id:id==null?null:id};
 }
 window.reconcileActivityPointer=reconcileActivityPointer;
@@ -2070,7 +2070,7 @@ function wireServerActivity(){
        measured in a real browser on a switch where the replacement gate had
        refused and NOTHING was written. */
     onEnvelope:function(res){ return applyServerEnvelope(res,{intent:true}); },
-    onReconcile:function(a,verdict,fight){ return reconcileActivityPointer(a,fight); },
+    onReconcile:function(a,verdict,fight){ return reconcileActivityPointer(a,fight,verdict); },   // THE VERDICT RIDES THROUGH — it was dropped here, a stop caused by a refusal could only ever speak the generic line
   });
 }
 /* ── ONE APPLIER FOR BOTH VERBS ───────────────────────────────────────────
@@ -8841,7 +8841,7 @@ function renderActivities(acts,skillId){
   const lv=getLevel(skillId);
   return acts.map(a=>{
     const unlocked=lv>=a.req;const active=G.activeSkill===skillId&&G.skillTargetId===a.id;
-    return `<button class="monster-row ${active?'fighting':''}" ${unlocked?'':'disabled'} onclick="${active?'stopSkill()':`startSkill('${skillId}','${a.id}',${a.ms})`}">
+    return `<button class="monster-row ${active?'fighting':''}" ${unlocked?'':'disabled'} onclick="hrActivityTileClick('${skillId}','${a.id}',${a.ms})">
       <span class="mi">${a.prod ? itemArt(a.prod,26) : skillIconHTML(skillId,30)}</span>
       <div style="flex:1;min-width:0"><span class="mn">${a.name}</span><span class="ms">Lv ${a.req} · ${Math.max(1,Math.floor(pacedXp(skillId,a.xp)))} XP · ${(pacedActionMs(a.ms)/1000).toFixed(1)}s · ${ITEMS[a.prod]?.n||a.prod}</span></div>
       ${!unlocked?`<span class="mr-lock">${lockGlyph()}Lv ${a.req}</span>`:active?'<span class="mr-active">Active</span>':''}
@@ -17668,11 +17668,9 @@ function tileForGather(action, skillId){
   var toolLine = (typeof window.hrToolLineHtml === 'function') ? window.hrToolLineHtml(skillId) : '';
   // b129: locked tiles toast their req level instead of dead-clicking
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
-  var click = active
-    ? "stopSkill()"
-    : (unlocked
-        ? "startSkill('"+skillId+"','"+action.id+"',"+action.ms+")"
-        : "notify('Requires "+skillName+" Lv "+action.req+"','kill')");
+  var click = unlocked   /* ONE handler both ways: the toggle resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` below is paint only */
+    ? "hrActivityTileClick('"+skillId+"','"+action.id+"',"+action.ms+")"
+    : "notify('Requires "+skillName+" Lv "+action.req+"','kill')";
   var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
   return '<div class="act-tile '+(unlocked?'':'locked')+' '+(active?'active':'')+'" '
     +'data-prod="'+action.prod+'" '

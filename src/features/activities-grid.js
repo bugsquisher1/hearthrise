@@ -5,9 +5,9 @@
 // Exports: setupActivitiesGrid()
 // Hooks: window.renderSkillsList (filter combat out), window.renderSkillDetail (tile grid)
 
-import { SKILLS_DEF } from '../data/skills.js?v=532';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=532';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=532';
+import { SKILLS_DEF } from '../data/skills.js?v=533';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=533';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=533';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 
@@ -167,11 +167,14 @@ function tileForGather(action, skillId) {
   // b129: locked tiles toast their level requirement instead of silently
   // doing nothing — players need feedback, not a dead click.
   const skillName = (window.SKILLS_DEF?.[skillId]?.name) || skillId;
-  const click = active
-    ? 'stopSkill()'
-    : (unlocked
-        ? `startSkill('${skillId}','${action.id}',${action.ms})`
-        : `notify('Requires ${skillName} Lv ${action.req}','kill')`);
+  /* The toggle resolves at the CLICK against the live pointer
+     (src/render/activity-tile.js) — a tile painted while this node was active
+     kept a stop handler after combat cleared the pointer, and the tap died in
+     silence. `active` below is paint only. Twin of the legacy builder: patch
+     both or you patch neither. */
+  const click = unlocked
+    ? `hrActivityTileClick('${skillId}','${action.id}',${action.ms})`
+    : `notify('Requires ${skillName} Lv ${action.req}','kill')`;
   /* b217: the tile put its name at the top, two grey meta lines under it, then
      a big gap, then the icon floating at the BOTTOM, then a "Qty: 0" pill in
      the corner — so the subject of the card was the last thing you reached and

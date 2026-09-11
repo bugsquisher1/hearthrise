@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=532' directly.
+// modularised, will import { G } from '../state/game.js?v=533' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=532';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=532';
+import { on, snapshot } from '../net/events.js?v=533';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=533';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=532';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=533';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1317,7 +1317,8 @@ const snapshotG = () => {
     activeSkill: G.activeSkill,
     skillTargetId: G.skillTargetId,
     activeMonster: G.activeMonster,
-    activeArtisanRecipe: G.activeArtisanRecipe,
+    /* ⚠ ALL FOUR STRIP POINTERS, AND `|| null` IS LOAD-BEARING: `JSON.stringify` DROPS an undefined property, so a plain entry for a field nothing on G initialises restores nothing, and one test's run then stands for the whole suite. */
+    activeArtisanRecipe: G.activeArtisanRecipe || null, activeArtisanSkill: G.activeArtisanSkill || null, activeAction: G.activeAction || null,
     gold: G.gold,
     gems: G.gems,
     inventory: G.inventory,
@@ -1849,6 +1850,43 @@ const combatScreen = () => {
     try { window.showTab(prevTab || 'profile'); } catch (e) {}
   };
   return { CS, G: window.G, restore };
+};
+
+/* ── THE AUTO-EAT MIRROR FIXTURE ──────────────────────────────────────
+   The divergence the bug lived in, built once: a client on tier II
+   (reconcileTraits UNIONS the server's trait list and never removes, so a client
+   tier can run AHEAD of it) holding a 50% preference, against the column
+   hr_set_auto_eat clamped on write to Auto-Eat I's ceiling of 25.
+   runSmokeTest parks the mirror so ~10 local-threshold fixtures stay honest on a
+   signed-in page; these tests ARE it, so this unparks and restores — the contract
+   SETTLE-5/6 and AUTOEAT-SYNC-1..3 have. */
+const autoEatMirrorReady = () => {
+  const A = window.HearthriseAuto, AC = window.HearthriseAccrual;
+  return !!(A && AC && typeof AC.noteServerAutoEat === 'function'
+    && typeof AC.__resetServerAutoEat === 'function'
+    && typeof AC.serverAutoEatSettings === 'function');
+};
+const autoEatMirrorFixture = (body) => {
+  const G = window.G, A = window.HearthriseAuto, AC = window.HearthriseAccrual;
+  const snap = snapshotG(), sT = G.traits, sS = G.settings, sP = G.autoEatPct;
+  const sObs = AC.serverAutoEatSettings();
+  let wasParked = false;
+  try { wasParked = A._parkPctMirror(false); } catch (e) {}
+  try {
+    G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
+    G.settings = Object.assign({}, G.settings || {});
+    G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 20 });
+    A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.5 });
+    assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9, 'fixture: the local preference must be 50%');
+    AC.noteServerAutoEat({ state: { auto_eat_enabled: true, auto_eat_pct: 25 } });
+    body(G, A, AC);
+  } finally {
+    const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
+    try { AC.__noteAutoEatSettings(sObs); } catch (e) {}
+    try { A._parkPctMirror(wasParked); } catch (e) {}
+    G.traits = sT; G.settings = sS; G.autoEatPct = sP;
+    restoreG(snap);
+  }
 };
 
 const TESTS = [
@@ -9143,7 +9181,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=532');
+    const S = await import('../data/shops.js?v=533');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -10044,7 +10082,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=532');
+    const mod = await import('../data/dungeons.js?v=533');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10075,7 +10113,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=532');
+    const mod = await import('../data/dungeons.js?v=533');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -39019,19 +39057,22 @@ const TESTS = [
       // b459: eatThreshold() now clamps to the owned TIER's ceiling; a 0.6
       // adoption needs tier II (the pre-tier behaviour this fixture is about).
       G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
-      assert(Math.abs(A.eatThreshold() - 0.6) < 1e-9,
-        'a b324-era save must adopt the slider value it recorded, got ' + A.eatThreshold());
+      /* `expressedThreshold()`, NOT `eatThreshold()`: this fixture is about the
+         one-time adoption into the LOCAL preference; the other reports the FIGHT. */
+      const EX = (typeof A.expressedThreshold === 'function') ? A.expressedThreshold : A.eatThreshold;
+      assert(Math.abs(EX() - 0.6) < 1e-9,
+        'a b324-era save must adopt the slider value it recorded, got ' + EX());
       assert(Math.abs(A.getEat().threshold - 0.6) < 1e-9, 'the adoption must be written through, not computed each read');
 
       // Idempotent + inert afterwards: a later engine-side change is NOT undone.
       A.setEat({ threshold: 0.35 });
-      assert(Math.abs(A.eatThreshold() - 0.35) < 1e-9,
-        'once reconciled, the mirror must never claw a later setting back — got ' + A.eatThreshold());
+      assert(Math.abs(EX() - 0.35) < 1e-9,
+        'once reconciled, the mirror must never claw a later setting back — got ' + EX());
       assert(Math.abs(G.autoEatPct - 0.35) < 1e-9, 'setEat must keep the legacy mirror in step so the two can never diverge again');
 
       // A garbage mirror is ignored rather than adopted.
       G.autoActions.eat.threshold = 0.7; G.autoEatPct = NaN;
-      assert(Math.abs(A.eatThreshold() - 0.7) < 1e-9, 'a NaN mirror must not overwrite a real threshold');
+      assert(Math.abs(EX() - 0.7) < 1e-9, 'a NaN mirror must not overwrite a real threshold');
     } finally { G.autoEatPct = savedPct; restoreG(snap); }
   }),
 
@@ -39070,6 +39111,55 @@ const TESTS = [
       G.traits = savedTraits; G.settings = savedSettings; G.autoEatPct = savedPct;
       restoreG(snap);
     }
+  }),
+
+  /* ── regression: THE AUTO-EAT THRESHOLD LIED (live P2) ────────────────
+     MEASURED ON THE QA ACCOUNT: the settings screen said 50% while
+     `player_state.auto_eat_pct` was 25, so at 15 max HP the server ate at 3 HP
+     and the player fell "with food" at a threshold nobody chose (census: 5 on
+     25, 32 on 50). Residue-ahead (§6): the shown threshold and the attended
+     tick's came from a local preference clamped by a CLIENT-held trait map while
+     the fight used a SERVER column nothing read back down. `autoEatMirrorFixture`
+     builds that exact divergence; the two tests below take its two halves. */
+
+  () => tryRun('b533: the auto-eat threshold the player is SHOWN is the server\'s auto_eat_pct', () => {
+    if (!autoEatMirrorReady()) { skip('no auto/accrual seam'); return; }
+    autoEatMirrorFixture((G, A) => {
+      assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9,
+        'the effective threshold must be the server\'s 25%, got ' + A.eatThreshold());
+      assert(Math.abs(G.autoEatPct - 0.25) < 1e-9,
+        'the mirror legacy.js fx.autoEat reads must follow the server too, got ' + G.autoEatPct);
+      if (typeof window.openSettings !== 'function') return;
+      window.openSettings();
+      const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
+      assert(el, 'the Gameplay section must expose the auto-eat threshold slider');
+      assert(Math.abs(parseFloat(el.value) - 0.25) < 1e-9,
+        'the slider must sit on the server\'s 25%, not the local 50% — got ' + el.value);
+      const shown = el.closest && el.closest('.ss-slider').querySelector('.ss-slider-value');
+      assert(shown && shown.textContent.trim() === '25%',
+        'the label must READ 25%, the promise the fight keeps — got ' + (shown && shown.textContent));
+    });
+  }),
+
+  /* The ATTENDED half, and the absent-key fail-safe. BOTH-PATH (§4): the AWAY
+     half is this same column read by the server's own engine, so there is no
+     client value to disagree with and src/core/auto-eat.js stays untouched. */
+  () => tryRun('b533: the attended tick eats at the server threshold, and fails safe to the lowest tier', () => {
+    if (!autoEatMirrorReady()) { skip('no auto/accrual seam'); return; }
+    autoEatMirrorFixture((G, A, AC) => {
+      G.playerMaxHp = 100; G.playerHp = 40;   // under the local 50%, over the server's 25%
+      const held = G.inventory.cooked_shrimp;
+      assert(A.maybeAutoEat() === false, 'at 40% HP the tick must NOT eat: the server eats at 25%, '
+        + 'so a client meal here is a debit the ~90 s settle will not have paid');
+      assert(G.inventory.cooked_shrimp === held, 'no Provision may be spent above the server threshold');
+      G.playerHp = 20;                        // under the server's 25%
+      assert(A.maybeAutoEat() === true, 'at 20% HP the tick must eat — that is what the server does');
+      AC.__resetServerAutoEat();              // no key on the envelope at all
+      assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9, 'with nothing observed the threshold must fail '
+        + 'safe at the LOWEST tier\'s ceiling, never stand on the local 50% — got ' + A.eatThreshold());
+      assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9,
+        'and the slider position must survive as the thing the player edits and sends UP');
+    });
   }),
 
   /* ── b331 regression suite — THE DEAD-TOKEN LOOP (live P0) ────────────────
@@ -43592,7 +43682,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=532');
+    const KIT = await import('../data/start-kit.js?v=533');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -43674,7 +43764,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=532');
+    const KIT = await import('../data/start-kit.js?v=533');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -43788,7 +43878,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=532');
+    const KIT = await import('../data/start-kit.js?v=533');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -45901,7 +45991,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=532')).text();
+    const src = await (await fetch('src/legacy.js?v=533')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -47107,6 +47197,54 @@ const TESTS = [
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  /* ACT-7 — A REFUSED DECLARATION MUST STOP THE LOCAL RUN. MEASURED LIVE
+     (2026-09-11 02:05 UTC): a gather intent the realm answered 409
+     `unknown_activity` left the client reading "Fishing" and running the local
+     loop for five minutes with the server idle — all of it client-authored and
+     gone on the next reload. PRISTINE ON PURPOSE: `settle` reconciles a
+     stateless refusal to `lastServerActivity`, whose only writers are its own
+     envelope branch and record.js's boot resume — and the resume files the
+     pointer ONLY for a NON-idle record, so a session that booted idle has never
+     been told anything and every refusal fell through to `unresolved`.
+     `resetActivity()` IS that state, asserted not assumed. The stops are QUIET because `stopCombat` declares unconditionally and a stop outside the quiet counter puts a real intent on the wire (measured: two CSP errors).
+     MUTATIONS RUN: `applied.unresolved = true` back for a refusal in `settle` → ① red; drop `verdict` from the reconcile hook → ④ red. */
+  () => tryRunAsync('ACT-7: a REFUSED gather declaration stops the local run, lands on the server\'s '
+    + 'pointer and says why — the client never keeps a run the realm refused', async () => {
+    const M = window.HearthriseActivity, G = window.G, said = [];
+    const spot = (window.FISH_SPOTS || []).find((f) => f.id === 'shrimp_s') || (window.FISH_SPOTS || [])[0];
+    if (!M || typeof M.activityRefusalMessage !== 'function' || !spot
+        || typeof window.__isSkillLoopArmed !== 'function' || typeof window.activityQuietly !== 'function') {
+      skip('the activity seam or the gather loop is not wired'); return; }
+    const snap = snapshotG(), realFetch = window.fetch, realNotify = window.notify;
+    const hadConfig = M.getActivityConfig(), t0 = Date.now();
+    const stop = () => window.activityQuietly(() => { try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {} });
+    try { stop(); M.resetActivity();
+      assert(M.getActivityState().lastServerActivity === null, 'the fixture could not reach the never-told state this bug lives in');
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      /* The live 409 verbatim: a STATELESS code answered from the catalogue before any database work — no version/skills/inventory, so `envelopeOf` correctly returns null — whose body still states the server's pointer. */
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'unknown_activity', state: { slot: 0, active_kind: 'idle', active_id: null } }), { status: 409 }));
+      };
+      window.notify = (m, k) => said.push({ m: String(m), k: k });
+      window.startSkill('fishing', spot.id, spot.ms);
+      assert(G.activeSkill === 'fishing' && G.skillTargetId === spot.id && window.__isSkillLoopArmed(), 'the fixture could not start the local gather run, so the refusal below would prove nothing');
+      while (M.getActivityState().pending && Date.now() - t0 < 4000) await new Promise((r) => setTimeout(r, 5));
+      assert(!G.activeSkill && !G.skillTargetId && window.__isSkillLoopArmed() === false, '① THE BUG: the realm REFUSED the declaration (409 unknown_activity) and the client is still on ' + G.activeSkill + '/' + G.skillTargetId + ', loop ' + (window.__isSkillLoopArmed() ? 'ARMED' : 'idle') + ' — everything that loop paints is client-authored and gone on the next reload');
+      window.refreshActivityBar();
+      const txt = String((document.getElementById('ab-name') || {}).textContent || ''), st = M.getActivityState();
+      assert(/^Idle/.test(txt), '② THE SYMPTOM VERBATIM: the strip reads "' + txt + '" over a run the realm refused');
+      assert(st.last.applied.reconciled && st.last.applied.reconciled.kind === 'idle' && !st.last.applied.unresolved, '③ no reconcile for a refusal this module had no earlier envelope for — `unresolved` is the exact field that let the optimistic pointer stand for five minutes: ' + JSON.stringify(st.last.applied));
+      assert(st.lastServerActivity === null && M.isActivityConfirmed('gather', spot.id) === false, '③ the client filed its own fail-safe as a SERVER statement — an acknowledgement the transport never produced');
+      const want = M.activityRefusalMessage('unknown_activity'), hit = said.find((s) => s.m === want);
+      assert(hit && hit.k === 'kill', '④ the run stopped in SILENCE (or off the refusal channel) — a player whose activity stops by itself files "the game ignored me", and they are right to. Said: ' + JSON.stringify(said.map((s) => s.m)).slice(0, 160));
+      assert(want !== M.activityRefusalMessage(''), '④ the player got the GENERIC line — the server\'s own reason never travelled');
+    } finally { window.fetch = realFetch; window.notify = realNotify;
+      stop(); M.resetActivity(); M.configureActivity(hadConfig || null); restoreG(snap);
+      try { window.refreshActivityBar(); window.saveLocal(); } catch (e) {}
     }
   }),
 
@@ -52455,7 +52593,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=532');
+    const S = await import('../data/shops.js?v=533');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -53996,7 +54134,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=532');
+    const S = await import('../data/shops.js?v=533');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -58584,7 +58722,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=532')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=533')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -60575,7 +60713,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=532');
+    const A = await import('../net/accrue.js?v=533');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -60600,7 +60738,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=532');
+    const A = await import('../net/accrue.js?v=533');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -60627,7 +60765,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=532');
+    const A = await import('../net/accrue.js?v=533');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -60780,7 +60918,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=532')).text();
+      const raw = await (await fetch(f + '?v=533')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -60830,7 +60968,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=532')).text();
+    const raw = await (await fetch('src/observability.js?v=533')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -60934,7 +61072,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=532');
+    const _art = await import('../data/monster-art.js?v=533');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -62155,6 +62293,62 @@ const TESTS = [
       try { window.saveLocal(); } catch (e) {}
     }
   }),
+
+  /* ── THE NODE YOU CAME FROM (regression suite) ────────────────────────────
+     Reproduced three times on live: chop Willow → fight a Goblin → open Skills
+     and tap Willow again → nothing at all. No intent, no toast, the header
+     still reading "Fighting Goblin". Tapping OAK switched instantly and paid
+     the window; smithing → Willow worked. The dead tile was always the node the
+     player CAME FROM — because both renderers baked the handler at PAINT time,
+     and combat's cross-stop clears the pointer and strips the badge in place
+     without rebuilding the panel (nor does returning to the Skills tab), so
+     that tile kept a stop handler while looking idle and the stop returned in
+     silence. The fix routes both directions through render/activity-tile.js,
+     which reads the live pointer at the click. This drives the PLAYER'S gesture
+     — a real .click() on the real tile element, real declaration path. Prefixed
+     B533- to run alone with `__smokeTest({only:'B533'})`. */
+  () => tryRunAsync('B533-1: after a fight, tapping the node you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
+    const G = window.G; const A = window.HearthriseAccrual; const M = window.HearthriseActivity;
+    const tree = (window.TREES || []).find((t) => t.id === 'willow_tree') || (window.TREES || [])[1];
+    const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+    assert(!!tree && !!mid && !!A && !!M && typeof window.openSkillDetail === 'function', 'setup: no tree/monster/activity-seam fixture — the reported gesture cannot be driven');
+    const snap = snapshotG(); const realFetch = window.fetch; const wasOn = A.isServerAccrualEnabled(); const sent = [];
+    const drain = async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); for (let i = 0; i < 60; i++) await Promise.resolve(); };
+    const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')].find((e) => e.getAttribute('data-prod') === tree.prod);
+    try {
+      /* ACCEPT, AND ECHO THE DECLARED POINTER BACK as the server's own: a stub
+         answering with a fixed activity reconciles the client onto something this
+         gesture never asked for. */
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let body = null; try { body = JSON.parse(init && init.body); } catch (e) {}
+        if (body && body.verb === 'set_activity') sent.push(body);
+        const act = (body && body.activity) || { kind: 'idle', id: null };
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 700 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: {} }), { status: 200 }));
+      };
+      M.resetActivity(); M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' }); A.setServerAccrualEnabled(true);
+      G.skills = Object.assign({}, G.skills, { woodcutting: 14000000 }); G.playerHp = G.playerMaxHp || G.playerHp;
+      window.openSkillDetail('woodcutting'); await drain();
+      window.startSkill('woodcutting', tree.id, tree.ms); await drain(); const painted = tileOf();
+      assert(!!painted && painted.classList.contains('active'), 'CONTROL: the tile must paint ACTIVE while the node runs (pointer ' + G.activeSkill + '/' + G.skillTargetId + '), or this cannot reproduce the stale paint');
+      window.startCombat(mid); await drain();
+      assert(G.activeMonster === mid && !G.activeSkill && !G.skillTargetId, 'setup: the fight or the cross-stop never happened (' + G.activeMonster + ', ' + G.activeSkill + ') — the scenario under test is gone');
+      window.showTab('skills'); await drain();                       // the player walks back; measured: this does NOT repaint the grid
+      const tile = tileOf(); const stalePaint = tile === painted; sent.length = 0;
+      assert(!!tile && tile.isConnected, 'the ' + tree.id + ' tile is no longer on the Skills screen');
+      tile.click(); await drain();
+      const sw = sent.filter((b) => b.activity && b.activity.kind === 'gather' && b.activity.id === tree.id);
+      assert(sw.length >= 1, 'tapping the node the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time, the cross-stop cleared the pointer without rebuilding the panel, and the stop returned in silence. The player cannot get back to their own node with one tap');
+      assert(M.isIntentKey(sw[sw.length - 1].intentId), 'the switch carried no canonical uuid key: ' + sw[sw.length - 1].intentId);
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster + ' — the header would still read as a fight');
+    } finally {
+      window.fetch = realFetch; A.setServerAccrualEnabled(false); if (!wasOn) A.setServerAccrualEnabled(false);
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {}
+      restoreG(snap); window.showTab('profile');
+    }
+  }),
 ];
 
 export async function runSmokeTest(opts = {}) {
@@ -62205,6 +62399,15 @@ export async function runSmokeTest(opts = {}) {
   const _Auto = window.HearthriseAuto;
   let _eatSyncWasParked = false;
   try { if (_Auto && typeof _Auto._parkEatSync === 'function') _eatSyncWasParked = _Auto._parkEatSync(true); } catch (e) {}
+  /* ── AND THE AUTO-EAT SERVER MIRROR, same reason again ───────────────
+     `eatThreshold()` returns the server's own `auto_eat_pct` rather than a local
+     preference the client clamped for itself — the local reading WAS the bug.
+     About ten fixtures seed a threshold and assert an eat/no-eat outcome or a
+     printed percentage; on a signed-in page the REAL account's column would
+     govern every one, so they would pass or fail on live data instead of on
+     their own fixture. Identical shape to the property-record park above. */
+  let _pctMirrorWasParked = false;
+  try { if (_Auto && typeof _Auto._parkPctMirror === 'function') _pctMirrorWasParked = _Auto._parkPctMirror(true); } catch (e) {}
   /* ── AND THE COMPANION GRANT LADDER, for exactly the same reason (b499) ───
      `b202: pets` drives a FORCED skill/boss roll. Under the live capstone arm
      that dispatches a real hr_companion_grant; the suite is signed out,
@@ -62280,6 +62483,7 @@ export async function runSmokeTest(opts = {}) {
       if (_loopWasRunning && _A) { _A.setSettleEnv(null); _A.startSettleLoop(); }
     } catch (e) {}
     try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
+    try { if (_Auto && typeof _Auto._parkPctMirror === 'function') _Auto._parkPctMirror(_pctMirrorWasParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__parkGrants === 'function') _Comp.__parkGrants(_grantsWereParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
     try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _Rn.__setPollEnabled(_rnPollWasOn); } catch (e) {}

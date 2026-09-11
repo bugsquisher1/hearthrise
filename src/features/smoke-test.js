@@ -2,10 +2,8 @@
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
 // modularised, will import { G } from '../state/game.js?v=534' directly.
 //
-// Triggered by:
-//   - Floating 🧪 button bottom-left
-//   - Ctrl+Shift+T keyboard shortcut
-//   - Programmatically via window.__smokeTest()
+// b535 — NEVER SENT TO A PLAYER. A dynamic import owned by smoke-test-loader.js,
+// which owns all three triggers too; read its header. Guard: boot-budget.mjs.
 
 import { on, snapshot } from '../net/events.js?v=534';
 import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=534';
@@ -16448,15 +16446,12 @@ const TESTS = [
     }
   }),
 
-  // b141: smoke test 🧪 button is hidden for non-admin players.
-  // The button only appears when localStorage hearthrise:admin === '1'.
-  // SA-013 (increment 2): this WAS a soft self-check — `assert(true, 'gate
-  // verified in source')` — a test that asserted nothing at runtime. It now
-  // drives the REAL addButton() through the harness-only hook (setupSmokeTest
-  // publishes it as window.__hrAddSmokeButton only under __HR_TEST_HARNESS__) and
-  // asserts the actual gate: no button when admin is off, a button when admin is
-  // on. On a live admin run (Ctrl+Shift+T) the hook is absent, so it declares an
-  // honest skip instead of a fake pass.
+  // b141: the 🧪 button appears only when localStorage hearthrise:admin === '1'.
+  // SA-013 (increment 2): this WAS `assert(true, 'gate verified in source')` — a
+  // test that asserted nothing. It drives the REAL addButton() through the
+  // harness-only __hrAddSmokeButton hook (b535: published by
+  // smoke-test-loader.js now) and asserts both directions; on a live admin run
+  // the hook is absent, so it declares an honest skip instead of a fake pass.
   () => tryRun('b141: smoke-test 🧪 button hidden when not admin', () => {
     const KEY = 'hearthrise:admin';
     const orig = localStorage.getItem(KEY);
@@ -62446,65 +62441,11 @@ export async function runSmokeTest(opts = {}) {
   return summary;
 }
 
-function addButton() {
-  if (document.getElementById('smoke-test-btn')) return;
-  // b141 — Beta launch prep: hide the floating 🧪 button from non-admin
-  // players. Admin opt-in is already managed by src/admin.js (URL ?admin=1
-  // is sticky in localStorage). Ctrl+Shift+T still works for everyone, so
-  // testers can still kick off the suite if asked. Keeps the regular UI
-  // clean of dev affordances during beta.
-  const isAdmin = (() => {
-    try { return localStorage.getItem('hearthrise:admin') === '1'; }
-    catch (e) { return false; }
-  })();
-  if (!isAdmin) return;
-  const b = document.createElement('button');
-  b.id = 'smoke-test-btn';
-  b.textContent = '🧪 Test';
-  b.title = 'Run smoke test (Ctrl+Shift+T)';
-  b.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:99999;'
-    + 'background:#3a4154;color:#dfe9ee;border:1px solid #5fcc7c;border-radius:4px;'
-    + 'padding:4px 10px;font-size:11px;cursor:pointer;opacity:.6;font-weight:700';
-  b.onmouseenter = () => (b.style.opacity = '1');
-  b.onmouseleave = () => (b.style.opacity = '.6');
-  // b337: runSmokeTest is async now (the suite can await a network round trip).
-  b.onclick = async () => {
-    const r = await runSmokeTest();
-    let msg = `Smoke test:\n${r.passed}/${r.total} passed\n${r.failed} failed, ${r.skipped} skipped, ${r.runtimeErrors} runtime errors\n\n`;
-    if (r.failed > 0) {
-      msg += 'Failures:\n' + r.results.filter((x) => x.status === 'FAIL')
-        .map((x) => '• ' + x.name + ': ' + x.why).join('\n');
-    } else {
-      msg += '✓ All clear';
-    }
-    // b373: the shared non-blocking modal, like every other question the game
-    // asks. A native alert blocks the renderer while the report is open.
-    if (window.HearthriseDialog) window.HearthriseDialog.alert({ title: 'Smoke test', body: msg });
-    else if (typeof window.notify === 'function') window.notify(msg, 'info');
-  };
-  document.body.appendChild(b);
-}
-
 export function setupSmokeTest() {
   window.__smokeTest = runSmokeTest;
-  /* SA-013 (increment 2): expose the admin-gated dev-button builder to the suite
-     ONLY under the test harness, so the b141 admin-gate test can drive the REAL
-     addButton() with teeth instead of a soft self-check. This is not a
-     production surface — __HR_TEST_HARNESS__ is set only by tests/run-smoke.mjs's
-     addInitScript — so on a live admin run (Ctrl+Shift+T) the hook is absent and
-     the b141 test declares an honest skip. */
-  try { if (window.__HR_TEST_HARNESS__) window.__hrAddSmokeButton = addButton; } catch (e) {}
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-      e.preventDefault();
-      runSmokeTest();
-    }
-  });
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(addButton, 500));
-  } else {
-    setTimeout(addButton, 500);
-  }
+  /* b535 — the suite SIGNS its work: legacy.js block 29 publishes a rival
+     ~40-test __smokeTest, so runners wait on this, not on the bare global. */
+  window.__smokeTestSource = 'esm';
   // Live watcher — logs any new overlaps that appear during normal play
   // (debounced 250ms after every tab change / resize). Deduped by signature
   // so the same violation only logs once per session.

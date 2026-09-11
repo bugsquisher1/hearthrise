@@ -48,11 +48,11 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { resolveActiveSlot } from './accrue.js?v=534';
+import { resolveActiveSlot } from './accrue.js?v=535';
 /* b492 — the property/worker rung OBSERVER. See applyClientState for why the
    boot observation belongs in THIS module. property-record.js imports nothing,
    so it cannot form a cycle with either this file or accrue.js. */
-import { notePropertyUnlocks } from './property-record.js?v=534';
+import { notePropertyUnlocks } from './property-record.js?v=535';
 
 /* ── THE ARM (SUPERSEDED BY THE CAPSTONE — THIS CONST IS INERT) ─────────────
    THE VALUE IS false AND STAYS false, BUT THE STORE IS SERVER-BACKED IN PROD.
@@ -288,6 +288,18 @@ export function applyClientState(res, G) {
      exactly the population that needs it. Guarded: an observation must never
      break a record load. */
   try { notePropertyUnlocks(res); } catch (e) {}
+  /* AND WHAT THE REALM HAS COUNTED IN RENOWN, off the same body and for
+     the same reason: the boot load is the only envelope an idle session gets,
+     and the renown mirror (src/features/renown.js noteServerRenown) is what the
+     rank headline and the rank-up card read. Today it learns the `renown_claim:`
+     once-guard flags out of `progress` (a FLOOR under the server's high-water);
+     the day hr_state_of projects `renown_high` the same call picks it up EXACT.
+     Observation only — nothing is written into G — and guarded, because an
+     observation must never break a record load. */
+  try {
+    const RN = (typeof window !== 'undefined') && window.HearthriseRenown;
+    if (RN && typeof RN.noteServerRenown === 'function') RN.noteServerRenown(res);
+  } catch (e) {}
   if (!res || typeof res !== 'object' || res.ok !== true) return false;
   const cs = res.client_state;
   if (cs === null || typeof cs !== 'object' || Array.isArray(cs)) return false;

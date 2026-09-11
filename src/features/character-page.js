@@ -20,12 +20,12 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=534';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=534';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=534';
+import { SKILLS_DEF } from '../data/skills.js?v=535';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=535';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=535';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup } from '../net/balance.js?v=534';
+import { balanceMarkup } from '../net/balance.js?v=535';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
    the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
@@ -342,8 +342,12 @@ function buildSkillsHeader() {
   try {
     const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
     if (rn && rn.rank) {
-      const score = (rn.score != null ? rn.score : (G.renownHigh || 0));
-      sub = `${esc(rn.rank.name)} · ${fmt(score)} Renown`;
+      /* `rn.score` NEVER EXISTED on the state object, so this line has
+         always fallen through to `G.renownHigh` — the CLIENT's ratcheted
+         prediction, which the kill-faucet rules keep permanently ahead of the
+         realm's count. `rn.renown` is the figure the server decides claims on
+         (getState's header); every other renown headline already reads it. */
+      sub = `${esc(rn.rank.name)} · ${fmt(rn.renown)} Renown`;
     }
   } catch (e) { /* renown optional */ }
   if (!sub) sub = esc(deriveClass().tagline);

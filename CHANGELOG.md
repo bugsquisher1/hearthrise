@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 535 — 2026-09-11 (A lighter start, an honest rank)
+
+**The game starts faster.** Every player was downloading and running the developer test suite on every cold start: 3.75 MB of the 10.3 MB the game shipped. It now loads only when a tester opens it, so the JavaScript a player fetches fell by 37 %, about two and a half seconds off a boot on a 4G connection. A standing guard fails the build if the suite ever rides along again.
+
+**Renown shows what the realm has counted.** The headline and the rank-up card painted the client's own running score, so a "Rank up — Squire" card could appear at 955 while the realm had counted 779 and refused the claim. Both now read the realm's figure, and a rank-up is offered only once the realm agrees.
+
+**Under the hood.** A new guard names any in-page test that writes a field the suite does not restore between tests, the class that hid a real failure behind an unrelated one this week; its census runs as a report while the existing offenders are paid down.
+
 ## v0.9.2-beta build 534 — 2026-09-11 (Your taps land during a fight)
 
 **Equipping and stopping during a fight work on the first tap.** Every kill the realm credits during a fight advances your character version, so a tap that raced one was refused as "changed elsewhere" and the game simply told you to try again — a staff could take four to eight taps, and stopping a fight could drop you straight back into it while the refusal was being sorted out. The client now retries such a refusal once, automatically and with a fresh key, when the realm hands back its current version, and it no longer repaints the old fight between the refused attempt and the retry. A refusal that carries no version is still shown to you, not retried, and two refusals in a row still converge to what the realm says.

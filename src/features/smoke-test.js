@@ -1,19 +1,17 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=534' directly.
+// modularised, will import { G } from '../state/game.js?v=535' directly.
 //
-// Triggered by:
-//   - Floating 🧪 button bottom-left
-//   - Ctrl+Shift+T keyboard shortcut
-//   - Programmatically via window.__smokeTest()
+// b535 — NEVER SENT TO A PLAYER. A dynamic import owned by smoke-test-loader.js,
+// which owns all three triggers too; read its header. Guard: boot-budget.mjs.
 
-import { on, snapshot } from '../net/events.js?v=534';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=534';
+import { on, snapshot } from '../net/events.js?v=535';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=535';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=534';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=535';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1531,6 +1529,19 @@ const setAway = (hours, nowMs) => {
 const armActivityTransport = () => { const M = window.HearthriseActivity; M.resetActivity(); M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' }); window.HearthriseAccrual.setServerAccrualEnabled(true); };
 const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };   // LET AN INTENT'S PROMISE CHAIN FINISH. Was declared verbatim in four tests; one that needs a different wait still declares its own and shadows this.
 const restoreAccrualSwitch = (wasOn) => { const A = window.HearthriseAccrual; A.setServerAccrualEnabled(false); try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {} if (!wasOn) A.setServerAccrualEnabled(false); };
+/* THE SIGNED-IN SERVER ENVIRONMENT, WRITTEN ONCE — five claim tests each carried
+   the same four stubs and restores; a forgotten copy leaks a fake session. */
+const stubSignedIn = (slot) => {
+  const o = [window.HearthriseSupabase, window.HearthriseAuth, window.HearthriseRpc, window.HearthriseProfile];
+  window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+  window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+  window.HearthriseRpc = { mayCall: () => true };
+  window.HearthriseProfile = { activeSlot: () => slot };
+  return () => {
+    window.HearthriseSupabase = o[0]; window.HearthriseAuth = o[1];
+    window.HearthriseRpc = o[2]; window.HearthriseProfile = o[3];
+  };
+};
 
 const restoreG = (snap) => {
   if (!snap || !window.G) return;
@@ -5087,20 +5098,14 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     const origRec = window.HearthriseRecord;
     let claimBody = null, claimCalls = 0, refreshCalls = 0;
     try {
       // A signed-in, server-backed environment with a mocked hr_claim_milestone.
       // Never let the balance refresh apply a real envelope into the live G.
       window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 3 };   // the slot the server must credit
+      unstub = stubSignedIn(3);
       window.fetch = function (url, init) {
         if (String(url).indexOf('hr_claim_milestone') !== -1) {
           claimCalls++;
@@ -5140,10 +5145,7 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
       window.HearthriseRecord = origRec;
       if (C.__resetClaimState) C.__resetClaimState();
       restoreG(snap);
@@ -5166,19 +5168,13 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     const origRec = window.HearthriseRecord;
     const origNotify = window.notify;
     let claimCalls = 0, refreshCalls = 0;
     const said = [];
     try {
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 0 };
+      unstub = stubSignedIn(0);
       window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
       window.notify = (m) => { said.push(String(m || '')); };
       window.fetch = function (url) {
@@ -5231,10 +5227,7 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
       window.HearthriseRecord = origRec;
       window.notify = origNotify;
       if (C.__resetClaimState) C.__resetClaimState();
@@ -5253,17 +5246,11 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     const origRec = window.HearthriseRecord;
     let claimBody = null, claimCalls = 0, refreshCalls = 0;
     try {
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 4 };
+      unstub = stubSignedIn(4);
       // Never let the balance refresh apply a real envelope into the live G.
       window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
       window.fetch = function (url, init) {
@@ -5310,10 +5297,7 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
       window.HearthriseRecord = origRec;
       if (R.__resetClaimState) R.__resetClaimState();
       restoreG(snap);
@@ -5338,19 +5322,13 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     const origRec = window.HearthriseRecord;
     const origNotify = window.notify;
     let claimCalls = 0, refreshCalls = 0;
     const said = [];
     try {
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 0 };
+      unstub = stubSignedIn(0);
       window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
       window.notify = (m) => { said.push(String(m || '')); };
       window.fetch = function (url) {
@@ -5418,10 +5396,7 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
       window.HearthriseRecord = origRec;
       window.notify = origNotify;
       if (R.__resetClaimState) R.__resetClaimState();
@@ -5534,17 +5509,11 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     let claimBody = null, claimCalls = 0;
     try {
       // A signed-in, server-backed environment with a mocked world_event_claim.
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 2 };   // the slot the server must credit
+      unstub = stubSignedIn(2);
       window.fetch = function (url, init) {
         if (String(url).indexOf('world_event_claim') !== -1) {
           claimCalls++;
@@ -5583,10 +5552,81 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
+      restoreG(snap);
+    }
+  }),
+
+  /* ── regression suite — THE RENOWN HEADLINE IS THE REALM'S COUNT ─────────
+     MEASURED LIVE (QA, 2026-09-11): a card offered "Rank up — Squire — Claim
+     750", the server refused it ("the realm has counted 779 of 900"), the header
+     painted 955 — all in one breath. Structural: a client kill credit scores ZERO
+     renown server-side (renown-kill-faucet), so the client runs permanently ahead.
+     MUTATION, both red: getState on `effectiveRenown(G)` paints 955; pollRankUp on it offers the card. Residue-ahead, CLAUDE.md §6. */
+  () => tryRun('B534-1: the rank headline and the rank-up card read what the REALM has counted — a client score 176 ahead neither paints nor ranks up', () => {
+    const R = window.HearthriseRenown;
+    assert(R && typeof R.noteServerRenown === 'function' && typeof R.getState === 'function',
+      'the renown server mirror seam is missing — every headline is back on the client score');
+    const G = window.G;
+    const snap = snapshotG();
+    const sCollection = G.collection, sStreak = G.streak;
+    const srvBefore = R.serverRenownHigh();
+    try {
+      // A prediction of EXACTLY 955: the terms are emptied, so the ratchet IS it.
+      G.skills = {};
+      G.stats = Object.assign({}, G.stats, { kills: 0 });
+      G.bestiary = {}; G.quests = []; G.collection = {};
+      G.streak = { best: 0, count: 0 };
+      G.bountyHunter = Object.assign({}, G.bountyHunter || {}, { completed: 0 });
+      G.renownHigh = 955;
+      G.renown = { claimed: [], seenRank: 1 };        // Serf already seen — the live shape
+      if (R.__resetClaimState) R.__resetClaimState();
+      assert(R.effective(G) === 955, 'fixture: the local prediction must be exactly 955; got ' + R.effective(G));
+      assert(R.serverRenownHigh() === null, 'fixture: the realm must have stated nothing yet');
+
+      // (1) THE REALM HAS COUNTED 779. Squire needs 900. The client says 955.
+      const noted = R.noteServerRenown({ ok: true, renown_high: 779, progress: [], progress_truncated: false });
+      assert(noted.high === 779, 'the envelope figure must land in the mirror; got ' + JSON.stringify(noted));
+      const st = R.getState(G);
+      assert(st.renown === 779,
+        'THE BUG: the headline painted the CLIENT score (955) while the server decided on 779 and said so in a toast. '
+        + 'It must read what the realm has counted; got ' + st.renown);
+      assert(st.local === 955 && st.counted === true,
+        'the prediction rides along, marked as counted, so no surface has to guess; got ' + JSON.stringify({ local: st.local, counted: st.counted }));
+      assert(st.rank.id === 'serf', 'the rank follows the counted figure (779 → Serf), not the prediction; got ' + st.rank.id);
+      assert(R.pollRankUp(G).length === 0,
+        'THE BUG: a "Rank up — Squire — Claim 750" card was offered on a figure the realm had not counted, and the claim it offers is refused');
+      assert(G.renown.seenRank === 1, 'a card that never fired may not advance the seen rank; got ' + G.renown.seenRank);
+
+      // (2) THE REALM CATCHES UP — only now is the rank-up real.
+      R.noteServerRenown({ ok: false, error: 'not_reached', renown_high: 900, min: 2200 });
+      const st2 = R.getState(G);
+      assert(st2.renown === 900 && st2.rank.id === 'squire',
+        'the counted figure is what ranks a player up; got ' + st2.renown + ' / ' + st2.rank.id);
+      const reached = R.pollRankUp(G);
+      assert(reached.length === 1 && reached[0].id === 'squire',
+        'the card fires the moment the realm has counted the threshold; got ' + JSON.stringify(reached.map((r) => r.id)));
+      assert(R.pollRankUp(G).length === 0, 'the card is offered once — seenRank advanced with it');
+
+      R.noteServerRenown({ renown_high: 400 });
+      assert(R.getState(G).renown === 900,
+        'the mirror is a high-water: a stale lower reading is staleness, never a demotion; got ' + R.getState(G).renown);
+
+      if (R.__resetClaimState) R.__resetClaimState();
+      R.noteServerRenown({ ok: true, progress_truncated: false, progress: [
+        { kind: 'flag', key: 'renown_claim:knight', value: 1, period: '', state: 'claimed' },
+        { kind: 'flag', key: 'renown_claim:__unknown__', value: 1, period: '', state: 'claimed' },
+        { kind: 'unlock', key: 'property:homestead', value: 1, period: '', state: '' }
+      ] });
+      assert(R.serverRenownHigh() === 2200,
+        'a paid rank floors the count at its threshold (knight = 2200), and an unknown rank id is never guessed; got ' + R.serverRenownHigh());
+      assert(R.noteServerRenown({ ok: true }).mode === 'absent',
+        'a body that says nothing about renown must leave the record alone');
+      assert(R.serverRenownHigh() === 2200, 'absence is not a statement of zero; got ' + R.serverRenownHigh());
+    } finally {
+      if (R.__resetClaimState) R.__resetClaimState();
+      if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
+      G.collection = sCollection; G.streak = sStreak;
       restoreG(snap);
     }
   }),
@@ -9186,7 +9226,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=534');
+    const S = await import('../data/shops.js?v=535');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -10087,7 +10127,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=534');
+    const mod = await import('../data/dungeons.js?v=535');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10118,7 +10158,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=534');
+    const mod = await import('../data/dungeons.js?v=535');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -16406,15 +16446,12 @@ const TESTS = [
     }
   }),
 
-  // b141: smoke test 🧪 button is hidden for non-admin players.
-  // The button only appears when localStorage hearthrise:admin === '1'.
-  // SA-013 (increment 2): this WAS a soft self-check — `assert(true, 'gate
-  // verified in source')` — a test that asserted nothing at runtime. It now
-  // drives the REAL addButton() through the harness-only hook (setupSmokeTest
-  // publishes it as window.__hrAddSmokeButton only under __HR_TEST_HARNESS__) and
-  // asserts the actual gate: no button when admin is off, a button when admin is
-  // on. On a live admin run (Ctrl+Shift+T) the hook is absent, so it declares an
-  // honest skip instead of a fake pass.
+  // b141: the 🧪 button appears only when localStorage hearthrise:admin === '1'.
+  // SA-013 (increment 2): this WAS `assert(true, 'gate verified in source')` — a
+  // test that asserted nothing. It drives the REAL addButton() through the
+  // harness-only __hrAddSmokeButton hook (b535: published by
+  // smoke-test-loader.js now) and asserts both directions; on a live admin run
+  // the hook is absent, so it declares an honest skip instead of a fake pass.
   () => tryRun('b141: smoke-test 🧪 button hidden when not admin', () => {
     const KEY = 'hearthrise:admin';
     const orig = localStorage.getItem(KEY);
@@ -43687,7 +43724,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=534');
+    const KIT = await import('../data/start-kit.js?v=535');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -43769,7 +43806,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=534');
+    const KIT = await import('../data/start-kit.js?v=535');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -43883,7 +43920,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=534');
+    const KIT = await import('../data/start-kit.js?v=535');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -45994,7 +46031,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=534')).text();
+    const src = await (await fetch('src/legacy.js?v=535')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -52560,7 +52597,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=534');
+    const S = await import('../data/shops.js?v=535');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -54101,7 +54138,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=534');
+    const S = await import('../data/shops.js?v=535');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -58689,7 +58726,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=534')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=535')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -60680,7 +60717,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=534');
+    const A = await import('../net/accrue.js?v=535');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -60705,7 +60742,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=534');
+    const A = await import('../net/accrue.js?v=535');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -60732,7 +60769,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=534');
+    const A = await import('../net/accrue.js?v=535');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -60885,7 +60922,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=534')).text();
+      const raw = await (await fetch(f + '?v=535')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -60935,7 +60972,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=534')).text();
+    const raw = await (await fetch('src/observability.js?v=535')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -61039,7 +61076,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=534');
+    const _art = await import('../data/monster-art.js?v=535');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -62404,65 +62441,11 @@ export async function runSmokeTest(opts = {}) {
   return summary;
 }
 
-function addButton() {
-  if (document.getElementById('smoke-test-btn')) return;
-  // b141 — Beta launch prep: hide the floating 🧪 button from non-admin
-  // players. Admin opt-in is already managed by src/admin.js (URL ?admin=1
-  // is sticky in localStorage). Ctrl+Shift+T still works for everyone, so
-  // testers can still kick off the suite if asked. Keeps the regular UI
-  // clean of dev affordances during beta.
-  const isAdmin = (() => {
-    try { return localStorage.getItem('hearthrise:admin') === '1'; }
-    catch (e) { return false; }
-  })();
-  if (!isAdmin) return;
-  const b = document.createElement('button');
-  b.id = 'smoke-test-btn';
-  b.textContent = '🧪 Test';
-  b.title = 'Run smoke test (Ctrl+Shift+T)';
-  b.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:99999;'
-    + 'background:#3a4154;color:#dfe9ee;border:1px solid #5fcc7c;border-radius:4px;'
-    + 'padding:4px 10px;font-size:11px;cursor:pointer;opacity:.6;font-weight:700';
-  b.onmouseenter = () => (b.style.opacity = '1');
-  b.onmouseleave = () => (b.style.opacity = '.6');
-  // b337: runSmokeTest is async now (the suite can await a network round trip).
-  b.onclick = async () => {
-    const r = await runSmokeTest();
-    let msg = `Smoke test:\n${r.passed}/${r.total} passed\n${r.failed} failed, ${r.skipped} skipped, ${r.runtimeErrors} runtime errors\n\n`;
-    if (r.failed > 0) {
-      msg += 'Failures:\n' + r.results.filter((x) => x.status === 'FAIL')
-        .map((x) => '• ' + x.name + ': ' + x.why).join('\n');
-    } else {
-      msg += '✓ All clear';
-    }
-    // b373: the shared non-blocking modal, like every other question the game
-    // asks. A native alert blocks the renderer while the report is open.
-    if (window.HearthriseDialog) window.HearthriseDialog.alert({ title: 'Smoke test', body: msg });
-    else if (typeof window.notify === 'function') window.notify(msg, 'info');
-  };
-  document.body.appendChild(b);
-}
-
 export function setupSmokeTest() {
   window.__smokeTest = runSmokeTest;
-  /* SA-013 (increment 2): expose the admin-gated dev-button builder to the suite
-     ONLY under the test harness, so the b141 admin-gate test can drive the REAL
-     addButton() with teeth instead of a soft self-check. This is not a
-     production surface — __HR_TEST_HARNESS__ is set only by tests/run-smoke.mjs's
-     addInitScript — so on a live admin run (Ctrl+Shift+T) the hook is absent and
-     the b141 test declares an honest skip. */
-  try { if (window.__HR_TEST_HARNESS__) window.__hrAddSmokeButton = addButton; } catch (e) {}
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-      e.preventDefault();
-      runSmokeTest();
-    }
-  });
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(addButton, 500));
-  } else {
-    setTimeout(addButton, 500);
-  }
+  /* b535 — the suite SIGNS its work: legacy.js block 29 publishes a rival
+     ~40-test __smokeTest, so runners wait on this, not on the bare global. */
+  window.__smokeTestSource = 'esm';
   // Live watcher — logs any new overlaps that appear during normal play
   // (debounced 250ms after every tab change / resize). Deduped by signature
   // so the same violation only logs once per session.

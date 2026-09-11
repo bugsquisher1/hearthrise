@@ -82,6 +82,20 @@ const AUTHOR = '2026-08-11-player-state.sql';
 const PRED = '2026-09-03-intent-mismatch-escalates.sql';
 const HARDEN = '2026-09-06-companion-grant-hardening.sql';
 
+/** Migrations that programmatically patch hr_record_rejection AFTER this file.
+ *  Each entry is a REVIEW, not a waiver: it says what was read and why it
+ *  leaves the C6 classification alone. An unlisted later patcher is RED (see
+ *  armLastToucher), and a stale entry is RED too — an allowlist nobody prunes
+ *  is a second place to hide. The BEHAVIOUR is still proven independently of
+ *  this list, on the chain-end body, by ARMs 1-3. */
+const LATER_PATCHERS = new Map([
+  ['2026-09-12-hr-rejections-journal.sql',
+    'the refusal journal. Three anchored inserts into hr_record_rejection: the bounded `verbs` map '
+    + 'on both the insert and the conflict path, hr_detail_bound() on last_detail, and the '
+    + 'transaction-local once-flag. It reads neither c_incident nor c_escalating nor '
+    + 'c_escalate_at and rewrites none of them, which is what ARM 1 re-proves at chain end.'],
+]);
+
 const SIG = 'public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)';
 
 /** A throwaway signed-in character. Distinct from the uuids the migrations use
@@ -557,13 +571,20 @@ async function armDualShape(extra = []) {
 //   2026-09-03-intent-mismatch-escalates.sql, silently, because that file's own
 //   self-checks were written for its own body and pass on it.
 // ════════════════════════════════════════════════════════════════════════
-async function armLastToucher() {
+async function armLastToucher(extra = []) {
   const m = await manifest();
   const authors = [];
   const patchers = [];
   for (const f of m.order) {
     let src = '';
-    try { src = await mig(f); } catch { continue; }
+    // migPatched, NOT mig: this arm is static, so reading the file off disk
+    // would hand it the UNMUTATED text and make every mutation aimed at it a
+    // silent no-op that reports as "nothing fired". Same trap the header warns
+    // about for the arms that apply a migration by hand.
+    // A missing file is skipped; a BROKEN ANCHOR is not. Swallowing the latter
+    // is how a mutation aimed at this arm reports "nothing fired" while the
+    // file it was aimed at was quietly dropped from the scan.
+    try { src = await migPatched(f, extra); } catch (e) { if (e.harness) throw e; continue; }
     if (/create\s+or\s+replace\s+function\s+public\.hr_record_rejection\b/i.test(src)) authors.push(f);
     // A programmatic patcher: it reads hr_record_rejection's OWN body back and
     // re-executes it. A §0 signature reference or an unrelated `execute v_new`
@@ -577,10 +598,46 @@ async function armLastToucher() {
     + `${AUTHOR}. Authors in manifest order: [${authors.join(', ')}]. A new author would have to `
     + 'carry both classification rulings forward, and this guard has to be re-pointed at it '
     + 'deliberately.');
-  ok('chain/this-file-is-the-last-patcher', patchers[patchers.length - 1] === FIX,
-    `the LAST migration to patch hr_record_rejection is ${patchers[patchers.length - 1]}, not `
-    + `${FIX}. Patchers in manifest order: [${patchers.join(', ')}]. Whatever runs last decides, in `
-    + 'silence.');
+  /* ⚠ THIS ASSERTION USED TO BE "this file is the last patcher", AND THAT WAS
+     THE WRONG INVARIANT — b537. It was true when it was written and it went
+     stale the moment a LEGITIMATE later change touched the same body
+     (2026-09-12-hr-rejections-journal.sql, the refusal journal's verb map).
+     The guard then failed for a reason that had nothing to do with C6: the
+     classification was intact, every behavioural arm was green, and the red
+     named a file ordering. A guard that goes red on correct work teaches people
+     to loosen guards.
+
+     What C6 actually needs is NOT "nobody may patch after me". It is:
+       (a) the severity properties hold on the CHAIN-END body — whichever file
+           patched it last. ARMs 1-3 already assert exactly that: they boot the
+           WHOLE chain (no upTo) and drive the real hr_record_rejection, so a
+           later patcher that reverts the classification is caught there, by
+           name, and the `later_patcher_reverts_the_ruling` mutation proves it.
+       (b) every later patcher is a KNOWN one. An unreviewed migration that
+           re-installs this body is still the silent-revert hazard the original
+           assertion was reaching for, so it still turns this RED — it just no
+           longer fires for a patcher somebody has read. */
+  const idx = patchers.indexOf(FIX);
+  ok('chain/this-file-patches', idx >= 0,
+    `${FIX} does not patch hr_record_rejection at all according to patchesRecordRejection(). Either `
+    + 'the file stopped being a patcher or the detector stopped recognising it; either way the '
+    + `chain arm below is measuring nothing. Patchers in manifest order: [${patchers.join(', ')}].`);
+  const later = idx >= 0 ? patchers.slice(idx + 1) : [];
+  const unknown = later.filter((f) => !LATER_PATCHERS.has(f));
+  ok('chain/later-patchers-are-known', unknown.length === 0,
+    `migration(s) patch hr_record_rejection AFTER ${FIX} and are not on this file's reviewed list: `
+    + `[${unknown.join(', ')}]. Whatever runs last decides, in silence — re-installing this body can `
+    + 'revert BOTH classification rulings without an error. Read the file, confirm it leaves '
+    + 'c_incident, c_escalating and c_escalate_at alone, then add it to LATER_PATCHERS with the '
+    + `one-line reason. Patchers in manifest order: [${patchers.join(', ')}].`);
+  for (const [f, why] of LATER_PATCHERS) {
+    ok('chain/later-patcher-allowlist-is-not-stale', later.includes(f),
+      `LATER_PATCHERS names ${f}, which does not patch hr_record_rejection after ${FIX} any more. An `
+      + 'allowlist that is never pruned is a second place to hide: drop the entry.');
+    ok('chain/later-patcher-has-a-reason', typeof why === 'string' && why.trim().length >= 40,
+      `LATER_PATCHERS's entry for ${f} has no substantive reason. An entry is a REVIEW, not a `
+      + 'waiver — say what you read and why it does not touch the classification.');
+  }
   ok('chain/predecessor-runs-first',
     m.order.indexOf(PRED) >= 0 && m.order.indexOf(PRED) < m.order.indexOf(FIX),
     `${PRED} must run BEFORE ${FIX} — the c_escalating anchor is that file's output.`);
@@ -759,13 +816,40 @@ const MUTATIONS = [
        + 'player, as any signed-in client" — with the migration\'s own §2(d) reachability assertion '
        + 'removed in the same edit. Nothing else in the repo reads the ACL of this function at '
        + 'runtime.',
-    patches: new Map([[FIX, [
-      [A_S2_ACL, '  if false then'],
-      ['do $$\nbegin\n  raise notice \'companion-code severity (C6) INSTALLED',
-        'grant execute on function public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)\n'
-        + '  to authenticated;\n\ndo $$\nbegin\n  raise notice \'companion-code severity (C6) INSTALLED'],
-    ]]]),
-    expect: { kind: 'arm', assertion: 'acl/no-client-role' },
+    patches: new Map([
+      [FIX, [
+        [A_S2_ACL, '  if false then'],
+        ['do $$\nbegin\n  raise notice \'companion-code severity (C6) INSTALLED',
+          'grant execute on function public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)\n'
+          + '  to authenticated;\n\ndo $$\nbegin\n  raise notice \'companion-code severity (C6) INSTALLED'],
+      ]],
+    ]),
+    /* ⚠ THIS `expect` MOVED FROM `acl/no-client-role` TO THE CHAIN — b537, and
+       the reason is measured, not assumed. Since 2026-09-08-hero-slot-buy.sql
+       landed, this mutation has NOT reached the guard at all: the chain refuses
+       four files earlier with
+         GATE(i): grant-hygiene reports unapproved client rpcs:
+           ["hr_record_rejection(…) → authenticated"]
+       and --selftest has been reporting it MISSED ever since, on main, with
+       nothing to do with the lane that found it.
+
+       I tried the stronger repair first — neuter the later gate in the same
+       edit, this file's own idiom — and measured what it costs: hero-slot-buy's
+       GATE(i) has THREE arms, and behind it 2026-09-10-attended-loot-credit,
+       2026-09-10-dungeon-settle, 2026-09-11-quartermaster-buy,
+       2026-09-08-hearthfind and 2026-09-09-combat-xp-settle-first run the same
+       check. Carrying the mutation to the guard now means disabling grant
+       hygiene in six unrelated migrations, which stops resembling a real edit
+       and becomes "switch off every control in the repo".
+
+       So the honest statement is the one the database now makes: WIDENING THIS
+       ACL CANNOT BE APPLIED AT ALL. That is strictly stronger than "this guard
+       notices afterwards", and it is matched by name rather than by "something
+       refused". The cost is recorded rather than hidden: `acl/no-client-role`
+       still runs on every clean pass but no longer has a mutation of its own —
+       it is defence in depth behind hr_assert_grant_hygiene, not the thing
+       standing between a client and this function. */
+    expect: { kind: 'chain', match: /grant-hygiene reports (unapproved|ungated) client rpcs/ },
   },
   {
     name: 'anchor_comment_coupled',
@@ -780,6 +864,45 @@ const MUTATIONS = [
       + "    '  c_escalating constant text[] := array[''rate_limited'',''own_listing'',''intent_mismatch''];';",
     ]]]]),
     expect: { kind: 'armChain', match: /would NOT apply to a comment-stripped/ },
+  },
+  {
+    /* b537. These two replace the old `chain/this-file-is-the-last-patcher`
+       assertion, and together they are STRICTLY STRONGER than it was: the old
+       one could only say "somebody came after me" — it could not tell a later
+       patcher that reverts the ruling from one that does not, and it fired on
+       both. The first mutation is the hazard it was reaching for, caught by
+       BEHAVIOUR on the chain-end body; the second is the hazard it could
+       actually see, caught by name. */
+    name: 'later_patcher_reverts_the_ruling',
+    why: 'a LISTED later patcher (the refusal journal) gains a blunt `replace` that collaterally '
+       + "renames the c_incident member to 'unknown_unlock_x' while re-installing the body. Nothing "
+       + 'in that file grades the classification, this file\'s own §3 already passed 30 migrations '
+       + 'earlier on its own body, and the manifest ordering is unchanged — so every static check is '
+       + 'green and a destroyed unlock catalogue is graded "normal" forever. ONLY an arm that drives '
+       + 'the real function at CHAIN END can see it, which is the whole reason the chain assertion '
+       + 'was moved off file ordering and onto behaviour.',
+    patches: new Map([['2026-09-12-hr-rejections-journal.sql', [[
+      '  v_new := v_src;',
+      "  v_new := replace(v_src, '''unknown_unlock''', '''unknown_unlock_x''');",
+    ]]]]),
+    expect: { kind: 'arm', assertion: 'incident/unknown-unlock-first-occurrence-is-incident' },
+  },
+  {
+    name: 'unlisted_later_patcher',
+    why: 'an UNREVIEWED migration starts re-installing hr_record_rejection after this file. It is '
+       + 'inert here (the patch sits behind `if false`), so nothing behavioural changes and no other '
+       + 'guard says a word — which is exactly the point: the next edit to that block is the silent '
+       + 'revert. A later patcher must be READ and listed, or this goes red by name.',
+    patches: new Map([['2026-09-09-bounty-progress-projection.sql', [[
+      '-- 2026-09-09-bounty-progress-projection.sql\n--\n',
+      '-- 2026-09-09-bounty-progress-projection.sql\n--\n'
+      + 'do $mut$ declare v_new text; begin\n'
+      + '  if false then\n'
+      + "    v_new := pg_get_functiondef('public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)'::regprocedure);\n"
+      + '    execute v_new;\n'
+      + '  end if;\nend $mut$;\n',
+    ]]]]),
+    expect: { kind: 'arm', assertion: 'chain/later-patchers-are-known' },
   },
 ];
 
@@ -805,8 +928,14 @@ async function run({ mutation = null } = {}) {
     await armAcl(db);
     await db.close?.();
   }
+  /* ARM 5 runs under a mutation TOO (b537). It used to be skipped whenever one
+     was planted, which made it the one arm in this file with no mutation proof
+     at all — and it is a STATIC arm, so it could not have seen a mutation
+     anyway: it read every migration off disk while bootReplay patched only the
+     text it executed. Both halves are fixed here; `unlisted_later_patcher` is
+     what proves it, and it is red without either change. */
+  await armLastToucher(extra);
   if (!mutation) {
-    await armLastToucher();
     await armDualShape();
   } else if (mutation.expect.kind === 'armChain') {
     // ARM 4 boots its OWN chain, so a defect aimed at the dual-shape claim has
@@ -899,6 +1028,7 @@ if (RUN_DIRECTLY) {
     + 'hr_companion_grant with the code read off the row the verb wrote; an unclassified control '
     + 'code stays normal at any n; the ratchet never downgrades; every incumbent code survived; the '
     + 'ACL is unchanged across the definer-body replace; both anchors match the COMMENT-STRIPPED '
-    + 'body production runs and the migration applies to it; and this file is the manifest\'s last '
-    + 'patcher of the body.');
+    + 'body production runs and the migration applies to it; and every migration that patches the '
+    + `body after this one is a reviewed, listed one (${[...LATER_PATCHERS.keys()].join(', ') || 'none'}) `
+    + 'with the classification re-proved on the CHAIN-END body.');
 }

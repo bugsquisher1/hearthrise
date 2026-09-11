@@ -47,7 +47,7 @@
 // same bytes the browser runs.
 // ============================================================================
 
-import { markEquipAuthorityLive, resolveActiveSlot } from './accrue.js?v=533';
+import { markEquipAuthorityLive, resolveActiveSlot } from './accrue.js?v=534';
 
 export const EQUIP_VERB = 'equip';
 

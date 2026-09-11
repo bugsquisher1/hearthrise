@@ -76,7 +76,7 @@
 // a test's override is the transport, the same rule accrue.js follows.
 // ============================================================================
 
-import { resolveActiveSlot } from './accrue.js?v=533';
+import { resolveActiveSlot } from './accrue.js?v=534';
 
 /* THE SAME SWITCH AS b337 — retired in b515, so this is a constant. There is no
    longer a state where the client creates characters it will never accrue

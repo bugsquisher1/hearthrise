@@ -84,12 +84,24 @@
 //       asserts the MONEY, not the 200 — gold in player_state, version bumped,
 //       the progress row 'claimed' — and pins `granted`'s literal key set, which
 //       is a documented wire shape the client renders.
+//   T9  PRECONDITION — THE CHAIN MUST BE PROD-SHAPED FOR `SEED_SQL`, asserted
+//       before the socket server starts and with the function names READ OUT OF
+//       set-activity.js. It exists because over pglite-socket a SQL error closes
+//       the connection instead of returning one, so a function the chain does
+//       not define reads as `harness/runtime failure: write CONNECTION_CLOSED`
+//       — no test named, no statement named. That was b532's CI red for two
+//       days, diagnosed as a memory leak. This file now boots the WHOLE apply
+//       order (tests/schema-apply-order.json) and T9 says so by name.
 //
 // ── WHAT IT DOES NOT PROVE ─────────────────────────────────────────────────
 //   · The SUPABASE POOLER. pgbouncer sits between the Edge Function and
 //     Postgres in production and is not modelled here. It does not re-encode
 //     parameters — it forwards the extended-protocol messages — but that is
 //     reasoning, not measurement, and it is stated as such.
+//   · THE 42883 FALLBACK LADDERS in set-activity.js / index.ts. They are
+//     UNREACHABLE on this wire (see the seam note in T3) and nothing here
+//     claims them; tests/activity-intent.mjs's PGlite `exec` is where a
+//     catchable `undefined_function` exists at all.
 //   · JWT, CORS, RLS, true concurrency. Owned by other guards.
 //
 // ── USAGE ───────────────────────────────────────────────────────────────
@@ -177,8 +189,17 @@ const MUTATIONS = {
     file: FN('index.ts'),
     why: 'index.ts binds the pre-stringified delta into a bare ::jsonb — the shipped P0 on the '
        + 'accrue verb, which is the one that pays the night.',
-    find: '${JSON.stringify(delta)}::text::jsonb) as res',
-    repl: '${JSON.stringify(delta)}::jsonb) as res',
+    /* ANCHORED ON `wIntentId`, WHICH IS NOT DECORATION. index.ts carries TWO
+       apply sites since b532 (the crew/rested standalone settle, then the
+       pointer's own apply), so the bare `${JSON.stringify(delta)}::text::jsonb)
+       as res` this used to name matches TWICE and the arm aborted the whole
+       --selftest as a harness failure. The site named here is the one
+       `deltaCastOf` reads — the FIRST in the file — which is what T1 executes
+       and what T8 builds its apply from, so this arm still turns those red
+       rather than only T6. The second site is graded by T6's census, which is
+       precisely the class `third_apply_site` proves T6 sees. */
+    find: '${wIntentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res',
+    repl: '${wIntentId}::uuid, ${JSON.stringify(delta)}::jsonb) as res',
   },
   bare_jsonb_claim_reward: {
     file: FN('claim-reward.js'),

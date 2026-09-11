@@ -1023,6 +1023,41 @@ jobs:
           node tests/arm-flag-honesty.mjs --selftest
           node tests/arm-flag-honesty.mjs
 
+      # SUITE ISOLATION: what a test writes to `G`, restoreG must put back.
+      # ~1,200 in-page tests share ONE live window.G and isolation is a hand-
+      # written allowlist inside snapshotG(). b252 wrote G.activeAction, which
+      # the allowlist did not name, and ~2,000 later registrations inherited a
+      # topbar reading "Cooking — shrimp"; the cause was 26,000 lines above the
+      # first test that noticed. SNAP-2 is the same defect one layer down —
+      # JSON.stringify DROPS undefined, so a bare `traits: G.traits` protects
+      # nothing on a character who has never bought a trait, which is why F7-1
+      # fails when it runs after B495-4.
+      - name: Suite isolation — snapshotG allowlist mutation proof
+        run: node tests/snapshot-allowlist-guard.mjs --selftest
+
+      # ⚠ continue-on-error IS DELIBERATE AND IS NOT PERMANENT. The plain run is
+      # RED ON TODAY'S TREE FOR REAL REASONS — 285 SNAP-1 writes across 43 fields
+      # and 588 SNAP-2 writes across 29 — and allowlisting them to get a green
+      # tick would make this guard the masked skip it was written to end
+      # (CLAUDE.md §2: guards are never loosened to get green). The census is the
+      # deliverable until the offenders are fixed.
+      # TODO(Coordinator): route in two batches, because SNAP-2 is ONE EDIT PER
+      #   FIELD in snapshotG and SNAP-1 is a decision per field.
+      #   batch 1 (cheap, 29 operators): `f: G.f` → `f: G.f ?? null` for the
+      #     SNAP-2 list. G.skills ×102, G.gold ×96, G.rooms ×51, G.equipment ×50,
+      #     G.homestead ×46, G.traits ×27 (this is the F7-1-after-B495-4 flake),
+      #     G.buffs ×26, G.gems ×24 …
+      #   batch 2 (SNAP-1, needs judgement per field): G.monsterHp/monsterMaxHp
+      #     ×73, G.lastOfflineSummary ×22, G.combatLog ×12, G.enchant,
+      #     G.collection, G.entitlements, G.settings, and the `_`-scratch family.
+      #   When the plain run is green on the tree, DELETE continue-on-error and
+      #   this comment, and add the plain run to tools/lane-done.mjs.
+      - name: Suite isolation — the leak census (RED BY TRUTH, see TODO)
+        continue-on-error: true
+        run: |
+          node tests/snapshot-allowlist-guard.mjs --report
+          node tests/snapshot-allowlist-guard.mjs
+
       # DUPLICATE TOP-LEVEL FUNCTIONS: two declarations of one name in one scope
       # means the later hoists over the earlier and the earlier body is dead code
       # that can be edited, reviewed and shipped while changing nothing. Also

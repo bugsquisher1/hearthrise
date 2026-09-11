@@ -38860,19 +38860,27 @@ const TESTS = [
       // b459: eatThreshold() now clamps to the owned TIER's ceiling; a 0.6
       // adoption needs tier II (the pre-tier behaviour this fixture is about).
       G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
-      assert(Math.abs(A.eatThreshold() - 0.6) < 1e-9,
-        'a b324-era save must adopt the slider value it recorded, got ' + A.eatThreshold());
+      /* b533 — READ THROUGH `expressedThreshold()`, NOT `eatThreshold()`. This
+         fixture is about ensureShape()'s ONE-TIME adoption of the legacy mirror
+         into the local preference, and the local preference is exactly what
+         expressedThreshold() reports. eatThreshold() now answers a DIFFERENT
+         question — "what will the fight actually do" — which is the server's
+         `auto_eat_pct`, and pointing this fixture at it would make the adoption
+         assertion depend on whatever the live envelope happened to carry. */
+      const EX = (typeof A.expressedThreshold === 'function') ? A.expressedThreshold : A.eatThreshold;
+      assert(Math.abs(EX() - 0.6) < 1e-9,
+        'a b324-era save must adopt the slider value it recorded, got ' + EX());
       assert(Math.abs(A.getEat().threshold - 0.6) < 1e-9, 'the adoption must be written through, not computed each read');
 
       // Idempotent + inert afterwards: a later engine-side change is NOT undone.
       A.setEat({ threshold: 0.35 });
-      assert(Math.abs(A.eatThreshold() - 0.35) < 1e-9,
-        'once reconciled, the mirror must never claw a later setting back — got ' + A.eatThreshold());
+      assert(Math.abs(EX() - 0.35) < 1e-9,
+        'once reconciled, the mirror must never claw a later setting back — got ' + EX());
       assert(Math.abs(G.autoEatPct - 0.35) < 1e-9, 'setEat must keep the legacy mirror in step so the two can never diverge again');
 
       // A garbage mirror is ignored rather than adopted.
       G.autoActions.eat.threshold = 0.7; G.autoEatPct = NaN;
-      assert(Math.abs(A.eatThreshold() - 0.7) < 1e-9, 'a NaN mirror must not overwrite a real threshold');
+      assert(Math.abs(EX() - 0.7) < 1e-9, 'a NaN mirror must not overwrite a real threshold');
     } finally { G.autoEatPct = savedPct; restoreG(snap); }
   }),
 
@@ -38908,6 +38916,106 @@ const TESTS = [
       }
     } finally {
       const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
+      G.traits = savedTraits; G.settings = savedSettings; G.autoEatPct = savedPct;
+      restoreG(snap);
+    }
+  }),
+
+  /* ── b533 regression suite — THE AUTO-EAT THRESHOLD LIED (live P2) ────────
+     MEASURED ON THE QA ACCOUNT: the settings screen and `G.autoEatPct` said
+     50% while `player_state.auto_eat_pct` was 25. At 15 max HP the server ate
+     at 3 HP, so the player fell "with food" at a threshold nobody chose. Live
+     census at the time: 5 characters on 25, 32 on 50.
+
+     THE CLASS IS RESIDUE-AHEAD (CLAUDE.md §6): the displayed threshold and the
+     one the attended tick handed `resolveAutoEat` were derived from a local
+     preference clamped by a CLIENT-held trait map, while the fight used a
+     SERVER column. `hr_state_of` has projected `state.auto_eat_pct` since
+     2026-08-15-auto-eat.sql and accrue.js recorded it on every envelope — but
+     only as the settings sync's dedupe anchor. Nothing read it back down.
+
+     BOTH-PATH NOTE (CLAUDE.md §4): the AWAY half of auto-eat is the server's
+     own column read by its own engine — there is no client value to disagree
+     with, and src/core/auto-eat.js is deliberately untouched. The half that
+     could lie is the ATTENDED tick, so that is the half asserted here. */
+
+  () => tryRun('b533: the auto-eat threshold shown AND used is the server\'s auto_eat_pct, never a local 50%', () => {
+    const G = window.G;
+    const A = window.HearthriseAuto;
+    const AC = window.HearthriseAccrual;
+    /* The skip guard names only PRE-EXISTING seams. Guarding on anything the
+       fix introduces would turn "unfixed" into a green SKIP — the honest-skip
+       class that hid b267 for ~200 builds. */
+    if (!A || !AC || typeof AC.noteServerAutoEat !== 'function'
+        || typeof AC.__resetServerAutoEat !== 'function'
+        || typeof AC.serverAutoEatSettings !== 'function'
+        || typeof AC.__noteAutoEatSettings !== 'function') { skip('no auto/accrual seam'); return; }
+    const snap = snapshotG();
+    const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
+    const savedObs = AC.serverAutoEatSettings();
+    /* runSmokeTest parks the mirror for the run so ~10 local-threshold fixtures
+       stay deterministic on a signed-in page. This test IS the mirror, so it
+       unparks itself and restores what it found — the same contract SETTLE-5/6
+       and AUTOEAT-SYNC-1..3 have with their own parks. */
+    let mirrorWasParked = false;
+    try {
+      /* NOT a skip guard. If the seam is absent the fix is absent, and this test
+         must go RED on the assertions below rather than green on a SKIP. */
+      if (typeof A._parkPctMirror === 'function') mirrorWasParked = A._parkPctMirror(false);
+    } catch (e) {}
+    try {
+      /* THE LIVE SHAPE. The client sits on tier II — reconcileTraits UNIONS the
+         server's trait list and never removes, so a client tier can be AHEAD of
+         the server's — and holds a 50% preference. The server's column was
+         clamped on write by hr_set_auto_eat to Auto-Eat I's ceiling of 25. */
+      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
+      G.settings = Object.assign({}, G.settings || {});
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 20 });
+      A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.5 });
+      assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9, 'fixture: the local preference must be 50%');
+
+      // The envelope speaks — hr_state_of's projection, verbatim.
+      AC.noteServerAutoEat({ state: { auto_eat_enabled: true, auto_eat_pct: 25 } });
+
+      // ── 1. THE NUMBER THE PLAYER IS SHOWN ──────────────────────────────
+      assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9,
+        'the effective threshold must be the server\'s 25%, got ' + A.eatThreshold());
+      assert(Math.abs(G.autoEatPct - 0.25) < 1e-9,
+        'the legacy mirror legacy.js fx.autoEat reads must follow the server too, got ' + G.autoEatPct);
+      if (typeof window.openSettings === 'function') {
+        window.openSettings();
+        const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
+        assert(el, 'the Gameplay section must expose the auto-eat threshold slider');
+        assert(Math.abs(parseFloat(el.value) - 0.25) < 1e-9,
+          'the slider must sit on the server\'s 25%, not the local 50% — got ' + el.value);
+        const box = el.closest ? el.closest('.ss-slider') : null;
+        const shown = box ? box.querySelector('.ss-slider-value') : null;
+        assert(shown && shown.textContent.trim() === '25%',
+          'the threshold label must READ 25%, which is the promise the fight keeps — got '
+            + (shown ? shown.textContent : '(no label)'));
+      }
+
+      // ── 2. THE ATTENDED TICK USES THE SAME NUMBER ──────────────────────
+      G.playerMaxHp = 100; G.playerHp = 40;   // under the local 50%, over the server's 25%
+      const held = G.inventory.cooked_shrimp;
+      assert(A.maybeAutoEat() === false,
+        'at 40% HP the attended tick must NOT eat: the server eats at 25%, and a client meal here '
+          + 'is a debit the ~90 s settle will not have paid');
+      assert(G.inventory.cooked_shrimp === held, 'no Provision may be spent above the server threshold');
+      G.playerHp = 20;                        // under the server's 25%
+      assert(A.maybeAutoEat() === true, 'at 20% HP the attended tick must eat — that is what the server does');
+
+      // ── 3. NO KEY ON THE ENVELOPE → THE LOWEST TIER, NEVER THE LOCAL 50 ─
+      AC.__resetServerAutoEat();
+      assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9,
+        'with nothing observed the threshold must fail safe at the LOWEST tier\'s ceiling, never stand '
+          + 'on the local 50% — got ' + A.eatThreshold());
+      assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9,
+        'and the player\'s own slider position must survive as the thing they edit and send UP');
+    } finally {
+      const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
+      try { AC.__noteAutoEatSettings(savedObs); } catch (e) {}
+      try { if (typeof A._parkPctMirror === 'function') A._parkPctMirror(mirrorWasParked); } catch (e) {}
       G.traits = savedTraits; G.settings = savedSettings; G.autoEatPct = savedPct;
       restoreG(snap);
     }
@@ -61812,6 +61920,17 @@ export async function runSmokeTest(opts = {}) {
   const _Auto = window.HearthriseAuto;
   let _eatSyncWasParked = false;
   try { if (_Auto && typeof _Auto._parkEatSync === 'function') _eatSyncWasParked = _Auto._parkEatSync(true); } catch (e) {}
+  /* ── AND THE AUTO-EAT SERVER MIRROR, same reason again (b533) ─────────────
+     b533 made `eatThreshold()` return the server's own `auto_eat_pct` instead of
+     a local preference the client clamped for itself — that was the bug (the
+     settings screen promised 50% while the server ate at 25%). About ten
+     fixtures seed a threshold and then assert an eat/no-eat outcome or a printed
+     percentage; on a signed-in page the REAL account's column would govern every
+     one of them, so they would pass or fail on live data instead of on their own
+     fixture. Exactly the b502 property-record shape, and the same answer.
+     The test that is ABOUT the mirror unparks inside its own body. */
+  let _pctMirrorWasParked = false;
+  try { if (_Auto && typeof _Auto._parkPctMirror === 'function') _pctMirrorWasParked = _Auto._parkPctMirror(true); } catch (e) {}
   /* ── AND THE COMPANION GRANT LADDER, for exactly the same reason (b499) ───
      `b202: pets` drives a FORCED skill/boss roll. Under the live capstone arm
      that dispatches a real hr_companion_grant; the suite is signed out,
@@ -61887,6 +62006,7 @@ export async function runSmokeTest(opts = {}) {
       if (_loopWasRunning && _A) { _A.setSettleEnv(null); _A.startSettleLoop(); }
     } catch (e) {}
     try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
+    try { if (_Auto && typeof _Auto._parkPctMirror === 'function') _Auto._parkPctMirror(_pctMirrorWasParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__parkGrants === 'function') _Comp.__parkGrants(_grantsWereParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
     try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _Rn.__setPollEnabled(_rnPollWasOn); } catch (e) {}

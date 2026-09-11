@@ -615,7 +615,19 @@
       ? ' Auto-Eat II (' + esc(String(Number(window.TRAITS.auto_eat_2.cost) || 100).toLocaleString())
         + ' Bounty Marks — Store → Bounty Shop) raises the ceiling.'
       : '';
-    var val = Math.min(d.autoEatPct, maxT);
+    /* b533 — THE THUMB SHOWS WHAT THE FIGHT DOES. `d.autoEatPct` is
+       HearthriseAuto.eatThreshold(), which now MIRRORS the server's
+       `auto_eat_pct` (src/features/auto-actions.js). Clamping it back down to a
+       CLIENT-derived ceiling would re-open the exact lie: an enabled row that
+       predates the 2026-08-29 backfill still carries the column default of 50
+       and the accrual engine reads it directly, so a tier-I ceiling here would
+       paint 25% over a night that really eats at 50%. The ceiling still governs
+       what is SETTABLE — it just may not hide the effective value. The upsell
+       line under the dial already names the upgrade path. */
+    var val = Number(d.autoEatPct);
+    if(!isFinite(val)) val = 0;
+    val = Math.max(0, Math.min(1, val));
+    if(val > maxT) maxT = val;
     return '<div class="ss-row"><div class="ss-label">Auto-eat</div>'
       +      '<label class="ss-toggle"><input type="checkbox" data-autoeat="enabled"'
       +        (on ? ' checked' : '') + ' />'

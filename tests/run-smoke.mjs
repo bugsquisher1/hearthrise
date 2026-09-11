@@ -156,6 +156,16 @@ const argv = process.argv.slice(2);
 const argOf = (flag) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : null; };
 const HEADED = argv.includes('--headed');
 const EXTERNAL_URL = argOf('--url');
+/* b536 — `--only <substring>`: run the slice of the in-page suite whose SOURCE
+   TEXT contains <substring>, i.e. `__smokeTest({only})`, which has existed
+   in-page since b535 with no way to reach it from a terminal. A lane proving one
+   new battery either ran the whole several-minute suite or did not run it at
+   all, and "did not run it at all" is how a test ships unproven (§4: a claim is
+   gated on an exit code).
+   ⚠ NOT A GATE, AND IT SAYS SO. A filtered run prints a FILTERED banner and
+     exits 2 (harness/setup, never 0), so a green here can never be pasted as a
+     suite result. The default — no flag — is byte-for-byte the old path. */
+const ONLY = argOf('--only');
 /* b461: overridable for a loaded machine (parallel agent worktrees each running
    their own Chromium suite blew the 120s in-page budget three times in a row on
    code that passed 999/999 alone). Only the wall-clock budget flexes — every
@@ -3939,9 +3949,9 @@ const run = async () => {
     // Let the engine settle (legacy boot + icon sweeps + deferred setups).
     await page.waitForTimeout(6_000);
 
-    const result = await page.evaluate(async (timeout) => {
+    const result = await page.evaluate(async ([timeout, only]) => {
       const suite = await Promise.race([
-        Promise.resolve(window.__smokeTest({ silent: true })),
+        Promise.resolve(window.__smokeTest(only ? { silent: true, only } : { silent: true })),
         new Promise((_, rej) => setTimeout(() => rej(new Error('suite timed out')), timeout)),
       ]);
       return {
@@ -3957,11 +3967,12 @@ const run = async () => {
           .filter((r) => r.status === 'FAIL')
           .map((r) => ({ name: r.name, why: r.why })),
       };
-    }, SUITE_TIMEOUT_MS);
+    }, [SUITE_TIMEOUT_MS, ONLY]);
 
     const build = await page.evaluate(() => window.HearthriseBuild?.buildString?.() ?? 'unknown');
 
     console.log(`\nHearthrise smoke suite — ${build}`);
+    if (ONLY) console.log(`  FILTERED RUN (--only ${JSON.stringify(ONLY)}) — NOT A GATE; this run always exits non-zero, whatever the tests did`);
     console.log(`  passed ${result.passed}/${result.total}   failed ${result.failed}   skipped ${result.skipped}   runtime errors ${result.runtimeErrors}`);
 
     /* SA-013 assertion-coverage diagnostic. Increment 2: HR_ASSERT_STRICT now
@@ -4101,6 +4112,11 @@ const run = async () => {
      wrong code. Setting `exitCode` and letting the loop drain exits correctly
      and immediately (measured: same second, no lingering handle, browser and
      static server are already closed in the `finally` above). */
+  /* b536 — a FILTERED run is never a verdict. `--only` skipped most of the
+     suite, so exit 2 (harness/setup) whatever the slice did: the number a lane
+     pastes as "green" must come from a full run. Exit 1 survives if the slice
+     was actually red, so the mutation proof still reads. */
+  if (ONLY && exitCode === 0) exitCode = 2;
   process.exitCode = exitCode;
 };
 

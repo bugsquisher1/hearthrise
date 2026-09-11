@@ -453,7 +453,8 @@
      but only as this sync's dedupe anchor. Nothing read it back DOWN. The
      displayed threshold, and the one the attended tick handed `resolveAutoEat`,
      were derived from a client-held preference clamped by a client-held trait map
-     (`G.traits`, which reconcileTraits UNIONS and never removes).
+     (`G.traits`, which reconcileTraits UNIONED and never removed — b536 turned
+     that union into a mirror, which is the engine of this bug killed at source).
 
      So the client MODELLED the server's clamp instead of reading it, and the
      model is wrong in both directions: a client tier ahead of the server's shows

@@ -420,8 +420,8 @@ function grade(o) {
   // ── A6 ────────────────────────────────────────────────────────────────
   ok(Array.isArray(o.traitsProj) && o.traitsProj.includes('auto_eat'),
     `A6: hr_state_of does not project the granted trait (${JSON.stringify(o.traitsProj)}). That `
-    + 'projection is the ONLY reason the client needs no change — accrue.js reconcileTraits unions '
-    + 'it into G.traits, which is what Settings, the death sheet and the Bounty Shop all read.');
+    + 'projection is the ONLY reason the client needs no change — accrue.js reconcileTraits mirrors '
+    + 'it onto G.traits, which is what Settings, the death sheet and the Bounty Shop all read.');
 
   // ── A7 ────────────────────────────────────────────────────────────────
   ok(o.tierWithout === 0, 'A7 FIXTURE: removing the flag row did not remove the entitlement, so the '

@@ -191,9 +191,10 @@ export const RESIDUE_FIELDS = Object.freeze([
   /* ⚠ `traits` is DELIBERATELY NOT HERE. It looks exactly like the rest of this
      list (paid with Marks, self-only, reset on reload) and was the first thing
      the sweep wanted to add — but it already HAS a server home:
-     accrue.js reconcileTraits() unions `res.traits` (hr_state_of projects the
-     player_progress `trait:<id>` rows hr_trait_buy writes) into G.traits on
-     every envelope. Adding it here would give one paid entitlement TWO sources
+     accrue.js reconcileTraits() MIRRORS `res.traits` (hr_state_of projects the
+     player_progress `trait:<id>` rows hr_trait_buy writes) onto G.traits on
+     every envelope, in BOTH directions, so a trait the server never sold is
+     removed rather than gating a surface forever. Adding it here would give one paid entitlement TWO sources
      — the b443 nested-marks bug in a new costume — and would let a forged
      client_state key hydrate a trait the server never sold. It is registered in
      the guard's SERVER_MECHANISM_FIELDS instead. */

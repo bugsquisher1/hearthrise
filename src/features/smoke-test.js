@@ -1405,7 +1405,9 @@ const snapshotG = () => {
        suite and unsnapshotted — AWAY-HONEST-3 clearing `auto_eat` would have
        taken a real player's 100-mark purchase with it, which is exactly the
        pollution this list exists to prevent. */
-    traits: G.traits,
+    /* `?? null`, not bare — SNAP-2: legacy.js's fresh-G literal has no `traits`
+       key, JSON.stringify DROPS it, restoreG puts nothing back (27 leaks). */
+    traits: G.traits ?? null,
     foodSlot: G.foodSlot,
     autoEatPct: G.autoEatPct,
     lastSeen: G.lastSeen,
@@ -1869,9 +1871,9 @@ const combatScreen = () => {
 };
 
 /* ── THE AUTO-EAT MIRROR FIXTURE ──────────────────────────────────────
-   The divergence the bug lived in, built once: a client on tier II
-   (reconcileTraits UNIONS the server's trait list and never removes, so a client
-   tier can run AHEAD of it) holding a 50% preference, against the column
+   The divergence the bug lived in, built once: a client on tier II (reconcileTraits
+   once UNIONED the server's trait list and never removed, so a client tier could
+   run AHEAD of it) holding a 50% preference, against the column
    hr_set_auto_eat clamped on write to Auto-Eat I's ceiling of 25.
    runSmokeTest parks the mirror so ~10 local-threshold fixtures stay honest on a
    signed-in page; these tests ARE it, so this unparks and restores — the contract
@@ -2932,12 +2934,12 @@ const TESTS = [
       'a purchase with no valid idempotency key must not be sent; got ' + JSON.stringify(noKey));
   }),
 
-  () => tryRun('b46x: the trait ownership hydration is a UNION, never a replace', () => {
-    /* THE ONE IRREVERSIBLE MISTAKE available in this slice. G.traits is still a
-       blob field, and there are live players who bought Auto-Eat BEFORE the
-       server verb existed: they hold it locally with NO server row. An absolute
-       assignment from the envelope would REVOKE a paid trait from every one of
-       them. reconcileTraits therefore only ever ADDS. */
+  () => tryRun('b536: the trait ownership hydration MIRRORS the server, both directions', () => {
+    /* This shipped as a UNION — add-only — for players who bought Auto-Eat
+       before hr_trait_buy existed. The wipe removed them (§1) and the rule
+       outlived its reason: add-only means a trait the server never sold gates
+       every surface as "owned" forever (§6). The projection is UNFILTERED and
+       `[]` is KNOWN (2026-08-23-trait-buy.sql): it is the set. */
     const A = window.HearthriseAccrual;
     if (!A || typeof A.reconcileTraits !== 'function') {
       assert(false, 'HearthriseAccrual.reconcileTraits is missing — nothing hydrates trait '
@@ -2945,23 +2947,41 @@ const TESTS = [
       return;
     }
     const g = { traits: { legacy_local: true } };
-    A.reconcileTraits(g, { traits: ['auto_eat'] });
+    const r1 = A.reconcileTraits(g, { traits: ['auto_eat'] });
     assert(g.traits.auto_eat === true, 'a server-owned trait must be hydrated onto the client');
-    assert(g.traits.legacy_local === true,
-      'the hydration REVOKED a locally-owned trait the server has no row for — that is a paid '
-      + 'purchase taken away from a live player, and it is not recoverable');
+    assert(!('legacy_local' in g.traits) && r1 && r1.removed === 1,
+      'THE BUG: a trait the server does not project survived the hydration — a client-only flag '
+      + 'that keeps gating a server capability as owned is the residue-ahead class');
 
-    // FAIL-CLOSED on absence: an envelope with no `traits` key changes nothing.
+    // FAIL-CLOSED on absence: no `traits` key changes nothing (never evict on
+    // uncertainty — absence is not "you own nothing").
     const g2 = { traits: { auto_eat: true } };
     const res = A.reconcileTraits(g2, { state: {} });
     assert(res && res.mode === 'absent' && g2.traits.auto_eat === true,
       'an envelope that does not project traits must not be read as "you own nothing"');
 
-    // A fresh character with an EMPTY server set is a valid known state and
-    // still takes nothing away.
+    // An EMPTY server set is a valid known state: grants nothing, and takes back
+    // anything the client invented.
     const g3 = { traits: {} };
     A.reconcileTraits(g3, { traits: [] });
     assert(Object.keys(g3.traits).length === 0, 'an empty owned set must grant nothing');
+    const g4 = { traits: { auto_eat: true, auto_eat_2: true } };
+    A.reconcileTraits(g4, { traits: [] });
+    assert(Object.keys(g4.traits).length === 0,
+      'an empty PROJECTED set is the server saying "this character owns nothing" — it must clear');
+
+    /* THE ONE EXCEPTION, on the EXISTING optimistic/answer seam: buyTrait parks
+       `G._traitBuying[id]` for a purchase; an envelope predating it must not
+       un-paint it — until the server answers. */
+    const g5 = { traits: { auto_eat: true }, _traitBuying: { auto_eat: true } };
+    const r5 = A.reconcileTraits(g5, { traits: [] });
+    assert(g5.traits.auto_eat === true && r5.held === 1 && r5.removed === 0,
+      'a purchase IN FLIGHT must hold its optimistic trait until the server answers');
+    g5._traitBuying.auto_eat = false;                      // the answer landed
+    A.reconcileTraits(g5, { traits: [] });
+    assert(!('auto_eat' in g5.traits),
+      'once the purchase is no longer in flight the server set is the set — the optimistic paint '
+      + 'must not become a second source of truth');
   }),
 
   () => tryRun('P0 (Paione): the combat style is the SERVER\'s, and the picker tells it', () => {
@@ -35252,7 +35272,7 @@ const TESTS = [
     /* The other half of the sweep: declared scratch must NOT also be residue. */
     ['combatKillsThisFoe', 'viewingSkill', 'lastSessionSummary'].forEach((f) =>
       assert(RF.indexOf(f) < 0, f + ' is declared in-flight scratch (NO_SYNC) — it must not also be residue'));
-    /* AND the ruling on `traits`: it belongs to the SERVER (reconcileTraits unions
+    /* AND the ruling on `traits`: it belongs to the SERVER (reconcileTraits mirrors
        hr_state_of's projection of the rows hr_trait_buy writes), so it must NOT
        be duplicated into the self-only bag — one paid entitlement, one source. */
     assert(RF.indexOf('traits') < 0,
@@ -39202,6 +39222,62 @@ const TESTS = [
       assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9,
         'and the slider position must survive as the thing the player edits and sends UP');
     });
+  }),
+
+  /* ── regression: THE ENGINE UNDER THE TWO TESTS ABOVE ────────────────
+     Those fixed the threshold SYMPTOM. What let a client stand on a tier it
+     never bought is one line up the stack: a trait written into `G.traits` by a
+     stale residue, a suite leak, an optimistically painted refusal or devtools
+     outlived a server that never sold it, on every device — the residue-ahead
+     class (§6) with a paid entitlement on it, the same shape as the 2026-09-04
+     property-tier deadlock. Gates freed: hasTrait() (shop, combat food controls,
+     inv-context-menu, combat-render) and autoEatTier() (settings threshold
+     slider, the auto-eat engine, death sheet, fight warning, set-the-night). */
+  () => tryRun('b536: a trait the server does not project is REVOKED — a client-only tier cannot gate a server capability', () => {
+    const AC = window.HearthriseAccrual;
+    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+    assert(AC && typeof AC.reconcileTraits === 'function',
+      'reconcileTraits is the ONE seam that homes G.traits — without it traits are stranded');
+    assert(AE && typeof AE.autoEatTier === 'function' && typeof AE.maxPctForTier === 'function',
+      'src/core/auto-eat.js is the ONE tier reader every trait gate funnels through');
+    assert(typeof window.hasTrait === 'function', 'legacy hasTrait() is the other trait gate');
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      /* THE LIE, as the live one arrives: a tier-II trait map NO server row backs. */
+      G.traits = { auto_eat: true, auto_eat_2: true };
+      assert(AE.autoEatTier(G.traits) === 2 && window.hasTrait('auto_eat_2') === true,
+        'fixture: the client must start out believing it owns tier II');
+      assert(AE.maxPctForTier(AE.autoEatTier(G.traits)) === 100,
+        'fixture: tier II is the 100% ceiling — that is the capability being gated');
+
+      /* THE ENVELOPE. hr_state_of builds `traits` UNFILTERED and documents `[]`
+         as KNOWN (2026-08-23-trait-buy.sql): "bought nothing", not a partial. */
+      const r = AC.reconcileTraits(G, { traits: [] });
+      assert(r && r.mode === 'server' && r.removed === 2,
+        'THE BUG: the hydration was a UNION — it left both invented traits standing; got '
+        + JSON.stringify(r));
+      assert(window.hasTrait('auto_eat') === false && window.hasTrait('auto_eat_2') === false,
+        'THE BUG: hasTrait() still answers YES for a trait the server never sold, so the Bounty '
+        + 'Shop row, the combat food controls and the death sheet all stay unlocked');
+      assert(AE.autoEatTier(G.traits || {}) === 0 && AE.maxPctForTier(AE.autoEatTier(G.traits || {})) === 25,
+        'the gated surface must read locked / lowest tier, never the invented tier-II ceiling');
+
+      /* THE CONVERSE, so "delete everything" cannot pass: only what it projects. */
+      const r2 = AC.reconcileTraits(G, { traits: ['auto_eat'] });
+      assert(r2 && r2.added === 1 && window.hasTrait('auto_eat') === true
+        && AE.autoEatTier(G.traits) === 1,
+        'a projected trait must unlock its surface — this is a mirror, not a wipe; got '
+        + JSON.stringify(r2));
+      assert(window.hasTrait('auto_eat_2') === false,
+        'and ONLY what the server named — tier II was not projected');
+
+      /* AND NEVER EVICT ON UNCERTAINTY (§6): no `traits` key at all is a
+         build/partial we cannot read, not "you own nothing". */
+      const r3 = AC.reconcileTraits(G, { state: {} });
+      assert(r3 && r3.mode === 'absent' && window.hasTrait('auto_eat') === true,
+        'an envelope that does not project traits must leave the owned set exactly alone');
+    } finally { restoreG(snap); }
   }),
 
   /* ── b331 regression suite — THE DEAD-TOKEN LOOP (live P0) ────────────────

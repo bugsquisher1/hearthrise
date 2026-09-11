@@ -5562,10 +5562,9 @@ const TESTS = [
   /* ── regression suite — THE RENOWN HEADLINE IS THE REALM'S COUNT ─────────
      MEASURED LIVE (QA, 2026-09-11): a card offered "Rank up — Squire — Claim
      750", the server refused it ("the realm has counted 779 of 900"), the header
-     painted 955 — all three in one breath. Structural, not drift that heals:
-     2026-09-02-renown-kill-faucet.sql scores a client kill credit at ZERO renown
-     (residue-ahead, §6). MUTATION, both halves red: getState on
-     `effectiveRenown(G)` paints 955; pollRankUp on it offers the card. */
+     painted 955 — all in one breath. Structural: a client kill credit scores ZERO
+     renown server-side (renown-kill-faucet), so the client runs permanently ahead.
+     MUTATION, both red: getState on `effectiveRenown(G)` paints 955; pollRankUp on it offers the card. Residue-ahead, CLAUDE.md §6. */
   () => tryRun('B534-1: the rank headline and the rank-up card read what the REALM has counted — a client score 176 ahead neither paints nor ranks up', () => {
     const R = window.HearthriseRenown;
     assert(R && typeof R.noteServerRenown === 'function' && typeof R.getState === 'function',

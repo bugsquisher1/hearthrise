@@ -200,9 +200,9 @@ jobs:
       # (BOOT-3); and Ctrl+Shift+T still fetches it on demand (BOOT-4), because a
       # dynamic import is one keystroke away from a dead control. It lives in
       # THIS family because it needs the Chromium
-      # installed above; client-guards installs no browser. Measured 14 s + 71 s for
-      # the two commands (5 cold boots, then 2 controls + 4 mutated ones) on the dev
-      # machine: ~1.5 min on a ~15.5 min family, so the 30 min budget stands.
+      # installed above; client-guards installs no browser. Measured 41 s + 71 s for
+      # the two commands (5 cold boots + 2 throttled, then 2 controls + 4 mutated) on
+      # the dev machine: ~2 min on a ~15.5 min family, so the 30 min budget stands.
       - name: Boot budget - the player never downloads the test suite
         if: ${{ !cancelled() }}
         run: |

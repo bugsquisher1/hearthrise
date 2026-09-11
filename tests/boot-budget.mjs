@@ -34,12 +34,23 @@
 //           defect class this repo ships most often (the button looks fine and
 //           silently does nothing).
 //
-// It also MEASURES and prints, over three runs, the medians a player feels:
-// time to the account gate painted, time to window.HearthriseCore, JS bytes and
-// total bytes on the wire. Those are REPORTED, never gated — a wall clock on a
-// shared CI runner measures the runner. The byte counts are deterministic and
-// are the input for the next slice (the remaining static imports, printed as a
-// top-10 so the ordering work can be queued on evidence).
+// It also MEASURES and prints medians over three cold boots: the account gate
+// painted, window.HearthriseCore, `esm-boot` (main.js's body, which runs only
+// after EVERY static import in its graph is fetched and evaluated), and the
+// bytes on the wire — on localhost and again on an ordinary 4G line.
+//
+// READ THE RIGHT ROW. Measured 2026-09-11, b534, same tree, static vs dynamic:
+//   localhost   esm-boot 546 → 503 ms          (nothing: 11 MB over loopback)
+//   4G 12 Mbps  esm-boot 12990 → 10344 ms      (-2.6 s, -20%)
+//   bytes       JS 10304 → 6508 KiB            (-3796 KiB, -37%)
+// `gate` and `core` did NOT move and were never going to: index.html paints the
+// account wall and publishes HearthriseCore from scripts ABOVE main.js. Quoting
+// those two as the win would be a lie that the next author would inherit.
+//
+// Every number here is REPORTED, never gated — a wall clock on a shared CI
+// runner measures the runner. The byte counts are deterministic and are the
+// input for the next slice (the remaining static imports, printed as a top-10
+// so the ordering work can be queued on evidence).
 //
 //   node tests/boot-budget.mjs              # measure + gate
 //   node tests/boot-budget.mjs --selftest   # mutation proof (must go RED)
@@ -88,7 +99,7 @@ function serve() {
    rAF polling costs the same on both sides of the change, so the comparison is
    fair even though the absolute number carries the poll's granularity. */
 const MARKERS = () => {
-  window.__bb = { gate: null, core: null };
+  window.__bb = { gate: null, core: null, esm: null };
   const tick = () => {
     try {
       if (window.__bb.gate == null) {
@@ -96,8 +107,14 @@ const MARKERS = () => {
         if (g && g.getBoundingClientRect().height > 0) window.__bb.gate = performance.now();
       }
       if (window.__bb.core == null && window.HearthriseCore) window.__bb.core = performance.now();
+      /* THE MARKER THE SUITE ACTUALLY MOVED. `gate` and `core` are painted and
+         published by scripts that sit ABOVE main.js in index.html, so neither
+         ever waited for the suite — quoting them as the win would be a lie.
+         main.js's body runs only once EVERY static import in its graph has been
+         fetched and evaluated, and __esmBoot is the first thing it writes. */
+      if (window.__bb.esm == null && window.__esmBoot) window.__bb.esm = performance.now();
     } catch (e) {}
-    if (window.__bb.gate != null && window.__bb.core != null) return;
+    if (window.__bb.gate != null && window.__bb.core != null && window.__bb.esm != null) return;
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
@@ -121,9 +138,24 @@ const ms = (n) => (n == null ? '  n/a' : String(Math.round(n)).padStart(5) + ' m
  * @param {(page:any)=>Promise<void>} [o.mutate]  plant a defect in what the browser loads
  * @param {boolean} [o.press]      after the boot settles, press Ctrl+Shift+T as a player would
  */
-async function boot(browser, url, { harness, mutate, press } = {}) {
+async function boot(browser, url, { harness, mutate, press, throttle } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
+  /* THE NUMBER THE PLAYER ACTUALLY FEELS. On 127.0.0.1 the whole 11 MB arrives
+     in a few milliseconds, so the wall clock is nearly identical with and
+     without the suite — measuring localhost, not the game. A player is on a
+     phone: 12 Mbps down, 40 ms RTT is an ordinary 4G line, and at that rate
+     3.75 MB is about 2.6 s of pure transfer that nobody was getting anything
+     for. Reported, never gated: a throttled wall clock on a shared CI runner
+     is still a measurement of the runner. */
+  if (throttle) {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Network.enable');
+    await cdp.send('Network.emulateNetworkConditions', {
+      offline: false, latency: 40,
+      downloadThroughput: (12 * 1024 * 1024) / 8, uploadThroughput: (3 * 1024 * 1024) / 8,
+    });
+  }
   const requested = [];
   page.on('request', (r) => requested.push(r.url()));
   const pageErrors = [];
@@ -133,9 +165,10 @@ async function boot(browser, url, { harness, mutate, press } = {}) {
   if (harness) await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
   await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
 
-  const out = { requested, pageErrors, gate: null, core: null, smokeSource: null, smokeType: 'undefined' };
+  const out = { requested, pageErrors, gate: null, core: null, esm: null, smokeSource: null, smokeType: 'undefined' };
   // The two numbers a player feels. Neither is gated; a missing one is reported.
-  await page.waitForFunction(() => window.__bb && window.__bb.core != null, { timeout: 30_000 }).catch(() => {});
+  await page.waitForFunction(() => window.__bb && window.__bb.core != null && window.__bb.esm != null,
+    { timeout: 60_000 }).catch(() => {});
   if (!harness) await page.waitForFunction(() => window.__bb && window.__bb.gate != null, { timeout: 30_000 }).catch(() => {});
   // The harness half has to be given the same 60 s the real runners give it.
   if (harness) {
@@ -178,6 +211,7 @@ async function boot(browser, url, { harness, mutate, press } = {}) {
   const m = await page.evaluate(() => ({
     gate: window.__bb ? window.__bb.gate : null,
     core: window.__bb ? window.__bb.core : null,
+    esm: window.__bb ? window.__bb.esm : null,
     smokeSource: window.__smokeTestSource || null,
     smokeType: typeof window.__smokeTest,
     res: performance.getEntriesByType('resource').map((r) => ({
@@ -196,11 +230,12 @@ const allBytes = (res) => res.reduce((n, r) => n + r.dec, 0);
 function report(label, runs) {
   const g = median(runs.map((r) => r.gate));
   const c = median(runs.map((r) => r.core));
+  const e = median(runs.map((r) => r.esm));
   const j = median(runs.map((r) => jsBytes(r.res)));
   const a = median(runs.map((r) => allBytes(r.res)));
   const n = median(runs.map((r) => r.res.length));
-  console.log(`  ${label.padEnd(16)} gate ${ms(g)} · core ${ms(c)} · JS ${kb(j)} · all ${kb(a)} · ${n} requests`);
-  return { gate: g, core: c, js: j, all: a, requests: n };
+  console.log(`  ${label.padEnd(16)} gate ${ms(g)} · core ${ms(c)} · esm-boot ${ms(e)} · JS ${kb(j)} · all ${kb(a)}`);
+  return { gate: g, core: c, esm: e, js: j, all: a, requests: n };
 }
 
 /** Top N src/** modules by bytes actually delivered on this boot. */
@@ -386,6 +421,9 @@ async function selftest(browser, url) {
 
       const p = report('player', player);
       report('harness', harness);
+      const slow = [];
+      for (let i = 0; i < Math.min(RUNS, 2); i++) slow.push(await boot(browser, url, { harness: false, throttle: true }));
+      report('player @ 4G', slow);
       console.log();
 
       const problems = [];
@@ -424,6 +462,14 @@ async function selftest(browser, url) {
       for (const [f, b] of topModules(player[0].res)) console.log(`    ${kb(b)}  ${f}`);
       console.log();
       console.log(`  player-boot JS: ${kb(p.js)} across ${player[0].res.filter((r) => /\.js(\?|$)/.test(r.name)).length} files`);
+      /* A boot that throws still "loads". Reported, not gated: this guard owns
+         the weight of the boot, and a thrown error belongs to whichever guard
+         owns the code that threw — but it must not be invisible here either. */
+      const threw = [...new Set(player.flatMap((r) => r.pageErrors))];
+      if (threw.length) {
+        console.log(`  ⚠ ${threw.length} uncaught error(s) during a player boot (not gated here):`);
+        for (const e of threw.slice(0, 5)) console.log('      · ' + e);
+      }
       console.log();
 
       if (problems.length) {

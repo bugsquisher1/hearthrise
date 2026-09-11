@@ -595,13 +595,13 @@
     var eat = (window.HearthriseAuto && window.HearthriseAuto.getEat)
       ? window.HearthriseAuto.getEat() : null;
     var on = !!(eat && eat.enabled);
-    /* b45x — THE TIER CEILING IS THE SLIDER'S MAX, not a footnote under it.
-       Auto-Eat I entitles a trigger point up to 25%; `HearthriseAuto.eatThreshold()`
-       clamps there and the server's hr_set_auto_eat clamps the stored value the same
-       way. A slider that let a tier-I owner drag to 50% would be showing them a
-       number the fight does not honour — the exact class of lie b326 was written
-       about. So the control cannot express what the entitlement does not cover, and
-       the hint says why. */
+    /* THE TIER CEILING IS THE SLIDER'S MAX, not a footnote under it: Auto-Eat I
+       entitles up to 25% and hr_set_auto_eat clamps the stored value the same way,
+       so a slider a tier-I owner could drag to 50% shows a number the fight does
+       not honour. It also may not HIDE what the server already does — an enabled
+       row predating the 2026-08-29 backfill still carries the column default of 50,
+       read directly by the accrual engine, so clamping `val` would paint 25% over
+       a night that eats at 50%. The ceiling governs SETTABLE; `val` is TRUE. */
     var maxT = 1;
     var tier = 1;
     try {
@@ -615,7 +615,8 @@
       ? ' Auto-Eat II (' + esc(String(Number(window.TRAITS.auto_eat_2.cost) || 100).toLocaleString())
         + ' Bounty Marks — Store → Bounty Shop) raises the ceiling.'
       : '';
-    var val = Math.min(d.autoEatPct, maxT);
+    var val = Math.max(0, Math.min(1, Number(d.autoEatPct) || 0));
+    if(val > maxT) maxT = val;
     return '<div class="ss-row"><div class="ss-label">Auto-eat</div>'
       +      '<label class="ss-toggle"><input type="checkbox" data-autoeat="enabled"'
       +        (on ? ' checked' : '') + ' />'

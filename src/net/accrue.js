@@ -2911,6 +2911,15 @@ let serverAutoEatObserved = null;
    the sync treats as "unknown, so send it" rather than as a value. Absence must
    never be read as "the server has NULL". */
 const serverAutoEatSeen = { enabled: undefined, food: undefined, pct: undefined, touched: undefined };
+/* ── `pctSeq` — HOW MANY TIMES THE SERVER HAS STATED A THRESHOLD ─────────────
+   A monotonic counter bumped on every RECORDING of `auto_eat_pct`, whatever the
+   value. src/features/auto-actions.js has to tell "the server has spoken since
+   the player's last gesture" from "the value happens to match last time", and
+   only an EVENT count separates those: an envelope restating 25 is still the
+   server saying 25, and it must be able to overrule an unanswered local 50.
+   Never decreases except through __resetServerAutoEat, which puts the module
+   back to never-observed — itself an observation event for the reader. */
+let serverAutoEatPctSeq = 0;
 export function noteServerAutoEat(res) {
   const st = res && res.state;
   if (st && typeof st === 'object'
@@ -2928,7 +2937,10 @@ export function noteServerAutoEat(res) {
   if (st && typeof st === 'object'
       && Object.prototype.hasOwnProperty.call(st, 'auto_eat_pct')) {
     const p = Number(st.auto_eat_pct);
-    if (Number.isFinite(p)) serverAutoEatSeen.pct = Math.max(0, Math.min(100, Math.round(p)));
+    if (Number.isFinite(p)) {
+      serverAutoEatSeen.pct = Math.max(0, Math.min(100, Math.round(p)));
+      serverAutoEatPctSeq++;
+    }
   }
   /* HAS A HUMAN EVER TOUCHED THE SWITCH? (`player_state.auto_eat_set_at is not
      null`, projected as a boolean.) This is a DIFFERENT question from "is it
@@ -2954,14 +2966,49 @@ export function clientOwnsAutoEatDebit() { return serverAutoEatObserved === fals
  *  Returns a copy; the observation is not the caller's to edit. */
 export function serverAutoEatSettings() {
   return { enabled: serverAutoEatSeen.enabled, food: serverAutoEatSeen.food,
-           pct: serverAutoEatSeen.pct, touched: serverAutoEatSeen.touched };
+           pct: serverAutoEatSeen.pct, touched: serverAutoEatSeen.touched,
+           /* The OBSERVATION COUNT for `pct`. See serverAutoEatPctSeq. */
+           pctSeq: serverAutoEatPctSeq };
 }
+/* ── THE VERB'S OWN ANSWER IS ALSO AN OBSERVATION ────────────────────────────
+   `hr_set_auto_eat` returns `{ok:true, auto_eat:{enabled,food,pct,tier,max_pct}}`
+   — the POST-WRITE value of the same three columns, after its tier clamp
+   (`v_pct := least(v_pct, v_max)`, 2026-08-29-auto-eat-tiers.sql). Not a client
+   guess about what the server stored: the server saying what it stored, on the
+   RPC round trip instead of on the next ~90 s settle.
+
+   WHY IT MATTERS: the settings threshold is MIRRORED from this observation
+   (src/features/auto-actions.js eatThreshold), so without it a player whose
+   value the server CLAMPED keeps seeing their own un-clamped number until the
+   next envelope — the same lie with a shorter fuse. The shape differs from
+   noteServerAutoEat's (`res.state`) because the verb returns no envelope; the
+   recording is shared so the two cannot drift.
+
+   FAIL-SAFE: anything not `ok` with a readable `auto_eat` object records NOTHING
+   and leaves the previous observation alone. A refusal is not a value. */
+export function noteAutoEatVerb(res) {
+  const a = res && res.ok === true ? res.auto_eat : null;
+  if (!a || typeof a !== 'object') return serverAutoEatSettings();
+  if (a.enabled === true || a.enabled === false) {
+    serverAutoEatObserved = a.enabled; serverAutoEatSeen.enabled = a.enabled;
+  }
+  if (a.food === null || typeof a.food === 'string') serverAutoEatSeen.food = a.food;
+  const p = Number(a.pct);
+  if (Number.isFinite(p)) {
+    serverAutoEatSeen.pct = Math.max(0, Math.min(100, Math.round(p)));
+    serverAutoEatPctSeq++;
+  }
+  return serverAutoEatSettings();
+}
+
 /** TEST-ONLY. Record an observation without an envelope. */
 export function __noteAutoEatSettings(patch) {
   const p = patch || {};
   if (Object.prototype.hasOwnProperty.call(p, 'enabled')) serverAutoEatSeen.enabled = p.enabled;
   if (Object.prototype.hasOwnProperty.call(p, 'food')) serverAutoEatSeen.food = p.food;
-  if (Object.prototype.hasOwnProperty.call(p, 'pct')) serverAutoEatSeen.pct = p.pct;
+  if (Object.prototype.hasOwnProperty.call(p, 'pct')) {
+    serverAutoEatSeen.pct = p.pct; serverAutoEatPctSeq++;
+  }
   if (Object.prototype.hasOwnProperty.call(p, 'touched')) serverAutoEatSeen.touched = p.touched;
   return serverAutoEatSettings();
 }
@@ -2970,6 +3017,10 @@ export function __resetServerAutoEat() {
   serverAutoEatObserved = null;
   serverAutoEatSeen.enabled = undefined; serverAutoEatSeen.food = undefined;
   serverAutoEatSeen.pct = undefined; serverAutoEatSeen.touched = undefined;
+  /* Back to never-observed. The counter RESETS rather than advancing because
+     this IS the "forget everything" seam; a reader comparing sequences sees the
+     change either way, which is what makes the reset an observation event too. */
+  serverAutoEatPctSeq = 0;
   return serverAutoEatObserved;
 }
 
@@ -4827,6 +4878,7 @@ if (typeof window !== 'undefined') {
        projected columns); it answers "what does the server already believe",
        never "what should it believe". */
     noteServerAutoEat, serverAutoEats, clientOwnsAutoEatDebit, serverAutoEatSettings,
+    noteAutoEatVerb,
     __noteAutoEatSettings, __resetServerAutoEat,
     /* Phase 1 — live settlement (docs/design/live-settlement.md §3). */
     SETTLE_INTERVAL_MS, ACCRUE_MIN_SPAN_MS, ACCRUE_RATE_PER_MIN,

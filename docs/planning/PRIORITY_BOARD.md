@@ -192,6 +192,8 @@ Live findings from the gate (bugs first, in the order a player meets them):
 
 ## 1 · LAUNCH READINESS (beta → next week; after scalable-state)
 
+> **Pre-launch gate added 2026-09-11 (Tyler): the live system (§10 ruling) ships before launch.** Launch readiness is therefore beta → scalable-state → live world → launch.
+
 | Item | Status | Pri | Notes |
 |---|---|---|---|
 | Dedicated test account | ⛔ | **P0** | Tyler action (Coordinator **cannot create accounts**). Unblocks the team playthrough + enchant round-trip verify. |
@@ -378,6 +380,8 @@ _Code-health audit 2026-08-18. Headline: **on a real trajectory to the large-sca
 ---
 
 ## 10 · HUNTERA-DERIVED ADOPTIONS (option B — Tyler, 2026-08-23)
+
+> **RULING (Tyler, 2026-09-11): a Huntera-style LIVE system is a PRE-LAUNCH gate.** "Before I even bother launching, I want to build a live system like Huntera has." Consequence: the walking-world / living-town program moves from post-beta to BEFORE LAUNCH; from now every architecture decision (state shape, envelope cadence, presence, realtime channels, server tick, asset pipeline) is weighed against a shared live world — other players visible in town, live events — and nothing is built that makes it harder (per-player-only state assumptions, polling-only sync, client-owned positions). The spike itself starts when the open P0/P1 queue is clear, without re-asking.
 
 _Discovery 2026-08-23: **Huntera** (huntera.com.br, BR, launched 2026-08-21) is a browser Tibia clone — Angular + Phaser real-time tile world, custom authoritative WS server (123 intents / 184 events), automation-first combat, escrowed market, PIX + Solana coin store, "RMT liberado." Tyler's call: **do NOT clone it** (CipSoft IP, original tile art, a second real-time engine); **adopt its best ideas into Hearthrise.** Game-designer ruled (final authority), systems-engineer costed against live server surfaces. Both agree on the order below. **END GOAL (Tyler, 2026-08-23): the 4–7 month WALKING-WORLD program** — a Huntera-class walking world done legally: our content/systems (built) + original tileset/walk-cycle art + Phaser world layer + Realtime presence. Current track unchanged (beta → scalable-state); the Living Town spike (item 0) is the program's gate, then a scoped plan with an art budget. **All items gated behind the scalable-state exit criteria** (top of board) — nothing here starts before render extraction / CSS tokens / `hr-accrue` load test, and none of it precedes the inventory flip's real-launch schedule (items 1–4 are flip-independent, which is why they sort first)._
 

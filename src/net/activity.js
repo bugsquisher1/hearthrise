@@ -828,7 +828,7 @@ export function applyIntentEnvelope(G, body) {
    Everything that happens to an ANSWER happens here, so success and refusal
    share one code path (contract: "reconcile to the envelope is one code path
    for success and failure alike"). */
-async function attemptOnce(kind, id, key) {
+async function attemptOnce(kind, id, key, attempt) {
   const slot = resolveActiveSlot(config.slot);
   const token = tokenOf();
   const { url, init } = buildActivityRequest({
@@ -852,26 +852,57 @@ async function attemptOnce(kind, id, key) {
        here by design of the fetch spec, and all three mean the same thing to
        rule 1: WE WERE NOT ANSWERED, so the key is reused. */
     return settle({ outcome: aborted ? 'timeout' : 'unreachable',
-      reason: String((e && e.message) || e), key }, kind, id);
+      reason: String((e && e.message) || e), key }, kind, id, attempt);
   }
   if (timer) clearTimeout(timer);
 
   let body = null;
   try { body = await res.json(); } catch (e) { body = null; }
-  return settle({ ...classifyActivityResponse(res.status, body), status: res.status, key }, kind, id);
+  return settle({ ...classifyActivityResponse(res.status, body), status: res.status, key },
+    kind, id, attempt);
 }
 
-/* HOLD, DO NOT SKIP. True only for the ONE collect refusal this gesture is
-   about to act on: the client is going to run the accrue verb and re-declare,
-   and reconciling to the server's old pointer in between would restart the
-   activity the player tapped away from. Every other refusal reconciles
-   immediately, exactly as before. */
-function holdReconcile(verdict) {
+/* HOLD, DO NOT SKIP. True for a refusal this gesture has not finished asking
+   about: the ONE collect refusal whose accrue-then-re-declare recovery is about
+   to run, and — b534 — an attempt the retry policy is about to repeat.
+   Reconciling to the server's old pointer in between restarts the activity the
+   player tapped away from. Every other refusal reconciles immediately, exactly
+   as before.
+
+   ⚠ THE HOLD IS NOT A SKIP, AND THAT IS THE WHOLE SAFETY ARGUMENT. Whatever the
+     gesture ends as, `declareActivity`'s `finally` flushes the held reconcile,
+     so the server's last word always lands — it simply does not land BEFORE the
+     client has finished asking. An envelope on the same answer is still applied
+     the moment it arrives; only the POINTER waits.
+
+   REPORTED (Paione, live b532): «when I am in combat and I stop combat it
+   reloads me back to the previous combat match.» A stop that races one of the
+   client's own combat cadences (kill credit / combat-XP flush / live settle,
+   each of which bumps `player_state.version` with no intent behind it) is
+   refused `version_conflict`; the refusal carries the server's state, which is
+   the FIGHT, and reconciling it put the player back into that fight — with
+   `lastServerFight`, i.e. the previous match at its previous HP — one tick
+   before the retry that would have stopped it. */
+function holdReconcile(verdict, retryAhead) {
+  if (retryAhead) return true;
   return collectRetryArmed && isCollectRefusal(verdict);
 }
 
-function settle(verdict, kind, id) {
+function settle(verdict, kind, id, attempt) {
   const applied = { envelope: false, reconciled: null };
+  /* ASKED OF THE ONE POLICY, never re-derived. `attempt` is absent on any call
+     that is not part of a bounded declaration loop, and an absent attempt holds
+     nothing — a hold with no retry behind it is a pointer that never converges. */
+  const retryAhead = Number.isInteger(attempt)
+    && shouldRetryActivity(verdict, attempt, ACTIVITY_MAX_TRIES);
+  /* A HELD RECONCILE DIES ON A SUCCESS, unconditionally and before anything else
+     reads it. `switched`/`replayed` mean the server's pointer is what we asked
+     for, so any pointer held from an earlier attempt is stale BY DEFINITION —
+     and the `finally` that flushes the hold cannot know that. Without this line
+     a 200 whose envelope happened to omit `activity` would let the flush put the
+     player back into the fight they just successfully stopped, which is the very
+     bug the hold exists to prevent, one attempt later. */
+  if (verdict.outcome === 'switched' || verdict.outcome === 'replayed') deferredReconcile = null;
   const body = verdict.body || null;
   const env = envelopeOf(body);
 
@@ -908,7 +939,7 @@ function settle(verdict, kind, id) {
          the truth, and reconciling the pointer without the fight would restart
          a foe the server is still holding at half health. */
       lastServerFight = fightOf(body);
-      if (holdReconcile(verdict)) {
+      if (holdReconcile(verdict, retryAhead)) {
         deferredReconcile = { activity: { ...lastServerActivity }, verdict, fight: lastServerFight };
         applied.deferred = true;
       } else {
@@ -923,7 +954,7 @@ function settle(verdict, kind, id) {
        envelope is still current, and that is what it reconciles to. NEVER to
        its own optimistic guess: keeping the guess is the one thing a client is
        never allowed to do. */
-    if (lastServerActivity && holdReconcile(verdict)) {
+    if (lastServerActivity && holdReconcile(verdict, retryAhead)) {
       deferredReconcile = { activity: { ...lastServerActivity }, verdict, fight: lastServerFight };
       applied.deferred = true;
     } else if (lastServerActivity) {
@@ -1009,7 +1040,7 @@ async function runDeclaration(kind, id) {
   if (!isIntentKey(key)) return inert('undeclarable', kind, id, 'no_uuid_source');
   let verdict = null;
   for (let attempt = 1; attempt <= ACTIVITY_MAX_TRIES; attempt++) {
-    verdict = await attemptOnce(kind, id, key);
+    verdict = await attemptOnce(kind, id, key, attempt);
     /* A SUCCESS STOPS THE LOOP HERE, not inside shouldRetryActivity. Found by
        the mutation run: forcing `shouldRetryActivity` to true re-sent a
        SUCCESSFUL switch, because the only thing ending the loop was a function

@@ -1856,19 +1856,19 @@ window.hrRefuseWhileRecovering=hrRefuseWhileRecovering;
    and "it just stops by itself" is a worse bug report than the one this fixes.
    The knockout is BY FAR the commonest cause and it has a surface of its own,
    so it gets the sheet; everything else gets one line and the console keeps the
-   detail. Never throws: every caller is inside a network answer nobody sees. */
-function explainUnownedStop(was){
+   detail. Never throws: every caller is inside a network answer nobody sees. b533: the REFUSAL that caused the stop rides in as `verdict`, and `activityRefusalMessage` (src/net/activity.js, the same frozen-map+naming-default shape src/net/equip.js uses for gear) turns the server's own code into the line — absent verdict keeps the generic one. */
+function explainUnownedStop(was,verdict){
   try{
     const what=was?(was.kind+(was.id?':'+was.id:'')):'an activity';
-    const down=(typeof hrCombatDownPeek==='function')&&hrCombatDownPeek();
+    const down=(typeof hrCombatDownPeek==='function')&&hrCombatDownPeek(), why=(verdict&&verdict.outcome==='refused'&&verdict.reason)?String(verdict.reason):null;
     console.warn('[activity] the server says idle and never acknowledged '+what
-      +' — stopping it. A run the server does not own earns nothing'
+      +' — stopping it. A run the server does not own earns nothing'+(why?' (refused: '+why+')':'')
       +(down?' (this character is knocked out; the server refuses combat until the '
               +'recovery line passes \u2014 gathering and the benches still pay)':''));
-    const S=window.HearthriseDeathSheet;
+    const S=window.HearthriseDeathSheet, M=window.HearthriseActivity;
     if(down&&S&&typeof S.answerTap==='function'){ S.answerTap(HR_RECOVERING_LINE); return; }
     if(typeof notify==='function'){
-      notify(down?HR_RECOVERING_LINE:'The hearth did not take that — the activity stopped.','kill');
+      notify(down?HR_RECOVERING_LINE:((why&&M&&typeof M.activityRefusalMessage==='function')?M.activityRefusalMessage(why):'The hearth did not take that — the activity stopped.'),'kill');
     }
   }catch(e){}
 }
@@ -1959,7 +1959,7 @@ function applyCarriedFight(id, fight){
   return true;
 }
 window.applyCarriedFight=applyCarriedFight;
-function reconcileActivityPointer(a,fight){
+function reconcileActivityPointer(a,fight,verdict){
   if(!a||typeof a!=='object')return null;
   const kind=a.kind, id=a.id;
   const applied=activityQuietly(function(){
@@ -2049,7 +2049,7 @@ function reconcileActivityPointer(a,fight){
      explanation, and rendering it inside the quiet block would put a sheet up
      from underneath a reconcile. Only the unconfirmed case is a surprise — a
      confirmed stop is the player's own Stop coming back. */
-  if(applied&&applied.stopped==='unconfirmed')explainUnownedStop(applied.was);
+  if(applied&&applied.stopped==='unconfirmed')explainUnownedStop(applied.was,verdict);
   return applied||{kind:kind||'idle',id:id==null?null:id};
 }
 window.reconcileActivityPointer=reconcileActivityPointer;
@@ -2070,7 +2070,7 @@ function wireServerActivity(){
        measured in a real browser on a switch where the replacement gate had
        refused and NOTHING was written. */
     onEnvelope:function(res){ return applyServerEnvelope(res,{intent:true}); },
-    onReconcile:function(a,verdict,fight){ return reconcileActivityPointer(a,fight); },
+    onReconcile:function(a,verdict,fight){ return reconcileActivityPointer(a,fight,verdict); },   // THE VERDICT RIDES THROUGH — it was dropped here, a stop caused by a refusal could only ever speak the generic line
   });
 }
 /* ── ONE APPLIER FOR BOTH VERBS ───────────────────────────────────────────

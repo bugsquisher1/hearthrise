@@ -639,6 +639,36 @@ export function describeActivity(a) {
   return name;
 }
 
+/* ── WHY THE REALM SAID NO, IN WORDS ───────────────────────────────────────
+   The SAME shape src/net/equip.js's `EQUIP_REFUSALS`/`equipRefusalMessage`
+   already has, for the same reason: a refusal the player cannot read is a
+   refusal they report as "the game ignored me". A frozen map plus a default
+   that NAMES the code, so a refusal this build has never heard of is still
+   quotable in a bug report rather than silent.
+
+   Only the codes `set_activity` can actually answer with are listed
+   (supabase/functions/hr-accrue/set-activity.js + intents.js `INTENT_ERRORS`);
+   anything else falls through to the default by design. `recovering` is here
+   for completeness — the knockout sheet outranks this line at the call site,
+   because that surface owns the countdown and the Rest button. */
+export const ACTIVITY_REFUSALS = Object.freeze({
+  unknown_activity: 'The hearth doesn’t know that activity — nothing was started.',
+  bad_activity: 'That activity could not be read — nothing was started.',
+  activity_unsupported: 'The hearth can’t settle that activity yet — nothing was started.',
+  recovering: 'Fights wait while you recover — gathering and cooking still earn.',
+  no_character: 'No hero is loaded in this slot yet — try again in a moment.',
+  rate_limited: 'Too many changes at once — wait a moment and try again.',
+  version_conflict: 'The hearth was busy for a moment — try that again.',
+  below_min_span: 'That was too quick to settle — try again in a moment.',
+  would_confiscate: 'The hearth couldn’t settle the last stretch — nothing was lost; try again.',
+});
+export function activityRefusalMessage(code) {
+  const k = String(code || '');
+  if (Object.prototype.hasOwnProperty.call(ACTIVITY_REFUSALS, k)) return ACTIVITY_REFUSALS[k];
+  return k ? 'The hearth refused that (' + k + ') — the activity stopped.'
+    : 'The hearth did not take that — the activity stopped.';
+}
+
 /* THE PLAYER IS TOLD. A switch that silently does not happen is the worst
    outcome available in an idle game — the session is spent on the wrong
    activity and nothing on screen disagrees. The hook is the seam the suite
@@ -900,10 +930,57 @@ function settle(verdict, kind, id) {
       deferredReconcile = null;
       fire('onReconcile', { ...lastServerActivity }, verdict, lastServerFight);
       applied.reconciled = { ...lastServerActivity };
+    } else if (verdict.outcome === 'refused') {
+      /* ── b533 — NEVER TOLD, AND REFUSED. THE PHANTOM RUN, FOR SKILLS. ─────
+         The old code fell through to `unresolved` here and let the optimistic
+         pointer stand, on the reasoning that there was nothing to reconcile TO.
+         There is: a REFUSAL is the server saying "not this". The declaration
+         did not land, so whatever the server is doing, it is not what the
+         client just painted — and leaving the loop running is the b520
+         phantom-run class arriving through the skill door.
+
+         MEASURED LIVE (2026-09-11 02:05 UTC): a `gather` tap answered 409
+         `unknown_activity` (a stateless refusal — no envelope) left the client
+         reading "Fishing" and running the local gather loop for five minutes
+         with the server idle. `lastServerActivity` was null because the ONLY
+         two writers are this branch's envelope sibling and record.js's boot
+         resume, and the boot resume files the pointer only when the record
+         says a NON-idle kind — so a session that boots idle has never been
+         told anything, and every refusal before the first successful switch
+         landed exactly here.
+
+         THE FAIL-SAFE IS IDLE, and the SERVER'S OWN POINTER outranks it: a
+         stateless refusal may still state `state.active_kind` (`activityOf`
+         reads it), and the server's word is always better than a guess. Same
+         seam as the knocked-out phantom-run fix — the reconcile hook, `reconcileActivityPointer`, one
+         unwinding path — never a second stop written here.
+
+         ⚠ SCOPED TO `refused` ON PURPOSE. `unavailable` (5xx) and `malformed`
+           are UNCERTAIN — the write may have landed — and §6 forbids evicting
+           on uncertainty; `rate-limited` and `not-signed-in` are left alone in
+           this build because a burst of intents from one gesture already earns
+           429s (board, 2026-09-10) and stopping a real run over one would be a
+           new player-visible bug. Both stay `unresolved`, as before. */
+      const stated = activityOf(body);
+      const target = stated || { kind: 'idle', id: null };
+      if (holdReconcile(verdict)) {
+        deferredReconcile = { activity: { ...target }, verdict, fight: null };
+        applied.deferred = true;
+      } else {
+        deferredReconcile = null;
+        fire('onReconcile', { ...target }, verdict, null);
+        applied.reconciled = { ...target };
+      }
+      /* Stated, not inferred: a diagnostic must be able to tell the server's
+         own pointer from the client's fail-safe. NOTHING is written to
+         `lastServerActivity`/`confirmed` — those two are the server's words
+         only, and a client that files its own fail-safe as a server statement
+         has invented an acknowledgement. */
+      applied.failsafe = !stated;
     } else {
-      /* We have never been told. Nothing to reconcile TO, so the optimistic
-         pointer stands and the state says it is unproven — the next accrual or
-         hr_load settles it. Stated rather than hidden. */
+      /* We have never been told, and this answer is not a refusal. Nothing to
+         reconcile TO, so the optimistic pointer stands and the state says it is
+         unproven — the next accrual or hr_load settles it. Stated, not hidden. */
       applied.unresolved = true;
     }
   } else if (!isAnswered(verdict.outcome)) {
@@ -1066,6 +1143,7 @@ if (typeof window !== 'undefined') {
     isActivityIntentEnabled, isDeclarableActivity, declarationFor, isPayableRecipe,
     buildActivityRequest,
     classifyActivityResponse, shouldRetryActivity, isCollectRefusal, describeActivity,
+    ACTIVITY_REFUSALS, activityRefusalMessage,
     envelopeOf, activityOf, fightOf, collectedOf, awayFromCollected, applyIntentEnvelope,
     configureActivity, getActivityConfig, setActivityHooks,
     declare, declareActivity, getActivityState, resetActivity, setLastServerActivity,

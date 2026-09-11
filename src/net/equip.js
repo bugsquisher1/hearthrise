@@ -438,14 +438,104 @@ export function envelopeOf(body) {
   };
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   b534 — A `version_conflict` IS THE SERVER'S OWN READ LOSING A RACE, AND THE
+   PLAYER MUST NOT BE THE RETRY LOOP.
+
+   REPORTED (Paione, live b532): «I equip a staff and I need to press like 4–8
+   times for it to equip.» Measured cause, end to end:
+
+     · the client never sends a version — `buildEquipRequest` carries verb, slot,
+       intentId and the ops map and nothing else. The version in a conflict is
+       the EDGE's: ./equip.js (server) reads `hr_state_of` at the top of the
+       call, collects, then applies with the version that read named. Anything
+       that bumps `player_state.version` in between makes the apply stale.
+     · during ATTENDED combat the client bumps it on its own cadence — the kill
+       credit and the combat-XP flush (legacy.js `hrKillCreditFlush` /
+       `hrCreditCombatXpFlush`, 60 s each, both fired off the SAME kill so they
+       land together) and the ~90 s live settle. A tap that lands in one of
+       those windows is refused through no fault of the player's.
+     · the refusal is ROLLED BACK and toasted by legacy's `equipVerdictOutcome`,
+       so the staff visibly comes off and the only recovery offered is "tap
+       again". Four to eight times is exactly what a ~1-in-3 collision plus the
+       self-amplification below produces.
+
+   So the retry moves HERE, where every other transport in src/net already keeps
+   it, and it is bounded at ONE in the same shape and for the same reasons as
+   ./activity.js's `ACTIVITY_MAX_TRIES`.
+
+   ⚠ ONLY A REFUSAL THAT CARRIES THE SERVER'S CURRENT VERSION IS RETRIED. The
+     edge answers a conflict through `refusalBody`, which takes a FRESH
+     `hr_state_of` read precisely because "the state moved after the read" is
+     what the code means — so a body carrying `version` is proof the server
+     re-read and that the second attempt is derived from something newer. A
+     conflict WITHOUT one (a degraded refresh) is left to the player: retrying
+     on no new information is a loop wearing a bound. */
+export const EQUIP_MAX_TRIES = 2;
+
 /**
- * SEND ONE EQUIP GESTURE.
+ * MAY THIS EQUIP BE RETRIED AUTOMATICALLY? Pure, and deliberately narrower than
+ * ./activity.js's twin: an UNANSWERED equip is retried by the gesture owner on
+ * the SAME key (legacy `equipVerdictOutcome`), because only the caller holds the
+ * `before` snapshot that makes a reused key safe. This function speaks for the
+ * ANSWERED half alone — one code, one retry, a new key.
+ */
+export function shouldRetryEquip(verdict, attempt, maxTries) {
+  const max = Number.isInteger(maxTries) ? maxTries : EQUIP_MAX_TRIES;
+  if (!verdict || !Number.isInteger(attempt) || attempt >= max) return false;
+  if (verdict.outcome !== 'refused' || verdict.error !== 'version_conflict') return false;
+  const b = verdict.body;
+  return !!b && typeof b === 'object' && Number.isFinite(Number(b.version));
+}
+
+/* ── HOW MANY EQUIP GESTURES ARE ON THE WIRE RIGHT NOW ──────────────────────
+   Published because the SELF-AMPLIFIER of this bug class is a second equip the
+   player did not ask for: `applyServerEnvelope` ends in
+   `assertEquipDeclaration`, and a REFUSED equip's envelope states the server's
+   OLD worn set while `G.equipment` still holds the swap the caller has not
+   rolled back yet — so the self-heal reads a disagreement that is an artefact
+   of the refusal it is being handed, and fires a concurrent equip into exactly
+   the race that produced it. The self-heal asks this and stands down. A gauge,
+   not a lock: it never blocks a gesture, it only tells the truth about one. */
+let inFlight = 0;
+export function isEquipInFlight() { return inFlight > 0; }
+
+/**
+ * SEND ONE EQUIP GESTURE — including the bounded retry above.
  *
  * @param ops   `{ equipSlot: itemId|null }`
  * @param o.key an idempotency key to REUSE (rule 1). Absent ⇒ a fresh one.
  * @returns a verdict from EQUIP_OUTCOMES, with `key` so the caller can reuse it.
  */
 export async function sendEquip(ops, o = {}) {
+  let opts = o || {};
+  let verdict = null;
+  /* THE GAUGE SPANS THE HOOK, not just the fetch: `onEnvelope` runs INSIDE the
+     attempt, and the self-heal this gauge exists for is called from the tail of
+     that hook. A `finally` because a throw anywhere below must not strand the
+     count at 1 and silence the self-heal for the rest of the session. */
+  inFlight++;
+  try {
+    for (let attempt = 1; attempt <= EQUIP_MAX_TRIES; attempt++) {
+      verdict = await attemptEquipOnce(ops, opts);
+      /* A SUCCESS STOPS THE LOOP HERE, not inside `shouldRetryEquip` — the same
+         ruling ./activity.js's `runDeclaration` carries, and for the same reason:
+         a retry policy is allowed to be wrong about a failure; it must never be
+         able to be wrong about a success. */
+      if (verdict.outcome === 'equipped' || verdict.outcome === 'replayed') break;
+      if (!shouldRetryEquip(verdict, attempt, EQUIP_MAX_TRIES)) break;
+      /* A REFUSAL IS AN ANSWER ⇒ A NEW KEY. `hr_apply` records the decision under
+         the key OUTSIDE the protected block, so a reused key is handed the stored
+         `version_conflict` back for up to 25 h and could never succeed. */
+      const next = newIntentKey();
+      if (!isIntentKey(next)) break;
+      opts = { ...opts, key: next };
+    }
+  } finally { inFlight--; }
+  return verdict;
+}
+
+async function attemptEquipOnce(ops, o = {}) {
   /* ⚠ EVERY RETURN BELOW THAT DOES NOT REACH `fetch` GOES THROUGH `noteDrop`.
      That is the whole b369 repair: on live b367 one of these fired on a real
      player's gesture and left no trace anywhere — not a counter, not a console
@@ -538,6 +628,7 @@ export async function sendEquip(ops, o = {}) {
 if (typeof window !== 'undefined') {
   window.HearthriseEquip = {
     EQUIP_VERB, MAX_EQUIP_OPS, EQUIP_OUTCOMES, UNANSWERED_OUTCOMES,
+    EQUIP_MAX_TRIES, shouldRetryEquip, isEquipInFlight,
     EQUIP_REFUSALS, equipRefusalMessage,
     configureEquip, getEquipConfig, setEquipHooks, getEquipHooks, resetEquip,
     validateEquipOps, buildEquipRequest, classifyEquipResponse, envelopeOf,

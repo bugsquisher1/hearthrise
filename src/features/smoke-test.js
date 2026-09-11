@@ -61921,6 +61921,240 @@ const TESTS = [
       restoreG(snap);
     }
   }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b534 regression suite — THE PLAYER IS NOT THE RETRY LOOP (Paione, live b532)
+
+     REPORTED, two sentences, one class:
+       (1) «when I am in combat and I stop combat it reloads me back to the
+            previous combat match»
+       (2) «I equip a staff and I need to press like 4–8 times for it to equip»
+
+     Both are `version_conflict`. Nobody sends a version: the client's request
+     carries verb + slot + intentId + payload, and the version in the conflict
+     is the EDGE's own — it reads `hr_state_of` at the top of the call, collects,
+     then applies with the version that read named. During ATTENDED combat the
+     client bumps `player_state.version` on its own cadences with no intent
+     behind them (`hrKillCreditFlush`, `hrCreditCombatXpFlush`, the live settle),
+     so a tap that lands in one of those windows is refused through no fault of
+     the player's — and the recovery the server documents for that code is
+     literally "re-read and try again".
+
+     Before this build the client made the PLAYER do that:
+       · equip rolled the swap back and toasted "Your gear changed somewhere
+         else. Try again." with no retry at all (legacy `equipVerdictOutcome`);
+       · the stop DID retry once, but fired the pointer reconcile to the
+         server's OLD activity on the losing attempt first — with the carried
+         fight — which is "reloads me back to the previous combat match", one
+         tick before the retry that would have stopped it.
+
+     BOTH PATHS, in one test, because they are one class and a fix to either
+     alone leaves the other reachable.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRunAsync('B534-1: a version_conflict is the CLIENT\'s retry, not the player\'s — one tap equips, and one tap stops a fight without snapping back into it', async () => {
+    const E = window.HearthriseEquip;
+    const M = window.HearthriseActivity;
+    const A = window.HearthriseAccrual;
+    const G = window.G;
+
+    /* ── THE POLICY, PURE ────────────────────────────────────────────────────
+       Bounded at ONE, and armed only by a refusal that carries the server's
+       re-read version. The edge answers a conflict through `refusalBody`, which
+       takes a FRESH `hr_state_of` read precisely because "the state moved after
+       my read" is what the code means — so the version in the body is the proof
+       that a second attempt is derived from something newer. Without it the
+       retry is the first attempt again, which is a loop wearing a bound. */
+    assert(E && typeof E.shouldRetryEquip === 'function',
+      'src/net/equip.js must publish its retry policy — a policy that lives inside the loop cannot be '
+      + 'asserted, and this is the one that decides whether the player taps once or eight times');
+    const conflict = (v) => ({ outcome: 'refused', error: 'version_conflict',
+      body: (v === undefined ? { ok: false } : { ok: false, version: v }) });
+    assert(E.shouldRetryEquip(conflict(931), 1, 2) === true,
+      'a version conflict carrying the server\'s re-read version is not retried — that IS the reported bug');
+    assert(E.shouldRetryEquip(conflict(931), 2, 2) === false,
+      'the equip retry is unbounded — one retry, never a loop');
+    assert(E.shouldRetryEquip(conflict(), 1, 2) === false,
+      'a conflict with NO version was retried — the server\'s refresh degraded, so nothing was re-read and '
+      + 'the second attempt is the first one again');
+    assert(E.shouldRetryEquip({ outcome: 'refused', error: 'insufficient_item', body: { ok: false, version: 9 } }, 1, 2) === false,
+      'a refusal about the DELTA was retried — the server will refuse that one for ever, and auto-retrying '
+      + 'it is how a client bug becomes permanent');
+    assert(M.shouldRetryActivity({ outcome: 'refused', reason: 'version_conflict' }, 1, 2) === true
+      && M.shouldRetryActivity({ outcome: 'refused', reason: 'version_conflict' }, 2, 2) === false,
+      'the activity twin must still retry a conflict exactly once');
+
+    const ids = Object.keys(window.MONSTERS || {});
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : ids[0];
+    assert(mid, 'the fixture needs a monster');
+    const STAFF = Object.keys(window.ITEMS || {}).find((k) => /staff/.test(k) && window.ITEMS[k].slot === 'weapon')
+      || Object.keys(window.ITEMS || {}).find((k) => window.ITEMS[k] && window.ITEMS[k].slot === 'weapon');
+    assert(STAFF, 'the fixture needs a weapon the player could equip');
+
+    const save = { equipment: G.equipment, inventory: G.inventory, skills: G.skills, gold: G.gold,
+      activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
+      playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, los: G.lastOfflineSummary,
+      offlineBudget: G.offlineBudget, restedAt: G.restedAt, _record: G._record };
+    const realFetch = window.fetch;
+    const origNotify = window.notify;
+    const prevCfg = E.getEquipConfig();
+    const wasOn = A.isServerAccrualEnabled();
+    const said = [];
+    let seen = [];
+    let plan = [];
+    /* THE MID-FLIGHT PROBE. The snap-back is not visible in the END state — a
+       successful retry puts the pointer right either way — so the stub samples
+       the player's own screen at the moment the SECOND request is made. That is
+       the only moment at which "did the client put me back in the fight before
+       it finished asking" has an answer. */
+    const probe = [];
+
+    /* The envelope every answer carries. Echoes the character's own numbers so
+       the replacement gate (which asks "would applying this destroy local
+       progress?") stays out of the way — ACT-4's fixture, same reason. */
+    const baseVersion = Number((G._record && G._record.version) || 0);
+    const env = (version, stateExtra) => ({
+      version,
+      now: null,
+      state: Object.assign({ slot: 0, gold: G.gold, gems: G.gems || 0, hp: G.playerHp,
+        max_hp: G.playerMaxHp, accrued_to: '2026-09-11T19:00:00Z' }, stateExtra || {}),
+      skills: Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: G.skills[k] }; return o; }, {}),
+      inventory: Object.assign({}, G.inventory),
+    });
+
+    try {
+      window.notify = function (t) { said.push(String(t)); };
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let body = null;
+        try { body = JSON.parse(init && init.body); } catch (e) {}
+        const verb = (body && body.verb) || 'accrue';
+        seen.push(body);
+        probe.push({ verb, activeMonster: G.activeMonster });
+        /* A STEP IS CONSUMED ONLY BY THE VERB IT WAS WRITTEN FOR. An ambient
+           accrue (the cadence is live for path 2) must not eat the answer the
+           arm under test is waiting for and turn a real red into a shuffle. */
+        if (!plan.length || plan[0].verb !== verb) {
+          return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+        }
+        const step = plan.shift();
+        return Promise.resolve(new Response(JSON.stringify(step.body), { status: step.status }));
+      };
+
+      /* ══ PATH 1 — THE EQUIP (symptom 2) ═══════════════════════════════════ */
+      E.configureEquip({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt',
+        slot: 0, gestureWired: true });
+      window.wireServerEquip();
+      seen = []; said.length = 0; probe.length = 0;
+      plan = [
+        { verb: 'equip', status: 409, body: Object.assign({ ok: false, verb: 'equip', error: 'version_conflict',
+          stage: 'equip', equipment: Object.assign({}, G.equipment) }, env(baseVersion + 1)) },
+        { verb: 'equip', status: 200, body: Object.assign({ ok: true, verb: 'equip',
+          equipment: Object.assign({}, G.equipment, { weapon: STAFF }) }, env(baseVersion + 2)) },
+      ];
+
+      /* THE SLOT STARTS EMPTY so the gesture has something to move — an ops map
+         that moved nothing is the S4 skip and the arm would prove nothing. */
+      G.equipment = Object.assign({}, G.equipment, { weapon: null });
+      const before = window.equipStateSnapshot();
+      G.equipment = Object.assign({}, G.equipment, { weapon: STAFF });   // the tap, applied locally
+      await window.routeEquipGesture(before);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+
+      const equips = seen.filter((b) => b && b.verb === 'equip');
+      assert(equips.length === 2,
+        'ONE tap sent ' + equips.length + ' equip(s) — a version_conflict must be retried by the client, '
+        + 'once, before the player is told anything. This is Paione\'s "press like 4–8 times"');
+      assert(equips[0].intentId !== equips[1].intentId,
+        'the retry reused the rejected key (' + equips[0].intentId + ') — hr_apply stores the DECISION '
+        + 'under the key outside the protected block, so a reused key is handed the same conflict back '
+        + 'for up to 25 h and could never have succeeded');
+      assert((G.equipment && G.equipment.weapon) === STAFF,
+        'after ONE tap the player is not wearing ' + STAFF + ' (slot holds ' + (G.equipment && G.equipment.weapon)
+        + ') — the refusal rolled the swap back and the retry never happened');
+      assert(!said.some((m) => /gear changed somewhere else/i.test(m)),
+        'the player was told "' + (said.find((m) => /gear changed/i.test(m)) || '') + '" for a conflict the '
+        + 'client resolved by itself — a toast the player cannot act on is noise');
+      assert(Number(G._record && G._record.version) === baseVersion + 2,
+        'the client is still holding version ' + (G._record && G._record.version) + ' after the server '
+        + 'stated ' + (baseVersion + 2) + ' — every envelope, refusal included, goes through applyRecord');
+
+      /* THE CONTROL, AND IT IS NOT OPTIONAL. A conflict the server could not
+         attach state to is NOT retried, and that player IS told — otherwise the
+         assertions above are satisfied by a client that retries everything. */
+      seen = []; said.length = 0;
+      plan = [{ verb: 'equip', status: 409,
+        body: { ok: false, verb: 'equip', error: 'version_conflict', stage: 'equip' } }];
+      const before2 = window.equipStateSnapshot();
+      G.equipment = Object.assign({}, G.equipment, { weapon: null });
+      await window.routeEquipGesture(before2);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      assert(seen.filter((b) => b && b.verb === 'equip').length === 1,
+        'a conflict carrying NO state was retried — nothing was re-read, so that is a second identical call');
+      assert(said.some((m) => /gear changed somewhere else/i.test(m)),
+        'CONTROL: a refusal the client cannot resolve must still reach the player — got ' + JSON.stringify(said));
+
+      /* ══ PATH 2 — THE STOP (symptom 1) ════════════════════════════════════ */
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(true);
+
+      const fighting = Object.assign({ activity: { kind: 'combat', id: mid } },
+        env(baseVersion + 3, { active_kind: 'combat', active_id: mid }));
+      seen = []; said.length = 0; probe.length = 0;
+      plan = [
+        { verb: 'set_activity', status: 409,
+          body: Object.assign({ ok: false, error: 'version_conflict', stage: 'switch' }, fighting) },
+        { verb: 'set_activity', status: 200,
+          body: Object.assign({ ok: true, activity: { kind: 'idle', id: null } },
+            env(baseVersion + 4, { active_kind: 'idle', active_id: null })) },
+      ];
+      G.activeMonster = null;                        // the player's Stop, applied locally
+      await window.declareActivity('idle', null);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+
+      const stops = seen.filter((b) => b && b.verb === 'set_activity');
+      assert(stops.length === 2, 'the stop was not retried (' + stops.length + ' declarations)');
+      const second = probe.filter((p) => p.verb === 'set_activity')[1];
+      assert(second && second.activeMonster === null,
+        'the client put the player back into the fight (' + (second && second.activeMonster) + ') BETWEEN '
+        + 'the refused attempt and the retry that succeeded — that is "it reloads me back to the previous '
+        + 'combat match". The reconcile is HELD until the gesture has finished asking');
+      assert(!G.activeMonster,
+        'the stop landed and the player is still fighting ' + G.activeMonster);
+
+      /* THE CONTROL FOR THE HOLD. A hold is not a skip: when the retry ALSO
+         conflicts, the server's truth still lands and the player goes back to
+         the fight — which also proves this fixture can snap back at all, so the
+         assertion above is measuring the fix and not a dead reconcile path. */
+      seen = []; probe.length = 0;
+      plan = [
+        { verb: 'set_activity', status: 409,
+          body: Object.assign({ ok: false, error: 'version_conflict', stage: 'switch' }, fighting) },
+        { verb: 'set_activity', status: 409,
+          body: Object.assign({ ok: false, error: 'version_conflict', stage: 'switch' }, fighting) },
+      ];
+      G.activeMonster = null;
+      await window.declareActivity('idle', null);
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      assert(G.activeMonster === mid,
+        'CONTROL: two conflicts in a row must still converge to the SERVER (' + G.activeMonster + ') — the '
+        + 'reconcile is held, never dropped, and a client that kept its own guess is the one thing it may '
+        + 'never do');
+    } finally {
+      window.fetch = realFetch;
+      window.notify = origNotify;
+      A.setServerAccrualEnabled(false);
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);
+      M.resetActivity(); M.configureActivity(null);
+      E.resetEquip();
+      if (prevCfg) E.configureEquip(prevCfg);
+      try { window.__resetEquipAssertion(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      Object.assign(G, save);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
 ];
 
 export async function runSmokeTest(opts = {}) {

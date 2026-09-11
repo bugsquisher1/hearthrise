@@ -342,8 +342,12 @@ function buildSkillsHeader() {
   try {
     const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
     if (rn && rn.rank) {
-      const score = (rn.score != null ? rn.score : (G.renownHigh || 0));
-      sub = `${esc(rn.rank.name)} · ${fmt(score)} Renown`;
+      /* `rn.score` NEVER EXISTED on the state object, so this line has
+         always fallen through to `G.renownHigh` — the CLIENT's ratcheted
+         prediction, which the kill-faucet rules keep permanently ahead of the
+         realm's count. `rn.renown` is the figure the server decides claims on
+         (getState's header); every other renown headline already reads it. */
+      sub = `${esc(rn.rank.name)} · ${fmt(rn.renown)} Renown`;
     }
   } catch (e) { /* renown optional */ }
   if (!sub) sub = esc(deriveClass().tagline);

@@ -268,10 +268,46 @@
     return idx;
   }
 
-  // Full state for the UI + home hero. Never throws.
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE HEADLINE FIGURE IS THE REALM'S COUNT, NOT THE CLIENT'S.
+
+     MEASURED LIVE (QA account, 2026-09-11 20:10 UTC): the boot card said
+     "Rank up — Squire — Claim 750"; the server refused it with "the realm has
+     counted 779 of 900 Renown for Squire"; the profile header painted "955
+     Renown" in the same breath. Three surfaces, two numbers, and the one the
+     player was shown was the one that does not decide anything.
+
+     WHY THEY DIVERGE, STRUCTURALLY: `computeRenown` scores the CLIENT's G, and
+     2026-09-02-renown-kill-faucet.sql makes a CLIENT kill credit score ZERO
+     renown server-side while a server settle scores in full. So a played
+     session drifts ahead by construction — this is not a transport hiccup that
+     will heal, it is the designed shape of the two scores.
+
+     THE RULE (CLAUDE.md §6, residue-ahead): a client-held number may never
+     headline, and may never gate, a capability the server owns. `getState` is
+     the ONE state object every headline reads (home hearth band, home status
+     rail, the Hero identity line, the ladder's own header), so the rule is
+     applied HERE rather than four times over:
+
+       · the realm has counted → that count is `renown`, in both directions.
+         It is a high-water on both sides (server `player_state.renown_high`,
+         client `renownHigh`), so a lower server figure is staleness, not a
+         demotion, and it is still the only figure a claim will be decided on.
+       · the realm has never counted → the local prediction is all that exists
+         and it is shown, with `counted:false` beside it. It CANNOT rank the
+         player up on its own: `pollRankUp` (the celebration card) and every
+         gate read the mirror and fail safe. A prediction may be seen; it may
+         not be acted on.
+
+     `local` is kept on the state object deliberately — a surface that wants to
+     show the prediction (a "pending" line, a ladder note) can, and it can only
+     do so knowingly, beside `counted`.
+     ══════════════════════════════════════════════════════════════════════════ */
   function getState(G) {
     G = G || window.G;
-    var renown = effectiveRenown(G);
+    var local = effectiveRenown(G);
+    var srv = serverRenownHigh();
+    var renown = (srv === null) ? local : srv;
     var i = rankIndexFor(renown);
     var cur = RANKS[i];
     var next = RANKS[i + 1] || null;
@@ -280,6 +316,8 @@
     var pct = next ? Math.max(0, Math.min(1, into / span)) : 1;
     return {
       renown: renown,
+      local: local,                // the client's own prediction — never a gate
+      counted: srv !== null,       // has the realm stated a figure this session?
       rankIndex: i,
       rank: cur,
       next: next,
@@ -503,11 +541,10 @@
     return Promise.resolve().then(function () { return GC.claimRank(rankId); }).then(function (res) {
       delete _claimInFlight[rankId];
       /* Learn the SERVER's high-water from any verdict that carries one — ok and
-         not_reached both do. This is the only renown figure the client can get
-         from the server today, and it is the honest one. */
-      if (res && typeof res.renown_high === 'number' && isFinite(res.renown_high)) {
-        _serverHigh = Math.max(_serverHigh === null ? 0 : _serverHigh, Math.floor(res.renown_high));
-      }
+         not_reached both do. Through the SAME record an envelope feeds
+         (noteServerRenown), so there is exactly one server-renown number in the
+         client and every headline moves the moment a verdict lands. */
+      noteServerRenown(res);
       if (res && res.ok) {
         grantLocally(G, s, rankId, rw);        // AFTER the verdict — nothing to revert
         say('Claimed ' + rewardText(rw), 'gold');
@@ -543,9 +580,11 @@
     });
   }
 
-  /* The SERVER's renown high-water as last reported by a claim verdict, or null
-     if it has never answered. READ-ONLY and advisory — it is NOT used to gate
-     the Claim button (see the header: the click is what advances it).
+  /* The SERVER's renown high-water — the mirror every headline and every rank
+     gate reads (getState, pollRankUp) — or null when the realm has never stated
+     a figure this session. It is NOT used to gate the Claim BUTTON (see the
+     claimRank header: the click is what advances the server's number, so hiding
+     it on a short score would remove the only thing that moves it).
 
      FOLLOW-UP, filed not hidden: the correct end-state is the ladder painting
      the SERVER's score continuously, the way the quest modal paints
@@ -553,9 +592,69 @@
      live hr_renown_of read) on the hr_state_of envelope, or a small read-only
      hr_renown_state RPC. hr_renown_of is revoked from `authenticated` on
      purpose, so it is a migration and a security review, and hr_state_of is the
-     anchored-programmatic-patch danger zone (the b487 class). Until then this
-     cache is what makes a refusal honest instead of mysterious. */
+     anchored-programmatic-patch danger zone (the sibling class). `noteServerRenown`
+     below already READS `renown_high` off an envelope, so the day that
+     projection lands there is nothing further to write here. */
   function serverRenownHigh() { return _serverHigh; }
+
+  /* ── OBSERVING WHAT THE REALM HAS COUNTED ──────────────────────────────
+     ONE record (`_serverHigh`), fed by every server statement about renown, in
+     the shape src/net/property-record.js established for the property rung:
+     observation is separated from display, the record is module-level, and
+     NOTHING is written into G — so this is safe to call from any load path, in
+     any order, at any point in boot.
+
+     THE THREE STATEMENTS THE SERVER MAKES TODAY, all landing here:
+       1. `renown_high` on a claim verdict — `ok` and `not_reached` both carry
+          it (2026-08-22-renown-claim.sql), post-ratchet, EXACT.
+       2. `renown_high` on an ENVELOPE — not projected yet; the reader is here
+          so the projection is a server-side change with no client half.
+       3. the `progress` array's once-guard rows, kind='flag',
+          key='renown_claim:<rank>' — permanent rows (period_key = '') that
+          hr_state_of projects UNFILTERED on every boot load and every settle
+          (2026-08-15-auto-eat.sql §hr_state_of). A PAID rank is proof the
+          server's own high-water reached that rank's threshold, so each one is
+          a FLOOR under the realm's count — the one continuously-available
+          server statement about renown that exists before the player clicks
+          anything.
+
+     MONOTONIC BY CONSTRUCTION, and that is not a shortcut: the server side is
+     itself a `greatest()` ratchet on `player_state.renown_high`, so a later,
+     lower reading is a STALE statement, never a demotion. Absence says nothing
+     at all (a lean body, a failed request) and leaves the record alone. */
+  function rankMinById(id) {
+    for (var i = 0; i < RANKS.length; i++) if (RANKS[i].id === id) return RANKS[i].min;
+    return null;   // an id this client does not know — never guess a threshold
+  }
+  var CLAIM_FLAG_PREFIX = 'renown_claim:';
+  function pickServerRenown(res) {
+    if (!res || typeof res !== 'object') return null;
+    var best = null;
+    var n = Number(res.renown_high);
+    if (isFinite(n) && n >= 0) best = Math.floor(n);
+    var rows = res.progress;
+    if (Array.isArray(rows)) {
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (!row || typeof row !== 'object' || row.kind !== 'flag') continue;
+        if (row.period !== '' && row.period != null) continue;   // permanent rows only
+        var key = typeof row.key === 'string' ? row.key : '';
+        if (key.indexOf(CLAIM_FLAG_PREFIX) !== 0) continue;
+        var min = rankMinById(key.slice(CLAIM_FLAG_PREFIX.length));
+        if (min !== null && (best === null || min > best)) best = min;
+      }
+    }
+    return best;
+  }
+  /** OBSERVE a server statement (a claim verdict or a state envelope). Returns a
+   *  receipt for the suite and for diagnostics; writes nothing into G. */
+  function noteServerRenown(res) {
+    var stated = pickServerRenown(res);
+    if (stated === null) return { mode: 'absent', high: _serverHigh, raised: false };
+    var raised = (_serverHigh === null || stated > _serverHigh);
+    if (raised) _serverHigh = stated;
+    return { mode: 'server', high: _serverHigh, raised: raised };
+  }
   /* {high, min} for a rank the server most recently refused as not_reached, or
      null. Expires: a note that outlives the truth is a new lie. */
   function serverShortfall(rankId) {
@@ -587,12 +686,31 @@
     return p;
   }
 
-  // Detect a NEW rank since last celebration. Returns the array of ranks newly
-  // reached (usually one), advancing seenRank. UI calls this from a poll.
+  /* Detect a NEW rank since last celebration. Returns the array of ranks newly
+     reached (usually one), advancing seenRank. UI calls this from a poll.
+
+     THE CARD IS A SERVER FACT. It read the CLIENT's ratcheted score, so
+     the celebration fired on a number the realm had not counted: measured live,
+     a boot card offering "Squire — Claim 750" whose claim the server refused at
+     779 of 900. A rank-up announced by the client and refused by the server is
+     the worst shape this surface can take — the player is congratulated, then
+     told no. So the boundary is decided on the mirror, and UNKNOWN celebrates
+     NOTHING (§6 fail-safe: not unlocked). Nothing is lost by waiting — the
+     ladder still lists and still offers every rank the prediction has reached,
+     and that click is what advances the server's count in the first place.
+
+     seenRank is never LOWERED here any more (it used to follow the client score
+     down). The mirror is a lagging figure by design — it only advances when the
+     server speaks — so following it down would re-celebrate ranks the player has
+     already seen, and celebrate() would offer a Claim button for a rank the
+     server has already paid. Forward only; the memory of what was shown is the
+     player's, not the server's. */
   function pollRankUp(G) {
     G = G || window.G; var s = ensureState(G); if (!s) return [];
-    var curIdx = rankIndexFor(effectiveRenown(G));
-    if (curIdx <= s.seenRank) { if (curIdx < s.seenRank) s.seenRank = curIdx; return []; }
+    var counted = serverRenownHigh();
+    if (counted === null) return [];
+    var curIdx = rankIndexFor(counted);
+    if (curIdx <= s.seenRank) return [];
     var reached = RANKS.slice(s.seenRank + 1, curIdx + 1);
     s.seenRank = curIdx;
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
@@ -899,6 +1017,10 @@
        already-handled no-op, and it never rejects. It also owns its own toast. */
     claimRank: claimRank,
     serverRenownHigh: serverRenownHigh,
+    /* The observation seam. src/net/client-state.js (boot load) and
+       src/net/accrue.js (every settle) hand it the envelope; claimRank hands it
+       the verdict. One record, three callers, no second renown store. */
+    noteServerRenown: noteServerRenown,
     serverShortfall: serverShortfall,
     __resetClaimState: __resetClaimState,
     getPerks: getPerks,

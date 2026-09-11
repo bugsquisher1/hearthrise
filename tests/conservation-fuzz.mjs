@@ -608,15 +608,69 @@ async function boot(injectionId) {
           + '  is not a plant.\n');
         process.exit(2);
       }
-      const anchors = inj.patches.map(([a]) => a);
+      /* ⚠ "CARRIES THE ANCHOR" IS NOT "OVERWRITES THE PLANT" — b538.
+         This check used to fail if ANY later file contained the anchor text,
+         and that was wrong in one direction that matters. A migration chain has
+         two kinds of later writer:
+
+           AUTHOR   `create or replace function public.f` with a whole body.
+                    The plant IS replaced by the clean text. Still fatal.
+           PATCHER  reads f's own body back with pg_get_functiondef, edits it at
+                    an anchor and re-executes it (the 2026-09-03-intent-mismatch
+                    idiom). Such a file necessarily QUOTES the anchor it edits —
+                    and it carries the plant FORWARD, because it patches whatever
+                    body it finds, planted or not.
+
+         2026-09-12-hr-rejections-journal.sql is the second kind on
+         hr_record_rejection, and it made `reject_mutates` exit 2 as ambiguous
+         even though the plant survives to chain end intact. A guard that goes
+         red on correct work teaches people to loosen guards, so the rule is now
+         scoped to the FUNCTION the anchor lives in and to re-AUTHORING it. The
+         inference is then falsified by measurement below (see PLANT STILL
+         STANDING): for every injection that carries an `-- INJECTED <id>`
+         marker, the marker has to be present in the chain-end catalogue or this
+         exits 2 anyway. Narrowed, and then checked — not relaxed. */
+      /* Comments are stripped before ANY create-or-replace scan. Measured while
+         building this: 2026-09-07-last-away-receipt.sql says, in prose,
+         "It carries no literal `create or replace function public.hr_apply(`
+         header" — and an unstripped regex reads that sentence as an author and
+         declares three healthy injections overwritten. A guard that matches on
+         a file's comments is reading documentation, not SQL. Dollar-quoted
+         bodies are deliberately NOT stripped: a create-or-replace inside one
+         that a migration then EXECUTEs really is an author. */
+      const stripSql = (t) => t.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ');
+      const declared = (await readFile(chain[at][1], 'utf8')).split('\r\n').join('\n');
+      const fns = new Set();
+      for (const [anchor] of inj.patches) {
+        // The anchor is located in the RAW text (an anchor may itself contain a
+        // comment); only the prefix being scanned for an owner is stripped.
+        const cut = declared.indexOf(anchor);
+        if (cut < 0) continue;   // bootReplay's own anchor discipline reports this
+        const before = stripSql(declared.slice(0, cut));
+        const owners = [...before.matchAll(/create\s+or\s+replace\s+function\s+public\.(\w+)/gi)];
+        if (owners.length) fns.add(owners[owners.length - 1][1].toLowerCase());
+      }
+      if (fns.size === 0) {
+        process.stderr.write(`HARNESS: injection "${injectionId}" — no `
+          + 'create-or-replace-function precedes its anchor in ' + file + ', so the function the\n'
+          + '  plant lands in cannot be resolved and "does a later file re-author it" cannot be\n'
+          + '  answered. Fix the injection rather than skipping the question.\n');
+        process.exit(2);
+      }
       const overwritten = [];
       for (let i = at + 1; i < chain.length; i++) {
-        const text = (await readFile(chain[i][1], 'utf8')).split('\r\n').join('\n');
-        if (anchors.some((a) => text.includes(a))) overwritten.push(chain[i][0]);
+        const text = stripSql((await readFile(chain[i][1], 'utf8')).split('\r\n').join('\n'));
+        for (const fn of fns) {
+          if (new RegExp(`create\\s+or\\s+replace\\s+function\\s+public\\.${fn}\\b`, 'i').test(text)) {
+            overwritten.push(chain[i][0]);
+            break;
+          }
+        }
       }
       if (overwritten.length) {
         process.stderr.write(`HARNESS: injection "${injectionId}" is planted in ${file}, but `
-          + `${overwritten.length} later file(s) in the apply order carry the same anchor and will\n`
+          + `${overwritten.length} later file(s) in the apply order RE-AUTHOR `
+          + `${[...fns].join(', ')} and will\n`
           + `  overwrite it: ${overwritten.join(', ')}\n`
           + `  The fuzz would run against a CLEAN body and prove nothing. Declare the LAST writer\n`
           + `  (${overwritten[overwritten.length - 1]}) instead — add it to INJECTION_FILES if it is\n`
@@ -657,6 +711,34 @@ async function boot(injectionId) {
         + '   the patch probably broke the SQL instead of being detected by the self-check)\n');
     }
     process.exit(2);
+  }
+  /* ── PLANT STILL STANDING, MEASURED (b538) ────────────────────────────────
+     The pre-boot check above is an INFERENCE about the apply order. This is the
+     measurement that falsifies it: thirteen of the seventeen injections write a
+     `-- INJECTED <id>` marker into the body they corrupt, so after the whole
+     chain has replayed the marker must be READABLE IN THE CATALOGUE. If it is
+     not, some later file replaced the body and the fuzz is about to run against
+     clean SQL and report whatever it would have reported anyway — the "planted
+     bug that was never planted" class, which the INJECTION_FILES header calls
+     the single most valuable thing the move to the full chain taught, and which
+     came back once already (fight-carry, 2026-08-17).
+
+     It costs one indexed catalogue scan per injected run and it cannot go
+     stale, because it asks the database rather than the file list. */
+  if (injectionId) {
+    const marker = `-- INJECTED ${injectionId}`;
+    if (INJECTIONS[injectionId].patches.some(([, repl]) => repl.includes(marker))) {
+      const { rows } = await db.query(
+        `select count(*)::int as n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and position($1 in p.prosrc) > 0`, [marker]);
+      if (!rows[0] || rows[0].n === 0) {
+        process.stderr.write(`HARNESS: injection "${injectionId}" applied, but after the FULL chain no `
+          + `function in public carries its marker (${marker}).\n`
+          + '  A later migration replaced the planted body, so the fuzz would run against clean SQL\n'
+          + '  and prove nothing. Declare the file that actually wins, and re-check what catches it.\n');
+        process.exit(2);
+      }
+    }
   }
   if (injectionId && INJECTIONS[injectionId].gate) {
     // The gate did NOT fire. Do not exit here — let the fuzz run, so the plant

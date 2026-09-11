@@ -1651,8 +1651,8 @@ function settle(verdict) {
        hr_trait_buy is now the server-side writer of a permanent trait, and
        hr_state_of projects the owned ids as a flat `traits` array, so ownership is
        hydrated HERE as well — which is what makes a trait bought on one device
-       appear on another. Since b536 a MIRROR, not a union: a trait the projection
-       does not name is REMOVED, so a client-only flag can no longer gate a server
+       appear on another. A MIRROR, not a union: a trait the projection does not
+       name is REMOVED, so a client-only flag can no longer gate a server
        capability as "owned" (see reconcileTraits' header). */
     hydrationStep('traits', () => reconcileTraits(G, verdict.body));
     /* ── HYDRATE THE BAG + BANK FROM THE SAME ENVELOPE (b46x inventory-hydrate) ───

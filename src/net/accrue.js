@@ -1896,9 +1896,9 @@ function announceCompanionLevelUps(leveled) {
    that set as a flat top-level `traits` array, and THIS is what puts it into
    G.traits so a purchase survives a device change without the save blob.
 
-   ⚠ b536 — A MIRROR, BOTH DIRECTIONS. THIS USED TO BE A UNION, AND THE UNION
+   ⚠ A MIRROR, BOTH DIRECTIONS. THIS USED TO BE A UNION, AND THE UNION
      WAS THE ENGINE OF THE RESIDUE-AHEAD CLASS (CLAUDE.md §6).
-   Until b536 this function could only ever ADD. The rationale was
+   It could once only ever ADD, and the rationale was
    grandfathering: at the time there were live players who had bought Auto-Eat
    BEFORE hr_trait_buy existed and held `G.traits.auto_eat === true` locally
    with no server row, and an absolute assignment would have revoked a paid
@@ -1911,9 +1911,9 @@ function announceCompanionLevelUps(leveled) {
    that asks "do you own this" (settings-page.js:500 the threshold slider,
    auto-actions.js:665/841 the auto-eat engine, death-sheet.js:850,
    render/shop.js:334, legacy.js hasTrait) answers YES for a capability the
-   server will refuse. That is the b533 auto-eat threshold lie and the
-   2026-09-04 property-tier deadlock (Paione: "rooms still not built") in one
-   shape: a client-held flag gating a server capability.
+   server will refuse. That is the auto-eat threshold lie and the 2026-09-04
+   property-tier deadlock (Paione: "rooms still not built") in one shape: a
+   client-held flag gating a server capability.
 
    SO: THE SERVER'S ARRAY IS THE SET, in both directions —
      · a server-owned trait appears on every device (unchanged, the feature);
@@ -1953,7 +1953,7 @@ export function reconcileTraits(G, res) {
   for (const id of server) {
     if (G.traits[id] !== true) { G.traits[id] = true; added++; }
   }
-  /* THE OTHER DIRECTION — the half that did not exist before b536. */
+  /* THE OTHER DIRECTION — the half the union never had. */
   const flying = (G._traitBuying && typeof G._traitBuying === 'object') ? G._traitBuying : null;
   let removed = 0, held = 0;
   for (const id of Object.keys(G.traits)) {
@@ -2675,9 +2675,9 @@ export function applyEnvelopeState(G, res, ownKey) {
   written.companions = reconcileCompanions(G, res);
 
   /* THE OWNED TRAIT SET IS THE SERVER'S (hr_trait_buy). Reconciled here so it
-     rides EVERY envelope, and since b536 as a MIRROR: a trait the projection
-     does not name is REMOVED, because a client-held entitlement that outlives
-     the server is the residue-ahead class — see reconcileTraits' header. */
+     rides EVERY envelope, and as a MIRROR: a trait the projection does not name
+     is REMOVED, because a client-held entitlement that outlives the server is
+     the residue-ahead class — see reconcileTraits' header. */
   written.traits = reconcileTraits(G, res);
 
   /* THE OWNED HERO SLOTS ARE THE SERVER'S (hr_buy_hero_slot). Reconciled here so

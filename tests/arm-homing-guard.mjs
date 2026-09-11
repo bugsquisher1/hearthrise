@@ -280,8 +280,8 @@ export async function armHomingGuard() {
     'plotLevels',  // VERIFIED below: reconcileFarm mirrors state.plot_level (Q-2)
     /* b466: traits — accrue.js reconcileTraits MIRRORS the envelope's `traits`
        array (hr_state_of projects the player_progress `trait:<id>` rows
-       hr_trait_buy writes) onto G.traits on every load; b536 made that mirror
-       two-way, so an unprojected trait is removed rather than kept forever. A paid entitlement with
+       hr_trait_buy writes) onto G.traits on every load, in BOTH directions, so
+       an unprojected trait is removed rather than kept forever. A paid entitlement with
        a server row must be homed HERE, not duplicated into the residue bag. */
     'traits',
     /* b522: consecFalls — accrue.js reconcileFall mirrors state.consec_falls (the

@@ -2667,6 +2667,16 @@ export function applyEnvelopeState(G, res, ownKey) {
      Guarded — an observation must never throw into an envelope apply. */
   try { written.property = notePropertyUnlocks(res); } catch (e) {}
 
+  /* THE RENOWN MIRROR RIDES EVERY SETTLE TOO. Same observation, same
+     rules as the property rung above: the rank headline and the rank-up card
+     read what the SERVER has counted, never the client's own score, and this is
+     the call that keeps that figure fresh between claims. Feeds the ONE record
+     in src/features/renown.js; writes nothing into G. */
+  try {
+    const RN = (typeof window !== 'undefined') && window.HearthriseRenown;
+    if (RN && typeof RN.noteServerRenown === 'function') written.renown = RN.noteServerRenown(res);
+  } catch (e) {}
+
   /* THE COMBAT STYLE IS THE SERVER'S (hr_set_style). Reconciled here so it rides
      EVERY envelope, which is what makes the picker show what the ENGINE will
      actually pay. Server-wins per family, fail-closed on absence — see the

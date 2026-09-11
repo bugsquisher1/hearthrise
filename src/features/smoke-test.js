@@ -1527,6 +1527,20 @@ const setAway = (hours, nowMs) => {
      helper's whole job is "a fresh absence starts now". */
   onFeet();
 };
+/* THE SIGNED-IN SERVER ENVIRONMENT, WRITTEN ONCE — five claim tests each carried
+   the same four stubs and restores; a forgotten copy leaks a fake session. */
+const stubSignedIn = (slot) => {
+  const o = [window.HearthriseSupabase, window.HearthriseAuth, window.HearthriseRpc, window.HearthriseProfile];
+  window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
+  window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
+  window.HearthriseRpc = { mayCall: () => true };
+  window.HearthriseProfile = { activeSlot: () => slot };
+  return () => {
+    window.HearthriseSupabase = o[0]; window.HearthriseAuth = o[1];
+    window.HearthriseRpc = o[2]; window.HearthriseProfile = o[3];
+  };
+};
+
 const restoreG = (snap) => {
   if (!snap || !window.G) return;
   for (const k of Object.keys(snap)) window.G[k] = snap[k];
@@ -5082,20 +5096,14 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     const origRec = window.HearthriseRecord;
     let claimBody = null, claimCalls = 0, refreshCalls = 0;
     try {
       // A signed-in, server-backed environment with a mocked hr_claim_milestone.
       // Never let the balance refresh apply a real envelope into the live G.
       window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 3 };   // the slot the server must credit
+      unstub = stubSignedIn(3);
       window.fetch = function (url, init) {
         if (String(url).indexOf('hr_claim_milestone') !== -1) {
           claimCalls++;
@@ -5135,10 +5143,7 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
       window.HearthriseRecord = origRec;
       if (C.__resetClaimState) C.__resetClaimState();
       restoreG(snap);
@@ -5161,19 +5166,13 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     const origRec = window.HearthriseRecord;
     const origNotify = window.notify;
     let claimCalls = 0, refreshCalls = 0;
     const said = [];
     try {
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 0 };
+      unstub = stubSignedIn(0);
       window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
       window.notify = (m) => { said.push(String(m || '')); };
       window.fetch = function (url) {
@@ -5226,10 +5225,7 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
       window.HearthriseRecord = origRec;
       window.notify = origNotify;
       if (C.__resetClaimState) C.__resetClaimState();
@@ -5248,17 +5244,11 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     const origRec = window.HearthriseRecord;
     let claimBody = null, claimCalls = 0, refreshCalls = 0;
     try {
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 4 };
+      unstub = stubSignedIn(4);
       // Never let the balance refresh apply a real envelope into the live G.
       window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
       window.fetch = function (url, init) {
@@ -5305,10 +5295,7 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
       window.HearthriseRecord = origRec;
       if (R.__resetClaimState) R.__resetClaimState();
       restoreG(snap);
@@ -5333,19 +5320,13 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     const origRec = window.HearthriseRecord;
     const origNotify = window.notify;
     let claimCalls = 0, refreshCalls = 0;
     const said = [];
     try {
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 0 };
+      unstub = stubSignedIn(0);
       window.HearthriseRecord = { requestRecord: () => { refreshCalls++; return Promise.resolve(null); } };
       window.notify = (m) => { said.push(String(m || '')); };
       window.fetch = function (url) {
@@ -5413,10 +5394,7 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
       window.HearthriseRecord = origRec;
       window.notify = origNotify;
       if (R.__resetClaimState) R.__resetClaimState();
@@ -5529,17 +5507,11 @@ const TESTS = [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
+    let unstub = () => {};
     let claimBody = null, claimCalls = 0;
     try {
       // A signed-in, server-backed environment with a mocked world_event_claim.
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 2 };   // the slot the server must credit
+      unstub = stubSignedIn(2);
       window.fetch = function (url, init) {
         if (String(url).indexOf('world_event_claim') !== -1) {
           claimCalls++;
@@ -5578,10 +5550,82 @@ const TESTS = [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
+      restoreG(snap);
+    }
+  }),
+
+  /* ── regression suite — THE RENOWN HEADLINE IS THE REALM'S COUNT ─────────
+     MEASURED LIVE (QA, 2026-09-11): a card offered "Rank up — Squire — Claim
+     750", the server refused it ("the realm has counted 779 of 900"), the header
+     painted 955 — all three in one breath. Structural, not drift that heals:
+     2026-09-02-renown-kill-faucet.sql scores a client kill credit at ZERO renown
+     (residue-ahead, §6). MUTATION, both halves red: getState on
+     `effectiveRenown(G)` paints 955; pollRankUp on it offers the card. */
+  () => tryRun('B534-1: the rank headline and the rank-up card read what the REALM has counted — a client score 176 ahead neither paints nor ranks up', () => {
+    const R = window.HearthriseRenown;
+    assert(R && typeof R.noteServerRenown === 'function' && typeof R.getState === 'function',
+      'the renown server mirror seam is missing — every headline is back on the client score');
+    const G = window.G;
+    const snap = snapshotG();
+    const sCollection = G.collection, sStreak = G.streak;
+    const srvBefore = R.serverRenownHigh();
+    try {
+      // A prediction of EXACTLY 955: the terms are emptied, so the ratchet IS it.
+      G.skills = {};
+      G.stats = Object.assign({}, G.stats, { kills: 0 });
+      G.bestiary = {}; G.quests = []; G.collection = {};
+      G.streak = { best: 0, count: 0 };
+      G.bountyHunter = Object.assign({}, G.bountyHunter || {}, { completed: 0 });
+      G.renownHigh = 955;
+      G.renown = { claimed: [], seenRank: 1 };        // Serf already seen — the live shape
+      if (R.__resetClaimState) R.__resetClaimState();
+      assert(R.effective(G) === 955, 'fixture: the local prediction must be exactly 955; got ' + R.effective(G));
+      assert(R.serverRenownHigh() === null, 'fixture: the realm must have stated nothing yet');
+
+      // (1) THE REALM HAS COUNTED 779. Squire needs 900. The client says 955.
+      const noted = R.noteServerRenown({ ok: true, renown_high: 779, progress: [], progress_truncated: false });
+      assert(noted.high === 779, 'the envelope figure must land in the mirror; got ' + JSON.stringify(noted));
+      const st = R.getState(G);
+      assert(st.renown === 779,
+        'THE BUG: the headline painted the CLIENT score (955) while the server decided on 779 and said so in a toast. '
+        + 'It must read what the realm has counted; got ' + st.renown);
+      assert(st.local === 955 && st.counted === true,
+        'the prediction rides along, marked as counted, so no surface has to guess; got ' + JSON.stringify({ local: st.local, counted: st.counted }));
+      assert(st.rank.id === 'serf', 'the rank follows the counted figure (779 → Serf), not the prediction; got ' + st.rank.id);
+      assert(R.pollRankUp(G).length === 0,
+        'THE BUG: a "Rank up — Squire — Claim 750" card was offered on a figure the realm had not counted, and the claim it offers is refused');
+      assert(G.renown.seenRank === 1, 'a card that never fired may not advance the seen rank; got ' + G.renown.seenRank);
+
+      // (2) THE REALM CATCHES UP — only now is the rank-up real.
+      R.noteServerRenown({ ok: false, error: 'not_reached', renown_high: 900, min: 2200 });
+      const st2 = R.getState(G);
+      assert(st2.renown === 900 && st2.rank.id === 'squire',
+        'the counted figure is what ranks a player up; got ' + st2.renown + ' / ' + st2.rank.id);
+      const reached = R.pollRankUp(G);
+      assert(reached.length === 1 && reached[0].id === 'squire',
+        'the card fires the moment the realm has counted the threshold; got ' + JSON.stringify(reached.map((r) => r.id)));
+      assert(R.pollRankUp(G).length === 0, 'the card is offered once — seenRank advanced with it');
+
+      R.noteServerRenown({ renown_high: 400 });
+      assert(R.getState(G).renown === 900,
+        'the mirror is a high-water: a stale lower reading is staleness, never a demotion; got ' + R.getState(G).renown);
+
+      if (R.__resetClaimState) R.__resetClaimState();
+      R.noteServerRenown({ ok: true, progress_truncated: false, progress: [
+        { kind: 'flag', key: 'renown_claim:knight', value: 1, period: '', state: 'claimed' },
+        { kind: 'flag', key: 'renown_claim:__unknown__', value: 1, period: '', state: 'claimed' },
+        { kind: 'unlock', key: 'property:homestead', value: 1, period: '', state: '' }
+      ] });
+      assert(R.serverRenownHigh() === 2200,
+        'a paid rank floors the count at its threshold (knight = 2200), and an unknown rank id is never guessed; got ' + R.serverRenownHigh());
+      assert(R.noteServerRenown({ ok: true }).mode === 'absent',
+        'a body that says nothing about renown must leave the record alone');
+      assert(R.serverRenownHigh() === 2200, 'absence is not a statement of zero; got ' + R.serverRenownHigh());
+    } finally {
+      if (R.__resetClaimState) R.__resetClaimState();
+      if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
+      G.collection = sCollection; G.streak = sStreak;
       restoreG(snap);
     }
   }),

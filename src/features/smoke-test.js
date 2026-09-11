@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=533' directly.
+// modularised, will import { G } from '../state/game.js?v=534' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=533';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=533';
+import { on, snapshot } from '../net/events.js?v=534';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=534';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=533';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=534';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1527,6 +1527,10 @@ const setAway = (hours, nowMs) => {
      helper's whole job is "a fresh absence starts now". */
   onFeet();
 };
+/* THE INTENT TRANSPORT, ARMED AND PUT BACK — WRITTEN ONCE. The teardown is not boilerplate but a RULING ("pristine is ON, so clear the override first and re-apply OFF only if we started there") that had been copy-pasted thirteen times in four spellings. */
+const armActivityTransport = () => { const M = window.HearthriseActivity; M.resetActivity(); M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' }); window.HearthriseAccrual.setServerAccrualEnabled(true); };
+const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };   // LET AN INTENT'S PROMISE CHAIN FINISH. Was declared verbatim in four tests; one that needs a different wait still declares its own and shadows this.
+const restoreAccrualSwitch = (wasOn) => { const A = window.HearthriseAccrual; A.setServerAccrualEnabled(false); try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {} if (!wasOn) A.setServerAccrualEnabled(false); };
 /* THE SIGNED-IN SERVER ENVIRONMENT, WRITTEN ONCE — five claim tests each carried
    the same four stubs and restores; a forgotten copy leaks a fake session. */
 const stubSignedIn = (slot) => {
@@ -9225,7 +9229,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=533');
+    const S = await import('../data/shops.js?v=534');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -10126,7 +10130,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=533');
+    const mod = await import('../data/dungeons.js?v=534');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10157,7 +10161,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=533');
+    const mod = await import('../data/dungeons.js?v=534');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -43726,7 +43730,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=533');
+    const KIT = await import('../data/start-kit.js?v=534');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -43808,7 +43812,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=533');
+    const KIT = await import('../data/start-kit.js?v=534');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -43922,7 +43926,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=533');
+    const KIT = await import('../data/start-kit.js?v=534');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -45609,9 +45613,7 @@ const TESTS = [
       assert(threw && /record\.js/.test(String(threw.message)),
         'a missing record.js silently restored a cloud save carrying server-owned fields');
     } finally {
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
     }
   }),
 
@@ -46035,7 +46037,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=533')).text();
+    const src = await (await fetch('src/legacy.js?v=534')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -46958,9 +46960,7 @@ const TESTS = [
         + '`intent_mismatch` for a reuse against a different target');
     } finally {
       window.fetch = realFetch;
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, { activeMonster: save.activeMonster, monsterHp: save.monsterHp,
@@ -47022,9 +47022,7 @@ const TESTS = [
         if (step.throw) return Promise.reject(new TypeError('Failed to fetch'));
         return Promise.resolve(new Response(JSON.stringify(step.body), { status: step.status }));
       };
-      M.resetActivity();
-      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-      A.setServerAccrualEnabled(true);
+      armActivityTransport();
 
       /* ── UNANSWERED → THE SAME KEY. The declaration may have landed; reuse is
          what makes the retry safe. */
@@ -47069,9 +47067,7 @@ const TESTS = [
         + 'the contract\'s named recovery, and without it a clamped player can never change activity again');
     } finally {
       window.fetch = realFetch;
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       A.resetAccrualGate(); A.configureAccrual(null);
       try { window.stopCombat(); } catch (e) {}
@@ -47110,9 +47106,7 @@ const TESTS = [
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
         return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
       };
-      M.resetActivity();
-      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-      A.setServerAccrualEnabled(true);
+      armActivityTransport();
 
       body = mkBody({ ms: 1800000, capped: false, kills: 7, gold: 512,
         xp: { attack: 1200, hitpoints: 400 }, items: { bone: 3 }, levelUps: [], died: false });
@@ -47158,9 +47152,7 @@ const TESTS = [
         'an all-zero receipt was rendered — the welcome-back card would read "+0 gold" over a real night');
     } finally {
       window.fetch = realFetch;
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, { gold: save.gold, skills: save.skills, inventory: save.inventory,
@@ -47191,9 +47183,7 @@ const TESTS = [
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
         return Promise.resolve(new Response(JSON.stringify(answer.body), { status: answer.status }));
       };
-      M.resetActivity();
-      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-      A.setServerAccrualEnabled(true);
+      armActivityTransport();
 
       /* A REFUSED SWITCH THAT CARRIES AN ENVELOPE. The player tapped `other`;
          the server says they are still on `mid`. The optimistic pointer is
@@ -47234,9 +47224,7 @@ const TESTS = [
         'the module does not report what it reconciled to: ' + JSON.stringify(st.last));
     } finally {
       window.fetch = realFetch;
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, save);
@@ -47457,9 +47445,7 @@ const TESTS = [
           skills: {}, inventory: {},
         }), { status: 200 }));
       };
-      M.resetActivity();
-      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-      A.setServerAccrualEnabled(true);
+      armActivityTransport();
 
       window.startSkill('woodcutting', tree.id, tree.ms);
       for (let i = 0; i < 60; i++) await Promise.resolve();
@@ -47515,9 +47501,7 @@ const TESTS = [
         + 'the player');
     } finally {
       window.fetch = realFetch;
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}
       Object.assign(G, save);
@@ -47828,9 +47812,7 @@ const TESTS = [
     } finally {
       M.declare = realDeclare;
       M.setConfirmedActivity(null);
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       try { window.stopSkill(); } catch (e) {}
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
@@ -48009,9 +47991,7 @@ const TESTS = [
           skills: { woodcutting: { xp: 0, level: 1 } }, inventory: {},
         }), { status: 200 }));
       };
-      M.resetActivity();
-      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-      A.setServerAccrualEnabled(true);
+      armActivityTransport();
 
       window.startSkill('woodcutting', tree.id, tree.ms);
       for (let i = 0; i < 60; i++) await Promise.resolve();
@@ -48041,9 +48021,7 @@ const TESTS = [
       window.fetch = realFetch;
       try { A.hideReplacementSheet(); } catch (e) {}
       A.acknowledgeReplacement(hadAck ? true : false);
-      A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}
       Object.assign(G, save);
@@ -48171,7 +48149,6 @@ const TESTS = [
        the envelope had not reached yet and reported THE DOUBLE-PAY WINDOW AS
        OPEN when it was closed. A guard that cries wolf about the one hazard it
        exists for teaches its readers to skim it. */
-    const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };
     const save = { gold: G.gold, gems: G.gems, streak: G.streak, dailyReward: G.dailyReward,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
     let ver = 10;
@@ -48329,10 +48306,8 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
-      A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -48412,7 +48387,6 @@ const TESTS = [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     const wasAck = A.isReplacementAcknowledged();
-    const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };
     const save = { gold: G.gold, inventory: JSON.parse(JSON.stringify(G.inventory)),
       skills: JSON.parse(JSON.stringify(G.skills)), lockedItems: G.lockedItems };
     let ver = 40;
@@ -48512,10 +48486,8 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
-      A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -48547,7 +48519,6 @@ const TESTS = [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     const wasAck = A.isReplacementAcknowledged();
-    const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };
     const save = { gold: G.gold, gems: G.gems,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
     const savedListings = localStorage.getItem('hearthrise:market:listings');
@@ -48666,10 +48637,8 @@ const TESTS = [
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
-      A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       if (savedListings === null) localStorage.removeItem('hearthrise:market:listings');
       else localStorage.setItem('hearthrise:market:listings', savedListings);
       Object.assign(G, save);
@@ -48761,7 +48730,6 @@ const TESTS = [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     const wasAck = A.isReplacementAcknowledged();
-    const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };
     const save = { gold: G.gold, gems: G.gems, streak: G.streak, dailyReward: G.dailyReward,
       lockedItems: G.lockedItems,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
@@ -49031,10 +48999,8 @@ const TESTS = [
       window.fetch = realFetch;
       try { A.hideReplacementSheet(); } catch (e) {}
       Gd.resetGold(); Gd.configureGold(null);
-      A.setServerAccrualEnabled(false);
       A.acknowledgeReplacement(wasAck);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -52637,7 +52603,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=533');
+    const S = await import('../data/shops.js?v=534');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -54178,7 +54144,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=533');
+    const S = await import('../data/shops.js?v=534');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -58766,7 +58732,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=533')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=534')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -60757,7 +60723,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=533');
+    const A = await import('../net/accrue.js?v=534');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -60782,7 +60748,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=533');
+    const A = await import('../net/accrue.js?v=534');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -60809,7 +60775,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=533');
+    const A = await import('../net/accrue.js?v=534');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -60962,7 +60928,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=533')).text();
+      const raw = await (await fetch(f + '?v=534')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -61012,7 +60978,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=533')).text();
+    const raw = await (await fetch('src/observability.js?v=534')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -61116,7 +61082,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=533');
+    const _art = await import('../data/monster-art.js?v=534');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -62101,6 +62067,91 @@ const TESTS = [
       window.notify = origNotify;
       if (colBefore === undefined) delete G.collection; else G.collection = colBefore;
       restoreG(snap);
+    }
+  }),
+
+  /* THE PLAYER IS NOT THE RETRY LOOP (Paione, 2026-09-11, on live). «when I am in combat and I stop combat it reloads me back to the
+     previous combat match» and «I equip a staff and I need to press like 4–8 times for it to equip» are ONE class: `version_conflict`,
+     which is the SERVER's own read losing a race (nobody sends a version; the client's attended-combat cadences bump
+     `player_state.version` with no intent behind them) and whose documented recovery is "re-read and try again". The client made the
+     PLAYER do that: the equip was rolled back and toasted with no retry, and the stop retried once but reconciled the pointer to the
+     old activity — with the carried fight — on the losing attempt first. BOTH paths, or a fix to either leaves the other reachable. */
+  () => tryRunAsync('B534-1: a version_conflict is the CLIENT\'s retry, not the player\'s — one tap equips, and one tap stops a fight without snapping back into it', async () => {
+    const E = window.HearthriseEquip, M = window.HearthriseActivity, A = window.HearthriseAccrual, G = window.G;
+    const conflict = (v) => ({ outcome: 'refused', error: 'version_conflict', body: (v === undefined ? { ok: false } : { ok: false, version: v }) });
+    assert(typeof E.shouldRetryEquip === 'function' && E.shouldRetryEquip(conflict(931), 1, 2) === true && E.shouldRetryEquip(conflict(931), 2, 2) === false, 'equip.js must publish a BOUNDED version_conflict retry — one, never a loop. Without it every tap that races a combat cadence is a wasted tap the player has to repeat');
+    assert(E.shouldRetryEquip(conflict(), 1, 2) === false && E.shouldRetryEquip({ outcome: 'refused', error: 'insufficient_item', body: { ok: false, version: 9 } }, 1, 2) === false, 'only a conflict carrying the server\'s RE-READ version may be retried: a degraded refresh means nothing was re-read, and a refusal about the DELTA would be refused for ever');
+
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+    const STAFF = Object.keys(window.ITEMS || {}).find((k) => /staff/.test(k) && window.ITEMS[k].slot === 'weapon') || Object.keys(window.ITEMS || {}).find((k) => window.ITEMS[k] && window.ITEMS[k].slot === 'weapon');
+    assert(mid && STAFF, 'the fixture needs a monster and a wearable weapon');
+    const snap = snapshotG(), realFetch = window.fetch, origNotify = window.notify, prevCfg = E.getEquipConfig(), wasOn = A.isServerAccrualEnabled();
+    const said = [], probe = [], base = Number((G._record && G._record.version) || 0);
+    let seen = [], plan = [];
+    const env = (version, st) => ({ version, now: null, state: Object.assign({ slot: 0, gold: G.gold, gems: G.gems || 0, hp: G.playerHp, max_hp: G.playerMaxHp, accrued_to: '2026-09-11T19:00:00Z' }, st || {}), skills: Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: G.skills[k] }; return o; }, {}), inventory: Object.assign({}, G.inventory) });
+    try {
+      window.notify = function (t) { said.push(String(t)); };
+      /* A step is consumed only by the VERB it was written for, so an ambient accrue cannot eat the answer the arm under test waits
+         for. `probe` samples the player's own screen AT each request: the snap-back is invisible in the END state (a successful retry
+         puts the pointer right either way), so the one moment it can be asked about is when the SECOND declaration goes out. */
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let b = null; try { b = JSON.parse(init && init.body); } catch (e) {}
+        const verb = (b && b.verb) || 'accrue';
+        seen.push(b); probe.push({ verb, activeMonster: G.activeMonster });
+        if (!plan.length || plan[0].verb !== verb) return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+        const step = plan.shift();
+        return Promise.resolve(new Response(JSON.stringify(step.body), { status: step.status }));
+      };
+
+      // ── PATH 1: THE EQUIP. One tap, one conflict, and the player is never told about it.
+      E.configureEquip({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0, gestureWired: true }); window.wireServerEquip();
+      plan = [{ verb: 'equip', status: 409, body: Object.assign({ ok: false, verb: 'equip', error: 'version_conflict', stage: 'equip', equipment: Object.assign({}, G.equipment) }, env(base + 1)) },
+        { verb: 'equip', status: 200, body: Object.assign({ ok: true, verb: 'equip', equipment: Object.assign({}, G.equipment, { weapon: STAFF }) }, env(base + 2)) }];
+      G.equipment = Object.assign({}, G.equipment, { weapon: null });   // the slot starts empty, or the gesture moves nothing and this arm proves nothing
+      const before = window.equipStateSnapshot();
+      G.equipment = Object.assign({}, G.equipment, { weapon: STAFF });  // the tap, applied locally
+      await window.routeEquipGesture(before); await drain();
+      const equips = seen.filter((b) => b && b.verb === 'equip');
+      assert(equips.length === 2, 'ONE tap sent ' + equips.length + ' equip(s) — a version_conflict must be retried by the client, once, before the player is told anything. This is Paione\'s "press like 4–8 times"');
+      assert(equips[0].intentId !== equips[1].intentId, 'the retry reused the rejected key (' + equips[0].intentId + ') — hr_apply stores the DECISION under the key outside the protected block, so a reused key is handed the same conflict back for up to 25 h and could never have succeeded');
+      assert((G.equipment && G.equipment.weapon) === STAFF, 'after ONE tap the player is not wearing ' + STAFF + ' (the slot holds ' + (G.equipment && G.equipment.weapon) + ') — the refusal rolled the swap back and the retry never happened');
+      assert(!said.some((m) => /gear changed somewhere else/i.test(m)), 'the player was told "' + (said.find((m) => /gear changed/i.test(m)) || '') + '" for a conflict the client resolved by itself — a toast nobody can act on is noise');
+      assert(Number(G._record && G._record.version) === base + 2, 'the client still holds version ' + (G._record && G._record.version) + ' after the server stated ' + (base + 2) + ' — every envelope, refusal included, goes through applyRecord');
+
+      // CONTROL: a conflict the server could not attach state to is NOT retried, and THAT player is told.
+      seen = []; said.length = 0; plan = [{ verb: 'equip', status: 409, body: { ok: false, verb: 'equip', error: 'version_conflict', stage: 'equip' } }];
+      const before2 = window.equipStateSnapshot();
+      G.equipment = Object.assign({}, G.equipment, { weapon: null });
+      await window.routeEquipGesture(before2); await drain();
+      assert(seen.filter((b) => b && b.verb === 'equip').length === 1, 'a conflict carrying NO state was retried — nothing was re-read, so that is the first attempt sent a second time');
+      assert(said.some((m) => /gear changed somewhere else/i.test(m)), 'CONTROL: a refusal the client cannot resolve must still reach the player — got ' + JSON.stringify(said));
+
+      // ── PATH 2: THE STOP. One tap, one conflict, and no detour back through the fight.
+      armActivityTransport();
+      const fighting = Object.assign({ activity: { kind: 'combat', id: mid } }, env(base + 3, { active_kind: 'combat', active_id: mid }));
+      const refuseStop = { verb: 'set_activity', status: 409, body: Object.assign({ ok: false, error: 'version_conflict', stage: 'switch' }, fighting) };
+      seen = []; probe.length = 0;
+      plan = [refuseStop, { verb: 'set_activity', status: 200, body: Object.assign({ ok: true, activity: { kind: 'idle', id: null } }, env(base + 4, { active_kind: 'idle', active_id: null })) }];
+      G.activeMonster = null;                          // the player's Stop, applied locally
+      await window.declareActivity('idle', null); await drain();
+      const second = probe.filter((x) => x.verb === 'set_activity')[1];
+      assert(seen.filter((b) => b && b.verb === 'set_activity').length === 2, 'the stop was not retried');
+      assert(second && second.activeMonster === null, 'the client put the player back into the fight (' + (second && second.activeMonster) + ') BETWEEN the refused attempt and the retry that succeeded — that is "it reloads me back to the previous combat match". The reconcile is HELD until the gesture has finished asking');
+      assert(!G.activeMonster, 'the stop landed and the player is still fighting ' + G.activeMonster);
+
+      // CONTROL: a hold is not a skip — two conflicts still land the server's truth, which also proves this fixture CAN snap back, so the assertion above measures the fix rather than a dead reconcile path.
+      seen = []; probe.length = 0; plan = [refuseStop, refuseStop]; G.activeMonster = null;
+      await window.declareActivity('idle', null); await drain();
+      assert(G.activeMonster === mid, 'CONTROL: two conflicts in a row must still converge to the SERVER (' + G.activeMonster + ') — the reconcile is held, never dropped, and keeping its own guess is the one thing a client may never do');
+    } finally {
+      window.fetch = realFetch; window.notify = origNotify;
+      restoreAccrualSwitch(wasOn);
+      M.resetActivity(); M.configureActivity(null);
+      E.resetEquip(); if (prevCfg) E.configureEquip(prevCfg);
+      try { window.__resetEquipAssertion(); } catch (e) {}
+      restoreGAndRecord(snap);
+      try { window.saveLocal(); } catch (e) {}
     }
   }),
 

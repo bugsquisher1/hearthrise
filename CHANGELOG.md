@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 536 — 2026-09-12 (What you own is what the realm says you own)
+
+**Traits mirror the realm both ways.** A trait the client had once painted as owned could linger forever, because the client only ever added traits and never removed one the realm did not project. That is the engine behind the auto-eat threshold lie fixed in build 533, and behind every "unlocked on my screen, refused by the realm" moment. The realm's list is now the list: absent means gone, present means yours, and a purchase you just made is held only until the realm answers.
+
 ## v0.9.2-beta build 535 — 2026-09-11 (A lighter start, an honest rank)
 
 **The game starts faster.** Every player was downloading and running the developer test suite on every cold start: 3.75 MB of the 10.3 MB the game shipped. It now loads only when a tester opens it, so the JavaScript a player fetches fell by 37 %, about two and a half seconds off a boot on a 4G connection. A standing guard fails the build if the suite ever rides along again.

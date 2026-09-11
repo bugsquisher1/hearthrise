@@ -1,17 +1,17 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=535' directly.
+// modularised, will import { G } from '../state/game.js?v=536' directly.
 //
 // b535 — NEVER SENT TO A PLAYER. A dynamic import owned by smoke-test-loader.js,
 // which owns all three triggers too; read its header. Guard: boot-budget.mjs.
 
-import { on, snapshot } from '../net/events.js?v=535';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=535';
+import { on, snapshot } from '../net/events.js?v=536';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=536';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=535';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=536';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1405,7 +1405,9 @@ const snapshotG = () => {
        suite and unsnapshotted — AWAY-HONEST-3 clearing `auto_eat` would have
        taken a real player's 100-mark purchase with it, which is exactly the
        pollution this list exists to prevent. */
-    traits: G.traits,
+    /* `?? null`, not bare — SNAP-2: legacy.js's fresh-G literal has no `traits`
+       key, JSON.stringify DROPS it, restoreG puts nothing back (27 leaks). */
+    traits: G.traits ?? null,
     foodSlot: G.foodSlot,
     autoEatPct: G.autoEatPct,
     lastSeen: G.lastSeen,
@@ -1869,9 +1871,9 @@ const combatScreen = () => {
 };
 
 /* ── THE AUTO-EAT MIRROR FIXTURE ──────────────────────────────────────
-   The divergence the bug lived in, built once: a client on tier II
-   (reconcileTraits UNIONS the server's trait list and never removes, so a client
-   tier can run AHEAD of it) holding a 50% preference, against the column
+   The divergence the bug lived in, built once: a client on tier II (reconcileTraits
+   once UNIONED the server's trait list and never removed, so a client tier could
+   run AHEAD of it) holding a 50% preference, against the column
    hr_set_auto_eat clamped on write to Auto-Eat I's ceiling of 25.
    runSmokeTest parks the mirror so ~10 local-threshold fixtures stay honest on a
    signed-in page; these tests ARE it, so this unparks and restores — the contract
@@ -2932,12 +2934,12 @@ const TESTS = [
       'a purchase with no valid idempotency key must not be sent; got ' + JSON.stringify(noKey));
   }),
 
-  () => tryRun('b46x: the trait ownership hydration is a UNION, never a replace', () => {
-    /* THE ONE IRREVERSIBLE MISTAKE available in this slice. G.traits is still a
-       blob field, and there are live players who bought Auto-Eat BEFORE the
-       server verb existed: they hold it locally with NO server row. An absolute
-       assignment from the envelope would REVOKE a paid trait from every one of
-       them. reconcileTraits therefore only ever ADDS. */
+  () => tryRun('b536: the trait ownership hydration MIRRORS the server, both directions', () => {
+    /* This shipped as a UNION — add-only — for players who bought Auto-Eat
+       before hr_trait_buy existed. The wipe removed them (§1) and the rule
+       outlived its reason: add-only means a trait the server never sold gates
+       every surface as "owned" forever (§6). The projection is UNFILTERED and
+       `[]` is KNOWN (2026-08-23-trait-buy.sql): it is the set. */
     const A = window.HearthriseAccrual;
     if (!A || typeof A.reconcileTraits !== 'function') {
       assert(false, 'HearthriseAccrual.reconcileTraits is missing — nothing hydrates trait '
@@ -2945,23 +2947,41 @@ const TESTS = [
       return;
     }
     const g = { traits: { legacy_local: true } };
-    A.reconcileTraits(g, { traits: ['auto_eat'] });
+    const r1 = A.reconcileTraits(g, { traits: ['auto_eat'] });
     assert(g.traits.auto_eat === true, 'a server-owned trait must be hydrated onto the client');
-    assert(g.traits.legacy_local === true,
-      'the hydration REVOKED a locally-owned trait the server has no row for — that is a paid '
-      + 'purchase taken away from a live player, and it is not recoverable');
+    assert(!('legacy_local' in g.traits) && r1 && r1.removed === 1,
+      'THE BUG: a trait the server does not project survived the hydration — a client-only flag '
+      + 'that keeps gating a server capability as owned is the residue-ahead class');
 
-    // FAIL-CLOSED on absence: an envelope with no `traits` key changes nothing.
+    // FAIL-CLOSED on absence: no `traits` key changes nothing (never evict on
+    // uncertainty — absence is not "you own nothing").
     const g2 = { traits: { auto_eat: true } };
     const res = A.reconcileTraits(g2, { state: {} });
     assert(res && res.mode === 'absent' && g2.traits.auto_eat === true,
       'an envelope that does not project traits must not be read as "you own nothing"');
 
-    // A fresh character with an EMPTY server set is a valid known state and
-    // still takes nothing away.
+    // An EMPTY server set is a valid known state: grants nothing, and takes back
+    // anything the client invented.
     const g3 = { traits: {} };
     A.reconcileTraits(g3, { traits: [] });
     assert(Object.keys(g3.traits).length === 0, 'an empty owned set must grant nothing');
+    const g4 = { traits: { auto_eat: true, auto_eat_2: true } };
+    A.reconcileTraits(g4, { traits: [] });
+    assert(Object.keys(g4.traits).length === 0,
+      'an empty PROJECTED set is the server saying "this character owns nothing" — it must clear');
+
+    /* THE ONE EXCEPTION, on the EXISTING optimistic/answer seam: buyTrait parks
+       `G._traitBuying[id]` for a purchase; an envelope predating it must not
+       un-paint it — until the server answers. */
+    const g5 = { traits: { auto_eat: true }, _traitBuying: { auto_eat: true } };
+    const r5 = A.reconcileTraits(g5, { traits: [] });
+    assert(g5.traits.auto_eat === true && r5.held === 1 && r5.removed === 0,
+      'a purchase IN FLIGHT must hold its optimistic trait until the server answers');
+    g5._traitBuying.auto_eat = false;                      // the answer landed
+    A.reconcileTraits(g5, { traits: [] });
+    assert(!('auto_eat' in g5.traits),
+      'once the purchase is no longer in flight the server set is the set — the optimistic paint '
+      + 'must not become a second source of truth');
   }),
 
   () => tryRun('P0 (Paione): the combat style is the SERVER\'s, and the picker tells it', () => {
@@ -9301,7 +9321,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=535');
+    const S = await import('../data/shops.js?v=536');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -10202,7 +10222,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=535');
+    const mod = await import('../data/dungeons.js?v=536');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10233,7 +10253,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=535');
+    const mod = await import('../data/dungeons.js?v=536');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -35327,7 +35347,7 @@ const TESTS = [
     /* The other half of the sweep: declared scratch must NOT also be residue. */
     ['combatKillsThisFoe', 'viewingSkill', 'lastSessionSummary'].forEach((f) =>
       assert(RF.indexOf(f) < 0, f + ' is declared in-flight scratch (NO_SYNC) — it must not also be residue'));
-    /* AND the ruling on `traits`: it belongs to the SERVER (reconcileTraits unions
+    /* AND the ruling on `traits`: it belongs to the SERVER (reconcileTraits mirrors
        hr_state_of's projection of the rows hr_trait_buy writes), so it must NOT
        be duplicated into the self-only bag — one paid entitlement, one source. */
     assert(RF.indexOf('traits') < 0,
@@ -39277,6 +39297,62 @@ const TESTS = [
       assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9,
         'and the slider position must survive as the thing the player edits and sends UP');
     });
+  }),
+
+  /* ── regression: THE ENGINE UNDER THE TWO TESTS ABOVE ────────────────
+     Those fixed the threshold SYMPTOM. What let a client stand on a tier it
+     never bought is one line up the stack: a trait written into `G.traits` by a
+     stale residue, a suite leak, an optimistically painted refusal or devtools
+     outlived a server that never sold it, on every device — the residue-ahead
+     class (§6) with a paid entitlement on it, the same shape as the 2026-09-04
+     property-tier deadlock. Gates freed: hasTrait() (shop, combat food controls,
+     inv-context-menu, combat-render) and autoEatTier() (settings threshold
+     slider, the auto-eat engine, death sheet, fight warning, set-the-night). */
+  () => tryRun('b536: a trait the server does not project is REVOKED — a client-only tier cannot gate a server capability', () => {
+    const AC = window.HearthriseAccrual;
+    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+    assert(AC && typeof AC.reconcileTraits === 'function',
+      'reconcileTraits is the ONE seam that homes G.traits — without it traits are stranded');
+    assert(AE && typeof AE.autoEatTier === 'function' && typeof AE.maxPctForTier === 'function',
+      'src/core/auto-eat.js is the ONE tier reader every trait gate funnels through');
+    assert(typeof window.hasTrait === 'function', 'legacy hasTrait() is the other trait gate');
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      /* THE LIE, as the live one arrives: a tier-II trait map NO server row backs. */
+      G.traits = { auto_eat: true, auto_eat_2: true };
+      assert(AE.autoEatTier(G.traits) === 2 && window.hasTrait('auto_eat_2') === true,
+        'fixture: the client must start out believing it owns tier II');
+      assert(AE.maxPctForTier(AE.autoEatTier(G.traits)) === 100,
+        'fixture: tier II is the 100% ceiling — that is the capability being gated');
+
+      /* THE ENVELOPE. hr_state_of builds `traits` UNFILTERED and documents `[]`
+         as KNOWN (2026-08-23-trait-buy.sql): "bought nothing", not a partial. */
+      const r = AC.reconcileTraits(G, { traits: [] });
+      assert(r && r.mode === 'server' && r.removed === 2,
+        'THE BUG: the hydration was a UNION — it left both invented traits standing; got '
+        + JSON.stringify(r));
+      assert(window.hasTrait('auto_eat') === false && window.hasTrait('auto_eat_2') === false,
+        'THE BUG: hasTrait() still answers YES for a trait the server never sold, so the Bounty '
+        + 'Shop row, the combat food controls and the death sheet all stay unlocked');
+      assert(AE.autoEatTier(G.traits || {}) === 0 && AE.maxPctForTier(AE.autoEatTier(G.traits || {})) === 25,
+        'the gated surface must read locked / lowest tier, never the invented tier-II ceiling');
+
+      /* THE CONVERSE, so "delete everything" cannot pass: only what it projects. */
+      const r2 = AC.reconcileTraits(G, { traits: ['auto_eat'] });
+      assert(r2 && r2.added === 1 && window.hasTrait('auto_eat') === true
+        && AE.autoEatTier(G.traits) === 1,
+        'a projected trait must unlock its surface — this is a mirror, not a wipe; got '
+        + JSON.stringify(r2));
+      assert(window.hasTrait('auto_eat_2') === false,
+        'and ONLY what the server named — tier II was not projected');
+
+      /* AND NEVER EVICT ON UNCERTAINTY (§6): no `traits` key at all is a
+         build/partial we cannot read, not "you own nothing". */
+      const r3 = AC.reconcileTraits(G, { state: {} });
+      assert(r3 && r3.mode === 'absent' && window.hasTrait('auto_eat') === true,
+        'an envelope that does not project traits must leave the owned set exactly alone');
+    } finally { restoreG(snap); }
   }),
 
   /* ── b331 regression suite — THE DEAD-TOKEN LOOP (live P0) ────────────────
@@ -43799,7 +43875,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=535');
+    const KIT = await import('../data/start-kit.js?v=536');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -43881,7 +43957,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=535');
+    const KIT = await import('../data/start-kit.js?v=536');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -43995,7 +44071,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=535');
+    const KIT = await import('../data/start-kit.js?v=536');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -46106,7 +46182,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=535')).text();
+    const src = await (await fetch('src/legacy.js?v=536')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -52672,7 +52748,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=535');
+    const S = await import('../data/shops.js?v=536');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -54213,7 +54289,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=535');
+    const S = await import('../data/shops.js?v=536');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -58801,7 +58877,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=535')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=536')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -60792,7 +60868,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=535');
+    const A = await import('../net/accrue.js?v=536');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -60817,7 +60893,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=535');
+    const A = await import('../net/accrue.js?v=536');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -60844,7 +60920,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=535');
+    const A = await import('../net/accrue.js?v=536');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -60997,7 +61073,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=535')).text();
+      const raw = await (await fetch(f + '?v=536')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -61047,7 +61123,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=535')).text();
+    const raw = await (await fetch('src/observability.js?v=536')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -61151,7 +61227,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=535');
+    const _art = await import('../data/monster-art.js?v=536');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

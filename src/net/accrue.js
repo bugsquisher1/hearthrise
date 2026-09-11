@@ -1562,14 +1562,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=535';
+import * as itemLedger from './item-ledger.js?v=536';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=535';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=536';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1578,7 +1578,7 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=535';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=536';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -1596,24 +1596,24 @@ import { serverAccruedSkill } from '../data/skill-authority.js?v=535';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=535';
+import * as pendingConsume from './pending-consume.js?v=536';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=535';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=536';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=535';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=536';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
    driven headlessly by the suite. The two curves are pinned equal to each other
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
-import { companionLevelFromXp } from '../core/companion-perk.js?v=535';
+import { companionLevelFromXp } from '../core/companion-perk.js?v=536';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -1896,38 +1896,73 @@ function announceCompanionLevelUps(leveled) {
    that set as a flat top-level `traits` array, and THIS is what puts it into
    G.traits so a purchase survives a device change without the save blob.
 
-   ⚠ UNION, NEVER REPLACE — and that is the whole design of this function.
-   G.traits is still a blob field today, and there are live players who bought
-   Auto-Eat BEFORE this verb existed: they hold `G.traits.auto_eat === true`
-   locally and NO server row. An absolute assignment would REVOKE a paid trait
-   from every one of them on their next envelope, which is the one irreversible
-   mistake available here. A union can only ever ADD, so:
-     · a server-owned trait appears on every device (the feature);
-     · a locally-owned, server-unknown trait is left exactly alone (the safety);
-     · an entitlement is monotone, which is what hr_set_auto_eat's tier argument
-       already assumes ("an entitlement is never revoked").
-   The beta wipe removes the pre-migration population, at which point the server
-   set IS the set — but the union stays, because "never take a purchase away" is
-   not a transitional rule.
+   ⚠ A MIRROR, BOTH DIRECTIONS. THIS USED TO BE A UNION, AND THE UNION
+     WAS THE ENGINE OF THE RESIDUE-AHEAD CLASS (CLAUDE.md §6).
+   It could once only ever ADD, and the rationale was
+   grandfathering: at the time there were live players who had bought Auto-Eat
+   BEFORE hr_trait_buy existed and held `G.traits.auto_eat === true` locally
+   with no server row, and an absolute assignment would have revoked a paid
+   trait from every one of them. That population no longer exists — the cutover
+   is complete and the beta was wiped (CLAUDE.md §1: no back-compat, no
+   client-authored fallbacks) — and the rule outlived its reason with teeth:
+   union-only means a trait the server NEVER SOLD outlives the server forever.
+   A stale residue, a suite leak, a refused purchase painted optimistically or
+   a devtools poke writes `G.traits.<id>`, and from then on every client gate
+   that asks "do you own this" (settings-page.js:500 the threshold slider,
+   auto-actions.js:665/841 the auto-eat engine, death-sheet.js:850,
+   render/shop.js:334, legacy.js hasTrait) answers YES for a capability the
+   server will refuse. That is the auto-eat threshold lie and the 2026-09-04
+   property-tier deadlock (Paione: "rooms still not built") in one shape: a
+   client-held flag gating a server capability.
+
+   SO: THE SERVER'S ARRAY IS THE SET, in both directions —
+     · a server-owned trait appears on every device (unchanged, the feature);
+     · a trait the projection does NOT name is REMOVED — fail-safe "not owned";
+     · except an id with a purchase IN FLIGHT (`G._traitBuying[id]`, the scratch
+       marker legacy.js buyTrait already keeps so a double tap cannot spend two
+       intent keys). An optimistic paint holds its trait only until the server
+       answers; it is never a second source of truth. That is the existing
+       optimistic/answer seam, not a new one.
+
+   THIS IS SAFE ONLY BECAUSE THE PROJECTION IS COMPLETE, and the migration says
+   so in its own words: 2026-08-23-trait-buy.sql builds `traits` UNFILTERED
+   (deliberately not through the LIMIT-ed `progress` array, "an entitlement must
+   never be truncated into 'you own nothing'") and documents `[]` as a valid
+   KNOWN state — a fresh character owns no traits. hr-accrue spreads that same
+   hr_state_of jsonb at the top level of every envelope (functions/hr-accrue/
+   envelope.js `...env`), so there is no lean/partial shape carrying a truncated
+   `traits`, which is why this needs no `{authoritative:true}` flag the way
+   reconcileFarm does.
 
    FAIL-CLOSED on absence: no readable `res.traits` ARRAY → leave G.traits
    untouched. A server build predating the projection, or a partial we cannot
-   trust, must not be read as "you own nothing" — and because this is a union
-   that is already true, absence simply changes nothing.
+   trust, must not be read as "you own nothing" — never evict on uncertainty
+   (CLAUDE.md §6). Absence is the ONLY case that changes nothing now.
 
-   NOT arm-gated: a union has no dormant/armed difference to gate. Pure — takes
-   G + res, returns a small receipt, so the suite drives it without a window. */
+   NOT arm-gated: the projection is the entitlement on every build that has it.
+   Pure — takes G + res, returns a small receipt, so the suite drives it without
+   a window. */
 export function reconcileTraits(G, res) {
   if (!G || typeof G !== 'object') return null;
   const t = res && res.traits;
   if (!Array.isArray(t)) return { mode: 'absent' };
   if (!G.traits || typeof G.traits !== 'object') G.traits = {};
+  const server = new Set();
+  for (const id of t) { if (typeof id === 'string' && id) server.add(id); }
   let added = 0;
-  for (const id of t) {
-    if (typeof id !== 'string' || !id) continue;
+  for (const id of server) {
     if (G.traits[id] !== true) { G.traits[id] = true; added++; }
   }
-  return { mode: 'server', owned: t.length, added };
+  /* THE OTHER DIRECTION — the half the union never had. */
+  const flying = (G._traitBuying && typeof G._traitBuying === 'object') ? G._traitBuying : null;
+  let removed = 0, held = 0;
+  for (const id of Object.keys(G.traits)) {
+    if (server.has(id)) continue;
+    if (flying && flying[id] && G.traits[id]) { held++; continue; }
+    delete G.traits[id];
+    removed++;
+  }
+  return { mode: 'server', owned: server.size, added, removed, held };
 }
 
 /* ── THE OWNED HERO SLOTS, HYDRATED FROM THE ENVELOPE ─────────────────────────
@@ -2640,8 +2675,9 @@ export function applyEnvelopeState(G, res, ownKey) {
   written.companions = reconcileCompanions(G, res);
 
   /* THE OWNED TRAIT SET IS THE SERVER'S (hr_trait_buy). Reconciled here so it
-     rides EVERY envelope, and as a UNION so a trait bought before the server
-     verb existed is never revoked — see reconcileTraits' header. */
+     rides EVERY envelope, and as a MIRROR: a trait the projection does not name
+     is REMOVED, because a client-held entitlement that outlives the server is
+     the residue-ahead class — see reconcileTraits' header. */
   written.traits = reconcileTraits(G, res);
 
   /* THE OWNED HERO SLOTS ARE THE SERVER'S (hr_buy_hero_slot). Reconciled here so

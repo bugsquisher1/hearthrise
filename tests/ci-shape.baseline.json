@@ -61,6 +61,8 @@
     "node tests/worker-accrual.mjs": "economy-selftests",
     "node tests/ci-shape.mjs --selftest": "client-guards",
     "node tests/ci-shape.mjs": "client-guards",
+    "node tests/parse-check.mjs": "client-guards",
+    "node tests/parse-check.mjs --selftest": "client-guards",
     "bash bump-version.sh --check": "client-guards",
     "node tests/hearthfind-mint-guard.mjs --selftest": "client-guards",
     "bash bump-version.sh --selftest": "client-guards",

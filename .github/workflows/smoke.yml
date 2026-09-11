@@ -1004,6 +1004,38 @@ jobs:
           node tests/ci-shape.mjs --selftest
           node tests/ci-shape.mjs
 
+      # DOES EVERY SHIPPED SCRIPT STILL PARSE? It runs FIRST-ish and it is the
+      # cheapest question in the matrix: a file that does not parse does not
+      # run, so every guard below it that imports one would be red for a reason
+      # that has nothing to do with what it asserts.
+      #
+      # 2026-09-12, b536: tools/vitals.mjs shipped with a backtick inside an SQL
+      # comment inside a JS template literal. The backtick ends the string, so
+      # the whole tool failed to load -- `SyntaxError: Unexpected identifier
+      # 'verbs'`, in 40 ms. NOTHING IN THE REPO RAN THAT COMMAND: measured the
+      # same day, `grep -rl "node --check" tests tools .github` returned zero
+      # files. It reached integration and blocked a merge, and a human reading
+      # the branch is the most expensive way to find a syntax error.
+      #
+      # 450 files: tools/*.mjs (the operator surface -- nothing else notices a
+      # broken one), tests/*.mjs (a guard that cannot parse reports nothing) and
+      # src/**/*.js (parsed as ESM, because package.json says "type": "module").
+      # supabase/functions/** is deliberately out: index.ts is TypeScript and
+      # --check cannot read it; the edge has pack-edge and its own deploy parse.
+      # --selftest plants four real defects into COPIES of a shipped file in an
+      # OS temp dir -- the b536 backtick, a dangling `${`, an unterminated
+      # string and a stray brace -- and requires each to be caught, plus a
+      # positive control that the untouched copy still passes.
+      #
+      # MEASURED 2026-09-12 on the dev machine: 10.3 s for the sweep (pool of 8)
+      # and 1.4 s for the selftest, so the 5-minute client-guards budget is
+      # unmoved.
+      - name: Parse check - every shipped script still parses
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/parse-check.mjs
+          node tests/parse-check.mjs --selftest
+
       # The cache-buster must agree across build-info.js, index.html and every
       # ESM import specifier. Cheap, so run it before spending time on a browser.
       - name: Cache-buster invariant

@@ -187,6 +187,24 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/icon-boot-order.mjs --selftest
 
+      # BOOT BUDGET — THE PLAYER DOES NOT DOWNLOAD THE TEST SUITE (b535).
+      # main.js imported src/features/smoke-test.js statically, so 3.75 MB of
+      # test code — 36% of all the JavaScript a cold boot delivers — was paid by
+      # every player before the account gate was usable ("it takes long to
+      # start", Paione, 2026-09-11). It is a dynamic import now, and this boots a
+      # real Chromium twice to hold both halves: a player boot never fetches the
+      # suite (BOOT-1), and a harness boot does and publishes it (BOOT-2) —
+      # without which every runner here would silently fall through to
+      # legacy.js block 29's ~40-test v1 __smokeTest and report a green that
+      # means nothing. It lives in THIS family because it needs the Chromium
+      # installed above; client-guards installs no browser. Measured ~35 s for
+      # both commands (4 cold boots + 3 mutated ones) on the dev machine.
+      - name: Boot budget - the player never downloads the test suite
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/boot-budget.mjs
+          node tests/boot-budget.mjs --selftest
+
       # Needs the Chromium installed above. The gate half is a pure function and
       # is proven by --selftest without a browser, so a Chromium problem shows up
       # as exit 2 (harness) rather than as a visual verdict.

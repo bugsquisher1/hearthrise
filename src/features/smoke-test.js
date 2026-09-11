@@ -2,10 +2,17 @@
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
 // modularised, will import { G } from '../state/game.js?v=533' directly.
 //
-// Triggered by:
+// b535 — THIS FILE IS NEVER SENT TO A PLAYER. At 3.75 MB it is the largest
+// file in the repo and 36% of all the JavaScript a cold boot delivered, and
+// main.js imported it statically, so every player downloaded, parsed and
+// evaluated the whole suite before the account gate was usable. It is a DYNAMIC
+// import now, owned by src/features/smoke-test-loader.js, which is the only
+// thing that ever pulls it in. tests/boot-budget.mjs is the guard.
+//
+// Triggered by (all three go through the loader):
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
-//   - Programmatically via window.__smokeTest()
+//   - Programmatically via window.__smokeTest() (after __HR_TEST_HARNESS__ boot)
 
 import { on, snapshot } from '../net/events.js?v=533';
 import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=533';
@@ -16405,8 +16412,10 @@ const TESTS = [
   // The button only appears when localStorage hearthrise:admin === '1'.
   // SA-013 (increment 2): this WAS a soft self-check — `assert(true, 'gate
   // verified in source')` — a test that asserted nothing at runtime. It now
-  // drives the REAL addButton() through the harness-only hook (setupSmokeTest
-  // publishes it as window.__hrAddSmokeButton only under __HR_TEST_HARNESS__) and
+  // drives the REAL addButton() through the harness-only hook (b535: it is
+  // smoke-test-loader.js that publishes window.__hrAddSmokeButton now, still
+  // only under __HR_TEST_HARNESS__, because addButton moved there with the key
+  // and the button — they are the controls that fetch this file) and
   // asserts the actual gate: no button when admin is off, a button when admin is
   // on. On a live admin run (Ctrl+Shift+T) the hook is absent, so it declares an
   // honest skip instead of a fake pass.
@@ -62352,65 +62361,22 @@ export async function runSmokeTest(opts = {}) {
   return summary;
 }
 
-function addButton() {
-  if (document.getElementById('smoke-test-btn')) return;
-  // b141 — Beta launch prep: hide the floating 🧪 button from non-admin
-  // players. Admin opt-in is already managed by src/admin.js (URL ?admin=1
-  // is sticky in localStorage). Ctrl+Shift+T still works for everyone, so
-  // testers can still kick off the suite if asked. Keeps the regular UI
-  // clean of dev affordances during beta.
-  const isAdmin = (() => {
-    try { return localStorage.getItem('hearthrise:admin') === '1'; }
-    catch (e) { return false; }
-  })();
-  if (!isAdmin) return;
-  const b = document.createElement('button');
-  b.id = 'smoke-test-btn';
-  b.textContent = '🧪 Test';
-  b.title = 'Run smoke test (Ctrl+Shift+T)';
-  b.style.cssText = 'position:fixed;bottom:8px;left:8px;z-index:99999;'
-    + 'background:#3a4154;color:#dfe9ee;border:1px solid #5fcc7c;border-radius:4px;'
-    + 'padding:4px 10px;font-size:11px;cursor:pointer;opacity:.6;font-weight:700';
-  b.onmouseenter = () => (b.style.opacity = '1');
-  b.onmouseleave = () => (b.style.opacity = '.6');
-  // b337: runSmokeTest is async now (the suite can await a network round trip).
-  b.onclick = async () => {
-    const r = await runSmokeTest();
-    let msg = `Smoke test:\n${r.passed}/${r.total} passed\n${r.failed} failed, ${r.skipped} skipped, ${r.runtimeErrors} runtime errors\n\n`;
-    if (r.failed > 0) {
-      msg += 'Failures:\n' + r.results.filter((x) => x.status === 'FAIL')
-        .map((x) => '• ' + x.name + ': ' + x.why).join('\n');
-    } else {
-      msg += '✓ All clear';
-    }
-    // b373: the shared non-blocking modal, like every other question the game
-    // asks. A native alert blocks the renderer while the report is open.
-    if (window.HearthriseDialog) window.HearthriseDialog.alert({ title: 'Smoke test', body: msg });
-    else if (typeof window.notify === 'function') window.notify(msg, 'info');
-  };
-  document.body.appendChild(b);
-}
-
 export function setupSmokeTest() {
   window.__smokeTest = runSmokeTest;
-  /* SA-013 (increment 2): expose the admin-gated dev-button builder to the suite
-     ONLY under the test harness, so the b141 admin-gate test can drive the REAL
-     addButton() with teeth instead of a soft self-check. This is not a
-     production surface — __HR_TEST_HARNESS__ is set only by tests/run-smoke.mjs's
-     addInitScript — so on a live admin run (Ctrl+Shift+T) the hook is absent and
-     the b141 test declares an honest skip. */
-  try { if (window.__HR_TEST_HARNESS__) window.__hrAddSmokeButton = addButton; } catch (e) {}
-  document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-      e.preventDefault();
-      runSmokeTest();
-    }
-  });
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(addButton, 500));
-  } else {
-    setTimeout(addButton, 500);
-  }
+  /* b535 — WHICH __smokeTest IS THIS? legacy.js block 29 publishes its own
+     ~40-test v1 `window.__smokeTest`, and it is on the page before this module
+     is even fetched. That was survivable while this file was a STATIC import
+     (the overwrite happened in the same parse); now that the suite is a dynamic
+     import there is a real window in which `typeof window.__smokeTest ===
+     'function'` is true and answers the WRONG suite. So the ESM suite signs its
+     work, and every headless runner waits on the signature rather than on the
+     bare global — otherwise a 1,232-test gate quietly becomes a 40-test one and
+     still prints "passed". tests/boot-budget.mjs BOOT-3 is what holds the
+     runners to it. */
+  window.__smokeTestSource = 'esm';
+  /* The 🧪 button, the Ctrl+Shift+T key and the __hrAddSmokeButton hook live in
+     src/features/smoke-test-loader.js — they are the controls that must exist
+     BEFORE this file does, since pressing them is what fetches it. */
   // Live watcher — logs any new overlaps that appear during normal play
   // (debounced 250ms after every tab change / resize). Deduped by signature
   // so the same violation only logs once per session.

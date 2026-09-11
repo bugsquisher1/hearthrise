@@ -61,7 +61,7 @@ await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
 let code = 0;
 try {
   await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
-  await page.waitForFunction(() => typeof window.__smokeTest === 'function', { timeout: 60_000 });
+  await page.waitForFunction(() => window.__smokeTestSource === 'esm' && typeof window.__smokeTest === 'function', { timeout: 60_000 });
   await page.waitForTimeout(6_000);
 
   const result = await page.evaluate(async (t) => {

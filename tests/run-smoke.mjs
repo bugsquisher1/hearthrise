@@ -3927,8 +3927,15 @@ const run = async () => {
 
     await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
 
-    // The suite is registered by main.js's deferred feature boot.
-    await page.waitForFunction(() => typeof window.__smokeTest === 'function', { timeout: 60_000 });
+    /* b535: the suite is a DYNAMIC import now (smoke-test-loader.js kicks it at
+       module evaluation because addInitScript above set __HR_TEST_HARNESS__
+       before the first script ran). Wait on the SIGNATURE, not on the bare
+       global: legacy.js block 29 publishes its own ~40-test v1
+       `window.__smokeTest`, which is on the page long before this one, so
+       `typeof window.__smokeTest === 'function'` would resolve on the wrong
+       suite and this gate would report a green over 40 tests instead of 1,232.
+       tests/boot-budget.mjs BOOT-3 fails if this wait loses the signature. */
+    await page.waitForFunction(() => window.__smokeTestSource === 'esm' && typeof window.__smokeTest === 'function', { timeout: 60_000 });
     // Let the engine settle (legacy boot + icon sweeps + deferred setups).
     await page.waitForTimeout(6_000);
 

@@ -406,7 +406,14 @@ import './utils/image-fallback.js?v=533';
 // control it makes reachable. Published on window for legacy.js's render sites
 // and the envelope hook in net/accrue.js.
 import { setupBountyProgress } from './render/bounty-progress.js?v=533';
-import { setupSmokeTest } from './features/smoke-test.js?v=533';
+/* b535 — THE SUITE IS NOT PART OF THE GAME. This line used to pull
+   features/smoke-test.js in STATICALLY: a 3.75 MB test suite, 36% of the
+   10.28 MB of JavaScript a cold boot delivered, paid by every player before the
+   account gate was usable ("it takes long to start", Paione, 2026-09-11). The
+   loader is ~2 KB and owns the three entry points; the suite itself arrives only
+   when the harness flag or the player's own Ctrl+Shift+T / 🧪 asks for it.
+   Guard: tests/boot-budget.mjs. */
+import { setupSmokeTestLoader } from './features/smoke-test-loader.js?v=533';
 import { setupCompanions } from './features/companions.js?v=533';
 import { setupActivitiesGrid } from './features/activities-grid.js?v=533';
 import { setupCharacterPage } from './features/character-page.js?v=533';
@@ -429,7 +436,7 @@ const counts = {
 };
 
 console.log('[Hearthrise ESM] Data loaded:', counts);
-window.__esmBoot = { counts, ts: Date.now(), modules: ['smoke-test', 'companions', 'activities-grid', 'character-page', 'combat-render', 'auth', 'sync'] };
+window.__esmBoot = { counts, ts: Date.now(), modules: ['smoke-test-loader', 'companions', 'activities-grid', 'character-page', 'combat-render', 'auth', 'sync'] };
 
 // 4. Wait for engine to be available, then run feature setups
 function tryBootFeatures() {
@@ -444,7 +451,7 @@ function tryBootFeatures() {
      others. */
   const boot = (name, fn) => { try { fn(); } catch (e) { console.error('[ESM boot] ' + name + ' failed', e); } };
   boot('bounty-progress', setupBountyProgress);
-  boot('smoke-test', setupSmokeTest);
+  boot('smoke-test-loader', setupSmokeTestLoader);
   boot('companions', setupCompanions);
   boot('activities-grid', setupActivitiesGrid);
   boot('character-page', setupCharacterPage);

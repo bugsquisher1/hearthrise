@@ -83,7 +83,7 @@ page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + (e && e.message))
 let failed = 0;
 try {
   await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
-  await page.waitForFunction(() => typeof window.__smokeTest === 'function', { timeout: 60_000 });
+  await page.waitForFunction(() => window.__smokeTestSource === 'esm' && typeof window.__smokeTest === 'function', { timeout: 60_000 });
   // Let the boot settle so a boot-time console error is not attributed to us.
   await page.waitForTimeout(1500);
   consoleErrors.length = 0;

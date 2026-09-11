@@ -1851,6 +1851,43 @@ const combatScreen = () => {
   return { CS, G: window.G, restore };
 };
 
+/* ── THE AUTO-EAT MIRROR FIXTURE ──────────────────────────────────────
+   The divergence the bug lived in, built once: a client on tier II
+   (reconcileTraits UNIONS the server's trait list and never removes, so a client
+   tier can run AHEAD of it) holding a 50% preference, against the column
+   hr_set_auto_eat clamped on write to Auto-Eat I's ceiling of 25.
+   runSmokeTest parks the mirror so ~10 local-threshold fixtures stay honest on a
+   signed-in page; these tests ARE it, so this unparks and restores — the contract
+   SETTLE-5/6 and AUTOEAT-SYNC-1..3 have. */
+const autoEatMirrorReady = () => {
+  const A = window.HearthriseAuto, AC = window.HearthriseAccrual;
+  return !!(A && AC && typeof AC.noteServerAutoEat === 'function'
+    && typeof AC.__resetServerAutoEat === 'function'
+    && typeof AC.serverAutoEatSettings === 'function');
+};
+const autoEatMirrorFixture = (body) => {
+  const G = window.G, A = window.HearthriseAuto, AC = window.HearthriseAccrual;
+  const snap = snapshotG(), sT = G.traits, sS = G.settings, sP = G.autoEatPct;
+  const sObs = AC.serverAutoEatSettings();
+  let wasParked = false;
+  try { wasParked = A._parkPctMirror(false); } catch (e) {}
+  try {
+    G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
+    G.settings = Object.assign({}, G.settings || {});
+    G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 20 });
+    A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.5 });
+    assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9, 'fixture: the local preference must be 50%');
+    AC.noteServerAutoEat({ state: { auto_eat_enabled: true, auto_eat_pct: 25 } });
+    body(G, A, AC);
+  } finally {
+    const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
+    try { AC.__noteAutoEatSettings(sObs); } catch (e) {}
+    try { A._parkPctMirror(wasParked); } catch (e) {}
+    G.traits = sT; G.settings = sS; G.autoEatPct = sP;
+    restoreG(snap);
+  }
+};
+
 const TESTS = [
   () => tryRun('boot: G defined', () => {
     assert(typeof window.G === 'object' && window.G, 'G not defined');
@@ -39081,80 +39118,47 @@ const TESTS = [
      and the player fell "with food" at a threshold nobody chose (census: 5 on
      25, 32 on 50). Residue-ahead (§6): the shown threshold and the attended
      tick's came from a local preference clamped by a CLIENT-held trait map while
-     the fight used a SERVER column nothing read back down. */
+     the fight used a SERVER column nothing read back down. `autoEatMirrorFixture`
+     builds that exact divergence; the two tests below take its two halves. */
 
-  () => tryRun('b533: the auto-eat threshold shown AND used is the server\'s auto_eat_pct, never a local 50%', () => {
-    const G = window.G;
-    const A = window.HearthriseAuto;
-    const AC = window.HearthriseAccrual;
-    // Only PRE-EXISTING seams: a guard on a seam the fix adds would green-SKIP it.
-    if (!A || !AC || typeof AC.noteServerAutoEat !== 'function'
-        || typeof AC.__resetServerAutoEat !== 'function'
-        || typeof AC.serverAutoEatSettings !== 'function'
-        || typeof AC.__noteAutoEatSettings !== 'function') { skip('no auto/accrual seam'); return; }
-    const snap = snapshotG();
-    const savedTraits = G.traits, savedSettings = G.settings, savedPct = G.autoEatPct;
-    const savedObs = AC.serverAutoEatSettings();
-    /* runSmokeTest parks the mirror so ~10 local-threshold fixtures stay
-       deterministic on a signed-in page; this test IS the mirror, so it unparks
-       itself, the contract SETTLE-5/6 and AUTOEAT-SYNC-1..3 have with theirs. */
-    let mirrorWasParked = false;
-    try {
-      if (typeof A._parkPctMirror === 'function') mirrorWasParked = A._parkPctMirror(false);
-    } catch (e) {}
-    try {
-      /* THE LIVE SHAPE: the client on tier II (reconcileTraits UNIONS and never
-         removes, so a client tier can run AHEAD) holding 50%, while the column
-         hr_set_auto_eat clamped on write holds Auto-Eat I's ceiling of 25. */
-      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
-      G.settings = Object.assign({}, G.settings || {});
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 20 });
-      A.setEat({ enabled: true, foodId: 'cooked_shrimp', threshold: 0.5 });
-      assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9, 'fixture: the local preference must be 50%');
-
-      // The envelope speaks (hr_state_of's projection) — then: the number shown.
-      AC.noteServerAutoEat({ state: { auto_eat_enabled: true, auto_eat_pct: 25 } });
+  () => tryRun('b533: the auto-eat threshold the player is SHOWN is the server\'s auto_eat_pct', () => {
+    if (!autoEatMirrorReady()) { skip('no auto/accrual seam'); return; }
+    autoEatMirrorFixture((G, A) => {
       assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9,
         'the effective threshold must be the server\'s 25%, got ' + A.eatThreshold());
       assert(Math.abs(G.autoEatPct - 0.25) < 1e-9,
-        'the legacy mirror legacy.js fx.autoEat reads must follow the server too, got ' + G.autoEatPct);
-      if (typeof window.openSettings === 'function') {
-        window.openSettings();
-        const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
-        assert(el, 'the Gameplay section must expose the auto-eat threshold slider');
-        assert(Math.abs(parseFloat(el.value) - 0.25) < 1e-9,
-          'the slider must sit on the server\'s 25%, not the local 50% — got ' + el.value);
-        const box = el.closest ? el.closest('.ss-slider') : null;
-        const shown = box ? box.querySelector('.ss-slider-value') : null;
-        assert(shown && shown.textContent.trim() === '25%',
-          'the threshold label must READ 25%, which is the promise the fight keeps — got '
-            + (shown ? shown.textContent : '(no label)'));
-      }
+        'the mirror legacy.js fx.autoEat reads must follow the server too, got ' + G.autoEatPct);
+      if (typeof window.openSettings !== 'function') return;
+      window.openSettings();
+      const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
+      assert(el, 'the Gameplay section must expose the auto-eat threshold slider');
+      assert(Math.abs(parseFloat(el.value) - 0.25) < 1e-9,
+        'the slider must sit on the server\'s 25%, not the local 50% — got ' + el.value);
+      const shown = el.closest && el.closest('.ss-slider').querySelector('.ss-slider-value');
+      assert(shown && shown.textContent.trim() === '25%',
+        'the label must READ 25%, the promise the fight keeps — got ' + (shown && shown.textContent));
+    });
+  }),
 
-      // 2. THE ATTENDED TICK USES THE SAME NUMBER.
+  /* The ATTENDED half, and the absent-key fail-safe. BOTH-PATH (§4): the AWAY
+     half is this same column read by the server's own engine, so there is no
+     client value to disagree with and src/core/auto-eat.js stays untouched. */
+  () => tryRun('b533: the attended tick eats at the server threshold, and fails safe to the lowest tier', () => {
+    if (!autoEatMirrorReady()) { skip('no auto/accrual seam'); return; }
+    autoEatMirrorFixture((G, A, AC) => {
       G.playerMaxHp = 100; G.playerHp = 40;   // under the local 50%, over the server's 25%
       const held = G.inventory.cooked_shrimp;
-      assert(A.maybeAutoEat() === false,
-        'at 40% HP the attended tick must NOT eat: the server eats at 25%, and a client meal here '
-          + 'is a debit the ~90 s settle will not have paid');
+      assert(A.maybeAutoEat() === false, 'at 40% HP the tick must NOT eat: the server eats at 25%, '
+        + 'so a client meal here is a debit the ~90 s settle will not have paid');
       assert(G.inventory.cooked_shrimp === held, 'no Provision may be spent above the server threshold');
       G.playerHp = 20;                        // under the server's 25%
-      assert(A.maybeAutoEat() === true, 'at 20% HP the attended tick must eat — that is what the server does');
-
-      // 3. NO KEY ON THE ENVELOPE → THE LOWEST TIER, NEVER THE LOCAL 50.
-      AC.__resetServerAutoEat();
-      assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9,
-        'with nothing observed the threshold must fail safe at the LOWEST tier\'s ceiling, never stand '
-          + 'on the local 50% — got ' + A.eatThreshold());
+      assert(A.maybeAutoEat() === true, 'at 20% HP the tick must eat — that is what the server does');
+      AC.__resetServerAutoEat();              // no key on the envelope at all
+      assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9, 'with nothing observed the threshold must fail '
+        + 'safe at the LOWEST tier\'s ceiling, never stand on the local 50% — got ' + A.eatThreshold());
       assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9,
-        'and the player\'s own slider position must survive as the thing they edit and send UP');
-    } finally {
-      const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
-      try { AC.__noteAutoEatSettings(savedObs); } catch (e) {}
-      try { if (typeof A._parkPctMirror === 'function') A._parkPctMirror(mirrorWasParked); } catch (e) {}
-      G.traits = savedTraits; G.settings = savedSettings; G.autoEatPct = savedPct;
-      restoreG(snap);
-    }
+        'and the slider position must survive as the thing the player edits and sends UP');
+    });
   }),
 
   /* ── b331 regression suite — THE DEAD-TOKEN LOOP (live P0) ────────────────

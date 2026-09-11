@@ -6794,6 +6794,47 @@ function stopSkill(){
   if(_wasRunning)declareActivity('idle',null);
 }
 window.stopSkill = stopSkill; /* b228: NEVER exported — both later wrappers guarded on finding it and bailed, so window.stopSkill has not existed since they shipped (auto-actions' stop call was a no-op too) */
+/* ── b533: AN ACTIVITY TILE DECIDES START-vs-STOP AT THE CLICK, NOT AT THE PAINT
+   ─────────────────────────────────────────────────────────────────────────────
+   Measured on live b532 (Coordinator, QA account, three times): chop Willow →
+   fight a Goblin → open Skills and tap Willow again → NOTHING. No intent, no
+   toast, the header still said "Fighting Goblin". Tapping OAK in the same state
+   switched instantly, and smithing → Willow worked: the dead tile was always
+   the node the player CAME FROM.
+
+   Why: the tile baked its handler into an onclick attribute at render time —
+   `stopSkill()` while it was the active node, `startSkill(…)` otherwise. When
+   combat starts, the mutex cross-stop clears the pointer and strips the
+   `.active` class and the Active badge off every tile IN THE DOM, but it does
+   not rebuild the panel, so the willow tile kept `onclick="stopSkill()"` while
+   LOOKING idle. That stale stop then hit stopSkill's `_wasRunning` guard —
+   nothing was running — and returned in silence: no pointer write, no
+   declaration, no toast. A third copy of "what is the player doing" (the
+   rendered attribute) had drifted from G, which the reconcile keeps true.
+   (The re-render that was supposed to cover this — block 37's stopSkill wrapper
+   — has been inert since b217 renamed the panel heading to "Train": it looks
+   the displayed skill up by matching SKILLS_DEF names against
+   `#skill-detail-title`, and that text is now a constant.)
+
+   THE SEAM IS THE CLICK. One entry point that reads the live pointer — the
+   field the server envelope reconciles — and fails safe towards SENDING the
+   switch: anything other than "this exact node is running right now" starts it.
+   A stale paint can no longer swallow a gesture, whatever painted it, and the
+   fix survives any future renderer because the decision no longer lives in
+   HTML. `window.startSkill` on purpose, never the lexical one: the block-22
+   mutex (recovery gate + cross-stop of combat) lives on the window binding, and
+   calling the raw declaration here would route a tile tap around it.
+
+   Gather tiles only. The artisan tiles and the fight rows bake the same
+   render-time toggle and are the same class; they are a separate lane with
+   their own test, not a silent ride-along on this one. */
+function hrActivityTileClick(skillId,targetId,ms){
+  if(typeof G!=='undefined'&&G&&G.activeSkill===skillId&&G.skillTargetId===targetId){
+    return (typeof window.stopSkill==='function')?window.stopSkill():stopSkill();
+  }
+  return (typeof window.startSkill==='function')?window.startSkill(skillId,targetId,ms):startSkill(skillId,targetId,ms);
+}
+window.hrActivityTileClick = hrActivityTileClick;
 /* b226 (spec §8.2) / b227 — the per-skill gathering counters, as DATA.
    `stats.chopped` / `stats.mined` / `stats.fished` are what the daily and
    weekly goals READ, and quest-nav.js inverts this same map to answer "which
@@ -8830,7 +8871,7 @@ function renderActivities(acts,skillId){
   const lv=getLevel(skillId);
   return acts.map(a=>{
     const unlocked=lv>=a.req;const active=G.activeSkill===skillId&&G.skillTargetId===a.id;
-    return `<button class="monster-row ${active?'fighting':''}" ${unlocked?'':'disabled'} onclick="${active?'stopSkill()':`startSkill('${skillId}','${a.id}',${a.ms})`}">
+    return `<button class="monster-row ${active?'fighting':''}" ${unlocked?'':'disabled'} onclick="hrActivityTileClick('${skillId}','${a.id}',${a.ms})">
       <span class="mi">${a.prod ? itemArt(a.prod,26) : skillIconHTML(skillId,30)}</span>
       <div style="flex:1;min-width:0"><span class="mn">${a.name}</span><span class="ms">Lv ${a.req} · ${Math.max(1,Math.floor(pacedXp(skillId,a.xp)))} XP · ${(pacedActionMs(a.ms)/1000).toFixed(1)}s · ${ITEMS[a.prod]?.n||a.prod}</span></div>
       ${!unlocked?`<span class="mr-lock">${lockGlyph()}Lv ${a.req}</span>`:active?'<span class="mr-active">Active</span>':''}
@@ -17657,11 +17698,13 @@ function tileForGather(action, skillId){
   var toolLine = (typeof window.hrToolLineHtml === 'function') ? window.hrToolLineHtml(skillId) : '';
   // b129: locked tiles toast their req level instead of dead-clicking
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
-  var click = active
-    ? "stopSkill()"
-    : (unlocked
-        ? "startSkill('"+skillId+"','"+action.id+"',"+action.ms+")"
-        : "notify('Requires "+skillName+" Lv "+action.req+"','kill')");
+  /* b533: ONE handler for both directions — the toggle is resolved at the click
+     against the live pointer, never baked here. The `active` flag below is
+     display only (class + badge); a paint that goes stale can no longer make a
+     tile deaf. See hrActivityTileClick(). */
+  var click = unlocked
+    ? "hrActivityTileClick('"+skillId+"','"+action.id+"',"+action.ms+")"
+    : "notify('Requires "+skillName+" Lv "+action.req+"','kill')";
   var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
   return '<div class="act-tile '+(unlocked?'':'locked')+' '+(active?'active':'')+'" '
     +'data-prod="'+action.prod+'" '

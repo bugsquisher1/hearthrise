@@ -61921,6 +61921,124 @@ const TESTS = [
       restoreG(snap);
     }
   }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     b533 regression suite — THE NODE YOU CAME FROM
+
+     Live b532, reproduced three times on the QA account: chop Willow → fight a
+     Goblin → open Skills and tap Willow again → nothing at all. No intent, no
+     toast, the header still reading "Fighting Goblin". Tapping OAK in the same
+     state switched instantly and paid the window; smithing → Willow worked.
+     The dead tile was always the node the player CAME FROM.
+
+     The tile baked its handler at PAINT time — `stopSkill()` while it was the
+     active node. Combat's cross-stop clears the pointer and strips the `.active`
+     class and the badge off the tiles in place, without rebuilding the panel, so
+     that one tile kept a stop handler while looking idle; the stop then hit
+     stopSkill's "was anything running" guard and returned in silence. A third
+     copy of "what is the player doing" — the rendered attribute — had drifted
+     from G, which the reconcile keeps true.
+
+     This drives the PLAYER'S gesture (a real .click() on the real tile element,
+     through the real declaration path with the transport stubbed to accept) and
+     asserts the switch reaches the wire. Prefixed B533- so a lane can run it
+     alone with `__smokeTest({only:'B533'})`.
+     ══════════════════════════════════════════════════════════════════════════ */
+  () => tryRunAsync('B533-1: after a fight, tapping the node you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    const trees = window.TREES || [];
+    const tree = trees.find((t) => t.id === 'willow_tree') || trees[1] || trees[0];
+    const mid = (window.MONSTERS && window.MONSTERS.slime) ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+    assert(!!tree && !!mid && !!A && !!M && typeof window.openSkillDetail === 'function',
+      'setup: no tree/monster/activity-seam fixture — the reported gesture cannot be driven');
+    const snap = snapshotG();
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    const sent = [];
+    /* The declaration is fire-and-forget over several awaits (runDeclaration →
+       attemptOnce → settle); this is the same drain B348-1 uses. */
+    const drain = async () => {
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+      for (let i = 0; i < 60; i++) await Promise.resolve();
+    };
+    const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')]
+      .find((e) => e.getAttribute('data-prod') === tree.prod);
+    try {
+      /* ACCEPT EVERYTHING, and ECHO the declared pointer back as the server's
+         own — a stub that answered with a fixed activity would reconcile the
+         client onto something the gesture never asked for. */
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let body = null; try { body = JSON.parse(init && init.body); } catch (e) {}
+        if (body && body.verb === 'set_activity') sent.push(body);
+        const act = (body && body.activity) || { kind: 'idle', id: null };
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, verb: (body && body.verb) || 'set_activity', version: 700 + sent.length, now: null,
+          activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: {},
+        }), { status: 200 }));
+      };
+      M.resetActivity();
+      M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      A.setServerAccrualEnabled(true);
+      G.skills = Object.assign({}, G.skills, { woodcutting: 14000000 });   // Willow unlocked
+      G.playerHp = G.playerMaxHp || G.playerHp;                            // the recovery gate refuses a fight at 0 hp
+
+      window.openSkillDetail('woodcutting');
+      await drain();
+      assert(!!tileOf(), 'setup: the woodcutting grid painted no tile for ' + tree.id);
+
+      window.startSkill('woodcutting', tree.id, tree.ms);
+      await drain();
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id, 'setup: the gather never started');
+      const painted = tileOf();
+      assert(painted.classList.contains('active'),
+        'CONTROL: the tile must be painted ACTIVE while the node runs, or this test cannot reproduce the stale paint');
+
+      window.startCombat(mid);
+      await drain();
+      assert(G.activeMonster === mid, 'setup: the fight never started (recovery gate?)');
+      assert(!G.activeSkill && !G.skillTargetId,
+        'setup: the mutex cross-stop left the gather pointer standing — the scenario under test is gone');
+
+      // The player walks back to the Skills tab. Measured: this does NOT rebuild
+      // the panel, so the tile painted in step 2 is the one they tap.
+      window.showTab('skills');
+      await drain();
+      const tile = tileOf();
+      assert(!!tile && tile.isConnected, 'the ' + tree.id + ' tile is no longer on the Skills screen');
+      const stalePaint = tile === painted;
+
+      sent.length = 0;
+      tile.click();
+      await drain();
+
+      const sw = sent.filter((b) => b.activity && b.activity.kind === 'gather' && b.activity.id === tree.id);
+      assert(sw.length >= 1,
+        'tapping the node the player came FROM declared NOTHING (' + sent.length + ' declaration(s): '
+        + JSON.stringify(sent.map((b) => b.activity)) + '; tile painted while active: ' + stalePaint
+        + '). That is the b533 bug: the tile baked `stopSkill()` at paint time, the cross-stop cleared the '
+        + 'pointer without rebuilding the panel, and the stop returned in silence — the player cannot get '
+        + 'back to their own node with one tap');
+      assert(M.isIntentKey(sw[sw.length - 1].intentId), 'the switch carried no canonical uuid key');
+      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id,
+        'the pointer still reads ' + G.activeSkill + '/' + G.skillTargetId + ' after the tap');
+      assert(!G.activeMonster,
+        'the fight was never left — the activity header would still read "Fighting ' + mid + '"');
+    } finally {
+      window.fetch = realFetch;
+      A.setServerAccrualEnabled(false);
+      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
+      if (!wasOn) A.setServerAccrualEnabled(false);   // b353: pristine (=ON) first, then re-apply OFF only if we started there
+      M.resetActivity(); M.configureActivity(null);
+      try { window.stopSkill(); } catch (e) {}
+      try { window.stopCombat(); } catch (e) {}
+      restoreG(snap);
+      window.showTab('profile');
+    }
+  }),
 ];
 
 export async function runSmokeTest(opts = {}) {

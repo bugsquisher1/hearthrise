@@ -167,11 +167,11 @@ function tileForGather(action, skillId) {
   // b129: locked tiles toast their level requirement instead of silently
   // doing nothing — players need feedback, not a dead click.
   const skillName = (window.SKILLS_DEF?.[skillId]?.name) || skillId;
-  /* b533: the toggle is resolved at the CLICK against the live pointer (see
-     hrActivityTileClick in legacy.js) — a tile painted while this node was
-     active kept `stopSkill()` after combat cleared the pointer, and the tap
-     died in silence. `active` below stays display-only. Twin of the legacy
-     builder: patch both or you patch neither. */
+  /* The toggle resolves at the CLICK against the live pointer
+     (src/render/activity-tile.js) — a tile painted while this node was active
+     kept a stop handler after combat cleared the pointer, and the tap died in
+     silence. `active` below is paint only. Twin of the legacy builder: patch
+     both or you patch neither. */
   const click = unlocked
     ? `hrActivityTileClick('${skillId}','${action.id}',${action.ms})`
     : `notify('Requires ${skillName} Lv ${action.req}','kill')`;

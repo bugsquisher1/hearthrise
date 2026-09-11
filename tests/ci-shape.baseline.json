@@ -19,6 +19,8 @@
     "node tests/apply-order-honesty.mjs --selftest": "db-replay",
     "node tests/retreat-apply.mjs": "db-replay",
     "node tests/retreat-apply.mjs --selftest": "db-replay",
+    "node tests/rejections-journal.mjs": "db-replay",
+    "node tests/rejections-journal.mjs --selftest": "db-replay",
     "node tests/restore-census.mjs": "db-replay",
     "node tests/restore-census.mjs --mutate": "db-replay",
     "node tests/restore-census.mjs --baseline-selftest": "db-replay",

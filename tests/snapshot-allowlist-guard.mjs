@@ -58,16 +58,41 @@
 //           allowlist does not name. The write outlives restoreG. RED.
 //
 //   SNAP-2  DROPPABLE. A test writes an allowlisted `G.<field>` whose snapshot
-//           expression is a BARE read (`field: G.field`) AND whose key is absent
-//           from the fresh-character literal in src/legacy.js — so the field can
-//           legitimately be `undefined` on a real character, JSON drops it, and
-//           the allowlist entry protects nothing on exactly the accounts where
-//           the test's write matters most. RED. The fix is one operator:
-//           `field: G.field || null` (or `?? null` where 0/'' are meaningful).
+//           expression is a BARE read (`field: G.field`) AND whose key is not
+//           GUARANTEED PRESENT on G — so the field can legitimately be
+//           `undefined`, JSON drops it, and the allowlist entry protects nothing
+//           on exactly the pages where the test's write matters most. RED. The
+//           fix is one operator: `field: G.field || null` (or `?? null` where 0
+//           and '' are meaningful values).
+//
+//           GUARANTEED PRESENT is measured from two files, never asserted here:
+//             + every depth-1 key of the fresh-character literal `let G={…}`
+//               (src/legacy.js), MINUS
+//             − every `field:` on `SERVER_OF_RECORD` (src/net/record.js), which
+//               `forgetServerOfRecord(G)` DELETES off the live G at the end of
+//               every load. Those ten fields are in the literal and absent at
+//               runtime anyway.
 //
 //   SNAP-3  UNSNAPSHOTTED. A test writes `G.<field>` and its body never takes a
 //           snapshot at all (no snapshotG / restoreG / known fixture). REPORTED,
 //           not gated — see "what this does not do".
+//
+// ── THE RULES WERE MEASURED, NOT REASONED ───────────────────────────────
+// Reproduced 2026-09-11 against the real booted page (headless chromium, the
+// `__HR_TEST_HARNESS__` bypass), running snapshotG/restoreG's exact semantics
+// one field at a time on the live `G`:
+//
+//   G.traits      own property? NO  → snapshot kept no key → LEAKED    ← F7-1
+//   G.gold        own property? NO  → snapshot kept no key → LEAKED    ← and
+//                 `gold` IS in the fresh-character literal. It is gone anyway,
+//                 because it is on SERVER_OF_RECORD and the load deletes it.
+//                 That measurement is the whole reason SNAP-2 subtracts that
+//                 registry instead of trusting the literal.
+//   G.activeAction bare (the pre-27bae883 form)          → LEAKED      ← b252
+//   G.activeAction with `|| null` (the shipped fix)      → clean
+//
+// So the `|| null` in commit 27bae883 is the correct shape of the fix, and the
+// bare entries beside it are the same bug waiting for a writer.
 //
 // ── WHAT COUNTS AS A WRITE ──────────────────────────────────────────────
 // `G.f = `, `window.G.f = `, compound assignment (`+=`, `||=`, …), `delete G.f`,
@@ -107,6 +132,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const SUITE = join(ROOT, 'src', 'features', 'smoke-test.js');
 const LEGACY = join(ROOT, 'src', 'legacy.js');
+const RECORD = join(ROOT, 'src', 'net', 'record.js');
 
 const argv = process.argv.slice(2);
 const AS_JSON = argv.includes('--json');
@@ -244,6 +270,37 @@ const readFreshKeys = (legacySrc) => {
   return keys;
 };
 
+// ── 2b. THE FIELDS THE LOAD DELETES (src/net/record.js SERVER_OF_RECORD) ──
+/* The correction the fresh-character literal alone gets WRONG, and it was found
+   by measuring rather than by reading: `gold` is in the literal, and on a booted
+   page `G` has no `gold` own-property at all. record.js's own header states the
+   rule — "a field on the SERVER_OF_RECORD registry is DELETED from every save
+   blob" — and `loadLocal()` ends with `forgetServerOfRecord(G)`, so the whole
+   family (gold, gems, skills, equipment, rooms, marks, dungeonScrip, restedXp,
+   restedAt, offlineBudget) is absent until an envelope re-states it. Read from
+   the registry itself so arming an eleventh field updates this guard for free. */
+const readServerOfRecord = (recordSrc) => {
+  const code = blankNonCode(recordSrc);
+  const at = code.indexOf('SERVER_OF_RECORD');
+  if (at < 0) return null;
+  const open = code.indexOf('[', at);
+  let depth = 0, end = -1;
+  for (let i = open; i < code.length; i++) {
+    const c = code[i];
+    if (c === '[') depth++;
+    else if (c === ']') { depth--; if (depth === 0) { end = i; break; } }
+  }
+  if (end < 0) return null;
+  /* the NAMES are string literals, which blankNonCode erased — read them off the
+     raw slice, bounded by the offsets the blanked scan established. */
+  const raw = recordSrc.slice(open, end);
+  const out = new Set();
+  const re = /\bfield\s*:\s*'([A-Za-z_$][\w$]*)'/g;
+  let m;
+  while ((m = re.exec(raw))) out.add(m[1]);
+  return out;
+};
+
 // ── 3. THE TESTS, AND WHAT EACH ONE WRITES ───────────────────────────────
 const TEST_HEAD = /\(\)\s*=>\s*tryRun[A-Za-z]*\s*\(/;
 /* A test is "snapshotted" if it takes one itself or hands teardown to one of
@@ -304,11 +361,14 @@ const writesIn = (body, fromLine) => {
 };
 
 // ── THE ANALYSIS ─────────────────────────────────────────────────────────
-const analyse = (suiteSrc, legacySrc) => {
+const analyse = (suiteSrc, legacySrc, recordSrc) => {
   const lines = suiteSrc.split(/\r?\n/);
   const code = blankNonCode(suiteSrc);
   const allow = readAllowlist(code, lines);
-  const fresh = readFreshKeys(legacySrc) || new Set();
+  const literal = readFreshKeys(legacySrc) || new Set();
+  const forgotten = readServerOfRecord(recordSrc || '') || new Set();
+  /* GUARANTEED PRESENT = in the fresh literal AND not deleted by the load. */
+  const fresh = new Set([...literal].filter((k) => !forgotten.has(k)));
   const tests = readTests(code, lines);
 
   const snap1 = [], snap2 = [], snap3 = [];
@@ -334,10 +394,10 @@ const analyse = (suiteSrc, legacySrc) => {
       }
     }
   }
-  return { allow, fresh, tests, snap1, snap2, snap3 };
+  return { allow, fresh, literal, forgotten, tests, snap1, snap2, snap3 };
 };
 
-const readTree = () => ({ suite: readFileSync(SUITE, 'utf8'), legacy: readFileSync(LEGACY, 'utf8') });
+const readTree = () => ({ suite: readFileSync(SUITE, 'utf8'), legacy: readFileSync(LEGACY, 'utf8'), record: readFileSync(RECORD, 'utf8') });
 
 // ── PRINTING ─────────────────────────────────────────────────────────────
 const rel = 'src/features/smoke-test.js';
@@ -359,7 +419,10 @@ const group = (findings) => {
 const printFindings = (a, verbose) => {
   console.log('snapshotG allowlist: ' + a.allow.fields.size + ' fields ('
     + rel + ':' + a.allow.start + '-' + a.allow.end + ')');
-  console.log('fresh-character literal (src/legacy.js let G={…}): ' + a.fresh.size + ' keys');
+  console.log('fresh-character literal (src/legacy.js let G={…}): ' + a.literal.size + ' keys');
+  console.log('SERVER_OF_RECORD (src/net/record.js — deleted off G by every load): '
+    + a.forgotten.size + ' field(s)');
+  console.log('  ⇒ guaranteed present on G: ' + a.fresh.size + ' key(s)');
   console.log('tests scanned: ' + a.tests.length);
   console.log('');
 
@@ -382,7 +445,7 @@ const printFindings = (a, verbose) => {
   console.log('        ' + a.snap2.length + ' write(s) across ' + g2.length + ' field(s).');
   for (const [field, fs] of g2) {
     console.log('    G.' + field + '  ×' + fs.length + '   fix: ' + rel + ':' + fs[0].allowLine
-      + '  `' + fs[0].allowText + '`  →  `' + field + ': G.' + field + ' || null,`');
+      + '  `' + fs[0].allowText + '`  →  `' + field + ': G.' + field + ' ?? null,`');
     const show = verbose ? fs : fs.slice(0, 2);
     for (const f of show) console.log('        ' + line(f) + '  ' + f.test);
     if (fs.length > show.length) console.log('        … +' + (fs.length - show.length) + ' more writer(s)' + (verbose ? '' : ' (--report)'));
@@ -398,6 +461,11 @@ const printFindings = (a, verbose) => {
   } else if (a.snap3.length) console.log('    (--report lists them)');
   console.log('');
 
+  console.log('NOTE — the printed SNAP-2 fix is `?? null`, not `|| null`. The shipped entries use');
+  console.log('       `|| null` / `|| 0`, which is correct for an object-valued field but would');
+  console.log('       rewrite a legitimate `gold: 0` or `marks: 0` as null. `??` converts only');
+  console.log('       undefined/null and is safe for every field on the list.');
+  console.log('');
   console.log('NOTE — a test that hand-restores a field in its own `finally` is still counted.');
   console.log('       That mitigation is ONE test remembering; the allowlist is the whole suite');
   console.log('       remembering, and b252 is what happens when the next author copies the write');
@@ -421,6 +489,20 @@ let G={
   settings:{sfx:true},
 };
 window.__FRESH_START = Object.freeze({ gold: G.gold });
+`;
+
+/* The record registry, in its two states: nothing armed, and `gold` armed — the
+   second is the SHIPPED state and the reason `gold` is absent on a booted page. */
+const FIXTURE_RECORD = `
+export const SERVER_OF_RECORD = Object.freeze([
+  Object.freeze({ field: 'dungeonScrip', from: 'dungeon_scrip' }),
+]);
+`;
+const FIXTURE_RECORD_ARMS_GOLD = `
+export const SERVER_OF_RECORD = Object.freeze([
+  Object.freeze({ field: 'dungeonScrip', from: 'dungeon_scrip' }),
+  Object.freeze({ field: 'gold', from: 'gold' }),
+]);
 `;
 
 const fixtureSuite = (opts) => {
@@ -467,7 +549,7 @@ const selftest = () => {
 
   console.log('── SYNTHETIC FIXTURES (the clean case must be GREEN) ──');
   {
-    const a = analyse(fixtureSuite({}), FIXTURE_LEGACY);
+    const a = analyse(fixtureSuite({}), FIXTURE_LEGACY, FIXTURE_RECORD);
     grade('CONTROL-A', 'a clean fixture reports nothing',
       a.snap1.length === 0 && a.snap2.length === 0 && a.snap3.length === 0,
       'snap1=' + a.snap1.length + ' snap2=' + a.snap2.length + ' snap3=' + a.snap3.length);
@@ -476,20 +558,20 @@ const selftest = () => {
       'allowlist=' + a.allow.fields.size + ' tests=' + a.tests.length);
   }
   {
-    const a = analyse(fixtureSuite({ plantUnlisted: true }), FIXTURE_LEGACY);
+    const a = analyse(fixtureSuite({ plantUnlisted: true }), FIXTURE_LEGACY, FIXTURE_RECORD);
     const hit = a.snap1.find((f) => f.field === '__plantedLeak');
     grade('M3', 'SNAP-1 bites an unlisted write in a fixture', !!hit,
       hit ? 'RED: G.__plantedLeak  ' + hit.test : 'NOT CAUGHT');
   }
   {
-    const a = analyse(fixtureSuite({ dropAllowlisted: true }), FIXTURE_LEGACY);
+    const a = analyse(fixtureSuite({ dropAllowlisted: true }), FIXTURE_LEGACY, FIXTURE_RECORD);
     const hit = a.snap1.find((f) => f.field === 'settings');
     grade('M4', 'SNAP-1 bites when an allowlist entry a test writes is REMOVED', !!hit,
       hit ? 'RED: G.settings  ' + hit.test : 'NOT CAUGHT');
   }
   {
-    const bare = analyse(fixtureSuite({ writesTraits: true }), FIXTURE_LEGACY);
-    const safe = analyse(fixtureSuite({ writesTraits: true, safeTraits: true }), FIXTURE_LEGACY);
+    const bare = analyse(fixtureSuite({ writesTraits: true }), FIXTURE_LEGACY, FIXTURE_RECORD);
+    const safe = analyse(fixtureSuite({ writesTraits: true, safeTraits: true }), FIXTURE_LEGACY, FIXTURE_RECORD);
     const bit = bare.snap2.some((f) => f.field === 'traits');
     const cleared = !safe.snap2.some((f) => f.field === 'traits');
     grade('M5', 'SNAP-2 bites a BARE entry for a field the fresh literal lacks', bit,
@@ -498,21 +580,37 @@ const selftest = () => {
       cleared ? 'green' : 'still red — the rule is not reading the operator');
   }
   {
-    const a = analyse(fixtureSuite({ plantUnlisted: true }), FIXTURE_LEGACY);
+    const a = analyse(fixtureSuite({ plantUnlisted: true }), FIXTURE_LEGACY, FIXTURE_RECORD);
     grade('CONTROL-C', 'a `G.x =` inside a /* comment */ is NOT counted as a write',
       !a.snap1.some((f) => f.field === 'notAField'),
       a.snap1.some((f) => f.field === 'notAField') ? 'comment counted as code' : 'blanked');
+  }
+  {
+    /* THE MEASURED `gold` CASE, as a mutation. The fixture's `gold` is in the
+       fresh literal and FX-1 writes it, so with nothing armed it is clean
+       (CONTROL-A above). ARM it on SERVER_OF_RECORD — which is the shipped
+       state — and the load deletes it off G, the bare entry snapshots nothing,
+       and SNAP-2 must say so. If this arm ever goes quiet, the guard has
+       stopped reading src/net/record.js and SNAP-2 is a third of its size
+       without anybody noticing. */
+    const a = analyse(fixtureSuite({}), FIXTURE_LEGACY, FIXTURE_RECORD_ARMS_GOLD);
+    const hit = a.snap2.find((f) => f.field === 'gold');
+    grade('M6', 'SNAP-2 bites a literal field the load DELETES (SERVER_OF_RECORD)', !!hit,
+      hit ? 'RED: G.gold  ' + hit.test : 'NOT CAUGHT — record.js is not being read');
   }
 
   console.log('');
   console.log('── THE SHIPPED TREE (the parser must still find the real file) ──');
   {
-    const a = analyse(tree.suite, tree.legacy);
+    const a = analyse(tree.suite, tree.legacy, tree.record);
     grade('PARSE-B', 'snapshotG allowlist found in the shipped suite', a.allow.fields.size >= 40,
       a.allow.fields.size + ' fields at ' + rel + ':' + a.allow.start);
     grade('PARSE-C', 'the TESTS array was segmented', a.tests.length >= 900, a.tests.length + ' tests');
-    grade('PARSE-D', 'the fresh-character literal was read from src/legacy.js', a.fresh.size >= 25,
-      a.fresh.size + ' keys');
+    grade('PARSE-D', 'the fresh-character literal was read from src/legacy.js', a.literal.size >= 25,
+      a.literal.size + ' keys');
+    grade('PARSE-F', 'SERVER_OF_RECORD was read from src/net/record.js and subtracted',
+      a.forgotten.size >= 8 && a.forgotten.has('gold') && a.fresh.size === a.literal.size - [...a.forgotten].filter((k) => a.literal.has(k)).length,
+      a.forgotten.size + ' armed field(s); guaranteed-present = ' + a.fresh.size);
     grade('PARSE-E', 'real G writes were found inside test bodies',
       a.snap1.length + a.snap2.length + a.snap3.length > 0,
       'snap1=' + a.snap1.length + ' snap2=' + a.snap2.length + ' snap3=' + a.snap3.length);
@@ -530,7 +628,7 @@ const selftest = () => {
   }
   {
     // M2 — remove a real allowlist entry that real tests write.
-    const base = analyse(tree.suite, tree.legacy);
+    const base = analyse(tree.suite, tree.legacy, tree.record);
     const entry = base.allow.fields.get('gold');
     if (!entry) { grade('M2', 'the `gold` allowlist entry exists to remove', false, 'not found'); }
     else {
@@ -556,7 +654,7 @@ if (SELFTEST) {
   process.exit(selftest());
 } else {
   const tree = readTree();
-  const a = analyse(tree.suite, tree.legacy);
+  const a = analyse(tree.suite, tree.legacy, tree.record);
   const gated = a.snap1.length + a.snap2.length;
   if (AS_JSON) {
     /* stdout is JSON AND NOTHING ELSE — the exit code still carries the verdict.

@@ -1037,15 +1037,21 @@ jobs:
 
       # ⚠ continue-on-error IS DELIBERATE AND IS NOT PERMANENT. The plain run is
       # RED ON TODAY'S TREE FOR REAL REASONS — 285 SNAP-1 writes across 43 fields
-      # and 260 SNAP-2 writes across 23 — and allowlisting them to get a green
+      # and 588 SNAP-2 writes across 29 — and allowlisting them to get a green
       # tick would make this guard the masked skip it was written to end
       # (CLAUDE.md §2: guards are never loosened to get green). The census is the
       # deliverable until the offenders are fixed.
-      # TODO(Coordinator): route the offenders (start with G.traits ← B495-4,
-      #   AUTOEAT-SYNC-1/2, F7-2; then G.homestead ×46 and G.buffs ×26; then the
-      #   SNAP-1 head: G.monsterHp/monsterMaxHp ×73, G.lastOfflineSummary ×22,
-      #   G.enchant/G.collection/G.entitlements/G.settings). When the plain run
-      #   is green on the tree, DELETE continue-on-error and this comment.
+      # TODO(Coordinator): route in two batches, because SNAP-2 is ONE EDIT PER
+      #   FIELD in snapshotG and SNAP-1 is a decision per field.
+      #   batch 1 (cheap, 29 operators): `f: G.f` → `f: G.f ?? null` for the
+      #     SNAP-2 list. G.skills ×102, G.gold ×96, G.rooms ×51, G.equipment ×50,
+      #     G.homestead ×46, G.traits ×27 (this is the F7-1-after-B495-4 flake),
+      #     G.buffs ×26, G.gems ×24 …
+      #   batch 2 (SNAP-1, needs judgement per field): G.monsterHp/monsterMaxHp
+      #     ×73, G.lastOfflineSummary ×22, G.combatLog ×12, G.enchant,
+      #     G.collection, G.entitlements, G.settings, and the `_`-scratch family.
+      #   When the plain run is green on the tree, DELETE continue-on-error and
+      #   this comment, and add the plain run to tools/lane-done.mjs.
       - name: Suite isolation — the leak census (RED BY TRUTH, see TODO)
         continue-on-error: true
         run: |

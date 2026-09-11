@@ -22,7 +22,7 @@ const STEPS = [
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on
-  // today's tree for real reasons (545 unrestored `G` writes across 66 fields — see
+  // today's tree for real reasons (873 unrestored `G` writes across 72 fields — see
   // `node tests/snapshot-allowlist-guard.mjs --report`), and a runner that is red for
   // somebody else's debt teaches every lane to ignore it. The census runs in CI as a
   // named continue-on-error step; when it is green, add the plain run here too.

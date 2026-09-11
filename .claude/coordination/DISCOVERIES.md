@@ -4,6 +4,43 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-09-11 — QA Engineer — **`snapshotG`'s allowlist protects a field only SOMETIMES, because `JSON.stringify` drops `undefined` and `restoreG` iterates `Object.keys(snap)`. 873 test writes to `G` are not restored.** (P2 for the suite, P1 for anyone debugging it)
+
+**Measured on the real booted page** (headless chromium + `__HR_TEST_HARNESS__`), running
+`snapshotG`/`restoreG`'s exact semantics one field at a time on the live `G`:
+
+| field | own property on G? | snapshot kept a key? | leaked after restore |
+|---|---|---|---|
+| `G.traits` | **no** | no | **yes** — this is the `F7-1`-after-`B495-4` flake |
+| `G.gold` | **no** | no | **yes** — and `gold` IS in the fresh-character literal |
+| `G.activeAction` bare (pre-27bae883) | — | no | **yes** — b252 verbatim |
+| `G.activeAction` with `\|\| null` (shipped) | — | yes | no |
+
+`G.gold` is the finding nobody expected: `gold` is in `let G={…}` and is **still absent at runtime**,
+because it is on `SERVER_OF_RECORD` (`src/net/record.js`) and `loadLocal()` ends with
+`forgetServerOfRecord(G)`. The whole armed family — gold, gems, skills, equipment, rooms, marks,
+dungeonScrip, restedXp, restedAt, offlineBudget — is deleted off `G` until an envelope re-states it,
+so every bare allowlist entry for one of them restores nothing.
+
+**AFFECTED:** `src/features/smoke-test.js` (`snapshotG` ~line 1313, `restoreG` ~1530, and 873 writes
+across 1,231 tests). Nothing player-facing — this is suite isolation — but it is why a red in-page
+test can have nothing to do with what it tests, and CLAUDE.md §4 calls a red in-page test a P1.
+
+**ACTION:** `tests/snapshot-allowlist-guard.mjs` now measures it (`--report`), 15/15 mutation-proven,
+registered in `smoke.yml` under `client-guards` (`--selftest` blocking, the census
+`continue-on-error: true` with a TODO naming the batches). Two fix batches, routed to whoever owns
+the suite: **batch 1** is 29 operators — `f: G.f` → `f: G.f ?? null` (`??`, not `||`: `|| null` would
+rewrite a legitimate `gold: 0`); **batch 2** is the 43 SNAP-1 fields, one judgement each, headed by
+`G.monsterHp`/`G.monsterMaxHp` ×73 and `G.lastOfflineSummary` ×22. `G._serverPlotLevel` shows up on
+its own list — `withFarmServer`'s header already documents that it leaks past `restoreG`, and the
+guard rediscovered it independently, which is the corroboration that the rule is the right one.
+
+⚠ `tests/run-ci-local.mjs` did NOT honour `continue-on-error`, so it was STRICTER than the gate it
+models. Fixed in the same commit; a soft step now prints `REPORT` and is counted separately from
+green.
+
+---
+
 ### 2026-09-07 — Systems Engineer — **A hero row that repeats a row directly below it is a CLASS on Home, not a First Light collision.** (P2, fixed)
 
 `HearthriseLaunchpad.getNextMilestone()` picks the closest OPEN GOAL out of skills + `G.quests` +

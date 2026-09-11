@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 532 — 2026-09-11 (A short bench run still pays)
+
+**Small craft batches no longer vanish.** If your materials ran out in under a minute — five platebodies from twenty-eight bars, say — the run ended before the server's minimum window and the switch destroyed it: you watched the items appear, then they were gone and the bars untouched. A run that ends on its own is now settled for exactly what it made, however short; an empty sub-minute window still writes nothing, so nothing is gained by switching activities rapidly.
+
+**A Hitpoints level-up no longer lowers your max HP.** The client set max HP to the bare level on a level-up while the server's ceiling could sit higher; it is now raise-only, like the sync path.
+
+**Under the hood.** The release gate's delta-transport guard now boots the whole migration apply order and names any missing server function before it starts, so a gap in its chain reads as a named red instead of a closed connection; the smoke runner promotes each failing in-page test to an annotation on the public run page.
+
 ## v0.9.2-beta build 531 — 2026-09-09 (Your bounty counts every kill)
 
 **The Bounty Board now shows the server's count.** The server always counted every kill toward your contract — attended, away, or with the tab in the background — but the board only showed the kills it had watched you make, so an overnight cull came back at 0/20. The board now reads the server's progress, offers the turn-in the moment the contract is met, and the reward comes from the server's answer.

@@ -1,19 +1,19 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=531' directly.
+// modularised, will import { G } from '../state/game.js?v=532' directly.
 //
 // Triggered by:
 //   - Floating 🧪 button bottom-left
 //   - Ctrl+Shift+T keyboard shortcut
 //   - Programmatically via window.__smokeTest()
 
-import { on, snapshot } from '../net/events.js?v=531';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=531';
+import { on, snapshot } from '../net/events.js?v=532';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=532';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=531';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=532';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -9143,7 +9143,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=531');
+    const S = await import('../data/shops.js?v=532');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -10044,7 +10044,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=531');
+    const mod = await import('../data/dungeons.js?v=532');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10075,7 +10075,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=531');
+    const mod = await import('../data/dungeons.js?v=532');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -27224,26 +27224,46 @@ const TESTS = [
      paione's 71->71 report is therefore still guarded end to end; what is gone
      is the client that used to answer it. */
 
-  () => tryRun('b267: auto-eat works OFFLINE — a fighter with food set survives and consumes it (Tyler asked to verify)', () => {
-    if(typeof window.processOfflineCombat !== 'function'){ skip('no offline combat'); return; }
-    const snap = snapshotG();
+  /* b267 — RE-POINTED at the one combat engine. This arm asked for
+     `window.processOfflineCombat`, deleted when the away-time ruling collapsed the
+     two loops into one, so it has declared an honest skip on every run since and
+     guarded nothing. The rig is AWAY-1b's: the SHIPPED combat ctx (whose
+     `fx.autoEat` is the real `resolveAutoEat` decision) inside `_withOfflineReplay`.
+     THE SAME SEEDED SPAN RUNS TWICE, bag and empty: the empty run MUST fall. */
+  () => tryRun('b267: auto-eat works AWAY — the same seeded span kills a fighter with an empty bag and is survived with food (Tyler asked to verify)', () => {
+    const C = window.HearthriseCore, P = window.HearthrisePresence, A = window.HearthriseAuto, S = window.HearthriseCombatSim;
+    assert(C && C.combatSim && S && typeof S.ctx === 'function' && P && typeof P._withOfflineReplay === 'function' && A && typeof A.setEat === 'function',
+      'the engine, the away-replay seam and the eat setting must all be reachable');
+    const snap = snapshotG(), origBonus = window.getBonus, beforeEat = A.getEat();
+    let wasParked = false;
     try {
-      const G = window.G;
-      // Weak defence vs a monster that hurts, with auto-eat food configured.
-      G.skills = Object.assign({}, G.skills, { attack: 3000, strength: 3000, defense: 0, hitpoints: 5000 });
-      G.playerMaxHp = (typeof window.levelFromXp === 'function') ? window.levelFromXp(G.skills.hitpoints) : 40;
-      G.playerHp = G.playerMaxHp;
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 500 });
-      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });  // b459: tier II = the pre-tier behaviour these fixtures assert
-      if(window.HearthriseAuto && window.HearthriseAuto.setEat) window.HearthriseAuto.setEat({ foodId:'cooked_shrimp', enabled:true, threshold:0.6 });
-      G.activeMonster = 'wolf';
-      const m = window.MONSTERS.wolf; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
-      const before = G.inventory.cooked_shrimp;
-      const r = window.processOfflineCombat(0.5);
-      assert(r && r.foodEaten > 0, 'auto-eat must fire during offline combat, foodEaten=' + (r && r.foodEaten));
-      assert(!r.died, 'with food set the offline fighter should survive, died=' + (r && r.died));
-      assert((before - (G.inventory.cooked_shrimp || 0)) === r.foodEaten, 'consumed food must match foodEaten');
-    } finally { restoreG(snap); }
+      wasParked = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
+      window.getBonus = () => 0;
+      const G = window.G, FOOD = 'cooked_shrimp', STOCK = 500, m = window.MONSTERS.wolf;
+      const arm = () => { G.activeMonster = 'wolf'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp; };
+      const run = (stock) => {
+        G.buffs = []; G.quests = []; G.recoveringUntilMs = 0; G.playerMaxHp = 40; G.playerHp = 40;
+        G.skills = Object.assign({}, G.skills, { attack: 3000, strength: 3000, defense: 0, hitpoints: 5000 });
+        G.inventory = Object.assign({}, G.inventory, { [FOOD]: stock });
+        G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
+        G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
+        A.setEat({ foodId: FOOD, enabled: true, threshold: 0.6 });
+        arm(); C.reseed(0x267AEA7);
+        /* Re-arm the foe each fall: a dead wolf stops swinging. */
+        P._withOfflineReplay(() => { const ctx = S.ctx();
+          for (let i = 0; i < 600 && G.playerHp > 0; i++) { if (!G.activeMonster) arm(); C.combatSim.simulateTick(G, ctx); } });
+        return { died: G.stats.deaths > 0 || G.playerHp <= 0, ate: stock - (Number(G.inventory[FOOD]) || 0), hp: G.playerHp };
+      };
+      const starved = run(0), fed = run(STOCK);
+      assert(starved.died, 'the rig is not lethal, so surviving proves nothing: ' + JSON.stringify(starved));
+      assert(fed.ate > 0, 'auto-eat must fire on the away path, ate=' + fed.ate);
+      assert(!fed.died, 'with food set the away fighter must survive, ' + JSON.stringify(fed));
+    } finally {
+      window.getBonus = origBonus;
+      try { A.setEat(beforeEat); } catch (e) {}
+      if (typeof A._parkEatSync === 'function') A._parkEatSync(wasParked);
+      restoreG(snap);
+    }
   }),
 
   // b297: a killing blow must be VISIBLE on the stage. killMonster() respawns
@@ -29847,7 +29867,36 @@ const TESTS = [
       // ── 5. Switching style mid-fight retimes the running loop.
       assert(typeof window.retimeCombat === 'function',
         'retimeCombat() must exist — otherwise picking a style changes nothing until you re-tap the monster');
-    } finally { G.combatStyle = savedStyle; restoreG(snap); }
+    } finally {
+      G.combatStyle = savedStyle;
+      /* ⚠ THE RECORD GOES BACK TOO, NOT JUST `G`: step 2 STAMPS a shortbow through applyRecord and
+         `restoreG` alone left it standing, so every later test fought as an unarmed RANGED
+         character — the away parity rig died on it. */
+      restoreGAndRecord(snap);
+    }
+  }),
+
+  /* THE STANDING DETECTOR FOR THE LEAK ABOVE. The equipment record is not a snapshotG field, and
+     getWeaponType() does not fail closed when it goes UNKNOWN — it falls back to the last-known
+     server display cache, which is what carries a stamped loadout forward. MUTATION PROVEN. */
+  () => tryRun('SUITE-HYGIENE-REC-1: a test that stamps the equipment RECORD puts it back — the combat family follows the weapon G says is worn', () => {
+    /* "shortbow" is in the BODY so --only=shortbow runs offender and detector. */
+    const G = window.G;
+    if (typeof window.getWeaponType !== 'function') { skip('getWeaponType is not exposed'); return; }
+    const wid = (G && G.equipment && typeof G.equipment.weapon === 'string') ? G.equipment.weapon : null;
+    const def = (wid && window.ITEMS) ? window.ITEMS[wid] : null;
+    /* Derived from the catalogue for a worn weapon; 'sword' for an empty slot is
+       getWeaponType()'s own stated unarmed default (src/legacy.js) and is the one
+       literal here — everything else follows the data. */
+    const expect = (def && def.weaponType) ? def.weaponType : 'sword';
+    const got = window.getWeaponType();
+    assert(got === expect,
+      'THE WORN SET LEAKED. The game fights as ' + got + '; G says the weapon slot holds '
+      + JSON.stringify(wid) + ' (family ' + expect + '). A test above stamped a loadout with '
+      + 'stampRecordLikeLoad and restored with restoreG instead of restoreGAndRecord — snapshotG '
+      + 'does not cover the equipment record, and getWeaponType falls back to the b455 last-known '
+      + 'server cache when the record goes UNKNOWN, so the stamped weapon is ambient for every '
+      + 'test after it. Fix the test that stamped it.');
   }),
 
   () => tryRun('b244: the item-id migration layer remaps a renamed/retired id across every store', () => {
@@ -33399,6 +33448,71 @@ const TESTS = [
     }
   }),
 
+  /* LIVE ×2 (QA account, 2026-09-09 16:36 and 16:40 UTC): a smithing run was
+     accepted server-side, the client's local loop predicted the bag would run
+     out 37 s later, and the run paid NOTHING. The server half of that defect is
+     `finalWindow` in supabase/functions/hr-accrue/accrual.js — a collect has no
+     next call, so ACCRUE_MIN_MS may not apply to it.
+
+     THIS is the client half of the same contract, and no server fix can rescue
+     it: the ONLY thing that makes the server collect the run at all is that the
+     exhaustion stop DECLARES. The honest-stop test above asserts the pointer,
+     the tile and the toast and says nothing about the wire — so a future "just
+     kill the timers" simplification (`window._stopArtisan()`, which clears
+     intervals and declares nothing) would pass it while confiscating the window
+     again, from the client side, for a completely different reason.
+
+     The declaration must also be `idle` — a stop that re-declares the bench it
+     just stopped would collect and then immediately restart a run with no
+     inputs, which is the residue-ahead shape (the client gating the server on a
+     bag figure only the client believes). */
+  () => tryRun('b531: an artisan run that runs out of inputs DECLARES idle — the server collect is what pays it', () => {
+    if (typeof window.startArtisan !== 'function') { skip('no startArtisan'); return; }
+    const snap = snapshotG();
+    const realNotify = window.notify, realDeclare = window.declareActivity;
+    const stopBench = () => {
+      try { if (typeof window._stopArtisan === 'function') window._stopArtisan(); } catch (e) {}
+      window.G.activeSkill = null; window.G.skillTargetId = null;
+    };
+    try {
+      const G = window.G;
+      const declares = [];
+      window.notify = () => {};
+      window.declareActivity = (kind, id) => { declares.push({ kind, id }); return null; };
+      /* DERIVED from the catalogue, never restated: the recipe's own inputs,
+         seeded for EXACTLY ONE action, so the second tick is the exhaustion. */
+      const r = (window.ARTISAN_RECIPES.smithing || []).find((x) => x.req <= 1
+        && (x.input || (x.inputs && Object.keys(x.inputs).length)));
+      assert(r, 'no level-1 smithing recipe for the probe');
+      const feed = {};
+      if (r.inputs) Object.keys(r.inputs).forEach((k) => { feed[k] = r.inputs[k]; });
+      else feed[r.input] = 1;
+      G.rooms = Object.assign({}, G.rooms, { forge: 1 });
+      G.inventory = Object.assign({}, G.inventory, feed);
+      G.skills = Object.assign({}, G.skills, { smithing: 100000 });
+      stampRecordLikeLoad(G);
+      window.startArtisan('smithing', r.id);
+      assert(declares.some((d) => d.kind === 'artisan' && d.id === r.id),
+        'the run did not declare at all — nothing server-side knows it happened');
+      declares.length = 0;
+      window.doArtisanAction('smithing', r.id);   // spends the only feed
+      window.doArtisanAction('smithing', r.id);   // and now the inputs are gone
+      assert(G.activeSkill === null,
+        'the run did not stop on exhaustion (b228 regression), activeSkill=' + G.activeSkill);
+      assert(declares.length > 0,
+        'THE EXHAUSTION STOP DECLARED NOTHING. The server never hears the run ended, so no collect '
+        + 'runs, and the window the player just worked is paid by nobody. A stop that only clears '
+        + 'timers is the client half of the b531 confiscation.');
+      assert(declares.every((d) => d.kind === 'idle'),
+        'the exhaustion stop declared ' + JSON.stringify(declares) + ' — it must declare idle. '
+        + 'Re-declaring the bench restarts a run the client already believes has no inputs, which '
+        + 'gates a server capability on a client-held bag figure.');
+    } finally {
+      window.notify = realNotify; window.declareActivity = realDeclare;
+      stopBench(); restoreGAndRecord(snap);
+    }
+  }),
+
   // b228 (Tyler / spun-off task, folded in): the offline catch-up summary only
   // reached the player as a transient toast — its numbers were also written into
   // the display:none #dash-active panel. It now has a visible home: a "While you
@@ -36303,19 +36417,35 @@ const TESTS = [
     const snap = snapshotG();
     try {
       const m = window.MONSTERS.goblin;
-      G.activeMonster = 'goblin';
-      G.monsterHp = 1; G.monsterMaxHp = m.hp;
-      G.playerMaxHp = 60; G.playerHp = 60;
-      G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, hitpoints: 0, defense: 0 });
-      const before = xpMap();
-      P._withOfflineReplay(() => { window.killMonster(m); });
-      const after = xpMap();
-      const gained = Object.keys(after).reduce((s, k) => s + Math.max(0, (after[k] || 0) - (before[k] || 0)), 0);
-      /* PACE.xp scales the grant, so the assertion is derived from the dial
-         rather than pinned to a number that will rot at the next re-anchor. */
-      const expectFloor = Math.max(1, Math.floor(C.pacing.pacedXp('attack', m.xp)));
-      assert(gained >= expectFloor,
-        'an away kill paid ' + gained + ' XP; m.xp alone should be worth at least ' + expectFloor);
+      /* ⚠ THE EXPECTATION IS THE LIVE KILL, NOT ARITHMETIC. `gained >= floor(pacedXp('attack',
+         m.xp))` assumes the grant lands in ONE skill; killXpRoute splits it and floors each share,
+         paying 3 on a three-way melee route where that predicts 5, and it only passed because the
+         record leak fixed above forced the one-skill RANGED route. The kill played LIVE is the
+         route-proof oracle. */
+      const runKill = (away) => {
+        G.activeMonster = 'goblin';
+        G.monsterHp = 1; G.monsterMaxHp = m.hp;
+        G.playerMaxHp = 60; G.playerHp = 60;
+        G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, hitpoints: 0, defense: 0 });
+        /* IDENTICAL STARTING STATE (the AWAY-1 rig's rule) — the hundred-kill quest
+           and a leftover knockout each pay one run and not the other. */
+        G.quests = [];
+        onFeet();
+        predZero();
+        const before = xpMap();
+        const body = () => { window.killMonster(m); };
+        if (away) P._withOfflineReplay(body); else body();
+        const after = xpMap();
+        return Object.keys(after).reduce((s, k) => s + Math.max(0, (after[k] || 0) - (before[k] || 0)), 0);
+      };
+      const liveGain = runKill(false);
+      const awayGain = runKill(true);
+      assert(liveGain > 0,
+        'the LIVE kill paid nothing — the comparison below would be vacuous (the rig is broken, not the away path)');
+      assert(awayGain === liveGain,
+        'an away kill paid ' + awayGain + ' XP where the same kill played live paid ' + liveGain
+        + '. m.xp is the ~21% of combat XP the retired second loop never granted; away and live '
+        + 'run one engine and must route a kill identically.');
     } finally { restoreG(snap); }
   }),
 
@@ -36543,6 +36673,35 @@ const TESTS = [
       window.advanceBuffClock(60000);
       assert(G.buffs[0].remainingMs === before - 60000, 'and it must drain again while an activity runs');
     } finally { C.randomSeed(); restoreG(snap); }
+  }),
+
+  /* AWAY-5b — THE FIXTURE'S CEILING, AND THE REAL BUG BEHIND IT. AWAY-5 stands a 5,000 HP rig up
+     for an hour and asserts `died === false`; a hitpoints level-up in the span ran a bare
+     `G.playerMaxHp = ev.to`, cut the ceiling to 35, and killed it at tick 991 of 1000. playerMaxHp
+     is projected from player_state.max_hp and may sit above the bare level — hrSyncMaxHp is
+     raise-only for that reason, and lowering it is the client rolling a server value back. */
+  () => tryRun('AWAY-5b: a hitpoints level-up RAISES max HP and never lowers it — the client cannot roll back a server-projected ceiling', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    try {
+      if (typeof window.addXp !== 'function') { skip('addXp is not exposed'); return; }
+      G.skills = Object.assign({}, G.skills, { hitpoints: 0 });
+      stampRecordLikeLoad(G);          // so the display has a base to level FROM
+      G.playerMaxHp = 500; G.playerHp = 500;
+      const ceilingBefore = G.playerMaxHp;
+      window.addXp('hitpoints', 100000, { authored: true });
+      assert(G.playerMaxHp >= ceilingBefore,
+        'a hitpoints level-up CUT max HP from ' + ceilingBefore + ' to ' + G.playerMaxHp
+        + '. G.playerMaxHp is projected from player_state.max_hp and may sit above the bare '
+        + 'hitpoints level; a level-up may only ever RAISE it, exactly as hrSyncMaxHp does.');
+      /* The raise half is still real, so this cannot pass with the write deleted. */
+      G.playerMaxHp = 1; G.playerHp = 1;
+      G.skills = Object.assign({}, G.skills, { hitpoints: 0 });
+      stampRecordLikeLoad(G);
+      window.addXp('hitpoints', 100000, { authored: true });
+      assert(G.playerMaxHp > 1,
+        'a hitpoints level-up must still RAISE a ceiling that is below the new level, got ' + G.playerMaxHp);
+    } finally { restoreGAndRecord(snap); }
   }),
 
   /* AWAY-16 IS RETIRED (b515), and its own header says why in advance: "this
@@ -43433,7 +43592,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=531');
+    const KIT = await import('../data/start-kit.js?v=532');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -43515,7 +43674,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=531');
+    const KIT = await import('../data/start-kit.js?v=532');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -43629,7 +43788,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=531');
+    const KIT = await import('../data/start-kit.js?v=532');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -45742,7 +45901,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=531')).text();
+    const src = await (await fetch('src/legacy.js?v=532')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -52296,7 +52455,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=531');
+    const S = await import('../data/shops.js?v=532');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -53837,7 +53996,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=531');
+    const S = await import('../data/shops.js?v=532');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -58425,7 +58584,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=531')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=532')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -60416,7 +60575,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=531');
+    const A = await import('../net/accrue.js?v=532');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -60441,7 +60600,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=531');
+    const A = await import('../net/accrue.js?v=532');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -60468,7 +60627,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=531');
+    const A = await import('../net/accrue.js?v=532');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -60621,7 +60780,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=531')).text();
+      const raw = await (await fetch(f + '?v=532')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -60671,7 +60830,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=531')).text();
+    const raw = await (await fetch('src/observability.js?v=532')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -60775,7 +60934,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=531');
+    const _art = await import('../data/monster-art.js?v=532');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

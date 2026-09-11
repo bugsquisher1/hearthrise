@@ -8221,7 +8221,7 @@ function assertEquipDeclaration(res){
   if(typeof G==='undefined'||!G||!G.equipment)return null;
   const A=window.HearthriseAccrual,M=window.HearthriseEquip;
   if(!A||typeof A.isEnvelopeAbsolute!=='function'||!A.isEnvelopeAbsolute())return null;
-  if(!M||typeof M.sendEquip!=='function')return null;
+  if(!M||typeof M.sendEquip!=='function')return null;   if(typeof M.isEquipInFlight==='function'&&M.isEquipInFlight())return null;   // NOT while the player's own gesture is still on the wire: a REFUSED equip carries an envelope too, one stating the server's OLD worn set while G.equipment still holds the swap equipVerdictOutcome has not rolled back yet — so the "never been told" test would be measuring the refusal it was just handed, and would answer it by firing a SECOND equip into the very race that produced it. See isEquipInFlight in src/net/equip.js. The disagreement is not lost: the next envelope re-reads it once the gesture has settled
   const srv=res&&res.equipment;
   /* NO STATEMENT ⇒ NOTHING TO DISAGREE WITH. An envelope that carries no
      readable equipment is an answer we could not read, not a claim that the

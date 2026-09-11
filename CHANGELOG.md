@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 534 — 2026-09-11 (Your taps land during a fight)
+
+**Equipping and stopping during a fight work on the first tap.** Every kill the realm credits during a fight advances your character version, so a tap that raced one was refused as "changed elsewhere" and the game simply told you to try again — a staff could take four to eight taps, and stopping a fight could drop you straight back into it while the refusal was being sorted out. The client now retries such a refusal once, automatically and with a fresh key, when the realm hands back its current version, and it no longer repaints the old fight between the refused attempt and the retry. A refusal that carries no version is still shown to you, not retried, and two refusals in a row still converge to what the realm says.
+
 ## v0.9.2-beta build 533 — 2026-09-11 (Your node, your threshold, your answer)
 
 **Going back to the node you came from works again.** After a fight, tapping the gather node you had been on did nothing — no switch, no message. The tile had baked a "stop" handler in while that node was active, and the fight cleared the pointer without repainting it. Tiles now decide at click time from the live pointer, and a switch is always sent.

@@ -163,6 +163,7 @@ export function parseWorkflow(text) {
     j.steps = j.steps.map((s) => ({
       name: s.name,
       uses: s.uses,
+      soft: !!s.soft,
       run: s.run.join('\n').split('\n').map((x) => x.trim()).filter((x) => x && !x.startsWith('#')),
     }));
   }
@@ -181,6 +182,13 @@ function applyKey(step, s) {
   const [, k, v] = m;
   if (k === 'name') step.name = v.replace(/^['"]|['"]$/g, '');
   else if (k === 'uses') step.uses = v;
+  /* `continue-on-error: true` is GitHub's own word for "this step reports, it does
+     not gate". This file's whole contract is "same steps, same flags, same verdict
+     as CI" — so a step CI would not fail on must not fail this run either, or the
+     local half becomes STRICTER than the gate it models and every lane learns to
+     ignore it. (It must never become WEAKER, which is why this reads the flag from
+     the workflow rather than from a list here.) */
+  else if (k === 'continue-on-error') step.soft = /^(true|'true'|"true")$/.test(v.trim());
   else if (k === 'run') {
     if (v === '|' || v === '>' || v === '|-' || v === '>-') step._runBlock = true;
     else if (v) step.run.push(v);
@@ -216,7 +224,7 @@ export function buildPlan(jobs, { all = false, job = null } = {}) {
     if (job && s.job !== job) continue;
     if (!s.run.length) continue;                 // `uses:` steps: checkout, setup-node, upload
     if (skipNames.has(s.name)) { plan.push({ job: s.job, name: s.name, skipped: true }); continue; }
-    plan.push({ job: s.job, name: s.name, cmds: s.run });
+    plan.push({ job: s.job, name: s.name, cmds: s.run, soft: !!s.soft });
   }
   return plan;
 }
@@ -302,17 +310,24 @@ async function main() {
       console.log(`\n${''.padEnd(78, '-')}\n> [${p.job}] ${p.name}\n  $ ${cmd}\n`);
       const r = runCommand(cmd);
       const secs = ((Date.now() - started) / 1000).toFixed(1);
-      results.push({ job: p.job, step: p.name, cmd, status: r.status, secs, error: r.error });
-      console.log(`\n  ${r.status === 0 ? 'GREEN' : `EXIT ${r.status}`} · ${secs}s`);
+      results.push({ job: p.job, step: p.name, cmd, status: r.status, secs, error: r.error, soft: !!p.soft });
+      console.log(`\n  ${r.status === 0 ? 'GREEN' : `EXIT ${r.status}${p.soft ? ' (continue-on-error — reported, not gating)' : ''}`} · ${secs}s`);
     }
   }
 
   console.log(`\n${''.padEnd(78, '=')}\nCI-LOCAL RESULTS\n${''.padEnd(78, '-')}`);
   for (const r of results) {
-    console.log(`  ${r.status === 0 ? 'GREEN  ' : 'RED    '} ${String(r.secs).padStart(7)}s  ${r.cmd}`
+    const tag = r.status === 0 ? 'GREEN  ' : (r.soft ? 'REPORT ' : 'RED    ');
+    console.log(`  ${tag} ${String(r.secs).padStart(7)}s  ${r.cmd}`
       + (r.error ? `  (${r.error})` : ''));
   }
-  const red = results.filter((r) => r.status !== 0);
+  const red = results.filter((r) => r.status !== 0 && !r.soft);
+  const soft = results.filter((r) => r.status !== 0 && r.soft);
+  if (soft.length) {
+    console.log(''.padEnd(78, '-'));
+    console.log(`  ${soft.length} step(s) exited non-zero under continue-on-error — CI will not fail on`);
+    console.log('  them either. They are a CENSUS, not a pass: read them.');
+  }
   console.log(''.padEnd(78, '-'));
   // Per-job wall clock: the matrix runs these families in PARALLEL, so the CI
   // wall clock is the slowest family, not this sum.
@@ -321,7 +336,10 @@ async function main() {
   for (const [j, secs] of byJob) {
     console.log(`  job ${j.padEnd(20)} ${(secs / 60).toFixed(1)} min`);
   }
-  console.log(`  ${results.length - red.length}/${results.length} green · `
+  /* a REPORT step is not a green one — counting it as green is how a census
+     becomes a pass nobody reads. Named on its own. */
+  console.log(`  ${results.length - red.length - soft.length}/${results.length} green · `
+    + (soft.length ? `${soft.length} reported · ` : '')
     + `${((Date.now() - t0) / 1000).toFixed(1)}s sequential`);
   if (red.length) {
     console.log('\n  A RELEASE IS GREEN ONLY WHEN BOTH THIS RUN AND THE GITHUB RUN ON THE RELEASE');

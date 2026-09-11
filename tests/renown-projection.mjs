@@ -63,8 +63,9 @@ const UID = '000000d8-0000-0000-0000-0000000000d8';
 const GATE_BLIND = [
   `  raise notice 'renown-high-projection: hr_apply ratchets renown_high from hr_renown_of, hr_state_of '
                'projects it top-level, the claim verdict and the envelope agree, a client kill '
-               'credit moves nothing, the high-water never falls, nothing became client-executable '
-               '— all green';
+               'credit moves nothing, the high-water never falls, every raise is journalled ONCE '
+               '(C2) and a raising hr_renown_of cannot refuse a paid settle (C1), nothing became '
+               'client-executable — all green';
 end $$;`,
   `  null;
 exception when others then
@@ -72,11 +73,21 @@ exception when others then
 end $$;`,
 ];
 
-/* The anchor text both ratchet mutations rewrite, quoted from the migration. */
-const RATCHET = `    update public.player_state
-       set renown_high = greatest(coalesce(renown_high, 0),
-                                  coalesce(public.hr_renown_of(v_uid, v_slot), 0))
-     where user_id = v_uid and slot = v_slot;`;
+/* Anchors quoted from the migration, one per moving part of the ratchet:
+   SOURCE  (where the figure comes from),
+   WHERE   (the raise-only predicate that makes `found` mean "it moved"),
+   JOURNAL (C2's one-row-per-raise),
+   GUARDED (C1's exception wrapper). */
+const SOURCE = `          from (select coalesce(public.hr_renown_of(v_uid, v_slot), 0) as v) r`;
+const WHERE = `           and coalesce(ps.renown_high, 0) < r.v`;
+const JOURNAL = `        if found then
+          insert into public.player_ledger (user_id, slot, kind, intent, meta)
+          values (v_uid, v_slot, 'renown', 'renown_ratchet',
+                  jsonb_build_object('to', v_rh, 'intent_id', p_intent_id));
+        end if;`;
+const GUARDED = `    exception when others then
+      raise warning 'renown ratchet skipped for %/%: %', v_uid, v_slot, sqlerrm;
+    end;`;
 
 /* ── MUTATIONS ─────────────────────────────────────────────────────────────
    Each plants a REAL defect a future edit could reintroduce, into the REAL
@@ -101,52 +112,76 @@ const MUTATIONS = {
     find: `  c_anchor constant text := $anc$'total_level', public.hr_total_level(p_user, v_st.slot),$anc$;`,
     repl: `  c_anchor constant text := $anc$'streak_days', v_st.streak_days,$anc$;`,
   },
-  ratchet_removed: {
+  ratchet_never_fires: {
     by: 'R1',
-    why: 'the hr_apply splice stops ratcheting, so the cached column only ever moves when a player '
-       + 'clicks Claim — the projection is honest and permanently stale, which is the original bug '
-       + 'with an extra key on the envelope',
-    find: RATCHET,
-    repl: '    null;',
+    why: 'the raise-only predicate is made unsatisfiable, so the cached column only ever moves when '
+       + 'a player clicks Claim — the projection is honest and permanently stale, which is the '
+       + 'original bug with an extra key on the envelope',
+    find: WHERE,
+    repl: '           and false',
   },
   ratchet_reads_client_counter: {
     by: 'R1',
     why: 'the high-water is sourced from the raw lifetime kill counter instead of hr_renown_of — a '
        + 'number hr_credit_kills writes on a CLIENT claim. The cached figure stops being the score '
        + 'the claim path decides on, and client-credited kills start buying rank',
-    find: RATCHET,
-    repl: `    update public.player_state
-       set renown_high = greatest(coalesce(renown_high, 0),
-                                  coalesce((select value from public.player_progress
-                                             where user_id = v_uid and slot = v_slot
-                                               and kind = 'stat' and period_key = ''
-                                               and key = 'ev:kill_any'), 0))
-     where user_id = v_uid and slot = v_slot;`,
+    find: SOURCE,
+    repl: `          from (select coalesce((select value from public.player_progress
+                                   where user_id = v_uid and slot = v_slot
+                                     and kind = 'stat' and period_key = ''
+                                     and key = 'ev:kill_any'), 0) as v) r`,
   },
   ratchet_banks_credited_kills: {
     by: 'R4',
     why: 'the ratchet adds the client-credited kill count back on top of the discounted score. The '
        + 'first settle still matches (nothing credited yet), so only the credit test sees it — and '
-       + 'because the column is a HIGH-WATER, a forged credit banked once is banked forever',
-    find: RATCHET,
-    repl: `    update public.player_state
-       set renown_high = greatest(coalesce(renown_high, 0),
-                                  coalesce(public.hr_renown_of(v_uid, v_slot), 0)
-                                  + coalesce((select value from public.player_progress
-                                               where user_id = v_uid and slot = v_slot
-                                                 and kind = 'stat' and period_key = ''
-                                                 and key = 'ev:kill_credited_any'), 0))
-     where user_id = v_uid and slot = v_slot;`,
+       + 'because the column is a HIGH-WATER with no lowering path, a forged credit banked once is '
+       + 'banked forever',
+    find: SOURCE,
+    repl: `          from (select coalesce(public.hr_renown_of(v_uid, v_slot), 0)
+                     + coalesce((select value from public.player_progress
+                                  where user_id = v_uid and slot = v_slot
+                                    and kind = 'stat' and period_key = ''
+                                    and key = 'ev:kill_credited_any'), 0) as v) r`,
   },
   ratchet_not_monotonic: {
     by: 'R5',
-    why: 'greatest() is dropped, so the cached figure follows the LIVE score down. Spending gold or '
-       + 'breaking a streak would then DEMOTE a rank the player earned — the exact failure '
-       + '2026-08-22-renown-claim.sql added the high-water to prevent',
-    find: RATCHET,
-    repl: `    update public.player_state
-       set renown_high = coalesce(public.hr_renown_of(v_uid, v_slot), 0)
-     where user_id = v_uid and slot = v_slot;`,
+    why: 'the raise-only `<` becomes `<>`, so the cached figure follows the LIVE score DOWN. '
+       + 'Spending gold or breaking a streak would then demote a rank the player earned — the exact '
+       + 'failure 2026-08-22-renown-claim.sql added the high-water to prevent',
+    find: WHERE,
+    repl: '           and coalesce(ps.renown_high, 0) <> r.v',
+  },
+  journal_on_every_apply: {
+    by: 'R6',
+    why: 'C2 REGRESSED INTO A PER-TICK LOG: `<` becomes `<=`, so a settle that raised NOTHING still '
+       + 'matches, `found` is true and a ledger row is written on every apply. The value stays '
+       + 'monotonic and every other check passes — this is the game_events mistake (1.6M rows from '
+       + 'six players in four days) reproduced at ledger scale',
+    find: WHERE,
+    repl: '           and coalesce(ps.renown_high, 0) <= r.v',
+  },
+  raise_not_journalled: {
+    by: 'R6',
+    why: 'C2 REMOVED: a raise of the rank authority is written with no audit row, so an inflation is '
+       + 'undetectable and — because nothing anywhere lowers renown_high — irreversible, while '
+       + 'hr_claim_rank pays up to 1,000,000 gold + 500 gems against it. The literal stays in a '
+       + 'comment ON PURPOSE, so every text scan (the migration\'s own gate included) still passes '
+       + 'and only the behavioural check can see it',
+    find: JOURNAL,
+    repl: `        if found then
+          -- 'renown_ratchet' — journal removed for the mutation proof
+          null;
+        end if;`,
+  },
+  ratchet_unprotected: {
+    by: 'R7',
+    why: 'C1 REMOVED: the ratchet loses its own subtransaction, so ANY raise inside hr_renown_of '
+       + '(it casts `streak_days` off a by-name whole-row read of a column Slice 3 owns) lands in '
+       + "hr_apply's bad_delta handler and rolls back the WHOLE delta — a display high-water eating "
+       + "a paid settle",
+    find: GUARDED,
+    repl: '    end;',
   },
 };
 
@@ -270,6 +305,13 @@ async function runAll(db) {
     Number((await one(db, `select public.hr_renown_of($1::uuid, 0) as s`, [UID])).s);
   const projected = async () =>
     Number(((await one(db, `select public.hr_state_of($1::uuid, 0) as e`, [UID])).e || {}).renown_high);
+  /* C2's audit trail: ONE row per real raise, and none for an apply that raised
+     nothing. Filtered on `intent` because hr_claim_rank also writes kind='renown'
+     (intent='rank_claim:<id>') and counting both would hide a missing row. */
+  const ratchetRows = async () => (await db.query(
+    `select meta, at, id from public.player_ledger
+      where user_id = $1 and slot = 0 and kind = 'renown' and intent = 'renown_ratchet'
+      order by at, id`, [UID])).rows;
 
   // ── R1. THE HONEST CONTROL — the settle BANKS the server's own score ─────
   ok((await projected()) === 0, 'the fixture starts with the column still at 0 (the ratchet is what moves it)');
@@ -283,6 +325,15 @@ async function runAll(db) {
      + '— the settle is never one tick stale');
   ok((await projected()) === live1,
      `a fresh hr_state_of read projects the same figure (${await projected()} vs ${live1})`);
+  {
+    // C2 — the raise is journalled, exactly once, with the figure and the intent.
+    const rows = await ratchetRows();
+    ok(rows.length === 1, `the first real raise wrote exactly ONE ledger row (got ${rows.length})`);
+    ok(rows[0] && Number(rows[0].meta.to) === proj1,
+       `the journalled figure is the banked one (${rows[0] && rows[0].meta.to} vs ${proj1})`);
+    ok(rows[0] && typeof rows[0].meta.intent_id === 'string' && rows[0].meta.intent_id.length > 0,
+       'the ratchet row records the intent that caused it, so a raise ties back to a settle');
+  }
 
   // ── R2. THE CLIENT READER LEARNS IT — the real shipped reader, real envelope ──
   {
@@ -303,6 +354,10 @@ async function runAll(db) {
   ok(Number(claim && claim.renown_high) === proj1,
      `the claim verdict's renown_high (${claim && claim.renown_high}) EQUALS the projected figure (${proj1}) `
      + '— the headline can never promise a rank the claim then refuses');
+  /* The claim PAYS gold, and gold is the goldLog term — so put it back where R1
+     measured it. Without this the next apply could raise the high-water by one
+     for an honest reason and R4 could not tell that from a banked credit. */
+  await db.exec(`update public.player_state set gold = 2000 where user_id = '${UID}' and slot = 0;`);
 
   // ── R4. A CLIENT KILL CREDIT MOVES NOTHING ──────────────────────────────
   // The real bounty verbs, against the real boss. This is the property that
@@ -325,6 +380,8 @@ async function runAll(db) {
   ok(Number(r4 && r4.renown_high) === proj1,
      `the RATCHET did not bank the client credit of ${cred && cred.credited} kills `
      + `(${r4 && r4.renown_high} vs ${proj1})`);
+  ok((await ratchetRows()).length === 1,
+     `an apply that raised NOTHING wrote no ledger row (got ${(await ratchetRows()).length} in total)`);
 
   // ── R5. MONOTONIC ───────────────────────────────────────────────────────
   // Spend the gold — goldLog is the term that really falls — and settle again.
@@ -344,7 +401,72 @@ async function runAll(db) {
        `the headline still reads the banked figure after the spend (got ${R.serverRenownHigh()})`);
   }
 
-  // ── R6. THE FILE RE-APPLIES BYTE-IDENTICALLY ────────────────────────────
+  // ── R6. ONE LEDGER ROW PER REAL RAISE — AND ONLY PER RAISE ──────────────
+  // Three applies have run and exactly one moved the high-water, so there must
+  // be exactly one row. Now force a SECOND honest raise (server-written skill xp,
+  // the way a settle credits it) and require a second row carrying the new
+  // figure. Both halves matter: no row is an unauditable inflation of the rank
+  // authority, a row per apply is game_events at ledger scale.
+  {
+    ok((await ratchetRows()).length === 1,
+       `after three applies that raised once, the journal holds one row (got ${(await ratchetRows()).length})`);
+    // Ten more SERVER-SIMULATED boss kills, written the way a settle writes them
+    // (straight onto the lifetime rows, no credited counter touched). The combat
+    // block is already 99, so more xp would move nothing — kills are the term
+    // that can still rise here.
+    await db.exec(`insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
+                   values ('${UID}', 0, 'stat', 'ev:kill_monster:${boss}', 10, '', 'active'),
+                          ('${UID}', 0, 'stat', 'ev:kill_any', 10, '', 'active')
+                   on conflict (user_id, slot, kind, key, period_key)
+                     do update set value = public.player_progress.value + excluded.value;`);
+    const liveUp = await score();
+    ok(liveUp > proj1, `the fixture is NON-VACUOUS: ten more boss kills lifted the live score to `
+       + `${liveUp}, above the banked ${proj1}`);
+    const r6 = await apply({});
+    ok(r6 && r6.ok === true, `the raising apply succeeded (got ${JSON.stringify(r6 && r6.error)})`);
+    ok(Number(r6 && r6.renown_high) === liveUp,
+       `the second raise banked the new figure (${r6 && r6.renown_high} vs ${liveUp})`);
+    const rows = await ratchetRows();
+    ok(rows.length === 2, `a second real raise wrote a SECOND ledger row (got ${rows.length})`);
+    ok(rows.length === 2 && Number(rows[1].meta.to) === liveUp,
+       `the second row carries the new figure (${rows.length === 2 ? rows[1].meta.to : 'n/a'} vs ${liveUp})`);
+  }
+
+  // ── R7. A BROKEN hr_renown_of MUST NOT EAT A PAID SETTLE (C1) ───────────
+  // The reviewer's probe, executed. hr_renown_of casts `streak_days` off a
+  // by-name whole-row read of a column Slice 3 owns; give it a body that raises
+  // the 22P02 that shape produces, then run a PAID settle. Unwrapped, the raise
+  // lands in hr_apply's bad_delta handler and rolls the WHOLE delta back — the
+  // measured symptom was ok:false with the gold unchanged.
+  {
+    const orig = (await one(db,
+      `select pg_get_functiondef('public.hr_renown_of(uuid,int)'::regprocedure) as d`)).d;
+    const gold0 = Number((await one(db,
+      `select gold from public.player_state where user_id=$1 and slot=0`, [UID])).gold);
+    const rowsBefore = (await ratchetRows()).length;
+    await db.exec(`create or replace function public.hr_renown_of(p_user uuid, p_slot int)
+                   returns bigint language plpgsql stable security definer
+                   set search_path = public, pg_temp as $rb$
+                   begin raise exception 'renown probe: invalid input syntax' using errcode = '22P02';
+                   end $rb$;`);
+    let r7 = null, threw = null;
+    try { r7 = await apply({ gold: 7777 }); } catch (e) { threw = e && e.message; }
+    const gold1 = Number((await one(db,
+      `select gold from public.player_state where user_id=$1 and slot=0`, [UID])).gold);
+    const rowsAfter = (await ratchetRows()).length;
+    await db.exec(orig);                                   // restore before R8
+    ok(threw === null && r7 && r7.ok === true,
+       `a raise inside hr_renown_of did NOT refuse the settle (got ${threw || JSON.stringify(r7 && r7.error)})`);
+    ok(gold1 === gold0 + 7777,
+       `the paid settle still PAID through a broken hr_renown_of (${gold0} -> ${gold1}, expected `
+       + `${gold0 + 7777}) — a display high-water must never eat a player's delta`);
+    ok(rowsAfter === rowsBefore,
+       `a FAILED ratchet journalled nothing (${rowsBefore} -> ${rowsAfter}) — the write and its audit `
+       + 'row live or die together');
+    ok((await score()) > 0, 'hr_renown_of was restored before the re-apply check');
+  }
+
+  // ── R8. THE FILE RE-APPLIES BYTE-IDENTICALLY ────────────────────────────
   // A migration the Coordinator can only run once is a migration that cannot be
   // replayed into a restored database. Both splices must detect their own work
   // and return, leaving the two bodies unchanged to the byte.

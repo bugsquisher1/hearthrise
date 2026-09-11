@@ -4,9 +4,21 @@
 -- PROJECT THE SERVER'S COUNTED RENOWN ON THE ENVELOPE, AND KEEP IT FRESH.
 -- Two anchored splices, no new table, no new column, no new RPC, no grant
 -- change, no value moved:
---   §1  hr_apply  — ratchet `player_state.renown_high` from hr_renown_of once
---                   per SUCCESSFUL apply (the settle path), with greatest().
+--   §1  hr_apply  — ratchet `player_state.renown_high` from hr_renown_of on a
+--                   SUCCESSFUL apply (the settle path), raise-only, journalled.
 --   §2  hr_state_of — project `renown_high` as a TOP-LEVEL envelope key.
+--
+-- RESTATEMENT-DEBT-ACK: both bodies are PATCHED, not restated, for the reason
+-- 2026-09-12-worker-hired-at-projection.sql states at length — an agent cannot
+-- read the LIVE body (apply-migration and the live-hash baseline are
+-- Coordinator-only), and a restatement authored from the repo replay is exactly
+-- the b484-b487 class where the restated body silently reverts whichever file
+-- patched last. hr_apply is 131 KB and its live md5 ALREADY differs from the
+-- replay's, so a restatement of it would be a blind overwrite of the economy's
+-- single write path. Both splices are anchored, exactly-once-asserted and
+-- re-entrant (a second apply is a notice + return), and the paydown — restate
+-- each body ONCE from pg_get_functiondef of the LIVE body, then re-pin
+-- live-hash-drift — stays the Coordinator's, scheduled, not discovered.
 --
 -- ── WHY (the player-visible gap b535 left open) ─────────────────────────────
 -- b535 made the renown headline and the rank-up card read a SERVER mirror
@@ -49,12 +61,20 @@
 --
 --   COST DELTA, stated for 100x players: +1 hr_renown_of call per SUCCESSFUL
 --   hr_apply (≈2.9 ms on production PG17 per the smoke measurement, 5.3 ms in
---   PGlite), +0 ms per envelope read, +0 rows, +0 bytes — the ratchet is an
---   UPDATE of an existing column on a row this transaction already holds. At
---   600 players x ~2 applies/min that is ~3.5 s CPU/min (≈6 % of one core); at
---   10,000 players it is ~1 core and the right answer then is to make
---   hr_renown_of cheap (a `renown_counted` materialisation keyed off the kill
---   counters), not to move this back onto the envelope.
+--   PGlite) and +0 ms per envelope read. At 600 players x ~2 applies/min that is
+--   ~3.5 s CPU/min (≈6 % of one core); at 10,000 players it is ~1 core and the
+--   right answer then is to make hr_renown_of cheap (a materialisation keyed off
+--   the kill counters), not to move this back onto the envelope.
+--   WRITES: the ratchet is raise-only in the WHERE (C1), so an apply that raised
+--   nothing touches NO row at all — strictly fewer writes than the first draft,
+--   which rewrote player_state every time. ROWS: one player_ledger row per REAL
+--   raise (C2), never per apply. A raise needs the score to actually increase, so
+--   the population is bounded by progression, not by traffic: measured on the
+--   fixture, three applies produced one row. Ballpark at 100x players: a few tens
+--   of rows per character per day early on, falling toward zero as the curve
+--   flattens — ~120 bytes each, i.e. single-digit MB/year for the whole beta
+--   population. That is deliberately NOT the game_events shape (1.6M rows /
+--   229 MB from six players in four days by logging every kill).
 --
 -- ── WHY renown_high AND NOT A SECOND "DISPLAY" COLUMN ───────────────────────
 -- Considered and rejected: cache a display-only `renown_counted` and leave
@@ -77,7 +97,28 @@
 -- discount is absent, because caching an undiscounted score would make the
 -- faucet's damage permanent instead of self-correcting.
 --
--- ⚠ SEMANTIC DELTA, FLAGGED FOR SECURITY REVIEW, NOT HIDDEN.
+-- ── SECURITY GO-WITH-CHANGES (2026-09-12) — C1, C2, C3 LANDED HERE ─────────
+--   C1 (P1, CONFIRMED BY PROBE) the ratchet sat BARE inside hr_apply's write-
+--      bearing block above the handlers, so any raise inside hr_renown_of landed
+--      in the bad_delta handler and rolled back the WHOLE delta: a 7,777-gold
+--      PAID settle came back ok:false with the gold unchanged. It now runs in its
+--      own subtransaction that swallows its failure (`raise warning`), and the
+--      write is RAISE-ONLY IN THE WHERE so `found` means exactly "the high-water
+--      moved" — which also ends the write amplification of rewriting the row on
+--      every apply. §3(c6) proves it by EXECUTING the reviewer's probe.
+--   C2 renown_high has NO lowering path anywhere (every writer is a ratchet) and
+--      hr_claim_rank pays up to 1,000,000 gold + 500 gems against it, so an
+--      inflation that is not journalled is both undetectable and irreversible
+--      (probe: 10M fabricated ev:kill_any banked 502,343; deleting the rows left
+--      it banked). Every real raise now writes ONE player_ledger row
+--      (kind='renown', intent='renown_ratchet', meta {to, intent_id}). Security's
+--      ruling: NO per-apply row — one row per real raise only, which is what the
+--      raise-only WHERE makes possible. §3(c2b)/(c5) assert both halves.
+--   C3 tests/renown-projection.mjs re-anchored and extended: R6 (one row per
+--      raise, none for a no-op) and R7 (a raising hr_renown_of must not eat a
+--      paid settle), nine defects x gate / gate-blind plus a negative control.
+--
+-- ⚠ SEMANTIC DELTA — RULED ON, NOT HIDDEN.
 --   Today renown_high captures the live score only at the instants a player
 --   clicks Claim. After this file it captures the MAXIMUM over every apply. For
 --   the monotone terms (levels, skill99, lifetime kills, boss kills, distinct
@@ -96,6 +137,13 @@
 --   earned"). No new renown is minted: every input is server-written and the
 --   client-credited part is already subtracted. NOTHING about the rank
 --   catalogue, the reward amounts, the once-guard or the ledger changes.
+--   DESIGN RULING (game-designer, final, 2026-09-12): option 1 — bank the max of
+--   the FULL counted score, streak and gold-log included. Rank never goes down;
+--   the transient envelope is +174 (19 % of Squire, noise above Knight) and
+--   hr_claim_rank already banks the full score at claim time. Security accepts
+--   the standing-claim consequence WITH C2's journal.
+--   The client half (lane B, NOT built here) owns the lag copy:
+--   "Renown N — your best yet. New gains count from your next settle."
 --
 -- ── WHAT THIS FILE IS NOT ───────────────────────────────────────────────────
 -- It does not make hr_renown_of client-executable (it stays revoked; the client
@@ -105,14 +153,6 @@
 -- NOTHING from p_delta. And it does not close the "current vs best streak"
 -- question, which is Slice 3's and is named above so it cannot be mistaken for
 -- fixed.
---
--- RESTATEMENT-DEBT-ACK: hr_state_of is patched, not restated, for the reason
--- 2026-09-12-worker-hired-at-projection.sql states at length — an agent cannot
--- read the LIVE body, and a restatement authored from the repo replay is the
--- b484-b487 class (the restated body silently reverts whichever file patched
--- last). hr_apply is patched for the same reason and more so: it is 131 KB and
--- its live md5 already differs from the replay's. Both splices are anchored,
--- exactly-once-asserted and re-entrant (a second apply is a notice + return).
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Additive to two projected/patched bodies; nothing is dropped and no data is
@@ -156,6 +196,30 @@ begin
                     '2026-08-22-renown-claim.sql first';
   end if;
 
+  -- C2's journal needs `kind='renown'` to survive player_ledger's check
+  -- constraint. Asserted by EXECUTION against the live constraint (a name scan
+  -- would pass on a constraint that had been rewritten), in a subtransaction
+  -- that is always discarded.
+  begin
+    begin
+      insert into public.player_ledger (user_id, slot, kind, intent, meta)
+      values ('00000000-0000-0000-0000-0000000000ff', 0, 'renown', 'precondition-probe', '{}'::jsonb);
+      raise exception using errcode = 'HR823', message = 'kind=renown accepted — rolling back';
+    exception
+      when sqlstate 'HR823' then null;
+      when check_violation then
+        raise exception 'player_ledger rejects kind=''renown'' — C2''s ratchet journal cannot be '
+                        'written and EVERY raise would vanish into C1''s warning handler. Widen '
+                        'player_ledger_kind_check first.';
+      when others then
+        -- Some OTHER constraint (an FK a later migration added, say) refused the
+        -- fabricated row. That says nothing about `kind`, so do not fail the
+        -- apply on it — §3(c2) proves the real insert by executing it.
+        raise notice 'player_ledger kind probe inconclusive (% / %) — §3(c2) is the real proof',
+                     sqlstate, sqlerrm;
+    end;
+  end;
+
   -- ⚠ THE ONE THAT MATTERS. hr_renown_of must still SUBTRACT client-credited
   -- kills (2026-09-02-renown-kill-faucet.sql). Caching an undiscounted score
   -- would turn a transient over-count into a permanent high-water — the faucet's
@@ -191,7 +255,7 @@ declare
 begin
   v_def := replace(pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure),
                    chr(13), '');
-  if strpos(v_def, $q$set renown_high = greatest($q$) > 0 then
+  if strpos(v_def, $q$'renown_ratchet'$q$) > 0 then
     raise notice 'hr_apply already ratchets renown_high — patch skipped'; return; end if;
   if (length(v_def) - length(replace(v_def, c_anchor, ''))) <> length(c_anchor) then
     raise exception 'the LIVE hr_apply envelope anchor (%) did not match exactly once — its shape '
@@ -209,16 +273,52 @@ begin
     -- SOURCE: hr_renown_of, server-derived, client-credited kills already
     -- subtracted. NOTHING is read from p_delta — no client value reaches this
     -- statement, and the delta the engine proposed cannot influence it.
-    -- greatest() makes it monotonic and idempotent; one statement makes it an
-    -- atomic read-modify-write on a row this transaction already holds, so it
-    -- adds no lock and cannot race a concurrent claim.
     -- DELIBERATELY NO `version = version + 1` and NO `updated_at = now()`: the
     -- apply owns the version bump, and a second bump here would manufacture
     -- version_conflict refusals against the very client that just settled.
-    update public.player_state
-       set renown_high = greatest(coalesce(renown_high, 0),
-                                  coalesce(public.hr_renown_of(v_uid, v_slot), 0))
-     where user_id = v_uid and slot = v_slot;
+    --
+    -- ⚠ C1 (Security, 2026-09-12) — ITS OWN SUBTRANSACTION, AND IT IS NOT
+    --   ALLOWED TO FAIL THE SETTLE. Bare, this sat inside hr_apply's
+    --   write-bearing block above the handlers, so ANY raise inside
+    --   hr_renown_of landed in the bad_delta handler and rolled back the WHOLE
+    --   delta. hr_renown_of reads `streak_days` off a by-name whole-row cast of
+    --   a column Slice 3 owns; the reviewer injected the same shape on
+    --   `streak_day_key` and a 7,777-gold PAID settle came back ok:false with
+    --   the gold unchanged. A DISPLAY high-water must never be able to eat a
+    --   player's earnings, so the block swallows its own failure and the settle
+    --   proceeds with a stale — never wrong — renown figure.
+    --
+    -- ⚠ RAISE-ONLY IN THE WHERE, not greatest() in the SET. Same monotonic
+    --   result, but now `found` means EXACTLY "the high-water moved", which is
+    --   what C2's journal keys on — and it removes the write amplification of
+    --   rewriting the row on every apply when nothing changed.
+    begin
+      declare
+        v_rh bigint;
+      begin
+        update public.player_state ps
+           set renown_high = r.v
+          from (select coalesce(public.hr_renown_of(v_uid, v_slot), 0) as v) r
+         where ps.user_id = v_uid and ps.slot = v_slot
+           and coalesce(ps.renown_high, 0) < r.v
+        returning ps.renown_high into v_rh;
+        -- ⚠ C2 (Security) — ONE LEDGER ROW PER REAL RAISE, AND ONLY PER RAISE.
+        --   renown_high has no lowering path anywhere (every writer is a
+        --   ratchet), and hr_claim_rank pays up to 1,000,000 gold + 500 gems
+        --   against it, so an inflation that is never journalled is both
+        --   undetectable and irreversible. This is the audit trail. It is NOT a
+        --   per-tick log: a no-op apply updates no row, `found` is false, and
+        --   nothing is written — which is the whole reason the raise-only WHERE
+        --   above replaced greatest().
+        if found then
+          insert into public.player_ledger (user_id, slot, kind, intent, meta)
+          values (v_uid, v_slot, 'renown', 'renown_ratchet',
+                  jsonb_build_object('to', v_rh, 'intent_id', p_intent_id));
+        end if;
+      end;
+    exception when others then
+      raise warning 'renown ratchet skipped for %/%: %', v_uid, v_slot, sqlerrm;
+    end;
 
     v_out := public.hr_state_of(v_uid, v_slot);$new$);
   execute v_def;
@@ -290,6 +390,10 @@ declare
   v_proj1 bigint;
   v_proj2 bigint;
   v_proj3 bigint;
+  v_rows  bigint;
+  v_meta  jsonb;
+  v_gold0 bigint;
+  v_gold1 bigint;
   v_boss  text;
   v_uid   constant uuid := '000000d7-0000-0000-0000-0000000000d7';
   v_slot  constant int  := 0;
@@ -309,7 +413,7 @@ begin
   end if;
 
   v_adef := pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure);
-  if position('set renown_high = greatest(' in v_adef) = 0 then
+  if position('set renown_high = r.v' in v_adef) = 0 then
     raise exception 'GATE(a): hr_apply does not ratchet renown_high'; end if;
   if position('v_out := public.hr_state_of(v_uid, v_slot);' in v_adef) = 0 then
     raise exception 'GATE(a): the hr_apply splice ate the envelope build — every successful apply '
@@ -320,9 +424,26 @@ begin
     raise exception 'GATE(a): the hr_apply ratchet does not read hr_renown_of — it is sourcing the '
                     'high-water from something else';
   end if;
-  if v_adef ~ 'set renown_high = greatest\([^;]*version' then
+  -- C1: the ratchet must stay RAISE-ONLY in the WHERE (so `found` means the
+  -- high-water moved) and must NOT bump the version the apply owns.
+  if position('coalesce(ps.renown_high, 0) < r.v' in v_adef) = 0 then
+    raise exception 'GATE(a): the ratchet is no longer raise-only in the WHERE — `found` would be '
+                    'true on every apply and C2''s journal would become a per-tick log';
+  end if;
+  if v_adef ~ 'set renown_high = r\.v[^;]*version' then
     raise exception 'GATE(a): the ratchet bumps version — it would manufacture version_conflict '
                     'against the client that just settled';
+  end if;
+  -- C1: and it must be wrapped, or a raise inside hr_renown_of rolls back the
+  -- whole settle. Asserted BY EXECUTION in (c6) below; this is the cheap read.
+  if position('renown ratchet skipped for' in v_adef) = 0 then
+    raise exception 'GATE(a): the ratchet has no exception wrapper — a raise inside hr_renown_of '
+                    'would land in hr_apply''s bad_delta handler and roll back the player''s settle';
+  end if;
+  -- C2: one ledger row per real raise.
+  if position('''renown_ratchet''' in v_adef) = 0 then
+    raise exception 'GATE(a): the ratchet does not journal its raises — an inflation of the rank '
+                    'authority would be undetectable and irreversible';
   end if;
 
   -- (b) NOTHING BECAME CLIENT-REACHABLE. renown_high is the rank authority.
@@ -445,6 +566,27 @@ begin
     if ((public.hr_state_of(v_uid, v_slot))->>'renown_high')::bigint <> v_proj1 then
       raise exception 'GATE(c2): hr_state_of and hr_apply disagree about renown_high'; end if;
 
+    -- (c2b) C2 — THE RAISE IS JOURNALLED, EXACTLY ONCE, WITH THE FIGURE.
+    --       renown_high has no lowering path; hr_claim_rank pays up to 1,000,000
+    --       gold + 500 gems against it. An unjournalled inflation is undetectable
+    --       AND irreversible, so this row is the audit trail.
+    select count(*) into v_rows from public.player_ledger
+     where user_id = v_uid and slot = v_slot and kind = 'renown' and intent = 'renown_ratchet';
+    select meta into v_meta from public.player_ledger
+     where user_id = v_uid and slot = v_slot and kind = 'renown' and intent = 'renown_ratchet'
+     order by at desc, id desc limit 1;
+    if v_rows <> 1 then
+      raise exception 'GATE(c2b): a real raise wrote % ledger rows (expected exactly 1)', v_rows;
+    end if;
+    if (v_meta->>'to')::bigint <> v_proj1 then
+      raise exception 'GATE(c2b): the journalled figure is % but the high-water is %',
+                      v_meta->>'to', v_proj1;
+    end if;
+    if v_meta->>'intent_id' is null then
+      raise exception 'GATE(c2b): the ratchet row does not record the intent that caused it — the '
+                      'raise cannot be tied back to a settle';
+    end if;
+
     -- (c3) A CLIENT KILL CREDIT MOVES NOTHING. The real bounty verb, against the
     --      real boss, then a real apply — and the projected figure must not
     --      budge. This is the property that makes caching the score safe at all;
@@ -520,8 +662,49 @@ begin
       raise exception 'GATE(c5): the third probe apply was refused: %', v_r; end if;
     v_proj3 := (v_r->>'renown_high')::bigint;
     if v_proj3 < v_proj2 then
-      raise exception 'GATE(c5): the projected renown DECREASED (% -> %) — greatest() is not holding',
+      raise exception 'GATE(c5): the projected renown DECREASED (% -> %) — the ratchet is not holding',
                       v_proj2, v_proj3;
+    end if;
+    -- …and a settle that raised NOTHING journalled nothing. C2 is one row per
+    -- RAISE, not one per apply — three applies have now run and only the first
+    -- moved the high-water.
+    select count(*) into v_rows from public.player_ledger
+     where user_id = v_uid and slot = v_slot and kind = 'renown' and intent = 'renown_ratchet';
+    if v_rows <> 1 then
+      raise exception 'GATE(c5): % ratchet rows after three applies that raised once — the journal '
+                      'is a per-tick log, which is the game_events mistake at ledger scale', v_rows;
+    end if;
+
+    -- (c6) C1 — A BROKEN hr_renown_of MUST NOT EAT A PAID SETTLE.
+    --      The reviewer's probe, executed: give hr_renown_of a body that raises
+    --      (the 22P02 shape a by-name cast on a Slice-3 column produces), then run
+    --      a PAID apply. Before C1 this returned ok:false with the gold unchanged,
+    --      because the bare ratchet raised inside hr_apply's write-bearing block
+    --      and the bad_delta handler rolled the whole delta back. The DDL is
+    --      undone with everything else by the HR822 rollback below.
+    select gold into v_gold0 from public.player_state where user_id = v_uid and slot = v_slot;
+    execute $rb$create or replace function public.hr_renown_of(p_user uuid, p_slot int)
+             returns bigint language plpgsql stable security definer
+             set search_path = public, pg_temp as $b$
+             begin raise exception 'renown probe: invalid input syntax' using errcode = '22P02';
+             end $b$;$rb$;
+    select version into v_ver from public.player_state where user_id = v_uid and slot = v_slot;
+    v_r := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
+                           jsonb_build_object('gold', 7777, 'journal', c_j));
+    if coalesce(v_r->>'ok', 'false') <> 'true' then
+      raise exception 'GATE(c6): a raise inside hr_renown_of REFUSED the whole settle (%) — the '
+                      'display ratchet is eating the player''s delta (C1)', v_r;
+    end if;
+    select gold into v_gold1 from public.player_state where user_id = v_uid and slot = v_slot;
+    if v_gold1 <> v_gold0 + 7777 then
+      raise exception 'GATE(c6): the settle answered ok but the 7,777 gold did NOT land (% -> %) — '
+                      'the ratchet rolled back the delta (C1)', v_gold0, v_gold1;
+    end if;
+    if (select count(*) from public.player_ledger
+         where user_id = v_uid and slot = v_slot and kind = 'renown'
+           and intent = 'renown_ratchet') <> 1 then
+      raise exception 'GATE(c6): a FAILED ratchet still journalled a raise — the row and the write '
+                      'must live or die together';
     end if;
 
     raise exception using errcode = 'HR822', message = 'renown-high-projection §3 complete — rolling back';
@@ -544,6 +727,7 @@ begin
 
   raise notice 'renown-high-projection: hr_apply ratchets renown_high from hr_renown_of, hr_state_of '
                'projects it top-level, the claim verdict and the envelope agree, a client kill '
-               'credit moves nothing, the high-water never falls, nothing became client-executable '
-               '— all green';
+               'credit moves nothing, the high-water never falls, every raise is journalled ONCE '
+               '(C2) and a raising hr_renown_of cannot refuse a paid settle (C1), nothing became '
+               'client-executable — all green';
 end $$;

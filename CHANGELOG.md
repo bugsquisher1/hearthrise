@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 533 — 2026-09-11 (Your node, your threshold, your answer)
+
+**Going back to the node you came from works again.** After a fight, tapping the gather node you had been on did nothing — no switch, no message. The tile had baked a "stop" handler in while that node was active, and the fight cleared the pointer without repainting it. Tiles now decide at click time from the live pointer, and a switch is always sent.
+
+**Auto-eat shows the threshold the fight actually uses.** The settings page and the attended tick painted a locally-held 50% while the server ate at your tier's 25%, so characters fell with food in the bag. The client now mirrors the server's projected threshold, fails safe to the lowest tier when it has not seen one, and the slider's tier ceiling bounds what you can set without hiding the true value.
+
+**A refused activity stops, and says why.** A gather the realm refused (a wrong id, an unowned node) used to keep running locally for minutes, painting yields that were never real. The client now reconciles to the realm's pointer on any refusal, fails safe to idle, and tells you the reason.
+
 ## v0.9.2-beta build 532 — 2026-09-11 (A short bench run still pays)
 
 **Small craft batches no longer vanish.** If your materials ran out in under a minute — five platebodies from twenty-eight bars, say — the run ended before the server's minimum window and the switch destroyed it: you watched the items appear, then they were gone and the bars untouched. A run that ends on its own is now settled for exactly what it made, however short; an empty sub-minute window still writes nothing, so nothing is gained by switching activities rapidly.

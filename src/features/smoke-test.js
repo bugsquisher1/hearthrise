@@ -5631,6 +5631,81 @@ const TESTS = [
     }
   }),
 
+  /* ── regression suite — THE COUNTED FIGURE ADMITS THAT IT LAGS ───────────
+     renown_high is ratcheted at APPLY time, so the figure b535 put on every
+     headline is the score as of the last settle — and a number that sits still
+     while the player is visibly earning reads as broken. GAME DESIGNER'S RULING
+     (final, 2026-09-11): rank never goes down, and the copy is "Renown N — your
+     best yet. New gains count from your next settle." UNKNOWN keeps the old copy
+     (that figure is openly the client's own prediction).
+     MUTATION, both red: drop `lagLine` from openLadder → "got null"; drop the
+     `counted` gate in lagHint → UNKNOWN paints the sentence. */
+  () => tryRun('B536-1: the counted renown figure carries the lag sentence on every headline — and carries NOTHING while the realm has stated nothing', () => {
+    const R = window.HearthriseRenown;
+    assert(R && typeof R.lagHint === 'function',
+      'the lag-copy seam is missing — five headlines would each hand-write their own sentence');
+    const snap = snapshotG();
+    const srvBefore = R.serverRenownHigh();
+    /* The one hook every surface carries, so this reads the PAINTED copy and not
+       a string the test built itself (a dense line hangs it on `title`). */
+    const hint = () => {
+      const el = document.querySelector('#hr-rn-modal [data-hr-renown-hint]');
+      return el ? String(el.getAttribute('title') || el.textContent || '') : null;
+    };
+    const closeLadder = () => { const m = document.getElementById('hr-rn-modal'); if (m) m.remove(); };
+    try {
+      if (R.__resetClaimState) R.__resetClaimState();
+
+      // ── UNKNOWN — the realm has stated nothing this session.
+      assert(R.serverRenownHigh() === null, 'fixture: the mirror starts UNKNOWN');
+      assert(R.getState(window.G).counted === false, 'fixture: an UNKNOWN state must say so');
+      assert(R.lagHint(R.getState(window.G)) === '',
+        'UNKNOWN must carry no lag copy; got "' + R.lagHint(R.getState(window.G)) + '"');
+      closeLadder(); R.openLadder();
+      assert(hint() === null,
+        'THE UNKNOWN CASE: a settle note was painted beside a figure the realm has never counted; got ' + JSON.stringify(hint()));
+      closeLadder();
+
+      // ── COUNTED 779 — the b535 reader (top-level renown_high on an envelope).
+      const noted = R.noteServerRenown({ ok: true, renown_high: 779, progress: [] });
+      assert(noted.high === 779, 'fixture: the envelope figure must land in the mirror; got ' + JSON.stringify(noted));
+      const st = R.getState(window.G);
+      assert(st.renown === 779 && st.counted === true,
+        'fixture: the headline reads the realm\'s count; got ' + st.renown + ' / counted=' + st.counted);
+
+      // The WHOLE sentence where nothing prints the figure beside it (the
+      // hearth-band tooltip, the Hero "Standing" line).
+      const fullTxt = R.lagHint(st);
+      const full = fullTxt.toLowerCase();
+      assert(full.indexOf('779') >= 0, 'the standalone sentence carries the counted figure; got "' + fullTxt + '"');
+      assert(full.indexOf('your best yet') >= 0 && full.indexOf('next settle') >= 0,
+        'the ruling\'s sentence is the copy, verbatim; got "' + fullTxt + '"');
+      // The explanation half where the figure is already an inch away (ladder
+      // header, Home rail, Skills header) — the SAME literal tail, not a rewrite.
+      const halfTxt = R.lagHint(st, { figureShown: true });
+      const half = halfTxt.toLowerCase();
+      assert(half.indexOf('your best yet') >= 0 && half.indexOf('next settle') >= 0,
+        'the figure-shown framing keeps both halves of the ruling; got "' + halfTxt + '"');
+      assert(half.indexOf('779') < 0,
+        'the same figure twice in two stacked lines reads as a stutter; got "' + halfTxt + '"');
+
+      // ── THE RENDERED SURFACE — the ladder header actually paints it.
+      R.openLadder();
+      const paintedTxt = hint();
+      const painted = String(paintedTxt || '').toLowerCase();
+      assert(painted.indexOf('your best yet') >= 0 && painted.indexOf('next settle') >= 0,
+        'THE BUG: the ladder painted the counted figure with nothing saying it lags a settle; got ' + JSON.stringify(paintedTxt));
+      const wrap = document.querySelector('#hr-rn-modal .hr-rn-wrap');
+      assert(wrap && wrap.textContent.indexOf('779 Renown') >= 0,
+        'the hint RIDES the counted figure — it never replaces it');
+    } finally {
+      closeLadder();
+      if (R.__resetClaimState) R.__resetClaimState();
+      if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('server-credited (muster chest ITEMS): reduceClaim passes the server item list through; items are NOT re-derived client-side', () => {
     // 2026-08-20: world_event_claim now computes the themed chest server-side
     // (hr_rally_chest) and WRITES the materials into player_inventory. Its

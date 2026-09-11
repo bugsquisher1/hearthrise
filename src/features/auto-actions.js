@@ -239,15 +239,14 @@
     return {};
   }
   /* WHAT GOES UP IS WHAT THE PLAYER EXPRESSED, not what the server already says.
-     ⚠ b533 — this MUST NOT call eatThreshold(). That now mirrors the server's
-       own `auto_eat_pct`, so routing the outbound value through it would make
-       every send equal the dedupe anchor and SWALLOW the gesture: dragging the
-       slider would write the local preference, compute the server's existing
-       number, match `have.pct`, and send nothing at all. The clamp the b499
-       header asks for ("the threshold sent is the effective one") is the CLIENT
-       TIER ceiling, which is exactly what expressedThreshold() applies; the
-       server re-clamps on write and the answer comes back down through
-       noteAutoEatVerb below. */
+     ⚠ THIS MUST NOT CALL eatThreshold(). That mirrors the server's own
+       `auto_eat_pct`, so routing the outbound value through it would make every
+       send equal the dedupe anchor and SWALLOW the gesture: dragging the slider
+       would write the local preference, compute the server's existing number,
+       match `have.pct`, and send nothing at all. The clamp the header above asks
+       for ("the threshold sent is the effective one") is the CLIENT TIER
+       ceiling, which is what expressedThreshold() applies; the server re-clamps
+       on write and the answer comes back down through noteAutoEatVerb. */
   function effectivePct(){
     var A = core();
     var t = expressedThreshold();
@@ -309,12 +308,11 @@
        pending set and send NOTHING — this is the branch that keeps a settings
        panel that is merely opened, and a suite that restores what it changed,
        off the 30/hour budget entirely. */
-    /* b533 — a DEDUPED threshold is an ANSWERED one. The server already holds
-       the number the player expressed, so the gesture has nothing left to
-       protect and the mirror can take over again. Leaving the flag up here would
-       park the effective threshold on the local copy until the next envelope
-       happened to carry a DIFFERENT pct — a stale-by-agreement window with no
-       reason to exist. */
+    /* A DEDUPED THRESHOLD IS AN ANSWERED ONE. The server already holds the
+       number the player expressed, so the gesture has nothing left to protect.
+       Leaving the flag up would park the effective threshold on the local copy
+       until an envelope happened to carry a DIFFERENT pct — a
+       stale-by-agreement window with no reason to exist. */
     if(pending.pct && !sending.pct) notePctAnswered();
     if(!sending.enabled && !sending.pct && !sending.food){ _syncPending = null; return; }
 
@@ -322,12 +320,11 @@
     _syncInFlight = true;
     Promise.resolve().then(function(){ return GC.setAutoEat(patch); }).then(function(res){
       _syncInFlight = false;
-      /* b533 — TAKE THE SERVER'S ANSWER, NOT OUR REQUEST. hr_set_auto_eat
-         returns the POST-WRITE columns after its own tier clamp, so a value the
-         server narrowed (the residue-ahead case) becomes visible on the round
-         trip instead of on the next ~90 s settle. Recording a refusal is
-         explicitly not done — noteAutoEatVerb ignores anything that is not
-         `ok`, so a rate-limited call leaves the last observation standing. */
+      /* TAKE THE SERVER'S ANSWER, NOT OUR REQUEST. hr_set_auto_eat returns the
+         POST-WRITE columns after its own tier clamp, so a value the server
+         narrowed (the residue-ahead case) shows up on the round trip instead of
+         on the next ~90 s settle. A refusal records nothing: noteAutoEatVerb
+         ignores anything not `ok`, so the last observation stands. */
       try {
         var AC = window.HearthriseAccrual;
         if(AC && typeof AC.noteAutoEatVerb === 'function') AC.noteAutoEatVerb(res);
@@ -390,10 +387,10 @@
     if(opts && typeof opts.threshold === 'number' && isFinite(opts.threshold)){
       a.eat.threshold = Math.max(0, Math.min(1, opts.threshold));
       if(window.G) window.G.autoEatPct = a.eat.threshold;
-      /* b533 — AN UNANSWERED GESTURE. Raised here rather than inside
-         queueServerSync because a PARKED sync (the suite) still has to honour
-         the player's number: parking suppresses the network call, not the
-         intent. Lowered only by the server — see eatThreshold(). */
+      /* AN UNANSWERED GESTURE. Raised here rather than inside queueServerSync
+         because a PARKED sync (the suite) still has to honour the player's
+         number: parking suppresses the network call, not the intent. Lowered
+         only by the server — see eatThreshold(). */
       _pctExpressed = true;
     }
     persist();
@@ -402,11 +399,11 @@
     queueServerSync(opts);
   }
 
-  /* ── THE PLAYER'S OWN SLIDER POSITION (b326; renamed b533) ─────────────────
-   * This is the EXPRESSED preference — the local value, clamped to what the
-   * CLIENT believes the owned tier entitles. It is what goes UP to the server
-   * (`effectivePct`) and it is NOT what any surface displays: `eatThreshold()`
-   * below is the effective number, and b533 made that the server's.
+  /* ── THE PLAYER'S OWN SLIDER POSITION ──────────────────────────────────────
+   * The EXPRESSED preference — the local value, clamped to what the CLIENT
+   * believes the owned tier entitles. It is what goes UP to the server
+   * (`effectivePct`) and NOT what any surface displays: `eatThreshold()` below
+   * is the effective number, and that one is the server's.
    *
    * Two bugs lived in the old inline `eat.threshold || 0.5`:
    *   1. it is a falsy-coalesce on a NUMBER, so a deliberate 0% ("never
@@ -443,101 +440,83 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
-     THE EFFECTIVE TRIGGER POINT IS THE SERVER'S.   (b533 — residue-ahead, P2)
+     THE EFFECTIVE TRIGGER POINT IS THE SERVER'S.
 
      ── THE DEFECT, MEASURED LIVE ────────────────────────────────────────────
-     The QA account's settings screen promised auto-eat at 50% while
-     `player_state.auto_eat_pct` was 25. At 15 max HP the server ate at 3 HP and
-     the player fell "with food" at a threshold nobody chose. Live census at the
-     time: 5 characters on 25, 32 on 50.
+     The settings screen promised auto-eat at 50% while `player_state.auto_eat_pct`
+     was 25. At 15 max HP the server ate at 3 HP and the player fell "with food"
+     at a threshold nobody chose. Census at the time: 5 characters on 25, 32 on 50.
 
      ── ROOT CAUSE ───────────────────────────────────────────────────────────
-     The mirror was ONE-WAY. `hr_state_of` has projected `state.auto_eat_pct`
-     since 2026-08-15-auto-eat.sql and src/net/accrue.js `noteServerAutoEat`
-     records it off every envelope — but ONLY as the settings sync's dedupe
-     anchor ("what does the server already believe"). Nothing ever read it back
-     DOWN. The displayed threshold, and the threshold the attended tick handed
-     `resolveAutoEat`, were both derived from a client-held preference
-     (`G.autoActions.eat.threshold`, residue) clamped by a client-held trait map
+     The mirror was ONE-WAY. hr_state_of has projected `state.auto_eat_pct` since
+     2026-08-15-auto-eat.sql and src/net/accrue.js records it off every envelope —
+     but only as this sync's dedupe anchor. Nothing read it back DOWN. The
+     displayed threshold, and the one the attended tick handed `resolveAutoEat`,
+     were derived from a client-held preference clamped by a client-held trait map
      (`G.traits`, which reconcileTraits UNIONS and never removes).
 
-     So the client modelled the server's clamp instead of reading it, and the
-     model can be wrong in BOTH directions:
-       · client tier ahead of the server's → the client shows the tier-II
-         ceiling while hr_set_auto_eat clamped the stored value to tier I's 25.
-         This is the reported bug, and it is self-sustaining: the dedupe
-         compares a locally-clamped 50 against a stored 25 forever.
-       · server row ABOVE the client's ceiling → an enabled row that predates
-         the 2026-08-29 backfill still carries the column default of 50, which
-         the accrual engine reads DIRECTLY; the client showed 25 and the night
-         ate at 50.
-     That is CLAUDE.md §6's residue-ahead class verbatim: a client-held value
-     describing a server capability.
+     So the client MODELLED the server's clamp instead of reading it, and the
+     model is wrong in both directions: a client tier ahead of the server's shows
+     the tier-II ceiling while hr_set_auto_eat stored tier I's 25 (the reported
+     bug, self-sustaining — the dedupe compares a local 50 against a stored 25
+     forever); and an enabled row predating the 2026-08-29 backfill still carries
+     the column default of 50, which the accrual engine reads DIRECTLY, while the
+     client showed 25. That is CLAUDE.md §6's residue-ahead class verbatim.
 
      ── THE RULE ─────────────────────────────────────────────────────────────
      `auto_eat_pct` is the column the accrual engine prices every window with —
      the ~90 s attended settle and the night alike. So it IS the threshold, and
-     this function returns it whenever an envelope has carried it. The local
-     preference stays exactly what it was: the slider's position, the thing the
-     player edits and the thing `effectivePct()` sends UP. Prediction on the way
-     out, reconciliation on the way in (CLAUDE.md §1).
+     this returns it whenever an envelope has carried it. The local preference
+     stays what it was: the slider's position, the thing the player edits and the
+     thing `effectivePct()` sends UP. Predict out, reconcile in (CLAUDE.md §1).
 
      ── FAIL-SAFE: THE LOWEST TIER, NEVER A HIGHER LOCAL NUMBER ──────────────
-     Before the first envelope the server's value is unknown. The honest answer
-     is the LOWEST entitlement — `maxPctForTier(0)`, i.e. 25% — because the only
-     harmful direction is promising MORE healing than the fight delivers. Taken
-     as a MINIMUM against the expressed value rather than as a replacement, so a
-     deliberate 0% ("manual healing only", the b326 rule) survives the window and
-     is not silently raised to 25%.
-
-     Core-less, the file's standing rule applies (see `maybeAutoEat`): no core,
-     no tier table, and this returns the expressed value rather than inventing a
-     second copy of the tier rule.
+     Before the first envelope the server's value is unknown, so the honest answer
+     is the lowest entitlement (`maxPctForTier(0)`): the only harmful direction is
+     promising MORE healing than the fight delivers. Taken as a MINIMUM against
+     the expressed value, not as a replacement, so a deliberate 0% ("manual
+     healing only") survives the window instead of being raised to 25%. Core-less,
+     the file's standing rule applies (see `maybeAutoEat`): no core, no tier table,
+     and no second copy of the tier rule invented here.
 
      ── THE ONE EXCEPTION: A GESTURE THE SERVER HAS NOT ANSWERED YET ─────────
      "The server always wins" read literally would make the slider feel broken:
      the sync is debounced 1.5 s, so for that window plus a round trip the panel
-     would keep painting the OLD number over the one the player just dragged to,
-     and a re-open inside that window would look like a silent revert.
+     would paint the OLD number over the one the player just dragged to, and a
+     re-open inside it would look like a silent revert.
 
-     So an UNANSWERED gesture wins, and only an unanswered one. `_pctExpressed`
-     is raised by setEat and lowered by exactly two things — a NEW OBSERVATION
+     So an UNANSWERED gesture wins, and only an unanswered one. `_pctExpressed` is
+     raised by setEat and lowered by exactly two things: a NEW OBSERVATION
      (accrue.js bumps `pctSeq` every time it records an `auto_eat_pct`, from an
      envelope or from the verb's answer) and a send the flush found the server
-     already agreed with. Both of those are the server SPEAKING, which is the
-     only thing entitled to overrule the player's intent. A gesture that is never
-     answered — signed out, or a refusal the sync leaves dirty — keeps the
-     player's number, which is the honest reading when there is no server truth
-     to mirror.
+     already agreed with. Both are the server SPEAKING, which is the only thing
+     entitled to overrule the player's intent. A gesture that is never answered —
+     signed out, or a refusal the sync leaves dirty — keeps the player's number,
+     the honest reading when there is no server truth to mirror.
 
-     ⚠ THE COUNTER, NOT THE VALUE. Comparing the observed pct against the last
-       one seen would make an envelope that RESTATES the server's existing 25 a
+     ⚠ THE COUNTER, NOT THE VALUE. Comparing the observed pct against the last one
+       seen would make an envelope that RESTATES the server's existing 25 a
        non-event, so an unanswered local 50 would keep winning against a server
-       that was saying 25 the whole time — the bug, surviving its own fix. It
-       also made the behaviour depend on what the previous caller had cached.
-
-     This is prediction-then-reconcile, the same shape as every other client
-     write in this codebase, and it is why the threshold cannot drift: an
-     unconfirmed local value never survives contact with the server.
+       that was saying 25 all along — the bug surviving its own fix. It also made
+       the behaviour depend on what the previous caller had cached.
 
      ── WHY `G.autoEatPct` IS MIRRORED HERE TOO ──────────────────────────────
-     legacy.js's `fx.autoEat` fallback reads `G.autoEatPct||0.5` directly — it is
-     the path taken before HearthriseAuto loads and it cannot call this. Leaving
-     it on the stale local number would keep one live eat path on the old lie,
-     and it is also the field the b329 ensureShape() adoption reads. The write is
-     idempotent, only fires on change, and only ever moves the mirror TOWARD the
-     server — not the "residue over a server value" direction §6 forbids. */
+     legacy.js's `fx.autoEat` fallback reads `G.autoEatPct||0.5` directly — the
+     path taken before HearthriseAuto loads, which cannot call this — and it is
+     also the field ensureShape()'s one-time adoption reads. Leaving it on the
+     stale local number would keep one live eat path on the old lie. The write is
+     idempotent, fires only on change, and only ever moves the mirror TOWARD the
+     server, so it is not the "residue over a server value" direction §6 forbids. */
   var _pctExpressed = false;     // a threshold gesture the server has not answered
   var _pctSeqSeen;               // accrue.js's observation count, as last acted on
-  /* ⚠ PARKED FOR THE SUITE, exactly as `_syncParked` parks the settings sync and
-     `__resetPropertyRecord` parks the property rung (b502 — the identical
-     shape). Roughly ten fixtures seed a threshold and assert an eat/no-eat
-     outcome or a printed percentage; on a signed-in page the REAL account's
-     `auto_eat_pct` would govern all of them, so they would pass or fail on live
-     data rather than on their own fixture. Parking restores the pre-b533 local
-     reading for the run. The test that is ABOUT the mirror unparks inside its
-     own body, so nothing here is left unproven. Default OFF: production never
-     touches this. */
+  /* ⚠ PARKED FOR THE SUITE, as `_syncParked` parks the settings sync and
+     `__resetPropertyRecord` parks the property rung — the identical shape. About
+     ten fixtures seed a threshold and assert an eat/no-eat outcome or a printed
+     percentage; on a signed-in page the REAL account's `auto_eat_pct` would
+     govern all of them, so they would pass or fail on live data rather than on
+     their own fixture. Parking restores the local reading for the run; the test
+     that is ABOUT the mirror unparks in its own body. Default OFF: production
+     never touches this. */
   var _mirrorParked = false;
   function notePctAnswered(){ _pctExpressed = false; }
   function eatThreshold(){
@@ -909,10 +888,9 @@
     _resetSwitchOnOffer: function () { _switchOnOffered = false; },
     setEat: setEat,
     eatThreshold: eatThreshold,
-    /* b533 — the SLIDER'S position (local, client-tier clamped) as distinct from
-       the EFFECTIVE trigger point above (the server's `auto_eat_pct`). Published
-       so the suite can prove the two are different things and that only the
-       first one goes up. */
+    /* The SLIDER'S position (local, client-tier clamped) as distinct from the
+       EFFECTIVE trigger point above (the server's `auto_eat_pct`). Published so
+       the suite can prove the two differ and that only this one goes up. */
     expressedThreshold: expressedThreshold,
     getTrainGoal: getTrainGoal,
     setTrainGoal: setTrainGoal,
@@ -937,10 +915,9 @@
     _flushEatSync: flushServerSync,
     _syncState: function(){ return { pending: _syncPending && Object.assign({}, _syncPending), inFlight: _syncInFlight, armed: !!_syncTimer, parked: _syncParked }; },
     _resetEatSync: function(){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; _syncInFlight = false; notePctAnswered(); },
-    /* b533 — the unanswered-gesture latch, for the regression suite. Reading it
-       proves WHY eatThreshold() answered the way it did; clearing it is how a
-       test puts the client back in the "boot, nothing expressed yet" state that
-       the mirror governs. */
+    /* The unanswered-gesture latch, for the regression suite. Reading it proves
+       WHY eatThreshold() answered as it did; clearing it puts the client back in
+       the "boot, nothing expressed yet" state the mirror governs. */
     _pctGestureOpen: function(){ return _pctExpressed; },
     _clearPctGesture: notePctAnswered,
     /* Park/unpark the server mirror, returning the PREVIOUS state so a caller

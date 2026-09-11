@@ -2911,16 +2911,14 @@ let serverAutoEatObserved = null;
    the sync treats as "unknown, so send it" rather than as a value. Absence must
    never be read as "the server has NULL". */
 const serverAutoEatSeen = { enabled: undefined, food: undefined, pct: undefined, touched: undefined };
-/* ── `pctSeq` — HOW MANY TIMES THE SERVER HAS STATED A THRESHOLD (b533) ───────
+/* ── `pctSeq` — HOW MANY TIMES THE SERVER HAS STATED A THRESHOLD ─────────────
    A monotonic counter bumped on every RECORDING of `auto_eat_pct`, whatever the
-   value. src/features/auto-actions.js needs to distinguish "the server has
-   spoken since the player's last gesture" from "the value happens to be the same
-   number as last time", and only an EVENT count can tell those apart: an
-   envelope that restates 25 is still the server saying 25, and it must be able
-   to overrule an unanswered local 50. Comparing values instead made the fix
-   order-dependent on whatever the previous read had cached.
-   Never decreases except through __resetServerAutoEat (which puts the module
-   back to never-observed, itself an observation event for the reader). */
+   value. src/features/auto-actions.js has to tell "the server has spoken since
+   the player's last gesture" from "the value happens to match last time", and
+   only an EVENT count separates those: an envelope restating 25 is still the
+   server saying 25, and it must be able to overrule an unanswered local 50.
+   Never decreases except through __resetServerAutoEat, which puts the module
+   back to never-observed — itself an observation event for the reader. */
 let serverAutoEatPctSeq = 0;
 export function noteServerAutoEat(res) {
   const st = res && res.state;
@@ -2969,27 +2967,25 @@ export function clientOwnsAutoEatDebit() { return serverAutoEatObserved === fals
 export function serverAutoEatSettings() {
   return { enabled: serverAutoEatSeen.enabled, food: serverAutoEatSeen.food,
            pct: serverAutoEatSeen.pct, touched: serverAutoEatSeen.touched,
-           /* b533 — the OBSERVATION COUNT for `pct`. See serverAutoEatPctSeq. */
+           /* The OBSERVATION COUNT for `pct`. See serverAutoEatPctSeq. */
            pctSeq: serverAutoEatPctSeq };
 }
-/* ── THE VERB'S OWN ANSWER IS ALSO AN OBSERVATION (b533) ──────────────────────
+/* ── THE VERB'S OWN ANSWER IS ALSO AN OBSERVATION ────────────────────────────
    `hr_set_auto_eat` returns `{ok:true, auto_eat:{enabled,food,pct,tier,max_pct}}`
-   — the POST-WRITE value of the same three columns, after the server's tier
-   clamp (`v_pct := least(v_pct, v_max)`, 2026-08-29-auto-eat-tiers.sql). That is
-   not a client guess about what the server stored; it is the server saying what
-   it stored, and it arrives on the RPC round trip instead of on the next ~90 s
-   settle.
+   — the POST-WRITE value of the same three columns, after its tier clamp
+   (`v_pct := least(v_pct, v_max)`, 2026-08-29-auto-eat-tiers.sql). Not a client
+   guess about what the server stored: the server saying what it stored, on the
+   RPC round trip instead of on the next ~90 s settle.
 
-   WHY IT MATTERS RATHER THAN BEING A NICETY: the settings threshold is now
-   MIRRORED from this observation (src/features/auto-actions.js eatThreshold), so
-   without it a player whose value the server CLAMPED would keep seeing their own
-   un-clamped number until the next envelope — the exact lie b533 closes, just
-   with a shorter fuse. The shape is deliberately different from
-   noteServerAutoEat's (`res.state`) because the verb does not return an
-   envelope; sharing the recording so the two cannot drift.
+   WHY IT MATTERS: the settings threshold is MIRRORED from this observation
+   (src/features/auto-actions.js eatThreshold), so without it a player whose
+   value the server CLAMPED keeps seeing their own un-clamped number until the
+   next envelope — the same lie with a shorter fuse. The shape differs from
+   noteServerAutoEat's (`res.state`) because the verb returns no envelope; the
+   recording is shared so the two cannot drift.
 
-   FAIL-SAFE: anything that is not `ok` with a readable `auto_eat` object records
-   NOTHING and leaves the previous observation alone. A refusal is not a value. */
+   FAIL-SAFE: anything not `ok` with a readable `auto_eat` object records NOTHING
+   and leaves the previous observation alone. A refusal is not a value. */
 export function noteAutoEatVerb(res) {
   const a = res && res.ok === true ? res.auto_eat : null;
   if (!a || typeof a !== 'object') return serverAutoEatSettings();

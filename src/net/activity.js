@@ -952,7 +952,7 @@ function settle(verdict, kind, id) {
          THE FAIL-SAFE IS IDLE, and the SERVER'S OWN POINTER outranks it: a
          stateless refusal may still state `state.active_kind` (`activityOf`
          reads it), and the server's word is always better than a guess. Same
-         seam as b520 — the reconcile hook, `reconcileActivityPointer`, one
+         seam as the knocked-out phantom-run fix — the reconcile hook, `reconcileActivityPointer`, one
          unwinding path — never a second stop written here.
 
          ⚠ SCOPED TO `refused` ON PURPOSE. `unavailable` (5xx) and `malformed`

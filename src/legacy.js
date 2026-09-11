@@ -1856,32 +1856,19 @@ window.hrRefuseWhileRecovering=hrRefuseWhileRecovering;
    and "it just stops by itself" is a worse bug report than the one this fixes.
    The knockout is BY FAR the commonest cause and it has a surface of its own,
    so it gets the sheet; everything else gets one line and the console keeps the
-   detail. Never throws: every caller is inside a network answer nobody sees. */
-/* b533 — AND THE REASON IS THE SERVER'S, NOT A GUESS. The verdict that caused
-   the stop rides in from the reconcile hook and its `reason` is the server's
-   own machine code; `activityRefusalMessage` is the SAME frozen-map +
-   naming-default shape src/net/equip.js uses for gear refusals, so a code this
-   build has never seen still reaches the player quotably instead of collapsing
-   into the generic line. No verdict (the boot resume calls `rap` with two args,
-   and an envelope-driven `idle` is not a refusal) → the generic line, as before. */
+   detail. Never throws: every caller is inside a network answer nobody sees. b533: the REFUSAL that caused the stop rides in as `verdict`, and `activityRefusalMessage` (src/net/activity.js, the same frozen-map+naming-default shape src/net/equip.js uses for gear) turns the server's own code into the line — absent verdict keeps the generic one. */
 function explainUnownedStop(was,verdict){
   try{
     const what=was?(was.kind+(was.id?':'+was.id:'')):'an activity';
-    const down=(typeof hrCombatDownPeek==='function')&&hrCombatDownPeek();
-    const why=(verdict&&verdict.outcome==='refused'&&verdict.reason)?String(verdict.reason):null;
+    const down=(typeof hrCombatDownPeek==='function')&&hrCombatDownPeek(), why=(verdict&&verdict.outcome==='refused'&&verdict.reason)?String(verdict.reason):null;
     console.warn('[activity] the server says idle and never acknowledged '+what
-      +' — stopping it. A run the server does not own earns nothing'
-      +(why?' (refused: '+why+')':'')
+      +' — stopping it. A run the server does not own earns nothing'+(why?' (refused: '+why+')':'')
       +(down?' (this character is knocked out; the server refuses combat until the '
               +'recovery line passes \u2014 gathering and the benches still pay)':''));
-    const S=window.HearthriseDeathSheet;
+    const S=window.HearthriseDeathSheet, M=window.HearthriseActivity;
     if(down&&S&&typeof S.answerTap==='function'){ S.answerTap(HR_RECOVERING_LINE); return; }
-    const M=window.HearthriseActivity;
-    const line=(why&&M&&typeof M.activityRefusalMessage==='function')
-      ? M.activityRefusalMessage(why)
-      : 'The hearth did not take that — the activity stopped.';
     if(typeof notify==='function'){
-      notify(down?HR_RECOVERING_LINE:line,'kill');
+      notify(down?HR_RECOVERING_LINE:((why&&M&&typeof M.activityRefusalMessage==='function')?M.activityRefusalMessage(why):'The hearth did not take that — the activity stopped.'),'kill');
     }
   }catch(e){}
 }
@@ -2083,10 +2070,7 @@ function wireServerActivity(){
        measured in a real browser on a switch where the replacement gate had
        refused and NOTHING was written. */
     onEnvelope:function(res){ return applyServerEnvelope(res,{intent:true}); },
-    /* THE VERDICT RIDES THROUGH (b533). It was dropped here, so a stop caused
-       by a REFUSAL could only ever speak the generic line — the server's own
-       reason existed one frame away and never reached the player. */
-    onReconcile:function(a,verdict,fight){ return reconcileActivityPointer(a,fight,verdict); },
+    onReconcile:function(a,verdict,fight){ return reconcileActivityPointer(a,fight,verdict); },   // THE VERDICT RIDES THROUGH — it was dropped here, a stop caused by a refusal could only ever speak the generic line
   });
 }
 /* ── ONE APPLIER FOR BOTH VERBS ───────────────────────────────────────────

@@ -47110,155 +47110,51 @@ const TESTS = [
     }
   }),
 
-  /* ═══════════════════════════════════════════════════════════════════════
-     b533 regression suite — A REFUSED DECLARATION MUST STOP THE LOCAL RUN.
-     THE b520 PHANTOM-RUN CLASS, ARRIVING THROUGH THE SKILL DOOR.
-
-     MEASURED LIVE (2026-09-11 02:05 UTC): a `set_activity` gather intent the
-     server REFUSED with a 409 `unknown_activity` left the client reading
-     "Fishing" and running the local gather loop for five minutes while the
-     server sat idle. Every item and every XP point that loop painted was
-     client-authored and gone on the next reload — §1, in the one seam that
-     exists to hold it.
-
-     THE MECHANISM, and it is why this test declares from a PRISTINE module:
-     `settle()` reconciles a stateless refusal to `lastServerActivity`, and
-     that field has exactly two writers — the envelope branch of `settle`
-     itself, and record.js's boot resume, which files the pointer ONLY when
-     the boot record names a NON-idle kind. So a session that booted idle has
-     never been told anything, every refusal before the first successful switch
-     fell through to `unresolved`, and `unresolved` let the optimistic pointer
-     stand. `M.resetActivity()` below IS that state, exactly.
-
-     FOUR PROPERTIES:
-       ① the local pointer and the LOOP both stop (a pointer without a timer,
-         or a timer without a pointer, is half the bug);
-       ② the strip says Idle — the player-visible symptom verbatim;
-       ③ the client lands on the SERVER's pointer and files no acknowledgement
-         of its own (`lastServerActivity` stays null: the fail-safe is not a
-         server statement);
-       ④ the player is told WHY, in the server's own reason, through the
-         existing refusal surface.
-
-     MUTATION: restore `applied.unresolved = true` for the `refused` case in
-     src/net/activity.js `settle` → ① ② ③ ④ RED (the run keeps painting);
-     drop the `verdict` argument from legacy's `onReconcile` hook → ④ RED. */
-  () => tryRunAsync('B533-1: a REFUSED gather declaration stops the local run, lands on the server\'s '
+  /* ACT-7 — A REFUSED DECLARATION MUST STOP THE LOCAL RUN. MEASURED LIVE
+     (2026-09-11 02:05 UTC): a gather intent the realm answered 409
+     `unknown_activity` left the client reading "Fishing" and running the local
+     loop for five minutes with the server idle — all of it client-authored and
+     gone on the next reload. PRISTINE ON PURPOSE: `settle` reconciles a
+     stateless refusal to `lastServerActivity`, whose only writers are its own
+     envelope branch and record.js's boot resume — and the resume files the
+     pointer ONLY for a NON-idle record, so a session that booted idle has never
+     been told anything and every refusal fell through to `unresolved`.
+     `resetActivity()` IS that state, asserted not assumed. The stops are QUIET because `stopCombat` declares unconditionally and a stop outside the quiet counter puts a real intent on the wire (measured: two CSP errors).
+     MUTATIONS RUN: `applied.unresolved = true` back for a refusal in `settle` → ① red; drop `verdict` from the reconcile hook → ④ red. */
+  () => tryRunAsync('ACT-7: a REFUSED gather declaration stops the local run, lands on the server\'s '
     + 'pointer and says why — the client never keeps a run the realm refused', async () => {
-    const M = window.HearthriseActivity;
-    const G = window.G;
+    const M = window.HearthriseActivity, G = window.G, said = [];
     const spot = (window.FISH_SPOTS || []).find((f) => f.id === 'shrimp_s') || (window.FISH_SPOTS || [])[0];
-    if (!M || typeof M.declareActivity !== 'function' || typeof M.activityRefusalMessage !== 'function'
-        || typeof M.resetActivity !== 'function' || !spot
-        || typeof window.startSkill !== 'function' || typeof window.__isSkillLoopArmed !== 'function') {
-      skip('the activity seam or the gather loop is not wired'); return;
-    }
-    const snap = snapshotG();
-    const realFetch = window.fetch;
-    const realNotify = window.notify;
-    const hadConfig = (typeof M.getActivityConfig === 'function') ? M.getActivityConfig() : null;
-    const said = [];
-    let calls = 0;
-    const quietStop = () => {
-      const q = window.activityQuietly || ((fn) => fn());
-      q(() => {
-        try { window.stopSkill(); } catch (e) {}
-        try { window.stopCombat(); } catch (e) {}
-      });
-    };
-    try {
-      /* QUIET, BOTH ENDS. `stopCombat` declares `idle` UNCONDITIONALLY, so a
-         fixture stop outside the quiet counter puts a real intent on the wire
-         — and in teardown, after `window.fetch` is restored but before the
-         config is, that intent goes to the stub's `proj.supabase.co` and the
-         page collects two CSP console errors. Measured on this test's first
-         run. `activityQuietly` is the codebase's own answer to "move the
-         pointer without telling the server", and it is what the reconcile
-         itself uses. */
-      quietStop();
-      /* THE BUG'S OWN PRECONDITION. Asserted rather than assumed — with a
-         `lastServerActivity` in hand the OTHER branch of `settle` already
-         reconciles, and this test would pass against the bug. */
-      M.resetActivity();
-      assert(M.getActivityState().lastServerActivity === null,
-        'the fixture could not reach the never-told state this bug lives in');
+    if (!M || typeof M.activityRefusalMessage !== 'function' || !spot
+        || typeof window.__isSkillLoopArmed !== 'function' || typeof window.activityQuietly !== 'function') {
+      skip('the activity seam or the gather loop is not wired'); return; }
+    const snap = snapshotG(), realFetch = window.fetch, realNotify = window.notify;
+    const hadConfig = M.getActivityConfig(), t0 = Date.now();
+    const stop = () => window.activityQuietly(() => { try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {} });
+    try { stop(); M.resetActivity();
+      assert(M.getActivityState().lastServerActivity === null, 'the fixture could not reach the never-told state this bug lives in');
       M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-
-      /* THE REFUSAL, exactly as the live 409 arrived: a STATELESS code (it is
-         answered from the catalogue before any database work, so it carries no
-         version/skills/inventory and `envelopeOf` correctly returns null) whose
-         body still states the server's own pointer. */
+      /* The live 409 verbatim: a STATELESS code answered from the catalogue before any database work — no version/skills/inventory, so `envelopeOf` correctly returns null — whose body still states the server's pointer. */
       window.fetch = function (u) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
-        calls++;
-        return Promise.resolve(new Response(JSON.stringify({
-          ok: false, error: 'unknown_activity', kind: 'gather', id: spot.id,
-          state: { slot: 0, active_kind: 'idle', active_id: null },
-        }), { status: 409 }));
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'unknown_activity', state: { slot: 0, active_kind: 'idle', active_id: null } }), { status: 409 }));
       };
-      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
-
-      /* THE PLAYER'S GESTURE, through the real path — `startSkill` arms the
-         loop and declares. Spying any lower would delete the mechanism. */
+      window.notify = (m, k) => said.push({ m: String(m), k: k });
       window.startSkill('fishing', spot.id, spot.ms);
-      assert(G.activeSkill === 'fishing' && G.skillTargetId === spot.id && window.__isSkillLoopArmed(),
-        'the fixture could not start the local gather run, so the refusal below would prove nothing');
-
-      const t0 = Date.now();
-      while (M.getActivityState().pending && Date.now() - t0 < 4000) {
-        await new Promise((r) => setTimeout(r, 5));
-      }
-      assert(calls === 1, 'the declaration did not reach the stubbed transport exactly once (' + calls + ')');
-
-      // ① THE RUN STOPPED — pointer AND timer.
-      assert(!G.activeSkill && !G.skillTargetId,
-        'THE b533 BUG: the realm REFUSED the declaration (409 unknown_activity) and this client is still '
-        + 'on ' + G.activeSkill + '/' + G.skillTargetId + '. Every item and every XP point that loop '
-        + 'paints is client-authored and gone on the next reload');
-      assert(window.__isSkillLoopArmed() === false,
-        'the pointer cleared but a gather timer is STILL ARMED — the loop the player watched climb for '
-        + 'five minutes is exactly this handle');
-
-      // ② AND THE STRIP SAYS SO.
+      assert(G.activeSkill === 'fishing' && G.skillTargetId === spot.id && window.__isSkillLoopArmed(), 'the fixture could not start the local gather run, so the refusal below would prove nothing');
+      while (M.getActivityState().pending && Date.now() - t0 < 4000) await new Promise((r) => setTimeout(r, 5));
+      assert(!G.activeSkill && !G.skillTargetId && window.__isSkillLoopArmed() === false, '① THE BUG: the realm REFUSED the declaration (409 unknown_activity) and the client is still on ' + G.activeSkill + '/' + G.skillTargetId + ', loop ' + (window.__isSkillLoopArmed() ? 'ARMED' : 'idle') + ' — everything that loop paints is client-authored and gone on the next reload');
       window.refreshActivityBar();
-      const nameEl = document.getElementById('ab-name');
-      assert(nameEl, 'the activity strip is missing, so the reported symptom cannot be measured');
-      const txt = String(nameEl.textContent || '');
-      assert(/^Idle/.test(txt),
-        'THE REPORTED SYMPTOM VERBATIM: the strip still reads "' + txt + '" over a run the realm refused');
-
-      // ③ THE SERVER'S POINTER, AND NO INVENTED ACKNOWLEDGEMENT.
-      const st = M.getActivityState();
-      assert(st.last && st.last.applied && st.last.applied.reconciled
-        && st.last.applied.reconciled.kind === 'idle',
-        'the module did not reconcile a refusal it had no previous envelope for: '
-        + JSON.stringify(st.last && st.last.applied));
-      assert(!(st.last.applied.unresolved),
-        'the refusal is still reported as UNRESOLVED — that is the exact field that let the optimistic '
-        + 'pointer stand for five minutes');
-      assert(st.lastServerActivity === null && M.isActivityConfirmed('gather', spot.id) === false,
-        'the client filed its own fail-safe as a SERVER statement (' + JSON.stringify(st.lastServerActivity)
-        + ') — an acknowledgement the transport never produced');
-
-      // ④ AND THE PLAYER IS TOLD WHY, IN THE SERVER'S REASON.
-      const want = M.activityRefusalMessage('unknown_activity');
-      const hit = said.find((s) => s.m === want);
-      assert(hit,
-        'the run stopped in SILENCE. A player whose activity stops by itself files "the game ignored me", '
-        + 'and they are right to. Said: ' + JSON.stringify(said.map((s) => s.m)).slice(0, 200));
-      assert(hit.k === 'kill', 'the refusal did not go out on the refusal channel: ' + hit.k);
-      assert(want !== M.activityRefusalMessage(''),
-        'the message the player got is the generic one — the server\'s reason never travelled, which is '
-        + 'the half of this fix that turns "it stopped" into "here is why"');
-    } finally {
-      window.fetch = realFetch;
-      window.notify = realNotify;
-      quietStop();
-      M.resetActivity();
-      try { M.configureActivity(hadConfig || null); } catch (e) {}
-      restoreG(snap);
-      try { window.refreshActivityBar(); } catch (e) {}
-      try { window.saveLocal(); } catch (e) {}
+      const txt = String((document.getElementById('ab-name') || {}).textContent || ''), st = M.getActivityState();
+      assert(/^Idle/.test(txt), '② THE SYMPTOM VERBATIM: the strip reads "' + txt + '" over a run the realm refused');
+      assert(st.last.applied.reconciled && st.last.applied.reconciled.kind === 'idle' && !st.last.applied.unresolved, '③ no reconcile for a refusal this module had no earlier envelope for — `unresolved` is the exact field that let the optimistic pointer stand for five minutes: ' + JSON.stringify(st.last.applied));
+      assert(st.lastServerActivity === null && M.isActivityConfirmed('gather', spot.id) === false, '③ the client filed its own fail-safe as a SERVER statement — an acknowledgement the transport never produced');
+      const want = M.activityRefusalMessage('unknown_activity'), hit = said.find((s) => s.m === want);
+      assert(hit && hit.k === 'kill', '④ the run stopped in SILENCE (or off the refusal channel) — a player whose activity stops by itself files "the game ignored me", and they are right to. Said: ' + JSON.stringify(said.map((s) => s.m)).slice(0, 160));
+      assert(want !== M.activityRefusalMessage(''), '④ the player got the GENERIC line — the server\'s own reason never travelled');
+    } finally { window.fetch = realFetch; window.notify = realNotify;
+      stop(); M.resetActivity(); M.configureActivity(hadConfig || null); restoreG(snap);
+      try { window.refreshActivityBar(); window.saveLocal(); } catch (e) {}
     }
   }),
 

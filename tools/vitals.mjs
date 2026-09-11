@@ -75,11 +75,14 @@ order by d.day desc`;
 // output and was invisible in the other one.
 const REFUSALS = `
 with x as (
-  -- `verbs` is read through to_jsonb(h) rather than named directly so that this
-  -- tool runs BEFORE 2026-09-12-hr-rejections-journal.sql is applied as well as
-  -- after: a missing column yields NULL instead of a parse error, and the
-  -- breakdown shows '-'. A read-only ops tool must never be the thing that has
-  -- to be deployed in lockstep with a migration.
+  -- NO BACKTICKS IN HERE. This is a JS template literal, so a backtick in an
+  -- SQL comment ends the string and the whole tool stops parsing -- which is
+  -- exactly what shipped at 52b59fe5 and was caught by node --check, not by me.
+  -- The column "verbs" is read through to_jsonb(h) rather than named directly
+  -- so that this tool runs BEFORE 2026-09-12-hr-rejections-journal.sql is
+  -- applied as well as after: a missing column yields NULL instead of a parse
+  -- error, and the breakdown shows a dash. A read-only ops tool must never be
+  -- the thing that has to be deployed in lockstep with a migration.
   select h.day, h.code, h.severity, h.n,
          coalesce((to_jsonb(h) ->> 'verbs')::jsonb, '{}'::jsonb) as verbs
     from public.hr_rejections h
@@ -120,10 +123,16 @@ if (refusalsMode) {
     console.log(rc.map((c) => (w[c] ? String(row[c] ?? '').padStart(w[c]) : `  ${String(row[c] ?? '')}`)).join(' '));
   }
   if (!rows.length) console.log('  (no refusals recorded in the last two day buckets)');
-  process.exit(0);
+  // NO process.exit() HERE. fetch() leaves a keep-alive socket on the loop, and
+  // tearing the process down under it aborts libuv on Windows ("Assertion
+  // failed: !(handle->flags & UV_HANDLE_CLOSING)") with exit 127 AFTER the
+  // correct output has already been printed - i.e. a read-only ops tool that
+  // looks broken to anyone who checks its exit code, and looks fine to anyone
+  // who only reads the table. Fall off the end instead.
+} else {
+  const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','workers','buys','rooms','claims','listings','sales','refused','users'];
+  console.log(cols.map((c) => String(c).padStart(c === 'day' ? 10 : 8)).join(' '));
+  for (const row of rows) console.log(cols.map((c) => String(row[c] ?? '').padStart(c === 'day' ? 10 : 8)).join(' '));
+  const zeroTwoDays = ['plants','fights','gathers','buys','claims'].filter((c) => rows.slice(0, 2).every((row) => Number(row[c]) === 0));
+  if (rows.length >= 2 && zeroTwoDays.length) console.log(`\nP1 by definition — zero for two days: ${zeroTwoDays.join(', ')}`);
 }
-const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','workers','buys','rooms','claims','listings','sales','refused','users'];
-console.log(cols.map((c) => String(c).padStart(c === 'day' ? 10 : 8)).join(' '));
-for (const row of rows) console.log(cols.map((c) => String(row[c] ?? '').padStart(c === 'day' ? 10 : 8)).join(' '));
-const zeroTwoDays = ['plants','fights','gathers','buys','claims'].filter((c) => rows.slice(0, 2).every((row) => Number(row[c]) === 0));
-if (rows.length >= 2 && zeroTwoDays.length) console.log(`\nP1 by definition — zero for two days: ${zeroTwoDays.join(', ')}`);

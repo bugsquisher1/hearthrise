@@ -211,11 +211,18 @@ jobs:
 
       # Needs the Chromium installed above. The gate half is a pure function and
       # is proven by --selftest without a browser, so a Chromium problem shows up
-      # as exit 2 (harness) rather than as a visual verdict.
+      # as exit 2 (harness) rather than as a visual verdict. The SWEEP half is
+      # proven by visual-qa --selftest, which boots one page and plants a broken
+      # value on the Boss-of-the-Day card: b536 went red on "22:56:23RevenantUndead"
+      # — text no player could see — and narrowing a detector is how a guard
+      # quietly stops biting, so the narrowing carries its own mutation proof.
+      # One extra page boot, measured 5 s on the dev machine (the gate below boots
+      # the same page 2x and walks 24 screens), on a family budgeted for 30 min.
       - name: Presentation floor - visual QA gate (P0 / new P1)
         if: ${{ !cancelled() }}
         run: |
           node tests/visual-qa-gate.mjs --selftest
+          node tests/visual-qa.mjs --selftest
           node tests/visual-qa-gate.mjs
 
       # A failing run is far easier to diagnose with the page state attached.

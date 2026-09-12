@@ -9,6 +9,7 @@
     "node tests/boot-budget.mjs": "in-page",
     "node tests/boot-budget.mjs --selftest": "in-page",
     "node tests/visual-qa-gate.mjs --selftest": "in-page",
+    "node tests/visual-qa.mjs --selftest": "in-page",
     "node tests/visual-qa-gate.mjs": "in-page",
     "node tests/pglite-template.mjs --verify": "db-replay",
     "node tests/schema-drift.mjs": "db-replay",

@@ -14,6 +14,8 @@
 //   emoji used as artwork · dead (unwired) controls
 //
 //   node tests/visual-qa.mjs [--url http://localhost:8123]
+//   node tests/visual-qa.mjs --selftest    mutation proof for the broken-value
+//                                          detector (plants one, proves it bites)
 //
 // Writes PNGs + findings.json to docs/reports/visual-qa/ and prints a summary.
 // Exit code is always 0 — this is a REPORT, not a gate (run-smoke.mjs gates).
@@ -152,8 +154,36 @@ function SWEEP(label) {
   const txt = TXT(panel);
   const dup = txt.match(/\b(\w{3,})\s+\1\b/i); if (dup) add('P2', 'duplicate-word', `"${dup[0]}"`, panel);
   if (/0%\s*·?\s*watered/i.test(txt)) add('P2', 'contradictory-copy', '"0% · watered"', panel);
-  const broken = txt.match(/\S*(NaN|undefined|\[object Object\])\S*/i);
-  if (broken) add('P1', 'broken-value', broken[0].slice(0, 40), panel);
+  /* BROKEN VALUES — "NaN", "undefined", "[object Object]" rendered into copy.
+     Two rules this detector learned on 2026-09-11 (b536), when the daily
+     rotation turned the release gate red on a card that read perfectly:
+
+     1. THE MATCH IS CASE-SENSITIVE, because the spellings are literal. Every
+        route that puts a bad number on screen — String(NaN), toFixed,
+        toLocaleString, Intl.NumberFormat — renders exactly "NaN"; String(
+        undefined) is exactly "undefined". The old /i flag bought nothing and
+        made "NaN" match the "nan" inside any ordinary word, so the Boss of the
+        Day rolling to the REVE-NAN-T was a NEW P1. "maintenance", "tenant" and
+        "covenant" are the same landmine at 10x content.
+
+     2. IT SCANS WHAT A PLAYER CAN SEE, ELEMENT BY ELEMENT, not
+        `panel.textContent`. textContent includes display:none subtrees — the
+        retired #hr-botd-card is `display:none !important` per
+        combat-screens.css and still renders every second — and it glues
+        adjacent nodes into strings like "22:51:47RevenantUndead" that exist
+        nowhere on screen. Per-element own-text cannot manufacture that seam,
+        and it names the element to fix instead of blaming the whole panel.
+        A broken value on a surface no player can see is not a visual defect;
+        `--selftest` plants one on the hidden card and proves it stays silent,
+        and plants one on the VISIBLE card and proves it still bites. */
+  const BROKEN_RE = /\S*(NaN|undefined|\[object Object\])\S*/;
+  const ownText = (el) => [...el.childNodes].filter((n) => n.nodeType === 3)
+    .map((n) => n.data).join(' ').replace(/\s+/g, ' ').trim();
+  [...scope, ...all].forEach((el) => {
+    const t = ownText(el); if (!t) return;
+    const b = t.match(BROKEN_RE);
+    if (b) add('P1', 'broken-value', b[0].slice(0, 40), el);
+  });
 
   all.forEach((el) => { if (el.children.length) return; const t = TXT(el);
     if (t.length <= 3 && /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u.test(t)) {
@@ -212,7 +242,48 @@ const MID_GAME = () => {
     steel_hammer:1, dawn_sword:1, dawn_platebody:1, farm_deed:4 });
 };
 
-(async () => {
+/* One booted page at one viewport: harness flag on, invite gate open, save state
+   applied, FTUE and overlays dismissed. Extracted so --selftest boots the same
+   page the walk does — a mutation proof against a differently-booted page proves
+   nothing about the walk. */
+async function bootPage(browser, url, vp) {
+  const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 });
+  // FUNCTIONAL: a screen that throws while rendering still "looks" fine in a
+  // screenshot — capture runtime errors and console errors per screen.
+  const runtimeErrs = [];
+  page.on('pageerror', (e) => runtimeErrs.push('pageerror: ' + String(e.message || e).slice(0, 140)));
+  page.on('console', (m) => { if (m.type() === 'error') runtimeErrs.push('console: ' + m.text().slice(0, 140)); });
+  page.__errs = runtimeErrs;
+  await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
+  await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+  await page.waitForFunction(() => typeof window.G !== 'undefined', { timeout: 60_000 });
+  await page.evaluate(() => { try { if (window.HearthriseGate) window.HearthriseGate.isOpen = () => true; } catch (e) {} });
+  await page.evaluate(SAVE_STATE === 'fresh' ? FRESH_GAME : MID_GAME);
+  await page.waitForTimeout(1800);   // let ESM merge + icon mapping settle
+  // Dismiss the FTUE tour + any open modal/toast, or every screen gets measured
+  // (and screenshotted) from BEHIND the tutorial — the sweep would be worthless.
+  await page.evaluate(() => {
+    try { if (window.G) { window.G.ftueDone = true; window.G.ftueStep = 99; if (window.G.flags) window.G.flags.ftue = 'done'; } } catch (e) {}
+    // Generic: ANY element that is a full-viewport interactive overlay (tutorial,
+    // daily reward, welcome, what's-new) is dismissed — otherwise every screen is
+    // measured and screenshotted from behind a modal.
+    const killOverlays = () => {
+      document.querySelectorAll('body > *, .panel.active > *').forEach((e) => {
+        const c = getComputedStyle(e); if (c.position !== 'fixed' || c.pointerEvents === 'none') return;
+        const r = e.getBoundingClientRect();
+        if (r.width > innerWidth * 0.6 && r.height > innerHeight * 0.5) e.style.setProperty('display', 'none', 'important');
+      });
+      document.querySelectorAll('.ftue-root,.ftue-overlay,#ftue-overlay,.modal.open,.qm-overlay,.scv-overlay,.mon-detail.show,.dr-overlay,#daily-reward-overlay,.welcome-overlay,#welcome-modal')
+        .forEach((e) => e.style.setProperty('display', 'none', 'important'));
+      document.querySelectorAll('.toast,.toast-wrap,#toast-host').forEach((e) => { e.style.display = 'none'; });
+    };
+    killOverlays(); window.__killOverlays = killOverlays;
+  });
+  await page.waitForTimeout(300);
+  return { page, runtimeErrs };
+}
+
+async function walk() {
   const { server, port } = EXTERNAL_URL ? { server: null, port: 0 } : await serve();
   const url = EXTERNAL_URL || `http://127.0.0.1:${port}/index.html`;
   await mkdir(OUT, { recursive: true });
@@ -220,39 +291,7 @@ const MID_GAME = () => {
   const findings = [];
 
   for (const vp of VIEWPORTS) {
-    const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: 1 });
-    // FUNCTIONAL: a screen that throws while rendering still "looks" fine in a
-    // screenshot — capture runtime errors and console errors per screen.
-    const runtimeErrs = [];
-    page.on('pageerror', (e) => runtimeErrs.push('pageerror: ' + String(e.message || e).slice(0, 140)));
-    page.on('console', (m) => { if (m.type() === 'error') runtimeErrs.push('console: ' + m.text().slice(0, 140)); });
-    page.__errs = runtimeErrs;
-    await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
-    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
-    await page.waitForFunction(() => typeof window.G !== 'undefined', { timeout: 60_000 });
-    await page.evaluate(() => { try { if (window.HearthriseGate) window.HearthriseGate.isOpen = () => true; } catch (e) {} });
-    await page.evaluate(SAVE_STATE === 'fresh' ? FRESH_GAME : MID_GAME);
-    await page.waitForTimeout(1800);   // let ESM merge + icon mapping settle
-    // Dismiss the FTUE tour + any open modal/toast, or every screen gets measured
-    // (and screenshotted) from BEHIND the tutorial — the sweep would be worthless.
-    await page.evaluate(() => {
-      try { if (window.G) { window.G.ftueDone = true; window.G.ftueStep = 99; if (window.G.flags) window.G.flags.ftue = 'done'; } } catch (e) {}
-      // Generic: ANY element that is a full-viewport interactive overlay (tutorial,
-      // daily reward, welcome, what's-new) is dismissed — otherwise every screen is
-      // measured and screenshotted from behind a modal.
-      const killOverlays = () => {
-        document.querySelectorAll('body > *, .panel.active > *').forEach((e) => {
-          const c = getComputedStyle(e); if (c.position !== 'fixed' || c.pointerEvents === 'none') return;
-          const r = e.getBoundingClientRect();
-          if (r.width > innerWidth * 0.6 && r.height > innerHeight * 0.5) e.style.setProperty('display', 'none', 'important');
-        });
-        document.querySelectorAll('.ftue-root,.ftue-overlay,#ftue-overlay,.modal.open,.qm-overlay,.scv-overlay,.mon-detail.show,.dr-overlay,#daily-reward-overlay,.welcome-overlay,#welcome-modal')
-          .forEach((e) => e.style.setProperty('display', 'none', 'important'));
-        document.querySelectorAll('.toast,.toast-wrap,#toast-host').forEach((e) => { e.style.display = 'none'; });
-      };
-      killOverlays(); window.__killOverlays = killOverlays;
-    });
-    await page.waitForTimeout(300);
+    const { page, runtimeErrs } = await bootPage(browser, url, vp);
 
     for (const s of SCREENS) {
       await page.evaluate((t) => { try { if (typeof window.showTab === 'function') window.showTab(t); } catch (e) {} }, s);
@@ -284,4 +323,108 @@ const MID_GAME = () => {
       hot.slice(0, 6).forEach((i) => console.log(`   ${i.sev} ${i.kind}: ${i.detail} ${i.el}`)); }
   });
   console.log('\nPNGs + findings.json →', OUT);
-})();
+  return 0;
+}
+
+/* ── MUTATION PROOF for the broken-value detector ──────────────────────────
+   `node tests/visual-qa.mjs --selftest`
+
+   b536: the visual gate went red on `22:56:23RevenantUndead` — no player could
+   see it. Two detector defects produced it (see the sweep): a case-insensitive
+   "NaN" matching the "nan" in Revenant, and `panel.textContent` reading a
+   display:none subtree and gluing sibling nodes together. Narrowing a detector
+   is how guards quietly die, so the narrowing is pinned here: the sweep is run
+   against the SAME booted combat screen four times, with the Boss of the Day
+   FORCED to the Revenant so the exact b536 condition is reproduced on any date.
+
+     control   the real screen, Revenant featured   → no broken-value
+     bite A    "NaN" planted on the VISIBLE card    → broken-value naming it
+     bite B    "undefined" planted, visible         → broken-value naming it
+     hole      "NaN" planted on the HIDDEN card     → silent, ON PURPOSE
+     word      "maintenance"/"covenant" visible     → silent (the b536 class)
+
+   If a future edit trades the false positive for a blind spot, bite A/B go
+   green-when-they-should-be-red and this exits 1.                            */
+async function selftest() {
+  const fails = [];
+  const { server, port } = EXTERNAL_URL ? { server: null, port: 0 } : await serve();
+  const url = EXTERNAL_URL || `http://127.0.0.1:${port}/index.html`;
+  const browser = await chromium.launch();
+  try {
+    const { page } = await bootPage(browser, url, VIEWPORTS[0]);
+    // Pin the rotation: the Revenant is the boss whose NAME broke the gate.
+    await page.evaluate(() => {
+      const B = window.HearthriseBossOfDay;
+      if (B) { try { Object.defineProperty(B, 'featuredId', { value: () => 'revenant', configurable: true }); } catch (e) {} }
+    });
+    await page.evaluate(() => { try { window.showTab('combat'); } catch (e) {} });
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => { try { window.__killOverlays && window.__killOverlays(); } catch (e) {} });
+    await page.waitForTimeout(200);
+
+    /* Plant text on a chosen element, sweep, then put the text back. Returns the
+       broken-value issues plus what the DOM actually offered, so a miss reports
+       "the selector matched nothing" instead of a silent false green. */
+    const probe = async (which, text) => {
+      const planted = await page.evaluate(({ which, text }) => {
+        const pick = () => {
+          if (which === 'hidden') return document.querySelector('#hr-botd-card .botd-name');
+          const card = [...document.querySelectorAll('.wt-dest')].find((a) =>
+            /Boss of the Day/i.test((a.querySelector('.wtd-kick') || {}).textContent || ''));
+          return card ? card.querySelector('.wtd-main > b') : null;   // the name the player reads
+        };
+        const el = pick();
+        if (!el) return { ok: false, why: `no ${which} Boss-of-the-Day name element in the DOM` };
+        window.__hrProbe = { el, was: el.textContent };
+        el.textContent = text;
+        const r = el.getBoundingClientRect();
+        return { ok: true, visible: r.width > 0 && r.height > 0, display: getComputedStyle(el).display };
+      }, { which, text });
+      if (!planted.ok) { fails.push('SELFTEST: ' + planted.why); return { issues: [], planted }; }
+      const res = await page.evaluate(SWEEP, 'combat');
+      const survived = await page.evaluate((t) => {
+        const p = window.__hrProbe; if (!p || !p.el) return false;
+        const still = p.el.textContent === t; p.el.textContent = p.was; return still;
+      }, text);
+      if (!survived) fails.push(`SELFTEST: a repaint replaced the planted "${text}" before the sweep ran — that case proves nothing`);
+      return { issues: (res.issues || []).filter((i) => i.kind === 'broken-value'), planted };
+    };
+
+    const control = await page.evaluate(SWEEP, 'combat');
+    const cbv = (control.issues || []).filter((i) => i.kind === 'broken-value');
+    if (cbv.length) fails.push('SELFTEST: control — the untouched combat screen reported broken-value: '
+      + JSON.stringify(cbv.map((i) => i.detail + ' ' + i.el)));
+
+    const bite = await probe('visible', 'Gold: NaN');
+    if (bite.planted.ok && !bite.planted.visible) fails.push('SELFTEST: the War Table boss name has no box — the bite case proves nothing');
+    if (bite.planted.ok && !bite.issues.length) fails.push('SELFTEST: a VISIBLE "NaN" on the Boss-of-the-Day card was NOT flagged — the detector is blind');
+    else if (bite.issues.length && !bite.issues.some((i) => /wtd-main/.test(i.el || '')))
+      fails.push('SELFTEST: the visible "NaN" was flagged but blamed ' + JSON.stringify(bite.issues.map((i) => i.el)) + ' instead of the element holding it');
+
+    const biteU = await probe('visible', 'Reward undefined');
+    if (biteU.planted.ok && !biteU.issues.length) fails.push('SELFTEST: a VISIBLE "undefined" was NOT flagged');
+
+    const hole = await probe('hidden', 'Gold: NaN');
+    if (hole.planted.ok && hole.planted.visible) fails.push('SELFTEST: #hr-botd-card .botd-name now has a box — the retired card is no longer hidden, so this case measures the wrong thing');
+    if (hole.issues.length) fails.push('SELFTEST: a broken value on a display:none surface was flagged — the sweep is reading text no player can see: '
+      + JSON.stringify(hole.issues.map((i) => i.detail)));
+
+    const word = await probe('visible', 'Revenant covenant maintenance');
+    if (word.issues.length) fails.push('SELFTEST: an ordinary word containing "nan" was flagged as a broken value (the b536 red): '
+      + JSON.stringify(word.issues.map((i) => i.detail)));
+
+    await page.close();
+  } finally {
+    await browser.close();
+    if (server) server.close();
+  }
+  if (fails.length) { for (const f of fails) console.error('  ✗ ' + f); return 1; }
+  console.log('✓ visual-qa --selftest: broken-value detector — control clean with the Revenant featured; '
+    + 'planted NaN and undefined on the visible Boss-of-the-Day card both flagged and attributed to it; '
+    + 'the same NaN on the display:none #hr-botd-card stays silent; "covenant/maintenance" no longer reds the gate');
+  return 0;
+}
+
+/* exitCode, not process.exit(): the gate spawns this with stdio:'inherit', and an
+   immediate exit can truncate the last lines of the report on a pipe. */
+process.exitCode = await (argv.includes('--selftest') ? selftest() : walk());

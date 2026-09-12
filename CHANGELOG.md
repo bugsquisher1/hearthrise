@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 537 — 2026-09-12 (Only the heroes the realm sold you)
+
+**Hero slots open only on the realm's word.** When the client had not yet heard from the realm which hero slots you own, it fell back to its own remembered count and could list, and let you switch into, a slot the realm never sold, only to be refused. Until the realm answers, only your first hero is offered and the drawer says it is still checking; the moment the realm answers, the list is the realm's.
+
 ## v0.9.2-beta build 536 — 2026-09-12 (What you own is what the realm says you own)
 
 **Traits mirror the realm both ways.** A trait the client had once painted as owned could linger forever, because the client only ever added traits and never removed one the realm did not project. That is the engine behind the auto-eat threshold lie fixed in build 533, and behind every "unlocked on my screen, refused by the realm" moment. The realm's list is now the list: absent means gone, present means yours, and a purchase you just made is held only until the realm answers.

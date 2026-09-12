@@ -39228,9 +39228,8 @@ const TESTS = [
      Those fixed the threshold SYMPTOM. What let a client stand on a tier it
      never bought is one line up the stack: a trait written into `G.traits` by a
      stale residue, a suite leak, an optimistically painted refusal or devtools
-     outlived a server that never sold it, on every device — the residue-ahead
-     class (§6) with a paid entitlement on it, the same shape as the 2026-09-04
-     property-tier deadlock. Gates freed: hasTrait() (shop, combat food controls,
+     outlived a server that never sold it — the residue-ahead class (§6) with a
+     paid entitlement on it. Gates freed: hasTrait() (shop, combat food controls,
      inv-context-menu, combat-render) and autoEatTier() (settings threshold
      slider, the auto-eat engine, death sheet, fight warning, set-the-night). */
   () => tryRun('b536: a trait the server does not project is REVOKED — a client-only tier cannot gate a server capability', () => {
@@ -39251,8 +39250,7 @@ const TESTS = [
       assert(AE.maxPctForTier(AE.autoEatTier(G.traits)) === 100,
         'fixture: tier II is the 100% ceiling — that is the capability being gated');
 
-      /* THE ENVELOPE. hr_state_of builds `traits` UNFILTERED and documents `[]`
-         as KNOWN (2026-08-23-trait-buy.sql): "bought nothing", not a partial. */
+      // hr_state_of builds `traits` UNFILTERED, `[]` KNOWN: "bought nothing", not a partial.
       const r = AC.reconcileTraits(G, { traits: [] });
       assert(r && r.mode === 'server' && r.removed === 2,
         'THE BUG: the hydration was a UNION — it left both invented traits standing; got '
@@ -39263,7 +39261,6 @@ const TESTS = [
       assert(AE.autoEatTier(G.traits || {}) === 0 && AE.maxPctForTier(AE.autoEatTier(G.traits || {})) === 25,
         'the gated surface must read locked / lowest tier, never the invented tier-II ceiling');
 
-      /* THE CONVERSE, so "delete everything" cannot pass: only what it projects. */
       const r2 = AC.reconcileTraits(G, { traits: ['auto_eat'] });
       assert(r2 && r2.added === 1 && window.hasTrait('auto_eat') === true
         && AE.autoEatTier(G.traits) === 1,
@@ -39272,8 +39269,7 @@ const TESTS = [
       assert(window.hasTrait('auto_eat_2') === false,
         'and ONLY what the server named — tier II was not projected');
 
-      /* AND NEVER EVICT ON UNCERTAINTY (§6): no `traits` key at all is a
-         build/partial we cannot read, not "you own nothing". */
+      // NEVER EVICT ON UNCERTAINTY (§6): no `traits` key = unreadable, not "you own nothing".
       const r3 = AC.reconcileTraits(G, { state: {} });
       assert(r3 && r3.mode === 'absent' && window.hasTrait('auto_eat') === true,
         'an envelope that does not project traits must leave the owned set exactly alone');
@@ -54142,9 +54138,11 @@ const TESTS = [
          measuring nothing. */
       Auth.getSession = () => ({ access_token: 'real-token-abc', user: { id: 'u1' } });
       await M.syncClock();
+      // Count is the contract; NAMES are the diagnostic — "2 call(s)" alone cannot say whose.
+      const seen = sent.map((c) => c.url.split('/rpc/')[1] || c.url).join(' + ');
       assert(sent.length === 1 && sent[0].url.indexOf('/rpc/hr_server_now') !== -1,
-        'with a session the clock did NOT sync (' + sent.length + ' call(s)) — the guard above is '
-        + 'passing against a dead path and proves nothing');
+        'with a session the clock did NOT sync (' + sent.length + ' call(s): ' + seen + ') — the '
+        + 'guard above is passing against a dead path and proves nothing');
       assert(sent[0].auth === 'Bearer real-token-abc',
         'the clock went out signed with something other than the player\'s token ("' + sent[0].auth
         + '") — the `|| anonKey` fallback in headers() is still downgrading the call');
@@ -62351,6 +62349,14 @@ export async function runSmokeTest(opts = {}) {
   const _Comp = window.HearthriseCompanions;
   let _grantsWereParked = false;
   try { if (_Comp && typeof _Comp.__parkGrants === 'function') _grantsWereParked = _Comp.__parkGrants(true); } catch (e) {}
+  /* ── AND THE QUEST STRIP'S GESTURE-LESS hr_goal_state READ ──────────
+     renderStrip() rides Events.on('*'); its session is Auth.getSession(), which
+     tests stub to hand THEMSELVES one, so the read lands in their fetch stub —
+     B349-R3 measured `hr_goal_state + hr_server_now` for a one-call subject,
+     park off/on flips it 4-vs-1. Gesture reads untouched. */
+  let _ambientGoalsWereParked = false;
+  const _SG = window.__hrSyncServerGoals;
+  try { if (_SG) { _ambientGoalsWereParked = !!_SG.parked; _SG.parked = true; } } catch (e) {}
   /* ── THE ONE hr_load THE HARNESS PERFORMS (gold-arm) ─────────────────────
      With gold/gems ARMED, `balanceOf` reads a number only when `G._record`
      vouches for it — the provenance stamp that in production `hr_load` writes
@@ -62416,6 +62422,7 @@ export async function runSmokeTest(opts = {}) {
     try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
     try { if (_Auto && typeof _Auto._parkPctMirror === 'function') _Auto._parkPctMirror(_pctMirrorWasParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__parkGrants === 'function') _Comp.__parkGrants(_grantsWereParked); } catch (e) {}
+    try { if (_SG) _SG.parked = _ambientGoalsWereParked; } catch (e) {}
     try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
     try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _Rn.__setPollEnabled(_rnPollWasOn); } catch (e) {}
     try {

@@ -20563,10 +20563,10 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
        && window.HearthrisePresence.inOfflineReplay()) return;
     var strip = ensureStrip();
     if(!strip) return;
-    /* b461: keep the strip's numbers on the server's picture, refreshed at
-       most every 30s (the strip repaints on every bus event — the TTL + the
-       in-flight latch keep this to one small read per half-minute). */
-    syncServerGoals(function(fresh){ if(fresh) renderStrip(); }, 30000);
+    /* b461: the strip's numbers on the server's picture, at most every 30s (it
+       repaints on every bus event; TTL + latch hold it to one small read per
+       half-minute). THE ONLY GESTURE-LESS hr_goal_state — hence the suite park. */
+    if(!(window.__hrSyncServerGoals && window.__hrSyncServerGoals.parked)) syncServerGoals(function(fresh){ if(fresh) renderStrip(); }, 30000);
     var list = strip.querySelector('.gq-list');
     var meta = strip.querySelector('#gq-reset');
     var goals = (typeof window.getGoalsForToday === 'function') ? window.getGoalsForToday() : [];

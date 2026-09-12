@@ -1,17 +1,17 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=538' directly.
+// modularised, will import { G } from '../state/game.js?v=539' directly.
 //
 // b535 — NEVER SENT TO A PLAYER. A dynamic import owned by smoke-test-loader.js,
 // which owns all three triggers too; read its header. Guard: boot-budget.mjs.
 
-import { on, snapshot } from '../net/events.js?v=538';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=538';
+import { on, snapshot } from '../net/events.js?v=539';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=539';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=538';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=539';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -9299,7 +9299,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=538');
+    const S = await import('../data/shops.js?v=539');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -10205,7 +10205,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=538');
+    const mod = await import('../data/dungeons.js?v=539');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10236,7 +10236,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=538');
+    const mod = await import('../data/dungeons.js?v=539');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -43996,7 +43996,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=538');
+    const KIT = await import('../data/start-kit.js?v=539');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -44078,7 +44078,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=538');
+    const KIT = await import('../data/start-kit.js?v=539');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -44192,7 +44192,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=538');
+    const KIT = await import('../data/start-kit.js?v=539');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -46303,7 +46303,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=538')).text();
+    const src = await (await fetch('src/legacy.js?v=539')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -52865,7 +52865,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=538');
+    const S = await import('../data/shops.js?v=539');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -54411,7 +54411,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=538');
+    const S = await import('../data/shops.js?v=539');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -58999,7 +58999,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=538')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=539')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -60990,7 +60990,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=538');
+    const A = await import('../net/accrue.js?v=539');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -61015,7 +61015,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=538');
+    const A = await import('../net/accrue.js?v=539');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -61042,7 +61042,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=538');
+    const A = await import('../net/accrue.js?v=539');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -61195,7 +61195,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=538')).text();
+      const raw = await (await fetch(f + '?v=539')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -61245,7 +61245,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=538')).text();
+    const raw = await (await fetch('src/observability.js?v=539')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -61349,7 +61349,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=538');
+    const _art = await import('../data/monster-art.js?v=539');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -62473,6 +62473,59 @@ const TESTS = [
       window.fetch = realFetch; A.setServerAccrualEnabled(false); if (!wasOn) A.setServerAccrualEnabled(false);
       try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
       M.resetActivity(); M.configureActivity(null);
+      try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {}
+      restoreG(snap); window.showTab('profile');
+    }
+  }),
+
+  /* ── THE RECIPE YOU CAME FROM (regression suite) ──────────────────────────
+     The same class as the gather tile above, left for its own lane: cook shrimp
+     → fight → open Skills and tap Cook Shrimp again → nothing. All four artisan
+     renderers baked `active ? stopSkill() : startArtisan(…)` at PAINT time, and
+     combat's cross-stop clears the pointer and strips the badge IN PLACE
+     without rebuilding the panel — so that one tile kept a stop handler while
+     looking idle, the stop hit its "was anything running" guard, and the
+     gesture died silently. Driven as the PLAYER'S gesture: a real .click() on
+     the real tile, real declaration path. The last two taps (stop, then start
+     again) are also what licenses deleting the stopSkill re-render wrapper: a
+     stop strips .active in place and rebuilds nothing, so only a click-time
+     toggle can survive it. Prefixed B539- to run alone. */
+  () => tryRunAsync('B539-1: after a fight, tapping the artisan recipe you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
+    const G = window.G; const A = window.HearthriseAccrual; const M = window.HearthriseActivity; const AS = window.HearthriseCore && window.HearthriseCore.artisanSim;
+    const rec = ((window.ARTISAN_RECIPES || {}).cooking || []).find((r) => r.id === 'cook_shrimp'); const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+    assert(!!rec && !!mid && !!A && !!M && typeof window.openSkillDetail === 'function' && typeof window.startArtisan === 'function', 'setup: no cook_shrimp recipe / monster / activity seam — the reported gesture cannot be driven');
+    const snap = snapshotG(); const realFetch = window.fetch; const sent = [];
+    const drain = async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); for (let i = 0; i < 60; i++) await Promise.resolve(); };
+    const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')].find((e) => e.getAttribute('data-prod') === rec.output);
+    try {
+      /* ACCEPT, AND ECHO THE DECLARED POINTER BACK as the server's own, so the
+         reconcile cannot put the client on something this gesture never asked for. */
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let body = null; try { body = JSON.parse(init && init.body); } catch (e) {}
+        if (body && body.verb === 'set_activity') sent.push(body);
+        const act = (body && body.activity) || { kind: 'idle', id: null };
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 900 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: {} }), { status: 200 }));
+      };
+      if (AS && typeof AS.__setCookingSettlementArm === 'function') AS.__setCookingSettlementArm(true);   // the bench pause is not this test's subject
+      M.resetActivity(); M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' }); A.setServerAccrualEnabled(true);
+      const inputs = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inputs).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); G.playerHp = G.playerMaxHp || G.playerHp;
+      window.openSkillDetail('cooking'); await drain();
+      window.startArtisan('cooking', rec.id); await drain(); const painted = tileOf();
+      assert(!!painted && painted.classList.contains('active'), 'CONTROL: the tile must paint ACTIVE while the recipe runs (pointer ' + G.activeSkill + '/' + G.skillTargetId + '), or this cannot reproduce the stale paint');
+      window.startCombat(mid); await drain();
+      assert(G.activeMonster === mid && !G.activeSkill && !G.skillTargetId, 'setup: the fight or the cross-stop never happened (' + G.activeMonster + ', ' + G.activeSkill + ') — the scenario under test is gone');
+      window.showTab('skills'); await drain();                       // the player walks back; measured: this does NOT repaint the grid
+      const tile = tileOf(); const stalePaint = tile === painted; sent.length = 0; assert(!!tile && tile.isConnected, 'the ' + rec.id + ' tile is no longer on the Skills screen');
+      tile.click(); await drain();
+      const sw = sent.filter((b) => b.activity && b.activity.kind === 'artisan' && b.activity.id === rec.id);
+      assert(sw.length >= 1, 'tapping the recipe the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time and the stop returned in silence. The player cannot get back to their own bench with one tap');
+      assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster);
+      const back = tileOf(); back.click(); await drain(); assert(!G.activeSkill && !G.skillTargetId, 'a second tap on the RUNNING recipe did not stop it (' + G.activeSkill + '/' + G.skillTargetId + ')');
+      const third = tileOf(); third.click(); await drain(); assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id, 'the tap AFTER a stop did not restart the recipe (' + G.activeSkill + '/' + G.skillTargetId + ') — a stop strips .active in place and rebuilds nothing');
+    } finally {
+      window.fetch = realFetch; A.setServerAccrualEnabled(false); try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
+      if (AS && typeof AS.__setCookingSettlementArm === 'function') AS.__setCookingSettlementArm(null); M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {}
       restoreG(snap); window.showTab('profile');
     }

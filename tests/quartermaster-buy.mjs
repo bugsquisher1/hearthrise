@@ -35,6 +35,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { bootReplay } from './schema-replay.mjs';
+import { runMutationProof } from './mutation-proof.mjs';
 
 // bone_key is the cheapest offer (18 scrip) and a BoP key — a deterministic,
 // tuning-independent purchase. The offer id is `qm.<item_id>` (§4: the dotted
@@ -200,25 +201,27 @@ async function runAll(db) {
 // ── CLI ──────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
 if (argv.includes('--selftest')) {
-  console.log('quartermaster-buy --selftest: each mutation must turn the guard RED');
-  let bad = 0;
-  for (const name of Object.keys(MUTATIONS)) {
-    const saveFail = failed; failed = 0; let threw = false;
-    try {
-      const db = await boot(name);
-      await runAll(db);
-    } catch (e) {
-      threw = true;
-      console.log(`  ${name}: RED (threw / failed to apply: ${String(e.message).split('\n')[0]})`);
-    }
-    const wentRed = failed > 0 || threw;
-    failed = saveFail;
-    if (wentRed) { if (!threw) console.log(`  ${name}: RED (assertions failed) — ${MUTATIONS[name].why}`); }
-    else { bad++; console.error(`  x ${name}: STAYED GREEN — the guard does not catch: ${MUTATIONS[name].why}`); }
-  }
-  if (bad) { console.error(`\n${bad} mutation(s) not caught — the guard is not proving what it claims.`); process.exit(1); }
-  console.log(`\nAll ${Object.keys(MUTATIONS).length} mutations caught. The guard is non-vacuous.`);
-  process.exit(0);
+  // Scored by tests/mutation-proof.mjs: clean baseline FIRST (and green), and an
+  // undeclared throw is a HARNESS error (exit 2) rather than a free "caught" —
+  // the hand-rolled driver this replaces read every explosion as a red guard.
+  await runMutationProof({
+    label: 'quartermaster-buy',
+    cases: Object.entries(MUTATIONS).map(([id, m]) => ({
+      id, why: m.why,
+      /* DECLARED: each of these defects is refused by the MIGRATION's own §4
+         self-check, so the mutated file does not apply at all. That was always
+         what happened — the old driver just scored the throw as "the guard went
+         red" and never said so. `refusesIn` makes the claim checkable: the chain
+         failure must name THIS file. The follow-up (gate-blind arms, see
+         tests/state-of-farm-projection.mjs GATE_BLIND) is what would prove this
+         guard's OWN assertions bite. */
+      refuses: true, refusesIn: m.file,
+    })),
+    baseline: async () => { await runAll(await boot(null)); },
+    arm: async (id) => { await runAll(await boot(id)); },
+    failures: () => failed,
+    reset: () => { failed = 0; },
+  });
 } else {
   const db = await boot(null);
   await runAll(db);

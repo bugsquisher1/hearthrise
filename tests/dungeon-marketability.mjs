@@ -27,6 +27,7 @@
 // NO ?v= on the imports (this is tests/**, not a browser module — b332).
 // ════════════════════════════════════════════════════════════════════════
 
+import { runMutationProof } from './mutation-proof.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { QM_STOCK } from '../src/data/dungeons.js';
 
@@ -95,21 +96,18 @@ const MUTATIONS = {
 
 const argv = process.argv.slice(2);
 if (argv.includes('--selftest')) {
-  console.log('dungeon-marketability --selftest: each flip must turn the guard RED');
-  let bad = 0;
-  for (const name of Object.keys(MUTATIONS)) {
-    const saveFail = failed; failed = 0;
-    const mutated = clone(ITEMS);
-    MUTATIONS[name](mutated);
-    check(mutated, QM_STOCK);
-    const wentRed = failed > 0;
-    failed = saveFail;
-    if (wentRed) console.log(`  ${name}: RED`);
-    else { bad++; console.error(`  x ${name}: STAYED GREEN — the guard does not catch it`); }
-  }
-  if (bad) { console.error(`\n${bad} flip(s) not caught — the guard is not proving what it claims.`); process.exit(1); }
-  console.log(`\nAll ${Object.keys(MUTATIONS).length} flips caught. The guard is non-vacuous.`);
-  process.exit(0);
+  // Scored by tests/mutation-proof.mjs. The clean arm is not a formality here:
+  // this guard reads the SHIPPED catalogues, so a rename in src/data/items.js
+  // (dungeon_scrip -> scrip) makes every flip throw on `items.<id>.bop` and the
+  // old driver had no arm whose expected colour was green.
+  await runMutationProof({
+    label: 'dungeon-marketability',
+    cases: Object.keys(MUTATIONS).map((id) => ({ id })),
+    baseline: () => { check(clone(ITEMS), QM_STOCK); },
+    arm: (id) => { const m = clone(ITEMS); MUTATIONS[id](m); check(m, QM_STOCK); },
+    failures: () => failed,
+    reset: () => { failed = 0; },
+  });
 } else {
   check(ITEMS, QM_STOCK);
   if (failed) { console.error(`\ndungeon-marketability: ${failed} assertion(s) FAILED.`); process.exit(1); }

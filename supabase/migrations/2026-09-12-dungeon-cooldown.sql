@@ -657,6 +657,17 @@ begin
     raise exception 'GATE(c): the splice DROPPED an earlier projection (scrip / marks / hired_at) — '
                     'the patch chain is broken';
   end if;
+  -- renown_high joined the envelope on 2026-09-12 at 17:22 UTC
+  -- (2026-09-12-renown-high-projection.sql, applied while this file was in review).
+  -- This file SPLICES hr_state_of rather than restating it, so it composes with that
+  -- projection instead of reverting it — and that is a claim, so it is asserted. A
+  -- restatement authored before 17:22 would have dropped renown_high from every
+  -- envelope silently, which is the b484-b487 class this gate exists for.
+  if position('''renown_high'', coalesce(v_st.renown_high' in v_def) = 0 then
+    raise exception 'GATE(c): hr_state_of no longer projects renown_high — this file was applied on '
+                    'top of a body that predates 2026-09-12-renown-high-projection.sql, or it '
+                    'reverted it. Re-apply the renown projection, then this.';
+  end if;
 
   -- (d) NO CLIENT WRITE on player_ledger. The whole cooldown is derived from it,
   --     so a browser-reachable INSERT/UPDATE/DELETE — by grant or by policy —

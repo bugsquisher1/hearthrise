@@ -1186,7 +1186,18 @@ async function saveSlotGuard(browser, url) {
         } catch (e) {}
       };
       stampGems(); P.unlockSlot(1);
-      stampGems(); P.unlockSlot(2);
+      /* b537 — AND THE SERVER IS THE ONE WHO SAYS WHAT IS OWNED. `unlockSlot`
+         writes the `G.heroSlotsUnlocked` RESIDUE, and since 2026-09-11
+         multi-character.js refuses to gate a switch on it: with hr_state_of
+         silent the fail-safe is slot 0 alone, so both the second unlock and
+         `switchSlot(2)` would be refused and every assertion below would read as
+         a b342 regression against a switch that never happened.
+         `adoptServerSlots` is the door the hr_state_of projection comes in (the
+         b372 test states its fixture the same way); this page is signed out, so
+         it is the only way to state what that projection would say. The SUBJECT
+         is unchanged: the periodic save must address the character being
+         PLAYED. */
+      P.adoptServerSlots([0, 1, 2]);
       P.switchSlot(2);
       const activeSlot = P.activeSlot();
 

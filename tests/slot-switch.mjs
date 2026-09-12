@@ -113,6 +113,13 @@ async function pagehideRaceGuard(browser, url, opts = {}) {
       // unlockSlot's affordability read is KNOWN (as it is post-hr_load in prod).
       if (window.HearthriseRecord) { try { window.HearthriseRecord.applyRecord(window.G, { ok: true, version: Date.now(), now: new Date().toISOString(), state: { gold: window.G.gold, gems: window.G.gems } }); } catch (e) {} }
       const r = P.unlockSlot(1);
+      /* b537 — AND THE SERVER'S OWN ANSWER, because the residue `unlockSlot`
+         writes is no longer allowed to gate a switch (multi-character.js
+         residueCount() fails safe to slot 0 while hr_state_of is silent, which
+         it always is on this signed-out harness). Without this the switch under
+         test is refused as 'unconfirmed' and every assertion below passes or
+         fails for the wrong reason. */
+      if (typeof P.adoptServerSlots === 'function') P.adoptServerSlots([0, 1]);
       /* The switch refuses to swap unless the outgoing character's cloud flush
          answers, and this harness is signed out. Answering it is not what is
          under test here — the pagehide writes AFTER the swap are. */
@@ -240,6 +247,8 @@ export async function slotSwitchGuard(browser, url, opts = {}) {
       // gold-arm: stamp the armed balance via the REAL applyRecord path (see above).
       if (window.HearthriseRecord) { try { window.HearthriseRecord.applyRecord(window.G, { ok: true, version: Date.now(), now: new Date().toISOString(), state: { gold: window.G.gold, gems: window.G.gems } }); } catch (e) {} }
       const r = P.unlockSlot(1);                      // direct: the buy dialog is tested separately
+      // b537: the server projection is the switch gate now — state it (see the first check).
+      if (typeof P.adoptServerSlots === 'function') P.adoptServerSlots([0, 1]);
       return { ok: !!(r && r.ok), active: P.activeSlot(), rows: P.slotRows().length };
     });
     if (!setup.ok || setup.active !== 0) {

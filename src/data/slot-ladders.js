@@ -84,7 +84,12 @@ export const SLOT_ITEMS = {
 
      Crit headroom checked: best-in-slot critB is 0.308 today and the engine cap
      (COMBAT_BALANCE.critCap) is 0.60. This lane adds at most 0.04.            */
-  copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    defB: 1, critB: 0.005 },
+  /* b542 — the tier-1 rung was the ONE earring in this lane with no reqSkill/reqLv,
+     which read as "tier 1 needs no gate" and left hr_items.req_lv NULL on the only
+     rung a new player actually reaches. reqLv 1 restricts nobody (the gate is
+     `level < req_lv`); it states the lane's skill so the column is non-NULL across
+     all seven rungs and the server has one shape to read. */
+  copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    reqSkill: 'defense', reqLv: 1,  defB: 1, critB: 0.005 },
   fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'defense', reqLv: 18, defB: 2, critB: 0.01 },
   spidereye_studs:     { n: 'Spider-Eye Studs',    icon: '💎', v: priced(100, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare',      reqSkill: 'defense', reqLv: 34, defB: 3, critB: 0.015, strB: 2 },
   wraithglass_drops:   { n: 'Wraithglass Drops',   icon: '💎', v: priced(100, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic',      reqSkill: 'defense', reqLv: 50, defB: 4, critB: 0.02,  strB: 3 },

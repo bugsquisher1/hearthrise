@@ -328,37 +328,27 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
-     THE MIRRORED FIGURE LAGS BY ONE SETTLE, AND THE PLAYER IS TOLD SO.
+     THE MIRRORED FIGURE LAGS BY ONE SETTLE — AS A TOOLTIP, NOT A SENTENCE.
 
      `player_state.renown_high` is ratcheted at APPLY time (2026-09-12-renown-
      high-projection.sql), so the counted figure a headline paints is the score
      as of the last successful apply — never the score of the fight that just
-     finished. That is not a defect to hide: a number that sits still while the
-     player is visibly earning reads as broken unless the surface says why.
+     finished.
 
-     GAME DESIGNER'S RULING (final, 2026-09-11): rank never goes down, and the
-     headline copy when the figure can lag is
-         "Renown N — your best yet. New gains count from your next settle."
+     b540 explained that in a standing sentence painted under five headlines.
+     TYLER, 2026-09-12, binding: *"wtf does this even mean lol"*, reading it on
+     the hearth band. A headline explains nothing; it names the thing. So the headline is just `rank · N Renown` again, and the
+     explanation is ONE tooltip on the figure itself, in plain words — available
+     to the player who wonders, invisible to the player who does not.
 
-     ONE STRING, TWO FRAMINGS, NO DRIFT. The ruling's sentence carries the
-     figure; three of the five surfaces already print that figure an inch away
-     (the ladder header, the Home rail, the Skills header), so repeating it
-     there would read as a stutter. Those pass `figureShown` and get the
-     explanation half — the same literal tail, capitalised, never a second copy
-     of the words. Surfaces with no figure of their own (the hearth band chip,
-     the Hero "Standing" line) get the whole sentence.
-
-     UNKNOWN (the realm has stated nothing this session) returns '' and every
-     surface keeps its current copy untouched: a lag note beside a figure that
-     is openly the client's own prediction would be a sentence about something
-     that has not happened yet.
+     UNKNOWN (the realm has stated nothing this session) returns '' and no
+     tooltip is hung at all: a settle note beside a figure that is openly the
+     client's own prediction would describe something that has not happened.
      ══════════════════════════════════════════════════════════════════════════ */
-  var LAG_TAIL = 'your best yet. New gains count from your next settle.';
-  function lagHint(st, opts) {
+  var LAG_TIP = 'Updates when your session settles.';
+  function lagTip(st) {
     if (!st || typeof st.counted !== 'boolean') st = getState(null);
-    if (!st.counted) return '';
-    if (opts && opts.figureShown) return LAG_TAIL.charAt(0).toUpperCase() + LAG_TAIL.slice(1);
-    return 'Renown ' + fmt(st.renown) + ' — ' + LAG_TAIL;
+    return st.counted ? LAG_TIP : '';
   }
 
   // ── Persisted state (claims + rank-up detection) ────────────
@@ -919,13 +909,6 @@
     var todayLine = (gain === null) ? '' :
       '<div class="hr-rn-today">+' + fmt(gain) + ' Renown today</div>';
 
-    /* The lag note rides the header's own hint element (.hr-rn-next, the line
-       that already explains the figure above it) — no new class, no new
-       colour. Absent entirely when the realm has stated nothing. */
-    var lagLine = '';
-    var _lag = lagHint(st, { figureShown: true });
-    if (_lag) lagLine = '<div class="hr-rn-next" data-hr-renown-hint>' + _lag + '</div>';
-
     var scrim = document.createElement('div');
     scrim.className = 'hr-rn-scrim';
     scrim.id = 'hr-rn-modal';
@@ -938,7 +921,6 @@
           '<div class="hr-rn-sub">' + fmt(st.renown) + ' Renown</div>' +
           '<div class="hr-rn-bar"><i style="width:' + Math.round(st.progress * 100) + '%"></i></div>' +
           '<div class="hr-rn-next">' + nextLine + '</div>' +
-          lagLine +
           todayLine +
         '</div>' +
         '<div class="hr-rn-list">' + rows + '</div>' +
@@ -1051,10 +1033,9 @@
     /* b226: the ratcheted score every rank decision is made against. */
     effective: effectiveRenown,
     getState: getState,
-    /* ONE source for the lag copy, read by every surface that paints the
-       mirrored figure (Home hearth band + status rail, the Hero standing line,
-       the Skills header, the ladder header). '' when UNKNOWN. */
-    lagHint: lagHint,
+    /* ONE source for the lag copy — the tooltip on the ONE headline renown
+       figure (the Home hearth band). '' when UNKNOWN. */
+    lagTip: lagTip,
     rankIndexFor: rankIndexFor,
     ensureState: ensureState,
     getClaimable: getClaimable,

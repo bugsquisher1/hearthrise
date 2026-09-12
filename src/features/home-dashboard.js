@@ -1204,10 +1204,10 @@
       var _RN0 = window.HearthriseRenown;
       var _rn = _RN0 && _RN0.getState(G);
       if (_rn) {
-        /* The band is ONE dense line (rank · renown · connection), so the lag
-           note is the figure's TOOLTIP rather than a second line that pushes the
-           connection status off the end. '' → byte-for-byte the old markup. */
-        var _lag0 = (_RN0.lagHint ? _RN0.lagHint(_rn) : '');
+        /* THE headline: `rank · N Renown`, and nothing under it (Tyler,
+           2026-09-12). The one place the settle lag is explained is this
+           figure's tooltip — plain words, opt-in. '' → the old bare markup. */
+        var _lag0 = (_RN0.lagTip ? _RN0.lagTip(_rn) : '');
         var _fig = num(_rn.renown) + ' Renown';
         rankLine = '<b>' + esc(_rn.rank.name) + '</b><span class="sep">·</span>' +
           (_lag0 ? '<span data-hr-renown-hint title="' + esc(_lag0) + '">' + _fig + '</span>' : _fig);
@@ -1598,10 +1598,6 @@
         var claimN = (RN.getClaimable ? RN.getClaimable(G) : []).length;
         var rpct = Math.round((rs.progress || 0) * 100);
         var nextTxt = rs.isMax ? 'Summit reached' : (num(rs.toNext) + ' to ' + esc(rs.next.name));
-        /* The figure is on the line above, so this card takes the explanation
-           half of the ruling, in .hd-mile-sub — the card's own hint element. */
-        var rlag = (RN.lagHint ? RN.lagHint(rs, { figureShown: true }) : '');
-        var rlagLine = rlag ? '<div class="hd-mile-sub" data-hr-renown-hint>' + esc(rlag) + '</div>' : '';
         html += '<div><div class="hd-h"><h3>Rise to the throne</h3><a data-hd="renown">Ladder →</a></div>' +
           '<div class="hd-card hd-mile is-title" data-hd="renown" style="cursor:pointer;padding-left:0">' +
             '<div class="hd-mile-badge">' + gly('totalLvl', 22, '', '#e6d6b4') + '</div>' +
@@ -1610,7 +1606,6 @@
                 (claimN ? '<span class="hd-rn-claimdot">' + claimN + ' ready</span>' : '') + '</div>' +
               '<div class="hd-mile-sub">' + num(rs.renown) + ' Renown · ' + nextTxt + '</div>' +
               '<div class="hd-bar" style="--accent:var(--gold)"><i style="width:' + rpct + '%"></i></div>' +
-              rlagLine +
             '</div>' +
           '</div></div>';
       } catch (e) { /* renown optional */ }

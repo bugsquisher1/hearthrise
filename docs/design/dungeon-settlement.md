@@ -98,7 +98,8 @@ function is the only caller. The migration asserts the ACL with the enumerated-r
 | combat level ≥ `req_lv` | derived from `player_skills` server-side (never a client level) | `level_locked` |
 | optimistic version | `player_state.version` under `for update` | `version_conflict` |
 | **key present + consumed** | `player_inventory[cost_key]` ≥ 1, debited under `for update` | `insufficient_item` |
-| cooldown (mode='auto' only) | `now()` vs last `kind='dungeon',meta.mode='auto'` ledger row for this (user,slot,dungeon) + `cooldown_s` | `on_cooldown` |
+| re-entry cooldown, EVERY mode at its own share (`hr_dungeon_cooldown_modes()` = `{auto:1, manual:1, scavenger:4}`) | `hr_dungeon_cooldowns(user,slot)`: `now()` vs `max(at)` of the `kind='dungeon', meta.op='settle'` ledger rows for this (user,slot,dungeon) + `cooldown_s / divisor(mode)`. THE SAME function `hr_state_of` projects as `dungeon_cooldowns`, so the countdown shown and the window enforced are one number (`2026-09-12-dungeon-cooldown.sql`) | `on_cooldown` (detail: `dungeon`, `mode`, `next_entry_at`, `ready_at`, `cooldown_s`) |
+| scavenger run is AUTHORED for this dungeon | `hr_dungeons.scavenger_ok` (⟦DERIVED⟧ from `SCAVENGER_CONFIGS`) — the client string cannot reach a dungeon with no scavenger config | `bad_mode` (detail: `reason='no_scavenger_config'`) |
 | per-day scrip cap (blast radius) | `sum(meta.scrip)` from `player_ledger` this UTC day | `daily_cap` |
 | loot roll | server RNG `hr_seed(user,slot,'dungeon:'||id||':'||ledger_seq)`; table `hr_dungeon_loot` (GENERATED) | — |
 
@@ -131,12 +132,46 @@ a stored counter a client can influence:
 
 * **auto** — the per-dungeon `cooldown_s` (from `d.cooldownH`), enforced against the last auto-mode
   `dungeon` ledger row. This closes the reload bypass.
-* **manual / scavenger** — the current design DELIBERATELY has no cooldown (`src/dungeon-scavenger.js`
-  L528, `src/dungeons.js` L534: "Manual runs ignore the auto-run cooldown"). Its server-side limiter is
+* **manual / scavenger** — the original design DELIBERATELY had no cooldown (`src/dungeon-scavenger.js`
+  L528, `src/dungeons.js` L534: "Manual runs ignore the auto-run cooldown"). Its server-side limiter was
   the **key consumption** (a manual run costs a real server-held key — `src/dungeons.js` L939 b214 fix)
-  plus the **per-day scrip cap**. So "enforce on BOTH modes" is honoured as: auto = server cooldown;
-  manual = server key-debit + per-day cap. If the designer wants a manual cooldown too, it is one added
-  `on_cooldown` branch — flagged, not assumed.
+  plus the **per-day scrip cap**. That was flagged as "one added `on_cooldown` branch" if wanted.
+
+**RESOLVED 2026-09-12 (`2026-09-12-dungeon-cooldown.sql`, b536 census item 5).** The b288 lesson was only
+half-learned: the *client* clock came back. `canRun()` gated every mode on `G.dungeons.lastRun[id]`,
+which is RESIDUE (client-authored), and **under the settle arm the client stopped stamping it at all** —
+`runDungeon()` returns at the armed branch before the stamp and `showSummary()`'s stamp sits in the
+dormant `else`. So `lastRun` stayed 0 forever: the UI always said "ready", an **auto** re-entry was
+refused by the server with no countdown anywhere, and a **manual** re-entry — with no server gate — was
+unlimited up to the 250-settles/day fuse. Dungeon loot is mostly ordinary TRADEABLE material, so that
+was a faucet on tradeable goods reachable with **no clock tampering at all**.
+
+**GAME-DESIGNER RULING 2026-09-12: no exemption may be keyed on a client string, and `scavenger` is a
+catalogue fact.** `p_mode` is the one value a tampering client picks freely, so "scavenger has no
+cooldown" meant "any client that says scavenger has no cooldown". The window is now one server fact
+with one derivation and two readers:
+
+* `hr_dungeon_cooldown_modes()` → the DIVISOR TABLE `{auto:1, manual:1, scavenger:4}`, read through
+  `hr_dungeon_cooldown_divisor(mode)`. Every mode is cooldown-bearing; the scavenger waits
+  `cooldown_s / 4` (crypt 4h → 1h) instead of nothing. Retuning is one line.
+* `hr_dungeons.scavenger_ok` — a `scavenger` intent for a dungeon with no authored scavenger run is
+  refused **`bad_mode` / `no_scavenger_config`**, so the string cannot reach `ancient_wyrm`'s 72h
+  window and best-in-game table. ⟦DERIVED⟧ from `SCAVENGER_CONFIGS` (`src/dungeon-scavenger.js`) with a
+  both-ways drift guard in `tests/dungeon-cooldown.mjs`; the paydown is to move that id set into
+  `src/data/` and have `tools/gen-dungeon-catalogue.mjs` emit the column.
+* `hr_dungeon_cooldowns(user, slot)` → `{ dungeon_id: { mode: next_entry_at } }`, ACTIVE entries only,
+  one pass over `player_ledger` (server-stamped `at`, `op='settle'`, any mode in the divisor table)
+  joined to `cooldown_s`. **The model: a run is a run** — `last_at` is the last settle in any mode and
+  an entry clears `last_at + cooldown_s / divisor(its own mode)`, so after a scavenger run the
+  scavenger waits a quarter while auto and manual still wait the full window. No stored column: a
+  second copy of a cooldown is a second place to disagree, and the ledger cannot drift from the
+  evidence. Cost: one partial index (`player_ledger_dungeon_idx`), zero new rows.
+* the gate (BEFORE the key debit, so a refused early re-entry costs nothing) refuses `on_cooldown` with
+  `{dungeon, mode, next_entry_at, ready_at, cooldown_s}`; `hr_state_of` projects the same map top-level
+  as **`dungeon_cooldowns`**, beside the `now` the envelope already carries, so the client renders a
+  skew-free countdown and gates on the server's number. Client half (lane A): `canRun(id, mode)` reads
+  `G._dungeonCooldowns[id][mode]` (scratch, never persisted), the two dead `lastRun = Date.now()`
+  writes go, and `src/net/dungeon-settle.js:73`'s "try a manual run" message is now a lie.
 
 ### Anti-forgery argument
 

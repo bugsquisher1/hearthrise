@@ -68,6 +68,15 @@ import { xpForLevel } from '../src/core/xp.js';
 const DUNGEON = 'crypt_of_bones';
 const KEY = 'bone_key';
 const SCRIP_BASE = 15;   // dungeonScripBase(25) = max(5, round(25*0.6)) = 15
+/* The daily fuses are per (user, slot, UTC-day) and DELIBERATELY NOT per dungeon,
+   so the cap scenarios below seed their prior-usage ledger rows against a DIFFERENT
+   dungeon than the one they then run. That is not a workaround, it is the stronger
+   assertion (a cap that leaked per-dungeon would now be visible), and it is
+   REQUIRED since 2026-09-12-dungeon-cooldown.sql: the re-entry cooldown is derived
+   from those same kind='dungeon' rows and gate (c) runs BEFORE the caps, so a
+   same-dungeon seed would be refused `on_cooldown` and the cap would never be
+   reached. tests/dungeon-cooldown.mjs owns the cooldown itself. */
+const CAP_SEED_DUNGEON = 'goblin_warcamp';
 
 const uidFor = (n) => `000000d7-0000-0000-0000-0000000000${n}`;
 
@@ -242,7 +251,7 @@ async function runAll(db) {
   await seed(db, E);
   await db.exec(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
                  values ('${E}', 0, 'dungeon', 'seed_cap', 0,0,0,0,0,
-                         jsonb_build_object('dungeon','${DUNGEON}','mode','manual','scrip', 5000));`);
+                         jsonb_build_object('dungeon','${CAP_SEED_DUNGEON}','mode','manual','scrip', 5000));`);
   const rcap = await settle(db, E, { version: await versionOf(db, E), intent: uuid(), mode: 'manual', quality: 1 });
   ok(rcap && rcap.error === 'daily_cap', `at-cap run refused daily_cap (got ${rcap && rcap.error})`);
   ok(rcap && rcap.dim === 'scrip', `scrip-cap refusal carries dim=scrip (got ${rcap && rcap.dim})`);
@@ -255,7 +264,7 @@ async function runAll(db) {
   await seed(db, F, { keys: 3 });
   await db.exec(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
                  select '${F}', 0, 'dungeon', 'seed_count_'||g, 0,0,0,0,0,
-                        jsonb_build_object('op','settle','dungeon','${DUNGEON}','mode','manual','scrip', 1)
+                        jsonb_build_object('op','settle','dungeon','${CAP_SEED_DUNGEON}','mode','manual','scrip', 1)
                    from generate_series(1,250) g;`);
   const rcnt = await settle(db, F, { version: await versionOf(db, F), intent: uuid(), mode: 'manual', quality: 1 });
   ok(rcnt && rcnt.error === 'daily_cap', `251st settle refused daily_cap (got ${rcnt && rcnt.error})`);
@@ -271,7 +280,7 @@ async function runAll(db) {
   await seed(db, H);
   await db.exec(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
                  values ('${H}', 0, 'dungeon', 'seed_earn', 0,0,0,0,0,
-                         jsonb_build_object('op','settle','dungeon','${DUNGEON}','mode','manual','scrip', 5000)),
+                         jsonb_build_object('op','settle','dungeon','${CAP_SEED_DUNGEON}','mode','manual','scrip', 5000)),
                         ('${H}', 0, 'dungeon', 'seed_spend', 0,0,0,0,0,
                          jsonb_build_object('op','qm_buy','offer','${KEY}','item','${KEY}','scrip', -4000));`);
   const rearn = await settle(db, H, { version: await versionOf(db, H), intent: uuid(), mode: 'manual', quality: 1 });

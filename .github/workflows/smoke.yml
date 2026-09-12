@@ -459,6 +459,40 @@ jobs:
           node tests/rejections-journal.mjs
           node tests/rejections-journal.mjs --selftest
 
+      # DOES THE PLAYER SEE WHAT THE SERVER HAS COUNTED?
+      # b535 pointed the renown headline and the rank-up card at a SERVER mirror,
+      # but hr_state_of projected no renown — so after a reload the mirror's only
+      # continuous source was the `renown_claim:<rank>` once-guard flag, i.e. the
+      # threshold of the last rank the player PAID for. Measured live 2026-09-11:
+      # the QA account read 400 (the Serf floor) while the server had counted 779
+      # toward Squire (900), and the only thing that moves the number is clicking
+      # Claim.
+      #
+      # 2026-09-12-renown-high-projection.sql ratchets player_state.renown_high
+      # from hr_renown_of inside hr_apply and projects it top-level on the
+      # envelope. Both halves are ANCHORED PROGRAMMATIC SPLICES into hr_state_of
+      # and hr_apply, so a later migration restating either body from a stale
+      # template silently deletes them and the migration's own §3 gate never runs
+      # again — CHAIN END is the only place the property can be asserted.
+      #
+      # The load-bearing assertion is not "a key appears". It is that the number
+      # the envelope projects is the number hr_claim_rank DECIDES on (a headline
+      # the authority disagrees with promises a rank and then refuses it), that
+      # the REAL shipped reader (src/features/renown.js noteServerRenown) learns
+      # it off a plain envelope, that a CLIENT kill credit moves it by exactly
+      # zero — a cached score that counted credited kills would make the
+      # 2026-09-02 faucet permanent instead of self-correcting — and that it
+      # never falls when the live score does. --selftest plants six defects, each
+      # twice (with and without the migration's own gate), plus a comment-only
+      # negative control.
+      #
+      # No credentials; production untouched. Base AND selftest, per C4.
+      - name: Renown projection — the counted score reaches the headline
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/renown-projection.mjs
+          node tests/renown-projection.mjs --selftest
+
       # AND WHICH ROWS DOES THE REBUILD *NOT* GIVE BACK?
       # schema-drift proves the SCHEMA rebuilds and says, in its own header, that
       # it "says nothing about whether any row survives a restore". This is that
@@ -729,6 +763,35 @@ jobs:
         run: |
           node tests/dungeon-scrip-reload.mjs
           node tests/dungeon-scrip-reload.mjs --selftest
+
+      # THE RE-ENTRY COOLDOWN (b536 residue-ahead census item 5,
+      # supabase/migrations/2026-09-12-dungeon-cooldown.sql). The cooldown was
+      # `G.dungeons.lastRun[id]` — a CLIENT CLOCK stamp in the residue — and under
+      # the settle arm the client stopped stamping it at all, so canRun() always
+      # said "ready" while the server refused an AUTO re-entry and let a MANUAL one
+      # through unlimited. Dungeon loot is mostly ordinary TRADEABLE material, so
+      # that was a faucet reachable with no clock tampering. This proves the window
+      # is now derived from the append-only ledger's server-stamped `at` plus the
+      # catalogue cooldown_s divided by the mode's DIVISOR, and that NO MODE IS
+      # EXEMPT (game-designer ruling 2026-09-12: a mode chosen by the client selects
+      # the window's LENGTH — auto 1, manual 1, scavenger 4 — never its existence,
+      # because the payout is identical in all three). It also proves an unauthored
+      # scavenger run is refused `bad_mode` from the catalogue flag, the refusal
+      # costs no key/scrip/version and is journalled, the map is projected as
+      # `dungeon_cooldowns` per dungeon PER MODE for ACTIVE windows only, per
+      # (user, slot, dungeon), and a forged payload timestamp moves nothing.
+      # 11 mutations, each required to turn it RED.
+      # The PLAIN run is registered beside the mutation proof on purpose (Security
+      # R2, 2026-09-12): a --selftest loop scores a THROW as RED, so a defect that
+      # merely breaks the migration makes every arm "caught" and the suite exits 0.
+      # The guard now runs its own clean baseline first AND CI runs it standalone, so
+      # the green is a measurement in its own right. The same shape exists in the
+      # dungeon/QM steps above and is a harness lane's to sweep.
+      - name: Dungeon cooldown — server-derived window, every mode binds, projected
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/dungeon-cooldown.mjs
+          node tests/dungeon-cooldown.mjs --selftest
 
       # THE TWO SERVER-OWNED FARM FACTS THAT WERE LOST ON RELOAD (Q-2 + Q-5,
       # supabase/migrations/2026-09-06-state-of-farm-projection.sql). hr_state_of

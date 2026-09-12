@@ -36412,8 +36412,10 @@ const TESTS = [
      switchSlotAsync has already awaited a cloud flush and refuses to swap
      without one, so the switch QUIESCES those writes.
      MUTATION: make buildSnapshotRequest use resolveActiveSlot() again → RED on
-     the slot assertion. The SAVE_KEY assertion cannot go red any more (b515
-     retired that write); tests/slot-switch.mjs watches the residue PUT instead. */
+     the slot assertion; give saveLocal() its blob write back → RED on the parked
+     save (PARKED below, because the switch clears SAVE_KEY itself, so reading an
+     absence asserted nothing). The residue PUT that carries the character today
+     is watched on the wire by tests/slot-switch.mjs — in-page cannot see it. */
   () => tryRunAsync('b372: a hero-slot switch cannot clone the outgoing character into the target slot (pagehide race)', async () => {
     const HP = window.HearthriseProfile, S = window.HearthriseSync, G = window.G;
     if (!HP || !HP.profile) return;
@@ -36421,6 +36423,7 @@ const TESTS = [
       'the switch quiesce latch is gone — nothing stops the pagehide autosave from writing the outgoing '
       + 'character into the incoming slot, which is the b372 duplication bug');
     const SAVE_KEY = 'hearthbound-save-v2', TARGET = 1, CHAR1 = 'hearthrise:char:1';
+    const PARKED = '{"__parked":"switch-window"}';   // a value nothing in the game writes
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const prevUnlocked = G.heroSlotsUnlocked;
     const hadSrv = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
@@ -36455,6 +36458,7 @@ const TESTS = [
           const quiesced = HP.saveQuiesced();
           const outgoing = HP.quiescedOutgoingSlot();
           const active = HP.activeSlot();
+          try { localStorage.setItem(SAVE_KEY, PARKED); } catch (e) {}   // see PARKED
           try { window.dispatchEvent(new Event('pagehide')); } catch (e) {}
           try { window.saveLocal(); } catch (e) {}   // and any other autosave in the same window
           during = { quiesced, outgoing, active,
@@ -36476,10 +36480,12 @@ const TESTS = [
       assert(during.outgoing === 0,
         'the latch names slot ' + during.outgoing + ' as the character in memory; it is the OUTGOING slot 0, '
         + 'and any write that escapes must be addressed there');
-      assert(during.save === null,
-        'THE b372 CLONE: pagehide during the switch rewrote ' + SAVE_KEY + ' with the OUTGOING character while '
-        + 'the profile already pointed at slot ' + TARGET + '. The next boot adopts that as the target hero — '
-        + 'one character duplicated, the one that lived there destroyed');
+      assert(during.save === PARKED,
+        'THE b372 CLONE CHANNEL IS OPEN AGAIN: something wrote local character state during the switch — the '
+        + 'sentinel parked at ' + SAVE_KEY + ' came back as ' + JSON.stringify(during.save) + '. The local blob '
+        + 'is retired (saveLocal is a lastSeen stamp), and a write here is addressed by the profile pointer, '
+        + 'which already stands on slot ' + TARGET + ': the next boot would adopt the OUTGOING character as the '
+        + 'target hero and destroy the one that lived there');
       assert(during.snapSlot === 0,
         'a snapshot sent during the switch is addressed to slot ' + during.snapSlot + ' — game_saves is '
         + 'UNIQUE (user_id, slot), so that upsert overwrites the TARGET character\'s cloud row with the '

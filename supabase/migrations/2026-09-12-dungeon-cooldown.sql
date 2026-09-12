@@ -40,22 +40,37 @@
 --     goods, not a self-only convenience — and it needs no clock tampering.
 --
 -- ── WHAT THIS FILE DOES ─────────────────────────────────────────────────────
---   1. hr_dungeon_cooldown_modes() — ONE definition of which modes both PAY and
---      RESPECT the cooldown: {auto, manual}. Scavenger stays exempt, as authored
---      (src/dungeon-scavenger.js:556/584 — "manual scavenger runs do NOT impose a
---      cooldown"); nothing about the scavenger changes.
---   2. hr_dungeon_cooldowns(user, slot) -> jsonb — the ACTIVE windows, derived in
+-- (Shape set by the GAME DESIGNER's ruling of 2026-09-12: no exemption may be
+--  keyed on a client string, and `scavenger` must be a catalogue fact.)
+--   1. hr_dungeon_cooldown_modes() — ONE table of numbers: mode -> DIVISOR,
+--      {auto:1, manual:1, scavenger:4}. Every mode is cooldown-bearing; the
+--      scavenger's window is the dungeon's `cooldown_s / 4` (crypt 4h -> 1h), not
+--      an exemption. hr_dungeon_cooldown_divisor(mode) reads that one table, so
+--      the gate and the projection cannot disagree about a number.
+--   2. hr_dungeons.scavenger_ok — a CATALOGUE FACT. A `scavenger` intent for a
+--      dungeon the catalogue does not author a scavenger run for is refused
+--      `bad_mode`, so the string cannot reach ancient_wyrm's 72h table.
+--   3. hr_dungeon_cooldowns(user, slot) -> jsonb — the ACTIVE windows, derived in
 --      ONE pass from the append-only ledger's server-stamped `at` plus the
---      catalogue's cooldown_s. This is the SINGLE source of truth: the gate and
---      the projection both read this function, so the number the player is shown
---      and the number the server enforces cannot drift.
---   3. hr_dungeon_settle gate (c) — refuses `on_cooldown` for EVERY mode in (1),
---      with detail {dungeon, next_entry_at, ready_at, cooldown_s}. `ready_at` is
---      kept beside the new canonical `next_entry_at` so the already-reviewed
---      refusal shape (dungeon-settlement.md §316) still holds for any reader.
---   4. hr_state_of — projects top-level `dungeon_cooldowns`: { dungeon_id: ISO8601 }
---      for ACTIVE windows only, beside the `now` the envelope already carries. A
---      fresh character, and a character whose window has expired, get `{}`.
+--      catalogue's cooldown_s and the divisor table. THE MODEL: a run is a run —
+--      `last_at` is the most recent settle in ANY mode, and the window an ENTRY
+--      must clear is `last_at + cooldown_s / divisor(that entry's mode)`. So after
+--      a scavenger run a scavenger entry waits a quarter window while an auto or
+--      manual entry still waits the full one (the Designer's own arm). This is the
+--      SINGLE source of truth: the gate and the projection both read it.
+--   4. hr_dungeon_settle gate (c) — refuses `bad_mode` for an unauthored scavenger
+--      run and `on_cooldown` with {dungeon, mode, next_entry_at, ready_at,
+--      cooldown_s} inside the window, BEFORE the key debit (f), so a refused early
+--      re-entry costs no key, no items, no scrip and no version bump (§6 asserts
+--      it for all three modes). `ready_at` is kept beside the canonical
+--      `next_entry_at` so the reviewed refusal shape still holds for any reader.
+--   5. hr_state_of — projects top-level `dungeon_cooldowns`, a PER-DUNGEON,
+--      PER-MODE map of ACTIVE windows only:
+--        { "crypt_of_bones": { "auto": ISO, "manual": ISO, "scavenger": ISO } }
+--      An expired mode is omitted; a dungeon with no active mode is omitted; a
+--      fresh character gets {}. The client already knows which button it is
+--      painting, so it reads `map[id][mode]` — one lookup per button — and the
+--      envelope's existing top-level `now` makes the countdown skew-free.
 --
 -- NO STORED COOLDOWN COLUMN, DELIBERATELY. The brief proposed a `next_entry_at`
 -- column on a per-character dungeon row. There is no such row (the settle writes
@@ -70,17 +85,38 @@
 -- kind='dungeon'; at 100x players the partial index still covers only dungeon
 -- settles, which are hard-capped at 250/character/UTC-day by the settle's own fuse.
 --
--- ── WHY THIS IS NOT A BALANCE CHANGE (and the one part that is) ──────────────
--- FOR THE GAME DESIGNER, explicitly, because it is a payout-shaped decision:
---   · auto: unchanged (the server already refused; the player can now SEE it).
---   · manual: the server now refuses inside the window. That RESTORES the authored
---     rule — src/dungeons.js canRun() has always blocked a manual start on
---     cooldown, and did so for every player before the arm — but relative to the
---     CURRENTLY LIVE (broken) behaviour it is a NERF: manual back-to-back runs stop.
---     Live exposure is two ledger rows in the game's history (both auto), so the
---     practical impact is nil, and the scarce gate remains the key.
---   · scavenger: untouched and still exempt. If the Designer wants scavenger bound
---     too, it is a ONE-ELEMENT edit to hr_dungeon_cooldown_modes() and nothing else.
+-- RESTATEMENT-DEBT-ACK: hr_state_of is an anchored patch chain — depth 16 before
+-- this file and 17 with it, measured by `node tests/patch-chain-guard.mjs`, which
+-- also lists it as slice 7's second target; 2026-09-12-worker-hired-at-projection.sql
+-- carries the same ack for the same reason. The debt is taken knowingly: a
+-- restatement must equal the LIVE body plus one key, an agent cannot apply or
+-- re-pin, and a restatement authored from the repo replay is the b484-b487 class
+-- where the restated body silently reverts whichever file patched last — on the one
+-- function every screen reads. This file adds a single key and ALSO splices
+-- hr_dungeon_settle exactly ONCE (that body's first patch, so it starts no chain),
+-- against an anchor VERIFIED byte-identical on production 2026-09-12 by reading
+-- pg_proc.prosrc read-only. THE PAYDOWN stays where worker-hired-at put it: restate
+-- hr_state_of once from pg_get_functiondef of the LIVE body, Coordinator-owned, and
+-- the chain resets for everyone.
+--
+-- ── THE PAYOUT CHANGES, NAMED (Designer ruling 2026-09-12) ──────────────────
+--   · auto: unchanged in rule (the server already refused); the player can now SEE
+--     the window instead of being told "on cooldown" by an error toast.
+--   · manual: the server now refuses inside the FULL window. That restores the
+--     authored rule — src/dungeons.js canRun() always blocked a manual start on
+--     cooldown — but relative to the CURRENTLY LIVE (broken) behaviour it is a nerf.
+--   · scavenger: gains a QUARTER window (crypt 4h -> 1h) where it had none. The
+--     Designer's reason: an exemption keyed on a client-chosen string is not an
+--     exemption, it is an opt-out — `p_mode` is the one thing a tampering client
+--     picks freely, so "scavenger has no cooldown" meant "any client that says
+--     scavenger has no cooldown". A quarter window keeps the intent (put in the
+--     time, run more often) and removes the opt-out.
+--   · a scavenger run also moves the FULL window, because `last_at` is the last run
+--     in any mode: hourly scavenging therefore keeps auto/manual parked. That is
+--     the ruled model ("a run is a run"), not an accident.
+--   Live exposure: two kind='dungeon' ledger rows in the game's history, both auto,
+--   so the practical impact on existing players is nil and the scarce gate remains
+--   the key. The divisors are ONE line (§2) for the Designer to retune.
 --
 -- ── THE CLIENT HALF (lane A — NOT in this file) ─────────────────────────────
 -- src/dungeons.js canRun(), replacing lines 422-428:
@@ -107,19 +143,8 @@
 -- a forged value inside `meta` is never read (§4 proves a planted meta.client_at /
 -- meta.next_entry_at moves nothing). The projection is READ-ONLY and self-only.
 --
--- RESTATEMENT-DEBT-ACK: hr_state_of is an anchored patch chain — depth 16 before
--- this file and 17 with it, measured by `node tests/patch-chain-guard.mjs`, which
--- also lists it as slice 7's second target; 2026-09-12-worker-hired-at-projection.sql
--- carries the same ack for the same reason. The debt is taken
--- knowingly: a restatement must equal the LIVE body plus one key, an agent cannot
--- apply or re-pin, and a restatement authored from the repo replay is the
--- b484-b487 class where the restated body silently reverts whichever file patched
--- last — on the one function every screen reads. This file adds a single key and
--- ALSO splices hr_dungeon_settle exactly ONCE (that body's first patch, so it
--- starts no chain), against an anchor VERIFIED byte-identical on production
--- 2026-09-12 by reading pg_proc.prosrc read-only. THE PAYDOWN stays where
--- worker-hired-at put it: restate hr_state_of once from pg_get_functiondef of the
--- LIVE body, Coordinator-owned, and the chain resets for everyone.
+-- (The RESTATEMENT-DEBT-ACK for hr_state_of's patch chain is above, inside the
+--  first 120 lines where tests/patch-chain-guard.mjs reads it.)
 --
 -- ⚠ AFTER APPLYING: hr_state_of is a LIVE-HASH-TRACKED body and hr_dungeon_settle
 --   BECOMES one (it is programmatically patched from here on), so the Coordinator
@@ -136,8 +161,11 @@
 --      the hr_state_of chain from its last full restatement, or simply leave the
 --      extra key: an older client ignores it and it grants nothing.
 --   3. `drop function public.hr_dungeon_cooldowns(uuid,int);`
+--      `drop function public.hr_dungeon_cooldown_divisor(text);`
 --      `drop function public.hr_dungeon_cooldown_modes();`  (only after 1)
 --      `drop index if exists public.player_ledger_dungeon_idx;`
+--      `alter table public.hr_dungeons drop column scavenger_ok;`  (only after 1 —
+--        the generated catalogue does not reference it, so nothing else breaks)
 --   No player row is written by this file, so there is nothing to claw back.
 --
 -- SAFE TO RE-RUN. Every step is `if not exists` / idempotent-by-anchor, and §4's
@@ -189,24 +217,76 @@ end $$;
 create index if not exists player_ledger_dungeon_idx
   on public.player_ledger (user_id, slot, at desc) where kind = 'dungeon';
 
--- ── 2. hr_dungeon_cooldown_modes() — the ONE definition of the mode scope ───
--- Which modes both PAY a cooldown and are REFUSED by one. Read by the gate (§4)
--- and by the map (§3), so a change is one edit in one place and can never leave
--- the projection describing a rule the gate does not enforce. `scavenger` is
--- deliberately absent (src/dungeon-scavenger.js: "manual scavenger runs do NOT
--- impose a cooldown"); adding it is a Designer decision, not an engineering one.
+-- ── 2. THE DIVISOR TABLE — mode -> how much of the window that mode waits ───
+-- The ONE table of numbers, and the only place a cooldown number lives besides the
+-- generated catalogue's cooldown_s. Read by the gate (§5) and by the map (§4), so a
+-- retune is one edit and the projection can never describe a rule the gate does not
+-- enforce. Designer ruling 2026-09-12: every mode is cooldown-bearing — a scavenger
+-- run waits cooldown_s / 4 — because an exemption keyed on the client-chosen
+-- `p_mode` string is an opt-out, not an exemption. A mode absent from this table has
+-- NO cooldown; today none is, and the §7 gate asserts all three are present.
 create or replace function public.hr_dungeon_cooldown_modes()
-returns text[] language sql immutable parallel safe as $$
-  select array['auto', 'manual']::text[]
+returns jsonb language sql immutable parallel safe as $$
+  select jsonb_build_object('auto', 1, 'manual', 1, 'scavenger', 4)
 $$;
 revoke execute on function public.hr_dungeon_cooldown_modes()
   from public, anon, authenticated, service_role;
 
--- ── 3. hr_dungeon_cooldowns(user, slot) — THE ACTIVE WINDOWS, SERVER-DERIVED ─
+-- The divisor for ONE mode, read from that same table (never a second literal).
+-- NULL for a mode the table does not name — which the gate reads as "no cooldown"
+-- and the map reads as "not a window-bearing row", one behaviour from one fact.
+create or replace function public.hr_dungeon_cooldown_divisor(p_mode text)
+returns int language sql immutable parallel safe as $$
+  select nullif(public.hr_dungeon_cooldown_modes() ->> p_mode, '')::int
+$$;
+revoke execute on function public.hr_dungeon_cooldown_divisor(text)
+  from public, anon, authenticated, service_role;
+
+-- ── 3. hr_dungeons.scavenger_ok — THE SCAVENGER IS A CATALOGUE FACT ─────────
+-- Designer ruling 2026-09-12: a `scavenger` intent must be refused for any dungeon
+-- the game does not AUTHOR a scavenger run for, so the string cannot reach
+-- ancient_wyrm's 72h window and its best-in-game loot table. Today exactly one
+-- dungeon has a config.
+--
+-- ⟦DERIVED⟧ from the authored source — `SCAVENGER_CONFIGS` in
+-- src/dungeon-scavenger.js — and NOT hand-authored game data in SQL. The id list
+-- below is derived from that file, and tests/dungeon-cooldown.mjs PARSES the same
+-- file and fails if the installed flag set differs in either direction, which is
+-- the drift guard this repo requires of every catalogue fact. It is not in
+-- 2026-09-10-dungeon-catalogue.generated.sql because that file is APPLIED and
+-- editing an applied migration is its own hazard, and because
+-- tools/gen-dungeon-catalogue.mjs cannot import SCAVENGER_CONFIGS today: it lives in
+-- a browser IIFE (src/dungeon-scavenger.js), not in src/data/*.js.
+-- THE PAYDOWN (named, not silent): move the scavenger configs' id set into
+-- src/data/dungeons.js (or export it), teach tools/gen-dungeon-catalogue.mjs to emit
+-- `scavenger_ok`, and regenerate the catalogue — then this §3 becomes a no-op and
+-- the drift guard keeps watching.
+alter table public.hr_dungeons add column if not exists scavenger_ok boolean not null default false;
+do $$
+declare
+  -- ⟦DERIVED⟧ src/dungeon-scavenger.js SCAVENGER_CONFIGS keys, 2026-09-12.
+  c_authored constant text[] := array['crypt_of_bones'];
+  v_missing text;
+begin
+  select string_agg(x, ', ') into v_missing
+    from unnest(c_authored) x
+   where not exists (select 1 from public.hr_dungeons d where d.dungeon_id = x);
+  if v_missing is not null then
+    raise exception 'the authored scavenger config names dungeon(s) the catalogue does not have (%) — '
+                    'regenerate the catalogue before installing a flag that can never be true', v_missing;
+  end if;
+  update public.hr_dungeons set scavenger_ok = (dungeon_id = any (c_authored))
+   where scavenger_ok is distinct from (dungeon_id = any (c_authored));
+  raise notice 'hr_dungeons.scavenger_ok set from the authored config: %', c_authored;
+end $$;
+
+-- ── 4. hr_dungeon_cooldowns(user, slot) — THE ACTIVE WINDOWS, SERVER-DERIVED ─
 -- ONE pass over the append-only ledger, grouped by dungeon, joined to the
--- catalogue's cooldown_s, filtered to windows that are still open at now(). Only
--- ACTIVE windows are returned, so the envelope carries 0 keys in the ordinary case
--- and at most one per dungeon (6 today, ~250 bytes worst case).
+-- catalogue's cooldown_s and to the divisor table, filtered to windows still open
+-- at now(). Shape: { dungeon_id: { mode: next_entry_at } }, ACTIVE entries only —
+-- an expired mode is omitted, a dungeon with no active mode is omitted, so the
+-- ordinary envelope carries `{}` and the worst case is 6 dungeons x 3 modes
+-- (~700 bytes, and only for a player who just ran every dungeon in the game).
 --
 --   · `at` is the SERVER clock (default now(), append-only table) — never a value
 --     from the payload. `coalesce(meta->>'op','settle') = 'settle'` fails CLOSED:
@@ -220,29 +300,37 @@ revoke execute on function public.hr_dungeon_cooldown_modes()
 --     load-bearing line — Postgres grants EXECUTE to PUBLIC by default). It is
 --     called only from inside two definer bodies, which run as the owner, so no
 --     role needs a grant: not hr_engine either.
+--   · INTEGER division (cooldown_s / divisor). Deterministic and exact for the
+--     authored numbers (14400/4 = 3600); a non-divisible cooldown loses at most
+--     `divisor - 1` seconds, i.e. fails OPEN by under 3 seconds, which is a
+--     rounding choice and not a gate.
 create or replace function public.hr_dungeon_cooldowns(p_user uuid, p_slot int)
 returns jsonb language sql stable security definer set search_path = public as $$
-  select coalesce(jsonb_object_agg(x.dungeon_id, to_jsonb(x.next_entry_at)), '{}'::jsonb)
+  select coalesce(jsonb_object_agg(w.dungeon_id, w.modes), '{}'::jsonb)
     from (
-      select d.dungeon_id,
-             l.last_at + make_interval(secs => d.cooldown_s) as next_entry_at
+      select l.dungeon_id,
+             jsonb_object_agg(m.mode, to_jsonb(l.last_at + make_interval(secs => d.cooldown_s / m.divisor)))
+               filter (where l.last_at + make_interval(secs => d.cooldown_s / m.divisor) > now()) as modes
         from (select meta->>'dungeon' as dungeon_id, max(at) as last_at
                 from public.player_ledger
                where user_id = p_user
                  and slot = coalesce(p_slot, 0)
                  and kind = 'dungeon'
                  and coalesce(meta->>'op', 'settle') = 'settle'
-                 and meta->>'mode' = any (public.hr_dungeon_cooldown_modes())
+                 and public.hr_dungeon_cooldown_divisor(meta->>'mode') is not null
                group by 1) l
         join public.hr_dungeons d on d.dungeon_id = l.dungeon_id
-       where d.cooldown_s > 0
-    ) x
-   where x.next_entry_at > now()
+        cross join lateral (select e.key as mode, (e.value #>> '{}')::int as divisor
+                              from jsonb_each(public.hr_dungeon_cooldown_modes()) e) m
+       where d.cooldown_s > 0 and m.divisor > 0
+       group by l.dungeon_id
+    ) w
+   where w.modes is not null
 $$;
 revoke execute on function public.hr_dungeon_cooldowns(uuid, int)
   from public, anon, authenticated, service_role;
 
--- ── 4. hr_dungeon_settle — THE GATE, for every mode the cooldown binds ──────
+-- ── 5. hr_dungeon_settle — THE GATE, for every mode the cooldown binds ──────
 -- ONE guarded, exactly-once anchor replace of gate (c) (pg_get_functiondef, the
 -- 2026-09-10-dungeon-scrip.sql idiom). The anchor is the block's CURRENT text,
 -- comment included — the comment says "auto mode only" and would otherwise become
@@ -270,9 +358,23 @@ declare
           jsonb_build_object('ready_at', v_last_auto + make_interval(secs => v_dun.cooldown_s)));
       end if;
     end if;$anc$;
-  c_new constant text := $new$    -- (c) COOLDOWN — SERVER-OWNED, for every mode the cooldown binds
-    --     (hr_dungeon_cooldown_modes() = auto + manual; scavenger is exempt by
-    --     design). Derived by hr_dungeon_cooldowns from now() + the append-only
+  c_new constant text := $new$    -- (c0) THE SCAVENGER IS A CATALOGUE FACT, NOT A CLIENT CLAIM (Designer ruling
+    --      2026-09-12). `p_mode` is the one value a tampering client picks freely,
+    --      and the scavenger mode carries the cheapest window, so it may only be
+    --      used where the game AUTHORS a scavenger run (hr_dungeons.scavenger_ok,
+    --      derived from SCAVENGER_CONFIGS). Without this, the string alone would
+    --      reach ancient_wyrm's 72h window and its best loot table. Refused BEFORE
+    --      the key debit (f), so it costs nothing.
+    if p_mode = 'scavenger' and not coalesce(v_dun.scavenger_ok, false) then
+      perform public.hr_reject('bad_mode',
+        jsonb_build_object('mode', p_mode, 'dungeon', v_dun.dungeon_id,
+                           'reason', 'no_scavenger_config'));
+    end if;
+
+    -- (c) COOLDOWN — SERVER-OWNED, for EVERY mode, at that mode's share of the
+    --     window (hr_dungeon_cooldown_modes() = {auto:1, manual:1, scavenger:4};
+    --     nothing is exempt, because an exemption keyed on a client string is an
+    --     opt-out). Derived by hr_dungeon_cooldowns from now() + the append-only
     --     ledger's server-stamped `at` — never a stored counter a client can reset
     --     (the b288 lesson) and never a value from the payload (the intent carries
     --     no timestamp at all). THE SAME FUNCTION feeds hr_state_of's
@@ -282,20 +384,23 @@ declare
     --     gated manual on a client-clock `G.dungeons.lastRun` that the armed path
     --     had stopped stamping — so the authored re-entry limit did not exist for
     --     manual runs, on a loot table that is mostly TRADEABLE material.
-    if p_mode = any (public.hr_dungeon_cooldown_modes()) and v_dun.cooldown_s > 0 then
+    if public.hr_dungeon_cooldown_divisor(p_mode) is not null and v_dun.cooldown_s > 0 then
       declare
         v_next timestamptz;
       begin
-        v_next := (public.hr_dungeon_cooldowns(v_uid, v_slot) ->> v_dun.dungeon_id)::timestamptz;
+        v_next := (public.hr_dungeon_cooldowns(v_uid, v_slot)
+                     #>> array[v_dun.dungeon_id, p_mode])::timestamptz;
         if v_next is not null then
           perform public.hr_reject('on_cooldown',
             jsonb_build_object('dungeon', v_dun.dungeon_id,
+                               'mode', p_mode,
                                'next_entry_at', v_next,
                                -- kept beside the canonical name: the reviewed
                                -- refusal shape (dungeon-settlement.md) says
                                -- ready_at, and a live reader must not break.
                                'ready_at', v_next,
-                               'cooldown_s', v_dun.cooldown_s));
+                               'cooldown_s', v_dun.cooldown_s
+                                 / public.hr_dungeon_cooldown_divisor(p_mode)));
         end if;
       end;
     end if;$new$;
@@ -321,7 +426,7 @@ revoke execute on function public.hr_dungeon_settle(uuid, int, bigint, uuid, tex
 grant  execute on function public.hr_dungeon_settle(uuid, int, bigint, uuid, text, text, numeric)
   to hr_engine;
 
--- ── 5. hr_state_of — PROJECT dungeon_cooldowns (programmatic, additive) ─────
+-- ── 6. hr_state_of — PROJECT dungeon_cooldowns (programmatic, additive) ─────
 -- Anchored on the top-level `'now', now(),` the envelope already carries (verified
 -- exactly-once on production 2026-09-12), so the map lands beside the server clock
 -- the client needs to render a skew-free countdown. Top-level, not inside `state`:
@@ -339,14 +444,17 @@ begin
                     'the one this file was derived against. Do NOT patch a body you cannot account for.';
   end if;
   v_def := replace(v_def, c_anchor, $new$    'now', now(),
-    -- dungeon re-entry cooldown (2026-09-12): the ACTIVE windows only, as
-    -- { dungeon_id: next_entry_at }, derived by hr_dungeon_cooldowns from the
+    -- dungeon re-entry cooldown (2026-09-12): the ACTIVE windows only, PER DUNGEON
+    -- and PER MODE — { dungeon_id: { auto: ISO, manual: ISO, scavenger: ISO } },
+    -- each mode waiting cooldown_s / its divisor (Designer ruling: scavenger is a
+    -- quarter window, not an exemption). Derived by hr_dungeon_cooldowns from the
     -- append-only ledger + the catalogue — THE SAME function hr_dungeon_settle's
     -- gate (c) refuses on, so the countdown shown and the window enforced are one
     -- number. Was a client-clock `G.dungeons.lastRun` in the residue, which the
-    -- armed path had stopped stamping at all. Empty object for a fresh character
-    -- and for an expired window; absent key on the client means READY, which is
-    -- safe because the SERVER refuses — the worst case is one refused intent.
+    -- armed path had stopped stamping at all. An expired mode is omitted, a dungeon
+    -- with no active mode is omitted, a fresh character gets {}; an absent key on
+    -- the client means READY, which is safe because the SERVER refuses — the worst
+    -- case is one refused intent. The client reads map[dungeon_id][mode].
     'dungeon_cooldowns', public.hr_dungeon_cooldowns(p_user, v_st.slot),$new$);
   execute v_def;
   raise notice 'hr_state_of patched: the envelope projects dungeon_cooldowns';
@@ -355,7 +463,7 @@ revoke execute on function public.hr_state_of(uuid, int)
   from public, anon, authenticated, service_role;
 grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
 
--- ── 6. SELF-VERIFYING COMMIT GATE (§4) ─────────────────────────────────────
+-- ── 7. SELF-VERIFYING COMMIT GATE (CLAUDE.md §4) ────────────────────────────
 -- Properties proven by EXECUTING SQL, not by markers. The apply is atomic, so a
 -- raise here reverts §1-§5. The row-writing probe lives in a subtransaction
 -- discarded by a sentinel raise (HR822), so this block is net-zero on production.
@@ -387,7 +495,8 @@ begin
   --     the PROPERTY — no browser-reachable EXECUTE, however it arrived — and
   --     tests/dungeon-cooldown.mjs proves it bites by GRANTING one.
   if to_regprocedure('public.hr_dungeon_cooldowns(uuid,int)') is null
-     or to_regprocedure('public.hr_dungeon_cooldown_modes()') is null then
+     or to_regprocedure('public.hr_dungeon_cooldown_modes()') is null
+     or to_regprocedure('public.hr_dungeon_cooldown_divisor(text)') is null then
     raise exception 'GATE(a): the cooldown derivation functions are not installed';
   end if;
   -- READ FROM pg_proc.proacl, NOT information_schema.role_routine_grants: the
@@ -404,20 +513,48 @@ begin
     cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
     left join pg_roles r on r.oid = a.grantee
    where n.nspname = 'public'
-     and p.proname in ('hr_dungeon_cooldowns', 'hr_dungeon_cooldown_modes')
+     and p.proname in ('hr_dungeon_cooldowns', 'hr_dungeon_cooldown_modes',
+                       'hr_dungeon_cooldown_divisor')
      and a.privilege_type = 'EXECUTE'
      and (a.grantee = 0 or r.rolname in ('anon', 'authenticated', 'service_role'));
   if v_bad is not null then
     raise exception 'GATE(a): a client-reachable EXECUTE grant exists on the cooldown derivation (%) '
                     '— these are internal helpers called from inside definer bodies', v_bad;
   end if;
-  if public.hr_dungeon_cooldown_modes() @> array['scavenger']::text[] then
-    raise exception 'GATE(a): scavenger is in the cooldown mode set — that is a Designer decision and '
-                    'this file did not make it';
+
+  -- (a2) THE DIVISOR TABLE covers EVERY mode the settle accepts, so no mode can
+  --      opt out of the window by being unnamed (the Designer's ruling: an
+  --      exemption keyed on a client string is an opt-out), and the scavenger's
+  --      share is the ruled quarter.
+  if public.hr_dungeon_cooldown_divisor('auto') <> 1
+     or public.hr_dungeon_cooldown_divisor('manual') <> 1 then
+    raise exception 'GATE(a2): auto/manual no longer wait the FULL window (auto %, manual %)',
+      public.hr_dungeon_cooldown_divisor('auto'), public.hr_dungeon_cooldown_divisor('manual');
   end if;
-  if not (public.hr_dungeon_cooldown_modes() @> array['auto','manual']::text[]) then
-    raise exception 'GATE(a): the cooldown mode set does not cover auto AND manual — the gap this file '
-                    'exists to close';
+  if coalesce(public.hr_dungeon_cooldown_divisor('scavenger'), 0) <> 4 then
+    raise exception 'GATE(a2): the scavenger divisor is % — the ruling is a QUARTER window (4), and a '
+                    'NULL would be the exemption the ruling removed',
+      public.hr_dungeon_cooldown_divisor('scavenger');
+  end if;
+
+  -- (a3) THE SCAVENGER FLAG IS A CATALOGUE FACT, present on the catalogue and true
+  --      for exactly the dungeons the game authors a scavenger run for. The
+  --      authored set is parsed from src/dungeon-scavenger.js by
+  --      tests/dungeon-cooldown.mjs (this block cannot read a JS file); what it
+  --      asserts here is that the column exists, is NOT NULL, and is not true for
+  --      everything — which is the shape that would make §5's bad_mode vacuous.
+  if (select count(*) from information_schema.columns
+       where table_schema='public' and table_name='hr_dungeons'
+         and column_name='scavenger_ok' and is_nullable='NO') <> 1 then
+    raise exception 'GATE(a3): hr_dungeons.scavenger_ok is missing or nullable';
+  end if;
+  if (select count(*) from public.hr_dungeons where scavenger_ok) = 0 then
+    raise exception 'GATE(a3): no dungeon is scavenger_ok — every scavenger run in the game would be '
+                    'refused bad_mode';
+  end if;
+  if (select count(*) from public.hr_dungeons where not scavenger_ok) = 0 then
+    raise exception 'GATE(a3): EVERY dungeon is scavenger_ok — the catalogue gate would be vacuous and '
+                    'the string would reach the 72h world boss';
   end if;
 
   -- (b) THE GATE reads the shared derivation, the auto-only filter is GONE, and
@@ -426,8 +563,11 @@ begin
    where n.nspname = 'public' and p.proname = 'hr_dungeon_settle';
   if position('public.hr_dungeon_cooldowns(v_uid, v_slot)' in v_def) = 0 then
     raise exception 'GATE(b): hr_dungeon_settle does not read hr_dungeon_cooldowns'; end if;
-  if position('hr_dungeon_cooldown_modes()' in v_def) = 0 then
-    raise exception 'GATE(b): hr_dungeon_settle does not gate on the shared mode set'; end if;
+  if position('hr_dungeon_cooldown_divisor(p_mode)' in v_def) = 0 then
+    raise exception 'GATE(b): hr_dungeon_settle does not gate on the shared divisor table'; end if;
+  if position('v_dun.scavenger_ok' in v_def) = 0 then
+    raise exception 'GATE(b): hr_dungeon_settle does not check the catalogue scavenger flag — the mode '
+                    'string alone would reach any dungeon'; end if;
   if position($m$meta->>'mode' = 'auto'$m$ in v_def) > 0 then
     raise exception 'GATE(b): the auto-ONLY cooldown filter is still installed — a manual run would '
                     'still ignore the re-entry window';
@@ -527,16 +667,23 @@ begin
                                'next_entry_at', (now() - interval '10 days')))
     returning at into v_at;
     v_cds := public.hr_dungeon_cooldowns(v_uid, v_slot);
-    if (v_cds ->> c_dgn) is null then
+    if (v_cds #>> array[c_dgn, 'auto']) is null then
       raise exception 'GATE(f2): a settle did not stamp the cooldown: %', v_cds; end if;
-    if (v_cds ->> c_dgn)::timestamptz <> v_at + make_interval(secs => v_cd_s) then
-      raise exception 'GATE(f2): next_entry_at = % but the ledger says % + %s — the window is not the '
-                      'server-stamped row plus the catalogue cooldown',
-                      v_cds ->> c_dgn, v_at, v_cd_s;
+    if (v_cds #>> array[c_dgn, 'auto'])::timestamptz <> v_at + make_interval(secs => v_cd_s) then
+      raise exception 'GATE(f2): auto next_entry_at = % but the ledger says % + %s — the window is not '
+                      'the server-stamped row plus the catalogue cooldown',
+                      v_cds #>> array[c_dgn, 'auto'], v_at, v_cd_s;
     end if;
-    if (v_cds ->> c_dgn)::timestamptz < now() then
+    -- the DIVISOR is applied per mode: the scavenger window is a QUARTER of it.
+    if (v_cds #>> array[c_dgn, 'scavenger'])::timestamptz
+       <> v_at + make_interval(secs => v_cd_s / 4) then
+      raise exception 'GATE(f2): the scavenger window is % but should be % + %s/4 — the divisor table '
+                      'is not being applied',
+                      v_cds #>> array[c_dgn, 'scavenger'], v_at, v_cd_s;
+    end if;
+    if (v_cds #>> array[c_dgn, 'auto'])::timestamptz < now() then
       raise exception 'GATE(f2): the forged meta timestamps WON — next_entry_at is in the past (%)',
-        v_cds ->> c_dgn;
+        v_cds #>> array[c_dgn, 'auto'];
     end if;
     v_env := public.hr_state_of(v_uid, v_slot);
     if v_env->'dungeon_cooldowns' <> v_cds then
@@ -552,7 +699,7 @@ begin
       raise exception 'GATE(f3): an auto entry inside the window was not refused on_cooldown: %', v_res;
     end if;
     if (v_res->>'next_entry_at') is null or (v_res->>'ready_at') is null
-       or (v_res->>'next_entry_at')::timestamptz <> (v_cds ->> c_dgn)::timestamptz then
+       or (v_res->>'next_entry_at')::timestamptz <> (v_cds #>> array[c_dgn, 'auto'])::timestamptz then
       raise exception 'GATE(f3): the refusal detail does not carry the projected next_entry_at: %', v_res;
     end if;
     v_res := public.hr_dungeon_settle(v_uid, v_slot, 1,
@@ -561,6 +708,41 @@ begin
       raise exception 'GATE(f3): a MANUAL entry inside the window was not refused — this is exactly the '
                       'gap this file exists to close: %', v_res;
     end if;
+    -- and the SCAVENGER, inside its own quarter window, is refused too: no mode is
+    -- exempt (Designer ruling 2026-09-12), and it is refused at ITS window, not the
+    -- full one.
+    v_res := public.hr_dungeon_settle(v_uid, v_slot, 1,
+               '000000d8-0000-0000-0000-00000000ad04'::uuid, c_dgn, 'scavenger', 1);
+    if coalesce(v_res->>'error', '') <> 'on_cooldown' then
+      raise exception 'GATE(f3): a SCAVENGER entry inside the quarter window was not refused — the '
+                      'client-string exemption is back: %', v_res;
+    end if;
+    if (v_res->>'next_entry_at')::timestamptz <> (v_cds #>> array[c_dgn, 'scavenger'])::timestamptz then
+      raise exception 'GATE(f3): the scavenger refusal quotes % but its projected window is % — the gate '
+                      'and the projection disagree', v_res->>'next_entry_at',
+                      v_cds #>> array[c_dgn, 'scavenger'];
+    end if;
+    if (v_res->>'cooldown_s')::int <> v_cd_s / 4 then
+      raise exception 'GATE(f3): the scavenger refusal reports cooldown_s % (expected %)',
+        v_res->>'cooldown_s', v_cd_s / 4;
+    end if;
+
+    -- A SCAVENGER RUN THE CATALOGUE DOES NOT AUTHOR is bad_mode, not a cheap window
+    -- — the string must not reach a dungeon with no scavenger config.
+    select dungeon_id into v_dgn2 from public.hr_dungeons
+     where not scavenger_ok and cooldown_s > 0 order by req_lv asc, dungeon_id asc limit 1;
+    if v_dgn2 is null then
+      raise exception 'GATE(f3): every dungeon is scavenger_ok — bad_mode cannot be proven'; end if;
+    v_res := public.hr_dungeon_settle(v_uid, v_slot, 1,
+               '000000d8-0000-0000-0000-00000000ad05'::uuid, v_dgn2, 'scavenger', 1);
+    if coalesce(v_res->>'error', '') <> 'bad_mode' then
+      raise exception 'GATE(f3): a scavenger run on %, which has no authored scavenger config, was not '
+                      'refused bad_mode: %', v_dgn2, v_res;
+    end if;
+    if (v_res->>'reason') <> 'no_scavenger_config' then
+      raise exception 'GATE(f3): the bad_mode refusal does not say why: %', v_res; end if;
+    v_dgn2 := null;   -- (f4) re-selects its own dungeon; do not carry this one
+
     if (select qty from public.player_inventory
          where user_id = v_uid and slot = v_slot and item_id = c_key) <> 2 then
       raise exception 'GATE(f3): a refused entry consumed the entry key'; end if;
@@ -627,7 +809,9 @@ begin
     raise exception 'GATE: §6 LEAKED a probe row'; end if;
 
   raise notice 'dungeon-cooldown: the re-entry window is server-derived (ledger at + catalogue '
-               'cooldown_s), refuses auto AND manual inside it with next_entry_at, is projected as '
-               'dungeon_cooldowns for ACTIVE windows only, ignores a forged payload timestamp, and '
-               'lets an entry through after it — all green';
+               'cooldown_s / the divisor table), refuses auto, manual AND scavenger inside their own '
+               'share with next_entry_at and before the key debit, refuses an unauthored scavenger run '
+               'with bad_mode, is projected as dungeon_cooldowns per dungeon per mode for ACTIVE '
+               'windows only, ignores a forged payload timestamp, and lets an entry through after the '
+               'window — all green';
 end $$;

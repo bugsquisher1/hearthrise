@@ -17,9 +17,13 @@
 //
 // 2026-09-12-dungeon-cooldown.sql makes the window server-owned and readable:
 // hr_dungeon_cooldowns() derives the ACTIVE windows from the append-only ledger's
-// server-stamped `at` + hr_dungeons.cooldown_s; the settle refuses `on_cooldown`
-// for every mode in hr_dungeon_cooldown_modes() (auto + manual; scavenger stays
-// exempt as authored); hr_state_of projects them as top-level `dungeon_cooldowns`.
+// server-stamped `at` + hr_dungeons.cooldown_s divided by the mode's divisor
+// (hr_dungeon_cooldown_modes() = {auto:1, manual:1, scavenger:4} — Designer ruling
+// 2026-09-12: nothing is exempt, because an exemption keyed on the client-chosen
+// `p_mode` string is an opt-out); the settle refuses `on_cooldown` at that mode's
+// share and `bad_mode` for a scavenger run the catalogue does not author; and
+// hr_state_of projects the whole thing as top-level `dungeon_cooldowns`,
+// { dungeon_id: { mode: next_entry_at } }, ACTIVE entries only.
 //
 // This guard boots the REAL ordered migration chain (tests/schema-replay.mjs
 // bootReplay — supabase/schema.sql + every migration in
@@ -40,8 +44,17 @@
 //      and another CHARACTER of the same account is unaffected;
 //   8. the projection carries ACTIVE windows only (an expired one is absent, so
 //      the client cannot show a cooldown the server would allow);
-//   9. mode='scavenger' is NOT refused inside an active window (the authored
-//      exemption — src/dungeon-scavenger.js:556/584);
+//   9. NO MODE IS EXEMPT (Designer ruling 2026-09-12 — an exemption keyed on the
+//      client-chosen `p_mode` is an opt-out): the divisor table {auto:1, manual:1,
+//      scavenger:4} gives the scavenger a QUARTER window, the refusal quotes that
+//      window and that cooldown_s, and after the quarter has passed the scavenger
+//      runs again while auto and manual are STILL refused by the full window;
+//  9b. `scavenger` is a CATALOGUE FACT: a dungeon with no authored scavenger config
+//      (`hr_dungeons.scavenger_ok = false`, which includes the 72h world boss) is
+//      refused `bad_mode`/`no_scavenger_config`, before the key debit;
+//  9c. that flag MATCHES the authored source — SCAVENGER_CONFIGS parsed out of
+//      src/dungeon-scavenger.js, both directions, so the catalogue fact cannot
+//      drift from the game data (the flag is ⟦DERIVED⟧, not authored in SQL);
 //  10. A CLIENT-SUPPLIED TIMESTAMP MOVES NOTHING: the intent has no time-typed
 //      parameter at all, and a forged `meta.client_at` / `meta.next_entry_at`
 //      planted on the stamping ledger row does not shorten the window;
@@ -64,6 +77,7 @@
 // editing a row. NO ?v= on the imports (tests/**, not a browser module — b332).
 // ════════════════════════════════════════════════════════════════════════
 
+import { readFile } from 'node:fs/promises';
 import { bootReplay } from './schema-replay.mjs';
 
 const MIG = '2026-09-12-dungeon-cooldown.sql';
@@ -93,8 +107,8 @@ const MUTATIONS = {
   cooldown_not_stamped: {
     why: 'the window is the settle time itself instead of settle + cooldown_s, so a run never puts a '
        + 'dungeon on cooldown — the re-entry limit silently does not exist',
-    pairs: [['             l.last_at + make_interval(secs => d.cooldown_s) as next_entry_at',
-             '             l.last_at as next_entry_at']],
+    pairs: [['to_jsonb(l.last_at + make_interval(secs => d.cooldown_s / m.divisor))',
+             'to_jsonb(l.last_at)']],
   },
   refusal_missing: {
     why: 'the gate computes the window and then never refuses — the cooldown is display-only again, '
@@ -105,7 +119,30 @@ const MUTATIONS = {
   manual_still_exempt: {
     why: 'the mode set goes back to auto-only, so a MANUAL run ignores the re-entry window — the exact '
        + 'production gap (the armed client stamps no cooldown of its own)',
-    pairs: [["  select array['auto', 'manual']::text[]", "  select array['auto']::text[]"]],
+    pairs: [["  select jsonb_build_object('auto', 1, 'manual', 1, 'scavenger', 4)",
+             "  select jsonb_build_object('auto', 1)"]],
+  },
+  scavenger_exempt_again: {
+    why: 'scavenger leaves the divisor table, so the mode has NO window again — and since p_mode is the '
+       + 'one value a tampering client picks freely, that is not an exemption but an opt-out from the '
+       + 'cooldown for every mode (Designer ruling 2026-09-12)',
+    pairs: [["  select jsonb_build_object('auto', 1, 'manual', 1, 'scavenger', 4)",
+             "  select jsonb_build_object('auto', 1, 'manual', 1)"]],
+  },
+  divisor_not_applied: {
+    why: 'the divisor is ignored in the derivation, so every mode waits the FULL window — the scavenger '
+       + 'quarter window the Designer ruled becomes 4 hours and the mode is silently nerfed',
+    pairs: [['             jsonb_object_agg(m.mode, to_jsonb(l.last_at + make_interval(secs => d.cooldown_s / m.divisor)))\n'
+             + '               filter (where l.last_at + make_interval(secs => d.cooldown_s / m.divisor) > now()) as modes',
+             '             jsonb_object_agg(m.mode, to_jsonb(l.last_at + make_interval(secs => d.cooldown_s)))\n'
+             + '               filter (where l.last_at + make_interval(secs => d.cooldown_s) > now()) as modes']],
+  },
+  bad_mode_missing: {
+    why: 'the catalogue check goes, so the client string `scavenger` buys the cheapest window on ANY '
+       + 'dungeon — including ancient_wyrm\'s 72h window and best-in-game loot table, which authors no '
+       + 'scavenger run at all',
+    pairs: [["    if p_mode = 'scavenger' and not coalesce(v_dun.scavenger_ok, false) then",
+             '    if false then']],
   },
   projection_dropped: {
     why: 'hr_state_of stops projecting dungeon_cooldowns, so the client has no server cooldown to read '
@@ -123,12 +160,14 @@ const MUTATIONS = {
   projection_leaks_expired: {
     why: 'the projection stops filtering on now(), so an EXPIRED window is still shown — the client '
        + 'locks a player out of a dungeon the server would happily admit',
-    pairs: [['   where x.next_entry_at > now()', '   where x.next_entry_at is not null']],
+    pairs: [['               filter (where l.last_at + make_interval(secs => d.cooldown_s / m.divisor) > now()) as modes',
+             '               as modes']],
   },
-  scavenger_swept_in: {
-    why: 'scavenger joins the cooldown mode set — a payout change nobody ruled on (the data and both '
-       + 'client paths say a scavenger run has NO cooldown)',
-    pairs: [["  select array['auto', 'manual']::text[]", "  select array['auto', 'manual', 'scavenger']::text[]"]],
+  scavenger_window_is_full: {
+    why: 'the scavenger divisor becomes 1, so a scavenger run waits the FULL window — the mode the '
+       + 'Designer ruled should be runnable four times as often is as limited as an auto run',
+    pairs: [["  select jsonb_build_object('auto', 1, 'manual', 1, 'scavenger', 4)",
+             "  select jsonb_build_object('auto', 1, 'manual', 1, 'scavenger', 1)"]],
   },
   helper_client_executable: {
     // MEASURED 2026-09-12: merely DELETING the revoke does NOT open the function —
@@ -201,6 +240,10 @@ async function settle(db, uid, { slot = 0, version = 1, intent, mode = 'auto', q
   } finally { await db.exec('reset role'); }
 }
 
+/** The projected window for one (dungeon, mode), or null — NEVER a TypeError: a
+    missing key is the defect under test, so it has to read as a failed assertion
+    with a message, not as a crash in the harness. */
+const win = (map, dungeon, mode) => (((map || {})[dungeon]) || {})[mode] || null;
 const cooldowns = async (db, uid, slot = 0) => (await db.query(
   'select public.hr_dungeon_cooldowns($1::uuid, $2::int) as m', [uid, slot])).rows[0].m;
 const envelope = async (db, uid, slot = 0) => (await db.query(
@@ -232,11 +275,18 @@ async function runAll(db) {
     `select at, meta->>'mode' as mode from public.player_ledger
       where user_id=$1 and kind='dungeon' order by at desc limit 1`, [A]);
   const map1 = await cooldowns(db, A);
-  ok(!!map1[DUNGEON], `the settle stamped the window (map ${JSON.stringify(map1)})`);
+  ok(!!win(map1, DUNGEON, 'auto'), `the settle stamped the window (map ${JSON.stringify(map1)})`);
   const expect = await one(db, `select (($1::timestamptz + make_interval(secs => $2)) = $3::timestamptz) as eq`,
-    [stamped.at, CD_S, map1[DUNGEON]]);
+    [stamped.at, CD_S, win(map1, DUNGEON, 'auto')]);
   ok(expect.eq === true,
-    `next_entry_at = ledger.at + cooldown_s exactly (at ${stamped.at}, got ${map1[DUNGEON]})`);
+    `auto next_entry_at = ledger.at + cooldown_s exactly (at ${stamped.at}, got ${win(map1, DUNGEON, 'auto')})`);
+  const expectM = await one(db, `select (($1::timestamptz + make_interval(secs => $2)) = $3::timestamptz) as eq`,
+    [stamped.at, CD_S, win(map1, DUNGEON, 'manual')]);
+  ok(expectM.eq === true, `manual waits the FULL window too (got ${win(map1, DUNGEON, 'manual')})`);
+  const expectS = await one(db, `select (($1::timestamptz + make_interval(secs => $2)) = $3::timestamptz) as eq`,
+    [stamped.at, CD_S / 4, win(map1, DUNGEON, 'scavenger')]);
+  ok(expectS.eq === true,
+    `the scavenger waits a QUARTER window (cooldown_s/4 = ${CD_S / 4}s, got ${win(map1, DUNGEON, 'scavenger')})`);
   const env1 = await envelope(db, A);
   ok(JSON.stringify(env1.dungeon_cooldowns) === JSON.stringify(map1),
     'the envelope projection equals the gate derivation (one number, not two)');
@@ -252,12 +302,26 @@ async function runAll(db) {
     `the refusal carries detail.next_entry_at (got ${rAuto && rAuto.next_entry_at})`);
   ok(rAuto && rAuto.ready_at, 'the refusal keeps the compat detail.ready_at');
   ok(rAuto && rAuto.dungeon === DUNGEON, 'the refusal names the dungeon');
-  const eq2 = await one(db, 'select ($1::timestamptz = $2::timestamptz) as eq', [rAuto.next_entry_at, map1[DUNGEON]]);
+  const eq2 = await one(db, 'select ($1::timestamptz = $2::timestamptz) as eq',
+    [rAuto.next_entry_at, win(map1, DUNGEON, 'auto')]);
   ok(eq2.eq === true, 'the refused next_entry_at is the projected next_entry_at');
+  ok(rAuto && rAuto.mode === 'auto', 'the refusal names the mode it refused');
 
   const rMan = await settle(db, A, { version: ver, intent: uuid(), mode: 'manual' });
   ok(rMan && rMan.error === 'on_cooldown',
     `a MANUAL re-entry inside the window is refused — THE GAP (got ${rMan && rMan.error})`);
+
+  // ── SCAVENGER IS NOT EXEMPT: refused inside its own quarter window, at ITS
+  //    window (Designer ruling 2026-09-12 — an exemption keyed on a client string
+  //    is an opt-out, so the mode gets cooldown_s/4 instead of nothing).
+  const rScvIn = await settle(db, A, { version: ver, intent: uuid(), mode: 'scavenger' });
+  ok(rScvIn && rScvIn.error === 'on_cooldown',
+    `a SCAVENGER re-entry inside the quarter window is refused (got ${rScvIn && rScvIn.error})`);
+  const eqS = await one(db, 'select ($1::timestamptz = $2::timestamptz) as eq',
+    [rScvIn.next_entry_at, win(map1, DUNGEON, 'scavenger')]);
+  ok(eqS.eq === true, 'the scavenger refusal quotes ITS window, not the full one');
+  ok(Number(rScvIn.cooldown_s) === CD_S / 4,
+    `the scavenger refusal reports the quarter cooldown_s (got ${rScvIn && rScvIn.cooldown_s})`);
 
   ok(await invQty(db, A, KEY) === keysBefore, 'a refused entry consumed no key');
   ok(Number((await one(db, 'select dungeon_scrip from public.player_state where user_id=$1 and slot=0', [A])).dungeon_scrip) === scripBefore,
@@ -272,13 +336,63 @@ async function runAll(db) {
   ok(journal.n >= 2, `both refusals are journalled in hr_rejections (n=${journal.n})`);
   ok(!!journal.det, 'the journalled rejection keeps next_entry_at in last_detail');
 
-  // ── (9) SCAVENGER IS EXEMPT, inside the very same window ─────────────────
-  const rScv = await settle(db, A, { version: ver, intent: uuid(), mode: 'scavenger' });
-  ok(rScv && rScv.ok === true,
-    `a SCAVENGER run inside the window is NOT refused — the authored exemption (got ${rScv && rScv.error})`);
-  const mapScv = await cooldowns(db, A);
-  const eqScv = await one(db, 'select ($1::timestamptz = $2::timestamptz) as eq', [mapScv[DUNGEON], map1[DUNGEON]]);
-  ok(eqScv.eq === true, 'a scavenger settle did not move the window either (it neither pays nor respects it)');
+  // ── (9) THE QUARTER WINDOW, END TO END ───────────────────────────────────
+  //    A fresh character whose last run was a SCAVENGER settle 1.5 * (cd/4) ago:
+  //    its own quarter window has expired (scavenger may run) but the FULL window
+  //    has not (auto and manual are still refused). That is the Designer's arm,
+  //    and it is the one that distinguishes "a run is a run, at your mode's share
+  //    of the window" from "per-mode independent timers".
+  const Q = uidFor('e5');
+  await seed(db, Q);
+  const qAt = await seedSettle(db, Q, { mode: 'scavenger', agoS: Math.round(CD_S / 4 * 1.5) });
+  const mapQ = await cooldowns(db, Q);
+  ok(!win(mapQ, DUNGEON, 'scavenger'),
+    `the scavenger quarter window has EXPIRED (${JSON.stringify(mapQ)})`);
+  ok(!!(win(mapQ, DUNGEON, 'auto') && win(mapQ, DUNGEON, 'manual')),
+    'the FULL window from the same run is still active for auto and manual');
+  const rQman = await settle(db, Q, { version: 1, intent: uuid(), mode: 'manual' });
+  ok(rQman && rQman.error === 'on_cooldown',
+    `manual is still refused outside the quarter window but inside the full one (got ${rQman && rQman.error})`);
+  const rQscv = await settle(db, Q, { version: 1, intent: uuid(), mode: 'scavenger' });
+  ok(rQscv && rQscv.ok === true,
+    `the scavenger runs again once ITS quarter window has passed (got ${rQscv && rQscv.error})`);
+  const mapQ2 = await cooldowns(db, Q);
+  const eqQ = await one(db, 'select ($1::timestamptz > $2::timestamptz) as gt',
+    [win(mapQ2, DUNGEON, 'scavenger'), qAt]);
+  ok(eqQ.gt === true, 'the scavenger settle stamped a fresh quarter window from the server clock');
+
+  // ── (9b) SCAVENGER IS A CATALOGUE FACT, not a client claim ───────────────
+  const noCfg = await one(db,
+    `select dungeon_id from public.hr_dungeons where not scavenger_ok and cooldown_s > 0
+      order by req_lv asc, dungeon_id asc limit 1`);
+  ok(!!noCfg, 'the catalogue has at least one dungeon with no authored scavenger run');
+  const N = uidFor('f6');
+  await seed(db, N);
+  const rBad = await settle(db, N, { version: 1, intent: uuid(), mode: 'scavenger', dungeon: noCfg.dungeon_id });
+  ok(rBad && rBad.error === 'bad_mode',
+    `a scavenger run on ${noCfg.dungeon_id} (no authored config) is refused bad_mode (got ${rBad && rBad.error})`);
+  ok(rBad && rBad.reason === 'no_scavenger_config', 'the bad_mode refusal says why');
+  ok(await invQty(db, N, OTHER_KEY) === 3 && await invQty(db, N, KEY) === 3,
+    'the bad_mode refusal cost no key (it is refused before the debit)');
+  const worldBoss = await one(db,
+    'select scavenger_ok from public.hr_dungeons order by cooldown_s desc limit 1');
+  ok(worldBoss.scavenger_ok === false,
+    'the longest-cooldown dungeon (the world boss) is NOT scavenger-runnable — the string cannot reach it');
+
+  // ── (9c) THE CATALOGUE FLAG MATCHES THE AUTHORED SOURCE (drift guard) ────
+  //    scavenger_ok is ⟦DERIVED⟧ from SCAVENGER_CONFIGS in src/dungeon-scavenger.js
+  //    (the generator cannot import it — it lives in a browser IIFE, not src/data),
+  //    so the parity that keeps game data out of SQL is asserted HERE, both ways.
+  const scavSrc = await readFile(new URL('../src/dungeon-scavenger.js', import.meta.url), 'utf8');
+  const cfgBlock = scavSrc.slice(scavSrc.indexOf('var SCAVENGER_CONFIGS = {'));
+  const authored = [...cfgBlock.matchAll(/^ {4}([a-z_][a-z0-9_]*):\s*\{/gm)].map((m) => m[1]).sort();
+  const flagged = (await db.query(
+    'select dungeon_id from public.hr_dungeons where scavenger_ok order by dungeon_id')).rows
+    .map((r) => r.dungeon_id);
+  ok(authored.length > 0, 'the authored SCAVENGER_CONFIGS block parsed (the drift guard is not vacuous)');
+  ok(JSON.stringify(authored) === JSON.stringify(flagged),
+    `hr_dungeons.scavenger_ok matches the authored configs (authored ${JSON.stringify(authored)}, `
+    + `flagged ${JSON.stringify(flagged)})`);
 
   // ── (6)+(8) AFTER THE WINDOW: absent from the projection, and admitted ───
   const B = uidFor('b2');
@@ -312,9 +426,10 @@ async function runAll(db) {
   await seed(db, D);
   const forgedAt = await seedSettle(db, D, { agoS: 60, forge: true });
   const mapD = await cooldowns(db, D);
-  ok(!!mapD[DUNGEON], 'a forged meta.client_at / meta.next_entry_at 10 days in the past does not clear the window');
+  ok(!!win(mapD, DUNGEON, 'auto'),
+    'a forged meta.client_at / meta.next_entry_at 10 days in the past does not clear the window');
   const eqD = await one(db, 'select (($1::timestamptz + make_interval(secs => $2)) = $3::timestamptz) as eq',
-    [forgedAt, CD_S, mapD[DUNGEON]]);
+    [forgedAt, CD_S, win(mapD, DUNGEON, 'auto')]);
   ok(eqD.eq === true, 'the window is still ledger.at + cooldown_s, not the forged value');
   const rForge = await settle(db, D, { version: 1, intent: uuid(), mode: 'manual' });
   ok(rForge && rForge.error === 'on_cooldown', `the forged row still refuses the entry (got ${rForge && rForge.error})`);
@@ -396,8 +511,10 @@ if (argv.includes('--selftest')) {
   await runAll(await boot(null));
   if (failed) { console.error(`\ndungeon-cooldown: ${failed} assertion(s) FAILED.`); process.exit(1); }
   console.log('dungeon-cooldown: all assertions passed (fresh character clean, settle stamps from the '
-    + 'server clock, auto AND manual refused inside the window with next_entry_at, refusal moves nothing '
-    + 'and is journalled, scavenger exempt, expired window absent and admitted, per user/slot/dungeon, '
-    + 'forged payload timestamp inert, no client write on the ledger, helpers owner-only).');
+    + 'server clock, auto/manual/scavenger each refused at their own share of the window with '
+    + 'next_entry_at, scavenger quarter window proven both ways, unauthored scavenger run refused '
+    + 'bad_mode, catalogue flag matches SCAVENGER_CONFIGS, refusal moves nothing and is journalled, '
+    + 'expired window absent and admitted, per user/slot/dungeon, forged payload timestamp inert, no '
+    + 'client write on the ledger, helpers owner-only).');
   process.exit(0);
 }

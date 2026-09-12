@@ -2742,3 +2742,38 @@ gold-verb path (it is an APPLY-what-the-server-sent change, not a value movement
 whether any other verb answer carries a field `envelopeOf` drops — `farm`, `companions` and
 `hero_slots` are all on `hr_state_of` and all reconciled elsewhere, so `progress` may not be the only
 one.
+
+---
+
+## 2026-09-12 — QA (lane/harden-recover17-slot-switch): the b372 quiesce hole the mutation proof uncovered
+
+**THE TWO REDS ARE FIXED IN THIS LANE** (RECOVER-17 asserted a hydration record.js and accrue.js both
+forbid, green only on RECOVER-16's leaked module-local; `slot-switch --mutate` could not see the
+quiesce latch because b515 deleted the SAVE_KEY write it was watching). Both now carry mutation
+proofs. The three findings below are NOT mine to fix.
+
+**P3 — THE RESIDUE PUT IS NOT COVERED BY LAYER 2 OF THE b372 DEFENCE (route: Systems Engineer).**
+The switch quiesce has two layers in `src/net/sync.js`: `snapshotIfDue()` refuses to START a send
+while quiesced, and `ownerSlotForLiveG()` addresses one already in flight to the OUTGOING slot.
+Layer 2 only reaches `buildSnapshotRequest` (game_saves). The residue PUT that replaced the blob is
+addressed by `putClientState(patch, { pinnedSlot: config.slot })` -> `buildClientStatePutRequest` ->
+`resolveActiveSlot(pinnedSlot)`, which reads `HearthriseProfile.activeSlot()` LIVE, and `config.slot`
+is null in production (auth.js pins nothing). So a cadence `snapshotIfDue(false,false)` parked on
+`await fetchClaimRow()` when a switch lands has ALREADY passed the quiesce gate, and builds its body
+afterwards against the INCOMING slot — the outgoing hero's residue upserted onto the target hero's
+`client_state` row. Narrow (needs a stale claim view plus a switch inside that one network read) and
+it cannot touch authority fields, but it is the class b372 exists for. Suggested fix, one line, in
+the lane that owns sync.js: pass `pinnedSlot: ownerSlotForLiveG(config.slot)`, or re-test
+`switchQuiesced()` after the await — with a regression test that parks the claim read then switches.
+
+**P3 — DEAD CODE IN src/legacy.js (route: Systems Engineer).** `_switchQuiesced()` (line ~824) and
+`_activeSaveSlot()` (line ~830) have ZERO callers since b515 emptied `saveLocal()`; they are the
+blob-era readers of the latch, and their header still describes them as live. Delete both with the
+retirement, or the next reader will believe legacy.js still defends that write.
+
+**P4 — ONE IN-PAGE ASSERTION IS NOW VACUOUS (noted; header corrected in this lane).** In the in-page
+`b372: a hero-slot switch cannot clone the outgoing character...` test, `during.save === null` cannot
+fail any more (nothing writes SAVE_KEY). Its live assertion is `during.snapSlot === 0`. The header's
+mutation recipe pointed at the `saveLocal` line b515 deleted; it now names `tests/slot-switch.mjs`,
+which watches the residue PUT instead. The assertion stays: a blob write re-appearing is still worth
+catching.

@@ -172,6 +172,50 @@ const INJECTION_FILES = Object.freeze({
   'market-v2': '2026-08-17-market-v2.sql',
 });
 
+/* ── THE FOURTH KIND OF TARGET: THE BODY THE CHAIN ENDS UP WITH ────────────
+   Every key above names a FILE, and that works while the file's text is the
+   text production executes. hr_apply stopped being that on 2026-09-12.
+
+   The chain now writes hr_apply in two ways (b538's vocabulary): TEN AUTHORS
+   (the last is 2026-08-25-workers.sql, apply-order 93) and then a tail of
+   PATCHERS — 2026-09-03-intent-mismatch-class/-escalates, and now
+   2026-09-12-renown-high-projection.sql at 165 — each of which reads the body
+   back with pg_get_functiondef, splices, and re-executes. A patcher carries a
+   plant FORWARD, so `apply-last` still installs a live defect; that half is
+   healthy and every other plant on that key still works.
+
+   What broke `gold_double` is the other half. The renown file's §3(c6) probe
+   runs a PAID apply and asserts `gold1 = gold0 + 7777` EXACTLY. A body that
+   doubles a positive gold delta therefore cannot get past file 165: the
+   migration refuses to install, the whole replay fails, and the arm scores
+   HARNESS ("migrations would not apply") instead of CAUGHT. The plant was
+   never dead — it was live enough to be measured at 15554 — it simply could no
+   longer reach a database that finished booting.
+
+   The two obvious repairs are both wrong. Declaring `gate:` on c6 moves the
+   catch into one migration's fixture, and this file has twice been burned by a
+   gate that silently stopped firing when its file moved (see `apply-live` and
+   budget_kind_scoped) — while the runtime Σgold identity is permanent and is
+   the only plant that proves it can see a mint through hr_apply at all.
+   Re-shaping the plant so it dodges c6 is worse: that is evading a commit gate
+   to prove a runtime detector, which expire_double's note explicitly refuses.
+
+   So the plant moves to where production's body actually is. `final:` names a
+   FUNCTION rather than a file: the chain replays UNPATCHED and every migration
+   self-check certifies the clean body exactly as it does in production, and
+   only then is the anchor replaced in `pg_get_functiondef(...)` — the text the
+   database is left holding — and re-executed. That is the same text §1 of the
+   renown file edits, one step further along: the author's line, carried
+   through every patcher, as the fuzz's ops will actually execute it.
+
+   The discipline is bootReplay's, kept: the anchor must appear EXACTLY ONCE in
+   the live body and must CHANGE it, or the run is a HARNESS failure. The
+   marker sweep below (PLANT STILL STANDING) then re-reads it out of pg_proc,
+   so "planted" is a measurement here too, not an inference. */
+const INJECTION_FINAL_BODIES = Object.freeze({
+  'apply-final': 'public.hr_apply(uuid,int,bigint,uuid,jsonb)',
+});
+
 // ── args ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
 const argOf = (name, dflt) => {
@@ -241,7 +285,15 @@ const INJECTIONS = {
 
   gold_double: {
     what: 'hr_apply credits a positive gold delta twice',
-    file: 'apply-last',
+    /* ⚠ `final:`, NOT `file:` — SEE INJECTION_FINAL_BODIES. On 2026-09-12 the
+       renown projection landed a §3(c6) probe that runs a paid apply and
+       asserts the gold exactly, so this plant (measured at 2× 7,777) made the
+       CHAIN refuse to install and the arm scored HARNESS. The gold credit is
+       still authored at 2026-08-25-workers.sql:712 and still carried forward by
+       every later patcher; what changed is that the clean chain now has to
+       finish before the defect exists. Planted in the final body it reaches the
+       ops, and the thing that should catch it does: the Σgold identity. */
+    final: 'apply-final',
     /* THE `gate:` IS GONE, AND THE REASON IS THE WHOLE `apply-last` STORY.
        It used to read /the first claim paid 1000 gold, expected 500/ and fire in
        2026-08-16-claim-reward.sql, whose self-check claims a real reward and
@@ -250,8 +302,9 @@ const INJECTIONS = {
        gem-daily-budget (apply-order 51), UPSTREAM of claim-reward — and the same
        fact made it a plant in a body that six later files overwrite, so it never
        tested the hr_apply the fuzz actually runs against. Planted where it
-       belongs (93, the last writer) the gate cannot fire, and the defect is
-       caught by the thing that should catch it: the conservation identity, at
+       belongs — for three weeks that was 93, the last author; since 2026-09-12
+       it is the body the chain ENDS with — the gate cannot fire, and the defect
+       is caught by the thing that should catch it: the conservation identity, at
        2,000,000 gold of drift over 400 ops. A gate that can no longer fire is a
        gate that quietly downgrades a catch to a harness error — budget_kind_scoped
        says so below, and this is that note applied to itself. */
@@ -564,9 +617,35 @@ async function boot(injectionId) {
      the point: two implementations of "prove the plant landed" is one that gets
      weakened without the other noticing. */
   let patches = null;
+  let finalBody = null;      // a `final:` plant — applied AFTER the chain, below
   if (injectionId) {
     const inj = INJECTIONS[injectionId];
     if (!inj) { process.stderr.write(`HARNESS: unknown injection "${injectionId}"\n`); process.exit(2); }
+    if ((inj.file ? 1 : 0) + (inj.final ? 1 : 0) !== 1) {
+      process.stderr.write(`HARNESS: injection "${injectionId}" must declare exactly one of file: (a `
+        + 'migration in the chain) or final: (the body the chain ends with). Declaring both, or\n'
+        + '  neither, leaves it ambiguous WHICH text the plant corrupts.\n');
+      process.exit(2);
+    }
+    if (inj.final) {
+      finalBody = INJECTION_FINAL_BODIES[inj.final];
+      if (!finalBody) {
+        process.stderr.write(`HARNESS: injection "${injectionId}" names final body "${inj.final}", `
+          + 'which is not in INJECTION_FINAL_BODIES.\n');
+        process.exit(2);
+      }
+      if (inj.gate) {
+        /* A `final:` plant is installed after every migration has already run,
+           so no migration self-check can possibly see it. Declaring a gate here
+           would be a gate that CANNOT fire, which is the exact failure mode
+           budget_kind_scoped's note names. */
+        process.stderr.write(`HARNESS: injection "${injectionId}" declares both final: and gate:. A `
+          + 'plant applied after the chain cannot be refused by a migration, so the gate could\n'
+          + '  never fire and the arm would silently grade on the wrong thing.\n');
+        process.exit(2);
+      }
+      return await bootFinalBody(injectionId, finalBody);
+    }
     const file = INJECTION_FILES[inj.file];
     if (!file) {
       process.stderr.write(`HARNESS: injection "${injectionId}" names file "${inj.file}", which is `
@@ -725,27 +804,90 @@ async function boot(injectionId) {
 
      It costs one indexed catalogue scan per injected run and it cannot go
      stale, because it asks the database rather than the file list. */
-  if (injectionId) {
-    const marker = `-- INJECTED ${injectionId}`;
-    if (INJECTIONS[injectionId].patches.some(([, repl]) => repl.includes(marker))) {
-      const { rows } = await db.query(
-        `select count(*)::int as n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-          where n.nspname = 'public' and position($1 in p.prosrc) > 0`, [marker]);
-      if (!rows[0] || rows[0].n === 0) {
-        process.stderr.write(`HARNESS: injection "${injectionId}" applied, but after the FULL chain no `
-          + `function in public carries its marker (${marker}).\n`
-          + '  A later migration replaced the planted body, so the fuzz would run against clean SQL\n'
-          + '  and prove nothing. Declare the file that actually wins, and re-check what catches it.\n');
-        process.exit(2);
-      }
-    }
-  }
+  if (injectionId) await assertPlantStanding(db, injectionId);
   if (injectionId && INJECTIONS[injectionId].gate) {
     // The gate did NOT fire. Do not exit here — let the fuzz run, so the plant
     // still gets a fair chance to be caught at runtime and the result reads as
     // SLIPPED only if nothing at all noticed.
     process.stderr.write(`NOTE: injection "${injectionId}" declares gate: but the migration installed it anyway.\n`);
   }
+  return db;
+}
+
+/** The marker sweep, shared by both plant kinds — see PLANT STILL STANDING. */
+async function assertPlantStanding(db, injectionId) {
+  const marker = `-- INJECTED ${injectionId}`;
+  if (!INJECTIONS[injectionId].patches.some(([, repl]) => repl.includes(marker))) return;
+  const { rows } = await db.query(
+    `select count(*)::int as n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and position($1 in p.prosrc) > 0`, [marker]);
+  if (!rows[0] || rows[0].n === 0) {
+    process.stderr.write(`HARNESS: injection "${injectionId}" applied, but after the FULL chain no `
+      + `function in public carries its marker (${marker}).\n`
+      + '  A later migration replaced the planted body, so the fuzz would run against clean SQL\n'
+      + '  and prove nothing. Declare the file that actually wins, and re-check what catches it.\n');
+    process.exit(2);
+  }
+}
+
+/* ── A `final:` PLANT — CORRUPT THE BODY THE CHAIN ENDED UP WITH ───────────
+   The chain replays VERBATIM: every migration self-check certifies the clean
+   body, exactly as it does on production, and nothing is bypassed. Then the
+   defect is spliced into `pg_get_functiondef(...)` — the same text the renown
+   file's §1 patcher edits, read from the catalogue rather than from a file —
+   and re-executed, which is how every patcher in the chain installs its own
+   change. `create or replace` preserves the grants, so the revoke/grant set
+   the chain established still stands.
+
+   bootReplay's anchor discipline is reproduced here rather than reused,
+   because bootReplay speaks in files and this speaks in catalogue text; it is
+   the same three rules — the anchor matches EXACTLY ONCE, the replacement
+   CHANGES the text, and the result is re-read out of pg_proc afterwards. A
+   plant that could not be placed is a harness failure, never a catch. */
+async function bootFinalBody(injectionId, signature) {
+  const inj = INJECTIONS[injectionId];
+  let db;
+  try {
+    ({ db } = await bootReplay({}));
+  } catch (e) {
+    if (e.harness) { process.stderr.write(`HARNESS: ${e.message}\n`); process.exit(2); }
+    process.stderr.write(`HARNESS: migrations would not apply (CLEAN chain, before the "${injectionId}" `
+      + `plant was placed — so this is not the plant): ${e.message}\n`);
+    process.exit(2);
+  }
+  let def;
+  try {
+    const { rows } = await db.query('select pg_get_functiondef($1::regprocedure) as def', [signature]);
+    def = rows[0] && rows[0].def;
+  } catch (e) {
+    process.stderr.write(`HARNESS: injection "${injectionId}" targets ${signature}, which the chain did `
+      + `not leave installed: ${e.message}\n`);
+    process.exit(2);
+  }
+  if (!def) {
+    process.stderr.write(`HARNESS: injection "${injectionId}" targets ${signature}, which the chain did `
+      + 'not leave installed.\n');
+    process.exit(2);
+  }
+  for (const [anchor, repl] of inj.patches) {
+    const hits = def.split(anchor).length - 1;
+    if (hits !== 1) {
+      process.stderr.write(`HARNESS: injection "${injectionId}" — its anchor matches ${hits} time(s) in `
+        + `the final body of ${signature} (expected exactly 1). The chain has moved under the plant;\n`
+        + '  re-read the body and re-anchor rather than planting into text that is not there.\n'
+        + `  anchor: ${JSON.stringify(anchor.slice(0, 120))}\n`);
+      process.exit(2);
+    }
+    const next = def.replace(anchor, repl);
+    if (next === def) {
+      process.stderr.write(`HARNESS: injection "${injectionId}" — the patch did not CHANGE the final `
+        + `body of ${signature}. A planted bug that was never planted is not a plant.\n`);
+      process.exit(2);
+    }
+    def = next;
+  }
+  await db.exec(def);
+  await assertPlantStanding(db, injectionId);
   return db;
 }
 

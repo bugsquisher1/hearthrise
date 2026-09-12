@@ -1350,3 +1350,29 @@ key `resume` and the suppression are the load-bearing parts.
 
 RETREAT-A4's own assertion moved with it: the boot sheet counts the same server instant down in the
 ruled sentence ("Still recovering — 32m to go") instead of "Back on your feet in 31:47".
+
+## 2026-09-12 · SYSTEMS → GAME DESIGNER + BACKEND (catalogue lane) · **DATA: 31 equippables are gated by the client and by nothing on the server** (`worktree-agent-a5150572edeb72e85`, lane/b538-wield-grandfather-server-truth)
+
+Found while deleting `G.wieldGrandfather` (the client-held wield exemption). Not a git conflict and
+not blocking that fix — the divergence is in the FAIL-SAFE direction — but it is one rule living in
+two places with two different answers, and only one of them is authority.
+
+**Measured.** 237 equippable items in `src/data/items.js`: 191 carry both `tier` and `reqLv`, 5 carry
+`reqLv` only, 10 carry neither, and **31 carry `tier` and no `reqLv`/`reqSkill`** (the classic
+hand-authored plate — `iron_helm`, `steel_helm`, `iron_platebody`, `steel_platebody`, `bronze_belt`,
+`leather_boots`, …). `gearWieldReq` (src/legacy.js) derives a requirement for those from the tier
+ladder `_TIER_WIELD_LV` (Bronze 1 → Dawnsteel 88) and a skill from the item type, while
+`tools/gen-catalogues.mjs` copies `it.reqLv` **verbatim** — so `hr_items.req_lv` is NULL for all 31
+and hr_apply §EQUIPMENT accepts them at any level. The client refuses what the realm permits.
+
+**Why it is not urgent, and not mine to close.** Nothing is minted and nothing is lit that the server
+refuses, so this is not the residue-ahead class — it is its mirror image, and it costs a player a
+piece of gear they could legally wear rather than a bounced press. Closing it means authoring
+`reqSkill`/`reqLv` on those 31 rows (the designer's values) plus a catalogue regeneration and apply
+(lane C, with a `live-hash-drift` re-measure). Two ways to land it: author the rows to match the tier
+ladder (the design as ruled at b246, and what the client does today), or drop the ladder fallback and
+let the catalogue be the whole answer — which makes those 31 wearable at level 1.
+
+**What the client does now, for the record.** `canWield` reads the requirement against the
+server-mirrored skill level and nothing else; the rationale, the refusal code and this divergence are
+documented at `src/net/equip.js` §THE GATE.

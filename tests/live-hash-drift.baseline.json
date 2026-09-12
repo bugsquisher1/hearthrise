@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-12",
- "replay_ms": 1175,
+ "replay_ms": 9866,
  "counts": {
-  "tracked_names": 49,
-  "entries": 47
+  "tracked_names": 50,
+  "entries": 48
  },
  "functions": [
   {
@@ -475,6 +475,28 @@
    "replay": {
     "md5": "40b0935afb1a8c718db954c718f55db7",
     "norm_len": 335,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_dungeon_settle(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_dungeon_id text, p_mode text, p_quality numeric)",
+   "name": "hr_dungeon_settle",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-12-dungeon-cooldown.sql"
+   ],
+   "live": {
+    "md5": "9ab6f689b4ecdb81f1b3d6041b700f0c",
+    "norm_len": 16308,
+    "measured": "2026-09-12",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "9ab6f689b4ecdb81f1b3d6041b700f0c",
+    "norm_len": 16308,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -957,22 +979,23 @@
     "2026-09-08-hero-slot-buy.sql",
     "2026-09-09-bounty-progress-projection.sql",
     "2026-09-10-dungeon-scrip.sql",
+    "2026-09-12-dungeon-cooldown.sql",
     "2026-09-12-renown-high-projection.sql",
     "2026-09-12-worker-hired-at-projection.sql"
    ],
    "live": {
-    "md5": "60a91508c621dbb6646f5392e6e7a6f4",
-    "norm_len": 19719,
+    "md5": "faca4a2c116ee7ee5289e5680347d3a5",
+    "norm_len": 20649,
     "measured": "2026-09-12",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "107d573caddb05be0bb7684d04e080fd",
-    "norm_len": 20467,
+    "md5": "696101555eef7fae51893d3f296c6cb0",
+    "norm_len": 21397,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-12 17:22 UTC: the renown projection migration (lane C 3bb64c2c) replaced hr_state_of with the top-level renown_high projection; --codediff CODE-IDENTICAL: the 748-char live/replay delta is comments/whitespace only. Production runs the executable text the repo rebuilds. Verified live: renown_high 779 -> 956 on a real settle at 17:24:41 UTC."
+   "why": "2026-09-12 17:32 UTC: the dungeon cooldown migration (lane C fdbee3ce, Security GO diff-only re-check) spliced the dungeon_cooldowns projection into hr_state_of on top of the applied renown body; --codediff CODE-IDENTICAL: the 748-char live/replay delta is comments/whitespace only. Production runs the executable text the repo rebuilds. Verified live: QA envelope carries dungeon_cooldowns = {} at 17:36 UTC."
   },
   {
    "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",

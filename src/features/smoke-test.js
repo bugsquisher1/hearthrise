@@ -15190,12 +15190,10 @@ const TESTS = [
     const recBefore = (G && G._record) ? JSON.parse(JSON.stringify(G._record)) : null;
     const hadConfig = !!(typeof R.getRecordConfig === 'function' && R.getRecordConfig());
     const until = Date.now() + 11 * 60000;
-    /* THE FIXTURE OWNS THE WATERMARK IT MEASURES (b538): accrue.js's is a
-       module-local with no reset seam that only applyEnvelopeState writes, so read
-       it BEFORE the boot and put a distinctly PAST instant (`priced`) on the wire,
-       and ②b reads the same in a filtered run and in the full suite. */
-    const wmBefore = A.accruedToMs();
-    const priced = Date.now() - 90000;
+    /* THE FIXTURE OWNS THE WATERMARK IT MEASURES (b538): accrue.js's is a module-local
+       with no reset seam that only applyEnvelopeState writes, so read it BEFORE the boot
+       and put a distinctly PAST instant (`priced`) on the wire — filtered run or full. */
+    const wmBefore = A.accruedToMs(); const priced = Date.now() - 90000;
     let asked = 0;
     try {
       D.__resetForTest();                 // stands the fixture up, through an envelope
@@ -15261,25 +15259,18 @@ const TESTS = [
       assert(A.deathsToday() === 2 && A.deathsLifetime() === 5,
         'the boot did not hydrate the server\'s death counters: today=' + A.deathsToday()
         + ' lifetime=' + A.deathsLifetime());
-      /* ②b WHERE `accrued_to` GOES ON THIS PATH, AND WHERE IT MUST NOT (b538).
-            This read `A.accruedToMs() > 0`, which the boot never does: record.js
-            hydrationStep('fall') and accrue.js reconcileFall BOTH state that the
-            boot must not move the watermark (it feeds `bootAccruedToAt`, the
-            welcome-back card's absence). It passed on RECOVER-16's leftover and
-            was RED run alone — a leak, not a hydration. So assert the SPLIT: the
-            boot DID observe `accrued_to` through the field that owns it, and did
-            NOT touch the watermark. MUTATION: accruedToAt written in reconcileFall
-            → second RED; applyRecord dropped from requestRecord → first. */
+      /* ②b WHERE `accrued_to` GOES, AND WHERE IT MUST NOT (b538). This read
+            `accruedToMs() > 0` — which the boot never does: record.js's fall step
+            and accrue.js reconcileFall both state it must not move the watermark
+            (it feeds the welcome-back card's absence). It passed on RECOVER-16's
+            leftover and was RED run alone, so assert the SPLIT instead. MUTATION:
+            accruedToAt written in reconcileFall → second RED; applyRecord dropped
+            from requestRecord → first. */
       const rv = (typeof R.recordValue === 'function') ? R.recordValue(G, 'offlineBudget') : null;
       assert(rv && rv.known === true && rv.value && Number(rv.value.at) === priced,
-        'the boot read did not hand the server\'s `accrued_to` to the field that owns it '
-        + '(SERVER_OF_RECORD offlineBudget): ' + JSON.stringify(rv));
-      assert(A.accruedToMs() === wmBefore,
-        'the BOOT read moved accrue.js\'s priced-window watermark (' + wmBefore + ' → '
-        + A.accruedToMs() + '). Only a settle may: `bootAccruedToAt` is the welcome-back '
-        + 'card\'s statement of how long the player was away, and writing it from the boot '
-        + 'body would silently change that number (record.js hydrationStep(\'fall\'), '
-        + 'accrue.js reconcileFall).');
+        'the boot did not hand `accrued_to` to the field that owns it (offlineBudget): ' + JSON.stringify(rv));
+      assert(A.accruedToMs() === wmBefore, 'the BOOT read moved accrue.js\'s priced-window watermark ('
+        + wmBefore + ' → ' + A.accruedToMs() + '): only a settle may — it feeds the welcome-back absence');
 
       /* ③ THE ALWAYS-ON READOUT NAMES THE COUNTDOWN. The pointer is IDLE, which
             used to fall straight through to "Idle — pick an activity": the

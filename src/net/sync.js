@@ -835,13 +835,11 @@ async function flush() {
  * (game_saves has `unique (user_id, slot)`, so a plain insert 409s every save
  * after the first).
  *
- * b342 — THE THIRD CALLER OF THE b339 BUG, AND THE ONLY SILENT ONE.
- * This read `cfg.slot ?? 0`, and auth.js's enableLiveSync() passes no `slot` at
- * all — so EVERY autosave went to slot 0 no matter which character was live.
- * accrue.js and character.js were fixed for exactly this in b339; the save blob
- * itself was not. Measured before the fix, through the real
- * setupAuth->enableLiveSync->setupSync path with the wire intercepted: profile
- * activeSlot()===2, request body slot===0. A player on character 3 overwrote
+ * THE SLOT DEFAULT IS NOT ZERO, AND IT WAS. This read `cfg.slot ?? 0` while
+ * auth.js's enableLiveSync() passes no `slot` at all, so EVERY autosave went to
+ * slot 0 whichever character was live — measured through the real
+ * setupAuth->enableLiveSync->setupSync path with the wire intercepted (profile
+ * activeSlot()===2, request body slot===0). A player on character 3 overwrote
  * character 1's cloud save on a 60s cadence and was told nothing.
  *
  * The default is now "ask the module that owns the answer", not "0". A pinned
@@ -1018,13 +1016,23 @@ async function snapshotIfDue(force, keepalive) {
          of 3 and go red. An async function that can answer now must answer now.
      A forced/keepalive save on pagehide never blocks on a network read — it
      decides on whatever view it already has. */
+  /* WHICH CHARACTER THIS SEND BELONGS TO IS DECIDED HERE, BEFORE THE AWAIT, and
+     never again: the claim read below is the one await a hero switch can land
+     inside, and the residue PUT resolves an unpinned slot from
+     HearthriseProfile.activeSlot() LIVE at body-build time — i.e. after it. A
+     cadence save parked on that read while the pointer moved wrote the outgoing
+     hero's residue onto the INCOMING hero's client_state row, UNIQUE (user_id,
+     slot) — the switch-duplication class, on the one write the armed game makes.
+     Pinning at entry beats re-reading the quiesce latch after the await: it is
+     "the slot the G we are about to serialise belongs to", latch armed or not. */
+  const ownerSlot = ownerSlotForLiveG(config.slot);
   if (config.claimEndpoint) {
     const viewStale = !claimView || (now - claimView.at) >= CLAIM_VIEW_TTL_MS;
     if (viewStale && !keepalive) await fetchClaimRow();     // error → view untouched → allows
     if (!decideUploadAllowed(claimView, getInstanceId(), Date.now())) return false;
   }
   lastSnapshotAt = now;
-  /* ── SHIP THE RESIDUE, NOT THE BLOB (the capstone, unconditional since b515) ──
+  /* ── SHIP THE RESIDUE, NOT THE BLOB (unconditional) ─────────────────────────
      We do NOT upsert the authoritative snapshot() blob. That blob is retired:
      re-uploading it would put a client-authored copy of server-owned fields back
      on the wire (the two-sources bug record.js exists to prevent). Ship ONLY the
@@ -1032,44 +1040,34 @@ async function snapshotIfDue(force, keepalive) {
      persisted by their own server writes. The throttle / auth / claim gates above
      still apply (residue rides the same cadence). A failed put is NON-FATAL
      (residue is self-only) — it retries next cadence, as putClientState documents.
-
-     b515: this used to be `if (isBlobRetired())` with a ~50-line ELSE that
-     upserted the blob to `game_saves`. isBlobRetired() ANDed the b353 kill
-     switch, so that else-arm was live on any device holding
-     `hr:serverAccrual=off` — a second, client-authored copy of progression that
-     CLAUDE.md §1 forbids. The switch is retired and the arm is deleted; the
-     staged `2026-09-07-game-saves-revoke.sql` takes the client's INSERT/UPDATE
-     grant on the table away so it cannot come back through another door.
-     `snapshot()` / `buildSnapshotRequest()` survive: the b305 battery and the
-     local offline cache still read them. */
+     `snapshot()` / `buildSnapshotRequest()` survive: the local offline cache and
+     the snapshot battery still read them; the staged
+     `2026-09-07-game-saves-revoke.sql` takes the client's INSERT/UPDATE grant on
+     `game_saves` away so the deleted blob arm cannot return through another
+     door. */
   const patch = buildResiduePatch(window.G);
   if (!patch || !Object.keys(patch).length) return false;
   const base = String(config.snapshotEndpoint || '').replace(/\/rest\/v1\/.*$/, '');
   const anonKey = typeof config.apiKey === 'function' ? config.apiKey() : config.apiKey;
   const jwt = typeof config.authToken === 'function' ? config.authToken() : config.authToken;
   if (!base || !anonKey || !jwt) return false;   // not configured → wait, never author locally
-  /* b459 (suite catch): this is the ONE periodic write the armed game still
-     makes, and a bare fetch inside putClientState lost b371's gateway retry
-     AND b331's auth accounting (a 401 never latched the dead token, never
-     fired onAuthExpired). Inject fetchWithAuthRetry as the transport so the
-     capstone save gets the same hardening as every other write. It returns
-     null on a definitive failure — map that to a rejected fetch so
-     putClientState reports {ok:false, error:'transport'} as designed. */
-  /* Q-1 — THE TAB-CLOSE SAVE MUST SURVIVE THE TAB CLOSING.
-     `keepalive` is threaded into the residue write because from the capstone
-     onward the
-     pagehide/visibility-hidden save was a plain fetch that the browser
-     cancels on teardown — up to a full 60s cadence of self-only progress
-     (bestiary, achievements, quests, dungeon cooldowns, buffs, the
-     daily-reward shown-marker) lost on EVERY tab close and every mobile
-     backgrounding. putClientState / buildClientStatePutRequest owns the flag
-     and the 64 KiB keepalive body ceiling; the cadence, the allowlist and the
-     patch are untouched.
-     retryWrite mirrors the blob path (`retryWrite: !keepalive`): on the
-     parting shot there is no page left to sleep 500ms in, and a second
-     keepalive body would double-spend the browser's small inflight quota. */
+  /* THE TRANSPORT IS INJECTED, not left to the bare fetch inside putClientState:
+     this is the ONE periodic write the armed game makes, and a bare fetch loses
+     the gateway retry AND the auth accounting (a 401 that never latches the dead
+     token or fires onAuthExpired). fetchWithAuthRetry returns null on a
+     definitive failure — mapped to a rejected fetch so putClientState reports
+     {ok:false, error:'transport'} as designed.
+     KEEPALIVE is threaded through because the pagehide/visibility-hidden save is
+     otherwise a plain fetch the browser cancels on teardown, losing up to a full
+     60s cadence of self-only progress (bestiary, achievements, quests, dungeon
+     cooldowns, buffs, the daily-reward marker) on every tab close and every
+     mobile backgrounding. putClientState / buildClientStatePutRequest own the
+     flag and the 64 KiB keepalive body ceiling.
+     retryWrite: !keepalive — on the parting shot there is no page left to sleep
+     500ms in, and a second keepalive body double-spends the browser's small
+     inflight quota. */
   const put = await putClientState(patch, {
-    url: base, anonKey, jwt, pinnedSlot: config.slot, keepalive: !!keepalive,
+    url: base, anonKey, jwt, pinnedSlot: ownerSlot, keepalive: !!keepalive,
     fetch: async (u, init) => {
       const res = await fetchWithAuthRetry(u, () => init, 'client_state', { retryWrite: !keepalive });
       if (!res) throw new Error('transport_failed');

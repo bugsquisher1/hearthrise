@@ -8041,9 +8041,7 @@ const TESTS = [
         assert(smith.includes(id), 'smithing recipe missing: ' + id));
       const craft = (window.ARTISAN_RECIPES.crafting || []).map(r => r.id);
       assert(craft.includes('carve_runewood_rod'), 'crafting recipe missing: carve_runewood_rod');
-    } finally {
-      G.inventory = savedInv;
-    }
+    } finally { G.inventory = savedInv; }
   }),
   () => tryRun('b202: pets — skill/boss sources parse, forced roll unlocks, owned pets skip', () => {
     const P = window.HearthrisePets;
@@ -8216,9 +8214,7 @@ const TESTS = [
         'prep quests (gather, cook) must come BEFORE combat (first_blood) so new players are guided to prepare');
       const cook = G.quests.find(q => q.id === 'first_cook');
       assert(cook && cook.type === 'cooked', 'first_cook must be a cooking quest');
-    } finally {
-      G.quests = saved.quests;
-    }
+    } finally { G.quests = saved.quests; }
   }),
   () => tryRun('b217: cooking progresses daily + quest trackers (live artisan path)', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
@@ -8472,9 +8468,7 @@ const TESTS = [
           assert(G.traits.auto_eat === true, 'buyTrait must unlock when marks afford it');
           assert(G.marks === 150 - _aeCost, 'buyTrait must deduct TRAITS.auto_eat.cost (' + _aeCost + '), got ' + G.marks);
           assert(G.gold === 999999, 'gold untouched after a successful marks purchase');
-        } finally {
-          R.__setMarksRecordArm(null);
-        }
+        } finally { R.__setMarksRecordArm(null); }
       }
     } finally {
       if (S && realBuyTrait) S.buyTrait = realBuyTrait;
@@ -8537,13 +8531,9 @@ const TESTS = [
           window.ensureBountyState();
           assert(G.marks === 10, 'an existing top-level G.marks must not be overwritten by a nested value, got ' + G.marks);
           assert(!('marks' in G.bountyHunter), 'a stray nested marks must still be dropped');
-        } finally {
-          R.__setMarksRecordArm(null);
-        }
+        } finally { R.__setMarksRecordArm(null); }
       }
-    } finally {
-      G.marks = saved.marks; G.bountyHunter = saved.bh;
-    }
+    } finally { G.marks = saved.marks; G.bountyHunter = saved.bh; }
   }),
   /* bug #5 (Paione, live): a CULL bounty that reaches target but hangs because
      the away/span-sim undercounts the attended player's kills. completeBounty
@@ -8938,9 +8928,7 @@ const TESTS = [
           'a broke player still spent a round trip to be told they are broke: ' + JSON.stringify(rig.sent));
         assert(goldOf() === 0, 'a refused buy moved the balance');
       });
-    } finally {
-      G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank; restoreBankCap(saved.cap);
-    }
+    } finally { G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank; restoreBankCap(saved.cap); }
   }),
   () => tryRun('b269: addItem refuses a NEW stack when the bank is full, but grows existing stacks', () => {
     const G = window.G;
@@ -8963,9 +8951,7 @@ const TESTS = [
       // Free a slot and the new stack now fits.
       G._bankCap += 1;
       assert(window.addItem(ids[1], 1) === true && G.inventory[ids[1]] === 1, 'new stack fits after expansion');
-    } finally {
-      G.inventory = saved.inv; G.bank = saved.bank; restoreBankCap(saved.cap);
-    }
+    } finally { G.inventory = saved.inv; G.bank = saved.bank; restoreBankCap(saved.cap); }
   }),
   () => tryRun('b269: v10→v11 migration grandfathers cap above existing distinct stacks', () => {
     assert(typeof window.applyMigrations === 'function', 'applyMigrations missing');
@@ -9119,9 +9105,7 @@ const TESTS = [
       const all = JSON.parse(localStorage.getItem('hearthrise:market:listings') || '[]');
       const l = all.filter(x => x.itemId === 'normal_log').slice(-1)[0];
       if (l) M.cancelListing(l.id);
-    } finally {
-      restoreGAndRecord(snap);
-    }
+    } finally { restoreGAndRecord(snap); }
   }),
   () => tryRun('b216: the light theme never paints under the dark theme', () => {
     // THE root cause of the recurring "mismatched colours". Two ways it broke:
@@ -10151,9 +10135,7 @@ const TESTS = [
         assert(G.inventory.dungeon_scrip === before, 'a failed purchase must NOT spend scrip (no data loss)');
         assert(!G.inventory.kitchen_blueprint_t2, 'no item granted on a failed purchase');
       }
-    } finally {
-      G.inventory = snap.inv; G.bank = snap.bank; restoreBankCap(snap.cap);
-    }
+    } finally { G.inventory = snap.inv; G.bank = snap.bank; restoreBankCap(snap.cap); }
   }),
 
   () => tryRun('b283: armour set bonus requires same ARCHETYPE + tier (no mixed-loadout trigger)', () => {
@@ -10781,9 +10763,7 @@ const TESTS = [
       const st2 = R.ensureState();
       assert(st2.solo.week !== 'w-stale' && st2.solo.max == null && st2.solo.damage === 0,
         'stale week resets the solo pool');
-    } finally {
-      if (saved === undefined) delete G.raids; else G.raids = saved;
-    }
+    } finally { if (saved === undefined) delete G.raids; else G.raids = saved; }
   }),
   // b224 (Asset pass): the six Hunt bosses rendered as a typographic glyph
   // only — this promotes six painted portraits from _archive/reserve-art into

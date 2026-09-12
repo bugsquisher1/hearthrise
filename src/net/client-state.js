@@ -48,11 +48,11 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { resolveActiveSlot } from './accrue.js?v=537';
+import { resolveActiveSlot } from './accrue.js?v=538';
 /* b492 — the property/worker rung OBSERVER. See applyClientState for why the
    boot observation belongs in THIS module. property-record.js imports nothing,
    so it cannot form a cycle with either this file or accrue.js. */
-import { notePropertyUnlocks } from './property-record.js?v=537';
+import { notePropertyUnlocks } from './property-record.js?v=538';
 
 /* ── THE ARM (SUPERSEDED BY THE CAPSTONE — THIS CONST IS INERT) ─────────────
    THE VALUE IS false AND STAYS false, BUT THE STORE IS SERVER-BACKED IN PROD.
@@ -202,7 +202,15 @@ export const RESIDUE_FIELDS = Object.freeze([
   'renownHigh',     // the renown high-water mark every rank claim is gated on
   'homestead',      // {tier} — the purchased homestead tier; without it the boot RE-DERIVES a
                     // grandfathered tier from rooms/skills, silently demoting a paid upgrade
-  'wieldGrandfather', // {itemId:true} — "once worn, always re-wearable"; losing it can un-wield live gear
+  /* ⚠ `wieldGrandfather` WAS HERE and is DELETED, not re-homed. It was
+     `{itemId:true}`, "once worn, always re-wearable", and this entry claimed
+     "losing it can un-wield live gear" — untrue since the cutover: the wield gate
+     is hr_apply §EQUIPMENT and the worn set the client draws is the server's own
+     `equipment` projection, which it never strips. So the flag un-wielded nothing
+     and only lit an Equip control the realm refused — §6's residue-ahead class
+     with a persisted store behind it. See src/net/equip.js §THE GATE.
+     (A stale key may still sit in an old client_state bag; hydrateInto writes
+     only THIS allowlist, so it is inert — dead bytes, not state.) */
   'currentCombatTier', // which monster tier the combat picker is showing (b213 saved it on purpose)
   'toolCarry',      // fractional gather carry-over per tool — mutated by reference each tick
   /* ── E1/E2 — THE CONSUMPTION CARRY. `toolCarry`'s exact twin, one system

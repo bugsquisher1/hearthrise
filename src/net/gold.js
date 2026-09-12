@@ -116,9 +116,9 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
-} from './accrue.js?v=537';
-import { SHOP_OFFERS } from '../data/shops.js?v=537';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=537';
+} from './accrue.js?v=538';
+import { SHOP_OFFERS } from '../data/shops.js?v=538';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=538';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';

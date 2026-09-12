@@ -136,15 +136,13 @@
     var skillName = (SD[req.skill] && SD[req.skill].name) || req.skill;
     var w = (typeof window.canWield === 'function') ? window.canWield(itemId) : { ok: true };
     var have = (typeof window.getLevel === 'function') ? window.getLevel(req.skill) : null;
-    /* "Already worn" is its own state, not a pass: the grandfather list keeps
-       gear you have legitimately equipped once re-wearable forever, so saying
-       "met" when the level is not met would be a different lie. */
-    var grandfathered = w.ok && have !== null && have < req.lv;
-    var status = grandfathered
-      ? 'already unlocked for you'
-      : w.ok
-        ? 'you can wear this'
-        : 'you have ' + (have === null ? '—' : have);
+    /* The "already unlocked for you" branch is GONE: it printed only when
+       `canWield` passed with the level UNMET, which the client-held exemption set
+       made reachable and the realm answered `requirement_not_met`. The gate reads
+       the server's rule now, so these two statuses are the whole truth. */
+    var status = w.ok
+      ? 'you can wear this'
+      : 'you have ' + (have === null ? '—' : have);
     /* Two BLOCK lines, not a flex row: the tooltip is ~280px, and flexing the
        bold clause against a trailing one wrapped it mid-phrase
        ("Requires / Defense Lv / 30  to wear you have 15"). Verified in the

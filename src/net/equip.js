@@ -36,6 +36,46 @@
 // and every stat comes off `ITEMS[id]` server-side. No qty, no price, no stats,
 // no source slot.
 //
+// ── §THE GATE — WHO DECIDES WHETHER A PIECE MAY BE WORN ─────────────────────
+// The server, twice: the Edge module shape-checks slot/item against the
+// generated catalogues, and hr_apply §EQUIPMENT then re-checks under the row
+// lock that the player meets `hr_items.req_skill`/`req_lv` against
+// `hr_level_from_xp(player_skills.xp)`, refusing `requirement_not_met`.
+//
+// The client keeps a PRE-CHECK — `canWield` / `gearWieldReq` in src/legacy.js —
+// and its only job is to state the same rule one round trip earlier, so a locked
+// row shows the level instead of a button that bounces. Three properties make it
+// a mirror rather than a second authority:
+//
+//   1. NO EXEMPTION SET. `G.wieldGrandfather` ("once worn, always re-wearable")
+//      was a client-held, residue-PERSISTED map that short-circuited the check
+//      to ok. It was a pre-cutover mercy for gear worn before requirements
+//      existed; the realm has never had a counterpart (grep grandfather / wield
+//      / req_lv across supabase/**: no table, column or branch), so after the
+//      cutover it could do exactly one thing — light an Equip control the server
+//      then refused. Deleted with its three writers and its RESIDUE_FIELDS
+//      entry. CLAUDE.md §6: a client-held flag never gates a server capability;
+//      the fail-safe is "not unlocked".
+//   2. IT READS THE DISPLAY LEVEL, AND THAT IS CORRECT HERE. `getLevel` answers
+//      the server's xp plus the in-flight prediction, and this verb COLLECTS the
+//      open window BEFORE it swaps — so the round trip that checks the
+//      requirement is the one that settles the prediction. With nothing yet
+//      arrived from the realm it floors to level 1, i.e. locked.
+//   3. IT IS ASKED ABOUT EQUIPPING, NEVER ABOUT THE WORN SET. hr_apply checks
+//      the requirement on the equip and never strips a slot, so the server's
+//      `equipment` projection may legitimately hold a piece above its
+//      requirement (a reqLv raised on gear already worn). Every loadout /
+//      paper-doll surface draws that projection and asks no gate — a client that
+//      re-gated the worn set would strip a player's kit on sight.
+//
+// ⚠ ONE KNOWN DIVERGENCE, in the fail-safe direction: 31 of 237 equippables
+//   carry `tier` and no `reqLv`, and `_TIER_WIELD_LV` derives a gate the
+//   catalogue does not carry (gen-catalogues copies `reqLv` verbatim, so
+//   `hr_items.req_lv` is null and the realm accepts them at any level). The
+//   client is stricter there; the tier ladder is the design. Converging it means
+//   authoring the rows and regenerating the catalogue — a migration, logged in
+//   .claude/coordination/CONFLICTS.md, not a client fix.
+//
 // ── IDEMPOTENCY ─────────────────────────────────────────────────────────────
 // Rule 1 of the intent contract, unchanged and shared with ./activity.js: WE
 // WERE NOT ANSWERED ⇒ REUSE THE KEY; we were answered ⇒ a new key next time. A
@@ -47,7 +87,7 @@
 // same bytes the browser runs.
 // ============================================================================
 
-import { markEquipAuthorityLive, resolveActiveSlot } from './accrue.js?v=537';
+import { markEquipAuthorityLive, resolveActiveSlot } from './accrue.js?v=538';
 
 export const EQUIP_VERB = 'equip';
 

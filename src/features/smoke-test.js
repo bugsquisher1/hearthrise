@@ -61391,6 +61391,46 @@ const TESTS = [
     try { window.closeCharacterSelect(); } catch (e) {}
   }),
 
+  /* ── regression suite — THE DRAWER'S ACTIVE ROW IS THE LIVE HERO ──────────
+     Seen live: the character drawer said "Hero 3 active · Cmb Lv 1 ·
+     Tot Lv 1 · now" while the topbar beside it said 24 CL / 280 TL. Two causes,
+     both in src/multi-character.js: slotRows() printed the STORED per-slot
+     summary for the active row, and the only writer of that summary
+     (refreshActiveMeta) looked the slot up by ARRAY POSITION on a list addressed
+     by ID and gave up silently when the active slot had no record at all — the
+     normal state for a slot that arrived from the server entitlement. */
+  () => tryRun('b543: the character drawer\'s active row reads the LIVE hero, not a stale summary', () => {
+    const P = window.HearthriseProfile;
+    if (!P || !P.profile || typeof window.openCharacterSelect !== 'function') return;  // signed out
+    const keepSlots = JSON.parse(JSON.stringify(P.profile.slots || []));
+    const cl = window.getCombatLevel, tl = window.getTotalLevel;
+    try {
+      window.getCombatLevel = () => 24; window.getTotalLevel = () => 280;
+      const active = P.activeSlot();
+      // The live shape of the bug: no metadata record for the slot being played.
+      P.profile.slots = keepSlots.filter((s) => s && s.id !== active);
+      const row = P.slotRows().filter((r) => r.kind === 'char').find((r) => r.active);
+      assert(row, 'slotRows() must still list the character being played');
+      assert(row.combatLv === 24 && row.totalLv === 280,
+        'the drawer\'s active row says Cmb Lv ' + row.combatLv + ' for a CL 24 hero (Tot Lv ' + row.totalLv + ' vs 280)');
+      window.openCharacterSelect();
+      const stats = (document.querySelector('#cs-modal .cs-slot.active .cs-slot-stats') || {}).textContent || '';
+      assert(/24/.test(stats) && /280/.test(stats), 'the rendered active row reads "' + stats + '"');
+      // The write side: a save tick CREATES and refreshes the outgoing summary.
+      window.saveLocal();
+      const rec = (P.profile.slots || []).find((s) => s && s.id === active);
+      assert(rec, 'a save tick left the active hero with no stored summary at all');
+      assert(rec.combatLv === 24 && rec.totalLv === 280,
+        'a save tick left the stored summary at Cmb Lv ' + rec.combatLv + ' / Tot Lv ' + rec.totalLv);
+      assert(rec.lastSeen > Date.now() - 60000, 'the stored summary\'s lastSeen was not refreshed');
+    } finally {
+      window.getCombatLevel = cl; window.getTotalLevel = tl;
+      P.profile.slots = keepSlots;
+      try { window.saveLocal(); } catch (e) {}
+      try { window.closeCharacterSelect(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b373: renaming opens the real account-name flow, never a native prompt', () => {
     /* Audit finding 1: Home's rename pencil called window.prompt() — a BLOCKING
        native dialog that froze the renderer hard in a backgrounded tab — and it

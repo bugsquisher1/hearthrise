@@ -128,8 +128,9 @@
 --
 -- ⚠ ORDER: THE CLIENT HALF SHIPS FIRST, THEN THIS APPLIES (Security R3,
 --   2026-09-12 — the first draft of this header had it backwards). The client half
---   is forward-compatible: with no `dungeon_cooldowns` in the envelope the reader
---   sees `until = 0` and behaves exactly as today. Applied FIRST, however, there is
+--   is forward-compatible: with no `dungeon_cooldowns` in the envelope the nested
+--   read yields undefined, `until = 0`, and the button behaves exactly as today.
+--   Applied FIRST, however, there is
 --   a window in which src/dungeons.js:761-769 fires the settle and then prints
 --   "Rewards settled — scrip and loot are in your bag" UNCONDITIONALLY, and
 --   src/net/dungeon-settle.js:73 answers a refusal with "try a manual run" — which
@@ -144,11 +145,20 @@
 --   revert of the divisor table fails the apply rather than shipping quietly.
 --
 -- ── THE CLIENT HALF (lane A — NOT in this file) ─────────────────────────────
--- src/dungeons.js canRun(), replacing lines 422-428:
---     var _cd = (window.G._dungeonCooldowns || {})[id];
+-- ⚠ THE MAP IS NESTED PER MODE. A flat read — `Date.parse(map[id])` on an object —
+--   is NaN, every comparison against NaN is false, and the button reads READY
+--   forever: the silent version of the very bug this migration closes. The window
+--   is per (dungeon, mode), so canRun takes the mode it is painting.
+-- src/dungeons.js canRun(id, mode), replacing lines 422-428 (mode defaults to the
+-- button's own: 'auto' for Run, 'manual' for the phase run, 'scavenger'):
+--     var _cd = ((window.G._dungeonCooldowns || {})[id] || {})[mode || 'auto'];
 --     var until = _cd ? Date.parse(_cd) : 0;
 --     if(until > Date.now()) return { ok:false,
 --       reason:'On cooldown — ' + ((until - Date.now())/3600000).toFixed(1) + 'h remaining' };
+--   …and every caller passes its mode: runDungeon → canRun(id,'auto'),
+--   startManualRun → canRun(id,'manual'), the scavenger gate → canRun(id,'scavenger')
+--   (it may now be on cooldown too — a QUARTER window — where it previously was
+--   exempt, and the card should paint three independent countdowns).
 -- plus ONE reconcile line where the envelope lands (src/net/dungeon-settle.js
 -- reconcileFromEnvelope / src/net/accrue.js):
 --     if(body && body.dungeon_cooldowns) window.G._dungeonCooldowns = body.dungeon_cooldowns;
@@ -156,8 +166,11 @@
 -- the key is absent is "ready", which is safe because the SERVER refuses: the
 -- worst case is one refused intent, never an early entry. Also: delete the two
 -- dead `G.dungeons.lastRun[...] = Date.now()` writes and drop `'dungeons'` from
--- RESIDUE_FIELDS once nothing reads it, and fix the now-wrong error string
--- src/net/dungeon-settle.js:73 ("try a manual run" is no longer an escape hatch).
+-- RESIDUE_FIELDS once nothing reads it; fix the now-wrong error string
+-- src/net/dungeon-settle.js:73 ("try a manual run" is no longer an escape hatch —
+-- manual waits the FULL window); and stop printing "Rewards settled — scrip and
+-- loot are in your bag" unconditionally at src/dungeons.js:761-769, because a
+-- refused settle pays nothing.
 --
 -- ── ANTI-FORGERY ────────────────────────────────────────────────────────────
 -- The window is derived from `player_ledger.at`, which is `default now()` on an

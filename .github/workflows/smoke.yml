@@ -709,10 +709,15 @@ jobs:
       # through unlimited. Dungeon loot is mostly ordinary TRADEABLE material, so
       # that was a faucet reachable with no clock tampering. This proves the window
       # is now derived from the append-only ledger's server-stamped `at` plus the
-      # catalogue cooldown_s, refused for auto AND manual with next_entry_at,
-      # projected as `dungeon_cooldowns` for ACTIVE windows only, per
-      # (user, slot, dungeon), inert to a forged payload timestamp, and still
-      # exempt for scavenger runs. 8 mutations, each required to turn it RED.
+      # catalogue cooldown_s divided by the mode's DIVISOR, and that NO MODE IS
+      # EXEMPT (game-designer ruling 2026-09-12: a mode chosen by the client selects
+      # the window's LENGTH — auto 1, manual 1, scavenger 4 — never its existence,
+      # because the payout is identical in all three). It also proves an unauthored
+      # scavenger run is refused `bad_mode` from the catalogue flag, the refusal
+      # costs no key/scrip/version and is journalled, the map is projected as
+      # `dungeon_cooldowns` per dungeon PER MODE for ACTIVE windows only, per
+      # (user, slot, dungeon), and a forged payload timestamp moves nothing.
+      # 11 mutations, each required to turn it RED.
       # The PLAIN run is registered beside the mutation proof on purpose (Security
       # R2, 2026-09-12): a --selftest loop scores a THROW as RED, so a defect that
       # merely breaks the migration makes every arm "caught" and the suite exits 0.

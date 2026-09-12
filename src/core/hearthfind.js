@@ -66,8 +66,8 @@
 import {
   HEARTHFIND_TABLE, HEARTHFIND_SOURCE_KINDS,
   HEARTHFIND_HOURS_MIN, HEARTHFIND_HOURS_MAX,
-} from '../data/hearthfind.js?v=539';
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=539';
+} from '../data/hearthfind.js?v=540';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=540';
 
 /* Re-exported so there is ONE path to the table for every reader — the
    engine, the generator and the in-page suite all read the same rows through

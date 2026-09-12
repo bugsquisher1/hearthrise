@@ -1720,16 +1720,16 @@ export function reconcileBank(G, res, invAbsolute, baselineComplete) {
 
 /* ── THE PURCHASED BANK RUNGS, RESTORED FROM SERVER TRUTH (SA-010) ───────────
    THE LIVE P1 THIS CLOSES ("bank space purchases are forgotten on reload"). The
-   bank CAP is `BASE_CAP + goldBuys*20 + gemBuys*60 + grandfather` (legacy.js
-   bankCap), and `G.bank.goldBuys` was homed by NOTHING: `bank` is not a record
-   field and not a RESIDUE_FIELD, so under the allowlist persistence every
-   purchased rung vanished on reload — the cap snapped back to 100, "Bank full"
-   started nagging with paid space unused, and each press of Buy answered "That
-   bank space is already yours" (hr_unlock_buy `already_owned`, because the
-   client was asking for a rung the server had already sold it) once per owned
-   rung before it caught up. reconcileBank above deliberately CARRIES the three
-   counters through untouched — carrying through is not restoring, and nothing
-   restored them.
+   bank CAP was computed client-side from these counters then (it is the realm's
+   own `bank_cap` now — noteServerBankCap below), and `G.bank.goldBuys` was homed
+   by NOTHING: `bank` is not a record field and not a RESIDUE_FIELD, so under the
+   allowlist persistence every purchased rung vanished on reload — the cap
+   snapped back to 100, "Bank full" nagged with paid space unused, and each press
+   of Buy answered "That bank space is already yours" (hr_unlock_buy
+   `already_owned`, because the client was asking for a rung the server had
+   already sold it) once per owned rung. reconcileBank above deliberately CARRIES
+   the three counters through untouched — carrying through is not restoring, and
+   nothing restored them.
 
    THE SERVER ALREADY SENDS THE ANSWER; THIS IS THE MISSING READER. hr_unlock_buy
    files a bank purchase as a permanent `player_progress` row

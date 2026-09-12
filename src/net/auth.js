@@ -11,7 +11,7 @@
    gate. Dropped rather than kept "in case" — an unused import of a retired
    table's reader is how a retired path finds its way back. */
 import { setupSync, holdSnapshots, releaseSnapshots,
-         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=537';
+         tokenStatus, resetAuthGate, isClockTrusted } from './sync.js?v=538';
 
 let supabase = null;       // lazy-loaded supabase client
 let authConfig = null;     // {url, anonKey}

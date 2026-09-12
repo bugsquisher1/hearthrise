@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 538 — 2026-09-12 (No door the realm keeps shut)
+
+**Gear you cannot wear no longer shows an Equip button.** The client kept a private list of gear it treated as exempt from level requirements, a leftover with no counterpart on the realm, so a piece above your level could show a lit Equip button that the realm then refused. The requirement is now checked against your realm-confirmed level only, the private list is gone, and anything the realm already shows you wearing still reads as worn.
+
 ## v0.9.2-beta build 537 — 2026-09-12 (Only what the realm sold you)
 
 **Hero slots open only on the realm's word.** When the client had not yet heard from the realm which hero slots you own, it fell back to its own remembered count and could list, and let you switch into, a slot the realm never sold, only to be refused. Until the realm answers, only your first hero is offered and the drawer says it is still checking; the moment the realm answers, the list is the realm's.

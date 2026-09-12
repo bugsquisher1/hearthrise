@@ -32,7 +32,18 @@
 // green tick under a step named "…— mutation proof". The log is indistinguish-
 // able from a real one. So the flag must be shown to CHANGE THE EXIT PATH.
 //
-// ── THE TWO RULES ───────────────────────────────────────────────────────
+// R3 — THE PROOF WITH NO FLOOR (measured 2026-09-12). A security review planted
+// `where kind = NOSUCHCOLUMN_XYZ` in tests/dungeon-cooldown.mjs's own SQL — a
+// defect that makes the guard incapable of measuring anything — and the
+// --selftest printed "All 6 mutations caught… non-vacuous", exit 0, because the
+// driver ran no CLEAN arm and scored every throw as "the guard went red". The
+// census found 23 more steps registered with ONLY a proof flag: nothing in CI
+// ever ran their plain body, so a guard that was broken at rest stayed green
+// forever. tests/snapshot-allowlist-guard.mjs is the proof that the plain run
+// carries information the selftest does not — its plain run is RED on today's
+// tree (838 findings) with the selftest green beside it.
+//
+// ── THE THREE RULES ─────────────────────────────────────────────────────
 //   REACHABILITY  every tests/*.mjs is (a) named in a run: line in smoke.yml,
 //                 (b) imported or spawned by tests/run-smoke.mjs, (c) imported
 //                 or spawned by another guard, or (d) listed in
@@ -40,6 +51,14 @@
 //   NON-VACUITY   every smoke.yml step whose command passes --selftest (or
 //                 --mutate / --live-selftest / --baseline-selftest) resolves to
 //                 a file that BRANCHES on that flag.
+//   A FLOOR       every guard registered with a proof flag ALSO has its plain
+//                 run registered — in smoke.yml, or plainly by run-smoke.mjs —
+//                 or is listed in tests/guards-unregistered.json's
+//                 `proof_baseline` section with a written reason. A mutation
+//                 proof answers "can this guard go red"; only the plain run
+//                 answers "is it green when it should be", and a proof harness
+//                 that never sees green cannot tell a caught defect from its own
+//                 corpse.
 //
 // Plus two hygiene rules the allowlist needs to stay honest, because an
 // allowlist that is never pruned is just a second place to hide:
@@ -123,6 +142,27 @@ function references(src) {
   for (const m of src.matchAll(/'tests'\s*,\s*'([A-Za-z0-9._-]+\.mjs)'/g)) out.add(m[1]);
   for (const m of src.matchAll(/'tests\/([A-Za-z0-9._-]+\.mjs)'/g)) out.add(m[1]);
   return out;
+}
+
+/**
+ * Is `f` invoked by run-smoke.mjs in its PLAIN body — no proof flag on the call?
+ * run-smoke mostly imports a guard's exported entry point (`import { runAll } from
+ * './icon-boot-order.mjs'`), which is by definition the plain body; what must not
+ * count is a spawn that passes --selftest, because that is the same one-sided
+ * proof the rule is about. So: an import counts, and a spawn counts only when no
+ * proof flag appears within three lines of the file's name.
+ */
+function plainlyInRunSmoke(runSmokeSrc, f) {
+  const esc = f.replace(/[.]/g, '\\.');
+  if (new RegExp(`from\\s+'\\./${esc}'`).test(runSmokeSrc)) return true;
+  if (new RegExp(`import\\(\\s*'\\./${esc}'\\s*\\)`).test(runSmokeSrc)) return true;
+  const lines = runSmokeSrc.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (!new RegExp(`'tests'\\s*,\\s*'${esc}'|'tests/${esc}'`).test(lines[i])) continue;
+    const window = lines.slice(i, i + 3).join('\n');
+    if (!PROOF_FLAGS.some((fl) => window.includes(fl))) return true;
+  }
+  return false;
 }
 
 /**
@@ -254,6 +294,35 @@ export function verdict({ files, workflowText, runSmokeSrc, sources, allowlist }
     }
   }
 
+  // ── RULE 5: A PROOF NEEDS A FLOOR ──────────────────────────────────────
+  // A --selftest step answers "can this guard be made red". The plain run is the
+  // only thing that answers "is it green when nothing is wrong" — and the two
+  // compound: a driver that scores a throw as a catch (the shape every bespoke
+  // driver in this tree had on 2026-09-12) turns "the guard is broken" into "all
+  // mutations caught", and with no plain run registered there is nothing left in
+  // CI to notice. So the clean body must run in CI too.
+  const baselineAllowed = allowlist.proof_baseline || {};
+  for (const [f, uses] of registered) {
+    if (!uses.some((u) => u.flags.length)) continue;             // no proof step here
+    if (uses.some((u) => !u.flags.length)) continue;             // plain run registered beside it
+    if (plainlyInRunSmoke(runSmokeSrc, f)) continue;             // its clean body runs in step 6
+    const entry = baselineAllowed[f];
+    if (!entry) {
+      problems.push(`PROOF WITH NO FLOOR: smoke.yml runs tests/${f} ONLY with a mutation flag — its plain `
+        + 'body never runs in CI. A mutation proof cannot distinguish "the guard caught the defect" from '
+        + '"the guard is broken and everything throws" (measured 2026-09-12: a planted bad column name in a '
+        + 'guard\'s own SQL printed "All 6 mutations caught", exit 0, while the plain run was red). Register '
+        + `\`node tests/${f}\` beside the proof step, or add it to the proof_baseline section of `
+        + 'tests/guards-unregistered.json with the reason its plain run cannot gate.');
+      continue;
+    }
+    if (typeof entry.reason !== 'string' || entry.reason.trim().length < 40) {
+      problems.push(`UNREASONED FLOOR EXEMPTION: tests/${f} is exempt from the plain-run rule with no real `
+        + `reason ("${String(entry.reason).slice(0, 40)}"). Say why its plain body cannot gate in CI, or `
+        + 'register it.');
+    }
+  }
+
   // ── RULE 3 + 4: THE ALLOWLIST STAYS HONEST ─────────────────────────────
   for (const f of Object.keys(allowed)) {
     if (f.startsWith('$')) continue;   // $family:* notes are prose, by design
@@ -368,6 +437,38 @@ const MUTATIONS = [
         '// Usage:\n//   node tests/arm-flag-honesty.mjs --selftest\n'
         + "const s = 'run with --selftest to prove it';\nconsole.log(s);\nprocess.exit(0);\n" } }),
     expect: /VACUOUS PROOF: .*arm-flag-honesty\.mjs never branches on --selftest/,
+  },
+  {
+    id: 'M8-a-proof-step-with-no-plain-run-beside-it',
+    why: 'THE 2026-09-12 STATE: 23 steps were registered with ONLY a mutation flag. A planted bad column '
+       + 'in one guard\'s own SQL made every arm throw and the driver printed "All 6 mutations caught", '
+       + 'exit 0, with nothing in CI running the plain body that was red',
+    mutate: (t) => ({ ...t,
+      workflowText: t.workflowText
+        + '\n      - name: brand new proof, no floor\n        run: node tests/enchant-intent.mjs --selftest\n' }),
+    expect: /PROOF WITH NO FLOOR: smoke\.yml runs tests\/enchant-intent\.mjs ONLY with a mutation flag/,
+  },
+  {
+    id: 'M9-the-floor-exemption-with-no-argument-in-it',
+    why: 'the cheap way to silence rule 5 is a one-word exemption. An exemption that does not say why the '
+       + 'plain run cannot gate is just an unregistered guard with paperwork',
+    mutate: (t) => ({ ...t,
+      workflowText: t.workflowText
+        + '\n      - name: brand new proof, no floor\n        run: node tests/enchant-intent.mjs --selftest\n',
+      allowlist: { ...t.allowlist,
+        proof_baseline: { ...(t.allowlist.proof_baseline || {}), 'enchant-intent.mjs': { reason: 'slow' } } } }),
+    expect: /UNREASONED FLOOR EXEMPTION: tests\/enchant-intent\.mjs/,
+  },
+  {
+    id: 'M10-a-run-smoke-spawn-that-passes-the-proof-flag',
+    why: 'the floor rule must not be satisfiable by run-smoke spawning the guard WITH --selftest — that is '
+       + 'the same one-sided proof in a different file, and counting it would reopen the hole',
+    mutate: (t) => ({ ...t,
+      workflowText: t.workflowText
+        + '\n      - name: brand new proof, no floor\n        run: node tests/enchant-intent.mjs --selftest\n',
+      runSmokeSrc: t.runSmokeSrc
+        + "\nawait spawn('node', [join(ROOT, 'tests', 'enchant-intent.mjs'), '--selftest']);\n" }),
+    expect: /PROOF WITH NO FLOOR: smoke\.yml runs tests\/enchant-intent\.mjs ONLY with a mutation flag/,
   },
 ];
 

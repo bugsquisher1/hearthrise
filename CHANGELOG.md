@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 540 — 2026-09-12 (The counted figure admits it lags)
+
+**Your Renown headline now says when it will move.** Renown is ratcheted on the server at settle time, so the figure on the hearth band, the Hero standing line, the ladder header and the Home rail is your best score as of your last settle — a number that sat still while you were visibly earning read as broken. Every one of those surfaces now carries the same sentence from one source: "Renown N — your best yet. New gains count from your next settle."
+
+**Under the hood:** every mutation-proof guard now runs its clean baseline first and reports a broken guard as a harness failure instead of "all caught"; 23 guards that had no plain run in CI have one now.
+
 ## v0.9.2-beta build 539 — 2026-09-12 (Every tile decides when you tap it)
 
 **Going back to the recipe you came from works again.** Build 533 fixed this for gathering nodes; the artisan benches (cooking, crafting, smithing, runecrafting, stonemasonry) still baked a "stop" into the tile while it was active and never repainted after a fight or another skill took over, so tapping the recipe you had been on did nothing. Every tile now decides at tap time from the live pointer, through the one router the gathering tiles already use.

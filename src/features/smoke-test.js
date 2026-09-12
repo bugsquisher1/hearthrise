@@ -15188,6 +15188,19 @@ const TESTS = [
     const recBefore = (G && G._record) ? JSON.parse(JSON.stringify(G._record)) : null;
     const hadConfig = !!(typeof R.getRecordConfig === 'function' && R.getRecordConfig());
     const until = Date.now() + 11 * 60000;
+    /* THE FIXTURE OWNS THE WATERMARK IT MEASURES (b538). accrue.js's priced-window
+       watermark is written ONLY by applyEnvelopeState — never by this boot path,
+       by two documented rulings (record.js hydrationStep('fall') and accrue.js
+       reconcileFall: "`accrued_to` IS DELIBERATELY NOT IN HERE"). It is a
+       MODULE-LOCAL with no reset seam, so whatever ran earlier in the suite is
+       still in it: RECOVER-16's `envelope()` helper two tests up leaves it at
+       ~now. Read it BEFORE the boot, and put a distinctly PAST instant on the
+       wire, so the pair of assertions below reads the same in a filtered run and
+       in the full suite, and so a mutation that moved that write onto this path
+       changes a number THIS fixture pinned rather than one an earlier test
+       happened to leave behind. */
+    const wmBefore = A.accruedToMs();
+    const priced = Date.now() - 90000;   // the last instant the server priced, 90 s back
     let asked = 0;
     try {
       D.__resetForTest();                 // stands the fixture up, through an envelope
@@ -15217,7 +15230,7 @@ const TESTS = [
           state: {
             slot: 0,
             gold: Math.floor(Number(G.gold) || 0),      // a no-op write; the record needs one field
-            accrued_to: new Date().toISOString(),
+            accrued_to: new Date(priced).toISOString(),
             active_kind: 'idle', active_id: null,       // ← THE IDLE BOOT
             hp: 5, max_hp: 13,
             recovering_until: new Date(until).toISOString(),
@@ -15253,7 +15266,35 @@ const TESTS = [
       assert(A.deathsToday() === 2 && A.deathsLifetime() === 5,
         'the boot did not hydrate the server\'s death counters: today=' + A.deathsToday()
         + ' lifetime=' + A.deathsLifetime());
-      assert(A.accruedToMs() > 0, 'the boot did not hydrate the priced-window watermark');
+      /* ②b WHERE `accrued_to` GOES ON THIS PATH, AND WHERE IT MUST NOT (b538).
+            This line used to read `A.accruedToMs() > 0`, which is not a property
+            of the boot at all: accrue.js writes that module-local ONLY in
+            applyEnvelopeState, and BOTH seams state in prose that the boot read
+            must not move it (it feeds `bootAccruedToAt`, the welcome-back card's
+            statement of the absence, a player-visible number this seam does not
+            own). It passed in the full suite only because RECOVER-16 had just
+            left a watermark behind, and went RED the moment this test ran on its
+            own — a leak the assertion depended on, not a hydration.
+            So assert the SPLIT the design documents, both halves:
+              • the boot DID observe the server's `accrued_to` — through the seam
+                that does own it, SERVER_OF_RECORD's `offlineBudget` — so this is
+                a stronger claim than the one it replaces, not a deleted one;
+              • and it did NOT touch accrue.js's priced-window watermark.
+            MUTATION PROOF (both directions): add `accruedToAt = …` to
+            reconcileFall (or an `accrued_to` step to record.js) → the second
+            assertion RED, because `priced` is 90 s behind whatever the fixture
+            read; delete the `applyRecord` call at the head of requestRecord →
+            the first RED. */
+      const rv = (typeof R.recordValue === 'function') ? R.recordValue(G, 'offlineBudget') : null;
+      assert(rv && rv.known === true && rv.value && Number(rv.value.at) === priced,
+        'the boot read did not hand the server\'s `accrued_to` to the field that owns it '
+        + '(SERVER_OF_RECORD offlineBudget): ' + JSON.stringify(rv));
+      assert(A.accruedToMs() === wmBefore,
+        'the BOOT read moved accrue.js\'s priced-window watermark (' + wmBefore + ' → '
+        + A.accruedToMs() + '). Only a settle may: `bootAccruedToAt` is the welcome-back '
+        + 'card\'s statement of how long the player was away, and writing it from the boot '
+        + 'body would silently change that number (record.js hydrationStep(\'fall\'), '
+        + 'accrue.js reconcileFall).');
 
       /* ③ THE ALWAYS-ON READOUT NAMES THE COUNTDOWN. The pointer is IDLE, which
             used to fall straight through to "Idle — pick an activity": the

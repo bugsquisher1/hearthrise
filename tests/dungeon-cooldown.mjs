@@ -518,8 +518,14 @@ if (argv.includes('--selftest')) {
   // non-vacuous. Run the CLEAN chain first and require it green: if the baseline
   // cannot pass, nothing measured after it means anything.
   {
-    const db = await boot(null);
-    await runAll(db);
+    try {
+      await runAll(await boot(null));
+    } catch (e) {
+      console.error('\nFALSE-POSITIVE FLOOR: the CLEAN chain does not even APPLY — '
+        + `${String(e.message).split('\n')[0]}\nEvery mutation below would "go RED" for that reason `
+        + 'alone (a throw is scored as caught), so the proof is worthless until the baseline applies.');
+      process.exit(1);
+    }
     if (failed) {
       console.error(`\nFALSE-POSITIVE FLOOR: the CLEAN chain fails ${failed} assertion(s). Every `
         + 'mutation below would "go RED" for that reason alone, so the proof is worthless until the '

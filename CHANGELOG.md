@@ -4,6 +4,10 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 539 — 2026-09-12 (Every tile decides when you tap it)
+
+**Going back to the recipe you came from works again.** Build 533 fixed this for gathering nodes; the artisan benches (cooking, crafting, smithing, runecrafting, stonemasonry) still baked a "stop" into the tile while it was active and never repainted after a fight or another skill took over, so tapping the recipe you had been on did nothing. Every tile now decides at tap time from the live pointer, through the one router the gathering tiles already use.
+
 ## v0.9.2-beta build 538 — 2026-09-12 (No door the realm keeps shut)
 
 **Gear you cannot wear no longer shows an Equip button.** The client kept a private list of gear it treated as exempt from level requirements, a leftover with no counterpart on the realm, so a piece above your level could show a lit Equip button that the realm then refused. The requirement is now checked against your realm-confirmed level only, the private list is gone, and anything the realm already shows you wearing still reads as worn.

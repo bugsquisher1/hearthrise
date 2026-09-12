@@ -2,6 +2,30 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-09-12 — CLEANUP: three dead things, and the one that was worth keeping as an assertion
+
+**Branch** `worktree-agent-ad02bed6e9955b458`, off `set/b541` (merged in first, fast-forward, zero hunks).
+Deleted: legacy.js `_switchQuiesced`/`_activeSaveSlot`; dungeon-settle.js `hooks`/`fire`/`record`/`last`
++ an unused `isServerAccrualEnabled` import (14 `return record(x)` call sites became `return x`, which is
+what `record` did once `last` had no reader). `lane-done` green, 179/179 on `--only slot`, 44/44 on
+`--only dungeon`.
+
+**What I want future-me to have.**
+
+1. **"Delete the dead hook" is only safe after you find who does the job instead.** Here all three
+   callers already applied the envelope explicitly (`reconcileFromEnvelope`), so the hook was redundant
+   AND dead. Had they not, deleting it would have removed the last (latent) applier and I would have
+   been flagging a gap instead of paying down debt. Check the CONSUMER before the DECLARATION.
+2. **A vacuous assertion is often a MEASUREMENT problem, not a dead assertion.** `during.save === null`
+   was unfalsifiable because the switch itself clears that key for an empty target. Parking a sentinel
+   in the window turned the same line into "nothing wrote AND nothing cleared", and the mutation
+   (`saveLocal` writes a blob again) reddens exactly that one assertion. Deleting it would have thrown
+   away a retirement guard; the fix was to give it an observable.
+3. **Drive the real function in Node before claiming an identity refactor is one.** 14 mechanical edits
+   parse-check green is not proof; a stubbed `fetch` over settled/refused/unreachable/unsendable/
+   quartermaster/arm-off returning the same six verdict shapes is. That run is also where the `?v=`
+   dual-instance trap showed up (DISCOVERIES).
+
 ## 2026-09-07 — FIRST LIGHT: the feature was built, it had no renderer, and the tie-break was the bug
 
 **Branch** `worktree-agent-a5ec5d462bc708b2b`, off `08b34654`. Client-only. Not bumped, not pushed.

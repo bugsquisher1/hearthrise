@@ -4,6 +4,28 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-09-12 — Systems Engineer — **A Node driver that imports a `src/net` module WITHOUT its `?v=` gets a SECOND instance, and every test seam it sets lands on the copy nobody runs.** (method, P3 for any bespoke driver)
+
+Measured while driving the real `sendDungeonSettle`: `import(".../dungeon-scrip-record.js")` +
+`__setDungeonSettleArm(true)` left the transport answering `switch-off` on all six paths, because
+dungeon-settle.js imports `./dungeon-scrip-record.js?v=541` — a different specifier, so a different
+instance with its own `armOverride`. With the `?v=` the same script returned settled / refused /
+unreachable / unsendable correctly. **A driver that stubs module-local state must use the EXACT
+specifier its subject imports.** The in-page suite never meets this — the browser has one graph.
+
+**DISPOSITION of the three dead-code findings (lane `worktree-agent-ad02bed6e9955b458`, off `set/b541`):**
+the dungeon-settle hook is DELETED rather than wired (`hooks`/`fire`/`record`/`last` + the unused
+`isServerAccrualEnabled` import), and the comment now states what the code does — the CALLER applies the
+envelope. legacy.js `_switchQuiesced`/`_activeSaveSlot`: gone. The in-page `during.save === null` now
+parks a sentinel at SAVE_KEY (the switch clears that key itself, so an absence asserted nothing) and is
+mutation-proven: give `saveLocal()` its blob write back → that one assertion is the only red.
+
+**P4 for the dungeon lane, same pass:** a refused settle DOES carry a full envelope (`on_cooldown` is not
+on the Edge's `STATELESS_REFUSALS`; a measured 409 body is version+state+inventory) and the callers apply
+only the COOLDOWN half — `reconcileFromEnvelope` runs on settled/replayed only. Harmless while the client
+mints nothing under the arm (a free refresh left on the table, not drift), worth one line if the rewards
+mirror ever predicts again. `src/dungeons.js`, `src/dungeon-scavenger.js`.
+
 ### 2026-09-12 — Systems Engineer — **`src/net/dungeon-settle.js`'s `hooks.onEnvelope` has NO setter and NO caller: the module's claim that "the envelope is the truth whether the settle landed or not" is inert.** (P2, latent)
 
 `let hooks = { onEnvelope: null, onOutcome: null };` is module-private and nothing in the repo exports or

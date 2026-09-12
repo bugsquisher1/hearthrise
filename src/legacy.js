@@ -3783,24 +3783,21 @@ window.hrLevelUpNotice=hrLevelUpNotice;
      • GEMS  — flat, deliberately BETTER value (3× the slots of one gold buy for
                a small fixed gem price) so the premium path feels worthwhile.
 
-   Numbers live here as data, not scattered literals. The b227 "nobody worse
-   off" principle is honored by the v10→v11 migration: every existing save is
-   grandfathered a cap >= its current stack count + headroom, so no one is
-   retroactively walled in. Gem spends follow the established client-validate →
-   saveLocal → cloud-sync pattern (same as buyCosmetic/buyTheme); the guards
-   below refuse overspend / negative balances per the FINAL DIRECTIVE. */
+   Numbers live here as data, not scattered literals. The gem path has no server
+   verb and refuses (buyBankSpaceGem); the gold rung is an hr_unlock_buy gesture,
+   and the CAP it moves is the realm's — see bankCap below. */
 var BANK_SPACE = {
   BASE_CAP: 100,                         /* free stacks a fresh account gets (b271: 200→100, Tyler) */
   gold: { slots: 20, base: 3000, growth: 1.32 },  /* +20 stacks; escalating gold */
   gem:  { slots: 60, cost: 45 },                  /* +60 stacks; flat, best value */
 };
 try{ window.BANK_SPACE = BANK_SPACE; }catch(_){}
+/* b537: the cap is the REALM'S enforced `player_state.bank_cap`, mirrored into
+   G._bankCap by accrue.js noteServerBankCap (rationale + both failure directions
+   there). Was three client-held counters gating it. Fail-safe: the base. */
 function bankCap(){
-  var b=(typeof G!=='undefined'&&G.bank)||{};
-  return BANK_SPACE.BASE_CAP
-    + (b.goldBuys||0)*BANK_SPACE.gold.slots
-    + (b.gemBuys||0)*BANK_SPACE.gem.slots
-    + (b.grandfather||0);
+  var n=(typeof G!=='undefined')?Number(G._bankCap):NaN;
+  return (isFinite(n)&&n>0)?Math.floor(n):BANK_SPACE.BASE_CAP;
 }
 function bankUsed(){
   var inv=(typeof G!=='undefined'&&G.inventory)||{}, n=0;

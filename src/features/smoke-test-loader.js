@@ -50,7 +50,7 @@ let pending = null;
  */
 export function loadSmokeTest() {
   if (!pending) {
-    pending = import('./smoke-test.js?v=542')
+    pending = import('./smoke-test.js?v=543')
       .then((m) => { m.setupSmokeTest(); return m; })
       .catch((e) => {
         /* Do not cache a failure: a dropped request on a flaky connection must

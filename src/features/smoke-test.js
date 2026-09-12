@@ -1,17 +1,17 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=542' directly.
+// modularised, will import { G } from '../state/game.js?v=543' directly.
 //
 // b535 — NEVER SENT TO A PLAYER. A dynamic import owned by smoke-test-loader.js,
 // which owns all three triggers too; read its header. Guard: boot-budget.mjs.
 
-import { on, snapshot } from '../net/events.js?v=542';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=542';
+import { on, snapshot } from '../net/events.js?v=543';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=543';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=542';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=543';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -5777,75 +5777,94 @@ const TESTS = [
     }
   }),
 
-  /* ── regression suite — THE COUNTED FIGURE ADMITS THAT IT LAGS ───────────
-     renown_high is ratcheted at APPLY time, so the counted figure on every
-     headline is the score as of the last settle — and a number that sits still
-     while the player is visibly earning reads as broken. GAME DESIGNER'S RULING
-     (final, 2026-09-11): rank never goes down, and the copy is "Renown N — your
-     best yet. New gains count from your next settle." UNKNOWN keeps the old copy
-     (that figure is openly the client's own prediction).
-     MUTATION, both red: drop `lagLine` from openLadder → "got null"; drop the
-     `counted` gate in lagHint → UNKNOWN paints the sentence. */
-  () => tryRun('B536-1: the counted renown figure carries the lag sentence on every headline — and carries NOTHING while the realm has stated nothing', () => {
+  /* ── regression suite — THE HEADLINE NAMES, IT DOES NOT EXPLAIN ──────────
+     renown_high is ratcheted at APPLY time, so the counted figure lags a settle.
+     b540 said so in a sentence painted under five headlines; TYLER, 2026-09-12,
+     reading it live: *"wtf does this even mean lol"*. The contract now: the
+     headline is `rank · N Renown` and NOTHING under it, and the whole
+     explanation is ONE short tooltip on the ONE headline figure (the Home
+     hearth band), '' while the realm has stated nothing.
+     MUTATION, both red: restore the painted sub-line on the ladder/rail → the
+     "no standing sentence" assert; drop the title from the hearth-band figure
+     → the tooltip assert. */
+  () => tryRun('B536-1: the renown headline is rank · N Renown with NOTHING under it — the settle lag is one short tooltip on the figure, and nothing at all while the realm is silent', () => {
     const R = window.HearthriseRenown;
-    assert(R && typeof R.lagHint === 'function',
-      'the lag-copy seam is missing — five headlines would each hand-write their own sentence');
+    assert(R && typeof R.lagTip === 'function',
+      'the lag-copy seam is missing — five headlines would each hand-write their own copy');
+    assert(typeof R.lagHint === 'undefined',
+      'the b540 sentence seam is still exported; a surface can still paint it');
     const snap = snapshotG();
     const srvBefore = R.serverRenownHigh();
-    /* The one hook every surface carries, so this reads the PAINTED copy and not
-       a string the test built itself (a dense line hangs it on `title`). */
-    const hint = () => {
-      const el = document.querySelector('#hr-rn-modal [data-hr-renown-hint]');
-      return el ? String(el.getAttribute('title') || el.textContent || '') : null;
-    };
     const closeLadder = () => { const m = document.getElementById('hr-rn-modal'); if (m) m.remove(); };
+    /* HearthriseHome.render() no-ops unless #panel-profile is ACTIVE (its own
+       guard), so force the Home screen for the read and restore it in finally. */
+    const panel = document.getElementById('panel-profile');
+    const panelWasActive = !!(panel && panel.classList.contains('active'));
+    const paintHome = () => {
+      if (panel) panel.classList.add('active');
+      if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render();
+      return document.getElementById('panel-profile');
+    };
+    const bandTip = () => {
+      const el = document.querySelector('#panel-profile .hd-hearth [data-hr-renown-hint]');
+      return el ? String(el.getAttribute('title') || '') : null;
+    };
     try {
       if (R.__resetClaimState) R.__resetClaimState();
 
       // ── UNKNOWN — the realm has stated nothing this session.
       assert(R.serverRenownHigh() === null, 'fixture: the mirror starts UNKNOWN');
       assert(R.getState(window.G).counted === false, 'fixture: an UNKNOWN state must say so');
-      assert(R.lagHint(R.getState(window.G)) === '',
-        'UNKNOWN must carry no lag copy; got "' + R.lagHint(R.getState(window.G)) + '"');
-      closeLadder(); R.openLadder();
-      assert(hint() === null,
-        'THE UNKNOWN CASE: a settle note was painted beside a figure the realm has never counted; got ' + JSON.stringify(hint()));
-      closeLadder();
+      assert(R.lagTip(R.getState(window.G)) === '',
+        'UNKNOWN must carry no settle copy; got "' + R.lagTip(R.getState(window.G)) + '"');
+      const unknownPanel = paintHome();
+      if (unknownPanel) {
+        assert(bandTip() === null,
+          'THE UNKNOWN CASE: a settle tooltip hung on a figure the realm has never counted; got ' + JSON.stringify(bandTip()));
+      }
 
-      // ── COUNTED 779 — the envelope reader (top-level renown_high on an envelope).
+      // ── COUNTED 779 — the envelope reader (top-level renown_high).
       const noted = R.noteServerRenown({ ok: true, renown_high: 779, progress: [] });
       assert(noted.high === 779, 'fixture: the envelope figure must land in the mirror; got ' + JSON.stringify(noted));
       const st = R.getState(window.G);
       assert(st.renown === 779 && st.counted === true,
-        'fixture: the headline reads the realm\'s count; got ' + st.renown + ' / counted=' + st.counted);
+        'fixture: the headline reads the realm count; got ' + st.renown + ' / counted=' + st.counted);
 
-      // The WHOLE sentence where nothing prints the figure beside it (the
-      // hearth-band tooltip, the Hero "Standing" line).
-      const fullTxt = R.lagHint(st);
-      const full = fullTxt.toLowerCase();
-      assert(full.indexOf('779') >= 0, 'the standalone sentence carries the counted figure; got "' + fullTxt + '"');
-      assert(full.indexOf('your best yet') >= 0 && full.indexOf('next settle') >= 0,
-        'the ruling\'s sentence is the copy, verbatim; got "' + fullTxt + '"');
-      // The explanation half where the figure is already an inch away (ladder
-      // header, Home rail, Skills header) — the SAME literal tail, not a rewrite.
-      const halfTxt = R.lagHint(st, { figureShown: true });
-      const half = halfTxt.toLowerCase();
-      assert(half.indexOf('your best yet') >= 0 && half.indexOf('next settle') >= 0,
-        'the figure-shown framing keeps both halves of the ruling; got "' + halfTxt + '"');
-      assert(half.indexOf('779') < 0,
-        'the same figure twice in two stacked lines reads as a stutter; got "' + halfTxt + '"');
+      // The copy itself: plain words, short, and not the b540 sentence.
+      const tip = R.lagTip(st);
+      assert(tip && tip.split(/\s+/).filter(Boolean).length <= 8,
+        'the tooltip is a short plain sentence (≤8 words); got "' + tip + '"');
+      const low = tip.toLowerCase();
+      assert(low.indexOf('best yet') < 0 && low.indexOf('next settle') < 0,
+        'the b540 sentence is back, in the tooltip; got "' + tip + '"');
+      assert(low.indexOf('779') < 0, 'the tooltip never restates the figure it hangs on; got "' + tip + '"');
 
-      // ── THE RENDERED SURFACE — the ladder header actually paints it.
-      R.openLadder();
-      const paintedTxt = hint();
-      const painted = String(paintedTxt || '').toLowerCase();
-      assert(painted.indexOf('your best yet') >= 0 && painted.indexOf('next settle') >= 0,
-        'THE BUG: the ladder painted the counted figure with nothing saying it lags a settle; got ' + JSON.stringify(paintedTxt));
-      const wrap = document.querySelector('#hr-rn-modal .hr-rn-wrap');
-      assert(wrap && wrap.textContent.indexOf('779 Renown') >= 0,
-        'the hint RIDES the counted figure — it never replaces it');
+      // ── THE RENDERED HEADLINE — one tooltip on the figure, no sentence anywhere.
+      const homePanel = paintHome();
+      if (homePanel) {
+        assert(bandTip() === tip,
+          'THE ONE TOOLTIP: the hearth-band renown figure must carry the settle copy; got ' + JSON.stringify(bandTip()));
+        const band = homePanel.querySelector('.hd-hearth');
+        assert(band && band.textContent.indexOf('779 Renown') >= 0,
+          'the tooltip RIDES the counted figure — it never replaces it');
+        assert(band && band.textContent.indexOf(tip) < 0,
+          'THE BUG: the settle copy is PAINTED under the headline instead of riding it as a tooltip');
+        const painted = String(homePanel.textContent || '').toLowerCase();
+        assert(painted.indexOf('best yet') < 0 && painted.indexOf('settles') < 0,
+          'a standing settle sentence is painted on Home; the headline names, it does not explain');
+      }
+      closeLadder(); R.openLadder();
+      const ladder = document.querySelector('#hr-rn-modal .hr-rn-wrap');
+      assert(ladder && ladder.textContent.indexOf('779 Renown') >= 0,
+        'the ladder still paints the counted figure');
+      assert(ladder && ladder.textContent.toLowerCase().indexOf('best yet') < 0
+             && ladder.textContent.indexOf(tip) < 0,
+        'the ladder header still carries the standing sentence under the figure');
+      assert(!document.querySelector('#hr-rn-modal [data-hr-renown-hint]'),
+        'the ladder hung a second settle note; there is exactly ONE, on the headline figure');
     } finally {
       closeLadder();
+      if (panel && !panelWasActive) panel.classList.remove('active');
       if (R.__resetClaimState) R.__resetClaimState();
       if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
       restoreG(snap);
@@ -9449,7 +9468,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=542');
+    const S = await import('../data/shops.js?v=543');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -10352,7 +10371,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=542');
+    const mod = await import('../data/dungeons.js?v=543');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10383,7 +10402,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=542');
+    const mod = await import('../data/dungeons.js?v=543');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -36412,8 +36431,10 @@ const TESTS = [
      switchSlotAsync has already awaited a cloud flush and refuses to swap
      without one, so the switch QUIESCES those writes.
      MUTATION: make buildSnapshotRequest use resolveActiveSlot() again → RED on
-     the slot assertion. The SAVE_KEY assertion cannot go red any more (b515
-     retired that write); tests/slot-switch.mjs watches the residue PUT instead. */
+     the slot assertion; give saveLocal() its blob write back → RED on the parked
+     save (PARKED below, because the switch clears SAVE_KEY itself, so reading an
+     absence asserted nothing). The residue PUT that carries the character today
+     is watched on the wire by tests/slot-switch.mjs — in-page cannot see it. */
   () => tryRunAsync('b372: a hero-slot switch cannot clone the outgoing character into the target slot (pagehide race)', async () => {
     const HP = window.HearthriseProfile, S = window.HearthriseSync, G = window.G;
     if (!HP || !HP.profile) return;
@@ -36421,6 +36442,7 @@ const TESTS = [
       'the switch quiesce latch is gone — nothing stops the pagehide autosave from writing the outgoing '
       + 'character into the incoming slot, which is the b372 duplication bug');
     const SAVE_KEY = 'hearthbound-save-v2', TARGET = 1, CHAR1 = 'hearthrise:char:1';
+    const PARKED = '{"__parked":"switch-window"}';   // a value nothing in the game writes
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const prevUnlocked = G.heroSlotsUnlocked;
     const hadSrv = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
@@ -36455,6 +36477,7 @@ const TESTS = [
           const quiesced = HP.saveQuiesced();
           const outgoing = HP.quiescedOutgoingSlot();
           const active = HP.activeSlot();
+          try { localStorage.setItem(SAVE_KEY, PARKED); } catch (e) {}   // see PARKED
           try { window.dispatchEvent(new Event('pagehide')); } catch (e) {}
           try { window.saveLocal(); } catch (e) {}   // and any other autosave in the same window
           during = { quiesced, outgoing, active,
@@ -36476,10 +36499,12 @@ const TESTS = [
       assert(during.outgoing === 0,
         'the latch names slot ' + during.outgoing + ' as the character in memory; it is the OUTGOING slot 0, '
         + 'and any write that escapes must be addressed there');
-      assert(during.save === null,
-        'THE b372 CLONE: pagehide during the switch rewrote ' + SAVE_KEY + ' with the OUTGOING character while '
-        + 'the profile already pointed at slot ' + TARGET + '. The next boot adopts that as the target hero — '
-        + 'one character duplicated, the one that lived there destroyed');
+      assert(during.save === PARKED,
+        'THE b372 CLONE CHANNEL IS OPEN AGAIN: something wrote local character state during the switch — the '
+        + 'sentinel parked at ' + SAVE_KEY + ' came back as ' + JSON.stringify(during.save) + '. The local blob '
+        + 'is retired (saveLocal is a lastSeen stamp), and a write here is addressed by the profile pointer, '
+        + 'which already stands on slot ' + TARGET + ': the next boot would adopt the OUTGOING character as the '
+        + 'target hero and destroy the one that lived there');
       assert(during.snapSlot === 0,
         'a snapshot sent during the switch is addressed to slot ' + during.snapSlot + ' — game_saves is '
         + 'UNIQUE (user_id, slot), so that upsert overwrites the TARGET character\'s cloud row with the '
@@ -44199,7 +44224,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=542');
+    const KIT = await import('../data/start-kit.js?v=543');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -44281,7 +44306,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=542');
+    const KIT = await import('../data/start-kit.js?v=543');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -44395,7 +44420,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=542');
+    const KIT = await import('../data/start-kit.js?v=543');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -46506,7 +46531,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=542')).text();
+    const src = await (await fetch('src/legacy.js?v=543')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -53068,7 +53093,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=542');
+    const S = await import('../data/shops.js?v=543');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -54666,7 +54691,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=542');
+    const S = await import('../data/shops.js?v=543');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -59254,7 +59279,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=542')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=543')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -61245,7 +61270,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=542');
+    const A = await import('../net/accrue.js?v=543');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -61270,7 +61295,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=542');
+    const A = await import('../net/accrue.js?v=543');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -61297,7 +61322,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=542');
+    const A = await import('../net/accrue.js?v=543');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -61450,7 +61475,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=542')).text();
+      const raw = await (await fetch(f + '?v=543')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -61500,7 +61525,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=542')).text();
+    const raw = await (await fetch('src/observability.js?v=543')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -61604,7 +61629,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=542');
+    const _art = await import('../data/monster-art.js?v=543');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

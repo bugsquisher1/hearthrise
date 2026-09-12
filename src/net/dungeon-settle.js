@@ -33,14 +33,14 @@
 // NOT ANSWERED (timeout, dead network, CORS) ⇒ REUSE THE KEY so the run cannot
 // settle twice. ANSWERED (200 or a machine-code refusal) ⇒ a NEW key next time.
 //
-// PURE except for `fetch` and the injected hooks/config, so the suite drives the
-// same bytes the browser runs. Node-importable.
+// PURE except for `fetch` and the injected config, so the suite drives the same
+// bytes the browser runs. Node-importable.
 // ============================================================================
 
 import {
-  isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
-} from './accrue.js?v=542';
-import { isDungeonSettleArmed, reconcileScrip } from './dungeon-scrip-record.js?v=542';
+  resolveActiveSlot, accrueEndpoint, MAX_SLOT,
+} from './accrue.js?v=543';
+import { isDungeonSettleArmed, reconcileScrip } from './dungeon-scrip-record.js?v=543';
 
 export const DUNGEON_SETTLE_VERB = 'dungeon_settle';
 
@@ -50,12 +50,19 @@ const MODES = ['auto', 'manual', 'scavenger'];
 const SETTLE_TIMEOUT_MS = 15000;
 
 let config = null;
-let hooks = { onEnvelope: null, onOutcome: null };
-let last = null;
 
-/* The verb is dormant until ITS OWN arm flips. The `&& isServerAccrualEnabled()`
-   conjunction went with the retired b353 kill switch (b515); the arm below is
-   the real gate and it is unchanged. */
+/* ── THERE IS NO HOOK SEAM ON THIS TRANSPORT, DELIBERATELY ───────────────────
+   ./eat.js and ./equip.js hand their envelope to an applier installed by
+   legacy.js (setEatHooks). This module was written with the same two-field
+   `hooks` object copied in, and no setter was ever added, so it sat null for its
+   whole life while every caller applied the envelope EXPLICITLY at the call site
+   — reconcileFromEnvelope / reconcileQuartermasterFromEnvelope, both pure and
+   both exported below (src/dungeons.js, src/dungeon-scavenger.js). That is the
+   better shape for a transport the suite has to drive, so the dead machinery is
+   gone rather than wired up; the cooldown half of an answer is reconciled the
+   same way (accrue.js reconcileDungeonCooldowns). */
+
+/* The verb is dormant until ITS OWN arm flips. */
 export function isDungeonSettleEnabled() {
   return isDungeonSettleArmed();
 }
@@ -144,12 +151,6 @@ function tokenOf() {
   try { return typeof config.authToken === 'function' ? config.authToken() : config.authToken; }
   catch (e) { return null; }
 }
-function fire(name, a, b) {
-  const fn = hooks && hooks[name];
-  if (typeof fn !== 'function') return null;
-  try { return fn(a, b); }
-  catch (e) { console.warn('[dungeon-settle] hook ' + name + ' threw:', e && e.message); return null; }
-}
 
 /* ── THE REQUEST, AS DATA — pure, so the suite asserts the LITERAL bytes ─────
    CONSTRUCTED field by field. There is no `...o` and there never will be: the
@@ -237,12 +238,6 @@ export function reconcileFromEnvelope(G, body) {
   return { scrip, items };
 }
 
-function record(verdict) {
-  last = { outcome: verdict.outcome, reason: verdict.reason || null, stage: verdict.stage || null,
-    status: verdict.status || 0, at: Date.now(), key: verdict.key || null };
-  fire('onOutcome', last);
-  return verdict;
-}
 /**
  * SEND ONE DUNGEON RUN AND RECONCILE.
  *
@@ -257,15 +252,15 @@ export async function sendDungeonSettle(run, o = {}) {
   const mode = String(r.mode == null ? '' : r.mode);
   const quality = (typeof r.quality === 'number' && Number.isFinite(r.quality)) ? r.quality : undefined;
 
-  if (!isDungeonSettleEnabled()) return record({ outcome: 'switch-off', key: o.key || null });
-  if (!config) return record({ outcome: 'unconfigured', reason: 'no_endpoint', key: o.key || null });
+  if (!isDungeonSettleEnabled()) return { outcome: 'switch-off', key: o.key || null };
+  if (!config) return { outcome: 'unconfigured', reason: 'no_endpoint', key: o.key || null };
   const token = tokenOf();
-  if (!token) return record({ outcome: 'unconfigured', reason: 'no_token', key: o.key || null });
-  if (!ID_RE.test(id)) return record({ outcome: 'unsendable', reason: 'bad_dungeon', key: o.key || null });
-  if (MODES.indexOf(mode) === -1) return record({ outcome: 'unsendable', reason: 'bad_mode', key: o.key || null });
+  if (!token) return { outcome: 'unconfigured', reason: 'no_token', key: o.key || null };
+  if (!ID_RE.test(id)) return { outcome: 'unsendable', reason: 'bad_dungeon', key: o.key || null };
+  if (MODES.indexOf(mode) === -1) return { outcome: 'unsendable', reason: 'bad_mode', key: o.key || null };
 
   const key = isIntentKey(o.key) ? o.key : newIntentKey();
-  if (!isIntentKey(key)) return record({ outcome: 'unsendable', reason: 'no_intent_key', key: null });
+  if (!isIntentKey(key)) return { outcome: 'unsendable', reason: 'no_intent_key', key: null };
 
   const { url, init } = buildDungeonSettleRequest({
     url: config.url, apiKey: config.apiKey, token,
@@ -283,7 +278,7 @@ export async function sendDungeonSettle(run, o = {}) {
   } catch (e) {
     const aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);
-    return record({ outcome: aborted ? 'timeout' : 'unreachable', reason: String((e && e.message) || e), key });
+    return { outcome: aborted ? 'timeout' : 'unreachable', reason: String((e && e.message) || e), key };
   }
   if (timer) clearTimeout(timer);
 
@@ -291,23 +286,20 @@ export async function sendDungeonSettle(run, o = {}) {
   try { body = await res.json(); } catch (e) { body = null; }
   const verdict = { ...classifyDungeonSettleResponse(res.status, body), status: res.status, key };
 
-  /* THE ENVELOPE IS THE TRUTH WHETHER THE SETTLE LANDED OR NOT. A refused settle
-     (version_conflict, on_cooldown, …) carries the server's current state, and
-     applying it is what puts the optimistic local prediction back to server
-     truth. */
-  const env = envelopeOf(body);
-  if (env && typeof hooks.onEnvelope === 'function') {
-    try { verdict.applied = !!hooks.onEnvelope(body, verdict); }
-    catch (e) { console.warn('[dungeon-settle] envelope hook threw:', e && e.message); }
-  }
-  return record(verdict);
+  /* THE ENVELOPE IS THE TRUTH WHETHER THE SETTLE LANDED OR NOT, and the CALLER
+     applies it off the `body` returned here: reconcileFromEnvelope for the
+     rewards of a settled/replayed run, accrue.js reconcileDungeonCooldowns for
+     the re-entry window on EITHER answer — a refusal (version_conflict,
+     on_cooldown, …) carries the server's current state, because none of this
+     verb's codes is on the Edge's STATELESS_REFUSALS list. */
+  return verdict;
 }
 
 /* ── THE QUARTERMASTER SPEND, CLIENT SIDE (dungeon-settlement.md §4, incr 3) ──
    Scrip OUT, an item IN — sent to hr_quartermaster_buy, which prices the offer
    from its own catalogue and debits/grants in one transaction. This client sends
    ONE offer id (`qm.<item>`) and reconciles the returned envelope; it authors no
-   price and no item. Shares this module's config/token/hooks and the SAME arm
+   price and no item. Shares this module's config/token and the SAME arm
    (isDungeonSettleEnabled) — dormant, it sends nothing and the legacy client trade
    (src/net/item-ledger.js) still runs, so there is no gap. */
 export const QM_BUY_VERB = 'quartermaster_buy';
@@ -365,14 +357,14 @@ export function reconcileQuartermasterFromEnvelope(G, body) {
 export async function sendQuartermasterBuy(offer, o = {}) {
   const offerId = String(offer == null ? '' : offer);
 
-  if (!isDungeonSettleEnabled()) return record({ outcome: 'switch-off', key: o.key || null });
-  if (!config) return record({ outcome: 'unconfigured', reason: 'no_endpoint', key: o.key || null });
+  if (!isDungeonSettleEnabled()) return { outcome: 'switch-off', key: o.key || null };
+  if (!config) return { outcome: 'unconfigured', reason: 'no_endpoint', key: o.key || null };
   const token = tokenOf();
-  if (!token) return record({ outcome: 'unconfigured', reason: 'no_token', key: o.key || null });
-  if (!QM_OFFER_RE.test(offerId)) return record({ outcome: 'unsendable', reason: 'bad_offer', key: o.key || null });
+  if (!token) return { outcome: 'unconfigured', reason: 'no_token', key: o.key || null };
+  if (!QM_OFFER_RE.test(offerId)) return { outcome: 'unsendable', reason: 'bad_offer', key: o.key || null };
 
   const key = isIntentKey(o.key) ? o.key : newIntentKey();
-  if (!isIntentKey(key)) return record({ outcome: 'unsendable', reason: 'no_intent_key', key: null });
+  if (!isIntentKey(key)) return { outcome: 'unsendable', reason: 'no_intent_key', key: null };
 
   const { url, init } = buildQuartermasterBuyRequest({
     url: config.url, apiKey: config.apiKey, token,
@@ -390,7 +382,7 @@ export async function sendQuartermasterBuy(offer, o = {}) {
   } catch (e) {
     const aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);
-    return record({ outcome: aborted ? 'timeout' : 'unreachable', reason: String((e && e.message) || e), key });
+    return { outcome: aborted ? 'timeout' : 'unreachable', reason: String((e && e.message) || e), key };
   }
   if (timer) clearTimeout(timer);
 
@@ -398,12 +390,8 @@ export async function sendQuartermasterBuy(offer, o = {}) {
   try { body = await res.json(); } catch (e) { body = null; }
   const verdict = { ...classifyDungeonSettleResponse(res.status, body), status: res.status, key };
 
-  const env = envelopeOf(body);
-  if (env && typeof hooks.onEnvelope === 'function') {
-    try { verdict.applied = !!hooks.onEnvelope(body, verdict); }
-    catch (e) { console.warn('[quartermaster-buy] envelope hook threw:', e && e.message); }
-  }
-  return record(verdict);
+  /* Applied by the caller, as above: reconcileQuartermasterFromEnvelope(G, body). */
+  return verdict;
 }
 
 if (typeof window !== 'undefined') {

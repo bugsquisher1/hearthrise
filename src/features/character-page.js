@@ -20,12 +20,12 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=542';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=542';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=542';
+import { SKILLS_DEF } from '../data/skills.js?v=543';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=543';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=543';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup } from '../net/balance.js?v=542';
+import { balanceMarkup } from '../net/balance.js?v=543';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
    the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
@@ -221,12 +221,10 @@ function buildHeroCard() {
   try {
     const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
     if (rn && rn.rank) {
-      /* This line names the RANK and prints no figure, so it carries the whole
-         ruling sentence (figure included) as the tooltip — one source,
-         renown.js lagHint. '' when the realm has stated nothing. */
-      const lag = (window.HearthriseRenown.lagHint ? window.HearthriseRenown.lagHint(rn) : '');
-      const tip = lag ? ` title="${esc(lag)}" data-hr-renown-hint` : '';
-      rankLine = `<div class="cr-build"${tip}>Standing: <span>${esc(rn.rank.name)}</span></div>`;
+      /* Names the RANK and prints no figure, so it carries no settle note
+         either — the ONE lag tooltip rides the ONE headline figure (the Home
+         hearth band). Tyler, 2026-09-12: a standing line explains nothing. */
+      rankLine = `<div class="cr-build">Standing: <span>${esc(rn.rank.name)}</span></div>`;
     }
   } catch (e) { /* renown optional */ }
 
@@ -346,16 +344,9 @@ function buildSkillsHeader() {
   const name = esc(playerName());
   const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
   let sub = '';
-  let lagLine = '';
   try {
     const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
     if (rn && rn.rank) {
-      /* The figure is on the line above, so the header takes the explanation
-         half of the ruling's sentence and reuses .csk-hero-sub, this block's
-         own hint element. '' when the realm has stated nothing. */
-      const lag = (window.HearthriseRenown.lagHint
-        ? window.HearthriseRenown.lagHint(rn, { figureShown: true }) : '');
-      if (lag) lagLine = `<div class="csk-hero-sub" data-hr-renown-hint>${esc(lag)}</div>`;
       /* `rn.score` NEVER EXISTED on the state object, so this line has
          always fallen through to `G.renownHigh` — the CLIENT's ratcheted
          prediction, which the kill-faucet rules keep permanently ahead of the
@@ -370,7 +361,6 @@ function buildSkillsHeader() {
     <div class="csk-hero-id">
       <div class="csk-hero-name">${name}</div>
       <div class="csk-hero-sub">${sub}</div>
-      ${lagLine}
       ${founderMarkHtml()}
     </div>
     <div class="csk-hero-total">

@@ -1024,6 +1024,18 @@ async function run(mutate) {
       const beforeLedger = Number((await db.query(
         'select count(*) as n from public.player_ledger where user_id=$1 and slot=$2',
         [USER, SLOT])).rows[0].n);
+      /* The renown high-water BEFORE the night. `2026-09-12-renown-high-projection`
+         patched `hr_apply` to ratchet `player_state.renown_high` from
+         `hr_renown_of` on every successful apply — raise-only in the WHERE, so
+         `found` means EXACTLY "the high-water moved" — and to write ONE
+         `renown`/`renown_ratchet` row `if found`. A night that levels the fixture
+         can therefore leave the accrual aggregate PLUS that single row. Reading
+         the high-water on both sides lets the assertion below state the real
+         relation (the row exists IFF the high-water rose) instead of filtering
+         renown out, which would go blind to a ratchet writing per tick. */
+      const renownBefore = Number((await db.query(
+        'select coalesce(renown_high, 0) as r from public.player_state where user_id=$1 and slot=$2',
+        [USER, SLOT])).rows[0]?.r ?? 0);
       const applied = await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
         const [r] = await tagged(tx,
@@ -1055,7 +1067,8 @@ async function run(mutate) {
         + `+${out.delta.xp?.[NODE.skill]} from 3000`);
 
       const [after] = (await db.query(
-        'select version, accrued_to from public.player_state where user_id=$1 and slot=$2',
+        'select version, accrued_to, coalesce(renown_high, 0) as renown_high '
+        + 'from public.player_state where user_id=$1 and slot=$2',
         [USER, SLOT])).rows;
       ok(Number(after.version) === Number(env.version) + 1,
         `T8: player_state.version is ${after.version} (was ${env.version}) — the apply did not commit`);
@@ -1075,11 +1088,36 @@ async function run(mutate) {
       const rows = (await db.query(
         'select kind, intent, gold_in, xp_in, qty_in from public.player_ledger '
         + 'where user_id=$1 and slot=$2 order by at', [USER, SLOT])).rows.slice(beforeLedger);
-      ok(rows.length === 1,
-        `T8: the accrual wrote ${rows.length} ledger rows for one night (expected exactly 1). `
-        + 'The journal is an AGGREGATE by contract; a row per action is the failure that took the '
-        + 'database to 229 MB on six players.');
-      const led = rows[0];
+      const byKind = {};
+      for (const r of rows) byKind[r.kind] = (byKind[r.kind] || 0) + 1;
+      const kindCensus = JSON.stringify(byKind);
+      const accrual = rows.filter((r) => r.intent === 'accrue');
+      const ratchet = rows.filter((r) => r.kind === 'renown' && r.intent === 'renown_ratchet');
+      const strays = rows.filter((r) => !accrual.includes(r) && !ratchet.includes(r));
+      ok(accrual.length === 1,
+        `T8: the accrual wrote ${accrual.length} intent='accrue' ledger rows for one night `
+        + `(expected exactly 1). Rows by kind: ${kindCensus}. The journal is an AGGREGATE by `
+        + 'contract; a row per action is the failure that took the database to 229 MB on six '
+        + 'players — read the census above for WHICH kind multiplied.');
+      ok(strays.length === 0,
+        `T8: the night wrote ${strays.length} ledger row(s) that are neither the accrual aggregate `
+        + `nor the renown ratchet: ${JSON.stringify(strays.map((r) => `${r.kind}/${r.intent}`))}. `
+        + `Rows by kind: ${kindCensus}. Every kind hr_apply journals is a ceiling the day budget is `
+        + 'derived from, so an unaccounted row is either a second aggregate or a per-action log.');
+      /* THE RATCHET IS RAISE-ONLY, AND SO IS ITS JOURNAL (migration section C2).
+         Asserted as a RELATION, not an exemption: the row is present if and only
+         if `player_state.renown_high` actually rose across this night. A ratchet
+         that logged every apply (the pre-C2 greatest() shape) fails the `rose ===
+         false` arm; one that raises silently fails the `rose === true` arm. */
+      const renownRose = Number(after.renown_high) > renownBefore;
+      ok(ratchet.length === (renownRose ? 1 : 0),
+        `T8: renown_high went ${renownBefore} -> ${after.renown_high} across the night but the `
+        + `ledger holds ${ratchet.length} renown/renown_ratchet row(s) (expected `
+        + `${renownRose ? 1 : 0}). hr_apply journals ONE row per REAL raise and none when the `
+        + 'high-water does not move; hr_claim_rank pays up to 1,000,000 gold against that '
+        + 'high-water, so an unjournalled raise is an undetectable, irreversible inflation and a '
+        + `per-apply row is the 229 MB failure again. Rows by kind: ${kindCensus}.`);
+      const led = accrual[0];
       ok(led.kind === 'gather' && led.intent === 'accrue',
         `T8: the ledger row is ${led.kind}/${led.intent}, expected gather/accrue`);
       ok(Number(led.qty_in) === expectedQty,

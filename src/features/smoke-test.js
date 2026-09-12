@@ -1444,10 +1444,9 @@ const snapshotG = () => {
        and the failure mode is silently gifting a player capacity they never
        bought (or, on the other branch, taking capacity they did). */
     bank: G.bank,
-    /* The ENFORCED cap beside the rungs that price it: accrue.js's mirror of
-       `state.bank_cap` and the only thing `bankCap()` reads, so a test that pins
-       it pins the bag for every test after it. `?? null` because a session with
-       no envelope yet has no such key and JSON drops undefined (SNAP-2). */
+    /* The ENFORCED cap beside the rungs that price it — all `bankCap()` reads, so a
+       test pinning it pins the bag for the rest of the run. `?? null`: no envelope
+       yet = no key, and JSON drops undefined (SNAP-2). */
     _bankCap: G._bankCap ?? null,
     /* b4xx (gold slices 2-3): the WORKERS crew and the HOUSE theme/buyback state.
        The slice-2/3 tests drive hire() (which pushes a worker + debits gold),
@@ -1904,6 +1903,12 @@ const combatScreen = () => {
    runSmokeTest parks the mirror so ~10 local-threshold fixtures stay honest on a
    signed-in page; these tests ARE it, so this unparks and restores — the contract
    SETTLE-5/6 and AUTOEAT-SYNC-1..3 have. */
+/* The bank wire shape, once: hr_state_of states the enforced CAP and the rungs owned
+   (one permanent `bank` row) in ONE body; and the pin goes back exactly as found. */
+const bankEnv = (cap, rung) => ({ ok: true, state: { bank_cap: cap }, progress_truncated: false,
+  progress: [{ kind: 'unlock', key: 'bank', value: rung, period: '' }] });
+const restoreBankCap = (v) => { if (v === undefined) delete window.G._bankCap; else window.G._bankCap = v; };
+
 const autoEatMirrorReady = () => {
   const A = window.HearthriseAuto, AC = window.HearthriseAccrual;
   return !!(A && AC && typeof AC.noteServerAutoEat === 'function'
@@ -3946,98 +3951,71 @@ const TESTS = [
   () => tryRunAsync('SA010-2 (Q-4b): purchased bank rungs come back from the SERVER after a reload', async () => {
     const A = window.HearthriseAccrual;
     if (!A || typeof A.reconcileBankRungs !== 'function') {
-      assert(false, 'HearthriseAccrual.reconcileBankRungs is missing — nothing restores the purchased bank ladder '
-        + 'from the server envelope, so every rung is forgotten on reload (SA-010)');
+      assert(false, 'HearthriseAccrual.reconcileBankRungs is missing — nothing restores the purchased bank ladder from the server envelope, so every rung is forgotten on reload (SA-010)');
       return;
     }
     if (typeof window.bankCap !== 'function' || typeof window.buyBankSpaceGold !== 'function') return;
-    const SLOTS = (window.BANK_SPACE && window.BANK_SPACE.gold.slots) || 20;
-    const BASE = (window.BANK_SPACE && window.BANK_SPACE.BASE_CAP) || 100;
-    /* The wire shape hr_state_of projects for two purchased gold rungs: ONE
-       permanent unlock row whose value is the rungs owned (hr_unlock_buy merges
-       GREATEST over key='bank'), the completeness flag, and the CAP the realm
-       enforces (`state.bank_cap`, kept in step by the bank-cap trigger). */
-    const envelope = () => ({
-      ok: true,
-      state: { bank_cap: BASE + 2 * SLOTS },
-      progress: [{ kind: 'unlock', key: 'bank', value: 2, period: '' }],
-      progress_truncated: false,
-    });
-
+    const SLOTS = (window.BANK_SPACE && window.BANK_SPACE.gold.slots) || 20, BASE = (window.BANK_SPACE && window.BANK_SPACE.BASE_CAP) || 100;
+    const envelope = () => bankEnv(BASE + 2 * SLOTS, 2);   // two purchased gold rungs, and the cap they bought
     const snap = snapshotG();
-    const origGold = window.HearthriseGold, origNotify = window.notify;
-    const origSave = window.saveLocal, origTop = window.updateTopbar, origInv = window.renderInventory;
+    const origGold = window.HearthriseGold, origNotify = window.notify, origSave = window.saveLocal,
+      origTop = window.updateTopbar, origInv = window.renderInventory;
     try {
-      // ── THE RELOAD. A fresh G is exactly what ensureSave() leaves after a load:
-      //    the documented defaults, zero rungs, and no statement of the cap yet.
+      // THE RELOAD: what ensureSave() leaves — zero rungs, no cap stated yet.
       window.G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
       delete window.G._bankCap;
       assert(window.bankCap() === BASE,
         'the pre-condition is wrong: a zero-rung bank should cap at the base ' + BASE + ', got ' + window.bankCap());
 
       A.reconcileBankRungs(window.G, envelope());
-      assert(window.G.bank.goldBuys === 2,
-        'THE BUG (SA-010b): the server states two purchased bank rungs and the client still holds '
+      assert(window.G.bank.goldBuys === 2, 'THE BUG (SA-010b): the server states two purchased bank rungs and the client still holds '
         + window.G.bank.goldBuys + ' — the paid space is gone on every reload');
       const capAfterReload = window.bankCap();
-      assert(capAfterReload === BASE + 2 * SLOTS,
-        'the restored cap is ' + capAfterReload + ', expected ' + (BASE + 2 * SLOTS)
-        + ' — the bag draws the cap the realm projects (b537: state.bank_cap → G._bankCap), so the envelope\'s '
-        + 'statement did not reach it');
+      assert(capAfterReload === BASE + 2 * SLOTS, 'the restored cap is ' + capAfterReload + ', expected ' + (BASE + 2 * SLOTS)
+        + ' — the bag draws the cap the realm projects (state.bank_cap → G._bankCap), so the envelope\'s statement did not reach it');
 
-      // ── RELOAD AGAIN (the SA-010 repro): a second fresh G, the SAME envelope,
-      //    must land on the SAME cap. A restore that only works once is a race.
+      // RELOAD AGAIN (the repro): same envelope → same cap, and never compounded.
       window.G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
       A.reconcileBankRungs(window.G, envelope());
-      assert(window.bankCap() === capAfterReload,
-        'a second reload settled on a DIFFERENT cap (' + window.bankCap() + ' vs ' + capAfterReload
-        + ') — the restore is not deterministic');
-      // …and re-applying the same envelope must not compound the ladder.
+      assert(window.bankCap() === capAfterReload, 'a second reload settled on a DIFFERENT cap ('
+        + window.bankCap() + ' vs ' + capAfterReload + ') — the restore is not deterministic');
       A.reconcileBankRungs(window.G, envelope());
       assert(window.G.bank.goldBuys === 2,
         're-applying one envelope compounded the rungs to ' + window.G.bank.goldBuys + ' — not idempotent');
 
-      // ── ABSENCE IS NOT A CLAIM: a lean envelope with no `progress` array must
-      //    never read as "you bought nothing" and delete the ladder.
+      // ABSENCE IS NOT A CLAIM: a lean envelope must not delete the ladder.
       A.reconcileBankRungs(window.G, { ok: true, state: {} });
       assert(window.G.bank.goldBuys === 2,
         'an envelope with no `progress` array wiped the purchased rungs — absence is not a statement of zero');
 
-      // ── AND THE PLAYER-VISIBLE HALF: the next Buy must ask for the rung ABOVE
-      //    the ones owned. Asking for bank.0 is what makes the server answer
-      //    "already_owned" → "That bank space is already yours." once per rung.
+      // THE PLAYER-VISIBLE HALF: Buy must ask for the rung ABOVE the ones owned.
       let sentOffer = null;
-      window.notify = function () {};
-      window.saveLocal = function () {}; window.updateTopbar = function () {}; window.renderInventory = function () {};
+      window.notify = function () {}; window.saveLocal = function () {};
+      window.updateTopbar = function () {}; window.renderInventory = function () {};
       window.G.gold = 5000000;
       stampBalanceLikeLoad(window.G);
       window.HearthriseGold = Object.assign({}, origGold, {
         isGoldIntentEnabled: function () { return true; },
         newIntentKey: function () { return 'k-sa010'; },
-        buyUnlock: function (offer, key) {
-          sentOffer = offer;
-          return Promise.resolve({ outcome: 'applied', verb: 'unlock_buy', key: key, body: { ok: true } });
-        },
+        buyUnlock: function (offer, key) { sentOffer = offer;
+          return Promise.resolve({ outcome: 'applied', verb: 'unlock_buy', key: key, body: { ok: true } }); },
       });
       window.buyBankSpaceGold();
       await new Promise(function (r) { setTimeout(r, 30); });
-      assert(sentOffer === 'bank.2',
-        'THE NAG: after a reload the Buy button asked the server for ' + sentOffer + ' instead of bank.2 — every '
-        + 'offer at or below an owned rung is refused `already_owned` ("That bank space is already yours"), one '
-        + 'press wasted per rung the player already paid for');
+      assert(sentOffer === 'bank.2', 'THE NAG: after a reload the Buy button asked the server for ' + sentOffer
+        + ' instead of bank.2 — every offer at or below an owned rung is refused `already_owned` ("That bank space '
+        + 'is already yours"), one press wasted per rung the player already paid for');
       /* A RECEIPT IS "AT LEAST", NOT "ONE MORE": the buy's own confirm envelope
          has already written the server's rung by the time the callback runs, so
          the local advance must be idempotent rather than a blind ++. */
       assert(window.G.bank.goldBuys === 3,
         'a confirmed purchase of bank.2 must leave exactly 3 rungs; got ' + window.G.bank.goldBuys);
-      A.reconcileBankRungs(window.G, {
-        ok: true, progress: [{ kind: 'unlock', key: 'bank', value: 3, period: '' }], progress_truncated: false,
-      });
+      A.reconcileBankRungs(window.G, bankEnv(BASE + 3 * SLOTS, 3));
       assert(window.G.bank.goldBuys === 3,
         'the confirm envelope and the local advance double-counted the rung (' + window.G.bank.goldBuys + ')');
     } finally {
-      window.HearthriseGold = origGold; window.notify = origNotify;
-      window.saveLocal = origSave; window.updateTopbar = origTop; window.renderInventory = origInv;
+      window.HearthriseGold = origGold; window.notify = origNotify; window.saveLocal = origSave;
+      window.updateTopbar = origTop; window.renderInventory = origInv;
       restoreG(snap);
     }
   }),
@@ -4073,61 +4051,46 @@ const TESTS = [
       'a complete projection with no `bank` row means the player owns no rung; got ' + none.bank.goldBuys);
   }),
 
-  /* regression suite — THE CAP, NOT THE RUNG. SA010-3 conformed `goldBuys`;
-     `bankCap()` summed THREE client-held counters and only that one has a server
-     statement, so gemBuys/grandfather gated a SERVER capability, both ways for a
-     whole session (§6). Rationale: accrue.js noteServerBankCap. */
+  /* regression suite — THE CAP, NOT THE RUNG. `bankCap()` summed THREE client-held
+     counters; only `goldBuys` is server-stated, so the other two gated a SERVER
+     capability both ways, all session (§6). Why: accrue.js noteServerBankCap. */
   () => tryRun('SA010-4 (b537): the bag draws the cap the REALM enforces, in both directions — client counters cannot move it', () => {
-    const A = window.HearthriseAccrual;
-    if (!A || typeof A.reconcileBankRungs !== 'function') return;
+    const A = window.HearthriseAccrual, BS = window.BANK_SPACE;
+    if (!A || typeof A.reconcileBankRungs !== 'function' || !BS) return;
     if (typeof window.bankCap !== 'function' || typeof window.bankGoldCost !== 'function') return;
-    const BS = window.BANK_SPACE;
-    if (!BS) return;
-    const BASE = BS.BASE_CAP, SLOTS = BS.gold.slots;
+    const BASE = BS.BASE_CAP, SLOTS = BS.gold.slots, TWO = BASE + 2 * SLOTS;
+    const rung3 = Math.round(BS.gold.base * Math.pow(BS.gold.growth, 2));
     const snap = snapshotG();
     try {
-      // THE CENSUS SHAPE — summed, the old reader drew 100+5*20+1*60+80 = 340.
+      // THE CENSUS SHAPE: the old reader summed these to 100+5*20+1*60+80 = 340.
       window.G.bank = { goldBuys: 5, gemBuys: 1, grandfather: 80 };
       delete window.G._bankCap;
 
       // (a) NOTHING STATED YET → the BASE cap, never the counters.
-      assert(window.bankCap() === BASE,
-        'THE CLASS (fail-safe): with no statement from the realm the bag capped at ' + window.bankCap()
-        + ' instead of the base ' + BASE + ' — client-held counters are drawing space nobody sold, and every '
-        + 'item-touching apply past the server\'s own cap is refused `bank_full`, whole delta and all');
+      assert(window.bankCap() === BASE, 'THE CLASS (fail-safe): with no statement from the realm the bag capped at '
+        + window.bankCap() + ' instead of the base ' + BASE + ' — client-held counters are drawing space nobody '
+        + 'sold, and every item-touching apply past the server\'s own cap is refused `bank_full`, whole delta and all');
 
       // (b) THE REALM STATES CAP AND RUNG in one body, as hr_state_of does.
-      const env = (cap, rung) => ({
-        ok: true,
-        state: { bank_cap: cap },
-        progress: [{ kind: 'unlock', key: 'bank', value: rung, period: '' }],
-        progress_truncated: false,
-      });
-      A.reconcileBankRungs(window.G, env(BASE + 2 * SLOTS, 2));
-      assert(window.bankCap() === BASE + 2 * SLOTS,
-        'THE CLASS (client ahead): the realm enforces bank_cap ' + (BASE + 2 * SLOTS) + ' and the bag drew '
-        + window.bankCap() + ' — a bag the player is shown and then refused');
+      A.reconcileBankRungs(window.G, bankEnv(TWO, 2));
+      assert(window.bankCap() === TWO, 'THE CLASS (client ahead): the realm enforces bank_cap ' + TWO
+        + ' and the bag drew ' + window.bankCap() + ' — a bag the player is shown and then refused');
 
       // (c) THE PRICING HALF IS UNTOUCHED: two owned → the next offer is bank.2.
-      assert(window.G.bank.goldBuys === 2,
-        'the rung reader stopped conforming goldBuys (' + window.G.bank.goldBuys + ') — the Buy button would ask '
-        + 'for a rung the realm already sold and be refused `already_owned`, once per owned rung');
-      assert(window.bankGoldCost() === Math.round(BS.gold.base * Math.pow(BS.gold.growth, 2)),
-        'the next rung is priced at ' + window.bankGoldCost() + ', not the third rung\'s '
-        + Math.round(BS.gold.base * Math.pow(BS.gold.growth, 2)));
+      assert(window.G.bank.goldBuys === 2, 'the rung reader stopped conforming goldBuys (' + window.G.bank.goldBuys
+        + ') — the Buy button would ask for a rung the realm already sold and be refused `already_owned`, once each');
+      assert(window.bankGoldCost() === rung3,
+        'the next rung is priced at ' + window.bankGoldCost() + ', not the third rung\'s ' + rung3);
 
-      /* (d) ABSENCE IS NOT A CLAIM — a fail-safe that wiped a KNOWN cap on every
-         lean answer would be this same bug pointing the other way. */
+      // (d) ABSENCE IS NOT A CLAIM: wiping a KNOWN cap is this bug, other way round.
       A.reconcileBankRungs(window.G, { ok: true, progress: [], progress_truncated: false });
-      assert(window.bankCap() === BASE + 2 * SLOTS,
-        'a body carrying no `state.bank_cap` reset the known cap to ' + window.bankCap()
-        + ' — absence is not a statement of the base');
+      assert(window.bankCap() === TWO, 'a body carrying no `state.bank_cap` reset the known cap to '
+        + window.bankCap() + ' — absence is not a statement of the base');
 
       // (e) THE REALM ABOVE THE CLIENT (bank-cap-rungs B4): no sum reaches it.
-      A.reconcileBankRungs(window.G, env(5000, 2));
-      assert(window.bankCap() === 5000,
-        'THE CLASS (realm ahead): the realm holds 5000 stacks open and the bag drew ' + window.bankCap()
-        + ' — an imported or grandfathered cap is nagged "Bank full" on space that is already paid for');
+      A.reconcileBankRungs(window.G, bankEnv(5000, 2));
+      assert(window.bankCap() === 5000, 'THE CLASS (realm ahead): the realm holds 5000 stacks open and the bag drew '
+        + window.bankCap() + ' — an imported or grandfathered cap is nagged "Bank full" on space already paid for');
     } finally { restoreG(snap); }
   }),
 
@@ -8745,12 +8708,9 @@ const TESTS = [
     assert(typeof window.buyBankSpaceGem === 'function', 'buyBankSpaceGem missing');
     assert(typeof window.bankCap === 'function' && typeof window.bankGoldCost === 'function', 'bank helpers missing');
     const BS = window.BANK_SPACE;
-    const saved = { gold: G.gold, gems: G.gems, bank: JSON.parse(JSON.stringify(G.bank || {})),
-      cap: G._bankCap };
+    const saved = { gold: G.gold, gems: G.gems, bank: JSON.parse(JSON.stringify(G.bank || {})), cap: G._bankCap };
     try {
-      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
-      // A fresh bag is one the realm has not spoken about, not zeroed counters.
-      delete G._bankCap;
+      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 }; delete G._bankCap;   // nothing stated yet
       const cap0 = window.bankCap();
       assert(cap0 === BS.BASE_CAP, 'fresh cap must equal BASE_CAP, got ' + cap0);
 
@@ -8810,22 +8770,18 @@ const TESTS = [
         assert(goldOf() === 0, 'a refused buy moved the balance');
       });
     } finally {
-      G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank;
-      if (saved.cap === undefined) delete G._bankCap; else G._bankCap = saved.cap;
+      G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank; restoreBankCap(saved.cap);
     }
   }),
   () => tryRun('b269: addItem refuses a NEW stack when the bank is full, but grows existing stacks', () => {
     const G = window.G;
-    const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), bank: JSON.parse(JSON.stringify(G.bank || {})),
-      cap: G._bankCap };
+    const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), bank: JSON.parse(JSON.stringify(G.bank || {})), cap: G._bankCap };
     try {
       // Two known item ids that stack.
       const ids = Object.keys(window.ITEMS).filter(k => k !== 'gold').slice(0, 2);
       assert(ids.length === 2, 'need two real item ids for the test');
       G.inventory = {}; G.inventory[ids[0]] = 5;
-      /* Pin the cap to exactly the current stack count → bank is full. The lever
-         is the realm's projected cap, not the retired `grandfather` counter —
-         pinning the mirror is what a server stating that cap does. */
+      // Pin the cap to the stack count → full. The lever is the realm's own cap.
       G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
       G._bankCap = window.bankUsed();                                    // cap == used
       assert(window.bankCap() === window.bankUsed(), 'test setup: cap must equal used');
@@ -8839,8 +8795,7 @@ const TESTS = [
       G._bankCap += 1;
       assert(window.addItem(ids[1], 1) === true && G.inventory[ids[1]] === 1, 'new stack fits after expansion');
     } finally {
-      G.inventory = saved.inv; G.bank = saved.bank;
-      if (saved.cap === undefined) delete G._bankCap; else G._bankCap = saved.cap;
+      G.inventory = saved.inv; G.bank = saved.bank; restoreBankCap(saved.cap);
     }
   }),
   () => tryRun('b269: v10→v11 migration grandfathers cap above existing distinct stacks', () => {
@@ -10008,13 +9963,10 @@ const TESTS = [
   () => tryRun('b283: currency ignores the bank cap; a full-bag purchase never eats scrip (data-loss fix)', () => {
     const G = window.G;
     if (typeof window.addItem !== 'function' || !window.ITEMS || !window.ITEMS.dungeon_scrip || typeof window.bankCap !== 'function') return;
-    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), bank: JSON.parse(JSON.stringify(G.bank || {})),
-      cap: G._bankCap };
+    const snap = { inv: JSON.parse(JSON.stringify(G.inventory || {})), bank: JSON.parse(JSON.stringify(G.bank || {})), cap: G._bankCap };
     try {
-      /* Pin the realm's cap at the base: the fill loop needs a cap the catalogue
-         can reach, and a live account's own cap is not a constant. */
-      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
-      delete G._bankCap;
+      // Pin at the base: the fill loop needs a cap the catalogue can reach.
+      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 }; delete G._bankCap;
       const cap = window.bankCap();
       // Fill the bag to cap with non-currency items.
       const inv = {}; let n = 0;
@@ -10032,8 +9984,7 @@ const TESTS = [
         assert(!G.inventory.kitchen_blueprint_t2, 'no item granted on a failed purchase');
       }
     } finally {
-      G.inventory = snap.inv; G.bank = snap.bank;
-      if (snap.cap === undefined) delete G._bankCap; else G._bankCap = snap.cap;
+      G.inventory = snap.inv; G.bank = snap.bank; restoreBankCap(snap.cap);
     }
   }),
 
@@ -53889,8 +53840,7 @@ const TESTS = [
       G.inventory = {}; Object.keys(window.ITEMS).slice(0, 5).forEach((id) => { G.inventory[id] = 1; });
       G.inventory.bronze_sword = 1;
       // Start from "the realm has not said"; the confirm envelope moves the cap.
-      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
-      delete G._bankCap;
+      G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 }; delete G._bankCap;
       window.showTab('inventory');
       await new Promise((r) => setTimeout(r, 60));
 
@@ -53970,7 +53920,7 @@ const TESTS = [
           + filtered.total + ' tiles for ' + filtered.filled + ' matches (cap ' + window.bankCap() + ')');
     } finally {
       G.inventory = saved.inv; G.bank = saved.bank; G.gems = saved.gems; G.gold = saved.gold;
-      if (saved.cap === undefined) delete G._bankCap; else G._bankCap = saved.cap;
+      restoreBankCap(saved.cap);
       window._invFilter = saved.filter;
       try { window._renderInvFancy(); window.showTab(prevTab || 'profile'); } catch (e) {}
     }

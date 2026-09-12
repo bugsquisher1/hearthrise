@@ -220,7 +220,14 @@ function buildHeroCard() {
   let rankLine = '';
   try {
     const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
-    if (rn && rn.rank) rankLine = `<div class="cr-build">Standing: <span>${esc(rn.rank.name)}</span></div>`;
+    if (rn && rn.rank) {
+      /* This line names the RANK and prints no figure, so it carries the whole
+         ruling sentence (figure included) as the tooltip — one source,
+         renown.js lagHint. '' when the realm has stated nothing. */
+      const lag = (window.HearthriseRenown.lagHint ? window.HearthriseRenown.lagHint(rn) : '');
+      const tip = lag ? ` title="${esc(lag)}" data-hr-renown-hint` : '';
+      rankLine = `<div class="cr-build"${tip}>Standing: <span>${esc(rn.rank.name)}</span></div>`;
+    }
   } catch (e) { /* renown optional */ }
 
   return `<div class="cr-hero">
@@ -339,9 +346,16 @@ function buildSkillsHeader() {
   const name = esc(playerName());
   const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
   let sub = '';
+  let lagLine = '';
   try {
     const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
     if (rn && rn.rank) {
+      /* The figure is on the line above, so the header takes the explanation
+         half of the ruling's sentence and reuses .csk-hero-sub, this block's
+         own hint element. '' when the realm has stated nothing. */
+      const lag = (window.HearthriseRenown.lagHint
+        ? window.HearthriseRenown.lagHint(rn, { figureShown: true }) : '');
+      if (lag) lagLine = `<div class="csk-hero-sub" data-hr-renown-hint>${esc(lag)}</div>`;
       /* `rn.score` NEVER EXISTED on the state object, so this line has
          always fallen through to `G.renownHigh` — the CLIENT's ratcheted
          prediction, which the kill-faucet rules keep permanently ahead of the
@@ -356,6 +370,7 @@ function buildSkillsHeader() {
     <div class="csk-hero-id">
       <div class="csk-hero-name">${name}</div>
       <div class="csk-hero-sub">${sub}</div>
+      ${lagLine}
       ${founderMarkHtml()}
     </div>
     <div class="csk-hero-total">

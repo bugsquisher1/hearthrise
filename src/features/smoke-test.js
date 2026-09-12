@@ -1610,6 +1610,44 @@ const stubSignedIn = (slot) => {
   };
 };
 
+/* ── THE RESIDUE PUT ON A STUBBED WIRE, WRITTEN ONCE ─────────────────────────
+   `hr_put_client_state` is the ONE periodic write the armed game still makes,
+   and three tests drive it against a fake endpoint. Each carried the same
+   fixture verbatim: release the b314 reconcile hold (or the save returns before
+   the network and every assertion is vacuous), swap `window.fetch`, trust the
+   clock, reset the auth gate and the save health — then put all four back
+   EXACTLY as found, plus the same nine-key cfg. Stated once so a new test of
+   that write costs its assertions and nothing else, and so a failed arm can
+   never leak the fetch stub or a probe's cloudSyncedAt into the rest of the
+   suite. `onRequest(url, init)` answers any example.invalid call — return a
+   Response (or a promise of one) to control it, or nothing for a 200 {ok:true}.
+   `extraCfg` overrides the cfg (the claim endpoint, the failure callbacks). */
+const withResidueWire = async (onRequest, body, extraCfg) => {
+  const S = window.HearthriseSync, G = window.G;
+  const realFetch = window.fetch, wasHeld = S.isSnapshotHeld();
+  const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
+  const cfg = Object.assign({
+    snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+    claimEndpoint: null, apiKey: 'anon', userId: () => 'u1', authToken: () => 'opaque-token',
+    onAuthError: async () => true, onAuthExpired: () => {},
+    onSyncFailure: () => {}, onSyncRecovered: () => {},
+  }, extraCfg || {});
+  try {
+    if (wasHeld) S.releaseSnapshots();
+    window.fetch = function (u, init) {
+      if (!/example\.invalid/.test(String(u))) return realFetch.apply(this, arguments);
+      return onRequest(String(u), init) || Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+    };
+    S.setClockTrusted(true); S.resetAuthGate(); S.__resetSyncHealth();
+    return await S.__withConfig(cfg, () => body(S, cfg));
+  } finally {
+    window.fetch = realFetch;
+    if (wasHeld) S.holdSnapshots();
+    if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
+    S.resetAuthGate(); S.__resetSyncHealth();
+  }
+};
+
 const restoreG = (snap) => {
   if (!snap || !window.G) return;
   for (const k of Object.keys(snap)) window.G[k] = snap[k];
@@ -36349,6 +36387,78 @@ const TESTS = [
     }
   }),
 
+  /* ── b372 · regression suite — THE HOLE THE QUIESCE LATCH DID NOT COVER ─────
+     Filed by QA 2026-09-12 (DISCOVERIES) and reproduced here. The switch defence
+     has two layers in src/net/sync.js: `snapshotIfDue()` refuses to START a send
+     while quiesced, and `ownerSlotForLiveG()` re-addresses one already in flight.
+     Layer 2 only ever reached `buildSnapshotRequest` (game_saves). The write that
+     REPLACED the blob — the residue PUT, `hr_put_client_state` — was addressed
+     `pinnedSlot: config.slot`, and `config.slot` is null in production (auth.js
+     pins nothing), so `buildClientStatePutRequest` resolved the slot from
+     `HearthriseProfile.activeSlot()` LIVE, at BODY-BUILD time. `snapshotIfDue`
+     has exactly one await that can straddle a switch — `await fetchClaimRow()`
+     (the b366 handoff precondition) — so a cadence save parked on that one
+     network read when a switch landed had already passed the quiesce gate and
+     then built its body against the INCOMING slot: the outgoing hero's residue
+     (bestiary, quests, achievements, playerName…) upserted onto the TARGET
+     hero's client_state row, which is UNIQUE (user_id, slot). The b372 clone,
+     on the one periodic write the armed game makes.
+     THIS PLAYS THAT ORDER: park the claim read, move the hero pointer while the
+     save is suspended on it, release, and read the slot off the WIRE (the shape
+     tests/slot-switch.mjs watches). The pointer is moved WITHOUT arming the
+     quiesce latch on purpose — with the latch armed, layer 2 would answer
+     correctly even if the slot were resolved late, so the latch would hide the
+     defect. The property asserted is the stronger one: the body is addressed to
+     the character the snapshot was STARTED for.
+     MUTATION: put `pinnedSlot: config.slot` back in sync.js snapshotIfDue (or
+     move the `ownerSlotForLiveG` pin below the claim await) → RED here. */
+  () => tryRunAsync('b372: a residue save parked on the claim read keeps the slot it started for — a switch mid-read cannot re-address it', async () => {
+    const S = window.HearthriseSync, HP = window.HearthriseProfile, G = window.G;
+    assert(HP && typeof HP.activeSlot === 'function' && typeof S.__setClaimView === 'function',
+      'the profile slot resolver or the claim-view seam is gone — the residue PUT cannot be addressed or observed');
+    const realActiveSlot = HP.activeSlot, prevName = G.playerName, puts = [];
+    let liveSlot = 0, releaseClaim = null;
+    try {
+      G.playerName = 'OUTGOING-b372';        // a RESIDUE field, so the bag is never empty
+      HP.activeSlot = () => liveSlot;
+      S.__setClaimView(null);                // view unknown ⇒ the cadence save must read it
+      await withResidueWire((url, init) => {
+        if (!/hr_put_client_state/.test(url)) {
+          return new Promise((res) => { releaseClaim = () => res(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })); });
+        }
+        let b = null; try { b = JSON.parse((init && init.body) || 'null'); } catch (e) {}
+        puts.push({ slot: b ? b.p_slot : null, name: (b && b.p_patch) ? b.p_patch.playerName : null, active: HP.activeSlot() });
+      }, async () => {
+        const p = S.snapshotIfDue(true, false);            // the 60s cadence save, NOT the parting shot
+        for (let i = 0; i < 20 && !releaseClaim; i++) await Promise.resolve();
+        assert(typeof releaseClaim === 'function',
+          'the cadence save never parked on the claim read (paused ' + S.isPaused() + ', held ' + S.isSnapshotHeld()
+          + ', puts ' + puts.length + ') — the window this test exists for was never entered');
+        assert(puts.length === 0,
+          'the residue PUT was on the wire BEFORE the claim read answered, so a switch cannot be staged inside '
+          + 'the await — this test no longer reproduces the reported order');
+        liveSlot = 1;                                      // THE SWITCH LANDS: the hero pointer moves
+        releaseClaim();
+        await p;
+      }, { claimEndpoint: 'https://example.invalid/rest/v1/session_claims' });
+      assert(puts.length === 1 && puts[0].name === 'OUTGOING-b372',
+        'CONTROL: the parked cadence save must produce exactly one residue PUT carrying the OUTGOING character, '
+        + 'got ' + JSON.stringify(puts) + ' — without it every assertion here is vacuous');
+      assert(puts[0].active === 1,
+        'the hero pointer read 0 at body-build time — the hazard is that it had already moved, so this run '
+        + 'proves nothing');
+      assert(puts[0].slot === 0,
+        'THE BUG: a residue save that started for hero slot 0 and parked on the claim read built its body AFTER '
+        + 'the switch and went out addressed to slot ' + puts[0].slot + '. client_state is UNIQUE (user_id, slot), '
+        + 'so the outgoing hero\'s bestiary, quests, achievements and name are upserted onto the TARGET hero\'s '
+        + 'row — the b372 duplication on the one periodic write the armed game makes');
+    } finally {
+      HP.activeSlot = realActiveSlot;
+      if (prevName === undefined) delete G.playerName; else G.playerName = prevName;
+      S.__setClaimView(null);
+    }
+  }),
+
   /* b372 — THE BOOT HALF. Even with the latch, a save that belongs to another
      hero slot must never be adopted as this one: the latch closes the writer we
      found, this closes the class. Park (recoverable), never delete, and boot as
@@ -39997,28 +40107,13 @@ const TESTS = [
     assert(S.writeRetryDelayMs(0) === S.WRITE_RETRY_MIN_MS && S.writeRetryDelayMs(1) === S.WRITE_RETRY_MAX_MS,
       'the retry jitter no longer spans ' + S.WRITE_RETRY_MIN_MS + '–' + S.WRITE_RETRY_MAX_MS + 'ms');
 
-    const realFetch = window.fetch;
-    const G = window.G;
-    const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
-    const wasHeld = S.isSnapshotHeld();
     let attempts = 0, failures = 0, recovered = 0;
     let plan = [503, 200];
-    try {
-      if (wasHeld) S.releaseSnapshots();
-      window.fetch = function (u, init) {
-        if (!/example\.invalid/.test(String(u))) return realFetch.apply(this, arguments);
-        const status = plan[Math.min(attempts, plan.length - 1)];
-        attempts++;
-        return Promise.resolve(new Response(status === 200 ? '{"ok":true}' : '{"message":"timeout"}', { status }));
-      };
-      S.setClockTrusted(true); S.resetAuthGate(); S.__resetSyncHealth();
-      const cfg = {
-        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
-        claimEndpoint: null, apiKey: 'anon', userId: () => 'u1', authToken: () => 'opaque-token',
-        onAuthError: async () => true, onAuthExpired: () => {},
-        onSyncFailure: () => { failures++; }, onSyncRecovered: () => { recovered++; },
-      };
-
+    await withResidueWire(() => {
+      const status = plan[Math.min(attempts, plan.length - 1)];
+      attempts++;
+      return Promise.resolve(new Response(status === 200 ? '{"ok":true}' : '{"message":"timeout"}', { status }));
+    }, async () => {
       /* b515 — (1)-(3) NOW DRIVE THE WRITE THAT EXISTS. They used to be pinned
          to the blob upsert (`withLocalBlobAsync`) because that was the only
          caller passing `fetchWithAuthRetry(..., { retryWrite })`. b515 deleted
@@ -40029,9 +40124,8 @@ const TESTS = [
          in rather than deleted: its assertion — a 503 on the periodic save
          costs two attempts, not one — is (1) and (2) below, against the same
          endpoint it named. */
-      {
       // (1) killed in flight, then fine. The player must never learn of it.
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      await S.snapshotIfDue(true, false);
       assert(attempts === 2, 'the killed write was not retried exactly once — ' + attempts + ' attempt(s)');
       assert(failures === 0, 'a transport casualty that immediately succeeded was reported to the player as a save failure');
       assert(recovered === 0, 'nothing broke, so nothing "recovered" — a spurious toast is noise');
@@ -40042,7 +40136,7 @@ const TESTS = [
       // (2) a real outage: both attempts fail. ONE failure, not two, and the
       //     retry must not become a loop.
       attempts = 0; plan = [503, 503];
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      await S.snapshotIfDue(true, false);
       assert(attempts === 2, 'a persistent 503 must cost exactly 2 requests per save — got ' + attempts
         + ' (an unbounded retry multiplies load on a backend that is already failing)');
       assert(S.getSaveHealth().failStreak === 1,
@@ -40051,7 +40145,7 @@ const TESTS = [
 
       // (3) a refusal is answered, not retried.
       attempts = 0; plan = [500, 200];
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      await S.snapshotIfDue(true, false);
       assert(attempts === 1, 'a 500 is a real answer and must not be retried — got ' + attempts + ' attempts');
 
       /* (4) THE KEEPALIVE EXEMPTION, and it is the half a fold-in could lose.
@@ -40062,17 +40156,11 @@ const TESTS = [
          MUTATION: make it `retryWrite: true` in sync.js → red here. */
       attempts = 0; plan = [503, 200];
       S.__resetSyncHealth();
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, true); });
+      await S.snapshotIfDue(true, true);
       assert(attempts === 1,
         'the pagehide residue save was retried (' + attempts + ' attempts) — there is no page left to wait '
         + 'in and a second keepalive body double-spends the browser quota the parting send depends on');
-      }
-    } finally {
-      window.fetch = realFetch;
-      if (wasHeld) S.holdSnapshots();
-      if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
-      S.resetAuthGate(); S.__resetSyncHealth();
-    }
+    }, { onSyncFailure: () => { failures++; }, onSyncRecovered: () => { recovered++; } });
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -40134,41 +40222,19 @@ const TESTS = [
       skip('no residue on G in this run — snapshotIfDue would decline before building a request');
       return;
     }
-    const realFetch = window.fetch;
-    const wasHeld = S.isSnapshotHeld();
-    const G = window.G;
-    const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
     const seen = [];
-    try {
-      if (wasHeld) S.releaseSnapshots();
-      window.fetch = function (u, init) {
-        if (!/example\.invalid/.test(String(u))) return realFetch.apply(this, arguments);
-        seen.push({ url: String(u), keepalive: init && init.keepalive });
-        return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
-      };
-      S.setClockTrusted(true); S.resetAuthGate(); S.__resetSyncHealth();
-      const cfg = {
-        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
-        claimEndpoint: null, apiKey: 'anon', userId: () => 'u1', authToken: () => 'opaque-token',
-        onAuthError: async () => true, onAuthExpired: () => {},
-        onSyncFailure: () => {}, onSyncRecovered: () => {},
-      };
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, true); });
+    await withResidueWire((url, init) => { seen.push({ url, keepalive: init && init.keepalive }); }, async (Sy) => {
+      await Sy.snapshotIfDue(true, true);
       assert(seen.length === 1, 'the pagehide save must send exactly one request, got ' + seen.length);
       assert(/hr_put_client_state/.test(seen[0].url), 'the armed save must be the residue PUT, got ' + seen[0].url);
       assert(seen[0].keepalive === true,
         'THE BUG (Q-1), end to end: snapshotIfDue(force, keepalive=true) — the visibilitychange/pagehide save — '
         + 'reached the wire WITHOUT keepalive, so the browser kills it on teardown');
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      await Sy.snapshotIfDue(true, false);
       assert(seen.length === 2, 'the cadence save must send exactly one request, got ' + (seen.length - 1));
       assert(seen[1].keepalive !== true,
         'keepalive leaked onto the ordinary cadence save — it is opt-in for the parting shot, not global');
-    } finally {
-      window.fetch = realFetch;
-      if (wasHeld) S.holdSnapshots();
-      if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
-      S.resetAuthGate(); S.__resetSyncHealth();
-    }
+    });
   }),
 
   () => tryRun('b371: the save-health verdict is pure and honest at every age (no surface may hardcode it)', () => {

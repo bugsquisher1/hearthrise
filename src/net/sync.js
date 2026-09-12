@@ -1018,6 +1018,28 @@ async function snapshotIfDue(force, keepalive) {
          of 3 and go red. An async function that can answer now must answer now.
      A forced/keepalive save on pagehide never blocks on a network read — it
      decides on whatever view it already has. */
+  /* ── b372 LAYER 2, ON THE WRITE THAT ACTUALLY SHIPS (QA 2026-09-12) ────────
+     WHICH CHARACTER THIS SEND BELONGS TO IS DECIDED HERE, BEFORE THE AWAIT, and
+     never again. The quiesce gate above stops a send from STARTING during a
+     switch, and `buildSnapshotRequest` re-addresses the game_saves upsert via
+     `ownerSlotForLiveG` — but the residue PUT below is the only write the armed
+     game still makes, and it was addressed `pinnedSlot: config.slot`. In
+     production `config.slot` is null (auth.js pins nothing), so
+     `buildClientStatePutRequest` resolved the slot from
+     `HearthriseProfile.activeSlot()` LIVE — i.e. at body-build time, which is
+     AFTER `await fetchClaimRow()`. A cadence save parked on that one network
+     read while a hero switch landed had already passed the quiesce gate and then
+     built its body against the INCOMING slot: the outgoing hero's residue
+     (bestiary, quests, achievements, playerName…) upserted onto the TARGET
+     hero's `client_state` row, which is UNIQUE (user_id, slot). Same window and
+     same class as the b372 clone, on the current field.
+     Pinning at ENTRY is stronger than re-reading the latch after the await: the
+     answer is "the slot the G we are about to serialise belongs to", fixed at
+     the instant we decided to serialise it, so it cannot be moved by anything
+     that happens during the read — latch armed or not. An explicitly pinned
+     `config.slot` still wins (the suite's seam), and while quiesced
+     `ownerSlotForLiveG` still prefers the outgoing slot. */
+  const ownerSlot = ownerSlotForLiveG(config.slot);
   if (config.claimEndpoint) {
     const viewStale = !claimView || (now - claimView.at) >= CLAIM_VIEW_TTL_MS;
     if (viewStale && !keepalive) await fetchClaimRow();     // error → view untouched → allows
@@ -1069,7 +1091,7 @@ async function snapshotIfDue(force, keepalive) {
      parting shot there is no page left to sleep 500ms in, and a second
      keepalive body would double-spend the browser's small inflight quota. */
   const put = await putClientState(patch, {
-    url: base, anonKey, jwt, pinnedSlot: config.slot, keepalive: !!keepalive,
+    url: base, anonKey, jwt, pinnedSlot: ownerSlot, keepalive: !!keepalive,
     fetch: async (u, init) => {
       const res = await fetchWithAuthRetry(u, () => init, 'client_state', { retryWrite: !keepalive });
       if (!res) throw new Error('transport_failed');

@@ -3,6 +3,34 @@
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
 
+### 2026-09-12 · FROM Systems Engineer → TO Coordinator + Backend (lane C) · **b540: the dungeon-cooldown client half is in and is forward-compatible — ship it BEFORE the apply**
+
+**Branch** `lane/b540-dungeon-cooldown-client`. Files: `src/dungeons.js`, `src/dungeon-scavenger.js`,
+`src/net/accrue.js`, `src/net/record.js`, `src/net/client-state.js`, `src/net/dungeon-settle.js`,
+`src/features/smoke-test.js`.
+
+**The one thing to know.** With `dungeon_cooldowns` ABSENT from the envelope the mirror
+(`G._dungeonCooldowns`) is never written and `canRun` reads it as ready — byte-for-byte today's
+behaviour, on every dungeon surface. So this can land before `2026-09-12-dungeon-cooldown.sql` is applied
+and it cannot get ahead of the server.
+
+**What the server half must keep.** The client parses the projection in exactly ONE function,
+`reconcileDungeonCooldowns` (src/net/accrue.js): nested `{dungeon_id: {mode: ISO}}` for the projection,
+and `{dungeon, mode, next_entry_at}` for the `on_cooldown` refusal detail. Drop the `mode` from either
+shape and the client silently stops painting a countdown (it will NOT guess a mode — a guess rests the
+wrong button). If the shape moves, that function is the only edit.
+
+**After the apply, what to look at on live.** A dungeon you just auto-ran must show "On cooldown — Xh
+remaining" on Auto-Run AND a separate "Scavenger · X" if its quarter window is open; a refused Auto-Run
+must toast "That dungeon is resting — ready at <time>" and paint the countdown without a reload; the
+manual modal must never say "Rewards settled" for a refused run.
+
+**One open item that is NOT mine to close** — see DISCOVERIES: `dungeon-settle.js`'s `onEnvelope` hook has
+no setter, so a refused settle's envelope is never applied by the transport. b540 works around it at the
+two call sites.
+
+---
+
 ### 2026-09-07 · FROM Systems Engineer → TO Coordinator (lane C) · **First Light's client half is in; the capstone row is yours**
 
 **Branch** `worktree-agent-a5ec5d462bc708b2b`. Files: `src/features/home-dashboard.js`,

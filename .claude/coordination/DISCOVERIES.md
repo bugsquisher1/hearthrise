@@ -4,6 +4,27 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-09-12 — Systems Engineer — **`src/net/dungeon-settle.js`'s `hooks.onEnvelope` has NO setter and NO caller: the module's claim that "the envelope is the truth whether the settle landed or not" is inert.** (P2, latent)
+
+`let hooks = { onEnvelope: null, onOutcome: null };` is module-private and nothing in the repo exports or
+assigns a way to fill it (`grep -rn "setDungeonSettleHooks\|onEnvelope" src/` finds only the declaration
+and the two call sites inside this file). So `verdict.applied` is never `true`, and the block commented
+"A refused settle … carries the server's current state, and applying it is what puts the optimistic
+local prediction back to server truth" has never once run. `configureDungeonSettle` wires config only.
+
+**AFFECTED SYSTEMS.** `src/net/dungeon-settle.js`, `src/dungeons.js` `settleRunServer`,
+`src/dungeon-scavenger.js` `showResult`. Consequence today: every reconcile off a settle answer has to be
+done BY THE CALLER (`reconcileFromEnvelope`, and now `reconcileDungeonCooldowns`) — which is why b540
+adopts the cooldown mirror at the two call sites rather than at the transport.
+
+**REQUIRED ACTION.** Either wire the hook (export a `setDungeonSettleHooks`, point `onEnvelope` at
+`applyEnvelopeState`, and a refused settle reconciles the whole envelope for free) or delete the dead
+hook and its comment. Do NOT leave a comment describing behaviour the code does not have — that comment
+is why the b540 brief expected the mirror to arrive on its own. Not urgent: the callers cover the two
+fields anyone reads today.
+
+---
+
 ### 2026-09-11 — QA Engineer — **`snapshotG`'s allowlist protects a field only SOMETIMES, because `JSON.stringify` drops `undefined` and `restoreG` iterates `Object.keys(snap)`. 873 test writes to `G` are not restored.** (P2 for the suite, P1 for anyone debugging it)
 
 **Measured on the real booted page** (headless chromium + `__HR_TEST_HARNESS__`), running

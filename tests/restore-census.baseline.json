@@ -406,6 +406,7 @@
       "hr-market-sales-prune | 45 3 * * * | select public.market_sales_prune()",
       "hr-progress-prune | 25 4 * * * | select public.hr_progress_prune()",
       "hr-rejections-prune | 35 4 * * * | select public.hr_rejections_prune()",
+      "hr-town-refresh | 25 seconds | select public.hr_town_refresh()",
       "trim-chat-messages | 15 3 * * * | delete from public.chat_messages where created_at < now() - interval '60 days'",
       "trim-game-events | 0 3 * * * | select public.hr_trim_game_events(7)"
     ],
@@ -686,8 +687,8 @@
     },
     "hr_client_rpc_baseline": {
       "class": "seeded",
-      "replay": 74,
-      "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one."
+      "replay": 77,
+      "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 77 IN THE REPLAY SINCE 2026-09-13-town-presence.sql §12 registered the three Week-1 live-system verbs for `authenticated` — hr_heartbeat(p_slot integer), hr_set_presence_quiet(p_slot integer, p_quiet boolean) and hr_town_of(p_zone text) — with the same delete-then-insert, so a re-apply cannot double them. STAGED, NOT APPLIED: production stays three lower until the Coordinator applies that file."
     },
     "hr_client_write_baseline": {
       "class": "seeded",
@@ -1058,6 +1059,27 @@
       "class": "restore_only",
       "wiped_at_cutover": false,
       "note": "PLAYER VALUE. Per-character cosmetic ownership (titles earned from Hearthfind, equipped title) — user_id scoped, RLS per-user SELECT, written only by hr_apply. A player who loses it loses a title they cannot re-earn (first-find titles are once-ever). 0 rows at classification (2026-09-08)."
+    },
+    "hr_flags": {
+      "class": "operator_tunable",
+      "replay": 1,
+      "wiped_at_cutover": false,
+      "note": "THE SERVER FEATURE FLAGS (created 2026-09-13-town-presence.sql; the chain had no flag table before it — every arm switch was a `constant boolean := true` inside a function body, i.e. a migration and an apply window to change). One row per flag: key, enabled, note, updated_at. PUBLIC READ, no write policy and no write grant to any role including service_role, so the only writer is the owner. A rebuild seeds every flag at its SHIPPED DEFAULT, which for town_presence is OFF — fail-safe by construction: a restore-free rebuild closes a live surface rather than opening one. What is lost is the OPERATOR'S CURRENT CHOICE (a feature an operator had switched on comes back off) and the `note`/`updated_at` audit of when it was flipped. Cheap to re-assert: one UPDATE per flag. operator_tunable rather than seeded because the row's VALUE is an operations decision, not content. ⚠ live_value IS NOT A PRODUCTION MEASUREMENT YET, and saying so is the point: 2026-09-13-town-presence.sql is STAGED, so this table does not exist on production and nothing can be read from it. What is recorded is the value the APPLY lands in (the authored default, town_presence = false) — which is also what a rebuild produces, so --live-compare is green on the day of the apply and stays green until an operator flips the flag. RE-MEASURE THEN: `node tests/restore-census.mjs --live-sql` and --live-compare, per lane C. Only `key` and `enabled` are compared (the projection is built from the keys recorded here), so `note` and `updated_at` drift freely and do not make this check permanently red.",
+      "live_value": {
+        "measured": "2026-09-12",
+        "value": [
+          {
+            "key": "town_presence",
+            "enabled": false
+          }
+        ]
+      }
+    },
+    "town_snapshot": {
+      "class": "regenerated",
+      "replay": 0,
+      "wiped_at_cutover": false,
+      "note": "THE TOWN PRESENCE CACHE (created 2026-09-13-town-presence.sql): ONE row per zone — zone_id, built_at and a jsonb payload of the live peer list and the crier feed — rewritten in place by the hr-town-refresh cron job every 25 s. Deliberately NOT a history table: the previous snapshot has no value, and keeping it is how a ~15 KB payload every 25 s becomes gigabytes a year. NOTHING is lost if it comes back empty: the next cron tick rebuilds it in full from player_state + profiles + world_finds, and until then hr_town_of answers an empty plaza with stale_s = null, which is honest rather than wrong. Reachable by NO client role (no grant and no RLS policy at all) — a readable cache would be the rate gate and the allowlist projection bypassed in one SELECT. Holds NO player value and NO authoritative number: every field in it is a projection of a row that lives somewhere else."
     }
   }
 }

@@ -807,41 +807,14 @@ window.__FRESH_START = Object.freeze({
 /* ════════════════════════════════════════════════
    PERSISTENCE  (local + cloud-ready hook)
    ════════════════════════════════════════════════ */
-/* ══════════════════════════════════════════════════════════════════════
-   b372 — THE SLOT SEAM, READ-ONLY FROM HERE.
-
-   multi-character.js OWNS which character is live and whether a switch is
-   mid-flight; this file asks and never re-derives (a second reader of the
-   profile record is a second thing to drift — the same rule net/accrue.js
-   follows). Both accessors are defensive: multi-character.js may not have
-   loaded yet on an early boot, and "no profile module" must mean "one
-   character, saving normally", which is exactly the pre-b372 behaviour.
-
-   `_switchQuiesced()` — a switch has moved the pointer and the page is going
-   away; nothing may be written from this G.
-   `_activeSaveSlot()`  — the slot the in-memory G BELONGS to. While quiesced
-   that is the OUTGOING slot, never the incoming one. */
-function _switchQuiesced(){
-  try{
-    const P=window.HearthriseProfile;
-    return !!(P && typeof P.saveQuiesced==='function' && P.saveQuiesced());
-  }catch(e){ return false; }
-}
-function _activeSaveSlot(){
-  try{
-    const P=window.HearthriseProfile;
-    if(!P) return null;
-    if(typeof P.quiescedOutgoingSlot==='function'){
-      const out=P.quiescedOutgoingSlot();
-      if(typeof out==='number') return out;
-    }
-    if(typeof P.activeSlot==='function'){
-      const s=P.activeSlot();
-      if(typeof s==='number'&&s>=0) return s|0;
-    }
-  }catch(e){}
-  return null;
-}
+/* ── THE SWITCH-QUIESCE LATCH IS NOT READ FROM THIS FILE AT ALL ──────────────
+   multi-character.js owns which character is live and whether a switch is
+   mid-flight, and nothing here re-derives it. Two defensive accessors over
+   HearthriseProfile.saveQuiesced()/quiescedOutgoingSlot() used to live here for
+   the pagehide autosave; retiring the local blob (saveLocal below is one
+   `lastSeen` stamp) left them with zero callers, so they are gone rather than
+   dormant. The latch's live readers are src/net/sync.js — switchQuiesced() and
+   ownerSlotForLiveG() — which defend the residue PUT that replaced the blob. */
 function saveLocal(){
   /* THERE IS NO LOCAL SAVE. The b455 capstone retired the client-authored blob —
      the SERVER is the sole authoritative copy of the character, and a local blob

@@ -64,6 +64,12 @@ Rules that apply to every lane:
 - **Edge deploy before push** whenever `supabase/functions/**` changed: `node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue` + copy `supabase/config.toml`, then `npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> --project-ref nezapsylztqbbwuwembx`, then verify the live `payload_sha256` equals `pack-edge --hash`. The in-page payload guard is red until they match.
 - **Push = live** (Pages deploys `main`). The Coordinator runs `git push` itself. After Pages serves the new `BUILD.cache`, play-gate, then post the release note with `node tools/post-changelog.mjs <file>` (dry-run first; 2000-char cap).
 
+### 3.3a Daily release (Tyler, 2026-09-12: "lets work on doing a daily release vs just pushing patches over and over")
+- **One release per day, not a patch per lane.** The day’s ready branches accumulate on a set branch (`set/b<NNN>`, never local `main`); each merge that changes code is pushed to `next` so GitHub runs the five-job matrix on the accumulating set while the Coordinator keeps dispatching. Local `main` equals `origin/main` between releases; docs-only commits go through a separate main checkout (`.claude/worktrees/coord-main`).
+- **The cut is 20:00 UTC (3 pm Chicago) every day.** At the cut: ONE in-page suite + `run-ci-local` (visual gate on the assembled set, screenshots READ) → bump → ONE CHANGELOG entry for the day (every shipped item, player-facing wording) → push `release/b<NNN>` FIRST, then `main` → GitHub checked → play gate on live → ONE Discord note. Branches that land after the cut wait for tomorrow; nothing is held back to “fill” a release either.
+- **The only out-of-band push is a P0/P1 player-visible bug via lane A** (a player cannot play, money moves wrongly, data is lost). It ships alone, with its own gates, and is folded into that day’s note. “Small and safe” is not a reason to skip the cut.
+- **Lane C applies do not wait for the cut**: a reviewed migration applies when its token works (never 00:00–00:10 UTC), and its client half rides the next cut. The apply-order note, live-hash baseline and census re-pin land on the set branch the same day.
+
 ### 3.4 Play first, then vitals, then lanes (2026-09-08)
 The first hour of every session is PLAY: the QA account on live through the real loop (reload → claim → fight → gather → buy → water → reload) and a fresh account through the first thirty minutes. Every real bug this week came from someone playing, none from an audit. Only then the vitals, only then new feature lanes.
 

@@ -11,6 +11,28 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-09-12 · The mutation proof with no floor — `tests/mutation-proof.mjs` + guard-hygiene RULE 5 (branch `worktree-agent-a3906653b0a242bc2`, commit 883b62d6 + merge of main)
+
+**What I now know and will not re-learn:** a `--selftest` that never runs the CLEAN arm turns "the
+guard is broken" into "all mutations caught". Planted proof, four files, all exit 2 now:
+`dungeon-settle`/`quartermaster-buy` (bad column in the guard's own scrip query),
+`dungeon-scrip-reload` (missing function in its own `hr_state_of` call), `dungeon-marketability`
+(its own `clone()` returns undefined). Before this lane each of those printed "all caught", exit 0.
+
+Operational notes for next time:
+- The block-scalar form (`run: |`) hides registrations from a naive `grep` of `smoke.yml` — my first
+  census over-reported by one guard (`snapshot-allowlist-guard`, whose plain run IS registered under
+  `continue-on-error`). `guard-hygiene.mjs`'s `workflowCommands()` is the parser to reuse.
+- `claim-intent.mjs` hides its flag behind `has('selftest')`; `guard-hygiene` catches that idiom and
+  my census did not. The guard was stricter than my script — read the guard first.
+- Plain arms are CHEAP: 22 measured locally at ~110 s TOTAL (max 26 s, `bounty-accept-bh-clamp`).
+  There was never a runtime reason to register only the proof arm.
+- A shared helper's top-level CLI runs at import: gate on `import.meta.url === process.argv[1]` or it
+  eats its callers' proofs. Scanned `tests/` for other instances: zero.
+- `tools/lane-done.mjs` was red on TF-1 before I merged `main`; the paydown was already on `main`
+  (343b5293). Merge first, then read a ratchet — the red may not be yours.
+
+
 ### 2026-09-05 · SA-013 increment 1 — the runner now COUNTS assertions (diagnostic, verdict-neutral); 9 vacuous tests given teeth. Staged in worktree-agent-a5ca16427c2cdb971, NOT pushed.
 
 **The hole:** `runSmokeTest()` returned PASS for any body that didn't throw and counted zero

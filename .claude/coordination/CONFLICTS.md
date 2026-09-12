@@ -1407,3 +1407,35 @@ let the catalogue be the whole answer — which makes those 31 wearable at level
 **What the client does now, for the record.** `canWield` reads the requirement against the
 server-mirrored skill level and nothing else; the rationale, the refusal code and this divergence are
 documented at `src/net/equip.js` §THE GATE.
+
+### RESOLVED 2026-09-12 (`worktree-agent-a0f093d217a6b3589`, b542) — option 1, by game-designer ruling
+
+The designer took the **first** of the two ways: author the rows to the tier ladder. `reqLv` = the
+shipped rungs, tier 1..8 → **1/15/30/45/60/75/88/88** (tier 8 *shares* 88 — two live tier-8 rows
+already sit at 82/88 and opening a rung above would nerf gear somebody wears). `reqSkill` = the skill
+the item's power serves: armour and jewelry `defense`, a weapon its own style, an item whose only
+effect feeds one non-combat skill that skill (`bone_earrings` → `prayer`), and an item with no combat
+stat and no faucet `reqLv: 1` (`tally_ring`, `pathfinder_studs` — they sell *information*).
+Landed as **34 rows**, not 31: the census missed three riders with no `tier` at all (`iron_arrows` →
+ranged 1, `chief_blade` → attack 15, `captains_ribblade` → attack 30).
+
+**The census also under-stated the severity, and that correction matters.** It reads "not urgent,
+fail-safe direction". True for 25 of them. Not true for the six **tier-8** rows: `_TIER_WIELD_LV` is
+indexed 1..7, so `_TIER_WIELD_LV[8]` is `undefined`, `|| 0` makes it 0 and `gearWieldReq` returns
+`null` — `regent_helm`, `slagheart_platebody`, `abyssal_greaves`, `warden_girdle`,
+`choirbone_gauntlets`, `wyrmgilt_mantle` were ungated on **both** sides, and all six are **tradeable**.
+A level-1 account with gold could buy 120 defence off the market. That is a live P1 on a shared
+surface, not a tidy-up.
+
+**Root cause, fixed at the root.** The b215 backfill in `src/data/items.js` copies `tier`/`rarity`
+from the generated twin in `gear-tiers.js` and stopped there; 17 of the 34 have a twin whose fields
+already ARE the ladder, so the backfill now copies `reqSkill`/`reqLv` too (`== null` only — a
+hand-authored gate always wins). The remaining 17 are hand-authored beside their stats.
+
+**Landed:** data + the b215 backfill extension, the regenerated catalogue, `EQUIP-REQLV-1` in
+`src/features/smoke-test.js`, and `supabase/migrations/2026-09-12-equippable-req-lv.sql` (STAGED, NOT
+APPLIED — **needs a Security GO**; it changes what the realm refuses on a tradeable surface). No
+`canWield` edit and no `_TIER_WIELD_LV` change: the client already read an explicit `reqLv` in
+preference to the array, so the data alone converges both readers. The `src/net/equip.js` §THE GATE
+"ONE KNOWN DIVERGENCE" note is updated in the same commit — it was the record of this entry and would
+otherwise have outlived it.

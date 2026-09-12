@@ -8041,9 +8041,7 @@ const TESTS = [
         assert(smith.includes(id), 'smithing recipe missing: ' + id));
       const craft = (window.ARTISAN_RECIPES.crafting || []).map(r => r.id);
       assert(craft.includes('carve_runewood_rod'), 'crafting recipe missing: carve_runewood_rod');
-    } finally {
-      G.inventory = savedInv;
-    }
+    } finally { G.inventory = savedInv; }
   }),
   () => tryRun('b202: pets — skill/boss sources parse, forced roll unlocks, owned pets skip', () => {
     const P = window.HearthrisePets;
@@ -8216,9 +8214,7 @@ const TESTS = [
         'prep quests (gather, cook) must come BEFORE combat (first_blood) so new players are guided to prepare');
       const cook = G.quests.find(q => q.id === 'first_cook');
       assert(cook && cook.type === 'cooked', 'first_cook must be a cooking quest');
-    } finally {
-      G.quests = saved.quests;
-    }
+    } finally { G.quests = saved.quests; }
   }),
   () => tryRun('b217: cooking progresses daily + quest trackers (live artisan path)', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
@@ -8472,9 +8468,7 @@ const TESTS = [
           assert(G.traits.auto_eat === true, 'buyTrait must unlock when marks afford it');
           assert(G.marks === 150 - _aeCost, 'buyTrait must deduct TRAITS.auto_eat.cost (' + _aeCost + '), got ' + G.marks);
           assert(G.gold === 999999, 'gold untouched after a successful marks purchase');
-        } finally {
-          R.__setMarksRecordArm(null);
-        }
+        } finally { R.__setMarksRecordArm(null); }
       }
     } finally {
       if (S && realBuyTrait) S.buyTrait = realBuyTrait;
@@ -8537,13 +8531,9 @@ const TESTS = [
           window.ensureBountyState();
           assert(G.marks === 10, 'an existing top-level G.marks must not be overwritten by a nested value, got ' + G.marks);
           assert(!('marks' in G.bountyHunter), 'a stray nested marks must still be dropped');
-        } finally {
-          R.__setMarksRecordArm(null);
-        }
+        } finally { R.__setMarksRecordArm(null); }
       }
-    } finally {
-      G.marks = saved.marks; G.bountyHunter = saved.bh;
-    }
+    } finally { G.marks = saved.marks; G.bountyHunter = saved.bh; }
   }),
   /* bug #5 (Paione, live): a CULL bounty that reaches target but hangs because
      the away/span-sim undercounts the attended player's kills. completeBounty
@@ -8938,9 +8928,7 @@ const TESTS = [
           'a broke player still spent a round trip to be told they are broke: ' + JSON.stringify(rig.sent));
         assert(goldOf() === 0, 'a refused buy moved the balance');
       });
-    } finally {
-      G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank; restoreBankCap(saved.cap);
-    }
+    } finally { G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank; restoreBankCap(saved.cap); }
   }),
   () => tryRun('b269: addItem refuses a NEW stack when the bank is full, but grows existing stacks', () => {
     const G = window.G;
@@ -8963,9 +8951,7 @@ const TESTS = [
       // Free a slot and the new stack now fits.
       G._bankCap += 1;
       assert(window.addItem(ids[1], 1) === true && G.inventory[ids[1]] === 1, 'new stack fits after expansion');
-    } finally {
-      G.inventory = saved.inv; G.bank = saved.bank; restoreBankCap(saved.cap);
-    }
+    } finally { G.inventory = saved.inv; G.bank = saved.bank; restoreBankCap(saved.cap); }
   }),
   () => tryRun('b269: v10→v11 migration grandfathers cap above existing distinct stacks', () => {
     assert(typeof window.applyMigrations === 'function', 'applyMigrations missing');
@@ -9119,9 +9105,7 @@ const TESTS = [
       const all = JSON.parse(localStorage.getItem('hearthrise:market:listings') || '[]');
       const l = all.filter(x => x.itemId === 'normal_log').slice(-1)[0];
       if (l) M.cancelListing(l.id);
-    } finally {
-      restoreGAndRecord(snap);
-    }
+    } finally { restoreGAndRecord(snap); }
   }),
   () => tryRun('b216: the light theme never paints under the dark theme', () => {
     // THE root cause of the recurring "mismatched colours". Two ways it broke:
@@ -10151,9 +10135,7 @@ const TESTS = [
         assert(G.inventory.dungeon_scrip === before, 'a failed purchase must NOT spend scrip (no data loss)');
         assert(!G.inventory.kitchen_blueprint_t2, 'no item granted on a failed purchase');
       }
-    } finally {
-      G.inventory = snap.inv; G.bank = snap.bank; restoreBankCap(snap.cap);
-    }
+    } finally { G.inventory = snap.inv; G.bank = snap.bank; restoreBankCap(snap.cap); }
   }),
 
   () => tryRun('b283: armour set bonus requires same ARCHETYPE + tier (no mixed-loadout trigger)', () => {
@@ -10781,9 +10763,7 @@ const TESTS = [
       const st2 = R.ensureState();
       assert(st2.solo.week !== 'w-stale' && st2.solo.max == null && st2.solo.damage === 0,
         'stale week resets the solo pool');
-    } finally {
-      if (saved === undefined) delete G.raids; else G.raids = saved;
-    }
+    } finally { if (saved === undefined) delete G.raids; else G.raids = saved; }
   }),
   // b224 (Asset pass): the six Hunt bosses rendered as a typographic glyph
   // only — this promotes six painted portraits from _archive/reserve-art into
@@ -54226,19 +54206,71 @@ const TESTS = [
     }
   }),
 
+  /* ── regression suite — EQUIP-REQLV-1: THE WIELD GATE IS DATA, NOT A CLIENT ARRAY ──
+     31 of 237 equippables carried a `tier` and no `reqLv`: the CLIENT gated them
+     from a second copy of the ladder (legacy.js `_TIER_WIELD_LV`), the SERVER read
+     only `hr_items.req_lv` (which gen-catalogues mirrors from `reqLv`) and so
+     hr_apply §EQUIPMENT refused nobody. A client-only gate is not a gate (§1). That
+     array has no index 8, so the six tier-8 uniques — defB to 120, all TRADEABLE —
+     were ungated on BOTH sides and a level-1 buyer could wear a Slagheart Platebody
+     off the market. Ruling 2026-09-12: reqLv = the tier's shipped rung
+     (1/15/30/45/60/75/88/88, tier 8 SHARES 88), reqSkill = the skill the power
+     serves. MUTATION: delete the reqSkill/reqLv lines from the b215 backfill in
+     src/data/items.js (17 rows go red by name), or move any row below off its rung. */
+  () => tryRun('EQUIP-REQLV-1: every tiered equippable carries its wield gate as DATA the realm can read; cosmetics carry none', () => {
+    const I = window.ITEMS, S = window.SKILLS_DEF || {}, EQ = { weapon: 1, armor: 1, jewelry: 1, ammo: 1 };
+    const LADDER = { 1: 1, 2: 15, 3: 30, 4: 45, 5: 60, 6: 75, 7: 88, 8: 88 };
+    const tiered = Object.keys(I).filter((id) => EQ[I[id].type] && I[id].tier != null);
+    assert(tiered.length > 200, 'the equippable corpus must be the real one, got ' + tiered.length);
+    const ungated = tiered.filter((id) => typeof I[id].reqLv !== 'number' || !I[id].reqSkill);
+    assert(ungated.length === 0, 'THE BUG: a tiered equippable with no reqSkill/reqLv is NULL in hr_items, '
+      + 'so the realm refuses nobody and only the client pretends to gate it — ' + ungated.join(' '));
+    tiered.forEach((id) => {
+      assert(S[I[id].reqSkill], id + ': reqSkill "' + I[id].reqSkill + '" is not a skill');
+      assert(I[id].reqLv >= 1 && I[id].reqLv <= LADDER[8],
+        id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
+    });
+    /* The 34 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. */
+    ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'
+      + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 30|'
+      + 'chief_blade attack 15|choirbone_gauntlets defense 88|copper_studs defense 1|'
+      + 'frost_locket defense 45|heartwood_cape defense 75|hunters_torc defense 30|'
+      + 'iron_arrows ranged 1|iron_helm defense 15|iron_platebody defense 15|iron_sword attack 15|'
+      + 'iron_warhammer attack 15|leather_boots defense 1|leather_gloves defense 1|longbow ranged 15|'
+      + 'oak_staff magic 15|pathfinder_studs defense 1|regent_helm defense 88|rune_sword attack 60|'
+      + 'shortbow ranged 1|slagheart_platebody defense 88|steel_helm defense 30|'
+      + 'steel_platebody defense 30|steel_sword attack 30|stone_maul attack 1|tally_ring defense 1|'
+      + 'unlit_earrings defense 75|warden_girdle defense 88|wyrmgilt_mantle defense 88'
+    ).split('|').forEach((row) => {
+      const p = row.split(' '), it = I[p[0]] || {};
+      assert(it.reqSkill === p[1] && it.reqLv === Number(p[2]), p[0] + ' must gate on ' + p[1] + ' Lv ' + p[2]
+        + ', got ' + it.reqSkill + ' Lv ' + it.reqLv);
+    });
+    /* A cosmetic is EARNED, not out-levelled — no tier and no gate, on both sides. */
+    ['bestiary_cloak', 'hearthstone_signet'].forEach((id) => {
+      const it = I[id] || {};
+      assert(it.tier == null && it.reqSkill == null && it.reqLv == null && window.gearWieldReq(it) == null,
+        id + ' is a cosmetic and must stay ungated, got ' + JSON.stringify(window.gearWieldReq(it)));
+    });
+    assert(JSON.stringify(window.gearWieldReq(I.slagheart_platebody)) === '{"skill":"defense","lv":88}',
+      'the tier-8 uniques must gate from their OWN fields — `_TIER_WIELD_LV` has no index 8, '
+        + 'so the array fallback yields no gate at all (got ' + JSON.stringify(window.gearWieldReq(I.slagheart_platebody)) + ')');
+  }),
+
   () => tryRunAsync('b348: every surface that offers gear states the level needed to WEAR it, through the one authority', async () => {
     const G = window.G;
     assert(typeof window.gearWieldReq === 'function' && typeof window.canWield === 'function',
       'the wield-gate seam must exist');
-    /* The probe item is deliberately `steel_platebody`: it is hand-authored, so
-       it carries NO `reqSkill`/`reqLv` fields at all and its gate is derived
-       from `tier`. Any surface reading the raw fields shows nothing for exactly
-       this class of gear — which is what the item modal was doing. */
+    /* The probe is `steel_platebody`. Until b542 it carried NO `reqSkill`/`reqLv`
+       and its gate came from `tier` alone — which is exactly why the item modal
+       showed nothing — so this test asserted "the probe has no raw fields" as its
+       precondition. EQUIP-REQLV-1 (above) ended that class, the precondition is now
+       false for EVERY equippable, and it is dropped. The surfaces below are still
+       read against the AUTHORITY, never the raw field, so one that re-derives its
+       own number still fails here. */
     const probe = 'steel_platebody';
     const it = window.ITEMS[probe];
     assert(it, 'the probe item must exist');
-    assert(it.reqLv == null && it.reqSkill == null,
-      'this test is only meaningful while ' + probe + ' has no raw req fields — it now has some, pick another probe');
     const req = window.gearWieldReq(it);
     assert(req && req.skill === 'defense' && req.lv > 0,
       'the authority must derive a defence gate for ' + probe + ', got ' + JSON.stringify(req));

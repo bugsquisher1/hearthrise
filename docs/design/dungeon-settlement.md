@@ -98,7 +98,7 @@ function is the only caller. The migration asserts the ACL with the enumerated-r
 | combat level ≥ `req_lv` | derived from `player_skills` server-side (never a client level) | `level_locked` |
 | optimistic version | `player_state.version` under `for update` | `version_conflict` |
 | **key present + consumed** | `player_inventory[cost_key]` ≥ 1, debited under `for update` | `insufficient_item` |
-| cooldown (mode='auto' only) | `now()` vs last `kind='dungeon',meta.mode='auto'` ledger row for this (user,slot,dungeon) + `cooldown_s` | `on_cooldown` |
+| re-entry cooldown (`hr_dungeon_cooldown_modes()` = auto + manual; scavenger exempt) | `hr_dungeon_cooldowns(user,slot)`: `now()` vs `max(at)` of the `kind='dungeon', meta.op='settle', meta.mode ∈ modes` ledger rows for this (user,slot,dungeon) + `cooldown_s`. THE SAME function `hr_state_of` projects as `dungeon_cooldowns`, so the countdown shown and the window enforced are one number (`2026-09-12-dungeon-cooldown.sql`) | `on_cooldown` (detail: `dungeon`, `next_entry_at`, `ready_at`, `cooldown_s`) |
 | per-day scrip cap (blast radius) | `sum(meta.scrip)` from `player_ledger` this UTC day | `daily_cap` |
 | loot roll | server RNG `hr_seed(user,slot,'dungeon:'||id||':'||ledger_seq)`; table `hr_dungeon_loot` (GENERATED) | — |
 
@@ -131,12 +131,33 @@ a stored counter a client can influence:
 
 * **auto** — the per-dungeon `cooldown_s` (from `d.cooldownH`), enforced against the last auto-mode
   `dungeon` ledger row. This closes the reload bypass.
-* **manual / scavenger** — the current design DELIBERATELY has no cooldown (`src/dungeon-scavenger.js`
-  L528, `src/dungeons.js` L534: "Manual runs ignore the auto-run cooldown"). Its server-side limiter is
+* **manual / scavenger** — the original design DELIBERATELY had no cooldown (`src/dungeon-scavenger.js`
+  L528, `src/dungeons.js` L534: "Manual runs ignore the auto-run cooldown"). Its server-side limiter was
   the **key consumption** (a manual run costs a real server-held key — `src/dungeons.js` L939 b214 fix)
-  plus the **per-day scrip cap**. So "enforce on BOTH modes" is honoured as: auto = server cooldown;
-  manual = server key-debit + per-day cap. If the designer wants a manual cooldown too, it is one added
-  `on_cooldown` branch — flagged, not assumed.
+  plus the **per-day scrip cap**. That was flagged as "one added `on_cooldown` branch" if wanted.
+
+**RESOLVED 2026-09-12 (`2026-09-12-dungeon-cooldown.sql`, b536 census item 5).** The b288 lesson was only
+half-learned: the *client* clock came back. `canRun()` gated every mode on `G.dungeons.lastRun[id]`,
+which is RESIDUE (client-authored), and **under the settle arm the client stopped stamping it at all** —
+`runDungeon()` returns at the armed branch before the stamp and `showSummary()`'s stamp sits in the
+dormant `else`. So `lastRun` stayed 0 forever: the UI always said "ready", an **auto** re-entry was
+refused by the server with no countdown anywhere, and a **manual** re-entry — with no server gate — was
+unlimited up to the 250-settles/day fuse. Dungeon loot is mostly ordinary TRADEABLE material, so that
+was a faucet on tradeable goods reachable with **no clock tampering at all**.
+
+The window is now one server fact with one derivation and two readers:
+
+* `hr_dungeon_cooldown_modes()` → `{auto, manual}` — the modes that both pay and respect it.
+  **Scavenger stays exempt** exactly as authored; adding it is a Designer edit to this one array.
+* `hr_dungeon_cooldowns(user, slot)` → `{ dungeon_id: next_entry_at }`, ACTIVE windows only, one pass
+  over `player_ledger` (server-stamped `at`, `op='settle'`, mode in the set) joined to `cooldown_s`.
+  No stored column: a second copy of a cooldown is a second place to disagree, and the ledger cannot
+  drift from the evidence. Cost: one partial index (`player_ledger_dungeon_idx`), zero new rows.
+* the gate refuses `on_cooldown` with `{dungeon, next_entry_at, ready_at, cooldown_s}`; `hr_state_of`
+  projects the same map top-level as **`dungeon_cooldowns`**, beside the `now` the envelope already
+  carries, so the client renders a skew-free countdown and gates on the server's number. Client half
+  (lane A): `canRun()` reads `G._dungeonCooldowns` (scratch, never persisted) and the two dead
+  `lastRun = Date.now()` writes go.
 
 ### Anti-forgery argument
 

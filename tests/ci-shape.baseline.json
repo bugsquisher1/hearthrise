@@ -24,6 +24,8 @@
     "node tests/retreat-apply.mjs --selftest": "db-replay",
     "node tests/rejections-journal.mjs": "db-replay",
     "node tests/rejections-journal.mjs --selftest": "db-replay",
+    "node tests/renown-projection.mjs": "db-replay",
+    "node tests/renown-projection.mjs --selftest": "db-replay",
     "node tests/restore-census.mjs": "db-replay",
     "node tests/restore-census.mjs --mutate": "db-replay",
     "node tests/restore-census.mjs --baseline-selftest": "db-replay",

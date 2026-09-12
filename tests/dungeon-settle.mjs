@@ -33,6 +33,22 @@
 // catch; --selftest demands every one turns the run RED. A guard that cannot be
 // made to fail is not a guard.
 //
+// The scoring lives in tests/mutation-proof.mjs, not here, and it is why: this
+// file's own hand-rolled driver ran NO clean baseline and wrote
+// `catch { threw = true; /* RED */ }`, so a defect that broke the GUARD (the
+// 2026-09-12 review planted a bad column name in a sibling guard's SQL) made
+// every arm throw and printed "All N mutations caught", exit 0, while the plain
+// run was red. The shared driver runs the unmutated arm FIRST and requires it
+// green, and treats an undeclared throw as a HARNESS error (exit 2).
+//
+// What that exposed here, and it is worth reading before trusting this file: SIX
+// of the nine arms are caught by the MIGRATION's own §4 self-check refusing to
+// install the defect (declared `refuses`), not by the assertions above. Only
+// daily_cap_off, count_cap_off and earn_cap_nets_spends are this guard's own tick.
+// Gate-blind arms (tests/state-of-farm-projection.mjs GATE_BLIND: short-circuit
+// the migration's self-check so the defect INSTALLS) are what would prove the
+// other six — queued, and named in the lane report rather than left implied.
+//
 // Run GREEN:  node tests/dungeon-settle.mjs
 // Prove RED:  node tests/dungeon-settle.mjs --selftest
 //
@@ -44,6 +60,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { bootReplay } from './schema-replay.mjs';
+import { runMutationProof } from './mutation-proof.mjs';
 import { xpForLevel } from '../src/core/xp.js';
 
 // crypt_of_bones is the lowest-req dungeon (25) and costs a bone_key. big_bones
@@ -274,25 +291,24 @@ async function runAll(db) {
 // ── CLI ──────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
 if (argv.includes('--selftest')) {
-  console.log('dungeon-settle --selftest: each mutation must turn the guard RED');
-  let bad = 0;
-  for (const name of Object.keys(MUTATIONS)) {
-    const saveFail = failed; failed = 0; let threw = false;
-    try {
-      const db = await boot(name);
-      await runAll(db);
-    } catch (e) {
-      threw = true;
-      console.log(`  ${name}: RED (threw / failed to apply: ${String(e.message).split('\n')[0]})`);
-    }
-    const wentRed = failed > 0 || threw;
-    failed = saveFail;
-    if (wentRed) { if (!threw) console.log(`  ${name}: RED (assertions failed) — ${MUTATIONS[name].why}`); }
-    else { bad++; console.error(`  x ${name}: STAYED GREEN — the guard does not catch: ${MUTATIONS[name].why}`); }
-  }
-  if (bad) { console.error(`\n${bad} mutation(s) not caught — the guard is not proving what it claims.`); process.exit(1); }
-  console.log(`\nAll ${Object.keys(MUTATIONS).length} mutations caught. The guard is non-vacuous.`);
-  process.exit(0);
+  await runMutationProof({
+    label: 'dungeon-settle',
+    cases: Object.entries(MUTATIONS).map(([id, m]) => ({
+      id, why: m.why,
+      /* DECLARED: each of these defects is refused by the MIGRATION's own §4
+         self-check, so the mutated file does not apply at all. That was always
+         what happened — the old driver just scored the throw as "the guard went
+         red" and never said so. `refusesIn` makes the claim checkable: the chain
+         failure must name THIS file. The follow-up (gate-blind arms, see
+         tests/state-of-farm-projection.mjs GATE_BLIND) is what would prove this
+         guard's OWN assertions bite. */
+      refuses: true, refusesIn: m.file,
+    })),
+    baseline: async () => { await runAll(await boot(null)); },
+    arm: async (id) => { await runAll(await boot(id)); },
+    failures: () => failed,
+    reset: () => { failed = 0; },
+  });
 } else {
   const db = await boot(null);
   await runAll(db);

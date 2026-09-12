@@ -103,22 +103,22 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=539';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=542';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=539';
+import { applyClientState } from './client-state.js?v=542';
 /* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
    top-level record field read from state.dungeon_scrip. Its own arm flag defaults
    OFF; while off the entry below is invisible to the field list / strip / decode
    loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
    DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
-import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=539';
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=542';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=539';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=542';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
    RETIRED, so this is a constant. A separate switch would have created a state
@@ -1743,6 +1743,11 @@ function settle(verdict) {
        ABSOLUTE, not a union (the server's set already counts every grandfathered
        character). NOT arm-gated (writes a scratch key nothing else reads). */
     hydrationStep('hero-slots', () => reconcileHeroSlots(G, verdict.body));
+    /* THE DUNGEON RE-ENTRY WINDOWS, same idle-boot hydration class: this hr_load is
+       the ONLY envelope an idle boot gets, so without this line every dungeon card
+       reads "ready" all session and every Auto-Run comes back refused. Per dungeon
+       AND per mode; fail-open on absence. See reconcileDungeonCooldowns' header. */
+    hydrationStep('dungeon-cooldowns', () => reconcileDungeonCooldowns(G, verdict.body));
     /* ── THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07) ────────────────────
        THE SAME IDLE-BOOT HYDRATION CLASS AS ITS NEIGHBOURS, and without this line
        the feature is inert on the exact case it was built for. `reconcileAwayReceipt`

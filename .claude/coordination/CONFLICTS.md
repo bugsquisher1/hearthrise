@@ -2,6 +2,37 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-12 · SYSTEMS → GAME DESIGNER + ART DIRECTOR · **SEMANTIC: the Manual and Scavenger dungeon buttons now REST** (`lane/b540-dungeon-cooldown-client`)
+
+Not a git conflict — a change of MODEL on a surface two other roles reason about.
+
+**What changed semantically.** The dungeon card used to say, in code and in a comment, "Manual runs
+ignore the auto-run cooldown". With the server lane applied that is false: `hr_dungeon_cooldown_modes()`
+is `{auto:1, manual:1, scavenger:4}` — nothing is exempt — so the Manual/Scavenger button is now gated
+on ITS OWN window (a quarter of the dungeon's for scavenger, the full one for a phase run). A player who
+could previously grind a scavenger run back-to-back forever now waits 1h on the Crypt.
+
+**The Designer's to confirm or narrow.** The divisor table is the server's and is one line to retune
+(`2026-09-12-dungeon-cooldown.sql` §2). The client only READS it — I authored no number. What is the
+Designer's is whether a quarter window is the right price for a mini-game whose loot is mostly TRADEABLE.
+
+**The Art Director's.** A card can now render TWO disabled run buttons ("On cooldown — 4.0h remaining"
+plus "Scavenger · 1.0h remaining") where it used to render one. The manual label deliberately REPLACES
+the "On cooldown — " prefix rather than adding to it, so neither button is wider than the one that
+already ships, and a non-cooldown refusal (level, key) is still printed once. Not verified visually by
+me — the headless gate is the Coordinator's.
+
+**My brief and the staged migration DISAGREED, and the migration won.** The brief described a FLAT
+`dungeon_cooldowns = {id: ISO}` and "scavenger gets cooldown_s/4"; `96b60287` projects NESTED
+`{id: {mode: ISO}}` and refuses `bad_mode` off a new `hr_dungeons.scavenger_ok` catalogue column. I read
+the SQL and built to the SQL. If the server lane changes shape again, `reconcileDungeonCooldowns` in
+`src/net/accrue.js` is the ONE place the shape is parsed.
+
+**Not blocking.** Forward-compatible: with no `dungeon_cooldowns` in the envelope every dungeon surface
+behaves exactly as it does today (mirror absent → ready).
+
+---
+
 ## 2026-09-07 · SYSTEMS → GAME DESIGNER + ART DIRECTOR + COORDINATOR · **SEMANTIC: "Next up" is no longer the only place Home says what to do next** (`worktree-agent-a5ec5d462bc708b2b`)
 
 Not a git conflict — a change of MODEL on a surface two other roles reason about.

@@ -4,6 +4,69 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-09-12 — Systems Engineer — **`src/net/dungeon-settle.js`'s `hooks.onEnvelope` has NO setter and NO caller: the module's claim that "the envelope is the truth whether the settle landed or not" is inert.** (P2, latent)
+
+`let hooks = { onEnvelope: null, onOutcome: null };` is module-private and nothing in the repo exports or
+assigns a way to fill it (`grep -rn "setDungeonSettleHooks\|onEnvelope" src/` finds only the declaration
+and the two call sites inside this file). So `verdict.applied` is never `true`, and the block commented
+"A refused settle … carries the server's current state, and applying it is what puts the optimistic
+local prediction back to server truth" has never once run. `configureDungeonSettle` wires config only.
+
+**AFFECTED SYSTEMS.** `src/net/dungeon-settle.js`, `src/dungeons.js` `settleRunServer`,
+`src/dungeon-scavenger.js` `showResult`. Consequence today: every reconcile off a settle answer has to be
+done BY THE CALLER (`reconcileFromEnvelope`, and now `reconcileDungeonCooldowns`) — which is why b540
+adopts the cooldown mirror at the two call sites rather than at the transport.
+
+**REQUIRED ACTION.** Either wire the hook (export a `setDungeonSettleHooks`, point `onEnvelope` at
+`applyEnvelopeState`, and a refused settle reconciles the whole envelope for free) or delete the dead
+hook and its comment. Do NOT leave a comment describing behaviour the code does not have — that comment
+is why the b540 brief expected the mirror to arrive on its own. Not urgent: the callers cover the two
+fields anyone reads today.
+
+---
+### 2026-09-12 — QA Engineer — **A `--selftest` with no CLEAN arm scores its own corpse as proof: 23 CI steps ran a guard ONLY with a mutation flag, and every bespoke driver read a throw as "the guard went red".** (P1 for the gate, P0 for anything read off it)
+
+Confirmed by execution, not by reading. The security review of `tests/dungeon-cooldown.mjs` planted
+`where kind = NOSUCHCOLUMN_XYZ` in the GUARD's own SQL — a defect that makes the guard incapable of
+measuring anything — and `--selftest` printed *"All 6 mutations caught… non-vacuous"*, exit 0, while
+the plain run of the same file was red. Two independent mistakes compound into it:
+
+1. **No floor.** The driver only ever runs MUTATED arms, so nothing has an expected colour of green.
+2. **`catch (e) { threw = true; /* RED */ }`.** A throw is also what a mis-anchored patch, a failed
+   chain replay, an OOM-killed PGlite and a typo in the guard's own query produce.
+
+**Census (block-scalar aware, `run:` lines in `smoke.yml` + plain invocations from `run-smoke.mjs`):**
+101 guards implement a proof flag; 70 steps pass one; **23 had NO plain run anywhere in CI**. Proof
+that the plain arm carries information the proof arm does not: `tests/snapshot-allowlist-guard.mjs`'s
+plain run is **red on today's tree (838 findings)** with its `--selftest` green beside it.
+
+**AFFECTED:** `.github/workflows/smoke.yml` (23 steps), `tests/dungeon-settle.mjs`,
+`quartermaster-buy.mjs`, `dungeon-scrip-reload.mjs`, `dungeon-marketability.mjs`, `guard-hygiene.mjs`,
+new `tests/mutation-proof.mjs`. `tests/dungeon-cooldown.mjs` is covered-by-lane (its author lands R2).
+
+**DONE in lane `worktree-agent-a3906653b0a242bc2`:** shared driver `tests/mutation-proof.mjs` (clean
+baseline first and required green; `reset()`/`failures()` proven wired; an undeclared throw is exit 2
+HARNESS; a *declared* refusal must name the file it was planted in; 12 graded shapes) · the four
+drivers converted · `guard-hygiene` RULE 5 + M8/M9/M10 requires the plain run beside every proof step
+· 22 plain runs registered (measured ~110 s total), `visual-qa.mjs` exempted with a reason.
+
+**ROUTED — still open:**
+- **P2, backend-architect + QA:** the dungeon proofs are mostly the MIGRATION's §4 self-check refusing
+  the defect, not the guard's assertions — `dungeon-settle` 6/9, `quartermaster-buy` 4/7,
+  `dungeon-scrip-reload` 2/2. Now printed on every run and NOTEd when it is all of them. The fix is
+  gate-blind arms (`tests/state-of-farm-projection.mjs` `GATE_BLIND`), per migration.
+- **P2, QA:** ~14 other drivers still score an undeclared throw as CAUGHT (`attended-loot-credit`,
+  `bounty-accept-bh-clamp`, `hearthfind-*`, `recovery-rest`, `max-hp-tracks-hitpoints`, …). They now
+  all have a CI floor, so a guard broken at rest is loud; converting them to the shared driver is the
+  remaining paydown.
+- **P3, fixed here:** `smoke.yml` claimed the dungeon guards' green pass ran "inside run-smoke's
+  `dungeonServerGuardsPreflight`". No such function exists in `tests/run-smoke.mjs`, and never did.
+- **P3, class note:** a shared driver's own CLI block runs at IMPORT time — the first draft of
+  `mutation-proof.mjs` hijacked its callers' proofs (`node tests/dungeon-marketability.mjs --selftest`
+  printed the HARNESS's 10 green scenarios and exited 0). Gated on `import.meta.url === argv[1]`; a
+  scan for the same pair elsewhere in `tests/` found **zero** others.
+
+
 ### 2026-09-11 — QA Engineer — **`snapshotG`'s allowlist protects a field only SOMETIMES, because `JSON.stringify` drops `undefined` and `restoreG` iterates `Object.keys(snap)`. 873 test writes to `G` are not restored.** (P2 for the suite, P1 for anyone debugging it)
 
 **Measured on the real booted page** (headless chromium + `__HR_TEST_HARNESS__`), running

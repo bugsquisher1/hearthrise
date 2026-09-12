@@ -48,11 +48,11 @@
 // so a test's override IS the transport.
 // ============================================================================
 
-import { resolveActiveSlot } from './accrue.js?v=539';
+import { resolveActiveSlot } from './accrue.js?v=542';
 /* b492 — the property/worker rung OBSERVER. See applyClientState for why the
    boot observation belongs in THIS module. property-record.js imports nothing,
    so it cannot form a cycle with either this file or accrue.js. */
-import { notePropertyUnlocks } from './property-record.js?v=539';
+import { notePropertyUnlocks } from './property-record.js?v=542';
 
 /* ── THE ARM (SUPERSEDED BY THE CAPSTONE — THIS CONST IS INERT) ─────────────
    THE VALUE IS false AND STAYS false, BUT THE STORE IS SERVER-BACKED IN PROD.
@@ -161,7 +161,14 @@ export const RESIDUE_FIELDS = Object.freeze([
   'autoActions',    // auto-eat food pick / auto-replant prefs (the auto-eat TRIGGER itself is server: hr_set_auto_eat)
   'lastWelcome',    // welcome/changelog modal "shown for this build" stamp
   'achievements',   // {id:{progress,unlocked}} — re-deriving from stats re-toasts every unlock on reload
-  'dungeons',       // { lastRun:{id:ms} } — dungeon cooldowns (the b288 exploit: reload = free runs)
+  /* ⚠ `dungeons` ({ lastRun:{id:ms} }) was the seventeenth name here and is DELETED,
+     not re-homed. It was a CLIENT-CLOCK cooldown stamp, and the server now owns the
+     re-entry window: hr_dungeon_settle refuses inside it and hr_state_of projects
+     the open windows as top-level `dungeon_cooldowns`, mirrored into the
+     `_dungeonCooldowns` scratch (accrue.js reconcileDungeonCooldowns) that
+     src/dungeons.js canRun() reads. Nothing in src/ writes `G.dungeons` any more.
+     Re-adding it would give one gate two clocks, and the client's is the one a
+     restore can rewind — the residue-ahead class in §6. */
   'renown',         // { claimed:[], seenRank } — claimed ranks are server once-guarded; this is the shown state
   'unlockedRecipes',// gated recipe unlocks the client has learned (server rows exist; this is the read cache)
   'tools',          // tool slots in the loadout kit

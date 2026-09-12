@@ -1,17 +1,17 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=539' directly.
+// modularised, will import { G } from '../state/game.js?v=542' directly.
 //
 // b535 — NEVER SENT TO A PLAYER. A dynamic import owned by smoke-test-loader.js,
 // which owns all three triggers too; read its header. Guard: boot-budget.mjs.
 
-import { on, snapshot } from '../net/events.js?v=539';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=539';
+import { on, snapshot } from '../net/events.js?v=542';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=542';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=539';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=542';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -1360,10 +1360,10 @@ const snapshotG = () => {
     // b213 QA: the house-room test raises the property tier to clear the
     // b201 room gate — snapshot it so the player's real tier is restored.
     homestead: G.homestead,
-    // b215: the dungeon-key test starts a run, which stamps a 4h cooldown into
-    // G.dungeons.lastRun. Without this the cooldown leaked past the test and
-    // made the SECOND suite run fail (canRun bails before spending the key).
-    dungeons: G.dungeons,
+    /* The SERVER's dungeon re-entry windows (was `dungeons`, the client clock).
+       `?? null` is load-bearing: JSON drops undefined and an account with no open
+       window has no key at all, so a seeded one would outlive its own test. */
+    _dungeonCooldowns: G._dungeonCooldowns ?? null,
     playerName: G.playerName,
     // b222 (SEAM 3): the Rested XP bank + its watermark. The seam tests fill
     // the bank directly and drive processOffline, so without these two fields
@@ -1556,6 +1556,46 @@ const setAway = (hours, nowMs) => {
 const armActivityTransport = () => { const M = window.HearthriseActivity; M.resetActivity(); M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' }); window.HearthriseAccrual.setServerAccrualEnabled(true); };
 const drain = async () => { for (let i = 0; i < 12; i++) await new Promise((r) => setTimeout(r, 0)); };   // LET AN INTENT'S PROMISE CHAIN FINISH. Was declared verbatim in four tests; one that needs a different wait still declares its own and shadows this.
 const restoreAccrualSwitch = (wasOn) => { const A = window.HearthriseAccrual; A.setServerAccrualEnabled(false); try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {} if (!wasOn) A.setServerAccrualEnabled(false); };
+/* ── THE NODE (AND THE RECIPE) YOU CAME FROM — ONE ARC, DRIVEN TWICE ─────────
+   Reproduced three times on live: chop Willow → fight a Goblin → open Skills
+   and tap Willow again → nothing at all. No intent, no toast, the header still
+   reading "Fighting Goblin"; tapping OAK switched instantly. The dead tile was
+   always the node the player CAME FROM, because every tile renderer baked
+   `active ? stopSkill() : start(…)` at PAINT time while combat's cross-stop
+   clears the pointer and strips the badge IN PLACE without rebuilding the panel
+   (nor does walking back to Skills) — so that one tile kept a stop handler
+   while looking idle and the stop returned in silence. Gather tiles and artisan
+   tiles are the same bug and the same fix (render/activity-tile.js reads the
+   live pointer at the click), so they are ONE scenario parameterised by node:
+   this plays it as the player does — real .click()s on real tiles, real
+   declaration path — asserts the two shared properties (it painted active; the
+   fight really did cross-stop) and hands the test the tap it is about. It owns
+   the try/finally, so a failed arm can never leak the fetch stub or an
+   unrestored G into the rest of the suite. */
+const cameFromArc = async (cfg, body) => {
+  const G = window.G; const M = window.HearthriseActivity; const realFetch = window.fetch; const wasOn = window.HearthriseAccrual.isServerAccrualEnabled(); const sent = [];
+  window.fetch = function (u, init) {
+    if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+    let b = null; try { b = JSON.parse(init && init.body); } catch (e) {} if (b && b.verb === 'set_activity') sent.push(b);
+    const act = (b && b.activity) || { kind: 'idle', id: null };   /* ECHO THE DECLARED POINTER BACK as the server's own: a stub answering with a fixed activity reconciles the client onto something the gesture never asked for */
+    return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 700 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: {} }), { status: 200 }));
+  };
+  const snap = snapshotG(); const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')].find((e) => e.getAttribute('data-prod') === cfg.prod);
+  const settle = async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); for (let i = 0; i < 60; i++) await Promise.resolve(); };
+  try {
+    armActivityTransport(); cfg.seed(G); G.playerHp = G.playerMaxHp || G.playerHp; window.openSkillDetail(cfg.skillId); await settle();
+    cfg.start(); await settle(); const painted = tileOf();
+    assert(!!painted && painted.classList.contains('active'), 'CONTROL: the ' + cfg.targetId + ' tile must paint ACTIVE while it runs (pointer ' + G.activeSkill + '/' + G.skillTargetId + '), or this cannot reproduce the stale paint');
+    window.startCombat(cfg.mid); await settle();
+    assert(G.activeMonster === cfg.mid && !G.activeSkill && !G.skillTargetId, 'setup: the fight or the cross-stop never happened (' + G.activeMonster + ', ' + G.activeSkill + ') — the scenario under test is gone');
+    window.showTab('skills'); await settle();                       // the player walks back; measured: this does NOT repaint the grid
+    const tile = tileOf(); const stalePaint = tile === painted; sent.length = 0; assert(!!tile && tile.isConnected, 'the ' + cfg.targetId + ' tile is no longer on the Skills screen');
+    await body({ G, M, sent, settle, tileOf, tile, stalePaint });
+  } finally {
+    window.fetch = realFetch; restoreAccrualSwitch(wasOn); M.resetActivity(); M.configureActivity(null);
+    try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {} restoreG(snap); window.showTab('profile');
+  }
+};
 /* THE SIGNED-IN SERVER ENVIRONMENT, WRITTEN ONCE — five claim tests each carried
    the same four stubs and restores; a forgotten copy leaks a fake session. */
 const stubSignedIn = (slot) => {
@@ -1568,6 +1608,41 @@ const stubSignedIn = (slot) => {
     window.HearthriseSupabase = o[0]; window.HearthriseAuth = o[1];
     window.HearthriseRpc = o[2]; window.HearthriseProfile = o[3];
   };
+};
+
+/* ── THE RESIDUE PUT ON A STUBBED WIRE, WRITTEN ONCE ─────────────────────────
+   `hr_put_client_state` is the ONE periodic write the armed game makes, and three
+   tests drive it against a fake endpoint. Each carried the same fixture verbatim:
+   release the reconcile hold (or the save returns before the network and every
+   assertion is vacuous), swap `window.fetch`, trust the clock, reset the auth gate
+   and the save health — then put all four back EXACTLY as found, plus the same
+   nine-key cfg. Stated once so a failed arm cannot leak the stub or a probe's
+   cloudSyncedAt into the suite. `onRequest(url, init)` answers any example.invalid
+   call: a Response to control it, nothing for a 200 {ok:true}. */
+const withResidueWire = async (onRequest, body, extraCfg) => {
+  const S = window.HearthriseSync, G = window.G;
+  const realFetch = window.fetch, wasHeld = S.isSnapshotHeld();
+  const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
+  const cfg = Object.assign({
+    snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
+    claimEndpoint: null, apiKey: 'anon', userId: () => 'u1', authToken: () => 'opaque-token',
+    onAuthError: async () => true, onAuthExpired: () => {},
+    onSyncFailure: () => {}, onSyncRecovered: () => {},
+  }, extraCfg || {});
+  try {
+    if (wasHeld) S.releaseSnapshots();
+    window.fetch = function (u, init) {
+      if (!/example\.invalid/.test(String(u))) return realFetch.apply(this, arguments);
+      return onRequest(String(u), init) || Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+    };
+    S.setClockTrusted(true); S.resetAuthGate(); S.__resetSyncHealth();
+    return await S.__withConfig(cfg, () => body(S, cfg));
+  } finally {
+    window.fetch = realFetch;
+    if (wasHeld) S.holdSnapshots();
+    if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
+    S.resetAuthGate(); S.__resetSyncHealth();
+  }
 };
 
 const restoreG = (snap) => {
@@ -5702,6 +5777,81 @@ const TESTS = [
     }
   }),
 
+  /* ── regression suite — THE COUNTED FIGURE ADMITS THAT IT LAGS ───────────
+     renown_high is ratcheted at APPLY time, so the counted figure on every
+     headline is the score as of the last settle — and a number that sits still
+     while the player is visibly earning reads as broken. GAME DESIGNER'S RULING
+     (final, 2026-09-11): rank never goes down, and the copy is "Renown N — your
+     best yet. New gains count from your next settle." UNKNOWN keeps the old copy
+     (that figure is openly the client's own prediction).
+     MUTATION, both red: drop `lagLine` from openLadder → "got null"; drop the
+     `counted` gate in lagHint → UNKNOWN paints the sentence. */
+  () => tryRun('B536-1: the counted renown figure carries the lag sentence on every headline — and carries NOTHING while the realm has stated nothing', () => {
+    const R = window.HearthriseRenown;
+    assert(R && typeof R.lagHint === 'function',
+      'the lag-copy seam is missing — five headlines would each hand-write their own sentence');
+    const snap = snapshotG();
+    const srvBefore = R.serverRenownHigh();
+    /* The one hook every surface carries, so this reads the PAINTED copy and not
+       a string the test built itself (a dense line hangs it on `title`). */
+    const hint = () => {
+      const el = document.querySelector('#hr-rn-modal [data-hr-renown-hint]');
+      return el ? String(el.getAttribute('title') || el.textContent || '') : null;
+    };
+    const closeLadder = () => { const m = document.getElementById('hr-rn-modal'); if (m) m.remove(); };
+    try {
+      if (R.__resetClaimState) R.__resetClaimState();
+
+      // ── UNKNOWN — the realm has stated nothing this session.
+      assert(R.serverRenownHigh() === null, 'fixture: the mirror starts UNKNOWN');
+      assert(R.getState(window.G).counted === false, 'fixture: an UNKNOWN state must say so');
+      assert(R.lagHint(R.getState(window.G)) === '',
+        'UNKNOWN must carry no lag copy; got "' + R.lagHint(R.getState(window.G)) + '"');
+      closeLadder(); R.openLadder();
+      assert(hint() === null,
+        'THE UNKNOWN CASE: a settle note was painted beside a figure the realm has never counted; got ' + JSON.stringify(hint()));
+      closeLadder();
+
+      // ── COUNTED 779 — the envelope reader (top-level renown_high on an envelope).
+      const noted = R.noteServerRenown({ ok: true, renown_high: 779, progress: [] });
+      assert(noted.high === 779, 'fixture: the envelope figure must land in the mirror; got ' + JSON.stringify(noted));
+      const st = R.getState(window.G);
+      assert(st.renown === 779 && st.counted === true,
+        'fixture: the headline reads the realm\'s count; got ' + st.renown + ' / counted=' + st.counted);
+
+      // The WHOLE sentence where nothing prints the figure beside it (the
+      // hearth-band tooltip, the Hero "Standing" line).
+      const fullTxt = R.lagHint(st);
+      const full = fullTxt.toLowerCase();
+      assert(full.indexOf('779') >= 0, 'the standalone sentence carries the counted figure; got "' + fullTxt + '"');
+      assert(full.indexOf('your best yet') >= 0 && full.indexOf('next settle') >= 0,
+        'the ruling\'s sentence is the copy, verbatim; got "' + fullTxt + '"');
+      // The explanation half where the figure is already an inch away (ladder
+      // header, Home rail, Skills header) — the SAME literal tail, not a rewrite.
+      const halfTxt = R.lagHint(st, { figureShown: true });
+      const half = halfTxt.toLowerCase();
+      assert(half.indexOf('your best yet') >= 0 && half.indexOf('next settle') >= 0,
+        'the figure-shown framing keeps both halves of the ruling; got "' + halfTxt + '"');
+      assert(half.indexOf('779') < 0,
+        'the same figure twice in two stacked lines reads as a stutter; got "' + halfTxt + '"');
+
+      // ── THE RENDERED SURFACE — the ladder header actually paints it.
+      R.openLadder();
+      const paintedTxt = hint();
+      const painted = String(paintedTxt || '').toLowerCase();
+      assert(painted.indexOf('your best yet') >= 0 && painted.indexOf('next settle') >= 0,
+        'THE BUG: the ladder painted the counted figure with nothing saying it lags a settle; got ' + JSON.stringify(paintedTxt));
+      const wrap = document.querySelector('#hr-rn-modal .hr-rn-wrap');
+      assert(wrap && wrap.textContent.indexOf('779 Renown') >= 0,
+        'the hint RIDES the counted figure — it never replaces it');
+    } finally {
+      closeLadder();
+      if (R.__resetClaimState) R.__resetClaimState();
+      if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('server-credited (muster chest ITEMS): reduceClaim passes the server item list through; items are NOT re-derived client-side', () => {
     // 2026-08-20: world_event_claim now computes the themed chest server-side
     // (hr_rally_chest) and WRITES the materials into player_inventory. Its
@@ -9299,7 +9449,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=539');
+    const S = await import('../data/shops.js?v=542');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -9419,7 +9569,7 @@ const TESTS = [
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
       G.gold = (G.gold || 0) + 100000;
-      G.dungeons = { lastRun: {} };          // clear any cooldown from a prior run
+      G._dungeonCooldowns = {};              // clear any server cooldown window
       G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000, defense: 5000000, hitpoints: 5000000 });
       const before = G.inventory[d.cost.key];
       window.startManualDungeonRun(id);
@@ -9879,14 +10029,12 @@ const TESTS = [
     const snapSaved = snapshotG();
     try {
       const DAY = 'test-day-key';
-      const t = Date.now();
       // --- DEVICE A: a played account ---
       G.bestiary = { slime: { kills: 42 } };
       G.achievements = { first_kill: { unlocked: true } };
       G.quests = [{ id: 'q1', progress: 7, done: false }];
       G.daily = { lastReset: DAY, tasks: [{ id: 'd1', progress: 3 }] };
       G.streak = { days: 5, lastClaimDayKey: DAY };      // daily reward ALREADY claimed
-      G.dungeons = { lastRun: { crypt_of_bones: t } };   // cooldown ALREADY spent
       G.collection = { bones: 12 };
       G.traits = { autoEat: true };                      // PURCHASED with gold
       G.homestead = { tier: 4 };
@@ -9894,7 +10042,7 @@ const TESTS = [
       const cloud = JSON.parse(JSON.stringify(ev.snapshot(G)));   // what reaches the server
 
       // --- DEVICE B: a fresh install signs in ---
-      ['bestiary', 'achievements', 'quests', 'daily', 'streak', 'dungeons', 'collection', 'traits', 'homestead']
+      ['bestiary', 'achievements', 'quests', 'daily', 'streak', 'collection', 'traits', 'homestead']
         .forEach((k) => { delete G[k]; });
       Object.assign(G, cloud);                            // the real restore path (auth.js)
 
@@ -9906,9 +10054,9 @@ const TESTS = [
       assert(G.traits && G.traits.autoEat === true, 'Purchased traits must survive (paid with gold)');
       assert(G.homestead && G.homestead.tier === 4, 'Homestead/castle tier must survive');
 
-      // (b) THE EXPLOIT: spent cooldowns must still be spent on the new device
-      assert(G.dungeons && G.dungeons.lastRun.crypt_of_bones === t,
-        'dungeon cooldown must carry over — otherwise switching device resets it (free runs)');
+      /* (b) THE EXPLOIT: spent cooldowns must still be spent on the new device. The
+         DUNGEON half left this list when the window became a SERVER fact (see
+         DGN-COOLDOWN-1) — there is no client field left to carry across. */
       assert(G.streak && G.streak.lastClaimDayKey === DAY,
         'daily-reward claim must carry over — otherwise switching device re-grants it');
       assert(G.daily && G.daily.lastReset === DAY, 'daily task state must carry over');
@@ -9919,9 +10067,8 @@ const TESTS = [
     // paione: "some stuff is not reloaded through the cloud — Bestiary,
     // Achievements, new quests and daily login bonus, Dungeon times are reset,
     // Clan boss can be re-attacked". The snapshot was a 17-field ALLOWLIST while G
-    // carries ~40, so unlisted state never synced — and because dungeon lastRun,
-    // the daily claim and the raid claim are unlisted, switching devices RE-GRANTED
-    // them. Data loss AND an economy exploit.
+    // carries ~40, so unlisted state never synced: data loss AND, wherever the
+    // unlisted field was a claim marker, an economy exploit on every new device.
     const ev = window.HearthriseEvents;
     assert(ev && typeof ev.snapshot === 'function', 'HearthriseEvents.snapshot missing');
     const G = window.G;
@@ -9930,7 +10077,7 @@ const TESTS = [
     // Everything a second device must not lose or be re-granted.
     /* `wieldGrandfather` left this list with the field itself — a client-held gear
        permission the realm never had; nothing crosses devices by its absence. */
-    ['bestiary', 'achievements', 'quests', 'daily', 'collection', 'dungeons', 'traits',
+    ['bestiary', 'achievements', 'quests', 'daily', 'collection', 'traits',
       'streak', 'lockedItems', 'offlineBudget', 'homestead', 'v']
       .forEach((k) => {
         if (G[k] === undefined) return;                 // field not present in this save
@@ -10205,7 +10352,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=539');
+    const mod = await import('../data/dungeons.js?v=542');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10236,7 +10383,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=539');
+    const mod = await import('../data/dungeons.js?v=542');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -10293,7 +10440,7 @@ const TESTS = [
     const d = window.DUNGEONS[dId], G = window.G;
     const snap = {
       inv: JSON.parse(JSON.stringify(G.inventory || {})),
-      scrip: G.dungeonScrip, dgn: JSON.parse(JSON.stringify(G.dungeons || { lastRun: {} })),
+      scrip: G.dungeonScrip, cd: G._dungeonCooldowns,
       addItem: window.addItem, getCombatLevel: window.getCombatLevel,
       send: DS.sendDungeonSettle, notify: window.notify,
     };
@@ -10330,7 +10477,7 @@ const TESTS = [
       G.inventory[d.cost.key] = 1;                       // a real key, so canRun passes
       delete G.inventory.dungeon_scrip;
       G.dungeonScrip = 0;
-      G.dungeons = { lastRun: {} };                      // off cooldown
+      G._dungeonCooldowns = {};                          // off cooldown
       window.getCombatLevel = () => 99;
       window.notify = () => {};
       window.addItem = (id, qty) => { minted.push(id + 'x' + qty); return true; };
@@ -10361,8 +10508,55 @@ const TESTS = [
       R.__setDungeonSettleArm(null);
       DS.sendDungeonSettle = snap.send; window.addItem = snap.addItem;
       window.getCombatLevel = snap.getCombatLevel; window.notify = snap.notify;
-      G.inventory = snap.inv; G.dungeonScrip = snap.scrip; G.dungeons = snap.dgn;
+      G.inventory = snap.inv; G.dungeonScrip = snap.scrip; G._dungeonCooldowns = snap.cd;
     }
+  }),
+
+  /* ── regression suite — DGN-COOLDOWN-1: THE RE-ENTRY WINDOW IS THE SERVER'S ──
+     Three lies, one seam. canRun() computed the cooldown from a client clock
+     (`G.dungeons.lastRun`) the ARMED path had stopped stamping, so every card read
+     "ready" and every Auto-Run came back refused; the manual modal wrote "Rewards
+     settled…" BEFORE the answer arrived; and the on_cooldown copy advised "try a
+     manual run", which the server refuses identically. The projection is PER MODE
+     (auto/manual full, scavenger a quarter) so an auto window must not rest the
+     scavenger button. MUTATION: the lastRun arithmetic, a mode-blind read, or the literal rewardHtml. */
+  () => tryRunAsync('DGN-COOLDOWN-1: the per-mode dungeon cooldown is read from the server mirror, and a refused settle never claims rewards', async () => {
+    const A = window.HearthriseAccrual, DS = window.HearthriseDungeonSettle, id = 'crypt_of_bones';
+    assert(A && typeof A.reconcileDungeonCooldowns === 'function', 'accrue.js must export reconcileDungeonCooldowns');
+    assert(typeof window.canRunDungeon === 'function' && typeof window.dungeonSettleRowHtml === 'function',
+      'the dungeon gate reader and the settle-row renderer must both be exposed');
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel;
+    const at = new Date(Date.now() + 3600000).toISOString();
+    try {
+      window.getCombatLevel = () => 99;
+      G.inventory = Object.assign({}, G.inventory, { bone_key: 1 });
+      // (a) a PROJECTED window blocks its OWN mode only, and prints a countdown.
+      A.reconcileDungeonCooldowns(G, { dungeon_cooldowns: { [id]: { auto: at, manual: at } } });
+      const busy = window.canRunDungeon(id, 'auto');
+      assert(G._dungeonCooldowns[id].auto === at && busy.ok === false && /On cooldown.*h remaining/.test(busy.reason),
+        'THE BUG: a server window must block that mode and name the time left (got ' + JSON.stringify(busy) + ')');
+      assert(window.canRunDungeon(id, 'scavenger').ok === true,
+        'a mode the projection omits is READY — the scavenger window is a quarter of the auto one, not the same one');
+      if (document.getElementById('panel-dungeons')) {
+        window.renderDungeons();
+        assert([...document.querySelectorAll('#panel-dungeons button.dgn-run[disabled]')].some((b) => /On cooldown/.test(b.textContent)),
+          'the dungeon card must print the countdown on its disabled Auto-Run button');
+      }
+      // (b) the key ABSENT → exactly today's behaviour, ready (forward-compatible).
+      A.reconcileDungeonCooldowns(G, { dungeon_cooldowns: {} });
+      assert(window.canRunDungeon(id, 'auto').ok === true && window.canRunDungeon(id).ok === true,
+        'an absent window must read READY — that is the pre-apply behaviour this ships ahead of');
+      // (c) a 409 refusal paints the reason, never a reward, and adopts its window.
+      const body = { ok: false, error: 'on_cooldown', detail: { dungeon: id, mode: 'manual', next_entry_at: at, ready_at: at, cooldown_s: 14400 } };
+      const html = window.dungeonSettleRowHtml(Object.assign({ status: 409 }, DS.classifyDungeonSettleResponse(409, body)));
+      assert(!/Rewards settled/.test(html) && !/Rewards settled/.test(window.dungeonSettleRowHtml(null)),
+        'THE BUG: a refused (or unanswered) settle must never claim the rewards landed (got ' + html + ')');
+      assert(/resting/.test(html) && !/manual run/.test(html), 'the refusal must say the dungeon is resting, and must not advise a manual run (got ' + html + ')');
+      A.reconcileDungeonCooldowns(G, body);
+      assert(G._dungeonCooldowns[id].manual === at && window.canRunDungeon(id, 'manual').ok === false
+        && window.canRunDungeon(id, 'auto').ok === true,
+        'the refusal detail must rest ITS mode at once and no other (got ' + JSON.stringify(G._dungeonCooldowns) + ')');
+    } finally { window.getCombatLevel = lvl; restoreG(snap); }
   }),
 
   () => tryRun('WAVE6: a weekly boss exists and pays a bigger bonus than the daily', () => {
@@ -36309,6 +36503,67 @@ const TESTS = [
     }
   }),
 
+  /* ── b372 · regression suite — THE HOLE THE QUIESCE LATCH DID NOT COVER ─────
+     The switch defence in src/net/sync.js refuses to START a send while quiesced
+     and re-addresses one already in flight — but that second layer only ever
+     reached `buildSnapshotRequest` (game_saves). The residue PUT that REPLACED the
+     blob was addressed `pinnedSlot: config.slot`, null in production, so the slot
+     came from `HearthriseProfile.activeSlot()` LIVE at BODY-BUILD time — after
+     `await fetchClaimRow()`, the one await a switch can land inside. The outgoing
+     hero's residue then upserted onto the TARGET hero's client_state row.
+     THIS PLAYS THAT ORDER: park the claim read, move the hero pointer while the
+     save is suspended on it, release, read the slot off the WIRE (the shape
+     tests/slot-switch.mjs watches). The pointer moves WITHOUT arming the quiesce
+     latch on purpose — an armed latch answers correctly even when the slot is
+     resolved late, so it would hide the defect.
+     MUTATION: restore `pinnedSlot: config.slot` → RED here. */
+  () => tryRunAsync('b372: a residue save parked on the claim read keeps the slot it started for — a switch mid-read cannot re-address it', async () => {
+    const S = window.HearthriseSync, HP = window.HearthriseProfile, G = window.G;
+    assert(HP && typeof HP.activeSlot === 'function' && typeof S.__setClaimView === 'function',
+      'the profile slot resolver or the claim-view seam is gone — the residue PUT cannot be addressed or observed');
+    const realActiveSlot = HP.activeSlot, prevName = G.playerName, puts = [];
+    let liveSlot = 0, releaseClaim = null;
+    try {
+      G.playerName = 'OUTGOING-b372';        // a RESIDUE field, so the bag is never empty
+      HP.activeSlot = () => liveSlot;
+      S.__setClaimView(null);                // view unknown ⇒ the cadence save must read it
+      await withResidueWire((url, init) => {
+        if (!/hr_put_client_state/.test(url)) {
+          return new Promise((res) => { releaseClaim = () => res(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })); });
+        }
+        let b = null; try { b = JSON.parse((init && init.body) || 'null'); } catch (e) {}
+        puts.push({ slot: b ? b.p_slot : null, name: (b && b.p_patch) ? b.p_patch.playerName : null, active: HP.activeSlot() });
+      }, async () => {
+        const p = S.snapshotIfDue(true, false);            // the 60s cadence save, NOT the parting shot
+        for (let i = 0; i < 20 && !releaseClaim; i++) await Promise.resolve();
+        assert(typeof releaseClaim === 'function',
+          'the cadence save never parked on the claim read (paused ' + S.isPaused() + ', held ' + S.isSnapshotHeld()
+          + ', puts ' + puts.length + ') — the window this test exists for was never entered');
+        assert(puts.length === 0,
+          'the residue PUT was on the wire BEFORE the claim read answered, so a switch cannot be staged inside '
+          + 'the await — this test no longer reproduces the reported order');
+        liveSlot = 1;                                      // THE SWITCH LANDS: the hero pointer moves
+        releaseClaim();
+        await p;
+      }, { claimEndpoint: 'https://example.invalid/rest/v1/session_claims' });
+      assert(puts.length === 1 && puts[0].name === 'OUTGOING-b372',
+        'CONTROL: the parked cadence save must produce exactly one residue PUT carrying the OUTGOING character, '
+        + 'got ' + JSON.stringify(puts) + ' — without it every assertion here is vacuous');
+      assert(puts[0].active === 1,
+        'the hero pointer read 0 at body-build time — the hazard is that it had already moved, so this run '
+        + 'proves nothing');
+      assert(puts[0].slot === 0,
+        'THE BUG: a residue save that started for hero slot 0 and parked on the claim read built its body AFTER '
+        + 'the switch and went out addressed to slot ' + puts[0].slot + '. client_state is UNIQUE (user_id, slot), '
+        + 'so the outgoing hero\'s bestiary, quests, achievements and name are upserted onto the TARGET hero\'s '
+        + 'row — the b372 duplication on the one periodic write the armed game makes');
+    } finally {
+      HP.activeSlot = realActiveSlot;
+      if (prevName === undefined) delete G.playerName; else G.playerName = prevName;
+      S.__setClaimView(null);
+    }
+  }),
+
   /* b372 — THE BOOT HALF. Even with the latch, a save that belongs to another
      hero slot must never be adopted as this one: the latch closes the writer we
      found, this closes the class. Park (recoverable), never delete, and boot as
@@ -39957,41 +40212,20 @@ const TESTS = [
     assert(S.writeRetryDelayMs(0) === S.WRITE_RETRY_MIN_MS && S.writeRetryDelayMs(1) === S.WRITE_RETRY_MAX_MS,
       'the retry jitter no longer spans ' + S.WRITE_RETRY_MIN_MS + '–' + S.WRITE_RETRY_MAX_MS + 'ms');
 
-    const realFetch = window.fetch;
-    const G = window.G;
-    const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
-    const wasHeld = S.isSnapshotHeld();
     let attempts = 0, failures = 0, recovered = 0;
     let plan = [503, 200];
-    try {
-      if (wasHeld) S.releaseSnapshots();
-      window.fetch = function (u, init) {
-        if (!/example\.invalid/.test(String(u))) return realFetch.apply(this, arguments);
-        const status = plan[Math.min(attempts, plan.length - 1)];
-        attempts++;
-        return Promise.resolve(new Response(status === 200 ? '{"ok":true}' : '{"message":"timeout"}', { status }));
-      };
-      S.setClockTrusted(true); S.resetAuthGate(); S.__resetSyncHealth();
-      const cfg = {
-        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
-        claimEndpoint: null, apiKey: 'anon', userId: () => 'u1', authToken: () => 'opaque-token',
-        onAuthError: async () => true, onAuthExpired: () => {},
-        onSyncFailure: () => { failures++; }, onSyncRecovered: () => { recovered++; },
-      };
-
-      /* b515 — (1)-(3) NOW DRIVE THE WRITE THAT EXISTS. They used to be pinned
-         to the blob upsert (`withLocalBlobAsync`) because that was the only
-         caller passing `fetchWithAuthRetry(..., { retryWrite })`. b515 deleted
-         the upsert, and b459 had already routed the residue PUT through the
-         same hardened transport — so the three cases below and the separate
-         "(4) RED ON PURPOSE" case that used to follow them are now ONE test of
-         ONE write, which is what they were always trying to be. (4) is folded
-         in rather than deleted: its assertion — a 503 on the periodic save
-         costs two attempts, not one — is (1) and (2) below, against the same
-         endpoint it named. */
-      {
+    await withResidueWire(() => {
+      const status = plan[Math.min(attempts, plan.length - 1)];
+      attempts++;
+      return Promise.resolve(new Response(status === 200 ? '{"ok":true}' : '{"message":"timeout"}', { status }));
+    }, async () => {
+      /* ALL FOUR CASES DRIVE THE ONE WRITE THAT EXISTS — the residue PUT, which
+         is the only caller passing `fetchWithAuthRetry(..., { retryWrite })`
+         since the blob upsert was deleted. (4) is folded in rather than dropped:
+         its assertion — a 503 on the periodic save costs two attempts, not one —
+         is (1) and (2), against the same endpoint it named. */
       // (1) killed in flight, then fine. The player must never learn of it.
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      await S.snapshotIfDue(true, false);
       assert(attempts === 2, 'the killed write was not retried exactly once — ' + attempts + ' attempt(s)');
       assert(failures === 0, 'a transport casualty that immediately succeeded was reported to the player as a save failure');
       assert(recovered === 0, 'nothing broke, so nothing "recovered" — a spurious toast is noise');
@@ -40002,7 +40236,7 @@ const TESTS = [
       // (2) a real outage: both attempts fail. ONE failure, not two, and the
       //     retry must not become a loop.
       attempts = 0; plan = [503, 503];
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      await S.snapshotIfDue(true, false);
       assert(attempts === 2, 'a persistent 503 must cost exactly 2 requests per save — got ' + attempts
         + ' (an unbounded retry multiplies load on a backend that is already failing)');
       assert(S.getSaveHealth().failStreak === 1,
@@ -40011,7 +40245,7 @@ const TESTS = [
 
       // (3) a refusal is answered, not retried.
       attempts = 0; plan = [500, 200];
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      await S.snapshotIfDue(true, false);
       assert(attempts === 1, 'a 500 is a real answer and must not be retried — got ' + attempts + ' attempts');
 
       /* (4) THE KEEPALIVE EXEMPTION, and it is the half a fold-in could lose.
@@ -40022,17 +40256,11 @@ const TESTS = [
          MUTATION: make it `retryWrite: true` in sync.js → red here. */
       attempts = 0; plan = [503, 200];
       S.__resetSyncHealth();
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, true); });
+      await S.snapshotIfDue(true, true);
       assert(attempts === 1,
         'the pagehide residue save was retried (' + attempts + ' attempts) — there is no page left to wait '
         + 'in and a second keepalive body double-spends the browser quota the parting send depends on');
-      }
-    } finally {
-      window.fetch = realFetch;
-      if (wasHeld) S.holdSnapshots();
-      if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
-      S.resetAuthGate(); S.__resetSyncHealth();
-    }
+    }, { onSyncFailure: () => { failures++; }, onSyncRecovered: () => { recovered++; } });
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -40040,19 +40268,16 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════════
      `snapshotIfDue(true, true)` is the parting save, fired from
      `visibilitychange`→hidden and `pagehide` (src/net/sync.js). The blob upsert
-     always set `keepalive` on it — but the capstone's residue branch RETURNS
-     before that line, so from blob-retire onward the parting save was an
-     ordinary fetch that the browser cancels the instant the document is torn
-     down. Up to a full 60s cadence of SELF-ONLY progress was lost on every tab
-     close and every mobile backgrounding: bestiary kills, achievements, quests,
-     collection, the daily-reward shown-marker, dungeon cooldowns, buffs,
-     buyback, lockedItems, combatStyle, loadouts, streak — the whole residue
-     allowlist, because the patch is the whole bag.
-     The sibling did it right (SETTLE-4, accrue.js `buildKeepaliveRequest`); this
-     asserts the residue write learned the same lesson, that it is OPT-IN (the
-     periodic save must not spend the browser's small shared keepalive quota),
-     and that an over-quota body degrades to a normal request instead of being
-     rejected outright by the Fetch spec's 64 KiB inflight ceiling. */
+     always set `keepalive` on it; the residue branch that replaced it did not, so
+     the parting save was an ordinary fetch the browser cancels the instant the
+     document is torn down — up to a full 60s cadence of SELF-ONLY progress lost on
+     every tab close and every mobile backgrounding (the whole residue allowlist,
+     because the patch is the whole bag).
+     The sibling did it right (accrue.js `buildKeepaliveRequest`); this asserts the
+     residue write learned the same lesson, that it is OPT-IN (the periodic save
+     must not spend the browser's small shared keepalive quota), and that an
+     over-quota body degrades to a normal request instead of being rejected
+     outright by the Fetch spec's 64 KiB inflight ceiling. */
   () => tryRunAsync('Q-1: the pagehide residue save is keepalive; the 60s cadence save is not', async () => {
     const CS = window.HearthriseClientState;
     assert(CS && typeof CS.buildClientStatePutRequest === 'function',
@@ -40094,41 +40319,19 @@ const TESTS = [
       skip('no residue on G in this run — snapshotIfDue would decline before building a request');
       return;
     }
-    const realFetch = window.fetch;
-    const wasHeld = S.isSnapshotHeld();
-    const G = window.G;
-    const savedSyncedAt = G ? G.cloudSyncedAt : undefined;
     const seen = [];
-    try {
-      if (wasHeld) S.releaseSnapshots();
-      window.fetch = function (u, init) {
-        if (!/example\.invalid/.test(String(u))) return realFetch.apply(this, arguments);
-        seen.push({ url: String(u), keepalive: init && init.keepalive });
-        return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
-      };
-      S.setClockTrusted(true); S.resetAuthGate(); S.__resetSyncHealth();
-      const cfg = {
-        snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
-        claimEndpoint: null, apiKey: 'anon', userId: () => 'u1', authToken: () => 'opaque-token',
-        onAuthError: async () => true, onAuthExpired: () => {},
-        onSyncFailure: () => {}, onSyncRecovered: () => {},
-      };
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, true); });
+    await withResidueWire((url, init) => { seen.push({ url, keepalive: init && init.keepalive }); }, async (Sy) => {
+      await Sy.snapshotIfDue(true, true);
       assert(seen.length === 1, 'the pagehide save must send exactly one request, got ' + seen.length);
       assert(/hr_put_client_state/.test(seen[0].url), 'the armed save must be the residue PUT, got ' + seen[0].url);
       assert(seen[0].keepalive === true,
         'THE BUG (Q-1), end to end: snapshotIfDue(force, keepalive=true) — the visibilitychange/pagehide save — '
         + 'reached the wire WITHOUT keepalive, so the browser kills it on teardown');
-      await S.__withConfig(cfg, async () => { await S.snapshotIfDue(true, false); });
+      await Sy.snapshotIfDue(true, false);
       assert(seen.length === 2, 'the cadence save must send exactly one request, got ' + (seen.length - 1));
       assert(seen[1].keepalive !== true,
         'keepalive leaked onto the ordinary cadence save — it is opt-in for the parting shot, not global');
-    } finally {
-      window.fetch = realFetch;
-      if (wasHeld) S.holdSnapshots();
-      if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
-      S.resetAuthGate(); S.__resetSyncHealth();
-    }
+    });
   }),
 
   () => tryRun('b371: the save-health verdict is pure and honest at every age (no surface may hardcode it)', () => {
@@ -43996,7 +44199,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=539');
+    const KIT = await import('../data/start-kit.js?v=542');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -44078,7 +44281,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=539');
+    const KIT = await import('../data/start-kit.js?v=542');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -44192,7 +44395,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=539');
+    const KIT = await import('../data/start-kit.js?v=542');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -46303,7 +46506,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=539')).text();
+    const src = await (await fetch('src/legacy.js?v=542')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -52865,7 +53068,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=539');
+    const S = await import('../data/shops.js?v=542');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -54411,7 +54614,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=539');
+    const S = await import('../data/shops.js?v=542');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -58999,7 +59202,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=539')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=542')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -60990,7 +61193,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=539');
+    const A = await import('../net/accrue.js?v=542');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -61015,7 +61218,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=539');
+    const A = await import('../net/accrue.js?v=542');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -61042,7 +61245,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=539');
+    const A = await import('../net/accrue.js?v=542');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -61195,7 +61398,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=539')).text();
+      const raw = await (await fetch(f + '?v=542')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -61245,7 +61448,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=539')).text();
+    const raw = await (await fetch('src/observability.js?v=542')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -61349,7 +61552,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=539');
+    const _art = await import('../data/monster-art.js?v=542');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -62422,112 +62625,66 @@ const TESTS = [
     }
   }),
 
-  /* ── THE NODE YOU CAME FROM (regression suite) ────────────────────────────
-     Reproduced three times on live: chop Willow → fight a Goblin → open Skills
-     and tap Willow again → nothing at all. No intent, no toast, the header
-     still reading "Fighting Goblin". Tapping OAK switched instantly and paid
-     the window; smithing → Willow worked. The dead tile was always the node the
-     player CAME FROM — because both renderers baked the handler at PAINT time,
-     and combat's cross-stop clears the pointer and strips the badge in place
-     without rebuilding the panel (nor does returning to the Skills tab), so
-     that tile kept a stop handler while looking idle and the stop returned in
-     silence. The fix routes both directions through render/activity-tile.js,
-     which reads the live pointer at the click. This drives the PLAYER'S gesture
-     — a real .click() on the real tile element, real declaration path. Prefixed
-     B533- to run alone with `__smokeTest({only:'B533'})`. */
+  /* GATHER HALF of the arc above (see `cameFromArc`): chop Willow → fight →
+     tap Willow again. Prefixed B533- to run alone with `__smokeTest({only:…})`. */
   () => tryRunAsync('B533-1: after a fight, tapping the node you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
-    const G = window.G; const A = window.HearthriseAccrual; const M = window.HearthriseActivity;
-    const tree = (window.TREES || []).find((t) => t.id === 'willow_tree') || (window.TREES || [])[1];
-    const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
-    assert(!!tree && !!mid && !!A && !!M && typeof window.openSkillDetail === 'function', 'setup: no tree/monster/activity-seam fixture — the reported gesture cannot be driven');
-    const snap = snapshotG(); const realFetch = window.fetch; const wasOn = A.isServerAccrualEnabled(); const sent = [];
-    const drain = async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); for (let i = 0; i < 60; i++) await Promise.resolve(); };
-    const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')].find((e) => e.getAttribute('data-prod') === tree.prod);
-    try {
-      /* ACCEPT, AND ECHO THE DECLARED POINTER BACK as the server's own: a stub
-         answering with a fixed activity reconciles the client onto something this
-         gesture never asked for. */
-      window.fetch = function (u, init) {
-        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
-        let body = null; try { body = JSON.parse(init && init.body); } catch (e) {}
-        if (body && body.verb === 'set_activity') sent.push(body);
-        const act = (body && body.activity) || { kind: 'idle', id: null };
-        return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 700 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: {} }), { status: 200 }));
-      };
-      M.resetActivity(); M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' }); A.setServerAccrualEnabled(true);
-      G.skills = Object.assign({}, G.skills, { woodcutting: 14000000 }); G.playerHp = G.playerMaxHp || G.playerHp;
-      window.openSkillDetail('woodcutting'); await drain();
-      window.startSkill('woodcutting', tree.id, tree.ms); await drain(); const painted = tileOf();
-      assert(!!painted && painted.classList.contains('active'), 'CONTROL: the tile must paint ACTIVE while the node runs (pointer ' + G.activeSkill + '/' + G.skillTargetId + '), or this cannot reproduce the stale paint');
-      window.startCombat(mid); await drain();
-      assert(G.activeMonster === mid && !G.activeSkill && !G.skillTargetId, 'setup: the fight or the cross-stop never happened (' + G.activeMonster + ', ' + G.activeSkill + ') — the scenario under test is gone');
-      window.showTab('skills'); await drain();                       // the player walks back; measured: this does NOT repaint the grid
-      const tile = tileOf(); const stalePaint = tile === painted; sent.length = 0;
-      assert(!!tile && tile.isConnected, 'the ' + tree.id + ' tile is no longer on the Skills screen');
-      tile.click(); await drain();
-      const sw = sent.filter((b) => b.activity && b.activity.kind === 'gather' && b.activity.id === tree.id);
-      assert(sw.length >= 1, 'tapping the node the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time, the cross-stop cleared the pointer without rebuilding the panel, and the stop returned in silence. The player cannot get back to their own node with one tap');
-      assert(M.isIntentKey(sw[sw.length - 1].intentId), 'the switch carried no canonical uuid key: ' + sw[sw.length - 1].intentId);
-      assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster + ' — the header would still read as a fight');
-    } finally {
-      window.fetch = realFetch; A.setServerAccrualEnabled(false); if (!wasOn) A.setServerAccrualEnabled(false);
-      try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      M.resetActivity(); M.configureActivity(null);
-      try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {}
-      restoreG(snap); window.showTab('profile');
-    }
+    const tree = (window.TREES || []).find((t) => t.id === 'willow_tree') || (window.TREES || [])[1]; const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
+    assert(!!tree && !!mid && !!window.HearthriseActivity && typeof window.openSkillDetail === 'function', 'setup: no tree/monster/activity-seam fixture — the reported gesture cannot be driven');
+    await cameFromArc({ skillId: 'woodcutting', targetId: tree.id, prod: tree.prod, mid, seed: (G) => { G.skills = Object.assign({}, G.skills, { woodcutting: 14000000 }); }, start: () => window.startSkill('woodcutting', tree.id, tree.ms) },
+      async ({ G, M, sent, settle, tile, stalePaint }) => {
+        tile.click(); await settle();
+        const sw = sent.filter((b) => b.activity && b.activity.kind === 'gather' && b.activity.id === tree.id);
+        assert(sw.length >= 1, 'tapping the node the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time, the cross-stop cleared the pointer without rebuilding the panel, and the stop returned in silence. The player cannot get back to their own node with one tap');
+        assert(M.isIntentKey(sw[sw.length - 1].intentId), 'the switch carried no canonical uuid key: ' + sw[sw.length - 1].intentId);
+        assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster + ' — the header would still read as a fight');
+      });
   }),
 
-  /* ── THE RECIPE YOU CAME FROM (regression suite) ──────────────────────────
-     The same class as the gather tile above, left for its own lane: cook shrimp
-     → fight → open Skills and tap Cook Shrimp again → nothing. All four artisan
-     renderers baked `active ? stopSkill() : startArtisan(…)` at PAINT time, and
-     combat's cross-stop clears the pointer and strips the badge IN PLACE
-     without rebuilding the panel — so that one tile kept a stop handler while
-     looking idle, the stop hit its "was anything running" guard, and the
-     gesture died silently. Driven as the PLAYER'S gesture: a real .click() on
-     the real tile, real declaration path. The last two taps (stop, then start
-     again) are also what licenses deleting the stopSkill re-render wrapper: a
-     stop strips .active in place and rebuilds nothing, so only a click-time
-     toggle can survive it. Prefixed B539- to run alone. */
+  /* ARTISAN HALF of the same arc: cook shrimp → fight → tap Cook Shrimp again.
+     Its last two taps (stop, then start again on a panel a stop never rebuilds)
+     are what licenses deleting the old stopSkill re-render wrapper. */
   () => tryRunAsync('B539-1: after a fight, tapping the artisan recipe you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
-    const G = window.G; const A = window.HearthriseAccrual; const M = window.HearthriseActivity; const AS = window.HearthriseCore && window.HearthriseCore.artisanSim;
     const rec = ((window.ARTISAN_RECIPES || {}).cooking || []).find((r) => r.id === 'cook_shrimp'); const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
-    assert(!!rec && !!mid && !!A && !!M && typeof window.openSkillDetail === 'function' && typeof window.startArtisan === 'function', 'setup: no cook_shrimp recipe / monster / activity seam — the reported gesture cannot be driven');
-    const snap = snapshotG(); const realFetch = window.fetch; const sent = [];
-    const drain = async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); for (let i = 0; i < 60; i++) await Promise.resolve(); };
-    const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')].find((e) => e.getAttribute('data-prod') === rec.output);
+    assert(!!rec && !!mid && !!window.HearthriseActivity && typeof window.startArtisan === 'function', 'setup: no cook_shrimp recipe / monster / activity seam — the reported gesture cannot be driven');
+    await withCookingArmed(() => cameFromArc({ skillId: 'cooking', targetId: rec.id, prod: rec.output, mid, start: () => window.startArtisan('cooking', rec.id),   /* the bench pause is not this test's subject */
+      seed: (G) => { const inp = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inp).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); } },
+      async ({ G, sent, settle, tileOf, tile, stalePaint }) => {
+        tile.click(); await settle();
+        const sw = sent.filter((b) => b.activity && b.activity.kind === 'artisan' && b.activity.id === rec.id);
+        assert(sw.length >= 1, 'tapping the recipe the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time and the stop returned in silence. The player cannot get back to their own bench with one tap');
+        assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster);
+        const back = tileOf(); back.click(); await settle(); assert(!G.activeSkill && !G.skillTargetId, 'a second tap on the RUNNING recipe did not stop it (' + G.activeSkill + '/' + G.skillTargetId + ')');
+        const third = tileOf(); third.click(); await settle(); assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id, 'the tap AFTER a stop did not restart the recipe (' + G.activeSkill + '/' + G.skillTargetId + ') — a stop strips .active in place and rebuilds nothing');
+      }));
+  }),
+
+  /* regression suite — THE BENCH BANNER ASKED FOR A GESTURE THE GAME NO LONGER
+     NEEDS (live play gate, 2026-09-12). Training Cooking, open Woodcutting:
+     «Click "Stop" on that skill first to start a new activity» — and the very
+     next tap, on Normal Tree, switched with no Stop anywhere: the click-time
+     router declares the switch for BOTH kinds, and its only refusal (recovery
+     → away.recoveryRefuses) refuses COMBAT kinds. COPY IS A CONTRACT WITH THE
+     ROUTER, so both halves are measured, sentence and wiring — a renderer that
+     baked the paint-time toggle back in would re-lie without editing a word. */
+  () => tryRunAsync('B540-1: the bench of a skill you are NOT training names the one you are and invites the tap — it never asks for a Stop first', async () => {
+    const G = window.G, tree = (window.TREES || [])[0];
+    assert(!!tree && typeof window.openSkillDetail === 'function' && !!window.SKILLS_DEF, 'setup: no tree / skill-detail seam — the reported screen cannot be rendered');
+    const snap = snapshotG();
     try {
-      /* ACCEPT, AND ECHO THE DECLARED POINTER BACK as the server's own, so the
-         reconcile cannot put the client on something this gesture never asked for. */
-      window.fetch = function (u, init) {
-        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
-        let body = null; try { body = JSON.parse(init && init.body); } catch (e) {}
-        if (body && body.verb === 'set_activity') sent.push(body);
-        const act = (body && body.activity) || { kind: 'idle', id: null };
-        return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 900 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: {} }), { status: 200 }));
-      };
-      if (AS && typeof AS.__setCookingSettlementArm === 'function') AS.__setCookingSettlementArm(true);   // the bench pause is not this test's subject
-      M.resetActivity(); M.configureActivity({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt' }); A.setServerAccrualEnabled(true);
-      const inputs = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inputs).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); G.playerHp = G.playerMaxHp || G.playerHp;
-      window.openSkillDetail('cooking'); await drain();
-      window.startArtisan('cooking', rec.id); await drain(); const painted = tileOf();
-      assert(!!painted && painted.classList.contains('active'), 'CONTROL: the tile must paint ACTIVE while the recipe runs (pointer ' + G.activeSkill + '/' + G.skillTargetId + '), or this cannot reproduce the stale paint');
-      window.startCombat(mid); await drain();
-      assert(G.activeMonster === mid && !G.activeSkill && !G.skillTargetId, 'setup: the fight or the cross-stop never happened (' + G.activeMonster + ', ' + G.activeSkill + ') — the scenario under test is gone');
-      window.showTab('skills'); await drain();                       // the player walks back; measured: this does NOT repaint the grid
-      const tile = tileOf(); const stalePaint = tile === painted; sent.length = 0; assert(!!tile && tile.isConnected, 'the ' + rec.id + ' tile is no longer on the Skills screen');
-      tile.click(); await drain();
-      const sw = sent.filter((b) => b.activity && b.activity.kind === 'artisan' && b.activity.id === rec.id);
-      assert(sw.length >= 1, 'tapping the recipe the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time and the stop returned in silence. The player cannot get back to their own bench with one tap');
-      assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster);
-      const back = tileOf(); back.click(); await drain(); assert(!G.activeSkill && !G.skillTargetId, 'a second tap on the RUNNING recipe did not stop it (' + G.activeSkill + '/' + G.skillTargetId + ')');
-      const third = tileOf(); third.click(); await drain(); assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id, 'the tap AFTER a stop did not restart the recipe (' + G.activeSkill + '/' + G.skillTargetId + ') — a stop strips .active in place and rebuilds nothing');
+      G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp';    // the player is training Cooking…
+      window.openSkillDetail('woodcutting');                         // …and opens the Woodcutting bench
+      await new Promise((r) => setTimeout(r, 80));                   // the banner lands on openSkillDetail's own 30 ms tail
+      const banner = document.querySelector('#skill-detail .skill-viewing-banner');
+      assert(!!banner, 'no .skill-viewing-banner on a bench opened while another skill trains — this arm cannot read the copy it exists to hold');
+      const txt = (banner.textContent || '').replace(/\s+/g, ' ').trim();
+      assert(!/\bstop\b/i.test(txt), 'the banner still tells the player to Stop first: "' + txt + '" — untrue since the click-time router landed: a tap on any unlocked tile of THIS bench switches the activity on its own, so the instruction is a round trip to another screen for nothing');
+      assert(/cooking/i.test(txt), 'the banner must name the activity that is actually running (Cooking), dynamically: "' + txt + '"');
+      assert(/\btap\b|\bswitch\b/i.test(txt), 'the banner must say what the tap DOES, or the player still has no idea how to start here: "' + txt + '"');
+      const tile = document.querySelector('#skill-detail .act-tile:not(.locked)');
+      assert(!!tile && /hrActivityTileClick/.test(tile.getAttribute('onclick') || ''), 'the tiles on this bench do not route through the click-time router (' + (tile && tile.getAttribute('onclick')) + ') — the banner would be promising a switch a paint-time toggle cannot make');
     } finally {
-      window.fetch = realFetch; A.setServerAccrualEnabled(false); try { A.__clearAccrualOverride(); localStorage.removeItem('hr:serverAccrual'); } catch (e) {}
-      if (AS && typeof AS.__setCookingSettlementArm === 'function') AS.__setCookingSettlementArm(null); M.resetActivity(); M.configureActivity(null);
-      try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {}
-      restoreG(snap); window.showTab('profile');
+      document.querySelectorAll('#skill-detail .skill-viewing-banner').forEach((b) => b.remove());
+      restoreG(snap);
     }
   }),
 ];

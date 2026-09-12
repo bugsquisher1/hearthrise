@@ -653,7 +653,19 @@ jobs:
       # 15 mutations, ~2.5 minutes of real PostgreSQL.
       - name: Bounty-Hunter XP — every mutation caught, gate-blind twins included
         if: ${{ !cancelled() }}
-        run: node tests/bounty-hunter-xp.mjs --selftest
+      # ⬇ THE FLOOR UNDER EVERY MUTATION PROOF (2026-09-12, tests/guard-hygiene.mjs
+      # RULE 5). Each of the 22 steps below used to register ONLY the --selftest arm.
+      # A security review planted `where kind = NOSUCHCOLUMN_XYZ` in a guard's OWN SQL:
+      # every arm threw, the driver read each throw as "the guard went red", and the step
+      # printed "All 6 mutations caught", exit 0 — while the plain run of the same file
+      # was RED. A proof arm answers "can this go red"; only the plain arm answers "is it
+      # green when nothing is wrong", and it runs FIRST for that reason. Cost measured
+      # locally: ~110 s total for all 22. tests/snapshot-allowlist-guard.mjs is the
+      # standing proof the plain arm carries information the proof arm does not — its
+      # plain run is red on today's tree with its --selftest green beside it.
+        run: |
+          node tests/bounty-hunter-xp.mjs
+          node tests/bounty-hunter-xp.mjs --selftest
 
       # SA-048: crediting Bounty-Hunter XP (b504, the step above) made the board a
       # RANKED surface, but hr_accept_bounty gated the target TIER by SERVER COMBAT
@@ -673,7 +685,9 @@ jobs:
       # guard's and not the migration's). No credentials.
       - name: Bounty-accept BH-clamp — difficulty gated by BH level, honest tier not locked out
         if: ${{ !cancelled() }}
-        run: node tests/bounty-accept-bh-clamp.mjs --selftest
+        run: |
+          node tests/bounty-accept-bh-clamp.mjs
+          node tests/bounty-accept-bh-clamp.mjs --selftest
 
       # MAX HP IS THE HITPOINTS LEVEL — and on the server it never was. max_hp was
       # stamped once at character creation (hr_start_kit, 10) and no credit site
@@ -690,7 +704,9 @@ jobs:
       # backfill that corrects nothing. 9 mutations, one gate-blind. No credentials.
       - name: Max HP tracks hitpoints — attended, settle, backfill, raise-only
         if: ${{ !cancelled() }}
-        run: node tests/max-hp-tracks-hitpoints.mjs --selftest
+        run: |
+          node tests/max-hp-tracks-hitpoints.mjs
+          node tests/max-hp-tracks-hitpoints.mjs --selftest
 
       # The attended-loot top-up is the OTHER half of the beta-2 progression
       # wall (production 2026-09-04: ~62% of an attended fight's drops were
@@ -705,7 +721,9 @@ jobs:
       # in its own right. No credentials; production untouched.
       - name: Attended loot-credit — top-up bounded, loot-only, botd per UTC-day segment
         if: ${{ !cancelled() }}
-        run: node tests/attended-loot-credit.mjs --selftest
+        run: |
+          node tests/attended-loot-credit.mjs
+          node tests/attended-loot-credit.mjs --selftest
 
       # THE DUNGEON-SCRIP SERVER-OF-RECORD GUARDS (SA-015, docs/design/
       # dungeon-settlement.md). Report #3 was "dungeon scrip goes to 0 on reload"
@@ -718,22 +736,33 @@ jobs:
       # BoP, blueprints/deed tradeable — Tyler b268); and the reload survival
       # itself (hr_state_of projects the balance, record.js reads it back). Each
       # --selftest plants real defects and demands every one turns the guard RED.
-      # The GREEN pass runs inside run-smoke's dungeonServerGuardsPreflight.
+      # The GREEN pass is the PLAIN line in each step below. (It used to say it ran
+      # "inside run-smoke's dungeonServerGuardsPreflight" — there is no such function
+      # in tests/run-smoke.mjs and there never was, so until 2026-09-12 no CI job ran
+      # these four guards' plain bodies at all.)
       - name: Dungeon settle — scrip earn, positive-only cap, 250-count cap, key gate
         if: ${{ !cancelled() }}
-        run: node tests/dungeon-settle.mjs --selftest
+        run: |
+          node tests/dungeon-settle.mjs
+          node tests/dungeon-settle.mjs --selftest
 
       - name: Quartermaster buy — server-priced, debit-once, replay-safe, negative spend row
         if: ${{ !cancelled() }}
-        run: node tests/quartermaster-buy.mjs --selftest
+        run: |
+          node tests/quartermaster-buy.mjs
+          node tests/quartermaster-buy.mjs --selftest
 
       - name: Dungeon marketability — scrip/keys BoP, blueprints/deed stay tradeable
         if: ${{ !cancelled() }}
-        run: node tests/dungeon-marketability.mjs --selftest
+        run: |
+          node tests/dungeon-marketability.mjs
+          node tests/dungeon-marketability.mjs --selftest
 
       - name: Dungeon scrip reload — report #3, scrip survives reload not reset to 0
         if: ${{ !cancelled() }}
-        run: node tests/dungeon-scrip-reload.mjs --selftest
+        run: |
+          node tests/dungeon-scrip-reload.mjs
+          node tests/dungeon-scrip-reload.mjs --selftest
 
       # THE RE-ENTRY COOLDOWN (b536 residue-ahead census item 5,
       # supabase/migrations/2026-09-12-dungeon-cooldown.sql). The cooldown was
@@ -782,7 +811,9 @@ jobs:
       # No credentials; production untouched.
       - name: State-of farm projection - plot tier and watering history survive a reload
         if: ${{ !cancelled() }}
-        run: node tests/state-of-farm-projection.mjs --selftest
+        run: |
+          node tests/state-of-farm-projection.mjs
+          node tests/state-of-farm-projection.mjs --selftest
 
       # THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07,
       # supabase/migrations/2026-09-07-last-away-receipt.sql). A receipt the
@@ -880,7 +911,9 @@ jobs:
       # 13 mutations, no credentials, production untouched.
       - name: Recovery rule - hr_rest, the ladder ceiling, the death ledger, the auto-eat stamp
         if: ${{ !cancelled() }}
-        run: node tests/recovery-rest.mjs --selftest
+        run: |
+          node tests/recovery-rest.mjs
+          node tests/recovery-rest.mjs --selftest
 
       # THE HEARTHFIND (Feature Slate 2) -- the super-rare drop moment.
       # THE CATALOGUE IS GENERATED, NEVER HAND-TYPED. hr_hearthfind_items /
@@ -905,7 +938,9 @@ jobs:
       # 7 mutations, no credentials, production untouched.
       - name: Hearthfind - the seeded roll, AWAY-1 parity, and the mint guard
         if: ${{ !cancelled() }}
-        run: node tests/hearthfind-roll.mjs --selftest
+        run: |
+          node tests/hearthfind-roll.mjs
+          node tests/hearthfind-roll.mjs --selftest
 
       # THE MEASUREMENT BEHIND THE ODDS (Designer ruling 2026-09-08 SS4).
       # A hearthfind is authored as EXPECTED HOURS at its source and the build
@@ -923,7 +958,9 @@ jobs:
       # 4 mutations + a clean-tree negative control, no credentials, no DB.
       - name: Hearthfind - the boss kill rate IS what the one engine does
         if: ${{ !cancelled() }}
-        run: node tests/hearthfind-boss-rate.mjs --selftest
+        run: |
+          node tests/hearthfind-boss-rate.mjs
+          node tests/hearthfind-boss-rate.mjs --selftest
 
       # THE SQL HALF, ON A REAL DATABASE (PGlite, the ordered migration chain).
       # An honest find pays ONE trophy + ONE ledger row + ONE broadcast + a
@@ -938,7 +975,9 @@ jobs:
       # 15 mutations, no credentials, production untouched.
       - name: Hearthfind - hr_apply grants, journals, broadcasts, and clamps
         if: ${{ !cancelled() }}
-        run: node tests/hearthfind-authority.mjs --selftest
+        run: |
+          node tests/hearthfind-authority.mjs
+          node tests/hearthfind-authority.mjs --selftest
 
       # SECURITY F1 -- THE ATTENDED HALF OF THE SAME RULE.
       # The Recovery Rule shipped with a hole its own header named: the AWAY path
@@ -961,7 +1000,9 @@ jobs:
       # chain; not run here because schema-drift already replays the chain.)
       - name: Recovery floor - the attended cadence RPCs obey recovering_until
         if: ${{ !cancelled() }}
-        run: node tests/cadence-recovery-floor.mjs --selftest
+        run: |
+          node tests/cadence-recovery-floor.mjs
+          node tests/cadence-recovery-floor.mjs --selftest
 
       # THE CONSERVATION FUZZ. Randomised, seeded operations across several
       # characters against the REAL server-authority migrations, running on an
@@ -973,7 +1014,9 @@ jobs:
       # `npm run test:conservation:soak`.
       - name: Conservation fuzz + injection selftest
         if: ${{ !cancelled() }}
-        run: node tests/conservation-fuzz.mjs --selftest --ops=400
+        run: |
+          node tests/conservation-fuzz.mjs --ops=400
+          node tests/conservation-fuzz.mjs --selftest --ops=400
 
       # THE PLAYER INTENTS. Both run the REAL Edge-Function modules — the same
       # bytes tools/pack-edge.mjs ships — behind their one injected `exec` seam,
@@ -996,7 +1039,9 @@ jobs:
       # every one is caught.
       - name: The grant intent — claim once, server-priced, server-dated
         if: ${{ !cancelled() }}
-        run: node tests/claim-intent.mjs --selftest
+        run: |
+          node tests/claim-intent.mjs
+          node tests/claim-intent.mjs --selftest
 
       # THE CLAN JOURNAL INVARIANT (F1 + F3, 2026-08-13). "Every RPC that writes
       # a shared table emits a clan_ledger row in the same transaction" — proven
@@ -1006,7 +1051,9 @@ jobs:
       # own commit gates and are caught only here.
       - name: Clan journal + per-day caps (F1/F3)
         if: ${{ !cancelled() }}
-        run: node tests/clan-journal-guard.mjs --selftest
+        run: |
+          node tests/clan-journal-guard.mjs
+          node tests/clan-journal-guard.mjs --selftest
 
       # THE ANON RATE GATE (F4, 2026-08-13). Reproduces Security's probe — 30
       # anonymous calls against a limit of 20 must produce refusals — with the
@@ -1015,7 +1062,9 @@ jobs:
       # one. Must stay green before A11's server half is applied.
       - name: Anon rate gate (F4)
         if: ${{ !cancelled() }}
-        run: node tests/anon-rate-gate.mjs --selftest
+        run: |
+          node tests/anon-rate-gate.mjs
+          node tests/anon-rate-gate.mjs --selftest
 
       # THE HUNT BAND. Proves, by running the real migration bodies on an
       # in-process PostgreSQL, that the retired median rule DID let one member's
@@ -1024,7 +1073,9 @@ jobs:
       # mutates the real fix SQL five ways and demands every mutation is caught.
       - name: Hunt band — denial before, gone after, free-rider still refused
         if: ${{ !cancelled() }}
-        run: node tests/raid-band-denial.mjs --selftest
+        run: |
+          node tests/raid-band-denial.mjs
+          node tests/raid-band-denial.mjs --selftest
 
       # THE BACKFILLED LIFETIME PLANT COUNTER MUST STAY UNPAYABLE (Security P2 on
       # supabase/migrations/2026-09-07-farm-plant-lifetime-counter.sql). That file
@@ -1046,7 +1097,9 @@ jobs:
       # own ADD path is exercised rather than assumed. No credentials.
       - name: Goal counter kinds - the backfilled lifetime ev:planted stock cannot be claimed
         if: ${{ !cancelled() }}
-        run: node tests/goal-counter-kinds.mjs --selftest
+        run: |
+          node tests/goal-counter-kinds.mjs
+          node tests/goal-counter-kinds.mjs --selftest
 
       # ORPHAN ADOPTED. W1-W13 on the shipped hired-crew accrual engine. Its
       # header claimed run-smoke.mjs invoked it; nothing did, so thirteen
@@ -1164,7 +1217,9 @@ jobs:
       # 7 mutations + a clean-tree negative control, no credentials.
       - name: Hearthfind mint guard - no gold, no market, no multiplier
         if: ${{ !cancelled() }}
-        run: node tests/hearthfind-mint-guard.mjs --selftest
+        run: |
+          node tests/hearthfind-mint-guard.mjs
+          node tests/hearthfind-mint-guard.mjs --selftest
 
       # The cache-buster rule, mutation-proven: 6 defects caught (stale tag,
       # stale ESM specifier = the b493 double-load, the b511 bare quoted pin, a
@@ -1281,7 +1336,9 @@ jobs:
       # noticed. Static, credential-free, milliseconds.
       - name: Recovery relief - nothing in any catalogue sells a way off the floor
         if: ${{ !cancelled() }}
-        run: node tests/recovery-relief-guard.mjs --selftest
+        run: |
+          node tests/recovery-relief-guard.mjs
+          node tests/recovery-relief-guard.mjs --selftest
 
       # A DEATH THE PLAYER WATCHED IS STILL THE SERVER'S.
       # b509's Recovery Rule held away and not live: the attended death called
@@ -1295,7 +1352,9 @@ jobs:
       # places the bug can come back. 9 mutations, no credentials, milliseconds.
       - name: Attended fall - the client asks, the server answers, nobody invents a timer
         if: ${{ !cancelled() }}
-        run: node tests/attended-fall.mjs --selftest
+        run: |
+          node tests/attended-fall.mjs
+          node tests/attended-fall.mjs --selftest
 
       # -- THE PRESENTATION-LAYER FLOOR (cleanup slice 1) --------------------
       # Three ratchets on the things CLAUDE.md has asserted for months while

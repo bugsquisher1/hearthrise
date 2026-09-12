@@ -1562,14 +1562,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=539';
+import * as itemLedger from './item-ledger.js?v=542';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=539';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=542';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1578,7 +1578,7 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=539';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=542';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -1596,24 +1596,24 @@ import { serverAccruedSkill } from '../data/skill-authority.js?v=539';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=539';
+import * as pendingConsume from './pending-consume.js?v=542';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=539';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=542';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=539';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=542';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
    driven headlessly by the suite. The two curves are pinned equal to each other
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
-import { companionLevelFromXp } from '../core/companion-perk.js?v=539';
+import { companionLevelFromXp } from '../core/companion-perk.js?v=542';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -2075,6 +2075,65 @@ export function reconcileHeroSlots(G, res) {
   owned.sort((a, b) => a - b);
   G._heroSlots = { owned, at: Date.now() };
   return { mode: 'server', owned: owned.length };
+}
+
+/* ── THE DUNGEON RE-ENTRY WINDOWS ARE THE SERVER'S ───────────────────────────
+   hr_dungeon_settle refuses an early re-entry with `on_cooldown` and a detail
+   carrying {dungeon, mode, next_entry_at}; hr_state_of projects the ACTIVE windows
+   as a top-level `dungeon_cooldowns`, PER DUNGEON AND PER MODE —
+   { "<dungeon_id>": { "auto": ISO, "manual": ISO, "scavenger": ISO } } — derived by
+   the SAME function the gate refuses on, so the countdown shown and the window
+   enforced are one number. This lands it where the dungeon cards read it.
+
+   PER MODE, NOT PER DUNGEON, and the nesting is the whole contract: one run stamps
+   one `last_at` and each mode clears at `last_at + cooldown_s / divisor(mode)`
+   (auto 1, manual 1, scavenger 4). So a scavenger entry can be open while auto is
+   not, and a flat "is this dungeon resting" answer would be wrong for two of the
+   three buttons. A caller must name the mode it is about to settle as.
+
+   ⚠ IT DOES NOT WRITE `G.dungeons.lastRun`, AND THAT IS THE POINT. That was a
+   CLIENT-CLOCK stamp in the residue — a clock the client set and could rewind —
+   and once the settle arm went live nothing stamped it at all, so every card read
+   "ready" regardless of what the server would allow. The server's answer lands in
+   its own `_`-prefixed scratch key: never synced, never persisted, and ABSENT on a
+   cold boot, which reads as ready — exactly today's behaviour until an envelope
+   speaks.
+
+   TWO SHAPES, ONE SEAM. A projection is ABSOLUTE (it holds open entries only, so an
+   omitted mode has come off cooldown and must read ready); a refusal detail names
+   ONE dungeon and ONE mode, so it MERGES into that entry — which paints the
+   countdown the instant the server says no, without waiting for an envelope. A
+   detail without a `mode` is not placed anywhere rather than guessed at: the mode is
+   what the entry MEANS, and a guess would rest the wrong button.
+
+   FAIL-OPEN on absence or garbage, deliberately. A stamp we cannot read leaves the
+   button live, the player clicks, and the SERVER refuses with the honest reason;
+   evicting on an unparseable stamp would lock a dungeon out of an account with no
+   way back, which is the uncertainty rule (§6). Pure — G + res in, a receipt out. */
+export function reconcileDungeonCooldowns(G, res) {
+  if (!G || typeof G !== 'object' || !res || typeof res !== 'object') return null;
+  const iso = (v) => { const t = Date.parse(v); return Number.isFinite(t) ? new Date(t).toISOString() : null; };
+  const bag = (v) => (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
+  const map = bag(res.dungeon_cooldowns);
+  if (map) {
+    const out = {};
+    for (const id of Object.keys(map)) {
+      const modes = bag(map[id]);
+      if (!modes) continue;
+      const kept = {};
+      for (const m of Object.keys(modes)) { const s = iso(modes[m]); if (s) kept[m] = s; }
+      if (Object.keys(kept).length) out[id] = kept;
+    }
+    G._dungeonCooldowns = out;
+    return { mode: 'server', active: Object.keys(out).length };
+  }
+  const d = bag(res.detail);
+  const one = (d && typeof d.dungeon === 'string' && typeof d.mode === 'string') ? iso(d.next_entry_at) : null;
+  if (!one) return { mode: 'absent' };
+  const merged = Object.assign({}, G._dungeonCooldowns || {});
+  merged[d.dungeon] = Object.assign({}, bag(merged[d.dungeon]) || {}, { [d.mode]: one });
+  G._dungeonCooldowns = merged;
+  return { mode: 'refusal', active: Object.keys(merged).length };
 }
 
 /* ── THE LIFETIME EVENT COUNTERS ARE THE SERVER'S (dead-counter class) ────────
@@ -2743,6 +2802,11 @@ export function applyEnvelopeState(G, res, ownKey) {
      Lands in `G._heroSlots` scratch, NEVER in the G.heroSlotsUnlocked residue;
      see reconcileHeroSlots' header for why keeping the two apart is the fix. */
   written.heroSlots = reconcileHeroSlots(G, res);
+
+  /* AND THE DUNGEON RE-ENTRY WINDOWS BESIDE THEM, for the same reason: the panel's
+     countdown must be right on the envelope the player's own action produced, not
+     one poll later. Same absolute/merge split, same fail-open — see the header. */
+  written.dungeonCooldowns = reconcileDungeonCooldowns(G, res);
 
   /* THE LIFETIME GOAL COUNTERS ARE THE SERVER'S (`ev:*` permanent progress
      rows). Reconciled here, beside traits and the property rung, because they
@@ -4994,7 +5058,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

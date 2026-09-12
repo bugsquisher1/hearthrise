@@ -534,8 +534,14 @@
             if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body
                && typeof DS.reconcileFromEnvelope === 'function'){
               DS.reconcileFromEnvelope(window.G, v.body);
-            } else if(v && v.outcome === 'refused' && typeof window.notify === 'function'){
-              window.notify(DS.dungeonRefusalMessage(v.reason), 'kill');
+            } else if(v && v.outcome === 'refused'){
+              /* The re-entry window is the server's; a refusal names the ONE dungeon
+                 and ONE mode it refused on, so adopt it into the mirror the dungeon
+                 cards read (accrue.js reconcileDungeonCooldowns) and repeat the
+                 server's own sentence, with the ready-at time out of its detail. */
+              var A = window.HearthriseAccrual;
+              if(A && v.body && typeof A.reconcileDungeonCooldowns === 'function') A.reconcileDungeonCooldowns(window.G, v.body);
+              if(typeof window.notify === 'function') window.notify(DS.dungeonRefusalMessage(v.reason, v.body && v.body.detail), 'kill');
             }
             if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
             if(typeof window.updateTopbar === 'function') window.updateTopbar();
@@ -552,8 +558,9 @@
           window.awardDungeonScrip(run.dungeonId, quality);
         }
       }
-      // Manual scavenger runs do NOT impose a cooldown — players who put in
-      // the time/effort can keep running. Only the auto-run path stamps lastRun.
+      // A scavenger run costs a QUARTER of the dungeon's re-entry window, not the
+      // whole one — the reward for putting in the time. That number is the SERVER's
+      // (hr_dungeon_cooldown_modes(), scavenger divisor 4); the client only reads it.
       var rewardHtml = awarded.length ? awarded.map(function(a){
         var item = window.ITEMS && window.ITEMS[a.id];
         return '<div class="scv-reward-row">' + window.itemFallbackIcon(a.id, 18, item) + ' +' + a.qty + ' <b>' + (item?item.n:a.id) + '</b></div>';
@@ -579,37 +586,24 @@
   }
 
   // Public entry: start a scavenger run for the given dungeon id.
-  // Returns true if started, false if not (no config / can't afford / underleveled).
-  // NOTE: Manual scavenger runs DO NOT have a cooldown — only the auto-run
-  // does. We deliberately bypass canRunDungeon's cooldown check here and roll
-  // our own gate for level + cost.
+  // Returns true if started, false if not (no config / can't afford / underleveled /
+  // the scavenger window is still open).
+  /* ONE GATE — canRunDungeon, IN THE MODE THIS RUN WILL SETTLE AS. This used to be a
+     hand-rolled copy of that function's level/key/gold/token checks that
+     "deliberately bypasses canRunDungeon's cooldown check" because a scavenger run
+     had none. It has one now — a quarter of the dungeon's window (the divisor table
+     says auto 1, manual 1, scavenger 4; nothing is exempt) — so bypassing it would walk
+     the player through an entire mini-game and refuse them at the settle, and a
+     duplicate gate drifts from the real one the next time either side changes. */
   window.startScavengerRun = function(dungeonId){
     var cfg = SCAVENGER_CONFIGS[dungeonId];
     if(!cfg){ return false; }
     var d = window.DUNGEONS && window.DUNGEONS[dungeonId];
     if(!d){ return false; }
-    var lv = (typeof window.getCombatLevel === 'function') ? window.getCombatLevel() : 1;
-    if(lv < d.reqLv){
-      if(typeof window.notify === 'function') window.notify('Combat Lv ' + d.reqLv + ' required (you are ' + lv + ')', 'kill');
-      return false;
-    }
-    if(d.cost.key){
-      var keyItem = window.ITEMS && window.ITEMS[d.cost.key];
-      var keyName = keyItem ? keyItem.n : d.cost.key;
-      if((window.G.inventory[d.cost.key] || 0) < 1){
-        if(typeof window.notify === 'function') window.notify('Need a ' + keyName, 'kill');
-        return false;
-      }
-    }
-    if(d.cost.gold && !window.balCanAfford(d.cost.gold, 'gold')){
-      if(typeof window.notify === 'function'){
-        window.notify(window.balKnown('gold') ? ('Need ' + d.cost.gold + ' gold')
-          : window.balShortfall(d.cost.gold, 'gold'), 'kill');
-      }
-      return false;
-    }
-    if(d.cost.hearth_token && (window.G.inventory.hearth_token || 0) < d.cost.hearth_token){
-      if(typeof window.notify === 'function') window.notify('Need ' + d.cost.hearth_token + ' Hearth Tokens', 'kill');
+    var check = (typeof window.canRunDungeon === 'function')
+      ? window.canRunDungeon(dungeonId, 'scavenger') : { ok: true };
+    if(!check.ok){
+      if(typeof window.notify === 'function') window.notify(check.reason, 'kill');
       return false;
     }
     // Pay cost.

@@ -217,10 +217,17 @@
      loot), instead of minting locally. Fire-and-reconcile — the server rolls the
      loot with its seeded PRNG and credits scrip; the client renders what returns.
      A no-op if the transport is not wired (dormant / unconfigured). */
-  function settleRunServer(id, mode, quality){
+  function settleRunServer(id, mode, quality, onVerdict){
     var DS = window.HearthriseDungeonSettle;
     if(!DS || typeof DS.sendDungeonSettle !== 'function') return;
     DS.sendDungeonSettle({ id: id, mode: mode, quality: quality }).then(function(v){
+      /* THE RE-ENTRY WINDOW IS THE SERVER'S, and this answer is the freshest
+         statement of it in existence: a 200 carries the whole projection, a
+         refusal carries the one window it refused on, and ONE seam reads both
+         (accrue.js reconcileDungeonCooldowns). Before the renders below, so the
+         countdown repaints in the same turn the server spoke. */
+      var A = window.HearthriseAccrual;
+      if(A && v && v.body && typeof A.reconcileDungeonCooldowns === 'function') A.reconcileDungeonCooldowns(window.G, v.body);
       if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body){
         if(typeof DS.reconcileFromEnvelope === 'function') DS.reconcileFromEnvelope(window.G, v.body);
         var s = v.body.settled;
@@ -232,13 +239,40 @@
           });
         }
       } else if(v && v.outcome === 'refused' && typeof window.notify === 'function'){
-        window.notify(DS.dungeonRefusalMessage(v.reason), 'kill');
+        window.notify(DS.dungeonRefusalMessage(v.reason, v.body && v.body.detail), 'kill');
       }
+      if(typeof onVerdict === 'function') onVerdict(v);
       if(typeof window.renderDungeons === 'function') window.renderDungeons();
       if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
       if(typeof window.updateTopbar === 'function') window.updateTopbar();
     }).catch(function(e){ console.warn('[dungeons] settle send threw:', e && e.message); });
   }
+
+  /* ── THE SETTLE ROW RENDERS FROM THE ANSWER, NEVER FROM THE SEND ────────────
+     It used to read `_dsArmed() ? 'Rewards settled — scrip and loot are in your
+     bag.' : …` — a sentence composed BEFORE the request was even sent, so a run
+     the server refused (on cooldown, no key, daily cap) still told the player
+     their loot had landed. `null` is the honest pre-answer state; a refusal shows
+     the server's own reason. Exposed because src/dungeons.js is a classic script
+     (it cannot export) and this is the one renderer the modal uses. */
+  function settleRowHtml(v){
+    if(!v) return '<div class="drm-empty">Settling with the server…</div>';
+    if(v.outcome !== 'settled' && v.outcome !== 'replayed'){
+      var DS = window.HearthriseDungeonSettle;
+      return '<div class="drm-empty">' + ((DS && typeof DS.dungeonRefusalMessage === 'function')
+        ? DS.dungeonRefusalMessage(v.reason, v.body && v.body.detail)
+        : 'The server refused that run.') + '</div>';
+    }
+    var s = (v.body && v.body.settled) || null;
+    if(!s) return '<div class="drm-reward-row">Rewards settled — the server had already credited this run.</div>';
+    return Object.keys((s && s.items) || {}).map(function(iid){
+      var item = window.ITEMS && window.ITEMS[iid];
+      return '<div class="drm-reward-row"><span>' + window.itemFallbackIcon(iid, 22, item) + '</span> +'
+        + s.items[iid] + ' ' + (item ? item.n : iid) + '</div>';
+    }).join('') + '<div class="drm-reward-row">Rewards settled — '
+      + ((s && s.scrip) || 0) + ' Dungeon Scrip is in your purse.</div>';
+  }
+  window.dungeonSettleRowHtml = settleRowHtml;
 
   function awardDungeonScrip(id, fraction){
     var d = DUNGEONS[id]; if(!d || !window.G) return 0;
@@ -393,14 +427,18 @@
   }
   window.openQuartermaster = openQuartermaster;
 
-  // ---- State ----
-  function ensureState(){
-    if(!window.G) return;
-    window.G.dungeons = window.G.dungeons || { lastRun: {} };
+  /* The mode the MANUAL button will actually settle as — scavenger where the game
+     authors a scavenger encounter (the same test the card's click handler makes, and
+     the same fact hr_dungeons.scavenger_ok is generated from), manual otherwise.
+     Named once so the gate, the label and the send cannot disagree about it. */
+  function manualMode(id){
+    return (window.SCAVENGER_CONFIGS && window.SCAVENGER_CONFIGS[id]) ? 'scavenger' : 'manual';
   }
 
-  function canRun(id){
-    ensureState();
+  /* `mode` is the mode the caller is about to SETTLE as, because that is the only
+     mode whose window binds it. Defaults to 'auto' so `window.canRunDungeon(id)`
+     keeps meaning what it has always meant. */
+  function canRun(id, mode){
     var d = DUNGEONS[id];
     if(!d) return { ok: false, reason: 'unknown' };
     var lv = (typeof window.getCombatLevel === 'function') ? window.getCombatLevel() : 1;
@@ -419,11 +457,21 @@
     if(d.cost.hearth_token && (window.G.inventory.hearth_token || 0) < d.cost.hearth_token) {
       return { ok: false, reason: 'Need ' + d.cost.hearth_token + ' Hearth Tokens' };
     }
-    var last = window.G.dungeons.lastRun[id] || 0;
-    var cdMs = d.cooldownH * 3600000;
-    var elapsed = Date.now() - last;
-    if(elapsed < cdMs) {
-      var hRemain = ((cdMs - elapsed) / 3600000).toFixed(1);
+    /* THE COOLDOWN IS A SERVER FACT, READ — NOT A CLIENT CLOCK, COMPUTED.
+       This was `Date.now() - G.dungeons.lastRun[id] < d.cooldownH*3600000`: the
+       client stamped its own clock, kept it in the residue and did the arithmetic
+       itself. Under the settle arm nothing stamped it any more, so this gate said
+       "ready" forever — for auto, and for a manual run the server had never gated
+       at all. Now hr_state_of projects the open windows PER MODE and
+       reconcileDungeonCooldowns mirrors them into `_dungeonCooldowns`; an ABSENT
+       entry means ready, which is both today's behaviour on a server that does not
+       project it yet and the correct reading of a window that has expired. An
+       unparseable stamp gives NaN, `NaN > now` is false, and the player gets the
+       server's honest refusal instead of a dungeon locked out forever (§6). */
+    var win = ((window.G && window.G._dungeonCooldowns || {})[id] || {})[mode || 'auto'];
+    var until = win ? Date.parse(win) : 0;
+    if(until > Date.now()) {
+      var hRemain = ((until - Date.now()) / 3600000).toFixed(1);
       return { ok: false, reason: 'On cooldown — ' + hRemain + 'h remaining' };
     }
     return { ok: true };
@@ -431,7 +479,7 @@
   window.canRunDungeon = canRun;
 
   function runDungeon(id){
-    var check = canRun(id);
+    var check = canRun(id, 'auto');
     if(!check.ok){
       if(typeof window.notify === 'function') window.notify(check.reason, 'kill');
       return false;
@@ -466,7 +514,6 @@
         awarded.push({ id: roll.id, qty: qty });
       }
     });
-    window.G.dungeons.lastRun[id] = Date.now();
     awardDungeonScrip(id, 1);
     if(typeof window.notify === 'function'){
       window.notify('Cleared ' + d.name + '! ' + awarded.length + ' rewards', 'levelup');
@@ -530,7 +577,6 @@
   function renderDungeons(){
     var panel = document.getElementById('panel-dungeons');
     if(!panel) return;
-    ensureState();
     var grouped = { dungeon: [], raid: [], worldboss: [] };
     Object.entries(DUNGEONS).forEach(function(kv){ grouped[kv[1].kind].push([kv[0], kv[1]]); });
     /* b213 QA: these key-gated runs are SOLO content (the run engine has no
@@ -554,7 +600,7 @@
       html += '<div class="dgn-section"><h3>' + sectionLabel[kind] + '</h3><div class="dgn-grid">';
       grouped[kind].forEach(function(entry){
         var id = entry[0], d = entry[1];
-        var check = canRun(id);
+        var check = canRun(id, 'auto');
         var lootHtml = (d.loot||[]).map(function(l){
           var item = window.ITEMS && window.ITEMS[l.id];
           /* b213 (phase 2): prefer the painted item icon over the data emoji */
@@ -620,20 +666,33 @@
             '<div class="dgn-foot">' +
               '<div class="dgn-cost">Entry: <b>' + costStr + '</b></div>' +
               (function(){
-                // Manual runs ignore the auto-run cooldown — only block them
-                // for level/cost reasons. Auto-run still blocks on cooldown.
+                /* EACH BUTTON IS GATED, AND LABELLED, FROM ITS OWN MODE'S WINDOW.
+                   It used to read "Manual runs ignore the auto-run cooldown" and
+                   hand-roll a level/key/gold/token copy of canRun that omitted the
+                   cooldown — true while the server gated auto only, and a lie the
+                   day it gated EVERY mode at its own share of the window (divisors:
+                   auto 1, manual 1, scavenger 4). One canRun call per
+                   button, in the mode that button will settle as, so the countdown a
+                   player reads is the one the server will enforce on that click.
+                   A non-cooldown refusal (level, key) is IDENTICAL on both buttons,
+                   so it is printed once — today's look — and the manual button only
+                   appears disabled when it is saying something the auto one is not. */
                 var hasManual = !!(d.phases || (window.SCAVENGER_CONFIGS && window.SCAVENGER_CONFIGS[id]));
-                var lvOk = (typeof window.getCombatLevel === 'function') ? (window.getCombatLevel() >= d.reqLv) : true;
-                var goldOk = !d.cost.gold || window.balCanAfford(d.cost.gold, 'gold');
-                var tokenOk = !d.cost.hearth_token || (window.G && (window.G.inventory.hearth_token||0) >= d.cost.hearth_token);
-                var keyOk = !d.cost.key || (window.G && (window.G.inventory[d.cost.key]||0) >= 1);
-                var manualOk = hasManual && lvOk && goldOk && tokenOk && keyOk;
+                var mMode = manualMode(id);
+                var mCheck = hasManual ? canRun(id, mMode) : { ok: false, reason: check.reason };
                 var autoBtn = check.ok
-                  ? '<button class="dgn-run dgn-run-auto" data-dgn="' + id + '" title="Quick auto-run, base rewards · uses cooldown">Auto-Run</button>'
+                  ? '<button class="dgn-run dgn-run-auto" data-dgn="' + id + '" title="Quick auto-run, base rewards · uses the full ' + d.cooldownH + 'h cooldown">Auto-Run</button>'
                   : '<button class="dgn-run" disabled title="' + check.reason + '">' + check.reason + '</button>';
-                var manualBtn = manualOk
-                  ? '<button class="dgn-run dgn-run-manual" data-dgn-manual="' + id + '" title="Scavenger run · no cooldown · loot scales with boss HP taken down">Manual Run</button>'
-                  : '';
+                var mName = mMode === 'scavenger' ? 'Scavenger' : 'Manual';
+                var manualBtn = !hasManual ? ''
+                  : mCheck.ok
+                    ? '<button class="dgn-run dgn-run-manual" data-dgn-manual="' + id + '" title="' + mName + ' run · loot scales with boss HP taken down">Manual Run</button>'
+                    : (mCheck.reason === check.reason ? ''
+                      /* Same width as the disabled Auto-Run label the card already
+                         renders — the mode name replaces "On cooldown", it is not
+                         added in front of it, so a two-button row cannot grow. */
+                      : '<button class="dgn-run" disabled title="' + mName + ' run · ' + mCheck.reason + '">'
+                        + mName + ' · ' + mCheck.reason.replace('On cooldown — ', '') + '</button>');
                 return '<div class="dgn-run-buttons">' + manualBtn + autoBtn + '</div>';
               })() +
             '</div>' +
@@ -751,6 +810,16 @@
     var mult = 0.4 + pct * 1.6;
     var bop = pct >= 1 ? 0.20 : pct >= 0.66 ? 0.10 : 0;
     var awarded = [];
+    var settleV = null;
+    /* The modal is repainted FROM the verdict when it lands (settleRowHtml), so
+       "Rewards settled" is only ever written once the server has actually settled.
+       Robust to the player closing first: the host node is looked up by id and a
+       missing node is simply not painted (the toast already spoke). */
+    function paintSettleRow(v){
+      settleV = v;
+      var host = document.getElementById('drm-spoils');
+      if(host) host.innerHTML = settleRowHtml(v);
+    }
     if(_dsArmed()){
       /* ARMED: the entry key was consumed at start (below, gated the same way),
          and the loot + scrip are server-owned. Send hr_dungeon_settle (mode
@@ -758,15 +827,13 @@
          is CLAMPED to [0,1] server-side and scales SELF-ONLY scrip; loot is a pure
          server roll. No local mint → no double-credit. The bag re-renders from the
          reconcile; the modal shows the server-settled result. */
-      settleRunServer(runState.dungeonId, 'manual', pct);
+      settleRunServer(runState.dungeonId, 'manual', pct, paintSettleRow);
     } else {
       awarded = awardLoot(runState.dungeonId, mult, bop);
       awardDungeonScrip(runState.dungeonId, pct);   // b281: scrip scales with phases cleared
-      // Pay cooldown (client-side, dormant path only; the server owns it under arm)
-      if(window.G && window.G.dungeons) window.G.dungeons.lastRun[runState.dungeonId] = Date.now();
     }
     var rewardHtml = _dsArmed()
-      ? '<div class="drm-reward-row">Rewards settled — scrip and loot are in your bag.</div>'
+      ? settleRowHtml(null)
       : awarded.map(function(a){
       var item = window.ITEMS && window.ITEMS[a.id];
       return '<div class="drm-reward-row"><span>' + window.itemFallbackIcon(a.id, 22, item) + '</span> +' + a.qty + ' ' + (item?item.n:a.id) + '</div>';
@@ -783,7 +850,7 @@
         '<div class="drm-mult">Reward multiplier: <b>' + mult.toFixed(1) + 'x</b></div>' +
       '</div>' +
       '<div class="drm-rewards">' +
-        '<h4>Spoils</h4>' + rewardHtml +
+        '<h4>Spoils</h4><div id="drm-spoils">' + rewardHtml + '</div>' +
       '</div>' +
       '<button class="drm-btn drm-btn-primary" id="drm-finish">Claim</button>';
     modal.querySelector('.drm-close').addEventListener('click', closeRunModal);
@@ -792,7 +859,12 @@
       if(typeof window.renderDungeons === 'function') window.renderDungeons();
       if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
       if(typeof window.updateTopbar === 'function') window.updateTopbar();
-      if(typeof window.notify === 'function') window.notify('Cleared ' + d.name + ' (manual): ' + awarded.length + ' rewards', 'levelup');
+      /* And the Claim toast is honest too: under arm `awarded` is always [], so the
+         old line read "Cleared … : 0 rewards" on a SUCCESSFUL server settle and
+         "Cleared" on a refused one. Armed, it speaks only for a settled verdict. */
+      if(typeof window.notify !== 'function') return;
+      if(!_dsArmed()) window.notify('Cleared ' + d.name + ' (manual): ' + awarded.length + ' rewards', 'levelup');
+      else if(settleV && (settleV.outcome === 'settled' || settleV.outcome === 'replayed')) window.notify('Cleared ' + d.name + ' (manual)', 'levelup');
     });
   }
 
@@ -1025,7 +1097,7 @@
   function startManualRun(id){
     var d = DUNGEONS[id];
     if(!d || !d.phases) return;
-    var check = canRun(id);
+    var check = canRun(id, 'manual');   // the mode showSummary will settle as
     if(!check.ok){
       if(typeof window.notify === 'function') window.notify(check.reason, 'kill');
       return;

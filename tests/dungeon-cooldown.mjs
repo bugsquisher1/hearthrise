@@ -361,6 +361,27 @@ async function runAll(db) {
     [win(mapQ2, DUNGEON, 'scavenger'), qAt]);
   ok(eqQ.gt === true, 'the scavenger settle stamped a fresh quarter window from the server clock');
 
+  // ── (9a2) EVERY MODE THE SETTLE ACCEPTS BINDS A WINDOW (Security R1b) ────
+  //    A client-chosen mode must select the window's LENGTH, never its existence.
+  //    The mode list is read out of the INSTALLED body's own enum rather than
+  //    hardcoded, so a fourth mode added tomorrow with no divisor turns this red
+  //    instead of shipping a free re-entry. The reviewer measured that the payout is
+  //    identical across modes (loot from hr_dungeon_loot, scrip =
+  //    round(scrip_base * clamp(quality))), so "no window" would be a pure gain.
+  const body = (await one(db,
+    `select prosrc from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+      where n.nspname='public' and p.proname='hr_dungeon_settle'`)).prosrc;
+  const enumM = body.match(/p_mode not in \(([^)]*)\)/);
+  ok(!!enumM, 'the settle body still declares its accepted mode enum (the arm is not vacuous)');
+  const modes = [...(enumM ? enumM[1] : '').matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+  ok(modes.length >= 3, `the mode enum parsed (${JSON.stringify(modes)})`);
+  for (const m of modes) {
+    const d = (await one(db, 'select public.hr_dungeon_cooldown_divisor($1::text) as d', [m])).d;
+    ok(d !== null && Number(d) > 0,
+      `mode '${m}' binds a window (divisor ${d}) — a mode with no divisor would be a client-chosen `
+      + 'opt-out from the cooldown at identical payout');
+  }
+
   // ── (9b) SCAVENGER IS A CATALOGUE FACT, not a client claim ───────────────
   const noCfg = await one(db,
     `select dungeon_id from public.hr_dungeons where not scavenger_ok and cooldown_s > 0
@@ -490,6 +511,23 @@ async function runAll(db) {
 const argv = process.argv.slice(2);
 if (argv.includes('--selftest')) {
   console.log('dungeon-cooldown --selftest: each mutation must turn the guard RED');
+  // ── THE FALSE-POSITIVE FLOOR (Security R2, 2026-09-12) ────────────────────
+  // Without this the loop scores a THROW as RED, so a defect that merely breaks
+  // the migration — a planted `where kind = NOSUCHCOLUMN_XYZ` was the reviewer's
+  // proof — makes every arm "caught" and the suite exits 0 claiming to be
+  // non-vacuous. Run the CLEAN chain first and require it green: if the baseline
+  // cannot pass, nothing measured after it means anything.
+  {
+    const db = await boot(null);
+    await runAll(db);
+    if (failed) {
+      console.error(`\nFALSE-POSITIVE FLOOR: the CLEAN chain fails ${failed} assertion(s). Every `
+        + 'mutation below would "go RED" for that reason alone, so the proof is worthless until the '
+        + 'baseline is green.');
+      process.exit(1);
+    }
+    console.log('  baseline: GREEN (the clean chain passes — a RED below is the mutation, not the harness)');
+  }
   let bad = 0;
   for (const name of Object.keys(MUTATIONS)) {
     const saveFail = failed; failed = 0; let threw = false;

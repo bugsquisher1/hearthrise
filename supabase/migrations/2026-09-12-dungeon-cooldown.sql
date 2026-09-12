@@ -11,7 +11,7 @@
 --            player_ledger kind='dungeon' rows (2026-09-10-dungeon-settle.sql)
 --   Patches: hr_dungeon_settle (the gate), hr_state_of (the projection)
 --   Client:  src/dungeons.js canRun() — the follow-up lane-A half; see
---            "THE CLIENT HALF" below. NOTHING here needs the client to ship.
+--            "THE CLIENT HALF" below. That half SHIPS FIRST (Security R3).
 --   Test:    tests/dungeon-cooldown.mjs (PGlite replay + mutation proof)
 --
 -- ── THE FINDING (b536 residue-ahead census, item 5) ─────────────────────────
@@ -43,10 +43,18 @@
 -- (Shape set by the GAME DESIGNER's ruling of 2026-09-12: no exemption may be
 --  keyed on a client string, and `scavenger` must be a catalogue fact.)
 --   1. hr_dungeon_cooldown_modes() — ONE table of numbers: mode -> DIVISOR,
---      {auto:1, manual:1, scavenger:4}. Every mode is cooldown-bearing; the
---      scavenger's window is the dungeon's `cooldown_s / 4` (crypt 4h -> 1h), not
---      an exemption. hr_dungeon_cooldown_divisor(mode) reads that one table, so
---      the gate and the projection cannot disagree about a number.
+--      {auto:1, manual:1, scavenger:4}. A CLIENT-CHOSEN MODE STRING USED TO SELECT
+--      WHETHER A WINDOW EXISTED AT ALL: `p_mode` comes from the payload, the
+--      scavenger arm was documented as having no cooldown, and the payout is
+--      IDENTICAL in all three modes (the loot roll is hr_dungeon_loot, the scrip is
+--      round(scrip_base * clamp(quality)) — measured by the security reviewer), so
+--      saying "scavenger" bought the same rewards with no re-entry limit. That is
+--      not an exemption, it is an opt-out, and it is closed here: mode now selects
+--      the window's LENGTH, never its existence. hr_dungeon_cooldown_divisor(mode)
+--      reads that one table, so the gate and the projection cannot disagree about a
+--      number, and a mode that is not in it BINDS NOTHING — which is why the guard
+--      (tests/dungeon-cooldown.mjs) requires every mode the settle's own enum
+--      accepts to appear in the table.
 --   2. hr_dungeons.scavenger_ok — a CATALOGUE FACT. A `scavenger` intent for a
 --      dungeon the catalogue does not author a scavenger run for is refused
 --      `bad_mode`, so the string cannot reach ancient_wyrm's 72h table.
@@ -117,6 +125,23 @@
 --   Live exposure: two kind='dungeon' ledger rows in the game's history, both auto,
 --   so the practical impact on existing players is nil and the scarce gate remains
 --   the key. The divisors are ONE line (§2) for the Designer to retune.
+--
+-- ⚠ ORDER: THE CLIENT HALF SHIPS FIRST, THEN THIS APPLIES (Security R3,
+--   2026-09-12 — the first draft of this header had it backwards). The client half
+--   is forward-compatible: with no `dungeon_cooldowns` in the envelope the reader
+--   sees `until = 0` and behaves exactly as today. Applied FIRST, however, there is
+--   a window in which src/dungeons.js:761-769 fires the settle and then prints
+--   "Rewards settled — scrip and loot are in your bag" UNCONDITIONALLY, and
+--   src/net/dungeon-settle.js:73 answers a refusal with "try a manual run" — which
+--   is now a lie. Nothing is lost either way (the refusal costs no key, no items, no
+--   scrip, no version — §7 asserts it), but the player would be told they were paid
+--   when they were not. Client half first.
+--
+-- ⚠ §2/§4's `create or replace` are UNGUARDED by design (they own those bodies),
+--   so a future ruling that retunes the divisors must edit THIS file or ship a new
+--   one — re-applying an older copy of this file after that silently reverts the
+--   retune, which is the b484-b487 class. The §7 gate asserts the NUMBERS, so a
+--   revert of the divisor table fails the apply rather than shipping quietly.
 --
 -- ── THE CLIENT HALF (lane A — NOT in this file) ─────────────────────────────
 -- src/dungeons.js canRun(), replacing lines 422-428:
@@ -202,6 +227,22 @@ begin
          and column_default like '%now()%') <> 1 then
     raise exception 'player_ledger.at is not a NOT NULL now()-defaulted column — the cooldown would '
                     'be derived from a value a writer could choose';
+  end if;
+
+  -- THE WINDOW IS DERIVED FROM ROWS THE PRUNE DELETES (Security S-5, 2026-09-12).
+  -- hr_ledger_prune drops player_ledger rows older than hr_ledger_config.retain_days,
+  -- so a cooldown longer than the retention would reset itself when its evidence was
+  -- pruned. Today: 90 days retained vs a 72h longest cooldown — a 30x margin — but
+  -- the two numbers live in different files and nothing connected them until now.
+  if to_regclass('public.hr_ledger_config') is not null then
+    if (select max(cooldown_s) from public.hr_dungeons)
+       >= (select coalesce(retain_days, 90) from public.hr_ledger_config) * 86400 then
+      raise exception 'the longest dungeon cooldown (%s) is not shorter than the ledger retention '
+                      '(% days): the prune would delete the row the window is derived from and hand '
+                      'the player a free re-entry. Shorten the cooldown or raise retain_days.',
+                      (select max(cooldown_s) from public.hr_dungeons),
+                      (select retain_days from public.hr_ledger_config);
+    end if;
   end if;
 end $$;
 
@@ -316,6 +357,14 @@ returns jsonb language sql stable security definer set search_path = public as $
                where user_id = p_user
                  and slot = coalesce(p_slot, 0)
                  and kind = 'dungeon'
+                 -- TIME-BOUNDED (Security S-3, measured 6.9 ms/envelope unbounded on
+                 -- the heaviest live character): a settle older than the LONGEST
+                 -- cooldown in the catalogue can never produce an active window, so
+                 -- reading it is pure cost. Keeps hr_state_of's extra work
+                 -- proportional to recent play instead of to lifetime history, and
+                 -- lets the partial index serve the range directly.
+                 and at > now() - make_interval(secs =>
+                       (select max(cooldown_s) from public.hr_dungeons))
                  and coalesce(meta->>'op', 'settle') = 'settle'
                  and public.hr_dungeon_cooldown_divisor(meta->>'mode') is not null
                group by 1) l

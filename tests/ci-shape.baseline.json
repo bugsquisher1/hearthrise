@@ -40,6 +40,7 @@
     "node tests/quartermaster-buy.mjs --selftest": "economy-selftests",
     "node tests/dungeon-marketability.mjs --selftest": "economy-selftests",
     "node tests/dungeon-scrip-reload.mjs --selftest": "economy-selftests",
+    "node tests/dungeon-cooldown.mjs": "economy-selftests",
     "node tests/dungeon-cooldown.mjs --selftest": "economy-selftests",
     "node tests/state-of-farm-projection.mjs --selftest": "economy-selftests",
     "node tests/away-receipt-journal.mjs --selftest": "economy-selftests",

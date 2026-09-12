@@ -16831,25 +16831,25 @@ function patchInventoryPage(){
 
 /* ═══ Skills page: allow viewing other skills while one is active ═══ */
 function patchSkillsViewing(){
-  /* The default openSkillDetail probably calls renderSkillDetail.
-     We don't need to change the active state, just allow rendering arbitrary skill detail. */
   var origOpen = window.openSkillDetail;
   if(typeof origOpen !== 'function') return;
   window.openSkillDetail = function(id){
-    /* Always show the detail for the clicked skill, regardless of active */
     G.viewingSkill = id;
     var r = origOpen.apply(this, arguments);
     setTimeout(function(){
       var detail = document.getElementById('skill-detail');
       if(!detail) return;
-      /* If the viewed skill is NOT the active skill, prepend a "viewing" banner */
       if(G.activeSkill && G.activeSkill !== id){
         var existing = detail.querySelector('.skill-viewing-banner');
         if(existing) existing.remove();
         var sk = (typeof SKILLS_DEF!=='undefined') ? SKILLS_DEF[G.activeSkill] : null;
         var banner = document.createElement('div');
         banner.className = 'skill-viewing-banner';
-        banner.innerHTML = '<span>'+_hrGly('uiWarn',14,'--gold-2')+'</span><span>You are viewing this skill while training <b>'+(sk?sk.name:G.activeSkill)+'</b>. Click "Stop" on that skill first to start a new activity.</span>';
+        /* THE COPY SAYS WHAT THE ROUTER DOES (live play gate, 2026-09-12): it
+           asked for a «Stop» this banner never drew and the click-time router
+           made unnecessary — a tap on any unlocked tile HERE declares the
+           switch, gather and artisan alike (src/render/activity-tile.js). */
+        banner.innerHTML = '<span>'+_hrGly('uiInfo',14)+'</span><span>You are training <b>'+(sk?sk.name:G.activeSkill)+'</b>. Tap any tile here to switch.</span>';
         detail.insertBefore(banner, detail.firstChild);
       }
     }, 30);

@@ -62613,6 +62613,36 @@ const TESTS = [
         const third = tileOf(); third.click(); await settle(); assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id, 'the tap AFTER a stop did not restart the recipe (' + G.activeSkill + '/' + G.skillTargetId + ') — a stop strips .active in place and rebuilds nothing');
       }));
   }),
+
+  /* regression suite — THE BENCH BANNER ASKED FOR A GESTURE THE GAME NO LONGER
+     NEEDS (live play gate, 2026-09-12). Training Cooking, open Woodcutting:
+     «Click "Stop" on that skill first to start a new activity» — and the very
+     next tap, on Normal Tree, switched with no Stop anywhere: the click-time
+     router declares the switch for BOTH kinds, and its only refusal (recovery
+     → away.recoveryRefuses) refuses COMBAT kinds. COPY IS A CONTRACT WITH THE
+     ROUTER, so both halves are measured, sentence and wiring — a renderer that
+     baked the paint-time toggle back in would re-lie without editing a word. */
+  () => tryRunAsync('B540-1: the bench of a skill you are NOT training names the one you are and invites the tap — it never asks for a Stop first', async () => {
+    const G = window.G, tree = (window.TREES || [])[0];
+    assert(!!tree && typeof window.openSkillDetail === 'function' && !!window.SKILLS_DEF, 'setup: no tree / skill-detail seam — the reported screen cannot be rendered');
+    const snap = snapshotG();
+    try {
+      G.activeSkill = 'cooking'; G.skillTargetId = 'cook_shrimp';    // the player is training Cooking…
+      window.openSkillDetail('woodcutting');                         // …and opens the Woodcutting bench
+      await new Promise((r) => setTimeout(r, 80));                   // the banner lands on openSkillDetail's own 30 ms tail
+      const banner = document.querySelector('#skill-detail .skill-viewing-banner');
+      assert(!!banner, 'no .skill-viewing-banner on a bench opened while another skill trains — this arm cannot read the copy it exists to hold');
+      const txt = (banner.textContent || '').replace(/\s+/g, ' ').trim();
+      assert(!/\bstop\b/i.test(txt), 'the banner still tells the player to Stop first: "' + txt + '" — untrue since the click-time router landed: a tap on any unlocked tile of THIS bench switches the activity on its own, so the instruction is a round trip to another screen for nothing');
+      assert(/cooking/i.test(txt), 'the banner must name the activity that is actually running (Cooking), dynamically: "' + txt + '"');
+      assert(/\btap\b|\bswitch\b/i.test(txt), 'the banner must say what the tap DOES, or the player still has no idea how to start here: "' + txt + '"');
+      const tile = document.querySelector('#skill-detail .act-tile:not(.locked)');
+      assert(!!tile && /hrActivityTileClick/.test(tile.getAttribute('onclick') || ''), 'the tiles on this bench do not route through the click-time router (' + (tile && tile.getAttribute('onclick')) + ') — the banner would be promising a switch a paint-time toggle cannot make');
+    } finally {
+      document.querySelectorAll('#skill-detail .skill-viewing-banner').forEach((b) => b.remove());
+      restoreG(snap);
+    }
+  }),
 ];
 
 export async function runSmokeTest(opts = {}) {

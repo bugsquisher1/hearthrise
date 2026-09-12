@@ -15188,19 +15188,12 @@ const TESTS = [
     const recBefore = (G && G._record) ? JSON.parse(JSON.stringify(G._record)) : null;
     const hadConfig = !!(typeof R.getRecordConfig === 'function' && R.getRecordConfig());
     const until = Date.now() + 11 * 60000;
-    /* THE FIXTURE OWNS THE WATERMARK IT MEASURES (b538). accrue.js's priced-window
-       watermark is written ONLY by applyEnvelopeState — never by this boot path,
-       by two documented rulings (record.js hydrationStep('fall') and accrue.js
-       reconcileFall: "`accrued_to` IS DELIBERATELY NOT IN HERE"). It is a
-       MODULE-LOCAL with no reset seam, so whatever ran earlier in the suite is
-       still in it: RECOVER-16's `envelope()` helper two tests up leaves it at
-       ~now. Read it BEFORE the boot, and put a distinctly PAST instant on the
-       wire, so the pair of assertions below reads the same in a filtered run and
-       in the full suite, and so a mutation that moved that write onto this path
-       changes a number THIS fixture pinned rather than one an earlier test
-       happened to leave behind. */
+    /* THE FIXTURE OWNS THE WATERMARK IT MEASURES (b538): accrue.js's is a
+       module-local with no reset seam that only applyEnvelopeState writes, so read
+       it BEFORE the boot and put a distinctly PAST instant (`priced`) on the wire,
+       and ②b reads the same in a filtered run and in the full suite. */
     const wmBefore = A.accruedToMs();
-    const priced = Date.now() - 90000;   // the last instant the server priced, 90 s back
+    const priced = Date.now() - 90000;
     let asked = 0;
     try {
       D.__resetForTest();                 // stands the fixture up, through an envelope
@@ -15267,24 +15260,14 @@ const TESTS = [
         'the boot did not hydrate the server\'s death counters: today=' + A.deathsToday()
         + ' lifetime=' + A.deathsLifetime());
       /* ②b WHERE `accrued_to` GOES ON THIS PATH, AND WHERE IT MUST NOT (b538).
-            This line used to read `A.accruedToMs() > 0`, which is not a property
-            of the boot at all: accrue.js writes that module-local ONLY in
-            applyEnvelopeState, and BOTH seams state in prose that the boot read
-            must not move it (it feeds `bootAccruedToAt`, the welcome-back card's
-            statement of the absence, a player-visible number this seam does not
-            own). It passed in the full suite only because RECOVER-16 had just
-            left a watermark behind, and went RED the moment this test ran on its
-            own — a leak the assertion depended on, not a hydration.
-            So assert the SPLIT the design documents, both halves:
-              • the boot DID observe the server's `accrued_to` — through the seam
-                that does own it, SERVER_OF_RECORD's `offlineBudget` — so this is
-                a stronger claim than the one it replaces, not a deleted one;
-              • and it did NOT touch accrue.js's priced-window watermark.
-            MUTATION PROOF (both directions): add `accruedToAt = …` to
-            reconcileFall (or an `accrued_to` step to record.js) → the second
-            assertion RED, because `priced` is 90 s behind whatever the fixture
-            read; delete the `applyRecord` call at the head of requestRecord →
-            the first RED. */
+            This read `A.accruedToMs() > 0`, which the boot never does: record.js
+            hydrationStep('fall') and accrue.js reconcileFall BOTH state that the
+            boot must not move the watermark (it feeds `bootAccruedToAt`, the
+            welcome-back card's absence). It passed on RECOVER-16's leftover and
+            was RED run alone — a leak, not a hydration. So assert the SPLIT: the
+            boot DID observe `accrued_to` through the field that owns it, and did
+            NOT touch the watermark. MUTATION: accruedToAt written in reconcileFall
+            → second RED; applyRecord dropped from requestRecord → first. */
       const rv = (typeof R.recordValue === 'function') ? R.recordValue(G, 'offlineBudget') : null;
       assert(rv && rv.known === true && rv.value && Number(rv.value.at) === priced,
         'the boot read did not hand the server\'s `accrued_to` to the field that owns it '
@@ -36168,23 +36151,15 @@ const TESTS = [
   }),
 
   /* ── b372 P0 — THE SWITCH DUPLICATED THE CHARACTER ─────────────────────
-     REPORTED LIVE (FTUE run on b371): switching to hero slot 1 produced a COPY
-     of the slot-0 character there and DESTROYED the save that had been in it.
-     Mechanism, three writes and one race:
-       1. switchSlot() moves profile.activeSlot to the target and REMOVES
-          SAVE_KEY (an empty target boots a fresh character);
-       2. location.reload() fires `pagehide`, and the page still holds the
-          OUTGOING character as window.G — legacy.js's pagehide autosave puts it
-          straight back into SAVE_KEY, and sync.js's pagehide snapshot uploads it
-          with the slot resolved LIVE, i.e. onto the TARGET's game_saves row;
-       3. boot prefers that "newer" local clone over the target's older cloud
-          save and the next autosave cements it.
-     Neither write is needed: switchSlotAsync has already saved locally AND
-     awaited a cloud flush of the outgoing character, and refuses to swap
-     without it. So the switch QUIESCES both.
-     MUTATION: delete the `if(_switchQuiesced()) return;` line in saveLocal and
-     this goes red on the SAVE_KEY assertion; make buildSnapshotRequest use
-     resolveActiveSlot() again and it goes red on the slot assertion. */
+     REPORTED LIVE (FTUE run on b371): switching to hero slot 1 put a COPY of the
+     slot-0 character there and DESTROYED the save that had been in it. The
+     reload fires `pagehide` while `window.G` is still the OUTGOING character,
+     and a write in that window resolves its slot LIVE — i.e. onto the TARGET.
+     switchSlotAsync has already awaited a cloud flush and refuses to swap
+     without one, so the switch QUIESCES those writes.
+     MUTATION: make buildSnapshotRequest use resolveActiveSlot() again → RED on
+     the slot assertion. The SAVE_KEY assertion cannot go red any more (b515
+     retired that write); tests/slot-switch.mjs watches the residue PUT instead. */
   () => tryRunAsync('b372: a hero-slot switch cannot clone the outgoing character into the target slot (pagehide race)', async () => {
     const HP = window.HearthriseProfile, S = window.HearthriseSync, G = window.G;
     if (!HP || !HP.profile) return;

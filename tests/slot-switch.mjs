@@ -52,6 +52,13 @@ const OBSERVE_MS = 12_000;
    thread was not answering. The real freeze took >4 minutes; anything over a
    second here is already a broken frame budget. */
 const EVAL_BUDGET_MS = 2_000;
+/* Where the outgoing page records what it put on the wire. localStorage, not a
+   page variable: the document that makes the writes under test is destroyed by
+   the switch's own reload (see pagehideRaceGuard). */
+const WIRE_LOG_KEY = 'hr:test:b372-wire';
+/* The outgoing character's fingerprint, carried in a RESIDUE field so it rides
+   the one save the armed game still makes. */
+const OUTGOING_MARK = 'OUTGOING-b372';
 
 async function sourceGuard(root) {
   const problems = [];
@@ -87,12 +94,42 @@ async function sourceGuard(root) {
    WHY THIS LIVES HERE AND NOT ONLY IN THE IN-PAGE SUITE: the in-page test has
    to simulate the teardown (it dispatches a synthetic `pagehide` through a test
    seam, because `location.reload()` cannot be stubbed). This one drives a REAL
-   reload in a REAL browser and reads what actually survived in localStorage
-   afterwards — the only observation that answers "what does the next boot
-   find?" without any simulation in the loop.
+   reload in a REAL browser and reads what the outgoing page actually SENT while
+   it was being torn down — the only observation that answers "what does the
+   next boot find?" without any simulation in the loop.
 
-   MUTATION: the latch is neutered in-page (`saveQuiesced -> false`), which is
-   exactly the pre-fix build, and the guard must go RED. */
+   ── WHAT B515 DID TO THIS GUARD, AND WHERE THE PROPERTY LIVES NOW ───────────
+   The observation above used to be `localStorage[SAVE_KEY]`: the outgoing G
+   written back by legacy.js's pagehide `saveLocal()`. b515 RETIRED that write —
+   `saveLocal()` is now one `G.lastSeen` stamp and nothing else — so the
+   duplication became UNOBSERVABLE through the blob, and this guard's own
+   `--mutate` proof reported MUTATION SURVIVED: the latch could be neutered with
+   every assertion still green. A guard that cannot go red is decoration.
+
+   THE LATCH IS NOT DEAD CODE, THOUGH — it moved surface with the data. Its two
+   live readers are both in src/net/sync.js, and they defend the write that
+   REPLACED the blob (the residue PUT, `hr_put_client_state`):
+     · snapshotIfDue() §b372 — `if (switchQuiesced()) return false;` stops a NEW
+       pagehide send starting from a page whose slot pointer has already moved;
+     · ownerSlotForLiveG() — addresses one already in flight to the OUTGOING slot.
+   And the hazard is unchanged: the residue body is addressed by
+   `resolveActiveSlot(pinnedSlot)` (client-state.js buildClientStatePutRequest),
+   which reads HearthriseProfile.activeSlot() LIVE — i.e. the INCOMING slot
+   during the window. Neuter the latch and the outgoing character's residue
+   (bestiary, quests, achievements, playerName…) is upserted onto the TARGET
+   hero's client_state row. Same bug, same window, current field.
+
+   SO THIS GUARD NOW WATCHES THE WIRE. Sync is configured with a fake endpoint
+   and the page's `fetch` records every hr_put_client_state call into
+   localStorage (synchronously, so a keepalive send during teardown is still
+   logged), stamped with the slot in the body AND the live activeSlot at call
+   time. A CONTROL send before the switch proves the harness can produce a PUT
+   at all — without it "no PUT happened" would pass against a page that could
+   never send one, which is the vacuity failure this repo keeps meeting.
+
+   MUTATION: the latch is neutered in-page (`saveQuiesced -> false`,
+   `quiescedOutgoingSlot -> null`), which is exactly the pre-fix build, and the
+   guard must go RED — the pagehide PUT escapes, addressed to the target. */
 async function pagehideRaceGuard(browser, url, opts = {}) {
   const MUTATE = !!opts.mutate;
   const problems = [];
@@ -105,7 +142,7 @@ async function pagehideRaceGuard(browser, url, opts = {}) {
       { timeout: 60_000 });
     await page.waitForTimeout(4_000);
 
-    const setup = await page.evaluate(({ mutate }) => {
+    const setup = await page.evaluate(async ({ mutate, LOG, MARK }) => {
       const P = window.HearthriseProfile;
       P.init();
       window.G.gems = 5000;
@@ -120,23 +157,82 @@ async function pagehideRaceGuard(browser, url, opts = {}) {
          test is refused as 'unconfirmed' and every assertion below passes or
          fails for the wrong reason. */
       if (typeof P.adoptServerSlots === 'function') P.adoptServerSlots([0, 1]);
-      /* The switch refuses to swap unless the outgoing character's cloud flush
-         answers, and this harness is signed out. Answering it is not what is
-         under test here — the pagehide writes AFTER the swap are. */
-      if (window.HearthriseSync && typeof window.HearthriseSync.snapshotIfDue === 'function') {
-        window.HearthriseSync.snapshotIfDue = function () { return Promise.resolve(true); };
-      }
-      /* A recognisable OUTGOING character. If these bytes turn up under slot 1
-         after the switch, the character was duplicated. */
+
+      /* ── THE WIRE RECORDER ────────────────────────────────────────────────
+         Written through localStorage, not a JS variable, because the page under
+         observation is about to be REPLACED by a real reload: a send made during
+         `pagehide` has to leave its evidence somewhere the next document can
+         read. `setItem` is synchronous, and the recorder logs BEFORE handing back
+         a response, so a keepalive request fired inside the teardown is recorded
+         even though its promise never settles.
+         Only hr_put_client_state is intercepted; everything else (the page's own
+         asset and Supabase traffic) goes to the real fetch untouched. */
+      localStorage.removeItem(LOG);
+      const realFetch = window.fetch;
+      window.fetch = function (u, init) {
+        const href = String((u && u.url) || u || '');
+        if (/hr_put_client_state/.test(href)) {
+          let body = null;
+          try { body = JSON.parse((init && init.body) || 'null'); } catch (e) {}
+          try {
+            const rows = JSON.parse(localStorage.getItem(LOG) || '[]');
+            rows.push({
+              at: Date.now(),
+              slot: body ? body.p_slot : null,          // where the RPC will write
+              active: P.activeSlot(),                    // where the pointer was standing
+              name: (body && body.p_patch) ? body.p_patch.playerName : null,
+              keepalive: !!(init && init.keepalive),
+            });
+            localStorage.setItem(LOG, JSON.stringify(rows));
+          } catch (e) {}
+          return Promise.resolve(new Response('{"ok":true}',
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+
+      /* A recognisable OUTGOING character, in a field the residue actually
+         carries (`playerName` is in RESIDUE_FIELDS; `gold` is authority and is
+         NOT in the bag, so it can only ever prove the retired blob). If these
+         bytes turn up addressed to slot 1, the character was duplicated. */
+      window.G.playerName = MARK;
       window.G.gold = 424242;
       window.saveLocal();
+
+      /* ── SYNC, CONFIGURED FOR REAL ─────────────────────────────────────────
+         The previous version stubbed `snapshotIfDue` to a resolved promise so
+         the pre-swap flush would answer on this signed-out page — which deleted
+         the function whose quiesce gate is the thing under test. Configuring the
+         real one against the fake transport answers the flush AND leaves the
+         gate in the path.
+         `slot: null` is deliberate and is production's own default (auth.js
+         passes no slot): the addressing then resolves LIVE on every call, which
+         is exactly the hazard b372 is about. No `endpoint` is given, so the
+         event flush and the boot probe stay off — only the save path is armed.
+         A boot that is still holding snapshots (the reconcile gate) would refuse
+         every send for a reason that has nothing to do with the latch, so the
+         hold is read and released explicitly, and reported. */
+      const S = window.HearthriseSync;
+      const held = (S && typeof S.isSnapshotHeld === 'function') ? S.isSnapshotHeld() : null;
+      if (held && typeof S.releaseSnapshots === 'function') S.releaseSnapshots();
+      S.setupSync({
+        snapshotEndpoint: 'https://hr-slot-switch.invalid/rest/v1/game_saves',
+        apiKey: 'anon-test', authToken: () => 'test-jwt', slot: null,
+      });
+      /* THE CONTROL, measured before any switch: a residue PUT is reachable on
+         this page, and it addresses the character that is live (slot 0). */
+      const control = await S.snapshotIfDue(true, true);
+
       if (mutate) {
         P.saveQuiesced = function () { return false; };          // the pre-b372 build
         P.quiescedOutgoingSlot = function () { return null; };
       }
       localStorage.removeItem('hearthrise:char:1');              // target slot EMPTY — the live repro
-      return { ok: !!(r && r.ok), active: P.activeSlot(), quiesceApi: typeof P.saveQuiesced === 'function' };
-    }, { mutate: MUTATE });
+      let wire = [];
+      try { wire = JSON.parse(localStorage.getItem(LOG) || '[]'); } catch (e) {}
+      return { ok: !!(r && r.ok), active: P.activeSlot(), quiesceApi: typeof P.saveQuiesced === 'function',
+        control: control, held: held, wire: wire };
+    }, { mutate: MUTATE, LOG: WIRE_LOG_KEY, MARK: OUTGOING_MARK });
     if (!setup.ok || setup.active !== 0) {
       problems.push(`could not reach a two-character account on slot 0 (${JSON.stringify(setup)}) — nothing was tested`);
       return problems;
@@ -144,6 +240,17 @@ async function pagehideRaceGuard(browser, url, opts = {}) {
     if (!setup.quiesceApi && !MUTATE) {
       problems.push('HearthriseProfile.saveQuiesced() does not exist — the switch has no way to stop the '
         + 'pagehide autosave, which is the b372 duplication bug');
+    }
+    /* THE CONTROL, READ BEFORE THE SWITCH. Everything below is of the form "no
+       residue PUT escaped"; an unreachable save path would satisfy that without
+       testing anything, so the harness proves it can produce one first — and
+       that the one it produced is addressed to the character that is live. */
+    const control = (setup.wire || []).filter((w) => w.slot === 0 && w.active === 0);
+    if (setup.control !== true || control.length === 0) {
+      problems.push('the harness could not make a residue PUT (hr_put_client_state) happen at all before the '
+        + `switch (snapshotIfDue returned ${JSON.stringify(setup.control)}, wire ${JSON.stringify(setup.wire)}, `
+        + `snapshotHold ${JSON.stringify(setup.held)}) — every "nothing escaped" assertion below would be `
+        + 'vacuous, exactly the way this guard silently stopped testing the duplication when b515 retired the blob');
     }
 
     /* THE REAL SWITCH, WITH THE REAL RELOAD. Not awaited in-page — the
@@ -156,29 +263,53 @@ async function pagehideRaceGuard(browser, url, opts = {}) {
       { timeout: 60_000 });
     await page.waitForTimeout(3_000);
 
-    const after = await page.evaluate(() => {
+    const after = await page.evaluate(({ LOG }) => {
       let live = null;
       try { live = JSON.parse(localStorage.getItem('hearthbound-save-v2') || 'null'); } catch (e) {}
+      let wire = [];
+      try { wire = JSON.parse(localStorage.getItem(LOG) || '[]'); } catch (e) {}
       return {
         active: window.HearthriseProfile.activeSlot(),
         liveGold: live ? live.gold : null,
         liveSlot: live ? live._saveSlot : null,
         gGold: window.G && window.G.gold,
+        wire: wire,
       };
-    });
+    }, { LOG: WIRE_LOG_KEY });
 
     if (after.active !== 1) {
       problems.push(`the switch did not land on slot 1 (active ${after.active}) — the duplication assertions below `
         + 'would be vacuous');
+    } else if (after.wire.length < (setup.wire || []).length) {
+      /* The evidence has to survive the navigation, or "nothing escaped" is just
+         a lost log. Checked against what was already recorded before the switch. */
+      problems.push(`the wire log did not survive the reload (${(setup.wire || []).length} rows before, `
+        + `${after.wire.length} after) — the observation this guard depends on was destroyed, so its verdict `
+        + 'means nothing');
     } else {
-      if (after.liveGold === 424242) {
-        problems.push('THE b372 DUPLICATION: after switching to an EMPTY hero slot, the live save is the OUTGOING '
-          + "character (gold 424242). The pagehide autosave fired during the switch's own reload and wrote slot 0's "
-          + 'character under slot 1 — one hero cloned, the hero that lived in the target destroyed.');
+      /* ── THE b372 PROPERTY, ON THE FIELD THAT HOLDS THE DATA TODAY ─────────
+         A residue PUT sent while the pointer already stands on the target is
+         the outgoing character being written into the target's row: layer 1
+         (snapshotIfDue's quiesce gate) should have stopped it from starting,
+         and layer 2 (ownerSlotForLiveG) should have re-addressed anything
+         already in flight. Both are read off the same evidence. */
+      const escaped = after.wire.filter((w) => w.active !== 0 || w.slot !== 0);
+      for (const w of escaped) {
+        problems.push('THE b372 DUPLICATION, ON THE WIRE: a residue PUT (hr_put_client_state) left the outgoing '
+          + `page during the switch addressed to slot ${w.slot} while the pointer stood on slot ${w.active} `
+          + `(keepalive ${w.keepalive}, playerName ${JSON.stringify(w.name)}). client_state is UNIQUE `
+          + "(user_id, slot), so that upsert overwrites the TARGET hero's residue with the outgoing "
+          + "character's — one hero cloned, the hero that lived there destroyed. The switch quiesce latch "
+          + '(HearthriseProfile.saveQuiesced) is what must stop it.');
       }
-      if (after.gGold === 424242) {
-        problems.push('the character now being PLAYED on slot 1 is the slot-0 character (gold 424242) — the clone '
-          + 'survived boot and the next autosave uploads it over slot 1\'s cloud save');
+      /* THE RETIRED BLOB, still checked — cheaply, and no longer as the
+         duplication test. b515 deleted the write that made these bite (saveLocal
+         is a `lastSeen` stamp now), so a green here proves the blob stayed
+         retired through a switch, nothing more. The wire above is the property. */
+      if (after.liveGold === 424242 || after.gGold === 424242) {
+        problems.push('THE b372 DUPLICATION VIA THE BLOB: the outgoing character (gold 424242) is in '
+          + `localStorage/${after.gGold === 424242 ? 'memory' : 'the live save'} after switching to an EMPTY hero `
+          + 'slot — a local blob is writing again (b515 retired it) and the next boot adopts it as the target hero');
       }
       if (after.liveSlot != null && after.liveSlot !== 1) {
         problems.push(`the live save is stamped for hero slot ${after.liveSlot} while slot 1 is active — a save `

@@ -15190,6 +15190,10 @@ const TESTS = [
     const recBefore = (G && G._record) ? JSON.parse(JSON.stringify(G._record)) : null;
     const hadConfig = !!(typeof R.getRecordConfig === 'function' && R.getRecordConfig());
     const until = Date.now() + 11 * 60000;
+    /* THE FIXTURE OWNS THE WATERMARK IT MEASURES (b538): accrue.js's is a module-local
+       with no reset seam that only applyEnvelopeState writes, so read it BEFORE the boot
+       and put a distinctly PAST instant (`priced`) on the wire — filtered run or full. */
+    const wmBefore = A.accruedToMs(); const priced = Date.now() - 90000;
     let asked = 0;
     try {
       D.__resetForTest();                 // stands the fixture up, through an envelope
@@ -15219,7 +15223,7 @@ const TESTS = [
           state: {
             slot: 0,
             gold: Math.floor(Number(G.gold) || 0),      // a no-op write; the record needs one field
-            accrued_to: new Date().toISOString(),
+            accrued_to: new Date(priced).toISOString(),
             active_kind: 'idle', active_id: null,       // ← THE IDLE BOOT
             hp: 5, max_hp: 13,
             recovering_until: new Date(until).toISOString(),
@@ -15255,7 +15259,18 @@ const TESTS = [
       assert(A.deathsToday() === 2 && A.deathsLifetime() === 5,
         'the boot did not hydrate the server\'s death counters: today=' + A.deathsToday()
         + ' lifetime=' + A.deathsLifetime());
-      assert(A.accruedToMs() > 0, 'the boot did not hydrate the priced-window watermark');
+      /* ②b WHERE `accrued_to` GOES, AND WHERE IT MUST NOT (b538). This read
+            `accruedToMs() > 0` — which the boot never does: record.js's fall step
+            and accrue.js reconcileFall both state it must not move the watermark
+            (it feeds the welcome-back card's absence). It passed on RECOVER-16's
+            leftover and was RED run alone, so assert the SPLIT instead. MUTATION:
+            accruedToAt written in reconcileFall → second RED; applyRecord dropped
+            from requestRecord → first. */
+      const rv = (typeof R.recordValue === 'function') ? R.recordValue(G, 'offlineBudget') : null;
+      assert(rv && rv.known === true && rv.value && Number(rv.value.at) === priced,
+        'the boot did not hand `accrued_to` to the field that owns it (offlineBudget): ' + JSON.stringify(rv));
+      assert(A.accruedToMs() === wmBefore, 'the BOOT read moved accrue.js\'s priced-window watermark ('
+        + wmBefore + ' → ' + A.accruedToMs() + '): only a settle may — it feeds the welcome-back absence');
 
       /* ③ THE ALWAYS-ON READOUT NAMES THE COUNTDOWN. The pointer is IDLE, which
             used to fall straight through to "Idle — pick an activity": the
@@ -36196,23 +36211,15 @@ const TESTS = [
   }),
 
   /* ── b372 P0 — THE SWITCH DUPLICATED THE CHARACTER ─────────────────────
-     REPORTED LIVE (FTUE run on b371): switching to hero slot 1 produced a COPY
-     of the slot-0 character there and DESTROYED the save that had been in it.
-     Mechanism, three writes and one race:
-       1. switchSlot() moves profile.activeSlot to the target and REMOVES
-          SAVE_KEY (an empty target boots a fresh character);
-       2. location.reload() fires `pagehide`, and the page still holds the
-          OUTGOING character as window.G — legacy.js's pagehide autosave puts it
-          straight back into SAVE_KEY, and sync.js's pagehide snapshot uploads it
-          with the slot resolved LIVE, i.e. onto the TARGET's game_saves row;
-       3. boot prefers that "newer" local clone over the target's older cloud
-          save and the next autosave cements it.
-     Neither write is needed: switchSlotAsync has already saved locally AND
-     awaited a cloud flush of the outgoing character, and refuses to swap
-     without it. So the switch QUIESCES both.
-     MUTATION: delete the `if(_switchQuiesced()) return;` line in saveLocal and
-     this goes red on the SAVE_KEY assertion; make buildSnapshotRequest use
-     resolveActiveSlot() again and it goes red on the slot assertion. */
+     REPORTED LIVE (FTUE run on b371): switching to hero slot 1 put a COPY of the
+     slot-0 character there and DESTROYED the save that had been in it. The
+     reload fires `pagehide` while `window.G` is still the OUTGOING character,
+     and a write in that window resolves its slot LIVE — i.e. onto the TARGET.
+     switchSlotAsync has already awaited a cloud flush and refuses to swap
+     without one, so the switch QUIESCES those writes.
+     MUTATION: make buildSnapshotRequest use resolveActiveSlot() again → RED on
+     the slot assertion. The SAVE_KEY assertion cannot go red any more (b515
+     retired that write); tests/slot-switch.mjs watches the residue PUT instead. */
   () => tryRunAsync('b372: a hero-slot switch cannot clone the outgoing character into the target slot (pagehide race)', async () => {
     const HP = window.HearthriseProfile, S = window.HearthriseSync, G = window.G;
     if (!HP || !HP.profile) return;

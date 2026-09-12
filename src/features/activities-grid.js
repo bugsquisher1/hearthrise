@@ -235,11 +235,14 @@ function tileForArtisan(recipe, skillId) {
   const qty = window.G.inventory?.[outId] || 0;
   // b129: locked artisan tiles toast required level too.
   const skillName = (window.SKILLS_DEF?.[skillId]?.name) || skillId;
-  const click = active
-    ? 'stopSkill()'
-    : (unlocked
-        ? `window.startArtisan('${skillId}','${recipe.id}')`
-        : `notify('Requires ${skillName} Lv ${recipe.req}','kill')`);
+  /* The toggle resolves at the CLICK against the live pointer
+     (src/render/activity-tile.js) — a tile painted while this recipe ran kept a
+     stop handler after combat cleared the pointer, and the tap died in silence.
+     `active` below is paint only. Twin of the legacy builder: patch both or you
+     patch neither. */
+  const click = unlocked
+    ? `hrActivityTileClick('${skillId}','${recipe.id}',null,'artisan')`
+    : `notify('Requires ${skillName} Lv ${recipe.req}','kill')`;
   const inputs = recipe.inputs || (recipe.input ? { [recipe.input]: recipe.inputQty || 1 } : {});
   /* b237 (tester): each input shows what you OWN (e.g. "2× Willow 200"), brightened
      and turned red when you're short of one action's worth. data-have/data-need let

@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 541 — 2026-09-12 (The dungeon door knows when it last shut)
+
+**Dungeon runs now honour the realm's cooldown, per mode.** The client used to decide a dungeon was "ready" from a number it never wrote, so the Auto, Manual and Scavenger buttons never rested. They now read the cooldown the realm reports for each mode and show a countdown while it runs; a run the realm refuses names the time left instead of claiming "Rewards settled". Scavenger runs get their own shorter window (a quarter of the dungeon's). The realm half is staged behind a security sign-off and applies next; until then every dungeon surface behaves exactly as before.
+
+**The bench banner tells the truth.** Opening a skill while training another said "Click Stop first"; tapping any tile has switched directly since build 533. The banner now says so.
+
 ## v0.9.2-beta build 540 — 2026-09-12 (The counted figure admits it lags)
 
 **Your Renown headline now says when it will move.** Renown is ratcheted on the server at settle time, so the figure on the hearth band, the Hero standing line, the ladder header and the Home rail is your best score as of your last settle — a number that sat still while you were visibly earning read as broken. Every one of those surfaces now carries the same sentence from one source: "Renown N — your best yet. New gains count from your next settle."

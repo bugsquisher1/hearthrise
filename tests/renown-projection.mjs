@@ -47,7 +47,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, chainFiles } from './schema-replay.mjs';
 
 const ROOT = new URL('../', import.meta.url);
 const MIG = '2026-09-12-renown-high-projection.sql';
@@ -196,13 +196,84 @@ const NEGATIVE_CONTROL = {
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
 
+/* ── BLINDING THE CHAIN, NOT ONE FILE ──────────────────────────────────────
+   §3 is not the only gate a planted defect can trip. 2026-09-12-dungeon-cooldown
+   .sql SPLICES hr_state_of and therefore asserts, at ITS apply time, that the
+   renown key is still projected (its §7(c)) — so `projection_key_renamed` made
+   the CHAIN throw before this guard ever ran, and the arm demonstrated a
+   migration's gate for the second time instead of this file's assertions. That
+   is not a one-off: every future migration that composes with hr_state_of is
+   expected to assert the same way, so blinding by FILE NAME would break again on
+   the next one.
+
+   So gate-blind mode is generic and derived from the mutation itself:
+
+     · the MARKERS are the SQL string literals the mutation makes DISAPPEAR
+       (present in `find`, absent from `repl`) — for projection_key_renamed that
+       is exactly `renown_high`. A mutation that removes no literal (every
+       predicate/body mutation here) blinds nothing and is unaffected.
+     · every file LATER in tests/schema-apply-order.json is scanned for
+       `if … then` gate headers mentioning a marker, and each such condition is
+       replaced by `false`. The gate stops firing; the migration on disk and
+       every non-blind arm are untouched, and the file's OTHER gates still bite.
+
+   Over-blinding is the safe direction: it only removes migration gates, and the
+   arm still has to go red on THIS guard's own assertions or the selftest reports
+   STAYED GREEN. Under-blinding is what produced the red we are fixing. */
+function blindMarkers(m) {
+  if (m.blinds) return m.blinds;                       // explicit override, rarely needed
+  const lits = (s) => new Set((s.match(/'[A-Za-z_][A-Za-z0-9_]{3,}'/g) || []).map((x) => x.slice(1, -1)));
+  const kept = lits(m.repl);
+  return [...lits(m.find)].filter((t) => !kept.has(t));
+}
+
+/* A gate header: an `if`/`elsif` whose condition ends at a line ending in `then`.
+   Conditions in this repo span up to four lines, hence the non-greedy [\s\S]. */
+const GATE_HEADER = /^([ \t]*)(if|elsif)\b([\s\S]*?)\bthen[ \t]*$/gm;
+
+async function laterChainBlinds(mutate) {
+  const markers = blindMarkers(MUTATIONS[mutate]);
+  if (!markers.length) return [];
+  const files = await chainFiles();
+  const at = files.findIndex(([n]) => n === MIG);
+  if (at < 0) { const e = new Error(`${MIG} is not in the apply chain`); e.harness = true; throw e; }
+  const out = [];
+  for (const [name, path] of files.slice(at + 1)) {
+    const sql = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
+    const pairs = [];
+    for (const mt of sql.matchAll(GATE_HEADER)) {
+      const header = mt[0];
+      if (!markers.some((k) => header.includes(k))) continue;
+      const blinded = `${mt[1]}${mt[2]} false /* gate-blind: ${markers.join(', ')} */ then`;
+      /* bootReplay demands an anchor that matches EXACTLY once, so grow it line
+         by line until it is unique rather than silently patching the wrong gate. */
+      let anchor = header;
+      let end = mt.index + header.length;
+      while (sql.split(anchor).length - 1 > 1 && end < sql.length) {
+        const nl = sql.indexOf('\n', end + 1);
+        end = nl === -1 ? sql.length : nl;
+        anchor = sql.slice(mt.index, end);
+      }
+      if (sql.split(anchor).length - 1 !== 1) {
+        const e = new Error(`gate-blind could not make a unique anchor in ${name} for: ${header.slice(0, 80)}`);
+        e.harness = true; throw e;
+      }
+      pairs.push([anchor, anchor.replace(header, () => blinded)]);
+    }
+    if (pairs.length) out.push([name, pairs]);
+  }
+  return out;
+}
+
 async function boot(mutate, gateBlind, extra) {
   const pairs = [];
   if (mutate) pairs.push([MUTATIONS[mutate].find, MUTATIONS[mutate].repl]);
   if (extra) pairs.push([extra.find, extra.repl]);
   if (gateBlind) pairs.push(GATE_BLIND);
   if (!pairs.length) { const { db } = await bootReplay(); return db; }
-  const { db } = await bootReplay({ patches: new Map([[MIG, pairs]]) });
+  const patches = new Map([[MIG, pairs]]);
+  if (gateBlind && mutate) for (const [name, list] of await laterChainBlinds(mutate)) patches.set(name, list);
+  const { db } = await bootReplay({ patches });
   return db;
 }
 

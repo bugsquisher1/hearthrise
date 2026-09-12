@@ -15591,7 +15591,8 @@ window.renderArtisanActivities = function(skillId){
         return kv[1]+'×'+nm;
       }).join(', ');
     }
-    return '<button class="monster-row '+(active?'fighting':'')+'" '+(canDo?'':'disabled')+' onclick="'+(active?'stopSkill()':"window.startArtisan('"+skillId+"','"+r.id+"')")+'">'+
+    var click = "hrActivityTileClick('"+skillId+"','"+r.id+"',null,'artisan')"; /* start-vs-stop resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` is paint only */
+    return '<button class="monster-row '+(active?'fighting':'')+'" '+(canDo?'':'disabled')+' onclick="'+click+'">'+
       '<span class="mi">'+r.icon+'</span>'+
       '<div style="flex:1;min-width:0"><span class="mn">'+r.name+'</span><span class="ms">Lv '+r.req+' · '+Math.max(1,Math.floor(window.pacedXp(skillId,r.xp)))+' XP · '+(window.pacedActionMs(r.ms)/1000).toFixed(1)+'s · ('+inputName+secondaryText+(r.output?' → '+outputLabel:'')+') · Have: '+have+'</span></div>'+
       status+
@@ -16204,7 +16205,8 @@ window.renderArtisanActivities = function(skillId){
     else if(active) status = '<span class="mr-active">Active</span>';
     /* b225: this row is wide enough for the whole sentence, so it gets it. */
     var burnSentence = (typeof window.burnRiskText === 'function') ? window.burnRiskText(r, skillId) : '';
-    return '<button class="monster-row '+(active?'fighting':'')+'" '+(canDo?'':'disabled')+' onclick="'+(active?'stopSkill()':"window.startArtisan('"+skillId+"','"+r.id+"')")+'">'+
+    var click = "hrActivityTileClick('"+skillId+"','"+r.id+"',null,'artisan')"; /* click-time toggle, as in the body this shadows (src/render/activity-tile.js) */
+    return '<button class="monster-row '+(active?'fighting':'')+'" '+(canDo?'':'disabled')+' onclick="'+click+'">'+
       '<span class="mi">'+r.icon+'</span>'+
       '<div style="flex:1;min-width:0"><span class="mn">'+r.name+'</span><span class="ms">Lv '+r.req+' · '+Math.max(1,Math.floor(window.pacedXp(skillId,r.xp)))+' XP · '+(window.pacedActionMs(r.ms)/1000).toFixed(1)+'s · '+inputNames+(r.output?' → '+outputLabel:'')+'</span>'+
       (burnSentence ? '<span class="ms" style="color:var(--red)">'+burnSentence+'</span>' : '')+'</div>'+
@@ -17734,11 +17736,9 @@ function tileForArtisan(recipe, skillId){
   var outDef = ITEMS[outId];
   var qty = (G.inventory && G.inventory[outId]) || 0;
   var skillName2 = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
-  var click = active
-    ? "stopSkill()"
-    : (unlocked
-        ? "window.startArtisan('"+skillId+"','"+recipe.id+"')"
-        : "window.hrArtisanGateClick('"+skillId+"','"+recipe.id+"')");
+  var click = unlocked                                                    /* start-vs-stop resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` below is paint only. The LOCKED arm is already click-time truth: hrArtisanGateClick re-reads level and scroll and forwards to the start when they pass. */
+    ? "hrActivityTileClick('"+skillId+"','"+recipe.id+"',null,'artisan')"
+    : "window.hrArtisanGateClick('"+skillId+"','"+recipe.id+"')";
   var inputs = recipe.inputs || (recipe.input ? (function(){var o={};o[recipe.input]=recipe.inputQty||1;return o;})() : {});
   /* b237 (tester): show how many of each input you OWN on the tile (e.g. sawing
      planks → watch your log count fall), red when short of one action. data-have/
@@ -19732,32 +19732,11 @@ if(document.readyState === 'loading'){
 setTimeout(function(){ console.log('[Buff Queue v1] loaded — '+Object.keys(DEF()).length+' buff types registered (src/core/buffs.js)'); },0);
 })();
 
-// ===== block 37: script-37 =====
-(function(){
-  if(typeof window.stopSkill !== 'function') return;
-  var orig = window.stopSkill;
-  window.stopSkill = function(){
-    var r = orig.apply(this, arguments);
-    // Force activities grid to refresh so tile shows non-active state with startSkill onclick
-    if(typeof window.renderSkillDetail === 'function'){
-      // Reset cache so the cached "active" state doesn't suppress the rebuild
-      window._actLastRender = {skillId:null, activeKey:null};
-      // Re-render whichever skill is currently displayed in the panel
-      var detail = document.getElementById('skill-detail');
-      var currentTitle = (document.getElementById('skill-detail-title')||{}).textContent || '';
-      // Find the skill whose name matches the displayed title
-      var displayedId = null;
-      if(typeof SKILLS_DEF !== 'undefined'){
-        for(var k in SKILLS_DEF){
-          if(currentTitle.indexOf(SKILLS_DEF[k].name) >= 0){ displayedId = k; break; }
-        }
-      }
-      if(displayedId) window.renderSkillDetail(displayedId);
-    }
-    return r;
-  };
-  console.log('[stopSkill re-render fix] applied');
-})();
+/* block 37 DELETED — a stopSkill re-render that never re-rendered: it matched
+   SKILLS_DEF names against #skill-detail-title, which is the constant "Train",
+   so its skill id was always null. Its one reachable effect, resetting
+   _actLastRender, is covered by the rebuild key (activeSkill|skillTargetId
+   changes on a stop); the stale tile it aimed at now resolves at the click. */
 
 // ===== block 38: bundle-icons-js — MOVED to src/render/icons.js =====
 /* The icon layer (the LOCAL_*_ICON maps, the Hearthfire applier, the

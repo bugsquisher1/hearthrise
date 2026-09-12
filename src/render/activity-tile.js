@@ -36,17 +36,38 @@
    nothing if legacy.js has not published them yet — before boot there is no
    activity to toggle.
 
-   GATHER TILES ONLY, deliberately. The artisan tiles and the fight rows bake
-   the same render-time toggle and are the same class; they are their own lane
-   with their own test, not a silent ride-along on this one. */
+   GATHER AND ARTISAN, one router. The gather half shipped first with its own
+   test; the artisan tiles (four renderers: two `renderArtisanActivities`
+   bodies, the monolith's `tileForArtisan` that actually paints, and its ESM
+   twin) baked the identical toggle and died the identical death — cook shrimp
+   → fight → tap Cook Shrimp again → nothing. `kind` is the only difference
+   between them: BOTH engines write the SAME pointer pair (`activeSkill` /
+   `skillTargetId`), so the stop half is shared and only the start differs.
+   A table rather than an if-chain because the fight rows are the third family
+   and must register a starter here instead of baking a third copy of the
+   toggle into an HTML attribute. The fourth tile family gets a row, not a
+   fork. Unknown kind does nothing loudly: refusing to guess a starter is
+   correct, and only this repo's own renderers can name a kind. */
 (function () {
   'use strict';
-  window.hrActivityTileClick = function (skillId, targetId, ms) {
+  var START = {
+    gather: function (skillId, targetId, ms) {
+      if (typeof window.startSkill === 'function') window.startSkill(skillId, targetId, ms);
+    },
+    artisan: function (skillId, targetId) {
+      if (typeof window.startArtisan === 'function') window.startArtisan(skillId, targetId);
+    }
+  };
+  window.hrActivityTileClick = function (skillId, targetId, ms, kind) {
     var G = window.G;
+    /* omitted `kind` is gather — the original three-argument signature, which
+       every gather tile in both renderers still emits. */
+    var start = START[kind || 'gather'];
+    if (!start) { try { console.warn('[activity-tile] no starter registered for kind ' + kind); } catch (e) {} return; }
     if (G && G.activeSkill === skillId && G.skillTargetId === targetId) {
       if (typeof window.stopSkill === 'function') window.stopSkill();
       return;
     }
-    if (typeof window.startSkill === 'function') window.startSkill(skillId, targetId, ms);
+    start(skillId, targetId, ms);
   };
 })();

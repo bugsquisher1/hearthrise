@@ -10408,9 +10408,8 @@ const TESTS = [
      "ready" and every Auto-Run came back refused; the manual modal wrote "Rewards
      settled…" BEFORE the answer arrived; and the on_cooldown copy advised "try a
      manual run", which the server refuses identically. The projection is PER MODE
-     (auto/manual full window, scavenger a quarter), so an auto window must not rest
-     the scavenger button. MUTATION: restore the lastRun arithmetic, drop the `mode`
-     argument, or restore the literal rewardHtml — each one reddens a line below. */
+     (auto/manual full, scavenger a quarter) so an auto window must not rest the
+     scavenger button. MUTATION: the lastRun arithmetic, a mode-blind read, or the literal rewardHtml. */
   () => tryRunAsync('DGN-COOLDOWN-1: the per-mode dungeon cooldown is read from the server mirror, and a refused settle never claims rewards', async () => {
     const A = window.HearthriseAccrual, DS = window.HearthriseDungeonSettle, id = 'crypt_of_bones';
     assert(A && typeof A.reconcileDungeonCooldowns === 'function', 'accrue.js must export reconcileDungeonCooldowns');

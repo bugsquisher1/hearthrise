@@ -293,6 +293,15 @@
     if(!profile) return Promise.resolve({ ok:false, reason:'no-profile' });
     if(slotId === profile.activeSlot) return Promise.resolve({ ok:false, reason:'already-active' });
     if(!ownsSlot(slotId)){        // b371/b50x: the ENTITLEMENT (server first), not the local cache
+      /* TWO REFUSALS, NOT ONE. Under the fail-safe a slot can be refused
+         because the account does not own it OR because the server has not said
+         yet, and telling a player who owns four heroes "Slot not unlocked" is
+         the same lie in the other direction. The second sentence is true and
+         actionable, and it stops being said the moment an envelope lands. */
+      if(!serverKnown()){
+        notifySafe('Still checking which heroes you own — try again in a moment', 'kill');
+        return Promise.resolve({ ok:false, reason:'unconfirmed' });
+      }
       notifySafe('Slot not unlocked', 'kill');
       return Promise.resolve({ ok:false, reason:'locked' });
     }
@@ -360,7 +369,10 @@
     var profile = window.HearthriseProfile && window.HearthriseProfile.profile;
     if(!profile) return null;
     if(!ownsSlot(slotId)){        // b371/b50x: the ENTITLEMENT (server first), not the local cache
-      if(typeof window.notify === 'function') window.notify('Slot not unlocked', 'kill');
+      if(typeof window.notify === 'function'){
+        window.notify(serverKnown() ? 'Slot not unlocked'       // see switchSlotAsync
+          : 'Still checking which heroes you own — try again in a moment', 'kill');
+      }
       return null;
     }
     // Snapshot current character.
@@ -495,10 +507,46 @@
     } catch(e){ return false; }
   }
 
+  /* Is the CLIENT the record for what a hero slot costs? It is the same fork
+     buySlot() takes below (`clientMayWriteRecordField('gems')`), asked here for
+     the same reason: the residue is the store that PAID for a slot, so it may
+     only be believed on a build where the client still owns that payment.
+     FAIL-CLOSED on absence and on a throw — buySlot's fork may fail open
+     (choosing which purchase path to ATTEMPT, where the server refuses a forged
+     one anyway); a GATE that decides what to OPEN may not. In every shipped
+     build record.js isRecordActive() is a constant true and `gems` is
+     SERVER_OF_RECORD with no arm, so this is false and the residue grants
+     nothing at all. */
+  function clientOwnsSlotStore(){
+    try {
+      return typeof window.clientMayWriteRecordField === 'function'
+        && window.clientMayWriteRecordField('gems') === true;
+    } catch(e){ return false; }
+  }
+
   /* The DEVICE-LOCAL hint — i.e. everything unlockedCount() used to be, kept
-     verbatim as the pre-envelope fallback and as the WHOLE answer on a build
-     where gems are not yet server-of-record. */
+     verbatim as the WHOLE answer on a build where gems are not yet
+     server-of-record.
+
+     ⚠ IT IS NO LONGER THE PRE-ENVELOPE FALLBACK, AND THAT IS THE FIX.
+     THE DEFECT (residue-ahead census, 2026-09-11): every gate in this module
+     reaches the residue through this one function, and until now it answered
+     whenever `G._heroSlots` was absent — which src/net/record.js's hero-slots
+     hydration note says can be THE WHOLE SESSION (an idle boot with no
+     projection, a server predating it, a failed load). So a stale or forged
+     `G.heroSlotsUnlocked` listed heroes the account does not own and let the
+     player switch into one, while hr_buy_hero_slot / the server's own set say
+     `slot_not_owned`: the client lights a door the realm slams. CLAUDE.md §6 —
+     "gates read the server-mirrored value with a fail-safe of NOT UNLOCKED".
+     THE FAIL-SAFE IS ONE (1), i.e. slot 0, which is free on every account and
+     is the only slot nobody has to have bought. It is stated HERE rather than
+     at each gate on purpose: ownsSlot / unlockedCount / canUnlockNext /
+     slotRows / listSlots all read the residue through this door, so one seam
+     cannot drift into five, and a caller cannot opt out of the fail-safe by
+     asking a different question. Self-healing: the moment reconcileHeroSlots
+     lands an envelope, serverSlots() answers and nothing here is consulted. */
   function residueCount(){
+    if(!clientOwnsSlotStore()) return 1;
     var g = (typeof window !== 'undefined') && window.G;
     var n = g && g.heroSlotsUnlocked;
     if(typeof n === 'number' && n >= 1 && n <= MAX_SLOTS) return n | 0;
@@ -515,6 +563,9 @@
     if(typeof n !== 'number' || n < 0 || n >= MAX_SLOTS) return false;
     var s = serverSlots();
     if(s) return s.indexOf(n | 0) >= 0;
+    /* With the server silent this is `n === 0` — residueCount() is the
+       fail-safe 1 unless the client genuinely owns the store that paid. Do not
+       "restore" a residue read here; the seam is residueCount(). */
     return (n | 0) < residueCount();
   }
 

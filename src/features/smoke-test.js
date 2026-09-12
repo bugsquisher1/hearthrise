@@ -536,8 +536,20 @@ const withClientOwnedSlots = (fn) => {
   const G = window.G;
   const had = !!(G && Object.prototype.hasOwnProperty.call(G, '_heroSlots'));
   const prev = had ? G._heroSlots : undefined;
-  try { if (G) delete G._heroSlots; } catch (e) {}
+  /* AND IT HAS TO SAY WHO OWNS THE GEMS, which is what "client-owned" means:
+     residueCount() now fails safe to slot 0 unless `clientMayWriteRecordField
+     ('gems')` is TRUE, because "no projection AND the server owns the gems" is
+     the boot state a stale residue was opening slots in — the defect itself, not
+     a state to test in. Other fields pass through (a blanket `() => true` would
+     hand four unrelated subsystems a client writer). */
+  const origMay = window.clientMayWriteRecordField;
+  try {
+    if (G) delete G._heroSlots;
+    window.clientMayWriteRecordField = (f) => (f === 'gems' ? true
+      : (typeof origMay === 'function' ? origMay(f) : true));
+  } catch (e) {}
   try { return fn(); } finally {
+    window.clientMayWriteRecordField = origMay;
     try { if (G) { if (had) G._heroSlots = prev; else delete G._heroSlots; } } catch (e) {}
   }
 };
@@ -1479,6 +1491,15 @@ const snapshotG = () => {
          had "restored" the state it inherited. A field that is only sometimes
          present is a field this list only sometimes protects. */
     recoveringUntilMs: G.recoveringUntilMs || 0,
+    /* THE HERO-SLOT ENTITLEMENT AND ITS SERVER MIRROR — 13 SNAP-1 writes put
+       back by hand in six `finally` blocks, and the seventh would have forgotten.
+       A PAIR that must restore together (`_heroSlots` is `_` scratch, never
+       persisted, but it outlives restoreG within a run — which is all it takes to
+       hand the next test five heroes). ⚠ `?? null`: neither key is in the fresh-G
+       literal, JSON drops undefined, a dropped key restores nothing (SNAP-2), and
+       `null` reads as ABSENT at both consumers — the fail-safe direction. */
+    heroSlotsUnlocked: G.heroSlotsUnlocked ?? null,
+    _heroSlots: G._heroSlots ?? null,
   }));
 };
 
@@ -35999,6 +36020,74 @@ const TESTS = [
       G.gems = prevGems;
       try { if (had) G._heroSlots = prev; else delete G._heroSlots; } catch (e) {}
       try { document.getElementById('hr-confirm-overlay')?.remove(); } catch (e) {}
+    }
+  }),
+
+  /* ── regression suite — THE RESIDUE-AHEAD HALF OF THE HERO SLOTS ─────────
+     `G.heroSlotsUnlocked` is RESIDUE, and multi-character.js reached it whenever
+     the `G._heroSlots` projection was absent — a WHOLE SESSION, per record.js's
+     hydration note. A slot above 0 is an entitlement the server sells and refuses
+     (`slot_not_owned`), so a stale or forged residue listed heroes the account
+     does not own and let the player walk into one: a door the realm slams
+     (CLAUDE.md §6 — a gate fails safe to NOT UNLOCKED). Both directions, because
+     refusing what the server GRANTED is the other way to break this. */
+  () => tryRun('SLOT-SRV-5 (b537): with the mirror absent the residue opens NOTHING above slot 0', () => {
+    const HP = window.HearthriseProfile, G = window.G;
+    if (!HP || !HP.profile || typeof HP.ownsSlot !== 'function') return;
+    const SAVE_KEY = 'hearthbound-save-v2';
+    const snap = snapshotG();
+    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    const prevSave = localStorage.getItem(SAVE_KEY);
+    const prevChars = [0, 1, 2, 3, 4].map((i) => localStorage.getItem('hearthrise:char:' + i));
+    try {
+      // ── THE BOOT STATE THE BUG LIVES IN: no projection, a residue that lies.
+      delete G._heroSlots;
+      G.heroSlotsUnlocked = 3;                 // "you own three heroes" — says the client
+      HP.profile.unlockedSlots = 3;            // …and so does the device-local cache
+      const active = HP.activeSlot();
+
+      assert(HP.ownsSlot(0) === true,
+        'slot 0 is free on every account and the fail-safe must not take it away');
+      for (const n of [1, 2, 3, 4]) {
+        assert(HP.ownsSlot(n) === false,
+          'RESIDUE-AHEAD: with hr_state_of silent, G.heroSlotsUnlocked=3 still granted slot ' + n + '. '
+          + 'hr_buy_hero_slot answers slot_not_owned for exactly this account, so the client is lighting '
+          + 'a door the server slams — and a forged residue is a free hero');
+      }
+      assert(HP.unlockedCount() === 1,
+        'unlockedCount() answered ' + HP.unlockedCount() + ' from the residue while the server has said '
+        + 'nothing — every ladder and every list in the module reads this');
+      const rows = HP.slotRows();
+      assert(rows.filter((r) => r.kind === 'char').every((r) => r.id === 0 || r.id === active),
+        'the drawer listed a hero the server has not confirmed: '
+        + JSON.stringify(rows.filter((r) => r.kind === 'char').map((r) => r.id)));
+      assert(HP.listSlots().every((s) => s.id === 0 || s.id === active),
+        'listSlots() offered a character row the account may not own');
+      /* THE PLAYER-VISIBLE GATE, ordered after the pure reads on purpose: an
+         unfixed build is already red above, so it never reaches a real swap. */
+      assert(HP.switchSlot(1) === null,
+        'THE SWITCH ITSELF: a hero slot the server never sold could be entered — the b371 dupe with the '
+        + 'gems left out');
+
+      // ── AND THE OTHER DIRECTION: what the server DID sell still opens. ──
+      HP.adoptServerSlots([0, 1]);
+      assert(HP.ownsSlot(1) === true && HP.ownsSlot(2) === false,
+        'the projection [0,1] must grant exactly slots 0 and 1 — a fail-closed gate that ignores the '
+        + 'server answer locks a paying player out of a hero they bought');
+      assert(HP.unlockedCount() === 2,
+        'the server set of two heroes must read as two: ' + HP.unlockedCount());
+    } finally {
+      HP.profile = prevProfile;
+      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
+      try {
+        if (prevSave === null) localStorage.removeItem(SAVE_KEY); else localStorage.setItem(SAVE_KEY, prevSave);
+        prevChars.forEach((v, i) => {
+          if (v === null) localStorage.removeItem('hearthrise:char:' + i);
+          else localStorage.setItem('hearthrise:char:' + i, v);
+        });
+      } catch (e) {}
+      restoreG(snap);                          // heroSlotsUnlocked + _heroSlots ride the allowlist
+      try { if (G && G._heroSlots === null) delete G._heroSlots; } catch (e) {}
     }
   }),
 

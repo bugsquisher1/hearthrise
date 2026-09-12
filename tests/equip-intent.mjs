@@ -87,6 +87,21 @@ async function grant(db, version, items) {
   return rows[0].r;
 }
 
+/** Pay a skill requirement the way the realm pays it: XP through hr_apply, then
+    hr_level_from_xp derives the level. NEVER by writing player_skills.level
+    directly — there is no such column, and a probe that faked one would be
+    testing a shape the engine does not have. */
+async function grantLevel(db, version, skill, level) {
+  const need = Number((await db.query(
+    'select min(xp)::text x from hr_xp_table where level >= $1', [level])).rows[0].x);
+  const rows = await asEngine(db, 'select hr_apply($1,0,$2,$3,$4::jsonb) r', [
+    UID, version, uuid(),
+    JSON.stringify({ xp: { [skill]: need },
+                     journal: { kind: 'admin', intent: 'equip_probe_level' } }),
+  ]);
+  return rows[0].r;
+}
+
 const versionOf = async (db) => Number((await db.query(
   'select version::text v from player_state where user_id=$1 and slot=0', [UID])).rows[0].v);
 const invOf = async (db, id) => Number((await db.query(
@@ -238,6 +253,27 @@ async function body(db, call, exec) {
     const g = await grant(db, await versionOf(db), { iron_sword: 1 });
     ok(g.ok === true, `E2-SETUP: the admin grant was refused — ${JSON.stringify(g)}`);
     ok(await invOf(db, 'iron_sword') === 1, 'E2-SETUP: the grant did not land');
+
+    /* ⚠ b542 — iron_sword IS GATED NOW (Attack 15,
+       2026-09-12-equippable-req-lv.sql). Until that file, hr_items.req_lv was
+       NULL for the whole hand-authored plate ladder and this control equipped
+       it at Attack 1. The fixture was measuring an ungated item, so it went red
+       the moment the gate landed — correctly, and the cascade below is what a
+       broken control looks like. Restored by PAYING the requirement, which
+       makes the arm strictly stronger than it was: E2a asserts the realm
+       REFUSES the under-levelled character (the property the migration adds)
+       and E2 asserts it ACCEPTS once the level is met, so a future change that
+       gates iron_sword at 99 and one that ungates it entirely are both red. */
+    const under = await call({ equip: { weapon: 'iron_sword' } });
+    ok(under.status === 409 && under.body.error === 'requirement_not_met',
+      `E2a: an Attack-1 character equipping iron_sword (Attack 15) answered ${under.status} `
+      + `${JSON.stringify(under.body).slice(0, 200)} — hr_items.req_lv is the ONLY wield `
+      + 'authority; the client tier ladder is not a control');
+    ok(await invOf(db, 'iron_sword') === 1 && await eqOf(db, 'weapon') === 'bronze_sword',
+      'E2a: the refused equip moved the bag or the slot — a rejection must roll back whole');
+
+    const lv = await grantLevel(db, await versionOf(db), 'attack', 15);
+    ok(lv.ok === true, `E2-SETUP: the Attack-15 XP grant was refused — ${JSON.stringify(lv)}`);
 
     const r = await call({ equip: { weapon: 'iron_sword' } });
     ok(r.status === 200 && r.body.ok === true,

@@ -4,9 +4,11 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
-## v0.9.2-beta build 537 — 2026-09-12 (Only the heroes the realm sold you)
+## v0.9.2-beta build 537 — 2026-09-12 (Only what the realm sold you)
 
 **Hero slots open only on the realm's word.** When the client had not yet heard from the realm which hero slots you own, it fell back to its own remembered count and could list, and let you switch into, a slot the realm never sold, only to be refused. Until the realm answers, only your first hero is offered and the drawer says it is still checking; the moment the realm answers, the list is the realm's.
+
+**Your bag holds what the realm says it holds.** The bag's capacity was added up on the client from three remembered counters, only one of which the realm had ever confirmed, so a remembered purchase could promise room the realm refused at the next settle. The realm has always enforced one number and projected it on every envelope; the bag now reads that number and, until the realm has spoken, shows the base capacity.
 
 ## v0.9.2-beta build 536 — 2026-09-12 (What you own is what the realm says you own)
 

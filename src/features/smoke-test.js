@@ -5652,7 +5652,7 @@ const TESTS = [
   }),
 
   /* ── regression suite — THE COUNTED FIGURE ADMITS THAT IT LAGS ───────────
-     renown_high is ratcheted at APPLY time, so the figure b535 put on every
+     renown_high is ratcheted at APPLY time, so the counted figure on every
      headline is the score as of the last settle — and a number that sits still
      while the player is visibly earning reads as broken. GAME DESIGNER'S RULING
      (final, 2026-09-11): rank never goes down, and the copy is "Renown N — your
@@ -5686,7 +5686,7 @@ const TESTS = [
         'THE UNKNOWN CASE: a settle note was painted beside a figure the realm has never counted; got ' + JSON.stringify(hint()));
       closeLadder();
 
-      // ── COUNTED 779 — the b535 reader (top-level renown_high on an envelope).
+      // ── COUNTED 779 — the envelope reader (top-level renown_high on an envelope).
       const noted = R.noteServerRenown({ ok: true, renown_high: 779, progress: [] });
       assert(noted.high === 779, 'fixture: the envelope figure must land in the mirror; got ' + JSON.stringify(noted));
       const st = R.getState(window.G);

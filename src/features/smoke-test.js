@@ -1611,17 +1611,14 @@ const stubSignedIn = (slot) => {
 };
 
 /* ── THE RESIDUE PUT ON A STUBBED WIRE, WRITTEN ONCE ─────────────────────────
-   `hr_put_client_state` is the ONE periodic write the armed game still makes,
-   and three tests drive it against a fake endpoint. Each carried the same
-   fixture verbatim: release the b314 reconcile hold (or the save returns before
-   the network and every assertion is vacuous), swap `window.fetch`, trust the
-   clock, reset the auth gate and the save health — then put all four back
-   EXACTLY as found, plus the same nine-key cfg. Stated once so a new test of
-   that write costs its assertions and nothing else, and so a failed arm can
-   never leak the fetch stub or a probe's cloudSyncedAt into the rest of the
-   suite. `onRequest(url, init)` answers any example.invalid call — return a
-   Response (or a promise of one) to control it, or nothing for a 200 {ok:true}.
-   `extraCfg` overrides the cfg (the claim endpoint, the failure callbacks). */
+   `hr_put_client_state` is the ONE periodic write the armed game makes, and three
+   tests drive it against a fake endpoint. Each carried the same fixture verbatim:
+   release the reconcile hold (or the save returns before the network and every
+   assertion is vacuous), swap `window.fetch`, trust the clock, reset the auth gate
+   and the save health — then put all four back EXACTLY as found, plus the same
+   nine-key cfg. Stated once so a failed arm cannot leak the stub or a probe's
+   cloudSyncedAt into the suite. `onRequest(url, init)` answers any example.invalid
+   call: a Response to control it, nothing for a 200 {ok:true}. */
 const withResidueWire = async (onRequest, body, extraCfg) => {
   const S = window.HearthriseSync, G = window.G;
   const realFetch = window.fetch, wasHeld = S.isSnapshotHeld();
@@ -36463,30 +36460,19 @@ const TESTS = [
   }),
 
   /* ── b372 · regression suite — THE HOLE THE QUIESCE LATCH DID NOT COVER ─────
-     Filed by QA 2026-09-12 (DISCOVERIES) and reproduced here. The switch defence
-     has two layers in src/net/sync.js: `snapshotIfDue()` refuses to START a send
-     while quiesced, and `ownerSlotForLiveG()` re-addresses one already in flight.
-     Layer 2 only ever reached `buildSnapshotRequest` (game_saves). The write that
-     REPLACED the blob — the residue PUT, `hr_put_client_state` — was addressed
-     `pinnedSlot: config.slot`, and `config.slot` is null in production (auth.js
-     pins nothing), so `buildClientStatePutRequest` resolved the slot from
-     `HearthriseProfile.activeSlot()` LIVE, at BODY-BUILD time. `snapshotIfDue`
-     has exactly one await that can straddle a switch — `await fetchClaimRow()`
-     (the b366 handoff precondition) — so a cadence save parked on that one
-     network read when a switch landed had already passed the quiesce gate and
-     then built its body against the INCOMING slot: the outgoing hero's residue
-     (bestiary, quests, achievements, playerName…) upserted onto the TARGET
-     hero's client_state row, which is UNIQUE (user_id, slot). The b372 clone,
-     on the one periodic write the armed game makes.
+     The switch defence in src/net/sync.js refuses to START a send while quiesced
+     and re-addresses one already in flight — but that second layer only ever
+     reached `buildSnapshotRequest` (game_saves). The residue PUT that REPLACED the
+     blob was addressed `pinnedSlot: config.slot`, null in production, so the slot
+     came from `HearthriseProfile.activeSlot()` LIVE at BODY-BUILD time — after
+     `await fetchClaimRow()`, the one await a switch can land inside. The outgoing
+     hero's residue then upserted onto the TARGET hero's client_state row.
      THIS PLAYS THAT ORDER: park the claim read, move the hero pointer while the
-     save is suspended on it, release, and read the slot off the WIRE (the shape
-     tests/slot-switch.mjs watches). The pointer is moved WITHOUT arming the
-     quiesce latch on purpose — with the latch armed, layer 2 would answer
-     correctly even if the slot were resolved late, so the latch would hide the
-     defect. The property asserted is the stronger one: the body is addressed to
-     the character the snapshot was STARTED for.
-     MUTATION: put `pinnedSlot: config.slot` back in sync.js snapshotIfDue (or
-     move the `ownerSlotForLiveG` pin below the claim await) → RED here. */
+     save is suspended on it, release, read the slot off the WIRE (the shape
+     tests/slot-switch.mjs watches). The pointer moves WITHOUT arming the quiesce
+     latch on purpose — an armed latch answers correctly even when the slot is
+     resolved late, so it would hide the defect.
+     MUTATION: restore `pinnedSlot: config.slot` → RED here. */
   () => tryRunAsync('b372: a residue save parked on the claim read keeps the slot it started for — a switch mid-read cannot re-address it', async () => {
     const S = window.HearthriseSync, HP = window.HearthriseProfile, G = window.G;
     assert(HP && typeof HP.activeSlot === 'function' && typeof S.__setClaimView === 'function',
@@ -40189,16 +40175,11 @@ const TESTS = [
       attempts++;
       return Promise.resolve(new Response(status === 200 ? '{"ok":true}' : '{"message":"timeout"}', { status }));
     }, async () => {
-      /* b515 — (1)-(3) NOW DRIVE THE WRITE THAT EXISTS. They used to be pinned
-         to the blob upsert (`withLocalBlobAsync`) because that was the only
-         caller passing `fetchWithAuthRetry(..., { retryWrite })`. b515 deleted
-         the upsert, and b459 had already routed the residue PUT through the
-         same hardened transport — so the three cases below and the separate
-         "(4) RED ON PURPOSE" case that used to follow them are now ONE test of
-         ONE write, which is what they were always trying to be. (4) is folded
-         in rather than deleted: its assertion — a 503 on the periodic save
-         costs two attempts, not one — is (1) and (2) below, against the same
-         endpoint it named. */
+      /* ALL FOUR CASES DRIVE THE ONE WRITE THAT EXISTS — the residue PUT, which
+         is the only caller passing `fetchWithAuthRetry(..., { retryWrite })`
+         since the blob upsert was deleted. (4) is folded in rather than dropped:
+         its assertion — a 503 on the periodic save costs two attempts, not one —
+         is (1) and (2), against the same endpoint it named. */
       // (1) killed in flight, then fine. The player must never learn of it.
       await S.snapshotIfDue(true, false);
       assert(attempts === 2, 'the killed write was not retried exactly once — ' + attempts + ' attempt(s)');
@@ -40243,19 +40224,16 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════════
      `snapshotIfDue(true, true)` is the parting save, fired from
      `visibilitychange`→hidden and `pagehide` (src/net/sync.js). The blob upsert
-     always set `keepalive` on it — but the capstone's residue branch RETURNS
-     before that line, so from blob-retire onward the parting save was an
-     ordinary fetch that the browser cancels the instant the document is torn
-     down. Up to a full 60s cadence of SELF-ONLY progress was lost on every tab
-     close and every mobile backgrounding: bestiary kills, achievements, quests,
-     collection, the daily-reward shown-marker, dungeon cooldowns, buffs,
-     buyback, lockedItems, combatStyle, loadouts, streak — the whole residue
-     allowlist, because the patch is the whole bag.
-     The sibling did it right (SETTLE-4, accrue.js `buildKeepaliveRequest`); this
-     asserts the residue write learned the same lesson, that it is OPT-IN (the
-     periodic save must not spend the browser's small shared keepalive quota),
-     and that an over-quota body degrades to a normal request instead of being
-     rejected outright by the Fetch spec's 64 KiB inflight ceiling. */
+     always set `keepalive` on it; the residue branch that replaced it did not, so
+     the parting save was an ordinary fetch the browser cancels the instant the
+     document is torn down — up to a full 60s cadence of SELF-ONLY progress lost on
+     every tab close and every mobile backgrounding (the whole residue allowlist,
+     because the patch is the whole bag).
+     The sibling did it right (accrue.js `buildKeepaliveRequest`); this asserts the
+     residue write learned the same lesson, that it is OPT-IN (the periodic save
+     must not spend the browser's small shared keepalive quota), and that an
+     over-quota body degrades to a normal request instead of being rejected
+     outright by the Fetch spec's 64 KiB inflight ceiling. */
   () => tryRunAsync('Q-1: the pagehide residue save is keepalive; the 60s cadence save is not', async () => {
     const CS = window.HearthriseClientState;
     assert(CS && typeof CS.buildClientStatePutRequest === 'function',

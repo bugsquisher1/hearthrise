@@ -99,9 +99,17 @@ export const ITEMS={
   warlord_badge:{n:'Warlord Badge',icon:'🎖️',v:350},bear_pelt:{n:'Bear Pelt',icon:'🐻',v:260},bear_claw:{n:'Bear Claw',icon:'爪',v:180},
   wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Shadow Thread',icon:'🧵',v:320},
   void_chitin:{n:'Void Chitin',icon:'🪲',v:800},captain_medal:{n:'Captain Medal',icon:'🏅',v:700},shadow_pelt:{n:'Shadow Pelt',icon:'🐈‍⬛',v:480},
-  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15},
+  /* b542 — `captains_ribblade` and `chief_blade` (next line but one) are the two
+     boss-drop weapons that carried NEITHER a tier nor a gate, so neither reader
+     had anything to gate on: the client's tier fallback needs a tier and
+     hr_items.req_lv was NULL. Ruling 2026-09-12 puts them on the ladder rung
+     their attack bonus already sits on — Ribblade attack 30 (atkB 19, between
+     steel 12 and mithril 18), Chief's Blade attack 15 (atkB 13, iron's rung) —
+     rather than inventing a tier, because `tier` also drives the rarity border
+     and the ladder guards, and these two are drops, not rungs. */
+  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15,reqSkill:'attack',reqLv:30},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
-  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2},
+  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'attack',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2},
   leather_boots:{n:'Leather Boots',icon:'🥾',v:90,type:'armor',slot:'boots',defB:2,spdB:.02},
   traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',defB:1,xpB:.01},
   copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1},
@@ -137,8 +145,15 @@ export const ITEMS={
      lv 15 vs this rung's 20). `ammoPerShot: 1` matches every tier-2+ rung so
      this stopped being the one arrow in the game with no sink the day the
      combat loop started spending (E1, 2026-08-31, src/core/ammo.js). Both are
-     enforced by the ammo-ladder guard in tests/recipe-yield-guard.mjs. */
-  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',atkB:2,critB:.01,ammoPerShot:1},
+     enforced by the ammo-ladder guard in tests/recipe-yield-guard.mjs.
+
+     b542 — `reqSkill:'ranged', reqLv:1` is the LAST ammo row to carry a gate: the
+     other 27 rungs (slot-ladders.js) all author ranged/magic/attack 1-88, and this
+     one had neither, so hr_items.req_lv was NULL for the one arrow a level-1 buys
+     off the storefront. reqLv 1 is not a restriction (the gate is `level < req_lv`)
+     — it is the data form of "belongs to Ranged", which is what keeps the column
+     non-NULL across the whole slot and lets the ammo guard read one shape. */
+  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',atkB:2,critB:.01,ammoPerShot:1,reqSkill:'ranged',reqLv:1},
   fox_companion:{n:'Fox Companion',icon:'🦊',v:600,type:'companion',slot:'companion',strB:2,xpB:.02},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:25},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:20},
@@ -569,13 +584,22 @@ export const ITEMS={
      the top band in rarity.js and is explicit, so it wins over value-derived
      mythic — these are the rarest objects in the game and should read that way.
      `tier: 8` is one above the seven-rung material ladder; nothing indexes gear
-     tier as an array, and clan-seat's TIER_MULT clamps, so it is safe. */
-  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', defB:59, rarity:'unique', tier:8},
-  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   defB:120,rarity:'unique', tier:8},
-  abyssal_greaves:       {n:'Abyssal Greaves',     icon:'🦿', v:198000, type:'armor', slot:'pants',  defB:85, rarity:'unique', tier:8},
-  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', defB:31, rarity:'unique', tier:8},
-  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   defB:40, rarity:'unique', tier:8},
-  wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   defB:14, atkB:6, rarity:'unique', tier:8},
+     tier as an array, and clan-seat's TIER_MULT clamps, so it is safe.
+     ⚠ b542 — "nothing indexes gear tier as an array" WAS FALSE, and it cost the
+     economy the whole gate: legacy.js `_TIER_WIELD_LV` is an array of 8 with no
+     index 8, so `_TIER_WIELD_LV[8]` was undefined → `||0` → no requirement, and
+     hr_items.req_lv was NULL because this row never authored one. All six are
+     tradeable, so a level-1 buyer could wear a 120-def platebody off the market.
+     They now carry the gate AS DATA (defense 88, the ladder's top rung — ruling
+     2026-09-12: tier 8 shares 88 rather than opening a rung above it), which is
+     the form BOTH readers see: gearWieldReq prefers an explicit reqLv over the
+     array, and gen-catalogues mirrors it into hr_items for hr_apply §EQUIPMENT. */
+  regent_helm:           {n:'Hollow Regent Helm',  icon:'⛑️', v:108000, type:'armor', slot:'helmet', defB:59, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  slagheart_platebody:   {n:'Slagheart Platebody', icon:'🦺', v:270000, type:'armor', slot:'body',   defB:120,rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  abyssal_greaves:       {n:'Abyssal Greaves',     icon:'🦿', v:198000, type:'armor', slot:'pants',  defB:85, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  choirbone_gauntlets:   {n:'Choirbone Gauntlets', icon:'🧤', v:63000,  type:'armor', slot:'gloves', defB:31, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  warden_girdle:         {n:"Warden's Girdle",     icon:'🟫', v:72000,  type:'armor', slot:'belt',   defB:40, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
+  wyrmgilt_mantle:       {n:'Wyrmgilt Mantle',     icon:'🦸', v:90000,  type:'armor', slot:'cape',   defB:14, atkB:6, rarity:'unique', tier:8, reqSkill:'defense', reqLv:88},
 
   /* ── DUNGEON SIGNATURE LOOT (b268 — the boss ecosystem, increment 1) ──────
      Every solo dungeon has a named end-boss (see src/dungeons.js DUNGEONS[id].boss)
@@ -660,13 +684,37 @@ export const ITEMS={
    generated ladder (bronze_sword, iron_warhammer, shortbow, oak_staff …).
    Those entries predate the tier system and override their generated twin
    wholesale, so without this they'd be the only rungs with no rarity border —
-   a visibly inconsistent ladder. Their stats and values are left untouched. */
+   a visibly inconsistent ladder. Their stats and values are left untouched.
+
+   ⚠ b542 — reqSkill/reqLv ARE PART OF THE SAME BACKFILL, and leaving them out
+   for 27 builds was a real hole rather than an omission of polish. The generated
+   twin carries the tier's gate (gear-tiers.js: armour → defense at mat.smith,
+   a weapon → its own style), the hand-authored override does not, and the two
+   readers disagree about what that means:
+     · the CLIENT (legacy.js `gearWieldReq`) falls back to `_TIER_WIELD_LV[tier]`
+       when `reqLv` is absent, so it gated these 17 anyway — invisibly, from a
+       second copy of the ladder;
+     · the SERVER (hr_items.req_lv, mirrored by tools/gen-catalogues.mjs) reads
+       ONLY this field, so hr_apply §EQUIPMENT saw NULL and refused nothing.
+   A client-only gate is not a gate (§1: nothing is authored by the client), and
+   `_TIER_WIELD_LV` has no index 8 — so the six hand-authored tier-8 rows below
+   (regent_helm … wyrmgilt_mantle, all tradeable) were ungated on BOTH sides and
+   a level-1 buyer could wear a 120-def platebody straight off the market.
+   Copying the twin's two fields fixes the 17 that HAVE a twin; the other 14 are
+   hand-authored at their own rung beside their stats, since a jewelry or cape id
+   the ladder never generated has no twin to copy from. Game-designer ruling
+   2026-09-12: tier 1/2/3/4/5/6/7/8 → 1/15/30/45/60/75/88/88 (tier 8 shares 88
+   rather than opening a new rung — two shipped tier-8 rows already sit at 82/88
+   and raising it would nerf a live wearer), reqSkill = the skill the item's
+   power serves. `== null` only: a hand-authored gate always wins. */
 Object.keys(GEAR_ITEMS).forEach((id) => {
   const generated = GEAR_ITEMS[id];
   const live = ITEMS[id];
   if (!live || live === generated) return;
   if (live.tier == null) live.tier = generated.tier;
   if (live.rarity == null) live.rarity = generated.rarity;
+  if (live.reqSkill == null) live.reqSkill = generated.reqSkill;
+  if (live.reqLv == null) live.reqLv = generated.reqLv;
 });
 
 /* ══════════════════════════════════════════════════════════════════════

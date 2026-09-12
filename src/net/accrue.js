@@ -1760,12 +1760,22 @@ export function reconcileBank(G, res, invAbsolute, baselineComplete) {
    a gem rung gets a server ladder it becomes one more `pickBankRung`-shaped read,
    not a second mechanism.
 
+   ⚠ THE RUNG IS NOT THE CAP — see noteServerBankCap directly below, which is why
+   this reader alone did NOT close the residue-ahead half. The cap the game
+   enforces is `player_state.bank_cap`, and the client re-derived its own from
+   three client-held counters instead of mirroring it.
+
    Pure: takes G + res, returns a small receipt, so the suite and the arm-homing
    guard drive it without a live window. */
 export function reconcileBankRungs(G, res) {
   if (!G || typeof G !== 'object') return null;
+  /* THE CAP FIRST, and deliberately ABOVE the UNKNOWN-rung return: `state` and
+     `progress` are two independent halves of the same body, and a body that
+     states the cap while carrying no `progress` array (a lean verb answer) still
+     states the cap. */
+  const cap = noteServerBankCap(G, res);
   const rung = pickBankRung(res);
-  if (rung === null) return { mode: 'absent' };          // UNKNOWN — leave G.bank alone
+  if (rung === null) return { mode: 'absent', cap };     // UNKNOWN — leave G.bank alone
   const cur0 = Number(G.bank && G.bank.goldBuys);
   const cur = (Number.isFinite(cur0) && cur0 > 0) ? Math.floor(cur0) : 0;
   const complete = isCompleteProgressStatement(res);
@@ -1774,7 +1784,54 @@ export function reconcileBankRungs(G, res) {
     if (!G.bank || typeof G.bank !== 'object') G.bank = {};
     G.bank.goldBuys = next;
   }
-  return { mode: 'server', rungs: next, from: cur, exact: complete, lowered: next < cur };
+  return { mode: 'server', rungs: next, from: cur, exact: complete, lowered: next < cur, cap };
+}
+
+/* ── THE ENFORCED BANK CAP IS THE SERVER'S NUMBER, NOT THE CLIENT'S SUM ───────
+   THE RESIDUE-AHEAD HALF SA-010 LEFT OPEN (the census). `bankCap()` (legacy.js)
+   used to compute the bag's capacity itself —
+   `BASE_CAP + goldBuys*20 + gemBuys*60 + grandfather` — three CLIENT-HELD
+   counters gating a SERVER capability, which is CLAUDE.md §6's residue-ahead
+   class verbatim. Only `goldBuys` has a server statement (above); `gemBuys` and
+   `grandfather` have none and were conformed by NOTHING, so anything that ever
+   put a number in them held it for the whole session.
+
+   AND IT HURTS IN BOTH DIRECTIONS, which is why a raise-only heal is not enough:
+     · CLIENT ABOVE SERVER — `hr_apply` refuses the WHOLE delta `bank_full` the
+       moment the stacks pass `player_state.bank_cap` (2026-08-11-apply-engine
+       §bank_full). A bag the client draws and the server refuses does not lose
+       one item; it kills every loot, gather, craft and shop buy in that apply.
+     · SERVER ABOVE CLIENT — `bank_cap` is RAISE-ONLY server-side and both the
+       pre-cutover grandfather and the cutover importer mint caps ABOVE the gold
+       ladder (tests/bank-cap-rungs.mjs B4 pins that). No sum of the client's
+       counters reproduces one, so those players were nagged "Bank full" and had
+       new stacks refused locally on space the realm was holding open.
+
+   ONE NUMBER, THE ENFORCED ONE. `hr_state_of` projects `state.bank_cap` — the
+   very column `hr_apply` checks — on every envelope (asserted on the chain:
+   2026-08-17-cutover-import.sql refuses to install against an hr_state_of whose
+   body lacks `bank_cap`; tests/bank-cap-rungs.mjs B2 asserts projected ==
+   enforced on a replayed chain). Mirroring it is the whole fix: the rungs go on
+   pricing the next purchase (`bankGoldCost`, offer `bank.<goldBuys>`) and stop
+   being an arithmetic second opinion about how much space the player owns.
+   `_`-PREFIXED ON PURPOSE — scratch, never persisted (§6), the `_heroSlots`
+   shape; a cap that survived a reload in a client-held field would be this bug
+   wearing the fix's clothes.
+   THE THREE ANSWERS: STATED (`state.bank_cap` finite > 0) → that IS the cap, up
+   or down, and the client never argues. ABSENT from a body carrying other things
+   → the last STATEMENT stands (absence is not a claim, as for the rung above).
+   NEVER STATED this session → `bankCap()` answers the BASE cap, not the
+   counters: the fail-safe of "not unlocked", and byte-identical to a
+   post-cutover cold boot, where `G.bank` starts {0,0,0} homed by nothing. */
+function noteServerBankCap(G, res) {
+  const held = Number(G._bankCap);
+  const last = (Number.isFinite(held) && held > 0) ? Math.floor(held) : null;
+  const st = (res && typeof res === 'object' && res.state) || null;
+  if (!st || typeof st !== 'object') return last;
+  const n = Number(st.bank_cap);
+  if (!Number.isFinite(n) || n <= 0) return last;
+  G._bankCap = Math.floor(n);
+  return G._bankCap;
 }
 
 /* ── THE COMPANION ROSTER, RECONSTRUCTED FROM THE ENVELOPE (blob-retire) ──────

@@ -1360,10 +1360,10 @@ const snapshotG = () => {
     // b213 QA: the house-room test raises the property tier to clear the
     // b201 room gate — snapshot it so the player's real tier is restored.
     homestead: G.homestead,
-    // b215: the dungeon-key test starts a run, which stamps a 4h cooldown into
-    // G.dungeons.lastRun. Without this the cooldown leaked past the test and
-    // made the SECOND suite run fail (canRun bails before spending the key).
-    dungeons: G.dungeons,
+    /* The SERVER's dungeon re-entry windows (was `dungeons`, the client clock).
+       `?? null` is load-bearing: JSON drops undefined and an account with no open
+       window has no key at all, so a seeded one would outlive its own test. */
+    _dungeonCooldowns: G._dungeonCooldowns ?? null,
     playerName: G.playerName,
     // b222 (SEAM 3): the Rested XP bank + its watermark. The seam tests fill
     // the bank directly and drive processOffline, so without these two fields
@@ -9419,7 +9419,7 @@ const TESTS = [
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
       G.gold = (G.gold || 0) + 100000;
-      G.dungeons = { lastRun: {} };          // clear any cooldown from a prior run
+      G._dungeonCooldowns = {};              // clear any server cooldown window
       G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000, defense: 5000000, hitpoints: 5000000 });
       const before = G.inventory[d.cost.key];
       window.startManualDungeonRun(id);
@@ -9879,14 +9879,12 @@ const TESTS = [
     const snapSaved = snapshotG();
     try {
       const DAY = 'test-day-key';
-      const t = Date.now();
       // --- DEVICE A: a played account ---
       G.bestiary = { slime: { kills: 42 } };
       G.achievements = { first_kill: { unlocked: true } };
       G.quests = [{ id: 'q1', progress: 7, done: false }];
       G.daily = { lastReset: DAY, tasks: [{ id: 'd1', progress: 3 }] };
       G.streak = { days: 5, lastClaimDayKey: DAY };      // daily reward ALREADY claimed
-      G.dungeons = { lastRun: { crypt_of_bones: t } };   // cooldown ALREADY spent
       G.collection = { bones: 12 };
       G.traits = { autoEat: true };                      // PURCHASED with gold
       G.homestead = { tier: 4 };
@@ -9894,7 +9892,7 @@ const TESTS = [
       const cloud = JSON.parse(JSON.stringify(ev.snapshot(G)));   // what reaches the server
 
       // --- DEVICE B: a fresh install signs in ---
-      ['bestiary', 'achievements', 'quests', 'daily', 'streak', 'dungeons', 'collection', 'traits', 'homestead']
+      ['bestiary', 'achievements', 'quests', 'daily', 'streak', 'collection', 'traits', 'homestead']
         .forEach((k) => { delete G[k]; });
       Object.assign(G, cloud);                            // the real restore path (auth.js)
 
@@ -9906,9 +9904,9 @@ const TESTS = [
       assert(G.traits && G.traits.autoEat === true, 'Purchased traits must survive (paid with gold)');
       assert(G.homestead && G.homestead.tier === 4, 'Homestead/castle tier must survive');
 
-      // (b) THE EXPLOIT: spent cooldowns must still be spent on the new device
-      assert(G.dungeons && G.dungeons.lastRun.crypt_of_bones === t,
-        'dungeon cooldown must carry over — otherwise switching device resets it (free runs)');
+      /* (b) THE EXPLOIT: spent cooldowns must still be spent on the new device. The
+         DUNGEON half left this list when the window became a SERVER fact (see
+         DGN-COOLDOWN-1) — there is no client field left to carry across. */
       assert(G.streak && G.streak.lastClaimDayKey === DAY,
         'daily-reward claim must carry over — otherwise switching device re-grants it');
       assert(G.daily && G.daily.lastReset === DAY, 'daily task state must carry over');
@@ -9919,9 +9917,8 @@ const TESTS = [
     // paione: "some stuff is not reloaded through the cloud — Bestiary,
     // Achievements, new quests and daily login bonus, Dungeon times are reset,
     // Clan boss can be re-attacked". The snapshot was a 17-field ALLOWLIST while G
-    // carries ~40, so unlisted state never synced — and because dungeon lastRun,
-    // the daily claim and the raid claim are unlisted, switching devices RE-GRANTED
-    // them. Data loss AND an economy exploit.
+    // carries ~40, so unlisted state never synced: data loss AND, wherever the
+    // unlisted field was a claim marker, an economy exploit on every new device.
     const ev = window.HearthriseEvents;
     assert(ev && typeof ev.snapshot === 'function', 'HearthriseEvents.snapshot missing');
     const G = window.G;
@@ -9930,7 +9927,7 @@ const TESTS = [
     // Everything a second device must not lose or be re-granted.
     /* `wieldGrandfather` left this list with the field itself — a client-held gear
        permission the realm never had; nothing crosses devices by its absence. */
-    ['bestiary', 'achievements', 'quests', 'daily', 'collection', 'dungeons', 'traits',
+    ['bestiary', 'achievements', 'quests', 'daily', 'collection', 'traits',
       'streak', 'lockedItems', 'offlineBudget', 'homestead', 'v']
       .forEach((k) => {
         if (G[k] === undefined) return;                 // field not present in this save
@@ -10293,7 +10290,7 @@ const TESTS = [
     const d = window.DUNGEONS[dId], G = window.G;
     const snap = {
       inv: JSON.parse(JSON.stringify(G.inventory || {})),
-      scrip: G.dungeonScrip, dgn: JSON.parse(JSON.stringify(G.dungeons || { lastRun: {} })),
+      scrip: G.dungeonScrip, cd: G._dungeonCooldowns,
       addItem: window.addItem, getCombatLevel: window.getCombatLevel,
       send: DS.sendDungeonSettle, notify: window.notify,
     };
@@ -10330,7 +10327,7 @@ const TESTS = [
       G.inventory[d.cost.key] = 1;                       // a real key, so canRun passes
       delete G.inventory.dungeon_scrip;
       G.dungeonScrip = 0;
-      G.dungeons = { lastRun: {} };                      // off cooldown
+      G._dungeonCooldowns = {};                          // off cooldown
       window.getCombatLevel = () => 99;
       window.notify = () => {};
       window.addItem = (id, qty) => { minted.push(id + 'x' + qty); return true; };
@@ -10361,8 +10358,56 @@ const TESTS = [
       R.__setDungeonSettleArm(null);
       DS.sendDungeonSettle = snap.send; window.addItem = snap.addItem;
       window.getCombatLevel = snap.getCombatLevel; window.notify = snap.notify;
-      G.inventory = snap.inv; G.dungeonScrip = snap.scrip; G.dungeons = snap.dgn;
+      G.inventory = snap.inv; G.dungeonScrip = snap.scrip; G._dungeonCooldowns = snap.cd;
     }
+  }),
+
+  /* ── regression suite — DGN-COOLDOWN-1: THE RE-ENTRY WINDOW IS THE SERVER'S ──
+     Three lies, one seam. canRun() computed the cooldown from a client clock
+     (`G.dungeons.lastRun`) the ARMED path had stopped stamping, so every card read
+     "ready" and every Auto-Run came back refused; the manual modal wrote "Rewards
+     settled…" BEFORE the answer arrived; and the on_cooldown copy advised "try a
+     manual run", which the server refuses identically. The projection is PER MODE
+     (auto/manual full window, scavenger a quarter), so an auto window must not rest
+     the scavenger button. MUTATION: restore the lastRun arithmetic, drop the `mode`
+     argument, or restore the literal rewardHtml — each one reddens a line below. */
+  () => tryRunAsync('DGN-COOLDOWN-1: the per-mode dungeon cooldown is read from the server mirror, and a refused settle never claims rewards', async () => {
+    const A = window.HearthriseAccrual, DS = window.HearthriseDungeonSettle, id = 'crypt_of_bones';
+    assert(A && typeof A.reconcileDungeonCooldowns === 'function', 'accrue.js must export reconcileDungeonCooldowns');
+    assert(typeof window.canRunDungeon === 'function' && typeof window.dungeonSettleRowHtml === 'function',
+      'the dungeon gate reader and the settle-row renderer must both be exposed');
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel;
+    const at = new Date(Date.now() + 3600000).toISOString();
+    try {
+      window.getCombatLevel = () => 99;
+      G.inventory = Object.assign({}, G.inventory, { bone_key: 1 });
+      // (a) a PROJECTED window blocks its OWN mode only, and prints a countdown.
+      A.reconcileDungeonCooldowns(G, { dungeon_cooldowns: { [id]: { auto: at, manual: at } } });
+      const busy = window.canRunDungeon(id, 'auto');
+      assert(G._dungeonCooldowns[id].auto === at && busy.ok === false && /On cooldown.*h remaining/.test(busy.reason),
+        'THE BUG: a server window must block that mode and name the time left (got ' + JSON.stringify(busy) + ')');
+      assert(window.canRunDungeon(id, 'scavenger').ok === true,
+        'a mode the projection omits is READY — the scavenger window is a quarter of the auto one, not the same one');
+      if (document.getElementById('panel-dungeons')) {
+        window.renderDungeons();
+        assert([...document.querySelectorAll('#panel-dungeons button.dgn-run[disabled]')].some((b) => /On cooldown/.test(b.textContent)),
+          'the dungeon card must print the countdown on its disabled Auto-Run button');
+      }
+      // (b) the key ABSENT → exactly today's behaviour, ready (forward-compatible).
+      A.reconcileDungeonCooldowns(G, { dungeon_cooldowns: {} });
+      assert(window.canRunDungeon(id, 'auto').ok === true && window.canRunDungeon(id).ok === true,
+        'an absent window must read READY — that is the pre-apply behaviour this ships ahead of');
+      // (c) a 409 refusal paints the reason, never a reward, and adopts its window.
+      const body = { ok: false, error: 'on_cooldown', detail: { dungeon: id, mode: 'manual', next_entry_at: at, ready_at: at, cooldown_s: 14400 } };
+      const html = window.dungeonSettleRowHtml(Object.assign({ status: 409 }, DS.classifyDungeonSettleResponse(409, body)));
+      assert(!/Rewards settled/.test(html) && !/Rewards settled/.test(window.dungeonSettleRowHtml(null)),
+        'THE BUG: a refused (or unanswered) settle must never claim the rewards landed (got ' + html + ')');
+      assert(/resting/.test(html) && !/manual run/.test(html), 'the refusal must say the dungeon is resting, and must not advise a manual run (got ' + html + ')');
+      A.reconcileDungeonCooldowns(G, body);
+      assert(G._dungeonCooldowns[id].manual === at && window.canRunDungeon(id, 'manual').ok === false
+        && window.canRunDungeon(id, 'auto').ok === true,
+        'the refusal detail must rest ITS mode at once and no other (got ' + JSON.stringify(G._dungeonCooldowns) + ')');
+    } finally { window.getCombatLevel = lvl; restoreG(snap); }
   }),
 
   () => tryRun('WAVE6: a weekly boss exists and pays a bigger bonus than the daily', () => {

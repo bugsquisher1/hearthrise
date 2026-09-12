@@ -2077,6 +2077,65 @@ export function reconcileHeroSlots(G, res) {
   return { mode: 'server', owned: owned.length };
 }
 
+/* ── THE DUNGEON RE-ENTRY WINDOWS ARE THE SERVER'S ───────────────────────────
+   hr_dungeon_settle refuses an early re-entry with `on_cooldown` and a detail
+   carrying {dungeon, mode, next_entry_at}; hr_state_of projects the ACTIVE windows
+   as a top-level `dungeon_cooldowns`, PER DUNGEON AND PER MODE —
+   { "<dungeon_id>": { "auto": ISO, "manual": ISO, "scavenger": ISO } } — derived by
+   the SAME function the gate refuses on, so the countdown shown and the window
+   enforced are one number. This lands it where the dungeon cards read it.
+
+   PER MODE, NOT PER DUNGEON, and the nesting is the whole contract: one run stamps
+   one `last_at` and each mode clears at `last_at + cooldown_s / divisor(mode)`
+   (auto 1, manual 1, scavenger 4). So a scavenger entry can be open while auto is
+   not, and a flat "is this dungeon resting" answer would be wrong for two of the
+   three buttons. A caller must name the mode it is about to settle as.
+
+   ⚠ IT DOES NOT WRITE `G.dungeons.lastRun`, AND THAT IS THE POINT. That was a
+   CLIENT-CLOCK stamp in the residue — a clock the client set and could rewind —
+   and once the settle arm went live nothing stamped it at all, so every card read
+   "ready" regardless of what the server would allow. The server's answer lands in
+   its own `_`-prefixed scratch key: never synced, never persisted, and ABSENT on a
+   cold boot, which reads as ready — exactly today's behaviour until an envelope
+   speaks.
+
+   TWO SHAPES, ONE SEAM. A projection is ABSOLUTE (it holds open entries only, so an
+   omitted mode has come off cooldown and must read ready); a refusal detail names
+   ONE dungeon and ONE mode, so it MERGES into that entry — which paints the
+   countdown the instant the server says no, without waiting for an envelope. A
+   detail without a `mode` is not placed anywhere rather than guessed at: the mode is
+   what the entry MEANS, and a guess would rest the wrong button.
+
+   FAIL-OPEN on absence or garbage, deliberately. A stamp we cannot read leaves the
+   button live, the player clicks, and the SERVER refuses with the honest reason;
+   evicting on an unparseable stamp would lock a dungeon out of an account with no
+   way back, which is the uncertainty rule (§6). Pure — G + res in, a receipt out. */
+export function reconcileDungeonCooldowns(G, res) {
+  if (!G || typeof G !== 'object' || !res || typeof res !== 'object') return null;
+  const iso = (v) => { const t = Date.parse(v); return Number.isFinite(t) ? new Date(t).toISOString() : null; };
+  const bag = (v) => (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
+  const map = bag(res.dungeon_cooldowns);
+  if (map) {
+    const out = {};
+    for (const id of Object.keys(map)) {
+      const modes = bag(map[id]);
+      if (!modes) continue;
+      const kept = {};
+      for (const m of Object.keys(modes)) { const s = iso(modes[m]); if (s) kept[m] = s; }
+      if (Object.keys(kept).length) out[id] = kept;
+    }
+    G._dungeonCooldowns = out;
+    return { mode: 'server', active: Object.keys(out).length };
+  }
+  const d = bag(res.detail);
+  const one = (d && typeof d.dungeon === 'string' && typeof d.mode === 'string') ? iso(d.next_entry_at) : null;
+  if (!one) return { mode: 'absent' };
+  const merged = Object.assign({}, G._dungeonCooldowns || {});
+  merged[d.dungeon] = Object.assign({}, bag(merged[d.dungeon]) || {}, { [d.mode]: one });
+  G._dungeonCooldowns = merged;
+  return { mode: 'refusal', active: Object.keys(merged).length };
+}
+
 /* ── THE LIFETIME EVENT COUNTERS ARE THE SERVER'S (dead-counter class) ────────
    THE DEFECT THIS CLOSES. `G.stats.harvested` / `G.stats.planted` are read by
    the goal engine (legacy.js DAILY_GOAL_POOL `source:`, ACHIEVEMENTS `src:`,
@@ -2743,6 +2802,11 @@ export function applyEnvelopeState(G, res, ownKey) {
      Lands in `G._heroSlots` scratch, NEVER in the G.heroSlotsUnlocked residue;
      see reconcileHeroSlots' header for why keeping the two apart is the fix. */
   written.heroSlots = reconcileHeroSlots(G, res);
+
+  /* AND THE DUNGEON RE-ENTRY WINDOWS BESIDE THEM, for the same reason: the panel's
+     countdown must be right on the envelope the player's own action produced, not
+     one poll later. Same absolute/merge split, same fail-open — see the header. */
+  written.dungeonCooldowns = reconcileDungeonCooldowns(G, res);
 
   /* THE LIFETIME GOAL COUNTERS ARE THE SERVER'S (`ev:*` permanent progress
      rows). Reconciled here, beside traits and the property rung, because they
@@ -4994,7 +5058,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

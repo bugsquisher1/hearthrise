@@ -70,20 +70,43 @@ export function isAnswered(outcome) { return UNANSWERED_OUTCOMES.indexOf(outcome
 
 export const DUNGEON_REFUSALS = Object.freeze({
   insufficient_item: 'The server says you have no key for that dungeon.',
-  on_cooldown: 'That dungeon is on cooldown — try a manual run, or wait.',
+  /* ⚠ THE ADVICE THIS USED TO GIVE IS NOW A LIE. It said "try a manual run, or
+     wait": true while the server's cooldown gate covered mode='auto' only, and
+     false from the day it covered manual too (2026-09-12-dungeon-cooldown.sql) —
+     the client would have been telling the player to take an action the server
+     refuses identically. `{ready}` is the one placeholder in this table and
+     dungeonRefusalMessage fills it from the refusal's own detail. */
+  on_cooldown: 'That dungeon is resting — ready at {ready}.',
   daily_cap: "You have earned the day's scrip from dungeons. Come back tomorrow.",
   level_locked: 'Your combat level is too low for that dungeon.',
   unknown_dungeon: "The server does not have that dungeon yet — it may be a newer build than the server's.",
-  bad_mode: 'That run mode could not be read. Nothing was changed.',
+  /* The server's own cause, named: `hr_dungeons.scavenger_ok` is a CATALOGUE fact, so
+     a scavenger settle against a dungeon the game authors no scavenger encounter for
+     is refused before the key is debited. Nothing is spent, and the player's next
+     move is the Auto-Run or the phase run, so say which run is missing. */
+  bad_mode: 'That dungeon has no scavenger run. Nothing was changed.',
   rate_limited: 'Slow down a moment — too many actions.',
   no_character: 'The server has no character in this slot yet.',
   version_conflict: 'Your state changed elsewhere. Try again.',
   intent_mismatch: 'That did not match the run the server recorded.',
 });
-export function dungeonRefusalMessage(code) {
+/* The ready-at time, read from the refusal's OWN detail — the server's clock, never
+   the client's arithmetic over a client-held stamp. `next_entry_at` is the canonical
+   field and `ready_at` is the alias the reviewed refusal shape also carries. A
+   detail we cannot read degrades to a true-but-vague phrase rather than an invented
+   time: "soon" with a number behind it would be worse than "soon". */
+function readyAtText(detail) {
+  const raw = (detail && typeof detail === 'object') ? (detail.next_entry_at || detail.ready_at) : null;
+  const t = raw == null ? NaN : Date.parse(raw);
+  if (!Number.isFinite(t)) return 'a later time';
+  try { return new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  catch (e) { return new Date(t).toISOString().slice(11, 16) + ' UTC'; }
+}
+export function dungeonRefusalMessage(code, detail) {
   const k = String(code || '');
-  if (Object.prototype.hasOwnProperty.call(DUNGEON_REFUSALS, k)) return DUNGEON_REFUSALS[k];
-  return k ? `The server refused that run (${k}).` : 'The server refused that run.';
+  const m = Object.prototype.hasOwnProperty.call(DUNGEON_REFUSALS, k) ? DUNGEON_REFUSALS[k]
+    : (k ? `The server refused that run (${k}).` : 'The server refused that run.');
+  return m.indexOf('{ready}') === -1 ? m : m.replace('{ready}', readyAtText(detail));
 }
 
 export function newIntentKey() {

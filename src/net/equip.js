@@ -68,13 +68,25 @@
 //      paper-doll surface draws that projection and asks no gate — a client that
 //      re-gated the worn set would strip a player's kit on sight.
 //
-// ⚠ ONE KNOWN DIVERGENCE, in the fail-safe direction: 31 of 237 equippables
-//   carry `tier` and no `reqLv`, and `_TIER_WIELD_LV` derives a gate the
-//   catalogue does not carry (gen-catalogues copies `reqLv` verbatim, so
-//   `hr_items.req_lv` is null and the realm accepts them at any level). The
-//   client is stricter there; the tier ladder is the design. Converging it means
-//   authoring the rows and regenerating the catalogue — a migration, logged in
-//   .claude/coordination/CONFLICTS.md, not a client fix.
+// ⚠ THE KNOWN DIVERGENCE IS CLOSED (b542) — read this before re-opening it.
+//   31 of 237 equippables carried `tier` and no `reqLv`, so `_TIER_WIELD_LV`
+//   derived a gate the catalogue did not carry (gen-catalogues copies `reqLv`
+//   verbatim, so `hr_items.req_lv` was null and the realm accepted them at any
+//   level). It was logged as fail-safe — the client stricter than the server —
+//   and for 25 of them it was. It was NOT for the six tier-8 rows:
+//   `_TIER_WIELD_LV` is indexed 1..7, so `_TIER_WIELD_LV[8]` is undefined, `||0`
+//   makes it 0, and `gearWieldReq` returned null. All six are TRADEABLE, so a
+//   level-1 buyer could wear 120 defence off the market.
+//   Closed by DATA, not by a client change: the game-designer ruling of
+//   2026-09-12 authored `reqSkill`/`reqLv` on 34 rows (the 31 plus three riders
+//   with no tier), tier 1..8 → 1/15/30/45/60/75/88/88, and the b215 backfill in
+//   src/data/items.js now copies both fields from the generated twin. The
+//   catalogue is regenerated and
+//   supabase/migrations/2026-09-12-equippable-req-lv.sql carries the same 34
+//   rows to the live table. `gearWieldReq` already preferred an explicit `reqLv`
+//   over the array, so both readers now answer from one source. The invariant is
+//   held by EQUIP-REQLV-1 in src/features/smoke-test.js: a tiered equippable
+//   with no `reqLv` is a red test, and the two cosmetics must stay ungated.
 //
 // ── IDEMPOTENCY ─────────────────────────────────────────────────────────────
 // Rule 1 of the intent contract, unchanged and shared with ./activity.js: WE

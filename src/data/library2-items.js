@@ -240,19 +240,39 @@ const ARMOUR_SETS = {
    stops the engine wave from also being a migration.
    ══════════════════════════════════════════════════════════════════════════ */
 const DORMANT = {
-  /* ── Charms & amulets (Tibia's bestiary-charm idea as equipment) ── */
-  // ITEM-NEW-08 · necklace T3. Jewelry values follow slot-ladders' necklace lane.
-  hunters_torc:    { n: "Hunter's Torc", icon: '📿', v: priced(150, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare', effects: ['drop_band_vs_class'], baneClassHint: 'mammal' },
+  /* ── Charms & amulets (Tibia's bestiary-charm idea as equipment) ──
+
+     ⚠ b542 — THE SEVEN ROWS IN THIS FILE'S JEWELRY/CAPE BLOCK SHIPPED WITH A
+     `tier` AND NO `reqSkill`/`reqLv`, while their neighbours four cards down
+     (colossus_plate, draconias_jaw, cutpurse_gloves, pitlord_irons) all author
+     both. The omission was invisible because the CLIENT derives a gate from the
+     tier (legacy.js `_TIER_WIELD_LV`) — but the SERVER reads only hr_items.req_lv,
+     which tools/gen-catalogues.mjs mirrors from THESE fields, so hr_apply
+     §EQUIPMENT refused nothing. Ruling 2026-09-12: reqLv = the shipped ladder
+     rung for the tier (1/15/30/45/60/75/88/88) and reqSkill = the skill the
+     item's power serves — jewelry is `defense` like the earring lane it sits in
+     (defence-only gating is what keeps mix-and-match viable, gear-tiers.js
+     standing ruling 1), EXCEPT where the item's whole effect feeds one other
+     skill, and an item with no combat stat and no faucet takes reqLv 1, which is
+     the data form of "no gate" rather than a silent NULL. */
+  // ITEM-NEW-08 · necklace T3.
+  hunters_torc:    { n: "Hunter's Torc", icon: '📿', v: priced(150, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare', reqSkill: 'defense', reqLv: 30, effects: ['drop_band_vs_class'], baneClassHint: 'mammal' },
   // ITEM-NEW-09 · necklace T4.
-  frost_locket:    { n: 'Frost Locket', icon: '📿', v: priced(150, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic', effects: ['element_pierce'] },
+  frost_locket:    { n: 'Frost Locket', icon: '📿', v: priced(150, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic', reqSkill: 'defense', reqLv: 45, effects: ['element_pierce'] },
   // ITEM-NEW-10 · ring T2. Pure progression, zero combat power — no stats at all,
   // which is the point: it is the first item in Hearthrise that is worth wearing
-  // and makes you no stronger.
-  tally_ring:      { n: 'Tally Ring', icon: '💍', v: priced(140, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon', effects: ['bestiary_rate'] },
+  // and makes you no stronger. So its rung is 1, NOT tier 2's 15: `bestiary_rate`
+  // is information, and gating information behind Defence 15 would gate the thing
+  // that teaches a new player the bestiary exists.
+  tally_ring:      { n: 'Tally Ring', icon: '💍', v: priced(140, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon', reqSkill: 'defense', reqLv: 1, effects: ['bestiary_rate'] },
   // ITEM-NEW-11/12/13 · earrings T4/T3/T6 — the slot that was empty until b343.
-  bone_earrings:      { n: 'Bone Earrings', icon: '🦴', v: priced(130, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic', effects: ['passive_bone_prayer'] },
-  pathfinder_studs:   { n: 'Pathfinder Studs', icon: '🧭', v: priced(130, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare', effects: ['ui_next_threshold'] },
-  unlit_earrings:     { n: 'Unlit Earrings', icon: '🌑', v: priced(130, 6), type: 'jewelry', slot: 'earrings', tier: 6, rarity: 'legendary', effects: ['reveal_hidden_weak'] },
+  // bone_earrings takes PRAYER, not Defence: `passive_bone_prayer` is a Prayer XP
+  // faucet, so the skill its power serves is the skill it gates on.
+  // pathfinder_studs is `ui_next_threshold` — information only, so rung 1 for the
+  // same reason as tally_ring.
+  bone_earrings:      { n: 'Bone Earrings', icon: '🦴', v: priced(130, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic', reqSkill: 'prayer', reqLv: 45, effects: ['passive_bone_prayer'] },
+  pathfinder_studs:   { n: 'Pathfinder Studs', icon: '🧭', v: priced(130, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare', reqSkill: 'defense', reqLv: 1, effects: ['ui_next_threshold'] },
+  unlit_earrings:     { n: 'Unlit Earrings', icon: '🌑', v: priced(130, 6), type: 'jewelry', slot: 'earrings', tier: 6, rarity: 'legendary', reqSkill: 'defense', reqLv: 75, effects: ['reveal_hidden_weak'] },
 
   /* ── Consumables ── */
   // ITEM-NEW-14 · food T1. Heals over N swings instead of instantly. NO `heals`
@@ -286,8 +306,9 @@ const DORMANT = {
   /* ── Gear with identity ── */
   // ITEM-NEW-28 · body T6 plate. A real trade, so it cannot ship on stats alone.
   colossus_plate:  { n: 'Colossus Plate', icon: '🛡️', v: priced(300, 6), type: 'armor', slot: 'body', defB: 68, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -17, magicAtkB: -34, effects: ['sunder_vs_class'] },
-  // ITEM-NEW-29 · cape T6.
-  heartwood_cape:  { n: 'Heartwood Cape', icon: '🦸', v: priced(90, 6), type: 'armor', slot: 'cape', defB: 12, atkB: 5, rarity: 'legendary', tier: 6, effects: ['regen_vs_class'] },
+  // ITEM-NEW-29 · cape T6. defense 75 — the tier's rung, like every plate row in
+  // this block (b542: it was the one gear card here with a tier and no gate).
+  heartwood_cape:  { n: 'Heartwood Cape', icon: '🦸', v: priced(90, 6), type: 'armor', slot: 'cape', defB: 12, atkB: 5, rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, effects: ['regen_vs_class'] },
   // ITEM-NEW-30 · helmet T6 plate.
   draconias_jaw:   { n: "Draconia's Jaw", icon: '⛑️', v: priced(120, 6), type: 'armor', slot: 'helmet', defB: 33, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -8, magicAtkB: -17, effects: ['element_immunity'] },
   // ITEM-NEW-31 · gloves T2. The first real build decision, at T2.
@@ -295,7 +316,12 @@ const DORMANT = {
   // ITEM-NEW-35 · boots T6. A gate key wearing armour.
   pitlord_irons:   { n: 'Pitlord Irons', icon: '🥾', v: priced(80, 6), type: 'armor', slot: 'boots', defB: 22, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -6, magicAtkB: -11, effects: ['arena_key'] },
 
-  /* ── Cosmetics with function ── */
+  /* ── Cosmetics with function ──
+     ⚠ THESE TWO CARRY NO `tier`, NO `reqSkill` AND NO `reqLv`, DELIBERATELY. A
+     cosmetic is earned, not out-levelled: gating it would mean a player who
+     earns a cloak cannot wear it. b542's sweep skipped them for that reason and
+     the regression test in src/features/smoke-test.js asserts they stay ungated,
+     so a future "fill in the NULLs" pass cannot quietly gate a reward. */
   bestiary_cloak:    { n: 'Bestiary Cloak', icon: '🦸', v: 0, type: 'armor', slot: 'cape', defB: 0, tag: 'cosmetic', rarity: 'epic', effects: ['cosmetic_dyed'] },       // ITEM-NEW-36
   hearthstone_signet:{ n: 'Hearthstone Signet', icon: '💍', v: 0, type: 'jewelry', slot: 'ring', tag: 'cosmetic', rarity: 'epic', effects: ['cosmetic_profile'] },      // ITEM-NEW-37
   chronicle_ribbon:  { n: 'Chronicle Ribbon', icon: '🎗️', v: 0, type: 'trophy', tag: 'cosmetic', rarity: 'epic', effects: ['cosmetic_pin'] },                          // ITEM-NEW-38

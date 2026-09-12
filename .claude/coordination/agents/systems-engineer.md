@@ -3765,3 +3765,55 @@ Registered in `db-replay`; `tests/ci-shape.baseline.json` regenerated (84 → 86
   moment you are up · automatic"), which the idled pointer will not honour. The distinguishing fact
   is server-stated (`active_kind idle` + a running `recovering_until`), so it needs no second copy
   of the rule — but the words are the Designer's. My new bar meta line is provisional.
+
+---
+
+## 2026-09-12 · lane/b538-wield-grandfather-server-truth · residue-ahead census item 3: `G.wieldGrandfather`
+
+**The finding, root-caused.** `canWield` (src/legacy.js) short-circuited to `{ok:true}` on
+`G.wieldGrandfather[id]` — a client-held, residue-PERSISTED exemption map written by three equip
+paths (`equipItem`, `applyLoadout`, `equipToSlot`). It was a pre-cutover mercy (b246 invented gear
+requirements after players were wearing the gear). The realm has **no counterpart**: hr_apply
+§EQUIPMENT re-checks `hr_items.req_skill`/`req_lv` against `hr_level_from_xp(player_skills.xp)` under
+the row lock and answers `requirement_not_met` (current body `2026-08-25-workers.sql`;
+`supabase/functions/hr-accrue/equip.js` documents it as the authority, and deliberately does NOT
+answer the requirement early). Grep for grandfather/wield/req_lv across `supabase/**`: no table, no
+column, no branch. So the flag could do exactly one thing — light a control the realm then refused.
+
+**The fix, at one seam.** `canWield` reads the requirement against the server-mirrored skill level and
+nothing else; the three writers and the `RESIDUE_FIELDS` entry are deleted. Every wield-gated surface
+(fight-screen slot picker, inventory flyout, shop row, tooltip, crafting preview) already asked
+`canWield`, so one line fixed five surfaces. The tooltip's dead "already unlocked for you" branch
+(src/item-ux.js) went with it — it was only reachable through the exemption.
+
+### Learnings worth keeping
+1. **A client-held permission with no server counterpart is not a mercy, it is a lie with a save
+   behind it.** The tell is a `return {ok:true}` short-circuit ahead of the real predicate. Look for
+   that shape whenever a pre-cutover kindness survived the cutover.
+2. **The worn set is not the equip gate.** hr_apply checks the requirement on the EQUIP only and
+   never strips a slot, so the server's `equipment` projection can legitimately hold an
+   above-requirement piece. A "hide what you cannot wear" fix would have stripped a player's kit on
+   sight. The honest client asks the gate about PUTTING ON, never about WEARING — arm (d) of WIELD-1
+   pins exactly that, and it is the arm a careless fix breaks.
+3. **The DISPLAY level is the right read for an equip pre-check** (not the raw record): this verb
+   collects the open window BEFORE it swaps, so the round trip that checks the requirement is the one
+   that settles the prediction — and with nothing arrived from the realm it floors to 1, i.e. locked.
+4. **The comment ratchets bite hardest on a fix whose value IS the explanation.** Both files I
+   touched (legacy.js, smoke-test.js) sat at their CR-1 ceiling, so the rationale had to move to an
+   unpinned file that owns the subject: `src/net/equip.js` §THE GATE, the wire that carries the
+   `requirement_not_met` refusal. Deleting code does not buy comment headroom, and cutting a test's
+   code lines LOWERS its allowance — pay CR-1 with prose, not by shrinking the test.
+
+### Handoffs
+* **Coordinator:** client-only; no `supabase/**` and no `src/core/**` change, so no edge redeploy and
+  no migration. `tests/live-hash-drift.baseline.json` untouched. `lane-done` green in-lane (all 17
+  steps, exit 0) — the four ratchets were paid here, where the code was written.
+* **Game Designer + backend/catalogue lane:** CONFLICTS.md 2026-09-12 — 31 of 237 equippables carry
+  `tier` and no `reqLv`, so the client's tier ladder gates gear `hr_items.req_lv` leaves NULL. The
+  client is stricter than the realm there (fail-safe, but still one rule with two answers). Needs
+  authored rows + a catalogue regeneration, i.e. lane C.
+* **QA:** the census (`snapshot-allowlist-guard`) moved SNAP-1 274 → 271 and SNAP-3 446 → 445; SNAP-2
+  gained the two instances every equip test has (`skills`, `equipment` are SERVER_OF_RECORD, so
+  snapshotG's bare reads are droppable). The prescribed one-operator fix (`|| null`) would clear that
+  class suite-wide but changes restore semantics for hundreds of tests — its own lane, with a full
+  suite behind it, not a lane-A rider.

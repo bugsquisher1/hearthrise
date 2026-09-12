@@ -8736,9 +8736,9 @@ function unequip(slot){const id=G.equipment[slot];if(!id)return;const _b=equipSt
 /* b246 (Tyler) — REAL GEAR LEVEL REQUIREMENTS. The flyout showed "Requires
    Lv X" but equipItem equipped anything — a phantom gate. Now armour is gated
    on Defence and weapons on their combat style, at the tier's level (Bronze 1 →
-   Dawnsteel 88). GRANDFATHERED: anything a player already has worn is recorded
-   (on load + on every successful equip) so no one is ever stripped of gear, and
-   gear you've legitimately equipped once can always be re-worn. */
+   Dawnsteel 88). ⚠ NO CLIENT-HELD EXEMPTION: `G.wieldGrandfather` ("once worn,
+   always re-wearable") is deleted — hr_apply §EQUIPMENT is the only wield
+   authority, and what that costs a player is src/net/equip.js §THE GATE. */
 const _TIER_WIELD_LV=[0,1,15,30,45,60,75,88]; // by item.tier 1..7 (the tier gates)
 function gearWieldReq(it){
   if(!it) return null;
@@ -8752,22 +8752,20 @@ function gearWieldReq(it){
 function canWield(id){
   const it=ITEMS[id]; const req=gearWieldReq(it);
   if(!req) return { ok:true };
-  if(G.wieldGrandfather && G.wieldGrandfather[id]) return { ok:true };   // already-owned gear
-  if(getLevel(req.skill) >= req.lv) return { ok:true };
+  if(getLevel(req.skill) >= req.lv) return { ok:true };   // the realm's rule, nothing else
   return { ok:false, req };
 }
 window.gearWieldReq=gearWieldReq; window.canWield=canWield;
 function equipItem(id){
   migrateEquipmentSlots();
   const def=ITEMS[id];if(!def||(!def.type&&!def.slot))return;
-  const w=canWield(id);   // b246: enforce the wield gate (grandfathered)
+  const w=canWield(id);   // b246: the wield gate, the realm's rule, no exemption set
   if(!w.ok){ notify(`Requires ${(SKILLS_DEF[w.req.skill]&&SKILLS_DEF[w.req.skill].name)||w.req.skill} Lv ${w.req.lv} to wield ${def.n}`,'kill'); return; }
   const slot=getPreferredSlot(def);if(!slot||!EQUIP_SLOTS.includes(slot))return;
   const _b=equipStateSnapshot();
   const old=G.equipment[slot];if(old)G.inventory[old]=(G.inventory[old]||0)+1;
   G.equipment[slot]=id;removeItem(id,1);
   clearEnchantOnWeaponChange(slot,old,id);
-  G.wieldGrandfather=G.wieldGrandfather||{}; G.wieldGrandfather[id]=true;   // once worn, always re-wearable
   notify(`Equipped ${def.n}`,'info');
   renderInventory();renderLoadout();
   routeEquipGesture(_b);
@@ -10489,12 +10487,11 @@ function applyLoadout(idx){
     if(cur) addItem(cur, 1);
     /* if target item exists in bag, take from bag */
     if(target){
-      /* b246: a loadout can't sneak past the wield gate — but items you've worn
-         are grandfathered, so a legitimately-saved kit re-applies cleanly. */
+      /* b246: a loadout can't sneak past the wield gate, and records no exemption
+         — a piece the realm refuses is dropped, not sent and bounced, every apply. */
       if(hasItem(target, 1) && (typeof canWield!=='function' || canWield(target).ok)){
         removeItem(target, 1);
         newEq[slot] = target;
-        G.wieldGrandfather = G.wieldGrandfather || {}; G.wieldGrandfather[target] = true;
       } else {
         newEq[slot] = null;
       }
@@ -17395,7 +17392,6 @@ function equipToSlot(id, targetSlot){
   var old = G.equipment[targetSlot];
   if(old){ G.inventory[old] = (G.inventory[old]||0) + 1; }
   G.equipment[targetSlot] = id;
-  G.wieldGrandfather = G.wieldGrandfather || {}; G.wieldGrandfather[id] = true;
   if(typeof removeItem === 'function') removeItem(id, 1);
   if(typeof notify === 'function') notify('Equipped '+def.n,'info');
   if(typeof renderInventory === 'function') renderInventory();

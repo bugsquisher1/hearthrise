@@ -9928,8 +9928,10 @@ const TESTS = [
     const snap = ev.snapshot(G);
     assert(snap, 'snapshot must produce a payload');
     // Everything a second device must not lose or be re-granted.
+    /* `wieldGrandfather` left this list with the field itself — a client-held gear
+       permission the realm never had; nothing crosses devices by its absence. */
     ['bestiary', 'achievements', 'quests', 'daily', 'collection', 'dungeons', 'traits',
-      'streak', 'lockedItems', 'wieldGrandfather', 'offlineBudget', 'homestead', 'v']
+      'streak', 'lockedItems', 'offlineBudget', 'homestead', 'v']
       .forEach((k) => {
         if (G[k] === undefined) return;                 // field not present in this save
         assert(k in snap, 'cloud snapshot must carry "' + k + '" or a second device loses/re-earns it');
@@ -26004,7 +26006,9 @@ const TESTS = [
     } finally { restoreG(snap); try { window.showTab('profile'); } catch (e) {} }
   }),
 
-  () => tryRun('b246: gear level requirements are enforced (grandfathered) — the phantom gate is real now', () => {
+  /* b246's gate, RE-POINTED at the realm's rule: the middle arm asserted that
+     "grandfathered gear must still equip at any level", i.e. it pinned the lie. */
+  () => tryRun('b246: gear level requirements are enforced — the phantom gate is real, and no client flag lifts it', () => {
     const G = window.G;
     const snap = snapshotG();
     try {
@@ -26014,18 +26018,80 @@ const TESTS = [
       assert(req && req.skill === 'defense' && req.lv === 60, 'rune platebody must require Defence 60, got ' + JSON.stringify(req));
       const isEquipped = () => Object.values(G.equipment || {}).indexOf(rid) >= 0;
       // Under-level: cannot equip, item stays in the bag.
-      G.skills = { defense: 0 }; G.wieldGrandfather = {}; G.inventory = { [rid]: 1 }; G.equipment = {};
+      G.skills = { defense: 0 }; G.inventory = { [rid]: 1 }; G.equipment = {};
       window.equipItem(rid);
       assert(!isEquipped() && (G.inventory[rid] || 0) === 1, 'an under-level player must NOT equip gated armour');
-      // Grandfathered gear equips regardless of level (nobody is stripped / locked out of worn kit).
-      G.wieldGrandfather = { [rid]: true };
-      window.equipItem(rid);
-      assert(isEquipped(), 'grandfathered gear must still equip at any level');
       // Meeting the requirement works.
-      G.wieldGrandfather = {}; G.inventory = { [rid]: 1 }; G.equipment = {}; G.skills = { defense: 5000000 };
+      G.inventory = { [rid]: 1 }; G.equipment = {}; G.skills = { defense: 5000000 };
       window.equipItem(rid);
       assert(isEquipped(), 'meeting the requirement lets you equip');
     } finally { restoreG(snap); }
+  }),
+
+  /* regression suite — THE WIELD GATE READS THE REALM, NOT A CLIENT FLAG.
+     THE BUG: an Equip control lit for gear above its requirement and the realm
+     refused the swap. THE CAUSE, one line in `canWield` — a residue-PERSISTED
+     exemption with no server mirror: `if(G.wieldGrandfather[id]) return {ok:true}`.
+     Restore it → (a)+(b)+(c) red, measured. Why (d): src/net/equip.js §THE GATE. */
+  () => tryRun('WIELD-1: a residue wield-exemption lights nothing and sends nothing; the REALM\'s worn set still reads worn', () => {
+    const { CS, G, restore } = combatScreen();
+    const RM = window.HearthriseRoomModal;
+    const realFetch = window.fetch;
+    let posts = 0;
+    try {
+      const rid = 'rune_platebody';                       // Defence 60, slot `body`
+      const req = window.gearWieldReq(window.ITEMS[rid]);
+      assert(req && req.skill === 'defense' && req.lv === 60, 'fixture: rune platebody must require Defence 60, got ' + JSON.stringify(req));
+      // The realm's answer is Defence 1 (`skills` is SERVER_OF_RECORD), and the
+      // forged residue is byte-for-byte what the deleted writers persisted.
+      G.skills = { defense: 0 }; G.inventory = { [rid]: 1 }; G.equipment = { body: null, weapon: null };
+      G.wieldGrandfather = { [rid]: true };
+
+      // (a) THE RULE.
+      const w = window.canWield(rid);
+      assert(w.ok === false, 'THE BUG: a client-held `wieldGrandfather` entry unlocked Defence-60 armour for a '
+        + 'Defence-1 character. hr_apply answers requirement_not_met — the player is shown a door the realm keeps shut.');
+      assert(w.req && w.req.lv === 60 && w.req.skill === 'defense', 'the refusal must name the requirement, got ' + JSON.stringify(w.req));
+
+      // (b) THE CONTROL it was reported on: the Fight-screen slot picker.
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      CS.preview('goblin');
+      assert(CS.openSlotPicker('body'), 'the slot picker did not open');
+      let scrim = document.querySelector('.hr-room-scrim');
+      assert(scrim, 'the picker opened no modal');
+      assert(!scrim.querySelector('[data-cs="equip"][data-item="' + rid + '"]'), 'THE BUG ON THE SURFACE: the picker lit '
+        + 'an Equip button for gear the realm refuses — the press bounces, and the rail has already drawn it as worn.');
+      assert(/Lv\s*60/.test(scrim.textContent.replace(/\s+/g, ' ')), 'a locked row must state the level it needs '
+        + 'instead of the button: ' + scrim.textContent.replace(/\s+/g, ' ').slice(0, 160));
+      try { if (RM) RM.close(); } catch (e) {}
+
+      // (c) NO INTENT LEAVES THE CLIENT: equipItem refuses before it snapshots.
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        posts++;
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'requirement_not_met' }), { status: 409 }));
+      };
+      window.equipItem(rid);
+      assert(Object.values(G.equipment).indexOf(rid) < 0 && (G.inventory[rid] || 0) === 1, 'the refused item moved anyway');
+      assert(posts === 0, 'the client spent ' + posts + ' equip intent(s) on a guaranteed requirement_not_met — a round '
+        + 'trip out of the shared 30/min accrue bucket for an answer it already had');
+
+      // (d) THE REALM'S WORN SET IS TRUTH, ABOVE THE REQUIREMENT INCLUDED.
+      G.equipment = { body: rid, weapon: null };          // as hr_state_of projected it
+      assert(CS.openSlotPicker('body'), 'the slot picker did not re-open');
+      scrim = document.querySelector('.hr-room-scrim');
+      const txt = scrim.textContent.replace(/\s+/g, ' ');
+      assert(txt.indexOf(window.ITEMS[rid].n) >= 0, 'a piece the SERVER holds in the slot vanished because the client '
+        + 'cannot re-equip it — the client must never re-gate the realm\'s worn set: ' + txt.slice(0, 160));
+      assert(scrim.querySelector('[data-cs="unequip"]'), 'the worn row lost its Take off control');
+    } finally {
+      window.fetch = realFetch;
+      try { if (RM) RM.close(); } catch (e) {}
+      delete G.wieldGrandfather;      // deleted code now — leave no ghost behind
+      restore();
+    }
   }),
 
   () => tryRun('b249: landscape side-rail is theme-neutral — no cozy-light lock (Tyler: dead offset on hearthlight)', () => {
@@ -35317,8 +35383,11 @@ const TESTS = [
     assert(Array.isArray(RF), 'RESIDUE_FIELDS must be exported');
     /* The whole sweep, named — so deleting any one of them fails here rather
        than in a player's inbox six weeks later. */
+    /* ⚠ `wieldGrandfather` was the sixteenth name here and is DELETED, not re-homed:
+       every other field is self-only PROGRESS, that one was a client-held GEAR
+       PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
     ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'renownHigh', 'homestead',
-      'wieldGrandfather', 'currentCombatTier', 'toolCarry', 'buyback', 'dailyGoldStart', 'raids',
+      'currentCombatTier', 'toolCarry', 'buyback', 'dailyGoldStart', 'raids',
       'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
     /* `collection` (items found) and `collectionLog` (milestones claimed) are two
@@ -51496,13 +51565,10 @@ const TESTS = [
     const G = window.G;
     const snap = snapshotG();
     const prevTab = window.activeTab;
-    // `wieldGrandfather` is not in snapshotG's allowlist — restore it by hand,
-    // or this test quietly strips the player's already-worn gear exemptions.
-    const prevGrand = G.wieldGrandfather;
     try {
-      // A level-1 character, so every gated piece reads as locked.
+      // A level-1 character, so every gated piece reads as locked. (There
+      // is no exemption set to clear any more — the gate is the realm's rule.)
       G.skills = Object.assign({}, G.skills, { attack: 0, strength: 0, defense: 0, ranged: 0, magic: 0 });
-      G.wieldGrandfather = {};
       window.showTab('shop');
       window.setShopTab('equip');
       const panel = document.getElementById('shop-panel');
@@ -51544,7 +51610,6 @@ const TESTS = [
         'the fixture found only ' + gatedSeen + ' level-gated items in EQUIP_SHOP; the test is no longer measuring anything');
     } finally {
       restoreG(snap);
-      G.wieldGrandfather = prevGrand;
       try { window.setShopTab('seeds'); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
@@ -55975,7 +56040,7 @@ const TESTS = [
       G.skills = Object.assign({}, G.skills, { attack: 4000000, strength: 4000000, defense: 4000000 });
       G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
       G.inventory = Object.assign({}, G.inventory, { iron_sword: 1 });
-      G.wieldGrandfather = Object.assign({}, G.wieldGrandfather, { iron_sword: true });
+      // The levels above meet the wield gate; the client-only key is gone.
       window.equipItem('iron_sword');   // a real weapon swap
       assert(!G.enchant.weapon, 'equipping a different weapon must clear the enchant, still had ' + JSON.stringify(G.enchant));
       /* Re-equipping the SAME weapon does not clear an enchant. */
@@ -58303,7 +58368,7 @@ const TESTS = [
       G.inventory = { bronze_sword: 1, bronze_helm: 1 };
       G.loadouts = [{ name: 'Test kit', set: true,
         equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: null }];
-      G.wieldGrandfather = { ...(G.wieldGrandfather || {}), bronze_sword: true, bronze_helm: true };
+      // Bronze is tier 1, so the kit passes the wield gate on its own merits.
 
       window.applyLoadout(0);
       await drain();

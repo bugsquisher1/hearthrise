@@ -240,6 +240,17 @@ const INJECTION_FILES = Object.freeze({
    a measurement here too, not an inference. */
 const INJECTION_FINAL_BODIES = Object.freeze({
   'apply-final': 'public.hr_apply(uuid,int,bigint,uuid,jsonb)',
+  /* 2026-09-13, the same rule arriving from the other direction — a RE-AUTHOR
+     rather than a later self-check. 2026-09-13-rejections-verb-map-2.sql
+     RESTATES hr_record_rejection whole (the verb map), so the plant
+     `reject_mutates` had held in 2026-08-11-player-state.sql since day one was
+     replaced by the clean body and boot()'s relocation detector said so. Moving
+     it to the new last author would install a live plant but retire its GATE:
+     the gate is apply-engine §6(g)'s C5 probe at apply-order 34, which now runs
+     long before the plant exists and can never fire again. `final:` is therefore
+     not a workaround here, it is the only honest target, and the arm is scored
+     by reconcile() as it was before 2026-08-11. */
+  'reject-final': 'public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)',
 });
 
 // ── args ────────────────────────────────────────────────────────────────
@@ -277,8 +288,13 @@ const SEED_ARG = argOf('seed', null);
 // identity. An arm on `file:` is for text no later self-check executes; if a new
 // migration starts exercising it, that arm moves to `final:` too rather than the
 // fuzz learning to read a migration's exception message as a verdict.
-// The three `gate:` arms are the deliberate exception, documented one by one:
-// there the migration REFUSING to install is the outcome being tested.
+// The `gate:` arms are the deliberate exception, documented one by one: there
+// the migration REFUSING to install is the outcome being tested. There are TWO
+// (expire_double, budget_kind_scoped) since 2026-09-13, when reject_mutates lost
+// its gate — not to a preference but because the chain restated its function
+// downstream of the probe that used to refuse it (see the arm). A gate is only
+// legitimate while the file that fires it is still DOWNSTREAM of the plant;
+// `node tests/conservation-fuzz.mjs --selftest` is what proves that, arm by arm.
 // ════════════════════════════════════════════════════════════════════════
 const INJECTIONS = {
   /* ⚠ THE SIX MARKET PLANTS ARE tests/market-v2.mjs's, PORTED VERBATIM. Two
@@ -390,16 +406,25 @@ const INJECTIONS = {
 
   reject_mutates: {
     what: 'a REJECTED op still writes: hr_record_rejection (outside the protected block) credits gold',
-    file: 'player-state',
-    // 2026-08-11: this used to be caught by reconcile() at op #N. It is now
-    // caught EARLIER — apply-engine §6(g)'s C5 probe drives a real rejection
-    // and asserts the character's gold did not move, which is the same property
-    // one layer up. A bug that cannot be installed beats a bug that is detected
-    // at runtime, so the gate is recorded rather than weakened; the
-    // conservation model's ability to see this class is still proven by
-    // cancel_vanish / gold_double / buy_no_debit / tax_skim / equip_dupe /
-    // expire_double.
-    gate: /a daily_budget rejection still moved gold/,
+    final: 'reject-final',
+    /* THE GATE IS RETIRED, AND NOT BY CHOICE — READ THIS BEFORE PUTTING IT BACK.
+       2026-08-11: caught by reconcile() at op #N. Then it was caught EARLIER —
+       apply-engine §6(g)'s C5 probe drives a real rejection and asserts the
+       character's gold did not move — so the arm became `gate:` with
+       /a daily_budget rejection still moved gold/, on the rule that a bug which
+       cannot be installed beats a bug detected at runtime.
+       2026-09-13: 2026-09-13-rejections-verb-map-2.sql RESTATES
+       hr_record_rejection at the END of the chain, so the plant in
+       2026-08-11-player-state.sql (apply-order 20) is now overwritten by a clean
+       body before a single op runs — boot()'s relocation detector caught it, the
+       third arm in three days to hit the "the chain moved under the plant" class.
+       Planting in the new last author instead would install the defect but put it
+       DOWNSTREAM of the §6(g) probe at 34: the gate could then never fire, which
+       is precisely the silent downgrade budget_kind_scoped's note warns about. So
+       the arm returns to what it was built as — a runtime catch, scored by
+       reconcile() against the body the chain ends with. The §6(g) probe is
+       untouched and still guards production; it simply is not this arm's scorer
+       any more. */
     patches: [[
       `  if p_user is null or p_code is null then return; end if;`,
       `  if p_user is null or p_code is null then return; end if;

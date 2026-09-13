@@ -39497,6 +39497,16 @@ const TESTS = [
       assert(/\+15%/.test(brs[0]) && /then \+2%/.test(brs[0]) && !/paused/i.test(brs[0]),
         'the row must state the running magnitude, NAME what it becomes at the boundary, and carry no '
         + 'paused chip: ' + brs[0]);
+      /* THE GESTURE RULE IS STATED, not inferable: the server buffs a MANUAL eat only
+         (the auto-eater heals), so the panel and every buff food's tooltip carry one
+         published sentence. Asserted on the PANEL and on the TOOLTIP's own source. */
+      const panel = document.getElementById('food-buffs-host').textContent;
+      assert(/eat it yourself/i.test(panel) && /auto-eating only heals/i.test(panel),
+        'the Active Effects panel must state that a buff needs a manual Eat: ' + panel);
+      assert(typeof window.BUFF_GESTURE_NOTE === 'string'
+        && window.foodUseInfo('fishers_pie').buffText !== '',
+        'the tooltip reads window.BUFF_GESTURE_NOTE for any food with a buffText; one of the two is gone, '
+        + 'so a buff food can be bought with no statement of who has to eat it');
 
       /* (5) THE GESTURE REACHES THE SERVER. `buff_apply` is the Edge's to build (the
          real delta is applied in tests/buff-queue.mjs [18]); the CLIENT's half is the

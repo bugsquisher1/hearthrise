@@ -292,6 +292,12 @@ export const EAT_REFUSAL_COPY = Object.freeze({
      b224 "I clicked Eat and nothing happened" report, and a silent one is worse
      than a vague one. The food is kept in both cases: the whole apply rolls back. */
   bad_buff_item: 'The Hearth did not recognise that food — kept your %s.',
+  /* NOT A REFUSAL — a SUCCESS with less in it than the player was promised, and the
+     one case the pill cannot state for itself. `buff_at_max` rolls the whole apply
+     back, so the verb retries the eat WITHOUT the buff for food that heals (eat.js
+     (3b), Security F5): the HP lands, the buff does not. Saying so is the difference
+     between "the cap is full" and "my Feast did nothing". */
+  'buff_skipped/at_max': 'Effects already at their cap — ate your %s for the heal only.',
   buff_not_paid: 'That food could not be used just now — kept your %s.',
 });
 
@@ -307,7 +313,13 @@ export function refusalCopyFor(verdict, itemName) {
   const body = (v.body && typeof v.body === 'object') ? v.body : {};
   const code = v.reason || v.error || body.error || '';
   const why = v.why || body.why || (body.detail && body.detail.why) || '';
-  const keys = why ? [code + '/' + why, code] : [code];
+  /* A SKIPPED BUFF IS ITS OWN KEY and is asked FIRST, because the answer arrived on
+     an `ok:true` envelope: there is no machine code to key on, only the flag the verb
+     set when it retried without the buff. */
+  const skipped = v.buff_skipped || body.buff_skipped
+    || (body.receipt && body.receipt.buff_skipped) || '';
+  const keys = skipped ? ['buff_skipped/' + skipped]
+    : (why ? [code + '/' + why, code] : [code]);
   for (const k of keys) {
     if (Object.prototype.hasOwnProperty.call(EAT_REFUSAL_COPY, k)) {
       return EAT_REFUSAL_COPY[k].replace('%s', String(itemName || 'food'));

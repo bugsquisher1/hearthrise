@@ -2206,22 +2206,27 @@ body[data-theme="dark"] .lane1-toggle{
    One chip per monster class the SERVER has counted kills for, above the roster.
    Every colour is a token; the badge/threshold/element marks are atlas glyphs
    (uiMedal / uiTarget / uiSpark), never emoji. The four rank tints all resolve
-   through --gold-2 / --ink so a theme change moves them together. */
+   through --gold-2 / --ink so a theme change moves them together.
+   EVERY text size here is the 14.5px floor (b227): a badge or a threshold line
+   is not "chrome" — it is the sentence that tells a player what they earned and
+   what is next, and the first draft of this block shipped four rules between 12
+   and 13.5px. Compactness is bought with PADDING and GLYPH SIZE, never by
+   shrinking the words. */
 .charm-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;margin:0 0 10px}
-.charm-strip .charm-empty{grid-column:1/-1;font-size:calc(13.5px * var(--ui-scale, 1))}
+.charm-strip .charm-empty{grid-column:1/-1;font-size:calc(14.5px * var(--ui-scale, 1))}
 .charm-chip{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:6px 8px;border:1px solid var(--line-soft);border-radius:5px;background:color-mix(in srgb, var(--ink) 3%, transparent)}
 .charm-chip.is-ranked{border-color:color-mix(in srgb, var(--gold-2) 35%, transparent);background:color-mix(in srgb, var(--gold-2) 5%, transparent)}
-.charm-chip .cc-name{font-size:calc(13.5px * var(--ui-scale, 1));font-weight:800;color:var(--ink)}
-.charm-chip .cc-kills{font-size:calc(12.5px * var(--ui-scale, 1));color:var(--ink-3)}
-.charm-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:999px;border:1px solid var(--line-soft);font-size:calc(12px * var(--ui-scale, 1));color:var(--ink-2)}
+.charm-chip .cc-name{font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--ink)}
+.charm-chip .cc-kills{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}
+.charm-badge{display:inline-flex;align-items:center;gap:3px;padding:0 6px;border-radius:999px;border:1px solid var(--line-soft);font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2)}
 .charm-badge b{font-weight:800}
 .charm-badge.charm-r1{color:var(--ink-2)}
 .charm-badge.charm-r2{color:var(--ink);border-color:color-mix(in srgb, var(--gold-2) 30%, transparent)}
 .charm-badge.charm-r3{color:var(--gold-2);border-color:color-mix(in srgb, var(--gold-2) 50%, transparent)}
 .charm-badge.charm-r4{color:var(--gold-2);border-color:var(--gold-2);font-weight:800}
-.charm-next{flex:1 0 100%;display:inline-flex;align-items:center;gap:4px;font-size:calc(12px * var(--ui-scale, 1));color:var(--ink-3)}
+.charm-next{flex:1 0 100%;display:inline-flex;align-items:center;gap:4px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}
 .charm-next.is-max{color:var(--gold-2)}
-.bestiary-row .charm-element{display:inline-flex;align-items:center;gap:3px;font-size:calc(12.5px * var(--ui-scale, 1));color:var(--gold-2)}
+.bestiary-row .charm-element{display:inline-flex;align-items:center;gap:3px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--gold-2)}
 
 /* ─── Friends stub ─── */
 .friend-row{display:flex;align-items:center;gap:10px;padding:6px 8px;background:rgba(0,0,0,.1);border-radius:4px;margin-bottom:4px;opacity:.5}
@@ -3280,6 +3285,13 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
    BUFF_DRAIN_RULE) against the server's absolute `until`, so there is no state in
    which a buff is "kept, not spent" and no honest way to draw one. What replaces
    the note is one sentence of real-time copy. */
+/* The gesture rule on a food tooltip: a full-width note under the stat grid, not
+   a stat — it has no number and must not read as one. Tokens only. */
+.it-buff-note{grid-column:1/-1}
+.it-buff-note span{
+  display:block;color:var(--ink-3);line-height:1.35;
+  font-size:calc(14.5px * var(--ui-scale, 1));
+}
 .buff-real-time-note{
   margin-top:6px;color:var(--ink-3);line-height:1.4;
   font-size:calc(14.5px * var(--ui-scale, 1));

@@ -4,6 +4,44 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-09-13 — Backend Architect (lane c-rejections-verb-map-2): two follow-ups Security routed out of the refusal-journal lane
+
+**F1 — NOTHING PROVES A `why` IS A SERVER LITERAL (route: Backend Architect / QA, a tree-scan guard).**
+AFFECTED: every `hr_reject(<code>, jsonb_build_object(..., 'why', <x>))` site in
+`supabase/migrations/**`, `public.hr_rejection_why`, `public.hr_rejections.whys`,
+`tools/vitals.mjs --refusals`.
+`2026-09-13-rejections-verb-map-2.sql` promotes the `why` key of a refusal detail into a jsonb **map
+key** on `hr_rejections.whys`, so "a why is a small server-authored token" stopped being a comment and
+became load-bearing. The key is bounded by construction — lowercased, filtered to `[a-z0-9_.-]`, cut
+at 24 characters, capped at 12 keys + `(other)` — so the WORST case is already a bounded, ugly key and
+not unbounded growth or log injection. What is NOT checked is the source: today every `why` in the tree
+is a literal, and the day one body writes `'why', v_some_client_string` the breakdown silently becomes
+a client-chosen dimension and its cardinality is spent on garbage. REQUIRED ACTION: a credential-free
+tree scan over `supabase/migrations/**` asserting that the argument after `'why',` inside any
+`hr_reject(`/`hr_record_rejection(` detail is a single-quoted literal (or a block-local `constant`),
+with a `--selftest` that plants a variable and requires it caught. Cheap, static, milliseconds; it is
+NOT urgent, because the bound already caps the damage.
+
+**F3 — THE FORGED BUFF SHAPE NEEDS ITS OWN CODE, `bad_buff_shape`, CLASSIFIED `c_incident`
+(route: the owner of hr_apply — lane ab287b7d; the Coordinator is routing it).**
+AFFECTED: `supabase/migrations/2026-09-13-consumable-buffs.sql:427` (the `forbidden_key` arm),
+`hr_record_rejection`'s `c_incident` array, `tests/buff-queue.mjs`, `tools/vitals.mjs --refusals`.
+`bad_buff_item` is answered by three unrelated situations: a `buff_apply` carrying any key other than
+`item` (i.e. a delta that NAMES a buff's magnitude, type or expiry — a forgery an honest client cannot
+emit, because no client code path builds that shape), a `buff_apply` that is not an object (a client
+bug), and an item that simply carries no buff (a Trout, a bronze sword — ordinary play). The new `whys`
+map separates them for an operator (`forbidden_key` / `not-an-object` / `(none)`), which is the
+observability half and has landed. The SEVERITY half cannot land in the map: severity is derived from
+the CODE, one row per (user, slot, day, code), so a forgery that must alarm on occurrence ONE shares
+its row and its `normal` severity with a player clicking a Trout. REQUIRED ACTION: raise a distinct
+`bad_buff_shape` at the `forbidden_key` site, add it to `c_incident` (first-occurrence alarm — it is
+never player behaviour and the damage is attempted on call one), add it to `hr_apply`'s
+`c_release_codes` beside `bad_buff_item` (nothing was written, and withholding the key would brick it
+for 25 hours), and extend `tests/buff-queue.mjs`'s forged-shape arms to assert the new code. Deliberately
+NOT done in the refusal-journal lane: re-using `bad_buff_item` for a forgery signature is the exact
+defect that lane exists to fix, and the fix belongs to the body's owner rather than to a third patcher
+of a 36-deep chain.
+
 ## 2026-09-13 — Systems Engineer (lane/b544-reed-and-tide): two P3s found while adding six cooking rows
 
 **P3 — THE 35 QTY-1 COOKING ROWS ARE UNGUARDED ON VENDOR RATIO.**

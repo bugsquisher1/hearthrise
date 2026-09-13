@@ -298,7 +298,44 @@ export async function runEat(o) {
   /* (3) THE APPLY. `env.version` is what this call read; hr_apply refuses a
      stale one (concurrency control) and debits under the row lock, refusing
      `insufficient_item` if the player has no copy. The key is the CLIENT's. */
-  const res = await applyDelta({ exec, user, slot, version: env.version, intentId, delta });
+  let res = await applyDelta({ exec, user, slot, version: env.version, intentId, delta });
+
+  /* ── (3b) THE HEAL MUST LAND EVEN WHEN THE BUFF CANNOT (Security F5, P1) ───
+     `buff_at_max` — the 60-minute ceiling, or `why:'segment_budget'` at eight live
+     segments of a type — raises inside hr_apply and rolls back the WHOLE delta.
+     That is the designer's rule for a FEAST ("never eat the item for nothing") and
+     it is right for one. It is badly wrong for the fifteen `foodClass:'healing'`
+     rows that carry an incidental buff: a player at the cap presses Eat mid-fight,
+     the apply is refused whole, the food is kept, THE HP IS NOT HEALED, and the
+     character dies to a button that did nothing. Auto-eat is a purchased trait most
+     characters do not own, so the manual press is the common path, not the edge.
+
+     SO: retry ONCE, without the buff, FOR FOOD THAT HEALS.
+       · the same `intentId` — `buff_at_max` is a RELEASE code (c_release_codes), the
+         first attempt wrote nothing, and the intent NAME is unchanged (`eat:<item>`),
+         so hr_apply neither answers `intent_mismatch` nor double-debits. Exactly one
+         serving leaves the bag whichever attempt lands.
+       · the same `env.version` — the refusal rolled back, so nothing bumped it.
+       · `eatDelta(food, newHp, true)` builds the retry, i.e. the AUTO shape: no
+         `buff_apply` AND no `meta.buff`, because a journal row must not claim a buff
+         the character did not get.
+     A PURE-BUFF food (heals === 0) is NOT retried: there would be nothing left to
+     buy, and eating it for nothing is exactly what the ruling forbids. Its refusal
+     reaches the player as `buff_at_max` and the food stays in the bag.
+     The client is told which happened (`buff_skipped:'at_max'`), so the toast can
+     say "buff at max — ate it for the heal" instead of silently under-delivering.
+     Asserted by execution in tests/buff-queue.mjs [18d]; the away engine is not on
+     this path at all (the accrual engine's autoEat never emits `buff_apply`), which
+     that arm also measures. */
+  let buffSkipped = null;
+  if (res && res.ok !== true && res.error === 'buff_at_max'
+      && food.heals > 0 && delta.buff_apply !== undefined) {
+    buffSkipped = 'at_max';
+    res = await applyDelta({
+      exec, user, slot, version: env.version, intentId, delta: eatDelta(food, newHp, true),
+    });
+  }
+
   if (!res || res.ok !== true) {
     return {
       status: 409,
@@ -328,8 +365,12 @@ export async function runEat(o) {
       receipt: res.replayed === true ? null
         : {
           item: food.item, name: food.name, heals: food.heals, hp: newHp,
-          ...((food.hasBuff && auto !== true) ? { buff: food.buffType } : {}),
+          ...((food.hasBuff && auto !== true && buffSkipped === null) ? { buff: food.buffType } : {}),
+          ...(buffSkipped ? { buff_skipped: buffSkipped } : {}),
         },
+      /* TOP-LEVEL TOO, because a replay returns a null receipt and the client still
+         has to know the buff it predicted is not there. */
+      ...(buffSkipped ? { buff_skipped: buffSkipped } : {}),
       ...(res.replayed === true ? { replayed: true } : {}),
     },
   };

@@ -258,6 +258,15 @@ begin
       --     its time passed while the stronger effect ran)
       --   · the twin from 2b (same magnitude, contiguous) -> dropped here and
       --     re-added below as one EXTENDED segment
+      -- ⚠ THIS PREDICATE IS THE ONE PRODUCTION APPLIED, and it stays that way.
+      --   A later edit made the second branch re-test the type; the file
+      --   early-returns on re-apply, so the edit never reached the database and the
+      --   repo stopped matching production (live-hash --codediff: 35 chars). The
+      --   applied file's payload must stay byte-honest, so the rewrite lives in
+      --   2026-09-13-buff-segments-predicate.sql instead. The two predicates are
+      --   EQUIVALENT — proven by execution over the full cross-product in that
+      --   file's §4 — so this is a readability/robustness convergence, not a
+      --   behaviour change.
       select coalesce(jsonb_agg(e.v order by (e.v->>'until')::timestamptz), '[]'::jsonb)
         into v_buffs_new
         from jsonb_array_elements(coalesce(v_st.buffs, '[]'::jsonb)) as e(v)

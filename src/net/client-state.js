@@ -302,27 +302,31 @@ export const RESIDUE_FIELDS = Object.freeze([
 ]);
 const RESIDUE_SET = new Set(RESIDUE_FIELDS);
 
-/* ── NAMES THE RESIDUE PUT MUST NEVER CARRY, WHATEVER THE ALLOWLIST SAYS ─────
-   hr_put_client_state refuses the WHOLE patch with `forbidden_field` when it
-   sees an authority name — not the key, the patch — so one bad name costs the
-   player every preference in the bag, for as long as the bundle lives. The
-   allowlist above is the primary control and `buffs` is already off it; this is
-   the SECOND control, and the two fail differently on purpose:
+/* ── NAMES THE RESIDUE PUT MUST NEVER CARRY, WHATEVER BUILT THE PATCH ────────
+   hr_put_client_state refuses the WHOLE patch with `forbidden_field` when it sees
+   an authority name — not the key, the patch — so one bad name costs the player
+   every preference in the bag for as long as the bundle lives. RESIDUE_FIELDS is
+   the primary control and `buffs` is already off it; this is the second, and the
+   two fail differently on purpose: the allowlist protects against a field being
+   FORGOTTEN, this against one being RE-ADDED (`buffs` lived in RESIDUE_FIELDS for
+   months as a player-written buff clock, and the "a potion must survive a reload"
+   instinct that put it there will recur — it is homed by accrue.js reconcileBuffs
+   now, not by this bag).
 
-     · the allowlist protects against a field being FORGOTTEN;
-     · this protects against a field being RE-ADDED (2026-09-13: `buffs` lived in
-       RESIDUE_FIELDS for months as a player-written buff clock, and the obvious
-       "a potion must survive a reload" instinct that put it there will recur —
-       it is homed by accrue.js reconcileBuffs now, not by this bag).
+   ⚠ ENFORCED IN `putClientState`, NOT IN `buildResiduePatch`, and that is not a
+     preference. The PUT is the ONE choke point every patch passes through
+     whatever assembled it, and capstone.js's builder is SLICED OUT OF ITS SOURCE
+     AND RUN STANDALONE by tests/bounty-hunter-xp.mjs (its module graph never
+     settles under Node, so the guard executes the real bytes with
+     RESIDUE_FIELDS injected). A cross-module call inside that function is a
+     ReferenceError in the harness — measured, it turned the whole guard red.
+     Enforcing at the seam that owns the list keeps both honest.
 
-   Kept in sync BY THE GUARD, not by hand: tests/arm-homing-guard.mjs reads the
-   deny-list out of every `*-client-state-*denylist.sql` migration and fails a
-   residue field that collides with it. A name here with no migration behind it
-   costs nothing; a migration name missing from here costs the whole bag. */
-export const RESIDUE_NEVER_SEND = Object.freeze(['buffs']);
+   Kept in sync BY A GUARD, not by hand: tests/arm-homing-guard.mjs reads the
+   deny-list out of every `*client-state*denylist.sql` migration and fails a
+   residue field that collides with it. */
+const RESIDUE_NEVER_SEND = Object.freeze(['buffs']);
 const NEVER_SEND_SET = new Set(RESIDUE_NEVER_SEND);
-/** Is this a field the client must not upload under any allowlist? */
-export function isForbiddenResidueField(field) { return NEVER_SEND_SET.has(field); }
 
 /* ── THE SIZE GUARD'S CLIENT HALF ────────────────────────────────────────────
    hr_put_client_state already refuses an oversized bag (2026-08-22-client-state-
@@ -661,6 +665,17 @@ export async function putClientState(patch, opts) {
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
     return { ok: false, error: 'bad_patch' };
   }
+  /* THE DENY-LIST, AT THE ONE SEAM EVERY PATCH CROSSES (see RESIDUE_NEVER_SEND).
+     A copy, never a mutation of the caller's object: the patch is also the
+     caller's record of what it tried to save. Silent by design — this is a
+     backstop for a name that should never have been assembled, and a warning the
+     player cannot act on is noise in the console of a live game. */
+  for (const k of NEVER_SEND_SET) {
+    if (Object.prototype.hasOwnProperty.call(patch, k)) {
+      patch = Object.fromEntries(Object.entries(patch).filter(([f]) => !NEVER_SEND_SET.has(f)));
+      break;
+    }
+  }
   const url = o.url;
   const anonKey = o.anonKey;
   const jwt = o.jwt;
@@ -694,7 +709,7 @@ if (typeof window !== 'undefined') {
   window.HearthriseClientState = {
     clientField, isClientStateServerBacked, isClientStateFromServer,
     applyClientState, putClientState, isClientStateHydrated,
-    hydrateInto, RESIDUE_FIELDS, RESIDUE_NEVER_SEND, isForbiddenResidueField, __resetClientStateCapWarned,
+    hydrateInto, RESIDUE_FIELDS, __resetClientStateCapWarned,
     buildClientStatePutRequest, KEEPALIVE_MAX_BODY_BYTES,
   };
 }

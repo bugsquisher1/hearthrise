@@ -578,6 +578,44 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/rpc-resolution.mjs --selftest
 
+      # IS PRESENCE A SERVER FACT, AND DOES THE PLAZA LEAK EXACTLY SEVEN KEYS?
+      # 2026-09-13-town-presence.sql opens the first cross-player READ surface in
+      # the game that is not a leaderboard: a named list of who is in town and what
+      # they are doing. Nothing economic moves in it, so the failure modes are a
+      # forged presence, a leaked column and an ignored opt-out — and none of those
+      # is visible to any other guard in this repo.
+      #
+      # The migration's §13 gate asserts all of it at APPLY time and does bite
+      # (measured 2026-09-12: three arms each fail the apply by name). That is the
+      # second layer, and it is exactly the layer a later file restating hr_state_of
+      # or hr_rpc_gate can quietly remove — so this replays the whole ordered chain
+      # with §13 DISARMED and proves the properties by EXECUTION: the flag closes
+      # the surface AND the cron body; a heartbeat stamps now() on the caller's own
+      # row, bumps no version and journals NOTHING (at one call per 25 s a journal
+      # row is the game_events 1.6M-row mistake at ledger scale); a second beat
+      # inside 20 s writes nothing; the signature carries no uuid and no clock and
+      # user A never moves user B's stamp; the projection is EXACTLY the 7-key peer
+      # / 6-key crier allowlist by jsonb_object_keys with no economy or identity
+      # key in it; a quiet character is absent from peers AND from the named crier
+      # feed with one ledger row per CHANGE; away/seen_ago_s are read-time so a
+      # stale snapshot shows nobody; the level is a BAND; an uncatalogued
+      # active_id has no label; an account is one body; town_snapshot is reachable
+      # by no client role; and the envelope gained `place` and carries no peers.
+      #
+      # --selftest plants 12 real defects and requires each to be caught by THIS
+      # guard's assertions (0 by a declared refusal — the gate is disarmed on
+      # purpose so a green arm cannot be an explosion). Per C4, base AND selftest:
+      # a selftest-only registration cannot tell a broken migration from a working
+      # guard. No credentials; production untouched.
+      #
+      # MEASURED 2026-09-12 on the dev machine: 2 s base + 16 s selftest on the
+      # shared PGlite snapshot. The 12-minute budget is unmoved.
+      - name: Town presence — a forged presence, a leaked key, an ignored opt-out
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/town-presence.mjs
+          node tests/town-presence.mjs --selftest
+
   # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
   # 8-45 real defects in real migration text and demand every one turns the
   # guard red. Before the snapshot cache these replayed the whole chain per

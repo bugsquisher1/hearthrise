@@ -22,6 +22,14 @@ import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
 } from './bane.js?v=543';
 import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=543';
+/* BESTIARY CHARMS, PHASE 2 — the DROP multiplier only. Imported here, and
+   nowhere else in the engine, for the reason src/core/charms.js's header states:
+   the Edge accrual does not run the client's `getBonus` wrapper chain, so a
+   charm expressed as a bonus key would pay awake and read ZERO asleep. Inside
+   `weaknessInfo` it is one expression with two callers, exactly like bane and
+   element. `charmDamageMultFor` is deliberately NOT imported — see the note on
+   `charmDropMult` in `weaknessInfo`. */
+import { charmDropMultFor, charmRankFor } from './charms.js?v=543';
 
 /* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
    as a WEAPON type — an unarmed/typeless loadout still has to render. */
@@ -263,8 +271,17 @@ export function armorSetBonus(equipment, items) {
  *
  * `baneMult`/`baneClass` are returned so the away card and the monster panel
  * can SAY why a night went the way it did without recomputing anything.
+ *
+ * @param charms OPTIONAL `{class: rank}` — the BESTIARY CHARM index (phase 2).
+ *   It is an INPUT because the rank is DERIVED FROM WHOEVER OWNS THE COUNTERS:
+ *   the Edge engine folds `hr_bestiary_of`'s rows itself (authority), the client
+ *   folds the `bestiary.kills_by_class` block the server projected (display
+ *   prediction only, reconciled by the next envelope). Nothing here reads a
+ *   client-sent rank, because there is no wire field a client could send one on.
+ *   Absent/null ⇒ every multiplier is 1, which is the pre-charm behaviour byte
+ *   for byte and the safe direction for a state that has not hydrated yet.
  */
-export function weaknessInfo(monster, eq) {
+export function weaknessInfo(monster, eq, charms) {
   const weak = (monster && monster.weaponWeak) || null;
   const matched = !!(weak && eq && eq.weaponType === weak);
   const weaponMult = matched ? WEAKNESS_BONUS.damage : 1;
@@ -288,13 +305,47 @@ export function weaknessInfo(monster, eq) {
      the stated ceiling — the same invariant bane.js states for its pair. */
   const damageMult = Math.min(weaponMult * baneMult * elementMult, MAX_TOTAL_DAMAGE_MULT);
 
+  /* ── THE CHARM (phase 2): a DROP multiplier, and only a drop multiplier ────
+     `charmDropMultFor` is clamped to MAX_CHARM_DROP_MULT inside src/core/charms.js
+     — 1.00 / 1.01 / 1.02 / 1.03 at 25 / 100 / 500 / 2000 class kills, the
+     Designer's authored ladder — so the ceiling is a property of the FORMULA and
+     not of the data table. It multiplies the monster's own `dropBonus`, and
+     `effectiveDropChance` (src/core/drops.js) then applies the 0.95 cap AFTER
+     every multiplier and leaves a guaranteed drop (ch >= 1) untouched: a charm
+     can never turn one certain drop into two. Worst case at the ceiling is
+     1.15 (`NEUTRAL_DROP_BONUS`) x 1.03 = 1.1845 on a non-guaranteed row.
+
+     ⚠ THE DAMAGE HALF IS *NOT* ARMED HERE, AND THE OMISSION IS DELIBERATE.
+       The ladder authors `dmg` 1.01 at rank 3 and 1.03 at rank 4, but maxHit is
+       an INTEGER and `playerCombatRolls` applies `weak.damageMult` through
+       `Math.floor` — floor(25 x 1.01) is 25. So arming it today would ship a
+       stated effect that does nothing for most loadouts, which is the "no
+       placeholders or fakes" line, and it is the Designer's phase 3 with its own
+       review (src/data/bestiary-charms.js). When it lands it multiplies into
+       `damageMult` right above, under MAX_TOTAL_DAMAGE_MULT, and nowhere else.
+       No `charmDamageMult` readout is returned meanwhile: a field naming a
+       damage bonus the engine does not apply is a renderer's next lie. */
+  const charmClass = baneClass;
+  const charmRank = charmRankFor(charmClass, charms);
+  const charmDropMult = charmDropMultFor(charmClass, charms);
+
   const bonus = Number(monster && monster.dropBonus);
+  const monsterDrop = Number.isFinite(bonus) && bonus > 0 ? bonus : 1;
   return {
     weak,
     matched,
     damageMult,
     accuracyMult: matched ? WEAKNESS_BONUS.accuracy : 1,
-    dropMult: Number.isFinite(bonus) && bonus > 0 ? bonus : 1,
+    dropMult: monsterDrop * charmDropMult,
+    /* Charm readout — the class, the RANK the night was priced with and the
+       factor it paid, so the away card and the loot modal can SAY a charm paid
+       without recomputing it. Read (not re-derived) for the same reason the bane
+       readout is: a card that recomputed from counters that have since moved
+       would describe a different character than the one that fought.
+       null/0/1 when the class is unstudied. */
+    charmClass: charmRank > 0 ? charmClass : null,
+    charmRank,
+    charmDropMult,
     /* Bane readout — 1 and null when no bane gear applies. */
     baneClass: baneMult > 1 ? baneClass : null,
     baneMult,
@@ -311,9 +362,14 @@ export function weaknessInfo(monster, eq) {
 
 /**
  * @param monster the MONSTERS row
- * @param ctx { eq, skills, equipment, items, profile, style, bonus, setBonus }
+ * @param ctx { eq, skills, equipment, items, profile, style, bonus, setBonus, charms }
  *        `setBonus` may be omitted — it is then derived from equipment+items.
  *        `bonus` may be omitted — it then contributes 0 (the inert case).
+ *        `charms` may be omitted — the charm ladder then pays nothing. It is
+ *        threaded through so `playerCombatRolls(...).weak` and a direct
+ *        `weaknessInfo(m, eq, charms)` cannot answer two different drop rates
+ *        for one fight; the loot preview reads the first and `resolveKill` the
+ *        second, and two spellings of one number is how they drift.
  */
 export function playerCombatRolls(monster, ctx) {
   const c = ctx || {};
@@ -323,7 +379,7 @@ export function playerCombatRolls(monster, ctx) {
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
   const profile = c.profile || DEFAULT_PROFILE;
   const style = c.style || DEFAULT_STYLE;
-  const weak = weaknessInfo(monster, eq);
+  const weak = weaknessInfo(monster, eq, c.charms);
 
   /* Sum typed bonuses from equipment (the profile decides WHICH fields —
      a staff reads magic bonuses, a bow reads ranged). */

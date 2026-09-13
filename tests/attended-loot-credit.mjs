@@ -42,7 +42,7 @@
 // ── WHAT THIS FILE DRIVES ───────────────────────────────────────────────
 // TWO HALVES, because the defect has two halves and neither proves the other:
 //
-//   A1-A10 THE ENGINE, in plain Node, against the REAL computeAccrual. Mutation
+//   A1-A11 THE ENGINE, in plain Node, against the REAL computeAccrual. Mutation
 //          arms rewrite accrual.js's own text into a temp module (the
 //          artisan-progress-model idiom), so a JS defect is planted in the
 //          shipping source rather than in a stub. A10 is the UTC-boundary arm
@@ -91,6 +91,11 @@ import { minTimeToKillMs } from '../src/core/kill-time.js';
    only spelling that survives that. */
 import { botdFor, killBonusesFor, utcWeekKey } from '../src/core/botd.js';
 import { utcDaySegments, DAY_MS } from '../src/core/away.js';
+/* BESTIARY CHARMS (A11). The ladder's top rung is READ from the data table and
+   the class from the one function that owns the taxonomy — a magnitude retyped
+   here would agree with itself while a designer re-priced the ladder. */
+import { CHARM_RANKS } from '../src/data/bestiary-charms.js';
+import { classOfMonster } from '../src/core/bane.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const ENGINE = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');
@@ -579,6 +584,77 @@ function a6_bound() {
 }
 
 // ── A7 — THE DEGRADE LADDER STAYS MONOTONE ───────────────────────────────
+/* ── A11 — THE ATTENDED TOP-UP PAYS THE BESTIARY CHARM (phase 2) ────────────
+   THE BUG THIS EXISTS FOR, and it is the away/attended asymmetry in the
+   direction nobody looks at. A charm's drop bonus is applied inside
+   `weaknessInfo`, which this engine calls TWICE: once for the away span and once
+   in the attended top-up's own `lootCtx`. Passing the charm index to only the
+   first would leave a studied class paying a better drop rate for the hours the
+   player SLEPT than for the fights they sat and watched — one engine, two
+   answers, and no error anywhere. (CLAUDE.md §4 "both-path tests": the away arm
+   lives in tests/accrual-engine.mjs CHARM-W3.)
+
+   MUTATION PROVEN: drop `charms` from the `lootCtx.weakness` closure in
+   accrual.js and the ear count below collapses to the control's.
+
+   THE SAMPLE IS THE WHOLE ATTENDED CAP at maxed skills, not the 15-kill
+   production window: a 3% lift on a 0.5 drop needs more than 15 rolls to be a
+   fact rather than a coin toss, and a deterministic seed makes "no difference at
+   this seed" a permanently vacuous assertion rather than a flake. */
+function a11_charmedTopUp() {
+  const TOP = CHARM_RANKS[CHARM_RANKS.length - 1];
+  const CLS = classOfMonster(MONSTERS[MONSTER]);
+  /* The ROLLED row and the GUARANTEED row, read from the catalogue. Both matter:
+     one is the bite, the other is the property that a charm cannot make a
+     certainty happen twice (`effectiveDropChance` returns ch >= 1 untouched). */
+  const rolled = (MONSTERS[MONSTER].drops || []).filter((d) => d.ch > 0 && d.ch < 1)
+    .slice().sort((a, b) => b.ch - a.ch)[0];
+  const sure = (MONSTERS[MONSTER].drops || []).find((d) => d.ch >= 1);
+  /* A HALF-HOUR WINDOW, AND THE CHARACTER IS A1'S — NOT MAXED. Three fixtures
+     were measured before this one, and the two rejected ones are the point:
+       · the 169-second production window caps the attendance at 41 kills, where
+         a 3% lift is expected to yield 0.7 extra ears. Measured 46 vs 46: green
+         with the feature deleted.
+       · the same window at MAXED skills realises every attended kill in the away
+         sim, so `attendedTopUp` is ZERO and the assertion silently tests the AWAY
+         path a second time. Measured: green with the attended closure disarmed.
+     This fixture realises 61 kills in the sim and tops up 122, so two thirds of
+     the loot comes through `lootCtx`. Measured, with the charm: 98 ears against
+     96; with `charms` dropped from the lootCtx closure: 96 against 96. The margin
+     is thin BY CONSTRUCTION — a 3% lift on ~120 rolls of a 0.5 row is ~1.8 extra
+     — and it is deterministic, because the seed is pinned. Widen the sample, never
+     the tolerance. */
+  const LONG_TO = FROM_MS + 30 * 60000;
+  const many = attendedEnvelope({ [MONSTER]: 100000 }, FROM_MS + 9000, LONG_TO - 1000);
+  const wide = { attended: many, combatXpAccruedToMs: LONG_TO - 1000,
+    nowMs: LONG_TO, capMs: 12 * 3600000 };
+  const base = accrue(wide);
+  const charmed = accrue({
+    ...wide,
+    /* hr_bestiary_of's own rows. There is no wire field for this — see
+       tests/accrual-engine.mjs CHARM-W4. */
+    bestiaryKills: { [MONSTER]: TOP.at },
+  });
+  ok(base.accrued === true && charmed.accrued === true && rolled && sure && CLS,
+    `A11: the fixture did not accrue (${base.reason} / ${charmed.reason}) or the catalogue lost its `
+    + `rolled/guaranteed rows (${JSON.stringify(rolled)} / ${JSON.stringify(sure)}, class ${CLS})`);
+  if (!base.accrued || !charmed.accrued || !rolled || !sure) return;
+  ok(charmed.attendedTopUp === base.attendedTopUp && charmed.summary.kills === base.summary.kills,
+    `A11: the charm changed the attended split (top-up ${base.attendedTopUp} -> `
+    + `${charmed.attendedTopUp}, sim ${base.summary.kills} -> ${charmed.summary.kills}). It is a DROP `
+    + 'multiplier: it must not move the fight, the cap or the credit arithmetic.');
+  const got = (r, id) => Math.floor(Number((r.delta.items || {})[id]) || 0);
+  ok(got(charmed, rolled.id) > got(base, rolled.id),
+    `A11: a rank-${TOP.rank} charm on ${CLS} credited ${got(charmed, rolled.id)} ${rolled.id} where an `
+    + `unstudied character got ${got(base, rolled.id)}, over ${base.attendedTopUp} topped-up kills. `
+    + "The attended top-up runs resolveKill through its own lootCtx — if that closure does not "
+    + 'carry the charm, the charm pays away nights and not watched ones.');
+  ok(got(charmed, sure.id) === got(base, sure.id),
+    `A11: the charm moved the GUARANTEED drop ${sure.id} from ${got(base, sure.id)} to `
+    + `${got(charmed, sure.id)}. effectiveDropChance returns ch >= 1 untouched on purpose: a `
+    + 'certainty cannot be made more certain, and a multiplier that could would mint a second item.');
+}
+
 function a7_ladder() {
   const out = accrue({ attended: ATT, combatXpAccruedToMs: BEACON });
   if (!out.accrued) { ok(false, 'A7: fixture did not accrue'); return; }
@@ -1091,7 +1167,7 @@ function a10_utcBoundary() {
          replaced by "segment 0 gets one kill, the final segment gets the rest":
 
            node tests/attended-loot-credit.mjs
-             → all checks pass (A1-A10 engine, C1-C9 chain)
+             → all checks pass (A1-A11 engine, C1-C9 chain)
            zombie        2,007 → 2,403 units   ×1.197
            panther       4,872 → 5,702 units   ×1.170
            death_knight  2,412 → 2,557 units   ×1.060
@@ -1791,6 +1867,7 @@ async function run(mutateId) {
   a8_hostile();
   a9_unsurvivable();
   a10_utcBoundary();
+  a11_charmedTopUp();
 
   /* The SQL half is skipped for a pure-JS mutation: replaying the whole chain
      costs ~13 s and a JS defect cannot be visible in it. It always runs on the
@@ -1868,5 +1945,5 @@ if (DIRECT) {
     for (const m of p) console.error(`  FAIL  ${m}\n`);
     process.exit(1);
   }
-  console.log('attended-loot-credit: all checks pass (A1-A10 engine, C1-C9 chain)');
+  console.log('attended-loot-credit: all checks pass (A1-A11 engine, C1-C9 chain)');
 }

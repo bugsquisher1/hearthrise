@@ -1578,7 +1578,12 @@ function renderFight() {
   }
   const weak = document.getElementById('fs-weak');
   if (weak) {
-    const txt = `Weak to ${weaponLabel(m.weaponWeak)}`;
+    /* The charm lift vanishes into `dropMult`; `panelLine` names it, or ''. */
+    let txt = `Weak to ${weaponLabel(m.weaponWeak)}`;
+    const CH = window.HearthriseCharms;
+    const wi = typeof window.getWeaknessInfo === 'function' ? window.getWeaknessInfo(m, eq) : null;
+    const charm = (wi && CH && typeof CH.panelLine === 'function') ? CH.panelLine(wi) : '';
+    if (charm) txt += ' · ' + charm;
     if (weak.textContent !== txt) weak.textContent = txt;
   }
 

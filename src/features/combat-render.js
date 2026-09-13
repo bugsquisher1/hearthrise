@@ -332,15 +332,29 @@ const HUD = (() => {
     const eq = window.getEquipmentStats ? window.getEquipmentStats() : {};
     const weak = window.getWeaknessInfo ? window.getWeaknessInfo(m, eq) : { dropMult: 1 };
     const mult = weak.dropMult || 1;
+    /* ── WHO PAID THE LIFT (charms phase 2) ──────────────────────────────────
+       `dropMult` now has TWO sources: the monster's own `dropBonus` (the 1.15
+       the seven weakness-less rows carry) and the player's bestiary charm. The
+       note below used to attribute the whole of it to the matchup, which became
+       untrue the moment a charm could contribute — and a panel that misattributes
+       a bonus is how a player "learns" the wrong thing about their own build.
+       So the product is split back into its two factors and each is named. */
+    var CH = window.HearthriseCharms;
+    const charmMult = Number(weak.charmDropMult) > 1 ? Number(weak.charmDropMult) : 1;
+    const matchupMult = charmMult > 1 ? (mult / charmMult) : mult;
+    const charmName = (charmMult > 1 && CH && typeof CH.classLabel === 'function')
+      ? CH.classLabel(weak.charmClass) : '';
     const rows = (m.drops || []).map((d) => {
       const base = d.ch;
       const eff = base >= 1 ? 1 : Math.min(0.95, base * mult);
       const def = ITEMS[d.id];
       const pct = eff >= 1 ? 'always' : (eff * 100 >= 1 ? (eff * 100).toFixed(0) : (eff * 100).toFixed(1)) + '%';
       const lifted = mult > 1 && base < 1;
+      const by = charmMult > 1
+        ? (matchupMult > 1 ? 'your matchup and charm' : 'your charm') : 'your matchup';
       return {
         name: `<span class="cdr-name">${esc(def ? def.n : d.id)}</span>`,
-        meta: lifted ? `${(base * 100).toFixed(base * 100 >= 1 ? 0 : 1)}% base, lifted by your matchup` : '',
+        meta: lifted ? `${(base * 100).toFixed(base * 100 >= 1 ? 0 : 1)}% base, lifted by ${by}` : '',
         right: `<span class="hr-cs-amt cdr-pct">${pct}</span>`,
         band: rarityBand(eff),
       };
@@ -354,9 +368,13 @@ const HUD = (() => {
       }] },
       { kind: 'note', html:
         'Every line rolls on its own, so one kill can pay out several — or none. ' +
-        (mult > 1
-          ? `${esc(m.name)} fears no weapon, and an even matchup pays <b>${Math.round((mult - 1) * 100)}% better</b> — the rates above already include it.`
-          : `${esc(m.name)} is weak to <b>${esc(weaponLabel(m.weaponWeak))}</b>; bringing one raises your damage and accuracy, not your drop rates.`) },
+        (matchupMult > 1
+          ? `${esc(m.name)} fears no weapon, and an even matchup pays <b>${Math.round((matchupMult - 1) * 100)}% better</b>. `
+          : `${esc(m.name)} is weak to <b>${esc(weaponLabel(m.weaponWeak))}</b>; bringing one raises your damage and accuracy, not your drop rates. `) +
+        (charmMult > 1
+          ? `Your <b>${esc(charmName || 'bestiary')}</b> charm adds <b>${Math.round((charmMult - 1) * 100)}%</b> on top, for studying the class. `
+          : '') +
+        (mult > 1 ? 'The rates above already include it.' : '') },
     ];
     return {
       id: 'combat-loot', theme: 'vault',

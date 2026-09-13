@@ -265,6 +265,20 @@ function bonus(key) {
   catch (e) { return 0; }
 }
 
+/* THE BESTIARY CHARM INDEX (phase 2). Reached through the published
+   `window.HearthriseCharms` seam for the same reason `bonus` and `toolSpeed`
+   are: the owner of `G._bestiaryCharms` is src/render/bestiary-charms.js (it
+   mirrors the SERVER's counters there and nothing else writes it), and a bridge
+   that dug the scratch key out itself would be a second reader of one fact.
+   Defensive on every hop — a build without the module, a tab before its first
+   envelope and a signed-out session all contribute NO charm, never a rank. */
+function charms() {
+  try {
+    const C = (typeof window !== 'undefined') ? window.HearthriseCharms : null;
+    return (C && typeof C.indexForCombat === 'function') ? (C.indexForCombat() || null) : null;
+  } catch (e) { return null; }
+}
+
 /* Tool speed still routes through window.HearthriseTools rather than
    straight to core, because that object is a documented public API other
    feature modules call — and it now delegates to core itself. */
@@ -289,6 +303,9 @@ function combatCtx(eq, setBonus) {
     skills: g.skills || {},
     bonus,
     setBonus,
+    /* The charm rank per class — an INPUT, derived from the server's projected
+       counters. See `charms()` above and src/core/charms.js. */
+    charms: charms(),
     profile: (typeof window.getCombatStatProfile === 'function')
       ? window.getCombatStatProfile()
       : Object.assign({}, combat.DEFAULT_PROFILE, { type: (eq && eq.weaponType) || 'sword' }),
@@ -380,7 +397,7 @@ window.HearthriseCore = {
   },
 
   /* The adapters legacy.js calls. */
-  bonus, toolSpeed, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
+  bonus, toolSpeed, charms, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
   /* b348 — the gather index and its lookup, shared with the accrual engine. */
   gatherNodes, gatherNode,
   /* …and the artisan index, on the same contract, plus its reverse (item →

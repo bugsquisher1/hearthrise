@@ -77,6 +77,14 @@ import { levelOf, levelFromXp } from '../src/core/xp.js';
    design position, and a test that restated it instead of reading it would
    agree with itself forever. */
 import * as AMMO from '../src/core/ammo.js';
+/* BESTIARY CHARMS (CHARM-W*). The ladder's magnitudes are READ from the data
+   table and the class fold from the one function that owns the taxonomy — a
+   guard that retyped either would agree with itself while a designer re-priced
+   the ladder out from under it. */
+import { charmIndex, killsByClass, charmDropMultFor, charmDamageMultFor, charmRankFor }
+  from '../src/core/charms.js';
+import { CHARM_RANKS, MAX_CHARM_DROP_MULT } from '../src/data/bestiary-charms.js';
+import { classOfMonster } from '../src/core/bane.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
@@ -5491,6 +5499,265 @@ function crewBacklogGuard() {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// BESTIARY CHARMS, PHASE 2 — THE CHARM IS PRICED BY THE ONE ENGINE (CHARM-W*)
+//
+// The charm's effect is a DROP multiplier applied inside `weaknessInfo`
+// (src/core/combat.js) — the single expression the live 2.4 s tick and the away
+// replay both call. Four properties, and every one of them is a different bug:
+//
+//   W1  THE MAGNITUDE IS THE DATA TABLE'S, not a number retyped here. Read from
+//       CHARM_RANKS, so a designer re-pricing the ladder re-prices the
+//       expectation instead of turning this red.
+//   W2  IT REACHES A REAL DROP THROUGH THE WHOLE ENGINE. Same seed, same night,
+//       `bestiaryKills` present vs absent → strictly MORE of the monster's own
+//       drop and the SAME number of kills (a drop charm may not move the fight).
+//       Without this, W1 could pass on a multiplier nothing multiplies.
+//   W3  AWAY == ATTENDED at the same rank (AWAY-1), built as an independent
+//       second construction from `simulateTick` the way legacy.js drives it —
+//       and asserted BOTH with the charm and without it, plus a non-vacuity
+//       check that the two pairs actually differ.
+//   W4  A FORGED RANK CANNOT REACH THE SERVER'S ANSWER. There is no wire field
+//       for a rank or a kill count (`INTENT_KEYS`), and the engine reads the
+//       counters only from the named server input `bestiaryKills` — so
+//       `charms` / `charmRanks` / `bestiary` on the input are INERT, asserted by
+//       byte-comparing the deltas (claim 2's method).
+// ════════════════════════════════════════════════════════════════════════════
+function charmGuard() {
+  const SLIME = MONSTERS.slime ? 'slime' : MONSTER;
+  const M = MONSTERS[SLIME];
+  const CLS = classOfMonster(M);
+  /* THE TOP RUNG, READ FROM THE LADDER. `CHARM_RANKS` is ascending, so the last
+     row is the ceiling whatever a designer does to the rows above it. */
+  const TOP = CHARM_RANKS[CHARM_RANKS.length - 1];
+  const FIRST = CHARM_RANKS[0];
+  /* THE ROW THE BITE IS MEASURED ON — the monster's own most common drop, read
+     from the catalogue rather than named, and asserted to be a ROLL (ch < 1):
+     `effectiveDropChance` leaves a guaranteed drop untouched on purpose, so a
+     guaranteed row would make W2 vacuous. */
+  const rows = Array.isArray(M.drops) ? M.drops.filter((d) => d && d.ch > 0 && d.ch < 1) : [];
+  const ROW = rows.slice().sort((a, b) => b.ch - a.ch)[0] || null;
+  const SPAN = 6 * 3600000;
+  const counters = (n) => ({ [SLIME]: n });
+
+  ok(CLS && ROW,
+    `CHARM-W0: the fixture monster ${SLIME} resolved class ${JSON.stringify(CLS)} and rollable drop `
+    + `${JSON.stringify(ROW)}. Both are required or every assertion below is vacuous.`);
+  if (!CLS || !ROW) return;
+
+  const night = (o) => computeAccrual({
+    userId: '00000000-0000-4000-8000-00000000000c', slot: 0,
+    nowMs: FROM_MS + (o.spanMs || SPAN), accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    activeKind: 'combat', activeId: SLIME,
+    capMs: 24 * 3600000, seed: SEED,
+    hp: 200, maxHp: 200, gold: 0, skills: MAXED, equipment: {},
+    inventory: {}, autoEatEnabled: false, autoEatFood: null, autoEatPct: 0,
+    recoveringUntilMs: 0, consecFalls: 0,
+    deathsTodayBefore: 0, deathsLifetimeBefore: 0,
+    attended: null,
+    /* THE ONE FIELD UNDER TEST, and it is the NAMED SERVER READ. */
+    bestiaryKills: o.bestiaryKills || null,
+    items: ITEMS, monsters: MONSTERS,
+    /* THE FORGERY SURFACE, spread LAST so it could overwrite anything above it
+       if the engine read any of these names. It does not — see W4. */
+    ...(o.forged || {}),
+  });
+
+  // ── W1 — THE MAGNITUDE COMES FROM THE LADDER ──────────────────────────────
+  const eqp = equipmentStats({}, ITEMS);
+  const idxTop = charmIndex(killsByClass(counters(TOP.at), MONSTERS));
+  const idxOne = charmIndex(killsByClass(counters(FIRST.at), MONSTERS));
+  ok(idxTop && idxTop[CLS] === TOP.rank,
+    `CHARM-W1: ${TOP.at} kills on ${SLIME} folded to ${JSON.stringify(idxTop)} — the fold must reach `
+    + `class ${CLS} at rank ${TOP.rank}, through classOfMonster and no other spelling.`);
+  const w0 = weaknessInfo(M, eqp);
+  const w4 = weaknessInfo(M, eqp, idxTop);
+  const w1 = weaknessInfo(M, eqp, idxOne);
+  ok(Math.abs(w4.dropMult - (w0.dropMult * TOP.drop)) < 1e-9,
+    `CHARM-W1: the top rung priced dropMult ${w4.dropMult} against a base of ${w0.dropMult} and a `
+    + `ladder value of ${TOP.drop}. The magnitude is the DATA's; a number typed into the engine `
+    + 'would make the table decoration.');
+  ok(w4.dropMult <= w0.dropMult * MAX_CHARM_DROP_MULT + 1e-9,
+    `CHARM-W1: dropMult ${w4.dropMult} exceeded the formula's own ceiling `
+    + `(${MAX_CHARM_DROP_MULT}x the base ${w0.dropMult}). The clamp, not the table, is the last word.`);
+  ok(w1.dropMult === w0.dropMult,
+    `CHARM-W1: rank ${FIRST.rank} paid ${w1.dropMult} instead of the base ${w0.dropMult}. The first `
+    + 'rung is the REVEAL; paying power for it makes the first 25 kills of every class mandatory.');
+  ok(w4.damageMult === w0.damageMult,
+    `CHARM-W1: the charm moved damageMult to ${w4.damageMult} (base ${w0.damageMult}). Phase 3 is `
+    + 'NOT armed — maxHit is an integer and floor(n x 1.01) is n, so arming it today would ship a '
+    + 'stated effect that does nothing. Arming it is a Designer decision with its own review.');
+  ok(w4.charmClass === CLS && w0.charmClass === null,
+    `CHARM-W1: the readout said ${JSON.stringify(w4.charmClass)} charmed and `
+    + `${JSON.stringify(w0.charmClass)} unstudied — the away card explains a night from this field.`);
+  /* AND AN UNKNOWN MONSTER ID INVENTS NO CLASS. A stale or hostile counter map
+     naming an id the catalogue does not hold must be DROPPED, not bucketed. */
+  ok(charmIndex(killsByClass({ not_a_monster: 999999 }, MONSTERS)) === null,
+    'CHARM-W1: a counter for an unknown monster id produced a charm index. An id the catalogue '
+    + 'cannot name must contribute nothing — inventing a class is how a capability becomes forgeable.');
+  /* AND A PROTOTYPE KEY IS NOT A RANK (Security review 2026-09-13, item 7).
+     MEASURED before the fix: `charmDropMultFor('constructor', {})` returned 1.03
+     — the top rung, on a class nobody has killed anything in — because
+     `index[cls]` walks the prototype chain. `charmIndex` returns a
+     null-prototype map so the live path was never exposed, but the ceiling is a
+     property of the FORMULA and not of who happens to call it. */
+  ok(charmDropMultFor('constructor', {}) === 1 && charmDamageMultFor('constructor', {}) === 1
+     && charmRankFor('constructor', {}) === 0,
+    'CHARM-W1: `constructor` earned a charm off a bare object — Object.prototype is truthy for it, '
+    + 'so the lookup must be an OWN-property test (the same receipt catalogueHas carries).');
+
+  // ── W2 — IT REACHES A REAL DROP, THROUGH computeAccrual ────────────────────
+  const base = night({});
+  const charmed = night({ bestiaryKills: counters(TOP.at) });
+  ok(base.accrued === true && charmed.accrued === true,
+    `CHARM-W2: the fixture night did not accrue (${base.reason} / ${charmed.reason}).`);
+  if (base.accrued && charmed.accrued) {
+    eq(charmed.summary.kills, base.summary.kills,
+      'CHARM-W2: the charm changed the number of KILLS. It is a drop multiplier: it may not move the '
+      + 'fight, and if it does, the rng stream has shifted and every parity claim below is untethered.');
+    const got = (r) => Math.floor(Number((r.delta.items || {})[ROW.id]) || 0);
+    ok(got(charmed) > got(base),
+      `CHARM-W2: ${ROW.id} came to ${got(charmed)} with a rank-${TOP.rank} charm and ${got(base)} `
+      + `without, over ${base.summary.kills} kills at one seed. A multiplier that changes no outcome `
+      + 'is a multiplier nothing multiplies.');
+  }
+
+  // ── W3 — AWAY == ATTENDED AT THE SAME RANK (AWAY-1) ────────────────────────
+  // The attended column is built HERE from `simulateTick`, the way legacy.js's
+  // `combatTick` drives it — an independent second construction, never
+  // simulateSpan compared to itself (this file's claim 1).
+  const column = (charms, viaSpan) => {
+    const state = {
+      activeMonster: SLIME, playerHp: 200, playerMaxHp: 200,
+      monsterHp: M.hp, monsterMaxHp: M.hp,
+      stats: {}, inventory: {}, skills: MAXED,
+      deathsTodayBefore: 0, deathsLifetimeBefore: 0, consecFalls: 0, recoveringUntilMs: 0,
+    };
+    const items = {};
+    const ctx = {
+      away: viaSpan, monsters: MONSTERS, items: ITEMS,
+      bonus: () => 0, style: null, rng: createRng(SEED),
+      tickMs: COMBAT_BALANCE.tickMs,
+      playerRolls: (m) => playerCombatRolls(m, {
+        eq: eqp, equipment: {}, items: ITEMS, skills: MAXED,
+        bonus: () => 0, setBonus: null, profile: DEFAULT_PROFILE, style: null, charms,
+      }),
+      monsterRolls: (m) => monsterCombatRolls(m, { eq: eqp, skills: MAXED, bonus: () => 0 }),
+      weakness: (m) => weaknessInfo(m, eqp, charms),
+      botd: { killBonuses: () => NO_BONUS },
+      fx: { addItem(id, n) { items[id] = (items[id] || 0) + n; } },
+    };
+    const TICKS = 400;
+    if (viaSpan) {
+      simulateSpan(state, Object.assign(ctx, {
+        fromMs: FROM_MS, toMs: FROM_MS + TICKS * COMBAT_BALANCE.tickMs,
+        botdFor: () => ({ killBonuses: () => NO_BONUS }),
+      }));
+    } else {
+      for (let i = 0; i < TICKS; i += 1) simulateTick(state, ctx);
+    }
+    return { items, kills: state.stats.kills || 0 };
+  };
+  const awayPlain = column(null, true);
+  const attPlain = column(null, false);
+  const awayCharm = column(idxTop, true);
+  const attCharm = column(idxTop, false);
+  eq(attPlain.items, awayPlain.items,
+    'CHARM-W3: an UNSTUDIED class dropped different loot attended than away at the same seed. The '
+    + 'two callers run one engine; a divergence here is a second code path (AWAY-12).');
+  eq(attCharm.items, awayCharm.items,
+    `CHARM-W3: a rank-${TOP.rank} charm paid different loot attended than away at the same seed `
+    + '(AWAY-1). A charm that only pays while the player watches is exactly the bug the '
+    + 'one-expression rule exists to prevent — and the one nobody sees, because the away half is '
+    + 'the half nobody counts.');
+  eq(attCharm.kills, awayCharm.kills,
+    'CHARM-W3: the two callers killed different numbers of monsters with the charm applied.');
+  ok(JSON.stringify(awayCharm.items) !== JSON.stringify(awayPlain.items),
+    `CHARM-W3: ${400} charmed ticks produced byte-identical loot to ${400} unstudied ones, so the `
+    + 'parity above would hold with the charm deleted. A non-vacuity check, not a bonus assertion.');
+
+  // ── W5 — THE RECEIPT NAMES WHAT IT PAID ───────────────────────────────────
+  // Security review 2026-09-13, item 6: a paid multiplier that no receipt and no
+  // surface names is one the player has to take on trust, and one nobody can
+  // audit after the fact. The simulation STATES it — class, rank and factor —
+  // exactly as it states `featuredDropMult`, and index.ts forwards the three onto
+  // the `away` payload the welcome-back card reads.
+  // MUTATION PROVEN: delete `charmClass` from the summary in combat-sim.js, or
+  // drop `charmRank` from the away block in index.ts, and this goes red.
+  {
+    const plain = night({});
+    const withCharm = night({ bestiaryKills: counters(TOP.at) });
+    if (plain.accrued && withCharm.accrued) {
+      ok(withCharm.summary.charmClass === CLS && withCharm.summary.charmRank === TOP.rank
+         && Math.abs(withCharm.summary.charmDropMult - TOP.drop) < 1e-9,
+        `CHARM-W5: a charmed night reported class ${JSON.stringify(withCharm.summary.charmClass)}, rank `
+        + `${withCharm.summary.charmRank}, x${withCharm.summary.charmDropMult}. The receipt must name the `
+        + 'class, the rung and the factor the night was PRICED with — stated by the simulation, never '
+        + 'guessed by a renderer from counters that have moved since.');
+      ok(plain.summary.charmClass === null && plain.summary.charmRank === 0
+         && plain.summary.charmDropMult === 1,
+        `CHARM-W5: an unstudied night reported ${JSON.stringify(plain.summary.charmClass)}/`
+        + `${plain.summary.charmRank}/${plain.summary.charmDropMult} instead of null/0/1. A card that is `
+        + 'handed a class it did not earn prints a bonus nobody paid.');
+    }
+    /* AND THE WIRE CARRIES IT. index.ts is Deno TypeScript and cannot be
+       imported here, so this is a SOURCE scan — weak by construction, and named
+       as such — but the alternative is no check at all on the one hop between a
+       stated summary and the card that reads it. The client half is played in
+       src/features/smoke-test.js CHARM-3. */
+    const IDX = readFileSync(join(FN_DIR, 'index.ts'), 'utf8');
+    for (const f of ['charmClass', 'charmRank', 'charmDropMult']) {
+      ok(IDX.includes(`out.summary.${f}`),
+        `CHARM-W5: index.ts's away block does not forward \`out.summary.${f}\`. The simulation states `
+        + 'the charm and the welcome-back card reads the away payload; a field that stops halfway is a '
+        + 'bonus that is paid and never mentioned.');
+    }
+  }
+
+  // ── W4 — A FORGED RANK CANNOT REACH THE SERVER'S ANSWER ────────────────────
+  // Two halves: there is no WIRE field, and the engine reads no such INPUT name.
+  const forgedBody = {
+    verb: 'accrue', slot: 0,
+    bestiaryKills: counters(999999), charms: { [CLS]: TOP.rank },
+    charmRanks: { [CLS]: TOP.rank }, bestiary: { kills_by_class: { [CLS]: 999999 } },
+    kills_by_class: { [CLS]: 999999 },
+  };
+  const parsed = parseIntent(forgedBody);
+  const leaked = Object.keys(parsed).filter((k) => !INTENT_KEYS.includes(k));
+  ok(leaked.length === 0,
+    `CHARM-W4: parseIntent returned ${JSON.stringify(leaked)} — a field outside INTENT_KEYS. The `
+    + 'charm rank is unforgeable because there is NO wire field carrying one; a request reader that '
+    + 'passes unknown keys through is how that stops being true.');
+  /* EVERY PLAUSIBLE NAME, IN EVERY PLAUSIBLE SHAPE, one night each, byte-compared
+     to the same night without it. The cross product is the point: a guard that
+     forged ONE name in ONE shape only bites the mistake it imagined, and the
+     mutation that proved it (`inp.bestiaryKills` → `inp.charms`) survived exactly
+     that version of this arm because the forged `charms` held a class→rank map
+     while the mis-wired read wanted monsterId→kills. A short span keeps 32 runs
+     cheap; the LENGTH is irrelevant to the property, the byte equality is not. */
+  const W4_SPAN = 20 * 60000;
+  const clean = night({ spanMs: W4_SPAN });
+  const NAMES = ['charms', 'charmIndex', 'charmRanks', 'bestiary', 'kills_by_class',
+    'killsByClass', 'bestiary_kills', 'killsByMonsterId'];
+  const SHAPES = {
+    'class→rank': { [CLS]: TOP.rank },
+    'class→kills': { [CLS]: 999999 },
+    'monsterId→kills': counters(TOP.at * 10),
+    'nested envelope': { kills_by_class: { [CLS]: 999999 }, kills: counters(TOP.at * 10) },
+  };
+  for (const name of NAMES) {
+    for (const shape of Object.keys(SHAPES)) {
+      const run = night({ spanMs: W4_SPAN, forged: { [name]: SHAPES[shape] } });
+      eq(run.delta, clean.delta,
+        `CHARM-W4: an engine input carrying \`${name}\` as a ${shape} map produced a DIFFERENT delta `
+        + 'from the same night without it. Every one of those names is inert by construction: the '
+        + "engine folds `bestiaryKills` — hr_bestiary_of's own rows, read inside the state "
+        + 'transaction — and reads nothing else. If this is red, a second door was opened into the '
+        + 'drop table, and a door into a drop table is a door into the economy.');
+    }
+  }
+}
+
 /* THE MUTATION SEAM. `computeAccrualInputParity` is exported for the same
    reason: a guard whose failures cannot be reproduced in isolation is a guard
    nobody mutation-proves, and `runAll` costs a network round trip. This runs the
@@ -5512,6 +5779,7 @@ export async function runAll() {
   receiptLevelUpsGuard();
   recoveryGuard();
   retreatGuard();
+  charmGuard();
   gatherParityGuard();
   gatherBuffTimelineGuard();
   toolCarryContinuityGuard();

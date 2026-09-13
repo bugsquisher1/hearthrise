@@ -101,6 +101,31 @@ function counters() {
   return (b && b.killsByClass && typeof b.killsByClass === 'object') ? b.killsByClass : null;
 }
 
+/**
+ * THE CHARM INDEX THE CLIENT'S COMBAT PREDICTION READS (phase 2), or null.
+ *
+ * `{class: rank}`, DERIVED on every read from the server's own counters — the
+ * same `charmIndex` the Edge engine calls on the same fold. This is the ONE
+ * place the scratch key is read for a NUMBER rather than for a badge, and it is
+ * published on `window.HearthriseCharms` so src/core-bridge.js can reach it
+ * without importing a renderer (it reaches `getBonus` and `HearthriseTools` the
+ * same way). Keeping the read here keeps `G._bestiaryCharms` owned by exactly
+ * one module.
+ *
+ * ⚠ DISPLAY PREDICTION ONLY. It feeds `weaknessInfo` on the client so the loot
+ *   preview and the live tick quote the same drop rate the server will pay; the
+ *   server re-resolves every kill from its own `hr_bestiary_of` read and never
+ *   sees this value. Null (no envelope yet, signed out, a database without the
+ *   projection) ⇒ no charm ⇒ the pre-charm numbers, never a forged rank.
+ */
+export function indexForCombat() {
+  const b = g()._bestiaryCharms;
+  const idx = b && b.index;
+  if (!idx || typeof idx !== 'object') return null;
+  for (const k in idx) { if (Number(idx[k]) > 0) return idx; }
+  return null;
+}
+
 /** Lifetime kills in a class, per the SERVER. 0 when unknown. */
 export function killsOfClass(cls) {
   const c = counters();
@@ -140,6 +165,72 @@ export function revealsElement(cls) {
 export function classOfMonsterId(id) {
   const M = w().MONSTERS;
   return classOfMonster(M && M[id]) || null;
+}
+
+/**
+ * The display name of a class, from a REAL roster row's `className` (written by
+ * `applyClassProfiles`), falling back to the key with its separators opened up.
+ * ONE owner for the taxonomy's copy — `charmClasses()` already resolves it this
+ * way, and a second spelling in a card renderer is how "Extra Dimensional"
+ * becomes "extra_dimensional" on exactly one surface.
+ */
+export function classLabel(cls) {
+  if (!cls) return '';
+  const M = w().MONSTERS || {};
+  for (const k of Object.keys(M)) {
+    if (M[k] && M[k].className && classOfMonster(M[k]) === cls) return String(M[k].className);
+  }
+  return String(cls).replace(/_/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
+/**
+ * THE AWAY CARD'S CHARM LINE, or '' — plain text, no HTML, no colour.
+ *
+ * WHY THE COPY LIVES HERE AND NOT IN THE CARD. home-dashboard.js owns the note
+ * LIST; this module owns the charm's vocabulary — the class label, the rank name
+ * and the fact that rank 1 pays nothing. A card that assembled the sentence
+ * itself would be the second place a rank is named, and the first to go stale
+ * when a rung is renamed.
+ *
+ * IT READS THE SERVER'S OWN RECEIPT (`charmClass` / `charmRank` /
+ * `charmDropMult`, stated by the simulation), never the local mirror: the
+ * player's counters have moved on since the window closed, and the card must say
+ * what the NIGHT was priced at. No fields ⇒ no line, which is every receipt
+ * written before this shipped and every unstudied class after it.
+ */
+export function awayLine(off) {
+  const mult = Number(off && off.charmDropMult) || 1;
+  const cls = (off && typeof off.charmClass === 'string') ? off.charmClass : '';
+  if (!(mult > 1) || !cls) return '';
+  const row = charmRowOfRank(Math.floor(Number(off.charmRank) || 0));
+  const name = (row && CHARM_RANK_NAMES[row.id]) || '';
+  return 'Your ' + classLabel(cls) + ' charm' + (name ? ' (' + name + ')' : '')
+    + ' paid +' + Math.round((mult - 1) * 100) + '% drops all night.';
+}
+
+/**
+ * THE MONSTER PANEL'S CHARM LINE, or '' — plain text, no HTML, no colour.
+ *
+ * Reads a `weaknessInfo()` READOUT (`charmClass` / `charmRank` /
+ * `charmDropMult`) — the same expression that priced the drop roll — so the
+ * Fight screen's foe line states the rung it is fighting under instead of
+ * leaving the lift anonymous inside `dropMult` (Security review 2026-09-13,
+ * item 6: a multiplier no surface names is one the player has to take on trust).
+ *
+ * SAME OWNER AS `awayLine` ON PURPOSE. The rank NUMBER and the class LABEL are
+ * named in two places now — a receipt and a panel — and this module is the one
+ * that spells them, so a renamed rung or a renamed class moves once.
+ *
+ * '' whenever the class is unstudied or the rung pays nothing, which is the
+ * ordinary fight and prints nothing at all.
+ */
+export function panelLine(weak) {
+  const mult = Number(weak && weak.charmDropMult) || 1;
+  const cls = (weak && typeof weak.charmClass === 'string') ? weak.charmClass : '';
+  const rank = Math.floor(Number(weak && weak.charmRank) || 0);
+  if (!(mult > 1) || !cls || !(rank > 0)) return '';
+  return 'Charm: ' + classLabel(cls) + ' rank ' + rank
+    + ', +' + Math.round((mult - 1) * 100) + '% drops';
 }
 
 /**
@@ -239,6 +330,10 @@ export function setupBestiaryCharms() {
   const W = w();
   W.HearthriseCharms = {
     noteEnvelope,
+    indexForCombat,
+    classLabel,
+    awayLine,
+    panelLine,
     killsOfClass,
     rankOfClass,
     nextOfClass,

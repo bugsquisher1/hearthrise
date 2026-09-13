@@ -13238,6 +13238,47 @@ const TESTS = [
     }
   }),
 
+  /* ── CHARM-5 — THE FOE PANEL NAMES THE RANK IT IS FIGHTING UNDER ────────
+     Security review 2026-09-13 item 6, second half: the charm's lift vanishes
+     into `weaknessInfo().dropMult`, so the Fight screen showed a bigger number
+     and never said why. The foe line now states the class, the RUNG and what it
+     pays. Both directions, the b326 standard — absent on an unstudied class,
+     because a panel that invents a rank is the same lie reversed.
+     MUTATION PROVEN: drop `charmRank` from the readout in src/core/combat.js, or
+     the `panelLine` call from renderFight, and the studied arm goes red. */
+  () => tryRunAsync('CHARM-5: the Fight screen foe line names the bestiary charm rank it is fighting under, and nothing when the class is unstudied', async () => {
+    const G = window.G, C = window.HearthriseCharms, CS = window.HearthriseCombatScreens;
+    assert(C && typeof C.panelLine === 'function' && CS && typeof CS.renderFight === 'function',
+      'CONTROL: HearthriseCharms.panelLine / HearthriseCombatScreens.renderFight is unpublished');
+    const TOP = CHARM_RANKS[CHARM_RANKS.length - 1];
+    const fx = hrCharmFixture(); const rig = hrCharmDriver();
+    assert(fx.id && fx.cls, 'CONTROL: no roster monster resolved a class and a rollable drop row');
+    const snap = snapshotG(); const prevCharms = G._bestiaryCharms; const prevTab = window.activeTab;
+    const line = () => { CS.renderFight(); const el = document.getElementById('fs-weak'); return el ? el.textContent.replace(/\s+/g, ' ') : ''; };
+    try {
+      window.showTab('combat');
+      G.activeMonster = fx.id; G.monsterHp = fx.m.hp; G.monsterMaxHp = fx.m.hp;
+      G.playerMaxHp = 100000; G.playerHp = G.playerMaxHp;
+      delete G._bestiaryCharms;
+      await rig.drive(null);
+      const plain = line();
+      assert(/Weak to/.test(plain), 'CONTROL: the foe line did not render at all: ' + plain);
+      assert(!/charm/i.test(plain), 'the foe line named a charm for an unstudied class: ' + plain);
+      await rig.drive({ kills_by_class: { [fx.cls]: TOP.at } });
+      const charmed = line(); const label = C.classLabel(fx.cls);
+      assert(new RegExp('Charm: ' + label + ' rank ' + TOP.rank).test(charmed),
+        'the foe line did not name the charm class and the RANK it is fighting under: ' + charmed);
+      assert(new RegExp('[+]' + Math.round((TOP.drop - 1) * 100) + '% drops').test(charmed),
+        'the foe line did not state what the rung pays: ' + charmed);
+    } finally {
+      rig.restore();
+      if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
+      restoreG(snap);
+      try { CS.renderFight(); } catch (e) {}
+      try { window.showTab(prevTab || 'combat'); } catch (e) {}
+    }
+  }),
+
   /* ── BANK-1 — THE DEPOT, PLAYED ─────────────────────────────────────────────
      The server's bank store shipped b438 and sat dormant for a hundred builds
      because nothing could call it: the flyout's "→ Bank" button was guarded on a

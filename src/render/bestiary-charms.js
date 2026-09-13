@@ -209,6 +209,31 @@ export function awayLine(off) {
 }
 
 /**
+ * THE MONSTER PANEL'S CHARM LINE, or '' — plain text, no HTML, no colour.
+ *
+ * Reads a `weaknessInfo()` READOUT (`charmClass` / `charmRank` /
+ * `charmDropMult`) — the same expression that priced the drop roll — so the
+ * Fight screen's foe line states the rung it is fighting under instead of
+ * leaving the lift anonymous inside `dropMult` (Security review 2026-09-13,
+ * item 6: a multiplier no surface names is one the player has to take on trust).
+ *
+ * SAME OWNER AS `awayLine` ON PURPOSE. The rank NUMBER and the class LABEL are
+ * named in two places now — a receipt and a panel — and this module is the one
+ * that spells them, so a renamed rung or a renamed class moves once.
+ *
+ * '' whenever the class is unstudied or the rung pays nothing, which is the
+ * ordinary fight and prints nothing at all.
+ */
+export function panelLine(weak) {
+  const mult = Number(weak && weak.charmDropMult) || 1;
+  const cls = (weak && typeof weak.charmClass === 'string') ? weak.charmClass : '';
+  const rank = Math.floor(Number(weak && weak.charmRank) || 0);
+  if (!(mult > 1) || !cls || !(rank > 0)) return '';
+  return 'Charm: ' + classLabel(cls) + ' rank ' + rank
+    + ', +' + Math.round((mult - 1) * 100) + '% drops';
+}
+
+/**
  * The classes to print, IN THE TAXONOMY'S OWN ORDER, as
  * `[{cls, name, kills, rank}]` — derived from the roster, never hardcoded.
  *
@@ -308,6 +333,7 @@ export function setupBestiaryCharms() {
     indexForCombat,
     classLabel,
     awayLine,
+    panelLine,
     killsOfClass,
     rankOfClass,
     nextOfClass,

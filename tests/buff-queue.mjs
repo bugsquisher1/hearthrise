@@ -115,7 +115,7 @@ import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 /* THE EMITTER ITSELF (step 2). [16]/[17] apply the delta the `eat` verb actually
    builds rather than a hand-written imitation of it, which is the only way this
    guard can see the two halves of the feature drift apart. */
-import { eatDelta, resolveFood } from '../supabase/functions/hr-accrue/eat.js';
+import { eatDelta, resolveFood, runEat } from '../supabase/functions/hr-accrue/eat.js';
 import { deltaClosesWindow } from '../supabase/functions/hr-accrue/intents.js';
 
 const MIG = '2026-09-13-consumable-buffs.sql';
@@ -124,6 +124,7 @@ const MIG_CAT = '2026-09-13-item-buffs-catalogue.generated.sql';
 const MIG_PAY = '2026-09-13-buff-apply-coupling.sql';
 const MIG_SEG = '2026-09-13-buff-segments.sql';
 const MIG_SHAPE = '2026-09-13-buff-shape-code.sql';
+const MIG_PRED = '2026-09-13-buff-segments-predicate.sql';
 const U = '00000000-0000-4000-8000-0000000000b5';
 const J = { kind: 'admin', intent: 'buff-queue:probe' };
 const CAP_MS = 3600000;
@@ -160,6 +161,12 @@ const BLIND = {
   [MIG_PAY]: ["  if strpos(v_apply, 'buff_not_paid') = 0 then",
     '  return;  -- \u00a72 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  if strpos(v_apply, 'buff_not_paid') = 0 then"],
+  /* The predicate file's §2 — its own (c1)/(c2) assertions catch the two predicate
+     mutations, so without this blind the tick would be "the migration refused"
+     rather than "this guard noticed" (MEASURED: merge_replaces_other_types threw). */
+  [MIG_PRED]: ['  -- (a) THE PATCH LANDED, and nothing else in the buff block moved.',
+    ['  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)',
+      '  -- (a) THE PATCH LANDED, and nothing else in the buff block moved.'].join('\n')],
   /* The shape-code file's §2, anchored on its first assertion. */
   [MIG_SHAPE]: ["  if strpos(v_apply, $q$perform public.hr_reject('bad_buff_shape',$q$) = 0 then",
     '  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
@@ -189,15 +196,22 @@ const MUTATIONS = {
       "      if exists (select 1 from jsonb_object_keys(p_delta->'buff_apply') as t(bk)\n                  where false) then"]],
   },
   client_authors_magnitude: {
-    file: MIG,
+    /* TWO FILES, one defect: the forgery gate lives in consumable-buffs.sql and the
+       magnitude ASSIGNMENT moved to buff-segments.sql when max() was replaced by
+       "its own magnitude". Mutating the old assignment text made the segments
+       file's splice no-op, which cascaded into the predicate file refusing to
+       install — a harness error three files downstream (MEASURED). */
+    files: [
+      [MIG, [["                  where t.bk <> 'item') then", '                  where false) then']]],
+      [MIG_SEG, [['      v_buff_newmag := v_buff_mag;',
+        "      v_buff_newmag := coalesce((p_delta->'buff_apply'->>'magnitude')::numeric, v_buff_mag);"]]],
+    ],
     why: 'THE ONE CLAUDE.md §1 FORBIDS BY NAME: the client\'s own `magnitude` reaches the stored buff '
        + '(forgery gate off + the delta read), so a browser sets its own damage bonus',
-    pairs: [["                  where t.bk <> 'item') then", '                  where false) then'],
-      ['      v_buff_newmag := greatest(v_buff_mag, coalesce((v_buff_old->>\'magnitude\')::numeric, 0));',
-        "      v_buff_newmag := greatest(coalesce((p_delta->'buff_apply'->>'magnitude')::numeric, v_buff_mag),\n"
-        + "                                coalesce((v_buff_old->>'magnitude')::numeric, 0));"]],
   },
   client_authors_until: {
+    /* Both lines are still in consumable-buffs.sql: the clamp is between the two
+       regions buff-segments.sql re-splices, so this one stays single-file. */
     file: MIG,
     why: 'the client\'s own `until` reaches the stored buff — a browser grants itself a buff that never '
        + 'expires, which is the whole reason the expiry is an absolute server stamp',
@@ -236,25 +250,32 @@ const MUTATIONS = {
     pairs: [['                            v_buff_cap);', '                            v_buff_base + interval \'400 hours\');']],
   },
   merge_replaces_other_types: {
-    /* Re-pointed for the same reason as second_helping_restarts: the rebuild this
-       targeted lives in the segments file now. */
-    file: MIG_SEG,
+    /* Re-pointed twice now: the rebuild moved to the segments file, then its
+       predicate moved again to the predicate file (the repo/production
+       convergence). A mutation belongs in whichever file owns the LIVE text. */
+    file: MIG_PRED,
     why: 'the rebuild keeps only the type being applied, so eating a second dish DELETES the buff of '
        + 'every other type — a player pays for a Feast and loses the one they were running',
     /* ` and false` appended, NOT the predicate replaced: `and ((false` leaves the
        expression's parentheses unbalanced, the file fails to INSTALL, and a file
        that will not install is a harness error dressed up as a catch (MEASURED —
        "INTO specified more than once"). A mutation must apply CLEAN. */
-    pairs: [["         and (((e.v->>'type') <> v_buff_type)",
-      "         and (((e.v->>'type') <> v_buff_type and false)"]],
+    /* PLANTED IN THE FILE THAT OWNS THE LIVE TEXT. The type-explicit predicate
+       lives in 2026-09-13-buff-segments-predicate.sql now: buff-segments.sql was
+       reverted to the text production applied, so mutating it here would patch a
+       string the next file replaces anyway. */
+    pairs: [["              or ((e.v->>'type') = v_buff_type",
+      "              or ((e.v->>'type') = v_buff_type and false"]],
   },
-  magnitude_replaces_instead_of_max: {
-    file: MIG,
-    why: 'magnitude becomes the NEW value instead of max(old,new), so a Roasted Carrot dilutes a Void '
-       + 'Banquet — the stacking ruling inverted',
-    pairs: [["      v_buff_newmag := greatest(v_buff_mag, coalesce((v_buff_old->>'magnitude')::numeric, 0));",
-      '      v_buff_newmag := v_buff_mag;']],
-  },
+  /* ⚠ `magnitude_replaces_instead_of_max` LIVED HERE AND IS DELETED, not re-pointed.
+     It inverted the max() merge — a rule that no longer exists: per-segment stacking
+     replaced it with "each segment carries its OWN magnitude", so the text it
+     mutated is text 2026-09-13-buff-segments.sql re-splices, and mutating it only
+     stopped the segment model from installing (a harness error, MEASURED). Its
+     PROPERTY — a cheap food must never carry an expensive magnitude — is owned by
+     `segment_magnitude_laundered` below, which mutates the LIVE assignment and
+     restores the real laundering. A mutation whose rule has been superseded is not
+     re-pointed; it is removed, and the arm that replaced it is named. */
   second_helping_restarts: {
     /* OWNED BY THE SEGMENTS FILE NOW. It used to patch consumable-buffs.sql's base
        assignment — text 2026-09-13-buff-segments.sql REPLACES — so the mutation
@@ -326,12 +347,25 @@ const MUTATIONS = {
     pairs: [["         and (e.v->>'magnitude')::numeric >= v_buff_mag;", '         and true;']],
   },
   segment_keeps_covered_weaker: {
-    file: MIG_SEG,
+    file: MIG_PRED,
     why: 'a weaker segment the new one COVERS survives instead of being dropped, so its time did not '
        + 'pass while the stronger effect ran — the buff clock pauses, which is the exact property the '
        + 'absolute `until` model removed (BUFF_DRAIN_RULE)',
-    pairs: [["                       or (e.v->>'until')::timestamptz > v_buff_until)));",
-      '                       or true)));']],
+    /* The predicate file owns this text now (see merge_replaces_other_types), and
+       the COVERAGE lines are byte-identical in that file's anchor and its
+       replacement — so the find SPANS the line unique to the new form, and the
+       coverage test becomes `true`: every live same-type segment is kept, i.e. a
+       covered weaker one survives. */
+    pairs: [[[
+      "              or ((e.v->>'type') = v_buff_type",
+      '                  and not (v_buff_same is not null and e.v = v_buff_same)',
+      "                  and ((e.v->>'magnitude')::numeric >= v_buff_mag",
+      "                       or (e.v->>'until')::timestamptz > v_buff_until)));",
+    ].join('\n'), [
+      "              or ((e.v->>'type') = v_buff_type",
+      '                  and not (v_buff_same is not null and e.v = v_buff_same)',
+      '                  and (true)));',
+    ].join('\n')]],
   },
   segment_budget_off: {
     file: MIG_SEG,
@@ -386,7 +420,13 @@ const patchesFor = (mutate, blind) => {
   if (mutate) {
     const m = MUTATIONS[mutate];
     if (!m) throw harness(`unknown mutation '${mutate}' (see --list)`);
-    add(m.file, m.pairs);
+    /* ONE DEFECT, SOMETIMES TWO FILES. "The client authors the magnitude" needs the
+       forgery gate disarmed in the file that owns the gate AND the value read in
+       the file that owns the assignment — this chain re-splices the same block
+       three times, so a defect's lines do not all live together. `files` is the
+       multi-file form; `file`/`pairs` stays for the single-file majority. */
+    if (m.files) for (const [f, pairs] of m.files) add(f, pairs);
+    else add(m.file, m.pairs);
   }
   return map.size ? map : undefined;
 };
@@ -492,6 +532,12 @@ async function run(mutate, blind) {
     } finally { await db.exec('reset role'); }
   };
   const newKey = async () => (await db.query('select gen_random_uuid() as k')).rows[0].k;
+  /* The `exec` the Edge verb is given: one statement per call, AS hr_engine (the
+     only role that holds execute on hr_apply). [18d] drives the real `runEat`. */
+  const makeExec = () => async (text, params) => {
+    await db.exec('set role hr_engine');
+    try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); }
+  };
   /* ── THE PAID FORM (F3, 2026-09-13-buff-apply-coupling.sql) ──────────────
      A buff_apply is refused `buff_not_paid` unless the SAME delta spends exactly
      one of the item, because the `items` block IS the possession check (it locks
@@ -810,6 +856,104 @@ async function run(mutate, blind) {
     ok((await held(pick.item_id)) === held16c,
       `[18c] the buff_at_max refusal ATE THE FOOD (${await held(pick.item_id)} vs ${held16c}). The whole `
       + 'apply must roll back, or a player at the ceiling pays a Feast for nothing.');
+
+    /* (d) [18d] THE HEAL LANDS EVEN WHEN THE BUFF CANNOT (Security F5, P1).
+       `buff_at_max` rolls back the WHOLE delta, so a capped player pressing Eat on
+       one of the fifteen healing foods that carry an incidental buff got: food kept,
+       HP NOT HEALED — a button that does nothing, mid-fight, on the common path
+       (auto-eat is a purchased trait most characters lack). `runEat` retries ONCE
+       without the buff, on the SAME intentId, for food that heals. Driven through
+       the REAL verb (not eatDelta), because the retry IS the verb's behaviour. */
+    {
+      /* A food that BOTH heals and buffs, read from the catalogue so a retune cannot
+         make this vacuous. `pick` may be a pure-buff Feast; this arm needs the other
+         kind, and if the catalogue has none it says so rather than passing. */
+      let healBuff = null;
+      for (const row of (await db.query(
+        'select item_id, type from public.hr_item_buffs order by item_id')).rows) {
+        const f = resolveFood(row.item_id);
+        if (f.ok && f.heals > 0 && f.hasBuff) { healBuff = { ...row, food: f }; break; }
+      }
+      if (!healBuff) {
+        throw harness('[18d] no food in hr_item_buffs both heals and buffs — the F5 retry is unreachable '
+          + 'and this arm would pass for the wrong reason');
+      }
+      await stock(healBuff.item_id, 40);
+      /* THE CAP, for the food's OWN type, and a hurt character so a heal is visible. */
+      await db.exec(`update public.player_state set buffs = jsonb_build_array(jsonb_build_object(
+          'type', '${healBuff.type}', 'magnitude', 99,
+          'until', to_jsonb(now() + make_interval(secs => ${CAP_MS / 1000})))),
+          hp = 1, max_hp = 99 where user_id = '${U}' and slot = 0`);
+      const q18d = JSON.stringify(await queue());
+      const held18d = await held(healBuff.item_id);
+      const hpOf = async () => Number((await db.query(
+        'select hp from public.player_state where user_id = $1 and slot = 0', [U])).rows[0].hp);
+      const hpBefore = await hpOf();
+      const out = await runEat({
+        exec: makeExec(), user: U, slot: 0, intentId: await newKey(), item: healBuff.item_id,
+      });
+      ok(!!out && out.status === 200 && out.body && out.body.ok === true,
+        `[18d] a MANUAL eat of a healing buff food at the cap was REFUSED (${out && out.status}: `
+        + `${JSON.stringify(out && out.body).slice(0, 160)}). The whole apply rolls back on buff_at_max, so `
+        + 'the player pressed Eat mid-fight, kept the food, healed NOTHING and died to a button that did '
+        + 'nothing. The heal must land without the buff.');
+      ok((await hpOf()) > hpBefore,
+        `[18d] the retry did not HEAL (hp ${await hpOf()} from ${hpBefore}) — the heal is the whole point of `
+        + 'the retry; a 200 that moved no hp is the same bug wearing an ok:true.');
+      ok((await held(healBuff.item_id)) === held18d - 1,
+        `[18d] EXACTLY ONE serving must leave the bag across both attempts (${await held(healBuff.item_id)} `
+        + `vs ${held18d - 1}). Two debits is item loss; zero is a free heal. The retry reuses the intentId, `
+        + 'which is safe ONLY because buff_at_max is a release code and the first attempt wrote nothing.');
+      ok(JSON.stringify(await queue()) === q18d,
+        '[18d] the retry moved the buff queue — it must carry no buff_apply at all, or the cap it was '
+        + `refused for has just been exceeded by the retry: ${JSON.stringify(await queue()).slice(0, 160)}`);
+      ok(out.body.buff_skipped === 'at_max',
+        `[18d] the client is not TOLD the buff was skipped (${JSON.stringify(out.body.receipt)}), so the pill `
+        + 'keeps the buff it predicted and the toast claims an effect the player did not get');
+      /* AND A PURE-BUFF FOOD IS STILL REFUSED — the designer's rule survives the
+         retry. There is nothing to buy, so eating it for nothing is the bug. */
+      const pure = (await db.query(
+        `select b.item_id from public.hr_item_buffs b join public.hr_items i using (item_id)
+          where b.type = $1 order by b.item_id`, [healBuff.type])).rows
+        .map((r) => resolveFood(r.item_id)).find((f) => f.ok && f.heals === 0 && f.hasBuff);
+      if (pure) {
+        await stock(pure.item, 5);
+        const heldP = await held(pure.item);
+        const outP = await runEat({
+          exec: makeExec(), user: U, slot: 0, intentId: await newKey(), item: pure.item,
+        });
+        ok(outP.status === 409 && outP.body.error === 'buff_at_max',
+          `[18d] a PURE-BUFF food at the cap must still be refused buff_at_max, not retried into a no-op: `
+          + JSON.stringify(outP.body).slice(0, 140));
+        ok((await held(pure.item)) === heldP,
+          '[18d] the refused pure-buff food was eaten for nothing — the rule the retry must not break');
+      }
+      /* BOTH-PATH: the AWAY engine is not on this path. Its auto-eat emits a signed
+         item debit and NEVER a buff_apply, so no accrual can be refused buff_at_max
+         and nothing about the retry can reach it. Asserted on the engine's own
+         output rather than by reading the code. */
+      const AW_NOW = Date.UTC(2026, 8, 13, 12, 0, 0);
+      const awayOut = computeAccrual({
+        userId: U, slot: 0, nowMs: AW_NOW, accruedToMs: AW_NOW - 3600000,
+        activeSinceMs: AW_NOW - 3600000, activeKind: 'combat', activeId: 'slime',
+        capMs: 12 * 3600000, seed: 42, hp: 4, maxHp: 40, gold: 0,
+        skills: { attack: 2000, strength: 2000, defense: 2000, hitpoints: 2000 },
+        equipment: {}, items: ITEMS, monsters: MONSTERS,
+        /* AUTO-EAT ON, with the buff food in the bag — the exact input that would
+           emit a buff_apply if the away path had ever learned to. */
+        autoEatEnabled: true, autoEatPct: 90, autoEatFood: healBuff.item_id,
+        inventory: { [healBuff.item_id]: 20 },
+        buffs: [{ type: healBuff.type, magnitude: 99,
+          until: new Date(AW_NOW + 3600000).toISOString() }],
+      });
+      const awayDelta = JSON.stringify((awayOut && awayOut.delta) || awayOut || {});
+      ok(!awayDelta.includes('buff_apply'),
+        '[18d] AWAY: the accrual engine proposed a `buff_apply`. The away auto-eat must only ever DEBIT — a '
+        + 'delta that can be refused buff_at_max would 409 an entire night (insufficient_item and friends '
+        + 'are not on index.ts\'s DEGRADABLE list).');
+      await db.exec(`update public.player_state set buffs = '[]'::jsonb
+        where user_id = '${U}' and slot = 0`);
+    }
 
     /* (d) [19] THE EAT DELTA MUST NOT CLOSE THE ACCRUAL WINDOW. hr_apply stamps
        `accrued_to = now()` on a delta carrying equip/activity/enchant, which

@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-13",
- "replay_ms": 12198,
+ "replay_ms": 10209,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -130,23 +130,25 @@
     "2026-09-08-hearthfind.sql",
     "2026-09-12-renown-high-projection.sql",
     "2026-09-13-buff-apply-coupling.sql",
+    "2026-09-13-buff-segments-predicate.sql",
     "2026-09-13-buff-segments.sql",
+    "2026-09-13-buff-shape-code.sql",
     "2026-09-13-consumable-buffs.sql",
     "2026-09-13-rejections-verb-map-2.sql"
    ],
    "live": {
-    "md5": "1c39097d57f99f513ab06bf0f821a6b4",
-    "norm_len": 128957,
+    "md5": "e882cbaf2d524a097577b3274016972c",
+    "norm_len": 129802,
     "measured": "2026-09-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "703e470782cd30cc43c317fa7dd70fe9",
-    "norm_len": 129087,
+    "md5": "d3f16ec64993cbee043ec791ea5b5919",
+    "norm_len": 130533,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-13 06:02 UTC: the buff-segments migration (lane C c5eebbbf, Security GO-with-conditions: edge redeploy 0ce15ae5… at the same cut, no emitter before) patched the same-type merge in hr_apply into per-segment appends; live == replay expected. Note: apply-migration body_md5 is raw prosrc; this baseline is whitespace-normalised. (entry: hr_apply)"
+   "why": "2026-09-13 07:39 UTC: buff-segments-predicate (lane C 5ae53106, Security GO-with-changes landed) re-spliced the §2c predicate so production == repo again; --codediff CODE-IDENTICAL (53311 code chars both sides; 731-char delta is comments/whitespace). The earlier 35-char divergence is closed. apply-migration body_md5 is raw prosrc; this baseline is normalised. (entry: hr_apply)"
   },
   {
    "sig": "hr_assert_grant_hygiene(p_strict boolean)",

@@ -148,6 +148,18 @@ export function crierLine(c) {
   return who + ' found ' + item + (src ? ' from ' + src : '') + odds;
 }
 
+/**
+ * The level band as words. The server sends a DECADE FLOOR off the total level
+ * (40 means "somewhere in the forties") — deliberately coarse, so a peer's exact
+ * level never crosses to another player. The band is the client's to phrase; the
+ * number is the server's to decide.
+ */
+export function bandText(band) {
+  const b = Number(band);
+  if (!Number.isFinite(b) || b < 0) return '';
+  return b < 10 ? 'Lv under 10' : 'Lv ' + b + '–' + (b + 9);
+}
+
 /** 'just now' / '4 min ago' from the SERVER's own relative seconds. */
 function agoOf(secs, now) {
   const s = Number(secs);
@@ -201,9 +213,10 @@ export function townPanelHtml(view, nowMs, place) {
     h += '<ul class="tc-folk">' + rosterOrder(peers).map((p) => {
       const seen = agoOf(p.seenAgoS, now);
       const what = activityName(p.kind, p.activityId, p.label) || groupLabel(p.kind, '');
+      const band = bandText(p.band);
       return '<li class="tc-peer' + (p.away ? ' is-away' : '') + '" data-town-peer="' + esc(p.name) + '">'
         + '<span class="tc-nm">' + esc(p.name) + '</span>'
-        + (p.band ? '<span class="tc-band">' + esc(p.band) + '</span>' : '')
+        + (band ? '<span class="tc-band">' + esc(band) + '</span>' : '')
         + '<span class="tc-what">' + esc(what) + (seen ? ' · ' + esc(seen) : '') + '</span>'
         + '</li>';
     }).join('') + '</ul>';
@@ -313,7 +326,7 @@ export function ensureTownStyle() {
  */
 export function setupTownPanel() {
   if (typeof window === 'undefined') return;
-  window.HearthriseTownPanel = { townPanelHtml, ensureTownStyle, groupPeers, groupLabel, activityName, crierLine, MAX_NAMES, CRIER_SHOWN };
+  window.HearthriseTownPanel = { townPanelHtml, ensureTownStyle, groupPeers, groupLabel, activityName, crierLine, bandText, MAX_NAMES, CRIER_SHOWN };
   if (typeof document === 'undefined') return;
   document.addEventListener('click', (e) => {
     const el = e.target && e.target.closest && e.target.closest('[data-town-quiet]');

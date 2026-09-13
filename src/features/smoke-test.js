@@ -12856,9 +12856,9 @@ const TESTS = [
       const view = T.__setTown({
         ok: true, zone: 'the_common', now: new Date().toISOString(), stale_s: 7, here: 214, shown: 3, cap: 60,
         peers: [
-          { name: 'Paione', activity_kind: 'combat', activity_id: mon, activity_label: 'a beast', level_band: 'Lv 40-49', seen_ago_s: 20, away: false },
-          { name: 'Tamsin', activity_kind: 'gather', activity_id: 'copper_rock', activity_label: 'Copper ore', level_band: 'Lv 20-29', seen_ago_s: 4200, away: true },
-          { name: 'Bram', activity_kind: 'combat', activity_id: null, activity_label: 'Bog Lurker', level_band: 'Lv 30-39', seen_ago_s: 90, away: false },
+          { name: 'Paione', activity_kind: 'combat', activity_id: mon, activity_label: 'a beast', level_band: 40, seen_ago_s: 20, away: false },
+          { name: 'Tamsin', activity_kind: 'gather', activity_id: 'copper_rock', activity_label: 'Copper ore', level_band: 20, seen_ago_s: 4200, away: true },
+          { name: 'Bram', activity_kind: 'combat', activity_id: null, activity_label: 'Bog Lurker', level_band: 30, seen_ago_s: 90, away: false },
         ],
         crier: [{ name: 'Paione', item_id: 'ruby', source_kind: 'monster', source_id: mon, one_in: 5000, found_ago_s: 120 }],
       });
@@ -12875,7 +12875,8 @@ const TESTS = [
       const away = row.querySelector('.tc-peer.is-away');
       assert(peers.length === 3 && away && /Tamsin/.test(away.textContent) && !peers[0].classList.contains('is-away'),
         'every peer is listed with away folk dimmed by class and sorted last, got ' + peers.length + ' peer(s)');
-      assert(away.getAttribute('data-town-peer') === 'Tamsin', 'each name carries the inspect seam');
+      assert(away.getAttribute('data-town-peer') === 'Tamsin' && /Lv 20–29/.test(away.textContent),
+        'each name carries the inspect seam and the SERVER\'s coarse band reads as a range: ' + away.textContent);
       /* THE CATALOGUE, NOT THE WIRE: the monster's authored name beats the
          server's coarse label, and an unknown id falls back to that label. */
       assert(peers[0].textContent.indexOf(window.MONSTERS[mon].name) >= 0 && peers[0].textContent.indexOf('a beast') < 0

@@ -177,7 +177,9 @@ function normalizeTown(raw) {
       kind: str(p.activity_kind, 24) || 'idle',
       activityId: str(p.activity_id, 48) || null,
       label: str(p.activity_label, 40),
-      band: str(p.level_band, 16),
+      /* AN INTEGER DECADE FLOOR from hr_total_level, not a printable string —
+         the server sends 40 and the RENDERER decides it reads "Lv 40-49". */
+      band: int(p.level_band),
       seenAgoS: int(p.seen_ago_s),
       away: p.away === true,
     };
@@ -260,7 +262,11 @@ async function refreshTown(nowMs) {
   const now = Number(nowMs) || Date.now();
   if (inFlight || now < nextTownAt) return readTown();
   inFlight = (async () => {
-    const body = await call(TOWN_RPC, { p_zone: ZONE });
+    /* NO p_zone. The verb defaults to the realm's own zone and refuses any
+       other string with bad_zone, so naming it here would be the client
+       asserting a zone it does not own — and would break the day the realm
+       renames the place. */
+    const body = await call(TOWN_RPC, {});
     if (body.ok === true && body.off !== true && (Array.isArray(body.peers) || Array.isArray(body.crier))) {
       nextTownAt = 0;
       return park(normalizeTown(body));
@@ -298,6 +304,10 @@ async function heartbeat(nowMs) {
   beatInFlight = true;
   try {
     const body = await call(BEAT_RPC, { p_slot: activeSlot() });
+    /* THE BEAT ALSO ANSWERS WITH THE PLAYER'S OWN PLACE, throttled or not, so
+       the Quiet control is correct from the first beat instead of waiting for
+       an envelope. Server value only, never the one we asked for. */
+    if (body && body.ok === true) notePlace({ place: { zone: body.zone, quiet: body.quiet } });
     if (body && body.throttled) {
       const wait = int(body.next_in_s);
       nextBeatAt = now + (wait === null ? 60 : wait) * 1000;

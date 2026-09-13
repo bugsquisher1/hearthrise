@@ -284,6 +284,7 @@
     requiredPlotLevel: requiredPlotLevel,
     getPlotUnlockedCrops: getPlotUnlockedCrops,
     canPlantCrop: canPlantCrop,
+    emptyPlotIndices: function(plots, cap){ return core().emptyPlotIndices(plots, cap); },
     getDeedsRequiredForNextLevel: getDeedsRequiredForNextLevel,
     getDeedCount: getDeedCount,
     getUpgradePrice: getUpgradePrice,

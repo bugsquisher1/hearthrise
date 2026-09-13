@@ -2212,6 +2212,18 @@ function applyServerEnvelope(res,opts){
           : 'Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'+s.gainedXp+' XP, +'+s.gainedGold+' gold');
     if(_txt) notify(_txt,'info');
   }
+  /* ── THE WELCOME MODAL RENDERS THIS LOAD'S SETTLE, NOT A TIMER'S GUESS ──────
+     The receipt for the delta THIS envelope applied is the only absence the modal
+     is about, so it is presented HERE — after the state is written, the away kills
+     credited and refreshAll repainted — and only for an AWAY receipt: a sync or a
+     switch is not an absence and must never open a welcome-back modal. Boots whose
+     settle says 'nothing'/'sync' are presented by the waiting timer instead. The
+     whole rule lives at WELCOME_GATE. */
+  try{
+    var _pr = written && written.paidReceipt;
+    var _pk = (_pr && A && typeof A.classifyReceipt==='function') ? A.classifyReceipt(_pr) : null;
+    if(_pk==='away' && typeof window.__presentWelcome==='function') window.__presentWelcome();
+  }catch(e){}
   /* b366 — EVERY envelope is a statement about the worn set, so this is where a
      character the server never learnt about heals. Last, after the state is
      written, and guarded: a self-heal must never be able to break an applier. */
@@ -7112,8 +7124,11 @@ function farmSyncHarvest(plotIdx){
     if(res&&res.ok){
       farmSyncReconcile('harvest',res);
       if(res.produce&&res.qty>0){ const crop=CROPS[res.crop]; notify(`+${res.qty} ${crop?crop.name:res.crop}`,'loot'); }
+      /* AWAY-1 parity: one hook, one plant intent — and the hook is handed THIS
+         G (the object reconcileFarmResult just wrote) so the replant can never
+         be decided from a different state than the harvest landed in. */
       if(!G.farmPlots[plotIdx] && window.HearthriseAuto && typeof window.HearthriseAuto.maybeReplant==='function'){
-        window.HearthriseAuto.maybeReplant(plotIdx);
+        window.HearthriseAuto.maybeReplant(plotIdx, G);
       }
     }
     renderFarm();updateTopbar();
@@ -8919,6 +8934,9 @@ function renderFarm(){
      that tells a farmer when watering is worth a login. */
   const waterable = countWaterablePlots();
   farmWaterableSeen = waterable;
+  /* The SAME answer plantAllEmpty acts on, so the button cannot offer a sweep
+     the sweep will refuse (the silent "Plant all", live 2026-09-13). */
+  const plantable = window.HearthriseCore.farm.emptyPlotIndices(G.farmPlots, farmPlotCap()).length;
   const header = `
     <div class="farm-status row between" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
       <div class="tiny muted">
@@ -8928,7 +8946,7 @@ function renderFarm(){
         <br><span id="farm-next-water">${farmNextWaterText()}</span> · crops grow even while you're away
       </div>
       <div class="row gap-sm">
-        <button class="btn btn-sm" onclick="window.plantAllEmpty()" title="Plant configured/best seed in every empty plot">Plant all</button>
+        <button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant configured/best seed in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>
         <button class="btn btn-sm" onclick="window.waterAllPlots()" ${waterable?'':'disabled'} title="${waterable?'Watering doubles growth speed for 2 hours':farmNextWaterText()}">${waterable?`Water all (${waterable})`:'Water all'}</button>
         <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
         <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Buy the next plot tier with gold (or a Farmer's Deed) in House → Plot">Upgrade Plot</button>
@@ -8984,55 +9002,44 @@ function renderFarm(){
   }).join('');
 }
 
-// b136: Plant all empty plots with a sensible default crop. Picks the
-// configured auto-replant crop if it's plantable, otherwise the
-// highest-tier unlocked crop the player has seeds for. Stops on the
-// first failure (out of seeds) so feedback is clear.
+/* Plant all empty plots. The RULE (which crop next, from a REMAINING seed budget
+   rather than the bag — the seed debit is the server's and arrives with the
+   response) and the LIST (empty plots inside the property cap) are both
+   src/core/farm.js, and the header's button label reads the same two answers, so
+   it can no longer offer a sweep that places nothing and says nothing (live
+   2026-09-13, twice, with seeds in the bag). Every exit says what happened. */
 window.plantAllEmpty = function plantAllEmpty(){
-  if(!G.farmPlots) return;
-  const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
-  // Build the candidate list — order matters (highest tier first).
-  const order = ['pumpkin','tomato','potato','wheat','carrot','turnip'];
-  const canPlot = (id)=>{
-    if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function')
-      return window.HearthriseFarm.canPlantCrop(id);
-    return id === 'turnip';
-  };
-  const pickCrop = ()=>{
-    if(replant && replant.enabled && replant.cropId
-       && (G.inventory[CROPS[replant.cropId]?.seed]||0) > 0
-       && getLevel('farming') >= (CROPS[replant.cropId]?.req||0)
-       && canPlot(replant.cropId)){
-      return replant.cropId;
-    }
-    for(const id of order){
-      const c = CROPS[id]; if(!c) continue;
-      if((G.inventory[c.seed]||0) <= 0) continue;
-      if(getLevel('farming') < c.req) continue;
-      if(!canPlot(id)) continue;
-      return id;
-    }
-    return null;
-  };
-  let planted = 0;
-  /* b213: only plant within the property's plot cap (locked plots would
-     just toast an error each). */
-  const total = farmPlotCap();
-  for(let i = 0; i < total; i++){
-    if(G.farmPlots[i]) continue;
-    const pick = pickCrop();
-    if(!pick){
-      if(planted === 0) notify('No plantable seeds. Buy seeds or upgrade Farm Plot.', 'kill');
-      break;
-    }
-    plantCrop(i, pick);
-    // plantCrop bails silently if it can't place — re-check the slot.
-    if(G.farmPlots[i]) planted++;
-    else break;
+  const CF = window.HearthriseCore.farm, cap = farmPlotCap();
+  const empties = CF.emptyPlotIndices(G.farmPlots, cap);
+  if(!empties.length){
+    notify(cap > 0 ? 'Every plot already has something growing'
+      : 'Your homestead has no farmland yet — upgrade your property in House → Property','kill');
+    return 0;
   }
-  if(planted > 0) notify(`Planted ${planted} plot${planted===1?'':'s'}`, 'loot');
+  const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
+  const seeds = {};
+  Object.values(CROPS).forEach(c=>{ seeds[c.seed] = (G.inventory||{})[c.seed]|0; });
+  const st = { crops:CROPS, seeds, farmingLevel:getLevel('farming'),
+    plotLevel:(window.HearthriseFarm&&window.HearthriseFarm.getPlotLevel)?window.HearthriseFarm.getPlotLevel():1,
+    prefer:(replant&&replant.enabled)?replant.cropId:null };
+  let planted = 0, outOfSeeds = false;
+  for(const i of empties){
+    const pick = CF.pickSeedToPlant(st);
+    if(!pick){ outOfSeeds = true; break; }
+    plantCrop(i, pick);
+    /* A refused gesture said its own reason — stop rather than fire the same
+       refusal at every remaining plot. */
+    if(!G.farmPlots || !G.farmPlots[i]) break;
+    planted++; seeds[CROPS[pick].seed] -= 1;
+  }
+  if(planted > 0){
+    notify(`Planted ${planted} plot${planted===1?'':'s'}`
+      + ((outOfSeeds && planted < empties.length) ? ' — out of seeds for the rest' : ''), 'loot');
+  } else if(outOfSeeds){
+    notify('No plantable seeds for your plots — the Local Shop sells them','kill');
+  }
+  return planted;
 };
-
 window.toggleAutoReplant = function toggleAutoReplant(){
   if(!window.HearthriseAuto || !window.HearthriseAuto.getFarmReplant) return;
   const cur = window.HearthriseAuto.getFarmReplant();
@@ -9079,6 +9086,10 @@ function openSeedPicker(i){
     ? window.HearthriseFarm.requiredPlotLevel(id) : 0;
   const havePlotLv = (window.HearthriseFarm && window.HearthriseFarm.getPlotLevel) ? window.HearthriseFarm.getPlotLevel() : 1;
   const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${needLv(id)?`Needs Farm Plot Lv ${needLv(id)} (you have Lv ${havePlotLv}) — House → Plot`:'No plot tier unlocks this crop'}</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
+  /* The picker borrows the settings modal, whose heading is the static word
+     "Settings" — so the dialog asking which seed to plant was titled SETTINGS
+     (live 2026-09-13). Every opener of the shared shell states its own title. */
+  m.querySelector('.modal-title').textContent='Pick a seed';
   let html = `<h3 style="margin-bottom:10px">Pick a seed</h3>`;
   if(plantable.length) html += plantable.map(plantBtn).join('');
   if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">${lockGlyph()} Locked by Farm Plot tier</div>` + lockedByPlot.map(lockedBtn).join('');
@@ -9962,6 +9973,7 @@ try{ window.applyTraitUnlock=applyTraitUnlock; window.traitBuyToast=traitBuyToas
    ──────────────────────────────────────────────── */
 function openSettings(){
   const m=document.getElementById('settings-modal');
+  m.querySelector('.modal-title').textContent='Settings';
   document.getElementById('settings-body').innerHTML=`
     <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Account</div>
     ${G.account?
@@ -14473,16 +14485,48 @@ function maybeShowWelcome(){
   var ov = document.getElementById('welcome-overlay');
   if(ov) ov.classList.add('show');
 }
-/* b341 TEST SEAM, deliberately NOT `window.maybeShowWelcome`.
-   This function is not on `window` at all (its block is IIFE-scoped), and the
-   welcome-v2 block later does `window.maybeShowWelcome = function(){}` to
-   "suppress the old modal" — which suppresses nothing, because the boot already
-   captured the lexical reference in `setTimeout(maybeShowWelcome, 1500)` before
-   that line ran. So THIS is the modal players actually see on return, and it
-   needs to be assertable under a name the dead suppression cannot shadow.
-   (The suppression that does not suppress is real debt — flagged, not fixed
-   here: deciding which of the two welcome modals survives is a design call.) */
+/* TEST SEAM, deliberately NOT `window.maybeShowWelcome`: this function is not on
+   `window` at all (its block is IIFE-scoped), and the retired v2 modal used that
+   exact name as a suppression stub. THIS is the modal players see on return, and
+   it must be assertable under a name no stub can shadow. */
 window.__maybeShowWelcome = maybeShowWelcome;
+
+/* ── THE SETTLE PRESENTS THIS MODAL; THE TIMER ONLY WAITS FOR IT ─────────────
+   Measured live 2026-09-13, second bug of this class: a genuine ~12 h return got
+   a modal with only Played / Total kills / Gold while the Home card, painted
+   later, read "12h away — +88,711 XP · +2,768 items" off the SAME receipt. The
+   modal was not wrong about the receipt; it ran before it existed.
+   `setTimeout(maybeShowWelcome, 1500)` guesses the `hr_accrue` round trip, and
+   when the guess loses `G.lastWelcome` shuts the 5 s door so the away report
+   never gets a second chance. So `applyServerEnvelope` presents the modal itself
+   on an AWAY receipt, and the boot timer WAITS on `awaySettleDone()` — the
+   settle-first latch, set before the accrual hooks fire — up to WAIT_MS. Nothing
+   to wait for (dead network, accrual unconfigured) and it presents anyway: no
+   away payload is coming and a stats-only modal is then the honest thing to say.
+   ONCE per page life. The 30-minute door and the restatement refusal above still
+   decide WHETHER and WHAT; this decides only WHEN. Scratch, never residue. */
+var WELCOME_GATE = { at: 0, until: 0, WAIT_MS: 10000 };
+window.__presentWelcome = function(){
+  if(WELCOME_GATE.at) return false;
+  WELCOME_GATE.at = Date.now();
+  try{ maybeShowWelcome(); }catch(e){ return false; }
+  return true;
+};
+window.__presentWelcomeWhenSettled = function(){
+  if(WELCOME_GATE.at) return;
+  if(!WELCOME_GATE.until) WELCOME_GATE.until = Date.now() + WELCOME_GATE.WAIT_MS;
+  var A = window.HearthriseAccrual,
+      pending = !!(A && typeof A.awaySettleDone === 'function' && !A.awaySettleDone());
+  if(pending && Date.now() < WELCOME_GATE.until){
+    setTimeout(window.__presentWelcomeWhenSettled, 250);
+    return;
+  }
+  window.__presentWelcome();
+};
+/* Test seam: a fresh page life, or (true) a SPENT one, so the 250 ms poll a test
+   armed cannot open a modal over a later test. */
+window.__resetWelcomePresentation = function(spent){ WELCOME_GATE.at = spent ? Date.now() : 0; WELCOME_GATE.until = 0; };
+
 function buildWelcomeOverlay(){
   if(document.getElementById('welcome-overlay')) return;
   var ov = document.createElement('div');
@@ -14989,7 +15033,8 @@ function injectDailyGoals(){
 function boot(){
   migrate();
   checkStreak();
-  setTimeout(maybeShowWelcome, 1500);
+  /* b544: WAITS for the boot settle rather than racing it (see WELCOME_GATE). */
+  setTimeout(window.__presentWelcomeWhenSettled, 1500);
   setTimeout(paintAll, 600);
   setTimeout(injectDailyGoals, 800);
   setInterval(paintAll, 4000);   // periodic refresh of badges + streak
@@ -15212,30 +15257,13 @@ window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
 });
 
 /* ════════════════════════════════════════════════════════════════════════
-   THE CATCHUP INJECTOR LIVED HERE, AND IS DELIBERATELY NOT REPLACED. (b342)
-
-   It polled every 200ms for `#welcome-rows` and PREPENDED rows built from
-   `calcCatchup()` — a display-only ESTIMATE of the absence, computed from
-   `G.lastSeen` and the active node's rate, entirely independently of what the
-   engine had already granted. b214 had to stop it double-PAYING; what it kept
-   doing was double-SPEAKING:
-
-     · "While away  8.0h"   ← this block, an estimate, one decimal
-     · "Time away   8h 0m"  ← maybeShowWelcome, the clock, minutes
-
-   …the same fact twice in two units from two sources, and between them not
-   one of the numbers the player actually earned (+1,553 XP · +4 items ·
-   +7 gold · 3 kills lived only in a toast and on the Home card BEHIND this
-   modal). Its per-skill "XP gained" rows were the estimate's, not the
-   ledger's, so on any absence that ended in a death or hit the cap they
-   quoted a night that did not happen.
-
-   The modal now reads `G.lastOfflineSummary` — the receipt processOffline (or
-   the server accrual) actually wrote — so there is ONE number for one fact and
-   it is the number the save holds. `calcCatchup()` ITSELF IS NOW GONE TOO
-   (b516, see the tombstone at section 3): leaving the estimator on `window`
-   with no caller kept a client-side minting path one console line away, and
-   the receipt made it redundant rather than merely unused.
+   THE CATCHUP INJECTOR LIVED HERE AND IS DELIBERATELY NOT REPLACED (b342).
+   It polled for `#welcome-rows` and PREPENDED rows from `calcCatchup()`, a
+   display-only estimate of the absence, so the modal spoke the same fact twice
+   in two units from two sources and neither was the ledger. The full story and
+   the rule ("the receipt is the source, and the only source") live where the
+   rows are built — see the b342 block inside maybeShowWelcome — and the
+   estimator itself is gone (b516 tombstone, section 3 above).
    ════════════════════════════════════════════════════════════════════════ */
 
 /* Add Achievements + Bestiary buttons to the Profile panel */
@@ -15552,44 +15580,16 @@ window._stopArtisan = function(){
 // ===== block 20: welcome-v2 — RETIRED (Set the Night, slate §3) =========
 /* ═══ TOMBSTONE: THE SECOND WELCOME MODAL IS GONE ═════════════════════════
    Designer ruling (FEATURE_SLATE.md §3, 2026-09-07): "v2 retires, b341
-   survives." Hearthrise had TWO welcome-back modals and neither knew about
-   the other:
-
-     · b341's `#welcome-overlay` (maybeShowWelcome, this file ~line 14353) —
-       built entirely from `G.lastOfflineSummary`, the RECEIPT the server
-       wrote for the absence. Deaths, recovery, dry-out, the base rate. It is
-       the one players actually saw, and it is the one that survives.
-     · this block's `#wbv-overlay` — built from `calcRichCatchup()`, a THIRD
-       client-side estimate of the same night off `Date.now() - G.lastSeen`,
-       the device clock (§1: never authority). It "suppressed" the b341 modal
-       with `window.maybeShowWelcome = function(){}` — which suppressed
-       NOTHING, because boot had already captured the lexical reference in
-       `setTimeout(maybeShowWelcome, 1500)` before that line ever ran. So the
-       suppression was dead code guarding a modal that raced the real one.
-
-   DELETED, not unreferenced — the b516 rule for this exact family: an
-   estimator that is merely unwired is one console line from being wired
-   again. Gone with it:
-     · `calcRichCatchup` / `window._calcRichCatchup` (the estimate)
-     · `applyRichCatchup`                            (its crediting applier)
-     · `buildOverlay` / `renderModal` / `window._renderWelcomeV2`
-       / `window._closeWelcomeV2`                    (the modal)
-     · the 1800ms boot auto-show                     (the second ritual)
-     · the Profile "Last Session Summary" button — it re-opened THIS modal
-       from `G.lastSessionSummary`, which only the deleted boot block ever
-       wrote, so it would have said "No previous session summary yet"
-       forever. The return story now lives on ONE surface: the b341 card,
-       plus the Set the Night morning line above it.
-
-   `G.lastSessionSummary` stays in `RESIDUE_FIELDS` (src/net/events.js) for
-   now: removing an allowlist entry is a residue-guard change and belongs
-   with that guard's own mutation proof, not in this feature's diff. Nothing
-   writes it any more, so it is inert.
-
-   SWEPT (cleanup slice, 2026-09-08): the `.wbv-*` rules in legacy.css and the
-   `#wbv-overlay`/`wbv-modal` entries in the blocking-overlay and closeAllModals
-   lists (beta-banner.js, daily-reward.js, renown.js, this file) matched nothing
-   and are gone. smoke-test.js keeps one on purpose: it asserts ABSENCE.
+   survives." `#wbv-overlay` was built from `calcRichCatchup()`, a THIRD
+   client-side estimate of the night off the device clock (§1: never
+   authority), and it "suppressed" the real modal with a
+   `window.maybeShowWelcome` stub that suppressed nothing. DELETED, not
+   unwired (b516 rule): the estimator, its applier, the modal, the 1800 ms
+   boot auto-show, the Profile "Last Session Summary" button, and — cleanup
+   slice 2026-09-08 — the `.wbv-*` CSS and every `#wbv-overlay` entry in the
+   blocking-overlay / closeAllModals lists. `G.lastSessionSummary` stays in
+   RESIDUE_FIELDS (inert; removing an allowlist entry needs the residue
+   guard's own mutation proof). smoke-test.js asserts the ABSENCE.
    ════════════════════════════════════════════════════════════════════════ */
 
 // ===== block 21: phase-a1-recipes =====

@@ -1374,6 +1374,7 @@
     ensureSettings();
     var m = document.getElementById('settings-modal');
     var body = document.getElementById('settings-body');
+    var _t = m && m.querySelector('.modal-title'); if(_t) _t.textContent = 'Settings';
     if(!m || !body){
       // Shouldn't happen but bail safely
       console.warn('[settings] modal not present');

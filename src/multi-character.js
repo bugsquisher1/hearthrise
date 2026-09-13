@@ -375,6 +375,12 @@
       }
       return null;
     }
+    /* WRITE THE OUTGOING CHARACTER'S SUMMARY BEFORE THE POINTER MOVES.
+       The only other writer is the saveLocal hook, which cannot run for a
+       character that is no longer active, so a switch used to leave the row a
+       player just played showing whatever levels it had the last time that hook
+       happened to fire — days stale, or never written at all. */
+    try { refreshActiveMeta(); } catch(e){}
     // Snapshot current character.
     if(typeof window.G !== 'undefined' && typeof window.saveLocal === 'function'){
       window.saveLocal();
@@ -889,12 +895,41 @@
     return 'Hero ' + n;
   }
 
+  /* THE LIVE LEVELS OF THE CHARACTER BEING PLAYED, asked of the same two
+     helpers the topbar's "24 CL / 280 TL" chips read (legacy.js getCombatLevel /
+     getTotalLevel → HearthriseCore.xp over the live skills). Returns null when
+     the engine is not up yet (pre-boot render, or a caller before legacy.js), so
+     every consumer falls back to the STORED summary instead of printing 1. */
+  function liveLevels(){
+    if(typeof window.getCombatLevel !== 'function' || typeof window.getTotalLevel !== 'function') return null;
+    try {
+      var c = window.getCombatLevel(), t = window.getTotalLevel();
+      if(typeof c !== 'number' || typeof t !== 'number' || !isFinite(c) || !isFinite(t)) return null;
+      return { combatLv: c, totalLv: t };
+    } catch(e){ return null; }
+  }
+
   // ── Snapshot the active slot's meta (combat lv, total lv, etc.) ──
   function refreshActiveMeta(){
     var profile = window.HearthriseProfile.profile;
     if(!profile || !window.G) return;
-    var slot = profile.slots[profile.activeSlot];
-    if(!slot) return;
+    var active = profile.activeSlot;
+    /* BY ID, AND CREATED IF ABSENT. This used to be
+       `profile.slots[profile.activeSlot]` followed by `if(!slot) return;` —
+       an ARRAY-POSITION lookup on a list slotRows() addresses BY ID, and a
+       silent give-up when the active slot had no metadata record at all (the
+       normal state for a slot that arrived from the server entitlement via
+       adoptServerSlots, which pushes no record). Either way the summary for the
+       character actually being played was never written, so the drawer showed
+       "Hero 3 active · Cmb Lv 1 · Tot Lv 1" beside a CL 24 / TL 280 hero. */
+    var slot = null;
+    for(var i = 0; i < (profile.slots || []).length; i++){
+      if(profile.slots[i] && profile.slots[i].id === active){ slot = profile.slots[i]; break; }
+    }
+    if(!slot){
+      slot = { id: active, name: 'Adventurer ' + (active + 1), combatLv: 1, totalLv: 1, createdAt: Date.now(), lastSeen: Date.now() };
+      (profile.slots = profile.slots || []).push(slot);
+    }
     /* b373 — THE NAME NO LONGER RIDES ALONG. (Designer ruling: identity is
        ACCOUNT-scoped; see heroLabel() below.) This line used to copy
        `G.playerName` — which src/features/identity.js adopt() sets to the
@@ -902,8 +937,8 @@
        every character an account played eventually renamed itself to the
        account's name, and the hero list showed "Tyler / Tyler / Tyler". The
        slot record keeps levels and lastSeen; the NAME is not its business. */
-    slot.combatLv = (typeof window.getCombatLevel === 'function') ? window.getCombatLevel() : 1;
-    slot.totalLv  = (typeof window.getTotalLevel === 'function') ? window.getTotalLevel() : 1;
+    var live = liveLevels();
+    if(live){ slot.combatLv = live.combatLv; slot.totalLv = live.totalLv; }
     slot.lastSeen = Date.now();
     saveProfile(profile);
   }
@@ -1053,11 +1088,19 @@
       for(var k = 0; k < MAX_SLOTS; k++){
         if(k === active || ownsSlot(k)){
           var s = byId[k] || { id:k, combatLv:1, totalLv:1, lastSeen:0 };
+          /* THE ACTIVE ROW READS THE LIVE CHARACTER, not a stored summary.
+             The other rows have no live state to read (their G is a snapshot in
+             localStorage), so they keep the summary written at switch time; the
+             character being PLAYED is the one surface where a cached level can
+             disagree with the topbar, and it did — "Cmb Lv 1" beside CL 24.
+             The summary stays the fallback for the pre-boot render. */
+          var live = (k === active) ? liveLevels() : null;
           rows.push({
             /* b373 — heroLabel(), never s.name. See the ruling on heroLabel. */
             kind: 'char', id: k, name: heroLabel(k),
-            combatLv: s.combatLv || 1, totalLv: s.totalLv || 1,
-            active: k === active, lastSeen: s.lastSeen,
+            combatLv: (live ? live.combatLv : s.combatLv) || 1,
+            totalLv: (live ? live.totalLv : s.totalLv) || 1,
+            active: k === active, lastSeen: (k === active && live) ? Date.now() : s.lastSeen,
           });
         } else if(buyNext < 0){
           buyNext = k;                    // the first GAP is the ladder's next rung

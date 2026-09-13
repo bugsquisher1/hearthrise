@@ -12881,6 +12881,77 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
+  /* ── TOWN-1 — THE COMMON, painted and un-paintable ──────────────────────
+     THE HAPPY PATH for the live-world week-1 slice: a fixture town body is
+     parked exactly as `hr_town_of` would answer it, Home is drawn, and the
+     presence rail + The Crier are read off the real DOM.
+
+     It also pins the two properties the feature is only allowed to exist under:
+       · THE FAIL-SAFE. `{off:true}` — which is also every client between this
+         build and the lane-C apply — paints NO row at all. Not an empty frame,
+         not "nobody is here".
+       · IT IS NOT PERSISTENCE. `_town` is scratch: the residue allowlist must
+         never carry it, or the client would hold its own view of other people
+         across a reload (the residue-ahead class with a social face). */
+  () => tryRun('TOWN-1: the town presence rail + The Crier paint from a server projection, and vanish when the realm has no common', () => {
+    const T = window.HearthriseTown, TP = window.HearthriseTownPanel;
+    assert(T && typeof T.__setTown === 'function' && TP && typeof TP.townPanelHtml === 'function',
+      'the Common seams are not published — this test would pass vacuously');
+    const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
+    assert(Array.isArray(RF) && !RF.some((f) => String(f).charAt(0) === '_')
+      && !['_town', '_place', 'zone', 'pos', 'quiet'].some((f) => RF.includes(f)),
+      'presence is scratch: the residue must carry no `_` field and never zone/pos/quiet — ' + JSON.stringify(RF));
+    const prior = window.G._town;
+    try {
+      window.showTab('profile');
+      const mon = Object.keys(window.MONSTERS || {})[0];
+      const view = T.__setTown({
+        ok: true, zone: 'the_common', now: new Date().toISOString(), stale_s: 7, here: 214, shown: 3, cap: 60,
+        peers: [
+          { name: 'Paione', activity_kind: 'combat', activity_id: mon, activity_label: 'a beast', level_band: 40, seen_ago_s: 20, away: false },
+          { name: 'Tamsin', activity_kind: 'gather', activity_id: 'copper_rock', activity_label: 'Copper ore', level_band: 20, seen_ago_s: 4200, away: true },
+          { name: 'Bram', activity_kind: 'combat', activity_id: null, activity_label: 'Bog Lurker', level_band: 30, seen_ago_s: 90, away: false },
+        ],
+        crier: [{ name: 'Paione', item_id: 'ruby', source_kind: 'monster', source_id: mon, one_in: 5000, found_ago_s: 120 }],
+      });
+      assert(view.status === 'ok' && window.G._town === view, 'the projection parks in G._town scratch');
+      window.HearthriseHome.render();
+      const row = document.querySelector('#hd-root .tc-row');
+      assert(row, 'the Common did not paint its own row on Home');
+      const grps = [...row.querySelectorAll('.tc-grp')].map((e) => e.textContent.trim());
+      assert(grps.length === 2 && /Out hunting\s*2/.test(grps.join(' ')) && /Out gathering\s*1/.test(grps.join(' ')),
+        'the rail groups people by WHERE they are, with per-group counts: ' + JSON.stringify(grps));
+      assert(row.textContent.indexOf('214') < 0 && /3 of many shown/.test(row.textContent) && row.querySelector('[data-town-quiet]'),
+        'the true population is NEVER painted (a capped list says "of many") and the opt-out is on the panel: ' + row.textContent.slice(0, 220));
+      const peers = [...row.querySelectorAll('.tc-peer')];
+      const away = row.querySelector('.tc-peer.is-away');
+      assert(peers.length === 3 && away && /Tamsin/.test(away.textContent) && !peers[0].classList.contains('is-away'),
+        'every peer is listed with away folk dimmed by class and sorted last, got ' + peers.length + ' peer(s)');
+      assert(away.getAttribute('data-town-peer') === 'Tamsin' && /Lv 20–29/.test(away.textContent),
+        'each name carries the inspect seam and the SERVER\'s coarse band reads as a range: ' + away.textContent);
+      /* THE CATALOGUE, NOT THE WIRE: the monster's authored name beats the
+         server's coarse label, and an unknown id falls back to that label. */
+      assert(peers[0].textContent.indexOf(window.MONSTERS[mon].name) >= 0 && peers[0].textContent.indexOf('a beast') < 0
+        && row.textContent.indexOf('Bog Lurker') >= 0,
+        'a known activity_id renders the AUTHORED name and an unknown one falls back to the label: ' + peers[0].textContent);
+      const crier = [...row.querySelectorAll('.tc-line')];
+      assert(crier.length === 1 && /Paione found .+ from .+ \(1 in 5,000\)/.test(crier[0].textContent)
+        && /2 min ago/.test(crier[0].textContent),
+        'The Crier states the hearthfind with its odds and a relative time: ' + (crier[0] && crier[0].textContent));
+      /* THE FAIL-SAFE, through the same render path the player gets — first the
+         flag-down body, then the shape every client answers before the apply. */
+      T.__setTown({ ok: true, off: true });
+      window.HearthriseHome.render();
+      assert(!document.querySelector('#hd-root .tc-row'), 'a realm with no common must paint no row at all');
+      assert(TP.townPanelHtml({ status: 'unknown', peers: [], crier: [] }, Date.now()) === ''
+        && TP.townPanelHtml(T.normalizeTown({ ok: false, error: 'rate_limited' }), Date.now()) === '',
+        'an unanswered read and a refusal both paint nothing');
+    } finally {
+      window.G._town = prior;
+      window.showTab('profile');
+    }
+  }),
+
   /* ── FIRST-LIGHT-1 — the first day, played ──────────────────────────────
      THE HAPPY PATH for docs/planning/FEATURE_SLATE.md §1: a brand-new
      character opens Home and sees the whole first-day chain, with the first
@@ -61442,6 +61513,46 @@ const TESTS = [
       'the modal does not say that name and portrait are account-level: ' + sub);
     assert(/separate/i.test(sub), 'the modal does not say what IS per-hero: ' + sub);
     try { window.closeCharacterSelect(); } catch (e) {}
+  }),
+
+  /* ── regression suite — THE DRAWER'S ACTIVE ROW IS THE LIVE HERO ──────────
+     Seen live: the character drawer said "Hero 3 active · Cmb Lv 1 ·
+     Tot Lv 1 · now" while the topbar beside it said 24 CL / 280 TL. Two causes,
+     both in src/multi-character.js: slotRows() printed the STORED per-slot
+     summary for the active row, and the only writer of that summary
+     (refreshActiveMeta) looked the slot up by ARRAY POSITION on a list addressed
+     by ID and gave up silently when the active slot had no record at all — the
+     normal state for a slot that arrived from the server entitlement. */
+  () => tryRun('b543: the character drawer\'s active row reads the LIVE hero, not a stale summary', () => {
+    const P = window.HearthriseProfile;
+    if (!P || !P.profile || typeof window.openCharacterSelect !== 'function') return;  // signed out
+    const keepSlots = JSON.parse(JSON.stringify(P.profile.slots || []));
+    const cl = window.getCombatLevel, tl = window.getTotalLevel;
+    try {
+      window.getCombatLevel = () => 24; window.getTotalLevel = () => 280;
+      const active = P.activeSlot();
+      // The live shape of the bug: no metadata record for the slot being played.
+      P.profile.slots = keepSlots.filter((s) => s && s.id !== active);
+      const row = P.slotRows().filter((r) => r.kind === 'char').find((r) => r.active);
+      assert(row, 'slotRows() must still list the character being played');
+      assert(row.combatLv === 24 && row.totalLv === 280,
+        'the drawer\'s active row says Cmb Lv ' + row.combatLv + ' for a CL 24 hero (Tot Lv ' + row.totalLv + ' vs 280)');
+      window.openCharacterSelect();
+      const stats = (document.querySelector('#cs-modal .cs-slot.active .cs-slot-stats') || {}).textContent || '';
+      assert(/24/.test(stats) && /280/.test(stats), 'the rendered active row reads "' + stats + '"');
+      // The write side: a save tick CREATES and refreshes the outgoing summary.
+      window.saveLocal();
+      const rec = (P.profile.slots || []).find((s) => s && s.id === active);
+      assert(rec, 'a save tick left the active hero with no stored summary at all');
+      assert(rec.combatLv === 24 && rec.totalLv === 280,
+        'a save tick left the stored summary at Cmb Lv ' + rec.combatLv + ' / Tot Lv ' + rec.totalLv);
+      assert(rec.lastSeen > Date.now() - 60000, 'the stored summary\'s lastSeen was not refreshed');
+    } finally {
+      window.getCombatLevel = cl; window.getTotalLevel = tl;
+      P.profile.slots = keepSlots;
+      try { window.saveLocal(); } catch (e) {}
+      try { window.closeCharacterSelect(); } catch (e) {}
+    }
   }),
 
   () => tryRun('b373: renaming opens the real account-name flow, never a native prompt', () => {

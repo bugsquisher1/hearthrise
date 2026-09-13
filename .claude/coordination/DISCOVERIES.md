@@ -4,6 +4,41 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-09-13 — Systems Engineer (lane/b544-reed-and-tide): two P3s found while adding six cooking rows
+
+**P3 — THE 35 QTY-1 COOKING ROWS ARE UNGUARDED ON VENDOR RATIO.**
+AFFECTED: `tests/recipe-yield-guard.mjs`, `src/data/recipes.js` cooking, `vendorPriceOf`
+(supabase/functions/hr-accrue/catalogue.js), the `vendor_sell` verb.
+CHECK 2 — the batch faucet ratio, the one with teeth — is scoped to `outputQty > 1` **by design**, and
+the file argues that correctly: a flat global ratio across 358 recipes is a false-positive machine, and
+gear is priced on POWER, which is why CHECK 4 caps it PER LADDER RUNG instead. Cooking falls between
+the two. Every one of the 35 cooking rows produces qty 1, so NO check measures any of them, and cooking
+is the one bench whose inputs are RAW (the vendor bids 20% of book) while its output is not (100% of
+book) — a 5x vendor step built into the bench before an author types a number. This batch's two combos
+sit at 1.42x and 1.46x of book input value and were checked BY HAND against no ceiling at all. Nothing
+is exploitable today; the hole is that the next dish's `v` is unpoliced, exactly as `iron_arrows` was
+at v:60.
+REQUIRED ACTION: not a flat ratio — a cooking-ladder guard in the shape of CHECK 4. Per rung,
+`vendorPriceOf(output)` over the summed `vendorPriceOf(inputs)`, with the ceiling read off the shipped
+rungs rather than typed, PLUS gold-per-hour MONOTONICITY across the bench by `req` (a low rung that
+out-earns a high one is the defect this class actually produces, and it is invisible to a ratio cap).
+Ceiling value is the Game Designer's call; the guard is ours.
+
+**P3 — THE MIGRATION SELF-CHECK LEAK PROOF ENUMERATES SEVEN TABLES, AND TWO MORE NOW EXIST.**
+AFFECTED: the §4 self-check template carried by `2026-09-13-prayer-ladder-and-item-gates.sql`,
+`2026-09-13-reed-and-tide.sql` and every file that copies it.
+Each one closes with the same list: `player_state`, `player_skills`, `player_inventory`,
+`player_equipment`, `player_intents`, `player_ledger`, `auth.users`. A probe that is REFUSED also
+writes `hr_rejections` (aggregate per user/slot/day/code since 2026-08-11, widened with the verb map
+in the `c-hr-rejections-journal` lane), and `hr_create_character` touches `profiles`. Both writes sit
+INSIDE the HR812 subtransaction, so nothing leaks today — the defect is that the PROOF does not cover
+them, so a probe later moved outside the sentinel would leak silently through exactly the two tables
+the deliberately-refusing gates write most (and these files refuse on purpose, repeatedly).
+REQUIRED ACTION: add `hr_rejections` and `profiles` to the enumeration in the template and in the
+files carrying it — two lines each. It is the assertion that is thin, not the behaviour.
+
+---
+
 ### 2026-09-13 — Systems Engineer — **ALL TEN new Prayer rungs consume a drop that already had a competing sink, and `grave_dust` is the SHRINE'S OWN upgrade cost.** (design, for the Game Designer — measured, not guessed)
 
 AFFECTED SYSTEMS: `src/data/recipes.js` (prayer bench), `src/data/shops.js` (room/property offers), the crafting + cooking benches.

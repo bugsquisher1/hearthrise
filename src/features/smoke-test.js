@@ -12829,6 +12829,76 @@ const TESTS = [
   // outcome, then restores. NEVER pollutes the player's save.
   // ─────────────────────────────────────────────────────────────
 
+  /* ── TOWN-1 — THE COMMON, painted and un-paintable ──────────────────────
+     THE HAPPY PATH for the live-world week-1 slice: a fixture town body is
+     parked exactly as `hr_town_of` would answer it, Home is drawn, and the
+     presence rail + The Crier are read off the real DOM.
+
+     It also pins the two properties the feature is only allowed to exist under:
+       · THE FAIL-SAFE. `{off:true}` — which is also every client between this
+         build and the lane-C apply — paints NO row at all. Not an empty frame,
+         not "nobody is here".
+       · IT IS NOT PERSISTENCE. `_town` is scratch: the residue allowlist must
+         never carry it, or the client would hold its own view of other people
+         across a reload (the residue-ahead class with a social face). */
+  () => tryRun('TOWN-1: the town presence rail + The Crier paint from a server projection, and vanish when the realm has no common', () => {
+    const T = window.HearthriseTown, TP = window.HearthriseTownPanel;
+    assert(T && typeof T.__setTown === 'function' && TP && typeof TP.townPanelHtml === 'function',
+      'the Common seams are not published — this test would pass vacuously');
+    const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
+    assert(Array.isArray(RF) && !RF.some((f) => String(f).charAt(0) === '_')
+      && !['_town', '_place', 'zone', 'pos', 'quiet'].some((f) => RF.includes(f)),
+      'presence is scratch: the residue must carry no `_` field and never zone/pos/quiet — ' + JSON.stringify(RF));
+    const prior = window.G._town;
+    try {
+      window.showTab('profile');
+      const mon = Object.keys(window.MONSTERS || {})[0];
+      const view = T.__setTown({
+        ok: true, zone: 'the_common', now: new Date().toISOString(), stale_s: 7, here: 214, shown: 3, cap: 60,
+        peers: [
+          { name: 'Paione', activity_kind: 'combat', activity_id: mon, activity_label: 'a beast', level_band: 'Lv 40-49', seen_ago_s: 20, away: false },
+          { name: 'Tamsin', activity_kind: 'gather', activity_id: 'copper_rock', activity_label: 'Copper ore', level_band: 'Lv 20-29', seen_ago_s: 4200, away: true },
+          { name: 'Bram', activity_kind: 'combat', activity_id: null, activity_label: 'Bog Lurker', level_band: 'Lv 30-39', seen_ago_s: 90, away: false },
+        ],
+        crier: [{ name: 'Paione', item_id: 'ruby', source_kind: 'monster', source_id: mon, one_in: 5000, found_ago_s: 120 }],
+      });
+      assert(view.status === 'ok' && window.G._town === view, 'the projection parks in G._town scratch');
+      window.HearthriseHome.render();
+      const row = document.querySelector('#hd-root .tc-row');
+      assert(row, 'the Common did not paint its own row on Home');
+      const grps = [...row.querySelectorAll('.tc-grp')].map((e) => e.textContent.trim());
+      assert(grps.length === 2 && /Out hunting\s*2/.test(grps.join(' ')) && /Out gathering\s*1/.test(grps.join(' ')),
+        'the rail groups people by WHERE they are, with per-group counts: ' + JSON.stringify(grps));
+      assert(row.textContent.indexOf('214') < 0 && /3 of many shown/.test(row.textContent) && row.querySelector('[data-town-quiet]'),
+        'the true population is NEVER painted (a capped list says "of many") and the opt-out is on the panel: ' + row.textContent.slice(0, 220));
+      const peers = [...row.querySelectorAll('.tc-peer')];
+      const away = row.querySelector('.tc-peer.is-away');
+      assert(peers.length === 3 && away && /Tamsin/.test(away.textContent) && !peers[0].classList.contains('is-away'),
+        'every peer is listed with away folk dimmed by class and sorted last, got ' + peers.length + ' peer(s)');
+      assert(away.getAttribute('data-town-peer') === 'Tamsin', 'each name carries the inspect seam');
+      /* THE CATALOGUE, NOT THE WIRE: the monster's authored name beats the
+         server's coarse label, and an unknown id falls back to that label. */
+      assert(peers[0].textContent.indexOf(window.MONSTERS[mon].name) >= 0 && peers[0].textContent.indexOf('a beast') < 0
+        && row.textContent.indexOf('Bog Lurker') >= 0,
+        'a known activity_id renders the AUTHORED name and an unknown one falls back to the label: ' + peers[0].textContent);
+      const crier = [...row.querySelectorAll('.tc-line')];
+      assert(crier.length === 1 && /Paione found .+ from .+ \(1 in 5,000\)/.test(crier[0].textContent)
+        && /2 min ago/.test(crier[0].textContent),
+        'The Crier states the hearthfind with its odds and a relative time: ' + (crier[0] && crier[0].textContent));
+      /* THE FAIL-SAFE, through the same render path the player gets — first the
+         flag-down body, then the shape every client answers before the apply. */
+      T.__setTown({ ok: true, off: true });
+      window.HearthriseHome.render();
+      assert(!document.querySelector('#hd-root .tc-row'), 'a realm with no common must paint no row at all');
+      assert(TP.townPanelHtml({ status: 'unknown', peers: [], crier: [] }, Date.now()) === ''
+        && TP.townPanelHtml(T.normalizeTown({ ok: false, error: 'rate_limited' }), Date.now()) === '',
+        'an unanswered read and a refusal both paint nothing');
+    } finally {
+      window.G._town = prior;
+      window.showTab('profile');
+    }
+  }),
+
   /* ── FIRST-LIGHT-1 — the first day, played ──────────────────────────────
      THE HAPPY PATH for docs/planning/FEATURE_SLATE.md §1: a brand-new
      character opens Home and sees the whole first-day chain, with the first

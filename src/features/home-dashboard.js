@@ -1335,6 +1335,16 @@
       html += awayCardHtml(_off);
     }
 
+    /* THE COMMON — its OWN row, above the working grid and below the night's
+       news. Own row because the hearth band collapses to a 56px strip on a
+       landscape phone and cannot carry a rail. Returns '' when the realm has
+       not answered, and '' paints nothing at all. */
+    var _TP = window.HearthriseTownPanel;
+    if (_TP && typeof _TP.townPanelHtml === 'function') {
+      var _tc = _TP.townPanelHtml(G._town, Date.now(), G._place);
+      if (_tc) { _TP.ensureTownStyle(); html += _tc; }
+    }
+
     html += '<div class="hd-grid"><div class="hd-col">';
 
     // Daily reward — top priority when a reward is waiting to be claimed

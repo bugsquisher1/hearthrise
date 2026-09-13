@@ -316,6 +316,17 @@ export function applyClientState(res, G) {
     const RN = (typeof window !== 'undefined') && window.HearthriseRenown;
     if (RN && typeof RN.noteServerRenown === 'function') RN.noteServerRenown(res);
   } catch (e) {}
+  /* AND THE PLAYER'S OWN PLACE — `place:{zone,quiet}` — for the same reason and
+     by the same rules: the boot load is the only envelope an idle session gets,
+     and the presence opt-out is a setting a player must see the TRUTH of. It
+     lands in `G._place` scratch (src/net/town.js notePlace); `zone`/`quiet` are
+     deliberately NOT residue — a client-held copy of a server capability is the
+     residue-ahead class, and a stale "you are hidden" is the worst shape this
+     surface can take. Observation only, and guarded. */
+  try {
+    const TW = (typeof window !== 'undefined') && window.HearthriseTown;
+    if (TW && typeof TW.notePlace === 'function') TW.notePlace(res);
+  } catch (e) {}
   if (!res || typeof res !== 'object' || res.ok !== true) return false;
   const cs = res.client_state;
   if (cs === null || typeof cs !== 'object' || Array.isArray(cs)) return false;

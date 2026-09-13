@@ -621,9 +621,23 @@ begin
     raise exception 'buffs self-check (b): the (4a-b) validation block is missing'; end if;
   if strpos(v_apply, $q$buffs = case when p_delta ? 'buff_apply'$q$) = 0 then
     raise exception 'buffs self-check (b): the SET clause does not write buffs'; end if;
-  if strpos(v_apply, $q$'bad_buff_item', 'buff_at_max',$q$) = 0 then
-    raise exception 'buffs self-check (b): the two buff codes are not release codes — a refused eat '
-                    'would brick its idempotency key for 25h'; end if;
+  -- MEMBERSHIP, not adjacency. This pinned the literal `'bad_buff_item',
+  -- 'buff_at_max',` and broke the moment a later file in the same lane inserted a
+  -- THIRD buff code between them (2026-09-13-buff-shape-code.sql's
+  -- `bad_buff_shape`) — a re-appliable file must assert the PROPERTY, which is
+  -- that each code is in the release array, not where its neighbours sit. Caught
+  -- by tests/buff-queue.mjs [14], which re-applies this file on a rebuilt chain.
+  declare v_rel text;
+  begin
+    v_rel := substring(v_apply from 'c_release_codes constant text\[\] := array\[([^\]]*)\]');
+    if v_rel is null then
+      raise exception 'buffs self-check (b): c_release_codes could not be read out of the installed '
+                      'body — the release-code assertion did NOT run'; end if;
+    if position($q$'bad_buff_item'$q$ in v_rel) = 0 or position($q$'buff_at_max'$q$ in v_rel) = 0 then
+      raise exception 'buffs self-check (b): a buff code is not a release code (%) — a refused eat '
+                      'would brick its idempotency key for 25h', v_rel;
+    end if;
+  end;
   -- THE THREE SERVER-SIDE DERIVATIONS, named individually because each is a
   -- different way the client could have been let in.
   if strpos(v_apply, 'from public.hr_item_buffs b where b.item_id = v_buff_item') = 0 then
@@ -764,9 +778,18 @@ begin
       select version into v_ver from public.player_state where user_id = v_uid and slot = v_slot;
       v_row := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
                                jsonb_build_object('buff_apply', v_r, 'journal', c_j));
-      if coalesce(v_row->>'ok', 'true') <> 'false' or v_row->>'error' <> 'bad_buff_item' then
+      -- EITHER CODE IS A PASS HERE, and the distinction is asserted where it is
+      -- owned. This file raised `bad_buff_item` for a forged key;
+      -- 2026-09-13-buff-shape-code.sql (Security) splits it into `bad_buff_shape`
+      -- so the rejections journal can call an invented field an INCIDENT without
+      -- flagging every player who ate a Trout. What THIS file asserts is the
+      -- property it installed — the forgery is REFUSED and nothing moves — so it
+      -- accepts either name and stays re-appliable against its own successor.
+      -- The exact code is pinned by that file's §2 and by tests/buff-queue.mjs [4].
+      if coalesce(v_row->>'ok', 'true') <> 'false'
+         or v_row->>'error' not in ('bad_buff_item', 'bad_buff_shape') then
         raise exception 'buffs self-check (f2): a buff_apply carrying a forged key (%) was NOT refused '
-                        'as bad_buff_item — got %', v_r, v_row;
+                        'as bad_buff_item/bad_buff_shape — got %', v_r, v_row;
       end if;
       if (select buffs from public.player_state where user_id = v_uid and slot = v_slot) <> '[]'::jsonb then
         raise exception 'buffs self-check (f2): a REFUSED forged apply moved the queue — the rejection '

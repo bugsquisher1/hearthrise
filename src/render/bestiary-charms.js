@@ -198,7 +198,7 @@ export function badgeHtml(cls) {
   const name = (row && CHARM_RANK_NAMES[row.id]) || ('Rank ' + rank);
   return '<span class="charm-badge charm-r' + rank + '" title="'
     + esc(name + ' — ' + killsOfClass(cls).toLocaleString() + ' kills in this class') + '">'
-    + gly('uiMedal', 12) + '<b>' + esc(name) + '</b></span>';
+    + gly('uiMedal', 13) + '<b>' + esc(name) + '</b></span>';
 }
 
 /**
@@ -209,10 +209,10 @@ export function nextThresholdHtml(cls) {
   const nx = nextOfClass(cls);
   if (!nx) {
     return rankOfClass(cls) >= MAX_CHARM_RANK
-      ? '<span class="charm-next is-max">' + gly('uiTarget', 11) + 'Ladder complete</span>'
+      ? '<span class="charm-next is-max">' + gly('uiTarget', 12) + 'Ladder complete</span>'
       : '';
   }
-  return '<span class="charm-next">' + gly('uiTarget', 11)
+  return '<span class="charm-next">' + gly('uiTarget', 12)
     + 'Next charm at ' + nx.at.toLocaleString() + ' kills · '
     + nx.remaining.toLocaleString() + ' to go</span>';
 }
@@ -232,7 +232,7 @@ export function elementLineHtml(id) {
   const parts = [];
   if (weak) parts.push('weak to ' + esc(weak));
   if (imm.length) parts.push('immune to ' + esc(imm.join(', ')));
-  return '<small class="charm-element">' + gly('uiSpark', 11) + parts.join(' · ') + '</small>';
+  return '<small class="charm-element">' + gly('uiSpark', 12) + parts.join(' · ') + '</small>';
 }
 
 export function setupBestiaryCharms() {

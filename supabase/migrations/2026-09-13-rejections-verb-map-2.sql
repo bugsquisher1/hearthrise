@@ -9,7 +9,7 @@
 -- ledger row is written. It is an OBSERVABILITY change on a security surface,
 -- which is exactly the combination that has to be reviewed rather than assumed.
 --
--- Ships with: tests/rejections-journal.mjs (arms P14–P18 + five mutations)
+-- Ships with: tests/rejections-journal.mjs (arms P14–P19 + six mutations)
 --             tools/vitals.mjs (--refusals gains the `whys` column)
 --
 -- ==========================================================================
@@ -111,8 +111,9 @@
 --       unattributable ('apply' or '(none)'). A real label is never overridden —
 --       `no_character` comes from a dozen verbs and overriding it would destroy
 --       the information the previous lane added.
---   V4  hr_record_rejection is RESTATED IN FULL (see below) with `bad_zone`
---       added to c_escalating and the two maps maintained through V1/V3.
+--   V4  hr_record_rejection is RESTATED IN FULL (see below) with `bad_zone` and
+--       `buff_not_paid` added to c_escalating (Security, 2026-09-13) and the two
+--       maps maintained through V1/V3.
 --
 -- ── WHY A `whys` MAP AND NOT A SECOND ERROR CODE ────────────────────────────
 -- The brief offered both: carry `why` into the aggregate key, or split
@@ -192,12 +193,22 @@
 -- why this guard replays the WHOLE chain instead of `upTo` its own file.
 --
 -- ── WHAT THIS FILE DOES NOT DO ──────────────────────────────────────────────
--- IT ADDS NO SEVERITY RULING OF ITS OWN beyond G1. `buff_not_paid` (a buff_apply
--- with no matching −1 debit) and `bad_buff_item`/why=forbidden_key (a delta that
--- names a buff's magnitude or expiry) are both shapes an honest client cannot
--- produce, and both are arguably c_escalating or c_incident. That is a Security
--- classification, not a backend one; it is raised in the lane report and left
--- for their ruling rather than smuggled in under an observability change.
+-- IT CARRIES EXACTLY TWO SEVERITY RULINGS, BOTH SECURITY'S, BOTH ESCALATING.
+-- The first draft of this file shipped only G1 (`bad_zone`) and deliberately
+-- DECLINED to classify the two buff shapes an honest client cannot produce,
+-- because a classification is a Security call and not a backend one. Their
+-- GO-WITH-CHANGES (2026-09-13) on this file made one of them a condition:
+--   `buff_not_paid` (a buff_apply with no matching −1 debit) joins c_escalating
+--   at the shared n=50. NOT c_incident, for the reason recorded beside the array
+--   in §4: it is a RELEASE code on an emitter that does not exist yet, so a
+--   first-version eat path that forgot the debit would make the FIRST honest eat
+--   an incident for every player at once. §5(f3b) executes 49-then-50.
+--   `bad_buff_item`/why=forbidden_key (a delta naming a buff's magnitude or
+--   expiry — the forgery) was ruled to need its OWN code, `bad_buff_shape`,
+--   classified c_incident and raised by the owner of hr_apply, not here. Filed
+--   as F3 in docs/DISCOVERIES.md; it is NOT in this file, because putting a
+--   forgery signature and a content gap under one code is the defect this file
+--   exists to fix, and re-using `bad_buff_item` for it would repeat it.
 -- IT ADDS NO CLIENT-READABLE SURFACE and no policy. hr_rejections stays RLS-on /
 -- zero-policy / zero-grant, and §5(b) asserts it.
 -- IT TOUCHES NO EDGE FUNCTION and needs no ?v= bump. supabase/functions/** does
@@ -298,8 +309,16 @@ revoke execute on function public.hr_rejection_why(jsonb)
 -- with no `journal.intent` is labelled 'apply' — the RPC's name, not the
 -- player's gesture. For a code that is reachable from exactly ONE gesture the
 -- server can supply the verb itself, and it is strictly better that it does:
--- the label is then unforgeable (a client cannot relabel its own refusals into
--- another verb's bucket) and it cannot go missing.
+-- the label cannot go missing, and WHEN THE CALLER SUPPLIES NO LABEL it is
+-- unforgeable (Security F4, 2026-09-13: scope this claim, do not overstate it).
+-- The map does NOT make the `verbs` column unforgeable in general — it is
+-- fallback-only by design, so a caller that DOES supply a label still chooses
+-- its own bucket, and hr_apply's label is request-derived
+-- (`p_delta #>> '{journal,intent}'`). What the map guarantees is narrower and
+-- is the part that matters here: the two UNATTRIBUTABLE labels can no longer
+-- swallow a code whose gesture the server already knows. Bounding the damage a
+-- chosen label can do is hr_rejection_verb's job (24 filtered characters, two
+-- segments, a capped map) and remains so.
 --
 -- THE RULE IS FALLBACK-ONLY, AND THAT IS THE LOAD-BEARING PART. An override
 -- would be a regression: `no_character` is answered by a dozen verbs and
@@ -422,8 +441,22 @@ declare
   -- an honest client cannot produce, because it picks zones from a
   -- server-projected list. NOT c_incident, for the intent_mismatch reason: a
   -- first-occurrence alarm on a typo is an alarm nobody reads.
+  -- 'buff_not_paid' (2026-09-13, Security GO-WITH-CHANGES on this file).
+  -- hr_apply refuses a `buff_apply` that is not PAID FOR in the same delta —
+  -- items[<food>] must be exactly -1 — so one occurrence is a client that asked
+  -- for a buff without spending the item, which an honest emitter never does.
+  -- ESCALATING AND NOT c_incident, which was considered and rejected for a
+  -- named reason: buff_not_paid is a RELEASE CODE (2026-09-13-buff-apply-
+  -- coupling.sql), i.e. the intent row is deleted so the client may retry, and
+  -- the eat path that emits it is unwritten. A first-version emitter bug that
+  -- forgot the debit would therefore make EVERY honest eat an incident on its
+  -- first call, for every player, and an alert that fires for normal play is an
+  -- alert nobody reads. FIFTY on one character in one day is the signature
+  -- instead: a deliberate attempt to get a buff for free, which the coupling
+  -- rule exists to stop.
   c_escalating constant text[] := array[
-    'rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone'];
+    'rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone',
+    'buff_not_paid'];
   c_escalate_at constant bigint := 50;
   -- The key caps on the two bounded maps. The verbs cap is carried forward from
   -- 2026-09-12-hr-rejections-journal.sql unchanged. The whys cap is smaller on
@@ -531,17 +564,23 @@ begin
   if v_missing is not null then
     raise exception 'GATE(a): the restated c_escalating DROPPED %', v_missing;
   end if;
-  -- ...and the one addition this file is FOR is present, in the right array.
-  if position('''bad_zone''' in
-              substring(v_src from 'c_escalating constant text\[\] := array\[([^\]]*)\]')) = 0 then
-    raise exception 'GATE(a): bad_zone is not in c_escalating after the restatement — the whole point '
-                    'of the G1 half of this file';
-  end if;
-  if position('''bad_zone''' in
-              substring(v_src from 'c_incident constant text\[\] := array\[([^\]]*)\]')) > 0 then
-    raise exception 'GATE(a): bad_zone reached c_incident — that classification was considered and '
-                    'REJECTED (a first-occurrence alarm on a typo is an alarm nobody reads)';
-  end if;
+  -- ...and the two additions this file is FOR are present, in the right array.
+  -- Both were ruled ESCALATING and both had c_incident considered and REJECTED,
+  -- so the absence from c_incident is asserted as loudly as the presence.
+  for v_bad in select unnest(array['bad_zone', 'buff_not_paid']) loop
+    if position('''' || v_bad || '''' in
+                substring(v_src from 'c_escalating constant text\[\] := array\[([^\]]*)\]')) = 0 then
+      raise exception 'GATE(a): % is not in c_escalating after the restatement — the G1 half of this '
+                      'file and Security''s GO-WITH-CHANGES condition', v_bad;
+    end if;
+    if position('''' || v_bad || '''' in
+                substring(v_src from 'c_incident constant text\[\] := array\[([^\]]*)\]')) > 0 then
+      raise exception 'GATE(a): % reached c_incident — that classification was considered and REJECTED '
+                      '(bad_zone: a first-occurrence alarm on a zone typo is an alarm nobody reads; '
+                      'buff_not_paid: it is a RELEASE code on an unwritten emitter, so a first-version '
+                      'bug that forgot the debit would make every honest eat an incident)', v_bad;
+    end if;
+  end loop;
   -- The chain is now ZERO deep, which is only true if the installed text is THIS
   -- file's. A positive control on the restatement itself: the body must call the
   -- new fallback resolver, or the restatement silently kept the old expression.
@@ -773,6 +812,44 @@ begin
                       'still invisible to "show me every incident this week"', v_row.n, v_row.severity;
     end if;
 
+    -- (f3b) buff_not_paid ESCALATES AT 50, AND NOT BEFORE (Security
+    --       GO-WITH-CHANGES, 2026-09-13). Mirrors (f3) exactly, on the counter
+    --       rather than on the array, because the array is the claim and the
+    --       counter is the behaviour. The 49 matters more here than it does for
+    --       bad_zone: this code is a RELEASE code on an emitter that does not
+    --       exist yet, so if the classification had landed in c_incident the
+    --       FIRST honest eat of a first-version emitter with a missing debit
+    --       would be an incident for every player at once.
+    perform set_config('hearthrise.rejection_noted', '', true);
+    for v_i in 1 .. 49 loop
+      perform set_config('hearthrise.rejection_noted', '', true);
+      perform public.hr_record_rejection(v_uid, 0, 'apply', 'buff_not_paid',
+        jsonb_build_object('item', 'roast_carrot', 'need', -1), 1);
+    end loop;
+    select * into v_row from public.hr_rejections where user_id = v_uid and code = 'buff_not_paid';
+    if v_row.n <> 49 then
+      raise exception 'GATE(f3b): 49 refusals counted %', v_row.n; end if;
+    if v_row.severity <> 'normal' then
+      raise exception 'GATE(f3b): buff_not_paid was promoted at n=49 — it is a RELEASE code on an '
+                      'unwritten emitter, so the incident profile would make a first-version client '
+                      'bug an alarm on every honest eat';
+    end if;
+    --       ...and it still carries the gesture, because 'apply' is hr_apply's
+    --       unattributable label and this code is raised nowhere else.
+    if not (v_row.verbs ? 'buff_apply') then
+      raise exception 'GATE(f3b): the buff_not_paid row names % instead of the gesture', v_row.verbs;
+    end if;
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_record_rejection(v_uid, 0, 'apply', 'buff_not_paid',
+      jsonb_build_object('item', 'roast_carrot', 'need', -1), 1);
+    select * into v_row from public.hr_rejections where user_id = v_uid and code = 'buff_not_paid';
+    if v_row.n <> 50 or v_row.severity <> 'incident' then
+      raise exception 'GATE(f3b): the 50th buff_not_paid left n=% severity=% — fifty attempts in one '
+                      'day to get a buff without spending the item is the signature the coupling rule '
+                      'exists to stop, and it is still invisible to "show me every incident this week"',
+                      v_row.n, v_row.severity;
+    end if;
+
     -- (f4) THE whys CAP. However many whys a body invents, the map is bounded and
     --      `n` stays exact — the same property that made the verbs map safe.
     perform set_config('hearthrise.rejection_noted', '', true);
@@ -879,7 +956,8 @@ begin
                'two buff_at_max fuses pinned at the source shape, and EXECUTED: three occurrences of '
                'one code stay ONE row whose whys map reads segment_budget=2 / (none)=1 and sums to n, '
                'a buff refusal labelled "apply" files under buff_apply while a real label wins, the '
-               '50th bad_zone flips to incident and the 49th does not, a 30-why storm stays under the '
+               '50th bad_zone flips to incident and the 49th does not, the 50th buff_not_paid does the '
+               'same while still naming buff_apply, a 30-why storm stays under the '
                'cap and still sums to n, an accepted call journals nothing and rate_limited is never '
                'journalled, a forbidden_field PUT lands one row naming hr_put_client_state while an '
                'honest residue PUT still saves, no other account was touched and no probe row '

@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-13",
- "replay_ms": 12842,
+ "replay_ms": 12198,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -131,7 +131,8 @@
     "2026-09-12-renown-high-projection.sql",
     "2026-09-13-buff-apply-coupling.sql",
     "2026-09-13-buff-segments.sql",
-    "2026-09-13-consumable-buffs.sql"
+    "2026-09-13-consumable-buffs.sql",
+    "2026-09-13-rejections-verb-map-2.sql"
    ],
    "live": {
     "md5": "1c39097d57f99f513ab06bf0f821a6b4",
@@ -752,21 +753,21 @@
     "2026-09-03-intent-mismatch-escalates.sql",
     "2026-09-07-companion-codes-severity.sql",
     "2026-09-12-hr-rejections-journal.sql",
+    "2026-09-13-rejections-verb-map-2.sql",
     "2026-09-13-town-presence-journal.sql"
    ],
    "live": {
-    "md5": "066970b2efb80dc5d6ed472386f528f6",
-    "norm_len": 4950,
+    "md5": "a26b9c8325536e7d32f08c44c50ea6a0",
+    "norm_len": 8555,
     "measured": "2026-09-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6318905d0f6789ee350d6d190822c126",
-    "norm_len": 5914,
+    "md5": "a26b9c8325536e7d32f08c44c50ea6a0",
+    "norm_len": 8555,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "2026-09-12-hr-rejections-journal.sql (applied 2026-09-11 21:33 UTC by the Coordinator via tools/apply-migration.mjs after Security GO-WITH-CHANGES R1-R4 landed): verbs map (hr_verb_bump), bounded detail (hr_detail_bound), verb token (hr_rejection_verb) and the once-per-transaction flag; the repo chain replays the same body (live == replay)."
+   "agree": true
   },
   {
    "sig": "hr_rejection_verb(p_intent text)",

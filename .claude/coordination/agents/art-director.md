@@ -1,6 +1,37 @@
 # Art Director — running log
 
 
+## 2026-09-13 - the combat seed empty state (branch worktree agent-af099abeec2f9cb0a, commit 94c6d401)
+
+The red pin said `combat em-icon -> crossed swords`. The element is not rendered by any renderer: it
+is the SEED markup in `index.html:462`, inside `#combat-area`, present since the initial import.
+`renderCombat` rewrites `#combat-area` wholesale and its own empty state already draws
+`_hrGly('navCombat',16)` - so for years the emoji was overwritten before anyone looked. The War
+Table is now the default combat view; `.fs-view` is `display:none` until the player opens a fight,
+`renderCombat` is not reached, and the seed survives in the DOM.
+
+Proven, not assumed:
+- The pin is red on `origin/main` as well (archive export served on :8232). This was NOT a
+  regression from anything on `next`; no commit in `origin/main..origin/next` touches
+  `renderCombat`, `#combat-area`, the markup or the test.
+- The seed is invisible, not merely small: walking up from `#combat-area`, every ancestor to
+  `.fs-view` measures 0px and `.fs-view` is `display:none`. So this is DOM hygiene with zero pixel
+  delta - said plainly rather than sold as a visual fix.
+- After the change the host contains
+  `<span class="hr-glyph" style="--gsz:16px;color:currentColor"><svg ...>` at page LOAD, before the
+  engine boots (`DOMContentLoaded -> paintAll`). Photographed with the Fight view forced visible and
+  `renderCombat` stubbed out so the SEED is what the camera sees: the gilt crossed-swords atlas
+  glyph above "Pick a monster from the list to begin." - identical to what `renderCombat` paints,
+  which is the point.
+
+The mechanism is the generalisation of `paintNav`, not a one-off: a seed host declares its atlas key
+(`data-hr-glyph`, optional `data-hr-glyph-size`) and `paintSeedGlyphs()` fills it. No map entry per
+seed, no new coupling, and a key the atlas does not know leaves the host empty instead of falling
+back to a character.
+
+Copy: the seed said "Pick a monster on the left to begin." There is no left-hand list any more, and
+`renderCombat`'s twin of the same empty state says "from the list". They now agree.
+
 ## 2026-09-07 · CLEANUP SLICE 5, steps 1-2 — the token ladder has one home; breakpoints have one spelling (branch worktree-agent-afb743e864c4e79d2, commits 5af5bb36 + 7e9303b2)
 
 Zero-visual-delta only. No numeric value, no colour, no layout rule changed. Everything below is

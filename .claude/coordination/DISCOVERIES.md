@@ -3100,3 +3100,30 @@ The fix belongs to a segments follow-up, not to a predicate convergence: a CHECK
 element to carry a non-null text `type`, a numeric `magnitude` and a castable `until` — written so it
 can be evaluated with `pg_get_expr` at a good and a bad element, the way
 `player_state_consec_falls_sane` is fired in 2026-09-07-retreat.sql §4(a-iii).
+
+
+## 2026-09-13 - Art Director: two findings from the emoji-as-icon red (lane b544)
+
+**P1 (fixed, 94c6d401) - the art pin was red on `origin/main` too; `next` did not introduce it.**
+Measured, not inferred: `node tests/run-smoke.mjs --only "emoji-as-icon" --url http://127.0.0.1:8232/index.html`
+against a server holding a `git archive origin/main` export fails with the SAME single offender.
+`index.html`'s `#combat-area` seed empty state has carried a literal crossed-swords emoji since
+e3029522; `renderCombat` overwrites that node on its first repaint, which is why it survived every
+emoji purge. With the War Table as the default combat view the Fight view (`.fs-view`) is
+`display:none` and that repaint never runs, so the emoji sits in the live DOM. It is never on screen
+(the whole ancestor chain measures 0px high) - but the pin is a DOM pin and is right to be.
+THE CLASS: any emoji baked into `index.html` because "a renderer overwrites it anyway" becomes a
+live-DOM emoji the moment that renderer stops being reached. `[data-hr-glyph]` +
+`paintSeedGlyphs()` in `src/features/icon-set.js` is now how a static seed asks for an icon, and an
+unknown key leaves the host EMPTY - the `_hrGly` fail-safe, so a missing icon cannot regress into a
+pictograph. The seed emoji still in index.html are the `.bn-btn` / `.tap` nav ones, which `paintNav`
+genuinely does overwrite at boot.
+
+**P2 (route: QA) - COMBAT-UI-22/23 flaked once under `--only "combat"`.** One run on this branch
+reported `222/225, failed 2` (COMBAT-UI-22 "only real combat drops reach Drops this fight",
+COMBAT-UI-23 "a REAL kill declares its drops end to end"). The same filter against a `git archive
+HEAD` export (this branch WITHOUT the fix) gave `224/225, failed 0`; a re-run on this branch gave
+`224/225, failed 0`; `--only "COMBAT-UI-2"` in isolation gave `6/6`. Both tests start a real fight
+and sample the loot ledger, so leftover fight state from an earlier test is the likely source.
+Reported rather than pocketed: by CLAUDE.md section 4 a flake is a P1 to be fixed at its source, and
+re-running until green is exactly what that rule forbids. Nothing in 94c6d401 touches the ledger.

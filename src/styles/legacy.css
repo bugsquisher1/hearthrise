@@ -799,58 +799,6 @@ img,svg{display:block;max-width:100%}
   gap:var(--gap);
 }
 #panel-inventory .card{padding:11px}
-.inv-eq-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-.inv-eq-title{font-family:var(--f-display);font-weight:700;font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.06em;color:var(--gold-2);text-transform:uppercase}
-.inv-eq-stats{display:flex;flex-wrap:wrap;gap:4px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2)}
-.inv-eq-stats span{padding:2px 7px;border-radius:99px;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);font-weight:700}
-.inv-eq-stats span b{color:var(--gold-2)}
-
-/* Paper-doll equipment layout (centered body, slots arc around it) */
-.inv-doll{
-  display:grid;
-  grid-template-columns:repeat(3, 1fr);
-  grid-template-areas:
-    "necklace  helmet     earrings"
-    "weapon    cape       ammo"
-    "gloves    body       belt"
-    "ring1     body       ring2"
-    "pants     boots      companion";
-  gap:4px;margin-bottom:10px;
-  padding:8px;border-radius:8px;
-  background:
-    radial-gradient(ellipse 60% 70% at 50% 50%,rgba(229,189,108,.07),transparent 80%),
-    linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.08));
-  border:1px solid var(--line-soft);
-}
-.inv-doll [data-slot]{transition:transform .12s,box-shadow .12s}
-.inv-doll [data-slot="helmet"]{grid-area:helmet}
-.inv-doll [data-slot="earrings"]{grid-area:earrings}
-.inv-doll [data-slot="necklace"]{grid-area:necklace}
-.inv-doll [data-slot="cape"]{grid-area:cape}
-.inv-doll [data-slot="weapon"]{grid-area:weapon}
-.inv-doll [data-slot="body"]{
-  grid-area:body;aspect-ratio:auto;min-height:auto;
-  background:linear-gradient(180deg,rgba(201,162,74,.14),rgba(201,162,74,.03));
-  border:1px solid rgba(201,162,74,.36);
-  font-size:calc(33px * var(--ui-scale, 1));
-}
-.inv-doll [data-slot="body"].empty{
-  background:radial-gradient(ellipse at center 35%,rgba(255,255,255,.08) 0,transparent 60%),
-             linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));
-  border-color:rgba(255,255,255,.10);
-  font-size:0;
-}
-.inv-doll [data-slot="body"].empty::after{
-  content:'🧍';font-size:calc(34px * var(--ui-scale, 1));opacity:.32;position:absolute;
-}
-.inv-doll [data-slot="ammo"]{grid-area:ammo}
-.inv-doll [data-slot="ring1"]{grid-area:ring1}
-.inv-doll [data-slot="ring2"]{grid-area:ring2}
-.inv-doll [data-slot="gloves"]{grid-area:gloves}
-.inv-doll [data-slot="belt"]{grid-area:belt}
-.inv-doll [data-slot="boots"]{grid-area:boots}
-.inv-doll [data-slot="pants"]{grid-area:pants}
-.inv-doll [data-slot="companion"]{grid-area:companion}
 .inv-doll-row{display:none}
 .inv-slot{
   aspect-ratio:1;border-radius:6px;
@@ -866,129 +814,11 @@ img,svg{display:block;max-width:100%}
 .inv-slot.empty{border-style:dashed;color:var(--ink-3);font-size:calc(19px * var(--ui-scale, 1));background:rgba(255,255,255,.02);opacity:.55}
 .inv-slot small{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;line-height:1}
 .inv-slot .tier{position:absolute;top:1px;right:2px;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2);background:rgba(0,0,0,.7);padding:0 3px;border-radius:99px;line-height:11px}
-.inv-slot .twoH{position:absolute;bottom:1px;left:2px;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--ink-3);background:rgba(0,0,0,.4);padding:0 2px;border-radius:2px;line-height:9px}
-
-/* Held tools row (separate from gear) */
-.inv-tool-rail{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px}
-.inv-tool-rail .inv-slot{aspect-ratio:1;font-size:calc(21.5px * var(--ui-scale, 1));min-height:38px;padding:2px}
-
-/* Loadout preset bar */
-.inv-loadouts{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
-.inv-loadout{
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:5px 4px;border-radius:6px;
-  background:rgba(255,255,255,.04);border:1px solid var(--line-soft);
-  cursor:pointer;transition:all .12s;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;
-  position:relative;min-height:46px;
-}
-.inv-loadout:hover{border-color:rgba(229,189,108,.5);background:rgba(229,189,108,.08)}
-.inv-loadout.active{border-color:var(--gold-2);background:linear-gradient(180deg,rgba(229,189,108,.16),rgba(229,189,108,.04));box-shadow:0 0 0 1px rgba(243,209,129,.3)}
-.inv-loadout .ld-icon{font-size:calc(21.5px * var(--ui-scale, 1));line-height:1}
-.inv-loadout .ld-name{font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;color:var(--ink);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.02em;text-transform:uppercase}
-.inv-loadout .ld-empty{display:none}
-.inv-loadout .ld-actions{position:absolute;top:3px;right:3px;display:flex;gap:2px;opacity:0;transition:opacity .12s}
-.inv-loadout:hover .ld-actions{opacity:1}
-.inv-loadout .ld-act{width:18px;height:18px;border-radius:99px;font-size:calc(14.5px * var(--ui-scale, 1));display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);border:1px solid var(--line-soft);color:var(--ink-2)}
-.inv-loadout .ld-act:hover{color:var(--gold-2);border-color:var(--gold-2)}
-
-/* Inventory bag side */
-.inv-toolbar{display:grid;grid-template-columns:1fr auto auto;gap:6px;margin-bottom:10px;align-items:center}
-.inv-search{
-  display:flex;align-items:center;gap:6px;padding:7px 11px;
-  background:rgba(0,0,0,.25);border:1px solid var(--line-soft);border-radius:99px;
-}
-.inv-search input{
-  background:transparent;border:0;outline:0;color:var(--ink);font-size:calc(16px * var(--ui-scale, 1));
-  width:100%;font-family:inherit;
-}
-.inv-search input::placeholder{color:var(--ink-3)}
-.inv-sort{
-  background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:99px;
-  padding:5px 11px;color:var(--ink);font-size:calc(14.5px * var(--ui-scale, 1));font-weight:600;cursor:pointer;
-}
-.inv-select-toggle{
-  padding:7px 13px;border-radius:99px;background:rgba(255,255,255,.05);
-  border:1px solid var(--line-soft);font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;color:var(--ink-2);
-  cursor:pointer;transition:all .12s;
-}
-.inv-select-toggle.active{background:var(--aqua-bg);color:var(--aqua-2);border-color:rgba(201,162,74,.4)}
-
-.inv-filters{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
-.inv-filter{
-  padding:5px 11px;border-radius:99px;background:rgba(255,255,255,.03);
-  border:1px solid var(--line-soft);color:var(--ink-2);font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;
-  cursor:pointer;transition:all .12s;text-transform:uppercase;letter-spacing:.04em;
-}
-.inv-filter:hover{color:var(--ink);border-color:var(--line-strong)}
-.inv-filter.active{background:rgba(201,162,74,.16);color:var(--aqua-2);border-color:rgba(201,162,74,.4)}
-
-.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
-.inv-item{
-  aspect-ratio:1;border-radius:var(--r-sm);
-  background:rgba(255,255,255,.04);border:1px solid var(--line-soft);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-size:calc(26px * var(--ui-scale, 1));padding:5px 4px;cursor:pointer;position:relative;min-height:60px;
-  transition:transform .08s,border-color .12s,background .12s;
-}
-.inv-item:hover{border-color:rgba(201,162,74,.4);transform:translateY(-1px)}
-.inv-item.selected{border-color:var(--gold-2);background:linear-gradient(180deg,rgba(229,189,108,.16),rgba(229,189,108,.04));box-shadow:0 0 0 1px rgba(243,209,129,.4)}
-.inv-item .qty{position:absolute;bottom:3px;right:5px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--green);font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.6)}
-.inv-item .nm{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-align:center;font-weight:600;line-height:1;margin-top:2px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.inv-item .selbox{position:absolute;top:3px;left:4px;width:14px;height:14px;border:2px solid var(--ink-3);border-radius:3px;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--gold-2)}
-.inv-mode-select .inv-item .selbox{display:flex}
-.inv-item.selected .selbox{border-color:var(--gold-2);background:var(--gold-2);color:#1a1100}
-.inv-item.selected .selbox::before{content:'✓';font-weight:800}
-
-/* Category color hint stripe along left edge */
-.inv-item[data-cat="mat"]{box-shadow:inset 3px 0 0 #b88c1e}
-.inv-item[data-cat="bar"]{box-shadow:inset 3px 0 0 #7dd3fc}
-.inv-item[data-cat="plank"]{box-shadow:inset 3px 0 0 #b88c1e}
-.inv-item[data-cat="tool"]{box-shadow:inset 3px 0 0 #a78bfa}
-.inv-item[data-cat="gear"]{box-shadow:inset 3px 0 0 #ef4444}
-.inv-item[data-cat="food"]{box-shadow:inset 3px 0 0 #3fb950}
-.inv-item[data-cat="fish"]{box-shadow:inset 3px 0 0 #38bdf8}
-.inv-item[data-cat="seed"]{box-shadow:inset 3px 0 0 #84cc16}
-.inv-item[data-cat="crop"]{box-shadow:inset 3px 0 0 #f59e0b}
-.inv-item[data-cat="ammo"]{box-shadow:inset 3px 0 0 #f87171}
-.inv-item[data-cat="upgrade"]{box-shadow:inset 3px 0 0 #f3d181}
-
-.inv-empty{text-align:center;padding:40px 20px;color:var(--ink-3);font-size:calc(16px * var(--ui-scale, 1))}
-.inv-empty .em-icon{font-size:calc(42px * var(--ui-scale, 1));opacity:.4;display:block;margin-bottom:8px}
-
-.inv-batch-bar{
-  position:sticky;bottom:0;margin-top:12px;
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:11px 13px;border-radius:var(--r);
-  background:linear-gradient(180deg,rgba(229,189,108,.18),rgba(229,189,108,.06));
-  border:1px solid rgba(229,189,108,.4);
-  font-size:calc(16px * var(--ui-scale, 1));font-weight:700;
-}
-.inv-batch-bar .bb-info b{color:var(--gold-2)}
-.inv-batch-bar .bb-actions{display:flex;gap:6px}
-.inv-batch-bar .bb-actions .btn{font-size:calc(14.5px * var(--ui-scale, 1));padding:5px 11px;min-height:30px}
 
 
 /* Equipment card no-scroll, dimensions fit content */
 #panel-inventory .card:first-child > .card-body{overflow:visible !important}
 #panel-inventory .card:first-child{height:auto}
-.inv-doll [data-slot]{transform:none}
-.inv-doll [data-slot]:hover{box-shadow:0 0 0 1px rgba(201,162,74,.35) inset;border-color:rgba(201,162,74,.6)}
-
-
-/* Character silhouette behind the equipment doll */
-.inv-doll{position:relative}
-.inv-doll::before{
-  content:'';position:absolute;inset:0;
-  background:url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20200%20400%22%3E%0A%20%20%3C%21--%20head%20with%20helmet%20hint%20--%3E%0A%20%20%3Cpath%20d%3D%22M%20100%2028%20C%2078%2028%2070%2048%2072%2062%20C%2072%2072%2080%2086%20100%2088%20C%20120%2086%20128%2072%20128%2062%20C%20130%2048%20122%2028%20100%2028%20Z%22%20fill%3D%22%23e2b84e%22/%3E%0A%20%20%3C%21--%20collar%20--%3E%0A%20%20%3Cpath%20d%3D%22M%2088%2086%20L%2090%20100%20L%20110%20100%20L%20112%2086%20Z%22%20fill%3D%22%23e2b84e%22/%3E%0A%20%20%3C%21--%20shoulders%20%2B%20cape%20suggestion%20--%3E%0A%20%20%3Cpath%20d%3D%22M%2090%20100%20Q%2060%20115%2050%20152%20L%2048%20175%20Q%2048%20184%2060%20184%20L%2070%20152%20L%2090%20132%20Z%22%20fill%3D%22%23e2b84e%22/%3E%0A%20%20%3Cpath%20d%3D%22M%20110%20100%20Q%20140%20115%20150%20152%20L%20152%20175%20Q%20152%20184%20140%20184%20L%20130%20152%20L%20110%20132%20Z%22%20fill%3D%22%23e2b84e%22/%3E%0A%20%20%3C%21--%20torso%20%28chestplate%20hint%29%20--%3E%0A%20%20%3Cpath%20d%3D%22M%2070%20132%20L%2070%20260%20Q%2070%20270%2080%20270%20L%20120%20270%20Q%20130%20270%20130%20260%20L%20130%20132%20Q%20110%20142%20100%20142%20Q%2090%20142%2070%20132%20Z%22%20fill%3D%22%23e2b84e%22/%3E%0A%20%20%3C%21--%20belt%20suggestion%20--%3E%0A%20%20%3Crect%20x%3D%2274%22%20y%3D%22252%22%20width%3D%2252%22%20height%3D%229%22%20fill%3D%22%237a5a16%22/%3E%0A%20%20%3C%21--%20legs%20--%3E%0A%20%20%3Cpath%20d%3D%22M%2072%20270%20L%2080%20358%20Q%2080%20368%2090%20368%20L%2096%20368%20Q%20100%20368%20100%20358%20L%20100%20280%20Z%22%20fill%3D%22%23e2b84e%22/%3E%0A%20%20%3Cpath%20d%3D%22M%20128%20270%20L%20120%20358%20Q%20120%20368%20110%20368%20L%20104%20368%20Q%20100%20368%20100%20358%20L%20100%20280%20Z%22%20fill%3D%22%23e2b84e%22/%3E%0A%20%20%3C%21--%20boots%20--%3E%0A%20%20%3Cellipse%20cx%3D%2288%22%20cy%3D%22376%22%20rx%3D%2214%22%20ry%3D%228%22%20fill%3D%22%237a5a16%22/%3E%0A%20%20%3Cellipse%20cx%3D%22112%22%20cy%3D%22376%22%20rx%3D%2214%22%20ry%3D%228%22%20fill%3D%22%237a5a16%22/%3E%0A%20%20%3C%21--%20arms%20%28slight%20rest%20pose%29%20--%3E%0A%20%20%3Cpath%20d%3D%22M%2050%20152%20Q%2036%20200%2038%20252%20L%2050%20268%20Q%2060%20270%2064%20256%20L%2070%20200%20Z%22%20fill%3D%22%23e2b84e%22/%3E%0A%20%20%3Cpath%20d%3D%22M%20150%20152%20Q%20164%20200%20162%20252%20L%20150%20268%20Q%20140%20270%20136%20256%20L%20130%20200%20Z%22%20fill%3D%22%23e2b84e%22/%3E%0A%3C/svg%3E") center/auto 92% no-repeat;
-  opacity:.13;pointer-events:none;mix-blend-mode:screen;z-index:0;
-  filter:drop-shadow(0 2px 6px rgba(0,0,0,.25));
-}
-.inv-doll [data-slot]{position:relative;z-index:1;background:linear-gradient(180deg,rgba(20,28,38,.85),rgba(13,20,28,.92));backdrop-filter:blur(2px)}
-.inv-doll [data-slot].empty{background:linear-gradient(180deg,rgba(20,28,38,.55),rgba(13,20,28,.65));border-color:rgba(255,255,255,.08)}
-.inv-doll [data-slot] .slot-svg{width:60%;height:60%;color:var(--ink-3);opacity:.55;display:flex;align-items:center;justify-content:center}
-.inv-doll [data-slot] .slot-svg svg{width:100%;height:100%}
-.inv-doll [data-slot]:hover .slot-svg{color:var(--gold-2);opacity:.85}
-.inv-doll [data-slot]:not(.empty) .slot-svg{display:none}
 /* When equipped, the item icon takes the slot — kill the SVG hint */
 
 /* Detail flyout */
@@ -1094,7 +924,6 @@ img,svg{display:block;max-width:100%}
 @media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
   #panel-inventory.active{display:block !important}
   #panel-inventory .card{margin-bottom:8px;max-height:none}
-  .inv-doll{grid-template-columns:1fr 1fr 1fr}
 }
 
 /* ===== block 2: style-2 ===== */
@@ -1102,7 +931,6 @@ img,svg{display:block;max-width:100%}
 .item-svg svg{width:100%;height:100%}
 .item-svg .light{color:#f3d181}
 .item-svg .accent{color:#a78bfa}
-.inv-item .item-svg{margin:0 auto}
 .inv-slot .item-svg{position:absolute;inset:6px}
 .monster-row .item-svg{width:32px;height:32px;flex-shrink:0;color:#ece1cc}
 
@@ -1694,13 +1522,6 @@ body[data-theme="lane1"] .item-slot{color:#4d2613}
 body[data-theme="lane1"] .item-slot .qty,
 body[data-theme="lane1"] .inv-item .qty,
 body[data-theme="lane1"] .inv-slot .qty{color:#5b2618 !important;text-shadow:1px 1px 0 #fff;font-weight:800}
-body[data-theme="lane1"] .inv-doll [data-slot].empty{color:rgba(91,38,24,.30) !important}
-body[data-theme="lane1"] .inv-loadout{color:#4d2613}
-body[data-theme="lane1"] .inv-filter,
-body[data-theme="lane1"] .inv-filter:not(.active),
-body[data-theme="lane1"] .inv-select-toggle{color:#4d2613 !important;background:#f8d878;border-color:#5b2618}
-body[data-theme="lane1"] .inv-filter.active,
-body[data-theme="lane1"] .inv-select-toggle.active{color:#fff !important;background:linear-gradient(180deg,#c44a2c,#8b3a1c) !important;border-color:#5b2618 !important}
 body[data-theme="lane1"] .obj{color:#7a4623 !important}
 body[data-theme="lane1"] .obj b{color:#4d2613 !important}
 body[data-theme="lane1"] .obj.done{color:#5e9f4a !important;text-decoration:line-through;text-decoration-color:rgba(94,159,74,.5)}
@@ -1759,8 +1580,6 @@ body[data-theme="lane1"] .bounty-shop-row{background:linear-gradient(180deg,#fdd
 body[data-theme="lane1"] .bounty-shop-row .info b{color:#4d2613}
 body[data-theme="lane1"] .bounty-shop-row .info span{color:#7a4623}
 body[data-theme="lane1"] .bounty-shop-row .price{color:#5b2618 !important;font-weight:800}
-body[data-theme="lane1"] .inv-doll [data-slot]{color:#a07045}
-body[data-theme="lane1"] .inv-doll [data-slot]:hover{color:#4d2613}
 body[data-theme="lane1"] .calc{background:linear-gradient(180deg,#fdde98,#f8d878);border:2px solid #5b2618;color:#4d2613}
 body[data-theme="lane1"] .calc div{color:#4d2613}
 body[data-theme="lane1"] .calc b{color:#5b2618 !important;font-weight:800}
@@ -2081,10 +1900,6 @@ body[data-theme="dark"] .bh-stats .kpi span{color:#e8c896 !important}
 body[data-theme="dark"] .inv-item .qty,
 body[data-theme="dark"] .inv-slot .qty,
 body[data-theme="dark"] .item-slot .qty{color:#f9c54e !important;text-shadow:1px 1px 0 #2a1306;font-weight:800}
-body[data-theme="dark"] .inv-filter,
-body[data-theme="dark"] .inv-select-toggle{color:#fdde98 !important;background:#3a1812;border-color:#2a1306}
-body[data-theme="dark"] .inv-filter.active,
-body[data-theme="dark"] .inv-select-toggle.active{color:#2a1306 !important;background:linear-gradient(180deg,#f9c54e,#c8881e) !important;border-color:#2a1306 !important}
 
 /* ─── Calc / stats / tooltips ─── */
 body[data-theme="dark"] .calc{background:linear-gradient(180deg,#4d2418,#3a1812);border:2px solid #2a1306;color:#fdde98}
@@ -2418,9 +2233,6 @@ body[data-theme="dark"] .lane1-toggle{
   border-radius:4px !important;
 }
 .farm-tile small{font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.1}
-
-/* ─── Inventory squares: smaller, cleaner ─── */
-.inv-grid{grid-template-columns:repeat(auto-fill,minmax(44px,1fr)) !important;gap:4px !important}
 .inv-slot,.inv-item{min-height:44px;padding:3px}
 .inv-slot .qty,.inv-item .qty{font-size:calc(14.5px * var(--ui-scale, 1))}
 
@@ -2628,10 +2440,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 
 /* ─────── INVENTORY (v3 simplified): doll inline, no panel restructure ─────── */
 .inv-summary{padding:6px 10px !important;margin-bottom:6px !important}
-.inv-grid{grid-template-columns:repeat(auto-fill,minmax(38px,1fr)) !important;gap:3px !important}
 .inv-slot,.inv-item{min-height:38px}
-/* Tibia doll inline replacement for the old paper-doll */
-.inv-doll{display:none !important}
 .loadout-doll{display:none !important}
 .inv-tibia-host{
   display:flex;justify-content:center;
@@ -2647,7 +2456,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 /* ===== block 21: inv-rebuild-v4-css ===== */
 /* Hide the prior Tibia host on inventory and the legacy paper-doll */
 #panel-inventory .inv-tibia-host{display:none !important}
-#panel-inventory .inv-doll{display:none !important}
 #panel-inventory .loadout-doll{display:none !important}
 
 /* Reset panel — turn into vertical flex layout */

@@ -10029,8 +10029,6 @@ function bindEvents(){
   document.querySelectorAll('.nav-btn[data-tab],.bn-btn[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
   /* tier chips */
   document.querySelectorAll('#tier-chips .chip').forEach(c=>c.addEventListener('click',()=>selectTier(+c.dataset.tier)));
-  /* inv tabs */
-  document.querySelectorAll('[data-inv]').forEach(c=>c.addEventListener('click',()=>{invTab=c.dataset.inv;document.querySelectorAll('[data-inv]').forEach(x=>x.classList.toggle('active',x===c));renderInventory();}));
   /* house tabs */
   document.querySelectorAll('[data-house]').forEach(c=>c.addEventListener('click',()=>setHouseTab(c.dataset.house)));
   /* lb tabs */
@@ -10386,9 +10384,6 @@ window.loadoutGlyphHTML = function(l, px){
   var key = (l && l.glyph) || (l && LOADOUT_GLYPH[l.name]) || 'uiStar';
   return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 15, 'currentColor') || '') : '';
 };
-window._invFilter = 'all';
-window._invSort = 'recent';
-window._invSearch = '';
 window._invSelectMode = false;
 window._invSelected = new Set();
 window._activeLoadout = -1;
@@ -10412,25 +10407,6 @@ function _itemTier(id){
   const tiers=['bronze','iron','steel','mithril','adamant','rune','dragon'];
   for(let i=0;i<tiers.length;i++){ if(String(id).startsWith(tiers[i]+'_')) return i+1; }
   return 0;
-}
-function _shortName(name){
-  return String(name||'').split(' ')[0];
-}
-function _eqStatsTotals(){
-  const s = {atk:0, str:0, def:0, hp:0};
-  if(typeof getEquipmentStats === 'function'){
-    const r = getEquipmentStats();
-    s.atk = r.atkB || r.attackBonus || 0;
-    s.str = r.strB || r.strengthBonus || 0;
-    s.def = r.defB || r.defenseBonus || 0;
-    s.hp  = r.hpB  || r.hitpointsBonus || 0;
-  } else {
-    Object.values(equipmentMapG()).forEach(id=>{
-      const it = ITEMS[id]; if(!it) return;
-      s.atk += it.atkB||0; s.str += it.strB||0; s.def += it.defB||0; s.hp += it.hpB||0;
-    });
-  }
-  return s;
 }
 
 /* ───── Loadout actions ───── */
@@ -10530,37 +10506,6 @@ function clearLoadout(idx){
     cur.equipment = {}; cur.tools = {}; cur.foodSlot = null; cur.set = false;
     saveLocal(); renderInvNew();
   });
-}
-
-/* ───── Filters / search / sort ───── */
-const _CATEGORIES = [
-  {id:'all',     label:'All',      test:()=>true},
-  {id:'weapons', label:'Weapons',  test:it=>it && it.type==='weapon'},
-  {id:'armor',   label:'Armor',    test:it=>it && (it.type==='armor' || it.type==='jewelry' || it.type==='ammo' || it.type==='companion')},
-  {id:'food',    label:'Food',     test:it=>it && it.heals},
-  {id:'seeds',   label:'Crops',    test:it=>it && (it.seed || it.crop)},
-  {id:'bones',   label:'Bones',    test:it=>it && (it.buryXp || /bones?$/.test(it.n||''))},
-  {id:'tools',   label:'Tools',    test:it=>it && it.type==='tool'},   // b479: axes/picks/rods live in the bag (core/tools.js scans it) but only matched "All"
-  {id:'mat',     label:'Materials',test:it=>it && !it.type && !it.heals && !it.seed && !it.buryXp},
-];
-function _filteredItems(srcDict){
-  const cat = _CATEGORIES.find(c=>c.id === window._invFilter) || _CATEGORIES[0];
-  const search = (window._invSearch||'').toLowerCase().trim();
-  let arr = Object.entries(srcDict).filter(([id,q])=>{
-    if(q <= 0) return false;
-    const it = ITEMS[id]; if(!it) return false;
-    if(!cat.test(it)) return false;
-    if(search && !it.n.toLowerCase().includes(search)) return false;
-    return true;
-  });
-  /* sort */
-  switch(window._invSort){
-    case 'name': arr.sort((a,b)=>(ITEMS[a[0]]?.n||'').localeCompare(ITEMS[b[0]]?.n||'')); break;
-    case 'value':arr.sort((a,b)=>(ITEMS[b[0]]?.v||0)-(ITEMS[a[0]]?.v||0)); break;
-    case 'qty':  arr.sort((a,b)=>b[1]-a[1]); break;
-    /* 'recent' = insertion order, no sort */
-  }
-  return arr;
 }
 
 /* ════════════════════════════════════════════════════════
@@ -11439,160 +11384,25 @@ window.repurchase = repurchase;
    above calls renderBuyback() bare (resolves to the global) and shop.js's inline
    onclick="openBuyback()" is unchanged. Pure refactor — identical DOM. */
 
-/* ───── Render: equipment paper-doll + loadouts + bag w/ filters ───── */
-function renderInvNew(){
-  const eqEl = document.getElementById('equip-panel');
-  const bagEl = document.getElementById('inv-panel');
-  if(!eqEl || !bagEl) return;
-  if(typeof migrateEquipmentSlots === 'function') migrateEquipmentSlots();
+/* ───── Inventory: ONE renderer ─────
+   What stood here was a SECOND bag + paper-doll renderer (~150 lines) that
+   painted `#equip-panel` and `#inv-panel`. Both of those mounts were children of
+   `#panel-inventory`, and `renderInvFancy()` replaces that panel's innerHTML
+   WHOLESALE — so this body painted once on the first inventory open, was thrown
+   away a macrotask later, and from then on early-returned forever on its own
+   `if(!eqEl || !bagEl) return`. Its filter tabs could not have worked even while
+   visible: it read `window._invFilter` as a category STRING while the live
+   renderer stores `{category, search}` (found by the sell-lock lane, 2026-09-13).
+   Deleted with its private helpers (_CATEGORIES, _filteredItems, _eqStatsTotals,
+   _shortName, invSetFilter/Search/Sort, invToggleSelectMode) and its HTML mount.
 
-  const stats = _eqStatsTotals();
-  /* (`slotIcon` was here and returned `EQUIP_SLOT_META[slot].icon` — a raw
-     emoji — with '▫️' as its fallback. It had ZERO call sites; the empty-slot
-     mark comes from `window._slotSVG` / slotGlyphSVG. Deleted rather than
-     converted: a dead helper whose only job was to hand out emoji is a loaded
-     gun for the next renderer that needs "the slot icon".) */
-  const slotLabel = slot => (typeof EQUIP_SLOT_META !== 'undefined' && EQUIP_SLOT_META[slot]) ? EQUIP_SLOT_META[slot].label : slot;
-  const slotBtn = (slot)=>{
-    const id = equippedItemG(slot);
-    const it = id ? ITEMS[id] : null;
-    const tier = it ? _itemTier(id) : 0;
-    const svg = window._slotSVG && window._slotSVG[slot];
-    if(!it){
-      return `<button class="inv-slot empty" data-slot="${slot}" title="${slotLabel(slot)}"><span class="slot-svg">${svg||''}</span></button>`;
-    }
-    return `<button class="inv-slot" data-slot="${slot}" onclick="unequipSlotInv('${slot}')" title="${it.n} (tap to unequip)">${itemArt(id,26)}${tier?`<span class="tier">T${tier}</span>`:''}${(it&&it.hands===2)?'<span class="twoH">2H</span>':''}</button>`;
-  };
-
-  /* Loadout pill bar */
-  const loadoutsHtml = G.loadouts.map((l,i)=>{
-    const isActive = window._activeLoadout === i;
-    const summary = l.set
-      ? `${Object.values(l.equipment||{}).filter(Boolean).length}+${Object.values(l.tools||{}).filter(Boolean).length} items`
-      : 'empty';
-    return `<button class="inv-loadout ${isActive?'active':''}" oncontextmenu="event.preventDefault();saveLoadout(${i});return false" onclick="${l.set?`applyLoadout(${i})`:`saveLoadout(${i})`}" title="${l.set?'Tap to apply · long-press / right-click to overwrite':'Tap to save current kit'}">
-      <span class="ld-icon">${window.loadoutGlyphHTML(l,15)}</span>
-      <span class="ld-name">${l.name}</span>
-      <span class="ld-empty">${summary}</span>
-      <span class="ld-actions">
-        <span class="ld-act" onclick="event.stopPropagation();renameLoadout(${i})" title="Rename">${_hrGly('uiEdit',13)}</span>
-        ${l.set?`<span class="ld-act" onclick="event.stopPropagation();clearLoadout(${i})" title="Clear">✕</span>`:''}
-      </span>
-    </button>`;
-  }).join('');
-
-  /* Paper-doll: centered body avatar, slots arc around it via grid-template-areas */
-  const SLOT_ORDER = ['helmet','earrings','necklace','cape','weapon','body','ammo','ring1','ring2','gloves','belt','boots','pants','companion'];
-  const doll = `<div class="inv-doll">${SLOT_ORDER.map(s=>slotBtn(s)).join('')}</div>`;
-
-  /* Held tools rail */
-  let toolsRail = '';
-  if(typeof TOOL_SLOTS !== 'undefined' && Array.isArray(TOOL_SLOTS) && G.tools){
-    toolsRail = `<div class="inv-eq-title" style="margin:6px 0 4px">Tools</div>
-      <div class="inv-tool-rail">${TOOL_SLOTS.map(t=>{
-        const id = G.tools[t.slot];
-        const it = id ? ITEMS[id] : null;
-        const tier = it ? (it.tier || _itemTier(id)) : 0;
-        return `<button class="inv-slot ${it?'':'empty'}" title="${it?it.n:t.label}">${it?itemArt(id,26):slotIconHTML(t.slot)}<small>${it?_shortName(it.n):t.label}</small>${tier?`<span class="tier">T${tier}</span>`:''}</button>`;
-      }).join('')}</div>`;
-  }
-
-  eqEl.innerHTML = `
-    <div class="inv-eq-head">
-      <div class="inv-eq-title">Loadout</div>
-      <div class="inv-eq-stats"><span><b>+${stats.atk}</b> atk</span><span><b>+${stats.str}</b> str</span><span><b>+${stats.def}</b> def</span></div>
-    </div>
-    <div class="inv-loadouts">${loadoutsHtml}</div>
-    ${doll}
-    ${toolsRail}
-    `;
-
-  /* Bag side */
-  const src = (typeof invTab !== 'undefined' && invTab === 'bank') ? G.bank : G.inventory;
-  const items = _filteredItems(src);
-  const totalCount = items.reduce((s,[id,q])=>s+q, 0);
-  const totalValue = items.reduce((s,[id,q])=>s+vendorPrice(id)*q, 0);
-
-  const filtersHtml = _CATEGORIES.map(c=>{
-    const isAct = window._invFilter === c.id;
-    return `<button class="inv-filter ${isAct?'active':''}" onclick="invSetFilter('${c.id}')">${c.label}</button>`;
-  }).join('');
-
-  // b140 (Batch E): toolbar gets a Sell-junk button next to Select. Hidden
-  // when there's no junk (HearthriseInvCtx.selectJunk returns empty).
-  // Threshold lives on G so the player can tweak it later.
-  const junkThreshold = (G.junkThreshold|0) || 50;
-  const junkPreview = (window.HearthriseInvCtx && window.HearthriseInvCtx.selectJunk)
-    ? window.HearthriseInvCtx.selectJunk(junkThreshold)
-    : [];
-  const junkBtnHtml = junkPreview.length
-    ? `<button class="inv-sell-junk" onclick="window.HearthriseInvCtx.sellJunk(${junkThreshold})" title="Sell every stack worth less than ${junkThreshold}g per item — never sells food, gear, or recipe scrolls">Sell junk (${junkPreview.length})</button>`
-    : '';
-  const toolbarHtml = `
-    <div class="inv-toolbar">
-      <div class="inv-search">
-        <span class="inv-search-ic">${_hrGly('uiSearch',15)}</span>
-        <input type="text" placeholder="Search…" value="${(window._invSearch||'').replace(/"/g,'&quot;')}" oninput="invSetSearch(this.value)">
-      </div>
-      <select class="inv-sort" onchange="invSetSort(this.value)">
-        <option value="recent" ${window._invSort==='recent'?'selected':''}>Recent</option>
-        <option value="name" ${window._invSort==='name'?'selected':''}>Name</option>
-        <option value="value" ${window._invSort==='value'?'selected':''}>Value</option>
-        <option value="qty" ${window._invSort==='qty'?'selected':''}>Quantity</option>
-      </select>
-      <button class="inv-select-toggle ${window._invSelectMode?'active':''}" onclick="invToggleSelectMode()">${window._invSelectMode?'✓ Selecting':'Select'}</button>
-      ${junkBtnHtml}
-    </div>
-    <div class="inv-filters">${filtersHtml}</div>`;
-
-  let gridHtml;
-  if(!items.length){
-    gridHtml = `<div class="inv-empty"><span class="em-icon">${(window._invSearch||window._invFilter!=='all')?_hrGly('uiSearch',16):_hrGly('uiChest',16)}</span>${(window._invSearch||window._invFilter!=='all')?'Nothing matches your filters.':'Your bag is empty.'}</div>`;
-  } else {
-    gridHtml = `<div class="inv-grid ${window._invSelectMode?'inv-mode-select':''}">${items.map(([id,qty])=>{
-      const it = ITEMS[id]; if(!it) return '';
-      const cat = _itemCategory(it);
-      const sel = window._invSelected.has(id);
-      const tier = _itemTier(id);
-      const qShow = qty>=10000?(qty/1000).toFixed(1)+'k':qty>=1000?(qty/1000).toFixed(1)+'k':qty;
-      return `<button class="inv-item ${sel?'selected':''}" data-cat="${cat}" onclick="invItemTap('${id}')" title="${it.n} ×${qty} · ${vendorPrice(id)} gp each">
-        <span class="selbox"></span>
-        <span class="inv-item-art">${itemArt(id,26)}</span>
-        <span class="qty">${qShow}</span>
-        <span class="nm">${_shortName(it.n)}</span>
-        ${tier?`<span class="tier">T${tier}</span>`:''}
-      </button>`;
-    }).join('')}</div>`;
-  }
-
-  let batchBar = '';
-  if(window._invSelectMode){
-    let selValue = 0, selCount = 0;
-    for(const id of window._invSelected){
-      const q = G.inventory[id]||0;
-      selValue += vendorPrice(id)*q;
-      selCount += q;
-    }
-    batchBar = `<div class="inv-batch-bar">
-      <div class="bb-info"><b>${window._invSelected.size}</b> stacks · <b>${selCount.toLocaleString()}</b> items · worth <b>${selValue.toLocaleString()} gp</b></div>
-      <div class="bb-actions">
-        <button class="btn" onclick="window._invSelected.clear();renderInvNew()">Clear</button>
-        <button class="btn btn-danger" onclick="invSellSelected()">Sell Selected</button>
-      </div>
-    </div>`;
-  }
-
-  const summaryHtml = items.length ? `<div class="muted tiny" style="margin-top:8px;display:flex;justify-content:space-between"><span>${items.length} stack${items.length!==1?'s':''} · ${totalCount.toLocaleString()} items</span><span>worth ${totalValue.toLocaleString()} gp</span></div>` : '';
-
-  /* Tester report (paione): the bag re-renders every combat/skill tick, and
-     replacing innerHTML resets the scroll container to the top — so browsing
-     your bag mid-fight kept snapping you back up. Preserve the nearest
-     scrollable ancestor's position across the swap. */
-  const _scroller = _nearestScrollable(bagEl);
-  const _savedTop = _scroller ? _scroller.scrollTop : 0;
-  bagEl.innerHTML = toolbarHtml + gridHtml + summaryHtml + batchBar;
-  if(_scroller) _scroller.scrollTop = _savedTop;
-}
+   The NAME stays and now means exactly one thing — paint the live inventory —
+   because ~20 call sites and four load-time wrapper chains bind to it. The 0ms
+   hop is the timing the override it replaces already had; it is not a coalescer.
+   Helpers kept on purpose: `invItemTap` + `invSellSelected` (the live tiles and
+   the registered gold site), `unequipSlotInv` (inv-context-menu.js), and
+   `_nearestScrollable` (the b248 scroll-preservation regression test). */
+function renderInvNew(){ setTimeout(renderInvFancy, 0); }
 
 /* Nearest scrollable ancestor (incl. the element itself) — used to keep a
    panel's scroll position stable when its innerHTML is rebuilt in place. */
@@ -11602,15 +11412,6 @@ function _nearestScrollable(el){
     if((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight + 2) return n;
   }
   return null;
-}
-
-function invSetFilter(id){ window._invFilter=id; renderInvNew(); }
-function invSetSearch(v){ window._invSearch=v||''; renderInvNew(); }
-function invSetSort(v){ window._invSort=v||'recent'; renderInvNew(); }
-function invToggleSelectMode(){
-  window._invSelectMode = !window._invSelectMode;
-  if(!window._invSelectMode) window._invSelected.clear();
-  renderInvNew();
 }
 function invItemTap(id){
   if(window._invSelectMode){
@@ -11634,17 +11435,6 @@ function unequipSlotInv(slot){
   setTimeout(renderInvNew, 0);
 }
 
-/* ───── Wire it in: replace renderInventory + onItemTap with the new one ───── */
-const _origRenderInventory = window.renderInventory;
-window.renderInventory = function(){
-  /* Ensure original DOM containers exist; if so we render into them */
-  if(document.getElementById('equip-panel') && document.getElementById('inv-panel')){
-    renderInvNew();
-  } else if(typeof _origRenderInventory === 'function'){
-    _origRenderInventory();
-  }
-};
-
 const _origOnItemTap = window.onItemTap;
 window.onItemTap = function(id){
   /* If item detail flyout is preferred, use it. Falls back to original. */
@@ -11656,17 +11446,6 @@ window.onItemTap = function(id){
 window.HearthriseShowTab.wrapShowTab('inv-new', function(tab){
   // b407 flicker fix: paint synchronously in the activating task (was 0ms defer).
   if(tab === 'inventory') renderInvNew();
-});
-
-/* Bag/Bank chip clicks: re-render via the new path */
-document.addEventListener('click', e=>{
-  const t = e.target.closest && e.target.closest('[data-inv]');
-  if(t){
-    const v = t.dataset.inv;
-    if(typeof window.invTab !== 'undefined') window.invTab = v;
-    document.querySelectorAll('[data-inv]').forEach(x=>x.classList.toggle('active', x.dataset.inv===v));
-    setTimeout(renderInvNew, 0);
-  }
 });
 
 /* Initial paint refresh */
@@ -16580,20 +16359,6 @@ function buildLoadoutDoll(){
   return div;
 }
 
-/* ═══ Inventory: hide paper-doll (now lives on Character) ═══ */
-(function(){
-  var origInv = window.renderInvNew;
-  if(typeof origInv !== 'function') return;
-  window.renderInvNew = function(){
-    var r = origInv.apply(this, arguments);
-    setTimeout(function(){
-      var doll = document.querySelector('#panel-inventory .inv-doll, #panel-inventory .inv-loadout');
-      if(doll && doll.style.display !== 'none'){ doll.style.display = 'none'; }
-    }, 0);
-    return r;
-  };
-})();
-
 /* ═══ Combat panel: the strip that used to live under the arena ═══
    b227 (Tyler): "the possible loot / DPS statistics should be modals that you
    click on near the enemy avatar, not a scrollable thing across the bottom."
@@ -17306,15 +17071,6 @@ window._invLoadoutManage = function(){
   else if(typeof notify === 'function') notify('Loadouts are still loading — try again in a moment','info');
 };
 
-/* ─── Override renderInvNew to use the new layout ─── */
-(function(){
-  var origRender = window.renderInvNew;
-  window.renderInvNew = function(){
-    /* Try to call original (in case other systems still depend on it) but ignore result */
-    if(typeof origRender === 'function'){ try{ origRender.apply(this, arguments); }catch(e){} }
-    setTimeout(renderInvFancy, 0);
-  };
-})();
 window._renderInvFancy = renderInvFancy;
 /* b348: `window.renderInvFancy` (no underscore) is called from seven places —
    item-ux.js x2, dungeons.js x3, companions.js x3, admin.js, dungeon-scavenger

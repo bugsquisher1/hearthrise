@@ -12581,11 +12581,18 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('clicks: inventory sub-tabs (Bag / Bank)', () => {
-    window.showTab('inventory');
-    const chips = document.querySelectorAll('#panel-inventory .chips [data-inv]');
-    if (chips.length === 0) { skip('inventory sub-tab chips absent in this build layout'); return; }
-    for (const c of chips) clickOk(c, `inv chip ${c.dataset.inv}`); // SA-013: counted per chip
+  () => tryRun('clicks: inventory category strip', () => {
+    /* Was 'inventory sub-tabs (Bag / Bank)': it clicked the STATIC chips authored
+       in index.html, which the live renderer (renderInvFancy) overwrites on its
+       first paint — the test only ever saw them because it ran in the same task
+       that scheduled that paint. Those chips are gone with the dead second bag
+       renderer; the live equivalent of "switch what the bag shows" is the
+       category strip, so the click target is now a control that exists. It is
+       painted in a 0ms hop, so paint it in this task before reading it. */
+    window.showTab('inventory'); if (typeof window._renderInvFancy === 'function') window._renderInvFancy();
+    const cats = document.querySelectorAll('#panel-inventory .invc-cat-btn');
+    if (cats.length === 0) { skip('inventory category strip absent in this build layout'); return; }
+    try { for (const c of Array.from(cats).slice(0, 4)) clickOk(c, 'inv category btn'); } finally { if (typeof window._invSetCat === 'function') window._invSetCat('all'); }
   }),
 
   () => tryRun('clicks: house room rows + tab switches', () => {

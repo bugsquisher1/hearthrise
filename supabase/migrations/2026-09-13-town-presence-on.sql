@@ -65,6 +65,8 @@ declare
   v_peer jsonb;
   v_keys text;
   v_n    int;
+  v_quiet_live int;
+  v_crier_n    int;
   v_uid   constant uuid := '000000ae-0000-0000-0000-0000000000a1';
   v_quiet constant uuid := '000000ae-0000-0000-0000-0000000000a2';
   c_peer  constant text := 'activity_id, activity_kind, activity_label, away, level_band, name, '
@@ -90,14 +92,29 @@ begin
   end if;
   -- NO QUIET CHARACTER IS IN IT — against the REAL player base, not a fixture:
   -- this is the moment the opt-out goes from theory to live.
-  if (select count(*) from public.player_state ps
-       where ps.presence_quiet and ps.last_seen_at > now() - interval '15 minutes'
-         and exists (select 1 from public.profiles pr where pr.id = ps.user_id
-                      and (select payload::text from public.town_snapshot
-                            where zone_id = public.hr_town_zone()) like '%' || pr.display_name || '%')
-     ) <> 0 then
-    raise exception 'GATE(b): a QUIET character appears in the first live snapshot';
+  --
+  -- ⚠ position(), NOT `like '%' || display_name || '%'` (Security, 2026-09-13).
+  --   display_name is player-chosen, 2..24 characters, and LIKE would read `%`
+  --   and `_` in it as WILDCARDS: a player named `_` matches every payload (a
+  --   false positive that blocks the apply) and one named `%` matches anything at
+  --   all. position() is a plain substring search with no pattern language in it,
+  --   so the predicate means what it reads. No escape clause to get wrong either.
+  select count(*) into v_n from public.player_state ps
+    join public.profiles pr on pr.id = ps.user_id
+   where ps.presence_quiet
+     and ps.last_seen_at > now() - interval '15 minutes'
+     and position(pr.display_name in
+           (select payload::text from public.town_snapshot
+             where zone_id = public.hr_town_zone())) > 0;
+  if v_n <> 0 then
+    raise exception 'GATE(b): % QUIET character(s) appear in the first live snapshot', v_n;
   end if;
+  -- WHAT THIS GATE DID NOT PROVE, counted rather than assumed, so the notice can
+  -- say so instead of implying coverage it does not have.
+  select count(*) into v_quiet_live from public.player_state
+   where presence_quiet and last_seen_at > now() - interval '15 minutes';
+  select jsonb_array_length(payload->'crier') into v_crier_n from public.town_snapshot
+   where zone_id = public.hr_town_zone();
 
   -- (c) EXECUTED: a probe reads an OPEN plaza through the allowlist; a quiet one
   --     is absent. Discarded — the snapshot and the flag are not.
@@ -164,8 +181,24 @@ begin
                     'must describe real players only';
   end if;
 
-  raise notice 'town-presence-on: the flag is ON, exactly one real town_snapshot row exists for %, no '
-               'quiet character is in it, hr_town_of answers an open plaza with only the 7-key peer / '
-               '6-key crier allowlist, the quiet probe is absent, and the probe characters left no '
-               'trace — all green', public.hr_town_zone();
+  -- ⚠ WHAT THIS APPLY DID **NOT** ASSERT, stated with the counts behind it
+  --   (Security, 2026-09-13). Two of §3(b)'s checks are VACUOUS when the live data
+  --   is empty, and a notice that read "no quiet character is in it" without
+  --   saying so would be claiming coverage it does not have:
+  --     · the REAL-player quiet check walks 0 rows when no live character has
+  --       opted out — it is then a tautology, not a measurement. The probe half of
+  --       §3(c) is what actually exercises the opt-out, on a character this file
+  --       creates and discards.
+  --     · the crier allowlist loop runs 0 times when world_finds has no find in
+  --       the last 24 h — the 6-key shape is then UNTESTED here. It is tested on
+  --       real rows by tests/town-presence.mjs, which seeds world_finds.
+  --   Both numbers are printed, so the operator reading the apply log can see
+  --   which of the two happened rather than inferring it.
+  raise notice 'town-presence-on: the flag is ON, exactly one real town_snapshot row exists for %, '
+               'hr_town_of answers an open plaza with only the 7-key peer allowlist, the quiet PROBE '
+               'is absent, and the probe characters left no trace — all green.', public.hr_town_zone();
+  raise notice 'town-presence-on: NOT ASSERTED on this apply — live quiet characters in the window: % '
+               '(0 = the real-player quiet check was vacuous); crier lines in the snapshot: % (0 = the '
+               '6-key crier allowlist loop ran zero times and is untested here; '
+               'tests/town-presence.mjs seeds world_finds and covers it).', v_quiet_live, v_crier_n;
 end $$;

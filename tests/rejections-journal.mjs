@@ -76,6 +76,15 @@ const MIG_PATH = join(ROOT, 'supabase', 'migrations', MIG);
 const MIG2 = '2026-09-13-rejections-verb-map-2.sql';
 const MIG2_PATH = join(ROOT, 'supabase', 'migrations', MIG2);
 
+/* The THIRD half (arm P20): the classification of `bad_buff_shape`, the code
+   2026-09-13-buff-shape-code.sql split out of bad_buff_item for the forged buff
+   shape. It PATCHES the body MIG2 restated (chain 0 -> 1) rather than restating
+   it again, so the interesting property is that a one-line regex on a 120-line
+   severity catalogue left the other five rulings alone — which is why P15 grades
+   the arrays after all three files, not after the restatement. */
+const MIG3 = '2026-09-13-rejections-verb-map-3.sql';
+const MIG3_PATH = join(ROOT, 'supabase', 'migrations', MIG3);
+
 /* ── P15's SECOND SOURCE OF TRUTH, AND WHY IT IS NOT A DUPLICATE ───────────
    The migration asserts "the restated catalogues are a superset of the INSTALLED
    ones" — which is the right check for an operator re-applying a file, and is
@@ -93,6 +102,12 @@ export const SEVERITY_CATALOGUE = {
     'unknown_crop', 'unknown_equip_slot', 'unknown_delta_key', 'wrong_slot',
     'requirement_not_met', 'activity_locked', 'bad_progress_state', 'overflow',
     'seller_unavailable', 'forbidden_impersonation', 'unknown_unlock',
+    /* 2026-09-13, closing F3: the forged buff shape. FIRST-OCCURRENCE, because no
+       honest client builds a buff_apply carrying magnitude/until, and a prober who
+       sends five and moves on never reaches the per-(user, slot, day) threshold.
+       Its honest sibling `bad_buff_item` must stay on NEITHER list — P20 grades
+       that from both sides, because a split that leaks is worse than no split. */
+    'bad_buff_shape',
   ],
   escalating: ['rate_limited', 'own_listing', 'intent_mismatch', 'missing_req_item', 'bad_zone',
     'buff_not_paid'],
@@ -353,6 +368,25 @@ const MUTATIONS = {
       "    if false then\n      raise exception 'unused % % — sustained zone enumeration is '"],
     ],
   },
+  // ── 2026-09-13-rejections-verb-map-3.sql ────────────────────────────────
+  shape_never_incident: {
+    file: MIG3,
+    why: 'bad_buff_shape comes off c_incident, so a hand-built buff_apply naming a buff’s magnitude '
+       + 'and expiry — the one thing the buff program exists to make impossible, and a shape no code '
+       + 'path in the repo can produce — is filed as an ordinary refusal and alarms on nothing. A '
+       + 'threshold would not help either: c_escalate_at counts per (user, slot, day), so a prober who '
+       + 'sends five forged shapes and moves on never reaches fifty. P20 must catch it on the ROW, '
+       + 'having asked for exactly one refusal.',
+    pairs: [
+      ["    || '    ''bad_buff_shape''];');", "    || '    ''zzz_never_matched''];');"],
+      // the file's own GATE(b)/(d) would otherwise refuse to install, and a
+      // mutation caught by the thing it mutates proves nothing about this guard
+      ["  if position('''bad_buff_shape''' in v_inc) = 0 then", '  if false then'],
+      ["    if v_row.severity <> 'incident' then\n"
+        + "      raise exception 'GATE(d): the FIRST bad_buff_shape is severity % — a hand-built buff delta is the '",
+      "    if false then\n      raise exception 'unused % — a hand-built buff delta is the '"],
+    ],
+  },
   buff_not_paid_never_escalates: {
     file: MIG2,
     why: "Security's GO-WITH-CHANGES condition is reverted: buff_not_paid comes off c_escalating, so "
@@ -396,6 +430,13 @@ const MUTATIONS = {
     ],
   },
   whys_breakdown_dropped: {
+    /* TWO files. MIG3's GATE(a) positive-control sweep re-reads the installed
+       recorder for 'hr_rejection_why', so it would refuse the apply and "catch"
+       this with a LATER file's gate instead of with P15/P16. Its list keeps the
+       other four names — only the one under test is dropped — so the sweep is
+       softened, not deleted. Expressed as `pairs` + `mig3Pairs` rather than as a
+       `files` map only because the MIG2 half is long and stays readable in place;
+       mutationFileMap() assembles both. */
     file: MIG2,
     why: 'the whys map is never maintained, so buff_at_max goes back to folding the SEGMENT BUDGET '
        + 'fuse and the MINIMUM-GAIN/duration-cap fuse into one number whose only discriminator lives '
@@ -425,23 +466,44 @@ const MUTATIONS = {
       ["  if position('hr_rejection_verb_for' in v_src) = 0 or position('hr_rejection_why' in v_src) = 0 then",
         "  if position('hr_rejection_verb_for' in v_src) = 0 then"],
     ],
+    mig3Pairs: [
+      ["  for v_bad in select unnest(array['hearthrise.rejection_noted', 'hr_detail_bound',\n"
+        + "                                   'hr_rejection_verb_for', 'hr_rejection_why', 'c_escalate_at']) loop",
+      "  for v_bad in select unnest(array['hearthrise.rejection_noted', 'hr_detail_bound',\n"
+        + "                                   'hr_rejection_verb_for', 'c_escalate_at']) loop"],
+      // …and MIG3's own executed whys assertion, same reason.
+      ["    if coalesce((v_row.whys ->> 'forbidden_key')::bigint, 0) <> 1 then", '    if false then'],
+    ],
   },
   verb_map_overrides_a_real_label: {
-    file: MIG2,
-    why: 'the code->verb map stops being a FALLBACK and fires unconditionally. Every bad_zone is '
-       + 'then filed under hr_town_of even when some future verb answers it, and — the measurable '
-       + 'one — a buff refusal that arrived with a REAL gesture label (eat:roast_carrot) is '
-       + 'relabelled buff_apply, destroying exactly the resolution the verbs map was added for. P17 '
-       + 'must catch it.',
-    pairs: [
+    /* ⚠ RELOCATED 2026-09-13, for the second time in this file's life and for
+       the same reason as `cap_loosened`: it used to anchor on MIG2's
+       hr_rejection_verb_for, and it went MISSED (measured) the moment MIG3
+       RESTATED that function later in the chain. MIG3 is the last toucher, so
+       the live `when v in (...)` guard is MIG3's copy and MIG2's is dead text.
+       If a fourth file ever restates this function, expect another MISSED and
+       move the anchor again — that is what replaying to chain end is for. */
+    files: { [MIG3]: [
       ["    when v in ('(none)', 'apply') then coalesce(", '    when true then coalesce('],
+      ["  if public.hr_rejection_verb_for('bad_buff_shape', 'eat:roast_pie') <> 'eat:roast_pie'\n"
+        + "     or public.hr_rejection_verb_for('no_character', 'apply') <> 'apply'\n"
+        + "     or public.hr_rejection_verb_for('bad_zone', 'hr_town_of') <> 'hr_town_of' then",
+      '  if false then'],
+    ], [MIG2]: [
+      /* MIG2's §5(c) still EXECUTES against the installed (MIG3) function, so it
+         would refuse the apply and "catch" this with the thing being mutated. */
       ["  if public.hr_rejection_verb_for('bad_zone', 'hr_town_of') <> 'hr_town_of'\n"
         + "     or public.hr_rejection_verb_for('forbidden_field', 'hr_put_client_state')\n"
         + "        <> 'hr_put_client_state'\n"
         + "     or public.hr_rejection_verb_for('buff_at_max', 'eat:roast_carrot') <> 'eat:roast_carrot' then",
       '  if false then'],
       ["    if not (v_row.verbs ? 'eat:roast_carrot') then", '    if false then'],
-    ],
+    ] },
+    why: 'the code->verb map stops being a FALLBACK and fires unconditionally. Every bad_zone is '
+       + 'then filed under hr_town_of even when some future verb answers it, and — the measurable '
+       + 'one — a buff refusal that arrived with a REAL gesture label (eat:roast_carrot) is '
+       + 'relabelled buff_apply, destroying exactly the resolution the verbs map was added for. P17 '
+       + 'must catch it.',
   },
   why_token_unbounded: {
     file: MIG2,
@@ -474,9 +536,16 @@ const mutationFile = (id) => MUTATIONS[id].file || MIG;
  *  hr_rejections is refused by BOTH migrations' own self-checks, and unless both
  *  are softened the mutation is "caught" by the thing it mutates and P9 — the
  *  standing guard that has to survive every future file — is never graded. */
-const mutationFileMap = (id) => (MUTATIONS[id].files
-  ? new Map(Object.entries(MUTATIONS[id].files))
-  : new Map([[mutationFile(id), mutationPairs(id)]]));
+const mutationFileMap = (id) => {
+  if (MUTATIONS[id].files) return new Map(Object.entries(MUTATIONS[id].files));
+  const m = new Map([[mutationFile(id), mutationPairs(id)]]);
+  /* `mig3Pairs` is sugar for "…and soften the same assertion in MIG3", which is
+     needed whenever MIG3's positive-control sweep re-reads a property MIG2
+     installs. Kept separate from `pairs` so the primary file's edit list stays
+     readable where it is written. */
+  if (MUTATIONS[id].mig3Pairs) m.set(MIG3, MUTATIONS[id].mig3Pairs);
+  return m;
+};
 
 /** One end-to-end run against a freshly replayed database. */
 async function run(mutate) {
@@ -820,6 +889,42 @@ async function run(mutate) {
     "select n::text as n, severity from public.hr_rejections where user_id=$1 and code='empty_plot'",
     [uid]))[0];
 
+  // ── P20. bad_buff_shape IS AN INCIDENT ON CALL ONE, AND ITS HONEST
+  //         SIBLING IS NOT ──────────────────────────────────────────────
+  //    The forged shape (a buff_apply carrying magnitude / until) alarms
+  //    immediately; an item that simply carries no buff — a Trout — must stay
+  //    ordinary, in its OWN row. Both halves, because a split that leaks in
+  //    either direction is worse than no split: leak one way and every Trout is
+  //    an incident, leak the other and the forgery is silent.
+  await q('delete from public.hr_rejections where user_id = $1', [uid]);
+  await db.exec(`begin;
+    select set_config('hearthrise.rejection_noted', '', true);
+    select public.hr_record_rejection('${uid}'::uuid, 0, 'apply', 'bad_buff_shape',
+      '{"why":"forbidden_key","keys":["magnitude","until"]}'::jsonb, 1);
+    select public.hr_record_rejection('${uid}'::uuid, 0, 'apply', 'bad_buff_item',
+      '{"item":"trout"}'::jsonb, 1);
+    commit;`);
+  obs.p20 = {
+    rows: Number((await q(
+      'select count(*)::text as r from public.hr_rejections where user_id = $1', [uid]))[0].r),
+    shape: (await q('select n::text as n, severity, verbs, whys from public.hr_rejections'
+      + " where user_id=$1 and code='bad_buff_shape'", [uid]))[0] || null,
+    item: (await q('select n::text as n, severity, verbs from public.hr_rejections'
+      + " where user_id=$1 and code='bad_buff_item'", [uid]))[0] || null,
+    /* The map entry, and the emitter. If hr_apply stops raising the code the
+       classification is a rule that alarms on nothing, which is what §0 of the
+       migration fails closed on — graded here too, because the migration's check
+       only runs at apply time. */
+    verb_for: (await q(
+      "select public.hr_rejection_verb_for('bad_buff_shape','apply') as fallback,"
+      + " public.hr_rejection_verb_for('bad_buff_shape','eat:roast_pie') as real"))[0],
+    emitter: Number((await q(
+      "select count(*)::text as r from pg_proc p join pg_namespace n on n.oid = p.pronamespace"
+      + " where n.nspname='public' and p.prokind='f'"
+      + " and p.proname not in ('hr_record_rejection','hr_rejection_verb_for')"
+      + " and p.prosrc like '%''bad_buff_shape''%'"))[0].r),
+  };
+
   // ── P19. buff_not_paid ESCALATES AT 50 AND NOT AT 49 ──────────────────
   //    Security's GO-WITH-CHANGES condition on 2026-09-13-rejections-verb-map-2.
   //    hr_apply refuses a buff_apply that is not paid for with items[<food>] = -1
@@ -920,33 +1025,53 @@ async function run(mutate) {
     "select md5(string_agg(p.proname || ':' || md5(p.prosrc), ',' order by p.proname, p.oid)) as r"
     + ' from pg_proc p join pg_namespace n on n.oid = p.pronamespace'
     + " where n.nspname = 'public'"))[0].r;
-  const before = await fingerprint();
-  let reapplyError = null;
-  try {
-    /* BOTH halves, in chain order. The second one RESTATES hr_record_rejection,
-       so "re-applying is a no-op" is a stronger claim for it than for a patcher:
-       a restatement that was not byte-identical to what the chain installed
-       would move the fingerprint here and nowhere else. */
-    for (const [name, p] of [[MIG, MIG_PATH], [MIG2, MIG2_PATH]]) {
-      let sql = (await readFile(p, 'utf8')).replace(/\r\n/g, '\n');
-      for (const [find, repl] of patches?.get(name) || []) sql = sql.split(find).join(repl);
+  /* ⚠ THE PROPERTY IS NOT "ALL THREE ARE NO-OPS", AND FINDING THAT OUT IS WHAT
+     THIS ARM IS FOR. MEASURED 2026-09-13, the first run after MIG3 landed:
+     re-applying MIG2 onto the finished chain RAISED
+         GATE(a): the restated c_incident DROPPED bad_buff_shape
+     — because MIG2 RESTATES hr_record_rejection from its own text, and MIG3 has
+     since added a ruling to the catalogue inside it. That is not a defect; it is
+     MIG2's own superset guard refusing to silently revert a Security ruling (the
+     b484-b487 class), which is the single most valuable thing that file does.
+     But it means a RESTATEMENT is only re-appliable until the next file adds to
+     the body, and an operator who re-runs the wrong one must be TOLD rather than
+     quietly rolled back a ruling.
+     So the honest property, and the one graded here, is two-sided:
+       · the LAST toucher of each body re-applies as a byte-identical no-op;
+       · an EARLIER restatement FAILS LOUDLY and changes nothing.
+     Each file is therefore applied in its OWN transaction and its outcome
+     recorded separately. A single loop could not tell an expected refusal from a
+     broken file, and an `error ?? null` assertion would have gone green on
+     either. */
+  const reapply = async (name, path) => {
+    let sql = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
+    for (const [find, repl] of patches?.get(name) || []) sql = sql.split(find).join(repl);
+    const at = await fingerprint();
+    try {
       await db.exec(`begin;\n${sql}\ncommit;`);
+      return { error: null, before: at, after: await fingerprint() };
+    } catch (e) {
+      /* WITHOUT this the connection is left in an aborted transaction and every
+         later read throws "current transaction is aborted" — which the selftest
+         would report as CAUGHT while grading nothing. A guard that passes by
+         crashing is the always-null-probe family. */
+      await db.exec('rollback').catch(() => {});
+      return { error: String(e && e.message || e), before: at, after: await fingerprint() };
     }
-  } catch (e) {
-    reapplyError = String(e && e.message || e);
-    // WITHOUT this the connection is left in an aborted transaction and every
-    // later read throws "current transaction is aborted" — which the selftest
-    // would report as CAUGHT while grading nothing. A guard that passes by
-    // crashing is the always-null-probe family.
-    await db.exec('rollback').catch(() => {});
-  }
-  obs.p8 = { before, after: await fingerprint(), error: reapplyError };
+  };
+  const before = await fingerprint();
+  /* ORDER MATTERS: the two no-op files first, so that MIG2's expected refusal
+     cannot be the thing that hid a real failure in one of them. */
+  obs.p8_mig = await reapply(MIG, MIG_PATH);
+  obs.p8_mig3 = await reapply(MIG3, MIG3_PATH);
+  obs.p8_mig2 = await reapply(MIG2, MIG2_PATH);
+  obs.p8 = { before, after: await fingerprint() };
 
   await db.close?.();
   return obs;
 }
 
-function grade(obs, migText, mig2Text) {
+function grade(obs, migText, mig2Text, mig3Text) {
   // ── P1. a refused verb leaves exactly one row, carrying the player's code
   const env = obs.p1_envelope;
   ok(env && env.ok === false, `P1: hr_farm_water on an empty plot did not refuse: ${JSON.stringify(env)}`);
@@ -1136,6 +1261,35 @@ function grade(obs, migText, mig2Text) {
     `P14: a code on NEITHER severity list reached ${obs.p14_control?.severity} at n=`
     + `${obs.p14_control?.n} — the recorder is escalating everything, so P14's green means nothing`);
 
+  // ── P20. the forged buff shape alarms on call one; the Trout does not
+  ok(obs.p20.shape && Number(obs.p20.shape.n) === 1,
+    `P20: one bad_buff_shape refusal produced n=${obs.p20.shape?.n}`);
+  ok(obs.p20.shape?.severity === 'incident',
+    `P20: the FIRST bad_buff_shape is severity ${obs.p20.shape?.severity} — a hand-built buff_apply `
+    + 'naming a magnitude and an expiry is the one thing the buff program exists to make impossible, '
+    + 'no code path in the repo can produce that shape, and a threshold cannot help because '
+    + 'c_escalate_at counts per (user, slot, day)');
+  ok(obs.p20.item?.severity === 'normal',
+    `P20: an item that simply carries no buff is severity ${obs.p20.item?.severity} — the honest arm `
+    + 'followed the forgery into c_incident and every player who ate a Trout now rings the alarm');
+  ok(obs.p20.rows === 2,
+    `P20: the two codes produced ${obs.p20.rows} row(s) — they must NOT share an aggregate, which is `
+    + 'the entire reason 2026-09-13-buff-shape-code.sql split the code');
+  ok(obs.p20.shape?.verbs && 'buff_apply' in obs.p20.shape.verbs
+     && obs.p20.item?.verbs && 'buff_apply' in obs.p20.item.verbs,
+  `P20: a buff code lost its gesture (shape=${JSON.stringify(obs.p20.shape?.verbs)}, `
+    + `item=${JSON.stringify(obs.p20.item?.verbs)})`);
+  ok(obs.p20.shape?.whys && Number(obs.p20.shape.whys.forbidden_key) === 1,
+    `P20: the bad_buff_shape whys reads ${JSON.stringify(obs.p20.shape?.whys)} — the split kept `
+    + 'why=forbidden_key for continuity with the code it came from');
+  ok(obs.p20.verb_for.fallback === 'buff_apply' && obs.p20.verb_for.real === 'eat:roast_pie',
+    `P20: the map entry for bad_buff_shape is wrong (${JSON.stringify(obs.p20.verb_for)}) — it must `
+    + 'resolve under an unattributable label and never override a real one');
+  ok(obs.p20.emitter === 1,
+    `P20: bad_buff_shape is named by ${obs.p20.emitter} emitting body/bodies, not 1 — at 0 the `
+    + 'classification is a rule that passes every static read and alarms on nothing; above 1 the '
+    + 'code->verb fallback would file two verbs under one name');
+
   // ── P19. buff_not_paid has the ESCALATING profile, on the counter
   ok(obs.p19_at49 && Number(obs.p19_at49.n) === 49,
     `P19: 49 buff_not_paid refusals counted ${obs.p19_at49?.n}`);
@@ -1245,13 +1399,42 @@ function grade(obs, migText, mig2Text) {
   }
   ok(!/create\s+policy[\s\S]{0,200}hr_rejections/i.test(mig2Text),
     `P18: ${MIG2} creates a policy on hr_rejections — the journal is ops-only by design`);
+  /* Same static read for MIG3. It `create or replace`s two privileged functions,
+     and create-or-replace PRESERVES an ACL — so PGlite's narrower default ACL
+     cannot show a missing revoke that production would (measured 2026-08-30:
+     production grants service_role EXECUTE on a new function). */
+  for (const sig of ['public.hr_rejection_verb_for(text, text)',
+    'public.hr_record_rejection(uuid, int, text, text, jsonb, bigint)']) {
+    const re = new RegExp('revoke execute on function ' + sig.replace(/[().*+?[\]\\|^$]/g, '\\$&')
+      + '\\s*\\n?\\s*from public, anon, authenticated, service_role;');
+    ok(re.test(mig3Text),
+      `P20: ${sig} is not revoked from all four roles in ${MIG3}`);
+  }
+  ok(!/create\s+policy|grant\s+(select|insert|update|delete|all)/i.test(mig3Text),
+    `P20: ${MIG3} creates a policy or a table grant — it is a two-token severity ruling and must move `
+    + 'no surface at all');
 
-  // ── P8. a second apply is byte-identical
-  ok(obs.p8.error === null,
-    `P8: re-applying ${MIG} + ${MIG2} onto the finished chain FAILED: ${obs.p8.error}`);
-  ok(obs.p8.before === obs.p8.after,
-    'P8: a second apply changed a function body — the migration is not idempotent, so an operator '
+  // ── P8. re-applying the LAST toucher is a no-op; re-applying an EARLIER
+  //        RESTATEMENT fails loudly and changes nothing. See the observation
+  //        block for why this is two assertions and not one.
+  ok(obs.p8_mig.error === null,
+    `P8: re-applying ${MIG} onto the finished chain FAILED: ${obs.p8_mig.error}`);
+  ok(obs.p8_mig.before === obs.p8_mig.after,
+    `P8: re-applying ${MIG} changed a function body — the patcher is not idempotent, so an operator `
     + 'who re-runs it after a template restatement double-wraps a live verb');
+  ok(obs.p8_mig3.error === null,
+    `P8: re-applying ${MIG3} — the LAST toucher of hr_record_rejection — FAILED: ${obs.p8_mig3.error}. `
+    + 'The file an operator re-runs to repair a reverted seam must be the one that works.');
+  ok(obs.p8_mig3.before === obs.p8_mig3.after,
+    `P8: re-applying ${MIG3} changed a function body — its skip-if-present check does not hold, so a `
+    + 'second apply would insert the ruling comment twice');
+  ok(obs.p8_mig2.error !== null && /DROPPED bad_buff_shape/.test(obs.p8_mig2.error),
+    `P8: re-applying ${MIG2} after ${MIG3} did NOT refuse (error=${obs.p8_mig2.error}). It restates `
+    + 'hr_record_rejection from its own text, so it would SILENTLY REVERT the bad_buff_shape ruling — '
+    + "the b484-b487 class. Its own §5(a) superset guard is the control and it must bite here.");
+  ok(obs.p8_mig2.before === obs.p8_mig2.after,
+    `P8: the refused re-apply of ${MIG2} still MOVED a function body — the abort did not roll back, so `
+    + 'a loud failure left the database half-reverted, which is worse than a silent one');
 }
 
 async function main() {
@@ -1305,13 +1488,15 @@ async function main() {
     + '200-call rate-limit storm costs 63 writes and leaves the gate\'s sampled count exact, an '
     + 'out-of-range slot folds to -1 and a caller-shaped code to malformed_code, the envelope is '
     + 'byte-identical across the decorator, one occurrence per transaction, and a second apply is '
-    + 'a no-op; and for the 2026-09-13 half: the restated recorder keeps all 29 catalogued Security '
+    + 'a no-op; and for the 2026-09-13 half: the restated recorder keeps all 30 catalogued Security '
     + 'rulings plus the once-flag and the detail bound, bad_zone and buff_not_paid are each normal '
     + 'at 49 and an incident at 50 while an unlisted code stays normal at 60, two buff_at_max fuses '
     + 'break out as '
     + 'segment_budget / (none) in one row whose whys map sums to n and caps at 12 + (other), the '
     + 'code->verb fallback names the gesture under an unattributable label and never overrides a '
-    + 'real one on either path, and the why token is filtered and cut to 24 characters.');
+    + 'real one on either path, the why token is filtered and cut to 24 characters, and the FIRST '
+    + 'bad_buff_shape is an INCIDENT naming buff_apply with why=forbidden_key while the honest '
+    + 'bad_buff_item sibling stays NORMAL in its own row.');
   return 0;
 }
 
@@ -1326,14 +1511,14 @@ async function runGraded(mutate) {
      that a text-only mutation cannot be "caught" by corrupting the other half's
      static read. */
   const texts = {};
-  for (const [name, path] of [[MIG, MIG_PATH], [MIG2, MIG2_PATH]]) {
+  for (const [name, path] of [[MIG, MIG_PATH], [MIG2, MIG2_PATH], [MIG3, MIG3_PATH]]) {
     let t = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
     for (const [find, repl] of (mutate ? mutationFileMap(mutate).get(name) : null) || []) {
       t = t.split(find).join(repl);
     }
     texts[name] = t;
   }
-  grade(obs, texts[MIG], texts[MIG2]);
+  grade(obs, texts[MIG], texts[MIG2], texts[MIG3]);
   return obs;
 }
 

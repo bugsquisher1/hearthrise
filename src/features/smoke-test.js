@@ -12905,8 +12905,8 @@ const TESTS = [
     }
   }),
 
-  /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at 40, and the ids/levels come back out of `ARTISAN_RECIPES` rather than being typed, so a deleted row still fails.
-     The boundary IS the property, and it is the same one hr_apply's `activity_locked` arm enforces server-side. */
+  /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at 40; the boundary IS the property, and it is the same one hr_apply's `activity_locked` arm enforces server-side.
+     `PAY` below is the literal (id, req, xp, ms) of all thirteen rungs: NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until it existed. Its 840 XP/s ceiling is MEASURED, just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3): the one bench whose entire output is XP must never out-pay every other bench. */
   () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {
     const snap = snapshotG();
     try {
@@ -12914,8 +12914,6 @@ const TESTS = [
       const first = rows.find((r) => r.id === 'bury_bone_chips');
       assert(first && first.req === 40 && first.input === 'bone_chips' && first.output == null,
         'bury_bone_chips must be the Prayer 40 pure sink fed by bone_chips, got ' + JSON.stringify(first));
-      /* THE PAY TABLE, literal, all thirteen rungs as `id req xp ms`. NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until this table existed.
-         The 840 XP/s ceiling is MEASURED, not guessed: just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3). The one bench whose entire output is XP must never out-pay every other bench in the game. */
       const PAY = ('bury_bones 1 4.5 1200|bury_big 15 15 1500|bury_dragon 35 72 2000|'
         + 'bury_bone_chips 40 105 2200|consecrate_grave_dust 46 155 2400|offer_razor_claw 52 212 2500|'
         + 'scatter_vamp_dust 58 295 2600|banish_demon_shard 65 420 2800|unbind_wraith_veil 72 600 3000|'
@@ -12936,8 +12934,7 @@ const TESTS = [
       G.skills = { prayer: window.xpForLevel(39) };
       assert(window.getLevel('prayer') === 39, 'fixture: Prayer is ' + window.getLevel('prayer') + ', not 39');
       const at39 = window.renderArtisanActivities('prayer');
-      /* The tile paints FROM the row — locked one level short, live one level on. `cell` takes the WHOLE button because `disabled` sits in the opening tag BEFORE the onclick carrying the id, so slicing forward from the id would read the NEXT tile's state. */
-      const cell = (html) => {
+      const cell = (html) => {   /* the WHOLE button: `disabled` sits in the opening tag BEFORE the onclick carrying the id, so slicing forward from the id would read the NEXT tile's state */
         const at = html.indexOf('bury_bone_chips');
         assert(at > 0, 'the prayer bench rendered no bury_bone_chips tile at all');
         return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
@@ -28717,8 +28714,7 @@ const TESTS = [
         if(cancel) cancel.click();
       }
 
-      /* 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED. The probe is DERIVED from the bench: it was hardcoded to `bone_chips` until the 2026-09-12 ladder gave that drop a rite at Prayer 40, which made this arm assert the opposite of the truth and went red by name.
-         A "has no recipe" id typed by hand goes stale the day the designer fills a rung, so it is read out of ARTISAN_RECIPES now; `type`/`slot` are excluded so the pick is a bone-like REMAIN and not a fang-named weapon. */
+      /* 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED. The probe was hardcoded to `bone_chips` until the 2026-09-12 ladder gave that drop a rite at Prayer 40 — which made this arm assert the opposite of the truth, by name — and any hand-typed "has no recipe" id goes stale the day the designer fills a rung, so it is DERIVED from ARTISAN_RECIPES; `type`/`slot` are excluded so the pick is a bone-like REMAIN, not a fang-named weapon. */
       stopBench();
       const rites = new Set((window.ARTISAN_RECIPES.prayer || []).map((r) => r.input));
       const riteless = Object.keys(window.ITEMS).find((id) => !rites.has(id)
@@ -54404,8 +54400,7 @@ const TESTS = [
       assert(I[id].reqLv >= 1 && I[id].reqLv <= LADDER[8],
         id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
     });
-    /* The 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: they were ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL) and four are TRADEABLE. */
-    ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'
+    ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'   /* the 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL), four of them TRADEABLE */
       + 'alpha_cloak defense 30|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
       + 'copper_ring defense 1|hunter_necklace defense 1|traveler_cape defense 1|'
       + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 30|'
@@ -54428,8 +54423,7 @@ const TESTS = [
       assert(it.tier == null && it.reqSkill == null && it.reqLv == null && window.gearWieldReq(it) == null,
         id + ' is a cosmetic and must stay ungated, got ' + JSON.stringify(window.gearWieldReq(it)));
     });
-    /* `companion` is a TYPE the authority used to return null for, so the fox carried a gate hr_apply enforced and the UI never painted. reqLv 1 still yields NO gate on purpose (`lv<=1`) — it is the data form of "belongs to Defence", which keeps hr_items.req_lv non-NULL across the slot. */
-    assert(JSON.stringify(window.gearWieldReq(I.fox_companion)) === '{"skill":"defense","lv":15}',
+    assert(JSON.stringify(window.gearWieldReq(I.fox_companion)) === '{"skill":"defense","lv":15}',   /* `companion` is a TYPE the authority returned null for, so the fox carried a gate hr_apply enforced and the UI never painted. reqLv 1 still yields NO gate on purpose (`lv<=1`) — the data form of "belongs to Defence", which keeps hr_items.req_lv non-NULL across the slot */
       'the fox must paint Defence 15 — `companion` has to be a gated type or the server refuses a wield '
         + 'the player was never warned about (got ' + JSON.stringify(window.gearWieldReq(I.fox_companion)) + ')');
     ['copper_ring', 'hunter_necklace', 'traveler_cape'].forEach((id) => {

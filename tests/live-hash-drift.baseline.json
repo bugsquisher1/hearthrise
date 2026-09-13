@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-13",
- "replay_ms": 10209,
+ "replay_ms": 9422,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -134,7 +134,8 @@
     "2026-09-13-buff-segments.sql",
     "2026-09-13-buff-shape-code.sql",
     "2026-09-13-consumable-buffs.sql",
-    "2026-09-13-rejections-verb-map-2.sql"
+    "2026-09-13-rejections-verb-map-2.sql",
+    "2026-09-13-rejections-verb-map-3.sql"
    ],
    "live": {
     "md5": "e882cbaf2d524a097577b3274016972c",
@@ -756,17 +757,18 @@
     "2026-09-07-companion-codes-severity.sql",
     "2026-09-12-hr-rejections-journal.sql",
     "2026-09-13-rejections-verb-map-2.sql",
+    "2026-09-13-rejections-verb-map-3.sql",
     "2026-09-13-town-presence-journal.sql"
    ],
    "live": {
-    "md5": "a26b9c8325536e7d32f08c44c50ea6a0",
-    "norm_len": 8555,
+    "md5": "545d26dafbcd6dc1909ecc31c1525f1f",
+    "norm_len": 9599,
     "measured": "2026-09-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a26b9c8325536e7d32f08c44c50ea6a0",
-    "norm_len": 8555,
+    "md5": "545d26dafbcd6dc1909ecc31c1525f1f",
+    "norm_len": 9599,
     "source": "computed-from-replay"
    },
    "agree": true

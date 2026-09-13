@@ -346,14 +346,50 @@ export async function armHomingGuard() {
      with {error:'forbidden_field'} — so one bad name would silently stop EVERY
      residue field from being saved, for everyone. Read out of the migration
      source so the two lists cannot drift apart. */
+  /* ⚠ THE UNION OF EVERY DENY-LIST MIGRATION, NOT JUST THE FIRST ONE (2026-09-13).
+     This read named 2026-08-22-client-state-denylist.sql alone, and the moment a
+     LATER migration added a key by anchored patch — which is how they are added,
+     because that body is ten patches deep and may not be restated — the guard
+     went blind to it. `buffs` was the first: it moved from RESIDUE_FIELDS to the
+     deny-list in 2026-09-13-client-state-buffs-denylist.sql, and had the two
+     halves shipped apart, the server would have refused EVERY residue patch with
+     forbidden_field (it refuses the whole patch, not the key) and this check would
+     have said nothing. SOURCES is a list on purpose: a new deny-list file is one
+     line here, and a MISSING file is a hard failure rather than a quiet shrink. */
   try {
-    const sql = await readFile(new URL('supabase/migrations/2026-08-22-client-state-denylist.sql', ROOT), 'utf8');
-    const arr = /v_deny\s+constant\s+text\[\]\s*:=\s*array\[([\s\S]*?)\]/.exec(sql);
-    if (!arr) {
-      fail('could not read the hr_put_client_state deny-list out of 2026-08-22-client-state-denylist.sql — '
-         + 'the residue/authority collision check did NOT run.');
+    const SOURCES = [
+      'supabase/migrations/2026-08-22-client-state-denylist.sql',
+      'supabase/migrations/2026-09-13-client-state-buffs-denylist.sql',
+    ];
+    const deny = new Set();
+    let read = 0;
+    for (const rel of SOURCES) {
+      const sql = await readFile(new URL(rel, ROOT), 'utf8');
+      /* Two idioms, because the two files add keys two ways: the original
+         DECLARES the array, and a patcher SPLICES onto its tail inside a
+         `replace(v_def, c_anchor, c_anchor || $new$, 'key'$new$)`. Both are
+         scanned; a file that yields no key at all is reported, because a regex
+         that has drifted looks exactly like a file with nothing to add. */
+      const arr = /v_deny\s+constant\s+text\[\]\s*:=\s*array\[([\s\S]*?)\]/.exec(sql);
+      const spliced = [...sql.matchAll(/\$new\$[\s\S]*?\$new\$/g)].map((m) => m[0]).join('\n');
+      const before = deny.size;
+      for (const src of [arr && arr[1], spliced]) {
+        if (!src) continue;
+        for (const m of src.matchAll(/'([A-Za-z_][A-Za-z0-9_]*)'/g)) deny.add(m[1]);
+      }
+      if (deny.size === before && !arr) {
+        fail(`${rel} contributed NO deny-list key — either it is not a deny-list migration any more or `
+           + 'the scan has drifted, and either way the residue/authority collision check is weaker than '
+           + 'it reads.');
+      } else {
+        read += 1;
+      }
+    }
+    if (read !== SOURCES.length || deny.size < 18) {
+      fail(`the hr_put_client_state deny-list scan read ${read}/${SOURCES.length} migrations and found `
+         + `${deny.size} keys (expected every file and >= 18 keys) — the residue/authority collision `
+         + 'check would pass VACUOUSLY.');
     } else {
-      const deny = new Set([...arr[1].matchAll(/'([A-Za-z_][A-Za-z0-9_]*)'/g)].map((m) => m[1]));
       for (const f of residueFields) {
         if (deny.has(f)) {
           fail(`residue field '${f}' is on the hr_put_client_state AUTHORITY deny-list. The server refuses the `

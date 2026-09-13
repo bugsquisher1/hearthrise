@@ -33,6 +33,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-11-catalogue.generated.sql');
+/* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
+   migration rather than into OUT above, and that is a deliberate operational
+   call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
+   APPLIED to production, so folding a new table into it would make every future
+   catalogue regeneration a re-apply of the chain's root. A new table arriving in
+   a new, LAST-registered file is additive for an operator and for the replay.
+   Both files are covered by the same `--check`. */
+const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
+  '2026-09-13-item-buffs-catalogue.generated.sql');
 
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
@@ -267,6 +276,59 @@ const runes = itemIds
     }
     return { rune_id: id, element: el };
   });
+
+// ── 2d. THE ITEM → BUFF CATALOGUE (consumable buffs, step 1) ──────────────
+// hr_item_buffs is what hr_apply's `buff_apply` block resolves an ITEM ID to a
+// (type, magnitude, duration) against — under the character lock, from the
+// server's own row, NEVER from the delta. The client sends `{buff_apply:{item}}`
+// and nothing else; there is no representation in which it can name a type, a
+// magnitude, a duration or an expiry, which is the whole point of the table.
+//
+// DERIVED, for the reason every other catalogue here is: a hand-typed
+// item→buff table in PL/pgSQL would be the data double-copy this repo has been
+// burned by (src/main.js unifyObject header), and it would drift the first time
+// a designer retunes a Feast. `hr_castle_items` is the counter-example that is
+// still in the tree: hand-seeded "from items.js" by comment only, no guard.
+//
+// THE VOCABULARY IS src/core/buffs.js BUFFS_DEF — the same registry `applyBuff`
+// rejects an unknown type against and the same one `buffBonuses` pays from. A
+// buff whose type the ENGINE cannot pay FAILS GENERATION rather than being
+// dropped: a dropped row is a food the bag shows, the tooltip promises an
+// effect for, and hr_apply answers `bad_buff_item` to — the b341
+// UI-says-one-thing-engine-does-another class, which is worse than no food.
+const { BUFFS_DEF } = await imp('src/core/buffs.js');
+// The server's hard ceiling on a buff's expiry, mirrored from hr_apply's
+// c_buff_max_ms (2026-09-13-consumable-buffs.sql). A food whose duration
+// EXCEEDS it could never be delivered in full — the clamp would silently eat
+// the tail — so it fails generation instead of shipping a lie in a tooltip.
+const BUFF_MAX_MS = 3600000;
+const itemBuffs = itemIds
+  .filter((id) => (ITEMS[id] || {}).buff)
+  .map((id) => {
+    const b = ITEMS[id].buff || {};
+    if (!Object.prototype.hasOwnProperty.call(BUFFS_DEF, b.type)) {
+      die(`item "${id}" carries buff type ${JSON.stringify(b.type)}, which src/core/buffs.js BUFFS_DEF `
+        + 'does not know — the engine would pay it NOTHING while the tooltip promised an effect');
+    }
+    if (!Number.isFinite(b.magnitude) || b.magnitude <= 0) {
+      die(`item "${id}" has buff magnitude ${JSON.stringify(b.magnitude)} — a buff must be a positive number`);
+    }
+    if (!Number.isInteger(b.durationMs) || b.durationMs <= 0) {
+      die(`item "${id}" has buff durationMs ${JSON.stringify(b.durationMs)} — must be a positive integer of ms`);
+    }
+    if (b.durationMs > BUFF_MAX_MS) {
+      die(`item "${id}" has buff durationMs ${b.durationMs}, above the server's ${BUFF_MAX_MS} ms expiry cap `
+        + '— the clamp would silently discard the tail, so the tooltip would promise time the server refuses '
+        + `to hold. Author it at or below ${BUFF_MAX_MS} ms, or raise c_buff_max_ms in the migration first.`);
+    }
+    return { item_id: id, type: b.type, magnitude: b.magnitude, duration_ms: b.durationMs };
+  });
+if (itemBuffs.length === 0) {
+  die('no item in src/data/items.js carries a `buff` — hr_item_buffs would be seeded EMPTY and every '
+    + 'buff_apply would answer bad_buff_item. A catalogue that is silently empty is the always-null '
+    + 'probe this repo has been bitten by nine times.');
+}
+const BUFF_TYPES = [...new Set(itemBuffs.map((r) => r.type))].sort();
 
 // ── 3. Hash — the DB-side half of the drift guard ────────────────────────
 // The same digest is asserted by tests/sql/server-authority.test.sql against
@@ -674,6 +736,125 @@ begin
 end $$;
 `;
 
+// ── 4b. Emit the ITEM → BUFF catalogue (its own migration file) ───────────
+const BUFF_DIGEST = createHash('sha256').update(JSON.stringify(itemBuffs)).digest('hex');
+const sqlItemBuffs = `-- ════════════════════════════════════════════════════════════════════════
+-- Hearthrise — hr_item_buffs, THE ITEM → BUFF CATALOGUE  (GENERATED — DO NOT EDIT)
+--
+--   Generated by tools/gen-catalogues.mjs from src/data/items.js + the
+--   src/core/buffs.js BUFFS_DEF vocabulary. Any hand edit is reverted by the
+--   next generation and FAILS \`node tools/gen-catalogues.mjs --check\`, which is
+--   a preflight in tests/run-sql-tests.mjs and tests/run-smoke.mjs.
+--
+--   catalogue digest: ${BUFF_DIGEST}
+--   rows: ${itemBuffs.length} buff foods across ${BUFF_TYPES.length} types (${BUFF_TYPES.join(', ')})
+--
+-- WHAT THIS IS FOR. hr_apply's \`buff_apply\` delta key carries ONE field — the
+-- ITEM ID — and resolves the effect HERE, under the character lock, from the
+-- server's own row. Nothing about a buff is representable in the delta: not the
+-- type, not the magnitude, not the duration, and above all not the expiry, which
+-- is stamped from now() + duration_ms. A client that names an item with no row
+-- is refused \`bad_buff_item\`.
+--
+-- WHY A TABLE AND NOT A LITERAL. The same reason as every other catalogue in
+-- this schema: a hand-typed item→buff list in PL/pgSQL is the data double-copy
+-- this repo has already been burned by, and the first balance change would make
+-- the tooltip and the engine disagree with nobody able to see it.
+--
+-- APPLY ORDER: 2026-08-11-catalogue.generated.sql (hr_items) → THIS FILE →
+--              2026-09-13-consumable-buffs.sql (which FAILS CLOSED without it).
+--
+-- SAFE TO RE-RUN. Rows are replaced wholesale in one statement pair, so a
+-- DELETED buff food really disappears — an upsert-only generator leaves a ghost
+-- row behind, and a ghost is a hole in the allowlist this table exists to be.
+-- ════════════════════════════════════════════════════════════════════════
+
+do $$
+begin
+  if to_regclass('public.hr_items') is null then
+    raise exception 'hr_items is missing — apply 2026-08-11-catalogue.generated.sql first';
+  end if;
+end $$;
+
+create table if not exists public.hr_item_buffs (
+  item_id     text primary key,
+  type        text    not null,
+  -- numeric, not int: a magnitude is a PERCENT for most types and a FLAT count
+  -- for farm_yield/defense (src/core/buffs.js BUFFS_DEF isFlat), and a designer
+  -- authoring 2.5% must not be silently truncated to 2 by the catalogue.
+  magnitude   numeric not null check (magnitude > 0),
+  duration_ms bigint  not null check (duration_ms > 0)
+);
+
+-- Wholesale replace. One transaction with the insert below it.
+delete from public.hr_item_buffs;
+
+insert into public.hr_item_buffs (item_id, type, magnitude, duration_ms) values
+${valuesBlock(itemBuffs, (r) => `  (${q(r.item_id)},${q(r.type)},${n(r.magnitude)},${n(r.duration_ms)})`)};
+
+-- ── RLS + grants. World-readable (the client renders the same data out of
+--    src/data/items.js anyway), writable by NOBODY but the migration owner.
+--    Revoke BEFORE grant, and revoke what Supabase's default ACL hands
+--    anon/authenticated/service_role on a new table — TRUNCATE included.
+do $$
+begin
+  alter table public.hr_item_buffs enable row level security;
+  revoke all on public.hr_item_buffs from public, anon, authenticated, service_role;
+  grant select on public.hr_item_buffs to anon, authenticated, service_role;
+  drop policy if exists "hr_item_buffs readable" on public.hr_item_buffs;
+  create policy "hr_item_buffs readable" on public.hr_item_buffs for select using (true);
+end $$;
+
+-- ── Self-verification ────────────────────────────────────────────────────
+do $$
+declare v_n int; v_bad int;
+begin
+  select count(*) into v_n from public.hr_item_buffs;
+  if v_n <> ${itemBuffs.length} then
+    raise exception 'hr_item_buffs has % rows, generator emitted ${itemBuffs.length}', v_n;
+  end if;
+
+  -- CATALOGUE PARITY. Every buff food must be a real item, or hr_apply would
+  -- hold a buff for an id the bag can never contain and the eat path could never
+  -- reach — a control that reads as present in review and fires for nobody.
+  select count(*) into v_bad from public.hr_item_buffs b
+   where not exists (select 1 from public.hr_items i where i.item_id = b.item_id);
+  if v_bad > 0 then raise exception '% buff foods are not in hr_items', v_bad; end if;
+
+  -- THE VOCABULARY, asserted against the rows that actually landed. The
+  -- generator already refused an unknown type in JS; this is the DATABASE's own
+  -- check, and the two do not share an input (JS reads src/core/buffs.js, this
+  -- reads the table), which is the only way a row that validated at generation
+  -- time but did not INSERT is caught.
+  select count(*) into v_bad from public.hr_item_buffs
+   where type <> all (array[${BUFF_TYPES.map((t) => q(t)).join(',')}]::text[]);
+  if v_bad > 0 then
+    raise exception '% buff rows carry a type the engine cannot pay', v_bad;
+  end if;
+
+  -- NO ROW MAY EXCEED THE SERVER'S EXPIRY CAP. hr_apply clamps \`until\` to
+  -- now() + ${BUFF_MAX_MS} ms; a longer duration could never be delivered in full and would
+  -- make the tooltip a promise the server refuses to hold.
+  select count(*) into v_bad from public.hr_item_buffs where duration_ms > ${BUFF_MAX_MS};
+  if v_bad > 0 then
+    raise exception '% buff foods last longer than the server''s ${BUFF_MAX_MS} ms expiry cap', v_bad;
+  end if;
+
+  -- No client write policy, and no client write grant.
+  select count(*) into v_bad from pg_policies
+   where schemaname = 'public' and tablename = 'hr_item_buffs'
+     and cmd in ('INSERT','UPDATE','DELETE','ALL');
+  if v_bad > 0 then raise exception '% write policies on hr_item_buffs', v_bad; end if;
+  select count(*) into v_bad from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'hr_item_buffs'
+     and grantee in ('anon','authenticated','service_role','PUBLIC')
+     and privilege_type <> 'SELECT';
+  if v_bad > 0 then raise exception '% client write grants on hr_item_buffs', v_bad; end if;
+
+  raise notice 'hr_item_buffs OK — % rows, digest ${BUFF_DIGEST}', v_n;
+end $$;
+`;
+
 // ── 5. Write or check ────────────────────────────────────────────────────
 const CHECK = process.argv.includes('--check');
 if (CHECK) {
@@ -695,10 +876,31 @@ if (CHECK) {
     console.error('  Run: node tools/gen-catalogues.mjs   (and re-apply the migration)');
     process.exit(1);
   }
+  // THE SECOND FILE, checked with the SAME rigour and reported SEPARATELY. A
+  // `--check` that covered only the first file would go green on a stale
+  // hr_item_buffs, which is the drift this table exists to make impossible.
+  const existingBuffs = await readFile(OUT_ITEM_BUFFS, 'utf8').catch(() => null);
+  if (existingBuffs === null) {
+    console.error(`item-buff catalogue drift: ${OUT_ITEM_BUFFS} is missing. `
+      + 'Run: node tools/gen-catalogues.mjs');
+    process.exit(1);
+  }
+  if (norm(existingBuffs) !== norm(sqlItemBuffs)) {
+    console.error('item-buff catalogue drift: the `buff` blocks in src/data/items.js no longer match '
+      + 'the generated SQL.');
+    console.error(`  expected digest ${BUFF_DIGEST}`);
+    console.error('  Run: node tools/gen-catalogues.mjs   (and re-apply the migration)');
+    process.exit(1);
+  }
   console.log(`catalogue in sync (${items.length} items, digest ${DIGEST.slice(0, 12)}…)`);
+  console.log(`item buffs in sync (${itemBuffs.length} foods, digest ${BUFF_DIGEST.slice(0, 12)}…)`);
 } else {
   await writeFile(OUT, sql, 'utf8');
   console.log(`wrote ${OUT}`);
   console.log(`  ${items.length} items · ${itemSlots.length} slot pairs · ${activities.length} activities`);
   console.log(`  digest ${DIGEST}`);
+  await writeFile(OUT_ITEM_BUFFS, sqlItemBuffs, 'utf8');
+  console.log(`wrote ${OUT_ITEM_BUFFS}`);
+  console.log(`  ${itemBuffs.length} buff foods · types ${BUFF_TYPES.join(', ')}`);
+  console.log(`  digest ${BUFF_DIGEST}`);
 }

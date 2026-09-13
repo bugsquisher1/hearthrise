@@ -98,6 +98,26 @@ const NO_SYNC = new Set([
      directly above, and re-showing a stale summary after a reload would be the
      b462 daily-reward bug in another costume. */
   'viewingSkill', 'lastSessionSummary',
+  /* 2026-09-13 — THE CONSUMABLE BUFF QUEUE, and this is a DELIBERATE, NAMED
+     STEP-1 POSITION, not a shrug. `buffs` used to be in RESIDUE_FIELDS: a
+     player-written `remainingMs` in a bag the client hydrates into G, i.e. a buff
+     clock the player owned. The SERVER owns it now — player_state.buffs with an
+     ABSOLUTE `until`, written only by hr_apply's buff_apply block from the
+     hr_item_buffs catalogue, projected as the envelope's top-level `buffs` block
+     — and `buffs` is on hr_put_client_state's authority deny-list, so it cannot
+     be uploaded at all.
+     Declaring it here is the honest claim for STEP 1: the client's copy is
+     in-flight DISPLAY, losing it across a reload costs a rendered pill and never
+     an entitlement, because the expiry the engine pays from is the server's
+     absolute timestamp and nothing the client holds. It is NOT persistent
+     progress (save invariant 3 is respected: there is nothing here the server
+     does not already hold).
+     ⚠ IT DOES NOT STAY HERE. Step 2 adds `reconcileBuffs` (accrue.js, called
+       from record.js's load path) to mirror `res.buffs` onto G in both
+       directions; at that point the name moves to the guard's
+       SERVER_MECHANISM_FIELDS with the executed proof that list demands, and a
+       reload stops forgetting the pill. */
+  'buffs',
 ]);
 
 export function snapshot(G) {

@@ -76,6 +76,89 @@ export const BUFFS_DEF = {
   damage_crit: { label: 'Critical Chance', bonusKey: 'crit', isPercent: true, glyph: 'uiSpark' },
 };
 
+/* ── THE DRAIN RULE, AS ONE NAMED CONSTANT (game-designer, final, 2026-09-13) ──
+   WALL-CLOCK. A buff's authority is an ABSOLUTE `until` on player_state.buffs,
+   stamped by hr_apply from now() + the catalogue duration, so a Feast is true
+   while you sleep and runs out at the INSTANT it would have run out had you sat
+   and watched. Every derivation of "how much is left" goes through
+   `remainingAtMs` below, so a ruling the other way (drain only while working)
+   is a change to this constant and that one function — not a sweep of callers.
+
+     'wall-clock'  now() decides. The rule as shipped.
+     'worked'      only time spent on a paid action drains it. NOT shipped;
+                   named so the alternative is a value and not a rewrite.
+
+   ⚠ `tickBuffs`'s `ctx.active === false` freeze predates this ruling and
+     CONTRADICTS it (an idling character's wall clock still runs). Deleting it is
+     the step-2 client half's change, not this file's — the SERVER never calls
+     tickBuffs with active:false, so the server is already wall-clock. */
+export const BUFF_DRAIN_RULE = 'wall-clock';
+
+/* The server's ceiling on a buff's expiry: `until` is clamped to
+   now() + BUFF_MAX_UNTIL_MS by hr_apply (c_buff_max_ms, 2026-09-13-consumable-
+   buffs.sql) and tools/gen-catalogues.mjs refuses to emit a food that lasts
+   longer. Mirrored here because the away engine derives a remaining time from
+   the same number and two ceilings for one bound is two numbers that can drift;
+   tests/buff-queue.mjs asserts the SQL constant and this one agree. */
+export const BUFF_MAX_UNTIL_MS = 3600000;
+
+/**
+ * How much of a buff is left AT A GIVEN INSTANT, under BUFF_DRAIN_RULE.
+ *
+ * @param until  epoch ms, or an ISO string / Date (the projection sends ISO)
+ * @param atMs   the instant to measure at — the START of the window being
+ *               priced, never `Date.now()`: the away engine measures at
+ *               `credit.fromMs` so a buff that expired mid-absence still pays
+ *               the slice it was alive for, and the client measures at the
+ *               envelope's own `now`. There is no default on purpose; a caller
+ *               that reaches for the local clock has to say so.
+ * @returns ms remaining, floored at 0. 0 for an unparseable/absent expiry —
+ *          the fail-safe direction is "not running".
+ */
+export function remainingAtMs(until, atMs) {
+  const u = (until instanceof Date) ? until.getTime()
+    : (typeof until === 'number' ? until : Date.parse(String(until)));
+  const at = Number(atMs);
+  if (!isFinite(u) || !isFinite(at)) return 0;
+  return Math.max(0, u - at);
+}
+
+/**
+ * Build the queue the simulators drain from the SERVER's absolute-`until` rows.
+ *
+ * `player_state.buffs` is `[{type, magnitude, until}]` with an absolute
+ * timestamp, because an absolute expiry is the only shape that survives a
+ * process that is not running: a stored `remainingMs` would have to be ticked by
+ * somebody, and "somebody" was the setInterval this module's header is about.
+ * The simulators want `remainingMs` (they walk a tick timeline), so the two
+ * representations meet HERE, once, at the window boundary.
+ *
+ * Entries with an unknown type or nothing left at `atMs` are DROPPED — the same
+ * liveness rule `activeBuffs` applies, so a caller cannot end up with a queue
+ * whose members the bonus function refuses to pay (a boundary that changes
+ * nothing is a segment that pays twice — see `nextBuffExpiryMs`).
+ *
+ * @param rows  the projected/stored array (anything else → [])
+ * @param atMs  the instant the window starts (see remainingAtMs)
+ * @returns a FRESH array of fresh objects — the simulators mutate what they are
+ *          given, and mutating the caller's projected envelope would make the
+ *          drain invisible in one place and permanent in another.
+ */
+export function buffQueueFromServer(rows, atMs) {
+  if (!Array.isArray(rows)) return [];
+  const out = [];
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    if (!isKnownBuff(r.type)) continue;
+    const mag = Number(r.magnitude);
+    if (!isFinite(mag) || mag <= 0) continue;
+    const remainingMs = remainingAtMs(r.until, atMs);
+    if (remainingMs <= 0) continue;
+    out.push({ type: r.type, magnitude: mag, remainingMs, until: r.until });
+  }
+  return out;
+}
+
 /** Is this a buff type the engine can actually pay? */
 export function isKnownBuff(type) {
   return !!(type && Object.prototype.hasOwnProperty.call(BUFFS_DEF, type));

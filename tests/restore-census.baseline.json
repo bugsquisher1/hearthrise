@@ -179,6 +179,7 @@
    "hr_hunt_tiers": 5,
    "hr_import_marker": 6,
    "hr_item_slots": 275,
+   "hr_item_buffs": 30,
    "hr_items": 515,
    "hr_kill_credit_log": 549,
    "hr_ledger_config": 1,
@@ -816,6 +817,11 @@
    "class": "seeded",
    "replay": 275,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
+  },
+  "hr_item_buffs": {
+   "class": "seeded",
+   "replay": 30,
+   "note": "Generated catalogue (2026-09-13-item-buffs-catalogue.generated.sql, tools/gen-catalogues.mjs --check) holding item_id -> {type, magnitude, duration_ms} for every consumable buff food in src/data/items.js. It is the PRICE LIST hr_apply's buff_apply block resolves a buff from under the character lock, so it is an ALLOWLIST: a rebuild with a smaller set refuses real foods as bad_buff_item, and one with different numbers pays a buff nobody authored. Holds nothing per player (player_state.buffs does) and is rebuilt from the repo, never restored."
   },
   "hr_items": {
    "class": "seeded",

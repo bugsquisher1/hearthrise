@@ -866,6 +866,16 @@ export async function collectCurrentWindow(o) {
        delta key is derived from it, unlike toolCarry/fight). Mirrors index.ts
        field for field (A14). */
     enchant: env.enchant || {},
+    /* THE CONSUMABLE BUFF QUEUE (2026-09-13). hr_state_of's OWN top-level
+       `buffs` block — player_state.buffs, written only by hr_apply's
+       buff_apply block from hr_item_buffs + now(). Presence-of-key, not
+       `|| []`: an ABSENT key means this database has no buff column (or an
+       older hr_state_of), and `null` is what makes accrual.js pay NOBODY
+       instead of guessing — the same self-configuring switch as consecFalls /
+       recoveringUntil above. The two halves are then safe in either order.
+       Never a request field: the body carries no buff of any kind.
+       Mirrors set-activity.js field for field (A14). */
+    buffs: ('buffs' in env) ? env.buffs : null,
     /* THE COMBAT STYLE (2026-08-24-combat-style.sql). The SAME defect class A14
        exists for: a collect and an accrue over the same window must ROUTE the XP
        the same, or switching activity would launder a window into a different

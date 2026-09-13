@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-13",
- "replay_ms": 9422,
+ "replay_ms": 9482,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -894,17 +894,18 @@
     "2026-09-01-kill-daily-credit.sql",
     "2026-09-08-hero-slot-buy.sql",
     "2026-09-12-hr-rejections-journal.sql",
-    "2026-09-13-town-presence.sql"
+    "2026-09-13-town-presence.sql",
+    "2026-09-13-world-finds-projection.sql"
    ],
    "live": {
-    "md5": "93873f029ff5ed99c935e77c8f7656f1",
-    "norm_len": 2746,
+    "md5": "a5124ee26450efb3fe1b620e83647421",
+    "norm_len": 2790,
     "measured": "2026-09-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "93873f029ff5ed99c935e77c8f7656f1",
-    "norm_len": 2746,
+    "md5": "a5124ee26450efb3fe1b620e83647421",
+    "norm_len": 2790,
     "source": "computed-from-replay"
    },
    "agree": true

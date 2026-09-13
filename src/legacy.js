@@ -8715,7 +8715,7 @@ function unequip(slot){const id=G.equipment[slot];if(!id)return;const _b=equipSt
 const _TIER_WIELD_LV=[0,1,15,30,45,60,75,88]; // by item.tier 1..7 (the tier gates)
 function gearWieldReq(it){
   if(!it) return null;
-  if(it.type!=='weapon' && it.type!=='armor' && it.type!=='jewelry') return null;
+  if(it.type!=='weapon' && it.type!=='armor' && it.type!=='jewelry' && it.type!=='companion') return null;   /* `companion`: hr_items gates fox_companion on Defence 15, so without it the server refuses a wield the UI painted no requirement for. `ammo` stays out — its only gate is ranged 1, which `lv<=1` discards. See src/data/items.js. */
   let lv = (typeof it.reqLv==='number') ? it.reqLv : (it.tier ? (_TIER_WIELD_LV[it.tier]||0) : 0);
   if(!lv || lv<=1) return null;
   let skill = it.reqSkill;

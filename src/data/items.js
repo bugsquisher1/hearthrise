@@ -109,16 +109,36 @@ export const ITEMS={
      and the ladder guards, and these two are drops, not rungs. */
   razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15,reqSkill:'attack',reqLv:30},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
-  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'attack',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2},
+  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'attack',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2,reqSkill:'defense',reqLv:30},
   leather_boots:{n:'Leather Boots',icon:'🥾',v:90,type:'armor',slot:'boots',defB:2,spdB:.02},
-  traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',defB:1,xpB:.01},
-  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1},
-  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2},
+  /* THE SEVEN LAST UNGATED EQUIPPABLES. The 2026-09-12 sweep closed the 34 rows that
+     carried a `tier`; these seven carry none, so neither reader had anything to
+     gate on — `gearWieldReq` returned null AND `hr_items.req_lv` was NULL, which
+     is the ungated-on-BOTH-sides shape the tier-8 uniques had. Five of the seven
+     are TRADEABLE drops or storefront rows, so the market could sell them to a
+     level-1 account. Ruling 2026-09-12 (game-designer, final): reqSkill =
+     `defense` for all seven (the skill their power serves — cape/ring/necklace/
+     companion are Defence-taxonomy slots here), reqLv read off the STAT rather
+     than a tier, because these rows never sat on the tier ladder:
+       alpha_cloak / gold_ring / gold_amulet → 30 (defB 5 / atkB+strB 3 / atkB 4
+         +defB 2 — steel's rung, the strongest non-tier cape and jewelry shipped);
+       fox_companion → 15 (strB 2 + 2% XP, iron's rung);
+       copper_ring / hunter_necklace / traveler_cape → 1. reqLv 1 restricts
+         nobody (the gate is `level < req_lv`); it is the data form of "belongs to
+         Defence", and it is what keeps the column NON-NULL across the whole slot
+         so the server reads ONE shape instead of two (same reasoning as
+         `iron_arrows` above).
+     `fox_companion` is the only `type:'companion'` row in src/data (verified by
+     grep), and legacy.js `gearWieldReq` had to learn that type before its gate
+     could paint — see the note there. */
+  traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',defB:1,xpB:.01,reqSkill:'defense',reqLv:1},
+  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1,reqSkill:'defense',reqLv:1},
+  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2,reqSkill:'defense',reqLv:1},
   /* Wave 4 (audit fix): Gold ore/bar was a near dead-end — an entire mining tier
      with one necklace as its only sink. These give gold_bar real demand and flesh
      out the thin jewelry lane. Stats are read by getEquipmentStats (real combat). */
-  gold_ring:{n:'Gold Ring',icon:'💍',v:600,type:'jewelry',slot:'ring',atkB:3,strB:3},
-  gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',atkB:4,defB:2},
+  gold_ring:{n:'Gold Ring',icon:'💍',v:600,type:'jewelry',slot:'ring',atkB:3,strB:3,reqSkill:'defense',reqLv:30},
+  gold_amulet:{n:'Gold Amulet',icon:'📿',v:1100,type:'jewelry',slot:'necklace',atkB:4,defB:2,reqSkill:'defense',reqLv:30},
   leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves',atkB:1,defB:1},
   bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
   /* ⚠ v:1, NOT v:60 — DO NOT "RESTORE" THE OLD NUMBER (2026-08-18, reported as
@@ -154,7 +174,7 @@ export const ITEMS={
      — it is the data form of "belongs to Ranged", which is what keeps the column
      non-NULL across the whole slot and lets the ammo guard read one shape. */
   iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',atkB:2,critB:.01,ammoPerShot:1,reqSkill:'ranged',reqLv:1},
-  fox_companion:{n:'Fox Companion',icon:'🦊',v:600,type:'companion',slot:'companion',strB:2,xpB:.02},
+  fox_companion:{n:'Fox Companion',icon:'🦊',v:600,type:'companion',slot:'companion',strB:2,xpB:.02,reqSkill:'defense',reqLv:15},
   iron_ore:{n:'Iron Ore',icon:'⬜',v:25},
   normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:20},
   willow_log:{n:'Willow Log',icon:'🪵',v:40},maple_log:{n:'Maple Log',icon:'🪵',v:80},

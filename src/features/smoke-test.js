@@ -12909,6 +12909,129 @@ const TESTS = [
     }
   }),
 
+  /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the
+     one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at
+     40; every number is read back out of `ARTISAN_RECIPES`, never typed, so a retune moves with
+     the ruling and a deleted row still fails. The boundary IS the property — it is the same one
+     hr_apply's `activity_locked` arm enforces server-side. */
+  () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {
+    const snap = snapshotG();
+    try {
+      const G = window.G, rows = window.ARTISAN_RECIPES.prayer;
+      assert(Array.isArray(rows) && rows.length >= 13,
+        'the prayer bench holds ' + (rows || []).length + ' rungs — the 36..99 void is back');
+      const first = rows.find((r) => r.id === 'bury_bone_chips');
+      assert(first && first.req === 40 && first.input === 'bone_chips' && first.output == null,
+        'bury_bone_chips must be the Prayer 40 pure sink fed by bone_chips, got ' + JSON.stringify(first));
+      /* Strictly increasing and reaching the cap, or a later rung is unreachable (the disordered-lane class) and the skill still dead-ends. */
+      const reqs = rows.map((r) => r.req);
+      assert(Math.max(...reqs) === 99, 'the bench must reach Prayer 99, its top rung is ' + Math.max(...reqs));
+      reqs.slice(1).forEach((rq, i) => assert(rq > reqs[i],
+        'rung ' + rows[i + 1].id + ' (' + rq + ') does not sit above ' + rows[i].id + ' (' + reqs[i] + ')'));
+      rows.forEach((r) => {
+        assert(window.ITEMS[r.input], r.id + ' consumes ' + r.input + ', which is not an item');
+        assert(r.xp > 0 && r.ms > 0, r.id + ' must carry real xp/ms, got ' + r.xp + '/' + r.ms);
+      });
+
+      // The tile paints FROM the row — locked one level short, live one level on.
+      G.inventory = { bone_chips: 5 };
+      G.skills = { prayer: window.xpForLevel(39) };
+      assert(window.getLevel('prayer') === 39, 'fixture: Prayer is ' + window.getLevel('prayer') + ', not 39');
+      const at39 = window.renderArtisanActivities('prayer');
+      /* The WHOLE button: `disabled` sits in the opening tag BEFORE the onclick carrying the id, so slicing forward from the id would read the NEXT tile's state. */
+      const cell = (html) => {
+        const at = html.indexOf('bury_bone_chips');
+        assert(at > 0, 'the prayer bench rendered no bury_bone_chips tile at all');
+        return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
+      };
+      assert(at39.indexOf('bury_bone_chips') >= 0, 'Prayer 39 must still SEE the rung it is one level short of');
+      assert(/disabled/.test(cell(at39)), 'at Prayer 39 the ' + first.req + ' rung must render DISABLED');
+      assert(cell(at39).indexOf('Lv ' + first.req) >= 0,
+        'the locked tile must name the level it needs (Lv ' + first.req + ')');
+
+      G.skills = { prayer: window.xpForLevel(40) };
+      const at40 = window.renderArtisanActivities('prayer');
+      assert(!/disabled/.test(cell(at40)),
+        'at Prayer 40, holding bone chips, the rung must be LIVE: ' + cell(at40).slice(0, 200));
+      assert(cell(at40).indexOf(first.name) >= 0, 'the live tile must carry the row\'s name, ' + first.name);
+      assert(cell(at40).indexOf(' → ') < 0,
+        'a null-output rung must promise no product — the tile printed an output arrow');
+      assert(cell(at40).indexOf(window.ITEMS.bone_chips.n) >= 0,
+        'the live tile must name the drop it consumes');
+    } finally { restoreG(snap); }
+  }),
+
+  /* ── TOWN-1 — THE COMMON, painted and un-paintable ──────────────────────
+     THE HAPPY PATH for the live-world week-1 slice: a fixture town body is
+     parked exactly as `hr_town_of` would answer it, Home is drawn, and the
+     presence rail + The Crier are read off the real DOM.
+
+     It also pins the two properties the feature is only allowed to exist under:
+       · THE FAIL-SAFE. `{off:true}` — which is also every client between this
+         build and the lane-C apply — paints NO row at all. Not an empty frame,
+         not "nobody is here".
+       · IT IS NOT PERSISTENCE. `_town` is scratch: the residue allowlist must
+         never carry it, or the client would hold its own view of other people
+         across a reload (the residue-ahead class with a social face). */
+  () => tryRun('TOWN-1: the town presence rail + The Crier paint from a server projection, and vanish when the realm has no common', () => {
+    const T = window.HearthriseTown, TP = window.HearthriseTownPanel;
+    assert(T && typeof T.__setTown === 'function' && TP && typeof TP.townPanelHtml === 'function',
+      'the Common seams are not published — this test would pass vacuously');
+    const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
+    assert(Array.isArray(RF) && !RF.some((f) => String(f).charAt(0) === '_')
+      && !['_town', '_place', 'zone', 'pos', 'quiet'].some((f) => RF.includes(f)),
+      'presence is scratch: the residue must carry no `_` field and never zone/pos/quiet — ' + JSON.stringify(RF));
+    const prior = window.G._town;
+    try {
+      window.showTab('profile');
+      const mon = Object.keys(window.MONSTERS || {})[0];
+      const view = T.__setTown({
+        ok: true, zone: 'the_common', now: new Date().toISOString(), stale_s: 7, here: 214, shown: 3, cap: 60,
+        peers: [
+          { name: 'Paione', activity_kind: 'combat', activity_id: mon, activity_label: 'a beast', level_band: 40, seen_ago_s: 20, away: false },
+          { name: 'Tamsin', activity_kind: 'gather', activity_id: 'copper_rock', activity_label: 'Copper ore', level_band: 20, seen_ago_s: 4200, away: true },
+          { name: 'Bram', activity_kind: 'combat', activity_id: null, activity_label: 'Bog Lurker', level_band: 30, seen_ago_s: 90, away: false },
+        ],
+        crier: [{ name: 'Paione', item_id: 'ruby', source_kind: 'monster', source_id: mon, one_in: 5000, found_ago_s: 120 }],
+      });
+      assert(view.status === 'ok' && window.G._town === view, 'the projection parks in G._town scratch');
+      window.HearthriseHome.render();
+      const row = document.querySelector('#hd-root .tc-row');
+      assert(row, 'the Common did not paint its own row on Home');
+      const grps = [...row.querySelectorAll('.tc-grp')].map((e) => e.textContent.trim());
+      assert(grps.length === 2 && /Out hunting\s*2/.test(grps.join(' ')) && /Out gathering\s*1/.test(grps.join(' ')),
+        'the rail groups people by WHERE they are, with per-group counts: ' + JSON.stringify(grps));
+      assert(row.textContent.indexOf('214') < 0 && /3 of many shown/.test(row.textContent) && row.querySelector('[data-town-quiet]'),
+        'the true population is NEVER painted (a capped list says "of many") and the opt-out is on the panel: ' + row.textContent.slice(0, 220));
+      const peers = [...row.querySelectorAll('.tc-peer')];
+      const away = row.querySelector('.tc-peer.is-away');
+      assert(peers.length === 3 && away && /Tamsin/.test(away.textContent) && !peers[0].classList.contains('is-away'),
+        'every peer is listed with away folk dimmed by class and sorted last, got ' + peers.length + ' peer(s)');
+      assert(away.getAttribute('data-town-peer') === 'Tamsin' && /Lv 20–29/.test(away.textContent),
+        'each name carries the inspect seam and the SERVER\'s coarse band reads as a range: ' + away.textContent);
+      /* THE CATALOGUE, NOT THE WIRE: the monster's authored name beats the
+         server's coarse label, and an unknown id falls back to that label. */
+      assert(peers[0].textContent.indexOf(window.MONSTERS[mon].name) >= 0 && peers[0].textContent.indexOf('a beast') < 0
+        && row.textContent.indexOf('Bog Lurker') >= 0,
+        'a known activity_id renders the AUTHORED name and an unknown one falls back to the label: ' + peers[0].textContent);
+      const crier = [...row.querySelectorAll('.tc-line')];
+      assert(crier.length === 1 && /Paione found .+ from .+ \(1 in 5,000\)/.test(crier[0].textContent)
+        && /2 min ago/.test(crier[0].textContent),
+        'The Crier states the hearthfind with its odds and a relative time: ' + (crier[0] && crier[0].textContent));
+      /* THE FAIL-SAFE, through the same render path the player gets — first the
+         flag-down body, then the shape every client answers before the apply. */
+      T.__setTown({ ok: true, off: true });
+      window.HearthriseHome.render();
+      assert(!document.querySelector('#hd-root .tc-row'), 'a realm with no common must paint no row at all');
+      assert(TP.townPanelHtml({ status: 'unknown', peers: [], crier: [] }, Date.now()) === ''
+        && TP.townPanelHtml(T.normalizeTown({ ok: false, error: 'rate_limited' }), Date.now()) === '',
+        'an unanswered read and a refusal both paint nothing');
+    } finally {
+      window.G._town = prior;
+      window.showTab('profile');
+    }
+  }),
+
   /* ── FIRST-LIGHT-1 — the first day, played ──────────────────────────────
      THE HAPPY PATH for docs/planning/FEATURE_SLATE.md §1: a brand-new
      character opens Home and sees the whole first-day chain, with the first
@@ -16611,17 +16734,10 @@ const TESTS = [
     const r = window.ARTISAN_RECIPES || {};
     const findRecipe = (skill, id) =>
       (r[skill] || []).some(rec => rec.id === id);
-    const checks = [
-      ['smithing','smelt_bronze'],
-      ['smithing','smelt_steel'],
-      ['smithing','smelt_rune'],
-      ['cooking','cook_wolf_meat'],
-      ['cooking','cook_bear_meat'],
-      ['cooking','cook_veg_stew'],
-      ['smithing','forge_chief_blade'],
-      ['smithing','forge_captain_blade'],
-      ['crafting','craft_alpha_cloak'],
-    ];
+    const checks = ('smithing:smelt_bronze smithing:smelt_steel smithing:smelt_rune '
+      + 'cooking:cook_wolf_meat cooking:cook_bear_meat cooking:cook_veg_stew '
+      + 'smithing:forge_chief_blade smithing:forge_captain_blade crafting:craft_alpha_cloak'
+    ).split(' ').map((s) => s.split(':'));
     const missing = checks.filter(([s,id]) => !findRecipe(s, id));
     assert(missing.length === 0,
       'missing recipes: ' + missing.map(([s,id]) => s+':'+id).join(','));
@@ -25483,14 +25599,11 @@ const TESTS = [
       ['WEAPON_SPEED_MOD', C.combat.WEAPON_SPEED_MOD], ['ACC_DEF_MUL', C.combat.ACC_DEF_MUL],
       ['DROP_BAND_MAX', C.drops.DROP_BAND_MAX], ['PACE', C.pacing.PACE],
       ['SPEED_KEYS', C.pacing.SPEED_KEYS], ['COMBAT_XP_SKILLS', C.progression.COMBAT_XP_SKILLS],
-      /* Phase A */
+      /* Phase A. ⚠ DELIBERATELY A LIST, not `Object.keys(C.bounty)`: deriving it found `BOUNTY_BOARD_TIER_BY_LEVEL` on window as a COPY of the core value rather than the core object — a real defect of this test's own class, owned by the bounty board and NOT fixed in the lane that found it (widening the pin here would red the suite for an unrelated lane). CONFLICTS.md 2026-09-12. */
       ['COMBAT_STYLES', C.styles.COMBAT_STYLES],
-      ['BOUNTY_KILL_COUNTS', C.bounty.BOUNTY_KILL_COUNTS],
-      ['BOUNTY_BASE_REWARDS', C.bounty.BOUNTY_BASE_REWARDS],
-      ['BOUNTY_TYPE_MULT', C.bounty.BOUNTY_TYPE_MULT],
-      ['BOUNTY_DIFFICULTY_MULT', C.bounty.BOUNTY_DIFFICULTY_MULT],
-      ['BOUNTY_TYPE_LABEL', C.bounty.BOUNTY_TYPE_LABEL],
-      ['BOUNTY_DIFFICULTY_LABEL', C.bounty.BOUNTY_DIFFICULTY_LABEL],
+      ['BOUNTY_KILL_COUNTS', C.bounty.BOUNTY_KILL_COUNTS], ['BOUNTY_BASE_REWARDS', C.bounty.BOUNTY_BASE_REWARDS],
+      ['BOUNTY_TYPE_MULT', C.bounty.BOUNTY_TYPE_MULT], ['BOUNTY_DIFFICULTY_MULT', C.bounty.BOUNTY_DIFFICULTY_MULT],
+      ['BOUNTY_TYPE_LABEL', C.bounty.BOUNTY_TYPE_LABEL], ['BOUNTY_DIFFICULTY_LABEL', C.bounty.BOUNTY_DIFFICULTY_LABEL],
     ];
     for (const [name, coreValue] of pairs) {
       assert(window[name] === coreValue, 'window.' + name + ' is a COPY of the core value, not the core value');
@@ -54308,8 +54421,11 @@ const TESTS = [
       assert(I[id].reqLv >= 1 && I[id].reqLv <= LADDER[8],
         id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
     });
-    /* The 34 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. */
+    /* The 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung.
+       The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: they were ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL) and four are TRADEABLE. */
     ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'
+      + 'alpha_cloak defense 30|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
+      + 'copper_ring defense 1|hunter_necklace defense 1|traveler_cape defense 1|'
       + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 30|'
       + 'chief_blade attack 15|choirbone_gauntlets defense 88|copper_studs defense 1|'
       + 'frost_locket defense 45|heartwood_cape defense 75|hunters_torc defense 30|'
@@ -54329,6 +54445,14 @@ const TESTS = [
       const it = I[id] || {};
       assert(it.tier == null && it.reqSkill == null && it.reqLv == null && window.gearWieldReq(it) == null,
         id + ' is a cosmetic and must stay ungated, got ' + JSON.stringify(window.gearWieldReq(it)));
+    });
+    /* `companion` is a TYPE the authority used to return null for, so the fox carried a gate hr_apply enforced and the UI never painted. reqLv 1 still yields NO gate on purpose (`lv<=1`) — it is the data form of "belongs to Defence", which keeps hr_items.req_lv non-NULL across the slot. */
+    assert(JSON.stringify(window.gearWieldReq(I.fox_companion)) === '{"skill":"defense","lv":15}',
+      'the fox must paint Defence 15 — `companion` has to be a gated type or the server refuses a wield '
+        + 'the player was never warned about (got ' + JSON.stringify(window.gearWieldReq(I.fox_companion)) + ')');
+    ['copper_ring', 'hunter_necklace', 'traveler_cape'].forEach((id) => {
+      assert(I[id].reqSkill === 'defense' && I[id].reqLv === 1 && window.gearWieldReq(I[id]) == null,
+        id + ': reqLv 1 must restrict nobody while still keeping hr_items.req_lv non-NULL');
     });
     assert(JSON.stringify(window.gearWieldReq(I.slagheart_platebody)) === '{"skill":"defense","lv":88}',
       'the tier-8 uniques must gate from their OWN fields — `_TIER_WIELD_LV` has no index 8, '
@@ -61469,6 +61593,46 @@ const TESTS = [
     try { window.closeCharacterSelect(); } catch (e) {}
   }),
 
+  /* ── regression suite — THE DRAWER'S ACTIVE ROW IS THE LIVE HERO ──────────
+     Seen live: the character drawer said "Hero 3 active · Cmb Lv 1 ·
+     Tot Lv 1 · now" while the topbar beside it said 24 CL / 280 TL. Two causes,
+     both in src/multi-character.js: slotRows() printed the STORED per-slot
+     summary for the active row, and the only writer of that summary
+     (refreshActiveMeta) looked the slot up by ARRAY POSITION on a list addressed
+     by ID and gave up silently when the active slot had no record at all — the
+     normal state for a slot that arrived from the server entitlement. */
+  () => tryRun('b543: the character drawer\'s active row reads the LIVE hero, not a stale summary', () => {
+    const P = window.HearthriseProfile;
+    if (!P || !P.profile || typeof window.openCharacterSelect !== 'function') return;  // signed out
+    const keepSlots = JSON.parse(JSON.stringify(P.profile.slots || []));
+    const cl = window.getCombatLevel, tl = window.getTotalLevel;
+    try {
+      window.getCombatLevel = () => 24; window.getTotalLevel = () => 280;
+      const active = P.activeSlot();
+      // The live shape of the bug: no metadata record for the slot being played.
+      P.profile.slots = keepSlots.filter((s) => s && s.id !== active);
+      const row = P.slotRows().filter((r) => r.kind === 'char').find((r) => r.active);
+      assert(row, 'slotRows() must still list the character being played');
+      assert(row.combatLv === 24 && row.totalLv === 280,
+        'the drawer\'s active row says Cmb Lv ' + row.combatLv + ' for a CL 24 hero (Tot Lv ' + row.totalLv + ' vs 280)');
+      window.openCharacterSelect();
+      const stats = (document.querySelector('#cs-modal .cs-slot.active .cs-slot-stats') || {}).textContent || '';
+      assert(/24/.test(stats) && /280/.test(stats), 'the rendered active row reads "' + stats + '"');
+      // The write side: a save tick CREATES and refreshes the outgoing summary.
+      window.saveLocal();
+      const rec = (P.profile.slots || []).find((s) => s && s.id === active);
+      assert(rec, 'a save tick left the active hero with no stored summary at all');
+      assert(rec.combatLv === 24 && rec.totalLv === 280,
+        'a save tick left the stored summary at Cmb Lv ' + rec.combatLv + ' / Tot Lv ' + rec.totalLv);
+      assert(rec.lastSeen > Date.now() - 60000, 'the stored summary\'s lastSeen was not refreshed');
+    } finally {
+      window.getCombatLevel = cl; window.getTotalLevel = tl;
+      P.profile.slots = keepSlots;
+      try { window.saveLocal(); } catch (e) {}
+      try { window.closeCharacterSelect(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b373: renaming opens the real account-name flow, never a native prompt', () => {
     /* Audit finding 1: Home's rename pencil called window.prompt() — a BLOCKING
        native dialog that froze the renderer hard in a backgrounded tab — and it
@@ -61696,24 +61860,12 @@ const TESTS = [
        LIST — a blanket `document.body` sweep would also police the dev smoke
        panel and any harness furniture, and would fail for reasons that are not
        about the game. */
-    const SURFACES = [
-      ['topbar', '.topbar'],
-      ['nav', '#sidebar'],
-      ['quests-strip', '#global-quests-strip'],
-      ['activity-bar', '.activity-bar'],
-      ['home', '#panel-profile'],
-      ['character', '#panel-character'],
-      ['inventory', '#panel-inventory'],
-      ['combat', '#panel-combat'],
-      ['skills', '#panel-skills'],
-      ['farm', '#panel-farming'],
-      ['house', '#panel-house'],
-      ['shop', '#panel-shop'],
-      ['market', '#panel-market'],
-      ['stable', '#panel-stable'],
-      ['clan', '#panel-clan'],
-      ['social', '#panel-social'],
-    ];
+    const SURFACES = ('topbar=.topbar nav=#sidebar quests-strip=#global-quests-strip '
+      + 'activity-bar=.activity-bar home=#panel-profile character=#panel-character '
+      + 'inventory=#panel-inventory combat=#panel-combat skills=#panel-skills '
+      + 'farm=#panel-farming house=#panel-house shop=#panel-shop market=#panel-market '
+      + 'stable=#panel-stable clan=#panel-clan social=#panel-social'
+    ).split(' ').map((s) => s.split('='));
     const TABS = ['profile', 'character', 'inventory', 'combat', 'skills',
       'farming', 'house', 'shops', 'stable', 'clan', 'social'];
 

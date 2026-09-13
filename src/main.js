@@ -406,6 +406,13 @@ import './utils/image-fallback.js?v=543';
 // control it makes reachable. Published on window for legacy.js's render sites
 // and the envelope hook in net/accrue.js.
 import { setupBountyProgress } from './render/bounty-progress.js?v=543';
+/* THE COMMON (live-world week 1). Two halves, both display-only: net/town.js
+   reads `hr_town_of` on its own 25s cadence into `G._town` scratch, and this
+   turns that into one row on Home. Neither is authority and neither is a gate —
+   the server half lands in its own lane and until it does the panel is simply
+   not rendered (see the fail-safe block in src/net/town.js). */
+import { startTownChannel } from './net/town.js?v=543';
+import { setupTownPanel } from './render/town-panel.js?v=543';
 /* b535 - THE SUITE IS NOT PART OF THE GAME. This line used to pull
    features/smoke-test.js in STATICALLY: a 3.75 MB test suite, 36% of the
    10.28 MB of JavaScript a cold boot delivered, paid by every player before the
@@ -451,6 +458,10 @@ function tryBootFeatures() {
      others. */
   const boot = (name, fn) => { try { fn(); } catch (e) { console.error('[ESM boot] ' + name + ' failed', e); } };
   boot('bounty-progress', setupBountyProgress);
+  boot('town-panel', setupTownPanel);
+  /* AFTER the panel is published: the first poll can land before the next Home
+     repaint, and a parked view with no renderer is a view nothing draws. */
+  boot('town-channel', startTownChannel);
   boot('smoke-test-loader', setupSmokeTestLoader);
   boot('companions', setupCompanions);
   boot('activities-grid', setupActivitiesGrid);

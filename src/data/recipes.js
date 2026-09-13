@@ -283,10 +283,57 @@ const BASE_RECIPES = {
        its first endgame rung (it has had exactly two entries since launch). */
     {id:'craft_wyrmgilt_mantle', name:'Tailor Wyrmgilt Mantle', icon:'🦸', inputs:{duskwood_plank:3, silk_thread:6, wyrm_gilding:3}, output:'wyrmgilt_mantle', xp:5200, req:95, ms:7000},
   ],
+  /* ── PRAYER ─────────────────────────────────────────────────────────────
+     THE VOID: this bench shipped with THREE rows — 1, 15, 35 — and then nothing
+     from 36 to 99. A player who reached Prayer 36 had no new Prayer action for
+     the remaining 64 levels of the skill, on the only bench in the game whose
+     whole output is XP. `bury_dragon` at 72 XP per 2 s is ~130k XP/hour against
+     a 99 curve of ~13M, so the top of the skill was not slow, it was ABSENT.
+
+     THE SHAPE IS DELIBERATELY THE ONE THE BENCH ALREADY HAS, not a new system:
+     `{id,name,icon,input,output:null,xp,req,ms}`. `output:null` makes each row a
+     PURE SINK — src/core/artisan.js `recipeInputs` reads singular `input` (→
+     `{[input]:1}`) and `produced` is null when `output` is falsy, so the away
+     engine, the ledger's craft kind and the attended loop all already handle it
+     (this is exactly how `bury_dragon` accrues). ZERO engine code was added for
+     these ten rows, which is the test that they are data and not a feature.
+
+     INPUTS ARE MONSTER DROPS, ten of them, chosen so the ladder is fed by the
+     combat tier a player is fighting at that Prayer level rather than by a
+     second gathering lane — and so ten drops that had a vendor price and no
+     other sink acquire one. Every id is verified present in src/data/items.js
+     and every one already carries painted or bundle art in
+     `LOCAL_ITEM_ICON` (src/render/icons.js), so no icon mapping is owed; each
+     row's glyph is its INPUT's own icon, the same relationship `bury_bones`
+     has to `bones`.
+
+     The XP curve steps ~1.4x per rung against ms that grows only 2.2 s → 3.8 s,
+     which is the standard artisan shape: the later rungs are worth more per
+     action AND per hour, but each one costs a rarer drop. Levels are the
+     Designer's (ruling 2026-09-12, final); nothing here is derived, so retuning
+     is a data edit plus a catalogue regenerate.
+
+     ⚠ ADDING A ROW HERE MOVES THE SERVER. tools/gen-catalogues.mjs emits one
+     `hr_activities` row per recipe (kind 'artisan', req_skill = the bench, req_lv
+     = `req`) — that row is what lets `set_activity` accept the id at all, so the
+     catalogue MUST be applied before the client that offers the tile. `xp` and
+     `ms` are NOT in hr_activities; they reach the server through the EDGE
+     PAYLOAD, which imports this file (supabase/functions/hr-accrue/catalogue.js),
+     so hr-accrue must be redeployed at the same cut. */
   prayer: [
     {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
     {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
     {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
+    {id:'bury_bone_chips',        name:'Sift Bone Chips',          icon:'🦴',  input:'bone_chips',   output:null, xp:105,  req:40, ms:2200},
+    {id:'consecrate_grave_dust',  name:'Consecrate Grave Dust',    icon:'⚱️',  input:'grave_dust',   output:null, xp:155,  req:46, ms:2400},
+    {id:'offer_razor_claw',       name:'Offer Razor Claw',         icon:'爪',  input:'razor_claw',   output:null, xp:212,  req:52, ms:2500},
+    {id:'scatter_vamp_dust',      name:'Scatter Vampire Dust',     icon:'💜',  input:'vamp_dust',    output:null, xp:295,  req:58, ms:2600},
+    {id:'banish_demon_shard',     name:'Banish Demon Shard',       icon:'🔴',  input:'demon_shard',  output:null, xp:420,  req:65, ms:2800},
+    {id:'unbind_wraith_veil',     name:'Unbind Wraith Veil',       icon:'👻',  input:'wraith_veil',  output:null, xp:600,  req:72, ms:3000},
+    {id:'consecrate_dragon_scale',name:'Consecrate Dragon Scale',  icon:'🐲',  input:'dragon_scale', output:null, xp:855,  req:79, ms:3200},
+    {id:'release_lich_soul',      name:'Release Lich Soul',        icon:'☠️',  input:'lich_soul',    output:null, xp:1210, req:86, ms:3400},
+    {id:'offer_ancient_claw',     name:'Offer Ancient Claw',       icon:'爪',  input:'ancient_claw', output:null, xp:1700, req:92, ms:3600},
+    {id:'purge_void_chitin',      name:'Purge Void Chitin',        icon:'🪲',  input:'void_chitin',  output:null, xp:2400, req:99, ms:3800},
   ]
 };
 

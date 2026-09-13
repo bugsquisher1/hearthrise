@@ -2,6 +2,33 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-12 · SYSTEMS → whoever owns the BOUNTY BOARD · **`window.BOUNTY_BOARD_TIER_BY_LEVEL` is a COPY of the core value** (found in `lane/b544-prayer-ladder-item-gates`, NOT fixed there)
+
+Not a git conflict — a defect found while paying down the test-file ratchet, in a lane that had
+no business fixing it.
+
+**What.** The "Phase 0: the balance constants are ONE object" test pins core exports by IDENTITY
+from a hand-written LIST. Deriving that list from `Object.keys(HearthriseCore.bounty)` instead —
+which is strictly what the test claims to check — turns it RED on one row:
+
+    window.BOUNTY_BOARD_TIER_BY_LEVEL is a COPY of the core value, not the core value
+
+Every other `C.bounty.*` export shares identity with its `window.*` twin. This one does not, which
+is the data double-copy class CLAUDE.md §7 exists to stop: a retune in `src/core` would not reach
+the board, silently.
+
+**Why it was not fixed here.** This lane is Prayer rows + item gates. Widening the pin would have
+put an unrelated red in the in-page suite, and a red in-page test is a P1 that blocks every later
+build's CI gate. The list therefore STAYS a list, with the finding written above it in
+`src/features/smoke-test.js` so the next reader cannot mistake it for laziness.
+
+**What is needed.** Publish the core object rather than a copy (one line, wherever
+`BOUNTY_BOARD_TIER_BY_LEVEL` reaches `window`), then replace the list with the derivation so the
+pin covers every future export the day it is added. Exit-code proof: with the derivation in place
+`node tests/run-smoke.mjs --only "COPY of the core"` reports 1/2 and names the row.
+
+---
+
 ## 2026-09-12 · SYSTEMS → GAME DESIGNER + ART DIRECTOR · **SEMANTIC: the Manual and Scavenger dungeon buttons now REST** (`lane/b540-dungeon-cooldown-client`)
 
 Not a git conflict — a change of MODEL on a surface two other roles reason about.

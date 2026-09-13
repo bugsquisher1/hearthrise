@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: d067cddc267bc91ed7f926cce812ecac4d74f9d0fdb16f8b194551bcbb0331fc
+--   catalogue digest: 483e871edd21f7f6d98b10c20c909c8b2d58623f4864ab1108751870bc318f29
 --   rows: 519 items (20 untradeable) ·
 --         275 item-slot pairs · 15 equip slots ·
---         17 skills · 9 crops · 473 activities ·
+--         17 skills · 9 crops · 483 activities ·
 --         3 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -185,7 +185,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('adept_helmet','Adept Hat',true,'armor',110,'defense',15,null,false),
   ('adept_pants','Adept Robe Bottom',true,'armor',200,'defense',15,null,false),
   ('air_rune','Air Rune',true,'ammo',1,'magic',1,null,false),
-  ('alpha_cloak','Alpha Cloak',true,'armor',1500,null,null,null,false),
+  ('alpha_cloak','Alpha Cloak',true,'armor',1500,'defense',30,null,false),
   ('alpha_fang','Alpha Fang',true,null,450,null,null,null,false),
   ('alpha_pattern','Alpha Cloak Pattern',true,null,0,null,null,null,false),
   ('alphaheart_longbow','Alphaheart Longbow',true,'weapon',10000,'ranged',50,null,false),
@@ -289,7 +289,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('cooked_wolf_meat','Cooked Wolf Meat',true,null,12,null,null,6,true),
   ('copper_bar','Copper Bar',true,null,35,null,null,null,false),
   ('copper_ore','Copper Ore',true,null,10,null,null,null,false),
-  ('copper_ring','Copper Ring',true,'jewelry',120,null,null,null,false),
+  ('copper_ring','Copper Ring',true,'jewelry',120,'defense',1,null,false),
   ('copper_studs','Copper Studs',true,'jewelry',60,'defense',1,null,false),
   ('copper_whetstone','Copper Whetstone',true,'ammo',15,'attack',15,null,false),
   ('cracked_spellstone','Cracked Spellstone',true,null,260,null,null,null,false),
@@ -381,7 +381,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('fire_rune','Fire Rune',true,'ammo',4,'magic',45,null,false),
   ('forge_blueprint_t2','Forge Blueprint II',true,null,500,null,null,null,false),
   ('forge_blueprint_t3','Forge Blueprint III',true,null,2000,null,null,null,false),
-  ('fox_companion','Fox Companion',true,'companion',600,null,null,null,false),
+  ('fox_companion','Fox Companion',true,'companion',600,'defense',15,null,false),
   ('frost_essence','Frost Essence',true,null,40,null,null,null,false),
   ('frost_locket','Frost Locket',true,'jewelry',2250,'defense',45,null,false),
   ('frost_rune','Frost Rune',true,null,180,null,null,null,false),
@@ -390,10 +390,10 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('goblin_ear','Goblin Ear',true,null,8,null,null,null,false),
   ('goblin_seal','Goblin Seal',false,null,0,null,null,null,false),
   ('goblin_totem','Goblin Totem',true,null,120,null,null,null,false),
-  ('gold_amulet','Gold Amulet',true,'jewelry',1100,null,null,null,false),
+  ('gold_amulet','Gold Amulet',true,'jewelry',1100,'defense',30,null,false),
   ('gold_bar','Gold Bar',true,null,280,null,null,null,false),
   ('gold_ore','Gold Ore',true,null,100,null,null,null,false),
-  ('gold_ring','Gold Ring',true,'jewelry',600,null,null,null,false),
+  ('gold_ring','Gold Ring',true,'jewelry',600,'defense',30,null,false),
   ('goldenroot','Goldenroot',true,null,260,null,null,12,true),
   ('goldenroot_roast','Goldenroot Roast',true,null,700,null,null,26,false),
   ('goldenroot_seed','Goldenroot Seed',true,null,90,null,null,null,false),
@@ -410,7 +410,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('hollow_sigil','Hollow Sigil',true,null,1400,null,null,null,false),
   ('hollow_sigil_ring','Hollow Sigil Ring',true,'jewelry',7000,'magic',35,null,false),
   ('houndskin_cloak','Houndskin Cloak',true,'armor',310,'defense',28,null,false),
-  ('hunter_necklace','Hunter Necklace',true,'jewelry',180,null,null,null,false),
+  ('hunter_necklace','Hunter Necklace',true,'jewelry',180,'defense',1,null,false),
   ('hunters_feast','Hunter''s Feast',true,null,420,null,null,35,false),
   ('hunters_torc','Hunter''s Torc',true,'jewelry',750,'defense',30,null,false),
   ('iron_arrows','Iron Arrows',true,'ammo',1,'ranged',1,null,false),
@@ -603,7 +603,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('tomato','Tomato',true,null,90,null,null,4,true),
   ('tomato_seed','Tomato Seed',true,null,30,null,null,null,false),
   ('tomato_soup','Tomato Soup',true,null,260,null,null,28,false),
-  ('traveler_cape','Traveler Cape',true,'armor',150,null,null,null,false),
+  ('traveler_cape','Traveler Cape',true,'armor',150,'defense',1,null,false),
   ('travellers_stew','Traveller''s Stew',true,null,180,null,null,null,false),
   ('troll_hide','Troll Hide',true,null,80,null,null,null,false),
   ('trollhide_cape','Trollhide Cape',true,'armor',3600,'defense',50,null,false),
@@ -1021,6 +1021,7 @@ insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv, 
   ('wheat','wheat_seed','wheat',8,20,3,5,252,false);
 
 insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss) values
+  ('artisan','banish_demon_shard','prayer',65,null,false),
   ('artisan','bind_air_runes','runecrafting',1,null,false),
   ('artisan','bind_blood_runes','runecrafting',88,null,false),
   ('artisan','bind_chaos_runes','runecrafting',60,null,false),
@@ -1032,6 +1033,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','bind_poison_rune','runecrafting',25,null,false),
   ('artisan','bind_water_runes','runecrafting',30,null,false),
   ('artisan','bury_big','prayer',15,null,false),
+  ('artisan','bury_bone_chips','prayer',40,null,false),
   ('artisan','bury_bones','prayer',1,null,false),
   ('artisan','bury_dragon','prayer',35,null,false),
   ('artisan','carve_apprentice_staff','crafting',12,null,false),
@@ -1045,6 +1047,8 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','carve_shortbow','crafting',5,null,false),
   ('artisan','carve_willow_rod','crafting',3,null,false),
   ('artisan','carve_yew_rod','crafting',58,null,false),
+  ('artisan','consecrate_dragon_scale','prayer',79,null,false),
+  ('artisan','consecrate_grave_dust','prayer',46,null,false),
   ('artisan','cook_baked_potato','cooking',25,null,false),
   ('artisan','cook_bear_meat','cooking',40,null,false),
   ('artisan','cook_bear_pie','cooking',70,null,false),
@@ -1332,9 +1336,13 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','make_willow_staff','crafting',36,null,false),
   ('artisan','make_yew_bow','crafting',65,null,false),
   ('artisan','make_yew_staff','crafting',66,null,false),
+  ('artisan','offer_ancient_claw','prayer',92,null,false),
+  ('artisan','offer_razor_claw','prayer',52,null,false),
+  ('artisan','purge_void_chitin','prayer',99,null,false),
   ('artisan','quarry_basalt','stonemason',70,null,false),
   ('artisan','quarry_granite','stonemason',30,null,false),
   ('artisan','quarry_rubble','stonemason',1,null,false),
+  ('artisan','release_lich_soul','prayer',86,null,false),
   ('artisan','saw_duskwood','crafting',90,null,false),
   ('artisan','saw_maple','crafting',45,null,false),
   ('artisan','saw_normal','crafting',1,null,false),
@@ -1342,6 +1350,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','saw_runewood','crafting',75,null,false),
   ('artisan','saw_willow','crafting',30,null,false),
   ('artisan','saw_yew','crafting',60,null,false),
+  ('artisan','scatter_vamp_dust','prayer',58,null,false),
   ('artisan','smelt_bronze','smithing',1,null,false),
   ('artisan','smelt_copper','smithing',1,null,false),
   ('artisan','smelt_dawn','smithing',92,null,false),
@@ -1362,6 +1371,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','tailor_traveler_cape','crafting',15,null,false),
   ('artisan','tailor_trollhide_cape','crafting',50,null,false),
   ('artisan','tailor_woolen_cloak','crafting',12,null,false),
+  ('artisan','unbind_wraith_veil','prayer',72,null,false),
   ('artisan','weave_voidchitin','crafting',82,null,false),
   ('combat','adept',null,null,106,false),
   ('combat','air_elemental',null,null,24,false),
@@ -1525,7 +1535,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'd067cddc267bc91ed7f926cce812ecac4d74f9d0fdb16f8b194551bcbb0331fc', now())
+  values (true, '483e871edd21f7f6d98b10c20c909c8b2d58623f4864ab1108751870bc318f29', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1559,7 +1569,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 20', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 473 then raise exception 'hr_activities has % rows, expected 473', v_n; end if;
+  if v_n <> 483 then raise exception 'hr_activities has % rows, expected 483', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1690,7 +1700,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d067cddc267bc91ed7f926cce812ecac4d74f9d0fdb16f8b194551bcbb0331fc',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 483e871edd21f7f6d98b10c20c909c8b2d58623f4864ab1108751870bc318f29',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

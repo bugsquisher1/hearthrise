@@ -12829,6 +12829,58 @@ const TESTS = [
   // outcome, then restores. NEVER pollutes the player's save.
   // ─────────────────────────────────────────────────────────────
 
+  /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the
+     one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at
+     40; every number is read back out of `ARTISAN_RECIPES`, never typed, so a retune moves with
+     the ruling and a deleted row still fails. The boundary IS the property — it is the same one
+     hr_apply's `activity_locked` arm enforces server-side. */
+  () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {
+    const snap = snapshotG();
+    try {
+      const G = window.G, rows = window.ARTISAN_RECIPES.prayer;
+      assert(Array.isArray(rows) && rows.length >= 13,
+        'the prayer bench holds ' + (rows || []).length + ' rungs — the 36..99 void is back');
+      const first = rows.find((r) => r.id === 'bury_bone_chips');
+      assert(first && first.req === 40 && first.input === 'bone_chips' && first.output == null,
+        'bury_bone_chips must be the Prayer 40 pure sink fed by bone_chips, got ' + JSON.stringify(first));
+      /* Strictly increasing and reaching the cap, or a later rung is unreachable (the disordered-lane class) and the skill still dead-ends. */
+      const reqs = rows.map((r) => r.req);
+      assert(Math.max(...reqs) === 99, 'the bench must reach Prayer 99, its top rung is ' + Math.max(...reqs));
+      reqs.slice(1).forEach((rq, i) => assert(rq > reqs[i],
+        'rung ' + rows[i + 1].id + ' (' + rq + ') does not sit above ' + rows[i].id + ' (' + reqs[i] + ')'));
+      rows.forEach((r) => {
+        assert(window.ITEMS[r.input], r.id + ' consumes ' + r.input + ', which is not an item');
+        assert(r.xp > 0 && r.ms > 0, r.id + ' must carry real xp/ms, got ' + r.xp + '/' + r.ms);
+      });
+
+      // The tile paints FROM the row — locked one level short, live one level on.
+      G.inventory = { bone_chips: 5 };
+      G.skills = { prayer: window.xpForLevel(39) };
+      assert(window.getLevel('prayer') === 39, 'fixture: Prayer is ' + window.getLevel('prayer') + ', not 39');
+      const at39 = window.renderArtisanActivities('prayer');
+      /* The WHOLE button: `disabled` sits in the opening tag BEFORE the onclick carrying the id, so slicing forward from the id would read the NEXT tile's state. */
+      const cell = (html) => {
+        const at = html.indexOf('bury_bone_chips');
+        assert(at > 0, 'the prayer bench rendered no bury_bone_chips tile at all');
+        return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
+      };
+      assert(at39.indexOf('bury_bone_chips') >= 0, 'Prayer 39 must still SEE the rung it is one level short of');
+      assert(/disabled/.test(cell(at39)), 'at Prayer 39 the ' + first.req + ' rung must render DISABLED');
+      assert(cell(at39).indexOf('Lv ' + first.req) >= 0,
+        'the locked tile must name the level it needs (Lv ' + first.req + ')');
+
+      G.skills = { prayer: window.xpForLevel(40) };
+      const at40 = window.renderArtisanActivities('prayer');
+      assert(!/disabled/.test(cell(at40)),
+        'at Prayer 40, holding bone chips, the rung must be LIVE: ' + cell(at40).slice(0, 200));
+      assert(cell(at40).indexOf(first.name) >= 0, 'the live tile must carry the row\'s name, ' + first.name);
+      assert(cell(at40).indexOf(' → ') < 0,
+        'a null-output rung must promise no product — the tile printed an output arrow');
+      assert(cell(at40).indexOf(window.ITEMS.bone_chips.n) >= 0,
+        'the live tile must name the drop it consumes');
+    } finally { restoreG(snap); }
+  }),
+
   /* ── FIRST-LIGHT-1 — the first day, played ──────────────────────────────
      THE HAPPY PATH for docs/planning/FEATURE_SLATE.md §1: a brand-new
      character opens Home and sees the whole first-day chain, with the first
@@ -16531,17 +16583,10 @@ const TESTS = [
     const r = window.ARTISAN_RECIPES || {};
     const findRecipe = (skill, id) =>
       (r[skill] || []).some(rec => rec.id === id);
-    const checks = [
-      ['smithing','smelt_bronze'],
-      ['smithing','smelt_steel'],
-      ['smithing','smelt_rune'],
-      ['cooking','cook_wolf_meat'],
-      ['cooking','cook_bear_meat'],
-      ['cooking','cook_veg_stew'],
-      ['smithing','forge_chief_blade'],
-      ['smithing','forge_captain_blade'],
-      ['crafting','craft_alpha_cloak'],
-    ];
+    const checks = ('smithing:smelt_bronze smithing:smelt_steel smithing:smelt_rune '
+      + 'cooking:cook_wolf_meat cooking:cook_bear_meat cooking:cook_veg_stew '
+      + 'smithing:forge_chief_blade smithing:forge_captain_blade crafting:craft_alpha_cloak'
+    ).split(' ').map((s) => s.split(':'));
     const missing = checks.filter(([s,id]) => !findRecipe(s, id));
     assert(missing.length === 0,
       'missing recipes: ' + missing.map(([s,id]) => s+':'+id).join(','));
@@ -25403,14 +25448,11 @@ const TESTS = [
       ['WEAPON_SPEED_MOD', C.combat.WEAPON_SPEED_MOD], ['ACC_DEF_MUL', C.combat.ACC_DEF_MUL],
       ['DROP_BAND_MAX', C.drops.DROP_BAND_MAX], ['PACE', C.pacing.PACE],
       ['SPEED_KEYS', C.pacing.SPEED_KEYS], ['COMBAT_XP_SKILLS', C.progression.COMBAT_XP_SKILLS],
-      /* Phase A */
+      /* Phase A. ⚠ DELIBERATELY A LIST, not `Object.keys(C.bounty)`: deriving it found `BOUNTY_BOARD_TIER_BY_LEVEL` on window as a COPY of the core value rather than the core object — a real defect of this test's own class, owned by the bounty board and NOT fixed in the lane that found it (widening the pin here would red the suite for an unrelated lane). CONFLICTS.md 2026-09-12. */
       ['COMBAT_STYLES', C.styles.COMBAT_STYLES],
-      ['BOUNTY_KILL_COUNTS', C.bounty.BOUNTY_KILL_COUNTS],
-      ['BOUNTY_BASE_REWARDS', C.bounty.BOUNTY_BASE_REWARDS],
-      ['BOUNTY_TYPE_MULT', C.bounty.BOUNTY_TYPE_MULT],
-      ['BOUNTY_DIFFICULTY_MULT', C.bounty.BOUNTY_DIFFICULTY_MULT],
-      ['BOUNTY_TYPE_LABEL', C.bounty.BOUNTY_TYPE_LABEL],
-      ['BOUNTY_DIFFICULTY_LABEL', C.bounty.BOUNTY_DIFFICULTY_LABEL],
+      ['BOUNTY_KILL_COUNTS', C.bounty.BOUNTY_KILL_COUNTS], ['BOUNTY_BASE_REWARDS', C.bounty.BOUNTY_BASE_REWARDS],
+      ['BOUNTY_TYPE_MULT', C.bounty.BOUNTY_TYPE_MULT], ['BOUNTY_DIFFICULTY_MULT', C.bounty.BOUNTY_DIFFICULTY_MULT],
+      ['BOUNTY_TYPE_LABEL', C.bounty.BOUNTY_TYPE_LABEL], ['BOUNTY_DIFFICULTY_LABEL', C.bounty.BOUNTY_DIFFICULTY_LABEL],
     ];
     for (const [name, coreValue] of pairs) {
       assert(window[name] === coreValue, 'window.' + name + ' is a COPY of the core value, not the core value');
@@ -54230,8 +54272,11 @@ const TESTS = [
       assert(I[id].reqLv >= 1 && I[id].reqLv <= LADDER[8],
         id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
     });
-    /* The 34 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. */
+    /* The 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung.
+       The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: they were ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL) and four are TRADEABLE. */
     ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'
+      + 'alpha_cloak defense 30|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
+      + 'copper_ring defense 1|hunter_necklace defense 1|traveler_cape defense 1|'
       + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 30|'
       + 'chief_blade attack 15|choirbone_gauntlets defense 88|copper_studs defense 1|'
       + 'frost_locket defense 45|heartwood_cape defense 75|hunters_torc defense 30|'
@@ -54251,6 +54296,14 @@ const TESTS = [
       const it = I[id] || {};
       assert(it.tier == null && it.reqSkill == null && it.reqLv == null && window.gearWieldReq(it) == null,
         id + ' is a cosmetic and must stay ungated, got ' + JSON.stringify(window.gearWieldReq(it)));
+    });
+    /* `companion` is a TYPE the authority used to return null for, so the fox carried a gate hr_apply enforced and the UI never painted. reqLv 1 still yields NO gate on purpose (`lv<=1`) — it is the data form of "belongs to Defence", which keeps hr_items.req_lv non-NULL across the slot. */
+    assert(JSON.stringify(window.gearWieldReq(I.fox_companion)) === '{"skill":"defense","lv":15}',
+      'the fox must paint Defence 15 — `companion` has to be a gated type or the server refuses a wield '
+        + 'the player was never warned about (got ' + JSON.stringify(window.gearWieldReq(I.fox_companion)) + ')');
+    ['copper_ring', 'hunter_necklace', 'traveler_cape'].forEach((id) => {
+      assert(I[id].reqSkill === 'defense' && I[id].reqLv === 1 && window.gearWieldReq(I[id]) == null,
+        id + ': reqLv 1 must restrict nobody while still keeping hr_items.req_lv non-NULL');
     });
     assert(JSON.stringify(window.gearWieldReq(I.slagheart_platebody)) === '{"skill":"defense","lv":88}',
       'the tier-8 uniques must gate from their OWN fields — `_TIER_WIELD_LV` has no index 8, '
@@ -61618,24 +61671,12 @@ const TESTS = [
        LIST — a blanket `document.body` sweep would also police the dev smoke
        panel and any harness furniture, and would fail for reasons that are not
        about the game. */
-    const SURFACES = [
-      ['topbar', '.topbar'],
-      ['nav', '#sidebar'],
-      ['quests-strip', '#global-quests-strip'],
-      ['activity-bar', '.activity-bar'],
-      ['home', '#panel-profile'],
-      ['character', '#panel-character'],
-      ['inventory', '#panel-inventory'],
-      ['combat', '#panel-combat'],
-      ['skills', '#panel-skills'],
-      ['farm', '#panel-farming'],
-      ['house', '#panel-house'],
-      ['shop', '#panel-shop'],
-      ['market', '#panel-market'],
-      ['stable', '#panel-stable'],
-      ['clan', '#panel-clan'],
-      ['social', '#panel-social'],
-    ];
+    const SURFACES = ('topbar=.topbar nav=#sidebar quests-strip=#global-quests-strip '
+      + 'activity-bar=.activity-bar home=#panel-profile character=#panel-character '
+      + 'inventory=#panel-inventory combat=#panel-combat skills=#panel-skills '
+      + 'farm=#panel-farming house=#panel-house shop=#panel-shop market=#panel-market '
+      + 'stable=#panel-stable clan=#panel-clan social=#panel-social'
+    ).split(' ').map((s) => s.split('='));
     const TABS = ['profile', 'character', 'inventory', 'combat', 'skills',
       'farming', 'house', 'shops', 'stable', 'clan', 'social'];
 

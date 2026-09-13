@@ -37,21 +37,56 @@ at top level and publishes them as `window.__LEGACY_INLINE`. `src/main.js` then
 
 ### 2. Items — hand-authored data
 `src/data/items.js` (`ITEMS`). One entry per item id: `{ n, icon, v, ... }`.
-- Equippable: `type:'weapon'|'armor'|'jewelry'`, `slot`, `weaponType`, stat
-  bonuses (`atkB/strB/defB/critB/spdB/magicAtkB/…`), optional `reqSkill`+`reqLv`
-  (wield gate, enforced by `gearWieldReq`/`canWield`).
+- Equippable: `type:'weapon'|'armor'|'jewelry'|'companion'|'ammo'`, `slot`,
+  `weaponType`, stat bonuses (`atkB/strB/defB/critB/spdB/magicAtkB/…`),
+  `reqSkill`+`reqLv` — the wield gate, enforced client-side by
+  `gearWieldReq`/`canWield` and server-side by `hr_apply` against
+  `hr_items.req_skill`/`req_lv`. **Every equippable carries the pair**; `reqLv 1`
+  restricts nobody and is the data form of "belongs to this skill", which is what
+  keeps the server column non-NULL so there is one shape to read. A NULL pair is
+  a gate that exists only in the browser — see `EQUIP-REQLV-1`.
 - `bop:true` = bind-on-pickup (untradeable — market + sell both block it).
 - Consumable/material: `heals`, `buff*`, `tag`, `tier`, `rarity`.
 - **Icons:** emoji `icon` is the last-resort fallback; real art is mapped in
   `legacy.js` `LOCAL_ITEM_ICON` (painted PNGs). New items are art-backlog targets.
 
-### 3. Recipes (cooking / smithing / crafting) — data
+### 3. Recipes (cooking / smithing / crafting / prayer / runecrafting / stonemason) — data
 `src/data/recipes.js` → `ARTISAN_RECIPES[skill]` (array of `{id, name, input,
 secondary?, output, xp, req, ms, gated?}`). One engine runs them all
 (`doArtisanAction` in legacy.js). Category lanes derive automatically via
 `recipeCategory()` — you don't hand-tag lanes.
 - **To add a recipe:** add a row; ensure its `input`/`secondary` are obtainable
-  (the reachability guard, below, enforces this).
+  (the reachability guard, below, enforces this). Then run
+  `node tools/gen-catalogues.mjs` — every recipe emits an `hr_activities` row,
+  and until that row is APPLIED the server answers `unknown_activity`. `xp`/`ms`
+  are not in that table; they reach the server through the edge payload, so
+  `hr-accrue` is redeployed at the same cut.
+- **`output: null` = a pure XP sink.** No engine code is needed for one:
+  `recipeInputs` (src/core/artisan.js) reads the singular `input` and `produced`
+  is null when `output` is falsy.
+
+#### The Prayer bench (`ARTISAN_RECIPES.prayer`) — 13 rungs, 1 → 99
+Every row is `output: null` (XP only) and consumes one monster drop.
+
+| req | id | name | input | xp | ms |
+|---:|---|---|---|---:|---:|
+| 1 | `bury_bones` | Bury Bones | `bones` | 4.5 | 1200 |
+| 15 | `bury_big` | Bury Big Bones | `big_bones` | 15 | 1500 |
+| 35 | `bury_dragon` | Bury Dragon Bones | `dragon_bones` | 72 | 2000 |
+| 40 | `bury_bone_chips` | Sift Bone Chips | `bone_chips` | 105 | 2200 |
+| 46 | `consecrate_grave_dust` | Consecrate Grave Dust | `grave_dust` | 155 | 2400 |
+| 52 | `offer_razor_claw` | Offer Razor Claw | `razor_claw` | 212 | 2500 |
+| 58 | `scatter_vamp_dust` | Scatter Vampire Dust | `vamp_dust` | 295 | 2600 |
+| 65 | `banish_demon_shard` | Banish Demon Shard | `demon_shard` | 420 | 2800 |
+| 72 | `unbind_wraith_veil` | Unbind Wraith Veil | `wraith_veil` | 600 | 3000 |
+| 79 | `consecrate_dragon_scale` | Consecrate Dragon Scale | `dragon_scale` | 855 | 3200 |
+| 86 | `release_lich_soul` | Release Lich Soul | `lich_soul` | 1210 | 3400 |
+| 92 | `offer_ancient_claw` | Offer Ancient Claw | `ancient_claw` | 1700 | 3600 |
+| 99 | `purge_void_chitin` | Purge Void Chitin | `void_chitin` | 2400 | 3800 |
+
+Rungs 40–99 are the 2026-09-12 ruling; before it the bench stopped at 35 and had
+no action for 64 levels. The ladder is asserted strictly increasing and
+reaching 99 by `PRAYER-LADDER-1` in the in-page suite.
 
 ### 4. Gathering nodes — data
 `src/data/gathering.js` → `TREES` / `ROCKS` / `FISH_SPOTS` (arrays of

@@ -4778,6 +4778,8 @@ const TESTS = [
 
   () => tryRun('slice 7: buyback is gated on the record seam — works UNARMED, fails CLOSED when gold is armed', () => {
     if (typeof window.repurchase !== 'function' || !window.ITEMS || !window.ITEMS.copper_ore) return;
+    /* A leftover entry here draws an extra Vendor-buy-back row in the seed shop and fails
+       b221 — `buyback` used to need a hand-restore for that; sealSnapshot does it now. */
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     try {

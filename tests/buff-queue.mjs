@@ -80,6 +80,9 @@
 //       ninth without eating the food, and src/core/buffs.js pays the RUNNING
 //       segment rather than the SUM (measured 0.07 before the fix — the cheap food
 //       adding to the expensive one).
+// ⚠ ARM-TABLE NOTE: later files that PIN this block's text must be blinded here
+//   (see the BLIND map) — otherwise their gate raises, the chain refuses and a
+//   mutation scores HARNESS instead of the tick it earned.
 //  [17] F4 — a buff food is neither equippable nor a rune, and the census of
 //       inventory-CREDITING sites in hr_apply is pinned, so no future delta can
 //       refund the food it just debited for a buff.
@@ -133,6 +136,20 @@ const harness = (m) => { const e = new Error(m); e.harness = true; return e; };
    apply time; the regression that matters is a later restatement, when it never
    fires again. */
 const BLIND = {
+  /* ⚠ LATER FILES THAT *PIN* THIS BLOCK'S TEXT MUST BE BLINDED HERE TOO.
+     2026-09-13-rejections-verb-map-2.sql's GATE(e) is a SHAPE PIN on hr_apply it
+     does not own: `buff_at_max` must be raised from exactly 2 sites with
+     why='segment_budget' on one. A mutation that changes the buff block can make
+     that pin RAISE, the chain refuse, and the arm score HARNESS instead of the
+     tick it earned — measured on the set at 672296e2 (`second_helping_restarts`,
+     exit 2) when the mutation still edited text a later file re-splices. The
+     durable answer is two-part: plant every mutation in the file that owns the
+     LIVE text (see second_helping_restarts / merge_replaces_other_types), AND
+     blind any downstream gate that asserts this block's literal shape. Blinded
+     NARROWLY — only the pin's `if`, so the rest of that file's §5 still runs. */
+  '2026-09-13-rejections-verb-map-2.sql': [
+    "  if to_regprocedure('public.hr_apply(uuid,int,bigint,uuid,jsonb)') is not null then",
+    '  if false then  -- GATE(e) SHAPE PIN BLINDED FOR THE MUTATION PROOF (tests/buff-queue.mjs)'],
   [MIG]: ["  -- (a) THE COLUMN: present, jsonb, NOT NULL, defaulted to '[]'.",
     "  return;  -- §4 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n"
     + "  -- (a) THE COLUMN: present, jsonb, NOT NULL, defaulted to '[]'."],

@@ -73,14 +73,14 @@ export const FISH_SPOTS=[
   /* b215: herring closes the old 1→20 opening gap */
   {id:'herring_s',name:'Herring Run',icon:'🐟',req:10,xp:21,ms:4200,prod:'herring',qty:[1,1]},
   {id:'trout_s',name:'Trout Spot',icon:'🐟',req:20,xp:32,ms:5000,prod:'trout',qty:[1,1]},
-  /* b544 "Reed & Tide" (game-designer, 2026-09-13): Trout(20) → Lobster(40)
+  /* "Reed & Tide" (game-designer ruling, 2026-09-13): Trout(20) → Lobster(40)
      was the last TWENTY-LEVEL silence on the fishing ladder — one rung per
      twenty levels, through the exact band where a player is learning the
      fish→cook→eat→fight loop and has nothing new to catch. Four rungs at
      24/28/32/36 make it a rung every four levels to 40.
-     The two ladder guards are satisfied by MEASUREMENT, not by eye
-     ("b226: every gathering rung is strictly faster XP/sec" and "b390: a
-     full-tier gathering unlock is a CLEAR upgrade"): the steps read
+     The two ladder guards are satisfied by MEASUREMENT, not by eye — "every
+     gathering rung is strictly faster XP/sec" and "a
+     full-tier gathering unlock is a CLEAR upgrade": the steps read
      8.0% / 11.1% / 12.1% / 11.8% / 10.8% xp/sec, all strictly climbing, and
      every req gap here is 4 so none owes the ≥6% full-tier margin — the 20→40
      jump that WAS a full-tier unlock is now five short steps whose product is

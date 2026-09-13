@@ -299,13 +299,13 @@ export const ITEMS={
   frostfin:        {n:'Raw Frostfin', icon:'❄️', v:520, heals:18},
   cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:1300, heals:28, foodTier:4, foodClass:'healing',
     buff:{type:'defense', magnitude:4, durationMs:360000}},
-  /* ── b544 "Reed & Tide" (game-designer ruling, 2026-09-13) ──────────────
+  /* ── "Reed & Tide" (game-designer ruling, 2026-09-13) ─────────────────
      The four fish that close the Trout(20)→Lobster(40) silence, their cooked
      forms, and the two multi-input dishes that give late cooking a reason to
      want river crops. `raw` is NOT tagged here: RAW_MATERIAL_IDS derives it
      from `FISH_SPOTS[*].prod`, so the vendor bids these four the 20% raw rate
      automatically (and the two dishes full book value, as cooked goods).
-     Every cooked row carries an explicit `foodClass` because the b220 guard
+     Every cooked row carries an explicit `foodClass` because the taxonomy guard
      refuses an implicitly-classified cooking output, and four of the five
      healing rows sit between Cooked Trout (14) and Cooked Lobster (25) so the
      auto-eat pool gains rungs rather than a cliff. `river_chowder` heals 30

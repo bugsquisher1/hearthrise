@@ -35,7 +35,7 @@ const BASE_RECIPES = {
     {id:'cook_frostfin',  name:'Cook Frostfin',  icon:'❄️', input:'frostfin',  output:'cooked_frostfin',  xp:260, req:70, ms:5400},
     {id:'cook_swordfish', name:'Cook Swordfish', icon:'🐠', input:'swordfish', output:'cooked_swordfish', xp:150, req:45, ms:4200},
     {id:'cook_moonfish',  name:'Cook Moonfish',  icon:'🌙', input:'moonfish',  output:'cooked_moonfish',  xp:420, req:88, ms:6000},
-    /* b544 "Reed & Tide" — the cooking half of the four new fishing rungs, plus
+    /* "Reed & Tide" — the cooking half of the four new fishing rungs, plus
        two multi-input dishes that make late cooking want river crops.
        SHAPE: the four singles use the SINGULAR `input` like every fish sibling
        above; the two combos use `inputs:{}` like cook_veg_stew / cook_bear_pie.

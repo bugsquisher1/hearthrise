@@ -714,7 +714,7 @@ window._monsterIcon = window._monsterIcon || {};
     cooked_trout:  'assets/icons-bundle/painted/items/cooked_trout.png',
     cooked_lobster:'assets/icons-bundle/painted/items/cooked_lobster.png',
     cooked_shark:  'assets/icons-bundle/painted/items/cooked_shark.png',
-    /* b544 "Reed & Tide" — the four new cooked fish REUSE shipped painted art
+    /* "Reed & Tide" — the four new cooked fish REUSE shipped painted art
        rather than ship an emoji next to four painted siblings on the same
        shelf (Art Director's ruling, 2026-09-13): the two grilled fillets read
        as cooked_trout, the two shellfish/steak dishes as cooked_lobster. The

@@ -3280,6 +3280,13 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
    BUFF_DRAIN_RULE) against the server's absolute `until`, so there is no state in
    which a buff is "kept, not spent" and no honest way to draw one. What replaces
    the note is one sentence of real-time copy. */
+/* The gesture rule on a food tooltip: a full-width note under the stat grid, not
+   a stat — it has no number and must not read as one. Tokens only. */
+.it-buff-note{grid-column:1/-1}
+.it-buff-note span{
+  display:block;color:var(--ink-3);line-height:1.35;
+  font-size:calc(14.5px * var(--ui-scale, 1));
+}
 .buff-real-time-note{
   margin-top:6px;color:var(--ink-3);line-height:1.4;
   font-size:calc(14.5px * var(--ui-scale, 1));

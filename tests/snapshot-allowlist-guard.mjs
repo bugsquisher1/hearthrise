@@ -218,7 +218,17 @@ const readAllowlist = (code, lines) => {
   const start = lines.findIndex((l) => /^const snapshotG\s*=/.test(l));
   if (start < 0) return { start: -1, end: -1, fields: new Map() };
   let end = -1;
-  for (let i = start; i < lines.length; i++) if (/^\s*\}\)\);\s*$/.test(lines[i])) { end = i; break; }
+  /* TWO SHAPES, and the second one is the FIX for SNAP-2, so this must read both
+     or the guard goes vacuous on the tree it is meant to police. Historically the
+     whole literal was the argument of one `JSON.parse(JSON.stringify({…}))` and
+     closed on `}));`. Since the ABSENT seal it is `const raw = {…};` handed to
+     `sealSnapshot(raw)` and closes on `};`. A parser that knew only the old form
+     would return ZERO fields — and zero fields means zero SNAP-2 findings and
+     every SNAP-1 write reported as unlisted, i.e. a confident table about nothing.
+     PARSE-B is the control that keeps that honest. */
+  for (let i = start; i < lines.length; i++) {
+    if (/^\s*\}\)\);\s*$/.test(lines[i]) || /^\s*\};\s*$/.test(lines[i])) { end = i; break; }
+  }
   if (end < 0) return { start, end: -1, fields: new Map() };
   const fields = new Map();
   const codeLines = code.split(/\r?\n/);
@@ -235,6 +245,75 @@ const readAllowlist = (code, lines) => {
     }
   }
   return { start: start + 1, end: end + 1, fields };
+};
+
+// ── 1b. THE ABSENT SEAL (the structural answer to SNAP-2) ──────────
+/* SNAP-2's fix used to be one operator per entry: `f: G.f ?? null`. That shape
+   needs a CORRECT EMPTY for every field, and the wrong empty is worse than the
+   leak it replaces — `skills: {}` is a level-1 character, `gold: null` paints, a
+   zeroed `bank` takes capacity a player bought with gems. Twenty-six operators is
+   twenty-six chances to hand a later test scaffolding it reads as real state.
+   The shipped answer instead records ABSENCE and replays it:
+
+     sealSnapshot(raw)   an undefined value becomes the SNAP_ABSENT sentinel
+                         (a string, so the JSON round trip keeps it)
+     restoreG(snap)      a sentinel value is `delete`d, not assigned
+
+   which restores value AND own-property presence for every field at once, with no
+   empty to choose. So SNAP-2 is satisfied STRUCTURALLY: when all three parts are
+   present, a bare entry is no longer a defect and the per-field census is silent.
+
+   THE 26 FIELDS THAT CENSUS NAMED, AND WHY EACH IS ABSENT (this is the reading the
+   suite's own header points at; it is DERIVED below from the two files, never
+   typed, so arming an eleventh server field updates it for free):
+     • 9 on SERVER_OF_RECORD (src/net/record.js) — `forgetServerOfRecord(G)` DELETES
+       gold, gems, skills, equipment, rooms, marks, restedXp, restedAt and
+       offlineBudget off the live G at the end of EVERY load, so each is absent
+       until an envelope re-states it. `gold` IS in the fresh-character literal and
+       is gone anyway, which is why the literal alone is not the evidence (M6).
+     • 17 that are not depth-1 keys of `let G={…}` (src/legacy.js) — homestead,
+       buffs, companions, bestiary, plotLevels, _serverPlotLevel, chronicle,
+       toolCarry, autoActions, workers, lastActivity, renown, renownHigh,
+       collectionLog, dailyGoals, weeklyGoals, dropLog. Each is created only by the
+       path that first needs it (`bestiary` by killMonster, `workers` by the first
+       hire, `traits` by applyTraitUnlock), so the bare entry protected nothing on
+       exactly the accounts where a test's write matters most — F7-1 after B495-4.
+     A guessed empty would have been worse than the leak on every one of them:
+     `skills: {}` restores a level-1 character over a real one, `gold: null` paints,
+     a zeroed `bank` takes capacity a player bought with gems. ABSENT is the only
+     value that is provably what the field had.
+   Read as THREE separate facts, because two of them alone are a hole — a seal that
+   stores the sentinel and a restoreG that assigns it would put the literal string
+   " HR_SNAP_ABSENT " into the player's `G.rooms`. Each part's absence re-arms the
+   full census; M7/M8/M9 in --selftest remove one at a time and prove it. */
+const readSeal = (code, lines) => {
+  const codeLines = code.split(/\r?\n/);
+  /* The body of a top-level `const f = (…) => {` — from its declaration line to
+     the first column-0 `};`. Read from the BLANKED code, never from `lines`, so a
+     `sealSnapshot(` named inside one of this file's own header comments (there are
+     several) can never be mistaken for the call site. */
+  const bodyOf = (re) => {
+    const at = lines.findIndex((l) => re.test(l));
+    if (at < 0) return null;
+    for (let i = at; i < lines.length; i++) if (/^\};\s*$/.test(lines[i])) return codeLines.slice(at, i + 1).join('\n');
+    return null;
+  };
+  const snapBody = bodyOf(/^const snapshotG\s*=/);
+  const sealBody = bodyOf(/^const sealSnapshot\s*=/);
+  const restBody = bodyOf(/^const restoreG\s*=/);
+  const parts = {
+    /* the literal is HANDED to the seal rather than JSON-stringified in place */
+    handsOff: !!snapBody && /return\s+sealSnapshot\s*\(/.test(snapBody),
+    /* the seal turns an undefined value into the sentinel. ⚠ NOT matched against
+       the string `'undefined'` — this body is read from the BLANKED code, where
+       every string literal is spaces, so `typeof v === 'undefined'` arrives as
+       `typeof v === '         '`. Measured: CONTROL-D reported stores=false on a
+       correctly sealed tree. Match the ternary instead, which is code. */
+    stores: !!sealBody && /\?\s*SNAP_ABSENT/.test(sealBody) && /typeof\s/.test(sealBody),
+    /* and the restore REMOVES the key rather than assigning the sentinel */
+    deletes: !!restBody && /SNAP_ABSENT/.test(restBody) && /delete\s+window\.G\[/.test(restBody),
+  };
+  return { ...parts, sealed: parts.handsOff && parts.stores && parts.deletes };
 };
 
 // ── 2. THE FRESH-CHARACTER LITERAL (src/legacy.js `let G={…}`) ───────────
@@ -365,6 +444,7 @@ const analyse = (suiteSrc, legacySrc, recordSrc) => {
   const lines = suiteSrc.split(/\r?\n/);
   const code = blankNonCode(suiteSrc);
   const allow = readAllowlist(code, lines);
+  const seal = readSeal(code, lines);
   const literal = readFreshKeys(legacySrc) || new Set();
   const forgotten = readServerOfRecord(recordSrc || '') || new Set();
   /* GUARANTEED PRESENT = in the fresh literal AND not deleted by the load. */
@@ -381,7 +461,7 @@ const analyse = (suiteSrc, legacySrc, recordSrc) => {
       if (w.how === 'bulk' || !entry) {
         const key = w.field + '@' + t.name;
         if (!seen1.has(key)) { seen1.add(key); snap1.push({ ...w, test: t.name }); }
-      } else if (!entry.undefinedSafe && !fresh.has(entry.source)) {
+      } else if (!entry.undefinedSafe && !fresh.has(entry.source) && !seal.sealed) {
         const key = w.field + '@' + t.name;
         if (!seen2.has(key)) {
           seen2.add(key);
@@ -394,7 +474,7 @@ const analyse = (suiteSrc, legacySrc, recordSrc) => {
       }
     }
   }
-  return { allow, fresh, literal, forgotten, tests, snap1, snap2, snap3 };
+  return { allow, seal, fresh, literal, forgotten, tests, snap1, snap2, snap3 };
 };
 
 const readTree = () => ({ suite: readFileSync(SUITE, 'utf8'), legacy: readFileSync(LEGACY, 'utf8'), record: readFileSync(RECORD, 'utf8') });
@@ -424,6 +504,11 @@ const printFindings = (a, verbose) => {
     + a.forgotten.size + ' field(s)');
   console.log('  ⇒ guaranteed present on G: ' + a.fresh.size + ' key(s)');
   console.log('tests scanned: ' + a.tests.length);
+  console.log('ABSENT seal: ' + (a.seal.sealed
+    ? 'ARMED (sealSnapshot stores SNAP_ABSENT, restoreG deletes it) ⇒ a bare entry is no longer droppable'
+    : 'NOT ARMED — ' + ['snapshotG hands its literal to sealSnapshot: ' + a.seal.handsOff,
+        'sealSnapshot stores the sentinel: ' + a.seal.stores,
+        'restoreG deletes on the sentinel: ' + a.seal.deletes].join('; ')));
   console.log('');
 
   const g1 = group(a.snap1);
@@ -442,6 +527,11 @@ const printFindings = (a, verbose) => {
   console.log('SNAP-2  DROPPABLE — the allowlist entry is a BARE `f: G.f` and the fresh-character');
   console.log('        literal has no such key, so JSON.stringify drops it on a character that has');
   console.log('        never had one and restoreG puts nothing back.');
+  if (a.seal.sealed) {
+    console.log('        SILENT BY THE SEAL, NOT BY AN ALLOWLIST: sealSnapshot() records the absence');
+    console.log('        and restoreG() replays it with `delete`, which restores value AND presence for');
+    console.log('        every field at once. Break any of the three parts and this census comes back.');
+  }
   console.log('        ' + a.snap2.length + ' write(s) across ' + g2.length + ' field(s).');
   for (const [field, fs] of g2) {
     console.log('    G.' + field + '  ×' + fs.length + '   fix: ' + rel + ':' + fs[0].allowLine
@@ -640,6 +730,37 @@ const selftest = () => {
       grade('M2', 'SNAP-1 bites when the real `gold` entry is REMOVED', !!hit && wasClean,
         hit ? 'RED: G.gold  ' + line(hit) + '  ' + hit.test : 'NOT CAUGHT');
     }
+  }
+
+  {
+    /* M7/M8/M9 \u2014 THE SEAL IS THE ONLY THING KEEPING SNAP-2 QUIET, SO PROVE IT.
+       The shipped tree has 26 bare entries for fields the load deletes or the
+       fresh literal lacks, and they are silent because `sealSnapshot` records the
+       absence and `restoreG` replays it with `delete`. That makes the seal a
+       load-bearing THREE-part fact, and a guard that reads a three-part fact must
+       be shown to notice each part going missing \u2014 otherwise "green" could mean
+       "the census parsed nothing". Each mutation removes exactly one part of the
+       shipped file and requires the full census back, naming real fields. */
+    const base = analyse(tree.suite, tree.legacy, tree.record);
+    grade('CONTROL-D', 'the SHIPPED tree is sealed and SNAP-2 is therefore empty',
+      base.seal.sealed && base.snap2.length === 0,
+      'sealed=' + base.seal.sealed + ' snap2=' + base.snap2.length
+      + ' (handsOff=' + base.seal.handsOff + ' stores=' + base.seal.stores + ' deletes=' + base.seal.deletes + ')');
+    const without = (id, what, find, replace) => {
+      if (tree.suite.indexOf(find) < 0) { grade(id, what, false, 'ANCHOR NOT FOUND: ' + find); return; }
+      const a = analyse(tree.suite.replace(find, replace), tree.legacy, tree.record);
+      const fields = [...new Set(a.snap2.map((f) => f.field))];
+      const bit = !a.seal.sealed && a.snap2.length > 100 && fields.includes('rooms') && fields.includes('skills');
+      grade(id, what, bit,
+        bit ? 'RED: ' + a.snap2.length + ' write(s) across ' + fields.length + ' field(s) \u2014 ' + fields.slice(0, 6).join(', ') + '\u2026'
+          : 'NOT CAUGHT (sealed=' + a.seal.sealed + ' snap2=' + a.snap2.length + ')');
+    };
+    without('M7', 'SNAP-2 comes back when snapshotG stops handing its literal to sealSnapshot',
+      'return sealSnapshot(raw);', 'return raw;');
+    without('M8', 'SNAP-2 comes back when restoreG stops DELETING on the sentinel',
+      'if (snap[k] === SNAP_ABSENT) delete window.G[k];', 'if (snap[k] === SNAP_ABSENT) window.G[k] = null;');
+    without('M9', 'SNAP-2 comes back when sealSnapshot stops STORING the sentinel',
+      '? SNAP_ABSENT', '? undefined');
   }
 
   const bad = results.filter((r) => !r.ok);

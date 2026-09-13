@@ -1194,7 +1194,11 @@ const MUTATIONS = {
     repl: '      -- totalLevel x 2 (sum of every skill level owned) [edited after apply]',
   },
   gate_bucket_added: {
-    file: '2026-08-29-rpc-gate-bucket-restore.sql',
+    // FINAL BODY: hr_rpc_gate is fully restated at chain end by
+    // 2026-09-13-world-finds-projection.sql, so a plant in any earlier file is
+    // overwritten before the hash is taken (slipped 2026-09-13). The next
+    // restatement of hr_rpc_gate must move this plant again.
+    file: '2026-09-13-world-finds-projection.sql',
     what: 'a rate bucket is edited into hr_rpc_gate in the repo — the b487 root-cause class, and '
         + 'a body EVERY client-callable RPC passes through',
     expect: 'replay hr_rpc_gate(p_bucket text)',

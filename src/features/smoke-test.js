@@ -1367,10 +1367,28 @@ const gemsOf = () => {
   return (window.G && Number(window.G.gems)) || 0;
 };
 
+/* ══ THE ABSENT SEAL — snapshotG NEEDS NO "DECLARED EMPTY" ═══════════════
+   `JSON.stringify` DROPS an undefined value, so a BARE entry below (`rooms: G.rooms`) put
+   NOTHING back for a character who does not own it and the write leaked into every later test
+   (MEASURED 2026-09-12 via `buyback` and `rooms`). The fix is not 26 guessed empties — one is
+   state a later test reads as real (`skills: {}` is a level-1 character) — so absence is
+   RECORDED as the `SNAP_ABSENT` sentinel and `restoreG` `delete`s that key. WHICH 26 and why:
+   snapshot-allowlist-guard §1b. UNRESOLVED: none; the 13 pre-seal empties stand, pinned. */
+const SNAP_ABSENT = ' HR_SNAP_ABSENT ';
+/* ⚠ NOT one JSON round trip over the whole object — that IS the bug. The literal is built
+   first (it keeps an `undefined`-valued key, which is how the absent fields stay
+   enumerable), then each value is cloned or sentinelled. */
+const sealSnapshot = (raw) => {
+  const snap = {};
+  for (const k of Object.keys(raw)) snap[k] = (typeof raw[k] === 'undefined') ? SNAP_ABSENT
+    : (raw[k] && typeof raw[k] === 'object') ? JSON.parse(JSON.stringify(raw[k])) : raw[k];
+  return snap;
+};
+
 const snapshotG = () => {
   const G = window.G;
   if (!G) return null;
-  return JSON.parse(JSON.stringify({
+  const raw = {
     activeSkill: G.activeSkill,
     skillTargetId: G.skillTargetId,
     activeMonster: G.activeMonster,
@@ -1564,7 +1582,8 @@ const snapshotG = () => {
          read as ABSENT at every consumer — no lock, keep everything. */
     lockedItems: G.lockedItems ?? null,
     lootFilter: G.lootFilter ?? null,
-  }));
+  };
+  return sealSnapshot(raw);
 };
 
 /* b226 — put the player "away" for N hours. The offline catch-up is
@@ -1707,7 +1726,8 @@ const withResidueWire = async (onRequest, body, extraCfg) => {
 
 const restoreG = (snap) => {
   if (!snap || !window.G) return;
-  for (const k of Object.keys(snap)) window.G[k] = snap[k];
+  /* ⚠ THE OTHER HALF OF `sealSnapshot`: `delete` is NOT interchangeable with `= null`. */
+  for (const k of Object.keys(snap)) { if (snap[k] === SNAP_ABSENT) delete window.G[k]; else window.G[k] = snap[k]; }
   /* b455 — AND THE DISPLAY PREDICTIONS GO WITH IT. Restoring G.skills/G.gold
      while leaving an outstanding prediction standing would carry one test's
      grant into the next test's measurement, which is the hardest kind of suite
@@ -1735,6 +1755,48 @@ const restoreG = (snap) => {
 const restoreGAndRecord = (snap) => {
   restoreG(snap);
   try { stampRecordLikeLoad(window.G); } catch (e) {}
+};
+
+/* SNAP-2's PROBE. Walked once per property test below, so a red names WHICH half of the
+   seal broke. Per field: a character that does NOT own it (snapshot → write what a test
+   writes → restore) and one that DOES. A swap onto a DETACHED copy, synchronous, so the
+   live G is never written. DECLARED_EMPTY is the 13 pre-seal `?? <empty>` entries PINNED
+   BY VALUE — a field may decline the sentinel only if named here with its exact value, so
+   the count can only fall; a made-up empty is worse than the leak it replaces. */
+const SNAP_DECLARED_EMPTY = {
+  activeArtisanRecipe: null, activeArtisanSkill: null, activeAction: null, _dungeonCooldowns: null,
+  traits: null, _bankCap: null, heroSlotsUnlocked: null, _heroSlots: null, lockedItems: null,
+  lootFilter: null, lastWelcome: 0, recoveringUntilMs: 0, buyback: [],
+};
+const snapRoundTrip = () => {
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k), J = (v) => String(JSON.stringify(v)).slice(0, 50);
+  const real = window.G, fields = Object.keys(snapshotG() || {});
+  const out = { fields, noKey: [], presence: [], value: [], undeclared: [] };
+  try {
+    const base = JSON.parse(JSON.stringify(real));
+    for (const f of fields) {
+      const bare = { ...base }, dec = own(SNAP_DECLARED_EMPTY, f);
+      delete bare[f];
+      window.G = bare;
+      const snapA = snapshotG();
+      if (!own(snapA, f)) { out.noKey.push(f); continue; }
+      const absent = snapA[f] === SNAP_ABSENT;
+      if (!absent && !dec) out.undeclared.push(f + ' snapshots as ' + J(snapA[f]));
+      bare[f] = { __snapRatchet: f };
+      restoreG(snapA);
+      const want = absent ? 'absent' : dec ? JSON.stringify(SNAP_DECLARED_EMPTY[f]) : null;
+      const got = own(bare, f) ? JSON.stringify(bare[f]) : 'absent';
+      if (want !== null && got !== want) out.presence.push(f + ': restored as ' + got.slice(0, 50) + ', wanted ' + want);
+      if (!own(base, f)) continue;
+      const owned = { ...base }, had = JSON.stringify(base[f]);
+      window.G = owned;
+      const snapB = snapshotG();
+      owned[f] = { __snapRatchet: f };
+      restoreG(snapB);
+      if (JSON.stringify(owned[f]) !== had) out.value.push(f + ': owned value came back as ' + J(owned[f]) + ' instead of ' + had.slice(0, 50));
+    }
+  } finally { window.G = real; }
+  return out;
 };
 
 /* nightWorld — ONE FIXTURE FOR THE RITUAL, NOT ONE PER TEST. Seventeen `G.x =`
@@ -4805,12 +4867,10 @@ const TESTS = [
 
   () => tryRun('slice 7: buyback is gated on the record seam — works UNARMED, fails CLOSED when gold is armed', () => {
     if (typeof window.repurchase !== 'function' || !window.ITEMS || !window.ITEMS.copper_ore) return;
+    /* A leftover entry here draws an extra Vendor-buy-back row in the seed shop and fails
+       b221 — `buyback` used to need a hand-restore for that; sealSnapshot does it now. */
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
-    /* buyback may be undefined at snapshot, and JSON.stringify DROPS an undefined
-       key so restoreG cannot clear it — a leftover entry would then draw an extra
-       Vendor-buy-back row in the seed shop and fail b221. Restore it by hand. */
-    const origBuyback = window.G.buyback;
     try {
       // UNARMED (today): clientMayWriteRecordField('gold') is true → the buy-back works.
       window.clientMayWriteRecordField = function () { return true; };
@@ -4837,7 +4897,6 @@ const TESTS = [
       assert(window.G.buyback.length === 1, 'a refused buy-back keeps the entry');
     } finally {
       window.clientMayWriteRecordField = origMay;
-      window.G.buyback = origBuyback;
       restoreG(snap);
     }
   }),
@@ -16311,10 +16370,10 @@ const TESTS = [
       'G.autoActions.eat.enabled should be boolean');
     assert(window.G.dropLog && typeof window.G.dropLog === 'object',
       'G.dropLog missing — migration v3→v4 not applied');
-    assert(typeof window.G.plotLevels === 'number',
-      'G.plotLevels should be a number — Batch C will use it; migration v3→v4 not applied');
-    assert(window.G.plotLevels >= 1,
-      'G.plotLevels default should be 1 (Turnip-only), got ' + window.G.plotLevels);
+    /* ⚠ `plotLevels` IS NOT A BOOT FIELD AND THIS READ A LEAK (2026-09-13; see the plot-tier test below). */
+    const _lv = window.HearthriseFarm && window.HearthriseFarm.getPlotLevel();
+    assert(typeof _lv === 'number' && _lv >= 1,
+      'the plot tier Batch C reads is ' + JSON.stringify(_lv) + ' — the Turnip-only default is 1');
   }),
 
   // b133: drop-log integration with combat — killing a monster via
@@ -16832,10 +16891,19 @@ const TESTS = [
   }),
 
   // b136: schema migration left plotLevels intact at 1 by default.
+  /* ⚠ THIS PRECONDITION WAS A LEAK AND THE SEAL EXPOSED IT (2026-09-13): nothing in the boot
+     path sets `plotLevels` post-cutover (the v3→v4 save migration is pre-cutover, the beta was
+     wiped), so only the tests above — writing it through a BARE snapshot entry — made the old
+     ambient assertion true. `getPlotLevel()`'s fail-safe is where the invariant lives. */
   () => tryRun('b136: G.plotLevels is a number >=1 (migration default holds)', () => {
-    assert(typeof window.G.plotLevels === 'number',
-      'G.plotLevels should be a number; v3→v4 migration may not have run');
-    assert(window.G.plotLevels >= 1, 'plotLevels should be >= 1');
+    const F = window.HearthriseFarm, snap = snapshotG();
+    assert(F && typeof F.getPlotLevel === 'function', 'HearthriseFarm.getPlotLevel is missing — nothing owns the plot tier');
+    try {
+      delete window.G.plotLevels; delete window.G._serverPlotLevel;   // a character the server has not spoken about
+      const lv = F.getPlotLevel();
+      assert(typeof lv === 'number' && isFinite(lv) && lv >= 1, 'getPlotLevel() returned ' + JSON.stringify(lv) + ' for a character with no recorded tier — the fail-safe floor is 1 (tier-1 crops), never 0 and never a locked farm');
+      assert(typeof window.G.plotLevels === 'number' && window.G.plotLevels >= 1, 'getPlotLevel() must HEAL G.plotLevels to the floor (got ' + JSON.stringify(window.G.plotLevels) + '); every later reader derefs the field, not the function');
+    } finally { restoreG(snap); }
   }),
 
   // ════════════════════════════════════════════════════════════
@@ -16980,7 +17048,6 @@ const TESTS = [
   () => tryRun('b138: setDisplayName updates G.playerName + clamps length', () => {
     if (!window.HearthriseLaunchpad) return;
     const snap = snapshotG();
-    const orig = window.G.playerName;
     try {
       const ok = window.HearthriseLaunchpad.setDisplayName('TestHero');
       assert(ok === true, 'setDisplayName should return true on success');
@@ -16993,7 +17060,6 @@ const TESTS = [
       assert(window.G.playerName.length === 24,
         'name should be clamped to 24 chars, got ' + window.G.playerName.length);
     } finally {
-      window.G.playerName = orig;
       restoreG(snap);
       // b213: setDisplayName paints the topbar + saves — repaint and re-save
       // from the RESTORED name, or the 'AAAA…' test string stays in the
@@ -21301,32 +21367,34 @@ const TESTS = [
   // The shop is a scene now. A scene that swallows its own offers is worse
   // than the list it replaced, so: the counter renders, every catalogue entry
   // reaches it, and every Buy control is on screen and hit-testable.
-  /* snapshotG round-trips through JSON, which DROPS undefined, and restoreG walks only
-     the keys the snapshot HAS — so a field read BARE off G is protected only for a
-     character that owns it. Five now carry `?? null` / `|| 0` / `?? []`, each with a
-     measured incident beside it; this pins all five. STANDING DEBT (2026-09-12): 33 more
-     are still bare — inventory, skills, stats, bank, workers, chronicle, … — leaking
-     nothing TODAY only because a loaded character owns them all. Each needs the right
-     empty value and the wrong one gifts or takes player state: a ratchet over the list,
-     not a bug-lane edit. Owner: systems-engineer. */
-  () => tryRun('SNAP-2: the five hardened snapshot fields survive a character that owns none of them', () => {
-    const real = window.G;
-    const HARDENED = ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits'];
-    const full = Object.keys(snapshotG() || {});
-    assert(full.length > 30, 'CONTROL: snapshotG returned ' + full.length + ' keys — it is not snapshotting the live character');
-    HARDENED.forEach((k) => assert(full.indexOf(k) >= 0, k + ' is not on the snapshot list at all, so no test can put it back'));
-    try {
-      // A reference SWAP, not a mutation, and the body is synchronous: the live character cannot be touched.
-      const bare = JSON.parse(JSON.stringify(real));
-      HARDENED.forEach((k) => { delete bare[k]; });
-      window.G = bare;
-      const got = Object.keys(snapshotG() || {});
-      const dropped = HARDENED.filter((k) => got.indexOf(k) < 0);
-      assert(dropped.length === 0,
-        'snapshotG dropped ' + dropped.join(', ') + ' for a character that owns none of them. '
-        + 'JSON drops undefined and restoreG only puts back the keys it HAS, so each of these leaks '
-        + 'whatever a test writes into it for the rest of the run — read it as `G.x ?? <empty>`, never bare.');
-    } finally { window.G = real; }
+  /* ══ THE RATCHET OVER THE WHOLE SNAPSHOT LIST — THREE PROPERTIES, THREE REDS ═══
+     The earlier form pinned FIVE named fields; these prove the property over every field
+     the snapshot names, whatever it names tomorrow, and split by PROPERTY so a red says
+     which half of the seal broke. Probe: `snapRoundTrip()` above. */
+  () => tryRun('SNAP-2a: snapshotG produces a KEY for every field it names, even on a character that owns none of them', () => {
+    const r = snapRoundTrip();
+    assert(r.fields.length >= 55, 'CONTROL: snapshotG named ' + r.fields.length + ' field(s) — it is not snapshotting the live character, so SNAP-2a/b/c are all vacuous');
+    ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits', 'rooms', 'skills', 'gold']
+      .forEach((k) => assert(r.fields.indexOf(k) >= 0, k + ' is not on the snapshot list at all, so no test can put it back — it leaks for the rest of the run'));
+    assert(!r.noKey.length, 'snapshotG produced NO KEY for ' + r.noKey.join(', ') + ' on a character that does not own it. JSON.stringify drops '
+      + 'undefined and restoreG walks Object.keys(snap), so it puts nothing back and whatever a test writes there is inherited by every test '
+      + 'after it. sealSnapshot() must store the SNAP_ABSENT sentinel for an undefined value.');
+  }),
+
+  () => tryRun('SNAP-2b: restoreG restores PRESENCE — an unowned field goes back to absent, a pre-seal entry to its pinned empty', () => {
+    const r = snapRoundTrip();
+    assert(!r.undeclared.length, 'these decline the ABSENT sentinel without declaring an empty: ' + r.undeclared.join(' | ')
+      + '. A `?? <empty>` is a VALUE a later test reads as real state (skills:{} is a level-1 character, a zeroed bank takes capacity a player '
+      + 'bought with gems) — drop the operator and let sealSnapshot record the absence, or pin it in SNAP_DECLARED_EMPTY.');
+    assert(!r.presence.length, 'restoreG did not put ' + r.presence.join(' | ') + ' back as it found it, so a test\'s write outlives its own '
+      + 'finally block and every test after it inherits it. restoreG must `delete` the key when the snapshot holds SNAP_ABSENT.');
+  }),
+
+  () => tryRun('SNAP-2c: restoreG returns an OWNED field byte-for-byte — restoring to absent is never bought by wiping real state', () => {
+    const r = snapRoundTrip();
+    assert(r.fields.filter((f) => r.value.indexOf(f) < 0).length >= 55, 'CONTROL: the probe walked ' + r.fields.length + ' field(s)');
+    assert(!r.value.length, 'restoreG did not put the real value back: ' + r.value.join(' | ') + '. The seal clones each value; assigning the '
+      + 'live object instead would make the snapshot a reference to the thing it is meant to preserve.');
   }),
 
   () => tryRun('b221: the shop renders the counter scene with every offer reachable', () => {
@@ -53884,6 +53952,54 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('regression suite — b543: a reload never re-presents last night as a new absence', () => {
+    /* THE MEASURED BUG (QA account on live, build 543, 2026-09-13): a 12-hour
+       absence was settled and announced, and then a plain reload FIVE SECONDS
+       after playing brought the card back reading "Time away 12h 0m · XP earned
+       +88,711 · Items found +2,768 · XP per hour 7,392" — re-presenting, with
+       nothing double-credited, a night that was over as the
+       absence THIS load had ended. ROOT CAUSE: the boot seed from
+       `player_state.last_away_receipt` (marked `restored` so the HOME card can
+       survive a reload) was read by the modal and `serverAwaySpanMs` alike.
+       MUTATION: drop `&& !_restated` from `_fresh` — case A prints 12h (red). */
+    const G = window.G;
+    const AC = window.HearthriseAccrual;
+    const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary };
+    const rowText = () => (document.getElementById('welcome-rows').textContent || '').replace(/\s+/g, ' ');
+    const NIGHT = { hrs: 12, awayMs: 12 * 3600000, paidMs: 12 * 3600000, gainedXp: 88711,
+      gainedItems: 2768, gainedGold: 0, gainedKills: 0, burnt: 0, combat: null, died: false,
+      serverAuthoritative: true };
+    const show = (extra) => {
+      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() }, extra || {});
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      return rowText();
+    };
+    try {
+      /* A. THE RELOAD: the RESTORED receipt, same figures and same freshness
+            window, against a watermark that says this boot went unpriced for
+            twenty seconds. */
+      AC.__setBootAccruedToForTest(Date.now() - 20000);
+      G.lastSeen = Date.now() - 12 * 3600000;   // stale residue stamp: the door still opens
+      const a = show({ restored: true });
+      assert(!/Time away/.test(a) && !/12h/.test(a),
+        'THE b543 BUG: a twenty-second reload was priced as a twelve-hour absence: ' + a);
+      assert(!/XP earned|Items found|per hour/.test(a),
+        "last night's gains were re-presented as this load's: " + a);
+
+      /* B. AND THE REAL RETURN STILL REPORTS IN FULL — less on a reload, never
+            less on a genuine absence. */
+      const b = show();
+      assert(/Time away\s*12h 0m/.test(b), 'a genuine twelve-hour return lost its span: ' + b);
+      assert(/XP earned\s*\+88,711/.test(b) && /Items found\s*\+2,768/.test(b),
+        'a genuine return lost the gains the server paid: ' + b);
+    } finally {
+      AC.__setBootAccruedToForTest(0);
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      G.lastSeen = save.lastSeen; G.lastWelcome = save.lastWelcome; G.lastOfflineSummary = save.los;
+    }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════
      b343 — THE PRICE CATALOGUE IS WHAT THE GAME ACTUALLY CHARGES.
 
@@ -54191,7 +54307,6 @@ const TESTS = [
     const snap = snapshotG();
     const prevSummary = G.lastOfflineSummary;
     const prevTab = window.activeTab;
-    const prevWelcome = G.lastWelcome;
     const realNotify = window.notify;
     const realBonus = window.getBonus;
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
@@ -54405,7 +54520,6 @@ const TESTS = [
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
       else { try { delete document.hidden; } catch (e) {} }
       G.lastOfflineSummary = prevSummary;
-      G.lastWelcome = prevWelcome;
       try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // the away holder outlives G
       restoreG(snap);
       try { H.render(); } catch (e) {}

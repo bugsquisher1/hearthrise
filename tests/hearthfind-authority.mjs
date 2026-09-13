@@ -52,7 +52,48 @@ const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) =
 });
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────── */
+const PROJ = '2026-09-13-world-finds-projection.sql';
+/* The projection migration's own §6 commit gate, DISARMED — it asserts both of
+   the grant defects below at APPLY time (deliberately; that is the second layer
+   and it stays in the file). Left armed, both arms below go red as "threw /
+   failed to apply", which proves the MIGRATION refuses the defect and proves
+   nothing whatever about §7's re-stated assertion — the exact vacuous shape
+   tests/mutation-proof.mjs exists to stop, and measured here: both arms read
+   "RED (threw)" until this pair was added. Disarmed, the chain installs happily
+   and the RED has to come from a measurement in this file. */
+const DISARM_PROJ = [
+  '  -- (a) THE OBJECTS EXIST WITH THE INTENDED VOLATILITY AND SECURITY.',
+  '  return;  -- §6 commit gate disarmed by the mutation proof '
+  + '(tests/hearthfind-authority.mjs)\n'
+  + '  -- (a) THE OBJECTS EXIST WITH THE INTENDED VOLATILITY AND SECURITY.',
+];
+
 const MUTATIONS = {
+  /* The two ways §7's re-stated contract can break, one per direction. Planted
+     in the PROJECTION migration because that is the last file to touch these
+     grants — planted in FILE they would be overwritten at chain end and the
+     mutation would silently no-op, which is how a mutation proof goes vacuous. */
+  board_invisible: {
+    file: PROJ,
+    why: 'the six-column re-grant is dropped, so authenticated can read no column of world_finds at '
+       + 'all — the public record of rare finds becomes a private ledger row and the shareable '
+       + 'surface the whole feature exists for is gone. This is the direction the ORIGINAL arm '
+       + 'protected, and it must still bite now that the check is column-level',
+    pairs: [DISARM_PROJ,
+      ['  grant  select (id, item_id, source_kind, source_id, one_in, found_at)\n'
+       + '    on public.world_finds to anon, authenticated;',
+       '  -- re-grant removed by the mutation proof']],
+  },
+  finder_is_nameable: {
+    file: PROJ,
+    why: 'the re-grant hands user_id back, so the named pre-launch P2 is reopened: profiles and '
+       + 'display_names are public-read, every finder is nameable including the ones who set '
+       + 'presence_quiet, and `select id from world_finds where user_id = $1` is a membership oracle '
+       + 'that never puts the column in a result set',
+    pairs: [DISARM_PROJ,
+      ['  grant  select (id, item_id, source_kind, source_id, one_in, found_at)',
+       '  grant  select (id, user_id, item_id, source_kind, source_id, one_in, found_at)']],
+  },
   pair_check_off: {
     file: FILE,
     why: 'the catalogue lookup is disarmed — the engine names any (source, item) pair it likes and '
@@ -511,7 +552,25 @@ async function runAll(db) {
     ok(Number(none) === 0, 'a find with nothing dropped still journalled a discard');
   }
 
-  // ── 7. NO CLIENT WRITE PATH TO world_finds; it IS publicly readable. ─────
+  /* ── 7. NO CLIENT WRITE PATH TO world_finds; THE BOARD IS VISIBLE AND THE
+        FINDER IS NOT. ──────────────────────────────────────────────────
+     RE-STATED 2026-09-13 (named pre-launch P2, APPLIED 08:14 UTC). This used to
+     read `role_table_grants ... privilege_type='SELECT' = 1`, i.e. "authenticated
+     holds SELECT on the whole TABLE". That is no longer the contract and must not
+     be: 2026-09-08-hearthfind.sql granted SELECT on ALL columns including
+     `user_id`, and profiles/display_names are public-read, so naming every finder
+     — including characters who set `presence_quiet` — was one join, and the
+     shipped client did it. 2026-09-13-world-finds-projection.sql dropped the
+     table-wide grant and re-granted the SIX ANONYMOUS COLUMNS, so a table-level
+     check now reads 0 and the old assertion fired on the FIX.
+     The property it was protecting is real and is kept, stated the way it is now
+     true: THE BOARD IS STILL VISIBLE (any-column SELECT, and each of the six
+     columns by name — otherwise the feature really is a private ledger row), THE
+     FINDER IS NOT (user_id and slot raise for authenticated), and the NAME is
+     reachable only through hr_world_finds_of, which mints it server-side and
+     returns null for a quiet finder. All four halves, because each fails
+     separately — and the two --selftest arms below plant exactly the two ways
+     this can go wrong. */
   {
     const w = (await db.query(
       `select count(*)::int c from pg_policies where schemaname='public' and tablename='world_finds'
@@ -531,13 +590,46 @@ async function runAll(db) {
       `select c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
         where n.nspname='public' and c.relname='world_finds'`)).rows[0];
     ok(rls && rls.relrowsecurity === true, 'RLS is not enabled on world_finds');
-    const sel = (await db.query(
-      `select count(*)::int c from information_schema.role_table_grants
-        where table_schema='public' and table_name='world_finds'
-          and grantee='authenticated' and privilege_type='SELECT'`)).rows[0].c;
-    ok(Number(sel) === 1,
+    /* has_ANY_column_privilege, not has_table_privilege: the grant is column-level
+       now, so "can you read EVERY column" is correctly false and would be the
+       same false alarm in a new costume. */
+    const vis = (await db.query(
+      `select has_any_column_privilege('authenticated', 'public.world_finds', 'select') as any_sel,
+              has_column_privilege('authenticated', 'public.world_finds', 'user_id', 'select') as uid,
+              has_column_privilege('authenticated', 'public.world_finds', 'slot',    'select') as slot,
+              has_function_privilege('authenticated', 'public.hr_world_finds_of(int)', 'execute') as rpc`
+    )).rows[0];
+    ok(vis.any_sel === true,
       'world_finds is not readable by authenticated — the board is invisible and the feature is a '
       + 'private ledger row');
+    const cols = ['id', 'item_id', 'source_kind', 'source_id', 'one_in', 'found_at'];
+    const missing = (await db.query(
+      `select coalesce(string_agg(c, ', '), '') as m from unnest($1::text[]) c
+        where not has_column_privilege('authenticated', 'public.world_finds', c, 'select')`,
+      [cols])).rows[0].m;
+    ok(missing === '',
+      `the board's anonymous column(s) ${missing} are not readable by authenticated — the public `
+      + 'record is the whole point of the feature');
+    ok(vis.uid === false,
+      'authenticated can SELECT world_finds.user_id — profiles and display_names are public-read, so '
+      + 'every finder is nameable INCLUDING the ones who set presence_quiet, and '
+      + '`where user_id = $1` is a membership oracle that returns no user_id at all (named '
+      + 'pre-launch P2)');
+    ok(vis.slot === false,
+      'authenticated can SELECT world_finds.slot — the remaining half of the (user_id, slot) '
+      + 'character key crosses');
+    ok(vis.rpc === true,
+      'hr_world_finds_of is not executable by authenticated — with the identity columns revoked this '
+      + 'RPC is the ONLY way a finder\'s name reaches a client, so the board would render every '
+      + 'find as "An adventurer" forever');
+    /* The table-level write sweep above cannot see a COLUMN-level write grant,
+       and this table now lives in a column-granted world. Closed here. */
+    const cw = (await db.query(
+      `select coalesce(string_agg(r || ':' || pv, ', '), '') as m
+         from unnest(array['anon','authenticated','service_role']) r
+         cross join unnest(array['insert','update']) pv
+        where has_any_column_privilege(r, 'public.world_finds', pv)`)).rows[0].m;
+    ok(cw === '', `column-level write grant(s) on world_finds: ${cw}`);
   }
 
   // ── 8. NO MINT LEAK. The Feature Slate\'s explicit "must NOT". ────────────

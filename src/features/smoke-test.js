@@ -50921,7 +50921,7 @@ const TESTS = [
     }
   }),
 
-  () => tryRunAsync('HF-6: a world_finds table that has not been migrated yet is learned ONCE, not polled forever', async () => {
+  () => tryRunAsync('HF-6: an hr_world_finds_of that has not been migrated yet is learned ONCE, not polled forever', async () => {
     const HF = window.HearthriseHearthfind;
     assert(typeof HF.__boardMissing === 'function' && typeof HF.__resetProbe === 'function',
       'the board has no capability probe — the client half would 404 every 90s until the lane-C migration lands');
@@ -50932,8 +50932,15 @@ const TESTS = [
        migration means a 404 in every player's console forever — and the two
        halves of this feature are explicitly allowed to land in either order. */
     const origFetch = window.fetch;
+    const origAuth = window.HearthriseAuth;
     let calls = 0;
     try {
+      /* hr_world_finds_of is granted to `authenticated` only, so refreshBoard
+         stands down without a session. Stub one, or this arm measures nothing on
+         a signed-out page. */
+      window.HearthriseAuth = Object.assign({}, origAuth, {
+        getSession: () => ({ access_token: 'smoke-hf6' }),
+      });
       window.fetch = function (u) {
         if (String(u).indexOf('world_finds') !== -1) {
           calls++;
@@ -50958,7 +50965,111 @@ const TESTS = [
         'the client kept polling a table it had already learned does not exist — ' + calls + ' calls');
     } finally {
       window.fetch = origFetch;
+      window.HearthriseAuth = origAuth;
       HF.__resetProbe();
+    }
+  }),
+
+  /* == HF-8 - REGRESSION, named pre-launch P2 (Security, 2026-09-13) =========
+     THE DEFECT: this file's board poll used to read `world_finds` directly with
+     `select=id,user_id,...` and then resolve those uuids through the public
+     `display_names` table. world_finds granted SELECT on user_id to anon AND
+     authenticated and profiles/display_names are public-read, so the shipped
+     client NAMED EVERY FINDER - including characters who had set
+     `presence_quiet`, whose opt-out hr_town_refresh's crier could therefore only
+     pretend to honour.
+     THE PROPERTY: the board arrives through hr_world_finds_of with the name
+     already minted server-side; this client asks for no identity column, never
+     touches display_names, and renders a nameless (= quiet) row as
+     "An adventurer" with no uuid anywhere in the line. It fails without the fix
+     because the old code path made a second request to display_names and read
+     `row.user_id`. */
+  () => tryRunAsync('HF-8: the board is read through hr_world_finds_of - no user_id, no display_names join, and a quiet finder is nameless', async () => {
+    const HF = window.HearthriseHearthfind;
+    assert(typeof HF.__setWatermark === 'function',
+      'the board has no watermark seam - this arm cannot drive an announcement without stranding a '
+      + "real player's chat dock");
+    const origFetch = window.fetch;
+    const origAuth = window.HearthriseAuth;
+    const origInject = window.Chat && window.Chat.inject;
+    const origSend = window.Chat && window.Chat.send;
+    const mark = HF.__watermark();
+    const urls = [];
+    const injected = [];
+    const sent = [];
+    /* Two finds of the same item: a LOUD finder (the control - without it
+       "nobody was named" would pass for the wrong reason) and a QUIET one, whose
+       name the server nulls. `nth`/`counts` arrive server-computed. */
+    const payload = {
+      ok: true, now: '2026-09-13T12:00:00Z',
+      counts: { emberheart: 2 },
+      rows: [
+        { id: 900000001, name: 'LoudFinder', item_id: 'emberheart', source_kind: 'monster',
+          source_id: 'dragon', one_in: 26000, found_at: '2026-09-13T11:00:00Z', nth: 1 },
+        { id: 900000002, name: null, item_id: 'emberheart', source_kind: 'monster',
+          source_id: 'dragon', one_in: 26000, found_at: '2026-09-13T11:30:00Z', nth: 2 },
+      ],
+    };
+    try {
+      window.HearthriseAuth = Object.assign({}, origAuth, {
+        getSession: () => ({ access_token: 'smoke-hf8' }),
+      });
+      if (window.Chat) {
+        window.Chat.inject = function (ch, msg) { injected.push([ch, msg]); return true; };
+        window.Chat.send = function (ch, body) { sent.push([ch, body]); };
+      }
+      window.fetch = function (u, opts) {
+        const url = String(u);
+        if (url.indexOf('world_finds') !== -1 || url.indexOf('display_names') !== -1) {
+          urls.push(url + ' ' + ((opts && opts.method) || 'GET'));
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
+        }
+        return origFetch.apply(this, arguments);
+      };
+      HF.__resetProbe();
+      /* Sit the watermark just below the first row, so BOTH rows are "fresh" and
+         the first-load silent catch-up does not swallow them. */
+      HF.__setWatermark(900000000);
+      const got = await HF.refreshBoard();
+      if (!urls.length) {
+        /* No Supabase config on this page => the poll never dispatches. Assert
+           THAT honestly rather than passing on a call that never happened. */
+        assert(got === false, 'an unconfigured client still claimed a board read');
+        return;
+      }
+      assert(urls.length === 1, 'the board took ' + urls.length + ' requests - ' + urls.join(' | ')
+        + '. One RPC is the whole read; a second request is the display_names join coming back.');
+      assert(/\/rpc\/hr_world_finds_of POST$/.test(urls[0]),
+        'the board was not read through the hr_world_finds_of RPC - ' + urls[0]);
+      assert(urls[0].indexOf('user_id') === -1 && urls[0].indexOf('display_names') === -1,
+        'the client still asks for an identity column or joins display_names - ' + urls[0]);
+      assert(sent.length === 0, 'the client SENT a hearthfind line into chat_messages');
+      assert(injected.length === 2,
+        'expected both board rows on the global tab, got ' + injected.length);
+      const loud = injected[0][1].body;
+      const quiet = injected[1][1].body;
+      assert(/LoudFinder pulled the/.test(loud),
+        'THE CONTROL FAILED: the loud finder was not named, so "the quiet one is nameless" proves '
+        + 'nothing - ' + loud);
+      assert(/The 2nd ever found in Hearthrise\.$/.test(quiet),
+        "the server's ordinal was not printed - " + quiet);
+      assert(/An adventurer pulled the/.test(quiet),
+        'a nameless (presence_quiet) finder was not rendered as "An adventurer" - ' + quiet);
+      assert(!/[0-9a-f]{8}-[0-9a-f]{4}/.test(quiet) && !/user_id/.test(quiet),
+        'an account id leaked into the global chat line - ' + quiet);
+      assert(HF.ordinalFor('emberheart') === 2,
+        "the per-item count came from somewhere other than the server's `counts` - "
+        + HF.ordinalFor('emberheart'));
+    } finally {
+      window.fetch = origFetch;
+      window.HearthriseAuth = origAuth;
+      if (window.Chat) {
+        if (origInject) window.Chat.inject = origInject;
+        if (origSend) window.Chat.send = origSend;
+      }
+      HF.__setWatermark(mark);
+      HF.__resetProbe();
+      HF.__setBoardCount('emberheart', 0);
     }
   }),
 

@@ -7,12 +7,12 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-13",
- "digest": "09426fc8ab090208691982a7cbaa0f0de23955bf8cde35e77d2ec46098e60c6c",
+ "digest": "bdde32583df33cd365203675f0ba66511bb7ee324e815a937dcac68e0b360949",
  "counts": {
   "relations": 116,
-  "functions": 285,
+  "functions": 287,
   "policies": 88,
-  "indexes": 161,
+  "indexes": 162,
   "triggers": 20,
   "constraints": 301,
   "columns": 683,
@@ -404,6 +404,8 @@
    "hr_week_start(p_week text)",
    "hr_worker_assign(p_slot integer, p_uid text, p_skill text, p_target text, p_idem uuid)",
    "hr_worker_hire(p_slot integer, p_idem uuid)",
+   "hr_world_finds_of(p_limit integer)",
+   "hr_world_finds_of__ungated(p_limit integer)",
    "hr_world_finds_prune(p_older interval, p_keep integer, p_limit integer)",
    "hr_xp_for_level(p_level integer)",
    "market_sales_prune(p_older interval)",
@@ -677,6 +679,7 @@
    "world_event_totals_pkey",
    "world_finds_at_idx",
    "world_finds_char_idx",
+   "world_finds_item_idx",
    "world_finds_pkey"
   ],
   "triggers": [

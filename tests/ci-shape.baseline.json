@@ -37,6 +37,8 @@
     "node tests/rpc-resolution.mjs --selftest": "db-replay",
     "node tests/town-presence.mjs": "db-replay",
     "node tests/town-presence.mjs --selftest": "db-replay",
+    "node tests/world-finds-projection.mjs": "db-replay",
+    "node tests/world-finds-projection.mjs --selftest": "db-replay",
     "node tests/renown-kill-faucet.mjs --selftest": "economy-selftests",
     "node tests/bounty-hunter-xp.mjs": "economy-selftests",
     "node tests/bounty-hunter-xp.mjs --selftest": "economy-selftests",

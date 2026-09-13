@@ -654,6 +654,49 @@ jobs:
           node tests/town-presence.mjs
           node tests/town-presence.mjs --selftest
 
+      # IS THE FINDER'S NAME MINTED IN ONE PLACE, AND IS `presence_quiet` REAL?
+      # 2026-09-08-hearthfind.sql granted SELECT on ALL of world_finds — user_id
+      # and slot included — to anon AND authenticated, while profiles and
+      # display_names are public-read. Naming every finder in the realm was one
+      # join, and the SHIPPED client did it (src/features/hearthfind.js read
+      # user_id off the board and resolved it through display_names into global
+      # chat). So when 2026-09-13-town-presence.sql added presence_quiet and
+      # filtered quiet characters out of the crier, its own header recorded that
+      # the filter "buys nothing today". That was the named pre-launch P2.
+      #
+      # 2026-09-13-world-finds-projection.sql moves the name behind
+      # hr_world_finds_of and revokes the identity columns. Its §6 gate asserts
+      # all of it at APPLY time and does bite — and is exactly the layer a later
+      # file can silently remove (a restated hr_rpc_gate, a `grant select on
+      # world_finds` in a convenience sweep, a re-created wrapper without the
+      # quiet rule). So this replays the whole ordered chain with §6 DISARMED and
+      # proves the properties BY EXECUTION from chain end: the 8-key allowlist by
+      # key set with no user_id, no slot and no account uuid in any value; a LOUD
+      # finder named (the control) and a QUIET one nameless with the ROW STILL
+      # PRESENT, because the board is where "the 3rd ever found" comes from and
+      # one player's privacy must not renumber everybody else; `nth` a realm
+      # ordinal proven against a find deliberately OUTSIDE the returned window;
+      # anon AND authenticated unable to read user_id or slot by
+      # has_column_privilege AND by a real SELECT under `set role` that must raise
+      # 42501, while every anonymous column still reads and no write privilege
+      # exists; the inner owner-only and only `authenticated` on the verb; the rate
+      # gate before exactly one hr_note_rejection seam with the 6/min bucket
+      # biting and six pre-existing buckets intact; the verb in
+      # hr_client_rpc_baseline with grant hygiene quiet; an unauthenticated call
+      # refused carrying no rows; a read that journals nothing; and the shipped
+      # CLIENT no longer joining display_names.
+      #
+      # --selftest plants 12 real defects and requires each to turn THIS guard
+      # red (12/12 by assertion, 0 by a declared refusal — the gate is disarmed on
+      # purpose so a green arm cannot be an explosion). Per C4, base AND selftest:
+      # a selftest-only registration cannot tell a broken migration from a working
+      # guard. No credentials; production untouched.
+      - name: World finds projection — a named quiet finder, a leaked user_id, a window ordinal
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-finds-projection.mjs
+          node tests/world-finds-projection.mjs --selftest
+
   # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
   # 8-45 real defects in real migration text and demand every one turns the
   # guard red. Before the snapshot cache these replayed the whole chain per

@@ -17,30 +17,33 @@
 //                     from the finder's own client claim, which is why one
 //                     player cannot make another player's client announce a
 //                     find that hr_apply did not journal.
-//   · THE NAME        `display_names` (public read), joined client-side. A
-//                     find row stores no name on purpose.
+//   · THE NAME        MINTED BY THE SERVER inside `hr_world_finds_of`, from
+//                     `profiles.display_name` — the same authority the town
+//                     crier uses — and NULL for a finder who set
+//                     `presence_quiet`. A find row stores no name on purpose,
+//                     and this file no longer resolves one: it used to join
+//                     `display_names` client-side off the board's `user_id`,
+//                     which made it the thing that de-anonymised every finder
+//                     including the quiet ones (named pre-launch P2, closed by
+//                     2026-09-13-world-finds-projection.sql; `user_id` and
+//                     `slot` are now revoked from the client roles).
 //
 // If a number is not on one of those three, this file DOES NOT PRINT IT. That
 // rule is why the lifetime ordinal degrades to silence rather than to
 // `nth_today` wearing the word "ever" (see ordinalFor).
 //
-// ⚠ KNOWN CONTRACT GAP, FILED NOT FUDGED. The server half journals `nth_today`
-//   (finds by THIS character TODAY) and nothing else. The ruling's copy wants
-//   "{ordinal} ever found in Hearthrise" — a REALM-WIDE lifetime ordinal. The
-//   only public source for it is a count over `world_finds`, and that board is
-//   (a) suppressed by the 30-second broadcast clamp and (b) pruned by
-//   `hr_world_finds_prune`. So the count this file can take is a LOWER BOUND,
-//   not the ordinal. Therefore:
-//       · the chat line, which renders a board ROW, uses the board's own
-//         running count — the row and the count come from the same table, so
-//         the line is self-consistent with what every reader can see;
+// THE LIFETIME ORDINAL (handoff CLOSED 2026-09-13). It used to be derived here,
+//   by counting a window of the board, because the server published nothing but
+//   `nth_today` (finds by THIS character TODAY). `hr_world_finds_of` now returns
+//   `nth` per row and a per-item `counts` total, both computed over the whole
+//   table server-side, so this file reads the ordinal instead of inventing it.
+//   It is STILL honest-or-absent and still a LOWER BOUND, for two reasons that
+//   no projection can fix: the 30-second broadcast clamp suppresses some board
+//   rows, and `hr_world_finds_prune` eventually deletes old ones. So:
+//       · the chat line prints the row's own server `nth`;
 //       · the attended reveal and the away band OMIT the ordinal clause unless
 //         a board count is available for that item, and they never substitute
 //         `nth_today`.
-//   HANDOFF (Backend): put `nth_ever` on the world_finds row and on the
-//   hr_apply receipt (a count over player_ledger kind='hearthfind' item_id=…,
-//   taken under the same character lock) and this file prints it instead.
-//   Until then the ordinal is honest-or-absent.
 //
 // ── WHERE THE STATE LIVES (CLAUDE.md §6) ────────────────────────────────────
 // Nothing here is added to `G` and nothing is added to RESIDUE_FIELDS. The
@@ -900,7 +903,21 @@
      POLLED, NOT SUBSCRIBED: world_finds is not in the Realtime publication
      (the migration adds no publication membership), and adding one is a lane-C
      change. At roughly two finds per realm-week a 90-second poll is the right
-     instrument anyway. */
+     instrument anyway.
+
+     READ THROUGH AN RPC, NOT OFF THE TABLE (2026-09-13, named pre-launch P2).
+     This used to be `world_finds?select=id,user_id,…` plus a second request
+     resolving those uuids through the public `display_names` table — i.e. THIS
+     FILE was the de-anonymiser: it named every finder, including characters who
+     had set `presence_quiet`. The board now comes from
+     `hr_world_finds_of`, which mints the finder's display name SERVER-SIDE from
+     the same authority the town crier uses and returns `name: null` for a quiet
+     finder; `user_id` and `slot` are revoked from the client roles by
+     2026-09-13-world-finds-projection.sql, so there is nothing left to join.
+     `nth` and `counts` also arrive server-computed, which retires the ordinal
+     handoff filed at the top of this file AND a real bug: the old read was
+     `order=id.asc&limit=500`, the OLDEST five hundred rows, so the board would
+     have frozen (no new find ever in the window) the day it passed 500. */
   var POLL_MS = 90000;
   var BOARD_KEY = 'hearthrise:hearthfind:board';
   var lastRowId = 0;
@@ -919,9 +936,9 @@
     return { apikey: c.anonKey, Authorization: 'Bearer ' + ((s && s.access_token) || c.anonKey) };
   }
   /* THE SELF-CONFIGURING SWITCH (the recoverCol idiom, borrowed from the edge).
-     `world_finds` is created by a lane-C migration and the client half may ship
-     first or last. A client that polls a table that does not exist yet logs a
-     404 every ninety seconds forever — noise in every player's console and in
+     `hr_world_finds_of` is created by a lane-C migration and the client half may
+     ship first or last. A client that calls an RPC that does not exist yet logs a
+     404 (PGRST202) every ninety seconds forever — noise in every player's console and in
      every future run of the suite, and the exact "UI says one thing, backend
      says another" class this repo keeps paying for. So a MISSING table is
      learned once and remembered for ten minutes, which is also long enough for
@@ -931,27 +948,22 @@
   function noteMissing() { missingUntil = Date.now() + 600000; }
   function __resetProbe() { missingUntil = 0; }
 
-  function get(path) {
+  /* POST to a SECURITY DEFINER read. This file's one and only network call —
+     the direct table read and the display_names lookup it used to make are both
+     gone (named pre-launch P2). A 404 (PGRST202, "function does not exist") is
+     the client half having shipped first, and arms the stand-down probe above.
+     Anything else resolves to null and the poll simply retries later. */
+  function rpc(fn, body) {
     var c = cfg();
     if (!c) return Promise.resolve(null);
-    return fetch(c.url + '/rest/v1/' + path, { headers: headers() })
-      .then(function (r) {
-        if (r.status === 404) { noteMissing(); return null; }
-        return r.ok ? r.json() : null;
-      })
-      .catch(function () { return null; });
-  }
-
-  /** Names for a set of user ids, from the public display_names table. A miss
-      is "An adventurer" — the board stores no name and never should. */
-  function namesFor(ids) {
-    var out = Object.create(null);
-    if (!ids.length) return Promise.resolve(out);
-    return get('display_names?select=user_id,name&user_id=in.('
-      + ids.map(encodeURIComponent).join(',') + ')').then(function (rows) {
-      (rows || []).forEach(function (r) { if (r && r.user_id) out[r.user_id] = r.name; });
-      return out;
-    });
+    var h = headers();
+    h['Content-Type'] = 'application/json';
+    return fetch(c.url + '/rest/v1/rpc/' + fn, {
+      method: 'POST', headers: h, body: JSON.stringify(body || {})
+    }).then(function (r) {
+      if (r.status === 404) { noteMissing(); return null; }
+      return r.ok ? r.json() : null;
+    }).catch(function () { return null; });
   }
 
   /**
@@ -959,19 +971,26 @@
    * has not yet rendered into the global chat tab.
    */
   function refreshBoard(opts) {
+    /* A SESSION IS REQUIRED. hr_world_finds_of is granted to `authenticated`
+       only: the line this produces lands in the global chat dock, which a
+       signed-out visitor behind the invite wall does not have, so polling it
+       with the anon key would be a 401 every ninety seconds for nothing. */
     if (polling || !cfg() || boardMissing()) return Promise.resolve(false);
+    var s0 = session();
+    if (!s0 || !s0.access_token) return Promise.resolve(false);
     polling = true;
-    return get('world_finds?select=id,user_id,item_id,source_kind,source_id,one_in,found_at'
-      + '&order=id.asc&limit=500').then(function (rows) {
-      if (!Array.isArray(rows)) return false;
-      /* THE COUNT, AND THE ORDINAL IT IMPLIES. Rows arrive oldest-first, so a
-         row's position among its own item IS its board ordinal. */
-      var running = Object.create(null);
-      rows.forEach(function (r) {
-        running[r.item_id] = (running[r.item_id] || 0) + 1;
-        r.__nth = running[r.item_id];
-      });
-      Object.keys(running).forEach(function (k) { __setBoardCount(k, running[k]); });
+    /* 200 = the RPC's own ceiling. The window is the NEWEST rows, and `nth` is a
+       realm ordinal computed server-side, so the window size no longer decides
+       whether the board works — only how far back the chat catch-up can see. */
+    return rpc('hr_world_finds_of', { p_limit: 200 }).then(function (res) {
+      if (!res || res.ok !== true || !Array.isArray(res.rows)) return false;
+      var rows = res.rows;
+      /* THE COUNT AND THE ORDINAL ARE THE SERVER'S. `counts` is the per-item
+         total over the whole board; `nth` is this row's place in it. Neither is
+         derived from the window any more. */
+      var counts = res.counts || {};
+      Object.keys(counts).forEach(function (k) { __setBoardCount(k, Number(counts[k]) || 0); });
+      rows.forEach(function (r) { r.__nth = Number(r.nth) || 0; });
 
       if (!lastRowId) {
         var s = store();
@@ -986,13 +1005,13 @@
       }
       var fresh = rows.filter(function (r) { return Number(r.id) > lastRowId; });
       if (!fresh.length) return true;
-      var ids = fresh.map(function (r) { return r.user_id; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
-      return namesFor(ids).then(function (names) {
-        fresh.forEach(function (r) { announce(r, names[r.user_id], r.__nth); });
-        lastRowId = Number(fresh[fresh.length - 1].id);
-        try { var s2 = store(); if (s2) s2.set(BOARD_KEY, String(lastRowId)); } catch (e) {}
-        return true;
-      });
+      /* THE NAME ARRIVES ALREADY MINTED, and is null for a finder who asked not
+         to be tracked — chatLine renders that as "An adventurer", which is the
+         same copy it has always used for a name it could not resolve. */
+      fresh.forEach(function (r) { announce(r, r.name, r.__nth); });
+      lastRowId = Number(fresh[fresh.length - 1].id);
+      try { var s2 = store(); if (s2) s2.set(BOARD_KEY, String(lastRowId)); } catch (e) {}
+      return true;
     }).then(function (v) { polling = false; return v; },
       function () { polling = false; return false; });
   }
@@ -1057,6 +1076,13 @@
     // test seams
     __setBoardCount: __setBoardCount,
     __resetProbe: __resetProbe,
+    /* The chat watermark, so a test can drive the board without leaving a real
+       player's dock permanently caught up. */
+    __watermark: function () { return lastRowId; },
+    __setWatermark: function (v) {
+      lastRowId = Number(v) || 0;
+      try { var s = store(); if (s) s.set(BOARD_KEY, String(lastRowId)); } catch (e) {}
+    },
     __resetTitles: __resetTitles,
     __boardMissing: boardMissing,
     __forgetSeen: __forgetSeen,

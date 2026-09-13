@@ -31,7 +31,12 @@
 --   server through the EDGE PAYLOAD, which imports src/data/recipes.js directly
 --   (supabase/functions/hr-accrue/catalogue.js:35). §2(a) therefore asserts the
 --   three columns the DATABASE owns, exactly, and the xp/ms half is pinned by
---   the in-page test (`src/features/smoke-test.js`, "the Prayer ladder"). Do not
+--   PRAYER-LADDER-1's LITERAL TRIPLE TABLE in src/features/smoke-test.js — all
+--   thirteen rungs as `id req xp ms`, plus a measured 840 XP/s ceiling (just
+--   above the catalogue's own non-prayer maximum, forge_slagheart_platebody at
+--   833.3). Security's condition on the client cut, and it is the only thing in
+--   the repo that measures what a Prayer rung PAYS: `gen-catalogues --check`
+--   stays GREEN through an xp typo, because xp is not a generated column. Do not
 --   "improve" this file by hand-copying the XP numbers into SQL: that is the
 --   data double-copy this repo has been burned by twice, and here the copy would
 --   be a FAUCET.

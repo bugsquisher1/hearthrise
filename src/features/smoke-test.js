@@ -12838,20 +12838,28 @@ const TESTS = [
     const snap = snapshotG();
     try {
       const G = window.G, rows = window.ARTISAN_RECIPES.prayer;
-      assert(Array.isArray(rows) && rows.length >= 13,
-        'the prayer bench holds ' + (rows || []).length + ' rungs — the 36..99 void is back');
       const first = rows.find((r) => r.id === 'bury_bone_chips');
       assert(first && first.req === 40 && first.input === 'bone_chips' && first.output == null,
         'bury_bone_chips must be the Prayer 40 pure sink fed by bone_chips, got ' + JSON.stringify(first));
-      /* Strictly increasing and reaching the cap, or a later rung is unreachable (the disordered-lane class) and the skill still dead-ends. */
-      const reqs = rows.map((r) => r.req);
-      assert(Math.max(...reqs) === 99, 'the bench must reach Prayer 99, its top rung is ' + Math.max(...reqs));
-      reqs.slice(1).forEach((rq, i) => assert(rq > reqs[i],
-        'rung ' + rows[i + 1].id + ' (' + rq + ') does not sit above ' + rows[i].id + ' (' + reqs[i] + ')'));
-      rows.forEach((r) => {
-        assert(window.ITEMS[r.input], r.id + ' consumes ' + r.input + ', which is not an item');
-        assert(r.xp > 0 && r.ms > 0, r.id + ' must carry real xp/ms, got ' + r.xp + '/' + r.ms);
+      /* THE PAY TABLE, literal, all thirteen rungs as `id req xp ms`. NOTHING else in the repo measures what a
+         Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a
+         typo (2400 → 24000) shipped green until this table existed. The 840 XP/s ceiling is MEASURED, not
+         guessed: it is just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3), and
+         the one bench whose entire output is XP must never out-pay every other bench in the game. */
+      const PAY = ('bury_bones 1 4.5 1200|bury_big 15 15 1500|bury_dragon 35 72 2000|'
+        + 'bury_bone_chips 40 105 2200|consecrate_grave_dust 46 155 2400|offer_razor_claw 52 212 2500|'
+        + 'scatter_vamp_dust 58 295 2600|banish_demon_shard 65 420 2800|unbind_wraith_veil 72 600 3000|'
+        + 'consecrate_dragon_scale 79 855 3200|release_lich_soul 86 1210 3400|offer_ancient_claw 92 1700 3600|'
+        + 'purge_void_chitin 99 2400 3800').split('|').map((s) => s.split(' '));
+      assert(rows.length === PAY.length, 'the prayer bench holds ' + rows.length + ' rungs, the ruling pins ' + PAY.length);
+      PAY.forEach(([id, req, xp, ms], i) => { const r = rows[i], rate = r.xp / (r.ms / 1000);
+        assert(r.id === id && r.req === +req && r.xp === +xp && r.ms === +ms, 'rung ' + i + ' must be '
+          + [id, req, xp, ms].join('/') + ' (id/req/xp/ms), got ' + [r.id, r.req, r.xp, r.ms].join('/'));
+        assert(i === 0 || r.req > rows[i - 1].req, id + ' does not sit above ' + (rows[i - 1] || {}).id);
+        assert(window.ITEMS[r.input], id + ' consumes ' + r.input + ', which is not an item');
+        assert(rate <= 840, id + ' pays ' + rate.toFixed(1) + ' XP/s, over the catalogue ceiling 840 (non-prayer max 833.3)');
       });
+      assert(rows[12].req === 99, 'the bench must reach Prayer 99, its top rung is ' + rows[12].req);
 
       // The tile paints FROM the row — locked one level short, live one level on.
       G.inventory = { bone_chips: 5 };
@@ -28642,12 +28650,19 @@ const TESTS = [
         if(cancel) cancel.click();
       }
 
-      // 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED (bone_chips is real).
+      /* 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED. The probe is DERIVED from the bench: it
+         was hardcoded to `bone_chips` until the 2026-09-12 ladder gave that drop a rite at Prayer 40, which
+         made this arm assert the opposite of the truth. A "has no recipe" id typed by hand goes stale the day
+         the designer fills a rung, so the id is now read out of ARTISAN_RECIPES instead of remembered. */
       stopBench();
+      const rites = new Set((window.ARTISAN_RECIPES.prayer || []).map((r) => r.input));
+      const riteless = Object.keys(window.ITEMS).find((id) => !rites.has(id)
+        && !window.ITEMS[id].type && !window.ITEMS[id].slot && /bone|fang|skull|tooth/.test(id));
+      assert(riteless, 'every bone-ish remain carries a rite now — this arm can no longer be built');
       let said = '';
       window.notify = (m) => { said += ' ' + m; };
-      const none = window.buryBones('bone_chips');
-      assert(none === null, 'an item with no prayer recipe must not start a run');
+      const none = window.buryBones(riteless);
+      assert(none === null, riteless + ' has no prayer recipe and must not start a run');
       assert(!G.activeSkill, 'a rite-less item must leave the activity pointer alone');
       assert(/no altar rite/i.test(said), 'the refusal must say why, got: "' + said.trim() + '"');
     } finally {

@@ -450,7 +450,26 @@ jobs:
       # claim_beta_invite returns json, and json -> jsonb is an ASSIGNMENT cast,
       # so decorating it installs clean, passes every text sweep and kills the
       # signup door at first execution. That one is why P6c CALLS it.
-      # --selftest plants thirteen defects and requires each to be caught here.
+      #
+      # 2026-09-13-rejections-verb-map-2.sql adds the second half, and this step
+      # grades both files in one replay: it RESTATES hr_record_rejection (chain
+      # depth 1 -> 0), so P15 requires every one of the 29 catalogued Security
+      # rulings in c_incident / c_escalating to survive the restatement - the
+      # named reason the first file refused to restate that body. P14 and P19
+      # prove bad_zone and buff_not_paid escalate on the COUNTER (each normal at
+      # 49, incident at 50, with a code on neither list still normal at 60;
+      # buff_not_paid is ESCALATING and not c_incident because it is a release
+      # code on an unwritten emitter, so the incident profile would make a
+      # first-version missing-debit bug an alarm on every honest eat), P16 proves the new whys
+      # breakdown splits buff_at_max's segment-budget fuse from its duration cap
+      # in ONE row whose values sum to n and cap at 12 + (other), P17 proves the
+      # code-to-verb fallback names the gesture under hr_apply's unattributable
+      # 'apply' label and NEVER overrides a real one, and P18 bounds the why
+      # token. Note for the next person restating anything: cap_loosened went
+      # MISSED the first time this landed because the cap literal moved files
+      # with the restatement - re-run --selftest after any restatement.
+      #
+      # --selftest plants nineteen defects and requires each to be caught here.
       #
       # No credentials; production untouched. Base AND selftest, per C4.
       - name: Rejections journal — a refusal is recorded, and nothing else moves
@@ -458,6 +477,44 @@ jobs:
         run: |
           node tests/rejections-journal.mjs
           node tests/rejections-journal.mjs --selftest
+
+      # CAN A BROWSER GIVE ITSELF A BUFF?
+      # 2026-09-13-consumable-buffs.sql moves the buff clock onto the server:
+      # player_state.buffs = [{type, magnitude, until}] with an ABSOLUTE expiry, one
+      # delta key `buff_apply = {item}` that resolves type/magnitude/duration from
+      # the generated hr_item_buffs catalogue under the character lock and stamps
+      # `until` from now(), merge-by-type with a 60-minute ceiling, and a top-level
+      # projection the accrual engine drains. Its companion takes the forgeable
+      # client_state copy away.
+      #
+      # The migrations' own §4 blocks are strong, but a §4 fires ONCE at apply time;
+      # the regression that brings a forgery back is a LATER migration restating
+      # hr_apply from a stale template, at which point no §4 runs again. So this
+      # replays the REAL ordered chain and CALLS hr_apply as the engine role: a
+      # forged until/magnitude/type/duration_ms/remaining_ms/scale is refused BY
+      # NAME with the queue unmoved, an unknown or non-buff item is refused, a
+      # second helping extends rather than restarts, magnitude is max(old,new) in
+      # both directions, the tail clamps onto the ceiling and the next consume is
+      # refused buff_at_max WITHOUT debiting the same delta's gold, a replayed
+      # intent buffs once, the catalogue equals src/data/items.js row for row, and
+      # the accrual engine is byte-identical with no live buff and demonstrably
+      # richer with one (the arm that separates "inert" from "not wired").
+      #
+      # ⚠ IT ALREADY EARNED ITS KEEP: the first draft refused only on
+      #   `base >= cap`, which is UNREACHABLE in production because the cap moves
+      #   with now(). The migration's §4 passed (a migration applies inside ONE
+      #   transaction, where now() is frozen) and THIS guard, which calls hr_apply
+      #   the way production does, showed 200 consumes with no refusal at all.
+      #
+      # --selftest plants 14 defects in the REAL migration text and runs every one
+      # GATE-BLIND (both §4 blocks short-circuited), so each tick comes from the
+      # guard's own assertions rather than from the migration refusing to install.
+      # Base AND selftest, per C4. No credentials; production untouched.
+      - name: Buff queue — the server owns the buff clock, by execution
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/buff-queue.mjs
+          node tests/buff-queue.mjs --selftest
 
       # DOES THE PLAYER SEE WHAT THE SERVER HAS COUNTED?
       # b535 pointed the renown headline and the rank-up card at a SERVER mirror,

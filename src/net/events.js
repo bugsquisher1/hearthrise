@@ -98,6 +98,18 @@ const NO_SYNC = new Set([
      directly above, and re-showing a stale summary after a reload would be the
      b462 daily-reward bug in another costume. */
   'viewingSkill', 'lastSessionSummary',
+  /* ⚠ `buffs` WAS DECLARED HERE FOR EXACTLY ONE DAY AND IS NOW A SERVER
+     MECHANISM (2026-09-13, step 2). The step-1 entry said, in as many words, "it
+     does not stay here": the client's copy was in-flight display because nothing
+     mirrored the server's projection onto G, so a reload forgot the pill while
+     the server kept holding the buff. `accrue.js reconcileBuffs` is that mirror
+     now — called from applyEnvelopeState on EVERY envelope and from record.js's
+     idle-boot hydration — so the queue is reconstructed from
+     `player_state.buffs` on every load and the name belongs on
+     tests/arm-homing-guard.mjs SERVER_MECHANISM_FIELDS, where it is EXECUTED
+     against a projected envelope. Re-adding it here would be a claim that losing
+     it is correct, which stopped being true the moment the mirror landed — and
+     the guard fails a field that is both scratch and homed. */
 ]);
 
 export function snapshot(G) {

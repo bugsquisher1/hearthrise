@@ -84,16 +84,30 @@ with x as (
   -- error, and the breakdown shows a dash. A read-only ops tool must never be
   -- the thing that has to be deployed in lockstep with a migration.
   select h.day, h.code, h.severity, h.n,
-         coalesce((to_jsonb(h) ->> 'verbs')::jsonb, '{}'::jsonb) as verbs
+         coalesce((to_jsonb(h) ->> 'verbs')::jsonb, '{}'::jsonb) as verbs,
+         coalesce((to_jsonb(h) ->> 'whys')::jsonb, '{}'::jsonb) as whys
     from public.hr_rejections h
    where h.day >= ((now() at time zone 'UTC')::date - 1)),
 v as (
   select x.day, x.code, e.key as verb, sum(e.value::bigint) as vn
-    from x, lateral jsonb_each_text(x.verbs) e group by 1, 2, 3)
+    from x, lateral jsonb_each_text(x.verbs) e group by 1, 2, 3),
+w as (
+  select x.day, x.code, e.key as why, sum(e.value::bigint) as wn
+    from x, lateral jsonb_each_text(x.whys) e group by 1, 2, 3)
 select x.day, x.code, min(x.severity) as severity, sum(x.n) as n,
        count(*) as characters,
        coalesce((select string_agg(v.verb || '=' || v.vn::text, ' ' order by v.vn desc, v.verb)
-                   from v where v.day = x.day and v.code = x.code), '-') as verbs
+                   from v where v.day = x.day and v.code = x.code), '-') as verbs,
+       -- NO BACKTICKS IN HERE (see the note in the query above -- a backtick in
+       -- an SQL comment ends this JS template literal). A single (none) is the
+       -- whole story for a code with no reason key at all, which is most of
+       -- them, so it prints as a dash rather than as noise.
+       coalesce(nullif((select string_agg(w.why || '=' || w.wn::text, ' ' order by w.wn desc, w.why)
+                          from w where w.day = x.day and w.code = x.code
+                           and not (w.why = '(none)'
+                                and 1 = (select count(*) from w w2
+                                          where w2.day = x.day and w2.code = x.code))), ''), '-')
+         as whys
   from x group by x.day, x.code
  order by x.day desc, sum(x.n) desc, x.code`;
 
@@ -114,10 +128,15 @@ if (!r.ok) { console.error(`vitals: HTTP ${r.status}: ${text.slice(0, 400)}`); p
 const rows = JSON.parse(text);
 
 if (refusalsMode) {
-  const rc = ['day', 'code', 'severity', 'n', 'characters', 'verbs'];
-  const w = { day: 10, code: 22, severity: 9, n: 6, characters: 11, verbs: 0 };
+  const rc = ['day', 'code', 'severity', 'n', 'characters', 'verbs', 'whys'];
+  const w = { day: 10, code: 22, severity: 9, n: 6, characters: 11, verbs: 0, whys: 0 };
   console.log('refusals — hr_rejections, the last two UTC DAY BUCKETS (not a rolling 24h: the table');
-  console.log('is a per-(user, slot, day, code) aggregate). rate_limited is sampled; the rest exact.\n');
+  console.log('is a per-(user, slot, day, code) aggregate). rate_limited is sampled; the rest exact.');
+  console.log('verbs = which gesture was refused (server-supplied for the buff family, bad_zone and');
+  console.log('forbidden_field). whys = the code broken down by its reason, and it SUMS TO n: on');
+  console.log('buff_at_max, segment_budget is the 9th-segment cost fuse and (none) is the 60-minute');
+  console.log('duration cap. A dash means the code carries no why. Needs');
+  console.log('2026-09-13-rejections-verb-map-2.sql applied; before that whys reads "-" everywhere.\n');
   console.log(rc.map((c) => (w[c] ? String(c).padStart(w[c]) : `  ${c}`)).join(' '));
   for (const row of rows) {
     console.log(rc.map((c) => (w[c] ? String(row[c] ?? '').padStart(w[c]) : `  ${String(row[c] ?? '')}`)).join(' '));

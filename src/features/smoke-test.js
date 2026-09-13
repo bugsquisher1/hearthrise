@@ -12880,6 +12880,65 @@ const TESTS = [
   // outcome, then restores. NEVER pollutes the player's save.
   // ─────────────────────────────────────────────────────────────
 
+  /* ── CHARM-1 — BESTIARY CHARMS, PLAYED (phase 1, display only) ─────────────
+     Driven through the REAL accrual funnel on the `accrued:false` reply, because
+     that is the response a reloading idle player actually gets: a mirror that
+     only rode `accrued:true` would be invisible to exactly the player who opens
+     the Bestiary after a reload, which is the "forgotten on reload" class. The
+     absent-key arm is the fail-safe — no server block must read as rank 0 and
+     paint nothing, never as a rank — and the second envelope proves the reveal
+     is the CHARM's and not the roster's: void_mote's element is withheld at 3
+     kills and printed at 25, which is the whole of `hiddenElement`. Nothing here
+     asserts a multiplier: none is wired in this build, by design. */
+  () => tryRunAsync('CHARM-1: 25 class kills earn Studied off the idle envelope — badge, next threshold, hidden element revealed, absent key ⇒ rank 0', async () => {
+    const G = window.G, C = window.HearthriseCharms, A = window.HearthriseAccrual;
+    assert(C && typeof C.noteEnvelope === 'function' && typeof window.hrNoteServerBestiary === 'function', 'CONTROL: the charm seam is unpublished (HearthriseCharms / hrNoteServerBestiary) — the feature has no client half');
+    const snap = snapshotG(); const realFetch = window.fetch; const prevCharms = G._bestiaryCharms;
+    const chips = () => (document.getElementById('best-charms') || {}).innerHTML || '';
+    const listHtml = () => (document.getElementById('best-list') || {}).innerHTML || '';
+    const envOf = (bestiary) => ({ ok: true, accrued: false, reason: 'idle', version: 3, now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}) });
+    const drive = async (bestiary) => {
+      window.fetch = (u, init) => (/hr-accrue/.test(String(u))
+        ? Promise.resolve(new Response(JSON.stringify(envOf(bestiary)), { status: 200 }))
+        : realFetch.call(window, u, init));
+      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      return A.requestAccrual({ force: true });
+    };
+    try {
+      /* ARM 1 — NO SERVER BLOCK. Fail-safe: rank 0 and nothing painted. */
+      delete G._bestiaryCharms;
+      const none = await drive(null);
+      assert(none && none.outcome === 'nothing', 'the idle envelope classified as ' + (none && none.outcome) + ', not "nothing" — the arm below is not testing the boot path');
+      assert(C.noteEnvelope({ ok: true }).reason === 'no_key' && C.rankOfClass('vermin') === 0 && C.badgeHtml('vermin') === '', 'an envelope with no bestiary block produced a rank — the fail-safe must be "not studied", never a charm the server does not believe in');
+      G.bestiary = { rat: { kills: 9 }, void_mote: { kills: 2 } };
+      window.openBestiary();
+      assert(!/charm-chip/.test(chips()) && /charm-empty/.test(chips()) && !/charm-element/.test(listHtml()), 'the strip painted a chip or an element line with no server counters: ' + chips().slice(0, 120));
+      /* ARM 2 — THE COUNTERS ARRIVE ON THE IDLE REPLY. */
+      const got = await drive({ kills_by_class: { vermin: 25, extra_dimensional: 3, not_a_class: 500, constructor: 7 } });
+      assert(got && got.outcome === 'nothing' && G._bestiaryCharms && G._bestiaryCharms.killsByClass.vermin === 25, 'the idle envelope did not mirror the counters into G._bestiaryCharms: ' + JSON.stringify(G._bestiaryCharms));
+      assert(!('not_a_class' in G._bestiaryCharms.killsByClass) && Object.keys(G._bestiaryCharms.killsByClass).length === 2, 'a key outside the eleven-class taxonomy survived the mirror — a hostile block could put a junk class on screen: ' + Object.keys(G._bestiaryCharms.killsByClass).join(','));
+      assert(C.rankOfClass('vermin') === 1 && C.rankOfClass('extra_dimensional') === 0, 'vermin 25 kills read rank ' + C.rankOfClass('vermin') + ' and extra_dimensional 3 kills read rank ' + C.rankOfClass('extra_dimensional') + ' — the first rung is 25 and nothing below it ranks');
+      const nx = C.nextOfClass('vermin');
+      assert(nx && nx.at === 100 && nx.remaining === 75, 'the next threshold said ' + JSON.stringify(nx) + ' — it must name the next rung and the kills left, derived, never stored');
+      window.openBestiary();
+      assert(/charm-chip/.test(chips()) && /Vermin/.test(chips()) && /Studied/.test(chips()) && /Next charm at 100/.test(chips()), 'the Vermin chip did not paint its badge and threshold: ' + chips().slice(0, 240));
+      assert(/charm-element/.test(listHtml()) && /weak to frost/.test(listHtml()), 'a Studied class did not print its element weakness — that reveal IS rank 1\'s reward');
+      assert(!/ember/.test(listHtml()), 'void_mote\'s hidden element printed at 3 kills — hiddenElement must stay hidden until the class is Studied');
+      /* ARM 3 — THE HIDDEN ELEMENT, REVEALED BY THE CHARM AND NOTHING ELSE. */
+      await drive({ kills_by_class: { vermin: 2000, extra_dimensional: 25 } });
+      assert(C.rankOfClass('vermin') === 4 && C.rankOfClass('extra_dimensional') === 1, 'the ladder top read ' + C.rankOfClass('vermin') + ' at 2000 kills');
+      window.openBestiary();
+      assert(/Banesworn/.test(chips()) && /Ladder complete/.test(chips()), 'the top rung did not paint as complete: ' + chips().slice(0, 240));
+      assert(/weak to ember/.test(listHtml()), 'void_mote\'s element stayed hidden at 25 kills — the charm is the only door there is');
+    } finally {
+      window.fetch = realFetch;
+      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
+      restoreG(snap);
+    }
+  }),
+
   /* ── BANK-1 — THE DEPOT, PLAYED ─────────────────────────────────────────────
      The server's bank store shipped b438 and sat dormant for a hundred builds
      because nothing could call it: the flyout's "→ Bank" button was guarded on a
@@ -21893,11 +21952,24 @@ const TESTS = [
       b = G.buffs.find((x) => x.type === 'all_xp');
       assert(b.remainingMs === 84000, 'duration multiplier not applied: ' + b.remainingMs);
       assert(Math.abs(b.magnitude - 12) < 1e-9, 'magnitude multiplier not applied: ' + b.magnitude);
-      // The extend branch must use the SCALED duration too — that branch is
-      // where a "multiply at the call site" fix would have leaked.
+      /* A SECOND HELPING IS A SECOND SEGMENT, AND IT MUST ALSO BE SCALED.
+         2026-09-13: applyBuff no longer folds the helping into the existing row
+         (`remainingMs += dur; magnitude = max(old,new)`) — that merge laundered a
+         Feast's magnitude onto a cheap food, so the game-designer replaced it with
+         contiguous per-segment entries, each carrying its own magnitude. What this
+         arm is protecting is unchanged and is the reason the b222 seam exists: the
+         scaler must reach the SECOND helping too, which is exactly where a
+         "multiply at the call site" fix would have leaked. So the assertion moved
+         from "the row now reads 168000" to "the queue's TAIL ends at 168000", which
+         is the same 84000 + 84000 stated against the new shape. */
       window.applyBuff({ type: 'all_xp', magnitude: 10, durationMs: 60000 });
-      b = G.buffs.find((x) => x.type === 'all_xp');
-      assert(b.remainingMs === 168000, 'stacking a second buff ignored the scaler: ' + b.remainingMs);
+      const segs = G.buffs.filter((x) => x.type === 'all_xp');
+      assert(segs.length === 2, 'a second helping must queue a second SEGMENT, not merge: ' + JSON.stringify(segs));
+      const tail = Math.max.apply(null, segs.map((x) => x.remainingMs));
+      assert(tail === 168000, 'stacking a second buff ignored the scaler: ' + tail);
+      assert(segs.every((x) => Math.abs(x.magnitude - 12) < 1e-9),
+        'every segment must carry its own SCALED magnitude: ' + JSON.stringify(segs));
+      b = segs[0];
 
       // Registration is idempotent by NAME — a boot retry cannot compound.
       window.registerBuffScaler('__test_hearth', () => ({ duration: 1.4, magnitude: 1.2 }));
@@ -27043,6 +27115,19 @@ const TESTS = [
       doc.close();
       const win = frame.contentWindow;
       const q = (s) => doc.querySelector(s);
+      /* The slot line's width is a function of the player's numbers, and the
+         suite's bag is nearly empty — narrow enough to fit even when the layout
+         is broken. Re-state it at the worst case a real bag produces before
+         measuring. The plant is the structure renderInvFancy emits, and that it
+         emitted it is asserted below: a missing span must read as a failure. */
+      const slotEl = q('.invc-topbar .invc-space');
+      const slotNamed = !!(slotEl && slotEl.querySelector('.invc-space-cap')
+        && slotEl.querySelector('.invc-space-unit') && slotEl.querySelector('.invc-space-free')
+        && slotEl.querySelector('.invc-space-sub'));
+      if (slotNamed) slotEl.innerHTML =
+        '<span class="invc-space-cap">1,000 / 1,000<span class="invc-space-unit"> slots</span></span>'
+        + ' <span class="invc-space-free">(981 free)</span>'
+        + '<span class="invc-space-sub"> · 2,719 items · 1,284,905 gp</span>';
       const rect = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right, w: b.width, h: b.height }; };
       const heroH4 = [...doc.querySelectorAll('.invc-stat-card h4')]
         .find((h) => h.textContent.trim().toUpperCase().indexOf('HERO') === 0);
@@ -27062,6 +27147,36 @@ const TESTS = [
         tabs: rect(tabsEl),
         tabsText: tabsEl ? tabsEl.textContent : '',
         tabGlyphs: doc.querySelectorAll('#inv-mob-tabs .hr-glyph').length,
+        slotNamed,
+        actionBtns: doc.querySelectorAll('.invc-topbar .invc-actions button, .invc-topbar .invc-actions .btn').length,
+        /* The DECLARED ORDER OF SACRIFICE, read off the cascade rather than off a
+           width — see the ordering block below for why a width is not trusted here. */
+        rank: (function(){
+          const g = (sel) => { const el = q('.invc-topbar ' + sel); return el ? win.getComputedStyle(el) : null; };
+          const cap = g('.invc-space-cap'), free = g('.invc-space-free'),
+                unit = g('.invc-space-unit'), sub = g('.invc-space-sub'), line = g('.invc-space');
+          return {
+            capShrink: cap && cap.flexShrink, freeShrink: free && free.flexShrink,
+            unitDisplay: unit && unit.display, subDisplay: sub && sub.display,
+            lineOverflow: line && line.overflowX, lineWrap: line && line.whiteSpace,
+          };
+        })(),
+        space: rect(q('.invc-topbar .invc-space')),
+        spaceCap: rect(q('.invc-topbar .invc-space-cap')),
+        spaceFree: rect(q('.invc-topbar .invc-space-free')),
+        spaceText: (q('.invc-topbar .invc-space') || {}).textContent || '',
+        /* What a player at this viewport can actually READ on the slot line:
+           the node's text minus every display:none descendant. */
+        spaceRead: (function(){
+          const src = q('.invc-topbar .invc-space'); if(!src) return '';
+          const live = [...src.querySelectorAll('*')];
+          const clone = src.cloneNode(true);
+          const twins = [...clone.querySelectorAll('*')];   // same document order
+          for (let i = live.length - 1; i >= 0; i--) {
+            if (win.getComputedStyle(live[i]).display === 'none' && twins[i]) twins[i].remove();
+          }
+          return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+        })(),
       };
     } finally {
       frame.remove();
@@ -27105,6 +27220,41 @@ const TESTS = [
       'each sub-tab must carry a baked atlas glyph, not an emoji that the chrome sweep deletes (found ' + out.tabGlyphs + ')');
     assert(!/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u.test(out.tabsText),
       'no emoji may render in the inventory sub-tab strip');
+
+    /* (5) THE SLOT LINE HAS A DECLARED ORDER OF SACRIFICE. The visual
+     *     sweep measured `"(81 free)" cut by .invc-space` at exactly this
+     *     viewport: the topbar shares its column with four action buttons and
+     *     the line was one ellipsised text run, so the cut fell inside the
+     *     free-stack count.
+     *     ASSERTED OFF THE CASCADE, NOT OFF A WIDTH: this probe has no web
+     *     faces, so it lays the line out in the fallback for --f-label (Cinzel)
+     *     and the worst case fits here in 197px where it did not on the device.
+     *     Widths belong to tests/visual-qa-gate.mjs, which measures the real
+     *     page with the real faces and refuses a verdict without them. The
+     *     font-independent half — and the fix itself — is the ORDER: capacity
+     *     and free stacks never shrink; the unit word and the volatile summary
+     *     are what go. Deleting either half turns this red. */
+    assert(out.space && out.space.w > 0, 'the slot line must render at 922x423');
+    assert(out.slotNamed,
+      'renderInvFancy must emit the slot line as NAMED facts (.invc-space-cap + .invc-space-unit, .invc-space-free, .invc-space-sub) — without them a short viewport cannot rank them and every assertion below would be vacuous');
+    assert(out.actionBtns >= 3,
+      'the probe needs the real action buttons beside the slot line — they are what narrows it; found ' + out.actionBtns);
+    assert(out.rank.capShrink === '0' && out.rank.freeShrink === '0',
+      'THE b545 BUG: on a landscape phone the capacity and free-stack facts must be unshrinkable, so the cut can never land inside them — flex-shrink cap=' + out.rank.capShrink + ' free=' + out.rank.freeShrink);
+    assert(out.rank.unitDisplay === 'none' && out.rank.subDisplay === 'none',
+      'THE b545 BUG: the line must give up the unit word and the item/gold summary WHOLE rather than half-draw them — display unit=' + out.rank.unitDisplay + ' sub=' + out.rank.subDisplay + ' (read: "' + out.spaceRead + '")');
+    assert(out.rank.lineOverflow === 'hidden' && /nowrap/.test(out.rank.lineWrap || ''),
+      'the slot line must still be a single clipped rank on a 423px-tall screen (b327 chrome budget) — overflow ' + out.rank.lineOverflow + ', white-space ' + out.rank.lineWrap);
+    assert(out.spaceCap && out.spaceFree, 'the slot line must expose its capacity and free-stack facts as named elements');
+    ['spaceCap', 'spaceFree'].forEach((k) => {
+      const r = out[k];
+      assert(r.r <= out.space.r + 2 && r.l >= out.space.l - 2,
+        'THE b545 BUG: .' + (k === 'spaceCap' ? 'invc-space-cap' : 'invc-space-free') + ' is cut by .invc-space on a landscape phone — child ' + Math.round(r.l) + '..' + Math.round(r.r) + ' vs parent ' + Math.round(out.space.l) + '..' + Math.round(out.space.r) + ' (readable line: "' + out.spaceRead + '")');
+    });
+    assert(/[\d,]+\s*\/\s*[\d,]+/.test(out.spaceRead) && /[\d,]+\s*free\)?/.test(out.spaceRead),
+      'the landscape slot line must still state used/cap AND free stacks — read "' + out.spaceRead + '"');
+    assert(/[\d,]+\s*\/\s*[\d,]+\s*slots/.test(out.spaceText),
+      'the slot line\'s TEXT must keep the b348 wording for _renderInvSummary\'s contract — got "' + out.spaceText + '"');
   }),
 
   () => tryRun('b369: Character > Equipment survives a 922x423 landscape phone — square, contained, non-overlapping slots (Tyler: "the weapon sprite is floating over the Cape cell")', () => {
@@ -37732,17 +37882,22 @@ const TESTS = [
       assert(window.getBonus('dropRate') >= baseDrop + 1,
         'and the remainder must still be paying when the player gets back');
 
-      /* (d) THE ONE FREEZE THAT SURVIVED. Idle play has never drained buffs —
-         you are not spending an effect that is not modifying anything — and
-         that rule predates this change and is untouched by it. */
+      /* (d) THE LAST FREEZE IS GONE (wall-clock ruling, 2026-09-13). This arm
+         asserted the opposite until today. The authority is an ABSOLUTE `until` the
+         server keeps expiring whether the player fights, idles or sleeps, and the
+         freeze was CLIENT-ONLY (every engine caller passes `active: true`) — a
+         promise only the pill made, and the server was already breaking it. */
       G.activeMonster = null; G.activeSkill = null; G.activeArtisanRecipe = null;
       const before = G.buffs[0].remainingMs;
       window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === before,
-        'with nothing running the clock must still freeze, found ' + G.buffs[0].remainingMs + ' vs ' + before);
+      assert(G.buffs[0].remainingMs === before - 60000,
+        'an IDLE minute must drain the buff by a minute — the clock is wall-clock against the server\'s '
+        + 'absolute `until`, found ' + G.buffs[0].remainingMs + ' vs ' + (before - 60000));
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
       window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === before - 60000, 'and it must drain again while an activity runs');
+      assert(G.buffs[0].remainingMs === before - 120000,
+        'and a WORKING minute costs the same minute — one rule, not two: '
+        + G.buffs[0].remainingMs + ' vs ' + (before - 120000));
     } finally { C.randomSeed(); restoreG(snap); }
   }),
 
@@ -39340,57 +39495,115 @@ const TESTS = [
     assert(out.featuredDropMult === 1, 'a span with no featured time must report the neutral multiplier, not a default lift');
   }),
 
-  () => tryRun('b326-3: a paused buff renders as PAUSED with its time preserved — never as a ticking clock', () => {
+  () => tryRun('buffs step 2: the server owns the clock — the pill is the envelope, it never pauses, '
+    + 'and it shows the segment running NOW', () => {
+    /* WHAT THIS REPLACED, AND WHY THAT IS NOT A DELETED TEST. This slot held
+       b326-3, "a paused buff renders as PAUSED with its time preserved" — the OLD
+       ruling, where `tickBuffs` froze whenever nothing was running. Two rulings of
+       2026-09-13 retired it (wall-clock drain; per-segment magnitudes), and a test
+       asserting a retired rule is not evidence — so it is REWRITTEN in place and
+       every assertion it protected survives below. THE ATTENDED HALF; the away half
+       is tests/buff-queue.mjs [20]. */
     const G = window.G;
     const H = window.HearthriseHome;
+    const A = window.HearthriseAccrual;
     const snap = snapshotG();
     const prevTab = window.activeTab;
     try {
-      assert(typeof window.buffsFrozen === 'function',
-        'the freeze condition must be published, so Home and the buff panel cannot disagree about whether the clock is running');
+      assert(typeof window.buffsFrozen !== 'function',
+        'window.buffsFrozen is still published. The freeze it answered for is DELETED (wall-clock ruling): a '
+        + 'surface that can still ask "is this clock paused?" will eventually draw the answer, and the server '
+        + 'has no such state.');
+      assert(typeof A.reconcileBuffs === 'function',
+        'accrue.js must export reconcileBuffs — without it a reload forgets a running buff while the server '
+        + 'goes on paying it');
       window.showTab('profile');
-      G.buffs = [{ type: 'gather_speed', magnitude: 15, remainingMs: 6 * 60000, addedAt: Date.now() }];
-
-      /* FROZEN: nothing running. This is now the ONLY freeze condition —
-         src/core/buffs.js `tickBuffs` used to freeze on `away` too, and no
-         longer does (personal buffs pay away, so they are spent away). "A buff
-         is spent on work" is the rule that survived; idling is not work. */
       G.activeSkill = null; G.skillTargetId = null; G.activeMonster = null; G.activeArtisanRecipe = null;
-      assert(window.buffsFrozen() === true, 'with no activity running the buff clock must be frozen');
-      H.render();
-      const row = document.getElementById('hd-root').querySelector('.hd-buff');
-      assert(row, 'Home must render the buff ladder — it is the only VISIBLE buff surface (the legacy Active Effects card is display:none under the b213 dashboard)');
-      assert(row.classList.contains('is-paused'), 'a frozen buff row must carry the paused state');
-      const rowTxt = row.textContent.replace(/\s+/g, ' ');
-      assert(/paused/i.test(rowTxt), 'a frozen buff must be LABELLED paused: ' + rowTxt);
-      assert(/6:00/.test(rowTxt), 'the paused buff must show its PRESERVED time (6:00), got: ' + rowTxt);
-      assert(/Gather Speed/.test(rowTxt) && /\+15%/.test(rowTxt),
-        'the row must name the buff and its magnitude, not just say "food buff active": ' + rowTxt);
 
-      /* And the clock genuinely does not run: the engine must not drain it. */
+      /* (1) THE ENVELOPE IS THE PILL. Two contiguous segments of one type plus an
+         EXPIRED entry, which hr_state_of carries at remaining_ms 0 for the away
+         engine and which nothing may render. */
+      const seg = (type, magnitude, ms) =>
+        ({ type, magnitude, until: new Date(Date.now() + ms).toISOString(), remaining_ms: ms });
+      G.buffs = [{ type: 'damage', magnitude: 99, remainingMs: 9e9, addedAt: Date.now() }];
+      A.reconcileBuffs(G, { ok: true, buffs: [seg('gather_speed', 15, 6 * 60000),
+        seg('gather_speed', 2, 20 * 60000), seg('all_xp', 4, 0)] });
+      assert(G.buffs.length === 2 && !G.buffs.some((b) => b.type === 'damage'),
+        'the envelope must REPLACE the local queue (a forged +99% must not survive it — that is the '
+        + 'residue-ahead class this field used to be) and must drop the expired entry: '
+        + JSON.stringify(G.buffs));
+
+      /* (2) ONE ROW PER EFFECT, SHOWING THE SEGMENT RUNNING NOW: +15% for six
+         minutes then +2%, never "+15% for 26 minutes" (the merge bug's signature). */
+      H.render();
+      const hd = document.getElementById('hd-root');
+      const rows = hd.querySelectorAll('.hd-buff');
+      const rowTxt = rows.length ? rows[0].textContent.replace(/\s+/g, ' ') : '';
+      assert(rows.length === 1,
+        'Home must render ONE row per effect even when a type holds several segments; got ' + rows.length);
+      assert(/Gather Speed/.test(rowTxt) && /\+15%/.test(rowTxt) && /6:00/.test(rowTxt)
+        && !/paused/i.test(rowTxt),
+        'the row must name the buff, the magnitude RUNNING NOW (+15%, not the queued +2%) and the time until '
+        + 'the bonus CHANGES (6:00, not the 26:00 the queue empties at), and never say paused: ' + rowTxt);
+      assert(/real time/i.test(hd.textContent) && /away/i.test(hd.textContent),
+        'the ladder must state the rule a player can lose a Feast by not knowing: the clock is real time and '
+        + 'runs while they are away');
+
+      /* (3) IT DRAINS WITH NOTHING RUNNING — the old freeze made this call a no-op,
+         which is what showed an 8m40s pill for an hour. */
+      const before = G.buffs[0].remainingMs;
       window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === 6 * 60000,
-        'a frozen buff must not drain — the label and the engine must agree');
+      assert(G.buffs[0].remainingMs === before - 60000,
+        'an idle minute must drain the buff by a minute — BUFF_DRAIN_RULE is wall-clock and the server keeps '
+        + 'expiring the absolute `until` whether or not the player is doing anything. Got '
+        + G.buffs[0].remainingMs + ' from ' + before);
 
-      /* RUNNING: the same row must drop the paused state, or the label becomes
-         noise the player learns to ignore. */
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'oak_tree';
-      assert(window.buffsFrozen() === false, 'with an activity running the clock runs');
-      H.render();
-      const live = document.getElementById('hd-root').querySelector('.hd-buff');
-      assert(live && !live.classList.contains('is-paused'), 'a running buff must NOT render as paused');
-      assert(!/paused/i.test(live.textContent), 'a running buff must not carry the paused label');
+      /* (4) THE ACTIVE EFFECTS PANEL, same rules, and the boundary is NAMED. */
+      window.__renderBuffsSection();
+      const brs = [...document.querySelectorAll('.buff-row')].map((r) => r.textContent.replace(/\s+/g, ' '));
+      assert(brs.length === 1, 'the Active Effects panel must show one row per effect: ' + brs.length);
+      assert(/\+15%/.test(brs[0]) && /then \+2%/.test(brs[0]) && !/paused/i.test(brs[0]),
+        'the row must state the running magnitude, NAME what it becomes at the boundary, and carry no '
+        + 'paused chip: ' + brs[0]);
+      /* THE GESTURE RULE IS STATED, not inferable: the server buffs a MANUAL eat only
+         (the auto-eater heals), so the panel and every buff food's tooltip carry one
+         published sentence. Asserted on the PANEL and on the TOOLTIP's own source. */
+      const panel = document.getElementById('food-buffs-host').textContent;
+      assert(/eat it yourself/i.test(panel) && /auto-eating only heals/i.test(panel),
+        'the Active Effects panel must state that a buff needs a manual Eat: ' + panel);
+      assert(typeof window.BUFF_GESTURE_NOTE === 'string'
+        && window.foodUseInfo('fishers_pie').buffText !== '',
+        'the tooltip reads window.BUFF_GESTURE_NOTE for any food with a buffText; one of the two is gone, '
+        + 'so a buff food can be bought with no statement of who has to eat it');
 
-      /* 0-EMOJI RULE: the buff registry's `icon` field is a literal emoji, and
-         it used to be rendered as art. Neither surface may draw one. */
+      /* (5) THE GESTURE REACHES THE SERVER. `buff_apply` is the Edge's to build (the
+         real delta is applied in tests/buff-queue.mjs [18]); the CLIENT's half is the
+         `auto` bit — without it every auto-eat heal buffs, caps the queue, and is
+         refused buff_at_max, which rolls back the debit and restocks the food. */
+      const wire = (auto) => JSON.parse(window.HearthriseEat.buildEatRequest({
+        url: 'https://example.test', apiKey: 'k', token: 't', slot: 0,
+        intentId: '00000000-0000-4000-8000-000000000001', item: 'fishers_pie', auto,
+      }).init.body);
+      const manual = wire(false);
+      assert(manual.item === 'fishers_pie' && manual.auto === false && wire(true).auto === true,
+        'a MANUAL eat must go on the wire as auto:false (so the server grants the buff) and an AUTO eat must '
+        + 'declare itself: ' + JSON.stringify(manual));
+      assert(Object.keys(manual).sort().join(',') === 'auto,intentId,item,slot,verb',
+        'the eat request must carry a NAME and the gesture and nothing else — no heal, no hp, no qty, no '
+        + 'magnitude, no duration: ' + Object.keys(manual).sort().join(','));
+
+      /* (6) 0-EMOJI RULE, preserved from the test this replaced. */
       const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
-      assert(!EMOJI.test(live.textContent), 'no emoji may render in the buff ladder: ' + live.textContent);
-      if (typeof window.__renderBuffsSection === 'function') {
-        window.__renderBuffsSection();
-        document.querySelectorAll('.buff-row').forEach((r) => {
-          assert(!EMOJI.test(r.textContent), 'no emoji may render in a buff row: ' + r.textContent);
-        });
-      }
+      [rows[0].textContent, ...brs].forEach((t) => {
+        assert(!EMOJI.test(t), 'no emoji may render on a buff surface: ' + t);
+      });
+
+      /* (7) ABSENCE IS NOT AN EVICTION: no `buffs` key is a partial answer, not "you
+         hold nothing" (§6, never evict on uncertainty). */
+      const keep = G.buffs.length;
+      A.reconcileBuffs(G, { ok: true, state: {} });
+      assert(G.buffs.length === keep,
+        'an envelope without a `buffs` key must leave the queue alone; got ' + JSON.stringify(G.buffs));
     } finally {
       restoreG(snap);
       try { H.render(); } catch (e) {}

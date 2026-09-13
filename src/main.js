@@ -406,6 +406,11 @@ import './utils/image-fallback.js?v=543';
 // control it makes reachable. Published on window for legacy.js's render sites
 // and the envelope hook in net/accrue.js.
 import { setupBountyProgress } from './render/bounty-progress.js?v=543';
+/* BESTIARY CHARMS, phase 1 — display only. Mirrors the envelope's
+   `bestiary.kills_by_class` block into `G._bestiaryCharms` scratch and derives
+   the rank on every read (nothing is stored). Published on window for the
+   classic-script Bestiary modal and for the envelope hook in net/accrue.js. */
+import { setupBestiaryCharms } from './render/bestiary-charms.js?v=543';
 /* THE COMMON (live-world week 1). Two halves, both display-only: net/town.js
    reads `hr_town_of` on its own 25s cadence into `G._town` scratch, and this
    turns that into one row on Home. Neither is authority and neither is a gate —
@@ -465,6 +470,11 @@ function tryBootFeatures() {
      others. */
   const boot = (name, fn) => { try { fn(); } catch (e) { console.error('[ESM boot] ' + name + ' failed', e); } };
   boot('bounty-progress', setupBountyProgress);
+  /* BEFORE the first accrual can answer: settle() reaches this through
+     window.hrNoteServerBestiary and a missing hook is a silent no-op, so an
+     envelope that lands ahead of the boot would drop its counters until the
+     next one. */
+  boot('bestiary-charms', setupBestiaryCharms);
   boot('town-panel', setupTownPanel);
   /* AFTER the panel is published: the first poll can land before the next Home
      repaint, and a parked view with no renderer is a view nothing draws. */

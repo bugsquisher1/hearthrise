@@ -2,6 +2,14 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-13 · SYSTEMS (lane: Bestiary Charms phase 1) → ART DIRECTOR + GAME DESIGNER
+
+**Art Director.** The Bestiary modal (`src/render/bestiary.js`) grew a charm strip above the roster and an element line inside each discovered row, with a new `.charm-*` block in `src/styles/legacy.css`. Atlas glyphs only (`uiMedal` / `uiTarget` / `uiSpark`) and tokens only — the four rank tints are `color-mix(in srgb, var(--gold-2) N%, transparent)`, no colour literal was added (`css-literal-ratchet` exit 0), no emoji. Measured at 1440×900 and 852×393: no horizontal spill, chips wrap to two columns, zero console errors. If the strip wants a different home (its own header, or folded into the row) that is the Art Director's call — the markup is one function, `paintCharmStrip`.
+
+**Game Designer.** Two notes in `src/data/item-effects.js` were corrected, NEITHER flipped. `reveal_hidden_weak` STAYS `live:false`: both of its stated dependencies now exist (the element axis shipped with Elements v1; the bestiary reveal shipped here), but the KIND means the *item* half — jewelry that reveals without the kills — and its only carrier `unlit_earrings` has no recipe, no drop and no shop offer, so flipping it would correctly turn the reachability guard RED. `bestiary_rate` stays false as phase 2. The one player-facing information change: a class at rank ≥1 now prints its ELEMENT weakness in the Bestiary. The WEAPON weakness was already public (fight screen, monster cards, bounty notice); the element axis was printed NOWHERE before this (grepped). That reveal is the 2026-09-13 ruling, restated here so it lives on the record and not only in a lane brief.
+
+**Not a conflict, but a near-miss worth writing down.** `src/core/charms.js` folds kills into classes through `classOfMonster` and never reads `monster.cls`. `normalizeClass('extradimensional')` — the spelling every roster row and `MONSTER_CLASS_ORDER` use — returns **null**; the right answer only arrives because `classOfMonster` falls back to `family: 'Extra Dimensional'` with the space. Verified over the whole roster (108/108 resolve, 6 to `extra_dimensional`). Anyone who "simplifies" a class fold to the `cls` field silently loses Extra Dimensional — the one class whose hidden weakness this feature exists to reveal.
+
 ## 2026-09-12 · SYSTEMS (lane: Depot client half) → the INVENTORY-RENDERER lane · **b327 is RED on `next`**
 
 ```
@@ -1500,3 +1508,42 @@ APPLIED — **needs a Security GO**; it changes what the realm refuses on a trad
 preference to the array, so the data alone converges both readers. The `src/net/equip.js` §THE GATE
 "ONE KNOWN DIVERGENCE" note is updated in the same commit — it was the record of this entry and would
 otherwise have outlived it.
+
+---
+
+## 2026-09-13 — consumable buffs step 2: three semantic notes, one of them a live gap
+
+**systems-engineer, branch `worktree-agent-a26409ea8bdf37b34`.** The eat path now emits
+`buff_apply` and the pill is the envelope. Three things cross another owner's line and are
+recorded rather than decided here.
+
+**1. AUTO-EAT DOES NOT BUFF, and that is a ruling I had to make to ship safely.** The brief said
+"when the eaten food has a buff, emit `buff_apply`". Taken literally that is a P0: fifteen
+`foodClass:'healing'` rows in `src/data/items.js` carry an incidental buff (Cooked Herring's +1%
+gather speed, Goldgill Steak's +2% drop rate) and the auto-eater eats *exactly that pool*, up to
+20 sends/min through legacy.js's paced FIFO. Every heal would buff, the 60-minute queue would cap
+inside ~90 s of a hard fight, and every auto-eat after that is refused `buff_at_max` — **a refusal
+that rolls the whole apply back, so the food is never debited and returns on the next envelope**:
+the b467-b479 "food I eat gets restocked" P0, reintroduced by a feature. So the `eat` intent now
+carries a boolean `auto` (`request.js readAuto`) and the server suppresses the buff for it, which
+is also exactly what the client paints either way — `maybeAutoEat` heals and never calls
+`applyBuff`. The flag can only make the answer *smaller*; a forged `auto:false` grants a buff the
+player could have had by clicking Eat on food they already own. **Game designer:** the live
+consequence is that a manual eat of those fifteen healing foods now pays a real (small) buff that
+has always been on the tooltip and has never been paid. If that is unwanted, the change is one
+line in `eatDelta` (gate on `foodClass === 'buff'`), not a sweep.
+
+**2. THE HOMESTEAD CELLAR'S `buffDuration` BONUS IS NOW INERT, and it was always inert where it
+counted.** `src/features/homestead.js` registers `homestead.cellar` with `registerBuffScaler`, which
+lengthens a buff at *application* time — on the client. The server stamps `until` from
+`hr_item_buffs` x `c_buff_scale` (= 1), so the envelope shortens the buff the Cellar lengthened,
+within the eat's own round trip. Nothing real was lost (every yield is server-computed; the longer
+client duration only ever moved a prediction), but a room the player paid for now visibly does
+nothing. **Backend + designer:** the fix is server-side — `c_buff_scale` is named in
+`2026-09-13-consumable-buffs.sql` as "the ONE place a future perk would lengthen a duration", and it
+needs the perk to reach `hr_apply`. Not attempted here (a migration + Security GO).
+
+**3. I fixed another lane's file.** `supabase/migrations/2026-09-13-consumable-buffs.sql` ended on a
+prose comment, which `tests/run-smoke.mjs migrationGuard` reads as a truncated file — **the whole
+suite was red on it** ("last line is not a SQL terminator"). The §5 note is moved into the header
+verbatim; the file now ends on `end $mig$;`. No SQL changed.

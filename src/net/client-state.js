@@ -203,7 +203,32 @@ export const RESIDUE_FIELDS = Object.freeze([
   'renown',         // { claimed:[], seenRank } — claimed ranks are server once-guarded; this is the shown state
   'unlockedRecipes',// gated recipe unlocks the client has learned (server rows exist; this is the read cache)
   'tools',          // tool slots in the loadout kit
-  'buffs',          // active consumable buffs (remainingMs) — short-lived, but a potion must survive a reload
+  /* ⚠ `buffs` WAS HERE and is REMOVED, not re-homed here (2026-09-13). The entry
+     read "active consumable buffs (remainingMs) — short-lived, but a potion must
+     survive a reload", and both halves of that were the problem: a `remainingMs`
+     in a bag the PLAYER writes is a buff clock the player owns, and this bag is
+     hydrated into G, which feeds the client's getBonus chain. A forged
+     `{buffs:[{type:'damage',magnitude:9999,remainingMs:9e9}]}` lived there for as
+     long as the player liked. It bought nothing server-side, which is exactly what
+     made it LATENT rather than live — §6's "a forged authority value living in G
+     is a latent hole" in the costume of a display preference.
+     The server owns the buff clock now: player_state.buffs
+     ([{type, magnitude, until}], ABSOLUTE expiry, written only by hr_apply's
+     buff_apply block from the hr_item_buffs catalogue + now()), projected by
+     hr_state_of as the envelope's own top-level `buffs` block. `buffs` is on
+     hr_put_client_state's AUTHORITY DENY-LIST as of
+     2026-09-13-client-state-buffs-denylist.sql, so leaving the name here would
+     make the server refuse EVERY residue patch with forbidden_field — the two
+     changes are one commit for that reason, and tests/arm-homing-guard.mjs
+     asserts the collision across both deny-list migrations.
+     ⚠ STEP 1 OF 3, AND THE GAP IS NAMED: until the step-2 client half adds
+       `reconcileBuffs` (mirror `res.buffs` → G.buffs on every envelope, both
+       directions) the client's own copy is in-flight display only and is declared
+       in NO_SYNC (src/net/events.js). A reload therefore FORGETS a running buff
+       on screen while the server keeps holding it — honest under-display, never a
+       lost entitlement, and it is the step-2 lane that closes it. When it lands,
+       `buffs` moves to SERVER_MECHANISM_FIELDS with the executed proof that list
+       now demands, NOT back to this one. */
   'lastActivity',   // the launchpad's "resume what you were doing" card
   /* ── b466 — THE SECOND SWEEP (paione, live open beta: "Bestiary achievements
      keep resetting every time you log out and in"). The b462 sweep above was
@@ -276,6 +301,32 @@ export const RESIDUE_FIELDS = Object.freeze([
                     // envelope after it, taking the player's blueprint with it"
 ]);
 const RESIDUE_SET = new Set(RESIDUE_FIELDS);
+
+/* ── NAMES THE RESIDUE PUT MUST NEVER CARRY, WHATEVER BUILT THE PATCH ────────
+   hr_put_client_state refuses the WHOLE patch with `forbidden_field` when it sees
+   an authority name — not the key, the patch — so one bad name costs the player
+   every preference in the bag for as long as the bundle lives. RESIDUE_FIELDS is
+   the primary control and `buffs` is already off it; this is the second, and the
+   two fail differently on purpose: the allowlist protects against a field being
+   FORGOTTEN, this against one being RE-ADDED (`buffs` lived in RESIDUE_FIELDS for
+   months as a player-written buff clock, and the "a potion must survive a reload"
+   instinct that put it there will recur — it is homed by accrue.js reconcileBuffs
+   now, not by this bag).
+
+   ⚠ ENFORCED IN `putClientState`, NOT IN `buildResiduePatch`, and that is not a
+     preference. The PUT is the ONE choke point every patch passes through
+     whatever assembled it, and capstone.js's builder is SLICED OUT OF ITS SOURCE
+     AND RUN STANDALONE by tests/bounty-hunter-xp.mjs (its module graph never
+     settles under Node, so the guard executes the real bytes with
+     RESIDUE_FIELDS injected). A cross-module call inside that function is a
+     ReferenceError in the harness — measured, it turned the whole guard red.
+     Enforcing at the seam that owns the list keeps both honest.
+
+   Kept in sync BY A GUARD, not by hand: tests/arm-homing-guard.mjs reads the
+   deny-list out of every `*client-state*denylist.sql` migration and fails a
+   residue field that collides with it. */
+const RESIDUE_NEVER_SEND = Object.freeze(['buffs']);
+const NEVER_SEND_SET = new Set(RESIDUE_NEVER_SEND);
 
 /* ── THE SIZE GUARD'S CLIENT HALF ────────────────────────────────────────────
    hr_put_client_state already refuses an oversized bag (2026-08-22-client-state-
@@ -613,6 +664,17 @@ export async function putClientState(patch, opts) {
   const o = opts || {};
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
     return { ok: false, error: 'bad_patch' };
+  }
+  /* THE DENY-LIST, AT THE ONE SEAM EVERY PATCH CROSSES (see RESIDUE_NEVER_SEND).
+     A copy, never a mutation of the caller's object: the patch is also the
+     caller's record of what it tried to save. Silent by design — this is a
+     backstop for a name that should never have been assembled, and a warning the
+     player cannot act on is noise in the console of a live game. */
+  for (const k of NEVER_SEND_SET) {
+    if (Object.prototype.hasOwnProperty.call(patch, k)) {
+      patch = Object.fromEntries(Object.entries(patch).filter(([f]) => !NEVER_SEND_SET.has(f)));
+      break;
+    }
   }
   const url = o.url;
   const anonKey = o.anonKey;

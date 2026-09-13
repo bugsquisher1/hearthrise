@@ -162,8 +162,15 @@ const INJECTION_FILES = Object.freeze({
      hr_day_budget_used is a different function with a different last writer, and
      it is still gem-daily-budget — which is why both keys exist. `boot()` now
      refuses to run any plant whose anchor is re-written later in the apply order,
-     so this cannot go stale silently a third time; it goes HARNESS-red. */
-  'apply-last': '2026-08-25-workers.sql',
+     so this cannot go stale silently a third time; it goes HARNESS-red.
+
+     ⚠ AND THE KEY THAT REPLACED IT — `apply-last`, 2026-08-25-workers.sql, the
+     last AUTHOR of hr_apply — IS GONE TOO, deliberately, on 2026-09-13. It is
+     not that it went stale a third time: it cannot be made correct at all, for
+     the reason INJECTION_FINAL_BODIES gives below. Every plant that used to name
+     it now names `final: 'apply-final'`. The key is removed rather than left
+     pointing at a real file, because a key that still resolves is a key the next
+     arm will use, and using it re-creates exactly this bug. */
   'grant-hygiene': '2026-08-11-grant-hygiene.sql',
   /* ⚠ 2026-08-17, NOT 2026-08-11. The old file is DELETED; the six market
      injections below are re-anchored on the re-derivation, verbatim from
@@ -177,20 +184,30 @@ const INJECTION_FILES = Object.freeze({
    text production executes. hr_apply stopped being that on 2026-09-12.
 
    The chain now writes hr_apply in two ways (b538's vocabulary): TEN AUTHORS
-   (the last is 2026-08-25-workers.sql, apply-order 93) and then a tail of
-   PATCHERS — 2026-09-03-intent-mismatch-class/-escalates, and now
-   2026-09-12-renown-high-projection.sql at 165 — each of which reads the body
-   back with pg_get_functiondef, splices, and re-executes. A patcher carries a
-   plant FORWARD, so `apply-last` still installs a live defect; that half is
-   healthy and every other plant on that key still works.
+   (the last is 2026-08-25-workers.sql, apply-order 93) and then a growing tail
+   of PATCHERS — 2026-09-03-intent-mismatch-class/-escalates,
+   2026-09-12-renown-high-projection.sql, 2026-09-13-consumable-buffs.sql (five
+   anchored splices) — each of which reads the body back with
+   pg_get_functiondef, splices, and re-executes. A patcher carries a plant
+   FORWARD, so a plant in file 93 is genuinely INSTALLED.
 
-   What broke `gold_double` is the other half. The renown file's §3(c6) probe
-   runs a PAID apply and asserts `gold1 = gold0 + 7777` EXACTLY. A body that
-   doubles a positive gold delta therefore cannot get past file 165: the
-   migration refuses to install, the whole replay fails, and the arm scores
-   HARNESS ("migrations would not apply") instead of CAUGHT. The plant was
-   never dead — it was live enough to be measured at 15554 — it simply could no
-   longer reach a database that finished booting.
+   Being installed is not the problem. BEING INSTALLED TOO EARLY IS. Each of
+   those later files carries a §4 self-check that EXECUTES hr_apply and asserts
+   a property of it, and a plant standing in the body before that block runs is
+   a plant the self-check correctly refuses — so the chain will not apply and
+   the arm scores HARNESS instead of being scored by the fuzz. That is not a
+   defect in the migration and not a defect in the fuzz's model; it is the two
+   of them being run in the wrong order.
+
+   Measured twice in two days, same class, different arm:
+     • 2026-09-12 — gold_double. The renown file's §3(c6) runs a PAID apply and
+       asserts `gold1 = gold0 + 7777` exactly; the doubled credit read 15554.
+     • 2026-09-13 — replay_applies_twice. consumable-buffs' §4(f5) asserts a
+       repeated intent_id is answered as a REPLAY; the plant answered
+       version_conflict.
+   Both plants were live, both chains refused, both arms read HARNESS. Every
+   remaining arm inside hr_apply had the same exposure, waiting for the next
+   migration whose self-check happened to touch its line.
 
    The two obvious repairs are both wrong. Declaring `gate:` on c6 moves the
    catch into one migration's fixture, and this file has twice been burned by a
@@ -208,12 +225,32 @@ const INJECTION_FILES = Object.freeze({
    renown file edits, one step further along: the author's line, carried
    through every patcher, as the fuzz's ops will actually execute it.
 
+   ALL EIGHT hr_apply ARMS USE IT (2026-09-13), not only the two that had been
+   caught out. Converting them one incident at a time would have meant one red
+   CI run per future migration that self-checks hr_apply, each looking like a
+   new bug; the exposure is a property of the target, so it is fixed at the
+   target. `INJECTION_FILES` no longer has a key that resolves to an hr_apply
+   author, so the wrong choice is not available.
+
    The discipline is bootReplay's, kept: the anchor must appear EXACTLY ONCE in
-   the live body and must CHANGE it, or the run is a HARNESS failure. The
-   marker sweep below (PLANT STILL STANDING) then re-reads it out of pg_proc,
-   so "planted" is a measurement here too, not an inference. */
+   the live body and must CHANGE it, or the run is a HARNESS failure — which is
+   also what now detects a patcher that rewrites a plant's line (the anchor
+   stops matching the final body, loudly, on the first run). The marker sweep
+   below (PLANT STILL STANDING) then re-reads it out of pg_proc, so "planted" is
+   a measurement here too, not an inference. */
 const INJECTION_FINAL_BODIES = Object.freeze({
   'apply-final': 'public.hr_apply(uuid,int,bigint,uuid,jsonb)',
+  /* 2026-09-13, the same rule arriving from the other direction — a RE-AUTHOR
+     rather than a later self-check. 2026-09-13-rejections-verb-map-2.sql
+     RESTATES hr_record_rejection whole (the verb map), so the plant
+     `reject_mutates` had held in 2026-08-11-player-state.sql since day one was
+     replaced by the clean body and boot()'s relocation detector said so. Moving
+     it to the new last author would install a live plant but retire its GATE:
+     the gate is apply-engine §6(g)'s C5 probe at apply-order 34, which now runs
+     long before the plant exists and can never fire again. `final:` is therefore
+     not a workaround here, it is the only honest target, and the arm is scored
+     by reconcile() as it was before 2026-08-11. */
+  'reject-final': 'public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)',
 });
 
 // ── args ────────────────────────────────────────────────────────────────
@@ -239,6 +276,25 @@ const SEED_ARG = argOf('seed', null);
 // that produces identical text, aborts the run as a HARNESS failure — a
 // planted bug that was never planted is the same defect as a probe that is
 // always null.
+//
+// ── THE RULE FOR WHERE A PLANT GOES (2026-09-13, after two incidents) ──────
+//   PLANTS GO IN THE FINAL BODY; SELF-CHECKS CERTIFY THE CLEAN CHAIN, NEVER
+//   SCORE A PLANT.
+// An arm targets `final:` (the body the whole chain leaves installed) whenever
+// the function it corrupts is re-checked by a LATER migration's §4 — which, for
+// anything inside hr_apply, is every arm and every future migration. The chain
+// then replays byte-for-byte clean, every self-check asserts what it was written
+// to assert, and the ONLY thing that grades the plant is this file's own
+// identity. An arm on `file:` is for text no later self-check executes; if a new
+// migration starts exercising it, that arm moves to `final:` too rather than the
+// fuzz learning to read a migration's exception message as a verdict.
+// The `gate:` arms are the deliberate exception, documented one by one: there
+// the migration REFUSING to install is the outcome being tested. There are TWO
+// (expire_double, budget_kind_scoped) since 2026-09-13, when reject_mutates lost
+// its gate — not to a preference but because the chain restated its function
+// downstream of the probe that used to refuse it (see the arm). A gate is only
+// legitimate while the file that fires it is still DOWNSTREAM of the plant;
+// `node tests/conservation-fuzz.mjs --selftest` is what proves that, arm by arm.
 // ════════════════════════════════════════════════════════════════════════
 const INJECTIONS = {
   /* ⚠ THE SIX MARKET PLANTS ARE tests/market-v2.mjs's, PORTED VERBATIM. Two
@@ -350,16 +406,25 @@ const INJECTIONS = {
 
   reject_mutates: {
     what: 'a REJECTED op still writes: hr_record_rejection (outside the protected block) credits gold',
-    file: 'player-state',
-    // 2026-08-11: this used to be caught by reconcile() at op #N. It is now
-    // caught EARLIER — apply-engine §6(g)'s C5 probe drives a real rejection
-    // and asserts the character's gold did not move, which is the same property
-    // one layer up. A bug that cannot be installed beats a bug that is detected
-    // at runtime, so the gate is recorded rather than weakened; the
-    // conservation model's ability to see this class is still proven by
-    // cancel_vanish / gold_double / buy_no_debit / tax_skim / equip_dupe /
-    // expire_double.
-    gate: /a daily_budget rejection still moved gold/,
+    final: 'reject-final',
+    /* THE GATE IS RETIRED, AND NOT BY CHOICE — READ THIS BEFORE PUTTING IT BACK.
+       2026-08-11: caught by reconcile() at op #N. Then it was caught EARLIER —
+       apply-engine §6(g)'s C5 probe drives a real rejection and asserts the
+       character's gold did not move — so the arm became `gate:` with
+       /a daily_budget rejection still moved gold/, on the rule that a bug which
+       cannot be installed beats a bug detected at runtime.
+       2026-09-13: 2026-09-13-rejections-verb-map-2.sql RESTATES
+       hr_record_rejection at the END of the chain, so the plant in
+       2026-08-11-player-state.sql (apply-order 20) is now overwritten by a clean
+       body before a single op runs — boot()'s relocation detector caught it, the
+       third arm in three days to hit the "the chain moved under the plant" class.
+       Planting in the new last author instead would install the defect but put it
+       DOWNSTREAM of the §6(g) probe at 34: the gate could then never fire, which
+       is precisely the silent downgrade budget_kind_scoped's note warns about. So
+       the arm returns to what it was built as — a runtime catch, scored by
+       reconcile() against the body the chain ends with. The §6(g) probe is
+       untouched and still guards production; it simply is not this arm's scorer
+       any more. */
     patches: [[
       `  if p_user is null or p_code is null then return; end if;`,
       `  if p_user is null or p_code is null then return; end if;
@@ -371,7 +436,7 @@ const INJECTIONS = {
 
   replay_applies_twice: {
     what: 'hr_apply loses idempotency — a replayed intent id applies its delta a second time',
-    file: 'apply-last',
+    final: 'apply-final',
     // NOTE the shape. The obvious plant — make the player_intents lookup miss —
     // also breaks the S6 intent-collision branch, and apply-engine's own
     // self-verification block refuses to install a function without it. The
@@ -402,7 +467,7 @@ const INJECTIONS = {
 
   equip_dupe: {
     what: 'unequip credits the bank without clearing the equipment row — the item is worn AND held',
-    file: 'apply-last',
+    final: 'apply-final',
     patches: [[
       `            delete from public.player_equipment
              where user_id = v_uid and slot = v_slot and equip_slot = k;
@@ -416,7 +481,7 @@ const INJECTIONS = {
 
   reject_becomes_ok: {
     what: 'a rejection stops being a rejection — hr_apply answers ok:true to unknown_delta_key',
-    file: 'apply-last',
+    final: 'apply-final',
     // The only injection here that moves NO value. It exists to prove the
     // want/got verdict assertion is real: without it the fuzz would book "the
     // op succeeded and legitimately changed nothing", stay green, and a
@@ -460,7 +525,7 @@ const INJECTIONS = {
 
   budget_not_enforced: {
     what: 'hr_apply computes the daily-budget check and then ignores the answer',
-    file: 'apply-last',
+    final: 'apply-final',
     /* No `gate:` any more, for gold_double's reason: it read /daily budget/i and
        fired on gem-daily-budget's own §10 mint-and-read-back check, which is
        upstream of the six files that re-create hr_apply. Planted in the last
@@ -509,7 +574,7 @@ const INJECTIONS = {
     what: 'hr_apply never stamps xp_in — XP is minted outside the daily ceiling',
     // Invisible to both migration probes: §8 and §6(g) exercise gold only.
     // PHASE 3 leg 5 is the only thing that can see it.
-    file: 'apply-last',
+    final: 'apply-final',
     patches: [[
       `    if jsonb_typeof(p_delta->'xp') = 'object' then
       select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
@@ -521,7 +586,7 @@ const INJECTIONS = {
 
   budget_ignores_qty: {
     what: 'hr_apply never stamps qty_in — item units are minted outside the daily ceiling',
-    file: 'apply-last',
+    final: 'apply-final',
     patches: [[
       `    if jsonb_typeof(p_delta->'items') = 'object' then
       select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)
@@ -543,7 +608,7 @@ const INJECTIONS = {
        aggregate, one word) and it is invisible to every other leg: a single-id
        mint stamps identically, so leg 2's 500-unit craft still reads 500.
        Caught by leg 6(a) at seven units and again by 6(b) at the ceiling. */
-    file: 'apply-last',
+    final: 'apply-final',
     patches: [[
       `    if jsonb_typeof(p_delta->'items') = 'object' then
       select coalesce(sum(greatest(0, coalesce(nullif(value,'')::bigint, 0))), 0)

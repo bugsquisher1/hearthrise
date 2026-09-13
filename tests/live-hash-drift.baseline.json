@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-13",
- "replay_ms": 13336,
+ "replay_ms": 15742,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -128,21 +128,26 @@
     "2026-09-07-last-away-receipt.sql",
     "2026-09-07-retreat.sql",
     "2026-09-08-hearthfind.sql",
-    "2026-09-12-renown-high-projection.sql"
+    "2026-09-12-renown-high-projection.sql",
+    "2026-09-13-buff-apply-coupling.sql",
+    "2026-09-13-buff-segments.sql",
+    "2026-09-13-buff-shape-code.sql",
+    "2026-09-13-consumable-buffs.sql",
+    "2026-09-13-rejections-verb-map-2.sql"
    ],
    "live": {
-    "md5": "34ec534d50ef9693b860d143a84b9943",
-    "norm_len": 117518,
+    "md5": "09199f72e23d60126682583f794b836f",
+    "norm_len": 129269,
     "measured": "2026-09-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "aa1f866201ab47f2749807e75ace4389",
-    "norm_len": 117648,
+    "md5": "3b5f4f94c1c9046557aa6dec36612526",
+    "norm_len": 130001,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-12 17:22 UTC: the renown projection migration (lane C 3bb64c2c, Security GO) patched the renown ratchet (C1/C2/C3) inside hr_apply on production; --codediff CODE-IDENTICAL: the 130-char live/replay delta is comments/whitespace only. Production runs the executable text the repo rebuilds. Post-apply verification (read-only agent, 17:35 UTC): bodies match, one renown_ratchet ledger row per raise on live traffic, RPC baseline drift 0."
+   "why": "2026-09-13 07:16 UTC: buff-shape-code (abda9563, Security GO) spliced bad_buff_shape into hr_apply on production. --codediff: CODE DIFFERS by 35 code chars (live 53276 vs replay 53311): the buff-segments.sql §2c predicate was rewritten in the repo AFTER its apply (14b68c58) and the file early-returns on re-apply, so production still runs the older predicate (Security: logically equivalent; lane: tightens the type test). Converging via a follow-up anchored patch (buff-segments-predicate.sql) — until it applies this entry is a KNOWN, RECORDED divergence, not an unexplained one. apply-migration body_md5 is raw prosrc; this baseline is normalised."
   },
   {
    "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -695,7 +700,8 @@
    ],
    "touched_by": [
     "2026-08-22-client-state-denylist.sql",
-    "2026-09-03-intent-mismatch-class.sql"
+    "2026-09-03-intent-mismatch-class.sql",
+    "2026-09-13-client-state-buffs-denylist.sql"
    ],
    "live": {
     "md5": "e54b07a6a5ae2388e4cab0186550ccee",
@@ -705,12 +711,12 @@
     "mojibake": true
    },
    "replay": {
-    "md5": "dffca4ca18bc418467ced87150a7edb2",
-    "norm_len": 3406,
+    "md5": "48de8fb3bb5155176f0e43de927de5c9",
+    "norm_len": 3795,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 2,366 code chars — BUT THE CAUSE IS A DEFECT, not documentation. The production body stores its box-drawing comment characters DOUBLE-ENCODED (U+2500 arrived as the CP1252 reading of its UTF-8 bytes), which is the entire 152-char delta. Cosmetic today because it is confined to comments; it proves an apply path mangled UTF-8, and the same path applied to a string literal (an error code, a jsonb key, an item id) would be a silent behaviour change. Measured 2026-08-31: 1 of 264 public functions on production is affected. Flagged live.mojibake:true so a SECOND occurrence goes red. Fix requires re-applying 2026-08-22-client-state-denylist.sql / 2026-08-28-client-state.sql through a UTF-8-clean path — a production DDL write, and therefore NOT taken without explicit authorisation."
+   "why": "2026-09-13 05:2x UTC: EXPECTED DIVERGENCE — 2026-09-13-client-state-buffs-denylist.sql is in the chain but deliberately NOT applied yet (Security P1: it applies only after the b544 client that drops buffs from RESIDUE_FIELDS is served by Pages; applied first it refuses every old-tab residue PUT whole). Re-measure with --live --write right after that apply."
   },
   {
    "sig": "hr_rate_gate(p_user uuid, p_slot integer, p_bucket text)",
@@ -748,21 +754,21 @@
     "2026-09-03-intent-mismatch-escalates.sql",
     "2026-09-07-companion-codes-severity.sql",
     "2026-09-12-hr-rejections-journal.sql",
+    "2026-09-13-rejections-verb-map-2.sql",
     "2026-09-13-town-presence-journal.sql"
    ],
    "live": {
-    "md5": "066970b2efb80dc5d6ed472386f528f6",
-    "norm_len": 4950,
+    "md5": "a26b9c8325536e7d32f08c44c50ea6a0",
+    "norm_len": 8555,
     "measured": "2026-09-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6318905d0f6789ee350d6d190822c126",
-    "norm_len": 5914,
+    "md5": "a26b9c8325536e7d32f08c44c50ea6a0",
+    "norm_len": 8555,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "2026-09-12-hr-rejections-journal.sql (applied 2026-09-11 21:33 UTC by the Coordinator via tools/apply-migration.mjs after Security GO-WITH-CHANGES R1-R4 landed): verbs map (hr_verb_bump), bounded detail (hr_detail_bound), verb token (hr_rejection_verb) and the once-per-transaction flag; the repo chain replays the same body (live == replay)."
+   "agree": true
   },
   {
    "sig": "hr_rejection_verb(p_intent text)",
@@ -1007,21 +1013,23 @@
     "2026-09-12-dungeon-cooldown.sql",
     "2026-09-12-renown-high-projection.sql",
     "2026-09-12-worker-hired-at-projection.sql",
+    "2026-09-13-buff-segments.sql",
+    "2026-09-13-consumable-buffs.sql",
     "2026-09-13-town-presence.sql"
    ],
    "live": {
-    "md5": "2f7b0768756e9e5233cd0b890fda502f",
-    "norm_len": 21359,
+    "md5": "3c1d447b838c36a183798ddd0b8b7a2b",
+    "norm_len": 22320,
     "measured": "2026-09-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e2a0de578ffb32a7568ebb0a55142f06",
-    "norm_len": 22107,
+    "md5": "3aaa1ee2d8a29bef93e6a071948adc38",
+    "norm_len": 23068,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-13 00:11 UTC: the town-presence migration (lane C 425b2c76, Security GO-with-changes landed) spliced the own-place block into hr_state_of on top of the renown + dungeon bodies; --codediff CODE-IDENTICAL: the 748-char live/replay delta is comments/whitespace only. Production runs the executable text the repo rebuilds."
+   "why": "2026-09-13 05:19 UTC: the consumable-buffs migration (lane C 7c630e68) spliced the own buffs block into hr_state_of; --codediff CODE-IDENTICAL (748-char comments/whitespace delta). Production runs the executable text the repo rebuilds."
   },
   {
    "sig": "hr_town_refresh(p_zone text)",

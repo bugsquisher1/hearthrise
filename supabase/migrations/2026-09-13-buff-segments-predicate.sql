@@ -25,14 +25,40 @@
 --                              or ( type = T and not twin
 --                                   and (mag >= M or until > new_end) ) )
 --
--- For a row with `type <> T` the FIRST disjunct is true in both, so the second
--- cannot change the answer. For a row with `type = T` the added `type = T`
--- conjunct is true, so the second disjunct is unchanged. There is therefore NO row
--- on which they differ — and §4(b) below does not take that on trust: it runs BOTH
+-- FOR EVERY ROW WITH A NON-NULL `type` they are equivalent. With `type` non-null:
+-- if `type <> T` the FIRST disjunct is true in both, so the second cannot change
+-- the answer; if `type = T` the added `type = T` conjunct is true, so the second
+-- disjunct is unchanged. §4(b) does not take that on trust — it runs BOTH
 -- predicates over the full cross-product of every atom either one reads (type ∈
 -- {T, other} × magnitude {<, =, >} × expiry {≤ end, > end}, plus the twin row) and
--- requires the two selections to be IDENTICAL. Measured here before writing this
--- file: 13 rows in, 10 selected, identical.
+-- requires the two selections to be IDENTICAL. Measured: 13 rows in, 10 selected,
+-- identical.
+--
+-- ⚠ AND THERE IS EXACTLY ONE ROW ON WHICH THEY DO DIFFER — Security, 2026-09-13,
+--   and the first draft of this header was wrong to say "no row". An entry with NO
+--   `type` key (or `"type": null`) and magnitude ≥ M, under SQL's THREE-VALUED
+--   logic:
+--       old:  NULL <> T          -> NULL
+--             not twin and (…)   -> true        NULL or true  = TRUE   -> KEPT
+--       new:  (NULL <> T)        -> NULL
+--             (NULL = T and …)   -> NULL        NULL or NULL  = NULL   -> DROPPED
+--   So the new form DROPS a malformed entry the old form KEPT. That is the
+--   FAIL-CLOSED side of the difference — a queue entry with no type is one
+--   src/core/buffs.js `isKnownBuff` refuses to pay anyway, so dropping it removes a
+--   row nothing can honour rather than carrying it forever.
+--   REACHABILITY, stated rather than assumed: `hr_item_buffs.type` is NOT NULL and
+--   it is the ONLY source of a segment's type; entries are built exclusively by
+--   this block (`jsonb_build_object('type', v_buff_type, …)`) from that column,
+--   there is no delta key that can post a queue, and the client_state deny-list
+--   closes the last shadow copy. Production carries ZERO null-type entries. So the
+--   divergence is unreachable today — but it is REAL, it is asserted in §4(b2) as a
+--   divergence rather than papered over, and if a future writer ever manages to
+--   store a typeless entry this file's behaviour is the safe one.
+--   FILED, NOT FIXED HERE (P3): `player_state_buffs_sane` pins array-ness and
+--   length but no ELEMENT shape. A CHECK requiring each element to carry a non-null
+--   text `type`, a numeric `magnitude` and a timestamptz-castable `until` belongs to
+--   a segments follow-up, not to a predicate convergence — see
+--   .claude/coordination/DISCOVERIES.md.
 --
 -- ⚠ SO THE EARLIER CHARACTERISATION WAS WRONG AND IS CORRECTED HERE. This lane
 --   described the rewrite as fixing "other types surviving through the second
@@ -212,8 +238,60 @@ begin
                     'file claims to change no behaviour and it would be changing some.', v_old, v_new;
   end if;
   raise notice 'predicate self-check (b): the two forms select the SAME % of % rows across the whole '
-               'cross-product — equivalent, proven by execution',
+               'cross-product of NON-NULL types — equivalent there, proven by execution',
                jsonb_array_length(v_old), jsonb_array_length(v_rows);
+
+  -- ── (b2) THE ONE DIVERGENCE, ASSERTED AS A DIVERGENCE (Security, 2026-09-13) ──
+  -- An entry with no `type` key, and one with an explicit null: under 3VL the OLD
+  -- predicate KEEPS both (NULL or true = true) and the NEW one DROPS both
+  -- (NULL or NULL = NULL). Asserted in that DIRECTION, because the direction is the
+  -- whole argument: the new form is FAIL-CLOSED, and a typeless entry is one
+  -- src/core/buffs.js refuses to pay in any case. Unreachable today —
+  -- hr_item_buffs.type is NOT NULL and is the only source of a segment's type — and
+  -- pinned here so a future element-shape CHECK (filed P3) cannot silently make
+  -- this claim stale.
+  v_rows := jsonb_build_array(
+      jsonb_build_object('magnitude', 9, 'until', '2026-01-01T00:30:00Z'),
+      jsonb_build_object('type', null, 'magnitude', 9, 'until', '2026-01-01T00:30:00Z'));
+
+  with q(v) as (select * from jsonb_array_elements(v_rows))
+  select coalesce(jsonb_agg(q.v order by q.v::text), '[]'::jsonb) into v_old from q
+   where (q.v->>'until')::timestamptz > '2026-01-01T00:00:00Z'::timestamptz
+     and ((q.v->>'type') <> 'T'
+          or (not (v_twin is not null and q.v = v_twin)
+              and ((q.v->>'magnitude')::numeric >= 5
+                   or (q.v->>'until')::timestamptz > '2026-01-01T00:20:00Z'::timestamptz)));
+
+  with q(v) as (select * from jsonb_array_elements(v_rows))
+  select coalesce(jsonb_agg(q.v order by q.v::text), '[]'::jsonb) into v_new from q
+   where (q.v->>'until')::timestamptz > '2026-01-01T00:00:00Z'::timestamptz
+     and (((q.v->>'type') <> 'T')
+          or ((q.v->>'type') = 'T'
+              and not (v_twin is not null and q.v = v_twin)
+              and ((q.v->>'magnitude')::numeric >= 5
+                   or (q.v->>'until')::timestamptz > '2026-01-01T00:20:00Z'::timestamptz)));
+
+  if jsonb_array_length(v_old) <> 2 then
+    raise exception 'predicate self-check (b2): the OLD predicate did not keep both typeless rows (%) — '
+                    'the 3VL divergence this block documents is not the one being measured', v_old;
+  end if;
+  if v_new <> '[]'::jsonb then
+    raise exception 'predicate self-check (b2): the NEW predicate KEPT a typeless row (%) — it is '
+                    'supposed to be the fail-closed side, and an entry with no type is one '
+                    'src/core/buffs.js cannot pay', v_new;
+  end if;
+  -- …and the reachability argument, asserted rather than asserted-in-prose: the
+  -- only source of a segment's type cannot be null.
+  if (select count(*) from information_schema.columns
+       where table_schema = 'public' and table_name = 'hr_item_buffs'
+         and column_name = 'type' and is_nullable = 'NO') <> 1 then
+    raise exception 'predicate self-check (b2): hr_item_buffs.type is NULLABLE — the 3VL divergence '
+                    'above stops being unreachable, and the queue needs an element-shape CHECK before '
+                    'this convergence is safe to reason about';
+  end if;
+  raise notice 'predicate self-check (b2): the ONE 3VL divergence is measured and fail-closed — the old '
+               'form keeps a typeless entry, the new form drops it, and hr_item_buffs.type is NOT NULL '
+               'so nothing can produce one';
 
   -- ── (c) THE BEHAVIOURAL CASES, ON THE PATCHED BODY ────────────────────────
   -- The two survival rules tests/buff-queue.mjs [16b] / [16c] own, plus the
@@ -289,8 +367,9 @@ begin
     raise exception 'buff-segments-predicate: §2 LEAKED a probe row'; end if;
 
   raise notice 'buff-segments-predicate PASSED: the repo and production now carry the same predicate; '
-               'the old and new forms select IDENTICALLY across the full cross-product (equivalent, '
-               'proven by execution, so no behaviour changed); a covered weaker segment is still '
+               'the old and new forms select IDENTICALLY across the full cross-product of NON-NULL '
+               'types (proven by execution) and differ on exactly one unreachable 3VL row, where the '
+               'new form is the FAIL-CLOSED side; a covered weaker segment is still '
                'dropped while another type''s segment and an outliving weaker segment both survive; '
                'every predecessor block, the 2-site buff_at_max shape pin and the grant posture are '
                'intact';

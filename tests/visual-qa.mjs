@@ -15,7 +15,17 @@
 //
 //   node tests/visual-qa.mjs [--url http://localhost:8123]
 //   node tests/visual-qa.mjs --selftest    mutation proof for the broken-value
-//                                          detector (plants one, proves it bites)
+//                                          detector, the font precondition and
+//                                          the per-card finding key
+//
+// WIDTHS ARE ONLY MEASURED ONCE THE THEME'S FACES RENDER (b544). Cinzel and
+// Alegreya Sans arrive from the Google Fonts CDN with `display=swap`; measured
+// before they land, the page is laid out in the OS fallback, which is a
+// different width on Linux than on Windows — 17 phantom P1 clips on the GitHub
+// runner against a green local walk. awaitFonts() force-loads every face the
+// theme's --f-* tokens name and waits (bounded); if a face never renders the
+// sweep emits ERR `fonts-unloaded` and measures NO widths, so an unreachable
+// CDN is a red you can read instead of a false verdict.
 //
 // Writes PNGs + findings.json to docs/reports/visual-qa/ and prints a summary.
 // Exit code is always 0 — this is a REPORT, not a gate (run-smoke.mjs gates).
@@ -60,9 +70,32 @@ const VIEWPORTS = [
 ];
 const SCREENS = ['profile', 'character', 'combat', 'skills', 'farming', 'inventory', 'house', 'events', 'shops', 'clan', 'social', 'bounty'];
 
-// Injected into the page — runs against a REAL rendered layout.
-function SWEEP(label) {
+/* Injected into the page — runs against a REAL rendered layout.
+   ARG is an object, not a bare label: the text-metric detectors are only honest
+   when the page is rendering the fonts the design asks for, so the walk hands
+   the sweep the font verdict it measured (see awaitFonts). */
+function SWEEP({ label, fontsMissing = [], fontStatus = '' }) {
   const vw = innerWidth, out = { screen: label, vw, vh: innerHeight, issues: [], stats: {} };
+  const fontsOk = !fontsMissing.length;
+  /* CARDS THAT SHARE ONE SELECTOR PATH. The six War Table destinations are
+     identical markup, so `.wt-dest>.wtd-body>.wtd-main>b` names all six: the
+     gate's key (screen|viewport|kind|el) cannot tell "the Dungeon card clips"
+     from "the Boss of the Day card clips". Whichever card clipped on the day the
+     baseline was recorded owns the key forever, which both MASKS a new clip on
+     its five siblings and turns the daily boss rotation into key churn. Each
+     entry pairs a repeated card with the child holding its STABLE label (the
+     kicker reads "Boss of the Day" whatever monster is featured today), and the
+     name carries it as a trailing annotation: `.wt-dest>…>b {Boss of the Day}`.
+     Add a row here for any future repeated card; do not special-case a screen. */
+  const KEYED_CARDS = [['.wt-dest', '.wtd-kick']];
+  const cardTag = (el) => {
+    for (const [card, label] of KEYED_CARDS) {
+      const c = el.closest && el.closest(card); if (!c) continue;
+      const t = ((c.querySelector(label) || {}).textContent || '').replace(/\s+/g, ' ').trim().slice(0, 24);
+      if (t) return ` {${t}}`;
+    }
+    return '';
+  };
   // SVG elements have an SVGAnimatedString className -> "[object ..." . Build a
   // real selector so a finding actually tells you WHICH element to fix.
   const nameOf = (el) => { if (!el) return '';
@@ -71,7 +104,8 @@ function SWEEP(label) {
     let p = el.parentElement, hops = 0;
     while (p && p !== document.body && hops < 3) { const pc = (typeof p.className === 'string' ? p.className : '').trim().split(/\s+/)[0];
       if (p.id) { path.unshift('#' + p.id); break; } if (pc) path.unshift('.' + pc); p = p.parentElement; hops++; }
-    return (path.join('>') + '>' + (el.id ? '#' + el.id : '') + el.tagName.toLowerCase() + (cls ? '.' + cls : '')).slice(0, 72); };
+    const tag = cardTag(el);
+    return (path.join('>') + '>' + (el.id ? '#' + el.id : '') + el.tagName.toLowerCase() + (cls ? '.' + cls : '') + tag).slice(0, 96); };
   const add = (sev, kind, detail, el) => out.issues.push({ sev, kind, detail, el: nameOf(el) });
   const vis = (el) => { const c = getComputedStyle(el); if (c.display === 'none' || c.visibility === 'hidden' || +c.opacity < 0.05) return false;
     // Screen-reader-only text (the standard 1px/clip-path pattern) is deliberately
@@ -87,7 +121,22 @@ function SWEEP(label) {
   const all = scope.flatMap((n) => [...n.querySelectorAll('*')]).filter(vis);
   out.stats = { els: all.length, chars: TXT(panel).length };
 
-  all.forEach((el) => {
+  /* THE FONT PRECONDITION (b544). Every width the three detectors below measure
+     is a function of the face that actually painted the glyphs. Cinzel and
+     Alegreya Sans come from the Google Fonts CDN with `display=swap`, so until
+     they arrive the page is laid out in whatever the OS hands back for
+     "Georgia, serif" / "Segoe UI, system-ui" — a DIFFERENT width per platform.
+     That is why this same walk read 34 findings on Windows and 51 on the Linux
+     runner: the runner measured the fallback and every long War Table name
+     overflowed by 6-15px. Measuring with the wrong font produces P1s that no
+     player will ever see and hides the ones they would, so an unloaded face is
+     an ERR the gate fails on WITH A NAME, never a silent re-measure. */
+  if (!fontsOk) {
+    out.issues.push({ sev: 'ERR', kind: 'fonts-unloaded',
+      detail: `text metrics NOT measured — ${fontsMissing.join(', ')} did not render (document.fonts.status=${fontStatus}). `
+        + 'Every clipped-text/offscreen width would be the platform fallback\'s, not the design\'s.', el: '' });
+  }
+  if (fontsOk) all.forEach((el) => {
     if (el.children.length) return;
     const t = TXT(el); if (!t) return;
     if (el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).overflow !== 'visible')
@@ -131,7 +180,7 @@ function SWEEP(label) {
         if (p.getBoundingClientRect().right <= vw + 2) return true; }
       p = p.parentElement; }
     return false; };
-  all.forEach((el) => { const r = el.getBoundingClientRect();
+  if (fontsOk) all.forEach((el) => { const r = el.getBoundingClientRect();
     if (r.width > 2 && (r.right > vw + 2 || r.left < -2) && !clippedByAncestor(el))
       add('P1', 'offscreen-x', `${Math.round(r.right - vw)}px past right`, el); });
 
@@ -242,6 +291,69 @@ const MID_GAME = () => {
     steel_hammer:1, dawn_sword:1, dawn_platebody:1, farm_deed:4 });
 };
 
+/* ── THE FONT PRECONDITION ────────────────────────────────────────────────────
+   The families are READ FROM THE THEME, not hardcoded: whichever faces
+   `--f-display/--f-ui/--f-label` name on :root today are the ones the walk waits
+   for, so swapping the type system does not silently un-gate the measurement.
+   Only the FIRST family of each token is required — the rest of each stack is a
+   per-platform fallback nobody promises is installed.
+
+   Three things this had to learn the hard way:
+
+   1. `await document.fonts.ready` alone is not enough. Faces declared by a
+      stylesheet are lazy: until something needs a weight, it is `unloaded` and
+      `ready` resolves anyway. So each required face is force-loaded with
+      `document.fonts.load()` first, THEN awaited.
+   2. `document.fonts.check('600 16px Cinzel')` is NOT an availability test. Per
+      spec an unknown family is assumed to be a system font, so it answers TRUE
+      with the CDN blocked and ZERO faces in the set — measured 2026-09-12.
+      Likewise `document.fonts.status` is 'loaded' for an EMPTY set. The honest
+      test is whether the family CHANGES RENDERED WIDTH against a family that
+      certainly does not exist; that works whether the face came from the CDN or
+      is installed on the box.
+   3. The wait is BOUNDED. A runner that cannot reach fonts.gstatic.com must not
+      hang the gate for a minute per page — it gets a named ERR finding instead
+      (`fonts-unloaded`), and the sweep declines to measure text widths at all. */
+const FONT_TOKENS = ['--f-display', '--f-ui', '--f-label'];
+const FONT_BUDGET_MS = 20_000;
+/* `--offline-fonts` aborts every request to the Google Fonts CDN, which is the
+   only way to reproduce a runner that cannot reach it from a dev box that can.
+   It is how the fail-closed path above is proven; it is never how the gate runs. */
+const OFFLINE_FONTS = argv.includes('--offline-fonts');
+
+async function awaitFonts(page, budget = FONT_BUDGET_MS) {
+  return page.evaluate(async ({ tokens, budget }) => {
+    const cs = getComputedStyle(document.documentElement);
+    const GENERIC = /^(system-ui|serif|sans-serif|monospace|cursive|fantasy|ui-\w+|-apple-system|inherit|initial)$/i;
+    const wanted = [...new Set(tokens.map((t) => (cs.getPropertyValue(t) || '').split(',')[0].trim().replace(/^['"]|['"]$/g, ''))
+      .filter((f) => f && !GENERIC.test(f)))];
+    const specs = wanted.flatMap((f) => [400, 600, 700].map((w) => `${w} 16px "${f}"`));
+    const snap = () => ({ status: document.fonts.status, faces: document.fonts.size,
+      loaded: [...document.fonts].filter((f) => f.status === 'loaded').length });
+
+    // Does the family actually paint differently from a family that cannot exist?
+    const renders = (fam) => {
+      const mk = (ff) => { const s = document.createElement('span');
+        s.textContent = 'Crypt of Bones — Today\'s blessing 0123';
+        s.style.cssText = `position:absolute;left:-9999px;top:0;white-space:nowrap;font:600 32px ${ff}`;
+        document.body.appendChild(s); const w = s.getBoundingClientRect().width; s.remove(); return w; };
+      const none = mk('"__hr_no_such_family__", monospace');
+      return Math.abs(mk(`"${fam}", "__hr_no_such_family__", monospace`) - none) > 0.5;
+    };
+
+    const t0 = Date.now();
+    const before = { ...snap(), rendering: Object.fromEntries(wanted.map((f) => [f, renders(f)])) };
+    await Promise.race([
+      (async () => { await Promise.all(specs.map((s) => document.fonts.load(s).catch(() => {})));
+        await document.fonts.ready; })(),
+      new Promise((r) => setTimeout(r, budget)),
+    ]);
+    const after = { ...snap(), rendering: Object.fromEntries(wanted.map((f) => [f, renders(f)])) };
+    return { wanted, before, after, waitedMs: Date.now() - t0,
+      missing: wanted.filter((f) => !after.rendering[f]) };
+  }, { tokens: FONT_TOKENS, budget });
+}
+
 /* One booted page at one viewport: harness flag on, invite gate open, save state
    applied, FTUE and overlays dismissed. Extracted so --selftest boots the same
    page the walk does — a mutation proof against a differently-booted page proves
@@ -255,11 +367,19 @@ async function bootPage(browser, url, vp) {
   page.on('console', (m) => { if (m.type() === 'error') runtimeErrs.push('console: ' + m.text().slice(0, 140)); });
   page.__errs = runtimeErrs;
   await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
+  if (OFFLINE_FONTS) await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
   await page.waitForFunction(() => typeof window.G !== 'undefined', { timeout: 60_000 });
   await page.evaluate(() => { try { if (window.HearthriseGate) window.HearthriseGate.isOpen = () => true; } catch (e) {} });
   await page.evaluate(SAVE_STATE === 'fresh' ? FRESH_GAME : MID_GAME);
   await page.waitForTimeout(1800);   // let ESM merge + icon mapping settle
+  // The webfonts are a PRECONDITION of every width this tool measures. Boot the
+  // wait here so --selftest and the walk share one page-boot contract.
+  const fonts = await awaitFonts(page);
+  console.log(`   fonts [${vp.key}] want=${fonts.wanted.join(', ')} `
+    + `before=${fonts.before.status}/${fonts.before.loaded}of${fonts.before.faces} rendering=${JSON.stringify(fonts.before.rendering)} -> `
+    + `after=${fonts.after.status}/${fonts.after.loaded}of${fonts.after.faces} rendering=${JSON.stringify(fonts.after.rendering)} `
+    + `(${fonts.waitedMs}ms)${fonts.missing.length ? '  MISSING: ' + fonts.missing.join(', ') : ''}`);
   // Dismiss the FTUE tour + any open modal/toast, or every screen gets measured
   // (and screenshotted) from BEHIND the tutorial — the sweep would be worthless.
   await page.evaluate(() => {
@@ -280,7 +400,7 @@ async function bootPage(browser, url, vp) {
     killOverlays(); window.__killOverlays = killOverlays;
   });
   await page.waitForTimeout(300);
-  return { page, runtimeErrs };
+  return { page, runtimeErrs, fonts };
 }
 
 async function walk() {
@@ -291,14 +411,19 @@ async function walk() {
   const findings = [];
 
   for (const vp of VIEWPORTS) {
-    const { page, runtimeErrs } = await bootPage(browser, url, vp);
+    const { page, runtimeErrs, fonts } = await bootPage(browser, url, vp);
 
     for (const s of SCREENS) {
       await page.evaluate((t) => { try { if (typeof window.showTab === 'function') window.showTab(t); } catch (e) {} }, s);
       await page.waitForTimeout(500);
       await page.evaluate(() => { try { window.__killOverlays && window.__killOverlays(); } catch (e) {} });
       await page.waitForTimeout(120);
-      const res = await page.evaluate(SWEEP, s).catch((e) => ({ screen: s, issues: [{ sev: 'ERR', kind: 'sweep-threw', detail: String(e).slice(0, 120) }], stats: {} }));
+      /* `document.fonts.ready` re-arms whenever loading restarts, so a screen that
+         is the first to ask for a weight (an 800 label) is awaited here too rather
+         than measured mid-swap. Bounded by the same budget as the boot wait. */
+      await page.evaluate(() => document.fonts.ready).catch(() => {});
+      const arg = { label: s, fontsMissing: fonts.missing, fontStatus: fonts.after.status };
+      const res = await page.evaluate(SWEEP, arg).catch((e) => ({ screen: s, issues: [{ sev: 'ERR', kind: 'sweep-threw', detail: String(e).slice(0, 120) }], stats: {} }));
       res.viewport = vp.key;
       // attribute any runtime/console errors raised while this screen rendered
       if (runtimeErrs.length) {
@@ -351,7 +476,8 @@ async function selftest() {
   const url = EXTERNAL_URL || `http://127.0.0.1:${port}/index.html`;
   const browser = await chromium.launch();
   try {
-    const { page } = await bootPage(browser, url, VIEWPORTS[0]);
+    const { page, fonts } = await bootPage(browser, url, VIEWPORTS[0]);
+    const ARG = { label: 'combat', fontsMissing: fonts.missing, fontStatus: fonts.after.status };
     // Pin the rotation: the Revenant is the boss whose NAME broke the gate.
     await page.evaluate(() => {
       const B = window.HearthriseBossOfDay;
@@ -381,7 +507,7 @@ async function selftest() {
         return { ok: true, visible: r.width > 0 && r.height > 0, display: getComputedStyle(el).display };
       }, { which, text });
       if (!planted.ok) { fails.push('SELFTEST: ' + planted.why); return { issues: [], planted }; }
-      const res = await page.evaluate(SWEEP, 'combat');
+      const res = await page.evaluate(SWEEP, ARG);
       const survived = await page.evaluate((t) => {
         const p = window.__hrProbe; if (!p || !p.el) return false;
         const still = p.el.textContent === t; p.el.textContent = p.was; return still;
@@ -390,7 +516,7 @@ async function selftest() {
       return { issues: (res.issues || []).filter((i) => i.kind === 'broken-value'), planted };
     };
 
-    const control = await page.evaluate(SWEEP, 'combat');
+    const control = await page.evaluate(SWEEP, ARG);
     const cbv = (control.issues || []).filter((i) => i.kind === 'broken-value');
     if (cbv.length) fails.push('SELFTEST: control — the untouched combat screen reported broken-value: '
       + JSON.stringify(cbv.map((i) => i.detail + ' ' + i.el)));
@@ -413,6 +539,41 @@ async function selftest() {
     if (word.issues.length) fails.push('SELFTEST: an ordinary word containing "nan" was flagged as a broken value (the b536 red): '
       + JSON.stringify(word.issues.map((i) => i.detail)));
 
+    /* ── the two preconditions the metric detectors rest on ──────────────────
+       (a) THE FONTS. If the page is not rendering the theme's faces, the sweep
+           must say so as an ERR and must NOT emit a width verdict. Proven by
+           re-running the sweep with a missing face declared.
+       (b) THE CARD KEY. Six identical cards must produce six distinct `el`
+           names, each carrying its own kicker, or the gate's key masks five of
+           them. Proven from the real DOM, not a fixture. */
+    const fontErr = await page.evaluate(SWEEP, { ...ARG, fontsMissing: ['Cinzel'], fontStatus: 'loaded' });
+    const errs = (fontErr.issues || []).filter((i) => i.kind === 'fonts-unloaded');
+    if (errs.length !== 1 || errs[0].sev !== 'ERR')
+      fails.push('SELFTEST: a missing theme face did not produce exactly one ERR fonts-unloaded finding — got '
+        + JSON.stringify((fontErr.issues || []).map((i) => i.sev + ' ' + i.kind)).slice(0, 200));
+    const metric = new Set(['clipped-text', 'clipped-by-parent', 'offscreen-x']);
+    const stillMeasured = (fontErr.issues || []).filter((i) => metric.has(i.kind));
+    if (stillMeasured.length) fails.push(`SELFTEST: ${stillMeasured.length} text-width finding(s) were still emitted with a face missing — `
+      + 'the walk is measuring the platform fallback and calling it a player-visible clip: '
+      + JSON.stringify(stillMeasured.slice(0, 3).map((i) => i.kind + ' ' + i.el)));
+    if (fonts.missing.length) fails.push('SELFTEST: the booted page never rendered ' + fonts.missing.join(', ')
+      + ' — this run cannot prove the control case (is fonts.gstatic.com reachable?)');
+
+    const tags = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('.wt-dest')];
+      return cards.map((c) => ((c.querySelector('.wtd-kick') || {}).textContent || '').trim());
+    });
+    if (tags.length < 2) fails.push(`SELFTEST: only ${tags.length} .wt-dest card(s) in the DOM — the key case proves nothing`);
+    else {
+      if (tags.some((t) => !t)) fails.push('SELFTEST: a War Table card has no .wtd-kick text, so its findings key collides with its siblings: ' + JSON.stringify(tags));
+      const named = await page.evaluate(SWEEP, ARG);
+      const els = (named.issues || []).map((i) => i.el || '').filter((e) => e.includes('wt-dest'));
+      if (els.length && !els.every((e) => /\{[^}]+\}$/.test(e)))
+        fails.push('SELFTEST: a .wt-dest finding carries no {kicker} tag — the six cards share one key again: ' + JSON.stringify(els.slice(0, 4)));
+      if (new Set(tags).size !== tags.length)
+        fails.push('SELFTEST: two War Table cards share a kicker, so the tag does not separate them: ' + JSON.stringify(tags));
+    }
+
     await page.close();
   } finally {
     await browser.close();
@@ -421,7 +582,9 @@ async function selftest() {
   if (fails.length) { for (const f of fails) console.error('  ✗ ' + f); return 1; }
   console.log('✓ visual-qa --selftest: broken-value detector — control clean with the Revenant featured; '
     + 'planted NaN and undefined on the visible Boss-of-the-Day card both flagged and attributed to it; '
-    + 'the same NaN on the display:none #hr-botd-card stays silent; "covenant/maintenance" no longer reds the gate');
+    + 'the same NaN on the display:none #hr-botd-card stays silent; "covenant/maintenance" no longer reds the gate. '
+    + 'Font precondition: the theme faces rendered on this page, and a missing face yields one ERR fonts-unloaded '
+    + 'with ZERO text-width findings. Card key: every .wt-dest finding carries its own {kicker}.');
   return 0;
 }
 

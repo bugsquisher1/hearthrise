@@ -8,6 +8,12 @@
 //   node tests/monolith-ratchet.mjs --selftest  mutation proof (plant one defect
 //                                               per assertion, plus controls)
 //
+// The two modes read DIFFERENT baselines on purpose: the plain run judges the
+// tree against the PINNED tests/monolith-ratchet.baseline.json (that is the
+// ratchet), while --selftest judges the GUARD against numbers derived from the
+// tree it is looking at. So paying the debt can never make the mutation proof
+// red, and --write is never the way to fix a red selftest (CLAUDE.md §2).
+//
 // ── WHY ─────────────────────────────────────────────────────────────────────
 // CLAUDE.md §7 has said "extract render helpers to src/render/* first, then
 // screen controllers" since task #129 was written. Measured from git on
@@ -260,148 +266,285 @@ export function run(argv = []) {
 
 /* ── MUTATION PROOF ──────────────────────────────────────────────────────
    A ratchet that has never bitten is a decoration. Five defects, one per
-   assertion, each planted as a MEASUREMENT (not as a file edit — the real
-   tree is never touched) and each required to be caught BY ITS NAMED CHECK;
-   then the three movements that must be NOTES rather than failures, and two
-   negative controls. */
-function selftest() {
-  if (!existsSync(BASELINE)) { console.error('SELFTEST: no baseline; run --write first.'); return 2; }
-  const base = JSON.parse(readFileSync(BASELINE, 'utf8'));
-  const real = measure(ROOT);
+   assertion, each planted twice — once as a MEASUREMENT (proves compare())
+   and once as REAL TEXT in a temp copy of the tree (proves measure()) — and
+   each required to be caught BY ITS NAMED CHECK; then the movements that must
+   be NOTES rather than failures, the predicate controls, and the negative
+   controls.
 
-  const clean = compare({ ...real, monolith: { ...real.monolith }, render: { ...real.render } }, base);
-  if (clean.problems.length) {
-    console.error('SELFTEST HARNESS: the UNMUTATED tree already reports problems, so every "caught"');
-    console.error('  below would be meaningless. Fix the real numbers first (or --write):');
-    for (const p of clean.problems) console.error(`    ${p.check}  ${p.message}`);
-    return 2;
-  }
-  console.log('monolith-ratchet --selftest — false-positive floor: the real tree reports 0 problems\n');
+   ── WHY THE SELFTEST BASELINE IS DERIVED, NOT READ FROM THE PINNED FILE ───
+   Until 2026-09-12 every arm was compared against tests/monolith-ratchet.
+   baseline.json. That made the mutation proof depend on how much SLACK
+   happened to sit between the pinned numbers and the tree, so the arms went
+   MISSED exactly when a lane did the thing this ratchet exists to encourage:
 
-  const bend = (patch) => compare({
-    ...real,
-    monolith: { ...real.monolith, ...(patch.monolith || {}) },
-    render: { ...real.render, ...(patch.render || {}) },
-  }, base);
+     b533 set     src/render 16 files/3044 lines pinned, tree 17/3386
+                  → arm "a render module deleted" measures 17-1 = 16, which is
+                    not < 16 → MONO-4 MISSED; "emptied" 3386-200 = 3186 > 3044
+                    → MONO-5 MISSED; the two REAL-TEXT twins MISSED as well
+                  → "4 arm(s) FAILED", three times on GitHub (46af17bb,
+                    da34a399, 3416fcbe each re-pinned to get green again)
 
-  const arms = [
-    ['+40 lines added to src/legacy.js', 'MONO-1', { monolith: { lines: real.monolith.lines + 40 } }],
-    ['one new top-level function in legacy.js', 'MONO-2', { monolith: { functions: real.monolith.functions + 1 } }],
-    ['the MONO-2 dodge: a new `const f = () =>` at column 0', 'MONO-3',
-      { monolith: { functionConsts: real.monolith.functionConsts + 1 } }],
-    ['a src/render module deleted (extraction reverted)', 'MONO-4', { render: { files: real.render.files - 1 } }],
-    ['a src/render module emptied but not removed', 'MONO-5', { render: { lines: real.render.lines - 200 } }],
-  ];
+   A paydown must never turn a mutation proof red, and a re-pin must never be
+   the price of a green selftest — a re-pin is a DECISION about the plain run's
+   ceiling, and coupling it to the selftest teaches the reflex of running
+   --write to silence a red, which is exactly what CLAUDE.md §2 forbids.
 
-  const noted = [
-    ['PAYING THE DEBT: 500 lines leave legacy.js', 'src/legacy.js lines fell',
-      { monolith: { lines: real.monolith.lines - 500 } }],
-    ['PAYING THE DEBT: a 12th render module lands', 'src/render/** files rose',
-      { render: { files: real.render.files + 1 } }],
-    ['PAYING THE DEBT: 30 top-level fns extracted', 'src/legacy.js top-level functions fell',
-      { monolith: { functions: real.monolith.functions - 30 } }],
-  ];
+   So: every arm plants its defect relative to the CURRENTLY MEASURED tree
+   (ceiling := measured lines, floor := measured files) and the delta is the
+   smallest one that exists — +1 line, +1 function, +1 const, -1 render file,
+   -1 render line. Self-relative AND strictly sharper than the old ±40/±200.
+   The pinned baseline keeps its one job: the plain run. */
 
+/** Ceilings and floors taken from a measurement — the tree is its own baseline. */
+export function selfBaseline(m) {
+  return { monolith: { ...m.monolith }, render: { ...m.render } };
+}
+
+/* Each defect as a function of the measurement it is planted into, so the
+   patch is always ±1 from THAT tree and never from a pinned number. */
+const COMPARATOR_ARMS = [
+  ['one line added to src/legacy.js', 'MONO-1',
+    (m) => ({ monolith: { lines: m.monolith.lines + 1 } })],
+  ['one new top-level function in legacy.js', 'MONO-2',
+    (m) => ({ monolith: { functions: m.monolith.functions + 1 } })],
+  ['the MONO-2 dodge: a new `const f = () =>` at column 0', 'MONO-3',
+    (m) => ({ monolith: { functionConsts: m.monolith.functionConsts + 1 } })],
+  ['a src/render module deleted (extraction reverted)', 'MONO-4',
+    (m) => ({ render: { files: m.render.files - 1 } })],
+  ['a src/render module emptied but not removed', 'MONO-5',
+    (m) => ({ render: { lines: m.render.lines - 1 } })],
+];
+
+const DEBT_PAYMENTS = [
+  ['PAYING THE DEBT: 500 lines leave legacy.js', 'src/legacy.js lines fell',
+    (m) => ({ monolith: { lines: m.monolith.lines - 500 } })],
+  ['PAYING THE DEBT: another render module lands', 'src/render/** files rose',
+    (m) => ({ render: { files: m.render.files + 1 } })],
+  ['PAYING THE DEBT: 30 top-level fns extracted', 'src/legacy.js top-level functions fell',
+    (m) => ({ monolith: { functions: m.monolith.functions - 30 } })],
+];
+
+/** compare() half: bend the numbers of `real` against `base`. */
+function comparatorArms(real, base, say) {
   let bad = 0;
-  for (const [label, check, patch] of arms) {
-    const got = bend(patch);
-    const hit = got.problems.filter((p) => p.check === check);
-    if (hit.length) console.log(`  CAUGHT   ${label}\n           ${check}: ${hit[0].message.split('. ')[0]}.`);
+  for (const [label, check, patch] of COMPARATOR_ARMS) {
+    const p = patch(real);
+    const got = compare({
+      ...real,
+      monolith: { ...real.monolith, ...(p.monolith || {}) },
+      render: { ...real.render, ...(p.render || {}) },
+    }, base);
+    const hit = got.problems.filter((x) => x.check === check);
+    if (hit.length) say(`  CAUGHT   ${label}\n           ${check}: ${hit[0].message.split('. ')[0]}.`);
     else {
       bad++;
-      console.log(`  MISSED   ${label} — ${check} never fired`
-        + (got.problems.length ? ` (only: ${got.problems.map((p) => p.check).join(', ')})` : ' (no problem at all)'));
+      say(`  MISSED   ${label} — ${check} never fired`
+        + (got.problems.length ? ` (only: ${got.problems.map((x) => x.check).join(', ')})` : ' (no problem at all)'));
     }
   }
-  for (const [label, want, patch] of noted) {
-    const got = bend(patch);
+  return bad;
+}
+
+function debtPaymentArms(real, base, say) {
+  let bad = 0;
+  for (const [label, want, patch] of DEBT_PAYMENTS) {
+    const p = patch(real);
+    const got = compare({
+      ...real,
+      monolith: { ...real.monolith, ...(p.monolith || {}) },
+      render: { ...real.render, ...(p.render || {}) },
+    }, base);
     if (got.problems.length) {
       bad++;
-      console.log(`  FALSE +  ${label} — reported ${got.problems.map((p) => p.check).join(', ')}; `
+      say(`  FALSE +  ${label} — reported ${got.problems.map((x) => x.check).join(', ')}; `
         + 'paying the debt must be a NOTE, never a failure');
     } else if (!got.notes.some((n) => n.startsWith(want))) {
       bad++;
-      console.log(`  SILENT   ${label} — no "${want}" note, so nobody is told to run --write`);
-    } else {
-      console.log(`  note     ${label}`);
-    }
+      say(`  SILENT   ${label} — no "${want}" note, so nobody is told to run --write`);
+    } else say(`  note     ${label}`);
   }
+  return bad;
+}
 
-  // Negative controls on the PREDICATES themselves: the two regexes must not
-  // widen into "any line that mentions the word function".
-  const ctl = [
-    ['NEGATIVE CONTROL: an indented function (inside an IIFE)', '  function inner() {}', 0, 0],
-    ['NEGATIVE CONTROL: a call, not a declaration', 'functionish(1);', 0, 0],
-    ['NEGATIVE CONTROL: a comment mentioning function f(', '// function f( was moved to src/render', 0, 0],
-    ['NEGATIVE CONTROL: a parenthesised expression, not a function',
-      'const width = (a + b) * 2;', 0, 0],
-    ['NEGATIVE CONTROL: an object literal', 'const cfg = { a: 1 };', 0, 0],
-    ['POSITIVE CONTROL: a column-0 declaration', 'function realOne(a) {', 1, 0],
-    ['POSITIVE CONTROL: a column-0 arrow const', 'const realTwo = (a) => a;', 0, 1],
-    ['POSITIVE CONTROL: a single-param arrow const', 'const realThree = a => a;', 0, 1],
-    ['POSITIVE CONTROL: `= function`', 'var realFour = function (fn) {', 0, 1],
-    ['POSITIVE CONTROL: a top-level IIFE module (the two legacy.js has)',
-      'const NetClient=(()=>{', 0, 1],
-  ];
-  for (const [label, line, wantFn, wantConst] of ctl) {
+/**
+ * measure() half: the same five defects planted as REAL TEXT in a temp copy of
+ * `root`, read back through measure(). A guard whose READER is broken reports 0
+ * problems forever and every comparator arm above still passes.
+ * `base` is derived from `root` by the caller, so this is self-relative too.
+ */
+function readerArms(root, base, say) {
+  let bad = 0;
+  const tmp = mkdtempSync(join(tmpdir(), 'hr-monolith-'));
+  try {
+    mkdirSync(join(tmp, 'src'), { recursive: true });
+    cpSync(join(root, MONOLITH), join(tmp, MONOLITH));
+    cpSync(join(root, RENDER_DIR), join(tmp, RENDER_DIR), { recursive: true });
+    const monoOrig = readFileSync(join(tmp, MONOLITH), 'utf8');
+    const restoreRender = () => cpSync(join(root, RENDER_DIR), join(tmp, RENDER_DIR), { recursive: true });
+    /* biggest render file, so "emptied" is a real reduction whatever the tree holds */
+    const fattest = () => walk(join(tmp, RENDER_DIR))
+      .map((p) => [p, lineCount(readFileSync(p, 'utf8'))])
+      .sort((a, b) => b[1] - a[1])[0][0];
+    const anyFile = () => walk(join(tmp, RENDER_DIR)).sort()[0];
+
+    const caught = (check) => compare(measure(tmp), base).problems.some((p) => p.check === check);
+    const write = (s) => writeFileSync(join(tmp, MONOLITH), s);
+
+    const planted = [
+      ['real text: one line appended to legacy.js', 'MONO-1',
+        () => { restoreRender(); write(monoOrig + '\n'); }],
+      ['real text: a column-0 `function` declaration', 'MONO-2',
+        () => { restoreRender(); write(monoOrig + '\nfunction hrRatchetSelftestFn(a) { return a; }\n'); }],
+      ['real text: a column-0 arrow const', 'MONO-3',
+        () => { restoreRender(); write(monoOrig + '\nconst hrRatchetSelftestArrow = (a) => a;\n'); }],
+      ['real tree: a render module deleted', 'MONO-4',
+        () => { write(monoOrig); restoreRender(); rmSync(anyFile()); }],
+      ['real tree: a render module emptied to one line', 'MONO-5',
+        () => { write(monoOrig); restoreRender(); writeFileSync(fattest(), '//\n'); }],
+    ];
+
+    for (const [label, check, plant] of planted) {
+      plant();
+      if (caught(check)) say(`  CAUGHT   ${label} — ${check}`);
+      else { bad++; say(`  MISSED   ${label} — ${check} never fired on the READ path`); }
+    }
+
+    // the reader must be silent on an unmutated copy
+    write(monoOrig);
+    restoreRender();
+    const restored = compare(measure(tmp), base);
+    if (restored.problems.length) {
+      bad++;
+      say('  FALSE +  the restored copy reports '
+        + restored.problems.map((p) => p.check).join(', ') + ' — measure() is not reproducible');
+    } else say('  silent   NEGATIVE CONTROL: an unmutated copy of the tree');
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+  return bad;
+}
+
+/* Negative controls on the PREDICATES themselves: the two regexes must not
+   widen into "any line that mentions the word function". */
+const PREDICATE_CONTROLS = [
+  ['NEGATIVE CONTROL: an indented function (inside an IIFE)', '  function inner() {}', 0, 0],
+  ['NEGATIVE CONTROL: a call, not a declaration', 'functionish(1);', 0, 0],
+  ['NEGATIVE CONTROL: a comment mentioning function f(', '// function f( was moved to src/render', 0, 0],
+  ['NEGATIVE CONTROL: a parenthesised expression, not a function', 'const width = (a + b) * 2;', 0, 0],
+  ['NEGATIVE CONTROL: an object literal', 'const cfg = { a: 1 };', 0, 0],
+  ['POSITIVE CONTROL: a column-0 declaration', 'function realOne(a) {', 1, 0],
+  ['POSITIVE CONTROL: a column-0 arrow const', 'const realTwo = (a) => a;', 0, 1],
+  ['POSITIVE CONTROL: a single-param arrow const', 'const realThree = a => a;', 0, 1],
+  ['POSITIVE CONTROL: `= function`', 'var realFour = function (fn) {', 0, 1],
+  ['POSITIVE CONTROL: a top-level IIFE module (the two legacy.js has)', 'const NetClient=(()=>{', 0, 1],
+];
+
+function predicateControls(say) {
+  let bad = 0;
+  for (const [label, line, wantFn, wantConst] of PREDICATE_CONTROLS) {
     const gotFn = DECL_RE.test(line) ? 1 : 0;
     const gotConst = CONST_FN_RE.test(line) ? 1 : 0;
     if (gotFn !== wantFn || gotConst !== wantConst) {
       bad++;
-      console.log(`  WRONG    ${label} — decl=${gotFn} (want ${wantFn}) const=${gotConst} (want ${wantConst})`);
-    } else console.log(`  ok       ${label}`);
+      say(`  WRONG    ${label} — decl=${gotFn} (want ${wantFn}) const=${gotConst} (want ${wantConst})`);
+    } else say(`  ok       ${label}`);
   }
+  return bad;
+}
 
-  // ── THE OTHER HALF: prove measure(), not only compare() ──────────────────
-  // Everything above bends the NUMBERS, which proves the comparator and nothing
-  // else. A guard whose reader is broken reports 0 problems forever and every
-  // arm above still passes. So the same five defects are now planted as REAL
-  // TEXT in a temp copy of the tree and read back through measure().
-  const planted = [];
-  const tmp = mkdtempSync(join(tmpdir(), 'hr-monolith-'));
+/**
+ * THE ARM THAT CLOSES THE LOOP (2026-09-12).
+ * A paydown WITHOUT a re-pin must leave --selftest green. Simulated for real:
+ * a temp copy of the tree with 500 lines removed from legacy.js and the pinned
+ * baseline left untouched — i.e. the shape of every red run today. It asserts
+ * three things: the plain-run comparison is a NOTE not a problem; the whole
+ * self-relative proof (comparator + reader) still bites on that shrunken tree;
+ * and — the load-bearing half — that the OLD pinned-base logic would indeed
+ * have gone MISSED there, so this arm cannot silently stop proving anything.
+ */
+function paydownWithoutRepinArm(pinned, say) {
+  let bad = 0;
+  const SHRINK = 500;
+  const tmp = mkdtempSync(join(tmpdir(), 'hr-monolith-paid-'));
   try {
     mkdirSync(join(tmp, 'src'), { recursive: true });
-    cpSync(join(ROOT, MONOLITH), join(tmp, MONOLITH));
+    const lines = readFileSync(join(ROOT, MONOLITH), 'utf8').split(/\r?\n/);
+    writeFileSync(join(tmp, MONOLITH), lines.slice(0, Math.max(1, lines.length - SHRINK)).join('\n'));
     cpSync(join(ROOT, RENDER_DIR), join(tmp, RENDER_DIR), { recursive: true });
-    const monoOrig = readFileSync(join(tmp, MONOLITH), 'utf8');
-    const renderFiles = walk(join(tmp, RENDER_DIR));
 
-    const caught = (check) => compare(measure(tmp), base).problems.some((p) => p.check === check);
+    const sub = measure(tmp);
+    const quiet = () => {};
 
-    const write = (s) => writeFileSync(join(tmp, MONOLITH), s);
-    planted.push(['real text: 40 lines appended to legacy.js', 'MONO-1',
-      () => write(monoOrig + '\n'.repeat(40))]);
-    planted.push(['real text: a column-0 `function` declaration', 'MONO-2',
-      () => write(monoOrig + '\nfunction hrRatchetSelftestFn(a) { return a; }\n')]);
-    planted.push(['real text: a column-0 arrow const', 'MONO-3',
-      () => write(monoOrig + '\nconst hrRatchetSelftestArrow = (a) => a;\n')]);
-    planted.push(['real tree: a render module deleted', 'MONO-4',
-      () => { write(monoOrig); rmSync(renderFiles[0]); }]);
-    planted.push(['real tree: a render module emptied to one line', 'MONO-5',
-      () => { cpSync(join(ROOT, RENDER_DIR), join(tmp, RENDER_DIR), { recursive: true });
-        writeFileSync(renderFiles[1], '//\n'); }]);
-
-    for (const [label, check, plant] of planted) {
-      plant();
-      if (caught(check)) console.log(`  CAUGHT   ${label} — ${check}`);
-      else { bad++; console.log(`  MISSED   ${label} — ${check} never fired on the READ path`); }
+    const underPinned = compare(sub, pinned);
+    if (underPinned.problems.length) {
+      bad++;
+      say(`  FALSE +  a ${SHRINK}-line paydown makes the PLAIN run red (`
+        + `${underPinned.problems.map((p) => p.check).join(', ')}) — a ceiling must fall for free`);
     }
 
-    // and the reader must be silent on an unmutated copy
-    write(monoOrig);
-    cpSync(join(ROOT, RENDER_DIR), join(tmp, RENDER_DIR), { recursive: true });
-    const restored = compare(measure(tmp), base);
-    if (restored.problems.length) {
+    const selfB = selfBaseline(sub);
+    const stillBites = comparatorArms(sub, selfB, quiet) + readerArms(tmp, selfB, quiet)
+      + debtPaymentArms(sub, selfB, quiet);
+    if (stillBites) {
       bad++;
-      console.log('  FALSE +  the restored copy reports '
-        + restored.problems.map((p) => p.check).join(', ') + ' — measure() is not reproducible');
-    } else console.log('  silent   NEGATIVE CONTROL: an unmutated copy of the tree');
+      say(`  MISSED   PAYDOWN WITHOUT A RE-PIN: ${stillBites} arm(s) went red on a tree `
+        + `${SHRINK} lines under the pinned ceiling — the selftest is not self-relative`);
+    } else {
+      say(`  green    PAYDOWN WITHOUT A RE-PIN: legacy.js ${sub.monolith.lines} vs pinned `
+        + `${pinned.monolith.lines} and no --write — every arm still bites`);
+    }
+
+    /* Would the pre-fix logic have failed here? If not, this arm proves nothing
+       and the shrink must grow — assert it, don't assume it. */
+    const asPinned = comparatorArms(sub, pinned, quiet) + readerArms(tmp, pinned, quiet);
+    if (asPinned > 0) {
+      say(`  proof    the pre-fix logic (arms vs the PINNED baseline) MISSES ${asPinned} arm(s) on the `
+        + 'same tree — that is the regression this arm stands against');
+    } else {
+      bad++;
+      say(`  WEAK     the pinned-baseline comparison no longer misses anything at -${SHRINK} lines, `
+        + 'so this arm has stopped discriminating — increase SHRINK');
+    }
   } finally { rmSync(tmp, { recursive: true, force: true }); }
+  return bad;
+}
+
+function selftest() {
+  if (!existsSync(BASELINE)) { console.error('SELFTEST: no baseline; run --write first.'); return 2; }
+  const pinned = JSON.parse(readFileSync(BASELINE, 'utf8'));
+  const real = measure(ROOT);
+  const base = selfBaseline(real);
+  const say = (s) => console.log(s);
+
+  /* False-positive floor, now self-relative: the tree against its OWN numbers
+     must report nothing. The pinned run's state is reported for the reader and
+     is deliberately NOT a condition — a lane mid-paydown (or mid-regression)
+     still gets a meaningful mutation proof, and the plain run is what judges
+     the tree. */
+  const clean = compare(real, base);
+  if (clean.problems.length) {
+    console.error('SELFTEST HARNESS: the tree disagrees with its own measurement, which is impossible '
+      + 'unless measure()/compare() is broken:');
+    for (const p of clean.problems) console.error(`    ${p.check}  ${p.message}`);
+    return 2;
+  }
+  const pinnedState = compare(real, pinned);
+  console.log('monolith-ratchet --selftest — false-positive floor: the tree reports 0 problems against '
+    + 'its own measurement');
+  console.log(`  (pinned baseline, for information only: ${pinnedState.problems.length} problem(s), `
+    + `${pinnedState.notes.length} note(s) — that is the plain run's verdict, not the selftest's)\n`);
+
+  let bad = 0;
+  bad += comparatorArms(real, base, say);
+  bad += debtPaymentArms(real, base, say);
+  bad += predicateControls(say);
+  bad += readerArms(ROOT, base, say);
+  bad += paydownWithoutRepinArm(pinned, say);
 
   console.log(`\n  ${bad ? `${bad} arm(s) FAILED`
-    : `all ${arms.length} defects caught by their named assertion (comparator) and all `
-      + `${planted.length} planted again as REAL TEXT (reader), all ${noted.length} debt-payments `
-      + `reported as notes, all ${ctl.length} predicate controls correct`}`);
+    : `all ${COMPARATOR_ARMS.length} defects caught by their named assertion (comparator) and all `
+      + `${COMPARATOR_ARMS.length} planted again as REAL TEXT (reader), all ${DEBT_PAYMENTS.length} `
+      + `debt-payments reported as notes, all ${PREDICATE_CONTROLS.length} predicate controls correct, `
+      + 'and a paydown without a re-pin leaves every arm biting'}`);
   return bad ? 1 : 0;
 }
 

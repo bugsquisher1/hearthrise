@@ -37772,9 +37772,8 @@ const TESTS = [
       /* (d) THE LAST FREEZE IS GONE (wall-clock ruling, 2026-09-13). This arm
          asserted the opposite until today. The authority is an ABSOLUTE `until` the
          server keeps expiring whether the player fights, idles or sleeps, and the
-         freeze was CLIENT-ONLY all along (combat-sim, skill-sim and artisan-sim all
-         pass `active: true`) — a promise only the pill made, which the server was
-         already breaking: the row read 8m 40s for an hour while the buff was over. */
+         freeze was CLIENT-ONLY (every engine caller passes `active: true`) — a
+         promise only the pill made, and the server was already breaking it. */
       G.activeMonster = null; G.activeSkill = null; G.activeArtisanRecipe = null;
       const before = G.buffs[0].remainingMs;
       window.advanceBuffClock(60000);
@@ -39388,12 +39387,10 @@ const TESTS = [
     /* WHAT THIS REPLACED, AND WHY THAT IS NOT A DELETED TEST. This slot held
        b326-3, "a paused buff renders as PAUSED with its time preserved" — the OLD
        ruling, where `tickBuffs` froze whenever nothing was running. Two rulings of
-       2026-09-13 retired it: the drain is WALL-CLOCK against the server's absolute
-       `until`, and a type may hold several segments each with its own magnitude. A
-       test asserting a retired rule is not evidence, so it is REWRITTEN in place;
-       every assertion it protected (the row names the buff and magnitude, the time
-       is legible, Home is the only visible surface, no emoji) survives below.
-       THE ATTENDED HALF — the away half is tests/buff-queue.mjs [18]. */
+       2026-09-13 retired it (wall-clock drain; per-segment magnitudes), and a test
+       asserting a retired rule is not evidence — so it is REWRITTEN in place and
+       every assertion it protected survives below. THE ATTENDED HALF; the away half
+       is tests/buff-queue.mjs [20]. */
     const G = window.G;
     const H = window.HearthriseHome;
     const A = window.HearthriseAccrual;
@@ -39410,47 +39407,37 @@ const TESTS = [
       window.showTab('profile');
       G.activeSkill = null; G.skillTargetId = null; G.activeMonster = null; G.activeArtisanRecipe = null;
 
-      /* (1) THE ENVELOPE IS THE PILL. Two contiguous segments of one type — the
-         projection's real shape — plus an EXPIRED entry, which hr_state_of carries
-         at remaining_ms 0 for the away engine and which nothing may render. */
-      const iso = (ms) => new Date(Date.now() + ms).toISOString();
+      /* (1) THE ENVELOPE IS THE PILL. Two contiguous segments of one type plus an
+         EXPIRED entry, which hr_state_of carries at remaining_ms 0 for the away
+         engine and which nothing may render. */
+      const seg = (type, magnitude, ms) =>
+        ({ type, magnitude, until: new Date(Date.now() + ms).toISOString(), remaining_ms: ms });
       G.buffs = [{ type: 'damage', magnitude: 99, remainingMs: 9e9, addedAt: Date.now() }];
-      A.reconcileBuffs(G, {
-        ok: true,
-        buffs: [
-          { type: 'gather_speed', magnitude: 15, until: iso(6 * 60000), remaining_ms: 6 * 60000 },
-          { type: 'gather_speed', magnitude: 2, until: iso(20 * 60000), remaining_ms: 20 * 60000 },
-          { type: 'all_xp', magnitude: 4, until: iso(-1000), remaining_ms: 0 },
-        ],
-      });
-      assert(G.buffs.length === 2,
-        'the envelope must REPLACE the local queue (a forged +99% must not survive it) and must drop the '
-        + 'expired entry: got ' + JSON.stringify(G.buffs));
-      assert(!G.buffs.some((b) => b.type === 'damage'),
-        'a local buff the server does not hold survived the reconcile — that is the residue-ahead class this '
-        + 'field used to be, back again as a merge');
+      A.reconcileBuffs(G, { ok: true, buffs: [seg('gather_speed', 15, 6 * 60000),
+        seg('gather_speed', 2, 20 * 60000), seg('all_xp', 4, 0)] });
+      assert(G.buffs.length === 2 && !G.buffs.some((b) => b.type === 'damage'),
+        'the envelope must REPLACE the local queue (a forged +99% must not survive it — that is the '
+        + 'residue-ahead class this field used to be) and must drop the expired entry: '
+        + JSON.stringify(G.buffs));
 
-      /* (2) ONE ROW PER EFFECT, SHOWING THE SEGMENT RUNNING NOW. +15% for six
-         minutes, THEN +2% — never "+15% for 26 minutes", which is the merge bug's
-         signature, and never two Gather Speed rows. */
+      /* (2) ONE ROW PER EFFECT, SHOWING THE SEGMENT RUNNING NOW: +15% for six
+         minutes then +2%, never "+15% for 26 minutes" (the merge bug's signature). */
       H.render();
-      const rows = document.getElementById('hd-root').querySelectorAll('.hd-buff');
+      const hd = document.getElementById('hd-root');
+      const rows = hd.querySelectorAll('.hd-buff');
+      const rowTxt = rows.length ? rows[0].textContent.replace(/\s+/g, ' ') : '';
       assert(rows.length === 1,
         'Home must render ONE row per effect even when a type holds several segments; got ' + rows.length);
-      const rowTxt = rows[0].textContent.replace(/\s+/g, ' ');
-      assert(!/paused/i.test(rowTxt), 'no surface may label a buff paused any more: ' + rowTxt);
-      assert(/Gather Speed/.test(rowTxt) && /\+15%/.test(rowTxt),
-        'the row must name the buff and the magnitude RUNNING NOW (+15%), not the queued one: ' + rowTxt);
-      assert(/6:00/.test(rowTxt),
-        'the countdown must be the time until the bonus CHANGES (6:00, this segment), never the time until '
-        + 'the queue empties (26:00): ' + rowTxt);
-      const ladder = document.getElementById('hd-root').textContent;
-      assert(/real time/i.test(ladder) && /away/i.test(ladder),
+      assert(/Gather Speed/.test(rowTxt) && /\+15%/.test(rowTxt) && /6:00/.test(rowTxt)
+        && !/paused/i.test(rowTxt),
+        'the row must name the buff, the magnitude RUNNING NOW (+15%, not the queued +2%) and the time until '
+        + 'the bonus CHANGES (6:00, not the 26:00 the queue empties at), and never say paused: ' + rowTxt);
+      assert(/real time/i.test(hd.textContent) && /away/i.test(hd.textContent),
         'the ladder must state the rule a player can lose a Feast by not knowing: the clock is real time and '
         + 'runs while they are away');
 
-      /* (3) IT DRAINS WITH NOTHING RUNNING. The old freeze made this exact call a
-         no-op, which is what showed an 8m40s pill for an hour. */
+      /* (3) IT DRAINS WITH NOTHING RUNNING — the old freeze made this call a no-op,
+         which is what showed an 8m40s pill for an hour. */
       const before = G.buffs[0].remainingMs;
       window.advanceBuffClock(60000);
       assert(G.buffs[0].remainingMs === before - 60000,
@@ -39458,48 +39445,38 @@ const TESTS = [
         + 'expiring the absolute `until` whether or not the player is doing anything. Got '
         + G.buffs[0].remainingMs + ' from ' + before);
 
-      /* (4) THE ACTIVE EFFECTS PANEL, same rules, and the boundary is named. */
-      if (typeof window.__renderBuffsSection === 'function') {
-        window.__renderBuffsSection();
-        const brs = document.querySelectorAll('.buff-row');
-        if (brs.length) {
-          assert(brs.length === 1, 'the Active Effects panel must show one row per effect: ' + brs.length);
-          const t = brs[0].textContent.replace(/\s+/g, ' ');
-          assert(/\+15%/.test(t) && /then \+2%/.test(t),
-            'the row must state the running magnitude and NAME what it becomes at the boundary: ' + t);
-          assert(!/paused/i.test(t), 'no paused chip: ' + t);
-        }
-      }
+      /* (4) THE ACTIVE EFFECTS PANEL, same rules, and the boundary is NAMED. */
+      window.__renderBuffsSection();
+      const brs = [...document.querySelectorAll('.buff-row')].map((r) => r.textContent.replace(/\s+/g, ' '));
+      assert(brs.length === 1, 'the Active Effects panel must show one row per effect: ' + brs.length);
+      assert(/\+15%/.test(brs[0]) && /then \+2%/.test(brs[0]) && !/paused/i.test(brs[0]),
+        'the row must state the running magnitude, NAME what it becomes at the boundary, and carry no '
+        + 'paused chip: ' + brs[0]);
 
-      /* (5) THE GESTURE REACHES THE SERVER. `buff_apply` itself is the Edge's to
-         build (asserted on the real delta in tests/buff-queue.mjs [16]); the
-         CLIENT's half of that contract is the `auto` bit — a human eat must be
-         sendable as a buffing eat, and the auto-eater must declare itself, or
-         every heal buffs, caps the queue and is refused buff_at_max, which rolls
-         back the debit and restocks the food (the food-restock P0). */
+      /* (5) THE GESTURE REACHES THE SERVER. `buff_apply` is the Edge's to build (the
+         real delta is applied in tests/buff-queue.mjs [18]); the CLIENT's half is the
+         `auto` bit — without it every auto-eat heal buffs, caps the queue, and is
+         refused buff_at_max, which rolls back the debit and restocks the food. */
       const wire = (auto) => JSON.parse(window.HearthriseEat.buildEatRequest({
         url: 'https://example.test', apiKey: 'k', token: 't', slot: 0,
         intentId: '00000000-0000-4000-8000-000000000001', item: 'fishers_pie', auto,
       }).init.body);
       const manual = wire(false);
-      assert(manual.item === 'fishers_pie' && manual.auto === false,
-        'a MANUAL eat must go on the wire as auto:false so the server grants the food buff: '
-        + JSON.stringify(manual));
-      assert(wire(true).auto === true,
-        'an AUTO eat must declare itself on the wire — the server suppresses the buff for it');
+      assert(manual.item === 'fishers_pie' && manual.auto === false && wire(true).auto === true,
+        'a MANUAL eat must go on the wire as auto:false (so the server grants the buff) and an AUTO eat must '
+        + 'declare itself: ' + JSON.stringify(manual));
       assert(Object.keys(manual).sort().join(',') === 'auto,intentId,item,slot,verb',
         'the eat request must carry a NAME and the gesture and nothing else — no heal, no hp, no qty, no '
         + 'magnitude, no duration: ' + Object.keys(manual).sort().join(','));
 
       /* (6) 0-EMOJI RULE, preserved from the test this replaced. */
       const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
-      assert(!EMOJI.test(rows[0].textContent), 'no emoji may render in the buff ladder: ' + rows[0].textContent);
-      document.querySelectorAll('.buff-row').forEach((r) => {
-        assert(!EMOJI.test(r.textContent), 'no emoji may render in a buff row: ' + r.textContent);
+      [rows[0].textContent, ...brs].forEach((t) => {
+        assert(!EMOJI.test(t), 'no emoji may render on a buff surface: ' + t);
       });
 
-      /* (7) AND ABSENCE IS NOT AN EVICTION. An envelope with no `buffs` key is a
-         partial answer, not "you hold nothing" (§6: never evict on uncertainty). */
+      /* (7) ABSENCE IS NOT AN EVICTION: no `buffs` key is a partial answer, not "you
+         hold nothing" (§6, never evict on uncertainty). */
       const keep = G.buffs.length;
       A.reconcileBuffs(G, { ok: true, state: {} });
       assert(G.buffs.length === keep,

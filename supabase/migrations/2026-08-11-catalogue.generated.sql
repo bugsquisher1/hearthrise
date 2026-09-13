@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 66e829e6571854cec2d9b4e20f978a67243501ef19b99ee774104b6ec5ceeeb1
---   rows: 529 items (20 untradeable) ·
---         275 item-slot pairs · 15 equip slots ·
---         17 skills · 9 crops · 493 activities ·
+--   catalogue digest: 095fdff0820c6454e71002bd6d0393c00c1be639ab2a97b9a8374df4ec5368bc
+--   rows: 538 items (20 untradeable) ·
+--         280 item-slot pairs · 15 equip slots ·
+--         17 skills · 9 crops · 503 activities ·
 --         3 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -385,6 +385,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('fine_rune_blank','Fine Blank Rune',true,null,28,null,null,null,false),
   ('fire_rune','Fire Rune',true,'ammo',4,'magic',45,null,false),
   ('fishers_pie','Fisher''s Pie',true,null,520,null,null,34,false),
+  ('flux_salt','Fluxsalt',true,null,45,null,null,null,false),
   ('forge_blueprint_t2','Forge Blueprint II',true,null,500,null,null,null,false),
   ('forge_blueprint_t3','Forge Blueprint III',true,null,2000,null,null,null,false),
   ('fox_companion','Fox Companion',true,'companion',600,'defense',15,null,false),
@@ -408,6 +409,8 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('granite_block','Granite Block',true,null,85,null,null,null,false),
   ('grave_dust','Grave Dust',true,null,95,null,null,null,false),
   ('grave_salt','Grave Salt',true,null,1200,null,null,null,false),
+  ('heartgarnet','Heartgarnet',true,null,200,null,null,null,false),
+  ('heartgarnet_maul','Heartgarnet Maul',true,'weapon',990,'attack',42,null,false),
   ('hearth_token','Hearth Token',true,null,25000,null,null,null,false),
   ('hearthbread','Hearthbread',true,null,30,null,null,null,false),
   ('hearthstone_signet','Hearthstone Signet',true,'jewelry',0,null,null,null,false),
@@ -628,6 +631,12 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('vaultstone','Vaultstone',true,null,9000,null,null,null,false),
   ('vegetable_stew','Vegetable Stew',true,null,140,null,null,24,false),
   ('venom_sac','Venom Sac',true,null,75,null,null,null,false),
+  ('verdite_bar','Verdite Bar',true,null,320,null,null,null,false),
+  ('verdite_blade','Verdite Blade',true,'weapon',900,'attack',38,null,false),
+  ('verdite_helm','Verdite Helm',true,'armor',1080,'defense',38,null,false),
+  ('verdite_ore','Verdite Ore',true,null,55,null,null,null,false),
+  ('verdite_platebody','Verdite Platebody',true,'armor',2700,'defense',38,null,false),
+  ('verdite_platelegs','Verdite Platelegs',true,'armor',1980,'defense',38,null,false),
   ('void_banquet','Void Banquet',true,null,2400,null,null,60,false),
   ('void_censer','Void Censer',true,'weapon',4500,'magic',60,null,false),
   ('void_chitin','Void Chitin',true,null,800,null,null,null,false),
@@ -822,6 +831,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('gold_amulet','necklace'),
   ('gold_ring','ring1'),
   ('gold_ring','ring2'),
+  ('heartgarnet_maul','weapon'),
   ('hearthstone_signet','ring1'),
   ('hearthstone_signet','ring2'),
   ('heartwood_cape','cape'),
@@ -931,6 +941,10 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('traveler_cape','cape'),
   ('trollhide_cape','cape'),
   ('unlit_earrings','earrings'),
+  ('verdite_blade','weapon'),
+  ('verdite_helm','helmet'),
+  ('verdite_platebody','body'),
+  ('verdite_platelegs','pants'),
   ('void_censer','weapon'),
   ('voidhide_belt','belt'),
   ('voidhide_body','body'),
@@ -1256,6 +1270,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','forge_ember_platebody','smithing',85,null,false),
   ('artisan','forge_ember_platelegs','smithing',83,null,false),
   ('artisan','forge_emberfang_blade','smithing',72,null,false),
+  ('artisan','forge_heartgarnet_maul','smithing',52,null,false),
   ('artisan','forge_iron_axe','smithing',18,null,false),
   ('artisan','forge_iron_belt','smithing',18,null,false),
   ('artisan','forge_iron_boots','smithing',17,null,false),
@@ -1302,6 +1317,10 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','forge_steel_platelegs','smithing',38,null,false),
   ('artisan','forge_steel_sword','smithing',40,null,false),
   ('artisan','forge_stone_maul','smithing',10,null,false),
+  ('artisan','forge_verdite_blade','smithing',46,null,false),
+  ('artisan','forge_verdite_helm','smithing',45,null,false),
+  ('artisan','forge_verdite_platebody','smithing',50,null,false),
+  ('artisan','forge_verdite_platelegs','smithing',47,null,false),
   ('artisan','forge_warband_bulwark','smithing',35,null,false),
   ('artisan','forge_warden_girdle','smithing',92,null,false),
   ('artisan','forge_watchknight_belt','smithing',63,null,false),
@@ -1377,6 +1396,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','smelt_mithril','smithing',55,null,false),
   ('artisan','smelt_rune','smithing',75,null,false),
   ('artisan','smelt_steel','smithing',35,null,false),
+  ('artisan','smelt_verdite','smithing',42,null,false),
   ('artisan','smith_iron_fitting','smithing',25,null,false),
   ('artisan','split_rune_blanks','stonemason',22,null,false),
   ('artisan','tailor_dawnlit_mantle','crafting',91,null,false),
@@ -1501,11 +1521,14 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('gather','copper_crab_s','fishing',28,null,false),
   ('gather','copper_rock','mining',1,null,false),
   ('gather','dawnstone_rock','mining',90,null,false),
+  ('gather','deep_verdite_seam','mining',48,null,false),
   ('gather','duskwood_tree','woodcutting',90,null,false),
   ('gather','emberstone_rock','mining',75,null,false),
+  ('gather','fluxsalt_pocket','mining',40,null,false),
   ('gather','frostfin_s','fishing',66,null,false),
   ('gather','gold_rock','mining',45,null,false),
   ('gather','goldgill_s','fishing',36,null,false),
+  ('gather','heartgarnet_geode','mining',56,null,false),
   ('gather','herring_s','fishing',10,null,false),
   ('gather','iron_rock','mining',15,null,false),
   ('gather','lobster_s','fishing',40,null,false),
@@ -1522,6 +1545,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('gather','silverfin_s','fishing',32,null,false),
   ('gather','swordfish_s','fishing',55,null,false),
   ('gather','trout_s','fishing',20,null,false),
+  ('gather','verdite_seam','mining',36,null,false),
   ('gather','willow_tree','woodcutting',30,null,false),
   ('gather','yew_tree','woodcutting',60,null,false);
 
@@ -1555,7 +1579,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '66e829e6571854cec2d9b4e20f978a67243501ef19b99ee774104b6ec5ceeeb1', now())
+  values (true, '095fdff0820c6454e71002bd6d0393c00c1be639ab2a97b9a8374df4ec5368bc', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1583,13 +1607,13 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 529 then raise exception 'hr_items has % rows, generator emitted 529', v_n; end if;
+  if v_n <> 538 then raise exception 'hr_items has % rows, generator emitted 538', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 20 then
     raise exception 'untradeable count is %, generator emitted 20', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 493 then raise exception 'hr_activities has % rows, expected 493', v_n; end if;
+  if v_n <> 503 then raise exception 'hr_activities has % rows, expected 503', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1720,7 +1744,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 66e829e6571854cec2d9b4e20f978a67243501ef19b99ee774104b6ec5ceeeb1',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 095fdff0820c6454e71002bd6d0393c00c1be639ab2a97b9a8374df4ec5368bc',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

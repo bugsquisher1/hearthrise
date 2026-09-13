@@ -13518,6 +13518,190 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
+  /* ── DEEPSEAM-1..6 — the "Deep Seam" band, PLAYED ───────────────────────
+     The smith's ORE SUPPLY did not change between Mining 15 and Mining 60:
+     coal is a reagent, Rich Coal is more coal and Gold makes jewellery only, so
+     a player crossing Mining 36→56 mined nothing that became armour, Smithing
+     had no bar between Steel(35) and Mithril(55), and the WIELD ladder jumped
+     Defence 30 → 45 with nothing to put on in between. Four nodes, one bar and
+     five pieces (VERDITE) close all three.
+     SIX PROPERTIES, ONE TEST EACH, because a content batch gets a DIFFERENT one
+     wrong each time and a mega-test reports only the first: (1) the nodes exist,
+     the SWING lands and the tile names the ore; (2) the SMELT banks one bar and
+     debits BOTH inputs; (3) the five pieces are a real BRIDGE — every stat,
+     wield level and price strictly between the steel and mithril rung of the
+     same slot; (4) the forge tile gates one level short — hr_apply's client
+     half; (5) every new rung is SELF-SUPPLYING, and the shipped rungs that are
+     not are frozen at 57 so the class can only shrink; (6) the wield gate bites
+     on the client at Defence 37 and opens at 38, which is what stops the market
+     selling 28 defence to a new account. */
+  () => tryRun('DEEPSEAM-1: the four new mining rungs exist at 36/40/48/56, a real swing at the Verdite Seam lands Verdite Ore, and the tile names the ore', () => {
+    const snap = snapshotG();
+    const G = window.G, I = window.ITEMS;
+    try {
+      const ids = ['verdite_seam', 'fluxsalt_pocket', 'deep_verdite_seam', 'heartgarnet_geode'];
+      const nodes = ids.map((id) => (window.ROCKS || []).find((r) => r.id === id));
+      nodes.forEach((n, i) => assert(n, 'mining node ' + ids[i] + ' is missing — the Mining 15→60 ore silence is back'));
+      assert(nodes.map((n) => n.req).join(',') === '36,40,48,56', 'the four new rungs must gate at 36/40/48/56, got ' + nodes.map((n) => n.req).join(','));
+      nodes.forEach((n) => {
+        assert(I[n.prod], n.id + ' yields ' + n.prod + ', which is not an item');
+        assert(I[n.prod].raw === true, n.id + ' yields ' + n.prod + ', which is not flagged raw — the vendor would bid FULL book value on a mined material');
+        assert(n.xp > 0 && n.ms > 0 && n.qty[0] >= 1 && n.qty[1] >= n.qty[0], n.id + ' must carry real xp/ms/qty, got ' + n.xp + '/' + n.ms + '/' + n.qty);
+      });
+      /* THE SWING — the real interval callback behind "mine this rock". */
+      const node = nodes[0];
+      G.skills = Object.assign({}, G.skills, { mining: window.xpForLevel(node.req) });
+      assert(window.getLevel('mining') === node.req, 'fixture: mining is ' + window.getLevel('mining') + ', not ' + node.req);
+      G.inventory = {}; G.activeSkill = 'mining'; G.skillTargetId = node.id;
+      const mined0 = G.stats.mined || 0;
+      window.doSkillAction(true);
+      assert((G.inventory[node.prod] || 0) >= 1, 'a real mining action at ' + node.id + ' banked no ' + node.prod + ' — the node is in the table but not in the loop');
+      assert((G.stats.mined || 0) > mined0, 'the swing did not tick stats.mined');
+      /* THE TILE NAMES ITS YIELD — the standing rule, on a new row. */
+      const AG = window.HearthriseActivitiesGrid;
+      assert(AG && typeof AG.__tileForGather === 'function', 'the gather-tile builder is unpublished — the paint half would pass vacuously');
+      assert(AG.__tileForGather(node, 'mining').indexOf('Yields ' + I[node.prod].n) >= 0, 'the Verdite Seam tile does not name ' + I[node.prod].n + ' as its yield');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('DEEPSEAM-2: a real smelt at Smithing 42 turns 2 Verdite Ore + 1 Fluxsalt into exactly one Verdite Bar and debits BOTH inputs', () => {
+    const snap = snapshotG();
+    const G = window.G;
+    /* `rooms` IS SAVED AND RESTORED BY HAND for the reason REEDTIDE-2 records:
+       snapshotG() carries `rooms: G.rooms` with no `|| null`, so when it is
+       unset at boot restoreG puts NOTHING back and a rung written here LEAKS
+       into every later test. It is written at all because a Forge rung grants
+       `craftSave`, which REFUNDS inputs — the exact thing this test measures. */
+    const localSnap = { rooms: JSON.parse(JSON.stringify(G.rooms || {})) };
+    try {
+      const rec = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'smelt_verdite');
+      assert(rec && rec.req === 42 && rec.output === 'verdite_bar', 'smelt_verdite must be the Smithing 42 verdite_bar rung, got ' + JSON.stringify(rec));
+      const inputsOf = window.HearthriseCore.artisan.recipeInputs;
+      assert(typeof inputsOf === 'function', 'HearthriseCore.artisan.recipeInputs is unpublished — an input map nobody can read is a recipe that MINTS');
+      assert(JSON.stringify(inputsOf(rec)) === JSON.stringify({ verdite_ore: 2, flux_salt: 1 }),
+        'smelt_verdite reads as ' + JSON.stringify(inputsOf(rec)) + ', the ruling says 2 ore + 1 fluxsalt — and this is the helper the EDGE imports, so a mis-read mints away too');
+      G.rooms = {};                     // no Forge rung ⇒ no craftSave refund
+      stampRecordLikeLoad(G);           // `rooms` is server-of-record; a raw write reads as UNKNOWN
+      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req) });
+      G.inventory = { verdite_ore: 2, flux_salt: 1 };
+      window.doArtisanAction('smithing', 'smelt_verdite');
+      assert((G.inventory.verdite_bar || 0) === 1, 'the forge produced ' + (G.inventory.verdite_bar || 0) + ' Verdite Bar from 2 ore + 1 fluxsalt');
+      assert(!(G.inventory.verdite_ore > 0), 'the smelt did not debit the ore — a free bar');
+      assert(!(G.inventory.flux_salt > 0), 'the smelt did not debit the fluxsalt — the second input is decorative');
+    } finally { restoreG(snap); G.rooms = localSnap.rooms; stampRecordLikeLoad(G); }
+  }),
+
+  () => tryRun('DEEPSEAM-3: every verdite piece is a real BRIDGE — stat, wield level and price strictly between its steel and mithril twin', () => {
+    const I = window.ITEMS;
+    const R = window.ARTISAN_RECIPES;
+    const all = Object.keys(R).reduce((a, k) => a.concat(R[k] || []), []);
+    /* new id · steel twin · mithril twin · the stat that must climb */
+    [['verdite_helm', 'steel_helm', 'mithril_helm', 'defB'],
+      ['verdite_platebody', 'steel_platebody', 'mithril_platebody', 'defB'],
+      ['verdite_platelegs', 'steel_platelegs', 'mithril_platelegs', 'defB'],
+      ['verdite_blade', 'steel_sword', 'mithril_sword', 'atkB'],
+      ['heartgarnet_maul', 'steel_warhammer', 'mithril_warhammer', 'strB']].forEach(([id, lo, hi, stat]) => {
+      const n = I[id], a = I[lo], b = I[hi];
+      assert(n && a && b, id + ': one of ' + id + '/' + lo + '/' + hi + ' is missing');
+      assert(n.slot === a.slot && n.slot === b.slot, id + ' sits in slot ' + n.slot + ', its twins in ' + a.slot + '/' + b.slot + ' — it is not the same lane');
+      assert(n[stat] > a[stat] && n[stat] < b[stat], id + ' carries ' + stat + ' ' + n[stat] + ', which is not strictly between ' + lo + ' (' + a[stat] + ') and ' + hi + ' (' + b[stat] + ') — a bridge that ties or beats the tier above it is not a bridge');
+      assert(n.v > a.v && n.v < b.v, id + ' is priced ' + n.v + ', not between ' + a.v + ' and ' + b.v + ' — the vendor and the market read this number');
+      /* The WIELD gate is the half a player meets first, and it is the hole
+         this batch exists to fill: armour gates on `defense` at a
+         MATERIAL_TIERS level, so the ladder read 30 → 45 with nothing between. */
+      const rq = window.gearWieldReq(n), rqa = window.gearWieldReq(a), rqb = window.gearWieldReq(b);
+      assert(rq && rqa && rqb, id + ': a piece in this lane carries no wield requirement — a tradeable 28-defence plate with no gate is the market selling power to a level-1 account');
+      assert(rq.skill === rqa.skill, id + ' gates on ' + rq.skill + ' while ' + lo + ' gates on ' + rqa.skill + ' — armour requirements are DEFENCE-only (standing ruling, 2026-08-15)');
+      assert(rq.lv > rqa.lv && rq.lv < rqb.lv, id + ' wields at ' + rq.lv + ', not between ' + lo + ' (' + rqa.lv + ') and ' + hi + ' (' + rqb.lv + ')');
+      /* And it is obtainable: exactly one recipe makes it. */
+      const made = all.filter((r) => r.output === id);
+      assert(made.length === 1, id + ' is made by ' + made.length + ' recipes — vendor trash with no recipe is what this batch exists to stop, and two recipes is two authorities');
+      Object.keys(window.HearthriseCore.artisan.recipeInputs(made[0])).forEach((k) => assert(I[k], id + "'s recipe consumes " + k + ', which is not an item'));
+    });
+  }),
+
+  () => tryRun('DEEPSEAM-4: the Forge Verdite Platebody tile is DISABLED at Smithing 49 and LIVE at 50 — the client half of hr_apply activity_locked', () => {
+    const snap = snapshotG();
+    const G = window.G, I = window.ITEMS;
+    try {
+      const rec = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'forge_verdite_platebody');
+      assert(rec && rec.req === 50, 'forge_verdite_platebody must be the Smithing 50 rung, got ' + JSON.stringify(rec));
+      G.inventory = { verdite_bar: 20, flux_salt: 10 };
+      /* The WHOLE button: `disabled` sits BEFORE the onclick carrying the id. */
+      const cell = (html) => {
+        const at = html.indexOf('forge_verdite_platebody');
+        assert(at > 0, 'the smithing bench rendered no forge_verdite_platebody tile at all');
+        return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
+      };
+      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req - 1) });
+      const below = cell(window.renderArtisanActivities('smithing'));
+      assert(/disabled/.test(below), 'at Smithing ' + (rec.req - 1) + ' the ' + rec.req + ' rung must render DISABLED');
+      assert(below.indexOf('Lv ' + rec.req) >= 0, 'the locked tile must name the level it needs (Lv ' + rec.req + ')');
+      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req) });
+      const live = cell(window.renderArtisanActivities('smithing'));
+      assert(!/disabled/.test(live), 'at Smithing ' + rec.req + ', holding bars, the rung must be LIVE: ' + live.slice(0, 200));
+      assert(live.indexOf(I.verdite_platebody.n) >= 0, 'the live tile must name what it makes, ' + I.verdite_platebody.n);
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('DEEPSEAM-5: every Deep Seam rung is SELF-SUPPLYING, and the shipped rungs that are not are frozen at 57', () => {
+    const R = window.ARTISAN_RECIPES;
+    const inputsOf = window.HearthriseCore.artisan.recipeInputs;
+    /* The cheapest level at which each item can be MADE. */
+    const madeAt = {};
+    Object.keys(R).forEach((sk) => (R[sk] || []).forEach((r) => {
+      if (!r || !r.output) return;
+      if (madeAt[r.output] === undefined || r.req < madeAt[r.output]) madeAt[r.output] = r.req;
+    }));
+    const ghosts = [];
+    Object.keys(R).forEach((sk) => (R[sk] || []).forEach((r) => {
+      if (!r) return;
+      Object.keys(inputsOf(r)).forEach((k) => {
+        if (madeAt[k] !== undefined && madeAt[k] > r.req) ghosts.push(sk + '/' + r.id + '@' + r.req + ' needs ' + k + '@' + madeAt[k]);
+      });
+    }));
+    /* THE NEW ROWS CARRY THE PROPERTY. This is the assertion the batch owns:
+       verdite_bar smelts at 42 and every forge that eats it sits at 45+. */
+    const mine = ghosts.filter((g) => /verdite|heartgarnet/.test(g));
+    assert(mine.length === 0, 'a Deep Seam rung asks for a material its own level cannot make: ' + mine.join(', '));
+    /* AND THE CLASS IS FROZEN. 57 shipped rungs (34 of them smithing) require a
+       material their own level cannot make — steel_gauntlets 31 vs the steel bar
+       at 35, twelve mithril rungs 46-54 vs the mithril bar at 55, the same at
+       rune/ember/dawn plus the arrow and jewellery lanes. They are NOT
+       unobtainable (those bars are also shop stock and monster drops), so this
+       is not a red build; what is broken is SELF-SUPPLY, which is the thing the
+       smithing screen teaches. Re-cutting the generated curve is a balance
+       program with an economy review (filed in DISCOVERIES). Until then the
+       count is a RATCHET: it may shrink, never grow. Lower this number when you
+       fix some — never raise it. */
+    const FROZEN = 57;
+    assert(ghosts.length <= FROZEN, 'the self-supply ratchet grew to ' + ghosts.length + ' (frozen at ' + FROZEN
+      + ') — a new rung asks for a material its own level cannot make: ' + ghosts.slice(0, 6).join(' | '));
+    assert(ghosts.length >= 1, 'the ratchet measured ZERO — either the class was fixed (lower FROZEN to 0 and say so) or this guard stopped reading the recipe table');
+  }),
+
+  () => tryRun('DEEPSEAM-6: the client wield gate refuses the Verdite Platebody at Defence 37 and equips it at 38', () => {
+    const snap = snapshotG();
+    const G = window.G;
+    try {
+      assert(typeof window.canWield === 'function' && typeof window.equipItem === 'function', 'canWield/equipItem are unpublished — the client half of the wield gate would pass vacuously');
+      G.inventory = { verdite_platebody: 1 };
+      G.equipment = Object.assign({}, G.equipment, { body: null });
+      G.skills = Object.assign({}, G.skills, { defense: window.xpForLevel(37) });
+      const no = window.canWield('verdite_platebody');
+      assert(no.ok === false && no.req && no.req.skill === 'defense' && no.req.lv === 38,
+        'at Defence 37 the Verdite Platebody must be refused with defense/38, got ' + JSON.stringify(no));
+      window.equipItem('verdite_platebody');
+      assert(G.equipment.body !== 'verdite_platebody', 'the refused equip still put the platebody on the body slot');
+      assert((G.inventory.verdite_platebody || 0) === 1, 'the refused equip consumed the piece out of the bag');
+      /* ONE level of Defence is the whole difference. */
+      G.skills = Object.assign({}, G.skills, { defense: window.xpForLevel(38) });
+      assert(window.canWield('verdite_platebody').ok === true, 'at Defence 38 the piece must be wieldable — the bridge is unreachable otherwise');
+      window.equipItem('verdite_platebody');
+      assert(G.equipment.body === 'verdite_platebody', 'at Defence 38 the platebody did not equip');
+    } finally { restoreG(snap); }
+  }),
+
   /* ── TOWN-1 — THE COMMON, painted and un-paintable ──────────────────────
      THE HAPPY PATH for the live-world week-1 slice: a fixture town body is
      parked exactly as `hr_town_of` would answer it, Home is drawn, and the

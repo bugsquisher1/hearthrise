@@ -46,7 +46,33 @@ export const ROCKS=[
      and cross-skill 99-parity are anchored to those two). Only the sagging
      middle moved; ms/qty are untouched so the ore faucet and away caps don't
      shift, and time-to-99 stays within 3% of woodcutting. */
+  /* ── "DEEP SEAM" (game-designer ruling, 2026-09-13) ───────────────────────
+     THE HOLE, MEASURED: the smith's ore supply did not change between Mining 15
+     (Iron) and Mining 60 (Mithril). Coal(30) is a reagent, Gold(45) makes
+     jewellery and Rich Coal(52) is more coal — so a player crossing Mining
+     36→56 mined nothing that became ARMOUR, and Smithing sat between Steel(35)
+     and Mithril(55) with no bar to make. Two rungs here are the new metal
+     (VERDITE: a green-black seam ore), one is its flux and one is the gem that
+     caps the band. The node ORDER in this array is the ladder the two standing
+     guards read, so these rows are inserted by `req`, not appended.
+     PACED, NOT EYEBALLED — the guards measure floor(xp × PACE.xp) ÷
+     pacedActionMs(ms), and floor() on a small paced xp makes that series differ
+     from the book one, so both are quoted:
+       GUARD (paced)  coal 2.5000 → 2.5202 → 2.5735 → gold 2.6786 → 2.7138
+                      → rich 2.7861 → 2.8736 → mithril 2.9688   (strictly up)
+       BOOK (xp ÷ ms) coal 10.36 → 10.48 → 10.59 → gold 11.29 → 11.18 …
+     — note the BOOK series is NOT monotone across the gold rung and the PACED
+     one is; the guard reads the paced series, which is the number the player
+     actually earns. Every new req gap is ≤ 6, so none of these owes the
+     full-tier ≥6% margin; what WAS a 15-level gap (30→45) is now three short
+     steps whose product is the same climb. */
+  {id:'verdite_seam',name:'Verdite Seam',icon:'🟢',req:36,xp:65,ms:6200,prod:'verdite_ore',qty:[1,1]},
+  {id:'fluxsalt_pocket',name:'Fluxsalt Pocket',icon:'🧂',req:40,xp:72,ms:6800,prod:'flux_salt',qty:[1,2]},
   {id:'gold_rock',name:'Gold Rock',icon:'🟡',req:45,xp:79,ms:7000,prod:'gold_ore',qty:[1,1]},
+  /* The throughput rung, on the Rich Coal Seam's own pattern: a Verdite
+     platebody eats 5 bars = 10 ore, so the band needs a seam that pays 2-3 a
+     swing or the armour set is a week of single-ore swings. */
+  {id:'deep_verdite_seam',name:'Deep Verdite Seam',icon:'🟢',req:48,xp:85,ms:7600,prod:'verdite_ore',qty:[2,3]},
   /* b245 (Tyler / pacing audit): the COAL CHOKEPOINT. coal_rock opens at Mining
      30 and yields 1 at a flat rate, while every bar past copper eats 1–5 coal and
      the top bars need 4–5 each — so late smithing was gated on level-30 coal
@@ -55,6 +81,10 @@ export const ROCKS=[
      Gold and Mithril so the "every rung strictly better" rule still holds.
      b390: xp 90 → 97 to keep it seated between the retuned Gold and Mithril. */
   {id:'rich_coal_rock',name:'Rich Coal Seam',icon:'⬛',req:52,xp:97,ms:8300,prod:'coal',qty:[2,3]},
+  /* Deep Seam's reward rung. One gem a swing, and the ONE thing the
+     Heartgarnet Maul needs — so the last mining rung before Mithril is the one
+     that finishes the set instead of another pile of stock. */
+  {id:'heartgarnet_geode',name:'Heartgarnet Geode',icon:'🔴',req:56,xp:103,ms:8700,prod:'heartgarnet',qty:[1,1]},
   /* b226: ms 9000 → 8000. At 9s Mithril was a SLOWER xp/sec than Gold Rock
      15 levels below it — unlocking the rung was a punishment. Every rung must
      be strictly better than the one under it; the smoke suite now asserts it.

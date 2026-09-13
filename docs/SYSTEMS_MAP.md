@@ -129,6 +129,43 @@ which reads EVERY migration that seeds the table in apply order — so add the
 rows in a NEW migration, never by editing an applied one. Played end to end by
 `REEDTIDE-1` in the in-page suite.
 
+**Mining (b545 "Deep Seam", 2026-09-13)** — the Mining 15 → 60 ore silence (coal
+is a reagent, Rich Coal is more coal and Gold makes jewellery only, so nothing
+mined between Iron and Mithril became ARMOUR):
+
+| req | node id | name | prod | qty | xp | ms |
+|---|---|---|---|---|---|---|
+| 36 | `verdite_seam` | Verdite Seam | `verdite_ore` | 1 | 65 | 6200 |
+| 40 | `fluxsalt_pocket` | Fluxsalt Pocket | `flux_salt` | 1–2 | 72 | 6800 |
+| 48 | `deep_verdite_seam` | Deep Verdite Seam | `verdite_ore` | 2–3 | 85 | 7600 |
+| 56 | `heartgarnet_geode` | Heartgarnet Geode | `heartgarnet` | 1 | 103 | 8700 |
+
+and their smithing half (`ARTISAN_RECIPES.smithing`) — the Steel(35) → Mithril(55)
+bar silence and the Defence 30 → 45 WIELD hole:
+
+| req | recipe id | inputs | output | wield | xp |
+|---|---|---|---|---|---|
+| 42 | `smelt_verdite` | verdite_ore 2 + flux_salt 1 | `verdite_bar` | — | 95 |
+| 45 | `forge_verdite_helm` | verdite_bar 2 | `verdite_helm` (13 def) | Def 38 | 160 |
+| 46 | `forge_verdite_blade` | verdite_bar 3 + willow_plank 1 | `verdite_blade` (15/12) | Atk 38 | 210 |
+| 47 | `forge_verdite_platelegs` | verdite_bar 4 | `verdite_platelegs` (19 def) | Def 38 | 320 |
+| 50 | `forge_verdite_platebody` | verdite_bar 5 + flux_salt 2 | `verdite_platebody` (28 def) | Def 38 | 400 |
+| 52 | `forge_heartgarnet_maul` | verdite_bar 3 + heartgarnet 1 + willow_plank 2 | `heartgarnet_maul` (11/23) | Atk 42 | 480 |
+
+⚠ **A NEW EQUIPPABLE IS THREE SERVER FACTS, NOT ONE.** `hr_activities` (the tile
+can be started), `hr_items.req_skill` + `req_lv` (the EQUIP gate hr_apply
+re-checks — a tradeable piece with a NULL gate is the market selling power to a
+level-1 account) and `hr_item_slots` (a piece with no pair cannot be worn at
+all). All three come from `tools/gen-catalogues.mjs`, plus the patch migration
+`2026-09-13-deep-seam.sql`. Played end to end by `DEEPSEAM-1..6`.
+
+⚠ **A BRIDGE TIER IS HAND-AUTHORED, NEVER AN EIGHTH `MATERIAL_TIERS` ROW.** A new
+tier there generates 18 armour pieces × 3 archetype lines + 4 weapon families and
+re-indexes every per-tier stat array in `src/data/gear-tiers.js`. Verdite (and
+the Watchknight's deathsteel before it) is five pieces in `src/data/items.js`
+with explicit `reqSkill`/`reqLv`, each stat, wield level and price strictly
+between its steel and mithril twin — asserted by `DEEPSEAM-3`.
+
 ### 5. Monsters + drops — data
 `src/data/monsters.js` → `MONSTERS`. Drops live inline:
 `drops:[{id, ch}]` (ch = 0..1 chance). Add a drop = add to the array; the id must

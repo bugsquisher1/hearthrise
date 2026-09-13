@@ -40,6 +40,11 @@
 //       `duration_ms`, `remaining_ms` and `scale` each refuse the whole apply as
 //       bad_buff_item/forbidden_key with the queue UNMOVED. Refused, not ignored:
 //       "ignored today" is one careless edit from "read tomorrow".
+//  [3b] A BUFF MUST BE PAID FOR (F3, 2026-09-13-buff-apply-coupling.sql) — a
+//       buff_apply with NO `items[<item>] = -1` in the SAME delta is refused
+//       `buff_not_paid` with the queue and the bag unmoved, and 0 / -2 / +1 / +5
+//       do not pay either. Without it the possession check would live in the Edge
+//       Function, which is the layer that PROPOSES, not the one holding the lock.
 //   [5] AN UNKNOWN OR NON-BUFF ITEM IS REFUSED — including a real item that
 //       carries no buff, a numeric item, a string delta and an array delta.
 //   [6] STACKING IS A MERGE — a second helping EXTENDS the tail (never restarts
@@ -86,6 +91,7 @@ import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 const MIG = '2026-09-13-consumable-buffs.sql';
 const MIG_DENY = '2026-09-13-client-state-buffs-denylist.sql';
 const MIG_CAT = '2026-09-13-item-buffs-catalogue.generated.sql';
+const MIG_PAY = '2026-09-13-buff-apply-coupling.sql';
 const U = '00000000-0000-4000-8000-0000000000b5';
 const J = { kind: 'admin', intent: 'buff-queue:probe' };
 const CAP_MS = 3600000;
@@ -101,6 +107,13 @@ const BLIND = {
   [MIG]: ["  -- (a) THE COLUMN: present, jsonb, NOT NULL, defaulted to '[]'.",
     "  return;  -- §4 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n"
     + "  -- (a) THE COLUMN: present, jsonb, NOT NULL, defaulted to '[]'."],
+  /* The coupling file's \u00a72. Anchored on its FIRST assertion rather than on the
+     `v_apply := replace(pg_get_functiondef(` line, which \u00a70 uses too \u2014 an anchor
+     that matches twice lands the blind in whichever block came first, and
+     bootReplay (correctly) calls that a harness error rather than guessing. */
+  [MIG_PAY]: ["  if strpos(v_apply, 'buff_not_paid') = 0 then",
+    '  return;  -- \u00a72 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
+    + "  if strpos(v_apply, 'buff_not_paid') = 0 then"],
   [MIG_DENY]: ["  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);",
     '  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);"],
@@ -205,6 +218,27 @@ const MUTATIONS = {
     why: "the deny-list gains 'buffsX' instead of 'buffs', so the forgeable client_state shadow copy "
        + 'survives — Security\'s condition silently unmet while the migration reports success',
     pairs: [["    'buffs'$new$);", "    'buffsX'$new$);"]],
+  },
+  payment_gate_off: {
+    file: MIG_PAY,
+    why: 'F3 is disarmed: a buff_apply with NO debit is accepted, so the possession check moves into '
+       + 'the Edge Function — the layer that PROPOSES rather than the one that holds the lock — and a '
+       + 'stale engine buffs a character who owns nothing',
+    /* THE WHOLE CONDITION, not its first arm. Disarming one arm of an OR chain
+       leaves the others refusing, so the first attempt at this mutation stayed
+       green for the right reason and the wrong proof (MEASURED). */
+    pairs: [[[
+      "      if coalesce(jsonb_typeof(p_delta->'items'), '') <> 'object'",
+      "         or coalesce(jsonb_typeof(p_delta->'items'->v_buff_item), '') <> 'number'",
+      "         or (p_delta->'items'->>v_buff_item)::numeric <> -1 then",
+    ].join('\n'), '      if false then']],
+  },
+  payment_accepts_any_quantity: {
+    file: MIG_PAY,
+    why: 'the debit stops having to be exactly -1, so a CREDIT of the food pays for the buff — eat the '
+       + 'pie, keep the pie, and gain one more',
+    pairs: [["         or (p_delta->'items'->>v_buff_item)::numeric <> -1 then",
+      "         or false then"]],
   },
   catalogue_drift: {
     file: MIG_CAT,
@@ -341,6 +375,22 @@ async function run(mutate, blind) {
     } finally { await db.exec('reset role'); }
   };
   const newKey = async () => (await db.query('select gen_random_uuid() as k')).rows[0].k;
+  /* ── THE PAID FORM (F3, 2026-09-13-buff-apply-coupling.sql) ──────────────
+     A buff_apply is refused `buff_not_paid` unless the SAME delta spends exactly
+     one of the item, because the `items` block IS the possession check (it locks
+     the inventory row and refuses insufficient_item). So every honest consume in
+     this guard sends the debit, and the fixture stocks the bag. `extra` is where
+     the forgery arms add the key they are forging. */
+  const eat = async (item, extra) => apply({
+    buff_apply: Object.assign({ item }, extra || {}),
+    items: { [item]: -1 },
+    journal: J,
+  }, await newKey());
+  const stock = async (item, qty) => {
+    await db.exec(`insert into public.player_inventory (user_id, slot, item_id, qty)
+      values ('${U}', 0, '${item}', ${qty})
+      on conflict (user_id, slot, item_id) do update set qty = ${qty}`);
+  };
   const envelope = async () => {
     await db.exec('set role hr_engine');
     try { return (await db.query('select public.hr_state_of($1::uuid, 0) as e', [U])).rows[0].e; }
@@ -361,9 +411,37 @@ async function run(mutate, blind) {
     [pick && pick.type, pick && pick.magnitude])).rows[0];
   if (!pick || !other) throw harness('the catalogue does not carry two distinct buff types — every '
     + 'stacking assertion below would be vacuous');
+  /* 400 of each: the cap loop below eats until it is refused, and a bag that ran
+     dry mid-loop would report `insufficient_item` where the assertion expects
+     `buff_at_max` — a fixture failure wearing a finding's clothes. */
+  for (const it of [pick, other, stronger]) if (it) await stock(it.item_id, 400);
+  const held = async (item) => Number(((await db.query(
+    'select qty from public.player_inventory where user_id = $1 and slot = 0 and item_id = $2',
+    [U, item])).rows[0] || { qty: 0 }).qty);
 
   // ── [3] THE SERVER STAMPS THE CLOCK ──────────────────────────────────────
-  const r3 = await apply({ buff_apply: { item: pick.item_id }, journal: J }, await newKey());
+  /* ── [3b] F3: A BUFF MUST BE PAID FOR, IN THE SAME DELTA ────────────────
+     Taken FIRST because it is the contract every arm below now obeys. The bare
+     form — the one a stale or compromised engine would post — must be refused
+     with nothing written, and the wrong quantities must not pay either. */
+  const heldBefore = await held(pick.item_id);
+  const r3a = await apply({ buff_apply: { item: pick.item_id }, journal: J }, await newKey());
+  ok(!!r3a && r3a.ok === false && r3a.error === 'buff_not_paid',
+    `[3b] a buff_apply with NO debit was not refused as buff_not_paid — got `
+    + `${JSON.stringify(r3a).slice(0, 140)}. The possession check would then live in the Edge `
+    + 'Function, which is the layer that PROPOSES, not the one that holds the lock.');
+  ok(((await queue()) || []).length === 0, '[3b] the unpaid apply still wrote the queue');
+  ok((await held(pick.item_id)) === heldBefore, '[3b] the unpaid apply moved the inventory');
+  for (const q of [0, -2, 1, 5]) {
+    const r = await apply({ buff_apply: { item: pick.item_id },
+      items: { [pick.item_id]: q }, journal: J }, await newKey());
+    ok(!!r && r.ok === false && r.error === 'buff_not_paid',
+      `[3b] items[${pick.item_id}] = ${q} was accepted as payment for a buff — a buff is ONE serving `
+      + `and a credit is not a cost: ${JSON.stringify(r).slice(0, 120)}`);
+  }
+  ok((await held(pick.item_id)) === heldBefore, '[3b] a wrong-quantity apply moved the inventory');
+
+  const r3 = await eat(pick.item_id);
   ok(r3 && r3.ok === true, `[3] an honest buff_apply was refused: ${JSON.stringify(r3).slice(0, 160)}`);
   let q = await queue();
   ok(Array.isArray(q) && q.length === 1, `[3] the queue holds ${q && q.length} entries after one apply (want 1)`);
@@ -371,6 +449,8 @@ async function run(mutate, blind) {
   ok(e3.type === pick.type, `[3] the stored type is ${e3.type}, catalogue says ${pick.type}`);
   ok(Number(e3.magnitude) === Number(pick.magnitude),
     `[3] the stored magnitude is ${e3.magnitude}, catalogue says ${pick.magnitude}`);
+  ok((await held(pick.item_id)) === heldBefore - 1,
+    `[3b] the PAID form did not spend exactly one (${await held(pick.item_id)} vs ${heldBefore - 1})`);
   const skew = (await db.query('select extract(epoch from (($1::timestamptz) - now())) * 1000 as ms',
     [e3.until])).rows[0].ms;
   ok(Math.abs(Number(skew) - Number(pick.duration_ms)) < 5000,
@@ -379,16 +459,16 @@ async function run(mutate, blind) {
 
   // ── [4] A FORGED FIELD IS REFUSED BY NAME ────────────────────────────────
   const forgeries = [
-    ['until', { item: pick.item_id, until: '2099-01-01T00:00:00Z' }],
-    ['magnitude', { item: pick.item_id, magnitude: 9999 }],
-    ['type', { item: pick.item_id, type: 'damage' }],
-    ['duration_ms', { item: pick.item_id, duration_ms: 86400000 }],
-    ['remaining_ms', { item: pick.item_id, remaining_ms: 9e9 }],
-    ['scale', { item: pick.item_id, scale: 1000 }],
+    ['until', { until: '2099-01-01T00:00:00Z' }],
+    ['magnitude', { magnitude: 9999 }],
+    ['type', { type: 'damage' }],
+    ['duration_ms', { duration_ms: 86400000 }],
+    ['remaining_ms', { remaining_ms: 9e9 }],
+    ['scale', { scale: 1000 }],
   ];
   const q4 = JSON.stringify(await queue());
   for (const [name, body] of forgeries) {
-    const r = await apply({ buff_apply: body, journal: J }, await newKey());
+    const r = await eat(pick.item_id, body);
     ok(!!r && r.ok === false && r.error === 'bad_buff_item' && r.why === 'forbidden_key',
       `[4] a buff_apply carrying a forged '${name}' was not refused as bad_buff_item/forbidden_key — `
       + `got ${JSON.stringify(r).slice(0, 140)}`);
@@ -409,9 +489,13 @@ async function run(mutate, blind) {
     ['a bare string', 'fishers_pie'],
     ['an array', []],
   ]) {
+    /* NO debit here, and that is the point: `bad_buff_item` must win over
+       `buff_not_paid`, because "there is no buff for that item" is the more
+       specific truth and the one a client can act on. */
     const r = await apply({ buff_apply: body, journal: J }, await newKey());
     ok(!!r && r.ok === false && r.error === 'bad_buff_item',
-      `[5] ${label} was not refused as bad_buff_item — got ${JSON.stringify(r).slice(0, 140)}`);
+      `[5] ${label} was not refused as bad_buff_item (the catalogue check must be ORDERED before the `
+      + `payment check) — got ${JSON.stringify(r).slice(0, 140)}`);
   }
 
   // ── [6] STACKING IS A MERGE ──────────────────────────────────────────────
@@ -422,7 +506,7 @@ async function run(mutate, blind) {
   const entry = async (type) => ((await queue()) || []).find((x) => x && x.type === type) || {};
   const until1 = ((await queue()) || [])[0] && ((await queue()) || [])[0].until;
   ok(!!until1, '[6] the queue is empty before the stacking arms — the fixture cannot measure a merge');
-  const r6a = await apply({ buff_apply: { item: pick.item_id }, journal: J }, await newKey());
+  const r6a = await eat(pick.item_id);
   ok(r6a && r6a.ok === true, `[6] a second helping was refused: ${JSON.stringify(r6a).slice(0, 120)}`);
   q = await queue();
   ok(q.length === 1, `[6] a second helping of the SAME type made ${q.length} rows — the merge is an append`);
@@ -432,18 +516,18 @@ async function run(mutate, blind) {
   ok(Number(laterMs) > 1000,
     `[6] a second helping did not EXTEND the tail (moved ${Math.round(Number(laterMs))} ms) — the minutes `
     + 'already paid for were thrown away');
-  const r6b = await apply({ buff_apply: { item: other.item_id }, journal: J }, await newKey());
+  const r6b = await eat(other.item_id);
   ok(r6b && r6b.ok === true, `[6] a DIFFERENT type was refused: ${JSON.stringify(r6b).slice(0, 120)}`);
   q = await queue();
   ok(q.length === 2 && q.some((x) => x.type === pick.type) && q.some((x) => x.type === other.type),
     `[6] a different buff type did not JOIN the queue (now ${JSON.stringify(q).slice(0, 160)}) — eating a `
     + 'second dish must never delete the one you were running');
   if (stronger) {
-    await apply({ buff_apply: { item: stronger.item_id }, journal: J }, await newKey());
+    await eat(stronger.item_id);
     const cur = await entry(pick.type);
     ok(Number(cur.magnitude) === Number(stronger.magnitude),
       `[6] a stronger dish left the magnitude at ${cur.magnitude} (want ${stronger.magnitude}) — max(old,new)`);
-    await apply({ buff_apply: { item: pick.item_id }, journal: J }, await newKey());
+    await eat(pick.item_id);
     const cur2 = await entry(pick.type);
     ok(Number(cur2.magnitude) === Number(stronger.magnitude),
       `[6] a WEAKER dish diluted the magnitude to ${cur2.magnitude} (want ${stronger.magnitude}) — a Roasted `
@@ -452,13 +536,17 @@ async function run(mutate, blind) {
 
   // ── [8] IDEMPOTENCY (before the cap loop consumes the room) ──────────────
   const key8 = await newKey();
-  await apply({ buff_apply: { item: other.item_id }, journal: J }, key8);
+  const paid8 = { buff_apply: { item: other.item_id }, items: { [other.item_id]: -1 }, journal: J };
+  await apply(paid8, key8);
   const until8 = (await entry(other.type)).until;
-  const r8 = await apply({ buff_apply: { item: other.item_id }, journal: J }, key8);
+  const held8 = await held(other.item_id);
+  const r8 = await apply(paid8, key8);
   ok(!!r8 && r8.replayed === true,
     `[8] a repeated intent_id was not answered as a REPLAY: ${JSON.stringify(r8).slice(0, 140)}`);
   ok((await entry(other.type)).until === until8,
     '[8] a REPLAYED intent extended the buff — the same eaten pie was paid twice');
+  ok((await held(other.item_id)) === held8,
+    '[8] a REPLAYED intent debited the food a SECOND time');
 
   // ── [7] THE CAP AND buff_at_max ──────────────────────────────────────────
   let refusal = null;
@@ -466,7 +554,8 @@ async function run(mutate, blind) {
   let goldBefore = null;
   for (let i = 0; i < 200; i += 1) {
     goldBefore = await gold();
-    const r = await apply({ buff_apply: { item: pick.item_id }, gold: -1, journal: J }, await newKey());
+    const r = await apply({ buff_apply: { item: pick.item_id }, items: { [pick.item_id]: -1 },
+      gold: -1, journal: J }, await newKey());
     if (r && r.ok === true) {
       lastUntil = (await entry(pick.type)).until;
       if (!lastUntil) { ok(false, '[7] a successful consume left no entry of its own type in the queue'); break; }
@@ -510,7 +599,7 @@ async function run(mutate, blind) {
       where user_id = '${U}' and slot = 0`);
   };
   await seed(1, `now() + make_interval(secs => ${(CAP_MS - Math.floor(pick.duration_ms / 2)) / 1000})`);
-  const r7b = await apply({ buff_apply: { item: pick.item_id }, journal: J }, await newKey());
+  const r7b = await eat(pick.item_id);
   ok(r7b && r7b.ok === true,
     `[7b] a consume with ${Math.round(pick.duration_ms / 2000)} s of headroom was refused `
     + `(${JSON.stringify(r7b).slice(0, 140)}) — a PARTIAL clamp must still buy the minutes that fit`);
@@ -529,12 +618,12 @@ async function run(mutate, blind) {
      are seeded instead: a weaker running buff must be RAISED to the new one, and
      a stronger running buff must NOT be diluted by a weaker dish. */
   await seed(Math.max(1, pick.magnitude / 2), "now() + interval '60 seconds'");
-  await apply({ buff_apply: { item: pick.item_id }, journal: J }, await newKey());
+  await eat(pick.item_id);
   ok(Number((await entry(pick.type)).magnitude) === Number(pick.magnitude),
     `[6b] a WEAKER running buff was not raised to the new magnitude `
     + `(${(await entry(pick.type)).magnitude} vs ${pick.magnitude})`);
   await seed(pick.magnitude + 5, "now() + interval '60 seconds'");
-  await apply({ buff_apply: { item: pick.item_id }, journal: J }, await newKey());
+  await eat(pick.item_id);
   ok(Number((await entry(pick.type)).magnitude) === Number(pick.magnitude) + 5,
     `[6b] a STRONGER running buff was DILUTED to ${(await entry(pick.type)).magnitude} by a weaker dish `
     + `(want ${pick.magnitude + 5}) — magnitude is max(old,new), never a replace`);

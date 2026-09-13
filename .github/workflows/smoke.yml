@@ -319,6 +319,32 @@ jobs:
           node tests/schema-drift.mjs --mutate
           node tests/schema-drift.mjs --live-selftest
 
+      # ...AND DO THE ROWS THE REBUILD PRODUCES MATCH src/data?
+      # schema-drift proves the SCHEMA replays. This is the CONTENT half, and it
+      # exists because of Security finding F2 (2026-09-13, Deep Seam review):
+      # several migrations hand-restate hr_items / hr_item_slots / hr_activities
+      # rows that src/data/*.js already owns and tools/gen-catalogues.mjs already
+      # generates. `gen-catalogues --check` compares the GENERATED file to a fresh
+      # generation and is blind to those restatements — so a rebalance of
+      # ITEMS.verdite_bar.v leaves the generated catalogue correct, --check green,
+      # and a LAST-in-chain `on conflict do update` quietly reverting a tradeable
+      # item's price on every replay or re-apply.
+      #
+      # The property asserted is the only one indifferent to which file holds the
+      # stale copy: replay the whole chain, then compare the rows the database
+      # ENDS UP WITH to the rows src/data produces, field by field.
+      #
+      # --selftest plants four defects and demands each is caught: a price literal
+      # stale in a migration only, ITEMS re-valued in src/data only, a slot pair
+      # dropped from a seeding migration, and an activity authored in src/data
+      # with no migration behind it.
+      # No credentials; production untouched.
+      - name: Catalogue literal drift — the chain end must equal src/data
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catalogue-literal-drift.mjs
+          node tests/catalogue-literal-drift.mjs --selftest
+
       # ...AND DOES PRODUCTION CARRY THE BODIES THE REPO BELIEVES IT CARRIES?
       # schema-drift fingerprints SIGNATURES; its own header names function
       # BODIES as blind spot (C). On 2026-08-30 the renown-faucet migration ran

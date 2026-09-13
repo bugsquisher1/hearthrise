@@ -46,12 +46,9 @@ const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
 // ── 1. Read the single source of truth ───────────────────────────────────
-const { ITEMS, isAutoEatable } = await imp('src/data/items.js');
+const { ITEMS } = await imp('src/data/items.js');
 const { SKILLS_DEF } = await imp('src/data/skills.js');
-const { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, expandItemSlot }
-  = await imp('src/data/gathering.js');
-const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
-const { MONSTERS } = await imp('src/data/monsters.js');
+const { CROPS, EQUIP_SLOTS } = await imp('src/data/gathering.js');
 // b338 — what a brand new character owns. See src/data/start-kit.js for why
 // this is data rather than a literal inside hr_create_character().
 const { START_CURRENCY, START_SKILL_XP, START_INVENTORY, START_EQUIPMENT }
@@ -65,38 +62,13 @@ const { START_CURRENCY, START_SKILL_XP, START_INVENTORY, START_EQUIPMENT }
 // EQUIP_SLOTS, because the equip intent became a SECOND consumer of it and a
 // generator-private copy would have been re-typed into the Edge Function.
 
-const itemIds = Object.keys(ITEMS).sort();
-const items = itemIds.map((id) => {
-  const it = ITEMS[id] || {};
-  return {
-    item_id: id,
-    name: String(it.n ?? id),
-    // `bop` = bind-on-pickup = untradeable. Absence means tradeable.
-    tradeable: !it.bop,
-    kind: it.type ?? null,
-    value: Number.isFinite(it.v) ? Math.trunc(it.v) : 0,
-    req_skill: it.reqSkill ?? null,
-    req_lv: Number.isFinite(it.reqLv) ? Math.trunc(it.reqLv) : null,
-    heals: Number.isFinite(it.heals) ? Math.trunc(it.heals) : null,
-    /* AUTO-EATABLE — `foodClassOf(it) === 'healing'`, straight out of
-       src/data/items.js. It cannot be derived in SQL from `heals` alone: a
-       Feast or a Draught (`foodClass: 'buff'`) heals too, and auto-eat must
-       never burn one (b220 — "auto-eat burning a Void Banquet to soak one wolf
-       hit is the failure this rule exists to prevent"). Without this column
-       hr_set_auto_eat would accept a Void Banquet as a nominated food, store
-       it, and then the engine would silently ignore it — a UI that says one
-       thing while the engine does another, which is the b341 failure class. */
-    auto_eatable: isAutoEatable(it),
-  };
-});
-
-const itemSlots = [];
-for (const id of itemIds) {
-  const raw = ITEMS[id]?.slot;
-  if (!raw) continue;
-  for (const s of expandItemSlot(raw)) itemSlots.push({ item_id: id, equip_slot: s });
-}
-itemSlots.sort((a, b) => (a.item_id + a.equip_slot).localeCompare(b.item_id + b.equip_slot));
+/* The three F2 tables are derived in tools/catalogue-rows.mjs so that
+   tests/catalogue-literal-drift.mjs can import the SAME derivation instead of
+   re-typing it. This file is a script (importing it WRITES the migrations), so
+   the derivation had to move out for a guard to reuse it. Pure move: --check
+   is the byte-for-byte proof. */
+const { deriveCatalogueRows } = await import('./catalogue-rows.mjs');
+const { itemIds, items, itemSlots, activities } = await deriveCatalogueRows();
 
 const equipSlots = EQUIP_SLOTS.map((s, i) => ({ equip_slot: s, ord: i }));
 
@@ -125,56 +97,6 @@ const crops = Object.keys(CROPS).sort().map((id) => ({
 
 // Activities: every id `player_state.active_id` may legally hold, with the
 // skill gate the server re-checks. Combat "activities" are monsters.
-const activities = [];
-//
-// `max_hp` is the MONSTER'S HIT POINTS, and it is null for every non-combat
-// row. It exists because Phase 0 of docs/design/live-settlement.md carries an
-// in-flight fight across accrual windows as `player_state.fight`, and hr_apply
-// has to RE-DERIVE the ceiling that fight's HP must lie under rather than trust
-// the number the Edge Function proposed. Before this column the server held no
-// monster HP anywhere — there is no hr_monsters table — so the re-clamp the
-// spec asks for was not expressible in SQL at all.
-// GENERATED from src/data/monsters.js, never retyped: a hand-copied HP table is
-// exactly the data double-copy this repo has been burned by, and here the copy
-// would be the CLAMP, so drift would silently widen or narrow it.
-const pushNodes = (arr, skill) => {
-  for (const n of arr) activities.push({
-    kind: 'gather', activity_id: n.id, req_skill: skill, req_lv: Math.trunc(n.req ?? 1),
-    max_hp: null, is_boss: false,
-  });
-};
-pushNodes(TREES, 'woodcutting');
-pushNodes(ROCKS, 'mining');
-pushNodes(FISH_SPOTS, 'fishing');
-for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) {
-  for (const r of list) activities.push({
-    kind: 'artisan', activity_id: r.id, req_skill: skill, req_lv: Math.trunc(r.req ?? 1),
-    max_hp: null, is_boss: false,
-  });
-}
-for (const id of Object.keys(MONSTERS).sort()) {
-  const hp = Math.trunc(Number(MONSTERS[id].hp));
-  /* FAIL THE GENERATOR, not the migration. A monster with no positive HP would
-     emit a null ceiling, and a null ceiling makes hr_apply's fight clamp
-     vacuous for that id — the clamp would still be there, still run, and still
-     admit anything. An unauthored number that disables a control is worse than
-     an absent control, so it is a build failure here. */
-  if (!Number.isFinite(hp) || hp <= 0) {
-    throw new Error(`monster '${id}' has hp ${JSON.stringify(MONSTERS[id].hp)} — every combat `
-      + 'activity must carry a positive max_hp, because hr_apply clamps a carried fight against it');
-  }
-  /* is_boss — the ONLY server source of "which monster is a boss", generated
-     from src/data/monsters.js so the renown `bossKill` term (5 renown per boss
-     felled, src/features/renown.js W.bossKill) can be derived from the Slice 1
-     `ev:kill_monster:<id>` population WITHOUT a hand-typed boss list in SQL.
-     A hand-typed list would be exactly the data double-copy this generator
-     exists to prevent, and it would be the CLAMP on a rankable surface, so
-     drift would silently mis-score renown. `hr_renown_of` joins the bestiary
-     rows against `hr_activities where is_boss`. */
-  activities.push({ kind: 'combat', activity_id: id, req_skill: null, req_lv: null,
-    max_hp: hp, is_boss: MONSTERS[id].boss === true });
-}
-activities.sort((a, b) => (a.kind + a.activity_id).localeCompare(b.kind + b.activity_id));
 
 // ── 2b. THE STARTING KIT (b338) ──────────────────────────────────────────
 // hr_create_character() used to carry the starting state as literals in

@@ -11,17 +11,26 @@
 -- client-callable at 4/min, so at scale "everybody toggles" is a ~50× increase in
 -- scans over the 2,400/day the cron job costs. One zone-level cooldown caps it.
 --
--- ── THE TRADE, NAMED, BECAUSE IT PARTLY WALKS BACK P3 ──────────────────────
--- A coalesced rebuild means the opt-out is NOT applied in the same call: a player
--- who opts out within 3 seconds of the last rebuild stays visible until the next
--- one. So the P3 guarantee changes from "gone from the very next read" to "gone
--- within 3 seconds, bounded, never waiting on cron". That is still two orders of
--- magnitude better than what P3 found (up to 25 s, and forever if cron is down),
--- and a GUC-based exemption for the quiet path was REJECTED because it would
--- exempt precisely the caller whose volume the cooldown exists to bound — i.e. it
--- would have been a cooldown that coalesces only cron against cron, which never
--- overlaps anyway (25 s apart). ⚠ Security should confirm they accept the 3-second
--- bound; it is their own P3 that moves.
+-- ── THE TRADE — AND THE CORRECTION (Security, 2026-09-13) ──────────────────
+-- ⚠ AN EARLIER REVISION OF THIS HEADER SAID the opt-out was "gone within 3
+--   seconds, bounded, never waiting on cron". THAT WAS WRONG, and wrong in the
+--   direction that matters: the cooldown SKIPS the rebuild, it does not DEFER it.
+--   Nothing re-runs 3 seconds later. A player who opts out within 3 s of a real
+--   build therefore stays visible until the NEXT CRON BUILD — 25 s, or 60 s on
+--   the fallback schedule — which is precisely the P3 finding this lane closed.
+--   "3-second bound" described a timer that does not exist.
+--
+--   Security REFUSED that trade, correctly. The fix is NOT to drop the cooldown
+--   (the ~50x scan amplification is real) but to make the coalesced branch do the
+--   cheap thing instead of nothing: 2026-09-13-town-quiet-prune.sql PRUNES the
+--   caller out of the cached payload — an O(60) jsonb rewrite of one row, no
+--   player_state scan at all — so the opt-out lands on the very next read on BOTH
+--   branches. Read that file with this one; alone, this file leaves the gap above.
+--
+-- A GUC-based exemption for the quiet path was also rejected, for its own reason:
+-- it would exempt precisely the caller whose volume the cooldown exists to bound,
+-- leaving a cooldown that coalesces only cron against cron — which never overlaps
+-- anyway at 25 s apart.
 --
 -- So the ANSWER STAYS HONEST: hr_set_presence_quiet's `snapshot_refreshed` now
 -- reports whether the rebuild actually happened, instead of always true. A client

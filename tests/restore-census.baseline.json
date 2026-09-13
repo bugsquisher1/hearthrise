@@ -888,6 +888,11 @@
    "class": "operational",
    "note": "Sampled hr_apply rejections, pruned nightly by hr-rejections-prune. 128 rows. Anomaly-detection history only: it records that a call was refused, never that anyone was owed anything."
   },
+  "hr_room_perks": {
+   "class": "seeded",
+   "replay": 40,
+   "note": "Generated catalogue (2026-09-13-room-perks-catalogue.generated.sql, tools/gen-catalogues.mjs --check) holding room_id + level -> the rung's whole perk payload for all 8 rooms x 5 rungs, from src/data/perks.js (itself generated from the ROOMS table in src/legacy.js). hr_apply reads ONE key from it — the Cellar's buffDuration — inside the character lock, to scale how long a consumable buff runs (2026-09-13-buff-cellar-scale.sql). Holds NOTHING per player: which rung a character owns lives in player_progress ('room:cellar', kind 'unlock'), and that row is restore_only like every other player value. So a rebuild is the whole truth here and a restore must NOT carry this table — but it must not come back EMPTY either: an empty catalogue is not an outage, it is a SILENT NERF (every buff would be stamped at scale 1.0 and every Cellar a player paid up to 320,000 gold for would quietly pay nothing), which is exactly why the migration's section 0 refuses to install without a cellar rung in it and the file's own self-check asserts the ladder is contiguous."
+  },
   "hr_runes": {
    "class": "seeded",
    "replay": 3,

@@ -179,8 +179,17 @@ $anc$  c_buff_scale  constant numeric := 1;         -- the BASE multiplier, befo
   v_buff_rung   int;
   v_buff_bonus  numeric;
   v_buff_scale  numeric;$anc$;
-  -- (2) the minimum-gain fuse: it must be measured against the SCALED duration,
-  --     or a Deep Cellar would be refused on a window it could in fact fill.
+  -- (2) the minimum-gain fuse, measured against the SCALED duration — and the
+  --     direction is the opposite of what an earlier draft of this line claimed
+  --     (Security, 2026-09-13). need = duration x scale x 0.10 is LARGER under a
+  --     rung, so a Deep Cellar owner is refused buff_at_max EARLIER as the queue
+  --     approaches the 60-minute ceiling, not later. That is the intent: the fuse
+  --     is "a consume must buy a meaningful share of what it promises", and a
+  --     Deep Cellar is promised twice as much, so the threshold has to scale with
+  --     the promise or the refusal would mean something different for two players
+  --     eating the same pie. The cost of the earlier refusal is nothing — the food
+  --     is NOT spent — and the alternative (an unscaled need) would let a perked
+  --     player pay a whole Feast for 90 seconds of tail.
   c_a2 constant text :=
 $anc$      v_buff_gain := greatest(0, floor(extract(epoch from (v_buff_cap - v_buff_base)) * 1000))::bigint;
       v_buff_need := ceil((v_buff_dur * c_buff_scale) * c_buff_min_gain_frac)::bigint;$anc$;

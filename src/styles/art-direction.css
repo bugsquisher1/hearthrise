@@ -2359,6 +2359,34 @@ body[data-theme] .brand-word {
     min-height: 30px !important;
   }
 
+  /* The STANDING kept-classes row (src/features/loot-filter.js) is chrome too,
+   * and it arrived in the bag's left column WITHOUT this treatment: eleven
+   * word-labelled chips with `flex-wrap: wrap` over a 423px-tall screen WRAPPED,
+   * and every wrapped rank came straight out of the item grid's window — measured
+   * at 922x423, chrome went from 26% of the panel to 55% and the bag fell under
+   * half, which is the exact shape of paione bug #24 returning (b327 caught it).
+   * Same answer as the category strip above, for the same reason, and it is the
+   * one that SCALES: one rank that scrolls sideways costs ~30px whether the game
+   * has ten item classes or thirty, where a wrapping row buys a new rank every
+   * few rows added to `CATEGORIES`. `flex: 0 0 auto` because the bag below
+   * carries `flex: 1` and would otherwise shear this strip instead of scrolling. */
+  body[data-theme] #panel-inventory .invc-lootfilter {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 4px;
+    scrollbar-width: none;
+  }
+  body[data-theme] #panel-inventory .invc-lootfilter::-webkit-scrollbar { height: 0; }
+  /* Neither the label nor a chip may be squeezed to nothing inside that rank. */
+  body[data-theme] #panel-inventory .invc-lf-label { flex: 0 0 auto; }
+  body[data-theme] #panel-inventory .invc-lf-chip {
+    flex: 0 0 auto;
+    padding: 3px 9px;
+    min-height: 26px;
+    white-space: nowrap;
+  }
+
   /* The bag is the scrolling region, and it is guaranteed a real floor. If the
    * chrome above it ever grows again the PANEL runs out of room before the bag
    * does, which is a visible bug rather than a silent 20px slit. */

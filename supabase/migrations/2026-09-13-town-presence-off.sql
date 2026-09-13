@@ -18,7 +18,19 @@
 --
 -- WHAT IT DOES AND DOES NOT DO. hr_town_of answers {ok:true, off:true} carrying
 -- no data, and hr_town_refresh no-ops (it blanks the snapshot row once and then
--- writes nothing). It does NOT stop hr_heartbeat: last_seen_at keeps being
+-- writes nothing).
+--
+-- ⚠ F3 (Security, 2026-09-13), and it changes NOTHING about the safety of this
+--   switch, which is why it is a note and not a fix: since
+--   2026-09-13-town-refresh-cooldown.sql, a refresh that lands within 3 s of the
+--   last REAL build returns {coalesced:true} and skips its work — including the
+--   blanking of the snapshot row. So immediately after this file is applied the
+--   row may still hold the last real payload until the next cron tick blanks it
+--   (25 s, or 60 s on the fallback). That is harmless by construction: the row is
+--   readable by NO client role, and hr_town_of answers `off` from THE FLAG, not
+--   from the row — it never looks at the payload once the flag is down. The
+--   assertion below reads the ANSWER for exactly this reason, so it stays true on
+--   the coalesced branch. It does NOT stop hr_heartbeat: last_seen_at keeps being
 -- stamped on the caller's own row, which is harmless (nothing reads it while the
 -- flag is down) and means turning the flag back on repopulates the plaza on the
 -- next 25-second tick with no backfill. presence_quiet is untouched, so a

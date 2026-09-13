@@ -37,10 +37,16 @@
 //      accident — and never gold, gems, HP, inventory, slot or user_id;
 //   6. a QUIET character is absent from the peer list AND from the named crier
 //      feed, the toggle journals exactly one ledger row per CHANGE, and the
-//      opt-out is IMMEDIATE — proven on a control that requires the character to
-//      be in the snapshot first, then read WITHOUT a refresh in between, because
-//      the reader cannot re-check quiet (the snapshot stores no user_id) and an
-//      eventually-consistent privacy control fails in the wrong direction;
+//      opt-out lands ON THE VERY NEXT READ DOWN BOTH PATHS — the REBUILD branch
+//      (outside the 3-second zone cooldown) and the COALESCED branch (inside it,
+//      where the writer PRUNES the caller out of the cached payload instead).
+//      Both are driven from a control that requires the character to be in the
+//      snapshot first, and the coalesced one is read WITHOUT a refresh in between.
+//      Security F1 found that branch unmeasured here: every opt-out assertion aged
+//      built_at by 4 s first, so only the rebuild path was ever exercised while the
+//      coalesced one silently waited for cron. The reader cannot re-check quiet at
+//      all (the snapshot stores no user_id, by design), so the writer is the only
+//      place this can be fixed;
 //   7. `away` and `seen_ago_s` are computed at READ time, so a stale snapshot
 //      still tells the truth, and a snapshot the refresher stopped updating shows
 //      NOBODY rather than a room full of ghosts;
@@ -77,6 +83,10 @@ const MIG_ON = '2026-09-13-town-presence-on.sql';
    2026-09-13). It is the LAST toucher of hr_town_refresh AND of
    hr_set_presence_quiet__ungated, so arms against either body live there. */
 const MIG_COOLDOWN = '2026-09-13-town-refresh-cooldown.sql';
+/* The prune: on a COALESCED rebuild the quiet path removes the caller from the
+   cached payload instead of doing nothing (Security F1). It is now the LAST
+   toucher of hr_set_presence_quiet__ungated, so arms against that body live here. */
+const MIG_PRUNE = '2026-09-13-town-quiet-prune.sql';
 const ZONE = 'the_common';
 
 const uidFor = (n) => `000000ac-0000-0000-0000-0000000000${n}`;
@@ -108,6 +118,11 @@ const DISARM_ON = [
   '  return;  -- §3 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
   + '  -- (a) THE FLAG IS ON.',
 ];
+const DISARM_PRUNE = [
+  "  select enabled into v_flag_was from public.hr_flags where key = 'town_presence';",
+  '  return;  -- §2 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
+  + "  select enabled into v_flag_was from public.hr_flags where key = 'town_presence';",
+];
 const DISARM_COOLDOWN = [
   "  select enabled into v_flag_was from public.hr_flags where key = 'town_presence';",
   '  return;  -- §3 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
@@ -122,14 +137,27 @@ const MUTATIONS = {
     pairs: [['       and not coalesce(ps.presence_quiet, false)', '       and true']],
   },
   quiet_not_immediate: {
-    // MOVED to the cooldown file: it is the LAST toucher of this body now, and
-    // planted in MIG the anchor does not even match the installed text any more.
-    file: MIG_COOLDOWN,
+    // MOVED AGAIN — first to the cooldown file, now to the prune file: each
+    // follow-up becomes the last toucher of this body, and an arm planted in an
+    // earlier file is overwritten at chain end and silently no-ops.
+    file: MIG_PRUNE,
     why: 'the writer stops rebuilding the cache when a player opts out, so the opt-out waits for the '
        + 'next cron tick (≤25 s, ≤60 s on the fallback) and NEVER lands if cron is down — an '
        + 'eventually-consistent privacy control (Security P3, 2026-09-12)',
-    pairs: [["    '      v_refreshed := coalesce((public.hr_town_refresh() ->> ''coalesced'')::boolean, false)'",
-             "    '      v_refreshed := false; --'"]],
+    /* The prune file RESTATES this body in full (patch-chain-guard PATCH-3 measured
+       the anchored chain at depth 3 and the rule is restate), so the anchor is
+       plain SQL now instead of a quoted patch fragment. */
+    pairs: [["      v_refreshed := coalesce((public.hr_town_refresh() ->> 'coalesced')::boolean, false) is not true;",
+             '      v_refreshed := false;']],
+  },
+  prune_gone: {
+    // In the PRUNE file: it is the last toucher of hr_set_presence_quiet__ungated.
+    file: MIG_PRUNE,
+    why: 'a COALESCED opt-out stops pruning the caller out of the cached payload, so nothing happens '
+       + 'at all on that branch — the cooldown SKIPS the rebuild rather than deferring it, and the '
+       + 'player sits in the plaza until the next CRON build (25 s / 60 s). Security F1, 2026-09-13: '
+       + 'the P3 finding, reopened',
+    pairs: [["        v_pruned := found;", "        v_pruned := v_pruned;"]],
   },
   cooldown_gone: {
     // Also in the cooldown file — it is the only place the window exists.
@@ -225,6 +253,7 @@ async function boot(mutate) {
     [MIG_JOURNAL, [DISARM_JOURNAL]],
     [MIG_ON, [DISARM_ON]],
     [MIG_COOLDOWN, [DISARM_COOLDOWN]],
+    [MIG_PRUNE, [DISARM_PRUNE]],
   ]);
   if (mutate) {
     const m = MUTATIONS[mutate];
@@ -426,9 +455,35 @@ async function runAll(db) {
     `a rebuild 4 s after the last one goes through (got ${JSON.stringify(rebuilt)}) — the cooldown is `
     + 'a cooldown, not a wall');
 
-  // ...and the opt-out. AGED first, because the rebuild the toggle needs is the one
-  // the cooldown would otherwise coalesce: the guarantee is "within 3 s", and
-  // `snapshot_refreshed` is what tells the client which of the two it got.
+  // ── THE COALESCED OPT-OUT: PRUNED, NOT DEFERRED ───────────────────────────
+  //    Security F1 (2026-09-13) — and the reason it was found by review and not by
+  //    this guard: the cooldown SKIPS the rebuild rather than deferring it, and
+  //    every opt-out assertion here AGED built_at by 4 s first, so the coalesced
+  //    branch was NEVER MEASURED. It is measured first now, UNAGED: the snapshot
+  //    above was rebuilt milliseconds ago, so this toggle is certainly inside the
+  //    window, and the player must still be gone from the VERY NEXT read.
+  const beforeHere = Number((await townOf(db, A)).here);
+  const pruned = await setQuiet(db, B, true);
+  ok(pruned && pruned.snapshot_refreshed === false,
+    `the toggle was COALESCED (got ${JSON.stringify(pruned)}) — otherwise this arm is measuring the `
+    + 'rebuild branch again');
+  ok(pruned && pruned.pruned === true,
+    `the coalesced toggle PRUNED the caller out of the cached payload (got `
+    + `${JSON.stringify(pruned && pruned.pruned)})`);
+  const afterPrune = await townOf(db, A);
+  ok(!afterPrune.peers.some((p) => p.name === 'PlazaBob'),
+    'a COALESCED opt-out is gone from the very next read — nothing re-runs 3 s later, so without the '
+    + 'prune this player would sit in the cache until the next CRON build (25 s / 60 s)');
+  ok(afterPrune.peers.some((p) => p.name === 'PlazaAnn'),
+    'the prune removed the caller and nobody else');
+  ok(Number(afterPrune.here) === beforeHere - 1,
+    `\`here\` fell by exactly one (${beforeHere} -> ${afterPrune.here}) — the crowd count must not `
+    + 'disagree with the list beside it');
+  await setQuiet(db, B, false);   // put PlazaBob back for the arms below
+
+  // ...and the REBUILD branch of the same toggle. AGED, so the cooldown lets the
+  // rebuild through: `snapshot_refreshed` and `pruned` are the two exclusive ways
+  // the opt-out can land, and both must work.
   await db.exec(`update public.town_snapshot set built_at = now() - interval '4 seconds';`);
   const q1 = await setQuiet(db, Q, true);
   ok(q1 && q1.ok === true && q1.quiet === true && q1.changed === true,

@@ -69,6 +69,14 @@ const MIG = '2026-09-13-town-presence.sql';
    mutation proof goes vacuous. Measured: moving flag_ignored was not a choice,
    the arm STAYED GREEN until it moved. */
 const MIG_JOURNAL = '2026-09-13-town-presence-journal.sql';
+/* The file that TURNS THE FEATURE ON at chain end (Tyler, 2026-09-13: The Common
+   ships in the daily, not dark behind the flag). It is also the reason §(1) below
+   drives the flag itself instead of trusting the chain's end state. */
+const MIG_ON = '2026-09-13-town-presence-on.sql';
+/* The 3-second zone cooldown on hr_town_refresh (Security's cost recommendation,
+   2026-09-13). It is the LAST toucher of hr_town_refresh AND of
+   hr_set_presence_quiet__ungated, so arms against either body live there. */
+const MIG_COOLDOWN = '2026-09-13-town-refresh-cooldown.sql';
 const ZONE = 'the_common';
 
 const uidFor = (n) => `000000ac-0000-0000-0000-0000000000${n}`;
@@ -85,6 +93,26 @@ const DISARM_GATE = [
   '  return;  -- §13 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
   + '  -- (a) THE OBJECTS EXIST, and the flag defaults OFF.',
 ];
+/* ...and the same for the two follow-ups' gates. EVERY arm disarms all three:
+   they are three layers over ONE feature, and a defect trips whichever gate runs
+   first, so leaving any of them armed turns this into a proof about whichever
+   migration happened to notice — scored by the driver as a HARNESS error, which
+   is exactly what it did when 2026-09-13-town-presence-on.sql landed. */
+const DISARM_JOURNAL = [
+  "  -- (a) THE INNERS ARE UNTOUCHED, measured against §0b's fingerprint, and they",
+  '  return;  -- §4 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
+  + "  -- (a) THE INNERS ARE UNTOUCHED, measured against §0b's fingerprint, and they",
+];
+const DISARM_ON = [
+  '  -- (a) THE FLAG IS ON.',
+  '  return;  -- §3 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
+  + '  -- (a) THE FLAG IS ON.',
+];
+const DISARM_COOLDOWN = [
+  "  select enabled into v_flag_was from public.hr_flags where key = 'town_presence';",
+  '  return;  -- §3 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
+  + "  select enabled into v_flag_was from public.hr_flags where key = 'town_presence';",
+];
 
 /* ── THE MUTATION CATALOGUE — one real defect each ──────────────────────── */
 const MUTATIONS = {
@@ -94,11 +122,21 @@ const MUTATIONS = {
     pairs: [['       and not coalesce(ps.presence_quiet, false)', '       and true']],
   },
   quiet_not_immediate: {
+    // MOVED to the cooldown file: it is the LAST toucher of this body now, and
+    // planted in MIG the anchor does not even match the installed text any more.
+    file: MIG_COOLDOWN,
     why: 'the writer stops rebuilding the cache when a player opts out, so the opt-out waits for the '
        + 'next cron tick (≤25 s, ≤60 s on the fallback) and NEVER lands if cron is down — an '
        + 'eventually-consistent privacy control (Security P3, 2026-09-12)',
-    pairs: [['      perform public.hr_town_refresh();\n      v_refreshed := true;',
-             '      v_refreshed := false;']],
+    pairs: [["    '      v_refreshed := coalesce((public.hr_town_refresh() ->> ''coalesced'')::boolean, false)'",
+             "    '      v_refreshed := false; --'"]],
+  },
+  cooldown_gone: {
+    // Also in the cooldown file — it is the only place the window exists.
+    file: MIG_COOLDOWN,
+    why: 'the zone cooldown window collapses to 0 s, so every client-callable quiet toggle pays for a '
+       + 'full rebuild again — the ~50x scan amplification Security measured (2026-09-13)',
+    pairs: [["interval ''3 seconds''", "interval ''0 seconds''"]],
   },
   floor_removed: {
     why: 'the 20-second floor is disarmed, so a 240/min heartbeat storm becomes 240 writes/min on the '
@@ -182,7 +220,12 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}
 async function boot(mutate) {
   // MIG's own §13 gate is ALWAYS disarmed (see DISARM_GATE); the arm's defect goes
   // into whichever file is the LAST toucher of the body it targets.
-  const patches = new Map([[MIG, [DISARM_GATE]]]);
+  const patches = new Map([
+    [MIG, [DISARM_GATE]],
+    [MIG_JOURNAL, [DISARM_JOURNAL]],
+    [MIG_ON, [DISARM_ON]],
+    [MIG_COOLDOWN, [DISARM_COOLDOWN]],
+  ]);
   if (mutate) {
     const m = MUTATIONS[mutate];
     const target = m.file || MIG;
@@ -225,6 +268,16 @@ const setQuiet = (db, uid, quiet, slot = 0) =>
 const townOf = (db, uid, zone = ZONE) =>
   asUser(db, uid, 'select public.hr_town_of($1) as r', [zone]).then((r) => r.r);
 
+/** Rebuild the snapshot, unconditionally. 2026-09-13-town-refresh-cooldown.sql
+    COALESCES a rebuild made within 3 s of a real one, and this guard makes half a
+    dozen of them inside a few hundred milliseconds — so the row is AGED first,
+    which is how a time-based rule has to be driven when the clock cannot be moved.
+    The cooldown's OWN behaviour is asserted in its own block below, unaged. */
+async function refresh(db) {
+  await db.exec(`update public.town_snapshot set built_at = now() - interval '4 seconds';`);
+  await db.exec('select public.hr_town_refresh();');
+}
+
 const keysOf = (o) => Object.keys(o).sort().join(', ');
 const PEER_KEYS = ['activity_id', 'activity_kind', 'activity_label', 'away',
   'level_band', 'name', 'seen_ago_s'].sort().join(', ');
@@ -265,13 +318,24 @@ async function runAll(db) {
   await seed(db, S, 'PlazaStorm');
   await seed(db, A, 'PlazaAnn', { slot: 1 });     // a SECOND character of A's account
 
-  // ── (1) THE FLAG IS OFF AT APPLY ─────────────────────────────────────────
+  // ── (1) THE FLAG CLOSES THE SURFACE ──────────────────────────────────────
+  //    THE GUARD SETS ITS OWN PRECONDITION, and that is a change forced by the
+  //    chain: 2026-09-13-town-presence-on.sql turns the flag ON at chain end
+  //    (Tyler's call — The Common ships in the daily, not dark), so a guard that
+  //    assumed "off at apply" was asserting the shipping decision rather than the
+  //    mechanism. The MECHANISM is what is under test here, so the flag is driven
+  //    from both sides explicitly. The `flag_ignored` arm still bites: it deletes
+  //    the check from the body, not the row.
+  //    The snapshot row that file leaves behind is cleared too, so "the cron body
+  //    wrote no real snapshot while off" measures this run and not that one.
+  await db.exec(`update public.hr_flags set enabled = false where key = 'town_presence';`);
+  await db.exec('delete from public.town_snapshot;');
   const offAnswer = await townOf(db, A);
   ok(offAnswer && offAnswer.off === true,
     `with the town_presence flag OFF hr_town_of answers {off:true} (got ${JSON.stringify(offAnswer)})`);
   ok(offAnswer && offAnswer.peers === undefined,
     'the OFF answer carries no peers key at all — it is closed, not empty');
-  await db.exec('select public.hr_town_refresh();');
+  await refresh(db);
   const offSnap = await one(db,
     `select count(*)::int as n from public.town_snapshot
       where zone_id = $1 and coalesce(payload->>'off','') <> 'true'`, [ZONE]);
@@ -337,10 +401,35 @@ async function runAll(db) {
   // the cached payload for up to one refresh interval, and forever if cron is
   // down. Proven with a CONTROL first: build a snapshot while Q is still LOUD and
   // require them IN it, otherwise the probe below passes on an empty plaza.
-  await db.exec('select public.hr_town_refresh();');
+  await refresh(db);
   const loudFirst = await townOf(db, A);
   ok(loudFirst.peers.some((p) => p.name === 'PlazaHush'),
     'the control: a LOUD character IS in the snapshot, so the immediacy probe is not vacuous');
+  // ── THE 3-SECOND ZONE COOLDOWN, both sides ───────────────────────────────
+  //    Security's cost recommendation (2026-09-13): a client-callable verb that
+  //    triggers a scan needs a cap. The cost of THAT is that the opt-out below is
+  //    bounded at 3 s rather than same-call, which is the trade the cooldown file's
+  //    header names — so both halves are measured here, unaged.
+  const coalesced = (await one(db, 'select public.hr_town_refresh() as r')).r;
+  ok(coalesced && coalesced.coalesced === true,
+    `a rebuild inside the 3-second window coalesces (got ${JSON.stringify(coalesced)}) — otherwise a `
+    + 'toggle-spammer pays for a full scan per call');
+  const builtAt = (await one(db,
+    'select built_at from public.town_snapshot where zone_id = $1', [ZONE])).built_at;
+  await db.exec('select public.hr_town_refresh();');
+  ok(String((await one(db, 'select built_at from public.town_snapshot where zone_id = $1',
+    [ZONE])).built_at) === String(builtAt),
+    'the coalesced call wrote nothing — it is a cooldown, not a report');
+  await db.exec(`update public.town_snapshot set built_at = now() - interval '4 seconds';`);
+  const rebuilt = (await one(db, 'select public.hr_town_refresh() as r')).r;
+  ok(rebuilt && rebuilt.coalesced === undefined,
+    `a rebuild 4 s after the last one goes through (got ${JSON.stringify(rebuilt)}) — the cooldown is `
+    + 'a cooldown, not a wall');
+
+  // ...and the opt-out. AGED first, because the rebuild the toggle needs is the one
+  // the cooldown would otherwise coalesce: the guarantee is "within 3 s", and
+  // `snapshot_refreshed` is what tells the client which of the two it got.
+  await db.exec(`update public.town_snapshot set built_at = now() - interval '4 seconds';`);
   const q1 = await setQuiet(db, Q, true);
   ok(q1 && q1.ok === true && q1.quiet === true && q1.changed === true,
     `the quiet toggle takes (got ${JSON.stringify(q1)})`);
@@ -387,7 +476,7 @@ async function runAll(db) {
   await db.exec(`update public.player_state
                     set active_kind = 'gather', active_id = '${act.activity_id}'
                   where user_id = '${A}' and slot = 0;`);
-  await db.exec('select public.hr_town_refresh();');
+  await refresh(db);
 
   // ── (5) THE ALLOWLIST, AND NOTHING ELSE ─────────────────────────────────
   const town = await townOf(db, A);
@@ -446,7 +535,7 @@ async function runAll(db) {
   // ── (10) ONE BODY PER ACCOUNT ───────────────────────────────────────────
   //    A's SECOND character heartbeats too. The plaza must still show ONE PlazaAnn.
   await heartbeat(db, A, 1);
-  await db.exec('select public.hr_town_refresh();');
+  await refresh(db);
   const town2 = await townOf(db, A);
   ok(town2.peers.filter((p) => p.name === 'PlazaAnn').length === 1,
     `a two-character account is ONE body in the plaza (got `
@@ -457,7 +546,7 @@ async function runAll(db) {
   // ── (7) AWAY AND seen_ago_s ARE COMPUTED AT READ TIME ───────────────────
   await db.exec(`update public.player_state set last_seen_at = now() - interval '200 seconds'
                   where user_id = '${B}' and slot = 0;`);
-  await db.exec('select public.hr_town_refresh();');
+  await refresh(db);
   const town3 = await townOf(db, A);
   const bob = town3.peers.find((p) => p.name === 'PlazaBob');
   ok(!!bob, 'a character last seen 200 s ago is still in town (the window is 15 minutes)');
@@ -591,6 +680,7 @@ if (argv.includes('--selftest')) {
     + 'away/seen_ago_s at read time and a stale snapshot shows nobody; the level is a band; an '
     + 'uncatalogued activity_id has no label; one body per account; town_snapshot reachable by no '
     + 'client role; the envelope gained place and carries no peers; bad_zone and the storm refused; '
-    + 'an opt-out is gone from the VERY NEXT read with no refresh in between).');
+    + 'an opt-out is gone from the next read, bounded by the 3-second zone cooldown, which '
+    + 'coalesces a rebuild inside its window and writes nothing while still rebuilding after it).');
   process.exit(0);
 }

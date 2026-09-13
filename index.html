@@ -490,23 +490,18 @@
         <div class="card-body" id="skill-detail"><div class="empty">Pick a skill to train it.</div></div></div>
     </section>
 
-    <!-- ── INVENTORY ── -->
-    <section class="panel" id="panel-inventory">
-      <div class="card layout-2col-a" id="inv-stats-card">
-        <div class="card-head"><div class="card-title">Equipment</div></div>
-        <div class="card-body" id="equip-panel"></div>
-      </div>
-      <div class="card layout-2col-b">
-        <div class="card-head">
-          <div class="card-title">Inventory</div>
-          <div class="chips" style="margin:0">
-            <button class="chip active" data-inv="bag">Bag</button>
-            <button class="chip" data-inv="bank">Bank</button>
-          </div>
-        </div>
-        <div class="card-body" id="inv-panel"></div>
-      </div>
-    </section>
+    <!-- ── INVENTORY ──
+         Deliberately EMPTY. renderInvFancy() (src/legacy.js) replaces this
+         panel's innerHTML wholesale on its first paint, so anything authored
+         here is visible for one macrotask and then gone. What used to stand
+         here was the mount of a SECOND bag renderer — an `#equip-panel` /
+         `#inv-panel` two-card layout that flashed the old grid before the live
+         one took over, plus Bag/Bank chips that set `invTab` and then repainted
+         a renderer which has never read it: the Bank chip highlighted itself and
+         showed the bag. (The bank's contents being unreachable from the
+         Inventory screen is a real gap, logged for the designer, not papered
+         over with a control that lies.) -->
+    <section class="panel" id="panel-inventory"></section>
 
     <!-- ── FARMING ── -->
     <section class="panel" id="panel-farming">

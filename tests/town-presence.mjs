@@ -61,6 +61,14 @@ import { bootReplay } from './schema-replay.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 
 const MIG = '2026-09-13-town-presence.sql';
+/* The follow-up that RESTATES the three gated wrappers to add the
+   hr_note_rejection seam (2026-09-12-hr-rejections-journal.sql P6 went red on
+   their absence). It is the LAST toucher of those three bodies, so an arm that
+   plants a defect in a WRAPPER has to plant it HERE — planted in MIG it is
+   overwritten at chain end and the mutation silently no-ops, which is how a
+   mutation proof goes vacuous. Measured: moving flag_ignored was not a choice,
+   the arm STAYED GREEN until it moved. */
+const MIG_JOURNAL = '2026-09-13-town-presence-journal.sql';
 const ZONE = 'the_common';
 
 const uidFor = (n) => `000000ac-0000-0000-0000-0000000000${n}`;
@@ -139,6 +147,8 @@ const MUTATIONS = {
              "  select initcap(replace(p_id, '_', ' '))"]],
   },
   flag_ignored: {
+    // In the FOLLOW-UP file: it restates hr_town_of's wrapper last.
+    file: MIG_JOURNAL,
     why: 'the read surface stops honouring the server flag, so the feature is OPEN the moment it is '
        + 'applied — there is no kill switch and no staged rollout',
     pairs: [["  if not public.hr_flag_on('town_presence') then\n"
@@ -170,9 +180,14 @@ let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
 
 async function boot(mutate) {
-  const patches = mutate
-    ? new Map([[MIG, [...MUTATIONS[mutate].pairs, DISARM_GATE]]])
-    : new Map([[MIG, [DISARM_GATE]]]);
+  // MIG's own §13 gate is ALWAYS disarmed (see DISARM_GATE); the arm's defect goes
+  // into whichever file is the LAST toucher of the body it targets.
+  const patches = new Map([[MIG, [DISARM_GATE]]]);
+  if (mutate) {
+    const m = MUTATIONS[mutate];
+    const target = m.file || MIG;
+    patches.set(target, [...(patches.get(target) || []), ...m.pairs]);
+  }
   const { db } = await bootReplay({ patches });
   return db;
 }

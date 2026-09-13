@@ -16,11 +16,17 @@
 -- straight through the band where a player is learning fish → cook → eat →
 -- fight. Four rungs at 24/28/32/36 make it a rung every four levels, and six
 -- cooking rows turn each catch into a provision instead of vendor fodder.
--- Measured on the two standing ladder guards before a row was written: the
--- xp/sec steps are +8.0% / +11.1% / +12.1% / +11.8% / +10.8%, strictly
--- climbing, and every req gap is 4 — so none of them is a "full tier" unlock
--- owing b390's ≥6% margin, while the 20→40 jump that WAS one is now five short
--- steps with the same product.
+-- Measured on the two standing ladder guards before a row was written. ⚠ QUOTE
+-- THE FORMULA WITH THE NUMBERS — those guards measure floor(xp × PACE.xp) ÷
+-- pacedActionMs(ms), and the floor() on a small paced xp makes that series
+-- differ from the raw book one, so an unlabelled percentage reads as arithmetic
+-- that does not reproduce (it was read that way in review):
+--   GUARD (paced)            trout→…→lobster  +8.0 / 11.1 / 12.1 / 11.8 / 10.8 %
+--   BOOK (xp ÷ ms, no pace)                   +10.0 / 10.8 / 10.5 / 9.6 / 11.2 %
+-- Both climb strictly, which is all the first guard asks, and every req gap is
+-- 4 — so none of them is a "full tier" unlock owing the second guard's ≥6%
+-- margin, while the 20→40 jump that WAS one is now five short steps with the
+-- same product.
 --
 -- ── WHAT THE SERVER NEEDS, AND WHAT IT DOES NOT ────────────────────────────
 -- Three different server surfaces read three different halves of a new food,

@@ -78,13 +78,18 @@ export const FISH_SPOTS=[
      twenty levels, through the exact band where a player is learning the
      fish→cook→eat→fight loop and has nothing new to catch. Four rungs at
      24/28/32/36 make it a rung every four levels to 40.
-     The two ladder guards are satisfied by MEASUREMENT, not by eye — "every
-     gathering rung is strictly faster XP/sec" and "a
-     full-tier gathering unlock is a CLEAR upgrade": the steps read
-     8.0% / 11.1% / 12.1% / 11.8% / 10.8% xp/sec, all strictly climbing, and
-     every req gap here is 4 so none owes the ≥6% full-tier margin — the 20→40
-     jump that WAS a full-tier unlock is now five short steps whose product is
-     the same climb. */
+     The two ladder guards ("every gathering rung is strictly faster XP/sec",
+     "a full-tier gathering unlock is a CLEAR upgrade") are satisfied by
+     MEASUREMENT. ⚠ QUOTE THE FORMULA WITH THE NUMBERS: those guards measure
+     floor(xp × PACE.xp) ÷ pacedActionMs(ms), and the floor() on a small paced
+     xp makes that series differ from the raw book one, so an unlabelled
+     percentage reads as arithmetic that does not reproduce.
+       GUARD (paced)  trout→…→lobster  +8.0 / 11.1 / 12.1 / 11.8 / 10.8 %
+       BOOK (xp ÷ ms, no pace)         +10.0 / 10.8 / 10.5 /  9.6 / 11.2 %
+     Both climb strictly, which is all the first guard asks, and every req gap
+     here is 4 — so none of these is a full-tier unlock owing the second
+     guard's ≥6% margin, while the 20→40 jump that WAS one is now five short
+     steps whose product is the same climb. */
   {id:'pikeperch_s',name:'Reed Pike Pool',icon:'🐟',req:24,xp:38,ms:5400,prod:'pikeperch',qty:[1,1]},
   {id:'copper_crab_s',name:'Tidepool Crabs',icon:'🦞',req:28,xp:46,ms:5900,prod:'copper_crab',qty:[1,1]},
   {id:'silverfin_s',name:'Silverfin Shoal',icon:'🐠',req:32,xp:56,ms:6500,prod:'silverfin',qty:[1,1]},

@@ -53745,6 +53745,54 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('regression suite — b543: a reload never re-presents last night as a new absence', () => {
+    /* THE MEASURED BUG (QA account on live, build 543, 2026-09-13): a 12-hour
+       absence was settled and announced, and then a plain reload FIVE SECONDS
+       after playing brought the card back reading "Time away 12h 0m · XP earned
+       +88,711 · Items found +2,768 · XP per hour 7,392" — re-presenting, with
+       nothing double-credited, a night that was over as the
+       absence THIS load had ended. ROOT CAUSE: the boot seed from
+       `player_state.last_away_receipt` (marked `restored` so the HOME card can
+       survive a reload) was read by the modal and `serverAwaySpanMs` alike.
+       MUTATION: drop `&& !_restated` from `_fresh` — case A prints 12h (red). */
+    const G = window.G;
+    const AC = window.HearthriseAccrual;
+    const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary };
+    const rowText = () => (document.getElementById('welcome-rows').textContent || '').replace(/\s+/g, ' ');
+    const NIGHT = { hrs: 12, awayMs: 12 * 3600000, paidMs: 12 * 3600000, gainedXp: 88711,
+      gainedItems: 2768, gainedGold: 0, gainedKills: 0, burnt: 0, combat: null, died: false,
+      serverAuthoritative: true };
+    const show = (extra) => {
+      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() }, extra || {});
+      G.lastWelcome = 0;
+      window.__maybeShowWelcome();
+      return rowText();
+    };
+    try {
+      /* A. THE RELOAD: the RESTORED receipt, same figures and same freshness
+            window, against a watermark that says this boot went unpriced for
+            twenty seconds. */
+      AC.__setBootAccruedToForTest(Date.now() - 20000);
+      G.lastSeen = Date.now() - 12 * 3600000;   // stale residue stamp: the door still opens
+      const a = show({ restored: true });
+      assert(!/Time away/.test(a) && !/12h/.test(a),
+        'THE b543 BUG: a twenty-second reload was priced as a twelve-hour absence: ' + a);
+      assert(!/XP earned|Items found|per hour/.test(a),
+        "last night's gains were re-presented as this load's: " + a);
+
+      /* B. AND THE REAL RETURN STILL REPORTS IN FULL — less on a reload, never
+            less on a genuine absence. */
+      const b = show();
+      assert(/Time away\s*12h 0m/.test(b), 'a genuine twelve-hour return lost its span: ' + b);
+      assert(/XP earned\s*\+88,711/.test(b) && /Items found\s*\+2,768/.test(b),
+        'a genuine return lost the gains the server paid: ' + b);
+    } finally {
+      AC.__setBootAccruedToForTest(0);
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      G.lastSeen = save.lastSeen; G.lastWelcome = save.lastWelcome; G.lastOfflineSummary = save.los;
+    }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════
      b343 — THE PRICE CATALOGUE IS WHAT THE GAME ACTUALLY CHARGES.
 

@@ -562,7 +562,7 @@
     var item = window.ITEMS[id];
     // b240: respect the sell-lock and record for buy-back, like every sell path.
     if(typeof window.isItemLocked === 'function' && window.isItemLocked(id)){
-      if(typeof window.notify === 'function') window.notify(item.n + ' is locked — unlock it first', 'kill');
+      if(typeof window.notify === 'function') window.notify(item.n + ' is locked — unlock it in your bag first', 'kill');
       return;
     }
     var unit = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : Math.max(1, Math.floor((item.v || 0) * 0.5));

@@ -157,7 +157,38 @@ export const RESIDUE_FIELDS = Object.freeze([
      choice it already made or a sheet it already showed. */
   'combatStyle',    // the style picked per weapon family (reset to default every reload)
   'loadouts',       // saved gear loadouts (the SET is client-authored; equipping still goes through hr_equip)
-  'lockedItems',    // items locked against selling
+  'lockedItems',    // {itemId:true} — the SELL-LOCK. Bounded by the CATALOGUE on the write side
+                    // (legacy.js toggleItemLock refuses an id ITEMS does not know), so the key set
+                    // can never exceed the item catalogue however long an account is played.
+                    // ⚠ It gates nothing SERVER-side and must not: the lock's whole job is to stop
+                    // the CLIENT from AUTHORING a vendor-sell / market-list intent for that id. A
+                    // forged (or absent) lock therefore takes nothing away and grants nothing — the
+                    // opposite direction of the residue-ahead class in §6, where a client flag
+                    // unlocks a server capability. Losing it costs a misclick, so it is residue.
+  /* ── THE LOOT FILTER ─────────────────────────────────────────────────────────
+     The bag's KEPT CLASSES: a deduped array of item-class ids; `[]` = keep all.
+     It is the player's STANDING choice, as against the inventory strip's
+     momentary one-of-eleven lens (`window._invFilter.category`, scratch, reset
+     every reload) — which is the whole reason it needs a home here.
+
+     IT HIDES; IT NEVER DISCARDS. The server owns the inventory (CLAUDE.md §1), so
+     a client that dropped items to honour a local preference would be authoring
+     the bag. The filter only decides what `renderInvFancy` PAINTS, and a filtered
+     view deliberately claims no bag capacity either.
+
+     THE CLASS SET IS DERIVED, NEVER TYPED — legacy.js `CATEGORIES` minus the 'all'
+     pseudo-row, the same predicates over the same `src/data` item fields the strip
+     uses, so a new item class is ONE row there and the filter gains it for free. A
+     second hand-typed list is how a class ends up filterable on one surface and
+     invisible on the other.
+
+     FAIL-SAFE, IN BOTH LAYERS: sanitizeResidueField below coerces anything that is
+     not an array of short strings to `[]`, and the reader (legacy.js
+     lootFilterCats) ignores a class this build does not know and treats "nothing
+     recognised" as KEEP ALL. A strict intersection would have shown an EMPTY BAG
+     after a class rename, and "my items are gone" is the worst thing a display
+     preference can ever be able to say. */
+  'lootFilter',
   'autoActions',    // auto-eat food pick / auto-replant prefs (the auto-eat TRIGGER itself is server: hr_set_auto_eat)
   'lastWelcome',    // welcome/changelog modal "shown for this build" stamp
   'achievements',   // {id:{progress,unlocked}} — re-deriving from stats re-toasts every unlock on reload
@@ -245,6 +276,36 @@ export const RESIDUE_FIELDS = Object.freeze([
                     // envelope after it, taking the player's blueprint with it"
 ]);
 const RESIDUE_SET = new Set(RESIDUE_FIELDS);
+
+/* ── THE SIZE GUARD'S CLIENT HALF ────────────────────────────────────────────
+   hr_put_client_state already refuses an oversized bag (2026-08-22-client-state-
+   denylist.sql → `patch_too_large` / `state_too_large`). That cap protects the
+   COLUMN, not the player: it is a WHOLE-BAG cap, so the first field to grow
+   without a bound stops `settings`, `bestiary` and every other pref from saving
+   too — one runaway field costs the player the entire residue. A field whose key
+   set is driven by player input therefore carries its own bound HERE, applied in
+   BOTH directions (hydrateInto on the way in, buildResiduePatch on the way out)
+   so neither a forged bag nor a long-played account can grow it.
+   Fields with a fixed shape (`homestead`, `streak`, …) need nothing; the table is
+   data, so bounding the next one is a row, not a new mechanism. */
+const LOOT_FILTER_MAX = 32;   // the bag has 10 filterable classes; the cap is headroom, not a design limit
+export function sanitizeResidueField(field, v) {
+  if (field !== 'lootFilter') return v;
+  /* Coerce hard: anything that is not an array of short strings is "keep all"
+     ([]), which is the FAIL-SAFE direction — a garbage filter must never hide a
+     player's bag. Dedupe, drop non-strings, cap the length. Unknown class ids
+     stay (harmless): the reader intersects with the classes it knows and treats
+     an empty intersection as keep-all, so meaning is enforced there and SIZE
+     here — one job per place. */
+  if (!Array.isArray(v)) return [];
+  const out = [];
+  for (const c of v) {
+    if (typeof c !== 'string' || !c || c.length > 24) continue;
+    if (out.indexOf(c) === -1) out.push(c);
+    if (out.length >= LOOT_FILTER_MAX) break;
+  }
+  return out;
+}
 
 /* ── THE SERVER-SUPPLIED VERBATIM BAG ────────────────────────────────────────
    Populated from an envelope's top-level `client_state`. Module-scoped rather
@@ -393,7 +454,7 @@ export function hydrateInto(G, cs) {
       G[f] = merged;
       continue;
     }
-    G[f] = cs[f];
+    G[f] = sanitizeResidueField(f, cs[f]);
   }
 }
 

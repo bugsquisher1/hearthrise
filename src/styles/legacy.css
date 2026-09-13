@@ -2556,16 +2556,21 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
    standing choice never read as the same control. Chips borrow .invc-cat-btn's
    palette rather than declaring one. */
 /* order:-2 keeps it above the icon strip (order:-1) inside .invc-left. */
+/* Both the row label and the chips carry real words, so both sit on the b227
+   14.5px legibility floor -- the same size .invc-hero-stat span uses for the
+   identical uppercase micro-label role. The landscape rank stays narrow by
+   hiding the chip WORD (.invc-lf-txt) and keeping the glyph, not by shrinking
+   type below the floor. */
 .invc-lootfilter{order:-2;display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex-shrink:0}
 .invc-lf-label{
-  font-size:calc(13px * var(--ui-scale, 1));font-weight:800;letter-spacing:.08em;
+  font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ink-3);
 }
 .invc-lf-chip{
   display:inline-flex;align-items:center;gap:6px;
   padding:5px 11px;border-radius:99px;cursor:pointer;
   background:rgba(255,255,255,.04);border:1px solid var(--line-soft);color:var(--ink-2);
-  font-size:calc(13px * var(--ui-scale, 1));font-weight:700;letter-spacing:.03em;
+  font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;letter-spacing:.03em;
   transition:all .12s;
 }
 .invc-lf-chip:hover{background:rgba(255,255,255,.09);border-color:var(--gold-2)}

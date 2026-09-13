@@ -1463,7 +1463,22 @@ const snapshotG = () => {
        straight through to the player's real account and the suite PERSISTED it.
        Exactly the b494 `renown`/`collectionLog` class, one field over. */
     ownedCosmetics: G.ownedCosmetics,
-    buyback: G.buyback,
+    /* ⚠ `?? []`, NOT the bare read — SNAP-2, and this one BIT. A character who
+       has never sold to a vendor has no `buyback` key at all, JSON drops the
+       undefined, and `restoreG` (which only walks the keys the snapshot HAS)
+       therefore had nothing to put back. So any test that made a REAL vendor
+       sale left a live buy-back entry standing for the rest of the run, and
+       render/shop.js paints a "Vendor buy-back" separator + row whenever
+       `G.buyback.length` — a 15th row on a 14-row counter. MEASURED: SELLLOCK-1
+       sells one Log for real (the unlocked arm is the whole point of the test),
+       and "b221: the shop renders the counter scene with every offer reachable"
+       then failed ~8000 tests later with `seeds: expected 12 offers + 2 traits,
+       got 15`. The slice-7 buy-back test already carried a hand-written
+       `origBuyback` restore for exactly this reason — one author remembering is
+       not the suite remembering, and the second author did not. `[]` is the
+       right fail-safe both ways: every consumer guards with `Array.isArray`,
+       and an empty journal means "nothing to undo", never a forged sale. */
+    buyback: G.buyback ?? [],
     /* b487: the QUEST MODAL's two slates. `G.daily` (the DAILY_TASK_POOL tasks)
        has been on this list since b138 — its two SIBLINGS never were, and they
        are the ones the goal tests actually drive. GOAL-CLAIM-1 assigns
@@ -20931,6 +20946,50 @@ const TESTS = [
   // The shop is a scene now. A scene that swallows its own offers is worse
   // than the list it replaced, so: the counter renders, every catalogue entry
   // reaches it, and every Buy control is on screen and hit-testable.
+  /* ── SNAP-2, AS A TEST INSTEAD OF FOUR COMMENTS ────────────────────────
+     snapshotG() is `JSON.parse(JSON.stringify({...}))`, and JSON DROPS a key
+     whose value is `undefined`. restoreG() walks only the keys the snapshot HAS.
+     So a field read BARE off G is protected only for a character that happens to
+     own it, and a character who does not hands the leak to every later test in
+     the run. Five fields on that list now carry `?? null` / `|| 0` / `?? []`,
+     each with a measured incident written beside it; the latest cost a full
+     root-cause session (SELLLOCK-1 sold one Log for real, `buyback` was bare, and
+     "b221: the shop renders the counter scene" failed ~8000 tests later on a 15th
+     counter row). This pins those five so the hardening cannot be undone.
+
+     MEASURED STANDING DEBT, 2026-09-12: 33 more fields on this list are still
+     bare reads — activeSkill, skillTargetId, activeMonster, inventory, equipment,
+     companions, farmPlots, quests, clanName, skills, stats, plotBuildings,
+     playerHp, playerMaxHp, daily, homestead, playerName, renownHigh, renown,
+     createdAt, chronicle, bountyHunter, buffs, foodSlot, autoEatPct, lastSeen,
+     bank, workers, ownedThemes, houseTheme, ownedCosmetics, dailyGoals,
+     weeklyGoals. None leaks TODAY because a loaded character owns all of them,
+     which is exactly why the class is invisible until it is not. Hardening them
+     is NOT a bug-lane change: each needs the correct empty value, and the wrong
+     one gifts or takes real player state. Owner: systems-engineer, as a ratchet
+     over this list rather than 33 hand edits. */
+  () => tryRun('SNAP-2: the five hardened snapshot fields survive a character that owns none of them', () => {
+    const real = window.G;
+    const HARDENED = ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits'];
+    const full = Object.keys(snapshotG() || {});
+    assert(full.length > 30, 'CONTROL: snapshotG returned ' + full.length + ' keys — it is not snapshotting the live character');
+    HARDENED.forEach((k) => assert(full.indexOf(k) >= 0, k + ' is not on the snapshot list at all, so no test can put it back'));
+    try {
+      /* A reference SWAP, not a mutation — this is why the live character cannot
+         be damaged — and the body is synchronous, so nothing else reads window.G
+         while the clone is held. */
+      const bare = JSON.parse(JSON.stringify(real));
+      HARDENED.forEach((k) => { delete bare[k]; });
+      window.G = bare;
+      const got = Object.keys(snapshotG() || {});
+      const dropped = HARDENED.filter((k) => got.indexOf(k) < 0);
+      assert(dropped.length === 0,
+        'snapshotG dropped ' + dropped.join(', ') + ' for a character that owns none of them. '
+        + 'JSON drops undefined and restoreG only puts back the keys it HAS, so each of these leaks '
+        + 'whatever a test writes into it for the rest of the run — read it as `G.x ?? <empty>`, never bare.');
+    } finally { window.G = real; }
+  }),
+
   () => tryRun('b221: the shop renders the counter scene with every offer reachable', () => {
     const prevTab = window.activeTab;
     /* b230: this check is about the SHOP covering its own controls, not about
@@ -20954,9 +21013,21 @@ const TESTS = [
         const expect = tab === 'seeds' ? window.SEED_SHOP.length
           : tab === 'equip' ? window.EQUIP_SHOP.length : 4;
         const rows = panel.querySelectorAll('.sc-counter .shop-row');
-        // +1 for the Auto-Eat trait row appended under the counter.
-        assert(rows.length === expect + Object.keys(window.TRAITS).length,
-          tab + ': expected ' + expect + ' offers + traits, got ' + rows.length);
+        /* The counter carries the tab's offers plus one row per trait, under the
+           "Under the counter" separator. A COUNT-ONLY complaint here cost a
+           root-cause session on the b543 set (got 15, wanted 14, and nothing
+           said which row was the extra one) — for the same reason the COVER=
+           naming below exists, name every row the counter is actually painting
+           when the arithmetic disagrees. */
+        const _want = expect + Object.keys(window.TRAITS).length;
+        assert(rows.length === _want,
+          tab + ': expected ' + expect + ' offers + ' + Object.keys(window.TRAITS).length
+          + ' trait(s) = ' + _want + ', got ' + rows.length + ' — rows: '
+          + Array.from(rows).map((r) => {
+            const b = r.querySelector('.info b');
+            return (b ? b.textContent : r.textContent).trim().slice(0, 28)
+              + (r.hasAttribute('data-companion') ? '[companion]' : '');
+          }).join(' | '));
         rows.forEach((row, i) => {
           const btn = row.querySelector('button');
           assert(btn, tab + ' row ' + i + ' has no buy control');

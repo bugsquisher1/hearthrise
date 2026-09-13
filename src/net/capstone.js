@@ -81,7 +81,7 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isClientStateFromServer, RESIDUE_FIELDS, sanitizeResidueField } from './client-state.js?v=543';
+import { isClientStateFromServer, RESIDUE_FIELDS, sanitizeResidueField, isForbiddenResidueField } from './client-state.js?v=543';
 
 /* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al): one
@@ -139,6 +139,12 @@ export function buildResiduePatch(G) {
   const out = {};
   for (const f of RESIDUE_FIELDS) {
     if (!Object.prototype.hasOwnProperty.call(G, f) || typeof G[f] === 'undefined') continue;
+    /* THE SECOND CONTROL (2026-09-13). An authority name in this patch makes the
+       server refuse the WHOLE bag with `forbidden_field`, so every preference the
+       player has stops saving — not just the bad key. The allowlist is the first
+       control; this one bites when a field is RE-ADDED to it by someone acting on
+       the same instinct that put a buff clock there in the first place. */
+    if (isForbiddenResidueField(f)) continue;
     if (f === 'bountyHunter') {
       // ⚠ bountyHunter MINUS marks AND xp — both are AUTHORITY (server-owned:
       // marks via the record's top-level G.marks, and xp via player_skills,

@@ -445,8 +445,6 @@ img[src*="assets/raw-bundle"] {
   border-radius: 6px;
   margin: 4px 0;
 }
-/* Paused wins over the filled state above — same file, higher specificity. */
-.buff-row.is-paused { background: transparent; border-color: var(--line); }
 .buff-row .br-name { flex: 1; font-family: var(--f-display); font-weight: 700; font-size:calc(16px * var(--ui-scale, 1)); color: var(--ink); }
 .buff-row .br-mag { color: var(--green); font-weight: 800; font-size:calc(16px * var(--ui-scale, 1)); }
 .buff-row .br-time {

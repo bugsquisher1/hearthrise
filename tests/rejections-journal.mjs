@@ -68,6 +68,35 @@ import { bootReplay, ROOT } from './schema-replay.mjs';
 const MIG = '2026-09-12-hr-rejections-journal.sql';
 const MIG_PATH = join(ROOT, 'supabase', 'migrations', MIG);
 
+/* The SECOND half of the journal, 2026-09-13 (arms P14-P18). It RESTATES
+   hr_record_rejection — which is why P15 exists — adds the `whys` breakdown and
+   the code->verb fallback, and puts `bad_zone` on the escalating list. Both
+   files are graded in one run on purpose: the first one's properties are the
+   ones the restatement could silently delete. */
+const MIG2 = '2026-09-13-rejections-verb-map-2.sql';
+const MIG2_PATH = join(ROOT, 'supabase', 'migrations', MIG2);
+
+/* ── P15's SECOND SOURCE OF TRUTH, AND WHY IT IS NOT A DUPLICATE ───────────
+   The migration asserts "the restated catalogues are a superset of the INSTALLED
+   ones" — which is the right check for an operator re-applying a file, and is
+   blind to a template restatement that shipped with a code already missing,
+   because then the installed set is already short. These are the codes four
+   Security rulings put on the two lists, named here so that the question "did
+   any ruling get dropped" is answered against the RULINGS and not against
+   whatever happens to be installed. Adding a code here is how a new ruling gets
+   pinned; removing one requires a new ruling in the commit message. */
+export const SEVERITY_CATALOGUE = {
+  incident: [
+    'gold_clamp', 'gem_clamp', 'item_clamp', 'xp_clamp', 'progress_clamp',
+    'too_many_item_kinds', 'too_many_equip_ops', 'too_many_farm_ops',
+    'too_many_progress_ops', 'unknown_item', 'unknown_skill', 'unknown_activity',
+    'unknown_crop', 'unknown_equip_slot', 'unknown_delta_key', 'wrong_slot',
+    'requirement_not_met', 'activity_locked', 'bad_progress_state', 'overflow',
+    'seller_unavailable', 'forbidden_impersonation', 'unknown_unlock',
+  ],
+  escalating: ['rate_limited', 'own_listing', 'intent_mismatch', 'missing_req_item', 'bad_zone'],
+};
+
 /* The seven self-gating player verbs. Named here as well as in the migration on
    purpose: a body quietly dropped from the migration's own list still fails the
    chain-end sweep here. They are the same seven tests/intent-mismatch.mjs
@@ -130,12 +159,23 @@ const MUTATIONS = {
     ],
   },
   cap_loosened: {
-    why: 'the verb-map cap is raised from 24 to 100000, so a caller that can get 10,000 distinct '
-       + 'verb labels refused in a day writes a 10,000-key jsonb into one row. That is game_events '
-       + 'again, one column over — unbounded growth driven by a string the client influences. P4 '
-       + 'must catch it.',
-    find: "  c_cap  constant text := '24';",
-    repl: "  c_cap  constant text := '100000';",
+    /* ⚠ THE CAP MOVED FILES ON 2026-09-13 and this entry moved with it. It used
+       to anchor on `c_cap constant text := '24';` in MIG — the cap the S4 patch
+       spliced into hr_record_rejection — and that anchor went DEAD the moment
+       2026-09-13-rejections-verb-map-2.sql RESTATED the recorder later in the
+       chain: the patch still installs 24 and the restatement overwrites it with
+       its own literal, so mutating MIG's copy is unobservable at chain end and
+       this mutation was MISSED (measured, not guessed). That is the patch-chain
+       lesson in its smallest form — a restatement silently relocates a property
+       and a guard that names the OLD location goes quietly blind — and it is the
+       reason this guard replays to chain end rather than `upTo` a file. */
+    file: MIG2,
+    why: 'the verb-map cap is raised from 24 to 100000 in the RESTATED recorder, so a caller that can '
+       + 'get 10,000 distinct verb labels refused in a day writes a 10,000-key jsonb into one row. '
+       + 'That is game_events again, one column over — unbounded growth driven by a string the client '
+       + 'influences. P4 must catch it.',
+    find: '  c_verb_cap constant int := 24;',
+    repl: '  c_verb_cap constant int := 100000;',
   },
   decorator_edits_the_envelope: {
     why: 'the decorator appends a key to the envelope it was asked to journal. This is the ONE '
@@ -188,7 +228,19 @@ const MUTATIONS = {
        + 'It buys a player nothing — the refusal already arrived in the envelope of the call they '
        + 'made — and it hands an attacker a live view of which probes are being recorded and at '
        + 'what SEVERITY, i.e. a feedback channel on the anomaly detector itself. P9 must catch it.',
-    pairs: [
+    /* TWO files. 2026-09-13-rejections-verb-map-2.sql's GATE(b) asserts the same
+       property (it adds a column to this table, so it re-checks who can read
+       it), and it runs LATER in the chain — so without softening it too the
+       mutation aborts the apply and P9 is never reached. Softened here rather
+       than weakened there: the gate is correct, it is just not the thing under
+       test. */
+    files: { [MIG2]: [
+      ["  if exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'hr_rejections') then",
+        '  if false then'],
+      ["  if v_bad is not null then\n"
+        + "    raise exception 'GATE(b): hr_rejections is reachable by a client role (%)', v_bad; end if;",
+      '  if false then null; end if;'],
+    ], [MIG]: [
       ['alter table public.hr_rejections\n  add column if not exists verbs jsonb not null default \'{}\'::jsonb;',
         "alter table public.hr_rejections\n  add column if not exists verbs jsonb not null default '{}'::jsonb;\n"
         + 'do $mut$ begin\n'
@@ -204,7 +256,7 @@ const MUTATIONS = {
         + "              where table_schema = 'public' and table_name = 'hr_rejections'\n"
         + "                and grantee in ('anon', 'authenticated', 'PUBLIC')) then",
         '  if false then'],
-    ],
+    ] },
   },
   /* R1-R4 — the four defects the security review found in the first revision.
      Each one SHIPPED in 9a29ce71 and each one is now a mutation, because a fix
@@ -276,15 +328,128 @@ const MUTATIONS = {
         + '    end if;', '    if false then null; end if;'],
     ],
   },
+
+  // ── 2026-09-13-rejections-verb-map-2.sql ────────────────────────────────
+  bad_zone_never_escalates: {
+    file: MIG2,
+    why: 'THE G1 DEFECT ITSELF: bad_zone comes off c_escalating, so sustained enumeration of '
+       + 'hr_town_of zone names — the cheapest untracked probe on the presence surface, refused '
+       + 'before the wrapper reads anything — stays severity "normal" at any n and never appears in '
+       + '"show me every incident this week". P14 must catch it on the COUNTER, not on the array.',
+    pairs: [
+      ["    'rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone'];",
+        "    'rate_limited','own_listing','intent_mismatch','missing_req_item'];"],
+      // the file's own GATE(a) would otherwise refuse to install, and a mutation
+      // caught by the thing it mutates proves nothing about this guard
+      ["  if position('''bad_zone''' in\n"
+        + "              substring(v_src from 'c_escalating constant text\\[\\] := array\\[([^\\]]*)\\]')) = 0 then",
+      '  if false then'],
+      // ...and so would the executed half
+      ["    if v_row.n <> 50 or v_row.severity <> 'incident' then", '    if false then'],
+    ],
+  },
+  catalogue_ruling_dropped: {
+    file: MIG2,
+    why: 'the restatement ships with forbidden_impersonation missing from c_incident — the exact '
+       + 'failure the previous lane refused to restate this body over (the b484-b487 class on a '
+       + 'severity catalogue). A forged acting-user would then be filed as an ordinary refusal. The '
+       + "migration's own superset check is neutered too, because it compares against the INSTALLED "
+       + 'set and is blind to a restatement that was already short; P15 compares against the '
+       + 'RULINGS.',
+    pairs: [
+      ["    'seller_unavailable','forbidden_impersonation',", "    'seller_unavailable',"],
+      ["  if v_missing is not null then\n"
+        + "    raise exception 'GATE(a): the restated c_incident DROPPED %. Each of those is a Security ruling '\n"
+        + "                    'and this is the b484-b487 class on the severity catalogue.', v_missing;\n"
+        + '  end if;', '  if false then null; end if;'],
+    ],
+  },
+  whys_breakdown_dropped: {
+    file: MIG2,
+    why: 'the whys map is never maintained, so buff_at_max goes back to folding the SEGMENT BUDGET '
+       + 'fuse and the MINIMUM-GAIN/duration-cap fuse into one number whose only discriminator lives '
+       + 'in last_detail, which is last-writer-wins. That is the G2 defect. P16 must catch it by '
+       + 'reading the row, not the column list.',
+    pairs: [
+      ['          public.hr_verb_bump(\'{}\'::jsonb, public.hr_rejection_why(p_detail),\n'
+        + '                              greatest(1, coalesce(p_count, 1)), c_why_cap))',
+      "          '{}'::jsonb)"],
+      ['        whys  = public.hr_verb_bump(r.whys, public.hr_rejection_why(p_detail),\n'
+        + '                                    greatest(1, coalesce(p_count, 1)), c_why_cap),',
+      "        whys  = r.whys,"],
+      ["    if coalesce((v_row.whys ->> 'segment_budget')::bigint, 0) <> 2\n"
+        + "       or coalesce((v_row.whys ->> '(none)')::bigint, 0) <> 1 then",
+      '    if false then'],
+      ['    if (select sum(value::bigint) from jsonb_each_text(v_row.whys)) <> v_row.n then\n'
+        + "      raise exception 'GATE(f1): the whys map sums to % but n is % — the breakdown is not exact',",
+      "    if false then\n      raise exception 'unused %, %',"],
+      ['    if (select count(*) from jsonb_object_keys(v_row.whys)) > 13 then', '    if false then'],
+      ['    if (select sum(value::bigint) from jsonb_each_text(v_row.whys)) <> v_row.n then\n'
+        + "      raise exception 'GATE(f4): past the cap the map stopped summing to n (% vs %) — overflow must be '",
+      "    if false then\n      raise exception 'unused (% %) '"],
+      ["      if v_row.whys ->> '(none)' is null then", '      if false then'],
+      /* …and the file's own positive control on the restatement, which would
+         otherwise refuse to install and "catch" this mutation with the thing
+         being mutated. P16 has to be the one that notices. */
+      ["  if position('hr_rejection_verb_for' in v_src) = 0 or position('hr_rejection_why' in v_src) = 0 then",
+        "  if position('hr_rejection_verb_for' in v_src) = 0 then"],
+    ],
+  },
+  verb_map_overrides_a_real_label: {
+    file: MIG2,
+    why: 'the code->verb map stops being a FALLBACK and fires unconditionally. Every bad_zone is '
+       + 'then filed under hr_town_of even when some future verb answers it, and — the measurable '
+       + 'one — a buff refusal that arrived with a REAL gesture label (eat:roast_carrot) is '
+       + 'relabelled buff_apply, destroying exactly the resolution the verbs map was added for. P17 '
+       + 'must catch it.',
+    pairs: [
+      ["    when v in ('(none)', 'apply') then coalesce(", '    when true then coalesce('],
+      ["  if public.hr_rejection_verb_for('bad_zone', 'hr_town_of') <> 'hr_town_of'\n"
+        + "     or public.hr_rejection_verb_for('forbidden_field', 'hr_put_client_state')\n"
+        + "        <> 'hr_put_client_state'\n"
+        + "     or public.hr_rejection_verb_for('buff_at_max', 'eat:roast_carrot') <> 'eat:roast_carrot' then",
+      '  if false then'],
+      ["    if not (v_row.verbs ? 'eat:roast_carrot') then", '    if false then'],
+    ],
+  },
+  why_token_unbounded: {
+    file: MIG2,
+    why: 'hr_rejection_why stops filtering and stops truncating. The `why` becomes a jsonb MAP KEY '
+       + 'built from a detail that is not always server-authored, so a 400-character or '
+       + 'control-character why lands in a column an operator reads in a terminal — the log-injection '
+       + 'surface hr_rejection_verb was bounded against, re-opened one column over. P18 must catch '
+       + 'both halves.',
+    pairs: [
+      ["      select nullif(left(regexp_replace(\n"
+        + "               lower(coalesce(case when jsonb_typeof(p_detail) = 'object'\n"
+        + "                                   then p_detail ->> 'why' end, '')),\n"
+        + "               '[^a-z0-9_.-]', '', 'g'), 24), '') as w",
+      "      select nullif(coalesce(case when jsonb_typeof(p_detail) = 'object'\n"
+        + "                                 then p_detail ->> 'why' end, ''), '') as w"],
+      ["  if public.hr_rejection_why('{\"why\":\"Vault''; DROP TABLE x --\"}'::jsonb) <> 'vaultdroptablex--' then",
+        '  if false then'],
+      ["  if length(public.hr_rejection_why(jsonb_build_object('why', repeat('a', 400)))) <> 24 then",
+        '  if false then'],
+    ],
+  },
 };
 
 const UUID = () => crypto.randomUUID();
 const mutationPairs = (id) => MUTATIONS[id].pairs || [[MUTATIONS[id].find, MUTATIONS[id].repl]];
 const mutationFile = (id) => MUTATIONS[id].file || MIG;
+/** file -> pairs. A mutation normally edits ONE migration; `files` lets it edit
+ *  several, which is needed as soon as two files in the chain assert the same
+ *  property. journal_readable_by_players is the case: adding a policy to
+ *  hr_rejections is refused by BOTH migrations' own self-checks, and unless both
+ *  are softened the mutation is "caught" by the thing it mutates and P9 — the
+ *  standing guard that has to survive every future file — is never graded. */
+const mutationFileMap = (id) => (MUTATIONS[id].files
+  ? new Map(Object.entries(MUTATIONS[id].files))
+  : new Map([[mutationFile(id), mutationPairs(id)]]));
 
 /** One end-to-end run against a freshly replayed database. */
 async function run(mutate) {
-  const patches = mutate ? new Map([[mutationFile(mutate), mutationPairs(mutate)]]) : undefined;
+  const patches = mutate ? mutationFileMap(mutate) : undefined;
   /* NO `upTo` — see the header. The property must hold at the END of the chain. */
   const { db } = await bootReplay({ patches });
 
@@ -574,6 +739,127 @@ async function run(mutate) {
     "select coalesce(sum(n),0)::text as r from public.hr_rejections where user_id=$1 and code='still_watered'",
     [uid]))[0].r);
 
+  // ══ 2026-09-13-rejections-verb-map-2.sql — P14..P18 ═══════════════════
+  //    Everything below is driven through the REAL recorder on a REAL player.
+  //    The arrays are read out of the INSTALLED body rather than out of the file
+  //    so that a mutation which edits the text but not the database (or the
+  //    reverse) cannot pass.
+  const installed = (await q(
+    'select replace(pg_get_functiondef($1::regprocedure), chr(13), \'\') as d',
+    ['public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)']))[0].d;
+  obs.p15 = {
+    incident: [...installed.matchAll(/c_incident constant text\[\] := array\[([^\]]*)\]/g)]
+      .flatMap((m) => [...m[1].matchAll(/'([a-z0-9_]+)'/g)].map((x) => x[1])),
+    escalating: [...installed.matchAll(/c_escalating constant text\[\] := array\[([^\]]*)\]/g)]
+      .flatMap((m) => [...m[1].matchAll(/'([a-z0-9_]+)'/g)].map((x) => x[1])),
+    /* POSITIVE CONTROLS on the restatement: the body must still carry the three
+       properties the FIRST migration installed. A restatement is the one edit
+       that can delete them all at once and still look clean. */
+    once_flag: installed.includes('hearthrise.rejection_noted'),
+    detail_bound: installed.includes('hr_detail_bound'),
+    calls_resolvers: installed.includes('hr_rejection_verb_for') && installed.includes('hr_rejection_why'),
+  };
+
+  // ── P14. bad_zone ESCALATES AT 50 AND NOT AT 49 ───────────────────────
+  //    On the COUNTER, through the recorder, because "it is in the array" is a
+  //    different claim from "the severity moves".
+  await q('delete from public.hr_rejections where user_id = $1', [uid]);
+  await db.exec(`do $zone$ declare i int; begin
+    for i in 1 .. 49 loop
+      perform public.hr_record_rejection('${uid}'::uuid, 0, 'hr_town_of', 'bad_zone',
+        jsonb_build_object('zone', 'probe' || i::text), 1);
+    end loop;
+  end $zone$;`);
+  obs.p14_at49 = (await q(
+    "select n::text as n, severity from public.hr_rejections where user_id=$1 and code='bad_zone'",
+    [uid]))[0];
+  await q("select public.hr_record_rejection($1::uuid, 0, 'hr_town_of', 'bad_zone', '{}'::jsonb, 1)",
+    [uid]);
+  obs.p14_at50 = (await q(
+    "select n::text as n, severity from public.hr_rejections where user_id=$1 and code='bad_zone'",
+    [uid]))[0];
+  /* THE CONTROL: a code on NEITHER list must still be 'normal' at 50, or this
+     arm would go green on a recorder that escalated everything. */
+  await db.exec(`do $ctl$ declare i int; begin
+    for i in 1 .. 60 loop
+      perform public.hr_record_rejection('${uid}'::uuid, 0, 'farm_water', 'empty_plot', '{}'::jsonb, 1);
+    end loop;
+  end $ctl$;`);
+  obs.p14_control = (await q(
+    "select n::text as n, severity from public.hr_rejections where user_id=$1 and code='empty_plot'",
+    [uid]))[0];
+
+  // ── P16. THE whys BREAKDOWN: two fuses of ONE code, ONE row, exact ─────
+  //    buff_at_max is raised by hr_apply from the segment budget (why=
+  //    'segment_budget') and from the minimum-gain/duration cap (NO why). The
+  //    aggregate key cannot tell them apart; the map must.
+  await q('delete from public.hr_rejections where user_id = $1', [uid]);
+  await db.exec(`begin;
+    select public.hr_record_rejection('${uid}'::uuid, 0, 'apply', 'buff_at_max',
+      '{"type":"gather_speed","why":"segment_budget","segments":8}'::jsonb, 1);
+    select public.hr_record_rejection('${uid}'::uuid, 0, 'apply', 'buff_at_max',
+      '{"type":"gather_speed","why":"segment_budget","segments":8}'::jsonb, 1);
+    select public.hr_record_rejection('${uid}'::uuid, 0, 'apply', 'buff_at_max',
+      '{"type":"gather_speed","cap":3600000,"gain_ms":12}'::jsonb, 1);
+    commit;`);
+  obs.p16 = (await q(`
+    select count(*)::text as rows, max(n)::text as n,
+           (select whys from public.hr_rejections where user_id=$1 and code='buff_at_max') as whys,
+           (select verbs from public.hr_rejections where user_id=$1 and code='buff_at_max') as verbs,
+           (select coalesce(sum(value::bigint),0)::text from public.hr_rejections h,
+                   lateral jsonb_each_text(h.whys)
+             where h.user_id=$1 and h.code='buff_at_max') as why_total
+      from public.hr_rejections where user_id=$1 and code='buff_at_max'`, [uid]))[0];
+  /* THE CAP, through the real recorder with the real baked-in number — the P4
+     argument one column over. 30 distinct whys, 12 + (other) allowed, and the
+     total must still equal n or the overflow was DROPPED rather than counted. */
+  await db.exec(`do $wcap$ declare i int; begin
+    for i in 1 .. 30 loop
+      perform public.hr_record_rejection('${uid}'::uuid, 0, 'hr_town_of', 'whycap',
+        jsonb_build_object('why', 'w' || i::text), 1);
+    end loop;
+  end $wcap$;`);
+  obs.p16_cap = (await q(`
+    select (select count(*) from jsonb_object_keys(whys))::text as keys,
+           (select coalesce(sum(value::bigint),0) from jsonb_each_text(whys))::text as total,
+           (whys ? '(other)') as has_other, n::text as n
+      from public.hr_rejections where user_id=$1 and code='whycap'`, [uid]))[0];
+
+  // ── P17. THE VERB FALLBACK IS A FALLBACK ──────────────────────────────
+  //    A buff code under hr_apply's unattributable 'apply' label must resolve to
+  //    the gesture; a REAL label must survive, on the conflict path too.
+  obs.p17_map = (await q(`
+    select public.hr_rejection_verb_for('buff_at_max', 'apply')            as buff_apply_label,
+           public.hr_rejection_verb_for('buff_not_paid', null)             as buff_no_label,
+           public.hr_rejection_verb_for('bad_buff_item', 'eat:roast_pie')  as buff_real_label,
+           public.hr_rejection_verb_for('bad_zone', 'hr_town_of')          as zone_real_label,
+           public.hr_rejection_verb_for('version_conflict', 'apply')       as unmapped,
+           public.hr_rejection_verb_for('no_character', 'apply')           as generic`))[0];
+  obs.p17_row = obs.p16.verbs;
+  await q("select public.hr_record_rejection($1::uuid, 0, 'eat:roast_carrot', 'buff_at_max',"
+    + " '{\"why\":\"segment_budget\"}'::jsonb, 1)", [uid]);
+  obs.p17_after_real = (await q(
+    "select verbs from public.hr_rejections where user_id=$1 and code='buff_at_max'", [uid]))[0].verbs;
+
+  // ── P18. THE why TOKEN IS BOUNDED BY CONSTRUCTION ─────────────────────
+  obs.p18 = (await q(`
+    select public.hr_rejection_why(null)                                   as nul,
+           public.hr_rejection_why('{}'::jsonb)                            as empty,
+           public.hr_rejection_why('[1,2]'::jsonb)                         as arr,
+           public.hr_rejection_why('{"why":"segment_budget"}'::jsonb)      as real,
+           public.hr_rejection_why($1::jsonb)                              as hostile,
+           length(public.hr_rejection_why($2::jsonb))::text                as long_len`,
+  [JSON.stringify({ why: "Vault'; DROP TABLE x --" }),
+    JSON.stringify({ why: 'a'.repeat(400) })]))[0];
+  /* The second half of P9 for the second half of the journal: the two new
+     resolvers are privileged by the same argument as the recorder. */
+  obs.p18_reachable = Number((await q(`
+    select count(*)::text as r from unnest(array[
+        'public.hr_rejection_why(jsonb)',
+        'public.hr_rejection_verb_for(text,text)']) f
+     where has_function_privilege('authenticated', f, 'execute')
+        or has_function_privilege('anon', f, 'execute')`))[0].r);
+
   // ── P8. A SECOND APPLY IS A NO-OP (byte-identical) ────────────────────
   const fingerprint = async () => (await q(
     "select md5(string_agg(p.proname || ':' || md5(p.prosrc), ',' order by p.proname, p.oid)) as r"
@@ -582,10 +868,15 @@ async function run(mutate) {
   const before = await fingerprint();
   let reapplyError = null;
   try {
-    let sql = await readFile(MIG_PATH, 'utf8');
-    sql = sql.replace(/\r\n/g, '\n');
-    if (patches) for (const [find, repl] of mutationPairs(mutate)) sql = sql.split(find).join(repl);
-    await db.exec(`begin;\n${sql}\ncommit;`);
+    /* BOTH halves, in chain order. The second one RESTATES hr_record_rejection,
+       so "re-applying is a no-op" is a stronger claim for it than for a patcher:
+       a restatement that was not byte-identical to what the chain installed
+       would move the fingerprint here and nowhere else. */
+    for (const [name, p] of [[MIG, MIG_PATH], [MIG2, MIG2_PATH]]) {
+      let sql = (await readFile(p, 'utf8')).replace(/\r\n/g, '\n');
+      for (const [find, repl] of patches?.get(name) || []) sql = sql.split(find).join(repl);
+      await db.exec(`begin;\n${sql}\ncommit;`);
+    }
   } catch (e) {
     reapplyError = String(e && e.message || e);
     // WITHOUT this the connection is left in an aborted transaction and every
@@ -600,7 +891,7 @@ async function run(mutate) {
   return obs;
 }
 
-function grade(obs, migText) {
+function grade(obs, migText, mig2Text) {
   // ── P1. a refused verb leaves exactly one row, carrying the player's code
   const env = obs.p1_envelope;
   ok(env && env.ok === false, `P1: hr_farm_water on an empty plot did not refuse: ${JSON.stringify(env)}`);
@@ -774,8 +1065,119 @@ function grade(obs, migText) {
     `P10: the NEXT transaction recorded nothing (total still ${obs.p10_next_txn}) — the suppression `
     + 'flag is not transaction-scoped and is now a permanent blindfold');
 
+  // ══ P14..P18 — 2026-09-13-rejections-verb-map-2.sql ════════════════════
+
+  // ── P14. bad_zone has the ESCALATING profile, measured on the counter
+  ok(obs.p14_at49 && Number(obs.p14_at49.n) === 49,
+    `P14: 49 bad_zone refusals counted ${obs.p14_at49?.n}`);
+  ok(obs.p14_at49?.severity === 'normal',
+    'P14: bad_zone was promoted to incident at n=49 — it must have the escalating profile, not the '
+    + 'incident one; a first-occurrence alarm on a zone typo is an alarm nobody reads');
+  ok(obs.p14_at50 && Number(obs.p14_at50.n) === 50 && obs.p14_at50.severity === 'incident',
+    `P14: the 50th bad_zone left n=${obs.p14_at50?.n} severity=${obs.p14_at50?.severity} — sustained `
+    + 'enumeration of hr_town_of zone names is the cheapest untracked probe on the presence surface '
+    + 'and is still invisible to "show me every incident this week"');
+  ok(obs.p14_control?.severity === 'normal',
+    `P14: a code on NEITHER severity list reached ${obs.p14_control?.severity} at n=`
+    + `${obs.p14_control?.n} — the recorder is escalating everything, so P14's green means nothing`);
+
+  // ── P15. the RESTATEMENT kept every ruling, and every property
+  for (const code of SEVERITY_CATALOGUE.incident) {
+    ok(obs.p15.incident.includes(code),
+      `P15: c_incident no longer contains '${code}' — hr_record_rejection was RESTATED and a Security `
+      + 'ruling went with it (the b484-b487 class on the severity catalogue). The installed-vs-'
+      + 'installed superset check in the migration cannot see this; SEVERITY_CATALOGUE can');
+  }
+  for (const code of SEVERITY_CATALOGUE.escalating) {
+    ok(obs.p15.escalating.includes(code),
+      `P15: c_escalating no longer contains '${code}' — see above`);
+  }
+  ok(!obs.p15.incident.includes('bad_zone'),
+    'P15: bad_zone reached c_incident — that classification was considered and REJECTED; it would '
+    + 'make a stale bookmark an incident on its first occurrence');
+  ok(obs.p15.once_flag,
+    'P15: the restated recorder no longer sets hearthrise.rejection_noted — a body that recorded its '
+    + 'own specific refusal would be recorded AGAIN by its wrapper, counts inflate and the 50-hit '
+    + 'threshold fires on honest play');
+  ok(obs.p15.detail_bound,
+    'P15: the restated recorder no longer bounds last_detail — an unbounded diagnostic on a table a '
+    + 'client can write to by being refused');
+  ok(obs.p15.calls_resolvers,
+    'P15: the installed recorder does not call hr_rejection_verb_for / hr_rejection_why — the '
+    + 'restatement did not take, or a later migration reverted it');
+
+  // ── P16. the whys breakdown is exact, and bounded
+  ok(Number(obs.p16.rows) === 1,
+    `P16: three occurrences of one code produced ${obs.p16.rows} rows — the aggregate stopped folding `
+    + 'and this change just rebuilt game_events inside the journal');
+  ok(Number(obs.p16.n) === 3, `P16: the folded row counts ${obs.p16.n} of 3 occurrences`);
+  ok(obs.p16.whys && Number(obs.p16.whys.segment_budget) === 2
+     && Number(obs.p16.whys['(none)']) === 1,
+  `P16: the whys breakdown reads ${JSON.stringify(obs.p16.whys)} — buff_at_max's SEGMENT BUDGET fuse `
+    + 'and its MINIMUM-GAIN/duration-cap fuse are still one number whose only discriminator lives in '
+    + 'last_detail, which is last-writer-wins');
+  ok(Number(obs.p16.why_total) === Number(obs.p16.n),
+    `P16: the whys map sums to ${obs.p16.why_total} but n is ${obs.p16.n} — the breakdown is not `
+    + 'exact, which is the only reason (none) is a real key instead of a missing one');
+  ok(Number(obs.p16_cap.keys) <= 13,
+    `P16: 30 distinct whys produced ${obs.p16_cap.keys} map keys — the cap baked into the recorder is `
+    + 'not 12 + (other)');
+  ok(obs.p16_cap.has_other === true,
+    'P16: past the cap nothing landed under (other) — the overflow was dropped');
+  ok(Number(obs.p16_cap.total) === Number(obs.p16_cap.n),
+    `P16: past the cap the map sums to ${obs.p16_cap.total} of n=${obs.p16_cap.n} — overflow must be `
+    + 'COUNTED, not discarded, or the breakdown silently understates');
+
+  // ── P17. the code->verb map is a FALLBACK, both directions
+  ok(obs.p17_map.buff_apply_label === 'buff_apply' && obs.p17_map.buff_no_label === 'buff_apply',
+    `P17: a buff code under an unattributable label resolved to ${JSON.stringify(obs.p17_map)} — `
+    + 'hr_apply labels a delta with no journal.intent "apply", which names the RPC and not the '
+    + 'gesture, so vitals --refusals cannot say what the player was doing');
+  ok(obs.p17_map.buff_real_label === 'eat:roast_pie'
+     && obs.p17_map.zone_real_label === 'hr_town_of',
+  `P17: a REAL verb label was OVERRIDDEN by the code map (${JSON.stringify(obs.p17_map)}) — the map `
+    + 'must be fallback-only, or it destroys the resolution the verbs column was added for');
+  ok(obs.p17_map.unmapped === 'apply' && obs.p17_map.generic === 'apply',
+    `P17: the map invented a verb for an unmapped code (${JSON.stringify(obs.p17_map)}) — `
+    + 'no_character alone is answered by a dozen verbs');
+  ok(obs.p17_row && obs.p17_row.buff_apply === 3 && !('apply' in obs.p17_row),
+    `P17: the recorded row names ${JSON.stringify(obs.p17_row)} — the fallback did not reach the `
+    + 'insert path');
+  ok(obs.p17_after_real && 'eat:roast_carrot' in obs.p17_after_real,
+    `P17: a real label did not survive the CONFLICT path (${JSON.stringify(obs.p17_after_real)}) — `
+    + 'the two paths derive the verb from different expressions');
+
+  // ── P18. the why token is bounded by construction
+  ok(obs.p18.nul === '(none)' && obs.p18.empty === '(none)' && obs.p18.arr === '(none)',
+    `P18: a detail with no usable why did not fold to (none) (${JSON.stringify(obs.p18)}) — the map `
+    + 'would stop summing to n and the unlabelled fuse would have to be inferred by subtraction');
+  ok(obs.p18.real === 'segment_budget', `P18: the real why did not survive: ${obs.p18.real}`);
+  ok(obs.p18.hostile === 'vaultdroptablex--',
+    `P18: a hostile why was not character-filtered (-> ${obs.p18.hostile}) — it becomes a jsonb MAP `
+    + 'KEY an operator reads in a terminal, which is the log-injection surface hr_rejection_verb is '
+    + 'bounded against');
+  ok(Number(obs.p18.long_len) === 24,
+    `P18: a 400-character why became a ${obs.p18.long_len}-character map key on a table an attacker `
+    + 'can write to by being refused');
+  ok(obs.p18_reachable === 0,
+    `P18: ${obs.p18_reachable} of the new resolvers are client-executable — the code->verb map is the `
+    + "detector's shape and a client grant on it is a read of what is being watched");
+  for (const sig of ['public.hr_rejection_why(jsonb)',
+    'public.hr_rejection_verb_for(text, text)',
+    'public.hr_record_rejection(uuid, int, text, text, jsonb, bigint)']) {
+    const re = new RegExp('revoke execute on function ' + sig.replace(/[().*+?[\]\\|^$]/g, '\\$&')
+      + '\\s*\\n?\\s*from public, anon, authenticated, service_role;');
+    ok(re.test(mig2Text),
+      `P18: ${sig} is not revoked from all four roles in ${MIG2}. Production's default ACL grants `
+      + "service_role EXECUTE on a new function (measured 2026-08-30); PGlite's is narrower and "
+      + 'cannot show it, so this static read is the only thing that can');
+  }
+  ok(!/create\s+policy[\s\S]{0,200}hr_rejections/i.test(mig2Text),
+    `P18: ${MIG2} creates a policy on hr_rejections — the journal is ops-only by design`);
+
   // ── P8. a second apply is byte-identical
-  ok(obs.p8.error === null, `P8: re-applying ${MIG} onto the finished chain FAILED: ${obs.p8.error}`);
+  ok(obs.p8.error === null,
+    `P8: re-applying ${MIG} + ${MIG2} onto the finished chain FAILED: ${obs.p8.error}`);
   ok(obs.p8.before === obs.p8.after,
     'P8: a second apply changed a function body — the migration is not idempotent, so an operator '
     + 'who re-runs it after a template restatement double-wraps a live verb');
@@ -788,7 +1190,6 @@ async function main() {
     for (const [id, m] of Object.entries(MUTATIONS)) console.log(`  ${id}\n      ${m.why}\n`);
     return 0;
   }
-  const migText = (await readFile(MIG_PATH, 'utf8')).replace(/\r\n/g, '\n');
   const one = argv.find((a) => a.startsWith('--mutate='))?.slice('--mutate='.length);
 
   if (argv.includes('--selftest')) {
@@ -797,7 +1198,7 @@ async function main() {
       problems.length = 0;
       let threw = null;
       try {
-        await runGraded(id, migText);
+        await runGraded(id);
       } catch (e) {
         if (e?.harness) { console.error(`HARNESS FAULT during ${id}: ${e.message}`); return 2; }
         threw = String(e?.message || e);
@@ -815,7 +1216,7 @@ async function main() {
 
   problems.length = 0;
   try {
-    await runGraded(one, migText);
+    await runGraded(one);
   } catch (e) {
     if (e?.harness) { console.error(`HARNESS FAULT: ${e.message}`); return 2; }
     console.error(`rejections-journal: the run threw: ${e?.message || e}`);
@@ -833,7 +1234,12 @@ async function main() {
     + '200-call rate-limit storm costs 63 writes and leaves the gate\'s sampled count exact, an '
     + 'out-of-range slot folds to -1 and a caller-shaped code to malformed_code, the envelope is '
     + 'byte-identical across the decorator, one occurrence per transaction, and a second apply is '
-    + 'a no-op.');
+    + 'a no-op; and for the 2026-09-13 half: the restated recorder keeps all 28 catalogued Security '
+    + 'rulings plus the once-flag and the detail bound, bad_zone is normal at 49 and an incident at '
+    + '50 while an unlisted code stays normal at 60, two buff_at_max fuses break out as '
+    + 'segment_budget / (none) in one row whose whys map sums to n and caps at 12 + (other), the '
+    + 'code->verb fallback names the gesture under an unattributable label and never overrides a '
+    + 'real one on either path, and the why token is filtered and cut to 24 characters.');
   return 0;
 }
 
@@ -841,11 +1247,21 @@ async function main() {
  *  (through bootReplay's patcher, which requires the anchor to match exactly
  *  once) and to the migration TEXT the static half of grade() reads, so a
  *  mutation cannot be caught by one half while silently no-opping in the other. */
-async function runGraded(mutate, migText) {
+async function runGraded(mutate) {
   const obs = await run(mutate);
-  let text = migText;
-  if (mutate) for (const [find, repl] of mutationPairs(mutate)) text = text.split(find).join(repl);
-  grade(obs, text);
+  /* Read both files here rather than once in main(): a mutation targets ONE of
+     them (MUTATIONS[id].file) and must be applied to that one's text only, so
+     that a text-only mutation cannot be "caught" by corrupting the other half's
+     static read. */
+  const texts = {};
+  for (const [name, path] of [[MIG, MIG_PATH], [MIG2, MIG2_PATH]]) {
+    let t = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
+    for (const [find, repl] of (mutate ? mutationFileMap(mutate).get(name) : null) || []) {
+      t = t.split(find).join(repl);
+    }
+    texts[name] = t;
+  }
+  grade(obs, texts[MIG], texts[MIG2]);
   return obs;
 }
 

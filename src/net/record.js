@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=543';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=543';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1748,6 +1748,9 @@ function settle(verdict) {
        reads "ready" all session and every Auto-Run comes back refused. Per dungeon
        AND per mode; fail-open on absence. See reconcileDungeonCooldowns' header. */
     hydrationStep('dungeon-cooldowns', () => reconcileDungeonCooldowns(G, verdict.body));
+    /* THE CONSUMABLE BUFF QUEUE — this line IS the "a reload forgets my buff" fix:
+       `buffs` is no longer residue and hr_load is an idle boot's only envelope. */
+    hydrationStep('buffs', () => reconcileBuffs(G, verdict.body));
     /* ── THE LAST AWAY-CLASSIFIED RECEIPT (ruling 2026-09-07) ────────────────────
        THE SAME IDLE-BOOT HYDRATION CLASS AS ITS NEIGHBOURS, and without this line
        the feature is inert on the exact case it was built for. `reconcileAwayReceipt`

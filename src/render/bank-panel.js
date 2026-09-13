@@ -197,31 +197,32 @@ function css() {
     '#' + OVERLAY_ID + ' .qm-modal{max-width:720px;width:min(720px,94vw);'
       + 'max-height:92vh;overflow:auto}',
     '.bp-head h3{margin:0 0 2px;font-family:var(--f-display)}',
-    '.bp-sub{font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3);margin-bottom:8px}',
+    '.bp-sub{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);margin-bottom:8px}',
     '.bp-search{width:100%;box-sizing:border-box;margin-bottom:10px;padding:7px 9px;'
       + 'border:1px solid var(--line-soft);border-radius:8px;background:var(--bg-card);color:var(--ink)}',
     '.bp-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}',
     '.bp-col{min-width:0;display:flex;flex-direction:column}',
     '.bp-col-h{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;font-family:var(--f-label)}',
-    '.bp-cap{margin-left:auto;font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3);'
+    '.bp-cap{margin-left:auto;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);'
       + 'font-variant-numeric:tabular-nums}',
     '.bp-list{max-height:46vh;overflow:auto;border:1px solid var(--line-soft);border-radius:8px}',
     '.bp-row{display:flex;align-items:center;gap:7px;padding:5px 7px;min-width:0}',
     '.bp-row + .bp-row{border-top:1px solid var(--line-soft)}',
     '.bp-ico{display:flex;width:22px;flex:0 0 22px}',
     '.bp-nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-      + 'font-size:calc(14px * var(--ui-scale, 1))}',
-    '.bp-qty{color:var(--gold-2);font-variant-numeric:tabular-nums;font-size:calc(13px * var(--ui-scale, 1))}',
+      + 'font-size:calc(14.5px * var(--ui-scale, 1))}',
+    '.bp-qty{color:var(--gold-2);font-variant-numeric:tabular-nums;font-size:calc(14.5px * var(--ui-scale, 1))}',
     '.bp-acts{display:flex;gap:3px;flex:0 0 auto}',
     /* min-height, not padding alone: a quantity button is the only control in
-       this panel and a 23px target is a mis-tap on a phone (visual-qa calls
-       anything under 36px on a narrow viewport a P1). */
-    '.bp-move{font-family:var(--f-label);font-size:calc(12px * var(--ui-scale, 1));padding:2px 8px;'
-      + 'min-height:28px;min-width:30px;border:1px solid var(--line-soft);border-radius:6px;'
+       this panel and a text-height target is a mis-tap on a phone (visual-qa
+       calls anything under 36px on a narrow viewport a P1). Type is at the
+       14.5px floor like every other string here; the padding carries the rest. */
+    '.bp-move{font-family:var(--f-label);font-size:calc(14.5px * var(--ui-scale, 1));padding:2px 7px;'
+      + 'min-height:30px;min-width:32px;border:1px solid var(--line-soft);border-radius:6px;'
       + 'background:var(--bg-card);color:var(--ink-2);cursor:pointer}',
     '.bp-move:hover:not([disabled]){color:var(--gold);border-color:var(--gold-2)}',
     '.bp-move[disabled]{opacity:.5;cursor:default}',
-    '.bp-empty,.bp-more{padding:9px 8px;font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3)}',
+    '.bp-empty,.bp-more{padding:9px 8px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}',
     '.bp-more{font-style:italic}',
     /* Mobile: the canonical rail query (CLAUDE.md §7) — one column, shorter lists. */
     '@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px){'

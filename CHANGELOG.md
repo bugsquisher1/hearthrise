@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 545 — 2026-09-13 (The Depot actually opens)
+
+Out-of-band fix to build 544, shipped alone.
+
+**The Depot works.** Build 544 showed the Depot panel but reported "the realm has not sent your Depot yet" and a deposit did nothing. Three client faults, no server change: the Depot only folded its server state when the bag's full-authority switch was on (it is not, yet), a stored stack could not leave the bag because the bag kept the larger of the two counts, and a move that waited on a slow settle never finished so later presses were silently ignored. The Depot now reads the realm's own store on every envelope, a stored stack leaves the bag, every press answers, and a refusal names its reason.
+
 ## v0.9.2-beta build 544 — 2026-09-13 (Reed & Tide, the Depot, and buffs the realm keeps)
 
 The second daily release, and a big one. Everything below is live on the server side already; this build is the client that shows it.

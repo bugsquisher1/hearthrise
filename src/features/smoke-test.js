@@ -1321,29 +1321,20 @@ const gemsOf = () => {
 };
 
 /* ══ THE ABSENT SEAL — snapshotG NEEDS NO "DECLARED EMPTY" ═══════════════
-   `JSON.stringify` DROPS an undefined value, so a BARE entry below (`rooms: G.rooms`)
-   produced NO KEY for a character who does not own that field, `restoreG` walks
-   `Object.keys(snap)`, and the write was inherited by every later test (MEASURED
-   2026-09-12: a vendor sale via `buyback`, a room fixture via `rooms`). The fix is NOT
-   26 guessed empties — each is absent for a reason that names the right value, and it
-   is ABSENT, not `null`/`{}`; a guessed empty is state a later test reads as real
-   (`skills: {}` is a level-1 character). So absence is RECORDED as the `SNAP_ABSENT`
-   sentinel and `restoreG` `delete`s that key, round-tripping value AND presence for
-   every field at once. WHICH 26 and WHY is measured by snapshot-allowlist-guard §1b
-   (SNAP-2/PARSE-D/PARSE-F); UNRESOLVED: none. The 13 pre-seal `?? null` / `|| 0` /
-   `?? []` entries stand exactly as they are and `SNAP-2` pins each by value. */
+   `JSON.stringify` DROPS an undefined value, so a BARE entry below (`rooms: G.rooms`) put
+   NOTHING back for a character who does not own it and the write leaked into every later test
+   (MEASURED 2026-09-12 via `buyback` and `rooms`). The fix is not 26 guessed empties — one is
+   state a later test reads as real (`skills: {}` is a level-1 character) — so absence is
+   RECORDED as the `SNAP_ABSENT` sentinel and `restoreG` `delete`s that key. WHICH 26 and why:
+   snapshot-allowlist-guard §1b. UNRESOLVED: none; the 13 pre-seal empties stand, pinned. */
 const SNAP_ABSENT = ' HR_SNAP_ABSENT ';
-/* ⚠ NOT one JSON round trip over the whole object — that IS the bug. The literal is
-   built first (it keeps an `undefined`-valued key, which is how the absent fields stay
+/* ⚠ NOT one JSON round trip over the whole object — that IS the bug. The literal is built
+   first (it keeps an `undefined`-valued key, which is how the absent fields stay
    enumerable), then each value is cloned or sentinelled. */
 const sealSnapshot = (raw) => {
   const snap = {};
-  for (const k of Object.keys(raw)) {
-    const v = raw[k];
-    snap[k] = (typeof v === 'undefined') ? SNAP_ABSENT
-      : (v === null || typeof v !== 'object') ? v
-        : JSON.parse(JSON.stringify(v));
-  }
+  for (const k of Object.keys(raw)) snap[k] = (typeof raw[k] === 'undefined') ? SNAP_ABSENT
+    : (raw[k] && typeof raw[k] === 'object') ? JSON.parse(JSON.stringify(raw[k])) : raw[k];
   return snap;
 };
 
@@ -1688,12 +1679,8 @@ const withResidueWire = async (onRequest, body, extraCfg) => {
 
 const restoreG = (snap) => {
   if (!snap || !window.G) return;
-  /* ⚠ THE OTHER HALF OF `sealSnapshot`: `delete` is NOT interchangeable with
-     `= null` — a made-up empty is state a later test reads as real. */
-  for (const k of Object.keys(snap)) {
-    if (snap[k] === SNAP_ABSENT) delete window.G[k];
-    else window.G[k] = snap[k];
-  }
+  /* ⚠ THE OTHER HALF OF `sealSnapshot`: `delete` is NOT interchangeable with `= null`. */
+  for (const k of Object.keys(snap)) { if (snap[k] === SNAP_ABSENT) delete window.G[k]; else window.G[k] = snap[k]; }
   /* b455 — AND THE DISPLAY PREDICTIONS GO WITH IT. Restoring G.skills/G.gold
      while leaving an outstanding prediction standing would carry one test's
      grant into the next test's measurement, which is the hardest kind of suite
@@ -16255,8 +16242,7 @@ const TESTS = [
       'G.autoActions.eat.enabled should be boolean');
     assert(window.G.dropLog && typeof window.G.dropLog === 'object',
       'G.dropLog missing — migration v3→v4 not applied');
-    /* ⚠ `plotLevels` IS NOT A BOOT FIELD AND THIS READ A LEAK (2026-09-13; see the
-       plot-tier test below). `autoActions`/`dropLog` above ARE boot fields. */
+    /* ⚠ `plotLevels` IS NOT A BOOT FIELD AND THIS READ A LEAK (2026-09-13; see the plot-tier test below). */
     const _lv = window.HearthriseFarm && window.HearthriseFarm.getPlotLevel();
     assert(typeof _lv === 'number' && _lv >= 1,
       'the plot tier Batch C reads is ' + JSON.stringify(_lv) + ' — the Turnip-only default is 1');
@@ -16777,26 +16763,18 @@ const TESTS = [
   }),
 
   // b136: schema migration left plotLevels intact at 1 by default.
-  /* ⚠ THIS PRECONDITION WAS A LEAK AND THE SEAL EXPOSED IT (2026-09-13): it read
-     `typeof G.plotLevels === 'number'` off the AMBIENT character, and only the tests
-     above — writing the field through a BARE snapshot entry — made that true. Nothing
-     in the boot path sets it post-cutover (the v3→v4 save migration is pre-cutover,
-     the beta was wiped), so it is ABSENT until an envelope states the tier or the
-     reader heals it. Assert it WHERE IT LIVES: `getPlotLevel()`'s migration-safety
-     branch (src/features/farm-progression.js) is what gives tier 1, not a crash. */
+  /* ⚠ THIS PRECONDITION WAS A LEAK AND THE SEAL EXPOSED IT (2026-09-13): nothing in the boot
+     path sets `plotLevels` post-cutover (the v3→v4 save migration is pre-cutover, the beta was
+     wiped), so only the tests above — writing it through a BARE snapshot entry — made the old
+     ambient assertion true. `getPlotLevel()`'s fail-safe is where the invariant lives. */
   () => tryRun('b136: G.plotLevels is a number >=1 (migration default holds)', () => {
-    const F = window.HearthriseFarm;
+    const F = window.HearthriseFarm, snap = snapshotG();
     assert(F && typeof F.getPlotLevel === 'function', 'HearthriseFarm.getPlotLevel is missing — nothing owns the plot tier');
-    const snap = snapshotG();
     try {
-      // The character the server has said nothing about: no tier, no mirror.
-      delete window.G.plotLevels; delete window.G._serverPlotLevel;
+      delete window.G.plotLevels; delete window.G._serverPlotLevel;   // a character the server has not spoken about
       const lv = F.getPlotLevel();
-      assert(typeof lv === 'number' && isFinite(lv), 'getPlotLevel() returned ' + JSON.stringify(lv) + ' for a character with no recorded tier — the farm renders off this');
-      assert(lv >= 1, 'getPlotLevel() returned ' + lv + ' — the fail-safe floor is 1 (tier-1 crops), never 0 and never a locked farm');
-      assert(typeof window.G.plotLevels === 'number' && window.G.plotLevels >= 1,
-        'getPlotLevel() must HEAL G.plotLevels to the floor (got ' + JSON.stringify(window.G.plotLevels)
-        + '); every later reader derefs the field, not the function');
+      assert(typeof lv === 'number' && isFinite(lv) && lv >= 1, 'getPlotLevel() returned ' + JSON.stringify(lv) + ' for a character with no recorded tier — the fail-safe floor is 1 (tier-1 crops), never 0 and never a locked farm');
+      assert(typeof window.G.plotLevels === 'number' && window.G.plotLevels >= 1, 'getPlotLevel() must HEAL G.plotLevels to the floor (got ' + JSON.stringify(window.G.plotLevels) + '); every later reader derefs the field, not the function');
     } finally { restoreG(snap); }
   }),
 
@@ -21171,94 +21149,51 @@ const TESTS = [
   // The shop is a scene now. A scene that swallows its own offers is worse
   // than the list it replaced, so: the counter renders, every catalogue entry
   // reaches it, and every Buy control is on screen and hit-testable.
-  /* THE RATCHET: no list of five, no OPERATOR check — it proves the PROPERTY over every
-     field the snapshot names, whatever it names tomorrow. Per field: one character that
-     does NOT own it (snapshot → write → restore → absent again, value AND presence) and
-     one that DOES (value back byte-for-byte, so "restores to absent" cannot be bought by
-     wiping real state). Mutation-proved by reverting the `delete` in restoreG or the
-     sentinel in sealSnapshot: either names all 48. */
+  /* THE RATCHET: no list of five, no OPERATOR check — it proves the PROPERTY over every field the
+     snapshot names, whatever it names tomorrow. Per field: one character that does NOT own it
+     (snapshot → write → restore → absent again, value AND presence) and one that DOES (value back
+     byte-for-byte). Mutation-proved by reverting restoreG's `delete` or the sentinel: all 48. */
   () => tryRun('SNAP-2: restoreG puts back EVERY snapshotG field exactly — value AND presence — even one the character does not own', () => {
-    const real = window.G;
-    const fields = Object.keys(snapshotG() || {});
-    assert(fields.length >= 55,
-      'CONTROL: snapshotG named ' + fields.length + ' field(s) — it is not snapshotting the live character, so every check below is vacuous');
-    ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits', 'rooms', 'skills', 'gold']
-      .forEach((k) => assert(fields.indexOf(k) >= 0,
-        k + ' is not on the snapshot list at all, so no test can put it back — it leaks for the rest of the run'));
-    /* THE 13 PRE-SEAL `?? <empty>` ENTRIES, PINNED BY VALUE — the teeth. A made-up empty
-       is worse than the leak, so a field may decline the sentinel only if named HERE with
-       its exact value; the seal needs no entry, so this count can only fall. */
+    /* DECLARED_EMPTY: the 13 pre-seal `?? <empty>` entries, PINNED BY VALUE — the teeth. A field
+       may decline the sentinel only if named here with its exact value, so this can only fall. */
     const DECLARED_EMPTY = {
-      activeArtisanRecipe: null, activeArtisanSkill: null, activeAction: null,   // the four activity pointers; two were named
-      _dungeonCooldowns: null, traits: null, _bankCap: null,                     // no envelope yet / no purchase yet
-      heroSlotsUnlocked: null, _heroSlots: null,                                 // the hero-slot entitlement PAIR
-      lockedItems: null, lootFilter: null,                                       // sell-lock + its loot-filter twin
-      lastWelcome: 0, recoveringUntilMs: 0,                                      // a dismissed card; the knockout instant
-      buyback: [],                                                               // the vendor buy-back list (a measured leak)
+      activeArtisanRecipe: null, activeArtisanSkill: null, activeAction: null, _dungeonCooldowns: null,
+      traits: null, _bankCap: null, heroSlotsUnlocked: null, _heroSlots: null, lockedItems: null,
+      lootFilter: null, lastWelcome: 0, recoveringUntilMs: 0, buyback: [],
     };
-    const absentLeak = [], valueLeak = [], noKey = [], undeclared = [];
+    const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k), J = (v) => String(JSON.stringify(v)).slice(0, 50);
+    const real = window.G, fields = Object.keys(snapshotG() || {}), bad = [];
+    assert(fields.length >= 55, 'CONTROL: snapshotG named ' + fields.length + ' field(s) — it is not snapshotting the live character, so every check below is vacuous');
+    ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits', 'rooms', 'skills', 'gold']
+      .forEach((k) => assert(fields.indexOf(k) >= 0, k + ' is not on the snapshot list at all, so no test can put it back — it leaks for the rest of the run'));
     try {
-      /* A SWAP onto a DETACHED copy; synchronous, so the live character is never written.
-         Shallow per case: only depth-1 keys move. */
+      /* A SWAP onto a DETACHED copy; synchronous, so the live G is never written. */
       const base = JSON.parse(JSON.stringify(real));
       for (const f of fields) {
-        // ── (a) the character does NOT own the field ──────────────────
-        const bare = { ...base };
+        const bare = { ...base }, declared = own(DECLARED_EMPTY, f);     // (a) a character that does NOT own it
         delete bare[f];
         window.G = bare;
-        const snapA = snapshotG();
-        if (!Object.prototype.hasOwnProperty.call(snapA, f)) { noKey.push(f); continue; }
-        /* The seal recorded it, or the entry declares a PINNED empty; a third answer
-           is a made-up value. */
-        const declared = Object.prototype.hasOwnProperty.call(DECLARED_EMPTY, f);
-        if (snapA[f] !== SNAP_ABSENT && !declared) {
-          undeclared.push(f + ' snapshots as ' + String(JSON.stringify(snapA[f])).slice(0, 40));
-        }
-        bare[f] = { __snapRatchet: f };          // what a test writes
+        const snapA = snapshotG(), absent = snapA[f] === SNAP_ABSENT;
+        if (!own(snapA, f)) { bad.push(f + ': NO KEY — sealSnapshot must store SNAP_ABSENT for undefined'); continue; }
+        if (!absent && !declared) bad.push(f + ': snapshots as ' + J(snapA[f]) + ' — an UNDECLARED empty; drop the operator or pin it in DECLARED_EMPTY');
+        bare[f] = { __snapRatchet: f };                                  // what a test writes
         restoreG(snapA);
-        const has = Object.prototype.hasOwnProperty.call(bare, f);
-        if (snapA[f] === SNAP_ABSENT) {
-          if (has) absentLeak.push(f + ' = ' + JSON.stringify(bare[f]) + ' (must be absent)');
-        } else if (declared) {
-          const want = JSON.stringify(DECLARED_EMPTY[f]);
-          if (!has || JSON.stringify(bare[f]) !== want) {
-            absentLeak.push(f + ' = ' + (has ? JSON.stringify(bare[f]) : 'absent')
-              + ' (its declared empty is ' + want + ')');
-          }
-        }
-        // ── (b) the character DOES own it: the value must come back ───
-        if (!Object.prototype.hasOwnProperty.call(base, f)) continue;
-        const owned = { ...base };
+        const want = absent ? 'absent' : declared ? JSON.stringify(DECLARED_EMPTY[f]) : null;
+        const got = own(bare, f) ? JSON.stringify(bare[f]) : 'absent';
+        if (want !== null && got !== want) bad.push(f + ': restored as ' + got.slice(0, 50) + ', wanted ' + want);
+        if (!own(base, f)) continue;                                     // (b) a character that DOES own it
+        const owned = { ...base }, had = JSON.stringify(base[f]);
         window.G = owned;
-        const want = JSON.stringify(owned[f]);
         const snapB = snapshotG();
         owned[f] = { __snapRatchet: f };
         restoreG(snapB);
-        if (JSON.stringify(owned[f]) !== want) {
-          valueLeak.push(f + ' came back as ' + String(JSON.stringify(owned[f])).slice(0, 60)
-            + ' instead of ' + String(want).slice(0, 60));
-        }
+        if (JSON.stringify(owned[f]) !== had) bad.push(f + ': owned value came back as ' + J(owned[f]) + ' instead of ' + had.slice(0, 50));
       }
     } finally { window.G = real; }
-    assert(!noKey.length,
-      'snapshotG produced NO KEY for ' + noKey.join(', ') + ' on a character that does not own it. '
-      + 'JSON.stringify drops undefined and restoreG walks Object.keys(snap), so it puts nothing back and '
-      + 'whatever a test writes there is inherited by every test after it. sealSnapshot() must store the '
-      + 'SNAP_ABSENT sentinel for an undefined value.');
-    assert(!undeclared.length,
-      'these fields decline the ABSENT sentinel without declaring an empty: ' + undeclared.join(' | ')
-      + '. A `?? <empty>` on the snapshot list is a VALUE a later test can read as real state — '
-      + 'skills:{} is a level-1 character, gold:null paints, a zeroed bank takes capacity a player bought. '
-      + 'Either drop the operator and let sealSnapshot record the absence (no empty to choose), or add the '
-      + 'field to DECLARED_EMPTY above with the exact empty and the reason.');
-    assert(!absentLeak.length,
-      'restoreG did not put ' + absentLeak.join(' | ') + ' back as it found it — the field was absent (or at '
-      + 'its declared empty) before the snapshot and holds something else after the restore, so a test\'s '
-      + 'write outlives its own finally block and every test after it inherits it. restoreG must `delete` '
-      + 'the key when the snapshot holds SNAP_ABSENT, never assign a made-up empty.');
-    assert(!valueLeak.length,
-      'restoreG did not put the real value back: ' + valueLeak.join(' | ') + '. Restoring to absent must not '
-      + 'be bought by wiping state the character owns.');
+    assert(!bad.length, 'snapshotG/restoreG did not round-trip ' + bad.length + ' field(s) — ' + bad.join(' | ')
+      + '. JSON.stringify drops undefined and restoreG walks Object.keys(snap), so a dropped key puts nothing back and whatever a '
+      + 'test writes there is inherited by every test after it; a MADE-UP empty is worse still (skills:{} is a level-1 character, '
+      + 'a zeroed bank takes capacity a player bought). sealSnapshot() stores SNAP_ABSENT and restoreG() `delete`s that key.');
   }),
 
   () => tryRun('b221: the shop renders the counter scene with every offer reachable', () => {

@@ -14106,15 +14106,13 @@ function paintStreak(){
 function maybeShowWelcome(){
   if(typeof G !== 'object' || !G) return;
   /* ── THE ABSENCE IS THE SERVER'S SPAN, NEVER A RESIDUE STAMP (b514) ───────
-     MEASURED LIVE on b513: this card said "Time away 13h 8m" on a reload two
-     hours after the last session on that account, and earlier the same day
-     "64h 53m" while the server receipt for the same boot said awayMs 4.4h.
-     Both numbers came from `Date.now() - G.lastSeen` — a stamp this client
-     writes for itself, per-device, advanced only by the saves that happen to
-     run, and under §1 authority for nothing. `serverAwaySpanMs` returns the
-     receipt's credited span, else the boot watermark, else NULL; null means
-     the card greets the player and states no length at all, which is the only
-     honest thing to say about a span nobody measured. */
+     MEASURED LIVE on b513: "Time away 13h 8m" on a reload two hours after the
+     last session, and "64h 53m" the same day against a receipt of 4.4h. Both
+     came from `Date.now() - G.lastSeen`, a per-device stamp advanced only by
+     the saves that happen to run and under §1 authority for nothing.
+     `serverAwaySpanMs` returns THIS boot's receipt span, else the boot
+     watermark, else NULL — and null means the card states no length at all,
+     the only honest thing to say about a span nobody measured. */
   var _srvSpan = null;
   try{
     var _AC = window.HearthriseAccrual;
@@ -14123,11 +14121,9 @@ function maybeShowWelcome(){
   var since = Date.now() - (G.lastSeen || Date.now());
   var minutesAway = since / 60000;
   /* The 30-minute door still reads the residue stamp, DELIBERATELY: it decides
-     only WHETHER to greet a returning player, never a figure, and a client-held
-     "when this device last saw you" is a defensible trigger where it is not a
-     defensible measurement. (Making the door server-priced too is a design
-     call — it would suppress the card on a same-device reload — and it is not
-     this fix's to make.) */
+     only WHETHER to greet, never a figure. (Server-pricing the door too would
+     suppress the card on a same-device reload — a design call, still open; b543
+     made every FIGURE behind the door server-priced instead.) */
   if(minutesAway < 30) return;
   if(Date.now() - (G.lastWelcome||0) < 5000) return; // already shown this session
   G.lastWelcome = Date.now();
@@ -14135,28 +14131,32 @@ function maybeShowWelcome(){
   var rows = [];
   /* ── b342: THE RECEIPT IS THE SOURCE, AND IT IS THE ONLY SOURCE ───────────
      Measured on a returning player: this modal showed "While away 8.0h" AND
-     "Time away 8h 0m" — the same fact, twice, in different units, from two
-     different estimators — and the gains it was ostensibly reporting
-     (+1,553 XP · +4 items · +7 gold · 3 kills) WERE NOT IN IT AT ALL. They
-     existed only in a toast and on the Home card behind this modal.
-
-     The duplicate came from a second block further down this file that polled
-     for `#welcome-rows` and PREPENDED rows built from `calcCatchup()` — a
-     third, display-only ESTIMATE of the absence that b214 already had to stop
-     from double-granting. That block is deleted; its numbers were a forecast
-     of a night that had already been settled, and quoting a forecast next to
-     the ledger is how a player learns not to trust either.
-
-     `lastOfflineSummary` is the receipt processOffline (or the server accrual)
-     wrote for the absence THIS modal is about. Everything below is read from
-     it — the span, the gains, the death, the licence — and nothing is
-     inferred. When there is no fresh receipt the modal simply says less — and
-     since b514 the SPAN is the server's or absent, never the clock's.
-     Glyphs, not emoji: the four this row list used to carry were pre-existing
-     Final Directive debt and are cleared here rather than copied forward. */
+     "Time away 8h 0m" — one fact twice, from two estimators — while the gains
+     it was ostensibly reporting were not in it at all. The duplicate came from
+     a second block further down this file that PREPENDED rows built from
+     `calcCatchup()`, a display-only forecast of a night already settled; that
+     block is deleted. Everything below is READ from `lastOfflineSummary` — the
+     span, the gains, the death — and nothing is inferred.
+     ── AND THE RECEIPT MUST BE THIS BOOT'S (live b543, 2026-09-13) ───────────
+     MEASURED on the QA account: a plain reload FIVE SECONDS after playing
+     re-presented a settled night — "Time away 12h 0m · XP earned +88,711 ·
+     Items found +2,768 · XP per hour 7,392" — as if the player had just walked
+     in from it. Nothing was double-credited; the card was describing somebody
+     else's moment. `reconcileAwayReceipt` seeds this holder from
+     `player_state.last_away_receipt` on boot so the HOME away card survives a
+     reload (ruling 2026-09-07) and marks it `restored`; this modal reports the
+     absence THIS LOAD ENDED and could not tell a statement from a restatement.
+     Now it refuses a restatement (as does `serverAwaySpanMs`) and says LESS on
+     a reload rather than something untrue. The Home card is untouched. */
   var _off = G.lastOfflineSummary;
-  var _fresh = !!(_off && _off.at && (Date.now() - _off.at) < 30*60000);
-  var _awayLbl = _srvSpan === null ? null : (function(ms){
+  var _restated = !!(_off && _off.restored === true);
+  var _fresh = !!(_off && _off.at && (Date.now() - _off.at) < 30*60000) && !_restated;
+  /* A SPAN UNDER THE SERVER'S OWN MINIMUM PRICED WINDOW IS NOT AN ABSENCE: with
+     the restatement refused a reload prices itself off the boot watermark —
+     seconds — and "Time away 0m" is a number nobody needed. Below ACCRUE_MIN_MS
+     (60 s, the floor the engine refuses to settle inside) the card states no
+     length, the same silence it keeps when the server stated no span. */
+  var _awayLbl = (_srvSpan === null || _srvSpan < 60000) ? null : (function(ms){
     var m = Math.max(0, Math.round(ms/60000));
     if(m < 60) return m + 'm';
     return Math.floor(m/60) + 'h ' + (m%60) + 'm';
@@ -14232,7 +14232,11 @@ function maybeShowWelcome(){
      unsaid. Reads the SAME receipt the Home card reads (`lastOfflineSummary`),
      stated not inferred, and prints nothing at all when nobody died. */
   try{
-    var _dead = _off && (_off.died || (_off.combat && _off.combat.died));
+    /* ⚠ `!_restated` for the same reason the gain rows carry it (b543): the
+       death the restored receipt describes was already reported when it
+       happened, and re-announcing "You fell 4 times to the Slime" on a reload
+       five seconds into play is the same lie in a louder voice. */
+    var _dead = _off && !_restated && (_off.died || (_off.combat && _off.combat.died));
     if(_dead){
       var _ms = Number(_off.diedAfterMs || (_off.combat && _off.combat.survivedMs) || 0);
       var _to = _off.diedTo || (_off.combat && _off.combat.diedTo) || null;

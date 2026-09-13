@@ -1037,7 +1037,10 @@ export function serverAwaySpanMs(g, now) {
   const st = g || (typeof window !== 'undefined' ? window.G : null);
   const t = Number(now) > 0 ? Number(now) : nowMs();
   const off = st && st.lastOfflineSummary;
-  if (off && Number(off.at) > 0 && (t - Number(off.at)) < 30 * 60000 && Number(off.awayMs) > 0) {
+  /* ⚠ NEVER A `restored` RECEIPT: the boot seed restates a night already paid
+     and is silent about THIS page load (measured: a 5s reload read as 12h). */
+  if (off && off.restored !== true
+      && Number(off.at) > 0 && (t - Number(off.at)) < 30 * 60000 && Number(off.awayMs) > 0) {
     return Number(off.awayMs);
   }
   if (bootAccruedToAt > 0) return Math.max(0, t - bootAccruedToAt);

@@ -10761,6 +10761,143 @@ const TESTS = [
     } finally { window.getCombatLevel = lvl; restoreG(snap); }
   }),
 
+  /* -- regression suite -- DGN-KEY-1: THE ENTRY-KEY COUNT IS THE SERVER'S ------
+     REPORTED LIVE 2026-09-13, b544, Tyler's own character: the Goblin Warcamp card
+     read "Entry: 1x Goblin Seal (have 2)" and every run button toasted "The server
+     says you have no key for that dungeon." Measured in production the same minute:
+     that character's `player_inventory` held bone_key 142 and obsidian_sigil 56 and
+     NO goblin_seal row at all.
+
+     THE MECHANISM: an attended kill rolls its drops with the CLIENT's Math.random
+     for instant feedback while the settle pays the SERVER's re-simulation of the
+     same span with the server's seeded PRNG, and the envelope's live merge is a
+     one-way `Math.max` ratchet (accrue.js, the b359/b362 never-delete rule) which
+     can never take the difference back. So a 6%-chance key the client rolled and
+     the server did not stays in the display bag for the rest of the session, the
+     card counts it, and the button invites a run `hr_dungeon_settle` must refuse.
+
+     The gate and the label now read `serverItemCount` -- the mirror of
+     `hr_state_of`'s whole-bag projection of `player_inventory`, which is the exact
+     table the RPC debits. Fail-OPEN on silence: an unstated bag still reads the
+     local count, so no gesture is ever disabled because no envelope has arrived.
+     MUTATION: point keyHeld() back at G.inventory, or drop the _serverBag mirror,
+     and (a)/(b) go red; make it fail CLOSED and (d) goes red. */
+  () => tryRun('DGN-KEY-1: a dungeon entry key is counted from the server bag, not the client display bag', () => {
+    const A = window.HearthriseAccrual, id = 'goblin_warcamp', key = 'goblin_seal';
+    assert(A && typeof A.serverItemCount === 'function', 'accrue.js must export serverItemCount');
+    assert(typeof window.canRunDungeon === 'function' && typeof window.dungeonKeysHeld === 'function',
+      'the dungeon gate and its key reader must both be exposed');
+    if (!window.DUNGEONS || !window.DUNGEONS[id]) return;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag;
+    try {
+      window.getCombatLevel = () => 99;
+      G._dungeonCooldowns = {};
+      /* THE PHANTOM, as the live session held it: two client-rolled seals in the
+         display bag, and ONE bone_key the server really does hold. */
+      G.inventory = Object.assign({}, G.inventory, { [key]: 2, bone_key: 1 });
+      delete G._serverBag;
+      A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 1 } });
+      // (a) THE SERVER'S FIGURE -- an omitted id is a real zero (whole-bag projection).
+      assert(A.serverItemCount(G, key) === 0 && A.serverItemCount(G, 'bone_key') === 1,
+        'the mirrored server bag must say 0 seals and 1 bone key (got '
+        + JSON.stringify({ seal: A.serverItemCount(G, key), bone: A.serverItemCount(G, 'bone_key') }) + ')');
+      assert((G.inventory[key] || 0) === 2,
+        'the display bag keeps its client-rolled seal under the live merge ratchet -- that is the '
+        + 'lie this test exists for, and removing it is a different (Phase 2) change');
+      // (b) THE GATE AND THE LABEL -- THE BUG.
+      const got = window.canRunDungeon(id, 'auto');
+      assert(window.dungeonKeysHeld(key) === 0 && got.ok === false && /Goblin Seal/.test(got.reason),
+        'THE BUG: the card counted keys the server has no row for, so the run button invited a '
+        + 'refusal ("no key for that dungeon"). Got ' + JSON.stringify({ held: window.dungeonKeysHeld(key), got }));
+      // (c) AND IT DOES NOT LOCK OUT A KEY THE SERVER DOES HOLD.
+      assert(window.canRunDungeon('crypt_of_bones', 'auto').ok === true,
+        'a dungeon whose key the server NAMES must stay runnable (got '
+        + JSON.stringify(window.canRunDungeon('crypt_of_bones', 'auto')) + ')');
+      if (document.getElementById('panel-dungeons')) {
+        window.renderDungeons();
+        const stock = [...document.querySelectorAll('#panel-dungeons .dgn-key-stock')].map((e) => e.textContent);
+        assert(stock.length && stock.indexOf('(have 2)') === -1 && stock.indexOf('(have 0)') !== -1,
+          'the card must print the server count, never the phantom 2: ' + JSON.stringify(stock));
+      }
+      // (d) FAIL-OPEN ON SILENCE: no envelope has stated a bag => never disable.
+      delete G._serverBag;
+      assert(A.serverItemCount(G, key) === null && window.dungeonKeysHeld(key) === 2
+        && window.canRunDungeon(id, 'auto').ok === true,
+        'an UNSTATED bag must read the local count -- a gesture is disabled only when the server '
+        + 'says none, never on silence (got ' + JSON.stringify(window.canRunDungeon(id, 'auto')) + ')');
+    } finally {
+      window.getCombatLevel = lvl;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
+  /* -- regression suite -- FARM-SEED-1: THE SEED COUNT IS THE SERVER'S TOO -----
+     THE SAME CLASS AS DGN-KEY-1, measured on the QA account on live b544
+     (2026-09-13): the bag rendered turnip_seed x5 and the seed picker offered it,
+     while every hr_farm_plant answered {"error":"insufficient_seed"} -- 19 of them
+     journalled in hr_rejections for that slot. Production held NO turnip_seed and
+     NO carrot_seed row for it; wheat_seed 11. Those two numbers are the FRESH-G
+     FACTORY LITERAL (src/legacy.js `inventory:{turnip_seed:5,carrot_seed:3,...}`,
+     the start kit the SERVER grants at creation and the character spent long ago).
+     `loadLocal` cannot strip it -- `inventory` is not a SERVER_OF_RECORD field --
+     and the envelope's live merge is a one-way `Math.max` ratchet, so the count
+     comes back on every reload and can never be lowered.
+     The pre-flight, the picker, Plant all and auto-replant now count with
+     `gateItemCount` (the mirror of the server's whole-bag projection), so the
+     client stops spending gestures on refusals it could already predict.
+     MUTATION: point plantCrop's pre-flight back at hasItem(), or drop the
+     _serverBag mirror, and (b) goes red. */
+  () => tryRun('FARM-SEED-1: a plant is pre-flighted against the server seed count, not the fresh-G start kit', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.gateItemCount === 'function', 'accrue.js must export gateItemCount');
+    assert(typeof window.plantCrop === 'function' && typeof window.heldByServer === 'function',
+      'the plant gesture and its count reader must both be exposed');
+    if (!window.CROPS || !window.CROPS.turnip) return;
+    const G = window.G, snap = snapshotG(), bagWas = G._serverBag;
+    const prevSync = window.HearthriseFarmSync, realNotify = window.notify;
+    const sent = [], said = [];
+    try {
+      window.notify = (m) => { said.push(String(m)); };
+      window.HearthriseFarmSync = {
+        isFarmServerArmed: () => true,
+        farmPlantRefusalText: () => 'no seeds',
+        farmPlant: (i, c) => { sent.push([i, c]); return Promise.resolve({ ok: false, error: 'insufficient_seed' }); },
+      };
+      G.farmPlots = [null, null];
+      /* THE PHANTOM, as the live slot held it: the factory literal in the display
+         bag, and a server bag that names a DIFFERENT seed it really does hold. */
+      G.inventory = Object.assign({}, G.inventory, { turnip_seed: 5, wheat_seed: 11 });
+      delete G._serverBag;
+      A.applyEnvelopeState(G, { state: {}, inventory: { wheat_seed: 11 } });
+      // (a) THE SERVER'S FIGURES.
+      assert(A.gateItemCount(G, 'turnip_seed') === 0 && window.heldByServer('wheat_seed') === 11,
+        'the gate must read 0 turnip seed and 11 wheat seed from the server bag (got '
+        + JSON.stringify({ turnip: A.gateItemCount(G, 'turnip_seed'), wheat: window.heldByServer('wheat_seed') }) + ')');
+      assert((G.inventory.turnip_seed || 0) === 5,
+        'the display bag keeps the factory seed under the live merge ratchet -- that is the lie '
+        + 'this test exists for; removing it is the (Phase 2) inventory flip');
+      // (b) THE BUG: the gesture must not go out, and the refusal must be SAID.
+      window.plantCrop(0, 'turnip');
+      assert(sent.length === 0,
+        'THE BUG: a plant went out against a seed the server has no row for -- 19 of these were '
+        + 'journalled on live. Sent: ' + JSON.stringify(sent));
+      assert(said.some((m) => /Turnip Seed/.test(m)),
+        'the refusal must NAME the seed and where to get it, got ' + JSON.stringify(said));
+      assert(!G.farmPlots[0], 'a plant the client never sent must leave no phantom crop');
+      // (c) FAIL-OPEN ON SILENCE: an unstated bag still sends (never block on silence).
+      delete G._serverBag;
+      window.plantCrop(0, 'turnip');
+      assert(sent.length === 1 && sent[0][1] === 'turnip',
+        'with no envelope-stated bag the gesture must still be sent -- a gate is closed only when '
+        + 'the server SAYS none (sent ' + JSON.stringify(sent) + ')');
+    } finally {
+      window.HearthriseFarmSync = prevSync; window.notify = realNotify;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('WAVE6: a weekly boss exists and pays a bigger bonus than the daily', () => {
     const B = window.HearthriseBossOfDay;
     if (!B || typeof B.weeklyId !== 'function' || !window.MONSTERS) return;
@@ -19613,6 +19750,10 @@ const TESTS = [
       };
       window.G.farmPlots = [null, null];
       window.G.inventory = Object.assign({}, window.G.inventory, { turnip_seed: 5 });
+      /* The SERVER must name the seed for the gesture to be SENT at all (DGN-KEY-1 /
+         FARM-SEED-1: the pre-flight reads the server bag, not the display bag), and
+         this arm is about what a REFUSAL does once sent. */
+      window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 5 });
       window.plantCrop(0, 'turnip');
       await new Promise((r) => setTimeout(r, 0));
       assert(window.G.stats.planted === 3,

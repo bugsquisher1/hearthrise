@@ -762,6 +762,54 @@ export function equippedCount(equipment, id) {
   return n;
 }
 
+/* ── THE SERVER-PROJECTED BAG, READ (live P1, 2026-09-13) ───────────────────
+   REPORTED LIVE: the Goblin Warcamp card read "Entry: 1× Goblin Seal (have 2)"
+   and every run button toasted "The server says you have no key for that
+   dungeon." Measured in production the same minute: that character held
+   bone_key 142 and obsidian_sigil 56 in `player_inventory` and NO goblin_seal
+   row at all, while the client's bag said 2.
+
+   THE MECHANISM, not a guess: attended kills roll their drops CLIENT-side for
+   display with the client's own Math.random, and the settle pays the SERVER's
+   re-simulation of the same span with the server's seeded PRNG. The two agree
+   on kills (the attended top-up) but never item-for-item on a 6%-chance key.
+   The envelope then cannot correct the difference, because the merge branch
+   below is a one-way `Math.max` ratchet (the b359/b362 never-delete rule, still
+   the live path — `isInventoryAbsolute()` is false in prod). So a client-rolled
+   key stays in `G.inventory` for the rest of the session and the card counts it.
+
+   `G._serverBag` is the LAST STATED SERVER BAG — `hr_state_of` projects the
+   WHOLE of `player_inventory` for the slot (`jsonb_object_agg(item_id, qty)`
+   coalesced to `{}`), which is the exact table `hr_dungeon_settle` reads its
+   entry key from, so an omitted id is a real zero and this map answers "would
+   the server's key check pass?" without a second round trip. Scratch (`_`),
+   never persisted, never authored by the client.
+
+   `serverItemCount` returns NULL, not 0, when no envelope has stated a bag yet
+   (a boot before the first settle, Node, an offline tab): a caller must be able
+   to tell "the server says none" from "the server has not said", and only the
+   first of those may disable a gesture. */
+export function serverItemCount(G, id) {
+  if (!G || typeof G !== 'object' || !id) return null;
+  const bag = G._serverBag;
+  if (!bag || typeof bag !== 'object' || Array.isArray(bag)) return null;
+  const q = Number(bag[id]);
+  return Number.isFinite(q) && q > 0 ? Math.floor(q) : 0;
+}
+
+/* THE COUNT A GATE MUST READ, with the fail-open rule written ONCE (live P1
+   class, 2026-09-13: dungeon entry keys AND farm seeds both invited refusals the
+   server had already decided). The SERVER's figure when it has stated one; the
+   client's display bag only while it has not. Callers are thin wrappers
+   (src/dungeons.js keyHeld, legacy.js heldByServer) so the two surfaces cannot
+   drift into two different ideas of "have". */
+export function gateItemCount(G, id) {
+  const srv = serverItemCount(G, id);
+  if (srv !== null) return srv;
+  const q = Number(G && G.inventory && G.inventory[id]);
+  return Number.isFinite(q) && q > 0 ? Math.floor(q) : 0;
+}
+
 /**
  * b362 — copies worn on THIS client that the server's inventory figure has not
  * been told about. Pure. See the block in applyEnvelopeState for the proof.
@@ -3573,7 +3621,22 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
      not a SERVER_OF_RECORD field, so any SERVER-DERIVED statement about the bag
      waits for this. hr_state_of coalesces the projection to `{}`, so an empty
      bag stamps; an absent key is not a statement. `_`: scratch, never persisted. */
-  if (invNamedRaw) { try { G._bagFromServerAt = Date.now(); } catch (e) {} }
+  if (invNamedRaw) {
+    try { G._bagFromServerAt = Date.now(); } catch (e) {}
+    /* AND THE BAG ITSELF, MIRRORED — see the serverItemCount block above. The
+       RAW projection, before the pending-consume fold: a hold is a fact about
+       an in-flight CLIENT gesture, and this map must stay a record of what the
+       SERVER LAST SAID it holds. Copied key by key (positive integers only) so
+       no caller can mutate the envelope through it. */
+    try {
+      const mirror = {};
+      for (const k of Object.keys(invNamedRaw)) {
+        const q = Number(invNamedRaw[k]);
+        if (Number.isFinite(q) && q > 0) mirror[k] = Math.floor(q);
+      }
+      G._serverBag = mirror;
+    } catch (e) { /* a hostile projection cannot break the apply */ }
+  }
   const consumedIds = consumedKeysOf(res);
   const invNamed = pendingConsume.foldPendingConsume(G, invNamedRaw, {
     omissionIsZero: (invAbsolute && baselineComplete) ? true : consumedIds,
@@ -5154,6 +5217,10 @@ if (typeof window !== 'undefined') {
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,
+    /* "How many does the SERVER say I hold?" — null while unstated. Read by any
+       surface that gates a server-owned spend (dungeon entry keys today); never
+       use `G.inventory` for that, it is a display bag with a ratchet. */
+    serverItemCount, gateItemCount,
     /* THE PENDING-CONSUMPTION LEDGER (live P0 — "eaten food gets restocked").
        Re-published here as well as on window.HearthrisePendingConsume so a
        caller that already holds the accrual module does not need a second

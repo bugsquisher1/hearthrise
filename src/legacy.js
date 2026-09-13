@@ -7063,6 +7063,29 @@ const FARM_SYNC_DEPS={
   removeItem:function(id,q){ if(typeof removeItem==='function') removeItem(id,q); },
   addXp:function(sk,x){ if(typeof addXp==='function') addXp(sk,x); },
 };
+/* ── HOW MANY DOES THE *SERVER* SAY WE HOLD (live P1 class, 2026-09-13) ──────
+   REPORTED LIVE, twice in one hour, one mechanism: Tyler's Goblin Warcamp card
+   read "Entry: 1× Goblin Seal (have 2)" while hr_dungeon_settle answered "no key
+   for that dungeon", and the QA account's seed picker offered 5 Turnip Seed while
+   hr_farm_plant answered `insufficient_seed` 19 times. Production held NO
+   goblin_seal row for his character and NO turnip_seed row for that slot.
+
+   `G.inventory` is a DISPLAY bag and cannot be trusted by a GATE. Two feeds put
+   counts in it the server never granted: the fresh-G factory literal (the start
+   kit, which the SERVER grants at creation and spends thereafter) and attended
+   client-side drop/prediction rolls; and the envelope's live merge is a one-way
+   `Math.max` ratchet (src/net/accrue.js — the b359/b362 never-delete rule) which
+   can never take either back. `gateItemCount` answers with the mirror of
+   `hr_state_of`'s whole-bag projection of `player_inventory` — the exact table
+   hr_farm_plant debits a seed from and hr_dungeon_settle debits a key from — and
+   falls back to the display bag ONLY while no envelope has stated a bag, so no
+   gesture is ever disabled on silence. */
+function heldByServer(id){
+  const A=window.HearthriseAccrual;
+  if(A&&typeof A.gateItemCount==='function') return A.gateItemCount(G,id);
+  return (G.inventory&&Number(G.inventory[id]))||0;
+}
+window.heldByServer=heldByServer;
 function farmSyncReconcile(kind,res){
   try{ window.HearthriseFarmSync.reconcileFarmResult(G,kind,res,FARM_SYNC_DEPS); }catch(e){}
 }
@@ -7141,8 +7164,11 @@ function plantCrop(plotIdx,cropId){
   }
   const seedId=crop.seed;
   /* b465: "No seeds!" — a shout with no subject and no way forward. Name the
-     seed (from the crop row, never a literal) and where to get it. */
-  if(!hasItem(seedId)){
+     seed (from the crop row, never a literal) and where to get it.
+     THE COUNT IS THE SERVER'S (heldByServer, 2026-09-13): `hasItem` reads the
+     display bag, which is how 19 plants went out against seeds hr_farm_plant had
+     no row for. The sentence is the one the server's own refusal would print. */
+  if(heldByServer(seedId)<1){
     var _sn=(typeof ITEMS!=='undefined'&&ITEMS[seedId]&&ITEMS[seedId].n)||crop.name+' Seed';
     notify('You have no '+_sn+' — the Local Shop sells them','kill');return;
   }
@@ -9018,7 +9044,10 @@ window.plantAllEmpty = function plantAllEmpty(){
   }
   const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
   const seeds = {};
-  Object.values(CROPS).forEach(c=>{ seeds[c.seed] = (G.inventory||{})[c.seed]|0; });
+  /* THE SERVER'S SEED COUNTS (heldByServer) — "Plant all" used to pick crops from
+     the display bag and fire a plant per empty plot against seeds the server had
+     no row for, spending the whole run on refusals. */
+  Object.values(CROPS).forEach(c=>{ seeds[c.seed] = heldByServer(c.seed); });
   const st = { crops:CROPS, seeds, farmingLevel:getLevel('farming'),
     plotLevel:(window.HearthriseFarm&&window.HearthriseFarm.getPlotLevel)?window.HearthriseFarm.getPlotLevel():1,
     prefer:(replant&&replant.enabled)?replant.cropId:null };
@@ -9067,7 +9096,10 @@ function openSeedPicker(i){
   // - Plantable: have seeds + farming level + plot level allows.
   // - Locked by plot: have seeds + farming level, BUT plot level too low — show with House deep-link.
   // Anything filtered for missing seeds / farming level stays hidden.
-  const haveSeed = (c)=> (G.inventory[c.seed]||0) > 0 && getLevel('farming') >= c.req;
+  /* THE SERVER'S COUNT, not the display bag's (heldByServer) -- the picker offered
+     the fresh-G start kit's Turnip/Carrot Seed on a character whose server rows
+     were spent long ago, so every pick came back `insufficient_seed`. */
+  const haveSeed = (c)=> heldByServer(c.seed) > 0 && getLevel('farming') >= c.req;
   const canPlant = (id)=> {
     if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'){
       return window.HearthriseFarm.canPlantCrop(id);
@@ -9079,13 +9111,13 @@ function openSeedPicker(i){
   const lockedByPlot = allOwned.filter(([id])=>!canPlant(id));
   if(!plantable.length && !lockedByPlot.length){notify('No usable seeds. Visit the shop.','kill');return;}
   const m=document.getElementById('settings-modal');
-  const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield${c.regrows?` · perennial (regrows ×${c.regrowLimit||'∞'})`:''}</span></div><span class="price">x${G.inventory[c.seed]||0}</span></button>`;
+  const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield${c.regrows?` · perennial (regrows ×${c.regrowLimit||'∞'})`:''}</span></div><span class="price">x${heldByServer(c.seed)}</span></button>`;
   /* A locked row NAMES the tier it needs (and the one you have) — "upgrade the
      Farm Plot" alone never told the player how far away the crop was. */
   const needLv = (id)=> (window.HearthriseFarm && typeof window.HearthriseFarm.requiredPlotLevel==='function')
     ? window.HearthriseFarm.requiredPlotLevel(id) : 0;
   const havePlotLv = (window.HearthriseFarm && window.HearthriseFarm.getPlotLevel) ? window.HearthriseFarm.getPlotLevel() : 1;
-  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${needLv(id)?`Needs Farm Plot Lv ${needLv(id)} (you have Lv ${havePlotLv}) — House → Plot`:'No plot tier unlocks this crop'}</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
+  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${needLv(id)?`Needs Farm Plot Lv ${needLv(id)} (you have Lv ${havePlotLv}) — House → Plot`:'No plot tier unlocks this crop'}</span></div><span class="muted tiny">x${heldByServer(c.seed)}</span></button>`;
   /* The picker borrows the settings modal, whose heading is the static word
      "Settings" — so the dialog asking which seed to plant was titled SETTINGS
      (live 2026-09-13). Every opener of the shared shell states its own title. */

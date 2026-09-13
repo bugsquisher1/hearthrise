@@ -1573,6 +1573,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         buffsPaused: out.summary.buffsPaused,
         featuredMs: out.summary.featuredMs,
         featuredDropMult: out.summary.featuredDropMult,
+        /* THE BESTIARY CHARM THIS NIGHT WAS PRICED WITH (phase 2). Stated by the
+           simulation, for the same reason `featuredDropMult` is: the card may
+           not imply a bonus that was not applied, and it may not leave one
+           unnamed either — a paid multiplier no receipt mentions is a number the
+           player has to take on trust (Security review 2026-09-13, item 6).
+           null / 1 on an unstudied class, which prints nothing. */
+        charmClass: out.summary.charmClass ?? null,
+        charmRank: Math.max(0, Math.floor(Number(out.summary.charmRank) || 0)),
+        charmDropMult: out.summary.charmDropMult ?? 1,
         gold: out.summary.gold,
         xp: out.summary.xp,
         items: out.summary.items,

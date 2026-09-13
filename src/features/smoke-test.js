@@ -2181,6 +2181,42 @@ async function hfPoll() {
   return out;
 }
 
+/* THE CHARM TESTS' ONE FIXTURE AND ONE DRIVER (CHARM-2, CHARM-3).
+   Written once, on the test-file ratchet's own terms: two tests that each rebuilt
+   the roster search and the envelope driver cost twice the scaffolding and gave
+   one of them a chance to drift into testing something subtly different.
+   `hrCharmFixture` finds a REAL monster whose class is nameable and whose table
+   has a ROLLABLE row — a guaranteed row (ch >= 1) is untouched by design, so it
+   would make every rate assertion vacuous. `hrCharmDriver` answers the accrual
+   funnel with the idle envelope a reloading player actually gets, which is the
+   only response the charm mirror rides. */
+function hrCharmFixture() {
+  const C = window.HearthriseCharms; const M = window.MONSTERS || {};
+  const id = Object.keys(M).find((k) => C && C.classOfMonsterId(k)
+    && Array.isArray(M[k].drops) && M[k].drops.some((d) => d.ch > 0 && d.ch < 1));
+  return { id: id || null, cls: id ? C.classOfMonsterId(id) : null, m: id ? M[id] : null };
+}
+
+function hrCharmDriver() {
+  const A = window.HearthriseAccrual; const realFetch = window.fetch;
+  return {
+    async drive(bestiary) {
+      const env = { ok: true, accrued: false, reason: 'idle', version: 5,
+        now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}) };
+      window.fetch = (u, init) => (/hr-accrue/.test(String(u))
+        ? Promise.resolve(new Response(JSON.stringify(env), { status: 200 }))
+        : realFetch.call(window, u, init));
+      A.resetAccrualGate();
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      return A.requestAccrual({ force: true });
+    },
+    restore() {
+      window.fetch = realFetch;
+      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
+    },
+  };
+}
+
 const TESTS = [
   () => tryRun('boot: G defined', () => {
     assert(typeof window.G === 'object' && window.G, 'G not defined');
@@ -13081,22 +13117,10 @@ const TESTS = [
     const TOP = CHARM_RANKS[CHARM_RANKS.length - 1];
     const FIRST = CHARM_RANKS[0];
     const M = window.MONSTERS || {};
-    /* A REAL monster of a nameable class, found through the same accessor the
-       renderer uses — no hardcoded id — and with a ROLLABLE drop row, because a
-       guaranteed row is untouched by design and would make this vacuous. */
-    const id = Object.keys(M).find((k) => C.classOfMonsterId(k)
-      && Array.isArray(M[k].drops) && M[k].drops.some((d) => d.ch > 0 && d.ch < 1));
-    const cls = id ? C.classOfMonsterId(id) : null;
+    const fx = hrCharmFixture(); const id = fx.id; const cls = fx.cls;
     assert(id && cls, 'CONTROL: no roster monster resolved a class and a rollable drop row');
-    const snap = snapshotG(); const realFetch = window.fetch; const prevCharms = G._bestiaryCharms;
-    const envOf = (bestiary) => ({ ok: true, accrued: false, reason: 'idle', version: 4, now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}) });
-    const drive = async (bestiary) => {
-      window.fetch = (u, init) => (/hr-accrue/.test(String(u))
-        ? Promise.resolve(new Response(JSON.stringify(envOf(bestiary)), { status: 200 }))
-        : realFetch.call(window, u, init));
-      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
-      return A.requestAccrual({ force: true });
-    };
+    const snap = snapshotG(); const prevCharms = G._bestiaryCharms;
+    const rig = hrCharmDriver(); const drive = (b) => rig.drive(b);
     const dropOf = () => window.getWeaknessInfo(M[id]).dropMult;
     try {
       /* ARM 1 — NO SERVER BLOCK, A HUGE LOCAL RESIDUE. The base rate, exactly. */
@@ -13129,10 +13153,88 @@ const TESTS = [
       assert(rolls.weak.damageMult === window.getWeaknessInfo(M[id]).damageMult,
         'the charm moved damageMult \u2014 phase 3 is not armed (floor(maxHit x 1.01) is maxHit, so it would be a stated effect that does nothing)');
     } finally {
-      window.fetch = realFetch;
-      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
+      rig.restore();
       if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
       restoreG(snap);
+    }
+  }),
+
+  /* ── CHARM-3 — THE AWAY CARD NAMES THE CHARM THAT PAID ────────────────
+     Security review 2026-09-13 item 6: a paid multiplier that no receipt names is
+     one the player has to take on trust. Both directions, the b326 standard — the
+     line appears when the server's receipt carries the fields and is ABSENT when
+     it does not, because a card that invents a bonus is the same lie reversed.
+     The wire is asserted first: a card cannot name what the reader dropped. */
+  () => tryRun('CHARM-3: the welcome-back card names the bestiary charm the night was priced with, and nothing when none was', () => {
+    const G = window.G, A = window.HearthriseAccrual, C = window.HearthriseCharms;
+    const H = window.HearthriseHome;
+    assert(C && typeof C.awayLine === 'function' && H && typeof H.render === 'function',
+      'CONTROL: HearthriseCharms.awayLine / HearthriseHome is unpublished');
+    const TOP = CHARM_RANKS[CHARM_RANKS.length - 1];
+    const cls = hrCharmFixture().cls;
+    assert(cls, 'CONTROL: no roster monster resolved a class');
+    const prevSummary = G.lastOfflineSummary; const prevTab = window.activeTab;
+    const AWAY = { hrs: 8.2, awayMs: 8.2 * 3600000, gainedItems: 38, gainedXp: 12408, gainedGold: 5121,
+      gainedKills: 142, crits: 21, at: Date.now(), featuredMs: 0, featuredDropMult: 1, rateMult: 1.0 };
+    const band = () => { H.render(); const b = document.getElementById('hd-root').querySelector('.hd-awayband'); return b ? b.textContent.replace(/\s+/g, ' ') : ''; };
+    try {
+      window.showTab('profile');
+      const rec = A.summaryFromAway({ grantMs: 1, awayMs: 1, kills: 3,
+        charmClass: cls, charmRank: TOP.rank, charmDropMult: TOP.drop }, { version: 9 });
+      assert(rec.charmClass === cls && rec.charmRank === TOP.rank && rec.charmDropMult === TOP.drop,
+        'summaryFromAway dropped the charm receipt: ' + JSON.stringify([rec.charmClass, rec.charmRank, rec.charmDropMult]));
+      G.lastOfflineSummary = Object.assign({}, AWAY, { charmClass: cls, charmRank: TOP.rank, charmDropMult: TOP.drop });
+      const withText = band(); const label = C.classLabel(cls);
+      assert(new RegExp(label + ' charm').test(withText) && /Banesworn/.test(withText)
+        && new RegExp('\\+' + Math.round((TOP.drop - 1) * 100) + '% drops').test(withText),
+        'the band did not name the charm class, its rank and what it paid: ' + withText);
+      G.lastOfflineSummary = Object.assign({}, AWAY, { at: Date.now() });
+      const without = band();
+      assert(!/charm/i.test(without), 'the band printed a charm line for a receipt carrying none: ' + without);
+    } finally {
+      G.lastOfflineSummary = prevSummary;
+      try { H.render(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  /* ── CHARM-4 — THE LOOT MODAL ATTRIBUTES THE LIFT IT PRINTS ─────────────
+     The modal credited the WHOLE of `dropMult` to the matchup ("fears no weapon,
+     and an even matchup pays 15% better") — a sentence that became untrue the
+     moment a charm could contribute to that product. A panel that misattributes a
+     bonus teaches the player the wrong thing about their own build, so the
+     product is split into its two factors and each is named. */
+  () => tryRunAsync('CHARM-4: the loot modal names the charm that lifted the rates it prints, and only the matchup when there is none', async () => {
+    const G = window.G, C = window.HearthriseCharms, HUD = window.HearthriseCombatHud;
+    assert(C && HUD && typeof HUD.openLoot === 'function', 'CONTROL: HearthriseCombatHud is unpublished');
+    const TOP = CHARM_RANKS[CHARM_RANKS.length - 1];
+    const fx = hrCharmFixture(); const rig = hrCharmDriver();
+    assert(fx.id && fx.cls, 'CONTROL: no roster monster resolved a class and a rollable drop row');
+    const snap = snapshotG(); const prevCharms = G._bestiaryCharms; const prevTab = window.activeTab;
+    const modalText = () => (document.querySelector('.hr-room-scrim[data-combat-hud]') || {}).textContent || '';
+    try {
+      window.showTab('combat');
+      G.activeMonster = fx.id; G.monsterHp = fx.m.hp; G.monsterMaxHp = fx.m.hp;
+      G.playerMaxHp = 100000; G.playerHp = G.playerMaxHp;
+      delete G._bestiaryCharms;
+      await rig.drive(null);
+      assert(HUD.openLoot(), 'the loot modal did not open');
+      const plain = modalText();
+      assert(!/charm/i.test(plain), 'the loot modal named a charm for an unstudied class: ' + plain.slice(0, 200));
+      HUD.close();
+      await rig.drive({ kills_by_class: { [fx.cls]: TOP.at } });
+      assert(HUD.openLoot(), 'the loot modal did not reopen');
+      const charmed = modalText(); const label = C.classLabel(fx.cls);
+      assert(new RegExp(label + ' charm').test(charmed),
+        'the modal did not name the charm that lifted the rates it prints: ' + charmed.slice(0, 300));
+      assert(new RegExp('adds ' + Math.round((TOP.drop - 1) * 100) + '%').test(charmed),
+        'the modal did not state what the charm adds: ' + charmed.slice(0, 300));
+    } finally {
+      rig.restore();
+      try { HUD.close(); } catch (e) {}
+      if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
+      restoreG(snap);
+      try { window.showTab(prevTab || 'combat'); } catch (e) {}
     }
   }),
 

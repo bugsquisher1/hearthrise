@@ -81,7 +81,8 @@ import * as AMMO from '../src/core/ammo.js';
    table and the class fold from the one function that owns the taxonomy — a
    guard that retyped either would agree with itself while a designer re-priced
    the ladder out from under it. */
-import { charmIndex, killsByClass } from '../src/core/charms.js';
+import { charmIndex, killsByClass, charmDropMultFor, charmDamageMultFor, charmRankFor }
+  from '../src/core/charms.js';
 import { CHARM_RANKS, MAX_CHARM_DROP_MULT } from '../src/data/bestiary-charms.js';
 import { classOfMonster } from '../src/core/bane.js';
 import { ITEMS } from '../src/data/items.js';
@@ -5594,6 +5595,16 @@ function charmGuard() {
   ok(charmIndex(killsByClass({ not_a_monster: 999999 }, MONSTERS)) === null,
     'CHARM-W1: a counter for an unknown monster id produced a charm index. An id the catalogue '
     + 'cannot name must contribute nothing — inventing a class is how a capability becomes forgeable.');
+  /* AND A PROTOTYPE KEY IS NOT A RANK (Security review 2026-09-13, item 7).
+     MEASURED before the fix: `charmDropMultFor('constructor', {})` returned 1.03
+     — the top rung, on a class nobody has killed anything in — because
+     `index[cls]` walks the prototype chain. `charmIndex` returns a
+     null-prototype map so the live path was never exposed, but the ceiling is a
+     property of the FORMULA and not of who happens to call it. */
+  ok(charmDropMultFor('constructor', {}) === 1 && charmDamageMultFor('constructor', {}) === 1
+     && charmRankFor('constructor', {}) === 0,
+    'CHARM-W1: `constructor` earned a charm off a bare object — Object.prototype is truthy for it, '
+    + 'so the lookup must be an OWN-property test (the same receipt catalogueHas carries).');
 
   // ── W2 — IT REACHES A REAL DROP, THROUGH computeAccrual ────────────────────
   const base = night({});
@@ -5664,6 +5675,44 @@ function charmGuard() {
   ok(JSON.stringify(awayCharm.items) !== JSON.stringify(awayPlain.items),
     `CHARM-W3: ${400} charmed ticks produced byte-identical loot to ${400} unstudied ones, so the `
     + 'parity above would hold with the charm deleted. A non-vacuity check, not a bonus assertion.');
+
+  // ── W5 — THE RECEIPT NAMES WHAT IT PAID ───────────────────────────────────
+  // Security review 2026-09-13, item 6: a paid multiplier that no receipt and no
+  // surface names is one the player has to take on trust, and one nobody can
+  // audit after the fact. The simulation STATES it — class, rank and factor —
+  // exactly as it states `featuredDropMult`, and index.ts forwards the three onto
+  // the `away` payload the welcome-back card reads.
+  // MUTATION PROVEN: delete `charmClass` from the summary in combat-sim.js, or
+  // drop `charmRank` from the away block in index.ts, and this goes red.
+  {
+    const plain = night({});
+    const withCharm = night({ bestiaryKills: counters(TOP.at) });
+    if (plain.accrued && withCharm.accrued) {
+      ok(withCharm.summary.charmClass === CLS && withCharm.summary.charmRank === TOP.rank
+         && Math.abs(withCharm.summary.charmDropMult - TOP.drop) < 1e-9,
+        `CHARM-W5: a charmed night reported class ${JSON.stringify(withCharm.summary.charmClass)}, rank `
+        + `${withCharm.summary.charmRank}, x${withCharm.summary.charmDropMult}. The receipt must name the `
+        + 'class, the rung and the factor the night was PRICED with — stated by the simulation, never '
+        + 'guessed by a renderer from counters that have moved since.');
+      ok(plain.summary.charmClass === null && plain.summary.charmRank === 0
+         && plain.summary.charmDropMult === 1,
+        `CHARM-W5: an unstudied night reported ${JSON.stringify(plain.summary.charmClass)}/`
+        + `${plain.summary.charmRank}/${plain.summary.charmDropMult} instead of null/0/1. A card that is `
+        + 'handed a class it did not earn prints a bonus nobody paid.');
+    }
+    /* AND THE WIRE CARRIES IT. index.ts is Deno TypeScript and cannot be
+       imported here, so this is a SOURCE scan — weak by construction, and named
+       as such — but the alternative is no check at all on the one hop between a
+       stated summary and the card that reads it. The client half is played in
+       src/features/smoke-test.js CHARM-3. */
+    const IDX = readFileSync(join(FN_DIR, 'index.ts'), 'utf8');
+    for (const f of ['charmClass', 'charmRank', 'charmDropMult']) {
+      ok(IDX.includes(`out.summary.${f}`),
+        `CHARM-W5: index.ts's away block does not forward \`out.summary.${f}\`. The simulation states `
+        + 'the charm and the welcome-back card reads the away payload; a field that stops halfway is a '
+        + 'bonus that is paid and never mentioned.');
+    }
+  }
 
   // ── W4 — A FORGED RANK CANNOT REACH THE SERVER'S ANSWER ────────────────────
   // Two halves: there is no WIRE field, and the engine reads no such INPUT name.

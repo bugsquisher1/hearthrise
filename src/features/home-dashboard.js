@@ -789,6 +789,15 @@
         text: fmtSpanShort(off.featuredMs) + ' on the Boss of the Day' +
           (lift > 0 ? ' (+' + lift + '% drops)' : '') });
     }
+    /* THE BESTIARY CHARM THE NIGHT WAS PRICED WITH (phase 2). The charm module
+       owns the sentence (class label + rank name); this card owns placement and
+       tone. Same rule as the Boss line above — PRINTED ONLY IF THE RECEIPT
+       CARRIES IT, never guessed. Security 2026-09-13 item 6. */
+    try {
+      var CH = window.HearthriseCharms;
+      var charmLine = CH && typeof CH.awayLine === 'function' ? CH.awayLine(off) : '';
+      if (charmLine) notes.push({ tone: 'good', icon: 'uiMedal', text: charmLine });
+    } catch (e) { /* a card line is never load-bearing */ }
     if (off.buffsPaused) {
       notes.push({ tone: 'held', icon: 'uiHourglass',
         text: 'Food buffs paused — their time was kept, not spent.' });

@@ -538,6 +538,23 @@ export function simulateSpan(state, ctx) {
   let ticks = 0; let kills = 0; let foodEaten = 0; let crits = 0;
   let died = false; let featuredMs = 0; let featuredDropMult = 1;
   let carryMs = 0;
+  /* ── WHAT THE BESTIARY CHARM PAID (phase 2), STATED BY THE SIMULATION ──────
+     Read ONCE, from the same `ctx.weakness` every kill's drop roll reads, for
+     the foe this span is actually fighting — `resolveKill` respawns the same
+     monster, so the class cannot change inside a span. Stated here for the same
+     reason `featuredDropMult` is: the welcome-back card has to say "+3% drops"
+     rather than guess, and a bonus no receipt names is a bonus the player has to
+     take on trust (Security review 2026-09-13, item 6). `null`/1 when the class
+     is unstudied, which is the ordinary night and prints nothing. */
+  let charmClass = null; let charmRank = 0; let charmDropMult = 1;
+  if (state.activeMonster && typeof ctx.weakness === 'function') {
+    const w0 = ctx.weakness((ctx.monsters || {})[state.activeMonster]) || {};
+    if (w0.charmRank > 0) {
+      charmClass = w0.charmClass || null;
+      charmRank = Math.floor(Number(w0.charmRank) || 0);
+      charmDropMult = Number(w0.charmDropMult) > 1 ? w0.charmDropMult : 1;
+    }
+  }
   /* b341 — HOW LONG THE ABSENCE ACTUALLY PAID, and WHAT ENDED IT.
      `died` has been on this payload since b325 and the welcome-back card never
      read it, so a night that ended sixty seconds in still rendered as
@@ -1014,6 +1031,9 @@ export function simulateSpan(state, ctx) {
     weakMs: weakTicks * tickMs,
     featuredMs,              // ms spent on a Boss of the Day / Week
     featuredDropMult,        // the drop multiplier that featured time paid (1 when none)
+    charmClass,              // the monster CLASS a bestiary charm was priced on (null when none)
+    charmRank,               // the ladder rank that pricing used (0 when unstudied)
+    charmDropMult,           // the drop multiplier that charm paid (1 when none, incl. rank 1)
     capped: !!ctx.capped,
     rateMult: rate,
     segments: segLog,

@@ -168,6 +168,47 @@ export function classOfMonsterId(id) {
 }
 
 /**
+ * The display name of a class, from a REAL roster row's `className` (written by
+ * `applyClassProfiles`), falling back to the key with its separators opened up.
+ * ONE owner for the taxonomy's copy — `charmClasses()` already resolves it this
+ * way, and a second spelling in a card renderer is how "Extra Dimensional"
+ * becomes "extra_dimensional" on exactly one surface.
+ */
+export function classLabel(cls) {
+  if (!cls) return '';
+  const M = w().MONSTERS || {};
+  for (const k of Object.keys(M)) {
+    if (M[k] && M[k].className && classOfMonster(M[k]) === cls) return String(M[k].className);
+  }
+  return String(cls).replace(/_/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
+/**
+ * THE AWAY CARD'S CHARM LINE, or '' — plain text, no HTML, no colour.
+ *
+ * WHY THE COPY LIVES HERE AND NOT IN THE CARD. home-dashboard.js owns the note
+ * LIST; this module owns the charm's vocabulary — the class label, the rank name
+ * and the fact that rank 1 pays nothing. A card that assembled the sentence
+ * itself would be the second place a rank is named, and the first to go stale
+ * when a rung is renamed.
+ *
+ * IT READS THE SERVER'S OWN RECEIPT (`charmClass` / `charmRank` /
+ * `charmDropMult`, stated by the simulation), never the local mirror: the
+ * player's counters have moved on since the window closed, and the card must say
+ * what the NIGHT was priced at. No fields ⇒ no line, which is every receipt
+ * written before this shipped and every unstudied class after it.
+ */
+export function awayLine(off) {
+  const mult = Number(off && off.charmDropMult) || 1;
+  const cls = (off && typeof off.charmClass === 'string') ? off.charmClass : '';
+  if (!(mult > 1) || !cls) return '';
+  const row = charmRowOfRank(Math.floor(Number(off.charmRank) || 0));
+  const name = (row && CHARM_RANK_NAMES[row.id]) || '';
+  return 'Your ' + classLabel(cls) + ' charm' + (name ? ' (' + name + ')' : '')
+    + ' paid +' + Math.round((mult - 1) * 100) + '% drops all night.';
+}
+
+/**
  * The classes to print, IN THE TAXONOMY'S OWN ORDER, as
  * `[{cls, name, kills, rank}]` — derived from the roster, never hardcoded.
  *
@@ -265,6 +306,8 @@ export function setupBestiaryCharms() {
   W.HearthriseCharms = {
     noteEnvelope,
     indexForCombat,
+    classLabel,
+    awayLine,
     killsOfClass,
     rankOfClass,
     nextOfClass,

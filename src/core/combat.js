@@ -29,7 +29,7 @@ import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?
    `weaknessInfo` it is one expression with two callers, exactly like bane and
    element. `charmDamageMultFor` is deliberately NOT imported — see the note on
    `charmDropMult` in `weaknessInfo`. */
-import { charmDropMultFor } from './charms.js?v=543';
+import { charmDropMultFor, charmRankFor } from './charms.js?v=543';
 
 /* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
    as a WEAPON type — an unarmed/typeless loadout still has to render. */
@@ -326,6 +326,7 @@ export function weaknessInfo(monster, eq, charms) {
        No `charmDamageMult` readout is returned meanwhile: a field naming a
        damage bonus the engine does not apply is a renderer's next lie. */
   const charmClass = baneClass;
+  const charmRank = charmRankFor(charmClass, charms);
   const charmDropMult = charmDropMultFor(charmClass, charms);
 
   const bonus = Number(monster && monster.dropBonus);
@@ -336,9 +337,14 @@ export function weaknessInfo(monster, eq, charms) {
     damageMult,
     accuracyMult: matched ? WEAKNESS_BONUS.accuracy : 1,
     dropMult: monsterDrop * charmDropMult,
-    /* Charm readout — 1 and null when the class is unstudied, so the away card
-       and the monster panel can SAY a charm paid without recomputing it. */
-    charmClass: charmDropMult > 1 ? charmClass : null,
+    /* Charm readout — the class, the RANK the night was priced with and the
+       factor it paid, so the away card and the loot modal can SAY a charm paid
+       without recomputing it. Read (not re-derived) for the same reason the bane
+       readout is: a card that recomputed from counters that have since moved
+       would describe a different character than the one that fought.
+       null/0/1 when the class is unstudied. */
+    charmClass: charmRank > 0 ? charmClass : null,
+    charmRank,
     charmDropMult,
     /* Bane readout — 1 and null when no bane gear applies. */
     baneClass: baneMult > 1 ? baneClass : null,

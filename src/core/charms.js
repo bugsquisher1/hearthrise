@@ -139,11 +139,41 @@ export function charmIndex(killsByClassMap) {
   return out;
 }
 
+/**
+ * The rank an index holds for `cls`, OWN-PROPERTY ONLY — 0 for anything else.
+ *
+ * ⚠ `index[cls]` IS NOT ENOUGH, measured by the Security review of 2026-09-13:
+ *   with `Object.prototype.constructor` truthy on ANY plain object,
+ *   `charmDropMultFor('constructor', {})` returned 1.03 — a top-rung charm on a
+ *   class nobody has killed anything in. `charmIndex` builds a null-prototype
+ *   map, so the live path was never exposed, but this module's own header says
+ *   the ceiling is a property of the FORMULA and not of who happens to call it:
+ *   a guard that only holds while every caller behaves is not a guard. Same
+ *   receipt `catalogueHas` in intents.js already carries.
+ */
+function rankOf(index, cls) {
+  return Object.prototype.hasOwnProperty.call(index, cls) ? index[cls] : 0;
+}
+
 /** The ladder row for a rank number, or null. Internal to the two mults + UI. */
 export function charmRowOfRank(rank) {
   const r = Number(rank);
   if (!(r >= 1)) return null;
   return CHARM_RANKS[Math.min(CHARM_RANKS.length, Math.floor(r)) - 1] || null;
+}
+
+/**
+ * The rank this index holds for `cls`, 0..MAX_CHARM_RANK, clamped to the ladder.
+ *
+ * The RECEIPT's reader: the away card and the loot modal name the rank a night
+ * was priced with, and they must read it from the same index the multiplier did
+ * rather than re-deriving it from counters that may have moved since the window
+ * closed. Own-property only, like the two multipliers.
+ */
+export function charmRankFor(cls, index) {
+  if (!cls || !index) return 0;
+  const row = charmRowOfRank(rankOf(index, cls));
+  return row ? row.rank : 0;
 }
 
 /**
@@ -155,7 +185,7 @@ export function charmRowOfRank(rank) {
  */
 export function charmDropMultFor(cls, index) {
   if (!cls || !index) return 1;
-  const row = charmRowOfRank(index[cls]);
+  const row = charmRowOfRank(rankOf(index, cls));
   const raw = Number(row && row.drop);
   if (!(raw > 1)) return 1;
   return raw > MAX_CHARM_DROP_MULT ? MAX_CHARM_DROP_MULT : raw;
@@ -167,7 +197,7 @@ export function charmDropMultFor(cls, index) {
  */
 export function charmDamageMultFor(cls, index) {
   if (!cls || !index) return 1;
-  const row = charmRowOfRank(index[cls]);
+  const row = charmRowOfRank(rankOf(index, cls));
   const raw = Number(row && row.dmg);
   if (!(raw > 1)) return 1;
   return raw > MAX_CHARM_DAMAGE_MULT ? MAX_CHARM_DAMAGE_MULT : raw;

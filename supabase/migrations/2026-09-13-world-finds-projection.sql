@@ -293,9 +293,12 @@ grant  execute on function public.hr_world_finds_of(int) to authenticated;
 -- REAL ordered chain produces at chain end (tests/schema-replay.mjs over
 -- tests/schema-apply-order.json), with the one new `when` already in it, and
 -- tests/live-hash-drift.baseline.json records that this body's live md5 and its
--- replayed md5 AGREE as of 2026-09-13 (93873f02..., norm_len 2746) - so the
--- chain's text IS production's text and this restatement is not authored against
--- a stale body.
+-- replayed md5 AGREE as of 2026-09-13 - NORMALISED md5 93873f02..., norm_len
+-- 2746; the raw md5 of pg_get_functiondef is 7955897e... (Security's review
+-- flagged the earlier wording, which named the normalised hash without saying
+-- so, and a hash quoted without its normalisation is a hash nobody can
+-- reproduce) - so the chain's text IS production's text and this restatement is
+-- not authored against a stale body.
 --
 -- ...AND THAT AGREEMENT IS NOT TRUSTED EITHER. A restatement's whole failure mode
 -- is deleting something that was added after it was written - if another lane

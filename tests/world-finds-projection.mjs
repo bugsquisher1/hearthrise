@@ -46,8 +46,11 @@
 //      window, which is the only way to tell the two apart);
 //   6. anon AND authenticated can no longer SELECT world_finds.user_id or .slot
 //      — measured with has_column_privilege per role per column AND, where the
-//      fixture allows it, by a real SELECT under `set role` that must raise
-//      42501 — while every anonymous board column still reads and no write
+//      fixture allows it, by THREE real statements under `set role` that must
+//      each raise 42501: the column in the target list, the column in a WHERE
+//      clause (THE MEMBERSHIP ORACLE — Security's review named it as the real
+//      attack, and it puts no user_id in the result set at all) and the column in
+//      ORDER BY — while every anonymous board column still reads and no write
 //      privilege was created;
 //   7. the inner is owner-only, the wrapper is callable by `authenticated` and
 //      by nobody else, and anon cannot reach either;
@@ -161,6 +164,21 @@ const MUTATIONS = {
              + '  grant  select (id, item_id, source_kind, source_id, one_in, found_at)\n'
              + '    on public.world_finds to anon, authenticated;',
              '  revoke select (user_id, slot) on public.world_finds from anon, authenticated;']],
+  },
+  regrant_includes_user_id: {
+    why: 'the re-grant hands user_id back explicitly, so the projection stays perfectly clean and the '
+       + 'MEMBERSHIP ORACLE is wide open — `select id from world_finds where user_id = $1` answers '
+       + '"does this account hold a rare find?" about any uuid from any public roster, and every '
+       + 'projection assertion in this guard still passes. Security named this as the real attack',
+    pairs: [['  grant  select (id, item_id, source_kind, source_id, one_in, found_at)',
+             '  grant  select (id, user_id, item_id, source_kind, source_id, one_in, found_at)']],
+  },
+  regrant_includes_slot: {
+    why: 'the re-grant hands `slot` back, so the character key crosses — with user_id gone it is the '
+       + 'remaining half of the (user_id, slot) key every other player table is keyed on, and it makes '
+       + 'a board row joinable to a character once any other leak supplies the account',
+    pairs: [['  grant  select (id, item_id, source_kind, source_id, one_in, found_at)',
+             '  grant  select (id, slot, item_id, source_kind, source_id, one_in, found_at)']],
   },
   revoke_takes_the_whole_board: {
     why: 'the re-grant is dropped, so the client roles lose SELECT on the board entirely — the '
@@ -368,26 +386,62 @@ async function runAll(db) {
     ok(p.board === true, `${role} lost SELECT on an anonymous board column — the re-grant did not land`);
     ok(p.writes === false, `${role} holds a WRITE privilege on the public board`);
   }
-  /* AND THE SAME THING AS A REAL STATEMENT. has_column_privilege reads the ACL;
-     this reads the planner's answer. If the fixture cannot switch roles the
-     probe SAYS SO rather than passing — an always-skipped probe is the
-     always-null-probe family. */
-  let roleProbe = null;
-  try {
-    await db.exec('set role authenticated;');
+  /* AND THE SAME THING AS REAL STATEMENTS. has_column_privilege reads the ACL;
+     these read the planner's answer. If the fixture cannot switch roles the
+     probes SAY SO rather than passing — an always-skipped probe is the
+     always-null-probe family.
+
+     ⚠ PROJECTING user_id IS THE SMALL HALF. Security's review (2026-09-13)
+       named the real attack, which the first draft of this guard did not cover:
+       a MEMBERSHIP ORACLE. `select id from world_finds where user_id = $1` never
+       puts the column in a result set at all — it asks a yes/no question about a
+       uuid the attacker already has (from a leaderboard, a clan roster, a chat
+       name lookup), and the answer "this account has a rare find" is exactly the
+       fact presence_quiet exists to withhold. `order by user_id` is the same
+       leak by a slower road: the ORDER of an otherwise-anonymous board is a
+       total order over account ids, so repeated reads with rows appearing and
+       vanishing sort the realm by uuid. PostgreSQL charges SELECT on a column
+       referenced ANYWHERE in the query — target list, WHERE or ORDER BY — so all
+       three must raise 42501, and all three are now asserted. A revoke that
+       covered only the target list would have left the oracle wide open while
+       every projection assertion above stayed green. */
+  const asAuthenticated = async (sql, params) => {
     try {
-      await db.query('select user_id from public.world_finds limit 1');
-      roleProbe = 'ALLOWED';
-    } catch (e) { roleProbe = String(e && e.code) === '42501' ? '42501' : `OTHER:${e && e.code}`; }
-    await db.exec('reset role;');
-  } catch (e) { roleProbe = 'NO_SET_ROLE'; await db.exec('reset role;').catch(() => {}); }
-  ok(roleProbe === '42501' || roleProbe === 'NO_SET_ROLE',
-    `a real SELECT of world_finds.user_id as authenticated returned "${roleProbe}" — expected 42501 `
-    + '(insufficient_privilege). ALLOWED means the ACL check above is reading something the planner '
-    + 'does not honour');
-  if (roleProbe === 'NO_SET_ROLE') {
-    console.log('  note  this fixture cannot `set role`; the column revoke is proven by '
-      + 'has_column_privilege alone (both roles, both columns, both directions)');
+      await db.exec('set role authenticated;');
+    } catch (e) {
+      await db.exec('reset role;').catch(() => {});
+      return 'NO_SET_ROLE';
+    }
+    let verdict;
+    try {
+      await db.query(sql, params);
+      verdict = 'ALLOWED';
+    } catch (e) { verdict = String(e && e.code) === '42501' ? '42501' : `OTHER:${e && e.code}`; }
+    await db.exec('reset role;').catch(() => {});
+    return verdict;
+  };
+  const ORACLES = [
+    ['select user_id from public.world_finds limit 1', [],
+      'the column in the TARGET LIST — the projection leak'],
+    ['select id from public.world_finds where user_id = $1 limit 1', [HUSH],
+      'the column in a WHERE clause — THE MEMBERSHIP ORACLE: it returns no user_id at all and still '
+      + 'answers "does this account hold a rare find?" about a uuid taken from any public roster'],
+    ['select id from public.world_finds order by user_id limit 1', [],
+      'the column in ORDER BY — the same leak by a slower road: the row order of an anonymous board '
+      + 'is a total order over account ids'],
+  ];
+  let skipped = 0;
+  for (const [sql, params, why] of ORACLES) {
+    const v = await asAuthenticated(sql, params);
+    if (v === 'NO_SET_ROLE') { skipped++; continue; }
+    ok(v === '42501',
+      `as \`authenticated\`, ${sql} returned "${v}" — expected 42501 (insufficient_privilege). This is `
+      + `${why}.`);
+  }
+  if (skipped) {
+    console.log(`  note  this fixture cannot \`set role\` (${skipped}/${ORACLES.length} statement `
+      + 'probes skipped); the column revoke is proven by has_column_privilege alone, both roles, both '
+      + 'columns, both directions');
   }
 
   // ── (7) WHO MAY CALL WHAT ───────────────────────────────────────────────
@@ -526,7 +580,7 @@ if (argv.includes('--list')) {
     + 'finder while the ROW survives so no ordinal is renumbered; the projection is exactly the '
     + '8-key allowlist with no user_id, no slot and no account uuid in any value; nth is a realm '
     + 'ordinal proven against a find OUTSIDE the window and counts is the board total; anon and '
-    + 'authenticated can no longer read world_finds.user_id or .slot while every anonymous column '
+    + 'authenticated can no longer read world_finds.user_id or .slot in a target list, in a WHERE clause (the membership oracle) or in ORDER BY, while every anonymous column '
     + 'still reads and no write privilege exists; the inner is owner-only and only authenticated '
     + 'may call the verb; the rate gate sits before exactly one seam, the 6/min bucket bites and '
     + 'eleven pre-existing buckets survived the restatement; the verb is declared in the client '

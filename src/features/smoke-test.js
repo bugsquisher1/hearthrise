@@ -2048,16 +2048,13 @@ async function hfPoll() {
   const HF = window.HearthriseHearthfind;
   const o = { fetch: window.fetch, auth: window.HearthriseAuth,
     inject: window.Chat && window.Chat.inject };
-  const mark = HF.__watermark();
-  const out = { urls: [], injected: [], got: null };
+  const mark = HF.__watermark(), out = { urls: [], injected: [], got: null };
   try {
     window.HearthriseAuth = Object.assign({}, o.auth, { getSession: () => ({ access_token: 'hf' }) });
     if (window.Chat) window.Chat.inject = (ch, m) => { out.injected.push([ch, m]); return true; };
     window.fetch = function (u, opts) {
       const url = String(u);
-      if (url.indexOf('world_finds') === -1 && url.indexOf('display_names') === -1) {
-        return o.fetch.apply(this, arguments);
-      }
+      if (url.indexOf('world_finds') === -1 && url.indexOf('display_names') === -1) return o.fetch.apply(this, arguments);
       out.urls.push(url + ' ' + ((opts && opts.method) || 'GET'));
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(HF_BOARD) });
     };
@@ -51120,8 +51117,7 @@ const TESTS = [
   }),
 
   () => tryRunAsync('HF-10: the name and the ordinal are the SERVER\'s - a quiet finder renders as "An adventurer"', async () => {
-    const HF = window.HearthriseHearthfind;
-    const r = await hfPoll();
+    const HF = window.HearthriseHearthfind, r = await hfPoll();
     if (!r.urls.length) { assert(r.got === false, 'an unconfigured client claimed a board read'); return; }
     assert(r.injected.length === 2, 'expected both board rows on the global tab, got ' + r.injected.length);
     const loud = r.injected[0][1].body, quiet = r.injected[1][1].body;

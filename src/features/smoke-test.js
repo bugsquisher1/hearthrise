@@ -1463,7 +1463,10 @@ const snapshotG = () => {
        straight through to the player's real account and the suite PERSISTED it.
        Exactly the b494 `renown`/`collectionLog` class, one field over. */
     ownedCosmetics: G.ownedCosmetics,
-    buyback: G.buyback,
+    /* ⚠ `?? []`, NOT bare — SNAP-2, and this one BIT: a character who never sold has
+       no key, JSON drops it, restoreG cannot put back what it has not got, and a test
+       that made a REAL sale left an entry render/shop.js paints as an extra row. */
+    buyback: G.buyback ?? [],
     /* b487: the QUEST MODAL's two slates. `G.daily` (the DAILY_TASK_POOL tasks)
        has been on this list since b138 — its two SIBLINGS never were, and they
        are the ones the goal tests actually drive. GOAL-CLAIM-1 assigns
@@ -12844,6 +12847,65 @@ const TESTS = [
   // outcome, then restores. NEVER pollutes the player's save.
   // ─────────────────────────────────────────────────────────────
 
+  /* ── CHARM-1 — BESTIARY CHARMS, PLAYED (phase 1, display only) ─────────────
+     Driven through the REAL accrual funnel on the `accrued:false` reply, because
+     that is the response a reloading idle player actually gets: a mirror that
+     only rode `accrued:true` would be invisible to exactly the player who opens
+     the Bestiary after a reload, which is the "forgotten on reload" class. The
+     absent-key arm is the fail-safe — no server block must read as rank 0 and
+     paint nothing, never as a rank — and the second envelope proves the reveal
+     is the CHARM's and not the roster's: void_mote's element is withheld at 3
+     kills and printed at 25, which is the whole of `hiddenElement`. Nothing here
+     asserts a multiplier: none is wired in this build, by design. */
+  () => tryRunAsync('CHARM-1: 25 class kills earn Studied off the idle envelope — badge, next threshold, hidden element revealed, absent key ⇒ rank 0', async () => {
+    const G = window.G, C = window.HearthriseCharms, A = window.HearthriseAccrual;
+    assert(C && typeof C.noteEnvelope === 'function' && typeof window.hrNoteServerBestiary === 'function', 'CONTROL: the charm seam is unpublished (HearthriseCharms / hrNoteServerBestiary) — the feature has no client half');
+    const snap = snapshotG(); const realFetch = window.fetch; const prevCharms = G._bestiaryCharms;
+    const chips = () => (document.getElementById('best-charms') || {}).innerHTML || '';
+    const listHtml = () => (document.getElementById('best-list') || {}).innerHTML || '';
+    const envOf = (bestiary) => ({ ok: true, accrued: false, reason: 'idle', version: 3, now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}) });
+    const drive = async (bestiary) => {
+      window.fetch = (u, init) => (/hr-accrue/.test(String(u))
+        ? Promise.resolve(new Response(JSON.stringify(envOf(bestiary)), { status: 200 }))
+        : realFetch.call(window, u, init));
+      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      return A.requestAccrual({ force: true });
+    };
+    try {
+      /* ARM 1 — NO SERVER BLOCK. Fail-safe: rank 0 and nothing painted. */
+      delete G._bestiaryCharms;
+      const none = await drive(null);
+      assert(none && none.outcome === 'nothing', 'the idle envelope classified as ' + (none && none.outcome) + ', not "nothing" — the arm below is not testing the boot path');
+      assert(C.noteEnvelope({ ok: true }).reason === 'no_key' && C.rankOfClass('vermin') === 0 && C.badgeHtml('vermin') === '', 'an envelope with no bestiary block produced a rank — the fail-safe must be "not studied", never a charm the server does not believe in');
+      G.bestiary = { rat: { kills: 9 }, void_mote: { kills: 2 } };
+      window.openBestiary();
+      assert(!/charm-chip/.test(chips()) && /charm-empty/.test(chips()) && !/charm-element/.test(listHtml()), 'the strip painted a chip or an element line with no server counters: ' + chips().slice(0, 120));
+      /* ARM 2 — THE COUNTERS ARRIVE ON THE IDLE REPLY. */
+      const got = await drive({ kills_by_class: { vermin: 25, extra_dimensional: 3, not_a_class: 500, constructor: 7 } });
+      assert(got && got.outcome === 'nothing' && G._bestiaryCharms && G._bestiaryCharms.killsByClass.vermin === 25, 'the idle envelope did not mirror the counters into G._bestiaryCharms: ' + JSON.stringify(G._bestiaryCharms));
+      assert(!('not_a_class' in G._bestiaryCharms.killsByClass) && Object.keys(G._bestiaryCharms.killsByClass).length === 2, 'a key outside the eleven-class taxonomy survived the mirror — a hostile block could put a junk class on screen: ' + Object.keys(G._bestiaryCharms.killsByClass).join(','));
+      assert(C.rankOfClass('vermin') === 1 && C.rankOfClass('extra_dimensional') === 0, 'vermin 25 kills read rank ' + C.rankOfClass('vermin') + ' and extra_dimensional 3 kills read rank ' + C.rankOfClass('extra_dimensional') + ' — the first rung is 25 and nothing below it ranks');
+      const nx = C.nextOfClass('vermin');
+      assert(nx && nx.at === 100 && nx.remaining === 75, 'the next threshold said ' + JSON.stringify(nx) + ' — it must name the next rung and the kills left, derived, never stored');
+      window.openBestiary();
+      assert(/charm-chip/.test(chips()) && /Vermin/.test(chips()) && /Studied/.test(chips()) && /Next charm at 100/.test(chips()), 'the Vermin chip did not paint its badge and threshold: ' + chips().slice(0, 240));
+      assert(/charm-element/.test(listHtml()) && /weak to frost/.test(listHtml()), 'a Studied class did not print its element weakness — that reveal IS rank 1\'s reward');
+      assert(!/ember/.test(listHtml()), 'void_mote\'s hidden element printed at 3 kills — hiddenElement must stay hidden until the class is Studied');
+      /* ARM 3 — THE HIDDEN ELEMENT, REVEALED BY THE CHARM AND NOTHING ELSE. */
+      await drive({ kills_by_class: { vermin: 2000, extra_dimensional: 25 } });
+      assert(C.rankOfClass('vermin') === 4 && C.rankOfClass('extra_dimensional') === 1, 'the ladder top read ' + C.rankOfClass('vermin') + ' at 2000 kills');
+      window.openBestiary();
+      assert(/Banesworn/.test(chips()) && /Ladder complete/.test(chips()), 'the top rung did not paint as complete: ' + chips().slice(0, 240));
+      assert(/weak to ember/.test(listHtml()), 'void_mote\'s element stayed hidden at 25 kills — the charm is the only door there is');
+    } finally {
+      window.fetch = realFetch;
+      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
+      restoreG(snap);
+    }
+  }),
+
   /* ── BANK-1 — THE DEPOT, PLAYED ─────────────────────────────────────────────
      The server's bank store shipped b438 and sat dormant for a hundred builds
      because nothing could call it: the flyout's "→ Bank" button was guarded on a
@@ -21058,6 +21120,34 @@ const TESTS = [
   // The shop is a scene now. A scene that swallows its own offers is worse
   // than the list it replaced, so: the counter renders, every catalogue entry
   // reaches it, and every Buy control is on screen and hit-testable.
+  /* snapshotG round-trips through JSON, which DROPS undefined, and restoreG walks only
+     the keys the snapshot HAS — so a field read BARE off G is protected only for a
+     character that owns it. Five now carry `?? null` / `|| 0` / `?? []`, each with a
+     measured incident beside it; this pins all five. STANDING DEBT (2026-09-12): 33 more
+     are still bare — inventory, skills, stats, bank, workers, chronicle, … — leaking
+     nothing TODAY only because a loaded character owns them all. Each needs the right
+     empty value and the wrong one gifts or takes player state: a ratchet over the list,
+     not a bug-lane edit. Owner: systems-engineer. */
+  () => tryRun('SNAP-2: the five hardened snapshot fields survive a character that owns none of them', () => {
+    const real = window.G;
+    const HARDENED = ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits'];
+    const full = Object.keys(snapshotG() || {});
+    assert(full.length > 30, 'CONTROL: snapshotG returned ' + full.length + ' keys — it is not snapshotting the live character');
+    HARDENED.forEach((k) => assert(full.indexOf(k) >= 0, k + ' is not on the snapshot list at all, so no test can put it back'));
+    try {
+      // A reference SWAP, not a mutation, and the body is synchronous: the live character cannot be touched.
+      const bare = JSON.parse(JSON.stringify(real));
+      HARDENED.forEach((k) => { delete bare[k]; });
+      window.G = bare;
+      const got = Object.keys(snapshotG() || {});
+      const dropped = HARDENED.filter((k) => got.indexOf(k) < 0);
+      assert(dropped.length === 0,
+        'snapshotG dropped ' + dropped.join(', ') + ' for a character that owns none of them. '
+        + 'JSON drops undefined and restoreG only puts back the keys it HAS, so each of these leaks '
+        + 'whatever a test writes into it for the rest of the run — read it as `G.x ?? <empty>`, never bare.');
+    } finally { window.G = real; }
+  }),
+
   () => tryRun('b221: the shop renders the counter scene with every offer reachable', () => {
     const prevTab = window.activeTab;
     /* b230: this check is about the SHOP covering its own controls, not about
@@ -21081,9 +21171,16 @@ const TESTS = [
         const expect = tab === 'seeds' ? window.SEED_SHOP.length
           : tab === 'equip' ? window.EQUIP_SHOP.length : 4;
         const rows = panel.querySelectorAll('.sc-counter .shop-row');
-        // +1 for the Auto-Eat trait row appended under the counter.
-        assert(rows.length === expect + Object.keys(window.TRAITS).length,
-          tab + ': expected ' + expect + ' offers + traits, got ' + rows.length);
+        // Name what the counter PAINTED: "got 15, wanted 14" cost a session on its own.
+        const _want = expect + Object.keys(window.TRAITS).length;
+        assert(rows.length === _want,
+          tab + ': expected ' + expect + ' offers + ' + Object.keys(window.TRAITS).length
+          + ' trait(s) = ' + _want + ', got ' + rows.length + ' — rows: '
+          + Array.from(rows).map((r) => {
+            const b = r.querySelector('.info b');
+            return (b ? b.textContent : r.textContent).trim().slice(0, 28)
+              + (r.hasAttribute('data-companion') ? '[companion]' : '');
+          }).join(' | '));
         rows.forEach((row, i) => {
           const btn = row.querySelector('button');
           assert(btn, tab + ' row ' + i + ' has no buy control');

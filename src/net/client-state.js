@@ -203,7 +203,32 @@ export const RESIDUE_FIELDS = Object.freeze([
   'renown',         // { claimed:[], seenRank } — claimed ranks are server once-guarded; this is the shown state
   'unlockedRecipes',// gated recipe unlocks the client has learned (server rows exist; this is the read cache)
   'tools',          // tool slots in the loadout kit
-  'buffs',          // active consumable buffs (remainingMs) — short-lived, but a potion must survive a reload
+  /* ⚠ `buffs` WAS HERE and is REMOVED, not re-homed here (2026-09-13). The entry
+     read "active consumable buffs (remainingMs) — short-lived, but a potion must
+     survive a reload", and both halves of that were the problem: a `remainingMs`
+     in a bag the PLAYER writes is a buff clock the player owns, and this bag is
+     hydrated into G, which feeds the client's getBonus chain. A forged
+     `{buffs:[{type:'damage',magnitude:9999,remainingMs:9e9}]}` lived there for as
+     long as the player liked. It bought nothing server-side, which is exactly what
+     made it LATENT rather than live — §6's "a forged authority value living in G
+     is a latent hole" in the costume of a display preference.
+     The server owns the buff clock now: player_state.buffs
+     ([{type, magnitude, until}], ABSOLUTE expiry, written only by hr_apply's
+     buff_apply block from the hr_item_buffs catalogue + now()), projected by
+     hr_state_of as the envelope's own top-level `buffs` block. `buffs` is on
+     hr_put_client_state's AUTHORITY DENY-LIST as of
+     2026-09-13-client-state-buffs-denylist.sql, so leaving the name here would
+     make the server refuse EVERY residue patch with forbidden_field — the two
+     changes are one commit for that reason, and tests/arm-homing-guard.mjs
+     asserts the collision across both deny-list migrations.
+     ⚠ STEP 1 OF 3, AND THE GAP IS NAMED: until the step-2 client half adds
+       `reconcileBuffs` (mirror `res.buffs` → G.buffs on every envelope, both
+       directions) the client's own copy is in-flight display only and is declared
+       in NO_SYNC (src/net/events.js). A reload therefore FORGETS a running buff
+       on screen while the server keeps holding it — honest under-display, never a
+       lost entitlement, and it is the step-2 lane that closes it. When it lands,
+       `buffs` moves to SERVER_MECHANISM_FIELDS with the executed proof that list
+       now demands, NOT back to this one. */
   'lastActivity',   // the launchpad's "resume what you were doing" card
   /* ── b466 — THE SECOND SWEEP (paione, live open beta: "Bestiary achievements
      keep resetting every time you log out and in"). The b462 sweep above was

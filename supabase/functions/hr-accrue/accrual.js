@@ -129,6 +129,14 @@ import { makeBonus, EMPTY_PERKS } from '../../../src/core/perks.js';
 /* LAYER 1 — the equipped companion's passive bonus, summed on top of the fused
    layer 0 by bonusFor below. Pure, draw-free, permanent-scope. */
 import { companionBonus } from '../../../src/core/companion-perk.js';
+/* LAYER 2 — THE TIMED CONSUMABLE QUEUE (2026-09-13). `buffQueueFromServer` is
+   where the SERVER's absolute-`until` rows (player_state.buffs, projected as the
+   envelope's `buffs` block) become the `remainingMs` shape the simulators drain;
+   `buffBonusFor` is the same term the client's getBonus chain adds, and
+   `activeBuffs` is what makes `ctx.activeBuffCount` an honest number instead of
+   the hard-coded 0 it was while the server held no queue. WALL-CLOCK drain — the
+   rule is BUFF_DRAIN_RULE in that module, named once. */
+import { buffQueueFromServer, buffBonusFor, activeBuffs } from '../../../src/core/buffs.js';
 /* THE COMPANION XP WRITER (dormant). companionSpanXp turns the equipped
    companion + a role-matched action count into an INTEGER stat grant; it draws
    no rng, so away == live stays byte-identical. Gated by inp.companionXpBacked,
@@ -775,10 +783,39 @@ export function zeroBonus() { return 0; }
    byte — a companion changes the totals, but away==live for the same setup.
    EMPTY_PERKS carries no `companion`, so companionBonus returns 0 for every
    key and this degrades to the pre-companion behaviour exactly. */
-export function bonusFor(perkState) {
+export function bonusFor(perkState, buffHost, away) {
   const base = makeBonus(perkState || EMPTY_PERKS);
   const comp = companionBonus(perkState || EMPTY_PERKS);
-  return (key) => base(key) + comp(key);
+  /* ── LAYER 2 — THE TIMED CONSUMABLE QUEUE (2026-09-13) ───────────────────
+     A third additive layer, mirroring the client's getBonus chain, which asks
+     the buff queue after rooms and companions. It is read LIVE, through
+     `buffHost.buffs`, and that is the load-bearing part: the simulators DRAIN
+     the queue tick by tick (combat-sim `simulateSpan`, skill/artisan
+     `sliceSpan`) and REASSIGN `state.buffs` when they prune, so a captured
+     array would go stale exactly where a buff expires mid-absence — the b326
+     bug in reverse, paying a dead buff instead of freezing a live one.
+
+     `away` defaults to TRUE because every caller here is the accrual engine and
+     the accrual engine is the away path; `AWAY_SCOPE.buff` is open (a buff is
+     PERSONAL — Tyler, 2026-08-14), so the channel pays, and it drains in the
+     same breath because the two halves are one rule.
+
+     `buffHost` absent → this term is 0 for every key, which is byte-for-byte the
+     pre-2026-09-13 behaviour and the reason an Edge deployed against a database
+     with no `buffs` column pays nobody. */
+  const buffCtx = { away: away !== false };
+  if (!buffHost) return (key) => base(key) + comp(key);
+  return (key) => base(key) + comp(key) + buffBonusFor(buffHost.buffs, key, buffCtx);
+}
+
+/* THE LIVE VIEW a `bonusFor` layer-2 reads through. A getter, not the array:
+   see the reassignment note above. One idiom for all three activity builders so
+   the combat path and the gather/artisan paths cannot drift — and it works in
+   the two orders the builders happen to have (combat builds `state` before its
+   bonus, gather and artisan build the bonus first), because the getter is not
+   evaluated until the simulation asks for a key. */
+export function liveBuffHost(get) {
+  return { get buffs() { return get(); } };
 }
 
 /* ── THE COMPANION XP OP (dormant writer) ──────────────────────────────────
@@ -1022,6 +1059,27 @@ export function accrueRested({ nowMs, restedAtMs, restedXp, libraryCap }) {
  *                because null is the ordinary value — see index.ts's field.
  *                Null ⇒ the engine omits `recovering_until` from the delta,
  *                which is byte-for-byte the pre-Recovery behaviour.
+ *   buffs        THE CONSUMABLE BUFF QUEUE (2026-09-13) — the envelope's OWN
+ *                top-level `buffs` block, i.e. player_state.buffs projected as
+ *                [{type, magnitude, until, remaining_ms}]. Written ONLY by
+ *                hr_apply's `buff_apply` block (type/magnitude/duration from
+ *                hr_item_buffs, `until` from now()), so nothing here is a client
+ *                value — the client cannot even NAME a magnitude or an expiry
+ *                (a buff_apply carrying one is refused bad_buff_item).
+ *                The three activity builders convert it with
+ *                `buffQueueFromServer(inp.buffs, credit.fromMs)`: absolute
+ *                `until` → the `remainingMs` shape the simulators drain, measured
+ *                at the START of the paid window because the drain is WALL-CLOCK
+ *                (BUFF_DRAIN_RULE, src/core/buffs.js) — a buff that ran out
+ *                mid-absence pays the slice it was alive for and no more.
+ *                **NULL/absent means the projection (or the column) does not
+ *                exist** ⇒ [] ⇒ `bonusFor`'s layer 2 is 0 for every key and no
+ *                boundary splits the span, which is byte-for-byte the
+ *                pre-2026-09-13 behaviour. The engine proposes NO delta key for
+ *                it: the queue is drained IN the simulation for pricing, and the
+ *                durable expiry is the absolute `until` the server already holds,
+ *                so there is nothing to write back and no way for the engine to
+ *                post an arbitrary queue.
  *   deathsTodayBefore, deathsLifetimeBefore
  *                THE RECOVERY LADDER'S TWO ANCHORS. player_progress
  *                kind='stat' key='deaths' under period=<UTC day> and period=''
@@ -1413,6 +1471,23 @@ export function computeAccrual(input) {
     skills: { ...skills0 },
     stats: {},
     combatKillsThisFoe: resumed ? resumed.kills : 0,
+    /* ── THE BUFF QUEUE (2026-09-13) ───────────────────────────────────────
+       The SERVER's own queue, converted from absolute `until` to the
+       `remainingMs` the simulator drains AT THE START OF THE PAID WINDOW
+       (`credit.fromMs`, not `nowMs`): wall-clock drain means a buff that ran out
+       two hours into an eight-hour absence must pay those two hours and then
+       expire at the right INSTANT, which is exactly what `simulateSpan` does
+       once it is handed a live queue. Measuring at `nowMs` instead would silently
+       delete every buff that did not survive to the player's return.
+
+       ⚠ `state.buffs` IS DRAINED AND REASSIGNED by simulateSpan (tickBuffs
+         mutates, pruneBuffs replaces). `buffQueueFromServer` returns FRESH
+         objects for exactly that reason — draining the envelope's own projected
+         array would mutate a caller's input and make the spend invisible here
+         and permanent there.
+       Absent column / absent projection ⇒ `inp.buffs` is null ⇒ [] ⇒ every line
+       below is the inert no-op it has been since b326. */
+    buffs: buffQueueFromServer(inp.buffs, credit.fromMs),
     /* ── THE TWO FIELDS THE CONSUMPTION SEAM READS (design item E1) ────────
        `src/core/ammo.js readAmmo` asks the state which stack is loaded
        (`equipment.ammo`) and how much of it is left (`inventory[id]`). On the
@@ -1517,8 +1592,11 @@ export function computeAccrual(input) {
      `hr_perks_of` returned. Memoised inside makeBonus, because
      `resolveArtisanAction`/`grantXp` ask for the same handful of keys on every
      one of ~18,000 ticks in a 12h night. `inp.perks` absent → EMPTY_PERKS → 0
-     for every key, which is exactly the `zeroBonus` behaviour this replaces. */
-  const bonus = bonusFor(inp.perks);
+     for every key, which is exactly the `zeroBonus` behaviour this replaces.
+     LAYER 2 is the buff queue built into `state` above, read LIVE through
+     `liveBuffHost` so a buff that expires mid-absence stops paying at the tick
+     it expires rather than at one of the window's ends. */
+  const bonus = bonusFor(inp.perks, liveBuffHost(() => state.buffs));
   /* THE GOAL COUNTER (b353). Fed by the `updateDaily`/`updateQuest` fx handlers
      below — the two seams resolveKill has always called and this engine has
      always ignored. */
@@ -1898,10 +1976,14 @@ export function computeAccrual(input) {
     items,
     bonus,
     style,
-    /* activeBuffCount = 0: the server holds no buffs, so `buffsPaused` reports
-       false and the welcome-back line cannot claim buffs were paused when the
-       player had none. Stating it beats letting the null-default guess. */
-    activeBuffCount: 0,
+    /* activeBuffCount — HONEST as of 2026-09-13. It was hard-coded 0 with the
+       note "the server holds no buffs", which was true then and is not now: the
+       queue is `state.buffs`, built from the server's own column. Counted the
+       same way every other reader counts (`activeBuffs` applies the ONE liveness
+       rule), so the welcome-back line can say a buff was running without a second
+       opinion about what "running" means. `buffsPaused` stays false — buffs pay
+       away and drain away, nothing is paused. */
+    activeBuffCount: activeBuffs(state.buffs).length,
     playerRolls(m) {
       return playerCombatRolls(m, {
         eq, equipment, items, skills: state.skills,
@@ -2766,8 +2848,14 @@ function accrueGather(inp, span) {
      `hr_perks_of` returned. Memoised inside makeBonus, because
      `resolveArtisanAction`/`grantXp` ask for the same handful of keys on every
      one of ~18,000 ticks in a 12h night. `inp.perks` absent → EMPTY_PERKS → 0
-     for every key, which is exactly the `zeroBonus` behaviour this replaces. */
-  const bonus = bonusFor(inp.perks);
+     for every key, which is exactly the `zeroBonus` behaviour this replaces.
+     LAYER 2 is the buff queue on `state` below, read LIVE through `liveBuffHost`.
+     The getter is what makes the order safe: this line runs BEFORE `state`
+     exists, and nothing asks for a key until the span does. It matters more here
+     than on the combat path, because a `gather_speed` buff changes the TICK
+     INTERVAL itself — which is why `sliceSpan` splits the window at the buff's
+     expiry and re-derives the rate per slice (src/core/skill-sim.js). */
+  const bonus = bonusFor(inp.perks, liveBuffHost(() => state.buffs));
 
   const skills0 = {};
   for (const k in (inp.skills || {})) skills0[k] = nat(inp.skills[k], 0);
@@ -2794,6 +2882,13 @@ function accrueGather(inp, span) {
     equipment,
     toolCarry: { ...(carry0 || {}) },
     stats: {},
+    /* THE BUFF QUEUE (2026-09-13). The server's absolute-`until` rows, measured
+       at the START of the paid window (`span.credit.fromMs`) because the drain is
+       WALL-CLOCK: a `gather_speed` buff that ran out two hours into the night
+       must have paid those two hours at the boosted rate and the rest at the base
+       one, which is exactly the split `sliceSpan` performs once the queue is real.
+       Absent projection ⇒ [] ⇒ one slice, base rate, today's behaviour. */
+    buffs: buffQueueFromServer(inp.buffs, span.credit.fromMs),
   };
 
   const itemDelta = Object.create(null);
@@ -3092,8 +3187,11 @@ function accrueArtisan(inp, span) {
      `benchPayable` refused the cooking bench until the rung's WRITE path was
      server-owned (upgradeRoom→hr_unlock_buy + the rooms record arm) — now that
      it is, the bench is payable and this stack burns at the true rate. See the
-     block at the foot of src/core/artisan-sim.js. */
-  const bonus = bonusFor(inp.perks);
+     block at the foot of src/core/artisan-sim.js.
+     LAYER 2 is the buff queue on `state` below, read LIVE through `liveBuffHost`
+     — a `cookSpeed`-class buff moves the divisor of the whole grant, so the
+     queue has to be the live one and not a snapshot. */
+  const bonus = bonusFor(inp.perks, liveBuffHost(() => state.buffs));
 
   const skills0 = {};
   for (const k in (inp.skills || {})) skills0[k] = nat(inp.skills[k], 0);
@@ -3129,12 +3227,15 @@ function accrueArtisan(inp, span) {
       ? inp.unlockedRecipes : null,
     toolCarry: { ...(carry0 || {}) },
     stats: {},
-    /* NO BUFFS. The server holds no buff queue (there is no column and no
-       intent that writes one), so `sliceSpan` sees no boundary and runs the
-       window in one slice. Stated rather than left to a null-default, because
-       `simulateArtisanSpan` DRAINS what it pays and a caller that handed it a
-       queue it could not persist would spend a consumable into nothing. */
-    buffs: [],
+    /* THE BUFF QUEUE (2026-09-13). This comment used to read "NO BUFFS. The
+       server holds no buff queue (there is no column and no intent that writes
+       one)" — and the second half of it was the honest reason: draining a queue
+       the server could not persist would spend a consumable into nothing. The
+       column exists now (player_state.buffs, written only by hr_apply's
+       buff_apply block) and hr_state_of projects it, so the drain is durable and
+       the queue is real. Measured at the START of the paid window: WALL-CLOCK.
+       Absent projection ⇒ [] ⇒ no boundary, one slice, today's behaviour. */
+    buffs: buffQueueFromServer(inp.buffs, span.credit.fromMs),
   };
 
   const itemDelta = Object.create(null);

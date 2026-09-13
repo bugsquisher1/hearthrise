@@ -229,7 +229,33 @@ export function nextBuffExpiryMs(buffs) {
 export function buffBonuses(buffs, ctx) {
   const out = {};
   if (!channelApplies(CHANNEL.BUFF, ctx)) return out;
+  /* ── ONE SEGMENT PER TYPE PAYS AT A TIME (2026-09-13) ────────────────────
+     A type's queue may hold SEVERAL contiguous segments — the per-segment
+     stacking ruling: an elixir's +5% for eight minutes, then a trout's +2% for
+     three. They are stored as separate entries with their own absolute expiries
+     and their own magnitudes, and the one that is RUNNING at this instant is the
+     one with the smallest positive `remainingMs`, because the segments are
+     contiguous and ordered (segment n starts where segment n-1 ended).
+
+     ⚠ THIS USED TO SUM THEM, AND THAT WAS A MINT. Measured on the designer's own
+       worked example: +5% and +2% read 0.07 for the whole overlap, i.e. the cheap
+       trout ADDED its magnitude to the expensive elixir — strictly worse than the
+       max() merge it replaced, and the exact laundering the per-segment ruling
+       exists to prevent. The fix is one grouping, here, in the ONE function both
+       the client's getBonus chain and the away engine ask (src/core/combat-sim.js,
+       skill-sim.js, artisan-sim.js all read `ctx.bonus`), so live and away cannot
+       disagree about which segment is paying.
+
+     DIFFERENT TYPES STILL SUM — they are different effects. No two types share a
+     `bonusKey` (asserted by the suite), so grouping by type is the same partition
+     as grouping by key, and a future type that DID share one would be summed with
+     its sibling exactly as gear terms are. */
+  const running = new Map();          // type -> the entry with the least time left
   for (const b of activeBuffs(buffs)) {
+    const cur = running.get(b.type);
+    if (!cur || Number(b.remainingMs) < Number(cur.remainingMs)) running.set(b.type, b);
+  }
+  for (const b of running.values()) {
     const def = BUFFS_DEF[b.type];
     /* A FLAT key's magnitude is already in its own units (crops, defence
        points); every other key is a percentage stored as an integer. */

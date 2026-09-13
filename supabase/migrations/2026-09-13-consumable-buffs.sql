@@ -562,11 +562,19 @@ begin
     raise exception 'buffs self-check (a): the CHECK admits a non-ARRAY queue (%) — the away replay '
                     'iterates it and would throw mid-absence', v_expr;
   end if;
+  -- A BLAST RADIUS EXISTS, without pinning its VALUE here. This file installed 64;
+  -- 2026-09-13-buff-segments.sql widens it to 256 because per-segment stacking
+  -- makes the honest worst case 8 segments x 9 types = 72, and THAT file asserts
+  -- the exact bound (admits 72, refuses 257). Pinning 65 here would make this
+  -- re-appliable file fail against the schema its own successor installs — which it
+  -- did, and tests/buff-queue.mjs [14] is what caught it. What must hold FOREVER is
+  -- that the CHECK is not open-ended.
   execute format('select (%s)',
     replace(v_expr, 'buffs',
-            $$(select jsonb_agg(1) from generate_series(1, 65))$$)) into v_ok;
+            $$(select jsonb_agg(1) from generate_series(1, 10000))$$)) into v_ok;
   if v_ok is not false then
-    raise exception 'buffs self-check (a): the CHECK admits a queue longer than the blast radius (%)', v_expr;
+    raise exception 'buffs self-check (a): the CHECK admits an UNBOUNDED queue (%) — a compromised '
+                    'writer could park a megabyte in a column the envelope carries on every load', v_expr;
   end if;
   execute format('select (%s)',
     replace(v_expr, 'buffs',

@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-13",
- "replay_ms": 13761,
+ "replay_ms": 13336,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -932,17 +932,18 @@
     "pin"
    ],
    "touched_by": [
+    "2026-09-13-town-quiet-prune.sql",
     "2026-09-13-town-refresh-cooldown.sql"
    ],
    "live": {
-    "md5": "0db73c1cdb24367b31831b39fc81926d",
-    "norm_len": 3460,
+    "md5": "ca900dc9a74f5123b0dedef66d47b80a",
+    "norm_len": 6368,
     "measured": "2026-09-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0db73c1cdb24367b31831b39fc81926d",
-    "norm_len": 3460,
+    "md5": "ca900dc9a74f5123b0dedef66d47b80a",
+    "norm_len": 6368,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1029,6 +1030,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-09-13-town-quiet-prune.sql",
     "2026-09-13-town-refresh-cooldown.sql"
    ],
    "live": {

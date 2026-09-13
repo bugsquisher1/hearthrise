@@ -2562,6 +2562,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   text-transform:uppercase;color:var(--ink-3);
 }
 .invc-lf-chip{
+  display:inline-flex;align-items:center;gap:6px;
   padding:5px 11px;border-radius:99px;cursor:pointer;
   background:rgba(255,255,255,.04);border:1px solid var(--line-soft);color:var(--ink-2);
   font-size:calc(13px * var(--ui-scale, 1));font-weight:700;letter-spacing:.03em;

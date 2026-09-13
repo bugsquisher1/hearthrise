@@ -7112,8 +7112,11 @@ function farmSyncHarvest(plotIdx){
     if(res&&res.ok){
       farmSyncReconcile('harvest',res);
       if(res.produce&&res.qty>0){ const crop=CROPS[res.crop]; notify(`+${res.qty} ${crop?crop.name:res.crop}`,'loot'); }
+      /* AWAY-1 parity: one hook, one plant intent — and the hook is handed THIS
+         G (the object reconcileFarmResult just wrote) so the replant can never
+         be decided from a different state than the harvest landed in. */
       if(!G.farmPlots[plotIdx] && window.HearthriseAuto && typeof window.HearthriseAuto.maybeReplant==='function'){
-        window.HearthriseAuto.maybeReplant(plotIdx);
+        window.HearthriseAuto.maybeReplant(plotIdx, G);
       }
     }
     renderFarm();updateTopbar();
@@ -8919,6 +8922,9 @@ function renderFarm(){
      that tells a farmer when watering is worth a login. */
   const waterable = countWaterablePlots();
   farmWaterableSeen = waterable;
+  /* The SAME answer plantAllEmpty acts on, so the button cannot offer a sweep
+     the sweep will refuse (the silent "Plant all", live 2026-09-13). */
+  const plantable = window.HearthriseCore.farm.emptyPlotIndices(G.farmPlots, farmPlotCap()).length;
   const header = `
     <div class="farm-status row between" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
       <div class="tiny muted">
@@ -8928,7 +8934,7 @@ function renderFarm(){
         <br><span id="farm-next-water">${farmNextWaterText()}</span> · crops grow even while you're away
       </div>
       <div class="row gap-sm">
-        <button class="btn btn-sm" onclick="window.plantAllEmpty()" title="Plant configured/best seed in every empty plot">Plant all</button>
+        <button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant configured/best seed in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>
         <button class="btn btn-sm" onclick="window.waterAllPlots()" ${waterable?'':'disabled'} title="${waterable?'Watering doubles growth speed for 2 hours':farmNextWaterText()}">${waterable?`Water all (${waterable})`:'Water all'}</button>
         <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
         <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Buy the next plot tier with gold (or a Farmer's Deed) in House → Plot">Upgrade Plot</button>
@@ -8984,55 +8990,45 @@ function renderFarm(){
   }).join('');
 }
 
-// b136: Plant all empty plots with a sensible default crop. Picks the
-// configured auto-replant crop if it's plantable, otherwise the
-// highest-tier unlocked crop the player has seeds for. Stops on the
-// first failure (out of seeds) so feedback is clear.
+/* Plant all empty plots. The RULE (which crop next, from a REMAINING seed budget
+   rather than the bag, because the seed debit is the server's and arrives with
+   the response) and the LIST (which plots are empty inside the property cap) are
+   both src/core/farm.js — the same two answers the header's button label reads,
+   so the button can no longer offer a sweep that then places nothing and says
+   nothing (live 2026-09-13: "Plant all did nothing, no toast", twice, with seeds
+   in the bag). Every exit says what happened. */
 window.plantAllEmpty = function plantAllEmpty(){
-  if(!G.farmPlots) return;
-  const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
-  // Build the candidate list — order matters (highest tier first).
-  const order = ['pumpkin','tomato','potato','wheat','carrot','turnip'];
-  const canPlot = (id)=>{
-    if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function')
-      return window.HearthriseFarm.canPlantCrop(id);
-    return id === 'turnip';
-  };
-  const pickCrop = ()=>{
-    if(replant && replant.enabled && replant.cropId
-       && (G.inventory[CROPS[replant.cropId]?.seed]||0) > 0
-       && getLevel('farming') >= (CROPS[replant.cropId]?.req||0)
-       && canPlot(replant.cropId)){
-      return replant.cropId;
-    }
-    for(const id of order){
-      const c = CROPS[id]; if(!c) continue;
-      if((G.inventory[c.seed]||0) <= 0) continue;
-      if(getLevel('farming') < c.req) continue;
-      if(!canPlot(id)) continue;
-      return id;
-    }
-    return null;
-  };
-  let planted = 0;
-  /* b213: only plant within the property's plot cap (locked plots would
-     just toast an error each). */
-  const total = farmPlotCap();
-  for(let i = 0; i < total; i++){
-    if(G.farmPlots[i]) continue;
-    const pick = pickCrop();
-    if(!pick){
-      if(planted === 0) notify('No plantable seeds. Buy seeds or upgrade Farm Plot.', 'kill');
-      break;
-    }
-    plantCrop(i, pick);
-    // plantCrop bails silently if it can't place — re-check the slot.
-    if(G.farmPlots[i]) planted++;
-    else break;
+  const CF = window.HearthriseCore.farm, cap = farmPlotCap();
+  const empties = CF.emptyPlotIndices(G.farmPlots, cap);
+  if(!empties.length){
+    notify(cap > 0 ? 'Every plot already has something growing'
+      : 'Your homestead has no farmland yet — upgrade your property in House → Property','kill');
+    return 0;
   }
-  if(planted > 0) notify(`Planted ${planted} plot${planted===1?'':'s'}`, 'loot');
+  const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
+  const seeds = {};
+  Object.values(CROPS).forEach(c=>{ seeds[c.seed] = (G.inventory||{})[c.seed]|0; });
+  const st = { crops:CROPS, seeds, farmingLevel:getLevel('farming'),
+    plotLevel:(window.HearthriseFarm&&window.HearthriseFarm.getPlotLevel)?window.HearthriseFarm.getPlotLevel():1,
+    prefer:(replant&&replant.enabled)?replant.cropId:null };
+  let planted = 0, outOfSeeds = false;
+  for(const i of empties){
+    const pick = CF.pickSeedToPlant(st);
+    if(!pick){ outOfSeeds = true; break; }
+    plantCrop(i, pick);
+    /* A refused gesture said its own reason — stop rather than fire the same
+       refusal at every remaining plot. */
+    if(!G.farmPlots || !G.farmPlots[i]) break;
+    planted++; seeds[CROPS[pick].seed] -= 1;
+  }
+  if(planted > 0){
+    notify(`Planted ${planted} plot${planted===1?'':'s'}`
+      + ((outOfSeeds && planted < empties.length) ? ' — out of seeds for the rest' : ''), 'loot');
+  } else if(outOfSeeds){
+    notify('No plantable seeds for your plots — the Local Shop sells them','kill');
+  }
+  return planted;
 };
-
 window.toggleAutoReplant = function toggleAutoReplant(){
   if(!window.HearthriseAuto || !window.HearthriseAuto.getFarmReplant) return;
   const cur = window.HearthriseAuto.getFarmReplant();
@@ -9079,6 +9075,10 @@ function openSeedPicker(i){
     ? window.HearthriseFarm.requiredPlotLevel(id) : 0;
   const havePlotLv = (window.HearthriseFarm && window.HearthriseFarm.getPlotLevel) ? window.HearthriseFarm.getPlotLevel() : 1;
   const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${needLv(id)?`Needs Farm Plot Lv ${needLv(id)} (you have Lv ${havePlotLv}) — House → Plot`:'No plot tier unlocks this crop'}</span></div><span class="muted tiny">x${G.inventory[c.seed]||0}</span></button>`;
+  /* The picker borrows the settings modal, whose heading is the static word
+     "Settings" — so the dialog asking which seed to plant was titled SETTINGS
+     (live 2026-09-13). Every opener of the shared shell states its own title. */
+  m.querySelector('.modal-title').textContent='Pick a seed';
   let html = `<h3 style="margin-bottom:10px">Pick a seed</h3>`;
   if(plantable.length) html += plantable.map(plantBtn).join('');
   if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">${lockGlyph()} Locked by Farm Plot tier</div>` + lockedByPlot.map(lockedBtn).join('');
@@ -9962,6 +9962,7 @@ try{ window.applyTraitUnlock=applyTraitUnlock; window.traitBuyToast=traitBuyToas
    ──────────────────────────────────────────────── */
 function openSettings(){
   const m=document.getElementById('settings-modal');
+  m.querySelector('.modal-title').textContent='Settings';
   document.getElementById('settings-body').innerHTML=`
     <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Account</div>
     ${G.account?

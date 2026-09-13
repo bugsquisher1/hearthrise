@@ -142,6 +142,43 @@ export function unlockedCrops(plotLevel) {
   return PLOT_TIERS[clampPlotLevel(plotLevel)].unlocks.slice();
 }
 
+/** Which crop a sweep should put in the next empty plot, or null when nothing in
+    the bag qualifies. Pure, so the same rule answers the header's "Plant all",
+    a future worker and any test: the preferred crop (auto-replant's) first, then
+    the highest farming requirement the player can actually plant.
+    `seeds` is the caller's REMAINING budget, not the bag — the seed debit is the
+    server's and lands with the response, so a sweep that re-read the bag spent
+    one seed many times over. Deriving the order from `crops` keeps every crop
+    ever added reachable without editing a list here. */
+export function pickSeedToPlant(st) {
+  const s = st || {};
+  const crops = s.crops || {};
+  const seeds = s.seeds || {};
+  const lv = Math.floor(Number(s.farmingLevel) || 0);
+  const order = Object.keys(crops).sort((a, b) => (crops[b].req || 0) - (crops[a].req || 0));
+  const prefer = (s.prefer && crops[s.prefer]) ? [s.prefer] : [];
+  for (const id of prefer.concat(order)) {
+    const c = crops[id];
+    if (!c || (seeds[c.seed] | 0) <= 0) continue;
+    if (lv < (c.req || 0)) continue;
+    if (!canPlantCrop(s.plotLevel, id)) continue;
+    return id;
+  }
+  return null;
+}
+
+/** Which plot indices are plantable RIGHT NOW: empty, and inside the property's
+    plot cap. ONE answer for the farm render's "Plant all (n)" label and for the
+    sweep itself — deriving it twice is how the button came to offer a sweep that
+    then placed nothing and said nothing (live 2026-09-13). */
+export function emptyPlotIndices(plots, cap) {
+  const arr = Array.isArray(plots) ? plots : [];
+  const n = Math.max(0, Math.floor(Number(cap) || 0));
+  const out = [];
+  for (let i = 0; i < n; i++) if (!arr[i]) out.push(i);
+  return out;
+}
+
 export function canPlantCrop(plotLevel, cropId) {
   if (!cropId) return false;
   return unlockedCrops(plotLevel).indexOf(cropId) !== -1;

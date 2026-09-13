@@ -606,6 +606,53 @@ const withFarmServer = (respond, fn) => {
   }
 };
 
+/* The farm state the replant/sweep tests share: a property with room to farm, a
+   SERVER plot tier of 2, a farmer who has out-levelled every gate, one ready
+   turnip in plot 0, and a bag holding ONLY the seeds the test names (enumerated
+   from the catalogue, so a new crop cannot leak into a sweep's budget). */
+const farmReplantFixtureG = (seeds) => {
+  const G = window.G;
+  G.homestead = { tier: 5 };
+  G._serverPlotLevel = 2; G.plotLevels = 2;
+  G.skills.farming = 1000000;
+  G.inventory = Object.assign({}, G.inventory);
+  Object.values(window.CROPS || {}).forEach((c) => { delete G.inventory[c.seed]; });
+  Object.assign(G.inventory, seeds || {});
+  G.farmPlots = [{ cropId: 'turnip', plantedAt: Date.now() - 9e7, waterings: [], state: 'ready' }];
+};
+/* One envelope shape for both: harvest clears the plot, any plant is accepted. */
+const farmHarvestThenPlant = (verb, args) => (verb === 'farmHarvest'
+  ? { ok: true, plot: args[0], crop: 'turnip', produce: 'turnip', qty: 3, xp: 30, regrew: false, withered: false }
+  : { ok: true, plot: args[0], crop: args[1], planted_at: new Date().toISOString(),
+      seed_spent: args[1] + '_seed', plant_xp: 28 });
+
+/* ── withDeferredFarmPlant — THE SERVER ANSWERS LATER, WHICH IS THE POINT ─────
+   withFarmServer's thenable calls back INLINE, so a reconcile (and the server's
+   seed debit) has already landed before the caller's next statement. That hides
+   every defect that lives in the window between an intent and its answer — the
+   "Plant all" sweep that re-read the bag and funded one intent per plot off a
+   single seed did the right thing under an inline fixture and the wrong thing in
+   a browser. This records plant intents and HOLDS their answers until the test
+   asks for them. Written once, here, beside the fixture it corrects. */
+const withDeferredFarmPlant = (fn) => {
+  const F = window.HearthriseFarmSync;
+  if (!F) return undefined;
+  const saved = F.farmPlant;
+  const calls = [];
+  const pending = [];
+  F.farmPlant = function (plotIdx, cropId) {
+    calls.push({ plot: plotIdx, crop: cropId });
+    return { then(cb) {
+      pending.push(() => cb({ ok: true, plot: plotIdx, crop: cropId, planted_at: new Date().toISOString(),
+        seed_spent: cropId + '_seed', plant_xp: 28 }));
+      return this;
+    } };
+  };
+  try { return fn(calls, () => { while (pending.length) pending.shift()(); }); }
+  finally { F.farmPlant = saved; }
+};
+
+
 /* ==========================================================================
    b515 - withServerBacked: THE ONE FIXTURE FOR "THE SERVER OWNS THE OUTCOME".
    ==========================================================================
@@ -19446,6 +19493,98 @@ const TESTS = [
         'requiredPlotLevel must mirror hr_crop_plot_tier');
     } finally { restoreG(snap); }
   }),
+
+  /* ── regression suite — THE FARM'S TWO SILENT SURFACES (live, 2026-09-13) ────
+     Played on live: four ready plots harvested by hand with the header reading
+     "Auto-replant: Turnip" and five turnip seeds in the bag replanted NOTHING and
+     said nothing; then "Plant all", clicked twice on four empty plots with seeds
+     held, did nothing and said nothing either. Both surfaces could decline in
+     total silence, which is why neither symptom could name its own cause — a
+     declined auto-replant was indistinguishable from a dead feature, and a sweep
+     that placed nothing from a dead button. Four tests: the two happy paths go
+     through the ONE plant intent (AWAY-1 parity), and the two declines SAY so.
+     MUTATION: drop a say()/notify(), or re-read the bag inside the sweep. */
+  () => tryRun('FARM-REPLANT-1: an attended harvest replants through the same plant intent', () => {
+    const A = window.HearthriseAuto;
+    if (!A || typeof A.maybeReplant !== 'function' || typeof window.harvestPlot !== 'function') { skip('no auto/farm api'); return; }
+    const snap = snapshotG(); const fr = A.getFarmReplant();
+    try {
+      farmReplantFixtureG({ turnip_seed: 5 });
+      A.setFarmReplant({ enabled: true, cropId: 'turnip' });
+      withFarmServer(farmHarvestThenPlant, (calls) => {
+        window.harvestPlot(0);
+        const verbs = calls.map((c) => c.verb);
+        assert(verbs.length === 2 && verbs[0] === 'farmHarvest' && verbs[1] === 'farmPlant',
+          'harvest then ONE plant intent, got ' + JSON.stringify(verbs));
+        assert(calls[1].args[0] === 0 && calls[1].args[1] === 'turnip',
+          'the replant intent carries the harvested plot and the configured crop, got ' + JSON.stringify(calls[1].args));
+        assert(window.G.farmPlots[0] && window.G.farmPlots[0].cropId === 'turnip',
+          'the replanted plot must show the new crop, got ' + JSON.stringify(window.G.farmPlots[0]));
+      });
+    } finally { try { A.setFarmReplant(fr); } catch (e) {} restoreG(snap); }
+  }),
+
+  () => tryRun('FARM-REPLANT-2: a declined auto-replant tells the player why instead of going quiet', () => {
+    const A = window.HearthriseAuto;
+    if (!A || typeof A.maybeReplant !== 'function' || typeof window.harvestPlot !== 'function') { skip('no auto/farm api'); return; }
+    const snap = snapshotG(); const fr = A.getFarmReplant(); const realNotify = window.notify; const said = [];
+    try {
+      window.notify = (t) => { said.push(String(t)); };
+      farmReplantFixtureG({ potato_seed: 5 });        // potato needs plot Lv 3, server says 2
+      A.setFarmReplant({ enabled: true, cropId: 'potato' });
+      withFarmServer(farmHarvestThenPlant, (calls) => {
+        window.harvestPlot(0);
+        assert(!calls.some((c) => c.verb === 'farmPlant'),
+          'a tier-locked replant must not fire a plant the server would refuse');
+        assert(window.G.farmPlots[0] == null, 'the plot stays empty after a declined replant');
+        assert(said.some((t) => /auto-replant/i.test(t) && /Potato/i.test(t)),
+          'a declined auto-replant must NAME itself and the crop — said: ' + JSON.stringify(said));
+      });
+    } finally { window.notify = realNotify; try { A.setFarmReplant(fr); } catch (e) {} restoreG(snap); }
+  }),
+
+  () => tryRun('FARM-PLANTALL-1: Plant all sends one plant intent per seed it actually holds', () => {
+    if (!window.HearthriseFarmSync || typeof window.plantAllEmpty !== 'function') { skip('no farm sync / plant-all'); return; }
+    const snap = snapshotG(); const realNotify = window.notify; const said = [];
+    const fr = window.HearthriseAuto ? window.HearthriseAuto.getFarmReplant() : null;
+    try {
+      window.notify = (t) => { said.push(String(t)); };
+      farmReplantFixtureG({ turnip_seed: 2 });
+      window.G.farmPlots = [null, null, null, null];
+      if (window.HearthriseAuto) window.HearthriseAuto.setFarmReplant({ enabled: true, cropId: 'turnip' });
+      withDeferredFarmPlant((calls, flush) => {
+        const planted = window.plantAllEmpty();
+        assert(calls.length === 2,
+          'two seeds must buy exactly TWO plant intents across four empty plots, got '
+          + calls.length + ': ' + JSON.stringify(calls));
+        assert(planted === 2, 'Plant all must report the two plots it planted, got ' + planted);
+        assert(/Planted 2 plot/.test(said.join(' | ')),
+          'Plant all must say what it did — said: ' + JSON.stringify(said));
+        flush();
+      });
+    } finally {
+      window.notify = realNotify;
+      try { if (fr && window.HearthriseAuto) window.HearthriseAuto.setFarmReplant(fr); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('FARM-PLANTALL-2: Plant all with nothing to plant says so instead of no-opping in silence', () => {
+    if (!window.HearthriseFarmSync || typeof window.plantAllEmpty !== 'function') { skip('no farm sync / plant-all'); return; }
+    const snap = snapshotG(); const realNotify = window.notify; const said = [];
+    try {
+      window.notify = (t) => { said.push(String(t)); };
+      farmReplantFixtureG({ turnip_seed: 5 });
+      window.G.homestead = { tier: 1 };   // four plots, and all four are planted
+      window.G.farmPlots = [0, 1, 2, 3].map(() => ({ cropId: 'turnip', plantedAt: Date.now(), waterings: [], state: 'growing' }));
+      withDeferredFarmPlant((calls) => {
+        const none = window.plantAllEmpty();
+        assert(none === 0 && calls.length === 0, 'a full farm must send no plant intent');
+        assert(said.length > 0, 'Plant all with no empty plot must tell the player why nothing happened');
+      });
+    } finally { window.notify = realNotify; restoreG(snap); }
+  }),
+
 
   /* FARM-TIER-3: auto-replant and Plant-all answer to the SAME server tier —
      an unattended loop that plants a locked crop every harvest would spend the

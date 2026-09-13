@@ -110,6 +110,16 @@ const BASE_RECIPES = {
     {id:'smelt_iron',    name:'Iron Bar',    icon:'⬜', input:'iron_ore',    output:'iron_bar',    xp:30,  req:15, ms:3000},
     {id:'smelt_steel',   name:'Steel Bar',   icon:'⬜', inputs:{iron_bar:1, coal:2},                          output:'steel_bar',   xp:70,  req:35, ms:3600},
     {id:'smelt_gold',    name:'Gold Bar',    icon:'🟡', input:'gold_ore',    output:'gold_bar',    xp:60,  req:40, ms:4000, secondary:{coal:2}},
+    /* ── "DEEP SEAM" — the Steel(35)→Mithril(55) bar silence ───────────────
+       Verdite is the one bar between them, and it does NOT eat coal: it eats
+       FLUXSALT (its own Mining-40 rung). That is deliberate and it is the
+       reason the batch adds a second node type. Coal already has seven sinks
+       and is the reagent this game has choked on twice (the Bronze Wall note
+       above, and the Mining-30 chokepoint); a mid-band bar priced in coal
+       would make the band a coal grind wearing a new name. Fluxsalt gives the
+       new metal its own supply line, and the smelt pays 22.6 xp/s against
+       steel's 19.4 and mithril's 24.0 — seated, not a new best. */
+    {id:'smelt_verdite', name:'Verdite Bar', icon:'🟩', inputs:{verdite_ore:2, flux_salt:1}, output:'verdite_bar', xp:95, req:42, ms:4200},
     {id:'smelt_mithril', name:'Mithril Bar', icon:'🔵', input:'mithril_ore', output:'mithril_bar', xp:120, req:55, ms:5000, secondary:{coal:3}},
     {id:'smelt_rune',    name:'Rune Bar',    icon:'🔷', inputs:{mithril_bar:1, magic_essence:1, coal:4},      output:'rune_bar',    xp:240, req:75, ms:6000},
     /* b215: the last two bars — smithing had nothing new between 75 and 99. */
@@ -159,6 +169,22 @@ const BASE_RECIPES = {
     {id:'forge_steel_helm',    name:'Forge Steel Helm',    icon:'⛑️', inputs:{steel_bar:3}, output:'steel_helm',     xp:600, req:35, ms:4500},
     {id:'forge_steel_platebody',name:'Forge Steel Platebody',icon:'🦺',inputs:{steel_bar:7},output:'steel_platebody',xp:900, req:40, ms:5000},
     {id:'forge_bronze_belt',   name:'Forge Bronze Belt',   icon:'🟫', inputs:{bronze_bar:2, wolf_pelt:1}, output:'bronze_belt', xp:120, req:4, ms:2800},
+    /* ── "DEEP SEAM" — the five verdite forges (Smithing 45-52) ────────────
+       XP is the GENERATED curve's own expression at the bridge's half-tier,
+       round(20 × bars × (1 + 3.5 × 0.85)) for armour and round(45 × (1 + 3.5 ×
+       0.95)) for a weapon, so these rungs pay what a tier-3½ piece should pay
+       and not a hand-picked number. Every one of them is makeable at its own
+       level: verdite_bar smelts at 42, its ore opens at Mining 36 and the
+       fluxsalt at 40 — deliberately, because the curve these sit beside does
+       NOT have that property (57 shipped rungs, 34 of them here, ask for a
+       material their own level cannot make; measured and filed in DISCOVERIES,
+       frozen by DEEPSEAM-5 so the list can only shrink). The platebody also asks for two
+       fluxsalt: the biggest piece is the one that should still want the mine. */
+    {id:'forge_verdite_helm',      name:'Forge Verdite Helm',      icon:'⛑️', inputs:{verdite_bar:2},                              output:'verdite_helm',      xp:160, req:45, ms:3900},
+    {id:'forge_verdite_blade',     name:'Forge Verdite Blade',     icon:'⚔️', inputs:{verdite_bar:3, willow_plank:1},              output:'verdite_blade',     xp:210, req:46, ms:3900},
+    {id:'forge_verdite_platelegs', name:'Forge Verdite Platelegs', icon:'👖', inputs:{verdite_bar:4},                              output:'verdite_platelegs', xp:320, req:47, ms:4000},
+    {id:'forge_verdite_platebody', name:'Forge Verdite Platebody', icon:'🦺', inputs:{verdite_bar:5, flux_salt:2},                 output:'verdite_platebody', xp:400, req:50, ms:4400},
+    {id:'forge_heartgarnet_maul',  name:'Forge Heartgarnet Maul',  icon:'🔨', inputs:{verdite_bar:3, heartgarnet:1, willow_plank:2}, output:'heartgarnet_maul', xp:480, req:52, ms:4600},
     // Gated forges (single-use recipe scrolls flip G.unlockedRecipes)
     {id:'forge_chief_blade',   name:"Chief's Blade",       icon:'🗡️', inputs:{warlord_badge:1, iron_bar:4, oak_plank:2},    output:'chief_blade',       xp:600,  req:50, ms:5000, gated:'chief_blade_recipe'},
     {id:'forge_captain_blade', name:"Captain's Ribblade",  icon:'🗡️', inputs:{captain_medal:1, steel_bar:4, maple_plank:2},output:'captains_ribblade', xp:1100, req:70, ms:6000, gated:'captain_recipe'},

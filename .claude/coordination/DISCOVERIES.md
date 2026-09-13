@@ -4,6 +4,50 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-09-13 · Game Designer · lane `worktree-agent-a8c5ab879be15d9c0` · the SELF-SUPPLY CURVE is broken on 57 shipped rungs
+
+**DISCOVERY — 57 crafting rungs require a material the same level cannot MAKE.** Measured while pacing
+the Mining 40→60 / Smithing 27→50 band (`node` over `ARTISAN_RECIPES`: for every rung, the cheapest
+`req` at which each of its inputs is produced). 34 are smithing, and the shape is systematic rather
+than a set of typos: the generated gear curve gates a piece at `MATERIAL_TIERS[t].smith + slot.lvOff`
+(steel 30, mithril 45, rune 60, ember 75, dawn 88) while the BAR rows sit 5–10 levels above their
+tier's gate (steel 35, mithril 55, rune 75, ember 82, dawn 92). So every tier opens with 3–6 forges for
+a bar the smith cannot yet smelt — `forge_steel_gauntlets` 31 vs the steel bar at 35, twelve mithril
+rungs 46–54 vs the mithril bar at 55, `forge_rune_gauntlets` 61 vs 75, `forge_ember_gauntlets` 76 vs
+82, `forge_dawn_gauntlets` 89 vs 92 — plus the arrow lane (`fletch_mithril_arrows` 48 vs 55), the
+jewellery lane (`jewel_ruby_signet` 52 vs the rune bar at 75, `craft_gold_ring` 25 vs the gold bar at
+40) and `bind_air_runes` 1 vs `rune_blank` 4.
+
+**IT IS NOT "UNOBTAINABLE", AND THAT IS THE WHOLE SUBTLETY.** steel/mithril/rune/gold bars are also
+shop stock AND monster drops, so the rung is craftable with bought or looted stock and nothing is
+soft-locked. What is broken is SELF-SUPPLY — the thing the smithing screen actually teaches ("mine it,
+smelt it, forge it") — so a player who follows the loop meets 3–6 tiles per tier that they cannot feed.
+**The mithril half cannot be fixed by lowering `smelt_mithril`** either: mithril ORE is Mining 60
+regardless, so the gate simply moves to the other skill. A real fix re-cuts the bar reqs to
+`MATERIAL_TIERS[t].smith` AND re-seats the ore nodes, i.e. it moves the top-tier bars 5–10 levels
+earlier for every existing player — a balance program with an economy review, not a content batch.
+
+**AFFECTED:** `src/data/recipes.js` (bar rows), `src/data/gear-tiers.js` (`MATERIAL_TIERS.smith` +
+`ARMOUR_SLOTS.lvOff`, the authority the b348 order guard reads), `src/data/gathering.js` (`ROCKS` ore
+levels), and the `hr_activities` req_lv rows generated from them.
+
+**ACTION — frozen, not fixed, in this lane.** `DEEPSEAM-5` in the in-page suite measures the count
+across every bench and RATCHETS it at 57: it may shrink, never grow, and it separately asserts that
+none of the new Deep Seam rungs is in the list. Route the re-cut to a balance lane with Systems +
+Security (it moves gear availability, which moves the market). Every rung b545 adds is self-supplying:
+`verdite_bar` smelts at Smithing 42 from ore at Mining 36 and fluxsalt at Mining 40, and the five
+forges that eat it sit at 45–52.
+
+**SECOND FINDING — the `shield` slot has ZERO items in the whole 538-item catalogue.** `EQUIP_SLOTS`
+declares it and the paper doll paints the socket for every player, exactly the hole `slot-ladders.js`
+closed for earrings / ammo / cape / jewellery and never closed for shields. NOT taken here: a shield
+lane is a 7-rung ladder that adds defence at every tier at once, which lands straight on the open
+defence-saturation program — it needs that ruling first. Route: Game Designer backlog (mine), after
+defence saturation. AFFECTED: `src/data/gathering.js` (`EQUIP_SLOTS`), `src/data/slot-ladders.js`,
+`src/render/icons.js` (the empty-slot glyph already exists).
+
+---
+
 ## 2026-09-13 · QA Engineer · lane `worktree-agent-a35d279de41fa6a75` · the SNAP-2 seal exposed two leak-fed tests
 
 **DISCOVERY — the right fix for a dropped snapshot field is ABSENCE, not an empty.** `snapshotG`'s 26

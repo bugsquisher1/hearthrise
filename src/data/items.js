@@ -266,6 +266,68 @@ export const ITEMS={
   gold_bar:    {n:'Gold Bar',    icon:'🟨', v:280},
   mithril_bar: {n:'Mithril Bar', icon:'🟦', v:650},
 
+  /* ══════════════════════════════════════════════════════════════════
+     "DEEP SEAM" — THE STEEL→MITHRIL BRIDGE (game-designer, 2026-09-13)
+     Nine rows: three mined materials, one bar, and the five pieces the bar
+     forges. They close the measured hole in the Mining 36-56 / Smithing 42-52
+     band (see the ROCKS note in src/data/gathering.js) and, with it, the
+     WIELD hole underneath it: every armour rung in the game gates on
+     `defense` at a MATERIAL_TIERS level, so the wield ladder read
+     30 (Steel) → 45 (Mithril) with nothing in between. These pieces gate at
+     38 (the set) and 42 (the maul).
+
+     WHY THIS IS NOT A NEW `MATERIAL_TIERS` ROW, and that is a ruling: an
+     eighth tier there generates 18 armour pieces × 3 archetype lines + 4
+     weapon families and RE-INDEXES every `tier` number and per-tier stat
+     array in gear-tiers.js — a 60-item batch and a save-visible renumber, to
+     fill one band. Verdite is authored by hand for the same reason the
+     Watchknight's deathsteel is (src/data/library2-items.js): a BRIDGE is a
+     handful of pieces, not a full ladder. It is deliberately INCOMPLETE as a
+     set — helm, body, legs, a sword and a maul; boots, gauntlets and belt
+     stay Steel or Mithril, so the band is a MIX-AND-MATCH decision rather
+     than a free full-set upgrade.
+
+     THE STATS ARE INTERPOLATION, NOT INVENTION. Every number sits strictly
+     between the Steel and Mithril rung of the same slot, and the plate
+     accuracy penalties keep ARMOUR_LINES' own expression (rangeAtkB =
+     -round(def × 0.25), magicAtkB = -round(def × 0.5)) so the combat triangle
+     still reads verdite as heavy armour:
+        slot   steel → VERDITE → mithril      value  steel → VERDITE → mithril
+        helm     10  →   13    →   16           600  →  1080  →  1800
+        body     22  →   28    →   34          1500  →  2700  →  4500
+        legs     15  →   19    →   24          1100  →  1980  →  3300
+        sword  12/10 →  15/12  →  18/15         800  →   900  →  1500
+        maul    9/19 →  11/23  →  14/28         550  →   990  →  1650
+     Values are the slot's own vmul × 9, the geometric midpoint of the Steel
+     (5) and Mithril (15) economic multipliers — the same expression
+     gear-tiers.js uses, so nothing here is a hand-guessed price.
+     `tier: 4` with `rarity: 'rare'` is honest about both halves: it shares
+     Mithril's tier band (it is what the tier drives — art, borders, drop
+     routing) and is one rarity notch under it.
+     ══════════════════════════════════════════════════════════════════ */
+  verdite_ore:  {n:'Verdite Ore', icon:'🟢', v:55},
+  flux_salt:    {n:'Fluxsalt',    icon:'🧂', v:45},
+  heartgarnet:  {n:'Heartgarnet', icon:'🔴', v:200},
+  verdite_bar:  {n:'Verdite Bar', icon:'🟩', v:320},
+  verdite_helm: {n:'Verdite Helm', icon:'⛑️', v:1080, type:'armor', slot:'helmet',
+    defB:13, rangeAtkB:-3, magicAtkB:-7, armourClass:'plate', rarity:'rare', tier:4,
+    reqSkill:'defense', reqLv:38},
+  verdite_platebody: {n:'Verdite Platebody', icon:'🦺', v:2700, type:'armor', slot:'body',
+    defB:28, rangeAtkB:-7, magicAtkB:-14, armourClass:'plate', rarity:'rare', tier:4,
+    reqSkill:'defense', reqLv:38},
+  verdite_platelegs: {n:'Verdite Platelegs', icon:'👖', v:1980, type:'armor', slot:'pants',
+    defB:19, rangeAtkB:-5, magicAtkB:-10, armourClass:'plate', rarity:'rare', tier:4,
+    reqSkill:'defense', reqLv:38},
+  verdite_blade: {n:'Verdite Blade', icon:'⚔️', v:900, type:'weapon', slot:'weapon',
+    weaponType:'sword', atkB:15, strB:12, rarity:'rare', tier:4,
+    reqSkill:'attack', reqLv:38},
+  /* The band's capstone, and the only sink for the gem: a Heartgarnet is one
+     swing at the Mining-56 geode, so the best weapon before Mithril asks a
+     smith to have MINED for it rather than to have bought bars. */
+  heartgarnet_maul: {n:'Heartgarnet Maul', icon:'🔨', v:990, type:'weapon', slot:'weapon',
+    weaponType:'hammer', atkB:11, strB:23, rarity:'epic', tier:4,
+    reqSkill:'attack', reqLv:42},
+
   /* ── Recipe outputs: crafting (planks) ── */
   normal_plank: {n:'Normal Plank', icon:'🪵', v:18},
   oak_plank:    {n:'Oak Plank',    icon:'🪵', v:55},

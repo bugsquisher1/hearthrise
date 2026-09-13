@@ -657,6 +657,31 @@ window._monsterIcon = window._monsterIcon || {};
     rune_bar:    'assets/icons-bundle/resources/Res_06_magicbar.png',
     ember_bar:   'assets/icons-bundle/resources/Res_06_magicbar.png',
     dawn_bar:    'assets/icons-bundle/resources/Res_03_goldenbar.png',
+    /* "Deep Seam" — the nine verdite rows REUSE shipped art rather than
+       put an emoji on a shelf of painted siblings (the Reed & Tide ruling,
+       2026-09-13). The materials borrow the hearthfire item set their
+       neighbours use, and the five gear pieces borrow the STEEL silhouette of
+       their own slot, which is the locked art direction rather than a
+       shortcut: "gear tier = RARITY BORDER, not a recoloured sprite"
+       (__mapGeneratedGearIcons below maps every tier ≥3 helm to the same
+       steel_helm for exactly this reason), and verdite renders `rarity:'rare'`.
+       No new PNG and no src/data/item-art.js SHIPPED entry — that list is
+       reconciled against the filesystem in BOTH directions and an id there
+       with no file of its own would go red.
+       ⚠ OWED TO THE ART DIRECTOR (filed in HANDOFFS): verdite is described as a
+       GREEN-BLACK metal and there is no green stone or green ingot in the
+       pack, so `basalt` stands in for the ore and steel's grey ingot for the
+       bar. Three plates, a blade, a maul, an ore, a bar and a garnet is the
+       re-shoot list if this band is ever painted. */
+    verdite_ore:  'assets/icons-bundle/hearthfire/items/basalt.png',
+    flux_salt:    'assets/icons-bundle/hearthfire/items/rubble.png',
+    heartgarnet:  'assets/icons-bundle/hearthfire/items/ruby.png',
+    verdite_bar:  'assets/icons-bundle/hearthfire/items/steel_bar.png',
+    verdite_helm:      'assets/icons-bundle/hearthfire/armour/steel_helm.png',
+    verdite_platebody: 'assets/icons-bundle/hearthfire/armour/steel_platebody.png',
+    verdite_platelegs: 'assets/icons-bundle/hearthfire/armour/steel_platelegs.png',
+    verdite_blade:     'assets/icons-bundle/hearthfire/weapons/steel_sword.png',
+    heartgarnet_maul:  'assets/icons-bundle/hearthfire/weapons/steel_warhammer.png',
     stone:       'assets/icons-bundle/resources/Res_08_stones.png',
     mushroom:    'assets/icons-bundle/resources/Res_125_mushroom.png',
     dragon_egg:  'assets/icons-bundle/resources/Res_127_dragonegg.png',

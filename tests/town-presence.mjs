@@ -88,6 +88,7 @@ const MIG_COOLDOWN = '2026-09-13-town-refresh-cooldown.sql';
    toucher of hr_set_presence_quiet__ungated, so arms against that body live here. */
 const MIG_PRUNE = '2026-09-13-town-quiet-prune.sql';
 const ZONE = 'the_common';
+const EM_ = '—';   // em dash, for the mutation prose below
 
 const uidFor = (n) => `000000ac-0000-0000-0000-0000000000${n}`;
 
@@ -158,6 +159,24 @@ const MUTATIONS = {
        + 'player sits in the plaza until the next CRON build (25 s / 60 s). Security F1, 2026-09-13: '
        + 'the P3 finding, reopened',
     pairs: [["        v_pruned := found;", "        v_pruned := v_pruned;"]],
+  },
+  /* prune_ignores_nameless IS DELIBERATELY NOT AN ARM, and the reason is a
+     measurement rather than a judgement: deleting `and v_name is not null` from
+     the prune leaves this guard GREEN, because the containment check that follows
+     it (`peers @> [{"name": v_name}]`) can never match when v_name is NULL. The
+     NULL guard is therefore REDUNDANT today — defence in depth against a future
+     change to the matching expression, not a load-bearing predicate. An arm that
+     cannot go red is the vacuous proof tests/mutation-proof.mjs exists to stop, so
+     it is not registered; the nameless PROPERTY is still asserted by the (a) block
+     in runAll and its defect is caught by prune_ignores_presence below. */
+  prune_ignores_presence: {
+    file: MIG_PRUNE,
+    why: 'the prune stops checking that the caller is actually IN the payload, so quiet ' + EM_ + ' loud '
+       + (EM_ + ' quiet decrements `here` twice for one body (going loud does not refresh): a shared ')
+       + 'crowd count that disagrees with the list beside it, at 2 transitions/min/account. Security '
+       + 'F1-b, confirmed on a replay',
+    pairs: [["           and ts.payload -> 'peers' @> jsonb_build_array(jsonb_build_object('name', v_name));",
+             '           and true;']],
   },
   cooldown_gone: {
     // Also in the cooldown file — it is the only place the window exists.
@@ -481,6 +500,60 @@ async function runAll(db) {
     + 'disagree with the list beside it');
   await setQuiet(db, B, false);   // put PlazaBob back for the arms below
 
+  // ── (a) A NAMELESS CALLER MOVES NOTHING (Security F1-a, CONFIRMED on their
+  //    replay probe: `is distinct from NULL` filters nobody out, so the UPDATE
+  //    matched the row on zone alone, decremented `here` and left the caller in
+  //    `peers`. 11 nameless profiles are live.) Note what the payload holds for
+  //    them: hr_town_refresh coalesces a NULL name to 'Adventurer', which SEVERAL
+  //    nameless players share — so matching on it would hide all of them at once.
+  //    Answering pruned:false and waiting for the ≤25 s rebuild is the only correct
+  //    behaviour, not merely the cheap one.
+  const N = uidFor('e5');
+  await db.exec(`insert into auth.users (id) values ('${N}') on conflict (id) do nothing;`);
+  await db.exec(`insert into public.profiles (id, display_name) values ('${N}', null)
+                 on conflict (id) do update set display_name = null;`);
+  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, version)
+                 values ('${N}', 0, 0, 0, 5)
+                 on conflict (user_id, slot) do update set version = 5, presence_quiet = false;`);
+  await heartbeat(db, N);
+  await refresh(db);
+  const withN = await townOf(db, A);
+  const hereN = Number(withN.here);
+  const peersN = withN.peers.length;
+  const qN = await setQuiet(db, N, true);
+  ok(qN && qN.snapshot_refreshed === false,
+    `the nameless caller's toggle was COALESCED (got ${JSON.stringify(qN)})`);
+  ok(qN && qN.pruned === false,
+    `a NAMELESS caller reports pruned:false (got ${JSON.stringify(qN && qN.pruned)}) — it cannot be `
+    + 'matched in the payload, so claiming a prune is a lie and `here` drifts');
+  const afterN = await townOf(db, A);
+  ok(Number(afterN.here) === hereN && afterN.peers.length === peersN,
+    `neither \`here\` nor the list moved for a caller the prune could not remove `
+    + `(${hereN}/${peersN} -> ${afterN.here}/${afterN.peers.length})`);
+
+  // ── (b) `here` NEVER DISAGREES WITH THE LIST (Security F1-b, CONFIRMED:
+  //    quiet → loud → quiet inside the 4/min bucket decremented TWICE for one
+  //    body, because going loud does not refresh and the second prune matched the
+  //    row anyway — here 1 → 0 with two peers still listed, at 2 transitions per
+  //    minute per account.) Its own account: three calls against a 4/min bucket.
+  const T = uidFor('f6');
+  await seed(db, T, 'PlazaTog');
+  await heartbeat(db, T);
+  await refresh(db);
+  ok((await townOf(db, A)).peers.some((p) => p.name === 'PlazaTog'),
+    'the control: the toggler is in the plaza, so the double-decrement arm is not vacuous');
+  const t1 = await setQuiet(db, T, true);
+  ok(t1 && t1.pruned === true, `the first prune fired (got ${JSON.stringify(t1)})`);
+  await setQuiet(db, T, false);                     // loud again: does NOT refresh
+  const t2 = await setQuiet(db, T, true);           // quiet again: ABSENT now
+  ok(t2 && t2.pruned === false,
+    `a SECOND prune of an already-pruned caller reports pruned:false (got ${JSON.stringify(t2)}) — `
+    + 'that is the double decrement');
+  const afterT = await townOf(db, A);
+  ok(Number(afterT.here) === afterT.peers.length,
+    `\`here\` (${afterT.here}) equals the peer count (${afterT.peers.length}) after quiet → loud → `
+    + 'quiet — a shared crowd count must never disagree with the bodies beside it');
+
   // ...and the REBUILD branch of the same toggle. AGED, so the cooldown lets the
   // rebuild through: `snapshot_refreshed` and `pruned` are the two exclusive ways
   // the opt-out can land, and both must work.
@@ -736,6 +809,8 @@ if (argv.includes('--selftest')) {
     + 'uncatalogued activity_id has no label; one body per account; town_snapshot reachable by no '
     + 'client role; the envelope gained place and carries no peers; bad_zone and the storm refused; '
     + 'an opt-out is gone from the next read, bounded by the 3-second zone cooldown, which '
-    + 'coalesces a rebuild inside its window and writes nothing while still rebuilding after it).');
+    + 'coalesces a rebuild inside its window and writes nothing while still rebuilding after it; a '
+    + 'coalesced opt-out PRUNES the caller out of the cached payload and is gone from the very next '
+    + 'read, while a NAMELESS or already-pruned caller moves neither `here` nor the list).');
   process.exit(0);
 }

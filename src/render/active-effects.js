@@ -80,6 +80,60 @@
     return map[kind] || kind.replace(/([A-Z])/g, ' $1').toLowerCase();
   }
 
+  /* ── THE FOOD-BUFF ROWS (moved out of src/legacy.js, 2026-09-13) ───────────
+     A PURE STRING BUILDER: rows in, HTML out, no DOM and no state. legacy.js's
+     `__renderBuffsSection` finds the host and assigns this; the two rulings the
+     markup encodes are stated where the call is made.
+
+     `rows` is the EFFECTIVE segment of each type (legacy's published
+     `effectiveBuffRows`, i.e. src/core/buffs.js `effectiveBuffs`); `queue` is the
+     whole array, needed only to name the NEXT segment and to state how much
+     real time is left in total. */
+  function _nextSeg(queue, type, afterMs) {
+    var best = null;
+    (Array.isArray(queue) ? queue : []).forEach(function (b) {
+      if (!b || b.type !== type || !(b.remainingMs > afterMs)) return;
+      if (!best || b.remainingMs < best.remainingMs) best = b;
+    });
+    return best;
+  }
+  function buffRowsHTML(rows, queue) {
+    var list = Array.isArray(rows) ? rows : [];
+    if (!list.length) {
+      return '<div style="color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));'
+        + 'font-style:italic">No food buffs active. Cook buff foods to add bonuses.</div>';
+    }
+    var DEF = window.BUFFS_DEF || {};
+    var fmt = window.__buffFmtRemaining || function (ms) { return Math.round(ms / 1000) + 's'; };
+    var longest = 0;
+    (Array.isArray(queue) ? queue : list).forEach(function (b) {
+      if (b && b.remainingMs > longest) longest = b.remainingMs;
+    });
+    var html = list.map(function (b) {
+      var def = DEF[b.type] || { label: b.type, isPercent: true };
+      var show = def.isPercent ? '+' + b.magnitude + '%' : '+' + b.magnitude;
+      var nxt = _nextSeg(queue, b.type, b.remainingMs);
+      var then = nxt
+        ? '<span class="br-next">then ' + (def.isPercent ? '+' + nxt.magnitude + '%' : '+' + nxt.magnitude)
+          + '</span>'
+        : '';
+      return '<div class="buff-row" data-buff-type="' + b.type + '" data-buff-mag="' + b.magnitude + '">'
+        + '<span class="br-icon">' + _aeGly(b.type) + '</span>'
+        + '<span class="br-name">' + def.label + '</span>'
+        + '<span class="br-mag">' + show + '</span>'
+        + then
+        + '<span class="br-time">' + fmt(b.remainingMs) + '</span>'
+        + '</div>';
+    }).join('');
+    /* THE RULE IN THE PLAYER'S WORDS (designer copy): REAL TIME is the one thing
+       about this clock a player can get wrong and lose a Feast to. The number is the
+       LONGEST remainder — how much longer they have any effect at all — while each
+       row counts down to its own next change. */
+    return html + '<div class="buff-real-time-note">Lasts '
+      + Math.max(1, Math.ceil(longest / 60000)) + ' min of real time — awake or away.</div>';
+  }
+  window.buffRowsHTML = buffRowsHTML;
+
   function renderActiveEffects() {
     var G = window.G || {};
     var getBonus = window.getBonus;

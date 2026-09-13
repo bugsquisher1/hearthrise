@@ -291,6 +291,15 @@ export async function armHomingGuard() {
        VERIFIED below by driving the real reconcileFall through a projected
        envelope, the same way farmPlots/plotLevels are. */
     'consecFalls',
+    /* 2026-09-13 — buffs: accrue.js reconcileBuffs MIRRORS the envelope's top-level
+       `buffs` projection (player_state.buffs, written only by hr_apply's
+       buff_apply block) onto G.buffs on every envelope, and record.js calls it from
+       the idle-boot hydration step, so a reload repaints the pill instead of
+       forgetting it. ABSOLUTE — the server's array replaces the local queue, so a
+       local entry the server does not hold cannot survive (the residue-ahead class
+       this field WAS, when it lived in RESIDUE_FIELDS as a player-written
+       remainingMs). VERIFIED below against a projected envelope. */
+    'buffs',
   ]);
   /* Derived / never-uploaded — homed by definition (recomputed at runtime, or
      re-supplied by the envelope on every load). EXPLICIT: a name here is a
@@ -700,6 +709,70 @@ export async function armHomingGuard() {
     }
   } catch (e) {
     fail('the EXECUTED consecFalls-mechanism check threw, so the claim went unverified: ' + (e && e.message));
+  }
+
+  /* ── EXECUTED: buffs (2026-09-13). The projection needle is the §1 splice of the
+     consumable-buffs migration — if hr_state_of stops projecting the top-level
+     `buffs` block, the fixture below would assert against a key the server never
+     sends and the pill would be blank on every reload with the guard green. */
+  try {
+    const PROJ = '2026-09-13-consumable-buffs.sql';
+    const sql = await readFile(new URL('supabase/migrations/' + PROJ, ROOT), 'utf8');
+    if (!sql.includes("    'buffs', coalesce((")) {
+      fail(`${PROJ} no longer splices the top-level 'buffs' projection into hr_state_of, so the buffs `
+         + 'fixture below is asserting against a key the server does not send. Do not "fix" this by editing '
+         + 'the fixture.');
+    }
+    if (!sql.includes("'remaining_ms', greatest(0, floor(")) {
+      fail(`${PROJ} no longer projects a server-derived remaining_ms, so the countdown the player watches `
+         + "would have to be re-derived from `until` against the CLIENT clock — a skewed clock then becomes an "
+         + 'input to how long a buff has left.');
+    }
+    const A = await import(mod('src/net/accrue.js'));
+    if (typeof A.reconcileBuffs !== 'function') {
+      fail("accrue.js no longer exports reconcileBuffs, so the 'buffs' mechanism claim in "
+         + 'SERVER_MECHANISM_FIELDS is unverifiable — and a reload would forget a running buff while the '
+         + 'server went on paying it.');
+    } else {
+      const iso = (ms) => new Date(Date.now() + ms).toISOString();
+      const G = {};
+      /* TWO SEGMENTS OF ONE TYPE and one expired entry, which is the real
+         projection shape: hr_state_of carries a dead buff at remaining_ms = 0 for
+         the away engine, and the queue may hold several contiguous windows of a
+         type since the 2026-09-13 per-segment ruling. */
+      A.reconcileBuffs(G, {
+        ok: true,
+        buffs: [
+          { type: 'damage', magnitude: 5, until: iso(60000), remaining_ms: 60000 },
+          { type: 'damage', magnitude: 1, until: iso(80000), remaining_ms: 80000 },
+          { type: 'all_xp', magnitude: 2, until: iso(-1000), remaining_ms: 0 },
+        ],
+      });
+      if (!Array.isArray(G.buffs) || G.buffs.length !== 2) {
+        fail("SERVER_MECHANISM_FIELDS claims 'buffs' is homed by reconcileBuffs, but driving the real "
+           + `reconcile with two live segments and one expired entry left G.buffs = ${JSON.stringify(G.buffs)} `
+           + '(expected the two live ones). On reload the pill is wrong or blank.');
+      } else if (G.buffs[0].remainingMs !== 60000 || G.buffs[0].magnitude !== 5) {
+        fail('reconcileBuffs must carry EVERY segment and sort by remainder so the RUNNING one is first; got '
+           + `${JSON.stringify(G.buffs)}. Collapsing by type is how a weak helping paints a Feast's magnitude.`);
+      }
+      // ABSENCE IS NOT A STATEMENT: an envelope with no `buffs` key leaves it alone.
+      const G2 = { buffs: [{ type: 'damage', magnitude: 5, remainingMs: 1000 }] };
+      A.reconcileBuffs(G2, { ok: true, state: {} });
+      if (!Array.isArray(G2.buffs) || G2.buffs.length !== 1) {
+        fail('an envelope without a `buffs` key must leave G.buffs UNTOUCHED (a server predating the '
+           + `projection is not a statement that you hold nothing); got ${JSON.stringify(G2.buffs)}.`);
+      }
+      // An EMPTY ARRAY *is* a statement, and it must clear — that is how a drained buff disappears.
+      const G3 = { buffs: [{ type: 'damage', magnitude: 5, remainingMs: 1000 }] };
+      A.reconcileBuffs(G3, { ok: true, buffs: [] });
+      if (!Array.isArray(G3.buffs) || G3.buffs.length !== 0) {
+        fail('an envelope stating `buffs: []` must CLEAR the local queue — a local entry the server does not '
+           + `hold is the residue-ahead class this field used to be; got ${JSON.stringify(G3.buffs)}.`);
+      }
+    }
+  } catch (e) {
+    fail('the EXECUTED buffs-mechanism check threw, so the claim went unverified: ' + (e && e.message));
   }
   // Bank purchase counters (goldBuys/gemBuys/grandfather) ride inside G.bank —
   // covered by the bank mechanism; no separate assertion. bountyHunter.marks was

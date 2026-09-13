@@ -146,6 +146,14 @@ export function buildEatRequest(opts) {
         slot,
         intentId: String(o.intentId == null ? '' : o.intentId),
         item: String(o.item == null ? '' : o.item),
+        /* THE GESTURE, NOT A QUANTITY (2026-09-13). `true` = the auto-eater fired
+           this heal, which tells the server to DEBIT AND NOT BUFF; a human eat
+           omits it (or sends false) and gets the food's buff. It is the only
+           client fact this verb carries and it can only make the answer smaller —
+           see readAuto in supabase/functions/hr-accrue/request.js. Sent as a real
+           boolean, ALWAYS present, so a stale intermediary cannot turn an
+           auto-eat into a buffed one by dropping a key. */
+        auto: o.auto === true,
       }),
     },
   };
@@ -220,7 +228,7 @@ export async function sendEat(foodId, o = {}) {
 
   const { url, init } = buildEatRequest({
     url: config.url, apiKey: config.apiKey, token,
-    slot: resolveActiveSlot(config.slot), intentId: key, item: id,
+    slot: resolveActiveSlot(config.slot), intentId: key, item: id, auto: o.auto === true,
   });
 
   let ac = null; let timer = null;
@@ -258,11 +266,62 @@ export async function sendEat(foodId, o = {}) {
   return record(verdict);
 }
 
+/* ── WHAT A REFUSED EAT SAYS TO THE PLAYER ─────────────────────────────────
+   The transport already puts the item back; what was missing is the SENTENCE — a
+   Feast that vanishes and reappears unexplained is "I clicked Eat and nothing
+   happened" again. A TABLE keyed by the server's own machine code, because the
+   buff refusals are a FAMILY: a new one is a row, not a branch. It lives with the
+   transport rather than at the call site because the codes are this layer's
+   vocabulary; the caller does the DOM. An unlisted code says NOTHING rather than
+   guessing. `buff_at_max` is refused BEFORE the debit (never eat the item for
+   nothing), so "kept your X" is literally true. */
+export const EAT_REFUSAL_COPY = Object.freeze({
+  /* THE 60-MINUTE CEILING. hr_apply refuses a consume that would buy less than a
+     tenth of what it promises, BEFORE the debit, so "kept your X" is literally
+     true (the designer's rule: never eat the item for nothing). */
+  buff_at_max: 'Your effects are already at their one-hour cap — kept your %s for later.',
+  /* THE SAME CODE WITH why='segment_budget': eight live servings of one effect are
+     queued. A different fact and therefore a different sentence — "wait an hour" is
+     wrong advice when the answer is "that one effect is full". */
+  'buff_at_max/segment_budget':
+    'That effect already has as many servings queued as it can hold — kept your %s.',
+  insufficient_item: 'You do not have a %s any more.',
+  /* NEITHER OF THESE SHOULD REACH A PLAYER — the client only sends ids the
+     catalogue calls food, and the debit is emitted beside every buff_apply by
+     construction. They are HERE because a refusal the player cannot read is the
+     b224 "I clicked Eat and nothing happened" report, and a silent one is worse
+     than a vague one. The food is kept in both cases: the whole apply rolls back. */
+  bad_buff_item: 'The Hearth did not recognise that food — kept your %s.',
+  buff_not_paid: 'That food could not be used just now — kept your %s.',
+});
+
+/** The line to show for a verdict, or null when there is nothing honest to say.
+ *  Pure: verdict + display name in, string out.
+ *
+ *  `why` REFINES THE CODE, and is looked up FIRST: one machine code can carry two
+ *  different facts (the hour cap vs a full segment budget) and telling a player to
+ *  wait for the wrong thing is worse than saying less. An unlisted code says
+ *  NOTHING rather than guessing. */
+export function refusalCopyFor(verdict, itemName) {
+  const v = (verdict && typeof verdict === 'object') ? verdict : {};
+  const body = (v.body && typeof v.body === 'object') ? v.body : {};
+  const code = v.reason || v.error || body.error || '';
+  const why = v.why || body.why || (body.detail && body.detail.why) || '';
+  const keys = why ? [code + '/' + why, code] : [code];
+  for (const k of keys) {
+    if (Object.prototype.hasOwnProperty.call(EAT_REFUSAL_COPY, k)) {
+      return EAT_REFUSAL_COPY[k].replace('%s', String(itemName || 'food'));
+    }
+  }
+  return null;
+}
+
 if (typeof window !== 'undefined') {
   window.HearthriseEat = {
     EAT_VERB, EAT_OUTCOMES, UNANSWERED_OUTCOMES,
     configureEat, getEatConfig, setEatHooks, getEatHooks,
     buildEatRequest, classifyEatResponse, envelopeOf,
     newIntentKey, isIntentKey, isAnswered, isEatIntentEnabled, sendEat,
+    EAT_REFUSAL_COPY, refusalCopyFor,
   };
 }

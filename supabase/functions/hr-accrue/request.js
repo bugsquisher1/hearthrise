@@ -215,7 +215,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty', 'reward',
-    'listing', 'ask', 'equip', 'enchant', 'dungeon'],
+    'listing', 'ask', 'equip', 'enchant', 'dungeon', 'auto'],
 );
 
 /** The dungeon-run modes the settle RPC understands. Parse-level allowlist,
@@ -276,7 +276,46 @@ export function parseIntent(body) {
   out.equip = readEquip(body);
   out.enchant = readEnchant(body);
   out.dungeon = readDungeon(body);
+  out.auto = readAuto(body);
   return out;
+}
+
+/**
+ * WAS THIS CONSUMPTION FIRED BY A MACHINE? (2026-09-13, the buff emitter.)
+ *
+ * `true` ⇒ the auto-eater healed with this food and the player never chose it;
+ * `false` (and ABSENT) ⇒ a human chose to consume this item. It exists for ONE
+ * decision — whether the `eat` verb puts `buff_apply` in its delta — and it is
+ * the only honest place to make it, because "was this a gesture or a heal?" is a
+ * fact about the CLIENT and the server has no other way to know it.
+ *
+ * ── WHY A CLIENT FLAG IS SAFE HERE, STATED RATHER THAN ASSUMED ─────────────
+ * It can only DECLINE a buff, never enlarge one. A forged `auto:true` refuses
+ * the forger their own buff. A forged `auto:false` on an auto-eat grants a buff
+ * the player could have had for free by clicking Eat on the same item they
+ * already own — no new entitlement, no new item, and the queue's 60-minute cap
+ * (c_buff_max_ms) bounds the stock either way. Nothing tradeable, rankable or
+ * contributable moves, so CLAUDE.md's target property is untouched: a forged
+ * value cannot cross into another player's economy or ranking.
+ *
+ * ── WHY THE DEFAULT IS "NOT AUTO" AND NOT THE OTHER WAY ROUND ─────────────
+ * Absence must mean what a HUMAN eat means, because the manual Eat button is the
+ * gesture this field was added for and a client that has not learned to send it
+ * yet (a cached bundle) must still buff — the alternative is a feature that is
+ * silently off for every stale tab. The dangerous direction is the other one:
+ * auto-eat fires up to 20×/min, and a server that buffed on every one of those
+ * would cap a 60-minute queue in ~90 s of fighting and then refuse
+ * `buff_at_max` — which ROLLS BACK THE DEBIT and restocks the food, i.e. the
+ * b467 "food I eat comes back" P0. So the party that fires 20×/min is the party
+ * that must say so, and legacy.js's auto-eat seam does (`{auto:true}`).
+ *
+ * STRICTLY BOOLEAN. A string "true", a 1, an object — none of them are a
+ * boolean, and a truthiness read would let `auto: "false"` mean auto. Anything
+ * that is not `true` is not auto.
+ */
+export function readAuto(body) {
+  if (!body || typeof body !== 'object') return false;
+  return Object.prototype.hasOwnProperty.call(body, 'auto') && body.auto === true;
 }
 
 /**

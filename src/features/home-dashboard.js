@@ -276,20 +276,10 @@
       /* ── b326: the buff ladder (Upkeep) ────────────────────────────────
          Declared AFTER the generic .hd-mini colour blanket above, at equal
          specificity, so it wins on source order rather than by escalating
-         another !important war. Running = moss; paused = the muted ink and
-         a pill, never --red: a frozen buff is withheld, not lost, and the
-         preserved time beside it IS the reassurance. */
+         another !important war. Running = moss; there is no paused variant since
+         the wall-clock ruling deleted the freeze (2026-09-13). */
       R + '.hd-buff .hd-buff-mag{color:var(--green) !important;font-weight:800}',
       R + '.hd-buff .hd-buff-time{font-variant-numeric:tabular-nums;color:var(--ink) !important}',
-      R + '.hd-buff.is-paused .hd-buff-mag{color:var(--ink-3) !important}',
-      R + '.hd-buff.is-paused .hd-buff-time{color:var(--ink-2) !important}',
-      R + '.hd-buff .hd-buff-paused{margin-left:auto;font-family:var(--f-label);',
-      'font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.05em;text-transform:uppercase;',
-      'font-weight:700;color:var(--ink-3) !important;border:1px solid var(--line);',
-      'border-radius:999px;padding:0 8px;white-space:nowrap}',
-      /* When the pill is present it takes the auto margin, so the clock must
-         stop claiming it or the two fight over the same slack. */
-      R + '.hd-buff .hd-buff-paused + .hd-buff-time{margin-left:10px}',
       R + '.hd-buff-note{color:var(--ink-3) !important;align-items:flex-start;padding-top:2px}',
       R + '.hd-buff-note .mi{margin-top:-4px}',
       R + '.hd-buff-note div:not([data-hd]){color:var(--ink-3) !important;line-height:1.35}',
@@ -1659,17 +1649,15 @@
     }
 
     // Upkeep — buffs + collection progress. Two one-line facts, not two cards.
-    /* b326 — THE BUFF LADDER, and why it had to be built here.
-       The row used to read "Food buff active." — no name, no magnitude, no
-       clock. That was the ONLY visible buff surface in the game: the legacy
-       Active Effects card, which is where `__renderBuffsSection` draws, is
-       `display:none` on Home (this component's own b213 reset hides every
-       legacy `> .card` in the panel). So the ruling's honesty clause 3 —
-       "a paused buff renders as paused with its time preserved" — had nowhere
-       to render at all. It renders here. Each buff states its effect, its
-       PRESERVED time, and whether that clock is running. */
-    var _buffs = (Array.isArray(G.buffs) ? G.buffs : []).filter(function (b) { return b && b.remainingMs > 0; });
-    var _bfrozen = (typeof window.buffsFrozen === 'function') ? window.buffsFrozen() : false;
+    /* THE BUFF LADDER — the only VISIBLE buff surface (the Active Effects card
+       `__renderBuffsSection` draws into is display:none on Home), so each row states
+       the effect, the magnitude and the clock. ONE ROW PER EFFECT AND IT IS THE
+       SEGMENT RUNNING NOW (2026-09-13): a type may hold several windows, so a raw
+       filter would list an effect twice at the LATER window's number.
+       `window.effectiveBuffRows` is the published oracle the engine pays from. */
+    var _buffs = (typeof window.effectiveBuffRows === 'function')
+      ? window.effectiveBuffRows()
+      : (Array.isArray(G.buffs) ? G.buffs : []).filter(function (b) { return b && b.remainingMs > 0; });
     html += '<div><div class="hd-h"><h3>Upkeep</h3></div><div class="hd-rows">';
     if (!_buffs.length) {
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly('cooking', 20, '', 'var(--ink-2)') + '</div>' +
@@ -1679,23 +1667,18 @@
       html += _buffs.map(function (b) {
         var def = BD[b.type] || { label: b.type, isPercent: true };
         var mag = (def.isPercent ? '+' + b.magnitude + '%' : '+' + b.magnitude);
-        return '<div class="hd-card hd-mini hd-buff' + (_bfrozen ? ' is-paused' : '') + '">' +
+        return '<div class="hd-card hd-mini hd-buff">' +
           '<div class="mi">' + gly((window.BUFF_GLYPH || {})[b.type] || 'uiPotion', 20, '',
-            _bfrozen ? 'var(--ink-3)' : 'var(--green)') + '</div>' +
+            'var(--green)') + '</div>' +
           '<div>' + esc(def.label) + ' <b class="hd-buff-mag">' + esc(mag) + '</b></div>' +
-          (_bfrozen ? '<span class="hd-buff-paused">paused</span>' : '') +
           '<b class="go hd-buff-time">' + esc(fmtClock(b.remainingMs)) + '</b>' +
         '</div>';
       }).join('');
-      if (_bfrozen) {
-        /* The rule, stated once under the ladder rather than on every row.
-           This is the clause the ruling exists for: a frozen buff is not
-           being spent, so the number above is a promise, not a countdown. */
-        html += '<div class="hd-card hd-mini hd-buff-note"><div class="mi">' +
-          gly('uiHourglass', 20, '', 'var(--ink-3)') + '</div>' +
-          '<div>Time kept, not spent — buff clocks only run while an activity ' +
-          'is running, and freeze entirely while you are away.</div></div>';
-      }
+      /* THE RULE, ONCE, UNDER THE LADDER: the clock is real time and does not wait
+         for the player. Replaces the retired "time kept, not spent" note. */
+      html += '<div class="hd-card hd-mini hd-buff-note"><div class="mi">' +
+        gly('uiHourglass', 20, '', 'var(--ink-3)') + '</div>' +
+        '<div>Real time — buff clocks run down whether you are here or away.</div></div>';
     }
     if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
       try {

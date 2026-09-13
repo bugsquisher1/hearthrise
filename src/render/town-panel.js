@@ -47,7 +47,7 @@
 // did nothing today would be dead code pretending to be a feature.
 // ============================================================
 
-import { agoText } from '../net/sync.js?v=544';
+import { agoText } from '../net/sync.js?v=545';
 
 const STYLE_ID = 'town-panel-css';
 

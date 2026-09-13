@@ -2733,6 +2733,37 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   letter-spacing:.02em;
 }
 
+/* ── SELL-LOCK: the locked badge on the tile ──────────────────────────────────
+   Top-left, because the qty badge owns the bottom strip and the rarity frame
+   owns the border. All tokens; no literal is introduced by this feature. */
+.invc-tile .invc-lock{
+  position:absolute;top:3px;left:3px;display:flex;pointer-events:none;
+  color:var(--gold-2);filter:drop-shadow(0 1px 2px rgba(0,0,0,.9));
+}
+.invc-tile .invc-lock svg{width:13px;height:13px}
+.invc-tile.invc-locked{border-color:var(--gold-2)}
+
+/* ── THE LOOT FILTER: the standing kept-classes row ───────────────────────────
+   Its own row under the search so the momentary lens (the icon strip) and the
+   standing choice never read as the same control. Chips borrow .invc-cat-btn's
+   palette rather than declaring one. */
+/* order:-2 keeps it above the icon strip (order:-1) inside .invc-left. */
+.invc-lootfilter{order:-2;display:flex;flex-wrap:wrap;align-items:center;gap:6px;flex-shrink:0}
+.invc-lf-label{
+  font-size:calc(13px * var(--ui-scale, 1));font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3);
+}
+.invc-lf-chip{
+  padding:5px 11px;border-radius:99px;cursor:pointer;
+  background:rgba(255,255,255,.04);border:1px solid var(--line-soft);color:var(--ink-2);
+  font-size:calc(13px * var(--ui-scale, 1));font-weight:700;letter-spacing:.03em;
+  transition:all .12s;
+}
+.invc-lf-chip:hover{background:rgba(255,255,255,.09);border-color:var(--gold-2)}
+.invc-lf-chip.active{
+  background:rgba(226,184,78,.18);border-color:var(--gold-2);color:var(--gold-2);
+}
+
 /* Category chips — horizontal row above the bag grid */
 .invc-cat-strip{
   order:-1;

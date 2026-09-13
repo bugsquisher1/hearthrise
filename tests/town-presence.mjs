@@ -69,6 +69,10 @@ const MIG = '2026-09-13-town-presence.sql';
    mutation proof goes vacuous. Measured: moving flag_ignored was not a choice,
    the arm STAYED GREEN until it moved. */
 const MIG_JOURNAL = '2026-09-13-town-presence-journal.sql';
+/* The file that TURNS THE FEATURE ON at chain end (Tyler, 2026-09-13: The Common
+   ships in the daily, not dark behind the flag). It is also the reason §(1) below
+   drives the flag itself instead of trusting the chain's end state. */
+const MIG_ON = '2026-09-13-town-presence-on.sql';
 const ZONE = 'the_common';
 
 const uidFor = (n) => `000000ac-0000-0000-0000-0000000000${n}`;
@@ -84,6 +88,21 @@ const DISARM_GATE = [
   '  -- (a) THE OBJECTS EXIST, and the flag defaults OFF.',
   '  return;  -- §13 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
   + '  -- (a) THE OBJECTS EXIST, and the flag defaults OFF.',
+];
+/* ...and the same for the two follow-ups' gates. EVERY arm disarms all three:
+   they are three layers over ONE feature, and a defect trips whichever gate runs
+   first, so leaving any of them armed turns this into a proof about whichever
+   migration happened to notice — scored by the driver as a HARNESS error, which
+   is exactly what it did when 2026-09-13-town-presence-on.sql landed. */
+const DISARM_JOURNAL = [
+  "  -- (a) THE INNERS ARE UNTOUCHED, measured against §0b's fingerprint, and they",
+  '  return;  -- §4 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
+  + "  -- (a) THE INNERS ARE UNTOUCHED, measured against §0b's fingerprint, and they",
+];
+const DISARM_ON = [
+  '  -- (a) THE FLAG IS ON.',
+  '  return;  -- §3 commit gate disarmed by the mutation proof (tests/town-presence.mjs)\n'
+  + '  -- (a) THE FLAG IS ON.',
 ];
 
 /* ── THE MUTATION CATALOGUE — one real defect each ──────────────────────── */
@@ -182,7 +201,11 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}
 async function boot(mutate) {
   // MIG's own §13 gate is ALWAYS disarmed (see DISARM_GATE); the arm's defect goes
   // into whichever file is the LAST toucher of the body it targets.
-  const patches = new Map([[MIG, [DISARM_GATE]]]);
+  const patches = new Map([
+    [MIG, [DISARM_GATE]],
+    [MIG_JOURNAL, [DISARM_JOURNAL]],
+    [MIG_ON, [DISARM_ON]],
+  ]);
   if (mutate) {
     const m = MUTATIONS[mutate];
     const target = m.file || MIG;
@@ -265,7 +288,18 @@ async function runAll(db) {
   await seed(db, S, 'PlazaStorm');
   await seed(db, A, 'PlazaAnn', { slot: 1 });     // a SECOND character of A's account
 
-  // ── (1) THE FLAG IS OFF AT APPLY ─────────────────────────────────────────
+  // ── (1) THE FLAG CLOSES THE SURFACE ──────────────────────────────────────
+  //    THE GUARD SETS ITS OWN PRECONDITION, and that is a change forced by the
+  //    chain: 2026-09-13-town-presence-on.sql turns the flag ON at chain end
+  //    (Tyler's call — The Common ships in the daily, not dark), so a guard that
+  //    assumed "off at apply" was asserting the shipping decision rather than the
+  //    mechanism. The MECHANISM is what is under test here, so the flag is driven
+  //    from both sides explicitly. The `flag_ignored` arm still bites: it deletes
+  //    the check from the body, not the row.
+  //    The snapshot row that file leaves behind is cleared too, so "the cron body
+  //    wrote no real snapshot while off" measures this run and not that one.
+  await db.exec(`update public.hr_flags set enabled = false where key = 'town_presence';`);
+  await db.exec('delete from public.town_snapshot;');
   const offAnswer = await townOf(db, A);
   ok(offAnswer && offAnswer.off === true,
     `with the town_presence flag OFF hr_town_of answers {off:true} (got ${JSON.stringify(offAnswer)})`);

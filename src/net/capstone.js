@@ -81,7 +81,7 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isClientStateFromServer, RESIDUE_FIELDS } from './client-state.js?v=543';
+import { isClientStateFromServer, RESIDUE_FIELDS, sanitizeResidueField } from './client-state.js?v=543';
 
 /* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al): one
@@ -161,7 +161,11 @@ export function buildResiduePatch(G) {
       }
       continue;
     }
-    out[f] = G[f];
+    /* BOUNDED ON THE WAY OUT TOO (see client-state.js §THE SIZE GUARD'S CLIENT
+       HALF). Bounding only on the way IN would let this session grow the field
+       without limit and ship it; the bag would then come back trimmed, so the
+       cap would exist but the upload it protects would already have been made. */
+    out[f] = sanitizeResidueField(f, G[f]);
   }
   return out;
 }

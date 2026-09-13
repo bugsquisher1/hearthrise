@@ -496,6 +496,10 @@
     var item = window.ITEMS && window.ITEMS[itemId];
     if(!item){ return { ok:false, reason:'Unknown item' }; }
     if(item.bop){ return { ok:false, reason:'Bind-on-Pickup items cannot be listed' }; }
+    /* THE SELL-LOCK COVERS THE MARKET TOO, and refuses BEFORE the escrow: the lock's contract is that this client never AUTHORS a sale for a locked id. */
+    if(typeof window.isItemLocked === 'function' && window.isItemLocked(itemId)){
+      return { ok:false, reason:'Locked — unlock it in your bag first' };
+    }
     if(qty <= 0 || askEach <= 0) return { ok:false, reason:'Invalid amount' };
     var have = (window.G && window.G.inventory[itemId]) || 0;
     if(have < qty) return { ok:false, reason:'You only have ' + have + ' to list' };

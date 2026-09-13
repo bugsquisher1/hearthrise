@@ -422,8 +422,18 @@ export const STONECRAFT_RECIPES = {
        is about two minutes of dressing rather than a session. The GOLD route —
        Blank Runes on the Local Shop counter — closes the same hole for a player
        who never wants to be a mason at all; this closes it for the one who
-       simply has not got there yet. */
-    { id: 'cut_rune_blanks',   name: 'Cut Blank Runes',      icon: '⬜', inputs: { dressed_block: 2 },                       output: 'rune_blank',      outputQty: 12, xp: 36,  req: 4,  ms: 2800 },
+       simply has not got there yet.
+       SELF-SUPPLY RULING (game-designer, 2026-09-13): 4 → 1, finishing what b432
+       started. `bind_air_runes` is Runecrafting's FIRST rung (level 1) and eats 6
+       blanks, so with the cutter at 4 the game's one total, checkable content
+       property — no rung may ask for a material its own level cannot make — could
+       never reach zero, and DEEPSEAM-5 stayed a ratchet nobody could read. The
+       only thing 4 ever bought was tidiness in the mason's opening order; nothing
+       is lost by spending it, because the MATERIAL still sequences the two rungs
+       (a blank costs 2 dressed blocks, and dressing is the level-1 rung), and the
+       gold route stays the lazy route at 400 g per 50. A player who picks
+       Runecrafting first is now self-supplying at level 1 of both skills. */
+    { id: 'cut_rune_blanks',   name: 'Cut Blank Runes',      icon: '⬜', inputs: { dressed_block: 2 },                       output: 'rune_blank',      outputQty: 12, xp: 36,  req: 1,  ms: 2800 },
     { id: 'split_rune_blanks', name: 'Split Blank Runes',    icon: '⬜', inputs: { dressed_block: 3 },                       output: 'rune_blank',      outputQty: 20, xp: 92,  req: 22, ms: 3000 },
     { id: 'cut_fine_blanks',   name: 'Cut Fine Blank Runes', icon: '🔲', inputs: { granite_block: 2, dressed_block: 2 },     output: 'fine_rune_blank', outputQty: 14, xp: 400, req: 38, ms: 3400 },
     { id: 'cut_deep_blanks',   name: 'Cut Deep Blank Runes', icon: '🔳', inputs: { basalt_block: 3, magic_essence: 1 },      output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },

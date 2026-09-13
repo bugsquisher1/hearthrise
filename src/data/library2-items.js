@@ -495,9 +495,16 @@ export const LIB2_RECIPES = {
       inputs: { steel_bar: 2, willow_plank: 2, rat_tail: 25 }, output: 'rat_stick', xp: 640, req: 38, ms: 4000 },
     { id: 'forge_lazlos_maul', name: "Forge Lazlo's Maul", icon: '🔨',
       inputs: { mithril_bar: 3, grave_dust: 20, big_bones: 10 }, output: 'lazlos_maul', xp: 1150, req: 53, ms: 4400 },
-    /* ITEM-NEW-43 — death_steel finally has somewhere to go. */
+    /* ITEM-NEW-43 — death_steel finally has somewhere to go.
+       SELF-SUPPLY RULING (2026-09-13): req 62 → 60. The Watchknight Shell's own
+       entry piece is the gauntlets at 61, so the ingot every piece eats sat ABOVE
+       the first rung that consumes it — the same defect the seven bars carried.
+       60 is the rung the whole band belongs to (MATERIAL_TIERS.rune.smith), so the
+       bridge now opens the way every tier does: the bar, then the set. xp and ms
+       are untouched, and the rung is still drop-limited (2 death_steel a swing)
+       rather than a trainable faucet. */
     { id: 'smelt_deathsteel_ingot', name: 'Smelt Deathsteel Ingot', icon: '⚙️',
-      inputs: { death_steel: 2, coal: 6 }, output: 'deathsteel_bar', xp: 380, req: 62, ms: 3400 },
+      inputs: { death_steel: 2, coal: 6 }, output: 'deathsteel_bar', xp: 380, req: 60, ms: 3400 },
     /* ITEM-NEW-33 — the Watchknight Shell, plate T5, the ingot's only sink. */
     { id: 'forge_watchknight_helmet', name: 'Forge Watchknight Helm', icon: '⛑️',
       inputs: { deathsteel_bar: 2 }, output: 'watchknight_helmet', xp: 700, req: 65, ms: 4000 },

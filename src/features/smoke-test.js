@@ -12839,6 +12839,62 @@ const TESTS = [
   // outcome, then restores. NEVER pollutes the player's save.
   // ─────────────────────────────────────────────────────────────
 
+  /* ── BANK-1 — THE DEPOT, PLAYED ─────────────────────────────────────────────
+     The server's bank store shipped b438 and sat dormant for a hundred builds
+     because nothing could call it: the flyout's "→ Bank" button was guarded on a
+     `bankItem` function that was never defined anywhere in the repo. So the
+     happy path here is the whole feature — and the one property worth pinning is
+     that the client does NOT compute the new contents. The RPC answers `qty 3`
+     and the ENVELOPE that follows disagrees on purpose (99 in the vault, 1 in the
+     bag): a client doing `bank[id] + 3` / `bag[id] - 3` would paint 3 and 2, and
+     both numbers would be fiction the moment the server clamped, replayed an
+     idem or settled a concurrent fight. The wire is asserted field-by-field for
+     the same reason the sell-lock asserts the wire: a sixth field is a value the
+     player's device authored about a container it does not own. */
+  () => tryRunAsync('BANK-1: the Depot stores through hr_bank_move — five fields on the wire, the count from the envelope, a refusal in words', async () => {
+    const G = window.G, D = window.HearthriseDepot, BS = window.HearthriseBankSync, A = window.HearthriseAccrual, E = window.HearthriseEquip;
+    assert(D && typeof D.move === 'function' && BS && typeof BS.bankMoveBody === 'function', 'CONTROL: the Depot seam is unpublished (HearthriseDepot/HearthriseBankSync) — the feature has no client half');
+    const body = BS.bankMoveBody(2, 'normal_log', 7, 'deposit', 'IDEM-1');
+    assert(Object.keys(body).sort().join(',') === 'p_dir,p_idem,p_item,p_qty,p_slot', 'the intent carries ' + Object.keys(body).join(',') + ' — exactly {slot,item,qty,dir,idem} may cross, nothing else');
+    const snap = snapshotG(); const realFetch = window.fetch; const prevEquip = E.getEquipConfig();
+    let rpc = [], answer = { ok: true, item: 'normal_log', qty: 3, direction: 'deposit', version: 9 };
+    const env = { ok: true, accrued: true, version: 9, now: new Date().toISOString(), state: { gold: G.gold, bank_cap: 123 }, skills: {}, equipment: {}, inventory_complete: true, inventory: { normal_log: 1 }, bank: { normal_log: 99 }, away: { minutes: 0, kind: 'idle' } };
+    try {
+      await armEquipFlipForTest(E);
+      A.noteBaselineComplete({ inventory_complete: true }); A.markInventoryAuthorityLive(true);
+      assert(A.isInventoryAbsolute() === true, 'the bag/vault fold is not absolute on this client, so no envelope could paint the Depot');
+      window.fetch = function (u, init) {
+        const url = String(u);
+        if (/rpc\/hr_bank_move/.test(url)) { rpc.push(JSON.parse((init && init.body) || 'null')); return Promise.resolve(new Response(JSON.stringify(answer), { status: 200 })); }
+        if (/hr-accrue/.test(url)) return Promise.resolve(new Response(JSON.stringify(env), { status: 200 }));
+        return realFetch.apply(this, arguments);
+      };
+      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      G.inventory = { normal_log: 5 }; G.bank = { goldBuys: 1 }; delete G._bankCap;
+      await D.move('normal_log', 3, 'deposit');
+      assert(rpc.length === 1, 'the Store gesture put ' + rpc.length + ' intents on the wire, not one');
+      assert(rpc[0].p_item === 'normal_log' && rpc[0].p_qty === 3 && rpc[0].p_dir === 'deposit', 'the intent said ' + JSON.stringify(rpc[0]) + ' — item/qty/direction are the gesture\'s');
+      assert(/^[0-9a-f-]{36}$/i.test(String(rpc[0].p_idem)), 'the intent carried no idempotency uuid (' + rpc[0].p_idem + ') — a retried Store would move the stack twice');
+      assert(G.bank.normal_log === 99, 'the vault shows ' + G.bank.normal_log + ', not the envelope\'s 99 — the client computed the new contents instead of rendering the realm\'s');
+      assert(G.inventory.normal_log !== 2, 'the bag shows 2 — the client subtracted the qty locally instead of taking the envelope\'s number');
+      assert(G.bank.goldBuys === 1, 'the fold ate the bank-SPACE counter (goldBuys) — purchased rungs are not stacks');
+      assert(window.bankCap() === 123, 'the capacity mirror reads ' + window.bankCap() + ', not the envelope\'s bank_cap 123');
+      const cap = D.bagCapacityLine(D.bankPanelView(G, {}));
+      assert(/\/ 123 slots$/.test(cap), 'the Depot\'s capacity line reads "' + cap + '" — it must quote the mirrored cap, not a client sum');
+      rpc = []; answer = { ok: false, error: 'insufficient_bank', have: 0, item_id: 'normal_log' };
+      const refused = await D.move('normal_log', 4, 'withdraw');
+      assert(refused && refused.ok === false && rpc.length === 1 && rpc[0].p_dir === 'withdraw', 'the Take gesture did not reach the server as a withdraw: ' + JSON.stringify(rpc));
+      assert(G.bank.normal_log === 99 && G.inventory.normal_log !== 5 + 4, 'a REFUSED withdraw moved something anyway — bank ' + G.bank.normal_log + ', bag ' + G.inventory.normal_log);
+      const why = BS.bankMoveRefusalText(refused, { itemName: 'Log' });
+      assert(/Depot does not hold/.test(why), 'the refusal rendered "' + why + '" — every hr_bank_move code must name what it was and what clears it');
+    } finally {
+      window.fetch = realFetch;
+      try { A.markInventoryAuthorityLive(false); A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
+      E.resetEquip(); if (prevEquip) E.configureEquip(prevEquip);
+      restoreG(snap);
+    }
+  }),
+
   /* ── SELLLOCK-1 — the sell-lock and the loot filter, played ─────────────────
      The lock's whole contract is NEGATIVE: it stops this client from ever
      AUTHORING a sale for that id. So the proof is the WIRE, never a disabled

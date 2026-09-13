@@ -1684,6 +1684,15 @@ export function reconcileWorkers(G, res) {
    receipt, so the suite drives it without a live window. */
 export const BANK_NON_ITEM_KEYS = Object.freeze(['goldBuys', 'gemBuys', 'grandfather']);
 
+/* THE LAST FOLD'S MODE, remembered for the Depot screen and for nothing else.
+   Purely observational — it grants no authority and gates no capability. The
+   Depot panel needs it to tell the truth in one specific case: when the fold is
+   'dormant' or 'absent', `G.bank` is not a statement about what the realm holds,
+   and an empty grid would read as "your vault is empty" when the honest line is
+   "the realm has not sent it yet". Absence is not a claim of zero (§6). */
+let lastBankFold = null;
+export function lastBankFoldMode() { return lastBankFold; }
+
 export function reconcileBank(G, res, invAbsolute, baselineComplete) {
   if (!G || typeof G !== 'object') return null;
   const named = res && res.bank;
@@ -2974,6 +2983,7 @@ export function applyEnvelopeState(G, res, ownKey) {
      absolute/carve-out machinery as the bag. Fully inert while dormant (invAbsolute
      is false in prod): reconcileBank leaves G.bank untouched. */
   written.bank = reconcileBank(G, res, invAbsolute, baselineComplete);
+  lastBankFold = (written.bank && written.bank.mode) || null;   // observational; see lastBankFoldMode
   /* THE PURCHASED BANK RUNGS (SA-010). Beside the item store because the two
      share one object, but on its own authority: the rungs are `progress`
      unlock rows and are NOT gated on the inventory arm — a paid rung must come
@@ -5058,7 +5068,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

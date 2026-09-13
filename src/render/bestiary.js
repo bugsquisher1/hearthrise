@@ -41,13 +41,18 @@
     var ov = document.getElementById('best-overlay');
     if (!ov) {
       ov = document.createElement('div'); ov.id = 'best-overlay'; ov.className = 'ach-overlay';
-      ov.innerHTML = '<div class="ach-modal" onclick="event.stopPropagation()"><h2>Bestiary</h2><div id="best-list" class="bestiary-list"></div><button class="btn" onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
+      ov.innerHTML = '<div class="ach-modal" onclick="event.stopPropagation()"><h2>Bestiary</h2><div id="best-charms" class="charm-strip"></div><div id="best-list" class="bestiary-list"></div><button class="btn" onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
       ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
       document.body.appendChild(ov);
     }
     G.bestiary = G.bestiary || {};
     var list = document.getElementById('best-list');
     if (typeof MONSTERS === 'undefined' || !MONSTERS) { list.innerHTML = '<div class="muted">Monsters not loaded.</div>'; ov.classList.add('show'); return; }
+    /* BESTIARY CHARMS (phase 1). Resolved at CALL TIME, unwired-safe: without
+       the ESM half this is null and every charm affordance is simply absent —
+       the modal renders exactly as it did before. Fail-safe, never a gate. */
+    var C = window.HearthriseCharms || null;
+    paintCharmStrip(C);
     list.innerHTML = Object.entries(MONSTERS).map(function (kv) {
       var id = kv[0], m = kv[1];
       var entry = G.bestiary[id] || { kills: 0 };
@@ -55,14 +60,52 @@
       var path = window._monsterIcon && window._monsterIcon[id];
       /* was  — the monster's data emoji, in a bestiary of 111 rows. */
       var img = path ? '<img src="' + path + '" />' : window.monsterFallbackIcon(id, 26);
+      /* The element weakness, printed only once the class is STUDIED (rank ≥1)
+         — that is the charm's whole reward, and for Extra Dimensional
+         (`hiddenElement`) it is the only door. '' below rank 1. */
+      var el = (disc && C) ? C.elementLineHtml(id) : '';
       return '<div class="bestiary-row ' + (disc ? 'discovered' : 'undiscovered') + '">' +
         '<div class="br-icon">' + img + '</div>' +
-        '<div class="br-info"><b>' + (disc ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small></div>' +
+        '<div class="br-info"><b>' + (disc ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + el + '</div>' +
         '<div class="br-kills">' + (disc ? entry.kills + '×' : '—') + '</div>' +
       '</div>';
     }).join('');
     ov.classList.add('show');
   };
+
+  /* ── THE CHARM STRIP ────────────────────────────────────────────────────
+     One chip per monster class the SERVER has counted kills for: the class
+     name, the rank badge, and the "next charm at N kills" affordance. Classes
+     with zero server-counted kills are omitted rather than shown at zero — a
+     wall of eleven "0 kills" chips teaches nothing, and the row a player has
+     actually worked on is the one worth printing.
+
+     Reads window.HearthriseCharms, which reads `G._bestiaryCharms` (the server
+     block, scratch, `_`-prefixed) and NEVER `G.bestiary` — that is the
+     locally-written residue field, and gating a capability on it is the
+     residue-ahead bug class. No counters mirrored yet ⇒ one honest line saying
+     so, never a rank. */
+  function paintCharmStrip(C) {
+    var strip = document.getElementById('best-charms');
+    if (!strip) return;
+    if (!C) { strip.innerHTML = ''; return; }
+    /* The class list, its order and its display names are DERIVED from the
+       taxonomy + roster by C.charmClasses() — not listed here. A hardcoded
+       eleven-string list in a renderer is a third copy of the taxonomy and the
+       first one to go stale when the twelfth class lands. */
+    var rows = C.charmClasses();
+    var chips = rows.map(function (r) {
+      return '<div class="charm-chip' + (r.rank ? ' is-ranked' : '') + '">'
+        + '<span class="cc-name">' + r.name + '</span>'
+        + C.badgeHtml(r.cls)
+        + '<span class="cc-kills">' + r.kills.toLocaleString() + ' killed</span>'
+        + C.nextThresholdHtml(r.cls)
+        + '</div>';
+    });
+    strip.innerHTML = chips.length
+      ? chips.join('')
+      : '<div class="muted charm-empty">No charms yet — 25 kills in any monster class earns your first.</div>';
+  }
 
   console.log('Bestiary modal: loaded');
 })();

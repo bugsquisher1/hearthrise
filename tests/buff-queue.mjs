@@ -38,8 +38,11 @@
 //       magnitude, none of which appeared in the delta.
 //   [4] A FORGED FIELD IS REFUSED BY NAME — `until`, `magnitude`, `type`,
 //       `duration_ms`, `remaining_ms` and `scale` each refuse the whole apply as
-//       bad_buff_item/forbidden_key with the queue UNMOVED. Refused, not ignored:
-//       "ignored today" is one careless edit from "read tomorrow".
+//       **bad_buff_shape**/forbidden_key with the queue UNMOVED. Refused, not
+//       ignored: "ignored today" is one careless edit from "read tomorrow". It is
+//       its OWN code (2026-09-13-buff-shape-code.sql) because a caller that
+//       invented a field is not a player who ate a Trout, and hr_rejections
+//       aggregates per (user, slot, day, code).
 //  [3b] A BUFF MUST BE PAID FOR (F3, 2026-09-13-buff-apply-coupling.sql) — a
 //       buff_apply with NO `items[<item>] = -1` in the SAME delta is refused
 //       `buff_not_paid` with the queue and the bag unmoved, and 0 / -2 / +1 / +5
@@ -117,6 +120,7 @@ const MIG_DENY = '2026-09-13-client-state-buffs-denylist.sql';
 const MIG_CAT = '2026-09-13-item-buffs-catalogue.generated.sql';
 const MIG_PAY = '2026-09-13-buff-apply-coupling.sql';
 const MIG_SEG = '2026-09-13-buff-segments.sql';
+const MIG_SHAPE = '2026-09-13-buff-shape-code.sql';
 const U = '00000000-0000-4000-8000-0000000000b5';
 const J = { kind: 'admin', intent: 'buff-queue:probe' };
 const CAP_MS = 3600000;
@@ -139,6 +143,10 @@ const BLIND = {
   [MIG_PAY]: ["  if strpos(v_apply, 'buff_not_paid') = 0 then",
     '  return;  -- \u00a72 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  if strpos(v_apply, 'buff_not_paid') = 0 then"],
+  /* The shape-code file's §2, anchored on its first assertion. */
+  [MIG_SHAPE]: ["  if strpos(v_apply, $q$perform public.hr_reject('bad_buff_shape',$q$) = 0 then",
+    '  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
+    + "  if strpos(v_apply, $q$perform public.hr_reject('bad_buff_shape',$q$) = 0 then"],
   /* The segments file's §3, anchored on its first assertion. */
   [MIG_SEG]: ["  if strpos(v_apply, 'v_buff_newmag := greatest(v_buff_mag') > 0 then",
     '  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
@@ -211,11 +219,17 @@ const MUTATIONS = {
     pairs: [['                            v_buff_cap);', '                            v_buff_base + interval \'400 hours\');']],
   },
   merge_replaces_other_types: {
-    file: MIG,
-    why: 'the merge keeps only the type being applied, so eating a second dish DELETES the first buff — '
-       + 'a player pays for a Feast and loses the one they were running',
-    pairs: [["       where e.v->>'type' <> v_buff_type\n         and (e.v->>'until')::timestamptz > v_buff_now;",
-      "       where false\n         and (e.v->>'until')::timestamptz > v_buff_now;"]],
+    /* Re-pointed for the same reason as second_helping_restarts: the rebuild this
+       targeted lives in the segments file now. */
+    file: MIG_SEG,
+    why: 'the rebuild keeps only the type being applied, so eating a second dish DELETES the buff of '
+       + 'every other type — a player pays for a Feast and loses the one they were running',
+    /* ` and false` appended, NOT the predicate replaced: `and ((false` leaves the
+       expression's parentheses unbalanced, the file fails to INSTALL, and a file
+       that will not install is a harness error dressed up as a catch (MEASURED —
+       "INTO specified more than once"). A mutation must apply CLEAN. */
+    pairs: [["         and (((e.v->>'type') <> v_buff_type)",
+      "         and (((e.v->>'type') <> v_buff_type and false)"]],
   },
   magnitude_replaces_instead_of_max: {
     file: MIG,
@@ -225,10 +239,15 @@ const MUTATIONS = {
       '      v_buff_newmag := v_buff_mag;']],
   },
   second_helping_restarts: {
-    file: MIG,
-    why: 'the tail is computed from now() instead of max(now, old.until), so a second helping RESTARTS '
-       + 'the buff and the minutes already paid for are thrown away',
-    pairs: [["      v_buff_base := greatest(v_buff_now,\n                              coalesce((v_buff_old->>'until')::timestamptz, v_buff_now));",
+    /* OWNED BY THE SEGMENTS FILE NOW. It used to patch consumable-buffs.sql's base
+       assignment — text 2026-09-13-buff-segments.sql REPLACES — so the mutation
+       made that file's anchored splice no-op and the arm measured "the segment
+       model did not install" instead of "the tail restarts". A mutation has to be
+       planted in the file that owns the LIVE text, or its label is fiction. */
+    file: MIG_SEG,
+    why: 'the tail is computed from now() instead of max(now, the latest at-least-as-strong expiry), so a '
+       + 'second helping RESTARTS the buff and the minutes already paid for are thrown away',
+    pairs: [['      v_buff_base := greatest(v_buff_now, coalesce(v_buff_base, v_buff_now));',
       '      v_buff_base := v_buff_now;']],
   },
   catalogue_bypassed: {
@@ -311,6 +330,15 @@ const MUTATIONS = {
       "      select greatest(v_buff_mag, max((e.v->>'magnitude')::numeric)) into v_buff_newmag\n"
       + "        from jsonb_array_elements(coalesce(v_st.buffs, '[]'::jsonb)) as e(v)\n"
       + "       where e.v->>'type' = v_buff_type and (e.v->>'until')::timestamptz > v_buff_now;"]],
+  },
+  shape_code_collapsed: {
+    file: MIG_SHAPE,
+    why: 'the forged-shape refusal falls back to sharing `bad_buff_item`, so hr_rejections — which '
+       + 'aggregates per (user, slot, day, code) with meta last-writer-wins — cannot tell a caller who '
+       + 'invented a magnitude field from a player who ate a Trout, and the code can never be '
+       + 'classified c_incident',
+    pairs: [["        perform public.hr_reject('bad_buff_shape',",
+      "        perform public.hr_reject('bad_buff_item',"]],
   },
   catalogue_drift: {
     file: MIG_CAT,
@@ -541,8 +569,14 @@ async function run(mutate, blind) {
   const q4 = JSON.stringify(await queue());
   for (const [name, body] of forgeries) {
     const r = await eat(pick.item_id, body);
-    ok(!!r && r.ok === false && r.error === 'bad_buff_item' && r.why === 'forbidden_key',
-      `[4] a buff_apply carrying a forged '${name}' was not refused as bad_buff_item/forbidden_key — `
+    /* `bad_buff_shape` since 2026-09-13-buff-shape-code.sql (Security): a caller
+       that INVENTED a field is a different statement from "that item has no
+       buff", and they shared a code — so hr_rejections, which aggregates per
+       (user, slot, day, code) with meta last-writer-wins, could not tell a
+       forgery attempt from a player eating a Trout. The honest codes are
+       asserted separately at [5]. */
+    ok(!!r && r.ok === false && r.error === 'bad_buff_shape' && r.why === 'forbidden_key',
+      `[4] a buff_apply carrying a forged '${name}' was not refused as bad_buff_shape/forbidden_key — `
       + `got ${JSON.stringify(r).slice(0, 140)}`);
   }
   ok(JSON.stringify(await queue()) === q4,

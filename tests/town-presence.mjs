@@ -36,7 +36,11 @@
 //      asserted with jsonb_object_keys, so a new internal field cannot arrive by
 //      accident — and never gold, gems, HP, inventory, slot or user_id;
 //   6. a QUIET character is absent from the peer list AND from the named crier
-//      feed, and the toggle journals exactly one ledger row per CHANGE;
+//      feed, the toggle journals exactly one ledger row per CHANGE, and the
+//      opt-out is IMMEDIATE — proven on a control that requires the character to
+//      be in the snapshot first, then read WITHOUT a refresh in between, because
+//      the reader cannot re-check quiet (the snapshot stores no user_id) and an
+//      eventually-consistent privacy control fails in the wrong direction;
 //   7. `away` and `seen_ago_s` are computed at READ time, so a stale snapshot
 //      still tells the truth, and a snapshot the refresher stopped updating shows
 //      NOBODY rather than a room full of ghosts;
@@ -80,6 +84,13 @@ const MUTATIONS = {
     why: 'the opt-out filter leaves the snapshot query, so a player who asked not to be tracked is '
        + 'tracked anyway — the one Security review the study named',
     pairs: [['       and not coalesce(ps.presence_quiet, false)', '       and true']],
+  },
+  quiet_not_immediate: {
+    why: 'the writer stops rebuilding the cache when a player opts out, so the opt-out waits for the '
+       + 'next cron tick (≤25 s, ≤60 s on the fallback) and NEVER lands if cron is down — an '
+       + 'eventually-consistent privacy control (Security P3, 2026-09-12)',
+    pairs: [['      perform public.hr_town_refresh();\n      v_refreshed := true;',
+             '      v_refreshed := false;']],
   },
   floor_removed: {
     why: 'the 20-second floor is disarmed, so a 240/min heartbeat storm becomes 240 writes/min on the '
@@ -303,9 +314,27 @@ async function runAll(db) {
   // ── (6a) THE OPT-OUT ────────────────────────────────────────────────────
   await heartbeat(db, B);
   await heartbeat(db, Q);
+
+  // THE OPT-OUT IS IMMEDIATE, not eventually consistent (Security P3, 2026-09-12).
+  // hr_town_of re-applies the 15-minute window at read time but CANNOT re-check
+  // quiet — the snapshot deliberately stores no user_id — so without a writer-side
+  // rebuild a player who has just asked to be invisible keeps being served from
+  // the cached payload for up to one refresh interval, and forever if cron is
+  // down. Proven with a CONTROL first: build a snapshot while Q is still LOUD and
+  // require them IN it, otherwise the probe below passes on an empty plaza.
+  await db.exec('select public.hr_town_refresh();');
+  const loudFirst = await townOf(db, A);
+  ok(loudFirst.peers.some((p) => p.name === 'PlazaHush'),
+    'the control: a LOUD character IS in the snapshot, so the immediacy probe is not vacuous');
   const q1 = await setQuiet(db, Q, true);
   ok(q1 && q1.ok === true && q1.quiet === true && q1.changed === true,
     `the quiet toggle takes (got ${JSON.stringify(q1)})`);
+  ok(q1 && q1.snapshot_refreshed === true,
+    `the quiet toggle rebuilt the snapshot itself (got ${JSON.stringify(q1 && q1.snapshot_refreshed)})`);
+  const noRefresh = await townOf(db, A);   // NO hr_town_refresh() in between
+  ok(!noRefresh.peers.some((p) => p.name === 'PlazaHush'),
+    'a character who JUST opted out is gone from the very next read, with NO refresh in between — '
+    + 'an eventually-consistent privacy control is the wrong failure direction');
   const q2 = await setQuiet(db, Q, true);
   ok(q2 && q2.changed === false,
     `a repeated quiet set reports no change (got ${JSON.stringify(q2)}) — it is idempotent by naming `
@@ -546,6 +575,7 @@ if (argv.includes('--selftest')) {
     + 'economy or identity key; quiet is honoured in peers AND crier and journalled once per change; '
     + 'away/seen_ago_s at read time and a stale snapshot shows nobody; the level is a band; an '
     + 'uncatalogued activity_id has no label; one body per account; town_snapshot reachable by no '
-    + 'client role; the envelope gained place and carries no peers; bad_zone and the storm refused).');
+    + 'client role; the envelope gained place and carries no peers; bad_zone and the storm refused; '
+    + 'an opt-out is gone from the VERY NEXT read with no refresh in between).');
   process.exit(0);
 }

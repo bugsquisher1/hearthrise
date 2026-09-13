@@ -62,17 +62,53 @@
 --     is built key by key from a literal jsonb_build_object and §11 asserts the
 --     key set by jsonb_object_keys — not by reading the code.
 --
+-- RESTATEMENT-DEBT-ACK: hr_state_of is an anchored patch chain — depth 19 before
+-- this file and 20 with it, measured by `node tests/patch-chain-guard.mjs`, which
+-- names it as the slice-7 paydown target; 2026-09-12-dungeon-cooldown.sql and
+-- 2026-09-12-worker-hired-at-projection.sql carry the same ack for the same
+-- reason. The debt is taken knowingly, and the alternative is worse: a
+-- restatement must equal the LIVE body plus one key, an agent cannot apply or
+-- re-pin, and a restatement authored from the repo replay is the b484-b487 class
+-- in which the restated body silently reverts whichever file patched last — on
+-- the one function every screen reads. Two projections landed on it within the
+-- last day (renown_high 17:22 UTC, dungeon_cooldowns 17:32 UTC), so the risk is
+-- not theoretical. This file adds a SINGLE key at an anchor the chain has
+-- appended after (never consumed) three times already, and §13(d) asserts the
+-- splice landed exactly once AND that renown_high, dungeon_cooldowns, scrip,
+-- marks and hired_at all still project. THE PAYDOWN is unchanged and
+-- Coordinator-owned: restate hr_state_of once from pg_get_functiondef of the
+-- LIVE body, and the chain resets for everyone.
+--
 -- ── WHY A NAMED PEER LIST NEEDS AN OPT-OUT COLUMN ──────────────────────────
 -- "Tyler is mining Iron Ore, last seen 4 s ago" is a presence oracle. For most
 -- players that is the feature; for one player it is the reason they stop
 -- playing. presence_quiet is a SERVER column (never residue — a client-held
 -- privacy flag is a privacy flag that a reload loses), default false, set only
 -- through hr_set_presence_quiet on the caller's own row, journalled once per
--- CHANGE in player_ledger kind='presence' so the decision is auditable, and
--- honoured in BOTH halves of the snapshot: a quiet character is absent from the
--- peer list AND their name is absent from the crier feed. world_finds itself is
--- unchanged and stays public-readable — it already was, anonymously; what quiet
--- suppresses is the NAME being joined onto it in a live feed.
+-- CHANGE in player_ledger kind='presence' so the decision is auditable, and —
+-- the half that actually matters — a quiet character is absent from the peer
+-- list, which is the only NEW information this file publishes. The writer also
+-- rebuilds the snapshot on the transition into quiet, so the opt-out takes
+-- effect in the same call rather than at the next cron tick (Security P3).
+--
+-- ⚠ WHAT QUIET DOES **NOT** BUY, STATED PLAINLY (Security P2, 2026-09-12). The
+--   crier half of the snapshot filters quiet finders too, but that is DEFENCE IN
+--   DEPTH for a door that is not shut yet, NOT a privacy guarantee, and this
+--   header is not going to claim otherwise:
+--     · public.world_finds grants SELECT to anon AND authenticated, user_id
+--       column included (2026-09-08-hearthfind.sql §1), and public.profiles /
+--       public.display_names are public-read;
+--     · the SHIPPED client already joins the two and names the finder in global
+--       chat — src/features/hearthfind.js:964 selects user_id off the board and
+--       :950 resolves it through display_names.
+--   So a quiet player's rare find is still attributable to them today by anyone
+--   who reads the board directly, and this file changes nothing about that.
+--   Closing it means `revoke select (user_id) on public.world_finds from anon,
+--   authenticated` plus moving the board read behind a projecting RPC and
+--   reworking a LIVE client surface — a client+server lane, not a line in this
+--   migration. It is a NAMED PRE-LAUNCH P2 for the board, not a promise made
+--   here. The quiet filter stays in §8b so that the day the column is revoked
+--   the crier is already correct.
 --
 -- ── WHY THE HEARTBEAT IS NOT JOURNALLED, AND CARRIES NO IDEMPOTENCY KEY ────
 -- game_events reached 1.6M rows / 229 MB from SIX players in four days by
@@ -109,23 +145,6 @@
 --   cron: 3,456 executions/day, each one indexed scan of the live window.
 --   NEW LEDGER ROWS: only on a quiet TOGGLE. Zero per tick, by design.
 --   hr_rate_counters: +3 buckets/user (fixed-window upsert, one row each).
---
--- RESTATEMENT-DEBT-ACK: hr_state_of is an anchored patch chain — depth 19 before
--- this file and 20 with it, measured by `node tests/patch-chain-guard.mjs`, which
--- names it as the slice-7 paydown target; 2026-09-12-dungeon-cooldown.sql and
--- 2026-09-12-worker-hired-at-projection.sql carry the same ack for the same
--- reason. The debt is taken knowingly, and the alternative is worse: a
--- restatement must equal the LIVE body plus one key, an agent cannot apply or
--- re-pin, and a restatement authored from the repo replay is the b484-b487 class
--- in which the restated body silently reverts whichever file patched last — on
--- the one function every screen reads. Two projections landed on it within the
--- last day (renown_high 17:22 UTC, dungeon_cooldowns 17:32 UTC), so the risk is
--- not theoretical. This file adds a SINGLE key at an anchor the chain has
--- appended after (never consumed) three times already, and §13(d) asserts the
--- splice landed exactly once AND that renown_high, dungeon_cooldowns, scrip,
--- marks and hired_at all still project. THE PAYDOWN is unchanged and
--- Coordinator-owned: restate hr_state_of once from pg_get_functiondef of the
--- LIVE body, and the chain resets for everyone.
 --
 -- ── REVERSIBILITY ──────────────────────────────────────────────────────────
 --   select public.hr_cron_drop('hr-town-refresh');
@@ -421,6 +440,7 @@ declare
   v_slot int  := coalesce(p_slot, 0);
   v_want boolean := coalesce(p_quiet, false);
   v_was  boolean;
+  v_refreshed boolean := false;
 begin
   if v_uid is null then
     return jsonb_build_object('ok', false, 'error', 'unauthenticated');
@@ -452,7 +472,37 @@ begin
   values (v_uid, v_slot, 'presence', 'presence_quiet:' || v_want::text,
           jsonb_build_object('op', 'quiet', 'from', coalesce(v_was, false), 'to', v_want));
 
-  return jsonb_build_object('ok', true, 'quiet', v_want, 'changed', true);
+  -- ⚠ THE OPT-OUT TAKES EFFECT NOW, NOT AT THE NEXT CRON TICK (Security P3,
+  --   2026-09-12). hr_town_of re-applies the 15-minute window at read time but
+  --   CANNOT re-check quiet: the snapshot deliberately stores no user_id, so the
+  --   reader has nothing to re-check against. Without this, a player who has just
+  --   asked to be invisible keeps being served out of the cached payload for up
+  --   to one refresh interval (≤25 s, ≤60 s on the fallback schedule) and
+  --   INDEFINITELY if the cron job is down — which is the wrong failure direction
+  --   for a privacy control, so the WRITER rebuilds the cache itself.
+  --
+  --   ONLY ON THE TRANSITION INTO QUIET. The other direction is a player asking
+  --   to be SEEN, where one tick of delay costs nothing, and refreshing both ways
+  --   would double the cost of a flicked switch. Combined with the 4/min bucket
+  --   and the `changed` guard above, a player alternating the toggle as fast as
+  --   the gate allows buys at most 2 refreshes a minute — each one the same
+  --   bounded indexed scan the cron job already runs 2,400 times a day.
+  if v_want then
+    begin
+      perform public.hr_town_refresh();
+      v_refreshed := true;
+    exception when others then
+      -- FAIL SOFT, DELIBERATELY. The COLUMN is the authority and it is already
+      -- written; the cache is derived. Letting a cache-rebuild failure abort the
+      -- transaction would roll the opt-out back AND tell the player the toggle
+      -- failed, leaving them visible. This way the next cron tick finishes the
+      -- job and the answer says which of the two happened.
+      v_refreshed := false;
+    end;
+  end if;
+
+  return jsonb_build_object('ok', true, 'quiet', v_want, 'changed', true,
+                            'snapshot_refreshed', v_refreshed);
 end $$;
 
 create or replace function public.hr_set_presence_quiet(
@@ -577,9 +627,13 @@ begin
     from shaped;
 
   -- THE CRIER. world_finds REUSED, never duplicated. The table stores no name;
-  -- the name is joined here from profiles, and a QUIET character's find is
-  -- suppressed from the named feed — the row itself stays on the public board,
-  -- exactly as anonymous as it already was.
+  -- the name is joined here from profiles. A QUIET character's find is filtered
+  -- out — but see the header's Security P2 note: that is DEFENCE IN DEPTH for a
+  -- door that is still open (world_finds grants SELECT on user_id to anon and
+  -- authenticated, and the shipped Hearthfind chat line already names finders
+  -- from it), NOT a privacy guarantee. It buys nothing today and costs one
+  -- indexed lookup per crier line; it is kept so that the feed is already
+  -- correct on the day that column is revoked.
   select coalesce(jsonb_agg(jsonb_build_object(
            'name', coalesce(pr.display_name, 'Adventurer'),
            'item_id', w.item_id,
@@ -751,7 +805,12 @@ grant  execute on function public.hr_town_of(text) to authenticated;
 --                             6 leaves room for a tab regaining focus.
 --   hr_town_of           30 — the panel polls at 25 s (2.4/min); 30 covers a
 --                             player opening and closing the plaza repeatedly.
---   hr_set_presence_quiet 12 — a privacy toggle, clicked once.
+--   hr_set_presence_quiet 4 — a privacy toggle, clicked once. LOWERED from 12
+--                             when the verb gained the immediate snapshot rebuild
+--                             (Security P3): the rebuild is a bounded scan, but it
+--                             is a scan, and the rate bucket is what stops a
+--                             toggle-spammer paying for one. Only the →quiet
+--                             transition refreshes, so 4/min buys at most 2.
 do $$
 declare
   v_src text; v_new text;
@@ -769,11 +828,11 @@ begin
   v_new := replace(v_src, c_anchor,
     'when ''hr_heartbeat'' then v_limit := 6;' || chr(10) ||
     '    when ''hr_town_of'' then v_limit := 30;' || chr(10) ||
-    '    when ''hr_set_presence_quiet'' then v_limit := 12;' || chr(10) ||
+    '    when ''hr_set_presence_quiet'' then v_limit := 4;' || chr(10) ||
     '    else return false;' || chr(10) || '  end case;');
   execute v_new;
   raise notice 'hr_rpc_gate patched: hr_heartbeat 6/min, hr_town_of 30/min, '
-               'hr_set_presence_quiet 12/min';
+               'hr_set_presence_quiet 4/min';
 end $$;
 revoke execute on function public.hr_rpc_gate(text) from public;
 revoke execute on function public.hr_rpc_gate(text) from anon, authenticated, service_role;
@@ -840,9 +899,14 @@ begin
      'second time inside 20 s (the floor is the column itself).'),
     ('hr_set_presence_quiet', 'p_slot integer, p_quiet boolean', 'authenticated',
      'added 2026-09-13: the stalking opt-out. Sets player_state.presence_quiet on the caller''s own '
-     'row; a quiet character is absent from the peer projection AND from the named crier feed. '
-     'Journalled once per CHANGE in player_ledger kind=''presence''. Moves no value, bumps no '
-     'version, idempotent by construction (it names an absolute value).'),
+     'row; a quiet character is absent from the PEER projection, which is the only new information '
+     'this feature publishes, and the writer rebuilds the snapshot on the transition INTO quiet so '
+     'the opt-out takes effect in the same call rather than at the next cron tick. It does NOT hide a '
+     'rare find: world_finds grants SELECT on user_id to anon/authenticated and the shipped '
+     'Hearthfind chat line already names finders from it — the crier''s quiet filter is defence in '
+     'depth for that door, not a guarantee (named pre-launch P2). Journalled once per CHANGE in '
+     'player_ledger kind=''presence''. Moves no value, bumps no version, idempotent by construction '
+     '(it names an absolute value).'),
     ('hr_town_of', 'p_zone text', 'authenticated',
      'added 2026-09-13: the read side of Week 1. Returns the cached town_snapshot row projected '
      'through a literal ALLOWLIST — seven keys per peer (name from profiles, activity kind/id/label '
@@ -1166,9 +1230,35 @@ begin
     perform public.hr_heartbeat(0);
     perform set_config('request.jwt.claim.sub', v_quiet::text, true);
     perform public.hr_heartbeat(0);
+
+    -- (g4a) THE OPT-OUT IS IMMEDIATE, PROVEN ON A CACHE NOBODY REFRESHED AFTER IT
+    --       (Security P3, 2026-09-12). First build a snapshot while GateHush is
+    --       still LOUD and assert they ARE in it — without that control this probe
+    --       would pass on an empty plaza and prove nothing. Then toggle quiet and
+    --       READ WITHOUT REFRESHING: the answer must already exclude them, which
+    --       can only be true if the WRITER rebuilt the cache.
+    perform public.hr_town_refresh();
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+    if public.hr_town_of('the_common')::text not like '%GateHush%' then
+      raise exception 'GATE(g4a): the control failed — a LOUD character is not in the snapshot, so '
+                      'the immediacy probe below would pass vacuously';
+    end if;
+    perform set_config('request.jwt.claim.sub', v_quiet::text, true);
     v_res := public.hr_set_presence_quiet(0, true);
     if coalesce(v_res->>'changed', '') <> 'true' or coalesce(v_res->>'quiet', '') <> 'true' then
       raise exception 'GATE(g4): the quiet toggle did not take: %', v_res; end if;
+    if coalesce(v_res->>'snapshot_refreshed', '') <> 'true' then
+      raise exception 'GATE(g4a): the quiet toggle did not rebuild the snapshot (%) — the opt-out '
+                      'would wait for the next cron tick, and forever if cron is down', v_res;
+    end if;
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+    if public.hr_town_of('the_common')::text like '%GateHush%' then
+      raise exception 'GATE(g4a): a character who JUST opted out is still being served from the '
+                      'cached payload with no refresh in between — the opt-out is eventually '
+                      'consistent, which for a privacy control is the wrong failure direction: %',
+                      public.hr_town_of('the_common');
+    end if;
+    perform set_config('request.jwt.claim.sub', v_quiet::text, true);
     if (select count(*) from public.player_ledger
          where user_id = v_quiet and kind = 'presence') <> 1 then
       raise exception 'GATE(g4): the quiet CHANGE was not journalled exactly once'; end if;
@@ -1342,7 +1432,9 @@ begin
                'heartbeat stamps now() on the caller''s own row only, bumps no version, journals '
                'nothing and refuses a second write inside 20 s; another user''s row is unreachable '
                'by construction (no uuid, no timestamp parameter); quiet characters are absent from '
-               'peers and crier and their toggle is journalled once per change; the projection '
+               'the peer list from the VERY NEXT READ (the writer rebuilds the cache) and their '
+               'toggle is journalled once per change — the crier filter is defence in depth only, '
+               'see the header''s Security P2 note; the projection '
                'carries exactly the 7-key peer / 6-key crier allowlist with away and seen_ago_s '
                'computed at read time; an uncatalogued activity_id projects NULL; town_snapshot is '
                'reachable by no client role; the envelope gained an own-place block and still '

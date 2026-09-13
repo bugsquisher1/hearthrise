@@ -94,7 +94,8 @@ export const SEVERITY_CATALOGUE = {
     'requirement_not_met', 'activity_locked', 'bad_progress_state', 'overflow',
     'seller_unavailable', 'forbidden_impersonation', 'unknown_unlock',
   ],
-  escalating: ['rate_limited', 'own_listing', 'intent_mismatch', 'missing_req_item', 'bad_zone'],
+  escalating: ['rate_limited', 'own_listing', 'intent_mismatch', 'missing_req_item', 'bad_zone',
+    'buff_not_paid'],
 };
 
 /* The seven self-gating player verbs. Named here as well as in the migration on
@@ -337,15 +338,45 @@ const MUTATIONS = {
        + 'before the wrapper reads anything — stays severity "normal" at any n and never appears in '
        + '"show me every incident this week". P14 must catch it on the COUNTER, not on the array.',
     pairs: [
-      ["    'rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone'];",
-        "    'rate_limited','own_listing','intent_mismatch','missing_req_item'];"],
-      // the file's own GATE(a) would otherwise refuse to install, and a mutation
-      // caught by the thing it mutates proves nothing about this guard
-      ["  if position('''bad_zone''' in\n"
-        + "              substring(v_src from 'c_escalating constant text\\[\\] := array\\[([^\\]]*)\\]')) = 0 then",
-      '  if false then'],
+      ["    'rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone',\n"
+        + "    'buff_not_paid'];",
+      "    'rate_limited','own_listing','intent_mismatch','missing_req_item',\n"
+        + "    'buff_not_paid'];"],
+      // the file's own GATE(a) loop would otherwise refuse to install, and a
+      // mutation caught by the thing it mutates proves nothing about this guard
+      ["    if position('''' || v_bad || '''' in\n"
+        + "                substring(v_src from 'c_escalating constant text\\[\\] := array\\[([^\\]]*)\\]')) = 0 then",
+      '    if false then'],
       // ...and so would the executed half
-      ["    if v_row.n <> 50 or v_row.severity <> 'incident' then", '    if false then'],
+      ["    if v_row.n <> 50 or v_row.severity <> 'incident' then\n"
+        + "      raise exception 'GATE(f3): the 50th bad_zone left n=% severity=% — sustained zone enumeration is '",
+      "    if false then\n      raise exception 'unused % % — sustained zone enumeration is '"],
+    ],
+  },
+  buff_not_paid_never_escalates: {
+    file: MIG2,
+    why: "Security's GO-WITH-CHANGES condition is reverted: buff_not_paid comes off c_escalating, so "
+       + 'fifty attempts in one day to get a buff WITHOUT spending the item — the exact thing '
+       + '2026-09-13-buff-apply-coupling.sql exists to refuse — stay severity "normal" and never reach '
+       + '"show me every incident this week". P19 must catch it on the COUNTER. The TWIN mistake is '
+       + 'covered by P15, which fails if the code lands in c_incident instead: it is a RELEASE code on '
+       + 'an emitter that does not exist yet, so a first-version eat path with a missing debit would '
+       + 'make the FIRST honest eat an incident for every player at once.',
+    pairs: [
+      ["    'rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone',\n"
+        + "    'buff_not_paid'];",
+      "    'rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone'];"],
+      /* the file's own GATE(a) loop and §5(f3b) would otherwise refuse to install
+         and "catch" this with the thing being mutated. */
+      ["    if position('''' || v_bad || '''' in\n"
+        + "                substring(v_src from 'c_escalating constant text\\[\\] := array\\[([^\\]]*)\\]')) = 0 then",
+      '    if false then'],
+      ["    if v_row.severity <> 'normal' then\n"
+        + "      raise exception 'GATE(f3b): buff_not_paid was promoted at n=49 — it is a RELEASE code on an '",
+      "    if false then\n      raise exception 'unused — it is a RELEASE code on an '"],
+      ["    if v_row.n <> 50 or v_row.severity <> 'incident' then\n"
+        + "      raise exception 'GATE(f3b): the 50th buff_not_paid left n=% severity=% — fifty attempts in one '",
+      "    if false then\n      raise exception 'unused % % — fifty attempts in one '"],
     ],
   },
   catalogue_ruling_dropped: {
@@ -789,6 +820,30 @@ async function run(mutate) {
     "select n::text as n, severity from public.hr_rejections where user_id=$1 and code='empty_plot'",
     [uid]))[0];
 
+  // ── P19. buff_not_paid ESCALATES AT 50 AND NOT AT 49 ──────────────────
+  //    Security's GO-WITH-CHANGES condition on 2026-09-13-rejections-verb-map-2.
+  //    hr_apply refuses a buff_apply that is not paid for with items[<food>] = -1
+  //    in the SAME delta; fifty of those on one character in one day is a
+  //    deliberate attempt at a free buff. The 49 is graded as hard as the 50:
+  //    this is a RELEASE code on an emitter that does not exist yet, so the
+  //    c_incident profile would have made the first honest eat of a buggy
+  //    first-version eat path an incident for every player at once.
+  await q('delete from public.hr_rejections where user_id = $1', [uid]);
+  await db.exec(`do $bnp$ declare i int; begin
+    for i in 1 .. 49 loop
+      perform public.hr_record_rejection('${uid}'::uuid, 0, 'apply', 'buff_not_paid',
+        '{"item":"roast_carrot","need":-1}'::jsonb, 1);
+    end loop;
+  end $bnp$;`);
+  obs.p19_at49 = (await q(
+    'select n::text as n, severity, verbs from public.hr_rejections'
+    + " where user_id=$1 and code='buff_not_paid'", [uid]))[0];
+  await q("select public.hr_record_rejection($1::uuid, 0, 'apply', 'buff_not_paid',"
+    + " '{\"item\":\"roast_carrot\",\"need\":-1}'::jsonb, 1)", [uid]);
+  obs.p19_at50 = (await q(
+    'select n::text as n, severity from public.hr_rejections'
+    + " where user_id=$1 and code='buff_not_paid'", [uid]))[0];
+
   // ── P16. THE whys BREAKDOWN: two fuses of ONE code, ONE row, exact ─────
   //    buff_at_max is raised by hr_apply from the segment budget (why=
   //    'segment_budget') and from the minimum-gain/duration cap (NO why). The
@@ -1081,6 +1136,22 @@ function grade(obs, migText, mig2Text) {
     `P14: a code on NEITHER severity list reached ${obs.p14_control?.severity} at n=`
     + `${obs.p14_control?.n} — the recorder is escalating everything, so P14's green means nothing`);
 
+  // ── P19. buff_not_paid has the ESCALATING profile, on the counter
+  ok(obs.p19_at49 && Number(obs.p19_at49.n) === 49,
+    `P19: 49 buff_not_paid refusals counted ${obs.p19_at49?.n}`);
+  ok(obs.p19_at49?.severity === 'normal',
+    'P19: buff_not_paid was promoted to incident at n=49 — it is a RELEASE code on an emitter that '
+    + 'does not exist yet, so the incident profile makes the FIRST honest eat of a first-version eat '
+    + 'path with a missing debit an alarm for every player at once');
+  ok(obs.p19_at49?.verbs && 'buff_apply' in obs.p19_at49.verbs,
+    `P19: the buff_not_paid row names ${JSON.stringify(obs.p19_at49?.verbs)} instead of the gesture — `
+    + "hr_apply's 'apply' label is unattributable and this code has one emitter");
+  ok(obs.p19_at50 && Number(obs.p19_at50.n) === 50 && obs.p19_at50.severity === 'incident',
+    `P19: the 50th buff_not_paid left n=${obs.p19_at50?.n} severity=${obs.p19_at50?.severity} — fifty `
+    + 'attempts in one day to get a buff without spending the item is the signature '
+    + '2026-09-13-buff-apply-coupling.sql exists to refuse, and it is still invisible to "show me '
+    + 'every incident this week"');
+
   // ── P15. the RESTATEMENT kept every ruling, and every property
   for (const code of SEVERITY_CATALOGUE.incident) {
     ok(obs.p15.incident.includes(code),
@@ -1234,9 +1305,10 @@ async function main() {
     + '200-call rate-limit storm costs 63 writes and leaves the gate\'s sampled count exact, an '
     + 'out-of-range slot folds to -1 and a caller-shaped code to malformed_code, the envelope is '
     + 'byte-identical across the decorator, one occurrence per transaction, and a second apply is '
-    + 'a no-op; and for the 2026-09-13 half: the restated recorder keeps all 28 catalogued Security '
-    + 'rulings plus the once-flag and the detail bound, bad_zone is normal at 49 and an incident at '
-    + '50 while an unlisted code stays normal at 60, two buff_at_max fuses break out as '
+    + 'a no-op; and for the 2026-09-13 half: the restated recorder keeps all 29 catalogued Security '
+    + 'rulings plus the once-flag and the detail bound, bad_zone and buff_not_paid are each normal '
+    + 'at 49 and an incident at 50 while an unlisted code stays normal at 60, two buff_at_max fuses '
+    + 'break out as '
     + 'segment_budget / (none) in one row whose whys map sums to n and caps at 12 + (other), the '
     + 'code->verb fallback names the gesture under an unattributable label and never overrides a '
     + 'real one on either path, and the why token is filtered and cut to 24 characters.');

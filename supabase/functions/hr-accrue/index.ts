@@ -335,7 +335,13 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        server-side), no qty (an eat is one unit), no hp (the server computes the
        absolute from its own hp + the catalogue heal). If a `heals`, `hp`, `qty`
        or `amount` ever appears in this argument list, the heal is forgeable from
-       devtools and the food is duped from devtools. */
+       devtools and the food is duped from devtools.
+
+       `auto` is the ONE exception to "no client fact reaches this verb", and it
+       is an exception that can only make the answer SMALLER: it declares that the
+       auto-eater fired this heal, which SUPPRESSES the buff (see readAuto in
+       request.js for why it can neither mint nor cross to another player). It
+       carries no amount, no duration and no type. */
     if (intent.verb === 'eat') {
       const out = await runEat({
         exec,
@@ -343,6 +349,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         slot,
         intentId: intent.intentId,
         item: intent.item,
+        auto: intent.auto,
       });
       return json(out.body, out.status);
     }

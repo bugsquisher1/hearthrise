@@ -142,6 +142,17 @@
 --   `create or replace function public.hr_apply(` / `public.hr_state_of(`
 --   header and takes over no last-toucher role in the derivation tools.
 --
+-- ⚠ THE OTHER HALF IS A SEPARATE FILE, AND IT IS REQUIRED.
+--   2026-09-13-client-state-buffs-denylist.sql moves `buffs` onto
+--   hr_put_client_state's AUTHORITY deny-list, and src/net/client-state.js drops it
+--   from RESIDUE_FIELDS in the same commit. The two MUST ship together: the server
+--   refuses the WHOLE patch on a forbidden key, so a build where `buffs` is on both
+--   lists stops every residue field from saving for every player.
+--   tests/arm-homing-guard.mjs asserts that collision across both migrations.
+--   (This note lived at the FOOT of the file until 2026-09-13 and made the last
+--   line prose, which tests/run-smoke.mjs migrationGuard reads as a truncated
+--   file — a whole-suite red. A migration ends on a terminator.)
+--
 -- ⚠ APPLY ORDER: 2026-09-13-item-buffs-catalogue.generated.sql FIRST. §0 refuses
 --   to install without hr_item_buffs, because a `buff_apply` block that resolves
 --   against a missing table would answer `bad_buff_item` for every real food —

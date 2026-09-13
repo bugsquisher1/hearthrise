@@ -3874,3 +3874,58 @@ nothing else; the three writers and the `RESIDUE_FIELDS` entry are deleted. Ever
   snapshotG's bare reads are droppable). The prescribed one-operator fix (`|| null`) would clear that
   class suite-wide but changes restore semantics for hundreds of tests — its own lane, with a full
   suite behind it, not a lane-A rider.
+
+---
+
+## 2026-09-13 — consumable buffs, step 2 (the emitter + the client mirror)
+
+Branch `worktree-agent-a26409ea8bdf37b34`. Step 1 gave the server the buff clock and shipped with
+no emitter on purpose; this lane is the emitter, the client mirror, and the two rulings that landed
+mid-flight (wall-clock drain, per-segment stacking).
+
+### THREE THINGS WORTH REMEMBERING
+
+**1. "Emit the buff when the food has one" was a P0 as written, and the reason is a data shape.**
+Fifteen `foodClass:'healing'` rows carry an incidental buff, and the auto-eater eats that pool at up
+to 20 sends/min. Buffing every heal caps the 60-minute queue in ~90 s and then every auto-eat is
+refused `buff_at_max` — **which rolls back the debit**, restocking the food: the b467 P0 rebuilt out
+of a feature. The lesson generalises: *a refusal that rolls back an apply is a restock*, so any new
+refusal on a path the client fires automatically has to be checked against the consumption it was
+carrying. The fix was to make the GESTURE explicit on the wire (`auto`) rather than to guess from
+the catalogue.
+
+**2. A client freeze is a lie the moment the server owns the clock.** `tickBuffs`'s
+`ctx.active === false` freeze was only ever reachable from legacy's 1s tick — combat-sim, skill-sim
+and artisan-sim all pass `active: true` — so the server had *always* drained by wall clock while the
+pill stopped counting. The visible symptom is the worst kind: a countdown that reads 8m 40s for an
+hour on a buff that is already over. When authority moves to the server, go and find the client
+state machine that still models the old rule; it will be rendering it.
+
+**3. Two lanes wrote the same grouping in the same function, five hours apart.** The per-segment
+ruling needs "which segment is running" in exactly one place; step 1 inlined it in `buffBonuses`,
+this lane factored it as `effectiveBuffs`. The merge kept the factored one because the PILL needs
+the same answer — a private grouping would have been re-derived by the renderer within the day. When
+a ruling is about *selection*, export the selector, not the result.
+
+### SEAMS THIS LANE ADDED (reuse them)
+
+· `src/core/buffs.js effectiveBuffs(buffs)` — the running segment per type. The bonus chain, the
+  away engine and both pills ask it. Never sum same-type entries.
+· `src/net/accrue.js reconcileBuffs(G, res)` — the envelope replaces the queue; absence is not a
+  statement, `[]` is. Lands `remaining_ms` (server-subtracted) rather than re-deriving from `until`
+  against a client clock that may be skewed.
+· `src/net/eat.js refusalCopyFor(verdict, name)` — a refusal's player-facing sentence lives with
+  the transport that produces the code, keyed `code` and `code/why`. Pure, graded in
+  `tests/eat-intent.mjs`.
+· `src/render/active-effects.js buffRowsHTML(rows, queue)` — pure rows-to-HTML. The fourth render
+  helper out of the monolith; legacy's `__renderBuffsSection` now only finds the host.
+· `supabase/functions/hr-accrue/request.js readAuto(body)` — the shape for a client fact that may
+  only make the server's answer smaller. Argued in the docstring rather than assumed.
+
+### THE RATCHETS COST AN HOUR, AND THE REASON IS WORTH WRITING DOWN
+
+`comment-ratio` and `monolith` are both *rate* guards, so a dense, well-argued comment block pays
+the same toll as a lazy one and a new top-level function in legacy.js costs three. Budget for it:
+write the code where it belongs FIRST (core / render / the transport), and the ratchets are quiet.
+Four functions went into legacy.js and all four had to come back out — 20 minutes of churn that
+choosing the right file first would have avoided.

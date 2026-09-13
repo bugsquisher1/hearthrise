@@ -21839,11 +21839,24 @@ const TESTS = [
       b = G.buffs.find((x) => x.type === 'all_xp');
       assert(b.remainingMs === 84000, 'duration multiplier not applied: ' + b.remainingMs);
       assert(Math.abs(b.magnitude - 12) < 1e-9, 'magnitude multiplier not applied: ' + b.magnitude);
-      // The extend branch must use the SCALED duration too — that branch is
-      // where a "multiply at the call site" fix would have leaked.
+      /* A SECOND HELPING IS A SECOND SEGMENT, AND IT MUST ALSO BE SCALED.
+         2026-09-13: applyBuff no longer folds the helping into the existing row
+         (`remainingMs += dur; magnitude = max(old,new)`) — that merge laundered a
+         Feast's magnitude onto a cheap food, so the game-designer replaced it with
+         contiguous per-segment entries, each carrying its own magnitude. What this
+         arm is protecting is unchanged and is the reason the b222 seam exists: the
+         scaler must reach the SECOND helping too, which is exactly where a
+         "multiply at the call site" fix would have leaked. So the assertion moved
+         from "the row now reads 168000" to "the queue's TAIL ends at 168000", which
+         is the same 84000 + 84000 stated against the new shape. */
       window.applyBuff({ type: 'all_xp', magnitude: 10, durationMs: 60000 });
-      b = G.buffs.find((x) => x.type === 'all_xp');
-      assert(b.remainingMs === 168000, 'stacking a second buff ignored the scaler: ' + b.remainingMs);
+      const segs = G.buffs.filter((x) => x.type === 'all_xp');
+      assert(segs.length === 2, 'a second helping must queue a second SEGMENT, not merge: ' + JSON.stringify(segs));
+      const tail = Math.max.apply(null, segs.map((x) => x.remainingMs));
+      assert(tail === 168000, 'stacking a second buff ignored the scaler: ' + tail);
+      assert(segs.every((x) => Math.abs(x.magnitude - 12) < 1e-9),
+        'every segment must carry its own SCALED magnitude: ' + JSON.stringify(segs));
+      b = segs[0];
 
       // Registration is idempotent by NAME — a boot retry cannot compound.
       window.registerBuffScaler('__test_hearth', () => ({ duration: 1.4, magnitude: 1.2 }));
@@ -37756,17 +37769,22 @@ const TESTS = [
       assert(window.getBonus('dropRate') >= baseDrop + 1,
         'and the remainder must still be paying when the player gets back');
 
-      /* (d) THE ONE FREEZE THAT SURVIVED. Idle play has never drained buffs —
-         you are not spending an effect that is not modifying anything — and
-         that rule predates this change and is untouched by it. */
+      /* (d) THE LAST FREEZE IS GONE (wall-clock ruling, 2026-09-13). This arm
+         asserted the opposite until today. The authority is an ABSOLUTE `until` the
+         server keeps expiring whether the player fights, idles or sleeps, and the
+         freeze was CLIENT-ONLY (every engine caller passes `active: true`) — a
+         promise only the pill made, and the server was already breaking it. */
       G.activeMonster = null; G.activeSkill = null; G.activeArtisanRecipe = null;
       const before = G.buffs[0].remainingMs;
       window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === before,
-        'with nothing running the clock must still freeze, found ' + G.buffs[0].remainingMs + ' vs ' + before);
+      assert(G.buffs[0].remainingMs === before - 60000,
+        'an IDLE minute must drain the buff by a minute — the clock is wall-clock against the server\'s '
+        + 'absolute `until`, found ' + G.buffs[0].remainingMs + ' vs ' + (before - 60000));
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
       window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === before - 60000, 'and it must drain again while an activity runs');
+      assert(G.buffs[0].remainingMs === before - 120000,
+        'and a WORKING minute costs the same minute — one rule, not two: '
+        + G.buffs[0].remainingMs + ' vs ' + (before - 120000));
     } finally { C.randomSeed(); restoreG(snap); }
   }),
 
@@ -39364,57 +39382,105 @@ const TESTS = [
     assert(out.featuredDropMult === 1, 'a span with no featured time must report the neutral multiplier, not a default lift');
   }),
 
-  () => tryRun('b326-3: a paused buff renders as PAUSED with its time preserved — never as a ticking clock', () => {
+  () => tryRun('buffs step 2: the server owns the clock — the pill is the envelope, it never pauses, '
+    + 'and it shows the segment running NOW', () => {
+    /* WHAT THIS REPLACED, AND WHY THAT IS NOT A DELETED TEST. This slot held
+       b326-3, "a paused buff renders as PAUSED with its time preserved" — the OLD
+       ruling, where `tickBuffs` froze whenever nothing was running. Two rulings of
+       2026-09-13 retired it (wall-clock drain; per-segment magnitudes), and a test
+       asserting a retired rule is not evidence — so it is REWRITTEN in place and
+       every assertion it protected survives below. THE ATTENDED HALF; the away half
+       is tests/buff-queue.mjs [20]. */
     const G = window.G;
     const H = window.HearthriseHome;
+    const A = window.HearthriseAccrual;
     const snap = snapshotG();
     const prevTab = window.activeTab;
     try {
-      assert(typeof window.buffsFrozen === 'function',
-        'the freeze condition must be published, so Home and the buff panel cannot disagree about whether the clock is running');
+      assert(typeof window.buffsFrozen !== 'function',
+        'window.buffsFrozen is still published. The freeze it answered for is DELETED (wall-clock ruling): a '
+        + 'surface that can still ask "is this clock paused?" will eventually draw the answer, and the server '
+        + 'has no such state.');
+      assert(typeof A.reconcileBuffs === 'function',
+        'accrue.js must export reconcileBuffs — without it a reload forgets a running buff while the server '
+        + 'goes on paying it');
       window.showTab('profile');
-      G.buffs = [{ type: 'gather_speed', magnitude: 15, remainingMs: 6 * 60000, addedAt: Date.now() }];
-
-      /* FROZEN: nothing running. This is now the ONLY freeze condition —
-         src/core/buffs.js `tickBuffs` used to freeze on `away` too, and no
-         longer does (personal buffs pay away, so they are spent away). "A buff
-         is spent on work" is the rule that survived; idling is not work. */
       G.activeSkill = null; G.skillTargetId = null; G.activeMonster = null; G.activeArtisanRecipe = null;
-      assert(window.buffsFrozen() === true, 'with no activity running the buff clock must be frozen');
-      H.render();
-      const row = document.getElementById('hd-root').querySelector('.hd-buff');
-      assert(row, 'Home must render the buff ladder — it is the only VISIBLE buff surface (the legacy Active Effects card is display:none under the b213 dashboard)');
-      assert(row.classList.contains('is-paused'), 'a frozen buff row must carry the paused state');
-      const rowTxt = row.textContent.replace(/\s+/g, ' ');
-      assert(/paused/i.test(rowTxt), 'a frozen buff must be LABELLED paused: ' + rowTxt);
-      assert(/6:00/.test(rowTxt), 'the paused buff must show its PRESERVED time (6:00), got: ' + rowTxt);
-      assert(/Gather Speed/.test(rowTxt) && /\+15%/.test(rowTxt),
-        'the row must name the buff and its magnitude, not just say "food buff active": ' + rowTxt);
 
-      /* And the clock genuinely does not run: the engine must not drain it. */
+      /* (1) THE ENVELOPE IS THE PILL. Two contiguous segments of one type plus an
+         EXPIRED entry, which hr_state_of carries at remaining_ms 0 for the away
+         engine and which nothing may render. */
+      const seg = (type, magnitude, ms) =>
+        ({ type, magnitude, until: new Date(Date.now() + ms).toISOString(), remaining_ms: ms });
+      G.buffs = [{ type: 'damage', magnitude: 99, remainingMs: 9e9, addedAt: Date.now() }];
+      A.reconcileBuffs(G, { ok: true, buffs: [seg('gather_speed', 15, 6 * 60000),
+        seg('gather_speed', 2, 20 * 60000), seg('all_xp', 4, 0)] });
+      assert(G.buffs.length === 2 && !G.buffs.some((b) => b.type === 'damage'),
+        'the envelope must REPLACE the local queue (a forged +99% must not survive it — that is the '
+        + 'residue-ahead class this field used to be) and must drop the expired entry: '
+        + JSON.stringify(G.buffs));
+
+      /* (2) ONE ROW PER EFFECT, SHOWING THE SEGMENT RUNNING NOW: +15% for six
+         minutes then +2%, never "+15% for 26 minutes" (the merge bug's signature). */
+      H.render();
+      const hd = document.getElementById('hd-root');
+      const rows = hd.querySelectorAll('.hd-buff');
+      const rowTxt = rows.length ? rows[0].textContent.replace(/\s+/g, ' ') : '';
+      assert(rows.length === 1,
+        'Home must render ONE row per effect even when a type holds several segments; got ' + rows.length);
+      assert(/Gather Speed/.test(rowTxt) && /\+15%/.test(rowTxt) && /6:00/.test(rowTxt)
+        && !/paused/i.test(rowTxt),
+        'the row must name the buff, the magnitude RUNNING NOW (+15%, not the queued +2%) and the time until '
+        + 'the bonus CHANGES (6:00, not the 26:00 the queue empties at), and never say paused: ' + rowTxt);
+      assert(/real time/i.test(hd.textContent) && /away/i.test(hd.textContent),
+        'the ladder must state the rule a player can lose a Feast by not knowing: the clock is real time and '
+        + 'runs while they are away');
+
+      /* (3) IT DRAINS WITH NOTHING RUNNING — the old freeze made this call a no-op,
+         which is what showed an 8m40s pill for an hour. */
+      const before = G.buffs[0].remainingMs;
       window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === 6 * 60000,
-        'a frozen buff must not drain — the label and the engine must agree');
+      assert(G.buffs[0].remainingMs === before - 60000,
+        'an idle minute must drain the buff by a minute — BUFF_DRAIN_RULE is wall-clock and the server keeps '
+        + 'expiring the absolute `until` whether or not the player is doing anything. Got '
+        + G.buffs[0].remainingMs + ' from ' + before);
 
-      /* RUNNING: the same row must drop the paused state, or the label becomes
-         noise the player learns to ignore. */
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'oak_tree';
-      assert(window.buffsFrozen() === false, 'with an activity running the clock runs');
-      H.render();
-      const live = document.getElementById('hd-root').querySelector('.hd-buff');
-      assert(live && !live.classList.contains('is-paused'), 'a running buff must NOT render as paused');
-      assert(!/paused/i.test(live.textContent), 'a running buff must not carry the paused label');
+      /* (4) THE ACTIVE EFFECTS PANEL, same rules, and the boundary is NAMED. */
+      window.__renderBuffsSection();
+      const brs = [...document.querySelectorAll('.buff-row')].map((r) => r.textContent.replace(/\s+/g, ' '));
+      assert(brs.length === 1, 'the Active Effects panel must show one row per effect: ' + brs.length);
+      assert(/\+15%/.test(brs[0]) && /then \+2%/.test(brs[0]) && !/paused/i.test(brs[0]),
+        'the row must state the running magnitude, NAME what it becomes at the boundary, and carry no '
+        + 'paused chip: ' + brs[0]);
 
-      /* 0-EMOJI RULE: the buff registry's `icon` field is a literal emoji, and
-         it used to be rendered as art. Neither surface may draw one. */
+      /* (5) THE GESTURE REACHES THE SERVER. `buff_apply` is the Edge's to build (the
+         real delta is applied in tests/buff-queue.mjs [18]); the CLIENT's half is the
+         `auto` bit — without it every auto-eat heal buffs, caps the queue, and is
+         refused buff_at_max, which rolls back the debit and restocks the food. */
+      const wire = (auto) => JSON.parse(window.HearthriseEat.buildEatRequest({
+        url: 'https://example.test', apiKey: 'k', token: 't', slot: 0,
+        intentId: '00000000-0000-4000-8000-000000000001', item: 'fishers_pie', auto,
+      }).init.body);
+      const manual = wire(false);
+      assert(manual.item === 'fishers_pie' && manual.auto === false && wire(true).auto === true,
+        'a MANUAL eat must go on the wire as auto:false (so the server grants the buff) and an AUTO eat must '
+        + 'declare itself: ' + JSON.stringify(manual));
+      assert(Object.keys(manual).sort().join(',') === 'auto,intentId,item,slot,verb',
+        'the eat request must carry a NAME and the gesture and nothing else — no heal, no hp, no qty, no '
+        + 'magnitude, no duration: ' + Object.keys(manual).sort().join(','));
+
+      /* (6) 0-EMOJI RULE, preserved from the test this replaced. */
       const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
-      assert(!EMOJI.test(live.textContent), 'no emoji may render in the buff ladder: ' + live.textContent);
-      if (typeof window.__renderBuffsSection === 'function') {
-        window.__renderBuffsSection();
-        document.querySelectorAll('.buff-row').forEach((r) => {
-          assert(!EMOJI.test(r.textContent), 'no emoji may render in a buff row: ' + r.textContent);
-        });
-      }
+      [rows[0].textContent, ...brs].forEach((t) => {
+        assert(!EMOJI.test(t), 'no emoji may render on a buff surface: ' + t);
+      });
+
+      /* (7) ABSENCE IS NOT AN EVICTION: no `buffs` key is a partial answer, not "you
+         hold nothing" (§6, never evict on uncertainty). */
+      const keep = G.buffs.length;
+      A.reconcileBuffs(G, { ok: true, state: {} });
+      assert(G.buffs.length === keep,
+        'an envelope without a `buffs` key must leave the queue alone; got ' + JSON.stringify(G.buffs));
     } finally {
       restoreG(snap);
       try { H.render(); } catch (e) {}

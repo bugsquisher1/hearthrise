@@ -3273,28 +3273,22 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .buff-row .br-mag{color:var(--green);font-weight:800}
 .buff-row .br-time{color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));font-family:monospace}
 
-/* ── b326: A FROZEN BUFF LOOKS FROZEN (away-time-ruling.md, honesty item 3) ──
-   A timed buff neither pays nor drains while you are away, or while nothing
-   is running. The row used to show a live-looking countdown in both states,
-   which taught the rule by surprise. Paused reads as WITHHELD, never as lost:
-   the green is stood down to the neutral surface + ink hairline (this is not
-   a debuff and must not borrow --red), and the preserved time is still fully
-   legible — that IS the reassurance. All tokens, no theme leak. */
-.buff-row.is-paused{background:transparent;border-color:var(--line)}
-.buff-row.is-paused .br-icon,
-.buff-row.is-paused .br-mag{color:var(--ink-3)}
-.buff-row.is-paused .br-name{color:var(--ink-2)}
-.buff-row.is-paused .br-time{color:var(--ink-2)}
-.buff-row .br-paused{
-  display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;
-  font-family:var(--f-label);font-size:calc(14.5px * var(--ui-scale, 1));
-  letter-spacing:.05em;text-transform:uppercase;font-weight:700;
-  color:var(--ink-3);border:1px solid var(--line);border-radius:999px;
-  padding:1px 8px;white-space:nowrap;
-}
-.buff-frozen-note{
+/* ── 2026-09-13: THE FROZEN-BUFF STYLING IS GONE, WITH THE FREEZE ───────────
+   `.buff-row.is-paused`, `.br-paused` and `.buff-frozen-note` styled a state that
+   no longer exists: `tickBuffs` froze on `ctx.active === false` and the panel drew
+   that as a paused chip. The drain rule is WALL-CLOCK (src/core/buffs.js
+   BUFF_DRAIN_RULE) against the server's absolute `until`, so there is no state in
+   which a buff is "kept, not spent" and no honest way to draw one. What replaces
+   the note is one sentence of real-time copy. */
+.buff-real-time-note{
   margin-top:6px;color:var(--ink-3);line-height:1.4;
   font-size:calc(14.5px * var(--ui-scale, 1));
+}
+/* The next segment's magnitude, when a type has more than one window queued: it
+   is what the bonus BECOMES, so it reads quieter than the one running now. */
+.buff-row .br-next{
+  flex:0 0 auto;color:var(--ink-3);font-weight:700;
+  font-size:calc(14.5px * var(--ui-scale, 1));white-space:nowrap;
 }
 /* b224: .eat-now-btn removed with injectEatNowButtons() — the JS that used it
    had not rendered a button since the bag was rebuilt (see legacy.js). */

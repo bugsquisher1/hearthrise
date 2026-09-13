@@ -14192,6 +14192,9 @@ const TESTS = [
         if (typeof window.plantCrop !== 'function') return;
         window.G.inventory = window.G.inventory || {};
         window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 1;
+        /* The pre-flight counts what the SERVER holds (gateItemCount), so the
+           fixture states a server bag or the intent is never sent. */
+        window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 1 });
         window.G.farmPlots = window.G.farmPlots || [];
         window.G.farmPlots[0] = null;
         window.plantCrop(0, 'turnip');
@@ -19491,6 +19494,9 @@ const TESTS = [
       window.G.skills.farming = 1000000;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed | 0) + 5;
+      /* auto-replant counts what the SERVER holds (gateItemCount), so the fixture
+         states a server bag or the replant correctly declines. */
+      window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 5 });
       window.G.farmPlots = window.G.farmPlots || [];
       window.G.farmPlots[0] = null;
       window.HearthriseAuto.setFarmReplant({ enabled: true, cropId: 'turnip' });

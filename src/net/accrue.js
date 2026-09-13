@@ -392,6 +392,10 @@ let awaySettleClosed = false;
 export function awaySettleDone() { return awaySettleClosed; }             // has this session's absence been paid?
 export function __resetAwaySettleLatch(v) { awaySettleClosed = !!v; }     // test seam: (true) = "the boot settle already landed"
 
+/* IS A SETTLE ON THE WIRE? "Unpaid" and "still coming" are different facts — one that
+   never STARTED may never answer — and a waiting surface needs both (WELCOME_GATE). */
+export function settleInFlight() { return !!inFlight; }
+
 /* ── C1: A REFUSED OR LATCHED WINDOW IS OWNED BY THE SETTLE ─────────────────
    The settle-first rule makes the server refuse (`settle_first`) — or makes the
    client skip — a credit whose window the away sim is about to pay. The observed
@@ -5182,7 +5186,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
-    awaySettleDone, __resetAwaySettleLatch, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
+    awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,

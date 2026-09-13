@@ -54475,6 +54475,140 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('regression suite — b545: a settle slower than the wait cap still reports the night, and a stats-only card is superseded', () => {
+    /* THE MEASURED BUG (LIVE b544, hearthrise.net, QA account, 2026-09-13 20:5x
+       UTC, a genuine ~12 h return with fishing active): the "What's new" sheet
+       showed first, and behind it the "Welcome back, adventurer" modal carried
+       only Played / Total kills lifetime / Gold in pocket — no Time away, no XP
+       earned — while the Home card underneath read "12h away — +51,424 XP ·
+       +6,428 items". At +58 s `awaySettleDone()` was true and
+       `G.lastOfflineSummary.awayMs` was 43,200,000 with the gains on it: the
+       settle DID land with an AWAY receipt, after the modal had spoken.
+       THIRD BUG OF THIS CLASS. ROOT CAUSE: the boot timer waits on the
+       settle-first latch but only to a 10 s cap; a twelve-hour settle answered
+       later, the timer presented a receipt-less modal anyway and SPENT the
+       one-per-page-life latch, so the AWAY receipt that arrived afterwards was
+       refused by `__presentWelcome`. Nothing was miscredited — the news was.
+       THE FIX, both halves: (1) the poll keeps waiting past the cap while
+       `settleInFlight()` says the answer is on the wire (to a hard ceiling);
+       (2) the latch remembers WHAT was said, so an AWAY receipt SUPERSEDES a
+       provisional stats-only card that is still open — even though `saveLocal()`
+       has by then beaten `G.lastSeen` forward to now and the 30-minute door
+       would refuse a fresh greeting.
+       MUTATION PROOF (both ran red before the fix):
+         · drop `|| (inflight && now < WELCOME_GATE.ceiling)` → arm A presents a
+           stats-only modal and spends the latch → "the cap won the race again".
+         · make `__presentWelcome` `return false` whenever `WELCOME_GATE.shownAt`
+           (the b544 behaviour) → arm B's supersede never happens. */
+    const G = window.G;
+    const AC = window.HearthriseAccrual;
+    assert(typeof AC.settleInFlight === 'function',
+      'accrue.js no longer says whether a settle is on the wire — the presenter is back to '
+      + 'treating "unanswered" and "never asked" as one fact, which is what the 10 s cap did');
+    const NIGHT = { hrs: 12, awayMs: 12 * 3600000, paidMs: 12 * 3600000, gainedXp: 51424,
+      gainedItems: 6428, gainedGold: 0, gainedKills: 0, burnt: 0, combat: null, died: false,
+      serverAuthoritative: true };
+    const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary,
+      settled: AC.awaySettleDone(), inflight: AC.settleInFlight };
+    let news = null;
+    try {
+      G.lastSeen = Date.now() - 12 * 3600000; G.lastWelcome = 0; G.lastOfflineSummary = null;
+      window.__maybeShowWelcome();                       // the overlay is built lazily
+      const rows = document.getElementById('welcome-rows');
+      assert(rows, 'the welcome overlay never built — this guard would be vacuous');
+      const rowText = () => (rows.textContent || '').replace(/\s+/g, ' ');
+      const ov = () => document.getElementById('welcome-overlay');
+      const shown = () => !!(ov() && ov().classList.contains('show'));
+      const reset = (waitMs, maxWaitMs) => {
+        rows.innerHTML = ''; if (ov()) ov().classList.remove('show');
+        G.lastOfflineSummary = null; G.lastWelcome = 0;
+        G.lastSeen = Date.now() - 12 * 3600000;          // the 30-minute door is open
+        window.__resetWelcomePresentation(false, waitMs, maxWaitMs);
+      };
+
+      /* THE LIVE ENVIRONMENT: the What's-New sheet is up. It is a separate overlay
+         with its own latch, so it must neither suppress nor swallow the return
+         report — pinned here because "the two modals share a container" was a live
+         hypothesis for this bug and is now a regression. */
+      news = document.createElement('div');
+      news.id = 'hr-welcome-modal';
+      document.body.appendChild(news);
+
+      /* A. THE 12 h SETTLE IS SLOWER THAN THE CAP. The wait window is already
+            spent (waitMs 0) and the request is on the wire. */
+      reset(0, 60000);
+      AC.__resetAwaySettleLatch(false);
+      AC.__setBootAccruedToForTest(0);                   // no envelope has landed: no watermark
+      AC.settleInFlight = () => true;
+      window.__presentWelcomeWhenSettled();
+      assert(!shown(),
+        'THE b545 BUG: the wait cap expired while the settle was still on the wire and the '
+        + 'modal spoke without a receipt — ' + rowText());
+      assert(!(G.lastWelcome > 0),
+        'the timer spent the 5 s welcome door on a receipt-less modal, so this load can never '
+        + 'be told what the night paid');
+
+      /* …and when the answer finally lands, the envelope presents the night. */
+      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() });
+      AC.__resetAwaySettleLatch(true);
+      AC.settleInFlight = () => false;
+      assert(window.__presentWelcome() === true, 'the late away receipt was refused the modal');
+      const a = rowText();
+      assert(/Time away\s*12h 0m/.test(a), 'the late settle never reached the modal — no span: ' + a);
+      assert(/XP earned\s*\+51,424/.test(a) && /Items found\s*\+6,428/.test(a),
+        'the player was greeted without the night the server just paid: ' + a);
+      assert(document.getElementById('hr-welcome-modal'),
+        "the What's-New sheet was removed by the return card — two independent overlays");
+
+      /* B. THE SUPERSEDE. Nothing on the wire either (a settle that never started),
+            so the timer greets with lifetime stats — correct, nothing else is
+            known — and the receipt that arrives afterwards REPLACES that card
+            while it is still open, with `G.lastSeen` already beaten to now by the
+            saves that ran in between, exactly as live. */
+      reset(0, 0);
+      AC.__resetAwaySettleLatch(false);
+      AC.settleInFlight = () => false;
+      window.__presentWelcomeWhenSettled();
+      assert(shown(), 'nothing was on the wire and the player was greeted with silence');
+      const b0 = rowText();
+      assert(/Total kills lifetime/.test(b0), 'the stats-only greeting is empty: ' + b0);
+      assert(!/Time away|XP earned/.test(b0),
+        'a modal with no receipt reported an absence anyway: ' + b0);
+      G.lastSeen = Date.now();                           // saveLocal() beat the residue stamp forward
+      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() });
+      AC.__resetAwaySettleLatch(true);
+      assert(window.__presentWelcome() === true,
+        'the away receipt could not supersede the provisional stats-only card — the b544 latch');
+      const b = rowText();
+      assert(/Time away\s*12h 0m/.test(b) && /XP earned\s*\+51,424/.test(b),
+        'the stats-only card was not replaced by the night the server paid: ' + b);
+
+      /* And once reported, nothing re-reports it: a second envelope must not
+         re-render the card the player is reading. */
+      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now(), gainedXp: 999 });
+      assert(window.__presentWelcome() === false, 'the absence was reported twice');
+
+      /* C. A CARD THE PLAYER CLOSED IS NEVER RE-OPENED. The Home away card owns
+            the story from there; a modal that pops back is its own bug. */
+      reset(0, 0);
+      AC.__resetAwaySettleLatch(false);
+      window.__presentWelcomeWhenSettled();
+      assert(shown(), 'arm C never greeted — the arm would be vacuous');
+      ov().classList.remove('show');                     // the player dismissed it
+      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() });
+      assert(window.__presentWelcome() === false && !shown(),
+        'a dismissed welcome modal was re-opened by a later receipt');
+    } finally {
+      AC.settleInFlight = save.inflight;
+      AC.__setBootAccruedToForTest(0);
+      AC.__resetAwaySettleLatch(save.settled);
+      if (news && news.parentNode) news.parentNode.removeChild(news);
+      const ov2 = document.getElementById('welcome-overlay'); if (ov2) ov2.classList.remove('show');
+      window.__resetWelcomePresentation(true);   // spent: any poll armed above no-ops
+      G.lastSeen = save.lastSeen; G.lastWelcome = save.lastWelcome; G.lastOfflineSummary = save.los;
+    }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════
      b343 — THE PRICE CATALOGUE IS WHAT THE GAME ACTUALLY CHARGES.
 

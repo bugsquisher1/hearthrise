@@ -10840,18 +10840,7 @@ function openInvDetail(id){
     }
     /* b311: Buy-Back moved to the Local Shop (where you sell to the vendor) — it
        no longer clutters every item's detail popup. */
-    /* THE DEPOT, from the item the player is already looking at. This slot held
-       `if(typeof bankItem === 'function')` for a hundred builds and `bankItem`
-       was never defined anywhere in the repo, so the button rendered exactly
-       never — the flyout advertised a bank nothing could reach. It is a real
-       INTENT now (HearthriseDepot.move → hr_bank_move): the WHOLE bag stack,
-       because the server clamps to what is held and the panel is where a partial
-       move is chosen. The qty named on the button is the bag's, not the `qty`
-       above, which may be a Depot-only stack. */
-    if(window.HearthriseDepot && (G.inventory[id]||0) > 0){
-      const _dq = G.inventory[id]|0;
-      acts.push(`<button class="btn" title="Store this stack in your Depot — kept by the realm" onclick="window.HearthriseDepot.move('${id}',${_dq},'deposit');closeInvDetail()">Store ${_dq.toLocaleString()} in Depot</button>`);
-    }
+    if(window.HearthriseDepot) acts.push(window.HearthriseDepot.flyoutButtonHtml(id, G.inventory[id]|0));   /* → the Depot (this slot was a dead `bankItem` guard for a hundred builds) */
   }
 
   /* b385 — ELEMENTS discoverability. The reverse "Used in" index is RECIPE-based,
@@ -16830,16 +16819,7 @@ function renderInvFancy(){
         +' <span class="invc-space-free">('+Math.max(0, bankCap()-bankUsed()).toLocaleString()+' free)</span>'
         +'<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
       '<div class="invc-actions">'+
-        /* THE DEPOT. The server's bank store (hr_bank_move + the `res.bank`
-           projection) had no door in the client at all until now — the bag/bank
-           chips in index.html drive the retired renderInventory path, and the
-           flyout's "→ Bank" button was guarded on a `bankItem` function that
-           has never existed. One entrance, here, beside the space the bag is
-           measured in. Hidden when the module did not load rather than offering
-           a button that cannot answer. */
-        ((typeof window.HearthriseDepot==='object'&&window.HearthriseDepot)
-          ? '<button class="invc-buyspace" onclick="window.HearthriseDepot.open()">Depot</button>' : '')+
-        '<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
+        (window.HearthriseDepot?window.HearthriseDepot.toolbarButtonHtml():'')+'<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
         '<button id="invc-multi" class="'+(window._invMultiSelect?'active':'')+'" onclick="window._invToggleMulti()">Multi-select</button>'+
         '<button onclick="window._invManage()">Manage</button>'+
       '</div>'+

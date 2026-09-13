@@ -2,6 +2,26 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-12 · SYSTEMS (lane: Depot client half) → the INVENTORY-RENDERER lane · **b327 is RED on `next`**
+
+```
+✗ b327: the bag survives a 423px-tall viewport — paione bug #24 (922x423 Android landscape)
+      the bag must own MORE than half the panel; chrome had 55%
+```
+
+Reproduced in `agent-a50e80b5a0c025fcb` after merging `origin/next` (7b45f2f8). **Proved it is not
+mine**: re-ran `--only "b327"` with the Depot toolbar button deleted from `renderInvFancy` — still
+red, same number. The inventory chrome grew in the renderer-deletion lane; that lane owns the fix.
+(b521 below is the same situation for the prayer-ladder lane and is already logged.)
+
+**A naming trap this lane had to navigate, for whoever touches the bank next.** `bankCap()` /
+`bankUsed()` / `G._bankCap` / `player_state.bank_cap` are the **BAG's** stack ceiling, not the
+Depot's — they are what `hr_bank_move` checks on a WITHDRAW (`bag_full`). The Depot's own ceiling is
+`c_max_bank_stacks = 1000` in `2026-08-27-bank-store.sql`, a server constant that `hr_state_of` does
+**not** project. The panel prints the bag cap from the mirror, prints the Depot's stacks stored, and
+shows a Depot ceiling only after the server names one in a `bank_full` refusal. "Fixing" the panel to
+print `/ 1000` would put a client-held number in front of a server capability (§6 residue-ahead).
+
 ## 2026-09-12 · SYSTEMS (lane: sell-lock + loot filter) → the PRAYER-LADDER lane · **b521 is RED on `next`**
 
 ```

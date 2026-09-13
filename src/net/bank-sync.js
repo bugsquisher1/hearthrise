@@ -49,9 +49,6 @@ import { BANK_NON_ITEM_KEYS } from './accrue.js?v=543';
 
 export { BANK_NON_ITEM_KEYS };
 
-/** The only two directions the server accepts (`bad_direction` otherwise). */
-export const BANK_DIRECTIONS = Object.freeze(['deposit', 'withdraw']);
-
 const RPC = 'hr_bank_move';
 
 function winCfg() {
@@ -249,7 +246,7 @@ export function bankMoveRefusalText(res, ctx) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseBankSync = {
-    BANK_DIRECTIONS, activeSlot, newBankIdem, bankMoveBody,
+    activeSlot, newBankIdem, bankMoveBody,
     bankMove, bankMoveSettled, bankItems, bankMoveRefusalText,
   };
 }

@@ -157,13 +157,41 @@ export function bankPanelHtml(view) {
     + '</div>';
 }
 
+/* ── THE TWO DOORS, authored HERE and not in the monolith ────────────────────
+   Both entrances are one `acts.push` / one concatenation in src/legacy.js and
+   every byte of their markup lives in this file, which is where presentation
+   belongs (CLAUDE.md §7) and what keeps the monolith ratchet flat. They are
+   PURE string builders so the suite can read them without a screen.
+
+   The FLYOUT door is the slot that held `if(typeof bankItem === 'function')` for
+   a hundred builds with `bankItem` defined nowhere in the repo — the flyout
+   advertised a bank that nothing could reach. It offers the WHOLE bag stack
+   because the server clamps to what is held and the panel is where a partial
+   move is chosen; `bagQty` is the BAG's number, never the flyout's own `qty`,
+   which may belong to a Depot-only stack. No bag stack, no button. */
+export function toolbarButtonHtml() {
+  return '<button class="invc-buyspace" data-depot-open="1" '
+    + 'title="Your Depot — storage kept by the realm" onclick="window.HearthriseDepot.open()">Depot</button>';
+}
+export function flyoutButtonHtml(id, bagQty) {
+  const q = Math.max(0, Math.floor(Number(bagQty) || 0));
+  if (!q) return '';
+  return '<button class="btn" title="Store this stack in your Depot — kept by the realm" '
+    + 'onclick="window.HearthriseDepot.move(\'' + esc(id) + '\',' + q + ',\'deposit\');closeInvDetail()">'
+    + 'Store ' + fmt(q) + ' in Depot</button>';
+}
+
 /* ── THE SHEET ────────────────────────────────────────────────────────────────
    `qm-overlay` / `qm-modal` is the game's existing modal chrome (openBankModal,
    the quest modal), so the Depot inherits the same backdrop, the same close
    affordance and the same stacking instead of inventing a third dialog. */
 function css() {
   return [
-    '#' + OVERLAY_ID + ' .qm-modal{max-width:720px;width:min(720px,94vw)}',
+    /* The sheet itself scrolls: on a landscape phone the two stacked columns are
+       taller than the modal, and a clipped list with no scroll is a Depot whose
+       last rows a player cannot reach (measured at 922×423 before this line). */
+    '#' + OVERLAY_ID + ' .qm-modal{max-width:720px;width:min(720px,94vw);'
+      + 'max-height:92vh;overflow:auto}',
     '.bp-head h3{margin:0 0 2px;font-family:var(--f-display)}',
     '.bp-sub{font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3);margin-bottom:8px}',
     '.bp-search{width:100%;box-sizing:border-box;margin-bottom:10px;padding:7px 9px;'
@@ -181,16 +209,20 @@ function css() {
       + 'font-size:calc(14px * var(--ui-scale, 1))}',
     '.bp-qty{color:var(--gold-2);font-variant-numeric:tabular-nums;font-size:calc(13px * var(--ui-scale, 1))}',
     '.bp-acts{display:flex;gap:3px;flex:0 0 auto}',
-    '.bp-move{font-family:var(--f-label);font-size:calc(12px * var(--ui-scale, 1));padding:2px 7px;'
-      + 'border:1px solid var(--line-soft);border-radius:6px;background:var(--bg-card);'
-      + 'color:var(--ink-2);cursor:pointer}',
+    /* min-height, not padding alone: a quantity button is the only control in
+       this panel and a 23px target is a mis-tap on a phone (visual-qa calls
+       anything under 36px on a narrow viewport a P1). */
+    '.bp-move{font-family:var(--f-label);font-size:calc(12px * var(--ui-scale, 1));padding:2px 8px;'
+      + 'min-height:28px;min-width:30px;border:1px solid var(--line-soft);border-radius:6px;'
+      + 'background:var(--bg-card);color:var(--ink-2);cursor:pointer}',
     '.bp-move:hover:not([disabled]){color:var(--gold);border-color:var(--gold-2)}',
     '.bp-move[disabled]{opacity:.5;cursor:default}',
     '.bp-empty,.bp-more{padding:9px 8px;font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3)}',
     '.bp-more{font-style:italic}',
     /* Mobile: the canonical rail query (CLAUDE.md §7) — one column, shorter lists. */
     '@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px){'
-      + '.bp-cols{grid-template-columns:1fr;gap:10px}.bp-list{max-height:30vh}}',
+      + '.bp-cols{grid-template-columns:1fr;gap:10px}.bp-list{max-height:26vh}'
+      + '.bp-move{min-height:36px;min-width:40px}}',
   ].join('');
 }
 
@@ -289,6 +321,7 @@ export function setupBankPanel() {
   if (typeof window === 'undefined') return;
   window.HearthriseDepot = {
     open: openDepot, close: closeDepot, repaint: repaintDepot, move: depotMove,
+    toolbarButtonHtml, flyoutButtonHtml,
     bankPanelView, bankPanelHtml, bagCapacityLine, depotCapacityLine, MAX_ROWS,
   };
   if (typeof document === 'undefined') return;

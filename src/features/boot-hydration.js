@@ -66,7 +66,7 @@
 // ============================================================================
 
 import { bootHydrationState, isCharacterHydrated, onHydrationChange,
-         beginRecordLoad } from '../net/record.js?v=543';
+         beginRecordLoad } from '../net/record.js?v=544';
 
 export const VEIL_ID = 'hr-boot-hydration-veil';
 

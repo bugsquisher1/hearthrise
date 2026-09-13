@@ -4,6 +4,36 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 544 — 2026-09-13 (Reed & Tide, the Depot, and buffs the realm keeps)
+
+The second daily release, and a big one. Everything below is live on the server side already; this build is the client that shows it.
+
+**Food buffs are now kept by the realm.** Eating a buff food used to start a timer only your browser knew about, so a reload or a second tab lost it. The server now owns every buff: it starts when you eat, it drains on the server clock, same-type buffs stack as up to eight segments each at its own strength (capped at sixty minutes), and the Active Effects pill on Home is drawn straight from the realm's envelope. Auto-eat heals you but never buffs you, so a buff is always something you chose. If a buff cannot be applied (you are already at the cap) the heal still lands and the game says so.
+
+**Reed & Tide: four new fishing spots and six new dishes.** Reed Pike Pool (Fishing 24), Tidepool Crabs (28), Silverfin Shoal (32) and Goldgill Eddy (36), with Grill Pikeperch, Steam Copper Crab, Cook Silverfin, Sear Goldgill, River Chowder and Fisher's Pie in the kitchen. Ten new items carry them.
+
+**Deep Seam: Mining and Smithing get their missing middle.** Four new mining nodes from Mining 36 to 56 (Verdite Seam, Fluxsalt Pocket, Deep Verdite Seam, Heartgarnet Geode), verdite bars at Smithing 42, and five forge recipes up to 52: verdite helm, blade, platelegs, platebody and the heartgarnet maul, all seated between steel and mithril with wield levels of Defence 38 and Attack 38 to 42. Deep Verdite Seam is the best gold-per-minute mining node until 56.
+
+**Prayer climbs to 99.** Ten new rungs from Prayer 40 to 99, each fed by a drop you already fight for: bone chips, grave dust, razor claws, vampire dust, demon shards, wraith veils, dragon scales, lich souls, ancient claws and void chitin.
+
+**Gear has a wield level, and it is the realm's rule.** Thirty-four equippables now list a skill and level to wield; the last seven ungated pieces got theirs. The drawer and the topbar read live levels, so the requirement you see is the one the server enforces.
+
+**The Depot opens.** The bank the server has kept for you is finally on screen: deposit and withdraw from the Depot panel, with every move journalled as an intent.
+
+**Sell-lock and a loot filter.** Lock an item and no shop or market sale can take it. The bag gets a standing loot filter so the pile you care about stays on top; on a landscape phone the chips shrink to glyphs so the bag keeps its window.
+
+**Bestiary Charms now pay.** Slaying a monster family enough times earns a charm rank (25, 100, 500 and 2,000 kills), derived from your bestiary and never stored. From this build the charm pays a real drop bonus against that family, +1% to +3%, computed by the one combat engine on the server for both live fights and away windows. The Fight screen names it ("Charm: undead rank 2, +2% drops"), the loot modal attributes it, and the away report carries it.
+
+**Hearthfind is private when you ask it to be.** The finds board now names finders through the server, so a character who set "quiet" shows as "An adventurer" everywhere, including the global chat line, and nobody can look up who found what. The board also stopped freezing at its five-hundredth find.
+
+**The Common is built, and the door is shut for one more day.** The presence rail and The Crier on Home are in this build behind a server flag that is still off; it turns on after this build is played on live.
+
+**Farming works the way you expect.** "Plant all" now plants every empty plot you have seeds for and says how many; auto-replant fires on an attended harvest, and when it cannot it tells you why (no seed, level, plot tier) instead of leaving the plot silently empty. The seed picker is titled "Pick a seed" again.
+
+**Fixes:** a reload seconds after playing no longer greets you with last night's twelve-hour away report, and on a real return the welcome-back modal waits for the realm's away report instead of racing it; the hero drawer reads the live character instead of a stale summary; the bag's slot line reads whole on a landscape phone; charm text sizes honour the 14.5px floor; a leaked vendor sale no longer pollutes the shop count in tests.
+
+**Under the hood:** the refusal journal names its verb and breaks down the whys; a forged buff shape gets its own code and an incident; the dead second inventory renderer (445 lines) is gone; the fuzz plants every one of its bugs in the body production actually runs; the visual gate waits for fonts before measuring; the test snapshot proves it can put every field back.
+
 ## v0.9.2-beta build 543 — 2026-09-12 (First daily release)
 
 From this build Hearthrise ships once a day, at 20:00 UTC, instead of a patch per fix. One reload, one note.

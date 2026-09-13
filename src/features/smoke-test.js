@@ -12859,20 +12859,15 @@ const TESTS = [
     assert(!!food, 'CONTROL: no plain food item in the catalogue, so "the filter drops a class" is untestable');
     try {
       await withServerBacked({ state: { gold: 777777 } }, async (rig) => {
-        G.inventory = { normal_log: 5 }; G.lockedItems = {}; G.lootFilter = []; G.gold = 500;
-        stampBalanceLikeLoad(G);
-        window.toggleItemLock('normal_log');
+        G.inventory = { normal_log: 5 }; G.lockedItems = {}; G.lootFilter = []; G.gold = 500; stampBalanceLikeLoad(G); window.toggleItemLock('normal_log');
         assert(window.isItemLocked('normal_log') === true, 'the Lock action did not lock the item');
-        window.invSellOne('normal_log');
-        await rig.drain();
+        window.invSellOne('normal_log'); await rig.drain();
         assert(rig.sent.length === 0, 'a LOCKED item put ' + JSON.stringify(rig.sent) + ' on the wire — the lock must stop the client AUTHORING the sale, not merely hide a button');
         assert(bag() === 5, 'the locked stack left the bag anyway (' + bag() + ' of 5)');
         const refused = MK.listItem('normal_log', 1, 50);
         assert(refused && refused.ok === false && /unlock/i.test(String(refused.reason)), 'the MARKET listed a locked item — the one sale with no buy-back: ' + JSON.stringify(refused));
         assert(bag() === 5, 'the refused listing escrowed the stack out of the bag anyway');
-        window.toggleItemLock('normal_log');
-        window.invSellOne('normal_log');
-        await rig.drain();
+        window.toggleItemLock('normal_log'); window.invSellOne('normal_log'); await rig.drain();
         assert(rig.sent.length === 1 && rig.sent[0].verb === 'vendor_sell' && rig.sent[0].item === 'normal_log', 'after unlocking, the sale sent ' + JSON.stringify(rig.sent) + ' — the lock must GATE the sale, not break it');
       });
 
@@ -12882,15 +12877,13 @@ const TESTS = [
       window.showTab('inventory');
       await new Promise((r) => setTimeout(r, 60));
       const paint = async () => {
-        window._renderInvFancy();
-        await new Promise((r) => setTimeout(r, 20));
+        window._renderInvFancy(); await new Promise((r) => setTimeout(r, 20));
         const q = (sel) => document.querySelectorAll('#panel-inventory ' + sel);
         return { tiles: Array.prototype.map.call(q('.invc-tile:not(.invc-slot)'), (t) => t.getAttribute('title') || ''), chips: q('.invc-lf-chip').length, locks: q('.invc-lock').length };
       };
       const before = await paint();
       assert(before.tiles.length === 2 && before.chips === LF.classes().length + 1 && before.locks === 1, 'CONTROL: the bag drew ' + before.tiles.length + ' tiles, ' + before.chips + ' Keep chips and ' + before.locks + ' padlocks for two stacks (one locked) and ' + LF.classes().length + ' classes + Everything — the control and the badge must be ON SCREEN, not merely computed: ' + JSON.stringify(before.tiles));
-      LF.toggle('food');
-      const after = await paint();
+      LF.toggle('food'); const after = await paint();
       assert(after.tiles.length === 1 && after.tiles[0].indexOf(window.ITEMS[food].n) === 0, 'keeping only Food painted ' + JSON.stringify(after.tiles) + ' — the filter did not drop the other class');
       assert(bag() === 3, 'the filtered-out stack was REMOVED from the bag (' + bag() + ') — the filter is a display pref and the server owns the inventory');
 
@@ -12898,14 +12891,12 @@ const TESTS = [
       G.lockedItems = { normal_log: true };
       const patch = JSON.parse(JSON.stringify(CAP.buildResiduePatch(G)));
       assert(patch.lockedItems && patch.lockedItems.normal_log === true && patch.lootFilter.indexOf('food') >= 0, 'the residue patch dropped the lock or the filter: ' + JSON.stringify([patch.lockedItems, patch.lootFilter]));
-      delete G.lockedItems; delete G.lootFilter;
-      CS.hydrateInto(G, patch);
+      delete G.lockedItems; delete G.lootFilter; CS.hydrateInto(G, patch);
       assert(window.isItemLocked('normal_log') === true && (G.lootFilter || []).indexOf('food') >= 0, 'a reload forgot the lock or the filter: ' + JSON.stringify([G.lockedItems, G.lootFilter]));
       CS.hydrateInto(G, { lootFilter: 'food' });
       assert(Array.isArray(G.lootFilter) && G.lootFilter.length === 0, 'a garbage lootFilter hydrated as ' + JSON.stringify(G.lootFilter) + ' — the fail-safe is KEEP ALL, because a hidden bag is indistinguishable from a robbed one');
     } finally {
-      restoreG(snap);
-      try { window._renderInvFancy(); } catch (e) {}
+      restoreG(snap); try { window._renderInvFancy(); } catch (e) {}
     }
   }),
 
@@ -49052,8 +49043,7 @@ const TESTS = [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     const wasAck = A.isReplacementAcknowledged();
-    const save = { gold: G.gold, inventory: JSON.parse(JSON.stringify(G.inventory)),
-      skills: JSON.parse(JSON.stringify(G.skills)), lockedItems: G.lockedItems };
+    const snap = snapshotG();   /* gold/inventory/skills/lockedItems are all named by the allowlist now */
     let ver = 40;
     let sent = [];
     const envelope = (gold) => {
@@ -49153,8 +49143,7 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
-      Object.assign(G, save);
-      try { window.saveLocal(); } catch (e) {}
+      restoreG(snap);
     }
   }),
 

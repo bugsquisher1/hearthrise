@@ -35,6 +35,20 @@ const BASE_RECIPES = {
     {id:'cook_frostfin',  name:'Cook Frostfin',  icon:'❄️', input:'frostfin',  output:'cooked_frostfin',  xp:260, req:70, ms:5400},
     {id:'cook_swordfish', name:'Cook Swordfish', icon:'🐠', input:'swordfish', output:'cooked_swordfish', xp:150, req:45, ms:4200},
     {id:'cook_moonfish',  name:'Cook Moonfish',  icon:'🌙', input:'moonfish',  output:'cooked_moonfish',  xp:420, req:88, ms:6000},
+    /* b544 "Reed & Tide" — the cooking half of the four new fishing rungs, plus
+       two multi-input dishes that make late cooking want river crops.
+       SHAPE: the four singles use the SINGULAR `input` like every fish sibling
+       above; the two combos use `inputs:{}` like cook_veg_stew / cook_bear_pie.
+       Both shapes are read by the ONE helper — src/core/artisan.js
+       `recipeInputs` (`if (recipe.input) i[recipe.input] = recipe.inputQty||1`)
+       — which is also what the edge engine imports, so away accrual debits the
+       combos correctly without a second code path. */
+    {id:'cook_pikeperch',   name:'Grill Pikeperch',    icon:'🐠', input:'pikeperch',   output:'cooked_pikeperch',   xp:57, req:18, ms:3100},
+    {id:'cook_copper_crab', name:'Steam Copper Crab',  icon:'🦞', input:'copper_crab', output:'cooked_copper_crab', xp:66, req:21, ms:3200},
+    {id:'cook_silverfin',   name:'Cook Silverfin',     icon:'🍥', input:'silverfin',   output:'cooked_silverfin',   xp:76, req:24, ms:3350},
+    {id:'cook_goldgill',    name:'Sear Goldgill',      icon:'🍣', input:'goldgill',    output:'cooked_goldgill',    xp:88, req:27, ms:3500},
+    {id:'cook_river_chowder',name:'River Chowder',     icon:'🍲', inputs:{silverfin:2, potato:2, carrot:1}, output:'river_chowder', xp:198, req:52, ms:4600},
+    {id:'cook_fishers_pie', name:"Fisher's Pie",       icon:'🥧', inputs:{goldgill:2, wheat:3, potato:1},  output:'fishers_pie',   xp:218, req:56, ms:4700},
     // Combat-meat chain (Phase A.1 — needs raw_*_meat drops from beasts)
     {id:'cook_wolf_meat',    name:'Cook Wolf Meat',    icon:'🥩', inputs:{raw_wolf_meat:1},    output:'cooked_wolf_meat',    xp:35,  req:5,  ms:2400},
     {id:'cook_panther_meat', name:'Cook Panther Meat', icon:'🥩', inputs:{raw_panther_meat:1}, output:'cooked_panther_meat', xp:60,  req:25, ms:2800},

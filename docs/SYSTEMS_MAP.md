@@ -93,6 +93,42 @@ reaching 99 by `PRAYER-LADDER-1` in the in-page suite.
 `{id,name,icon,req,xp,ms,prod,qty}`) and `CROPS` (farming). Add a row = a new
 node. `prod` must be a real item id.
 
+A new node's `xp`/`ms` are not free: two standing in-page guards measure the
+whole table. `b226: every gathering rung is strictly faster XP/sec` forbids a
+rung that is slower than the one below it, and `b390: a full-tier gathering
+unlock is a CLEAR upgrade` requires ≥ +6% xp/sec whenever the `req` gap to the
+previous rung is ≥ 10. Measure before you author.
+
+**Fishing (b544 "Reed & Tide", 2026-09-13)** — the Trout(20) → Lobster(40) band:
+
+| req | node id | name | prod | xp | ms |
+|---|---|---|---|---|---|
+| 24 | `pikeperch_s` | Reed Pike Pool | `pikeperch` | 38 | 5400 |
+| 28 | `copper_crab_s` | Tidepool Crabs | `copper_crab` | 46 | 5900 |
+| 32 | `silverfin_s` | Silverfin Shoal | `silverfin` | 56 | 6500 |
+| 36 | `goldgill_s` | Goldgill Eddy | `goldgill` | 68 | 7200 |
+
+and their cooking half (`ARTISAN_RECIPES.cooking`), where the last two are the
+multi-input shape:
+
+| req | recipe id | inputs | output | heals | xp |
+|---|---|---|---|---|---|
+| 18 | `cook_pikeperch` | `pikeperch` | `cooked_pikeperch` | 16 | 57 |
+| 21 | `cook_copper_crab` | `copper_crab` | `cooked_copper_crab` | 18 | 66 |
+| 24 | `cook_silverfin` | `silverfin` | `cooked_silverfin` | 21 | 76 |
+| 27 | `cook_goldgill` | `goldgill` | `cooked_goldgill` | 23 | 88 |
+| 52 | `cook_river_chowder` | silverfin 2 + potato 2 + carrot 1 | `river_chowder` | 30 | 198 |
+| 56 | `cook_fishers_pie` | goldgill 2 + wheat 3 + potato 1 | `fishers_pie` | 34 (Feast) | 218 |
+
+⚠ **A NEW COOKED FOOD IS THREE SERVER ROWS, NOT ONE.** `hr_activities` (the
+tile can be started), `hr_items.heals` + `auto_eatable` (the AUTO-EAT POOL —
+a food that exists only client-side heals nothing away) and `hr_feast_foods`
+(the Tavern's heal). The first two come from `tools/gen-catalogues.mjs`; the
+third is a hand seed kept honest by `tests/clan-feast-catalogue-drift.mjs`,
+which reads EVERY migration that seeds the table in apply order — so add the
+rows in a NEW migration, never by editing an applied one. Played end to end by
+`REEDTIDE-1` in the in-page suite.
+
 ### 5. Monsters + drops — data
 `src/data/monsters.js` → `MONSTERS`. Drops live inline:
 `drops:[{id, ch}]` (ch = 0..1 chance). Add a drop = add to the array; the id must

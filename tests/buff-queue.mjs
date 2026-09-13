@@ -124,6 +124,7 @@ const MIG_CAT = '2026-09-13-item-buffs-catalogue.generated.sql';
 const MIG_PAY = '2026-09-13-buff-apply-coupling.sql';
 const MIG_SEG = '2026-09-13-buff-segments.sql';
 const MIG_SHAPE = '2026-09-13-buff-shape-code.sql';
+const MIG_PRED = '2026-09-13-buff-segments-predicate.sql';
 const U = '00000000-0000-4000-8000-0000000000b5';
 const J = { kind: 'admin', intent: 'buff-queue:probe' };
 const CAP_MS = 3600000;
@@ -160,6 +161,12 @@ const BLIND = {
   [MIG_PAY]: ["  if strpos(v_apply, 'buff_not_paid') = 0 then",
     '  return;  -- \u00a72 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  if strpos(v_apply, 'buff_not_paid') = 0 then"],
+  /* The predicate file's §2 — its own (c1)/(c2) assertions catch the two predicate
+     mutations, so without this blind the tick would be "the migration refused"
+     rather than "this guard noticed" (MEASURED: merge_replaces_other_types threw). */
+  [MIG_PRED]: ['  -- (a) THE PATCH LANDED, and nothing else in the buff block moved.',
+    ['  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)',
+      '  -- (a) THE PATCH LANDED, and nothing else in the buff block moved.'].join('\n')],
   /* The shape-code file's §2, anchored on its first assertion. */
   [MIG_SHAPE]: ["  if strpos(v_apply, $q$perform public.hr_reject('bad_buff_shape',$q$) = 0 then",
     '  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
@@ -189,15 +196,22 @@ const MUTATIONS = {
       "      if exists (select 1 from jsonb_object_keys(p_delta->'buff_apply') as t(bk)\n                  where false) then"]],
   },
   client_authors_magnitude: {
-    file: MIG,
+    /* TWO FILES, one defect: the forgery gate lives in consumable-buffs.sql and the
+       magnitude ASSIGNMENT moved to buff-segments.sql when max() was replaced by
+       "its own magnitude". Mutating the old assignment text made the segments
+       file's splice no-op, which cascaded into the predicate file refusing to
+       install — a harness error three files downstream (MEASURED). */
+    files: [
+      [MIG, [["                  where t.bk <> 'item') then", '                  where false) then']]],
+      [MIG_SEG, [['      v_buff_newmag := v_buff_mag;',
+        "      v_buff_newmag := coalesce((p_delta->'buff_apply'->>'magnitude')::numeric, v_buff_mag);"]]],
+    ],
     why: 'THE ONE CLAUDE.md §1 FORBIDS BY NAME: the client\'s own `magnitude` reaches the stored buff '
        + '(forgery gate off + the delta read), so a browser sets its own damage bonus',
-    pairs: [["                  where t.bk <> 'item') then", '                  where false) then'],
-      ['      v_buff_newmag := greatest(v_buff_mag, coalesce((v_buff_old->>\'magnitude\')::numeric, 0));',
-        "      v_buff_newmag := greatest(coalesce((p_delta->'buff_apply'->>'magnitude')::numeric, v_buff_mag),\n"
-        + "                                coalesce((v_buff_old->>'magnitude')::numeric, 0));"]],
   },
   client_authors_until: {
+    /* Both lines are still in consumable-buffs.sql: the clamp is between the two
+       regions buff-segments.sql re-splices, so this one stays single-file. */
     file: MIG,
     why: 'the client\'s own `until` reaches the stored buff — a browser grants itself a buff that never '
        + 'expires, which is the whole reason the expiry is an absolute server stamp',
@@ -236,25 +250,32 @@ const MUTATIONS = {
     pairs: [['                            v_buff_cap);', '                            v_buff_base + interval \'400 hours\');']],
   },
   merge_replaces_other_types: {
-    /* Re-pointed for the same reason as second_helping_restarts: the rebuild this
-       targeted lives in the segments file now. */
-    file: MIG_SEG,
+    /* Re-pointed twice now: the rebuild moved to the segments file, then its
+       predicate moved again to the predicate file (the repo/production
+       convergence). A mutation belongs in whichever file owns the LIVE text. */
+    file: MIG_PRED,
     why: 'the rebuild keeps only the type being applied, so eating a second dish DELETES the buff of '
        + 'every other type — a player pays for a Feast and loses the one they were running',
     /* ` and false` appended, NOT the predicate replaced: `and ((false` leaves the
        expression's parentheses unbalanced, the file fails to INSTALL, and a file
        that will not install is a harness error dressed up as a catch (MEASURED —
        "INTO specified more than once"). A mutation must apply CLEAN. */
-    pairs: [["         and (((e.v->>'type') <> v_buff_type)",
-      "         and (((e.v->>'type') <> v_buff_type and false)"]],
+    /* PLANTED IN THE FILE THAT OWNS THE LIVE TEXT. The type-explicit predicate
+       lives in 2026-09-13-buff-segments-predicate.sql now: buff-segments.sql was
+       reverted to the text production applied, so mutating it here would patch a
+       string the next file replaces anyway. */
+    pairs: [["              or ((e.v->>'type') = v_buff_type",
+      "              or ((e.v->>'type') = v_buff_type and false"]],
   },
-  magnitude_replaces_instead_of_max: {
-    file: MIG,
-    why: 'magnitude becomes the NEW value instead of max(old,new), so a Roasted Carrot dilutes a Void '
-       + 'Banquet — the stacking ruling inverted',
-    pairs: [["      v_buff_newmag := greatest(v_buff_mag, coalesce((v_buff_old->>'magnitude')::numeric, 0));",
-      '      v_buff_newmag := v_buff_mag;']],
-  },
+  /* ⚠ `magnitude_replaces_instead_of_max` LIVED HERE AND IS DELETED, not re-pointed.
+     It inverted the max() merge — a rule that no longer exists: per-segment stacking
+     replaced it with "each segment carries its OWN magnitude", so the text it
+     mutated is text 2026-09-13-buff-segments.sql re-splices, and mutating it only
+     stopped the segment model from installing (a harness error, MEASURED). Its
+     PROPERTY — a cheap food must never carry an expensive magnitude — is owned by
+     `segment_magnitude_laundered` below, which mutates the LIVE assignment and
+     restores the real laundering. A mutation whose rule has been superseded is not
+     re-pointed; it is removed, and the arm that replaced it is named. */
   second_helping_restarts: {
     /* OWNED BY THE SEGMENTS FILE NOW. It used to patch consumable-buffs.sql's base
        assignment — text 2026-09-13-buff-segments.sql REPLACES — so the mutation
@@ -326,12 +347,25 @@ const MUTATIONS = {
     pairs: [["         and (e.v->>'magnitude')::numeric >= v_buff_mag;", '         and true;']],
   },
   segment_keeps_covered_weaker: {
-    file: MIG_SEG,
+    file: MIG_PRED,
     why: 'a weaker segment the new one COVERS survives instead of being dropped, so its time did not '
        + 'pass while the stronger effect ran — the buff clock pauses, which is the exact property the '
        + 'absolute `until` model removed (BUFF_DRAIN_RULE)',
-    pairs: [["                       or (e.v->>'until')::timestamptz > v_buff_until)));",
-      '                       or true)));']],
+    /* The predicate file owns this text now (see merge_replaces_other_types), and
+       the COVERAGE lines are byte-identical in that file's anchor and its
+       replacement — so the find SPANS the line unique to the new form, and the
+       coverage test becomes `true`: every live same-type segment is kept, i.e. a
+       covered weaker one survives. */
+    pairs: [[[
+      "              or ((e.v->>'type') = v_buff_type",
+      '                  and not (v_buff_same is not null and e.v = v_buff_same)',
+      "                  and ((e.v->>'magnitude')::numeric >= v_buff_mag",
+      "                       or (e.v->>'until')::timestamptz > v_buff_until)));",
+    ].join('\n'), [
+      "              or ((e.v->>'type') = v_buff_type",
+      '                  and not (v_buff_same is not null and e.v = v_buff_same)',
+      '                  and (true)));',
+    ].join('\n')]],
   },
   segment_budget_off: {
     file: MIG_SEG,
@@ -386,7 +420,13 @@ const patchesFor = (mutate, blind) => {
   if (mutate) {
     const m = MUTATIONS[mutate];
     if (!m) throw harness(`unknown mutation '${mutate}' (see --list)`);
-    add(m.file, m.pairs);
+    /* ONE DEFECT, SOMETIMES TWO FILES. "The client authors the magnitude" needs the
+       forgery gate disarmed in the file that owns the gate AND the value read in
+       the file that owns the assignment — this chain re-splices the same block
+       three times, so a defect's lines do not all live together. `files` is the
+       multi-file form; `file`/`pairs` stays for the single-file majority. */
+    if (m.files) for (const [f, pairs] of m.files) add(f, pairs);
+    else add(m.file, m.pairs);
   }
   return map.size ? map : undefined;
 };

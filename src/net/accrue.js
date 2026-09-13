@@ -2231,6 +2231,9 @@ export function reconcileBuffs(G, res) {
       magnitude,
       remainingMs,
       until: (typeof r.until === 'string' && r.until) ? r.until : null,
+      /* The Cellar multiplier hr_apply stamped this segment with. DISPLAY ONLY: the
+         minutes are already in `until`, so paying it again would pay it twice. */
+      scale: (Number.isFinite(Number(r.scale)) && Number(r.scale) > 0) ? Number(r.scale) : 1,
     });
   }
   out.sort((a, b) => a.remainingMs - b.remainingMs);

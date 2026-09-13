@@ -42,6 +42,15 @@ const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-11-catalogue.generated
    Both files are covered by the same `--check`. */
 const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
   '2026-09-13-item-buffs-catalogue.generated.sql');
+/* THE THIRD GENERATED FILE (2026-09-13, buffs step 3). hr_room_perks is the
+   ROOM RUNG -> PERK payload, the same table src/data/perks.js holds for the two
+   JS runtimes, so hr_apply can price the Cellar's buffDuration under the
+   character lock without a second hand-typed copy of a balance ladder. Same
+   operational reason as OUT_ITEM_BUFFS for being its own LAST-registered file
+   rather than folded into OUT (which is already applied and is the chain's
+   fourth file). Covered by the same `--check`. */
+const OUT_ROOM_PERKS = join(ROOT, 'supabase', 'migrations',
+  '2026-09-13-room-perks-catalogue.generated.sql');
 
 const imp = (rel) => import(pathToFileURL(join(ROOT, rel)).href);
 
@@ -855,6 +864,181 @@ begin
 end $$;
 `;
 
+// ── 4c. Emit the ROOM RUNG → PERK catalogue (its own migration file) ──────
+// src/data/perks.js is ITSELF generated (tools/gen-perks.mjs, from the ROOMS
+// table in src/legacy.js, `--check`ed in the smoke preflight), so this is the
+// THIRD link of one chain and not a second authoring site: legacy.js ROOMS →
+// perks.js ROOM_PERKS → hr_room_perks. A designer still changes exactly one
+// number in exactly one place, and two guards fail if any link goes stale.
+const { ROOM_PERKS, ROOM_PERK_KEYS } = await imp('src/data/perks.js');
+/* The server's fuse on how far a perk stack may stretch a buff, mirrored from
+   hr_apply's c_buff_scale_max (2026-09-13-buff-cellar-scale.sql): scale =
+   1 + bonus, capped at 2×. A rung that SOLD more duration than the server will
+   ever pay is a tooltip lie, so it fails generation rather than shipping. */
+const BUFF_SCALE_MAX_BONUS = 1;
+const roomPerkKeys = new Set(ROOM_PERK_KEYS);
+const roomPerks = [];
+for (const room of Object.keys(ROOM_PERKS).sort()) {
+  const rungs = ROOM_PERKS[room];
+  if (!Array.isArray(rungs) || rungs.length === 0) {
+    die(`room "${room}" has no rungs in src/data/perks.js — an empty ladder reads as "this room pays `
+      + 'nothing" to every server-side consumer');
+  }
+  rungs.forEach((rung, i) => {
+    for (const [k, v] of Object.entries(rung)) {
+      if (!roomPerkKeys.has(k)) {
+        die(`room "${room}" rung ${i + 1} carries perk key ${JSON.stringify(k)}, which is not in `
+          + 'ROOM_PERK_KEYS — the generated file and its own vocabulary disagree');
+      }
+      if (!Number.isFinite(v)) {
+        die(`room "${room}" rung ${i + 1} key "${k}" is ${JSON.stringify(v)} — a perk magnitude must be `
+          + 'a finite number');
+      }
+    }
+    // Canonical key order, so the emitted jsonb is byte-stable across runs.
+    const canonicalRung = {};
+    for (const k of Object.keys(rung).sort()) canonicalRung[k] = rung[k];
+    roomPerks.push({ room_id: room, level: i + 1, perks: canonicalRung });
+  });
+}
+// THE ONE KEY POSTGRES ACTUALLY READS TODAY, checked as such. The table carries
+// every room because a filtered copy is the shape that goes stale in silence,
+// but buffDuration is the only key hr_apply prices, so it is the only one whose
+// absence or excess is fatal here.
+const cellarRungs = roomPerks.filter((r) => r.room_id === 'cellar');
+if (cellarRungs.length === 0) {
+  die('no `cellar` room in src/data/perks.js — hr_apply would price every buff at scale 1.0 while the '
+    + 'shop sold five rungs of "Food buffs last longer". A catalogue that is silently empty is the '
+    + 'always-null probe this repo has been bitten by nine times.');
+}
+let prevBuffDuration = -Infinity;
+for (const r of cellarRungs) {
+  const bd = r.perks.buffDuration;
+  if (!Number.isFinite(bd) || bd <= 0) {
+    die(`cellar rung ${r.level} has buffDuration ${JSON.stringify(bd)} — every Cellar rung must sell a `
+      + 'positive amount of duration, or a player pays gold for a rung the server prices at nothing');
+  }
+  if (bd > BUFF_SCALE_MAX_BONUS) {
+    die(`cellar rung ${r.level} sells buffDuration ${bd}, above the server's ${BUFF_SCALE_MAX_BONUS} `
+      + 'cap — hr_apply would clamp it and the shop line would promise minutes the server refuses to '
+      + `hold. Author it at or below ${BUFF_SCALE_MAX_BONUS}, or raise c_buff_scale_max first.`);
+  }
+  if (bd < prevBuffDuration) {
+    die(`cellar rung ${r.level} sells LESS duration (${bd}) than the rung below it (${prevBuffDuration}) `
+      + '— a rung payload REPLACES the one below it, so upgrading would take the bonus away');
+  }
+  prevBuffDuration = bd;
+}
+const ROOM_PERK_DIGEST = createHash('sha256').update(JSON.stringify(roomPerks)).digest('hex');
+const ROOM_IDS = [...new Set(roomPerks.map((r) => r.room_id))];
+const sqlRoomPerks = `-- ════════════════════════════════════════════════════════════════════════
+-- Hearthrise — hr_room_perks, THE ROOM RUNG → PERK CATALOGUE  (GENERATED — DO NOT EDIT)
+--
+--   Generated by tools/gen-catalogues.mjs from src/data/perks.js, which is
+--   itself generated by tools/gen-perks.mjs from \`const ROOMS={…}\` in
+--   src/legacy.js. Any hand edit here is reverted by the next generation and
+--   FAILS \`node tools/gen-catalogues.mjs --check\`, a preflight in
+--   tests/run-sql-tests.mjs and tests/run-smoke.mjs.
+--
+--   catalogue digest: ${ROOM_PERK_DIGEST}
+--   rows: ${roomPerks.length} rung payloads across ${ROOM_IDS.length} rooms (${ROOM_IDS.join(', ')})
+--
+-- WHAT THIS IS FOR. hr_apply prices the CELLAR's \`buffDuration\` when it stamps a
+-- buff segment's \`until\` (2026-09-13-buff-cellar-scale.sql): the scale is read
+-- HERE, under the character lock, from the server's own row — never from the
+-- delta, which has no key for it and is refused \`bad_buff_shape\` if it invents
+-- one. The other rooms are carried because a FILTERED copy of a balance table is
+-- the shape that goes stale in silence; the JS engines still read
+-- src/data/perks.js directly, and both sides therefore move together.
+--
+-- A RUNG PAYLOAD REPLACES THE RUNG BELOW IT (getBonus reads \`levels[lv-1]\`,
+-- never a sum), so each row restates every key it keeps. Read it that way.
+--
+-- APPLY ORDER: anywhere after supabase/schema.sql; BEFORE
+--              2026-09-13-buff-cellar-scale.sql, which FAILS CLOSED without it.
+--
+-- SAFE TO RE-RUN. Rows are replaced wholesale in one statement pair, so a
+-- DELETED room really disappears — an upsert-only generator leaves a ghost row
+-- behind, and a ghost rung is a bonus nobody can see being paid.
+-- ════════════════════════════════════════════════════════════════════════
+
+create table if not exists public.hr_room_perks (
+  room_id text  not null,
+  level   int   not null check (level >= 1),
+  -- The rung's whole payload, verbatim. jsonb rather than a key/value row per
+  -- perk: the payload IS the unit of replacement in the game's own model, and
+  -- splitting it here would let a reader reassemble a rung that never existed.
+  perks   jsonb not null check (jsonb_typeof(perks) = 'object'),
+  primary key (room_id, level)
+);
+
+-- Wholesale replace. One transaction with the insert below it.
+delete from public.hr_room_perks;
+
+insert into public.hr_room_perks (room_id, level, perks) values
+${valuesBlock(roomPerks, (r) => `  ('${r.room_id}',${r.level},'${JSON.stringify(r.perks).replace(/'/g, "''")}'::jsonb)`)};
+
+-- ── RLS + grants. World-readable (the client renders the same ladder out of
+--    src/data/perks.js anyway), writable by NOBODY but the migration owner.
+--    Revoke BEFORE grant, and revoke what Supabase's default ACL hands
+--    anon/authenticated/service_role on a new table — TRUNCATE included.
+do $$
+begin
+  alter table public.hr_room_perks enable row level security;
+  revoke all on public.hr_room_perks from public, anon, authenticated, service_role;
+  grant select on public.hr_room_perks to anon, authenticated, service_role;
+  drop policy if exists "hr_room_perks readable" on public.hr_room_perks;
+  create policy "hr_room_perks readable" on public.hr_room_perks for select using (true);
+end $$;
+
+-- ── Self-verification ────────────────────────────────────────────────────
+do $$
+declare v_n int; v_bad int; v_top numeric;
+begin
+  select count(*) into v_n from public.hr_room_perks;
+  if v_n <> ${roomPerks.length} then
+    raise exception 'hr_room_perks has % rows, generator emitted ${roomPerks.length}', v_n;
+  end if;
+
+  -- THE LADDER IS CONTIGUOUS FROM 1. hr_apply clamps a stored rung to what
+  -- exists here; a hole would make an owned rung read as the rung below it.
+  select count(*) into v_bad from (
+    select room_id, count(*) as n, min(level) as lo, max(level) as hi
+      from public.hr_room_perks group by room_id) t
+   where t.lo <> 1 or t.hi <> t.n;
+  if v_bad > 0 then raise exception '% rooms have a non-contiguous rung ladder', v_bad; end if;
+
+  -- THE CELLAR, the one room a SQL body prices. Its absence is not a smaller
+  -- bonus, it is a perk the player bought and the server never pays.
+  select count(*) into v_bad from public.hr_room_perks
+   where room_id = 'cellar' and (perks->>'buffDuration') is null;
+  if v_bad > 0 then
+    raise exception '% cellar rungs carry no buffDuration — the shop sells duration the server '
+                    'would price at nothing', v_bad;
+  end if;
+  select max((perks->>'buffDuration')::numeric) into v_top
+    from public.hr_room_perks where room_id = 'cellar';
+  if v_top is null then raise exception 'no cellar rungs in hr_room_perks'; end if;
+  if v_top > ${BUFF_SCALE_MAX_BONUS} then
+    raise exception 'the top cellar rung sells % duration, above the server cap of ${BUFF_SCALE_MAX_BONUS} '
+                    '— hr_apply would clamp it and the shop line would be a lie', v_top;
+  end if;
+
+  -- No client write policy, and no client write grant.
+  select count(*) into v_bad from pg_policies
+   where schemaname = 'public' and tablename = 'hr_room_perks'
+     and cmd in ('INSERT','UPDATE','DELETE','ALL');
+  if v_bad > 0 then raise exception '% write policies on hr_room_perks', v_bad; end if;
+  select count(*) into v_bad from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'hr_room_perks'
+     and grantee in ('anon','authenticated','service_role','PUBLIC')
+     and privilege_type <> 'SELECT';
+  if v_bad > 0 then raise exception '% client write grants on hr_room_perks', v_bad; end if;
+
+  raise notice 'hr_room_perks OK — % rows, digest ${ROOM_PERK_DIGEST}', v_n;
+end $$;
+`;
+
 // ── 5. Write or check ────────────────────────────────────────────────────
 const CHECK = process.argv.includes('--check');
 if (CHECK) {
@@ -892,8 +1076,24 @@ if (CHECK) {
     console.error('  Run: node tools/gen-catalogues.mjs   (and re-apply the migration)');
     process.exit(1);
   }
+  // THE THIRD FILE, same rigour, reported SEPARATELY — a `--check` that went
+  // green on a stale hr_room_perks would let the Cellar's shop line and the
+  // duration hr_apply actually pays drift apart with nothing watching.
+  const existingRoomPerks = await readFile(OUT_ROOM_PERKS, 'utf8').catch(() => null);
+  if (existingRoomPerks === null) {
+    console.error(`room-perk catalogue drift: ${OUT_ROOM_PERKS} is missing. `
+      + 'Run: node tools/gen-catalogues.mjs');
+    process.exit(1);
+  }
+  if (norm(existingRoomPerks) !== norm(sqlRoomPerks)) {
+    console.error('room-perk catalogue drift: src/data/perks.js no longer matches the generated SQL.');
+    console.error(`  expected digest ${ROOM_PERK_DIGEST}`);
+    console.error('  Run: node tools/gen-catalogues.mjs   (and re-apply the migration)');
+    process.exit(1);
+  }
   console.log(`catalogue in sync (${items.length} items, digest ${DIGEST.slice(0, 12)}…)`);
   console.log(`item buffs in sync (${itemBuffs.length} foods, digest ${BUFF_DIGEST.slice(0, 12)}…)`);
+  console.log(`room perks in sync (${roomPerks.length} rungs, digest ${ROOM_PERK_DIGEST.slice(0, 12)}…)`);
 } else {
   await writeFile(OUT, sql, 'utf8');
   console.log(`wrote ${OUT}`);
@@ -903,4 +1103,8 @@ if (CHECK) {
   console.log(`wrote ${OUT_ITEM_BUFFS}`);
   console.log(`  ${itemBuffs.length} buff foods · types ${BUFF_TYPES.join(', ')}`);
   console.log(`  digest ${BUFF_DIGEST}`);
+  await writeFile(OUT_ROOM_PERKS, sqlRoomPerks, 'utf8');
+  console.log(`wrote ${OUT_ROOM_PERKS}`);
+  console.log(`  ${roomPerks.length} rung payloads · rooms ${ROOM_IDS.join(', ')}`);
+  console.log(`  digest ${ROOM_PERK_DIGEST}`);
 }

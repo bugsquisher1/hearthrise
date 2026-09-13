@@ -2324,9 +2324,20 @@ body[data-theme] .brand-word {
     padding: 0 0 3px !important;
     gap: 8px; flex-wrap: nowrap;
   }
+  /* One text run under `text-overflow: ellipsis` cuts wherever the text
+   * ends — when the Depot button joined `.invc-actions` that was inside the
+   * free-stack count ("(81 fr…"). The ellipsis is right; the ORDER OF SACRIFICE
+   * was missing. Rank on a 423px screen: capacity, then free stacks (what "Buy
+   * space" sells), then the item/gold summary — which the bag itself shows. So
+   * the first two never shrink and the rest is dropped, not half-drawn. */
   body[data-theme] #panel-inventory .invc-topbar .invc-space {
-    font-size: var(--t-micro); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: var(--t-micro); white-space: nowrap; overflow: hidden;
+    display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; flex: 1 1 auto;
   }
+  body[data-theme] #panel-inventory .invc-topbar .invc-space-unit,
+  body[data-theme] #panel-inventory .invc-topbar .invc-space-sub { display: none; }
+  body[data-theme] #panel-inventory .invc-topbar .invc-space-cap,
+  body[data-theme] #panel-inventory .invc-topbar .invc-space-free { flex: 0 0 auto; }
   body[data-theme] #panel-inventory .invc-topbar .invc-actions { gap: 4px; flex: 0 0 auto; }
   body[data-theme] #panel-inventory .invc-topbar .invc-actions button,
   body[data-theme] #panel-inventory .invc-topbar .invc-actions .btn {

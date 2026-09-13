@@ -16837,8 +16837,8 @@ function renderInvFancy(){
          half (item + gold totals) lives in .invc-space-sub, which is the ONLY
          thing _renderInvSummary() may rewrite — it used to overwrite this whole
          node's textContent on every tab entry, so the slot figure survived for
-         about 50ms and the player never saw their capacity at all. */
-      '<span class="invc-space">'+entries.length+' / '+bankCap()+' slots'
+         about 50ms and the player never saw their capacity at all. The three facts are NAMED elements so a short viewport can drop whole ones rather than ellipsise mid-fact (art-direction.css §mobile); the text content is unchanged. */
+      '<span class="invc-space"><span class="invc-space-cap">'+entries.length+' / '+bankCap()+'<span class="invc-space-unit"> slots</span></span>'
         +' <span class="invc-space-free">('+Math.max(0, bankCap()-bankUsed()).toLocaleString()+' free)</span>'
         +'<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
       '<div class="invc-actions">'+

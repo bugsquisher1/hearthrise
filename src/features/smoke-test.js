@@ -27002,6 +27002,19 @@ const TESTS = [
       doc.close();
       const win = frame.contentWindow;
       const q = (s) => doc.querySelector(s);
+      /* The slot line's width is a function of the player's numbers, and the
+         suite's bag is nearly empty — narrow enough to fit even when the layout
+         is broken. Re-state it at the worst case a real bag produces before
+         measuring. The plant is the structure renderInvFancy emits, and that it
+         emitted it is asserted below: a missing span must read as a failure. */
+      const slotEl = q('.invc-topbar .invc-space');
+      const slotNamed = !!(slotEl && slotEl.querySelector('.invc-space-cap')
+        && slotEl.querySelector('.invc-space-unit') && slotEl.querySelector('.invc-space-free')
+        && slotEl.querySelector('.invc-space-sub'));
+      if (slotNamed) slotEl.innerHTML =
+        '<span class="invc-space-cap">1,000 / 1,000<span class="invc-space-unit"> slots</span></span>'
+        + ' <span class="invc-space-free">(981 free)</span>'
+        + '<span class="invc-space-sub"> · 2,719 items · 1,284,905 gp</span>';
       const rect = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right, w: b.width, h: b.height }; };
       const heroH4 = [...doc.querySelectorAll('.invc-stat-card h4')]
         .find((h) => h.textContent.trim().toUpperCase().indexOf('HERO') === 0);
@@ -27021,6 +27034,36 @@ const TESTS = [
         tabs: rect(tabsEl),
         tabsText: tabsEl ? tabsEl.textContent : '',
         tabGlyphs: doc.querySelectorAll('#inv-mob-tabs .hr-glyph').length,
+        slotNamed,
+        actionBtns: doc.querySelectorAll('.invc-topbar .invc-actions button, .invc-topbar .invc-actions .btn').length,
+        /* The DECLARED ORDER OF SACRIFICE, read off the cascade rather than off a
+           width — see the ordering block below for why a width is not trusted here. */
+        rank: (function(){
+          const g = (sel) => { const el = q('.invc-topbar ' + sel); return el ? win.getComputedStyle(el) : null; };
+          const cap = g('.invc-space-cap'), free = g('.invc-space-free'),
+                unit = g('.invc-space-unit'), sub = g('.invc-space-sub'), line = g('.invc-space');
+          return {
+            capShrink: cap && cap.flexShrink, freeShrink: free && free.flexShrink,
+            unitDisplay: unit && unit.display, subDisplay: sub && sub.display,
+            lineOverflow: line && line.overflowX, lineWrap: line && line.whiteSpace,
+          };
+        })(),
+        space: rect(q('.invc-topbar .invc-space')),
+        spaceCap: rect(q('.invc-topbar .invc-space-cap')),
+        spaceFree: rect(q('.invc-topbar .invc-space-free')),
+        spaceText: (q('.invc-topbar .invc-space') || {}).textContent || '',
+        /* What a player at this viewport can actually READ on the slot line:
+           the node's text minus every display:none descendant. */
+        spaceRead: (function(){
+          const src = q('.invc-topbar .invc-space'); if(!src) return '';
+          const live = [...src.querySelectorAll('*')];
+          const clone = src.cloneNode(true);
+          const twins = [...clone.querySelectorAll('*')];   // same document order
+          for (let i = live.length - 1; i >= 0; i--) {
+            if (win.getComputedStyle(live[i]).display === 'none' && twins[i]) twins[i].remove();
+          }
+          return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+        })(),
       };
     } finally {
       frame.remove();
@@ -27064,6 +27107,41 @@ const TESTS = [
       'each sub-tab must carry a baked atlas glyph, not an emoji that the chrome sweep deletes (found ' + out.tabGlyphs + ')');
     assert(!/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u.test(out.tabsText),
       'no emoji may render in the inventory sub-tab strip');
+
+    /* (5) THE SLOT LINE HAS A DECLARED ORDER OF SACRIFICE. The visual
+     *     sweep measured `"(81 free)" cut by .invc-space` at exactly this
+     *     viewport: the topbar shares its column with four action buttons and
+     *     the line was one ellipsised text run, so the cut fell inside the
+     *     free-stack count.
+     *     ASSERTED OFF THE CASCADE, NOT OFF A WIDTH: this probe has no web
+     *     faces, so it lays the line out in the fallback for --f-label (Cinzel)
+     *     and the worst case fits here in 197px where it did not on the device.
+     *     Widths belong to tests/visual-qa-gate.mjs, which measures the real
+     *     page with the real faces and refuses a verdict without them. The
+     *     font-independent half — and the fix itself — is the ORDER: capacity
+     *     and free stacks never shrink; the unit word and the volatile summary
+     *     are what go. Deleting either half turns this red. */
+    assert(out.space && out.space.w > 0, 'the slot line must render at 922x423');
+    assert(out.slotNamed,
+      'renderInvFancy must emit the slot line as NAMED facts (.invc-space-cap + .invc-space-unit, .invc-space-free, .invc-space-sub) — without them a short viewport cannot rank them and every assertion below would be vacuous');
+    assert(out.actionBtns >= 3,
+      'the probe needs the real action buttons beside the slot line — they are what narrows it; found ' + out.actionBtns);
+    assert(out.rank.capShrink === '0' && out.rank.freeShrink === '0',
+      'THE b545 BUG: on a landscape phone the capacity and free-stack facts must be unshrinkable, so the cut can never land inside them — flex-shrink cap=' + out.rank.capShrink + ' free=' + out.rank.freeShrink);
+    assert(out.rank.unitDisplay === 'none' && out.rank.subDisplay === 'none',
+      'THE b545 BUG: the line must give up the unit word and the item/gold summary WHOLE rather than half-draw them — display unit=' + out.rank.unitDisplay + ' sub=' + out.rank.subDisplay + ' (read: "' + out.spaceRead + '")');
+    assert(out.rank.lineOverflow === 'hidden' && /nowrap/.test(out.rank.lineWrap || ''),
+      'the slot line must still be a single clipped rank on a 423px-tall screen (b327 chrome budget) — overflow ' + out.rank.lineOverflow + ', white-space ' + out.rank.lineWrap);
+    assert(out.spaceCap && out.spaceFree, 'the slot line must expose its capacity and free-stack facts as named elements');
+    ['spaceCap', 'spaceFree'].forEach((k) => {
+      const r = out[k];
+      assert(r.r <= out.space.r + 2 && r.l >= out.space.l - 2,
+        'THE b545 BUG: .' + (k === 'spaceCap' ? 'invc-space-cap' : 'invc-space-free') + ' is cut by .invc-space on a landscape phone — child ' + Math.round(r.l) + '..' + Math.round(r.r) + ' vs parent ' + Math.round(out.space.l) + '..' + Math.round(out.space.r) + ' (readable line: "' + out.spaceRead + '")');
+    });
+    assert(/[\d,]+\s*\/\s*[\d,]+/.test(out.spaceRead) && /[\d,]+\s*free\)?/.test(out.spaceRead),
+      'the landscape slot line must still state used/cap AND free stacks — read "' + out.spaceRead + '"');
+    assert(/[\d,]+\s*\/\s*[\d,]+\s*slots/.test(out.spaceText),
+      'the slot line\'s TEXT must keep the b348 wording for _renderInvSummary\'s contract — got "' + out.spaceText + '"');
   }),
 
   () => tryRun('b369: Character > Equipment survives a 922x423 landscape phone — square, contained, non-overlapping slots (Tyler: "the weapon sprite is floating over the Cape cell")', () => {

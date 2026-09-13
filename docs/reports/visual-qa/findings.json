@@ -126,7 +126,7 @@
       }
     ],
     "stats": {
-      "els": 611,
+      "els": 613,
       "chars": 771
     },
     "viewport": "desktop"
@@ -235,7 +235,7 @@
     ],
     "stats": {
       "els": 367,
-      "chars": 1084
+      "chars": 1071
     },
     "viewport": "desktop"
   },
@@ -408,18 +408,6 @@
     "issues": [
       {
         "sev": "P1",
-        "kind": "clipped-by-parent",
-        "detail": "\"(81 free)\" cut by .invc-space",
-        "el": "#panel-inventory>.invc-topbar>.invc-space>span.invc-space-free"
-      },
-      {
-        "sev": "P1",
-        "kind": "clipped-by-parent",
-        "detail": "\"· 2,719 items\" cut by .invc-space",
-        "el": "#panel-inventory>.invc-topbar>.invc-space>span.invc-space-sub"
-      },
-      {
-        "sev": "P1",
         "kind": "small-target",
         "detail": "31 controls <44px — worst: 28px \"Everything\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 28px \"Weapons\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 28px \"Armour\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip",
         "el": "#app>.main>#panel-inventorysection.panel"
@@ -535,7 +523,7 @@
     ],
     "stats": {
       "els": 317,
-      "chars": 1106
+      "chars": 1078
     },
     "viewport": "landscape"
   }

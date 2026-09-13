@@ -1504,6 +1504,16 @@ const snapshotG = () => {
        `null` reads as ABSENT at both consumers — the fail-safe direction. */
     heroSlotsUnlocked: G.heroSlotsUnlocked ?? null,
     _heroSlots: G._heroSlots ?? null,
+    /* THE SELL-LOCK AND ITS LOOT-FILTER TWIN — both residue, both persisted by
+       hr_put_client_state, and four tests were already writing `lockedItems` and
+       putting it back by hand in their own `finally`. That is four authors
+       remembering; this list is the suite remembering, and a suite run that
+       silently UNLOCKS a player's protected stacks is the b494 class exactly.
+       ⚠ `?? null` (not the bare read): neither key is in the fresh-G literal,
+         JSON drops undefined, and a dropped key restores nothing (SNAP-2). Both
+         read as ABSENT at every consumer — no lock, keep everything. */
+    lockedItems: G.lockedItems ?? null,
+    lootFilter: G.lootFilter ?? null,
   }));
 };
 
@@ -12828,6 +12838,67 @@ const TESTS = [
   // saves G state, mutates, runs the action, asserts the expected
   // outcome, then restores. NEVER pollutes the player's save.
   // ─────────────────────────────────────────────────────────────
+
+  /* ── SELLLOCK-1 — the sell-lock and the loot filter, played ─────────────────
+     The lock's whole contract is NEGATIVE: it stops this client from ever
+     AUTHORING a sale for that id. So the proof is the WIRE, never a disabled
+     button — a refusal that still posts the intent is a race the server settles in
+     the seller's favour. Both sale surfaces are here because the lock was wired
+     into the vendor and stopped: the market listing, the one sale with no
+     buy-back, went out locked until now. The filter half asserts the PAINT and the
+     bag together: it must hide a class and must never REMOVE one. Then the residue
+     round-trip, because a pref that does not survive a reload is §6's "forgotten
+     on reload" class with a padlock on it. */
+  () => tryRunAsync('SELLLOCK-1: a locked item sends no sale and cannot be listed; the loot filter hides a class; both survive a reload', async () => {
+    const G = window.G, CS = window.HearthriseClientState, CAP = window.HearthriseCapstone, MK = window.HearthriseMarket, LF = window.HearthriseLootFilter;
+    const snap = snapshotG();
+    const bag = () => G.inventory.normal_log || 0;
+    assert(CS && typeof CS.hydrateInto === 'function' && CAP && typeof CAP.buildResiduePatch === 'function' && MK && typeof MK.listItem === 'function' && LF && typeof LF.toggle === 'function' && typeof window.toggleItemLock === 'function', 'CONTROL: a seam this test drives is unpublished (residue / market / lock) — it would pass vacuously');
+    assert(CAP.RESIDUE_FIELDS.indexOf('lockedItems') >= 0 && CAP.RESIDUE_FIELDS.indexOf('lootFilter') >= 0, 'lockedItems/lootFilter are not on the residue allowlist, so hr_put_client_state never carries them and every lock and every kept class is forgotten on reload');
+    const food = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].heals && !window.ITEMS[id].type);
+    assert(!!food, 'CONTROL: no plain food item in the catalogue, so "the filter drops a class" is untestable');
+    try {
+      await withServerBacked({ state: { gold: 777777 } }, async (rig) => {
+        G.inventory = { normal_log: 5 }; G.lockedItems = {}; G.lootFilter = []; G.gold = 500; stampBalanceLikeLoad(G); window.toggleItemLock('normal_log');
+        assert(window.isItemLocked('normal_log') === true, 'the Lock action did not lock the item');
+        window.invSellOne('normal_log'); await rig.drain();
+        assert(rig.sent.length === 0, 'a LOCKED item put ' + JSON.stringify(rig.sent) + ' on the wire — the lock must stop the client AUTHORING the sale, not merely hide a button');
+        assert(bag() === 5, 'the locked stack left the bag anyway (' + bag() + ' of 5)');
+        const refused = MK.listItem('normal_log', 1, 50);
+        assert(refused && refused.ok === false && /unlock/i.test(String(refused.reason)), 'the MARKET listed a locked item — the one sale with no buy-back: ' + JSON.stringify(refused));
+        assert(bag() === 5, 'the refused listing escrowed the stack out of the bag anyway');
+        window.toggleItemLock('normal_log'); window.invSellOne('normal_log'); await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'vendor_sell' && rig.sent[0].item === 'normal_log', 'after unlocking, the sale sent ' + JSON.stringify(rig.sent) + ' — the lock must GATE the sale, not break it');
+      });
+
+      /* THE FILTER, measured as TILES on the renderer the player looks at
+         (renderInvFancy / `.invc-tile`, not the dead `.inv-item` grid). */
+      G.inventory = { normal_log: 3 }; G.inventory[food] = 3; G.lootFilter = []; G.lockedItems = { normal_log: true };
+      window.showTab('inventory');
+      await new Promise((r) => setTimeout(r, 60));
+      const paint = async () => {
+        window._renderInvFancy(); await new Promise((r) => setTimeout(r, 20));
+        const q = (sel) => document.querySelectorAll('#panel-inventory ' + sel);
+        return { tiles: Array.prototype.map.call(q('.invc-tile:not(.invc-slot)'), (t) => t.getAttribute('title') || ''), chips: q('.invc-lf-chip').length, locks: q('.invc-lock').length };
+      };
+      const before = await paint();
+      assert(before.tiles.length === 2 && before.chips === LF.classes().length + 1 && before.locks === 1, 'CONTROL: the bag drew ' + before.tiles.length + ' tiles, ' + before.chips + ' Keep chips and ' + before.locks + ' padlocks for two stacks (one locked) and ' + LF.classes().length + ' classes + Everything — the control and the badge must be ON SCREEN, not merely computed: ' + JSON.stringify(before.tiles));
+      LF.toggle('food'); const after = await paint();
+      assert(after.tiles.length === 1 && after.tiles[0].indexOf(window.ITEMS[food].n) === 0, 'keeping only Food painted ' + JSON.stringify(after.tiles) + ' — the filter did not drop the other class');
+      assert(bag() === 3, 'the filtered-out stack was REMOVED from the bag (' + bag() + ') — the filter is a display pref and the server owns the inventory');
+
+      /* THE ROUND-TRIP: out through the uploader's patch, back in through the hydrate a reload runs — then a garbage bag, which must read KEEP ALL. */
+      G.lockedItems = { normal_log: true };
+      const patch = JSON.parse(JSON.stringify(CAP.buildResiduePatch(G)));
+      assert(patch.lockedItems && patch.lockedItems.normal_log === true && patch.lootFilter.indexOf('food') >= 0, 'the residue patch dropped the lock or the filter: ' + JSON.stringify([patch.lockedItems, patch.lootFilter]));
+      delete G.lockedItems; delete G.lootFilter; CS.hydrateInto(G, patch);
+      assert(window.isItemLocked('normal_log') === true && (G.lootFilter || []).indexOf('food') >= 0, 'a reload forgot the lock or the filter: ' + JSON.stringify([G.lockedItems, G.lootFilter]));
+      CS.hydrateInto(G, { lootFilter: 'food' });
+      assert(Array.isArray(G.lootFilter) && G.lootFilter.length === 0, 'a garbage lootFilter hydrated as ' + JSON.stringify(G.lootFilter) + ' — the fail-safe is KEEP ALL, because a hidden bag is indistinguishable from a robbed one');
+    } finally {
+      restoreG(snap); try { window._renderInvFancy(); } catch (e) {}
+    }
+  }),
 
   /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the
      one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at
@@ -35157,8 +35228,8 @@ const TESTS = [
     const G = window.G;
     const CM = window.HearthriseInvCtx;
     if (!CM || typeof CM.sellJunk !== 'function') return;
-    const save = { gold: G.gold, inventory: JSON.parse(JSON.stringify(G.inventory)),
-      lockedItems: G.lockedItems, confirm: window.confirm };
+    /* snapshotG() now names gold/inventory/lockedItems, so the bespoke bag is just the confirm stub. */
+    const snap = snapshotG(); const save = { confirm: window.confirm };
     let native = 0;
     window.confirm = function () { native++; return true; };
     try {
@@ -35183,8 +35254,7 @@ const TESTS = [
     } finally {
       window.confirm = save.confirm;
       try { window.HearthriseDialog.close(); } catch (e) {}
-      G.gold = save.gold; G.inventory = save.inventory; G.lockedItems = save.lockedItems;
-      try { window.saveLocal(); } catch (e) {}
+      restoreG(snap);
     }
   }),
 
@@ -48925,8 +48995,8 @@ const TESTS = [
     const CM = window.HearthriseInvCtx;
     assert(CM && typeof CM.quoteJunk === 'function' && typeof CM.settleJunk === 'function',
       'src/features/inv-context-menu.js did not load, or no longer separates the quote from the payment');
-    const save = { gold: G.gold, inventory: JSON.parse(JSON.stringify(G.inventory)),
-      lockedItems: G.lockedItems, confirm: window.confirm };
+    /* snapshotG() now names gold/inventory/lockedItems, so the bespoke bag is just the confirm stub. */
+    const snap = snapshotG(); const save = { confirm: window.confirm };
     try {
       /* A RAW item worth 10+: below that the `max(1,…)` floor makes the
          discounted bid equal the book value and the two prices cannot differ,
@@ -48962,8 +49032,7 @@ const TESTS = [
       assert(!G.inventory[raw], 'the sweep paid but did not take the items');
     } finally {
       window.confirm = save.confirm;
-      G.gold = save.gold; G.inventory = save.inventory; G.lockedItems = save.lockedItems;
-      try { window.saveLocal(); } catch (e) {}
+      restoreG(snap);
     }
   }),
 
@@ -48974,8 +49043,7 @@ const TESTS = [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     const wasAck = A.isReplacementAcknowledged();
-    const save = { gold: G.gold, inventory: JSON.parse(JSON.stringify(G.inventory)),
-      skills: JSON.parse(JSON.stringify(G.skills)), lockedItems: G.lockedItems };
+    const snap = snapshotG();   /* gold/inventory/skills/lockedItems are all named by the allowlist now */
     let ver = 40;
     let sent = [];
     const envelope = (gold) => {
@@ -49075,8 +49143,7 @@ const TESTS = [
       Gd.resetGold(); Gd.configureGold(null);
       A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
-      Object.assign(G, save);
-      try { window.saveLocal(); } catch (e) {}
+      restoreG(snap);
     }
   }),
 

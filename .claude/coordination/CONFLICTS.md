@@ -2,6 +2,20 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-12 · SYSTEMS (lane: sell-lock + loot filter) → the PRAYER-LADDER lane · **b521 is RED on `next`**
+
+```
+✗ b521: Bury starts the SERVER-SETTLED altar bench — no client XP, no client debit
+      the refusal must say why, got: "Need Lv 40 prayer"
+```
+
+Reproduced in `worktree-agent-a327111f17afbc40c` immediately after merging `origin/next`
+(`node tests/run-smoke.mjs --only "lock"` → **302/303**, and it is green without the merge).
+The ladder moved `bury_bone_chips` to req 40, so the bench's refusal sentence changed and
+b521's assertion on that sentence no longer matches. My commit touches no prayer / recipe /
+bury file. §4: a red in-page test is a P1 and the GitHub `smoke` job fails on ANY ✗, so this
+has to be fixed at its source before the cut — not carried.
+
 ## 2026-09-12 · SYSTEMS → whoever owns the BOUNTY BOARD · **`window.BOUNTY_BOARD_TIER_BY_LEVEL` is a COPY of the core value** (found in `lane/b544-prayer-ladder-item-gates`, NOT fixed there)
 
 Not a git conflict — a defect found while paying down the test-file ratchet, in a lane that had

@@ -10884,14 +10884,14 @@ function openInvDetail(id){
     /* b240: sell-lock. A locked item shows no sell buttons — just Unlock — so an
        accidental tap can't get through. Vendorable items get a Lock button. */
     if(isItemLocked(id)){
-      acts.push(`<button class="btn" disabled title="Locked — protected from selling">Locked</button>`);
+      acts.push(`<button class="btn" disabled title="Locked — protected from selling and from being listed on the market">${lockGlyph()} Locked</button>`);
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')">Unlock</button>`);
     } else {
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
         if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} · ${_gp(vendorPrice(id)*qty)}</button>`);
       }
-      acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold">Lock</button>`);
+      acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }
     /* b311: Buy-Back moved to the Local Shop (where you sell to the vendor) — it
        no longer clutters every item's detail popup. */
@@ -11305,7 +11305,7 @@ function vendorSellChunked(id, qty, site){
 window.vendorSellChunked = vendorSellChunked;
 function invSellOne(id){
   const it = ITEMS[id]; if(!it) return;
-  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it first`,'kill'); return; }   // b240
+  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
   if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorPrice(id);
   const _k = goldIntentKey();
@@ -11318,7 +11318,7 @@ function invSellOne(id){
 }
 function invSellAll(id){
   const it = ITEMS[id]; if(!it) return;
-  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it first`,'kill'); return; }   // b240
+  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
   const qty = G.inventory[id]||0;
   if(qty <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorSellChunked(id, qty, 'vendor.sell_all');   // b377: ≤1,000 per intent
@@ -11370,6 +11370,12 @@ function invSellSelected(){
 function isItemLocked(id){ return !!(G.lockedItems && G.lockedItems[id]); }
 function toggleItemLock(id){
   G.lockedItems = G.lockedItems || {};
+  /* THE BOUND (src/net/client-state.js §THE SIZE GUARD'S CLIENT HALF): only a
+     CATALOGUE id may be locked, so the key set can never outgrow ITEMS. (The
+     alias pass drops unknown keys on load, but early-returns while ITEM_ALIAS is
+     empty — which it is — so this is the bound that actually runs.) Unlocking is
+     never refused: an id that fell out of the catalogue must stay removable. */
+  if(!ITEMS[id] && !G.lockedItems[id]) return;
   if(G.lockedItems[id]){ delete G.lockedItems[id]; notify('Unlocked — this item can be sold','info'); }
   else { G.lockedItems[id] = true; notify('Locked — protected from selling','info'); }
   try{ saveLocal(); }catch(e){}
@@ -16960,6 +16966,7 @@ var CATEGORIES = [
 ];
 
 window._invFilter = {category:'all', search:''};
+window.CATEGORIES = CATEGORIES;   // legacy.js is imported as a module, so a top-level declaration is NOT a global; the bag's class table is published for src/features/loot-filter.js
 
 /* ─── Format helpers ─── */
 function fmtQty(n){
@@ -16982,6 +16989,7 @@ function itemImg(id){
 function renderInvFancy(){
   var panel = document.getElementById('panel-inventory');
   if(!panel || typeof ITEMS === 'undefined' || typeof G === 'undefined') return;
+  var _LF = window.HearthriseLootFilter;   // the standing kept-classes filter (src/features/loot-filter.js)
 
   /* Compute totals */
   var entries = Object.entries(G.inventory||{}).filter(function(kv){return kv[1] > 0;});
@@ -17008,6 +17016,7 @@ function renderInvFancy(){
     var def = ITEMS[kv[0]];
     if(!def) return false;
     if(!cat.test(def)) return false;
+    if(_LF && !_LF.keeps(def)) return false;         // the standing kept-classes filter
     if(search && def.n.toLowerCase().indexOf(search) < 0) return false;
     return true;
   });
@@ -17058,6 +17067,13 @@ function renderInvFancy(){
     /* Main: left (categories + bag) | right (equipment + stats) */
     '<div class="invc-main">'+
       '<div class="invc-left">'+
+      /* The STANDING kept-classes row. Inside `.invc-left` on purpose: the mobile
+         layout turns the panel into an explicit grid and PLACES each of its four
+         children by name (art-direction.css ~2292), so a fifth top-level child
+         would auto-place into an implicit row and shove the bag off a landscape
+         phone. It also inherits the rule that hides the bag's controls on the
+         equip/loadout sub-tabs. */
+      (_LF ? _LF.rowHTML() : '')+
       /* Bag grid */
       '<div class="invc-bag-col">'+
         '<div class="invc-grid">'+
@@ -17086,46 +17102,25 @@ function renderInvFancy(){
                A uniform filled grid is what makes a bag scannable — you learn
                the shape of the container, and item positions stay stable. */
             (function(html){
-              /* ── b348 · THE BAG SHOWS THE SPACE YOU BOUGHT ────────────────
-                 Xarn: "You can see the inventory you bought when you exceed the
-                 inventory space. A new row will be visible once you found more
-                 items, but it should appear once the slots are purchased."
+              /* THE BAG SHOWS THE SPACE YOU BOUGHT. The empty tiles ARE your free
+                 stacks, off the same bankCap()/bankUsed() pair addItem() enforces,
+                 so a purchase adds rows the instant it completes and the picture
+                 cannot disagree with the rule. (Sizing it by ITEM COUNT instead is
+                 what made a paid gem upgrade invisible until you outgrew it.)
 
-                 Measured before this change: at cap 100 the grid drew 88 tiles;
-                 buying +60 gem slots (cap 160) drew 88; buying +40 more gold
-                 slots (cap 200) still drew 88. The grid only grew when the
-                 player reached 89 STACKS — so a purchase you paid gems for was
-                 literally invisible until you outgrew it. The old expression
-                 was `max(88, ceil(items/11)*11)`: sized by ITEM COUNT, and the
-                 `/11` did not even align to a row, because `.invc-grid` is
-                 `repeat(auto-fill, minmax(72px,1fr))` — a responsive column
-                 count that is ~8 at desktop width and ~13 at another.
+                 A FILTERED VIEW NEVER CLAIMS CAPACITY — free space belongs to the
+                 BAG, not to "Weapons" or to a kept-classes lane; a filtered,
+                 searched or loot-filtered view only fills the container.
 
-                 Now the empty tiles ARE your free stacks, so a purchase adds
-                 rows the instant it completes and counting squares tells you
-                 the truth. bankCap()/bankUsed() are the same pair addItem()
-                 enforces (legacy.js:2638), so the picture cannot disagree with
-                 the rule.
-
-                 FILTERED VIEWS DO NOT CLAIM CAPACITY. Free space is a property
-                 of the BAG, not of "Weapons": padding a filtered lane to the
-                 bank cap would assert you have 160 weapon slots. A filtered or
-                 searched view keeps b217's "don't leave a black void" fill and
-                 says nothing about space.
-
-                 RENDER CEILING — measured, not guessed. renderInvFancy runs on
-                 the game tick (see the note at the doll rebuild), and an empty
-                 tile costs ~0.006 ms: 500 tiles 3.4 ms, 2,000 tiles 15 ms,
-                 4,000 tiles 23.6 ms against a base render of 6-18 ms. Gold
-                 slots self-limit (the price grows 1.32x a buy, so 400 stacks
-                 already costs ~2.8M gold) but GEM slots are flat, so capacity
-                 has no upper bound and neither would the DOM. 600 covers every
-                 cap normal play can reach, costs ~4 ms, and past it the surplus
-                 is stated as one chip instead of five thousand squares — the
-                 header keeps quoting the real number either way. */
+                 RENDER CEILING, measured: this renderer runs on the game tick and
+                 an empty tile costs ~0.006 ms (2,000 tiles 15 ms, 4,000 tiles 23.6
+                 ms, against a 6-18 ms base render). Gem slots are flat-priced, so
+                 capacity has no upper bound and neither would the DOM; 600 covers
+                 every cap normal play reaches at ~4 ms and the surplus past it is
+                 one chip, with the header still quoting the real number. */
               var RENDER_CEILING = 600;
-              var MIN_FILL = 88;                                    // b217's "fill the container"
-              var unfiltered = (f.category === 'all') && !search;
+              var MIN_FILL = 88;                                    // "fill the container"
+              var unfiltered = (f.category === 'all') && !search && !(_LF && _LF.kept());
               var cap = (typeof bankCap === 'function') ? bankCap() : 0;
               var used = (typeof bankUsed === 'function') ? bankUsed() : visible.length;
               var target, surplus = 0;
@@ -17150,8 +17145,13 @@ function renderInvFancy(){
               // b189: rarity border for gear (gray→green→blue→purple→gold→red)
               var rr = window.RARITY ? window.RARITY.classFor(id, def) : '';
               var tileCls = 'invc-tile' + (rr ? ' rr-frame ' + rr : '');
-              return '<div class="'+tileCls+'" '+(canEquip?'draggable="true" data-item-id="'+id+'"':'')+' onclick="invItemTap(\''+id+'\')" title="'+(def.n||'').replace(/"/g,'&quot;')+' (×'+qty+')">'+
+              /* THE LOCKED BADGE. The lock only ever showed in the flyout and the
+                 right-click menu, so the screen a player scans before a bulk sell
+                 never said which stacks were protected. Shipped atlas glyph. */
+              var lk = (typeof isItemLocked === 'function') && isItemLocked(id);
+              return '<div class="'+tileCls+(lk?' invc-locked':'')+'" '+(canEquip?'draggable="true" data-item-id="'+id+'"':'')+' onclick="invItemTap(\''+id+'\')" title="'+(def.n||'').replace(/"/g,'&quot;')+' (×'+qty+')'+(lk?' — locked against selling':'')+'">'+
                 itemImg(id)+
+                (lk ? '<span class="invc-lock" aria-label="Locked">'+lockGlyph()+'</span>' : '')+
                 '<span class="invc-qty">'+fmtQty(qty)+'</span>'+
               '</div>';
             }).join(''))

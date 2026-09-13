@@ -2997,3 +2997,23 @@ fail any more (nothing writes SAVE_KEY). Its live assertion is `during.snapSlot 
 mutation recipe pointed at the `saveLocal` line b515 deleted; it now names `tests/slot-switch.mjs`,
 which watches the residue PUT instead. The assertion stays: a blob write re-appearing is still worth
 catching.
+
+**P3 — `player_state_buffs_sane` PINS NO ELEMENT SHAPE (route: Backend, a segments follow-up).**
+The CHECK asserts `jsonb_typeof(buffs) = 'array'` and a length bound, and nothing else: an element
+may carry no `type`, a non-numeric `magnitude`, or an `until` that is not timestamptz-castable. Three
+consequences, all latent rather than live today — `hr_item_buffs.type` is NOT NULL and is the only
+source of a segment's type, segments are built only by hr_apply's own
+`jsonb_build_object('type', v_buff_type, ...)`, no delta key can post a queue, and production carries
+zero malformed entries:
+  - a typeless entry is the ONE row on which the old and new §2c rebuild predicates differ (3VL:
+    `NULL or true` keeps it, `NULL or (NULL and true)` drops it). Security found this on 96f6cfb1;
+    the new form is the fail-closed side, and 2026-09-13-buff-segments-predicate.sql §4(b2) now
+    asserts the divergence AND re-asserts `hr_item_buffs.type NOT NULL` as the reachability bound.
+  - `(e.v->>'until')::timestamptz` inside hr_apply would raise 22007 on a garbage expiry, landing in
+    the bad_delta handler and refusing the player's whole settle.
+  - `src/core/buffs.js buffQueueFromServer` already drops what it cannot pay, so the ENGINE is safe;
+    it is the SQL side that would raise rather than ignore.
+The fix belongs to a segments follow-up, not to a predicate convergence: a CHECK requiring every
+element to carry a non-null text `type`, a numeric `magnitude` and a castable `until` — written so it
+can be evaluated with `pg_get_expr` at a good and a bad element, the way
+`player_state_consec_falls_sane` is fired in 2026-09-07-retreat.sql §4(a-iii).

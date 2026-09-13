@@ -10946,10 +10946,8 @@ const TESTS = [
     // §3.3's own table. If these drift the server's hr_hunt_tiers must drift
     // with them, or a clan is shown a pool it is not fighting.
     const table = [
-      [1, 'Warband Hunt',  5000,  3000,  35000],
-      [2, 'Keep Hunt',     15000, 7500,  90000],
-      [3, 'Fortress Hunt', 30000, 12500, 155000],
-      [4, 'Citadel Hunt',  50000, 16000, 210000],
+      [1, 'Warband Hunt',  5000,  3000,  35000], [2, 'Keep Hunt',     15000, 7500,  90000],
+      [3, 'Fortress Hunt', 30000, 12500, 155000], [4, 'Citadel Hunt',  50000, 16000, 210000],
       [5, 'Crown Hunt',    80000, 21000, 290000],
     ];
     table.forEach(([t, name, base, per, at10]) => {
@@ -12954,37 +12952,36 @@ const TESTS = [
     }
   }),
 
-  /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the
-     one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at
-     40; every number is read back out of `ARTISAN_RECIPES`, never typed, so a retune moves with
-     the ruling and a deleted row still fails. The boundary IS the property — it is the same one
-     hr_apply's `activity_locked` arm enforces server-side. */
+  /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at 40; the boundary IS the property, and it is the same one hr_apply's `activity_locked` arm enforces server-side.
+     `PAY` below is the literal (id, req, xp, ms) of all thirteen rungs: NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until it existed. Its 840 XP/s ceiling is MEASURED, just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3): the one bench whose entire output is XP must never out-pay every other bench. */
   () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {
     const snap = snapshotG();
     try {
       const G = window.G, rows = window.ARTISAN_RECIPES.prayer;
-      assert(Array.isArray(rows) && rows.length >= 13,
-        'the prayer bench holds ' + (rows || []).length + ' rungs — the 36..99 void is back');
       const first = rows.find((r) => r.id === 'bury_bone_chips');
       assert(first && first.req === 40 && first.input === 'bone_chips' && first.output == null,
         'bury_bone_chips must be the Prayer 40 pure sink fed by bone_chips, got ' + JSON.stringify(first));
-      /* Strictly increasing and reaching the cap, or a later rung is unreachable (the disordered-lane class) and the skill still dead-ends. */
-      const reqs = rows.map((r) => r.req);
-      assert(Math.max(...reqs) === 99, 'the bench must reach Prayer 99, its top rung is ' + Math.max(...reqs));
-      reqs.slice(1).forEach((rq, i) => assert(rq > reqs[i],
-        'rung ' + rows[i + 1].id + ' (' + rq + ') does not sit above ' + rows[i].id + ' (' + reqs[i] + ')'));
-      rows.forEach((r) => {
-        assert(window.ITEMS[r.input], r.id + ' consumes ' + r.input + ', which is not an item');
-        assert(r.xp > 0 && r.ms > 0, r.id + ' must carry real xp/ms, got ' + r.xp + '/' + r.ms);
+      const PAY = ('bury_bones 1 4.5 1200|bury_big 15 15 1500|bury_dragon 35 72 2000|'
+        + 'bury_bone_chips 40 105 2200|consecrate_grave_dust 46 155 2400|offer_razor_claw 52 212 2500|'
+        + 'scatter_vamp_dust 58 295 2600|banish_demon_shard 65 420 2800|unbind_wraith_veil 72 600 3000|'
+        + 'consecrate_dragon_scale 79 855 3200|release_lich_soul 86 1210 3400|offer_ancient_claw 92 1700 3600|'
+        + 'purge_void_chitin 99 2400 3800').split('|').map((s) => s.split(' '));
+      assert(rows.length === PAY.length, 'the prayer bench holds ' + rows.length + ' rungs, the ruling pins ' + PAY.length);
+      PAY.forEach(([id, req, xp, ms], i) => { const r = rows[i], rate = r.xp / (r.ms / 1000);
+        assert(r.id === id && r.req === +req && r.xp === +xp && r.ms === +ms, 'rung ' + i + ' must be '
+          + [id, req, xp, ms].join('/') + ' (id/req/xp/ms), got ' + [r.id, r.req, r.xp, r.ms].join('/'));
+        assert(i === 0 || r.req > rows[i - 1].req, id + ' does not sit above ' + (rows[i - 1] || {}).id);
+        assert(window.ITEMS[r.input], id + ' consumes ' + r.input + ', which is not an item');
+        assert(rate <= 840, id + ' pays ' + rate.toFixed(1) + ' XP/s, over the catalogue ceiling 840 (non-prayer max 833.3)');
       });
+      assert(rows[12].req === 99, 'the bench must reach Prayer 99, its top rung is ' + rows[12].req);
 
-      // The tile paints FROM the row — locked one level short, live one level on.
+
       G.inventory = { bone_chips: 5 };
       G.skills = { prayer: window.xpForLevel(39) };
       assert(window.getLevel('prayer') === 39, 'fixture: Prayer is ' + window.getLevel('prayer') + ', not 39');
       const at39 = window.renderArtisanActivities('prayer');
-      /* The WHOLE button: `disabled` sits in the opening tag BEFORE the onclick carrying the id, so slicing forward from the id would read the NEXT tile's state. */
-      const cell = (html) => {
+      const cell = (html) => {   /* the WHOLE button: `disabled` sits in the opening tag BEFORE the onclick carrying the id, so slicing forward from the id would read the NEXT tile's state */
         const at = html.indexOf('bury_bone_chips');
         assert(at > 0, 'the prayer bench rendered no bury_bone_chips tile at all');
         return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
@@ -16742,14 +16739,11 @@ const TESTS = [
   // If this fails, we've regressed the items.js ↔ legacy.js drift fix.
   () => tryRun('b139: Phase A.1 items present in window.ITEMS', () => {
     const required = [
-      'raw_wolf_meat','raw_panther_meat','raw_bear_meat',
-      'cooked_wolf_meat','cooked_panther_meat','cooked_bear_meat',
+      'raw_wolf_meat','raw_panther_meat','raw_bear_meat', 'cooked_wolf_meat','cooked_panther_meat','cooked_bear_meat',
       'roasted_carrot','roasted_pumpkin','vegetable_stew',
       'bear_claw_pie','hunters_feast','dragon_stew','lich_soul_soup','void_banquet',
-      'bronze_bar','steel_bar','rune_bar',
-      'chief_blade_recipe','captain_recipe','alpha_pattern',
-      'spellstone_diagram','dragon_marrow_recipe','gemcutter_note',
-      'soul_recipe','marrow_cookbook','field_cookbook',
+      'bronze_bar','steel_bar','rune_bar', 'chief_blade_recipe','captain_recipe','alpha_pattern',
+      'spellstone_diagram','dragon_marrow_recipe','gemcutter_note', 'soul_recipe','marrow_cookbook','field_cookbook',
     ];
     const missing = required.filter(id => !window.ITEMS || !window.ITEMS[id]);
     assert(missing.length === 0,
@@ -28767,12 +28761,16 @@ const TESTS = [
         if(cancel) cancel.click();
       }
 
-      // 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED (bone_chips is real).
+      /* 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED. The probe was hardcoded to `bone_chips` until the 2026-09-12 ladder gave that drop a rite at Prayer 40 — which made this arm assert the opposite of the truth, by name — and any hand-typed "has no recipe" id goes stale the day the designer fills a rung, so it is DERIVED from ARTISAN_RECIPES; `type`/`slot` are excluded so the pick is a bone-like REMAIN, not a fang-named weapon. */
       stopBench();
+      const rites = new Set((window.ARTISAN_RECIPES.prayer || []).map((r) => r.input));
+      const riteless = Object.keys(window.ITEMS).find((id) => !rites.has(id)
+        && !window.ITEMS[id].type && !window.ITEMS[id].slot && /bone|fang|skull|tooth/.test(id));
+      assert(riteless, 'every bone-ish remain carries a rite now — this arm can no longer be built');
       let said = '';
       window.notify = (m) => { said += ' ' + m; };
-      const none = window.buryBones('bone_chips');
-      assert(none === null, 'an item with no prayer recipe must not start a run');
+      const none = window.buryBones(riteless);
+      assert(none === null, riteless + ' has no prayer recipe and must not start a run');
       assert(!G.activeSkill, 'a rite-less item must leave the activity pointer alone');
       assert(/no altar rite/i.test(said), 'the refusal must say why, got: "' + said.trim() + '"');
     } finally {
@@ -36527,10 +36525,8 @@ const TESTS = [
     const prev = had ? G._heroSlots : undefined;
     const prevGems = G.gems;
     const cases = [
-      ['insufficient_gems', /Not enough gems/i, { short_by: 150 }],
-      ['rpc_missing', /unavailable/i, {}],
-      ['not_signed_in', /Sign in/i, {}],
-      ['rate_limited', /Slow down/i, {}],
+      ['insufficient_gems', /Not enough gems/i, { short_by: 150 }], ['rpc_missing', /unavailable/i, {}],
+      ['not_signed_in', /Sign in/i, {}], ['rate_limited', /Slow down/i, {}],
       ['requires_previous_slot', /Unlock the slot before it/i, {}],
     ];
     try {
@@ -42170,11 +42166,8 @@ const TESTS = [
 
     /* THE REAL RENDERS, with both candidates deleted from the live G. */
     const renders = [
-      ['updateTopbar', window.updateTopbar],
-      ['renderProfile', window.renderProfile],
-      ['renderShop', window.renderShop],
-      ['renderHouse', window.renderHouse],
-      ['refreshAll', window.refreshAll],
+      ['updateTopbar', window.updateTopbar], ['renderProfile', window.renderProfile],
+      ['renderShop', window.renderShop], ['renderHouse', window.renderHouse], ['refreshAll', window.refreshAll],
     ].filter((r) => typeof r[1] === 'function');
     assert(renders.length >= 3,
       'fewer than three render paths were reachable — this guard would pass by not looking. Reachable: '
@@ -44121,19 +44114,16 @@ const TESTS = [
       away: { grantMs: 1000, gold: 0, xp: {}, items: {} },
     };
     const cases = [
-      [200, full, 'accrued'],
-      [200, { ok: true, accrued: false, reason: 'below_threshold' }, 'nothing'],
+      [200, full, 'accrued'], [200, { ok: true, accrued: false, reason: 'below_threshold' }, 'nothing'],
       [200, { ok: true, accrued: false, reason: 'replayed' }, 'nothing'],
       [200, { ok: true, accrued: false, reason: 'clamped' }, 'nothing'],
-      [200, { ok: false, error: 'x' }, 'malformed'],
-      [200, null, 'malformed'],
+      [200, { ok: false, error: 'x' }, 'malformed'], [200, null, 'malformed'],
       [401, { ok: false, error: 'not_signed_in' }, 'not-signed-in'],
       [409, { ok: false, error: 'no_character' }, 'no-character'],
       [409, { ok: false, error: 'version_conflict' }, 'rejected'],
       [429, { ok: false, error: 'rate_limited' }, 'rate-limited'],
       [500, { ok: false, error: 'server_error' }, 'unavailable'],
-      [503, { ok: false, error: 'engine_unconfigured' }, 'unavailable'],
-      [404, null, 'malformed'],
+      [503, { ok: false, error: 'engine_unconfigured' }, 'unavailable'], [404, null, 'malformed'],
     ];
     for (const [status, body, want] of cases) {
       const got = A.classifyAccrueResponse(status, body).outcome;
@@ -44778,13 +44768,9 @@ const TESTS = [
       /* A 200 that says ok but omits `created`. "The server answered" is not the
          same as "the server said a character exists" — and reading the missing
          field as falsy would latch a character nobody has. */
-      [200, { ok: true, slot: 0 }, 'malformed', false],
-      [200, null, 'malformed', false],
-      [401, null, 'not-signed-in', false],
-      [403, null, 'not-signed-in', false],
-      [404, null, 'not-deployed', false],
-      [500, null, 'unavailable', false],
-      [503, null, 'unavailable', false],
+      [200, { ok: true, slot: 0 }, 'malformed', false], [200, null, 'malformed', false],
+      [401, null, 'not-signed-in', false], [403, null, 'not-signed-in', false], [404, null, 'not-deployed', false],
+      [500, null, 'unavailable', false], [503, null, 'unavailable', false],
     ];
     for (const [status, body, want, present] of cases) {
       const v = C.classifyCreateResponse(status, body);
@@ -46883,11 +46869,8 @@ const TESTS = [
            field (gold/gems/accrued_to are now all record fields, so the state
            holds only a non-record key). This is the branch that keeps b340
            independent of whether 2026-08-11-apply-engine.sql has been applied. */
-        [200, { ok: true, version: 2, state: { slot: 3 } }, 'malformed'],
-        [200, null, 'malformed'],
-        [401, null, 'not-signed-in'],
-        [404, null, 'not-deployed'],
-        [503, null, 'unavailable'],
+        [200, { ok: true, version: 2, state: { slot: 3 } }, 'malformed'], [200, null, 'malformed'],
+        [401, null, 'not-signed-in'], [404, null, 'not-deployed'], [503, null, 'unavailable'],
       ];
       for (const [status, body, want] of failures) {
         const c = R.classifyLoadResponse(status, body);
@@ -54464,9 +54447,7 @@ const TESTS = [
       assert(I[id].reqLv >= 1 && I[id].reqLv <= LADDER[8],
         id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
     });
-    /* The 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung.
-       The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: they were ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL) and four are TRADEABLE. */
-    ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'
+    ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'   /* the 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL), four of them TRADEABLE */
       + 'alpha_cloak defense 30|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
       + 'copper_ring defense 1|hunter_necklace defense 1|traveler_cape defense 1|'
       + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 30|'
@@ -54489,8 +54470,7 @@ const TESTS = [
       assert(it.tier == null && it.reqSkill == null && it.reqLv == null && window.gearWieldReq(it) == null,
         id + ' is a cosmetic and must stay ungated, got ' + JSON.stringify(window.gearWieldReq(it)));
     });
-    /* `companion` is a TYPE the authority used to return null for, so the fox carried a gate hr_apply enforced and the UI never painted. reqLv 1 still yields NO gate on purpose (`lv<=1`) — it is the data form of "belongs to Defence", which keeps hr_items.req_lv non-NULL across the slot. */
-    assert(JSON.stringify(window.gearWieldReq(I.fox_companion)) === '{"skill":"defense","lv":15}',
+    assert(JSON.stringify(window.gearWieldReq(I.fox_companion)) === '{"skill":"defense","lv":15}',   /* `companion` is a TYPE the authority returned null for, so the fox carried a gate hr_apply enforced and the UI never painted. reqLv 1 still yields NO gate on purpose (`lv<=1`) — the data form of "belongs to Defence", which keeps hr_items.req_lv non-NULL across the slot */
       'the fox must paint Defence 15 — `companion` has to be a gated type or the server refuses a wield '
         + 'the player was never warned about (got ' + JSON.stringify(window.gearWieldReq(I.fox_companion)) + ')');
     ['copper_ring', 'hunter_necklace', 'traveler_cape'].forEach((id) => {
@@ -54631,11 +54611,7 @@ const TESTS = [
          MUTATION: point getBonus's delegation at a stale table, or drop the
          `bx` merge from tools/gen-perks.mjs → every row below goes RED. */
       const EXPECT = [
-        [0, 0, 0.25],
-        [1, 0.13, 0.12],
-        [2, 0.19, 0.06],
-        [3, 0.25, 0.00],
-        [5, 0.25, 0.00],
+        [0, 0, 0.25], [1, 0.13, 0.12], [2, 0.19, 0.06], [3, 0.25, 0.00], [5, 0.25, 0.00],
       ];
       const A = window.HearthriseCore.artisan;
       for (const [rung, noBurn, burn] of EXPECT) {
@@ -58561,11 +58537,9 @@ const TESTS = [
        is a partial write, and a client that trimmed the bad pair would be
        inventing an instruction the player never gave. */
     const HOSTILE = [
-      ['a numeric item', { weapon: 5 }],
-      ['an uppercase id', { weapon: 'Iron_Sword' }],
+      ['a numeric item', { weapon: 5 }], ['an uppercase id', { weapon: 'Iron_Sword' }],
       ['a bad slot name', { 'wea pon': 'iron_sword' }],
-      ['one bad pair among good ones', { weapon: 'iron_sword', shield: 'BAD!' }],
-      ['an empty map', {}],
+      ['one bad pair among good ones', { weapon: 'iron_sword', shield: 'BAD!' }], ['an empty map', {}],
       ['an array', ['weapon']],
     ];
     for (let i = 0; i < HOSTILE.length; i++) {
@@ -60912,13 +60886,9 @@ const TESTS = [
     const L = window.HearthriseCompanions && window.HearthriseCompanions.sourceLabel;
     assert(typeof L === 'function', 'companionSourceLabel is not published');
     const cases = {
-      'starter': /start/i,
-      'drop:small_wolf': /^Rare drop from Wolf Cub$/,
-      'shop:5000': /^Stable shop · 5,000 gold$/,
-      'shop:8000:cooking25': /^Stable shop · 8,000 gold · needs Cooking 25$/,
-      'quest:harvest100': /100 crops/,
-      'hatch:dragon_egg': /^Hatched from a Dragon Egg$/,
-      'skill:fishing:2500': /^1 in 2,500 Fishing actions$/,
+      'starter': /start/i, 'drop:small_wolf': /^Rare drop from Wolf Cub$/, 'shop:5000': /^Stable shop · 5,000 gold$/,
+      'shop:8000:cooking25': /^Stable shop · 8,000 gold · needs Cooking 25$/, 'quest:harvest100': /100 crops/,
+      'hatch:dragon_egg': /^Hatched from a Dragon Egg$/, 'skill:fishing:2500': /^1 in 2,500 Fishing actions$/,
       'boss:dragon:200': /1 in 200 .* kills/,
     };
     Object.keys(cases).forEach((src) => {

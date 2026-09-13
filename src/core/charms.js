@@ -8,19 +8,26 @@
 // shape, same rule that the ceiling is an invariant of the FORMULA and not a
 // promise the data table keeps. A future reader who has read one has read both.
 //
-// ── PHASE 1 IS DISPLAY ONLY, AND THAT IS ENFORCED BY HAVING NO CALLER ───────
-// `charmDropMultFor` / `charmDamageMultFor` are exported and tested NOW so that
-// phases 2 and 3 are a wiring change rather than a design change — but nothing
-// in src/core/combat.js, src/core/combat-sim.js, src/core/drops.js or the Edge
-// accrual engine calls them today, on purpose. The only consumer in this build
-// is the Bestiary modal (src/render/bestiary.js), which reads RANKS.
+// ── PHASE 2 IS ARMED: `charmDropMultFor` HAS EXACTLY ONE CALLER ─────────────
+// It is read inside `weaknessInfo` (src/core/combat.js) — one expression, two
+// callers: the live tick and the Edge replay — and NOT as a `getBonus` key.
+// bane.js's header states the whole argument: the Edge engine does not run the
+// client's monkey-patch bonus chain, so a charm expressed as a bonus key would
+// work awake and read ZERO while the player slept. Do not arm it anywhere else.
 //
-// ⚠ WHEN PHASE 2/3 ARM THEM, THEY GO WHERE BANE WENT — inside `weaknessInfo`
-//   (one expression, two callers: the live tick and the Edge replay) and NOT
-//   into a `getBonus` key. bane.js's header states the whole argument: the Edge
-//   engine does not run the client's monkey-patch bonus chain, so a charm
-//   expressed as a bonus key would work awake and read ZERO while the player
-//   slept. Do not arm them anywhere else.
+// THE RANK IS AN INPUT TO THAT EXPRESSION, NEVER A WIRE FIELD. The Edge folds
+// `hr_bestiary_of`'s own rows (`killsByClass` → `charmIndex`) inside the engine
+// and is the only authority; the client folds the `bestiary.kills_by_class`
+// block the server projected, purely so the loot preview and the live tick
+// predict the same numbers, and every kill it predicts is re-resolved server
+// side. There is no request field carrying a rank, so there is none to forge.
+//
+// ⚠ `charmDamageMultFor` IS STILL CALLERLESS, ON PURPOSE (phase 3). `maxHit` is
+//   an integer and `playerCombatRolls` applies `weak.damageMult` through
+//   `Math.floor`, so the ladder's 1.01 at rank 3 would round away to nothing on
+//   most loadouts — a stated effect that does nothing. When the Designer's phase
+//   3 lands it multiplies into `damageMult` inside that same one expression,
+//   under MAX_TOTAL_DAMAGE_MULT, and nowhere else.
 //
 // ── WHY THE CLASS TOTAL IS RESOLVED THROUGH bane.js AND NOT `m.cls` ─────────
 // There are TWO live spellings of the eleventh class in this repo:
@@ -142,9 +149,9 @@ export function charmRowOfRank(rank) {
 /**
  * The clamped DROP multiplier this character gets against `cls`. Always ≥ 1.
  *
- * ⚠ NOT READ BY ANYTHING IN THIS BUILD (phase 2). The clamp is here so that the
- *   day it is wired, the ceiling is already the last word — a hostile or
- *   fat-fingered ladder row cannot out-argue the formula.
+ * READ BY `weaknessInfo` (src/core/combat.js) AND BY NOTHING ELSE — the one
+ * expression the live tick and the Edge replay share. The clamp is the last
+ * word, so a hostile or fat-fingered ladder row cannot out-argue the formula.
  */
 export function charmDropMultFor(cls, index) {
   if (!cls || !index) return 1;
@@ -156,7 +163,7 @@ export function charmDropMultFor(cls, index) {
 
 /**
  * The clamped DAMAGE multiplier this character gets against `cls`. Always ≥ 1.
- * ⚠ NOT READ BY ANYTHING IN THIS BUILD (phase 3). See above.
+ * ⚠ NOT READ BY ANYTHING IN THIS BUILD (phase 3). See the header.
  */
 export function charmDamageMultFor(cls, index) {
   if (!cls || !index) return 1;

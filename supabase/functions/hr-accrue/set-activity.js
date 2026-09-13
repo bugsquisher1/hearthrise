@@ -240,6 +240,25 @@ const SEED_SQL_NO_PERKS = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
          public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt`;
 
+/* ⚠ THE BESTIARY COUNTERS ARE READ IN THEIR OWN STATEMENT, NOT FOLDED INTO
+   SEED_SQL, AND THAT IS THE WHOLE POINT (charms phase 2).
+   The ladder above has THREE rungs for TWO independent absences already, and its
+   own comment says why a fourth capability there would need eight: a database
+   that has hr_perks_of and hr_attended_kills but not hr_bestiary_of would 42883
+   on the full rung and fall through to SEED_SQL_NO_ATTENDED — silently dropping
+   the attended loot top-up to price a 3% drop bonus. Under-paying a real feature
+   to arm a smaller one is never the trade. `exec` runs one statement in its own
+   transaction (index.ts), so a 42883 here aborts nothing else and costs one
+   pooled transaction on a verb that already takes three — and only on the path
+   that actually has a window to pay.
+   AGGREGATED IN SQL because hr_bestiary_of returns a SET and this seam hands
+   back rows, not a cursor; `coalesce` because jsonb_object_agg over zero rows is
+   NULL and the engine's "no counters" and "no such function" must stay
+   distinguishable. */
+const BESTIARY_SQL = `
+  select coalesce(jsonb_object_agg(monster_id, kills), '{}'::jsonb) as kills
+    from public.hr_bestiary_of($1::uuid, $2::int)`;
+
 /* ⚠ `$5::text::jsonb`, NEVER `$5::jsonb`, BECAUSE THE DELTA IS PRE-STRINGIFIED.
    THE CONSTRAINT: a parameter that POSTGRES DESCRIBES AS json/jsonb makes
    postgres.js re-serialize the bound value with JSON.stringify. The engine
@@ -738,6 +757,23 @@ export async function collectCurrentWindow(o) {
   const attendedEnv = seedRow && seedRow.attended;
   const attendedIn = (attendedEnv && attendedEnv.ok === true) ? attendedEnv : null;
 
+  /* THE BESTIARY COUNTERS (charms phase 2). Same rule as every other optional
+     server read on this path: ONLY 42883 degrades, to null, which the engine
+     reads as "no charm" — and the collect then prices the window exactly as the
+     accrue verb would on the same database. A collect that skipped this would
+     pay a studied class LESS than an accrue over the identical window, silently,
+     which is the A14 drift class in the one direction a field-name guard cannot
+     see (both callers would still name the field). */
+  let bestiaryKills = null;
+  try {
+    const [bRow] = await exec(BESTIARY_SQL, [user, slot]);
+    const k = bRow && bRow.kills;
+    bestiaryKills = (k && typeof k === 'object' && !Array.isArray(k)) ? k : null;
+  } catch (e) {
+    if (String((e && e.code) ?? '') !== '42883') throw e;
+    bestiaryKills = null;
+  }
+
   /* The engine is called with a LITERAL, field by field, from named server
      values — no spread of anything request-derived, ever. `slot` is the only
      field whose value came from the request and it selects a row the caller
@@ -850,6 +886,10 @@ export async function collectCurrentWindow(o) {
        without the Recovery migration) ⇒ 0 ⇒ the day's-first-fall grace, which
        is the UNDER-charging direction.
        Mirrors set-activity.js field for field (A14). */
+    /* THE BESTIARY COUNTERS (charms phase 2). Read above in its own statement;
+       the ENGINE folds them to a charm rank. No client value, no delta key,
+       null ⇒ no charm. Mirrors index.ts field for field (A14). */
+    bestiaryKills,
     deathsTodayBefore:    Number(st.deaths_today) || 0,
     deathsLifetimeBefore: Number(st.deaths_lifetime) || 0,
     /* THE RETREAT COUNTER (Recovery rev. 3) — and this call site matters as much

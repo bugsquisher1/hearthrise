@@ -101,6 +101,31 @@ function counters() {
   return (b && b.killsByClass && typeof b.killsByClass === 'object') ? b.killsByClass : null;
 }
 
+/**
+ * THE CHARM INDEX THE CLIENT'S COMBAT PREDICTION READS (phase 2), or null.
+ *
+ * `{class: rank}`, DERIVED on every read from the server's own counters — the
+ * same `charmIndex` the Edge engine calls on the same fold. This is the ONE
+ * place the scratch key is read for a NUMBER rather than for a badge, and it is
+ * published on `window.HearthriseCharms` so src/core-bridge.js can reach it
+ * without importing a renderer (it reaches `getBonus` and `HearthriseTools` the
+ * same way). Keeping the read here keeps `G._bestiaryCharms` owned by exactly
+ * one module.
+ *
+ * ⚠ DISPLAY PREDICTION ONLY. It feeds `weaknessInfo` on the client so the loot
+ *   preview and the live tick quote the same drop rate the server will pay; the
+ *   server re-resolves every kill from its own `hr_bestiary_of` read and never
+ *   sees this value. Null (no envelope yet, signed out, a database without the
+ *   projection) ⇒ no charm ⇒ the pre-charm numbers, never a forged rank.
+ */
+export function indexForCombat() {
+  const b = g()._bestiaryCharms;
+  const idx = b && b.index;
+  if (!idx || typeof idx !== 'object') return null;
+  for (const k in idx) { if (Number(idx[k]) > 0) return idx; }
+  return null;
+}
+
 /** Lifetime kills in a class, per the SERVER. 0 when unknown. */
 export function killsOfClass(cls) {
   const c = counters();
@@ -239,6 +264,7 @@ export function setupBestiaryCharms() {
   const W = w();
   W.HearthriseCharms = {
     noteEnvelope,
+    indexForCombat,
     killsOfClass,
     rankOfClass,
     nextOfClass,

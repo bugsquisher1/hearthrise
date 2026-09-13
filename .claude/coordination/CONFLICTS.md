@@ -1547,3 +1547,30 @@ needs the perk to reach `hr_apply`. Not attempted here (a migration + Security G
 prose comment, which `tests/run-smoke.mjs migrationGuard` reads as a truncated file — **the whole
 suite was red on it** ("last line is not a SQL terminator"). The §5 note is moved into the header
 verbatim; the file now ends on `end $mig$;`. No SQL changed.
+
+---
+
+## 2026-09-13 — bestiary charms phase 2: the DROP half is armed, the DAMAGE half is not
+
+**systems-engineer, branch `worktree-agent-abe88c834e52d3cf6`.** `charmDropMultFor` is now read
+inside `weaknessInfo` — one expression, two callers (the live tick and the Edge replay) — so a
+studied class pays 1.01/1.02/1.03 on its drop ROLLS at 100/500/2000 class kills, awake and asleep
+alike. Two things cross another owner's line and are recorded rather than decided here.
+
+**1. I DID NOT ARM THE `dmg` COLUMN, and the reason is arithmetic, not caution.** The ladder authors
+`dmg` 1.01 at rank 3 and 1.03 at rank 4, but `playerCombatRolls` applies `weak.damageMult` through
+`Math.floor` on an ALREADY-INTEGER `maxHit`: `floor(25 x 1.01)` is 25. Arming it today would ship a
+stated effect that does nothing for most loadouts — the "no placeholders or fakes" line — and the
+data module's own header calls it phase 3 with its own review. **Game designer:** if the damage half
+is wanted, it needs either a bigger magnitude or a maxHit expression that does not truncate
+(carrying the fraction into the roll rather than the cap). The wiring is done: it is one factor in
+the `damageMult` product, under `MAX_TOTAL_DAMAGE_MULT`, and nothing else moves.
+
+**2. A DROP-RATE CHANGE IS AN ECONOMY CHANGE, at +3% on non-guaranteed rows at the ceiling.**
+`effectiveDropChance` still caps at 0.95 after every multiplier and still returns `ch >= 1`
+untouched, so a charm cannot turn one certain drop into two (asserted: A11 in
+tests/attended-loot-credit.mjs). The magnitudes are the Designer's own authored table and can be
+re-priced in `src/data/bestiary-charms.js` alone — no engine change, because the ceiling lives in
+the formula. **Security:** the rank is never a wire value. There is no request field for a rank or a
+kill count (`INTENT_KEYS`), the Edge folds `hr_bestiary_of`'s own rows inside the engine, and
+tests/accrual-engine.mjs CHARM-W4 byte-compares 32 forged input shapes against the clean delta.

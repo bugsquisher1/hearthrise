@@ -12,6 +12,10 @@ import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=543';
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
 import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=543';
+/* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
+   table, never retyped: a designer re-pricing a rung must re-price the
+   expectation, not turn the suite red. */
+import { CHARM_RANKS } from '../data/bestiary-charms.js?v=543';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -13002,6 +13006,84 @@ const TESTS = [
       window.fetch = realFetch;
       try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
       const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
+      restoreG(snap);
+    }
+  }),
+
+  /* ── CHARM-2 — THE CHARM PAYS, AND ONLY THE SERVER'S COUNTERS BUY IT ───────
+     Phase 2 armed the ladder's DROP multiplier inside `weaknessInfo` — the one
+     expression the live tick, the loot preview and the Edge away replay all call.
+     Played through the real accrual funnel, three properties:
+       1. THE SERVER'S COUNTERS RAISE THE DROP RATE, by the ladder's own factor
+          (read from CHARM_RANKS, never retyped) against a monster of that class.
+       2. THE LOCAL RESIDUE BUYS NOTHING. `G.bestiary` is a residue field the
+          killMonster wrapper increments locally, so it can run AHEAD of the
+          server; a charm read off it is the residue-ahead class verbatim
+          (CLAUDE.md §6) and — now the multiplier is real — a drop rate the away
+          replay would refuse to pay. 99,999 local kills must buy nothing.
+       3. ONE ANSWER, NOT TWO: `getPlayerCombatRolls(m).weak.dropMult` (the fight
+          screen) and `getWeaknessInfo(m).dropMult` (the loot preview) agree — two
+          callers of one expression, the charm threaded through `combatCtx`.
+     Rank 1 pays NOTHING: the first rung is the element reveal, and paying power
+     for it would make the first 25 kills of every class mandatory. */
+  () => tryRunAsync('CHARM-2: the server\u2019s class kills raise the predicted drop rate; the local bestiary residue cannot', async () => {
+    const G = window.G, A = window.HearthriseAccrual, C = window.HearthriseCharms;
+    assert(typeof window.getWeaknessInfo === 'function' && C && typeof C.indexForCombat === 'function',
+      'CONTROL: getWeaknessInfo / HearthriseCharms.indexForCombat is unpublished \u2014 the charm has no client seam');
+    const TOP = CHARM_RANKS[CHARM_RANKS.length - 1];
+    const FIRST = CHARM_RANKS[0];
+    const M = window.MONSTERS || {};
+    /* A REAL monster of a nameable class, found through the same accessor the
+       renderer uses — no hardcoded id — and with a ROLLABLE drop row, because a
+       guaranteed row is untouched by design and would make this vacuous. */
+    const id = Object.keys(M).find((k) => C.classOfMonsterId(k)
+      && Array.isArray(M[k].drops) && M[k].drops.some((d) => d.ch > 0 && d.ch < 1));
+    const cls = id ? C.classOfMonsterId(id) : null;
+    assert(id && cls, 'CONTROL: no roster monster resolved a class and a rollable drop row');
+    const snap = snapshotG(); const realFetch = window.fetch; const prevCharms = G._bestiaryCharms;
+    const envOf = (bestiary) => ({ ok: true, accrued: false, reason: 'idle', version: 4, now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}) });
+    const drive = async (bestiary) => {
+      window.fetch = (u, init) => (/hr-accrue/.test(String(u))
+        ? Promise.resolve(new Response(JSON.stringify(envOf(bestiary)), { status: 200 }))
+        : realFetch.call(window, u, init));
+      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      return A.requestAccrual({ force: true });
+    };
+    const dropOf = () => window.getWeaknessInfo(M[id]).dropMult;
+    try {
+      /* ARM 1 — NO SERVER BLOCK, A HUGE LOCAL RESIDUE. The base rate, exactly. */
+      delete G._bestiaryCharms;
+      G.bestiary = { [id]: { kills: 99999 } };
+      await drive(null);
+      const base = dropOf();
+      assert(C.indexForCombat() === null, 'the client built a charm index with no server counters \u2014 the fail-safe is "no charm", never a rank the server does not believe in');
+      const mDrop = Number(M[id].dropBonus);
+      const expectBase = (Number.isFinite(mDrop) && mDrop > 0) ? mDrop : 1;
+      assert(Math.abs(base - expectBase) < 1e-9,
+        'with no server counters ' + id + ' predicted dropMult ' + base + ', not the monster\u2019s own ' + expectBase
+        + ' \u2014 99,999 LOCAL kills bought a charm, which is the residue-ahead class and a drop rate the server would refuse to pay');
+      /* ARM 2 — THE FIRST RUNG IS THE REVEAL, NOT POWER. */
+      await drive({ kills_by_class: { [cls]: FIRST.at } });
+      assert(C.rankOfClass(cls) === FIRST.rank && Math.abs(dropOf() - base) < 1e-9,
+        'rank ' + FIRST.rank + ' moved the drop rate to ' + dropOf() + ' (base ' + base + ') \u2014 the first rung is the element reveal; paying power for it makes the first '
+        + FIRST.at + ' kills of every class mandatory');
+      /* ARM 3 — THE TOP RUNG PAYS THE LADDER’S OWN NUMBER, AND ONE ANSWER ONLY. */
+      await drive({ kills_by_class: { [cls]: TOP.at } });
+      assert(C.rankOfClass(cls) === TOP.rank, 'the top rung read rank ' + C.rankOfClass(cls) + ' at ' + TOP.at + ' server kills');
+      const charmed = dropOf();
+      assert(Math.abs(charmed - base * TOP.drop) < 1e-9,
+        'a rank-' + TOP.rank + ' charm predicted dropMult ' + charmed + ', expected ' + (base * TOP.drop)
+        + ' (the ladder\u2019s own ' + TOP.drop + ' x the monster\u2019s ' + base + ')');
+      const rolls = window.getPlayerCombatRolls(M[id]);
+      assert(rolls && rolls.weak && Math.abs(rolls.weak.dropMult - charmed) < 1e-9,
+        'the fight screen quoted dropMult ' + (rolls && rolls.weak && rolls.weak.dropMult) + ' while the loot preview quoted ' + charmed
+        + ' \u2014 two callers of one expression must not answer twice; the charm rides combatCtx for exactly this reason');
+      assert(rolls.weak.damageMult === window.getWeaknessInfo(M[id]).damageMult,
+        'the charm moved damageMult \u2014 phase 3 is not armed (floor(maxHit x 1.01) is maxHit, so it would be a stated effect that does nothing)');
+    } finally {
+      window.fetch = realFetch;
+      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
       if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
       restoreG(snap);
     }

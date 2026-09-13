@@ -612,6 +612,13 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       ? (read as Record<string, unknown>).bestiary_rows as Row[]
       : null;
     let bestiary: { kills_by_class: Record<string, number> } | null = null;
+    /* THE SAME ROWS, HANDED TO THE ENGINE RAW (charms phase 2). The engine does
+       its OWN fold (accrual.js `killsByClass` → `charmIndex`) rather than reading
+       `kills_by_class` back: that block is a display projection, and an engine
+       that priced a drop table off a presentation shape would make the wire
+       load-bearing. `null` when the projection is absent ⇒ no charm ⇒ the
+       pre-charm numbers. Nothing here is request-derived. */
+    let bestiaryKills: Record<string, number> | null = null;
     if (bestiaryRows) {
       const byId: Record<string, number> = {};
       for (const r of bestiaryRows) {
@@ -624,6 +631,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          JSON object. `{}` when nothing has been killed yet — a truthful empty
          bestiary, distinct from the absent key above. */
       bestiary = { kills_by_class: { ...(killsByClass(byId, MONSTERS) || {}) } };
+      bestiaryKills = byId;
     }
 
     const st = env.state;
@@ -894,6 +902,11 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          without the Recovery migration) ⇒ 0 ⇒ the day's-first-fall grace, which
          is the UNDER-charging direction.
          Mirrors set-activity.js field for field (A14). */
+      /* THE BESTIARY COUNTERS (charms phase 2). `hr_bestiary_of`'s rows, read in
+         the state transaction above behind its own savepoint, folded to a charm
+         rank BY THE ENGINE. No client value, no delta key, and null ⇒ no charm.
+         Mirrors set-activity.js field for field (A14). */
+      bestiaryKills,
       deathsTodayBefore:    Number(st.deaths_today) || 0,
       deathsLifetimeBefore: Number(st.deaths_lifetime) || 0,
       /* THE RETREAT COUNTER (Recovery rev. 3). `player_state.consec_falls` —

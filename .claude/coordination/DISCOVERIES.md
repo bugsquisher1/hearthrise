@@ -4,6 +4,45 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-09-13 · QA Engineer · lane `worktree-agent-a35d279de41fa6a75` · the SNAP-2 seal exposed two leak-fed tests
+
+**DISCOVERY — the right fix for a dropped snapshot field is ABSENCE, not an empty.** `snapshotG`'s 26
+bare `f: G.f` entries were droppable because `JSON.stringify` drops `undefined`. Hardening each with
+`?? <empty>` needs 26 correct empties and a wrong one is worse than the leak (`skills: {}` restores a
+level-1 character over a real one; a zeroed `bank` takes capacity a player bought with gems). Every one
+of those 26 is absent for a reason that names the value: 9 because `forgetServerOfRecord(G)` deletes
+them at the end of every load, 17 because they are not depth-1 keys of the fresh-character literal. So
+the snapshot RECORDS the absence (`SNAP_ABSENT` sentinel) and `restoreG` `delete`s the key — value AND
+own-property presence round-trip for every field at once, with no empty to choose. 566 SNAP-2 findings
+→ 0. AFFECTED: `src/features/smoke-test.js` (sealSnapshot/restoreG/SNAP-2),
+`tests/snapshot-allowlist-guard.mjs` (readSeal + M7/M8/M9). ACTION: none — landed.
+
+**P2 — TWO IN-PAGE TESTS ASSERTED AN INVARIANT THEY DID NOT ESTABLISH (fixed here).** `b133: v3→v4
+migration applied …` and `b136: G.plotLevels is a number >=1 …` read `typeof G.plotLevels === 'number'`
+off the AMBIENT character. Nothing in the boot path sets `plotLevels` post-cutover (the v3→v4 save
+migration is pre-cutover; the beta was wiped), so the number they read was the previous test's write
+surviving the bare entry. Repro: `run-smoke --only "b136"` 9/9 on ccad203a, 8/9 with the seal armed.
+Both now assert `HearthriseFarm.getPlotLevel()` — the only reader, whose migration-safety branch is
+what guarantees a tier-1 farm — plus the heal it writes back; strictly stronger, because the old form
+could not tell a healed 1 from an inherited 3. NOT player-visible: the fail-safe works on the live page.
+
+**RESIDUAL, NOT RULED OUT — route: Coordinator / the next full in-page run.** The seal changes ambient
+`G` for every test after a restore, so any other test whose precondition was a leak goes red. Probed 6
+families: SNAP-2 1/1, inventory 268/268, shop 71/71, AWAY 65/65, room 110/110, b13x 35/38 (3
+pre-existing self-skips) — all at their pre-change counts. Swept the file statically for tests that
+assert one of the 26 fields without establishing it: 33 candidates, all but the two above supply their
+own state via a fixture or an envelope. Only a full suite closes this; this lane was scoped to filtered
+runs.
+
+**P3 — SNAP-1 IS STILL 263 WRITES ACROSS 41 FIELDS — route: Systems Engineer.** `G.monsterHp` /
+`monsterMaxHp` ×73, `lastOfflineSummary` ×22, `combatLog` ×12, `streak`, `dailyReward`, `collection`,
+`enchant`, `entitlements`, `settings` and the `_`-scratch family are not on the snapshot list at all.
+The seal makes each fix a one-line addition with NO empty to choose, which is what made this batch
+expensive before. The CI census step stays `continue-on-error` until the plain run is green; the TODO
+in `.github/workflows/smoke.yml` carries the current numbers.
+
+---
+
 ## 2026-09-13 — Systems Engineer (lane/b544-reed-and-tide): two P3s found while adding six cooking rows
 
 **P3 — THE 35 QTY-1 COOKING ROWS ARE UNGUARDED ON VENDOR RATIO.**

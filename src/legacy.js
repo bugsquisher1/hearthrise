@@ -8472,15 +8472,11 @@ function _sendEatNow(foodId,auto){
            unreachable) is left held — the eat may well have landed, and the
            hold drains on evidence or expires on its own. */
         const o=(v&&v.outcome)||'';
+        try{ window.__eatRefusalCopy(v,foodId); }catch(e){}
         if(o==='eaten'||o==='replayed')return;
         if(M&&typeof M.isAnswered==='function'&&!M.isAnswered(o))return;
         const P=_pendingConsumeApi();
         if(P&&typeof P.releaseConsumed==='function')P.releaseConsumed(G,foodId,1);
-        /* SAY WHY, when the reason is one the player can act on. A refusal that
-           only restocks the item silently reads as "I clicked Eat and nothing
-           happened" complaint. TABLE-DRIVEN so a new buff refusal
-           code is a row, not an edit to a branch. */
-        try{ window.__eatRefusalCopy(v,foodId); }catch(e){}
       }).catch(function(){});
     }
     return true;
@@ -10768,7 +10764,7 @@ function openInvDetail(id){
      heal number, so its whole reason to exist was invisible at the point of use. */
   if(_food && _food.heals) stats.push(`<div><b>+${_food.heals} HP</b><span>${_food.kind==='provision'?'heals when eaten':'also heals'}</span></div>`);
   else if(it.heals) stats.push(`<div><b>+${it.heals}</b><span>heals</span></div>`);
-  if(_food && _food.buffText) stats.push(`<div><b>${_food.buffText.split(' for ')[0]}</b><span>${_food.buffText.includes(' for ')?'for '+_food.buffText.split(' for ')[1]:'timed buff'}</span></div>`);
+  if(_food && _food.buffText) stats.push(`<div><b>${_food.buffText.split(' for ')[0]}</b><span>${_food.buffText.includes(' for ')?'for '+_food.buffText.split(' for ')[1]:'timed buff'}</span></div>` + (typeof window.buffGestureNoteHTML==='function' ? window.buffGestureNoteHTML() : ''));
   if(it.speed != null) stats.push(`<div><b>+${Math.round((it.speed||0)*100)}%</b><span>tool speed</span></div>`);
   if(it.smithSpeed != null) stats.push(`<div><b>+${Math.round((it.smithSpeed||0)*100)}%</b><span>smith speed</span></div>`);
   if(it.doubleCook != null) stats.push(`<div><b>+${Math.round((it.doubleCook||0)*100)}%</b><span>double-cook</span></div>`);

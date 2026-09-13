@@ -115,7 +115,7 @@ import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 /* THE EMITTER ITSELF (step 2). [16]/[17] apply the delta the `eat` verb actually
    builds rather than a hand-written imitation of it, which is the only way this
    guard can see the two halves of the feature drift apart. */
-import { eatDelta, resolveFood } from '../supabase/functions/hr-accrue/eat.js';
+import { eatDelta, resolveFood, runEat } from '../supabase/functions/hr-accrue/eat.js';
 import { deltaClosesWindow } from '../supabase/functions/hr-accrue/intents.js';
 
 const MIG = '2026-09-13-consumable-buffs.sql';
@@ -492,6 +492,12 @@ async function run(mutate, blind) {
     } finally { await db.exec('reset role'); }
   };
   const newKey = async () => (await db.query('select gen_random_uuid() as k')).rows[0].k;
+  /* The `exec` the Edge verb is given: one statement per call, AS hr_engine (the
+     only role that holds execute on hr_apply). [18d] drives the real `runEat`. */
+  const makeExec = () => async (text, params) => {
+    await db.exec('set role hr_engine');
+    try { return (await db.query(text, params)).rows; } finally { await db.exec('reset role'); }
+  };
   /* ── THE PAID FORM (F3, 2026-09-13-buff-apply-coupling.sql) ──────────────
      A buff_apply is refused `buff_not_paid` unless the SAME delta spends exactly
      one of the item, because the `items` block IS the possession check (it locks
@@ -810,6 +816,104 @@ async function run(mutate, blind) {
     ok((await held(pick.item_id)) === held16c,
       `[18c] the buff_at_max refusal ATE THE FOOD (${await held(pick.item_id)} vs ${held16c}). The whole `
       + 'apply must roll back, or a player at the ceiling pays a Feast for nothing.');
+
+    /* (d) [18d] THE HEAL LANDS EVEN WHEN THE BUFF CANNOT (Security F5, P1).
+       `buff_at_max` rolls back the WHOLE delta, so a capped player pressing Eat on
+       one of the fifteen healing foods that carry an incidental buff got: food kept,
+       HP NOT HEALED — a button that does nothing, mid-fight, on the common path
+       (auto-eat is a purchased trait most characters lack). `runEat` retries ONCE
+       without the buff, on the SAME intentId, for food that heals. Driven through
+       the REAL verb (not eatDelta), because the retry IS the verb's behaviour. */
+    {
+      /* A food that BOTH heals and buffs, read from the catalogue so a retune cannot
+         make this vacuous. `pick` may be a pure-buff Feast; this arm needs the other
+         kind, and if the catalogue has none it says so rather than passing. */
+      let healBuff = null;
+      for (const row of (await db.query(
+        'select item_id, type from public.hr_item_buffs order by item_id')).rows) {
+        const f = resolveFood(row.item_id);
+        if (f.ok && f.heals > 0 && f.hasBuff) { healBuff = { ...row, food: f }; break; }
+      }
+      if (!healBuff) {
+        throw harness('[18d] no food in hr_item_buffs both heals and buffs — the F5 retry is unreachable '
+          + 'and this arm would pass for the wrong reason');
+      }
+      await stock(healBuff.item_id, 40);
+      /* THE CAP, for the food's OWN type, and a hurt character so a heal is visible. */
+      await db.exec(`update public.player_state set buffs = jsonb_build_array(jsonb_build_object(
+          'type', '${healBuff.type}', 'magnitude', 99,
+          'until', to_jsonb(now() + make_interval(secs => ${CAP_MS / 1000})))),
+          hp = 1, max_hp = 99 where user_id = '${U}' and slot = 0`);
+      const q18d = JSON.stringify(await queue());
+      const held18d = await held(healBuff.item_id);
+      const hpOf = async () => Number((await db.query(
+        'select hp from public.player_state where user_id = $1 and slot = 0', [U])).rows[0].hp);
+      const hpBefore = await hpOf();
+      const out = await runEat({
+        exec: makeExec(), user: U, slot: 0, intentId: await newKey(), item: healBuff.item_id,
+      });
+      ok(!!out && out.status === 200 && out.body && out.body.ok === true,
+        `[18d] a MANUAL eat of a healing buff food at the cap was REFUSED (${out && out.status}: `
+        + `${JSON.stringify(out && out.body).slice(0, 160)}). The whole apply rolls back on buff_at_max, so `
+        + 'the player pressed Eat mid-fight, kept the food, healed NOTHING and died to a button that did '
+        + 'nothing. The heal must land without the buff.');
+      ok((await hpOf()) > hpBefore,
+        `[18d] the retry did not HEAL (hp ${await hpOf()} from ${hpBefore}) — the heal is the whole point of `
+        + 'the retry; a 200 that moved no hp is the same bug wearing an ok:true.');
+      ok((await held(healBuff.item_id)) === held18d - 1,
+        `[18d] EXACTLY ONE serving must leave the bag across both attempts (${await held(healBuff.item_id)} `
+        + `vs ${held18d - 1}). Two debits is item loss; zero is a free heal. The retry reuses the intentId, `
+        + 'which is safe ONLY because buff_at_max is a release code and the first attempt wrote nothing.');
+      ok(JSON.stringify(await queue()) === q18d,
+        '[18d] the retry moved the buff queue — it must carry no buff_apply at all, or the cap it was '
+        + `refused for has just been exceeded by the retry: ${JSON.stringify(await queue()).slice(0, 160)}`);
+      ok(out.body.buff_skipped === 'at_max',
+        `[18d] the client is not TOLD the buff was skipped (${JSON.stringify(out.body.receipt)}), so the pill `
+        + 'keeps the buff it predicted and the toast claims an effect the player did not get');
+      /* AND A PURE-BUFF FOOD IS STILL REFUSED — the designer's rule survives the
+         retry. There is nothing to buy, so eating it for nothing is the bug. */
+      const pure = (await db.query(
+        `select b.item_id from public.hr_item_buffs b join public.hr_items i using (item_id)
+          where b.type = $1 order by b.item_id`, [healBuff.type])).rows
+        .map((r) => resolveFood(r.item_id)).find((f) => f.ok && f.heals === 0 && f.hasBuff);
+      if (pure) {
+        await stock(pure.item, 5);
+        const heldP = await held(pure.item);
+        const outP = await runEat({
+          exec: makeExec(), user: U, slot: 0, intentId: await newKey(), item: pure.item,
+        });
+        ok(outP.status === 409 && outP.body.error === 'buff_at_max',
+          `[18d] a PURE-BUFF food at the cap must still be refused buff_at_max, not retried into a no-op: `
+          + JSON.stringify(outP.body).slice(0, 140));
+        ok((await held(pure.item)) === heldP,
+          '[18d] the refused pure-buff food was eaten for nothing — the rule the retry must not break');
+      }
+      /* BOTH-PATH: the AWAY engine is not on this path. Its auto-eat emits a signed
+         item debit and NEVER a buff_apply, so no accrual can be refused buff_at_max
+         and nothing about the retry can reach it. Asserted on the engine's own
+         output rather than by reading the code. */
+      const AW_NOW = Date.UTC(2026, 8, 13, 12, 0, 0);
+      const awayOut = computeAccrual({
+        userId: U, slot: 0, nowMs: AW_NOW, accruedToMs: AW_NOW - 3600000,
+        activeSinceMs: AW_NOW - 3600000, activeKind: 'combat', activeId: 'slime',
+        capMs: 12 * 3600000, seed: 42, hp: 4, maxHp: 40, gold: 0,
+        skills: { attack: 2000, strength: 2000, defense: 2000, hitpoints: 2000 },
+        equipment: {}, items: ITEMS, monsters: MONSTERS,
+        /* AUTO-EAT ON, with the buff food in the bag — the exact input that would
+           emit a buff_apply if the away path had ever learned to. */
+        autoEatEnabled: true, autoEatPct: 90, autoEatFood: healBuff.item_id,
+        inventory: { [healBuff.item_id]: 20 },
+        buffs: [{ type: healBuff.type, magnitude: 99,
+          until: new Date(AW_NOW + 3600000).toISOString() }],
+      });
+      const awayDelta = JSON.stringify((awayOut && awayOut.delta) || awayOut || {});
+      ok(!awayDelta.includes('buff_apply'),
+        '[18d] AWAY: the accrual engine proposed a `buff_apply`. The away auto-eat must only ever DEBIT — a '
+        + 'delta that can be refused buff_at_max would 409 an entire night (insufficient_item and friends '
+        + 'are not on index.ts\'s DEGRADABLE list).');
+      await db.exec(`update public.player_state set buffs = '[]'::jsonb
+        where user_id = '${U}' and slot = 0`);
+    }
 
     /* (d) [19] THE EAT DELTA MUST NOT CLOSE THE ACCRUAL WINDOW. hr_apply stamps
        `accrued_to = now()` on a delta carrying equip/activity/enchant, which

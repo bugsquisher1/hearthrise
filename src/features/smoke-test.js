@@ -10789,9 +10789,8 @@ const TESTS = [
      and (a)/(b) go red; make it fail CLOSED and (d) goes red. */
   () => tryRun('DGN-KEY-1: a dungeon entry key is counted from the server bag, not the client display bag', () => {
     const A = window.HearthriseAccrual, id = 'goblin_warcamp', key = 'goblin_seal';
-    assert(A && typeof A.serverItemCount === 'function', 'accrue.js must export serverItemCount');
-    assert(typeof window.canRunDungeon === 'function' && typeof window.dungeonKeysHeld === 'function',
-      'the dungeon gate and its key reader must both be exposed');
+    assert(A && typeof A.serverItemCount === 'function' && typeof window.canRunDungeon === 'function'
+      && typeof window.dungeonKeysHeld === 'function', 'the server count, the gate and the key reader must all be exposed');
     if (!window.DUNGEONS || !window.DUNGEONS[id]) return;
     const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag;
     try {
@@ -10803,21 +10802,17 @@ const TESTS = [
       delete G._serverBag;
       A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 1 } });
       // (a) THE SERVER'S FIGURE -- an omitted id is a real zero (whole-bag projection).
-      assert(A.serverItemCount(G, key) === 0 && A.serverItemCount(G, 'bone_key') === 1,
-        'the mirrored server bag must say 0 seals and 1 bone key (got '
-        + JSON.stringify({ seal: A.serverItemCount(G, key), bone: A.serverItemCount(G, 'bone_key') }) + ')');
-      assert((G.inventory[key] || 0) === 2,
-        'the display bag keeps its client-rolled seal under the live merge ratchet -- that is the '
-        + 'lie this test exists for, and removing it is a different (Phase 2) change');
+      assert(A.serverItemCount(G, key) === 0 && A.serverItemCount(G, 'bone_key') === 1 && (G.inventory[key] || 0) === 2,
+        'the mirror must say 0 seals / 1 bone key while the display bag KEEPS its client-rolled seal under the '
+        + 'merge ratchet (the lie this test exists for): ' + JSON.stringify({ srv: A.serverItemCount(G, key), bag: G.inventory[key] }));
       // (b) THE GATE AND THE LABEL -- THE BUG.
       const got = window.canRunDungeon(id, 'auto');
       assert(window.dungeonKeysHeld(key) === 0 && got.ok === false && /Goblin Seal/.test(got.reason),
-        'THE BUG: the card counted keys the server has no row for, so the run button invited a '
-        + 'refusal ("no key for that dungeon"). Got ' + JSON.stringify({ held: window.dungeonKeysHeld(key), got }));
+        'THE BUG: the card counted keys the server has no row for, so the button invited a refusal ("no key for '
+        + 'that dungeon"): ' + JSON.stringify({ held: window.dungeonKeysHeld(key), got }));
       // (c) AND IT DOES NOT LOCK OUT A KEY THE SERVER DOES HOLD.
       assert(window.canRunDungeon('crypt_of_bones', 'auto').ok === true,
-        'a dungeon whose key the server NAMES must stay runnable (got '
-        + JSON.stringify(window.canRunDungeon('crypt_of_bones', 'auto')) + ')');
+        'a dungeon whose key the server NAMES must stay runnable: ' + JSON.stringify(window.canRunDungeon('crypt_of_bones', 'auto')));
       if (document.getElementById('panel-dungeons')) {
         window.renderDungeons();
         const stock = [...document.querySelectorAll('#panel-dungeons .dgn-key-stock')].map((e) => e.textContent);
@@ -10826,10 +10821,9 @@ const TESTS = [
       }
       // (d) FAIL-OPEN ON SILENCE: no envelope has stated a bag => never disable.
       delete G._serverBag;
-      assert(A.serverItemCount(G, key) === null && window.dungeonKeysHeld(key) === 2
-        && window.canRunDungeon(id, 'auto').ok === true,
-        'an UNSTATED bag must read the local count -- a gesture is disabled only when the server '
-        + 'says none, never on silence (got ' + JSON.stringify(window.canRunDungeon(id, 'auto')) + ')');
+      assert(A.serverItemCount(G, key) === null && window.dungeonKeysHeld(key) === 2 && window.canRunDungeon(id, 'auto').ok === true,
+        'an UNSTATED bag must read the local count -- closed only when the server SAYS none: '
+        + JSON.stringify(window.canRunDungeon(id, 'auto')));
     } finally {
       window.getCombatLevel = lvl;
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
@@ -10855,9 +10849,8 @@ const TESTS = [
      _serverBag mirror, and (b) goes red. */
   () => tryRun('FARM-SEED-1: a plant is pre-flighted against the server seed count, not the fresh-G start kit', () => {
     const A = window.HearthriseAccrual;
-    assert(A && typeof A.gateItemCount === 'function', 'accrue.js must export gateItemCount');
-    assert(typeof window.plantCrop === 'function' && typeof window.heldByServer === 'function',
-      'the plant gesture and its count reader must both be exposed');
+    assert(A && typeof A.gateItemCount === 'function' && typeof window.plantCrop === 'function'
+      && typeof window.heldByServer === 'function', 'the gate rule, the plant gesture and its count reader must all be exposed');
     if (!window.CROPS || !window.CROPS.turnip) return;
     const G = window.G, snap = snapshotG(), bagWas = G._serverBag;
     const prevSync = window.HearthriseFarmSync, realNotify = window.notify;
@@ -10875,27 +10868,21 @@ const TESTS = [
       G.inventory = Object.assign({}, G.inventory, { turnip_seed: 5, wheat_seed: 11 });
       delete G._serverBag;
       A.applyEnvelopeState(G, { state: {}, inventory: { wheat_seed: 11 } });
-      // (a) THE SERVER'S FIGURES.
-      assert(A.gateItemCount(G, 'turnip_seed') === 0 && window.heldByServer('wheat_seed') === 11,
-        'the gate must read 0 turnip seed and 11 wheat seed from the server bag (got '
-        + JSON.stringify({ turnip: A.gateItemCount(G, 'turnip_seed'), wheat: window.heldByServer('wheat_seed') }) + ')');
-      assert((G.inventory.turnip_seed || 0) === 5,
-        'the display bag keeps the factory seed under the live merge ratchet -- that is the lie '
-        + 'this test exists for; removing it is the (Phase 2) inventory flip');
+      // (a) THE SERVER'S FIGURES, against a display bag that keeps the factory seed.
+      assert(A.gateItemCount(G, 'turnip_seed') === 0 && window.heldByServer('wheat_seed') === 11
+        && (G.inventory.turnip_seed || 0) === 5,
+        'the gate must read 0 turnip / 11 wheat from the server bag while the display bag keeps the factory 5 '
+        + '(the lie this test exists for): ' + JSON.stringify({ srv: A.gateItemCount(G, 'turnip_seed'), bag: G.inventory.turnip_seed }));
       // (b) THE BUG: the gesture must not go out, and the refusal must be SAID.
       window.plantCrop(0, 'turnip');
-      assert(sent.length === 0,
-        'THE BUG: a plant went out against a seed the server has no row for -- 19 of these were '
-        + 'journalled on live. Sent: ' + JSON.stringify(sent));
-      assert(said.some((m) => /Turnip Seed/.test(m)),
-        'the refusal must NAME the seed and where to get it, got ' + JSON.stringify(said));
-      assert(!G.farmPlots[0], 'a plant the client never sent must leave no phantom crop');
+      assert(sent.length === 0 && said.some((m) => /Turnip Seed/.test(m)) && !G.farmPlots[0],
+        'THE BUG: a plant went out against a seed the server has no row for (19 journalled on live), or the '
+        + 'refusal did not NAME the seed: ' + JSON.stringify({ sent, said }));
       // (c) FAIL-OPEN ON SILENCE: an unstated bag still sends (never block on silence).
       delete G._serverBag;
       window.plantCrop(0, 'turnip');
       assert(sent.length === 1 && sent[0][1] === 'turnip',
-        'with no envelope-stated bag the gesture must still be sent -- a gate is closed only when '
-        + 'the server SAYS none (sent ' + JSON.stringify(sent) + ')');
+        'with no envelope-stated bag the gesture must still be SENT: ' + JSON.stringify(sent));
     } finally {
       window.HearthriseFarmSync = prevSync; window.notify = realNotify;
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;

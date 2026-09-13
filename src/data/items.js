@@ -299,6 +299,33 @@ export const ITEMS={
   frostfin:        {n:'Raw Frostfin', icon:'❄️', v:520, heals:18},
   cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:1300, heals:28, foodTier:4, foodClass:'healing',
     buff:{type:'defense', magnitude:4, durationMs:360000}},
+  /* ── "Reed & Tide" (game-designer ruling, 2026-09-13) ─────────────────
+     The four fish that close the Trout(20)→Lobster(40) silence, their cooked
+     forms, and the two multi-input dishes that give late cooking a reason to
+     want river crops. `raw` is NOT tagged here: RAW_MATERIAL_IDS derives it
+     from `FISH_SPOTS[*].prod`, so the vendor bids these four the 20% raw rate
+     automatically (and the two dishes full book value, as cooked goods).
+     Every cooked row carries an explicit `foodClass` because the taxonomy guard
+     refuses an implicitly-classified cooking output, and four of the five
+     healing rows sit between Cooked Trout (14) and Cooked Lobster (25) so the
+     auto-eat pool gains rungs rather than a cliff. `river_chowder` heals 30
+     and `fishers_pie` is the one Feast of the batch (foodClass 'buff'). */
+  pikeperch:             {n:'Raw Pikeperch', icon:'🐟', v:27, heals:8},
+  cooked_pikeperch:      {n:'Grilled Pikeperch', icon:'🐠', v:75, heals:16, foodTier:2, foodClass:'healing',
+    buff:{type:'gather_speed', magnitude:2, durationMs:180000}},
+  copper_crab:           {n:'Copper Crab', icon:'🦞', v:37, heals:9},
+  cooked_copper_crab:    {n:'Steamed Copper Crab', icon:'🦞', v:100, heals:18, foodTier:2, foodClass:'healing',
+    buff:{type:'all_xp', magnitude:2, durationMs:180000}},
+  silverfin:             {n:'Raw Silverfin', icon:'🐠', v:51, heals:10},
+  cooked_silverfin:      {n:'Silverfin Fillet', icon:'🍥', v:135, heals:21, foodTier:3, foodClass:'healing',
+    buff:{type:'damage', magnitude:2, durationMs:240000}},
+  goldgill:              {n:'Raw Goldgill', icon:'🐟', v:71, heals:11},
+  cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:180, heals:23, foodTier:3, foodClass:'healing',
+    buff:{type:'drop_rate', magnitude:2, durationMs:300000}},
+  river_chowder:         {n:'River Chowder', icon:'🍲', v:380, heals:30, foodTier:3, foodClass:'healing',
+    buff:{type:'defense', magnitude:2, durationMs:300000}},
+  fishers_pie:           {n:"Fisher's Pie", icon:'🥧', v:520, heals:34, foodClass:'buff',
+    buff:{type:'damage', magnitude:2, durationMs:600000}},
   /* Fishing (55 / 90) — swordfish also fills the old 40→76 dead zone */
   swordfish:        {n:'Raw Swordfish', icon:'🐠', v:220, heals:14},
   cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:560, heals:22, foodTier:3, foodClass:'healing',

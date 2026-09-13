@@ -7,13 +7,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "11 controls <44px — worst: 18px \"\" .hd-who>.hd-name>button.hd-rename | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
+        "detail": "16 controls <44px — worst: 18px \"\" .hd-who>.hd-name>button.hd-rename | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
         "el": "#app>.main>#panel-profilesection.panel"
       }
     ],
     "stats": {
-      "els": 395,
-      "chars": 2478
+      "els": 469,
+      "chars": 2784
     },
     "viewport": "desktop"
   },
@@ -43,32 +43,20 @@
       {
         "sev": "P1",
         "kind": "clipped-text",
-        "detail": "\"The Crownless Wyrm\" (185>135)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+        "detail": "\"Crypt of Bones\" (134>127)",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b {Dungeon}"
       },
       {
         "sev": "P1",
         "kind": "clipped-text",
-        "detail": "\"Today's blessing\" (142>135)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+        "detail": "\"The Maw Below\" (132>127)",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b {Clan Raid}"
       },
       {
         "sev": "P1",
-        "kind": "clipped-by-parent",
-        "detail": "\"Today's blessing\" cut by .panel",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b"
-      },
-      {
-        "sev": "P1",
-        "kind": "clipped-by-parent",
-        "detail": "\"a rotating bonus, every da\" cut by .panel",
-        "el": ".wt-dest>.wtd-body>.wtd-main>span"
-      },
-      {
-        "sev": "P1",
-        "kind": "clipped-by-parent",
-        "detail": "\"Events ▸\" cut by .panel",
-        "el": "#wt-dests>.wt-dest>button.btn"
+        "kind": "clipped-text",
+        "detail": "\"Today's blessing\" (142>127)",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b {World Event}"
       },
       {
         "sev": "P3",
@@ -85,7 +73,7 @@
     ],
     "stats": {
       "els": 572,
-      "chars": 3653
+      "chars": 3656
     },
     "viewport": "desktop"
   },
@@ -133,13 +121,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "22 controls <44px — worst: 31px \"Equipment\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 31px \"Stats\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 31px \"Companion\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab",
+        "detail": "34 controls <44px — worst: 30px \"Everything\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 30px \"Weapons\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 30px \"Armour\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip",
         "el": "#app>.main>#panel-inventorysection.panel"
       }
     ],
     "stats": {
-      "els": 553,
-      "chars": 685
+      "els": 611,
+      "chars": 771
     },
     "viewport": "desktop"
   },
@@ -175,7 +163,7 @@
     ],
     "stats": {
       "els": 456,
-      "chars": 2790
+      "chars": 2809
     },
     "viewport": "desktop"
   },
@@ -187,13 +175,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "21 controls <44px — worst: 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn",
+        "detail": "23 controls <44px — worst: 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn",
         "el": "#app>.main>#panel-shopsection.panel"
       }
     ],
     "stats": {
-      "els": 440,
-      "chars": 1412
+      "els": 466,
+      "chars": 1471
     },
     "viewport": "desktop"
   },
@@ -247,7 +235,7 @@
     ],
     "stats": {
       "els": 367,
-      "chars": 1108
+      "chars": 1084
     },
     "viewport": "desktop"
   },
@@ -264,8 +252,8 @@
       }
     ],
     "stats": {
-      "els": 344,
-      "chars": 2478
+      "els": 414,
+      "chars": 2784
     },
     "viewport": "landscape"
   },
@@ -296,55 +284,55 @@
         "sev": "P1",
         "kind": "clipped-text",
         "detail": "\"Crypt of Bones\" (121>115)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+        "el": ".wt-dest>.wtd-body>.wtd-main>b {Dungeon}"
       },
       {
         "sev": "P1",
         "kind": "clipped-by-parent",
         "detail": "\"Clan Raid\" cut by .panel",
-        "el": "#wt-dests>.wt-dest>span.wtd-kick"
+        "el": "#wt-dests>.wt-dest>span.wtd-kick {Clan Raid}"
       },
       {
         "sev": "P1",
         "kind": "clipped-text",
-        "detail": "\"The Crownless Wyrm\" (168>115)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+        "detail": "\"The Maw Below\" (120>115)",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b {Clan Raid}"
       },
       {
         "sev": "P1",
         "kind": "clipped-by-parent",
-        "detail": "\"The Crownless Wyrm\" cut by .panel",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+        "detail": "\"The Maw Below\" cut by .panel",
+        "el": ".wt-dest>.wtd-body>.wtd-main>b {Clan Raid}"
       },
       {
         "sev": "P1",
         "kind": "clipped-by-parent",
         "detail": "\"Opens in Open Beta 1\" cut by .panel",
-        "el": "#wt-dests>.wt-dest>button.btn"
+        "el": "#wt-dests>.wt-dest>button.btn {Clan Raid}"
       },
       {
         "sev": "P1",
         "kind": "clipped-by-parent",
         "detail": "\"World Event\" cut by .panel",
-        "el": "#wt-dests>.wt-dest>span.wtd-kick"
+        "el": "#wt-dests>.wt-dest>span.wtd-kick {World Event}"
       },
       {
         "sev": "P1",
         "kind": "clipped-text",
         "detail": "\"Today's blessing\" (129>115)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+        "el": ".wt-dest>.wtd-body>.wtd-main>b {World Event}"
       },
       {
         "sev": "P1",
         "kind": "clipped-by-parent",
         "detail": "\"Today's blessing\" cut by .panel",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b"
+        "el": ".wt-dest>.wtd-body>.wtd-main>b {World Event}"
       },
       {
         "sev": "P1",
         "kind": "clipped-by-parent",
         "detail": "\"Events ▸\" cut by .panel",
-        "el": "#wt-dests>.wt-dest>button.btn"
+        "el": "#wt-dests>.wt-dest>button.btn {World Event}"
       },
       {
         "sev": "P1",
@@ -361,7 +349,7 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "23 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Board ▸\" #wt-dests>.wt-dest>button.btn | 40px \"Fight ▸\" #wt-dests>.wt-dest>button.btn",
+        "detail": "23 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Board ▸\" #wt-dests>.wt-dest>button.btn {Bounty} | 40px \"Fight ▸\" #wt-dests>.wt-dest>button.btn {Boss of the Day}",
         "el": "#app>.main>#panel-combatsection.panel"
       },
       {
@@ -373,7 +361,7 @@
     ],
     "stats": {
       "els": 311,
-      "chars": 3653
+      "chars": 3656
     },
     "viewport": "landscape"
   },
@@ -421,19 +409,25 @@
       {
         "sev": "P1",
         "kind": "clipped-by-parent",
+        "detail": "\"(81 free)\" cut by .invc-space",
+        "el": "#panel-inventory>.invc-topbar>.invc-space>span.invc-space-free"
+      },
+      {
+        "sev": "P1",
+        "kind": "clipped-by-parent",
         "detail": "\"· 2,719 items\" cut by .invc-space",
         "el": "#panel-inventory>.invc-topbar>.invc-space>span.invc-space-sub"
       },
       {
         "sev": "P1",
         "kind": "small-target",
-        "detail": "19 controls <44px — worst: 30px \"Bag\" #inv-mob-tabs>button.imt-btn | 30px \"Equip\" #inv-mob-tabs>button.imt-btn | 30px \"Saved\" #inv-mob-tabs>button.imt-btn",
+        "detail": "31 controls <44px — worst: 28px \"Everything\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 28px \"Weapons\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 28px \"Armour\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip",
         "el": "#app>.main>#panel-inventorysection.panel"
       }
     ],
     "stats": {
-      "els": 325,
-      "chars": 685
+      "els": 372,
+      "chars": 771
     },
     "viewport": "landscape"
   },
@@ -469,7 +463,7 @@
     ],
     "stats": {
       "els": 406,
-      "chars": 2790
+      "chars": 2809
     },
     "viewport": "landscape"
   },
@@ -481,13 +475,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "19 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Local Shop\" #panel-shop>.shops-tabs>button.shops-tab | 40px \"Market\" #panel-shop>.shops-tabs>button.shops-tab",
+        "detail": "21 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Local Shop\" #panel-shop>.shops-tabs>button.shops-tab | 40px \"Market\" #panel-shop>.shops-tabs>button.shops-tab",
         "el": "#app>.main>#panel-shopsection.panel"
       }
     ],
     "stats": {
-      "els": 390,
-      "chars": 1412
+      "els": 416,
+      "chars": 1471
     },
     "viewport": "landscape"
   },
@@ -541,7 +535,7 @@
     ],
     "stats": {
       "els": 317,
-      "chars": 1103
+      "chars": 1106
     },
     "viewport": "landscape"
   }

@@ -714,6 +714,18 @@ window._monsterIcon = window._monsterIcon || {};
     cooked_trout:  'assets/icons-bundle/painted/items/cooked_trout.png',
     cooked_lobster:'assets/icons-bundle/painted/items/cooked_lobster.png',
     cooked_shark:  'assets/icons-bundle/painted/items/cooked_shark.png',
+    /* "Reed & Tide" — the four new cooked fish REUSE shipped painted art
+       rather than ship an emoji next to four painted siblings on the same
+       shelf (Art Director's ruling, 2026-09-13): the two grilled fillets read
+       as cooked_trout, the two shellfish/steak dishes as cooked_lobster. The
+       raw fish and the two dishes stay on their emoji, exactly like herring,
+       swordfish and the existing stews. No new PNG, no item-art.js SHIPPED
+       entry (that list is reconciled against the filesystem in both
+       directions and would go red on a file that does not exist). */
+    cooked_pikeperch:   'assets/icons-bundle/painted/items/cooked_trout.png',
+    cooked_silverfin:   'assets/icons-bundle/painted/items/cooked_trout.png',
+    cooked_copper_crab: 'assets/icons-bundle/painted/items/cooked_lobster.png',
+    cooked_goldgill:    'assets/icons-bundle/painted/items/cooked_lobster.png',
     slime_gel:     'assets/icons-bundle/painted/items/slime_gel.png',
     sticky_core:   'assets/icons-bundle/painted/items/sticky_core.png',
     bat_wing:      'assets/icons-bundle/painted/items/bat_wing.png',

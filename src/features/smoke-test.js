@@ -13018,6 +13018,127 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
+  /* ── REEDTIDE-1..5 — the "Reed & Tide" band, PLAYED ─────────────────────
+     Fishing ran Trout(20) → Lobster(40): one rung per twenty levels, straight
+     through the band where a player learns fish → cook → eat → fight. Four
+     nodes and six cooking rows close it, and these are the happy paths a player
+     walks — a REAL gather through `doSkillAction` and a REAL cook through
+     `doArtisanAction`, never a read of the tables.
+     FIVE PROPERTIES, ONE TEST EACH, because a content batch gets a DIFFERENT
+     one wrong each time and a mega-test reports only the first: (1) the rungs
+     exist, the CATCH lands and the tile names the fish, not the pool; (2) the
+     COOK banks the dish and debits the fish; (3) the HEAL reaches the AUTO-EAT
+     POOL — a wrong `foodClass` is a bag item the away engine cannot spend, or
+     spends when it must not, so the Fisher's Pie is the negative control;
+     (4) the two COMBOS read their full input map through `recipeInputs`, the ONE
+     helper the edge imports, because a dish read as input-free MINTS; (5) the
+     cooking tile gates one level short — hr_apply's client half. */
+  () => tryRun('REEDTIDE-1: the four new fishing rungs exist at 24/28/32/36, a real action at Reed Pike Pool lands a Pikeperch, and the tile names the fish', () => {
+    const snap = snapshotG();
+    const G = window.G, I = window.ITEMS;
+    try {
+      const ids = ['pikeperch_s', 'copper_crab_s', 'silverfin_s', 'goldgill_s'];
+      const nodes = ids.map((id) => (window.FISH_SPOTS || []).find((f) => f.id === id));
+      nodes.forEach((n, i) => assert(n, 'fishing node ' + ids[i] + ' is missing — the Trout→Lobster silence is back'));
+      assert(nodes.map((n) => n.req).join(',') === '24,28,32,36', 'the four new rungs must gate at 24/28/32/36, got ' + nodes.map((n) => n.req).join(','));
+      nodes.forEach((n) => {
+        assert(I[n.prod], n.id + ' yields ' + n.prod + ', which is not an item');
+        assert(n.xp > 0 && n.ms > 0 && n.qty[0] === 1 && n.qty[1] === 1, n.id + ' must carry real xp/ms and yield exactly 1, got ' + n.xp + '/' + n.ms + '/' + n.qty);
+      });
+      /* THE CATCH — the real interval callback behind "fish this spot". */
+      const node = nodes[0];
+      G.skills = Object.assign({}, G.skills, { fishing: window.xpForLevel(node.req) });
+      assert(window.getLevel('fishing') === node.req, 'fixture: fishing is ' + window.getLevel('fishing') + ', not ' + node.req);
+      G.inventory = {}; G.activeSkill = 'fishing'; G.skillTargetId = node.id;
+      const fished0 = G.stats.fished || 0;
+      window.doSkillAction(true);
+      assert((G.inventory[node.prod] || 0) >= 1, 'a real fishing action at ' + node.id + ' banked no ' + node.prod + ' — the node is in the table but not in the loop');
+      assert((G.stats.fished || 0) > fished0, 'the catch did not tick stats.fished');
+      /* THE TILE NAMES ITS YIELD — the standing rule, on a new row. */
+      const AG = window.HearthriseActivitiesGrid;
+      assert(AG && typeof AG.__tileForGather === 'function', 'the gather-tile builder is unpublished — the paint half would pass vacuously');
+      assert(AG.__tileForGather(node, 'fishing').indexOf('Yields ' + I[node.prod].n) >= 0, 'the Reed Pike Pool tile does not name ' + I[node.prod].n + ' as its yield');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('REEDTIDE-2: a real cook at Cooking 18 turns one Raw Pikeperch into exactly one Grilled Pikeperch and debits the fish', () => {
+    const snap = snapshotG();
+    const G = window.G;
+    /* ⚠ `rooms` IS SAVED AND RESTORED BY HAND, and it has to be. `snapshotG()`
+       carries `rooms: G.rooms` with NO `|| null`, and its own header records why
+       that matters: JSON.stringify DROPS an undefined property, so when G.rooms
+       is unset at boot the snapshot has no `rooms` key and `restoreG` puts
+       NOTHING back. A Cast-Iron Range (kitchen 3) makes the one cook
+       deterministic, and that rung then LEAKED into every later test.
+       Measured, not guessed: `--only "fish"` was 20/21 with 0 red before this
+       test existed and 20/22 with ONE red after — `AWAY-19 PARITY` failing on
+       "the fixture never burnt", because a leaked Range drives burnChance() to 0
+       and AWAY-19's setup() does not reset rooms. Any test writing G.rooms onto
+       a boot state with none has the same hole; widening snapshotG is REPORTED. */
+    const localSnap = { rooms: JSON.parse(JSON.stringify(G.rooms || {})) };
+    try {
+      const rec = (window.ARTISAN_RECIPES.cooking || []).find((r) => r.id === 'cook_pikeperch');
+      assert(rec && rec.req === 18 && rec.input === 'pikeperch' && rec.output === 'cooked_pikeperch', 'cook_pikeperch must be the Cooking 18 pikeperch → cooked_pikeperch rung, got ' + JSON.stringify(rec));
+      G.rooms = Object.assign({}, G.rooms, { kitchen: 3 });
+      stampRecordLikeLoad(G);   // `rooms` is server-of-record; a raw write reads as UNKNOWN
+      G.skills = Object.assign({}, G.skills, { cooking: window.xpForLevel(rec.req) });
+      G.inventory = { pikeperch: 1 };
+      window.doArtisanAction('cooking', 'cook_pikeperch');
+      assert((G.inventory.cooked_pikeperch || 0) === 1, 'the fire produced ' + (G.inventory.cooked_pikeperch || 0) + ' Grilled Pikeperch from one raw fish');
+      assert(!(G.inventory.pikeperch > 0), 'the cook did not debit the raw fish — a free dish');
+    } finally { restoreG(snap); G.rooms = localSnap.rooms; stampRecordLikeLoad(G); }
+  }),
+
+  () => tryRun('REEDTIDE-3: the four new provisions are auto-eatable rungs between Cooked Trout and Cooked Lobster, and the Fisher\'s Pie Feast is not', () => {
+    const I = window.ITEMS, fc = window.foodClassOf, ae = window.isAutoEatable;
+    assert(typeof fc === 'function' && typeof ae === 'function', 'foodClassOf/isAutoEatable are unpublished — this test would pass vacuously');
+    assert(I.cooked_pikeperch.heals === 16 && I.cooked_pikeperch.foodClass === 'healing', 'Grilled Pikeperch must heal 16 as a healing provision, got ' + I.cooked_pikeperch.heals + '/' + I.cooked_pikeperch.foodClass);
+    assert(I.fishers_pie.heals === 34 && I.fishers_pie.foodClass === 'buff', "Fisher's Pie must be a 34-heal FEAST, or auto-eat will spend a 10-minute damage buff as a bandage");
+    assert(fc(I.cooked_pikeperch) === 'healing' && fc(I.fishers_pie) === 'buff', 'foodClassOf disagrees with the authored class — auto-eat reads foodClassOf, not `heals`');
+    assert(ae(I.cooked_pikeperch) === true && ae(I.fishers_pie) === false, 'the auto-eat pool is wrong: Grilled Pikeperch must be eligible and the Feast must not be');
+    assert(ae(I.river_chowder) === true, 'River Chowder is a healing provision and must be in the auto-eat pool');
+    /* Between Cooked Trout and Cooked Lobster, or the pool gained a cliff. */
+    [['cooked_pikeperch', 16], ['cooked_copper_crab', 18], ['cooked_silverfin', 21], ['cooked_goldgill', 23]].forEach(([id, h]) => {
+      assert(I[id] && I[id].heals === h, id + ' must heal ' + h + ', got ' + (I[id] || {}).heals);
+      assert(I[id].heals > I.cooked_trout.heals && I[id].heals < I.cooked_lobster.heals, id + ' (' + I[id].heals + ') must sit between Cooked Trout (' + I.cooked_trout.heals + ') and Cooked Lobster (' + I.cooked_lobster.heals + ')');
+    });
+  }),
+
+  () => tryRun('REEDTIDE-4: the two multi-input dishes read their full input map through recipeInputs — the helper the edge engine imports', () => {
+    const I = window.ITEMS, inputsOf = window.HearthriseCore.artisan.recipeInputs;
+    assert(typeof inputsOf === 'function', 'HearthriseCore.artisan.recipeInputs is unpublished — an input map nobody can read is a recipe that mints');
+    [['cook_river_chowder', { silverfin: 2, potato: 2, carrot: 1 }], ['cook_fishers_pie', { goldgill: 2, wheat: 3, potato: 1 }]].forEach(([id, want]) => {
+      const r = (window.ARTISAN_RECIPES.cooking || []).find((x) => x.id === id);
+      assert(r, id + ' is missing from the cooking bench');
+      assert(JSON.stringify(inputsOf(r)) === JSON.stringify(want), id + ' reads as ' + JSON.stringify(inputsOf(r)) + ', the ruling says ' + JSON.stringify(want));
+      Object.keys(want).forEach((k) => assert(I[k], id + ' consumes ' + k + ', which is not an item'));
+    });
+  }),
+
+  () => tryRun('REEDTIDE-5: the Grill Pikeperch tile is DISABLED at Cooking 17 and LIVE at 18 — the client half of hr_apply activity_locked', () => {
+    const snap = snapshotG();
+    const G = window.G, I = window.ITEMS;
+    try {
+      const rec = (window.ARTISAN_RECIPES.cooking || []).find((r) => r.id === 'cook_pikeperch');
+      assert(rec, 'cook_pikeperch is missing from the cooking bench');
+      G.inventory = { pikeperch: 5 };
+      /* The WHOLE button: `disabled` sits BEFORE the onclick carrying the id. */
+      const cell = (html) => {
+        const at = html.indexOf('cook_pikeperch');
+        assert(at > 0, 'the cooking bench rendered no cook_pikeperch tile at all');
+        return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
+      };
+      G.skills = Object.assign({}, G.skills, { cooking: window.xpForLevel(rec.req - 1) });
+      const below = cell(window.renderArtisanActivities('cooking'));
+      assert(/disabled/.test(below), 'at Cooking ' + (rec.req - 1) + ' the ' + rec.req + ' rung must render DISABLED');
+      assert(below.indexOf('Lv ' + rec.req) >= 0, 'the locked tile must name the level it needs (Lv ' + rec.req + ')');
+      G.skills = Object.assign({}, G.skills, { cooking: window.xpForLevel(rec.req) });
+      const live = cell(window.renderArtisanActivities('cooking'));
+      assert(!/disabled/.test(live), 'at Cooking ' + rec.req + ', holding pikeperch, the rung must be LIVE: ' + live.slice(0, 200));
+      assert(live.indexOf(I.cooked_pikeperch.n) >= 0, 'the live tile must name what it makes, ' + I.cooked_pikeperch.n);
+    } finally { restoreG(snap); }
+  }),
+
   /* ── TOWN-1 — THE COMMON, painted and un-paintable ──────────────────────
      THE HAPPY PATH for the live-world week-1 slice: a fixture town body is
      parked exactly as `hr_town_of` would answer it, Home is drawn, and the
@@ -17657,14 +17778,20 @@ const TESTS = [
   // to heal, and the only pool auto-eat may touch) vs Feasts & Draughts (what
   // you spend for a timed buff). The mapping is authored per item, so it is
   // the one part of the taxonomy that CAN drift. Lock the totals: 13 / 14.
-  () => tryRun('b220: cooking splits 14 Provisions / 14 Feasts & Draughts', () => {
+  () => tryRun('b220: cooking splits 19 Provisions / 15 Feasts & Draughts', () => {
     const cz = window.categorizeRecipes;
     assert(typeof cz === 'function', 'categorizeRecipes not published on window');
     const res = cz('cooking', window.ARTISAN_RECIPES.cooking, window.ITEMS);
     const of = (k) => (res.groups.find((g) => g.key === k) || { recipes: [] }).recipes;
     // Wave 2 added Turnip Mash (a healing Provision), so Provisions went 13 → 14.
-    assert(of('provisions').length === 14, 'expected 14 Provisions, got ' + of('provisions').length);
-    assert(of('feasts').length === 14, 'expected 14 Feasts & Draughts, got ' + of('feasts').length);
+    // b544 "Reed & Tide" added six cooking rungs: five healing Provisions
+    // (Grilled Pikeperch, Steamed Copper Crab, Silverfin Fillet, Goldgill Steak,
+    // River Chowder) and ONE Feast (Fisher's Pie, foodClass 'buff'), so 14 → 19
+    // and 14 → 15. These two literals are the point of the test — they are what
+    // makes a new dish joining the wrong category a FAILURE rather than a
+    // silent reclassification.
+    assert(of('provisions').length === 19, 'expected 19 Provisions, got ' + of('provisions').length);
+    assert(of('feasts').length === 15, 'expected 15 Feasts & Draughts, got ' + of('feasts').length);
     // Spot-check the two ends of the ruling: the top heal is a Provision even
     // though it carries a damage buff; the endgame feast never is.
     assert(window.ITEMS.cooked_shark.foodClass === 'healing', 'Cooked Shark must stay a Provision (top heal)');

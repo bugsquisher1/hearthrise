@@ -63,6 +63,7 @@ do $$
 declare
   v_town jsonb;
   v_peer jsonb;
+  v_res  jsonb;
   v_keys text;
   v_n    int;
   v_quiet_live int;
@@ -130,7 +131,23 @@ begin
     perform public.hr_heartbeat(0);
     perform set_config('request.jwt.claim.sub', v_quiet::text, true);
     perform public.hr_heartbeat(0);
-    perform public.hr_set_presence_quiet(0, true);
+    -- The probes arrived AFTER §2 built the snapshot, so the cache has to be
+    -- rebuilt to contain them — and now() does not move inside a transaction, so
+    -- the 3-second cooldown (2026-09-13-town-refresh-cooldown.sql) has to be AGED
+    -- past rather than waited out. Ageing the row is the only way to drive a
+    -- time-based rule from inside one transaction.
+    update public.town_snapshot set built_at = now() - interval '4 seconds'
+     where zone_id = public.hr_town_zone();
+    perform public.hr_town_refresh();
+    -- ...and NOW the quiet toggle runs INSIDE the window, so it takes the PRUNE
+    -- branch (2026-09-13-town-quiet-prune.sql, Security F1) rather than a rebuild.
+    -- So this apply proves the prune end to end, on the real chain, not just the
+    -- rebuild path.
+    v_res := public.hr_set_presence_quiet(0, true);
+    if coalesce((v_res->>'pruned')::boolean, false) is not true then
+      raise exception 'GATE(c): the quiet toggle did not PRUNE inside the cooldown window (%) — a '
+                      'coalesced opt-out would sit in the cache until the next cron build', v_res;
+    end if;
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
 
     v_town := public.hr_town_of();      -- the client's call: p_zone DEFAULTED

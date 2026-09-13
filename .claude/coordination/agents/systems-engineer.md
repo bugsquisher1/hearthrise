@@ -2,6 +2,39 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-09-12 — THE DEPOT: a dormant server verb finally has a client (bank-store, b438 → b544)
+
+**Branch** `worktree-agent-a50e80b5a0c025fcb`, merged `origin/next` twice (7b45f2f8, then the
+renderer-deletion set) — zero conflict hunks both times. New: `src/net/bank-sync.js`,
+`src/render/bank-panel.js`. `lane-done` green, `--only "BANK-1"` 1/1, `--only "bank"` 53/53.
+
+**What future-me should keep.**
+
+1. **A guarded call site is not a feature.** `openInvDetail` carried
+   `if(typeof bankItem === 'function') acts.push('→ Bank')` for a hundred builds and `bankItem` is
+   defined NOWHERE in the repo — so the button rendered exactly never, and `grep bankItem` "proving"
+   the bank had a door was a lie the code told. The server half (table, RPC, projection, rate bucket,
+   RPC baseline row) had been live and unreachable since b438. When a feature "exists", find the
+   CALLER that is reached, not the symbol.
+2. **The read model belongs to the projection, not to the RPC answer.** `farm-sync` reconciles from
+   its own RPC response because farming has no projection. The bank HAS one (`res.bank`, folded
+   absolutely by `reconcileBank`), so `bankMoveSettled()` sends the intent and then asks for an
+   envelope; the panel paints that. BANK-1 answers the RPC with `qty 3` and the envelope with `99`
+   and asserts 99 — a test that would pass either way proves nothing about who authored the number.
+3. **Two things called "bank cap" are different numbers.** `player_state.bank_cap` / `G._bankCap` /
+   `bankCap()` is the BAG's stack ceiling (`bag_full` on a withdraw). The Depot's ceiling is
+   `c_max_bank_stacks = 1000`, a server constant that `hr_state_of` does not project. Printing
+   "/ 1000" client-side would have been residue-ahead wearing a capacity label.
+4. **The monolith ratchet is a design tool, not a tax.** +20 lines in `legacy.js` went red; folding
+   the Depot door onto the EXISTING "Buy space" line and replacing the dead `bankItem` line with one
+   call to `HearthriseDepot.flyoutButtonHtml()` landed the same feature at net ZERO monolith lines,
+   with every byte of markup in `src/render/*` where §7 wants it. The ratchet pushed the code to the
+   better place.
+5. **Measure the modal at 922×423 before calling it mobile-ready.** Playwright against the worktree
+   showed the sheet clipping its last rows with no scroll and 23px tap targets. `max-height:92vh;
+   overflow:auto` + `min-height:36px` on the phone query fixed both; the numbers came from the page,
+   not from reading the CSS.
+
 ## 2026-09-12 — CLEANUP: three dead things, and the one that was worth keeping as an assertion
 
 **Branch** `worktree-agent-ad02bed6e9955b458`, off `set/b541` (merged in first, fast-forward, zero hunks).

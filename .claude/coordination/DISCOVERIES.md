@@ -4,6 +4,68 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+### 2026-09-13 — Systems Engineer — **ALL TEN new Prayer rungs consume a drop that already had a competing sink, and `grave_dust` is the SHRINE'S OWN upgrade cost.** (design, for the Game Designer — measured, not guessed)
+
+AFFECTED SYSTEMS: `src/data/recipes.js` (prayer bench), `src/data/shops.js` (room/property offers), the crafting + cooking benches.
+
+The ten rungs added at Prayer 40–99 are pure XP sinks fed by monster drops. Every one of those
+drops is ALREADY spent somewhere else. Measured by walking `ARTISAN_RECIPES` and `SHOP_OFFERS`:
+
+| rung input | competing recipes | competing room/property offers |
+|---|---|---|
+| `bone_chips` | smith_iron_fitting, tailor_woolen_cloak | — |
+| `grave_dust` | forge_lazlos_maul, craft_wraithsilk_shroud | **room.shrine.4 ×20** |
+| `razor_claw` | craft_nightstalker_pelt | — |
+| `vamp_dust` | craft_wraithsilk_shroud | — |
+| `demon_shard` | craft_demoncaller_staff | — |
+| `wraith_veil` | craft_wraithsilk_shroud, jewel_wraithglass_drops | — |
+| `dragon_scale` | cook_dragon_stew | property.castle ×4, room.forge.5 ×6, room.kitchen.5 ×8, room.trophy.3 ×2, room.trophy.5 ×6 |
+| `lich_soul` | cook_lich_soup | — |
+| `ancient_claw` | forge_dragonrend_greatblade, jewel_dawnbound_amulet | room.trophy.4 ×3 |
+| `void_chitin` | 9 recipes (the whole chitin armour set, void_censer, chitinweave_cloak, weave_voidchitin) | — |
+
+THE SHARP ONE: **`room.shrine.4` costs 20 grave dust, and the Shrine is the room that sells
+`prayerSpeed`.** So `consecrate_grave_dust` makes a player choose between Prayer XP now and a
+faster Prayer bench forever — with the same item. That may be a good tension or a trap; it is the
+Designer's call, not mine, and I authored no number. `craft_wraithsilk_shroud` alone eats THREE of
+the ten (grave_dust 6 + vamp_dust 2 + wraith_veil 1), and `dragon_scale` is the single most
+contested id in the game (5 offers + a recipe + now a rung).
+
+REQUIRED ACTION (Designer): decide whether any rung should move to a LESS contested drop. Nothing
+is blocked — these are real sinks for items that mostly vendored for gold — but "Prayer 99 is
+reachable" and "the castle is affordable" are now the same grind, and nobody chose that. Retuning
+is a data edit in `src/data/recipes.js` plus `node tools/gen-catalogues.mjs`; the level/xp/ms
+triples are pinned literally by PRAYER-LADDER-1, so the test moves with the ruling.
+
+---
+
+### 2026-09-13 — Systems Engineer — **Closing a wield gate does NOT strip gear already worn, and the item modal will now print an UNMET requirement on a slot the player is wearing.** (P3, one live character on `fox_companion`)
+
+AFFECTED SYSTEMS: `hr_apply` §EQUIPMENT, `src/legacy.js` `canWield`/`gearWieldReq` (~8725), the item
+detail modal (~10827), `src/item-ux.js:137`, `src/features/combat-screens.js:1253`,
+`src/render/shop.js:301`.
+
+Provenance: the Coordinator's read after the 01:06 UTC apply found **one** character wearing
+`fox_companion` below the new Defence 15. This is BY DESIGN on the server — `hr_apply` checks a
+requirement on the EQUIP and never re-checks the worn set, so nobody is un-equipped by an apply
+(the alternative is stripping live players' kit, which is worse). The same was true of the 34 rows
+the 2026-09-12 file gated.
+
+THE P3 IS THE UI, and it is the half a gate sweep forgets: `canWield` is now false for that
+character while the fox is still equipped, so the item modal renders the
+`inv-stat-unmet` branch — "**Defence 15** · to wear · you have 9" — on a companion they are
+visibly already wearing. Nothing breaks, nothing is lost, and re-equipping after an unequip WILL
+be refused (correctly). But the screen contradicts itself for exactly as long as that character
+stays under the level.
+
+REQUIRED ACTION: not fixed in this lane (it is a presentation decision on a surface the Art
+Director owns, and it is one character). The honest fix is a third state in the one authority —
+worn-and-unmet reads "Defence 15 · worn, below requirement" rather than "to wear" — which is a
+change to `gearWieldReq`'s CALLERS, not to the gate. Do it when the next gate sweep lands, or it
+will recur with every closed gate.
+
+---
+
 ### 2026-09-12 — Systems Engineer — **A Node driver that imports a `src/net` module WITHOUT its `?v=` gets a SECOND instance, and every test seam it sets lands on the copy nobody runs.** (method, P3 for any bespoke driver)
 
 Measured while driving the real `sendDungeonSettle`: `import(".../dungeon-scrip-record.js")` +

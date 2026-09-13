@@ -2359,6 +2359,42 @@ body[data-theme] .brand-word {
     min-height: 30px !important;
   }
 
+  /* The STANDING kept-classes row (src/features/loot-filter.js) is chrome too,
+   * and it arrived in the bag's left column WITHOUT any short-viewport treatment:
+   * eleven WORD-labelled chips are ~770px of row, so over a 423px-tall screen
+   * `flex-wrap: wrap` gave three ranks and every one of them came straight out of
+   * the item grid's window — measured at 922x423, chrome went from 26% of the
+   * panel to 55% and the bag fell under half, which is the exact shape of paione
+   * bug #24 returning (b327 caught it).
+   *
+   * THE SIDEWAYS SCROLLER THE CATEGORY STRIP USES IS NOT AVAILABLE HERE, and the
+   * reason is worth writing down: the strip's chips are 30px squares that FIT in
+   * 820px, so its `overflow-x: auto` never actually scrolls. A scroller whose
+   * content really is wider puts that content past the viewport's right edge, and
+   * `getBoundingClientRect` reports the true position through an overflow
+   * ancestor — which is precisely what the landscape guard measures
+   * (tests/run-smoke.mjs ~1426). Measured: 41px past, offender .invc-lf-chip.
+   *
+   * So the words come off instead and the chip keeps its bag-category glyph: the
+   * same rank is ~440px and simply fits, at one rank, with nothing clipped and
+   * nothing scrolled. The title attribute carries the word for a long-press, and
+   * `:has(.hr-glyph)` means a chip that somehow has no glyph keeps its label.
+   * KNOWN CEILING, shared with the category strip: past roughly twenty item
+   * classes even the glyph rank stops fitting 820px, at which point BOTH controls
+   * want one disclosure rather than two longer rows — b327 and the landscape
+   * guard are the two tripwires that will say so. */
+  body[data-theme] #panel-inventory .invc-lootfilter {
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+  body[data-theme] #panel-inventory .invc-lf-label { flex: 0 0 auto; }
+  body[data-theme] #panel-inventory .invc-lf-chip {
+    flex: 0 0 auto;
+    padding: 4px 7px;
+    min-height: 28px;
+  }
+  body[data-theme] #panel-inventory .invc-lf-chip:has(.hr-glyph) .invc-lf-txt { display: none; }
+
   /* The bag is the scrolling region, and it is guaranteed a real floor. If the
    * chrome above it ever grows again the PANEL runs out of room before the bag
    * does, which is a visible bug rather than a silent 20px slit. */

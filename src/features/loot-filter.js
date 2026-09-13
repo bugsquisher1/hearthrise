@@ -81,19 +81,38 @@
   }
 
   /** The control. Chips borrow `.invc-cat-btn`'s palette through their own class
-   *  rather than declaring a colour (CLAUDE.md §7: no hardcoded colours). */
+   *  rather than declaring a colour (CLAUDE.md §7: no hardcoded colours).
+   *
+   *  EVERY CHIP CARRIES BOTH A GLYPH AND ITS WORD, and the word is wrapped so a
+   *  short viewport can drop it (art-direction.css @media (max-height:540px)).
+   *  That is load-bearing, not decoration: eleven word-labelled chips are ~770px
+   *  of row, which on a 423px-tall landscape phone WRAPPED into three ranks and
+   *  took them out of the item grid's window (b327, paione bug #24), and which on
+   *  an 820px-wide landscape phone could not be rescued by a sideways scroller
+   *  either — a scroller's content genuinely sits past the right edge, which is
+   *  what the landscape overflow guard measures. Glyph-only, the same rank is
+   *  ~440px and simply fits. The glyph is the bag's OWN category glyph
+   *  (`CATEGORIES[].glyph`), so a new item class brings its icon for free.
+   *
+   *  The word is hidden by `:has(.hr-glyph)`, so if the atlas is not up yet the
+   *  chip keeps its label rather than rendering as an empty box — the failure
+   *  mode is a wrapped row that b327 names, never an unreadable control. */
   function rowHTML() {
     var w = want();
-    var chip = function (id, label, on) {
-      return '<button class="invc-lf-chip' + (on ? ' active' : '') + '" onclick="'
+    var icon = function (glyph) {
+      return (window.HR && typeof window.HR.icon === 'function')
+        ? (window.HR.icon(glyph, 17, 'currentColor') || '') : '';
+    };
+    var chip = function (id, label, glyph, on) {
+      return '<button class="invc-lf-chip' + (on ? ' active' : '') + '" title="Keep ' + label + '" onclick="'
         + (id ? "window.HearthriseLootFilter.toggle('" + id + "')" : 'window.HearthriseLootFilter.clear()')
-        + '">' + label + '</button>';
+        + '">' + icon(glyph) + '<span class="invc-lf-txt">' + label + '</span></button>';
     };
     return '<div class="invc-lootfilter" title="The classes your bag keeps in view. '
       + 'Remembered between sessions — your items stay in your bag either way.">'
       + '<span class="invc-lf-label">Keep</span>'
-      + chip(null, 'Everything', !w.length)
-      + classes().map(function (c) { return chip(c.id, c.name, w.indexOf(c.id) !== -1); }).join('')
+      + chip(null, 'Everything', 'uiChest', !w.length)
+      + classes().map(function (c) { return chip(c.id, c.name, c.glyph, w.indexOf(c.id) !== -1); }).join('')
       + '</div>';
   }
 

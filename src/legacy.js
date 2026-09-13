@@ -10840,7 +10840,7 @@ function openInvDetail(id){
     }
     /* b311: Buy-Back moved to the Local Shop (where you sell to the vendor) — it
        no longer clutters every item's detail popup. */
-    if(typeof bankItem === 'function') acts.push(`<button class="btn" onclick="bankItem('${id}',${qty});closeInvDetail()">→ Bank</button>`);
+    if(window.HearthriseDepot) acts.push(window.HearthriseDepot.flyoutButtonHtml(id, G.inventory[id]|0));   /* → the Depot (this slot was a dead `bankItem` guard for a hundred builds) */
   }
 
   /* b385 — ELEMENTS discoverability. The reverse "Used in" index is RECIPE-based,
@@ -16819,7 +16819,7 @@ function renderInvFancy(){
         +' <span class="invc-space-free">('+Math.max(0, bankCap()-bankUsed()).toLocaleString()+' free)</span>'
         +'<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
       '<div class="invc-actions">'+
-        '<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
+        (window.HearthriseDepot?window.HearthriseDepot.toolbarButtonHtml():'')+'<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
         '<button id="invc-multi" class="'+(window._invMultiSelect?'active':'')+'" onclick="window._invToggleMulti()">Multi-select</button>'+
         '<button onclick="window._invManage()">Manage</button>'+
       '</div>'+

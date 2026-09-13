@@ -13326,6 +13326,114 @@ const TESTS = [
     }
   }),
 
+  /* ── regression suite — DEPOT-2: THE DEPOT, PLAYED UNARMED ──────────────────
+     THE LIVE P1. The release note said "The Depot opens". On live it did not: the
+     panel read "The realm has not sent your Depot yet — reload if this persists"
+     with 0 stacks over an envelope that carried `bank: {}` on EVERY settle, and
+     pressing Store sent one hr_bank_move → 200 after which the bag still showed
+     876 Bones, the Depot column still showed nothing, and no message appeared at
+     all. Root cause: `reconcileBank` was gated on the BAG's absolute arm
+     (isInventoryAbsolute(), false in prod), so the fold answered 'dormant'
+     forever; the bag's merge `Math.max` then refused to let the deposited stack
+     leave; and the panel's re-entrancy fuse returned silently.
+
+     THIS TEST IS BANK-1 WITH THE ARM OFF, which is the only configuration a real
+     player has ever run. It plays the gesture through the REAL delegated click
+     listener on the REAL panel — the press, not the function — because the press
+     is what did nothing. Everything it asserts is the SERVER's: `bank: {}` means
+     an EMPTY Depot (a claim only the realm can make, and it makes it), and the
+     figures after the move are the second envelope's, never this device's. */
+  () => tryRunAsync('DEPOT-2 (b545): with the bag arm OFF the Depot still folds, a pressed Store posts once and lands, and a refusal says why', async () => {
+    const G = window.G, D = window.HearthriseDepot, BS = window.HearthriseBankSync, A = window.HearthriseAccrual;
+    assert(D && typeof D.open === 'function' && BS && typeof BS.bankMoveSettled === 'function' && A
+      && typeof A.reconcileBank === 'function' && typeof A.__resetBankFoldMode === 'function',
+      'CONTROL: the Depot seam is unpublished (HearthriseDepot/HearthriseBankSync/reconcileBank) — the feature has no client half');
+    const ID = window.ITEMS && window.ITEMS.bones ? 'bones'
+      : Object.keys(window.ITEMS || {}).find((k) => window.ITEMS[k] && window.ITEMS[k].n);
+    assert(!!ID, 'CONTROL: no nameable item in the catalogue, so no Depot row can be drawn');
+    const NAME = window.ITEMS[ID].n;
+    const snap = snapshotG(); const realFetch = window.fetch; const realNotify = window.notify;
+    const said = [];
+    let rpc = [], answer = { ok: true, item: ID, qty: 10, direction: 'deposit', version: 9 };
+    /* THE TWO ENVELOPES: before the move the realm holds nothing and the player
+       carries 876; after it the realm holds 10 and the bag is 866. Both carry
+       `inventory_complete: false` on purpose — the Depot must not wait for the
+       bag's completeness flag any more than for its arm. */
+    let env = { ok: true, accrued: true, version: 9, now: new Date().toISOString(), state: { gold: G.gold },
+      skills: {}, equipment: {}, inventory_complete: false, inventory: { [ID]: 876 }, bank: {}, away: { minutes: 0, kind: 'idle' } };
+    const reply = (b) => Promise.resolve(new Response(JSON.stringify(b), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const view = () => D.bankPanelView(G, {});
+    const bodyText = () => {
+      const el = document.getElementById('bank-panel-overlay');
+      return el ? (el.textContent || '').replace(/\s+/g, ' ') : '';
+    };
+    const press = async (qty) => {
+      const el = document.querySelector('#bank-panel-overlay [data-bank-move="deposit"][data-bank-qty="' + qty + '"]');
+      assert(!!el, 'no enabled Store ×' + qty + ' control on the ' + NAME + ' row — the panel drew a Depot a player cannot act on: ' + bodyText());
+      assert(el.disabled !== true, 'the Store ×' + qty + ' control is DISABLED while the realm is reachable');
+      el.click();                                   // the REAL delegated listener
+      for (let i = 0; i < 60 && !said.length; i++) await new Promise((r) => setTimeout(r, 20));
+    };
+    try {
+      window.notify = (m) => { said.push(String(m)); };
+      A.markInventoryAuthorityLive(false); A.__resetBankFoldMode();
+      assert(A.isInventoryAbsolute() === false, 'CONTROL: the bag arm is ON in this suite run, so this test would not be measuring the live configuration');
+      window.fetch = (u, init) => (/rpc\/hr_bank_move/.test(String(u))
+        ? (rpc.push(JSON.parse((init && init.body) || 'null')), reply(answer))
+        : /hr-accrue/.test(String(u)) ? reply(env) : realFetch.call(window, u, init));
+      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      G.inventory = { [ID]: 876 }; G.bank = { goldBuys: 1 }; delete G._depotCap;
+
+      /* (a) NOTHING STATED YET → "not sent", which is the honest line. */
+      assert(view().projected === false, 'the panel claimed a projected Depot before any envelope stated one — absence is not a claim of zero');
+
+      /* (b) THE PANEL OPENS AND ASKS THE REALM. `bank: {}` is a COMPLETE
+             statement of an empty container, so the copy must flip. */
+      D.open();
+      for (let i = 0; i < 60 && A.lastBankFoldMode() !== 'absolute'; i++) await new Promise((r) => setTimeout(r, 20));
+      assert(A.lastBankFoldMode() === 'absolute', 'the fold answered "' + A.lastBankFoldMode() + '" for an envelope carrying `bank: {}` with the bag arm off — THE LIVE P1: the Depot is server-owned and does not wait for the bag');
+      assert(view().projected === true && /Your Depot is empty/.test(bodyText()) && !/has not sent/.test(bodyText()),
+        'the Depot column still says the realm has not sent it: ' + bodyText());
+      assert(G.bank.goldBuys === 1, 'the fold ate the bank-SPACE counter (goldBuys) — purchased rungs are not stacks');
+
+      /* (c) THE PRESS. One intent, five fields, and the figures that follow are
+             the SECOND envelope's — not 876-10 and not the RPC's own qty. */
+      env = { ...env, inventory: { [ID]: 866 }, bank: { [ID]: 10 } };
+      await press(10);
+      assert(rpc.length === 1, 'the pressed Store put ' + rpc.length + ' intents on the wire, not one (live: three presses, one POST, no message)');
+      assert(rpc[0].p_item === ID && rpc[0].p_qty === 10 && rpc[0].p_dir === 'deposit' && /^[0-9a-f-]{36}$/i.test(String(rpc[0].p_idem)),
+        'the intent said ' + JSON.stringify(rpc[0]) + ' — item/qty/direction/idem are the gesture\'s');
+      assert(G.bank[ID] === 10, 'the Depot shows ' + G.bank[ID] + ' after a confirmed deposit — the envelope said 10 and the fold was dormant again');
+      assert(G.inventory[ID] === 866, 'the bag still shows ' + G.inventory[ID] + ' — the merge max kept the stale 876 the player watched NOT leave their bag');
+      assert(/Stored/.test(said.join(' ')) , 'a confirmed move said nothing to the player: ' + JSON.stringify(said));
+      assert(new RegExp('1 stack stored').test(bodyText()), 'the Depot column did not repaint to the realm\'s one stack: ' + bodyText());
+      assert(A.isInventoryAbsolute() === false, 'this test armed the BAG — the Depot fix must not smuggle the inventory flip in early');
+
+      /* (d) A REFUSAL IS A SENTENCE, and the realm's own ceiling is learned only
+             from the realm saying it. */
+      rpc = []; said.length = 0; answer = { ok: false, error: 'bank_full', cap: 1000 };
+      await press(1);
+      assert(rpc.length === 1, 'the second gesture did not reach the server: ' + JSON.stringify(rpc));
+      assert(/Depot is full/.test(said.join(' ')) && /1,000 stacks/.test(said.join(' ')),
+        'a refusal was swallowed into silence — the player pressed Store and nothing happened: ' + JSON.stringify(said));
+      assert(G._depotCap === 1000, 'the ceiling the realm just named was not remembered (' + G._depotCap + ')');
+
+      /* (e) THE FUSE SPEAKS. A press while a move is in flight is answered, not
+             silently dropped — the other half of "nothing happened". */
+      said.length = 0; answer = { ok: true, item: ID, qty: 1, direction: 'deposit', version: 10 };
+      const first = D.move(ID, 1, 'deposit');
+      const second = await D.move(ID, 1, 'deposit');
+      assert(second && second.ok === false && second.error === 'busy', 'a concurrent gesture was not fused: ' + JSON.stringify(second));
+      assert(/One move at a time/.test(said.join(' ')), 'the fused press said nothing — a dead button with no message is how the live Depot read: ' + JSON.stringify(said));
+      await first;
+    } finally {
+      window.fetch = realFetch; window.notify = realNotify;
+      try { D.close(); } catch (e) {}
+      try { A.resetAccrualGate(); A.configureAccrual(null); A.__resetBankFoldMode(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
   /* ── SELLLOCK-1 — the sell-lock and the loot filter, played ─────────────────
      The lock's whole contract is NEGATIVE: it stops this client from ever
      AUTHORING a sale for that id. So the proof is the WIRE, never a disabled

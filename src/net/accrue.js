@@ -1678,7 +1678,7 @@ export function reconcileWorkers(G, res) {
   return hired.length;
 }
 
-/* ── THE BANK ITEM STORE, RECONCILED FROM THE ENVELOPE (bank-store, b438) ────
+/* ── THE BANK ITEM STORE, RECONCILED FROM THE ENVELOPE ───────────────────────
    `hr_state_of` projects the server-owned bank (public.player_bank — no client
    write policy) at `res.bank`: a flat {item_id: qty} map, exactly the shape of
    `res.inventory`. G.bank is the client's copy of that store — but note it ALSO
@@ -1686,21 +1686,28 @@ export function reconcileWorkers(G, res) {
    src/legacy.js ~615/1274, which Object.assigns them into the same object). Those
    are purchase state, NOT items, and are ALWAYS preserved here.
 
-   The fold MIRRORS the bag (applyEnvelopeState's inventory branch) EXACTLY, and
-   is gated on the SAME two conditions, both fail-closed toward "leave G.bank
-   alone" — the direction that can never delete a banked item:
-     • the general inventory bag must be absolute on this device
-       (isInventoryAbsolute() — false in prod today; the inventory arm), AND
-     • the envelope must be server-certified complete (baselineComplete).
-   Absent either, G.bank is left UNTOUCHED — byte-for-byte today's behaviour,
-   which is why this ships fully inert (the inventory flip is dormant, post-wipe).
+   ⚠ THE DEPOT IS ABSOLUTE ON ITS OWN AUTHORITY, NOT THE BAG'S (LIVE P1, QA
+   slot 2). This fold was gated on the BAG's arm (isInventoryAbsolute(), false in
+   prod) plus baselineComplete, so it answered 'dormant' on every envelope: G.bank
+   was never written, the Depot screen read "The realm has not sent your Depot yet"
+   forever, and a deposit the server ACCEPTED (hr_bank_move → 200, ledger row
+   written) could appear nowhere. The release note said "The Depot opens"; for a
+   player it did nothing.
 
-   Under absolute+complete, the serverOwnedItem carve-out applies per key just as
-   the bag's does: an OWNED id is the server's truth (named sets the qty, OMITTED
-   removes the stack); a NON-owned id (crop, cooked food, dungeon reward — a bank
-   can hold any of these) is never deleted and never lowered. This is what makes
-   arming the flip SAFE for the bank: it can only ever remove a forged OWNED stack,
-   never a legitimately-banked excluded item.
+   The bag's arm is the wrong gate because the Depot's authority story is simpler:
+   `player_bank` has ONE writer, `hr_bank_move`, moving under the per-character
+   `player_state` lock; no settle, no live client path and no un-modeled
+   cooking/harvest/dungeon write ever puts a row there, so no bank stack can be
+   "in flight and therefore invisible"; and `hr_state_of` coalesces the projection
+   to `'{}'`, making a readable `bank` object a COMPLETE statement by construction.
+   So it is believed in BOTH directions for every item key — named sets the
+   quantity, omitted removes the stack — including an EXCLUDED id (crop, cooked
+   dish, dungeon reward). The bag's never-delete carve-out protects a stack the
+   CLIENT authored that the server has not heard of, and none can exist in a
+   container the client cannot write; keeping it here was the withdraw half of the
+   same bug (10 Cooked Shrimp taken back out still showed in the Depot column).
+   Nothing here can lose value either: `G.bank` is no record field, no residue
+   field and not in the snapshot — a pure projection, rebuilt next envelope.
 
    Fail-closed on absence: no readable `res.bank` object → leave G.bank alone
    (absence is not a claim the bank is empty). Pure: takes G + res, returns a small
@@ -1709,22 +1716,26 @@ export const BANK_NON_ITEM_KEYS = Object.freeze(['goldBuys', 'gemBuys', 'grandfa
 
 /* THE LAST FOLD'S MODE, remembered for the Depot screen and for nothing else.
    Purely observational — it grants no authority and gates no capability. The
-   Depot panel needs it to tell the truth in one specific case: when the fold is
-   'dormant' or 'absent', `G.bank` is not a statement about what the realm holds,
-   and an empty grid would read as "your vault is empty" when the honest line is
-   "the realm has not sent it yet". Absence is not a claim of zero (§6). */
+   Depot panel needs it in one case: when the fold is 'absent', `G.bank` is not a
+   statement about what the realm holds, and an empty grid would read as "your
+   vault is empty" when the honest line is "not sent yet" (§6).
+
+   ⚠ STAMPED INSIDE THE FOLD, not by the caller. applyEnvelopeState set it and
+   record.js's BOOT reconcile (the hr_load settle) did not, so a session that had
+   not yet taken a 90-second settle showed "not sent" over a bank the realm had
+   already stated. One writer, every door. */
 let lastBankFold = null;
 export function lastBankFoldMode() { return lastBankFold; }
+/** Test seam only: forget the observed mode (a fresh page load has none). */
+export function __resetBankFoldMode() { lastBankFold = null; }
 
-export function reconcileBank(G, res, invAbsolute, baselineComplete) {
+export function reconcileBank(G, res) {
   if (!G || typeof G !== 'object') return null;
   const named = res && res.bank;
-  if (!named || typeof named !== 'object' || Array.isArray(named)) return { mode: 'absent' };
-  /* DORMANT / MERGE: the bank is not part of the accrual settle, and the only
-     writer of server bank state is hr_bank_move (which the client reconciles from
-     that RPC's own response). So outside the absolute arm there is nothing to
-     fold in — leave G.bank exactly as the client holds it. */
-  if (!invAbsolute || !baselineComplete) return { mode: 'dormant' };
+  if (!named || typeof named !== 'object' || Array.isArray(named)) {
+    lastBankFold = 'absent';
+    return { mode: 'absent' };
+  }
 
   const cur = (G.bank && typeof G.bank === 'object') ? { ...G.bank } : {};
   const next = {};
@@ -1732,23 +1743,64 @@ export function reconcileBank(G, res, invAbsolute, baselineComplete) {
   for (const sk of BANK_NON_ITEM_KEYS) {
     if (Object.prototype.hasOwnProperty.call(cur, sk)) next[sk] = cur[sk];
   }
+  /* ABSOLUTE, EVERY KEY, BOTH DIRECTIONS — see the header. The client's own keys
+     are walked too so an omitted one is removed; an unreadable figure is absent. */
   const keys = new Set(Object.keys(cur).concat(Object.keys(named)));
   for (const k of keys) {
     if (BANK_NON_ITEM_KEYS.indexOf(k) !== -1) continue;   // already preserved
     const q = Number(named[k]);
-    const isNamed = Number.isFinite(q) && q > 0;
-    if (serverOwnedItem(k)) {
-      if (isNamed) next[k] = Math.floor(q);   // OWNED: absolute; omitted → removed
-      continue;
-    }
-    /* NOT OWNED (excluded / un-modeled): never delete, never lower. */
-    const have = Number(cur[k]) || 0;
-    const best = Math.max(have > 0 ? Math.floor(have) : 0, isNamed ? Math.floor(q) : 0);
-    if (best > 0) next[k] = best;
+    if (Number.isFinite(q) && q > 0) next[k] = Math.floor(q);
   }
   G.bank = next;
+  lastBankFold = 'absolute';
   return { mode: 'absolute', keys: Object.keys(next).length };
 }
+
+/* ── THE BAG SIDE OF A CONFIRMED DEPOT MOVE (the other half of that P1) ──────
+   `hr_bank_move` moves BOTH containers atomically: a deposit debits
+   `player_inventory` in the same transaction it credits `player_bank`. The bag's
+   fold is still MERGE in prod — `Math.max(have, q)` — so it can only ever RAISE a
+   figure: after a confirmed deposit of 10 Bones the envelope honestly says 866
+   and the client shows 876 for the rest of the session. The player stores a stack
+   and watches nothing leave their bag (the exact live report).
+
+   This is NOT the bag's absolute arm and not a new authority. reconcileInventory
+   already has the concept — `consumedKeysOf(res)`, the ids an away receipt
+   explicitly DEBITED, believed in both directions for that envelope. A
+   `{ok:true}` from hr_bank_move is a positive server statement of the same kind
+   about one id, so the id joins that set for the next envelope and is then
+   dropped; the client still computes NO quantity, up or down. Bounded and
+   fail-safe — at most MAX_BAG_MOVE_IDS ids, each expiring after BAG_MOVE_TTL_MS,
+   drained on first use; an unused note leaves the bag on merge, where it was. */
+const MAX_BAG_MOVE_IDS = 32;
+const BAG_MOVE_TTL_MS = 2 * 60 * 1000;
+const bagMoveStated = new Map();   // item id → when the server confirmed the move
+
+/** The SERVER has confirmed it moved this id between bag and Depot. */
+export function noteServerBagMove(id, nowMs) {
+  const key = String(id == null ? '' : id);
+  if (!/^[a-z0-9_]{1,64}$/.test(key)) return false;
+  const now = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+  bagMoveStated.set(key, now);
+  while (bagMoveStated.size > MAX_BAG_MOVE_IDS) {
+    const oldest = bagMoveStated.keys().next();
+    if (oldest.done) break;
+    bagMoveStated.delete(oldest.value);
+  }
+  return true;
+}
+/** Take (and clear) the ids still within the TTL. One envelope is all a committed
+ *  move needs, and a stale hold must never latch. */
+function drainServerBagMoves(nowMs) {
+  if (!bagMoveStated.size) return [];
+  const now = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+  const out = [];
+  for (const [k, at] of bagMoveStated) { if (now - at <= BAG_MOVE_TTL_MS) out.push(k); }
+  bagMoveStated.clear();
+  return out;
+}
+/** Test seam: what is outstanding, without draining. */
+export function __serverBagMoves() { return Array.from(bagMoveStated.keys()); }
 
 /* ── THE PURCHASED BANK RUNGS, RESTORED FROM SERVER TRUTH (SA-010) ───────────
    THE LIVE P1 THIS CLOSES ("bank space purchases are forgotten on reload"). The
@@ -3088,10 +3140,9 @@ export function applyEnvelopeState(G, res, ownKey) {
   /* THE BANK ITEM STORE (bank-store, b438). Reconciled here — after the two arm
      gates are known and BEFORE the bag branch splits — so it rides EVERY envelope
      regardless of which return path the bag takes, and folds through the SAME
-     absolute/carve-out machinery as the bag. Fully inert while dormant (invAbsolute
-     is false in prod): reconcileBank leaves G.bank untouched. */
-  written.bank = reconcileBank(G, res, invAbsolute, baselineComplete);
-  lastBankFold = (written.bank && written.bank.mode) || null;   // observational; see lastBankFoldMode
+     absolute machinery, on its OWN authority: the Depot has one server writer and
+     a complete projection, so it does not wait for the bag's arm (b544 P1). */
+  written.bank = reconcileBank(G, res);
   /* THE PURCHASED BANK RUNGS (SA-010). Beside the item store because the two
      share one object, but on its own authority: the rungs are `progress`
      unlock rows and are NOT gated on the inventory arm — a paid rung must come
@@ -3575,6 +3626,13 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
      bag stamps; an absent key is not a statement. `_`: scratch, never persisted. */
   if (invNamedRaw) { try { G._bagFromServerAt = Date.now(); } catch (e) {} }
   const consumedIds = consumedKeysOf(res);
+  /* THE IDS `hr_bank_move` HAS CONFIRMED IT MOVED (see noteServerBagMove). A
+     committed Depot move is a positive server statement about that one key, of
+     the same kind as an away receipt's debit, so it is believed in both
+     directions on this envelope and then forgotten. Only drained when the
+     envelope actually states the bag — an absent projection is no statement and
+     must not consume the note. */
+  if (invNamedRaw) { for (const id of drainServerBagMoves()) consumedIds.add(id); }
   const invNamed = pendingConsume.foldPendingConsume(G, invNamedRaw, {
     omissionIsZero: (invAbsolute && baselineComplete) ? true : consumedIds,
   });
@@ -5183,7 +5241,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

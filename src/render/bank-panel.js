@@ -23,10 +23,14 @@
 //     parked in `_`-scratch, never persisted, never a gate. Inventing "1000"
 //     client-side would be a client-held number describing a server capability,
 //     which is the residue-ahead class (CLAUDE.md §6).
-//  3. ABSENT IS NOT EMPTY. When the envelope's bank projection has not folded
-//     (`lastBankFoldMode()` is 'dormant'/'absent'/null) the panel says the realm
-//     has not sent the vault rather than drawing an empty grid, because "your
-//     Depot is empty" is a claim only the server can make.
+//  3. ABSENT IS NOT EMPTY. When no envelope has stated the bank yet
+//     (`lastBankFoldMode()` is 'absent'/null) the panel says the realm has not
+//     sent the vault rather than drawing an empty grid, because "your Depot is
+//     empty" is a claim only the server can make. It IS a claim the server makes
+//     constantly — `hr_state_of` coalesces the projection to `{}` — and since
+//     the fix the fold no longer waits on the BAG's arm to hear it, which is what
+//     left this panel saying "not sent yet" over a Depot the realm had stated on
+//     every envelope of the session.
 //  4. A REFUSAL IS A SENTENCE. Every code `hr_bank_move` returns is rendered by
 //     `bankMoveRefusalText()`; nothing here invents copy, and nothing swallows a
 //     refusal into silence.
@@ -287,7 +291,14 @@ export function openDepot() {
  *  send two moves of the same stack (the second would be refused
  *  `insufficient_item`, which reads as a bug to the player). */
 export async function depotMove(item, qty, dir) {
-  if (busy) return { ok: false, error: 'busy' };
+  /* A PRESS THAT DOES NOTHING MUST STILL SAY SOMETHING. This early return was
+     silent, so while a slow move was in flight every further press was an
+     unexplained dead button — which is exactly how the live Depot read to a
+     player (three presses, one POST, no message). */
+  if (busy) {
+    say('One move at a time — finishing the last one.', 'info');
+    return { ok: false, error: 'busy' };
+  }
   busy = true; repaintDepot();
   let out = null;
   try {

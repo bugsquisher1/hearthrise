@@ -1670,13 +1670,13 @@ function settle(verdict) {
        the hr-accrue envelope): in prod merge-mode the bag is a Math.max ratchet
        (idempotent), the hr_load body carries no `away` block so no debit ever
        deletes on this path, and itemLedger.reconcile only ever removes. The bank
-       reconcile is fully inert in prod (invAbsolute false → reconcileBank leaves
-       G.bank untouched); it is wired now so the always-full boot path is ready the
-       day the inventory flip arms. The prediction sweep is deliberately NOT run
+       reconcile IS live in prod: the Depot is absolute on its own authority
+       — one server writer, complete projection — so this boot statement is the one
+       the Depot screen reads before the first settle. The prediction sweep is deliberately NOT run
        here — that stays with applyEnvelopeState so gold applyRecord already wrote
        is not re-offset. Guarded — a throw must never break the record load. */
     hydrationStep('inventory+bank+workers', () => {
-      reconcileBank(G, verdict.body);       // dormant in prod (invAbsolute false)
+      reconcileBank(G, verdict.body);       // LIVE in prod: the Depot's own authority
       /* SA-010 — THE PURCHASED BANK RUNGS, and unlike the line above this one is
          LIVE IN PROD. `G.bank.goldBuys` is homed by no record and no residue, so
          without this the boot path leaves it at the literal's 0 and every bought

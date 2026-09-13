@@ -88,10 +88,14 @@ export const BUFFS_DEF = {
      'worked'      only time spent on a paid action drains it. NOT shipped;
                    named so the alternative is a value and not a rewrite.
 
-   ⚠ `tickBuffs`'s `ctx.active === false` freeze predates this ruling and
-     CONTRADICTS it (an idling character's wall clock still runs). Deleting it is
-     the step-2 client half's change, not this file's — the SERVER never calls
-     tickBuffs with active:false, so the server is already wall-clock. */
+   ✔ DONE (step 2, 2026-09-13): `tickBuffs`'s `ctx.active === false` freeze is
+     GONE. It predated the ruling and contradicted it — an idling character's wall
+     clock still runs — and it was a CLIENT-ONLY divergence: every engine caller
+     passes `active: true` (combat-sim, skill-sim, artisan-sim), so the server has
+     always drained by wall clock while the live tab froze the countdown whenever
+     the player stopped doing something. The player-visible symptom was the worst
+     shape a timer can take: the pill read "8m 40s" for an hour, the player ate
+     nothing, and the buff was already over on the server. */
 export const BUFF_DRAIN_RULE = 'wall-clock';
 
 /* The server's ceiling on a buff's expiry: `until` is clamped to
@@ -217,6 +221,52 @@ export function nextBuffExpiryMs(buffs) {
   return soonest;
 }
 
+/* ── PER-SEGMENT ENTRIES, AND WHY SUMMING THEM WOULD DOUBLE-PAY ─────────────
+   (game-designer ruling, final, 2026-09-13 — the F2 answer.)
+
+   The first stacking model MERGED a second helping into the existing row:
+   `magnitude = max(old, new)`, `until = old.until + duration`. That LAUNDERS the
+   magnitude — a 20-second scrap of Cooked Herring (+1%) extended a Void Banquet
+   (+5%) by twenty seconds AT +5%, for the price of a herring. The ruling replaces
+   the merge with SEGMENTS: the queue may hold SEVERAL entries of one type,
+   contiguous and ordered by `until`, each carrying its OWN magnitude, and the
+   effective bonus at any instant is the entry whose window contains that instant.
+
+   THE INSTANT'S ENTRY IS THE ONE WITH THE SMALLEST POSITIVE `remainingMs`, and
+   that is a property of contiguity rather than a heuristic: segment k ends at
+   u(k) and segment k+1 covers [u(k), u(k+1)], so at any `now` inside the queue
+   every later segment has strictly MORE left than the one running. Which also
+   means the queue needs no "current index" to maintain, no pointer to get wrong
+   across a reload, and no second representation — the same subtraction the
+   projection already does answers it.
+
+   SUMMING, WHICH IS WHAT THIS USED TO DO, is the bug this replaces: two live
+   segments of `damage` would have paid +5% AND +2% at once (+7%), i.e. the
+   stacking the cap exists to prevent, in the one shape nothing was watching.
+
+   One entry per type, so `out[bonusKey]` still ACCUMULATES ACROSS TYPES (a
+   damage buff and a crit buff both pay, and two DIFFERENT types that share a
+   bonusKey — nothing does today, `damage_crit` and gear both feed `crit` from
+   elsewhere — would still add, which is the correct reading of "different
+   effects"). */
+export function effectiveBuffs(buffs) {
+  const live = activeBuffs(buffs);
+  if (live.length < 2) return live;
+  const byType = new Map();
+  for (const b of live) {
+    const cur = byType.get(b.type);
+    if (cur === undefined) { byType.set(b.type, b); continue; }
+    const r = Number(b.remainingMs); const rc = Number(cur.remainingMs);
+    /* The shorter remainder is the running segment. A TIE is two entries claiming
+       the same instant — a shape the server cannot produce (contiguous windows
+       have distinct ends) — so it is resolved deterministically and in the
+       player's favour rather than by array order, which would make the payout
+       depend on the projection's sort being stable. */
+    if (r < rc || (r === rc && Number(b.magnitude) > Number(cur.magnitude))) byType.set(b.type, b);
+  }
+  return [...byType.values()];
+}
+
 /**
  * Aggregate a buff queue into { bonusKey: total }.
  *
@@ -229,7 +279,7 @@ export function nextBuffExpiryMs(buffs) {
 export function buffBonuses(buffs, ctx) {
   const out = {};
   if (!channelApplies(CHANNEL.BUFF, ctx)) return out;
-  for (const b of activeBuffs(buffs)) {
+  for (const b of effectiveBuffs(buffs)) {
     const def = BUFFS_DEF[b.type];
     /* A FLAT key's magnitude is already in its own units (crops, defence
        points); every other key is a percentage stored as an integer. */
@@ -247,27 +297,34 @@ export function buffBonusFor(buffs, key, ctx) {
 /**
  * Advance the buff clock by `elapsedMs`. THE clock — there is no other.
  *
- * Mutates `buffs` in place (the queue is player state) and reports what
- * happened so the caller can prune and repaint.
+ * Mutates `buffs` in place (the queue is display state on the client and
+ * simulation state in the engine) and reports what happened so the caller can
+ * prune and repaint.
  *
- * @param ctx { away, active }
- *   away:   NOT a freeze any more. An away buff pays (src/core/away.js
- *           `AWAY_SCOPE.buff`), so an away buff must be spent, or "it pays
- *           away" is a mint: ten minutes of Feast would cover eight hours.
- *           The caller supplies the elapsed time; `simulateSpan` supplies one
- *           swing interval per tick, which is what makes a buff expire at the
- *           right INSTANT of the absence rather than at one of its ends.
- *   active: idle play has never drained buffs (you are not spending the
- *           effect if nothing is running). UNCHANGED: `active === false`
- *           still freezes, away or not.
+ * @param ctx { away } — kept for callers and for symmetry with `buffBonuses`;
+ *        NOTHING in it freezes the clock any more, and there is no state of the
+ *        world in which it should.
+ *          away:   never a freeze. An away buff PAYS (src/core/away.js
+ *                  `AWAY_SCOPE.buff`), so an away buff must be spent, or "it pays
+ *                  away" is a mint: ten minutes of Feast would cover eight hours.
+ *          active: DELETED (step 2, 2026-09-13). `BUFF_DRAIN_RULE` is
+ *                  'wall-clock' and an idle character's wall clock runs, so a
+ *                  freeze here contradicted the rule this module names. It was
+ *                  also unreachable on the server — combat-sim, skill-sim and
+ *                  artisan-sim all pass `active: true` — which made it a
+ *                  CLIENT-ONLY lie: the pill stopped counting down while the
+ *                  server's absolute `until` went right on expiring. The
+ *                  authority is `until`; a client clock that pauses cannot be an
+ *                  input to it.
  *
- * @returns { changed, frozen, expired: [type], elapsedMs }
+ * @returns { changed, frozen, expired: [type], elapsedMs } — `frozen` is
+ *          retained and is ALWAYS false, so a caller that renders a "paused" row
+ *          off it renders nothing rather than throwing while it is removed.
  */
 export function tickBuffs(buffs, elapsedMs, ctx) {
   const dt = Number(elapsedMs) || 0;
   const res = { changed: false, frozen: false, expired: [], elapsedMs: dt };
   if (!Array.isArray(buffs) || buffs.length === 0) return res;
-  if (ctx && ctx.active === false) { res.frozen = true; return res; }
   if (dt <= 0) return res;
   for (const b of buffs) {
     if (!b || b.remainingMs <= 0) continue;

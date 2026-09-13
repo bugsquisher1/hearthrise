@@ -146,6 +146,14 @@ export function buildEatRequest(opts) {
         slot,
         intentId: String(o.intentId == null ? '' : o.intentId),
         item: String(o.item == null ? '' : o.item),
+        /* THE GESTURE, NOT A QUANTITY (2026-09-13). `true` = the auto-eater fired
+           this heal, which tells the server to DEBIT AND NOT BUFF; a human eat
+           omits it (or sends false) and gets the food's buff. It is the only
+           client fact this verb carries and it can only make the answer smaller —
+           see readAuto in supabase/functions/hr-accrue/request.js. Sent as a real
+           boolean, ALWAYS present, so a stale intermediary cannot turn an
+           auto-eat into a buffed one by dropping a key. */
+        auto: o.auto === true,
       }),
     },
   };
@@ -220,7 +228,7 @@ export async function sendEat(foodId, o = {}) {
 
   const { url, init } = buildEatRequest({
     url: config.url, apiKey: config.apiKey, token,
-    slot: resolveActiveSlot(config.slot), intentId: key, item: id,
+    slot: resolveActiveSlot(config.slot), intentId: key, item: id, auto: o.auto === true,
   });
 
   let ac = null; let timer = null;
@@ -258,11 +266,34 @@ export async function sendEat(foodId, o = {}) {
   return record(verdict);
 }
 
+/* ── WHAT A REFUSED EAT SAYS TO THE PLAYER ─────────────────────────────────
+   The transport already puts the item back; what was missing is the SENTENCE — a
+   Feast that vanishes and reappears unexplained is "I clicked Eat and nothing
+   happened" again. A TABLE keyed by the server's own machine code, because the
+   buff refusals are a FAMILY: a new one is a row, not a branch. It lives with the
+   transport rather than at the call site because the codes are this layer's
+   vocabulary; the caller does the DOM. An unlisted code says NOTHING rather than
+   guessing. `buff_at_max` is refused BEFORE the debit (never eat the item for
+   nothing), so "kept your X" is literally true. */
+export const EAT_REFUSAL_COPY = Object.freeze({
+  buff_at_max: 'Your effects are already at their one-hour cap — kept your %s for later.',
+  insufficient_item: 'You do not have a %s any more.',
+});
+
+/** The line to show for a verdict, or null when there is nothing honest to say.
+ *  Pure: verdict + display name in, string out. */
+export function refusalCopyFor(verdict, itemName) {
+  const code = (verdict && (verdict.reason || verdict.error)) || '';
+  if (!Object.prototype.hasOwnProperty.call(EAT_REFUSAL_COPY, code)) return null;
+  return EAT_REFUSAL_COPY[code].replace('%s', String(itemName || 'food'));
+}
+
 if (typeof window !== 'undefined') {
   window.HearthriseEat = {
     EAT_VERB, EAT_OUTCOMES, UNANSWERED_OUTCOMES,
     configureEat, getEatConfig, setEatHooks, getEatHooks,
     buildEatRequest, classifyEatResponse, envelopeOf,
     newIntentKey, isIntentKey, isAnswered, isEatIntentEnabled, sendEat,
+    EAT_REFUSAL_COPY, refusalCopyFor,
   };
 }

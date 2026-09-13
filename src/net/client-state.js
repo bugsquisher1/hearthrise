@@ -302,6 +302,28 @@ export const RESIDUE_FIELDS = Object.freeze([
 ]);
 const RESIDUE_SET = new Set(RESIDUE_FIELDS);
 
+/* ── NAMES THE RESIDUE PUT MUST NEVER CARRY, WHATEVER THE ALLOWLIST SAYS ─────
+   hr_put_client_state refuses the WHOLE patch with `forbidden_field` when it
+   sees an authority name — not the key, the patch — so one bad name costs the
+   player every preference in the bag, for as long as the bundle lives. The
+   allowlist above is the primary control and `buffs` is already off it; this is
+   the SECOND control, and the two fail differently on purpose:
+
+     · the allowlist protects against a field being FORGOTTEN;
+     · this protects against a field being RE-ADDED (2026-09-13: `buffs` lived in
+       RESIDUE_FIELDS for months as a player-written buff clock, and the obvious
+       "a potion must survive a reload" instinct that put it there will recur —
+       it is homed by accrue.js reconcileBuffs now, not by this bag).
+
+   Kept in sync BY THE GUARD, not by hand: tests/arm-homing-guard.mjs reads the
+   deny-list out of every `*-client-state-*denylist.sql` migration and fails a
+   residue field that collides with it. A name here with no migration behind it
+   costs nothing; a migration name missing from here costs the whole bag. */
+export const RESIDUE_NEVER_SEND = Object.freeze(['buffs']);
+const NEVER_SEND_SET = new Set(RESIDUE_NEVER_SEND);
+/** Is this a field the client must not upload under any allowlist? */
+export function isForbiddenResidueField(field) { return NEVER_SEND_SET.has(field); }
+
 /* ── THE SIZE GUARD'S CLIENT HALF ────────────────────────────────────────────
    hr_put_client_state already refuses an oversized bag (2026-08-22-client-state-
    denylist.sql → `patch_too_large` / `state_too_large`). That cap protects the
@@ -672,7 +694,7 @@ if (typeof window !== 'undefined') {
   window.HearthriseClientState = {
     clientField, isClientStateServerBacked, isClientStateFromServer,
     applyClientState, putClientState, isClientStateHydrated,
-    hydrateInto, RESIDUE_FIELDS, __resetClientStateCapWarned,
+    hydrateInto, RESIDUE_FIELDS, RESIDUE_NEVER_SEND, isForbiddenResidueField, __resetClientStateCapWarned,
     buildClientStatePutRequest, KEEPALIVE_MAX_BODY_BYTES,
   };
 }

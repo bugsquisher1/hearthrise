@@ -8436,16 +8436,34 @@ window.wireServerEat=wireServerEat;
    drains. Only a genuinely pathological run overflows, and then the OLDEST entry
    is dropped and its hold RELEASED — the honest direction: stop hiding an item
    the server is never going to be told about. */
+/* The SENTENCE for a refused eat: the vocabulary is the transport's
+   (src/net/eat.js refusalCopyFor, pure); this is the DOM half. */
+window.__eatRefusalCopy = function(verdict,foodId){
+  const M=window.HearthriseEat;
+  if(!M||typeof M.refusalCopyFor!=='function')return false;
+  const fd=(typeof ITEMS!=='undefined'&&ITEMS&&Object.prototype.hasOwnProperty.call(ITEMS,foodId))?ITEMS[foodId]:null;
+  const line=M.refusalCopyFor(verdict,(fd&&fd.n)||foodId);
+  if(!line)return false;
+  if(typeof window.notify==='function')notify(line,'info');
+  return true;
+};
+
 const EAT_SEND_GAP_MS=3000;      // 20/min, leaving 10/min of the shared bucket for set_activity
 const EAT_SEND_QUEUE_MAX=120;    // ~6 min of drain — inside the hold's TTL
 let _eatQueue=[],_eatTimer=null,_eatLastSentAt=0;
 function _pendingConsumeApi(){ return window.HearthrisePendingConsume||null; }
-function _sendEatNow(foodId){
+/* `auto` DECLARES THE GESTURE and the server's buff emitter is gated on it
+   (hr-accrue/eat.js eatDelta): a human eat gets the food's buff, an auto-eat heals
+   and buffs nothing — which is what this client paints either way. Not optional: an
+   auto-eat that forgot to say so buffs on every heal, caps the 60-minute queue in
+   ~90 s of fighting and is then refused `buff_at_max` — which rolls back the DEBIT,
+   i.e. the food-restock P0. The paced FIFO carries only auto sends. */
+function _sendEatNow(foodId,auto){
   try{
     const M=wireServerEat();
     if(!M||typeof M.sendEat!=='function')return false;
     _eatLastSentAt=Date.now();
-    const p=M.sendEat(foodId);
+    const p=M.sendEat(foodId,{auto:auto===true});
     if(p&&typeof p.then==='function'){
       p.then(function(v){
         /* AN ANSWERED REFUSAL MEANS THE DEBIT WILL NEVER HAPPEN. Release the
@@ -8458,6 +8476,11 @@ function _sendEatNow(foodId){
         if(M&&typeof M.isAnswered==='function'&&!M.isAnswered(o))return;
         const P=_pendingConsumeApi();
         if(P&&typeof P.releaseConsumed==='function')P.releaseConsumed(G,foodId,1);
+        /* SAY WHY, when the reason is one the player can act on. A refusal that
+           only restocks the item silently reads as "I clicked Eat and nothing
+           happened" complaint. TABLE-DRIVEN so a new buff refusal
+           code is a row, not an edit to a branch. */
+        try{ window.__eatRefusalCopy(v,foodId); }catch(e){}
       }).catch(function(){});
     }
     return true;
@@ -8468,7 +8491,7 @@ function _pumpEatQueue(){
   if(!_eatQueue.length)return;
   const wait=Math.max(0,EAT_SEND_GAP_MS-(Date.now()-_eatLastSentAt));
   if(wait>0){ _eatTimer=setTimeout(_pumpEatQueue,wait); return; }
-  _sendEatNow(_eatQueue.shift());
+  _sendEatNow(_eatQueue.shift(),true);
   if(_eatQueue.length)_eatTimer=setTimeout(_pumpEatQueue,EAT_SEND_GAP_MS);
 }
 function queueEatIntent(foodId){
@@ -19040,18 +19063,25 @@ window.applyBuff = function(buff){
   const scale = window.buffScaleFor(buff);
   const dur = Math.round((buff.durationMs||0) * scale.duration);
   const mag = (buff.magnitude||0) * scale.magnitude;
-  const existing = G.buffs.find(b => b.type === buff.type);
-  if(existing){
-    existing.remainingMs = (existing.remainingMs||0) + dur;
-    existing.magnitude = Math.max(existing.magnitude||0, mag);
-  } else {
-    G.buffs.push({
-      type: buff.type,
-      magnitude: mag,
-      remainingMs: dur,
-      addedAt: Date.now(),
-    });
+  /* ── A NEW SEGMENT, NEVER A MERGE (game-designer, final, 2026-09-13) ──────
+     `remainingMs += dur; magnitude = max(old,new)` LAUNDERED the magnitude: a scrap
+     of herring extended a Void Banquet AT +5%. Per-segment instead, stacked on the
+     existing tail so the predicted window is contiguous as the server's is. */
+  let tail = 0;
+  for(const b of G.buffs){
+    if(b && b.type === buff.type && b.remainingMs > tail) tail = b.remainingMs;
   }
+  /* CLAMPED TO THE SERVER'S CEILING so the prediction cannot paint 90 minutes of
+     Feast hr_apply will never grant (one number — buff-queue.mjs [15]). */
+  const CAP = (window.HearthriseCore && window.HearthriseCore.buffs
+    && window.HearthriseCore.buffs.BUFF_MAX_UNTIL_MS) || 3600000;
+  G.buffs.push({
+    type: buff.type,
+    magnitude: mag,
+    remainingMs: Math.min(CAP, tail + dur),
+    addedAt: Date.now(),
+  });
+  G.buffs.sort((x, y) => (x.remainingMs||0) - (y.remainingMs||0));
   if(typeof window.renderActiveEffects === 'function') window.renderActiveEffects();
   if(window.HearthriseEvents) window.HearthriseEvents.emit('buffApply', {type:buff.type, magnitude:mag, durationMs:dur});
   return true;
@@ -19285,27 +19315,42 @@ setInterval(function(){
    item flyout (one click from the tile) and a first-class button on the
    Combat screen, which is where healing is actually needed. */
 
-// ── UI: refresh just the timer text without re-rendering the whole panel ──
-let _lastBuffFrozen = null;
+/* ── THE EFFECTIVE SEGMENT OF EACH TYPE, ASKED IN ONE PLACE ────────────────
+   `G.buffs` may hold several entries per type since the 2026-09-13 ruling, so "what
+   is my damage buff?" has a SEGMENT for an answer: src/core/buffs.js
+   `effectiveBuffs`, the function the bonus chain and the away engine pay from.
+   PUBLISHED because Home and the render layer draw this ladder too. */
+window.effectiveBuffRows = function(){
+  const C = window.HearthriseCore;
+  const q = (typeof G !== 'undefined' && Array.isArray(G.buffs)) ? G.buffs : [];
+  if(C && C.buffs && typeof C.buffs.effectiveBuffs === 'function') return C.buffs.effectiveBuffs(q);
+  return q.filter(function(b){ return b && b.remainingMs > 0; });
+};
+
+/* THE TIMER TEXT ONLY, KEYED BY TYPE NOT BY ARRAY INDEX: `data-buff-idx` was only
+   correct while nothing reordered `G.buffs`, and `reconcileBuffs` now replaces that
+   array wholesale on every envelope. A segment boundary repaints the section. */
 function refreshBuffTimers(){
-  /* b326: the paused STATE flips the moment an activity starts or stops, and
-     the 1s timer refresh only rewrites the countdown text. Repaint the whole
-     section on the transition — a row that says "paused" while the clock is
-     visibly draining is worse than no label at all. */
-  const fz = buffFrozen();
-  if(fz !== _lastBuffFrozen){
-    _lastBuffFrozen = fz;
-    if(typeof window.__renderBuffsSection === 'function'){ window.__renderBuffsSection(); return; }
-  }
   const rows = document.querySelectorAll('.buff-row');
-  rows.forEach(function(row){
+  if(!rows.length) return;
+  for(const row of rows){
     const t = row.querySelector('.br-time');
-    if(!t) return;
-    const idx = parseInt(row.getAttribute('data-buff-idx')||'-1', 10);
-    if(isNaN(idx) || idx < 0 || !G || !G.buffs[idx]) return;
-    t.textContent = formatRemaining(G.buffs[idx].remainingMs);
-  });
+    const type = row.getAttribute('data-buff-type');
+    if(!t || !type) continue;
+    const eff = window.effectiveBuffRows().find(function(b){ return b.type === type; });
+    if(!eff || String(eff.magnitude) !== (row.getAttribute('data-buff-mag')||'')){
+      if(typeof window.__renderBuffsSection === 'function'){ window.__renderBuffsSection(); return; }
+      continue;
+    }
+    t.textContent = formatRemaining(eff.remainingMs);
+  }
+  /* A buff that ran out, or one that arrived from an envelope, changes the ROW
+     SET — the text pass above cannot add or remove a row. */
+  if(rows.length !== window.effectiveBuffRows().length && typeof window.__renderBuffsSection === 'function'){
+    window.__renderBuffsSection();
+  }
 }
+/* PUBLISHED: two formatters for one clock is how 90s and 1m 30s share a screen. */
 function formatRemaining(ms){
   if(ms <= 0) return '0s';
   const s = Math.floor(ms/1000);
@@ -19314,6 +19359,7 @@ function formatRemaining(ms){
   const sr = s%60;
   return m+'m '+sr+'s';
 }
+window.__buffFmtRemaining = formatRemaining;
 
 // ── UI: render the Active Effects → FOOD BUFFS section ──
 // Replace the existing renderActiveEffects food section with a queue view
@@ -19338,59 +19384,13 @@ window.__renderBuffsSection = function(){
     }
   }
   if(!host) return;
-  if(!G.buffs || G.buffs.length === 0){
-    host.innerHTML = '<div style="color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));font-style:italic">No food buffs active. Cook buff foods to add bonuses.</div>';
-    return;
-  }
-  /* b326 — A PAUSED BUFF MUST RENDER AS PAUSED (away-time-ruling.md
-     §"Player-facing honesty" 3).
-
-     b347: `tickBuffs` now freezes a buff on exactly ONE condition —
-     `active === false`, nothing running. Away is no longer a freeze: personal
-     buffs pay while you are gone and are spent while you are gone. So the
-     rule the player is being taught narrowed to a single sentence, "a buff is
-     spent on work", and the row still asks the same question the clock does
-     rather than inventing a second answer. `buffFrozen()` is that question,
-     in one place.
-
-     Why this and not a welcome-back-only banner: a clock that ticks in front
-     of a player while the engine is not draining it teaches the wrong rule by
-     surprise, which is the exact failure the ruling exists to end. The row
-     states its own clock state, permanently, so the rule is learnable instead
-     of discoverable-by-loss. */
-  const frozen = buffFrozen();
-  host.innerHTML = G.buffs.map(function(b, i){
-    const def = DEF()[b.type] || {label:b.type, isPercent:true};
-    const display = def.isPercent ? '+'+b.magnitude+'%' : '+'+b.magnitude;
-    return '<div class="buff-row'+(frozen?' is-paused':'')+'" data-buff-idx="'+i+'">'
-      +'<span class="br-icon">'+buffGlyph(b.type)+'</span>'
-      +'<span class="br-name">'+def.label+'</span>'
-      +'<span class="br-mag">'+display+'</span>'
-      +(frozen ? '<span class="br-paused">'+buffGlyph('_paused', 12)+'paused</span>' : '')
-      +'<span class="br-time">'+formatRemaining(b.remainingMs)+'</span>'
-    +'</div>';
-  }).join('')
-  + (frozen
-    /* b347: the second clause of this sentence used to read "…and freezes
-       entirely while you are away." It stopped being true the day personal
-       buffs started paying away, and a player-facing string that describes
-       the opposite of the engine is worse than no string at all. What is left
-       is the one rule that survives: buff time is spent on WORK. */
-    ? '<div class="buff-frozen-note">Buff time is kept, not spent — it only runs down while an activity is running, including while you are away.</div>'
-    : '');
+  /* THE ROWS ARE THE RENDER LAYER'S (src/render/active-effects.js `buffRowsHTML`);
+     this function owns finding the host. Two rulings of 2026-09-13 live in that
+     builder: no paused state, and the magnitude shown is the SEGMENT RUNNING NOW
+     with a countdown to its boundary. */
+  const R = window.buffRowsHTML;
+  host.innerHTML = (typeof R === 'function') ? R(window.effectiveBuffRows(), G.buffs) : '';
 };
-
-/* The engine's freeze condition, asked once. Mirrors src/core/buffs.js
-   `tickBuffs`, which since b347 has exactly one: nothing is running.
-   Away is NOT a freeze any more — an away gather or fight is work, it pays
-   the buff and spends it, so a returning player must not be told their buffs
-   sat still. PUBLISHED, because Home renders the buff ladder too and two
-   renderers answering "is this clock running?" differently is exactly how the
-   ruling's honesty clause gets quietly undone. One oracle. */
-function buffFrozen(){
-  return !(G && (G.activeSkill || G.activeMonster || G.activeArtisanRecipe));
-}
-window.buffsFrozen = buffFrozen;
 
 /* THE 0-EMOJI RULE. `BUFFS_DEF[].icon` used to be a literal emoji (🌿⭐🍀…)
    chosen for two emoji FONTS, and it rendered as ART in the Active Effects

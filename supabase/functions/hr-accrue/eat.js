@@ -52,6 +52,22 @@
 //     Out of combat (idle, genuinely-low server hp — e.g. post-away), the server
 //     hp IS the truth and the normal reconcile applies it.
 //
+// ── THE BUFF MODEL (step 2, 2026-09-13) ────────────────────────────────────
+// A Feast's timed effect used to be applied by the CLIENT and by nobody else:
+// `window.applyBuff` pushed `{type, magnitude, remainingMs}` into G, the residue
+// carried it, and the server — which computes every away kill, drop and XP grant
+// — had never heard of it. 2026-09-13-consumable-buffs.sql gave the server the
+// clock (player_state.buffs, an ABSOLUTE `until`, one delta key `buff_apply`) and
+// deliberately shipped with NO emitter. THIS verb is the emitter.
+//
+// The rule is one line: a food that carries a buff puts `buff_apply: {item}` in
+// THE SAME DELTA as its debit, so one idempotency key debits once and buffs once.
+// Everything else about the buff — its type, its strength, how long it lasts and
+// the instant it ends — is resolved inside hr_apply from the generated
+// hr_item_buffs catalogue and the SERVER's now(), under the character's row lock.
+// The client sends a food NAME; it cannot influence the expiry, and there is no
+// shape in which it can (see eatDelta).
+//
 // Same shape as vendor_sell (an `item` name → a server-priced delta), but the
 // delta CANNOT be precomputed by runValueIntent: `hp` depends on the state READ.
 // So this composes the shared primitives from ./spend.js (gate+read, apply,
@@ -79,7 +95,16 @@ export const VERB = 'eat';
  *   shape /^[a-z0-9_]{1,64}$/ matches `constructor`/`__proto__`, both truthy on
  *   ITEMS, so a truthiness guard would read a function's properties as food.
  *
- * @returns { ok:true, item, name, heals, hasBuff } | { ok:false, status, error, detail? }
+ * `buffType` is the catalogue's OWN type string and it is JOURNAL METADATA ONLY
+ * — the buff the server actually grants is resolved a second time inside
+ * hr_apply from `hr_item_buffs` under the character lock, from the item id and
+ * nothing else. It is safe for this layer to name it because hr_item_buffs is
+ * GENERATED from this same src/data/items.js (tools/gen-catalogues.mjs) and
+ * tests/buff-queue.mjs [2] asserts the two are equal row for row; if that ever
+ * drifts the journal is wrong and the GRANT is still right, which is the only
+ * direction this is allowed to be wrong in.
+ *
+ * @returns { ok:true, item, name, heals, hasBuff, buffType } | { ok:false, status, error, detail? }
  */
 export function resolveFood(itemId) {
   if (typeof itemId !== 'string' || itemId === '') {
@@ -90,13 +115,20 @@ export function resolveFood(itemId) {
     return { ok: false, status: 409, error: INTENT_ERRORS.UNKNOWN_ITEM, detail: { item: itemId } };
   }
   const heals = Number(item.heals) || 0;
-  const hasBuff = !!item.buff;
+  /* An OBJECT with a string `type`, not a truthy `buff`. `hr_item_buffs` only
+     carries rows the generator could resolve to a real type, so a food whose
+     `buff` is a stray truthy value would emit a `buff_apply` the server refuses
+     as `bad_buff_item` — and the refusal rolls back the DEBIT, i.e. a broken
+     data row would make a perfectly good food uneatable. Read the shape. */
+  const buff = (item.buff && typeof item.buff === 'object' && !Array.isArray(item.buff)) ? item.buff : null;
+  const buffType = (buff && typeof buff.type === 'string' && buff.type) ? buff.type : null;
+  const hasBuff = buffType !== null;
   /* NOT FOOD: a real item that neither heals nor buffs. A key, a bar, an ore —
      eating it would debit an item for no effect, which is a bug not a gesture. */
   if (!(heals > 0) && !hasBuff) {
     return { ok: false, status: 409, error: INTENT_ERRORS.ITEM_NOT_FOOD, detail: { item: itemId } };
   }
-  return { ok: true, item: itemId, name: item.n || itemId, heals, hasBuff };
+  return { ok: true, item: itemId, name: item.n || itemId, heals, hasBuff, buffType };
 }
 
 /**
@@ -113,8 +145,10 @@ export function resolveFood(itemId) {
  * @param food   a resolved food object from resolveFood
  * @param newHp  min(max_hp, serverHp + food.heals), computed by the caller from
  *               the SERVER's hp. Never a client value.
+ * @param auto   TRUE when the auto-eater fired this heal (request.js readAuto).
+ *               Suppresses `buff_apply` — see the block below.
  */
-export function eatDelta(food, newHp) {
+export function eatDelta(food, newHp, auto) {
   const delta = {
     items: { [food.item]: -1 },
     journal: {
@@ -127,10 +161,57 @@ export function eatDelta(food, newHp) {
          and one key replayed for the SAME food debits exactly once. */
       kind: 'combat',
       intent: intentNameOf(VERB, food.item),
-      meta: { item: food.item, heals: food.heals },
+      /* `buff` NAMES THE TYPE, and it is only present when one was asked for, so
+         a journal row for a plain Provision is byte-identical to the pre-buff
+         one. It is metadata, never authority — see resolveFood. */
+      meta: (food.hasBuff && auto !== true)
+        ? { item: food.item, heals: food.heals, buff: food.buffType }
+        : { item: food.item, heals: food.heals },
     },
   };
   if (food.heals > 0) delta.hp = newHp;
+  /* ── THE BUFF, IN THE SAME DELTA AS THE DEBIT (step 2, 2026-09-13) ─────────
+     ONE delta, therefore ONE idempotency key, therefore one debit and one buff:
+     hr_apply resolves the type, the magnitude, the duration and the absolute
+     `until` from hr_item_buffs + now() under the character lock, so the ONLY
+     field that may appear here is the item id — an object carrying `until`,
+     `magnitude`, `type`, `duration_ms`, `remaining_ms` or `scale` is refused BY
+     NAME as bad_buff_item/forbidden_key (2026-09-13-consumable-buffs.sql §3).
+     Emitting it in a SECOND apply would have been two keys for one gesture: a
+     replay, a rate refusal or a dropped response between them debits the food
+     and never buffs, or buffs twice off one pie. The replay case is covered by
+     hr_apply's own intent_mismatch/idempotency (the key names the FOOD), and a
+     `buff_at_max` refusal rolls the whole apply back — so the food is NOT
+     debited when the buff cannot land, which is the designer's rule ("never eat
+     the item for nothing") and is asserted by execution in tests/buff-queue.mjs
+     [16] rather than trusted.
+     ⚠ `buff_apply` is NOT in intents.js STAMPING_DELTA_KEYS and must never
+       become one: hr_apply stamps `accrued_to = now()` on `equip`/`activity`/
+       `enchant`, and an eat that closed the accrual window would confiscate an
+       unpaid night every time a player ate mid-absence. Asserted in [17].
+
+     ⚠ `items` IS ALWAYS PRESENT ABOVE, AND buff_apply IS NEVER EMITTED ALONE
+       (Security F3, 2026-09-13). The SQL block performs no possession check of
+       its own — it relies on THIS delta's `items:{[item]:-1}` being the debit,
+       which hr_apply re-checks under the row lock. A `buff_apply` without the
+       matching -1 would be a free buff off an item you do not own. The coupling
+       is enforced server-side (`buff_not_paid`) and asserted by execution in
+       tests/buff-queue.mjs [16c]; this function cannot express the bad shape,
+       because `items` is built unconditionally from the SAME `food.item`.
+
+     ⚠ AND NOT ON AN AUTO-EAT, which is the OTHER half of shipping this safely.
+       Fifteen `foodClass:'healing'` rows in src/data/items.js carry an incidental
+       buff (Cooked Herring's +1% gather speed, Goldgill Steak's +2% drop rate),
+       and the auto-eater eats exactly that pool — up to 20 sends/min through
+       legacy.js's paced FIFO. Buffing every one of them would (1) grant a bonus
+       the client never painted (maybeAutoEat heals and never calls applyBuff —
+       b163, "HP auto-eat should only HEAL"), and (2) drive the queue onto the
+       60-minute cap within ~90 s of a hard fight, after which every auto-eat is
+       refused `buff_at_max` — and that refusal rolls the whole apply back, so the
+       food is never debited and returns on the next envelope: the b467→b479 "food
+       I eat gets restocked" P0, reintroduced by a feature. A buff is for a
+       GESTURE; a heal is not a gesture. */
+  if (food.hasBuff && auto !== true) delta.buff_apply = { item: food.item };
   return delta;
 }
 
@@ -142,10 +223,11 @@ export function eatDelta(food, newHp) {
  * @param o.slot      selects a row the caller already owns
  * @param o.intentId  the caller's canonical-uuid idempotency key
  * @param o.item      the food item id from request.js, or null
+ * @param o.auto      TRUE when the auto-eater fired this heal (request.js readAuto)
  * @returns { status, body }
  */
 export async function runEat(o) {
-  const { exec, user, slot, intentId, item: itemId } = o;
+  const { exec, user, slot, intentId, item: itemId, auto } = o;
 
   /* (0) SHAPE FIRST — before any database work. eat has no `qty` (it consumes
      exactly one), so shapeRefusal (which requires a qty) is not used; the two
@@ -177,9 +259,14 @@ export async function runEat(o) {
      UNDEBITED, and reproduce Paione's P0. The DEBIT must always land; the heal
      credit is a harmless no-op when server hp is genuinely full. "Do not waste
      food at full HP" is the client's call (eatFood's b224 guard), because the
-     client is the only party that knows the real hp mid-fight. `food.hasBuff`
-     and `serverHp` are still read above for the (unused-here) receipt and the
-     newHp computation below. */
+     client is the only party that knows the real hp mid-fight.
+
+     ⚠ AND THERE IS NO "ALREADY BUFFED" GATE HERE EITHER, for the mirror-image
+       reason: the queue's ceiling is a property of the LOCKED row, and this read
+       is not under the lock. `buff_at_max` is decided inside hr_apply, where the
+       queue cannot change under it; deciding it here would be a check-then-act
+       race in which two eats a millisecond apart both pass. The client gets the
+       same honest refusal either way — one round trip later and correct. */
 
   /* Clamp to max_hp ONLY when the server states one (> 0). A DB with max_hp = 0
      is broken, but `min(0, …)` would then propose hp = 0 — so fall back to the
@@ -190,7 +277,7 @@ export async function runEat(o) {
   const newHp = food.heals > 0
     ? (maxHp > 0 ? Math.min(maxHp, serverHp + food.heals) : serverHp + food.heals)
     : serverHp;
-  const delta = eatDelta(food, newHp);
+  const delta = eatDelta(food, newHp, auto);
 
   /* (2b) RULE 3's DELTA HALF. eat does not collect first, so its delta must not
      carry a stamping key. It carries `items`/`hp`/`journal` and never will
@@ -233,8 +320,16 @@ export async function runEat(o) {
       ...res,
       ok: true,
       verb: VERB,
+      /* `buff` is the TYPE only — never a magnitude and never a duration. The
+         authority on what the player now holds is the envelope's own `buffs`
+         block (hr_state_of's projection of the row hr_apply just wrote), which
+         the client mirrors in reconcileBuffs; a receipt that restated the
+         numbers would be a second copy of them. */
       receipt: res.replayed === true ? null
-        : { item: food.item, name: food.name, heals: food.heals, hp: newHp },
+        : {
+          item: food.item, name: food.name, heals: food.heals, hp: newHp,
+          ...((food.hasBuff && auto !== true) ? { buff: food.buffType } : {}),
+        },
       ...(res.replayed === true ? { replayed: true } : {}),
     },
   };

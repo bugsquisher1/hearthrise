@@ -85,8 +85,13 @@ import { bootReplay, ROOT } from './schema-replay.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
-import { BUFF_MAX_UNTIL_MS, BUFFS_DEF } from '../src/core/buffs.js';
+import { BUFF_MAX_UNTIL_MS, BUFFS_DEF, tickBuffs } from '../src/core/buffs.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+/* THE EMITTER ITSELF (step 2). [16]/[17] apply the delta the `eat` verb actually
+   builds rather than a hand-written imitation of it, which is the only way this
+   guard can see the two halves of the feature drift apart. */
+import { eatDelta, resolveFood } from '../supabase/functions/hr-accrue/eat.js';
+import { deltaClosesWindow } from '../supabase/functions/hr-accrue/intents.js';
 
 const MIG = '2026-09-13-consumable-buffs.sql';
 const MIG_DENY = '2026-09-13-client-state-buffs-denylist.sql';
@@ -611,6 +616,97 @@ async function run(mutate, blind) {
     + 'Positive means the cap is GONE — 400 pies before bed would bank hours of buffed away output, which '
     + 'is the stock ceiling that replaces a per-day clamp.');
 
+  /* ── [16] THE EMITTER'S OWN DELTA, NOT A HAND-WRITTEN ONE (step 2) ─────────
+     Every arm above builds the delta the way this guard imagines the Edge builds
+     it. This one imports `eatDelta` from supabase/functions/hr-accrue/eat.js and
+     applies WHAT THE VERB ACTUALLY POSTS, which is the only version of this
+     assertion that notices the emitter drifting from the schema — a `buff_apply`
+     the allowlist refuses, a missing debit, a stamping key, or the auto-eat gate
+     inverting. It is the join between the two halves of this feature, and neither
+     half's own tests can see it. */
+  {
+    const food = resolveFood(pick.item_id);
+    if (!food.ok || food.hasBuff !== true) {
+      throw harness(`[16] eat.js resolveFood refuses the fixture food ${pick.item_id} or does not see its `
+        + `buff (${JSON.stringify(food)}) — the emitter and hr_item_buffs disagree about what a buff food is`);
+    }
+    /* A CLEAN QUEUE: [7]/[7b] left the fixture type sitting on the ceiling, and a
+       capped queue would refuse the honest arm below for the right reason at the
+       wrong time. */
+    await db.exec(`update public.player_state set buffs = '[]'::jsonb
+      where user_id = '${U}' and slot = 0`);
+    const held16 = await held(pick.item_id);
+
+    // (a) THE HUMAN EAT: accepted, buffs once, spends exactly one.
+    const d16 = eatDelta(food, 1, false);
+    const r16 = await apply(d16, await newKey());
+    ok(!!r16 && r16.ok === true,
+      `[16a] the REAL eat delta was refused: ${JSON.stringify(r16).slice(0, 160)} — the shape the Edge posts `
+      + `(${Object.keys(d16).sort().join('+')}) is not the shape hr_apply accepts`);
+    ok(((await queue()) || []).length === 1,
+      `[16a] the real eat delta left ${((await queue()) || []).length} queue entries (want 1) — the emitter is `
+      + 'wired but the buff does not land, which is a tooltip that lies with a server behind it');
+    ok((await held(pick.item_id)) === held16 - 1,
+      '[16a] the real eat delta did not spend exactly one serving');
+
+    // (b) THE AUTO-EAT: debits, buffs NOTHING.
+    const q16b = JSON.stringify(await queue());
+    const held16b = await held(pick.item_id);
+    const d16b = eatDelta(food, 1, true);
+    ok(!Object.prototype.hasOwnProperty.call(d16b, 'buff_apply'),
+      '[16b] eatDelta emitted buff_apply for an AUTO eat. The auto-eater fires up to 20×/min over the '
+      + 'healing pool — fifteen of those rows carry an incidental buff — so it would cap the 60-minute queue '
+      + 'in ~90 s of fighting and then be refused buff_at_max, which ROLLS BACK THE DEBIT: the b467 "food I '
+      + 'eat gets restocked" P0, reintroduced.');
+    const r16b = await apply(d16b, await newKey());
+    ok(!!r16b && r16b.ok === true, `[16b] an auto eat delta was refused: ${JSON.stringify(r16b).slice(0, 140)}`);
+    ok(JSON.stringify(await queue()) === q16b, '[16b] an auto eat moved the buff queue');
+    ok((await held(pick.item_id)) === held16b - 1, '[16b] an auto eat did not debit the food');
+
+    /* (c) buff_at_max MUST NOT DEBIT, MEASURED ON THE REAL DELTA. [7] proves the
+       gold in a hand-written delta rolls back; this proves the thing a PLAYER
+       loses — the food — is still in the bag after the refusal the designer's
+       rule exists for ("never eat the item for nothing"). Seeded onto the
+       ceiling, because the cap moves with the clock and no number of honest
+       consumes reaches it deterministically. */
+    await db.exec(`update public.player_state set buffs = jsonb_build_array(jsonb_build_object(
+        'type', '${pick.type}', 'magnitude', ${Number(pick.magnitude)},
+        'until', to_jsonb(now() + make_interval(secs => ${CAP_MS / 1000}))))
+      where user_id = '${U}' and slot = 0`);
+    const held16c = await held(pick.item_id);
+    const r16c = await apply(eatDelta(food, 1, false), await newKey());
+    ok(!!r16c && r16c.ok === false && r16c.error === 'buff_at_max',
+      `[16c] a capped queue did not refuse the real eat delta as buff_at_max — got `
+      + `${JSON.stringify(r16c).slice(0, 140)}`);
+    ok((await held(pick.item_id)) === held16c,
+      `[16c] the buff_at_max refusal ATE THE FOOD (${await held(pick.item_id)} vs ${held16c}). The whole `
+      + 'apply must roll back, or a player at the ceiling pays a Feast for nothing.');
+
+    /* (d) [17] THE EAT DELTA MUST NOT CLOSE THE ACCRUAL WINDOW. hr_apply stamps
+       `accrued_to = now()` on a delta carrying equip/activity/enchant, which
+       DISCARDS any unpaid window. An eat is fired mid-fight and, through the
+       auto-eat seam, up to 20×/min — so the day `buff_apply` (or anything else)
+       joins that list, every meal confiscates the night the player was owed.
+       Asked of the REAL delta through the REAL predicate. */
+    ok(deltaClosesWindow(eatDelta(food, 1, false)) === false,
+      '[17] the eat delta now CLOSES THE ACCRUAL WINDOW (intents.js deltaClosesWindow). hr_apply would stamp '
+      + 'accrued_to = now() and throw away the unpaid window — a confiscated night per meal.');
+    ok(deltaClosesWindow(eatDelta(food, 1, true)) === false,
+      '[17] the AUTO eat delta closes the accrual window — see above, and auto-eat fires 20×/min.');
+    /* AND IT ALWAYS CARRIES THE DEBIT (Security F3). The coupling is enforced in
+       SQL ([3b]); this is the emitter side of it, so a refactor that made the
+       debit conditional is red HERE too rather than only in a rebuilt database. */
+    for (const auto of [false, true]) {
+      const d = eatDelta(food, 1, auto);
+      ok(d.items && d.items[pick.item_id] === -1,
+        `[17] eatDelta(auto=${auto}) does not spend exactly one ${pick.item_id}: `
+        + `${JSON.stringify(d.items)}. buff_apply performs no possession check of its own — the debit IS the `
+        + 'check, and hr_apply refuses the pair with buff_not_paid if they ever come apart.');
+    }
+    await db.exec(`update public.player_state set buffs = '[]'::jsonb
+      where user_id = '${U}' and slot = 0`);
+  }
+
   /* ── [6b] max(old,new), BOTH DIRECTIONS, WITHOUT DEPENDING ON THE CATALOGUE ─
      The catalogue arm above only runs when a STRONGER food of the same type
      exists, and for the fixture type none does — so `--mutate=
@@ -739,6 +835,65 @@ async function run(mutate, blind) {
   ok(buffed !== bare,
     '[11] a LIVE +200% damage buff changed NOTHING about the night — the projection is threaded but the '
     + 'engine does not pay it, which is exactly the false green [10] would report as perfect');
+
+  /* ── [18] AWAY: A BUFF PAYS UNTIL `until`, AND NOT ONE TICK LONGER ─────────
+     THE AWAY HALF OF STEP 2, and the arm that closes the exploit src/core/buffs.js
+     was written about: a buff alive when a window OPENS used to keep paying for the
+     whole window, because the only thing that drained it was a setInterval in a
+     live tab. [10] proves the feature is inert with no buff and [11] proves it is
+     not inert with one; neither can tell "paid ten minutes" from "paid all night".
+
+     Measured as a SANDWICH rather than against a hand-computed number, because the
+     engine's output is a rolled simulation and an equality on a total would be a
+     fixture that has to be re-typed on every balance change:
+
+       bare  <  ten minutes of buff  <  a buff that outlives the window
+
+     and the upper bound is the load-bearing half. Same seed, same span in all
+     three, so the only difference between them is the drain.
+
+     AND THE EQUALITY: a buff whose `until` is exactly the window end pays the same
+     as one an hour past it. That pins the payout to the WINDOW rather than to how
+     much buff is left over afterwards, which is what a wall-clock drain measured
+     from the window start means (BUFF_DRAIN_RULE / remainingAtMs). */
+  const payout = (out) => {
+    /* A DIGEST, not the whole object: the summary honestly reports buffPaidMs and
+       buffsExpired, which DIFFER between an expiring buff and an immortal one by
+       design — comparing the full JSON would make the assertion tautological. What
+       must move is what the player is PAID. */
+    const o = out || {};
+    const d = o.delta || o;
+    return JSON.stringify({ xp: d.xp || null, items: d.items || null, gold: d.gold ?? null,
+      kills: (o.summary && o.summary.kills) ?? null });
+  };
+  const untilAt = (ms) => [{ type: 'damage', magnitude: 200, until: new Date(ms).toISOString() }];
+  const tenMin = payout(night(untilAt(FROM + 600000)));
+  const immortal = payout(night(untilAt(NOW + 3600000)));
+  const barePay = payout(night(undefined));
+  ok(tenMin !== barePay,
+    '[18] a buff alive for the first ten minutes of the window paid EXACTLY what no buff paid — the away '
+    + 'engine is not reading the queue at the window start');
+  ok(tenMin !== immortal,
+    '[18] a buff that expired ten minutes into a ONE-HOUR window paid the same as a buff that outlived the '
+    + 'window. That is the b326 exploit in its original form: alive at the start, therefore paid for the '
+    + 'whole absence. Draining and paying are one rule (src/core/buffs.js tickBuffs).');
+  ok(payout(night(untilAt(NOW))) === immortal,
+    '[18] a buff expiring EXACTLY at the window end paid differently from one expiring an hour later — the '
+    + 'payout must be bounded by the WINDOW, not by the leftover buff');
+
+  /* AND THE CLIENT CLOCK CANNOT PAUSE IT. The `active === false` freeze is deleted
+     (step 2): an idling character's wall clock runs, the server has always drained
+     by wall clock (every engine caller passes active:true), and a client that froze
+     the countdown showed a buff that was already over. A regression here is a pill
+     that reads 8m 40s for an hour. */
+  {
+    const fq = [{ type: 'damage', magnitude: 5, remainingMs: 1000 }];
+    const fr = tickBuffs(fq, 2000, { active: false, away: false });
+    ok(fr.frozen === false && fq[0].remainingMs <= 0,
+      '[18] tickBuffs still FREEZES on ctx.active === false. BUFF_DRAIN_RULE is wall-clock and the authority '
+      + 'is an absolute `until` the server goes on expiring; got '
+      + `${JSON.stringify(fr)} / ${JSON.stringify(fq)}.`);
+  }
 
   return failed;
 }

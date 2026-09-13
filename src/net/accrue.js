@@ -2165,6 +2165,83 @@ export function reconcileDungeonCooldowns(G, res) {
   return { mode: 'refusal', active: Object.keys(merged).length };
 }
 
+/* ── THE CONSUMABLE BUFF QUEUE IS THE SERVER'S (2026-09-13, step 2) ──────────
+   THE DEFECT THIS CLOSES, and it is the last shape of a bug this file is full of
+   the corpses of. `G.buffs` used to live in RESIDUE_FIELDS: `{type, magnitude,
+   remainingMs}`, in a bag the PLAYER writes, hydrated into G, feeding the
+   client's getBonus chain. Step 1 (2026-09-13-consumable-buffs.sql) moved the
+   authority to `player_state.buffs` with an ABSOLUTE `until`, wrote the
+   projection, and took `buffs` off the residue — leaving the client's copy as
+   in-flight display that a RELOAD FORGOT while the server went on holding the
+   buff. This is the mirror that closes it.
+
+   THE ENVELOPE IS TRUTH. The server's array REPLACES the local queue — never
+   merged, never `Math.max`-ed, never unioned: a merge resurrects the thing that was
+   deleted, a local entry nothing can out-argue. If it is not in the projection it
+   does not exist.
+
+   PER-SEGMENT, NOT PER-TYPE (game-designer, final, 2026-09-13). One type may have
+   SEVERAL contiguous windows, each with its own magnitude, because merging at
+   `max(magnitude)` let a scrap of herring extend a Feast at the Feast's strength. So
+   this must NOT collapse by type: every segment rides, `src/core/buffs.js
+   effectiveBuffs` picks the running one, and the sort puts it first.
+
+   `remaining_ms`, NOT `until`, IS WHAT LANDS IN THE QUEUE, and the reason is
+   clock skew. `remaining_ms` is the SERVER's own subtraction against the same
+   now() the envelope reports, so a client whose clock is twenty minutes fast
+   still counts down from the right number; re-deriving it from `until` against
+   `Date.now()` would import that skew into the one number the player watches.
+   `until` is carried alongside for the away/engine boundary (buffQueueFromServer)
+   and for anyone who needs the authority rather than the rendering.
+
+   EXPIRED ENTRIES ARE DROPPED HERE and deliberately NOT dropped in the
+   projection: hr_state_of carries a dead buff with `remaining_ms = 0` because the
+   AWAY engine must see a buff that was alive at the START of the window it is
+   pricing. Nothing on this client prices a past window, so a zero-remainder entry
+   is only a row that would render "0s" forever.
+
+   ABSENCE IS NOT A STATEMENT. An envelope without a `buffs` key is a server that
+   predates the projection or a partial answer — it leaves the queue alone
+   (`mode:'absent'`), which is the uncertainty rule (§6: never evict on
+   uncertainty). An empty ARRAY is a statement and DOES clear: the server saying
+   "you hold nothing" is exactly how a drained buff disappears.
+
+   NOT residue-ahead by construction: nothing in the game gates a capability on
+   `G.buffs` — it is read by the bonus chain and by the pill, and the bonus that
+   actually pays is computed by the engine from this same server array. */
+export function reconcileBuffs(G, res) {
+  if (!G || typeof G !== 'object' || !res || typeof res !== 'object') return null;
+  const rows = res.buffs;
+  if (!Array.isArray(rows)) return { mode: 'absent' };
+  const out = [];
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    const type = (typeof r.type === 'string' && r.type) ? r.type : null;
+    const magnitude = Number(r.magnitude);
+    const remainingMs = Math.floor(Number(r.remaining_ms));
+    if (!type) continue;
+    if (!Number.isFinite(magnitude) || magnitude <= 0) continue;
+    if (!Number.isFinite(remainingMs) || remainingMs <= 0) continue;
+    out.push({
+      type,
+      magnitude,
+      remainingMs,
+      until: (typeof r.until === 'string' && r.until) ? r.until : null,
+    });
+  }
+  out.sort((a, b) => a.remainingMs - b.remainingMs);
+  G.buffs = out;
+  /* REPAINT, because this is the call that makes a reload show the pill at all.
+     Guarded and last: a renderer that throws must not fail an envelope apply, and
+     a Node import of this module has no window. */
+  try {
+    if (typeof window !== 'undefined' && typeof window.__renderBuffsSection === 'function') {
+      window.__renderBuffsSection();
+    }
+  } catch (e) {}
+  return { mode: 'server', active: out.length };
+}
+
 /* ── THE LIFETIME EVENT COUNTERS ARE THE SERVER'S (dead-counter class) ────────
    THE DEFECT THIS CLOSES. `G.stats.harvested` / `G.stats.planted` are read by
    the goal engine (legacy.js DAILY_GOAL_POOL `source:`, ACHIEVEMENTS `src:`,
@@ -2836,6 +2913,13 @@ export function applyEnvelopeState(G, res, ownKey) {
      countdown must be right on the envelope the player's own action produced, not
      one poll later. Same absolute/merge split, same fail-open — see the header. */
   written.dungeonCooldowns = reconcileDungeonCooldowns(G, res);
+
+  /* AND THE BUFF QUEUE, for the same reason and in the same breath: the eat
+     intent's OWN envelope comes back through here, so the pill the player sees a
+     beat after biting into a Fisher's Pie is the SERVER's row and not the
+     client's prediction of it. Absolute — the server's array replaces the local
+     one. See reconcileBuffs' header. */
+  written.buffs = reconcileBuffs(G, res);
 
   /* THE LIFETIME GOAL COUNTERS ARE THE SERVER'S (`ev:*` permanent progress
      rows). Reconciled here, beside traits and the property rung, because they
@@ -5088,7 +5172,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

@@ -142,6 +142,17 @@
 --   `create or replace function public.hr_apply(` / `public.hr_state_of(`
 --   header and takes over no last-toucher role in the derivation tools.
 --
+-- ⚠ THE OTHER HALF IS A SEPARATE FILE, AND IT IS REQUIRED.
+--   2026-09-13-client-state-buffs-denylist.sql moves `buffs` onto
+--   hr_put_client_state's AUTHORITY deny-list, and src/net/client-state.js drops it
+--   from RESIDUE_FIELDS in the same commit. The two MUST ship together: the server
+--   refuses the WHOLE patch on a forbidden key, so a build where `buffs` is on both
+--   lists stops every residue field from saving for every player.
+--   tests/arm-homing-guard.mjs asserts that collision across both migrations.
+--   (This note lived at the FOOT of the file until 2026-09-13 and made the last
+--   line prose, which tests/run-smoke.mjs migrationGuard reads as a truncated
+--   file — a whole-suite red. A migration ends on a terminator.)
+--
 -- ⚠ APPLY ORDER: 2026-09-13-item-buffs-catalogue.generated.sql FIRST. §0 refuses
 --   to install without hr_item_buffs, because a `buff_apply` block that resolves
 --   against a missing table would answer `bad_buff_item` for every real food —
@@ -562,11 +573,19 @@ begin
     raise exception 'buffs self-check (a): the CHECK admits a non-ARRAY queue (%) — the away replay '
                     'iterates it and would throw mid-absence', v_expr;
   end if;
+  -- A BLAST RADIUS EXISTS, without pinning its VALUE here. This file installed 64;
+  -- 2026-09-13-buff-segments.sql widens it to 256 because per-segment stacking
+  -- makes the honest worst case 8 segments x 9 types = 72, and THAT file asserts
+  -- the exact bound (admits 72, refuses 257). Pinning 65 here would make this
+  -- re-appliable file fail against the schema its own successor installs — which it
+  -- did, and tests/buff-queue.mjs [14] is what caught it. What must hold FOREVER is
+  -- that the CHECK is not open-ended.
   execute format('select (%s)',
     replace(v_expr, 'buffs',
-            $$(select jsonb_agg(1) from generate_series(1, 65))$$)) into v_ok;
+            $$(select jsonb_agg(1) from generate_series(1, 10000))$$)) into v_ok;
   if v_ok is not false then
-    raise exception 'buffs self-check (a): the CHECK admits a queue longer than the blast radius (%)', v_expr;
+    raise exception 'buffs self-check (a): the CHECK admits an UNBOUNDED queue (%) — a compromised '
+                    'writer could park a megabyte in a column the envelope carries on every load', v_expr;
   end if;
   execute format('select (%s)',
     replace(v_expr, 'buffs',
@@ -956,10 +975,3 @@ begin
                'server-derived remaining_ms, and reachable by no client role';
 end $mig$;
 
--- ── 5. THE OTHER HALF IS A SEPARATE FILE, AND IT IS REQUIRED ───────────────
--- 2026-09-13-client-state-buffs-denylist.sql moves `buffs` onto
--- hr_put_client_state's AUTHORITY deny-list, and src/net/client-state.js drops it
--- from RESIDUE_FIELDS in the same commit. The two MUST ship together: the server
--- refuses the WHOLE patch on a forbidden key, so a build where `buffs` is on both
--- lists stops every residue field from saving for every player.
--- tests/arm-homing-guard.mjs asserts that collision across both migrations.

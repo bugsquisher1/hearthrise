@@ -188,7 +188,7 @@ export function eatDelta(food, newHp, auto) {
      ⚠ `buff_apply` is NOT in intents.js STAMPING_DELTA_KEYS and must never
        become one: hr_apply stamps `accrued_to = now()` on `equip`/`activity`/
        `enchant`, and an eat that closed the accrual window would confiscate an
-       unpaid night every time a player ate mid-absence. Asserted in [17].
+       unpaid night every time a player ate mid-absence. Asserted in [19].
 
      ⚠ `items` IS ALWAYS PRESENT ABOVE, AND buff_apply IS NEVER EMITTED ALONE
        (Security F3, 2026-09-13). The SQL block performs no possession check of
@@ -196,7 +196,7 @@ export function eatDelta(food, newHp, auto) {
        which hr_apply re-checks under the row lock. A `buff_apply` without the
        matching -1 would be a free buff off an item you do not own. The coupling
        is enforced server-side (`buff_not_paid`) and asserted by execution in
-       tests/buff-queue.mjs [16c]; this function cannot express the bad shape,
+       tests/buff-queue.mjs [18c]; this function cannot express the bad shape,
        because `items` is built unconditionally from the SAME `food.item`.
 
      ⚠ AND NOT ON AN AUTO-EAT, which is the OTHER half of shipping this safely.

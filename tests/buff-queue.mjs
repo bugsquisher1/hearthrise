@@ -71,6 +71,24 @@
 //  [14] A SECOND APPLY IS A NO-OP — both files re-apply with all three bodies
 //       byte-identical and exactly one CHECK constraint. They patch bodies ten
 //       patches deep; a double-patch is a silent corruption of the engine.
+//  [16] PER-SEGMENT STACKING (F2) — all four orderings by execution (weaker
+//       waits / stronger starts now and covers / an outliving weaker resumes /
+//       same magnitude extends one segment), the per-type segment budget refuses a
+//       ninth without eating the food, and src/core/buffs.js pays the RUNNING
+//       segment rather than the SUM (measured 0.07 before the fix — the cheap food
+//       adding to the expensive one).
+//  [17] F4 — a buff food is neither equippable nor a rune, and the census of
+//       inventory-CREDITING sites in hr_apply is pinned, so no future delta can
+//       refund the food it just debited for a buff.
+//  [18] THE EMITTER'S OWN DELTA — the delta `eat` actually builds (eat.js
+//       eatDelta) is applied, not a hand-written imitation: it is accepted, it
+//       buffs once, it spends exactly one serving, an AUTO eat debits and buffs
+//       NOTHING, and a capped queue refuses it buff_at_max with the food still in
+//       the bag. The join between the two halves; neither half's tests see it.
+//  [19] THE EAT DELTA DOES NOT CLOSE THE ACCRUAL WINDOW and always carries the
+//       debit beside buff_apply (the F3 coupling, emitter side).
+//  [20] AWAY — a buff alive at the window start pays only until `until`, and no
+//       client clock can pause it (the active:false freeze is gone).
 //  [15] ONE CEILING, ONE NUMBER — hr_apply's c_buff_max_ms and src/core/buffs.js
 //       BUFF_MAX_UNTIL_MS agree. Two numbers for one bound is two that can drift.
 //
@@ -85,7 +103,8 @@ import { bootReplay, ROOT } from './schema-replay.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
-import { BUFF_MAX_UNTIL_MS, BUFFS_DEF, tickBuffs } from '../src/core/buffs.js';
+import { BUFF_MAX_UNTIL_MS, BUFFS_DEF, buffQueueFromServer, buffBonusFor, tickBuffs }
+  from '../src/core/buffs.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 /* THE EMITTER ITSELF (step 2). [16]/[17] apply the delta the `eat` verb actually
    builds rather than a hand-written imitation of it, which is the only way this
@@ -97,6 +116,7 @@ const MIG = '2026-09-13-consumable-buffs.sql';
 const MIG_DENY = '2026-09-13-client-state-buffs-denylist.sql';
 const MIG_CAT = '2026-09-13-item-buffs-catalogue.generated.sql';
 const MIG_PAY = '2026-09-13-buff-apply-coupling.sql';
+const MIG_SEG = '2026-09-13-buff-segments.sql';
 const U = '00000000-0000-4000-8000-0000000000b5';
 const J = { kind: 'admin', intent: 'buff-queue:probe' };
 const CAP_MS = 3600000;
@@ -119,6 +139,10 @@ const BLIND = {
   [MIG_PAY]: ["  if strpos(v_apply, 'buff_not_paid') = 0 then",
     '  return;  -- \u00a72 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  if strpos(v_apply, 'buff_not_paid') = 0 then"],
+  /* The segments file's §3, anchored on its first assertion. */
+  [MIG_SEG]: ["  if strpos(v_apply, 'v_buff_newmag := greatest(v_buff_mag') > 0 then",
+    '  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
+    + "  if strpos(v_apply, 'v_buff_newmag := greatest(v_buff_mag') > 0 then"],
   [MIG_DENY]: ["  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);",
     '  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);"],
@@ -161,7 +185,12 @@ const MUTATIONS = {
     file: MIG,
     why: 'buff_at_max never fires, so a queue already at the ceiling silently eats the food for nothing '
        + '(the designer ruling this file exists to honour)',
-    pairs: [['      if v_buff_gain < v_buff_need then', '      if false then']],
+    /* `and false` rather than `if false`: the segments file's §0 requires the literal
+       `v_buff_gain < v_buff_need` to be present before it will install its
+       per-segment form, so deleting the text makes the CHAIN refuse and the arm a
+       harness error instead of a tick (MEASURED). The fuse is dead either way. */
+    pairs: [['      if v_buff_gain < v_buff_need then',
+      '      if v_buff_gain < v_buff_need and false then']],
   },
   min_gain_fuse_off: {
     file: MIG,
@@ -169,7 +198,11 @@ const MUTATIONS = {
        + 'transactions because the cap moves with now() — the defect the migration shipped in its first '
        + 'draft, which its own §4 could not see (a migration applies inside ONE transaction, where '
        + 'now() is frozen and the equality really does hold)',
-    pairs: [['      if v_buff_gain < v_buff_need then', '      if v_buff_base >= v_buff_cap then']],
+    /* The literal survives (see cap_refusal_off) and the EFFECTIVE condition is the
+       old, unreachable `base >= cap`: gain < need is implied by it, so ANDing them
+       reproduces exactly the first draft's defect. */
+    pairs: [['      if v_buff_gain < v_buff_need then',
+      '      if v_buff_gain < v_buff_need and v_buff_base >= v_buff_cap then']],
   },
   clamp_off: {
     file: MIG,
@@ -205,11 +238,15 @@ const MUTATIONS = {
     pairs: [['        from public.hr_item_buffs b where b.item_id = v_buff_item;',
       '        from public.hr_item_buffs b order by b.item_id limit 1;']],
   },
-  projection_renamed: {
+  projection_always_empty: {
     file: MIG,
-    why: 'hr_state_of projects the queue under a name the engine does not read, so every buff is paid to '
-       + 'nobody while the column fills up — the b341 class and the plotLevels false-green',
-    pairs: [["    'buffs', coalesce((", "    'buffQueue', coalesce(("]],
+    why: 'hr_state_of projects the key but reads a constant empty array instead of the column, so every '
+       + 'buff is paid to nobody while the column fills up — the b341 class and the plotLevels '
+       + 'false-green. (It replaced a KEY-RENAME mutation: renaming the key deletes the literal '
+       + "2026-09-13-buff-segments.sql's §0 requires, so the CHAIN refused and the arm was a harness "
+       + 'error instead of a tick — MEASURED.)',
+    pairs: [["        from jsonb_array_elements(coalesce(v_st.buffs, '[]'::jsonb)) as e(v)\n    ), '[]'::jsonb),",
+      "        from jsonb_array_elements('[]'::jsonb) as e(v)\n    ), '[]'::jsonb),"]],
   },
   remaining_ms_dead: {
     file: MIG,
@@ -244,6 +281,36 @@ const MUTATIONS = {
        + 'pie, keep the pie, and gain one more',
     pairs: [["         or (p_delta->'items'->>v_buff_item)::numeric <> -1 then",
       "         or false then"]],
+  },
+  segment_ignores_strength: {
+    file: MIG_SEG,
+    why: 'the new segment queues behind EVERY live segment of the type rather than only the '
+       + 'stronger-or-equal ones, so a Feast eaten while a Roasted Carrot runs does NOTHING until the '
+       + 'carrot expires — the player pays 2,600 gold and sees no change',
+    pairs: [["         and (e.v->>'magnitude')::numeric >= v_buff_mag;", '         and true;']],
+  },
+  segment_keeps_covered_weaker: {
+    file: MIG_SEG,
+    why: 'a weaker segment the new one COVERS survives instead of being dropped, so its time did not '
+       + 'pass while the stronger effect ran — the buff clock pauses, which is the exact property the '
+       + 'absolute `until` model removed (BUFF_DRAIN_RULE)',
+    pairs: [["                       or (e.v->>'until')::timestamptz > v_buff_until)));",
+      '                       or true)));']],
+  },
+  segment_budget_off: {
+    file: MIG_SEG,
+    why: 'the per-type segment budget is disarmed, so the entry count is bounded only by (60 min / the '
+       + 'shortest food) x 9 types = ~270 entries of jsonb on EVERY hr_state_of read',
+    pairs: [['      if v_buff_segs >= c_buff_max_segments then', '      if false then']],
+  },
+  segment_magnitude_laundered: {
+    file: MIG_SEG,
+    why: 'THE LAUNDERING THIS FILE CLOSES, restored: the new segment takes the MAX magnitude of the live '
+       + 'same-type segments, so a 12-gold Roasted Carrot extends a 2,600-gold elixir at +5%',
+    pairs: [['      v_buff_newmag := v_buff_mag;',
+      "      select greatest(v_buff_mag, max((e.v->>'magnitude')::numeric)) into v_buff_newmag\n"
+      + "        from jsonb_array_elements(coalesce(v_st.buffs, '[]'::jsonb)) as e(v)\n"
+      + "       where e.v->>'type' = v_buff_type and (e.v->>'until')::timestamptz > v_buff_now;"]],
   },
   catalogue_drift: {
     file: MIG_CAT,
@@ -603,20 +670,31 @@ async function run(mutate, blind) {
         'type', '${pick.type}', 'magnitude', ${Number(mag)}, 'until', to_jsonb(${untilSql})))
       where user_id = '${U}' and slot = 0`);
   };
-  await seed(1, `now() + make_interval(secs => ${(CAP_MS - Math.floor(pick.duration_ms / 2)) / 1000})`);
+  /* STRONGER than the food, so the new segment QUEUES BEHIND it (per-segment
+     stacking) and the clamp is measured on a tail that really is near the ceiling.
+     Seeded at magnitude 1 this arm measured nothing after F2: a weaker seed makes
+     the new segment start NOW, forty minutes short of the cap. */
+  await seed(pick.magnitude + 10,
+    `now() + make_interval(secs => ${(CAP_MS - Math.floor(pick.duration_ms / 2)) / 1000})`);
   const r7b = await eat(pick.item_id);
   ok(r7b && r7b.ok === true,
     `[7b] a consume with ${Math.round(pick.duration_ms / 2000)} s of headroom was refused `
     + `(${JSON.stringify(r7b).slice(0, 140)}) — a PARTIAL clamp must still buy the minutes that fit`);
+  /* THE TYPE'S *LAST* SEGMENT, not its running one. Under per-segment stacking the
+     new segment is appended behind the seeded stronger one, so `entry()` (which
+     returns the RUNNING segment, by design) would measure the seed's expiry and
+     report the clamp as 600 s short — it did, before this line read the tail. */
+  const tail7b = ((await queue()) || []).filter((x) => x && x.type === pick.type)
+    .map((x) => x.until).sort().pop();
   const over7b = (await db.query(
     'select extract(epoch from (($1::timestamptz) - (now() + make_interval(secs => $2)))) as s',
-    [(await entry(pick.type)).until || '1970-01-01', CAP_MS / 1000])).rows[0].s;
+    [tail7b || '1970-01-01', CAP_MS / 1000])).rows[0].s;
   ok(Math.abs(Number(over7b)) < 10,
     `[7b] the clamp did not land the tail ON the 60-minute ceiling (${Math.round(Number(over7b))} s out). `
     + 'Positive means the cap is GONE — 400 pies before bed would bank hours of buffed away output, which '
     + 'is the stock ceiling that replaces a per-day clamp.');
 
-  /* ── [16] THE EMITTER'S OWN DELTA, NOT A HAND-WRITTEN ONE (step 2) ─────────
+  /* ── [18] THE EMITTER'S OWN DELTA, NOT A HAND-WRITTEN ONE (step 2) ─────────
      Every arm above builds the delta the way this guard imagines the Edge builds
      it. This one imports `eatDelta` from supabase/functions/hr-accrue/eat.js and
      applies WHAT THE VERB ACTUALLY POSTS, which is the only version of this
@@ -641,27 +719,27 @@ async function run(mutate, blind) {
     const d16 = eatDelta(food, 1, false);
     const r16 = await apply(d16, await newKey());
     ok(!!r16 && r16.ok === true,
-      `[16a] the REAL eat delta was refused: ${JSON.stringify(r16).slice(0, 160)} — the shape the Edge posts `
+      `[18a] the REAL eat delta was refused: ${JSON.stringify(r16).slice(0, 160)} — the shape the Edge posts `
       + `(${Object.keys(d16).sort().join('+')}) is not the shape hr_apply accepts`);
     ok(((await queue()) || []).length === 1,
-      `[16a] the real eat delta left ${((await queue()) || []).length} queue entries (want 1) — the emitter is `
+      `[18a] the real eat delta left ${((await queue()) || []).length} queue entries (want 1) — the emitter is `
       + 'wired but the buff does not land, which is a tooltip that lies with a server behind it');
     ok((await held(pick.item_id)) === held16 - 1,
-      '[16a] the real eat delta did not spend exactly one serving');
+      '[18a] the real eat delta did not spend exactly one serving');
 
     // (b) THE AUTO-EAT: debits, buffs NOTHING.
     const q16b = JSON.stringify(await queue());
     const held16b = await held(pick.item_id);
     const d16b = eatDelta(food, 1, true);
     ok(!Object.prototype.hasOwnProperty.call(d16b, 'buff_apply'),
-      '[16b] eatDelta emitted buff_apply for an AUTO eat. The auto-eater fires up to 20×/min over the '
+      '[18b] eatDelta emitted buff_apply for an AUTO eat. The auto-eater fires up to 20×/min over the '
       + 'healing pool — fifteen of those rows carry an incidental buff — so it would cap the 60-minute queue '
       + 'in ~90 s of fighting and then be refused buff_at_max, which ROLLS BACK THE DEBIT: the b467 "food I '
       + 'eat gets restocked" P0, reintroduced.');
     const r16b = await apply(d16b, await newKey());
-    ok(!!r16b && r16b.ok === true, `[16b] an auto eat delta was refused: ${JSON.stringify(r16b).slice(0, 140)}`);
-    ok(JSON.stringify(await queue()) === q16b, '[16b] an auto eat moved the buff queue');
-    ok((await held(pick.item_id)) === held16b - 1, '[16b] an auto eat did not debit the food');
+    ok(!!r16b && r16b.ok === true, `[18b] an auto eat delta was refused: ${JSON.stringify(r16b).slice(0, 140)}`);
+    ok(JSON.stringify(await queue()) === q16b, '[18b] an auto eat moved the buff queue');
+    ok((await held(pick.item_id)) === held16b - 1, '[18b] an auto eat did not debit the food');
 
     /* (c) buff_at_max MUST NOT DEBIT, MEASURED ON THE REAL DELTA. [7] proves the
        gold in a hand-written delta rolls back; this proves the thing a PLAYER
@@ -676,30 +754,30 @@ async function run(mutate, blind) {
     const held16c = await held(pick.item_id);
     const r16c = await apply(eatDelta(food, 1, false), await newKey());
     ok(!!r16c && r16c.ok === false && r16c.error === 'buff_at_max',
-      `[16c] a capped queue did not refuse the real eat delta as buff_at_max — got `
+      `[18c] a capped queue did not refuse the real eat delta as buff_at_max — got `
       + `${JSON.stringify(r16c).slice(0, 140)}`);
     ok((await held(pick.item_id)) === held16c,
-      `[16c] the buff_at_max refusal ATE THE FOOD (${await held(pick.item_id)} vs ${held16c}). The whole `
+      `[18c] the buff_at_max refusal ATE THE FOOD (${await held(pick.item_id)} vs ${held16c}). The whole `
       + 'apply must roll back, or a player at the ceiling pays a Feast for nothing.');
 
-    /* (d) [17] THE EAT DELTA MUST NOT CLOSE THE ACCRUAL WINDOW. hr_apply stamps
+    /* (d) [19] THE EAT DELTA MUST NOT CLOSE THE ACCRUAL WINDOW. hr_apply stamps
        `accrued_to = now()` on a delta carrying equip/activity/enchant, which
        DISCARDS any unpaid window. An eat is fired mid-fight and, through the
        auto-eat seam, up to 20×/min — so the day `buff_apply` (or anything else)
        joins that list, every meal confiscates the night the player was owed.
        Asked of the REAL delta through the REAL predicate. */
     ok(deltaClosesWindow(eatDelta(food, 1, false)) === false,
-      '[17] the eat delta now CLOSES THE ACCRUAL WINDOW (intents.js deltaClosesWindow). hr_apply would stamp '
+      '[19] the eat delta now CLOSES THE ACCRUAL WINDOW (intents.js deltaClosesWindow). hr_apply would stamp '
       + 'accrued_to = now() and throw away the unpaid window — a confiscated night per meal.');
     ok(deltaClosesWindow(eatDelta(food, 1, true)) === false,
-      '[17] the AUTO eat delta closes the accrual window — see above, and auto-eat fires 20×/min.');
+      '[19] the AUTO eat delta closes the accrual window — see above, and auto-eat fires 20×/min.');
     /* AND IT ALWAYS CARRIES THE DEBIT (Security F3). The coupling is enforced in
        SQL ([3b]); this is the emitter side of it, so a refactor that made the
        debit conditional is red HERE too rather than only in a rebuilt database. */
     for (const auto of [false, true]) {
       const d = eatDelta(food, 1, auto);
       ok(d.items && d.items[pick.item_id] === -1,
-        `[17] eatDelta(auto=${auto}) does not spend exactly one ${pick.item_id}: `
+        `[19] eatDelta(auto=${auto}) does not spend exactly one ${pick.item_id}: `
         + `${JSON.stringify(d.items)}. buff_apply performs no possession check of its own — the debit IS the `
         + 'check, and hr_apply refuses the pair with buff_not_paid if they ever come apart.');
     }
@@ -723,6 +801,144 @@ async function run(mutate, blind) {
   ok(Number((await entry(pick.type)).magnitude) === Number(pick.magnitude) + 5,
     `[6b] a STRONGER running buff was DILUTED to ${(await entry(pick.type)).magnitude} by a weaker dish `
     + `(want ${pick.magnitude + 5}) — magnitude is max(old,new), never a replace`);
+
+  /* ── [16] PER-SEGMENT STACKING (F2) — ALL FOUR ORDERINGS ────────────────
+     Same-type foods stack as CONTIGUOUS SEGMENTS, each at its own magnitude. The
+     magnitudes are seeded (the four orderings need a known strong/weak pair and a
+     balance change must never make this vacuous) and then a REAL paid consume of
+     the fixture food is applied on top. `seg` reads the stored column, which the
+     migration keeps canonically ordered by expiry. */
+  const seg = async (type) => ((await queue()) || []).filter((x) => x && x.type === type);
+  const seedSegs = async (rows) => {
+    const parts = rows.map((r) => `jsonb_build_object('type','${r.type}','magnitude',${r.mag},`
+      + `'until', to_jsonb(now() + make_interval(secs => ${r.secs})))`).join(', ');
+    await db.exec(`update public.player_state set buffs = jsonb_build_array(${parts})
+      where user_id = '${U}' and slot = 0`);
+  };
+  const durS = pick.duration_ms / 1000;
+
+  // (16a) STRONGER RUNNING, weaker eaten → the weak one WAITS its turn.
+  await seedSegs([{ type: pick.type, mag: pick.magnitude + 10, secs: 300 }]);
+  const r16a = await eat(pick.item_id);
+  ok(r16a && r16a.ok === true, `[16a] a weaker same-type consume was refused: ${JSON.stringify(r16a).slice(0, 120)}`);
+  let sg = await seg(pick.type);
+  ok(sg.length === 2 && Number(sg[0].magnitude) === pick.magnitude + 10
+     && Number(sg[1].magnitude) === Number(pick.magnitude),
+    `[16a] a weaker food did not APPEND a segment at its OWN magnitude behind the stronger one: `
+    + `${JSON.stringify(sg)}. max() letting the cheap food carry the expensive magnitude is the `
+    + 'laundering this ruling closes.');
+
+  // (16b) WEAKER RUNNING (60 s left), stronger eaten → it starts NOW and COVERS.
+  await seedSegs([{ type: pick.type, mag: Math.max(1, pick.magnitude - 1), secs: 60 }]);
+  const r16b = await eat(pick.item_id);
+  ok(r16b && r16b.ok === true, `[16b] a stronger same-type consume was refused: ${JSON.stringify(r16b).slice(0, 120)}`);
+  sg = await seg(pick.type);
+  ok(sg.length === 1 && Number(sg[0].magnitude) === Number(pick.magnitude),
+    `[16b] the covered weaker segment survived (${JSON.stringify(sg)}) — the drain is WALL-CLOCK, so its `
+    + 'time really did pass while the stronger effect ran; a surviving remainder is a paused buff clock');
+
+  // (16c) WEAKER RUNNING BUT OUTLIVING the stronger → it SURVIVES and resumes.
+  await seedSegs([{ type: pick.type, mag: Math.max(1, pick.magnitude - 1), secs: durS + 600 }]);
+  await eat(pick.item_id);
+  sg = await seg(pick.type);
+  ok(sg.length === 2 && Number(sg[0].magnitude) === Number(pick.magnitude)
+     && Number(sg[1].magnitude) === Math.max(1, pick.magnitude - 1),
+    `[16c] a weaker segment that OUTLIVES the new one was dropped or mis-ordered (${JSON.stringify(sg)}) `
+    + '— the stronger runs first and the weaker resumes after it');
+
+  // (16d) SAME MAGNITUDE → ONE segment, extended.
+  await seedSegs([{ type: pick.type, mag: pick.magnitude, secs: 60 }]);
+  const before16d = (await seg(pick.type))[0].until;
+  await eat(pick.item_id);
+  sg = await seg(pick.type);
+  ok(sg.length === 1 && sg[0].until > before16d,
+    `[16d] a same-magnitude re-eat did not EXTEND one segment (${JSON.stringify(sg)}) — topping up one `
+    + 'dish would otherwise fill the segment budget with duplicates of the same number');
+
+  // (16e) THE SEGMENT BUDGET refuses the ninth and eats nothing.
+  await seedSegs(Array.from({ length: 8 }, (_, i) => (
+    { type: pick.type, mag: pick.magnitude + 20 - i, secs: 120 * (i + 1) })));
+  const held16 = await held(pick.item_id);
+  const r16e = await eat(pick.item_id);
+  ok(!!r16e && r16e.ok === false && r16e.error === 'buff_at_max' && r16e.why === 'segment_budget',
+    `[16e] a NINTH live segment of one type was not refused as buff_at_max/segment_budget — got `
+    + `${JSON.stringify(r16e).slice(0, 140)}. The cost bound would then be 60 min / the shortest food `
+    + 'x 9 types = ~270 entries on every envelope read.');
+  ok((await held(pick.item_id)) === held16, '[16e] the budget refusal still ate the food');
+
+  /* (16f) THE CORE PAYS THE RUNNING SEGMENT, NOT THE SUM. This is the src/core
+     half of F2, asserted in JS because bootReplay can only patch migrations.
+     MEASURED BEFORE THE FIX on the designer's own worked example: buffBonusFor
+     returned 0.07 for a +5 % elixir beside a +2 % trout — the cheap food ADDING to
+     the expensive one, which is worse than the max() merge it replaced. */
+  {
+    const nowMs = Date.UTC(2026, 8, 13, 12, 0, 0);
+    const two = buffQueueFromServer([
+      { type: 'all_xp', magnitude: 5, until: new Date(nowMs + 480000).toISOString() },
+      { type: 'all_xp', magnitude: 2, until: new Date(nowMs + 660000).toISOString() },
+    ], nowMs);
+    const one = buffQueueFromServer([
+      { type: 'all_xp', magnitude: 5, until: new Date(nowMs + 480000).toISOString() },
+    ], nowMs);
+    const ctx = { away: true };
+    ok(buffBonusFor(two, 'allXP', ctx) === buffBonusFor(one, 'allXP', ctx),
+      `[16f] two same-type segments pay ${buffBonusFor(two, 'allXP', ctx)} where the RUNNING one alone `
+      + `pays ${buffBonusFor(one, 'allXP', ctx)} — src/core/buffs.js is summing segments again, which is `
+      + 'a mint: the cheap food adds its magnitude to the expensive one for the whole overlap');
+    ok(buffBonusFor(two, 'allXP', ctx) === 0.05,
+      `[16f] the running segment pays ${buffBonusFor(two, 'allXP', ctx)} (want 0.05 for +5%)`);
+    /* …and after the first segment expires the SECOND one pays. A core that
+       returned only the first entry for ever would satisfy the line above. */
+    const later = buffQueueFromServer([
+      { type: 'all_xp', magnitude: 5, until: new Date(nowMs - 1000).toISOString() },
+      { type: 'all_xp', magnitude: 2, until: new Date(nowMs + 180000).toISOString() },
+    ], nowMs);
+    ok(buffBonusFor(later, 'allXP', ctx) === 0.02,
+      `[16f] once the stronger segment has expired the weaker one must pay 0.02, got `
+      + `${buffBonusFor(later, 'allXP', ctx)}`);
+  }
+
+  /* ── [17] F4 (Security, P3): A BUFF FOOD CANNOT BE CREDITED BACK ─────────
+     The coupling makes a buff cost `items[X] = -1`. That is only airtight while X
+     cannot ALSO be credited by another key of the same delta. Two set facts and
+     one census: */
+  const clash = (await db.query(
+    `select b.item_id from public.hr_item_buffs b
+      join public.hr_item_slots s on s.item_id = b.item_id`)).rows.map((r) => r.item_id);
+  ok(clash.length === 0,
+    `[17] ${clash.join(', ')} is BOTH a buff food and equippable — the equip block credits the previous `
+    + 'occupant back into the bag, so the same delta could debit and refund the buff food');
+  const runeClash = (await db.query(
+    `select b.item_id from public.hr_item_buffs b join public.hr_runes r on r.rune_id = b.item_id`)).rows;
+  ok(runeClash.length === 0,
+    `[17] a buff food is also a RUNE (${JSON.stringify(runeClash)}) — the enchant block consumes runes on `
+    + 'its own path and the two consumption rules would overlap');
+  /* THE CENSUS. Every statement in hr_apply that CREDITS player_inventory, and the
+     delta key whose block owns it. MEASURED on this chain: items (the general
+     credit), equip x2 (unequip returns the occupant) and hearthfind (the trophy).
+     enchant only ever DEBITS. A new crediting site — say a future equippable buff
+     food refunded beside its own debit — reds this arm and has to be argued for. */
+  {
+    const src = (await db.query(
+      `select pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure) as s`
+    )).rows[0].s.replace(/\r/g, '').split('\n');
+    const owners = [];
+    src.forEach((l, i) => {
+      if (!/player_inventory/.test(l)) return;
+      if (!/insert into|qty \+|excluded\.qty/.test(l)) return;
+      let key = '?';
+      for (let j = i; j >= 0; j -= 1) {
+        const m = /p_delta \? '([a-z_]+)'/.exec(src[j]);
+        if (m) { key = m[1]; break; }
+      }
+      owners.push(key);
+    });
+    const tally = owners.sort().join(',');
+    ok(tally === 'equip,equip,hearthfind,items',
+      `[17] the inventory-CREDITING census changed: ${tally || '(none found)'} (measured: `
+      + 'equip,equip,hearthfind,items). A new crediting site means a delta could refund an item it '
+      + 'debited in the same call — which is how the buff coupling would stop being a cost.');
+  }
 
   // ── [9] THE PROJECTION ───────────────────────────────────────────────────
   const env = await envelope();
@@ -836,7 +1052,7 @@ async function run(mutate, blind) {
     '[11] a LIVE +200% damage buff changed NOTHING about the night — the projection is threaded but the '
     + 'engine does not pay it, which is exactly the false green [10] would report as perfect');
 
-  /* ── [18] AWAY: A BUFF PAYS UNTIL `until`, AND NOT ONE TICK LONGER ─────────
+  /* ── [20] AWAY: A BUFF PAYS UNTIL `until`, AND NOT ONE TICK LONGER ─────────
      THE AWAY HALF OF STEP 2, and the arm that closes the exploit src/core/buffs.js
      was written about: a buff alive when a window OPENS used to keep paying for the
      whole window, because the only thing that drained it was a setInterval in a
@@ -871,14 +1087,14 @@ async function run(mutate, blind) {
   const immortal = payout(night(untilAt(NOW + 3600000)));
   const barePay = payout(night(undefined));
   ok(tenMin !== barePay,
-    '[18] a buff alive for the first ten minutes of the window paid EXACTLY what no buff paid — the away '
+    '[20] a buff alive for the first ten minutes of the window paid EXACTLY what no buff paid — the away '
     + 'engine is not reading the queue at the window start');
   ok(tenMin !== immortal,
-    '[18] a buff that expired ten minutes into a ONE-HOUR window paid the same as a buff that outlived the '
+    '[20] a buff that expired ten minutes into a ONE-HOUR window paid the same as a buff that outlived the '
     + 'window. That is the b326 exploit in its original form: alive at the start, therefore paid for the '
     + 'whole absence. Draining and paying are one rule (src/core/buffs.js tickBuffs).');
   ok(payout(night(untilAt(NOW))) === immortal,
-    '[18] a buff expiring EXACTLY at the window end paid differently from one expiring an hour later — the '
+    '[20] a buff expiring EXACTLY at the window end paid differently from one expiring an hour later — the '
     + 'payout must be bounded by the WINDOW, not by the leftover buff');
 
   /* AND THE CLIENT CLOCK CANNOT PAUSE IT. The `active === false` freeze is deleted
@@ -890,7 +1106,7 @@ async function run(mutate, blind) {
     const fq = [{ type: 'damage', magnitude: 5, remainingMs: 1000 }];
     const fr = tickBuffs(fq, 2000, { active: false, away: false });
     ok(fr.frozen === false && fq[0].remainingMs <= 0,
-      '[18] tickBuffs still FREEZES on ctx.active === false. BUFF_DRAIN_RULE is wall-clock and the authority '
+      '[20] tickBuffs still FREEZES on ctx.active === false. BUFF_DRAIN_RULE is wall-clock and the authority '
       + 'is an absolute `until` the server goes on expiring; got '
       + `${JSON.stringify(fr)} / ${JSON.stringify(fq)}.`);
   }

@@ -37691,17 +37691,23 @@ const TESTS = [
       assert(window.getBonus('dropRate') >= baseDrop + 1,
         'and the remainder must still be paying when the player gets back');
 
-      /* (d) THE ONE FREEZE THAT SURVIVED. Idle play has never drained buffs —
-         you are not spending an effect that is not modifying anything — and
-         that rule predates this change and is untouched by it. */
+      /* (d) THE LAST FREEZE IS GONE (wall-clock ruling, 2026-09-13). This arm
+         asserted the opposite until today. The authority is an ABSOLUTE `until` the
+         server keeps expiring whether the player fights, idles or sleeps, and the
+         freeze was CLIENT-ONLY all along (combat-sim, skill-sim and artisan-sim all
+         pass `active: true`) — a promise only the pill made, which the server was
+         already breaking: the row read 8m 40s for an hour while the buff was over. */
       G.activeMonster = null; G.activeSkill = null; G.activeArtisanRecipe = null;
       const before = G.buffs[0].remainingMs;
       window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === before,
-        'with nothing running the clock must still freeze, found ' + G.buffs[0].remainingMs + ' vs ' + before);
+      assert(G.buffs[0].remainingMs === before - 60000,
+        'an IDLE minute must drain the buff by a minute — the clock is wall-clock against the server\'s '
+        + 'absolute `until`, found ' + G.buffs[0].remainingMs + ' vs ' + (before - 60000));
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
       window.advanceBuffClock(60000);
-      assert(G.buffs[0].remainingMs === before - 60000, 'and it must drain again while an activity runs');
+      assert(G.buffs[0].remainingMs === before - 120000,
+        'and a WORKING minute costs the same minute — one rule, not two: '
+        + G.buffs[0].remainingMs + ' vs ' + (before - 120000));
     } finally { C.randomSeed(); restoreG(snap); }
   }),
 

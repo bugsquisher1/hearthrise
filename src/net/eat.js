@@ -276,16 +276,44 @@ export async function sendEat(foodId, o = {}) {
    guessing. `buff_at_max` is refused BEFORE the debit (never eat the item for
    nothing), so "kept your X" is literally true. */
 export const EAT_REFUSAL_COPY = Object.freeze({
+  /* THE 60-MINUTE CEILING. hr_apply refuses a consume that would buy less than a
+     tenth of what it promises, BEFORE the debit, so "kept your X" is literally
+     true (the designer's rule: never eat the item for nothing). */
   buff_at_max: 'Your effects are already at their one-hour cap — kept your %s for later.',
+  /* THE SAME CODE WITH why='segment_budget': eight live servings of one effect are
+     queued. A different fact and therefore a different sentence — "wait an hour" is
+     wrong advice when the answer is "that one effect is full". */
+  'buff_at_max/segment_budget':
+    'That effect already has as many servings queued as it can hold — kept your %s.',
   insufficient_item: 'You do not have a %s any more.',
+  /* NEITHER OF THESE SHOULD REACH A PLAYER — the client only sends ids the
+     catalogue calls food, and the debit is emitted beside every buff_apply by
+     construction. They are HERE because a refusal the player cannot read is the
+     b224 "I clicked Eat and nothing happened" report, and a silent one is worse
+     than a vague one. The food is kept in both cases: the whole apply rolls back. */
+  bad_buff_item: 'The Hearth did not recognise that food — kept your %s.',
+  buff_not_paid: 'That food could not be used just now — kept your %s.',
 });
 
 /** The line to show for a verdict, or null when there is nothing honest to say.
- *  Pure: verdict + display name in, string out. */
+ *  Pure: verdict + display name in, string out.
+ *
+ *  `why` REFINES THE CODE, and is looked up FIRST: one machine code can carry two
+ *  different facts (the hour cap vs a full segment budget) and telling a player to
+ *  wait for the wrong thing is worse than saying less. An unlisted code says
+ *  NOTHING rather than guessing. */
 export function refusalCopyFor(verdict, itemName) {
-  const code = (verdict && (verdict.reason || verdict.error)) || '';
-  if (!Object.prototype.hasOwnProperty.call(EAT_REFUSAL_COPY, code)) return null;
-  return EAT_REFUSAL_COPY[code].replace('%s', String(itemName || 'food'));
+  const v = (verdict && typeof verdict === 'object') ? verdict : {};
+  const body = (v.body && typeof v.body === 'object') ? v.body : {};
+  const code = v.reason || v.error || body.error || '';
+  const why = v.why || body.why || (body.detail && body.detail.why) || '';
+  const keys = why ? [code + '/' + why, code] : [code];
+  for (const k of keys) {
+    if (Object.prototype.hasOwnProperty.call(EAT_REFUSAL_COPY, k)) {
+      return EAT_REFUSAL_COPY[k].replace('%s', String(itemName || 'food'));
+    }
+  }
+  return null;
 }
 
 if (typeof window !== 'undefined') {

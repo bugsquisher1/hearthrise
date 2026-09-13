@@ -235,20 +235,20 @@ export function nextBuffExpiryMs(buffs) {
    THE INSTANT'S ENTRY IS THE ONE WITH THE SMALLEST POSITIVE `remainingMs`, and
    that is a property of contiguity rather than a heuristic: segment k ends at
    u(k) and segment k+1 covers [u(k), u(k+1)], so at any `now` inside the queue
-   every later segment has strictly MORE left than the one running. Which also
-   means the queue needs no "current index" to maintain, no pointer to get wrong
-   across a reload, and no second representation — the same subtraction the
-   projection already does answers it.
+   every later segment has strictly MORE left than the one running. The queue
+   therefore needs no "current index" to maintain, no pointer to get wrong across a
+   reload, and no second representation.
 
-   SUMMING, WHICH IS WHAT THIS USED TO DO, is the bug this replaces: two live
-   segments of `damage` would have paid +5% AND +2% at once (+7%), i.e. the
-   stacking the cap exists to prevent, in the one shape nothing was watching.
+   ⚠ SUMMING IS WHAT THIS USED TO DO, AND IT WAS A MINT. Measured on the designer's
+     own worked example: +5% and +2% read 0.07 for the whole overlap, i.e. the cheap
+     trout ADDED its magnitude to the expensive elixir — strictly worse than the
+     max() merge it replaced, and the exact laundering the ruling exists to prevent.
 
-   One entry per type, so `out[bonusKey]` still ACCUMULATES ACROSS TYPES (a
-   damage buff and a crit buff both pay, and two DIFFERENT types that share a
-   bonusKey — nothing does today, `damage_crit` and gear both feed `crit` from
-   elsewhere — would still add, which is the correct reading of "different
-   effects"). */
+   ONE FUNCTION, because the client's getBonus chain, the away engine
+   (combat-sim / skill-sim / artisan-sim all read `ctx.bonus`) and the pill must not
+   each decide which segment is running. DIFFERENT TYPES STILL SUM — they are
+   different effects, and no two types share a `bonusKey` (asserted by the suite),
+   so grouping by type is the same partition as grouping by key. */
 export function effectiveBuffs(buffs) {
   const live = activeBuffs(buffs);
   if (live.length < 2) return live;
@@ -258,10 +258,10 @@ export function effectiveBuffs(buffs) {
     if (cur === undefined) { byType.set(b.type, b); continue; }
     const r = Number(b.remainingMs); const rc = Number(cur.remainingMs);
     /* The shorter remainder is the running segment. A TIE is two entries claiming
-       the same instant — a shape the server cannot produce (contiguous windows
-       have distinct ends) — so it is resolved deterministically and in the
-       player's favour rather than by array order, which would make the payout
-       depend on the projection's sort being stable. */
+       the same instant — a shape the server cannot produce (contiguous windows have
+       distinct ends) — so it is resolved deterministically and in the player's
+       favour rather than by array order, which would make the payout depend on the
+       projection's sort being stable. */
     if (r < rc || (r === rc && Number(b.magnitude) > Number(cur.magnitude))) byType.set(b.type, b);
   }
   return [...byType.values()];

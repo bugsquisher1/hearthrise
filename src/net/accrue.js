@@ -2186,19 +2186,21 @@ export function reconcileDungeonCooldowns(G, res) {
    this must NOT collapse by type: every segment rides, `src/core/buffs.js
    effectiveBuffs` picks the running one, and the sort puts it first.
 
-   `remaining_ms`, NOT `until`, IS WHAT LANDS IN THE QUEUE, and the reason is
-   clock skew. `remaining_ms` is the SERVER's own subtraction against the same
-   now() the envelope reports, so a client whose clock is twenty minutes fast
-   still counts down from the right number; re-deriving it from `until` against
-   `Date.now()` would import that skew into the one number the player watches.
+   `remaining_ms`, NOT `until`, IS WHAT LANDS IN THE QUEUE, and that is why this
+   does NOT call `buffQueueFromServer` (which is the engine's boundary conversion
+   and derives the remainder from `until` at a stated instant). `remaining_ms` is the
+   SERVER's own subtraction against the same now() the envelope reports, so a client
+   whose clock is twenty minutes fast still counts down from the right number;
+   re-deriving it here against `Date.now()` would import that skew into the one
+   number the player watches. WHICH SEGMENT IS RUNNING is not re-derived — that
+   stays `src/core/buffs.js effectiveBuffs`, the function the bonus chain pays from.
    `until` is carried alongside for the away/engine boundary (buffQueueFromServer)
    and for anyone who needs the authority rather than the rendering.
 
-   EXPIRED ENTRIES ARE DROPPED HERE and deliberately NOT dropped in the
-   projection: hr_state_of carries a dead buff with `remaining_ms = 0` because the
-   AWAY engine must see a buff that was alive at the START of the window it is
-   pricing. Nothing on this client prices a past window, so a zero-remainder entry
-   is only a row that would render "0s" forever.
+   EXPIRED ENTRIES ARE DROPPED HERE and deliberately NOT in the projection:
+   hr_state_of carries a dead buff at `remaining_ms = 0` because the AWAY engine
+   must see a buff that was alive at the START of the window it prices. Nothing on
+   this client prices a past window.
 
    ABSENCE IS NOT A STATEMENT. An envelope without a `buffs` key is a server that
    predates the projection or a partial answer — it leaves the queue alone
@@ -2206,9 +2208,8 @@ export function reconcileDungeonCooldowns(G, res) {
    uncertainty). An empty ARRAY is a statement and DOES clear: the server saying
    "you hold nothing" is exactly how a drained buff disappears.
 
-   NOT residue-ahead by construction: nothing in the game gates a capability on
-   `G.buffs` — it is read by the bonus chain and by the pill, and the bonus that
-   actually pays is computed by the engine from this same server array. */
+   NOT residue-ahead by construction: nothing gates a capability on `G.buffs`, and
+   the bonus that pays is computed by the engine from this same server array. */
 export function reconcileBuffs(G, res) {
   if (!G || typeof G !== 'object' || !res || typeof res !== 'object') return null;
   const rows = res.buffs;

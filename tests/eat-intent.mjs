@@ -26,6 +26,9 @@ import {
   refusalCarriesState, INTENT_ERRORS,
 } from '../supabase/functions/hr-accrue/intents.js';
 import { VERBS } from '../supabase/functions/hr-accrue/request.js';
+/* The player-facing half of this verb's refusals — pure, so it is graded here
+   rather than only in a browser. */
+import { refusalCopyFor } from '../src/net/eat.js';
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -235,8 +238,38 @@ async function body(db, call) {
   }
 }
 
+/* ── THE REFUSAL VOCABULARY (2026-09-13) ────────────────────────────────────
+   A refused eat puts the food back, and for most of last month it did so in
+   silence: the b224 report was literally "I clicked Eat and nothing happened".
+   The buff refusals are a FAMILY (`buff_at_max` with two distinct WHYs,
+   `bad_buff_item`, `buff_not_paid`), every member is a RELEASE code the client may
+   retry, and the copy lives with the transport that produces them. This asserts
+   the table COVERS the family and that `why` refines the code — telling a player
+   to wait an hour when the real answer is "that effect is full" is wrong advice,
+   not vague advice. */
+function refusalCopyGuard() {
+  const name = "Fisher's Pie";
+  for (const code of ['buff_at_max', 'bad_buff_item', 'buff_not_paid', 'insufficient_item']) {
+    const line = refusalCopyFor({ reason: code }, name);
+    ok(typeof line === 'string' && line.includes(name),
+      `COPY: the eat path can be refused '${code}' and says nothing readable about it (${line}). `
+      + 'A refusal the player cannot read is a Feast that vanishes and reappears for no stated reason.');
+  }
+  const cap = refusalCopyFor({ reason: 'buff_at_max' }, name);
+  const seg = refusalCopyFor({ reason: 'buff_at_max', body: { error: 'buff_at_max', why: 'segment_budget' } }, name);
+  ok(typeof seg === 'string' && seg !== cap,
+    'COPY: buff_at_max/why=segment_budget reads exactly like the one-hour cap. They are different facts — '
+    + `eight servings of one effect are queued, which no amount of waiting an hour fixes (${seg})`);
+  ok(refusalCopyFor({ reason: 'version_conflict' }, name) === null,
+    'COPY: an unlisted machine code invented a sentence. Silence is the honest answer to a refusal this '
+    + 'layer has no wording for; a guess teaches the player a rule that does not exist.');
+  ok(refusalCopyFor(null, name) === null && refusalCopyFor({}, name) === null,
+    'COPY: a missing/empty verdict must produce no line at all');
+}
+
 export async function runAll() {
   contractGuard();
+  refusalCopyGuard();
   await behaviourGuard();
   return problems;
 }

@@ -95,6 +95,14 @@ import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
+/* BESTIARY CHARMS, PHASE 1 — DISPLAY ONLY. `killsByClass` is the ONLY thing
+   imported: it folds hr_bestiary_of's per-monster counters into per-CLASS totals
+   through `classOfMonster`, so the client is handed eleven numbers instead of a
+   roster-sized map and the class taxonomy is resolved in the one place that
+   reconciles its spellings. The rank ladder and the two multiplier functions are
+   NOT imported here — nothing on the server prices a charm in this build, and an
+   unused import would be the first step toward one being read by accident. */
+import { killsByClass } from '../../../src/core/charms.js';
 
 /* ── The connection. MODULE SCOPE, so a warm invocation reuses it. ──────────
    Creating the pool per request would defeat the whole point of using the
@@ -523,7 +531,46 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         select public.hr_state_of(${user}::uuid, ${slot}::int)      as state,
                public.hr_offline_cap_ms(${user}::uuid, ${slot}::int) as cap_ms,
                now()                                                as now`;
-      return row as Row;
+      /* ── THE BESTIARY COUNTERS RIDE THIS TRANSACTION (charms phase 1) ──────
+         `hr_bestiary_of` (2026-08-20-bestiary.sql) is the dedicated read over
+         the `ev:kill_monster:%` population — deliberately NOT dug out of
+         hr_state_of's `progress` array, which is `limit 1000` with a
+         `progress_truncated` flag, because a capability must never answer "you
+         have never killed one of those" because the character owns a lot of
+         collection rows. That is the same argument hr_perks_of won.
+
+         IT IS HERE AND NOT IN A THIRD TRANSACTION for the §2a-ii connection
+         rule: max_connections is 60, an accrual already costs two pooled
+         transactions, and the resource that fails TOTALLY is the one nobody
+         gets to add 50% to for a display feature.
+
+         ⚠ AND IT IS BEHIND A SAVEPOINT, not the three-rung literal ladder the
+           SEED transaction uses. A missing FUNCTION is a hard 42883 that aborts
+           its whole transaction, and aborting THIS transaction would 500 every
+           accrual on a database that has not applied the bestiary migration —
+           i.e. a display feature would be able to cost every player their
+           night. A savepoint makes the abort recoverable without a second
+           connection AND without doubling the number of hand-written query
+           literals every time another optional projection is added (the seed
+           ladder is already 3 literals for 2 capabilities; a 4th capability
+           there would be 8). Rolling back to the savepoint leaves `state` and
+           `cap_ms`, already read above, untouched.
+           42883 AND ONLY 42883 is swallowed. Anything else propagates: a
+           swallowed error is how a guard reports SKIPPED and gets read as a
+           pass. Verified on production 2026-09-13 — the function EXISTS
+           (public.hr_bestiary_of(p_user uuid, p_slot integer), SECURITY
+           DEFINER, hr_engine-only) — so this ladder is the safety net for a
+           replay/dev database, not the expected path. */
+      let kills: Row[] | null = null;
+      try {
+        kills = await tx.savepoint((sp: typeof tx) => sp`
+          select monster_id, kills
+            from public.hr_bestiary_of(${user}::uuid, ${slot}::int)`) as unknown as Row[];
+      } catch (e) {
+        if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
+        kills = null;
+      }
+      return { ...(row as Row), bestiary_rows: kills } as Row;
     });
 
     if (read?.limited) return json({ ok: false, error: 'rate_limited' }, 429);
@@ -531,6 +578,45 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     const env = read?.state as Record<string, any> | null;
     if (!env || env.ok !== true) {
       return json({ ok: false, error: (env && env.error) || 'no_character' }, 409);
+    }
+
+    /* ── THE BESTIARY CHARM BLOCK (charms phase 1 — DISPLAY ONLY) ──────────
+       Per-monster counters in, per-CLASS totals out, folded by
+       src/core/charms.js `killsByClass` through `classOfMonster` — the one
+       function that reconciles the two live spellings of the eleventh class
+       (`extradimensional` on the roster row, `extra_dimensional` in the bane
+       taxonomy). The client is therefore handed at most ELEVEN numbers rather
+       than a roster-sized map, and it never has to know the taxonomy.
+
+       ⚠ IT SHIPS AS ITS OWN TOP-LEVEL BLOCK, NOT INSIDE `state`. `state` is
+         hr_state_of's projection and the client applies it as authority field
+         by field; this is a DERIVED read that rides along, exactly like
+         `away`. Putting it inside `state` would make it look like a column.
+
+       ⚠ NO RANK IS COMPUTED HERE, and none is stored anywhere. The rank is
+         derived from these counters on every read (src/core/charms.js
+         `charmIndex`), which is the Game Designer's 2026-09-13 ruling and the
+         reason this feature needs no migration and no save field.
+
+       `null` when the projection is absent (a database without
+       2026-08-20-bestiary.sql) — the key is then OMITTED from every response,
+       and the client's fail-safe is rank 0. Absence is never a claim. */
+    const bestiaryRows = Array.isArray((read as Record<string, unknown>)?.bestiary_rows)
+      ? (read as Record<string, unknown>).bestiary_rows as Row[]
+      : null;
+    let bestiary: { kills_by_class: Record<string, number> } | null = null;
+    if (bestiaryRows) {
+      const byId: Record<string, number> = {};
+      for (const r of bestiaryRows) {
+        const id = String(r?.monster_id ?? '');
+        const n = Number(r?.kills ?? 0);
+        if (id && n > 0) byId[id] = n;
+      }
+      /* Spread into a PLAIN object: killsByClass returns a null-prototype map
+         (its keys are data-derived lookup keys) and the wire wants an ordinary
+         JSON object. `{}` when nothing has been killed yet — a truthful empty
+         bestiary, distinct from the absent key above. */
+      bestiary = { kills_by_class: { ...(killsByClass(byId, MONSTERS) || {}) } };
     }
 
     const st = env.state;
@@ -1075,6 +1161,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
              `away.items`; the summary is telemetry only, so it moves to a
              non-colliding key and the roster survives. */
           return json({ ok: true, accrued: true, ...wr, away,
+            ...(bestiary ? { bestiary } : {}),
             ...(wout.accrued ? { workerSummary: wout.summary } : {}),
             ...(rout.accrued ? { rested: { granted: rout.granted } } : {}) });
         }
@@ -1092,7 +1179,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       //   roster; passing it lets reconcileWorkers paint the crew. An empty roster
       //   is a truthful [] (the player has no crew) — reconcile treats that as
       //   "the crew is genuinely empty", which is correct.
+      /* ⚠ THE BESTIARY BLOCK RIDES THE NOT-ACCRUED PATH TOO, and that is the
+         whole difference between a feature that works and one that is
+         "forgotten on reload". This is the COMMON BOOT RESPONSE — an idle
+         character with nothing to pay — and the client's envelope applier
+         (applyEnvelopeState) never runs on it, so anything carried only by the
+         accrued path would be invisible to exactly the player who opens the
+         Bestiary after a reload. Nothing is minted here; it is a read. */
       return json({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,
+        ...(bestiary ? { bestiary } : {}),
         ...(Array.isArray((env as Record<string, any>).workers) ? { workers: (env as Record<string, any>).workers } : {}) });
     }
 
@@ -1268,7 +1363,8 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        "no renderer can invent a bonus that was not applied" forbids. So the
        receipt is dropped and the reason is stated. */
     if (res.replayed === true) {
-      return json({ ...res, ok: true, accrued: false, reason: 'replayed' });
+      return json({ ...res, ok: true, accrued: false, reason: 'replayed',
+        ...(bestiary ? { bestiary } : {}) });
     }
 
     return json({
@@ -1278,6 +1374,13 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       // the client renders this and computes nothing.
       ...res,
       ...(degraded ? { degraded } : {}),
+      /* The bestiary charm counters (phase 1, display only). Read in the state
+         transaction BEFORE this settle's kills were applied, so a settle that
+         crosses a threshold shows the new rank on the NEXT read rather than in
+         the same breath as the welcome-back card. That is deliberate: the
+         alternative is adding the delta's kills to a projection by hand here,
+         i.e. the client being shown a number the database has not confirmed. */
+      ...(bestiary ? { bestiary } : {}),
       levels: levelsOf(Object.fromEntries(
         Object.entries(res.skills || {}).map(([k, v]) => [k, (v as any).xp]),
       )),

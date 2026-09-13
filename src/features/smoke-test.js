@@ -1710,6 +1710,48 @@ const restoreGAndRecord = (snap) => {
   try { stampRecordLikeLoad(window.G); } catch (e) {}
 };
 
+/* SNAP-2's PROBE. Walked once per property test below, so a red names WHICH half of the
+   seal broke. Per field: a character that does NOT own it (snapshot → write what a test
+   writes → restore) and one that DOES. A swap onto a DETACHED copy, synchronous, so the
+   live G is never written. DECLARED_EMPTY is the 13 pre-seal `?? <empty>` entries PINNED
+   BY VALUE — a field may decline the sentinel only if named here with its exact value, so
+   the count can only fall; a made-up empty is worse than the leak it replaces. */
+const SNAP_DECLARED_EMPTY = {
+  activeArtisanRecipe: null, activeArtisanSkill: null, activeAction: null, _dungeonCooldowns: null,
+  traits: null, _bankCap: null, heroSlotsUnlocked: null, _heroSlots: null, lockedItems: null,
+  lootFilter: null, lastWelcome: 0, recoveringUntilMs: 0, buyback: [],
+};
+const snapRoundTrip = () => {
+  const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k), J = (v) => String(JSON.stringify(v)).slice(0, 50);
+  const real = window.G, fields = Object.keys(snapshotG() || {});
+  const out = { fields, noKey: [], presence: [], value: [], undeclared: [] };
+  try {
+    const base = JSON.parse(JSON.stringify(real));
+    for (const f of fields) {
+      const bare = { ...base }, dec = own(SNAP_DECLARED_EMPTY, f);
+      delete bare[f];
+      window.G = bare;
+      const snapA = snapshotG();
+      if (!own(snapA, f)) { out.noKey.push(f); continue; }
+      const absent = snapA[f] === SNAP_ABSENT;
+      if (!absent && !dec) out.undeclared.push(f + ' snapshots as ' + J(snapA[f]));
+      bare[f] = { __snapRatchet: f };
+      restoreG(snapA);
+      const want = absent ? 'absent' : dec ? JSON.stringify(SNAP_DECLARED_EMPTY[f]) : null;
+      const got = own(bare, f) ? JSON.stringify(bare[f]) : 'absent';
+      if (want !== null && got !== want) out.presence.push(f + ': restored as ' + got.slice(0, 50) + ', wanted ' + want);
+      if (!own(base, f)) continue;
+      const owned = { ...base }, had = JSON.stringify(base[f]);
+      window.G = owned;
+      const snapB = snapshotG();
+      owned[f] = { __snapRatchet: f };
+      restoreG(snapB);
+      if (JSON.stringify(owned[f]) !== had) out.value.push(f + ': owned value came back as ' + J(owned[f]) + ' instead of ' + had.slice(0, 50));
+    }
+  } finally { window.G = real; }
+  return out;
+};
+
 /* nightWorld — ONE FIXTURE FOR THE RITUAL, NOT ONE PER TEST. Seventeen `G.x =`
    writes across the NIGHT- tests were one world stated seventeen times. Stated
    once, it ENDS THE WAY A BOOT ENDS — pushed through the REAL
@@ -4738,10 +4780,6 @@ const TESTS = [
     if (typeof window.repurchase !== 'function' || !window.ITEMS || !window.ITEMS.copper_ore) return;
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
-    /* buyback may be undefined at snapshot, and JSON.stringify DROPS an undefined
-       key so restoreG cannot clear it — a leftover entry would then draw an extra
-       Vendor-buy-back row in the seed shop and fail b221. Restore it by hand. */
-    const origBuyback = window.G.buyback;
     try {
       // UNARMED (today): clientMayWriteRecordField('gold') is true → the buy-back works.
       window.clientMayWriteRecordField = function () { return true; };
@@ -4768,7 +4806,6 @@ const TESTS = [
       assert(window.G.buyback.length === 1, 'a refused buy-back keeps the entry');
     } finally {
       window.clientMayWriteRecordField = origMay;
-      window.G.buyback = origBuyback;
       restoreG(snap);
     }
   }),
@@ -16920,7 +16957,6 @@ const TESTS = [
   () => tryRun('b138: setDisplayName updates G.playerName + clamps length', () => {
     if (!window.HearthriseLaunchpad) return;
     const snap = snapshotG();
-    const orig = window.G.playerName;
     try {
       const ok = window.HearthriseLaunchpad.setDisplayName('TestHero');
       assert(ok === true, 'setDisplayName should return true on success');
@@ -16933,7 +16969,6 @@ const TESTS = [
       assert(window.G.playerName.length === 24,
         'name should be clamped to 24 chars, got ' + window.G.playerName.length);
     } finally {
-      window.G.playerName = orig;
       restoreG(snap);
       // b213: setDisplayName paints the topbar + saves — repaint and re-save
       // from the RESTORED name, or the 'AAAA…' test string stays in the
@@ -21149,51 +21184,34 @@ const TESTS = [
   // The shop is a scene now. A scene that swallows its own offers is worse
   // than the list it replaced, so: the counter renders, every catalogue entry
   // reaches it, and every Buy control is on screen and hit-testable.
-  /* THE RATCHET: no list of five, no OPERATOR check — it proves the PROPERTY over every field the
-     snapshot names, whatever it names tomorrow. Per field: one character that does NOT own it
-     (snapshot → write → restore → absent again, value AND presence) and one that DOES (value back
-     byte-for-byte). Mutation-proved by reverting restoreG's `delete` or the sentinel: all 48. */
-  () => tryRun('SNAP-2: restoreG puts back EVERY snapshotG field exactly — value AND presence — even one the character does not own', () => {
-    /* DECLARED_EMPTY: the 13 pre-seal `?? <empty>` entries, PINNED BY VALUE — the teeth. A field
-       may decline the sentinel only if named here with its exact value, so this can only fall. */
-    const DECLARED_EMPTY = {
-      activeArtisanRecipe: null, activeArtisanSkill: null, activeAction: null, _dungeonCooldowns: null,
-      traits: null, _bankCap: null, heroSlotsUnlocked: null, _heroSlots: null, lockedItems: null,
-      lootFilter: null, lastWelcome: 0, recoveringUntilMs: 0, buyback: [],
-    };
-    const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k), J = (v) => String(JSON.stringify(v)).slice(0, 50);
-    const real = window.G, fields = Object.keys(snapshotG() || {}), bad = [];
-    assert(fields.length >= 55, 'CONTROL: snapshotG named ' + fields.length + ' field(s) — it is not snapshotting the live character, so every check below is vacuous');
+  /* ══ THE RATCHET OVER THE WHOLE SNAPSHOT LIST — THREE PROPERTIES, THREE REDS ═══
+     The earlier form pinned FIVE named fields; these prove the property over every field
+     the snapshot names, whatever it names tomorrow, and split by PROPERTY so a red says
+     which half of the seal broke. Probe: `snapRoundTrip()` above. */
+  () => tryRun('SNAP-2a: snapshotG produces a KEY for every field it names, even on a character that owns none of them', () => {
+    const r = snapRoundTrip();
+    assert(r.fields.length >= 55, 'CONTROL: snapshotG named ' + r.fields.length + ' field(s) — it is not snapshotting the live character, so SNAP-2a/b/c are all vacuous');
     ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits', 'rooms', 'skills', 'gold']
-      .forEach((k) => assert(fields.indexOf(k) >= 0, k + ' is not on the snapshot list at all, so no test can put it back — it leaks for the rest of the run'));
-    try {
-      /* A SWAP onto a DETACHED copy; synchronous, so the live G is never written. */
-      const base = JSON.parse(JSON.stringify(real));
-      for (const f of fields) {
-        const bare = { ...base }, declared = own(DECLARED_EMPTY, f);     // (a) a character that does NOT own it
-        delete bare[f];
-        window.G = bare;
-        const snapA = snapshotG(), absent = snapA[f] === SNAP_ABSENT;
-        if (!own(snapA, f)) { bad.push(f + ': NO KEY — sealSnapshot must store SNAP_ABSENT for undefined'); continue; }
-        if (!absent && !declared) bad.push(f + ': snapshots as ' + J(snapA[f]) + ' — an UNDECLARED empty; drop the operator or pin it in DECLARED_EMPTY');
-        bare[f] = { __snapRatchet: f };                                  // what a test writes
-        restoreG(snapA);
-        const want = absent ? 'absent' : declared ? JSON.stringify(DECLARED_EMPTY[f]) : null;
-        const got = own(bare, f) ? JSON.stringify(bare[f]) : 'absent';
-        if (want !== null && got !== want) bad.push(f + ': restored as ' + got.slice(0, 50) + ', wanted ' + want);
-        if (!own(base, f)) continue;                                     // (b) a character that DOES own it
-        const owned = { ...base }, had = JSON.stringify(base[f]);
-        window.G = owned;
-        const snapB = snapshotG();
-        owned[f] = { __snapRatchet: f };
-        restoreG(snapB);
-        if (JSON.stringify(owned[f]) !== had) bad.push(f + ': owned value came back as ' + J(owned[f]) + ' instead of ' + had.slice(0, 50));
-      }
-    } finally { window.G = real; }
-    assert(!bad.length, 'snapshotG/restoreG did not round-trip ' + bad.length + ' field(s) — ' + bad.join(' | ')
-      + '. JSON.stringify drops undefined and restoreG walks Object.keys(snap), so a dropped key puts nothing back and whatever a '
-      + 'test writes there is inherited by every test after it; a MADE-UP empty is worse still (skills:{} is a level-1 character, '
-      + 'a zeroed bank takes capacity a player bought). sealSnapshot() stores SNAP_ABSENT and restoreG() `delete`s that key.');
+      .forEach((k) => assert(r.fields.indexOf(k) >= 0, k + ' is not on the snapshot list at all, so no test can put it back — it leaks for the rest of the run'));
+    assert(!r.noKey.length, 'snapshotG produced NO KEY for ' + r.noKey.join(', ') + ' on a character that does not own it. JSON.stringify drops '
+      + 'undefined and restoreG walks Object.keys(snap), so it puts nothing back and whatever a test writes there is inherited by every test '
+      + 'after it. sealSnapshot() must store the SNAP_ABSENT sentinel for an undefined value.');
+  }),
+
+  () => tryRun('SNAP-2b: restoreG restores PRESENCE — an unowned field goes back to absent, a pre-seal entry to its pinned empty', () => {
+    const r = snapRoundTrip();
+    assert(!r.undeclared.length, 'these decline the ABSENT sentinel without declaring an empty: ' + r.undeclared.join(' | ')
+      + '. A `?? <empty>` is a VALUE a later test reads as real state (skills:{} is a level-1 character, a zeroed bank takes capacity a player '
+      + 'bought with gems) — drop the operator and let sealSnapshot record the absence, or pin it in SNAP_DECLARED_EMPTY.');
+    assert(!r.presence.length, 'restoreG did not put ' + r.presence.join(' | ') + ' back as it found it, so a test\'s write outlives its own '
+      + 'finally block and every test after it inherits it. restoreG must `delete` the key when the snapshot holds SNAP_ABSENT.');
+  }),
+
+  () => tryRun('SNAP-2c: restoreG returns an OWNED field byte-for-byte — restoring to absent is never bought by wiping real state', () => {
+    const r = snapRoundTrip();
+    assert(r.fields.filter((f) => r.value.indexOf(f) < 0).length >= 55, 'CONTROL: the probe walked ' + r.fields.length + ' field(s)');
+    assert(!r.value.length, 'restoreG did not put the real value back: ' + r.value.join(' | ') + '. The seal clones each value; assigning the '
+      + 'live object instead would make the snapshot a reference to the thing it is meant to preserve.');
   }),
 
   () => tryRun('b221: the shop renders the counter scene with every offer reachable', () => {
@@ -54003,7 +54021,6 @@ const TESTS = [
     const snap = snapshotG();
     const prevSummary = G.lastOfflineSummary;
     const prevTab = window.activeTab;
-    const prevWelcome = G.lastWelcome;
     const realNotify = window.notify;
     const realBonus = window.getBonus;
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
@@ -54217,7 +54234,6 @@ const TESTS = [
       if (hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc);
       else { try { delete document.hidden; } catch (e) {} }
       G.lastOfflineSummary = prevSummary;
-      G.lastWelcome = prevWelcome;
       try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}   // the away holder outlives G
       restoreG(snap);
       try { H.render(); } catch (e) {}

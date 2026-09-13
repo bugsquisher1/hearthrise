@@ -10946,10 +10946,8 @@ const TESTS = [
     // §3.3's own table. If these drift the server's hr_hunt_tiers must drift
     // with them, or a clan is shown a pool it is not fighting.
     const table = [
-      [1, 'Warband Hunt',  5000,  3000,  35000],
-      [2, 'Keep Hunt',     15000, 7500,  90000],
-      [3, 'Fortress Hunt', 30000, 12500, 155000],
-      [4, 'Citadel Hunt',  50000, 16000, 210000],
+      [1, 'Warband Hunt',  5000,  3000,  35000], [2, 'Keep Hunt',     15000, 7500,  90000],
+      [3, 'Fortress Hunt', 30000, 12500, 155000], [4, 'Citadel Hunt',  50000, 16000, 210000],
       [5, 'Crown Hunt',    80000, 21000, 290000],
     ];
     table.forEach(([t, name, base, per, at10]) => {
@@ -12900,11 +12898,8 @@ const TESTS = [
     }
   }),
 
-  /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the
-     one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at
-     40; every number is read back out of `ARTISAN_RECIPES`, never typed, so a retune moves with
-     the ruling and a deleted row still fails. The boundary IS the property — it is the same one
-     hr_apply's `activity_locked` arm enforces server-side. */
+  /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at 40, and the ids/levels come back out of `ARTISAN_RECIPES` rather than being typed, so a deleted row still fails.
+     The boundary IS the property, and it is the same one hr_apply's `activity_locked` arm enforces server-side. */
   () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {
     const snap = snapshotG();
     try {
@@ -12912,11 +12907,8 @@ const TESTS = [
       const first = rows.find((r) => r.id === 'bury_bone_chips');
       assert(first && first.req === 40 && first.input === 'bone_chips' && first.output == null,
         'bury_bone_chips must be the Prayer 40 pure sink fed by bone_chips, got ' + JSON.stringify(first));
-      /* THE PAY TABLE, literal, all thirteen rungs as `id req xp ms`. NOTHING else in the repo measures what a
-         Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a
-         typo (2400 → 24000) shipped green until this table existed. The 840 XP/s ceiling is MEASURED, not
-         guessed: it is just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3), and
-         the one bench whose entire output is XP must never out-pay every other bench in the game. */
+      /* THE PAY TABLE, literal, all thirteen rungs as `id req xp ms`. NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until this table existed.
+         The 840 XP/s ceiling is MEASURED, not guessed: just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3). The one bench whose entire output is XP must never out-pay every other bench in the game. */
       const PAY = ('bury_bones 1 4.5 1200|bury_big 15 15 1500|bury_dragon 35 72 2000|'
         + 'bury_bone_chips 40 105 2200|consecrate_grave_dust 46 155 2400|offer_razor_claw 52 212 2500|'
         + 'scatter_vamp_dust 58 295 2600|banish_demon_shard 65 420 2800|unbind_wraith_veil 72 600 3000|'
@@ -12932,12 +12924,12 @@ const TESTS = [
       });
       assert(rows[12].req === 99, 'the bench must reach Prayer 99, its top rung is ' + rows[12].req);
 
-      // The tile paints FROM the row — locked one level short, live one level on.
+
       G.inventory = { bone_chips: 5 };
       G.skills = { prayer: window.xpForLevel(39) };
       assert(window.getLevel('prayer') === 39, 'fixture: Prayer is ' + window.getLevel('prayer') + ', not 39');
       const at39 = window.renderArtisanActivities('prayer');
-      /* The WHOLE button: `disabled` sits in the opening tag BEFORE the onclick carrying the id, so slicing forward from the id would read the NEXT tile's state. */
+      /* The tile paints FROM the row — locked one level short, live one level on. `cell` takes the WHOLE button because `disabled` sits in the opening tag BEFORE the onclick carrying the id, so slicing forward from the id would read the NEXT tile's state. */
       const cell = (html) => {
         const at = html.indexOf('bury_bone_chips');
         assert(at > 0, 'the prayer bench rendered no bury_bone_chips tile at all');
@@ -16696,14 +16688,11 @@ const TESTS = [
   // If this fails, we've regressed the items.js ↔ legacy.js drift fix.
   () => tryRun('b139: Phase A.1 items present in window.ITEMS', () => {
     const required = [
-      'raw_wolf_meat','raw_panther_meat','raw_bear_meat',
-      'cooked_wolf_meat','cooked_panther_meat','cooked_bear_meat',
+      'raw_wolf_meat','raw_panther_meat','raw_bear_meat', 'cooked_wolf_meat','cooked_panther_meat','cooked_bear_meat',
       'roasted_carrot','roasted_pumpkin','vegetable_stew',
       'bear_claw_pie','hunters_feast','dragon_stew','lich_soul_soup','void_banquet',
-      'bronze_bar','steel_bar','rune_bar',
-      'chief_blade_recipe','captain_recipe','alpha_pattern',
-      'spellstone_diagram','dragon_marrow_recipe','gemcutter_note',
-      'soul_recipe','marrow_cookbook','field_cookbook',
+      'bronze_bar','steel_bar','rune_bar', 'chief_blade_recipe','captain_recipe','alpha_pattern',
+      'spellstone_diagram','dragon_marrow_recipe','gemcutter_note', 'soul_recipe','marrow_cookbook','field_cookbook',
     ];
     const missing = required.filter(id => !window.ITEMS || !window.ITEMS[id]);
     assert(missing.length === 0,
@@ -28721,10 +28710,8 @@ const TESTS = [
         if(cancel) cancel.click();
       }
 
-      /* 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED. The probe is DERIVED from the bench: it
-         was hardcoded to `bone_chips` until the 2026-09-12 ladder gave that drop a rite at Prayer 40, which
-         made this arm assert the opposite of the truth. A "has no recipe" id typed by hand goes stale the day
-         the designer fills a rung, so the id is now read out of ARTISAN_RECIPES instead of remembered. */
+      /* 6. A BONE WITH NO RITE IS ANSWERED, NOT SILENTLY DROPPED. The probe is DERIVED from the bench: it was hardcoded to `bone_chips` until the 2026-09-12 ladder gave that drop a rite at Prayer 40, which made this arm assert the opposite of the truth and went red by name.
+         A "has no recipe" id typed by hand goes stale the day the designer fills a rung, so it is read out of ARTISAN_RECIPES now; `type`/`slot` are excluded so the pick is a bone-like REMAIN and not a fang-named weapon. */
       stopBench();
       const rites = new Set((window.ARTISAN_RECIPES.prayer || []).map((r) => r.input));
       const riteless = Object.keys(window.ITEMS).find((id) => !rites.has(id)
@@ -36488,10 +36475,8 @@ const TESTS = [
     const prev = had ? G._heroSlots : undefined;
     const prevGems = G.gems;
     const cases = [
-      ['insufficient_gems', /Not enough gems/i, { short_by: 150 }],
-      ['rpc_missing', /unavailable/i, {}],
-      ['not_signed_in', /Sign in/i, {}],
-      ['rate_limited', /Slow down/i, {}],
+      ['insufficient_gems', /Not enough gems/i, { short_by: 150 }], ['rpc_missing', /unavailable/i, {}],
+      ['not_signed_in', /Sign in/i, {}], ['rate_limited', /Slow down/i, {}],
       ['requires_previous_slot', /Unlock the slot before it/i, {}],
     ];
     try {
@@ -42131,11 +42116,8 @@ const TESTS = [
 
     /* THE REAL RENDERS, with both candidates deleted from the live G. */
     const renders = [
-      ['updateTopbar', window.updateTopbar],
-      ['renderProfile', window.renderProfile],
-      ['renderShop', window.renderShop],
-      ['renderHouse', window.renderHouse],
-      ['refreshAll', window.refreshAll],
+      ['updateTopbar', window.updateTopbar], ['renderProfile', window.renderProfile],
+      ['renderShop', window.renderShop], ['renderHouse', window.renderHouse], ['refreshAll', window.refreshAll],
     ].filter((r) => typeof r[1] === 'function');
     assert(renders.length >= 3,
       'fewer than three render paths were reachable — this guard would pass by not looking. Reachable: '
@@ -44082,19 +44064,16 @@ const TESTS = [
       away: { grantMs: 1000, gold: 0, xp: {}, items: {} },
     };
     const cases = [
-      [200, full, 'accrued'],
-      [200, { ok: true, accrued: false, reason: 'below_threshold' }, 'nothing'],
+      [200, full, 'accrued'], [200, { ok: true, accrued: false, reason: 'below_threshold' }, 'nothing'],
       [200, { ok: true, accrued: false, reason: 'replayed' }, 'nothing'],
       [200, { ok: true, accrued: false, reason: 'clamped' }, 'nothing'],
-      [200, { ok: false, error: 'x' }, 'malformed'],
-      [200, null, 'malformed'],
+      [200, { ok: false, error: 'x' }, 'malformed'], [200, null, 'malformed'],
       [401, { ok: false, error: 'not_signed_in' }, 'not-signed-in'],
       [409, { ok: false, error: 'no_character' }, 'no-character'],
       [409, { ok: false, error: 'version_conflict' }, 'rejected'],
       [429, { ok: false, error: 'rate_limited' }, 'rate-limited'],
       [500, { ok: false, error: 'server_error' }, 'unavailable'],
-      [503, { ok: false, error: 'engine_unconfigured' }, 'unavailable'],
-      [404, null, 'malformed'],
+      [503, { ok: false, error: 'engine_unconfigured' }, 'unavailable'], [404, null, 'malformed'],
     ];
     for (const [status, body, want] of cases) {
       const got = A.classifyAccrueResponse(status, body).outcome;
@@ -44739,13 +44718,9 @@ const TESTS = [
       /* A 200 that says ok but omits `created`. "The server answered" is not the
          same as "the server said a character exists" — and reading the missing
          field as falsy would latch a character nobody has. */
-      [200, { ok: true, slot: 0 }, 'malformed', false],
-      [200, null, 'malformed', false],
-      [401, null, 'not-signed-in', false],
-      [403, null, 'not-signed-in', false],
-      [404, null, 'not-deployed', false],
-      [500, null, 'unavailable', false],
-      [503, null, 'unavailable', false],
+      [200, { ok: true, slot: 0 }, 'malformed', false], [200, null, 'malformed', false],
+      [401, null, 'not-signed-in', false], [403, null, 'not-signed-in', false], [404, null, 'not-deployed', false],
+      [500, null, 'unavailable', false], [503, null, 'unavailable', false],
     ];
     for (const [status, body, want, present] of cases) {
       const v = C.classifyCreateResponse(status, body);
@@ -46844,11 +46819,8 @@ const TESTS = [
            field (gold/gems/accrued_to are now all record fields, so the state
            holds only a non-record key). This is the branch that keeps b340
            independent of whether 2026-08-11-apply-engine.sql has been applied. */
-        [200, { ok: true, version: 2, state: { slot: 3 } }, 'malformed'],
-        [200, null, 'malformed'],
-        [401, null, 'not-signed-in'],
-        [404, null, 'not-deployed'],
-        [503, null, 'unavailable'],
+        [200, { ok: true, version: 2, state: { slot: 3 } }, 'malformed'], [200, null, 'malformed'],
+        [401, null, 'not-signed-in'], [404, null, 'not-deployed'], [503, null, 'unavailable'],
       ];
       for (const [status, body, want] of failures) {
         const c = R.classifyLoadResponse(status, body);
@@ -54425,8 +54397,7 @@ const TESTS = [
       assert(I[id].reqLv >= 1 && I[id].reqLv <= LADDER[8],
         id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
     });
-    /* The 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung.
-       The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: they were ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL) and four are TRADEABLE. */
+    /* The 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: they were ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL) and four are TRADEABLE. */
     ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'
       + 'alpha_cloak defense 30|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
       + 'copper_ring defense 1|hunter_necklace defense 1|traveler_cape defense 1|'
@@ -54592,11 +54563,7 @@ const TESTS = [
          MUTATION: point getBonus's delegation at a stale table, or drop the
          `bx` merge from tools/gen-perks.mjs → every row below goes RED. */
       const EXPECT = [
-        [0, 0, 0.25],
-        [1, 0.13, 0.12],
-        [2, 0.19, 0.06],
-        [3, 0.25, 0.00],
-        [5, 0.25, 0.00],
+        [0, 0, 0.25], [1, 0.13, 0.12], [2, 0.19, 0.06], [3, 0.25, 0.00], [5, 0.25, 0.00],
       ];
       const A = window.HearthriseCore.artisan;
       for (const [rung, noBurn, burn] of EXPECT) {
@@ -58522,11 +58489,9 @@ const TESTS = [
        is a partial write, and a client that trimmed the bad pair would be
        inventing an instruction the player never gave. */
     const HOSTILE = [
-      ['a numeric item', { weapon: 5 }],
-      ['an uppercase id', { weapon: 'Iron_Sword' }],
+      ['a numeric item', { weapon: 5 }], ['an uppercase id', { weapon: 'Iron_Sword' }],
       ['a bad slot name', { 'wea pon': 'iron_sword' }],
-      ['one bad pair among good ones', { weapon: 'iron_sword', shield: 'BAD!' }],
-      ['an empty map', {}],
+      ['one bad pair among good ones', { weapon: 'iron_sword', shield: 'BAD!' }], ['an empty map', {}],
       ['an array', ['weapon']],
     ];
     for (let i = 0; i < HOSTILE.length; i++) {
@@ -60873,13 +60838,9 @@ const TESTS = [
     const L = window.HearthriseCompanions && window.HearthriseCompanions.sourceLabel;
     assert(typeof L === 'function', 'companionSourceLabel is not published');
     const cases = {
-      'starter': /start/i,
-      'drop:small_wolf': /^Rare drop from Wolf Cub$/,
-      'shop:5000': /^Stable shop · 5,000 gold$/,
-      'shop:8000:cooking25': /^Stable shop · 8,000 gold · needs Cooking 25$/,
-      'quest:harvest100': /100 crops/,
-      'hatch:dragon_egg': /^Hatched from a Dragon Egg$/,
-      'skill:fishing:2500': /^1 in 2,500 Fishing actions$/,
+      'starter': /start/i, 'drop:small_wolf': /^Rare drop from Wolf Cub$/, 'shop:5000': /^Stable shop · 5,000 gold$/,
+      'shop:8000:cooking25': /^Stable shop · 8,000 gold · needs Cooking 25$/, 'quest:harvest100': /100 crops/,
+      'hatch:dragon_egg': /^Hatched from a Dragon Egg$/, 'skill:fishing:2500': /^1 in 2,500 Fishing actions$/,
       'boss:dragon:200': /1 in 200 .* kills/,
     };
     Object.keys(cases).forEach((src) => {

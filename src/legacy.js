@@ -8991,12 +8991,11 @@ function renderFarm(){
 }
 
 /* Plant all empty plots. The RULE (which crop next, from a REMAINING seed budget
-   rather than the bag, because the seed debit is the server's and arrives with
-   the response) and the LIST (which plots are empty inside the property cap) are
-   both src/core/farm.js — the same two answers the header's button label reads,
-   so the button can no longer offer a sweep that then places nothing and says
-   nothing (live 2026-09-13: "Plant all did nothing, no toast", twice, with seeds
-   in the bag). Every exit says what happened. */
+   rather than the bag — the seed debit is the server's and arrives with the
+   response) and the LIST (empty plots inside the property cap) are both
+   src/core/farm.js, and the header's button label reads the same two answers, so
+   it can no longer offer a sweep that places nothing and says nothing (live
+   2026-09-13, twice, with seeds in the bag). Every exit says what happened. */
 window.plantAllEmpty = function plantAllEmpty(){
   const CF = window.HearthriseCore.farm, cap = farmPlotCap();
   const empties = CF.emptyPlotIndices(G.farmPlots, cap);

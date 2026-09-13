@@ -124,8 +124,26 @@ export const EFFECT_KINDS = Object.freeze({
   drop_band_vs_class:  { live: false, owner: 'systems',  note: 'src/core/drops.js — shift the drop band by one tier for one monster class.' },
   element_pierce:      { live: false, owner: 'systems',  note: 'Needs the element axis (elementWeak / ELEMENT_BONUS / MAX_WEAKNESS_MULT) which is NOT built. Monster workstream owns elementWeak.' },
   element_immunity:    { live: false, owner: 'systems',  note: 'Same dependency as element_pierce.' },
-  reveal_hidden_weak:  { live: false, owner: 'systems',  note: 'Extra Dimensional hides its element until the bestiary reveals it. Needs the bestiary (PROG-01) AND the element axis.' },
-  bestiary_rate:       { live: false, owner: 'systems',  note: 'Bestiary kill counters (PROG-01, approved but unbuilt).' },
+  /* STAYS FALSE, and the note is corrected rather than left stale (charms
+     phase 1, 2026-09-13). Both of its stated dependencies now EXIST: the
+     element axis shipped with Elements v1, and the bestiary reveal shipped as
+     Bestiary Charms rank 1 — src/render/bestiary-charms.js `elementLineHtml`
+     prints the element weakness (including Extra Dimensional's `hiddenElement`
+     one) once a class is Studied. What this KIND means is the different, ITEM
+     half: jewelry that reveals the same line WITHOUT the 25 kills. That is
+     unbuilt, and flipping `live` would immediately (and correctly) turn the
+     reachability guard at the top of this file RED, because its only carrier —
+     `unlit_earrings`, the single item in the catalogue declaring it — has no
+     recipe, no drop and no shop offer. Measured, not assumed: grepped for both the kind and the
+     item id. The hatch is doing exactly its job; do not flip it until the
+     earrings have a faucet and the effect has a reader. */
+  reveal_hidden_weak:  { live: false, owner: 'systems',  note: 'Jewelry that reveals a hidden element weakness WITHOUT the kills. The bestiary half of this shipped (Bestiary Charms rank 1 prints the element line, hiddenElement included) and the element axis shipped with Elements v1 — what is left is an item-side reader plus a faucet for unlit_earrings, its only carrier.' },
+  /* Phase 2 of the charm ladder. The counters, the class fold and the derived
+     rank are LIVE (src/core/charms.js, projected as `bestiary.kills_by_class`);
+     `charmDropMultFor` is written, clamped and tested but has ZERO callers by
+     design — arming it is a drop-table change inside `weaknessInfo`'s
+     one-expression seam and gets its own review. */
+  bestiary_rate:       { live: false, owner: 'systems',  note: 'Class drop-rate bonus from bestiary rank. Phase 2 of Bestiary Charms: the server-owned counters and the derived rank ladder are live (src/core/charms.js + the envelope `bestiary` block); the multiplier function exists, is clamped by MAX_CHARM_DROP_MULT and has no caller yet.' },
   passive_bone_prayer: { live: false, owner: 'systems',  note: 'Grant buryXp on kill without consuming the bone. Touches src/core/drops.js + the away replay.' },
   ui_next_threshold:   { live: false, owner: 'art',      note: 'Activity tile affordance. Presentation, not power.' },
   regen_vs_class:      { live: false, owner: 'systems',  note: 'Per-swing HP regen gated on monster class. src/core/combat-sim.js.' },

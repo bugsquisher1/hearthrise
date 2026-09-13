@@ -555,6 +555,26 @@ function settle(verdict, now) {
     applied = true;
   }
   fire('onOutcome', { outcome: verdict.outcome, reason: verdict.reason || null, status: verdict.status || 0 });
+  /* ── THE BESTIARY CHARM COUNTERS (charms phase 1, DISPLAY ONLY) ────────────
+     Mirrored from HERE, not from applyEnvelopeState, because applyEnvelopeState
+     runs only on `accrued:true` and the COMMON boot response for an idle
+     character is `accrued:false, reason:'idle'`. A mirror sited there would be
+     invisible to exactly the player who reloads and opens the Bestiary — the
+     "forgotten on reload" class. `settle()` is the one funnel every answered
+     accrual passes, so both verdicts that carry a body are covered and neither
+     is a special case.
+     Guarded and reached through window (net/accrue.js is imported BY the boot
+     graph render/bestiary-charms.js sits in, so importing back would be a
+     cycle — the same reason hrNoteServerBounty is called this way). A display
+     adopter must NEVER throw into an accrual settle: this function's other job
+     is the halt bookkeeping that decides whether the player is told their away
+     time is not being credited. */
+  if (verdict.body && (verdict.outcome === 'accrued' || verdict.outcome === 'nothing')) {
+    try {
+      const W = (typeof window !== 'undefined') ? window : null;
+      if (W && typeof W.hrNoteServerBestiary === 'function') W.hrNoteServerBestiary(verdict.body);
+    } catch (e) {}
+  }
   /* ── b368: A RECOVERED SERVER TAKES ITS OWN SHEET DOWN ────────────────────
      The halted sheet used to be removable by exactly one actor: the player.
      Nothing else ever called `hideAccrualHaltedSheet`, so the sheet outlived

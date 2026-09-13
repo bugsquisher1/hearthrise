@@ -12847,6 +12847,65 @@ const TESTS = [
   // outcome, then restores. NEVER pollutes the player's save.
   // ─────────────────────────────────────────────────────────────
 
+  /* ── CHARM-1 — BESTIARY CHARMS, PLAYED (phase 1, display only) ─────────────
+     Driven through the REAL accrual funnel on the `accrued:false` reply, because
+     that is the response a reloading idle player actually gets: a mirror that
+     only rode `accrued:true` would be invisible to exactly the player who opens
+     the Bestiary after a reload, which is the "forgotten on reload" class. The
+     absent-key arm is the fail-safe — no server block must read as rank 0 and
+     paint nothing, never as a rank — and the second envelope proves the reveal
+     is the CHARM's and not the roster's: void_mote's element is withheld at 3
+     kills and printed at 25, which is the whole of `hiddenElement`. Nothing here
+     asserts a multiplier: none is wired in this build, by design. */
+  () => tryRunAsync('CHARM-1: 25 class kills earn Studied off the idle envelope — badge, next threshold, hidden element revealed, absent key ⇒ rank 0', async () => {
+    const G = window.G, C = window.HearthriseCharms, A = window.HearthriseAccrual;
+    assert(C && typeof C.noteEnvelope === 'function' && typeof window.hrNoteServerBestiary === 'function', 'CONTROL: the charm seam is unpublished (HearthriseCharms / hrNoteServerBestiary) — the feature has no client half');
+    const snap = snapshotG(); const realFetch = window.fetch; const prevCharms = G._bestiaryCharms;
+    const chips = () => (document.getElementById('best-charms') || {}).innerHTML || '';
+    const listHtml = () => (document.getElementById('best-list') || {}).innerHTML || '';
+    const envOf = (bestiary) => ({ ok: true, accrued: false, reason: 'idle', version: 3, now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}) });
+    const drive = async (bestiary) => {
+      window.fetch = (u, init) => (/hr-accrue/.test(String(u))
+        ? Promise.resolve(new Response(JSON.stringify(envOf(bestiary)), { status: 200 }))
+        : realFetch.call(window, u, init));
+      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      return A.requestAccrual({ force: true });
+    };
+    try {
+      /* ARM 1 — NO SERVER BLOCK. Fail-safe: rank 0 and nothing painted. */
+      delete G._bestiaryCharms;
+      const none = await drive(null);
+      assert(none && none.outcome === 'nothing', 'the idle envelope classified as ' + (none && none.outcome) + ', not "nothing" — the arm below is not testing the boot path');
+      assert(C.noteEnvelope({ ok: true }).reason === 'no_key' && C.rankOfClass('vermin') === 0 && C.badgeHtml('vermin') === '', 'an envelope with no bestiary block produced a rank — the fail-safe must be "not studied", never a charm the server does not believe in');
+      G.bestiary = { rat: { kills: 9 }, void_mote: { kills: 2 } };
+      window.openBestiary();
+      assert(!/charm-chip/.test(chips()) && /charm-empty/.test(chips()) && !/charm-element/.test(listHtml()), 'the strip painted a chip or an element line with no server counters: ' + chips().slice(0, 120));
+      /* ARM 2 — THE COUNTERS ARRIVE ON THE IDLE REPLY. */
+      const got = await drive({ kills_by_class: { vermin: 25, extra_dimensional: 3, not_a_class: 500, constructor: 7 } });
+      assert(got && got.outcome === 'nothing' && G._bestiaryCharms && G._bestiaryCharms.killsByClass.vermin === 25, 'the idle envelope did not mirror the counters into G._bestiaryCharms: ' + JSON.stringify(G._bestiaryCharms));
+      assert(!('not_a_class' in G._bestiaryCharms.killsByClass) && Object.keys(G._bestiaryCharms.killsByClass).length === 2, 'a key outside the eleven-class taxonomy survived the mirror — a hostile block could put a junk class on screen: ' + Object.keys(G._bestiaryCharms.killsByClass).join(','));
+      assert(C.rankOfClass('vermin') === 1 && C.rankOfClass('extra_dimensional') === 0, 'vermin 25 kills read rank ' + C.rankOfClass('vermin') + ' and extra_dimensional 3 kills read rank ' + C.rankOfClass('extra_dimensional') + ' — the first rung is 25 and nothing below it ranks');
+      const nx = C.nextOfClass('vermin');
+      assert(nx && nx.at === 100 && nx.remaining === 75, 'the next threshold said ' + JSON.stringify(nx) + ' — it must name the next rung and the kills left, derived, never stored');
+      window.openBestiary();
+      assert(/charm-chip/.test(chips()) && /Vermin/.test(chips()) && /Studied/.test(chips()) && /Next charm at 100/.test(chips()), 'the Vermin chip did not paint its badge and threshold: ' + chips().slice(0, 240));
+      assert(/charm-element/.test(listHtml()) && /weak to frost/.test(listHtml()), 'a Studied class did not print its element weakness — that reveal IS rank 1\'s reward');
+      assert(!/ember/.test(listHtml()), 'void_mote\'s hidden element printed at 3 kills — hiddenElement must stay hidden until the class is Studied');
+      /* ARM 3 — THE HIDDEN ELEMENT, REVEALED BY THE CHARM AND NOTHING ELSE. */
+      await drive({ kills_by_class: { vermin: 2000, extra_dimensional: 25 } });
+      assert(C.rankOfClass('vermin') === 4 && C.rankOfClass('extra_dimensional') === 1, 'the ladder top read ' + C.rankOfClass('vermin') + ' at 2000 kills');
+      window.openBestiary();
+      assert(/Banesworn/.test(chips()) && /Ladder complete/.test(chips()), 'the top rung did not paint as complete: ' + chips().slice(0, 240));
+      assert(/weak to ember/.test(listHtml()), 'void_mote\'s element stayed hidden at 25 kills — the charm is the only door there is');
+    } finally {
+      window.fetch = realFetch;
+      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
+      restoreG(snap);
+    }
+  }),
+
   /* ── BANK-1 — THE DEPOT, PLAYED ─────────────────────────────────────────────
      The server's bank store shipped b438 and sat dormant for a hundred builds
      because nothing could call it: the flyout's "→ Bank" button was guarded on a

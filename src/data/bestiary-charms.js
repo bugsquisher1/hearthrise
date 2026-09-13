@@ -28,11 +28,15 @@
 // codebase has already paid for twice (CLAUDE.md §6). Deriving costs one
 // comparison per class per read and cannot drift.
 //
-// ── PHASE 1 IS DISPLAY ONLY ─────────────────────────────────────────────────
-// `drop` and `dmg` are authored here and read by src/core/charms.js so the
-// ceilings are stated in ONE place from the first commit, but NOTHING in
-// combat, drops or the accrual engine reads them yet — phases 2 and 3 arm
-// them, each with its own review. `reveal` is the one column Phase 1 acts on:
+// ── PHASE 2 ARMED `drop`; `dmg` IS STILL PHASE 3 ────────────────────────────
+// `drop` is now read in combat by the ONE engine: `charmDropMultFor` is applied
+// inside `weaknessInfo` (src/core/combat.js), which is the single expression the
+// live tick and the Edge accrual replay both call, so a charm pays an away night
+// exactly as it pays an attended one. `dmg` is still read by NOTHING: maxHit is
+// an integer and `weak.damageMult` is applied through `Math.floor`, so 1.01
+// would round away to nothing on most loadouts — phase 3 arms it (same
+// expression, under MAX_TOTAL_DAMAGE_MULT) with its own review.
+// `reveal` is the column Phase 1 acted on:
 // it lifts the `hiddenElement` curtain that src/data/monster-classes.js
 // documents ("the data carries `elementWeak` so the combat engine can resolve
 // it; the RENDERER is what hides it"), which is PROG-01's proof of value and

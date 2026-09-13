@@ -4049,6 +4049,13 @@ export function summaryFromAway(away, res) {
     crits: Number(a.crits) || 0,
     featuredMs: Number(a.featuredMs) || 0,
     featuredDropMult: Number(a.featuredDropMult) || 1,
+    /* THE BESTIARY CHARM THE SERVER PRICED THIS NIGHT WITH (phase 2). Read, not
+       derived: the client's own `_bestiaryCharms` mirror is a prediction and
+       could have moved since the window closed, so the card must quote the rank
+       the ENGINE used. A string or null, a number or 1 — never a guess. */
+    charmClass: typeof a.charmClass === 'string' && a.charmClass ? a.charmClass : null,
+    charmRank: Math.max(0, Math.floor(Number(a.charmRank) || 0)),
+    charmDropMult: Number(a.charmDropMult) > 1 ? Number(a.charmDropMult) : 1,
     /* Ruling 2 (b352). `awayMs` above is the CREDITED span (`grantMs`) and keeps
        that meaning; these say WHICH hours it was and how much of the absence the
        cap refused. Stated by the server, never derived here — the credited

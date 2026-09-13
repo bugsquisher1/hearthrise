@@ -2845,8 +2845,8 @@ function getEquipmentStats(){
      src/core/elements.js. */
   return window.HearthriseCore.combat.equipmentStats(equipmentMapG(), ITEMS, G.enchant);
 }
-function getWeaknessInfo(m,eq=getEquipmentStats()){
-  return window.HearthriseCore.combat.weaknessInfo(m,eq);
+function getWeaknessInfo(m,eq=getEquipmentStats(),C=window.HearthriseCore){ /* CHARMS phase 2 — the 3rd arg is the SAME HearthriseCore.charms() combatCtx reads, so the loot preview, the live tick and the away replay quote ONE drop rate. src/core-bridge.js. */
+  return C.combat.weaknessInfo(m,eq,(typeof C.charms==='function')?C.charms():null);
 }
 /* ELEMENTS v1 — CROSS-VERB COUPLING (flagged in CONFLICTS.md). Whenever the
    item in the weapon slot CHANGES, the enchant it carried is void: it is bound

@@ -138,12 +138,16 @@ export const EFFECT_KINDS = Object.freeze({
      item id. The hatch is doing exactly its job; do not flip it until the
      earrings have a faucet and the effect has a reader. */
   reveal_hidden_weak:  { live: false, owner: 'systems',  note: 'Jewelry that reveals a hidden element weakness WITHOUT the kills. The bestiary half of this shipped (Bestiary Charms rank 1 prints the element line, hiddenElement included) and the element axis shipped with Elements v1 — what is left is an item-side reader plus a faucet for unlit_earrings, its only carrier.' },
-  /* Phase 2 of the charm ladder. The counters, the class fold and the derived
-     rank are LIVE (src/core/charms.js, projected as `bestiary.kills_by_class`);
-     `charmDropMultFor` is written, clamped and tested but has ZERO callers by
-     design — arming it is a drop-table change inside `weaknessInfo`'s
-     one-expression seam and gets its own review. */
-  bestiary_rate:       { live: false, owner: 'systems',  note: 'Class drop-rate bonus from bestiary rank. Phase 2 of Bestiary Charms: the server-owned counters and the derived rank ladder are live (src/core/charms.js + the envelope `bestiary` block); the multiplier function exists, is clamped by MAX_CHARM_DROP_MULT and has no caller yet.' },
+  /* STAYS FALSE, AND THE NOTE IS CORRECTED RATHER THAN LEFT STALE (charms
+     phase 2, 2026-09-13). The CHARM's own drop bonus is now armed —
+     `charmDropMultFor` is read inside `weaknessInfo`, so a studied class pays a
+     better drop rate awake and asleep alike. This KIND is the different, ITEM
+     half: `tally_ring` (its only carrier, src/data/library2-items.js) promising a
+     bonus of its own ON TOP of the ladder. That reader does not exist, and
+     flipping `live` would correctly turn the reachability guard at the top of
+     this file RED, because the ring has no recipe, no drop and no shop offer.
+     Measured, not assumed: grepped for the kind and the item id. */
+  bestiary_rate:       { live: false, owner: 'systems',  note: 'An ITEM that adds a class drop-rate bonus on top of the bestiary charm ladder. The ladder itself is LIVE as of charms phase 2 (charmDropMultFor inside weaknessInfo, clamped by MAX_CHARM_DROP_MULT, same expression the away replay calls); what is missing is an item-side reader for `tally_ring` plus a faucet for it.' },
   passive_bone_prayer: { live: false, owner: 'systems',  note: 'Grant buryXp on kill without consuming the bone. Touches src/core/drops.js + the away replay.' },
   ui_next_threshold:   { live: false, owner: 'art',      note: 'Activity tile affordance. Presentation, not power.' },
   regen_vs_class:      { live: false, owner: 'systems',  note: 'Per-swing HP regen gated on monster class. src/core/combat-sim.js.' },

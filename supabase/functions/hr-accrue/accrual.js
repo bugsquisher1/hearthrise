@@ -143,6 +143,18 @@ import { buffQueueFromServer, buffBonusFor, activeBuffs } from '../../../src/cor
    which index.ts / set-activity.js thread from COMPANION_XP_SERVER_BACKED — so
    the emission is inert until the one arm switch flips. */
 import { companionSpanXp } from '../../../src/core/companion-xp.js';
+/* BESTIARY CHARMS, PHASE 2 — THE RANK IS DERIVED HERE, ON THE SERVER, FROM THE
+   SERVER'S OWN ROWS. `inp.bestiaryKills` is `hr_bestiary_of`'s `{monsterId:
+   kills}` read (index.ts / set-activity.js hand it over field by field, like
+   every other input); this file folds it to per-class totals and then to
+   `{class: rank}`, and `weaknessInfo` prices the drop table with it.
+   ⚠ THE FOLD IS DONE HERE AND NOT TAKEN FROM THE ENVELOPE'S `kills_by_class`
+     BLOCK. That block is a DISPLAY projection built for the client; reading it
+     back as authority would make a presentation shape load-bearing, and the
+     engine must derive its own numbers from the counters. Same rows, one
+     function, two independent folds — which is also why the client's predicted
+     rank can only ever be reconciled, never trusted. */
+import { killsByClass, charmIndex } from '../../../src/core/charms.js';
 /* THE DAILY/QUEST COUNTER CONTRACT (Designer Ruling 3.1). The key shapes, the
    day key, the clamp and the vocabulary live in ONE module that both this
    engine and the guard read; see its header for why `kind='daily'`/`kind='stat'`
@@ -1160,6 +1172,26 @@ export function accrueRested({ nowMs, restedAtMs, restedXp, libraryCap }) {
  *                (today's behaviour, no regression). NOT a fact about the player
  *                — a deploy-time constant — and it can only ADD a bounded, capped,
  *                deterministic grant, never mint across players.
+ *   bestiaryKills  THE BESTIARY COUNTERS — `hr_bestiary_of(user, slot)` as
+ *                `{ <monsterId>: <kills> }`, or NULL. Read inside the same
+ *                transaction as hr_state_of (index.ts) / beside the seed
+ *                (set-activity.js), from `player_progress` rows written ONLY by
+ *                hr_apply out of this engine's own combat delta. **The client
+ *                supplies nothing here** — there is no request field for a kill
+ *                count and none for a rank, so there is nothing to forge: a
+ *                charm the server has not counted does not exist.
+ *                The engine folds it to per-class totals and then to
+ *                `{class: rank}` (src/core/charms.js) and hands that to
+ *                `weaknessInfo`, which prices the DROP table with it — the same
+ *                one expression the live tick calls, so an away night and an
+ *                attended one pay one charm (AWAY-1).
+ *                ⚠ NULL means "this database has no hr_bestiary_of" (or nothing
+ *                  has been killed yet) and resolves to NO multiplier —
+ *                  byte-for-byte the pre-charm behaviour, the under-paying
+ *                  direction. Same self-configuring switch `attended` uses: the
+ *                  read's PRESENCE is the arm, with no flag to forget to flip.
+ *                ⚠ NO DELTA KEY is derived from it. It is read-only input, like
+ *                  `enchant` — the counters are written by the kill itself.
  *
  * @returns { accrued: false, reason } | { accrued: true, delta, summary, … }
  */
@@ -1373,6 +1405,14 @@ export function computeAccrual(input) {
      that ignores it degrades to the pre-ELEMENTS behaviour, and an absent enchant
      is `{}`. Never a client value — `inp.enchant` is read from hr_state_of. */
   const eq = equipmentStats(equipment, items, inp.enchant || {});
+  /* THE CHARM INDEX (phase 2), derived from the server's kill counters and from
+     the SEALED monster catalogue this engine already holds — never from a
+     request body and never from the envelope's display block. `null` (a database
+     without 2026-08-20-bestiary.sql, or a character who has killed nothing)
+     resolves to no multiplier at all, which is the pre-charm behaviour byte for
+     byte and the under-paying direction. One value, read by BOTH the away span
+     and the attended top-up below, so AWAY-1 parity holds by construction. */
+  const charms = charmIndex(killsByClass(inp.bestiaryKills, monsters));
   const setBonus = armorSetBonus(equipment, items);
   const profile = deriveProfile(eq.weaponType);
   /* THE PLAYER'S CHOSEN STYLE, FROM SERVER STATE (2026-08-24-combat-style.sql).
@@ -1987,13 +2027,13 @@ export function computeAccrual(input) {
     playerRolls(m) {
       return playerCombatRolls(m, {
         eq, equipment, items, skills: state.skills,
-        bonus, setBonus, profile, style,
+        bonus, setBonus, profile, style, charms,
       });
     },
     monsterRolls(m) {
       return monsterCombatRolls(m, { eq, skills: state.skills, bonus });
     },
-    weakness(m) { return weaknessInfo(m, eq); },
+    weakness(m) { return weaknessInfo(m, eq, charms); },
     /* Boss of the Day, resolved PER UTC-DAY SEGMENT of the absence, from the
        SERVER instant. simulateSpan rebinds this per segment, so an absence
        crossing UTC midnight pays each half its own day's boss (the ruling). */
@@ -2140,7 +2180,11 @@ export function computeAccrual(input) {
         rng: createRng((nat(inp.seed, 0) ^ ATTENDED_RNG_SALT) >>> 0),
         bonus,
         botd: null,                 // rebound PER UTC-DAY SEGMENT, never once
-        weakness(mm) { return weaknessInfo(mm, eq); },
+        /* THE SAME `charms` THE SPAN USED. The attended top-up pays the loot of
+           fights the player WATCHED, so a charm that lifted the away drop rate
+           and not this one would make the two halves of one night disagree —
+           the AWAY-1 property, in the direction nobody looks at. */
+        weakness(mm) { return weaknessInfo(mm, eq, charms); },
         style,
         fx: lootFx,
       };

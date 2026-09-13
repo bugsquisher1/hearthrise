@@ -27,9 +27,11 @@
 --      gates on `defense` at a MATERIAL_TIERS level (1/15/30/45/60/75/88), so
 --      between Steel and Mithril there was NOTHING to put on — measured across
 --      all six armour slots and both weapon families.
---   VERDITE closes all three with four nodes, one bar, five pieces: gear wield
---   gates land at Defence 38 (helm/body/legs/blade) and Attack 42 (the maul),
---   and every forge rung is makeable at its own level.
+--   VERDITE closes all three with four nodes, one bar, five pieces: the three
+--   plate pieces gate at DEFENCE 38, the blade at ATTACK 38 and the maul at
+--   ATTACK 42 (armour reads `defense`, a weapon reads its own style — the rows
+--   always said so, an earlier draft of this line did not), and every forge
+--   rung is makeable at its own level.
 --
 -- ⚠ THE BAND IS DELIBERATELY NOT A FULL SET. Helm, platebody, platelegs, a
 --   sword and a maul; boots, gauntlets and belt stay Steel or Mithril. A
@@ -90,9 +92,22 @@
 -- ── THE ECONOMY HALF, MEASURED (no new faucet) ─────────────────────────────
 -- All three mined materials are RAW (src/data/items.js derives `raw` from
 -- ROCKS[*].prod), so the vendor bids 20% and the gold-per-minute of the new
--- rungs is seated inside the existing curve rather than above it:
---     coal(30) 55 · VERDITE(36) 67 · gold(45) 107 · DEEP VERDITE(48) 136
---     · richcoal(52) 144 · HEARTGARNET(56) 172 · mithril(60) 188  g/min
+-- rungs is seated inside the existing curve rather than above it. ⚠ MEASURED ON
+-- pacedActionMs FOR EVERY ROW — an earlier draft of this line quoted rich coal
+-- on BOOK ms (144) while the other six were paced, which made the series read
+-- as arithmetic that does not reproduce:
+--     coal(30) 55 · VERDITE(36) 67 · fluxsalt(40) 74 · richcoal(52) 90
+--     · gold(45) 107 · DEEP VERDITE(48) 136 · HEARTGARNET(56) 172
+--     · mithril(60) 188  g/min
+-- STATED PLAINLY, because the corrected number changes the ranking rather than
+-- a decimal: DEEP VERDITE (Mining 48) is the BEST gold/min mining node in the
+-- game until Heartgarnet at 56, and it pays more than both the Rich Coal Seam
+-- (52) and Gold Rock (45) that sit around it. That is deliberate on both sides —
+-- rich coal is a cheap REAGENT node bought for throughput (2-3 coal a swing at
+-- 8 g each), not a gold rung, and it stays the fastest coal in the game; and the
+-- deep seam's gold is the same 20% raw bid on an ore worth 55, i.e. it is paid
+-- for by the ore the armour set needs 10 of. The rung it must not beat is
+-- Mithril (60), and it does not: 136 against 188.
 -- The bar turns 31 g of bid material into a 320 g good (10.3×), between the
 -- gold bar's 7.8× and the mithril bar's 16.3×. Gear values are the slot's own
 -- vmul × 9, the midpoint of Steel's (5) and Mithril's (15) economic multiplier,

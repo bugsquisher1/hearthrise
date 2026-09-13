@@ -78,7 +78,39 @@ import { join } from 'node:path';
 import { bootReplay, ROOT, manifest } from './schema-replay.mjs';
 
 const FIX = '2026-09-07-companion-codes-severity.sql';
-const AUTHOR = '2026-08-11-player-state.sql';
+/** Where hr_record_rejection was BORN, and the file this guard's FIX names as the
+ *  revert hazard in its own text. It is no longer the last author — see AUTHOR —
+ *  but it is still the right name in `chain/repair-is-written-down`, because that
+ *  assertion is about a sentence 2026-09-07 wrote and cannot be about a file that
+ *  did not exist then. */
+const ORIGINAL_AUTHOR = '2026-08-11-player-state.sql';
+/** ⚠ RE-POINTED 2026-09-13, deliberately, which is what the assertion below
+ *  demands of anyone who moves it.
+ *
+ *  `2026-09-13-rejections-verb-map-2.sql` RESTATES hr_record_rejection in full
+ *  and is now the last file in the manifest to `create or replace` it. WHY IT
+ *  RESTATED rather than patched: the body had reached the patch-chain guard's
+ *  floor, the text that actually runs existed in no file, and the change needed
+ *  two things a patch cannot give cleanly — a second bounded map column (`whys`,
+ *  splitting buff_at_max's segment-budget fuse from its duration cap, which
+ *  shared one aggregate and one last-writer-wins discriminator) and a
+ *  code→verb fallback. It also added `bad_zone` and `buff_not_paid` to
+ *  c_escalating (Security, 2026-09-13).
+ *
+ *  WHAT MATTERS TO *THIS* GUARD is that a new author must carry BOTH C6
+ *  classification rulings forward, and that file does — not by promise but by
+ *  assertion: its §0 reads the INSTALLED c_incident / c_escalating out of
+ *  pg_get_functiondef into a session GUC and its §5(a) aborts the transaction
+ *  unless the restated arrays are a strict SUPERSET. So unknown_unlock and
+ *  missing_req_item cannot be dropped by it or by any future restatement that
+ *  keeps that check. ARMs 1-3 re-prove the behaviour on the chain-end body
+ *  regardless, which is the real control.
+ *
+ *  THIS CONSTANT ALSO NAMES THE FILE THE CLASSIFIER MUTATIONS PATCH, and that is
+ *  not incidental: a mutation aimed at the previous author would be overwritten
+ *  by the restatement and go MISSED in silence. Whoever moves the author next
+ *  must move this constant WITH it and re-run --selftest. */
+const AUTHOR = '2026-09-13-rejections-verb-map-2.sql';
 const PRED = '2026-09-03-intent-mismatch-escalates.sql';
 const HARDEN = '2026-09-06-companion-grant-hardening.sql';
 
@@ -89,6 +121,15 @@ const HARDEN = '2026-09-06-companion-grant-hardening.sql';
  *  is a second place to hide. The BEHAVIOUR is still proven independently of
  *  this list, on the chain-end body, by ARMs 1-3. */
 const LATER_PATCHERS = new Map([
+  ['2026-09-13-rejections-verb-map-3.sql',
+    'the classification of bad_buff_shape, the code 2026-09-13-buff-shape-code.sql split out of '
+    + 'bad_buff_item for the forged buff shape. ONE anchored, exactly-once edit: it appends '
+    + "'bad_buff_shape' to c_incident at the array terminator and touches nothing else in the body. "
+    + 'It does NOT read c_escalating, does not read c_escalate_at, and its own §3(a) re-derives both '
+    + 'arrays from the installed body and aborts unless each is a strict superset of what was there '
+    + 'before the patch — so it cannot drop unknown_unlock or missing_req_item, which is what ARM 1 '
+    + 're-proves at chain end. It also restates hr_rejection_verb_for, which is a different '
+    + 'function and carries no classification.'],
   ['2026-09-12-hr-rejections-journal.sql',
     'the refusal journal. Three anchored inserts into hr_record_rejection: the bounded `verbs` map '
     + 'on both the insert and the conflict path, hr_detail_bound() on last_detail, and the '
@@ -129,9 +170,43 @@ const mig = (f) => readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8')
  *  reference. */
 const RR_SIG = 'public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)';
 const RR_LITERAL_READ = /pg_get_functiondef\s*\(\s*'public\.hr_record_rejection\(/i;
+/* ⚠ 2026-09-13: `execute v_new` WAS COUPLED TO A VARIABLE NAME, and that is a
+   hole in exactly the direction this detector exists to close. Measured:
+   2026-09-13-rejections-verb-map-3.sql reads hr_record_rejection's body by
+   literal, edits it and runs `execute v_src;` — a real patcher of the severity
+   catalogue that the old predicate called a non-patcher, so
+   `chain/later-patchers-are-known` would never have asked anyone to review it. A
+   detector a patcher can escape by naming its variable differently is not a
+   detector.
+   The fix is NOT to broaden to `execute v_<anything>`: five files in the tree
+   (trait-buy, combat-style, recovering-until, hearthfind, hero-slot-buy) name
+   hr_record_rejection's signature in a §0 existence check AND `execute v_def` a
+   DIFFERENT body — the exact b537 false positive the block above was written to
+   kill. So the executed variable must be the one that HOLDS THIS FUNCTION'S
+   BODY: taint the variables assigned from a pg_get_functiondef read of
+   hr_record_rejection, propagate through replace()/regexp_replace() chains, and
+   require `execute <tainted>`. Dataflow, the same method
+   tests/patch-chain-guard.mjs uses, and it does not care what anything is
+   called. */
+function executesOwnBody(src, handleRe) {
+  const reads = (e) => /pg_get_functiondef/.test(e)
+    && (RR_LITERAL_READ.test(e) || (handleRe ? handleRe.test(e) : false));
+  const tainted = new Set();
+  // Seed + propagate. Two passes is enough for the `v_new := replace(v_src, …)`
+  // chains this tree writes; a third would be free but has no caller.
+  for (let pass = 0; pass < 3; pass += 1) {
+    const flows = (e) => reads(e) || [...tainted].some((t) => new RegExp(`\\b${t}\\b`).test(e));
+    for (const m of src.matchAll(/(\w+)\s*:=\s*([^;]+);/g)) if (flows(m[2])) tainted.add(m[1]);
+    for (const m of src.matchAll(/select\s+([\s\S]*?)\s+into\s+(\w+)/gi)) if (flows(m[1])) tainted.add(m[2]);
+  }
+  for (const m of src.matchAll(/\bexecute\s+(\w+)\b/gi)) if (tainted.has(m[1])) return true;
+  return false;
+}
+
 export function patchesRecordRejection(src) {
-  if (!/\bexecute\s+v_new\b/.test(src)) return false;      // must re-install a body at all
-  if (RR_LITERAL_READ.test(src)) return true;              // reads hr_record_rejection by literal
+  if (!/\bexecute\s+\w+\b/.test(src)) return false;         // must re-install a body at all
+  // reads hr_record_rejection by literal AND executes the variable holding it
+  if (RR_LITERAL_READ.test(src)) return executesOwnBody(src, null);
   // …or via a local constant bound to hr_record_rejection's signature (c_sig/c_rr).
   const handles = new Set();
   for (const m of src.matchAll(
@@ -139,7 +214,8 @@ export function patchesRecordRejection(src) {
     handles.add(m[1]);
   }
   for (const h of handles) {
-    if (new RegExp(`pg_get_functiondef\\s*\\(\\s*${h}\\b`).test(src)) return true;
+    const handleRe = new RegExp(`pg_get_functiondef\\s*\\(\\s*${h}\\b`);
+    if (handleRe.test(src) && executesOwnBody(src, handleRe)) return true;
   }
   return false;
 }
@@ -648,10 +724,13 @@ async function armLastToucher(extra = []) {
 
   const src = await mig(FIX);
   ok('chain/repair-is-written-down',
-    src.includes(AUTHOR) && src.includes(PRED) && /REPAIR/.test(src),
-    `${FIX} does not name the revert hazard and its repair. Re-applying ${AUTHOR} alone reverts `
-    + 'this file AND the intent_mismatch escalation without an error; the repair (re-apply '
-    + `${PRED}, then ${FIX}) has to be written where the mistake is made.`);
+    src.includes(ORIGINAL_AUTHOR) && src.includes(PRED) && /REPAIR/.test(src),
+    `${FIX} does not name the revert hazard and its repair. Re-applying ${ORIGINAL_AUTHOR} alone `
+    + 'reverts this file AND the intent_mismatch escalation without an error; the repair (re-apply '
+    + `${PRED}, then ${FIX}) has to be written where the mistake is made. NOTE: ${AUTHOR} is now the `
+    + 'LAST author of the body, and it is a smaller hazard than this one — its own superset guard '
+    + 'aborts rather than dropping a ruling — but the sentence this assertion reads was written in '
+    + `${FIX} in 2026-09-07 and correctly names the file that existed then.`);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -700,6 +779,43 @@ const A_HARDEN_J_REQITEM = `    if not exists (select 1 from public.hr_rejection
                     and intent = 'companion_grant' and code = 'missing_req_item') then`;
 
 // The classifier's INSERT-branch severity arm, in the authoring file.
+/* ── ANCHORS IN THE NEW AUTHOR AND ITS PATCHER (2026-09-13) ────────────────
+   When the author of hr_record_rejection moved, four mutations below stopped
+   proving what they claimed, and --selftest said so rather than anyone noticing:
+     · a defect planted in the OLD author is REPAIRED by the restatement that
+       runs after it, so the mutation reaches chain end harmless and reads MISSED;
+     · a defect planted anywhere EARLIER is now refused by the new author's own
+       superset guard, so the chain dies and the intended behavioural arm never
+       runs — also MISSED, and for the more dangerous reason (it looks like a
+       working control).
+   Both are fixed by aiming at the LAST file to touch the thing under test and
+   softening only the new files' own gates, never this guard's. These are those
+   anchors. If the author moves again, --selftest will say so again. */
+const VM2 = '2026-09-13-rejections-verb-map-2.sql';
+const VM3 = '2026-09-13-rejections-verb-map-3.sql';
+const A_VM2_INC_SUPERSET = "  if v_missing is not null then\n"
+  + "    raise exception 'GATE(a): the restated c_incident DROPPED %. Each of those is a Security ruling '";
+const A_VM2_ESC_SUPERSET = "  if v_missing is not null then\n"
+  + "    raise exception 'GATE(a): the restated c_escalating DROPPED %', v_missing;\n  end if;";
+const A_VM2_ZONE_49 = "    if v_row.severity <> 'normal' then\n"
+  + "      raise exception 'GATE(f3): bad_zone was promoted at n=49 — it must have the ESCALATING profile, '";
+const A_VM2_BNP_49 = "    if v_row.severity <> 'normal' then\n"
+  + "      raise exception 'GATE(f3b): buff_not_paid was promoted at n=49 — it is a RELEASE code on an '";
+const A_VM3_INC_SUPERSET = "  if v_missing is not null then\n"
+  + "    raise exception 'GATE(a): the patched c_incident DROPPED % — each of those is a Security ruling '";
+const A_VM3_ITEM_NORMAL = "    if v_row.severity <> 'normal' then\n"
+  + "      raise exception 'GATE(d): eating an item that carries no buff is severity % — the honest arm '";
+const A_VM3_EXECUTE = '  execute v_src;';
+/** `if false then raise …` keeps the format arguments in scope, which a bare
+ *  `if false then null; end if;` would orphan. */
+/** Turn an executed gate OFF by rewriting only its CONDITION, keeping the raise
+ *  and its format arguments intact. Blanking the format string instead produces
+ *  `too many parameters specified for RAISE` and the mutation is then "caught" by
+ *  a plpgsql syntax error rather than by anything meaningful (measured). */
+const condOff = (anchor, cond) => [anchor, anchor.replace(cond, 'if false then')];
+const NOT_NORMAL = "if v_row.severity <> 'normal' then";
+const MISSING = 'if v_missing is not null then';
+
 const A_INSERT_CASE = "          case when p_code = any (c_incident) then 'incident' else 'normal' end,";
 // The predecessor's own behavioural gate, so a mutation can be asked past it.
 const A_PRED_GATE = "    if v_sev_one is distinct from 'normal' then";
@@ -711,15 +827,39 @@ const MUTATIONS = [
        + 'ruling rejected — AND every assertion in the migration that grades it neutralised in the '
        + 'same edit. A destroyed unlock catalogue then reads as ordinary refusal traffic until '
        + 'FIFTY grants have failed for ONE player, which for a per-player counter may be never.',
-    patches: new Map([[FIX, [
-      [A_DO_INC, '  v_do_inc := false;'],
-      [A_REPL_ESC_TAIL, A_REPL_ESC_TAIL.replace("''missing_req_item''];", "''missing_req_item'',''unknown_unlock''];")],
-      [A_SIZE, A_OFF],
-      [A_S2_INC_IN, A_OFF],
-      [A_S2_INC_OUT, A_OFF],
-      [A_S3_A, A_OFF4],
-      [A_S3_E, A_OFF4],
-    ]]]),
+    /* PLANTED IN THE NEW AUTHOR (see the anchor block above). Planted in FIX the
+       restatement PUTS IT BACK, so the defect never reaches chain end and
+       --selftest read MISSED; planted anywhere earlier the new author's superset
+       guard refuses the apply and the behavioural arm never runs. FIX's own §2/§3
+       gates need no softening: they run 30 migrations earlier on a body that is
+       still correct at that point. */
+    patches: new Map([
+      [AUTHOR, [
+        // unknown_unlock IS the c_incident terminator, which is also the anchor
+        // 2026-09-13-rejections-verb-map-3.sql patches, so a misfiling edit that
+        // wanted to stay appliable would have to move both. It does.
+        ["    'unknown_unlock'];", "    'zz_not_a_real_code'];"],
+        ["    'rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone',",
+          "    'unknown_unlock','rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone',"],
+        condOff(A_VM2_INC_SUPERSET, MISSING),
+      ]],
+      [VM3, [
+        ["  c_anc  constant text := '    ''unknown_unlock''];';",
+          "  c_anc  constant text := '    ''zz_not_a_real_code''];';"],
+        /* ⚠ AND ITS REPLACEMENT PAYLOAD, which HARDCODES the member it anchors on
+           and therefore RE-ADDS unknown_unlock to c_incident. Measured 2026-09-13
+           by instrumenting the chain: with only the anchor moved, the installed
+           array read
+             …,'forbidden_impersonation','unknown_unlock','bad_buff_shape'
+           i.e. the misfiling was silently REPAIRED by the patcher and the first
+           occurrence was still an incident, so this mutation reported MISSED
+           while looking like a working control. That is a real property of an
+           anchored patch whose payload restates its anchor, and it is why a
+           mutation aimed at a patched array has to move BOTH halves. */
+        ["    '    ''unknown_unlock'',' || chr(10)", "    '    ''zz_not_a_real_code'',' || chr(10)"],
+        condOff(A_VM3_INC_SUPERSET, MISSING),
+      ]],
+    ]),
     expect: { kind: 'arm', assertion: 'incident/unknown-unlock-first-occurrence-is-incident' },
   },
   {
@@ -729,15 +869,26 @@ const MUTATIONS = [
        + 'reads "incident" exactly as it should, because n=1 already did. Only an assertion that '
        + 'ONE stays normal can tell the two rulings apart, and this proves that assertion is '
        + 'load-bearing rather than decorative.',
-    patches: new Map([[FIX, [
-      [A_DO_ESC, '  v_do_esc := false;'],
-      [A_REPL_INC_TAIL, A_REPL_INC_TAIL.replace("''unknown_unlock''];", "''unknown_unlock'',''missing_req_item''];")],
-      [A_SIZE, A_OFF],
-      [A_S2_ESC_IN, A_OFF],
-      [A_S2_ESC_OUT, A_OFF],
-      [A_S3_B1, A_OFF4],
-      [A_S3_B49, A_OFF4],
-    ]]]),
+    /* PLANTED IN THE NEW AUTHOR, not in FIX. FIX's own edit is repaired by the
+       restatement that runs after it, so the old form reached chain end harmless
+       and read MISSED (measured 2026-09-13). Here the misfiling is what the
+       last author installs, which is the live hazard: c_escalating loses the
+       code and c_incident gains it. FIX's §2/§3 gates need no softening — they
+       run 30 migrations earlier, on a body that is still correct. */
+    patches: new Map([
+      [AUTHOR, [
+        ["    'rate_limited','own_listing','intent_mismatch','missing_req_item','bad_zone',",
+          "    'rate_limited','own_listing','intent_mismatch','bad_zone',"],
+        // NOT the array terminator: that string is verb-map-3's anchor, and
+        // consuming it makes the chain die on ANCHOR DRIFT instead of on the
+        // misclassification (measured 2026-09-13).
+        ["    'seller_unavailable','forbidden_impersonation',",
+          "    'seller_unavailable','forbidden_impersonation','missing_req_item',"],
+        // the new author's own superset guard would otherwise refuse the apply
+        condOff(A_VM2_ESC_SUPERSET, MISSING),
+      ]],
+      [VM3, [condOff(A_VM3_INC_SUPERSET, MISSING)]],
+    ]),
     expect: { kind: 'arm', assertion: 'escalating/one-occurrence-stays-normal' },
   },
   {
@@ -748,7 +899,15 @@ const MUTATIONS = [
        + 'is in neither array, can tell "unknown_unlock is classified" from "the classifier stopped '
        + 'discriminating".',
     patches: new Map([
-      [AUTHOR, [[A_INSERT_CASE, "          case when p_code is not null then 'incident' else 'normal' end,"]]],
+      [AUTHOR, [
+        [A_INSERT_CASE, "          case when p_code is not null then 'incident' else 'normal' end,"],
+        // …and the new author's own "stays normal at 49" probes, for the same
+        // reason PRED's and FIX's gates are removed: the guard has to be the
+        // thing that notices, not the file being mutated.
+        condOff(A_VM2_ZONE_49, NOT_NORMAL),
+        condOff(A_VM2_BNP_49, NOT_NORMAL),
+      ]],
+      [VM3, [condOff(A_VM3_ITEM_NORMAL, NOT_NORMAL)]],
       [PRED, [[A_PRED_GATE, A_OFF4]]],
       [FIX, [[A_S3_B1, A_OFF4], [A_S3_B49, A_OFF4], [A_S3_D1, A_OFF4], [A_S3_DN, A_OFF4]]],
     ]),
@@ -792,7 +951,15 @@ const MUTATIONS = [
        + 'takes the insert branch, which never escalates whatever the threshold is), so nothing '
        + "before this file notices. This migration's own floor is what refuses. A threshold RAISE "
        + 'is deliberately NOT a failure — the constant is shared and this file does not own it.',
-    patches: new Map([[AUTHOR, [['  c_escalate_at constant bigint := 50;', '  c_escalate_at constant bigint := 2;']]]]),
+    /* ORIGINAL_AUTHOR, not AUTHOR: this mutation's expectation is that THIS FILE'S floor refuses
+       the apply, and that floor runs 30 migrations before the restatement. Planted in the new
+       author it lands AFTER the floor has already read 50, the chain then dies inside
+       2026-09-13-rejections-verb-map-2.sql's own 49-stays-normal probe, and --selftest reports
+       MISSED with the expectation pointing at the wrong file. Measured 2026-09-13. NOTE THE
+       RESIDUAL GAP, which is not this file's to close: a LATER author that collapses the
+       threshold is invisible to this floor, and today only the new author's own executed probe
+       catches it. */
+    patches: new Map([[ORIGINAL_AUTHOR, [['  c_escalate_at constant bigint := 50;', '  c_escalate_at constant bigint := 2;']]]]),
     expect: { kind: 'chain', match: /COLLAPSES the escalating class/ },
   },
   {
@@ -881,10 +1048,20 @@ const MUTATIONS = [
        + 'green and a destroyed unlock catalogue is graded "normal" forever. ONLY an arm that drives '
        + 'the real function at CHAIN END can see it, which is the whole reason the chain assertion '
        + 'was moved off file ordering and onto behaviour.',
-    patches: new Map([['2026-09-12-hr-rejections-journal.sql', [[
-      '  v_new := v_src;',
-      "  v_new := replace(v_src, '''unknown_unlock''', '''unknown_unlock_x''');",
-    ]]]]),
+    /* PLANTED IN THE LAST TOUCHER (2026-09-13-rejections-verb-map-3.sql), which
+       is the only position from which a collateral rename survives to chain end.
+       In the refusal journal — where this mutation used to live — the later
+       RESTATEMENT puts 'unknown_unlock' back, so the defect was repaired before
+       anything could see it and --selftest read MISSED (measured 2026-09-13).
+       That is itself the finding: a rename by a MIDDLE patcher is now harmless,
+       and the hazard moved to whoever runs last. */
+    patches: new Map([
+      [VM3, [
+        [A_VM3_EXECUTE, "  execute replace(v_src, '''unknown_unlock''', '''unknown_unlock_x''');"],
+        // its own superset guard would refuse the apply otherwise
+        condOff(A_VM3_INC_SUPERSET, MISSING),
+      ]],
+    ]),
     expect: { kind: 'arm', assertion: 'incident/unknown-unlock-first-occurrence-is-incident' },
   },
   {
@@ -987,7 +1164,7 @@ if (RUN_DIRECTLY) {
       } else {
         caught = chainError === null && fired(m.expect.assertion);
         how = chainError
-          ? `the chain refused (${chainError.split('\n')[0].slice(0, 140)}) — but this mutation is `
+          ? `the chain refused (${chainError.split('\n').slice(0, 2).join(' ').slice(0, 260)}) — but this mutation is `
             + 'supposed to get PAST the migration and be caught by the guard'
           : (problems.length
             ? `the guard fired: ${problems.map((p) => p.name).join(', ')}`

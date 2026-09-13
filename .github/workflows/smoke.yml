@@ -469,7 +469,7 @@ jobs:
       # MISSED the first time this landed because the cap literal moved files
       # with the restatement - re-run --selftest after any restatement.
       #
-      # --selftest plants nineteen defects and requires each to be caught here.
+      # --selftest plants twenty defects and requires each to be caught here.
       #
       # No credentials; production untouched. Base AND selftest, per C4.
       - name: Rejections journal — a refusal is recorded, and nothing else moves

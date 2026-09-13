@@ -2212,13 +2212,9 @@ function applyServerEnvelope(res,opts){
           : 'Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'+s.gainedXp+' XP, +'+s.gainedGold+' gold');
     if(_txt) notify(_txt,'info');
   }
-  /* ── THE WELCOME MODAL RENDERS THIS LOAD'S SETTLE, NOT A TIMER'S GUESS ──────
-     The receipt for the delta THIS envelope applied is the only absence the modal
-     is about, so it is presented HERE — after the state is written, the away kills
-     credited and refreshAll repainted — and only for an AWAY receipt: a sync or a
-     switch is not an absence and must never open a welcome-back modal. Boots whose
-     settle says 'nothing'/'sync' are presented by the waiting timer instead. The
-     whole rule lives at WELCOME_GATE. */
+  /* THIS LOAD'S SETTLE PRESENTS THE WELCOME MODAL, NOT A TIMER'S GUESS. Here — after
+     the state is written, the away kills credited and refreshAll repainted — and only
+     for an AWAY receipt: a sync or a switch is not an absence. The rule: WELCOME_GATE. */
   try{
     var _pr = written && written.paidReceipt;
     var _pk = (_pr && A && typeof A.classifyReceipt==='function') ? A.classifyReceipt(_pr) : null;
@@ -14115,16 +14111,21 @@ function paintStreak(){
 }
 
 /* ─── Welcome-back modal (fires once per session if returning after 30min+) ─── */
-function maybeShowWelcome(){
-  if(typeof G !== 'object' || !G) return;
-  /* ── THE ABSENCE IS THE SERVER'S SPAN, NEVER A RESIDUE STAMP (b514) ───────
-     MEASURED LIVE on b513: "Time away 13h 8m" on a reload two hours after the
-     last session, and "64h 53m" the same day against a receipt of 4.4h. Both
-     came from `Date.now() - G.lastSeen`, a per-device stamp advanced only by
-     the saves that happen to run and under §1 authority for nothing.
-     `serverAwaySpanMs` returns THIS boot's receipt span, else the boot
-     watermark, else NULL — and null means the card states no length at all,
-     the only honest thing to say about a span nobody measured. */
+/* Returns WHAT IT SAID, because the presenter has to know (see WELCOME_GATE): 'away'
+   = it reported THIS load's absence, 'stats' = lifetime stats only (no receipt yet),
+   null = nothing at all. `opts.again` is a RE-RENDER of a card already on screen, so
+   the two doors below — which decide WHETHER to greet, already settled — must not
+   refuse it, least of all the residue stamp every `saveLocal()` beats forward. */
+function maybeShowWelcome(opts){
+  var _again = !!(opts && opts.again);
+  if(typeof G !== 'object' || !G) return null;
+  /* ── THE ABSENCE IS THE SERVER'S SPAN, NEVER A RESIDUE STAMP (b514) ─────────
+     MEASURED LIVE: "Time away 13h 8m" on a reload two hours after the last session,
+     and "64h 53m" the same day against a receipt of 4.4h — both `Date.now() -
+     G.lastSeen`, a per-device stamp advanced only by the saves that happen to run and
+     authority for nothing (§1). `serverAwaySpanMs` returns THIS boot's receipt span,
+     else the boot watermark, else NULL — and null means the card states no length at
+     all, the only honest thing to say about a span nobody measured. */
   var _srvSpan = null;
   try{
     var _AC = window.HearthriseAccrual;
@@ -14132,42 +14133,37 @@ function maybeShowWelcome(){
   }catch(e){}
   var since = Date.now() - (G.lastSeen || Date.now());
   var minutesAway = since / 60000;
-  /* The 30-minute door still reads the residue stamp, DELIBERATELY: it decides
-     only WHETHER to greet, never a figure. (Server-pricing the door too would
-     suppress the card on a same-device reload — a design call, still open; b543
-     made every FIGURE behind the door server-priced instead.) */
-  if(minutesAway < 30) return;
-  if(Date.now() - (G.lastWelcome||0) < 5000) return; // already shown this session
+  /* The 30-minute door still reads the residue stamp, DELIBERATELY: it decides only
+     WHETHER to greet, never a figure. (Server-pricing the door too would suppress the
+     card on a same-device reload — a design call, still open; every FIGURE behind the
+     door is server-priced instead.) */
+  if(!_again){
+    if(minutesAway < 30) return null;
+    if(Date.now() - (G.lastWelcome||0) < 5000) return null; // already shown this session
+  }
   G.lastWelcome = Date.now();
   buildWelcomeOverlay();
   var rows = [];
   /* ── b342: THE RECEIPT IS THE SOURCE, AND IT IS THE ONLY SOURCE ───────────
-     Measured on a returning player: this modal showed "While away 8.0h" AND
-     "Time away 8h 0m" — one fact twice, from two estimators — while the gains
-     it was ostensibly reporting were not in it at all. The duplicate came from
-     a second block further down this file that PREPENDED rows built from
-     `calcCatchup()`, a display-only forecast of a night already settled; that
-     block is deleted. Everything below is READ from `lastOfflineSummary` — the
-     span, the gains, the death — and nothing is inferred.
-     ── AND THE RECEIPT MUST BE THIS BOOT'S (live b543, 2026-09-13) ───────────
-     MEASURED on the QA account: a plain reload FIVE SECONDS after playing
-     re-presented a settled night — "Time away 12h 0m · XP earned +88,711 ·
-     Items found +2,768 · XP per hour 7,392" — as if the player had just walked
-     in from it. Nothing was double-credited; the card was describing somebody
-     else's moment. `reconcileAwayReceipt` seeds this holder from
-     `player_state.last_away_receipt` on boot so the HOME away card survives a
-     reload (ruling 2026-09-07) and marks it `restored`; this modal reports the
-     absence THIS LOAD ENDED and could not tell a statement from a restatement.
-     Now it refuses a restatement (as does `serverAwaySpanMs`) and says LESS on
-     a reload rather than something untrue. The Home card is untouched. */
+     Measured on a returning player: this modal showed "While away 8.0h" AND "Time
+     away 8h 0m" — one fact twice, from two estimators — while the gains it was
+     ostensibly reporting were not in it at all. Everything below is READ from
+     `lastOfflineSummary` — span, gains, death — and nothing is inferred.
+     ── AND THE RECEIPT MUST BE THIS BOOT'S ───────────────────────────
+     MEASURED on the QA account: a plain reload five seconds after playing
+     re-presented a settled night as if the player had just walked in from it.
+     Nothing was double-credited; the card was describing somebody else's moment.
+     `reconcileAwayReceipt` seeds this holder from `player_state.last_away_receipt`
+     so the HOME card survives a reload (ruling 2026-09-07) and marks it `restored`;
+     this modal reports the absence THIS LOAD ENDED, and now refuses a restatement
+     (as does `serverAwaySpanMs`) rather than saying something untrue. */
   var _off = G.lastOfflineSummary;
   var _restated = !!(_off && _off.restored === true);
   var _fresh = !!(_off && _off.at && (Date.now() - _off.at) < 30*60000) && !_restated;
-  /* A SPAN UNDER THE SERVER'S OWN MINIMUM PRICED WINDOW IS NOT AN ABSENCE: with
-     the restatement refused a reload prices itself off the boot watermark —
-     seconds — and "Time away 0m" is a number nobody needed. Below ACCRUE_MIN_MS
-     (60 s, the floor the engine refuses to settle inside) the card states no
-     length, the same silence it keeps when the server stated no span. */
+  /* A SPAN UNDER THE SERVER'S OWN MINIMUM PRICED WINDOW IS NOT AN ABSENCE: with the
+     restatement refused a reload prices itself off the boot watermark — seconds — and
+     "Time away 0m" is a number nobody needed. Below ACCRUE_MIN_MS (60 s, the floor the
+     engine refuses to settle inside) the card states no length. */
   var _awayLbl = (_srvSpan === null || _srvSpan < 60000) ? null : (function(ms){
     var m = Math.max(0, Math.round(ms/60000));
     if(m < 60) return m + 'm';
@@ -14175,15 +14171,13 @@ function maybeShowWelcome(){
   })(_srvSpan);
   if(_awayLbl !== null) rows.push({g:'uiHourglass', t: 'Time away', v: _awayLbl});
   if(_fresh){
-    /* ── SET THE NIGHT, THE MORNING HALF (slate §3) ────────────────────────
-       The ritual's second sentence: how right last night's forecast was. It
-       LEADS, because "what you set" beside "what you got" is the whole point
-       of the return; every figure in it that describes the night comes from
-       THIS receipt (`paidMs`, `stoppedBy`, `deaths`) and only the predicted
-       span comes from the client's stored forecast. No forecast, a stale one,
-       or one belonging to another character ⇒ null, and the modal simply says
-       less. Spoken once: the forecast is dropped after it is graded, so a
-       second reload cannot re-grade last night against tonight's receipt. */
+    /* ── SET THE NIGHT, THE MORNING HALF (slate §3) ────────────────────
+       How right last night's forecast was. It LEADS, because "what you set" beside
+       "what you got" is the point of the return; every figure describing the night
+       comes from THIS receipt and only the predicted span from the stored forecast
+       (absent, stale or another character's ⇒ null, and the modal says less).
+       Spoken once: the forecast is dropped after grading, so a second reload
+       cannot re-grade last night against tonight's receipt. */
     try{
       var _STN = window.HearthriseSetTheNight;
       var _nightLine = _STN && _STN.morningLine ? _STN.morningLine(_off) : null;
@@ -14445,23 +14439,15 @@ function maybeShowWelcome(){
       }
     }
   }catch(e){}
-  /* ── b499 (Designer ruling, THE STREAK LABEL COLLISION) ────────────────────
-     "Daily streak" was the wrong name for this number and it was the SECOND
-     surface saying it. There are two true streaks in Hearthrise and only one of
-     them may own the word:
-       · the PLAY streak — `G.streak.count`, consecutive days the character was
-         SETTLED. It pays RENOWN (streakBest x5, 2026-08-20-renown.sql) and the
-         Week Warrior / Devoted achievements. THIS row.
-       · the CLAIM streak — consecutive days the daily reward was CLAIMED,
-         derived server-side by `deriveLoginStreak`. It pays the 7-day gold/gem
-         cycle and it is the ONLY thing the reward sheet may call a day.
-     They are different quantities and they diverge the moment a player plays
-     without claiming. MEASURED on this build: this modal read "Daily streak
-     3 days" while the Home card behind it read "Daily reward · Day 1" and the
-     sheet read "1-DAY STREAK" — three surfaces, two numbers, one word.
-     RULING: the reward sheet keeps the day language ("Day 1 of 7") and drops
-     "streak" entirely; every play-streak surface says PLAYED / RUNNING and
-     never "daily". See DECISIONS 2026-08-31. */
+  /* THE STREAK LABEL COLLISION (Designer ruling, DECISIONS 2026-08-31). Two true
+     streaks exist and only one may own the word: the PLAY streak (`G.streak.count`,
+     days SETTLED — pays renown and the Week Warrior / Devoted achievements, THIS
+     row) and the CLAIM streak (days the daily reward was claimed, derived
+     server-side, pays the 7-day cycle). They diverge the moment a player plays
+     without claiming, and MEASURED here they did: this modal read "Daily streak 3
+     days" over a Home card reading "Day 1" and a sheet reading "1-DAY STREAK".
+     RULING: the reward sheet keeps the day language and drops "streak"; every
+     play-streak surface says PLAYED / RUNNING and never "daily". */
   if(G.streak.count > 0) rows.push({g:'uiFlame', t: 'Played', v: G.streak.count + ' day' + (G.streak.count===1?'':'s') + ' running'});
   rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
   rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
@@ -14484,6 +14470,7 @@ function maybeShowWelcome(){
   }).join('');
   var ov = document.getElementById('welcome-overlay');
   if(ov) ov.classList.add('show');
+  return _fresh ? 'away' : 'stats';
 }
 /* TEST SEAM, deliberately NOT `window.maybeShowWelcome`: this function is not on
    `window` at all (its block is IIFE-scoped), and the retired v2 modal used that
@@ -14491,41 +14478,63 @@ function maybeShowWelcome(){
    it must be assertable under a name no stub can shadow. */
 window.__maybeShowWelcome = maybeShowWelcome;
 
-/* ── THE SETTLE PRESENTS THIS MODAL; THE TIMER ONLY WAITS FOR IT ─────────────
-   Measured live 2026-09-13, second bug of this class: a genuine ~12 h return got
-   a modal with only Played / Total kills / Gold while the Home card, painted
-   later, read "12h away — +88,711 XP · +2,768 items" off the SAME receipt. The
-   modal was not wrong about the receipt; it ran before it existed.
-   `setTimeout(maybeShowWelcome, 1500)` guesses the `hr_accrue` round trip, and
-   when the guess loses `G.lastWelcome` shuts the 5 s door so the away report
-   never gets a second chance. So `applyServerEnvelope` presents the modal itself
-   on an AWAY receipt, and the boot timer WAITS on `awaySettleDone()` — the
-   settle-first latch, set before the accrual hooks fire — up to WAIT_MS. Nothing
-   to wait for (dead network, accrual unconfigured) and it presents anyway: no
-   away payload is coming and a stats-only modal is then the honest thing to say.
-   ONCE per page life. The 30-minute door and the restatement refusal above still
-   decide WHETHER and WHAT; this decides only WHEN. Scratch, never residue. */
-var WELCOME_GATE = { at: 0, until: 0, WAIT_MS: 10000 };
+/* ── THE SETTLE PRESENTS THIS MODAL; THE TIMER ONLY WAITS FOR IT ─────────
+   Measured live three times: a genuine ~12 h return got a modal with only Played /
+   Total kills / Gold while the Home card, painted later, read "12h away — +51,424 XP
+   · +6,428 items" off the SAME receipt. The modal was never wrong about the receipt;
+   it ran before one existed. A 1500 ms timer guessed the `hr_accrue` round trip, then
+   a 10 s cap guessed it again — a twelve-hour span answered later, the timer gave up,
+   the one-per-page latch was spent, and the AWAY receipt that landed afterwards could
+   not present. TWO RULES, so no timing produces a stats-only card for a night that paid:
+     1. WAIT WHILE THE ANSWER IS ON THE WIRE. `settleInFlight()` (accrue.js) is a
+        different fact from "unpaid", so the poll waits past WAIT_MS while in flight —
+        to a hard ceiling, because a hung fetch has no abort timeout and a modal must
+        eventually appear.
+     2. AN AWAY RECEIPT SUPERSEDES A STATS-ONLY CARD THAT IS STILL OPEN. The latch
+        remembers WHAT was said: only a card that REPORTED the absence closes the door,
+        and a provisional greeting is re-rendered in place when the receipt arrives.
+        Never re-OPENED once dismissed — the Home away card owns it then.
+   Nothing to wait for (dead network, accrual unconfigured) still presents stats-only: no
+   away payload is coming. The 30-minute door and the restatement refusal still decide
+   WHETHER and WHAT — this decides only WHEN. Scratch, never residue. */
+var WELCOME_WAIT_MS = 10000, WELCOME_MAX_WAIT_MS = 30000;
+var WELCOME_GATE = { shownAt: 0, reported: false, until: 0, ceiling: 0, WAIT_MS: WELCOME_WAIT_MS, MAX_WAIT_MS: WELCOME_MAX_WAIT_MS };
 window.__presentWelcome = function(){
-  if(WELCOME_GATE.at) return false;
-  WELCOME_GATE.at = Date.now();
-  try{ maybeShowWelcome(); }catch(e){ return false; }
+  if(WELCOME_GATE.reported) return false;            // the absence has already been reported
+  var again = WELCOME_GATE.shownAt > 0, ov = document.getElementById('welcome-overlay');
+  if(again && !(ov && ov.classList.contains('show'))) return false;   // dismissed: never re-open
+  var said = null;   // 'away' | 'stats' | null — a door refused
+  try{ said = maybeShowWelcome({ again: again }); }catch(e){ return false; }
+  if(!said) return false;                            // nothing shown: the latch is NOT spent
+  WELCOME_GATE.shownAt = Date.now();
+  if(said === 'away') WELCOME_GATE.reported = true;   // only a REPORT closes the door
   return true;
 };
 window.__presentWelcomeWhenSettled = function(){
-  if(WELCOME_GATE.at) return;
-  if(!WELCOME_GATE.until) WELCOME_GATE.until = Date.now() + WELCOME_GATE.WAIT_MS;
+  if(WELCOME_GATE.reported) return;
+  var now = Date.now();
+  if(!WELCOME_GATE.until) WELCOME_GATE.until = now + WELCOME_GATE.WAIT_MS;
+  if(!WELCOME_GATE.ceiling) WELCOME_GATE.ceiling = now + WELCOME_GATE.MAX_WAIT_MS;
   var A = window.HearthriseAccrual,
-      pending = !!(A && typeof A.awaySettleDone === 'function' && !A.awaySettleDone());
-  if(pending && Date.now() < WELCOME_GATE.until){
+      pending = !!(A && typeof A.awaySettleDone === 'function' && !A.awaySettleDone()),
+      inflight = !!(A && typeof A.settleInFlight === 'function' && A.settleInFlight());
+  if(pending && (now < WELCOME_GATE.until || (inflight && now < WELCOME_GATE.ceiling))){
     setTimeout(window.__presentWelcomeWhenSettled, 250);
     return;
   }
   window.__presentWelcome();
 };
-/* Test seam: a fresh page life, or (true) a SPENT one, so the 250 ms poll a test
-   armed cannot open a modal over a later test. */
-window.__resetWelcomePresentation = function(spent){ WELCOME_GATE.at = spent ? Date.now() : 0; WELCOME_GATE.until = 0; };
+/* Test seam: a fresh page life, or (spent) one whose absence was already REPORTED, so a
+   poll armed by one test cannot open a modal over the next. `waitMs`/`maxWaitMs` put the
+   wait window in the past instead of sleeping ten real seconds in the suite; omitted,
+   both return to the shipped values. */
+window.__resetWelcomePresentation = function(spent, waitMs, maxWaitMs){
+  WELCOME_GATE.shownAt = spent ? Date.now() : 0;
+  WELCOME_GATE.reported = !!spent;
+  WELCOME_GATE.until = WELCOME_GATE.ceiling = 0;
+  WELCOME_GATE.WAIT_MS = (typeof waitMs === 'number' && waitMs >= 0) ? waitMs : WELCOME_WAIT_MS;
+  WELCOME_GATE.MAX_WAIT_MS = (typeof maxWaitMs === 'number' && maxWaitMs >= 0) ? maxWaitMs : WELCOME_MAX_WAIT_MS;
+};
 
 function buildWelcomeOverlay(){
   if(document.getElementById('welcome-overlay')) return;
@@ -15256,15 +15265,11 @@ window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
   if(tab === 'clan') syncClanActivity();
 });
 
-/* ════════════════════════════════════════════════════════════════════════
-   THE CATCHUP INJECTOR LIVED HERE AND IS DELIBERATELY NOT REPLACED (b342).
-   It polled for `#welcome-rows` and PREPENDED rows from `calcCatchup()`, a
-   display-only estimate of the absence, so the modal spoke the same fact twice
-   in two units from two sources and neither was the ledger. The full story and
-   the rule ("the receipt is the source, and the only source") live where the
-   rows are built — see the b342 block inside maybeShowWelcome — and the
-   estimator itself is gone (b516 tombstone, section 3 above).
-   ════════════════════════════════════════════════════════════════════════ */
+/* THE CATCHUP INJECTOR LIVED HERE AND IS DELIBERATELY NOT REPLACED (b342): it
+   PREPENDED rows from `calcCatchup()`, an estimate of an absence already settled, so
+   the modal spoke one fact twice and neither number was the ledger's. The rule and the
+   measurement live where the rows are built (the b342 block inside maybeShowWelcome);
+   the estimator itself is gone (b516 tombstone, section 3). */
 
 /* Add Achievements + Bestiary buttons to the Profile panel */
 function injectProfileButtons(){
@@ -15578,19 +15583,14 @@ window._stopArtisan = function(){
 })();
 
 // ===== block 20: welcome-v2 — RETIRED (Set the Night, slate §3) =========
-/* ═══ TOMBSTONE: THE SECOND WELCOME MODAL IS GONE ═════════════════════════
-   Designer ruling (FEATURE_SLATE.md §3, 2026-09-07): "v2 retires, b341
-   survives." `#wbv-overlay` was built from `calcRichCatchup()`, a THIRD
-   client-side estimate of the night off the device clock (§1: never
-   authority), and it "suppressed" the real modal with a
-   `window.maybeShowWelcome` stub that suppressed nothing. DELETED, not
-   unwired (b516 rule): the estimator, its applier, the modal, the 1800 ms
-   boot auto-show, the Profile "Last Session Summary" button, and — cleanup
-   slice 2026-09-08 — the `.wbv-*` CSS and every `#wbv-overlay` entry in the
-   blocking-overlay / closeAllModals lists. `G.lastSessionSummary` stays in
-   RESIDUE_FIELDS (inert; removing an allowlist entry needs the residue
-   guard's own mutation proof). smoke-test.js asserts the ABSENCE.
-   ════════════════════════════════════════════════════════════════════════ */
+/* TOMBSTONE: THE SECOND WELCOME MODAL IS GONE. Designer ruling (FEATURE_SLATE.md §3,
+   2026-09-07): "v2 retires, b341 survives." `#wbv-overlay` was a THIRD client-side
+   estimate of the night off the device clock (§1: never authority) that "suppressed"
+   the real modal with a stub suppressing nothing. DELETED, not unwired (b516 rule):
+   the estimator, its applier, the modal, the 1800 ms auto-show, the Profile "Last
+   Session Summary" button, the `.wbv-*` CSS and every `#wbv-overlay` list entry.
+   `G.lastSessionSummary` stays in RESIDUE_FIELDS (inert; removing an allowlist entry
+   needs the residue guard's own proof). smoke-test.js asserts the ABSENCE. */
 
 // ===== block 21: phase-a1-recipes =====
 (function(){

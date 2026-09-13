@@ -36,6 +36,28 @@
 --   direction, which is why this is acceptable where "trust a name" normally is
 --   not. Nothing about gold, inventory or ranking is keyed on it.
 --
+-- ⚠ WHEN THE PRUNE DELIBERATELY DOES NOTHING, and what that costs. The UPDATE is
+--   conditioned on the caller actually being in the payload (`peers @> [{name}]`,
+--   and a non-null name), because without that it decremented `here` while
+--   removing nobody — Security F1-a and F1-b, both confirmed on a replay. So these
+--   callers answer `pruned:false` and wait for the <=25 s cron rebuild instead:
+--     · a NAMELESS profile (display_name NULL — 11 live). It cannot be matched, and
+--       it is not in the payload under any name a reader would recognise anyway.
+--     · a caller PAST THE 60-PEER CAP. They are not in the list, so there is
+--       nothing to remove — but `here` is the UNCAPPED count, so for up to one
+--       refresh it overcounts by one. An overcount is the safe direction for a
+--       privacy control: it never shows a body that asked not to be shown.
+--     · a caller who RENAMED since the build (their old name is in the payload,
+--       their new one is not) — they survive <=25 s.
+--     · a caller in the CRIER but not in `peers` (a rare find by someone who has
+--       since left town) — their crier line survives <=25 s.
+--   ⚠ THE RENAME RACE, ACCEPTED AS P4: X renames away, and inside one window the
+--     caller claims X's freed name and opts out — X's stale entry is pruned
+--     instead. It needs a deliberately-timed rename collision inside a 3-second
+--     window, it removes a body from a cosmetic list for <=25 s, and it moves
+--     nothing tradeable or rankable. The structural fix is a user_id in the
+--     payload, which is the one thing the allowlist exists to keep out.
+--
 -- ⚠ THE ANSWER STAYS HONEST, which is the other half of the fix:
 --     snapshot_refreshed  the cooldown let a real rebuild through
 --     pruned              the coalesced branch removed the caller from the cache
@@ -199,7 +221,33 @@ begin
                               where c.p ->> 'name' is distinct from v_name)),
                  '{here}', to_jsonb(greatest(0, coalesce((ts.payload ->> 'here')::int, 1) - 1)))
          where ts.zone_id = public.hr_town_zone()
-           and coalesce(ts.payload ->> 'off', '') <> 'true';
+           and coalesce(ts.payload ->> 'off', '') <> 'true'
+           -- ⚠ THE CALLER MUST ACTUALLY BE IN THE PAYLOAD (Security F1-a/F1-b,
+           --   2026-09-13 — both CONFIRMED on a replay, and both came from this
+           --   one predicate being absent). Without it the row matched on zone
+           --   alone, so the UPDATE "succeeded" and decremented `here` even when it
+           --   removed nobody:
+           --     F1-a  a caller whose profiles.display_name IS NULL (11 nameless
+           --           profiles live) got pruned:true and here-1 while STAYING in
+           --           peers — `is distinct from NULL` filters nothing out.
+           --     F1-b  quiet -> loud -> quiet inside the bucket (loud does not
+           --           refresh) decremented twice for one body: here 1 -> 0 with two
+           --           peers still listed. A shared crowd count that disagrees with
+           --           the list beside it, at 2 transitions/min/account.
+           --   Now the prune fires only when it has something to remove, and
+           --   `v_pruned := found` reports the truth: a nameless, absent or
+           --   already-pruned caller answers pruned:false and falls back to the
+           --   <=25 s cron rebuild, which is the safe direction.
+           --   ⚠ `v_name is not null` is REDUNDANT TODAY, and that is measured, not
+           --     assumed: deleting it leaves tests/town-presence.mjs green, because
+           --     the containment check below cannot match when v_name is NULL
+           --     (`peers @> '[{"name": null}]'` is false). It stays as defence in
+           --     depth against a future change to the matching expression, and the
+           --     guard deliberately registers NO mutation arm for it — an arm that
+           --     cannot go red is the vacuous proof. The nameless PROPERTY is
+           --     enforced by the containment check and asserted by the guard.
+           and v_name is not null
+           and ts.payload -> 'peers' @> jsonb_build_array(jsonb_build_object('name', v_name));
         v_pruned := found;
       end if;
     exception when others then
@@ -229,9 +277,11 @@ revoke execute on function public.hr_set_presence_quiet__ungated(int, boolean)
 -- rather than in the cooldown file, because that one is already applied.
 do $$
 declare
-  v_res jsonb; v_town jsonb; v_here_before int; v_snaps_before int;
+  v_res jsonb; v_town jsonb; v_here_before int; v_snaps_before int; v_n int;
   v_a constant uuid := '000000b1-0000-0000-0000-0000000000c1';
   v_b constant uuid := '000000b1-0000-0000-0000-0000000000c2';
+  v_c constant uuid := '000000b1-0000-0000-0000-0000000000c3';
+  v_d constant uuid := '000000b1-0000-0000-0000-0000000000c4';
   v_flag_was boolean;
 begin
   select enabled into v_flag_was from public.hr_flags where key = 'town_presence';
@@ -239,7 +289,7 @@ begin
   begin
     update public.hr_flags set enabled = true where key = 'town_presence';
     delete from public.town_snapshot;
-    insert into auth.users (id) values (v_a), (v_b) on conflict (id) do nothing;
+    insert into auth.users (id) values (v_a), (v_b), (v_c), (v_d) on conflict (id) do nothing;
     insert into public.profiles (id, display_name) values (v_a, 'PruneOne'), (v_b, 'PruneTwo')
       on conflict (id) do update set display_name = excluded.display_name;
     insert into public.player_state (user_id, slot, gold, gems, version)
@@ -321,15 +371,79 @@ begin
     if coalesce(v_res->>'ok', '') <> 'true' then
       raise exception 'GATE(d): the toggle failed with no snapshot row: %', v_res; end if;
 
+    -- (e) A NAMELESS CALLER MOVES NOTHING (Security F1-a, confirmed on a replay:
+    --     `is distinct from NULL` filters nobody out, so the UPDATE used to
+    --     decrement `here` while leaving the caller in `peers`).
+    update public.profiles set display_name = null where id = v_c;
+    insert into public.player_state (user_id, slot, gold, gems, version)
+      values (v_c, 0, 0, 0, 1)
+      on conflict (user_id, slot) do update set version = 1, presence_quiet = false;
+    perform set_config('request.jwt.claim.sub', v_c::text, true);
+    perform public.hr_heartbeat(0);
+    perform public.hr_town_refresh();              -- no row exists, so this builds
+    v_town := public.hr_town_of();
+    v_here_before := (v_town->>'here')::int;
+    v_n := jsonb_array_length(v_town->'peers');
+    v_res := public.hr_set_presence_quiet(0, true);
+    if coalesce((v_res->>'pruned')::boolean, true) is not false then
+      raise exception 'GATE(e): a NAMELESS caller reported pruned:true (%) — it cannot be matched in '
+                      'the payload, so claiming a prune is a lie and `here` would drift', v_res;
+    end if;
+    v_town := public.hr_town_of();
+    if (v_town->>'here')::int <> v_here_before then
+      raise exception 'GATE(e): `here` moved % -> % for a caller the prune could not remove',
+        v_here_before, v_town->>'here';
+    end if;
+    if jsonb_array_length(v_town->'peers') <> v_n then
+      raise exception 'GATE(e): the peer list changed for a nameless caller'; end if;
+
+    -- (f) `here` NEVER DISAGREES WITH THE LIST (Security F1-b, confirmed: quiet ->
+    --     loud -> quiet inside the bucket decremented TWICE for one body, because
+    --     going loud does not refresh and the second prune matched the row anyway —
+    --     here 1 -> 0 with two peers still listed, at 2 transitions/min/account).
+    --     Driven as v_d, a FOURTH probe: the sequence costs three calls and
+    --     hr_set_presence_quiet's bucket is 4/min, so reusing a probe that has
+    --     already toggled above measures the rate limiter instead of the property
+    --     (measured: it did, and the arm read `rate_limited` as pruned:true).
+    update public.profiles set display_name = 'PruneThree' where id = v_c;
+    insert into public.profiles (id, display_name) values (v_d, 'PruneFour')
+      on conflict (id) do update set display_name = excluded.display_name;
+    insert into public.player_state (user_id, slot, gold, gems, version)
+      values (v_d, 0, 0, 0, 1)
+      on conflict (user_id, slot) do update set version = 1, presence_quiet = false;
+    perform set_config('request.jwt.claim.sub', v_d::text, true);
+    perform public.hr_heartbeat(0);
+    update public.town_snapshot set built_at = now() - interval '4 seconds';
+    perform public.hr_town_refresh();                 -- v_d is now IN the payload
+    if public.hr_town_of()::text not like '%PruneFour%' then
+      raise exception 'GATE(f): the control failed — v_d is not in the plaza, so the double-decrement '
+                      'arm below would prove nothing';
+    end if;
+    v_res := public.hr_set_presence_quiet(0, true);    -- quiet: prunes (present)
+    if coalesce((v_res->>'pruned')::boolean, false) is not true then
+      raise exception 'GATE(f): the FIRST prune of a present caller did not fire: %', v_res; end if;
+    perform public.hr_set_presence_quiet(0, false);    -- loud: does NOT refresh
+    v_res := public.hr_set_presence_quiet(0, true);    -- quiet: ABSENT, must not prune
+    if coalesce((v_res->>'pruned')::boolean, true) is not false then
+      raise exception 'GATE(f): a SECOND prune of an already-pruned caller reported pruned:true (%) — '
+                      'that is the double decrement', v_res;
+    end if;
+    perform set_config('request.jwt.claim.sub', v_a::text, true);
+    v_town := public.hr_town_of();
+    if (v_town->>'here')::int <> jsonb_array_length(v_town->'peers') then
+      raise exception 'GATE(f): `here` reads % but the list holds % — the crowd count disagrees with '
+                      'the bodies beside it', v_town->>'here', jsonb_array_length(v_town->'peers');
+    end if;
+
     raise exception using errcode = 'HR812', message = 'town-quiet-prune §2 complete — rolling back';
   exception when sqlstate 'HR812' then null;
   end;
 
   perform set_config('request.jwt.claim.sub', '', true);
-  if exists (select 1 from public.player_state where user_id in (v_a, v_b))
-     or exists (select 1 from public.player_ledger where user_id in (v_a, v_b))
-     or exists (select 1 from public.profiles where id in (v_a, v_b))
-     or exists (select 1 from auth.users where id in (v_a, v_b)) then
+  if exists (select 1 from public.player_state where user_id in (v_a, v_b, v_c, v_d))
+     or exists (select 1 from public.player_ledger where user_id in (v_a, v_b, v_c, v_d))
+     or exists (select 1 from public.profiles where id in (v_a, v_b, v_c, v_d))
+     or exists (select 1 from auth.users where id in (v_a, v_b, v_c, v_d)) then
     raise exception 'GATE: §2 LEAKED a probe row';
   end if;
   if (select enabled from public.hr_flags where key = 'town_presence') is distinct from v_flag_was then

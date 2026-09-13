@@ -258,22 +258,21 @@ begin
       --     its time passed while the stronger effect ran)
       --   · the twin from 2b (same magnitude, contiguous) -> dropped here and
       --     re-added below as one EXTENDED segment
+      -- ⚠ THIS PREDICATE IS THE ONE PRODUCTION APPLIED, and it stays that way.
+      --   A later edit made the second branch re-test the type; the file
+      --   early-returns on re-apply, so the edit never reached the database and the
+      --   repo stopped matching production (live-hash --codediff: 35 chars). The
+      --   applied file's payload must stay byte-honest, so the rewrite lives in
+      --   2026-09-13-buff-segments-predicate.sql instead. The two predicates are
+      --   EQUIVALENT — proven by execution over the full cross-product in that
+      --   file's §4 — so this is a readability/robustness convergence, not a
+      --   behaviour change.
       select coalesce(jsonb_agg(e.v order by (e.v->>'until')::timestamptz), '[]'::jsonb)
         into v_buffs_new
         from jsonb_array_elements(coalesce(v_st.buffs, '[]'::jsonb)) as e(v)
        where (e.v->>'until')::timestamptz > v_buff_now
-         and (((e.v->>'type') <> v_buff_type)
-              -- ⚠ THE SECOND BRANCH RE-TESTS THE TYPE, and it is not redundant.
-              --   Without `type = v_buff_type` here, AND binding tighter than OR
-              --   made this arm apply to EVERY row: another type's segment was kept
-              --   by whichever of the two branches happened to be true, so the
-              --   predicate did not say what its comment said and an edit to the
-              --   first branch would have changed other-type handling silently.
-              --   MEASURED: tests/buff-queue.mjs's merge_replaces_other_types
-              --   mutation (drop every other type) STAYED GREEN, because the
-              --   other types survived through this branch.
-              or ((e.v->>'type') = v_buff_type
-                  and not (v_buff_same is not null and e.v = v_buff_same)
+         and ((e.v->>'type') <> v_buff_type
+              or (not (v_buff_same is not null and e.v = v_buff_same)
                   and ((e.v->>'magnitude')::numeric >= v_buff_mag
                        or (e.v->>'until')::timestamptz > v_buff_until)));
       v_buffs_new := v_buffs_new || jsonb_build_array(jsonb_build_object(

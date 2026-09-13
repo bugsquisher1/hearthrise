@@ -2212,6 +2212,18 @@ function applyServerEnvelope(res,opts){
           : 'Away '+s.hrs+'h — the server credited +'+s.gainedItems+' items, +'+s.gainedXp+' XP, +'+s.gainedGold+' gold');
     if(_txt) notify(_txt,'info');
   }
+  /* ── THE WELCOME MODAL RENDERS THIS LOAD'S SETTLE, NOT A TIMER'S GUESS ──────
+     The receipt for the delta THIS envelope applied is the only absence the modal
+     is about, so it is presented HERE — after the state is written, the away kills
+     credited and refreshAll repainted — and only for an AWAY receipt: a sync or a
+     switch is not an absence and must never open a welcome-back modal. Boots whose
+     settle says 'nothing'/'sync' are presented by the waiting timer instead. The
+     whole rule lives at WELCOME_GATE. */
+  try{
+    var _pr = written && written.paidReceipt;
+    var _pk = (_pr && A && typeof A.classifyReceipt==='function') ? A.classifyReceipt(_pr) : null;
+    if(_pk==='away' && typeof window.__presentWelcome==='function') window.__presentWelcome();
+  }catch(e){}
   /* b366 — EVERY envelope is a statement about the worn set, so this is where a
      character the server never learnt about heals. Last, after the state is
      written, and guarded: a self-heal must never be able to break an applier. */
@@ -14473,16 +14485,48 @@ function maybeShowWelcome(){
   var ov = document.getElementById('welcome-overlay');
   if(ov) ov.classList.add('show');
 }
-/* b341 TEST SEAM, deliberately NOT `window.maybeShowWelcome`.
-   This function is not on `window` at all (its block is IIFE-scoped), and the
-   welcome-v2 block later does `window.maybeShowWelcome = function(){}` to
-   "suppress the old modal" — which suppresses nothing, because the boot already
-   captured the lexical reference in `setTimeout(maybeShowWelcome, 1500)` before
-   that line ran. So THIS is the modal players actually see on return, and it
-   needs to be assertable under a name the dead suppression cannot shadow.
-   (The suppression that does not suppress is real debt — flagged, not fixed
-   here: deciding which of the two welcome modals survives is a design call.) */
+/* TEST SEAM, deliberately NOT `window.maybeShowWelcome`: this function is not on
+   `window` at all (its block is IIFE-scoped), and the retired v2 modal used that
+   exact name as a suppression stub. THIS is the modal players see on return, and
+   it must be assertable under a name no stub can shadow. */
 window.__maybeShowWelcome = maybeShowWelcome;
+
+/* ── THE SETTLE PRESENTS THIS MODAL; THE TIMER ONLY WAITS FOR IT ─────────────
+   Measured live 2026-09-13, second bug of this class: a genuine ~12 h return got
+   a modal with only Played / Total kills / Gold while the Home card, painted
+   later, read "12h away — +88,711 XP · +2,768 items" off the SAME receipt. The
+   modal was not wrong about the receipt; it ran before it existed.
+   `setTimeout(maybeShowWelcome, 1500)` guesses the `hr_accrue` round trip, and
+   when the guess loses `G.lastWelcome` shuts the 5 s door so the away report
+   never gets a second chance. So `applyServerEnvelope` presents the modal itself
+   on an AWAY receipt, and the boot timer WAITS on `awaySettleDone()` — the
+   settle-first latch, set before the accrual hooks fire — up to WAIT_MS. Nothing
+   to wait for (dead network, accrual unconfigured) and it presents anyway: no
+   away payload is coming and a stats-only modal is then the honest thing to say.
+   ONCE per page life. The 30-minute door and the restatement refusal above still
+   decide WHETHER and WHAT; this decides only WHEN. Scratch, never residue. */
+var WELCOME_GATE = { at: 0, until: 0, WAIT_MS: 10000 };
+window.__presentWelcome = function(){
+  if(WELCOME_GATE.at) return false;
+  WELCOME_GATE.at = Date.now();
+  try{ maybeShowWelcome(); }catch(e){ return false; }
+  return true;
+};
+window.__presentWelcomeWhenSettled = function(){
+  if(WELCOME_GATE.at) return;
+  if(!WELCOME_GATE.until) WELCOME_GATE.until = Date.now() + WELCOME_GATE.WAIT_MS;
+  var A = window.HearthriseAccrual,
+      pending = !!(A && typeof A.awaySettleDone === 'function' && !A.awaySettleDone());
+  if(pending && Date.now() < WELCOME_GATE.until){
+    setTimeout(window.__presentWelcomeWhenSettled, 250);
+    return;
+  }
+  window.__presentWelcome();
+};
+/* Test seam: a fresh page life, or (true) a SPENT one, so the 250 ms poll a test
+   armed cannot open a modal over a later test. */
+window.__resetWelcomePresentation = function(spent){ WELCOME_GATE.at = spent ? Date.now() : 0; WELCOME_GATE.until = 0; };
+
 function buildWelcomeOverlay(){
   if(document.getElementById('welcome-overlay')) return;
   var ov = document.createElement('div');
@@ -14989,7 +15033,8 @@ function injectDailyGoals(){
 function boot(){
   migrate();
   checkStreak();
-  setTimeout(maybeShowWelcome, 1500);
+  /* b544: WAITS for the boot settle rather than racing it (see WELCOME_GATE). */
+  setTimeout(window.__presentWelcomeWhenSettled, 1500);
   setTimeout(paintAll, 600);
   setTimeout(injectDailyGoals, 800);
   setInterval(paintAll, 4000);   // periodic refresh of badges + streak
@@ -15212,30 +15257,13 @@ window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
 });
 
 /* ════════════════════════════════════════════════════════════════════════
-   THE CATCHUP INJECTOR LIVED HERE, AND IS DELIBERATELY NOT REPLACED. (b342)
-
-   It polled every 200ms for `#welcome-rows` and PREPENDED rows built from
-   `calcCatchup()` — a display-only ESTIMATE of the absence, computed from
-   `G.lastSeen` and the active node's rate, entirely independently of what the
-   engine had already granted. b214 had to stop it double-PAYING; what it kept
-   doing was double-SPEAKING:
-
-     · "While away  8.0h"   ← this block, an estimate, one decimal
-     · "Time away   8h 0m"  ← maybeShowWelcome, the clock, minutes
-
-   …the same fact twice in two units from two sources, and between them not
-   one of the numbers the player actually earned (+1,553 XP · +4 items ·
-   +7 gold · 3 kills lived only in a toast and on the Home card BEHIND this
-   modal). Its per-skill "XP gained" rows were the estimate's, not the
-   ledger's, so on any absence that ended in a death or hit the cap they
-   quoted a night that did not happen.
-
-   The modal now reads `G.lastOfflineSummary` — the receipt processOffline (or
-   the server accrual) actually wrote — so there is ONE number for one fact and
-   it is the number the save holds. `calcCatchup()` ITSELF IS NOW GONE TOO
-   (b516, see the tombstone at section 3): leaving the estimator on `window`
-   with no caller kept a client-side minting path one console line away, and
-   the receipt made it redundant rather than merely unused.
+   THE CATCHUP INJECTOR LIVED HERE AND IS DELIBERATELY NOT REPLACED (b342).
+   It polled for `#welcome-rows` and PREPENDED rows from `calcCatchup()`, a
+   display-only estimate of the absence, so the modal spoke the same fact twice
+   in two units from two sources and neither was the ledger. The full story and
+   the rule ("the receipt is the source, and the only source") live where the
+   rows are built — see the b342 block inside maybeShowWelcome — and the
+   estimator itself is gone (b516 tombstone, section 3 above).
    ════════════════════════════════════════════════════════════════════════ */
 
 /* Add Achievements + Bestiary buttons to the Profile panel */
@@ -15552,44 +15580,16 @@ window._stopArtisan = function(){
 // ===== block 20: welcome-v2 — RETIRED (Set the Night, slate §3) =========
 /* ═══ TOMBSTONE: THE SECOND WELCOME MODAL IS GONE ═════════════════════════
    Designer ruling (FEATURE_SLATE.md §3, 2026-09-07): "v2 retires, b341
-   survives." Hearthrise had TWO welcome-back modals and neither knew about
-   the other:
-
-     · b341's `#welcome-overlay` (maybeShowWelcome, this file ~line 14353) —
-       built entirely from `G.lastOfflineSummary`, the RECEIPT the server
-       wrote for the absence. Deaths, recovery, dry-out, the base rate. It is
-       the one players actually saw, and it is the one that survives.
-     · this block's `#wbv-overlay` — built from `calcRichCatchup()`, a THIRD
-       client-side estimate of the same night off `Date.now() - G.lastSeen`,
-       the device clock (§1: never authority). It "suppressed" the b341 modal
-       with `window.maybeShowWelcome = function(){}` — which suppressed
-       NOTHING, because boot had already captured the lexical reference in
-       `setTimeout(maybeShowWelcome, 1500)` before that line ever ran. So the
-       suppression was dead code guarding a modal that raced the real one.
-
-   DELETED, not unreferenced — the b516 rule for this exact family: an
-   estimator that is merely unwired is one console line from being wired
-   again. Gone with it:
-     · `calcRichCatchup` / `window._calcRichCatchup` (the estimate)
-     · `applyRichCatchup`                            (its crediting applier)
-     · `buildOverlay` / `renderModal` / `window._renderWelcomeV2`
-       / `window._closeWelcomeV2`                    (the modal)
-     · the 1800ms boot auto-show                     (the second ritual)
-     · the Profile "Last Session Summary" button — it re-opened THIS modal
-       from `G.lastSessionSummary`, which only the deleted boot block ever
-       wrote, so it would have said "No previous session summary yet"
-       forever. The return story now lives on ONE surface: the b341 card,
-       plus the Set the Night morning line above it.
-
-   `G.lastSessionSummary` stays in `RESIDUE_FIELDS` (src/net/events.js) for
-   now: removing an allowlist entry is a residue-guard change and belongs
-   with that guard's own mutation proof, not in this feature's diff. Nothing
-   writes it any more, so it is inert.
-
-   SWEPT (cleanup slice, 2026-09-08): the `.wbv-*` rules in legacy.css and the
-   `#wbv-overlay`/`wbv-modal` entries in the blocking-overlay and closeAllModals
-   lists (beta-banner.js, daily-reward.js, renown.js, this file) matched nothing
-   and are gone. smoke-test.js keeps one on purpose: it asserts ABSENCE.
+   survives." `#wbv-overlay` was built from `calcRichCatchup()`, a THIRD
+   client-side estimate of the night off the device clock (§1: never
+   authority), and it "suppressed" the real modal with a
+   `window.maybeShowWelcome` stub that suppressed nothing. DELETED, not
+   unwired (b516 rule): the estimator, its applier, the modal, the 1800 ms
+   boot auto-show, the Profile "Last Session Summary" button, and — cleanup
+   slice 2026-09-08 — the `.wbv-*` CSS and every `#wbv-overlay` entry in the
+   blocking-overlay / closeAllModals lists. `G.lastSessionSummary` stays in
+   RESIDUE_FIELDS (inert; removing an allowlist entry needs the residue
+   guard's own mutation proof). smoke-test.js asserts the ABSENCE.
    ════════════════════════════════════════════════════════════════════════ */
 
 // ===== block 21: phase-a1-recipes =====

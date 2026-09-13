@@ -54000,6 +54000,72 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('regression suite — b544: a slow settle still gets its away report into the modal', () => {
+    /* THE MEASURED BUG (live b543, 2026-09-13, a genuine ~12 h return): the
+       "Welcome back, adventurer" modal carried only Played / Total kills / Gold —
+       NO away report — while the Home "While you were away" card, painted later,
+       read "12h away — +88,711 XP · +2,768 items" from the same receipt. ROOT
+       CAUSE: `setTimeout(maybeShowWelcome, 1500)` in boot() is a guess at the
+       `hr_accrue` round trip, and it rendered before the envelope landed; the
+       5 s `G.lastWelcome` door then denied the real receipt a second chance.
+       THE FIX: boot waits on the settle-first latch (`awaySettleDone`) and the
+       envelope presents the modal itself.
+       MUTATION PROOF: make `presentWelcomeWhenSettled` call `presentWelcome()`
+       unconditionally (the pre-b544 behaviour) → arm A fails, the stats-only
+       modal is up, `G.lastWelcome` is spent and arm B prints no away report. */
+    const G = window.G;
+    const AC = window.HearthriseAccrual;
+    assert(typeof window.__presentWelcomeWhenSettled === 'function',
+      'boot() has no waiting presenter — the modal is back to racing the settle');
+    const save = { lastSeen: G.lastSeen, lastWelcome: G.lastWelcome, los: G.lastOfflineSummary,
+      settled: AC.awaySettleDone() };
+    try {
+      /* The overlay is built LAZILY by the modal itself, so a filtered run has no
+         `#welcome-rows` until something shows it once. Build it here rather than
+         depending on whichever earlier test happened to open it. */
+      G.lastSeen = Date.now() - 12 * 3600000; G.lastWelcome = 0; G.lastOfflineSummary = null;
+      window.__maybeShowWelcome();
+      const rows = document.getElementById('welcome-rows');
+      assert(rows, 'the welcome overlay never built — this guard would be vacuous');
+      const rowText = () => (rows.textContent || '').replace(/\s+/g, ' ');
+
+      /* A. THE BOOT TIMER FIRES AT 1.5 s AND THE SETTLE HAS NOT ANSWERED. */
+      AC.__resetAwaySettleLatch(false);
+      AC.__setBootAccruedToForTest(Date.now() - 12 * 3600000);
+      G.lastSeen = Date.now() - 12 * 3600000;   // the 30-minute door is open
+      G.lastOfflineSummary = null;
+      G.lastWelcome = 0;
+      rows.innerHTML = '';
+      const ov0 = document.getElementById('welcome-overlay'); if (ov0) ov0.classList.remove('show');
+      window.__resetWelcomePresentation(false);
+      window.__presentWelcomeWhenSettled();
+      const ov = document.getElementById('welcome-overlay');
+      assert(!(ov && ov.classList.contains('show')),
+        'THE b544 BUG: the modal rendered before the settle answered — ' + rowText());
+      assert(!(G.lastWelcome > 0),
+        'the timer spent the 5 s welcome door on a receipt-less modal, so the away '
+        + 'report can never be shown for this load');
+
+      /* B. THE SETTLE LANDS LATE — and the away report is still the modal's. */
+      G.lastOfflineSummary = { hrs: 12, awayMs: 12 * 3600000, paidMs: 12 * 3600000,
+        gainedXp: 88711, gainedItems: 2768, gainedGold: 0, gainedKills: 0, burnt: 0,
+        combat: null, died: false, serverAuthoritative: true, at: Date.now() };
+      AC.__resetAwaySettleLatch(true);
+      window.__presentWelcomeWhenSettled();
+      const b = rowText();
+      assert(/Time away\s*12h 0m/.test(b),
+        'the late settle never reached the modal — no span: ' + b);
+      assert(/XP earned\s*\+88,711/.test(b) && /Items found\s*\+2,768/.test(b),
+        'the player was greeted without the night the server just paid: ' + b);
+    } finally {
+      AC.__setBootAccruedToForTest(0);
+      AC.__resetAwaySettleLatch(save.settled);
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      window.__resetWelcomePresentation(true);   // spent: the 250 ms poll armed above no-ops
+      G.lastSeen = save.lastSeen; G.lastWelcome = save.lastWelcome; G.lastOfflineSummary = save.los;
+    }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════
      b343 — THE PRICE CATALOGUE IS WHAT THE GAME ACTUALLY CHARGES.
 

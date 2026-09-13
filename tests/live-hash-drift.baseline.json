@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-13",
- "replay_ms": 13220,
+ "replay_ms": 13761,
  "counts": {
-  "tracked_names": 50,
-  "entries": 48
+  "tracked_names": 52,
+  "entries": 50
  },
  "functions": [
   {
@@ -747,7 +747,8 @@
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-03-intent-mismatch-escalates.sql",
     "2026-09-07-companion-codes-severity.sql",
-    "2026-09-12-hr-rejections-journal.sql"
+    "2026-09-12-hr-rejections-journal.sql",
+    "2026-09-13-town-presence-journal.sql"
    ],
    "live": {
     "md5": "066970b2efb80dc5d6ed472386f528f6",
@@ -925,6 +926,28 @@
    "agree": true
   },
   {
+   "sig": "hr_set_presence_quiet__ungated(p_slot integer, p_quiet boolean)",
+   "name": "hr_set_presence_quiet__ungated",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-13-town-refresh-cooldown.sql"
+   ],
+   "live": {
+    "md5": "0db73c1cdb24367b31831b39fc81926d",
+    "norm_len": 3460,
+    "measured": "2026-09-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "0db73c1cdb24367b31831b39fc81926d",
+    "norm_len": 3460,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_set_style__ungated(p_family text, p_key text, p_slot integer, p_idem uuid)",
    "name": "hr_set_style__ungated",
    "tracked_by": [
@@ -998,6 +1021,28 @@
    },
    "agree": false,
    "why": "2026-09-13 00:11 UTC: the town-presence migration (lane C 425b2c76, Security GO-with-changes landed) spliced the own-place block into hr_state_of on top of the renown + dungeon bodies; --codediff CODE-IDENTICAL: the 748-char live/replay delta is comments/whitespace only. Production runs the executable text the repo rebuilds."
+  },
+  {
+   "sig": "hr_town_refresh(p_zone text)",
+   "name": "hr_town_refresh",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-13-town-refresh-cooldown.sql"
+   ],
+   "live": {
+    "md5": "39776e3a0ed05b94f3cb4f8bfacedf9d",
+    "norm_len": 5657,
+    "measured": "2026-09-13",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "39776e3a0ed05b94f3cb4f8bfacedf9d",
+    "norm_len": 5657,
+    "source": "computed-from-replay"
+   },
+   "agree": true
   },
   {
    "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",

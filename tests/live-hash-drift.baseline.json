@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-13",
- "replay_ms": 10472,
+ "replay_ms": 10163,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -129,21 +129,22 @@
     "2026-09-07-retreat.sql",
     "2026-09-08-hearthfind.sql",
     "2026-09-12-renown-high-projection.sql",
+    "2026-09-13-buff-apply-coupling.sql",
     "2026-09-13-consumable-buffs.sql"
    ],
    "live": {
-    "md5": "3b85eda502949b77fa7e218bd602fd6d",
-    "norm_len": 124679,
+    "md5": "65ade934ae867d86a981cbb4abda4dce",
+    "norm_len": 126052,
     "measured": "2026-09-13",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "423ac764ebffb44495f75823d6921794",
-    "norm_len": 124809,
+    "md5": "71e3267fae08774f7d9a4d66ec5feb72",
+    "norm_len": 126182,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-13 05:19 UTC: the consumable-buffs migration (lane C 7c630e68, Security GO) spliced buff_apply into hr_apply on production; --codediff CODE-IDENTICAL (130-char comments/whitespace delta). Production runs the executable text the repo rebuilds."
+   "why": "2026-09-13 05:38 UTC: the buff-apply coupling migration (lane C 40abf609, Security GO) spliced buff_not_paid into hr_apply on production; --codediff CODE-IDENTICAL (130-char comments/whitespace delta). Production runs the executable text the repo rebuilds. Note: apply-migration.mjs body_md5 is the RAW prosrc md5; this baseline records the whitespace-normalised md5."
   },
   {
    "sig": "hr_assert_grant_hygiene(p_strict boolean)",

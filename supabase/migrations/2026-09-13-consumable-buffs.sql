@@ -707,6 +707,16 @@ begin
       values (v_uid, v_slot, 1000, 0, 10, 10, 1, now() - interval '30 minutes')
       on conflict (user_id, slot) do update
         set gold = 1000, version = 1, buffs = '[]'::jsonb;
+    -- THE PROBE BAG. Every honest consume below sends `items[<food>] = -1`, because
+    -- 2026-09-13-buff-apply-coupling.sql (F3, Security's follow-up) refuses a
+    -- buff_apply that is not PAID FOR in the same delta. The debits are harmless on
+    -- a body without that coupling — an items delta is an items delta — so this §4
+    -- passes both BEFORE and AFTER the coupling lands, which is the property a
+    -- re-appliable file needs. (Added after this file was applied to production at
+    -- 05:19 UTC; the SELF-CHECK only, no body text changed.)
+    insert into public.player_inventory (user_id, slot, item_id, qty)
+      select v_uid, v_slot, b.item_id, 500 from public.hr_item_buffs b
+      on conflict (user_id, slot, item_id) do update set qty = 500;
 
     -- (f1) A FRESH CHARACTER PROJECTS AN EMPTY ARRAY — present, never null.
     v_env := public.hr_state_of(v_uid, v_slot);
@@ -763,6 +773,7 @@ begin
     v_cap := now() + make_interval(secs => c_max / 1000.0);
     v_row := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
                              jsonb_build_object('buff_apply', jsonb_build_object('item', v_item),
+                                                'items', jsonb_build_object(v_item, -1),
                                                 'journal', c_j));
     if coalesce(v_row->>'ok', 'false') <> 'true' then
       raise exception 'buffs self-check (f4): an honest buff_apply was refused: %', v_row; end if;
@@ -799,6 +810,7 @@ begin
     begin
       v_row := public.hr_apply(v_uid, v_slot, v_ver, v_key,
                                jsonb_build_object('buff_apply', jsonb_build_object('item', v_item2),
+                                                  'items', jsonb_build_object(v_item2, -1),
                                                   'journal', c_j));
       if coalesce(v_row->>'ok', 'false') <> 'true' then
         raise exception 'buffs self-check (f5): the second-type apply was refused: %', v_row; end if;
@@ -808,6 +820,7 @@ begin
       -- the SAME key again, with the SAME (stale) version
       v_row := public.hr_apply(v_uid, v_slot, v_ver, v_key,
                                jsonb_build_object('buff_apply', jsonb_build_object('item', v_item2),
+                                                  'items', jsonb_build_object(v_item2, -1),
                                                   'journal', c_j));
       if coalesce(v_row->>'replayed', 'false') <> 'true' then
         raise exception 'buffs self-check (f5): a repeated intent_id was not answered as a REPLAY: %', v_row;
@@ -831,6 +844,7 @@ begin
       select version into v_ver from public.player_state where user_id = v_uid and slot = v_slot;
       v_row := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
                                jsonb_build_object('buff_apply', jsonb_build_object('item', v_big),
+                                                  'items', jsonb_build_object(v_big, -1),
                                                   'journal', c_j));
       if coalesce(v_row->>'ok', 'false') <> 'true' then
         raise exception 'buffs self-check (f6): the stronger same-type apply was refused: %', v_row; end if;
@@ -862,6 +876,7 @@ begin
       select gold into v_gold from public.player_state where user_id = v_uid and slot = v_slot;
       v_row := public.hr_apply(v_uid, v_slot, v_ver, gen_random_uuid(),
                                jsonb_build_object('buff_apply', jsonb_build_object('item', v_item),
+                                                  'items', jsonb_build_object(v_item, -1),
                                                   'gold', -1, 'journal', c_j));
       if coalesce(v_row->>'ok', 'false') = 'true' then
         select (e.v->>'until')::timestamptz into v_last
@@ -923,6 +938,7 @@ begin
   -- NET-ZERO ON PRODUCTION, checked against every table the probe touched.
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.player_state where user_id = v_uid)
+     or exists (select 1 from public.player_inventory where user_id = v_uid)
      or exists (select 1 from public.player_ledger where user_id = v_uid)
      or exists (select 1 from public.player_intents where user_id = v_uid)
      or exists (select 1 from auth.users where id = v_uid) then

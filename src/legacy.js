@@ -7063,43 +7063,19 @@ const FARM_SYNC_DEPS={
   removeItem:function(id,q){ if(typeof removeItem==='function') removeItem(id,q); },
   addXp:function(sk,x){ if(typeof addXp==='function') addXp(sk,x); },
 };
-/* ── HOW MANY DOES THE *SERVER* SAY WE HOLD (live P1 class, 2026-09-13) ──────
-   REPORTED LIVE, twice in one hour, one mechanism: Tyler's Goblin Warcamp card
-   read "Entry: 1× Goblin Seal (have 2)" while hr_dungeon_settle answered "no key
-   for that dungeon", and the QA account's seed picker offered 5 Turnip Seed while
-   hr_farm_plant answered `insufficient_seed` 19 times. Production held NO
-   goblin_seal row for his character and NO turnip_seed row for that slot.
-
-   `G.inventory` is a DISPLAY bag and cannot be trusted by a GATE. Two feeds put
-   counts in it the server never granted: the fresh-G factory literal (the start
-   kit, which the SERVER grants at creation and spends thereafter) and attended
-   client-side drop/prediction rolls; and the envelope's live merge is a one-way
-   `Math.max` ratchet (src/net/accrue.js — the b359/b362 never-delete rule) which
-   can never take either back. `gateItemCount` answers with the mirror of
-   `hr_state_of`'s whole-bag projection of `player_inventory` — the exact table
-   hr_farm_plant debits a seed from and hr_dungeon_settle debits a key from — and
-   falls back to the display bag ONLY while no envelope has stated a bag, so no
-   gesture is ever disabled on silence. */
-function heldByServer(id){
-  const A=window.HearthriseAccrual;
-  if(A&&typeof A.gateItemCount==='function') return A.gateItemCount(G,id);
-  return (G.inventory&&Number(G.inventory[id]))||0;
-}
-window.heldByServer=heldByServer;
+/* WHAT THE *SERVER* SAYS WE HOLD — the only count a GATE may read (`G.inventory` is a display bag no envelope can lower). Rule + evidence: accrue.js gateItemCount. */
+function heldByServer(id){ const A=window.HearthriseAccrual; return (A&&typeof A.gateItemCount==='function')?A.gateItemCount(G,id):((G.inventory&&Number(G.inventory[id]))||0); } window.heldByServer=heldByServer;
 function farmSyncReconcile(kind,res){
   try{ window.HearthriseFarmSync.reconcileFarmResult(G,kind,res,FARM_SYNC_DEPS); }catch(e){}
 }
-/* Optimistic prediction is PLOT-STATE ONLY (responsiveness); inventory/XP are
-   never predicted — they arrive with the server's number in the response, so a
-   refused gesture cannot leave a phantom crop in the bag. A refusal reverts the
-   optimistic plot to what it was. */
-/* Every hr_farm_plant refusal is SAID, by its reason, with the action that
-   clears it — the sentence itself lives in src/net/farm-sync.js
-   (farmPlantRefusalText, pure + tested); this only supplies the display names
+/* Optimistic prediction is PLOT-STATE ONLY (responsiveness); inventory/XP arrive
+   with the server's number, so a refused gesture leaves no phantom crop, and a
+   refusal reverts the optimistic plot. Every hr_farm_plant refusal is SAID by its
+   reason with the action that clears it — the sentence is farm-sync.js's
+   (farmPlantRefusalText, pure + tested) and this supplies only the display names
    the net layer must not invent. Before 2026-09-06 every code collapsed into
-   "Could not plant — try again" and a 'transport' failure said NOTHING at all,
-   which is how a fleet-wide tier deadlock read to players as "you plant
-   something and it doesn't stay". */
+   "Could not plant — try again" and 'transport' said NOTHING, which is how a
+   fleet-wide tier deadlock read as "you plant something and it doesn't stay". */
 function farmPlantRefusal(res,cropId){
   const crop=CROPS[cropId];
   const seedId=crop&&crop.seed;
@@ -7163,11 +7139,8 @@ function plantCrop(plotIdx,cropId){
     notify('Plot locked — upgrade your property to farm more land','kill');return;
   }
   const seedId=crop.seed;
-  /* b465: "No seeds!" — a shout with no subject and no way forward. Name the
-     seed (from the crop row, never a literal) and where to get it.
-     THE COUNT IS THE SERVER'S (heldByServer, 2026-09-13): `hasItem` reads the
-     display bag, which is how 19 plants went out against seeds hr_farm_plant had
-     no row for. The sentence is the one the server's own refusal would print. */
+  /* b465: "No seeds!" named no seed and no way forward. Name it (from the crop row,
+     never a literal), say where to buy it, count it the way hr_farm_plant will. */
   if(heldByServer(seedId)<1){
     var _sn=(typeof ITEMS!=='undefined'&&ITEMS[seedId]&&ITEMS[seedId].n)||crop.name+' Seed';
     notify('You have no '+_sn+' — the Local Shop sells them','kill');return;
@@ -9044,9 +9017,7 @@ window.plantAllEmpty = function plantAllEmpty(){
   }
   const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
   const seeds = {};
-  /* THE SERVER'S SEED COUNTS (heldByServer) — "Plant all" used to pick crops from
-     the display bag and fire a plant per empty plot against seeds the server had
-     no row for, spending the whole run on refusals. */
+  /* The budget is the SERVER's count: a sweep against display-bag seeds spends every plot on a refusal. */
   Object.values(CROPS).forEach(c=>{ seeds[c.seed] = heldByServer(c.seed); });
   const st = { crops:CROPS, seeds, farmingLevel:getLevel('farming'),
     plotLevel:(window.HearthriseFarm&&window.HearthriseFarm.getPlotLevel)?window.HearthriseFarm.getPlotLevel():1,
@@ -9092,13 +9063,10 @@ window.toggleAutoReplant = function toggleAutoReplant(){
 let pendingPlot=null;
 function openSeedPicker(i){
   pendingPlot=i;
-  // b136: split seeds into plantable vs locked-by-plot-level.
-  // - Plantable: have seeds + farming level + plot level allows.
-  // - Locked by plot: have seeds + farming level, BUT plot level too low — show with House deep-link.
-  // Anything filtered for missing seeds / farming level stays hidden.
-  /* THE SERVER'S COUNT, not the display bag's (heldByServer) -- the picker offered
-     the fresh-G start kit's Turnip/Carrot Seed on a character whose server rows
-     were spent long ago, so every pick came back `insufficient_seed`. */
+  /* b136: seeds split into plantable (seeds + farming level + plot tier) and
+     locked-by-tier (shown with a House deep-link); anything short of seeds or farming
+     level stays hidden. The count is the SERVER's — the picker used to offer the
+     start kit on a character whose rows were long spent. */
   const haveSeed = (c)=> heldByServer(c.seed) > 0 && getLevel('farming') >= c.req;
   const canPlant = (id)=> {
     if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'){

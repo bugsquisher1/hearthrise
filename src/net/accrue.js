@@ -774,9 +774,9 @@ export function equippedCount(equipment, id) {
    re-simulation of the same span with the server's seeded PRNG. The two agree
    on kills (the attended top-up) but never item-for-item on a 6%-chance key.
    The envelope then cannot correct the difference, because the merge branch
-   below is a one-way `Math.max` ratchet (the b359/b362 never-delete rule, still
-   the live path — `isInventoryAbsolute()` is false in prod). So a client-rolled
-   key stays in `G.inventory` for the rest of the session and the card counts it.
+   below is a one-way `Math.max` ratchet (the never-delete rule, still the live
+   path — `isInventoryAbsolute()` is false in prod), so a client-rolled key stays
+   in `G.inventory` for the session and the card counts it.
 
    `G._serverBag` is the LAST STATED SERVER BAG — `hr_state_of` projects the
    WHOLE of `player_inventory` for the slot (`jsonb_object_agg(item_id, qty)`
@@ -785,10 +785,9 @@ export function equippedCount(equipment, id) {
    the server's key check pass?" without a second round trip. Scratch (`_`),
    never persisted, never authored by the client.
 
-   `serverItemCount` returns NULL, not 0, when no envelope has stated a bag yet
-   (a boot before the first settle, Node, an offline tab): a caller must be able
-   to tell "the server says none" from "the server has not said", and only the
-   first of those may disable a gesture. */
+   `serverItemCount` returns NULL, not 0, when no envelope has stated a bag yet (a
+   boot before the first settle, Node, an offline tab): only "the server says none"
+   may disable a gesture, never "the server has not said". */
 export function serverItemCount(G, id) {
   if (!G || typeof G !== 'object' || !id) return null;
   const bag = G._serverBag;

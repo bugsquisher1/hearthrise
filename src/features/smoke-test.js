@@ -622,6 +622,10 @@ const farmReplantFixtureG = (seeds) => {
   G.inventory = Object.assign({}, G.inventory);
   Object.values(window.CROPS || {}).forEach((c) => { delete G.inventory[c.seed]; });
   Object.assign(G.inventory, seeds || {});
+  /* The gate counts what the SERVER holds (accrue.js gateItemCount), so a fixture
+     that wants its gesture SENT states a server bag: here the server agrees with
+     the bag, and the tier/level gates are what the test is about. */
+  G._serverBag = Object.assign({}, G.inventory);
   G.farmPlots = [{ cropId: 'turnip', plantedAt: Date.now() - 9e7, waterings: [], state: 'ready' }];
 };
 /* One envelope shape for both: harvest clears the plot, any plant is accepted. */
@@ -9772,6 +9776,7 @@ const TESTS = [
     const runOnce = () => {
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
+      G._serverBag = Object.assign({}, G.inventory);   // the key is REAL server-side; the debit is what is under test
       G.gold = (G.gold || 0) + 100000;
       G._dungeonCooldowns = {};              // clear any server cooldown window
       G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000, defense: 5000000, hitpoints: 5000000 });
@@ -10762,7 +10767,7 @@ const TESTS = [
   }),
 
   /* -- regression suite -- DGN-KEY-1: THE ENTRY-KEY COUNT IS THE SERVER'S ------
-     REPORTED LIVE 2026-09-13, b544, Tyler's own character: the Goblin Warcamp card
+     REPORTED LIVE 2026-09-13, Tyler's own character: the Goblin Warcamp card
      read "Entry: 1x Goblin Seal (have 2)" and every run button toasted "The server
      says you have no key for that dungeon." Measured in production the same minute:
      that character's `player_inventory` held bone_key 142 and obsidian_sigil 56 and
@@ -10771,7 +10776,7 @@ const TESTS = [
      THE MECHANISM: an attended kill rolls its drops with the CLIENT's Math.random
      for instant feedback while the settle pays the SERVER's re-simulation of the
      same span with the server's seeded PRNG, and the envelope's live merge is a
-     one-way `Math.max` ratchet (accrue.js, the b359/b362 never-delete rule) which
+     one-way `Math.max` ratchet (accrue.js, the never-delete rule) which
      can never take the difference back. So a 6%-chance key the client rolled and
      the server did not stays in the display bag for the rest of the session, the
      card counts it, and the button invites a run `hr_dungeon_settle` must refuse.
@@ -10833,7 +10838,7 @@ const TESTS = [
   }),
 
   /* -- regression suite -- FARM-SEED-1: THE SEED COUNT IS THE SERVER'S TOO -----
-     THE SAME CLASS AS DGN-KEY-1, measured on the QA account on live b544
+     THE SAME CLASS AS DGN-KEY-1, measured on the QA account on live
      (2026-09-13): the bag rendered turnip_seed x5 and the seed picker offered it,
      while every hr_farm_plant answered {"error":"insufficient_seed"} -- 19 of them
      journalled in hr_rejections for that slot. Production held NO turnip_seed and
@@ -20216,6 +20221,7 @@ const TESTS = [
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.carrot_seed = 5;
       window.G.inventory.turnip_seed = 0;
+      window.G._serverBag = Object.assign({}, window.G.inventory);   // the server agrees; the TIER is the gate under test
       window.G.skills.farming = 1000000;   // xp, the shape getLevel reads
       window.G.farmPlots = [];
       A.setFarmReplant({ enabled: true, cropId: 'carrot' });
@@ -22918,6 +22924,9 @@ const TESTS = [
         window.G.farmPlots = window.G.farmPlots || [];
         // plantCrop
         window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 2;
+        /* The pre-flight counts what the SERVER holds (gateItemCount), so a fixture
+           that wants the plant SENT states a server bag too. */
+        window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 2 });
         window.G.farmPlots[0] = null;
         window.plantCrop(0, 'turnip');
         const planted = window.G.farmPlots[0];

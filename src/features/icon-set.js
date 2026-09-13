@@ -296,9 +296,27 @@
     });
   }
 
+  /* b544 — STATIC SEED MARKUP. index.html ships a handful of empty states that
+     exist before any renderer runs; the combat one carried a raw ⚔️ for the
+     frame (or, once the War Table became the default view, for as long as the
+     player stayed on it) before renderCombat overwrote #combat-area. The nav
+     pattern above is the answer, generalised: a host declares the atlas key it
+     wants with `data-hr-glyph` and this fills it. Declaring the key in the
+     markup means a new seed never needs a new entry in a map here — and a host
+     whose key is not in the atlas stays EMPTY, which is the same fail-safe
+     `_hrGly` makes: a missing icon can never regress into a pictograph. */
+  function paintSeedGlyphs() {
+    document.querySelectorAll('[data-hr-glyph]').forEach(function (host) {
+      if (host.querySelector('.hr-glyph')) return;
+      var g = glyph(host.getAttribute('data-hr-glyph'),
+        parseInt(host.getAttribute('data-hr-glyph-size'), 10) || 16, null);
+      if (g) host.innerHTML = g;
+    });
+  }
+
   function paintAll() {
     paintSkills(); paintMonsters(); paintTopbar();
-    paintNav(); paintUiButtons(); stripChromeEmoji();
+    paintNav(); paintUiButtons(); paintSeedGlyphs(); stripChromeEmoji();
   }
 
   ensureStyle();

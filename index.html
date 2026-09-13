@@ -459,7 +459,15 @@
           <div class="card-title">Arena</div>
           <button class="btn btn-sm btn-danger" id="combat-stop" style="display:none">Stop</button>
         </div>
-        <div class="card-body" id="combat-area"><div class="empty"><span class="em-icon">⚔️</span>Pick a monster on the left to begin.</div></div>
+        <!-- b544: the seed empty state carries NO pictograph. It used to hold a raw
+             ⚔️, which survived every emoji purge because renderCombat overwrites
+             #combat-area on its first tick and nobody ever looked at the frame
+             before that. With the War Table as the default view the repaint is no
+             longer immediate, so the emoji was in the live DOM — a `data-hr-glyph`
+             host instead, which icon-set.js fills with the atlas glyph at boot and
+             leaves EMPTY if the atlas has no row (the _hrGly contract: never
+             regress into a pictograph). -->
+        <div class="card-body" id="combat-area"><div class="empty"><span class="em-icon" data-hr-glyph="navCombat" data-hr-glyph-size="16"></span>Pick a monster from the list to begin.</div></div>
       </div>
       <div class="card combat-loadout">
         <div class="card-head">

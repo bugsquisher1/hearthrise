@@ -12589,15 +12589,12 @@ const TESTS = [
        first paint — the test only ever saw them because it ran in the same task
        that scheduled that paint. Those chips are gone with the dead second bag
        renderer; the live equivalent of "switch what the bag shows" is the
-       category strip, so the click target is now a control that exists. */
-    window.showTab('inventory');
-    if (typeof window._renderInvFancy === 'function') window._renderInvFancy();
+       category strip, so the click target is now a control that exists. It is
+       painted in a 0ms hop, so paint it in this task before reading it. */
+    window.showTab('inventory'); if (typeof window._renderInvFancy === 'function') window._renderInvFancy();
     const cats = document.querySelectorAll('#panel-inventory .invc-cat-btn');
     if (cats.length === 0) { skip('inventory category strip absent in this build layout'); return; }
-    const before = (window._invFilter && window._invFilter.category) || 'all';
-    for (const c of Array.from(cats).slice(0, 4)) clickOk(c, 'inv category btn'); // SA-013: counted per chip
-    if (window._invFilter) window._invFilter.category = before;
-    if (typeof window._renderInvFancy === 'function') window._renderInvFancy();
+    try { for (const c of Array.from(cats).slice(0, 4)) clickOk(c, 'inv category btn'); } finally { if (typeof window._invSetCat === 'function') window._invSetCat('all'); }
   }),
 
   () => tryRun('clicks: house room rows + tab switches', () => {

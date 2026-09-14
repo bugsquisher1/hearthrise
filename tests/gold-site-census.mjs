@@ -631,8 +631,16 @@ export const MUTATIONS = {
        no longer exists is a planted bug that was never planted. Re-pointed at a
        row that is still deferred rather than deleted, because the property is
        about the DEFERRED class and that class is not empty. */
-    find: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,\n    flipGuard: { gated: 'serverMarketActive' },\n  },",
-    repl: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred',\n    flipGuard: { gated: 'serverMarketActive' },\n  },",
+    /* 2026-09-14: re-anchored AGAIN, and the reason is the failure mode this arm
+       was re-anchored for the first time. The row's flipGuard became
+       `clientMayWriteRecordField` (b511 moved the market write behind the record
+       seam) and the anchor still named `serverMarketActive`, so it matched ZERO
+       times and the "deferred with no blocker" defect was never planted — the
+       arm reported HARNESS rather than CAUGHT, which is honest but is not a
+       proof. Anchor on the row KEY and its status line; the flipGuard token is
+       whatever the ledger says today. */
+    find: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,",
+    repl: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred',",
   },
   /* ── L8: THE UNGATED-TRANSFER CLASS (Security gold-flip Finding #3) ────────
      Two mutations, because there are two ways a value-crossing gold write arms
@@ -647,8 +655,13 @@ export const MUTATIONS = {
        raid_claim started crediting the chest in-RPC. Re-pointed at clan contribute,
        which is still a deferred, gated transfer — the property is about the
        DEFERRED-TRANSFER class, and that class is not empty. */
-    find: "    flipGuard: { gated: 'CLAN_LAUNCHED' },\n  },",
-    repl: "  },",
+    /* 2026-09-14: re-anchored. `CLAN_LAUNCHED` stopped being the declared gate
+       when b511 moved the clan debit behind the record seam, so this arm matched
+       nothing and planted nothing. Anchored on the END of that row's own comment
+       — text that belongs to this row and no other — so the flipGuard line it
+       deletes is still the clan transfer's. */
+    find: "server-of-record, whatever CLAN_LAUNCHED says. */\n    flipGuard: { gated: 'clientMayWriteRecordField' },",
+    repl: "server-of-record, whatever CLAN_LAUNCHED says. */",
   },
   transfer_flip_guard_gate_absent_in_code: {
     why: 'a deferred transfer CLAIMS a code gate whose token is nowhere in the site. The annotation '

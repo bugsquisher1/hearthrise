@@ -3645,12 +3645,23 @@ export function __resetServerAutoEat() {
   serverAutoEatObserved = null;
   serverAutoEatSeen.enabled = undefined; serverAutoEatSeen.food = undefined;
   serverAutoEatSeen.pct = undefined; serverAutoEatSeen.touched = undefined;
-  /* Back to never-observed. The counter RESETS rather than advancing because
-     this IS the "forget everything" seam; a reader comparing sequences sees the
-     change either way, which is what makes the reset an observation event too. */
-  serverAutoEatPctSeq = 0;
-  serverAutoEatFoodSeq = 0;
-  serverAutoEatEnabledSeq = 0;
+  /* ⚠ THE COUNTERS ADVANCE HERE; THEY DO NOT GO BACK TO ZERO, and that is a
+     CORRECTNESS fix rather than tidiness (found by the b547 food test going red
+     2026-09-14). The old note said a reader comparing sequences "sees the change
+     either way" — it does not. src/features/auto-actions.js holds the last count
+     it acted on (`_foodSeqSeen`) and ends an unanswered local gesture only when
+     the two DIFFER. Zeroing here makes the count REUSE values: forget everything
+     while the reader holds 1, take one fresh observation, and the counter is 1
+     again — identical to what the reader already acted on, so the server's answer
+     reads as "nothing new" and the stale local nomination wins. That is the exact
+     shape of the bug this whole mirror exists to kill, one seam further in: the
+     browser naming cooked_shrimp while the column holds turnip.
+     A reset IS an observation event, so it is counted like one — monotonic, so
+     "different" can never be a coincidence. The VALUES still go back to
+     never-observed; only the event count keeps rising. */
+  serverAutoEatPctSeq++;
+  serverAutoEatFoodSeq++;
+  serverAutoEatEnabledSeq++;
   return serverAutoEatObserved;
 }
 

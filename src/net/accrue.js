@@ -2362,18 +2362,13 @@ export function playStreakDays(G) {
    client's was the one a cloud restore could rewind. That is CLAUDE.md §6's
    residue-ahead class on a number that pays out whole items.
 
-   ABSOLUTE, and that is safe because the server's value is POST-SETTLE: the
-   envelope carrying it is the answer to the settle that consumed the window the
-   local fraction was accumulated in, so replacing the prediction with the
-   server's arithmetic is the reconcile, not a loss. Between envelopes the
-   attended tick keeps mutating G.toolCarry by reference exactly as before.
+   ABSOLUTE, and safe because the server's value is POST-SETTLE: the envelope is
+   the answer to the settle that consumed the window the local fraction grew in,
+   so replacing the prediction with the server's arithmetic IS the reconcile.
+   Between envelopes the attended tick still mutates G.toolCarry by reference.
 
    FAIL-SAFE ON ABSENCE: no readable `state.tool_carry` OBJECT leaves the local
-   carry alone. A fraction is worth strictly less than one item, so neither
-   direction can mint anything — but evicting on uncertainty is forbidden (§6),
-   and a server predating the projection must not zero a live carry.
-
-   Pure (G + res → receipt), like every reconcile beside it. */
+   carry alone — evicting on uncertainty is forbidden (§6). Pure (G + res → receipt). */
 export function reconcileToolCarry(G, res) {
   if (!G || typeof G !== 'object') return null;
   const st = res && res.state;

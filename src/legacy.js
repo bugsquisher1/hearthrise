@@ -661,21 +661,14 @@ window.IAP_CATALOG=IAP_CATALOG;
 const SAVE_KEY='hearthbound-save-v2';
 const LEGACY_KEY='idle-game-v1';
 
-/* AUDITED AGAINST THE PROJECTION (2026-09-14). Three classes of key live here
-   and only the first holds a server-owned VALUE:
-   1. THE START-KIT STATEMENT (gold, gems, skills, equipment, hp, bank, foodSlot)
-      — these ARE `window.__FRESH_START` below, the client's only statement of the
-      starting kit, which B338-1 / SA010-1 / B495-1 compare to src/data/start-kit
-      → hr_create_character. Deleting them deletes the guard that keeps the two
-      character creators agreeing, and they are authority nowhere: every read goes
-      through the record's accessors, which answer UNKNOWN before the envelope.
-   2. EMPTY SHAPES (inventory, enchant, rooms, plotBuildings, farmPlots,
-      collection, quests, marks, bountyHunter) — no value, just somewhere for a
-      few hundred reads to land before the first envelope replaces them.
-   3. CLIENT-ONLY DEFAULTS (playerName, houseTheme, settings, daily, createdAt).
-   DELETED BY THIS AUDIT: ownedThemes, ownedCosmetics, autoEatPct — server-owned
-   values in neither class (tombstones in src/net/client-state.js). Add nothing
-   here the server owns. */
+/* AUDITED AGAINST THE PROJECTION (2026-09-14): a server-owned VALUE lives here
+   only as the START-KIT STATEMENT (gold, gems, skills, equipment, hp, bank,
+   foodSlot) — these ARE `__FRESH_START` below, which B338-1/SA010-1/B495-1
+   compare to src/data/start-kit → hr_create_character, and they are authority
+   nowhere (every read goes through accessors that answer UNKNOWN first). The
+   rest are empty shapes for pre-envelope reads to land in, or client-only
+   defaults. ownedThemes, ownedCosmetics and autoEatPct were neither and are
+   deleted (tombstones in src/net/client-state.js). Add nothing the server owns. */
 let G={
   v:2,
   playerName:'Adventurer',
@@ -1548,9 +1541,8 @@ window.refuseGemPurchase=refuseGemPurchase;
    monolith. This file keeps only the GESTURES (buyTheme / buyCosmetic /
    setTheme are onclick targets and paint their own screens) and reads the
    seams off `window`, the way it already reads HearthriseGold. */
-/* `autoEatFoodId()` — the provision the engine will actually eat — lives in
-   src/features/auto-actions.js beside `eatFoodId()`, the server observation it
-   reads. One module owns the nomination; this file calls it as a global. */
+/* `autoEatFoodId()` — the provision the engine eats — lives in auto-actions.js
+   beside `eatFoodId()`; this file calls it as a global. */
 
 /* ── b431 — THE ROOMS READ SEAM (legacy wrapper) ──────────────────────────────
    Every `G.rooms` read in this classic script goes through these so that, once
@@ -2350,8 +2342,7 @@ function awayAutoEatState(hadFood){
     else owned=!!(G&&G.traits&&G.traits.auto_eat);
     var t=(typeof A.eatThreshold==='function')?A.eatThreshold():eat.threshold;
     var n=Number(t);
-    /* THE SWITCH IS THE SERVER'S (`auto_eat_enabled`) — A.eatEnabled(); the
-       local gesture only until an envelope has spoken. */
+    /* THE SWITCH IS THE SERVER'S (`auto_eat_enabled`), local only until it speaks. */
     var _on=(typeof A.eatEnabled==='function')?A.eatEnabled():!!eat.enabled;
     return { enabled: !!(_on&&owned),
              pct: isFinite(n)?Math.round(Math.max(0,Math.min(1,n))*100):null,
@@ -6309,11 +6300,8 @@ const COMBAT_FX={
     if(window.HearthriseAuto&&typeof window.HearthriseAuto.maybeAutoEat==='function'){
       return !!window.HearthriseAuto.maybeAutoEat();
     }
-    /* THE COLD PATH — before HearthriseAuto loads. It reads the SAME server
-       observation the module would, never a client-held copy. */
-    const _srvAE=(function(){ try{ var A=window.HearthriseAccrual;
-      return (A&&typeof A.serverAutoEatSettings==='function')?(A.serverAutoEatSettings()||{}):{};
-    }catch(e){ return {}; } })();
+    /* THE COLD PATH — before HearthriseAuto loads. Same server observation the module reads, never a client copy. */
+    let _srvAE={}; try{ const A=window.HearthriseAccrual; if(A&&A.serverAutoEatSettings) _srvAE=A.serverAutoEatSettings()||{}; }catch(e){}
     const _pct=(typeof _srvAE.pct==='number'&&isFinite(_srvAE.pct))?Math.max(0,Math.min(1,_srvAE.pct/100)):0.5;
     const _slot=(typeof _srvAE.food==='string'&&_srvAE.food)?_srvAE.food:G.foodSlot;
     if(G.playerHp<G.playerMaxHp*_pct&&_slot&&(G.inventory[_slot]||0)>0){
@@ -19311,30 +19299,18 @@ setInterval(function(){
   };
 })();
 
-// b163: REMOVED the auto-eat watchdog that used to wrap combatTick here.
-// It called eatFood(G.foodSlot) on low HP — which applies food BUFFS, not just
-// heals — and then early-`return`ed, SKIPPING the entire real combat tick (no
-// attack that tick) whenever foodSlot was set. Two bugs: (1) HP auto-eat should
-// only HEAL, never spend buff items (buff consumption is a separate, opt-in,
-// buff-expiry-driven concern — planned as a "drinks" category); (2) skipping the
-// tick was never intended. HP auto-eat now flows solely through
-// HearthriseAuto.maybeAutoEat() inside combatTick (heal-only), matching offline
-// combat. Old G.foodSlot saves are migrated to G.autoActions.eat in
-// auto-actions.js so nobody loses their auto-eat setting.
+// b163: REMOVED the auto-eat watchdog that wrapped combatTick here. It called
+// eatFood() on low HP — applying food BUFFS, not just heals — and then early
+// `return`ed, skipping the whole real tick. HP auto-eat is heal-only and flows
+// through HearthriseAuto.maybeAutoEat() inside combatTick, matching the engine.
 
-/* b224: REMOVED injectEatNowButtons() and its renderInvFancy wrapper.
-   It looked for `#panel-inventory .invc-tile[data-item-id]` and skipped any
-   tile without that attribute — but renderInvFancy() only sets data-item-id
-   on EQUIPPABLE items (it drives drag-to-equip), and no food is equippable.
-   The intersection was empty by construction, so this produced zero buttons
-   on every render since the bag was rebuilt. Verified in-browser before
-   deleting: `document.querySelectorAll('.eat-now-btn').length === 0` with a
-   bag full of Provisions.
-
-   It is not resurrected here: a floating button on a 44px tile fights the
-   quantity badge and the rarity frame. Eat is now the primary action in the
-   item flyout (one click from the tile) and a first-class button on the
-   Combat screen, which is where healing is actually needed. */
+/* b224: REMOVED injectEatNowButtons() and its renderInvFancy wrapper. It keyed
+   on `.invc-tile[data-item-id]`, which renderInvFancy sets only on EQUIPPABLE
+   items — no food is equippable, so the intersection was empty by construction
+   and it drew zero buttons (verified in-browser before deleting). Not
+   resurrected: a floating button on a 44px tile fights the quantity badge, and
+   Eat is the primary action in the item flyout and a button on the Combat
+   screen, which is where healing is needed. */
 
 /* ── THE EFFECTIVE SEGMENT OF EACH TYPE, ASKED IN ONE PLACE ────────────────
    `G.buffs` may hold several entries per type since the 2026-09-13 ruling, so "what

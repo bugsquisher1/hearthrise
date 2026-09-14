@@ -190,6 +190,39 @@ begin
   if to_regprocedure('public.hr_rpc_gate(text)') is null then
     raise exception 'hr_rpc_gate is absent - apply 2026-08-11-authenticated-surface-lockdown.sql first';
   end if;
+  /* ── AN EARLIER RESTATEMENT MUST REFUSE, NEVER REVERT (added 2026-09-14) ──
+     Section 4 below RESTATES hr_note_rejection from this file's own text. That
+     was safe while this file was its only toucher; it is not any more.
+     2026-09-14-rejection-field-detail.sql splices the REFUSED KEY into the
+     detail this decorator builds (`p_result ->> 'field'`), and a re-apply of
+     THIS file would silently delete that splice - measured: the body goes back
+     to md5(prosrc) d377f7f8c58236a870b180b5ac544965 and the journal stops
+     naming the key again. That is the b484-b487 class, on the one function that
+     decides what every refusal in the database records about itself.
+
+     So this file now refuses to run at all once a later file has added to the
+     decorator, which is exactly the posture section 5(a) already takes for the
+     severity catalogue it restates. The refusal is LOUD and it moves nothing:
+     it fires before any body is touched, so a mistaken re-run leaves the
+     database exactly as it was rather than half-reverted.
+
+     RECOVERY, because a refusal that strands an operator is its own bug: this
+     file's re-apply exists to REPAIR the 56-body seam after some later
+     migration restates one of them. That repair is sections 6 and 7, which are
+     idempotent and do not touch hr_note_rejection. If you need it while the
+     splice is installed, run those two sections - or a file that carries them -
+     rather than this whole file, and leave the decorator to the later toucher.
+     Do NOT delete this check to get the file to run. */
+  if to_regprocedure('public.hr_note_rejection(text,int,jsonb)') is not null
+     and position($fld$p_result ->> 'field'$fld$ in
+                  (select prosrc from pg_proc
+                    where oid = to_regprocedure('public.hr_note_rejection(text,int,jsonb)'))) > 0 then
+    raise exception 'hr_note_rejection has been ADDED TO since this file was written (it journals the '
+                    'refused key - 2026-09-14-rejection-field-detail.sql). Re-applying this file '
+                    'would RESTATE the decorator from its own text and silently delete that splice. '
+                    'Refusing, and nothing has moved. To repair the 56-body seam, re-run sections 6 '
+                    'and 7 alone; to change the decorator, edit its LAST toucher.';
+  end if;
 end $$;
 
 -- ========================================================================

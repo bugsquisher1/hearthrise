@@ -62,8 +62,16 @@
 --     2026-09-11. Production runs exactly what the repo chain rebuilds.
 --
 -- ── WHAT IT ADDS: TWO KEYS, BOTH BOUNDED ──────────────────────────────────
---   'field'  left(p_result ->> 'field', 120)   — the refused key, in last_detail.
+--   'field'  the refused key, non-printables stripped, cut to 120 — in last_detail.
 --   'why'    left(coalesce(p_result ->> 'why', p_result ->> 'field'), 120)
+--
+-- The strip is Security's (2026-09-14): the key name is CLIENT text and
+-- last_detail is read in a terminal and pasted into an incident note, so a key
+-- carrying \n, \r or an ANSI escape could forge a line of an operator's log.
+-- It costs one regexp and it cannot change an honest key, which by construction
+-- is a JSON object key an honest client typed into RESIDUE_FIELDS. The `why`
+-- half needs no strip: hr_rejection_why already character-filters to
+-- [a-z0-9_.:-], which is a strictly smaller set.
 --
 -- `why` is the load-bearing half and it is not decoration. `last_detail` is
 -- LAST-WRITER-WINS on a row that aggregates a whole day: with `field` alone, a
@@ -197,7 +205,8 @@ do $mig$
 declare
   v_def text; v_new text;
   c_anchor constant text := $anc$'raw_error', case when v_code = 'malformed_code'$anc$;
-  c_add constant text := $new$'field',     left(p_result ->> 'field', 120),
+  c_add constant text := $new$'field',     left(regexp_replace(p_result ->> 'field',
+                                  '[^[:print:]]', '', 'g'), 120),
         'why',       left(coalesce(p_result ->> 'why', p_result ->> 'field'), 120),
         $new$;
 begin
@@ -240,7 +249,8 @@ begin
   --     object instead of extending it passes a check that only looks for the
   --     new keys, and would silently stop journalling `raw_error` — R3's bound
   --     kept, its evidence lost.
-  if strpos(v_def, $q$'field',     left(p_result ->> 'field', 120)$q$) = 0 then
+  if strpos(v_def, $q$'field',     left(regexp_replace(p_result ->> 'field',$q$) = 0
+  or strpos(v_def, $q$'[^[:print:]]', '', 'g'), 120)$q$) = 0 then
     raise exception 'rejection-field (a): the `field` key did not install'; end if;
   if strpos(v_def, $q$p_result ->> 'why'$q$) = 0 then
     raise exception 'rejection-field (a): the `why` key did not install — the breakdown that '
@@ -399,6 +409,34 @@ begin
         message = format('rejection-field (g): the whys map sums to %s but n is %s — the breakdown '
                          'is not exact',
                          (select sum(value::bigint) from jsonb_each_text(v_row.whys)), v_row.n);
+    end if;
+
+    -- (g2) THE STORED KEY IS PRINTABLE. last_detail is read in a terminal and
+    --      pasted into an incident note; a key carrying a newline or an ANSI
+    --      escape could forge a line of an operator's log. An honest key is
+    --      unchanged by the strip — asserted here so the regexp cannot quietly
+    --      start eating real names.
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('hr_put_client_state', 0,
+      jsonb_build_object('ok', false, 'error', 'forbidden_field',
+                         'field', e'go\x1b[2Kld\nFAKE LOG LINE\t'));
+    select * into v_row from public.hr_rejections
+     where user_id = v_uid and code = 'forbidden_field';
+    if v_row.last_detail ->> 'field' <> 'go[2KldFAKE LOG LINE' then
+      raise exception using errcode = 'HR846',
+        message = format('rejection-field (g2): a control-character key was stored as %L — the '
+                         'journal can be used to write a line of an operator''s log',
+                         v_row.last_detail ->> 'field');
+    end if;
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_note_rejection('hr_put_client_state', 0,
+      '{"ok":false,"error":"forbidden_field","field":"autoEatPct"}'::jsonb);
+    select * into v_row from public.hr_rejections
+     where user_id = v_uid and code = 'forbidden_field';
+    if v_row.last_detail ->> 'field' <> 'autoEatPct' then
+      raise exception using errcode = 'HR846',
+        message = format('rejection-field (g2): the strip ate an HONEST key name (%L) — every real '
+                         'residue name is printable ASCII', v_row.last_detail ->> 'field');
     end if;
 
     -- (h) AN EXPLICIT SERVER-AUTHORED `why` WINS over the field, so a body that

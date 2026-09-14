@@ -85,6 +85,15 @@ const MIG2_PATH = join(ROOT, 'supabase', 'migrations', MIG2);
 const MIG3 = '2026-09-13-rejections-verb-map-3.sql';
 const MIG3_PATH = join(ROOT, 'supabase', 'migrations', MIG3);
 
+/* The FOURTH (2026-09-14): the refused KEY reaches the journal. It PATCHES the
+   decorator MIG installed — `field` (non-printables stripped, cut to 120) and a
+   `why` that falls back to it, so a forbidden_field row names which key was
+   refused instead of aggregating 603 anonymous occurrences. It is the reason
+   P8's grading of MIG had to invert: MIG RESTATES this decorator from its own
+   text, so re-applying MIG would delete the splice. */
+const MIG4 = '2026-09-14-rejection-field-detail.sql';
+const MIG4_PATH = join(ROOT, 'supabase', 'migrations', MIG4);
+
 /* ── P15's SECOND SOURCE OF TRUTH, AND WHY IT IS NOT A DUPLICATE ───────────
    The migration asserts "the restated catalogues are a superset of the INSTALLED
    ones" — which is the right check for an operator re-applying a file, and is
@@ -304,6 +313,7 @@ const MUTATIONS = {
     ],
   },
   code_unbounded: {
+    blindMig4: true,
     why: 'R3 REGRESSED: `error` is written to the key column verbatim. It is server-authored today, '
        + 'so this is latent — until one body leaks sqlerrm into it and writes a 385-character primary '
        + 'key, or an `error` that is a number or an object becomes a key. A defect in an error path '
@@ -430,6 +440,7 @@ const MUTATIONS = {
     ],
   },
   whys_breakdown_dropped: {
+    blindMig4: true,
     /* TWO files. MIG3's GATE(a) positive-control sweep re-reads the installed
        recorder for 'hr_rejection_why', so it would refuse the apply and "catch"
        this with a LATER file's gate instead of with P15/P16. Its list keeps the
@@ -506,6 +517,7 @@ const MUTATIONS = {
        + 'must catch it.',
   },
   why_token_unbounded: {
+    blindMig4: true,
     file: MIG2,
     why: 'hr_rejection_why stops filtering and stops truncating. The `why` becomes a jsonb MAP KEY '
        + 'built from a detail that is not always server-authored, so a 400-character or '
@@ -524,6 +536,31 @@ const MUTATIONS = {
       ["  if length(public.hr_rejection_why(jsonb_build_object('why', repeat('a', 400)))) <> 24 then",
         '  if false then'],
     ],
+  },
+
+  // ── 2026-09-14-rejection-field-detail.sql, and MIG's guard against it ────
+  restatement_reverts_the_field_seam: {
+    why: 'MIG loses the §0 precondition that refuses once a later file has added to hr_note_rejection, '
+       + 'so re-applying it RESTATES the decorator from its own text and silently deletes the '
+       + 'refused-key splice (measured: md5(prosrc) back to d377f7f8…, every forbidden_field row back '
+       + 'to last_detail {}). This is the b484-b487 class on the one function that decides what every '
+       + 'refusal in the database records about itself, and nothing else in the chain would notice: '
+       + 'the file still applies, still reports success, and the journal just stops naming keys. P8 '
+       + 'must catch it on the REFUSAL, not on the text.',
+    find: "  if to_regprocedure('public.hr_note_rejection(text,int,jsonb)') is not null\n"
+        + "     and position($fld$p_result ->> 'field'$fld$ in",
+    repl: "  if false\n"
+        + "     and position($fld$p_result ->> 'field'$fld$ in",
+  },
+  field_splice_not_reentrant: {
+    file: MIG4,
+    why: 'the splice loses its skip-if-present check, so a second apply of the LAST toucher inserts '
+       + '`field`/`why` into the detail a SECOND time. An operator re-running it to repair the seam '
+       + 'after a restatement would double the keys rather than restore them, and the length '
+       + 'arithmetic cannot see it (the body really is the original plus one insertion, twice over). '
+       + 'P8 must catch it on the fingerprint.',
+    find: "  if strpos(v_def, $q$p_result ->> 'field'$q$) > 0 then",
+    repl: '  if false then',
   },
 };
 
@@ -544,6 +581,20 @@ const mutationFileMap = (id) => {
      installs. Kept separate from `pairs` so the primary file's edit list stays
      readable where it is written. */
   if (MUTATIONS[id].mig3Pairs) m.set(MIG3, MUTATIONS[id].mig3Pairs);
+  /* `blindMig4` is the same sugar for the LAST toucher of hr_note_rejection, and
+     it exists because that file's §2 is a GOOD detector of things that are not
+     its business. MEASURED 2026-09-14: code_unbounded, whys_breakdown_dropped
+     and why_token_unbounded all made MIG4 refuse to apply, so --selftest scored
+     them CAUGHT while the P-arms that are the standing guard were never graded —
+     a mutation caught by a later migration's gate proves nothing about THIS
+     guard. Blinded NARROWLY (its §2 alone; §0 and the patch itself still run) so
+     the tick lands where it is earned. Same rule as tests/buff-queue.mjs's
+     BLIND map. */
+  if (MUTATIONS[id].blindMig4) {
+    m.set(MIG4, [['  -- (a) THE PATCH INSTALLED AND ATE NOTHING. A patch that replaced the detail',
+      '  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/rejections-journal.mjs)\n'
+      + '  -- (a) THE PATCH INSTALLED AND ATE NOTHING. A patch that replaced the detail']]);
+  }
   return m;
 };
 
@@ -1060,10 +1111,19 @@ async function run(mutate) {
     }
   };
   const before = await fingerprint();
-  /* ORDER MATTERS: the two no-op files first, so that MIG2's expected refusal
-     cannot be the thing that hid a real failure in one of them. */
-  obs.p8_mig = await reapply(MIG, MIG_PATH);
+  /* ORDER MATTERS: the no-op files first, so that an expected refusal cannot be
+     the thing that hid a real failure in one of them.
+     ⚠ MIG MOVED SIDES ON 2026-09-14 and this is the same lesson as MIG2's, one
+     file along: MIG restates hr_note_rejection from its own text, and
+     2026-09-14-rejection-field-detail.sql has since spliced the refused key into
+     that body. Measured before the fix: re-applying MIG put the decorator back
+     to md5(prosrc) d377f7f8… and the journal stopped naming the key. So MIG now
+     carries a §0 precondition that REFUSES once the later splice is installed,
+     and it is graded with MIG2 — as an EARLIER restatement that must fail loudly
+     and move nothing — while MIG4, the new last toucher, joins the no-ops. */
   obs.p8_mig3 = await reapply(MIG3, MIG3_PATH);
+  obs.p8_mig4 = await reapply(MIG4, MIG4_PATH);
+  obs.p8_mig = await reapply(MIG, MIG_PATH);
   obs.p8_mig2 = await reapply(MIG2, MIG2_PATH);
   obs.p8 = { before, after: await fingerprint() };
 
@@ -1417,11 +1477,21 @@ function grade(obs, migText, mig2Text, mig3Text) {
   // ── P8. re-applying the LAST toucher is a no-op; re-applying an EARLIER
   //        RESTATEMENT fails loudly and changes nothing. See the observation
   //        block for why this is two assertions and not one.
-  ok(obs.p8_mig.error === null,
-    `P8: re-applying ${MIG} onto the finished chain FAILED: ${obs.p8_mig.error}`);
+  ok(obs.p8_mig4.error === null,
+    `P8: re-applying ${MIG4} — the LAST toucher of hr_note_rejection — FAILED: ${obs.p8_mig4.error}. `
+    + 'Its patch is anchored and re-entrant; the file an operator re-runs to restore the splice after '
+    + 'a restatement must be the one that works.');
+  ok(obs.p8_mig4.before === obs.p8_mig4.after,
+    `P8: re-applying ${MIG4} changed a function body — its skip-if-present check does not hold, so a `
+    + 'second apply splices the refused key into the detail TWICE');
+  ok(obs.p8_mig.error !== null && /has been ADDED TO since this file was written/.test(obs.p8_mig.error),
+    `P8: re-applying ${MIG} after ${MIG4} did NOT refuse (error=${obs.p8_mig.error}). It RESTATES `
+    + 'hr_note_rejection from its own text, so it would SILENTLY REVERT the refused-key splice and '
+    + 'every forbidden_field row would go back to last_detail {} — the b484-b487 class on the one '
+    + 'function that decides what every refusal records about itself.');
   ok(obs.p8_mig.before === obs.p8_mig.after,
-    `P8: re-applying ${MIG} changed a function body — the patcher is not idempotent, so an operator `
-    + 'who re-runs it after a template restatement double-wraps a live verb');
+    `P8: the refused re-apply of ${MIG} still MOVED a function body — the refusal must fire before `
+    + 'anything is touched, or a mistaken re-run leaves the database half-reverted');
   ok(obs.p8_mig3.error === null,
     `P8: re-applying ${MIG3} — the LAST toucher of hr_record_rejection — FAILED: ${obs.p8_mig3.error}. `
     + 'The file an operator re-runs to repair a reverted seam must be the one that works.');
@@ -1487,8 +1557,9 @@ async function main() {
     + 'verbs carry the seam at chain end while the json one is skipped and still callable, a '
     + '200-call rate-limit storm costs 63 writes and leaves the gate\'s sampled count exact, an '
     + 'out-of-range slot folds to -1 and a caller-shaped code to malformed_code, the envelope is '
-    + 'byte-identical across the decorator, one occurrence per transaction, and a second apply is '
-    + 'a no-op; and for the 2026-09-13 half: the restated recorder keeps all 30 catalogued Security '
+    + 'byte-identical across the decorator, one occurrence per transaction, and each body\'s LAST '
+    + 'toucher re-applies byte-identically while both EARLIER restatements refuse loudly and move '
+    + 'nothing; and for the 2026-09-13 half: the restated recorder keeps all 30 catalogued Security '
     + 'rulings plus the once-flag and the detail bound, bad_zone and buff_not_paid are each normal '
     + 'at 49 and an incident at 50 while an unlisted code stays normal at 60, two buff_at_max fuses '
     + 'break out as '

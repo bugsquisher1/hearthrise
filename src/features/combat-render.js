@@ -190,7 +190,9 @@ function forecast(m) {
    and the monster preview's Away line, so three surfaces cannot drift. */
 function awayRow(m, f) {
   const G = window.G;
-  const foodId = G && G.foodSlot;
+  /* THE NOMINATION THE NIGHT WILL EAT (`auto_eat_food`), not the local pointer —
+     legacy.js autoEatFoodId(). Same rule as the HUD chip below. */
+  const foodId = (typeof window.autoEatFoodId === 'function') ? window.autoEatFoodId() : (G && G.foodSlot);
   /* No local re-derivation if the predicate is missing: a second copy of it
      here is precisely the drift one shared function exists to prevent, and the
      conservative answer ("it ends when you fall") is the one that cannot

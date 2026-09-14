@@ -64,7 +64,11 @@ const SEG_RE = /^\}\)\(\);?\s*$/;
 export const KNOWN_SPLIT_NAMES = {
   applyAll: 'two per-module "repaint everything I own" helpers, different IIFEs',
   boot: 'the script-level boot (script scope) plus two per-module boots inside their own IIFEs',
-  fmtQty: 'two quantity formatters in different UI modules',
+  /* fmtQty: UNPINNED 2026-09-14 by the inventory screen-controller extraction.
+     The second body was block 25's bag formatter; it left with the bag for
+     src/screens/inventory.js, so only the activities-grid copy remains in this
+     file. Removed rather than kept "just in case": with the pin gone this guard
+     now FAILS if a second fmtQty is ever declared in legacy.js again. */
   migrate: 'two per-module save/shape migrators, different IIFEs',
   paintAll: 'two per-module full-repaint helpers, different IIFEs',
   /* refreshAll: UNPINNED 2026-09-07 by cleanup slice 8b. The second body was

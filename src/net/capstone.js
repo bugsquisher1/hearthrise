@@ -161,6 +161,32 @@ export function buildResiduePatch(G) {
       }
       continue;
     }
+    /* ── `autoActions` RIDES WITHOUT ITS `eat` BRANCH (2026-09-14) ──────────
+       The other two branches (`trainGoal`, `farmReplant`) are genuine client-only
+       preferences. The `eat` branch is not: enabled / threshold / foodId ARE
+       `player_state.auto_eat_enabled` / `auto_eat_pct` / `auto_eat_food`, the three
+       columns hr_set_auto_eat writes and the accrual engine prices every settle and
+       every night with — and they are projected back on every envelope
+       (eatEnabled / eatThreshold / eatFoodId). Persisting a fourth copy is the
+       measured bug in both directions: the panel promising 50% while the server ate
+       at 25%, and the HUD naming cooked_shrimp while the engine ate turnip. The
+       live branch stays in memory as the unanswered gesture; it is simply never
+       written to, or read out of, the bag. */
+    if (f === 'autoActions') {
+      const aa = G.autoActions;
+      if (aa && typeof aa === 'object' && !Array.isArray(aa)) {
+        const copy = {};
+        for (const k in aa) {
+          if (!Object.prototype.hasOwnProperty.call(aa, k)) continue;
+          if (k === 'eat') continue;          // server-owned triple — never persisted
+          copy[k] = aa[k];
+        }
+        out[f] = copy;
+      } else {
+        out[f] = aa;
+      }
+      continue;
+    }
     /* BOUNDED ON THE WAY OUT TOO (see client-state.js §THE SIZE GUARD'S CLIENT
        HALF). Bounding only on the way IN would let this session grow the field
        without limit and ship it; the bag would then come back trimmed, so the

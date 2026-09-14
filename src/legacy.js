@@ -661,6 +661,14 @@ window.IAP_CATALOG=IAP_CATALOG;
 const SAVE_KEY='hearthbound-save-v2';
 const LEGACY_KEY='idle-game-v1';
 
+/* AUDITED AGAINST THE PROJECTION (2026-09-14): a server-owned VALUE lives here
+   only as the START-KIT STATEMENT (gold, gems, skills, equipment, hp, bank,
+   foodSlot) — these ARE `__FRESH_START` below, which B338-1/SA010-1/B495-1
+   compare to src/data/start-kit → hr_create_character, and they are authority
+   nowhere (every read goes through accessors that answer UNKNOWN first). The
+   rest are empty shapes for pre-envelope reads to land in, or client-only
+   defaults. ownedThemes, ownedCosmetics and autoEatPct were neither and are
+   deleted (tombstones in src/net/client-state.js). Add nothing the server owns. */
 let G={
   v:2,
   playerName:'Adventurer',
@@ -672,8 +680,11 @@ let G={
      purchased ladder read as un-owned. Guarded by smoke SA010-1. */
   bank:{goldBuys:0,gemBuys:0,grandfather:0},
   entitlements:{},                          /* {hearthHall:true, ...} — cosmetic/convenience only */
-  ownedThemes:['default'],
-  ownedCosmetics:[],
+  /* ⚠ `ownedThemes` / `ownedCosmetics` ARE GONE (2026-09-14) and must not come
+     back as fields. Ownership of a gem-bought unlock is the SERVER's set —
+     hr_state_of `gem_unlocks` → accrue.js reconcileGemUnlocks → G._gemUnlocks
+     (scratch) → ownsGemUnlock. A default here would be a second answer to the
+     one question, and it is the answer a console can type. */
   /* b215: seasonPass field retired (pay-to-win XP). Old saves may still
      carry the key; nothing reads it. */
   skills:{attack:0,strength:0,defense:0,hitpoints:1154,prayer:0,magic:0,woodcutting:0,mining:0,fishing:0,farming:0,cooking:0,crafting:0,smithing:0},
@@ -703,7 +714,8 @@ let G={
      A client-state pref (src/net/client-state.js), so this is a client-only
      default and the player may re-point it at any time. */
   foodSlot:'cooked_shrimp',
-  autoEatPct:0.5,
+  /* NO `autoEatPct`: the threshold is `player_state.auto_eat_pct`, read through
+     HearthriseAuto.eatThreshold(). */
   activeMonster:null,
   monsterHp:0,monsterMaxHp:0,
   playerHp:10,playerMaxHp:10,
@@ -1375,41 +1387,15 @@ function normalizePausedCooking(){
   }catch(e){ return false; }
 }
 window._normalizePausedCooking=normalizePausedCooking;
-/* ── RULING 3.5 (2026-08-15): DID BLESSINGS PAY DURING THE ABSENCE? ────────
-   Asked of the ONE table that decides it — `AWAY_SCOPE.blessing` in
-   src/core/away.js, through the same `channelApplies` resolver core's three
-   span simulations now report from — instead of being answered a fourth time
-   here with a handwritten `false`.
-
-   `{away:true}` is not the rule; it is processOffline's own fact (it IS the
-   absence). What "away" MEANS for the blessing channel is the table's call
-   alone, so the first blessing that is ever made to pay away flips one line
-   and every receipt in the game follows it.
-
-   NO FALLBACK LITERAL, deliberately, and UNGUARDED for the reason the
-   `creditWindow` call in processOffline states about itself: a missing helper
-   must fail loudly, because the only silent fallback available here is a
-   fifth handwritten copy of the rule — the exact thing this removes. The
-   guard would be unreachable anyway: processOffline dereferences
-   `window.HearthriseCore.away.creditWindow` a hundred lines before the
-   summary is written, so core is present by construction at this point. */
-function _awayBlessed(){
-  const A = window.HearthriseCore.away;
-  return A.channelApplies(A.CHANNEL.BLESSING, {away:true});
-}
-/* `{skill, recipe}` for the pointer, or null — via the ONE index. Answers
-   "is the running activity an artisan bench?" without a second mapping. */
-function _awayArtisanEntry(){
-  const C=_awaySpanCore();
-  if(!C||!G||!G.skillTargetId) return null;
-  const e=C.artisanRecipe(G.skillTargetId);
-  /* The pointer and the index must agree about the bench. If they do not the
-     state is inconsistent and paying would credit the wrong skill's XP — fall
-     through to the gather branch, which refuses on the same disagreement. */
-  if(!e) return null;
-  if(G.activeSkill && G.activeSkill!==e.skill) return null;
-  return e;
-}
+/* `_awayBlessed()` and `_awayArtisanEntry()` were DELETED 2026-09-14, not moved.
+   Each appeared exactly ONCE in the entire repository — its own declaration —
+   measured across src/**, tests/**, tools/**, supabase/**, docs/** and
+   index.html. They were helpers for a local away-span summary this client no
+   longer writes: `hr-accrue` computes the absence and the receipt quotes the
+   server (CLAUDE.md §1). Unreachable code in a 19k-line classic script is worse
+   than absent code, because the next reader has to prove it is dead before they
+   can touch anything near it. The RULE they consulted is untouched and still has
+   exactly one home: AWAY_SCOPE + channelApplies in src/core/away.js. */
 /* ════════════════════════════════════════════════════════════════
    b337/b515 — SERVER-AUTHORITATIVE AWAY TIME, WITH NO OTHER POSITION.
 
@@ -1459,7 +1445,7 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
 
    A local `G.gems -= price` is therefore not a payment, it is a PREDICTION, and
    a prediction with no server intent behind it is retired by the next envelope —
-   the gems come back. Meanwhile `ownedThemes` / `ownedCosmetics` are RESIDUE
+   the gems come back. Meanwhile `ownedThemes` / `ownedCosmetics` WERE RESIDUE
    (client-state.js) and `G.bank.gemBuys` is carried untouched by reconcileBank,
    so the THING BOUGHT stayed. Net effect: a free theme, a free cosmetic, and
    free bank space, repeatable, from three unmodified buttons. That is the b371
@@ -1467,32 +1453,20 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
    documents and 2026-09-08-hero-slot-buy.sql was written to close for the
    FOURTH site (character_slot). These three are its twins and were missed.
 
-   ⚠ WHY THIS IS A REFUSAL AND NOT A `buyUnlock` REWIRE. The obvious fix — route
-   these through window.HearthriseGold.buyUnlock the way b500 routed
-   buyBankSpaceGold — DOES NOT WORK, and the reason is structural rather than a
-   missing row:
-     · supabase/functions/hr-accrue/unlock-catalogue.js SELLABLE_NAMESPACES is
-       ['room','property'] and refuses `theme` / `cosmetic` BY NAME;
-     · the GENERATED catalogue agrees — 2026-08-16-unlock-offers.generated.sql
-       carries every theme.* and cosmetic.* row with `gold = null` and
-       `refusal = 'namespace_unsupported:<ns>'`;
-     · public.hr_unlock_offers has a GOLD column and no other, which is exactly
-       why the hero slot needed its own verb (that migration's header says so in
-       those words);
-     · src/data/gold-ladders.js publishes `bank.<n>` for the GOLD rung only —
-       there is no gem rung offer at all.
-   So `buyUnlock('theme.forest')` would answer 409 offer_unsupported forever, and
-   wiring it would turn a silent exploit into a permanently dead button. The
-   server half is a MIGRATION (see the change report; REVIEW-ONLY, a money
-   surface, Security's call) and this file must not invent one.
+   ⚠ TWO OF THE THREE ARE NOW WIRED, NOT REFUSED (2026-09-14).
+   hr_buy_gem_unlock is applied, so buyTheme and buyCosmetic send an intent and
+   render the server's answer; their residue bags are deleted. THIS GATE IS
+   STILL LIVE and still load-bearing for the two sites that have no verb:
+   buyBankSpaceGem (there is no `bank.gem.<n>` rung anywhere — the gold ladder is
+   gold-only) and redeemHearthToken. Do not delete it, and do not add a fourth
+   caller: a new gem sink gets a server verb, not this refusal.
 
-   WHAT IT DOES INSTEAD is exactly what multi-character.js buySlot() already
-   ships and what the team already accepted for the same class: when the client
-   may not write the balance, the gesture is REFUSED BY NAME, nothing is
-   debited, and nothing is granted. hr_buy_hero_slot is likewise not applied
-   yet, so the hero-slot button says "Hero slots are unavailable right now"
-   today — this is that precedent, not a new policy. An honest "not yet" beats a
-   purchase that quietly does nothing and hands out the goods.
+   ⚠ A GEM SINK CANNOT BE ROUTED THROUGH `buyUnlock`: hr_unlock_offers has a GOLD
+   column and no other, and unlock-catalogue.js refuses the theme/cosmetic
+   namespaces by name — which is why hr_buy_gem_unlock and hr_buy_hero_slot each
+   needed a verb of their own. Until a sink HAS one, the gesture is REFUSED BY
+   NAME and nothing is debited or granted: an honest "not yet" beats a purchase
+   that quietly does nothing and hands out the goods.
 
    SWITCH OFF (clientMayWriteRecordField('gems') === true — no accrual, or a
    pre-arm build) every one of these paths is BYTE-FOR-BYTE what shipped before:
@@ -1510,40 +1484,19 @@ function refuseGemPurchase(what){
 window.gemSpendIsClientAuthored=gemSpendIsClientAuthored;
 window.refuseGemPurchase=refuseGemPurchase;
 
-/* ── OWNERSHIP OF A GEM-BOUGHT UNLOCK: THE SERVER FIRST, ALWAYS ──────────────
-   `ownedThemes` / `ownedCosmetics` are RESIDUE — a bag the client writes and
-   hr_put_client_state stores verbatim. Residue asserting ownership of a thing
-   the SERVER sells is the class currently deadlocking a player's Forge (a
-   residue property tier gating a server capability), and it is the half of the
-   b371 dupe that made the free theme STICK.
-
-   This is multi-character.js ownsSlot() applied to the same problem, and the
-   fallback direction is the same one for the same reason: the SERVER'S SET WINS
-   WHEN THERE IS ONE, and residue answers only while the server has not spoken.
-   Today no envelope projects theme/cosmetic ownership (hr_state_of projects
-   hero_slots / traits / bank / companions / farm and nothing for these), so
-   `_gemUnlocks` is absent and every existing owner keeps every theme they hold
-   — NOBODY IS DE-OWNED BY THIS CHANGE. The day the migration projects the set,
-   `reconcileGemUnlocks` lands it in `G._gemUnlocks` (scratch, `_`-prefixed,
-   never persisted — the G._heroSlots shape exactly) and a forged residue entry
-   stops conferring anything, with no further edit to any caller.
-
-   ⚠ DO NOT make residue the authority again, and do not promote `_gemUnlocks`
-   out of scratch: the residue is precisely the store a cloud restore can rewind
-   while the entitlement it paid for stays granted. */
-function gemUnlockServerSet(){
-  var s=(typeof G!=='undefined')&&G&&G._gemUnlocks;
-  return (s&&Array.isArray(s.owned))?s.owned:null;
-}
-function ownsGemUnlock(kind,id){
-  if(typeof G==='undefined'||!G)return false;
-  var srv=gemUnlockServerSet();
-  if(srv)return srv.indexOf(kind+':'+id)>=0;
-  var bag=(kind==='theme')?G.ownedThemes:(kind==='cosmetic'?G.ownedCosmetics:null);
-  return !!(bag&&bag.indexOf&&bag.indexOf(id)>=0);
-}
-window.gemUnlockServerSet=gemUnlockServerSet;
-window.ownsGemUnlock=ownsGemUnlock;
+/* ── OWNERSHIP OF A GEM UNLOCK, AND THE LEARNED RECIPES: BOTH LIVE IN MODULES
+   src/features/gem-unlocks.js   — ownsGemUnlock / gemUnlocksKnown /
+                                    activeHouseTheme / buyGemUnlock
+   src/features/recipe-scrolls.js — unlockedRecipesMap / knowsRecipe /
+                                    readRecipeScroll
+   Extracted from here on 2026-09-14 with the server verbs they talk to
+   (hr_buy_gem_unlock, hr_recipe_learn). They are net-facing FLOW — intent,
+   verdict, reconcile, refusal — not UI glue, and §7 says that leaves the
+   monolith. This file keeps only the GESTURES (buyTheme / buyCosmetic /
+   setTheme are onclick targets and paint their own screens) and reads the
+   seams off `window`, the way it already reads HearthriseGold. */
+/* `autoEatFoodId()` — the provision the engine eats — lives in auto-actions.js
+   beside `eatFoodId()`; this file calls it as a global. */
 
 /* ── b431 — THE ROOMS READ SEAM (legacy wrapper) ──────────────────────────────
    Every `G.rooms` read in this classic script goes through these so that, once
@@ -2343,7 +2296,9 @@ function awayAutoEatState(hadFood){
     else owned=!!(G&&G.traits&&G.traits.auto_eat);
     var t=(typeof A.eatThreshold==='function')?A.eatThreshold():eat.threshold;
     var n=Number(t);
-    return { enabled: !!(eat.enabled&&owned),
+    /* THE SWITCH IS THE SERVER'S (`auto_eat_enabled`), local only until it speaks. */
+    var _on=(typeof A.eatEnabled==='function')?A.eatEnabled():!!eat.enabled;
+    return { enabled: !!(_on&&owned),
              pct: isFinite(n)?Math.round(Math.max(0,Math.min(1,n))*100):null,
              /* `undefined` when the caller did not sample it — the receipt then
                 claims nothing about the bag, which is the honest degradation
@@ -2740,7 +2695,13 @@ const IAP=(()=>{
        fails the build if a `gold:` field ever reappears on a product. */
     if(p.tokens){addItem('hearth_token',p.tokens);} /* b206: tradable premium bonds */
     if(p.ent)G.entitlements[p.ent]=true;
-    if(p.unlocks)p.unlocks.forEach(id=>{if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);});
+    /* ⚠ `p.unlocks` USED TO PUSH THEME IDS INTO A RESIDUE BAG and the line is
+       gone with the bag (2026-09-14). No product in IAP_CATALOG carries
+       `unlocks`, so nothing regresses today — and the shape was wrong anyway: a
+       theme granted by a purchase is an ENTITLEMENT, and entitlements are
+       player_progress flags the server writes. A future themed product grants
+       through the server (hr_buy_gem_unlock's catalogue or a receipt-checked
+       grant), never by appending to a bag the client owns. */
     /* b215: the Season Pass was retired — it sold a permanent +10% all-XP
        multiplier, which is pay-to-win on public leaderboards and against the
        design rule that premium is convenience/cosmetic only. */
@@ -6293,10 +6254,14 @@ const COMBAT_FX={
     if(window.HearthriseAuto&&typeof window.HearthriseAuto.maybeAutoEat==='function'){
       return !!window.HearthriseAuto.maybeAutoEat();
     }
-    if(G.playerHp<G.playerMaxHp*(G.autoEatPct||0.5)&&G.foodSlot&&(G.inventory[G.foodSlot]||0)>0){
-      const fd=ITEMS[G.foodSlot];
+    /* THE COLD PATH — before HearthriseAuto loads. Same server observation the module reads, never a client copy. */
+    let _srvAE={}; try{ const A=window.HearthriseAccrual; if(A&&A.serverAutoEatSettings) _srvAE=A.serverAutoEatSettings()||{}; }catch(e){}
+    const _pct=(typeof _srvAE.pct==='number'&&isFinite(_srvAE.pct))?Math.max(0,Math.min(1,_srvAE.pct/100)):0.5;
+    const _slot=(typeof _srvAE.food==='string'&&_srvAE.food)?_srvAE.food:G.foodSlot;
+    if(G.playerHp<G.playerMaxHp*_pct&&_slot&&(G.inventory[_slot]||0)>0){
+      const fd=ITEMS[_slot];
       if(fd&&fd.heals){
-        const _food=G.foodSlot;
+        const _food=_slot;
         G.playerHp=Math.min(G.playerMaxHp,G.playerHp+fd.heals);
         removeItem(_food,1);
         G.stats.buffsConsumed=(G.stats.buffsConsumed||0)+1;
@@ -6868,383 +6833,15 @@ function doSkillAction(silent){
   if(!silent){retimeActivity();renderSkillDetail(type);updateTopbar();}
 }
 
-/* ─── farming ─── */
-/* b220 (backlog #13 — docs/design/farming-watering.md): watering is an
-   OPTIONAL accelerator, not a gate. All growth maths lives in ONE place,
-   HearthriseFarm.growthHours() (src/features/farm-progression.js), which the
-   tick, the offline catch-up and every renderer read. These thin accessors
-   exist so legacy.js never re-derives growth itself — the old code did, in
-   four places, with `&& p.watered` baked into two of them, which is exactly
-   how unwatered crops came to stall forever. */
-function farmApi(){ return window.HearthriseFarm; }
-function plotIsReady(p){ const A=farmApi(); return !!(A&&A.isReady&&A.isReady(p)); }
-function plotPct(p){ const A=farmApi(); return (A&&A.progressPct)?A.progressPct(p):0; }
-function plotIsWaterable(p){ const A=farmApi(); return !!(A&&A.isWaterable&&A.isWaterable(p)); }
-function plotWindowMs(p){ const A=farmApi(); return (A&&A.waterWindowRemainingMs)?A.waterWindowRemainingMs(p):0; }
-function plotReadyInMs(p){ const A=farmApi(); return (A&&A.readyInMs)?A.readyInMs(p):0; }
-/* Ticking countdown for the watered window. h:mm:ss above an hour, m:ss below —
-   the clock convention, so "1:59:04" and "12:30" both read unambiguously. */
-function fmtClock(ms){
-  const s=Math.max(0,Math.round(ms/1000));
-  const h=Math.floor(s/3600), m=Math.floor(s%3600/60), sec=s%60;
-  if(h>0)return h+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
-  return m+':'+String(sec).padStart(2,'0');
-}
-/* "4h 38m" / "12m" for the projected ready time. Deliberately local: the
-   fmtTime() further down the file lives inside another block's scope. */
-function fmtSpan(ms){
-  const mins=Math.max(1,Math.round(ms/60000));
-  if(mins<60)return mins+'m';
-  return Math.floor(mins/60)+'h '+(mins%60)+'m';
-}
-let farmInterval=null;
-/* The set of ready-plot identities we have already toasted. Keyed by
-   index+cropId+plantedAt so a single ready plot toasts ONCE even as the reconcile
-   rebuilds it every envelope (Paione "turnip ready every 5s"), while a REPLANT
-   (new plantedAt) still re-notifies. Pruned each tick to what is currently ready,
-   so it stays bounded and a harvested-then-replanted plot re-toasts. */
-let farmReadyNotified=new Set();
-/* Extracted from the interval so the smoke suite can drive it deterministically
-   (the every-5s toast bug cannot be reproduced by waiting on a real interval). */
-function farmCheckTick(){
-  let changed=false;
-  const liveReady=new Set();
-  /* blob-retire capstone: under arm G.farmPlots is rebuilt from the server
-     envelope (accrue.reconcileFarm) and is undefined until the first envelope
-     lands — an unguarded forEach would throw and kill the tick. Fail-closed to
-     an empty set: no crops render until the projection arrives, never a crash. */
-  (G.farmPlots||[]).forEach((p,i)=>{
-    if(!p)return;
-    const crop=CROPS[p.cropId];if(!crop)return;
-    /* reconcileFarm now promotes a ready plot to state:'ready' on rebuild, so a
-       ready plot may already carry the state — treat either as ready and let the
-       notified-set (not the state flag) decide whether to toast, so the first
-       legitimate toast still fires and the every-5s re-fire is gone. */
-    const ready = p.state==='ready' || plotIsReady(p);
-    if(!ready)return;
-    const key=i+':'+p.cropId+':'+p.plantedAt;
-    liveReady.add(key);
-    if(p.state!=='ready'){G.farmPlots[i]={...p,state:'ready'};changed=true;}
-    if(!farmReadyNotified.has(key)){
-      farmReadyNotified.add(key);
-      try{ if(typeof window!=='undefined') window.__farmReadyToasts=(window.__farmReadyToasts|0)+1; }catch(e){}
-      notify(`${crop.name} ready!`,'loot');
-    }
-    /* b222: the derived `watered` mirror is GONE. b220 dual-wrote it purely
-       so a rollback to b219 would read a sane value; b220 shipped, b221
-       shipped, and a write-only field that no reader consumes is the exact
-       shape of state that drifts and then gets trusted by accident. The one
-       surviving reader is the legacy-save migration
-       (HearthriseFarm.normalizePlot / save-migrations v6→v7), which converts
-       `watered` INTO `waterings[]` and must stay — old saves still carry it.
-       Nothing writes it any more; `waterings[]` is the only source. */
-  });
-  /* Drop notified keys whose plot is no longer ready/present (harvested/cleared)
-     so the set stays bounded and a replant at the same index re-toasts. */
-  farmReadyNotified.forEach(k=>{ if(!liveReady.has(k)) farmReadyNotified.delete(k); });
-  if(changed&&activeTab==='farming')renderFarm();
-  if(changed&&activeTab==='profile')renderProfile();
-}
-function startFarmCheck(){
-  farmInterval=setInterval(farmCheckTick,5000);
-  startFarmTicker();
-}
-if(typeof window!=='undefined'){
-  window.__farmCheckTickForTest=farmCheckTick;
-  window.__resetFarmReadyNotifiedForTest=function(){ farmReadyNotified=new Set(); try{ window.__farmReadyToasts=0; }catch(e){} };
-}
-/* b220: the watered window is a 2-hour countdown the player is meant to plan
-   around, so it has to move. A full renderFarm() every second would rebuild
-   the whole panel; this touches text nodes and one bar width instead, and only
-   while the farm tab is actually on screen. It re-renders properly only when a
-   plot crosses a state boundary (a window closing changes the buttons). */
-let farmTicker=null, farmWaterableSeen=-1;
-function startFarmTicker(){
-  if(farmTicker)return;
-  farmTicker=setInterval(()=>{
-    if(activeTab!=='farming')return;
-    const panel=document.getElementById('farm-panel');if(!panel)return;
-    if(countWaterablePlots()!==farmWaterableSeen){renderFarm();return;}
-    const A=farmApi();if(!A)return;
-    panel.querySelectorAll('.farm-tile[data-plot]').forEach(el=>{
-      const i=+el.getAttribute('data-plot');
-      const p=(G.farmPlots||[])[i];
-      if(!p||p.state==='ready')return;
-      const lab=el.querySelector('.ft-lab'), sub=el.querySelector('.ft-sub'), bar=el.querySelector('.ft-bar i');
-      if(bar)bar.style.width=plotPct(p)+'%';
-      if(lab)lab.textContent=farmPlotLabel(p);
-      if(sub)sub.textContent=farmPlotSub(p);
-      el.classList.toggle('watered',plotWindowMs(p)>0);
-    });
-    const nx=panel.querySelector('#farm-next-water');
-    if(nx)nx.textContent=farmNextWaterText();
-  },1000);
-}
-/* b220: "Water all (4)" needs a count, and the farm header needs a
-   come-back-in line. Both read the same predicate the tiles do. */
-function countWaterablePlots(){
-  let n=0;
-  (G.farmPlots||[]).forEach(p=>{ if(p&&plotIsWaterable(p))n++; });
-  return n;
-}
-function farmNextWaterText(){
-  const growing=(G.farmPlots||[]).filter(p=>p&&p.state!=='ready'&&!plotIsReady(p));
-  if(!growing.length)return 'No crops growing';
-  const n=countWaterablePlots();
-  if(n>0)return n+(n===1?' plot is thirsty':' plots are thirsty');
-  let soonest=Infinity;
-  growing.forEach(p=>{ const ms=plotWindowMs(p); if(ms>0&&ms<soonest)soonest=ms; });
-  if(!isFinite(soonest))return 'No crops growing';
-  return 'Next watering in '+fmtClock(soonest);
-}
-function farmPlotLabel(p){
-  if(!p)return '';
-  if(p.state==='ready'||plotIsReady(p))return 'Ready';
-  const w=plotWindowMs(p);
-  return plotPct(p)+'%'+(w>0?' · watered '+fmtClock(w):' · dry');
-}
-function farmPlotSub(p){
-  if(!p||p.state==='ready'||plotIsReady(p))return '';
-  const ms=plotReadyInMs(p);
-  if(ms<=0)return 'Ready';
-  return 'Ready in '+fmtSpan(ms)+farmPerennialSub(p);
-}
-/* b420: a perennial (tomato/emberfruit) is finite — surface how many regrows
-   remain so the plant visibly DEPLETES instead of reading as an infinite bug. */
-function farmPerennialSub(p){
-  const crop=p&&CROPS[p.cropId];
-  if(!crop||!crop.regrows||!crop.regrowLimit)return '';
-  const left=Math.max(0,crop.regrowLimit-(p.regrowCount||0));
-  return left>0?` · ${left} regrow${left===1?'':'s'} left`:' · final harvest';
-}
-/* b213 QA: the property tier's plot count is REAL now. The farm used to
-   render 8 plantable plots no matter what, which made the homestead ladder's
-   headline benefit (2 plots at camp → 12 at the castle) a fake perk. Plots
-   beyond the cap render locked; already-growing crops in over-cap plots
-   (pre-b213 saves) can still be watered + harvested — they just can't be
-   replanted until the property grows into them. */
-function farmPlotCap(){
-  return (window.HearthriseHomestead && typeof window.HearthriseHomestead.maxPlots==='function')
-    ? window.HearthriseHomestead.maxPlots() : 8;
-}
-/* ── SERVER-AUTHORITY FARM ROUTING (b435 RPCs) — THE ONLY PATH SINCE b454 ────
-   Every farm gesture sends an INTENT to its hr_farm_* RPC and reconciles
-   G.farmPlots / G.plotLevels from the RESPONSE (src/net/farm-sync.js). Crop
-   PRODUCE, XP, the seed debit and the deed spend are SERVER-owned:
-   reconcileFarmResult applies the server's own numbers ONCE and the client never
-   rolls a yield, never calls addXp('farming', ...) and never debits a seed.
-
-   b514 (cleanup slice 4) DELETED the client-authoring fall-through that used to
-   sit under `if(farmSyncArmed())` in plantCrop / waterPlot / waterAllPlots /
-   harvestPlot. It had been unreachable since the 2026-08-22 cutover armed
-   FARM_SERVER_ARM_ENABLED, and an unreachable twin of the farm's whole ruleset is
-   exactly the forgeable surface the cutover closed — plus a standing invitation
-   to "fix" the farm in the copy nobody runs.
-
-   THE MISSING-MODULE POSITION IS FAIL-CLOSED, NOT FALL-THROUGH. If
-   src/net/farm-sync.js is absent the gesture is REFUSED with a sentence; the
-   client does not author the outcome instead. `farmSyncApi()` is that one check,
-   stated once. */
-function farmSyncApi(){
-  const FS=window.HearthriseFarmSync;
-  if(FS&&typeof FS.farmPlant==='function') return FS;
-  notify('The farm is offline for a moment — try again','kill');
-  return null;
-}
-/* The reconcile deps: the server already credited its own row, so these keep the
-   CLIENT CACHE in step with it (applied once from the response, never a second
-   locally-computed amount). */
-const FARM_SYNC_DEPS={
-  addItem:function(id,q){ if(typeof addItem==='function') addItem(id,q); },
-  removeItem:function(id,q){ if(typeof removeItem==='function') removeItem(id,q); },
-  addXp:function(sk,x){ if(typeof addXp==='function') addXp(sk,x); },
-};
-/* WHAT THE *SERVER* SAYS WE HOLD — the only count a GATE may read (`G.inventory` is a display bag no envelope can lower). Rule + evidence: accrue.js gateItemCount. */
-function heldByServer(id){ const A=window.HearthriseAccrual; return (A&&typeof A.gateItemCount==='function')?A.gateItemCount(G,id):((G.inventory&&Number(G.inventory[id]))||0); } window.heldByServer=heldByServer;
-function farmSyncReconcile(kind,res){
-  try{ window.HearthriseFarmSync.reconcileFarmResult(G,kind,res,FARM_SYNC_DEPS); }catch(e){}
-}
-/* Optimistic prediction is PLOT-STATE ONLY (responsiveness); inventory/XP arrive
-   with the server's number, so a refused gesture leaves no phantom crop, and a
-   refusal reverts the optimistic plot. Every hr_farm_plant refusal is SAID by its
-   reason with the action that clears it — the sentence is farm-sync.js's
-   (farmPlantRefusalText, pure + tested) and this supplies only the display names
-   the net layer must not invent. Before 2026-09-06 every code collapsed into
-   "Could not plant — try again" and 'transport' said NOTHING, which is how a
-   fleet-wide tier deadlock read as "you plant something and it doesn't stay". */
-function farmPlantRefusal(res,cropId){
-  const crop=CROPS[cropId];
-  const seedId=crop&&crop.seed;
-  const FS=window.HearthriseFarmSync;
-  const ctx={
-    cropName:(crop&&crop.name)||cropId,
-    seedName:(typeof ITEMS!=='undefined'&&seedId&&ITEMS[seedId]&&ITEMS[seedId].n)||((crop&&crop.name)||cropId)+' Seed',
-    haveLevel:(typeof getLevel==='function')?getLevel('farming'):null,
-  };
-  if(FS&&typeof FS.farmPlantRefusalText==='function') return FS.farmPlantRefusalText(res||{},ctx);
-  return 'Could not plant — please report this';
-}
-function farmSyncPlant(plotIdx,cropId){
-  const FS=farmSyncApi(); if(!FS) return;
-  const prev=G.farmPlots[plotIdx];
-  G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
-  renderFarm();
-  FS.farmPlant(plotIdx,cropId).then(function(res){
-    if(res&&res.ok){ farmSyncReconcile('plant',res); }
-    else {
-      G.farmPlots[plotIdx]=prev||null;
-      /* A plot_tier_locked refusal CARRIES the server's own plot_level. Learn
-         from it: the client gate is wrong by definition if it let this call
-         through, and this is the one place the true tier is available without
-         waiting for the next envelope. */
-      if(res&&res.error==='plot_tier_locked'){
-        const have=Number(res.have_plot_level);
-        if(Number.isFinite(have)&&have>=1){ G._serverPlotLevel=Math.floor(have); G.plotLevels=Math.floor(have); }
-      }
-      notify(farmPlantRefusal(res,cropId),'kill');
-    }
-    renderFarm();updateTopbar();
-  });
-}
-function farmSyncWater(plotIdx){
-  const FS=farmSyncApi(); if(!FS) return;
-  FS.farmWater(plotIdx).then(function(res){
-    if(res&&res.ok){ farmSyncReconcile('water',res); }
-    renderFarm();
-  });
-}
-function farmSyncHarvest(plotIdx){
-  const FS=farmSyncApi(); if(!FS) return;
-  FS.farmHarvest(plotIdx).then(function(res){
-    if(res&&res.ok){
-      farmSyncReconcile('harvest',res);
-      if(res.produce&&res.qty>0){ const crop=CROPS[res.crop]; notify(`+${res.qty} ${crop?crop.name:res.crop}`,'loot'); }
-      /* AWAY-1 parity: one hook, one plant intent — and the hook is handed THIS
-         G (the object reconcileFarmResult just wrote) so the replant can never
-         be decided from a different state than the harvest landed in. */
-      if(!G.farmPlots[plotIdx] && window.HearthriseAuto && typeof window.HearthriseAuto.maybeReplant==='function'){
-        window.HearthriseAuto.maybeReplant(plotIdx, G);
-      }
-    }
-    renderFarm();updateTopbar();
-  });
-}
-function plantCrop(plotIdx,cropId){
-  const crop=CROPS[cropId];if(!crop)return;
-  if(plotIdx>=farmPlotCap() && !G.farmPlots[plotIdx]){
-    notify('Plot locked — upgrade your property to farm more land','kill');return;
-  }
-  const seedId=crop.seed;
-  /* b465: "No seeds!" named no seed and no way forward. Name it (from the crop row,
-     never a literal), say where to buy it, count it the way hr_farm_plant will. */
-  if(heldByServer(seedId)<1){
-    var _sn=(typeof ITEMS!=='undefined'&&ITEMS[seedId]&&ITEMS[seedId].n)||crop.name+' Seed';
-    notify('You have no '+_sn+' — the Local Shop sells them','kill');return;
-  }
-  if(getLevel('farming')<crop.req){notify(`Farming Lv ${crop.req} required`,'kill');return;}
-  // b136: Plot-level gate. canPlantCrop returns true if cropId is in
-  // the unlocked set for the player's current Farm Plot tier. The
-  // engine is in src/features/farm-progression.js. Defensive fallback:
-  // if HearthriseFarm hasn't loaded yet (script-order race), allow
-  // turnip-only — the b133 migration sets G.plotLevels=1 so this is
-  // safe. Anything else falls through to the plot-level error.
-  if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'){
-    if(!window.HearthriseFarm.canPlantCrop(cropId)){
-      /* b136 said "Lv ${lv+1}+" — the player's NEXT level, which is only ever
-         right for a crop exactly one tier away and lied about every other one.
-         Say the crop's OWN requirement (requiredPlotLevel) and the tier the
-         SERVER has recorded, so the sentence matches what hr_farm_plant would
-         have answered. */
-      const lv = window.HearthriseFarm.getPlotLevel();
-      const need = (typeof window.HearthriseFarm.requiredPlotLevel==='function')
-        ? window.HearthriseFarm.requiredPlotLevel(cropId) : 0;
-      notify(need
-        ? `${crop.name} needs Farm Plot Lv ${need} — upgrade in House → Plot (you have Lv ${lv})`
-        : `${crop.name} can't be planted yet — no plot tier unlocks it`,'kill');
-      return;
-    }
-  } else if(cropId !== 'turnip'){
-    notify('Crop locked — upgrade Farm Plot in House → Plot','kill');
-    return;
-  }
-  /* Server-authority routing: the server owns the seed debit, the plant XP and
-     the plot timestamps. Every check above is a PRE-FLIGHT for the copy — the
-     decision, and every number, is hr_farm_plant's. */
-  farmSyncPlant(plotIdx,cropId);
-}
-/* b220: watering opens a 2h double-speed window. It is rejected while a window
-   is already open — that single rule is both the anti-abuse mechanism and the
-   affordance ("this plot is thirsty again"). One tap, no confirm, no modal.
-   b514: the rule is ENFORCED BY hr_farm_water. `plotIsWaterable` survives as the
-   client-side eligibility READ — it decides which tiles "Water all" bothers the
-   server about, and it supplies the refusal sentence. The local `applyWatering`
-   WRITER (waterings.push + addXp) is deleted: it authored a watering window the
-   server never recorded, which is b462 in miniature. */
-function waterPlot(i){
-  const p=(G.farmPlots||[])[i];if(!p)return;
-  /* A tile the player taps while it is already ready should harvest, not
-     scold — the 5s tick may not have flipped `state` yet. */
-  if(p.state==='ready'||plotIsReady(p)){
-    if(p.state!=='ready')G.farmPlots[i]={...p,state:'ready'};
-    harvestPlot(i);return;
-  }
-  /* The server owns the watering window and the water XP. The client still says
-     the "already watered" sentence itself: it is the side that knows what the
-     player is looking at, and hr_farm_water would answer the same. */
-  if(!plotIsWaterable(p)){
-    notify(`Still watered — thirsty again in ${fmtClock(plotWindowMs(p))}`,'kill');
-    return;
-  }
-  farmSyncWater(i);
-}
-/* b220: header action — one tap tucks the whole farm in before bed. */
-window.waterAllPlots=function waterAllPlots(){
-  if(!G.farmPlots)return 0;
-  let n=0;
-  /* b462 — "Water all" went around the server. waterPlot() routes a single tile
-     through hr_farm_water under the farm arm, but this header action still
-     called applyWatering() locally for every plot, so the next envelope (server
-     truth: never watered) dried them all again — Tyler, beta morning: "i water
-     plants, they go back to being dry". Same eligibility test, server verb. */
-  for(let i=0;i<G.farmPlots.length;i++){
-    const p=G.farmPlots[i];
-    if(p&&plotIsWaterable(p)){ farmSyncWater(i); n++; }
-  }
-  notify(n?`Watering ${n} plot${n===1?'':'s'}…`:'Nothing to water right now',n?'loot':'kill');
-  return n;
-};
-/* b228 (bonus-rebase.md §5.3) — STOP FLOORING A FLAT BONUS.
-   `farmYield` is a count of extra crops, and harvestPlot used to spend it as
-   Math.floor(). Every fractional grant therefore paid EXACTLY ZERO: the
-   Scarecrow (+0.1), the Bunny (+0.10), the Squirrel (+0.15), Carrot Stew
-   (+0.15) and Roasted Pumpkin (+0.05) — five purchased perks that have paid
-   nothing since the day they shipped, and nothing on any screen said so.
-
-   The whole part is paid always; the fraction is paid as its own probability,
-   so the EXPECTED yield is exactly the bonus. That is what makes small flat
-   numbers work at all, which is the same smallness problem the rebase is
-   solving everywhere else, wearing a different costume.
-   `_rand01` is injectable so the suite can assert both sides of the coin
-   without flaking on a random draw. */
-function rollFlatBonus(v,_rand01){
-  const n=Number(v)||0;
-  if(n<=0) return 0;
-  const whole=Math.floor(n), frac=n-whole;
-  const r=(typeof _rand01==='function')?_rand01():Math.random();
-  return whole+((frac>0 && r<frac)?1:0);
-}
-window.rollFlatBonus=rollFlatBonus;
-function harvestPlot(i){
-  const p=G.farmPlots[i];if(!p||p.state!=='ready')return;
-  /* Server-authority routing: the server owns the seeded yield roll, the
-     farmYield perk, the finite-perennial wither and the harvest goal counters.
-     The client sends the intent and renders the returned plot state + the
-     server-credited produce/XP ONCE — no local roll, no double credit.
-     b514: the local roll (rand(crop.yield) + rollFlatBonus + addXp + the regrow
-     ladder) is DELETED. farmSyncHarvest reconciles from the response and fires
-     the auto-replant hook when the SERVER clears the plot. */
-  farmSyncHarvest(i);
-}
+/* ─── farming → src/screens/farm.js ─────────────────────────────────────────
+   The growth accessors, the ready/water tickers, the hr_farm_* routing and the
+   plant/water/harvest gestures moved to the farm screen controller (task #129,
+   CLAUDE.md §7). index.html loads that file BEFORE this one: the paintAll
+   wrapper further down this file reads window.renderFarm at evaluation time.
+   renderFarm / openSeedPicker / plantCrop / waterPlot / harvestPlot /
+   farmPlotCap / startFarmCheck / plotIsReady / plotPct / plotWindowMs /
+   heldByServer / rollFlatBonus / waterAllPlots are still globals, published
+   there. Pure refactor — identical DOM and behaviour. */
 
 /* ─── notifications ─── */
 /* ── b373: ASKING THE PLAYER SOMETHING ────────────────────────────────────
@@ -7797,7 +7394,7 @@ function renderProfile(){
       </div>
       <div class="hmstead-col">
         <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navHouse',14)} House</b><button class="btn btn-sm" onclick="showTab('house')">Open</button></div>
-        <div class="muted tiny" style="line-height:1.6">Theme: <b>${HOUSE_THEMES.find(t=>t.id===G.houseTheme)?.name||'Cozy Cottage'}</b><br>${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
+        <div class="muted tiny" style="line-height:1.6">Theme: <b>${HOUSE_THEMES.find(t=>t.id===window.activeHouseTheme())?.name||'Cozy Cottage'}</b><br>${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
       </div>
     </div>`;
 }
@@ -8913,189 +8510,10 @@ function onItemTap(id){
 }
 
 /* ────────────────────────────────────────────────
-   RENDER — Farming
+   RENDER — Farming → src/screens/farm.js
+   renderFarm, plantAllEmpty, toggleAutoReplant and openSeedPicker moved with
+   the rest of the farm (see the tombstone above ~line 6871).
    ──────────────────────────────────────────────── */
-function renderFarm(){
-  const el=document.getElementById('farm-panel');if(!el)return;
-  /* b213: show every unlocked plot, plus any over-cap plots that still hold
-     a growing crop (pre-b213 saves) so nothing a player planted disappears. */
-  const plotCount=Math.max(farmPlotCap(),(G.farmPlots||[]).length);
-  // b136: plot-level header + plant-all + auto-replant toggle.
-  // The HearthriseFarm API drives all gating; we show a status strip
-  // so the player understands what's unlocked and where to upgrade.
-  const plotLv = (window.HearthriseFarm && window.HearthriseFarm.getPlotLevel) ? window.HearthriseFarm.getPlotLevel() : 1;
-  const plotMax = (window.HearthriseFarm && window.HearthriseFarm.MAX_LEVEL) || 5;
-  const deeds = (window.HearthriseFarm && window.HearthriseFarm.getDeedCount) ? window.HearthriseFarm.getDeedCount() : 0;
-  const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : {enabled:false,cropId:null};
-  const replantLabel = replant.enabled ? (replant.cropId ? CROPS[replant.cropId]?.name || replant.cropId : 'last crop') : 'off';
-  /* b220: "Water all" sits beside "Plant all", labelled with the count, and the
-     status line carries the come-back-in timer — the only thing on this screen
-     that tells a farmer when watering is worth a login. */
-  const waterable = countWaterablePlots();
-  farmWaterableSeen = waterable;
-  /* The SAME answer plantAllEmpty acts on, so the button cannot offer a sweep
-     the sweep will refuse (the silent "Plant all", live 2026-09-13). */
-  const plantable = window.HearthriseCore.farm.emptyPlotIndices(G.farmPlots, farmPlotCap()).length;
-  const header = `
-    <div class="farm-status row between" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
-      <div class="tiny muted">
-        Farm Plot <b>Lv ${plotLv}/${plotMax}</b>
-        · ${deeds} Deed${deeds===1?'':'s'}
-        · Auto-replant: <b>${replantLabel}</b>
-        <br><span id="farm-next-water">${farmNextWaterText()}</span> · crops grow even while you're away
-      </div>
-      <div class="row gap-sm">
-        <button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant configured/best seed in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>
-        <button class="btn btn-sm" onclick="window.waterAllPlots()" ${waterable?'':'disabled'} title="${waterable?'Watering doubles growth speed for 2 hours':farmNextWaterText()}">${waterable?`Water all (${waterable})`:'Water all'}</button>
-        <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
-        <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Buy the next plot tier with gold (or a Farmer's Deed) in House → Plot">Upgrade Plot</button>
-      </div>
-    </div>`;
-  el.innerHTML = header + `<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
-    ${Array.from({length:plotCount}).map((_,i)=>{
-      /* blob-retire capstone: guard an undefined farm (armed, pre-first-envelope)
-         so the farm panel renders empty plots instead of throwing. */
-      const p=(G.farmPlots||[])[i];
-      /* b217: an empty plot rendered as a dashed-border rectangle holding a
-         "＋" and the word "Empty". At the farm's grid size that is a 430x420
-         void per plot — a third of the screen given to two dashed boxes, which
-         is the single most prototype-looking element in the build. A plot is
-         TILLED GROUND: it gets soil (see .farm-tile.empty in art-direction),
-         a furrow pattern, and a plant affordance that reads as an action. */
-      if(!p && i>=farmPlotCap())return `<div class="farm-tile empty locked" onclick="showTab('house')" title="Upgrade your property to unlock this plot"><span class="ft-lock">${lockGlyph()}</span><small>Locked</small></div>`;
-      if(!p)return `<div class="farm-tile empty" onclick="openSeedPicker(${i})"><span class="ft-plant">Plant</span><small>Empty plot</small></div>`;
-      const crop=CROPS[p.cropId];
-      /* b220: a growing plot must ALWAYS look like it is growing. The old
-         label printed "Tap to water" and NO bar for a dry plot, which is why
-         a permanently stalled auto-replanted crop was invisible to the player.
-         Every growing plot now shows its percentage, a moving bar, and the
-         projected ready time — dry or watered. */
-      const ready=p.state==='ready'||plotIsReady(p);
-      const pct=ready?100:plotPct(p);
-      const wet=!ready&&plotWindowMs(p)>0;
-      const action=ready?`harvestPlot(${i})`:`waterPlot(${i})`;
-      const title=ready?'Harvest':(wet?'Watered — growing at double speed':'Water this plot: double growth for 2 hours');
-      return `<div class="farm-tile ${ready?'ready':''} ${wet?'watered':''}" data-plot="${i}" onclick="${action}" title="${title}"><span class="ft-crop">${itemArt(crop.prod, 44)}</span><small class="ft-lab">${farmPlotLabel(p)}</small>${ready?'':`<span class="ft-bar"><i style="width:${pct}%"></i></span><small class="ft-sub">${farmPlotSub(p)}</small>`}</div>`;
-    }).join('')}
-  </div>`;
-
-  const cg=document.getElementById('crops-guide');
-  // b136: crops guide now shows BOTH skill-level and plot-level gates.
-  // A crop is "Unlocked" only if both pass. Locked-by-plot crops get
-  // a deep-link to House → Plot tab.
-  const canPlot = (id)=>{
-    if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function')
-      return window.HearthriseFarm.canPlantCrop(id);
-    return id === 'turnip';
-  };
-  cg.innerHTML=Object.entries(CROPS).map(([id,c])=>{
-    const lv=getLevel('farming');const lvOk=lv>=c.req;const plotOk=canPlot(id);
-    let badge;
-    /* b217: an "Unlocked" tag on every available crop is noise — available is
-       the default state and does not need a label. Only the GATE is news. */
-    if(lvOk && plotOk) badge = '';
-    else if(!lvOk) badge = `<span class="mr-lock">${lockGlyph()}Level ${c.req}</span>`;
-    else badge = `<span class="mr-lock" style="cursor:pointer" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Upgrade Farm Plot in House → Plot">${lockGlyph()}Bigger plot</span>`;
-    const peren = c.regrows ? ` · <b>perennial</b> (regrows ×${c.regrowLimit||'∞'})` : '';
-    return `<div class="shop-row"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Lv ${c.req} · ${c.hours}h grow · ${c.yield[0]}-${c.yield[1]} yield${peren}</span></div>${badge}</div>`;
-  }).join('');
-}
-
-/* Plant all empty plots. The RULE (which crop next, from a REMAINING seed budget
-   rather than the bag — the seed debit is the server's and arrives with the
-   response) and the LIST (empty plots inside the property cap) are both
-   src/core/farm.js, and the header's button label reads the same two answers, so
-   it can no longer offer a sweep that places nothing and says nothing (live
-   2026-09-13, twice, with seeds in the bag). Every exit says what happened. */
-window.plantAllEmpty = function plantAllEmpty(){
-  const CF = window.HearthriseCore.farm, cap = farmPlotCap();
-  const empties = CF.emptyPlotIndices(G.farmPlots, cap);
-  if(!empties.length){
-    notify(cap > 0 ? 'Every plot already has something growing'
-      : 'Your homestead has no farmland yet — upgrade your property in House → Property','kill');
-    return 0;
-  }
-  const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
-  const seeds = {};
-  /* The budget is the SERVER's count: a sweep against display-bag seeds spends every plot on a refusal. */
-  Object.values(CROPS).forEach(c=>{ seeds[c.seed] = heldByServer(c.seed); });
-  const st = { crops:CROPS, seeds, farmingLevel:getLevel('farming'),
-    plotLevel:(window.HearthriseFarm&&window.HearthriseFarm.getPlotLevel)?window.HearthriseFarm.getPlotLevel():1,
-    prefer:(replant&&replant.enabled)?replant.cropId:null };
-  let planted = 0, outOfSeeds = false;
-  for(const i of empties){
-    const pick = CF.pickSeedToPlant(st);
-    if(!pick){ outOfSeeds = true; break; }
-    plantCrop(i, pick);
-    /* A refused gesture said its own reason — stop rather than fire the same
-       refusal at every remaining plot. */
-    if(!G.farmPlots || !G.farmPlots[i]) break;
-    planted++; seeds[CROPS[pick].seed] -= 1;
-  }
-  if(planted > 0){
-    notify(`Planted ${planted} plot${planted===1?'':'s'}`
-      + ((outOfSeeds && planted < empties.length) ? ' — out of seeds for the rest' : ''), 'loot');
-  } else if(outOfSeeds){
-    notify('No plantable seeds for your plots — the Local Shop sells them','kill');
-  }
-  return planted;
-};
-window.toggleAutoReplant = function toggleAutoReplant(){
-  if(!window.HearthriseAuto || !window.HearthriseAuto.getFarmReplant) return;
-  const cur = window.HearthriseAuto.getFarmReplant();
-  if(cur.enabled){
-    window.HearthriseAuto.setFarmReplant({enabled:false});
-    notify('Auto-replant: off', 'info');
-  } else {
-    // Default cropId to whichever crop is currently most-planted, falling
-    // back to turnip. Picking sensibly here saves a click.
-    let pick = null;
-    const counts = {};
-    (G.farmPlots||[]).forEach(p=>{ if(p && p.cropId) counts[p.cropId] = (counts[p.cropId]||0) + 1; });
-    let best = -1;
-    Object.entries(counts).forEach(([id,n])=>{ if(n > best){ best = n; pick = id; } });
-    if(!pick) pick = 'turnip';
-    window.HearthriseAuto.setFarmReplant({enabled:true, cropId:pick});
-    notify(`Auto-replant: on (${CROPS[pick]?.name||pick})`, 'levelup');
-  }
-  if(activeTab==='farming') renderFarm();
-};
-let pendingPlot=null;
-function openSeedPicker(i){
-  pendingPlot=i;
-  /* b136: seeds split into plantable (seeds + farming level + plot tier) and
-     locked-by-tier (shown with a House deep-link); anything short of seeds or farming
-     level stays hidden. The count is the SERVER's — the picker used to offer the
-     start kit on a character whose rows were long spent. */
-  const haveSeed = (c)=> heldByServer(c.seed) > 0 && getLevel('farming') >= c.req;
-  const canPlant = (id)=> {
-    if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'){
-      return window.HearthriseFarm.canPlantCrop(id);
-    }
-    return id === 'turnip';
-  };
-  const allOwned = Object.entries(CROPS).filter(([,c])=>haveSeed(c));
-  const plantable = allOwned.filter(([id])=>canPlant(id));
-  const lockedByPlot = allOwned.filter(([id])=>!canPlant(id));
-  if(!plantable.length && !lockedByPlot.length){notify('No usable seeds. Visit the shop.','kill');return;}
-  const m=document.getElementById('settings-modal');
-  const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield${c.regrows?` · perennial (regrows ×${c.regrowLimit||'∞'})`:''}</span></div><span class="price">x${heldByServer(c.seed)}</span></button>`;
-  /* A locked row NAMES the tier it needs (and the one you have) — "upgrade the
-     Farm Plot" alone never told the player how far away the crop was. */
-  const needLv = (id)=> (window.HearthriseFarm && typeof window.HearthriseFarm.requiredPlotLevel==='function')
-    ? window.HearthriseFarm.requiredPlotLevel(id) : 0;
-  const havePlotLv = (window.HearthriseFarm && window.HearthriseFarm.getPlotLevel) ? window.HearthriseFarm.getPlotLevel() : 1;
-  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${needLv(id)?`Needs Farm Plot Lv ${needLv(id)} (you have Lv ${havePlotLv}) — House → Plot`:'No plot tier unlocks this crop'}</span></div><span class="muted tiny">x${heldByServer(c.seed)}</span></button>`;
-  /* The picker borrows the settings modal, whose heading is the static word
-     "Settings" — so the dialog asking which seed to plant was titled SETTINGS
-     (live 2026-09-13). Every opener of the shared shell states its own title. */
-  m.querySelector('.modal-title').textContent='Pick a seed';
-  let html = `<h3 style="margin-bottom:10px">Pick a seed</h3>`;
-  if(plantable.length) html += plantable.map(plantBtn).join('');
-  if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">${lockGlyph()} Locked by Farm Plot tier</div>` + lockedByPlot.map(lockedBtn).join('');
-  document.getElementById('settings-body').innerHTML = html;
-  m.classList.add('show');
-}
 
 /* ────────────────────────────────────────────────
    RENDER — House
@@ -9201,13 +8619,12 @@ function renderHouse(){
       return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} &nbsp;${Object.entries(b.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
     }).join('');
   } else {
-    el.innerHTML=`<div class="iap-grid">${HOUSE_THEMES.map(t=>{
-      /* Server-first (ownsGemUnlock): a residue entry the server's set does not
-         carry must not draw an "Apply" button for a theme the realm never sold. */
-      const owned=ownsGemUnlock('theme',t.id);
-      const active=G.houseTheme===t.id;
-      return `<div class="iap-card ${active?'gold':''}"><div class="iap-icon">${_hrGly(t.glyph||'uiHome',30,'--gold-2')}</div><h3>${t.name}</h3><div class="desc">${t.price?(t.currency==='gem'?_gem(t.price):_gp(t.price)):'Default'}</div>${owned?(active?'<button class="btn btn-block" disabled>Active</button>':`<button class="btn btn-block btn-primary" onclick="setTheme('${t.id}')">Apply</button>`):`<button class="btn btn-block btn-gem" onclick="buyTheme('${t.id}')">Buy</button>`}</div>`;
-    }).join('')}</div>`;
+    /* The cards are src/render/house-themes.js — OWNERSHIP IS THE REALM'S and
+       the three states are explained there. Every read is passed in, so the
+       painter has no opinion about where ownership comes from. */
+    el.innerHTML=window.HearthriseHouseThemes.houseThemeGridHtml(HOUSE_THEMES,{
+      owns:window.ownsGemUnlock, activeId:window.activeHouseTheme,
+      glyph:_hrGly, gem:_gem, gp:_gp });
   }
 
   /* bonuses panel */
@@ -9498,10 +8915,12 @@ function buildPlot(id){
     notify('The realm couldn’t record that plot right now — nothing was spent. Try again in a moment.','kill');
   });
 }
-/* EQUIPPING is gated on OWNERSHIP, and ownership is the server's answer when it
-   has one (ownsGemUnlock). Absent a projection this is byte-for-byte the old
-   residue read, so no existing owner loses a theme today. */
-function setTheme(id){if(!ownsGemUnlock('theme',id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
+/* EQUIPPING is gated on OWNERSHIP, and ownership is the SERVER's set
+   (ownsGemUnlock). `houseTheme` is the equipped pointer and stays residue, but
+   it is read back through activeHouseTheme(), which paints `default` for a theme
+   the owned set does not carry — so a write here can never outlive the
+   entitlement behind it. */
+function setTheme(id){if(!window.ownsGemUnlock('theme',id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
 function buyTheme(id){
   const t=HOUSE_THEMES.find(x=>x.id===id);if(!t)return;
   /* ── b4xx — THEMES ARE GEMS-ONLY (designer ruling, slice 6). ─────────────────
@@ -9511,29 +8930,33 @@ function buyTheme(id){
      future non-zero gold theme could silently fall into. Non-gem themes are now
      equipped FREE (the default is a free equip), never bought with gold. No gold
      wiring: a gold-priced theme is not a thing this game authors. */
-  /* ── THE GEM SPEND GATE. The affordability check runs FIRST so "need more
-     gems" still wins when that is the true answer — and it reads the RECORD
-     (balance.js -> the server's gems), not a local number. Only a purchase the
-     player could actually make reaches the gate. The free default never does:
-     it is `currency !== 'gem'`, so it stays the free equip slice 6 made it and
-     never becomes a zero-priced "purchase" (the catalogue's own warning — a
-     zero-priced offer is an infinite faucet). */
-  /* ⚠ AN OWNED THEME IS NEVER BOUGHT TWICE. Found while writing GEM-OK-1, and
-     it is buyCosmetic's bug one function over: the debit ran unconditionally, so
-     calling buyTheme on a theme you already own CHARGED YOU AGAIN. The only
-     thing standing between a player and a second 1,000-gem Volcanic Keep was the
-     House card rendering "Apply" instead of "Buy" — a UI guard on a money
-     surface, which is not a guard. Re-buying now equips what you already own,
-     which is what the gesture means. */
-  if(ownsGemUnlock('theme',id)){ setTheme(id); return; }
-  if(t.currency==='gem'){
-    if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more gems. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
-    if(!gemSpendIsClientAuthored()){refuseGemPurchase('that theme');return;}
-    G.gems-=t.price;
+  /* ⚠ AN OWNED THEME IS NEVER BOUGHT TWICE. Re-buying equips what you already
+     own, which is what the gesture means; the server refuses `already_owned`
+     anyway, so this is a courtesy rather than the guard. */
+  if(window.ownsGemUnlock('theme',id)){ setTheme(id); return; }
+  /* THE FREE DEFAULT IS NOT A PURCHASE. It is `currency !== 'gem'`, it is the
+     `free` row in the realm's own catalogue (refused `not_for_sale` if anyone
+     ever posts it), and it equips through setTheme the moment the owned set
+     arrives. A zero-priced "purchase" path is an infinite faucet — the unlock
+     catalogue's own warning — so there is not one here. */
+  if(t.currency!=='gem'){
+    notify('The realm is still fetching your wardrobe — try again in a moment.','info');
+    return;
   }
-  if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);
-  G.houseTheme=id;
-  notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
+  /* The affordability check runs FIRST so "need more gems" still wins when that
+     is the true answer, and it reads the RECORD (balance.js → the server's gems)
+     rather than a local number. The server checks it again under the lock and
+     quotes its own shortfall; this one only saves a doomed round trip. */
+  if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more gems. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
+  return window.buyGemUnlock('theme:'+id,'that theme',function(){
+    notify('That theme is already yours.','info');
+    setTheme(id);
+  }).then(function(res){
+    if(res&&res.ok===true){
+      G.houseTheme=id;
+      notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
+    }else{ renderHouse(); }
+  });
 }
 
 /* ────────────────────────────────────────────────
@@ -9694,92 +9117,16 @@ function redeemHearthToken(){
 window.redeemHearthToken=redeemHearthToken;
 
 /* ────────────────────────────────────────────────
-   RENDER — Shop / IAP store
+   RENDER — Shop / IAP store → the painter is src/render/shop.js, the COUNTER is
+   src/screens/shop-counter.js. window.shopTab, setShopTab, buyShopItem and
+   buyCosmetic moved there with the vendor's sell side, so buying and selling
+   read as one file instead of two regions 1,500 lines apart. All four are still
+   globals, published at the foot of that file. Pure refactor.
    ──────────────────────────────────────────────── */
-window.shopTab='seeds';
-/* RENDER — Shop / IAP store: extracted to src/render/shop.js (9th render-layer
-   strangler-fig, task #129 Phase 3.5). window.renderShop (+ its exclusive
-   private helpers _iapGlyph / _iapContents / SHOP_SCENE) now lives there. The
-   shop's active-tab state moved from a legacy-local `let shopTab` to
-   window.shopTab (above) so the extracted painter and setShopTab (still here,
-   below) share one identity. The purchase/redeem handlers stay global here. */
-function setShopTab(t){window.shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
-function buyShopItem(id,qty,cost){
-  if(!balCanAfford(cost,'gold')){notify(balShortfall(cost,'gold'),'kill');return;}
-  /* The key is generated BEFORE the local payment so the prediction and the
-     request carry one identity — that is what lets the envelope retire exactly
-     this gesture's prediction and no other. */
-  const _k=goldIntentKey();
-  goldSettle(-cost,'shop.buy',_k);
-  addItem(id,qty);
-  /* FIRE AND RECONCILE — never await-then-render. The offer id and the count
-     are DERIVED from the item/qty/cost by src/net/gold.js; a price the shop and
-     the catalogue disagree about refuses locally rather than charging a number
-     the player never saw. No-op with the switch off. */
-  if(_k&&window.HearthriseGold){const _p=window.HearthriseGold.buyShop(id,qty,cost,_k);if(_p&&_p.catch)_p.catch(()=>{});}
-  notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
-}
-/* ── COSMETICS: THE THIRD GEM TWIN. This was one line and every part of it was
-   a client-authored premium purchase — `G.gems -= price` on an ARMED record
-   balance (retired by the next envelope) plus an unconditional
-   `G.ownedCosmetics.push(id)` into RESIDUE (which persists). Free cosmetics,
-   repeatable, and the push was not even deduplicated: a second buy appended the
-   same id again, so the residue grew without bound on a surface the shop only
-   accidentally guards (it disables the button when `owned`). Both are fixed
-   here; see the gem spend gate for why this refuses rather than routes. */
-function buyCosmetic(id,price){
-  var cost=Math.max(0,Number(price)||0);
-  if(ownsGemUnlock('cosmetic',id)){notify('That cosmetic is already yours.','info');return;}
-  if(!balCanAfford(cost,'gems')){notify(balKnown('gems')?'Not enough gems. Tap "Get Gems".':balShortfall(cost,'gems'),'kill');return;}
-  if(!gemSpendIsClientAuthored()){refuseGemPurchase('that cosmetic');return;}
-  G.gems-=cost;
-  G.ownedCosmetics=G.ownedCosmetics||[];
-  if(G.ownedCosmetics.indexOf(id)<0)G.ownedCosmetics.push(id);
-  notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();
-}
-/* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
-   cost (escalating) and the flat gem deal side-by-side so the better value of
-   gems is legible. Reuses the .qm-overlay backdrop + .btn classes — no new CSS. */
-function closeBankModal(){ var o=document.getElementById('bank-modal-overlay'); if(o)o.remove(); }
-function _bankRowsHTML(){
-  var used=bankUsed(), cap=bankCap();
-  var gCost=bankGoldCost(), gemCost=BANK_SPACE.gem.cost;
-  var canG=balCanAfford(gCost,'gold'), canGem=balCanAfford(gemCost,'gems');
-  var gp=(typeof _gp==='function')?_gp:function(n){return n.toLocaleString()+' gold';};
-  var gem=(typeof _gem==='function')?_gem:function(n){return n.toLocaleString()+' gems';};
-  var gemPerSlot=(gemCost/BANK_SPACE.gem.slots), goldPerSlot=(gCost/BANK_SPACE.gold.slots);
-  return ''
-    + '<p class="bank-cap-line">Bank space: <b>'+used+' / '+cap+'</b> stacks</p>'
-    + '<div class="bank-opt">'
-      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gold.slots+' stacks</b><span>Gold — cost rises with every purchase.</span></div>'
-      + '<div class="bank-opt-buy"><span class="price">'+gp(gCost)+'</span>'
-      + '<button class="btn btn-sm '+(canG?'btn-primary':'')+'" '+(canG?'':'disabled')+' onclick="buyBankSpaceGold()">Buy</button></div>'
-    + '</div>'
-    + '<div class="bank-opt bank-opt-gem">'
-      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat, better deal ('+goldPerSlot.toFixed(0)+' g/slot vs '+gemPerSlot.toFixed(2)+' gem/slot).</span></div>'
-      + '<div class="bank-opt-buy"><span class="price gem">'+gem(gemCost)+'</span>'
-      + '<button class="btn btn-sm '+(canGem?'btn-gem':'')+'" '+(canGem?'':'disabled')+' onclick="buyBankSpaceGem()">Buy</button></div>'
-    + '</div>';
-}
-function _renderBankModal(){
-  var body=document.getElementById('bank-modal-body');
-  if(body) body.innerHTML=_bankRowsHTML();
-}
-function openBankModal(){
-  closeBankModal();
-  var overlay=document.createElement('div');
-  overlay.className='qm-overlay'; overlay.id='bank-modal-overlay';
-  overlay.innerHTML=
-    '<div class="qm-modal bank-modal" style="position:relative;max-width:460px">'
-    + '<button class="qm-close" aria-label="Close">✕</button>'
-    + '<h3 style="margin:0 0 4px">Buy bank space</h3>'
-    + '<div id="bank-modal-body">'+_bankRowsHTML()+'</div>'
-    + '</div>';
-  overlay.querySelector('.qm-close').addEventListener('click', closeBankModal);
-  overlay.addEventListener('click', function(e){ if(e.target===overlay) closeBankModal(); });
-  document.body.appendChild(overlay);
-}
-try{ window.openBankModal=openBankModal; window.closeBankModal=closeBankModal; }catch(_){}
+/* The "Buy space" dialog moved to src/screens/shop-counter.js with the rest of
+   the shop counter (task #129). buyBankSpaceGold / buyBankSpaceGem stay here,
+   with their ledger rows, and still call _renderBankModal() bare — it is
+   published from there. Pure refactor — identical DOM. */
 /* b217: permanent trait upgrades bought with GOLD. Deliberately not free —
    early game is manual eating (click food in combat); players buy the
    convenience once they're established. Gate lives in
@@ -10971,30 +10318,6 @@ function closeInvDetail(){
   window._invDetailId = null;
 }
 
-/* ════════════════════════════════════════════════════════════════
-   b226 — vendorPrice(): what the NPC vendor BIDS, in one place.
-   (docs/design/pacing-overhaul.md §6.1.)
-
-   Raw materials fetch VENDOR_RAW_RATE × their book value; everything else
-   fetches the book value. `ITEMS[id].v` is NOT touched — it stays the number
-   market listings, recipe costing, chest payouts and the collection log all
-   read, so nobody's bank is revalued and nothing already earned is reached
-   into. Only the vendor's bid, and only from now on.
-
-   Gathering throughput is roughly flat (~300 items/h at every tier) while `v`
-   climbs 2.77× per material tier, so a maxed miner vendoring Dawnstone
-   out-earned the King renown reward — 300,000 gold, the eleventh of twelve
-   ranks — every 32 minutes, WHILE ASLEEP. Beyond the arithmetic this puts
-   three systems back in their proper roles: gathering is the material faucet,
-   the artisan skills are the gold path, and the player market becomes the
-   best price for raws, because another player will pay more than 20% for
-   something they actually need.
-
-   ONE choke-point, mirroring applyGoldFind(). Every sell path in the game —
-   the bag's Sell 1 / Sell All / Sell Selected, the context menu, the quick-
-   sell slider, the sell-junk sweep and the old inventory tap — reads this.
-   A price that differs by which button you pressed is not a price.
-   ════════════════════════════════════════════════════════════════ */
 /* ══════════════════════════════════════════════════════════════════════
    THE ONE PLACE THIS FILE **READS** A BALANCE.  (the UNKNOWN sweep)
    ══════════════════════════════════════════════════════════════════════
@@ -11235,172 +10558,13 @@ function hrUnlockRefusalMessage(c,thing){
 window.hrClassifyUnlock=hrClassifyUnlock;
 window.hrUnlockRefusalMessage=hrUnlockRefusalMessage;
 
-const VENDOR_RAW_RATE = 0.20;
-function vendorPrice(id){
-  const it = (typeof ITEMS==='object' && ITEMS) ? ITEMS[id] : null;
-  if(!it) return 0;
-  const v = Number(it.v) || 0;
-  if(v <= 0) return 0;
-  /* Floored at 1: a raw worth anything at all is still worth something, and a
-     0g bid reads as "this item is broken" rather than "this is cheap". */
-  return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
-}
-window.VENDOR_RAW_RATE = VENDOR_RAW_RATE;
-window.vendorPrice = vendorPrice;
-
-/* Sell helpers — wrap existing logic if available, else simple */
-/* ══════════════════════════════════════════════════════════════════════
-   b377 (Tyler) — CHUNKED VENDOR SELL. THE FIX FOR "SELL A BIG STACK, GET NO GOLD".
-   ══════════════════════════════════════════════════════════════════════
-   `vendor_sell` prices ONE item id per call and both the server and
-   src/net/gold.js bound a single intent at MAX_QTY (1,000). The old sell paths
-   settled the WHOLE stack as one gold prediction and then sent ONE oversized
-   `sellItem(id, qty)` — which, for qty > 1,000, was refused LOCALLY with
-   `qty_out_of_range`, and that refusal's rollback REVERSED THE ENTIRE PREDICTION.
-   So selling 4,600 iron platebodies deleted the stack and paid nothing.
-
-   The stack is genuinely sellable — the contract just prices ≤1,000 per call —
-   so split it into ceil(qty/1000) gestures, EACH with its own intent key, its
-   own `goldSettle` prediction and its own `sellItem`. Every chunk now has a real
-   server story and pays for itself; a rate-limited tail chunk (429) is
-   PROVABLY_UNWRITTEN and rolls back only its own leg, self-healing at the next
-   envelope. Purely client-side: no server change, no redeploy.
-
-   Returns the unit bid so callers can still total the receipt/notify. */
-function vendorSellChunked(id, qty, site){
-  const S = window.HearthriseGold;
-  const MAXQ = (S && S.MAX_QTY) || 1000;
-  const price = vendorPrice(id);
-  let remaining = qty;
-  while(remaining > 0){
-    const chunk = Math.min(remaining, MAXQ);
-    const _k = goldIntentKey();
-    goldSettle(price * chunk, site, _k);
-    if(_k && S){ const _p = S.sellItem(id, chunk, _k); if(_p && _p.catch) _p.catch(()=>{}); }
-    remaining -= chunk;
-  }
-  return price;
-}
-window.vendorSellChunked = vendorSellChunked;
-function invSellOne(id){
-  const it = ITEMS[id]; if(!it) return;
-  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
-  if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
-  const price = vendorPrice(id);
-  const _k = goldIntentKey();
-  goldSettle(price, 'vendor.sell_one', _k);
-  removeItem(id, 1);
-  if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); }
-  recordVendorSale(id, 1, price);   // b240: undoable
-  notify(`Sold 1× ${it.n} for ${price.toLocaleString()} gold`,'loot');
-  updateTopbar(); renderInvNew();
-}
-function invSellAll(id){
-  const it = ITEMS[id]; if(!it) return;
-  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
-  const qty = G.inventory[id]||0;
-  if(qty <= 0){ notify('Nothing to sell','kill'); return; }
-  const price = vendorSellChunked(id, qty, 'vendor.sell_all');   // b377: ≤1,000 per intent
-  /* b487 — THROUGH THE BAG SEAM, not `delete G.inventory[id]`. Sell All is the
-     natural gesture for a single tool, and the raw delete skipped every
-     consequence removeItem() owns — including the tool retime (#33: "sold the
-     pickaxe, the boost still applied"). Same result on the bag, one writer. */
-  removeItem(id, qty);
-  recordVendorSale(id, qty, price);   // b240: undoable
-  notify(`Sold ${qty}× ${it.n} for ${(price*qty).toLocaleString()} gold`,'loot');
-  updateTopbar(); renderInvNew(); closeInvDetail();
-}
-function invSellSelected(){
-  if(!window._invSelected.size){ notify('Nothing selected','kill'); return; }
-  let total = 0, count = 0, skipped = 0;
-  for(const id of window._invSelected){
-    const it = ITEMS[id]; if(!it) continue;
-    if(isItemLocked(id)){ skipped++; continue; }   // b240: locked items are left alone
-    const qty = G.inventory[id]||0; if(qty<=0) continue;
-    const price = vendorPrice(id);
-    total += price*qty; count += qty;
-    removeItem(id, qty);                // b487: through the bag seam (see invSellAll)
-    recordVendorSale(id, qty, price);   // b240: undoable
-  }
-  /* DEFERRED, and routed through the seam anyway so the census can see it. This
-     gesture sells N DIFFERENT item ids in one tap and `vendor_sell` prices ONE
-     per call against a 20/min bucket — see B.BULK_VENDOR in
-     src/net/gold-sites.js. Sending N intents here would rate-limit a 30-stack
-     sweep halfway through and leave the bag half-sold against a server that
-     agrees with the half. Nothing is sent; the row says why. */
-  goldSettle(total, 'vendor.sell_selected', null);
-  window._invSelected.clear();
-  notify(`Sold ${count} items for ${total.toLocaleString()} gold` + (skipped?` · ${skipped} locked item(s) skipped`:''),'loot');
-  window._invSelectMode = false;
-  updateTopbar(); renderInvNew();
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   b240 (Tyler) — SELL-LOCK + VENDOR BUY-BACK.
-   Two safety nets around the vendor so an accidental tap never loses a thing:
-   • Lock an item and it cannot be sold until you unlock it (a padlock in the
-     flyout; every sell path checks isItemLocked first).
-   • Every vendor sale is recorded; the last 15 are buyable BACK at the exact
-     price you got, from the Buy-Back window — an undo for the vendor.
-   Both live on G (saved), so they survive a reload. Vendor gold is client-side
-   in this game (the market is the server-authoritative economy), so this needs
-   no server round-trip and cannot mint value — you only ever buy back what you
-   sold, at what you sold it for. ═══════════════════════════════════════════ */
-function isItemLocked(id){ return !!(G.lockedItems && G.lockedItems[id]); }
-function toggleItemLock(id){
-  G.lockedItems = G.lockedItems || {};
-  /* THE BOUND (src/net/client-state.js §THE SIZE GUARD'S CLIENT HALF): only a
-     CATALOGUE id may be locked, so the key set can never outgrow ITEMS. (The
-     alias pass drops unknown keys on load, but early-returns while ITEM_ALIAS is
-     empty — which it is — so this is the bound that actually runs.) Unlocking is
-     never refused: an id that fell out of the catalogue must stay removable. */
-  if(!ITEMS[id] && !G.lockedItems[id]) return;
-  if(G.lockedItems[id]){ delete G.lockedItems[id]; notify('Unlocked — this item can be sold','info'); }
-  else { G.lockedItems[id] = true; notify('Locked — protected from selling','info'); }
-  try{ saveLocal(); }catch(e){}
-  try{ if(typeof renderInvFancy==='function') renderInvFancy(); }catch(e){}
-  try{ if(typeof renderInvNew==='function') renderInvNew(); }catch(e){}
-  try{ if(typeof openInvDetail==='function' && window._invDetailId===id) openInvDetail(id); }catch(e){}
-}
-function recordVendorSale(id, qty, unit){
-  if(!qty || unit==null) return;
-  G.buyback = Array.isArray(G.buyback) ? G.buyback : [];
-  const ex = G.buyback.find(b => b.id===id && b.unit===unit);
-  if(ex){ ex.qty += qty; ex.at = Date.now(); }
-  else { G.buyback.unshift({ id, qty, unit, at: Date.now() }); }
-  if(G.buyback.length > 15) G.buyback.length = 15;
-}
-function repurchase(idx){
-  G.buyback = Array.isArray(G.buyback) ? G.buyback : [];
-  const b = G.buyback[idx]; if(!b) return;
-  const it = ITEMS[b.id]; if(!it){ G.buyback.splice(idx,1); return; }
-  const cost = b.unit * b.qty;
-  /* ── b4xx — GATED ON THE RECORD SEAM (designer ruling, slice 7). ─────────────
-     Buy-back re-purchases at the EXACT price the vendor paid, off a 15-entry
-     LOCAL list — a client-supplied PAST PRICE. While gold is UNARMED (today)
-     clientMayWriteRecordField('gold') is true and this is the plain debit that
-     shipped before. The instant gold joins SERVER_OF_RECORD and is armed it
-     returns false and this fails CLOSED: a client past-price crossing into an
-     armed balance is a mint, and buy-back has no server verb yet (BUYBACK_LEDGER).
-     The gate is a no-op today; it becomes the guard the moment gold flips. */
-  if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
-    if(typeof notify==='function')notify('Buy-back is unavailable right now — try the shop','kill');
-    return;
-  }
-  if(!balCanAfford(cost,'gold')){ notify(balKnown('gold')?'Not enough gold to buy it back':balShortfall(cost,'gold'),'kill'); return; }
-  G.gold -= cost;
-  addItem(b.id, b.qty);
-  G.buyback.splice(idx, 1);
-  notify(`Bought back ${b.qty}× ${it.n} for ${cost.toLocaleString()} gold`,'loot');
-  try{ saveLocal(); }catch(e){}
-  updateTopbar();
-  renderBuyback();
-  try{ if(typeof renderInvFancy==='function') renderInvFancy(); }catch(e){}
-}
-window.isItemLocked = isItemLocked;
-window.toggleItemLock = toggleItemLock;
-window.recordVendorSale = recordVendorSale;
-window.repurchase = repurchase;
+/* ── The VENDOR COUNTER → src/screens/shop-counter.js ───────────────────────
+   vendorPrice (with its b226 doc block, finally reunited with it),
+   VENDOR_RAW_RATE, vendorSellChunked, Sell 1 / Sell All / Sell Selected, the
+   sell-lock, recordVendorSale and buy-back repurchase moved to the shop screen
+   controller (task #129). Every name is still a global, published there; the
+   gold ledger's seam keys are the goldSettle site strings and travelled with
+   the code. Pure refactor — identical behaviour. */
 
 /* renderBuyback + openBuyback extracted to src/render/buyback.js (render-layer
    strangler-fig, task #129). Both remain global via window.* there; repurchase()
@@ -12201,7 +11365,7 @@ function _activityAwayXpHr(live){
 function awayFightSustains(){
   try{
     if(typeof hasTrait!=='function' || !hasTrait('auto_eat')) return false;
-    const id = G && G.foodSlot;
+    const id = autoEatFoodId();
     if(!id) return false;
     const item = window.ITEMS && window.ITEMS[id];
     if(!item || !(item.heals>0)) return false;
@@ -12856,7 +12020,7 @@ console.log('Activity bar: loaded');
 
     var hp = (G && G.playerHp > 0) ? G.playerHp : ((G && G.playerMaxHp) || 1);
     var maxHp = (G && G.playerMaxHp > 0) ? G.playerMaxHp : hp;
-    var pool = 0, foodId = G && G.foodSlot;
+    var pool = 0, foodId = autoEatFoodId();
     var owns = (typeof hasTrait === 'function') && hasTrait('auto_eat');
     if(owns && foodId && window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].heals > 0){
       /* A heal is wasted above the bar, so one food is worth at most a full
@@ -12947,7 +12111,7 @@ console.log('Activity bar: loaded');
      permission that no longer exists; the two that remain are the two real
      limits.) */
   function awayLineHtml(est){
-    var foodId = G && G.foodSlot;
+    var foodId = autoEatFoodId();
     /* THE FIRST TWO RUNGS, read from the ONE table that states the ladder
        (src/core/away.js `recoveryFor`) rather than typed here — a second copy of
        "2 minutes" is a number that drifts away from the rule it describes the
@@ -13012,7 +12176,7 @@ console.log('Activity bar: loaded');
     var hpLv = (typeof getLevel === 'function') ? getLevel('hitpoints') : 1;
     var rngLv = (typeof getLevel === 'function') ? getLevel('ranged') : 1;
     var magLv = (typeof getLevel === 'function') ? getLevel('magic') : 1;
-    var foodId = G && G.foodSlot;
+    var foodId = autoEatFoodId();
     var foodCount = foodId ? (G.inventory[foodId]||0) : 0;
     var foodIcon = foodId ? itemArt(foodId, 20) : _hrGly('uiFood', 16);
     var foodName = foodId && window.ITEMS[foodId] ? window.ITEMS[foodId].n : 'No food';
@@ -14082,7 +13246,9 @@ console.log('Character page loaded');
 /* ─── State migration ─── */
 function migrate(){
   if(typeof G !== 'object' || !G) return;
-  if(!G.streak || typeof G.streak !== 'object') G.streak = {count: 1, lastDay: 0};
+  /* NO `G.streak` SEED (2026-09-14). The play streak is the server's
+     `player_state.streak_days`, read through HearthriseStreakChip.days(); the
+     device counter that used to live here is deleted, not defaulted. */
   if(!G.dailyGoals || typeof G.dailyGoals !== 'object') G.dailyGoals = {dayKey: 0, progress: {}};
   if(typeof G.lastWelcome !== 'number') G.lastWelcome = 0;
   if(typeof G.lifetimeKills !== 'number') G.lifetimeKills = G.stats?.kills || 0;
@@ -14439,7 +13605,7 @@ function maybeShowWelcome(opts){
      days" over a Home card reading "Day 1" and a sheet reading "1-DAY STREAK".
      RULING: the reward sheet keeps the day language and drops "streak"; every
      play-streak surface says PLAYED / RUNNING and never "daily". */
-  var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : G.streak.count;
+  var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : 0;
   if(_playDays > 0) rows.push({g:'uiFlame', t: 'Played', v: _playDays + ' day' + (_playDays===1?'':'s') + ' running'});
   rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
   rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
@@ -15033,7 +14199,8 @@ function injectDailyGoals(){
 /* Boot sequence */
 function boot(){
   migrate();
-  var _S0 = streakChip(); if(_S0) _S0.advance(G);
+  /* NOTHING ADVANCES A LOCAL STREAK ANY MORE: hr_apply advances `streak_days`
+     from the server clock on every settle, and the chip paints THAT. */
   /* b544: WAITS for the boot settle rather than racing it (see WELCOME_GATE). */
   setTimeout(window.__presentWelcomeWhenSettled, 1500);
   setTimeout(paintAll, 600);
@@ -15730,7 +14897,12 @@ function hasInputs(recipe){ return window.HearthriseCore.artisan.hasInputs(recip
    `consumed` map and doArtisanAction applies it, so a helper that removed
    items without knowing whether craftSave had refunded them had no honest
    caller left. */
-function gateOk(recipe){ return window.HearthriseCore.artisan.gateOk(recipe, G.unlockedRecipes); }
+/* THE ATTENDED GATE, and it is PUBLISHED because the away engine's gate is
+   (artisan-sim's `gateOk(recipe, state.unlockedRecipes)`): the two must be
+   provably the same answer off the same projection, and a seam a test cannot
+   reach is a seam that drifts. RECIPE-AWAY-1 drives both. */
+function gateOk(recipe){ return window.HearthriseCore.artisan.gateOk(recipe, window.unlockedRecipesMap()); }
+window.gateOk=gateOk;
 
 /* b227 — THE MATERIAL-ONLY YIELD LAW (homestead-deepening.md §3.5 / H6).
    A hard rule, not a tuning knob: `yield_*` and `craftSave` may fire ONLY on
@@ -15848,7 +15020,7 @@ window.doArtisanAction = function(skillId, recipeId, opts){
   var res = CK.artisan.resolveArtisanAction(r, {
     skillId: skillId,
     inventory: G.inventory,
-    unlockedRecipes: G.unlockedRecipes,
+    unlockedRecipes: unlockedRecipesMap(),
     items: (typeof ITEMS!=='undefined' && ITEMS) || null,
     cookingLevel: (typeof getLevel==='function') ? getLevel('cooking') : 1,
     noBurn: (typeof getBonus==='function') ? (getBonus('noBurn')||0) : 0,
@@ -15971,7 +15143,7 @@ window.renderArtisanActivities = function(skillId){
       return kv[1]+'×'+nm+'('+(G.inventory[kv[0]]||0)+')';
     }).join(' + ');
     var unlocked = lv >= r.req;
-    var gated = r.gated && !(G.unlockedRecipes && G.unlockedRecipes[r.gated]);
+    var gated = r.gated && !window.knowsRecipe(r.gated);
     var canDo = unlocked && !gated && hasInputs(r);
     var active = G.activeSkill===skillId && G.skillTargetId===r.id;
     var outputLabel = r.output && ITEMS[r.output] ? ITEMS[r.output].n : (r.output||'XP only');
@@ -16031,28 +15203,12 @@ window.renderArtisanActivities = function(skillId){
  *   the three drops in src/data/monsters.js — NOT here.
  */
 
-/* ─── Recipe scroll auto-unlock on pickup ─── */
-(function(){
-  var origAdd = window.addItem;
-  if(typeof origAdd !== 'function') return;
-  window.addItem = function(id, qty){
-    var r = origAdd.apply(this, arguments);
-    /* If this is a recipe scroll, unlock it and consume */
-    var def = ITEMS[id];
-    if(def && def.recipe){
-      G.unlockedRecipes = G.unlockedRecipes || {};
-      if(!G.unlockedRecipes[id]){
-        G.unlockedRecipes[id] = true;
-        if(typeof notify === 'function') notify('Recipe Unlocked: '+def.n,'levelup');
-      }
-      /* Remove from inventory — scrolls are consumed on read */
-      setTimeout(function(){
-        if(typeof removeItem === 'function') removeItem(id, qty || 1);
-      }, 100);
-    }
-    return r;
-  };
-})();
+/* ─── THE addItem SCROLL WRAPPER IS GONE (2026-09-14) ───────────────────────
+   It unlocked a recipe into RESIDUE on pickup and deleted the item locally on a
+   100 ms timer — a client-authored grant and a client-authored consume, neither
+   of which the realm ever saw, which is why the away engine refused every gated
+   recipe. Reading a scroll is now a gesture with a server verb; the whole story
+   and the code are in src/features/recipe-scrolls.js. Nothing wraps addItem. */
 
 console.log('Phase A.1 recipe set loaded:',
   Object.values(window.ARTISAN_RECIPES).reduce(function(a,arr){return a+arr.length;},0), 'total recipes,',
@@ -16726,566 +15882,15 @@ function _costPart(itemId, qty){
 
 
 
-(function(){
-"use strict";
-
-/* ─── Category definitions ───
- * b217: these ten filters shipped as raw emoji — a brown cardboard box, a BLUE
- * shield, a CYAN diamond, a pink cut of meat, a green sprout. Ten system-font
- * pictographs in five saturations belonging to no palette, in a row directly
- * above the bag: the most obviously-generated element on the screen. Now gilt
- * glyphs from the one icon set, so the strip reads as chrome. */
-var CATEGORIES = [
-  {id:'all',     glyph:'uiChest',  name:'All',          test:function(it){return true;}},
-  {id:'weapons', glyph:'uiSword',  name:'Weapons',      test:function(it){return it && it.type==='weapon';}},
-  {id:'armor',   glyph:'uiBody',   name:'Armour',       test:function(it){return it && it.type==='armor';}},
-  {id:'jewelry', glyph:'uiAmulet', name:'Jewellery',    test:function(it){return it && it.type==='jewelry';}},
-  {id:'food',    glyph:'uiFood',   name:'Food',         test:function(it){return it && it.heals;}},
-  {id:'mats',    glyph:'uiOre',    name:'Materials',    test:function(it){return it && !it.type && !it.heals && !it.seed && !it.buryXp && !it.recipe;}},
-  {id:'seeds',   glyph:'uiSeed',   name:'Seeds',        test:function(it){return it && it.seed;}},
-  {id:'bones',   glyph:'uiBone',   name:'Bones',        test:function(it){return it && it.buryXp;}},
-  {id:'tools',   glyph:'uiPickaxe',name:'Tools',        test:function(it){return it && it.type==='tool';}},
-  {id:'recipes', glyph:'uiScroll', name:'Recipes',      test:function(it){return it && it.recipe;}},
-  {id:'comp',    glyph:'uiPaw',    name:'Companions',   test:function(it){return it && it.type==='companion';}},
-];
-
-window._invFilter = {category:'all', search:''};
-window.CATEGORIES = CATEGORIES;   // legacy.js is imported as a module, so a top-level declaration is NOT a global; the bag's class table is published for src/features/loot-filter.js
-
-/* ─── Format helpers ─── */
-function fmtQty(n){
-  if(n >= 1000000) return (n/1000000).toFixed(1).replace('.0','')+'M';
-  if(n >= 1000) return (n/1000).toFixed(1).replace('.0','')+'K';
-  return n.toLocaleString();
-}
-
-function itemImg(id){
-  var path = window._itemPath && window._itemPath[id];
-  if(path){
-    var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(id) : '';
-    return '<img src="'+path+'" class="'+tint+'" alt="" loading="lazy" draggable="false" />';
-  }
-  var def = (typeof ITEMS!=='undefined') ? ITEMS[id] : null;
-  return '<span class="invc-emoji">'+itemFallbackIcon(id, 26, def)+'</span>';
-}
-
-/* ─── Main render ─── */
-function renderInvFancy(){
-  var panel = document.getElementById('panel-inventory');
-  if(!panel || typeof ITEMS === 'undefined' || typeof G === 'undefined') return;
-  var _LF = window.HearthriseLootFilter;   // the standing kept-classes filter (src/features/loot-filter.js)
-
-  /* Compute totals */
-  var entries = Object.entries(G.inventory||{}).filter(function(kv){return kv[1] > 0;});
-  var totalCount = entries.reduce(function(a,kv){return a+kv[1];},0);
-  /* (`totalGold` used to be read here and was never used — the bag header
-     states the BAG's value, not the purse's. A dead raw balance read is still
-     a raw balance read, so it is gone rather than converted.) */
-
-  /* Equipment bonuses summary */
-  var bonus = {atk:0, str:0, def:0, rangeAtk:0, rangeStr:0, magicAtk:0, magicStr:0, crit:0};
-  Object.values(equipmentMapG()).forEach(function(id){
-    var it = ITEMS[id]; if(!it) return;
-    bonus.atk += it.atkB||0; bonus.str += it.strB||0; bonus.def += it.defB||0;
-    bonus.rangeAtk += it.rangeAtkB||0; bonus.rangeStr += it.rangeStrB||0;
-    bonus.magicAtk += it.magicAtkB||0; bonus.magicStr += it.magicStrB||0;
-    bonus.crit += it.critB||0;
-  });
-
-  /* Filter items */
-  var f = window._invFilter;
-  var cat = CATEGORIES.find(function(c){return c.id===f.category;}) || CATEGORIES[0];
-  var search = (f.search||'').toLowerCase();
-  var visible = entries.filter(function(kv){
-    var def = ITEMS[kv[0]];
-    if(!def) return false;
-    if(!cat.test(def)) return false;
-    if(_LF && !_LF.keeps(def)) return false;         // the standing kept-classes filter
-    if(search && def.n.toLowerCase().indexOf(search) < 0) return false;
-    return true;
-  });
-
-  /* Preserve scroll across this FULL-panel rebuild. Tester report (paione):
-     the bag "keeps scrolling up" every combat/skill tick — because this renderer
-     replaces #panel-inventory wholesale, destroying the internal scrollers
-     (.invc-bag-col, .invc-right) and recreating them at scrollTop 0. Capture
-     before, restore on the freshly-built nodes after. */
-  var _prevBagScroll = 0, _prevRightScroll = 0;
-  try {
-    var _pbc = panel.querySelector('.invc-bag-col'); if(_pbc) _prevBagScroll = _pbc.scrollTop;
-    var _prc = panel.querySelector('.invc-right');   if(_prc) _prevRightScroll = _prc.scrollTop;
-  } catch(e){}
-
-  /* Build the panel */
-  panel.innerHTML =
-    /* b217: the screen opened with THREE stacked chrome bars before a single
-       item — a "Bag total value" strip, this gold + item-count strip, and the
-       search row: roughly 200px of header on a 1250px screen. The gold figure
-       here also just repeated the topbar twelve pixels above it, and disagreed
-       with it. One bar now: what is in the bag, and the controls that act on
-       it. Gold lives in the topbar, permanently; it does not need a second
-       home on this screen.
-       b213 QA note kept: the old "Space: N/360" ceiling was never enforced
-       anywhere, so the honest item count stays until real storage ships. */
-    '<div class="invc-topbar">'+
-      /* b348: the free-stack count is the number the "Buy space" button is
-         selling, so it is stated rather than left to be inferred. The volatile
-         half (item + gold totals) lives in .invc-space-sub, which is the ONLY
-         thing _renderInvSummary() may rewrite — it used to overwrite this whole
-         node's textContent on every tab entry, so the slot figure survived for
-         about 50ms and the player never saw their capacity at all. The three facts are NAMED elements so a short viewport can drop whole ones rather than ellipsise mid-fact (art-direction.css §mobile); the text content is unchanged. */
-      '<span class="invc-space"><span class="invc-space-cap">'+entries.length+' / '+bankCap()+'<span class="invc-space-unit"> slots</span></span>'
-        +' <span class="invc-space-free">('+Math.max(0, bankCap()-bankUsed()).toLocaleString()+' free)</span>'
-        +'<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
-      '<div class="invc-actions">'+
-        (window.HearthriseDepot?window.HearthriseDepot.toolbarButtonHtml():'')+'<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
-        '<button id="invc-multi" class="'+(window._invMultiSelect?'active':'')+'" onclick="window._invToggleMulti()">Multi-select</button>'+
-        '<button onclick="window._invManage()">Manage</button>'+
-      '</div>'+
-    '</div>'+
-    /* Search row */
-    '<div class="invc-search-row">'+
-      '<input type="text" id="invc-search" placeholder="Search for an item..." value="'+(search||'').replace(/"/g,'&quot;')+'" oninput="window._invSearchInput(this.value)" />'+
-      '<button onclick="window._invSearchClear()">Reset</button>'+
-    '</div>'+
-    /* Main: left (categories + bag) | right (equipment + stats) */
-    '<div class="invc-main">'+
-      '<div class="invc-left">'+
-      /* The STANDING kept-classes row. Inside `.invc-left` on purpose: the mobile
-         layout turns the panel into an explicit grid and PLACES each of its four
-         children by name (art-direction.css ~2292), so a fifth top-level child
-         would auto-place into an implicit row and shove the bag off a landscape
-         phone. It also inherits the rule that hides the bag's controls on the
-         equip/loadout sub-tabs. */
-      (_LF ? _LF.rowHTML() : '')+
-      /* Bag grid */
-      '<div class="invc-bag-col">'+
-        '<div class="invc-grid">'+
-          (visible.length === 0 ?
-            /* b293 (Xarnathos: "when you get a recipe it is not listed in the
-               inventory under recipe"). Recipe scrolls are READ ON PICKUP — addItem
-               unlocks them into G.unlockedRecipes and deletes the item — so this tab
-               could never hold anything and read as a bug. Show the recipes you have
-               actually learned instead of a dead "no items" wall. */
-            (f.category === 'recipes'
-              ? (function(){
-                  var known = Object.keys((G && G.unlockedRecipes) || {}).filter(function(id){ return ITEMS[id]; });
-                  if(!known.length) return '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No recipes learned yet — recipe scrolls drop from monsters and are learned the moment you pick them up.</div>';
-                  return '<div style="grid-column:1/-1;padding:6px 2px 10px;color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Recipes are learned the moment you pick up the scroll, so they live here rather than in your bag — these are yours permanently.</div>'
-                    + known.map(function(id){
-                        var d = ITEMS[id];
-                        var makes = d.recipe && ITEMS[d.recipe] ? ITEMS[d.recipe].n : null;
-                        return '<div class="inv-slot" title="'+(d.n||id)+(makes?' — unlocks '+makes:'')+'">'
-                          + '<span class="inv-ic">'+((window._itemPath && window._itemPath[id]) ? '<img src="'+window._itemPath[id]+'" alt="">' : (d.icon||''))+'</span>'
-                          + '<span class="inv-nm">'+(makes || d.n || id)+'</span></div>';
-                      }).join('');
-                })()
-              : '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No items in this category</div>') :
-            /* b216: pad the grid with EMPTY SLOTS so the bag reads as a real
-               inventory rather than a handful of tiles above a black void.
-               A uniform filled grid is what makes a bag scannable — you learn
-               the shape of the container, and item positions stay stable. */
-            (function(html){
-              /* THE BAG SHOWS THE SPACE YOU BOUGHT. The empty tiles ARE your free
-                 stacks, off the same bankCap()/bankUsed() pair addItem() enforces,
-                 so a purchase adds rows the instant it completes and the picture
-                 cannot disagree with the rule. (Sizing it by ITEM COUNT instead is
-                 what made a paid gem upgrade invisible until you outgrew it.)
-
-                 A FILTERED VIEW NEVER CLAIMS CAPACITY — free space belongs to the
-                 BAG, not to "Weapons" or to a kept-classes lane; a filtered,
-                 searched or loot-filtered view only fills the container.
-
-                 RENDER CEILING, measured: this renderer runs on the game tick and
-                 an empty tile costs ~0.006 ms (2,000 tiles 15 ms, 4,000 tiles 23.6
-                 ms, against a 6-18 ms base render). Gem slots are flat-priced, so
-                 capacity has no upper bound and neither would the DOM; 600 covers
-                 every cap normal play reaches at ~4 ms and the surplus past it is
-                 one chip, with the header still quoting the real number. */
-              var RENDER_CEILING = 600;
-              var MIN_FILL = 88;                                    // "fill the container"
-              var unfiltered = (f.category === 'all') && !search && !(_LF && _LF.kept());
-              var cap = (typeof bankCap === 'function') ? bankCap() : 0;
-              var used = (typeof bankUsed === 'function') ? bankUsed() : visible.length;
-              var target, surplus = 0;
-              if (unfiltered && cap > 0) {
-                var free = Math.max(0, cap - used);
-                target = visible.length + free;
-                if (target > RENDER_CEILING) { surplus = target - RENDER_CEILING; target = RENDER_CEILING; }
-              } else {
-                target = Math.max(MIN_FILL, visible.length);
-              }
-              for (var i = visible.length; i < target; i++) html += '<div class="invc-tile invc-slot" aria-hidden="true"></div>';
-              if (surplus > 0) {
-                html += '<div class="invc-tile invc-slot invc-slot-more" title="' + surplus.toLocaleString()
-                  + ' more free stacks — too many to draw">+' + fmtQty(surplus) + '</div>';
-              }
-              return html;
-            })(
-            visible.map(function(kv){
-              var id = kv[0], qty = kv[1];
-              var def = ITEMS[id];
-              var canEquip = def && (def.type || def.slot);
-              // b189: rarity border for gear (gray→green→blue→purple→gold→red)
-              var rr = window.RARITY ? window.RARITY.classFor(id, def) : '';
-              var tileCls = 'invc-tile' + (rr ? ' rr-frame ' + rr : '');
-              /* THE LOCKED BADGE. The lock only ever showed in the flyout and the
-                 right-click menu, so the screen a player scans before a bulk sell
-                 never said which stacks were protected. Shipped atlas glyph. */
-              var lk = (typeof isItemLocked === 'function') && isItemLocked(id);
-              return '<div class="'+tileCls+(lk?' invc-locked':'')+'" '+(canEquip?'draggable="true" data-item-id="'+id+'"':'')+' onclick="invItemTap(\''+id+'\')" title="'+(def.n||'').replace(/"/g,'&quot;')+' (×'+qty+')'+(lk?' — locked against selling':'')+'">'+
-                itemImg(id)+
-                (lk ? '<span class="invc-lock" aria-label="Locked">'+lockGlyph()+'</span>' : '')+
-                '<span class="invc-qty">'+fmtQty(qty)+'</span>'+
-              '</div>';
-            }).join(''))
-          )+
-        '</div>'+
-      '</div>'+
-      /* Middle: category filter strip */
-      '<div class="invc-cat-strip">'+
-        CATEGORIES.map(function(c){
-          var count = entries.filter(function(kv){return c.test(ITEMS[kv[0]]);}).length;
-          var g = (window.HR && window.HR.icon) ? (window.HR.icon(c.glyph, 19, 'currentColor') || '') : '';
-          return '<button class="invc-cat-btn '+(f.category===c.id?'active':'')+'" title="'+c.name+' ('+count+')" onclick="window._invSetCat(\''+c.id+'\')">'+g+'</button>';
-        }).join('')+
-      '</div>'+
-      '</div>'+
-      /* Right region: equipment doll + stat sheet */
-      '<div class="invc-right">'+
-      '<div class="invc-equip-col">'+
-        '<div class="invc-loadout-bar">'+
-          '<select onchange="window._invLoadoutSelect(this.value)">'+
-            '<option value="">Select loadout</option>'+
-            ((G.loadouts||[]).map(function(l,i){return '<option value="'+i+'">'+(l.name||('Loadout '+(i+1)))+'</option>';}).join(''))+
-          '</select>'+
-          '<button onclick="window._invLoadoutManage()">Loadouts</button>'+
-        '</div>'+
-        '<div id="invc-doll-host"></div>'+
-      '</div>'+
-      /* Stats column (4th col) */
-      '<div class="invc-stats-col">'+
-        '<div class="invc-stat-card">'+
-          '<h4><span class="h4-icon">'+_hrGly('uiHelm')+'</span>Hero</h4>'+
-          '<div class="invc-hero-stats">'+
-            '<div class="invc-hero-stat"><b>'+(typeof getCombatLevel==="function"?getCombatLevel():1)+'</b><span>Combat Lv</span></div>'+
-            '<div class="invc-hero-stat"><b>'+(typeof getTotalLevel==="function"?getTotalLevel():1)+'</b><span>Total Lv</span></div>'+
-            '<div class="invc-hero-stat"><b>'+(G.playerHp||0)+'/'+(G.playerMaxHp||10)+'</b><span>HP</span></div>'+
-          '</div>'+
-        '</div>'+
-        '<div class="invc-stat-card">'+
-          '<h4><span class="h4-icon">'+_hrGly('navCombat')+'</span>Weapon Styles</h4>'+
-          '<div class="invc-style-stats">'+
-            '<div class="invc-style-row">'+
-              '<span class="invc-style-icon">'+_hrGly('uiSword')+'</span>'+
-              '<div><div class="invc-style-name">Melee</div>'+
-              '<div class="invc-style-stats-line"><span>STR <b>'+bonus.str+'</b></span><span>ACC <b>'+bonus.atk+'</b></span><span>DEF <b>'+bonus.def+'</b></span></div></div>'+
-            '</div>'+
-            '<div class="invc-style-row">'+
-              '<span class="invc-style-icon">'+_hrGly('uiBow')+'</span>'+
-              '<div><div class="invc-style-name">Ranged</div>'+
-              '<div class="invc-style-stats-line"><span>STR <b>'+bonus.rangeStr+'</b></span><span>ACC <b>'+bonus.rangeAtk+'</b></span><span>DEF <b>'+bonus.def+'</b></span></div></div>'+
-            '</div>'+
-            '<div class="invc-style-row">'+
-              '<span class="invc-style-icon">'+_hrGly('uiStaff')+'</span>'+
-              '<div><div class="invc-style-name">Magic</div>'+
-              '<div class="invc-style-stats-line"><span>STR <b>'+bonus.magicStr+'</b></span><span>ACC <b>'+bonus.magicAtk+'</b></span><span>DEF <b>'+bonus.def+'</b></span></div></div>'+
-            '</div>'+
-          '</div>'+
-        '</div>'+
-        '<div class="invc-stat-card">'+
-          '<h4><span class="h4-icon">'+_hrGly('uiSpark')+'</span>Bonuses</h4>'+
-          '<div class="invc-misc-row"><span>Crit Chance</span><b>+'+((bonus.crit||0)*100).toFixed(1)+'%</b></div>'+
-          (function(){ var xpB=0,spdB=0; Object.values(equipmentMapG()).forEach(function(id){var it=ITEMS[id];if(!it)return;xpB+=it.xpB||0;spdB+=it.spdB||0;}); return '<div class="invc-misc-row"><span>XP Bonus (gear)</span><b>+'+(xpB*100).toFixed(0)+'%</b></div><div class="invc-misc-row"><span>Speed Bonus (gear)</span><b>+'+(spdB*100).toFixed(0)+'%</b></div>'; })()+
-          '<div class="invc-misc-row"><span>Damage Reduction</span><b>'+Math.floor(bonus.def*0.5)+'</b></div>'+
-        '</div>'+
-        (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; /* b348: the same derived route the picker prints — one sentence, one source. */
-          var _route = (typeof window.styleXpRouteText==='function') ? window.styleXpRouteText(style) : style.trains;
-          return '<div class="invc-stat-card"><h4><span class="h4-icon">'+_hrGly('uiTarget')+'</span>Active Style</h4><div class="invc-active-style"><div class="as-name">'+style.name+' ('+wt+')</div><div class="as-trains">Trains <b>'+style.trains+'</b></div><div class="as-trains">XP <b>'+_route+'</b></div></div></div>'; })()+
-      '</div>'+
-      '</div>'+
-    '</div>';
-
-  /* Restore the scroll positions captured before the rebuild (paione fix). */
-  try {
-    var _nbc = panel.querySelector('.invc-bag-col'); if(_nbc) _nbc.scrollTop = _prevBagScroll;
-    var _nrc = panel.querySelector('.invc-right');   if(_nrc) _nrc.scrollTop = _prevRightScroll;
-  } catch(e){}
-
-  /* Inject Tibia doll into the host */
-  var host = document.getElementById('invc-doll-host');
-  if(host && typeof window.buildTibiaDoll === 'function'){
-    var doll = window.buildTibiaDoll();
-    if(doll){ host.innerHTML = ''; host.appendChild(doll); }
-    /* b392: the enchant entry point, mounted on the Inventory gear surface.
-       Before this, the Inventory tab — the very surface the Combat loadout note
-       tells players to use to "manage gear" — had NO way to enchant a weapon, so
-       "I don't see an enchant option" was literally true here. It now sits right
-       under the paper doll, beside the weapon a player is looking at. Rebuilt on
-       every renderInvFancy, so it tracks the equipped weapon + bound element. */
-    if(typeof enchantAffordanceHtml === 'function'){
-      var _ench = document.createElement('div');
-      _ench.className = 'invc-enchant-mount';
-      _ench.style.cssText = 'width:100%;max-width:100%;box-sizing:border-box';
-      _ench.innerHTML = enchantAffordanceHtml();
-      host.appendChild(_ench);
-    }
-  }
-}
-
-/* ─── Filter handlers ─── */
-window._invSetCat = function(id){
-  window._invFilter.category = id;
-  renderInvFancy();
-};
-window._invSearchInput = function(v){
-  window._invFilter.search = v;
-  /* Debounce */
-  clearTimeout(window._invSearchT);
-  window._invSearchT = setTimeout(renderInvFancy, 150);
-};
-window._invSearchClear = function(){
-  window._invFilter.search = '';
-  window._invFilter.category = 'all';
-  renderInvFancy();
-};
-window._invToggleMulti = function(){
-  window._invMultiSelect = !window._invMultiSelect;
-  renderInvFancy();
-};
-window._invManage = function(){
-  /* b465: "Manage UI coming soon" — a feature name from a spec and a promise
-     with no date on it. Say what the player can do instead, right now. */
-  if(typeof notify === 'function') notify('Right-click or long-press any item to equip, eat, bury, inspect or sell it','info');
-};
-window._invLoadoutSelect = function(idx){
-  if(idx === '' || isNaN(idx)) return;
-  if(typeof applyLoadout === 'function') applyLoadout(parseInt(idx,10));
-  else if(typeof notify === 'function') notify('Loadout '+(parseInt(idx,10)+1)+' applied','info');
-};
-window._invLoadoutManage = function(){
-  if(typeof openLoadouts === 'function') openLoadouts();
-  /* b465: "Loadout manager coming soon" named a module, not a thing to do.
-     This arm is only reached if openLoadouts failed to load at all. */
-  else if(typeof notify === 'function') notify('Loadouts are still loading — try again in a moment','info');
-};
-
-window._renderInvFancy = renderInvFancy;
-/* b348: `window.renderInvFancy` (no underscore) is called from seven places —
-   item-ux.js x2, dungeons.js x3, companions.js x3, admin.js, dungeon-scavenger
-   — and has NEVER existed; the published name has always carried the
-   underscore. Every call site is `typeof`-guarded, so they resolved to nothing
-   silently rather than throwing. It is masked today because addItem/removeItem
-   are wrapped just below to repaint an active bag anyway, which is why nobody
-   noticed — but a guarded call to a name that cannot exist is a trap waiting
-   for the first caller that isn't covered by that wrapper. DELEGATES rather
-   than binds, so it always resolves the currently-wrapped implementation (the
-   drag/drop hook near the foot of this block re-wraps `_renderInvFancy`). */
-window.renderInvFancy = function(){
-  if(typeof window._renderInvFancy === 'function') return window._renderInvFancy.apply(this, arguments);
-};
-
-/* Re-render when relevant state changes */
-['updateTopbar','equip','unequip','addItem','removeItem'].forEach(function(name){
-  var orig = window[name];
-  if(typeof orig !== 'function') return;
-  window[name] = function(){
-    var r = orig.apply(this, arguments);
-    var panel = document.getElementById('panel-inventory');
-    if(panel && panel.classList.contains('active')) setTimeout(renderInvFancy, 30);
-    return r;
-  };
-});
-
-/* Show on tab change */
-window.HearthriseShowTab.wrapShowTab('inv-fancy', function(t){
-  // b407 flicker fix: paint synchronously in the activating task (was 30ms defer).
-  // Registration order guarantees this runs after `inv-new` and before
-  // `inv-dragdrop` in the same synchronous dispatch, so the grid exists for
-  // wireDragDrop below.
-  if(t === 'inventory') renderInvFancy();
-});
-
-setTimeout(function(){
-  var panel = document.getElementById('panel-inventory');
-  if(panel && panel.classList.contains('active')) renderInvFancy();
-}, 500);
-
-console.log('Inventory rebuild v4 loaded');
-})();
-
-// ===== block 26: dragdrop-js =====
-(function(){
-"use strict";
-
-/* ─── Helpers ─── */
-function isSlotCompatible(def, targetSlot){
-  if(!def || !targetSlot) return false;
-  if(def.slot === targetSlot) return true;
-  if(def.slot === 'ring' && (targetSlot === 'ring1' || targetSlot === 'ring2')) return true;
-  if(def.type === 'weapon' && targetSlot === 'weapon') return true;
-  return false;
-}
-function equipToSlot(id, targetSlot){
-  if(typeof migrateEquipmentSlots === 'function') migrateEquipmentSlots();
-  var def = ITEMS[id];
-  if(!def) return;
-  if(!isSlotCompatible(def, targetSlot)){
-    if(typeof notify === 'function') notify('Not compatible with that slot','kill');
-    return;
-  }
-  /* b246: the paper-doll drag-equip is a second equip path — gate it too. */
-  var _w = (typeof canWield === 'function') ? canWield(id) : {ok:true};
-  if(!_w.ok){ if(typeof notify==='function') notify(`Requires ${(SKILLS_DEF[_w.req.skill]&&SKILLS_DEF[_w.req.skill].name)||_w.req.skill} Lv ${_w.req.lv} to wield ${def.n}`,'kill'); return; }
-  /* Move existing item back to inventory */
-  var _b = (typeof equipStateSnapshot === 'function') ? equipStateSnapshot() : null;
-  var old = G.equipment[targetSlot];
-  if(old){ G.inventory[old] = (G.inventory[old]||0) + 1; }
-  G.equipment[targetSlot] = id;
-  if(typeof removeItem === 'function') removeItem(id, 1);
-  if(typeof notify === 'function') notify('Equipped '+def.n,'info');
-  if(typeof renderInventory === 'function') renderInventory();
-  if(typeof renderLoadout === 'function') renderLoadout();
-  if(typeof window._renderInvFancy === 'function') window._renderInvFancy();
-  if(_b && typeof routeEquipGesture === 'function') routeEquipGesture(_b);
-}
-window._equipToSlot = equipToSlot;
-
-/* ─── Wire bag tiles as drag sources ─── */
-function makeTileDraggable(tile){
-  if(tile.dataset.dragWired === '1') return;
-  /* Only wire if explicitly draggable */
-  if(tile.getAttribute('draggable') !== 'true') return;
-  tile.dataset.dragWired = '1';
-  var id = tile.dataset.itemId;
-  if(!id) return;
-  var def = (typeof ITEMS!=='undefined') ? ITEMS[id] : null;
-  if(!def) return;
-  tile.addEventListener('dragstart', function(e){
-    e.dataTransfer.setData('text/plain', id);
-    e.dataTransfer.effectAllowed = 'move';
-    tile.classList.add('dragging');
-    /* Highlight valid drop targets */
-    document.querySelectorAll('.td-slot').forEach(function(slot){
-      var slotName = slot.className.match(/td-([a-z0-9]+)/i);
-      if(!slotName) return;
-      var t = slotName[1];
-      /* Skip the doll classname stem itself */
-      if(t === 'doll' || t === 'slot') return;
-      /* Find specific slot via class list */
-      var slotKey = null;
-      ['helmet','necklace','earrings','cape','weapon','ammo','ring1','body','ring2','gloves','belt','pants','boots','companion'].forEach(function(s){
-        if(slot.classList.contains('td-'+s)) slotKey = s;
-      });
-      if(slotKey && isSlotCompatible(def, slotKey)){
-        slot.classList.add('drop-target');
-      } else if(slotKey){
-        slot.classList.add('drop-invalid');
-      }
-    });
-  });
-  tile.addEventListener('dragend', function(){
-    tile.classList.remove('dragging');
-    document.querySelectorAll('.td-slot').forEach(function(slot){
-      slot.classList.remove('drop-target','drop-invalid','drop-hover');
-    });
-    document.querySelectorAll('.invc-bag-col').forEach(function(c){
-      c.classList.remove('drop-target');
-    });
-  });
-}
-
-/* ─── Wire equipment slots as drop targets ─── */
-function makeSlotDroppable(slot){
-  if(slot.dataset.dropWired === '1') return;
-  slot.dataset.dropWired = '1';
-  /* Find slot key from class list */
-  var slotKey = null;
-  ['helmet','necklace','earrings','cape','weapon','ammo','ring1','body','ring2','gloves','belt','pants','boots','companion'].forEach(function(s){
-    if(slot.classList.contains('td-'+s)) slotKey = s;
-  });
-  if(!slotKey) return;
-
-  slot.addEventListener('dragover', function(e){
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if(slot.classList.contains('drop-target')) slot.classList.add('drop-hover');
-  });
-  slot.addEventListener('dragleave', function(){
-    slot.classList.remove('drop-hover');
-  });
-  slot.addEventListener('drop', function(e){
-    e.preventDefault();
-    var id = e.dataTransfer.getData('text/plain');
-    if(!id) return;
-    equipToSlot(id, slotKey);
-  });
-
-  /* Also make the slot itself a drag SOURCE if it has an item — drag to bag = unequip */
-  var equippedId = equippedItemG(slotKey);
-  if(equippedId){
-    slot.setAttribute('draggable','true');
-    slot.addEventListener('dragstart', function(e){
-      e.dataTransfer.setData('text/unequip', slotKey);
-      e.dataTransfer.effectAllowed = 'move';
-      /* Highlight bag as valid drop */
-      document.querySelectorAll('.invc-bag-col').forEach(function(c){
-        c.classList.add('drop-target');
-      });
-    });
-  }
-}
-
-/* ─── Wire bag column as drop target for unequip ─── */
-function makeBagDroppable(bagCol){
-  if(bagCol.dataset.dropWired === '1') return;
-  bagCol.dataset.dropWired = '1';
-  bagCol.addEventListener('dragover', function(e){
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  });
-  bagCol.addEventListener('drop', function(e){
-    e.preventDefault();
-    var slotKey = e.dataTransfer.getData('text/unequip');
-    if(slotKey && typeof unequip === 'function'){
-      unequip(slotKey);
-      if(typeof window._renderInvFancy === 'function') window._renderInvFancy();
-    }
-  });
-}
-
-/* ─── Apply wiring after every inventory render ─── */
-function wireDragDrop(){
-  document.querySelectorAll('.invc-tile').forEach(makeTileDraggable);
-  document.querySelectorAll('.td-slot').forEach(makeSlotDroppable);
-  document.querySelectorAll('.invc-bag-col').forEach(makeBagDroppable);
-}
-window._wireDragDrop = wireDragDrop;
-
-/* Hook into the render */
-(function(){
-  var orig = window._renderInvFancy;
-  if(typeof orig === 'function'){
-    window._renderInvFancy = function(){
-      var r = orig.apply(this, arguments);
-      setTimeout(wireDragDrop, 30);
-      return r;
-    };
-  }
-})();
-
-setTimeout(wireDragDrop, 600);
-
-/* Also re-wire on any tab switch back to inventory */
-window.HearthriseShowTab.wrapShowTab('inv-dragdrop', function(t){
-  // b407 flicker fix: wire synchronously (was 150ms defer). This tap is
-  // registered AFTER 'inv-fancy', and taps run in registration order within one
-  // dispatch, so renderInvFancy() has already rebuilt the grid by the time this
-  // runs — the drag-drop targets exist. Verified: grid present at wire time.
-  if(t === 'inventory') wireDragDrop();
-});
-
-})(); // ← close outer IIFE for drag-drop block
+/* ─── Inventory screen (blocks 25 + 26) → src/screens/inventory.js ───────────
+   The inventory-rebuild IIFE and the drag-and-drop IIFE moved VERBATIM to
+   src/screens/inventory.js — the first screen-controller extraction (task #129,
+   CLAUDE.md §7). Both were already closed IIFEs, so nothing inside them changed
+   identity. index.html loads that file directly AFTER this one, as a classic
+   script, because it wraps updateTopbar/equip/unequip/addItem/removeItem at LOAD
+   time and because wrapShowTab order is load order (inv-new → inv-fancy →
+   inv-dragdrop). renderInventory / onItemTap stay here: legacy.js's item-flyout
+   block captures onItemTap at load time. Pure refactor — identical DOM. */
 
 // ===== block 27: activities-grid-js =====
 (function(){
@@ -19286,30 +17891,18 @@ setInterval(function(){
   };
 })();
 
-// b163: REMOVED the auto-eat watchdog that used to wrap combatTick here.
-// It called eatFood(G.foodSlot) on low HP — which applies food BUFFS, not just
-// heals — and then early-`return`ed, SKIPPING the entire real combat tick (no
-// attack that tick) whenever foodSlot was set. Two bugs: (1) HP auto-eat should
-// only HEAL, never spend buff items (buff consumption is a separate, opt-in,
-// buff-expiry-driven concern — planned as a "drinks" category); (2) skipping the
-// tick was never intended. HP auto-eat now flows solely through
-// HearthriseAuto.maybeAutoEat() inside combatTick (heal-only), matching offline
-// combat. Old G.foodSlot saves are migrated to G.autoActions.eat in
-// auto-actions.js so nobody loses their auto-eat setting.
+// b163: REMOVED the auto-eat watchdog that wrapped combatTick here. It called
+// eatFood() on low HP — applying food BUFFS, not just heals — and then early
+// `return`ed, skipping the whole real tick. HP auto-eat is heal-only and flows
+// through HearthriseAuto.maybeAutoEat() inside combatTick, matching the engine.
 
-/* b224: REMOVED injectEatNowButtons() and its renderInvFancy wrapper.
-   It looked for `#panel-inventory .invc-tile[data-item-id]` and skipped any
-   tile without that attribute — but renderInvFancy() only sets data-item-id
-   on EQUIPPABLE items (it drives drag-to-equip), and no food is equippable.
-   The intersection was empty by construction, so this produced zero buttons
-   on every render since the bag was rebuilt. Verified in-browser before
-   deleting: `document.querySelectorAll('.eat-now-btn').length === 0` with a
-   bag full of Provisions.
-
-   It is not resurrected here: a floating button on a 44px tile fights the
-   quantity badge and the rarity frame. Eat is now the primary action in the
-   item flyout (one click from the tile) and a first-class button on the
-   Combat screen, which is where healing is actually needed. */
+/* b224: REMOVED injectEatNowButtons() and its renderInvFancy wrapper. It keyed
+   on `.invc-tile[data-item-id]`, which renderInvFancy sets only on EQUIPPABLE
+   items — no food is equippable, so the intersection was empty by construction
+   and it drew zero buttons (verified in-browser before deleting). Not
+   resurrected: a floating button on a 44px tile fights the quantity badge, and
+   Eat is the primary action in the item flyout and a button on the Combat
+   screen, which is where healing is needed. */
 
 /* ── THE EFFECTIVE SEGMENT OF EACH TYPE, ASKED IN ONE PLACE ────────────────
    `G.buffs` may hold several entries per type since the 2026-09-13 ruling, so "what

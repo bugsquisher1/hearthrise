@@ -147,14 +147,33 @@ export const STATUSES = Object.freeze(['wired', 'deferred', 'none']);
    grandfather BETA purchases; it does not remove the obligation to think about
    it, and a projection shipped without a seeding step will do the same thing to
    post-wipe players the first time it is redeployed. */
-export const GEM_GRANDFATHER_PRECONDITION =
-  '⚠ HARD PRECONDITION: the migration must SEED the server unlock rows from the existing '
-  + 'client_state ownedThemes/ownedCosmetics before it begins projecting the owned set. '
-  + 'ownsGemUnlock prefers the server the moment a projection exists, so an unseeded rollout '
-  + 'silently de-owns every theme and cosmetic every player has already bought. See the '
-  + 'GRANDFATHER note in 2026-09-08-hero-slot-buy.sql §3 for the reviewed precedent.';
+/* ── HOW THE CLIFF WAS ACTUALLY RESOLVED (game-designer, FINAL, 2026-09-14) ──
+   The warning above was right about the MECHANISM and wrong about the remedy,
+   and the ruling is written here so it is not re-litigated: NO AMNESTY, NO
+   SEEDING. The reason is a fact about the old code rather than a judgement about
+   players — nothing was ever paid. `buyTheme` and `buyCosmetic` did
+   `G.gems -= price` on a balance that is SERVER_OF_RECORD and armed, so the next
+   envelope refunded every gem, every time. Seeding the server rows from the
+   residue would therefore have GRANTED premium goods nobody was ever charged
+   for, out of a bag any console could type into — the dupe, made permanent and
+   journalled, in the name of fairness. The residue bags left RESIDUE_FIELDS in
+   the same build that wired the verb, so there is no longer a cliff to fall off:
+   there is one answer to "do you own this", and it is the realm's. */
+const GEM_GRANDFATHER_PRECONDITION =
+  'RESOLVED 2026-09-14 (game-designer, final): NO AMNESTY and NO SEEDING. The residue bags were '
+  + 'never backed by a payment — gems are SERVER_OF_RECORD and armed, so every client-side debit '
+  + 'was refunded by the next envelope — so seeding hr_gem_unlocks from client_state would have '
+  + 'granted premium goods nobody was charged for, from a store a console can write. '
+  + 'ownedThemes/ownedCosmetics left RESIDUE_FIELDS in the same build that wired '
+  + 'hr_buy_gem_unlock; ownership has exactly one source now.';
 
-export const GEM_PURCHASE_BLOCKER =
+/* ⚠ PARTLY DISCHARGED (2026-09-14). hr_buy_gem_unlock IS APPLIED and serves the
+   theme/cosmetic namespaces, so the two purchase rows that pointed here are gone
+   — wired, not deferred. This constant survives for `buyBankSpaceGem`, which is
+   blocked by something else entirely: there is no `bank.gem.<n>` rung in
+   src/data/gold-ladders.js and no gem catalogue row for one, so even the offer
+   id it would name does not exist. Wiring it is a catalogue question first. */
+const GEM_PURCHASE_BLOCKER =
   'a gem-priced purchase verb (the hr_buy_hero_slot shape: server-side price, gems debited from '
   + 'player_state and the unlock row written in one transaction, plus an hr_state_of projection of '
   + 'the owned set). hr_unlock_buy CANNOT serve it — hr_unlock_offers has a gold column and no '
@@ -176,26 +195,25 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + '`G.gems -= cost; G.bank.gemBuys++` with no server call of any kind. Under the armed record '
       + 'the rung was granted and the gems came back. Now refuses under the arm.',
   },
-  {
-    id: 'src/legacy.js#buyTheme',
-    kind: 'spend', status: 'deferred',
-    armGuard: { gated: 'gemSpendIsClientAuthored' },
-    blockedBy: GEM_PURCHASE_BLOCKER,
-    why: '`G.gems -= t.price` then `G.ownedThemes.push(id)`. gems are record (refunded by the next '
-      + 'envelope); ownedThemes is RESIDUE (persists). Free theme, repeatable. ⚠ THE FREE DEFAULT '
-      + 'IS NOT IN THIS ROW AND MUST NOT BECOME ONE: `theme.default` is `currency !== "gem"`, price '
-      + '0, and stays a FREE EQUIP — the unlock catalogue warns that a zero-priced offer is an '
-      + 'infinite faucet, so it must never be turned into a bought unlock.',
-  },
-  {
-    id: 'src/legacy.js#buyCosmetic',
-    kind: 'spend', status: 'deferred',
-    armGuard: { gated: 'gemSpendIsClientAuthored' },
-    blockedBy: GEM_PURCHASE_BLOCKER,
-    why: 'Was ONE line and every part of it was a client-authored premium purchase: '
-      + '`G.gems -= price; G.ownedCosmetics.push(id)`. The push was not even deduplicated, so a '
-      + 'second buy appended the same id again and grew the residue without bound. Both fixed.',
-  },
+  /* ⚠ `src/legacy.js#buyTheme` AND `src/legacy.js#buyCosmetic` ARE NOT ROWS ANY
+     MORE, and their absence is the WHOLE POINT rather than an omission
+     (2026-09-14). This census declares GEM WRITE SITES — places this client
+     moves `.gems` — and those two functions no longer contain one. They send
+     hr_buy_gem_unlock (src/net/goal-claim.js buyGemUnlock) and render the
+     server's answer; the local debit and the `ownedThemes`/`ownedCosmetics`
+     residue pushes are deleted, and both fields left RESIDUE_FIELDS in the same
+     build. A row here for a site that does not exist is exactly what L2 fails
+     on, so re-adding one would be a lie the guard catches.
+
+     THE WAY BACK IS THE WAY OUT: if a future edit reintroduces `G.gems -=` in
+     either function, L1 reports an UNDECLARED site and the build goes red —
+     which is `tests/gem-site-census.mjs` M1, re-pointed at exactly that
+     mutation. That is the guard this pair leaves behind.
+
+     THE FREE DEFAULT is still not a purchase and must never become one:
+     `theme.default` is `currency !== 'gem'` and is the `free` row in
+     public.hr_gem_unlocks — hr_buy_gem_unlock refuses it `not_for_sale`, so
+     there is no zero-gem code path on either side of the wire. */
 
   /* ── THE FOURTH TWIN, FOUND IN THE SAME SWEEP, POINTING THE OTHER WAY ──── */
   {

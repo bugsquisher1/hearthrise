@@ -98,6 +98,16 @@ const CONSUMERS = new Map([
        + '`propertyTier` for the castle capstone; offline cap adds HH.offlineBonusHours(). '
        + 'All routed through getTier() — none reads the residue.',
   }],
+  /* 2026-09-14: the farm left the monolith for the screens layer (task #129).
+     It takes its own row rather than riding legacy.js's, which is the point of
+     extracting it — this consumer is now classifiable on its own terms. */
+  ['src/screens/farm.js', {
+    kind: 'CAPABILITY',
+    why: 'farmPlotCap() is the number renderFarm paints plots up to AND the number plantCrop '
+       + 'refuses past, so it decides whether an action is permitted. Reads HH.maxPlots(), '
+       + 'which derives from getTier() — the server record — never the residue; the fail-safe '
+       + 'when the module is absent is the starting cap of 8, not an unlocked one.',
+  }],
   ['src/features/workers.js', {
     kind: 'CAPABILITY',
     why: 'slots() is the crew cap hire() pre-flights against — the "Workers 1/0" surface. '

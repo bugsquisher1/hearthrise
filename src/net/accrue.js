@@ -215,6 +215,10 @@ export function configureAccrual(cfg) {
     authToken: cfg.authToken || null,
     slot: Number.isInteger(cfg.slot) ? cfg.slot : null,
   };
+  /* ASK THE SERVER WHETHER THE BAG MAY GO ABSOLUTE AT ALL (security C4). Fired
+     from the one place credentials arrive, fire-and-forget: the answer defaults
+     to NO, so a slow or failed read simply leaves the bag on merge. */
+  try { fetchServerArmPermission(); } catch (e) {}
   return getAccrualConfig();
 }
 
@@ -1371,7 +1375,10 @@ export function markInventoryAuthorityLive(v) {
         + 'the server signal is live and observed.');
     }
   }
+  const changed = (inventoryAuthorityLive !== on);
   inventoryAuthorityLive = on;
+  /* Journalled at the ONE place authority moves, so no arm path can be silent. */
+  if (changed) { try { noteArmTransition(on); } catch (e) {} }
   /* A DELIBERATE DISARM LATCHES FOR THE SESSION. Once anything disarms (an
      operator kill-switch, an incident response), the boot auto-arm must NOT
      silently re-arm on the next envelope — a disarm is a decision, not a
@@ -1455,6 +1462,7 @@ export function maybeAutoArm() {
     if (autoArmDisarmed) return false;          // (2) deliberately disarmed this session
     if (!inventoryArmEnabled) return false;     // (3) BUILD GATE — the enable flag
     if (!inventoryArmStagedNow) return false;   // (3b) STAGED ROLLOUT — 'off' in prod today
+    if (!isServerArmObserved()) return false;   // (3c) no OBSERVED server grant this session
     if (!baselineCompleteSeen) return false;    // (4) server not yet observed stamping complete
     const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
     if (!D || typeof D !== 'object') return false;   // (5) DUNGEONS not loaded (overlap-id safety)
@@ -1481,7 +1489,110 @@ export function maybeAutoArm() {
  *  for three weeks, and it is a PER-SESSION gesture fact. */
 export function isInventoryAbsolute() {
   if (!inventoryAuthorityLive) return false;
+  if (!isServerArmPermitted()) return false;   // the SERVER's kill switch, thrown (see below)
   return isEnvelopeAbsolute();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE SERVER-SIDE DISARM (security C4)
+   ══════════════════════════════════════════════════════════════════════════
+   THE GAP IT CLOSES: every other position on this authority is a CLIENT
+   constant, so rolling the flip back meant a redeploy plus a cache-buster plus
+   waiting for every open tab to reload — on the one change in this codebase that
+   can delete a player's item. A kill switch whose reaction time is a deploy is
+   not a kill switch.
+
+   `public.hr_flags` already exists (the town lane) and is client-READABLE with
+   no write policy and no write grant to ANY role, service_role included, so an
+   operator can flip a row and nothing else can. This reads ONE row,
+   `inventory_absolute`, whose `enabled` means "the server PERMITS a client to
+   hold the bag absolutely" (staged: 2026-09-14-inventory-absolute-flag.sql).
+
+   ONLY A LITERAL `false` DISARMS, AND THAT IS THE CONSIDERED CHOICE. An absent
+   row (the migration not yet applied), an unreadable table, a failed request —
+   none of them are a decision, so none of them change the position. The
+   alternative (require an explicit true) would make a delete authority depend on
+   a second network read, and would silently change semantics on every flaky
+   boot. The PRIMARY position is still the build constant INVENTORY_ARM_STAGE,
+   which is 'off'; this row exists to take authority away FAST, not to grant it.
+   KNOWN LIMITATION, stated rather than hidden: a client that never successfully
+   reads the flag keeps whatever position its build shipped with. It is bounded —
+   an absolute replace only ever happens on an envelope apply, which needs the
+   same network the flag read does — and the third, offline-capable position is
+   the pre-existing per-device opt-out `localStorage['hr:envelopeMerge'] = 'on'`
+   (ENVELOPE_MERGE_KEY), which forces merge with no server and no deploy.
+
+   A DISARM LATCHES for the session: `markInventoryAuthorityLive(false)` sets the
+   auto-arm's own disarm latch, so the next envelope cannot quietly re-arm. */
+export const INVENTORY_ARM_FLAG_KEY = 'inventory_absolute';
+/* TRI-STATE, and the third state is the point. 'unknown' is not 'granted' and
+   not 'denied': ARMING requires a `enabled === true` OBSERVED this session, so a
+   client that never reached the flag never arms; DISARMING requires an observed
+   `false`, so a failed read can never take the bag away from a session that did
+   observe a grant. Two different questions, two different answers, and the
+   asymmetry is what makes both directions fail safe. */
+const ARM_UNKNOWN = 'unknown', ARM_GRANTED = 'granted', ARM_DENIED = 'denied';
+let serverArmPermission = ARM_UNKNOWN;
+
+/** Record the server's permission. A literal true GRANTS, a literal false DENIES
+ *  (and disarms an armed session — the point of a kill switch); anything else is
+ *  not an answer and leaves the position exactly where it was. */
+export function noteServerArmPermission(v) {
+  if (v === false) {
+    serverArmPermission = ARM_DENIED;
+    if (inventoryAuthorityLive) { try { markInventoryAuthorityLive(false); } catch (e) {} }
+  } else if (v === true) {
+    serverArmPermission = ARM_GRANTED;
+  }
+  return isServerArmPermitted();
+}
+/** Has the server NOT taken the permission away? (unknown counts as "not taken
+ *  away" — it is the disarm question, and silence is not a disarm.) */
+export function isServerArmPermitted() { return serverArmPermission !== ARM_DENIED; }
+/** Has an explicit grant been OBSERVED this session? The arm question, and the
+ *  one silence answers NO to. */
+export function isServerArmObserved() { return serverArmPermission === ARM_GRANTED; }
+export function serverArmPermissionState() { return serverArmPermission; }
+/** TEST-ONLY. Back to the boot state (unknown) without the disarm path's latch. */
+export function __resetServerArmPermission() { serverArmPermission = ARM_UNKNOWN; return serverArmPermission; }
+
+/* ── THE RE-READ CADENCE ────────────────────────────────────────────────────
+   A flag read once at sign-in is a kill switch with an unbounded reaction time:
+   an idle tab can hold an absolute bag for hours after an operator flips the
+   row. The re-read rides the SETTLE — the same cadence that would do the
+   deleting — and is throttled so it costs at most one small GET every few
+   minutes per session, never one per envelope. */
+export const ARM_FLAG_REREAD_MS = 5 * 60 * 1000;
+let _armFlagReadAt = 0;
+export function maybeRereadArmFlag(nowOverride) {
+  const t = Number.isFinite(nowOverride) ? nowOverride : nowMs();
+  if (_armFlagReadAt && (t - _armFlagReadAt) < ARM_FLAG_REREAD_MS) return false;
+  _armFlagReadAt = t;
+  try { fetchServerArmPermission(); } catch (e) {}
+  return true;
+}
+export function __resetArmFlagReadClock() { _armFlagReadAt = 0; return _armFlagReadAt; }
+
+/** Read the flag row. Pure transport — it records the answer and returns the
+ *  resulting permission. Never throws and never DECIDES on an error: a refusal,
+ *  a 404 on an older database, or an offline tab all leave the position alone.
+ *  `f` is injectable. */
+export async function fetchServerArmPermission(f) {
+  const fetcher = f || ((typeof fetch === 'function') ? fetch : null);
+  if (!fetcher || !config || !config.url) return isServerArmPermitted();
+  try {
+    const url = config.url + '/rest/v1/hr_flags?select=enabled&key=eq.' + INVENTORY_ARM_FLAG_KEY;
+    const headers = { apikey: config.apiKey || '', Accept: 'application/json' };
+    if (config.authToken) headers.Authorization = 'Bearer ' + config.authToken;
+    const r = await fetcher(url, { headers });
+    if (!r || !r.ok) return isServerArmPermitted();       // not an answer — not a decision
+    const rows = await r.json();
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row || typeof row.enabled !== 'boolean') return isServerArmPermitted();   // no row = no switch yet
+    return noteServerArmPermission(row.enabled);
+  } catch (e) {
+    return isServerArmPermitted();
+  }
 }
 
 /** Is the envelope ABSOLUTE on this device?
@@ -1596,6 +1707,10 @@ export function flipDriftSummary() {
     soakMinutes: Math.round((r.soakMs || 0) / 60000),
     ready: !!r.ready,
     armed: !!r.armed,
+    staged: !!r.staged,
+    /* WHICH BUILD SAID SO. A +24 h soak spans a release, and a destructive
+       omission is only interpretable against the code that produced it. */
+    build: (BUILD && BUILD.cache) || null,
     dungeonsLoaded: !!r.dungeonsLoaded,
     baselineCompleteSeen: !!r.baselineCompleteSeen,
   };
@@ -1612,7 +1727,8 @@ let _flipDriftTimer = null;
    per session instead of one per cadence tick. */
 function _flipDriftDedupeKey(s) {
   return [s.destructiveOwnedOmissions, s.envelopesApplied, s.completeEnvelopes,
-    s.lastLossMag, s.ready, s.armed, s.dungeonsLoaded, s.baselineCompleteSeen].join('|');
+    s.lastLossMag, s.ready, s.armed, s.staged, s.build, s.dungeonsLoaded,
+    s.baselineCompleteSeen, s.transition || ''].join('|');
 }
 
 /** Read the drift summary and emit it through the observability channel IF it
@@ -1624,11 +1740,50 @@ export function reportFlipDrift(emit) {
   const key = _flipDriftDedupeKey(s);
   if (key === _lastFlipDriftKey) return null;   // no change → no spam
   _lastFlipDriftKey = key;
-  const sink = (typeof emit === 'function') ? emit
-    : (typeof window !== 'undefined' && typeof window.trackEvent === 'function') ? window.trackEvent
-      : null;
-  if (sink) { try { sink(FLIP_DRIFT_EVENT, s); } catch (e) { /* telemetry never breaks the client */ } }
+  return _emitFlipDrift(s, emit);
+}
+
+/* ── THE SINK, CORRECTED (security C1) ──────────────────────────────────────
+   MEASURED 2026-09-13: `select event_type, count(*) from game_events` over the
+   last 14 days returned boot_probe 115, questClaim 28, companionEquip 5,
+   companionUnlock 2 — and ZERO `inv_flip_drift`, although the reporter has been
+   booted since it was written. The reason is the channel, not the caller:
+   `window.trackEvent` (src/observability.js) pushes into a localStorage buffer
+   that flushes to `CONFIG.analyticsEndpoint`, which is NULL. Nothing it receives
+   has ever left the device.
+
+   The path that reaches `game_events` is the in-process bus plus sync.js's
+   `EVENT_ALLOWLIST`, so that is where a soak signal has to go. trackEvent is
+   kept as a secondary breadcrumb (it also mirrors into Sentry), because the bus
+   is not present in every harness and a telemetry call must never be the reason
+   a settle throws. */
+function _emitFlipDrift(s, emit) {
+  if (typeof emit === 'function') {
+    try { emit(FLIP_DRIFT_EVENT, s); } catch (e) {}
+    return s;
+  }
+  const w = (typeof window !== 'undefined') ? window : null;
+  if (w && w.HearthriseEvents && typeof w.HearthriseEvents.emit === 'function') {
+    try { w.HearthriseEvents.emit(FLIP_DRIFT_EVENT, s); } catch (e) {}
+  }
+  if (w && typeof w.trackEvent === 'function') {
+    try { w.trackEvent(FLIP_DRIFT_EVENT, s); } catch (e) {}
+  }
   return s;
+}
+
+/* ── THE ARM TRANSITION IS JOURNALLED (security C1) ─────────────────────────
+   A cadence summary can miss the single most important moment in the rollout:
+   the envelope on which a device's bag stopped being a merge. Emitted
+   immediately (not on the 5-minute tick) and carrying `transition`, so the soak
+   query can count armed sessions and line a first destructive omission up
+   against the arm that preceded it. Both directions — a DISARM is the incident
+   signal and must be visible too. */
+export function noteArmTransition(to) {
+  const s = flipDriftSummary();
+  s.transition = to ? 'arm' : 'disarm';
+  _lastFlipDriftKey = _flipDriftDedupeKey(s);   // the cadence must not re-send this picture
+  return _emitFlipDrift(s, null);
 }
 
 /** Test seam — forget the last-emitted picture so a fresh assertion starts clean. */
@@ -1677,6 +1832,9 @@ import { serverAccruedSkill } from '../data/skill-authority.js?v=546';
    server's hr_start_kit catalogue is generated from, so there is no second copy
    of the numbers here either. */
 import { START_INVENTORY } from '../data/start-kit.js?v=546';
+/* The cache-buster, so a soak row says WHICH build produced it (a +24 h window
+   spans a release). A frozen constant leaf — no cycle, no DOM. */
+import { BUILD } from '../build-info.js?v=546';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -2236,22 +2394,88 @@ export function reconcileHeroSlots(G, res) {
   return { mode: 'server', owned: owned.length };
 }
 
+/* ── THE OWNED GEM UNLOCKS (THEMES + COSMETICS), HYDRATED FROM THE ENVELOPE ──
+   hr_buy_gem_unlock (supabase/migrations/2026-09-14-gem-unlock-buy.sql) is the
+   server-side writer of a theme or a cosmetic: it debits the server-owned GEM
+   balance on the calling character and writes a player_progress kind='flag'
+   key='<namespace>:<id>' row. hr_state_of projects the ACCOUNT's owned set as a
+   flat top-level `gem_unlocks` array of '<namespace>:<id>' strings — the exact
+   shape src/legacy.js ownsGemUnlock indexes — and THIS is what lands it.
+
+   ⚠ IT DOES NOT WRITE `G.ownedThemes` / `G.ownedCosmetics`. Those two left the
+   residue allowlist in this build: a client-written bag asserting ownership of a
+   server-sold capability IS the half of the b371 dupe that made a free purchase
+   stick. The answer lands in `_`-prefixed scratch — never synced, ABSENT on a
+   cold boot — which is what lets ownsGemUnlock tell "not heard yet" from "heard,
+   and you own nothing".
+
+   FAIL-CLOSED ON ABSENCE, AND IT NEVER NARROWS: no readable `res.gem_unlocks`
+   ARRAY → leave the scratch EXACTLY as it was. A body predating the projection
+   must not be read as "you own nothing" — that un-equips a theme somebody paid
+   gems for. ABSOLUTE when present, not a union: the projection always carries
+   the free rows, so a shorter set is a real de-own. Pure (G + res → receipt). */
+export function reconcileGemUnlocks(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const u = res && res.gem_unlocks;
+  if (!Array.isArray(u)) return { mode: 'absent' };
+  const owned = [];
+  for (const raw of u) {
+    if (typeof raw !== 'string') continue;
+    const id = raw.trim();
+    /* '<namespace>:<id>' or nothing. A row that is not that shape cannot be
+       what ownsGemUnlock asks for, so carrying it would only make the set look
+       bigger than the capability it confers. */
+    if (!/^[a-z_]+:[A-Za-z0-9_.-]+$/.test(id)) continue;
+    if (!owned.includes(id)) owned.push(id);
+  }
+  owned.sort();
+  G._gemUnlocks = { owned, at: Date.now() };
+  return { mode: 'server', owned: owned.length };
+}
+
+/* ── THE LEARNED RECIPES, HYDRATED FROM THE ENVELOPE ─────────────────────────
+   hr_recipe_learn (supabase/migrations/2026-09-14-recipe-learn.sql) consumes the
+   scroll from player_inventory and writes a player_progress kind='flag'
+   key='recipe:<scroll_id>' row; hr_state_of projects the character's learned set
+   as a top-level `unlocked_recipes` OBJECT in the client's own wire shape,
+   `{ "<scroll_id>": true }` — the shape src/core/artisan.js gateOk already reads
+   for both the attended and the away path.
+
+   ⚠ PER CHARACTER, unlike the gem unlocks: hr_recipes_of filters on the slot by
+   design — a recipe is a character's craft knowledge, not an account purchase.
+
+   Same scratch/residue split and same fail-closed absence rule as its neighbour.
+   Before this the browser said "learned" and the server said `{}`, so eight
+   gated recipes paid NOTHING away and nobody could see it (§6). One projection
+   now feeds both gates. */
+export function reconcileRecipes(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const r = res && res.unlocked_recipes;
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return { mode: 'absent' };
+  const map = {};
+  for (const k of Object.keys(r)) if (r[k]) map[k] = true;
+  G._recipeUnlocks = { map, at: Date.now() };
+  return { mode: 'server', learned: Object.keys(map).length };
+}
+
 /* ── THE PLAY STREAK IS THE SERVER'S ─────────────────────────────────────────
    MEASURED LIVE (QA account, slot 2, 2026-09-14): the topbar flame chip read
    `1` while `player_state.streak_days` held `3`. Two counters, one word.
 
-   `G.streak` ({count,lastDay}) is a CLIENT-AUTHORED residue advanced from the
+   `G.streak` ({count,lastDay}) WAS a CLIENT-AUTHORED residue advanced from the
    DEVICE clock, per browser profile (src/render/streak-chip.js), so a second
-   machine or a cleared profile restarts at 1 while the server — which advances
+   machine or a cleared profile restarted at 1 while the server — which advances
    `streak_days` from now() on any delta carrying `accrued_to`,
-   2026-08-21-streak-state.sql §4c — keeps counting. The projection has ridden
+   2026-08-21-streak-state.sql §4c — kept counting. The projection had ridden
    every envelope since that migration and NOTHING read it (CLAUDE.md §6). The
-   number is spendable: renown's `streakBest` ×5, Week Warrior / Devoted.
+   number is spendable: renown's `streakBest` ×5, Week Warrior / Devoted — so the
+   local counter was deleted outright (2026-09-14), not left as a fallback.
 
    SCRATCH, NOT RESIDUE (`_`-prefixed, the `_heroSlots` shape): projected fresh
    on every envelope, so persisting it would only create a second stale copy to
-   disagree with. `G.streak` is untouched — the local counter is the only answer
-   before the first envelope; READERS prefer the server's, via playStreakDays().
+   disagree with. There is no longer a local counter to prefer it over: every
+   play-streak surface reads playStreakDays(), which answers 0 until the realm
+   has spoken.
 
    NEVER AN EVICTION: an envelope without the key leaves the last observation
    alone, and a non-numeric value is not an observation at all. `0` IS a real
@@ -2279,8 +2503,48 @@ export function reconcilePlayStreak(G, res) {
 export function playStreakDays(G) {
   const s = G && G._serverStreak;
   if (s && Number.isFinite(Number(s.days))) return Math.max(0, Math.floor(Number(s.days)));
-  const loc = Number(G && G.streak && G.streak.count);
-  return Number.isFinite(loc) && loc > 0 ? Math.floor(loc) : 0;
+  /* NO LOCAL FALLBACK (2026-09-14). `G.streak` was a DEVICE-clock counter in the
+     residue — a second copy of `player_state.streak_days`, and the one a cloud
+     restore could rewind, on a number renown SPENDS at ×5 a day. It is deleted;
+     before the first envelope the honest answer is "the realm has not counted
+     yet", which every caller already renders as no streak. */
+  return 0;
+}
+
+/* ── THE FRACTIONAL TOOL CARRY IS THE SERVER'S (2026-08-15-tool-carry.sql) ────
+   `player_state.tool_carry` is a real column: the Edge engine reads it, every
+   settle advances it through the SAME src/core/tools.js `advanceToolCarry` the
+   attended tick uses, hr_apply accepts it as a delta key (validated, clamped,
+   `bad_tool_carry` otherwise), and hr_state_of projects it at `state.tool_carry`.
+   Nothing read it back down, so the fraction lived in TWO places — and the
+   client's was the one a cloud restore could rewind. That is CLAUDE.md §6's
+   residue-ahead class on a number that pays out whole items.
+
+   ABSOLUTE, and safe because the server's value is POST-SETTLE: the envelope is
+   the answer to the settle that consumed the window the local fraction grew in,
+   so replacing the prediction with the server's arithmetic IS the reconcile.
+   Between envelopes the attended tick still mutates G.toolCarry by reference.
+
+   FAIL-SAFE ON ABSENCE: no readable `state.tool_carry` OBJECT leaves the local
+   carry alone — evicting on uncertainty is forbidden (§6). Pure (G + res → receipt). */
+export function reconcileToolCarry(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const st = res && res.state;
+  if (!st || typeof st !== 'object') return { mode: 'absent' };
+  const server = st.tool_carry;
+  if (!server || typeof server !== 'object' || Array.isArray(server)) return { mode: 'absent' };
+  const out = {};
+  let kept = 0;
+  for (const k of Object.keys(server)) {
+    const n = Number(server[k]);
+    /* The range is [0,1) by construction — `advanceToolCarry` pays out whole
+       units the moment it reaches 1 — so anything else is not a carry. */
+    if (!Number.isFinite(n) || n < 0 || n >= 1) continue;
+    out[k] = n;
+    kept++;
+  }
+  G.toolCarry = out;
+  return { mode: 'server', kept };
 }
 
 /* ── THE DUNGEON RE-ENTRY WINDOWS ARE THE SERVER'S ───────────────────────────
@@ -2836,6 +3100,9 @@ export function applyEnvelopeState(G, res, ownKey) {
      is met. Wrapped so it can NEVER throw into the envelope apply — a refusal is a
      no-op that retries on the next envelope. See maybeAutoArm. */
   maybeAutoArm();
+  /* …and re-ask the SERVER whether the bag may be absolute at all, throttled.
+     Same cadence as the thing that would do the deleting. */
+  try { maybeRereadArmFlag(); } catch (e) {}
   /* b465 — hand the envelope's progress rows to the daily-reward sheet: the
      server's daily/login claim row is the marker that survives tab/save races
      (the residue copy kept losing them and the sheet re-opened on a paid
@@ -3106,10 +3373,24 @@ export function applyEnvelopeState(G, res, ownKey) {
      see reconcileHeroSlots' header for why keeping the two apart is the fix. */
   written.heroSlots = reconcileHeroSlots(G, res);
 
+  /* THE OWNED THEMES AND COSMETICS ARE THE SERVER'S (hr_buy_gem_unlock), and the
+     LEARNED RECIPES BESIDE THEM (hr_recipe_learn). Reconciled here so both ride
+     EVERY envelope — away, activity-switch and gold alike — which is what lets
+     the House cards, the shop and the Forge gate stay honest without a poll of
+     their own. Both land in `_`-prefixed SCRATCH, never in the residue bags they
+     replace; see their headers for why the two must stay distinguishable. */
+  written.gemUnlocks = reconcileGemUnlocks(G, res);
+  written.recipes = reconcileRecipes(G, res);
   /* AND THE PLAY STREAK, which rides `state` rather than a top-level key but
      belongs to exactly the same rule: the number the flame chip shows is the
      one renown scores. See reconcilePlayStreak's header. */
   written.playStreak = reconcilePlayStreak(G, res);
+
+  /* AND THE FRACTIONAL TOOL CARRY, which rides `state` for the same reason and
+     under the same rule: the settle that produced this envelope already advanced
+     the server's copy through the same core function the attended tick uses, so
+     the client's prediction is reconciled here rather than left to diverge. */
+  written.toolCarry = reconcileToolCarry(G, res);
 
   /* AND THE DUNGEON RE-ENTRY WINDOWS BESIDE THEM, for the same reason: the panel's
      countdown must be right on the envelope the player's own action produced, not
@@ -3413,12 +3694,22 @@ let serverAutoEatPctSeq = 0;
      tells "the server has spoken since the last gesture" from "nothing heard".
      Bumped on every RECORDING; reset by __resetServerAutoEat, itself an event. */
 let serverAutoEatFoodSeq = 0;
+/* ── `enabledSeq` — HOW MANY TIMES THE SERVER HAS STATED THE SWITCH ──────────
+   The third twin, for `auto_eat_enabled`. `hr_set_auto_eat` is the only writer
+   of that column and the accrual engine reads it to decide whether IT eats, so
+   the switch the settings panel paints must be the switch the engine obeys —
+   the same rule the threshold and the provision already follow. Bumped on every
+   RECORDING (a restated `false` is still the server speaking); reset by
+   __resetServerAutoEat, itself an event. */
+let serverAutoEatEnabledSeq = 0;
 export function noteServerAutoEat(res) {
   const st = res && res.state;
   if (st && typeof st === 'object'
       && Object.prototype.hasOwnProperty.call(st, 'auto_eat_enabled')) {
     const v = st.auto_eat_enabled;
-    if (v === true || v === false) { serverAutoEatObserved = v; serverAutoEatSeen.enabled = v; }
+    if (v === true || v === false) {
+      serverAutoEatObserved = v; serverAutoEatSeen.enabled = v; serverAutoEatEnabledSeq++;
+    }
   }
   if (st && typeof st === 'object'
       && Object.prototype.hasOwnProperty.call(st, 'auto_eat_food')) {
@@ -3463,7 +3754,9 @@ export function serverAutoEatSettings() {
            /* The OBSERVATION COUNT for `pct`. See serverAutoEatPctSeq. */
            pctSeq: serverAutoEatPctSeq,
            /* …and for `food`. See serverAutoEatFoodSeq. */
-           foodSeq: serverAutoEatFoodSeq };
+           foodSeq: serverAutoEatFoodSeq,
+           /* …and for the switch itself. See serverAutoEatEnabledSeq. */
+           enabledSeq: serverAutoEatEnabledSeq };
 }
 /* ── THE VERB'S OWN ANSWER IS ALSO AN OBSERVATION ────────────────────────────
    `hr_set_auto_eat` returns `{ok:true, auto_eat:{enabled,food,pct,tier,max_pct}}`
@@ -3486,6 +3779,7 @@ export function noteAutoEatVerb(res) {
   if (!a || typeof a !== 'object') return serverAutoEatSettings();
   if (a.enabled === true || a.enabled === false) {
     serverAutoEatObserved = a.enabled; serverAutoEatSeen.enabled = a.enabled;
+    serverAutoEatEnabledSeq++;
   }
   if (a.food === null || typeof a.food === 'string') { serverAutoEatSeen.food = a.food; serverAutoEatFoodSeq++; }
   const p = Number(a.pct);
@@ -3512,11 +3806,23 @@ export function __resetServerAutoEat() {
   serverAutoEatObserved = null;
   serverAutoEatSeen.enabled = undefined; serverAutoEatSeen.food = undefined;
   serverAutoEatSeen.pct = undefined; serverAutoEatSeen.touched = undefined;
-  /* Back to never-observed. The counter RESETS rather than advancing because
-     this IS the "forget everything" seam; a reader comparing sequences sees the
-     change either way, which is what makes the reset an observation event too. */
-  serverAutoEatPctSeq = 0;
-  serverAutoEatFoodSeq = 0;
+  /* ⚠ THE COUNTERS ADVANCE HERE; THEY DO NOT GO BACK TO ZERO, and that is a
+     CORRECTNESS fix rather than tidiness (found by the b547 food test going red
+     2026-09-14). The old note said a reader comparing sequences "sees the change
+     either way" — it does not. src/features/auto-actions.js holds the last count
+     it acted on (`_foodSeqSeen`) and ends an unanswered local gesture only when
+     the two DIFFER. Zeroing here makes the count REUSE values: forget everything
+     while the reader holds 1, take one fresh observation, and the counter is 1
+     again — identical to what the reader already acted on, so the server's answer
+     reads as "nothing new" and the stale local nomination wins. That is the exact
+     shape of the bug this whole mirror exists to kill, one seam further in: the
+     browser naming cooked_shrimp while the column holds turnip.
+     A reset IS an observation event, so it is counted like one — monotonic, so
+     "different" can never be a coincidence. The VALUES still go back to
+     never-observed; only the event count keeps rising. */
+  serverAutoEatPctSeq++;
+  serverAutoEatFoodSeq++;
+  serverAutoEatEnabledSeq++;
   return serverAutoEatObserved;
 }
 
@@ -3822,6 +4128,13 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   if (hintPending && baselineComplete === true) {
     try { G._startKitHintAt = Date.now(); } catch (e) {}
     for (const id of Object.keys(START_INVENTORY)) {
+      /* OWNED IDS ONLY. This block runs on the MERGE path, which is the
+         never-delete path, and `cooked_shrimp` is an EXCLUDED id — so without
+         this line the rule deletes a dish on an omission, which is precisely the
+         loss the exclusion exists to prevent. It is also no longer needed for a
+         non-owned id: the fresh-G factory bag is gone, so an exact-hint figure
+         can only have come from the server or from real play. */
+      if (!serverOwnedItem(id)) continue;
       const hint = Number(START_INVENTORY[id]);
       if (!Number.isFinite(hint) || hint <= 0) continue;
       if ((Number(inv[id]) || 0) !== hint) continue;   // touched, or absent — not the hint
@@ -3920,10 +4233,18 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
         if (named) next[k] = Math.floor(q);
         continue;
       }
-      /* NOT OWNED (excluded / un-modeled): never delete, never lower. Keep the
-         larger of the client's copy and any positively-named server figure. */
+      /* ── NOT OWNED: THE NAMED-LOWER RULE (security C2) ─────────────────────
+         Never DELETE — an omission is still "unknown" for an id the engine does
+         not settle, which is the blueprint-loss carve-out and it is untouched.
+         But a NAMED figure is a positive statement about that one key, and the
+         server debits excluded ids on its own behalf all the time (hr_farm_plant
+         takes a seed, a vendor sale takes the goods). Taking Math.max there meant
+         the client could only ever ratchet UP: once the two numbers parted, no
+         envelope could ever bring the client back down, and the grid painted
+         goods every gesture was then refused for. So a stated figure is BELIEVED,
+         up or down; silence still keeps the client's copy. */
       const have = Number(inv[k]) || 0;
-      const best = Math.max(have > 0 ? Math.floor(have) : 0, named ? Math.floor(q) : 0);
+      const best = named ? Math.floor(q) : (have > 0 ? Math.floor(have) : 0);
       if (best > 0) next[k] = best;
     }
     G.inventory = next;
@@ -5411,10 +5732,14 @@ if (typeof window !== 'undefined') {
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,
-    flipDriftSummary, reportFlipDrift, startFlipDriftReporter, __resetFlipDriftReport,
+    flipDriftSummary, reportFlipDrift, startFlipDriftReporter, __resetFlipDriftReport, noteArmTransition,
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
     maybeAutoArm, __setInventoryArmEnabledForTest, __resetAutoArm,
     inventoryArmStage, __setInventoryArmStageForTest,
+    noteServerArmPermission, isServerArmPermitted, isServerArmObserved, serverArmPermissionState,
+    fetchServerArmPermission, INVENTORY_ARM_FLAG_KEY, maybeRereadArmFlag, ARM_FLAG_REREAD_MS,
+    __resetArmFlagReadClock,
+    __resetServerArmPermission,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,
@@ -5439,7 +5764,7 @@ if (typeof window !== 'undefined') {
        never "what should it believe". */
     /* THE PLAY STREAK: the projection recorder and the ONE reader every
        play-streak surface asks. See reconcilePlayStreak. */
-    reconcilePlayStreak, playStreakDays,
+    reconcilePlayStreak, playStreakDays, reconcileToolCarry, reconcileGemUnlocks,
     noteServerAutoEat, serverAutoEats, clientOwnsAutoEatDebit, serverAutoEatSettings,
     noteAutoEatVerb,
     __noteAutoEatSettings, __resetServerAutoEat,
@@ -5454,7 +5779,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

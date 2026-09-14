@@ -1057,7 +1057,24 @@
        reason icons.js is: both tile renderers name hrActivityTileClick inside
        an onclick attribute, so it has to exist before the first grid paints. -->
   <script src="src/render/activity-tile.js?v=546"></script>
+  <!-- SCREEN CONTROLLER: the farm. BEFORE legacy.js on purpose — legacy.js
+       installs its paintAll wrapper by reading window.renderFarm at its own
+       top level, so the name has to exist by then or the nav badges silently
+       stop refreshing after a harvest. Every top-level statement in farm.js is
+       inert (declarations + window publications), so loading early is safe. -->
+  <script src="src/screens/farm.js?v=546"></script>
+  <!-- SCREEN CONTROLLER: the shop counter (buy handlers + the vendor's sell
+       side). Grouped with farm.js before legacy.js; every top-level statement
+       in it is inert and every global it uses is read at call time. -->
+  <script src="src/screens/shop-counter.js?v=546"></script>
   <script src="src/legacy.js?v=546"></script>
+  <!-- SCREEN CONTROLLERS (task #129 phase 2) — src/screens/*. A whole tab's
+       painter + handlers + wiring, moved verbatim out of the monolith. Classic
+       scripts, not modules, and the position is load-bearing: inventory.js wraps
+       updateTopbar/equip/unequip/addItem/removeItem AT LOAD TIME and registers
+       inv-fancy + inv-dragdrop with showTab, both of which must come after
+       legacy.js's own inv-new registration. Each file's header states its rule. -->
+  <script src="src/screens/inventory.js?v=546"></script>
   <!-- b372: every ITEM REQUIREMENT is a link to the bag's own item flyout.
        Loads right after legacy.js because it wraps openInvDetail and because
        every requirement renderer below (homestead, clan seat, dungeons)

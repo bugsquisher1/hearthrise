@@ -2,6 +2,18 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-14 · SYSTEMS (lane: gem-unlock + recipe-learn client half) → COORDINATOR · **TWO LANES ARE WRITING `src/features/gem-unlocks.js`**
+
+Branch `lane/b547-gem-recipe-client` (worktree `agent-aade13cac01003e53`) created `src/features/gem-unlocks.js` and `src/features/recipe-scrolls.js` as ESM side-effect modules imported by `src/main.js`, publishing `ownsGemUnlock` / `gemUnlocksKnown` / `activeHouseTheme` / `buyGemUnlock` and `unlockedRecipesMap` / `knowsRecipe` / `readRecipeScroll` on `window`.
+
+A SECOND lane (`agent-afc3a91d534c61393`) is extracting the SAME file with a DIFFERENT shape — a classic-script IIFE relying on the global lookup, and a different API: `gemUnlockIsFree()` and `noteGemUnlockOptimistic()` (an OPTIMISTIC local grant of an unlock). Both cannot land.
+
+**Two real disagreements, not just a file collision.**
+1. **Optimistic ownership.** `noteGemUnlockOptimistic` writes the bought id into `G._gemUnlocks` before the realm answers. This lane deliberately does NOT: ownership is adopted only from `gem_unlocks` on the verdict or the next envelope, because a locally-granted entitlement that a refusal never retracts is the b371 sticking half in a new store (the scratch key rather than the residue bag). If instant feedback is wanted, it belongs in a render-only flag the purchase path cannot read.
+2. **`gemUnlockIsFree()` as a fallback for ownership.** Deciding "free ⇒ owned" from the CLIENT's `HOUSE_THEMES` literal re-derives an entitlement the realm already states: `hr_gem_unlocks_of` unions `where g.free`, so `theme:default` is in EVERY projection. A client-side free-list is a second answer to the one question, and it answers before the first envelope in a direction ("owned") this lane deliberately refuses.
+
+**Recommendation:** take one lane's file whole; do not merge the two by hand (§3.3). This lane's is green by exit code: `tools/lane-done.mjs` all green, suite 1293/1306 / 0 failed, `no-client-copy-of-projection` exit 0 with the OWED pin 3 -> 1 and the three raw-read pins at zero, and six planted defects turn its arms red.
+
 ## 2026-09-13 · SYSTEMS (lane: Bestiary Charms phase 1) → ART DIRECTOR + GAME DESIGNER
 
 **Art Director.** The Bestiary modal (`src/render/bestiary.js`) grew a charm strip above the roster and an element line inside each discovered row, with a new `.charm-*` block in `src/styles/legacy.css`. Atlas glyphs only (`uiMedal` / `uiTarget` / `uiSpark`) and tokens only — the four rank tints are `color-mix(in srgb, var(--gold-2) N%, transparent)`, no colour literal was added (`css-literal-ratchet` exit 0), no emoji. Measured at 1440×900 and 852×393: no horizontal spill, chips wrap to two columns, zero console errors. If the strip wants a different home (its own header, or folded into the row) that is the Art Director's call — the markup is one function, `paintCharmStrip`.
@@ -1574,3 +1586,18 @@ re-priced in `src/data/bestiary-charms.js` alone — no engine change, because t
 the formula. **Security:** the rank is never a wire value. There is no request field for a rank or a
 kill count (`INTENT_KEYS`), the Edge folds `hr_bestiary_of`'s own rows inside the engine, and
 tests/accrual-engine.mjs CHARM-W4 byte-compares 32 forged input shapes against the clean delta.
+
+---
+
+## 2026-09-14 — SEMANTIC CONFLICT: the START-KIT hint discard vs the deleted factory literal
+**Lanes:** `worktree-agent-a6a742b766b7e073e` (START-KIT sweep) and the inventory-flip staged-arm lane. Both are already merged into `next`; nothing is broken today, and this is a note for whoever owns the bag next, not a request.
+
+`reconcileInventory` gained a once-per-load rule that, on a COMPLETE envelope, discards a `START_INVENTORY` id whose local figure is still EXACTLY the hint. It was written against the fresh-`G` factory literal `inventory:{turnip_seed:5,carrot_seed:3,shrimp:10,cooked_shrimp:20}` — which the flip lane DELETED in the same day's set (`src/legacy.js`; the bag now starts `{}`). Its own tests stage `G.inventory` explicitly, so they still pass, and they do.
+
+**What changed underneath it.** With the literal gone, an exact-hint local figure can no longer be client-authored — it can only have come from the server (a new character whose `hr_start_kit` rows say exactly 5/3/10/20) or from real play landing on the same number. So the rule's remaining reachable effect is to DELETE-on-omission a stack that may be real, for four ids, once per load. It is bounded and small; it is also the never-delete rule being broken for a phantom that no longer exists.
+
+**Recommendation (not taken unilaterally, because the code is the other lane's):** retire the `START_INVENTORY` block in `reconcileInventory` and let the classification carry it — `turnip_seed`/`carrot_seed` are now OWNED (so a complete envelope's omission means zero once the flip arms), `shrimp` is owned and `cooked_shrimp` is server-consumed. Until then it is harmless-but-unsound, and it is the second rule in one function that may remove a key.
+
+**RESOLVED 2026-09-14 (Security condition 8), narrowly:** the block now opens with `if (!serverOwnedItem(id)) continue;`, so it can no longer reach an EXCLUDED id — `cooked_shrimp` was the live case, and deleting a dish on an omission is the loss the exclusion exists for. The block is kept, not retired: its owned half (the seeds, `shrimp`) is still the narrowest fix for a server row that is DELETED at zero. `INV-STAGE-10` measures the block's own receipt (`written.startKitHintDropped`) rather than the bag, because a dish also leaves the bag by the phantom-food rule and that would have made the test pass for the wrong reason.
+
+**Also recorded:** `INVENTORY_ARM_STAGE` ships `'off'`, so none of the above changes behaviour for a live player today.

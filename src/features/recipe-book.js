@@ -60,7 +60,10 @@ const pacedXpOf = (skill, xp) => (typeof window.pacedXp === 'function')
 function recipeCard(r, skill) {
   const G = window.G || {};
   const lv = (typeof window.getLevel === 'function') ? window.getLevel(skill) : 1;
-  const gatedLocked = !!(r.gated && !(G.unlockedRecipes && G.unlockedRecipes[r.gated]));
+  /* ONE READ FOR THE GATE (legacy.js unlockedRecipesMap → the server's
+     projection). A book that says "learned" while the Forge refuses is the
+     class CLAUDE.md §6 forbids. */
+  const gatedLocked = !!(r.gated && !((typeof window.knowsRecipe === 'function') ? window.knowsRecipe(r.gated) : false));
   const lvLocked = lv < (r.req || 1);
   const locked = lvLocked || gatedLocked;
   const outId = r.output;

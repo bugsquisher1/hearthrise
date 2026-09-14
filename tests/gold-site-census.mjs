@@ -148,6 +148,7 @@ export const PATTERNS = Object.freeze([
 export const EXCLUDED = Object.freeze({
   'src/features/smoke-test.js': 'the test suite itself. It sets G.gold to fixture values in ~60 '
     + 'places to drive assertions; those are not economy sites and never ship a server intent.',
+  'src/features/smoke/': 'the same suite, one directory down since the 2026-09-14 split.',
   'src/net/gold-sites.js': 'the ledger. It names sites; it does not write gold.',
   /* THE MIRROR IMAGE, and it turned this census red the moment the gem ledger
      landed. src/net/gem-sites.js explains its rows by QUOTING the code they
@@ -162,6 +163,14 @@ export const EXCLUDED = Object.freeze({
   'src/net/gem-sites.js': 'the GEM ledger. Its prose quotes gold site ids and gold statements '
     + 'verbatim to explain the gem rows beside them. It names sites; it does not write gold.',
 });
+
+/* An exclusion key ending in `/` is a DIRECTORY, and L0 still proves it exists.
+   The suite became a directory on 2026-09-14 (smoke-test.js split into
+   smoke/_harness.js + smoke/<domain>.js); a census that excluded only the old
+   filename would have started reporting 1,297 tests' fixtures as economy sites. */
+const isExcluded = (rel) => Object.keys(EXCLUDED)
+  .some((k) => (k.endsWith('/') ? rel.startsWith(k) : rel === k));
+
 
 /* ── COMMENTS ARE NOT SITES ─────────────────────────────────────────────────
    Found immediately: this codebase documents itself heavily, and the FIRST run
@@ -287,7 +296,7 @@ export async function census(patternNames) {
   const seen = Object.create(null);
   for (const f of files) {
     const rel = relative(ROOT, f).replace(/\\/g, '/');
-    if (Object.prototype.hasOwnProperty.call(EXCLUDED, rel)) continue;
+    if (isExcluded(rel)) continue;
     const lines = stripComments((await readFile(f, 'utf8')).replace(/\r\n/g, '\n')).split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];

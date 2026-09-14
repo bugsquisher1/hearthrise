@@ -105,12 +105,21 @@ export const DELEGATED_TO_GOLD_CENSUS = Object.freeze({
 export const EXCLUDED = Object.freeze({
   'src/features/smoke-test.js': 'the test suite itself. It sets G.gems to fixture values in dozens '
     + 'of places to drive assertions; those are not economy sites and never ship a server intent.',
+  'src/features/smoke/': 'the same suite, one directory down since the 2026-09-14 split.',
   'src/net/gem-sites.js': 'the ledger. It names sites; it does not write gems.',
   'src/net/gold-sites.js': 'the GOLD ledger. Its `why:` prose quotes ten real write statements '
     + "verbatim (`G.gems += …`, `G[f] = …`) to explain them, and the comment stripper cannot see "
     + 'inside a string literal. Scanning it reported ten "undeclared gem writes" that were all '
     + 'documentation. It is a ledger; it does not write gems either.',
 });
+
+/* An exclusion key ending in `/` is a DIRECTORY, and L0 still proves it exists.
+   The suite became a directory on 2026-09-14 (smoke-test.js split into
+   smoke/_harness.js + smoke/<domain>.js); a census that excluded only the old
+   filename would have started reporting 1,297 tests' fixtures as economy sites. */
+const isExcluded = (rel) => Object.keys(EXCLUDED)
+  .some((k) => (k.endsWith('/') ? rel.startsWith(k) : rel === k));
+
 
 /* ── COMMENTS ARE NOT SITES ─────────────────────────────────────────────────
    This codebase documents itself heavily and the gem sites are now the most
@@ -242,7 +251,7 @@ export async function census(patternNames) {
   const seen = Object.create(null);
   for (const f of files) {
     const rel = relative(ROOT, f).replace(/\\/g, '/');
-    if (Object.prototype.hasOwnProperty.call(EXCLUDED, rel)) continue;
+    if (isExcluded(rel)) continue;
     const lines = stripComments((await readFile(f, 'utf8')).replace(/\r\n/g, '\n')).split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];

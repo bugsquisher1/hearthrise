@@ -510,7 +510,7 @@ async function combatCreditGuard() {
   const writers = [];
   for (const f of files) {
     const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
-    if (rel.includes('smoke-test')) continue;            // the suite may drive it
+    if (rel.includes('smoke-test') || rel.includes('/features/smoke/')) continue;   // the suite may drive it
     const text = await readFile(f, 'utf8');
     if (!text.includes('__hrCombatCredits')) continue;
     // combat-screens.js is the READER; everyone else touching it is a writer.
@@ -578,7 +578,7 @@ async function showTabOwnershipGuard() {
     const rel = f.slice(ROOT.length + 1).replace(/\\/g, '/');
     if (rel === 'src/utils/showtab-registry.js') registryPresent = true;
     const text = await readFile(f, 'utf8');
-    if (rel.includes('smoke-test')) continue;          // the suite may stub it in a test
+    if (rel.includes('smoke-test') || rel.includes('/features/smoke/')) continue; // the suite may stub it in a test
     if (ALLOWED.has(rel)) continue;
     // strip line comments so a doc reference to the pattern doesn't trip it
     for (const line of text.split('\n')) {
@@ -815,7 +815,9 @@ async function supplyChainGuard() {
   // Tests are excluded from the *executable-import* rule (they legitimately
   // name hostile URLs as fixtures) but NOT from the file walk, so a real call
   // site that migrates into a test file is still visible in the diff.
-  const isTest = (rel) => rel.includes('smoke-test.js') || rel.startsWith('tests/');
+  const isTest = (rel) => rel.includes('smoke-test.js')
+    || rel.startsWith('src/features/smoke/')   // the suite is a directory since 2026-09-14
+    || rel.startsWith('tests/');
 
   for (const f of files) {
     let text;

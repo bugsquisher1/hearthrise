@@ -544,10 +544,13 @@ export async function propertyGateCensusGuard() {
   try { files = await walkSrc(); }
   catch (e) { fail('could not walk src/: ' + (e && e.message)); return problems; }
 
-  const SKIP = new Set(['src/features/smoke-test.js']);   // the harness seeds fixtures; not the game
+  /* The suite seeds fixtures; it is not the game. Since the 2026-09-14 split the
+     suite is a directory, so the skip is a PREFIX — a census that stopped at the
+     registry file would have reported 1,297 tests' fixtures as game code. */
+  const SKIP = (f) => f === 'src/features/smoke-test.js' || f.startsWith('src/features/smoke/');
   let residueReadFiles = 0, consumerFiles = 0, scanned = 0;
   for (const f of files) {
-    if (SKIP.has(f)) continue;
+    if (SKIP(f)) continue;
     let src;
     try { src = await readFile(new URL(f, ROOT), 'utf8'); } catch (e) { continue; }
 

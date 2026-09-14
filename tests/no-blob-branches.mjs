@@ -140,7 +140,8 @@ function loadSrc() {
   const out = {};
   for (const p of walk(join(ROOT, 'src'))) {
     const rel = relative(ROOT, p).replace(/\\/g, '/');
-    if (rel === 'src/features/smoke-test.js') continue;   // the suite drives the seam on purpose
+    // the suite drives the seam on purpose (a directory since the 2026-09-14 split)
+    if (rel === 'src/features/smoke-test.js' || rel.startsWith('src/features/smoke/')) continue;
     out[rel] = readFileSync(p, 'utf8');
   }
   return out;

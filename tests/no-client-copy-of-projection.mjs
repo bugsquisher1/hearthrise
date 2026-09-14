@@ -179,7 +179,7 @@ const OWED_MAX = 3;
    is excluded — that is where the read is supposed to happen — and so is the
    harness, which seeds fields as fixtures. */
 const SCAN_GLOBS = ['src/render', 'src/features', 'src/legacy.js'];
-const SCAN_SKIP = new Set(['src/features/smoke-test.js']);
+const SCAN_SKIP = (rel) => rel === 'src/features/smoke-test.js' || rel.startsWith('src/features/smoke/');
 
 /** Blank comment and string interiors so prose that mentions `G.streak.count`
  *  is not counted as a read. Newlines preserved. (Same idea as
@@ -241,7 +241,7 @@ function walk(rel, acc) {
   for (const e of entries) {
     const r = `${rel}/${e.name}`;
     if (e.isDirectory()) walk(r, acc);
-    else if (e.name.endsWith('.js') && !SCAN_SKIP.has(r)) acc.set(r, stripCode(readFileSync(join(ROOT, r), 'utf8')));
+    else if (e.name.endsWith('.js') && !SCAN_SKIP(r)) acc.set(r, stripCode(readFileSync(join(ROOT, r), 'utf8')));
   }
   return acc;
 }

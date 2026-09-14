@@ -215,6 +215,10 @@ export function configureAccrual(cfg) {
     authToken: cfg.authToken || null,
     slot: Number.isInteger(cfg.slot) ? cfg.slot : null,
   };
+  /* ASK THE SERVER WHETHER THE BAG MAY GO ABSOLUTE AT ALL (security C4). Fired
+     from the one place credentials arrive, fire-and-forget: the answer defaults
+     to NO, so a slow or failed read simply leaves the bag on merge. */
+  try { fetchServerArmPermission(); } catch (e) {}
   return getAccrualConfig();
 }
 
@@ -1371,7 +1375,10 @@ export function markInventoryAuthorityLive(v) {
         + 'the server signal is live and observed.');
     }
   }
+  const changed = (inventoryAuthorityLive !== on);
   inventoryAuthorityLive = on;
+  /* Journalled at the ONE place authority moves, so no arm path can be silent. */
+  if (changed) { try { noteArmTransition(on); } catch (e) {} }
   /* A DELIBERATE DISARM LATCHES FOR THE SESSION. Once anything disarms (an
      operator kill-switch, an incident response), the boot auto-arm must NOT
      silently re-arm on the next envelope — a disarm is a decision, not a
@@ -1455,6 +1462,7 @@ export function maybeAutoArm() {
     if (autoArmDisarmed) return false;          // (2) deliberately disarmed this session
     if (!inventoryArmEnabled) return false;     // (3) BUILD GATE — the enable flag
     if (!inventoryArmStagedNow) return false;   // (3b) STAGED ROLLOUT — 'off' in prod today
+    if (!isServerArmObserved()) return false;   // (3c) no OBSERVED server grant this session
     if (!baselineCompleteSeen) return false;    // (4) server not yet observed stamping complete
     const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
     if (!D || typeof D !== 'object') return false;   // (5) DUNGEONS not loaded (overlap-id safety)
@@ -1481,7 +1489,110 @@ export function maybeAutoArm() {
  *  for three weeks, and it is a PER-SESSION gesture fact. */
 export function isInventoryAbsolute() {
   if (!inventoryAuthorityLive) return false;
+  if (!isServerArmPermitted()) return false;   // the SERVER's kill switch, thrown (see below)
   return isEnvelopeAbsolute();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE SERVER-SIDE DISARM (security C4)
+   ══════════════════════════════════════════════════════════════════════════
+   THE GAP IT CLOSES: every other position on this authority is a CLIENT
+   constant, so rolling the flip back meant a redeploy plus a cache-buster plus
+   waiting for every open tab to reload — on the one change in this codebase that
+   can delete a player's item. A kill switch whose reaction time is a deploy is
+   not a kill switch.
+
+   `public.hr_flags` already exists (the town lane) and is client-READABLE with
+   no write policy and no write grant to ANY role, service_role included, so an
+   operator can flip a row and nothing else can. This reads ONE row,
+   `inventory_absolute`, whose `enabled` means "the server PERMITS a client to
+   hold the bag absolutely" (staged: 2026-09-14-inventory-absolute-flag.sql).
+
+   ONLY A LITERAL `false` DISARMS, AND THAT IS THE CONSIDERED CHOICE. An absent
+   row (the migration not yet applied), an unreadable table, a failed request —
+   none of them are a decision, so none of them change the position. The
+   alternative (require an explicit true) would make a delete authority depend on
+   a second network read, and would silently change semantics on every flaky
+   boot. The PRIMARY position is still the build constant INVENTORY_ARM_STAGE,
+   which is 'off'; this row exists to take authority away FAST, not to grant it.
+   KNOWN LIMITATION, stated rather than hidden: a client that never successfully
+   reads the flag keeps whatever position its build shipped with. It is bounded —
+   an absolute replace only ever happens on an envelope apply, which needs the
+   same network the flag read does — and the third, offline-capable position is
+   the pre-existing per-device opt-out `localStorage['hr:envelopeMerge'] = 'on'`
+   (ENVELOPE_MERGE_KEY), which forces merge with no server and no deploy.
+
+   A DISARM LATCHES for the session: `markInventoryAuthorityLive(false)` sets the
+   auto-arm's own disarm latch, so the next envelope cannot quietly re-arm. */
+export const INVENTORY_ARM_FLAG_KEY = 'inventory_absolute';
+/* TRI-STATE, and the third state is the point. 'unknown' is not 'granted' and
+   not 'denied': ARMING requires a `enabled === true` OBSERVED this session, so a
+   client that never reached the flag never arms; DISARMING requires an observed
+   `false`, so a failed read can never take the bag away from a session that did
+   observe a grant. Two different questions, two different answers, and the
+   asymmetry is what makes both directions fail safe. */
+const ARM_UNKNOWN = 'unknown', ARM_GRANTED = 'granted', ARM_DENIED = 'denied';
+let serverArmPermission = ARM_UNKNOWN;
+
+/** Record the server's permission. A literal true GRANTS, a literal false DENIES
+ *  (and disarms an armed session — the point of a kill switch); anything else is
+ *  not an answer and leaves the position exactly where it was. */
+export function noteServerArmPermission(v) {
+  if (v === false) {
+    serverArmPermission = ARM_DENIED;
+    if (inventoryAuthorityLive) { try { markInventoryAuthorityLive(false); } catch (e) {} }
+  } else if (v === true) {
+    serverArmPermission = ARM_GRANTED;
+  }
+  return isServerArmPermitted();
+}
+/** Has the server NOT taken the permission away? (unknown counts as "not taken
+ *  away" — it is the disarm question, and silence is not a disarm.) */
+export function isServerArmPermitted() { return serverArmPermission !== ARM_DENIED; }
+/** Has an explicit grant been OBSERVED this session? The arm question, and the
+ *  one silence answers NO to. */
+export function isServerArmObserved() { return serverArmPermission === ARM_GRANTED; }
+export function serverArmPermissionState() { return serverArmPermission; }
+/** TEST-ONLY. Back to the boot state (unknown) without the disarm path's latch. */
+export function __resetServerArmPermission() { serverArmPermission = ARM_UNKNOWN; return serverArmPermission; }
+
+/* ── THE RE-READ CADENCE ────────────────────────────────────────────────────
+   A flag read once at sign-in is a kill switch with an unbounded reaction time:
+   an idle tab can hold an absolute bag for hours after an operator flips the
+   row. The re-read rides the SETTLE — the same cadence that would do the
+   deleting — and is throttled so it costs at most one small GET every few
+   minutes per session, never one per envelope. */
+export const ARM_FLAG_REREAD_MS = 5 * 60 * 1000;
+let _armFlagReadAt = 0;
+export function maybeRereadArmFlag(nowOverride) {
+  const t = Number.isFinite(nowOverride) ? nowOverride : nowMs();
+  if (_armFlagReadAt && (t - _armFlagReadAt) < ARM_FLAG_REREAD_MS) return false;
+  _armFlagReadAt = t;
+  try { fetchServerArmPermission(); } catch (e) {}
+  return true;
+}
+export function __resetArmFlagReadClock() { _armFlagReadAt = 0; return _armFlagReadAt; }
+
+/** Read the flag row. Pure transport — it records the answer and returns the
+ *  resulting permission. Never throws and never DECIDES on an error: a refusal,
+ *  a 404 on an older database, or an offline tab all leave the position alone.
+ *  `f` is injectable. */
+export async function fetchServerArmPermission(f) {
+  const fetcher = f || ((typeof fetch === 'function') ? fetch : null);
+  if (!fetcher || !config || !config.url) return isServerArmPermitted();
+  try {
+    const url = config.url + '/rest/v1/hr_flags?select=enabled&key=eq.' + INVENTORY_ARM_FLAG_KEY;
+    const headers = { apikey: config.apiKey || '', Accept: 'application/json' };
+    if (config.authToken) headers.Authorization = 'Bearer ' + config.authToken;
+    const r = await fetcher(url, { headers });
+    if (!r || !r.ok) return isServerArmPermitted();       // not an answer — not a decision
+    const rows = await r.json();
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row || typeof row.enabled !== 'boolean') return isServerArmPermitted();   // no row = no switch yet
+    return noteServerArmPermission(row.enabled);
+  } catch (e) {
+    return isServerArmPermitted();
+  }
 }
 
 /** Is the envelope ABSOLUTE on this device?
@@ -1596,6 +1707,10 @@ export function flipDriftSummary() {
     soakMinutes: Math.round((r.soakMs || 0) / 60000),
     ready: !!r.ready,
     armed: !!r.armed,
+    staged: !!r.staged,
+    /* WHICH BUILD SAID SO. A +24 h soak spans a release, and a destructive
+       omission is only interpretable against the code that produced it. */
+    build: (BUILD && BUILD.cache) || null,
     dungeonsLoaded: !!r.dungeonsLoaded,
     baselineCompleteSeen: !!r.baselineCompleteSeen,
   };
@@ -1612,7 +1727,8 @@ let _flipDriftTimer = null;
    per session instead of one per cadence tick. */
 function _flipDriftDedupeKey(s) {
   return [s.destructiveOwnedOmissions, s.envelopesApplied, s.completeEnvelopes,
-    s.lastLossMag, s.ready, s.armed, s.dungeonsLoaded, s.baselineCompleteSeen].join('|');
+    s.lastLossMag, s.ready, s.armed, s.staged, s.build, s.dungeonsLoaded,
+    s.baselineCompleteSeen, s.transition || ''].join('|');
 }
 
 /** Read the drift summary and emit it through the observability channel IF it
@@ -1624,11 +1740,50 @@ export function reportFlipDrift(emit) {
   const key = _flipDriftDedupeKey(s);
   if (key === _lastFlipDriftKey) return null;   // no change → no spam
   _lastFlipDriftKey = key;
-  const sink = (typeof emit === 'function') ? emit
-    : (typeof window !== 'undefined' && typeof window.trackEvent === 'function') ? window.trackEvent
-      : null;
-  if (sink) { try { sink(FLIP_DRIFT_EVENT, s); } catch (e) { /* telemetry never breaks the client */ } }
+  return _emitFlipDrift(s, emit);
+}
+
+/* ── THE SINK, CORRECTED (security C1) ──────────────────────────────────────
+   MEASURED 2026-09-13: `select event_type, count(*) from game_events` over the
+   last 14 days returned boot_probe 115, questClaim 28, companionEquip 5,
+   companionUnlock 2 — and ZERO `inv_flip_drift`, although the reporter has been
+   booted since it was written. The reason is the channel, not the caller:
+   `window.trackEvent` (src/observability.js) pushes into a localStorage buffer
+   that flushes to `CONFIG.analyticsEndpoint`, which is NULL. Nothing it receives
+   has ever left the device.
+
+   The path that reaches `game_events` is the in-process bus plus sync.js's
+   `EVENT_ALLOWLIST`, so that is where a soak signal has to go. trackEvent is
+   kept as a secondary breadcrumb (it also mirrors into Sentry), because the bus
+   is not present in every harness and a telemetry call must never be the reason
+   a settle throws. */
+function _emitFlipDrift(s, emit) {
+  if (typeof emit === 'function') {
+    try { emit(FLIP_DRIFT_EVENT, s); } catch (e) {}
+    return s;
+  }
+  const w = (typeof window !== 'undefined') ? window : null;
+  if (w && w.HearthriseEvents && typeof w.HearthriseEvents.emit === 'function') {
+    try { w.HearthriseEvents.emit(FLIP_DRIFT_EVENT, s); } catch (e) {}
+  }
+  if (w && typeof w.trackEvent === 'function') {
+    try { w.trackEvent(FLIP_DRIFT_EVENT, s); } catch (e) {}
+  }
   return s;
+}
+
+/* ── THE ARM TRANSITION IS JOURNALLED (security C1) ─────────────────────────
+   A cadence summary can miss the single most important moment in the rollout:
+   the envelope on which a device's bag stopped being a merge. Emitted
+   immediately (not on the 5-minute tick) and carrying `transition`, so the soak
+   query can count armed sessions and line a first destructive omission up
+   against the arm that preceded it. Both directions — a DISARM is the incident
+   signal and must be visible too. */
+export function noteArmTransition(to) {
+  const s = flipDriftSummary();
+  s.transition = to ? 'arm' : 'disarm';
+  _lastFlipDriftKey = _flipDriftDedupeKey(s);   // the cadence must not re-send this picture
+  return _emitFlipDrift(s, null);
 }
 
 /** Test seam — forget the last-emitted picture so a fresh assertion starts clean. */
@@ -1677,6 +1832,9 @@ import { serverAccruedSkill } from '../data/skill-authority.js?v=546';
    server's hr_start_kit catalogue is generated from, so there is no second copy
    of the numbers here either. */
 import { START_INVENTORY } from '../data/start-kit.js?v=546';
+/* The cache-buster, so a soak row says WHICH build produced it (a +24 h window
+   spans a release). A frozen constant leaf — no cycle, no DOM. */
+import { BUILD } from '../build-info.js?v=546';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -2942,6 +3100,9 @@ export function applyEnvelopeState(G, res, ownKey) {
      is met. Wrapped so it can NEVER throw into the envelope apply — a refusal is a
      no-op that retries on the next envelope. See maybeAutoArm. */
   maybeAutoArm();
+  /* …and re-ask the SERVER whether the bag may be absolute at all, throttled.
+     Same cadence as the thing that would do the deleting. */
+  try { maybeRereadArmFlag(); } catch (e) {}
   /* b465 — hand the envelope's progress rows to the daily-reward sheet: the
      server's daily/login claim row is the marker that survives tab/save races
      (the residue copy kept losing them and the sheet re-opened on a paid
@@ -3956,6 +4117,13 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   if (hintPending && baselineComplete === true) {
     try { G._startKitHintAt = Date.now(); } catch (e) {}
     for (const id of Object.keys(START_INVENTORY)) {
+      /* OWNED IDS ONLY. This block runs on the MERGE path, which is the
+         never-delete path, and `cooked_shrimp` is an EXCLUDED id — so without
+         this line the rule deletes a dish on an omission, which is precisely the
+         loss the exclusion exists to prevent. It is also no longer needed for a
+         non-owned id: the fresh-G factory bag is gone, so an exact-hint figure
+         can only have come from the server or from real play. */
+      if (!serverOwnedItem(id)) continue;
       const hint = Number(START_INVENTORY[id]);
       if (!Number.isFinite(hint) || hint <= 0) continue;
       if ((Number(inv[id]) || 0) !== hint) continue;   // touched, or absent — not the hint
@@ -4054,10 +4222,18 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
         if (named) next[k] = Math.floor(q);
         continue;
       }
-      /* NOT OWNED (excluded / un-modeled): never delete, never lower. Keep the
-         larger of the client's copy and any positively-named server figure. */
+      /* ── NOT OWNED: THE NAMED-LOWER RULE (security C2) ─────────────────────
+         Never DELETE — an omission is still "unknown" for an id the engine does
+         not settle, which is the blueprint-loss carve-out and it is untouched.
+         But a NAMED figure is a positive statement about that one key, and the
+         server debits excluded ids on its own behalf all the time (hr_farm_plant
+         takes a seed, a vendor sale takes the goods). Taking Math.max there meant
+         the client could only ever ratchet UP: once the two numbers parted, no
+         envelope could ever bring the client back down, and the grid painted
+         goods every gesture was then refused for. So a stated figure is BELIEVED,
+         up or down; silence still keeps the client's copy. */
       const have = Number(inv[k]) || 0;
-      const best = Math.max(have > 0 ? Math.floor(have) : 0, named ? Math.floor(q) : 0);
+      const best = named ? Math.floor(q) : (have > 0 ? Math.floor(have) : 0);
       if (best > 0) next[k] = best;
     }
     G.inventory = next;
@@ -5545,10 +5721,14 @@ if (typeof window !== 'undefined') {
     describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,
-    flipDriftSummary, reportFlipDrift, startFlipDriftReporter, __resetFlipDriftReport,
+    flipDriftSummary, reportFlipDrift, startFlipDriftReporter, __resetFlipDriftReport, noteArmTransition,
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
     maybeAutoArm, __setInventoryArmEnabledForTest, __resetAutoArm,
     inventoryArmStage, __setInventoryArmStageForTest,
+    noteServerArmPermission, isServerArmPermitted, isServerArmObserved, serverArmPermissionState,
+    fetchServerArmPermission, INVENTORY_ARM_FLAG_KEY, maybeRereadArmFlag, ARM_FLAG_REREAD_MS,
+    __resetArmFlagReadClock,
+    __resetServerArmPermission,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,

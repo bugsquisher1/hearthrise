@@ -53,11 +53,11 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=543';
-import { ARTISAN_RECIPES } from './recipes.js?v=543';
-import { MONSTERS } from './monsters.js?v=543';
-import { BOSSES } from './bosses.js?v=543';
-import { ITEMS } from './items.js?v=543';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=546';
+import { ARTISAN_RECIPES } from './recipes.js?v=546';
+import { MONSTERS } from './monsters.js?v=546';
+import { BOSSES } from './bosses.js?v=546';
+import { ITEMS } from './items.js?v=546';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan

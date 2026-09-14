@@ -39,8 +39,8 @@
 
 import {
   resolveActiveSlot, accrueEndpoint, MAX_SLOT,
-} from './accrue.js?v=543';
-import { isDungeonSettleArmed, reconcileScrip } from './dungeon-scrip-record.js?v=543';
+} from './accrue.js?v=546';
+import { isDungeonSettleArmed, reconcileScrip } from './dungeon-scrip-record.js?v=546';
 
 export const DUNGEON_SETTLE_VERB = 'dungeon_settle';
 

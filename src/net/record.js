@@ -103,22 +103,22 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=543';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=546';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=543';
+import { applyClientState } from './client-state.js?v=546';
 /* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
    top-level record field read from state.dungeon_scrip. Its own arm flag defaults
    OFF; while off the entry below is invisible to the field list / strip / decode
    loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
    DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
-import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=543';
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=546';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=543';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=546';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
    RETIRED, so this is a constant. A separate switch would have created a state
@@ -1670,13 +1670,13 @@ function settle(verdict) {
        the hr-accrue envelope): in prod merge-mode the bag is a Math.max ratchet
        (idempotent), the hr_load body carries no `away` block so no debit ever
        deletes on this path, and itemLedger.reconcile only ever removes. The bank
-       reconcile is fully inert in prod (invAbsolute false → reconcileBank leaves
-       G.bank untouched); it is wired now so the always-full boot path is ready the
-       day the inventory flip arms. The prediction sweep is deliberately NOT run
+       reconcile IS live in prod: the Depot is absolute on its own authority
+       — one server writer, complete projection — so this boot statement is the one
+       the Depot screen reads before the first settle. The prediction sweep is deliberately NOT run
        here — that stays with applyEnvelopeState so gold applyRecord already wrote
        is not re-offset. Guarded — a throw must never break the record load. */
     hydrationStep('inventory+bank+workers', () => {
-      reconcileBank(G, verdict.body);       // dormant in prod (invAbsolute false)
+      reconcileBank(G, verdict.body);       // LIVE in prod: the Depot's own authority
       /* SA-010 — THE PURCHASED BANK RUNGS, and unlike the line above this one is
          LIVE IN PROD. `G.bank.goldBuys` is homed by no record and no residue, so
          without this the boot path leaves it at the literal's 0 and every bought

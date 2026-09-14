@@ -17,11 +17,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=543';
+import { levelOf } from './xp.js?v=546';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=543';
-import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=543';
+} from './bane.js?v=546';
+import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=546';
 /* BESTIARY CHARMS, PHASE 2 — the DROP multiplier only. Imported here, and
    nowhere else in the engine, for the reason src/core/charms.js's header states:
    the Edge accrual does not run the client's `getBonus` wrapper chain, so a
@@ -29,7 +29,7 @@ import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?
    `weaknessInfo` it is one expression with two callers, exactly like bane and
    element. `charmDamageMultFor` is deliberately NOT imported — see the note on
    `charmDropMult` in `weaknessInfo`. */
-import { charmDropMultFor, charmRankFor } from './charms.js?v=543';
+import { charmDropMultFor, charmRankFor } from './charms.js?v=546';
 
 /* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
    as a WEAPON type — an unarmed/typeless loadout still has to render. */

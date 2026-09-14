@@ -45,7 +45,7 @@
 // transport) and the optional window singletons. Node-importable.
 // ============================================================================
 
-import { BANK_NON_ITEM_KEYS } from './accrue.js?v=543';
+import { BANK_NON_ITEM_KEYS } from './accrue.js?v=546';
 
 export { BANK_NON_ITEM_KEYS };
 
@@ -155,18 +155,50 @@ export async function bankMove(item, qty, dir, opts) {
  * or the next gesture) reconciles and the UI simply showed stale-but-true
  * numbers in the meantime. It never paints a number this device computed.
  */
+export const SETTLE_TIMEOUT_MS = 8000;
+
 export async function bankMoveSettled(item, qty, dir, opts) {
-  const res = await bankMove(item, qty, dir, opts);
+  const o = opts || {};
+  const res = await bankMove(item, qty, dir, o);
   if (!res || res.ok !== true) return { res, settled: false };
   let settled = false;
   try {
     const A = (typeof window !== 'undefined') ? window.HearthriseAccrual : null;
+    /* THE BAG SIDE OF THE MOVE, declared BEFORE the envelope is asked for. The
+       server debited player_inventory in the same transaction, and the bag's fold
+       is merge (max) in prod, so without this the envelope's honest lower figure
+       loses the max and the stack the player just stored never leaves their bag
+       (measured live). accrue.js owns what that means; this only states the fact. */
+    if (A && typeof A.noteServerBagMove === 'function') {
+      try { A.noteServerBagMove(res.item || item); } catch (e) {}
+    }
     if (A && typeof A.requestAccrual === 'function') {
-      const out = await A.requestAccrual({ force: true });
+      /* BOUNDED. `requestAccrual` awaits a fetch with no timeout of its own, and
+         an hr-accrue call that never answers used to leave the GESTURE unfinished
+         forever: no toast, no repaint, and the panel's re-entrancy fuse latched so
+         every later press was silently dead (measured live — three presses, one
+         POST, no message). The move is already committed and journalled
+         server-side; the envelope is how the screen catches up, and the next
+         settle brings it. A slow realm must cost a repaint, never the button. */
+      const out = await withTimeout(A.requestAccrual({ force: true }),
+        Number(o.settleTimeoutMs) > 0 ? Number(o.settleTimeoutMs) : SETTLE_TIMEOUT_MS);
       settled = !!(out && out.applied);
     }
   } catch (e) { settled = false; }
   return { res, settled };
+}
+
+/** Resolve with `null` if the promise has not settled in `ms`. Never rejects,
+ *  never leaves a timer running past the race. */
+export function withTimeout(p, ms) {
+  return new Promise((resolve) => {
+    let done = false;
+    const t = setTimeout(() => { if (!done) { done = true; resolve(null); } }, Math.max(1, ms | 0));
+    Promise.resolve(p).then(
+      (v) => { if (!done) { done = true; clearTimeout(t); resolve(v); } },
+      () => { if (!done) { done = true; clearTimeout(t); resolve(null); } },
+    );
+  });
 }
 
 /** The vault's ITEMS, with the three non-item bank-SPACE counters
@@ -247,6 +279,6 @@ export function bankMoveRefusalText(res, ctx) {
 if (typeof window !== 'undefined') {
   window.HearthriseBankSync = {
     activeSlot, newBankIdem, bankMoveBody,
-    bankMove, bankMoveSettled, bankItems, bankMoveRefusalText,
+    bankMove, bankMoveSettled, bankItems, bankMoveRefusalText, withTimeout, SETTLE_TIMEOUT_MS,
   };
 }

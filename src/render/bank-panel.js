@@ -23,10 +23,14 @@
 //     parked in `_`-scratch, never persisted, never a gate. Inventing "1000"
 //     client-side would be a client-held number describing a server capability,
 //     which is the residue-ahead class (CLAUDE.md §6).
-//  3. ABSENT IS NOT EMPTY. When the envelope's bank projection has not folded
-//     (`lastBankFoldMode()` is 'dormant'/'absent'/null) the panel says the realm
-//     has not sent the vault rather than drawing an empty grid, because "your
-//     Depot is empty" is a claim only the server can make.
+//  3. ABSENT IS NOT EMPTY. When no envelope has stated the bank yet
+//     (`lastBankFoldMode()` is 'absent'/null) the panel says the realm has not
+//     sent the vault rather than drawing an empty grid, because "your Depot is
+//     empty" is a claim only the server can make. It IS a claim the server makes
+//     constantly — `hr_state_of` coalesces the projection to `{}` — and since
+//     the fix the fold no longer waits on the BAG's arm to hear it, which is what
+//     left this panel saying "not sent yet" over a Depot the realm had stated on
+//     every envelope of the session.
 //  4. A REFUSAL IS A SENTENCE. Every code `hr_bank_move` returns is rendered by
 //     `bankMoveRefusalText()`; nothing here invents copy, and nothing swallows a
 //     refusal into silence.
@@ -39,8 +43,8 @@
 // live account. Only `openDepot`/`closeDepot`/`repaint` touch the DOM.
 // ============================================================================
 
-import { bankItems, bankMoveSettled, bankMoveRefusalText } from '../net/bank-sync.js?v=543';
-import { lastBankFoldMode } from '../net/accrue.js?v=543';
+import { bankItems, bankMoveSettled, bankMoveRefusalText } from '../net/bank-sync.js?v=546';
+import { lastBankFoldMode } from '../net/accrue.js?v=546';
 
 const OVERLAY_ID = 'bank-panel-overlay';
 const STYLE_ID = 'bank-panel-css';
@@ -193,31 +197,32 @@ function css() {
     '#' + OVERLAY_ID + ' .qm-modal{max-width:720px;width:min(720px,94vw);'
       + 'max-height:92vh;overflow:auto}',
     '.bp-head h3{margin:0 0 2px;font-family:var(--f-display)}',
-    '.bp-sub{font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3);margin-bottom:8px}',
+    '.bp-sub{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);margin-bottom:8px}',
     '.bp-search{width:100%;box-sizing:border-box;margin-bottom:10px;padding:7px 9px;'
       + 'border:1px solid var(--line-soft);border-radius:8px;background:var(--bg-card);color:var(--ink)}',
     '.bp-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}',
     '.bp-col{min-width:0;display:flex;flex-direction:column}',
     '.bp-col-h{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;font-family:var(--f-label)}',
-    '.bp-cap{margin-left:auto;font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3);'
+    '.bp-cap{margin-left:auto;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);'
       + 'font-variant-numeric:tabular-nums}',
     '.bp-list{max-height:46vh;overflow:auto;border:1px solid var(--line-soft);border-radius:8px}',
     '.bp-row{display:flex;align-items:center;gap:7px;padding:5px 7px;min-width:0}',
     '.bp-row + .bp-row{border-top:1px solid var(--line-soft)}',
     '.bp-ico{display:flex;width:22px;flex:0 0 22px}',
     '.bp-nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-      + 'font-size:calc(14px * var(--ui-scale, 1))}',
-    '.bp-qty{color:var(--gold-2);font-variant-numeric:tabular-nums;font-size:calc(13px * var(--ui-scale, 1))}',
+      + 'font-size:calc(14.5px * var(--ui-scale, 1))}',
+    '.bp-qty{color:var(--gold-2);font-variant-numeric:tabular-nums;font-size:calc(14.5px * var(--ui-scale, 1))}',
     '.bp-acts{display:flex;gap:3px;flex:0 0 auto}',
     /* min-height, not padding alone: a quantity button is the only control in
-       this panel and a 23px target is a mis-tap on a phone (visual-qa calls
-       anything under 36px on a narrow viewport a P1). */
-    '.bp-move{font-family:var(--f-label);font-size:calc(12px * var(--ui-scale, 1));padding:2px 8px;'
-      + 'min-height:28px;min-width:30px;border:1px solid var(--line-soft);border-radius:6px;'
+       this panel and a text-height target is a mis-tap on a phone (visual-qa
+       calls anything under 36px on a narrow viewport a P1). Type is at the
+       14.5px floor like every other string here; the padding carries the rest. */
+    '.bp-move{font-family:var(--f-label);font-size:calc(14.5px * var(--ui-scale, 1));padding:2px 7px;'
+      + 'min-height:30px;min-width:32px;border:1px solid var(--line-soft);border-radius:6px;'
       + 'background:var(--bg-card);color:var(--ink-2);cursor:pointer}',
     '.bp-move:hover:not([disabled]){color:var(--gold);border-color:var(--gold-2)}',
     '.bp-move[disabled]{opacity:.5;cursor:default}',
-    '.bp-empty,.bp-more{padding:9px 8px;font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3)}',
+    '.bp-empty,.bp-more{padding:9px 8px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}',
     '.bp-more{font-style:italic}',
     /* Mobile: the canonical rail query (CLAUDE.md §7) — one column, shorter lists. */
     '@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px){'
@@ -287,7 +292,14 @@ export function openDepot() {
  *  send two moves of the same stack (the second would be refused
  *  `insufficient_item`, which reads as a bug to the player). */
 export async function depotMove(item, qty, dir) {
-  if (busy) return { ok: false, error: 'busy' };
+  /* A PRESS THAT DOES NOTHING MUST STILL SAY SOMETHING. This early return was
+     silent, so while a slow move was in flight every further press was an
+     unexplained dead button — which is exactly how the live Depot read to a
+     player (three presses, one POST, no message). */
+  if (busy) {
+    say('One move at a time — finishing the last one.', 'info');
+    return { ok: false, error: 'busy' };
+  }
   busy = true; repaintDepot();
   let out = null;
   try {

@@ -106,13 +106,33 @@
   window.buffGestureNoteHTML = function () {
     return '<div class="it-buff-note"><span>' + BUFF_GESTURE_NOTE + '</span></div>';
   };
-  /* The same sentence as a tooltip row, so legacy.js's item flyout states the rule
-     without growing the monolith or owning a second copy of the wording. Full-width
-     under the stat grid and deliberately NOT a stat — it has no number and must not
-     read as one. */
-  window.buffGestureNoteHTML = function () {
-    return '<div class="it-buff-note"><span>' + BUFF_GESTURE_NOTE + '</span></div>';
-  };
+
+  /* ── THE CELLAR LINE — THE ENVELOPE'S `scale`, AND NOTHING ELSE ───────────
+     `scale` is stamped onto a buff segment by hr_apply from the player's OWN
+     hr_room_perks cellar rungs (2026-09-13-buff-cellar-scale.sql) and carried
+     here display-only by `reconcileBuffs`: the extra minutes are already inside
+     `until`, so this string explains a number the server already paid, it never
+     produces one.
+
+     WHY IT IS NOT COMPUTED FROM G.rooms, ever. (a) The client would be authoring
+     a buff clock, which the b543 wall-clock ruling forbids — the authority is
+     `until`. (b) It would read AHEAD of the stamping: `scale` describes the rung
+     the player owned WHEN THE SEGMENT WAS WRITTEN, so a Cellar bought between two
+     helpings correctly shows on the newer segment only, while a room-derived
+     number would relabel the old one and overstate a buff already running. That
+     is the residue-ahead class.
+
+     ABSENCE IS NOT A STATEMENT: a segment written before that migration (or by a
+     server that predates it) carries no `scale`, and no line is drawn. A scale
+     that rounds to +0% draws nothing either — a 0% brag is noise, not a fact. */
+  function buffScaleNote(b) {
+    var s = Number(b && b.scale);
+    if (!Number.isFinite(s) || s <= 1) return '';
+    var pct = Math.round((s - 1) * 100);
+    if (pct <= 0) return '';
+    return '+' + pct + '% from the Cellar';
+  }
+  window.buffScaleNote = buffScaleNote;
 
   function _nextSeg(queue, type, afterMs) {
     var best = null;
@@ -143,11 +163,15 @@
         ? '<span class="br-next">then ' + (def.isPercent ? '+' + nxt.magnitude + '%' : '+' + nxt.magnitude)
           + '</span>'
         : '';
+      /* The Cellar's lengthening, on the row it actually lengthened. Quiet, because
+         it is provenance for the clock to its right, not a second magnitude. */
+      var cellar = buffScaleNote(b);
       return '<div class="buff-row" data-buff-type="' + b.type + '" data-buff-mag="' + b.magnitude + '">'
         + '<span class="br-icon">' + _aeGly(b.type) + '</span>'
         + '<span class="br-name">' + def.label + '</span>'
         + '<span class="br-mag">' + show + '</span>'
         + then
+        + (cellar ? '<span class="br-cellar">' + cellar + '</span>' : '')
         + '<span class="br-time">' + fmt(b.remainingMs) + '</span>'
         + '</div>';
     }).join('');

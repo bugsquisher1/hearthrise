@@ -74,7 +74,7 @@
          is not a colour, so it is not a token, but its fallback surface above
          is. */
       R + '.hd-hearth::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
-      'background:url(assets/brand/hearthrise-splash.jpg?v=543) 50% 40%/cover no-repeat}',
+      'background:url(assets/brand/hearthrise-splash.jpg?v=546) 50% 40%/cover no-repeat}',
       /* Scrim, legibility-aware. The identity block sits bottom-left and the
          ledger bottom-right, so both flanks and the floor darken to
          --scene-scrim-2 while the centre-top stays open for the painting. Two
@@ -280,6 +280,9 @@
          the wall-clock ruling deleted the freeze (2026-09-13). */
       R + '.hd-buff .hd-buff-mag{color:var(--green) !important;font-weight:800}',
       R + '.hd-buff .hd-buff-time{font-variant-numeric:tabular-nums;color:var(--ink) !important}',
+      /* Cellar provenance: quiet ink, own line, so label and note never collide. */
+      R + '.hd-buff .hd-buff-cellar{display:block;color:var(--ink-3) !important;font-weight:600;'
+        + 'font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.3}',
       R + '.hd-buff-note{color:var(--ink-3) !important;align-items:flex-start;padding-top:2px}',
       R + '.hd-buff-note .mi{margin-top:-4px}',
       R + '.hd-buff-note div:not([data-hd]){color:var(--ink-3) !important;line-height:1.35}',
@@ -1676,10 +1679,14 @@
       html += _buffs.map(function (b) {
         var def = BD[b.type] || { label: b.type, isPercent: true };
         var mag = (def.isPercent ? '+' + b.magnitude + '%' : '+' + b.magnitude);
+        /* ONE string, the render layer's (active-effects.js `buffScaleNote`, where the
+           ruling is written): the envelope's `scale`, never priced from G.rooms. */
+        var cellar = (typeof window.buffScaleNote === 'function') ? window.buffScaleNote(b) : '';
         return '<div class="hd-card hd-mini hd-buff">' +
           '<div class="mi">' + gly((window.BUFF_GLYPH || {})[b.type] || 'uiPotion', 20, '',
             'var(--green)') + '</div>' +
-          '<div>' + esc(def.label) + ' <b class="hd-buff-mag">' + esc(mag) + '</b></div>' +
+          '<div>' + esc(def.label) + ' <b class="hd-buff-mag">' + esc(mag) + '</b>' +
+            (cellar ? '<span class="hd-buff-cellar">' + esc(cellar) + '</span>' : '') + '</div>' +
           '<b class="go hd-buff-time">' + esc(fmtClock(b.remainingMs)) + '</b>' +
         '</div>';
       }).join('');

@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=546';
+import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=546';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1758,6 +1758,8 @@ function settle(verdict) {
     /* THE PLAY STREAK, same idle-boot hydration class: without it the flame sits all
        session on the device residue (1) against a column holding 3. reconcilePlayStreak. */
     hydrationStep('play-streak', () => reconcilePlayStreak(G, verdict.body));
+    /* THE FRACTIONAL TOOL CARRY: no longer residue, so an idle boot without this line starts every tool at zero. */
+    hydrationStep('tool-carry', () => reconcileToolCarry(G, verdict.body));
     /* THE CONSUMABLE BUFF QUEUE — this line IS the "a reload forgets my buff" fix:
        `buffs` is no longer residue and hr_load is an idle boot's only envelope. */
     hydrationStep('buffs', () => reconcileBuffs(G, verdict.body));

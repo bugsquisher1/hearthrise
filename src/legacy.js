@@ -661,6 +661,14 @@ window.IAP_CATALOG=IAP_CATALOG;
 const SAVE_KEY='hearthbound-save-v2';
 const LEGACY_KEY='idle-game-v1';
 
+/* AUDITED AGAINST THE PROJECTION (2026-09-14): a server-owned VALUE lives here
+   only as the START-KIT STATEMENT (gold, gems, skills, equipment, hp, bank,
+   foodSlot) — these ARE `__FRESH_START` below, which B338-1/SA010-1/B495-1
+   compare to src/data/start-kit → hr_create_character, and they are authority
+   nowhere (every read goes through accessors that answer UNKNOWN first). The
+   rest are empty shapes for pre-envelope reads to land in, or client-only
+   defaults. ownedThemes, ownedCosmetics and autoEatPct were neither and are
+   deleted (tombstones in src/net/client-state.js). Add nothing the server owns. */
 let G={
   v:2,
   playerName:'Adventurer',
@@ -706,7 +714,8 @@ let G={
      A client-state pref (src/net/client-state.js), so this is a client-only
      default and the player may re-point it at any time. */
   foodSlot:'cooked_shrimp',
-  autoEatPct:0.5,
+  /* NO `autoEatPct`: the threshold is `player_state.auto_eat_pct`, read through
+     HearthriseAuto.eatThreshold(). */
   activeMonster:null,
   monsterHp:0,monsterMaxHp:0,
   playerHp:10,playerMaxHp:10,
@@ -1532,6 +1541,8 @@ window.refuseGemPurchase=refuseGemPurchase;
    monolith. This file keeps only the GESTURES (buyTheme / buyCosmetic /
    setTheme are onclick targets and paint their own screens) and reads the
    seams off `window`, the way it already reads HearthriseGold. */
+/* `autoEatFoodId()` — the provision the engine eats — lives in auto-actions.js
+   beside `eatFoodId()`; this file calls it as a global. */
 
 /* ── b431 — THE ROOMS READ SEAM (legacy wrapper) ──────────────────────────────
    Every `G.rooms` read in this classic script goes through these so that, once
@@ -2331,7 +2342,9 @@ function awayAutoEatState(hadFood){
     else owned=!!(G&&G.traits&&G.traits.auto_eat);
     var t=(typeof A.eatThreshold==='function')?A.eatThreshold():eat.threshold;
     var n=Number(t);
-    return { enabled: !!(eat.enabled&&owned),
+    /* THE SWITCH IS THE SERVER'S (`auto_eat_enabled`), local only until it speaks. */
+    var _on=(typeof A.eatEnabled==='function')?A.eatEnabled():!!eat.enabled;
+    return { enabled: !!(_on&&owned),
              pct: isFinite(n)?Math.round(Math.max(0,Math.min(1,n))*100):null,
              /* `undefined` when the caller did not sample it — the receipt then
                 claims nothing about the bag, which is the honest degradation
@@ -6287,10 +6300,14 @@ const COMBAT_FX={
     if(window.HearthriseAuto&&typeof window.HearthriseAuto.maybeAutoEat==='function'){
       return !!window.HearthriseAuto.maybeAutoEat();
     }
-    if(G.playerHp<G.playerMaxHp*(G.autoEatPct||0.5)&&G.foodSlot&&(G.inventory[G.foodSlot]||0)>0){
-      const fd=ITEMS[G.foodSlot];
+    /* THE COLD PATH — before HearthriseAuto loads. Same server observation the module reads, never a client copy. */
+    let _srvAE={}; try{ const A=window.HearthriseAccrual; if(A&&A.serverAutoEatSettings) _srvAE=A.serverAutoEatSettings()||{}; }catch(e){}
+    const _pct=(typeof _srvAE.pct==='number'&&isFinite(_srvAE.pct))?Math.max(0,Math.min(1,_srvAE.pct/100)):0.5;
+    const _slot=(typeof _srvAE.food==='string'&&_srvAE.food)?_srvAE.food:G.foodSlot;
+    if(G.playerHp<G.playerMaxHp*_pct&&_slot&&(G.inventory[_slot]||0)>0){
+      const fd=ITEMS[_slot];
       if(fd&&fd.heals){
-        const _food=G.foodSlot;
+        const _food=_slot;
         G.playerHp=Math.min(G.playerMaxHp,G.playerHp+fd.heals);
         removeItem(_food,1);
         G.stats.buffsConsumed=(G.stats.buffsConsumed||0)+1;
@@ -12203,7 +12220,7 @@ function _activityAwayXpHr(live){
 function awayFightSustains(){
   try{
     if(typeof hasTrait!=='function' || !hasTrait('auto_eat')) return false;
-    const id = G && G.foodSlot;
+    const id = autoEatFoodId();
     if(!id) return false;
     const item = window.ITEMS && window.ITEMS[id];
     if(!item || !(item.heals>0)) return false;
@@ -12858,7 +12875,7 @@ console.log('Activity bar: loaded');
 
     var hp = (G && G.playerHp > 0) ? G.playerHp : ((G && G.playerMaxHp) || 1);
     var maxHp = (G && G.playerMaxHp > 0) ? G.playerMaxHp : hp;
-    var pool = 0, foodId = G && G.foodSlot;
+    var pool = 0, foodId = autoEatFoodId();
     var owns = (typeof hasTrait === 'function') && hasTrait('auto_eat');
     if(owns && foodId && window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].heals > 0){
       /* A heal is wasted above the bar, so one food is worth at most a full
@@ -12949,7 +12966,7 @@ console.log('Activity bar: loaded');
      permission that no longer exists; the two that remain are the two real
      limits.) */
   function awayLineHtml(est){
-    var foodId = G && G.foodSlot;
+    var foodId = autoEatFoodId();
     /* THE FIRST TWO RUNGS, read from the ONE table that states the ladder
        (src/core/away.js `recoveryFor`) rather than typed here — a second copy of
        "2 minutes" is a number that drifts away from the rule it describes the
@@ -13014,7 +13031,7 @@ console.log('Activity bar: loaded');
     var hpLv = (typeof getLevel === 'function') ? getLevel('hitpoints') : 1;
     var rngLv = (typeof getLevel === 'function') ? getLevel('ranged') : 1;
     var magLv = (typeof getLevel === 'function') ? getLevel('magic') : 1;
-    var foodId = G && G.foodSlot;
+    var foodId = autoEatFoodId();
     var foodCount = foodId ? (G.inventory[foodId]||0) : 0;
     var foodIcon = foodId ? itemArt(foodId, 20) : _hrGly('uiFood', 16);
     var foodName = foodId && window.ITEMS[foodId] ? window.ITEMS[foodId].n : 'No food';
@@ -14084,7 +14101,9 @@ console.log('Character page loaded');
 /* ─── State migration ─── */
 function migrate(){
   if(typeof G !== 'object' || !G) return;
-  if(!G.streak || typeof G.streak !== 'object') G.streak = {count: 1, lastDay: 0};
+  /* NO `G.streak` SEED (2026-09-14). The play streak is the server's
+     `player_state.streak_days`, read through HearthriseStreakChip.days(); the
+     device counter that used to live here is deleted, not defaulted. */
   if(!G.dailyGoals || typeof G.dailyGoals !== 'object') G.dailyGoals = {dayKey: 0, progress: {}};
   if(typeof G.lastWelcome !== 'number') G.lastWelcome = 0;
   if(typeof G.lifetimeKills !== 'number') G.lifetimeKills = G.stats?.kills || 0;
@@ -14441,7 +14460,7 @@ function maybeShowWelcome(opts){
      days" over a Home card reading "Day 1" and a sheet reading "1-DAY STREAK".
      RULING: the reward sheet keeps the day language and drops "streak"; every
      play-streak surface says PLAYED / RUNNING and never "daily". */
-  var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : G.streak.count;
+  var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : 0;
   if(_playDays > 0) rows.push({g:'uiFlame', t: 'Played', v: _playDays + ' day' + (_playDays===1?'':'s') + ' running'});
   rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
   rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
@@ -15035,7 +15054,8 @@ function injectDailyGoals(){
 /* Boot sequence */
 function boot(){
   migrate();
-  var _S0 = streakChip(); if(_S0) _S0.advance(G);
+  /* NOTHING ADVANCES A LOCAL STREAK ANY MORE: hr_apply advances `streak_days`
+     from the server clock on every settle, and the chip paints THAT. */
   /* b544: WAITS for the boot settle rather than racing it (see WELCOME_GATE). */
   setTimeout(window.__presentWelcomeWhenSettled, 1500);
   setTimeout(paintAll, 600);
@@ -19279,30 +19299,18 @@ setInterval(function(){
   };
 })();
 
-// b163: REMOVED the auto-eat watchdog that used to wrap combatTick here.
-// It called eatFood(G.foodSlot) on low HP — which applies food BUFFS, not just
-// heals — and then early-`return`ed, SKIPPING the entire real combat tick (no
-// attack that tick) whenever foodSlot was set. Two bugs: (1) HP auto-eat should
-// only HEAL, never spend buff items (buff consumption is a separate, opt-in,
-// buff-expiry-driven concern — planned as a "drinks" category); (2) skipping the
-// tick was never intended. HP auto-eat now flows solely through
-// HearthriseAuto.maybeAutoEat() inside combatTick (heal-only), matching offline
-// combat. Old G.foodSlot saves are migrated to G.autoActions.eat in
-// auto-actions.js so nobody loses their auto-eat setting.
+// b163: REMOVED the auto-eat watchdog that wrapped combatTick here. It called
+// eatFood() on low HP — applying food BUFFS, not just heals — and then early
+// `return`ed, skipping the whole real tick. HP auto-eat is heal-only and flows
+// through HearthriseAuto.maybeAutoEat() inside combatTick, matching the engine.
 
-/* b224: REMOVED injectEatNowButtons() and its renderInvFancy wrapper.
-   It looked for `#panel-inventory .invc-tile[data-item-id]` and skipped any
-   tile without that attribute — but renderInvFancy() only sets data-item-id
-   on EQUIPPABLE items (it drives drag-to-equip), and no food is equippable.
-   The intersection was empty by construction, so this produced zero buttons
-   on every render since the bag was rebuilt. Verified in-browser before
-   deleting: `document.querySelectorAll('.eat-now-btn').length === 0` with a
-   bag full of Provisions.
-
-   It is not resurrected here: a floating button on a 44px tile fights the
-   quantity badge and the rarity frame. Eat is now the primary action in the
-   item flyout (one click from the tile) and a first-class button on the
-   Combat screen, which is where healing is actually needed. */
+/* b224: REMOVED injectEatNowButtons() and its renderInvFancy wrapper. It keyed
+   on `.invc-tile[data-item-id]`, which renderInvFancy sets only on EQUIPPABLE
+   items — no food is equippable, so the intersection was empty by construction
+   and it drew zero buttons (verified in-browser before deleting). Not
+   resurrected: a floating button on a 44px tile fights the quantity badge, and
+   Eat is the primary action in the item flyout and a button on the Combat
+   screen, which is where healing is needed. */
 
 /* ── THE EFFECTIVE SEGMENT OF EACH TYPE, ASKED IN ONE PLACE ────────────────
    `G.buffs` may hold several entries per type since the 2026-09-13 ruling, so "what

@@ -133,14 +133,14 @@ const STATE = {
   deaths_lifetime:       { kind: 'reconciled', client: ['deathsLifetime'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the durable death counter (a death is never a free heal)' },
   recovering_until:      { kind: 'reconciled', client: ['recoveringUntil'], reader: ['src/net/accrue.js', 'reconcileFall'], why: 'the recovery clock is the server\'s' },
   last_away_receipt:     { kind: 'reconciled', client: ['_awayReceipt'], reader: ['src/net/accrue.js', 'reconcileAwayReceipt'], why: 'the night the server kept' },
-  combat_style:          { kind: 'reconciled', client: ['combatStyle'], reader: ['src/net/accrue.js', 'reconcileCombatStyle'], why: 'server-wins per family, with the in-flight pick held in `_pendingStyle` scratch' },
-  auto_eat_enabled:      { kind: 'split', client: ['autoActions'], reader: ['src/features/auto-actions.js', 'eatFoodId'], ratchet: true, why: 'the purchased-trait receipt; `autoActions` is a COMPOUND bag whose un-projected halves (replant, trainGoal) are real prefs' },
+  combat_style:          { kind: 'reconciled', client: ['combatStyle'], reader: ['src/net/accrue.js', 'reconcileCombatStyle'], why: 'server-wins per family, with the in-flight pick held in `_pendingStyle` scratch. Off RESIDUE_FIELDS since 2026-09-14 — the map is rebuilt from the envelope, never persisted' },
+  auto_eat_enabled:      { kind: 'split', client: ['autoActions'], reader: ['src/features/auto-actions.js', 'eatEnabled'], ratchet: true, why: 'the switch the engine obeys. `autoActions` is a COMPOUND bag: its eat branch is server-owned and is STRIPPED from the residue patch (capstone.js), while replant/trainGoal are real prefs and ride' },
   auto_eat_food:         { kind: 'split', client: ['autoActions'], reader: ['src/features/auto-actions.js', 'eatFoodId'], ratchet: true, why: 'THE 2026-09-14 REGRESSION: the browser said cooked_shrimp while player_state.auto_eat_food said otherwise. eatFoodId() is the one reader' },
-  auto_eat_pct:          { kind: 'split', client: ['autoEatPct'], reader: ['src/features/auto-actions.js', 'eatThreshold'], ratchet: true, why: 'the slider position is a pref; the THRESHOLD the engine eats on is the server\'s' },
+  auto_eat_pct:          { kind: 'reconciled', client: ['autoActions'], reader: ['src/features/auto-actions.js', 'eatThreshold'], why: 'THE THRESHOLD THE ENGINE EATS ON. `autoEatPct` is DELETED (2026-09-14) — the slider gesture lives in memory inside autoActions.eat, which no longer rides the residue PUT, and eatThreshold() answers from state.auto_eat_pct' },
   auto_eat_touched:      { kind: 'meta', why: 'has the player ever set auto-eat (server-side first-run marker)' },
-  tool_carry:            { kind: 'split', client: ['toolCarry'], mirror: '_toolCarry', reader: ['src/net/accrue.js', 'reconcileToolCarry'], ratchet: true, owed: 'projected since 2026-08-18 and read by NOTHING on the client; `G.toolCarry` is a client-owned fractional gather carry that a reload rewinds while the server holds its own. Bounded < 1 item per tool, so P3. Owner: systems-engineer.' },
-  streak_days:           { kind: 'split', client: ['streak'], mirror: '_serverStreak', reader: ['src/net/accrue.js', 'playStreakDays'], ratchet: true, why: 'THE PLAY STREAK. The residue counter is advanced by a CLIENT clock (streak-chip.js); playStreakDays() is what every surface must ask' },
-  streak_day_key:        { kind: 'split', client: ['streak'], mirror: '_serverStreak', reader: ['src/net/accrue.js', 'playStreakDays'], ratchet: true, why: 'the UTC day the server counted, so the chip cannot double-count across a roll' },
+  tool_carry:            { kind: 'reconciled', client: ['toolCarry'], reader: ['src/net/accrue.js', 'reconcileToolCarry'], why: 'the fractional gather carry is the server\'s: the engine advances player_state.tool_carry through the same core advanceToolCarry the attended tick uses, and reconcileToolCarry replaces the prediction on every envelope (client half landed 2026-09-14, closing the OWED)' },
+  streak_days:           { kind: 'reconciled', client: ['_serverStreak'], reader: ['src/net/accrue.js', 'playStreakDays'], why: 'THE PLAY STREAK. The client counter is DELETED (2026-09-14): streak-chip.js advances nothing, `streak` is off RESIDUE_FIELDS, and playStreakDays() answers 0 until the realm speaks' },
+  streak_day_key:        { kind: 'reconciled', client: ['_serverStreak'], reader: ['src/net/accrue.js', 'playStreakDays'], why: 'the UTC day the server counted, so the chip cannot double-count across a roll' },
   hearthfind_last:       { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'the trophy moment; deliberately NOT in G (hearthfind.js header)' },
   hearthfind_ready:      { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'the server decides when a find is ready' },
   hearthfind_plinth:     { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'what stands on the plinth is the server\'s' },
@@ -155,13 +155,13 @@ const RESIDUE_OK = {
   houseTheme:        'a per-character POINTER at which owned theme is applied — not the entitlement (that is gem_unlocks/ownsGemUnlock).',
   lootFilter:        'a client-only display preference; it hides, it never discards, and it gates nothing server-side.',
   lockedItems:       'the client-side sell-lock; it only stops the CLIENT authoring a sell intent. A forged or absent lock grants nothing.',
-  heroSlotsUnlocked: 'PRE-ENVELOPE render hint; ownsSlot() prefers G._heroSlots and the purchase is hr_buy_hero_slot. A forged value buys nothing.',
-  renownHigh:        'the client PREDICTION (effectiveRenown); countedRenown() prefers _serverHigh and every claim is decided server-side.',
-  streak:            'the local play counter shown before the first envelope; playStreakDays() prefers _serverStreak. OWED: streak-chip.js still advances it on a CLIENT clock.',
-  autoActions:       'a COMPOUND preference bag — replant, trainGoal and the eat ENABLE gesture are not projected. Only `eat.foodId`/`eat.threshold` are, and eatFoodId()/eatThreshold() own those reads.',
-  autoEatPct:        'the slider position (a pref). eatThreshold() is what the engine asks.',
-  combatStyle:       'the per-family pick; reconcileCombatStyle() REPLACES it from state.combat_style on every envelope, with `_pendingStyle` holding only the in-flight gesture.',
-  toolCarry:         'OWED (see the tool_carry entry): a fractional carry worth < 1 item, server column projected but unread.',
+  /* ⚠ heroSlotsUnlocked, renownHigh, streak, autoEatPct, combatStyle, foodSlot and
+     toolCarry WERE ON THIS LIST and are gone from it because they are gone from
+     RESIDUE_FIELDS (2026-09-14). Each entry here is a standing permission for a
+     persisted copy to exist, so a name left behind after the field is deleted is
+     the permission outliving the review. Re-adding any of them means re-arguing
+     the case, which is the point. */
+  autoActions:       'a COMPOUND preference bag: replant and trainGoal are real prefs and ride, while the server-owned `eat` branch (enabled/pct/food) is STRIPPED on the way out by capstone.js buildResiduePatch and on the way in by hydrateInto.',
   bountyHunter:      'the contract sheet (accepted contract, rerolls, history); only `active._serverConfirmed` comes from the projection and noteServer() writes it.',
   inventory:         'NOT RESIDUE — listed here only because `pendingItemSpends` shadows it; the bag itself is a record field.',
 };
@@ -170,10 +170,12 @@ const RESIDUE_OK = {
    A projection whose client half does not exist yet. These are REAL violations,
    named with an owner, and the count is a ratchet: it may fall, never rise. A
    new projection without a client reader is red on the day it is written. */
-/* 3 → 1 on 2026-09-14: gem_unlocks and unlocked_recipes got their client
-   halves in the same build that removed their residue bags. Only tool_carry
-   is still projected and unread. */
-const OWED_MAX = 1;
+/* 3 → 1 → 0 on 2026-09-14: gem_unlocks and unlocked_recipes got their client
+   halves in the build that removed their residue bags, and tool_carry got
+   reconcileToolCarry in the projection purge. EVERY key hr_state_of projects now
+   has a reader that prefers it. A new projection without one is red the day it
+   is written, which is the only state this number should ever be in. */
+const OWED_MAX = 0;
 
 /* Files a raw `G.<field>` read is counted in (check 4). The reader's OWN module
    is excluded — that is where the read is supposed to happen — and so is the
@@ -461,8 +463,12 @@ function selftest() {
   const arms = [
     ['a persisted client copy of a projected field (renownHigh-shaped: `skills` back on RESIDUE_FIELDS)', 'RESIDUE-COPY',
       () => { const i = clone(); i.residue.push('skills'); return i; }],
-    ['a render site reading the raw copy (`G.streak.count` added to src/render/achievements.js)', 'RAW-READ-ROSE',
-      () => { const i = clone(); i.scan.set('src/render/achievements.js', (i.scan.get('src/render/achievements.js') || '') + '\nvar d = G.streak.count;\n'); return i; }],
+    /* RE-TARGETED 2026-09-14: this arm added a `G.streak.count` read, and `streak`
+       stopped being a client field that day (the counter was DELETED, not preferred
+       second), so the mutation stopped being a violation and the arm stopped
+       proving anything. `autoActions` IS still mapped and pinned. */
+    ['a render site reading the raw copy (`G.autoActions.eat.foodId` added to src/render/achievements.js)', 'RAW-READ-ROSE',
+      () => { const i = clone(); i.scan.set('src/render/achievements.js', (i.scan.get('src/render/achievements.js') || '') + '\nvar d = G.autoActions.eat.foodId;\n'); return i; }],
     ['a projected key dropped from the mapping (state.streak_days unmapped)', 'PROJ-UNMAPPED',
       () => clone(), (b) => ({ ...b, projection: { top: b.projection.top, state: [...b.projection.state, 'streak_days_v2'] } })],
     ['a reader that does not exist (playStreakDays removed from src/net/accrue.js)', 'READER-MISSING',

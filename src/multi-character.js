@@ -551,11 +551,14 @@
      cannot drift into five, and a caller cannot opt out of the fail-safe by
      asking a different question. Self-healing: the moment reconcileHeroSlots
      lands an envelope, serverSlots() answers and nothing here is consulted. */
+  /* ⚠ `G.heroSlotsUnlocked` IS GONE (2026-09-14, the projection purge). It was
+     the residue copy of an ENTITLEMENT the server now both sells and projects, so
+     it could only ever be the stale rival a cloud restore rewinds — and under the
+     arm this function already refused to read it. What is left is the device's own
+     profile metadata, consulted ONLY on a build where the client still owns the
+     gem store (the pre-arm fossil), and the fail-safe 1 everywhere else. */
   function residueCount(){
     if(!clientOwnsSlotStore()) return 1;
-    var g = (typeof window !== 'undefined') && window.G;
-    var n = g && g.heroSlotsUnlocked;
-    if(typeof n === 'number' && n >= 1 && n <= MAX_SLOTS) return n | 0;
     var p = window.HearthriseProfile && window.HearthriseProfile.profile;
     var q = p && p.unlockedSlots;
     return (typeof q === 'number' && q >= 1 && q <= MAX_SLOTS) ? (q | 0) : 1;
@@ -591,17 +594,12 @@
     return residueCount();
   }
 
-  /* One-time adoption for accounts that bought slots before the entitlement
-     lived in the save. Runs at init(), writes the field, and after that the
-     device-local number is never the authority again. */
-  function adoptUnlockedIntoSave(profile){
-    var g = (typeof window !== 'undefined') && window.G;
-    if(!g || !profile) return;
-    if(typeof g.heroSlotsUnlocked === 'number' && g.heroSlotsUnlocked >= 1) return;
-    var n = profile.unlockedSlots;
-    g.heroSlotsUnlocked = (typeof n === 'number' && n >= 1 && n <= MAX_SLOTS) ? (n | 0) : 1;
-    try { if(typeof window.saveLocal === 'function') window.saveLocal(); } catch(e){}
-  }
+  /* ⚠ `adoptUnlockedIntoSave` IS DELETED (2026-09-14). It copied the device's
+     profile cache into `G.heroSlotsUnlocked` at init so the entitlement would ride
+     the save — the very shape that let a restore hand back a slot the account had
+     not bought. hr_hero_slots_of already treats an EXISTING CHARACTER as ownership
+     (2026-09-08-hero-slot-buy.sql §3, the grandfather note), so every account this
+     adoption was written for is covered by the server's own set. */
 
   // ── Slot purchases ────────────────────────────────────────────
   /* ⚠ unlockSlot IS THE PRE-ARM PATH AND ONLY THE PRE-ARM PATH.
@@ -609,10 +607,9 @@
      keeps its local branch: it is what runs on a build where the client still
      owns `gems` (clientMayWriteRecordField('gems') === true), and it is what the
      b371 atomicity regressions grade. Under the LIVE gems arm nothing reaches it
-     — buySlot() routes to the server verb instead — and even if something did,
-     the entitlement it writes into G.heroSlotsUnlocked is no longer the
-     authority: ownsSlot() prefers the server's set, so a forged residue unlocks
-     nothing. Do NOT wire a new caller to this. */
+     — buySlot() routes to the server verb instead — and even if something did, it
+     no longer writes an entitlement into G at all: ownsSlot() reads the server's
+     own `hero_slots` set. Do NOT wire a new caller to this. */
   function unlockSlot(slotId){
     var profile = window.HearthriseProfile.profile;
     var owned = unlockedCount();
@@ -630,9 +627,10 @@
     }
 
     // ── 1. debit + entitlement, TOGETHER, in the one store that restores ──
-    var prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
     if(!freeFromPremium) G.gems -= cost;
-    G.heroSlotsUnlocked = slotId + 1;
+    /* NOT INTO G. The entitlement is the server's (`hero_slots`); this pre-arm
+       path records only the device's own metadata below. */
+    var nowUnlocked = slotId + 1;
 
     /* ── 2. PROVE IT LANDED. Not "call saveLocal and hope": read the blob back
            and check BOTH halves are in it. Production was failing saves when
@@ -642,9 +640,8 @@
        the local blob is retired: saveLocal is a no-op and a read-back could never
        succeed, which made EVERY slot purchase roll back ("Couldn't save your
        purchase") when the capstone first armed (b459). The durable store is the
-       SERVER: heroSlotsUnlocked rides the residue save (buildResiduePatch → the
-       hardened putClientState) and gems are a record field whose spend is
-       reconciled by the envelope. The b371 dupe this proof stopped was a
+       SERVER: the owned slot set is projected by hr_state_of (`hero_slots`) and
+       gems are a record field whose spend is reconciled by the envelope. The b371 dupe this proof stopped was a
        LOCAL-blob split and the armed model cannot express that split.
        Until b515 this read `if (isBlobRetired()) durable = true; else <read the
        blob back>`, and that else was reachable on any device holding the retired
@@ -655,7 +652,7 @@
        read-back that was its only trigger. */
 
     // ── 3. ONLY NOW the device-local metadata record ──────────────────────
-    profile.unlockedSlots = G.heroSlotsUnlocked;      // cache, not authority
+    profile.unlockedSlots = nowUnlocked;              // cache, not authority
     if(!profile.slots.some(function(s){ return s.id === slotId; })){
       profile.slots.push({
         id: slotId,
@@ -954,7 +951,6 @@
       this.profile = p;
       /* b371 — move the entitlement into the save on first sight, so that from
          here on gems and hero slots rewind together. See unlockSlot's block. */
-      try { adoptUnlockedIntoSave(p); } catch(e){}
       // Keep the slot meta fresh on every save tick.
       var origSave = window.saveLocal;
       if(typeof origSave === 'function' && !window.__profileSaveHooked){

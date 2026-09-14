@@ -5,10 +5,7 @@
     "ownedCosmetics": 0,
     "unlockedRecipes": 0,
     "renownHigh": 0,
-    "autoActions": 5,
-    "autoEatPct": 1,
-    "toolCarry": 5,
-    "streak": 26
+    "autoActions": 5
   },
   "projection": {
     "top": [

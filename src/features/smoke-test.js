@@ -1745,6 +1745,38 @@ const withResidueWire = async (onRequest, body, extraCfg) => {
   }
 };
 
+/* ── SEED THE PLAY STREAK THE WAY THE GAME NOW LEARNS IT (2026-09-14) ────────
+   `G.streak` was a device-clock counter in the residue and is DELETED: the play
+   streak is `player_state.streak_days`, mirrored into the `G._serverStreak`
+   scratch by accrue.js reconcilePlayStreak and read through playStreakDays().
+   A fixture that assigns `G.streak` now asserts against a field nothing reads,
+   so it would pass or fail on the real account's data. This drives the SHIPPED
+   reconcile with a projected envelope — the same path a settle takes.
+   `null` clears the observation (back to never-observed, which reads 0). */
+const seedPlayStreak = (n) => {
+  const A = window.HearthriseAccrual;
+  if (!A || typeof A.reconcilePlayStreak !== 'function' || !window.G) return;
+  if (n === null || n === undefined) { delete window.G._serverStreak; return; }
+  A.reconcilePlayStreak(window.G, { ok: true, state: { streak_days: n, streak_day_key: null } });
+};
+
+/* The nine purged names plus the scratch they were replaced by — saved and put
+   back around every RESIDUE-PURGE block, because none of them is in snapshotG. */
+const RESIDUE_PURGE_KEYS = ['streak', 'toolCarry', 'combatStyle', 'ownedThemes', 'ownedCosmetics',
+  'heroSlotsUnlocked', 'autoEatPct', 'foodSlot', 'renownHigh', 'autoActions',
+  '_serverStreak', '_gemUnlocks', '_heroSlots'];
+const residuePurgeSnap = (G) => {
+  const out = {};
+  RESIDUE_PURGE_KEYS.forEach((k) => {
+    out[k] = Object.prototype.hasOwnProperty.call(G, k) ? G[k] : undefined;
+  });
+  return out;
+};
+const residuePurgeRestore = (G, snap) => {
+  try { window.HearthriseRenown.__resetClaimState(); } catch (e) {}
+  RESIDUE_PURGE_KEYS.forEach((k) => { if (snap[k] === undefined) delete G[k]; else G[k] = snap[k]; });
+};
+
 const restoreG = (snap) => {
   if (!snap || !window.G) return;
   /* ⚠ THE OTHER HALF OF `sealSnapshot`: `delete` is NOT interchangeable with `= null`. */
@@ -2173,7 +2205,8 @@ const autoEatMirrorFixture = (body) => {
     const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
     try { AC.__noteAutoEatSettings(sObs); } catch (e) {}
     try { A._parkAutoEatMirror(wasParked); } catch (e) {}
-    G.traits = sT; G.settings = sS; G.autoEatPct = sP;
+    G.traits = sT; G.settings = sS;
+    if (sP === undefined) delete G.autoEatPct; else G.autoEatPct = sP;
     restoreG(snap);
   }
 };
@@ -12282,11 +12315,19 @@ const TESTS = [
     try {
       delete G.autoActions;
       G.foodSlot = 'shrimp';
+      /* ⚠ THE THRESHOLD HALF OF THIS MIGRATION IS GONE (2026-09-14). It read
+         `G.autoEatPct`, which was a second copy of `player_state.auto_eat_pct` —
+         the column the engine prices every settle with — and is deleted with the
+         field. A stale one left in an old bag must now be IGNORED, not adopted:
+         adopting it is how the panel ended up promising 50% while the server ate
+         at 25%. The pointer half stands: foodSlot is still the local gesture. */
       G.autoEatPct = 0.4;
       const eat = window.HearthriseAuto.getEat();   // triggers ensureShape → migration
       assert(eat.enabled === true, 'migrated auto-eat should be enabled');
       assert(eat.foodId === 'shrimp', 'migrated foodId should be shrimp, got ' + eat.foodId);
-      assert(Math.abs((eat.threshold || 0) - 0.4) < 1e-9, 'migrated threshold should be 0.4, got ' + eat.threshold);
+      assert(Math.abs((eat.threshold || 0) - 0.5) < 1e-9,
+        'a stale G.autoEatPct must NOT be adopted — the threshold is the server\'s auto_eat_pct; got '
+        + eat.threshold);
     } finally {
       if (savedAA === undefined) delete G.autoActions; else G.autoActions = savedAA;
       restoreG(snap);
@@ -12354,7 +12395,7 @@ const TESTS = [
       /* b498: the day now comes from the server's claim rows when an envelope
          has been seen. Forget any capture so this fixture is total. */
       if (typeof D.noteServerStreak === 'function') D.noteServerStreak(null);
-      G.streak = { count: 3, lastDay: 0 };
+      seedPlayStreak(3);
       G.dailyReward = { lastClaimDay: 0 };            // force "new day, unclaimed"
       assert(D.isClaimable(G), 'should be claimable when not yet claimed today');
       assert(D.cycleDay(G) === 3, 'cycle day should track streak count (expected 3), got ' + D.cycleDay(G));
@@ -12389,6 +12430,7 @@ const TESTS = [
       G.gold = sGold;
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
     }
   }),
   () => tryRun('B349-1: the daily login cycle is DATA, read by the client, and its multiplier is capped', () => {
@@ -12432,7 +12474,7 @@ const TESTS = [
          plus a second week, so a client that re-derived the multiplier from its
          own `weeksDone` would diverge somewhere in here. */
       for (const streak of [1, 2, 3, 5, 7, 8, 15, 43]) {
-        G.streak = { count: streak, lastDay: 0 };
+        seedPlayStreak(streak);
         const want = R.priceDailyLogin(streak);
         const got = D.rewardFor(G) || {};
         assert((got.gold || 0) === want.gold,
@@ -12469,7 +12511,7 @@ const TESTS = [
       let stillClaimable;
       try {
         delete window.HearthriseRewards;
-        G.streak = { count: 3, lastDay: 0 };
+        seedPlayStreak(3);
         G.dailyReward = { lastClaimDay: 0 };
         G.gold = 1000;
         unpriced = D.claim(G);
@@ -12489,6 +12531,7 @@ const TESTS = [
     } finally {
       G.gold = sGold;
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
     }
   }),
@@ -36857,7 +36900,7 @@ const TESTS = [
       setLevels(['woodcutting', 'mining', 'fishing'], 52);
       G.stats.kills = 600; G.quests = [{ done: true }];
       G.collection = { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1, i: 1, j: 1 };
-      G.streak = { best: 2, count: 2 };
+      seedPlayStreak(2);
       assert(rank() === 'serf', 'about day 2 should be a Serf, got ' + rank() + ' at ' + R.compute(G));
 
       // ~week 1 — six skills, a real kill count, a handful of quests.
@@ -36865,7 +36908,7 @@ const TESTS = [
       G.stats.kills = 3000;
       G.quests = [1, 2, 3, 4].map(() => ({ done: true }));
       G.collection = {}; for (let i = 0; i < 40; i++) G.collection['c' + i] = 1;
-      G.streak = { best: 7, count: 7 };
+      seedPlayStreak(7);
       assert(rank() === 'squire', 'week 1 should be a Squire, got ' + rank() + ' at ' + R.compute(G));
 
       // ~week 3-4 — ten skills, the grind showing.
@@ -36873,7 +36916,7 @@ const TESTS = [
       G.stats.kills = 12000;
       G.quests = new Array(10).fill(0).map(() => ({ done: true }));
       G.collection = {}; for (let i = 0; i < 90; i++) G.collection['c' + i] = 1;
-      G.streak = { best: 24, count: 24 }; G.bountyHunter = { completed: 60 };
+      seedPlayStreak(24); G.bountyHunter = { completed: 60 };
       assert(rank() === 'knight', 'week 3-4 should be a Knight, got ' + rank() + ' at ' + R.compute(G));
 
       // ~month 2 — and Baron is still ahead of, not behind, a month of play.
@@ -36881,7 +36924,7 @@ const TESTS = [
       G.stats.kills = 35000;
       G.quests = new Array(20).fill(0).map(() => ({ done: true }));
       G.collection = {}; for (let i = 0; i < 150; i++) G.collection['c' + i] = 1;
-      G.streak = { best: 60, count: 60 }; G.bountyHunter = { completed: 180 };
+      seedPlayStreak(60); G.bountyHunter = { completed: 180 };
       const m2 = R.rankIndexFor(R.compute(G));
       assert(m2 >= R.rankIndexFor(4500) && m2 < R.rankIndexFor(13500),
         'month 2 should be a Baron or Viscount, got ' + R.RANKS[m2].id + ' at ' + R.compute(G));
@@ -36889,7 +36932,7 @@ const TESTS = [
       // The ratchet: a veteran scored under the OLD weights keeps their rank.
       G.skills = {}; Object.keys(window.SKILLS_DEF).forEach((s) => { G.skills[s] = 0; });
       G.stats = { kills: 0 }; G.collection = {}; G.quests = [];
-      G.streak = { best: 0, count: 0 }; G.bountyHunter = { completed: 0 };
+      seedPlayStreak(0); G.bountyHunter = { completed: 0 };
       G.renownHigh = 3136;                     // a real Knight, pre-retune
       assert(R.compute(G) < 3136, 'setup: the live score really is lower after the retune');
       assert(R.rankIndexFor(R.effective(G)) === R.rankIndexFor(3136),
@@ -37339,7 +37382,7 @@ const TESTS = [
       const yLocal = (d => d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate())(new Date(now - 86400000));
 
       D.noteServerStreak(null);                 // start clean
-      G.streak = { count: 1, lastDay: 0 };      // residue LAGS the server
+      seedPlayStreak(1);                        // the realm has counted ONE day
       G.dailyReward = { lastClaimDay: yLocal }; // claimed yesterday, claimable today
       /* The envelope: yesterday's login row is CLAIMED and its `value` is the
          streak length ON that day, so today is value + 1 = 3.
@@ -37382,6 +37425,7 @@ const TESTS = [
          DAILY-SHEET-2 has the same hole). Restored by hand, b166's pattern. */
       restoreG(snap);
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
     }
   }),
@@ -37427,7 +37471,7 @@ const TESTS = [
         'CONTROL: Day 1 and Day 3 pay the same, so every assertion below is vacuous');
 
       // ── (A) THE LIVE CASE. Claimed two days ago, NOTHING for yesterday. ────
-      G.streak = { count: 3, lastDay: 0 };            // the play streak kept running
+      seedPlayStreak(3);                              // the play streak kept running
       G.dailyReward = { lastClaimDay: y2Local };
       D.noteServerStreak({
         now: new Date(now).toISOString(),
@@ -37482,7 +37526,7 @@ const TESTS = [
          the sheet has only the residue — and `G.streak.count` is the PLAY streak.
          The same reset rule must apply to the only claim history it holds. */
       D.noteServerStreak(null);
-      G.streak = { count: 3, lastDay: 0 };
+      seedPlayStreak(3);
       G.dailyReward = { lastClaimDay: y2Local };
       assert(D.cycleDay(G) === 1,
         'THE BUG, pre-envelope: lastClaimDay two days ago must advertise Day 1, got Day '
@@ -37507,7 +37551,7 @@ const TESTS = [
          from three days ago says nothing about now; answering from it anyway is
          how a wrong clock becomes a wrong promise. */
       G.dailyReward = { lastClaimDay: y2Local };
-      G.streak = { count: 3, lastDay: 0 };
+      seedPlayStreak(3);
       D.noteServerStreak({
         now: new Date(now - 3 * 86400000).toISOString(),
         progress: [{ kind: 'daily', key: 'login', period: B.utcDayKey((dayN - 4) * 86400000), value: 6, state: 'claimed' }],
@@ -37520,6 +37564,7 @@ const TESTS = [
       D.noteServerStreak(null);
       restoreG(snap);
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
     }
   }),
@@ -37566,7 +37611,7 @@ const TESTS = [
       /* THE EXACT DIVERGENCE. Played three days running, claimed two days ago —
          so the play streak is 3 and the claim cycle is back at Day 1. */
       D.noteServerStreak(null);
-      G.streak = { count: 3, lastDay: dayLocal(Date.now()) };
+      seedPlayStreak(3);
       G.dailyReward = { lastClaimDay: dayLocal(Date.now() - 2 * 86400000) };
       assert(D.cycleDay(G) === 1,
         'CONTROL: this fixture must actually diverge (play 3 / claim Day 1), got Day ' + D.cycleDay(G));
@@ -37676,7 +37721,124 @@ const TESTS = [
       D.noteServerStreak(null);
       restoreG(snap);
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
+    }
+  }),
+
+  /* -- regression suite -- RESIDUE-PURGE: THE SERVER'S COPY WINS, FIELD BY FIELD
+     Nine residue fields were SECOND COPIES of values hr_state_of already
+     projects, and each had been measured saying something the server denied: the
+     flame chip on 1 against `streak_days` 3; the panel promising 50% auto-eat
+     against `auto_eat_pct` 25; the HUD naming cooked_shrimp against
+     `auto_eat_food` turnip; 1193 Renown against `renown_high` 1058. They are
+     deleted, not "preferred second".
+     THE CONTRACT, split three ways below: seed the STALE residue value AND hand
+     the real reader a server envelope, then assert the reader answers the SERVER.
+     Driving the shipped reconciles and readers, not a copy of them.
+     MUTATION (proven per block): restore the deleted residue read — give
+     playStreakDays its `G.streak.count` fallback back, or let ownsGemUnlock fall
+     through to `G.ownedThemes` — and that block goes RED. */
+  () => tryRun('RESIDUE-PURGE-1: stale PROGRESS copies never outrank the envelope', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    assert(A && typeof A.reconcilePlayStreak === 'function', 'accrue.js must export the reconciles');
+    const snap = residuePurgeSnap(G);
+    try {
+      /* THE PLAY STREAK: device counter 1, column 3. */
+      G.streak = { count: 1, lastDay: 20260914 };
+      A.reconcilePlayStreak(G, { ok: true, state: { streak_days: 3, streak_day_key: '2026-09-14' } });
+      assert(A.playStreakDays(G) === 3,
+        'THE BUG: the play streak read ' + A.playStreakDays(G) + ' with a residue 1 and a server 3');
+      assert(window.HearthriseStreakChip.days(G) === 3, 'the flame chip must paint the server count');
+      assert(typeof window.HearthriseStreakChip.advance !== 'function',
+        'the device-clock streak counter is deleted — a local advance() is a second counter and a faucet');
+
+      /* THE FRACTIONAL TOOL CARRY: local 0.9, column 0.25. */
+      G.toolCarry = { mining: 0.9 };
+      A.reconcileToolCarry(G, { ok: true, state: { tool_carry: { mining: 0.25 } } });
+      assert(G.toolCarry.mining === 0.25,
+        'THE BUG: the tool carry stayed on the prediction (' + G.toolCarry.mining + ') against a server 0.25');
+
+      /* THE COMBAT STYLE: the routing a settle pays XP into. */
+      G.combatStyle = { sword: 'accurate' };
+      A.reconcileCombatStyle(G, { ok: true, state: { combat_style: { sword: 'aggressive' } } });
+      assert(G.combatStyle.sword === 'aggressive',
+        'THE BUG: the picker kept a local style (' + G.combatStyle.sword + ') the engine does not pay');
+
+      /* RENOWN: the number that hands out perks. */
+      G.renownHigh = 9999;
+      window.HearthriseRenown.noteServerRenown({ ok: true, renown_high: 1058 });
+      assert(window.HearthriseRenown.counted(G) === 1058,
+        'THE BUG: the counted renown is ' + window.HearthriseRenown.counted(G) + ', not the realm 1058');
+    } finally { residuePurgeRestore(G, snap); }
+  }),
+
+  () => tryRun('RESIDUE-PURGE-2: a forged ENTITLEMENT in the bag confers nothing', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    const snap = residuePurgeSnap(G);
+    try {
+      /* A FORGED residue claims a 1,000-gem theme and a 1,200-gem cosmetic; the
+         server's set carries only the free row. */
+      G.ownedThemes = ['default', 'volcanic'];
+      G.ownedCosmetics = ['pet_phoenix'];
+      A.reconcileGemUnlocks(G, { ok: true, gem_unlocks: ['theme:default'] });
+      assert(window.ownsGemUnlock('theme', 'volcanic') === false,
+        'THE BUG: a residue entry still confers a gem-priced theme the server never sold');
+      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false,
+        'THE BUG: a residue entry still confers a gem-priced cosmetic the server never sold');
+      assert(window.ownsGemUnlock('theme', 'default') === true,
+        'the FREE theme must stay owned — the catalogue gives it away and the projection carries it');
+
+      /* HERO SLOTS: residue says five, the account owns one. */
+      G.heroSlotsUnlocked = 5;
+      A.reconcileHeroSlots(G, { ok: true, hero_slots: [0] });
+      assert(window.HearthriseProfile.ownsSlot(3) === false,
+        'THE BUG: the residue still lists a hero slot the realm will refuse with slot_not_owned');
+    } finally { residuePurgeRestore(G, snap); }
+  }),
+
+  () => tryRun('RESIDUE-PURGE-3: the auto-eat triple is the server\'s, and none of the nine rides the save', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    const snap = residuePurgeSnap(G);
+    const wasParked = (window.HearthriseAuto && window.HearthriseAuto._parkAutoEatMirror)
+      ? window.HearthriseAuto._parkAutoEatMirror(false) : false;
+    try {
+      /* THRESHOLD, PROVISION AND SWITCH — the three columns the accrual engine
+         prices every night with. */
+      G.autoEatPct = 0.5; G.foodSlot = 'cooked_shrimp';
+      A.noteServerAutoEat({ ok: true, state: { auto_eat_pct: 25, auto_eat_food: 'turnip', auto_eat_enabled: false } });
+      const th = window.HearthriseAuto.eatThreshold();
+      assert(Math.abs(th - 0.25) < 1e-9,
+        'THE BUG: the threshold read ' + th + ' with a local 0.5 and a server 25%');
+      assert(window.autoEatFoodId() === 'turnip',
+        'THE BUG: the forecast named ' + window.autoEatFoodId() + ' while the engine eats the server turnip');
+      assert(window.HearthriseAuto.eatEnabled() === false,
+        'THE BUG: the panel says auto-eat is ON while `auto_eat_enabled` is false — the night eats nothing');
+
+      /* AND NONE OF THEM RIDES THE SAVE. The patch is what the residue PUT ships;
+         a purged name in it is the field coming back through the back door, and
+         `autoActions.eat` is the same three columns one level down. */
+      G.streak = { count: 1 }; G.toolCarry = { mining: 0.9 }; G.combatStyle = { sword: 'accurate' };
+      G.ownedThemes = ['volcanic']; G.ownedCosmetics = ['pet_phoenix'];
+      G.heroSlotsUnlocked = 5; G.renownHigh = 9999;
+      G.autoActions = { eat: { enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' },
+        farmReplant: { enabled: true, cropId: 'carrot' } };
+      const patch = window.HearthriseCapstone.buildResiduePatch(G);
+      ['streak', 'toolCarry', 'combatStyle', 'ownedThemes', 'ownedCosmetics',
+        'heroSlotsUnlocked', 'autoEatPct', 'foodSlot', 'renownHigh'].forEach((f) =>
+        assert(!Object.prototype.hasOwnProperty.call(patch, f),
+          'the residue patch still ships `' + f + '` — the purged copy is being persisted after all'));
+      assert(patch.autoActions && !patch.autoActions.eat,
+        'the residue patch still ships `autoActions.eat` — those three keys ARE auto_eat_enabled/pct/food');
+      assert(patch.autoActions && patch.autoActions.farmReplant
+        && patch.autoActions.farmReplant.cropId === 'carrot',
+        'CONTROL: the genuinely client-only auto-action prefs must still ride');
+    } finally {
+      if (window.HearthriseAuto && window.HearthriseAuto._parkAutoEatMirror) {
+        window.HearthriseAuto._parkAutoEatMirror(wasParked);
+      }
+      try { A.__resetServerAutoEat(); } catch (e) {}
+      residuePurgeRestore(G, snap);
     }
   }),
 
@@ -37710,10 +37872,19 @@ const TESTS = [
     /* ⚠ `wieldGrandfather` was the sixteenth name here and is DELETED, not re-homed:
        every other field is self-only PROGRESS, that one was a client-held GEAR
        PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
-    ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'renownHigh', 'homestead',
-      'currentCombatTier', 'toolCarry', 'buyback', 'dailyGoldStart', 'raids',
+    ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'homestead',
+      'currentCombatTier', 'buyback', 'dailyGoldStart', 'raids',
       'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
+    /* ⚠ `renownHigh` and `toolCarry` LEFT THIS LIST on 2026-09-14 and must NOT
+       come back: both were second copies of a value hr_state_of projects
+       (`renown_high`; `state.tool_carry`). renownHigh is now the in-session
+       prediction ratchet (NO_SYNC) and toolCarry is mirrored by
+       accrue.js reconcileToolCarry. See RESIDUE-PURGE-1 below. */
+    ['renownHigh', 'toolCarry', 'ownedThemes', 'ownedCosmetics', 'autoEatPct',
+      'foodSlot', 'streak', 'combatStyle', 'heroSlotsUnlocked'].forEach((f) =>
+      assert(RF.indexOf(f) < 0, f + ' is back on RESIDUE_FIELDS — it is a client copy of a value the '
+        + 'server projects, which is exactly what the 2026-09-14 purge deleted'));
     /* `collection` (items found) and `collectionLog` (milestones claimed) are two
        different stores, not an alias pair — both must be homed. */
     assert(RF.indexOf('collection') >= 0 && RF.indexOf('collectionLog') >= 0,
@@ -37759,7 +37930,11 @@ const TESTS = [
       window.HearthriseAccrual.reconcileTraits(reloaded, { traits: ['auto_eat', 'keen_eye'] });
       assert(reloaded.traits && reloaded.traits.auto_eat === true && reloaded.traits.keen_eye === true,
         'THE BUG: the server\'s trait rows did not restore G.traits — a Marks purchase would be re-charged');
-      assert(reloaded.toolCarry && reloaded.toolCarry.woodcutting === 0.75, 'the fractional gather carry was lost');
+      /* ⚠ `toolCarry` LEFT THIS ROUND-TRIP on 2026-09-14: it is `state.tool_carry`
+         and is restored by accrue.js reconcileToolCarry (AWAY-11 drives that end to
+         end). What must hold HERE is that the bag no longer carries it at all. */
+      assert(typeof reloaded.toolCarry === 'undefined',
+        'the residue round-trip still carries toolCarry — the server column is the one copy');
       assert(reloaded.raids && reloaded.raids.claimed && reloaded.raids.claimed['9'] === true,
         'the weekly raid claim marker was lost — a reload would re-open a claimed reward');
 
@@ -37796,8 +37971,14 @@ const TESTS = [
        verdict re-marks the day and says so, instead of claiming a payout. */
     const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
     assert(Array.isArray(RF), 'RESIDUE_FIELDS must be exported');
-    ['dailyReward', 'streak', 'dailyGoals', 'weeklyGoals'].forEach((f) =>
+    /* ⚠ `streak` LEFT THIS LIST on 2026-09-14: the play streak is the server's
+       `streak_days` (reconcilePlayStreak → playStreakDays), and a device-clock
+       copy in the bag is what painted 1 over the realm's 3. The other three are
+       genuine shown-today markers with no projection behind them. */
+    ['dailyReward', 'dailyGoals', 'weeklyGoals'].forEach((f) =>
       assert(RF.includes(f), 'THE BUG: ' + f + ' must be a residue field or every reload forgets it'));
+    assert(!RF.includes('streak'),
+      'the play-streak residue is back — the day the sheet shows must come from the server, not a device clock');
     const G = window.G;
     const snap = snapshotG();
     const origGold = window.HearthriseGold, origNotify = window.notify, origMay = window.clientMayWriteRecordField;
@@ -37847,7 +38028,6 @@ const TESTS = [
     if (!next || next.free) return;                 // only a real gem spend proves this
     const G = window.G;
     const prevGems = G.gems;
-    const prevUnlocked = G.heroSlotsUnlocked;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const chip = document.getElementById('top-gems');
     try {
@@ -37886,7 +38066,6 @@ const TESTS = [
       }
     } finally {
       G.gems = prevGems;
-      G.heroSlotsUnlocked = prevUnlocked;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
@@ -37922,27 +38101,42 @@ const TESTS = [
       'HearthriseProfile.unlockedCount() must be the ONE answer to how many slots are owned');
     const next = HP.canUnlockNext();
     if (!next || next.free) return;                 // only a real gem spend proves this
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    const prevGems = G.gems;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    const hadSlots = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
+    const prevSlots = G._heroSlots;
     try {
       G.gems = next.cost + 1000;
       stampBalanceLikeLoad(G);   // armed: unlockSlot reads gems via canAfford
       // The cloud snapshot as it stood BEFORE the purchase.
-      const older = { gems: G.gems, heroSlotsUnlocked: HP.unlockedCount() };
+      const older = { gems: G.gems };
       const r = HP.unlockSlot(next.slotId);
       assert(r && r.ok, 'the purchase should succeed here: ' + (r && r.reason));
       assert(G.gems === 1000, 'the gems were not debited');
       assert(HP.unlockedCount() === next.slotId + 1, 'the slot was not unlocked');
-      assert(G.heroSlotsUnlocked === next.slotId + 1,
-        'the entitlement is not in the save — it is back in a store the restore cannot rewind');
+      /* ⚠ 2026-09-14 — THE ENTITLEMENT IS NO LONGER IN ANY CLIENT STORE. It used
+         to be asserted here as `G.heroSlotsUnlocked` (residue), on the reasoning
+         that gems and slot had to rewind together because they were the same
+         bytes. hr_buy_hero_slot + the `hero_slots` projection made that obsolete:
+         the entitlement is a server row and the residue copy was deleted, so the
+         dupe is not "reverted together", it is UNREACHABLE. The purchase path
+         writes only the device's own metadata cache. */
+      assert(HP.profile.unlockedSlots === next.slotId + 1,
+        'the pre-arm purchase must still record the device metadata cache');
 
-      // THE RESTORE. decideRestore replaces the fields the snapshot carries and
-      // does not touch localStorage['hearthrise:profile'] — this is that.
+      // THE RESTORE. decideRestore replaces the fields the snapshot carries.
       G.gems = older.gems;
-      G.heroSlotsUnlocked = older.heroSlotsUnlocked;
 
-      assert(HP.unlockedCount() === next.slotId,
-        'THE b371 GEM DUPE: the restore gave the gems back and the slot STAYED unlocked — the purchase was free');
+      /* AND THE REALM SPEAKS: its set is the authority, so a restored balance
+         with a server that never sold the slot leaves the player owning nothing
+         — whatever any client store says. THIS is what killed the b371 dupe. */
+      window.HearthriseAccrual.reconcileHeroSlots(G, { ok: true, hero_slots: [0] });
+      assert(HP.unlockedCount() === 1 && HP.ownsSlot(next.slotId) === false,
+        'THE b371 GEM DUPE: the gems came back and the slot stayed unlocked against a server set that '
+        + 'does not carry it — the purchase was free');
+      /* THE STATEMENT STANDS for the rest of the test: the realm's set is the
+         authority on every question below (what is listed, what is buyable, what
+         a device-local cache may re-grant). */
       const rows = HP.slotRows();
       assert(!rows.some((row) => row.kind === 'char' && row.id === next.slotId),
         'the reverted slot is still listed as a playable character');
@@ -37957,7 +38151,7 @@ const TESTS = [
         'a slot the account no longer owns can still be switched to');
     } finally {
       G.gems = prevGems;
-      G.heroSlotsUnlocked = prevUnlocked;
+      if (hadSlots) G._heroSlots = prevSlots; else delete G._heroSlots;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
@@ -39906,13 +40100,16 @@ const TESTS = [
   }),
 
   () => tryRun('AWAY-11: toolCarry survives the trip that persists it AND reaches the cloud snapshot (it never did as _toolCarry)', () => {
-    /* b515 — SAME MOVE AS b228 ABOVE. The local save/load round-trip is deleted;
-       `toolCarry` is RESIDUE ("fractional gather carry-over per tool"), so the
-       journey that keeps it is `buildResiduePatch` → the client_state PUT. The
-       whole point of the b-number is the RENAME (`_toolCarry` → `toolCarry`):
-       an underscore-prefixed field is scratch and is skipped by BOTH the cloud
-       snapshot's denylist and the residue builder, so under the old name a
-       device switch discarded the carry. Both exclusions are asserted. */
+    /* 2026-09-14 — THE CARRY'S HOME MOVED AGAIN, AND THIS TIME OFF THE CLIENT.
+       `player_state.tool_carry` is a real column (2026-08-15-tool-carry.sql): the
+       Edge engine advances it through the same core `advanceToolCarry` the
+       attended tick uses, hr_apply validates it as a delta key, and hr_state_of
+       projects it at `state.tool_carry`. So the field left RESIDUE_FIELDS — two
+       copies of a fraction that pays out whole items is the residue-ahead class —
+       and the journey that keeps it is now accrue.js reconcileToolCarry, wired
+       into applyEnvelopeState AND record.js's idle-boot hydration. What this test
+       still owns end to end: the carry survives the trip, the `_toolCarry` name
+       never rides anything, and the v12→v13 migration is intact. */
     const G = window.G;
     const snap = snapshotG();
     try {
@@ -39922,15 +40119,23 @@ const TESTS = [
       const E = window.HearthriseEvents;
       assert(E && typeof E.snapshot === 'function', 'the cloud snapshot builder must be exposed');
       const cloud = E.snapshot(G);
-      assert(cloud.toolCarry && cloud.toolCarry.mining === 0.42,
-        'toolCarry must reach the cloud snapshot — as _toolCarry it never did, so a device switch discarded the carry');
       assert(cloud._toolCarry === undefined, 'the old underscored key must not be uploaded');
-      /* The trip through the real persistence path — the residue PUT. */
+      /* THE TRIP THAT KEEPS IT: the server's own column, back through the
+         reconcile. A reload starts from whatever `state.tool_carry` says. */
+      const AC = window.HearthriseAccrual;
+      assert(AC && typeof AC.reconcileToolCarry === 'function',
+        'accrue.js must publish reconcileToolCarry — it is the only thing that restores the carry now');
+      const reloaded = {};
+      AC.reconcileToolCarry(reloaded, { ok: true, state: { tool_carry: { mining: 0.42 } } });
+      assert(reloaded.toolCarry && reloaded.toolCarry.mining === 0.42,
+        'the carry must be rebuilt from the projection, found ' + JSON.stringify(reloaded.toolCarry));
+      /* AND IT MUST NOT BE PERSISTED CLIENT-SIDE. A second copy in the bag is the
+         one a cloud restore rewinds, against a column the settle keeps advancing. */
       const CAP = window.HearthriseCapstone;
       assert(CAP && typeof CAP.buildResiduePatch === 'function', 'capstone.js does not publish buildResiduePatch');
       const patch = CAP.buildResiduePatch(G);
-      assert(patch && patch.toolCarry && patch.toolCarry.mining === 0.42,
-        'toolCarry must reach the residue PUT, found ' + JSON.stringify(patch && patch.toolCarry));
+      assert(patch && patch.toolCarry === undefined,
+        'toolCarry must NOT ride the residue PUT any more — `state.tool_carry` is the one copy');
       assert(patch._toolCarry === undefined, 'the old underscored key must not be persisted');
       /* And the migration that renames it is registered and idempotent. */
       const MIG = window.HEARTHRISE_MIGRATIONS || [];
@@ -41824,40 +42029,34 @@ const TESTS = [
     } finally { G.traits = savedTraits; restoreG(snap); }
   }),
 
-  () => tryRun('b329: a save written while the slider was dead adopts the threshold the player actually chose', () => {
+  () => tryRun('b329/PURGE: a stale autoEatPct in an old bag is IGNORED — the threshold is the server\'s column', () => {
     const G = window.G;
     const A = window.HearthriseAuto;
     if (!A) { skip('no auto engine'); return; }
     const snap = snapshotG();
     const savedPct = G.autoEatPct;
     try {
-      /* Exactly the shape of Xarn's live save: the eat branch exists and is
-         stuck on the 50% default, while the legacy mirror holds the 60% he set
-         in Settings. Nothing else records his choice, so the mirror wins once. */
+      /* WHAT THIS TEST USED TO GRADE: a one-time adoption of `G.autoEatPct` (the
+         b329 dead-slider rescue). The field is DELETED — it was a persisted second
+         copy of `player_state.auto_eat_pct`, the column the accrual engine prices
+         every settle and every night with, and "the local mirror wins on
+         divergence" is the residue-ahead rule in miniature. What the test grades
+         now is the opposite property, which is the one that must hold forever. */
       G.autoActions = Object.assign({}, G.autoActions, {
         eat: { enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' },
       });
-      G.autoEatPct = 0.6;
-      // b459: eatThreshold() now clamps to the owned TIER's ceiling; a 0.6
-      // adoption needs tier II (the pre-tier behaviour this fixture is about).
+      G.autoEatPct = 0.6;                       // a stale key from an old bag
       G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
-      /* `expressedThreshold()`, NOT `eatThreshold()`: this fixture is about the
-         one-time adoption into the LOCAL preference; the other reports the FIGHT. */
       const EX = (typeof A.expressedThreshold === 'function') ? A.expressedThreshold : A.eatThreshold;
-      assert(Math.abs(EX() - 0.6) < 1e-9,
-        'a b324-era save must adopt the slider value it recorded, got ' + EX());
-      assert(Math.abs(A.getEat().threshold - 0.6) < 1e-9, 'the adoption must be written through, not computed each read');
+      assert(Math.abs(EX() - 0.5) < 1e-9,
+        'THE PURGE: a stale G.autoEatPct was adopted over the live preference — got ' + EX());
 
-      // Idempotent + inert afterwards: a later engine-side change is NOT undone.
+      // A gesture still wins until the server answers it, and writes no mirror.
       A.setEat({ threshold: 0.35 });
-      assert(Math.abs(EX() - 0.35) < 1e-9,
-        'once reconciled, the mirror must never claw a later setting back — got ' + EX());
-      assert(Math.abs(G.autoEatPct - 0.35) < 1e-9, 'setEat must keep the legacy mirror in step so the two can never diverge again');
-
-      // A garbage mirror is ignored rather than adopted.
-      G.autoActions.eat.threshold = 0.7; G.autoEatPct = NaN;
-      assert(Math.abs(EX() - 0.7) < 1e-9, 'a NaN mirror must not overwrite a real threshold');
-    } finally { G.autoEatPct = savedPct; restoreG(snap); }
+      assert(Math.abs(EX() - 0.35) < 1e-9, 'the player\'s own gesture must still take, got ' + EX());
+      assert(G.autoEatPct === 0.6,
+        'setEat must not write a G.autoEatPct mirror any more — one number, and it is the column');
+    } finally { if (savedPct === undefined) delete G.autoEatPct; else G.autoEatPct = savedPct; restoreG(snap); }
   }),
 
   () => tryRun('b329: every surface that PRINTS the auto-eat threshold reads the engine value (no second copy)', () => {
@@ -41911,8 +42110,15 @@ const TESTS = [
     autoEatMirrorFixture((G, A) => {
       assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9,
         'the effective threshold must be the server\'s 25%, got ' + A.eatThreshold());
-      assert(Math.abs(G.autoEatPct - 0.25) < 1e-9,
-        'the mirror legacy.js fx.autoEat reads must follow the server too, got ' + G.autoEatPct);
+      /* ⚠ 2026-09-14 — THERE IS NO `G.autoEatPct` MIRROR TO FOLLOW ANY MORE: the
+         field is deleted, and legacy.js's cold-path `fx.autoEat` fallback reads
+         the SAME observation this does, straight off
+         HearthriseAccrual.serverAutoEatSettings(). One number, one source. */
+      assert(typeof G.autoEatPct === 'undefined',
+        'eatThreshold() wrote a G.autoEatPct mirror — the purged second copy is back');
+      const seen = window.HearthriseAccrual.serverAutoEatSettings();
+      assert(seen && seen.pct === 25,
+        'the cold path reads the server observation directly; it says ' + JSON.stringify(seen));
       if (typeof window.openSettings !== 'function') return;
       window.openSettings();
       const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
@@ -42095,8 +42301,13 @@ const TESTS = [
     const prevSrv = G._serverStreak, prevStreak = G.streak;   // neither is in snapshotG
     try {
       delete G._serverStreak;
+      /* A stale bag key from before the purge. It is not on RESIDUE_FIELDS any
+         more, and — the point — it answers NOTHING: with no envelope the honest
+         reading is "the realm has not counted yet", never a device-clock 1. */
       G.streak = { count: 1, lastDay: 20260914 };
-      assert(AC.playStreakDays(G) === 1, 'fixture: the residue is the only answer until an envelope');
+      assert(AC.playStreakDays(G) === 0,
+        'THE PURGE: with no envelope the play streak must read 0, not the device counter — got '
+        + AC.playStreakDays(G));
 
       const r = AC.reconcilePlayStreak(G, { state: { streak_days: 3, streak_day_key: '2026-09-14' } });
       assert(r && r.mode === 'server' && r.days === 3, 'the projection must be recorded, got ' + JSON.stringify(r));
@@ -42104,7 +42315,7 @@ const TESTS = [
         'it lands in `_` SCRATCH, never the residue: ' + JSON.stringify(G._serverStreak));
       assert(AC.playStreakDays(G) === 3,
         'THE BUG: the reader must prefer the server\'s 3 over the device\'s 1, got ' + AC.playStreakDays(G));
-      assert(G.streak.count === 1, 'and the residue is left exactly as it was — no upward merge');
+      assert(G.streak.count === 1, 'and the stale bag key is left exactly as it was — no upward merge');
 
       /* NEVER AN EVICTION: an envelope without the key leaves the observation alone. */
       AC.reconcilePlayStreak(G, { state: {} });
@@ -42129,11 +42340,11 @@ const TESTS = [
       if (R && typeof R.compute === 'function' && R.WEIGHTS) {
         const withSrv = R.compute(G);
         delete G._serverStreak;
-        const withResidue = R.compute(G);
+        const withNone = R.compute(G);
         G._serverStreak = { days: 3, dayKey: '2026-09-14', at: Date.now() };
-        assert(withSrv - withResidue === 2 * R.WEIGHTS.streakBest,
-          'renown must score the server\'s streak (two extra days × ' + R.WEIGHTS.streakBest
-          + '), got a difference of ' + (withSrv - withResidue));
+        assert(withSrv - withNone === 3 * R.WEIGHTS.streakBest,
+          'renown must score the server\'s streak and NOTHING when it has not spoken (three days × '
+          + R.WEIGHTS.streakBest + '), got a difference of ' + (withSrv - withNone));
       }
     } finally {
       if (hadSrv) G._serverStreak = prevSrv; else delete G._serverStreak;
@@ -51098,7 +51309,7 @@ const TESTS = [
       A.acknowledgeReplacement(true);
       Gd.resetGold();
       Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-      G.streak = { count: 1, lastDay: 0 };
+      seedPlayStreak(1);
       G.dailyReward = { lastClaimDay: 0 };
       G.gold = 1000; G.gems = 5;
       const rw = D.rewardFor(G);
@@ -51794,7 +52005,7 @@ const TESTS = [
          MUTATION: put `G.gems = (G.gems||0) + rw.gems` back in daily-reward → RED. */
       Gd.resetGold();
       A.acknowledgeReplacement(true);
-      G.streak = { count: 7, lastDay: 0 };
+      seedPlayStreak(7);
       G.dailyReward = { lastClaimDay: 0 };
       G.gold = 0; G.gems = 0;
       const rw = D.rewardFor(G);

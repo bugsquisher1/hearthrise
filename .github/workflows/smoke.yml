@@ -251,7 +251,7 @@ jobs:
   # made, so it costs 4.1 s and no extra network. Budget stays 12.
   db-replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 14
 
     steps:
       - uses: actions/checkout@v4
@@ -741,6 +741,62 @@ jobs:
         run: |
           node tests/world-finds-projection.mjs
           node tests/world-finds-projection.mjs --selftest
+
+      # DID THE REALM ACTUALLY SELL YOU THAT THEME?
+      # `ownedThemes`/`ownedCosmetics` are RESIDUE and the server has never held a
+      # theme or a cosmetic for anybody — the half of the b371 gem dupe that made
+      # a free purchase STICK, and the reason src/legacy.js REFUSES the gesture
+      # outright today (nine gem sinks the shop renders are dead buttons).
+      # 2026-09-14-gem-unlock-buy.sql is the server half: one verb, one price
+      # read from a GENERATED catalogue under the character lock, one flag row,
+      # one ledger row, and a top-level `gem_unlocks` projection so ownership
+      # stops living in a store a cloud restore can rewind.
+      #
+      # The load-bearing assertions are not "a key appears". They are that the
+      # generated catalogue IS src/data/shops.js in BOTH directions (a hand edit
+      # to the SQL is the money-number double-copy this repo generates to
+      # prevent), that the debit is EXACTLY the catalogue price, that the FREE
+      # theme is owned by everybody and sellable to nobody (missing => the
+      # starting theme becomes unequippable the moment ownership reads
+      # server-first; priced => a 0-gem faucet), that a replay and a re-buy each
+      # charge zero, and that the ungated twin never became client-executable.
+      # --selftest plants ten defects, each twice (with and without the
+      # migration's own §7 gate), plus a comment-only negative control.
+      #
+      # No credentials; production untouched. Base AND selftest, per C4.
+      # MEASURED 2026-09-14 on this machine: base 12 s, --selftest 36 s.
+      - name: Gem unlock buy — the price is the server's and the theme is the server's
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/gem-unlock-buy.mjs
+          node tests/gem-unlock-buy.mjs --selftest
+
+      # AND DOES THE NIGHT KNOW WHICH RECIPES YOU HAVE READ?
+      # 2026-08-16-artisan-progress-model.sql built the STORAGE for a learned
+      # recipe and left the WRITE to a later author who never arrived: nothing has
+      # ever written a `recipe:<scroll>` flag for anybody. Attended, the client
+      # flips G.unlockedRecipes (residue) and deletes the scroll locally; away,
+      # hr-accrue reads hr_perks_of.unlockedRecipes = {} and src/core/artisan-sim
+      # .js stops the span at tick 0 — so all eight gated recipes pay NOTHING for
+      # the night while the browser shows them unlocked. CLAUDE.md §6, 2026-09-14.
+      #
+      # The two assertions that matter are the ones a key-exists check cannot
+      # make: that the ENVELOPE, the verb's verdict and hr_perks_of (what the away
+      # engine prices from) all carry the SAME set, and that the REAL shipped
+      # reader — src/core/artisan.js gateOk, the same pure function the browser
+      # and the simulation both call — flips from locked to open off that
+      # envelope. Plus: exactly one of two scrolls consumed, an uncatalogued
+      # `recipe:` flag row is NOT a capability (the hr_unlocks join is the
+      # allowlist), and a re-learn and a replay each eat nothing.
+      # --selftest plants twelve defects, each twice, plus a negative control.
+      #
+      # No credentials; production untouched. Base AND selftest, per C4.
+      # MEASURED 2026-09-14 on this machine: base 12 s, --selftest 39 s.
+      - name: Recipe learn — a gated recipe is learned on the server or the night ignores it
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/recipe-learn.mjs
+          node tests/recipe-learn.mjs --selftest
 
   # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
   # 8-45 real defects in real migration text and demand every one turns the

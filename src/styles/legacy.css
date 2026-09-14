@@ -3302,6 +3302,15 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   flex:0 0 auto;color:var(--ink-3);font-weight:700;
   font-size:calc(14.5px * var(--ui-scale, 1));white-space:nowrap;
 }
+/* The Cellar's lengthening, shown on the segment it lengthened. It is PROVENANCE
+   for the time on the right, not a second magnitude, so it reads at --ink-3 like
+   .br-next rather than in the moss the real bonus owns. Sourced from the
+   envelope's `scale`; see src/render/active-effects.js buffScaleNote. */
+.buff-row .br-cellar{
+  flex:0 0 auto;color:var(--ink-3);font-weight:600;
+  font-size:calc(14.5px * var(--ui-scale, 1));white-space:nowrap;
+}
+
 /* b224: .eat-now-btn removed with injectEatNowButtons() — the JS that used it
    had not rendered a button since the bag was rebuilt (see legacy.js). */
 

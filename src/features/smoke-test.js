@@ -40442,6 +40442,91 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('buffs step 3: the Cellar line on a buff pill is the ENVELOPE\'s `scale` — never a '
+    + 'client-priced room', () => {
+    /* WHAT THIS PROTECTS. 2026-09-13-buff-cellar-scale.sql makes hr_apply stamp each
+       buff segment with the duration multiplier the player's OWN Cellar rungs bought
+       (1.0 unperked, up to 2.0 at The Deep Cellar), and hr_state_of projects it as
+       `scale`. The minutes are already inside `until`, so the client's only job is to
+       SAY SO. Two ways to get that wrong, both red below:
+         · price the line from G.rooms — a client authoring a buff clock (the b543
+           wall-clock ruling) and residue-ahead by construction, because a rung bought
+           between two helpings would relabel a segment stamped at the old scale;
+         · treat a MISSING field as 1.0-with-a-line, which would have every pre-migration
+           segment brag about a Cellar that did not pay it.
+       THE MUTATION LEVER IS ARMED FOR THE WHOLE TEST: The Deep Cellar is owned, so
+       getBonus('buffDuration') is 1.0 and any room-derived implementation answers
+       "+100% from the Cellar" — which every arm here asserts against. */
+    const G = window.G;
+    const H = window.HearthriseHome;
+    const A = window.HearthriseAccrual;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    const prevRooms = G.rooms;
+    try {
+      assert(typeof window.buffScaleNote === 'function',
+        'src/render/active-effects.js must publish ONE buffScaleNote — Home and Active Effects wording the '
+        + 'same rule differently is how a rule becomes folklore');
+      window.showTab('profile');
+      G.activeSkill = null; G.skillTargetId = null; G.activeMonster = null; G.activeArtisanRecipe = null;
+      /* `rooms` is server-of-record, so a raw `G.rooms = …` is UNKNOWN to every
+         reader and fails closed to the empty map (b456). stampRecordLikeLoad pushes
+         the rung through the REAL hr_load path, which is what a player's Cellar is. */
+      G.rooms = { cellar: 5 };
+      stampRecordLikeLoad(G);
+      const roomPct = Math.round((window.getBonus('buffDuration') || 0) * 100);
+      assert(roomPct > 0 && roomPct !== 40,
+        'the lever is not armed: with The Deep Cellar owned, the client-side buffDuration bonus must be a '
+        + 'NON-ZERO number that is NOT the 40 the envelope states, or the "never computed from rooms" '
+        + 'assertions below cannot bite. Got ' + roomPct + ' DIAG rooms=' + JSON.stringify(window.roomsMapG()) + ' raw=' + window.HearthriseCore.perks.permanentBonus('buffDuration', window.clientPerkState()) + '.');
+
+      const seg = (ms, scale) => {
+        const o = { type: 'gather_speed', magnitude: 15, remaining_ms: ms,
+          until: new Date(Date.now() + ms).toISOString() };
+        if (scale !== undefined) o.scale = scale;
+        return o;
+      };
+      const paint = (scale) => {
+        A.reconcileBuffs(G, { ok: true, buffs: [seg(6 * 60000, scale)] });
+        window.__renderBuffsSection();
+        H.render();
+        return (document.getElementById('food-buffs-host').textContent + ' | '
+          + document.getElementById('hd-root').textContent).replace(/\s+/g, ' ');
+      };
+
+      /* (1) A PERKED SEGMENT SAYS SO, on BOTH buff surfaces, at the SERVER's number. */
+      const perked = paint(1.4);
+      assert(G.buffs.length === 1 && G.buffs[0].scale === 1.4,
+        'reconcileBuffs must carry `scale` through display-only; got ' + JSON.stringify(G.buffs));
+      assert((perked.match(/\+40% from the Cellar/g) || []).length === 2,
+        'the Active Effects row AND the Home pill must each state "+40% from the Cellar" for a segment the '
+        + 'server stamped at scale 1.4: ' + perked);
+      assert(!(perked.indexOf('+' + roomPct + '% from the Cellar') >= 0),
+        'the line was priced from G.rooms (The Deep Cellar reads +' + roomPct + '%), not from the envelope. `scale` '
+        + 'describes the rung that stamped THIS segment; a room-derived number overstates a buff already '
+        + 'running and is the residue-ahead class: ' + perked);
+      assert(/6m 0s/.test(perked) && /6:00/.test(perked),
+        'the Cellar already paid its minutes into `until`; the clock shown must still be the envelope\'s '
+        + 'remaining_ms, never remaining_ms x scale: ' + perked);
+
+      /* (2) AN UNPERKED SEGMENT SAYS NOTHING. scale 1.0 is "no Cellar paid this", and a
+         "+0% from the Cellar" chip is noise a player would read as a fact. */
+      assert(!/from the Cellar/.test(paint(1)),
+        'scale 1.0 must draw no Cellar line on either surface');
+
+      /* (3) ABSENCE IS NOT A STATEMENT (CLAUDE.md §6): a segment written before the
+         migration has no `scale`, and an unknown is never rendered as a claim. */
+      assert(!/from the Cellar/.test(paint(undefined)),
+        'a segment with NO `scale` key must draw no Cellar line — inferring one from the rooms the player '
+        + 'happens to own now is exactly the forbidden client-side computation');
+    } finally {
+      restoreG(snap);
+      G.rooms = prevRooms;
+      try { H.render(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b326-4: both Boss-of-the-Day cards state that they pay while you are away', () => {
     const B = window.HearthriseBossOfDay;
     assert(B, 'the Boss of the Day feature must be loaded');

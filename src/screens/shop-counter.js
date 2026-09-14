@@ -300,6 +300,65 @@ window.toggleItemLock = toggleItemLock;
 window.recordVendorSale = recordVendorSale;
 window.repurchase = repurchase;
 
+/* ── THE BUY-SPACE DIALOG (legacy.js 9173–9215, moved verbatim 2026-09-14).
+   It is a PURCHASE COUNTER — "how much does the next rung of bag space cost,
+   in gold and in gems, side by side" — so it belongs with the other two
+   counters rather than in the middle of the monolith, and it is the last
+   piece of the shop that was still there. It renders only: the two BUYERS
+   (buyBankSpaceGold / buyBankSpaceGem) stay in legacy.js with their gold and
+   gem ledger rows, and the inline onclick attributes below resolve them
+   against window when the player clicks, exactly as before. Its callers are
+   src/screens/inventory.js (the bag toolbar's "Buy space") and
+   src/render/bank-panel.js, both through window.openBankModal.
+   `_renderBankModal` is published because legacy.js's two buyers call it
+   bare at four sites to repaint the open dialog after a purchase — at the
+   monolith's top level that bare name resolved through window, and it still
+   must. ── */
+/* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
+   cost (escalating) and the flat gem deal side-by-side so the better value of
+   gems is legible. Reuses the .qm-overlay backdrop + .btn classes — no new CSS. */
+function closeBankModal(){ var o=document.getElementById('bank-modal-overlay'); if(o)o.remove(); }
+function _bankRowsHTML(){
+  var used=bankUsed(), cap=bankCap();
+  var gCost=bankGoldCost(), gemCost=BANK_SPACE.gem.cost;
+  var canG=balCanAfford(gCost,'gold'), canGem=balCanAfford(gemCost,'gems');
+  var gp=(typeof _gp==='function')?_gp:function(n){return n.toLocaleString()+' gold';};
+  var gem=(typeof _gem==='function')?_gem:function(n){return n.toLocaleString()+' gems';};
+  var gemPerSlot=(gemCost/BANK_SPACE.gem.slots), goldPerSlot=(gCost/BANK_SPACE.gold.slots);
+  return ''
+    + '<p class="bank-cap-line">Bank space: <b>'+used+' / '+cap+'</b> stacks</p>'
+    + '<div class="bank-opt">'
+      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gold.slots+' stacks</b><span>Gold — cost rises with every purchase.</span></div>'
+      + '<div class="bank-opt-buy"><span class="price">'+gp(gCost)+'</span>'
+      + '<button class="btn btn-sm '+(canG?'btn-primary':'')+'" '+(canG?'':'disabled')+' onclick="buyBankSpaceGold()">Buy</button></div>'
+    + '</div>'
+    + '<div class="bank-opt bank-opt-gem">'
+      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat, better deal ('+goldPerSlot.toFixed(0)+' g/slot vs '+gemPerSlot.toFixed(2)+' gem/slot).</span></div>'
+      + '<div class="bank-opt-buy"><span class="price gem">'+gem(gemCost)+'</span>'
+      + '<button class="btn btn-sm '+(canGem?'btn-gem':'')+'" '+(canGem?'':'disabled')+' onclick="buyBankSpaceGem()">Buy</button></div>'
+    + '</div>';
+}
+function _renderBankModal(){
+  var body=document.getElementById('bank-modal-body');
+  if(body) body.innerHTML=_bankRowsHTML();
+}
+function openBankModal(){
+  closeBankModal();
+  var overlay=document.createElement('div');
+  overlay.className='qm-overlay'; overlay.id='bank-modal-overlay';
+  overlay.innerHTML=
+    '<div class="qm-modal bank-modal" style="position:relative;max-width:460px">'
+    + '<button class="qm-close" aria-label="Close">✕</button>'
+    + '<h3 style="margin:0 0 4px">Buy bank space</h3>'
+    + '<div id="bank-modal-body">'+_bankRowsHTML()+'</div>'
+    + '</div>';
+  overlay.querySelector('.qm-close').addEventListener('click', closeBankModal);
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) closeBankModal(); });
+  document.body.appendChild(overlay);
+}
+try{ window.openBankModal=openBankModal; window.closeBankModal=closeBankModal; }catch(_){}
+window._renderBankModal = _renderBankModal;
+
 /* ── PUBLISHED. These six were window properties only because a classic
       script's top-level `function f(){}` is one; inside an IIFE they must be
       stated. Callers:

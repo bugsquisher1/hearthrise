@@ -58,6 +58,18 @@ import { ARTISAN_RECIPES } from './recipes.js?v=546';
 import { MONSTERS } from './monsters.js?v=546';
 import { BOSSES } from './bosses.js?v=546';
 import { ITEMS } from './items.js?v=546';
+/* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
+   walk only the four ENGINE grant sources, so an id a shop, the Quartermaster, a
+   goal reward or a raid chest is the ONLY source of could sit in limbo — neither
+   ownable nor excluded — and nothing failed. Every one of these tables is ESM
+   data, so the completeness check can simply read them. */
+import { QM_STOCK } from './dungeons.js?v=546';
+import { SHOP_OFFERS } from './shops.js?v=546';
+import { QUEST_REWARDS, DAILY_TASK_REWARDS } from './goal-catalogue.js?v=546';
+import { RAID_BOSSES } from './raid-bosses.js?v=546';
+/* The BURN, from the one module that names it — src/core/artisan.js is the same
+   dual-runtime code the edge cooks with, so there is no second copy of the id. */
+import { BURNT_ITEM } from '../core/artisan.js?v=546';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -353,6 +365,70 @@ export function artisanOutputIds(skill) {
 /** Cooking outputs — the un-modeled artisan lane. */
 export function cookingOutputIds() { return artisanOutputIds(COOKING_SKILL); }
 
+/** Every id the Quartermaster sells (dungeon scrip stock). */
+export function qmStockIds() {
+  const s = new Set();
+  for (const row of QM_STOCK || []) if (row && row.id) s.add(row.id);
+  return s;
+}
+
+/** Every ITEM a shop offer GRANTS (kind:'item'); currency/unlock/capacity grants
+ *  are not bag ids and contribute nothing. */
+export function shopGrantIds() {
+  const s = new Set();
+  for (const offer of SHOP_OFFERS || []) {
+    const grants = (offer && offer.grant) || [];
+    for (const g of grants) if (g && g.kind === 'item' && g.id) s.add(g.id);
+  }
+  return s;
+}
+
+/** Every ITEM a goal / daily task pays out. */
+export function goalRewardIds() {
+  const s = new Set();
+  for (const table of [QUEST_REWARDS, DAILY_TASK_REWARDS]) {
+    for (const k of Object.keys(table || {})) {
+      const items = table[k] && table[k].items;
+      if (items) for (const id of Object.keys(items)) if (id) s.add(id);
+    }
+  }
+  return s;
+}
+
+/** The raid boss SIGNATURES alone — the unique, un-modeled half of a raid chest.
+ *  Kept separate from raidRewardIds because the chest MATERIALS are ordinary
+ *  gather/artisan/drop ids: excluding those would strip common materials out of
+ *  the ownable set and re-open the phantom class they are settled to close. */
+export function raidSignatureIds() {
+  const s = new Set();
+  for (const b of RAID_BOSSES || []) if (b && b.sig) s.add(b.sig);
+  return s;
+}
+
+/** Every id a raid chest pays: the boss SIGNATURE plus its reward items. The
+ *  header used to say this set was not enumerable from the data layer; it is —
+ *  src/data/raid-bosses.js is ESM and holds both halves. */
+export function raidRewardIds() {
+  const s = new Set();
+  for (const b of RAID_BOSSES || []) {
+    if (!b) continue;
+    if (b.sig) s.add(b.sig);
+    const items = (b.reward && b.reward.items) || null;
+    if (items) for (const id of Object.keys(items)) if (id) s.add(id);
+  }
+  return s;
+}
+
+/** Every SEED id in the crop catalogue — the plantable half of farming. */
+export function seedIds() {
+  const s = new Set();
+  for (const k of Object.keys(CROPS || {})) {
+    const seed = CROPS[k] && CROPS[k].seed;
+    if (seed) s.add(seed);
+  }
+  return s;
+}
+
 /** Every output of a lane classified `payable` in ARTISAN_SETTLEMENT. */
 export function payableArtisanOutputIds() {
   const s = new Set();
@@ -399,11 +475,41 @@ export function buildItemAuthority(opts) {
   addAll(excluded, cookingOutputIds());
   addAll(excluded, cropProductIds());
   addAll(excluded, dungeonRewardIds(opts.dungeons));
+  /* THE BURN IS A COOKING OUTPUT (security C2 classification). `burnt_food` is
+     what src/core/artisan.js produces when a cook fails, so it is minted by the
+     attended client tick exactly as a dish is, and belongs to the same EXCLUDED
+     class for exactly the same reason. It was neither ownable nor excluded —
+     limbo — and 11 live slots hold 206 of them. */
+  excluded.add(BURNT_ITEM);
+  /* RAID SIGNATURES — the same class as a dungeon boss signature, and excluded
+     for the same reason: a unique trophy the accrual engine never settles. */
+  addAll(excluded, raidSignatureIds());
 
   const modeled = new Set();
   addAll(modeled, combatDropIds());
   addAll(modeled, gatherProductIds());
   addAll(modeled, payableArtisanOutputIds());
+  /* ── SEEDS ARE SERVER-MODELLED (security C2 classification) ────────────────
+     A seed is DEBITED by hr_farm_plant and CREDITED only by server verbs — the
+     goal-claim RPC, the shop/unlock buy, the market. The client mints none:
+     the four sites that used to addItem a reward behind a constant-true gate now
+     ask `clientMayWrite('inventory')`, which answers NO under the flip (see
+     record.js). Leaving seeds unclassified is what kept the phantom-seed class
+     alive: an unclassified id is never lowered and never removed, and a spent
+     stack DELETES its row, so the envelope omits it and `max(5, omitted)` = 5
+     forever. Owning them is what lets the omission mean zero. */
+  addAll(modeled, seedIds());
+
+  /* ── SHOP-ONLY AND QUARTERMASTER-ONLY IDS ARE EXCLUDED (security C3) ───────
+     THE BLUEPRINT-LOSS SHAPE, generalised and closed by construction. An id
+     whose ONLY grant source is a counter — a Quartermaster blueprint, a shop
+     companion — is never produced by the accrual engine, so a complete envelope
+     that has not yet been told about the purchase omits it, and an armed
+     absolute replace would delete a thing the player paid for. Computed as
+     (shop ∪ QM) MINUS `modeled`, so an id a shop merely RESELLS (an ore, a bar)
+     keeps the class its engine source gives it and stays ownable. */
+  for (const id of shopGrantIds()) if (!modeled.has(id)) excluded.add(id);
+  for (const id of qmStockIds()) if (!modeled.has(id)) excluded.add(id);
 
   // EXCLUDED wins on overlap — the never-delete direction (see header).
   const ownable = new Set();
@@ -509,6 +615,14 @@ export function unclassifiedGrantIds(opts) {
   addAll(universe, cropProductIds());
   addAll(universe, dungeonRewardIds(dungeons));
   for (const skill of Object.keys(ARTISAN_RECIPES || {})) addAll(universe, artisanOutputIds(skill));
+  /* …and every NON-ENGINE grant source (security C3): shop stock, the
+     Quartermaster, goal/daily payouts, raid chests, and the seeds themselves. A
+     new row in any of those tables now has to be ruled, not discovered live. */
+  addAll(universe, shopGrantIds());
+  addAll(universe, qmStockIds());
+  addAll(universe, goalRewardIds());
+  addAll(universe, raidRewardIds());
+  addAll(universe, seedIds());
 
   const out = [];
   for (const id of universe) {
@@ -620,7 +734,8 @@ if (typeof window !== 'undefined') {
     RAID_ITEMS_SERVER_BACKED, MUSTER_ABSENCE_ITEMS_SERVER_BACKED,
     unbackedOwnableMintLanes, pendingUnbackedOwnableMints, flipArmBlockers,
     COOKING_SKILL, ARTISAN_SETTLEMENT, COOKING_SETTLEMENT_ARM_ENABLED,
-    gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds,
+    gatherProductIds, cropProductIds, combatDropIds, artisanOutputIds, seedIds,
+    qmStockIds, shopGrantIds, goalRewardIds, raidRewardIds, raidSignatureIds,
     cookingOutputIds, payableArtisanOutputIds, bossRewardIds, dungeonRewardIds,
     serverConsumedIds, serverConsumedItem,
     buildItemAuthority, itemAuthority, rebuildItemAuthority,

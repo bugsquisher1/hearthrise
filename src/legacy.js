@@ -1387,41 +1387,15 @@ function normalizePausedCooking(){
   }catch(e){ return false; }
 }
 window._normalizePausedCooking=normalizePausedCooking;
-/* ── RULING 3.5 (2026-08-15): DID BLESSINGS PAY DURING THE ABSENCE? ────────
-   Asked of the ONE table that decides it — `AWAY_SCOPE.blessing` in
-   src/core/away.js, through the same `channelApplies` resolver core's three
-   span simulations now report from — instead of being answered a fourth time
-   here with a handwritten `false`.
-
-   `{away:true}` is not the rule; it is processOffline's own fact (it IS the
-   absence). What "away" MEANS for the blessing channel is the table's call
-   alone, so the first blessing that is ever made to pay away flips one line
-   and every receipt in the game follows it.
-
-   NO FALLBACK LITERAL, deliberately, and UNGUARDED for the reason the
-   `creditWindow` call in processOffline states about itself: a missing helper
-   must fail loudly, because the only silent fallback available here is a
-   fifth handwritten copy of the rule — the exact thing this removes. The
-   guard would be unreachable anyway: processOffline dereferences
-   `window.HearthriseCore.away.creditWindow` a hundred lines before the
-   summary is written, so core is present by construction at this point. */
-function _awayBlessed(){
-  const A = window.HearthriseCore.away;
-  return A.channelApplies(A.CHANNEL.BLESSING, {away:true});
-}
-/* `{skill, recipe}` for the pointer, or null — via the ONE index. Answers
-   "is the running activity an artisan bench?" without a second mapping. */
-function _awayArtisanEntry(){
-  const C=_awaySpanCore();
-  if(!C||!G||!G.skillTargetId) return null;
-  const e=C.artisanRecipe(G.skillTargetId);
-  /* The pointer and the index must agree about the bench. If they do not the
-     state is inconsistent and paying would credit the wrong skill's XP — fall
-     through to the gather branch, which refuses on the same disagreement. */
-  if(!e) return null;
-  if(G.activeSkill && G.activeSkill!==e.skill) return null;
-  return e;
-}
+/* `_awayBlessed()` and `_awayArtisanEntry()` were DELETED 2026-09-14, not moved.
+   Each appeared exactly ONCE in the entire repository — its own declaration —
+   measured across src/**, tests/**, tools/**, supabase/**, docs/** and
+   index.html. They were helpers for a local away-span summary this client no
+   longer writes: `hr-accrue` computes the absence and the receipt quotes the
+   server (CLAUDE.md §1). Unreachable code in a 19k-line classic script is worse
+   than absent code, because the next reader has to prove it is dead before they
+   can touch anything near it. The RULE they consulted is untouched and still has
+   exactly one home: AWAY_SCOPE + channelApplies in src/core/away.js. */
 /* ════════════════════════════════════════════════════════════════
    b337/b515 — SERVER-AUTHORITATIVE AWAY TIME, WITH NO OTHER POSITION.
 
@@ -1487,32 +1461,12 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
    gold-only) and redeemHearthToken. Do not delete it, and do not add a fourth
    caller: a new gem sink gets a server verb, not this refusal.
 
-   ⚠ WHY THIS IS A REFUSAL AND NOT A `buyUnlock` REWIRE. The obvious fix — route
-   these through window.HearthriseGold.buyUnlock the way b500 routed
-   buyBankSpaceGold — DOES NOT WORK, and the reason is structural rather than a
-   missing row:
-     · supabase/functions/hr-accrue/unlock-catalogue.js SELLABLE_NAMESPACES is
-       ['room','property'] and refuses `theme` / `cosmetic` BY NAME;
-     · the GENERATED catalogue agrees — 2026-08-16-unlock-offers.generated.sql
-       carries every theme.* and cosmetic.* row with `gold = null` and
-       `refusal = 'namespace_unsupported:<ns>'`;
-     · public.hr_unlock_offers has a GOLD column and no other, which is exactly
-       why the hero slot needed its own verb (that migration's header says so in
-       those words);
-     · src/data/gold-ladders.js publishes `bank.<n>` for the GOLD rung only —
-       there is no gem rung offer at all.
-   So `buyUnlock('theme.forest')` would answer 409 offer_unsupported forever, and
-   wiring it would turn a silent exploit into a permanently dead button. The
-   server half is a MIGRATION (see the change report; REVIEW-ONLY, a money
-   surface, Security's call) and this file must not invent one.
-
-   WHAT IT DOES INSTEAD is exactly what multi-character.js buySlot() already
-   ships and what the team already accepted for the same class: when the client
-   may not write the balance, the gesture is REFUSED BY NAME, nothing is
-   debited, and nothing is granted. hr_buy_hero_slot is likewise not applied
-   yet, so the hero-slot button says "Hero slots are unavailable right now"
-   today — this is that precedent, not a new policy. An honest "not yet" beats a
-   purchase that quietly does nothing and hands out the goods.
+   ⚠ A GEM SINK CANNOT BE ROUTED THROUGH `buyUnlock`: hr_unlock_offers has a GOLD
+   column and no other, and unlock-catalogue.js refuses the theme/cosmetic
+   namespaces by name — which is why hr_buy_gem_unlock and hr_buy_hero_slot each
+   needed a verb of their own. Until a sink HAS one, the gesture is REFUSED BY
+   NAME and nothing is debited or granted: an honest "not yet" beats a purchase
+   that quietly does nothing and hands out the goods.
 
    SWITCH OFF (clientMayWriteRecordField('gems') === true — no accrual, or a
    pre-arm build) every one of these paths is BYTE-FOR-BYTE what shipped before:
@@ -8665,13 +8619,12 @@ function renderHouse(){
       return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} &nbsp;${Object.entries(b.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
     }).join('');
   } else {
-    el.innerHTML=`<div class="iap-grid">${HOUSE_THEMES.map(t=>{
-      /* Server-first (ownsGemUnlock): a residue entry the server's set does not
-         carry must not draw an "Apply" button for a theme the realm never sold. */
-      const owned=window.ownsGemUnlock('theme',t.id);
-      const active=window.activeHouseTheme()===t.id;
-      return `<div class="iap-card ${active?'gold':''}"><div class="iap-icon">${_hrGly(t.glyph||'uiHome',30,'--gold-2')}</div><h3>${t.name}</h3><div class="desc">${t.price?(t.currency==='gem'?_gem(t.price):_gp(t.price)):'Default'}</div>${owned?(active?'<button class="btn btn-block" disabled>Active</button>':`<button class="btn btn-block btn-primary" onclick="setTheme('${t.id}')">Apply</button>`):`<button class="btn btn-block btn-gem" onclick="buyTheme('${t.id}')">Buy</button>`}</div>`;
-    }).join('')}</div>`;
+    /* The cards are src/render/house-themes.js — OWNERSHIP IS THE REALM'S and
+       the three states are explained there. Every read is passed in, so the
+       painter has no opinion about where ownership comes from. */
+    el.innerHTML=window.HearthriseHouseThemes.houseThemeGridHtml(HOUSE_THEMES,{
+      owns:window.ownsGemUnlock, activeId:window.activeHouseTheme,
+      glyph:_hrGly, gem:_gem, gp:_gp });
   }
 
   /* bonuses panel */
@@ -9170,49 +9123,10 @@ window.redeemHearthToken=redeemHearthToken;
    read as one file instead of two regions 1,500 lines apart. All four are still
    globals, published at the foot of that file. Pure refactor.
    ──────────────────────────────────────────────── */
-/* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
-   cost (escalating) and the flat gem deal side-by-side so the better value of
-   gems is legible. Reuses the .qm-overlay backdrop + .btn classes — no new CSS. */
-function closeBankModal(){ var o=document.getElementById('bank-modal-overlay'); if(o)o.remove(); }
-function _bankRowsHTML(){
-  var used=bankUsed(), cap=bankCap();
-  var gCost=bankGoldCost(), gemCost=BANK_SPACE.gem.cost;
-  var canG=balCanAfford(gCost,'gold'), canGem=balCanAfford(gemCost,'gems');
-  var gp=(typeof _gp==='function')?_gp:function(n){return n.toLocaleString()+' gold';};
-  var gem=(typeof _gem==='function')?_gem:function(n){return n.toLocaleString()+' gems';};
-  var gemPerSlot=(gemCost/BANK_SPACE.gem.slots), goldPerSlot=(gCost/BANK_SPACE.gold.slots);
-  return ''
-    + '<p class="bank-cap-line">Bank space: <b>'+used+' / '+cap+'</b> stacks</p>'
-    + '<div class="bank-opt">'
-      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gold.slots+' stacks</b><span>Gold — cost rises with every purchase.</span></div>'
-      + '<div class="bank-opt-buy"><span class="price">'+gp(gCost)+'</span>'
-      + '<button class="btn btn-sm '+(canG?'btn-primary':'')+'" '+(canG?'':'disabled')+' onclick="buyBankSpaceGold()">Buy</button></div>'
-    + '</div>'
-    + '<div class="bank-opt bank-opt-gem">'
-      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat, better deal ('+goldPerSlot.toFixed(0)+' g/slot vs '+gemPerSlot.toFixed(2)+' gem/slot).</span></div>'
-      + '<div class="bank-opt-buy"><span class="price gem">'+gem(gemCost)+'</span>'
-      + '<button class="btn btn-sm '+(canGem?'btn-gem':'')+'" '+(canGem?'':'disabled')+' onclick="buyBankSpaceGem()">Buy</button></div>'
-    + '</div>';
-}
-function _renderBankModal(){
-  var body=document.getElementById('bank-modal-body');
-  if(body) body.innerHTML=_bankRowsHTML();
-}
-function openBankModal(){
-  closeBankModal();
-  var overlay=document.createElement('div');
-  overlay.className='qm-overlay'; overlay.id='bank-modal-overlay';
-  overlay.innerHTML=
-    '<div class="qm-modal bank-modal" style="position:relative;max-width:460px">'
-    + '<button class="qm-close" aria-label="Close">✕</button>'
-    + '<h3 style="margin:0 0 4px">Buy bank space</h3>'
-    + '<div id="bank-modal-body">'+_bankRowsHTML()+'</div>'
-    + '</div>';
-  overlay.querySelector('.qm-close').addEventListener('click', closeBankModal);
-  overlay.addEventListener('click', function(e){ if(e.target===overlay) closeBankModal(); });
-  document.body.appendChild(overlay);
-}
-try{ window.openBankModal=openBankModal; window.closeBankModal=closeBankModal; }catch(_){}
+/* The "Buy space" dialog moved to src/screens/shop-counter.js with the rest of
+   the shop counter (task #129). buyBankSpaceGold / buyBankSpaceGem stay here,
+   with their ledger rows, and still call _renderBankModal() bare — it is
+   published from there. Pure refactor — identical DOM. */
 /* b217: permanent trait upgrades bought with GOLD. Deliberately not free —
    early game is manual eating (click food in combat); players buy the
    convenience once they're established. Gate lives in

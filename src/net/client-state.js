@@ -435,6 +435,134 @@ const RESIDUE_SET = new Set(RESIDUE_FIELDS);
 const RESIDUE_NEVER_SEND = Object.freeze(['buffs']);
 const NEVER_SEND_SET = new Set(RESIDUE_NEVER_SEND);
 
+/* ── THE THIRD CONTROL: WHAT THE SERVER REFUSED, THIS TAB STOPS SENDING ──────
+   RESIDUE_FIELDS and RESIDUE_NEVER_SEND are both authored in THIS bundle, so
+   neither can protect a bundle that is already running. The deny-list is a
+   SERVER list and it grows on the server's clock:
+   2026-09-13-client-state-buffs-denylist.sql applied at 20:47 UTC and every tab
+   still on the previous build kept sending `buffs`.
+
+   MEASURED, live, 2026-09-14 15:08 UTC — this is not a hypothetical:
+     user b94fa8c0 | code forbidden_field | intent hr_put_client_state
+     n=603 today, first refusal 2026-09-13 20:48:28Z — the minute the deny-list
+     applied — still refusing 18 hours later.
+   hr_put_client_state refuses the WHOLE patch on one denied key, so that account
+   saved NO residue for 18 hours: no loot filter, no achievements, no bestiary, no
+   "already shown today" markers. Silently. The put returned {ok:false} and the
+   caller retried the identical bag sixty seconds later, for ever.
+
+   2026-09-14-client-state-projection-denylist.sql adds NINE more names, so the
+   next deny-list apply does this to every tab that has not reloaded.
+
+   THREE THINGS HAPPEN, IN THIS ORDER, AND NONE OF THEM IS A SILENT RETRY:
+     1. DROP the refused key for the rest of this page's life. Retrying a name
+        the server has declared forbidden cannot succeed, and until the key is
+        gone EVERY OTHER FIELD IS LOST TOO. Dropping one preference to save the
+        other twenty is the trade, and it is made immediately.
+     2. TELL THE PLAYER once, in words they can act on.
+     3. RELOAD ONCE per page life, b124-style — purge the caches and unregister
+        the service worker first, because "this tab is on an old bundle" and "a
+        stale SW is serving old HTML" are the same symptom and a plain reload
+        fixes only the first.
+   The loop guard is the b124 one: the refused NAME is written to sessionStorage
+   before the reload, and a name that is refused AGAIN after a reload never
+   reloads again — it is dropped and the tab carries on. A reload loop would be a
+   worse bug than the one this fixes. */
+const FORBIDDEN_RELOAD_KEY = 'hr-forbidden-field-reload';
+const FORBIDDEN_DROPPED = new Set();
+let _forbiddenReloadedThisPage = false;
+let _forbiddenWarned = false;
+let _reloadHook = null;
+
+/** Test seam: capture the reload instead of navigating. Returns the previous hook. */
+export function __setClientStateReloadHook(fn) {
+  const prev = _reloadHook; _reloadHook = (typeof fn === 'function') ? fn : null; return prev;
+}
+/** Test / boot seam: forget this page's refusals (NOT the sessionStorage record). */
+export function __resetForbiddenField() {
+  FORBIDDEN_DROPPED.clear(); _forbiddenReloadedThisPage = false; _forbiddenWarned = false;
+}
+/** The names the SERVER refused this page life. Exported for the suite and for triage. */
+export function forbiddenResidueFields() { return Array.from(FORBIDDEN_DROPPED); }
+
+function forbiddenSeen(field) {
+  try {
+    if (typeof sessionStorage === 'undefined') return false;
+    const raw = sessionStorage.getItem(FORBIDDEN_RELOAD_KEY);
+    return !!raw && String(raw).split(',').indexOf(field) >= 0;
+  } catch (e) { return false; }
+}
+function rememberForbidden(field) {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    const raw = sessionStorage.getItem(FORBIDDEN_RELOAD_KEY) || '';
+    const list = raw ? String(raw).split(',') : [];
+    if (list.indexOf(field) < 0) list.push(field);
+    // Bounded: the deny-list is a server list of names, not an open set, and a
+    // hostile answer must not be able to grow a storage key without limit.
+    sessionStorage.setItem(FORBIDDEN_RELOAD_KEY, list.slice(-24).join(','));
+  } catch (e) {}
+}
+
+/* The b124 kill-switch's body, minus its mismatch detection: purge every cache,
+   unregister every service worker, then reload. Best-effort and never fatal —
+   if the purge fails we still reload, because an un-purged reload is strictly
+   better than a tab that keeps losing its saves. */
+function purgeAndReload() {
+  /* The test seam short-circuits the whole thing, SYNCHRONOUSLY: a suite that
+     had to await an unobservable cache purge to see the decision would be
+     asserting on a timer. */
+  if (_reloadHook) { _reloadHook(); return; }
+  const go = () => {
+    try { if (typeof location !== 'undefined' && location.reload) location.reload(); } catch (e) {}
+  };
+  let pending = null;
+  try {
+    if (typeof caches !== 'undefined' && typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      pending = Promise.all([
+        caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))),
+        navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister()))),
+      ]);
+    }
+  } catch (e) { pending = null; }
+  if (pending && typeof pending.then === 'function') pending.then(go, go);
+  else go();
+}
+
+/* Handles {ok:false, error:'forbidden_field', field}. Returns true when the key
+   was dropped, so the caller can report it. */
+function handleForbiddenField(body) {
+  const field = (body && typeof body.field === 'string' && body.field) ? body.field.slice(0, 120) : '';
+  /* A refusal with NO field is the server telling us a key is forbidden without
+     saying which — we cannot drop anything, so the reload is the only move, and
+     it is still made only once. The sentinel keeps the loop guard honest. */
+  const key = field || '(unnamed)';
+  if (field) FORBIDDEN_DROPPED.add(field);
+  const seenBefore = forbiddenSeen(key);
+  try {
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[client-state] the server refused the residue patch on `' + key + '` — dropping it '
+        + 'for this session' + (seenBefore ? ' (already reloaded once for this key; not reloading again)'
+          : ' and reloading once on a fresh bundle') + '.');
+    }
+    if (typeof window !== 'undefined') {
+      const T = window.HearthriseTelemetry;
+      if (T && typeof T.event === 'function') T.event('client_state_forbidden_field', { field: key, reloaded: !seenBefore });
+    }
+  } catch (e) {}
+  if (seenBefore || _forbiddenReloadedThisPage) return !!field;
+  _forbiddenReloadedThisPage = true;
+  rememberForbidden(key);
+  try {
+    if (!_forbiddenWarned && typeof window !== 'undefined' && typeof window.notify === 'function') {
+      _forbiddenWarned = true;
+      window.notify('This tab is running an older build — reloading to keep your settings.', 'kill');
+    }
+  } catch (e) {}
+  purgeAndReload();
+  return !!field;
+}
+
 /* ── THE SIZE GUARD'S CLIENT HALF ────────────────────────────────────────────
    hr_put_client_state already refuses an oversized bag (2026-08-22-client-state-
    denylist.sql → `patch_too_large` / `state_too_large`). That cap protects the
@@ -792,9 +920,10 @@ export async function putClientState(patch, opts) {
      caller's record of what it tried to save. Silent by design — this is a
      backstop for a name that should never have been assembled, and a warning the
      player cannot act on is noise in the console of a live game. */
-  for (const k of NEVER_SEND_SET) {
-    if (Object.prototype.hasOwnProperty.call(patch, k)) {
-      patch = Object.fromEntries(Object.entries(patch).filter(([f]) => !NEVER_SEND_SET.has(f)));
+  const denied = (f) => NEVER_SEND_SET.has(f) || FORBIDDEN_DROPPED.has(f);
+  for (const k of Object.keys(patch)) {
+    if (denied(k)) {
+      patch = Object.fromEntries(Object.entries(patch).filter(([f]) => !denied(f)));
       break;
     }
   }
@@ -821,6 +950,12 @@ export async function putClientState(patch, opts) {
       surfaceClientStateCap(body);
       return Object.assign({ capExceeded: true }, body);
     }
+    /* Not a transient either, and the more expensive of the two: the WHOLE bag
+       stops saving until this key stops being sent. See FORBIDDEN_RELOAD_KEY. */
+    if (body && body.ok === false && body.error === 'forbidden_field') {
+      const dropped = handleForbiddenField(body);
+      return Object.assign({ forbiddenField: true, dropped }, body);
+    }
     return body;
   } catch (e) {
     return { ok: false, error: 'transport', detail: e && e.message };
@@ -833,5 +968,6 @@ if (typeof window !== 'undefined') {
     applyClientState, putClientState, isClientStateHydrated,
     hydrateInto, RESIDUE_FIELDS, __resetClientStateCapWarned,
     buildClientStatePutRequest, KEEPALIVE_MAX_BODY_BYTES,
+    forbiddenResidueFields, __setClientStateReloadHook, __resetForbiddenField,
   };
 }

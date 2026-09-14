@@ -1629,6 +1629,97 @@ export default [
     assert(gen && gen.ok === false && !gen.capExceeded, 'a generic failure must NOT be mis-flagged as a cap overflow');
   }),
 
+  () => tryRunAsync('CLIENT-STATE-FORBIDDEN (2026-09-14): a forbidden_field refusal drops the key, tells the player and reloads ONCE — never a silent retry for ever', async () => {
+    /* MEASURED LIVE 2026-09-14 15:08 UTC: user b94fa8c0, code forbidden_field,
+       intent hr_put_client_state, n=603 today, first refusal 2026-09-13
+       20:48:28Z — the minute 2026-09-13-client-state-buffs-denylist.sql applied.
+       A tab on an older bundle kept sending `buffs`; the server refuses the
+       WHOLE patch on one denied key, so that account saved NO residue for 18
+       hours (loot filter, achievements, bestiary, the "shown today" markers)
+       while the client retried the identical bag every 60 s for ever.
+       The contract, in the order a player meets it: the key is DROPPED for this
+       page life (so the other twenty fields save again on the very next put),
+       the player is TOLD, and the tab reloads ONCE — a key already reloaded for
+       is never reloaded for again, because a reload loop is worse than the bug.
+       2026-09-14-client-state-projection-denylist.sql adds nine more denied
+       names, so this is the path every stale tab will take. */
+    const CS = window.HearthriseClientState;
+    assert(CS && typeof CS.putClientState === 'function', 'putClientState must exist');
+    assert(typeof CS.__setClientStateReloadHook === 'function' && typeof CS.__resetForbiddenField === 'function',
+      'the forbidden-field seam must expose its test hooks — otherwise this test can only be written by reloading the harness');
+    const KEY = 'hr-forbidden-field-reload';
+    const savedSession = sessionStorage.getItem(KEY);
+    const realWarn = console.warn;
+    const realNotify = window.notify;
+    let reloads = 0;
+    const toasts = [];
+    const prevHook = CS.__setClientStateReloadHook(() => { reloads++; });
+    const sent = [];
+    const mkFetch = (bodyObj) => async (url, init) => {
+      sent.push(JSON.parse(init.body));
+      return { ok: true, status: 200, json: async () => bodyObj };
+    };
+    const opts = (bodyObj) => ({ url: 'https://example.test', anonKey: 'k', jwt: 'j', slot: 0, idem: 'forbidden-test', fetch: mkFetch(bodyObj) });
+    const REFUSED = { ok: false, error: 'forbidden_field', field: 'streak' };
+    try {
+      sessionStorage.removeItem(KEY);
+      CS.__resetForbiddenField();
+      console.warn = () => {};
+      window.notify = (m) => { toasts.push(String(m)); };
+
+      /* 1. THE REFUSAL. A denied key, with an honest preference riding along. */
+      const r1 = await CS.putClientState({ streak: { count: 1 }, lootFilter: ['junk'] }, opts(REFUSED));
+      assert(r1 && r1.ok === false, 'a forbidden put stays non-fatal (ok:false, never throws)');
+      assert(r1.forbiddenField === true && r1.dropped === true,
+        'THE BUG: a forbidden_field refusal must be FLAGGED and the key dropped, not swallowed into a generic {ok:false} and retried for ever: '
+        + JSON.stringify(r1));
+      assert(reloads === 1, 'the tab must reload exactly once for a newly-refused key (reloads=' + reloads + ')');
+      assert(toasts.some((t) => /older build/i.test(t)),
+        'the player must be TOLD why the tab is reloading — a reload with no explanation is indistinguishable from a crash: ' + JSON.stringify(toasts));
+      assert(String(sessionStorage.getItem(KEY) || '').split(',').indexOf('streak') >= 0,
+        'the refused key must be recorded in sessionStorage BEFORE the reload, or the loop guard cannot survive it');
+      assert(CS.forbiddenResidueFields().indexOf('streak') >= 0,
+        'the dropped set must be readable for triage: ' + JSON.stringify(CS.forbiddenResidueFields()));
+
+      /* 2. THE NEXT PUT NO LONGER CARRIES IT. This is the half that gives the
+            player their other twenty preferences back. */
+      sent.length = 0;
+      const r2 = await CS.putClientState({ streak: { count: 1 }, lootFilter: ['junk'] }, opts({ ok: true }));
+      assert(r2 && r2.ok === true, 'the put after the drop must succeed');
+      assert(sent.length === 1, 'exactly one request');
+      const patch = sent[0].p_patch;
+      assert(!Object.prototype.hasOwnProperty.call(patch, 'streak'),
+        'THE BUG: the refused key was sent AGAIN — every residue field stays unsaved for as long as the tab lives: ' + JSON.stringify(patch));
+      assert(Object.prototype.hasOwnProperty.call(patch, 'lootFilter'),
+        'the honest preferences must still be sent — dropping the whole patch would BE the bug');
+
+      /* 3. NO RELOAD LOOP. A fresh page life (the module state resets; the
+            sessionStorage record does not) that is refused for the SAME key
+            drops it and carries on rather than reloading a second time. */
+      CS.__resetForbiddenField();
+      const r3 = await CS.putClientState({ streak: { count: 1 } }, opts(REFUSED));
+      assert(r3.forbiddenField === true && r3.dropped === true, 'the key is still dropped after a reload');
+      assert(reloads === 1, 'THE SECOND BUG: a key refused again AFTER a reload must NOT reload again — that is an infinite reload loop (reloads=' + reloads + ')');
+
+      /* 4. A REFUSAL WITH NO NAMED FIELD still reloads once and never loops. */
+      CS.__resetForbiddenField();
+      const r4 = await CS.putClientState({ lootFilter: [] }, opts({ ok: false, error: 'forbidden_field' }));
+      assert(r4.forbiddenField === true && r4.dropped === false,
+        'a refusal that names no field cannot drop one, and must say so honestly');
+      assert(reloads === 2, 'an unnamed forbidden_field reloads once on its own sentinel (reloads=' + reloads + ')');
+      CS.__resetForbiddenField();
+      await CS.putClientState({ lootFilter: [] }, opts({ ok: false, error: 'forbidden_field' }));
+      assert(reloads === 2, 'the unnamed sentinel must not reload twice either');
+    } finally {
+      console.warn = realWarn;
+      window.notify = realNotify;
+      CS.__setClientStateReloadHook(prevHook);
+      CS.__resetForbiddenField();
+      if (savedSession === null) sessionStorage.removeItem(KEY);
+      else sessionStorage.setItem(KEY, savedSession);
+    }
+  }),
+
   () => tryRunAsync('GOAL-CLAIM-1 (b461): under arm a MODAL goal claim fires hr_claim_goal and surfaces every outcome — never a silent no-op', async () => {
     // The beta-morning regression: the quest modal's daily/weekly pools are a
     // THIRD goal system (≠ QUEST_DEFS, ≠ DAILY_TASK_POOL) and their

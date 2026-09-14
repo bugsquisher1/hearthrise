@@ -1057,6 +1057,12 @@
        reason icons.js is: both tile renderers name hrActivityTileClick inside
        an onclick attribute, so it has to exist before the first grid paints. -->
   <script src="src/render/activity-tile.js?v=546"></script>
+  <!-- SCREEN CONTROLLER: the farm. BEFORE legacy.js on purpose — legacy.js
+       installs its paintAll wrapper by reading window.renderFarm at its own
+       top level, so the name has to exist by then or the nav badges silently
+       stop refreshing after a harvest. Every top-level statement in farm.js is
+       inert (declarations + window publications), so loading early is safe. -->
+  <script src="src/screens/farm.js?v=546"></script>
   <script src="src/legacy.js?v=546"></script>
   <!-- SCREEN CONTROLLERS (task #129 phase 2) — src/screens/*. A whole tab's
        painter + handlers + wiring, moved verbatim out of the monolith. Classic

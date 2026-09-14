@@ -72,28 +72,36 @@
 -- in src/render/shop.js). Three links, ONE chain, two `--check` preflights. Not
 -- one number in this file is a price.
 --
--- ── THE SCOPE DECISION: PER CHARACTER, AND WHY (flagged for the Designer) ───
--- A hero slot is an ACCOUNT entitlement, so 2026-09-08-hero-slot-buy.sql files
--- its flag on slot 0 and reads it account-wide. A theme is NOT that, and this
--- file files the flag on the CALLING CHARACTER's row, because:
---   · every other unlock namespace in the game is per-character —
---     hr_unlock_levels(user, slot) is what hr_perks_of reads for rooms, plots and
---     recipes, and a theme filed anywhere else would be the one row in
---     player_progress that means something different from its neighbours;
---   · `ownedThemes`/`ownedCosmetics` are per-SAVE today, i.e. per character, so
---     per-character is what every existing owner already has and nobody is
---     re-scoped by this file landing;
---   · gems live on player_state per (user_id, slot), so the wallet charged and
---     the entitlement granted are the same row — `insufficient_gems` can only
---     ever quote the number the topbar is showing.
--- ⚠ RESIDUAL, STATED FOR THE GAME DESIGNER RATHER THAN DECIDED HERE: "Golden
---   Name — gold-tinted player name in chat & leaderboards" reads like an ACCOUNT
---   cosmetic, and buying it on Hero 1 will not tint Hero 2. Nothing server-side
---   reads any cosmetic yet, so this is a scope ruling that can still be made
---   freely; widening later is a UNION in one function (hr_gem_unlocks_of) plus a
---   backfill, while narrowing later would take an entitlement away from somebody.
---   Per-character is therefore the reversible direction, which is why it is the
---   one taken before the ruling exists.
+-- ── THE SCOPE: OWNERSHIP IS PER ACCOUNT (game-designer ruling, 2026-09-14) ──
+-- An earlier draft of this file filed AND read the flag at the calling character
+-- and flagged the question. The ruling settled it: OWNERSHIP IS PER ACCOUNT;
+-- the EQUIPPED/active selection (houseTheme and friends) stays per character and
+-- is deliberately not in this lane. "Golden Name — gold-tinted player name in
+-- chat & leaderboards" was the case that decided it: a premium cosmetic bought
+-- once must not have to be bought again by the same person on Hero 2.
+--
+-- The implementation is a READ/WRITE SPLIT, and the asymmetry is the design:
+--   READ  — hr_gem_unlocks_of UNIONS the user's rows across every slot. There is
+--           no slot predicate on the player_progress join, so the owned set is
+--           the same answer for every character of the account.
+--   WRITE — the flag is still filed at the PURCHASING slot, and so is the ledger
+--           row. That keeps the journal honest about WHICH WALLET PAID (gems
+--           live on player_state per (user_id, slot); a purchase filed on slot 0
+--           that was paid for from slot 2 would make the ledger lie about a
+--           premium-currency movement), and the union read makes it
+--           account-visible with NO BACKFILL and no migration of existing rows.
+--   REFUSE— `already_owned` at (6) reads the WIDENED set, which is the whole
+--           point: without that, Hero 2 pays 1,200 gems for a Phoenix Pet the
+--           account already owns. The guard's account-scope arm fails without
+--           the widening, by construction.
+--   CLAMP — the per-day ceiling at (7) was ALREADY account-wide (no slot filter
+--           on the ledger read) and is unchanged.
+--
+-- ⚠ p_slot STAYS IN hr_gem_unlocks_of's SIGNATURE and is deliberately unused by
+--   the owned-set query. It is the LEDGER/REJECTION CONTEXT — which character
+--   asked — and keeping it means the projection, the verdict and the refusal all
+--   call one function with one shape. Dropping the argument would be a signature
+--   change to a function three callers share, for no read that wants it.
 --
 -- ── WHAT A FORGED CALL CAN DO: NOTHING ─────────────────────────────────────
 -- The caller sends ONE TEXT, ONE INT AND A UUID: which unlock, which of its OWN
@@ -210,9 +218,18 @@ end $$;
 --     server-first, a default missing from it makes the STARTING theme
 --     unequippable. That is a projection causing the exact bug class it exists
 --     to kill, and it would look like a bug in the client.
---   BOUGHT rows are kind='flag' player_progress rows on the CALLING character,
+--   BOUGHT rows are kind='flag' player_progress rows belonging to the ACCOUNT —
+--     ACROSS EVERY SLOT (game-designer ruling 2026-09-14; see the header) —
 --     joined through the CATALOGUE so a mis-filed or uncatalogued row is
 --     invisible as well as unbuyable.
+--
+-- ⚠ THE MISSING PREDICATE IS THE FEATURE. There is no `pp.slot = p_slot` here,
+--   and its absence is what makes ownership account-wide. It is NOT an oversight
+--   and it is NOT a widened read of somebody else's data: `pp.user_id = p_user`
+--   still binds every row to the caller's own account, and p_user is derived
+--   from auth.uid() by every caller. A future edit that "tightens" this by
+--   adding the slot filter re-opens the double-charge the ruling exists to
+--   prevent — tests/gem-unlock-buy.mjs carries that exact mutation as an arm.
 --
 -- `security invoker` + `stable`: it reads only tables its callers already hold
 -- open, and every caller passes a uuid it has itself derived from auth.uid().
@@ -226,12 +243,15 @@ returns jsonb language sql stable security invoker set search_path = public as $
     select g.unlock_id
       from public.hr_gem_unlocks g
       join public.player_progress pp
-        on  pp.user_id = p_user and pp.slot = coalesce(p_slot, 0)
+        on  pp.user_id = p_user
         and pp.kind = 'flag' and pp.period_key = ''
         and pp.key = g.unlock_id
         and pp.value > 0
   ) q
-  where p_user is not null;
+  -- p_slot is context, not a filter (see the ⚠ above). Referenced here so the
+  -- argument cannot be dropped by accident and so a reader who greps for it
+  -- lands on the explanation rather than concluding it was forgotten.
+  where p_user is not null and coalesce(p_slot, 0) >= 0;
 $fn$;
 -- Takes an ARBITRARY uuid. No browser role may call it; the client receives its
 -- answer through the envelope, for its own character, and never asks directly.
@@ -323,11 +343,15 @@ begin
     return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', v_slot);
   end if;
 
-  -- ── (6) OWNERSHIP, FROM THE ONE PREDICATE. Refused BEFORE the debit, which is
-  --        the bug src/legacy.js buyTheme found on its own client side: the debit
-  --        used to run unconditionally, so buying a theme you already owned
-  --        charged you again and the only thing between the player and a second
-  --        1,000-gem Volcanic Keep was a button label.
+  -- ── (6) OWNERSHIP, FROM THE ONE PREDICATE, ACCOUNT-WIDE. Refused BEFORE the
+  --        debit, which is the bug src/legacy.js buyTheme found on its own client
+  --        side: the debit used to run unconditionally, so buying a theme you
+  --        already owned charged you again and the only thing between the player
+  --        and a second 1,000-gem Volcanic Keep was a button label.
+  --        ⚠ THIS READ IS ACCOUNT-SCOPED BY THE 2026-09-14 RULING, and that is
+  --          what stops Hero 2 paying 1,200 gems for a Phoenix Pet the account
+  --          owns. A slot-scoped read here would be a silent double charge on
+  --          the premium currency for every multi-character player.
   v_owned := public.hr_gem_unlocks_of(v_uid, v_slot);
   if v_owned @> to_jsonb(v_cat.unlock_id) then
     return jsonb_build_object('ok', false, 'error', 'already_owned',
@@ -485,9 +509,12 @@ revoke execute on function public.hr_rpc_gate(text) from anon, authenticated, se
 -- array means the boot envelope already carries it, with no extra round trip and
 -- nothing second to keep in step.
 --
--- ⚠ CHARACTER-SCOPED (v_st.slot), unlike `hero_slots` beside it. See the scope
---   decision in the header: every other unlock namespace is per character, and
---   this is the reversible direction.
+-- ⚠ ACCOUNT-SCOPED, like `hero_slots` beside it (game-designer ruling
+--   2026-09-14). `v_st.slot` is passed as CONTEXT only — hr_gem_unlocks_of does
+--   not filter on it — so every character of an account projects the same owned
+--   set, which is what makes a theme bought on Hero 1 appear on Hero 2 with no
+--   backfill. The EQUIPPED selection stays per character and is not in this
+--   lane.
 --
 -- ⚠ READ UNFILTERED, exactly as `traits` and `hero_slots` are, and for the same
 --   stated reason: the generic `progress` array is LIMIT 1000, and a projection
@@ -513,7 +540,7 @@ begin
                     'account for.';
   end if;
   v_def := replace(v_def, c_anchor, c_anchor || $new$
-    -- gem-unlock-buy (2026-09-14): the themes and cosmetics this CHARACTER owns,
+    -- gem-unlock-buy (2026-09-14): the themes and cosmetics this ACCOUNT owns,
     -- as a flat array of '<namespace>:<id>'. Written only by hr_buy_gem_unlock
     -- (there is no client write policy and no client write grant on
     -- player_progress), read by src/legacy.js ownsGemUnlock so ownership stops
@@ -783,6 +810,50 @@ begin
       raise exception 'GATE(e6): an uncatalogued id MOVED GEMS';
     end if;
 
+    -- (e7) THE RULING, EXECUTED: OWNERSHIP IS PER ACCOUNT. A SECOND character of
+    --      the same account must SEE the unlock slot 0 bought and must be
+    --      REFUSED a second purchase of it — otherwise every multi-character
+    --      player pays the premium price once per hero. The hero slot is granted
+    --      through the real entitlement flag rather than by forging a row, so
+    --      hr_create_character's own gate is exercised rather than bypassed.
+    insert into public.player_progress
+      (user_id, slot, kind, key, value, period_key, updated_at)
+    values (v_uid, 0, 'flag', 'character_slot:1', 1, '', now())
+    on conflict (user_id, slot, kind, key, period_key) do update set value = 1;
+    v_r := public.hr_create_character(1);
+    if v_r->>'created' <> 'true' then
+      raise exception 'GATE(e7) CANNOT RUN: the second character was refused (%) — the account '
+                      'entitlement flag did not take', v_r;
+    end if;
+    if not ((public.hr_gem_unlocks_of(v_uid, 1)) @> to_jsonb(v_id)) then
+      raise exception 'GATE(e7): hero 2 does not own the % hero 1 bought (%) — ownership is per '
+                      'ACCOUNT (game-designer ruling 2026-09-14) and this read is slot-scoped',
+                      v_id, public.hr_gem_unlocks_of(v_uid, 1);
+    end if;
+    if not (((public.hr_state_of(v_uid, 1))->'gem_unlocks') @> to_jsonb(v_id)) then
+      raise exception 'GATE(e7): hero 2''s ENVELOPE does not carry the account''s unlock';
+    end if;
+    update public.player_state set gems = 999999 where user_id = v_uid and slot = 1;
+    v_r := public.hr_buy_gem_unlock__ungated(v_id, 1, gen_random_uuid());
+    if v_r->>'error' is distinct from 'already_owned' then
+      raise exception 'GATE(e7): hero 2 buying the account''s own % answered % — it must be '
+                      'already_owned, or the premium price is charged once per character', v_id, v_r;
+    end if;
+    if (select gems from public.player_state where user_id = v_uid and slot = 1) <> 999999 then
+      raise exception 'GATE(e7): hero 2 WAS CHARGED for an unlock the account already owns';
+    end if;
+    -- AND THE WRITE STAYED WHERE THE MONEY CAME FROM: exactly one flag row, on
+    -- the purchasing slot, so the journal still says which wallet paid.
+    if (select count(*) from public.player_progress
+         where user_id = v_uid and kind = 'flag' and key = v_id) <> 1 then
+      raise exception 'GATE(e7): the account-wide READ was implemented as a per-slot WRITE — the '
+                      'flag was duplicated across characters';
+    end if;
+    if not exists (select 1 from public.player_progress
+                    where user_id = v_uid and slot = 0 and kind = 'flag' and key = v_id) then
+      raise exception 'GATE(e7): the flag is not on the PURCHASING slot';
+    end if;
+
     raise exception using errcode = 'HR842',
       message = 'gem-unlock-buy §7 complete — rolling back';
   exception when sqlstate 'HR842' then null;
@@ -792,12 +863,18 @@ begin
 
   -- ROLLBACK PROOF. Without this the file seeds a character into production as a
   -- side effect of verifying itself, which CLAUDE.md §2 forbids outright.
-  if exists (select 1 from public.player_state    where user_id = v_uid)
-     or exists (select 1 from public.player_skills   where user_id = v_uid)
-     or exists (select 1 from public.player_progress where user_id = v_uid)
-     or exists (select 1 from public.player_ledger   where user_id = v_uid)
-     or exists (select 1 from public.player_intents  where user_id = v_uid)
-     or exists (select 1 from auth.users            where id = v_uid) then
+  -- TWO characters were created above (e7 buys a hero slot), so the kit tables
+  -- are named here too: hr_create_character seeds inventory and equipment, and a
+  -- leak check that does not look at them would pass while two starting kits sat
+  -- in production.
+  if exists (select 1 from public.player_state     where user_id = v_uid)
+     or exists (select 1 from public.player_skills    where user_id = v_uid)
+     or exists (select 1 from public.player_inventory where user_id = v_uid)
+     or exists (select 1 from public.player_equipment where user_id = v_uid)
+     or exists (select 1 from public.player_progress  where user_id = v_uid)
+     or exists (select 1 from public.player_ledger    where user_id = v_uid)
+     or exists (select 1 from public.player_intents   where user_id = v_uid)
+     or exists (select 1 from auth.users             where id = v_uid) then
     raise exception 'GATE: §7 LEAKED a probe row';
   end if;
 
@@ -806,5 +883,7 @@ begin
                'are callable by nobody, the wrapper is gated + seamed + defaulted, and EXECUTED: '
                'the free theme is owned and unsellable, a broke character is refused, a funded one '
                'pays exactly the catalogue price once, the replay and the re-buy both charge '
-               'nothing, a forged id buys nothing — all green, net zero';
+               'nothing, a forged id buys nothing, and a SECOND character of the account both sees '
+               'the unlock and is refused a second purchase of it while the flag stays on the '
+               'purchasing slot — all green, net zero';
 end $$;

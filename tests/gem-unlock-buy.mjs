@@ -85,6 +85,20 @@ const MUTATIONS = {
     find: `    'gem_unlocks', public.hr_gem_unlocks_of(p_user, v_st.slot),$new$);`,
     repl: `    'gemUnlocks', public.hr_gem_unlocks_of(p_user, v_st.slot),$new$);`,
   },
+  read_narrowed_to_one_slot: {
+    by: 'R12',
+    why: 'the account-wide read is "tightened" back to the calling slot, which re-opens the double '
+       + 'charge the 2026-09-14 game-designer ruling exists to prevent: Hero 2 cannot see the '
+       + 'Phoenix Pet the account bought on Hero 1, so `already_owned` never fires and the player '
+       + 'pays 1,200 gems of premium currency a second time for the same thing. The missing '
+       + '`pp.slot` predicate is the FEATURE, and this arm is what says so to the next author',
+    find: `      join public.player_progress pp
+        on  pp.user_id = p_user
+        and pp.kind = 'flag' and pp.period_key = ''`,
+    repl: `      join public.player_progress pp
+        on  pp.user_id = p_user and pp.slot = coalesce(p_slot, 0)
+        and pp.kind = 'flag' and pp.period_key = ''`,
+  },
   free_rows_dropped_from_the_set: {
     by: 'R2',
     why: 'hr_gem_unlocks_of stops unioning the FREE rows, so a fresh character does not own '
@@ -408,6 +422,62 @@ async function runAll(db) {
     ok((await ledger()).length === 1, 're-buying an owned unlock journalled a second row');
   }
 
+  // ── R12. OWNERSHIP IS PER ACCOUNT (game-designer ruling, 2026-09-14) ────
+  // A SECOND character of the same account must SEE what Hero 1 bought and must
+  // be REFUSED a second purchase of it. Without the widened read this is a
+  // silent double charge on the PREMIUM currency for every multi-character
+  // player — and it is silent because each hero's own screen looks correct.
+  //
+  // The hero slot is granted through the REAL account entitlement flag rather
+  // than by forging a player_state row, so hr_create_character's own ownership
+  // gate (2026-09-08-hero-slot-buy.sql §8) is exercised rather than bypassed —
+  // a probe that fabricates the character would also pass against a database
+  // where the slot could not legitimately exist.
+  {
+    await db.exec(`insert into public.player_progress
+                     (user_id, slot, kind, key, value, period_key, updated_at)
+                   values ('${UID}', 0, 'flag', 'character_slot:1', 1, '', now())
+                   on conflict (user_id, slot, kind, key, period_key) do update set value = 1;`);
+    const hero2 = (await q('select public.hr_create_character(1) as r')).r;
+    ok(hero2 && hero2.created === true,
+       `the second character was refused (${JSON.stringify(hero2)}) — the account entitlement flag `
+       + 'did not take, and R12 would otherwise pass by never running');
+
+    const set1 = (await q('select public.hr_gem_unlocks_of($1::uuid, 1) as s', [UID])).s;
+    ok(Array.isArray(set1) && set1.includes(target.unlock_id),
+       `hero 2 does not own the ${target.unlock_id} hero 1 bought (${JSON.stringify(set1)}) — `
+       + 'ownership is per ACCOUNT and this read is slot-scoped');
+    const env1 = (await q('select public.hr_state_of($1::uuid, 1) as e', [UID])).e || {};
+    ok(Array.isArray(env1.gem_unlocks) && env1.gem_unlocks.includes(target.unlock_id),
+       `hero 2's ENVELOPE does not carry the account's unlock (${JSON.stringify(env1.gem_unlocks)})`);
+
+    // Funded deliberately far above the price: a refusal that is really
+    // `insufficient_gems` wearing another name would prove nothing.
+    await db.exec(`update public.player_state set gems = 999999
+                    where user_id = '${UID}' and slot = 1;`);
+    const r2 = (await q(
+      'select public.hr_buy_gem_unlock__ungated($1::text, 1, $2::uuid) as r',
+      [target.unlock_id, null])).r;
+    ok(r2 && r2.error === 'already_owned',
+       `hero 2 buying the account's own ${target.unlock_id} answered ${JSON.stringify(r2)} — it must `
+       + 'be already_owned, or the premium price is charged once per character');
+    const gems1 = Number((await q(
+      'select gems from public.player_state where user_id=$1 and slot=1', [UID])).gems);
+    ok(gems1 === 999999, `hero 2 WAS CHARGED for an unlock the account already owns (${gems1})`);
+
+    // AND THE WRITE STAYED WHERE THE MONEY CAME FROM. The ruling is a read/write
+    // SPLIT: an account-wide read implemented as a per-slot write would duplicate
+    // the flag and make the journal lie about which wallet paid.
+    const flags = (await db.query(
+      "select slot from public.player_progress where user_id=$1 and kind='flag' and key=$2",
+      [UID, target.unlock_id])).rows;
+    ok(flags.length === 1,
+       `${flags.length} flag rows for one purchase — the account-wide READ was implemented as a `
+       + 'per-slot WRITE');
+    ok(flags[0] && Number(flags[0].slot) === 0, 'the flag is not on the PURCHASING slot');
+    ok((await ledger()).length === 1, 'hero 2\'s refused purchase journalled a row');
+  }
+
   // ── R9. THE FILE RE-APPLIES BYTE-IDENTICALLY ────────────────────────────
   // A migration the Coordinator can only run once cannot be replayed into a
   // restored database. Both splices must detect their own work and return.
@@ -501,6 +571,7 @@ if (failed) { console.error(`\ngem-unlock-buy: ${failed} assertion(s) FAILED.`);
 console.log('gem-unlock-buy: the catalogue IS src/data/shops.js in both directions, hr_state_of projects '
   + 'the owned set top-level, the free theme is owned by everybody and sellable to nobody, a broke '
   + 'character is refused, a funded one pays exactly the catalogue price once and is journalled once, '
-  + 'a replay and a re-buy both charge nothing, a forged id buys nothing, and nothing became '
-  + 'client-executable.');
+  + 'a replay and a re-buy both charge nothing, a forged id buys nothing, a SECOND character of the '
+  + 'account sees the unlock and is refused a second purchase of it while the flag stays on the '
+  + 'purchasing slot, and nothing became client-executable.');
 process.exit(0);

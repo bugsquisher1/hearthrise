@@ -677,11 +677,11 @@ let G={
   /* b215: seasonPass field retired (pay-to-win XP). Old saves may still
      carry the key; nothing reads it. */
   skills:{attack:0,strength:0,defense:0,hitpoints:1154,prayer:0,magic:0,woodcutting:0,mining:0,fishing:0,farming:0,cooking:0,crafting:0,smithing:0},
-  /* b495 — MUST EQUAL src/data/start-kit.js START_INVENTORY (smoke B338-1).
-     20 cooked shrimp is the food BRIDGE; read the ruling in that file before
-     changing a number here. This literal cannot import it (classic script,
-     evaluated at parse time), which is why the guard exists. */
-  inventory:{turnip_seed:5,carrot_seed:3,shrimp:10,cooked_shrimp:20},
+  /* THE BAG STARTS EMPTY: the starting kit is the SERVER's (src/data/start-kit.js
+     -> hr_start_kit -> hr_create_character). The old literal here was the largest
+     phantom source in the game — loadLocal cannot strip `inventory`, and the merge
+     ratchet can never lower a non-owned id. Smoke B338-1 keeps it empty. */
+  inventory:{},
   equipment:{...Object.fromEntries(EQUIP_SLOTS.map(s=>[s,null])),weapon:'bronze_sword'},
   /* ELEMENTS v1 — the weapon-slot enchant, SERVER-AUTHORED. Element name only,
      never a magnitude ({weapon:'ember'|'frost'|'poison'} or {}). Persists by

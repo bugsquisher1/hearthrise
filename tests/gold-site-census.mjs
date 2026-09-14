@@ -568,8 +568,13 @@ export const MUTATIONS = {
     why: 'a wired row names a verb the server\'s own parser does not accept. Every real gesture '
       + 'there would spend a rate slot to earn a 400 unknown_verb.',
     file: LEDGER_FILE,
-    find: "    kind: 'vendor', status: 'wired', verb: 'vendor_sell',\n    site: 'src/legacy.js invSellOne()",
-    repl: "    kind: 'vendor', status: 'wired', verb: 'vendor_sellx',\n    site: 'src/legacy.js invSellOne()",
+    /* 2026-09-14: re-anchored. The anchor carried the SITE string, and tonight's
+       screen-controller extraction moved invSellOne() from src/legacy.js to
+       src/screens/shop-counter.js — so it matched zero times and the arm planted
+       nothing. Anchor on the row KEY and the line this mutation actually bends;
+       where the code lives is exactly the thing an extraction lane changes. */
+    find: "  'seam:vendor.sell_one': {\n    kind: 'vendor', status: 'wired', verb: 'vendor_sell',",
+    repl: "  'seam:vendor.sell_one': {\n    kind: 'vendor', status: 'wired', verb: 'vendor_sellx',",
   },
   /* ── F6: THE FOUR EVASIONS, ONE MUTATION EACH ─────────────────────────────
      Each plants a NEW FILE containing an undeclared gold movement written the

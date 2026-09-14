@@ -445,11 +445,19 @@ img[src*="assets/raw-bundle"] {
   border-radius: 6px;
   margin: 4px 0;
 }
-.buff-row .br-name { flex: 1; font-family: var(--f-display); font-weight: 700; font-size:calc(16px * var(--ui-scale, 1)); color: var(--ink); }
+.buff-row .br-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-family: var(--f-display); font-weight: 700; font-size:calc(16px * var(--ui-scale, 1)); color: var(--ink); }
 .buff-row .br-mag { color: var(--green); font-weight: 800; font-size:calc(16px * var(--ui-scale, 1)); }
 .buff-row .br-time {
   color: var(--ink-3); font-family: monospace; font-size:calc(14.5px * var(--ui-scale, 1));
   min-width: 50px; text-align: right;
+}
+/* The Cellar note joined this single-line flex row (2026-09-13). It never wraps
+   and never truncates — it is a fact about the clock beside it — so the NAME is
+   the element that gives way (min-width:0 above), exactly as .br-next already
+   assumed. Provenance ink, not the moss the magnitude owns. */
+.buff-row .br-cellar {
+  flex: 0 0 auto; color: var(--ink-3); font-weight: 600;
+  font-size:calc(14.5px * var(--ui-scale, 1)); white-space: nowrap;
 }
 .active-effects-card .eff-row.house {
   display: flex !important;

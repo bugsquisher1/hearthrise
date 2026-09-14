@@ -108,8 +108,61 @@ const BASE_RECIPES = {
        not legally serve. */
     {id:'smelt_bronze',  name:'Bronze Bar',  icon:'🟫', inputs:{copper_ore:2},                                output:'bronze_bar',  xp:20,  req:1,  ms:2600},
     {id:'smelt_iron',    name:'Iron Bar',    icon:'⬜', input:'iron_ore',    output:'iron_bar',    xp:30,  req:15, ms:3000},
-    {id:'smelt_steel',   name:'Steel Bar',   icon:'⬜', inputs:{iron_bar:1, coal:2},                          output:'steel_bar',   xp:70,  req:35, ms:3600},
-    {id:'smelt_gold',    name:'Gold Bar',    icon:'🟡', input:'gold_ore',    output:'gold_bar',    xp:60,  req:40, ms:4000, secondary:{coal:2}},
+    /* ── THE SELF-SUPPLY RULING (game-designer, 2026-09-13, final) ─────────
+       THE RULE, in one line: **a material is made where its tier opens, and no
+       rung may ask for a tier the player cannot yet open** — formally, for every
+       recipe R and every input i, `req(R) >= the cheapest level at which i can be
+       MADE`. DEEPSEAM-5 measured 57 shipped rungs that broke it and froze the
+       count; this is the build that pays it to ZERO, and the guard now asserts
+       zero with a mutation arm.
+
+       WHY THE BAR MOVED AND NOT THE ARMOUR. A tier's gear is generated at
+       `MATERIAL_TIERS.smith + slot.lvOff` (gear-tiers.js), so the tier's FIRST
+       rung is its gauntlets at smith+1 — while the bar these forges eat sat
+       *above the whole band*: steel bar 35 vs steel gauntlets 31, mithril bar 55
+       vs a band running 46-55, rune bar 75 above a band that ENDS at 70. Pushing
+       consumers up instead would have collapsed six-rung bands onto one level and
+       shoved rune gauntlets (61) into the Emberforged tier, i.e. it would have
+       taken content away from the player to fix a bookkeeping error. Moving the
+       bar to `MATERIAL_TIERS.smith` — the number that already MEANS "this tier
+       opens now" — makes the ladder read the way it always claimed to:
+           30 you can work steel → 31 the gauntlets → 40 the platebody.
+       And it holds FOR EVERY FUTURE TIER by construction, because smith+0 is
+       below smith+lvOff for every slot and weapon family there can ever be.
+       Bars keep their xp and ms, so nothing about the paced artisan curve moves;
+       only the level at which the rung appears does (steel 19.4 xp/s, verdite
+       22.6, mithril 24.0 … the series is still strictly increasing BY LEVEL:
+       iron 10.0 @15 → gold 15.0 @25 → steel 19.4 @30 → verdite 22.6 @42 →
+       mithril 24.0 @45 → rune 40.0 @60 → ember 53.1 @75 → dawn 68.6 @88).
+       The ORE is unchanged and still arrives on the Mining ladder (mithril rock
+       60, emberstone 75, dawnstone 90): the smith who mines is early to the bar
+       and late to the ore, which is what the market, the drop tables and the
+       Deep Seam band are for. What is gone is the LIE — a forge rung you have
+       the level for and a bar rung you do not.
+
+       GOLD IS NOT A GEAR TIER (no MATERIAL_TIERS row, no armour, no weapon): its
+       only reason to exist is the jewellery lane, whose first two rungs — Gold
+       Ring and Hunter Necklace — are Crafting 25. So the rule's other half
+       applies: a supply rung never sits above the first rung that consumes it.
+       40 → 25. Gold ore is a Mining-45 rock AND a drop off two mid monsters
+       (Bandit 6%, Captain 50% + the bar itself at 25%), so a Crafting-25 ring
+       has a real supply that is not "wait twenty Mining levels".
+       The row is also MOVED above steel so the lane renders in level order.
+
+       AND IT LOSES ITS COAL — the b525 BRONZE WALL, one rung over. That ruling
+       (played, live, 2026-09-09) is a rule and not a number: *nothing reachable
+       before coal is minable may demand coal*, because the only gatherable coal
+       in the game is the Mining-30 Coal Rock. Bronze was freed by REMOVING the
+       reagent rather than by inventing a low-level coal node — "removing a
+       reagent that nothing else in the tier can supply is the smaller, stronger
+       fix" (the Bronze Wall note above) — and a Smithing-25 gold bar priced in
+       Mining-30 coal is the same wall in the same place. Gold keeps its ore, its
+       xp and its ms. Coal's first sink is now STEEL at Smithing 30, which is
+       exactly where Coal Rock opens at Mining 30 — the two ladders finally meet
+       on the same rung — and it keeps every sink above that (steel 2, mithril 3,
+       rune 4, ember 4, dawn 5, deathsteel 6 and the forge lines). */
+    {id:'smelt_gold',    name:'Gold Bar',    icon:'🟡', input:'gold_ore',    output:'gold_bar',    xp:60,  req:25, ms:4000},
+    {id:'smelt_steel',   name:'Steel Bar',   icon:'⬜', inputs:{iron_bar:1, coal:2},                          output:'steel_bar',   xp:70,  req:30, ms:3600},
     /* ── "DEEP SEAM" — the Steel(35)→Mithril(55) bar silence ───────────────
        Verdite is the one bar between them, and it does NOT eat coal: it eats
        FLUXSALT (its own Mining-40 rung). That is deliberate and it is the
@@ -120,11 +173,11 @@ const BASE_RECIPES = {
        new metal its own supply line, and the smelt pays 22.6 xp/s against
        steel's 19.4 and mithril's 24.0 — seated, not a new best. */
     {id:'smelt_verdite', name:'Verdite Bar', icon:'🟩', inputs:{verdite_ore:2, flux_salt:1}, output:'verdite_bar', xp:95, req:42, ms:4200},
-    {id:'smelt_mithril', name:'Mithril Bar', icon:'🔵', input:'mithril_ore', output:'mithril_bar', xp:120, req:55, ms:5000, secondary:{coal:3}},
-    {id:'smelt_rune',    name:'Rune Bar',    icon:'🔷', inputs:{mithril_bar:1, magic_essence:1, coal:4},      output:'rune_bar',    xp:240, req:75, ms:6000},
+    {id:'smelt_mithril', name:'Mithril Bar', icon:'🔵', input:'mithril_ore', output:'mithril_bar', xp:120, req:45, ms:5000, secondary:{coal:3}},
+    {id:'smelt_rune',    name:'Rune Bar',    icon:'🔷', inputs:{mithril_bar:1, magic_essence:1, coal:4},      output:'rune_bar',    xp:240, req:60, ms:6000},
     /* b215: the last two bars — smithing had nothing new between 75 and 99. */
-    {id:'smelt_ember',   name:'Emberforged Bar', icon:'🟧', inputs:{emberstone_ore:1, coal:4},                output:'ember_bar',   xp:340, req:82, ms:6400},
-    {id:'smelt_dawn',    name:'Dawnsteel Bar',   icon:'🟪', inputs:{dawnstone_ore:1, ember_bar:1, coal:5},    output:'dawn_bar',    xp:480, req:92, ms:7000},
+    {id:'smelt_ember',   name:'Emberforged Bar', icon:'🟧', inputs:{emberstone_ore:1, coal:4},                output:'ember_bar',   xp:340, req:75, ms:6400},
+    {id:'smelt_dawn',    name:'Dawnsteel Bar',   icon:'🟪', inputs:{dawnstone_ore:1, ember_bar:1, coal:5},    output:'dawn_bar',    xp:480, req:88, ms:7000},
     /* b215: tool ladder tiers 6-7 (best owned tool auto-applies) */
     {id:'forge_ember_axe',     name:'Forge Emberforged Axe',     icon:'🪓', inputs:{ember_bar:2, runewood_plank:1}, output:'ember_axe',     xp:2600, req:80, ms:5800},
     {id:'forge_dawn_axe',      name:'Forge Dawnsteel Axe',       icon:'🪓', inputs:{dawn_bar:2, duskwood_plank:1},  output:'dawn_axe',      xp:4200, req:92, ms:6400},
@@ -237,8 +290,22 @@ const BASE_RECIPES = {
     {id:'saw_yew',    name:'Yew Plank',    icon:'🌲', input:'yew_log',    output:'yew_plank',    xp:160, req:60, ms:6000},
     // Carved weapons
     {id:'carve_shortbow',         name:'Carve Shortbow',          icon:'🏹', inputs:{normal_plank:2, silk_thread:1},       output:'shortbow',         xp:60,  req:5,  ms:2400},
-    {id:'carve_longbow',          name:'Carve Longbow',           icon:'🏹', inputs:{willow_plank:3, silk_thread:2},       output:'longbow',          xp:240, req:25, ms:3600},
-    {id:'carve_apprentice_staff', name:'Carve Apprentice Staff',  icon:'🪄', inputs:{oak_plank:2, magic_essence:1},        output:'apprentice_staff', xp:120, req:12, ms:2800},
+    /* ── THE SELF-SUPPLY RULING, WOOD HALF (2026-09-13; the rule is stated in
+       full above the smelting lane) ─────────────────────────────────────────
+       These two rungs ask for a plank ONE WOOD TIER ABOVE their own: the Longbow
+       is the tier-2 bow (GEAR_LADDERS weapon/bow) and wanted WILLOW, which is
+       tier 3 and saws at Crafting 30 — five levels above the bow itself; the
+       Apprentice Staff is the tier-1 staff and wanted OAK (tier 2, Crafting 15)
+       at level 12. Here the LEVEL is the authored pacing decision and the WOOD is
+       the slip, so the wood moves: tier 2 → oak, tier 1 → normal, exactly what
+       MATERIAL_TIERS pairs with iron and bronze. The levels do not move, because
+       moving them would have tied the Longbow to the Willow Longbow's rung (35 →
+       nothing to look forward to) and put the Apprentice Staff on top of the Oak
+       Staff, which is the b348 disorder class one lane over. It also un-doubles
+       the bow lane: t2 and t3 both used willow, so the ladder's second rung read
+       as "the same bow again, bigger". Plank count is unchanged (3 / 2). */
+    {id:'carve_longbow',          name:'Carve Longbow',           icon:'🏹', inputs:{oak_plank:3, silk_thread:2},          output:'longbow',          xp:240, req:25, ms:3600},
+    {id:'carve_apprentice_staff', name:'Carve Apprentice Staff',  icon:'🪄', inputs:{normal_plank:2, magic_essence:1},     output:'apprentice_staff', xp:120, req:12, ms:2800},
     {id:'carve_oak_staff',        name:'Carve Oak Staff',         icon:'🪄', inputs:{willow_plank:3, magic_essence:2, ancient_rune:1}, output:'oak_staff', xp:300, req:30, ms:4000},
     /* ⚠ THE BATCH STAYS AT 50. DO NOT RAISE IT TO MATCH THE `fletch_*` LADDER.
        This was tried on 2026-08-18 and the accrual guard caught it: at ×500 a
@@ -299,7 +366,16 @@ const BASE_RECIPES = {
     {id:'craft_rune_needle',  name:'Forge Rune Needle',  icon:'🪡', inputs:{rune_bar:1, silk_thread:3},  output:'rune_needle',  xp:1500, req:75, ms:5500},
     /* b215: the last two planks + rods — crafting stopped at 78 before this. */
     {id:'saw_runewood', name:'Runewood Plank', icon:'🪵', input:'runewood_log', output:'runewood_plank', xp:260, req:75, ms:6500},
-    {id:'saw_duskwood', name:'Duskwood Plank', icon:'🪵', input:'duskwood_log', output:'duskwood_plank', xp:380, req:90, ms:7200},
+    /* SELF-SUPPLY RULING (2026-09-13): 90 → 88, the Dawnsteel tier's own craft
+       gate (MATERIAL_TIERS.dawn.craft). Every other plank already sits exactly on
+       its tier's gate (normal 1, oak 15, willow 30, maple 45, yew 60, runewood
+       75); duskwood alone was pinned to the TREE's Woodcutting level (90), two
+       above the tier — so the tier-7 leather and cloth gauntlets, generated at
+       craft+lvOff = 89, asked for a plank the crafter could not saw yet. One
+       number fixes the whole duskwood line instead of nudging each piece up.
+       The LOG is still Woodcutting 90, the same way the ore stays on the Mining
+       ladder above its bar. */
+    {id:'saw_duskwood', name:'Duskwood Plank', icon:'🪵', input:'duskwood_log', output:'duskwood_plank', xp:380, req:88, ms:7200},
     {id:'carve_duskwood_rod',  name:'Carve Duskwood Rod',  icon:'🎣', inputs:{runewood_plank:3, silk_thread:5, magic_essence:3}, output:'duskwood_rod',  xp:2600, req:84, ms:6000},
     {id:'carve_dawnsteel_rod', name:'Carve Dawnsteel Rod', icon:'🎣', inputs:{duskwood_plank:3, dawn_bar:1, silk_thread:6},      output:'dawnsteel_rod', xp:4200, req:94, ms:6600},
     /* b222 — Castle Stores (clan-overhaul v2 §4.3). Slime Gel is the binder:

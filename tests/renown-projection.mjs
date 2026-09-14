@@ -265,6 +265,36 @@ async function laterChainBlinds(mutate) {
   return out;
 }
 
+/* ── DOWNSTREAM SELF-CHECKS THE MARKER SCAN CANNOT FIND ────────────────────
+   laterChainBlinds only sees `if … then` GATE HEADERS that mention a literal the
+   mutation deleted. That is the right net for a TEXT pin, and it catches nothing
+   at all for a BEHAVIOURAL one — a later migration's §4 that drives hr_apply and
+   COUNTS what it wrote has no marker to scan for and no gate header to rewrite.
+
+   Measured, 2026-09-13: `journal_on_every_apply` turns the ratchet's raise-only
+   predicate into `<=`, so every apply writes a renown_ratchet row. Two files
+   later, 2026-09-13-buff-cellar-scale.sql §3(g) asserts that a buff_apply leaves
+   EXACTLY ONE ledger row (the game_events lesson) — so the CHAIN refused, the arm
+   read `RED (threw)`, and the selftest correctly scored it as not caught: a red
+   that only proves another migration's §4 can fire is vacuous, and it is the one
+   arm out of eighteen that never reached its own R-assertion.
+
+   Blinding is the documented answer (the same move tests/buff-queue.mjs makes for
+   the rejections file's GATE(e) pin), and it belongs HERE rather than in the
+   migration, which is applied and byte-frozen. Each entry short-circuits ONE
+   downstream self-check by name, and only in gate-blind mode; the plain arm still
+   runs the whole chain honestly, which is where "the migration would have caught
+   it too" is demonstrated. Over-blinding stays the safe direction: it can only
+   remove a MIGRATION's assertions, never this guard's, and an arm that then goes
+   green is reported as STAYED GREEN rather than passing. */
+const DOWNSTREAM_SELF_CHECK_BLINDS = [
+  ['2026-09-13-buff-cellar-scale.sql', [[
+    '  -- ── (a) THE TEXT, AND THE PREDECESSORS ────────────────────────────────────',
+    ['  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/renown-projection.mjs)',
+      '  -- ── (a) THE TEXT, AND THE PREDECESSORS ────────────────────────────────────'].join('\n'),
+  ]]],
+];
+
 async function boot(mutate, gateBlind, extra) {
   const pairs = [];
   if (mutate) pairs.push([MUTATIONS[mutate].find, MUTATIONS[mutate].repl]);
@@ -272,7 +302,14 @@ async function boot(mutate, gateBlind, extra) {
   if (gateBlind) pairs.push(GATE_BLIND);
   if (!pairs.length) { const { db } = await bootReplay(); return db; }
   const patches = new Map([[MIG, pairs]]);
-  if (gateBlind && mutate) for (const [name, list] of await laterChainBlinds(mutate)) patches.set(name, list);
+  if (gateBlind && mutate) {
+    /* CONCAT, never `set` over: one downstream file may owe BOTH a named
+       self-check blind and a marker-derived gate blind, and replacing the list
+       would silently drop whichever ran second. */
+    const add = (name, list) => patches.set(name, (patches.get(name) || []).concat(list));
+    for (const [name, list] of DOWNSTREAM_SELF_CHECK_BLINDS) add(name, list.map((p) => p.slice()));
+    for (const [name, list] of await laterChainBlinds(mutate)) add(name, list);
+  }
   const { db } = await bootReplay({ patches });
   return db;
 }

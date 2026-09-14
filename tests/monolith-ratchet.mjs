@@ -40,13 +40,17 @@
 //   MONO-3  src/legacy.js top-level FUNCTION-VALUED CONSTS       (ceiling)
 //           — closes the dodge where `function f(){}` becomes `const f = () =>`
 //             and MONO-2 falls without one line leaving the file.
-//   MONO-4  src/render/** FILE COUNT          may only go UP     (floor)
-//   MONO-5  src/render/** TOTAL LINES         may only go UP     (floor)
+//   MONO-4  src/render/** + src/screens/** FILE COUNT   may only go UP  (floor)
+//   MONO-5  src/render/** + src/screens/** TOTAL LINES  may only go UP  (floor)
 //
 // A floor is unusual and is deliberate: MONO-4/5 are what stop an extraction
 // from being quietly reverted, which is the failure this repo has actually had
-// (11 files landed 2026-08-24 and nothing has been extracted since). A genuine
-// deletion inside src/render — dead code found in an already-extracted unit —
+// (11 files landed 2026-08-24 and nothing was extracted for two weeks). They
+// count BOTH halves of the extraction target — src/render/** (helpers, phase
+// one) and src/screens/** (whole screen controllers, phase two, landed
+// 2026-09-14) — because a floor that watches only the finished phase cannot see
+// the current one being undone. A genuine deletion inside either — dead code
+// found in an already-extracted unit —
 // is a legitimate reason for a floor to fall, and the answer is the same as
 // everywhere else in this repo: re-run --write IN THE SAME COMMIT, so the
 // decision is in the diff and in review, rather than absent.
@@ -82,6 +86,16 @@ const BASELINE = join(ROOT, 'tests', 'monolith-ratchet.baseline.json');
 
 const MONOLITH = 'src/legacy.js';
 const RENDER_DIR = 'src/render';
+/* THE EXTRACTION TARGET, both halves of it. §7 says "render helpers to
+   src/render/* FIRST, then screen controllers" — phase two landed 2026-09-14
+   (src/screens/{inventory,farm,shop-counter}.js, 1,322 lines out of the
+   monolith), and a floor pinned only to src/render would have watched all three
+   files be deleted without a word. The floors MONO-4/5 exist precisely to stop
+   an extraction being quietly reverted, so they count wherever extracted code
+   legitimately lives. Add the next target directory HERE, not in a second
+   guard. */
+const TARGET_DIRS = [RENDER_DIR, 'src/screens'];
+const TARGET_LABEL = TARGET_DIRS.join(' + ');
 
 /* Column-0 declarations only — the same regex as tests/no-duplicate-toplevel-fns.mjs. */
 const DECL_RE = /^(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(/;
@@ -142,8 +156,8 @@ export function measure(root) {
   const lines = text.split(/\r?\n/);
   const names = topLevelFunctionNames(text);
 
-  const renderFiles = walk(join(root, RENDER_DIR))
-    .map((p) => RENDER_DIR + '/' + relative(join(root, RENDER_DIR), p).split(sep).join('/'))
+  const renderFiles = TARGET_DIRS.flatMap((dir) => walk(join(root, dir))
+    .map((p) => dir + '/' + relative(join(root, dir), p).split(sep).join('/')))
     .sort();
   let renderLines = 0;
   for (const rel of renderFiles) renderLines += lineCount(readFileSync(join(root, rel), 'utf8'));
@@ -156,7 +170,7 @@ export function measure(root) {
       functionConsts: lines.filter((l) => CONST_FN_RE.test(l)).length,
     },
     render: {
-      dir: RENDER_DIR,
+      dir: TARGET_LABEL,
       files: renderFiles.length,
       lines: renderLines,
     },
@@ -192,10 +206,10 @@ export function compare(now, base) {
   ceiling('MONO-3', 'src/legacy.js top-level function-consts', now.monolith.functionConsts, bm.functionConsts,
     'Same debt in a different spelling — this exists so MONO-2 cannot be satisfied '
     + 'by rewriting `function f()` as `const f = () =>` without a line leaving the file.');
-  floor('MONO-4', 'src/render/** files', now.render.files, br.files,
+  floor('MONO-4', TARGET_LABEL + ' files', now.render.files, br.files,
     'An extraction that gets reverted is worse than one that never happened: the plan '
     + 'reads as done. If a render module was legitimately deleted, --write in the same commit.');
-  floor('MONO-5', 'src/render/** total lines', now.render.lines, br.lines,
+  floor('MONO-5', TARGET_LABEL + ' total lines', now.render.lines, br.lines,
     'Same reason as MONO-4, and it also catches a module that was emptied rather than removed.');
 
   return { problems, notes };
@@ -203,9 +217,9 @@ export function compare(now, base) {
 
 function printReport(now) {
   const m = now.monolith; const r = now.render;
-  console.log('  MONOLITH                                       RENDER (the target)');
+  console.log('  MONOLITH                                       THE EXTRACTION TARGET');
   console.log(`    ${MONOLITH.padEnd(20)} ${String(m.lines).padStart(7)} lines      `
-    + `${RENDER_DIR + '/**'} ${String(r.files).padStart(4)} files`);
+    + `${TARGET_LABEL} ${String(r.files).padStart(4)} files`);
   console.log(`    top-level functions  ${String(m.functions).padStart(7)}            `
     + `                ${String(r.lines).padStart(4)} lines`);
   console.log(`    function-consts      ${String(m.functionConsts).padStart(7)}`);
@@ -229,12 +243,12 @@ export function run(argv = []) {
   if (argv.includes('--write')) {
     const payload = {
       _why: 'CEILINGS AND FLOORS, not targets. src/legacy.js may only shrink; src/render/** may '
-        + 'only grow. Regenerated by `node tests/monolith-ratchet.mjs --write` when a number moves '
+        + 'only grow, and the extraction target is src/render/** PLUS src/screens/**. Regenerated by `node tests/monolith-ratchet.mjs --write` when a number moves '
         + 'the RIGHT way — never to make a red build green (CLAUDE.md §2).',
       _method: 'lines = physical lines (split on \\r?\\n). functions = column-0 `function name(` '
         + 'declarations, the same predicate as tests/no-duplicate-toplevel-fns.mjs. functionConsts '
         + '= column-0 `const|let|var name = (async)? function|(|arg =>`. render = every *.js under '
-        + 'src/render, recursively.',
+        + 'src/render AND src/screens, recursively — both halves of the extraction target.',
       measured: new Date().toISOString().slice(0, 10),
       monolith: now.monolith,
       render: now.render,
@@ -259,7 +273,7 @@ export function run(argv = []) {
     return 1;
   }
   console.log(`✓ monolith ratchet: ${MONOLITH} ${now.monolith.lines} lines / ${now.monolith.functions} `
-    + `top-level fns (ceilings), ${RENDER_DIR}/** ${now.render.files} files / ${now.render.lines} lines (floors)`);
+    + `top-level fns (ceilings), ${TARGET_LABEL} ${now.render.files} files / ${now.render.lines} lines (floors)`);
   for (const n of notes) console.log(`      ${n}`);
   return 0;
 }
@@ -319,7 +333,7 @@ const COMPARATOR_ARMS = [
 const DEBT_PAYMENTS = [
   ['PAYING THE DEBT: 500 lines leave legacy.js', 'src/legacy.js lines fell',
     (m) => ({ monolith: { lines: m.monolith.lines - 500 } })],
-  ['PAYING THE DEBT: another render module lands', 'src/render/** files rose',
+  ['PAYING THE DEBT: another extracted module lands', TARGET_LABEL + ' files rose',
     (m) => ({ render: { files: m.render.files + 1 } })],
   ['PAYING THE DEBT: 30 top-level fns extracted', 'src/legacy.js top-level functions fell',
     (m) => ({ monolith: { functions: m.monolith.functions - 30 } })],
@@ -379,14 +393,14 @@ function readerArms(root, base, say) {
   try {
     mkdirSync(join(tmp, 'src'), { recursive: true });
     cpSync(join(root, MONOLITH), join(tmp, MONOLITH));
-    cpSync(join(root, RENDER_DIR), join(tmp, RENDER_DIR), { recursive: true });
+    for (const d of TARGET_DIRS) cpSync(join(root, d), join(tmp, d), { recursive: true });
     const monoOrig = readFileSync(join(tmp, MONOLITH), 'utf8');
-    const restoreRender = () => cpSync(join(root, RENDER_DIR), join(tmp, RENDER_DIR), { recursive: true });
+    const restoreRender = () => { for (const d of TARGET_DIRS) cpSync(join(root, d), join(tmp, d), { recursive: true }); };
     /* biggest render file, so "emptied" is a real reduction whatever the tree holds */
-    const fattest = () => walk(join(tmp, RENDER_DIR))
+    const fattest = () => TARGET_DIRS.flatMap((d) => walk(join(tmp, d)))
       .map((p) => [p, lineCount(readFileSync(p, 'utf8'))])
       .sort((a, b) => b[1] - a[1])[0][0];
-    const anyFile = () => walk(join(tmp, RENDER_DIR)).sort()[0];
+    const anyFile = () => TARGET_DIRS.flatMap((d) => walk(join(tmp, d))).sort()[0];
 
     const caught = (check) => compare(measure(tmp), base).problems.some((p) => p.check === check);
     const write = (s) => writeFileSync(join(tmp, MONOLITH), s);
@@ -469,7 +483,7 @@ function paydownWithoutRepinArm(pinned, say) {
     mkdirSync(join(tmp, 'src'), { recursive: true });
     const lines = readFileSync(join(ROOT, MONOLITH), 'utf8').split(/\r?\n/);
     writeFileSync(join(tmp, MONOLITH), lines.slice(0, Math.max(1, lines.length - SHRINK)).join('\n'));
-    cpSync(join(ROOT, RENDER_DIR), join(tmp, RENDER_DIR), { recursive: true });
+    for (const d of TARGET_DIRS) cpSync(join(ROOT, d), join(tmp, d), { recursive: true });
 
     const sub = measure(tmp);
     const quiet = () => {};

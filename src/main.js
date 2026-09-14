@@ -388,6 +388,9 @@ import './features/boot-hydration.js?v=546';
    here with boot-hydration rather than in the setup() block below. */
 import './features/gem-unlocks.js?v=546';
 import './features/recipe-scrolls.js?v=546';
+/* and the House theme cards those two decide the state of — a pure painter
+   (src/render/house-themes.js), loaded here so renderHouse can call it. */
+import './render/house-themes.js?v=546';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with
 // a tab open for days, so "the fix ships" and "the fix arrives" are different
 // events; without this, every client-side fix reaches only the players who

@@ -68,6 +68,14 @@ const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 //    files are the side-reward surfaces where an un-backed one-shot grant hides. ─
 const FILES = [
   'src/legacy.js',
+  // ── 2026-09-14: THE SCREEN-CONTROLLER LAYER (task #129). As screens leave the
+  //    monolith their mints leave with them, and a census pinned only to
+  //    src/legacy.js would report that as "the mint is gone" — coverage lost in
+  //    the shape of a green build. src/screens/* is listed here for the same
+  //    reason legacy.js is: it is core-loop code that credits the bag. The shop
+  //    counter is the first, and every later screen adds its row HERE, not a
+  //    second census. ──
+  'src/screens/shop-counter.js',
   'src/features/muster.js',
   'src/features/raids.js',
   'src/features/renown.js',
@@ -131,11 +139,24 @@ const BASELINE = {
      server RECEIPT. The `b214: an absence is granted exactly ONCE` in-page test
      is now an EXISTENCE guard on both names, so the lane cannot come back
      silently. */
+  /* 2026-09-14 (screen-controller extraction): `b.id` LEFT this lane. It was
+     `addItem(b.id, b.qty)` in `repurchase` — the vendor BUY-BACK, which returns
+     an item the player just sold at the price they got — and it moved, verbatim,
+     to src/screens/shop-counter.js together with the whole vendor counter. It is
+     baselined there, under the same rules; nothing about the mint changed. `id`
+     stays here because several other legacy.js sites still use that token. */
   'src/legacy.js': [
-    "'hearth_token'", 'b.id', 'cur', 'id', 'kv[0]',
+    "'hearth_token'", 'cur', 'id', 'kv[0]',
     'r.item', 'r.output', 'res.produced.id',
     'inv:id', 'inv:old',
   ],
+  /* THE SHOP COUNTER. Two mints, both a PURCHASE the player just paid for:
+     `id` = buyShopItem (the Equip/Seed shop rows, routed through the
+     `seam:shop.buy` gold site) and `b.id` = repurchase (the vendor buy-back,
+     `src/screens/shop-counter.js#repurchase` in the gold ledger, deferred behind
+     B.BUYBACK_LEDGER). Neither is a new lane — both are the same rows they were
+     in the monolith, now readable in the file that owns the gesture. */
+  'src/screens/shop-counter.js': ['b.id', 'id'],
   'src/features/muster.js': ["'muster_seal'", 'it.id'],
   'src/features/raids.js': ['chest.sig', 'id'],
   'src/features/renown.js': ['rw.item'],

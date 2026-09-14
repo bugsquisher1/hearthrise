@@ -178,7 +178,10 @@ const BANK_SPACE = L('var BANK_SPACE = {');
 // (task #129 Phase 3.5), so the slice now reads from that file.
 const shopRenderSrc = await read('src/render/shop.js');
 const COSMETICS = sliceLiteral(shopRenderSrc, 'const cosmetics=[', 'src/render/shop.js');
-const VENDOR_RAW_RATE = sliceNumber(legacy, 'const VENDOR_RAW_RATE', 'src/legacy.js');
+// The vendor bid left legacy.js for the shop SCREEN CONTROLLER with the rest of
+// the counter (task #129 phase 2, 2026-09-14) — same slice, new file.
+const shopCounterSrc = await read('src/screens/shop-counter.js');
+const VENDOR_RAW_RATE = sliceNumber(shopCounterSrc, 'const VENDOR_RAW_RATE', 'src/screens/shop-counter.js');
 
 const dungeonsSrc = await read('src/dungeons.js');
 const DUNGEONS = sliceLiteral(dungeonsSrc, 'var DUNGEONS = {', 'src/dungeons.js');

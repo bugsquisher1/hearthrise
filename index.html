@@ -1091,6 +1091,10 @@
   <!-- Render layer (strangler-fig extraction out of legacy.js). Loads AFTER
        legacy.js so its globals (G, balText, getCombatLevel, showTab) exist when
        this self-installs its trigger button. See docs/design/render-extraction-pattern.md -->
+  <!-- The topbar play-streak flame — 21st render-layer extraction out of
+       legacy.js block 16. Owns the device counter, the SERVER-first reader every
+       play-streak surface asks, and the paint. -->
+  <script src="src/render/streak-chip.js?v=546"></script>
   <script src="src/render/lifetime-stats.js?v=546"></script>
   <!-- Active Effects panel (Profile card) — 2nd render-layer extraction out of
        legacy.js block 8; self-installs its card + live timer after legacy.js loads -->

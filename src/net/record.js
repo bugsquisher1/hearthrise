@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=546';
+import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=546';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1753,6 +1753,9 @@ function settle(verdict) {
        reads "ready" all session and every Auto-Run comes back refused. Per dungeon
        AND per mode; fail-open on absence. See reconcileDungeonCooldowns' header. */
     hydrationStep('dungeon-cooldowns', () => reconcileDungeonCooldowns(G, verdict.body));
+    /* THE PLAY STREAK, same idle-boot hydration class: without it the flame sits all
+       session on the device residue (1) against a column holding 3. reconcilePlayStreak. */
+    hydrationStep('play-streak', () => reconcilePlayStreak(G, verdict.body));
     /* THE CONSUMABLE BUFF QUEUE — this line IS the "a reload forgets my buff" fix:
        `buffs` is no longer residue and hr_load is an idle boot's only envelope. */
     hydrationStep('buffs', () => reconcileBuffs(G, verdict.body));

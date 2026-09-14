@@ -1455,6 +1455,13 @@ const snapshotG = () => {
     // suite run would hand the player free offline hours, or leave a
     // future-dated watermark that silently stops offline progress accruing.
     offlineBudget: G.offlineBudget,
+    /* 2026-09-14 — `enchant` was missing from this allowlist while ELEM-5 and
+       ELEM-5b both assign it, so a suite run in the LIVE page left the player
+       wearing whichever element the last arm forged until the next envelope.
+       NO `?? {}`: an un-enchanted character has NO enchant, and a pinned empty
+       object is a VALUE a later test would read as real state — sealSnapshot
+       records the absence and restoreG deletes the key back (SNAP-2b). */
+    enchant: G.enchant,
     renownHigh: G.renownHigh,
     /* b494 — AND THE CLAIM LIST WITH IT. `renownHigh` was snapshotted and
        `renown` ({claimed, seenRank}) was not, yet four tests assign
@@ -2120,6 +2127,28 @@ const bankEnv = (cap, rung) => ({ ok: true, state: { bank_cap: cap }, progress_t
   progress: [{ kind: 'unlock', key: 'bank', value: rung, period: '' }] });
 const restoreBankCap = (v) => { if (v === undefined) delete window.G._bankCap; else window.G._bankCap = v; };
 
+/* EVERY TERM computeRenown() READS, EMPTIED — so the ratchet IS the score and a
+   fixture's arithmetic is its own. Four fixtures kept their own copy of this
+   block and each one had to be found again whenever a term was added; the
+   server play-streak mirror (`_serverStreak`) was the term that proved it.
+   Returns what it displaced so the caller can put it back. */
+const zeroRenownTerms = (G) => {
+  const had = Object.prototype.hasOwnProperty.call(G, '_serverStreak');
+  const before = { collection: G.collection, streak: G.streak, srv: had ? G._serverStreak : undefined, had };
+  G.skills = {};
+  G.stats = Object.assign({}, G.stats, { kills: 0 });
+  G.bestiary = {}; G.quests = []; G.collection = {};
+  G.streak = { best: 0, count: 0 };
+  delete G._serverStreak;
+  G.bountyHunter = Object.assign({}, G.bountyHunter || {}, { completed: 0 });
+  return before;
+};
+const restoreRenownTerms = (G, before) => {
+  if (!before) return;
+  G.collection = before.collection; G.streak = before.streak;
+  if (before.had) G._serverStreak = before.srv; else delete G._serverStreak;
+};
+
 const autoEatMirrorReady = () => {
   const A = window.HearthriseAuto, AC = window.HearthriseAccrual;
   return !!(A && AC && typeof AC.noteServerAutoEat === 'function'
@@ -2131,7 +2160,7 @@ const autoEatMirrorFixture = (body) => {
   const snap = snapshotG(), sT = G.traits, sS = G.settings, sP = G.autoEatPct;
   const sObs = AC.serverAutoEatSettings();
   let wasParked = false;
-  try { wasParked = A._parkPctMirror(false); } catch (e) {}
+  try { wasParked = A._parkAutoEatMirror(false); } catch (e) {}
   try {
     G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
     G.settings = Object.assign({}, G.settings || {});
@@ -2143,7 +2172,7 @@ const autoEatMirrorFixture = (body) => {
   } finally {
     const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
     try { AC.__noteAutoEatSettings(sObs); } catch (e) {}
-    try { A._parkPctMirror(wasParked); } catch (e) {}
+    try { A._parkAutoEatMirror(wasParked); } catch (e) {}
     G.traits = sT; G.settings = sS; G.autoEatPct = sP;
     restoreG(snap);
   }
@@ -6194,15 +6223,11 @@ const TESTS = [
       'the renown server mirror seam is missing — every headline is back on the client score');
     const G = window.G;
     const snap = snapshotG();
-    const sCollection = G.collection, sStreak = G.streak;
     const srvBefore = R.serverRenownHigh();
+    let termsBefore = null;
     try {
       // A prediction of EXACTLY 955: the terms are emptied, so the ratchet IS it.
-      G.skills = {};
-      G.stats = Object.assign({}, G.stats, { kills: 0 });
-      G.bestiary = {}; G.quests = []; G.collection = {};
-      G.streak = { best: 0, count: 0 };
-      G.bountyHunter = Object.assign({}, G.bountyHunter || {}, { completed: 0 });
+      termsBefore = zeroRenownTerms(G);
       G.renownHigh = 955;
       G.renown = { claimed: [], seenRank: 1 };        // Serf already seen — the live shape
       if (R.__resetClaimState) R.__resetClaimState();
@@ -6251,8 +6276,119 @@ const TESTS = [
     } finally {
       if (R.__resetClaimState) R.__resetClaimState();
       if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
-      G.collection = sCollection; G.streak = sStreak;
+      restoreRenownTerms(G, termsBefore);
       restoreG(snap);
+    }
+  }),
+
+  /* ── regression: THE RENOWN FIGURE LIED EVERYWHERE BUT THE HEADLINE ──
+     MEASURED (QA account, 2026-09-13): client 1193, `player_state.renown_high`
+     1058. `renown_high` has been PROJECTED top-level on hr_state_of since
+     2026-09-12 and `noteServerRenown` reads it off every envelope — but only
+     getState was ever moved onto the mirror. getClaimable, getPerks,
+     claimRank's reached-gate, the Chronicle's rank marks and the daily renown
+     baseline still decided on `effectiveRenown`, the CLIENT ratchet over the
+     `G.renownHigh` residue. The two never converge on their own: the
+     kill-faucet scores a client kill at zero renown server-side, so a played
+     session drifts ahead by construction (CLAUDE.md §6, with PERKS attached).
+     The fix is one reader — countedRenown — and this test is the mutation
+     lever: a residue 135 points ahead, and a realm that says otherwise. */
+  () => tryRun('b547: the renown the client acts on is the realm\'s renown_high, never the residue ratchet', () => {
+    const R = window.HearthriseRenown;
+    assert(R && typeof R.counted === 'function' && typeof R.noteServerRenown === 'function',
+      'the counted-renown reader and the observation seam must both be published');
+    const G = window.G, snap = snapshotG();
+    const srvBefore = R.serverRenownHigh();
+    let termsBefore = null;
+    try {
+      /* Every term emptied, so the ratchet IS the prediction — 1193 exactly. */
+      termsBefore = zeroRenownTerms(G);
+      G.renownHigh = 1193;
+      G.renown = { claimed: [], seenRank: 2 };      // Squire already seen
+      if (R.__resetClaimState) R.__resetClaimState();
+      assert(R.effective(G) === 1193, 'fixture: the prediction must be exactly 1193; got ' + R.effective(G));
+      assert(R.serverRenownHigh() === null, 'fixture: the realm must have stated nothing yet');
+      assert(R.counted(G) === 1193, 'until the realm speaks the prediction is all there is');
+
+      /* THE ENVELOPE. hr_state_of projects `renown_high` top-level; this is the
+         body accrue.js and client-state.js hand to noteServerRenown. */
+      R.noteServerRenown({ ok: true, renown_high: 1058, progress: [], progress_truncated: false });
+      assert(R.counted(G) === 1058,
+        'THE BUG: the figure every gate decides on must be the realm\'s 1058, got ' + R.counted(G));
+      const st = R.getState(G);
+      assert(st.renown === 1058, 'the headline reads 1058; got ' + st.renown);
+      assert(st.local === 1193 && st.counted === true,
+        'the prediction rides along, marked counted: ' + JSON.stringify({ local: st.local, counted: st.counted }));
+
+      /* A PREDICTION A WHOLE RANK AHEAD — Knight needs 2200 — which is what the
+         measured 135-point drift becomes at the wrong threshold. */
+      G.renownHigh = 2500;
+      assert(R.effective(G) === 2500 && R.rankIndexFor(R.effective(G)) === 3,
+        'fixture: the prediction must now read Knight');
+      assert(R.rankIndexFor(R.counted(G)) === 2,
+        'THE BUG: the realm counted a Squire (1058); acted on ' + R.RANKS[R.rankIndexFor(R.counted(G))].id);
+
+      /* AND IT RENDERS. The Character identity line is the surface the number
+         was read off; it must name the realm's rank, not the prediction's. */
+      if (typeof window.showTab === 'function' && typeof window.renderCharacter === 'function') {
+        window.showTab('character');
+        window.renderCharacter();
+        const sub = document.querySelector('.csk-hero-sub');
+        if (sub) {
+          assert(/Squire/.test(sub.textContent), 'the identity line prints the counted rank: ' + sub.textContent);
+          assert(!/Knight/.test(sub.textContent), 'THE BUG: it printed the prediction, a rank the realm refuses');
+        }
+      }
+
+    } finally {
+      if (R.__resetClaimState) R.__resetClaimState();
+      if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
+      restoreRenownTerms(G, termsBefore);
+      restoreG(snap);
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
+  /* THE CAPABILITY HALF. A rank perk is a PAYOUT (allXP, dropRate, bank and
+     market slots), so it may not exist on a number the realm has not counted —
+     and the claim BUTTON is the deliberate exception, because the click is what
+     advances the realm's count in the first place (RANK-CLAIM-1). */
+  () => tryRun('b547: a rank PERK arrives with the realm\'s count, while the claim button stays offered', () => {
+    const R = window.HearthriseRenown;
+    assert(R && typeof R.counted === 'function' && typeof R.getPerks === 'function',
+      'the counted-renown reader and the perk aggregator must both be published');
+    const G = window.G, snap = snapshotG();
+    const srvBefore = R.serverRenownHigh();
+    let termsBefore = null;
+    try {
+      termsBefore = zeroRenownTerms(G);
+      G.renownHigh = 2500;                          // the prediction says Knight
+      G.renown = { claimed: [], seenRank: 2 };
+      if (R.__resetClaimState) R.__resetClaimState();
+      R.noteServerRenown({ ok: true, renown_high: 1058, progress: [], progress_truncated: false });
+      assert(R.rankIndexFor(R.effective(G)) === 3 && R.rankIndexFor(R.counted(G)) === 2,
+        'fixture: a Knight prediction against a Squire count');
+      const perksShort = R.getPerks(G);
+      assert(R.pollRankUp(G).length === 0, 'and no rank-up card fires on the prediction');
+
+      /* ⚠ THE CLAIM BUTTON IS THE DELIBERATE EXCEPTION (RANK-CLAIM-1): the click
+         is what advances the server's high-water, so the row stays offered on
+         the prediction and the SERVER decides it. */
+      assert(R.getClaimable(G).some((r) => r.id === 'knight'),
+        'the Knight row stays OFFERED — the click is the only thing that moves the realm\'s count');
+
+      /* THE REALM CATCHES UP — only now does the perk exist. */
+      R.noteServerRenown({ ok: true, renown_high: 2200, progress: [], progress_truncated: false });
+      const perksFull = R.getPerks(G);
+      assert(perksFull.offlineHours > perksShort.offlineHours,
+        'THE BUG: Knight\'s +1 offline hour must arrive with the realm\'s count, not with the '
+        + 'prediction; got ' + perksShort.offlineHours + ' → ' + perksFull.offlineHours);
+    } finally {
+      if (R.__resetClaimState) R.__resetClaimState();
+      if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
+      restoreRenownTerms(G, termsBefore);
+      restoreG(snap);
+      try { window.showTab('profile'); } catch (e) {}
     }
   }),
 
@@ -35680,20 +35816,16 @@ const TESTS = [
     const snap = snapshotG();
     const bestBefore = JSON.parse(JSON.stringify(window.G.bestiary || {}));
     const colBefore = JSON.parse(JSON.stringify(window.G.collection || {}));
-    const streakBefore = window.G.streak;
+    let termsBefore2 = null;
     try {
       const G = window.G;
-      Object.keys(G.skills).forEach((k) => { G.skills[k] = 0; });
-      G.bestiary = {}; G.homestead = { tier: 0 };
+      termsBefore2 = zeroRenownTerms(G);
+      G.homestead = { tier: 0 };
       G.companions = Object.assign({}, G.companions, { ownedIds: ['fox'] });
       G.playerName = 'Adventurer';
       G.renown = { claimed: [], seenRank: 0 }; G.renownHigh = 0;
       G.stats = { kills: 0, gathered: 0, harvested: 0, rareDrops: 0 };
-      // Every other term computeRenown() reads, so the fresh account really
-      // scores zero and sits at rank 0 (Peasant — the start, not a milestone).
-      G.gold = 0; G.collection = {}; G.quests = [];
-      G.streak = { best: 0, count: 0 };
-      G.bountyHunter = Object.assign({}, G.bountyHunter, { completed: 0 });
+      G.gold = 0;
       G.chronicle = { v: 1, entries: [], seenAt: Date.now(), seeded: Date.now() };
       C.clearRecent();
       try { window.HearthriseToasts.clear(); } catch {}
@@ -35714,7 +35846,7 @@ const TESTS = [
       C.close(); C.clearRecent();
       window.G.bestiary = bestBefore;
       window.G.collection = colBefore;
-      window.G.streak = streakBefore;
+      restoreRenownTerms(window.G, termsBefore2);
       restoreG(snap); try { window.saveLocal(); } catch {} C.updateBadge();
     }
   }),
@@ -36694,12 +36826,13 @@ const TESTS = [
        Serf day 1-2 / Squire week 1 / Knight week 3-4 / Baron month 2+. */
     const R = window.HearthriseRenown;
     const snap = snapshotG();
+    let termsBefore3 = null;   // neither `streak` nor the mirror is in snapshotG
     try {
       const G = window.G;
       G.renownHigh = 0;
-      G.skills = {}; Object.keys(window.SKILLS_DEF).forEach((s) => { G.skills[s] = 0; });
-      G.stats = { kills: 0 }; G.bestiary = {}; G.collection = {}; G.quests = [];
-      G.streak = { best: 0, count: 0 }; G.gold = 0; G.bountyHunter = { completed: 0 };
+      termsBefore3 = zeroRenownTerms(G);
+      Object.keys(window.SKILLS_DEF).forEach((k) => { G.skills[k] = 0; });
+      G.gold = 0;
       stampRecordLikeLoad(G);   // b456: a genuinely-zero character, stated by the server
       const fresh = R.compute(G);
       assert(fresh < 400, 'a brand-new account must NOT start most of the way to Serf, scored ' + fresh);
@@ -36761,7 +36894,10 @@ const TESTS = [
       assert(R.compute(G) < 3136, 'setup: the live score really is lower after the retune');
       assert(R.rankIndexFor(R.effective(G)) === R.rankIndexFor(3136),
         'a pre-retune Knight must still be a Knight — the ratchet is the promise');
-    } finally { restoreG(snap); }
+    } finally {
+      restoreRenownTerms(window.G, termsBefore3);
+      restoreG(snap);
+    }
   }),
 
   // ── b229 · the combined Character screen (Skills · Equipment · Hero) ──────
@@ -41808,6 +41944,203 @@ const TESTS = [
       assert(Math.abs(A.getEat().threshold - 0.5) < 1e-9,
         'and the slider position must survive as the thing the player edits and sends UP');
     });
+  }),
+
+  /* ── regression: THE AUTO-EAT FOOD LIED, exactly as the threshold did ──
+     MEASURED ON THE QA ACCOUNT (user 0a47ba77…, slot 2, 2026-09-14):
+     `G.autoActions.eat.foodId` = cooked_shrimp, `player_state.auto_eat_food` =
+     turnip. The combat HUD, the picker and the death sheet named one provision;
+     the accrual engine — the only thing that eats during a settle or a night —
+     ate the other. `auto_eat_food` has been PROJECTED since
+     2026-08-15-auto-eat.sql and accrue.js OBSERVED it as the settings-sync
+     dedupe anchor; nothing read it back down. CLAUDE.md §6, the same one-way
+     mirror that was killed for `auto_eat_pct`, one column across.
+
+     THE FIXTURE ALREADY BUILDS HALF OF IT (local cooked_shrimp); these two add
+     the server's disagreeing nomination. The MUTATION LEVER is that turnip heals
+     2 and cooked_shrimp heals far more, so an implementation that keeps reading
+     the local preference eats the BIGGER meal — measurably the wrong one. */
+
+  () => tryRun('b547: the auto-eat FOOD is the server\'s auto_eat_food — attended tick and every surface', () => {
+    if (!autoEatMirrorReady()) { skip('no auto/accrual seam'); return; }
+    autoEatMirrorFixture((G, A, AC) => {
+      assert(typeof A.eatFoodId === 'function', 'the effective-provision reader must be published');
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 20, turnip: 5 });
+      assert(A.getEat().foodId === 'cooked_shrimp', 'fixture: the local preference is cooked_shrimp');
+      /* THE SERVER SPEAKS, and its answer is the OTHER food. */
+      AC.noteServerAutoEat({ state: { auto_eat_enabled: true, auto_eat_pct: 25, auto_eat_food: 'turnip' } });
+      assert(A.eatFoodId() === 'turnip',
+        'THE BUG: the effective provision must be the server\'s turnip, got ' + A.eatFoodId());
+      assert(A.getEat().foodId === 'cooked_shrimp', 'the LOCAL preference survives untouched');
+
+      /* THE ATTENDED TICK EATS IT. Below the server's 25% with both foods in
+         the bag: the meal that leaves the bag is the one the settle will debit. */
+      G.playerMaxHp = 100; G.playerHp = 20;
+      const shrimp0 = G.inventory.cooked_shrimp, turnip0 = G.inventory.turnip;
+      assert(A.maybeAutoEat() === true, 'at 20% HP with food in the bag the tick must eat');
+      assert(G.inventory.turnip === turnip0 - 1,
+        'THE BUG: the attended tick must spend the SERVER\'s provision (turnip), got turnip='
+        + G.inventory.turnip);
+      assert((G.inventory.cooked_shrimp || 0) === shrimp0,
+        'THE BUG: it spent the local nomination — the client debits one food, the server another');
+
+      /* AND THE SURFACES SAY SO. The combat HUD chip is the one the player reads
+         while fighting; it named cooked_shrimp on the live account. */
+      if (typeof window.renderCombat === 'function') {
+        G.playerHp = 80;
+        G.activeMonster = G.activeMonster || Object.keys(window.MONSTERS || {})[0];
+        try { window.renderCombat(); } catch (e) {}
+        const chip = document.querySelector('#panel-combat .arena-autoeat, .arena-autoeat');
+        if (chip) assert(/Turnip/.test(chip.textContent), 'the HUD chip must name the provision the engine eats: ' + chip.textContent);
+      }
+
+    });
+  }),
+
+  /* THE OBSERVATION SEMANTICS, on their own, because they are where the
+     threshold mirror's bugs lived: a stored NULL is a VALUE, an unanswered
+     gesture wins until the server speaks, and it is the COUNT that says the
+     server spoke — never the value, or an envelope restating what it already
+     held would be a non-event and the local pick would win forever. */
+  () => tryRun('b547: auto-eat food — NULL means best-in-the-bag, and an unanswered pick loses to the next observation', () => {
+    if (!autoEatMirrorReady()) { skip('no auto/accrual seam'); return; }
+    autoEatMirrorFixture((G, A, AC) => {
+      /* NULL IS A VALUE: "no nomination, eat the best in the bag" — never an
+         absence to paper over with the stale local name. */
+      AC.noteServerAutoEat({ state: { auto_eat_food: null } });
+      assert(A.eatFoodId() === null, 'a stored NULL is best-in-the-bag, never the local nomination');
+
+      /* AN UNANSWERED GESTURE WINS — and only until the server speaks again.
+         Without this the picker would paint the old food over the one just
+         tapped for the 1.5 s debounce plus a round trip. */
+      A.setEat({ foodId: 'cooked_shrimp' });
+      assert(A.eatFoodId() === 'cooked_shrimp', 'an unanswered pick holds until the server answers');
+      AC.noteServerAutoEat({ state: { auto_eat_food: 'turnip' } });
+      assert(A.eatFoodId() === 'turnip', 'a NEW OBSERVATION ends the gesture whatever it carries');
+      /* …and a RESTATEMENT of the same value is still the server speaking. */
+      A.setEat({ foodId: 'cooked_shrimp' });
+      AC.noteServerAutoEat({ state: { auto_eat_food: 'turnip' } });
+      assert(A.eatFoodId() === 'turnip',
+        'an envelope RESTATING turnip must still overrule an unanswered local pick — comparing '
+        + 'values instead of the observation count is the bug surviving its own fix');
+
+      /* NEVER OBSERVED: the local preference is the only honest answer. */
+      AC.__resetServerAutoEat();
+      assert(A.eatFoodId() === 'cooked_shrimp', 'with nothing observed the local nomination stands');
+    });
+  }),
+
+  /* THE AWAY HALF (§4 both-path). The night runs the SAME resolveAutoEat through
+     the same maybeAutoEat, so the food it eats must be the server's too — the
+     away rig, one seeded span, with the two nominations disagreeing. */
+  () => tryRun('b547: the AWAY replay eats the server\'s provision too (both-path with the attended tick)', () => {
+    const C = window.HearthriseCore, P = window.HearthrisePresence;
+    const A = window.HearthriseAuto, S = window.HearthriseCombatSim, AC = window.HearthriseAccrual;
+    if (!(C && C.combatSim && S && typeof S.ctx === 'function' && P && typeof P._withOfflineReplay === 'function'
+          && A && typeof A.setEat === 'function' && autoEatMirrorReady())) { skip('no away rig'); return; }
+    const snap = snapshotG(), origBonus = window.getBonus, beforeEat = A.getEat();
+    const sObs = AC.serverAutoEatSettings();
+    let wasParked = false, wasSync = false;
+    try {
+      wasSync = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
+      wasParked = A._parkAutoEatMirror(false);
+      window.getBonus = () => 0;
+      const G = window.G, m = window.MONSTERS.wolf;
+      G.buffs = []; G.quests = []; G.recoveringUntilMs = 0; G.playerMaxHp = 40; G.playerHp = 40;
+      G.skills = Object.assign({}, G.skills, { attack: 3000, strength: 3000, defense: 0, hitpoints: 5000 });
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 500, turnip: 500 });
+      G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
+      G.stats = Object.assign({}, G.stats, { kills: 0, crits: 0, deaths: 0, rareDrops: 0 });
+      A.setEat({ foodId: 'cooked_shrimp', enabled: true, threshold: 0.6 });
+      AC.noteServerAutoEat({ state: { auto_eat_enabled: true, auto_eat_pct: 60, auto_eat_food: 'turnip' } });
+      const shrimp0 = G.inventory.cooked_shrimp, turnip0 = G.inventory.turnip;
+      G.activeMonster = 'wolf'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+      C.reseed(0x547AEA7);
+      P._withOfflineReplay(() => {
+        const ctx = S.ctx();
+        for (let i = 0; i < 600 && G.playerHp > 0; i++) {
+          if (!G.activeMonster) { G.activeMonster = 'wolf'; G.monsterHp = m.hp; G.monsterMaxHp = m.hp; }
+          C.combatSim.simulateTick(G, ctx);
+        }
+      });
+      const ateTurnip = turnip0 - (Number(G.inventory.turnip) || 0);
+      const ateShrimp = shrimp0 - (Number(G.inventory.cooked_shrimp) || 0);
+      assert(ateTurnip > 0, 'the away replay must auto-eat at all (ate ' + ateTurnip + ' turnip)');
+      assert(ateShrimp === 0, 'THE BUG: the away path ate the LOCAL nomination — ' + ateShrimp + ' cooked_shrimp');
+    } finally {
+      window.getBonus = origBonus;
+      try { AC.__noteAutoEatSettings(sObs); } catch (e) {}
+      try { A.setEat(beforeEat); } catch (e) {}
+      try { A._parkAutoEatMirror(wasParked); } catch (e) {}
+      if (typeof A._parkEatSync === 'function') A._parkEatSync(wasSync);
+      restoreG(snap);
+    }
+  }),
+
+  /* ── regression: THE PLAY STREAK LIED (live P3) ──────────────────────
+     MEASURED on the same account the same hour: the topbar flame read 1 while
+     `player_state.streak_days` held 3. `G.streak` is a per-DEVICE residue
+     legacy.js advances from the local clock, so a second machine or a cleared
+     profile restarts it at 1 while the server keeps counting from `accrued_to`
+     (2026-08-21-streak-state.sql §4c). The number is spendable — renown scores
+     `streakBest` ×5 off that exact column server-side — so two counters under
+     one word is §6 verbatim. */
+  () => tryRun('b547: the play streak shown is the server\'s streak_days, not the per-device residue', () => {
+    const AC = window.HearthriseAccrual;
+    if (!(AC && typeof AC.reconcilePlayStreak === 'function' && typeof AC.playStreakDays === 'function')) {
+      skip('no play-streak seam'); return;
+    }
+    const G = window.G, snap = snapshotG();
+    const hadSrv = Object.prototype.hasOwnProperty.call(G, '_serverStreak');
+    const prevSrv = G._serverStreak, prevStreak = G.streak;   // neither is in snapshotG
+    try {
+      delete G._serverStreak;
+      G.streak = { count: 1, lastDay: 20260914 };
+      assert(AC.playStreakDays(G) === 1, 'fixture: the residue is the only answer until an envelope');
+
+      const r = AC.reconcilePlayStreak(G, { state: { streak_days: 3, streak_day_key: '2026-09-14' } });
+      assert(r && r.mode === 'server' && r.days === 3, 'the projection must be recorded, got ' + JSON.stringify(r));
+      assert(G._serverStreak && G._serverStreak.days === 3 && G._serverStreak.dayKey === '2026-09-14',
+        'it lands in `_` SCRATCH, never the residue: ' + JSON.stringify(G._serverStreak));
+      assert(AC.playStreakDays(G) === 3,
+        'THE BUG: the reader must prefer the server\'s 3 over the device\'s 1, got ' + AC.playStreakDays(G));
+      assert(G.streak.count === 1, 'and the residue is left exactly as it was — no upward merge');
+
+      /* NEVER AN EVICTION: an envelope without the key leaves the observation alone. */
+      AC.reconcilePlayStreak(G, { state: {} });
+      assert(AC.playStreakDays(G) === 3, 'an envelope without streak_days must not clear the observation');
+
+      /* THE FLAME CHIP — the surface that lied. */
+      const el = document.getElementById('top-streak-count');
+      const SC = window.HearthriseStreakChip;
+      if (el && SC && typeof SC.paint === 'function') {
+        /* The PAINTER, called directly: legacy's render hooks defer paintAll
+           through setTimeout(0), which a synchronous assertion would race. */
+        try { SC.paint(G); } catch (e) {}
+        assert(el.textContent.trim() === '3',
+          'the topbar flame must read the server\'s 3, got "' + el.textContent.trim()
+          + '" (the reader says ' + (typeof window.hrPlayStreakDays === 'function'
+            ? window.hrPlayStreakDays() : 'absent') + ')');
+        assert(el.parentElement.classList.contains('hot'), 'the 3-day "hot" state keys off it too');
+      }
+
+      /* AND RENOWN, which SPENDS it: 5 points a day of disagreement. */
+      const R = window.HearthriseRenown;
+      if (R && typeof R.compute === 'function' && R.WEIGHTS) {
+        const withSrv = R.compute(G);
+        delete G._serverStreak;
+        const withResidue = R.compute(G);
+        G._serverStreak = { days: 3, dayKey: '2026-09-14', at: Date.now() };
+        assert(withSrv - withResidue === 2 * R.WEIGHTS.streakBest,
+          'renown must score the server\'s streak (two extra days × ' + R.WEIGHTS.streakBest
+          + '), got a difference of ' + (withSrv - withResidue));
+      }
+    } finally {
+      if (hadSrv) G._serverStreak = prevSrv; else delete G._serverStreak;
+      G.streak = prevStreak;
+      try { if (SC && typeof SC.paint === 'function') SC.paint(G); } catch (e) {}
+      restoreG(snap);
+    }
   }),
 
   /* ── regression: THE ENGINE UNDER THE TWO TESTS ABOVE ────────────────
@@ -58699,6 +59032,34 @@ const TESTS = [
     })();
   }),
 
+  /* ── REGRESSION (2026-09-14) — THE ENCHANT IS A TOP-LEVEL ENVELOPE KEY ─────
+     hr_state_of builds `'enchant', coalesce(v_st.enchant,'{}')` as a SIBLING of
+     `'state'` (executed against the replayed chain, not read off a comment), and
+     hr_apply returns hr_state_of's envelope verbatim. applyEnvelopeState read
+     `res.state.enchant`, which is `undefined` on every envelope the game has ever
+     applied — so the block never ran, and since `G.enchant` is not on
+     RESIDUE_FIELDS the enchant the player paid for vanished from the browser on
+     the next reload while the server kept computing away combat with it.
+     This fails without the fix: `top` is the shape the realm actually sends. */
+  () => tryRun('ELEM-5b: the envelope\'s TOP-LEVEL enchant is adopted (regression: state.enchant was never there)', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'the envelope seam is missing');
+    const G = window.G; const snap = snapshotG();
+    try {
+      G.enchant = {};
+      A.applyEnvelopeState(G, { ok: true, version: 2, enchant: { weapon: 'frost' }, state: { slot: 0 } });
+      assert(G.enchant && G.enchant.weapon === 'frost',
+        'a top-level `enchant` on the envelope must be adopted, got ' + JSON.stringify(G.enchant));
+      /* The server clearing it (an equip changed the weapon) must clear the client. */
+      A.applyEnvelopeState(G, { ok: true, version: 3, enchant: {}, state: { slot: 0 } });
+      assert(!(G.enchant && G.enchant.weapon), 'an empty server enchant must clear the client copy, got ' + JSON.stringify(G.enchant));
+      /* ABSENCE IS NOT A CLAIM — an envelope with no enchant key leaves it alone. */
+      G.enchant = { weapon: 'ember' };
+      A.applyEnvelopeState(G, { ok: true, version: 4, state: { slot: 0 } });
+      assert(G.enchant.weapon === 'ember', 'an envelope carrying no enchant key must not clear it');
+    } finally { restoreG(snap); }
+  }),
+
   () => tryRun('ELEM-5: changing the weapon clears the enchant (client reflect of the cross-verb coupling)', () => {
     const G = window.G; const snap = snapshotG();
     try {
@@ -65403,7 +65764,7 @@ export async function runSmokeTest(opts = {}) {
      govern every one, so they would pass or fail on live data instead of on
      their own fixture. Identical shape to the property-record park above. */
   let _pctMirrorWasParked = false;
-  try { if (_Auto && typeof _Auto._parkPctMirror === 'function') _pctMirrorWasParked = _Auto._parkPctMirror(true); } catch (e) {}
+  try { if (_Auto && typeof _Auto._parkAutoEatMirror === 'function') _pctMirrorWasParked = _Auto._parkAutoEatMirror(true); } catch (e) {}
   /* ── AND THE COMPANION GRANT LADDER, for exactly the same reason (b499) ───
      `b202: pets` drives a FORCED skill/boss roll. Under the live capstone arm
      that dispatches a real hr_companion_grant; the suite is signed out,
@@ -65487,7 +65848,7 @@ export async function runSmokeTest(opts = {}) {
       if (_loopWasRunning && _A) { _A.setSettleEnv(null); _A.startSettleLoop(); }
     } catch (e) {}
     try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
-    try { if (_Auto && typeof _Auto._parkPctMirror === 'function') _Auto._parkPctMirror(_pctMirrorWasParked); } catch (e) {}
+    try { if (_Auto && typeof _Auto._parkAutoEatMirror === 'function') _Auto._parkAutoEatMirror(_pctMirrorWasParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__parkGrants === 'function') _Comp.__parkGrants(_grantsWereParked); } catch (e) {}
     try { if (_SG) _SG.parked = _ambientGoalsWereParked; } catch (e) {}
     try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}

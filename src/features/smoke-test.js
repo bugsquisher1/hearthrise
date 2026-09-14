@@ -40442,6 +40442,91 @@ const TESTS = [
     }
   }),
 
+  () => tryRun('buffs step 3: the Cellar line on a buff pill is the ENVELOPE\'s `scale` — never a '
+    + 'client-priced room', () => {
+    /* WHAT THIS PROTECTS. 2026-09-13-buff-cellar-scale.sql makes hr_apply stamp each
+       buff segment with the duration multiplier the player's OWN Cellar rungs bought
+       (1.0 unperked, up to 2.0 at The Deep Cellar), and hr_state_of projects it as
+       `scale`. The minutes are already inside `until`, so the client's only job is to
+       SAY SO. Two ways to get that wrong, both red below:
+         · price the line from G.rooms — a client authoring a buff clock (the b543
+           wall-clock ruling) and residue-ahead by construction, because a rung bought
+           between two helpings would relabel a segment stamped at the old scale;
+         · treat a MISSING field as 1.0-with-a-line, which would have every pre-migration
+           segment brag about a Cellar that did not pay it.
+       THE MUTATION LEVER IS ARMED FOR THE WHOLE TEST: The Deep Cellar is owned, so
+       getBonus('buffDuration') is 1.0 and any room-derived implementation answers
+       "+100% from the Cellar" — which every arm here asserts against. */
+    const G = window.G;
+    const H = window.HearthriseHome;
+    const A = window.HearthriseAccrual;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    const prevRooms = G.rooms;
+    try {
+      assert(typeof window.buffScaleNote === 'function',
+        'src/render/active-effects.js must publish ONE buffScaleNote — Home and Active Effects wording the '
+        + 'same rule differently is how a rule becomes folklore');
+      window.showTab('profile');
+      G.activeSkill = null; G.skillTargetId = null; G.activeMonster = null; G.activeArtisanRecipe = null;
+      /* `rooms` is server-of-record, so a raw `G.rooms = …` is UNKNOWN to every
+         reader and fails closed to the empty map (b456). stampRecordLikeLoad pushes
+         the rung through the REAL hr_load path, which is what a player's Cellar is. */
+      G.rooms = { cellar: 5 };
+      stampRecordLikeLoad(G);
+      const roomPct = Math.round((window.getBonus('buffDuration') || 0) * 100);
+      assert(roomPct > 0 && roomPct !== 40,
+        'the lever is not armed: with The Deep Cellar owned, the client-side buffDuration bonus must be a '
+        + 'NON-ZERO number that is NOT the 40 the envelope states, or the "never computed from rooms" '
+        + 'assertions below cannot bite. Got ' + roomPct + ' DIAG rooms=' + JSON.stringify(window.roomsMapG()) + ' raw=' + window.HearthriseCore.perks.permanentBonus('buffDuration', window.clientPerkState()) + '.');
+
+      const seg = (ms, scale) => {
+        const o = { type: 'gather_speed', magnitude: 15, remaining_ms: ms,
+          until: new Date(Date.now() + ms).toISOString() };
+        if (scale !== undefined) o.scale = scale;
+        return o;
+      };
+      const paint = (scale) => {
+        A.reconcileBuffs(G, { ok: true, buffs: [seg(6 * 60000, scale)] });
+        window.__renderBuffsSection();
+        H.render();
+        return (document.getElementById('food-buffs-host').textContent + ' | '
+          + document.getElementById('hd-root').textContent).replace(/\s+/g, ' ');
+      };
+
+      /* (1) A PERKED SEGMENT SAYS SO, on BOTH buff surfaces, at the SERVER's number. */
+      const perked = paint(1.4);
+      assert(G.buffs.length === 1 && G.buffs[0].scale === 1.4,
+        'reconcileBuffs must carry `scale` through display-only; got ' + JSON.stringify(G.buffs));
+      assert((perked.match(/\+40% from the Cellar/g) || []).length === 2,
+        'the Active Effects row AND the Home pill must each state "+40% from the Cellar" for a segment the '
+        + 'server stamped at scale 1.4: ' + perked);
+      assert(!(perked.indexOf('+' + roomPct + '% from the Cellar') >= 0),
+        'the line was priced from G.rooms (The Deep Cellar reads +' + roomPct + '%), not from the envelope. `scale` '
+        + 'describes the rung that stamped THIS segment; a room-derived number overstates a buff already '
+        + 'running and is the residue-ahead class: ' + perked);
+      assert(/6m 0s/.test(perked) && /6:00/.test(perked),
+        'the Cellar already paid its minutes into `until`; the clock shown must still be the envelope\'s '
+        + 'remaining_ms, never remaining_ms x scale: ' + perked);
+
+      /* (2) AN UNPERKED SEGMENT SAYS NOTHING. scale 1.0 is "no Cellar paid this", and a
+         "+0% from the Cellar" chip is noise a player would read as a fact. */
+      assert(!/from the Cellar/.test(paint(1)),
+        'scale 1.0 must draw no Cellar line on either surface');
+
+      /* (3) ABSENCE IS NOT A STATEMENT (CLAUDE.md §6): a segment written before the
+         migration has no `scale`, and an unknown is never rendered as a claim. */
+      assert(!/from the Cellar/.test(paint(undefined)),
+        'a segment with NO `scale` key must draw no Cellar line — inferring one from the rooms the player '
+        + 'happens to own now is exactly the forbidden client-side computation');
+    } finally {
+      restoreG(snap);
+      G.rooms = prevRooms;
+      try { H.render(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b326-4: both Boss-of-the-Day cards state that they pay while you are away', () => {
     const B = window.HearthriseBossOfDay;
     assert(B, 'the Boss of the Day feature must be loaded');
@@ -54805,85 +54890,61 @@ const TESTS = [
       const rowText = () => (rows.textContent || '').replace(/\s+/g, ' ');
       const ov = () => document.getElementById('welcome-overlay');
       const shown = () => !!(ov() && ov().classList.contains('show'));
-      const reset = (waitMs, maxWaitMs) => {
+      const receipt = () => Object.assign({}, NIGHT, { at: Date.now() });
+      const reset = (waitMs, maxWaitMs) => {                 // a fresh page life, wait window spent
         rows.innerHTML = ''; if (ov()) ov().classList.remove('show');
         G.lastOfflineSummary = null; G.lastWelcome = 0;
-        G.lastSeen = Date.now() - 12 * 3600000;          // the 30-minute door is open
+        G.lastSeen = Date.now() - 12 * 3600000;              // the 30-minute door is open
+        AC.__resetAwaySettleLatch(false); AC.__setBootAccruedToForTest(0);   // nothing paid, no watermark
         window.__resetWelcomePresentation(false, waitMs, maxWaitMs);
       };
+      /* THE LIVE ENVIRONMENT: the What's-New sheet is up. A separate overlay with its own
+         latch, so it must neither suppress nor swallow the return report — pinned because
+         "the two modals share a container" was a live hypothesis for this bug. */
+      news = document.createElement('div'); news.id = 'hr-welcome-modal'; document.body.appendChild(news);
 
-      /* THE LIVE ENVIRONMENT: the What's-New sheet is up. It is a separate overlay
-         with its own latch, so it must neither suppress nor swallow the return
-         report — pinned here because "the two modals share a container" was a live
-         hypothesis for this bug and is now a regression. */
-      news = document.createElement('div');
-      news.id = 'hr-welcome-modal';
-      document.body.appendChild(news);
-
-      /* A. THE 12 h SETTLE IS SLOWER THAN THE CAP. The wait window is already
-            spent (waitMs 0) and the request is on the wire. */
-      reset(0, 60000);
-      AC.__resetAwaySettleLatch(false);
-      AC.__setBootAccruedToForTest(0);                   // no envelope has landed: no watermark
-      AC.settleInFlight = () => true;
+      /* A. THE 12 h SETTLE IS SLOWER THAN THE CAP: the wait window is spent and the
+            request is still on the wire, so the timer must stay silent. */
+      reset(0, 60000); AC.settleInFlight = () => true;
       window.__presentWelcomeWhenSettled();
-      assert(!shown(),
-        'THE b545 BUG: the wait cap expired while the settle was still on the wire and the '
-        + 'modal spoke without a receipt — ' + rowText());
-      assert(!(G.lastWelcome > 0),
-        'the timer spent the 5 s welcome door on a receipt-less modal, so this load can never '
-        + 'be told what the night paid');
-
+      assert(!shown(), 'THE b545 BUG: the cap expired mid-flight and the modal spoke without a receipt — ' + rowText());
+      assert(!(G.lastWelcome > 0), 'a receipt-less modal spent the 5 s welcome door on this load');
       /* …and when the answer finally lands, the envelope presents the night. */
-      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() });
-      AC.__resetAwaySettleLatch(true);
-      AC.settleInFlight = () => false;
+      G.lastOfflineSummary = receipt(); AC.__resetAwaySettleLatch(true); AC.settleInFlight = () => false;
       assert(window.__presentWelcome() === true, 'the late away receipt was refused the modal');
       const a = rowText();
       assert(/Time away\s*12h 0m/.test(a), 'the late settle never reached the modal — no span: ' + a);
-      assert(/XP earned\s*\+51,424/.test(a) && /Items found\s*\+6,428/.test(a),
-        'the player was greeted without the night the server just paid: ' + a);
-      assert(document.getElementById('hr-welcome-modal'),
-        "the What's-New sheet was removed by the return card — two independent overlays");
+      assert(/XP earned\s*\+51,424/.test(a) && /Items found\s*\+6,428/.test(a), 'greeted without the night the server paid: ' + a);
+      assert(document.getElementById('hr-welcome-modal'), "the What's-New sheet was removed by the return card");
 
-      /* B. THE SUPERSEDE. Nothing on the wire either (a settle that never started),
-            so the timer greets with lifetime stats — correct, nothing else is
-            known — and the receipt that arrives afterwards REPLACES that card
-            while it is still open, with `G.lastSeen` already beaten to now by the
-            saves that ran in between, exactly as live. */
-      reset(0, 0);
-      AC.__resetAwaySettleLatch(false);
-      AC.settleInFlight = () => false;
+      /* B. THE SUPERSEDE. Nothing on the wire either (a settle that never started), so the
+            timer greets with lifetime stats — correct, nothing else is known — and the
+            receipt that arrives afterwards REPLACES that card while it is still open, with
+            `G.lastSeen` already beaten to now by the saves in between, exactly as live. */
+      reset(0, 0); AC.settleInFlight = () => false;
       window.__presentWelcomeWhenSettled();
       assert(shown(), 'nothing was on the wire and the player was greeted with silence');
       const b0 = rowText();
       assert(/Total kills lifetime/.test(b0), 'the stats-only greeting is empty: ' + b0);
-      assert(!/Time away|XP earned/.test(b0),
-        'a modal with no receipt reported an absence anyway: ' + b0);
-      G.lastSeen = Date.now();                           // saveLocal() beat the residue stamp forward
-      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() });
-      AC.__resetAwaySettleLatch(true);
-      assert(window.__presentWelcome() === true,
-        'the away receipt could not supersede the provisional stats-only card — the b544 latch');
+      assert(!/Time away|XP earned/.test(b0), 'a modal with no receipt reported an absence: ' + b0);
+      G.lastSeen = Date.now();                               // saveLocal() beat the stamp forward
+      G.lastOfflineSummary = receipt(); AC.__resetAwaySettleLatch(true);
+      assert(window.__presentWelcome() === true, 'the away receipt could not supersede the provisional card');
       const b = rowText();
-      assert(/Time away\s*12h 0m/.test(b) && /XP earned\s*\+51,424/.test(b),
-        'the stats-only card was not replaced by the night the server paid: ' + b);
-
-      /* And once reported, nothing re-reports it: a second envelope must not
-         re-render the card the player is reading. */
-      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now(), gainedXp: 999 });
+      assert(/Time away\s*12h 0m/.test(b) && /XP earned\s*\+51,424/.test(b), 'the stats-only card was not replaced: ' + b);
+      /* And once reported, nothing re-reports it — a second envelope must not re-render
+         the card the player is reading. */
+      G.lastOfflineSummary = Object.assign(receipt(), { gainedXp: 999 });
       assert(window.__presentWelcome() === false, 'the absence was reported twice');
 
-      /* C. A CARD THE PLAYER CLOSED IS NEVER RE-OPENED. The Home away card owns
-            the story from there; a modal that pops back is its own bug. */
+      /* C. A CARD THE PLAYER CLOSED IS NEVER RE-OPENED: the Home away card owns the
+            story from there, and a modal that pops back is its own bug. */
       reset(0, 0);
-      AC.__resetAwaySettleLatch(false);
       window.__presentWelcomeWhenSettled();
       assert(shown(), 'arm C never greeted — the arm would be vacuous');
-      ov().classList.remove('show');                     // the player dismissed it
-      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() });
-      assert(window.__presentWelcome() === false && !shown(),
-        'a dismissed welcome modal was re-opened by a later receipt');
+      ov().classList.remove('show');                         // the player dismissed it
+      G.lastOfflineSummary = receipt();
+      assert(window.__presentWelcome() === false && !shown(), 'a dismissed modal was re-opened by a later receipt');
     } finally {
       AC.settleInFlight = save.inflight;
       AC.__setBootAccruedToForTest(0);

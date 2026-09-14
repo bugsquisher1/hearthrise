@@ -392,8 +392,7 @@ let awaySettleClosed = false;
 export function awaySettleDone() { return awaySettleClosed; }             // has this session's absence been paid?
 export function __resetAwaySettleLatch(v) { awaySettleClosed = !!v; }     // test seam: (true) = "the boot settle already landed"
 
-/* IS A SETTLE ON THE WIRE? "Unpaid" and "still coming" are different facts — one that
-   never STARTED may never answer — and a waiting surface needs both (WELCOME_GATE). */
+/* IS A SETTLE ON THE WIRE? "Unpaid" and "still coming" differ — one that never STARTED may never answer — and a waiting surface needs both (WELCOME_GATE). */
 export function settleInFlight() { return !!inFlight; }
 
 /* ── C1: A REFUSED OR LATCHED WINDOW IS OWNED BY THE SETTLE ─────────────────
@@ -2333,6 +2332,9 @@ export function reconcileBuffs(G, res) {
       magnitude,
       remainingMs,
       until: (typeof r.until === 'string' && r.until) ? r.until : null,
+      /* The Cellar multiplier hr_apply stamped this segment with. DISPLAY ONLY: the
+         minutes are already in `until`, so paying it again would pay it twice. */
+      scale: (Number.isFinite(Number(r.scale)) && Number(r.scale) > 0) ? Number(r.scale) : 1,
     });
   }
   out.sort((a, b) => a.remainingMs - b.remainingMs);

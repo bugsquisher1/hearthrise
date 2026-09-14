@@ -95,6 +95,14 @@
 //       debit beside buff_apply (the F3 coupling, emitter side).
 //  [20] AWAY — a buff alive at the window start pays only until `until`, and no
 //       client clock can pause it (the active:false freeze is gone).
+//  [21] THE CELLAR SCALES THE CLOCK, AND ONLY THE SERVER SAYS SO (step 3) —
+//       with no Cellar a buff lasts exactly the catalogue duration and is stamped
+//       scale 1.0; on the top rung the SAME food lasts twice as long and is stamped
+//       2.0; every rung in between pays its OWN payload from hr_room_perks (which
+//       is checked against src/data/perks.js, so the SQL is not a second copy of a
+//       balance ladder); the envelope carries the scale and a pre-scale segment
+//       projects 1.0; the 60-minute ceiling still binds; and the client cannot send
+//       a scale — that arm is [4], which already fires `scale` by name.
 //  [15] ONE CEILING, ONE NUMBER — hr_apply's c_buff_max_ms and src/core/buffs.js
 //       BUFF_MAX_UNTIL_MS agree. Two numbers for one bound is two that can drift.
 //
@@ -109,6 +117,7 @@ import { bootReplay, ROOT } from './schema-replay.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import { ROOM_PERKS } from '../src/data/perks.js';
 import { BUFF_MAX_UNTIL_MS, BUFFS_DEF, buffQueueFromServer, buffBonusFor, tickBuffs }
   from '../src/core/buffs.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
@@ -124,6 +133,7 @@ const MIG_CAT = '2026-09-13-item-buffs-catalogue.generated.sql';
 const MIG_PAY = '2026-09-13-buff-apply-coupling.sql';
 const MIG_SEG = '2026-09-13-buff-segments.sql';
 const MIG_SHAPE = '2026-09-13-buff-shape-code.sql';
+const MIG_SCALE = '2026-09-13-buff-cellar-scale.sql';
 const MIG_PRED = '2026-09-13-buff-segments-predicate.sql';
 const U = '00000000-0000-4000-8000-0000000000b5';
 const J = { kind: 'admin', intent: 'buff-queue:probe' };
@@ -175,6 +185,12 @@ const BLIND = {
   [MIG_SEG]: ["  if strpos(v_apply, 'v_buff_newmag := greatest(v_buff_mag') > 0 then",
     '  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  if strpos(v_apply, 'v_buff_newmag := greatest(v_buff_mag') > 0 then"],
+  /* The cellar-scale file's §3, anchored on its first assertion. Its own arms
+     catch every scale mutation by raising at apply time, which would score the
+     tick as "the migration refused" rather than "this guard noticed". */
+  [MIG_SCALE]: ["  -- ── (a) THE TEXT, AND THE PREDECESSORS ────────────────────────────────────",
+    ['  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)',
+      '  -- ── (a) THE TEXT, AND THE PREDECESSORS ────────────────────────────────────'].join('\n')],
   [MIG_DENY]: ["  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);",
     '  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);"],
@@ -210,15 +226,23 @@ const MUTATIONS = {
        + '(forgery gate off + the delta read), so a browser sets its own damage bonus',
   },
   client_authors_until: {
-    /* Both lines are still in consumable-buffs.sql: the clamp is between the two
-       regions buff-segments.sql re-splices, so this one stays single-file. */
-    file: MIG,
+    /* RE-POINTED (step 3). The forgery gate is still consumable-buffs.sql's, but
+       the `until` COMPUTATION now lives in 2026-09-13-buff-cellar-scale.sql, which
+       re-splices it to multiply by the perk scale. Mutating the old text made that
+       file's anchor match zero times, the chain refused, and the arm scored
+       HARNESS instead of the tick it earned — the same lesson as
+       second_helping_restarts: plant the mutation in the file that owns the LIVE
+       text. Anchored on the comment line above it, because the bare assignment
+       appears TWICE in that file (its `find` anchor and its replacement). */
+    files: [
+      [MIG, [["                  where t.bk <> 'item') then", '                  where false) then']]],
+      [MIG_SCALE, [['      -- ceiling a queue may stand on.\n      v_buff_until := least(v_buff_base',
+        "      -- ceiling a queue may stand on.\n"
+        + "      v_buff_until := coalesce((p_delta->'buff_apply'->>'until')::timestamptz, v_buff_base);\n"
+        + '      v_buff_until := least(v_buff_until']]],
+    ],
     why: 'the client\'s own `until` reaches the stored buff — a browser grants itself a buff that never '
        + 'expires, which is the whole reason the expiry is an absolute server stamp',
-    pairs: [["                  where t.bk <> 'item') then", '                  where false) then'],
-      ['      v_buff_until := least(v_buff_base',
-        "      v_buff_until := coalesce((p_delta->'buff_apply'->>'until')::timestamptz, v_buff_base);\n"
-        + '      v_buff_until := least(v_buff_until']],
   },
   cap_refusal_off: {
     file: MIG,
@@ -244,10 +268,40 @@ const MUTATIONS = {
       '      if v_buff_gain < v_buff_need and v_buff_base >= v_buff_cap then']],
   },
   clamp_off: {
-    file: MIG,
+    /* RE-POINTED (step 3), same reason as client_authors_until: the clamp lives in
+       the expression 2026-09-13-buff-cellar-scale.sql now owns. Anchored WITH the
+       make_interval line above it, which carries `v_buff_scale` and so appears
+       exactly once. */
+    file: MIG_SCALE,
     why: 'the 60-minute expiry clamp is gone, so 400 pies before bed bank eight hours of buffed away '
        + 'output — the stock ceiling that replaces a per-day clamp',
-    pairs: [['                            v_buff_cap);', '                            v_buff_base + interval \'400 hours\');']],
+    pairs: [['                              + make_interval(secs => (v_buff_dur * v_buff_scale) / 1000.0),\n'
+      + '                            v_buff_cap);',
+    '                              + make_interval(secs => (v_buff_dur * v_buff_scale) / 1000.0),\n'
+      + "                            v_buff_base + interval '400 hours');"]],
+  },
+  cellar_scale_ignored: {
+    file: MIG_SCALE,
+    why: 'the Cellar rung is read and then multiplied by zero, so a player who paid 320,000 gold for The '
+       + 'Deep Cellar gets exactly the duration of a player who owns no Cellar — the residue-ahead defect '
+       + 'the file exists to close, and one no §4 would see once it stopped running',
+    pairs: [['      v_buff_scale := least(greatest(c_buff_scale * (1 + coalesce(v_buff_bonus, 0)),',
+      '      v_buff_scale := least(greatest(c_buff_scale * (1 + 0 * coalesce(v_buff_bonus, 0)),']],
+  },
+  cellar_scale_not_projected: {
+    file: MIG_SCALE,
+    why: 'a segment stamped BEFORE the scale existed projects a fabricated number instead of an honest '
+       + '1.0, so Active Effects tells a player their buff was multiplied by something that never '
+       + 'happened',
+    pairs: [["               'scale', coalesce((e.v->>'scale')::numeric, 1),",
+      "               'scale', coalesce((e.v->>'scale')::numeric, 99),"]],
+  },
+  cellar_scale_not_journalled: {
+    file: MIG_SCALE,
+    why: 'the scale used stops reaching the append-only journal, so "why did that buff last twenty '
+       + 'minutes" becomes unanswerable from the ledger — the only durable record',
+    pairs: [["      'bs', case when p_delta ? 'buff_apply' and coalesce(v_buff_scale, 1) <> 1",
+      "      'bs', case when false and p_delta ? 'buff_apply' and coalesce(v_buff_scale, 1) <> 1"]],
   },
   merge_replaces_other_types: {
     /* Re-pointed twice now: the rebuild moved to the segments file, then its
@@ -445,7 +499,7 @@ async function run(mutate, blind) {
             pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure) as p`
   )).rows[0];
   const before = await defs();
-  for (const file of [MIG, MIG_DENY]) {
+  for (const file of [MIG, MIG_DENY, MIG_SCALE]) {
     let sql = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
     /* The SAME patched text the chain was built from, so under a mutation this
        measures the MUTATED file's idempotency rather than a mismatch. */
@@ -1210,6 +1264,112 @@ async function run(mutate, blind) {
   ok(!stored || !Object.prototype.hasOwnProperty.call(stored, 'buffs'),
     `[13] client_state stored a buffs key anyway: ${JSON.stringify(stored).slice(0, 120)}`);
 
+  /* ── [21] THE CELLAR SCALES THE CLOCK, SERVER-SIDE (step 3) ───────────────
+     2026-09-13-buff-cellar-scale.sql makes a perk the player BOUGHT reach the
+     stamp that decides how long a buff runs. Three things have to be true at
+     once and none of them is visible from the others: the SQL catalogue must
+     equal the authored ladder, the duration must move with the rung, and the
+     number must be REPORTED (envelope + ledger) rather than silently applied.
+     A forged `scale` is [4]'s arm — it already fires that key by name. */
+  {
+    /* (a) THE RUNG LADDER IS NOT A SECOND COPY — the same rule as [2]. */
+    const sortKeys = (o) => JSON.stringify(Object.keys(o || {}).sort().map((k) => [k, Number(o[k])]));
+    const rp = (await db.query('select room_id, level, perks from public.hr_room_perks')).rows;
+    const authoredRungs = Object.keys(ROOM_PERKS).reduce((n, r) => n + ROOM_PERKS[r].length, 0);
+    ok(rp.length === authoredRungs,
+      `[21] hr_room_perks holds ${rp.length} rungs but src/data/perks.js authors ${authoredRungs} — a `
+      + 'balance ladder that exists twice pays one number and shows another');
+    for (const row of rp) {
+      const want = (ROOM_PERKS[row.room_id] || [])[row.level - 1];
+      ok(!!want, `[21] hr_room_perks has ${row.room_id} rung ${row.level} and src/data/perks.js does not`);
+      if (!want) continue;
+      ok(sortKeys(row.perks) === sortKeys(want),
+        `[21] ${row.room_id} rung ${row.level}: catalogue ${JSON.stringify(row.perks)} vs perks.js `
+        + JSON.stringify(want));
+    }
+
+    const food = (await db.query(
+      `select item_id, duration_ms::bigint as duration_ms from public.hr_item_buffs
+        where duration_ms <= 900000 order by duration_ms desc, item_id limit 1`)).rows[0];
+    ok(!!food, '[21] FIXTURE: no buff food short enough to double under the 60-minute ceiling');
+    if (food) {
+      await stock(food.item_id, 500);
+      const clear = () => db.exec(
+        `update public.player_state set buffs = '[]'::jsonb where user_id = '${U}' and slot = 0`);
+      const left = (seg) => new Date(seg.until).getTime() - Date.now();
+
+      /* (b) NEGATIVE CONTROL — no Cellar, scale 1.0, the catalogue duration. */
+      await db.exec(
+        `delete from public.player_progress where user_id = '${U}' and slot = 0 and key = 'room:cellar'`);
+      await clear();
+      let r = await eat(food.item_id);
+      ok(r && r.ok === true, `[21] a plain consume was refused: ${JSON.stringify(r)}`);
+      let q = await queue();
+      ok(Number((q[0] || {}).scale) === 1,
+        `[21] a character with NO Cellar was stamped at scale ${(q[0] || {}).scale} — the perk is being `
+        + 'paid to everybody');
+      const base = left(q[0] || { until: 0 });
+      ok(Math.abs(base - Number(food.duration_ms)) < 5000,
+        `[21] the unperked duration is ${base} ms, the catalogue says ${food.duration_ms}`);
+
+      /* (c) EVERY RUNG PAYS ITS OWN PAYLOAD — ascending, because hr_unlock_guard
+         refuses a level unlock that decreases (nothing takes a room away). */
+      const rungs = (await db.query(
+        `select level, (perks->>'buffDuration')::float8 as bd from public.hr_room_perks
+          where room_id = 'cellar' order by level`)).rows;
+      ok(rungs.length > 0, '[21] the Cellar has no rungs in hr_room_perks — the probe is vacuous');
+      let topWant = 1;
+      for (const rung of rungs) {
+        await db.exec(
+          `insert into public.player_progress (user_id, slot, kind, key, period_key, value)
+             values ('${U}', 0, 'unlock', 'room:cellar', '', ${Number(rung.level)})
+             on conflict (user_id, slot, kind, key, period_key) do update set value = excluded.value`);
+        await clear();
+        r = await eat(food.item_id);
+        ok(r && r.ok === true, `[21] rung ${rung.level} was refused: ${JSON.stringify(r)}`);
+        q = await queue();
+        const want = Math.min(1 + Number(rung.bd), 2);
+        topWant = want;
+        ok(Number((q[0] || {}).scale) === want,
+          `[21] rung ${rung.level} stamped scale ${(q[0] || {}).scale}, its own payload says ${want} — `
+          + 'the ladder is being flattened to one number');
+        ok(Math.abs(left(q[0] || { until: 0 }) - base * want) < 5000,
+          `[21] rung ${rung.level} bought ${left(q[0] || { until: 0 })} ms, expected ${base * want} ms — `
+          + 'the rung is read and never reaches the clock');
+      }
+
+      /* (d) THE ENVELOPE — the stamped segment carries its scale, and a segment
+         written BEFORE this file existed projects an honest 1.0 rather than a
+         number a renderer has to guess at. */
+      await db.exec(
+        `update public.player_state set buffs = buffs || jsonb_build_array(jsonb_build_object(
+           'type', 'gold_find', 'magnitude', 3, 'until', to_jsonb(now() + interval '20 minutes')))
+         where user_id = '${U}' and slot = 0`);
+      const els = (await envelope()).buffs || [];
+      ok(els.length >= 2, `[21] the envelope projects ${els.length} buffs, expected at least 2`);
+      const legacySeg = els.find((e) => e.type === 'gold_find');
+      ok(!!legacySeg && Number(legacySeg.scale) === 1,
+        `[21] a PRE-SCALE segment projects scale ${legacySeg && legacySeg.scale} instead of 1 — the `
+        + 'envelope invents a multiplier that never happened');
+      const stamped = els.find((e) => e.type !== 'gold_find');
+      ok(!!stamped && Number(stamped.scale) === topWant,
+        `[21] the stamped segment projects scale ${stamped && stamped.scale}, expected ${topWant}`);
+      for (const e of els) {
+        ok(e.until !== undefined && e.remaining_ms !== undefined && e.magnitude !== undefined,
+          `[21] the projection patch ATE a field: ${JSON.stringify(e)}`);
+      }
+
+      /* (e) THE JOURNAL — the scale used is on the ONE ledger row the apply
+         already writes. No row per buff: that is the game_events mistake. */
+      const led = (await db.query(
+        'select meta from public.player_ledger where user_id = $1 and slot = 0 order by id desc limit 1',
+        [U])).rows[0];
+      ok(!!led && led.meta && led.meta.delta && Number(led.meta.delta.bs) === topWant,
+        '[21] the scale used is not journalled on the apply\'s ledger row: '
+        + JSON.stringify(led && led.meta));
+    }
+  }
+
   // ── [15] ONE CEILING, ONE NUMBER ─────────────────────────────────────────
   const capSql = (await db.query(
     `select position('c_buff_max_ms constant bigint  := ' || $1::text || ';' in
@@ -1359,8 +1519,11 @@ if (RUN_DIRECTLY) {
       + 'refused buff_at_max with the gold in the same delta unmoved; a replayed intent buffs once; the '
       + 'envelope projects the queue top-level with a server-derived remaining_ms (expired entries at 0) '
       + 'and ate no neighbour; client_state refuses a forged buff patch while an honest one still saves; '
-      + 'the accrual engine is BYTE-IDENTICAL with no live buff and demonstrably richer with one; and a '
-      + 'second apply of both migrations leaves all three bodies byte-identical.');
+      + 'the accrual engine is BYTE-IDENTICAL with no live buff and demonstrably richer with one; the '
+      + 'Cellar rung the player BOUGHT is what lengthens the buff (scale 1.0 with no Cellar, each rung '
+      + "paying its own payload from a catalogue equal to src/data/perks.js, the number on the envelope "
+      + "and on the apply's ONE ledger row); and a second apply of all three migrations leaves all "
+      + 'three bodies byte-identical.');
     process.exit(0);
   } catch (e) {
     if (e && e.harness) { console.error(`buff-queue: HARNESS — ${e.message}`); process.exit(2); }

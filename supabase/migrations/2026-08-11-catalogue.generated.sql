@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 095fdff0820c6454e71002bd6d0393c00c1be639ab2a97b9a8374df4ec5368bc
+--   catalogue digest: 9917d7c722d8da04493cbb7a3e8d6aba7a1b43ecf0f5002890b63813ddb4f333
 --   rows: 538 items (20 untradeable) ·
 --         280 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 503 activities ·
@@ -1142,7 +1142,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','craft_chitin_helmet','crafting',47,null,false),
   ('artisan','craft_chitin_pants','crafting',53,null,false),
   ('artisan','craft_chitinweave_cloak','crafting',76,null,false),
-  ('artisan','craft_demoncaller_staff','crafting',68,null,false),
+  ('artisan','craft_demoncaller_staff','crafting',75,null,false),
   ('artisan','craft_dragonhide_belt','crafting',78,null,false),
   ('artisan','craft_dragonhide_body','crafting',85,null,false),
   ('artisan','craft_dragonhide_boots','crafting',77,null,false),
@@ -1220,7 +1220,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','cut_ashlar','stonemason',45,null,false),
   ('artisan','cut_deep_blanks','stonemason',74,null,false),
   ('artisan','cut_fine_blanks','stonemason',38,null,false),
-  ('artisan','cut_rune_blanks','stonemason',4,null,false),
+  ('artisan','cut_rune_blanks','stonemason',1,null,false),
   ('artisan','deepbind_blood','runecrafting',93,null,false),
   ('artisan','deepbind_chaos','runecrafting',69,null,false),
   ('artisan','deepbind_earth','runecrafting',24,null,false),
@@ -1251,7 +1251,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','forge_captain_blade','smithing',70,null,false),
   ('artisan','forge_chief_blade','smithing',50,null,false),
   ('artisan','forge_choirbone_gauntlets','smithing',90,null,false),
-  ('artisan','forge_crown_of_the_fallen_king','smithing',85,null,false),
+  ('artisan','forge_crown_of_the_fallen_king','smithing',88,null,false),
   ('artisan','forge_dawn_axe','smithing',92,null,false),
   ('artisan','forge_dawn_belt','smithing',91,null,false),
   ('artisan','forge_dawn_boots','smithing',90,null,false),
@@ -1340,9 +1340,9 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','jewel_banded_signet','crafting',22,null,false),
   ('artisan','jewel_copper_ring','crafting',20,null,false),
   ('artisan','jewel_copper_studs','crafting',10,null,false),
-  ('artisan','jewel_dawnbound_amulet','crafting',86,null,false),
-  ('artisan','jewel_dawnforged_signet','crafting',87,null,false),
-  ('artisan','jewel_dragon_gem_earrings','crafting',86,null,false),
+  ('artisan','jewel_dawnbound_amulet','crafting',88,null,false),
+  ('artisan','jewel_dawnforged_signet','crafting',88,null,false),
+  ('artisan','jewel_dragon_gem_earrings','crafting',88,null,false),
   ('artisan','jewel_fang_studs','crafting',22,null,false),
   ('artisan','jewel_hunter_necklace','crafting',25,null,false),
   ('artisan','jewel_ruby_signet','crafting',52,null,false),
@@ -1378,7 +1378,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','quarry_granite','stonemason',30,null,false),
   ('artisan','quarry_rubble','stonemason',1,null,false),
   ('artisan','release_lich_soul','prayer',86,null,false),
-  ('artisan','saw_duskwood','crafting',90,null,false),
+  ('artisan','saw_duskwood','crafting',88,null,false),
   ('artisan','saw_maple','crafting',45,null,false),
   ('artisan','saw_normal','crafting',1,null,false),
   ('artisan','saw_oak','crafting',15,null,false),
@@ -1388,14 +1388,14 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','scatter_vamp_dust','prayer',58,null,false),
   ('artisan','smelt_bronze','smithing',1,null,false),
   ('artisan','smelt_copper','smithing',1,null,false),
-  ('artisan','smelt_dawn','smithing',92,null,false),
-  ('artisan','smelt_deathsteel_ingot','smithing',62,null,false),
-  ('artisan','smelt_ember','smithing',82,null,false),
-  ('artisan','smelt_gold','smithing',40,null,false),
+  ('artisan','smelt_dawn','smithing',88,null,false),
+  ('artisan','smelt_deathsteel_ingot','smithing',60,null,false),
+  ('artisan','smelt_ember','smithing',75,null,false),
+  ('artisan','smelt_gold','smithing',25,null,false),
   ('artisan','smelt_iron','smithing',15,null,false),
-  ('artisan','smelt_mithril','smithing',55,null,false),
-  ('artisan','smelt_rune','smithing',75,null,false),
-  ('artisan','smelt_steel','smithing',35,null,false),
+  ('artisan','smelt_mithril','smithing',45,null,false),
+  ('artisan','smelt_rune','smithing',60,null,false),
+  ('artisan','smelt_steel','smithing',30,null,false),
   ('artisan','smelt_verdite','smithing',42,null,false),
   ('artisan','smith_iron_fitting','smithing',25,null,false),
   ('artisan','split_rune_blanks','stonemason',22,null,false),
@@ -1579,7 +1579,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '095fdff0820c6454e71002bd6d0393c00c1be639ab2a97b9a8374df4ec5368bc', now())
+  values (true, '9917d7c722d8da04493cbb7a3e8d6aba7a1b43ecf0f5002890b63813ddb4f333', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1744,7 +1744,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 095fdff0820c6454e71002bd6d0393c00c1be639ab2a97b9a8374df4ec5368bc',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 9917d7c722d8da04493cbb7a3e8d6aba7a1b43ecf0f5002890b63813ddb4f333',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

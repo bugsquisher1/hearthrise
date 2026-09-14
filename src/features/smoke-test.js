@@ -13957,40 +13957,167 @@ const TESTS = [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('DEEPSEAM-5: every Deep Seam rung is SELF-SUPPLYING, and the shipped rungs that are not are frozen at 57', () => {
-    const R = window.ARTISAN_RECIPES;
+  () => tryRun('SELFSUPPLY-1: at Smithing 30 the bench offers the Steel Bar AND the steel armour it feeds — the tier opens on ONE rung', () => {
+    /* THE PLAYED MOMENT this ruling exists for. Before 2026-09-13 a smith who
+       reached 30 saw the steel tier open — Gauntlets 31, Boots 32, Belt 33 — with
+       the Steel Bar locked until 35, so the first thing a new tier taught was that
+       you cannot make it. This renders the REAL bench at 29, 30 and 31 and reads
+       the buttons, i.e. it fails on the pre-ruling data at the `30` assertion.
+       Ore is in the bag so the test measures the LEVEL GATE and nothing else. */
+    const snap = snapshotG();
+    const G = window.G, I = window.ITEMS;
+    try {
+      const bar = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'smelt_steel');
+      const glove = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'forge_steel_gauntlets');
+      assert(bar && bar.req === 30, 'smelt_steel must be the Smithing 30 rung (the steel tier gate), got ' + (bar && bar.req));
+      assert(glove && glove.req === 31, 'forge_steel_gauntlets must still be the 31 rung, got ' + (glove && glove.req));
+
+      G.inventory = { iron_bar: 40, coal: 40, steel_bar: 10 };
+      const cell = (html, id) => {
+        const at = html.indexOf(id);
+        assert(at > 0, 'the smithing bench rendered no ' + id + ' tile at all');
+        return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
+      };
+      const atLevel = (lv) => {
+        G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(lv) });
+        return window.renderArtisanActivities('smithing');
+      };
+
+      const at29 = atLevel(29);
+      assert(/disabled/.test(cell(at29, 'smelt_steel')), 'at Smithing 29 the Steel Bar must still be locked');
+      assert(/disabled/.test(cell(at29, 'forge_steel_gauntlets')), 'at Smithing 29 the gauntlets must still be locked');
+
+      const at30 = atLevel(30);
+      const barTile = cell(at30, 'smelt_steel');
+      assert(!/disabled/.test(barTile), 'AT SMITHING 30 THE STEEL BAR MUST BE LIVE — this is the whole ruling: '
+        + barTile.slice(0, 200));
+      assert(barTile.indexOf(I.steel_bar.n) >= 0, 'the live tile must name what it makes, ' + I.steel_bar.n);
+      assert(/disabled/.test(cell(at30, 'forge_steel_gauntlets')),
+        'the gauntlets are the 31 rung — at 30 the player smelts first, then forges');
+
+      const at31 = atLevel(31);
+      assert(!/disabled/.test(cell(at31, 'forge_steel_gauntlets')),
+        'at Smithing 31, holding bars, the first steel armour rung must be LIVE');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('SELFSUPPLY-2: no tier gate sits above the first rung it feeds, and no bar opens below the reagent it eats', () => {
+    /* The two rules that bound the ruling from either side, on every metal tier
+       at once rather than on the one the test above plays. (1) THE TIER GATE: a
+       bar is made at `MATERIAL_TIERS.smith`, which is at or below every forge in
+       its tier because gear generates at smith+lvOff. (2) THE BRONZE WALL, the
+       other direction: a rung reachable before its reagent is gatherable is a
+       wall, which is how bronze once demanded Mining-30 coal at Smithing 1. */
+    const R = window.ARTISAN_RECIPES.smithing || [], T = window.MATERIAL_TIERS || [];
+    const ROCKS = window.ROCKS || [];
+    assert(T.length >= 7, 'MATERIAL_TIERS is unpublished — this guard would grade nothing');
     const inputsOf = window.HearthriseCore.artisan.recipeInputs;
-    /* The cheapest level at which each item can be MADE. */
+    const req = (id) => { const r = R.find((x) => x.id === id); return r && r.req; };
+    const bars = { steel: 'smelt_steel', mithril: 'smelt_mithril', rune: 'smelt_rune',
+      ember: 'smelt_ember', dawn: 'smelt_dawn' };
+    T.forEach((mat) => {
+      if (!bars[mat.id]) return;
+      const at = req(bars[mat.id]);
+      assert(at === mat.smith, mat.id + "'s bar is made at " + at + ' but its tier opens at '
+        + mat.smith + ' — a tier whose own metal is not its first rung');
+      const first = R.filter((r) => (inputsOf(r) || {})[mat.bar]).map((r) => r.req).sort((a, b) => a - b)[0];
+      assert(first === undefined || at <= first,
+        mat.id + ' bar ' + at + ' > its first forge ' + first + ' — the gate is above what it feeds');
+    });
+    const coal = ROCKS.filter((n) => n.prod === 'coal').sort((a, b) => a.req - b.req)[0];
+    assert(coal && coal.req === 30, 'the coal rung moved (' + (coal && coal.req) + ') — re-read the wall below');
+    assert(req('smelt_steel') >= coal.req, 'the Steel Bar is the first coal sink and must not open below Mining '
+      + coal.req + ' — it is at Smithing ' + req('smelt_steel'));
+    assert(!(inputsOf(R.find((r) => r.id === 'smelt_gold')) || {}).coal,
+      'the Gold Bar (Smithing 25) eats coal again — that is the Bronze Wall, and the ruling removed the reagent');
+  }),
+
+  () => tryRun('SELFSUPPLY-3: re-gating a RECIPE never re-gates the WIELD — nobody loses a piece they are wearing', () => {
+    /* The promise that made the ruling safe to ship: five rungs moved UP, and not
+       one of their items may have followed. A raised `reqLv` would strip the piece
+       off a character who already met the old one — the one outcome a balance pass
+       is never allowed to have. Pinned as literals because that is the point. */
+    const I = window.ITEMS || {};
+    [['crown_of_the_fallen_king', 'defense', 85], ['demoncaller_staff', 'magic', 68],
+      ['dawnbound_amulet', 'defense', 86], ['dawnforged_signet', 'defense', 84],
+      ['dragon_gem_earrings', 'defense', 82], ['ruby_signet', 'defense', 52]].forEach(([id, sk, lv]) => {
+      const it = I[id];
+      assert(it && it.reqSkill === sk && it.reqLv === lv,
+        id + ' must still be worn at ' + sk + ' ' + lv + ', got ' + (it && it.reqSkill) + ' ' + (it && it.reqLv)
+        + ' — the recipe moved, the wield gate must not');
+    });
+  }),
+
+  () => tryRun('DEEPSEAM-5: EVERY artisan rung is SELF-SUPPLYING — no recipe asks for a material its own level cannot make (ratchet 57 → 0)', () => {
+    const inputsOf = window.HearthriseCore.artisan.recipeInputs;
+    /* THE PROPERTY, in one line: for every recipe R and every input i,
+       `req(R) >= the cheapest level at which i can be MADE`. Scan a TABLE rather
+       than the global, so the same code can be run against a deliberately broken
+       copy below — a guard that has never been red is not a guard (CLAUDE.md §4). */
+    const scan = (R) => {
+      const madeAt = {};
+      Object.keys(R).forEach((sk) => (R[sk] || []).forEach((r) => {
+        if (!r || !r.output) return;
+        if (madeAt[r.output] === undefined || r.req < madeAt[r.output]) madeAt[r.output] = r.req;
+      }));
+      const ghosts = [];
+      Object.keys(R).forEach((sk) => (R[sk] || []).forEach((r) => {
+        if (!r) return;
+        Object.keys(inputsOf(r)).forEach((k) => {
+          if (madeAt[k] !== undefined && madeAt[k] > r.req) ghosts.push(sk + '/' + r.id + '@' + r.req + ' needs ' + k + '@' + madeAt[k]);
+        });
+      }));
+      return ghosts;
+    };
+
+    const R = window.ARTISAN_RECIPES;
+    /* CONTROL: the scan must be looking at the real, whole catalogue. A guard
+       reading an empty table reports zero violations forever. */
+    const total = Object.keys(R).reduce((n, sk) => n + (R[sk] || []).length, 0);
+    assert(total >= 300, 'the scan saw only ' + total + ' recipes — it is not reading the live catalogue');
+
+    /* THE RATCHET IS PAID. It was FROZEN AT 57 (34 smithing) from the Deep Seam
+       batch until 2026-09-13, when the self-supply ruling moved the SUPPLY rungs
+       to their own tier gates (steel bar 35→30, mithril 55→45, rune 75→60, ember
+       82→75, dawn 92→88, gold 40→25, deathsteel 62→60, duskwood plank 90→88,
+       blank runes 4→1), re-materialled three rungs that named a tier above their
+       own band (longbow→oak, apprentice staff→normal, ruby signet→mithril) and
+       raised the four dawn-identity rungs to 88. The rationale for each lives
+       next to the data it moved (src/data/recipes.js, above the smelting lane).
+       THIS NUMBER IS ZERO AND MUST STAY ZERO — it is not a ratchet any more, it
+       is a property. A new rung that breaks it is a red build, which is the whole
+       point: the ladder must never again promise a forge the player cannot feed. */
+    const ghosts = scan(R);
+    assert(ghosts.length === 0, ghosts.length + ' rung(s) ask for a material their own level cannot make — '
+      + 'the self-supply property is broken (it has been ZERO since 2026-09-13). Move the SUPPLY rung down to '
+      + 'its tier gate, or the material down to the rung\'s own band; only raise the rung when doing so opens '
+      + 'no b343 hole: ' + ghosts.slice(0, 8).join(' | '));
+
+    /* MUTATION ARM — the detector still bites. Break ONE rung in a shallow copy
+       (the first smithing rung that consumes a craftable material, gated one level
+       BELOW its input) and require the scan to name it. Without this, "0" is
+       indistinguishable from a scan that stopped reading inputs. */
     const madeAt = {};
     Object.keys(R).forEach((sk) => (R[sk] || []).forEach((r) => {
       if (!r || !r.output) return;
       if (madeAt[r.output] === undefined || r.req < madeAt[r.output]) madeAt[r.output] = r.req;
     }));
-    const ghosts = [];
-    Object.keys(R).forEach((sk) => (R[sk] || []).forEach((r) => {
-      if (!r) return;
-      Object.keys(inputsOf(r)).forEach((k) => {
-        if (madeAt[k] !== undefined && madeAt[k] > r.req) ghosts.push(sk + '/' + r.id + '@' + r.req + ' needs ' + k + '@' + madeAt[k]);
-      });
-    }));
-    /* THE NEW ROWS CARRY THE PROPERTY. This is the assertion the batch owns:
-       verdite_bar smelts at 42 and every forge that eats it sits at 45+. */
-    const mine = ghosts.filter((g) => /verdite|heartgarnet/.test(g));
-    assert(mine.length === 0, 'a Deep Seam rung asks for a material its own level cannot make: ' + mine.join(', '));
-    /* AND THE CLASS IS FROZEN. 57 shipped rungs (34 of them smithing) require a
-       material their own level cannot make — steel_gauntlets 31 vs the steel bar
-       at 35, twelve mithril rungs 46-54 vs the mithril bar at 55, the same at
-       rune/ember/dawn plus the arrow and jewellery lanes. They are NOT
-       unobtainable (those bars are also shop stock and monster drops), so this
-       is not a red build; what is broken is SELF-SUPPLY, which is the thing the
-       smithing screen teaches. Re-cutting the generated curve is a balance
-       program with an economy review (filed in DISCOVERIES). Until then the
-       count is a RATCHET: it may shrink, never grow. Lower this number when you
-       fix some — never raise it. */
-    const FROZEN = 57;
-    assert(ghosts.length <= FROZEN, 'the self-supply ratchet grew to ' + ghosts.length + ' (frozen at ' + FROZEN
-      + ') — a new rung asks for a material its own level cannot make: ' + ghosts.slice(0, 6).join(' | '));
-    assert(ghosts.length >= 1, 'the ratchet measured ZERO — either the class was fixed (lower FROZEN to 0 and say so) or this guard stopped reading the recipe table');
+    let victim = null, victimIn = null;
+    (R.smithing || []).some((r) => {
+      const hit = Object.keys(inputsOf(r) || {}).find((k) => madeAt[k] !== undefined && madeAt[k] > 1);
+      if (hit) { victim = r; victimIn = hit; }
+      return !!hit;
+    });
+    assert(victim, 'no smithing rung consumes a craftable material — the mutation arm cannot run');
+    const broken = Object.assign({}, R, {
+      smithing: (R.smithing || []).map((r) => (r === victim ? Object.assign({}, r, { req: madeAt[victimIn] - 1 }) : r)),
+    });
+    const caught = scan(broken);
+    assert(caught.some((g) => g.indexOf(victim.id + '@') >= 0),
+      'MUTATION NOT CAUGHT: ' + victim.id + ' was moved to ' + (madeAt[victimIn] - 1) + ', one level below its input '
+      + victimIn + '@' + madeAt[victimIn] + ', and the scan still reported it clean (' + caught.length + ' found) — '
+      + 'the zero above is measuring nothing');
+    assert(scan(R).length === 0, 'the mutation leaked into the live catalogue — the copy was not shallow');
   }),
 
   () => tryRun('DEEPSEAM-6: the client wield gate refuses the Verdite Platebody at Defence 37 and equips it at 38', () => {
@@ -32495,8 +32622,11 @@ const TESTS = [
     });
     /* THE LOWEST GATE, NOT THE LAST ROW. rune_blank has two Stonemason
        recipes; quoting `split_rune_blanks` (Lv 22) instead of
-       `cut_rune_blanks` (Lv 4) reads as "come back much later" to a player who
-       could act now. Same ruling as item-index.js's source line. */
+       `cut_rune_blanks` (Lv 1 since the 2026-09-13 self-supply ruling; Lv 4
+       before it) reads as "come back much later" to a player who could act now.
+       Same ruling as item-index.js's source line. The level below is DERIVED from
+       the recipe table rather than typed, because the typed `4` went stale the
+       first time a balance ruling moved that rung. */
     const blankReqs = (window.ARTISAN_RECIPES.stonemason || [])
       .filter((r) => r.output === 'rune_blank').map((r) => r.req || 1);
     assert(blankReqs.length >= 2, 'the fixture needs an item with TWO recipes to measure anything');
@@ -32509,7 +32639,7 @@ const TESTS = [
       'the tip quoted the hardest rung (Lv ' + highest + ') — the answer to "how do I get this" must be '
       + 'the gate the player can reach first');
     /* The same rule, on the other surface that answers this question. */
-    assert(/Stonemason Lv 4/.test(window.itemSourceLine('rune_blank')),
+    assert(new RegExp('Stonemason Lv ' + lowest).test(window.itemSourceLine('rune_blank')),
       'the item flyout source line must also name the easiest recipe, got: ' + window.itemSourceLine('rune_blank'));
   }),
 
@@ -40437,6 +40567,91 @@ const TESTS = [
         'an envelope without a `buffs` key must leave the queue alone; got ' + JSON.stringify(G.buffs));
     } finally {
       restoreG(snap);
+      try { H.render(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('buffs step 3: the Cellar line on a buff pill is the ENVELOPE\'s `scale` — never a '
+    + 'client-priced room', () => {
+    /* WHAT THIS PROTECTS. 2026-09-13-buff-cellar-scale.sql makes hr_apply stamp each
+       buff segment with the duration multiplier the player's OWN Cellar rungs bought
+       (1.0 unperked, up to 2.0 at The Deep Cellar), and hr_state_of projects it as
+       `scale`. The minutes are already inside `until`, so the client's only job is to
+       SAY SO. Two ways to get that wrong, both red below:
+         · price the line from G.rooms — a client authoring a buff clock (the wall-clock
+           ruling) and residue-ahead by construction, because a rung bought
+           between two helpings would relabel a segment stamped at the old scale;
+         · treat a MISSING field as 1.0-with-a-line, which would have every pre-migration
+           segment brag about a Cellar that did not pay it.
+       THE MUTATION LEVER IS ARMED FOR THE WHOLE TEST: The Deep Cellar is owned, so
+       getBonus('buffDuration') is 1.0 and any room-derived implementation answers
+       "+100% from the Cellar" — which every arm here asserts against. */
+    const G = window.G;
+    const H = window.HearthriseHome;
+    const A = window.HearthriseAccrual;
+    const snap = snapshotG();
+    const prevTab = window.activeTab;
+    const prevRooms = G.rooms;
+    try {
+      assert(typeof window.buffScaleNote === 'function',
+        'src/render/active-effects.js must publish ONE buffScaleNote — Home and Active Effects wording the '
+        + 'same rule differently is how a rule becomes folklore');
+      window.showTab('profile');
+      G.activeSkill = null; G.skillTargetId = null; G.activeMonster = null; G.activeArtisanRecipe = null;
+      /* `rooms` is server-of-record, so a raw `G.rooms = …` is UNKNOWN to every
+         reader and fails closed to the empty map. stampRecordLikeLoad pushes
+         the rung through the REAL hr_load path, which is what a player's Cellar is. */
+      G.rooms = { cellar: 5 };
+      stampRecordLikeLoad(G);
+      const roomPct = Math.round((window.getBonus('buffDuration') || 0) * 100);
+      assert(roomPct > 0 && roomPct !== 40,
+        'the lever is not armed: with The Deep Cellar owned, the client-side buffDuration bonus must be a '
+        + 'NON-ZERO number that is NOT the 40 the envelope states, or the "never computed from rooms" '
+        + 'assertions below cannot bite. Got ' + roomPct + ' DIAG rooms=' + JSON.stringify(window.roomsMapG()) + ' raw=' + window.HearthriseCore.perks.permanentBonus('buffDuration', window.clientPerkState()) + '.');
+
+      const seg = (ms, scale) => {
+        const o = { type: 'gather_speed', magnitude: 15, remaining_ms: ms,
+          until: new Date(Date.now() + ms).toISOString() };
+        if (scale !== undefined) o.scale = scale;
+        return o;
+      };
+      const paint = (scale) => {
+        A.reconcileBuffs(G, { ok: true, buffs: [seg(6 * 60000, scale)] });
+        window.__renderBuffsSection();
+        H.render();
+        return (document.getElementById('food-buffs-host').textContent + ' | '
+          + document.getElementById('hd-root').textContent).replace(/\s+/g, ' ');
+      };
+
+      /* (1) A PERKED SEGMENT SAYS SO, on BOTH buff surfaces, at the SERVER's number. */
+      const perked = paint(1.4);
+      assert(G.buffs.length === 1 && G.buffs[0].scale === 1.4,
+        'reconcileBuffs must carry `scale` through display-only; got ' + JSON.stringify(G.buffs));
+      assert((perked.match(/\+40% from the Cellar/g) || []).length === 2,
+        'the Active Effects row AND the Home pill must each state "+40% from the Cellar" for a segment the '
+        + 'server stamped at scale 1.4: ' + perked);
+      assert(!(perked.indexOf('+' + roomPct + '% from the Cellar') >= 0),
+        'the line was priced from G.rooms (The Deep Cellar reads +' + roomPct + '%), not from the envelope. `scale` '
+        + 'describes the rung that stamped THIS segment; a room-derived number overstates a buff already '
+        + 'running and is the residue-ahead class: ' + perked);
+      assert(/6m 0s/.test(perked) && /6:00/.test(perked),
+        'the Cellar already paid its minutes into `until`; the clock shown must still be the envelope\'s '
+        + 'remaining_ms, never remaining_ms x scale: ' + perked);
+
+      /* (2) AN UNPERKED SEGMENT SAYS NOTHING. scale 1.0 is "no Cellar paid this", and a
+         "+0% from the Cellar" chip is noise a player would read as a fact. */
+      assert(!/from the Cellar/.test(paint(1)),
+        'scale 1.0 must draw no Cellar line on either surface');
+
+      /* (3) ABSENCE IS NOT A STATEMENT (CLAUDE.md §6): a segment written before the
+         migration has no `scale`, and an unknown is never rendered as a claim. */
+      assert(!/from the Cellar/.test(paint(undefined)),
+        'a segment with NO `scale` key must draw no Cellar line — inferring one from the rooms the player '
+        + 'happens to own now is exactly the forbidden client-side computation');
+    } finally {
+      restoreG(snap);
+      G.rooms = prevRooms;
       try { H.render(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
@@ -54805,85 +55020,61 @@ const TESTS = [
       const rowText = () => (rows.textContent || '').replace(/\s+/g, ' ');
       const ov = () => document.getElementById('welcome-overlay');
       const shown = () => !!(ov() && ov().classList.contains('show'));
-      const reset = (waitMs, maxWaitMs) => {
+      const receipt = () => Object.assign({}, NIGHT, { at: Date.now() });
+      const reset = (waitMs, maxWaitMs) => {                 // a fresh page life, wait window spent
         rows.innerHTML = ''; if (ov()) ov().classList.remove('show');
         G.lastOfflineSummary = null; G.lastWelcome = 0;
-        G.lastSeen = Date.now() - 12 * 3600000;          // the 30-minute door is open
+        G.lastSeen = Date.now() - 12 * 3600000;              // the 30-minute door is open
+        AC.__resetAwaySettleLatch(false); AC.__setBootAccruedToForTest(0);   // nothing paid, no watermark
         window.__resetWelcomePresentation(false, waitMs, maxWaitMs);
       };
+      /* THE LIVE ENVIRONMENT: the What's-New sheet is up. A separate overlay with its own
+         latch, so it must neither suppress nor swallow the return report — pinned because
+         "the two modals share a container" was a live hypothesis for this bug. */
+      news = document.createElement('div'); news.id = 'hr-welcome-modal'; document.body.appendChild(news);
 
-      /* THE LIVE ENVIRONMENT: the What's-New sheet is up. It is a separate overlay
-         with its own latch, so it must neither suppress nor swallow the return
-         report — pinned here because "the two modals share a container" was a live
-         hypothesis for this bug and is now a regression. */
-      news = document.createElement('div');
-      news.id = 'hr-welcome-modal';
-      document.body.appendChild(news);
-
-      /* A. THE 12 h SETTLE IS SLOWER THAN THE CAP. The wait window is already
-            spent (waitMs 0) and the request is on the wire. */
-      reset(0, 60000);
-      AC.__resetAwaySettleLatch(false);
-      AC.__setBootAccruedToForTest(0);                   // no envelope has landed: no watermark
-      AC.settleInFlight = () => true;
+      /* A. THE 12 h SETTLE IS SLOWER THAN THE CAP: the wait window is spent and the
+            request is still on the wire, so the timer must stay silent. */
+      reset(0, 60000); AC.settleInFlight = () => true;
       window.__presentWelcomeWhenSettled();
-      assert(!shown(),
-        'THE b545 BUG: the wait cap expired while the settle was still on the wire and the '
-        + 'modal spoke without a receipt — ' + rowText());
-      assert(!(G.lastWelcome > 0),
-        'the timer spent the 5 s welcome door on a receipt-less modal, so this load can never '
-        + 'be told what the night paid');
-
+      assert(!shown(), 'THE b545 BUG: the cap expired mid-flight and the modal spoke without a receipt — ' + rowText());
+      assert(!(G.lastWelcome > 0), 'a receipt-less modal spent the 5 s welcome door on this load');
       /* …and when the answer finally lands, the envelope presents the night. */
-      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() });
-      AC.__resetAwaySettleLatch(true);
-      AC.settleInFlight = () => false;
+      G.lastOfflineSummary = receipt(); AC.__resetAwaySettleLatch(true); AC.settleInFlight = () => false;
       assert(window.__presentWelcome() === true, 'the late away receipt was refused the modal');
       const a = rowText();
       assert(/Time away\s*12h 0m/.test(a), 'the late settle never reached the modal — no span: ' + a);
-      assert(/XP earned\s*\+51,424/.test(a) && /Items found\s*\+6,428/.test(a),
-        'the player was greeted without the night the server just paid: ' + a);
-      assert(document.getElementById('hr-welcome-modal'),
-        "the What's-New sheet was removed by the return card — two independent overlays");
+      assert(/XP earned\s*\+51,424/.test(a) && /Items found\s*\+6,428/.test(a), 'greeted without the night the server paid: ' + a);
+      assert(document.getElementById('hr-welcome-modal'), "the What's-New sheet was removed by the return card");
 
-      /* B. THE SUPERSEDE. Nothing on the wire either (a settle that never started),
-            so the timer greets with lifetime stats — correct, nothing else is
-            known — and the receipt that arrives afterwards REPLACES that card
-            while it is still open, with `G.lastSeen` already beaten to now by the
-            saves that ran in between, exactly as live. */
-      reset(0, 0);
-      AC.__resetAwaySettleLatch(false);
-      AC.settleInFlight = () => false;
+      /* B. THE SUPERSEDE. Nothing on the wire either (a settle that never started), so the
+            timer greets with lifetime stats — correct, nothing else is known — and the
+            receipt that arrives afterwards REPLACES that card while it is still open, with
+            `G.lastSeen` already beaten to now by the saves in between, exactly as live. */
+      reset(0, 0); AC.settleInFlight = () => false;
       window.__presentWelcomeWhenSettled();
       assert(shown(), 'nothing was on the wire and the player was greeted with silence');
       const b0 = rowText();
       assert(/Total kills lifetime/.test(b0), 'the stats-only greeting is empty: ' + b0);
-      assert(!/Time away|XP earned/.test(b0),
-        'a modal with no receipt reported an absence anyway: ' + b0);
-      G.lastSeen = Date.now();                           // saveLocal() beat the residue stamp forward
-      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() });
-      AC.__resetAwaySettleLatch(true);
-      assert(window.__presentWelcome() === true,
-        'the away receipt could not supersede the provisional stats-only card — the b544 latch');
+      assert(!/Time away|XP earned/.test(b0), 'a modal with no receipt reported an absence: ' + b0);
+      G.lastSeen = Date.now();                               // saveLocal() beat the stamp forward
+      G.lastOfflineSummary = receipt(); AC.__resetAwaySettleLatch(true);
+      assert(window.__presentWelcome() === true, 'the away receipt could not supersede the provisional card');
       const b = rowText();
-      assert(/Time away\s*12h 0m/.test(b) && /XP earned\s*\+51,424/.test(b),
-        'the stats-only card was not replaced by the night the server paid: ' + b);
-
-      /* And once reported, nothing re-reports it: a second envelope must not
-         re-render the card the player is reading. */
-      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now(), gainedXp: 999 });
+      assert(/Time away\s*12h 0m/.test(b) && /XP earned\s*\+51,424/.test(b), 'the stats-only card was not replaced: ' + b);
+      /* And once reported, nothing re-reports it — a second envelope must not re-render
+         the card the player is reading. */
+      G.lastOfflineSummary = Object.assign(receipt(), { gainedXp: 999 });
       assert(window.__presentWelcome() === false, 'the absence was reported twice');
 
-      /* C. A CARD THE PLAYER CLOSED IS NEVER RE-OPENED. The Home away card owns
-            the story from there; a modal that pops back is its own bug. */
+      /* C. A CARD THE PLAYER CLOSED IS NEVER RE-OPENED: the Home away card owns the
+            story from there, and a modal that pops back is its own bug. */
       reset(0, 0);
-      AC.__resetAwaySettleLatch(false);
       window.__presentWelcomeWhenSettled();
       assert(shown(), 'arm C never greeted — the arm would be vacuous');
-      ov().classList.remove('show');                     // the player dismissed it
-      G.lastOfflineSummary = Object.assign({}, NIGHT, { at: Date.now() });
-      assert(window.__presentWelcome() === false && !shown(),
-        'a dismissed welcome modal was re-opened by a later receipt');
+      ov().classList.remove('show');                         // the player dismissed it
+      G.lastOfflineSummary = receipt();
+      assert(window.__presentWelcome() === false && !shown(), 'a dismissed modal was re-opened by a later receipt');
     } finally {
       AC.settleInFlight = save.inflight;
       AC.__setBootAccruedToForTest(0);

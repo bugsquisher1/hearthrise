@@ -23,14 +23,28 @@ export const WAVE3_ITEMS = {
 export const WAVE3_RECIPES = {
   smithing: [
     {id:'forge_dragonrend_greatblade',name:'Forge Dragonrend',icon:'🗡️',inputs:{ancient_claw:1,death_steel:2,dragon_gem:1,dawn_bar:3},output:'dragonrend_greatblade',xp:3872,req:88,ms:6520},
-    {id:'forge_crown_of_the_fallen_king',name:'Forge Crown of the Fallen King',icon:'🛡️',inputs:{war_crown:1,dawn_bar:2},output:'crown_of_the_fallen_king',xp:3613,req:85,ms:6400},
+    {id:'forge_crown_of_the_fallen_king',name:'Forge Crown of the Fallen King',icon:'🛡️',inputs:{war_crown:1,dawn_bar:2},output:'crown_of_the_fallen_king',xp:3613,req:88,ms:6400},
     {id:'forge_emberfang_blade',name:'Forge Emberfang',icon:'🗡️',inputs:{hell_ember:1,swarm_heart:1,rune_bar:3},output:'emberfang_blade',xp:2592,req:72,ms:5880},
     {id:'forge_widows_fang',name:'Forge Widow\'s Fang',icon:'🗡️',inputs:{steel_bar:2,spider_eye:1,venom_sac:4},output:'widows_fang',xp:722,req:38,ms:4520},
     {id:'forge_plaguewarden_greaves',name:'Forge Plaguewarden Greaves',icon:'🛡️',inputs:{mithril_bar:4,plague_ichor:3,venom_sac:3},output:'plaguewarden_greaves',xp:1458,req:54,ms:5160},
     {id:'forge_warband_bulwark',name:'Forge Warband Bulwark',icon:'🛡️',inputs:{brute_plate:2,steel_bar:3},output:'warband_bulwark',xp:613,req:35,ms:4400},
   ],
+  /* ── SELF-SUPPLY RULING (game-designer, 2026-09-13; stated in full above the
+     smelting lane in src/data/recipes.js) ─────────────────────────────────────
+     TWO UNIQUES MOVED UP, and they are the half of the rule where the LEVEL was
+     the slip rather than the material:
+       forge_crown_of_the_fallen_king  85 → 88   (eats 2 Dawnsteel Bars)
+       craft_demoncaller_staff         68 → 75   (eats 2 Runewood Planks)
+     Both are tier-marked items (`tier:7` / `tier:6`) whose FLAVOUR names the
+     metal and the wood ("a runewood haft"), so the material is right and the
+     bench level was simply below the tier that makes it: Dawnsteel opens at
+     Smithing 88, Runewood planks at Crafting 75. Neither WIELD level moves —
+     defence 85 and magic 68 stay exactly as shipped, because a requirement a
+     player already meets is never raised to tidy a recipe. Both recipes are
+     drop-gated (a War Crown, a Hell Ember + 3 Demon Shards), so finding one
+     before you can forge one is the intended unique-item story. */
   crafting: [
-    {id:'craft_demoncaller_staff',name:'Craft Demoncaller',icon:'🪄',inputs:{hell_ember:1,demon_shard:3,runewood_plank:2,magic_essence:2},output:'demoncaller_staff',xp:2312,req:68,ms:5720},
+    {id:'craft_demoncaller_staff',name:'Craft Demoncaller',icon:'🪄',inputs:{hell_ember:1,demon_shard:3,runewood_plank:2,magic_essence:2},output:'demoncaller_staff',xp:2312,req:75,ms:5720},
     {id:'craft_panthers_eye_pendant',name:'Craft Panther\'s Eye Pendant',icon:'📿',inputs:{ruby:1,shadow_pelt:1,silk_thread:3},output:'panthers_eye_pendant',xp:2312,req:68,ms:5720},
     {id:'craft_wraithsilk_shroud',name:'Craft Wraithsilk Shroud',icon:'🛡️',inputs:{shadow_thread:3,wraith_veil:1,grave_dust:6,vamp_dust:2},output:'wraithsilk_shroud',xp:1352,req:52,ms:5080},
     {id:'craft_hollow_sigil_ring',name:'Craft Hollow Sigil Ring',icon:'💍',inputs:{steel_bar:1,dark_sigil:1,rune_frag:8,magic_essence:2},output:'hollow_sigil_ring',xp:613,req:35,ms:4400},

@@ -190,9 +190,15 @@ async function applies(pairsByFile) {
 
 /** §0 alone, re-executed against whatever body the session currently holds. */
 async function rerunS0(db, sql) {
-  const a = sql.indexOf('do $pre$');
-  const b = sql.indexOf('$pre$;', a) + '$pre$;'.length;
-  if (a < 0 || b < 6) throw harness('could not extract §0 from the migration');
+  /* §0 is the FIRST `do $$ … end $$;` in the file; §1's body (`as $$ … $$;`) and
+     §3 both come after it. Anchored on the shapes PART 1d of run-sql-tests.mjs
+     requires, so a tag rename fails here rather than silently extracting §3. */
+  const a = sql.indexOf('do $$');
+  const b = sql.indexOf('end $$;', a) + 'end $$;'.length;
+  if (a < 0 || b < 7) throw harness('could not extract §0 from the migration');
+  if (!sql.slice(a, b).includes('c_code_before')) {
+    throw harness('the first do-block in the migration is not §0 — the extractor is reading the wrong one');
+  }
   await db.exec(sql.slice(a, b));
 }
 

@@ -24,7 +24,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-09-14",
-  "replay_ms": 10549,
+  "replay_ms": 10375,
   "counts": {
     "tracked_names": 52,
     "entries": 50
@@ -762,8 +762,7 @@
         "2026-09-12-hr-rejections-journal.sql",
         "2026-09-13-rejections-verb-map-2.sql",
         "2026-09-13-rejections-verb-map-3.sql",
-        "2026-09-13-town-presence-journal.sql",
-        "2026-09-14-rejection-field-detail.sql"
+        "2026-09-13-town-presence-journal.sql"
       ],
       "live": {
         "md5": "545d26dafbcd6dc1909ecc31c1525f1f",

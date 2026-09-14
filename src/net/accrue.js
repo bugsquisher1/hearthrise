@@ -817,19 +817,9 @@ export function gateItemCount(G, id) {
  */
 /* ⏳ RETIREMENT (live-settlement.md §8). This discount exists ONLY because no
    equip intent tells the server about a client equip, so the server's inventory
-   figure is a stale view that still counts the worn copy. It retires on
-   WHICHEVER COMES FIRST:
-     • the equip intent landing (the server then knows, and its figure is
-       already correct — the discount would become a double subtraction), or
-     • the Phase 2 flip, when `applyEnvelopeState` reverts to absolute
-       replacement and the client holds no rival copy to reconcile.
-   It is NOT retired by Phase 1. Do not delete it alongside the max-merge
-   without checking which of the two conditions actually fired — they are
-   different dates and the b362 dupe comes straight back if this goes early.
-
-   ✅ b366 — BOTH CONDITIONS FIRED, AND IT IS NO LONGER ON THE LIVE PATH. The
-      equip verb landed AND the flip landed, in one commit, so the absolute
-      branch in `applyEnvelopeState` never calls this: under absolute the
+   figure is a stale view that still counts the worn copy.
+   ✅ BOTH RETIREMENT CONDITIONS FIRED (the equip verb AND the absolute flip, in
+      one commit), so it is NO LONGER ON THE LIVE PATH: under absolute the
       server's figure already excludes the worn copy, and subtracting it again
       would DELETE a bag copy the player owns. It survives here, unchanged and
       still tested, solely to serve the merge branch the `hr:envelopeMerge`
@@ -1651,6 +1641,11 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
 import { serverAccruedSkill } from '../data/skill-authority.js?v=546';
+/* THE START KIT — the fresh-G bag hint the first envelope discards (see the
+   START_INVENTORY block in reconcileInventory). The SAME frozen source the
+   server's hr_start_kit catalogue is generated from, so there is no second copy
+   of the numbers here either. */
+import { START_INVENTORY } from '../data/start-kit.js?v=546';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -3676,6 +3671,10 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
      not a SERVER_OF_RECORD field, so any SERVER-DERIVED statement about the bag
      waits for this. hr_state_of coalesces the projection to `{}`, so an empty
      bag stamps; an absent key is not a statement. `_`: scratch, never persisted. */
+  /* Has the fresh-G start-kit hint still to be discarded on this page load?
+     (see the START_INVENTORY block under the stamp). `_`: scratch, never saved,
+     so it re-arms on every load exactly as the literal does. */
+  const hintPending = !!invNamedRaw && !G._startKitHintAt;
   if (invNamedRaw) {
     try { G._bagFromServerAt = Date.now(); } catch (e) {}
     /* AND THE BAG ITSELF, MIRRORED — see the serverItemCount block above. The
@@ -3691,6 +3690,32 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
       }
       G._serverBag = mirror;
     } catch (e) { /* a hostile projection cannot break the apply */ }
+  }
+  /* ── THE START KIT IS A PRE-ENVELOPE HINT, DISCARDED ONCE THE REALM SPEAKS ──
+     MEASURED (QA slot 2, 2026-09-13): the bag showed turnip_seed 5 / carrot_seed
+     3 / shrimp 10 while `player_inventory` held NO row for any of the three and
+     the farm answered `insufficient_seed`. Nothing was duplicated — the three are
+     the fresh-`G` factory literal (legacy.js, which must equal START_INVENTORY,
+     smoke B338-1), `inventory` is not a SERVER_OF_RECORD field so `loadLocal`
+     cannot strip it, and the merge below is a one-way `Math.max`: `max(5,
+     omitted)` = 5 FOREVER. hr_create_character seeds exactly these rows, so a NEW
+     character has the hint restated; it lies only once the kit is spent.
+     THE RULE, the narrowest that kills the class: ONCE per load, on a bag the
+     server certifies COMPLETE (the gate PHANTOM-FOOD-1 pins), for START_INVENTORY
+     ids only, and only while the local figure is still EXACTLY the hint — a
+     played figure keeps the never-delete merge rule, so this removes only a
+     quantity the client authored. NOT the Phase-2 flip (another lane), which
+     would not fix this anyway: the literal is re-created on every boot. */
+  if (hintPending && baselineComplete === true) {
+    try { G._startKitHintAt = Date.now(); } catch (e) {}
+    for (const id of Object.keys(START_INVENTORY)) {
+      const hint = Number(START_INVENTORY[id]);
+      if (!Number.isFinite(hint) || hint <= 0) continue;
+      if ((Number(inv[id]) || 0) !== hint) continue;   // touched, or absent — not the hint
+      const q = Number(invNamedRaw[id]);
+      if (Number.isFinite(q) && q > 0) inv[id] = Math.floor(q); else delete inv[id];
+      written.startKitHintDropped = (written.startKitHintDropped || 0) + 1;
+    }
   }
   const consumedIds = consumedKeysOf(res);
   /* THE IDS `hr_bank_move` HAS CONFIRMED IT MOVED (see noteServerBagMove). A

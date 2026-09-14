@@ -49,6 +49,7 @@
 import { readFile } from 'node:fs/promises';
 import { bootReplay, chainFiles } from './schema-replay.mjs';
 import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
+import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
 
 const ROOT = new URL('../', import.meta.url);
 const MIG = '2026-09-12-renown-high-projection.sql';
@@ -61,6 +62,12 @@ const MIG = '2026-09-12-renown-high-projection.sql';
    anchors below (SOURCE/WHERE/JOURNAL/GUARDED) appear EXACTLY ONCE in that file,
    which is what bootReplay demands and what makes the re-point safe. */
 const MIG_APPLY = HR_APPLY_FINAL;
+/* ...and hr_state_of is restated by 2026-09-14-hr-state-of-restatement.sql, which
+   runs LAST. The PROJECTION arms plant there for the same reason the ratchet arms
+   plant in MIG_APPLY: every earlier splice is a draft the restatement overwrites,
+   and its §0 pin refuses a body it cannot name rather than letting a stale arm
+   rot into a vacuous green. */
+const MIG_STATE = HR_STATE_OF_FINAL;
 const UID = '000000d8-0000-0000-0000-0000000000d8';
 
 /* ── THE GATE-BLIND PAIR ───────────────────────────────────────────────────
@@ -111,16 +118,25 @@ const MUTATIONS = {
        + 'src/features/renown.js does not read, so the headline falls back to the last PAID rank\'s '
        + 'threshold. (A RENAME rather than a deletion — deleting the line leaves the spliced string '
        + 'literal unbalanced, and a syntax error is a harness failure dressed up as a catch.)',
-    find: `    'renown_high', coalesce(v_st.renown_high, 0),$new$);`,
-    repl: `    'renownHigh', coalesce(v_st.renown_high, 0),$new$);`,
+    file: MIG_STATE,
+    find: `    'renown_high', coalesce(v_st.renown_high, 0),`,
+    repl: `    'renownHigh', coalesce(v_st.renown_high, 0),`,
   },
   projection_nested_in_state: {
     by: 'R2',
     why: 'the key is projected but INSIDE `state` instead of top-level, where the claim verdict also '
        + 'lives. Every "does hr_state_of mention renown_high" check still passes and the client '
        + 'reader — which takes `res.renown_high` — sees nothing',
-    find: `  c_anchor constant text := $anc$'total_level', public.hr_total_level(p_user, v_st.slot),$anc$;`,
-    repl: `  c_anchor constant text := $anc$'streak_days', v_st.streak_days,$anc$;`,
+    file: MIG_STATE,
+    /* TWO pairs, because MOVING a line is a deletion and an insertion. The first
+       takes the key off the top level; the second puts it back inside `state`,
+       where every "does hr_state_of mention renown_high" text check still passes
+       and the client reader — which takes `res.renown_high` — still sees nothing. */
+    pairs: [
+      ["    'renown_high', coalesce(v_st.renown_high, 0),\n", ''],
+      ["      'streak_days', v_st.streak_days,",
+        "      'streak_days', v_st.streak_days,\n      'renown_high', coalesce(v_st.renown_high, 0),"],
+    ],
   },
   ratchet_never_fires: {
     file: MIG_APPLY,
@@ -239,14 +255,28 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}
    STAYED GREEN. Under-blinding is what produced the red we are fixing. */
 function blindMarkers(m) {
   if (m.blinds) return m.blinds;                       // explicit override, rarely needed
-  const lits = (s) => new Set((s.match(/'[A-Za-z_][A-Za-z0-9_]{3,}'/g) || []).map((x) => x.slice(1, -1)));
-  const kept = lits(m.repl);
-  return [...lits(m.find)].filter((t) => !kept.has(t));
+  const lits = (s) => new Set((String(s || '').match(/'[A-Za-z_][A-Za-z0-9_]{3,}'/g) || []).map((x) => x.slice(1, -1)));
+  /* A multi-pair mutation (a MOVE is a delete plus an insert) is read as ONE
+     defect: the union of what its `find`s remove minus the union of what its
+     `repl`s keep. Reading only `m.find` returned undefined here and the arm
+     failed as "the chain threw" rather than as itself. */
+  const all = m.pairs ? m.pairs : [[m.find, m.repl]];
+  const kept = new Set(all.flatMap(([, r]) => [...lits(r)]));
+  return [...new Set(all.flatMap(([f]) => [...lits(f)]))].filter((t) => !kept.has(t));
 }
 
 /* A gate header: an `if`/`elsif` whose condition ends at a line ending in `then`.
    Conditions in this repo span up to four lines, hence the non-greedy [\s\S]. */
-const GATE_HEADER = /^([ \t]*)(if|elsif)\b([\s\S]*?)\bthen[ \t]*$/gm;
+/* `[^;]*?`, NOT `[\s\S]*?`: a plpgsql gate header never crosses a statement
+   terminator, and the unbounded form walked from a one-line `if … then return …;
+   end if;` in a RESTATED function body all the way to the next line that happens
+   to END in `then`, swallowing 43,735 characters of hr_state_of and replacing
+   them with `if false then`. Over-blinding is only the safe direction while it
+   blinds a GATE; blinding half a function body breaks the chain and reports as
+   "THE REPO CANNOT REBUILD THE DATABASE" (measured 2026-09-14, when the
+   hr_state_of restatement became the last file in the chain and therefore the
+   first whole function body this scan had ever seen). */
+const GATE_HEADER = /^([ \t]*)(if|elsif)\b([^;]*?)\bthen[ \t]*$/gm;
 
 async function laterChainBlinds(mutate) {
   const markers = blindMarkers(MUTATIONS[mutate]);
@@ -324,7 +354,10 @@ async function boot(mutate, gateBlind, extra) {
   const add = (name, list) => patches.set(name, (patches.get(name) || []).concat(list));
   /* The mutation goes into the file that owns the LIVE text (see MIG_APPLY);
      `extra` and GATE_BLIND are always MIG's own text. */
-  if (mutate) add(MUTATIONS[mutate].file || MIG, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]);
+  if (mutate) {
+    const m = MUTATIONS[mutate];
+    add(m.file || MIG, m.pairs ? m.pairs.map((x) => x.slice()) : [[m.find, m.repl]]);
+  }
   if (extra) add(MIG, [[extra.find, extra.repl]]);
   if (gateBlind) add(MIG, [GATE_BLIND]);
   if (!patches.size) { const { db } = await bootReplay(); return db; }
@@ -334,6 +367,7 @@ async function boot(mutate, gateBlind, extra) {
        raise — correctly, and at apply time, which is a MIGRATION gate rather
        than this guard's tick. Blind it here, only in gate-blind mode. */
     if ((MUTATIONS[mutate].file || MIG) === MIG_APPLY) add(MIG_APPLY, [HR_APPLY_S3_BLIND.slice()]);
+    if ((MUTATIONS[mutate].file || MIG) === MIG_STATE) add(MIG_STATE, [HR_STATE_OF_S3_BLIND.slice()]);
     for (const [name, list] of await laterChainBlinds(mutate)) add(name, list);
   }
   const { db } = await bootReplay({ patches });

@@ -115,6 +115,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
+import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -136,8 +137,14 @@ import { deltaClosesWindow } from '../supabase/functions/hr-accrue/intents.js';
    file already learned twice (see client_authors_until and second_helping_-
    restarts) — it just has one answer now instead of six. The hr_state_of and
    catalogue arms are UNCHANGED: those bodies are still owned by their own files.
-   tests/hr-apply-final-body.mjs holds the constant and the §3 blind. */
+   tests/hr-apply-final-body.mjs holds the constant and the §3 blind.
+
+   …and on the SAME day hr_state_of was restated the same way, so the THREE
+   PROJECTION arms (cellar_scale_not_projected, projection_always_empty,
+   remaining_ms_dead) moved to MIG_STATE for exactly the same reason. The
+   catalogue and deny-list arms are still owned by their own files. */
 const MIG_APPLY = HR_APPLY_FINAL;
+const MIG_STATE = HR_STATE_OF_FINAL;
 const MIG = '2026-09-13-consumable-buffs.sql';
 const MIG_DENY = '2026-09-13-client-state-buffs-denylist.sql';
 const MIG_CAT = '2026-09-13-item-buffs-catalogue.generated.sql';
@@ -168,6 +175,10 @@ const BLIND = {
      as a MIGRATION gate rather than this guard's tick. Every arm here runs
      gate-blind, so it is short-circuited for all of them. */
   [HR_APPLY_FINAL]: HR_APPLY_S3_BLIND,
+  /* THE hr_state_of RESTATEMENT'S §3, for the same reason: it pins the CODE hash
+     of the envelope it installs and probes the exact key set, so any projection
+     mutation makes it raise at apply time. */
+  [HR_STATE_OF_FINAL]: HR_STATE_OF_S3_BLIND,
   /* ⚠ LATER FILES THAT *PIN* THIS BLOCK'S TEXT MUST BE BLINDED HERE TOO.
      2026-09-13-rejections-verb-map-2.sql's GATE(e) is a SHAPE PIN on hr_apply it
      does not own: `buff_at_max` must be raised from exactly 2 sites with
@@ -326,7 +337,7 @@ const MUTATIONS = {
       '      v_buff_scale := least(greatest(c_buff_scale * (1 + 0 * coalesce(v_buff_bonus, 0)),']],
   },
   cellar_scale_not_projected: {
-    file: MIG_SCALE,
+    file: MIG_STATE,   // was MIG_SCALE — hr_state_of body
     why: 'a segment stamped BEFORE the scale existed projects a fabricated number instead of an honest '
        + '1.0, so Active Effects tells a player their buff was multiplied by something that never '
        + 'happened',
@@ -387,7 +398,7 @@ const MUTATIONS = {
       '        from public.hr_item_buffs b order by b.item_id limit 1;']],
   },
   projection_always_empty: {
-    file: MIG,
+    file: MIG_STATE,   // was MIG — hr_state_of body
     why: 'hr_state_of projects the key but reads a constant empty array instead of the column, so every '
        + 'buff is paid to nobody while the column fills up — the b341 class and the plotLevels '
        + 'false-green. (It replaced a KEY-RENAME mutation: renaming the key deletes the literal '
@@ -397,7 +408,7 @@ const MUTATIONS = {
       "        from jsonb_array_elements('[]'::jsonb) as e(v)\n    ), '[]'::jsonb),"]],
   },
   remaining_ms_dead: {
-    file: MIG,
+    file: MIG_STATE,   // was MIG — hr_state_of body
     why: 'remaining_ms is projected as 0 for every entry, so the client renders no countdown and the '
        + 'step-2 reconcile would drop every live buff as expired',
     pairs: [["               'remaining_ms', greatest(0, floor(\n                 extract(epoch from ((e.v->>'until')::timestamptz - now())) * 1000))::bigint)",

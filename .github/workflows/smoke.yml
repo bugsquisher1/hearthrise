@@ -1800,6 +1800,22 @@ jobs:
           node tests/hr-apply-final-body.mjs
           node tests/hr-apply-final-body.mjs --selftest
 
+      # THE SAME, FOR THE ENVELOPE. 2026-09-14-hr-state-of-restatement.sql restates
+      # hr_state_of (24 anchored patches from 23 files) COMMENT-ONLY, so §0 and
+      # §3(a) pin ONE code constant and there is no re-apply escape hatch. §3(d)
+      # additionally probes a real character's envelope for the EXACT 26 top-level
+      # + 36 state keys tests/no-client-copy-of-projection.baseline.json pins,
+      # because a restatement that quietly shipped a smaller envelope would make
+      # that guard pass by agreeing with a smaller truth. This file is their
+      # mutation proof AND the single source of the final-body constants
+      # tests/buff-queue.mjs, renown-projection.mjs, state-of-farm-projection.mjs,
+      # gem-unlock-buy.mjs and recipe-learn.mjs import. PGlite; no credential.
+      - name: hr_state_of final body — the envelope restatement's pins still bite
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hr-state-of-final-body.mjs
+          node tests/hr-state-of-final-body.mjs --selftest
+
       # THE SUITE MAY GROW; THE COST PER TEST MAY NOT. smoke-test.js tripled in
       # four weeks. Ratchets lines-per-test and direct-G.*-seeds-per-test, with a
       # FLOOR under the test count so the ratios cannot be satisfied by deleting

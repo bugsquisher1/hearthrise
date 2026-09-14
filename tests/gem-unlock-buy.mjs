@@ -42,6 +42,12 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay } from './schema-replay.mjs';
+/* THE FINAL-BODY RULE. hr_state_of is RESTATED WHOLE by a later migration, so an
+   arm that plants into this file's own splice is mutating a draft the restatement
+   overwrites — and the restatement's §0 pin refuses a body it cannot name, so
+   such an arm reads "THE REPO CANNOT REBUILD THE DATABASE" instead of biting.
+   The projection arm plants THERE; the constants live in one place. */
+import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
 
 /* A URL, not the filesystem path schema-replay.mjs exports — `new URL(rel, path)`
    throws on Windows, and this file loads three real repo modules by URL. */
@@ -89,8 +95,9 @@ const MUTATIONS = {
     why: 'THE SHIPPED BUG, restored under a new name: hr_state_of projects the owned set under a '
        + 'key src/legacy.js does not read, so ownership falls back to the residue bag a cloud '
        + 'restore can rewind',
-    find: `    'gem_unlocks', public.hr_gem_unlocks_of(p_user, v_st.slot),$new$);`,
-    repl: `    'gemUnlocks', public.hr_gem_unlocks_of(p_user, v_st.slot),$new$);`,
+    file: HR_STATE_OF_FINAL,
+    find: `    'gem_unlocks', public.hr_gem_unlocks_of(p_user, v_st.slot),`,
+    repl: `    'gemUnlocks', public.hr_gem_unlocks_of(p_user, v_st.slot),`,
   },
   read_narrowed_to_one_slot: {
     by: 'R12',
@@ -208,7 +215,15 @@ async function boot(mutate, gateBlind, extra) {
   };
   if (mutate) add(MUTATIONS[mutate].file || MIG, [MUTATIONS[mutate].find, MUTATIONS[mutate].repl]);
   if (extra) add(MIG, [extra.find, extra.repl]);
-  if (gateBlind) add(MIG, GATE_BLIND);
+  if (gateBlind) {
+    add(MIG, GATE_BLIND);
+    /* An arm that plants into the RESTATEMENT is caught at apply time by that
+       file's own §3 — correct behaviour, and also a gate. In gate-blind mode the
+       job is to prove THIS GUARD sees the defect, so §3 is short-circuited too. */
+    if (mutate && MUTATIONS[mutate].file === HR_STATE_OF_FINAL) {
+      add(HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND.slice());
+    }
+  }
   const { db } = byFile.size ? await bootReplay({ patches: byFile }) : await bootReplay();
   return db;
 }

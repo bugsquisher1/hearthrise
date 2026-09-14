@@ -46,6 +46,12 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay } from './schema-replay.mjs';
+/* THE FINAL-BODY RULE. hr_state_of is RESTATED WHOLE by a later migration, so an
+   arm that plants into this file's own splice is mutating a draft the restatement
+   overwrites — and the restatement's §0 pin refuses a body it cannot name, so
+   such an arm reads "THE REPO CANNOT REBUILD THE DATABASE" instead of biting.
+   The projection arm plants THERE; the constants live in one place. */
+import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
 
 /* A URL, not the filesystem path schema-replay.mjs exports — `new URL(rel, path)`
    throws on Windows, and this file loads three real repo modules by URL. */
@@ -80,8 +86,9 @@ const MUTATIONS = {
     why: 'THE SHIPPED BUG under a new name: hr_state_of projects the learned set under a key the '
        + 'client does not read, so the artisan gate keeps living in the residue and the away engine '
        + 'keeps stopping at tick 0',
-    find: `    'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),$new$);`,
-    repl: `    'unlockedRecipes', public.hr_recipes_of(p_user, v_st.slot),$new$);`,
+    file: HR_STATE_OF_FINAL,
+    find: `    'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),`,
+    repl: `    'unlockedRecipes', public.hr_recipes_of(p_user, v_st.slot),`,
   },
   reader_drops_the_catalogue_join: {
     by: 'R11',
@@ -216,13 +223,23 @@ const NEGATIVE_CONTROL = {
 };
 
 async function boot(mutate, gateBlind, extra) {
-  const pairs = [];
-  if (mutate) pairs.push([MUTATIONS[mutate].find, MUTATIONS[mutate].repl]);
-  if (extra) pairs.push([extra.find, extra.repl]);
-  if (gateBlind) pairs.push(GATE_BLIND);
-  const { db } = pairs.length
-    ? await bootReplay({ patches: new Map([[MIG, pairs]]) })
-    : await bootReplay();
+  const byFile = new Map();
+  const add = (file, pair) => {
+    if (!byFile.has(file)) byFile.set(file, []);
+    byFile.get(file).push(pair);
+  };
+  if (mutate) add(MUTATIONS[mutate].file || MIG, [MUTATIONS[mutate].find, MUTATIONS[mutate].repl]);
+  if (extra) add(MIG, [extra.find, extra.repl]);
+  if (gateBlind) {
+    add(MIG, GATE_BLIND);
+    /* An arm that plants into the RESTATEMENT is caught at apply time by that
+       file's own §3 — correct behaviour, and also a gate. In gate-blind mode the
+       job is to prove THIS GUARD sees the defect, so §3 is short-circuited too. */
+    if (mutate && MUTATIONS[mutate].file === HR_STATE_OF_FINAL) {
+      add(HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND.slice());
+    }
+  }
+  const { db } = byFile.size ? await bootReplay({ patches: byFile }) : await bootReplay();
   return db;
 }
 

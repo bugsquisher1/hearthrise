@@ -38,11 +38,18 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay } from './schema-replay.mjs';
+/* THE FINAL-BODY RULE. hr_state_of is RESTATED WHOLE by 2026-09-14-hr-state-of-
+   restatement.sql, which runs LAST — so every arm below plants THERE, not in this
+   migration's own splice, which the restatement overwrites. An arm left on the
+   draft does not quietly stop biting: the restatement's §0 pin refuses a body it
+   cannot name and the arm reads "THE REPO CANNOT REBUILD THE DATABASE". */
+import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
 import { growthHours, isReady } from '../src/core/farm.js';
 
 const ROOT = new URL('../', import.meta.url);
 const mod = (p) => new URL(p, ROOT).href;
 const MIG = '2026-09-06-state-of-farm-projection.sql';
+const MIG_STATE = HR_STATE_OF_FINAL;
 
 const uidFor = (n) => `000000f2-0000-0000-0000-0000000000${n}`;
 const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -90,42 +97,41 @@ end $$;`,
    guard is watching the load-bearing details rather than the key names. */
 const MUTATIONS = {
   plot_level_not_projected: {
-    file: MIG,
+    file: MIG_STATE,
     why: 'THE Q-2 BUG: hr_state_of projects the tier under a name the client does not read, so a '
        + 'reload rebuilds G without the farm tier and getPlotLevel() falls back to Lv 1 — unlocked '
-       + 'seeds vanish. (A key RENAME rather than a deletion: deleting the line leaves an unbalanced '
-       + 'quote inside the spliced string literal, which is a SYNTAX error, and a syntax error is a '
-       + 'HARNESS failure dressed up as a catch — the renown-faucet lesson.)',
-    find: "      ''plot_level'', v_st.plot_level,');",
-    repl: "      ''plotLevel'', v_st.plot_level,');",
+       + 'seeds vanish. (A key RENAME rather than a deletion, so the defect is a PROJECTION bug and '
+       + 'not a syntax error — a syntax error is a HARNESS failure dressed up as a catch.)',
+    find: "      'plot_level', v_st.plot_level,",
+    repl: "      'plotLevel', v_st.plot_level,",
   },
   waterings_not_projected: {
-    file: MIG,
+    file: MIG_STATE,
     why: 'THE Q-5 BUG: hr_state_of stops projecting the waterings array, so the client rebuilds a '
        + 'one-element history from watered_at and its isReady disagrees with the server',
-    find: "                                          'waterings', coalesce(to_jsonb(waterings), '[]'::jsonb))$new$);",
-    repl: "                                          'watered_at', watered_at)$new$);",
+    find: "                                          'waterings', coalesce(to_jsonb(waterings), '[]'::jsonb))",
+    repl: "                                          'watered_at', watered_at)",
   },
   waterings_truncated_to_last: {
-    file: MIG,
+    file: MIG_STATE,
     why: 'the array is projected but carries only the LAST watering — array-SHAPED, not array-VALUED. '
        + 'Every key-existence assertion still passes and the bug ships',
-    find: "'waterings', coalesce(to_jsonb(waterings), '[]'::jsonb))$new$);",
-    repl: "'waterings', coalesce(to_jsonb(waterings[array_length(waterings,1):array_length(waterings,1)]), '[]'::jsonb))$new$);",
+    find: "'waterings', coalesce(to_jsonb(waterings), '[]'::jsonb))",
+    repl: "'waterings', coalesce(to_jsonb(waterings[array_length(waterings,1):array_length(waterings,1)]), '[]'::jsonb))",
   },
   plot_level_hardcoded: {
-    file: MIG,
+    file: MIG_STATE,
     why: 'the key is projected but from a constant instead of the row — the classic "the field is '
        + 'there, the value is a default" projection defect',
-    find: "      ''plot_level'', v_st.plot_level,');",
-    repl: "      ''plot_level'', 1,');",
+    find: "      'plot_level', v_st.plot_level,",
+    repl: "      'plot_level', 1,",
   },
   watered_at_dropped: {
-    file: MIG,
-    why: 'the waterings splice EATS the scalar watered_at an older client still reads — a projection '
+    file: MIG_STATE,
+    why: 'the farm projection EATS the scalar watered_at an older client still reads — a projection '
        + 'must be additive, and removing a key is a breaking change',
-    find: "    v_def := replace(v_def, c_farm, $new$'planted_at', planted_at, 'watered_at', watered_at,",
-    repl: "    v_def := replace(v_def, c_farm, $new$'planted_at', planted_at,",
+    find: "                                          'planted_at', planted_at, 'watered_at', watered_at,",
+    repl: "                                          'planted_at', planted_at,",
   },
 };
 
@@ -135,9 +141,16 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}
 async function boot(mutate, gateBlind) {
   if (!mutate) { const { db } = await bootReplay(); return db; }
   const m = MUTATIONS[mutate];
-  const pairs = [[m.find, m.repl]];
-  if (gateBlind) pairs.push(GATE_BLIND);
-  const { db } = await bootReplay({ patches: new Map([[m.file, pairs]]) });
+  const byFile = new Map([[m.file, [[m.find, m.repl]]]]);
+  const add = (f, pair) => byFile.set(f, (byFile.get(f) || []).concat([pair]));
+  if (gateBlind) {
+    add(MIG, GATE_BLIND);
+    /* An arm planted in the RESTATEMENT is caught at apply time by that file's
+       own §3 — correct, and also a MIGRATION gate. In gate-blind mode the job is
+       to prove THIS GUARD sees the defect, so §3 is short-circuited too. */
+    if (m.file === MIG_STATE) add(MIG_STATE, HR_STATE_OF_S3_BLIND.slice());
+  }
+  const { db } = await bootReplay({ patches: byFile });
   return db;
 }
 

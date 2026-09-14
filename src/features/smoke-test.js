@@ -1,21 +1,21 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=544' directly.
+// modularised, will import { G } from '../state/game.js?v=545' directly.
 //
 // b535 — NEVER SENT TO A PLAYER. A dynamic import owned by smoke-test-loader.js,
 // which owns all three triggers too; read its header. Guard: boot-budget.mjs.
 
-import { on, snapshot } from '../net/events.js?v=544';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=544';
+import { on, snapshot } from '../net/events.js?v=545';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=545';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=544';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=545';
 /* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
    table, never retyped: a designer re-pricing a rung must re-price the
    expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../data/bestiary-charms.js?v=544';
+import { CHARM_RANKS } from '../data/bestiary-charms.js?v=545';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -9657,7 +9657,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=544');
+    const S = await import('../data/shops.js?v=545');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -10559,7 +10559,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=544');
+    const mod = await import('../data/dungeons.js?v=545');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10590,7 +10590,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=544');
+    const mod = await import('../data/dungeons.js?v=545');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -13452,6 +13452,114 @@ const TESTS = [
       window.fetch = realFetch;
       try { A.markInventoryAuthorityLive(false); A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
       E.resetEquip(); if (prevEquip) E.configureEquip(prevEquip); restoreG(snap);
+    }
+  }),
+
+  /* ── regression suite — DEPOT-2: THE DEPOT, PLAYED UNARMED ──────────────────
+     THE LIVE P1. The release note said "The Depot opens". On live it did not: the
+     panel read "The realm has not sent your Depot yet — reload if this persists"
+     with 0 stacks over an envelope that carried `bank: {}` on EVERY settle, and
+     pressing Store sent one hr_bank_move → 200 after which the bag still showed
+     876 Bones, the Depot column still showed nothing, and no message appeared at
+     all. Root cause: `reconcileBank` was gated on the BAG's absolute arm
+     (isInventoryAbsolute(), false in prod), so the fold answered 'dormant'
+     forever; the bag's merge `Math.max` then refused to let the deposited stack
+     leave; and the panel's re-entrancy fuse returned silently.
+
+     THIS TEST IS BANK-1 WITH THE ARM OFF, which is the only configuration a real
+     player has ever run. It plays the gesture through the REAL delegated click
+     listener on the REAL panel — the press, not the function — because the press
+     is what did nothing. Everything it asserts is the SERVER's: `bank: {}` means
+     an EMPTY Depot (a claim only the realm can make, and it makes it), and the
+     figures after the move are the second envelope's, never this device's. */
+  () => tryRunAsync('DEPOT-2 (b545): with the bag arm OFF the Depot still folds, a pressed Store posts once and lands, and a refusal says why', async () => {
+    const G = window.G, D = window.HearthriseDepot, BS = window.HearthriseBankSync, A = window.HearthriseAccrual;
+    assert(D && typeof D.open === 'function' && BS && typeof BS.bankMoveSettled === 'function' && A
+      && typeof A.reconcileBank === 'function' && typeof A.__resetBankFoldMode === 'function',
+      'CONTROL: the Depot seam is unpublished (HearthriseDepot/HearthriseBankSync/reconcileBank) — the feature has no client half');
+    const ID = window.ITEMS && window.ITEMS.bones ? 'bones'
+      : Object.keys(window.ITEMS || {}).find((k) => window.ITEMS[k] && window.ITEMS[k].n);
+    assert(!!ID, 'CONTROL: no nameable item in the catalogue, so no Depot row can be drawn');
+    const NAME = window.ITEMS[ID].n;
+    const snap = snapshotG(); const realFetch = window.fetch; const realNotify = window.notify;
+    const said = [];
+    let rpc = [], answer = { ok: true, item: ID, qty: 10, direction: 'deposit', version: 9 };
+    /* THE TWO ENVELOPES: before the move the realm holds nothing and the player
+       carries 876; after it the realm holds 10 and the bag is 866. Both carry
+       `inventory_complete: false` on purpose — the Depot must not wait for the
+       bag's completeness flag any more than for its arm. */
+    let env = { ok: true, accrued: true, version: 9, now: new Date().toISOString(), state: { gold: G.gold },
+      skills: {}, equipment: {}, inventory_complete: false, inventory: { [ID]: 876 }, bank: {}, away: { minutes: 0, kind: 'idle' } };
+    const reply = (b) => Promise.resolve(new Response(JSON.stringify(b), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const view = () => D.bankPanelView(G, {});
+    const bodyText = () => {
+      const el = document.getElementById('bank-panel-overlay');
+      return el ? (el.textContent || '').replace(/\s+/g, ' ') : '';
+    };
+    const press = async (qty) => {
+      const el = document.querySelector('#bank-panel-overlay [data-bank-move="deposit"][data-bank-qty="' + qty + '"]');
+      assert(!!el, 'no enabled Store ×' + qty + ' control on the ' + NAME + ' row — the panel drew a Depot a player cannot act on: ' + bodyText());
+      assert(el.disabled !== true, 'the Store ×' + qty + ' control is DISABLED while the realm is reachable');
+      el.click();                                   // the REAL delegated listener
+      for (let i = 0; i < 60 && !said.length; i++) await new Promise((r) => setTimeout(r, 20));
+    };
+    try {
+      window.notify = (m) => { said.push(String(m)); };
+      A.markInventoryAuthorityLive(false); A.__resetBankFoldMode();
+      assert(A.isInventoryAbsolute() === false, 'CONTROL: the bag arm is ON in this suite run, so this test would not be measuring the live configuration');
+      window.fetch = (u, init) => (/rpc\/hr_bank_move/.test(String(u))
+        ? (rpc.push(JSON.parse((init && init.body) || 'null')), reply(answer))
+        : /hr-accrue/.test(String(u)) ? reply(env) : realFetch.call(window, u, init));
+      A.resetAccrualGate(); A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      G.inventory = { [ID]: 876 }; G.bank = { goldBuys: 1 }; delete G._depotCap;
+
+      /* (a) NOTHING STATED YET → "not sent", which is the honest line. */
+      assert(view().projected === false, 'the panel claimed a projected Depot before any envelope stated one — absence is not a claim of zero');
+
+      /* (b) THE PANEL OPENS AND ASKS THE REALM. `bank: {}` is a COMPLETE
+             statement of an empty container, so the copy must flip. */
+      D.open();
+      for (let i = 0; i < 60 && A.lastBankFoldMode() !== 'absolute'; i++) await new Promise((r) => setTimeout(r, 20));
+      assert(A.lastBankFoldMode() === 'absolute', 'the fold answered "' + A.lastBankFoldMode() + '" for an envelope carrying `bank: {}` with the bag arm off — THE LIVE P1: the Depot is server-owned and does not wait for the bag');
+      assert(view().projected === true && /Your Depot is empty/.test(bodyText()) && !/has not sent/.test(bodyText()),
+        'the Depot column still says the realm has not sent it: ' + bodyText());
+      assert(G.bank.goldBuys === 1, 'the fold ate the bank-SPACE counter (goldBuys) — purchased rungs are not stacks');
+
+      /* (c) THE PRESS. One intent, five fields, and the figures that follow are
+             the SECOND envelope's — not 876-10 and not the RPC's own qty. */
+      env = { ...env, inventory: { [ID]: 866 }, bank: { [ID]: 10 } };
+      await press(10);
+      assert(rpc.length === 1, 'the pressed Store put ' + rpc.length + ' intents on the wire, not one (live: three presses, one POST, no message)');
+      assert(rpc[0].p_item === ID && rpc[0].p_qty === 10 && rpc[0].p_dir === 'deposit' && /^[0-9a-f-]{36}$/i.test(String(rpc[0].p_idem)),
+        'the intent said ' + JSON.stringify(rpc[0]) + ' — item/qty/direction/idem are the gesture\'s');
+      assert(G.bank[ID] === 10, 'the Depot shows ' + G.bank[ID] + ' after a confirmed deposit — the envelope said 10 and the fold was dormant again');
+      assert(G.inventory[ID] === 866, 'the bag still shows ' + G.inventory[ID] + ' — the merge max kept the stale 876 the player watched NOT leave their bag');
+      assert(/Stored/.test(said.join(' ')) , 'a confirmed move said nothing to the player: ' + JSON.stringify(said));
+      assert(new RegExp('1 stack stored').test(bodyText()), 'the Depot column did not repaint to the realm\'s one stack: ' + bodyText());
+      assert(A.isInventoryAbsolute() === false, 'this test armed the BAG — the Depot fix must not smuggle the inventory flip in early');
+
+      /* (d) A REFUSAL IS A SENTENCE, and the realm's own ceiling is learned only
+             from the realm saying it. */
+      rpc = []; said.length = 0; answer = { ok: false, error: 'bank_full', cap: 1000 };
+      await press(1);
+      assert(rpc.length === 1, 'the second gesture did not reach the server: ' + JSON.stringify(rpc));
+      assert(/Depot is full/.test(said.join(' ')) && /1,000 stacks/.test(said.join(' ')),
+        'a refusal was swallowed into silence — the player pressed Store and nothing happened: ' + JSON.stringify(said));
+      assert(G._depotCap === 1000, 'the ceiling the realm just named was not remembered (' + G._depotCap + ')');
+
+      /* (e) THE FUSE SPEAKS. A press while a move is in flight is answered, not
+             silently dropped — the other half of "nothing happened". */
+      said.length = 0; answer = { ok: true, item: ID, qty: 1, direction: 'deposit', version: 10 };
+      const first = D.move(ID, 1, 'deposit');
+      const second = await D.move(ID, 1, 'deposit');
+      assert(second && second.ok === false && second.error === 'busy', 'a concurrent gesture was not fused: ' + JSON.stringify(second));
+      assert(/One move at a time/.test(said.join(' ')), 'the fused press said nothing — a dead button with no message is how the live Depot read: ' + JSON.stringify(said));
+      await first;
+    } finally {
+      window.fetch = realFetch; window.notify = realNotify;
+      try { D.close(); } catch (e) {}
+      try { A.resetAccrualGate(); A.configureAccrual(null); A.__resetBankFoldMode(); } catch (e) {}
+      restoreG(snap);
     }
   }),
 
@@ -45610,7 +45718,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=544');
+    const KIT = await import('../data/start-kit.js?v=545');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -45692,7 +45800,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=544');
+    const KIT = await import('../data/start-kit.js?v=545');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -45806,7 +45914,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=544');
+    const KIT = await import('../data/start-kit.js?v=545');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -47913,7 +48021,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=544')).text();
+    const src = await (await fetch('src/legacy.js?v=545')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -54772,7 +54880,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=544');
+    const S = await import('../data/shops.js?v=545');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -56372,7 +56480,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=544');
+    const S = await import('../data/shops.js?v=545');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -60958,7 +61066,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=544')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=545')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -62945,7 +63053,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=544');
+    const A = await import('../net/accrue.js?v=545');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -62970,7 +63078,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=544');
+    const A = await import('../net/accrue.js?v=545');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -62997,7 +63105,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=544');
+    const A = await import('../net/accrue.js?v=545');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -63190,7 +63298,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=544')).text();
+      const raw = await (await fetch(f + '?v=545')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -63240,7 +63348,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=544')).text();
+    const raw = await (await fetch('src/observability.js?v=545')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -63344,7 +63452,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=544');
+    const _art = await import('../data/monster-art.js?v=545');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

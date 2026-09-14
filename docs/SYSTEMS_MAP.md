@@ -65,6 +65,21 @@ secondary?, output, xp, req, ms, gated?}`). One engine runs them all
   `recipeInputs` (src/core/artisan.js) reads the singular `input` and `produced`
   is null when `output` is falsy.
 
+⚠ **THE SELF-SUPPLY RULE (game-designer ruling, 2026-09-13; `DEEPSEAM-5` asserts
+it at ZERO, and it is a red build).** *A material is made where its tier opens,
+and no rung may ask for a tier the player cannot yet open* — for every recipe and
+every input, `req(recipe) ≥ the cheapest req at which that input is MADE`. A new
+rung that breaks it is fixed in this precedence, so the fix never takes content
+away: (1) move the SUPPLY rung down to its tier's gate (`MATERIAL_TIERS.smith` /
+`.craft`) — bars and planks sit exactly there; (2) if the rung names a material
+from a tier above its own band, change the MATERIAL, not the level; (3) only when
+the item's identity IS the higher tier does the level rise to that tier's gate.
+Never raise a level if doing so opens a hole in `b343` availability (max of wield
+and craft gate, 20 levels) or reverses a `b348` gear lane — **the player's ladder
+outranks the material's flavour.** Two neighbouring rules bind at the same time:
+a rung reachable before coal is minable may never demand coal (`b525`), and the
+gathering ladders' paced xp/s (`b226`/`b390`) are not a lever for fixing a recipe.
+
 #### The Prayer bench (`ARTISAN_RECIPES.prayer`) — 13 rungs, 1 → 99
 Every row is `output: null` (XP only) and consumes one monster drop.
 

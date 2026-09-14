@@ -205,7 +205,7 @@ export const SLOT_RECIPES = {
     { id: 'jewel_spidereye_studs',     name: 'Set Spider-Eye Studs',    icon: '💎', inputs: { spider_eye: 1, steel_bar: 1 },                              output: 'spidereye_studs',     xp: 340,  req: 38, ms: 3600 },
     { id: 'jewel_wraithglass_drops',   name: 'Set Wraithglass Drops',   icon: '💎', inputs: { wraith_veil: 1, mithril_bar: 1 },                           output: 'wraithglass_drops',   xp: 760,  req: 54, ms: 4200 },
     { id: 'jewel_rubyfire_studs',      name: 'Set Rubyfire Studs',      icon: '💎', inputs: { ruby: 2, rune_bar: 1, shadow_thread: 2 },                   output: 'rubyfire_studs',      xp: 1560, req: 70, ms: 5000 },
-    { id: 'jewel_dragon_gem_earrings', name: 'Cut Dragon Gem Earrings', icon: '💎', inputs: { dragon_gem: 1, gold_bar: 3, dawn_bar: 1 },                  output: 'dragon_gem_earrings', xp: 3400, req: 86, ms: 6200, gated: 'gemcutter_note' },
+    { id: 'jewel_dragon_gem_earrings', name: 'Cut Dragon Gem Earrings', icon: '💎', inputs: { dragon_gem: 1, gold_bar: 3, dawn_bar: 1 },                  output: 'dragon_gem_earrings', xp: 3400, req: 88, ms: 6200, gated: 'gemcutter_note' },
 
     /* ── capes ── */
     { id: 'tailor_woolen_cloak',    name: 'Tailor Woollen Cloak',   icon: '🦸', inputs: { wolf_pelt: 3, bone_chips: 2 },                                 output: 'woolen_cloak',    xp: 110,  req: 12, ms: 2800 },
@@ -218,21 +218,40 @@ export const SLOT_RECIPES = {
     { id: 'jewel_wolfbone_torc',     name: 'String Wolfbone Torc',     icon: '📿', inputs: { big_bones: 3, wolf_pelt: 2, bronze_bar: 1 },                 output: 'wolfbone_torc',     xp: 150,  req: 20, ms: 3000 },
     { id: 'jewel_spidersilk_choker', name: 'String Spidersilk Choker', icon: '📿', inputs: { silk_thread: 6, spider_eye: 1, gold_bar: 1 },                output: 'spidersilk_choker', xp: 400,  req: 38, ms: 3600 },
     { id: 'jewel_warlords_torc',     name: "Forge Warlord's Torc",     icon: '📿', inputs: { warlord_badge: 2, mithril_bar: 2, gold_bar: 1 },             output: 'warlords_torc',     xp: 900,  req: 56, ms: 4400 },
-    /* req 86, not 89: the b343 ladder guard measures AVAILABILITY (the higher of
+    /* req 88, not 89: the b343 ladder guard measures AVAILABILITY (the higher of
        the wield gate and the craft gate), and 89 opened a 21-level hole above
-       the Panther's Eye Pendant at 68. */
-    { id: 'jewel_dawnbound_amulet',  name: 'Cast Dawnbound Amulet',    icon: '📿', inputs: { dawn_bar: 4, gold_bar: 6, dragon_gem: 1, ancient_claw: 2 },  output: 'dawnbound_amulet',  xp: 4200, req: 86, ms: 6400 },
+       the Panther's Eye Pendant at 68. 88 leaves exactly 20 — the widest hole
+       the guard allows — and it is the SELF-SUPPLY RULING's floor for anything
+       that eats a Dawnsteel Bar (2026-09-13: the bar is made at Smithing 88, so
+       86 was a rung asking for a metal nobody could pour yet). The two levels
+       are the smallest move that closes it; 89 would reopen that hole. */
+    { id: 'jewel_dawnbound_amulet',  name: 'Cast Dawnbound Amulet',    icon: '📿', inputs: { dawn_bar: 4, gold_bar: 6, dragon_gem: 1, ancient_claw: 2 },  output: 'dawnbound_amulet',  xp: 4200, req: 88, ms: 6400 },
 
     /* ── rings ── */
     { id: 'jewel_banded_signet',     name: 'Set Banded Signet',     icon: '💍', inputs: { bronze_bar: 2, copper_bar: 2, magic_essence: 1 },                          output: 'banded_signet',     xp: 160,  req: 22, ms: 3000 },
-    /* The ring lane's craft gates track their wield gates exactly (52 / 70 / 87).
+    /* SELF-SUPPLY RULING (2026-09-13), AND ITS TIE-BREAK, MEASURED HERE.
+       The Dawnforged Signet's craft gate moves 87 → 88, the level at which a
+       Dawnsteel Bar can first be poured. The Ruby Signet asked for a RUNE bar
+       (Smithing 60) at Crafting 52, and the first draft of this ruling moved the
+       LEVEL, 52 → 60 — which the b343 ladder guard caught immediately: it opened a
+       25-LEVEL HOLE in ring availability (35 → 60) in the one slot a player wears
+       two of. So the tie-break is now explicit and it is the right way round:
+         **the player's ladder outranks the material's flavour.** When raising a
+         rung to meet its material would open an availability hole or take away a rung the
+         player already has, the MATERIAL moves down instead.
+       The band is therefore MITHRIL (Smithing 45) at the unchanged Crafting 52 —
+       the ruby is what the ring is for; three of them plus six gold bars are still
+       the cost that matters — and the description says mithril. Wield gates are
+       untouched everywhere (defence 52 / 84).
+       Below, the ORIGINAL note on why this lane's numbers were chosen:
+       The ring lane's craft gates track their wield gates exactly (52 / 70 / 87).
        By AVAILABILITY — the higher of the wield gate and the craft gate, which
        is what the b343 ladder guard measures — ring was the worst ladder in the
        game: Hollow Sigil at 35, then nothing until 58. A 23-level dead zone in
        a slot the player wears two of. */
-    { id: 'jewel_ruby_signet',       name: 'Set Ruby Signet',       icon: '💍', inputs: { ruby: 3, gold_bar: 6, rune_bar: 1 },                                      output: 'ruby_signet',       xp: 1200, req: 52, ms: 4600 },
+    { id: 'jewel_ruby_signet',       name: 'Set Ruby Signet',       icon: '💍', inputs: { ruby: 3, gold_bar: 6, mithril_bar: 1 },                                   output: 'ruby_signet',       xp: 1200, req: 52, ms: 4600 },
     { id: 'jewel_spellstone_ring',   name: 'Bind Spellstone Ring',  icon: '💍', inputs: { cracked_spellstone: 3, ancient_rune: 6, rune_bar: 4, gold_bar: 4 },       output: 'spellstone_ring',   xp: 2400, req: 70, ms: 5400, gated: 'spellstone_diagram' },
-    { id: 'jewel_dawnforged_signet', name: 'Forge Dawnforged Signet', icon: '💍', inputs: { dawn_bar: 6, gold_bar: 8, death_steel: 4 },                             output: 'dawnforged_signet', xp: 4000, req: 87, ms: 6300 },
+    { id: 'jewel_dawnforged_signet', name: 'Forge Dawnforged Signet', icon: '💍', inputs: { dawn_bar: 6, gold_bar: 8, death_steel: 4 },                             output: 'dawnforged_signet', xp: 4000, req: 88, ms: 6300 },
   ],
 };
 
@@ -264,7 +283,7 @@ export const SLOT_DESC = {
   dawnbound_amulet: 'Dawnsteel and dragon-gem hung on gold, an amulet a kingdom would notice missing',
 
   banded_signet: 'Bronze banded over copper, the signet a free company issues to its own',
-  ruby_signet: 'A ruby the size of a thumbnail on a rune-bar band — it makes the hand it is on obvious',
+  ruby_signet: 'A ruby the size of a thumbnail on a mithril band — it makes the hand it is on obvious',
   spellstone_ring: 'A warlock\'s cracked spellstone bound in runes, whispering the next word before you reach it',
   dawnforged_signet: 'Dawnsteel, death-steel and gold, forged into a ring that outlasts the finger wearing it',
 };

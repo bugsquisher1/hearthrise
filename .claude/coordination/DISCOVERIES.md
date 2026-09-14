@@ -4,7 +4,57 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
-## 2026-09-13 · Game Designer · lane `worktree-agent-a8c5ab879be15d9c0` · the SELF-SUPPLY CURVE is broken on 57 shipped rungs
+## 2026-09-13 · Game Designer · lane `worktree-agent-a947d40b1e095f590` · the SELF-SUPPLY RATCHET IS PAID: 57 → 0
+
+**THE RULING (final, mine).** *A material is made where its tier opens, and no rung may ask for a tier
+the player cannot yet open* — formally, for every recipe R and every input i, `req(R) ≥ the cheapest
+level at which i can be MADE`. Applied in a precedence that never costs the player content:
+1. **A supply rung sits at its own tier's gate** (`MATERIAL_TIERS.smith`/`.craft`) and never above the
+   first rung that consumes it. NINE moved down: steel bar 35→30, gold 40→25, mithril 55→45, rune
+   75→60, deathsteel 62→60, ember 82→75, dawn 92→88, duskwood plank 90→88, blank runes 4→1.
+2. **A rung that names a material from a tier above its own band keeps its level and loses the
+   material** (the level is the authored pacing decision; the material was the slip). THREE:
+   longbow willow→oak plank, apprentice staff oak→normal plank, ruby signet rune→mithril bar.
+3. **Only when the item's identity IS the higher tier does the level rise** to that tier's gate. FIVE:
+   crown of the fallen king 85→88, dawnbound amulet 86→88, dawnforged signet 87→88, dragon gem earrings
+   86→88, demoncaller staff 68→75. No WIELD level moves anywhere — a requirement a player already meets
+   is never raised to tidy a recipe.
+
+**THE TIE-BREAK, AND IT WAS EARNED BY BEING WRONG FIRST: the player's ladder outranks the material's
+flavour.** The first draft raised `jewel_ruby_signet` 52→60 to meet its rune band; the b343 guard
+immediately measured a **25-level hole** in ring availability (35→60) in the one slot a player wears two
+of. The band became mithril instead. Same shape, second time: `smelt_gold` at 25 still demanded 2 coal,
+and `b525` (the played Bronze Wall) caught it — the only gatherable coal is Mining 30. Gold lost the
+reagent, exactly as bronze did; coal's first sink is now Steel at Smithing 30, the same rung Coal Rock
+opens on at Mining 30. **Two of the four guards in this area found a real defect in my own first draft.
+Write the data change, then let the standing guards grade it — they are measuring the player, not the
+table.**
+
+**WHAT THE EARLIER ENTRY GOT WRONG (below):** it said the mithril half "cannot be fixed by lowering
+`smelt_mithril`" because mithril ore is Mining 60 either way. That conflates two ladders. The ARTISAN
+ladder's promise is "the tier opens, here is its bar, then its gear"; the GATHERING ladder's promise is
+its own. A smith who mines is now early to the bar and late to the ore, which is what the market, the
+drop tables and the Deep Seam band exist for — and no player is worse off, because bars already dropped
+and traded. Re-seating the ore nodes would have moved the paced Mining curve (b226/b390) for a promise
+Mining never made. The re-cut was one afternoon of data, not a program.
+
+**DEEPSEAM-5 IS NO LONGER A RATCHET, IT IS A PROPERTY**: it asserts ZERO across all 503 rungs, carries
+a CONTROL (≥300 recipes scanned, or it is reading nothing) and a MUTATION ARM (break one smithing rung
+one level below its input in a shallow copy; the scan must name it). Server half staged as
+`supabase/migrations/2026-09-13-self-supply-ladder.sql` (14 `hr_activities.req_lv` rows, §2 asserts the
+property on 14 supply/consumer pairs with an inverted control, and EXECUTES hr_apply refusing Smithing
+29 the Steel Bar and accepting it at 30).
+
+**STILL OPEN, and it is the next rung down the same idea:** the *gathering* ladder makes one promise it
+does not keep either — `gold_ore` is Mining 45 while the jewellery lane it feeds opens at Crafting 25
+(gold bar now 25). The bar is fed by two monster drops (Bandit 6%, Captain 50% + bars at 25%), so the
+lane is playable by the combat route, but a jeweller who mines has a 20-level wait. Fixing it is a new
+early gold node, i.e. a paced-Mining change with the b226/b390 xp/s guards — a content lane, not this
+one. AFFECTED: `src/data/gathering.js` (`ROCKS`). Mine, backlogged.
+
+---
+
+## 2026-09-13 · Game Designer · lane `worktree-agent-a8c5ab879be15d9c0` · the SELF-SUPPLY CURVE is broken on 57 shipped rungs (SUPERSEDED — paid to 0 above)
 
 **DISCOVERY — 57 crafting rungs require a material the same level cannot MAKE.** Measured while pacing
 the Mining 40→60 / Smithing 27→50 band (`node` over `ARTISAN_RECIPES`: for every rung, the cheapest
@@ -31,7 +81,7 @@ earlier for every existing player — a balance program with an economy review, 
 `ARMOUR_SLOTS.lvOff`, the authority the b348 order guard reads), `src/data/gathering.js` (`ROCKS` ore
 levels), and the `hr_activities` req_lv rows generated from them.
 
-**ACTION — frozen, not fixed, in this lane.** `DEEPSEAM-5` in the in-page suite measures the count
+**ACTION — frozen, not fixed, in this lane; PAID TO 0 on 2026-09-13, see the entry above.** `DEEPSEAM-5` in the in-page suite measured the count
 across every bench and RATCHETS it at 57: it may shrink, never grow, and it separately asserts that
 none of the new Deep Seam rungs is in the list. Route the re-cut to a balance lane with Systems +
 Security (it moves gear availability, which moves the market). Every rung b545 adds is self-supplying:

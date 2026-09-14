@@ -24,7 +24,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-09-14",
-  "replay_ms": 1146,
+  "replay_ms": 9660,
   "counts": {
     "tracked_names": 52,
     "entries": 50
@@ -669,8 +669,7 @@
         "norm_len": 2139,
         "source": "computed-from-replay"
       },
-      "agree": true,
-      "why": "2026-09-14 16:25 UTC: 2026-09-14-rejection-field-detail.sql APPLIED (one anchored splice: forbidden_field refusals journal why/field, non-printables stripped). live == replay 807506a8 (agree)."
+      "agree": true
     },
     {
       "sig": "hr_perks_of(p_user uuid, p_slot integer)",
@@ -1028,6 +1027,7 @@
         "2026-09-13-consumable-buffs.sql",
         "2026-09-13-town-presence.sql",
         "2026-09-14-gem-unlock-buy.sql",
+        "2026-09-14-hr-state-of-restatement.sql",
         "2026-09-14-recipe-learn.sql"
       ],
       "live": {
@@ -1037,12 +1037,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "9af380d13bb106b3573adee1fda9be9e",
-        "norm_len": 24615,
+        "md5": "50913bae9c63bd8b7984fcdd30e5d1b4",
+        "norm_len": 29802,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "2026-09-14 03:07 UTC: 2026-09-14-gem-unlock-buy.sql + 2026-09-14-recipe-learn.sql APPLIED (two hr_state_of splices: gem_unlocks + unlocked_recipes projections). live a7e1eae4 -> 740aefe5, replay 023660bb -> 9af380d1; --codediff CODE-IDENTICAL (7406 code chars; the 748-char delta is the pre-existing comment/whitespace carry-over). Production runs the repo chain."
+      "why": "2026-09-14 18:30 UTC: DELIBERATELY DIVERGENT — 2026-09-14-hr-state-of-restatement.sql is STAGED, NOT APPLIED (one readable body replacing 24 anchored splices; comment-only cleanup, code md5 88b814f1 before == after; §0 pins production TODAY). Replay 9af380d1/24615 -> 50913bae/29802; production runs 740aefe5 (code-identical). Applies after the Security read; re-measure then and expect live == replay exactly."
     },
     {
       "sig": "hr_town_refresh(p_zone text)",

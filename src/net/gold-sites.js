@@ -482,9 +482,22 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   'src/net/client-state.js#hydrateInto@3': {
     kind: 'seam', status: 'none',
-    why: 'The general residue branch — `G[f] = cs[f]` for `f` drawn from the RESIDUE_FIELDS allowlist '
-      + '(stats/chronicle/settings/…), never an arbitrary bag key. A forged authority key is not on '
-      + 'the allowlist and is never assigned. Same boundary as the two above.',
+    why: 'The bountyHunter branch early-returns: its `G[f] = bagBH` twin — still the fixed allowlist key '
+      + '`bountyHunter`, still allowlist-bounded, cannot write gold.',
+  },
+  'src/net/client-state.js#hydrateInto@4': {
+    kind: 'seam', status: 'none',
+    why: 'The `autoActions` branch (2026-09-14) — `G[f] = mergedAA`, the bag autoActions minus its '
+      + '`eat` key DELETED. That branch is the three auto-eat COLUMNS (auto_eat_enabled/pct/food), '
+      + 'which the server owns and projects, so it is stripped on the way in exactly as the bountyHunter '
+      + 'branch strips `marks`/`xp`. `f` is the allowlist key `autoActions`; it cannot write gold, and the '
+      + 'un-projected halves (farmReplant, trainGoal) are real client-only prefs.',
+  },
+  'src/net/client-state.js#hydrateInto@5': {
+    kind: 'seam', status: 'none',
+    why: 'The general residue branch — `G[f] = sanitizeResidueField(f, cs[f])` for `f` drawn from the '
+      + 'RESIDUE_FIELDS allowlist (stats/chronicle/settings/…), never an arbitrary bag key. A forged '
+      + 'authority key is not on the allowlist and is never assigned. Same boundary as the ones above.',
   },
   'src/net/accrue.js#applyEnvelopeState': {
     kind: 'server', status: 'none',

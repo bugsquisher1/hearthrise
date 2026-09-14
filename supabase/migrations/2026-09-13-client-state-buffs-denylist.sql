@@ -168,8 +168,20 @@ begin
     -- (d) AN HONEST RESIDUE PUT STILL WORKS. A deny-list that refused everything
     --     would pass (c) and silently stop every player's preferences from saving
     --     — the failure mode this whole family is most dangerous for.
+    -- ⚠ THE FIXTURE'S HONEST KEYS MUST BE KEYS THAT CAN NEVER BE DENIED. This put
+    --   named `combatStyle`, which BECAME an authority key on 2026-09-14
+    --   (2026-09-14-client-state-projection-denylist.sql: the style is
+    --   player_state.combat_style, and the client copy was deleted) — so a replay
+    --   of the chain ran this file's own check against a later file's deny-list and
+    --   failed it. The FILE'S PAYLOAD IS FROZEN; a §4 fixture is not prosrc, and a
+    --   fixture that asserts "this key is allowed" is a standing claim about a list
+    --   that is designed to grow. `lootFilter` and `lockedItems` are the two keys
+    --   that cannot join it: both are client-only display/UX preferences that gate
+    --   NOTHING server-side (client-state.js says so at each entry), so there is no
+    --   server fact for either to shadow.
     v_r := public.hr_put_client_state__ungated(0,
-      jsonb_build_object('lootFilter', jsonb_build_array('junk'), 'combatStyle', 'attack'),
+      jsonb_build_object('lootFilter', jsonb_build_array('junk'),
+                         'lockedItems', jsonb_build_object('bronze_sword', true)),
       gen_random_uuid());
     if coalesce(v_r->>'ok', 'false') <> 'true' then
       raise exception 'client-state buffs deny-list (d): an HONEST residue put was refused (%) — the '

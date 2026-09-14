@@ -141,6 +141,11 @@ const CAP_MS = 3600000;
 
 const harness = (m) => { const e = new Error(m); e.harness = true; return e; };
 
+/* The FINAL body for hr_put_client_state__ungated: the deny-list this chain
+   installs is patched once more by the projection purge, so a mutation to the
+   text above has to account for it (see the BLIND entry). */
+const MIG_PROJ = '2026-09-14-client-state-projection-denylist.sql';
+
 /* ── THE §4 BLINDS ─────────────────────────────────────────────────────────
    Each migration's self-check is short-circuited with a `return;` at the head of
    its block, so a mutation's tick must come from THIS guard. A §4 fires once at
@@ -171,6 +176,20 @@ const BLIND = {
   [MIG_PAY]: ["  if strpos(v_apply, 'buff_not_paid') = 0 then",
     '  return;  -- \u00a72 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  if strpos(v_apply, 'buff_not_paid') = 0 then"],
+  /* ⚠ THE FINAL BODY FOR hr_put_client_state__ungated IS A LATER FILE'S
+     (2026-09-14-client-state-projection-denylist.sql), and it PINS this chain's
+     deny-list text: §0 counts the `'buffs'` tail anchor and refuses to patch a
+     body it cannot account for, then §2 asserts its own nine keys installed. Under
+     `denylist_key_typo` both are true failures of a mutated chain and neither is
+     this guard's tick, so both are blinded — narrowly, one `if` and one `return`,
+     leaving that file's §1 patch and its grant re-statement to run. Without this
+     the arm scores HARNESS and the typo goes unproven. */
+  [MIG_PROJ]: [
+    ["  if v_n <> 1 then", "  if false then  -- ANCHOR COUNT BLINDED FOR THE MUTATION PROOF (tests/buff-queue.mjs)"],
+    ["  -- (a) EVERY key installed, and every PRE-EXISTING authority key SURVIVED. A",
+      "  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n"
+      + "  -- (a) EVERY key installed, and every PRE-EXISTING authority key SURVIVED. A"],
+  ],
   /* The predicate file's §2 — its own (c1)/(c2) assertions catch the two predicate
      mutations, so without this blind the tick would be "the migration refused"
      rather than "this guard noticed" (MEASURED: merge_replaces_other_types threw). */
@@ -371,6 +390,12 @@ const MUTATIONS = {
     why: "the deny-list gains 'buffsX' instead of 'buffs', so the forgeable client_state shadow copy "
        + 'survives — Security\'s condition silently unmet while the migration reports success',
     pairs: [["    'buffs'$new$);", "    'buffsX'$new$);"]],
+    /* ⚠ THIS ARM MUTATES TEXT A LATER FILE PINS. 2026-09-14-client-state-
+       projection-denylist.sql anchors its own patch on the `'buffs'` this file
+       leaves behind and counts it, so the typo made THAT file refuse and the arm
+       scored HARNESS instead of the tick it earns. The rule in the BLIND map
+       applies verbatim: blind the downstream gate (narrowly), keep the tick where
+       it belongs — this guard's own assertion that a forged buff patch is refused. */
   },
   payment_gate_off: {
     file: MIG_PAY,
@@ -470,7 +495,9 @@ const patchesFor = (mutate, blind) => {
     if (!map.has(file)) map.set(file, []);
     for (const p of pairs) map.get(file).push(p);
   };
-  if (blind) for (const [file, pair] of Object.entries(BLIND)) add(file, [pair]);
+  /* A BLIND is one [find, replace] pair, or an ARRAY of them when a downstream
+     file pins this block in more than one place (see MIG_PROJ). */
+  if (blind) for (const [file, pair] of Object.entries(BLIND)) add(file, Array.isArray(pair[0]) ? pair : [pair]);
   if (mutate) {
     const m = MUTATIONS[mutate];
     if (!m) throw harness(`unknown mutation '${mutate}' (see --list)`);

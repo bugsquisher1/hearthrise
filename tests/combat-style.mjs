@@ -91,6 +91,17 @@ const stripJs = (js) => js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\
    passing. Applied to the SOURCE TEXT the section reads, so `--selftest`
    exercises the same bytes the guard does. */
 const MUTATIONS = {
+  /* 2026-09-14: the inverted E pin needs its own arm, or "the style is not
+     persisted client-side" is a sentence rather than a guard. Putting the name
+     back on the allowlist is exactly how the second copy returns. */
+  residue_copy_returns: {
+    why: 'combatStyle goes back into RESIDUE_FIELDS, so the client persists its own copy of '
+       + 'player_state.combat_style again and the picker can outlive — and disagree with — the '
+       + 'routing the engine pays.',
+    file: 'client-state.js',
+    find: "  'loadouts',",
+    replace: "  'combatStyle',\n  'loadouts',",
+  },
   style_ignored: {
     why: 'THE ORIGINAL P0: the engine goes back to resolveStyle(weaponType, null), so every '
        + 'styled grant routes to Attack whatever the player picked.',
@@ -614,11 +625,27 @@ function sectionE(src) {
   ok(/reconcileCombatStyle/.test(src['accrue.js']),
     'E: nothing reconciles the style off the envelope, so the picker can disagree with what '
     + 'the engine pays and the choice still dies on a device change');
-  /* client-state.js belongs to another workstream this cycle; the residue entry
-     stays and is now DISPLAY continuity only. Assert we did not touch it. */
-  ok(/'combatStyle'/.test(src['client-state.js'] || ''),
-    'E: combatStyle left RESIDUE_FIELDS — display continuity across a reload would break for '
-    + 'anyone whose server row has not been written yet');
+  /* ⚠ INVERTED 2026-09-14, and the inversion is the point rather than a
+     relaxation. This used to pin `combatStyle` INSIDE RESIDUE_FIELDS, with the
+     reason "display continuity for anyone whose server row has not been written
+     yet" — true on the day hr_set_style shipped, when no character had a
+     combat_style row. Three weeks later every played character has one, and what
+     covers a character that does NOT is the reconcile's own one-shot back-fill
+     (the `adopt` list, asserted below), not a persisted second copy. Keeping the
+     copy is what makes the picker able to disagree with the routing the engine
+     pays — the "only Attack saves" report, the exact bug this file exists for.
+     So the pin now runs the other way: the style is the SERVER's, and the guard
+     fails if a client-persisted copy comes back. */
+  ok(!/^\s*'combatStyle',/m.test(src['client-state.js'] || ''),
+    'E: `combatStyle` is back on RESIDUE_FIELDS — a persisted client copy of '
+    + 'player_state.combat_style is a second answer to which skill a settle pays, and the client '
+    + 'one is what a cloud restore rewinds');
+  /* AND THE CONTINUITY THE OLD PIN WAS PROTECTING IS STILL COVERED: a family the
+     server has no opinion about keeps the local pick and is SENT, once. Without
+     this the inversion above would be a silent downgrade. */
+  ok(/adopt/.test(src['accrue.js']),
+    'E: reconcileCombatStyle no longer reports an `adopt` back-fill — a pre-migration pick would '
+    + 'be silently reset to the family default now that nothing persists it client-side');
 }
 
 // ════════════════════════════════════════════════════════════════════════

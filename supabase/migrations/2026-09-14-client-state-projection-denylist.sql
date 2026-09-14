@@ -59,6 +59,19 @@
 -- function in one file), which is a lane of its own and must not ride a
 -- deny-list addition. This file adds nine string literals to one array.
 --
+-- ⚠ THE RULE THIS FILE LEARNED, FOR WHOEVER GROWS THE LIST NEXT: A DENY-LIST
+--   GROWTH MUST KEEP EVERY EARLIER HONEST-PUT FIXTURE HONEST. Each deny-list
+--   migration's §4 proves "an honest residue put still saves" by naming keys it
+--   expects to be ALLOWED, and those fixtures re-run on every chain replay. Adding
+--   a name here can therefore turn an ALREADY-APPLIED file's own self-check red —
+--   it did: 2026-09-13-client-state-buffs-denylist.sql §2(d) used `combatStyle`,
+--   which this file denies, and tests/buff-queue.mjs arm [14] went red on the
+--   replay. The payload of an applied file is frozen, but a §4 fixture is NOT
+--   prosrc and no live body changes when it is corrected, so the fix is to point
+--   that fixture at a key that can never be denied (`lootFilter`, `lockedItems` —
+--   client-only preferences that gate nothing server-side). Before adding a name
+--   here, grep the migrations for it in an honest-put fixture.
+--
 -- ── PATCHED, NOT RESTATED ─────────────────────────────────────────────────
 -- hr_put_client_state__ungated's live body is whatever its last toucher left
 -- (2026-09-13-client-state-buffs-denylist.sql in the repo chain). The array

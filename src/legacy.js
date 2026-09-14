@@ -1387,41 +1387,15 @@ function normalizePausedCooking(){
   }catch(e){ return false; }
 }
 window._normalizePausedCooking=normalizePausedCooking;
-/* ── RULING 3.5 (2026-08-15): DID BLESSINGS PAY DURING THE ABSENCE? ────────
-   Asked of the ONE table that decides it — `AWAY_SCOPE.blessing` in
-   src/core/away.js, through the same `channelApplies` resolver core's three
-   span simulations now report from — instead of being answered a fourth time
-   here with a handwritten `false`.
-
-   `{away:true}` is not the rule; it is processOffline's own fact (it IS the
-   absence). What "away" MEANS for the blessing channel is the table's call
-   alone, so the first blessing that is ever made to pay away flips one line
-   and every receipt in the game follows it.
-
-   NO FALLBACK LITERAL, deliberately, and UNGUARDED for the reason the
-   `creditWindow` call in processOffline states about itself: a missing helper
-   must fail loudly, because the only silent fallback available here is a
-   fifth handwritten copy of the rule — the exact thing this removes. The
-   guard would be unreachable anyway: processOffline dereferences
-   `window.HearthriseCore.away.creditWindow` a hundred lines before the
-   summary is written, so core is present by construction at this point. */
-function _awayBlessed(){
-  const A = window.HearthriseCore.away;
-  return A.channelApplies(A.CHANNEL.BLESSING, {away:true});
-}
-/* `{skill, recipe}` for the pointer, or null — via the ONE index. Answers
-   "is the running activity an artisan bench?" without a second mapping. */
-function _awayArtisanEntry(){
-  const C=_awaySpanCore();
-  if(!C||!G||!G.skillTargetId) return null;
-  const e=C.artisanRecipe(G.skillTargetId);
-  /* The pointer and the index must agree about the bench. If they do not the
-     state is inconsistent and paying would credit the wrong skill's XP — fall
-     through to the gather branch, which refuses on the same disagreement. */
-  if(!e) return null;
-  if(G.activeSkill && G.activeSkill!==e.skill) return null;
-  return e;
-}
+/* `_awayBlessed()` and `_awayArtisanEntry()` were DELETED 2026-09-14, not moved.
+   Each appeared exactly ONCE in the entire repository — its own declaration —
+   measured across src/**, tests/**, tools/**, supabase/**, docs/** and
+   index.html. They were helpers for a local away-span summary this client no
+   longer writes: `hr-accrue` computes the absence and the receipt quotes the
+   server (CLAUDE.md §1). Unreachable code in a 19k-line classic script is worse
+   than absent code, because the next reader has to prove it is dead before they
+   can touch anything near it. The RULE they consulted is untouched and still has
+   exactly one home: AWAY_SCOPE + channelApplies in src/core/away.js. */
 /* ════════════════════════════════════════════════════════════════
    b337/b515 — SERVER-AUTHORITATIVE AWAY TIME, WITH NO OTHER POSITION.
 
@@ -9149,49 +9123,10 @@ window.redeemHearthToken=redeemHearthToken;
    read as one file instead of two regions 1,500 lines apart. All four are still
    globals, published at the foot of that file. Pure refactor.
    ──────────────────────────────────────────────── */
-/* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
-   cost (escalating) and the flat gem deal side-by-side so the better value of
-   gems is legible. Reuses the .qm-overlay backdrop + .btn classes — no new CSS. */
-function closeBankModal(){ var o=document.getElementById('bank-modal-overlay'); if(o)o.remove(); }
-function _bankRowsHTML(){
-  var used=bankUsed(), cap=bankCap();
-  var gCost=bankGoldCost(), gemCost=BANK_SPACE.gem.cost;
-  var canG=balCanAfford(gCost,'gold'), canGem=balCanAfford(gemCost,'gems');
-  var gp=(typeof _gp==='function')?_gp:function(n){return n.toLocaleString()+' gold';};
-  var gem=(typeof _gem==='function')?_gem:function(n){return n.toLocaleString()+' gems';};
-  var gemPerSlot=(gemCost/BANK_SPACE.gem.slots), goldPerSlot=(gCost/BANK_SPACE.gold.slots);
-  return ''
-    + '<p class="bank-cap-line">Bank space: <b>'+used+' / '+cap+'</b> stacks</p>'
-    + '<div class="bank-opt">'
-      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gold.slots+' stacks</b><span>Gold — cost rises with every purchase.</span></div>'
-      + '<div class="bank-opt-buy"><span class="price">'+gp(gCost)+'</span>'
-      + '<button class="btn btn-sm '+(canG?'btn-primary':'')+'" '+(canG?'':'disabled')+' onclick="buyBankSpaceGold()">Buy</button></div>'
-    + '</div>'
-    + '<div class="bank-opt bank-opt-gem">'
-      + '<div class="bank-opt-info"><b>+'+BANK_SPACE.gem.slots+' stacks</b><span>Gems — a flat, better deal ('+goldPerSlot.toFixed(0)+' g/slot vs '+gemPerSlot.toFixed(2)+' gem/slot).</span></div>'
-      + '<div class="bank-opt-buy"><span class="price gem">'+gem(gemCost)+'</span>'
-      + '<button class="btn btn-sm '+(canGem?'btn-gem':'')+'" '+(canGem?'':'disabled')+' onclick="buyBankSpaceGem()">Buy</button></div>'
-    + '</div>';
-}
-function _renderBankModal(){
-  var body=document.getElementById('bank-modal-body');
-  if(body) body.innerHTML=_bankRowsHTML();
-}
-function openBankModal(){
-  closeBankModal();
-  var overlay=document.createElement('div');
-  overlay.className='qm-overlay'; overlay.id='bank-modal-overlay';
-  overlay.innerHTML=
-    '<div class="qm-modal bank-modal" style="position:relative;max-width:460px">'
-    + '<button class="qm-close" aria-label="Close">✕</button>'
-    + '<h3 style="margin:0 0 4px">Buy bank space</h3>'
-    + '<div id="bank-modal-body">'+_bankRowsHTML()+'</div>'
-    + '</div>';
-  overlay.querySelector('.qm-close').addEventListener('click', closeBankModal);
-  overlay.addEventListener('click', function(e){ if(e.target===overlay) closeBankModal(); });
-  document.body.appendChild(overlay);
-}
-try{ window.openBankModal=openBankModal; window.closeBankModal=closeBankModal; }catch(_){}
+/* The "Buy space" dialog moved to src/screens/shop-counter.js with the rest of
+   the shop counter (task #129). buyBankSpaceGold / buyBankSpaceGem stay here,
+   with their ledger rows, and still call _renderBankModal() bare — it is
+   published from there. Pure refactor — identical DOM. */
 /* b217: permanent trait upgrades bought with GOLD. Deliberately not free —
    early game is manual eating (click food in combat); players buy the
    convenience once they're established. Gate lives in

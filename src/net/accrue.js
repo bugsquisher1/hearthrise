@@ -1651,6 +1651,11 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
 import { serverAccruedSkill } from '../data/skill-authority.js?v=546';
+/* THE START KIT — the fresh-G bag hint the first envelope discards (see the
+   START_INVENTORY block in reconcileInventory). The SAME frozen source the
+   server's hr_start_kit catalogue is generated from, so there is no second copy
+   of the numbers here either. */
+import { START_INVENTORY } from '../data/start-kit.js?v=546';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -3676,6 +3681,10 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
      not a SERVER_OF_RECORD field, so any SERVER-DERIVED statement about the bag
      waits for this. hr_state_of coalesces the projection to `{}`, so an empty
      bag stamps; an absent key is not a statement. `_`: scratch, never persisted. */
+  /* Has the fresh-G start-kit hint still to be discarded on this page load?
+     (see the START_INVENTORY block under the stamp). `_`: scratch, never saved,
+     so it re-arms on every load exactly as the literal does. */
+  const hintPending = !!invNamedRaw && !G._startKitHintAt;
   if (invNamedRaw) {
     try { G._bagFromServerAt = Date.now(); } catch (e) {}
     /* AND THE BAG ITSELF, MIRRORED — see the serverItemCount block above. The
@@ -3691,6 +3700,60 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
       }
       G._serverBag = mirror;
     } catch (e) { /* a hostile projection cannot break the apply */ }
+  }
+  /* ══════════════════════════════════════════════════════════════════════
+     THE START KIT IS A PRE-ENVELOPE **HINT**, AND IT IS DISCARDED THE MOMENT
+     THE REALM STATES THE BAG (live P1 class, 2026-09-14: "the browser says one
+     thing and the server says another").
+
+     MEASURED on the QA account (user …4ba77 slot 2, 2026-09-13): the client's
+     bag showed `turnip_seed 5`, `carrot_seed 3` and `shrimp 10`; the SAME
+     minute `player_inventory` held NO row for any of the three, and the farm
+     answered `insufficient_seed`. Nobody had duplicated anything — the three
+     numbers are the fresh-`G` factory literal at legacy.js:684 (which must equal
+     src/data/start-kit.js START_INVENTORY, smoke B338-1), and `inventory` is not
+     a SERVER_OF_RECORD field so `loadLocal` cannot strip it. The merge branch
+     below is a one-way `Math.max` ratchet, so `max(5, omitted)` = 5 FOREVER: a
+     figure the client invented, that no envelope can ever contradict.
+
+     WHY THE HINT EXISTS AT ALL: the bag must paint something between the boot
+     and the first envelope, and hr_create_character seeds exactly these rows for
+     a genuinely new character (tools/gen-catalogues.mjs emits `hr_start_kit` from
+     the same file), so for a NEW player the realm restates the hint and nothing
+     changes. It is only a lie for a character who has since SPENT the kit.
+
+     THE RULE, deliberately the narrowest one that kills the class:
+       · ONCE per page load, on the first bag the realm states under a COMPLETE
+         baseline. `inventory_complete` is the SERVER's own assertion that no
+         settle window is open (2026-08-24-inventory-complete.sql), i.e. that its
+         projection is a whole statement rather than a mid-flight view — the same
+         gate the phantom-food rule below is fail-closed on, and PHANTOM-FOOD-1
+         is the guard that says a figure may not be lowered without it;
+       · ONLY for the ids in START_INVENTORY — ids the CLIENT invents;
+       · ONLY while the local figure is still EXACTLY the hint. A player holding
+         7 turnip seeds has played; that is real progress and the merge rule
+         (never delete, never lower) still owns it. This is also what makes
+         "once per load" safe rather than "on the very first envelope": a bag
+         that has been played no longer matches the hint, so waiting for a
+         complete baseline cannot discard anything a player earned.
+     Within those three, the realm's projection is believed in BOTH directions —
+     it is a whole-bag projection, so an omitted id is a real zero. It can
+     therefore only ever remove a quantity the client itself authored, and can
+     never delete an item the server holds a row for.
+
+     NOT the Phase-2 absolute flip (`isInventoryAbsolute()`), which is a separate
+     lane and owns the wider bag; this is the one figure the flip would not fix
+     by itself either, because the literal is re-created on every boot. */
+  if (hintPending && baselineComplete === true) {
+    try { G._startKitHintAt = Date.now(); } catch (e) {}
+    for (const id of Object.keys(START_INVENTORY)) {
+      const hint = Number(START_INVENTORY[id]);
+      if (!Number.isFinite(hint) || hint <= 0) continue;
+      if ((Number(inv[id]) || 0) !== hint) continue;   // touched, or absent — not the hint
+      const q = Number(invNamedRaw[id]);
+      if (Number.isFinite(q) && q > 0) inv[id] = Math.floor(q); else delete inv[id];
+      written.startKitHintDropped = (written.startKitHintDropped || 0) + 1;
+    }
   }
   const consumedIds = consumedKeysOf(res);
   /* THE IDS `hr_bank_move` HAS CONFIRMED IT MOVED (see noteServerBagMove). A

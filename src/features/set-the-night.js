@@ -136,10 +136,15 @@
             : !!(window.G && window.G.traits && window.G.traits.auto_eat);
         } catch (e) {}
         var th = (A && typeof A.eatThreshold === 'function') ? A.eatThreshold() : eat.threshold;
+        /* The forecast must eat the provision the NIGHT will eat, and the night
+           eats `player_state.auto_eat_food`. Local preference only when the
+           mirror is not up at all. */
+        var fid = (A && typeof A.eatFoodId === 'function')
+          ? A.eatFoodId() : (eat.foodId || null);
         var r = AE.resolveAutoEat({
           enabled: !!eat.enabled, owned: owned,
           hp: clone.playerHp, maxHp: clone.playerMaxHp,
-          threshold: th, foodId: eat.foodId || clone.foodSlot || null,
+          threshold: th, foodId: fid || clone.foodSlot || null,
           inventory: clone.inventory || {}, items: items(),
         });
         if (!r) return false;

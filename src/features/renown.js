@@ -225,7 +225,17 @@
 
     if (G.bountyHunter && typeof G.bountyHunter.completed === 'number') r += G.bountyHunter.completed * W.bountyDone;
 
-    var streakBest = (G.streak && (G.streak.best || G.streak.count)) || 0;
+    /* THE SERVER'S `streak_days` when an envelope has carried it: hr_renown_of
+       scores this term from that exact column (2026-08-20-renown.sql §weights),
+       so reading the per-device residue made the client's ladder disagree with
+       the server's by 5 points a day. `best` still wins when it is higher — it
+       is a high-water mark, and the ratchet below never demotes. */
+    var _srvStreak = 0;
+    try {
+      var _A = window.HearthriseAccrual;
+      if (_A && typeof _A.playStreakDays === 'function') _srvStreak = _A.playStreakDays(G) || 0;
+    } catch (e) {}
+    var streakBest = Math.max(_srvStreak, (G.streak && (G.streak.best || G.streak.count)) || 0);
     r += streakBest * W.streakBest;
 
     /* A SCORE TERM, and it must not swing on a transport hiccup. An UNKNOWN
@@ -259,6 +269,40 @@
     if (live > high) { high = live; G.renownHigh = high; }
     else if (G.renownHigh !== high) { G.renownHigh = high; }
     return high;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE FIGURE EVERY GATE AND EVERY HEADLINE DECIDES ON.
+
+     MEASURED LIVE (QA account, 2026-09-13): the client showed 1193 Renown while
+     `player_state.renown_high` held 1058 — 135 points and, at the wrong
+     threshold, a whole rank of difference. `renown_high` HAS been projected
+     top-level on hr_state_of since 2026-09-12, and `noteServerRenown` has read
+     it off every envelope since; what kept the lie alive is that
+     `effectiveRenown` — the CLIENT ratchet over the residue `G.renownHigh` —
+     was still the figure behind getClaimable, getPerks, claimRank's
+     reached-gate, the Chronicle's rank marks and the daily renown baseline.
+     getState was fixed for the headline at b534 and the rest was not.
+
+     WHY THE TWO CAN NEVER CONVERGE ON THEIR OWN: 2026-09-02-renown-kill-faucet
+     scores a CLIENT kill at zero renown server-side, so a played session drifts
+     ahead BY CONSTRUCTION. This is the residue-ahead class (CLAUDE.md §6) on a
+     number that hands out PERKS — allXP, dropRate, bank and market slots.
+
+     THE RULE: once the realm has stated a figure this session, that figure IS
+     the renown, in both directions (both sides are `greatest()` ratchets, so a
+     lower reading is staleness and never a demotion — and it is still the only
+     number a claim will be decided on). Until then the local prediction is all
+     that exists and it is shown, never acted on: getState marks it
+     `counted:false`, and pollRankUp celebrates nothing.
+
+     ⚠ NOT the same function as `effectiveRenown`, deliberately. That one stays
+       the PREDICTION — `getState().local`, the thing a surface may show beside
+       `counted` — and the residue ratchet behind it is what protects a player
+       whose realm has never spoken. Readers that DECIDE anything come here. */
+  function countedRenown(G) {
+    var srv = serverRenownHigh();
+    return (srv === null) ? effectiveRenown(G || window.G) : srv;
   }
 
   // ── Rank lookup ─────────────────────────────────────────────
@@ -305,9 +349,9 @@
      ══════════════════════════════════════════════════════════════════════════ */
   function getState(G) {
     G = G || window.G;
-    var local = effectiveRenown(G);
+    var local = effectiveRenown(G);          // the PREDICTION, shown beside `counted`
     var srv = serverRenownHigh();
-    var renown = (srv === null) ? local : srv;
+    var renown = countedRenown(G);           // …and the figure anything may act on
     var i = rankIndexFor(renown);
     var cur = RANKS[i];
     var next = RANKS[i + 1] || null;
@@ -374,6 +418,14 @@
   }
 
   // Ranks you've reached, have a reward, and haven't claimed yet.
+  /* ⚠ THE ONE READER THAT DELIBERATELY STAYS ON THE PREDICTION, and it is not
+     an oversight: the CLICK is what advances the server's own high-water
+     (hr_claim_rank recomputes and ratchets), so offering a rank only once the
+     realm has counted it would remove the only thing that moves the count — and
+     a REFUSED claim must stay offered (RANK-CLAIM-1). The claim is safe to
+     offer because the server decides it: a short score answers `not_reached`,
+     nothing is written, and the player is told in the server's own figures.
+     Capabilities (getPerks) and headlines go through countedRenown instead. */
   function getClaimable(G) {
     G = G || window.G; var s = ensureState(G); if (!s) return [];
     var curIdx = rankIndexFor(effectiveRenown(G));
@@ -518,7 +570,7 @@
     if (s.claimed.indexOf(rankId) >= 0) return Promise.resolve(null);   // already claimed
     var idx = -1; for (var i = 0; i < RANKS.length; i++) if (RANKS[i].id === rankId) { idx = i; break; }
     if (idx < 0) return Promise.resolve(null);
-    if (idx > rankIndexFor(effectiveRenown(G))) return Promise.resolve(null);   // not reached yet
+    if (idx > rankIndexFor(effectiveRenown(G))) return Promise.resolve(null);   // not reached yet — see getClaimable
     var rank = RANKS[idx];
     var rw = rank.reward || {};
     /* Peasant has no reward, and the server answers `unknown_rank` for it (its
@@ -702,7 +754,10 @@
     G = G || window.G;
     var p = { allXP: 0, offlineHours: 0, bankSlots: 0, marketSlots: 0, dailyTasks: 0, dropRate: 0 };
     if (!G) return p;
-    var curIdx = rankIndexFor(effectiveRenown(G));
+    /* PERKS ARE A CAPABILITY (allXP, dropRate, bank and market slots), so they
+       are granted on the counted figure and never on the prediction — a bonus
+       the realm has not counted is residue-ahead with a payout attached. */
+    var curIdx = rankIndexFor(countedRenown(G));
     for (var i = 0; i <= curIdx && i < RANKS.length; i++) {
       var pk = RANKS[i].perk; if (!pk) continue;
       for (var k in pk) { if (Object.prototype.hasOwnProperty.call(pk, k)) p[k] = (p[k] || 0) + pk[k]; }
@@ -831,7 +886,9 @@
     } catch (e) {}
     var snap = G.daily && G.daily.snapshot;
     if (!snap || typeof snap.renown !== 'number' || !isFinite(snap.renown)) return null;
-    return Math.max(0, effectiveRenown(G) - snap.renown);
+    /* "+N renown today" compares like with like: both ends are the counted
+       figure, so the line cannot print a gain the realm never counted. */
+    return Math.max(0, countedRenown(G) - snap.renown);
   }
 
   /* b465 — THE RENOWN LADDER IS THE META-SPINE; IT MUST READ LIKE PROSE.
@@ -1043,6 +1100,9 @@
        server round-trip. It resolves to null on every refusal AND on every
        already-handled no-op, and it never rejects. It also owns its own toast. */
     claimRank: claimRank,
+    /* THE FIGURE EVERY GATE AND HEADLINE DECIDES ON — the server's when the
+       realm has counted, the prediction only until then. See countedRenown. */
+    counted: countedRenown,
     serverRenownHigh: serverRenownHigh,
     /* The observation seam. src/net/client-state.js (boot load) and
        src/net/accrue.js (every settle) hand it the envelope; claimRank hands it

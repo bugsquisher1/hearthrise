@@ -1012,7 +1012,8 @@
           var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
           if (!AE || typeof AE.chooseFood !== 'function') return undefined;
           var A = window.HearthriseAuto;
-          var nom = (A && typeof A.getEat === 'function') ? ((A.getEat() || {}).foodId || null) : null;
+          /* The SERVER's nomination — the same one the night eats with. */
+          var nom = (A && typeof A.eatFoodId === 'function') ? A.eatFoodId() : null;
           return !!AE.chooseFood(nom, G.inventory || {}, window.ITEMS || {}, Infinity);
         } catch (e) { return undefined; }
       })()

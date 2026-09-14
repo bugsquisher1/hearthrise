@@ -238,8 +238,12 @@
     // Renown ranks. Index 0 (Peasant) is where everyone starts — not a moment.
     try {
       var R = window.HearthriseRenown;
-      if (R && R.RANKS && typeof R.rankIndexFor === 'function' && typeof R.effective === 'function') {
-        var cur = R.rankIndexFor(R.effective(G));
+      /* THE COUNTED figure, not the client prediction: "Rose to Baron" is a
+         claim about the realm, and the prediction runs ahead by construction
+         (see countedRenown in renown.js). */
+      if (R && R.RANKS && typeof R.rankIndexFor === 'function'
+          && (typeof R.counted === 'function' || typeof R.effective === 'function')) {
+        var cur = R.rankIndexFor(typeof R.counted === 'function' ? R.counted(G) : R.effective(G));
         for (var r = 1; r <= cur && r < R.RANKS.length; r++) {
           out.push({ id: 'rank:' + R.RANKS[r].id, kind: 'rank', text: 'Rose to ' + R.RANKS[r].name });
         }

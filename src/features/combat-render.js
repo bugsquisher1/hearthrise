@@ -267,8 +267,16 @@ const HUD = (() => {
        Auto-Eat trait. */
     const hasAuto = typeof window.hasTrait === 'function' && window.hasTrait('auto_eat');
     const eatCfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
+    /* THE NAME ON THE CHIP IS THE SERVER'S `auto_eat_food` (eatFoodId), never the
+       local preference: the QA account showed "Cooked Shrimp" here while the
+       engine ate turnip. CLAUDE.md §6. `null` is "best in the bag", which this
+       surface has always drawn as 'Off' — the pre-existing reading of "no
+       nomination", unchanged. */
+    const A_ = window.HearthriseAuto;
+    const autoFood = (A_ && typeof A_.eatFoodId === 'function')
+      ? A_.eatFoodId() : (eatCfg ? (eatCfg.foodId || null) : null);
     const autoName = hasAuto
-      ? ((eatCfg && eatCfg.enabled && eatCfg.foodId && window.ITEMS[eatCfg.foodId]) ? window.ITEMS[eatCfg.foodId].n : 'Off')
+      ? ((eatCfg && eatCfg.enabled && autoFood && window.ITEMS[autoFood]) ? window.ITEMS[autoFood].n : 'Off')
       : '';
     const sig = [s.key, s.label, s.meta, autoName].join('|');
     if (mount.dataset.sig === sig) return;

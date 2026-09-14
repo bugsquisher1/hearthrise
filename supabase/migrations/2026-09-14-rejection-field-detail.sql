@@ -96,6 +96,22 @@
 --     (user_id, slot, day, code), so no client string can multiply a row. That
 --     was R2/R3's whole lesson and it is not reopened here.
 --
+-- ── WHAT IT TOUCHES, AND WHAT IT ONLY CALLS ───────────────────────────────
+-- IT TOUCHES EXACTLY ONE BODY: public.hr_note_rejection. It is the only body
+-- this file reads back with pg_get_functiondef, and the only one it installs.
+--
+-- It CALLS hr_record_rejection, hr_detail_bound, hr_rejection_why and
+-- hr_put_client_state, and it deliberately reads the SOURCE of none of them.
+-- That is not fastidiousness, it is a measured guard interaction: sweep() in
+-- tests/live-hash-drift.mjs treats ANY pg_get_functiondef / prosrc read of a
+-- body as a `pin`, which makes the reading file that body's LAST TOUCHER, and
+-- tests/apply-order-honesty.mjs then reads "the last toucher's body agrees
+-- live == replay" as "this file is applied". A STAGED file that merely READS an
+-- unchanged body therefore reports itself LIVE — the exact lie that guard was
+-- built to kill. §0's earlier draft did this to hr_record_rejection and turned
+-- apply-order-honesty red. Every property that used to be asserted by reading
+-- someone else's source is now asserted by CALLING it (§0's bound probe, §2(i)).
+--
 -- ── PATCHED, NOT RESTATED ─────────────────────────────────────────────────
 -- Anchored on `'raw_error', case when v_code = 'malformed_code'`, asserted to
 -- appear EXACTLY ONCE in the LIVE body (verified live 2026-09-14: 1), and
@@ -150,13 +166,17 @@ begin
                     '2026-09-13-rejections-verb-map-2.sql first, or the refused key is recorded '
                     'only as the LAST one of the day, which is not a diagnosis';
   end if;
-  -- The detail must still be BOUNDED by the recorder, or a forged 4 KB key name
-  -- would be carried verbatim into a table the client can drive writes to.
-  if strpos(replace(pg_get_functiondef(
-       'public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)'::regprocedure), chr(13), ''),
-     'hr_detail_bound') = 0 then
-    raise exception 'hr_record_rejection no longer bounds its detail — refusing to widen what it '
-                    'stores from a client-chosen string';
+  -- The detail must still be BOUNDED, or a forged 4 KB key name would be carried
+  -- verbatim into a table the client can drive writes to. Asserted by CALLING
+  -- the bound, never by reading a body this file does not touch: a
+  -- pg_get_functiondef on hr_record_rejection would make this file its LAST
+  -- TOUCHER in the live-hash derivation, and a STAGED file that pins an
+  -- unchanged body is read by tests/apply-order-honesty.mjs as already applied.
+  -- (The recorder's USE of the bound is proven by execution in §2(i).)
+  if length(public.hr_detail_bound(
+       jsonb_build_object('x', repeat('z', 5000)))::text) > 200 then
+    raise exception 'hr_detail_bound no longer bounds a 5000-character detail — refusing to widen '
+                    'what the journal stores from a client-chosen string';
   end if;
   v_def := replace(pg_get_functiondef(
     'public.hr_note_rejection(text,int,jsonb)'::regprocedure), chr(13), '');
@@ -397,6 +417,20 @@ begin
     -- HR845 is the SENTINEL and nothing else raises it; every assertion above
     -- raises HR846, which this handler does NOT catch, so a failure aborts the
     -- file instead of being swallowed by its own rollback.
+    -- (i) THE RECORDER STILL APPLIES THE BOUND — proven by EXECUTION, because
+    --     this file deliberately does not read hr_record_rejection's source (see
+    --     §0). A detail the recorder passed through unbounded would be a
+    --     client-sized string in the journal, whatever the seam above trims.
+    perform set_config('hearthrise.rejection_noted', '', true);
+    perform public.hr_record_rejection(v_uid, 0, 'probe', 'unbounded_probe',
+      jsonb_build_object('x', repeat('z', 5000)), 1);
+    select * into v_row from public.hr_rejections where user_id = v_uid and code = 'unbounded_probe';
+    if length(v_row.last_detail::text) > 200 then
+      raise exception using errcode = 'HR846',
+        message = format('rejection-field (i): the recorder stored a %s-character detail — it no '
+                         'longer bounds what it is handed', length(v_row.last_detail::text));
+    end if;
+
     raise exception using errcode = 'HR845', message = 'rejection-field §2 complete — rolling back';
   exception when sqlstate 'HR845' then null;
   end;

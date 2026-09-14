@@ -4,6 +4,24 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 547 — 2026-09-14 (The Cellar lengthens your buffs, and the browser stops arguing with the realm)
+
+The third daily release. Everything server-side below is already live; this build is the client that shows it.
+
+**The Cellar makes buffs last longer.** Each Cellar rung you own adds +20% to a buff's duration, up to double at rung five, applied by the realm the moment you eat (still capped at sixty minutes). Active Effects says "+40% from the Cellar" on a buff the Cellar stretched.
+
+**Smithing and Crafting self-supply again.** Fifty-seven recipes asked for a material you could not yet make at their level. Bars now smelt where their tier opens (gold 25, steel 30, mithril 45, rune 60, deathsteel 60, ember 75, dawn 88), three rungs swap to a material you can make, and five late rungs move up to where their material exists: Crown of the Fallen King 85 → 88, Demoncaller Staff 68 → 75, Dawnbound Amulet, Dawnforged Signet and Dragon Gem Earrings → 88. Nobody is within twenty-four levels of those five today.
+
+**The browser stops arguing with the realm.** A sweep of every number you can act on found four places the client kept its own copy: the starter seeds and shrimp every character "had" but the realm never granted, the auto-eat food (your browser said shrimp, the realm was feeding you turnips), your play streak, and your Renown record. All four now read the realm's figure, and the reason the auto-eat food kept coming back was found: signing out or switching characters reset the counter the browser used to tell a fresh server answer from an old one, so its stale choice won. That reset is gone. The bag grid itself still shows the browser's optimistic count for a few more days while the full hand-over soaks.
+
+**Themes, cosmetics and recipes are real now.** Until today the realm had no record of a theme, a cosmetic or a learned recipe; your browser remembered them and the server never did, which is why gem purchases were refused with "nothing was spent" and why gated recipes paid nothing while you were away. All three are now held on your account, journalled, and shared across your characters. No gems were ever actually charged for a theme or cosmetic, so none are missing and none need refunding; the shop's gem buttons work for the first time today, and any theme your browser showed as owned but never paid for is back on the shelf. Recipe scrolls were never really consumed either: the scrolls you read are still in your bag, and reading one now teaches the recipe for good, on the server, where your overnight crafting can use it.
+
+**A paid weapon enchant no longer vanishes on reload.** The realm sent your enchant with every envelope and the browser read it from the wrong place, so it showed nothing after a reload while the realm kept fighting with it. It now reads where the realm puts it.
+
+**The welcome-back report waits for the realm.** On a real return the modal no longer renders before the night's report arrives; when the report lands it replaces a stats-only card.
+
+**Under the hood:** the renown and catalogue guards learned to blind a later migration's self-check; a new guard proves every catalogue-seeding migration matches the game's data rows; the inventory hand-over is staged behind a switch, off, with its telemetry running.
+
 ## v0.9.2-beta build 546 — 2026-09-14 (The bag stops promising what the realm never paid)
 
 Out-of-band fix to build 544. Carries one small companion fix from the same afternoon.

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 49 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, snapshotG, restoreG, restoreGAndRecord, bankEnv, on, snapshot } from './_harness.js?v=546';
+import { pass, fail, tryRun, tryRunAsync, assert, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, snapshotG, restoreG, restoreGAndRecord, bankEnv, on, snapshot } from './_harness.js?v=547';
 
 export default [
 

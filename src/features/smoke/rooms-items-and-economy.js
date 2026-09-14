@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 105 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot } from './_harness.js?v=546';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot } from './_harness.js?v=547';
 
 export default [
 
@@ -1927,7 +1927,7 @@ export default [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../../data/shops.js?v=546');
+    const S = await import('../../data/shops.js?v=547');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -2829,7 +2829,7 @@ export default [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../../data/dungeons.js?v=546');
+    const mod = await import('../../data/dungeons.js?v=547');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -2860,7 +2860,7 @@ export default [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../../data/dungeons.js?v=546');
+    const mod = await import('../../data/dungeons.js?v=547');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);

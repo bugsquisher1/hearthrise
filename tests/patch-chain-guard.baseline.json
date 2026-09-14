@@ -197,42 +197,13 @@
     "2026-09-14-inventory-absolute-flag.sql",
     "2026-09-14-client-state-projection-denylist.sql",
     "2026-09-14-hr-apply-restatement.sql",
+    "2026-09-14-rejection-field-detail.sql",
+    "2026-09-14-hr-state-of-restatement.sql",
     "2026-08-10-dr-legacy-cloud-save.sql",
     "2026-08-12-clan-members-rls-drop.sql",
     "2026-09-13-town-presence-off.sql"
   ],
   "chains": {
-    "hr_state_of": {
-      "depth": 24,
-      "files": [
-        "2026-08-22-rested-record.sql",
-        "2026-08-27-bank-store.sql",
-        "2026-08-28-client-state.sql",
-        "2026-08-22-companion-record.sql",
-        "2026-08-23-trait-buy.sql",
-        "2026-08-24-combat-style.sql",
-        "2026-08-31-combat-xp-credit.sql",
-        "2026-09-08-hero-slot-buy.sql",
-        "2026-09-10-dungeon-scrip.sql",
-        "2026-09-12-worker-hired-at-projection.sql",
-        "2026-09-06-state-of-farm-projection.sql",
-        "2026-09-06-recovering-until.sql",
-        "2026-09-07-last-away-receipt.sql",
-        "2026-09-07-retreat.sql",
-        "2026-09-08-hearthfind.sql",
-        "2026-09-09-bounty-progress-projection.sql",
-        "2026-09-12-renown-high-projection.sql",
-        "2026-09-12-dungeon-cooldown.sql",
-        "2026-09-13-town-presence.sql",
-        "2026-09-13-consumable-buffs.sql",
-        "2026-09-13-buff-cellar-scale.sql",
-        "2026-09-14-gem-unlock-buy.sql",
-        "2026-09-14-recipe-learn.sql"
-      ],
-      "totalPatches": 24,
-      "restatements": 9,
-      "lastRestatement": "2026-08-26-marks-record.sql"
-    },
     "hr_credit_combat_xp__ungated": {
       "depth": 7,
       "files": [
@@ -382,6 +353,15 @@
       "restatements": 1,
       "lastRestatement": "2026-09-10-dungeon-settle.sql"
     },
+    "hr_note_rejection": {
+      "depth": 1,
+      "files": [
+        "2026-09-14-rejection-field-detail.sql"
+      ],
+      "totalPatches": 1,
+      "restatements": 1,
+      "lastRestatement": "2026-09-12-hr-rejections-journal.sql"
+    },
     "hr_set_auto_eat": {
       "depth": 1,
       "files": [
@@ -415,6 +395,13 @@
       "totalPatches": 44,
       "restatements": 11,
       "lastRestatement": "2026-09-14-hr-apply-restatement.sql"
+    },
+    "hr_state_of": {
+      "depth": 0,
+      "files": [],
+      "totalPatches": 24,
+      "restatements": 10,
+      "lastRestatement": "2026-09-14-hr-state-of-restatement.sql"
     },
     "hr_claim_quest__ungated": {
       "depth": 0,

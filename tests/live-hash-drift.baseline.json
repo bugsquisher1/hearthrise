@@ -24,7 +24,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-09-14",
-  "replay_ms": 9660,
+  "replay_ms": 1225,
   "counts": {
     "tracked_names": 52,
     "entries": 50
@@ -1031,8 +1031,8 @@
         "2026-09-14-recipe-learn.sql"
       ],
       "live": {
-        "md5": "740aefe5b3739db367010ee5fdfda85a",
-        "norm_len": 23867,
+        "md5": "50913bae9c63bd8b7984fcdd30e5d1b4",
+        "norm_len": 29802,
         "measured": "2026-09-14",
         "source": "measured-live"
       },
@@ -1041,8 +1041,8 @@
         "norm_len": 29802,
         "source": "computed-from-replay"
       },
-      "agree": false,
-      "why": "2026-09-14 18:30 UTC: DELIBERATELY DIVERGENT — 2026-09-14-hr-state-of-restatement.sql is STAGED, NOT APPLIED (one readable body replacing 24 anchored splices; comment-only cleanup, code md5 88b814f1 before == after; §0 pins production TODAY). Replay 9af380d1/24615 -> 50913bae/29802; production runs 740aefe5 (code-identical). Applies after the Security read; re-measure then and expect live == replay exactly."
+      "agree": true,
+      "why": "2026-09-14 18:20 UTC: 2026-09-14-hr-state-of-restatement.sql APPLIED (one readable body replacing 24 anchored splices; comment-only cleanup, code 88b814f1 unchanged). live == replay 50913bae/29802 exactly (agree). Rollback: ~/.hearthrise/rollback-hr_state_of-2026-09-14-pre-restatement.sql."
     },
     {
       "sig": "hr_town_refresh(p_zone text)",

@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 546 — 2026-09-14 (The bag stops promising what the realm never paid)
+
+Out-of-band fix to build 544. Carries one small companion fix from the same afternoon.
+
+**A key or seed you see is one the realm holds.** Reports of "have 2 Goblin Seals" next to "the server says you have no key", and of Plant all doing nothing with seeds in the bag, had one cause: the bag can show items the realm never paid. Drops you see land in a live fight are rolled by your browser for instant feedback; the realm re-rolls them at settle with its own dice, and the bag only ever counted up, never down, so a phantom could never leave. Every gate that spends an item now reads the realm's own count: the dungeon door, the "(have N)" label, the seed picker, Plant all and auto-replant. The bag grid itself still shows the browser's optimistic count until the full inventory hand-over lands in a coming build; nothing is lost either way, and no press is spent on a refusal.
+
+**The welcome-back report waits for the realm.** On a real return the modal could render before the night's report arrived and then never update. It now waits for the settle that is in flight and replaces a stats-only card when the report lands.
+
 ## v0.9.2-beta build 545 — 2026-09-13 (The Depot actually opens)
 
 Out-of-band fix to build 544, shipped alone.

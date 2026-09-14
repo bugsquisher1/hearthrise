@@ -528,20 +528,24 @@ async function run(mutate) {
   // vendor formula is the same bargain — one more number that lives in two
   // places — so it gets the same treatment.
   {
-    const legacy = (await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8')).replace(/\r\n/g, '\n');
+    /* 2026-09-14: the vendor counter moved out of the monolith into the shop
+       SCREEN CONTROLLER (task #129 phase 2). The path follows the code — the two
+       CONTROLs below go red on a blind scan, which is how this pin was found
+       rather than passing quietly over a file that no longer holds the rate. */
+    const legacy = (await readFile(join(ROOT, 'src', 'screens', 'shop-counter.js'), 'utf8')).replace(/\r\n/g, '\n');
     const rate = /const VENDOR_RAW_RATE\s*=\s*([0-9.]+)\s*;/.exec(legacy);
     ok(!!rate,
-      'G1-CONTROL: no `const VENDOR_RAW_RATE = …` in src/legacy.js — this scan is blind, so a green '
-      + 'run says nothing about whether the server pays what the shop promises');
+      'G1-CONTROL: no `const VENDOR_RAW_RATE = …` in src/screens/shop-counter.js — this scan is '
+      + 'blind, so a green run says nothing about whether the server pays what the shop promises');
     ok(Number(rate[1]) === cat.VENDOR_RAW_RATE,
-      `G1: src/legacy.js pays raws at ${rate[1]} and the server pays ${cat.VENDOR_RAW_RATE}. The `
+      `G1: the shop counter pays raws at ${rate[1]} and the server pays ${cat.VENDOR_RAW_RATE}. The `
       + 'client renders one number in the bag and the server credits another — on every sale in '
-      + 'the game, silently. Change it in legacy.js AND here, or move the rate into src/data.');
+      + 'the game, silently. Change it in the screen AND here, or move the rate into src/data.');
 
     const body = /function vendorPrice\(id\)\{([\s\S]*?)\n\}/.exec(legacy);
-    ok(!!body, 'G1-CONTROL: could not read vendorPrice() out of src/legacy.js — the scan is blind');
+    ok(!!body, 'G1-CONTROL: could not read vendorPrice() out of src/screens/shop-counter.js — the scan is blind');
     ok(/it\.raw\s*\?\s*Math\.max\(1,\s*Math\.floor\(v\s*\*\s*VENDOR_RAW_RATE\)\)\s*:\s*v/.test(body[1]),
-      'G1: legacy.js\'s vendorPrice() formula has changed shape. The server\'s vendorPriceOf mirrors '
+      'G1: the shop counter\'s vendorPrice() formula has changed shape. The server\'s vendorPriceOf mirrors '
       + '`raw ? max(1, floor(v * rate)) : v`; if the client\'s has moved, one of them is now wrong.');
 
     /* BEHAVIOURAL PARITY over the whole catalogue, computed from the legacy

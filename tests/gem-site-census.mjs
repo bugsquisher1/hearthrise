@@ -473,7 +473,13 @@ async function selftest() {
       apply: async () => {
         const p = at('src/legacy.js');
         const s = await readFile(p, 'utf8');
-        const anchor = "  return buyGemUnlock('theme:'+id,'that theme',function(){\n";
+        /* The call is `window.buyGemUnlock(…)` — legacy.js is a classic script
+           and names the seam through window. The anchor shipped without the
+           receiver, so M1 threw "buyTheme has moved" instead of planting the
+           debit: the arm that guards the exact line that made a premium theme
+           free had never once been red. Fixed here rather than re-pointed,
+           because the anchor was wrong, not stale. */
+        const anchor = "  return window.buyGemUnlock('theme:'+id,'that theme',function(){\n";
         if (!s.includes(anchor)) throw new Error('M1 anchor not found — buyTheme has moved');
         await writeFile(p, s.replace(anchor, '  G.gems-=t.price;\n' + anchor), 'utf8');
         return () => writeFile(p, s, 'utf8');

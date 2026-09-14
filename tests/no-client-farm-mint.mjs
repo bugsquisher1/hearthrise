@@ -45,11 +45,17 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 /** The gestures that may only send an intent, and where they live. */
+/* 2026-09-14: the four farm gestures moved from src/legacy.js to
+   src/screens/farm.js with the farm screen-controller extraction (task #129).
+   The paths follow the code — `bodyOf` returns null when a name is not in the
+   file it is pinned to, and this guard treats that as a finding, so a stale
+   path here would have read as "the farm no longer mints" rather than as
+   "the guard is looking at the wrong file". */
 const GESTURES = [
-  ['src/legacy.js', 'plantCrop'],
-  ['src/legacy.js', 'waterPlot'],
-  ['src/legacy.js', 'waterAllPlots'],
-  ['src/legacy.js', 'harvestPlot'],
+  ['src/screens/farm.js', 'plantCrop'],
+  ['src/screens/farm.js', 'waterPlot'],
+  ['src/screens/farm.js', 'waterAllPlots'],
+  ['src/screens/farm.js', 'harvestPlot'],
   ['src/features/farm-progression.js', 'upgradePlot'],
 ];
 

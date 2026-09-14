@@ -68,8 +68,20 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { bootReplay } from './schema-replay.mjs';
+import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 
 const MIG = '2026-09-07-retreat.sql';
+/* ── THE FINAL-BODY RULE (2026-09-14) ───────────────────────────────────────
+   MIG SPLICES hr_apply; 2026-09-14-hr-apply-restatement.sql RESTATES it whole and
+   runs LAST, so MIG's (4a-c) block is a draft the restatement overwrites. Both
+   mutations below therefore plant in MIG_APPLY, where the live text is. Left on
+   MIG they were not merely vacuous: the restatement's §0 pin refused the chain
+   and both arms scored "THE REPO CANNOT REBUILD THE DATABASE" instead of landing
+   on this file's assertions. tests/hr-apply-final-body.mjs holds the constant and
+   the §3 blind — the restatement's §3(a) pins the body it installs, so any body
+   mutation makes IT raise, which is a MIGRATION gate rather than this guard's
+   tick. */
+const MIG_APPLY = HR_APPLY_FINAL;
 const U = '00000000-0000-4000-8000-0000000000aa';
 const J = { kind: 'combat', intent: 'accrue' };
 
@@ -105,7 +117,7 @@ const patchesFor = (mutate) => {
   if (!mutate) return undefined;
   const m = MUTATIONS[mutate];
   if (!m) throw harness(`unknown mutation '${mutate}' (see --list)`);
-  return new Map([[MIG, [[m.find, m.repl]]]]);
+  return new Map([[MIG_APPLY, [[m.find, m.repl], HR_APPLY_S3_BLIND.slice()]]]);
 };
 
 // ── THE RUN ────────────────────────────────────────────────────────────────

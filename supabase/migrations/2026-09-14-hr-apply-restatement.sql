@@ -190,7 +190,7 @@
 -- argued: each identifier must appear EXACTLY ONCE in the comment-stripped body
 -- (its own declaration), and the body must contain no dynamic `execute` in which
 -- a reader could hide from a textual count.
-do $pre$
+do $$
 declare
   v_def  text;
   v_code text;
@@ -247,7 +247,7 @@ begin
     raise notice 'hr-apply-restatement §0: predecessor recognised (code %), and both removals are unread',
                  c_code_before;
   end if;
-end $pre$;
+end $$;
 
 -- ── §1 THE RESTATEMENT ──────────────────────────────────────────────────────
 -- hr_apply restated 2026-09-14 — chain depth 0. Do not patch this body with an
@@ -258,7 +258,7 @@ create or replace function public.hr_apply(p_user uuid, p_slot integer, p_versio
  language plpgsql
  security definer
  set search_path to 'public'
-as $hr_apply$
+as $$
 -- hr_apply restated 2026-09-14 (2026-09-14-hr-apply-restatement.sql) — chain depth 0.
 -- This body is AUTHORED HERE. Do not add an anchored programmatic patch to it:
 -- tests/patch-chain-guard.mjs refuses a third one, and the two before that are
@@ -2851,7 +2851,7 @@ begin
   end if;
 
   return v_out;
-end $hr_apply$;
+end $$;
 
 -- ── §2 THE GRANT POSTURE ────────────────────────────────────────────────────
 -- `create or replace` PRESERVES an existing ACL, so these three lines are not
@@ -2860,9 +2860,8 @@ end $hr_apply$;
 -- restatement is the file a future operator will copy when they restate the next
 -- body, and a template that omits the revoke is how one gets omitted for real.
 -- `revoke ... from public` FIRST, then the single grant (CLAUDE.md §2).
-revoke all    on function public.hr_apply(uuid, int, bigint, uuid, jsonb) from public;
 revoke execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb)
-  from anon, authenticated, service_role;
+  from public, anon, authenticated, service_role;
 grant  execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) to hr_engine;
 
 -- ── §3 SELF-CHECK (§4) — BY EXECUTION, WITH CONTROLS ───────────────────────
@@ -2892,7 +2891,7 @@ grant  execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) to hr
 --       the restatement — the error taxonomy is a contract the Edge degrade
 --       ladder reads, and a restatement that renamed one would break recovery
 --       while every happy path stayed green.
-do $mig$
+do $$
 declare
   v_def text; v_code text; v_r jsonb; v_ver bigint; v_rows int; v_n int;
   v_item text; v_food text; v_seed text; v_crop text; v_prod text;
@@ -2921,7 +2920,7 @@ declare
       -- (0) THE IDENTITY SEAM (review S1)
     'v_role := coalesce(nullif(current_setting(''role'', true), ''none''), session_user);',
       -- (1) Rate limit. OUTSIDE the protected block on purpose: a rejected c
-    'if not public.hr_rate_ok(v_uid, ''apply'', 240, interval ''1 minute'') then',
+    'perform public.hr_record_rejection(v_uid, v_slot, ''apply'', ''rate_limited'',',
       -- (2) Serialise this character. hashtextextended over user+slot; the l
     'perform pg_advisory_xact_lock(hashtextextended(v_uid::text || '':'' || v_slot::text, 0));',
       -- (3) IDEMPOTENCY (review S8). Under the lock, so the check and the cl
@@ -2929,55 +2928,55 @@ declare
       -- ONE NAMESPACE, TWO KINDS OF KEY (review S6)
     'select result, intent, slot into v_prev, v_prev_intent, v_prev_slot',
       -- AND A REPLAY MUST BE A REPLAY ON THE SAME CHARACTER (b346)
-    'if v_prev_intent is distinct from v_this_intent',
+    'or v_prev_slot is distinct from v_slot then',
       -- THE PROTECTED BLOCK
     'select * into v_st from public.player_state',
       -- (4) OPTIMISTIC CONCURRENCY — MANDATORY (review S9). Revision 1 skipp
-    'if p_version is null or p_version <> v_st.version then',
+    'perform public.hr_reject(''version_conflict'',',
       -- GOLD
     'v_new_gold := v_st.gold;',
       -- GEMS (review S5)
     'v_new_gems := v_st.gems;',
       -- ITEMS ─ the delta is signed; a spend and a gain are the same code ─
-    'if p_delta ? ''items'' then',
+    'perform public.hr_reject(''bad_items'');',
       -- XP ─ monotonic. A negative XP delta is a caller bug, and accepting o
-    'if jsonb_typeof(p_delta->''xp'') <> ''object'' then perform public.hr_reject(''bad_xp''); end if;',
+    'from jsonb_each_text(p_delta->''xp'') loop',
       -- EQUIPMENT (review S4)
-    'if p_delta ? ''equip'' then',
+    'perform public.hr_reject(''too_many_equip_ops'');',
       -- ENCHANTING (ELEMENTS v1)
-    'if p_delta ? ''enchant'' then',
+    'perform public.hr_reject(''bad_enchant'', jsonb_build_object(''why'', ''one slot per enchant''));',
       -- BANK CAP ─ counted once, AFTER items and equipment, because both can
-    'if (p_delta ? ''items'') or (p_delta ? ''equip'') then',
+    'select count(*) into v_stacks from (',
       -- FARM ─ planting stamps the SERVER clock. `planted_at` can never be
-    'if p_delta ? ''farm'' then',
+    'perform public.hr_reject(''too_many_farm_ops'');',
       -- PROGRESS (review S13)
-    'if p_delta ? ''progress'' then',
+    'perform public.hr_reject(''too_many_progress_ops'');',
       -- PROGRESS CLAIM ─ the only path to 'claimed', and it requires the row
-    'if p_delta ? ''progress_claim'' then',
+    'perform public.hr_reject(''bad_progress_claim'');',
       -- ACTIVITY
     'v_act := p_delta->''activity'';',
       -- (4a-ii) THE GATHERING TOOL CARRY (b348)
-    'if p_delta ? ''tool_carry'' then',
+    'v_carry := p_delta->''tool_carry'';',
       -- (4a-iii) THE IN-FLIGHT FIGHT (Phase 0)
-    'if p_delta ? ''fight'' then',
+    'v_fight := p_delta->''fight'';',
       -- (4a-iv) HIRED-WORKER PRODUCTION (worker-settlement slice)
-    'if p_delta ? ''recovering_until'' then',
+    'jsonb_build_object(''type'', jsonb_typeof(p_delta->''recovering_until'')));',
       -- (4a-v) THE RECOVERY LINE (First-Night Idle Rescue). A death interrup
-    'if jsonb_typeof(p_delta->''recovering_until'') = ''null'' then',
+    'v_recover := (p_delta->>''recovering_until'')::timestamptz;',
       -- (4a-d) THE DEATH LEDGER (rev. 2, N3). SHAPE ONLY, and refused rather
-    'if jsonb_typeof(p_delta->''deaths'') <> ''array'' then',
+    'perform public.hr_reject(''bad_deaths'', jsonb_build_object(''type'', jsonb_typeof(p_delta->''deaths'')));',
       -- (4a-r) THE LAST AWAY-CLASSIFIED RECEIPT (2026-09-07 ruling).
-    'if p_delta ? ''last_away_receipt'' then',
+    '''type'', jsonb_typeof(p_delta->''last_away_receipt'')));',
       -- (4a-c) THE RETREAT COUNTER (Recovery rev. 3). Consecutive falls with
-    'if p_delta ? ''consec_falls'' then',
+    'jsonb_build_object(''type'', jsonb_typeof(p_delta->''consec_falls'')));',
       -- (4a-h) THE HEARTHFIND. Shape first, then the catalogue, then the pai
     'v_hf := p_delta->''hearthfind'';',
       -- (4a-h2) THE ONE DOOR. A hearthfind trophy may NOT be minted through 
-    'if p_delta ? ''items'' and jsonb_typeof(p_delta->''items'') = ''object'' then',
+    'select 1 from jsonb_each_text(p_delta->''items'') as t(ik, iv)',
       -- (4a-b) CONSUMABLE BUFFS
-    'if p_delta ? ''buff_apply'' then',
+    '''type'', jsonb_typeof(p_delta->''buff_apply'')));',
       -- (4a-b2) THE BUFF MUST BE PAID FOR (F3, Security 2026-09-13)
-    'if coalesce(jsonb_typeof(p_delta->''items''), '''') <> ''object''',
+    'or coalesce(jsonb_typeof(p_delta->''items''->v_buff_item), '''') <> ''number''',
       -- THE CELLAR (2026-09-13 step 3)
     'select coalesce(max(u.level), 0) into v_buff_rung',
       -- (4b) THE LEDGER-DERIVED DAILY BUDGET (C5 / X3)
@@ -2985,7 +2984,7 @@ declare
       -- ACCRUAL WATERMARK (review S19)
     'v_accrued := v_st.accrued_to;',
       -- S5 (HALF) — AN EQUIPMENT OR ACTIVITY CHANGE CLOSES THE WINDOW
-    'if p_delta ? ''equip'' or p_delta ? ''activity'' or p_delta ? ''enchant'' then',
+    'v_accrued := now(); end if;',
       -- (4c) THE DAILY SETTLE STREAK (Slice 3)
     'v_streak_day := v_st.streak_day_key;',
       -- THE VOID (Phase 0) — the SECOND, INDEPENDENT half of the rule
@@ -2993,7 +2992,7 @@ declare
       -- JOURNAL ─ ONE row per apply. Per-item rows would multiply the write
     'v_j := coalesce(p_delta->''journal'', ''{}''::jsonb);',
       -- (0) THE DISCARD, JOURNALLED. If the engine rolled more than one find
-    'if coalesce(v_hf_drop, 0) > 0 then',
+    'perform public.hr_record_rejection(v_uid, v_slot, ''apply'', ''hearthfind_span_discard'',',
       -- THE SERVER'S COUNTED RENOWN, RATCHETED HERE (2026-09-12)
     'update public.player_state ps',
       -- (5) Record the DECISION under the idempotency key. This statement is
@@ -3001,7 +3000,7 @@ declare
       -- ONE EXCEPTION: A VERSION CONFLICT RELEASES THE KEY (b346)
     'and v_out->>''error'' = any (c_release_codes) then',
       -- (6) THE REJECTION RECORD (review R4). Also outside the protected blo
-    'if coalesce(v_out->>''ok'', ''false'') <> ''true'' then'
+    'v_uid, v_slot, coalesce(p_delta #>> ''{journal,intent}'', ''apply''),'
   ];
 begin
   v_def  := replace(pg_get_functiondef(c_sig::regprocedure), chr(13), '');
@@ -3346,4 +3345,4 @@ begin
                'equip transfer, a gold spend, a rested/worker watermark and an idempotent replay all '
                'behave, and an unknown key, a self-authored buff, a forged hearthfind, a stale version '
                'and an over-clamp XP delta are each refused BY NAME';
-end $mig$;
+end $$;

@@ -114,6 +114,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -127,6 +128,16 @@ import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import { eatDelta, resolveFood, runEat } from '../supabase/functions/hr-accrue/eat.js';
 import { deltaClosesWindow } from '../supabase/functions/hr-accrue/intents.js';
 
+/* ── THE FINAL-BODY RULE, AFTER THE RESTATEMENT (2026-09-14) ────────────
+   Every anchor below that edits hr_apply's BODY now names MIG_APPLY. hr_apply is
+   RESTATED WHOLE by 2026-09-14-hr-apply-restatement.sql, which runs LAST, so the
+   six buff files' splices are drafts it overwrites: an arm left pointing at one
+   of them mutates text the database never runs. That is the same lesson this
+   file already learned twice (see client_authors_until and second_helping_-
+   restarts) — it just has one answer now instead of six. The hr_state_of and
+   catalogue arms are UNCHANGED: those bodies are still owned by their own files.
+   tests/hr-apply-final-body.mjs holds the constant and the §3 blind. */
+const MIG_APPLY = HR_APPLY_FINAL;
 const MIG = '2026-09-13-consumable-buffs.sql';
 const MIG_DENY = '2026-09-13-client-state-buffs-denylist.sql';
 const MIG_CAT = '2026-09-13-item-buffs-catalogue.generated.sql';
@@ -152,6 +163,11 @@ const MIG_PROJ = '2026-09-14-client-state-projection-denylist.sql';
    apply time; the regression that matters is a later restatement, when it never
    fires again. */
 const BLIND = {
+  /* THE RESTATEMENT'S §3 (2026-09-14). It pins the CODE hash of the body it
+     installs, so ANY body mutation makes it raise at apply time — correctly, and
+     as a MIGRATION gate rather than this guard's tick. Every arm here runs
+     gate-blind, so it is short-circuited for all of them. */
+  [HR_APPLY_FINAL]: HR_APPLY_S3_BLIND,
   /* ⚠ LATER FILES THAT *PIN* THIS BLOCK'S TEXT MUST BE BLINDED HERE TOO.
      2026-09-13-rejections-verb-map-2.sql's GATE(e) is a SHAPE PIN on hr_apply it
      does not own: `buff_at_max` must be raised from exactly 2 sites with
@@ -224,7 +240,7 @@ const BLIND = {
    right reason and the wrong proof. */
 const MUTATIONS = {
   forgery_gate_off: {
-    file: MIG,
+    file: MIG_APPLY,   // was MIG — hr_apply body
     why: "the forbidden-key refusal is disarmed, so a buff_apply carrying `until` or `magnitude` is "
        + 'ACCEPTED (silently ignored today) — one edit away from being read, and unreviewable',
     pairs: [["      if exists (select 1 from jsonb_object_keys(p_delta->'buff_apply') as t(bk)\n                  where t.bk <> 'item') then",
@@ -236,10 +252,11 @@ const MUTATIONS = {
        "its own magnitude". Mutating the old assignment text made the segments
        file's splice no-op, which cascaded into the predicate file refusing to
        install — a harness error three files downstream (MEASURED). */
-    files: [
-      [MIG, [["                  where t.bk <> 'item') then", '                  where false) then']]],
-      [MIG_SEG, [['      v_buff_newmag := v_buff_mag;',
-        "      v_buff_newmag := coalesce((p_delta->'buff_apply'->>'magnitude')::numeric, v_buff_mag);"]]],
+    file: MIG_APPLY,   // was MIG + MIG_SEG — both halves are hr_apply body
+    pairs: [
+      ["                  where t.bk <> 'item') then", '                  where false) then'],
+      ['      v_buff_newmag := v_buff_mag;',
+        "      v_buff_newmag := coalesce((p_delta->'buff_apply'->>'magnitude')::numeric, v_buff_mag);"],
     ],
     why: 'THE ONE CLAUDE.md §1 FORBIDS BY NAME: the client\'s own `magnitude` reaches the stored buff '
        + '(forgery gate off + the delta read), so a browser sets its own damage bonus',
@@ -253,18 +270,19 @@ const MUTATIONS = {
        second_helping_restarts: plant the mutation in the file that owns the LIVE
        text. Anchored on the comment line above it, because the bare assignment
        appears TWICE in that file (its `find` anchor and its replacement). */
-    files: [
-      [MIG, [["                  where t.bk <> 'item') then", '                  where false) then']]],
-      [MIG_SCALE, [['      -- ceiling a queue may stand on.\n      v_buff_until := least(v_buff_base',
+    file: MIG_APPLY,   // was MIG + MIG_SCALE — both halves are hr_apply body
+    pairs: [
+      ["                  where t.bk <> 'item') then", '                  where false) then'],
+      ['      -- ceiling a queue may stand on.\n      v_buff_until := least(v_buff_base',
         "      -- ceiling a queue may stand on.\n"
         + "      v_buff_until := coalesce((p_delta->'buff_apply'->>'until')::timestamptz, v_buff_base);\n"
-        + '      v_buff_until := least(v_buff_until']]],
+        + '      v_buff_until := least(v_buff_until'],
     ],
     why: 'the client\'s own `until` reaches the stored buff — a browser grants itself a buff that never '
        + 'expires, which is the whole reason the expiry is an absolute server stamp',
   },
   cap_refusal_off: {
-    file: MIG,
+    file: MIG_APPLY,   // was MIG — hr_apply body
     why: 'buff_at_max never fires, so a queue already at the ceiling silently eats the food for nothing '
        + '(the designer ruling this file exists to honour)',
     /* `and false` rather than `if false`: the segments file's §0 requires the literal
@@ -275,7 +293,7 @@ const MUTATIONS = {
       '      if v_buff_gain < v_buff_need and false then']],
   },
   min_gain_fuse_off: {
-    file: MIG,
+    file: MIG_APPLY,   // was MIG — hr_apply body
     why: 'the minimum-gain fuse degenerates back to `base >= cap`, which is UNREACHABLE across two '
        + 'transactions because the cap moves with now() — the defect the migration shipped in its first '
        + 'draft, which its own §4 could not see (a migration applies inside ONE transaction, where '
@@ -291,7 +309,7 @@ const MUTATIONS = {
        the expression 2026-09-13-buff-cellar-scale.sql now owns. Anchored WITH the
        make_interval line above it, which carries `v_buff_scale` and so appears
        exactly once. */
-    file: MIG_SCALE,
+    file: MIG_APPLY,   // was MIG_SCALE — hr_apply body
     why: 'the 60-minute expiry clamp is gone, so 400 pies before bed bank eight hours of buffed away '
        + 'output — the stock ceiling that replaces a per-day clamp',
     pairs: [['                              + make_interval(secs => (v_buff_dur * v_buff_scale) / 1000.0),\n'
@@ -300,7 +318,7 @@ const MUTATIONS = {
       + "                            v_buff_base + interval '400 hours');"]],
   },
   cellar_scale_ignored: {
-    file: MIG_SCALE,
+    file: MIG_APPLY,   // was MIG_SCALE — hr_apply body
     why: 'the Cellar rung is read and then multiplied by zero, so a player who paid 320,000 gold for The '
        + 'Deep Cellar gets exactly the duration of a player who owns no Cellar — the residue-ahead defect '
        + 'the file exists to close, and one no §4 would see once it stopped running',
@@ -316,7 +334,7 @@ const MUTATIONS = {
       "               'scale', coalesce((e.v->>'scale')::numeric, 99),"]],
   },
   cellar_scale_not_journalled: {
-    file: MIG_SCALE,
+    file: MIG_APPLY,   // was MIG_SCALE — hr_apply body
     why: 'the scale used stops reaching the append-only journal, so "why did that buff last twenty '
        + 'minutes" becomes unanswerable from the ledger — the only durable record',
     pairs: [["      'bs', case when p_delta ? 'buff_apply' and coalesce(v_buff_scale, 1) <> 1",
@@ -326,7 +344,7 @@ const MUTATIONS = {
     /* Re-pointed twice now: the rebuild moved to the segments file, then its
        predicate moved again to the predicate file (the repo/production
        convergence). A mutation belongs in whichever file owns the LIVE text. */
-    file: MIG_PRED,
+    file: MIG_APPLY,   // was MIG_PRED — hr_apply body
     why: 'the rebuild keeps only the type being applied, so eating a second dish DELETES the buff of '
        + 'every other type — a player pays for a Feast and loses the one they were running',
     /* ` and false` appended, NOT the predicate replaced: `and ((false` leaves the
@@ -355,14 +373,14 @@ const MUTATIONS = {
        made that file's anchored splice no-op and the arm measured "the segment
        model did not install" instead of "the tail restarts". A mutation has to be
        planted in the file that owns the LIVE text, or its label is fiction. */
-    file: MIG_SEG,
+    file: MIG_APPLY,   // was MIG_SEG — hr_apply body
     why: 'the tail is computed from now() instead of max(now, the latest at-least-as-strong expiry), so a '
        + 'second helping RESTARTS the buff and the minutes already paid for are thrown away',
     pairs: [['      v_buff_base := greatest(v_buff_now, coalesce(v_buff_base, v_buff_now));',
       '      v_buff_base := v_buff_now;']],
   },
   catalogue_bypassed: {
-    file: MIG,
+    file: MIG_APPLY,   // was MIG — hr_apply body
     why: 'the item id stops selecting the row, so ANY item id resolves to some buff — a Trout becomes a '
        + 'Feast and the allowlist hr_item_buffs exists to be is gone',
     pairs: [['        from public.hr_item_buffs b where b.item_id = v_buff_item;',
@@ -398,7 +416,7 @@ const MUTATIONS = {
        it belongs — this guard's own assertion that a forged buff patch is refused. */
   },
   payment_gate_off: {
-    file: MIG_PAY,
+    file: MIG_APPLY,   // was MIG_PAY — hr_apply body
     why: 'F3 is disarmed: a buff_apply with NO debit is accepted, so the possession check moves into '
        + 'the Edge Function — the layer that PROPOSES rather than the one that holds the lock — and a '
        + 'stale engine buffs a character who owns nothing',
@@ -412,21 +430,21 @@ const MUTATIONS = {
     ].join('\n'), '      if false then']],
   },
   payment_accepts_any_quantity: {
-    file: MIG_PAY,
+    file: MIG_APPLY,   // was MIG_PAY — hr_apply body
     why: 'the debit stops having to be exactly -1, so a CREDIT of the food pays for the buff — eat the '
        + 'pie, keep the pie, and gain one more',
     pairs: [["         or (p_delta->'items'->>v_buff_item)::numeric <> -1 then",
       "         or false then"]],
   },
   segment_ignores_strength: {
-    file: MIG_SEG,
+    file: MIG_APPLY,   // was MIG_SEG — hr_apply body
     why: 'the new segment queues behind EVERY live segment of the type rather than only the '
        + 'stronger-or-equal ones, so a Feast eaten while a Roasted Carrot runs does NOTHING until the '
        + 'carrot expires — the player pays 2,600 gold and sees no change',
     pairs: [["         and (e.v->>'magnitude')::numeric >= v_buff_mag;", '         and true;']],
   },
   segment_keeps_covered_weaker: {
-    file: MIG_PRED,
+    file: MIG_APPLY,   // was MIG_PRED — hr_apply body
     why: 'a weaker segment the new one COVERS survives instead of being dropped, so its time did not '
        + 'pass while the stronger effect ran — the buff clock pauses, which is the exact property the '
        + 'absolute `until` model removed (BUFF_DRAIN_RULE)',
@@ -447,13 +465,13 @@ const MUTATIONS = {
     ].join('\n')]],
   },
   segment_budget_off: {
-    file: MIG_SEG,
+    file: MIG_APPLY,   // was MIG_SEG — hr_apply body
     why: 'the per-type segment budget is disarmed, so the entry count is bounded only by (60 min / the '
        + 'shortest food) x 9 types = ~270 entries of jsonb on EVERY hr_state_of read',
     pairs: [['      if v_buff_segs >= c_buff_max_segments then', '      if false then']],
   },
   segment_magnitude_laundered: {
-    file: MIG_SEG,
+    file: MIG_APPLY,   // was MIG_SEG — hr_apply body
     why: 'THE LAUNDERING THIS FILE CLOSES, restored: the new segment takes the MAX magnitude of the live '
        + 'same-type segments, so a 12-gold Roasted Carrot extends a 2,600-gold elixir at +5%',
     pairs: [['      v_buff_newmag := v_buff_mag;',
@@ -462,7 +480,7 @@ const MUTATIONS = {
       + "       where e.v->>'type' = v_buff_type and (e.v->>'until')::timestamptz > v_buff_now;"]],
   },
   shape_code_collapsed: {
-    file: MIG_SHAPE,
+    file: MIG_APPLY,   // was MIG_SHAPE — hr_apply body
     why: 'the forged-shape refusal falls back to sharing `bad_buff_item`, so hr_rejections — which '
        + 'aggregates per (user, slot, day, code) with meta last-writer-wins — cannot tell a caller who '
        + 'invented a magnitude field from a player who ate a Trout, and the code can never be '
@@ -526,7 +544,7 @@ async function run(mutate, blind) {
             pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure) as p`
   )).rows[0];
   const before = await defs();
-  for (const file of [MIG, MIG_DENY, MIG_SCALE]) {
+  for (const file of [MIG, MIG_DENY, MIG_SCALE, MIG_APPLY]) {
     let sql = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
     /* The SAME patched text the chain was built from, so under a mutation this
        measures the MUTATED file's idempotency rather than a mismatch. */

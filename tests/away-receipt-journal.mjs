@@ -79,6 +79,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join, normalize } from 'node:path';
 import { bootReplay } from './schema-replay.mjs';
+import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 import {
   awayReceiptFor, withAwayReceipt, classifiesAway, receiptRescue,
   AWAY_RECEIPT_KEYS, AWAY_RECEIPT_SYNC_MAX_MS, AWAY_RECEIPT_MAX_LADDER,
@@ -91,6 +92,15 @@ import { MONSTERS } from '../src/data/monsters.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = '2026-09-07-last-away-receipt.sql';
+/* ── THE FINAL-BODY RULE (2026-09-14) ───────────────────────────────────────
+   MIG SPLICES hr_apply; 2026-09-14-hr-apply-restatement.sql RESTATES it whole and
+   runs LAST, so MIG's version of the receipt block is a draft the restatement
+   overwrites. An `sql` arm that edits the receipt block therefore carries
+   `file: MIG_APPLY` and is planted where the live text is; the hr_state_of arm
+   stays on MIG, which still owns that body. Measured before the re-point: all
+   four hr_apply arms scored "caught by the REPLAY, not by an assertion" —
+   green, and proving nothing about this guard. */
+const MIG_APPLY = HR_APPLY_FINAL;
 const MIG_PATH = join(ROOT, 'supabase', 'migrations', MIG);
 const INDEX_TS = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts');
 const CLIENT = join(ROOT, 'src', 'net', 'accrue.js');
@@ -635,6 +645,7 @@ const MUTATIONS = {
   },
   sql_drops_the_sync_rule: {
     kind: 'sql',
+    file: MIG_APPLY,   // hr_apply body — the restatement owns it
     why: 'the SERVER stops refusing a sync-sized receipt, so the whole defence rests on one line of an Edge '
        + 'Function that is one deploy away from changing',
     find: "        if coalesce((v_receipt->>'awayMs')::bigint, 0) < c_sync_max_ms",
@@ -642,6 +653,7 @@ const MUTATIONS = {
   },
   sql_drops_the_window_bound: {
     kind: 'sql',
+    file: MIG_APPLY,   // hr_apply body — the restatement owns it
     why: 'the span is no longer bounded by now() - accrued_to, so a compromised engine can write "you were '
        + 'away for nine days" against a ninety-second window',
     find: '        foreach v_rkey in array c_receipt_ms_keys loop\n          if coalesce((v_receipt->>v_rkey)::bigint, 0) > v_window_ms then',
@@ -649,6 +661,7 @@ const MUTATIONS = {
   },
   sql_drops_the_entry_cap: {
     kind: 'sql',
+    file: MIG_APPLY,   // hr_apply body — the restatement owns it
     why: 'the per-map entry cap is gone. It is the bound that stops a pathological xp/items map reaching the '
        + '2 KB door at all, and until AWAY-RECEIPT-35c it had NO executing proof anywhere: the oversized probe '
        + 'is 10 KB across 400 entries, so it trips the SIZE rule first and this one could be deleted silently',
@@ -657,6 +670,7 @@ const MUTATIONS = {
   },
   sql_strips_unknown_keys: {
     kind: 'sql',
+    file: MIG_APPLY,   // hr_apply body — the restatement owns it
     why: 'unknown keys are ignored instead of refused — the door hr_apply exists to keep shut',
     find: "          if not (v_rkey = any(c_receipt_keys)) then",
     repl: "          if false and not (v_rkey = any(c_receipt_keys)) then",
@@ -788,14 +802,25 @@ async function main() {
         src[which] = src[which].replace(m.find, m.repl);
         shellSection(shell, src.client, src.legacy, src.record);
       } else {
-        if (!migSql.includes(m.find)) { console.error(`  HARNESS: anchor missing for ${name}`); missed++; continue; }
+        /* The arm's defect goes into the file that owns the LIVE text (MIG_APPLY
+           for the hr_apply receipt block, MIG for the hr_state_of projection).
+           The BUILDER half below always reads MIG, because what it grades is the
+           rule MIG's own text states — so an hr_apply arm's builder text is
+           mutated from MIG even while the DATABASE is mutated at MIG_APPLY. */
+        const target = m.file || MIG;
+        const targetSql = target === MIG ? migSql
+          : (await readFile(join(ROOT, 'supabase', 'migrations', target), 'utf8')).replace(/\r\n/g, '\n');
+        if (!targetSql.includes(m.find)) { console.error(`  HARNESS: anchor missing for ${name} in ${target}`); missed++; continue; }
         /* GATE-BLIND: SEC4 is short-circuited, so the only thing left that can
            see this defect is this guard's own assertions. That is the reading
-           that matters — see the GATE_BLIND header. */
-        const { db } = await bootReplay({
-          patches: new Map([[MIG, [[m.find, m.repl], GATE_BLIND]]]),
-        });
-        builderSection(migSql.replace(m.find, m.repl));
+           that matters — see the GATE_BLIND header. The restatement's §3 pins the
+           body it installs, so a body mutation makes IT raise too; blind it for
+           the same reason. */
+        const patches = new Map([[MIG, [GATE_BLIND]]]);
+        if (target === MIG) patches.get(MIG).unshift([m.find, m.repl]);
+        else patches.set(target, [[m.find, m.repl], HR_APPLY_S3_BLIND.slice()]);
+        const { db } = await bootReplay({ patches });
+        builderSection(migSql.includes(m.find) ? migSql.replace(m.find, m.repl) : migSql);
         await sqlSection(db);
       }
     } catch (e) {

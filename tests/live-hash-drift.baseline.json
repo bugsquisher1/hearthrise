@@ -24,7 +24,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-09-14",
-  "replay_ms": 1131,
+  "replay_ms": 11022,
   "counts": {
     "tracked_names": 52,
     "entries": 50
@@ -136,7 +136,8 @@
         "2026-09-13-buff-shape-code.sql",
         "2026-09-13-consumable-buffs.sql",
         "2026-09-13-rejections-verb-map-2.sql",
-        "2026-09-13-rejections-verb-map-3.sql"
+        "2026-09-13-rejections-verb-map-3.sql",
+        "2026-09-14-hr-apply-restatement.sql"
       ],
       "live": {
         "md5": "44ea47b512756fda643335e6913bbb88",
@@ -145,12 +146,12 @@
         "source": "measured-live"
       },
       "replay": {
-        "md5": "85d9687cdd8f19b3c773b660ebea9117",
-        "norm_len": 133762,
+        "md5": "3184af12b27de9dc20b5258baa3e548b",
+        "norm_len": 136418,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "2026-09-14 01:17 UTC: 2026-09-13-buff-cellar-scale.sql APPLIED (5 anchored splices). live e882cbaf/129802 -> 44ea47b5, replay d3f16ec6/130533 -> 85d9687c/133762; --codediff CODE-IDENTICAL (53962 code chars; the 731-char delta is the pre-existing comment/whitespace carry-over). Production runs the repo chain."
+      "why": "2026-09-14 09:40 UTC: DELIBERATELY DIVERGENT — 2026-09-14-hr-apply-restatement.sql is STAGED, NOT APPLIED (one readable body replacing 39 anchored splices; code-equal to the chain end minus two dead declarations, §0 refuses if production is not the expected predecessor). Replay 85d9687c/133762 -> 3184af12; production still runs 44ea47b5 (the spliced body, code-equal to 85d9687c). Applies after the Security read; re-measure then and expect live == replay exactly."
     },
     {
       "sig": "hr_assert_grant_hygiene(p_strict boolean)",

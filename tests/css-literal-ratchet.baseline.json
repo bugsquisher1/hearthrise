@@ -1,6 +1,6 @@
 {
   "method": "comments stripped; declaration VALUES only; quoted strings dropped; custom properties in :root / html[data-theme…] / body[data-theme…] blocks exempt; literal = hex(3/4/6/8) | rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color( | one of 149 CSS named colours as a whole token (transparent/currentColor/inherit excluded); !important = raw occurrences; js table = hex inside string literals in src/**/*.js",
-  "measured": "2026-09-13",
+  "measured": "2026-09-14",
   "note": "Ceilings, not targets. Counts may only fall. Regenerate with `node tests/css-literal-ratchet.mjs --write` when they do — never to make a red build green.",
   "css": {
     "art-direction.css": {
@@ -123,8 +123,17 @@
     "src/features/renown.js": {
       "literals": 43
     },
-    "src/features/smoke-test.js": {
-      "literals": 9
+    "src/features/smoke/cooking-core-and-save.js": {
+      "literals": 2
+    },
+    "src/features/smoke/monsters-inventory-and-brand.js": {
+      "literals": 2
+    },
+    "src/features/smoke/muster-nav-and-identity.js": {
+      "literals": 3
+    },
+    "src/features/smoke/rooms-items-and-economy.js": {
+      "literals": 2
     },
     "src/features/workers.js": {
       "literals": 1

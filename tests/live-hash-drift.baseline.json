@@ -24,7 +24,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-09-14",
-  "replay_ms": 12963,
+  "replay_ms": 12590,
   "counts": {
     "tracked_names": 52,
     "entries": 50
@@ -896,20 +896,23 @@
         "2026-09-08-hero-slot-buy.sql",
         "2026-09-12-hr-rejections-journal.sql",
         "2026-09-13-town-presence.sql",
-        "2026-09-13-world-finds-projection.sql"
+        "2026-09-13-world-finds-projection.sql",
+        "2026-09-14-gem-unlock-buy.sql",
+        "2026-09-14-recipe-learn.sql"
       ],
       "live": {
-        "md5": "a5124ee26450efb3fe1b620e83647421",
-        "norm_len": 2790,
+        "md5": "256ea8c8d5eb6f7641e5931b43aa647c",
+        "norm_len": 2878,
         "measured": "2026-09-14",
         "source": "measured-live"
       },
       "replay": {
-        "md5": "a5124ee26450efb3fe1b620e83647421",
-        "norm_len": 2790,
+        "md5": "256ea8c8d5eb6f7641e5931b43aa647c",
+        "norm_len": 2878,
         "source": "computed-from-replay"
       },
-      "agree": true
+      "agree": true,
+      "why": "2026-09-14 03:07 UTC: gem-unlock-buy + recipe-learn added two buckets via the two-hop replace form; live == replay 256ea8c8/2878 (agree). "
     },
     {
       "sig": "hr_set_auto_eat(p_slot integer, p_enabled boolean, p_food text, p_pct integer, p_clear_food boolean)",
@@ -1021,21 +1024,23 @@
         "2026-09-13-buff-cellar-scale.sql",
         "2026-09-13-buff-segments.sql",
         "2026-09-13-consumable-buffs.sql",
-        "2026-09-13-town-presence.sql"
+        "2026-09-13-town-presence.sql",
+        "2026-09-14-gem-unlock-buy.sql",
+        "2026-09-14-recipe-learn.sql"
       ],
       "live": {
-        "md5": "a7e1eae4e9e87f59e8537d2bc0c21989",
-        "norm_len": 22662,
+        "md5": "740aefe5b3739db367010ee5fdfda85a",
+        "norm_len": 23867,
         "measured": "2026-09-14",
         "source": "measured-live"
       },
       "replay": {
-        "md5": "023660bb572dcf8a71d89e02de52c899",
-        "norm_len": 23410,
+        "md5": "9af380d13bb106b3573adee1fda9be9e",
+        "norm_len": 24615,
         "source": "computed-from-replay"
       },
       "agree": false,
-      "why": "2026-09-14 01:17 UTC: 2026-09-13-buff-cellar-scale.sql APPLIED (1 anchored splice: buffs element gains scale). live 3c1d447b/22320 -> a7e1eae4, replay 3aaa1ee2/23068 -> 023660bb/23410; --codediff CODE-IDENTICAL (7285 code chars; 748-char comment/whitespace delta). Production runs the repo chain."
+      "why": "2026-09-14 03:07 UTC: 2026-09-14-gem-unlock-buy.sql + 2026-09-14-recipe-learn.sql APPLIED (two hr_state_of splices: gem_unlocks + unlocked_recipes projections). live a7e1eae4 -> 740aefe5, replay 023660bb -> 9af380d1; --codediff CODE-IDENTICAL (7406 code chars; the 748-char delta is the pre-existing comment/whitespace carry-over). Production runs the repo chain."
     },
     {
       "sig": "hr_town_refresh(p_zone text)",

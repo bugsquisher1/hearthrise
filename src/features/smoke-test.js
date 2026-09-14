@@ -1,21 +1,21 @@
 // Smoke test harness — exercises every tab + critical interaction and reports
 // pass/fail. Reads game state via window.G (legacy compat) — once main game is
-// modularised, will import { G } from '../state/game.js?v=545' directly.
+// modularised, will import { G } from '../state/game.js?v=546' directly.
 //
 // b535 — NEVER SENT TO A PLAYER. A dynamic import owned by smoke-test-loader.js,
 // which owns all three triggers too; read its header. Guard: boot-budget.mjs.
 
-import { on, snapshot } from '../net/events.js?v=545';
-import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=545';
+import { on, snapshot } from '../net/events.js?v=546';
+import { findUiOverlaps, watchUiOverlaps } from './ui-overlap.js?v=546';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=545';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../net/auth.js?v=546';
 /* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
    table, never retyped: a designer re-pricing a rung must re-price the
    expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../data/bestiary-charms.js?v=545';
+import { CHARM_RANKS } from '../data/bestiary-charms.js?v=546';
 
 const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -622,6 +622,10 @@ const farmReplantFixtureG = (seeds) => {
   G.inventory = Object.assign({}, G.inventory);
   Object.values(window.CROPS || {}).forEach((c) => { delete G.inventory[c.seed]; });
   Object.assign(G.inventory, seeds || {});
+  /* The gate counts what the SERVER holds (accrue.js gateItemCount), so a fixture
+     that wants its gesture SENT states a server bag: here the server agrees with
+     the bag, and the tier/level gates are what the test is about. */
+  G._serverBag = Object.assign({}, G.inventory);
   G.farmPlots = [{ cropId: 'turnip', plantedAt: Date.now() - 9e7, waterings: [], state: 'ready' }];
 };
 /* One envelope shape for both: harvest clears the plot, any plant is accepted. */
@@ -9653,7 +9657,7 @@ const TESTS = [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../data/shops.js?v=545');
+    const S = await import('../data/shops.js?v=546');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -9772,6 +9776,7 @@ const TESTS = [
     const runOnce = () => {
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
+      G._serverBag = Object.assign({}, G.inventory);   // the key is REAL server-side; the debit is what is under test
       G.gold = (G.gold || 0) + 100000;
       G._dungeonCooldowns = {};              // clear any server cooldown window
       G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000, defense: 5000000, hitpoints: 5000000 });
@@ -10554,7 +10559,7 @@ const TESTS = [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../data/dungeons.js?v=545');
+    const mod = await import('../data/dungeons.js?v=546');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -10585,7 +10590,7 @@ const TESTS = [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../data/dungeons.js?v=545');
+    const mod = await import('../data/dungeons.js?v=546');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);
@@ -10759,6 +10764,165 @@ const TESTS = [
         && window.canRunDungeon(id, 'auto').ok === true,
         'the refusal detail must rest ITS mode at once and no other (got ' + JSON.stringify(G._dungeonCooldowns) + ')');
     } finally { window.getCombatLevel = lvl; restoreG(snap); }
+  }),
+
+  /* -- regression suite -- DGN-KEY-1: THE ENTRY-KEY COUNT IS THE SERVER'S ------
+     REPORTED LIVE 2026-09-13, Tyler's own character: the Goblin Warcamp card
+     read "Entry: 1x Goblin Seal (have 2)" and every run button toasted "The server
+     says you have no key for that dungeon." Measured in production the same minute:
+     that character's `player_inventory` held bone_key 142 and obsidian_sigil 56 and
+     NO goblin_seal row at all.
+
+     THE MECHANISM: an attended kill rolls its drops with the CLIENT's Math.random
+     for instant feedback while the settle pays the SERVER's re-simulation of the
+     same span with the server's seeded PRNG, and the envelope's live merge is a
+     one-way `Math.max` ratchet (accrue.js, the never-delete rule) which
+     can never take the difference back. So a 6%-chance key the client rolled and
+     the server did not stays in the display bag for the rest of the session, the
+     card counts it, and the button invites a run `hr_dungeon_settle` must refuse.
+
+     The gate and the label now read `serverItemCount` -- the mirror of
+     `hr_state_of`'s whole-bag projection of `player_inventory`, which is the exact
+     table the RPC debits. Fail-OPEN on silence: an unstated bag still reads the
+     local count, so no gesture is ever disabled because no envelope has arrived.
+     MUTATION: point keyHeld() back at G.inventory, or drop the _serverBag mirror,
+     and (a)/(b) go red; make it fail CLOSED and (d) goes red. */
+  () => tryRun('DGN-KEY-1: a dungeon entry key is counted from the server bag, not the client display bag', () => {
+    const A = window.HearthriseAccrual, id = 'goblin_warcamp', key = 'goblin_seal';
+    assert(A && typeof A.serverItemCount === 'function' && typeof window.canRunDungeon === 'function'
+      && typeof window.dungeonKeysHeld === 'function', 'the server count, the gate and the key reader must all be exposed');
+    if (!window.DUNGEONS || !window.DUNGEONS[id]) return;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag;
+    try {
+      window.getCombatLevel = () => 99;
+      G._dungeonCooldowns = {};
+      /* THE PHANTOM, as the live session held it: two client-rolled seals in the
+         display bag, and ONE bone_key the server really does hold. */
+      G.inventory = Object.assign({}, G.inventory, { [key]: 2, bone_key: 1 });
+      delete G._serverBag;
+      A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 1 } });
+      // (a) THE SERVER'S FIGURE -- an omitted id is a real zero (whole-bag projection).
+      assert(A.serverItemCount(G, key) === 0 && A.serverItemCount(G, 'bone_key') === 1 && (G.inventory[key] || 0) === 2,
+        'the mirror must say 0 seals / 1 bone key while the display bag KEEPS its client-rolled seal under the '
+        + 'merge ratchet (the lie this test exists for): ' + JSON.stringify({ srv: A.serverItemCount(G, key), bag: G.inventory[key] }));
+      // (b) THE GATE AND THE LABEL -- THE BUG.
+      const got = window.canRunDungeon(id, 'auto');
+      assert(window.dungeonKeysHeld(key) === 0 && got.ok === false && /Goblin Seal/.test(got.reason),
+        'THE BUG: the card counted keys the server has no row for, so the button invited a refusal ("no key for '
+        + 'that dungeon"): ' + JSON.stringify({ held: window.dungeonKeysHeld(key), got }));
+      // (c) AND IT DOES NOT LOCK OUT A KEY THE SERVER DOES HOLD.
+      assert(window.canRunDungeon('crypt_of_bones', 'auto').ok === true,
+        'a dungeon whose key the server NAMES must stay runnable: ' + JSON.stringify(window.canRunDungeon('crypt_of_bones', 'auto')));
+      if (document.getElementById('panel-dungeons')) {
+        window.renderDungeons();
+        const stock = [...document.querySelectorAll('#panel-dungeons .dgn-key-stock')].map((e) => e.textContent);
+        assert(stock.length && stock.indexOf('(have 2)') === -1 && stock.indexOf('(have 0)') !== -1,
+          'the card must print the server count, never the phantom 2: ' + JSON.stringify(stock));
+      }
+    } finally {
+      window.getCombatLevel = lvl;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
+  /* DGN-KEY-2: the OTHER half of the rule. A gate closes when the server SAYS none,
+     never on silence — before the first envelope of a session there is no stated
+     bag at all, and a run refused then would be the client inventing a refusal. */
+  () => tryRun('DGN-KEY-2: an unstated server bag never disables a dungeon run', () => {
+    const A = window.HearthriseAccrual, id = 'goblin_warcamp', key = 'goblin_seal';
+    if (!A || typeof A.serverItemCount !== 'function' || !window.DUNGEONS || !window.DUNGEONS[id]) return;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag;
+    try {
+      window.getCombatLevel = () => 99;
+      G._dungeonCooldowns = {};
+      G.inventory = Object.assign({}, G.inventory, { [key]: 2 });
+      delete G._serverBag;
+      assert(A.serverItemCount(G, key) === null && window.dungeonKeysHeld(key) === 2
+        && window.canRunDungeon(id, 'auto').ok === true,
+        'an UNSTATED bag must read the local count: ' + JSON.stringify(window.canRunDungeon(id, 'auto')));
+    } finally {
+      window.getCombatLevel = lvl;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
+  /* -- regression suite -- FARM-SEED-1: THE SEED COUNT IS THE SERVER'S TOO -----
+     THE SAME CLASS AS DGN-KEY-1, measured on the QA account on live
+     (2026-09-13): the bag rendered turnip_seed x5 and the seed picker offered it,
+     while every hr_farm_plant answered {"error":"insufficient_seed"} -- 19 of them
+     journalled in hr_rejections for that slot. Production held NO turnip_seed and
+     NO carrot_seed row for it; wheat_seed 11. Those two numbers are the FRESH-G
+     FACTORY LITERAL (src/legacy.js `inventory:{turnip_seed:5,carrot_seed:3,...}`,
+     the start kit the SERVER grants at creation and the character spent long ago).
+     `loadLocal` cannot strip it -- `inventory` is not a SERVER_OF_RECORD field --
+     and the envelope's live merge is a one-way `Math.max` ratchet, so the count
+     comes back on every reload and can never be lowered.
+     The pre-flight, the picker, Plant all and auto-replant now count with
+     `gateItemCount` (the mirror of the server's whole-bag projection), so the
+     client stops spending gestures on refusals it could already predict.
+     MUTATION: point plantCrop's pre-flight back at hasItem(), or drop the
+     _serverBag mirror, and (b) goes red. */
+  () => tryRun('FARM-SEED-1: a plant is pre-flighted against the server seed count, not the fresh-G start kit', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.gateItemCount === 'function' && typeof window.plantCrop === 'function'
+      && typeof window.heldByServer === 'function', 'the gate rule, the plant gesture and its count reader must all be exposed');
+    if (!window.CROPS || !window.CROPS.turnip) return;
+    const G = window.G, snap = snapshotG(), bagWas = G._serverBag;
+    const prevSync = window.HearthriseFarmSync, realNotify = window.notify;
+    const sent = [], said = [];
+    try {
+      window.notify = (m) => { said.push(String(m)); };
+      window.HearthriseFarmSync = {
+        isFarmServerArmed: () => true,
+        farmPlantRefusalText: () => 'no seeds',
+        farmPlant: (i, c) => { sent.push([i, c]); return Promise.resolve({ ok: false, error: 'insufficient_seed' }); },
+      };
+      G.farmPlots = [null, null];
+      /* THE PHANTOM, as the live slot held it: the factory literal in the display
+         bag, and a server bag that names a DIFFERENT seed it really does hold. */
+      G.inventory = Object.assign({}, G.inventory, { turnip_seed: 5, wheat_seed: 11 });
+      delete G._serverBag;
+      A.applyEnvelopeState(G, { state: {}, inventory: { wheat_seed: 11 } });
+      // (a) THE SERVER'S FIGURES, against a display bag that keeps the factory seed.
+      assert(A.gateItemCount(G, 'turnip_seed') === 0 && window.heldByServer('wheat_seed') === 11
+        && (G.inventory.turnip_seed || 0) === 5,
+        'the gate must read 0 turnip / 11 wheat from the server bag while the display bag keeps the factory 5 '
+        + '(the lie this test exists for): ' + JSON.stringify({ srv: A.gateItemCount(G, 'turnip_seed'), bag: G.inventory.turnip_seed }));
+      // (b) THE BUG: the gesture must not go out, and the refusal must be SAID.
+      window.plantCrop(0, 'turnip');
+      assert(sent.length === 0 && said.some((m) => /Turnip Seed/.test(m)) && !G.farmPlots[0],
+        'THE BUG: a plant went out against a seed the server has no row for (19 journalled on live), or the '
+        + 'refusal did not NAME the seed: ' + JSON.stringify({ sent, said }));
+    } finally {
+      window.HearthriseFarmSync = prevSync; window.notify = realNotify;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
+  /* FARM-SEED-2: the fail-open half. Before the first envelope of a session no bag
+     has been stated, and a plant blocked then would be a refusal the client made up. */
+  () => tryRun('FARM-SEED-2: an unstated server bag still sends the plant', () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.gateItemCount !== 'function' || !window.CROPS || !window.CROPS.turnip) return;
+    const G = window.G, snap = snapshotG(), bagWas = G._serverBag, prevSync = window.HearthriseFarmSync;
+    const sent = [];
+    try {
+      window.HearthriseFarmSync = { isFarmServerArmed: () => true, farmPlantRefusalText: () => 'no seeds',
+        farmPlant: (i, c) => { sent.push([i, c]); return Promise.resolve({ ok: false, error: 'insufficient_seed' }); } };
+      G.farmPlots = [null, null];
+      G.inventory = Object.assign({}, G.inventory, { turnip_seed: 5 });
+      delete G._serverBag;
+      window.plantCrop(0, 'turnip');
+      assert(sent.length === 1 && sent[0][1] === 'turnip',
+        'with no envelope-stated bag the gesture must still be SENT: ' + JSON.stringify(sent));
+    } finally {
+      window.HearthriseFarmSync = prevSync;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('WAVE6: a weekly boss exists and pays a bigger bonus than the daily', () => {
@@ -14158,6 +14322,9 @@ const TESTS = [
         if (typeof window.plantCrop !== 'function') return;
         window.G.inventory = window.G.inventory || {};
         window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 1;
+        /* The pre-flight counts what the SERVER holds (gateItemCount), so the
+           fixture states a server bag or the intent is never sent. */
+        window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 1 });
         window.G.farmPlots = window.G.farmPlots || [];
         window.G.farmPlots[0] = null;
         window.plantCrop(0, 'turnip');
@@ -19457,6 +19624,9 @@ const TESTS = [
       window.G.skills.farming = 1000000;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed | 0) + 5;
+      /* auto-replant counts what the SERVER holds (gateItemCount), so the fixture
+         states a server bag or the replant correctly declines. */
+      window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 5 });
       window.G.farmPlots = window.G.farmPlots || [];
       window.G.farmPlots[0] = null;
       window.HearthriseAuto.setFarmReplant({ enabled: true, cropId: 'turnip' });
@@ -19721,6 +19891,10 @@ const TESTS = [
       };
       window.G.farmPlots = [null, null];
       window.G.inventory = Object.assign({}, window.G.inventory, { turnip_seed: 5 });
+      /* The SERVER must name the seed for the gesture to be SENT at all (DGN-KEY-1 /
+         FARM-SEED-1: the pre-flight reads the server bag, not the display bag), and
+         this arm is about what a REFUSAL does once sent. */
+      window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 5 });
       window.plantCrop(0, 'turnip');
       await new Promise((r) => setTimeout(r, 0));
       assert(window.G.stats.planted === 3,
@@ -20183,6 +20357,7 @@ const TESTS = [
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.carrot_seed = 5;
       window.G.inventory.turnip_seed = 0;
+      window.G._serverBag = Object.assign({}, window.G.inventory);   // the server agrees; the TIER is the gate under test
       window.G.skills.farming = 1000000;   // xp, the shape getLevel reads
       window.G.farmPlots = [];
       A.setFarmReplant({ enabled: true, cropId: 'carrot' });
@@ -22885,6 +23060,9 @@ const TESTS = [
         window.G.farmPlots = window.G.farmPlots || [];
         // plantCrop
         window.G.inventory.turnip_seed = (window.G.inventory.turnip_seed || 0) + 2;
+        /* The pre-flight counts what the SERVER holds (gateItemCount), so a fixture
+           that wants the plant SENT states a server bag too. */
+        window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 2 });
         window.G.farmPlots[0] = null;
         window.plantCrop(0, 'turnip');
         const planted = window.G.farmPlots[0];
@@ -45575,7 +45753,7 @@ const TESTS = [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../data/start-kit.js?v=545');
+    const KIT = await import('../data/start-kit.js?v=546');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -45657,7 +45835,7 @@ const TESTS = [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../data/start-kit.js?v=545');
+    const KIT = await import('../data/start-kit.js?v=546');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -45771,7 +45949,7 @@ const TESTS = [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../data/start-kit.js?v=545');
+    const KIT = await import('../data/start-kit.js?v=546');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -47878,7 +48056,7 @@ const TESTS = [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=545')).text();
+    const src = await (await fetch('src/legacy.js?v=546')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -54713,7 +54891,7 @@ const TESTS = [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../data/shops.js?v=545');
+    const S = await import('../data/shops.js?v=546');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -56313,7 +56491,7 @@ const TESTS = [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../data/shops.js?v=545');
+    const S = await import('../data/shops.js?v=546');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
@@ -60899,7 +61077,7 @@ const TESTS = [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=545')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=546')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -62886,7 +63064,7 @@ const TESTS = [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../net/accrue.js?v=545');
+    const A = await import('../net/accrue.js?v=546');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -62911,7 +63089,7 @@ const TESTS = [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../net/accrue.js?v=545');
+    const A = await import('../net/accrue.js?v=546');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -62938,7 +63116,7 @@ const TESTS = [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../net/accrue.js?v=545');
+    const A = await import('../net/accrue.js?v=546');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -63131,7 +63309,7 @@ const TESTS = [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=545')).text();
+      const raw = await (await fetch(f + '?v=546')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -63181,7 +63359,7 @@ const TESTS = [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=545')).text();
+    const raw = await (await fetch('src/observability.js?v=546')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -63285,7 +63463,7 @@ const TESTS = [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../data/monster-art.js?v=545');
+    const _art = await import('../data/monster-art.js?v=546');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

@@ -765,6 +765,52 @@ export function equippedCount(equipment, id) {
   return n;
 }
 
+/* ── THE SERVER-PROJECTED BAG, READ (live P1, 2026-09-13) ───────────────────
+   REPORTED LIVE: the Goblin Warcamp card read "Entry: 1× Goblin Seal (have 2)"
+   and every run button toasted "The server says you have no key for that
+   dungeon." Measured in production the same minute: that character held
+   bone_key 142 and obsidian_sigil 56 in `player_inventory` and NO goblin_seal
+   row at all, while the client's bag said 2.
+
+   THE MECHANISM, not a guess: attended kills roll their drops CLIENT-side for
+   display with the client's own Math.random, and the settle pays the SERVER's
+   re-simulation of the same span with the server's seeded PRNG. The two agree
+   on kills (the attended top-up) but never item-for-item on a 6%-chance key.
+   The envelope then cannot correct the difference, because the merge branch
+   below is a one-way `Math.max` ratchet (the never-delete rule, still the live
+   path — `isInventoryAbsolute()` is false in prod), so a client-rolled key stays
+   in `G.inventory` for the session and the card counts it.
+
+   `G._serverBag` is the LAST STATED SERVER BAG — `hr_state_of` projects the
+   WHOLE of `player_inventory` for the slot (`jsonb_object_agg(item_id, qty)`
+   coalesced to `{}`), which is the exact table `hr_dungeon_settle` reads its
+   entry key from, so an omitted id is a real zero and this map answers "would the
+   server's key check pass?" without a round trip. Scratch, never client-authored.
+
+   `serverItemCount` returns NULL, not 0, when no envelope has stated a bag yet (a
+   boot before the first settle, Node, an offline tab): only "the server says none"
+   may disable a gesture, never "the server has not said". */
+export function serverItemCount(G, id) {
+  if (!G || typeof G !== 'object' || !id) return null;
+  const bag = G._serverBag;
+  if (!bag || typeof bag !== 'object' || Array.isArray(bag)) return null;
+  const q = Number(bag[id]);
+  return Number.isFinite(q) && q > 0 ? Math.floor(q) : 0;
+}
+
+/* THE COUNT A GATE MUST READ, with the fail-open rule written ONCE (live P1
+   class, 2026-09-13: dungeon entry keys AND farm seeds both invited refusals the
+   server had already decided). The SERVER's figure when it has stated one; the
+   client's display bag only while it has not. Callers are thin wrappers
+   (src/dungeons.js keyHeld, legacy.js heldByServer) so the two surfaces cannot
+   drift into two different ideas of "have". */
+export function gateItemCount(G, id) {
+  const srv = serverItemCount(G, id);
+  if (srv !== null) return srv;
+  const q = Number(G && G.inventory && G.inventory[id]);
+  return Number.isFinite(q) && q > 0 ? Math.floor(q) : 0;
+}
+
 /**
  * b362 — copies worn on THIS client that the server's inventory figure has not
  * been told about. Pure. See the block in applyEnvelopeState for the proof.
@@ -1588,14 +1634,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=545';
+import * as itemLedger from './item-ledger.js?v=546';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=545';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=546';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -1604,7 +1650,7 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=545';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=546';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -1622,24 +1668,24 @@ import { serverAccruedSkill } from '../data/skill-authority.js?v=545';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=545';
+import * as pendingConsume from './pending-consume.js?v=546';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=545';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=546';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=545';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=546';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
    driven headlessly by the suite. The two curves are pinned equal to each other
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
-import { companionLevelFromXp } from '../core/companion-perk.js?v=545';
+import { companionLevelFromXp } from '../core/companion-perk.js?v=546';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -3627,7 +3673,22 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
      not a SERVER_OF_RECORD field, so any SERVER-DERIVED statement about the bag
      waits for this. hr_state_of coalesces the projection to `{}`, so an empty
      bag stamps; an absent key is not a statement. `_`: scratch, never persisted. */
-  if (invNamedRaw) { try { G._bagFromServerAt = Date.now(); } catch (e) {} }
+  if (invNamedRaw) {
+    try { G._bagFromServerAt = Date.now(); } catch (e) {}
+    /* AND THE BAG ITSELF, MIRRORED — see the serverItemCount block above. The
+       RAW projection, before the pending-consume fold: a hold is a fact about
+       an in-flight CLIENT gesture, and this map must stay a record of what the
+       SERVER LAST SAID it holds. Copied key by key (positive integers only) so
+       no caller can mutate the envelope through it. */
+    try {
+      const mirror = {};
+      for (const k of Object.keys(invNamedRaw)) {
+        const q = Number(invNamedRaw[k]);
+        if (Number.isFinite(q) && q > 0) mirror[k] = Math.floor(q);
+      }
+      G._serverBag = mirror;
+    } catch (e) { /* a hostile projection cannot break the apply */ }
+  }
   const consumedIds = consumedKeysOf(res);
   /* THE IDS `hr_bank_move` HAS CONFIRMED IT MOVED (see noteServerBagMove). A
      committed Depot move is a positive server statement about that one key, of
@@ -5215,6 +5276,10 @@ if (typeof window !== 'undefined') {
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,
+    /* "How many does the SERVER say I hold?" — null while unstated. Read by any
+       surface that gates a server-owned spend (dungeon entry keys today); never
+       use `G.inventory` for that, it is a display bag with a ratchet. */
+    serverItemCount, gateItemCount,
     /* THE PENDING-CONSUMPTION LEDGER (live P0 — "eaten food gets restocked").
        Re-published here as well as on window.HearthrisePendingConsume so a
        caller that already holds the accrual module does not need a second

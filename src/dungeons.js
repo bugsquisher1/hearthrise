@@ -435,6 +435,33 @@
     return (window.SCAVENGER_CONFIGS && window.SCAVENGER_CONFIGS[id]) ? 'scavenger' : 'manual';
   }
 
+  /* ── HOW MANY ENTRY KEYS DO WE *REALLY* HAVE (live P1, 2026-09-13) ─────────
+     REPORTED LIVE: the Goblin Warcamp card read "Entry: 1× Goblin Seal (have 2)"
+     and every run button answered "The server says you have no key for that
+     dungeon." Production held NO goblin_seal row for that character at that
+     minute (bone_key 142, obsidian_sigil 56, goblin_seal absent).
+
+     `G.inventory` is a DISPLAY bag: an attended kill rolls its drops with the
+     client's own Math.random for instant feedback, the settle pays the SERVER's
+     re-simulation of the same span with the server's seeded PRNG, and the
+     envelope's merge is a one-way `Math.max` ratchet that can never take the
+     difference back (src/net/accrue.js). So on a 6%-chance key the client's
+     count drifts ABOVE the server's and stays there for the session.
+
+     hr_dungeon_settle debits the key from `player_inventory`, which is exactly
+     what `hr_state_of` projects and `serverItemCount` mirrors — so the count the
+     card prints and the count the gate reads are now the count the RPC will
+     check. Fail-OPEN while the server has not stated a bag yet (null: a boot
+     before the first settle, a test harness, an offline tab): a gesture is never
+     disabled on silence, only on the server saying none. */
+  function keyHeld(id){
+    var A = window.HearthriseAccrual;
+    if(A && typeof A.gateItemCount === 'function') return A.gateItemCount(window.G, id);
+    /* Accrual not loaded (a bare harness): the display bag, exactly as before. */
+    return (window.G && window.G.inventory && Number(window.G.inventory[id])) || 0;
+  }
+  window.dungeonKeysHeld = keyHeld;
+
   /* `mode` is the mode the caller is about to SETTLE as, because that is the only
      mode whose window binds it. Defaults to 'auto' so `window.canRunDungeon(id)`
      keeps meaning what it has always meant. */
@@ -446,7 +473,7 @@
     if(d.cost.key){
       var keyItem = window.ITEMS && window.ITEMS[d.cost.key];
       var keyName = keyItem ? keyItem.n : d.cost.key;
-      if((window.G.inventory[d.cost.key] || 0) < 1){
+      if(keyHeld(d.cost.key) < 1){
         return { ok: false, reason: 'Need a ' + keyName };
       }
     }
@@ -619,7 +646,10 @@
         var costStr;
         if(d.cost.key){
           var ki = window.ITEMS && window.ITEMS[d.cost.key];
-          var owned = (window.G && window.G.inventory && window.G.inventory[d.cost.key]) || 0;
+          /* THE SERVER'S COUNT, not the display bag's — see keyHeld(). The card
+             used to print `G.inventory[key]`, which is how it came to say
+             "(have 2)" about a key the server had no row for. */
+          var owned = keyHeld(d.cost.key);
           /* b372 — THE HARDEST REQUIREMENT IN THE GAME TO ANSWER. A dungeon key
              cannot be gathered or crafted; it drops, or it is bought from the
              Quartermaster for scrip, and this line named it and stopped. The

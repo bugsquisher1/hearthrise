@@ -794,7 +794,15 @@
       say('Auto-replant is set to "' + fr.cropId + '", which is not a crop — pick one again on the Farm screen');
       return false;
     }
-    var have = (G.inventory && G.inventory[crop.seed]) | 0;
+    /* THE SERVER'S SEED COUNT (2026-09-13 live P1 class): `G.inventory` is a
+       display bag whose counts the envelope's merge can never lower, so a
+       spent-out seed still read "have 5" here and every replant went out to be
+       refused with `insufficient_seed`. One rule, shared — see accrue.js
+       gateItemCount / legacy.js heldByServer. */
+    var A = window.HearthriseAccrual;
+    var have = (A && typeof A.gateItemCount === 'function')
+      ? A.gateItemCount(G, crop.seed)
+      : ((G.inventory && G.inventory[crop.seed]) | 0);
     if(have <= 0){
       say('Auto-replant: out of ' + (crop.name || fr.cropId) + ' seeds');
       return false;

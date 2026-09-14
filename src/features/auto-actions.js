@@ -19,7 +19,9 @@
 // API, one place to debug.
 //
 // Public API (window.HearthriseAuto):
-//   getEat()         → {enabled, threshold, foodId}
+//   getEat()         → {enabled, threshold, foodId}  — the LOCAL preference
+//   eatThreshold()   → the EFFECTIVE trigger point (the server's auto_eat_pct)
+//   eatFoodId()      → the EFFECTIVE provision  (the server's auto_eat_food)
 //   setEat(opts)     → merges opts into the current config
 //   getTrainGoal()   → {enabled, skillId, targetLevel}
 //   setTrainGoal(opts)
@@ -314,6 +316,7 @@
        until an envelope happened to carry a DIFFERENT pct — a
        stale-by-agreement window with no reason to exist. */
     if(pending.pct && !sending.pct) notePctAnswered();
+    if(pending.food && !sending.food) noteFoodAnswered();
     if(!sending.enabled && !sending.pct && !sending.food){ _syncPending = null; return; }
 
     _syncPending = null;
@@ -329,7 +332,14 @@
         var AC = window.HearthriseAccrual;
         if(AC && typeof AC.noteAutoEatVerb === 'function') AC.noteAutoEatVerb(res);
       } catch(e){}
-      if(res && res.ok){ if(sending.pct) notePctAnswered(); return; }
+      if(res && res.ok){
+        if(sending.pct) notePctAnswered();
+        /* noteAutoEatVerb above recorded the post-write `food`, which bumps
+           foodSeq and ends the gesture on its own; this is the belt to that
+           braces, for a server that answers ok without restating the column. */
+        if(sending.food) noteFoodAnswered();
+        return;
+      }
       var why = (res && res.error) || 'network';
       /* THE WINDOW IS STILL UNPAID (or the bucket is full). The transport already
          settled + retried three times; give the settle loop a full cycle and try
@@ -392,6 +402,14 @@
          number: parking suppresses the network call, not the intent. Lowered
          only by the server — see eatThreshold(). */
       _pctExpressed = true;
+    }
+    /* THE SAME GESTURE RULE FOR THE PROVISION. `hasOwnProperty`, not a truth
+       test: `setEat({foodId:null})` is the picker's "Off / use the best in the
+       bag", a deliberate choice that must outlive the debounce exactly as a
+       named food does. See eatFoodId(). */
+    if(opts && typeof opts === 'object'
+       && Object.prototype.hasOwnProperty.call(opts, 'foodId')){
+      _foodExpressed = true;
     }
     persist();
     /* b499 — AND TELL THE SERVER. Debounced + deduped; see the block above.
@@ -517,9 +535,54 @@
      govern all of them, so they would pass or fail on live data rather than on
      their own fixture. Parking restores the local reading for the run; the test
      that is ABOUT the mirror unparks in its own body. Default OFF: production
-     never touches this. */
+     never touches this. Parks BOTH halves of the mirror — the threshold and the
+     food — because both read the same live account. */
   var _mirrorParked = false;
   function notePctAnswered(){ _pctExpressed = false; }
+  /* ── AND THE PROVISION IT EATS ────────────────────────────────────────────
+     ── THE DEFECT, MEASURED LIVE (QA account, slot 2, 2026-09-14) ───────────
+     `G.autoActions.eat.foodId` said `cooked_shrimp`; `player_state.auto_eat_food`
+     held `turnip`. The client named one provision on the combat HUD, the picker
+     and the death sheet while the accrual engine — the only thing that actually
+     eats during a settle or a night — ate the other. Same shape as the
+     threshold bug this file already killed: hr_state_of has projected
+     `auto_eat_food` since 2026-08-15-auto-eat.sql, accrue.js OBSERVES it off
+     every envelope, and nothing read it back down. CLAUDE.md §6: the browser
+     never says one thing while the server says another.
+
+     ── THE RULE, identical to eatThreshold() line for line ─────────────────
+     `auto_eat_food` is the column `fx.autoEat()` chooses with, so it IS the
+     nomination. The server's observation wins; an UNANSWERED gesture (the
+     1.5 s debounce plus a round trip) wins until the server speaks, so the
+     picker never paints the old food over the one just tapped; a new
+     observation — envelope or verb answer, counted by `foodSeq` — ends the
+     gesture whatever value it carries.
+
+     ── `null` IS A VALUE, NOT AN ABSENCE ───────────────────────────────────
+     null means "no nomination: eat the best provision in the bag", which is
+     exactly what core.autoEat.chooseFood does with a null first argument. So
+     the fail-safe when NOTHING has been observed is ALSO null-ish — the local
+     preference, unchanged — because a wrong name here does not over-promise
+     healing the way a wrong threshold does; it just picks a different meal, and
+     the local value is the only answer available before the first envelope.
+     `undefined` (never observed) and `null` (observed as cleared) are told
+     apart by the counter, never by the value. */
+  var _foodExpressed = false;    // a food gesture the server has not answered
+  var _foodSeqSeen;              // accrue.js's food observation count, as last acted on
+  function noteFoodAnswered(){ _foodExpressed = false; }
+  function eatFoodId(){
+    var a = ensureShape();
+    var local = (a && a.eat && typeof a.eat.foodId === 'string' && a.eat.foodId)
+      ? a.eat.foodId : null;
+    if(_mirrorParked) return local;
+    var seen = serverBelief();
+    // A NEW OBSERVATION IS THE SERVER SPEAKING, whatever value it carries.
+    if(seen.foodSeq !== _foodSeqSeen){ _foodSeqSeen = seen.foodSeq; _foodExpressed = false; }
+    if(!_foodExpressed && (seen.food === null || typeof seen.food === 'string')){
+      return seen.food || null;
+    }
+    return local;
+  }
   function eatThreshold(){
     var A = core();
     if(_mirrorParked) return expressedThreshold();
@@ -668,7 +731,8 @@
       hp: window.G.playerHp,
       maxHp: window.G.playerMaxHp,
       threshold: eatThreshold(),
-      foodId: eat ? eat.foodId : null,
+      /* THE SERVER'S NOMINATION, not the local one — see eatFoodId(). */
+      foodId: eatFoodId(),
       inventory: window.G.inventory,
       items: window.ITEMS,
     });
@@ -921,6 +985,7 @@
     _resetSwitchOnOffer: function () { _switchOnOffered = false; },
     setEat: setEat,
     eatThreshold: eatThreshold,
+    eatFoodId: eatFoodId,
     /* The SLIDER'S position (local, client-tier clamped) as distinct from the
        EFFECTIVE trigger point above (the server's `auto_eat_pct`). Published so
        the suite can prove the two differ and that only this one goes up. */
@@ -947,7 +1012,7 @@
        leak a queued call into the next. */
     _flushEatSync: flushServerSync,
     _syncState: function(){ return { pending: _syncPending && Object.assign({}, _syncPending), inFlight: _syncInFlight, armed: !!_syncTimer, parked: _syncParked }; },
-    _resetEatSync: function(){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; _syncInFlight = false; notePctAnswered(); },
+    _resetEatSync: function(){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; _syncInFlight = false; notePctAnswered(); noteFoodAnswered(); },
     /* The unanswered-gesture latch, for the regression suite. Reading it proves
        WHY eatThreshold() answered as it did; clearing it puts the client back in
        the "boot, nothing expressed yet" state the mirror governs. */
@@ -955,7 +1020,7 @@
     _clearPctGesture: notePctAnswered,
     /* Park/unpark the server mirror, returning the PREVIOUS state so a caller
        restores what it found rather than assuming. See `_mirrorParked`. */
-    _parkPctMirror: function(on){ var was = _mirrorParked; _mirrorParked = !!on; return was; },
+    _parkAutoEatMirror: function(on){ var was = _mirrorParked; _mirrorParked = !!on; return was; },
     /* Park/unpark, for runSmokeTest (and for the AUTOEAT-SYNC tests, which
        unpark themselves). Returns the PREVIOUS state so a caller can restore it
        rather than assuming what it was. */

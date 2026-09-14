@@ -104,8 +104,8 @@
          number uses, rather than inventing a second clock. Guarded: if the
          renown module has not booted yet the field is absent, and the ladder
          then prints no daily line at all rather than a wrong one. */
-      renown:        (window.HearthriseRenown && typeof window.HearthriseRenown.effective === 'function')
-                       ? window.HearthriseRenown.effective(window.G) : undefined,
+      renown:        (window.HearthriseRenown && typeof window.HearthriseRenown.counted === 'function')
+                       ? window.HearthriseRenown.counted(window.G) : undefined,
     };
     window.G.daily.snapshot = fresh;
     if(typeof window.saveLocal === 'function'){

@@ -2363,7 +2363,7 @@ function awayHadFood(){
     var AE=window.HearthriseCore&&window.HearthriseCore.autoEat;
     if(!AE||typeof AE.chooseFood!=='function') return undefined;
     var A=window.HearthriseAuto;
-    var nom=(A&&typeof A.getEat==='function')?((A.getEat()||{}).foodId||null):null;
+    var nom=(A&&typeof A.eatFoodId==='function')?A.eatFoodId():null;
     return !!AE.chooseFood(nom, G.inventory||{}, ITEMS, Infinity);
   }catch(e){ return undefined; }
 }
@@ -7899,6 +7899,10 @@ function renderCombat(){
      watch — so they became the two modals hung off the ENEMY portrait. */
   const _hasAutoEat = (typeof hasTrait === 'function') && hasTrait('auto_eat');
   const _eatCfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
+  /* SELECTED = the server's `auto_eat_food` (eatFoodId), never the local
+     preference: the browser must not name one food while the engine eats another. */
+  const _eatAutoFood = (window.HearthriseAuto && typeof window.HearthriseAuto.eatFoodId === 'function')
+    ? window.HearthriseAuto.eatFoodId() : (_eatCfg ? (_eatCfg.foodId||null) : null);
   /* b326: read the engine's own effective threshold rather than re-deriving it
      here — `x || 0.5` turned a deliberate 0% into 50% and let the printed
      number drift from the one maybeAutoEat() actually tests. */
@@ -7922,7 +7926,7 @@ function renderCombat(){
       ${(_hasAutoEat && foods.length) ? `<div class="cbt-food-row"><label class="row tiny muted" style="gap:6px">Auto-eat:
           <select onchange="setCombatAutoEat(this.value)" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
             <option value="">Off</option>
-            ${foods.map(([id])=>`<option value="${id}" ${(_eatCfg&&_eatCfg.foodId===id&&_eatCfg.enabled)?'selected':''}>${ITEMS[id].n} ×${G.inventory[id]}</option>`).join('')}
+            ${foods.map(([id])=>`<option value="${id}" ${(_eatCfg&&_eatAutoFood===id&&_eatCfg.enabled)?'selected':''}>${ITEMS[id].n} ×${G.inventory[id]}</option>`).join('')}
           </select>
         </label></div>` : ''}
       <div class="cbt-food-note tiny muted">${_foodNote}</div>
@@ -10608,8 +10612,8 @@ window.foodUseInfo = foodUseInfo;
    auto-eat never disagree about what your healing food is. */
 function bestProvisionId(){
   if(typeof G === 'undefined' || !G.inventory || typeof ITEMS === 'undefined') return null;
-  const configured = (window.HearthriseAuto && window.HearthriseAuto.getEat)
-    ? (window.HearthriseAuto.getEat().foodId || null) : null;
+  const configured = (window.HearthriseAuto && window.HearthriseAuto.eatFoodId)
+    ? window.HearthriseAuto.eatFoodId() : null;
   if(configured && (G.inventory[configured]||0) > 0 && _foodKindOf(ITEMS[configured]) === 'provision') return configured;
   let bestId = null, bestHeals = -1;
   for(const id in G.inventory){
@@ -10624,8 +10628,10 @@ window.bestProvisionId = bestProvisionId;
 
 /* Is auto-eat currently pointed at this exact item (and switched on)? */
 function _autoEatUsesThis(id){
-  const cfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
-  return !!(cfg && cfg.enabled && cfg.foodId === id);
+  const A = window.HearthriseAuto;                      // the EFFECTIVE nomination,
+  const cfg = (A && A.getEat) ? A.getEat() : null;     // i.e. the server's auto_eat_food
+  const fid = (A && typeof A.eatFoodId === 'function') ? A.eatFoodId() : (cfg ? cfg.foodId : null);
+  return !!(cfg && cfg.enabled && fid === id);
 }
 
 /* Eat from a UI surface: consume, then refresh what the player is looking at.
@@ -10693,7 +10699,8 @@ window.openAutoEatPicker = function(){
     ? window.HearthriseAuto.isAutoEatable(ITEMS[id])
     : !!(ITEMS[id] && ITEMS[id].heals && ITEMS[id].foodClass!=='buff');
   const foods = Object.entries(G.inventory||{}).filter(([id])=> _aeOk(id));
-  const cur = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? (window.HearthriseAuto.getEat().foodId||null) : null;
+  const cur = (window.HearthriseAuto && typeof window.HearthriseAuto.eatFoodId === 'function')
+    ? window.HearthriseAuto.eatFoodId() : null;
   const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   /* b341 — DO NOT OFFER A CHOICE THAT WILL BE REFUSED.
      setAutoEatFood() has always rejected every pick when the Auto-Eat trait is
@@ -14088,27 +14095,11 @@ function todayKey(){
   return d.getUTCFullYear()*10000 + (d.getUTCMonth()+1)*100 + d.getUTCDate();
 }
 
-/* ─── Streak counter ─── */
-function checkStreak(){
-  if(typeof G !== 'object') return;
-  var today = todayKey();
-  if(!G.streak.lastDay){
-    G.streak = {count: 1, lastDay: today};
-    return;
-  }
-  if(G.streak.lastDay === today) return; // already counted today
-  // Compute days between
-  var d = new Date(); var prev = new Date();
-  prev.setUTCFullYear(Math.floor(G.streak.lastDay/10000), (Math.floor(G.streak.lastDay/100)%100)-1, G.streak.lastDay%100);
-  var dayDiff = Math.round((d - prev) / 86400000);
-  if(dayDiff === 1){ G.streak.count++; }
-  else if(dayDiff > 1){ G.streak.count = 1; } // streak broken
-  G.streak.lastDay = today;
-}
-function paintStreak(){
-  var el = document.getElementById('top-streak-count');
-  if(el && G && G.streak){ el.textContent = G.streak.count; el.parentElement.classList.toggle('hot', G.streak.count >= 3); }
-}
+/* ─── Streak counter + flame chip: EXTRACTED to src/render/streak-chip.js ───
+   The device counter, the reader every play-streak surface asks (the server's
+   `streak_days` first) and the paint, in one module. Called through the seam
+   below; absent module = the chip simply does not paint. */
+function streakChip(){ return window.HearthriseStreakChip || null; }
 
 /* ─── Welcome-back modal (fires once per session if returning after 30min+) ─── */
 /* Returns WHAT IT SAID, because the presenter has to know (see WELCOME_GATE): 'away'
@@ -14448,7 +14439,8 @@ function maybeShowWelcome(opts){
      days" over a Home card reading "Day 1" and a sheet reading "1-DAY STREAK".
      RULING: the reward sheet keeps the day language and drops "streak"; every
      play-streak surface says PLAYED / RUNNING and never "daily". */
-  if(G.streak.count > 0) rows.push({g:'uiFlame', t: 'Played', v: G.streak.count + ' day' + (G.streak.count===1?'':'s') + ' running'});
+  var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : G.streak.count;
+  if(_playDays > 0) rows.push({g:'uiFlame', t: 'Played', v: _playDays + ' day' + (_playDays===1?'':'s') + ' running'});
   rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
   rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
   /* b342: the "bad" tone is now an EXPLICIT flag. It used to key off `r.g`
@@ -14998,7 +14990,7 @@ function paintNavBadges(){
 
 /* ─── Hooks ─── */
 function paintAll(){
-  paintStreak();
+  var _S = streakChip(); if(_S) _S.paint(G);
   paintNavBadges();
 }
 ['updateTopbar','renderProfile','renderCombat','renderFarm','renderInvNew','showTab'].forEach(function(name){
@@ -15041,7 +15033,7 @@ function injectDailyGoals(){
 /* Boot sequence */
 function boot(){
   migrate();
-  checkStreak();
+  var _S0 = streakChip(); if(_S0) _S0.advance(G);
   /* b544: WAITS for the boot settle rather than racing it (see WELCOME_GATE). */
   setTimeout(window.__presentWelcomeWhenSettled, 1500);
   setTimeout(paintAll, 600);
@@ -15136,6 +15128,10 @@ function readPath(path){
     combat.forEach(function(k){ var l = getLevel(k); if(l < min) min = l; });
     return min;
   }
+  /* Week Warrior / Devoted count the PLAY streak, which is the SERVER's
+     `streak_days` — an achievement must not unlock on a counter the realm never
+     agreed with (CLAUDE.md §6). See src/render/streak-chip.js. */
+  if(path === 'streak.count' && window.HearthriseStreakChip) return window.HearthriseStreakChip.days(G);
   var parts = path.split('.'); var cur = G;
   for(var i = 0; i < parts.length; i++){ if(cur == null) return 0; cur = cur[parts[i]]; }
   return cur || 0;

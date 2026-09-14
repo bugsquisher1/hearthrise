@@ -2359,6 +2359,53 @@ export function reconcileHeroSlots(G, res) {
   return { mode: 'server', owned: owned.length };
 }
 
+/* ── THE PLAY STREAK IS THE SERVER'S ─────────────────────────────────────────
+   MEASURED LIVE (QA account, slot 2, 2026-09-14): the topbar flame chip read
+   `1` while `player_state.streak_days` held `3`. Two counters, one word.
+
+   `G.streak` ({count,lastDay}) is a CLIENT-AUTHORED residue advanced from the
+   DEVICE clock, per browser profile (src/render/streak-chip.js), so a second
+   machine or a cleared profile restarts at 1 while the server — which advances
+   `streak_days` from now() on any delta carrying `accrued_to`,
+   2026-08-21-streak-state.sql §4c — keeps counting. The projection has ridden
+   every envelope since that migration and NOTHING read it (CLAUDE.md §6). The
+   number is spendable: renown's `streakBest` ×5, Week Warrior / Devoted.
+
+   SCRATCH, NOT RESIDUE (`_`-prefixed, the `_heroSlots` shape): projected fresh
+   on every envelope, so persisting it would only create a second stale copy to
+   disagree with. `G.streak` is untouched — the local counter is the only answer
+   before the first envelope; READERS prefer the server's, via playStreakDays().
+
+   NEVER AN EVICTION: an envelope without the key leaves the last observation
+   alone, and a non-numeric value is not an observation at all. `0` IS a real
+   answer — an account that has never settled — and is recorded as one.
+
+   Pure (G + res → receipt), like every reconcile beside it. */
+export function reconcilePlayStreak(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const st = res && res.state;
+  if (!st || typeof st !== 'object'
+      || !Object.prototype.hasOwnProperty.call(st, 'streak_days')) return { mode: 'absent' };
+  const n = Number(st.streak_days);
+  if (!Number.isFinite(n) || n < 0) return { mode: 'absent' };
+  const key = (typeof st.streak_day_key === 'string' && st.streak_day_key)
+    ? st.streak_day_key : null;
+  G._serverStreak = { days: Math.floor(n), dayKey: key, at: Date.now() };
+  return { mode: 'server', days: Math.floor(n) };
+}
+
+/** HOW MANY CONSECUTIVE DAYS HAS THIS ACCOUNT PLAYED — the one reader every
+ *  play-streak surface goes through (topbar chip, welcome card, renown).
+ *  The server's projection when an envelope has carried it; the local residue
+ *  only until then, which is the honest answer when there is no server truth
+ *  to prefer. Never throws, never writes. */
+export function playStreakDays(G) {
+  const s = G && G._serverStreak;
+  if (s && Number.isFinite(Number(s.days))) return Math.max(0, Math.floor(Number(s.days)));
+  const loc = Number(G && G.streak && G.streak.count);
+  return Number.isFinite(loc) && loc > 0 ? Math.floor(loc) : 0;
+}
+
 /* ── THE DUNGEON RE-ENTRY WINDOWS ARE THE SERVER'S ───────────────────────────
    hr_dungeon_settle refuses an early re-entry with `on_cooldown` and a detail
    carrying {dungeon, mode, next_entry_at}; hr_state_of projects the ACTIVE windows
@@ -3166,6 +3213,11 @@ export function applyEnvelopeState(G, res, ownKey) {
      see reconcileHeroSlots' header for why keeping the two apart is the fix. */
   written.heroSlots = reconcileHeroSlots(G, res);
 
+  /* AND THE PLAY STREAK, which rides `state` rather than a top-level key but
+     belongs to exactly the same rule: the number the flame chip shows is the
+     one renown scores. See reconcilePlayStreak's header. */
+  written.playStreak = reconcilePlayStreak(G, res);
+
   /* AND THE DUNGEON RE-ENTRY WINDOWS BESIDE THEM, for the same reason: the panel's
      countdown must be right on the envelope the player's own action produced, not
      one poll later. Same absolute/merge split, same fail-open — see the header. */
@@ -3457,6 +3509,17 @@ const serverAutoEatSeen = { enabled: undefined, food: undefined, pct: undefined,
    Never decreases except through __resetServerAutoEat, which puts the module
    back to never-observed — itself an observation event for the reader. */
 let serverAutoEatPctSeq = 0;
+/* ── `foodSeq` — HOW MANY TIMES THE SERVER HAS NAMED THE PROVISION ───────────
+   The exact twin of `pctSeq`, for `auto_eat_food`. Measured on the QA account
+   2026-09-14: the client showed `cooked_shrimp` while `player_state.auto_eat_food`
+   held `turnip` — observed off every envelope, never read back DOWN, so the
+   browser named one provision and the engine ate another (CLAUDE.md §6).
+   ⚠ A COUNT, NOT THE VALUE, and here the value cannot substitute: NULL ("no
+     nomination, eat the best in the bag") is a real stored answer, identical by
+     value to `undefined` ("no envelope has ever said"). Only an event count
+     tells "the server has spoken since the last gesture" from "nothing heard".
+     Bumped on every RECORDING; reset by __resetServerAutoEat, itself an event. */
+let serverAutoEatFoodSeq = 0;
 export function noteServerAutoEat(res) {
   const st = res && res.state;
   if (st && typeof st === 'object'
@@ -3469,7 +3532,7 @@ export function noteServerAutoEat(res) {
     const f = st.auto_eat_food;
     /* NULL is a real, meaningful value here — "no nomination, use the best in
        the bag" — so it is recorded as null, not skipped. */
-    if (f === null || typeof f === 'string') serverAutoEatSeen.food = f;
+    if (f === null || typeof f === 'string') { serverAutoEatSeen.food = f; serverAutoEatFoodSeq++; }
   }
   if (st && typeof st === 'object'
       && Object.prototype.hasOwnProperty.call(st, 'auto_eat_pct')) {
@@ -3505,7 +3568,9 @@ export function serverAutoEatSettings() {
   return { enabled: serverAutoEatSeen.enabled, food: serverAutoEatSeen.food,
            pct: serverAutoEatSeen.pct, touched: serverAutoEatSeen.touched,
            /* The OBSERVATION COUNT for `pct`. See serverAutoEatPctSeq. */
-           pctSeq: serverAutoEatPctSeq };
+           pctSeq: serverAutoEatPctSeq,
+           /* …and for `food`. See serverAutoEatFoodSeq. */
+           foodSeq: serverAutoEatFoodSeq };
 }
 /* ── THE VERB'S OWN ANSWER IS ALSO AN OBSERVATION ────────────────────────────
    `hr_set_auto_eat` returns `{ok:true, auto_eat:{enabled,food,pct,tier,max_pct}}`
@@ -3529,7 +3594,7 @@ export function noteAutoEatVerb(res) {
   if (a.enabled === true || a.enabled === false) {
     serverAutoEatObserved = a.enabled; serverAutoEatSeen.enabled = a.enabled;
   }
-  if (a.food === null || typeof a.food === 'string') serverAutoEatSeen.food = a.food;
+  if (a.food === null || typeof a.food === 'string') { serverAutoEatSeen.food = a.food; serverAutoEatFoodSeq++; }
   const p = Number(a.pct);
   if (Number.isFinite(p)) {
     serverAutoEatSeen.pct = Math.max(0, Math.min(100, Math.round(p)));
@@ -3542,7 +3607,7 @@ export function noteAutoEatVerb(res) {
 export function __noteAutoEatSettings(patch) {
   const p = patch || {};
   if (Object.prototype.hasOwnProperty.call(p, 'enabled')) serverAutoEatSeen.enabled = p.enabled;
-  if (Object.prototype.hasOwnProperty.call(p, 'food')) serverAutoEatSeen.food = p.food;
+  if (Object.prototype.hasOwnProperty.call(p, 'food')) { serverAutoEatSeen.food = p.food; serverAutoEatFoodSeq++; }
   if (Object.prototype.hasOwnProperty.call(p, 'pct')) {
     serverAutoEatSeen.pct = p.pct; serverAutoEatPctSeq++;
   }
@@ -3558,6 +3623,7 @@ export function __resetServerAutoEat() {
      this IS the "forget everything" seam; a reader comparing sequences sees the
      change either way, which is what makes the reset an observation event too. */
   serverAutoEatPctSeq = 0;
+  serverAutoEatFoodSeq = 0;
   return serverAutoEatObserved;
 }
 
@@ -5488,6 +5554,9 @@ if (typeof window !== 'undefined') {
        serverAutoEatSettings is the b499 settings-sync DEDUPE ANCHOR (all three
        projected columns); it answers "what does the server already believe",
        never "what should it believe". */
+    /* THE PLAY STREAK: the projection recorder and the ONE reader every
+       play-streak surface asks. See reconcilePlayStreak. */
+    reconcilePlayStreak, playStreakDays,
     noteServerAutoEat, serverAutoEats, clientOwnsAutoEatDebit, serverAutoEatSettings,
     noteAutoEatVerb,
     __noteAutoEatSettings, __resetServerAutoEat,

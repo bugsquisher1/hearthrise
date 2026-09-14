@@ -492,7 +492,12 @@ async function selftest() {
       apply: async () => {
         const p = at('src/net/gem-sites.js');
         const s = await readFile(p, 'utf8');
-        const i = s.indexOf("id: 'src/legacy.js#buyCosmetic'");
+        /* 2026-09-14: re-anchored with the code. buyCosmetic left src/legacy.js
+           for src/screens/shop-counter.js with the shop-counter extraction, and
+           an anchor that names a row nobody has is a mutation that was never
+           planted — the M3 slot reported "anchor not found" instead of proving
+           L2 still bites. The row id moved; this moves with it. */
+        const i = s.indexOf("id: 'src/screens/shop-counter.js#buyCosmetic'");
         if (i < 0) throw new Error('M3 anchor not found');
         const start = s.lastIndexOf('\n  {', i);
         const end = s.indexOf('\n  },', i);

@@ -188,7 +188,7 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + 'infinite faucet, so it must never be turned into a bought unlock.',
   },
   {
-    id: 'src/legacy.js#buyCosmetic',
+    id: 'src/screens/shop-counter.js#buyCosmetic',
     kind: 'spend', status: 'deferred',
     armGuard: { gated: 'gemSpendIsClientAuthored' },
     blockedBy: GEM_PURCHASE_BLOCKER,

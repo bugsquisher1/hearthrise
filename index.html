@@ -1063,6 +1063,10 @@
        stop refreshing after a harvest. Every top-level statement in farm.js is
        inert (declarations + window publications), so loading early is safe. -->
   <script src="src/screens/farm.js?v=546"></script>
+  <!-- SCREEN CONTROLLER: the shop counter (buy handlers + the vendor's sell
+       side). Grouped with farm.js before legacy.js; every top-level statement
+       in it is inert and every global it uses is read at call time. -->
+  <script src="src/screens/shop-counter.js?v=546"></script>
   <script src="src/legacy.js?v=546"></script>
   <!-- SCREEN CONTROLLERS (task #129 phase 2) — src/screens/*. A whole tab's
        painter + handlers + wiring, moved verbatim out of the monolith. Classic

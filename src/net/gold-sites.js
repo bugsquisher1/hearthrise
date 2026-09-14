@@ -242,7 +242,7 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   // ══ THE SEAM SITES — one row per player GESTURE ═══════════════════════════
   'seam:shop.buy': {
     kind: 'spend', status: 'wired', verb: 'shop_buy',
-    site: 'src/legacy.js buyShopItem() — the Equip shop and the Seed shop',
+    site: 'src/screens/shop-counter.js buyShopItem() — the Equip shop and the Seed shop',
     note: 'The item id + qty + cost are resolved to a catalogue OFFER by '
       + '`resolvePurchase`, which refuses on a price mismatch rather than sending a purchase whose '
       + 'price the player has not seen. 29 of the 128 authored offers are server-sellable today '
@@ -324,11 +324,11 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   'seam:vendor.sell_one': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
-    site: 'src/legacy.js invSellOne() — the bag\'s Sell 1',
+    site: 'src/screens/shop-counter.js invSellOne() — the bag\'s Sell 1',
   },
   'seam:vendor.sell_all': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
-    site: 'src/legacy.js invSellAll() — the bag\'s Sell All (one item id, whole stack)',
+    site: 'src/screens/shop-counter.js invSellAll() — the bag\'s Sell All (one item id, whole stack)',
     note: 'b377: a stack above MAX_QTY (1,000) is SPLIT into ceil(qty/1,000) intents by '
       + '`vendorSellChunked`, each its own key/settle/send. The old path sent ONE oversized '
       + 'intent, whose local `qty_out_of_range` refusal rolled back the WHOLE prediction — selling '
@@ -344,7 +344,7 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   },
   'seam:vendor.sell_selected': {
     kind: 'vendor', status: 'deferred', blockedBy: B.BULK_VENDOR,
-    site: 'src/legacy.js invSellSelected() — Sell Selected, N item ids in one gesture',
+    site: 'src/screens/shop-counter.js invSellSelected() — Sell Selected, N item ids in one gesture',
   },
   'seam:vendor.sell_junk': {
     kind: 'vendor', status: 'deferred', blockedBy: B.BULK_VENDOR,
@@ -740,7 +740,11 @@ export const GOLD_SITE_LEDGER = Object.freeze({
      longer writes `.gold` raw, so the scanner reports it under the seam id. b420:
      the arm-gate is LIFTED (the pet EFFECT is server-owned now) — see the seam row
      above. The companion PROCS stay gated at rollProc, their own grant rows. */
-  'src/legacy.js#repurchase': {
+  /* 2026-09-14: the vendor counter moved out of the monolith into the shop
+     screen controller (task #129). The row follows the code — the census fails
+     BOTH ways on a stale path (undeclared site here, missing site there), which
+     is how this rename was found rather than assumed. */
+  'src/screens/shop-counter.js#repurchase': {
     kind: 'spend', status: 'deferred', blockedBy: B.BUYBACK_LEDGER,
   },
 

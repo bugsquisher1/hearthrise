@@ -9147,49 +9147,12 @@ function redeemHearthToken(){
 window.redeemHearthToken=redeemHearthToken;
 
 /* ────────────────────────────────────────────────
-   RENDER — Shop / IAP store
+   RENDER — Shop / IAP store → the painter is src/render/shop.js, the COUNTER is
+   src/screens/shop-counter.js. window.shopTab, setShopTab, buyShopItem and
+   buyCosmetic moved there with the vendor's sell side, so buying and selling
+   read as one file instead of two regions 1,500 lines apart. All four are still
+   globals, published at the foot of that file. Pure refactor.
    ──────────────────────────────────────────────── */
-window.shopTab='seeds';
-/* RENDER — Shop / IAP store: extracted to src/render/shop.js (9th render-layer
-   strangler-fig, task #129 Phase 3.5). window.renderShop (+ its exclusive
-   private helpers _iapGlyph / _iapContents / SHOP_SCENE) now lives there. The
-   shop's active-tab state moved from a legacy-local `let shopTab` to
-   window.shopTab (above) so the extracted painter and setShopTab (still here,
-   below) share one identity. The purchase/redeem handlers stay global here. */
-function setShopTab(t){window.shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
-function buyShopItem(id,qty,cost){
-  if(!balCanAfford(cost,'gold')){notify(balShortfall(cost,'gold'),'kill');return;}
-  /* The key is generated BEFORE the local payment so the prediction and the
-     request carry one identity — that is what lets the envelope retire exactly
-     this gesture's prediction and no other. */
-  const _k=goldIntentKey();
-  goldSettle(-cost,'shop.buy',_k);
-  addItem(id,qty);
-  /* FIRE AND RECONCILE — never await-then-render. The offer id and the count
-     are DERIVED from the item/qty/cost by src/net/gold.js; a price the shop and
-     the catalogue disagree about refuses locally rather than charging a number
-     the player never saw. No-op with the switch off. */
-  if(_k&&window.HearthriseGold){const _p=window.HearthriseGold.buyShop(id,qty,cost,_k);if(_p&&_p.catch)_p.catch(()=>{});}
-  notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
-}
-/* ── COSMETICS: THE THIRD GEM TWIN. This was one line and every part of it was
-   a client-authored premium purchase — `G.gems -= price` on an ARMED record
-   balance (retired by the next envelope) plus an unconditional
-   `G.ownedCosmetics.push(id)` into RESIDUE (which persists). Free cosmetics,
-   repeatable, and the push was not even deduplicated: a second buy appended the
-   same id again, so the residue grew without bound on a surface the shop only
-   accidentally guards (it disables the button when `owned`). Both are fixed
-   here; see the gem spend gate for why this refuses rather than routes. */
-function buyCosmetic(id,price){
-  var cost=Math.max(0,Number(price)||0);
-  if(ownsGemUnlock('cosmetic',id)){notify('That cosmetic is already yours.','info');return;}
-  if(!balCanAfford(cost,'gems')){notify(balKnown('gems')?'Not enough gems. Tap "Get Gems".':balShortfall(cost,'gems'),'kill');return;}
-  if(!gemSpendIsClientAuthored()){refuseGemPurchase('that cosmetic');return;}
-  G.gems-=cost;
-  G.ownedCosmetics=G.ownedCosmetics||[];
-  if(G.ownedCosmetics.indexOf(id)<0)G.ownedCosmetics.push(id);
-  notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();
-}
 /* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
    cost (escalating) and the flat gem deal side-by-side so the better value of
    gems is legible. Reuses the .qm-overlay backdrop + .btn classes — no new CSS. */
@@ -10424,30 +10387,6 @@ function closeInvDetail(){
   window._invDetailId = null;
 }
 
-/* ════════════════════════════════════════════════════════════════
-   b226 — vendorPrice(): what the NPC vendor BIDS, in one place.
-   (docs/design/pacing-overhaul.md §6.1.)
-
-   Raw materials fetch VENDOR_RAW_RATE × their book value; everything else
-   fetches the book value. `ITEMS[id].v` is NOT touched — it stays the number
-   market listings, recipe costing, chest payouts and the collection log all
-   read, so nobody's bank is revalued and nothing already earned is reached
-   into. Only the vendor's bid, and only from now on.
-
-   Gathering throughput is roughly flat (~300 items/h at every tier) while `v`
-   climbs 2.77× per material tier, so a maxed miner vendoring Dawnstone
-   out-earned the King renown reward — 300,000 gold, the eleventh of twelve
-   ranks — every 32 minutes, WHILE ASLEEP. Beyond the arithmetic this puts
-   three systems back in their proper roles: gathering is the material faucet,
-   the artisan skills are the gold path, and the player market becomes the
-   best price for raws, because another player will pay more than 20% for
-   something they actually need.
-
-   ONE choke-point, mirroring applyGoldFind(). Every sell path in the game —
-   the bag's Sell 1 / Sell All / Sell Selected, the context menu, the quick-
-   sell slider, the sell-junk sweep and the old inventory tap — reads this.
-   A price that differs by which button you pressed is not a price.
-   ════════════════════════════════════════════════════════════════ */
 /* ══════════════════════════════════════════════════════════════════════
    THE ONE PLACE THIS FILE **READS** A BALANCE.  (the UNKNOWN sweep)
    ══════════════════════════════════════════════════════════════════════
@@ -10688,172 +10627,13 @@ function hrUnlockRefusalMessage(c,thing){
 window.hrClassifyUnlock=hrClassifyUnlock;
 window.hrUnlockRefusalMessage=hrUnlockRefusalMessage;
 
-const VENDOR_RAW_RATE = 0.20;
-function vendorPrice(id){
-  const it = (typeof ITEMS==='object' && ITEMS) ? ITEMS[id] : null;
-  if(!it) return 0;
-  const v = Number(it.v) || 0;
-  if(v <= 0) return 0;
-  /* Floored at 1: a raw worth anything at all is still worth something, and a
-     0g bid reads as "this item is broken" rather than "this is cheap". */
-  return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
-}
-window.VENDOR_RAW_RATE = VENDOR_RAW_RATE;
-window.vendorPrice = vendorPrice;
-
-/* Sell helpers — wrap existing logic if available, else simple */
-/* ══════════════════════════════════════════════════════════════════════
-   b377 (Tyler) — CHUNKED VENDOR SELL. THE FIX FOR "SELL A BIG STACK, GET NO GOLD".
-   ══════════════════════════════════════════════════════════════════════
-   `vendor_sell` prices ONE item id per call and both the server and
-   src/net/gold.js bound a single intent at MAX_QTY (1,000). The old sell paths
-   settled the WHOLE stack as one gold prediction and then sent ONE oversized
-   `sellItem(id, qty)` — which, for qty > 1,000, was refused LOCALLY with
-   `qty_out_of_range`, and that refusal's rollback REVERSED THE ENTIRE PREDICTION.
-   So selling 4,600 iron platebodies deleted the stack and paid nothing.
-
-   The stack is genuinely sellable — the contract just prices ≤1,000 per call —
-   so split it into ceil(qty/1000) gestures, EACH with its own intent key, its
-   own `goldSettle` prediction and its own `sellItem`. Every chunk now has a real
-   server story and pays for itself; a rate-limited tail chunk (429) is
-   PROVABLY_UNWRITTEN and rolls back only its own leg, self-healing at the next
-   envelope. Purely client-side: no server change, no redeploy.
-
-   Returns the unit bid so callers can still total the receipt/notify. */
-function vendorSellChunked(id, qty, site){
-  const S = window.HearthriseGold;
-  const MAXQ = (S && S.MAX_QTY) || 1000;
-  const price = vendorPrice(id);
-  let remaining = qty;
-  while(remaining > 0){
-    const chunk = Math.min(remaining, MAXQ);
-    const _k = goldIntentKey();
-    goldSettle(price * chunk, site, _k);
-    if(_k && S){ const _p = S.sellItem(id, chunk, _k); if(_p && _p.catch) _p.catch(()=>{}); }
-    remaining -= chunk;
-  }
-  return price;
-}
-window.vendorSellChunked = vendorSellChunked;
-function invSellOne(id){
-  const it = ITEMS[id]; if(!it) return;
-  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
-  if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
-  const price = vendorPrice(id);
-  const _k = goldIntentKey();
-  goldSettle(price, 'vendor.sell_one', _k);
-  removeItem(id, 1);
-  if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); }
-  recordVendorSale(id, 1, price);   // b240: undoable
-  notify(`Sold 1× ${it.n} for ${price.toLocaleString()} gold`,'loot');
-  updateTopbar(); renderInvNew();
-}
-function invSellAll(id){
-  const it = ITEMS[id]; if(!it) return;
-  if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
-  const qty = G.inventory[id]||0;
-  if(qty <= 0){ notify('Nothing to sell','kill'); return; }
-  const price = vendorSellChunked(id, qty, 'vendor.sell_all');   // b377: ≤1,000 per intent
-  /* b487 — THROUGH THE BAG SEAM, not `delete G.inventory[id]`. Sell All is the
-     natural gesture for a single tool, and the raw delete skipped every
-     consequence removeItem() owns — including the tool retime (#33: "sold the
-     pickaxe, the boost still applied"). Same result on the bag, one writer. */
-  removeItem(id, qty);
-  recordVendorSale(id, qty, price);   // b240: undoable
-  notify(`Sold ${qty}× ${it.n} for ${(price*qty).toLocaleString()} gold`,'loot');
-  updateTopbar(); renderInvNew(); closeInvDetail();
-}
-function invSellSelected(){
-  if(!window._invSelected.size){ notify('Nothing selected','kill'); return; }
-  let total = 0, count = 0, skipped = 0;
-  for(const id of window._invSelected){
-    const it = ITEMS[id]; if(!it) continue;
-    if(isItemLocked(id)){ skipped++; continue; }   // b240: locked items are left alone
-    const qty = G.inventory[id]||0; if(qty<=0) continue;
-    const price = vendorPrice(id);
-    total += price*qty; count += qty;
-    removeItem(id, qty);                // b487: through the bag seam (see invSellAll)
-    recordVendorSale(id, qty, price);   // b240: undoable
-  }
-  /* DEFERRED, and routed through the seam anyway so the census can see it. This
-     gesture sells N DIFFERENT item ids in one tap and `vendor_sell` prices ONE
-     per call against a 20/min bucket — see B.BULK_VENDOR in
-     src/net/gold-sites.js. Sending N intents here would rate-limit a 30-stack
-     sweep halfway through and leave the bag half-sold against a server that
-     agrees with the half. Nothing is sent; the row says why. */
-  goldSettle(total, 'vendor.sell_selected', null);
-  window._invSelected.clear();
-  notify(`Sold ${count} items for ${total.toLocaleString()} gold` + (skipped?` · ${skipped} locked item(s) skipped`:''),'loot');
-  window._invSelectMode = false;
-  updateTopbar(); renderInvNew();
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   b240 (Tyler) — SELL-LOCK + VENDOR BUY-BACK.
-   Two safety nets around the vendor so an accidental tap never loses a thing:
-   • Lock an item and it cannot be sold until you unlock it (a padlock in the
-     flyout; every sell path checks isItemLocked first).
-   • Every vendor sale is recorded; the last 15 are buyable BACK at the exact
-     price you got, from the Buy-Back window — an undo for the vendor.
-   Both live on G (saved), so they survive a reload. Vendor gold is client-side
-   in this game (the market is the server-authoritative economy), so this needs
-   no server round-trip and cannot mint value — you only ever buy back what you
-   sold, at what you sold it for. ═══════════════════════════════════════════ */
-function isItemLocked(id){ return !!(G.lockedItems && G.lockedItems[id]); }
-function toggleItemLock(id){
-  G.lockedItems = G.lockedItems || {};
-  /* THE BOUND (src/net/client-state.js §THE SIZE GUARD'S CLIENT HALF): only a
-     CATALOGUE id may be locked, so the key set can never outgrow ITEMS. (The
-     alias pass drops unknown keys on load, but early-returns while ITEM_ALIAS is
-     empty — which it is — so this is the bound that actually runs.) Unlocking is
-     never refused: an id that fell out of the catalogue must stay removable. */
-  if(!ITEMS[id] && !G.lockedItems[id]) return;
-  if(G.lockedItems[id]){ delete G.lockedItems[id]; notify('Unlocked — this item can be sold','info'); }
-  else { G.lockedItems[id] = true; notify('Locked — protected from selling','info'); }
-  try{ saveLocal(); }catch(e){}
-  try{ if(typeof renderInvFancy==='function') renderInvFancy(); }catch(e){}
-  try{ if(typeof renderInvNew==='function') renderInvNew(); }catch(e){}
-  try{ if(typeof openInvDetail==='function' && window._invDetailId===id) openInvDetail(id); }catch(e){}
-}
-function recordVendorSale(id, qty, unit){
-  if(!qty || unit==null) return;
-  G.buyback = Array.isArray(G.buyback) ? G.buyback : [];
-  const ex = G.buyback.find(b => b.id===id && b.unit===unit);
-  if(ex){ ex.qty += qty; ex.at = Date.now(); }
-  else { G.buyback.unshift({ id, qty, unit, at: Date.now() }); }
-  if(G.buyback.length > 15) G.buyback.length = 15;
-}
-function repurchase(idx){
-  G.buyback = Array.isArray(G.buyback) ? G.buyback : [];
-  const b = G.buyback[idx]; if(!b) return;
-  const it = ITEMS[b.id]; if(!it){ G.buyback.splice(idx,1); return; }
-  const cost = b.unit * b.qty;
-  /* ── b4xx — GATED ON THE RECORD SEAM (designer ruling, slice 7). ─────────────
-     Buy-back re-purchases at the EXACT price the vendor paid, off a 15-entry
-     LOCAL list — a client-supplied PAST PRICE. While gold is UNARMED (today)
-     clientMayWriteRecordField('gold') is true and this is the plain debit that
-     shipped before. The instant gold joins SERVER_OF_RECORD and is armed it
-     returns false and this fails CLOSED: a client past-price crossing into an
-     armed balance is a mint, and buy-back has no server verb yet (BUYBACK_LEDGER).
-     The gate is a no-op today; it becomes the guard the moment gold flips. */
-  if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
-    if(typeof notify==='function')notify('Buy-back is unavailable right now — try the shop','kill');
-    return;
-  }
-  if(!balCanAfford(cost,'gold')){ notify(balKnown('gold')?'Not enough gold to buy it back':balShortfall(cost,'gold'),'kill'); return; }
-  G.gold -= cost;
-  addItem(b.id, b.qty);
-  G.buyback.splice(idx, 1);
-  notify(`Bought back ${b.qty}× ${it.n} for ${cost.toLocaleString()} gold`,'loot');
-  try{ saveLocal(); }catch(e){}
-  updateTopbar();
-  renderBuyback();
-  try{ if(typeof renderInvFancy==='function') renderInvFancy(); }catch(e){}
-}
-window.isItemLocked = isItemLocked;
-window.toggleItemLock = toggleItemLock;
-window.recordVendorSale = recordVendorSale;
-window.repurchase = repurchase;
+/* ── The VENDOR COUNTER → src/screens/shop-counter.js ───────────────────────
+   vendorPrice (with its b226 doc block, finally reunited with it),
+   VENDOR_RAW_RATE, vendorSellChunked, Sell 1 / Sell All / Sell Selected, the
+   sell-lock, recordVendorSale and buy-back repurchase moved to the shop screen
+   controller (task #129). Every name is still a global, published there; the
+   gold ledger's seam keys are the goldSettle site strings and travelled with
+   the code. Pure refactor — identical behaviour. */
 
 /* renderBuyback + openBuyback extracted to src/render/buyback.js (render-layer
    strangler-fig, task #129). Both remain global via window.* there; repurchase()

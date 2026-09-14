@@ -512,11 +512,6 @@ const withLocalBlob = (fn) => {
   const C = pinLocalBlob();
   try { return fn(); } finally { unpinLocalBlob(C); }
 };
-/** The awaiting twin, for tryRunAsync bodies. */
-const withLocalBlobAsync = async (fn) => {
-  const C = pinLocalBlob();
-  try { return await fn(); } finally { unpinLocalBlob(C); }
-};
 
 /* ── 2026-09-08 — THE SAME PROBLEM FOR THE HERO-SLOT ENTITLEMENT ─────────────
    `hr_buy_hero_slot` moved hero-slot ownership to the server: hr_state_of
@@ -1259,10 +1254,6 @@ const tryRunRestampingBalance = (name, fn) => {
   try { return tryRun(name, fn); }
   finally { try { stampBalanceLikeLoad(window.G); } catch (e) {} }
 };
-const tryRunAsyncRestampingBalance = (name, fn) => tryRunAsync(name, fn).then(
-  (r) => { try { stampBalanceLikeLoad(window.G); } catch (e) {} return r; },
-  (e) => { try { stampBalanceLikeLoad(window.G); } catch (_e) {} throw e; });
-
 // b219: the game tick runs THROUGH the suite, and earlier tests leave combat
 // or gathering active — so a genuine "Defeated Slime" toast can land in
 // #notifs in the middle of a toast test. Locate a test's own toast by a

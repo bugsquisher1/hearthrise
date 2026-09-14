@@ -6,17 +6,17 @@
   "bnumTotal": 4174,
   "files": {
     "src/legacy.js": {
-      "total": 20564,
-      "comment": 8306,
-      "code": 11254,
+      "total": 21132,
+      "comment": 8345,
+      "code": 11737,
       "ratio": 0.6985252179581195,
-      "bnum": 829
+      "bnum": 858
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
-      "total": 8206,
-      "comment": 2307,
-      "code": 5319,
-      "ratio": 0.43372814438804286,
+      "total": 8234,
+      "comment": 2318,
+      "code": 5335,
+      "ratio": 0.4344892221180881,
       "bnum": 130
     },
     "src/features/smoke/record-seam-and-hydration.js": {
@@ -41,11 +41,11 @@
       "bnum": 114
     },
     "src/net/accrue.js": {
-      "total": 5455,
-      "comment": 3042,
-      "code": 1999,
-      "ratio": 1.52176088044022,
-      "bnum": 125
+      "total": 4732,
+      "comment": 2635,
+      "code": 1727,
+      "ratio": 1.525767226404169,
+      "bnum": 127
     },
     "src/features/smoke/cooking-core-and-save.js": {
       "total": 5084,

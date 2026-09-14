@@ -10925,6 +10925,80 @@ const TESTS = [
     }
   }),
 
+  /* -- regression suite -- START-KIT-1: THE FRESH-G START KIT IS A HINT, NOT A BAG
+     The ROOT of FARM-SEED-1 above, one layer down. Those seed counts are the
+     fresh-G factory literal (src/legacy.js `inventory:{turnip_seed:5,carrot_seed:3,
+     shrimp:10,cooked_shrimp:20}` == src/data/start-kit.js START_INVENTORY); the save
+     blob is retired so nothing strips them, and the envelope's merge is a one-way
+     `Math.max`, so `max(5, omitted)` = 5 on every reload FOREVER. Measured on the
+     QA account (slot 2, 2026-09-13): player_inventory held no turnip_seed and no
+     carrot_seed row at all, while the bag grid painted 5 and 3 and every
+     hr_farm_plant answered insufficient_seed.
+     A seed is NOT a server-consumed provision, so the phantom-food rule below could
+     never reach it. The kit is now discarded ONCE per page load, on the first bag
+     the realm states under a COMPLETE baseline, and only for an id whose local
+     figure is still EXACTLY the hint.
+     MUTATION: delete the START_INVENTORY block in accrue.js reconcileInventory and
+     (b) goes red; drop its `baselineComplete` conjunct and PHANTOM-FOOD-1 +
+     SETTLE-2 go red. */
+  () => tryRun('START-KIT-1: the first complete bag discards the fresh-G start kit the realm never granted', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'the envelope apply must be exposed');
+    const IA = window.HearthriseItemAuthority;
+    assert(IA && IA.serverConsumedItem('turnip_seed') === false,
+      'a seed must NOT be a server-consumed provision, or the phantom-food rule would already cover it');
+    const G = window.G, snap = snapshotG(), bagWas = G._serverBag, hintWas = G._startKitHintAt;
+    try {
+      /* A BOOT: the factory literal, and the hint has not been discarded yet. */
+      G.inventory = { turnip_seed: 5, carrot_seed: 3, shrimp: 10, cooked_shrimp: 20 };
+      delete G._serverBag; delete G._startKitHintAt;
+      /* THE REALM: a veteran slot that spent the kit long ago and holds its own
+         goods, on a projection the server certifies COMPLETE. */
+      A.applyEnvelopeState(G, { state: {}, inventory: { cooked_shrimp: 20, maple_log: 7027 }, inventory_complete: true });
+      // (a) the realm's own goods land, and a kit id the realm DOES name keeps its figure.
+      assert((G.inventory.maple_log || 0) === 7027 && (G.inventory.cooked_shrimp || 0) === 20,
+        'the realm\'s own bag must land untouched: ' + JSON.stringify(G.inventory));
+      // (b) THE BUG: the two seeds the realm has no row for are GONE, not ratcheted.
+      assert(!G.inventory.turnip_seed && !G.inventory.carrot_seed,
+        'THE BUG: the start-kit hint survived the realm\'s own complete statement of the bag, so the grid paints '
+        + 'seeds hr_farm_plant refuses: '
+        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed, carrot_seed: G.inventory.carrot_seed }));
+      // (c) ONCE PER LOAD: a LATER envelope leaves the merge rule (never delete) in charge.
+      G.inventory.turnip_seed = 5;
+      A.applyEnvelopeState(G, { state: {}, inventory: { maple_log: 7027 }, inventory_complete: true });
+      assert((G.inventory.turnip_seed || 0) === 5,
+        'after the discard the merge rule owns the bag again -- a seed bought since must not be deleted by an '
+        + 'envelope that merely omits it: ' + JSON.stringify(G.inventory.turnip_seed));
+    } finally {
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      if (hintWas === undefined) delete G._startKitHintAt; else G._startKitHintAt = hintWas;
+      restoreG(snap);
+    }
+  }),
+
+  /* START-KIT-2: the half that protects real progress. The discard is scoped to a
+     figure that is still EXACTLY the hint; a player who has PLAYED holds a number
+     the client did not invent, and the merge rule (never delete, never lower) still
+     owns it. Without that scope the block would be a bag-wide absolute replace --
+     the Phase-2 inventory flip, which is a different lane and a different decision. */
+  () => tryRun('START-KIT-2: a start-kit id the player has played is left to the merge rule', () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.applyEnvelopeState !== 'function') return;
+    const G = window.G, snap = snapshotG(), bagWas = G._serverBag, hintWas = G._startKitHintAt;
+    try {
+      G.inventory = { turnip_seed: 7, carrot_seed: 3 };   // 7 != the hint's 5 -- somebody bought seeds
+      delete G._serverBag; delete G._startKitHintAt;
+      A.applyEnvelopeState(G, { state: {}, inventory: { maple_log: 1 }, inventory_complete: true });
+      assert((G.inventory.turnip_seed || 0) === 7 && !G.inventory.carrot_seed,
+        'a TOUCHED figure must survive (7) while the untouched hint (3 carrot seeds) is discarded: '
+        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed, carrot_seed: G.inventory.carrot_seed }));
+    } finally {
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      if (hintWas === undefined) delete G._startKitHintAt; else G._startKitHintAt = hintWas;
+      restoreG(snap);
+    }
+  }),
+
   () => tryRun('WAVE6: a weekly boss exists and pays a bigger bonus than the daily', () => {
     const B = window.HearthriseBossOfDay;
     if (!B || typeof B.weeklyId !== 'function' || !window.MONSTERS) return;
@@ -40587,8 +40661,8 @@ const TESTS = [
        (1.0 unperked, up to 2.0 at The Deep Cellar), and hr_state_of projects it as
        `scale`. The minutes are already inside `until`, so the client's only job is to
        SAY SO. Two ways to get that wrong, both red below:
-         · price the line from G.rooms — a client authoring a buff clock (the wall-clock
-           ruling) and residue-ahead by construction, because a rung bought
+         · price the line from G.rooms — a client authoring a buff clock (the
+           wall-clock ruling) and residue-ahead by construction, because a rung bought
            between two helpings would relabel a segment stamped at the old scale;
          · treat a MISSING field as 1.0-with-a-line, which would have every pre-migration
            segment brag about a Cellar that did not pay it.

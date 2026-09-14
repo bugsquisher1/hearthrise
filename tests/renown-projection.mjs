@@ -48,9 +48,19 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay, chainFiles } from './schema-replay.mjs';
+import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 
 const ROOT = new URL('../', import.meta.url);
 const MIG = '2026-09-12-renown-high-projection.sql';
+/* ── THE FINAL-BODY RULE (2026-09-14) ───────────────────────────────────────
+   This file's PROJECTION mutations edit hr_state_of, which 2026-09-12-renown-
+   high-projection.sql still owns. Its RATCHET mutations edit hr_apply, and
+   hr_apply is now RESTATED WHOLE by a later file — so planting them in MIG
+   mutates a draft the restatement overwrites, and the arm is vacuous. They
+   carry `file: MIG_APPLY` and are planted where the live text lives. The four
+   anchors below (SOURCE/WHERE/JOURNAL/GUARDED) appear EXACTLY ONCE in that file,
+   which is what bootReplay demands and what makes the re-point safe. */
+const MIG_APPLY = HR_APPLY_FINAL;
 const UID = '000000d8-0000-0000-0000-0000000000d8';
 
 /* ── THE GATE-BLIND PAIR ───────────────────────────────────────────────────
@@ -113,6 +123,7 @@ const MUTATIONS = {
     repl: `  c_anchor constant text := $anc$'streak_days', v_st.streak_days,$anc$;`,
   },
   ratchet_never_fires: {
+    file: MIG_APPLY,
     by: 'R1',
     why: 'the raise-only predicate is made unsatisfiable, so the cached column only ever moves when '
        + 'a player clicks Claim — the projection is honest and permanently stale, which is the '
@@ -121,6 +132,7 @@ const MUTATIONS = {
     repl: '           and false',
   },
   ratchet_reads_client_counter: {
+    file: MIG_APPLY,
     by: 'R1',
     why: 'the high-water is sourced from the raw lifetime kill counter instead of hr_renown_of — a '
        + 'number hr_credit_kills writes on a CLIENT claim. The cached figure stops being the score '
@@ -132,6 +144,7 @@ const MUTATIONS = {
                                      and key = 'ev:kill_any'), 0) as v) r`,
   },
   ratchet_banks_credited_kills: {
+    file: MIG_APPLY,
     by: 'R4',
     why: 'the ratchet adds the client-credited kill count back on top of the discounted score. The '
        + 'first settle still matches (nothing credited yet), so only the credit test sees it — and '
@@ -145,6 +158,7 @@ const MUTATIONS = {
                                     and key = 'ev:kill_credited_any'), 0) as v) r`,
   },
   ratchet_not_monotonic: {
+    file: MIG_APPLY,
     by: 'R5',
     why: 'the raise-only `<` becomes `<>`, so the cached figure follows the LIVE score DOWN. '
        + 'Spending gold or breaking a streak would then demote a rank the player earned — the exact '
@@ -153,6 +167,7 @@ const MUTATIONS = {
     repl: '           and coalesce(ps.renown_high, 0) <> r.v',
   },
   journal_on_every_apply: {
+    file: MIG_APPLY,
     by: 'R6',
     why: 'C2 REGRESSED INTO A PER-TICK LOG: `<` becomes `<=`, so a settle that raised NOTHING still '
        + 'matches, `found` is true and a ledger row is written on every apply. The value stays '
@@ -162,6 +177,7 @@ const MUTATIONS = {
     repl: '           and coalesce(ps.renown_high, 0) <= r.v',
   },
   raise_not_journalled: {
+    file: MIG_APPLY,
     by: 'R6',
     why: 'C2 REMOVED: a raise of the rank authority is written with no audit row, so an inflation is '
        + 'undetectable and — because nothing anywhere lowers renown_high — irreversible, while '
@@ -175,6 +191,7 @@ const MUTATIONS = {
         end if;`,
   },
   ratchet_unprotected: {
+    file: MIG_APPLY,
     by: 'R7',
     why: 'C1 REMOVED: the ratchet loses its own subtransaction, so ANY raise inside hr_renown_of '
        + '(it casts `streak_days` off a by-name whole-row read of a column Slice 3 owns) lands in '
@@ -235,8 +252,12 @@ async function laterChainBlinds(mutate) {
   const markers = blindMarkers(MUTATIONS[mutate]);
   if (!markers.length) return [];
   const files = await chainFiles();
-  const at = files.findIndex(([n]) => n === MIG);
-  if (at < 0) { const e = new Error(`${MIG} is not in the apply chain`); e.harness = true; throw e; }
+  /* "Later" is later than the file the DEFECT is planted in, not later than MIG:
+     a ratchet arm now plants into the restatement at the END of the chain, where
+     there is nothing downstream left to blind. */
+  const owner = MUTATIONS[mutate].file || MIG;
+  const at = files.findIndex(([n]) => n === owner);
+  if (at < 0) { const e = new Error(`${owner} is not in the apply chain`); e.harness = true; throw e; }
   const out = [];
   for (const [name, path] of files.slice(at + 1)) {
     const sql = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
@@ -296,18 +317,23 @@ const DOWNSTREAM_SELF_CHECK_BLINDS = [
 ];
 
 async function boot(mutate, gateBlind, extra) {
-  const pairs = [];
-  if (mutate) pairs.push([MUTATIONS[mutate].find, MUTATIONS[mutate].repl]);
-  if (extra) pairs.push([extra.find, extra.repl]);
-  if (gateBlind) pairs.push(GATE_BLIND);
-  if (!pairs.length) { const { db } = await bootReplay(); return db; }
-  const patches = new Map([[MIG, pairs]]);
+  const patches = new Map();
+  /* CONCAT, never `set` over: one file may owe BOTH a named self-check blind and
+     a marker-derived gate blind, and replacing the list would silently drop
+     whichever ran second. */
+  const add = (name, list) => patches.set(name, (patches.get(name) || []).concat(list));
+  /* The mutation goes into the file that owns the LIVE text (see MIG_APPLY);
+     `extra` and GATE_BLIND are always MIG's own text. */
+  if (mutate) add(MUTATIONS[mutate].file || MIG, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]);
+  if (extra) add(MIG, [[extra.find, extra.repl]]);
+  if (gateBlind) add(MIG, [GATE_BLIND]);
+  if (!patches.size) { const { db } = await bootReplay(); return db; }
   if (gateBlind && mutate) {
-    /* CONCAT, never `set` over: one downstream file may owe BOTH a named
-       self-check blind and a marker-derived gate blind, and replacing the list
-       would silently drop whichever ran second. */
-    const add = (name, list) => patches.set(name, (patches.get(name) || []).concat(list));
     for (const [name, list] of DOWNSTREAM_SELF_CHECK_BLINDS) add(name, list.map((p) => p.slice()));
+    /* A mutation planted in the restatement makes the restatement's OWN §3 pin
+       raise — correctly, and at apply time, which is a MIGRATION gate rather
+       than this guard's tick. Blind it here, only in gate-blind mode. */
+    if ((MUTATIONS[mutate].file || MIG) === MIG_APPLY) add(MIG_APPLY, [HR_APPLY_S3_BLIND.slice()]);
     for (const [name, list] of await laterChainBlinds(mutate)) add(name, list);
   }
   const { db } = await bootReplay({ patches });

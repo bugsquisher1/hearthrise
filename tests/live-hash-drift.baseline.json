@@ -24,7 +24,7 @@
   },
   "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
   "live_measured": "2026-09-14",
-  "replay_ms": 9776,
+  "replay_ms": 1146,
   "counts": {
     "tracked_names": 52,
     "entries": 50
@@ -659,8 +659,8 @@
         "2026-09-14-rejection-field-detail.sql"
       ],
       "live": {
-        "md5": "6757d53e95f3aa85868c897f80bf2bbe",
-        "norm_len": 1986,
+        "md5": "807506a8f149cc089f0716a30d80034a",
+        "norm_len": 2139,
         "measured": "2026-09-14",
         "source": "measured-live"
       },
@@ -669,8 +669,8 @@
         "norm_len": 2139,
         "source": "computed-from-replay"
       },
-      "agree": false,
-      "why": "2026-09-14 15:40 UTC: DELIBERATELY DIVERGENT — 2026-09-14-rejection-field-detail.sql is STAGED, NOT APPLIED (one anchored splice: the seam journals the refused key as why/field so forbidden_field refusals are diagnosable). Production runs the 2026-09-11 body. Apply after Security GO and BEFORE 2026-09-14-client-state-projection-denylist.sql; re-measure then."
+      "agree": true,
+      "why": "2026-09-14 16:25 UTC: 2026-09-14-rejection-field-detail.sql APPLIED (one anchored splice: forbidden_field refusals journal why/field, non-printables stripped). live == replay 807506a8 (agree)."
     },
     {
       "sig": "hr_perks_of(p_user uuid, p_slot integer)",

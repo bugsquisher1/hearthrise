@@ -1783,6 +1783,23 @@ jobs:
           node tests/patch-chain-guard.mjs --selftest
           node tests/patch-chain-guard.mjs --report
 
+      # …AND THE RESTATEMENT THAT PAID hr_apply's CHAIN DOWN KEEPS ITS PINS. A
+      # restatement is the one migration shape that can silently DISCARD work: it
+      # overwrites a body wholesale, so if production has drifted the drift
+      # vanishes with no error. 2026-09-14-hr-apply-restatement.sql answers that
+      # with two assertions — §0 refuses to run over a body it cannot name, §3(a)
+      # sweeps one derived section-unique marker per section of the COMMENT-
+      # STRIPPED text — and this is their mutation proof (Security C1/C2). It also
+      # holds the FINAL-BODY constants tests/buff-queue.mjs, renown-projection.mjs
+      # and away-receipt-journal.mjs import to find the file that owns the live
+      # text, so a stale blind anchor fails here rather than making their arms
+      # vacuous. Replays the chain in PGlite; no credential.
+      - name: hr_apply final body — the restatement's pins still bite
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hr-apply-final-body.mjs
+          node tests/hr-apply-final-body.mjs --selftest
+
       # THE SUITE MAY GROW; THE COST PER TEST MAY NOT. smoke-test.js tripled in
       # four weeks. Ratchets lines-per-test and direct-G.*-seeds-per-test, with a
       # FLOOR under the test count so the ratios cannot be satisfied by deleting

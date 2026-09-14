@@ -165,19 +165,25 @@
 --   2530  ONE EXCEPTION: A VERSION CONFLICT RELEASES THE KEY (b346)           2026-08-15-intent-key-hygiene.sql
 --   2573  (6) THE REJECTION RECORD (review R4). Also outside the protected b  2026-08-11-apply-engine.sql
 --
--- ── §0 PREFLIGHT · §1 THE RESTATEMENT · §2 GRANTS · §3 SELF-CHECK (§4) ──────
--- ════════════════════════════════════════════════════════════════════════════
-
 -- ── §0 PREFLIGHT — WHAT ARE WE REPLACING, AND ARE THE TWO REMOVALS DEAD? ────
 -- A restatement is the one migration shape that can silently DISCARD work: it
 -- overwrites a body wholesale, so if production had drifted from the chain — a
 -- hotfix, a patch applied out of order, a file this branch has not seen — the
 -- drift would vanish without a trace and without an error. So this file refuses
--- to run unless the body it is about to replace is the one it was cut from.
+-- to run unless the body it is about to replace is one of exactly TWO bodies it
+-- can name: its PREDECESSOR, or the body it installs itself (a re-apply).
 --
--- The pin is the CODE hash, so the live body's comment-byte carry-over (see the
--- header) passes and any executable difference does not. If this block ever
--- raises, do NOT edit the constant: re-derive the restatement from the chain
+-- ⚠ THE RE-APPLY BRANCH KEYS ON THE HASH, NOT ON A BANNER (Security C2,
+--   2026-09-14). The first draft skipped the pin whenever the installed text
+--   carried this file's banner comment — which a future anchored patch would
+--   leave intact while changing the code underneath it, so a re-apply would have
+--   silently discarded that patch: exactly the failure the pin exists to stop,
+--   reintroduced through its own escape hatch. Now the skip requires the
+--   installed CODE to equal what this file installs, and anything else raises.
+--
+-- Both pins are over CODE (comments stripped), so the live body's comment-byte
+-- carry-over passes and any executable difference does not. If this block ever
+-- raises, do NOT edit a constant: re-derive the restatement from the chain
 -- (`node tests/schema-replay.mjs` + pg_get_functiondef) and review the diff.
 --
 -- The second half of the block is the dead-code proof. It is executed, not
@@ -192,37 +198,39 @@ declare
   c_sig  constant text := 'public.hr_apply(uuid,int,bigint,uuid,jsonb)';
   -- The body at chain end (= production, code-identically) on 2026-09-14.
   c_code_before constant text := '3f0c3a95621d3132bebb85c2f16df333';
+  -- …and the body §1 installs. Kept in step with §3(a)'s constant by the
+  -- generator; a re-apply is recognised by THIS and by nothing else.
+  c_code_after  constant text := '820c455ab559cbdd8fe364d264e4260c';
 begin
   if to_regprocedure(c_sig) is null then
     raise exception 'hr-apply-restatement §0: hr_apply does not exist — this file RESTATES a body, it '
                     'does not create one. Apply the chain first (tests/schema-apply-order.json).';
   end if;
   v_def  := replace(pg_get_functiondef(c_sig::regprocedure), chr(13), '');
+  -- `--` never occurs inside a string literal in this body (verified over the
+  -- chain-end text before this file was cut), so a line-comment strip is exact.
+  v_code := btrim(regexp_replace(
+              regexp_replace(v_def, '--[^' || chr(10) || ']*', '', 'g'),
+              '[[:space:]]+', ' ', 'g'));
 
-  -- ALREADY RESTATED? Then this is a re-apply and there is nothing to compare
-  -- against: the pins below describe the PREDECESSOR, which is gone. Idempotent
-  -- by construction rather than by luck.
-  if strpos(v_def, 'hr_apply restated 2026-09-14') > 0 then
-    raise notice 'hr-apply-restatement §0: already restated — skipping the predecessor pin';
+  if md5(v_code) = c_code_after then
+    -- A RE-APPLY. The installed code IS what §1 installs, so there is no
+    -- predecessor left to pin and nothing to prove dead. Idempotent by hash.
+    raise notice 'hr-apply-restatement §0: already restated (code %) — re-applying is a no-op',
+                 c_code_after;
+  elsif md5(v_code) <> c_code_before then
+    raise exception 'hr-apply-restatement §0: the installed hr_apply is NEITHER the body this file was '
+                    'cut from (%) NOR the body it installs (%) — it is % (code length %). Something '
+                    'else has patched it. A restatement applied over a body it cannot name would '
+                    'DISCARD whatever made them differ. Re-derive the restatement from the chain '
+                    'instead of editing a constant.',
+                    c_code_before, c_code_after, md5(v_code), length(v_code);
   else
-    -- `--` never occurs inside a string literal in this body (verified over the
-    -- chain-end text before this file was cut, and re-verified by the length
-    -- assertion that follows), so a line-comment strip is exact.
-    v_code := btrim(regexp_replace(
-                regexp_replace(v_def, '--[^' || chr(10) || ']*', '', 'g'),
-                '[[:space:]]+', ' ', 'g'));
-    if md5(v_code) <> c_code_before then
-      raise exception 'hr-apply-restatement §0: the installed hr_apply is NOT the body this file was '
-                      'cut from (code md5 % , expected %, code length %). A restatement applied over a '
-                      'body it does not recognise would DISCARD whatever made them differ. Re-derive '
-                      'the restatement from the chain instead of editing this constant.',
-                      md5(v_code), c_code_before, length(v_code);
-    end if;
-
     if strpos(lower(v_code), 'execute ') > 0 then
       raise exception 'hr-apply-restatement §0: the body contains dynamic SQL — a textual count can no '
                       'longer prove a declaration is unread, so the two removals are not proven dead';
     end if;
+
     -- THE TWO REMOVALS, PROVEN DEAD BY EXECUTION.
     v_n := (length(v_code) - length(replace(v_code, 'c_max_hf_per_apply', ''))) / length('c_max_hf_per_apply');
     if v_n <> 1 then
@@ -2865,11 +2873,13 @@ grant  execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) to hr
 -- both, in this order:
 --
 --   (a) THE PIN AND THE SECTIONS. The installed body's CODE hash equals the
---       value this file says it installs, and one load-bearing marker per
---       delta-key section is present. The pin is the strong half: it is a
---       statement about the whole body, not about forty-odd strings.
---   (b) REACHABILITY. No client role can execute hr_apply. Without this, every
---       assertion below is decoration.
+--       value this file says it installs, and one DERIVED, section-unique marker
+--       per section is present IN THE COMMENT-STRIPPED TEXT. The pin is the
+--       strong half — it is a statement about the whole body, not about forty-odd
+--       strings — and the markers are what names the section that went missing.
+--   (b) REACHABILITY AND IDENTITY. No client role can execute hr_apply, hr_engine
+--       still can, and the body is still owned by postgres — SECURITY DEFINER
+--       runs as its owner. Without this, every assertion below is decoration.
 --   (c) THE TWO REMOVALS are gone, and the prose that replaced them is not.
 --   (d)-(l) A REPRESENTATIVE DELTA OF EVERY KIND, driven at the restated body
 --       inside a subtransaction discarded by a sentinel raise (HR841), so the
@@ -2895,44 +2905,104 @@ declare
   -- The body THIS FILE installs, comment-stripped. Its predecessor's is pinned
   -- in §0; the two differ by the two dead declarations and by comments only.
   c_code_after constant text := '820c455ab559cbdd8fe364d264e4260c';
-  -- One marker per delta-key section, in execution order. Each is a string that
-  -- CANNOT survive the deletion of the section that owns it.
+  -- ── §3(a)'s MARKERS (Security C1, 2026-09-14) ────────────────────────────
+  -- ONE PER SECTION OF THE BODY, in execution order, DERIVED rather than typed:
+  -- each is the first executable line inside its section whose normalised form
+  -- occurs EXACTLY ONCE in the whole comment-stripped body. Both halves are
+  -- load-bearing. A marker that lives in a COMMENT cannot detect the deletion of
+  -- the code it describes, and a marker that also occurs in another section
+  -- survives that section's deletion — the hand-typed first draft had both
+  -- faults (`hr_rate_gate` occurred nowhere at all; the body calls hr_rate_ok).
+  -- They are matched against v_code, the comment-STRIPPED text, for the same
+  -- reason. Regenerated with the body, so the list cannot rot behind it.
   c_markers constant text[] := array[
-    'hr_apply restated 2026-09-14',                      -- the restatement itself
-    $q$'error', 'unknown_delta_key'$q$,                  -- (0) the identity seam
-    'hr_rate_gate',                                      -- (1) rate limit
-    'pg_advisory_xact_lock',                             -- (2) serialise
-    'player_intents',                                    -- (3) idempotency
-    $q$hr_reject('version_conflict'$q$,                  -- (4) optimistic concurrency
-    $q$hr_reject('insufficient_gold'$q$,                 -- gold
-    $q$hr_reject('insufficient_gems'$q$,                 -- gems
-    $q$hr_reject('insufficient_item'$q$,                 -- items
-    $q$hr_reject('xp_clamp'$q$,                          -- xp
-    $q$hr_reject('unknown_equip_slot'$q$,                -- equipment
-    $q$hr_reject('bad_enchant'$q$,                       -- enchanting
-    $q$hr_reject('bank_full'$q$,                         -- bank cap
-    $q$hr_reject('unknown_crop'$q$,                      -- farm
-    $q$hr_reject('bad_progress_kind'$q$,                 -- progress
-    $q$hr_reject('not_claimable'$q$,                     -- progress claim
-    $q$hr_reject('unknown_activity'$q$,                  -- activity
-    $q$hr_reject('bad_tool_carry'$q$,                    -- (4a-ii) tool carry
-    $q$hr_reject('bad_fight_kills'$q$,                   -- (4a-iii) in-flight fight
-    $q$hr_reject('bad_worker_carry'$q$,                  -- (4a-iv) hired workers
-    $q$hr_reject('bad_recovering'$q$,                    -- (4a-v) recovery line
-    $q$hr_reject('bad_deaths'$q$,                        -- (4a-d) death ledger
-    $q$hr_reject('bad_receipt'$q$,                       -- (4a-r) away receipt
-    $q$hr_reject('bad_consec_falls'$q$,                  -- (4a-c) retreat counter
-    $q$hr_reject('bad_hearthfind'$q$,                    -- (4a-h) hearthfind
-    $q$hr_reject('bad_buff_shape'$q$,                    -- (4a-b) consumable buffs
-    'buff_not_paid',                                     -- (4a-b2) the buff is paid for
-    'c_buff_scale_max constant numeric := 2;',           -- the cellar
-    'c_buff_max_segments constant int := 8;',            -- the segment budget
-    $q$hr_reject('daily_budget'$q$,                      -- (4b) the daily gem budget
-    'v_accrued := least(now(), greatest(',               -- accrual watermark
-    'streak',                                            -- (4c) the settle streak
-    'player_ledger',                                     -- the journal
-    'hr_renown_of',                                      -- the renown ratchet
-    'hr_record_rejection'];                              -- (6) the rejection record
+      -- WHAT THESE CLAMPS ACTUALLY BUY, STATED HONESTLY (Security, 2026-08-1
+    'c_max_gold_delta constant bigint := 50000000;',
+      -- (0) THE IDENTITY SEAM (review S1)
+    'v_role := coalesce(nullif(current_setting(''role'', true), ''none''), session_user);',
+      -- (1) Rate limit. OUTSIDE the protected block on purpose: a rejected c
+    'if not public.hr_rate_ok(v_uid, ''apply'', 240, interval ''1 minute'') then',
+      -- (2) Serialise this character. hashtextextended over user+slot; the l
+    'perform pg_advisory_xact_lock(hashtextextended(v_uid::text || '':'' || v_slot::text, 0));',
+      -- (3) IDEMPOTENCY (review S8). Under the lock, so the check and the cl
+    'v_this_intent := p_delta #>> ''{journal,intent}'';',
+      -- ONE NAMESPACE, TWO KINDS OF KEY (review S6)
+    'select result, intent, slot into v_prev, v_prev_intent, v_prev_slot',
+      -- AND A REPLAY MUST BE A REPLAY ON THE SAME CHARACTER (b346)
+    'if v_prev_intent is distinct from v_this_intent',
+      -- THE PROTECTED BLOCK
+    'select * into v_st from public.player_state',
+      -- (4) OPTIMISTIC CONCURRENCY — MANDATORY (review S9). Revision 1 skipp
+    'if p_version is null or p_version <> v_st.version then',
+      -- GOLD
+    'v_new_gold := v_st.gold;',
+      -- GEMS (review S5)
+    'v_new_gems := v_st.gems;',
+      -- ITEMS ─ the delta is signed; a spend and a gain are the same code ─
+    'if p_delta ? ''items'' then',
+      -- XP ─ monotonic. A negative XP delta is a caller bug, and accepting o
+    'if jsonb_typeof(p_delta->''xp'') <> ''object'' then perform public.hr_reject(''bad_xp''); end if;',
+      -- EQUIPMENT (review S4)
+    'if p_delta ? ''equip'' then',
+      -- ENCHANTING (ELEMENTS v1)
+    'if p_delta ? ''enchant'' then',
+      -- BANK CAP ─ counted once, AFTER items and equipment, because both can
+    'if (p_delta ? ''items'') or (p_delta ? ''equip'') then',
+      -- FARM ─ planting stamps the SERVER clock. `planted_at` can never be
+    'if p_delta ? ''farm'' then',
+      -- PROGRESS (review S13)
+    'if p_delta ? ''progress'' then',
+      -- PROGRESS CLAIM ─ the only path to 'claimed', and it requires the row
+    'if p_delta ? ''progress_claim'' then',
+      -- ACTIVITY
+    'v_act := p_delta->''activity'';',
+      -- (4a-ii) THE GATHERING TOOL CARRY (b348)
+    'if p_delta ? ''tool_carry'' then',
+      -- (4a-iii) THE IN-FLIGHT FIGHT (Phase 0)
+    'if p_delta ? ''fight'' then',
+      -- (4a-iv) HIRED-WORKER PRODUCTION (worker-settlement slice)
+    'if p_delta ? ''recovering_until'' then',
+      -- (4a-v) THE RECOVERY LINE (First-Night Idle Rescue). A death interrup
+    'if jsonb_typeof(p_delta->''recovering_until'') = ''null'' then',
+      -- (4a-d) THE DEATH LEDGER (rev. 2, N3). SHAPE ONLY, and refused rather
+    'if jsonb_typeof(p_delta->''deaths'') <> ''array'' then',
+      -- (4a-r) THE LAST AWAY-CLASSIFIED RECEIPT (2026-09-07 ruling).
+    'if p_delta ? ''last_away_receipt'' then',
+      -- (4a-c) THE RETREAT COUNTER (Recovery rev. 3). Consecutive falls with
+    'if p_delta ? ''consec_falls'' then',
+      -- (4a-h) THE HEARTHFIND. Shape first, then the catalogue, then the pai
+    'v_hf := p_delta->''hearthfind'';',
+      -- (4a-h2) THE ONE DOOR. A hearthfind trophy may NOT be minted through 
+    'if p_delta ? ''items'' and jsonb_typeof(p_delta->''items'') = ''object'' then',
+      -- (4a-b) CONSUMABLE BUFFS
+    'if p_delta ? ''buff_apply'' then',
+      -- (4a-b2) THE BUFF MUST BE PAID FOR (F3, Security 2026-09-13)
+    'if coalesce(jsonb_typeof(p_delta->''items''), '''') <> ''object''',
+      -- THE CELLAR (2026-09-13 step 3)
+    'select coalesce(max(u.level), 0) into v_buff_rung',
+      -- (4b) THE LEDGER-DERIVED DAILY BUDGET (C5 / X3)
+    'v_gold_in := greatest(0, coalesce((p_delta->>''gold'')::bigint, 0));',
+      -- ACCRUAL WATERMARK (review S19)
+    'v_accrued := v_st.accrued_to;',
+      -- S5 (HALF) — AN EQUIPMENT OR ACTIVITY CHANGE CLOSES THE WINDOW
+    'if p_delta ? ''equip'' or p_delta ? ''activity'' or p_delta ? ''enchant'' then',
+      -- (4c) THE DAILY SETTLE STREAK (Slice 3)
+    'v_streak_day := v_st.streak_day_key;',
+      -- THE VOID (Phase 0) — the SECOND, INDEPENDENT half of the rule
+    'and fight <> ''{}''::jsonb',
+      -- JOURNAL ─ ONE row per apply. Per-item rows would multiply the write
+    'v_j := coalesce(p_delta->''journal'', ''{}''::jsonb);',
+      -- (0) THE DISCARD, JOURNALLED. If the engine rolled more than one find
+    'if coalesce(v_hf_drop, 0) > 0 then',
+      -- THE SERVER'S COUNTED RENOWN, RATCHETED HERE (2026-09-12)
+    'update public.player_state ps',
+      -- (5) Record the DECISION under the idempotency key. This statement is
+    'and coalesce(v_out->>''ok'', ''false'') <> ''true''',
+      -- ONE EXCEPTION: A VERSION CONFLICT RELEASES THE KEY (b346)
+    'and v_out->>''error'' = any (c_release_codes) then',
+      -- (6) THE REJECTION RECORD (review R4). Also outside the protected blo
+    'if coalesce(v_out->>''ok'', ''false'') <> ''true'' then'
+  ];
 begin
   v_def  := replace(pg_get_functiondef(c_sig::regprocedure), chr(13), '');
   v_code := btrim(regexp_replace(
@@ -2946,11 +3016,18 @@ begin
                     md5(v_code), c_code_after;
   end if;
   foreach v_item in array c_markers loop
-    if strpos(v_def, v_item) = 0 then v_missing := v_missing || v_item || ' | '; end if;
+    -- v_code, NOT v_def: a comment is not evidence that code exists.
+    if strpos(v_code, v_item) = 0 then v_missing := v_missing || v_item || ' | '; end if;
   end loop;
   if v_missing <> '' then
     raise exception 'hr-apply-restatement §3(a): the restatement DROPPED a section — missing marker(s): %',
                     v_missing;
+  end if;
+  -- The banner is a COMMENT and is checked as one, against the raw text. It is
+  -- what a future author meets before reaching for replace()-and-execute again;
+  -- it proves nothing about behaviour and is deliberately not in the array.
+  if strpos(v_def, 'hr_apply restated 2026-09-14') = 0 then
+    raise exception 'hr-apply-restatement §3(a): the restatement banner is gone from the installed body';
   end if;
 
   -- ── (b) REACHABILITY ────────────────────────────────────────────────────
@@ -2962,6 +3039,14 @@ begin
   if not has_function_privilege('hr_engine', c_sig, 'execute') then
     raise exception 'hr-apply-restatement §3(b): hr_engine cannot execute the apply engine — the '
                     'restatement would have taken the game offline';
+  end if;
+  -- THE OWNER, because SECURITY DEFINER runs AS the owner: a body restated under
+  -- a different role would execute with that role's privileges, and every RLS
+  -- policy and every grant below it would be answering a different question.
+  select pg_get_userbyid(p.proowner) into v_item from pg_proc p where p.oid = c_sig::regprocedure;
+  if v_item is distinct from 'postgres' then
+    raise exception 'hr-apply-restatement §3(b): hr_apply is owned by % — a SECURITY DEFINER body runs '
+                    'as its owner, so the restatement changed who the engine IS', v_item;
   end if;
 
   -- ── (c) THE TWO REMOVALS ────────────────────────────────────────────────

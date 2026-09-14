@@ -3177,3 +3177,46 @@ HEAD` export (this branch WITHOUT the fix) gave `224/225, failed 0`; a re-run on
 and sample the loot ledger, so leftover fight state from an earlier test is the likely source.
 Reported rather than pocketed: by CLAUDE.md section 4 a flake is a P1 to be fixed at its source, and
 re-running until green is exactly what that rule forbids. Nothing in 94c6d401 touches the ledger.
+
+---
+
+## 2026-09-14 — QA, lane `no-client-copy-of-projection`: what the new guard found on today's tree
+
+The guard asks the REPLAYED `hr_state_of` for its real key set (26 top-level + 36 `state`) and maps
+every key to the client field and the reader that owns it. Four projections had no honest client
+half. Executed evidence, not inference — `bootReplay()` + `select public.hr_state_of(...)`.
+
+**P1 (FIXED IN THIS LANE) — the weapon enchant was never adopted from an envelope.**
+`hr_state_of` builds `'enchant', coalesce(v_st.enchant,'{}')` as a SIBLING of `'state'`, and
+`hr_apply` returns `hr_state_of`'s envelope verbatim. `applyEnvelopeState` (src/net/accrue.js) read
+`res.state.enchant`, which is `undefined` on every envelope the game has ever applied — so the block
+never ran. `G.enchant` is not on `RESIDUE_FIELDS`, so the enchant a player paid runes for vanished
+from the browser on the next reload while the server kept computing away combat with it: the badge
+disappears and `equipmentStats()` predicts damage the realm does not agree with. §6, exactly.
+Regression: ELEM-5b (proved red against the old read, green with the fix). `enchant` also added to
+`snapshotG` — ELEM-5 has been assigning it with no restore.
+
+**P2 (route: the recipe-learn lane, client half) — `unlocked_recipes` is projected and read by
+NOTHING.** Landed 2026-09-14 (`hr_recipes_of`). `legacy.js gateOk()` and `recipe-book.js` still gate
+the craft on the residue copy `G.unlockedRecipes` (13 raw reads, now ratcheted). Residue-ahead: the
+realm can learn a recipe the browser keeps locked, and the browser can offer one the realm refuses.
+
+**P2 (route: the gem-unlock-buy lane, client half) — `reconcileGemUnlocks` does not exist.**
+`legacy.js` documents it by name as what lands `G._gemUnlocks`; no such function is in `src/`. So
+`ownsGemUnlock()` falls back to the residue (`ownedThemes`/`ownedCosmetics`) forever and the
+projection that landed today is unread. (The grandfather-seeding warning in `src/net/gem-sites.js`
+still applies the day it IS read.)
+
+**P3 (route: systems-engineer) — `state.tool_carry` is projected and unread.** `G.toolCarry` is a
+client-owned fractional gather carry a reload rewinds while the server holds its own. Bounded < 1
+item per tool by construction, so P3, not P1.
+
+All four are pinned: the guard's OWED list is a ratchet at 3 and may only fall, and every raw
+`G.<field>` read of a split field in `src/render`, `src/features` and `src/legacy.js` is counted
+(streak 26, unlockedRecipes 13, toolCarry 5, autoActions 5 ...) and may only fall. A NEW projection
+without a client reader is red on the day the migration is written.
+
+**Not ruled out:** the raw-read ratchet excludes each reader's OWN module, so `ownedThemes` /
+`renownHigh` pin at 0 only because `legacy.js` / `renown.js` are their reader files. And
+`streak-chip.js` still ADVANCES `G.streak.count` on a client clock — the guard freezes the read
+count, it does not yet forbid the client-authored write.

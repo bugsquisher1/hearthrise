@@ -1455,6 +1455,13 @@ const snapshotG = () => {
     // suite run would hand the player free offline hours, or leave a
     // future-dated watermark that silently stops offline progress accruing.
     offlineBudget: G.offlineBudget,
+    /* 2026-09-14 — `enchant` was missing from this allowlist while ELEM-5 and
+       ELEM-5b both assign it, so a suite run in the LIVE page left the player
+       wearing whichever element the last arm forged until the next envelope.
+       NO `?? {}`: an un-enchanted character has NO enchant, and a pinned empty
+       object is a VALUE a later test would read as real state — sealSnapshot
+       records the absence and restoreG deletes the key back (SNAP-2b). */
+    enchant: G.enchant,
     renownHigh: G.renownHigh,
     /* b494 — AND THE CLAIM LIST WITH IT. `renownHigh` was snapshotted and
        `renown` ({claimed, seenRank}) was not, yet four tests assign
@@ -58749,6 +58756,34 @@ const TESTS = [
         window.fetch = realFetch; E.resetEnchant();
       }
     })();
+  }),
+
+  /* ── REGRESSION (2026-09-14) — THE ENCHANT IS A TOP-LEVEL ENVELOPE KEY ─────
+     hr_state_of builds `'enchant', coalesce(v_st.enchant,'{}')` as a SIBLING of
+     `'state'` (executed against the replayed chain, not read off a comment), and
+     hr_apply returns hr_state_of's envelope verbatim. applyEnvelopeState read
+     `res.state.enchant`, which is `undefined` on every envelope the game has ever
+     applied — so the block never ran, and since `G.enchant` is not on
+     RESIDUE_FIELDS the enchant the player paid for vanished from the browser on
+     the next reload while the server kept computing away combat with it.
+     This fails without the fix: `top` is the shape the realm actually sends. */
+  () => tryRun('ELEM-5b: the envelope\'s TOP-LEVEL enchant is adopted (regression: state.enchant was never there)', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'the envelope seam is missing');
+    const G = window.G; const snap = snapshotG();
+    try {
+      G.enchant = {};
+      A.applyEnvelopeState(G, { ok: true, version: 2, enchant: { weapon: 'frost' }, state: { slot: 0 } });
+      assert(G.enchant && G.enchant.weapon === 'frost',
+        'a top-level `enchant` on the envelope must be adopted, got ' + JSON.stringify(G.enchant));
+      /* The server clearing it (an equip changed the weapon) must clear the client. */
+      A.applyEnvelopeState(G, { ok: true, version: 3, enchant: {}, state: { slot: 0 } });
+      assert(!(G.enchant && G.enchant.weapon), 'an empty server enchant must clear the client copy, got ' + JSON.stringify(G.enchant));
+      /* ABSENCE IS NOT A CLAIM — an envelope with no enchant key leaves it alone. */
+      G.enchant = { weapon: 'ember' };
+      A.applyEnvelopeState(G, { ok: true, version: 4, state: { slot: 0 } });
+      assert(G.enchant.weapon === 'ember', 'an envelope carrying no enchant key must not clear it');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('ELEM-5: changing the weapon clears the enchant (client reflect of the cross-verb coupling)', () => {

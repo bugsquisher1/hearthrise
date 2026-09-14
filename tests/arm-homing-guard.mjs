@@ -43,7 +43,7 @@ const mod = (p) => new URL(p, ROOT).href;
    nothing) exists only to prove a retired field grants nothing. Scanning it
    would make the guard fail on test scaffolding. Every field the GAME persists
    is written by the GAME, so excluding the harness costs no coverage. */
-const CENSUS_SKIP = new Set(['src/features/smoke-test.js']);
+const CENSUS_SKIP = (rel) => rel === 'src/features/smoke-test.js' || rel.startsWith('src/features/smoke/');
 
 /* ── THE Object.assign(G, <expr>) ALLOWLIST — known blob-splat LOAD/MIGRATION
    paths (b486). A plain `G.field =` regex is BLIND to a whole-object splat like
@@ -156,7 +156,7 @@ async function scanGFieldWrites() {
     for (const e of entries) {
       const child = rel + e.name + (e.isDirectory() ? '/' : '');
       if (e.isDirectory()) await walk(child);
-      else if (e.name.endsWith('.js') && !CENSUS_SKIP.has(child)) files.push(child);
+      else if (e.name.endsWith('.js') && !CENSUS_SKIP(child)) files.push(child);
     }
   }
   await walk('src/');

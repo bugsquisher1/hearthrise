@@ -129,6 +129,7 @@ export const DIRECT_ALLOWED = [
 /* Files/dirs never scanned, each with the reason (see the header). */
 export const EXCLUDED = [
   'src/features/smoke-test.js',   // the suite drives addXp to assert on it
+  'src/features/smoke/',          // …and its domain modules, since the 2026-09-14 split
   'src/core/',                    // pure, dual-runtime; takes an fx.addXp seam
 ];
 

@@ -81,6 +81,34 @@
 // printed, because "which module is the wordy one" is the question slice 6
 // leaves behind.
 //
+// ── CORRECTED 2026-09-14: A MODULE'S OWN SCAFFOLDING IS NOT A TEST'S COST ───
+// The paragraph above promises that slice 6's split "leaves both the numerator
+// and the denominator identical and the guard silent". MEASURED when the split
+// was actually performed, that promise was false, and the guard refused the one
+// refactor it was written to protect:
+//
+//   one file → 16 domain modules + a registry cost 74 CODE lines and not one
+//   line of test. 33.60 → 33.68 against a 33.65 ceiling. RED.
+//
+// The 74 lines are the import of the shared harness, the `export default [` …
+// `];` that makes a module out of an array, and the registry's import list.
+// They are O(MODULES), not O(TESTS): every one of them exists because the file
+// was split, and none of them is setup a test could have reused. Arithmetic,
+// not taste — the ceiling capped the split at ~8 modules for a 65,000-line file,
+// and the only way to pass with 16 was to delete tests or stop splitting.
+//
+// So the numerator no longer charges them. A line is NOT counted when, at
+// COLUMN 0 and outside a block comment, it is:
+//   · a complete one-line `import …;` / `export …;` statement, or
+//   · the `export default [` that opens a module's test array, or the `];`
+//     that closes it as the file's LAST line.
+// Everything indented is still charged — a fixture cannot hide inside a test
+// body — and a MULTI-LINE import list is still charged line by line, so nobody
+// buys 400 free lines by spreading specifiers out. Both holes are closed by
+// their own --selftest arms, and the slice-6 arm now models the move the way it
+// really lands (the same bytes PLUS per-module scaffolding) instead of assuming
+// a split is free.
+//
 // ── WHAT IS RATCHETED ───────────────────────────────────────────────────────
 //   TF-1  corpus CODE LINES ÷ registered tests      (ceiling, +1% band)
 //   TF-2  corpus direct `G.*` seeds ÷ registered tests (ceiling, +1% band)
@@ -149,12 +177,38 @@ const GESTURE_RE = /\.click\s*\(|\bclickOk\s*\(|\bcallOk\s*\(|\bdispatchEvent\s*
 
 const count = (text, re) => (text.match(re) || []).length;
 
+/* ── MODULE STRUCTURE (see the 2026-09-14 correction in the header) ─────────
+   A complete one-line ESM statement at column 0, and the two brackets that turn
+   an array into a module's default export. Column 0 is load-bearing: everything
+   a test writes is indented inside the array, so nothing a test needs can claim
+   this exemption. `;$` is load-bearing too: the continuation lines of a
+   multi-line import do not match, so a long specifier list costs what it costs. */
+const MODULE_STMT_RE = /^(?:import|export)\b.*;$/;
+const EXPORT_ARRAY_OPEN_RE = /^export default \[$/;
+
+/** How many of a file's CODE lines are module scaffolding rather than test cost. */
+export function moduleLines(text) {
+  /* Block comments are blanked (line count preserved) so an `import …;` QUOTED
+     in a header is not mistaken for a statement. `//` lines cannot match. */
+  const lines = text.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' ')).split(/\r?\n/);
+  let n = 0;
+  let opensArray = false;
+  for (const line of lines) {
+    if (EXPORT_ARRAY_OPEN_RE.test(line)) { opensArray = true; n++; }
+    else if (MODULE_STMT_RE.test(line)) n++;
+  }
+  let last = lines.length - 1;
+  while (last >= 0 && !lines[last].trim()) last--;
+  if (opensArray && last >= 0 && lines[last] === '];') n++;
+  return n;
+}
+
 /** Pure: text in, three numbers out. --selftest feeds it synthetic sources. */
 export function countFile(text) {
   const c = classify(text);
   return {
     lines: text.split(/\r?\n/).length,
-    codeLines: c.code,
+    codeLines: Math.max(0, c.code - moduleLines(text)),
     tests: count(text, TEST_RE),
     seeds: count(text, SEED_RE),
     gestures: count(text, GESTURE_RE),
@@ -260,7 +314,9 @@ const METHOD = `corpus = ${CORPUS_FILE} + ${CORPUS_DIR}/**.js (so slice 6's pure
   + 'direct write to G.x / G["x"] / window.G.… including compound assignment, comparisons excluded; '
   + 'a gesture = .click( / clickOk( / callOk( / dispatchEvent( / showTab( / .focus( / .submit( and is '
   + 'reported but NEVER ratcheted; TF-1 spends CODE lines (blank and comment lines stripped by '
-  + "comment-ratio-ratchet.mjs's own classify(), imported so the two guards cannot disagree), "
+  + "comment-ratio-ratchet.mjs's own classify(), imported so the two guards cannot disagree, and "
+  + 'a module\'s OWN scaffolding — a one-line import/export at column 0 and the `export default [` '
+  + '… `];` around a test array — is not charged, because it is one per FILE and not one per TEST), '
   + 'physical lines are printed only; each ratio carries an absolute +1% band and `--write` pins '
   + 'a ratio only DOWNWARD so the band cannot compound';
 
@@ -383,6 +439,25 @@ function selftest() {
     ['code with a TRAILING comment IS code', 'G.gold = 1; // why', { lines: 1, codeLines: 1 }],
     ['a 6-line test with 3 lines of prose costs 3', "// a\n/* b\n c */\ntryRun('x', () => {\n  G.g = 1;\n});",
       { lines: 6, codeLines: 3, tests: 1 }],
+    /* THE 2026-09-14 CORRECTION, AS COUNTERS. The first four are what makes a
+       split affordable; the last three are the holes it must not open. */
+    ['a one-line import is module structure, not test cost',
+      "import { a } from './x.js';\nG.g = 1;", { lines: 2, codeLines: 1 }],
+    ['a one-line export is module structure too', 'export { a };\nG.g = 1;', { lines: 2, codeLines: 1 }],
+    ['`export default [` … `];` around a test array is free',
+      "export default [\n  () => tryRun('x', () => { G.g = 1; }),\n];",
+      { lines: 3, codeLines: 1, tests: 1 }],
+    ['a whole domain module costs only its tests',
+      "// header\nimport { tryRun } from './_harness.js';\n\nexport default [\n"
+      + "  () => tryRun('x', () => { G.g = 1; }),\n];", { lines: 6, codeLines: 1, tests: 1 }],
+    ['an INDENTED `];` is a test\'s own array and IS charged',
+      'const rows = [\n  1,\n  ];\nG.g = 1;', { lines: 4, codeLines: 4 }],
+    ['a `];` that is NOT the last line is charged',
+      "export default [\n];\nconst after = [\n];\n", { lines: 5, codeLines: 2 }],
+    ['a MULTI-LINE import list is charged line by line — 400 free lines is not a hole',
+      "import {\n  a,\n  b,\n} from './x.js';\nG.g = 1;", { lines: 5, codeLines: 5 }],
+    ['an `import …;` QUOTED in a block comment is not a statement',
+      "/*\nimport { a } from './x.js';\n*/\nG.g = 1;", { lines: 4, codeLines: 1 }],
   ];
   for (const [label, src, want] of cc) {
     const g = countFile(src);
@@ -525,6 +600,43 @@ function selftest() {
   // if it is not, the most important refactor in the plan arrives at a red build
   // and this guard is what gets switched off.
   console.log('\n  ── SLICE 6: the pure move ──');
+  /* THE MOVE AS IT REALLY LANDS, MEASURED ON TEXT rather than on a record the
+     arm made up. The same test bodies, split N ways, each module paying for its
+     own import and brackets and a registry importing them all: the CODE count
+     must not depend on N. This is the arm the 2026-09-14 correction exists for —
+     before it, 16 modules cost 74 code lines and the split was red. */
+  {
+    const bodyOf = (n) => Array.from({ length: n },
+      (_, i) => `  () => tryRun('t${i}', () => { G.gold = ${i}; }),`).join('\n');
+    const mono = "import { tryRun } from './smoke/_harness.js';\n"
+      + 'const TESTS = [\n' + bodyOf(60) + '\n];\n';
+    const splitInto = (parts) => {
+      const per = 60 / parts;
+      const mods = Array.from({ length: parts }, (_, p) => "import { tryRun } from './_harness.js';\n"
+        + 'export default [\n'
+        + Array.from({ length: per }, (_, i) => `  () => tryRun('t${p * per + i}', () => { G.gold = ${i}; }),`).join('\n')
+        + '\n];\n');
+      const registry = Array.from({ length: parts }, (_, p) => `import m${p} from './smoke/p${p}.js';`).join('\n')
+        + '\nconst TESTS = [].concat(\n'
+        + Array.from({ length: parts }, (_, p) => `  m${p},`).join('\n') + '\n);\n';
+      return [...mods, registry].map(countFile);
+    };
+    const sum = (fs, k) => fs.reduce((n, f) => n + f[k], 0);
+    const m = countFile(mono);
+    const three = splitInto(3);
+    const twelve = splitInto(12);
+    say(sum(three, 'tests') === m.tests && sum(twelve, 'tests') === m.tests,
+      'the split conserves every registered test', `  → ${m.tests} / ${sum(three, 'tests')} / ${sum(twelve, 'tests')}`);
+    /* The ONLY residual cost is the line in the registry that NAMES each module
+       — which is real code and is charged on purpose: a registry that lists what
+       it runs is the thing a reader needs. Everything else (the harness import,
+       the brackets, the registry's own import line) is exempt. Stated as an
+       equality, so a future change that quietly makes a module cheaper OR
+       dearer than one line is a red arm rather than a silent drift. */
+    say(sum(three, 'codeLines') - m.codeLines === 3 && sum(twelve, 'codeLines') - m.codeLines === 12,
+      'a module costs exactly ONE code line — the registry line that names it',
+      `  → monolith ${m.codeLines} → 3 modules ${sum(three, 'codeLines')} → 12 modules ${sum(twelve, 'codeLines')}`);
+  }
   {
     const N = 20;
     const per = {

@@ -124,13 +124,48 @@
 // a field belongs in the server record instead (CLAUDE.md §6), or whether a
 // test should be touching G at all. Those are readings.
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
-const SUITE = join(ROOT, 'src', 'features', 'smoke-test.js');
+/* ── THE SUITE IS A DIRECTORY (2026-09-14) ───────────────────────────────
+   It used to be one 65,656-line file. The split moved every fixture into
+   smoke/_harness.js and every test into smoke/<domain>.js, leaving the registry
+   behind — and a guard still pointed at the registry reads 296 lines with no G
+   write in them and reports GREEN, forever, over 1,297 unwatched tests. That is
+   this repo's always-null probe, and the --selftest is what caught it.
+
+   So the suite is read as the CONCATENATION of the harness, every domain module
+   and the registry, with a line map so every finding still prints the file and
+   line a reader can open. The harness goes FIRST because it declares snapshotG's
+   allowlist, which everything after it is measured against. */
+const SUITE_DIR = join(ROOT, 'src', 'features', 'smoke');
+const SUITE_FILES = (() => {
+  const names = existsSync(SUITE_DIR)
+    ? readdirSync(SUITE_DIR).filter((n) => n.endsWith('.js')).sort()
+    : [];
+  names.sort((a, b) => (a === '_harness.js' ? -1 : b === '_harness.js' ? 1 : 0));
+  return [...names.map((n) => 'src/features/smoke/' + n), 'src/features/smoke-test.js'];
+})();
+/** The concatenated suite text, plus which file each global line came from. */
+function readSuite() {
+  const parts = []; const map = []; let at = 1;
+  for (const r of SUITE_FILES) {
+    const t = readFileSync(join(ROOT, r), 'utf8');
+    const n = t.split(/\r?\n/).length;
+    map.push({ rel: r, from: at, to: at + n - 1 });
+    at += n;
+    parts.push(t);
+  }
+  return { text: parts.join('\n'), map };
+}
+let SUITE_MAP = [];
+const locate = (n) => {
+  const hit = SUITE_MAP.find((m) => n >= m.from && n <= m.to);
+  return hit ? hit.rel + ':' + (n - hit.from + 1) : 'src/features/smoke-test.js:' + n;
+};
 const LEGACY = join(ROOT, 'src', 'legacy.js');
 const RECORD = join(ROOT, 'src', 'net', 'record.js');
 
@@ -215,7 +250,9 @@ const blankNonCode = (src) => {
    `f: G.f ?? 0` always produces a key, so restoreG always has something to put
    back. A bare `f: G.f` produces a key only when the field happens to exist. */
 const readAllowlist = (code, lines) => {
-  const start = lines.findIndex((l) => /^const snapshotG\s*=/.test(l));
+  /* `export const` since the fixtures moved into smoke/_harness.js — the same
+     declaration, one keyword wider. */
+  const start = lines.findIndex((l) => /^(?:export\s+)?const snapshotG\s*=/.test(l));
   if (start < 0) return { start: -1, end: -1, fields: new Map() };
   let end = -1;
   /* TWO SHAPES, and the second one is the FIX for SNAP-2, so this must read both
@@ -298,9 +335,9 @@ const readSeal = (code, lines) => {
     for (let i = at; i < lines.length; i++) if (/^\};\s*$/.test(lines[i])) return codeLines.slice(at, i + 1).join('\n');
     return null;
   };
-  const snapBody = bodyOf(/^const snapshotG\s*=/);
-  const sealBody = bodyOf(/^const sealSnapshot\s*=/);
-  const restBody = bodyOf(/^const restoreG\s*=/);
+  const snapBody = bodyOf(/^(?:export\s+)?const snapshotG\s*=/);
+  const sealBody = bodyOf(/^(?:export\s+)?const sealSnapshot\s*=/);
+  const restBody = bodyOf(/^(?:export\s+)?const restoreG\s*=/);
   const parts = {
     /* the literal is HANDED to the seal rather than JSON-stringified in place */
     handsOff: !!snapBody && /return\s+sealSnapshot\s*\(/.test(snapBody),
@@ -391,24 +428,41 @@ const SNAPSHOTTERS = [
   'combatScreen(', 'autoEatMirrorFixture(', 'withServerBacked(',
 ];
 
+/* A registered-test array opens either way: the monolith's `const TESTS = [`
+   (still the shape of this guard's own synthetic fixtures) or a domain module's
+   `export default [` since the 2026-09-14 split. There are now SEVENTEEN of
+   them in the concatenated suite, so the reader collects REGIONS rather than
+   assuming one — an anchor that found the first array and stopped would police
+   31 tests out of 1,297 and call it green. */
+const TEST_ARRAY_OPEN = /^(?:const TESTS\s*=\s*\[|export default \[)\s*$/;
+
 const readTests = (code, lines) => {
-  const startIdx = lines.findIndex((l) => /^const TESTS\s*=\s*\[/.test(l));
-  if (startIdx < 0) return [];
-  let endIdx = -1;
-  for (let i = startIdx + 1; i < lines.length; i++) if (/^\];\s*$/.test(lines[i])) { endIdx = i; break; }
-  if (endIdx < 0) endIdx = lines.length - 1;
+  const regions = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!TEST_ARRAY_OPEN.test(lines[i])) continue;
+    let end = lines.length - 1;
+    for (let j = i + 1; j < lines.length; j++) if (/^\];\s*$/.test(lines[j])) { end = j; break; }
+    regions.push([i, end]);
+    i = end;
+  }
+  if (!regions.length) return [];
 
   const codeLines = code.split(/\r?\n/);
   const heads = [];
-  for (let i = startIdx + 1; i < endIdx; i++) {
-    if (!TEST_HEAD.test(codeLines[i])) continue;
-    // the NAME comes off the raw line (it is a string literal, blanked in `code`)
-    const nm = /tryRun[A-Za-z]*\s*\(\s*(['"`])([\s\S]*?)\1/.exec(lines[i]);
-    heads.push({ line: i + 1, name: nm ? nm[2] : '(unnamed @ line ' + (i + 1) + ')' });
+  for (const [startIdx, endIdx] of regions) {
+    for (let i = startIdx + 1; i < endIdx; i++) {
+      if (!TEST_HEAD.test(codeLines[i])) continue;
+      // the NAME comes off the raw line (it is a string literal, blanked in `code`)
+      const nm = /tryRun[A-Za-z]*\s*\(\s*(['"`])([\s\S]*?)\1/.exec(lines[i]);
+      heads.push({ line: i + 1, name: nm ? nm[2] : '(unnamed @ line ' + (i + 1) + ')', regionEnd: endIdx });
+    }
   }
   return heads.map((h, k) => {
     const from = h.line - 1;
-    const to = (k + 1 < heads.length ? heads[k + 1].line - 1 : endIdx);
+    const next = heads[k + 1];
+    /* A test's body ends at the next test OR at the end of ITS OWN module,
+       whichever comes first — never at a test in the next file. */
+    const to = (next && next.line - 1 <= h.regionEnd) ? next.line - 1 : h.regionEnd;
     const body = codeLines.slice(from, to).join('\n');
     return { ...h, from, to, body, snapshotted: SNAPSHOTTERS.some((s) => body.includes(s)) };
   });
@@ -477,11 +531,10 @@ const analyse = (suiteSrc, legacySrc, recordSrc) => {
   return { allow, seal, fresh, literal, forgotten, tests, snap1, snap2, snap3 };
 };
 
-const readTree = () => ({ suite: readFileSync(SUITE, 'utf8'), legacy: readFileSync(LEGACY, 'utf8'), record: readFileSync(RECORD, 'utf8') });
+const readTree = () => { const s = readSuite(); SUITE_MAP = s.map; return { suite: s.text, legacy: readFileSync(LEGACY, 'utf8'), record: readFileSync(RECORD, 'utf8') }; };
 
 // ── PRINTING ─────────────────────────────────────────────────────────────
-const rel = 'src/features/smoke-test.js';
-const line = (f) => rel + ':' + f.line;
+const line = (f) => locate(f.line);
 
 /* Grouped BY FIELD, not by writer, and sorted by blast radius. A flat list of
    545 lines is a wall nobody routes; 43 fields with their worst writers named is
@@ -498,7 +551,7 @@ const group = (findings) => {
 
 const printFindings = (a, verbose) => {
   console.log('snapshotG allowlist: ' + a.allow.fields.size + ' fields ('
-    + rel + ':' + a.allow.start + '-' + a.allow.end + ')');
+    + locate(a.allow.start) + '-' + (a.allow.end - a.allow.start) + ' lines)');
   console.log('fresh-character literal (src/legacy.js let G={…}): ' + a.literal.size + ' keys');
   console.log('SERVER_OF_RECORD (src/net/record.js — deleted off G by every load): '
     + a.forgotten.size + ' field(s)');
@@ -534,7 +587,7 @@ const printFindings = (a, verbose) => {
   }
   console.log('        ' + a.snap2.length + ' write(s) across ' + g2.length + ' field(s).');
   for (const [field, fs] of g2) {
-    console.log('    G.' + field + '  ×' + fs.length + '   fix: ' + rel + ':' + fs[0].allowLine
+    console.log('    G.' + field + '  ×' + fs.length + '   fix: ' + locate(fs[0].allowLine)
       + '  `' + fs[0].allowText + '`  →  `' + field + ': G.' + field + ' ?? null,`');
     const show = verbose ? fs : fs.slice(0, 2);
     for (const f of show) console.log('        ' + line(f) + '  ' + f.test);
@@ -694,7 +747,7 @@ const selftest = () => {
   {
     const a = analyse(tree.suite, tree.legacy, tree.record);
     grade('PARSE-B', 'snapshotG allowlist found in the shipped suite', a.allow.fields.size >= 40,
-      a.allow.fields.size + ' fields at ' + rel + ':' + a.allow.start);
+      a.allow.fields.size + ' fields at ' + locate(a.allow.start));
     grade('PARSE-C', 'the TESTS array was segmented', a.tests.length >= 900, a.tests.length + ' tests');
     grade('PARSE-D', 'the fresh-character literal was read from src/legacy.js', a.literal.size >= 25,
       a.literal.size + ' keys');

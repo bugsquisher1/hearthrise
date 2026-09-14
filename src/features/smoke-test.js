@@ -17816,8 +17816,10 @@ const TESTS = [
     try {
       window.G.plotLevels = 1;
       // Stock seeds so the seed check passes
+      /* Stock BOTH sides: the factory literal is gone and the gate reads the mirror. */
       window.G.inventory.turnip_seed = 10;
       window.G.inventory.carrot_seed = 10;
+      window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 10, carrot_seed: 10 });
       // Make sure farming level isn't the gate
       window.G.skills.farming = 1000000;
       // Empty the test slot
@@ -17848,7 +17850,9 @@ const TESTS = [
     const fr = window.HearthriseAuto.getFarmReplant();
     try {
       window.G.plotLevels = 1;
+      /* Stock BOTH sides: the factory literal is gone and the gate reads the mirror. */
       window.G.inventory.turnip_seed = 5;
+      window.G._serverBag = Object.assign({}, window.G._serverBag, { turnip_seed: 5 });
       window.G.skills.farming = 1000000;
       const idx = 0;
       window.G.farmPlots[idx] = null;
@@ -26913,7 +26917,9 @@ const TESTS = [
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const snap = snapshotG();
     try {
-      window.G.inventory.raw_shrimp = (window.G.inventory.raw_shrimp || 0) + 10;
+      /* Stock BOTH sides: the factory literal is gone and the gate reads the mirror. */
+      window.G.inventory.shrimp = (window.G.inventory.shrimp || 0) + 10;
+      window.G._serverBag = Object.assign({}, window.G._serverBag, { shrimp: window.G.inventory.shrimp });
       window.showTab('skills');
       if (typeof window.openSkillDetail === 'function') window.openSkillDetail('cooking');
       window.startArtisan('cooking', 'cook_shrimp');
@@ -35629,7 +35635,9 @@ const TESTS = [
     const snap = snapshotG();
     const prevTab = window.activeTab;
     try {
-      window.G.inventory.raw_shrimp = (window.G.inventory.raw_shrimp || 0) + 5;
+      /* Stock BOTH sides: the factory literal is gone and the gate reads the mirror. */
+      window.G.inventory.shrimp = (window.G.inventory.shrimp || 0) + 5;
+      window.G._serverBag = Object.assign({}, window.G._serverBag, { shrimp: window.G.inventory.shrimp });
       window.showTab('skills');
       if (typeof window.openSkillDetail === 'function') window.openSkillDetail('cooking');
       window.startArtisan('cooking', 'cook_shrimp');
@@ -40782,8 +40790,8 @@ const TESTS = [
        (1.0 unperked, up to 2.0 at The Deep Cellar), and hr_state_of projects it as
        `scale`. The minutes are already inside `until`, so the client's only job is to
        SAY SO. Two ways to get that wrong, both red below:
-         · price the line from G.rooms — a client authoring a buff clock (the wall-clock
-           ruling) and residue-ahead by construction, because a rung bought
+         · price the line from G.rooms — a client authoring a buff clock (the
+           wall-clock ruling) and residue-ahead by construction, because a rung bought
            between two helpings would relabel a segment stamped at the old scale;
          · treat a MISSING field as 1.0-with-a-line, which would have every pre-migration
            segment brag about a Cellar that did not pay it.
@@ -46401,14 +46409,22 @@ const TESTS = [
         + (KIT.START_SKILL_XP[k] || 0));
     }
 
+    /* ── INVERTED: THE CLIENT MUST NOT HOLD THE KIT AT ALL ──────────────────
+       This used to assert the fresh-G literal EQUALLED START_INVENTORY. The
+       agreement was real and still cost three live bugs, because a client-held
+       copy of the kit cannot be told from a forged stack and the merge ratchet
+       can never lower it. The kit is the SERVER'S, and character-bootstrap-guard
+       C3 pins hr_start_kit to START_INVENTORY against a real migration replay —
+       so that agreement is still checked, on the half that grants the items.
+       MUTATION: put any id back in legacy.js's `inventory:{}` literal ⇒ red. */
     const invKeys = Object.keys(F.inventory).filter((k) => F.inventory[k] > 0).sort();
-    assert(JSON.stringify(invKeys) === JSON.stringify(Object.keys(KIT.START_INVENTORY).sort()),
-      'fresh inventory is ' + JSON.stringify(invKeys) + ' but START_INVENTORY is '
-      + JSON.stringify(Object.keys(KIT.START_INVENTORY).sort()));
-    for (const k of invKeys) {
-      assert(F.inventory[k] === KIT.START_INVENTORY[k],
-        'fresh ' + k + ' ×' + F.inventory[k] + ' but START_INVENTORY says ×' + KIT.START_INVENTORY[k]);
-    }
+    assert(invKeys.length === 0,
+      'the fresh-character literal seeds ' + JSON.stringify(invKeys) + ' into the bag — the starting kit '
+      + 'is the SERVER\'s (hr_start_kit), and a client-seeded stack is a permanent phantom: `inventory` '
+      + 'is not a SERVER_OF_RECORD field so loadLocal cannot strip it, and the envelope merge ratchet '
+      + 'takes Math.max so a non-owned id can never come back down');
+    assert(Object.keys(KIT.START_INVENTORY).length > 0,
+      'START_INVENTORY is empty — the server would create a character with no starting kit at all');
 
     /* Equipment: the client fills every slot with null, so only the occupied
        ones are the kit. An extra occupied slot on either side is drift. */
@@ -60187,6 +60203,181 @@ const TESTS = [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     INV-STAGE-* — THE STAGED ARM OF THE ABSOLUTE-INVENTORY FLIP
+     ══════════════════════════════════════════════════════════════════════════
+     MEASURED 2026-09-13: every named blocker was already gone — enable flag true,
+     `flipArmBlockers()` empty, `window.DUNGEONS` loaded, and a read-only census of
+     the live DB returned `{complete: 10, incomplete: 29, missing: 0}` over
+     `select hr_state_of(user_id, slot) from player_state`, so the server's
+     `inventory_complete` signal exists and asserts for real players. The only
+     thing left deciding a bag's semantics was
+     `isEnvelopeAbsolute()`, i.e. whether the server had ACKNOWLEDGED an EQUIP in
+     THAT session: on for an equipping session, off otherwise, per player, per
+     reload. INV-STAGE-1 proves that at runtime. THE FIX is INVENTORY_ARM_STAGE
+     (src/data/item-authority.js), read once at boot, as guard (3b) of
+     `maybeAutoArm` — 'off' ⇒ merge for EVERY player; 'on' ⇒ the six original
+     guards decide. One constant: stageable, soakable, revertible.
+
+     ── THE SOAK, BEFORE THE CONSTANT MOVES ───────────────────────────────────
+     This is the one client change that can DELETE a player's item. Stage it on a
+     host (INVENTORY_ARM_STAGE_HOSTS) and watch 24 h:
+       1. `inventoryFlipReadiness()`: `destructiveOwnedOmissions` MUST stay 0 over
+          hundreds of `envelopesApplied`; non-zero names the id in `lastLoss` and
+          is the blueprint-loss shape — a STOP, not a statistic.
+       2. `player_ledger`: no new item-DEBIT shape on the staged slots (the flip
+          writes nothing server-side, so the ledger must look like a normal day).
+       3. `hr_rejections` per (slot, code): an over-eager flip SPIKES the
+          insufficient/missing-item refusals. Compare `tools/vitals.mjs --refusals`.
+       4. `select item_id, count(*), sum(qty) from player_inventory group by 1`:
+          totals move only where play explains.
+       5. Play the seed loop (plant all → auto-replant → reload): the measured
+          carve-out class, and where the last phantom bug lived.
+     Clean for a full day ⇒ `INVENTORY_ARM_STAGE = 'on'` lands ALONE. */
+
+  () => tryRunAsync('INV-STAGE-1: the flip is gated on the STAGED position — and on nothing else (prod flags)', async () => {
+    const A = window.HearthriseAccrual;
+    const E = window.HearthriseEquip;
+    const IA = window.HearthriseItemAuthority;
+    assert(A && typeof A.maybeAutoArm === 'function' && typeof A.inventoryArmStage === 'function',
+      'maybeAutoArm / inventoryArmStage must be published — the staged arm has no seam to prove');
+    assert(IA && typeof IA.inventoryArmStaged === 'function' && typeof IA.INVENTORY_ARM_STAGE === 'string',
+      'INVENTORY_ARM_STAGE / inventoryArmStaged must be published from src/data/item-authority.js');
+    const prev = E.getEquipConfig();
+    try {
+      A.markInventoryAuthorityLive(false);   // start un-armed…
+      A.__resetAutoArm();                    // …and clear the disarm latch + re-read the BUILD flags
+      await armEquipFlipForTest(E);
+      /* EVERY OTHER PRECONDITION, ASSERTED — so the conclusion is that the stage
+         is the ONLY remaining gate, not merely that nothing armed. */
+      assert(A.isEnvelopeAbsolute() === true, 'guard: the equip flip must be armed (the per-session fact this lane removed)');
+      assert(IA.INVENTORY_ARM_ENABLED === true, 'guard: INVENTORY_ARM_ENABLED must be true for this test to mean anything');
+      assert(IA.flipArmBlockers().length === 0, 'guard: flipArmBlockers() must be empty — got ' + JSON.stringify(IA.flipArmBlockers()));
+      assert(!!(window.DUNGEONS && typeof window.DUNGEONS === 'object'), 'guard: window.DUNGEONS must be loaded');
+      A.noteBaselineComplete({ inventory_complete: true });
+      assert(A.isBaselineCompleteSeen() === true, 'guard: the baseline-complete signal must read as observed');
+      assert(A.inventoryArmStage().stagedAtBoot === IA.inventoryArmStaged(),
+        'accrue.js read a different staged position at boot than item-authority.js reports now — the boot read drifted');
+
+      /* BOTH POSITIONS DRIVEN, so this keeps biting after the constant flips.
+         MUTATION: delete guard (3b) from maybeAutoArm ⇒ the OFF branch arms, red.
+         (Proven: that deletion fails this test on the first assert below.) */
+      A.__setInventoryArmStageForTest(false);
+      assert(A.maybeAutoArm() === false,
+        'the staged position is OFF and the flip armed anyway — every other guard passes, so the stage is the '
+        + 'only thing standing between a live player and an absolute bag');
+      assert(A.isInventoryAbsolute() === false, 'a refused auto-arm must leave the bag on MERGE');
+      A.__setInventoryArmStageForTest(true);
+      assert(A.maybeAutoArm() === true,
+        'with the stage ON and every other guard satisfied the flip must arm — if it refuses, an unnamed '
+        + 'precondition is still failing and the rollout switch is a lie');
+      assert(A.isInventoryAbsolute() === true, 'an armed auto-arm must make the bag ABSOLUTE');
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      A.__setInventoryArmStageForTest(undefined);
+      A.__resetAutoArm();
+      E.resetEquip();
+      if (prev) E.configureEquip(prev);
+    }
+  }),
+
+  () => tryRun('INV-STAGE-2: armed + COMPLETE — a phantom server-owned stack leaves the bag', () => {
+    /* THE POINT OF THE PROGRAM. `shrimp` is a FISH_SPOTS product, so OWNABLE, and
+       was one of the four ids the deleted factory literal seeded. A client copy a
+       COMPLETE projection does not name is a phantom. MUTATION: Math.max ⇒ red. */
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.reconcileInventory === 'function', 'reconcileInventory must be published');
+    assert(A.serverOwnedItem('shrimp') === true, 'precondition: shrimp must be server-owned');
+    const G = { inventory: { shrimp: 10, copper_ore: 4 } };
+    A.reconcileInventory(G, { inventory: { copper_ore: 4 }, inventory_complete: true }, true, true);
+    assert(G.inventory.shrimp === undefined,
+      'the phantom shrimp survived an ARMED, COMPLETE envelope that omits it — got ' + JSON.stringify(G.inventory));
+    assert(G.inventory.copper_ore === 4, 'a named owned figure must be assigned — got ' + JSON.stringify(G.inventory));
+  }),
+
+  () => tryRun('INV-STAGE-3: armed + INCOMPLETE — the merge ratchet is kept (fail-SAFE)', () => {
+    /* `inventory_complete` is a PER-ENVELOPE server assertion. An armed client
+       meeting an uncertified envelope must fall back to the ratchet, or a
+       mid-fight / mid-cook baseline deletes a legit stack — the pre-wipe incident
+       that cost a live character ~40k items. MUTATION: drop `baselineComplete`
+       from the absolute branch, or make the flag read truthy-tolerant ⇒ red. */
+    const A = window.HearthriseAccrual;
+    const G = { inventory: { shrimp: 10, copper_ore: 4 } };
+    A.reconcileInventory(G, { inventory: { copper_ore: 4 } }, true, false);
+    assert(G.inventory.shrimp === 10,
+      'an ARMED client deleted an owned stack on an UNCERTIFIED envelope — got ' + JSON.stringify(G.inventory));
+    const G2 = { inventory: { shrimp: 10 } };   // and an ABSENT flag is not a false one
+    A.reconcileInventory(G2, { inventory: {} }, true, undefined);
+    assert(G2.inventory.shrimp === 10,
+      'an envelope with NO inventory_complete key was treated as complete — the rule must be fail-closed');
+  }),
+
+  () => tryRun('INV-STAGE-4: the measured carve-out ids survive an armed, complete envelope', () => {
+    /* THE LIVE CENSUS BEHIND THIS LIST (read-only, 2026-09-13):
+         select item_id, count(*), sum(qty) from public.player_inventory group by 1
+       returned 101 distinct ids — 80 OWNABLE, 16 EXCLUDED, and FIVE that are
+       neither. Unclassified ⇒ `serverOwnedItem` false ⇒ the absolute branch KEEPS
+       them. That is the carve-out, pinned here rather than left an accident.
+
+       The census also proved the projection is an UNFILTERED
+       `jsonb_object_agg(item_id, qty)` over player_inventory: the envelope omits
+       an id if and ONLY IF the row does not exist, so no structurally omitted id
+       class exists for a flip to delete. FOLLOW-UP: seeds SHOULD become
+       server-owned once the farm RPC is their only writer — "kept forever" is
+       exactly the phantom-seed bug. MUTATION: own any of these five ⇒ red. */
+    const A = window.HearthriseAccrual;
+    const CARVE_OUT = ['burnt_food', 'carrot_seed', 'tomato_seed', 'turnip_seed', 'wheat_seed'];
+    for (const id of CARVE_OUT) {
+      assert(A.serverOwnedItem(id) === false,
+        id + ' is now server-OWNED; live players hold it and the projection can omit it, so an armed '
+        + 'absolute envelope would DELETE it. Give it a server writer before owning it.');
+    }
+    const G = { inventory: Object.fromEntries(CARVE_OUT.map((id) => [id, 7])) };
+    A.reconcileInventory(G, { inventory: { copper_ore: 1 }, inventory_complete: true }, true, true);
+    for (const id of CARVE_OUT) {
+      assert(G.inventory[id] === 7,
+        'an armed, COMPLETE envelope deleted the carve-out id ' + id + ' — got ' + JSON.stringify(G.inventory));
+    }
+  }),
+
+  () => tryRun('INV-STAGE-5: an id the PROJECTION omits is not deleted (the blueprint-loss shape)', () => {
+    /* THE INCIDENT, BY SHAPE: flipping the bag absolute deleted Quartermaster
+       blueprints, because the projection cannot produce an id no server path has
+       written. It generalises to dungeon loot and crops.
+       MUTATION: remove the `serverOwnedItem` test from the absolute branch (own
+       everything) ⇒ every id below goes red. */
+    const A = window.HearthriseAccrual;
+    const OMITTED = {
+      kitchen_blueprint_t2: 'a Quartermaster blueprint (the original loss)',
+      warboss_standard: 'a dungeon boss signature',
+      turnip: 'a crop product (the harvest RPC writes it; the accrual engine does not)',
+    };
+    for (const id of Object.keys(OMITTED)) {
+      assert(A.serverOwnedItem(id) === false, id + ' must NOT be server-owned — it is ' + OMITTED[id]);
+    }
+    const G = { inventory: Object.assign({ copper_ore: 2 },
+      Object.fromEntries(Object.keys(OMITTED).map((id) => [id, 3]))) };
+    A.reconcileInventory(G, { inventory: { copper_ore: 9 }, inventory_complete: true }, true, true);
+    for (const id of Object.keys(OMITTED)) {
+      assert(G.inventory[id] === 3, 'the flip deleted ' + id + ' (' + OMITTED[id] + ') — the blueprint loss, reopened');
+    }
+    assert(G.inventory.copper_ore === 9, 'the owned id must still take the server figure');
+
+    /* THE ONE DELIBERATE HOLE, stated so it is not mistaken for that bug: a dish
+       is EXCLUDED from ownership and STILL removed on a complete envelope that
+       omits it, because the SERVER eats it (auto-eat / hr_rest). The marker is
+       `heals > 0`, with CROPS carved back out — which is why `turnip` survives
+       above and `turnip_mash` does not. MUTATION: drop that crop subtraction ⇒
+       turnip is deleted and the shape half goes red. */
+    const IA = window.HearthriseItemAuthority;
+    assert(IA.serverConsumedItem('turnip_mash') === true, 'turnip_mash heals, so it must read as server-CONSUMED');
+    assert(IA.serverConsumedItem('turnip') === false, 'a CROP must not read as server-consumed — the engine does not eat the farm');
+    const GF = { inventory: { turnip_mash: 4 } };
+    A.reconcileInventory(GF, { inventory: {}, inventory_complete: true }, true, true);
+    assert(GF.inventory.turnip_mash === undefined,
+      'a provision the server has eaten to zero must leave the bag on a COMPLETE envelope');
+  }),
+
   () => tryRun('SERVER-OWNED-3: the drift detector does NOT count an excluded omission as destructive', () => {
     const A = window.HearthriseAccrual;
     assert(A && typeof A.describeReplacement === 'function', 'describeReplacement must be published');
@@ -60642,6 +60833,8 @@ const TESTS = [
       A.markInventoryAuthorityLive(false);       // start unarmed…
       A.__resetAutoArm();                        // …and clear the disarm latch that set
       A.__setInventoryArmEnabledForTest(true);   // BUILD GATE OPEN — simulates the rollout commit
+      /* Two rollout positions now: without the staged one open, this measures nothing. */
+      A.__setInventoryArmStageForTest(true);
       A.noteBaselineComplete({ inventory_complete: true });   // guard (b)
 
       /* DORMANT-WORKER BRANCH (today's reality — see SERVER-OWNED-5): while worker
@@ -60676,6 +60869,7 @@ const TESTS = [
       assert(A.isInventoryAuthorityLive() === false, 'stays disarmed for the session');
     } finally {
       A.__setInventoryArmEnabledForTest(undefined);
+      A.__setInventoryArmStageForTest(undefined);
       A.markInventoryAuthorityLive(false);
       A.__resetAutoArm();
     }
@@ -60690,6 +60884,7 @@ const TESTS = [
       A.markInventoryAuthorityLive(false);
       A.__resetAutoArm();
       A.__setInventoryArmEnabledForTest(true);   // enabled, so the GUARDS are what must hold the line
+      A.__setInventoryArmStageForTest(true);      // …and STAGED on, or the stage masks the guard under test
 
       /* GUARD (b) unmet: no baseline-complete signal observed. */
       A.__resetBaselineComplete();
@@ -60712,6 +60907,7 @@ const TESTS = [
     } finally {
       globalThis.DUNGEONS = savedDungeons;
       A.__setInventoryArmEnabledForTest(undefined);
+      A.__setInventoryArmStageForTest(undefined);
       A.markInventoryAuthorityLive(false);
       A.__resetAutoArm();
       A.noteBaselineComplete({ inventory_complete: true });   // leave the signal observed for later tests

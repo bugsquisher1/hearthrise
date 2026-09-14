@@ -212,6 +212,49 @@ export const MUSTER_ABSENCE_ITEMS_SERVER_BACKED = true;   // LIVE — 2026-08-22
    server-settled, or classify it excluded. */
 export const INVENTORY_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post-wipe cutover) — inventory absolute-replace is on
 
+/* ══════════════════════════════════════════════════════════════════════════
+   THE STAGED ARM POSITION — PHASE 2, AND WHY IT HAD TO EXIST (b547)
+   ══════════════════════════════════════════════════════════════════════════
+   MEASURED, 2026-09-13, reading the code the way the runtime reads it: the flip
+   above has been enabled since b454, the server has stamped `inventory_complete`
+   since 2026-08-24 (10 of 39 live characters read TRUE at the moment of writing),
+   `flipArmBlockers()` is EMPTY, and `maybeAutoArm()` therefore had nothing left
+   refusing it. What actually decided whether a player's bag went absolute was
+   `isEnvelopeAbsolute()` — i.e. `markEquipAuthorityLive`, which src/net/equip.js
+   throws only after the server ACKNOWLEDGES an equip IN THIS SESSION.
+
+   So the flip was neither off nor on: it was ON for a session in which the player
+   happened to equip something and OFF otherwise, per player, per reload. Phantom
+   ownable stacks left one player's bag and stayed in the next player's. A
+   data-deleting authority must never be gated on an unrelated gesture, and a
+   rollout position that differs between two players on the same build cannot be
+   soaked, staged or rolled back.
+
+   THIS is that position, and it is the ONLY one: a build-level constant, read
+   ONCE at boot by src/net/accrue.js, never a residue field (a residue flag would
+   be client-authored authority over a delete). 'off' ⇒ `maybeAutoArm` refuses and
+   the bag is merge for EVERY player on this build, deterministically. 'on' ⇒ the
+   six existing guards decide, as documented above.
+
+   PER ENVIRONMENT: add a hostname to INVENTORY_ARM_STAGE_HOSTS to arm staging
+   (or a local origin) while the default stays 'off' for production. The host is
+   matched exactly against `location.hostname`; an unknown or absent host falls
+   back to the default, which is the fail-safe direction. */
+export const INVENTORY_ARM_STAGE = 'off';                    // 'on' | 'off' — THE ONE LINE THAT ARMS IT
+export const INVENTORY_ARM_STAGE_HOSTS = Object.freeze({});  // { 'localhost': 'on' } — per-environment override
+
+/** Is the absolute-inventory flip STAGED ON for this host? Fail-safe: anything
+ *  other than the literal string 'on' reads as off. Pure — the caller reads it
+ *  once at boot; nothing here observes time or storage. */
+export function inventoryArmStaged(host) {
+  const h = (typeof host === 'string' && host)
+    ? host
+    : ((typeof location !== 'undefined' && location && typeof location.hostname === 'string')
+      ? location.hostname : '');
+  const perHost = h ? INVENTORY_ARM_STAGE_HOSTS[h] : undefined;
+  return (perHost === undefined ? INVENTORY_ARM_STAGE : perHost) === 'on';
+}
+
 /* ── THE FARM SERVER-AUTHORITY ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──
    TRUE: the client does NOT author farm outcomes. plantCrop / waterPlot /
    harvestPlot / plot-tier upgrade send INTENTS to hr_farm_plant / hr_farm_water /
@@ -573,6 +616,7 @@ export function flipArmBlockers() {
 if (typeof window !== 'undefined') {
   window.HearthriseItemAuthority = {
     WORKER_PRODUCTION_SERVER_BACKED, INVENTORY_ARM_ENABLED, workerProductIds,
+    INVENTORY_ARM_STAGE, INVENTORY_ARM_STAGE_HOSTS, inventoryArmStaged,
     RAID_ITEMS_SERVER_BACKED, MUSTER_ABSENCE_ITEMS_SERVER_BACKED,
     unbackedOwnableMintLanes, pendingUnbackedOwnableMints, flipArmBlockers,
     COOKING_SKILL, ARTISAN_SETTLEMENT, COOKING_SETTLEMENT_ARM_ENABLED,

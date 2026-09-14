@@ -1385,9 +1385,11 @@ export function isInventoryAuthorityLive() { return inventoryAuthorityLive; }
 /* ── THE BOOT AUTO-ARM (inventory-flip LIVE-ARM wiring, 2026-08-20) ──────────
    THE ONLY THING IN PROD THAT EVER CALLS markInventoryAuthorityLive(true). It is
    called from applyEnvelopeState on EVERY envelope (right after the baseline
-   signal is noted) and is a SILENT NO-OP until every guard is met AND the build-
-   level enable flag INVENTORY_ARM_ENABLED (src/data/item-authority.js) is true.
-   Default: that flag is false, so this never arms — the flip stays dormant.
+   signal is noted) and is a SILENT NO-OP until every guard is met AND BOTH
+   build-level positions in src/data/item-authority.js hold: the enable flag
+   INVENTORY_ARM_ENABLED (long true) and the STAGED rollout position
+   INVENTORY_ARM_STAGE, which is 'off' in this build — so this never arms
+   and the flip stays dormant for every player, deterministically.
 
    Turning it live is a COUPLED TWO-FLAG rollout done in one commit:
      WORKER_PRODUCTION_SERVER_BACKED = true  AND  INVENTORY_ARM_ENABLED = true
@@ -1406,6 +1408,28 @@ export function isInventoryAuthorityLive() { return inventoryAuthorityLive; }
        most once per session, and never re-arms after a deliberate disarm. */
 let autoArmDisarmed = false;
 let inventoryArmEnabled = INVENTORY_ARM_ENABLED === true;
+/* ── THE STAGED ARM POSITION, READ ONCE AT BOOT ──────────────────────────────
+   The build-level rollout switch (src/data/item-authority.js), read ONCE at module
+   evaluation so an authority that can DELETE a bag cannot appear or vanish
+   mid-session. It had to exist because every OTHER precondition below already
+   holds in production — enable flag true, `flipArmBlockers()` empty, the server
+   stamping `inventory_complete` — leaving `isEnvelopeAbsolute()` (an EQUIP
+   acknowledgement in THIS session) as the only decider, i.e. per-session luck
+   rather than a rollout. 'off' here ⇒ deterministically MERGE for everyone. */
+const inventoryArmStagedAtBoot = inventoryArmStaged();
+let inventoryArmStagedNow = inventoryArmStagedAtBoot;
+
+/** TEST-ONLY. Overlay the boot-read stage so the suite can prove BOTH positions
+ *  without editing the constant. Passing undefined restores the boot value. In
+ *  prod nothing calls this — the constant is the sole gate. */
+export function __setInventoryArmStageForTest(v) {
+  inventoryArmStagedNow = (v === undefined) ? inventoryArmStagedAtBoot : (v === true);
+  return inventoryArmStagedNow;
+}
+/** The staged rollout position this build booted with, and the effective value. */
+export function inventoryArmStage() {
+  return { constant: INVENTORY_ARM_STAGE, stagedAtBoot: inventoryArmStagedAtBoot, staged: inventoryArmStagedNow };
+}
 
 /** TEST-ONLY. Overlay the build-level enable flag so the suite can prove both the
  *  OFF (never-arms) and the ON (arms-once) behaviour without editing the const.
@@ -1421,14 +1445,16 @@ export function __setInventoryArmEnabledForTest(v) {
 export function __resetAutoArm() {
   autoArmDisarmed = false;
   inventoryArmEnabled = INVENTORY_ARM_ENABLED === true;
-  return { autoArmDisarmed, inventoryArmEnabled };
+  inventoryArmStagedNow = inventoryArmStagedAtBoot;
+  return { autoArmDisarmed, inventoryArmEnabled, inventoryArmStaged: inventoryArmStagedNow };
 }
 
 export function maybeAutoArm() {
   try {
     if (inventoryAuthorityLive) return false;   // (1) already armed — idempotent
     if (autoArmDisarmed) return false;          // (2) deliberately disarmed this session
-    if (!inventoryArmEnabled) return false;     // (3) BUILD GATE — false in prod today
+    if (!inventoryArmEnabled) return false;     // (3) BUILD GATE — the enable flag
+    if (!inventoryArmStagedNow) return false;   // (3b) STAGED ROLLOUT — 'off' in prod today
     if (!baselineCompleteSeen) return false;    // (4) server not yet observed stamping complete
     const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
     if (!D || typeof D !== 'object') return false;   // (5) DUNGEONS not loaded (overlap-id safety)
@@ -1447,9 +1473,12 @@ export function maybeAutoArm() {
 /** Is the general inventory BAG absolute on this device?
  *  Two independent conditions, BOTH fail-closed toward merge (the direction
  *  that can only ever over-credit — never delete a crafted item):
- *    1. inventory authority must be live (it is not — no baseline signal yet),
+ *    1. inventory authority must be live — which in prod means `maybeAutoArm`
+ *       threw the switch, which INVENTORY_ARM_STAGE ('off') refuses,
  *    2. and the shared envelope-merge kill switch must not be forcing merge.
- *  Because (1) is false today, this is ALWAYS false today — the bag is merge. */
+ *  Because (1) is false on this build, this is ALWAYS false — the bag is merge.
+ *  ⚠ Do NOT re-derive "false in prod" from the equip flip: (2) alone gated this
+ *  for three weeks, and it is a PER-SESSION gesture fact. */
 export function isInventoryAbsolute() {
   if (!inventoryAuthorityLive) return false;
   return isEnvelopeAbsolute();
@@ -1516,6 +1545,8 @@ export function inventoryFlipReadiness() {
     armed: inventoryAuthorityLive,
     absolute: isInventoryAbsolute(),
     dungeonsLoaded: !!(D && typeof D === 'object'),
+    stage: INVENTORY_ARM_STAGE,
+    staged: inventoryArmStagedNow,
     baselineCompleteSeen,
     lastEnvelopeComplete,
     completeEnvelopes: baselineCompleteCount,
@@ -1631,7 +1662,7 @@ import * as itemLedger from './item-ledger.js?v=546';
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED } from '../data/item-authority.js?v=546';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=546';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -3856,9 +3887,9 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
        itemLedger.reconcile carve-out precisely: the server owns its set, the
        client keeps the rest.
 
-       ⚠ UNARMED IN PROD. `isInventoryAbsolute()` is false today (no inventory
-       baseline signal calls markInventoryAuthorityLive), so this branch is
-       dormant on the live path; the tests drive it directly. */
+       ⚠ UNARMED IN PROD BY THE STAGE, NOT BY THE SIGNAL. The baseline signal IS
+       live and every other arm guard passes; what keeps this branch dormant is
+       INVENTORY_ARM_STAGE === 'off'. The tests drive it directly. */
     const next = {};
     const keys = new Set(Object.keys(inv).concat(Object.keys(invNamed)));
     for (const k of keys) {
@@ -5367,6 +5398,7 @@ if (typeof window !== 'undefined') {
     flipDriftSummary, reportFlipDrift, startFlipDriftReporter, __resetFlipDriftReport,
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
     maybeAutoArm, __setInventoryArmEnabledForTest, __resetAutoArm,
+    inventoryArmStage, __setInventoryArmStageForTest,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,
     equippedCount, unaccountedEquipped, consumedKeysOf,

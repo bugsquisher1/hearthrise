@@ -49,6 +49,13 @@ const ROOT = new URL('../', import.meta.url);
 
 const MIG = '2026-09-14-gem-unlock-buy.sql';
 const CAT = '2026-09-14-gem-unlocks-catalogue.generated.sql';
+/* WHERE THE CLIENT READS THE PROJECTION. Was src/legacy.js until 2026-09-14,
+   when the client half of this migration extracted ownsGemUnlock into its own
+   module with buyGemUnlock (§7: the purchase flow is not UI glue). The pin
+   FOLLOWS THE CODE rather than being deleted — if it stops finding the reader,
+   this guard goes red and somebody re-checks the wire shape on purpose, which is
+   exactly what happened when the function moved. */
+const CLIENT_READER = 'src/features/gem-unlocks.js';
 const UID = '000000e1-0000-0000-0000-0000000000e1';
 
 let failed = 0;
@@ -206,6 +213,37 @@ async function boot(mutate, gateBlind, extra) {
   return db;
 }
 
+/** R2's client half, as a PURE function of the reader's source text so the
+ *  selftest can plant a defect in memory rather than on disk. Returns the
+ *  problems it found (empty = the pin holds).
+ *
+ *  WHAT IT IS DEFENDING. The projection is an array of `<namespace>:<id>`
+ *  strings, and the client's only ownership test indexes that array. Index it by
+ *  the bare id and every check answers false for every real projection — the
+ *  House shows Buy on a theme the account paid gems for — while every assertion
+ *  about the SERVER stays green, because nothing on the server changed. */
+export function clientReaderPin(src) {
+  const out = [];
+  if (typeof src !== 'string' || !src) {
+    out.push(`${CLIENT_READER} could not be read — the client half of this migration has moved or `
+      + 'been deleted, and R2\'s wire-shape pin is now pinning nothing. Follow the code: point '
+      + 'CLIENT_READER at wherever ownsGemUnlock lives now.');
+    return out;
+  }
+  const body = /function ownsGemUnlock\s*\([^)]*\)\s*\{[\s\S]*?\n\}/.exec(src);
+  if (!body) {
+    out.push(`${CLIENT_READER} no longer defines ownsGemUnlock() — the one client read of `
+      + 'hr_state_of\'s gem_unlocks. Re-point CLIENT_READER, do not delete this pin.');
+    return out;
+  }
+  if (!/indexOf\(\s*kind\s*\+\s*':'\s*\+\s*id\s*\)\s*>=\s*0/.test(body[0])) {
+    out.push(`${CLIENT_READER} ownsGemUnlock no longer indexes the server set as kind+':'+id — the `
+      + 'shape R2 asserts. The projection is `<namespace>:<id>`; indexing it any other way makes '
+      + 'every owned theme read as unowned while the server stays perfectly correct.');
+  }
+  return out;
+}
+
 const one = async (db, sql, params) => (await db.query(sql, params)).rows[0];
 
 async function runAll(db) {
@@ -330,14 +368,27 @@ async function runAll(db) {
        `every projected id is '<namespace>:<id>' — the shape src/legacy.js ownsGemUnlock tests with `
        + `srv.indexOf(kind+':'+id) (got ${JSON.stringify(env.gem_unlocks)})`);
   }
-  /* THE CLIENT READER, PINNED BY TEXT rather than executed: src/legacy.js is the
-     19k-line monolith and cannot be loaded here. This is a PIN, not a behaviour
-     proof, and it is labelled as one — if the expression moves, this goes red and
-     somebody re-checks the wire shape on purpose. */
+  /* THE CLIENT READER, PINNED BY TEXT rather than executed: the browser module
+     cannot be loaded here (it publishes onto `window` at import). This is a PIN,
+     not a behaviour proof, and it is labelled as one — if the expression moves,
+     this goes red and somebody re-checks the wire shape on purpose.
+     The pin is a PURE function of the source text so `--selftest` can mutate the
+     text in memory and prove the pin still bites, with no file write to undo. */
+  {
+    let src = null;
+    try { src = await readFile(new URL(CLIENT_READER, ROOT), 'utf8'); } catch (e) { src = null; }
+    const problems = clientReaderPin(src);
+    ok(problems.length === 0, problems[0]
+       || `${CLIENT_READER} ownsGemUnlock still indexes the server set as kind+':'+id — the shape R2 asserts`);
+  }
+  /* AND THE MONOLITH MUST NOT KEEP A SECOND COPY. Ownership answered in two
+     places is ownership answered differently in two places, and the one in
+     legacy.js is the one a render reaches first. */
   {
     const legacy = await readFile(new URL('src/legacy.js', ROOT), 'utf8');
-    ok(legacy.includes("srv.indexOf(kind+':'+id)>=0"),
-       'src/legacy.js ownsGemUnlock still indexes the server set as kind+\':\'+id — the shape R2 asserts');
+    ok(!/function\s+ownsGemUnlock\s*\(/.test(legacy),
+       'src/legacy.js defines ownsGemUnlock again — the reader moved to ' + CLIENT_READER
+       + ' and a second definition is two answers to "do you own this"');
   }
 
   // ── R4. A FREE ROW IS NOT FOR SALE ──────────────────────────────────────
@@ -542,6 +593,31 @@ if (argv.includes('--selftest')) {
       }
       if (wentRed) { if (!threw) console.log(`  ${label}: RED (assertions failed) — caught by ${MUTATIONS[name].by}`); }
       else { bad++; console.error(`  x ${label}: STAYED GREEN — the guard does not catch: ${MUTATIONS[name].why}`); }
+    }
+  }
+  /* THE CLIENT-READER ARMS. Planted in MEMORY, against the pure pin, because the
+     defect lives in a browser module rather than in the migration text bootReplay
+     patches — and because a mutation that writes to src/ is a mutation that can
+     fail to restore itself. Two shapes, both of which have really happened:
+     the expression re-indexed by the bare id, and the whole reader MOVING (which
+     is what turned this guard red on 2026-09-14 and is why the pin now says
+     "follow the code" instead of naming legacy.js). */
+  {
+    const src = await readFile(new URL(CLIENT_READER, ROOT), 'utf8');
+    const arms = [
+      ['client_reader_indexes_by_id_only',
+       src.replace("srv.indexOf(kind + ':' + id) >= 0", 'srv.indexOf(id) >= 0'),
+       'the client indexes the projected set by the bare id, so every owned theme reads as UNOWNED '
+       + 'while every server-side assertion stays green'],
+      ['client_reader_vanished', '// the reader was moved and the pin was not followed\n',
+       'the reader is gone from the file this guard pins, which is how a text pin silently stops '
+       + 'pinning anything'],
+    ];
+    for (const [label, mutated, why] of arms) {
+      n++;
+      if (mutated === src) { bad++; console.error(`  x ${label}: the anchor did not match — the arm planted NOTHING`); continue; }
+      if (clientReaderPin(mutated).length === 0) { bad++; console.error(`  x ${label}: STAYED GREEN — the guard does not catch: ${why}`); }
+      else console.log(`  ${label}: RED (assertions failed) — caught by R2`);
     }
   }
   {

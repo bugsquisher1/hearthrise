@@ -1487,32 +1487,12 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
    gold-only) and redeemHearthToken. Do not delete it, and do not add a fourth
    caller: a new gem sink gets a server verb, not this refusal.
 
-   ⚠ WHY THIS IS A REFUSAL AND NOT A `buyUnlock` REWIRE. The obvious fix — route
-   these through window.HearthriseGold.buyUnlock the way b500 routed
-   buyBankSpaceGold — DOES NOT WORK, and the reason is structural rather than a
-   missing row:
-     · supabase/functions/hr-accrue/unlock-catalogue.js SELLABLE_NAMESPACES is
-       ['room','property'] and refuses `theme` / `cosmetic` BY NAME;
-     · the GENERATED catalogue agrees — 2026-08-16-unlock-offers.generated.sql
-       carries every theme.* and cosmetic.* row with `gold = null` and
-       `refusal = 'namespace_unsupported:<ns>'`;
-     · public.hr_unlock_offers has a GOLD column and no other, which is exactly
-       why the hero slot needed its own verb (that migration's header says so in
-       those words);
-     · src/data/gold-ladders.js publishes `bank.<n>` for the GOLD rung only —
-       there is no gem rung offer at all.
-   So `buyUnlock('theme.forest')` would answer 409 offer_unsupported forever, and
-   wiring it would turn a silent exploit into a permanently dead button. The
-   server half is a MIGRATION (see the change report; REVIEW-ONLY, a money
-   surface, Security's call) and this file must not invent one.
-
-   WHAT IT DOES INSTEAD is exactly what multi-character.js buySlot() already
-   ships and what the team already accepted for the same class: when the client
-   may not write the balance, the gesture is REFUSED BY NAME, nothing is
-   debited, and nothing is granted. hr_buy_hero_slot is likewise not applied
-   yet, so the hero-slot button says "Hero slots are unavailable right now"
-   today — this is that precedent, not a new policy. An honest "not yet" beats a
-   purchase that quietly does nothing and hands out the goods.
+   ⚠ A GEM SINK CANNOT BE ROUTED THROUGH `buyUnlock`: hr_unlock_offers has a GOLD
+   column and no other, and unlock-catalogue.js refuses the theme/cosmetic
+   namespaces by name — which is why hr_buy_gem_unlock and hr_buy_hero_slot each
+   needed a verb of their own. Until a sink HAS one, the gesture is REFUSED BY
+   NAME and nothing is debited or granted: an honest "not yet" beats a purchase
+   that quietly does nothing and hands out the goods.
 
    SWITCH OFF (clientMayWriteRecordField('gems') === true — no accrual, or a
    pre-arm build) every one of these paths is BYTE-FOR-BYTE what shipped before:
@@ -8665,13 +8645,12 @@ function renderHouse(){
       return `<div class="shop-row"><span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_bldImg(id, b.icon, '_plotBuildingIcon')}</span><div class="info"><b>${b.name} ${have?'('+have+'/'+b.max+')':''}</b><span>${b.desc} &nbsp;${Object.entries(b.cost).map(([k,v])=>`${_costPart(k, v)}`).join('&nbsp; ')}</span></div><button class="btn btn-sm ${at?'':'btn-primary'}" ${at||!can?'disabled':''} onclick="buildPlot('${id}')">${at?'Max':'Build'}</button></div>`;
     }).join('');
   } else {
-    el.innerHTML=`<div class="iap-grid">${HOUSE_THEMES.map(t=>{
-      /* Server-first (ownsGemUnlock): a residue entry the server's set does not
-         carry must not draw an "Apply" button for a theme the realm never sold. */
-      const owned=window.ownsGemUnlock('theme',t.id);
-      const active=window.activeHouseTheme()===t.id;
-      return `<div class="iap-card ${active?'gold':''}"><div class="iap-icon">${_hrGly(t.glyph||'uiHome',30,'--gold-2')}</div><h3>${t.name}</h3><div class="desc">${t.price?(t.currency==='gem'?_gem(t.price):_gp(t.price)):'Default'}</div>${owned?(active?'<button class="btn btn-block" disabled>Active</button>':`<button class="btn btn-block btn-primary" onclick="setTheme('${t.id}')">Apply</button>`):`<button class="btn btn-block btn-gem" onclick="buyTheme('${t.id}')">Buy</button>`}</div>`;
-    }).join('')}</div>`;
+    /* The cards are src/render/house-themes.js — OWNERSHIP IS THE REALM'S and
+       the three states are explained there. Every read is passed in, so the
+       painter has no opinion about where ownership comes from. */
+    el.innerHTML=window.HearthriseHouseThemes.houseThemeGridHtml(HOUSE_THEMES,{
+      owns:window.ownsGemUnlock, activeId:window.activeHouseTheme,
+      glyph:_hrGly, gem:_gem, gp:_gp });
   }
 
   /* bonuses panel */

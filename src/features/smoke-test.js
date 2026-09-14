@@ -10819,11 +10819,28 @@ const TESTS = [
         assert(stock.length && stock.indexOf('(have 2)') === -1 && stock.indexOf('(have 0)') !== -1,
           'the card must print the server count, never the phantom 2: ' + JSON.stringify(stock));
       }
-      // (d) FAIL-OPEN ON SILENCE: no envelope has stated a bag => never disable.
+    } finally {
+      window.getCombatLevel = lvl;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
+  /* DGN-KEY-2: the OTHER half of the rule. A gate closes when the server SAYS none,
+     never on silence — before the first envelope of a session there is no stated
+     bag at all, and a run refused then would be the client inventing a refusal. */
+  () => tryRun('DGN-KEY-2: an unstated server bag never disables a dungeon run', () => {
+    const A = window.HearthriseAccrual, id = 'goblin_warcamp', key = 'goblin_seal';
+    if (!A || typeof A.serverItemCount !== 'function' || !window.DUNGEONS || !window.DUNGEONS[id]) return;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag;
+    try {
+      window.getCombatLevel = () => 99;
+      G._dungeonCooldowns = {};
+      G.inventory = Object.assign({}, G.inventory, { [key]: 2 });
       delete G._serverBag;
-      assert(A.serverItemCount(G, key) === null && window.dungeonKeysHeld(key) === 2 && window.canRunDungeon(id, 'auto').ok === true,
-        'an UNSTATED bag must read the local count -- closed only when the server SAYS none: '
-        + JSON.stringify(window.canRunDungeon(id, 'auto')));
+      assert(A.serverItemCount(G, key) === null && window.dungeonKeysHeld(key) === 2
+        && window.canRunDungeon(id, 'auto').ok === true,
+        'an UNSTATED bag must read the local count: ' + JSON.stringify(window.canRunDungeon(id, 'auto')));
     } finally {
       window.getCombatLevel = lvl;
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
@@ -10878,13 +10895,31 @@ const TESTS = [
       assert(sent.length === 0 && said.some((m) => /Turnip Seed/.test(m)) && !G.farmPlots[0],
         'THE BUG: a plant went out against a seed the server has no row for (19 journalled on live), or the '
         + 'refusal did not NAME the seed: ' + JSON.stringify({ sent, said }));
-      // (c) FAIL-OPEN ON SILENCE: an unstated bag still sends (never block on silence).
+    } finally {
+      window.HearthriseFarmSync = prevSync; window.notify = realNotify;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
+  /* FARM-SEED-2: the fail-open half. Before the first envelope of a session no bag
+     has been stated, and a plant blocked then would be a refusal the client made up. */
+  () => tryRun('FARM-SEED-2: an unstated server bag still sends the plant', () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.gateItemCount !== 'function' || !window.CROPS || !window.CROPS.turnip) return;
+    const G = window.G, snap = snapshotG(), bagWas = G._serverBag, prevSync = window.HearthriseFarmSync;
+    const sent = [];
+    try {
+      window.HearthriseFarmSync = { isFarmServerArmed: () => true, farmPlantRefusalText: () => 'no seeds',
+        farmPlant: (i, c) => { sent.push([i, c]); return Promise.resolve({ ok: false, error: 'insufficient_seed' }); } };
+      G.farmPlots = [null, null];
+      G.inventory = Object.assign({}, G.inventory, { turnip_seed: 5 });
       delete G._serverBag;
       window.plantCrop(0, 'turnip');
       assert(sent.length === 1 && sent[0][1] === 'turnip',
         'with no envelope-stated bag the gesture must still be SENT: ' + JSON.stringify(sent));
     } finally {
-      window.HearthriseFarmSync = prevSync; window.notify = realNotify;
+      window.HearthriseFarmSync = prevSync;
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
       restoreG(snap);
     }

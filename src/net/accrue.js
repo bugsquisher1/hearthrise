@@ -785,9 +785,8 @@ export function equippedCount(equipment, id) {
    `G._serverBag` is the LAST STATED SERVER BAG — `hr_state_of` projects the
    WHOLE of `player_inventory` for the slot (`jsonb_object_agg(item_id, qty)`
    coalesced to `{}`), which is the exact table `hr_dungeon_settle` reads its
-   entry key from, so an omitted id is a real zero and this map answers "would
-   the server's key check pass?" without a second round trip. Scratch (`_`),
-   never persisted, never authored by the client.
+   entry key from, so an omitted id is a real zero and this map answers "would the
+   server's key check pass?" without a round trip. Scratch, never client-authored.
 
    `serverItemCount` returns NULL, not 0, when no envelope has stated a bag yet (a
    boot before the first settle, Node, an offline tab): only "the server says none"

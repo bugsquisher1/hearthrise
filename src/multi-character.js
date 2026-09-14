@@ -16,8 +16,9 @@
 //       ...
 //     ],
 //     entitlements:  {hearthHall:true, ...},         // ACCOUNT-level, not per-character
-//     ownedThemes:   ['default'],                    // shared across chars
-//     ownedCosmetics:['skin1', ...],                 // shared
+//     (NO ownedThemes / ownedCosmetics: gem-unlock ownership is the SERVER's set
+//      — hr_state_of `gem_unlocks`, read through legacy.js ownsGemUnlock. A copy
+//      here would be a second answer to one question, in a store a console edits.)
 //   }
 //   hearthrise:char:0 = full G snapshot for slot 0
 //   hearthrise:char:1 = full G snapshot for slot 1
@@ -77,8 +78,6 @@
       unlockedSlots: 1,
       slots: [],
       entitlements: {},
-      ownedThemes: ['default'],
-      ownedCosmetics: [],
       version: 1,
     };
     if(legacy){
@@ -97,8 +96,9 @@
         });
         // Pull account-level fields out of the legacy save into the profile.
         if(d.entitlements) profile.entitlements = d.entitlements;
-        if(d.ownedThemes) profile.ownedThemes = d.ownedThemes;
-        if(d.ownedCosmetics) profile.ownedCosmetics = d.ownedCosmetics;
+        /* ownedThemes / ownedCosmetics are deliberately NOT carried up
+           (2026-09-14): they were write-only here — nothing has ever read either
+           back — and ownership of a gem unlock is the realm's projected set. */
       } catch(e){
         profile.slots.push({ id:0, name:'Adventurer', combatLv:1, totalLv:1, createdAt:Date.now(), lastSeen:Date.now() });
       }

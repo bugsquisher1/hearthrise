@@ -2,6 +2,18 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-14 · SYSTEMS (lane: gem-unlock + recipe-learn client half) → COORDINATOR · **TWO LANES ARE WRITING `src/features/gem-unlocks.js`**
+
+Branch `lane/b547-gem-recipe-client` (worktree `agent-aade13cac01003e53`) created `src/features/gem-unlocks.js` and `src/features/recipe-scrolls.js` as ESM side-effect modules imported by `src/main.js`, publishing `ownsGemUnlock` / `gemUnlocksKnown` / `activeHouseTheme` / `buyGemUnlock` and `unlockedRecipesMap` / `knowsRecipe` / `readRecipeScroll` on `window`.
+
+A SECOND lane (`agent-afc3a91d534c61393`) is extracting the SAME file with a DIFFERENT shape — a classic-script IIFE relying on the global lookup, and a different API: `gemUnlockIsFree()` and `noteGemUnlockOptimistic()` (an OPTIMISTIC local grant of an unlock). Both cannot land.
+
+**Two real disagreements, not just a file collision.**
+1. **Optimistic ownership.** `noteGemUnlockOptimistic` writes the bought id into `G._gemUnlocks` before the realm answers. This lane deliberately does NOT: ownership is adopted only from `gem_unlocks` on the verdict or the next envelope, because a locally-granted entitlement that a refusal never retracts is the b371 sticking half in a new store (the scratch key rather than the residue bag). If instant feedback is wanted, it belongs in a render-only flag the purchase path cannot read.
+2. **`gemUnlockIsFree()` as a fallback for ownership.** Deciding "free ⇒ owned" from the CLIENT's `HOUSE_THEMES` literal re-derives an entitlement the realm already states: `hr_gem_unlocks_of` unions `where g.free`, so `theme:default` is in EVERY projection. A client-side free-list is a second answer to the one question, and it answers before the first envelope in a direction ("owned") this lane deliberately refuses.
+
+**Recommendation:** take one lane's file whole; do not merge the two by hand (§3.3). This lane's is green by exit code: `tools/lane-done.mjs` all green, suite 1293/1306 / 0 failed, `no-client-copy-of-projection` exit 0 with the OWED pin 3 -> 1 and the three raw-read pins at zero, and six planted defects turn its arms red.
+
 ## 2026-09-13 · SYSTEMS (lane: Bestiary Charms phase 1) → ART DIRECTOR + GAME DESIGNER
 
 **Art Director.** The Bestiary modal (`src/render/bestiary.js`) grew a charm strip above the roster and an element line inside each discovered row, with a new `.charm-*` block in `src/styles/legacy.css`. Atlas glyphs only (`uiMedal` / `uiTarget` / `uiSpark`) and tokens only — the four rank tints are `color-mix(in srgb, var(--gold-2) N%, transparent)`, no colour literal was added (`css-literal-ratchet` exit 0), no emoji. Measured at 1440×900 and 852×393: no horizontal spill, chips wrap to two columns, zero console errors. If the strip wants a different home (its own header, or folded into the row) that is the Art Director's call — the markup is one function, `paintCharmStrip`.

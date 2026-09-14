@@ -457,15 +457,25 @@ const PROBE_FILE = 'src/features/_gem_census_probe.js';
 async function selftest() {
   const mutations = [
     {
-      name: 'M1 — the arm gate is removed from buyTheme (THE SHIPPED BUG, reinstated)',
-      why: 'the exact defect this lane fixes: `G.gems -= t.price` with no arm check. If the census '
-        + 'stays green with the gate deleted, L5 is decorative.',
+      /* ⚠ RE-POINTED 2026-09-14, and the reason is the fix rather than the
+         guard. M1 used to DELETE the arm gate from buyTheme and require L5 to
+         notice. buyTheme has no arm gate now and no local debit either: it sends
+         hr_buy_gem_unlock and renders the server's answer, so there is nothing
+         left in it for L5 to select. The defect worth planting is therefore the
+         REGRESSION — somebody putting the client-authored debit back — and the
+         control that must bite is L1, which fails on a gem write site no ledger
+         row declares. Same function, same bug, one layer out. */
+      name: 'M1 — buyTheme reacquires a raw `G.gems -=` (THE SHIPPED BUG, reinstated)',
+      why: 'this is the exact line that made a premium theme free: a local debit on a SERVER_OF_RECORD '
+        + 'balance, refunded by the next envelope while the goods stayed. It is now a server verb, so '
+        + 'if the census stays green when the debit comes back, L1 is decorative and the whole class '
+        + 'can walk back in through the function it walked out of.',
       apply: async () => {
         const p = at('src/legacy.js');
         const s = await readFile(p, 'utf8');
-        const gate = "    if(!gemSpendIsClientAuthored()){refuseGemPurchase('that theme');return;}\n";
-        if (!s.includes(gate)) throw new Error('M1 anchor not found — buyTheme gate has moved');
-        await writeFile(p, s.replace(gate, ''), 'utf8');
+        const anchor = "  return buyGemUnlock('theme:'+id,'that theme',function(){\n";
+        if (!s.includes(anchor)) throw new Error('M1 anchor not found — buyTheme has moved');
+        await writeFile(p, s.replace(anchor, '  G.gems-=t.price;\n' + anchor), 'utf8');
         return () => writeFile(p, s, 'utf8');
       },
     },
@@ -492,7 +502,10 @@ async function selftest() {
       apply: async () => {
         const p = at('src/net/gem-sites.js');
         const s = await readFile(p, 'utf8');
-        const i = s.indexOf("id: 'src/legacy.js#buyCosmetic'");
+        /* Re-pointed 2026-09-14 with M1: the buyCosmetic row is gone (the site
+           is wired to hr_buy_gem_unlock and moves no gems), so the row this cuts
+           is the surviving unwired purchase twin. */
+        const i = s.indexOf("id: 'src/legacy.js#buyBankSpaceGem'");
         if (i < 0) throw new Error('M3 anchor not found');
         const start = s.lastIndexOf('\n  {', i);
         const end = s.indexOf('\n  },', i);

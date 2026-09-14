@@ -672,8 +672,11 @@ let G={
      purchased ladder read as un-owned. Guarded by smoke SA010-1. */
   bank:{goldBuys:0,gemBuys:0,grandfather:0},
   entitlements:{},                          /* {hearthHall:true, ...} — cosmetic/convenience only */
-  ownedThemes:['default'],
-  ownedCosmetics:[],
+  /* ⚠ `ownedThemes` / `ownedCosmetics` ARE GONE (2026-09-14) and must not come
+     back as fields. Ownership of a gem-bought unlock is the SERVER's set —
+     hr_state_of `gem_unlocks` → accrue.js reconcileGemUnlocks → G._gemUnlocks
+     (scratch) → ownsGemUnlock. A default here would be a second answer to the
+     one question, and it is the answer a console can type. */
   /* b215: seasonPass field retired (pay-to-win XP). Old saves may still
      carry the key; nothing reads it. */
   skills:{attack:0,strength:0,defense:0,hitpoints:1154,prayer:0,magic:0,woodcutting:0,mining:0,fishing:0,farming:0,cooking:0,crafting:0,smithing:0},
@@ -1459,13 +1462,21 @@ window.clientMayWriteRecordField=clientMayWriteRecordField;
 
    A local `G.gems -= price` is therefore not a payment, it is a PREDICTION, and
    a prediction with no server intent behind it is retired by the next envelope —
-   the gems come back. Meanwhile `ownedThemes` / `ownedCosmetics` are RESIDUE
+   the gems come back. Meanwhile `ownedThemes` / `ownedCosmetics` WERE RESIDUE
    (client-state.js) and `G.bank.gemBuys` is carried untouched by reconcileBank,
    so the THING BOUGHT stayed. Net effect: a free theme, a free cosmetic, and
    free bank space, repeatable, from three unmodified buttons. That is the b371
    gem dupe — "the purchase became free" — which multi-character.js's own header
    documents and 2026-09-08-hero-slot-buy.sql was written to close for the
    FOURTH site (character_slot). These three are its twins and were missed.
+
+   ⚠ TWO OF THE THREE ARE NOW WIRED, NOT REFUSED (2026-09-14).
+   hr_buy_gem_unlock is applied, so buyTheme and buyCosmetic send an intent and
+   render the server's answer; their residue bags are deleted. THIS GATE IS
+   STILL LIVE and still load-bearing for the two sites that have no verb:
+   buyBankSpaceGem (there is no `bank.gem.<n>` rung anywhere — the gold ladder is
+   gold-only) and redeemHearthToken. Do not delete it, and do not add a fourth
+   caller: a new gem sink gets a server verb, not this refusal.
 
    ⚠ WHY THIS IS A REFUSAL AND NOT A `buyUnlock` REWIRE. The obvious fix — route
    these through window.HearthriseGold.buyUnlock the way b500 routed
@@ -1510,40 +1521,17 @@ function refuseGemPurchase(what){
 window.gemSpendIsClientAuthored=gemSpendIsClientAuthored;
 window.refuseGemPurchase=refuseGemPurchase;
 
-/* ── OWNERSHIP OF A GEM-BOUGHT UNLOCK: THE SERVER FIRST, ALWAYS ──────────────
-   `ownedThemes` / `ownedCosmetics` are RESIDUE — a bag the client writes and
-   hr_put_client_state stores verbatim. Residue asserting ownership of a thing
-   the SERVER sells is the class currently deadlocking a player's Forge (a
-   residue property tier gating a server capability), and it is the half of the
-   b371 dupe that made the free theme STICK.
-
-   This is multi-character.js ownsSlot() applied to the same problem, and the
-   fallback direction is the same one for the same reason: the SERVER'S SET WINS
-   WHEN THERE IS ONE, and residue answers only while the server has not spoken.
-   Today no envelope projects theme/cosmetic ownership (hr_state_of projects
-   hero_slots / traits / bank / companions / farm and nothing for these), so
-   `_gemUnlocks` is absent and every existing owner keeps every theme they hold
-   — NOBODY IS DE-OWNED BY THIS CHANGE. The day the migration projects the set,
-   `reconcileGemUnlocks` lands it in `G._gemUnlocks` (scratch, `_`-prefixed,
-   never persisted — the G._heroSlots shape exactly) and a forged residue entry
-   stops conferring anything, with no further edit to any caller.
-
-   ⚠ DO NOT make residue the authority again, and do not promote `_gemUnlocks`
-   out of scratch: the residue is precisely the store a cloud restore can rewind
-   while the entitlement it paid for stays granted. */
-function gemUnlockServerSet(){
-  var s=(typeof G!=='undefined')&&G&&G._gemUnlocks;
-  return (s&&Array.isArray(s.owned))?s.owned:null;
-}
-function ownsGemUnlock(kind,id){
-  if(typeof G==='undefined'||!G)return false;
-  var srv=gemUnlockServerSet();
-  if(srv)return srv.indexOf(kind+':'+id)>=0;
-  var bag=(kind==='theme')?G.ownedThemes:(kind==='cosmetic'?G.ownedCosmetics:null);
-  return !!(bag&&bag.indexOf&&bag.indexOf(id)>=0);
-}
-window.gemUnlockServerSet=gemUnlockServerSet;
-window.ownsGemUnlock=ownsGemUnlock;
+/* ── OWNERSHIP OF A GEM UNLOCK, AND THE LEARNED RECIPES: BOTH LIVE IN MODULES
+   src/features/gem-unlocks.js   — ownsGemUnlock / gemUnlocksKnown /
+                                    activeHouseTheme / buyGemUnlock
+   src/features/recipe-scrolls.js — unlockedRecipesMap / knowsRecipe /
+                                    readRecipeScroll
+   Extracted from here on 2026-09-14 with the server verbs they talk to
+   (hr_buy_gem_unlock, hr_recipe_learn). They are net-facing FLOW — intent,
+   verdict, reconcile, refusal — not UI glue, and §7 says that leaves the
+   monolith. This file keeps only the GESTURES (buyTheme / buyCosmetic /
+   setTheme are onclick targets and paint their own screens) and reads the
+   seams off `window`, the way it already reads HearthriseGold. */
 
 /* ── b431 — THE ROOMS READ SEAM (legacy wrapper) ──────────────────────────────
    Every `G.rooms` read in this classic script goes through these so that, once
@@ -2740,7 +2728,13 @@ const IAP=(()=>{
        fails the build if a `gold:` field ever reappears on a product. */
     if(p.tokens){addItem('hearth_token',p.tokens);} /* b206: tradable premium bonds */
     if(p.ent)G.entitlements[p.ent]=true;
-    if(p.unlocks)p.unlocks.forEach(id=>{if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);});
+    /* ⚠ `p.unlocks` USED TO PUSH THEME IDS INTO A RESIDUE BAG and the line is
+       gone with the bag (2026-09-14). No product in IAP_CATALOG carries
+       `unlocks`, so nothing regresses today — and the shape was wrong anyway: a
+       theme granted by a purchase is an ENTITLEMENT, and entitlements are
+       player_progress flags the server writes. A future themed product grants
+       through the server (hr_buy_gem_unlock's catalogue or a receipt-checked
+       grant), never by appending to a bag the client owns. */
     /* b215: the Season Pass was retired — it sold a permanent +10% all-XP
        multiplier, which is pay-to-win on public leaderboards and against the
        design rule that premium is convenience/cosmetic only. */
@@ -7797,7 +7791,7 @@ function renderProfile(){
       </div>
       <div class="hmstead-col">
         <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navHouse',14)} House</b><button class="btn btn-sm" onclick="showTab('house')">Open</button></div>
-        <div class="muted tiny" style="line-height:1.6">Theme: <b>${HOUSE_THEMES.find(t=>t.id===G.houseTheme)?.name||'Cozy Cottage'}</b><br>${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
+        <div class="muted tiny" style="line-height:1.6">Theme: <b>${HOUSE_THEMES.find(t=>t.id===window.activeHouseTheme())?.name||'Cozy Cottage'}</b><br>${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
       </div>
     </div>`;
 }
@@ -9204,8 +9198,8 @@ function renderHouse(){
     el.innerHTML=`<div class="iap-grid">${HOUSE_THEMES.map(t=>{
       /* Server-first (ownsGemUnlock): a residue entry the server's set does not
          carry must not draw an "Apply" button for a theme the realm never sold. */
-      const owned=ownsGemUnlock('theme',t.id);
-      const active=G.houseTheme===t.id;
+      const owned=window.ownsGemUnlock('theme',t.id);
+      const active=window.activeHouseTheme()===t.id;
       return `<div class="iap-card ${active?'gold':''}"><div class="iap-icon">${_hrGly(t.glyph||'uiHome',30,'--gold-2')}</div><h3>${t.name}</h3><div class="desc">${t.price?(t.currency==='gem'?_gem(t.price):_gp(t.price)):'Default'}</div>${owned?(active?'<button class="btn btn-block" disabled>Active</button>':`<button class="btn btn-block btn-primary" onclick="setTheme('${t.id}')">Apply</button>`):`<button class="btn btn-block btn-gem" onclick="buyTheme('${t.id}')">Buy</button>`}</div>`;
     }).join('')}</div>`;
   }
@@ -9498,10 +9492,12 @@ function buildPlot(id){
     notify('The realm couldn’t record that plot right now — nothing was spent. Try again in a moment.','kill');
   });
 }
-/* EQUIPPING is gated on OWNERSHIP, and ownership is the server's answer when it
-   has one (ownsGemUnlock). Absent a projection this is byte-for-byte the old
-   residue read, so no existing owner loses a theme today. */
-function setTheme(id){if(!ownsGemUnlock('theme',id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
+/* EQUIPPING is gated on OWNERSHIP, and ownership is the SERVER's set
+   (ownsGemUnlock). `houseTheme` is the equipped pointer and stays residue, but
+   it is read back through activeHouseTheme(), which paints `default` for a theme
+   the owned set does not carry — so a write here can never outlive the
+   entitlement behind it. */
+function setTheme(id){if(!window.ownsGemUnlock('theme',id))return;G.houseTheme=id;notify('Theme applied','info');renderHouse();}
 function buyTheme(id){
   const t=HOUSE_THEMES.find(x=>x.id===id);if(!t)return;
   /* ── b4xx — THEMES ARE GEMS-ONLY (designer ruling, slice 6). ─────────────────
@@ -9511,29 +9507,33 @@ function buyTheme(id){
      future non-zero gold theme could silently fall into. Non-gem themes are now
      equipped FREE (the default is a free equip), never bought with gold. No gold
      wiring: a gold-priced theme is not a thing this game authors. */
-  /* ── THE GEM SPEND GATE. The affordability check runs FIRST so "need more
-     gems" still wins when that is the true answer — and it reads the RECORD
-     (balance.js -> the server's gems), not a local number. Only a purchase the
-     player could actually make reaches the gate. The free default never does:
-     it is `currency !== 'gem'`, so it stays the free equip slice 6 made it and
-     never becomes a zero-priced "purchase" (the catalogue's own warning — a
-     zero-priced offer is an infinite faucet). */
-  /* ⚠ AN OWNED THEME IS NEVER BOUGHT TWICE. Found while writing GEM-OK-1, and
-     it is buyCosmetic's bug one function over: the debit ran unconditionally, so
-     calling buyTheme on a theme you already own CHARGED YOU AGAIN. The only
-     thing standing between a player and a second 1,000-gem Volcanic Keep was the
-     House card rendering "Apply" instead of "Buy" — a UI guard on a money
-     surface, which is not a guard. Re-buying now equips what you already own,
-     which is what the gesture means. */
-  if(ownsGemUnlock('theme',id)){ setTheme(id); return; }
-  if(t.currency==='gem'){
-    if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more gems. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
-    if(!gemSpendIsClientAuthored()){refuseGemPurchase('that theme');return;}
-    G.gems-=t.price;
+  /* ⚠ AN OWNED THEME IS NEVER BOUGHT TWICE. Re-buying equips what you already
+     own, which is what the gesture means; the server refuses `already_owned`
+     anyway, so this is a courtesy rather than the guard. */
+  if(window.ownsGemUnlock('theme',id)){ setTheme(id); return; }
+  /* THE FREE DEFAULT IS NOT A PURCHASE. It is `currency !== 'gem'`, it is the
+     `free` row in the realm's own catalogue (refused `not_for_sale` if anyone
+     ever posts it), and it equips through setTheme the moment the owned set
+     arrives. A zero-priced "purchase" path is an infinite faucet — the unlock
+     catalogue's own warning — so there is not one here. */
+  if(t.currency!=='gem'){
+    notify('The realm is still fetching your wardrobe — try again in a moment.','info');
+    return;
   }
-  if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);
-  G.houseTheme=id;
-  notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
+  /* The affordability check runs FIRST so "need more gems" still wins when that
+     is the true answer, and it reads the RECORD (balance.js → the server's gems)
+     rather than a local number. The server checks it again under the lock and
+     quotes its own shortfall; this one only saves a doomed round trip. */
+  if(!balCanAfford(t.price,'gems')){notify(balKnown('gems')?'Need more gems. Open the Store.':balShortfall(t.price,'gems'),'kill');return;}
+  return window.buyGemUnlock('theme:'+id,'that theme',function(){
+    notify('That theme is already yours.','info');
+    setTheme(id);
+  }).then(function(res){
+    if(res&&res.ok===true){
+      G.houseTheme=id;
+      notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
+    }else{ renderHouse(); }
+  });
 }
 
 /* ────────────────────────────────────────────────
@@ -9719,23 +9719,25 @@ function buyShopItem(id,qty,cost){
   if(_k&&window.HearthriseGold){const _p=window.HearthriseGold.buyShop(id,qty,cost,_k);if(_p&&_p.catch)_p.catch(()=>{});}
   notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
 }
-/* ── COSMETICS: THE THIRD GEM TWIN. This was one line and every part of it was
-   a client-authored premium purchase — `G.gems -= price` on an ARMED record
-   balance (retired by the next envelope) plus an unconditional
-   `G.ownedCosmetics.push(id)` into RESIDUE (which persists). Free cosmetics,
-   repeatable, and the push was not even deduplicated: a second buy appended the
-   same id again, so the residue grew without bound on a surface the shop only
-   accidentally guards (it disables the button when `owned`). Both are fixed
-   here; see the gem spend gate for why this refuses rather than routes. */
+/* ── COSMETICS: THE THIRD GEM TWIN, NOW THE THEME'S TWIN THE OTHER WAY. This
+   was one line and every part of it was a client-authored premium purchase —
+   `G.gems -= price` on an ARMED record balance (retired by the next envelope)
+   plus an unconditional `G.ownedCosmetics.push(id)` into RESIDUE (which
+   persisted). Free cosmetics, repeatable. It now goes through the SAME server
+   verb buyTheme does, so there is one purchase path for the premium currency and
+   the `price` argument the shop passes is a LABEL: it never crosses the wire and
+   the server reads the cost from its own catalogue. */
 function buyCosmetic(id,price){
   var cost=Math.max(0,Number(price)||0);
-  if(ownsGemUnlock('cosmetic',id)){notify('That cosmetic is already yours.','info');return;}
+  if(window.ownsGemUnlock('cosmetic',id)){notify('That cosmetic is already yours.','info');return;}
   if(!balCanAfford(cost,'gems')){notify(balKnown('gems')?'Not enough gems. Tap "Get Gems".':balShortfall(cost,'gems'),'kill');return;}
-  if(!gemSpendIsClientAuthored()){refuseGemPurchase('that cosmetic');return;}
-  G.gems-=cost;
-  G.ownedCosmetics=G.ownedCosmetics||[];
-  if(G.ownedCosmetics.indexOf(id)<0)G.ownedCosmetics.push(id);
-  notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();
+  return window.buyGemUnlock('cosmetic:'+id,'that cosmetic',function(){
+    notify('That cosmetic is already yours.','info');
+    renderShop();
+  }).then(function(res){
+    if(res&&res.ok===true){ notify('Cosmetic unlocked!','levelup'); saveLocal(); }
+    updateTopbar();renderShop();
+  });
 }
 /* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
    cost (escalating) and the flat gem deal side-by-side so the better value of
@@ -15730,7 +15732,12 @@ function hasInputs(recipe){ return window.HearthriseCore.artisan.hasInputs(recip
    `consumed` map and doArtisanAction applies it, so a helper that removed
    items without knowing whether craftSave had refunded them had no honest
    caller left. */
-function gateOk(recipe){ return window.HearthriseCore.artisan.gateOk(recipe, G.unlockedRecipes); }
+/* THE ATTENDED GATE, and it is PUBLISHED because the away engine's gate is
+   (artisan-sim's `gateOk(recipe, state.unlockedRecipes)`): the two must be
+   provably the same answer off the same projection, and a seam a test cannot
+   reach is a seam that drifts. RECIPE-AWAY-1 drives both. */
+function gateOk(recipe){ return window.HearthriseCore.artisan.gateOk(recipe, window.unlockedRecipesMap()); }
+window.gateOk=gateOk;
 
 /* b227 — THE MATERIAL-ONLY YIELD LAW (homestead-deepening.md §3.5 / H6).
    A hard rule, not a tuning knob: `yield_*` and `craftSave` may fire ONLY on
@@ -15848,7 +15855,7 @@ window.doArtisanAction = function(skillId, recipeId, opts){
   var res = CK.artisan.resolveArtisanAction(r, {
     skillId: skillId,
     inventory: G.inventory,
-    unlockedRecipes: G.unlockedRecipes,
+    unlockedRecipes: unlockedRecipesMap(),
     items: (typeof ITEMS!=='undefined' && ITEMS) || null,
     cookingLevel: (typeof getLevel==='function') ? getLevel('cooking') : 1,
     noBurn: (typeof getBonus==='function') ? (getBonus('noBurn')||0) : 0,
@@ -15971,7 +15978,7 @@ window.renderArtisanActivities = function(skillId){
       return kv[1]+'×'+nm+'('+(G.inventory[kv[0]]||0)+')';
     }).join(' + ');
     var unlocked = lv >= r.req;
-    var gated = r.gated && !(G.unlockedRecipes && G.unlockedRecipes[r.gated]);
+    var gated = r.gated && !window.knowsRecipe(r.gated);
     var canDo = unlocked && !gated && hasInputs(r);
     var active = G.activeSkill===skillId && G.skillTargetId===r.id;
     var outputLabel = r.output && ITEMS[r.output] ? ITEMS[r.output].n : (r.output||'XP only');
@@ -16031,28 +16038,12 @@ window.renderArtisanActivities = function(skillId){
  *   the three drops in src/data/monsters.js — NOT here.
  */
 
-/* ─── Recipe scroll auto-unlock on pickup ─── */
-(function(){
-  var origAdd = window.addItem;
-  if(typeof origAdd !== 'function') return;
-  window.addItem = function(id, qty){
-    var r = origAdd.apply(this, arguments);
-    /* If this is a recipe scroll, unlock it and consume */
-    var def = ITEMS[id];
-    if(def && def.recipe){
-      G.unlockedRecipes = G.unlockedRecipes || {};
-      if(!G.unlockedRecipes[id]){
-        G.unlockedRecipes[id] = true;
-        if(typeof notify === 'function') notify('Recipe Unlocked: '+def.n,'levelup');
-      }
-      /* Remove from inventory — scrolls are consumed on read */
-      setTimeout(function(){
-        if(typeof removeItem === 'function') removeItem(id, qty || 1);
-      }, 100);
-    }
-    return r;
-  };
-})();
+/* ─── THE addItem SCROLL WRAPPER IS GONE (2026-09-14) ───────────────────────
+   It unlocked a recipe into RESIDUE on pickup and deleted the item locally on a
+   100 ms timer — a client-authored grant and a client-authored consume, neither
+   of which the realm ever saw, which is why the away engine refused every gated
+   recipe. Reading a scroll is now a gesture with a server verb; the whole story
+   and the code are in src/features/recipe-scrolls.js. Nothing wraps addItem. */
 
 console.log('Phase A.1 recipe set loaded:',
   Object.values(window.ARTISAN_RECIPES).reduce(function(a,arr){return a+arr.length;},0), 'total recipes,',
@@ -16863,15 +16854,17 @@ function renderInvFancy(){
         '<div class="invc-grid">'+
           (visible.length === 0 ?
             /* b293 (Xarnathos: "when you get a recipe it is not listed in the
-               inventory under recipe"). Recipe scrolls are READ ON PICKUP — addItem
-               unlocks them into G.unlockedRecipes and deletes the item — so this tab
-               could never hold anything and read as a bug. Show the recipes you have
-               actually learned instead of a dead "no items" wall. */
+               inventory under recipe"). Scrolls USED to be read on pickup and
+               deleted, so this tab could never hold anything. Since 2026-09-14 a
+               scroll stays in the bag until you read it (bag menu → Read), so the
+               tab shows real items again; this branch is what a player sees once
+               every scroll they hold has been read — the recipes they KNOW, off
+               the server's learned set. */
             (f.category === 'recipes'
               ? (function(){
-                  var known = Object.keys((G && G.unlockedRecipes) || {}).filter(function(id){ return ITEMS[id]; });
-                  if(!known.length) return '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No recipes learned yet — recipe scrolls drop from monsters and are learned the moment you pick them up.</div>';
-                  return '<div style="grid-column:1/-1;padding:6px 2px 10px;color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Recipes are learned the moment you pick up the scroll, so they live here rather than in your bag — these are yours permanently.</div>'
+                  var known = Object.keys(window.unlockedRecipesMap()).filter(function(id){ return ITEMS[id]; });
+                  if(!known.length) return '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No recipes learned yet — recipe scrolls drop from monsters, and stay in your bag until you read one.</div>';
+                  return '<div style="grid-column:1/-1;padding:6px 2px 10px;color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Recipes you have read. Learning one is permanent — the scroll itself is spent in the reading.</div>'
                     + known.map(function(id){
                         var d = ITEMS[id];
                         var makes = d.recipe && ITEMS[d.recipe] ? ITEMS[d.recipe].n : null;

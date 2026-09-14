@@ -148,6 +148,7 @@ export const PATTERNS = Object.freeze([
 export const EXCLUDED = Object.freeze({
   'src/features/smoke-test.js': 'the test suite itself. It sets G.gold to fixture values in ~60 '
     + 'places to drive assertions; those are not economy sites and never ship a server intent.',
+  'src/features/smoke/': 'the same suite, one directory down since the 2026-09-14 split.',
   'src/net/gold-sites.js': 'the ledger. It names sites; it does not write gold.',
   /* THE MIRROR IMAGE, and it turned this census red the moment the gem ledger
      landed. src/net/gem-sites.js explains its rows by QUOTING the code they
@@ -162,6 +163,14 @@ export const EXCLUDED = Object.freeze({
   'src/net/gem-sites.js': 'the GEM ledger. Its prose quotes gold site ids and gold statements '
     + 'verbatim to explain the gem rows beside them. It names sites; it does not write gold.',
 });
+
+/* An exclusion key ending in `/` is a DIRECTORY, and L0 still proves it exists.
+   The suite became a directory on 2026-09-14 (smoke-test.js split into
+   smoke/_harness.js + smoke/<domain>.js); a census that excluded only the old
+   filename would have started reporting 1,297 tests' fixtures as economy sites. */
+const isExcluded = (rel) => Object.keys(EXCLUDED)
+  .some((k) => (k.endsWith('/') ? rel.startsWith(k) : rel === k));
+
 
 /* ── COMMENTS ARE NOT SITES ─────────────────────────────────────────────────
    Found immediately: this codebase documents itself heavily, and the FIRST run
@@ -287,7 +296,7 @@ export async function census(patternNames) {
   const seen = Object.create(null);
   for (const f of files) {
     const rel = relative(ROOT, f).replace(/\\/g, '/');
-    if (Object.prototype.hasOwnProperty.call(EXCLUDED, rel)) continue;
+    if (isExcluded(rel)) continue;
     const lines = stripComments((await readFile(f, 'utf8')).replace(/\r\n/g, '\n')).split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -559,8 +568,13 @@ export const MUTATIONS = {
     why: 'a wired row names a verb the server\'s own parser does not accept. Every real gesture '
       + 'there would spend a rate slot to earn a 400 unknown_verb.',
     file: LEDGER_FILE,
-    find: "    kind: 'vendor', status: 'wired', verb: 'vendor_sell',\n    site: 'src/legacy.js invSellOne()",
-    repl: "    kind: 'vendor', status: 'wired', verb: 'vendor_sellx',\n    site: 'src/legacy.js invSellOne()",
+    /* 2026-09-14: re-anchored. The anchor carried the SITE string, and tonight's
+       screen-controller extraction moved invSellOne() from src/legacy.js to
+       src/screens/shop-counter.js — so it matched zero times and the arm planted
+       nothing. Anchor on the row KEY and the line this mutation actually bends;
+       where the code lives is exactly the thing an extraction lane changes. */
+    find: "  'seam:vendor.sell_one': {\n    kind: 'vendor', status: 'wired', verb: 'vendor_sell',",
+    repl: "  'seam:vendor.sell_one': {\n    kind: 'vendor', status: 'wired', verb: 'vendor_sellx',",
   },
   /* ── F6: THE FOUR EVASIONS, ONE MUTATION EACH ─────────────────────────────
      Each plants a NEW FILE containing an undeclared gold movement written the
@@ -622,8 +636,16 @@ export const MUTATIONS = {
        no longer exists is a planted bug that was never planted. Re-pointed at a
        row that is still deferred rather than deleted, because the property is
        about the DEFERRED class and that class is not empty. */
-    find: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,\n    flipGuard: { gated: 'serverMarketActive' },\n  },",
-    repl: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred',\n    flipGuard: { gated: 'serverMarketActive' },\n  },",
+    /* 2026-09-14: re-anchored AGAIN, and the reason is the failure mode this arm
+       was re-anchored for the first time. The row's flipGuard became
+       `clientMayWriteRecordField` (b511 moved the market write behind the record
+       seam) and the anchor still named `serverMarketActive`, so it matched ZERO
+       times and the "deferred with no blocker" defect was never planted — the
+       arm reported HARNESS rather than CAUGHT, which is honest but is not a
+       proof. Anchor on the row KEY and its status line; the flipGuard token is
+       whatever the ledger says today. */
+    find: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred', blockedBy: B.MARKET_BUY_OFFERS,",
+    repl: "  'src/market.js#placeBuyOffer': {\n    kind: 'transfer', status: 'deferred',",
   },
   /* ── L8: THE UNGATED-TRANSFER CLASS (Security gold-flip Finding #3) ────────
      Two mutations, because there are two ways a value-crossing gold write arms
@@ -638,8 +660,13 @@ export const MUTATIONS = {
        raid_claim started crediting the chest in-RPC. Re-pointed at clan contribute,
        which is still a deferred, gated transfer — the property is about the
        DEFERRED-TRANSFER class, and that class is not empty. */
-    find: "    flipGuard: { gated: 'CLAN_LAUNCHED' },\n  },",
-    repl: "  },",
+    /* 2026-09-14: re-anchored. `CLAN_LAUNCHED` stopped being the declared gate
+       when b511 moved the clan debit behind the record seam, so this arm matched
+       nothing and planted nothing. Anchored on the END of that row's own comment
+       — text that belongs to this row and no other — so the flipGuard line it
+       deletes is still the clan transfer's. */
+    find: "server-of-record, whatever CLAN_LAUNCHED says. */\n    flipGuard: { gated: 'clientMayWriteRecordField' },",
+    repl: "server-of-record, whatever CLAN_LAUNCHED says. */",
   },
   transfer_flip_guard_gate_absent_in_code: {
     why: 'a deferred transfer CLAIMS a code gate whose token is nowhere in the site. The annotation '

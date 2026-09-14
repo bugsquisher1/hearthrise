@@ -817,19 +817,9 @@ export function gateItemCount(G, id) {
  */
 /* ⏳ RETIREMENT (live-settlement.md §8). This discount exists ONLY because no
    equip intent tells the server about a client equip, so the server's inventory
-   figure is a stale view that still counts the worn copy. It retires on
-   WHICHEVER COMES FIRST:
-     • the equip intent landing (the server then knows, and its figure is
-       already correct — the discount would become a double subtraction), or
-     • the Phase 2 flip, when `applyEnvelopeState` reverts to absolute
-       replacement and the client holds no rival copy to reconcile.
-   It is NOT retired by Phase 1. Do not delete it alongside the max-merge
-   without checking which of the two conditions actually fired — they are
-   different dates and the b362 dupe comes straight back if this goes early.
-
-   ✅ b366 — BOTH CONDITIONS FIRED, AND IT IS NO LONGER ON THE LIVE PATH. The
-      equip verb landed AND the flip landed, in one commit, so the absolute
-      branch in `applyEnvelopeState` never calls this: under absolute the
+   figure is a stale view that still counts the worn copy.
+   ✅ BOTH RETIREMENT CONDITIONS FIRED (the equip verb AND the absolute flip, in
+      one commit), so it is NO LONGER ON THE LIVE PATH: under absolute the
       server's figure already excludes the worn copy, and subtracting it again
       would DELETE a bag copy the player owns. It survives here, unchanged and
       still tested, solely to serve the merge branch the `hr:envelopeMerge`
@@ -3701,49 +3691,21 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
       G._serverBag = mirror;
     } catch (e) { /* a hostile projection cannot break the apply */ }
   }
-  /* ══════════════════════════════════════════════════════════════════════
-     THE START KIT IS A PRE-ENVELOPE **HINT**, AND IT IS DISCARDED THE MOMENT
-     THE REALM STATES THE BAG (live P1 class, 2026-09-14: "the browser says one
-     thing and the server says another").
-
-     MEASURED on the QA account (user …4ba77 slot 2, 2026-09-13): the client's
-     bag showed `turnip_seed 5`, `carrot_seed 3` and `shrimp 10`; the SAME
-     minute `player_inventory` held NO row for any of the three, and the farm
-     answered `insufficient_seed`. Nobody had duplicated anything — the three
-     numbers are the fresh-`G` factory literal at legacy.js:684 (which must equal
-     src/data/start-kit.js START_INVENTORY, smoke B338-1), and `inventory` is not
-     a SERVER_OF_RECORD field so `loadLocal` cannot strip it. The merge branch
-     below is a one-way `Math.max` ratchet, so `max(5, omitted)` = 5 FOREVER: a
-     figure the client invented, that no envelope can ever contradict.
-
-     WHY THE HINT EXISTS AT ALL: the bag must paint something between the boot
-     and the first envelope, and hr_create_character seeds exactly these rows for
-     a genuinely new character (tools/gen-catalogues.mjs emits `hr_start_kit` from
-     the same file), so for a NEW player the realm restates the hint and nothing
-     changes. It is only a lie for a character who has since SPENT the kit.
-
-     THE RULE, deliberately the narrowest one that kills the class:
-       · ONCE per page load, on the first bag the realm states under a COMPLETE
-         baseline. `inventory_complete` is the SERVER's own assertion that no
-         settle window is open (2026-08-24-inventory-complete.sql), i.e. that its
-         projection is a whole statement rather than a mid-flight view — the same
-         gate the phantom-food rule below is fail-closed on, and PHANTOM-FOOD-1
-         is the guard that says a figure may not be lowered without it;
-       · ONLY for the ids in START_INVENTORY — ids the CLIENT invents;
-       · ONLY while the local figure is still EXACTLY the hint. A player holding
-         7 turnip seeds has played; that is real progress and the merge rule
-         (never delete, never lower) still owns it. This is also what makes
-         "once per load" safe rather than "on the very first envelope": a bag
-         that has been played no longer matches the hint, so waiting for a
-         complete baseline cannot discard anything a player earned.
-     Within those three, the realm's projection is believed in BOTH directions —
-     it is a whole-bag projection, so an omitted id is a real zero. It can
-     therefore only ever remove a quantity the client itself authored, and can
-     never delete an item the server holds a row for.
-
-     NOT the Phase-2 absolute flip (`isInventoryAbsolute()`), which is a separate
-     lane and owns the wider bag; this is the one figure the flip would not fix
-     by itself either, because the literal is re-created on every boot. */
+  /* ── THE START KIT IS A PRE-ENVELOPE HINT, DISCARDED ONCE THE REALM SPEAKS ──
+     MEASURED (QA slot 2, 2026-09-13): the bag showed turnip_seed 5 / carrot_seed
+     3 / shrimp 10 while `player_inventory` held NO row for any of the three and
+     the farm answered `insufficient_seed`. Nothing was duplicated — the three are
+     the fresh-`G` factory literal (legacy.js, which must equal START_INVENTORY,
+     smoke B338-1), `inventory` is not a SERVER_OF_RECORD field so `loadLocal`
+     cannot strip it, and the merge below is a one-way `Math.max`: `max(5,
+     omitted)` = 5 FOREVER. hr_create_character seeds exactly these rows, so a NEW
+     character has the hint restated; it lies only once the kit is spent.
+     THE RULE, the narrowest that kills the class: ONCE per load, on a bag the
+     server certifies COMPLETE (the gate PHANTOM-FOOD-1 pins), for START_INVENTORY
+     ids only, and only while the local figure is still EXACTLY the hint — a
+     played figure keeps the never-delete merge rule, so this removes only a
+     quantity the client authored. NOT the Phase-2 flip (another lane), which
+     would not fix this anyway: the literal is re-created on every boot. */
   if (hintPending && baselineComplete === true) {
     try { G._startKitHintAt = Date.now(); } catch (e) {}
     for (const id of Object.keys(START_INVENTORY)) {

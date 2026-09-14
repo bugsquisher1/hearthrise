@@ -40523,7 +40523,7 @@ const TESTS = [
        (1.0 unperked, up to 2.0 at The Deep Cellar), and hr_state_of projects it as
        `scale`. The minutes are already inside `until`, so the client's only job is to
        SAY SO. Two ways to get that wrong, both red below:
-         · price the line from G.rooms — a client authoring a buff clock (the b543
+         · price the line from G.rooms — a client authoring a buff clock (the
            wall-clock ruling) and residue-ahead by construction, because a rung bought
            between two helpings would relabel a segment stamped at the old scale;
          · treat a MISSING field as 1.0-with-a-line, which would have every pre-migration
@@ -40544,7 +40544,7 @@ const TESTS = [
       window.showTab('profile');
       G.activeSkill = null; G.skillTargetId = null; G.activeMonster = null; G.activeArtisanRecipe = null;
       /* `rooms` is server-of-record, so a raw `G.rooms = …` is UNKNOWN to every
-         reader and fails closed to the empty map (b456). stampRecordLikeLoad pushes
+         reader and fails closed to the empty map. stampRecordLikeLoad pushes
          the rung through the REAL hr_load path, which is what a player's Cellar is. */
       G.rooms = { cellar: 5 };
       stampRecordLikeLoad(G);

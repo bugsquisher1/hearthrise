@@ -1450,6 +1450,13 @@ export const snapshotG = () => {
     // suite run would hand the player free offline hours, or leave a
     // future-dated watermark that silently stops offline progress accruing.
     offlineBudget: G.offlineBudget,
+    /* 2026-09-14 — `enchant` was missing from this allowlist while ELEM-5 and
+       ELEM-5b both assign it, so a suite run in the LIVE page left the player
+       wearing whichever element the last arm forged until the next envelope.
+       NO `?? {}`: an un-enchanted character has NO enchant, and a pinned empty
+       object is a VALUE a later test would read as real state — sealSnapshot
+       records the absence and restoreG deletes the key back (SNAP-2b). */
+    enchant: G.enchant,
     renownHigh: G.renownHigh,
     /* b494 — AND THE CLAIM LIST WITH IT. `renownHigh` was snapshotted and
        `renown` ({claimed, seenRank}) was not, yet four tests assign

@@ -1574,3 +1574,16 @@ re-priced in `src/data/bestiary-charms.js` alone — no engine change, because t
 the formula. **Security:** the rank is never a wire value. There is no request field for a rank or a
 kill count (`INTENT_KEYS`), the Edge folds `hr_bestiary_of`'s own rows inside the engine, and
 tests/accrual-engine.mjs CHARM-W4 byte-compares 32 forged input shapes against the clean delta.
+
+---
+
+## 2026-09-14 — SEMANTIC CONFLICT: the START-KIT hint discard vs the deleted factory literal
+**Lanes:** `worktree-agent-a6a742b766b7e073e` (START-KIT sweep) and the inventory-flip staged-arm lane. Both are already merged into `next`; nothing is broken today, and this is a note for whoever owns the bag next, not a request.
+
+`reconcileInventory` gained a once-per-load rule that, on a COMPLETE envelope, discards a `START_INVENTORY` id whose local figure is still EXACTLY the hint. It was written against the fresh-`G` factory literal `inventory:{turnip_seed:5,carrot_seed:3,shrimp:10,cooked_shrimp:20}` — which the flip lane DELETED in the same day's set (`src/legacy.js`; the bag now starts `{}`). Its own tests stage `G.inventory` explicitly, so they still pass, and they do.
+
+**What changed underneath it.** With the literal gone, an exact-hint local figure can no longer be client-authored — it can only have come from the server (a new character whose `hr_start_kit` rows say exactly 5/3/10/20) or from real play landing on the same number. So the rule's remaining reachable effect is to DELETE-on-omission a stack that may be real, for four ids, once per load. It is bounded and small; it is also the never-delete rule being broken for a phantom that no longer exists.
+
+**Recommendation (not taken unilaterally, because the code is the other lane's):** retire the `START_INVENTORY` block in `reconcileInventory` and let the classification carry it — `turnip_seed`/`carrot_seed` are now OWNED (so a complete envelope's omission means zero once the flip arms), `shrimp` is owned and `cooked_shrimp` is server-consumed. Until then it is harmless-but-unsound, and it is the second rule in one function that may remove a key.
+
+**Also recorded:** `INVENTORY_ARM_STAGE` ships `'off'`, so none of the above changes behaviour for a live player today.

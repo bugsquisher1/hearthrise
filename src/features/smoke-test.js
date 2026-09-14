@@ -59905,9 +59905,16 @@ const TESTS = [
           insufficient/missing-item refusals. Compare `tools/vitals.mjs --refusals`.
        4. `select item_id, count(*), sum(qty) from player_inventory group by 1`:
           totals move only where play explains.
-       5. Play the seed loop (plant all → auto-replant → reload): the measured
-          carve-out class, and where the last phantom bug lived.
-     Clean for a full day ⇒ `INVENTORY_ARM_STAGE = 'on'` lands ALONE. */
+       5. Play the seed loop (plant all → auto-replant → reload): seeds are OWNED
+          as of the C2 classification, so this is the id class most exposed.
+     Clean for a full day ⇒ `INVENTORY_ARM_STAGE = 'on'` lands ALONE.
+     THREE WAYS BACK, fastest first: `update public.hr_flags set enabled = false
+     where key = 'inventory_absolute'` (no deploy, every session that reads it);
+     `localStorage['hr:envelopeMerge'] = 'on'` (per device, offline, pre-existing);
+     revert the constant (a deploy). The soak query is game_events:
+     `select payload->>'armed', count(*) filter (where (payload->>
+     'destructiveOwnedOmissions')::int > 0) from game_events where
+     event_type = 'inv_flip_drift' group by 1`. */
 
   () => tryRunAsync('INV-STAGE-1: the flip is gated on the STAGED position — and on nothing else (prod flags)', async () => {
     const A = window.HearthriseAccrual;
@@ -60000,11 +60007,20 @@ const TESTS = [
        server-owned once the farm RPC is their only writer — "kept forever" is
        exactly the phantom-seed bug. MUTATION: own any of these five ⇒ red. */
     const A = window.HearthriseAccrual;
-    const CARVE_OUT = ['burnt_food', 'carrot_seed', 'tomato_seed', 'turnip_seed', 'wheat_seed'];
+    /* RULED, not left in limbo. The four SEEDS are now OWNED — hr_farm_plant
+       debits them and deletes the row at zero, so only ownership lets an omission
+       mean zero. `burnt_food` stays carved out: an attended client mint of the
+       same class as a dish. */
+    const CARVE_OUT = ['burnt_food'];
     for (const id of CARVE_OUT) {
       assert(A.serverOwnedItem(id) === false,
         id + ' is now server-OWNED; live players hold it and the projection can omit it, so an armed '
         + 'absolute envelope would DELETE it. Give it a server writer before owning it.');
+    }
+    for (const id of ['carrot_seed', 'tomato_seed', 'turnip_seed', 'wheat_seed']) {
+      assert(A.serverOwnedItem(id) === true,
+        id + ' fell back out of the ownable set — an unclassified seed can never be lowered or removed, '
+        + 'which is the phantom-seed bug this classification closed');
     }
     const G = { inventory: Object.fromEntries(CARVE_OUT.map((id) => [id, 7])) };
     A.reconcileInventory(G, { inventory: { copper_ore: 1 }, inventory_complete: true }, true, true);
@@ -60050,6 +60066,199 @@ const TESTS = [
     A.reconcileInventory(GF, { inventory: {}, inventory_complete: true }, true, true);
     assert(GF.inventory.turnip_mash === undefined,
       'a provision the server has eaten to zero must leave the bag on a COMPLETE envelope');
+  }),
+
+  /* ── THE SECURITY GO-WITH-CHANGES CONDITIONS (C1-C4) — four properties the
+     flip may not be staged 'on' without; each names the mutation that reddens it. */
+
+  () => tryRun('INV-STAGE-6: the soak signal reaches the channel that actually lands (C1)', () => {
+    /* MEASURED 2026-09-13: game_events over 14 days held boot_probe 115,
+       questClaim 28, companionEquip 5, companionUnlock 2 — and ZERO
+       inv_flip_drift, though the reporter had been booted for weeks. It emitted
+       through `window.trackEvent`, a localStorage buffer against a NULL endpoint;
+       the path to game_events is the bus plus sync.js's allowlist. So the arm's
+       own precondition was unmeasurable across the playerbase.
+       MUTATION: trackEvent alone ⇒ (a) red. Drop the allowlist entry ⇒ (b) red.
+       Stop journalling the transition ⇒ (c) red. */
+    const A = window.HearthriseAccrual;
+    const S = window.HearthriseSync;
+    assert(A && typeof A.reportFlipDrift === 'function' && typeof A.noteArmTransition === 'function',
+      'reportFlipDrift / noteArmTransition must be published');
+    assert(S && typeof S.isEventAllowed === 'function', 'HearthriseSync.isEventAllowed must be published');
+
+    // (b) the type is on the NETWORK allowlist, or the bus emit dies in enqueue().
+    assert(S.isEventAllowed('inv_flip_drift') === true,
+      'inv_flip_drift is not on sync.js EVENT_ALLOWLIST — the summary would be dropped before the network, '
+      + 'which is exactly the zero-rows state this closes');
+
+    // (a) a default emit reaches the BUS (the path that becomes a game_events row).
+    const seen = [];
+    const E = window.HearthriseEvents;
+    assert(E && typeof E.on === 'function', 'the in-process bus must be present');
+    const off = E.on('inv_flip_drift', (p) => seen.push(p));
+    try {
+      A.__resetFlipDriftReport();
+      const s = A.reportFlipDrift();          // no injected sink — the REAL default path
+      assert(s && typeof s === 'object', 'the first report must emit a summary');
+      assert(seen.length === 1, 'the drift summary never reached the bus (got ' + seen.length + ' emits) — '
+        + 'window.trackEvent alone is a localStorage buffer with a null endpoint');
+      assert(typeof seen[0].armed === 'boolean' && typeof seen[0].staged === 'boolean',
+        'the summary must carry BOTH the armed state and the staged position, or a soak cannot separate '
+        + 'staged-on sessions from merge ones: ' + JSON.stringify(seen[0]));
+
+      // (c) the ARM TRANSITION is journalled immediately, both directions.
+      A.noteArmTransition(true);
+      assert(seen.length === 2 && seen[1].transition === 'arm',
+        'an arm must be journalled the moment authority moves: ' + JSON.stringify(seen.slice(1)));
+      A.noteArmTransition(false);
+      assert(seen.length === 3 && seen[2].transition === 'disarm',
+        'a DISARM is the incident signal and must be journalled too: ' + JSON.stringify(seen.slice(2)));
+    } finally {
+      try { off && off(); } catch (e) {}
+      A.__resetFlipDriftReport();
+    }
+  }),
+
+  () => tryRun('INV-STAGE-7: a NAMED LOWER figure is believed for a non-owned id; silence still is not (C2)', () => {
+    /* THE PHANTOM CLASS THE CARVE-OUT RE-OPENED. The server DEBITS excluded ids
+       on its own behalf (a plant takes a seed, a sale takes the goods) and the old
+       branch took Math.max, so once the two numbers parted nothing could bring the
+       client down and the grid painted goods every gesture was refused for. A
+       stated figure is now believed both ways; an OMISSION is still "unknown".
+       MUTATION: put the Math.max back ⇒ (a) red. Believe an omission ⇒ (b) red. */
+    const A = window.HearthriseAccrual;
+    assert(A.serverOwnedItem('kitchen_blueprint_t2') === false, 'precondition: the blueprint is not owned');
+    // (a) NAMED LOWER → believed.
+    const G = { inventory: { kitchen_blueprint_t2: 9, turnip: 40 } };
+    A.reconcileInventory(G, { inventory: { kitchen_blueprint_t2: 2, turnip: 11 }, inventory_complete: true }, true, true);
+    assert(G.inventory.kitchen_blueprint_t2 === 2 && G.inventory.turnip === 11,
+      'a NAMED lower figure must be believed for a non-owned id — got ' + JSON.stringify(G.inventory));
+    // (b) OMISSION → still kept.
+    A.reconcileInventory(G, { inventory: {}, inventory_complete: true }, true, true);
+    assert(G.inventory.kitchen_blueprint_t2 === 2 && G.inventory.turnip === 11,
+      'an OMISSION must stay "unknown" for a non-owned id — this is the blueprint loss: '
+      + JSON.stringify(G.inventory));
+  }),
+
+  () => tryRunAsync('INV-STAGE-8: the bag write-gate can say NO, and every grant source is ruled (C3)', async () => {
+    /* `inventory` is not a SERVER_OF_RECORD field, so `clientMayWrite('inventory')`
+       answered a flat TRUE and the four gates that ask it before minting an item
+       were open by construction. A predicate that cannot say no is not a gate.
+       MUTATION: delete the `field === 'inventory'` case ⇒ (a) red. (b) asserts the
+       widened grant sources are WALKED as well as empty, so narrowing the universe
+       back to the four engine sources cannot pass silently. */
+    const A = window.HearthriseAccrual;
+    const R = window.HearthriseRecord;
+    const IA = window.HearthriseItemAuthority;
+    assert(R && typeof R.clientMayWrite === 'function', 'HearthriseRecord.clientMayWrite must be published');
+
+    // (a) NOT CONSTANT: it tracks the bag's authority in both positions.
+    const armedWas = A.isInventoryAbsolute();
+    assert(armedWas === false, 'this build must ship with the bag on merge for the control below to mean anything');
+    assert(R.clientMayWrite('inventory') === true, 'on MERGE a client prediction is allowed');
+    /* The BAG can only be absolute on top of the equip flip (isEnvelopeAbsolute),
+       so arm that the same way SERVER-OWNED-1 does before arming the bag. */
+    const E = window.HearthriseEquip, prevEq = E.getEquipConfig();
+    await armEquipFlipForTest(E);
+    A.noteBaselineComplete({ inventory_complete: true });
+    A.markInventoryAuthorityLive(true);
+    try {
+      assert(A.isInventoryAbsolute() === true, 'guard: the bag must be absolute for this half');
+      assert(R.clientMayWrite('inventory') === false,
+        'clientMayWrite(\'inventory\') is still TRUE while the bag is ABSOLUTE — the four mint gates that read '
+        + 'it are open, and every item they mint is one the next complete envelope deletes');
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      A.__resetAutoArm();
+      E.resetEquip();
+      if (prevEq) E.configureEquip(prevEq);
+    }
+
+    // (b) EVERY grant source is ruled ownable-or-excluded, including the
+    //     non-engine ones the universe used to miss.
+    for (const fn of ['shopGrantIds', 'qmStockIds', 'goalRewardIds', 'raidRewardIds', 'seedIds']) {
+      assert(typeof IA[fn] === 'function' && IA[fn]().size > 0,
+        fn + ' must be published and non-empty, or the completeness check is walking an empty set');
+    }
+    const limbo = IA.unclassifiedGrantIds({ dungeons: window.DUNGEONS });
+    assert(limbo.length === 0,
+      'these granted ids are in limbo — neither ownable nor excluded, so nobody has ruled what the flip may '
+      + 'do with them: ' + JSON.stringify(limbo));
+    // …and the two classifications the live census forced.
+    assert(IA.serverOwnedItem('turnip_seed') === true,
+      'a seed must be OWNED: hr_farm_plant debits it and deletes the row at zero, so only ownership lets the '
+      + 'omission mean zero — leaving it unclassified is what kept the phantom seed on the grid');
+    assert(IA.serverOwnedItem('burnt_food') === false,
+      'burnt_food is what src/core/artisan.js produces when a cook fails — an attended client mint, the same '
+      + 'class as a dish, and excluded for the same reason');
+  }),
+
+  () => tryRunAsync('INV-STAGE-9: the SERVER can disarm the flip without a deploy (C4)', async () => {
+    /* Every other position on this authority is a client constant, so a rollback
+       meant a redeploy, a cache-buster and every open tab reloading — on the one
+       change that can delete a player's item. The permission is one row in
+       public.hr_flags (staged: 2026-09-14-inventory-absolute-flag.sql), read at
+       configure time. MUTATION: see (a2). */
+    const A = window.HearthriseAccrual;
+    assert(typeof A.noteServerArmPermission === 'function' && typeof A.isServerArmPermitted === 'function',
+      'the server-side disarm seam must be published');
+    const permWas = A.isServerArmPermitted();
+    const E = window.HearthriseEquip, prevEq = E.getEquipConfig();
+    try {
+      await armEquipFlipForTest(E);   // the bag is absolute only on top of the equip flip
+      // (a) a NO disarms an armed session outright.
+      A.noteServerArmPermission(true);
+      A.noteBaselineComplete({ inventory_complete: true });
+      A.markInventoryAuthorityLive(true);
+      assert(A.isInventoryAbsolute() === true, 'guard: armed and permitted must be absolute');
+      A.noteServerArmPermission(false);
+      assert(A.isInventoryAbsolute() === false && A.isInventoryAuthorityLive() === false,
+        'the server said NO and the bag stayed absolute — the kill switch does not kill');
+
+      /* (a2) THE CONJUNCT ITSELF, ISOLATED — (a) cannot prove it, because the
+         withdrawal also disarms. Arm DIRECTLY with permission withheld (a session
+         that armed before the flag was read) and the bag must still be merge.
+         MUTATION: delete the serverArmPermitted conjunct ⇒ this goes red. */
+      A.__resetAutoArm();
+      A.noteServerArmPermission(false);
+      A.markInventoryAuthorityLive(true);
+      assert(A.isInventoryAbsolute() === false,
+        'the bag went ABSOLUTE while the server had withdrawn permission — isInventoryAbsolute does not '
+        + 'read the kill switch, so an operator flipping the row would change nothing for an armed session');
+      A.markInventoryAuthorityLive(false);
+
+      // (b) and it refuses a fresh auto-arm, so `armed` in the telemetry cannot lie.
+      A.__resetAutoArm();
+      A.__setInventoryArmStageForTest(true);
+      assert(A.maybeAutoArm() === false, 'the auto-arm must refuse while the server withholds permission');
+
+      /* (c) ONLY A LITERAL `false` IS A DECISION. An absent row (the migration
+         not yet applied), an unknown value or a failed read must NOT move the
+         position: the primary gate is the build constant, and a delete authority
+         that changes semantics on a flaky boot is worse than one that does not
+         move. The offline-capable third position is ENVELOPE_MERGE_KEY. */
+      A.__resetServerArmPermission();
+      for (const v of [undefined, null, 1, 'false', {}]) {
+        assert(A.noteServerArmPermission(v) === true,
+          'a non-boolean permission (' + JSON.stringify(v) + ') moved the position — only a literal false may');
+      }
+      assert(A.noteServerArmPermission(false) === false, 'a literal false must withdraw the permission');
+      assert(A.noteServerArmPermission(true) === true, 'and a literal true must restore it');
+
+      /* (d) A FAILED READ IS NOT AN ANSWER — the real transport, driven. */
+      A.__resetServerArmPermission();
+      const dead = () => Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve(null) });
+      const p = await A.fetchServerArmPermission(dead);
+      assert(p === true, 'a 404 on hr_flags withdrew the permission — an older database is not a decision');
+    } finally {
+      A.markInventoryAuthorityLive(false);
+      A.__setInventoryArmStageForTest(undefined);
+      A.__resetAutoArm();
+      A.__resetServerArmPermission();
+      if (permWas === false) A.noteServerArmPermission(false);
+      E.resetEquip();
+      if (prevEq) E.configureEquip(prevEq);
+    }
   }),
 
   () => tryRun('SERVER-OWNED-3: the drift detector does NOT count an excluded omission as destructive', () => {

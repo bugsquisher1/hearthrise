@@ -156,6 +156,10 @@ const EVENT_ALLOWLIST = new Set([
      client-side, and nothing recorded what build or hydration state their
      device was in). One SELECT on game_events now answers that. */
   'boot_probe',
+  /* THE INVENTORY-FLIP SOAK SIGNAL: one deduped aggregate per session plus the
+     arm/disarm transition. It went to trackEvent alone — a localStorage buffer
+     with a null endpoint — so the arm precondition read zero rows in 14 days. */
+  'inv_flip_drift',
 ]);
 const EVENT_MAX_PER_FLUSH = 20;    // rows per POST
 const EVENT_MAX_PER_MINUTE = 30;   // ~10x the observed allowlisted peak

@@ -103,6 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
+import { isInventoryAbsolute } from './accrue.js?v=546';
 import { isServerAccrualEnabled, resolveActiveSlot, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=546';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
@@ -802,6 +803,10 @@ export function recordEntry(field) {
    steady-state writer asks; the switch does not, because it is not a writer of
    the record — it is the thing that decides whose record it is. */
 export function clientMayWrite(field) {
+  /* THE BAG IS NOT ON THIS REGISTRY AND IS ASKED ANYWAY: this answered a flat TRUE,
+     so the four gates that ask before minting an item (renown, muster, raids,
+     goal-claim) were open by construction. INV-STAGE-8 reddens on a constant. */
+  if (field === 'inventory') return !isInventoryAbsolute();
   if (!isServerOfRecord(field)) return true;   // not moved — the client still owns it
   return !isRecordActive();                    // moved AND armed — applyRecord is the only writer
 }

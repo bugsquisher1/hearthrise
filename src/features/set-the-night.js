@@ -142,9 +142,12 @@
         var fid = (A && typeof A.eatFoodId === 'function')
           ? A.eatFoodId() : (eat.foodId || null);
         var r = AE.resolveAutoEat({
-          enabled: !!eat.enabled, owned: owned,
+          /* THE SERVER'S SWITCH (`auto_eat_enabled`), not the local one — the
+             night is the engine's, and it branches on the column. */
+          enabled: (A && typeof A.eatEnabled === 'function') ? A.eatEnabled() : !!eat.enabled,
+          owned: owned,
           hp: clone.playerHp, maxHp: clone.playerMaxHp,
-          threshold: th, foodId: fid || clone.foodSlot || null,
+          threshold: th, foodId: fid || clone.foodSlot || null,   /* clone.foodSlot = the in-memory gesture */
           inventory: clone.inventory || {}, items: items(),
         });
         if (!r) return false;

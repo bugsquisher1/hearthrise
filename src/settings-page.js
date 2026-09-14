@@ -170,13 +170,13 @@
     if(typeof d.theme         !== 'string')  d.theme         = 'dark';
     if(typeof d.showDamage    !== 'boolean') d.showDamage    = true;
     /* b326: the slider must SHOW what the engine will DO. The engine's number
-       is HearthriseAuto.eatThreshold(); G.autoEatPct is only its legacy mirror.
+       is HearthriseAuto.eatThreshold() — the server's own `auto_eat_pct`.
        Re-derived on every open (not just when missing) so the panel can never
        display a stale threshold after the food picker or a cloud restore. */
     if(window.HearthriseAuto && typeof window.HearthriseAuto.eatThreshold === 'function'){
       d.autoEatPct = window.HearthriseAuto.eatThreshold();
     } else if(typeof d.autoEatPct !== 'number'){
-      d.autoEatPct = (G.autoEatPct != null ? G.autoEatPct : 0.5);
+      d.autoEatPct = 0.5;   /* no client-held copy to fall back to any more */
     }
   }
 
@@ -594,7 +594,9 @@
     }
     var eat = (window.HearthriseAuto && window.HearthriseAuto.getEat)
       ? window.HearthriseAuto.getEat() : null;
-    var on = !!(eat && eat.enabled);
+    /* THE SWITCH THE ENGINE OBEYS (`auto_eat_enabled`), not the local gesture. */
+    var on = (window.HearthriseAuto && typeof window.HearthriseAuto.eatEnabled === 'function')
+      ? window.HearthriseAuto.eatEnabled() : !!(eat && eat.enabled);
     /* THE TIER CEILING IS THE SLIDER'S MAX, not a footnote under it: Auto-Eat I
        entitles up to 25% and hr_set_auto_eat clamps the stored value the same way,
        so a slider a tier-I owner could drag to 50% shows a number the fight does
@@ -937,12 +939,10 @@
              `G.autoEatPct` exactly ONCE (when the branch is first created), so
              every later move of this slider was inert and auto-eat kept firing
              at the 50% default no matter what the UI said. Route through the
-             one authoritative writer; it mirrors G.autoEatPct back for the
-             legacy fallback path. */
+             one authoritative writer (debounced out to hr_set_auto_eat), and NOWHERE ELSE: the `G.autoEatPct` mirror is deleted. */
           if(window.HearthriseAuto && typeof window.HearthriseAuto.setEat === 'function'){
             window.HearthriseAuto.setEat({ threshold: v });
           }
-          window.G.autoEatPct = v;
           /* THE DIAL REPAINTS ITS OWN HINT NOW. It never did — so dragging to
              0% left "Eat one Provision automatically…" sitting under a control
              that had just been set to never fire, which is the b326 class of

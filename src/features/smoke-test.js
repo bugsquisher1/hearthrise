@@ -1455,6 +1455,13 @@ const snapshotG = () => {
     // suite run would hand the player free offline hours, or leave a
     // future-dated watermark that silently stops offline progress accruing.
     offlineBudget: G.offlineBudget,
+    /* 2026-09-14 — `enchant` was missing from this allowlist while ELEM-5 and
+       ELEM-5b both assign it, so a suite run in the LIVE page left the player
+       wearing whichever element the last arm forged until the next envelope.
+       NO `?? {}`: an un-enchanted character has NO enchant, and a pinned empty
+       object is a VALUE a later test would read as real state — sealSnapshot
+       records the absence and restoreG deletes the key back (SNAP-2b). */
+    enchant: G.enchant,
     renownHigh: G.renownHigh,
     /* b494 — AND THE CLAIM LIST WITH IT. `renownHigh` was snapshotted and
        `renown` ({claimed, seenRank}) was not, yet four tests assign
@@ -1527,15 +1534,21 @@ const snapshotG = () => {
        without these four fields a suite run would gift the player a worker, an
        equipped theme, or an emptied/edited buy-back list they never chose. */
     workers: G.workers,
-    ownedThemes: G.ownedThemes,
     houseTheme: G.houseTheme,
-    /* ⚠ `ownedThemes` HAS BEEN HERE SINCE b4xx AND ITS TWIN NEVER WAS. Found
-       while writing the GEM-SPEND battery: `ownedCosmetics` is RESIDUE
-       (src/net/client-state.js), it persists through hr_put_client_state, and
-       buyCosmetic() pushes into it — so any test that drove that function wrote
-       straight through to the player's real account and the suite PERSISTED it.
-       Exactly the b494 `renown`/`collectionLog` class, one field over. */
-    ownedCosmetics: G.ownedCosmetics,
+    /* ⚠ `ownedThemes` / `ownedCosmetics` WERE HERE AND ARE GONE WITH THE FIELDS
+       (2026-09-14): ownership of a gem unlock is the server's projected set now,
+       and the two residue bags were deleted from `G` and from RESIDUE_FIELDS.
+       What replaces them on this list is the SCRATCH the projection lands in.
+       `_`-prefixed scratch is never persisted, but it absolutely outlives
+       restoreG within a run — so a test that seeds an owned set and does not put
+       it back hands the next test a wardrobe (or, worse, takes one away and makes
+       an unrelated House assertion fail on a Buy button). Same reason `_bankCap`
+       is here. BARE, no `?? null` — SNAP-2b fails the suite if that changes,
+       because `null` would be a VALUE ("the realm answered and you own nothing")
+       where the truth for a character whose envelope has not landed is ABSENCE.
+       sealSnapshot records the absence and restoreG deletes the key. */
+    _gemUnlocks: G._gemUnlocks,
+    _recipeUnlocks: G._recipeUnlocks,
     /* ⚠ `?? []`, NOT bare — SNAP-2, and this one BIT: a character who never sold has
        no key, JSON drops it, restoreG cannot put back what it has not got, and a test
        that made a REAL sale left an entry render/shop.js paints as an extra row. */
@@ -1730,6 +1743,38 @@ const withResidueWire = async (onRequest, body, extraCfg) => {
     if (G) { if (savedSyncedAt === undefined) delete G.cloudSyncedAt; else G.cloudSyncedAt = savedSyncedAt; }
     S.resetAuthGate(); S.__resetSyncHealth();
   }
+};
+
+/* ── SEED THE PLAY STREAK THE WAY THE GAME NOW LEARNS IT (2026-09-14) ────────
+   `G.streak` was a device-clock counter in the residue and is DELETED: the play
+   streak is `player_state.streak_days`, mirrored into the `G._serverStreak`
+   scratch by accrue.js reconcilePlayStreak and read through playStreakDays().
+   A fixture that assigns `G.streak` now asserts against a field nothing reads,
+   so it would pass or fail on the real account's data. This drives the SHIPPED
+   reconcile with a projected envelope — the same path a settle takes.
+   `null` clears the observation (back to never-observed, which reads 0). */
+const seedPlayStreak = (n) => {
+  const A = window.HearthriseAccrual;
+  if (!A || typeof A.reconcilePlayStreak !== 'function' || !window.G) return;
+  if (n === null || n === undefined) { delete window.G._serverStreak; return; }
+  A.reconcilePlayStreak(window.G, { ok: true, state: { streak_days: n, streak_day_key: null } });
+};
+
+/* The nine purged names plus the scratch they were replaced by — saved and put
+   back around every RESIDUE-PURGE block, because none of them is in snapshotG. */
+const RESIDUE_PURGE_KEYS = ['streak', 'toolCarry', 'combatStyle', 'ownedThemes', 'ownedCosmetics',
+  'heroSlotsUnlocked', 'autoEatPct', 'foodSlot', 'renownHigh', 'autoActions',
+  '_serverStreak', '_gemUnlocks', '_heroSlots'];
+const residuePurgeSnap = (G) => {
+  const out = {};
+  RESIDUE_PURGE_KEYS.forEach((k) => {
+    out[k] = Object.prototype.hasOwnProperty.call(G, k) ? G[k] : undefined;
+  });
+  return out;
+};
+const residuePurgeRestore = (G, snap) => {
+  try { window.HearthriseRenown.__resetClaimState(); } catch (e) {}
+  RESIDUE_PURGE_KEYS.forEach((k) => { if (snap[k] === undefined) delete G[k]; else G[k] = snap[k]; });
 };
 
 const restoreG = (snap) => {
@@ -2160,7 +2205,8 @@ const autoEatMirrorFixture = (body) => {
     const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
     try { AC.__noteAutoEatSettings(sObs); } catch (e) {}
     try { A._parkAutoEatMirror(wasParked); } catch (e) {}
-    G.traits = sT; G.settings = sS; G.autoEatPct = sP;
+    G.traits = sT; G.settings = sS;
+    if (sP === undefined) delete G.autoEatPct; else G.autoEatPct = sP;
     restoreG(snap);
   }
 };
@@ -4400,288 +4446,553 @@ const TESTS = [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
-     THE GEM-SPEND BATTERY — THE THREE TWINS b500 MISSED
+     THE GEM-UNLOCK BATTERY — OWNERSHIP IS THE REALM'S ANSWER
      ══════════════════════════════════════════════════════════════════════════
-     b500 swept "optimistic-apply, swallowed-rejection" and fixed four sites, one
-     of which is BANK-REFUSE-1 above (the SA-010 battery now sits between them). It walked past `buyBankSpaceGem`
-     two functions below `buyBankSpaceGold`, plus `buyTheme` and `buyCosmetic`,
-     because the sweep — and the census that drove it — were GOLD-shaped.
+     WHAT THIS REPLACED AND WHY. b500 swept "optimistic-apply, swallowed-
+     rejection" and walked past three GEM sites because the sweep was
+     GOLD-shaped. The tests that caught up with it pinned a REFUSAL: with no
+     server verb in existence, the honest behaviour of buyTheme / buyCosmetic was
+     to decline the gesture and spend nothing. Their own header said the
+     confirmed purchase would be "a new test, not an edit to these".
 
-     THE MECHANISM, which is what these tests actually pin. `gems` is on
+     This is that new test. hr_buy_gem_unlock is APPLIED (2026-09-14), so the two
+     purchase twins are WIRED: they send an intent, debit nothing locally, and
+     take ownership from the envelope. `ownedThemes` / `ownedCosmetics` left
+     RESIDUE_FIELDS in the same build, so there is exactly ONE answer to "do you
+     own this" and it is the realm's.
+
+     THE MECHANISM THESE STILL PIN, because it has not changed: `gems` is on
      SERVER_OF_RECORD with no dormant gate, so accrue.js writes it ABSOLUTELY on
-     every envelope. A local `G.gems -= price` with no server intent is therefore
-     REFUNDED — while `ownedThemes` / `ownedCosmetics` (residue) and
-     `G.bank.gemBuys` (carried untouched by reconcileBank) KEEP THE GOODS. Free
-     premium purchases, repeatable, from three unmodified buttons.
-
-     ⚠ WHY THESE ASSERT A REFUSAL RATHER THAN A SERVER ROUND-TRIP. The server
-     cannot sell these today and it is not a missing row: unlock-catalogue.js
-     SELLABLE_NAMESPACES is ['room','property'], the generated catalogue carries
-     every `theme.` and `cosmetic.` row with `gold = null` and
-     `refusal = 'namespace_unsupported:<ns>'`, and hr_unlock_offers has a gold
-     column and no other (2026-09-08-hero-slot-buy.sql's header says so in those
-     words — it is why the hero slot needed its own verb). So buyUnlock() would
-     answer 409 offer_unsupported forever. The shipped behaviour for this exact
-     class is multi-character.js serverBuySlot's: refuse by name, debit nothing,
-     grant nothing. These pin that, and they will keep passing unchanged when the
-     gem purchase verb lands — a CONFIRMED purchase is a new test, not an edit to
-     these. */
-  () => tryRun('GEM-REFUSE-1: an ARMED gem purchase debits no gems and grants no theme/cosmetic/bank rung', () => {
-    if (typeof window.buyTheme !== 'function' || typeof window.buyCosmetic !== 'function'
-      || typeof window.buyBankSpaceGem !== 'function') return;
+     every envelope. A local `G.gems -= price` is therefore a PREDICTION the next
+     envelope retires — and while the goods lived in a residue bag, the purchase
+     became free and repeatable. GEM-BUY-1's "the client debited nothing" arm is
+     that bug, stated as a property. The gem ARM GATE itself is still tested, by
+     GEM-REFUSE-1 below, for the two sites that still have no verb. */
+  () => tryRun('GEM-REFUSE-1: an ARMED gem purchase with NO server verb debits no gems and grants no bank rung', () => {
+    if (typeof window.buyBankSpaceGem !== 'function') return;
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField, origNotify = window.notify;
-    const origSave = window.saveLocal, origTop = window.updateTopbar;
-    const origHouse = window.renderHouse, origShop = window.renderShop, origInv = window.renderInventory;
+    const origSave = window.saveLocal, origTop = window.updateTopbar, origInv = window.renderInventory;
     const said = [];
     try {
       /* ARMED: the server owns the gem balance. This is production today. */
       window.clientMayWriteRecordField = function (f) { return f !== 'gems'; };
       window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
-      window.saveLocal = function () {}; window.updateTopbar = function () {};
-      window.renderHouse = function () {}; window.renderShop = function () {}; window.renderInventory = function () {};
+      window.saveLocal = function () {}; window.updateTopbar = function () {}; window.renderInventory = function () {};
 
       window.G.gems = 100000;
       stampBalanceLikeLoad(window.G);   // affordability must read a KNOWN balance, or it refuses for the WRONG reason
-      window.G.ownedThemes = ['default'];
-      window.G.ownedCosmetics = [];
-      window.G.houseTheme = 'default';
       window.G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
-      const gems0 = window.G.gems;
+      const gems0 = window.G.gems, rung0 = window.G.bank.gemBuys;
 
-      // ── 1. THEME ────────────────────────────────────────────────────────
-      window.buyTheme('forest');
-      assert(window.G.gems === gems0,
-        'THE CLASS: an armed buyTheme debited ' + (gems0 - window.G.gems) + ' gems the server never '
-        + 'saw — the next envelope refunds them and the theme stays. That is the free-theme dupe.');
-      assert(window.G.ownedThemes.indexOf('forest') < 0,
-        'THE CLASS: a theme the realm never sold was pushed into the ownedThemes RESIDUE, which persists');
-      assert(window.G.houseTheme === 'default', 'a refused theme must not equip itself');
-
-      // ── 2. COSMETIC ─────────────────────────────────────────────────────
-      window.buyCosmetic('avatar_dragon', 500);
-      assert(window.G.gems === gems0,
-        'THE CLASS: an armed buyCosmetic debited gems with no server call');
-      assert(window.G.ownedCosmetics.indexOf('avatar_dragon') < 0,
-        'THE CLASS: a cosmetic the realm never sold was pushed into the ownedCosmetics RESIDUE');
-
-      // ── 3. BANK GEM RUNG ────────────────────────────────────────────────
-      const rung0 = window.G.bank.gemBuys;
+      /* THE BANK GEM RUNG — the one purchase twin still without a verb, because
+         there is no `bank.gem.<n>` rung in any catalogue to point one at. Until
+         there is, refusing by name is the shipped behaviour and this is its
+         contract. */
       const ret = window.buyBankSpaceGem();
       assert(ret === false, 'a refused gem bank expansion must report false, got ' + ret);
-      assert(window.G.gems === gems0, 'THE CLASS: an armed buyBankSpaceGem debited gems with no server call');
+      assert(window.G.gems === gems0,
+        'THE CLASS: an armed buyBankSpaceGem debited ' + (gems0 - window.G.gems) + ' gems the server '
+        + 'never saw — the next envelope refunds them and the rung stays. That is the free-purchase dupe.');
       assert(window.G.bank.gemBuys === rung0,
         'THE CLASS: gemBuys advanced from ' + rung0 + ' to ' + window.G.bank.gemBuys
         + ' — bank space the realm never recorded');
 
-      // ── AND IT SAYS SO. A silent no-op is the b494 dead-button bug. ─────
+      // AND IT SAYS SO. A silent no-op is the b494 dead-button bug.
       const refusals = said.filter(function (s) { return s.k === 'kill' && /can.t record/i.test(s.m); });
-      assert(refusals.length === 3,
-        'each refused gem purchase must SPEAK its refusal — expected 3, saw ' + refusals.length
+      assert(refusals.length === 1,
+        'a refused gem purchase must SPEAK its refusal — expected 1, saw ' + refusals.length
         + ': ' + JSON.stringify(said));
-      assert(!said.some(function (s) { return /unlocked|Bank expanded/i.test(s.m); }),
+      assert(!said.some(function (s) { return /Bank expanded/i.test(s.m); }),
         'a refused gem purchase claimed success: ' + JSON.stringify(said));
     } finally {
       window.clientMayWriteRecordField = origMay; window.notify = origNotify;
-      window.saveLocal = origSave; window.updateTopbar = origTop;
-      window.renderHouse = origHouse; window.renderShop = origShop; window.renderInventory = origInv;
+      window.saveLocal = origSave; window.updateTopbar = origTop; window.renderInventory = origInv;
       restoreG(snap);
     }
   }),
 
-  /* THE OTHER HALF OF THE CONTRACT, and it is the half that makes the test above
-     mean something. If GEM-REFUSE-1 were the only test, deleting the bodies of
-     all three functions would pass it. This one drives the SAME three gestures
-     with the client authoritative (the switch-off path, byte-for-byte what
-     shipped before the gate) and requires each to pay EXACTLY ONCE and grant
-     EXACTLY ONCE — so the gate can only ever be a gate, never an off switch. */
-  () => tryRun('GEM-OK-1: with gems client-authored, each gem purchase pays EXACTLY once and grants once', () => {
-    if (typeof window.buyTheme !== 'function' || typeof window.buyCosmetic !== 'function'
-      || typeof window.buyBankSpaceGem !== 'function') return;
+  /* ── THE HAPPY PATH, PLAYED ─────────────────────────────────────────────────
+     A player with gems buys Forest Lodge. Everything a top-tier review would ask
+     of a premium purchase is asserted here: ONE intent per gesture, no number on
+     the wire, no local debit, ownership from the envelope, and the thing equips.
+     The price fixture comes from the AUTHORED table — a hardcoded 500 goes green
+     on the day a Designer reprices Forest Lodge and silently stops testing that
+     the gesture matches the quote. */
+  () => tryRunAsync('GEM-BUY-1: buying a theme sends ONE intent carrying no price, debits nothing locally, and takes ownership from the envelope', async () => {
+    if (typeof window.buyTheme !== 'function' || typeof window.ownsGemUnlock !== 'function') return;
     const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField, origNotify = window.notify;
-    const origSave = window.saveLocal, origTop = window.updateTopbar;
-    const origHouse = window.renderHouse, origShop = window.renderShop, origInv = window.renderInventory;
+    const prevGC = window.HearthriseGoalClaim, prevRec = window.HearthriseRecord;
+    const origNotify = window.notify, origSave = window.saveLocal;
+    const origTop = window.updateTopbar, origHouse = window.renderHouse;
+    const sent = [], said = [];
     try {
-      window.clientMayWriteRecordField = function () { return true; };
-      window.notify = function () {}; window.saveLocal = function () {}; window.updateTopbar = function () {};
-      window.renderHouse = function () {}; window.renderShop = function () {}; window.renderInventory = function () {};
+      const theme = (window.HOUSE_THEMES || []).find(function (t) { return t.currency === 'gem'; });
+      assert(theme, 'the fixture needs a gem-priced theme in HOUSE_THEMES (window.HOUSE_THEMES)');
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.saveLocal = function () {}; window.updateTopbar = function () {}; window.renderHouse = function () {};
+      window.HearthriseRecord = Object.assign({}, prevRec, { requestRecord: function () { return Promise.resolve(null); } });
+      window.HearthriseGoalClaim = Object.assign({}, prevGC, {
+        buyGemUnlock: function () {
+          sent.push(Array.prototype.slice.call(arguments));
+          return Promise.resolve({
+            ok: true, unlock_id: 'theme:' + theme.id, name: theme.name, currency: 'gems',
+            cost: theme.price, gems: 4242, version: 9, slot: 0,
+            gem_unlocks: ['theme:default', 'theme:' + theme.id]
+          });
+        }
+      });
 
       window.G.gems = 100000;
       stampBalanceLikeLoad(window.G);
-      window.G.ownedThemes = ['default']; window.G.ownedCosmetics = []; window.G.houseTheme = 'default';
-      window.G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 };
+      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
+      window.G.houseTheme = 'default';
+      const gems0 = window.G.gems;
 
-      /* ⚠ RE-STAMP BEFORE EVERY AFFORDABILITY-GATED CALL, and the reason is a
-         real property rather than harness noise. `gems` is armed, so balanceOf
-         trusts `G._record` and the b347 FINGERPRINT: the moment a local debit
-         moves G.gems away from the recorded value, the balance reads UNKNOWN and
-         the NEXT purchase fail-closes. Production does not hit this because the
-         server envelope re-stamps after a purchase (the b395/b396 gold-verb
-         re-stamp exists for exactly this). A test that stamps once and then makes
-         two gem purchases is measuring the missing re-stamp, not the purchase —
-         which is precisely how this test first went red. */
-      const restamp = function () { stampBalanceLikeLoad(window.G); };
-      /* THE PRICE COMES FROM THE AUTHORED TABLE, never a literal. A hardcoded 500
-         goes green on the day a Designer reprices Forest Lodge and silently stops
-         testing that the debit matches the quote. */
-      const theme = (window.HOUSE_THEMES || []).find(function (t) { return t.currency === 'gem'; });
-      assert(theme, 'the fixture needs a gem-priced theme in HOUSE_THEMES (window.HOUSE_THEMES)');
-      let g = window.G.gems;
-      window.buyTheme(theme.id);
-      assert(window.G.gems === g - theme.price,
-        'a client-authored theme buy must debit EXACTLY the price: expected -' + theme.price
-        + ', got -' + (g - window.G.gems));
-      assert(window.G.ownedThemes.filter(function (x) { return x === theme.id; }).length === 1,
-        'the theme must be granted exactly once');
-      /* AND RE-BUYING AN OWNED THEME CHARGES NOTHING. The shipped code debited
-         unconditionally, so a second call took the price again — the only thing
-         between a player and a second 1,000-gem Volcanic Keep was the House card
-         rendering "Apply" instead of "Buy". A UI guard on a money surface is not
-         a guard; found by writing this test. */
-      g = window.G.gems;
-      restamp();
-      window.buyTheme(theme.id);
-      assert(window.G.gems === g, 're-buying an OWNED theme must charge nothing, got -' + (g - window.G.gems));
-      assert(window.G.ownedThemes.filter(function (x) { return x === theme.id; }).length === 1,
-        're-buying an owned theme duplicated the residue entry');
-      assert(window.G.houseTheme === theme.id, 're-buying an owned theme should EQUIP it (that is what the gesture means)');
+      await window.buyTheme(theme.id);
 
-      g = window.G.gems;
-      restamp();
-      window.buyCosmetic('avatar_dragon', 500);
-      assert(window.G.gems === g - 500, 'a client-authored cosmetic buy must debit exactly 500');
-      assert(window.G.ownedCosmetics.filter(function (x) { return x === 'avatar_dragon'; }).length === 1,
-        'the cosmetic must be granted exactly once');
-      /* AND A SECOND BUY MUST NOT DOUBLE-CHARGE. The shipped one-liner had an
-         unconditional `G.ownedCosmetics.push(id)` — buying twice appended the id
-         twice and charged twice, on a surface the shop only accidentally guards
-         (it disables the button when owned). Found in the same read. */
-      g = window.G.gems;
-      restamp();
-      window.buyCosmetic('avatar_dragon', 500);
-      assert(window.G.gems === g, 're-buying an owned cosmetic must charge nothing, got -' + (g - window.G.gems));
-      assert(window.G.ownedCosmetics.filter(function (x) { return x === 'avatar_dragon'; }).length === 1,
-        're-buying an owned cosmetic duplicated the residue entry');
+      assert(sent.length === 1, 'exactly ONE purchase intent per gesture — saw ' + sent.length
+        + '. Two keys for one tap costs a rate spend and reads to the player as a failure.');
+      /* NO PRICE CROSSES. The server reads the cost from public.hr_gem_unlocks
+         under the character lock; a number on the wire would be a client
+         authoring a permanent capability, which is the thing the verb exists to
+         make impossible. */
+      assert(sent[0].length === 1 && typeof sent[0][0] === 'string',
+        'the transport takes an unlock id and nothing else — got ' + JSON.stringify(sent[0]));
+      assert(sent[0][0] === 'theme:' + theme.id,
+        'the intent must name the catalogue id `<namespace>:<id>`, got ' + sent[0][0]);
+      assert(!sent[0].some(function (a) { return typeof a === 'number'; }),
+        'THE CLASS: a NUMBER crossed the wire on a premium purchase — ' + JSON.stringify(sent[0]));
 
-      /* ── THE DIVERGENT CASE, and it is why the de-duplicated push is a real
-         line rather than dead defence. The already-owned check above reads
-         ownsGemUnlock, which prefers the SERVER's set — so when the server says
-         "you do not own this" and the residue says you do, the buy PROCEEDS and
-         reaches the push with the id already in the bag. Un-deduplicated, that
-         appends a second copy and the residue grows without bound across every
-         such reconcile. Found by mutation: removing the dedupe left every other
-         assertion green, because nothing else could reach the line. */
-      window.G._gemUnlocks = { owned: [], at: Date.now() };
-      g = window.G.gems;
-      restamp();
-      window.buyCosmetic('avatar_dragon', 500);
-      assert(window.G.gems === g - 500,
-        'with the SERVER set lacking it, a cosmetic buy must go through (the server is the authority '
-        + 'on ownership, and it says you do not own it)');
-      assert(window.G.ownedCosmetics.filter(function (x) { return x === 'avatar_dragon'; }).length === 1,
-        'the residue push must DE-DUPLICATE: a server/residue divergence appended a second copy of '
-        + 'avatar_dragon, which is unbounded growth in a bag the server stores verbatim');
-      delete window.G._gemUnlocks;
-
-      g = window.G.gems;
-      restamp();
-      const rung = window.G.bank.gemBuys;
-      assert(window.buyBankSpaceGem() === true, 'a client-authored gem bank buy must succeed');
-      assert(window.G.gems === g - window.BANK_SPACE.gem.cost, 'the bank buy must debit exactly the gem cost');
-      assert(window.G.bank.gemBuys === rung + 1, 'the bank rung must advance exactly once');
+      assert(window.G.gems === gems0,
+        'THE CLASS: the client debited ' + (gems0 - window.G.gems) + ' gems itself. gems are '
+        + 'SERVER_OF_RECORD and armed, so that is a prediction the next envelope refunds while the '
+        + 'theme stays — the b371 dupe.');
+      assert(window.ownsGemUnlock('theme', theme.id) === true,
+        'ownership must arrive in the ENVELOPE (gem_unlocks) and be adopted — the client no longer '
+        + 'has a bag to write, so if the reconcile is skipped the purchase is invisible');
+      assert(window.G.houseTheme === theme.id, 'a bought theme equips itself — that is the gesture');
+      assert(window.activeHouseTheme() === theme.id,
+        'the equipped pointer must survive the fail-closed read: it is owned, so it paints');
+      assert(said.some(function (x) { return x.k === 'levelup'; }),
+        'a completed purchase must say so: ' + JSON.stringify(said));
+      assert(!said.some(function (x) { return x.k === 'kill'; }),
+        'a completed purchase raised a failure toast: ' + JSON.stringify(said));
     } finally {
-      window.clientMayWriteRecordField = origMay; window.notify = origNotify;
-      window.saveLocal = origSave; window.updateTopbar = origTop;
-      window.renderHouse = origHouse; window.renderShop = origShop; window.renderInventory = origInv;
-      delete window.G._gemUnlocks;   // scratch: never persisted, but never left behind either
+      if (prevGC) window.HearthriseGoalClaim = prevGC; else delete window.HearthriseGoalClaim;
+      if (prevRec) window.HearthriseRecord = prevRec; else delete window.HearthriseRecord;
+      window.notify = origNotify; window.saveLocal = origSave;
+      window.updateTopbar = origTop; window.renderHouse = origHouse;
+      restoreG(snap);
+    }
+  }),
+
+  /* ── THE SAME CONTRACT ON THE OTHER SURFACE, PLUS THE REFUSAL THAT MATTERS ──
+     `already_owned` is the answer that makes the ACCOUNT-WIDE ruling real: Hero 2
+     opening the shop before its first envelope sees a Buy button, presses it,
+     and the realm says "you already have this" and hands back the whole owned
+     set. Nothing is charged, and the stale view heals in that one round trip.
+     If this test ever goes red the way it can — by that path charging a gem —
+     the bug is a 1,200-gem Phoenix Pet sold twice to one person. */
+  () => tryRunAsync('GEM-BUY-2: a cosmetic the ACCOUNT already owns is refused, charges nothing, and the refusal heals the view', async () => {
+    if (typeof window.buyCosmetic !== 'function' || typeof window.ownsGemUnlock !== 'function') return;
+    const snap = snapshotG();
+    const prevGC = window.HearthriseGoalClaim, prevRec = window.HearthriseRecord;
+    const origNotify = window.notify, origSave = window.saveLocal;
+    const origTop = window.updateTopbar, origShop = window.renderShop;
+    const sent = [], said = [];
+    try {
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.saveLocal = function () {}; window.updateTopbar = function () {}; window.renderShop = function () {};
+      window.HearthriseRecord = Object.assign({}, prevRec, { requestRecord: function () { return Promise.resolve(null); } });
+      window.HearthriseGoalClaim = Object.assign({}, prevGC, {
+        buyGemUnlock: function () {
+          sent.push(Array.prototype.slice.call(arguments));
+          /* The shape hr_buy_gem_unlock returns when the widened (account-wide)
+             owned-set read catches a re-buy: an error, WITH the set. */
+          return Promise.resolve({
+            ok: false, error: 'already_owned', unlock_id: 'cosmetic:pet_phoenix',
+            gem_unlocks: ['theme:default', 'cosmetic:pet_phoenix']
+          });
+        }
+      });
+
+      window.G.gems = 100000;
+      stampBalanceLikeLoad(window.G);
+      /* A character that has NOT heard about the purchase — hero 2's first paint. */
+      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
+      const gems0 = window.G.gems;
+      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false,
+        'the fixture needs the cosmetic to look UNOWNED before the gesture, or it proves nothing');
+
+      await window.buyCosmetic('pet_phoenix', 1200);
+
+      assert(sent.length === 1, 'the gesture must reach the realm — the client cannot know the '
+        + 'account owns it, and guessing is the residue-ahead class');
+      assert(window.G.gems === gems0, 'THE CLASS: an already-owned cosmetic charged ' + (gems0 - window.G.gems)
+        + ' gems. Account-wide ownership exists precisely so hero 2 is not billed twice.');
+      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === true,
+        'the refusal carries the owned set and must HEAL the stale view in the same round trip');
+      assert(said.some(function (x) { return /already yours/i.test(x.m); }),
+        'the player must be told what happened, in plain words: ' + JSON.stringify(said));
+      assert(!said.some(function (x) { return x.k === 'kill'; }),
+        '"you already own it" is not a failure and must not be shouted as one: ' + JSON.stringify(said));
+    } finally {
+      if (prevGC) window.HearthriseGoalClaim = prevGC; else delete window.HearthriseGoalClaim;
+      if (prevRec) window.HearthriseRecord = prevRec; else delete window.HearthriseRecord;
+      window.notify = origNotify; window.saveLocal = origSave;
+      window.updateTopbar = origTop; window.renderShop = origShop;
       restoreG(snap);
     }
   }),
 
   /* THE FREE DEFAULT. The unlock catalogue's own warning is that a zero-priced
-     offer is an infinite faucet, so `theme.default` must stay a FREE EQUIP and
-     must never become a purchase — which also means the gem gate must not touch
-     it. This runs ARMED, the state in which every other gem gesture refuses. */
-  () => tryRun('GEM-FREE-1: the default theme stays a FREE EQUIP even when gems are server-owned', () => {
+     offer is an infinite faucet, so `theme.default` stays a FREE EQUIP and must
+     never become a purchase — on either side of the wire. The server refuses the
+     free row `not_for_sale`; this pins that the client never posts it at all. */
+  () => tryRunAsync('GEM-FREE-1: the default theme is a FREE EQUIP — it posts no purchase and spends nothing', async () => {
     if (typeof window.buyTheme !== 'function') return;
     const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField, origNotify = window.notify;
-    const origSave = window.saveLocal, origTop = window.updateTopbar, origHouse = window.renderHouse;
+    const prevGC = window.HearthriseGoalClaim;
+    const origNotify = window.notify, origSave = window.saveLocal;
+    const origTop = window.updateTopbar, origHouse = window.renderHouse;
+    const sent = [];
     try {
-      window.clientMayWriteRecordField = function (f) { return f !== 'gems'; };
-      window.notify = function () {}; window.saveLocal = function () {}; window.updateTopbar = function () {};
-      window.renderHouse = function () {};
+      window.notify = function () {}; window.saveLocal = function () {};
+      window.updateTopbar = function () {}; window.renderHouse = function () {};
+      window.HearthriseGoalClaim = Object.assign({}, prevGC, {
+        buyGemUnlock: function () { sent.push(Array.prototype.slice.call(arguments)); return Promise.resolve({ ok: false, error: 'not_for_sale' }); }
+      });
       window.G.gems = 0; window.G.gold = 12345;
       stampBalanceLikeLoad(window.G);
-      window.G.ownedThemes = []; window.G.houseTheme = 'forest';
+      /* The projection ALWAYS carries the free rows (hr_gem_unlocks_of unions
+         `where g.free`), which is what keeps the starter cottage equippable. */
+      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
+      window.G.houseTheme = 'forest';
       const gold0 = window.G.gold, gems0 = window.G.gems;
-      window.buyTheme('default');
+
+      await window.buyTheme('default');
+
       assert(window.G.houseTheme === 'default',
-        'the free default must equip under the gem arm — gating it would break the only theme every '
-        + 'player owns, on the surface the arm is live');
+        'the free default must equip — it is the only theme every player owns, and gating it would '
+        + 'break the one surface the arm is live on');
+      assert(sent.length === 0,
+        'THE CLASS: the client posted a PURCHASE for a free row. A zero-priced offer is an infinite '
+        + 'faucet (the unlock catalogue says so in those words), which is why there is no zero-gem '
+        + 'path on either side — ' + JSON.stringify(sent));
       assert(window.G.gold === gold0, 'the free default must spend no gold (slice 6)');
       assert(window.G.gems === gems0, 'the free default must spend no gems');
-      assert(window.G.ownedThemes.indexOf('default') >= 0, 'the free default must be owned after equipping');
     } finally {
-      window.clientMayWriteRecordField = origMay; window.notify = origNotify;
-      window.saveLocal = origSave; window.updateTopbar = origTop; window.renderHouse = origHouse;
+      if (prevGC) window.HearthriseGoalClaim = prevGC; else delete window.HearthriseGoalClaim;
+      window.notify = origNotify; window.saveLocal = origSave;
+      window.updateTopbar = origTop; window.renderHouse = origHouse;
       restoreG(snap);
     }
   }),
 
-  /* ── OWNERSHIP: THE SERVER WINS ─────────────────────────────────────────────
-     The other half of the class, and the one currently deadlocking a player's
-     Forge on a different surface: RESIDUE ASSERTING OWNERSHIP OF A SERVER-SOLD
-     CAPABILITY. `ownedThemes` / `ownedCosmetics` are a bag the client writes and
-     hr_put_client_state stores verbatim, so a forged entry used to BE ownership.
-     ownsGemUnlock() prefers the server's projected set exactly as
-     multi-character.js ownsSlot() does — and, exactly as there, falls back to
-     the residue while the server has not answered, so nobody who legitimately
-     owns a theme today loses it. Both directions are pinned here; the fallback
-     half is what makes this change safe to ship before the migration. */
-  () => tryRun('GEM-OWN-1: a residue entry the SERVER set lacks confers no ownership (and absence falls back)', () => {
+  /* ── OWNERSHIP: THE SERVER, AND NOTHING ELSE ────────────────────────────────
+     The residue-ahead class with a wardrobe on: a client-held bag asserting
+     ownership of a server-sold capability. Before 2026-09-14 a forged
+     `G.ownedThemes` entry WAS ownership — it drew "Apply", it passed setTheme,
+     and hr_put_client_state stored it verbatim for ever. Both bags are gone, and
+     this is the arm that keeps them gone: planting one confers nothing. */
+  () => tryRun('GEM-OWN-1: ownership comes ONLY from the server set — a client-held bag confers nothing, and silence is not ownership', () => {
     if (typeof window.ownsGemUnlock !== 'function' || typeof window.setTheme !== 'function') return;
     const snap = snapshotG();
     const origNotify = window.notify, origHouse = window.renderHouse;
-    const hadScratch = Object.prototype.hasOwnProperty.call(window.G, '_gemUnlocks');
-    const prevScratch = window.G._gemUnlocks;
     try {
       window.notify = function () {}; window.renderHouse = function () {};
-      window.G.ownedThemes = ['default', 'forest'];
-      window.G.ownedCosmetics = ['avatar_dragon'];
 
-      // 1. NO SERVER ANSWER YET → residue answers, and every current owner keeps what they hold.
+      // 1. NO SERVER ANSWER YET → nothing is owned. "Unknown" renders a live Buy
+      //    offer, which the realm heals in one round trip (already_owned). The
+      //    other direction — granting on silence — cannot be undone by one.
       delete window.G._gemUnlocks;
-      assert(window.ownsGemUnlock('theme', 'forest') === true,
-        'with no server projection the residue must still answer — otherwise shipping this de-owns '
-        + 'every theme every player has already bought');
-      assert(window.ownsGemUnlock('cosmetic', 'avatar_dragon') === true, 'same for cosmetics');
-      assert(window.ownsGemUnlock('theme', 'volcanic') === false, 'a theme in neither store is not owned');
-
-      // 2. THE SERVER HAS SPOKEN AND DOES NOT CARRY IT → the server wins.
-      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
       assert(window.ownsGemUnlock('theme', 'forest') === false,
-        'THE CLASS: a residue entry the server set does NOT carry still conferred ownership — that is '
-        + 'the client asserting a server-sold capability, the same shape as the residue-ahead property '
-        + 'tier deadlocking the Forge');
-      assert(window.ownsGemUnlock('cosmetic', 'avatar_dragon') === false,
-        'THE CLASS: a residue cosmetic the server does not carry still conferred ownership');
-      assert(window.ownsGemUnlock('theme', 'default') === true, 'a theme the server DOES carry is owned');
+        'an unheard-from projection conferred ownership. Fail to UNKNOWN, never to OWNED.');
+      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false, 'same for cosmetics');
+      assert(window.gemUnlocksKnown() === false,
+        'gemUnlocksKnown() must be able to tell "not heard" from "heard, and you own nothing" — '
+        + 'a surface that cannot make that distinction has to guess');
 
-      // 3. AND THE GATE IS LOAD-BEARING: equipping reads the same answer.
+      /* 2. A CLIENT-HELD BAG IS NOT AN ANSWER. These fields no longer exist in
+            the game; a console (or a stale cloud blob) can still type them.
+            ⚠ WRITTEN THROUGH A COMPUTED KEY ON PURPOSE, twice over: the field
+            names are RETIRED, so a literal `G.ownedThemes =` here would be a
+            forgery the arm-homing census reads as the game re-acquiring an
+            un-homed field — and the `finally` deletes them, because snapshotG
+            no longer carries what no longer exists. */
+      const forged = ['ownedThemes', 'ownedCosmetics'];
+      window.G[forged[0]] = ['forest', 'volcanic'];
+      window.G[forged[1]] = ['pet_phoenix'];
+      assert(window.ownsGemUnlock('theme', 'forest') === false,
+        'THE CLASS: a client-written bag still conferred ownership of a server-sold capability. '
+        + 'That is the b371 dupe\u2019s sticking half and the residue-ahead class in one line.');
+      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false,
+        'THE CLASS: a forged cosmetic bag conferred ownership');
+
+      // 3. THE SERVER HAS SPOKEN → its set is the answer, both ways.
+      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
+      assert(window.ownsGemUnlock('theme', 'default') === true, 'a theme the server DOES carry is owned');
+      assert(window.ownsGemUnlock('theme', 'forest') === false, 'and one it does not carry is not');
+      assert(window.gemUnlocksKnown() === true, 'the projection arrived, so ownership is KNOWN');
+
+      // 4. AND THE GATE IS LOAD-BEARING: equipping reads the same one seam.
       window.G.houseTheme = 'default';
       window.setTheme('forest');
       assert(window.G.houseTheme === 'default',
-        'setTheme equipped a theme the server does not record as owned — ownership must be read '
-        + 'through one seam, not re-derived per caller');
+        'setTheme equipped a theme the realm does not record as owned — ownership must be read '
+        + 'through ONE seam, not re-derived per caller');
       window.setTheme('default');
       assert(window.G.houseTheme === 'default', 'a server-owned theme must still equip');
     } finally {
-      if (hadScratch) window.G._gemUnlocks = prevScratch; else delete window.G._gemUnlocks;
+      delete window.G.ownedThemes; delete window.G.ownedCosmetics;   // forged above; they are not real fields
       window.notify = origNotify; window.renderHouse = origHouse;
       restoreG(snap);
     }
+  }),
+
+  /* ── AND THE PROJECTION NEVER NARROWS ───────────────────────────────────────
+     The security condition of this build, and the one failure mode that would
+     look to a paying player exactly like theft: an envelope that does not carry
+     `gem_unlocks` (an older server body, a partial, a body shaped for another
+     verb) must NOT be read as "you own nothing". Absence leaves the last known
+     set standing; only a real, present array replaces it. */
+  () => tryRun('GEM-NARROW-1: an envelope with no (or garbage) gem_unlocks leaves the owned set exactly as it was', () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof A.reconcileGemUnlocks !== 'function') return;
+    const snap = snapshotG();
+    try {
+      const G = { _gemUnlocks: { owned: ['theme:default', 'theme:forest'], at: 1 } };
+      const held = function () { return (G._gemUnlocks.owned || []).join(','); };
+
+      assert(A.reconcileGemUnlocks(G, { ok: true }).mode === 'absent', 'a body with no key is ABSENT, not empty');
+      assert(held() === 'theme:default,theme:forest', 'THE CLASS: a body carrying no gem_unlocks de-owned a paid theme');
+      A.reconcileGemUnlocks(G, { gem_unlocks: null });
+      assert(held() === 'theme:default,theme:forest', 'a null projection de-owned a paid theme');
+      A.reconcileGemUnlocks(G, { gem_unlocks: 'theme:forest' });
+      assert(held() === 'theme:default,theme:forest', 'a STRING is not the array shape and must be ignored, not parsed');
+      A.reconcileGemUnlocks(G, { gem_unlocks: {} });
+      assert(held() === 'theme:default,theme:forest', 'an object is not the array shape');
+
+      /* PRESENT AND WELL-FORMED → absolute. The server always projects the free
+         rows, so a shorter set is a real revoke and the client does not vote. */
+      A.reconcileGemUnlocks(G, { gem_unlocks: ['theme:default'] });
+      assert(held() === 'theme:default',
+        'a REAL projection is absolute — a union would keep a revoked or refunded unlock alive for ever');
+      /* And a malformed entry inside a real array is dropped rather than carried:
+         it can never match `kind:id`, so keeping it would only inflate the set. */
+      A.reconcileGemUnlocks(G, { gem_unlocks: ['theme:default', 'nonsense', 42, 'theme:forest'] });
+      assert(held() === 'theme:default,theme:forest', 'entries that are not `<namespace>:<id>` must be dropped: ' + held());
+    } finally { restoreG(snap); }
+  }),
+
+  /* ── THE EQUIPPED POINTER FAILS CLOSED ──────────────────────────────────────
+     `houseTheme` stays residue — it is a per-character display pointer the server
+     has no column for — so it is the one field in this lane a player (or a stale
+     cloud blob) can still author. It must therefore be READ through a fail-closed
+     seam: a pointer at a theme the owned set does not carry paints `default`,
+     silently, and re-grants nothing. */
+  () => tryRun('THEME-CLOSED-1: an equipped theme the realm does not record renders `default`, silently, and is never re-granted', () => {
+    if (typeof window.activeHouseTheme !== 'function') return;
+    const snap = snapshotG();
+    const said = [], origNotify = window.notify;
+    try {
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
+      window.G.houseTheme = 'volcanic';           // forged, or paid for on a server that revoked it
+      assert(window.activeHouseTheme() === 'default',
+        'THE CLASS: a forged `houseTheme` painted a theme the realm never sold — the residue gating '
+        + 'a server-sold capability, one field over from the Forge deadlock');
+      assert(window.ownsGemUnlock('theme', 'volcanic') === false,
+        'and the fail-closed READ must not quietly become a GRANT');
+      assert(window.G.houseTheme === 'volcanic',
+        'the read fails closed; it does not rewrite the player\u2019s pointer. A theme they own again '
+        + 'tomorrow must come back by itself.');
+      assert(said.length === 0,
+        'silently — the player did nothing wrong and there is nothing they can act on: ' + JSON.stringify(said));
+      // And the moment the realm carries it, the same pointer paints.
+      window.G._gemUnlocks = { owned: ['theme:default', 'theme:volcanic'], at: Date.now() };
+      assert(window.activeHouseTheme() === 'volcanic', 'an owned theme must paint from the very same pointer');
+    } finally { window.notify = origNotify; restoreG(snap); }
+  }),
+
+  /* ── THE RESIDUE ALLOWLIST IS THE CONTRACT ──────────────────────────────────
+     Three fields left it in this build and one stayed. Pinning the list itself is
+     what stops the easy regression: re-adding `ownedThemes` "so it survives a
+     reload" would restore the forgeable bag AND give ownership two sources again,
+     and it would do it in a file nobody re-reads. */
+  () => tryRun('RESIDUE-CUT-1: ownedThemes / ownedCosmetics / unlockedRecipes are OFF the residue allowlist; houseTheme is on it', () => {
+    const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
+    assert(Array.isArray(RF) && RF.length > 0, 'RESIDUE_FIELDS is not published — this test would pass vacuously');
+    ['ownedThemes', 'ownedCosmetics', 'unlockedRecipes'].forEach(function (f) {
+      assert(RF.indexOf(f) < 0,
+        'THE CLASS: `' + f + '` is back on the residue allowlist. It is a client-written bag the '
+        + 'server stores verbatim, and it asserts ownership of a SERVER-SOLD capability — themes and '
+        + 'cosmetics are hr_buy_gem_unlock\u2019s, recipes are hr_recipe_learn\u2019s. Ownership has one source.');
+    });
+    assert(RF.indexOf('houseTheme') >= 0,
+      '`houseTheme` must STAY residue: it is the equipped pointer, a per-character display preference '
+      + 'the server has no column for, and it is read fail-closed (activeHouseTheme)');
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     RECIPE SCROLLS — THE REALM LEARNS, NOT THE BROWSER
+     ══════════════════════════════════════════════════════════════════════════
+     THE DEFECT, measured in the engine rather than guessed.
+     2026-08-16-artisan-progress-model.sql built the STORAGE for a learned recipe
+     and left the WRITE to a later author who never arrived, so no recipe flag had
+     ever been written for anybody. Meanwhile legacy.js wrapped `addItem`: picking
+     up a scroll set `G.unlockedRecipes[id]` (residue) and deleted the item
+     locally, 100 ms later, on a timer. So the browser said "Recipe Unlocked" and
+     the away engine — which reads hr_perks_of — saw `{}` and stopped all eight
+     gated recipes at tick 0, every night, silently. CLAUDE.md \u00a76's 2026-09-14 rule
+     in its purest form.
+
+     BOTH PATHS ARE HERE because this is exactly the class \u00a74 wrote the both-path
+     rule for: the attended gate and the away engine must agree, and before this
+     they disagreed for a month. */
+  () => tryRunAsync('RECIPE-READ-1: reading a scroll asks the realm — the recipe unlocks from the ENVELOPE, and the client deletes nothing', async () => {
+    if (typeof window.readRecipeScroll !== 'function' || typeof window.knowsRecipe !== 'function') return;
+    const snap = snapshotG();
+    const prevGC = window.HearthriseGoalClaim, prevRec = window.HearthriseRecord;
+    const origNotify = window.notify, origInv = window.renderInventory;
+    const sent = [], said = [];
+    try {
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.renderInventory = function () {};
+      window.HearthriseRecord = Object.assign({}, prevRec, { requestRecord: function () { return Promise.resolve(null); } });
+      window.HearthriseGoalClaim = Object.assign({}, prevGC, {
+        learnRecipe: function () {
+          sent.push(Array.prototype.slice.call(arguments));
+          return Promise.resolve({ ok: true, item: 'soul_recipe', recipe: 'recipe:soul_recipe', qty: 0,
+            version: 4, slot: 0, unlocked_recipes: { soul_recipe: true } });
+        }
+      });
+
+      delete window.G._recipeUnlocks;
+      window.G.inventory = Object.assign({}, window.G.inventory, { soul_recipe: 1 });
+      assert(window.knowsRecipe('soul_recipe') === false, 'the fixture needs the recipe UNKNOWN first');
+
+      await window.readRecipeScroll('soul_recipe');
+
+      assert(sent.length === 1 && sent[0].length === 1 && sent[0][0] === 'soul_recipe',
+        'one intent, carrying the scroll id and nothing else — ' + JSON.stringify(sent));
+      assert(window.knowsRecipe('soul_recipe') === true,
+        'THE CLASS: the recipe must be unlocked BY THE ENVELOPE. A client-side unlock is what made the '
+        + 'browser and the realm disagree for a month while eight recipes paid nothing away.');
+      assert((window.G.inventory.soul_recipe || 0) === 1,
+        'the client must not delete the scroll: the consume is the server\u2019s, inside the same '
+        + 'transaction as the flag, and the bag the player sees comes back in the envelope. Deleting '
+        + 'it locally is what made a refused reading LOOK like a spent scroll.');
+      assert(said.some(function (x) { return /Recipe Unlocked/i.test(x.m); }), 'the unlock must be announced: ' + JSON.stringify(said));
+
+      /* AND A SECOND SCROLL OF A RECIPE YOU KNOW IS NOT EATEN FOR NOTHING. The
+         client refuses locally (the realm refuses `already_learned` too — belt
+         and braces on the one gesture that can waste a rare drop). */
+      const before = sent.length;
+      await window.readRecipeScroll('soul_recipe');
+      assert(sent.length === before,
+        'a recipe already known must not post a second reading — the scroll is the price, and a '
+        + 'refusal that costs a scroll is a bug a player cannot undo');
+    } finally {
+      if (prevGC) window.HearthriseGoalClaim = prevGC; else delete window.HearthriseGoalClaim;
+      if (prevRec) window.HearthriseRecord = prevRec; else delete window.HearthriseRecord;
+      window.notify = origNotify; window.renderInventory = origInv;
+      restoreG(snap);
+    }
+  }),
+
+  /* THE DELETED WRAPPER, PINNED. `addItem` used to unlock the recipe and schedule
+     a local `removeItem` 100 ms later — a client-authored grant AND a client-
+     authored consume, neither of which the realm ever saw. The 150 ms wait is
+     deliberate: the old bug lived on a timer, so a synchronous assertion would
+     have passed while the scroll was still on its way out of the bag. */
+  () => tryRunAsync('RECIPE-PICKUP-1: picking up a scroll neither learns it nor eats it — the scroll stays in the bag until it is READ', async () => {
+    if (typeof window.addItem !== 'function' || typeof window.knowsRecipe !== 'function') return;
+    if (!window.ITEMS || !window.ITEMS.soul_recipe) return;
+    const snap = snapshotG();
+    const origNotify = window.notify;
+    try {
+      window.notify = function () {};
+      delete window.G._recipeUnlocks;
+      window.G.inventory = Object.assign({}, window.G.inventory);
+      delete window.G.inventory.soul_recipe;
+
+      window.addItem('soul_recipe', 1);
+      await new Promise(function (r) { setTimeout(r, 150); });
+
+      assert(window.knowsRecipe('soul_recipe') === false,
+        'THE CLASS: picking a scroll up LEARNED it client-side. The realm was never told, so the away '
+        + 'engine kept refusing the recipe while the book said it was learned.');
+      assert((window.G.inventory.soul_recipe || 0) >= 1,
+        'THE CLASS: the scroll was consumed by a 100 ms timer with no server call — and because the '
+        + 'consume was local, the realm still held the scroll, which is why no amnesty is owed and '
+        + 'why every one of them is still readable');
+    } finally { window.notify = origNotify; restoreG(snap); }
+  }),
+
+  /* ── BOTH PATHS, ON THE ONE PROJECTION ──────────────────────────────────────
+     The attended gate (legacy.js gateOk \u2192 unlockedRecipesMap) and the away engine
+     (artisan-sim simulateArtisanSpan \u2192 gateOk) must answer the same question the
+     same way. Before this build the away half read the server and the attended
+     half read residue, so a player could craft Lich Soul Soup all evening and be
+     paid nothing for the night. */
+  () => tryRun('RECIPE-AWAY-1 (both-path): a gated recipe pays NOTHING away until the realm carries the row, and pays the moment it does', () => {
+    const C = window.HearthriseCore;
+    if (!C || !C.artisanSim || !window.ARTISAN_RECIPES) return;
+    const idx = C.artisanSim.indexArtisanRecipes(window.ARTISAN_RECIPES);
+    const entry = idx.cook_lich_soup;
+    if (!entry || !entry.recipe || !entry.recipe.gated) return;
+    const snap = snapshotG();
+    try {
+      const span = function (map) {
+        return awayArtisanSpan({
+          targetId: 'cook_lich_soup', spanMs: 3600000, away: true,
+          state: {
+            activeSkill: entry.skill, skillTargetId: 'cook_lich_soup',
+            skills: { cooking: C.xp.XP_TABLE[(entry.recipe.req || 1) - 1] },
+            inventory: { lich_soul: 50, wheat: 50 },
+            unlockedRecipes: map,
+          },
+        });
+      };
+
+      // AWAY, with no server row: the span stops AT THE GATE and pays nothing.
+      const closed = span({});
+      assert(closed.out.stoppedBy === C.artisanSim.STOP_REASON.GATE,
+        'the away engine must stop a gated recipe at the GATE when the realm holds no row, got '
+        + closed.out.stoppedBy);
+      assert(!Object.keys(closed.paid.items).length && !Object.keys(closed.paid.xp).length,
+        'an un-learned recipe paid ' + JSON.stringify(closed.paid) + ' away');
+
+      // AWAY, with the row: it pays.
+      const open = span({ soul_recipe: true });
+      assert(open.out.stoppedBy !== C.artisanSim.STOP_REASON.GATE,
+        'with the server row the span must run, got ' + open.out.stoppedBy);
+      assert(Object.keys(open.paid.xp).length > 0,
+        'a learned recipe paid nothing away — the row exists and the engine ignored it');
+
+      // ATTENDED, through the SAME projection the away path just used.
+      delete window.G._recipeUnlocks;
+      assert(window.gateOk(entry.recipe) === false,
+        'THE CLASS: the attended gate opened a recipe the realm has no row for — the browser saying '
+        + 'one thing while the server says another (\u00a76, 2026-09-14)');
+      /* AND A CLIENT-HELD BAG IS NOT A KEY. `unlockedRecipes` was residue until
+         2026-09-14; a console (or a stale cloud blob) can still type it, and a
+         gate that fell back to it would be the residue-ahead class on a surface
+         that SPENDS materials — the player would watch the Forge accept the row
+         and the realm refuse the run. Written through a computed key because the
+         field is retired (see GEM-OWN-1 for the same reasoning). */
+      const forged = 'unlockedRecipes';
+      window.G[forged] = { soul_recipe: true };
+      assert(window.gateOk(entry.recipe) === false,
+        'THE CLASS: a client-written recipe bag opened a gate the realm has no row for');
+      delete window.G[forged];
+
+      window.G._recipeUnlocks = { map: { soul_recipe: true }, at: Date.now() };
+      assert(window.gateOk(entry.recipe) === true,
+        'the attended gate must open on the SAME projection the engine paid on — one answer, two paths');
+    } finally { delete window.G.unlockedRecipes; restoreG(snap); }
   }),
 
   /* The fourth site the sweep turned up, and the only one in the class that
@@ -4917,7 +5228,10 @@ const TESTS = [
     try {
       // The free default (currency !== 'gem', price 0) is a FREE EQUIP, not a gold buy.
       window.G.gold = 12345; window.G.gems = 0;
-      window.G.ownedThemes = ['default'];
+      /* Ownership is the realm's set since 2026-09-14, and the projection always
+         carries the free rows — which is exactly what keeps the starter cottage
+         equippable for a character who has bought nothing. */
+      window.G._gemUnlocks = { owned: ['theme:default'], at: Date.now() };
       const goldBefore = window.G.gold;
       window.buyTheme('default');
       assert(window.G.gold === goldBefore, 'equipping the free default theme must spend no gold; got -' + (goldBefore - window.G.gold));
@@ -12001,11 +12315,19 @@ const TESTS = [
     try {
       delete G.autoActions;
       G.foodSlot = 'shrimp';
+      /* ⚠ THE THRESHOLD HALF OF THIS MIGRATION IS GONE (2026-09-14). It read
+         `G.autoEatPct`, which was a second copy of `player_state.auto_eat_pct` —
+         the column the engine prices every settle with — and is deleted with the
+         field. A stale one left in an old bag must now be IGNORED, not adopted:
+         adopting it is how the panel ended up promising 50% while the server ate
+         at 25%. The pointer half stands: foodSlot is still the local gesture. */
       G.autoEatPct = 0.4;
       const eat = window.HearthriseAuto.getEat();   // triggers ensureShape → migration
       assert(eat.enabled === true, 'migrated auto-eat should be enabled');
       assert(eat.foodId === 'shrimp', 'migrated foodId should be shrimp, got ' + eat.foodId);
-      assert(Math.abs((eat.threshold || 0) - 0.4) < 1e-9, 'migrated threshold should be 0.4, got ' + eat.threshold);
+      assert(Math.abs((eat.threshold || 0) - 0.5) < 1e-9,
+        'a stale G.autoEatPct must NOT be adopted — the threshold is the server\'s auto_eat_pct; got '
+        + eat.threshold);
     } finally {
       if (savedAA === undefined) delete G.autoActions; else G.autoActions = savedAA;
       restoreG(snap);
@@ -12073,7 +12395,7 @@ const TESTS = [
       /* b498: the day now comes from the server's claim rows when an envelope
          has been seen. Forget any capture so this fixture is total. */
       if (typeof D.noteServerStreak === 'function') D.noteServerStreak(null);
-      G.streak = { count: 3, lastDay: 0 };
+      seedPlayStreak(3);
       G.dailyReward = { lastClaimDay: 0 };            // force "new day, unclaimed"
       assert(D.isClaimable(G), 'should be claimable when not yet claimed today');
       assert(D.cycleDay(G) === 3, 'cycle day should track streak count (expected 3), got ' + D.cycleDay(G));
@@ -12108,6 +12430,7 @@ const TESTS = [
       G.gold = sGold;
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
     }
   }),
   () => tryRun('B349-1: the daily login cycle is DATA, read by the client, and its multiplier is capped', () => {
@@ -12151,7 +12474,7 @@ const TESTS = [
          plus a second week, so a client that re-derived the multiplier from its
          own `weeksDone` would diverge somewhere in here. */
       for (const streak of [1, 2, 3, 5, 7, 8, 15, 43]) {
-        G.streak = { count: streak, lastDay: 0 };
+        seedPlayStreak(streak);
         const want = R.priceDailyLogin(streak);
         const got = D.rewardFor(G) || {};
         assert((got.gold || 0) === want.gold,
@@ -12188,7 +12511,7 @@ const TESTS = [
       let stillClaimable;
       try {
         delete window.HearthriseRewards;
-        G.streak = { count: 3, lastDay: 0 };
+        seedPlayStreak(3);
         G.dailyReward = { lastClaimDay: 0 };
         G.gold = 1000;
         unpriced = D.claim(G);
@@ -12208,6 +12531,7 @@ const TESTS = [
     } finally {
       G.gold = sGold;
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
     }
   }),
@@ -32566,7 +32890,7 @@ const TESTS = [
       // A brand-new mason/runecrafter: no stone, no blanks, no runes, no levels.
       G.inventory = {};
       G.equipment = Object.assign({}, G.equipment, { ammo: null });
-      G.unlockedRecipes = {};
+      G._recipeUnlocks = { map: {}, at: Date.now() };   // the learned set is the SERVER projection now
       G.stats = Object.assign({}, G.stats);
       G.skills = Object.assign({}, G.skills, { stonemason: 0, runecrafting: 0, mining: 0 });
       C.reseed(0xB0A57E);
@@ -32681,7 +33005,7 @@ const TESTS = [
          else. Day-one gold: 500 at creation + the 500 the day-1 login pays. */
       G.inventory = {};
       G.equipment = Object.assign({}, G.equipment, { ammo: null, weapon: null });
-      G.unlockedRecipes = {};
+      G._recipeUnlocks = { map: {}, at: Date.now() };   // the learned set is the SERVER projection now
       G.skills = Object.assign({}, G.skills, {
         runecrafting: 0, stonemason: 0, mining: 0, crafting: 0,
         smithing: 0, woodcutting: 0, fishing: 0,
@@ -32882,7 +33206,7 @@ const TESTS = [
 
       G.activeMonster = null;
       G.inventory = {};
-      G.unlockedRecipes = {};
+      G._recipeUnlocks = { map: {}, at: Date.now() };   // the learned set is the SERVER projection now
       G.skills = Object.assign({}, G.skills, { stonemason: 0 });
       C.reseed(0x570BE0);
 
@@ -36576,7 +36900,7 @@ const TESTS = [
       setLevels(['woodcutting', 'mining', 'fishing'], 52);
       G.stats.kills = 600; G.quests = [{ done: true }];
       G.collection = { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1, g: 1, h: 1, i: 1, j: 1 };
-      G.streak = { best: 2, count: 2 };
+      seedPlayStreak(2);
       assert(rank() === 'serf', 'about day 2 should be a Serf, got ' + rank() + ' at ' + R.compute(G));
 
       // ~week 1 — six skills, a real kill count, a handful of quests.
@@ -36584,7 +36908,7 @@ const TESTS = [
       G.stats.kills = 3000;
       G.quests = [1, 2, 3, 4].map(() => ({ done: true }));
       G.collection = {}; for (let i = 0; i < 40; i++) G.collection['c' + i] = 1;
-      G.streak = { best: 7, count: 7 };
+      seedPlayStreak(7);
       assert(rank() === 'squire', 'week 1 should be a Squire, got ' + rank() + ' at ' + R.compute(G));
 
       // ~week 3-4 — ten skills, the grind showing.
@@ -36592,7 +36916,7 @@ const TESTS = [
       G.stats.kills = 12000;
       G.quests = new Array(10).fill(0).map(() => ({ done: true }));
       G.collection = {}; for (let i = 0; i < 90; i++) G.collection['c' + i] = 1;
-      G.streak = { best: 24, count: 24 }; G.bountyHunter = { completed: 60 };
+      seedPlayStreak(24); G.bountyHunter = { completed: 60 };
       assert(rank() === 'knight', 'week 3-4 should be a Knight, got ' + rank() + ' at ' + R.compute(G));
 
       // ~month 2 — and Baron is still ahead of, not behind, a month of play.
@@ -36600,7 +36924,7 @@ const TESTS = [
       G.stats.kills = 35000;
       G.quests = new Array(20).fill(0).map(() => ({ done: true }));
       G.collection = {}; for (let i = 0; i < 150; i++) G.collection['c' + i] = 1;
-      G.streak = { best: 60, count: 60 }; G.bountyHunter = { completed: 180 };
+      seedPlayStreak(60); G.bountyHunter = { completed: 180 };
       const m2 = R.rankIndexFor(R.compute(G));
       assert(m2 >= R.rankIndexFor(4500) && m2 < R.rankIndexFor(13500),
         'month 2 should be a Baron or Viscount, got ' + R.RANKS[m2].id + ' at ' + R.compute(G));
@@ -36608,7 +36932,7 @@ const TESTS = [
       // The ratchet: a veteran scored under the OLD weights keeps their rank.
       G.skills = {}; Object.keys(window.SKILLS_DEF).forEach((s) => { G.skills[s] = 0; });
       G.stats = { kills: 0 }; G.collection = {}; G.quests = [];
-      G.streak = { best: 0, count: 0 }; G.bountyHunter = { completed: 0 };
+      seedPlayStreak(0); G.bountyHunter = { completed: 0 };
       G.renownHigh = 3136;                     // a real Knight, pre-retune
       assert(R.compute(G) < 3136, 'setup: the live score really is lower after the retune');
       assert(R.rankIndexFor(R.effective(G)) === R.rankIndexFor(3136),
@@ -37058,7 +37382,7 @@ const TESTS = [
       const yLocal = (d => d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate())(new Date(now - 86400000));
 
       D.noteServerStreak(null);                 // start clean
-      G.streak = { count: 1, lastDay: 0 };      // residue LAGS the server
+      seedPlayStreak(1);                        // the realm has counted ONE day
       G.dailyReward = { lastClaimDay: yLocal }; // claimed yesterday, claimable today
       /* The envelope: yesterday's login row is CLAIMED and its `value` is the
          streak length ON that day, so today is value + 1 = 3.
@@ -37101,6 +37425,7 @@ const TESTS = [
          DAILY-SHEET-2 has the same hole). Restored by hand, b166's pattern. */
       restoreG(snap);
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
     }
   }),
@@ -37146,7 +37471,7 @@ const TESTS = [
         'CONTROL: Day 1 and Day 3 pay the same, so every assertion below is vacuous');
 
       // ── (A) THE LIVE CASE. Claimed two days ago, NOTHING for yesterday. ────
-      G.streak = { count: 3, lastDay: 0 };            // the play streak kept running
+      seedPlayStreak(3);                              // the play streak kept running
       G.dailyReward = { lastClaimDay: y2Local };
       D.noteServerStreak({
         now: new Date(now).toISOString(),
@@ -37201,7 +37526,7 @@ const TESTS = [
          the sheet has only the residue — and `G.streak.count` is the PLAY streak.
          The same reset rule must apply to the only claim history it holds. */
       D.noteServerStreak(null);
-      G.streak = { count: 3, lastDay: 0 };
+      seedPlayStreak(3);
       G.dailyReward = { lastClaimDay: y2Local };
       assert(D.cycleDay(G) === 1,
         'THE BUG, pre-envelope: lastClaimDay two days ago must advertise Day 1, got Day '
@@ -37226,7 +37551,7 @@ const TESTS = [
          from three days ago says nothing about now; answering from it anyway is
          how a wrong clock becomes a wrong promise. */
       G.dailyReward = { lastClaimDay: y2Local };
-      G.streak = { count: 3, lastDay: 0 };
+      seedPlayStreak(3);
       D.noteServerStreak({
         now: new Date(now - 3 * 86400000).toISOString(),
         progress: [{ kind: 'daily', key: 'login', period: B.utcDayKey((dayN - 4) * 86400000), value: 6, state: 'claimed' }],
@@ -37239,6 +37564,7 @@ const TESTS = [
       D.noteServerStreak(null);
       restoreG(snap);
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
     }
   }),
@@ -37285,7 +37611,7 @@ const TESTS = [
       /* THE EXACT DIVERGENCE. Played three days running, claimed two days ago —
          so the play streak is 3 and the claim cycle is back at Day 1. */
       D.noteServerStreak(null);
-      G.streak = { count: 3, lastDay: dayLocal(Date.now()) };
+      seedPlayStreak(3);
       G.dailyReward = { lastClaimDay: dayLocal(Date.now() - 2 * 86400000) };
       assert(D.cycleDay(G) === 1,
         'CONTROL: this fixture must actually diverge (play 3 / claim Day 1), got Day ' + D.cycleDay(G));
@@ -37395,7 +37721,124 @@ const TESTS = [
       D.noteServerStreak(null);
       restoreG(snap);
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
+      seedPlayStreak(null);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
+    }
+  }),
+
+  /* -- regression suite -- RESIDUE-PURGE: THE SERVER'S COPY WINS, FIELD BY FIELD
+     Nine residue fields were SECOND COPIES of values hr_state_of already
+     projects, and each had been measured saying something the server denied: the
+     flame chip on 1 against `streak_days` 3; the panel promising 50% auto-eat
+     against `auto_eat_pct` 25; the HUD naming cooked_shrimp against
+     `auto_eat_food` turnip; 1193 Renown against `renown_high` 1058. They are
+     deleted, not "preferred second".
+     THE CONTRACT, split three ways below: seed the STALE residue value AND hand
+     the real reader a server envelope, then assert the reader answers the SERVER.
+     Driving the shipped reconciles and readers, not a copy of them.
+     MUTATION (proven per block): restore the deleted residue read — give
+     playStreakDays its `G.streak.count` fallback back, or let ownsGemUnlock fall
+     through to `G.ownedThemes` — and that block goes RED. */
+  () => tryRun('RESIDUE-PURGE-1: stale PROGRESS copies never outrank the envelope', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    assert(A && typeof A.reconcilePlayStreak === 'function', 'accrue.js must export the reconciles');
+    const snap = residuePurgeSnap(G);
+    try {
+      /* THE PLAY STREAK: device counter 1, column 3. */
+      G.streak = { count: 1, lastDay: 20260914 };
+      A.reconcilePlayStreak(G, { ok: true, state: { streak_days: 3, streak_day_key: '2026-09-14' } });
+      assert(A.playStreakDays(G) === 3,
+        'THE BUG: the play streak read ' + A.playStreakDays(G) + ' with a residue 1 and a server 3');
+      assert(window.HearthriseStreakChip.days(G) === 3, 'the flame chip must paint the server count');
+      assert(typeof window.HearthriseStreakChip.advance !== 'function',
+        'the device-clock streak counter is deleted — a local advance() is a second counter and a faucet');
+
+      /* THE FRACTIONAL TOOL CARRY: local 0.9, column 0.25. */
+      G.toolCarry = { mining: 0.9 };
+      A.reconcileToolCarry(G, { ok: true, state: { tool_carry: { mining: 0.25 } } });
+      assert(G.toolCarry.mining === 0.25,
+        'THE BUG: the tool carry stayed on the prediction (' + G.toolCarry.mining + ') against a server 0.25');
+
+      /* THE COMBAT STYLE: the routing a settle pays XP into. */
+      G.combatStyle = { sword: 'accurate' };
+      A.reconcileCombatStyle(G, { ok: true, state: { combat_style: { sword: 'aggressive' } } });
+      assert(G.combatStyle.sword === 'aggressive',
+        'THE BUG: the picker kept a local style (' + G.combatStyle.sword + ') the engine does not pay');
+
+      /* RENOWN: the number that hands out perks. */
+      G.renownHigh = 9999;
+      window.HearthriseRenown.noteServerRenown({ ok: true, renown_high: 1058 });
+      assert(window.HearthriseRenown.counted(G) === 1058,
+        'THE BUG: the counted renown is ' + window.HearthriseRenown.counted(G) + ', not the realm 1058');
+    } finally { residuePurgeRestore(G, snap); }
+  }),
+
+  () => tryRun('RESIDUE-PURGE-2: a forged ENTITLEMENT in the bag confers nothing', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    const snap = residuePurgeSnap(G);
+    try {
+      /* A FORGED residue claims a 1,000-gem theme and a 1,200-gem cosmetic; the
+         server's set carries only the free row. */
+      G.ownedThemes = ['default', 'volcanic'];
+      G.ownedCosmetics = ['pet_phoenix'];
+      A.reconcileGemUnlocks(G, { ok: true, gem_unlocks: ['theme:default'] });
+      assert(window.ownsGemUnlock('theme', 'volcanic') === false,
+        'THE BUG: a residue entry still confers a gem-priced theme the server never sold');
+      assert(window.ownsGemUnlock('cosmetic', 'pet_phoenix') === false,
+        'THE BUG: a residue entry still confers a gem-priced cosmetic the server never sold');
+      assert(window.ownsGemUnlock('theme', 'default') === true,
+        'the FREE theme must stay owned — the catalogue gives it away and the projection carries it');
+
+      /* HERO SLOTS: residue says five, the account owns one. */
+      G.heroSlotsUnlocked = 5;
+      A.reconcileHeroSlots(G, { ok: true, hero_slots: [0] });
+      assert(window.HearthriseProfile.ownsSlot(3) === false,
+        'THE BUG: the residue still lists a hero slot the realm will refuse with slot_not_owned');
+    } finally { residuePurgeRestore(G, snap); }
+  }),
+
+  () => tryRun('RESIDUE-PURGE-3: the auto-eat triple is the server\'s, and none of the nine rides the save', () => {
+    const A = window.HearthriseAccrual, G = window.G;
+    const snap = residuePurgeSnap(G);
+    const wasParked = (window.HearthriseAuto && window.HearthriseAuto._parkAutoEatMirror)
+      ? window.HearthriseAuto._parkAutoEatMirror(false) : false;
+    try {
+      /* THRESHOLD, PROVISION AND SWITCH — the three columns the accrual engine
+         prices every night with. */
+      G.autoEatPct = 0.5; G.foodSlot = 'cooked_shrimp';
+      A.noteServerAutoEat({ ok: true, state: { auto_eat_pct: 25, auto_eat_food: 'turnip', auto_eat_enabled: false } });
+      const th = window.HearthriseAuto.eatThreshold();
+      assert(Math.abs(th - 0.25) < 1e-9,
+        'THE BUG: the threshold read ' + th + ' with a local 0.5 and a server 25%');
+      assert(window.autoEatFoodId() === 'turnip',
+        'THE BUG: the forecast named ' + window.autoEatFoodId() + ' while the engine eats the server turnip');
+      assert(window.HearthriseAuto.eatEnabled() === false,
+        'THE BUG: the panel says auto-eat is ON while `auto_eat_enabled` is false — the night eats nothing');
+
+      /* AND NONE OF THEM RIDES THE SAVE. The patch is what the residue PUT ships;
+         a purged name in it is the field coming back through the back door, and
+         `autoActions.eat` is the same three columns one level down. */
+      G.streak = { count: 1 }; G.toolCarry = { mining: 0.9 }; G.combatStyle = { sword: 'accurate' };
+      G.ownedThemes = ['volcanic']; G.ownedCosmetics = ['pet_phoenix'];
+      G.heroSlotsUnlocked = 5; G.renownHigh = 9999;
+      G.autoActions = { eat: { enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' },
+        farmReplant: { enabled: true, cropId: 'carrot' } };
+      const patch = window.HearthriseCapstone.buildResiduePatch(G);
+      ['streak', 'toolCarry', 'combatStyle', 'ownedThemes', 'ownedCosmetics',
+        'heroSlotsUnlocked', 'autoEatPct', 'foodSlot', 'renownHigh'].forEach((f) =>
+        assert(!Object.prototype.hasOwnProperty.call(patch, f),
+          'the residue patch still ships `' + f + '` — the purged copy is being persisted after all'));
+      assert(patch.autoActions && !patch.autoActions.eat,
+        'the residue patch still ships `autoActions.eat` — those three keys ARE auto_eat_enabled/pct/food');
+      assert(patch.autoActions && patch.autoActions.farmReplant
+        && patch.autoActions.farmReplant.cropId === 'carrot',
+        'CONTROL: the genuinely client-only auto-action prefs must still ride');
+    } finally {
+      if (window.HearthriseAuto && window.HearthriseAuto._parkAutoEatMirror) {
+        window.HearthriseAuto._parkAutoEatMirror(wasParked);
+      }
+      try { A.__resetServerAutoEat(); } catch (e) {}
+      residuePurgeRestore(G, snap);
     }
   }),
 
@@ -37429,10 +37872,19 @@ const TESTS = [
     /* ⚠ `wieldGrandfather` was the sixteenth name here and is DELETED, not re-homed:
        every other field is self-only PROGRESS, that one was a client-held GEAR
        PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
-    ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'renownHigh', 'homestead',
-      'currentCombatTier', 'toolCarry', 'buyback', 'dailyGoldStart', 'raids',
+    ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'homestead',
+      'currentCombatTier', 'buyback', 'dailyGoldStart', 'raids',
       'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
+    /* ⚠ `renownHigh` and `toolCarry` LEFT THIS LIST on 2026-09-14 and must NOT
+       come back: both were second copies of a value hr_state_of projects
+       (`renown_high`; `state.tool_carry`). renownHigh is now the in-session
+       prediction ratchet (NO_SYNC) and toolCarry is mirrored by
+       accrue.js reconcileToolCarry. See RESIDUE-PURGE-1 below. */
+    ['renownHigh', 'toolCarry', 'ownedThemes', 'ownedCosmetics', 'autoEatPct',
+      'foodSlot', 'streak', 'combatStyle', 'heroSlotsUnlocked'].forEach((f) =>
+      assert(RF.indexOf(f) < 0, f + ' is back on RESIDUE_FIELDS — it is a client copy of a value the '
+        + 'server projects, which is exactly what the 2026-09-14 purge deleted'));
     /* `collection` (items found) and `collectionLog` (milestones claimed) are two
        different stores, not an alias pair — both must be homed. */
     assert(RF.indexOf('collection') >= 0 && RF.indexOf('collectionLog') >= 0,
@@ -37478,7 +37930,11 @@ const TESTS = [
       window.HearthriseAccrual.reconcileTraits(reloaded, { traits: ['auto_eat', 'keen_eye'] });
       assert(reloaded.traits && reloaded.traits.auto_eat === true && reloaded.traits.keen_eye === true,
         'THE BUG: the server\'s trait rows did not restore G.traits — a Marks purchase would be re-charged');
-      assert(reloaded.toolCarry && reloaded.toolCarry.woodcutting === 0.75, 'the fractional gather carry was lost');
+      /* ⚠ `toolCarry` LEFT THIS ROUND-TRIP on 2026-09-14: it is `state.tool_carry`
+         and is restored by accrue.js reconcileToolCarry (AWAY-11 drives that end to
+         end). What must hold HERE is that the bag no longer carries it at all. */
+      assert(typeof reloaded.toolCarry === 'undefined',
+        'the residue round-trip still carries toolCarry — the server column is the one copy');
       assert(reloaded.raids && reloaded.raids.claimed && reloaded.raids.claimed['9'] === true,
         'the weekly raid claim marker was lost — a reload would re-open a claimed reward');
 
@@ -37515,8 +37971,14 @@ const TESTS = [
        verdict re-marks the day and says so, instead of claiming a payout. */
     const RF = window.HearthriseCapstone && window.HearthriseCapstone.RESIDUE_FIELDS;
     assert(Array.isArray(RF), 'RESIDUE_FIELDS must be exported');
-    ['dailyReward', 'streak', 'dailyGoals', 'weeklyGoals'].forEach((f) =>
+    /* ⚠ `streak` LEFT THIS LIST on 2026-09-14: the play streak is the server's
+       `streak_days` (reconcilePlayStreak → playStreakDays), and a device-clock
+       copy in the bag is what painted 1 over the realm's 3. The other three are
+       genuine shown-today markers with no projection behind them. */
+    ['dailyReward', 'dailyGoals', 'weeklyGoals'].forEach((f) =>
       assert(RF.includes(f), 'THE BUG: ' + f + ' must be a residue field or every reload forgets it'));
+    assert(!RF.includes('streak'),
+      'the play-streak residue is back — the day the sheet shows must come from the server, not a device clock');
     const G = window.G;
     const snap = snapshotG();
     const origGold = window.HearthriseGold, origNotify = window.notify, origMay = window.clientMayWriteRecordField;
@@ -37566,7 +38028,6 @@ const TESTS = [
     if (!next || next.free) return;                 // only a real gem spend proves this
     const G = window.G;
     const prevGems = G.gems;
-    const prevUnlocked = G.heroSlotsUnlocked;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
     const chip = document.getElementById('top-gems');
     try {
@@ -37605,7 +38066,6 @@ const TESTS = [
       }
     } finally {
       G.gems = prevGems;
-      G.heroSlotsUnlocked = prevUnlocked;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
@@ -37641,27 +38101,42 @@ const TESTS = [
       'HearthriseProfile.unlockedCount() must be the ONE answer to how many slots are owned');
     const next = HP.canUnlockNext();
     if (!next || next.free) return;                 // only a real gem spend proves this
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
+    const prevGems = G.gems;
     const prevProfile = JSON.parse(JSON.stringify(HP.profile));
+    const hadSlots = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
+    const prevSlots = G._heroSlots;
     try {
       G.gems = next.cost + 1000;
       stampBalanceLikeLoad(G);   // armed: unlockSlot reads gems via canAfford
       // The cloud snapshot as it stood BEFORE the purchase.
-      const older = { gems: G.gems, heroSlotsUnlocked: HP.unlockedCount() };
+      const older = { gems: G.gems };
       const r = HP.unlockSlot(next.slotId);
       assert(r && r.ok, 'the purchase should succeed here: ' + (r && r.reason));
       assert(G.gems === 1000, 'the gems were not debited');
       assert(HP.unlockedCount() === next.slotId + 1, 'the slot was not unlocked');
-      assert(G.heroSlotsUnlocked === next.slotId + 1,
-        'the entitlement is not in the save — it is back in a store the restore cannot rewind');
+      /* ⚠ 2026-09-14 — THE ENTITLEMENT IS NO LONGER IN ANY CLIENT STORE. It used
+         to be asserted here as `G.heroSlotsUnlocked` (residue), on the reasoning
+         that gems and slot had to rewind together because they were the same
+         bytes. hr_buy_hero_slot + the `hero_slots` projection made that obsolete:
+         the entitlement is a server row and the residue copy was deleted, so the
+         dupe is not "reverted together", it is UNREACHABLE. The purchase path
+         writes only the device's own metadata cache. */
+      assert(HP.profile.unlockedSlots === next.slotId + 1,
+        'the pre-arm purchase must still record the device metadata cache');
 
-      // THE RESTORE. decideRestore replaces the fields the snapshot carries and
-      // does not touch localStorage['hearthrise:profile'] — this is that.
+      // THE RESTORE. decideRestore replaces the fields the snapshot carries.
       G.gems = older.gems;
-      G.heroSlotsUnlocked = older.heroSlotsUnlocked;
 
-      assert(HP.unlockedCount() === next.slotId,
-        'THE b371 GEM DUPE: the restore gave the gems back and the slot STAYED unlocked — the purchase was free');
+      /* AND THE REALM SPEAKS: its set is the authority, so a restored balance
+         with a server that never sold the slot leaves the player owning nothing
+         — whatever any client store says. THIS is what killed the b371 dupe. */
+      window.HearthriseAccrual.reconcileHeroSlots(G, { ok: true, hero_slots: [0] });
+      assert(HP.unlockedCount() === 1 && HP.ownsSlot(next.slotId) === false,
+        'THE b371 GEM DUPE: the gems came back and the slot stayed unlocked against a server set that '
+        + 'does not carry it — the purchase was free');
+      /* THE STATEMENT STANDS for the rest of the test: the realm's set is the
+         authority on every question below (what is listed, what is buyable, what
+         a device-local cache may re-grant). */
       const rows = HP.slotRows();
       assert(!rows.some((row) => row.kind === 'char' && row.id === next.slotId),
         'the reverted slot is still listed as a playable character');
@@ -37676,7 +38151,7 @@ const TESTS = [
         'a slot the account no longer owns can still be switched to');
     } finally {
       G.gems = prevGems;
-      G.heroSlotsUnlocked = prevUnlocked;
+      if (hadSlots) G._heroSlots = prevSlots; else delete G._heroSlots;
       HP.profile = prevProfile;
       try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
@@ -39625,13 +40100,16 @@ const TESTS = [
   }),
 
   () => tryRun('AWAY-11: toolCarry survives the trip that persists it AND reaches the cloud snapshot (it never did as _toolCarry)', () => {
-    /* b515 — SAME MOVE AS b228 ABOVE. The local save/load round-trip is deleted;
-       `toolCarry` is RESIDUE ("fractional gather carry-over per tool"), so the
-       journey that keeps it is `buildResiduePatch` → the client_state PUT. The
-       whole point of the b-number is the RENAME (`_toolCarry` → `toolCarry`):
-       an underscore-prefixed field is scratch and is skipped by BOTH the cloud
-       snapshot's denylist and the residue builder, so under the old name a
-       device switch discarded the carry. Both exclusions are asserted. */
+    /* 2026-09-14 — THE CARRY'S HOME MOVED AGAIN, AND THIS TIME OFF THE CLIENT.
+       `player_state.tool_carry` is a real column (2026-08-15-tool-carry.sql): the
+       Edge engine advances it through the same core `advanceToolCarry` the
+       attended tick uses, hr_apply validates it as a delta key, and hr_state_of
+       projects it at `state.tool_carry`. So the field left RESIDUE_FIELDS — two
+       copies of a fraction that pays out whole items is the residue-ahead class —
+       and the journey that keeps it is now accrue.js reconcileToolCarry, wired
+       into applyEnvelopeState AND record.js's idle-boot hydration. What this test
+       still owns end to end: the carry survives the trip, the `_toolCarry` name
+       never rides anything, and the v12→v13 migration is intact. */
     const G = window.G;
     const snap = snapshotG();
     try {
@@ -39641,15 +40119,23 @@ const TESTS = [
       const E = window.HearthriseEvents;
       assert(E && typeof E.snapshot === 'function', 'the cloud snapshot builder must be exposed');
       const cloud = E.snapshot(G);
-      assert(cloud.toolCarry && cloud.toolCarry.mining === 0.42,
-        'toolCarry must reach the cloud snapshot — as _toolCarry it never did, so a device switch discarded the carry');
       assert(cloud._toolCarry === undefined, 'the old underscored key must not be uploaded');
-      /* The trip through the real persistence path — the residue PUT. */
+      /* THE TRIP THAT KEEPS IT: the server's own column, back through the
+         reconcile. A reload starts from whatever `state.tool_carry` says. */
+      const AC = window.HearthriseAccrual;
+      assert(AC && typeof AC.reconcileToolCarry === 'function',
+        'accrue.js must publish reconcileToolCarry — it is the only thing that restores the carry now');
+      const reloaded = {};
+      AC.reconcileToolCarry(reloaded, { ok: true, state: { tool_carry: { mining: 0.42 } } });
+      assert(reloaded.toolCarry && reloaded.toolCarry.mining === 0.42,
+        'the carry must be rebuilt from the projection, found ' + JSON.stringify(reloaded.toolCarry));
+      /* AND IT MUST NOT BE PERSISTED CLIENT-SIDE. A second copy in the bag is the
+         one a cloud restore rewinds, against a column the settle keeps advancing. */
       const CAP = window.HearthriseCapstone;
       assert(CAP && typeof CAP.buildResiduePatch === 'function', 'capstone.js does not publish buildResiduePatch');
       const patch = CAP.buildResiduePatch(G);
-      assert(patch && patch.toolCarry && patch.toolCarry.mining === 0.42,
-        'toolCarry must reach the residue PUT, found ' + JSON.stringify(patch && patch.toolCarry));
+      assert(patch && patch.toolCarry === undefined,
+        'toolCarry must NOT ride the residue PUT any more — `state.tool_carry` is the one copy');
       assert(patch._toolCarry === undefined, 'the old underscored key must not be persisted');
       /* And the migration that renames it is registered and idempotent. */
       const MIG = window.HEARTHRISE_MIGRATIONS || [];
@@ -40165,7 +40651,7 @@ const TESTS = [
         G.skills = Object.assign({}, G.skills, { cooking: REQ_XP });
         G.inventory = { moonfish: N + 50 };         // never runs dry inside the span
         G.equipment = Object.assign({}, G.equipment);
-        G.unlockedRecipes = Object.assign({}, G.unlockedRecipes);
+        G._recipeUnlocks = { map: {}, at: Date.now() };   // the learned set is the SERVER projection now
         G.toolCarry = {};
         G.stats = Object.assign({}, G.stats, { cooked: 0, burnt: 0, toolDoubles: 0 });
         G.buffs = [];
@@ -41543,40 +42029,34 @@ const TESTS = [
     } finally { G.traits = savedTraits; restoreG(snap); }
   }),
 
-  () => tryRun('b329: a save written while the slider was dead adopts the threshold the player actually chose', () => {
+  () => tryRun('b329/PURGE: a stale autoEatPct in an old bag is IGNORED — the threshold is the server\'s column', () => {
     const G = window.G;
     const A = window.HearthriseAuto;
     if (!A) { skip('no auto engine'); return; }
     const snap = snapshotG();
     const savedPct = G.autoEatPct;
     try {
-      /* Exactly the shape of Xarn's live save: the eat branch exists and is
-         stuck on the 50% default, while the legacy mirror holds the 60% he set
-         in Settings. Nothing else records his choice, so the mirror wins once. */
+      /* WHAT THIS TEST USED TO GRADE: a one-time adoption of `G.autoEatPct` (the
+         b329 dead-slider rescue). The field is DELETED — it was a persisted second
+         copy of `player_state.auto_eat_pct`, the column the accrual engine prices
+         every settle and every night with, and "the local mirror wins on
+         divergence" is the residue-ahead rule in miniature. What the test grades
+         now is the opposite property, which is the one that must hold forever. */
       G.autoActions = Object.assign({}, G.autoActions, {
         eat: { enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' },
       });
-      G.autoEatPct = 0.6;
-      // b459: eatThreshold() now clamps to the owned TIER's ceiling; a 0.6
-      // adoption needs tier II (the pre-tier behaviour this fixture is about).
+      G.autoEatPct = 0.6;                       // a stale key from an old bag
       G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
-      /* `expressedThreshold()`, NOT `eatThreshold()`: this fixture is about the
-         one-time adoption into the LOCAL preference; the other reports the FIGHT. */
       const EX = (typeof A.expressedThreshold === 'function') ? A.expressedThreshold : A.eatThreshold;
-      assert(Math.abs(EX() - 0.6) < 1e-9,
-        'a b324-era save must adopt the slider value it recorded, got ' + EX());
-      assert(Math.abs(A.getEat().threshold - 0.6) < 1e-9, 'the adoption must be written through, not computed each read');
+      assert(Math.abs(EX() - 0.5) < 1e-9,
+        'THE PURGE: a stale G.autoEatPct was adopted over the live preference — got ' + EX());
 
-      // Idempotent + inert afterwards: a later engine-side change is NOT undone.
+      // A gesture still wins until the server answers it, and writes no mirror.
       A.setEat({ threshold: 0.35 });
-      assert(Math.abs(EX() - 0.35) < 1e-9,
-        'once reconciled, the mirror must never claw a later setting back — got ' + EX());
-      assert(Math.abs(G.autoEatPct - 0.35) < 1e-9, 'setEat must keep the legacy mirror in step so the two can never diverge again');
-
-      // A garbage mirror is ignored rather than adopted.
-      G.autoActions.eat.threshold = 0.7; G.autoEatPct = NaN;
-      assert(Math.abs(EX() - 0.7) < 1e-9, 'a NaN mirror must not overwrite a real threshold');
-    } finally { G.autoEatPct = savedPct; restoreG(snap); }
+      assert(Math.abs(EX() - 0.35) < 1e-9, 'the player\'s own gesture must still take, got ' + EX());
+      assert(G.autoEatPct === 0.6,
+        'setEat must not write a G.autoEatPct mirror any more — one number, and it is the column');
+    } finally { if (savedPct === undefined) delete G.autoEatPct; else G.autoEatPct = savedPct; restoreG(snap); }
   }),
 
   () => tryRun('b329: every surface that PRINTS the auto-eat threshold reads the engine value (no second copy)', () => {
@@ -41630,8 +42110,15 @@ const TESTS = [
     autoEatMirrorFixture((G, A) => {
       assert(Math.abs(A.eatThreshold() - 0.25) < 1e-9,
         'the effective threshold must be the server\'s 25%, got ' + A.eatThreshold());
-      assert(Math.abs(G.autoEatPct - 0.25) < 1e-9,
-        'the mirror legacy.js fx.autoEat reads must follow the server too, got ' + G.autoEatPct);
+      /* ⚠ 2026-09-14 — THERE IS NO `G.autoEatPct` MIRROR TO FOLLOW ANY MORE: the
+         field is deleted, and legacy.js's cold-path `fx.autoEat` fallback reads
+         the SAME observation this does, straight off
+         HearthriseAccrual.serverAutoEatSettings(). One number, one source. */
+      assert(typeof G.autoEatPct === 'undefined',
+        'eatThreshold() wrote a G.autoEatPct mirror — the purged second copy is back');
+      const seen = window.HearthriseAccrual.serverAutoEatSettings();
+      assert(seen && seen.pct === 25,
+        'the cold path reads the server observation directly; it says ' + JSON.stringify(seen));
       if (typeof window.openSettings !== 'function') return;
       window.openSettings();
       const el = document.querySelector('#settings-body input[type="range"][data-set="autoEatPct"]');
@@ -41814,8 +42301,13 @@ const TESTS = [
     const prevSrv = G._serverStreak, prevStreak = G.streak;   // neither is in snapshotG
     try {
       delete G._serverStreak;
+      /* A stale bag key from before the purge. It is not on RESIDUE_FIELDS any
+         more, and — the point — it answers NOTHING: with no envelope the honest
+         reading is "the realm has not counted yet", never a device-clock 1. */
       G.streak = { count: 1, lastDay: 20260914 };
-      assert(AC.playStreakDays(G) === 1, 'fixture: the residue is the only answer until an envelope');
+      assert(AC.playStreakDays(G) === 0,
+        'THE PURGE: with no envelope the play streak must read 0, not the device counter — got '
+        + AC.playStreakDays(G));
 
       const r = AC.reconcilePlayStreak(G, { state: { streak_days: 3, streak_day_key: '2026-09-14' } });
       assert(r && r.mode === 'server' && r.days === 3, 'the projection must be recorded, got ' + JSON.stringify(r));
@@ -41823,7 +42315,7 @@ const TESTS = [
         'it lands in `_` SCRATCH, never the residue: ' + JSON.stringify(G._serverStreak));
       assert(AC.playStreakDays(G) === 3,
         'THE BUG: the reader must prefer the server\'s 3 over the device\'s 1, got ' + AC.playStreakDays(G));
-      assert(G.streak.count === 1, 'and the residue is left exactly as it was — no upward merge');
+      assert(G.streak.count === 1, 'and the stale bag key is left exactly as it was — no upward merge');
 
       /* NEVER AN EVICTION: an envelope without the key leaves the observation alone. */
       AC.reconcilePlayStreak(G, { state: {} });
@@ -41848,11 +42340,11 @@ const TESTS = [
       if (R && typeof R.compute === 'function' && R.WEIGHTS) {
         const withSrv = R.compute(G);
         delete G._serverStreak;
-        const withResidue = R.compute(G);
+        const withNone = R.compute(G);
         G._serverStreak = { days: 3, dayKey: '2026-09-14', at: Date.now() };
-        assert(withSrv - withResidue === 2 * R.WEIGHTS.streakBest,
-          'renown must score the server\'s streak (two extra days × ' + R.WEIGHTS.streakBest
-          + '), got a difference of ' + (withSrv - withResidue));
+        assert(withSrv - withNone === 3 * R.WEIGHTS.streakBest,
+          'renown must score the server\'s streak and NOTHING when it has not spoken (three days × '
+          + R.WEIGHTS.streakBest + '), got a difference of ' + (withSrv - withNone));
       }
     } finally {
       if (hadSrv) G._serverStreak = prevSrv; else delete G._serverStreak;
@@ -50817,7 +51309,7 @@ const TESTS = [
       A.acknowledgeReplacement(true);
       Gd.resetGold();
       Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
-      G.streak = { count: 1, lastDay: 0 };
+      seedPlayStreak(1);
       G.dailyReward = { lastClaimDay: 0 };
       G.gold = 1000; G.gems = 5;
       const rw = D.rewardFor(G);
@@ -51513,7 +52005,7 @@ const TESTS = [
          MUTATION: put `G.gems = (G.gems||0) + rw.gems` back in daily-reward → RED. */
       Gd.resetGold();
       A.acknowledgeReplacement(true);
-      G.streak = { count: 7, lastDay: 0 };
+      seedPlayStreak(7);
       G.dailyReward = { lastClaimDay: 0 };
       G.gold = 0; G.gems = 0;
       const rw = D.rewardFor(G);
@@ -58749,6 +59241,34 @@ const TESTS = [
         window.fetch = realFetch; E.resetEnchant();
       }
     })();
+  }),
+
+  /* ── REGRESSION (2026-09-14) — THE ENCHANT IS A TOP-LEVEL ENVELOPE KEY ─────
+     hr_state_of builds `'enchant', coalesce(v_st.enchant,'{}')` as a SIBLING of
+     `'state'` (executed against the replayed chain, not read off a comment), and
+     hr_apply returns hr_state_of's envelope verbatim. applyEnvelopeState read
+     `res.state.enchant`, which is `undefined` on every envelope the game has ever
+     applied — so the block never ran, and since `G.enchant` is not on
+     RESIDUE_FIELDS the enchant the player paid for vanished from the browser on
+     the next reload while the server kept computing away combat with it.
+     This fails without the fix: `top` is the shape the realm actually sends. */
+  () => tryRun('ELEM-5b: the envelope\'s TOP-LEVEL enchant is adopted (regression: state.enchant was never there)', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.applyEnvelopeState === 'function', 'the envelope seam is missing');
+    const G = window.G; const snap = snapshotG();
+    try {
+      G.enchant = {};
+      A.applyEnvelopeState(G, { ok: true, version: 2, enchant: { weapon: 'frost' }, state: { slot: 0 } });
+      assert(G.enchant && G.enchant.weapon === 'frost',
+        'a top-level `enchant` on the envelope must be adopted, got ' + JSON.stringify(G.enchant));
+      /* The server clearing it (an equip changed the weapon) must clear the client. */
+      A.applyEnvelopeState(G, { ok: true, version: 3, enchant: {}, state: { slot: 0 } });
+      assert(!(G.enchant && G.enchant.weapon), 'an empty server enchant must clear the client copy, got ' + JSON.stringify(G.enchant));
+      /* ABSENCE IS NOT A CLAIM — an envelope with no enchant key leaves it alone. */
+      G.enchant = { weapon: 'ember' };
+      A.applyEnvelopeState(G, { ok: true, version: 4, state: { slot: 0 } });
+      assert(G.enchant.weapon === 'ember', 'an envelope carrying no enchant key must not clear it');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('ELEM-5: changing the weapon clears the enchant (client reflect of the cross-verb coupling)', () => {

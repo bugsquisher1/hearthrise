@@ -211,13 +211,22 @@
    *   direction. The residue answers there, and on a genuinely fresh character
    *   the residue is 1, which is the correct opening state.
    *
-   * The residue (`G.streak.count`) is the PLAY streak, not the claim streak, so
-   * it is a guess even when it is used — but it can now only ever UNDER-state
-   * the day, never promise one the server will not pay.
+   * The fallback is the PLAY streak (the server's `streak_days`), not the claim
+   * streak, so it is a guess even when it is used — but it can now only ever
+   * UNDER-state the day, never promise one the server will not pay.
    */
   function localStreak(G) {
-    var residue = (G && G.streak && typeof G.streak.count === 'number' && G.streak.count > 0)
-      ? G.streak.count : 1;
+    /* THE PLAY STREAK IS THE SERVER'S (`streak_days`, read through
+       HearthriseStreakChip.days / playStreakDays). The device counter this used
+       to read is deleted (2026-09-14); with no server answer yet the opening
+       state is 1, which is what a genuinely fresh character sees and the only
+       value that cannot promise a day the server will not pay. */
+    var srvPlay = 0;
+    try {
+      var SC = window.HearthriseStreakChip;
+      if (SC && typeof SC.days === 'function') srvPlay = SC.days(G) || 0;
+    } catch (e) {}
+    var residue = srvPlay > 0 ? srvPlay : 1;
     var s = ensureState(G);
     var last = (s && typeof s.lastClaimDay === 'number') ? s.lastClaimDay : 0;
     if (!last) return residue;

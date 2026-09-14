@@ -98,6 +98,30 @@ const NO_SYNC = new Set([
      directly above, and re-showing a stale summary after a reload would be the
      b462 daily-reward bug in another costume. */
   'viewingSkill', 'lastSessionSummary',
+  /* ── 2026-09-14 — THE PROJECTION PURGE. Three fields that USED to be residue and
+     are now in-flight only, because the realm holds the fact each of them stated.
+     Losing any of them across a reload is correct and invisible:
+       · foodSlot   — the equipped-food POINTER. The nomination that counts is
+                      `player_state.auto_eat_food` (hr_set_auto_eat writes it, the
+                      engine eats it); this is the local gesture the picker sets
+                      and the in-memory default a fresh character starts with, and
+                      every forecast surface now asks legacy.js autoEatFoodId(),
+                      which prefers the server's. Measured live 2026-09-14: the
+                      client named cooked_shrimp while the column held turnip.
+       · renownHigh — the CLIENT ratchet's high-water. The figure every gate and
+                      claim decides on is the server's `renown_high` projection
+                      (renown.js countedRenown); the local one drifts ahead by
+                      construction and rebuilds itself from server-fed state on
+                      every boot.
+       · autoEatPct — DELETED OUTRIGHT rather than declared: nothing writes it any
+                      more (eatThreshold() reads `state.auto_eat_pct`). Named here
+                      only so the next reader does not re-add it "for the fallback".
+     ⚠ `ownedThemes` / `ownedCosmetics` / `streak` / `heroSlotsUnlocked` /
+       `combatStyle` / `toolCarry` left the residue in the same change; the first
+       four have no writer left at all, and the last two are SERVER MECHANISM
+       fields (accrue.js reconcileCombatStyle / reconcileToolCarry). None belongs
+       here — scratch and a mechanism are mutually exclusive claims. */
+  'foodSlot', 'renownHigh',
   /* ⚠ `buffs` WAS DECLARED HERE FOR EXACTLY ONE DAY AND IS NOW A SERVER
      MECHANISM (2026-09-13, step 2). The step-1 entry said, in as many words, "it
      does not stay here": the client's copy was in-flight display because nothing

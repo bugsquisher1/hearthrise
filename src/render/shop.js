@@ -321,11 +321,12 @@
         {id:'pet_phoenix',name:'Phoenix Pet',glyph:'uiFire',price:1200,desc:'Idle phoenix companion (cosmetic).'},
         {id:'emote_pack',name:'Emote Pack',glyph:'uiChat',price:300,desc:'12 chat emotes for clan chat.'},
       ];
-      /* Ownership is the SERVER'S (legacy.js ownsGemUnlock → the envelope's
-         `gem_unlocks`). The residue fallback is gone with the residue field
-         (2026-09-14): before the first envelope a priced cosmetic reads as NOT
-         owned, which fails closed — the worst it can do is offer a Buy the verb
-         will refuse with already_owned, never mark a purchase as made. */
+      /* OWNERSHIP IS THE SERVER'S, FULL STOP (legacy.js ownsGemUnlock reads the
+         hr_state_of `gem_unlocks` projection). There is no residue to fall back
+         to since 2026-09-14: an "Owned" badge is drawn ONLY for something the
+         realm holds a row for, and an unheard-from projection renders a live Buy
+         offer — which the server heals in one round trip by refusing
+         `already_owned` and handing back the whole owned set. */
       offers=cosmetics.map(c=>{const owned=(typeof window.ownsGemUnlock==='function')&&window.ownsGemUnlock('cosmetic',c.id);const can=balCanAfford(c.price,'gems');const art=(window.HR&&window.HR.icon)?(window.HR.icon(c.glyph,30,'--gem')||''):'';return `<div class="shop-row"><span class="si is-prem">${art}</span><div class="info"><b>${c.name}</b><span>${c.desc}</span></div><span class="price gem">${_gem(c.price)}</span>${owned?'<button class="btn btn-sm" disabled>Owned</button>':`<button class="btn btn-sm ${can?'btn-gem':''}" ${can?'':'disabled'} onclick="buyCosmetic('${c.id}',${c.price})">Buy</button>`}</div>`;}).join('')+`<div class="sc-note">Need gems? <button class="btn btn-sm btn-gem" onclick="IAP.buy('gems_starter')">Get Gems</button></div>`;
     }
     /* b217: gold-purchased trait upgrades — appended below the tab list so

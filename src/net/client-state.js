@@ -21,9 +21,9 @@
 //   state/marker: …", or a named reason why no projection holds the fact yet.
 //
 // ⚠ THE PURGE (2026-09-14). A field that SHADOWS a value hr_state_of projects
-//   does not belong here at any size: ownedThemes, ownedCosmetics, autoEatPct,
-//   foodSlot, streak, combatStyle, renownHigh, heroSlotsUnlocked and toolCarry
-//   were all deleted in one change, each one replaced by the reader that asks
+//   does not belong here at any size: ownedThemes, ownedCosmetics, unlockedRecipes,
+//   autoEatPct, foodSlot, streak, combatStyle, renownHigh, heroSlotsUnlocked and
+//   toolCarry were all deleted in one day, each replaced by the reader that asks
 //   the envelope. Their tombstones are inline below, and
 //   tests/arm-homing-guard.mjs fails if any of them is re-added or re-written.
 //   Adding a field here is a client decision, but adding one the server already
@@ -107,50 +107,47 @@ export function __setClientStateArm(v) {
    module), so there is one list and no cycle. The server enforces the same
    boundary independently (hr_put_client_state deny-list) — defense in depth. */
 export const RESIDUE_FIELDS = Object.freeze([
-  'bountyHunter',   // client-only board + contract state (completed/board/rerolls/warrants). WHOLLY residue:
-                    // marks are the record's top-level G.marks and BH xp is a server SKILL — hydrateInto and
-                    // buildResiduePatch both DROP those two keys, so the bag cannot shadow either
-  'stats',          // client-only counters (kills/gathered/harvested/rareDrops/playMs). The envelope projects
-                    // no lifetime totals — `ev:*` rows are goal counters, and the per-monster kills are
-                    // hr_bestiary_of's — so there is nothing here to prefer
-  'chronicle',      // client-only log: the player's own permanent record of rank-ups, 99s and first kills.
-                    // Nothing reads it for a gate; capped at 500 entries by chronicle.js compaction
-  'activeStyle',    // client-only preference: which saved loadout is active (the gear itself is the record's)
-  /* ⚠ `foodSlot` WAS HERE and is DELETED (2026-09-14). It is the equipped-food
-     POINTER, and the pointer that counts is `player_state.auto_eat_food` — the
-     column hr_set_auto_eat writes and `chooseFood` picks with, attended and away
-     alike, projected on every envelope. Measured live the same day: the client
-     named `cooked_shrimp` on the HUD, the picker and the death sheet while the
-     column held `turnip`. It survives in memory as the local gesture (the fresh-G
-     literal still points a new character at their starting provision so the away
-     preview can price it); every reader goes through legacy.js autoEatFoodId(),
-     which prefers the server's nomination and resolves a NULL one the way the
-     engine does — the best provision in the bag. Declared in NO_SYNC. */
-  'settings',       // client-only preference: sfx / reduceFx / leftHand / uiScale — the device's own
-                    // display and audio choices; the server computes nothing from them
-  /* ⚠ `ownedThemes` / `ownedCosmetics` WERE HERE and are DELETED, not re-homed
-     (2026-09-14, the projection purge). They were the RESIDUE half of the b371
-     gem dupe: a client-written array asserting ownership of a thing the server
-     SELLS. 2026-09-14-gem-unlock-buy.sql (APPLIED) made hr_buy_gem_unlock the only
-     writer and hr_state_of project the owned set as a top-level `gem_unlocks`
-     array of '<namespace>:<id>'; accrue.js reconcileGemUnlocks lands it in the
-     `G._gemUnlocks` scratch and legacy.js ownsGemUnlock reads THAT. The free rows
-     (theme:default) are always in the projection, so the starting theme stays
-     equippable, and legacy.js also owns a catalogue-derived free-row fail-safe for
-     the pre-envelope window. Every write site is gone: the gem purchases refuse
-     (refuseGemPurchase) until buyTheme/buyCosmetic are routed onto the verb.
-     Re-adding either name would make a restore-rewindable bag the authority over a
-     premium-currency entitlement again. */
-  'houseTheme',     // client-only preference: which owned theme is EQUIPPED (ownership is the
-                    // server's `gem_unlocks`; the selection is per character, designer ruling
-                    // 2026-09-14). Fails closed to 'default', which the catalogue gives away free.
+  'bountyHunter',   // client-only board + contract state (completed/board/rerolls/warrants). WHOLLY
+                    // residue: marks are the record's top-level G.marks and BH xp is a server SKILL,
+                    // and hydrateInto + buildResiduePatch DROP both keys, so the bag shadows neither
+  'stats',          // client-only counters (kills/gathered/harvested/rareDrops/playMs). The envelope
+                    // projects no lifetime totals — the per-monster kills are hr_bestiary_of's — so
+                    // there is nothing here to prefer
+  'chronicle',      // client-only log: rank-ups, 99s, first kills. Nothing reads it for a gate;
+                    // capped at 500 entries by chronicle.js compaction
+  'activeStyle',    // client-only preference: which saved loadout is active (the gear is the record's)
+  /* ⚠ `foodSlot` WAS HERE and is DELETED (2026-09-14). The pointer that counts
+     is `player_state.auto_eat_food` — the column hr_set_auto_eat writes and
+     `chooseFood` picks with, attended and away alike. Measured live the same
+     day: the client named `cooked_shrimp` on the HUD, the picker and the death
+     sheet while the column held `turnip`. It survives IN MEMORY as the local
+     gesture; every reader goes through HearthriseAuto.autoEatFoodId(), which
+     prefers the server's nomination and resolves a NULL one the way the engine
+     does — the best provision in the bag. Declared in NO_SYNC. */
+  'settings',       // client-only preference: sfx / reduceFx / leftHand / uiScale — the device's
+                    // own display and audio choices; the server computes nothing from them
+  /* ⚠ `ownedThemes` and `ownedCosmetics` WERE HERE and are DELETED, not re-homed
+     (2026-09-14). They were the client-written half of the b371 gem dupe: gems
+     are SERVER_OF_RECORD and armed, so `G.gems -= price` was only ever a
+     prediction the next envelope retired, while the THING BOUGHT sat in a bag
+     this file stored verbatim — a free, repeatable premium purchase, and a
+     capability a console could forge by typing it. hr_buy_gem_unlock now writes
+     a player_progress flag and hr_state_of projects the account's owned set as a
+     top-level `gem_unlocks` array; accrue.js reconcileGemUnlocks lands it in the
+     `_gemUnlocks` scratch and legacy.js ownsGemUnlock reads ONLY that. Nothing
+     in src/ writes either field any more. Re-adding one would give ownership two
+     sources, and the residue is the one a cloud restore can rewind (§6). */
+  'houseTheme',     // the EQUIPPED theme, a per-character display pointer — NOT ownership.
+                    // It stays residue because it is a preference the server has no column for,
+                    // and it FAILS CLOSED: legacy.js activeHouseTheme() renders `default` when the
+                    // equipped id is not in the server's owned set, silently and without re-granting.
+                    // A forged value can therefore only ever paint a wall you already own.
   'plotBuildings',  // client-only display state: which building art sits on which yard tile
-  'daily',          // the day's shown task sheet ({lastReset,tasks}); the PAY is server-once-guarded
-  'collection',     // {itemId:count} — "have I ever held this"; no server projection exists
-  'quests',         // the quest sheet's local picks; hr_goal_state is the truth for claims
-  'entitlements',   // {hearthHall:true,…} cosmetic/convenience flags with no projection yet
-                    // (hr_unlocks carries an `entitlement` namespace; when hr_state_of projects it,
-                    // this field goes the way of ownedThemes)
+  'daily',          // client-only marker: the day's shown task sheet; the PAY is server once-guarded
+  'collection',     // client-only progress: {itemId:count}, "have I ever held this". No projection
+  'quests',         // client-only display state: the quest sheet's local picks (hr_goal_state pays)
+  'entitlements',   // {hearthHall:true,…} convenience flags with no projection yet (hr_unlocks has an
+                    // `entitlement` namespace; when hr_state_of projects it, this goes too)
   'playerName',     // the player's OWN copy; cross-player name is server-derived
   'lastSeen',       // the client's own last-active stamp (NOT the authority watermark)
   /* ⚠ `autoEatPct` WAS HERE and is DELETED (2026-09-14). It was the SECOND copy of
@@ -262,20 +259,19 @@ export const RESIDUE_FIELDS = Object.freeze([
      Re-adding it would give one gate two clocks, and the client's is the one a
      restore can rewind — the residue-ahead class in §6. */
   'renown',         // client-only marker: { claimed:[], seenRank } — which rank cards have been SHOWN.
-                    // The claim itself is server-once-guarded (hr_claim_rank), and the SCORE the
-                    // ladder is judged against is the server's `renown_high` (see below).
-  /* ⚠ `unlockedRecipes` IS STILL HERE, AND IT IS THE ONE KNOWN DEBT ON THIS LIST.
-     hr_state_of projects `unlocked_recipes` as of 2026-09-14-recipe-learn.sql
-     (APPLIED) and hr_recipe_learn is the server's only writer — but the CLIENT
-     HALF is not built: src/legacy.js's addItem wrapper still flips this bag and
-     deletes the scroll locally, so this bag is the ONLY record that a scroll was
-     ever read. Deleting the field before the intent is wired would un-learn every
-     recipe whose scroll is already consumed, so it stays until the lane that sends
-     hr_recipe_learn and reads `unlocked_recipes` lands — at which point it is
-     deleted here, exactly as ownedThemes was. Named, sized and owned; not
-     forgotten. (Away, hr-accrue already reads the server's empty set, so the eight
-     gated recipes pay nothing at night — that is the bug this debt names.) */
-  'unlockedRecipes',
+                    // The claim is server once-guarded, and the SCORE the ladder is judged against is
+                    // the server's `renown_high` (see the renownHigh tombstone below).
+  /* ⚠ `unlockedRecipes` WAS HERE and is DELETED, not re-homed (2026-09-14). Its
+     own comment claimed "server rows exist; this is the read cache", and the
+     first half was never true: 2026-08-16-artisan-progress-model.sql built the
+     STORAGE and left the WRITE for a later author who never arrived, so no
+     recipe flag had ever been written for anybody. The browser said a recipe was
+     learned; the away engine read hr_perks_of, saw `{}`, and stopped eight gated
+     recipes at tick 0 every night — CLAUDE.md §6's 2026-09-14 rule exactly.
+     hr_recipe_learn now consumes the scroll and writes the flag; hr_state_of
+     projects `unlocked_recipes`; accrue.js reconcileRecipes lands it in the
+     `_recipeUnlocks` scratch and legacy.js unlockedRecipesMap() is the one read
+     both the attended gate and the away engine now agree on. */
   'tools',          // client-only preference: which tools the loadout kit holds
   /* ⚠ `buffs` WAS HERE and is REMOVED, not re-homed here (2026-09-13). The entry
      read "active consumable buffs (remainingMs) — short-lived, but a potion must

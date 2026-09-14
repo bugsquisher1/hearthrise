@@ -238,7 +238,7 @@ const BASE_RECIPES = {
     {id:'forge_verdite_platelegs', name:'Forge Verdite Platelegs', icon:'👖', inputs:{verdite_bar:4},                              output:'verdite_platelegs', xp:320, req:47, ms:4000},
     {id:'forge_verdite_platebody', name:'Forge Verdite Platebody', icon:'🦺', inputs:{verdite_bar:5, flux_salt:2},                 output:'verdite_platebody', xp:400, req:50, ms:4400},
     {id:'forge_heartgarnet_maul',  name:'Forge Heartgarnet Maul',  icon:'🔨', inputs:{verdite_bar:3, heartgarnet:1, willow_plank:2}, output:'heartgarnet_maul', xp:480, req:52, ms:4600},
-    // Gated forges (single-use recipe scrolls flip G.unlockedRecipes)
+    // Gated forges (a recipe scroll is READ in the bag; hr_recipe_learn consumes it and writes the flag)
     {id:'forge_chief_blade',   name:"Chief's Blade",       icon:'🗡️', inputs:{warlord_badge:1, iron_bar:4, oak_plank:2},    output:'chief_blade',       xp:600,  req:50, ms:5000, gated:'chief_blade_recipe'},
     {id:'forge_captain_blade', name:"Captain's Ribblade",  icon:'🗡️', inputs:{captain_medal:1, steel_bar:4, maple_plank:2},output:'captains_ribblade', xp:1100, req:70, ms:6000, gated:'captain_recipe'},
     // Gathering tools (b201, SYS-3) — the OSRS tool ladder. Each tier speeds

@@ -184,6 +184,17 @@ export async function armHomingGuard() {
     'bountyHunter', 'gold', 'gems', 'stats', 'playerName', 'activeStyle', 'foodSlot',
     'restedXp', 'restedAt', 'chronicle',
     // the residue-census tail (b439 audit)
+    /* ⚠ `ownedThemes` / `ownedCosmetics` LEFT THIS CENSUS ON 2026-09-14 because
+       they left the GAME. They are not un-homed fields that someone forgot to
+       persist — they no longer exist: hr_buy_gem_unlock made ownership of a
+       theme or a cosmetic a player_progress flag, hr_state_of projects the
+       account's owned set, and src/legacy.js ownsGemUnlock reads ONLY that. The
+       two fields were deleted from the fresh-character literal, from
+       RESIDUE_FIELDS and from every writer in src/, so asserting a home for them
+       here would demand a persistence home for state the client no longer holds
+       — and the only way to satisfy it would be to put the forgeable bag back.
+       If either name ever reappears as a `G` write, the SCANNER (not this list)
+       catches it, unhomed, exactly as it should. */
     'settings', 'houseTheme', 'plotBuildings',
     'daily', 'collection', 'quests', 'entitlements', 'lastSeen', 'createdAt',
     // other persisted top-level state

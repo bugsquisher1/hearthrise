@@ -374,6 +374,85 @@
         p_idem: newIdem()
       });
     },
+    /* ══════════════════════════════════════════════════════════════════════
+       GEM UNLOCK PURCHASE — supabase/migrations/2026-09-14-gem-unlock-buy.sql.
+       ══════════════════════════════════════════════════════════════════════
+       The theme/cosmetic twin of buyHeroSlot, and it closes the same defect in
+       the same shape: `ownedThemes` / `ownedCosmetics` were RESIDUE, so
+       `G.gems -= price` was refunded by the next envelope while the thing bought
+       stayed — a free, repeatable premium purchase. hr_unlock_buy cannot serve
+       it (hr_unlock_offers has a gold column and no other, and
+       unlock-catalogue.js refuses the theme/cosmetic namespaces by name), which
+       is why there is a gem verb at all.
+
+       ⚠ ONE STRING AND A UUID CROSS. Which unlock ('<namespace>:<id>'), which of
+         your OWN characters pays, and an idempotency key. No price, no currency,
+         no "free" flag: the cost is read from public.hr_gem_unlocks under the
+         character lock, and a `free` row is refused `not_for_sale` — there is no
+         zero-gem code path to find.
+
+       ⚠ WHICH WALLET. `p_slot` is the ACTIVE character, deliberately: gems live
+         on player_state per (user_id, slot) and the topbar chip shows the active
+         character's balance, so charging any other row would take gems the
+         player cannot see. The ENTITLEMENT it buys is ACCOUNT-WIDE (designer
+         ruling, 2026-09-14) — hr_gem_unlocks_of unions the account's rows across
+         every slot — so Hero 2 is refused `already_owned` rather than charged
+         again.
+
+       NOT fire-and-forget and NOT a prediction: the caller awaits the verdict
+       (legacy.js buyTheme/buyCosmetic) because a premium spend that silently
+       failed is the whole bug, and nothing local is debited, so there is nothing
+       to retire.
+
+       Envelope: {ok:true, unlock_id, offer_id, name, currency, cost, gems,
+       version, slot, gem_unlocks} or {ok:false, error: bad_unlock_id |
+       unknown_unlock | not_for_sale | already_owned (carries gem_unlocks) |
+       insufficient_gems (carries cost/have/short_by) | gem_unlock_daily_cap |
+       no_character | intent_mismatch | rate_limited | not_signed_in}, plus
+       {error:'rpc_missing'} from call() when the migration is not applied. */
+    buyGemUnlock: function (unlockId) {
+      var id = String(unlockId || '');
+      if (!/^[a-z_]+:[A-Za-z0-9_.-]+$/.test(id) || id.length > 64) {
+        /* Refused LOCALLY on SHAPE only, so a malformed gesture does not spend a
+           real player's rate budget to be told bad_unlock_id. Every rule about a
+           ROW — is it catalogued, is it free, is it owned, can you afford it —
+           is left to the RPC, under the lock, where it can be answered truly. */
+        return Promise.resolve({ ok: false, error: 'bad_unlock_id', refused: true });
+      }
+      return call('hr_buy_gem_unlock', {
+        p_unlock_id: id,
+        p_slot: activeSlot(),
+        p_idem: newIdem()
+      });
+    },
+    /* ══════════════════════════════════════════════════════════════════════
+       READING A RECIPE SCROLL — supabase/migrations/2026-09-14-recipe-learn.sql.
+       ══════════════════════════════════════════════════════════════════════
+       The price is the SCROLL, and the scroll is a real server-held item
+       (player_inventory, dropped by hr_apply's own combat roll), so no currency
+       crosses and none is named here: the item id, the character, an idem key.
+
+       Before this verb the client unlocked the recipe locally and deleted the
+       scroll locally, and the server had no row — so the away engine's
+       `gateOk(recipe, unlockedRecipes)` stopped every gated span at tick 0 and
+       the player's night paid nothing. AWAITED, not fire-and-forget: the recipe
+       is unlocked by the ENVELOPE's `unlocked_recipes`, never by this client.
+
+       Envelope: {ok:true, item, recipe, qty, unlocked_recipes, version, slot} or
+       {ok:false, error: bad_item | unknown_recipe | already_learned (carries
+       unlocked_recipes) | insufficient_item | recipe_daily_cap | no_character |
+       intent_mismatch | rate_limited | not_signed_in}. */
+    learnRecipe: function (itemId) {
+      var id = String(itemId || '');
+      if (!id || id.length > 64) {
+        return Promise.resolve({ ok: false, error: 'bad_item', refused: true });
+      }
+      return call('hr_recipe_learn', {
+        p_item: id,
+        p_slot: activeSlot(),
+        p_idem: newIdem()
+      });
+    },
     /* Companion EQUIP / UNEQUIP — supabase/migrations/2026-08-20-companion-model.sql.
        hr_companion_equip(slot, companion, unequip) sets the SERVER-OWNED
        player_state.companion_equipped AFTER an ownership check (a companion:<id>

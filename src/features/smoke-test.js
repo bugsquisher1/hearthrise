@@ -60263,6 +60263,7 @@ const TESTS = [
       assert(!!(window.DUNGEONS && typeof window.DUNGEONS === 'object'), 'guard: window.DUNGEONS must be loaded');
       A.noteBaselineComplete({ inventory_complete: true });
       assert(A.isBaselineCompleteSeen() === true, 'guard: the baseline-complete signal must read as observed');
+      A.noteServerArmPermission(true);   // arming needs an OBSERVED server grant (INV-STAGE-9)
       assert(A.inventoryArmStage().stagedAtBoot === IA.inventoryArmStaged(),
         'accrue.js read a different staged position at boot than item-authority.js reports now — the boot read drifted');
 
@@ -60283,6 +60284,7 @@ const TESTS = [
       A.markInventoryAuthorityLive(false);
       A.__setInventoryArmStageForTest(undefined);
       A.__resetAutoArm();
+      A.__resetServerArmPermission();
       E.resetEquip();
       if (prev) E.configureEquip(prev);
     }
@@ -60431,6 +60433,11 @@ const TESTS = [
       assert(typeof seen[0].armed === 'boolean' && typeof seen[0].staged === 'boolean',
         'the summary must carry BOTH the armed state and the staged position, or a soak cannot separate '
         + 'staged-on sessions from merge ones: ' + JSON.stringify(seen[0]));
+      /* AND WHICH BUILD SAID SO: a +24 h soak window spans a release, and a
+         destructive omission is only interpretable against the code that made it.
+         MUTATION: drop `build` from flipDriftSummary ⇒ red. */
+      assert(seen[0].build === window.HearthriseBuild.cache,
+        'the summary must stamp the build it came from — got ' + JSON.stringify(seen[0].build));
 
       // (c) the ARM TRANSITION is journalled immediately, both directions.
       A.noteArmTransition(true);
@@ -60576,6 +60583,41 @@ const TESTS = [
       const dead = () => Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve(null) });
       const p = await A.fetchServerArmPermission(dead);
       assert(p === true, 'a 404 on hr_flags withdrew the permission — an older database is not a decision');
+
+      /* (e) TRI-STATE, and the asymmetry is the whole design. SILENCE answers NO
+         to "may this session arm?" and YES to "has the permission been taken
+         away?" — so a client that never reaches the flag never arms, and one that
+         did observe a grant is never disarmed by a later failed read.
+         MUTATION: collapse it to a boolean either way ⇒ one half goes red. */
+      assert(A.serverArmPermissionState() === 'unknown', 'the boot state must be UNKNOWN, not a decision');
+      assert(A.isServerArmObserved() === false, 'silence is not an observed grant');
+      assert(A.isServerArmPermitted() === true, 'silence is not a disarm either');
+      A.__resetAutoArm();
+      A.__setInventoryArmStageForTest(true);
+      assert(A.maybeAutoArm() === false,
+        'the flip armed on an UNKNOWN permission — arming must require an observed enabled === true, or a '
+        + 'client that never reached hr_flags arms anyway and the switch is decorative');
+      A.noteServerArmPermission(true);
+      assert(A.isServerArmObserved() === true, 'an observed true must read as granted');
+      A.markInventoryAuthorityLive(true);
+      await A.fetchServerArmPermission(dead);   // a later read fails…
+      assert(A.isInventoryAbsolute() === true,
+        '…and disarmed an armed session: a failed read is not a withdrawal');
+      A.markInventoryAuthorityLive(false);
+
+      /* (f) THE RE-READ RIDES THE SETTLE, THROTTLED. A flag read once at sign-in
+         is a kill switch with an unbounded reaction time — an idle tab would hold
+         an absolute bag for hours after an operator flipped the row.
+         MUTATION: delete the maybeRereadArmFlag() call in applyEnvelopeState, or
+         drop the throttle ⇒ one of the two below goes red. */
+      assert(typeof A.maybeRereadArmFlag === 'function' && A.ARM_FLAG_REREAD_MS >= 60000,
+        'the re-read seam must exist with a sane cadence — got ' + A.ARM_FLAG_REREAD_MS);
+      A.__resetArmFlagReadClock();
+      assert(A.maybeRereadArmFlag(1000) === true, 'the first settle after a load must ask');
+      assert(A.maybeRereadArmFlag(1000 + A.ARM_FLAG_REREAD_MS - 1) === false,
+        'a second settle inside the window must NOT ask — one GET per envelope is what journal rule 6 bans');
+      assert(A.maybeRereadArmFlag(1000 + A.ARM_FLAG_REREAD_MS) === true, 'and it must ask again after the window');
+      A.__resetArmFlagReadClock();
     } finally {
       A.markInventoryAuthorityLive(false);
       A.__setInventoryArmStageForTest(undefined);
@@ -60585,6 +60627,34 @@ const TESTS = [
       E.resetEquip();
       if (prevEq) E.configureEquip(prevEq);
     }
+  }),
+
+  () => tryRun('INV-STAGE-10: the start-kit hint discard cannot delete a non-owned id (C-8)', () => {
+    /* The hint discard runs on the MERGE path — the NEVER-DELETE path — and
+       `cooked_shrimp` is an EXCLUDED id, so before the `serverOwnedItem` guard it
+       removed a dish on an omission: exactly the loss the exclusion exists for. It
+       is also no longer needed for a non-owned id, because the fresh-G factory bag
+       is gone and an exact-hint figure can now only have come from the server or
+       from real play. MUTATION: delete the `if (!serverOwnedItem(id)) continue`
+       line in reconcileInventory's START_INVENTORY block ⇒ (a) red. */
+    const A = window.HearthriseAccrual;
+    assert(A.serverOwnedItem('cooked_shrimp') === false, 'precondition: a dish is EXCLUDED, never owned');
+    assert(A.serverOwnedItem('turnip_seed') === true, 'precondition: a seed IS owned');
+    /* MEASURED ON THE RECEIPT, NOT ON THE BAG, and that distinction is the test.
+       A dish DOES leave the bag on a complete envelope that omits it — but by the
+       phantom-food rule (the server eats it), which is a different, deliberate
+       rule. The question here is whether the START-KIT block CLAIMED it, and
+       `written.startKitHintDropped` is that block's own counter. */
+    const dish = A.reconcileInventory({ inventory: { cooked_shrimp: 20 } },
+      { inventory: { maple_log: 3 }, inventory_complete: true }, false, true);
+    assert(!(dish.startKitHintDropped > 0),
+      '(a) the start-kit hint discard claimed a NON-OWNED id (' + dish.startKitHintDropped + ') — it runs on '
+      + 'the merge path, which may never delete, and an excluded id has no business in it');
+    const G = { inventory: { turnip_seed: 5 } };
+    const seed = A.reconcileInventory(G, { inventory: { maple_log: 3 }, inventory_complete: true }, false, true);
+    assert(seed.startKitHintDropped === 1 && !G.inventory.turnip_seed,
+      '(b) …and it must still discard the OWNED half, or the phantom-seed bug it was written for is back: '
+      + JSON.stringify({ dropped: seed.startKitHintDropped, bag: G.inventory }));
   }),
 
   () => tryRun('SERVER-OWNED-3: the drift detector does NOT count an excluded omission as destructive', () => {
@@ -61044,6 +61114,7 @@ const TESTS = [
       A.__setInventoryArmEnabledForTest(true);   // BUILD GATE OPEN — simulates the rollout commit
       /* Two rollout positions now: without the staged one open, this measures nothing. */
       A.__setInventoryArmStageForTest(true);
+      A.noteServerArmPermission(true);   // …and the OBSERVED grant the tri-state arm needs
       A.noteBaselineComplete({ inventory_complete: true });   // guard (b)
 
       /* DORMANT-WORKER BRANCH (today's reality — see SERVER-OWNED-5): while worker
@@ -61079,6 +61150,7 @@ const TESTS = [
     } finally {
       A.__setInventoryArmEnabledForTest(undefined);
       A.__setInventoryArmStageForTest(undefined);
+      A.__resetServerArmPermission();
       A.markInventoryAuthorityLive(false);
       A.__resetAutoArm();
     }
@@ -61094,6 +61166,7 @@ const TESTS = [
       A.__resetAutoArm();
       A.__setInventoryArmEnabledForTest(true);   // enabled, so the GUARDS are what must hold the line
       A.__setInventoryArmStageForTest(true);      // …and STAGED on, or the stage masks the guard under test
+      A.noteServerArmPermission(true);   // …and the OBSERVED grant the tri-state arm needs
 
       /* GUARD (b) unmet: no baseline-complete signal observed. */
       A.__resetBaselineComplete();
@@ -61117,6 +61190,7 @@ const TESTS = [
       globalThis.DUNGEONS = savedDungeons;
       A.__setInventoryArmEnabledForTest(undefined);
       A.__setInventoryArmStageForTest(undefined);
+      A.__resetServerArmPermission();
       A.markInventoryAuthorityLive(false);
       A.__resetAutoArm();
       A.noteBaselineComplete({ inventory_complete: true });   // leave the signal observed for later tests

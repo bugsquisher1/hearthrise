@@ -1462,7 +1462,7 @@ export function maybeAutoArm() {
     if (autoArmDisarmed) return false;          // (2) deliberately disarmed this session
     if (!inventoryArmEnabled) return false;     // (3) BUILD GATE — the enable flag
     if (!inventoryArmStagedNow) return false;   // (3b) STAGED ROLLOUT — 'off' in prod today
-    if (!serverArmPermitted) return false;      // (3c) the SERVER's kill switch has been thrown
+    if (!isServerArmObserved()) return false;   // (3c) no OBSERVED server grant this session
     if (!baselineCompleteSeen) return false;    // (4) server not yet observed stamping complete
     const D = (typeof globalThis !== 'undefined') ? globalThis.DUNGEONS : null;
     if (!D || typeof D !== 'object') return false;   // (5) DUNGEONS not loaded (overlap-id safety)
@@ -1489,7 +1489,7 @@ export function maybeAutoArm() {
  *  for three weeks, and it is a PER-SESSION gesture fact. */
 export function isInventoryAbsolute() {
   if (!inventoryAuthorityLive) return false;
-  if (!serverArmPermitted) return false;   // the SERVER's kill switch, thrown (see below)
+  if (!isServerArmPermitted()) return false;   // the SERVER's kill switch, thrown (see below)
   return isEnvelopeAbsolute();
 }
 
@@ -1525,24 +1525,53 @@ export function isInventoryAbsolute() {
    A DISARM LATCHES for the session: `markInventoryAuthorityLive(false)` sets the
    auto-arm's own disarm latch, so the next envelope cannot quietly re-arm. */
 export const INVENTORY_ARM_FLAG_KEY = 'inventory_absolute';
-let serverArmPermitted = true;
+/* TRI-STATE, and the third state is the point. 'unknown' is not 'granted' and
+   not 'denied': ARMING requires a `enabled === true` OBSERVED this session, so a
+   client that never reached the flag never arms; DISARMING requires an observed
+   `false`, so a failed read can never take the bag away from a session that did
+   observe a grant. Two different questions, two different answers, and the
+   asymmetry is what makes both directions fail safe. */
+const ARM_UNKNOWN = 'unknown', ARM_GRANTED = 'granted', ARM_DENIED = 'denied';
+let serverArmPermission = ARM_UNKNOWN;
 
-/** Record the server's permission. ONLY a literal `false` withdraws it; anything
- *  else (absent row, unknown, true) leaves the position alone. A withdrawal also
- *  DISARMS an already-armed session — that is the whole point of a kill switch. */
+/** Record the server's permission. A literal true GRANTS, a literal false DENIES
+ *  (and disarms an armed session — the point of a kill switch); anything else is
+ *  not an answer and leaves the position exactly where it was. */
 export function noteServerArmPermission(v) {
   if (v === false) {
-    serverArmPermitted = false;
+    serverArmPermission = ARM_DENIED;
     if (inventoryAuthorityLive) { try { markInventoryAuthorityLive(false); } catch (e) {} }
   } else if (v === true) {
-    serverArmPermitted = true;
+    serverArmPermission = ARM_GRANTED;
   }
-  return serverArmPermitted;
+  return isServerArmPermitted();
 }
-export function isServerArmPermitted() { return serverArmPermitted; }
-/** TEST-ONLY. Put the permission back to the boot default without going through
- *  the disarm path (which latches). Grants nothing on its own. */
-export function __resetServerArmPermission() { serverArmPermitted = true; return serverArmPermitted; }
+/** Has the server NOT taken the permission away? (unknown counts as "not taken
+ *  away" — it is the disarm question, and silence is not a disarm.) */
+export function isServerArmPermitted() { return serverArmPermission !== ARM_DENIED; }
+/** Has an explicit grant been OBSERVED this session? The arm question, and the
+ *  one silence answers NO to. */
+export function isServerArmObserved() { return serverArmPermission === ARM_GRANTED; }
+export function serverArmPermissionState() { return serverArmPermission; }
+/** TEST-ONLY. Back to the boot state (unknown) without the disarm path's latch. */
+export function __resetServerArmPermission() { serverArmPermission = ARM_UNKNOWN; return serverArmPermission; }
+
+/* ── THE RE-READ CADENCE ────────────────────────────────────────────────────
+   A flag read once at sign-in is a kill switch with an unbounded reaction time:
+   an idle tab can hold an absolute bag for hours after an operator flips the
+   row. The re-read rides the SETTLE — the same cadence that would do the
+   deleting — and is throttled so it costs at most one small GET every few
+   minutes per session, never one per envelope. */
+export const ARM_FLAG_REREAD_MS = 5 * 60 * 1000;
+let _armFlagReadAt = 0;
+export function maybeRereadArmFlag(nowOverride) {
+  const t = Number.isFinite(nowOverride) ? nowOverride : nowMs();
+  if (_armFlagReadAt && (t - _armFlagReadAt) < ARM_FLAG_REREAD_MS) return false;
+  _armFlagReadAt = t;
+  try { fetchServerArmPermission(); } catch (e) {}
+  return true;
+}
+export function __resetArmFlagReadClock() { _armFlagReadAt = 0; return _armFlagReadAt; }
 
 /** Read the flag row. Pure transport — it records the answer and returns the
  *  resulting permission. Never throws and never DECIDES on an error: a refusal,
@@ -1679,6 +1708,9 @@ export function flipDriftSummary() {
     ready: !!r.ready,
     armed: !!r.armed,
     staged: !!r.staged,
+    /* WHICH BUILD SAID SO. A +24 h soak spans a release, and a destructive
+       omission is only interpretable against the code that produced it. */
+    build: (BUILD && BUILD.cache) || null,
     dungeonsLoaded: !!r.dungeonsLoaded,
     baselineCompleteSeen: !!r.baselineCompleteSeen,
   };
@@ -1695,8 +1727,8 @@ let _flipDriftTimer = null;
    per session instead of one per cadence tick. */
 function _flipDriftDedupeKey(s) {
   return [s.destructiveOwnedOmissions, s.envelopesApplied, s.completeEnvelopes,
-    s.lastLossMag, s.ready, s.armed, s.staged, s.dungeonsLoaded, s.baselineCompleteSeen,
-    s.transition || ''].join('|');
+    s.lastLossMag, s.ready, s.armed, s.staged, s.build, s.dungeonsLoaded,
+    s.baselineCompleteSeen, s.transition || ''].join('|');
 }
 
 /** Read the drift summary and emit it through the observability channel IF it
@@ -1800,6 +1832,9 @@ import { serverAccruedSkill } from '../data/skill-authority.js?v=546';
    server's hr_start_kit catalogue is generated from, so there is no second copy
    of the numbers here either. */
 import { START_INVENTORY } from '../data/start-kit.js?v=546';
+/* The cache-buster, so a soak row says WHICH build produced it (a +24 h window
+   spans a release). A frozen constant leaf — no cycle, no DOM. */
+import { BUILD } from '../build-info.js?v=546';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -2959,6 +2994,9 @@ export function applyEnvelopeState(G, res, ownKey) {
      is met. Wrapped so it can NEVER throw into the envelope apply — a refusal is a
      no-op that retries on the next envelope. See maybeAutoArm. */
   maybeAutoArm();
+  /* …and re-ask the SERVER whether the bag may be absolute at all, throttled.
+     Same cadence as the thing that would do the deleting. */
+  try { maybeRereadArmFlag(); } catch (e) {}
   /* b465 — hand the envelope's progress rows to the daily-reward sheet: the
      server's daily/login claim row is the marker that survives tab/save races
      (the residue copy kept losing them and the sheet re-opened on a paid
@@ -3929,6 +3967,13 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   if (hintPending && baselineComplete === true) {
     try { G._startKitHintAt = Date.now(); } catch (e) {}
     for (const id of Object.keys(START_INVENTORY)) {
+      /* OWNED IDS ONLY. This block runs on the MERGE path, which is the
+         never-delete path, and `cooked_shrimp` is an EXCLUDED id — so without
+         this line the rule deletes a dish on an omission, which is precisely the
+         loss the exclusion exists to prevent. It is also no longer needed for a
+         non-owned id: the fresh-G factory bag is gone, so an exact-hint figure
+         can only have come from the server or from real play. */
+      if (!serverOwnedItem(id)) continue;
       const hint = Number(START_INVENTORY[id]);
       if (!Number.isFinite(hint) || hint <= 0) continue;
       if ((Number(inv[id]) || 0) !== hint) continue;   // touched, or absent — not the hint
@@ -5530,7 +5575,9 @@ if (typeof window !== 'undefined') {
     isInventoryAbsolute, markInventoryAuthorityLive, isInventoryAuthorityLive,
     maybeAutoArm, __setInventoryArmEnabledForTest, __resetAutoArm,
     inventoryArmStage, __setInventoryArmStageForTest,
-    noteServerArmPermission, isServerArmPermitted, fetchServerArmPermission, INVENTORY_ARM_FLAG_KEY,
+    noteServerArmPermission, isServerArmPermitted, isServerArmObserved, serverArmPermissionState,
+    fetchServerArmPermission, INVENTORY_ARM_FLAG_KEY, maybeRereadArmFlag, ARM_FLAG_REREAD_MS,
+    __resetArmFlagReadClock,
     __resetServerArmPermission,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,

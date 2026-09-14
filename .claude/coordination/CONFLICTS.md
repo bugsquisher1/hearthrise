@@ -1586,4 +1586,6 @@ tests/accrual-engine.mjs CHARM-W4 byte-compares 32 forged input shapes against t
 
 **Recommendation (not taken unilaterally, because the code is the other lane's):** retire the `START_INVENTORY` block in `reconcileInventory` and let the classification carry it — `turnip_seed`/`carrot_seed` are now OWNED (so a complete envelope's omission means zero once the flip arms), `shrimp` is owned and `cooked_shrimp` is server-consumed. Until then it is harmless-but-unsound, and it is the second rule in one function that may remove a key.
 
+**RESOLVED 2026-09-14 (Security condition 8), narrowly:** the block now opens with `if (!serverOwnedItem(id)) continue;`, so it can no longer reach an EXCLUDED id — `cooked_shrimp` was the live case, and deleting a dish on an omission is the loss the exclusion exists for. The block is kept, not retired: its owned half (the seeds, `shrimp`) is still the narrowest fix for a server row that is DELETED at zero. `INV-STAGE-10` measures the block's own receipt (`written.startKitHintDropped`) rather than the bag, because a dish also leaves the bag by the phantom-food rule and that would have made the test pass for the wrong reason.
+
 **Also recorded:** `INVENTORY_ARM_STAGE` ships `'off'`, so none of the above changes behaviour for a live player today.

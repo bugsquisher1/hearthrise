@@ -99,10 +99,18 @@
       }catch(e){}
       let thr;
       try{ thr=(typeof window.eatThreshold==='function')?window.eatThreshold():undefined; }catch(e){}
+      let _aeOn=!!(eat&&eat.enabled), _aeFood=eat?eat.foodId:null;
+      try{
+        const A=window.HearthriseAuto;
+        if(A&&typeof A.eatEnabled==='function') _aeOn=A.eatEnabled();
+        if(A&&typeof A.eatFoodId==='function')  _aeFood=A.eatFoodId();
+      }catch(e){}
       f=CS.forecastFight(window.G,ctx,{
         monsterId:mId,
-        autoEat:{ enabled:!!(eat&&eat.enabled), owned:owned,
-                  threshold:thr, foodId:eat?eat.foodId:null },
+        /* The forecast eats what the FIGHT eats: the server's switch, threshold
+           and nomination (HearthriseAuto), never the local gesture alone. */
+        autoEat:{ enabled:_aeOn, owned:owned,
+                  threshold:thr, foodId:_aeFood },
       });
     }catch(e){ return null; }   /* a forecast that throws must never block a fight */
     const kind=CS.forecastWarning(f);

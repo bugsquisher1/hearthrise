@@ -10,17 +10,25 @@
 // fail-closed accessor + fingerprint + UNKNOWN machinery. It needs a HOME so
 // the blob can be retired.
 //
-// THE RESIDUE (the fields the capstone will route through here):
-//   · bountyHunter (MINUS marks — marks is already a record field)
+// THE RESIDUE (the fields this store carries):
+//   · bountyHunter (MINUS marks and xp — both are server-owned)
 //   · stats            (kills/gathered/harvested/rareDrops/playMs — counters)
 //   · chronicle        (the permanent achievement log)
 //   · activeStyle      (which loadout is active — a pref)
-//   · foodSlot         (equipped-food pointer — a pref; the food itself is
-//                       server-owned inventory)
-//   … plus the wider self-only tail the census names (settings, ownedThemes,
-//   ownedCosmetics, houseTheme, daily, collection, quests, entitlements, …) —
-//   the capstone decides the exact set; this store is a generic verbatim bag,
-//   so adding a field is a client decision, not a schema change.
+//   … plus the self-only tail (settings, houseTheme, daily, collection, quests,
+//   entitlements, …). EVERY entry carries its own one-line justification in the
+//   list below, in one of exactly two forms: "client-only preference/display
+//   state/marker: …", or a named reason why no projection holds the fact yet.
+//
+// ⚠ THE PURGE (2026-09-14). A field that SHADOWS a value hr_state_of projects
+//   does not belong here at any size: ownedThemes, ownedCosmetics, autoEatPct,
+//   foodSlot, streak, combatStyle, renownHigh, heroSlotsUnlocked and toolCarry
+//   were all deleted in one change, each one replaced by the reader that asks
+//   the envelope. Their tombstones are inline below, and
+//   tests/arm-homing-guard.mjs fails if any of them is re-added or re-written.
+//   Adding a field here is a client decision, but adding one the server already
+//   holds is a bug — CLAUDE.md §6, "the browser never says one thing while the
+//   server says another".
 //
 // ── THE CONTRACT, DELIBERATELY SIMPLER THAN record.js ───────────────────────
 // This is NOT the record framework and must not be mistaken for it. It is a
@@ -99,36 +107,71 @@ export function __setClientStateArm(v) {
    module), so there is one list and no cycle. The server enforces the same
    boundary independently (hr_put_client_state deny-list) — defense in depth. */
 export const RESIDUE_FIELDS = Object.freeze([
-  'bountyHunter',   // WHOLLY residue now (marks migrated to top-level G.marks); hydrateInto drops any stray nested marks
-  'stats',          // kills/gathered/harvested/rareDrops/playMs counters
-  'chronicle',      // the permanent achievement log
-  'activeStyle',    // active loadout pointer (a pref)
-  'foodSlot',       // equipped-food pointer (the food itself is server inventory)
-  'settings',
-  'ownedThemes',
-  'ownedCosmetics',
-  'houseTheme',
-  'plotBuildings',
-  'daily',
-  'collection',
-  'quests',
-  'entitlements',
+  'bountyHunter',   // client-only board + contract state (completed/board/rerolls/warrants). WHOLLY residue:
+                    // marks are the record's top-level G.marks and BH xp is a server SKILL — hydrateInto and
+                    // buildResiduePatch both DROP those two keys, so the bag cannot shadow either
+  'stats',          // client-only counters (kills/gathered/harvested/rareDrops/playMs). The envelope projects
+                    // no lifetime totals — `ev:*` rows are goal counters, and the per-monster kills are
+                    // hr_bestiary_of's — so there is nothing here to prefer
+  'chronicle',      // client-only log: the player's own permanent record of rank-ups, 99s and first kills.
+                    // Nothing reads it for a gate; capped at 500 entries by chronicle.js compaction
+  'activeStyle',    // client-only preference: which saved loadout is active (the gear itself is the record's)
+  /* ⚠ `foodSlot` WAS HERE and is DELETED (2026-09-14). It is the equipped-food
+     POINTER, and the pointer that counts is `player_state.auto_eat_food` — the
+     column hr_set_auto_eat writes and `chooseFood` picks with, attended and away
+     alike, projected on every envelope. Measured live the same day: the client
+     named `cooked_shrimp` on the HUD, the picker and the death sheet while the
+     column held `turnip`. It survives in memory as the local gesture (the fresh-G
+     literal still points a new character at their starting provision so the away
+     preview can price it); every reader goes through legacy.js autoEatFoodId(),
+     which prefers the server's nomination and resolves a NULL one the way the
+     engine does — the best provision in the bag. Declared in NO_SYNC. */
+  'settings',       // client-only preference: sfx / reduceFx / leftHand / uiScale — the device's own
+                    // display and audio choices; the server computes nothing from them
+  /* ⚠ `ownedThemes` / `ownedCosmetics` WERE HERE and are DELETED, not re-homed
+     (2026-09-14, the projection purge). They were the RESIDUE half of the b371
+     gem dupe: a client-written array asserting ownership of a thing the server
+     SELLS. 2026-09-14-gem-unlock-buy.sql (APPLIED) made hr_buy_gem_unlock the only
+     writer and hr_state_of project the owned set as a top-level `gem_unlocks`
+     array of '<namespace>:<id>'; accrue.js reconcileGemUnlocks lands it in the
+     `G._gemUnlocks` scratch and legacy.js ownsGemUnlock reads THAT. The free rows
+     (theme:default) are always in the projection, so the starting theme stays
+     equippable, and legacy.js also owns a catalogue-derived free-row fail-safe for
+     the pre-envelope window. Every write site is gone: the gem purchases refuse
+     (refuseGemPurchase) until buyTheme/buyCosmetic are routed onto the verb.
+     Re-adding either name would make a restore-rewindable bag the authority over a
+     premium-currency entitlement again. */
+  'houseTheme',     // client-only preference: which owned theme is EQUIPPED (ownership is the
+                    // server's `gem_unlocks`; the selection is per character, designer ruling
+                    // 2026-09-14). Fails closed to 'default', which the catalogue gives away free.
+  'plotBuildings',  // client-only display state: which building art sits on which yard tile
+  'daily',          // the day's shown task sheet ({lastReset,tasks}); the PAY is server-once-guarded
+  'collection',     // {itemId:count} — "have I ever held this"; no server projection exists
+  'quests',         // the quest sheet's local picks; hr_goal_state is the truth for claims
+  'entitlements',   // {hearthHall:true,…} cosmetic/convenience flags with no projection yet
+                    // (hr_unlocks carries an `entitlement` namespace; when hr_state_of projects it,
+                    // this field goes the way of ownedThemes)
   'playerName',     // the player's OWN copy; cross-player name is server-derived
   'lastSeen',       // the client's own last-active stamp (NOT the authority watermark)
-  'autoEatPct',     // auto-eat threshold pref (the authoritative eat is server combat;
-                    // this is the client's own slider position — self-only, would reset to 0.5 otherwise)
+  /* ⚠ `autoEatPct` WAS HERE and is DELETED (2026-09-14). It was the SECOND copy of
+     `player_state.auto_eat_pct` — the column the accrual engine prices every
+     attended settle and every night with — and hr_state_of has projected it since
+     2026-08-15-auto-eat.sql. src/features/auto-actions.js eatThreshold() is the
+     one reader: the server's observation when an envelope has carried one, the
+     player's unanswered gesture until then, fail-safe at the lowest tier's ceiling
+     when nothing has ever been observed. A persisted local copy could only ever be
+     a stale rival to that (measured live: the panel promised 50% while the server
+     ate at 25%). It survives in memory as the slider's position for the debounce
+     window; it no longer survives a reload, because the server's number does. */
   'createdAt',      // the account's Founder date — self-only display; would be lost under arm otherwise
-  'heroSlotsUnlocked', // b459: hero-slot ENTITLEMENT (the gems payment is the record side; this is
-                    // which slots the account owns). Was stranded under arm — a purchased slot
-                    // would vanish on reload; caught while fixing SLOT-BUY-1.
-                    // ⚠ NO LONGER THE AUTHORITY (2026-09-08-hero-slot-buy.sql). hr_state_of now
-                    // projects the account's owned set as a top-level `hero_slots` array;
-                    // src/net/accrue.js reconcileHeroSlots lands it in G._heroSlots (scratch, never
-                    // persisted) and multi-character.js ownsSlot() prefers it. This field stays a
-                    // self-only PRE-ENVELOPE HINT — it is what lets the hero list render before the
-                    // first envelope — and a forged value now buys and unlocks nothing. Do not
-                    // promote it back: the residue is exactly the store a cloud restore can rewind
-                    // while the entitlement it paid for stays granted, which IS the b371 gem dupe.
+  /* ⚠ `heroSlotsUnlocked` WAS HERE and is DELETED (2026-09-14). hr_state_of
+     projects the account's owned slots as a top-level `hero_slots` array
+     (2026-09-08-hero-slot-buy.sql); accrue.js reconcileHeroSlots lands it in the
+     `G._heroSlots` scratch and multi-character.js ownsSlot() already preferred it,
+     so this was a pre-envelope HINT that could only disagree. It disagreed in the
+     one direction that matters — a restore-rewindable bag claiming an entitlement —
+     which IS the b371 gem dupe. The hero list now renders the server's set, and
+     before the first envelope it renders the free slot only: fails closed. */
   /* b462 — THE "SHOWN TODAY" MARKERS. These four were self-only flags that
      lived in the save blob; with the blob retired every reload forgot them, so
      the daily-reward sheet re-opened on every refresh (Tyler, beta morning:
@@ -138,15 +181,22 @@ export const RESIDUE_FIELDS = Object.freeze([
      not land, every time. None of these is an authority field: the server
      derives the real streak from its own claim rows and the quest modal reads
      hr_goal_state under arm; these are "what have I already been shown". */
-  'dailyReward',    // { lastClaimDay } — the daily login sheet's shown-today cache
-  /* { count, lastDay } — the PLAY streak (consecutive days settled). b499: the
-     old note here said "the streak the sheet DISPLAYS", which stopped being
-     true at b498 and was the exact premise b475 acted on. The reward sheet
-     derives its own CLAIM streak from the server's claim rows and never reads
-     this. What DOES read it: the topbar flame chip, the welcome-back modals,
-     the Week Warrior/Devoted achievements, and renown (streakBest x5). */
-  'streak',
-  'dailyGoals',     // quest-modal day picks + local claimed/startValues (server state is the truth under arm)
+  'dailyReward',    // client-only marker: { lastClaimDay } — "has today's sheet been SHOWN".
+                    // The PAY is server-once-guarded (hr_claim_reward refuses the second claim),
+                    // so a forged or lost marker moves no gold; it only re-opens a sheet.
+  /* ⚠ `streak` ({count,lastDay}) WAS HERE and is DELETED (2026-09-14). It was a
+     PLAY streak counted from the DEVICE clock, per browser profile, against a
+     server that has counted the same thing at `player_state.streak_days` since
+     2026-08-21-streak-state.sql §4c — measured live the same day: the topbar chip
+     read 1 while the column held 3. The number is spendable (renown streakBest ×5,
+     Week Warrior / Devoted), which makes a client-advanced copy a faucet as well as
+     a lie. accrue.js reconcilePlayStreak mirrors the projection into the
+     `G._serverStreak` scratch and playStreakDays(G) is the one reader every surface
+     goes through; src/render/streak-chip.js no longer counts anything. Fails closed
+     to 0 before the first envelope — an honest "not counted yet", never a local 1
+     painted over a server 3. */
+  'dailyGoals',     // client-only display state: which goals the quest modal picked for the day and
+                    // what it has already shown as claimed (hr_goal_state is the truth for the pay)
   'weeklyGoals',    // same, weekly
   /* b462 — THE SWEEP (CLAUDE.md session criterion 3: kill the class). Every
      `G.<field>` the game writes, minus record ∪ residue ∪ NO_SYNC, classified.
@@ -155,8 +205,18 @@ export const RESIDUE_FIELDS = Object.freeze([
      player to report it. None is an authority field (the server's deny-list
      and this allowlist both agree); each is the client's own memory of a
      choice it already made or a sheet it already showed. */
-  'combatStyle',    // the style picked per weapon family (reset to default every reload)
-  'loadouts',       // saved gear loadouts (the SET is client-authored; equipping still goes through hr_equip)
+  /* ⚠ `combatStyle` WAS HERE and is DELETED (2026-09-14). `hr_set_style` owns
+     `player_state.combat_style` and hr_state_of projects it at
+     `state.combat_style` (2026-08-24-combat-style.sql); accrue.js
+     reconcileCombatStyle merges it server-wins-per-family into G.combatStyle on
+     every envelope and re-sends any family the server has no opinion about. A
+     persisted second copy could only be the stale rival that decides which skill
+     a settle pays XP into — the "only Attack saves" report. In-session the local
+     map is still written the instant the player taps (applyCombatStyle + the
+     `_pendingStyle` in-flight hold), so the picker stays responsive; across a
+     reload the server's map is the only one. */
+  'loadouts',       // client-only preference: saved gear loadouts (the SET is client-authored;
+                    // equipping still goes through hr_equip, which is the gate)
   'lockedItems',    // {itemId:true} — the SELL-LOCK. Bounded by the CATALOGUE on the write side
                     // (legacy.js toggleItemLock refuses an id ITEMS does not know), so the key set
                     // can never exceed the item catalogue however long an account is played.
@@ -190,8 +250,9 @@ export const RESIDUE_FIELDS = Object.freeze([
      preference can ever be able to say. */
   'lootFilter',
   'autoActions',    // auto-eat food pick / auto-replant prefs (the auto-eat TRIGGER itself is server: hr_set_auto_eat)
-  'lastWelcome',    // welcome/changelog modal "shown for this build" stamp
-  'achievements',   // {id:{progress,unlocked}} — re-deriving from stats re-toasts every unlock on reload
+  'lastWelcome',    // client-only marker: which build's welcome/changelog sheet has been SHOWN
+  'achievements',   // client-only progress: {id:{progress,unlocked}}. Derived from counters the client holds;
+                    // re-deriving on every boot re-toasts every unlock, which is the only thing it can get wrong
   /* ⚠ `dungeons` ({ lastRun:{id:ms} }) was the seventeenth name here and is DELETED,
      not re-homed. It was a CLIENT-CLOCK cooldown stamp, and the server now owns the
      re-entry window: hr_dungeon_settle refuses inside it and hr_state_of projects
@@ -200,9 +261,22 @@ export const RESIDUE_FIELDS = Object.freeze([
      src/dungeons.js canRun() reads. Nothing in src/ writes `G.dungeons` any more.
      Re-adding it would give one gate two clocks, and the client's is the one a
      restore can rewind — the residue-ahead class in §6. */
-  'renown',         // { claimed:[], seenRank } — claimed ranks are server once-guarded; this is the shown state
-  'unlockedRecipes',// gated recipe unlocks the client has learned (server rows exist; this is the read cache)
-  'tools',          // tool slots in the loadout kit
+  'renown',         // client-only marker: { claimed:[], seenRank } — which rank cards have been SHOWN.
+                    // The claim itself is server-once-guarded (hr_claim_rank), and the SCORE the
+                    // ladder is judged against is the server's `renown_high` (see below).
+  /* ⚠ `unlockedRecipes` IS STILL HERE, AND IT IS THE ONE KNOWN DEBT ON THIS LIST.
+     hr_state_of projects `unlocked_recipes` as of 2026-09-14-recipe-learn.sql
+     (APPLIED) and hr_recipe_learn is the server's only writer — but the CLIENT
+     HALF is not built: src/legacy.js's addItem wrapper still flips this bag and
+     deletes the scroll locally, so this bag is the ONLY record that a scroll was
+     ever read. Deleting the field before the intent is wired would un-learn every
+     recipe whose scroll is already consumed, so it stays until the lane that sends
+     hr_recipe_learn and reads `unlocked_recipes` lands — at which point it is
+     deleted here, exactly as ownedThemes was. Named, sized and owned; not
+     forgotten. (Away, hr-accrue already reads the server's empty set, so the eight
+     gated recipes pay nothing at night — that is the bug this debt names.) */
+  'unlockedRecipes',
+  'tools',          // client-only preference: which tools the loadout kit holds
   /* ⚠ `buffs` WAS HERE and is REMOVED, not re-homed here (2026-09-13). The entry
      read "active consumable buffs (remainingMs) — short-lived, but a potion must
      survive a reload", and both halves of that were the problem: a `remainingMs`
@@ -229,7 +303,9 @@ export const RESIDUE_FIELDS = Object.freeze([
        lost entitlement, and it is the step-2 lane that closes it. When it lands,
        `buffs` moves to SERVER_MECHANISM_FIELDS with the executed proof that list
        now demands, NOT back to this one. */
-  'lastActivity',   // the launchpad's "resume what you were doing" card
+  'lastActivity',   // client-only display state: the launchpad's "resume what you were doing" card. NOT a copy
+                    // of `state.active_kind`/`active_id`, which is what you are doing NOW and goes idle the
+                    // moment you stop; this is the last thing you chose, and it deliberately outlives idling
   /* ── b466 — THE SECOND SWEEP (paione, live open beta: "Bestiary achievements
      keep resetting every time you log out and in"). The b462 sweep above was
      run by hand against a hand-typed census, so it only ever found the fields
@@ -246,8 +322,13 @@ export const RESIDUE_FIELDS = Object.freeze([
      bank, equipment, rooms, marks, restedXp, restedAt, farmPlots, farm,
      companions, offlineBudget) — no collision, so none of these can be refused
      by the server as a forbidden_field. */
-  'bestiary',       // {monsterId:{kills,firstKill}} — THE REPORTED BUG; the bestiary IS the kill record
-  'dropLog',        // per-monster drop discovery ("have I ever seen this drop?")
+  'bestiary',       // client-only progress: {monsterId:{kills,firstKill}}. The server HAS the rows
+                    // (`ev:kill_monster:%`) but hr_state_of deliberately EXCLUDES them from the envelope (the
+                    // 1000-row cap) and serves them from hr_bestiary_of instead — so this is a cache of a
+                    // projection that does not exist on this call, not a shadow of one that does. It becomes a
+                    // deletion the day the bestiary is read from its own RPC on the load path
+  'dropLog',        // client-only progress: per-monster drop discovery ("have I ever seen this drop?"); the
+                    // same `ev:loot:%` exclusion applies
   'collectionLog',  // {claimed:[]} — collection MILESTONE claims. NOT an alias of `collection`
                     // above: `collection` is {itemId:count} (what you have found),
                     // this is which milestone rewards you have taken. Both are real.
@@ -261,10 +342,28 @@ export const RESIDUE_FIELDS = Object.freeze([
      — the b443 nested-marks bug in a new costume — and would let a forged
      client_state key hydrate a trait the server never sold. It is registered in
      the guard's SERVER_MECHANISM_FIELDS instead. */
-  'lifetimeKills',  // the ratcheting all-time kill counter (falls back to stats.kills, which under-counts)
-  'renownHigh',     // the renown high-water mark every rank claim is gated on
-  'homestead',      // {tier} — the purchased homestead tier; without it the boot RE-DERIVES a
-                    // grandfathered tier from rooms/skills, silently demoting a paid upgrade
+  'lifetimeKills',  // client-only counter: the ratcheting all-time kill count. NOT a shadow — the
+                    // envelope projects no lifetime kill total (hr_state_of excludes `ev:kill_monster:%`
+                    // from `progress`; the per-monster rows are hr_bestiary_of's, a separate RPC), so
+                    // there is nothing to prefer. It fails closed to stats.kills, which under-counts.
+  /* ⚠ `renownHigh` WAS HERE and is DELETED (2026-09-14). It was the CLIENT
+     ratchet's high-water mark, and the client's ladder drifts ahead of the realm's
+     BY CONSTRUCTION (2026-09-02-renown-kill-faucet scores a client kill at zero
+     server-side) — measured live 2026-09-13: 1193 shown against a `renown_high` of
+     1058, a whole rank at the wrong threshold, on a number that hands out perks.
+     hr_state_of projects `renown_high` top-level since 2026-09-12 and
+     src/features/renown.js countedRenown() is the figure every gate, claim and
+     headline decides on. The prediction (`effectiveRenown`) still ratchets within a
+     session for the "you are near a rank" display; persisting that prediction only
+     ever gave the residue-ahead class a durable store. */
+  'homestead',      // client-held CACHE of the property rung, and the ONE shadow deliberately kept:
+                    // hr_state_of's `progress` array is TRUNCATED at 1000 rows, so a long-played
+                    // account's `property:homestead` unlock can be missing from an envelope that is
+                    // otherwise complete. src/net/property-record.js grades the server statement as
+                    // EXACT / FLOOR / UNKNOWN and heals G.homestead.tier in BOTH directions (b502
+                    // lowers a forged rung, b492 raises a stale one); the residue is only ever read
+                    // as a floor under a FLOOR statement, or alone while UNKNOWN. Delete it the day
+                    // the rung is projected top-level and un-truncated, not before.
   /* ⚠ `wieldGrandfather` WAS HERE and is DELETED, not re-homed. It was
      `{itemId:true}`, "once worn, always re-wearable", and this entry claimed
      "losing it can un-wield live gear" — untrue since the cutover: the wield gate
@@ -274,8 +373,17 @@ export const RESIDUE_FIELDS = Object.freeze([
      with a persisted store behind it. See src/net/equip.js §THE GATE.
      (A stale key may still sit in an old client_state bag; hydrateInto writes
      only THIS allowlist, so it is inert — dead bytes, not state.) */
-  'currentCombatTier', // which monster tier the combat picker is showing (b213 saved it on purpose)
-  'toolCarry',      // fractional gather carry-over per tool — mutated by reference each tick
+  'currentCombatTier', // client-only preference: which monster tier the combat picker is showing
+  /* ⚠ `toolCarry` WAS HERE and is DELETED (2026-09-14). `player_state.tool_carry`
+     is a real server column (2026-08-15-tool-carry.sql), hr_apply accepts the
+     engine's `tool_carry` delta key, and hr_state_of projects it at
+     `state.tool_carry` — so the fraction the away engine and every settle bank
+     lived in TWO places, and the client's copy is the one a restore can rewind.
+     accrue.js reconcileToolCarry mirrors the projection onto G.toolCarry on every
+     envelope; between envelopes the client still mutates it by reference as
+     prediction, exactly as it always did, and the next settle replaces it with the
+     server's arithmetic. Absent projection → the local carry is left alone (a
+     fraction is never evicted on uncertainty). */
   /* ── E1/E2 — THE CONSUMPTION CARRY. `toolCarry`'s exact twin, one system
      over: `{ <ammoItemId>: 0..1 }`, mutated by reference on every swing by
      src/core/ammo.js. A whetstone burns 0.02 per swing, so 49 swings in 50 bank
@@ -288,14 +396,17 @@ export const RESIDUE_FIELDS = Object.freeze([
        `player_state.ammo_carry` lands, the server's copy becomes authority and
        this one becomes the prediction, exactly as `toolCarry` did. */
   'ammoCarry',
-  'buyback',        // the 15-entry recently-sold list; a reload must not eat a misclick's undo
+  'buyback',        // client-only display state: the 15-entry recently-sold list. The BUY-BACK itself is a
+                    // normal server purchase; losing the list only costs a misclick its undo
   'dailyGoldStart', // {day,gold,earned} — the day's gold baseline the daily goals measure against;
                     // reset on reload = the gold-earned goal restarts from the current balance
-  'raids',          // {lastStrikeDay, solo:{week,…}, claimed:{}} — weekly raid progress AND the
-                    // claim/cooldown markers (the b288 dungeon lesson: a forgotten cooldown is a faucet)
-  'muster',         // the daily muster's day/slot/claimed state (server once-guards the pay; this is
-                    // what the player has already been shown and taken)
-  'rallyPledge',    // a pledge deliberately OUTLIVES the UTC day roll — settlement clears it, not time
+  'raids',          // client-held markers for a surface with no projection yet: {lastStrikeDay, solo:{week,…},
+                    // claimed:{}}. The PAY is server once-guarded; the cooldown is the part with no server
+                    // clock behind it, so this stays until one exists (b288: a forgotten cooldown is a faucet)
+  'muster',         // client-only marker: the day/slot/claimed state the player has already been SHOWN.
+                    // The pay is server once-guarded
+  'rallyPledge',    // client-only state: a pledge deliberately OUTLIVES the UTC day roll — settlement clears
+                    // it, not the clock
   'pendingItemSpends', // item-ledger.js's outstanding client-authored trades. Its own header: an
                     // outstanding trade that did not survive a reload "would be reverted by the first
                     // envelope after it, taking the player's blueprint with it"
@@ -514,6 +625,21 @@ export function hydrateInto(G, cs) {
          of a server number into G where a read site might prefer it. */
       delete merged.xp;
       G[f] = merged;
+      continue;
+    }
+    if (f === 'autoActions') {
+      /* NEVER HYDRATE THE `eat` BRANCH. It is the three auto-eat COLUMNS
+         (auto_eat_enabled / auto_eat_pct / auto_eat_food), read back off the
+         envelope by src/features/auto-actions.js; a bag copy — forged or merely
+         stale — would put a second answer into G where the cold-path fallback
+         could read it. The other branches are real client-only prefs and ride.
+         Symmetric with buildResiduePatch, which strips the same key on the way
+         out; a stale `eat` left in an old bag is inert, not state. */
+      const bagAA = cs[f];
+      if (bagAA === null || typeof bagAA !== 'object' || Array.isArray(bagAA)) { G[f] = bagAA; continue; }
+      const mergedAA = { ...bagAA };
+      delete mergedAA.eat;
+      G[f] = mergedAA;
       continue;
     }
     G[f] = sanitizeResidueField(f, cs[f]);

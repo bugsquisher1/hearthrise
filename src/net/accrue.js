@@ -2236,22 +2236,63 @@ export function reconcileHeroSlots(G, res) {
   return { mode: 'server', owned: owned.length };
 }
 
+/* ── THEME AND COSMETIC OWNERSHIP IS THE SERVER'S (2026-09-14-gem-unlock-buy) ─
+   hr_buy_gem_unlock debits the gems and writes the unlock row in ONE
+   transaction, and hr_state_of projects the ACCOUNT's owned set as a top-level
+   `gem_unlocks` array of '<namespace>:<id>' (always including the FREE rows, so
+   the starting theme stays equippable). This is the mirror legacy.js
+   ownsGemUnlock reads.
+
+   SCRATCH, NEVER RESIDUE — the `_heroSlots` shape, and for the same reason:
+   `ownedThemes`/`ownedCosmetics` were the residue half of the b371 gem dupe, the
+   store a cloud restore rewinds while the entitlement it paid for stays granted.
+   They are off RESIDUE_FIELDS as of this change, so THIS is the only copy.
+
+   ABSOLUTE, not a union: an unlock the server does not hold is not owned. That
+   is the whole authority direction — a forged bag key can no longer confer a
+   1,200-gem cosmetic.
+
+   NEVER AN EVICTION ON ABSENCE: no readable `gem_unlocks` ARRAY leaves the last
+   observation alone (a server predating the projection, or a lean envelope, must
+   never read as "you own nothing"). Before the FIRST observation the reader
+   answers "only what the catalogue gives away free", which is fail-closed.
+
+   Pure (G + res → receipt), like every reconcile beside it. */
+export function reconcileGemUnlocks(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const rows = res && res.gem_unlocks;
+  if (!Array.isArray(rows)) return { mode: 'absent' };
+  const owned = [];
+  for (const r of rows) {
+    /* '<namespace>:<id>' verbatim — the exact shape ownsGemUnlock tests. A row
+       that is not a short string is not an entitlement. */
+    if (typeof r !== 'string' || !r || r.length > 64) continue;
+    if (r.indexOf(':') <= 0) continue;
+    if (owned.indexOf(r) === -1) owned.push(r);
+  }
+  owned.sort();
+  G._gemUnlocks = { owned, at: Date.now() };
+  return { mode: 'server', owned: owned.length };
+}
+
 /* ── THE PLAY STREAK IS THE SERVER'S ─────────────────────────────────────────
    MEASURED LIVE (QA account, slot 2, 2026-09-14): the topbar flame chip read
    `1` while `player_state.streak_days` held `3`. Two counters, one word.
 
-   `G.streak` ({count,lastDay}) is a CLIENT-AUTHORED residue advanced from the
+   `G.streak` ({count,lastDay}) WAS a CLIENT-AUTHORED residue advanced from the
    DEVICE clock, per browser profile (src/render/streak-chip.js), so a second
-   machine or a cleared profile restarts at 1 while the server — which advances
+   machine or a cleared profile restarted at 1 while the server — which advances
    `streak_days` from now() on any delta carrying `accrued_to`,
-   2026-08-21-streak-state.sql §4c — keeps counting. The projection has ridden
+   2026-08-21-streak-state.sql §4c — kept counting. The projection had ridden
    every envelope since that migration and NOTHING read it (CLAUDE.md §6). The
-   number is spendable: renown's `streakBest` ×5, Week Warrior / Devoted.
+   number is spendable: renown's `streakBest` ×5, Week Warrior / Devoted — so the
+   local counter was deleted outright (2026-09-14), not left as a fallback.
 
    SCRATCH, NOT RESIDUE (`_`-prefixed, the `_heroSlots` shape): projected fresh
    on every envelope, so persisting it would only create a second stale copy to
-   disagree with. `G.streak` is untouched — the local counter is the only answer
-   before the first envelope; READERS prefer the server's, via playStreakDays().
+   disagree with. There is no longer a local counter to prefer it over: every
+   play-streak surface reads playStreakDays(), which answers 0 until the realm
+   has spoken.
 
    NEVER AN EVICTION: an envelope without the key leaves the last observation
    alone, and a non-numeric value is not an observation at all. `0` IS a real
@@ -2279,8 +2320,53 @@ export function reconcilePlayStreak(G, res) {
 export function playStreakDays(G) {
   const s = G && G._serverStreak;
   if (s && Number.isFinite(Number(s.days))) return Math.max(0, Math.floor(Number(s.days)));
-  const loc = Number(G && G.streak && G.streak.count);
-  return Number.isFinite(loc) && loc > 0 ? Math.floor(loc) : 0;
+  /* NO LOCAL FALLBACK (2026-09-14). `G.streak` was a DEVICE-clock counter in the
+     residue — a second copy of `player_state.streak_days`, and the one a cloud
+     restore could rewind, on a number renown SPENDS at ×5 a day. It is deleted;
+     before the first envelope the honest answer is "the realm has not counted
+     yet", which every caller already renders as no streak. */
+  return 0;
+}
+
+/* ── THE FRACTIONAL TOOL CARRY IS THE SERVER'S (2026-08-15-tool-carry.sql) ────
+   `player_state.tool_carry` is a real column: the Edge engine reads it, every
+   settle advances it through the SAME src/core/tools.js `advanceToolCarry` the
+   attended tick uses, hr_apply accepts it as a delta key (validated, clamped,
+   `bad_tool_carry` otherwise), and hr_state_of projects it at `state.tool_carry`.
+   Nothing read it back down, so the fraction lived in TWO places — and the
+   client's was the one a cloud restore could rewind. That is CLAUDE.md §6's
+   residue-ahead class on a number that pays out whole items.
+
+   ABSOLUTE, and that is safe because the server's value is POST-SETTLE: the
+   envelope carrying it is the answer to the settle that consumed the window the
+   local fraction was accumulated in, so replacing the prediction with the
+   server's arithmetic is the reconcile, not a loss. Between envelopes the
+   attended tick keeps mutating G.toolCarry by reference exactly as before.
+
+   FAIL-SAFE ON ABSENCE: no readable `state.tool_carry` OBJECT leaves the local
+   carry alone. A fraction is worth strictly less than one item, so neither
+   direction can mint anything — but evicting on uncertainty is forbidden (§6),
+   and a server predating the projection must not zero a live carry.
+
+   Pure (G + res → receipt), like every reconcile beside it. */
+export function reconcileToolCarry(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const st = res && res.state;
+  if (!st || typeof st !== 'object') return { mode: 'absent' };
+  const server = st.tool_carry;
+  if (!server || typeof server !== 'object' || Array.isArray(server)) return { mode: 'absent' };
+  const out = {};
+  let kept = 0;
+  for (const k of Object.keys(server)) {
+    const n = Number(server[k]);
+    /* The range is [0,1) by construction — `advanceToolCarry` pays out whole
+       units the moment it reaches 1 — so anything else is not a carry. */
+    if (!Number.isFinite(n) || n < 0 || n >= 1) continue;
+    out[k] = n;
+    kept++;
+  }
+  G.toolCarry = out;
+  return { mode: 'server', kept };
 }
 
 /* ── THE DUNGEON RE-ENTRY WINDOWS ARE THE SERVER'S ───────────────────────────
@@ -3095,6 +3181,17 @@ export function applyEnvelopeState(G, res, ownKey) {
      one renown scores. See reconcilePlayStreak's header. */
   written.playStreak = reconcilePlayStreak(G, res);
 
+  /* AND THE OWNED THEMES / COSMETICS, which are an ACCOUNT entitlement and must
+     ride every envelope for the same reason the hero slots do: the House and the
+     Store both gate on them, and the residue copy they used to read is gone. */
+  written.gemUnlocks = reconcileGemUnlocks(G, res);
+
+  /* AND THE FRACTIONAL TOOL CARRY, which rides `state` for the same reason and
+     under the same rule: the settle that produced this envelope already advanced
+     the server's copy through the same core function the attended tick uses, so
+     the client's prediction is reconciled here rather than left to diverge. */
+  written.toolCarry = reconcileToolCarry(G, res);
+
   /* AND THE DUNGEON RE-ENTRY WINDOWS BESIDE THEM, for the same reason: the panel's
      countdown must be right on the envelope the player's own action produced, not
      one poll later. Same absolute/merge split, same fail-open — see the header. */
@@ -3397,12 +3494,22 @@ let serverAutoEatPctSeq = 0;
      tells "the server has spoken since the last gesture" from "nothing heard".
      Bumped on every RECORDING; reset by __resetServerAutoEat, itself an event. */
 let serverAutoEatFoodSeq = 0;
+/* ── `enabledSeq` — HOW MANY TIMES THE SERVER HAS STATED THE SWITCH ──────────
+   The third twin, for `auto_eat_enabled`. `hr_set_auto_eat` is the only writer
+   of that column and the accrual engine reads it to decide whether IT eats, so
+   the switch the settings panel paints must be the switch the engine obeys —
+   the same rule the threshold and the provision already follow. Bumped on every
+   RECORDING (a restated `false` is still the server speaking); reset by
+   __resetServerAutoEat, itself an event. */
+let serverAutoEatEnabledSeq = 0;
 export function noteServerAutoEat(res) {
   const st = res && res.state;
   if (st && typeof st === 'object'
       && Object.prototype.hasOwnProperty.call(st, 'auto_eat_enabled')) {
     const v = st.auto_eat_enabled;
-    if (v === true || v === false) { serverAutoEatObserved = v; serverAutoEatSeen.enabled = v; }
+    if (v === true || v === false) {
+      serverAutoEatObserved = v; serverAutoEatSeen.enabled = v; serverAutoEatEnabledSeq++;
+    }
   }
   if (st && typeof st === 'object'
       && Object.prototype.hasOwnProperty.call(st, 'auto_eat_food')) {
@@ -3447,7 +3554,9 @@ export function serverAutoEatSettings() {
            /* The OBSERVATION COUNT for `pct`. See serverAutoEatPctSeq. */
            pctSeq: serverAutoEatPctSeq,
            /* …and for `food`. See serverAutoEatFoodSeq. */
-           foodSeq: serverAutoEatFoodSeq };
+           foodSeq: serverAutoEatFoodSeq,
+           /* …and for the switch itself. See serverAutoEatEnabledSeq. */
+           enabledSeq: serverAutoEatEnabledSeq };
 }
 /* ── THE VERB'S OWN ANSWER IS ALSO AN OBSERVATION ────────────────────────────
    `hr_set_auto_eat` returns `{ok:true, auto_eat:{enabled,food,pct,tier,max_pct}}`
@@ -3470,6 +3579,7 @@ export function noteAutoEatVerb(res) {
   if (!a || typeof a !== 'object') return serverAutoEatSettings();
   if (a.enabled === true || a.enabled === false) {
     serverAutoEatObserved = a.enabled; serverAutoEatSeen.enabled = a.enabled;
+    serverAutoEatEnabledSeq++;
   }
   if (a.food === null || typeof a.food === 'string') { serverAutoEatSeen.food = a.food; serverAutoEatFoodSeq++; }
   const p = Number(a.pct);
@@ -3501,6 +3611,7 @@ export function __resetServerAutoEat() {
      change either way, which is what makes the reset an observation event too. */
   serverAutoEatPctSeq = 0;
   serverAutoEatFoodSeq = 0;
+  serverAutoEatEnabledSeq = 0;
   return serverAutoEatObserved;
 }
 
@@ -5423,7 +5534,7 @@ if (typeof window !== 'undefined') {
        never "what should it believe". */
     /* THE PLAY STREAK: the projection recorder and the ONE reader every
        play-streak surface asks. See reconcilePlayStreak. */
-    reconcilePlayStreak, playStreakDays,
+    reconcilePlayStreak, playStreakDays, reconcileToolCarry, reconcileGemUnlocks,
     noteServerAutoEat, serverAutoEats, clientOwnsAutoEatDebit, serverAutoEatSettings,
     noteAutoEatVerb,
     __noteAutoEatSettings, __resetServerAutoEat,

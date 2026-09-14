@@ -48,9 +48,10 @@
   // Anything missing from a save defaults to "disabled" — never
   // accidentally start auto-eating someone's food.
   var DEFAULTS = {
-    // `pctSynced` — b329: a branch built from these defaults was never subject
-    // to the dead-slider bug, so it must not re-adopt the legacy mirror.
-    eat:         { enabled: false, threshold: 0.5, foodId: null, pctSynced: true },
+    // The `eat` branch is the LOCAL GESTURE ONLY: the three values that count
+    // (enabled / pct / food) are player_state columns, read back through
+    // eatEnabled() / eatThreshold() / eatFoodId(). It is not persisted.
+    eat:         { enabled: false, threshold: 0.5, foodId: null },
     trainGoal:   { enabled: false, skillId: null, targetLevel: null },
     farmReplant: { enabled: false, cropId: null },
   };
@@ -63,10 +64,9 @@
     // user-set values.
     if(!aa.eat){
       aa.eat = Object.assign({}, DEFAULTS.eat);
-      // b163: migrate pre-setEat saves. Old auto-eat lived on G.foodSlot +
-      // G.autoEatPct (driven by the removed combatTick watchdog). If a save
-      // still has that but no unified config, carry it over so those players
-      // don't silently lose auto-eat when the watchdog is deleted.
+      // b163: seed the branch from G.foodSlot, the in-memory equipped-food
+      // pointer, so a character that has a provision starts with the switch on
+      // rather than needing the settings toggle first.
       //
       // ⚠ b495 — A FRESH CHARACTER NOW TAKES THIS BRANCH TOO, and that is the
       //   intended outcome rather than a mis-migration. The starting kit points
@@ -89,28 +89,13 @@
       if(window.G.foodSlot){
         aa.eat.enabled = true;
         aa.eat.foodId  = window.G.foodSlot;
-        if(typeof window.G.autoEatPct === 'number') aa.eat.threshold = window.G.autoEatPct;
       }
-    } else if(!aa.eat.pctSynced){
-      /* b329 (Xarn): the ONE-TIME reconciliation for saves written while the
-       * Settings slider was a dead end. Up to b328 that slider wrote only
-       * `G.autoEatPct`, which nothing read — so a divergence between the two
-       * numbers can mean exactly one thing: the player moved the slider and
-       * the engine never heard about it. The mirror is the only surviving
-       * record of what they actually chose, so it wins — ONCE.
-       *
-       * The `pctSynced` marker is what keeps this a MIGRATION rather than a
-       * rule. Without it, "the mirror wins on divergence" quietly reinstates
-       * `G.autoEatPct` as a permanent second writer that overrides the engine
-       * on every read — which is the exact shape of the bug being fixed, and
-       * it masked a missing write-through when I reverted one to check the
-       * test had teeth. It rides inside `autoActions` (no `_` prefix), so it
-       * persists to the cloud and the adoption cannot repeat after a restore. */
-      if(typeof window.G.autoEatPct === 'number' && isFinite(window.G.autoEatPct)){
-        aa.eat.threshold = Math.max(0, Math.min(1, window.G.autoEatPct));
-      }
-      aa.eat.pctSynced = true;
     }
+    /* ⚠ THE b329 ONE-TIME `autoEatPct` ADOPTION IS DELETED (2026-09-14), with the
+       field it adopted from. It existed to rescue a slider position saved while
+       nothing read it; `G.autoEatPct` is no longer persisted at all (the threshold
+       is `player_state.auto_eat_pct`, read through eatThreshold()), so there is no
+       stale mirror left to adopt and the `pctSynced` marker has nothing to mark. */
     if(!aa.trainGoal)   aa.trainGoal   = Object.assign({}, DEFAULTS.trainGoal);
     if(!aa.farmReplant) aa.farmReplant = Object.assign({}, DEFAULTS.farmReplant);
     return aa;
@@ -338,6 +323,7 @@
            foodSeq and ends the gesture on its own; this is the belt to that
            braces, for a server that answers ok without restating the column. */
         if(sending.food) noteFoodAnswered();
+        if(sending.enabled) noteEnabledAnswered();   /* same belt-and-braces, for the switch */
         return;
       }
       var why = (res && res.error) || 'network';
@@ -382,21 +368,16 @@
   function setEat(opts){
     var a = ensureShape(); if(!a) return;
     if(opts && typeof opts === 'object') Object.assign(a.eat, opts);
-    /* b329: clamp here and mirror to `G.autoEatPct` in the SAME breath.
-     *
-     * The mirror is still read by the bare-script fallback in legacy.js
-     * `fx.autoEat` (the path taken before HearthriseAuto loads), and it is the
-     * signal ensureShape() uses to detect a pre-b329 save whose slider never
-     * reached the engine. Writing it here is what makes that detection a
-     * ONE-TIME adoption instead of a permanent second writer.
-     *
-     * Deliberately NOT via eatThreshold(): that re-enters ensureShape(), whose
-     * adoption branch would read the still-stale mirror and claw back the value
-     * we are in the middle of setting. (It did exactly that — caught by the
-     * b133 round-trip guard.) */
+    /* Clamp the gesture here. There is no longer a `G.autoEatPct` mirror to write:
+       the threshold that COUNTS is `player_state.auto_eat_pct`, read back through
+       eatThreshold(), and a second persisted copy was the stale rival that made
+       the panel promise 50% while the engine ate at 25%. */
+    if(opts && Object.prototype.hasOwnProperty.call(opts, 'enabled')){
+      /* AN UNANSWERED SWITCH GESTURE — the exact twin of the two below. */
+      _enabledExpressed = true;
+    }
     if(opts && typeof opts.threshold === 'number' && isFinite(opts.threshold)){
       a.eat.threshold = Math.max(0, Math.min(1, opts.threshold));
-      if(window.G) window.G.autoEatPct = a.eat.threshold;
       /* AN UNANSWERED GESTURE. Raised here rather than inside queueServerSync
          because a PARKED sync (the suite) still has to honour the player's
          number: parking suppresses the network call, not the intent. Lowered
@@ -519,13 +500,12 @@
        that was saying 25 all along — the bug surviving its own fix. It also made
        the behaviour depend on what the previous caller had cached.
 
-     ── WHY `G.autoEatPct` IS MIRRORED HERE TOO ──────────────────────────────
-     legacy.js's `fx.autoEat` fallback reads `G.autoEatPct||0.5` directly — the
-     path taken before HearthriseAuto loads, which cannot call this — and it is
-     also the field ensureShape()'s one-time adoption reads. Leaving it on the
-     stale local number would keep one live eat path on the old lie. The write is
-     idempotent, fires only on change, and only ever moves the mirror TOWARD the
-     server, so it is not the "residue over a server value" direction §6 forbids. */
+     ── THERE IS NO `G.autoEatPct` MIRROR ANY MORE (2026-09-14) ──────────────
+     The field is off RESIDUE_FIELDS and out of the fresh-`G` literal: one number,
+     `player_state.auto_eat_pct`, read here. legacy.js's `fx.autoEat` cold-path
+     fallback — the one taken before this module loads, which cannot call this —
+     reads the SAME observation directly off HearthriseAccrual.serverAutoEatSettings()
+     rather than a client-held copy of it. */
   var _pctExpressed = false;     // a threshold gesture the server has not answered
   var _pctSeqSeen;               // accrue.js's observation count, as last acted on
   /* ⚠ PARKED FOR THE SUITE, as `_syncParked` parks the settings sync and
@@ -583,6 +563,44 @@
     }
     return local;
   }
+  /* ── AND THE SWITCH ITSELF ────────────────────────────────────────────────
+     `player_state.auto_eat_enabled` is the column the accrual engine branches on:
+     false and the server's `fx.autoEat()` never fires for the whole night. It has
+     been projected since 2026-08-15-auto-eat.sql and, like the threshold and the
+     provision before it, nothing read it back DOWN — so the settings switch, the
+     death sheet's "auto-eat was on" line and the away preview could all say ON
+     while the engine ate nothing. Same three rules, line for line: a NEW
+     OBSERVATION is the server speaking; an UNANSWERED gesture wins until it does
+     (the sync is debounced 1.5 s); nothing observed → the local value, which is
+     the only answer that exists before the first envelope.
+     ⚠ THE GATE IS ELSEWHERE AND STAYS THERE: `owned` (the Auto-Eat trait) is what
+       decides whether auto-eat may run at all, and it is read from the server's
+       own trait mirror by the caller. This answers only "is the switch on". */
+  var _enabledExpressed = false;   // an on/off gesture the server has not answered
+  var _enabledSeqSeen;             // accrue.js's observation count, as last acted on
+  function noteEnabledAnswered(){ _enabledExpressed = false; }
+  function eatEnabled(){
+    var a = ensureShape();
+    var local = !!(a && a.eat && a.eat.enabled);
+    if(_mirrorParked) return local;
+    var seen = serverBelief();
+    if(seen.enabledSeq !== _enabledSeqSeen){ _enabledSeqSeen = seen.enabledSeq; _enabledExpressed = false; }
+    if(!_enabledExpressed && (seen.enabled === true || seen.enabled === false)) return seen.enabled;
+    return local;
+  }
+  /* ── THE PROVISION THE ENGINE WILL ACTUALLY EAT, for every FORECAST surface ──
+     `eatFoodId()` above answers "what is nominated", and null is a real answer
+     ("no nomination: eat the best in the bag"). A forecast — the away line, the
+     survival estimate, the combat HUD — has to resolve that null the same way
+     core.autoEat.chooseFood does, or a fully-provisioned character is told they
+     will fall in five kills. Published on window because the monolith and the
+     render modules call it as a global. */
+  function autoEatFoodId(){
+    try{ var id = eatFoodId(); if(id) return id; }catch(e){}
+    try{ return (typeof window.bestProvisionId === 'function') ? window.bestProvisionId() : null; }
+    catch(e){ return null; }
+  }
+  try{ window.autoEatFoodId = autoEatFoodId; }catch(e){}
   function eatThreshold(){
     var A = core();
     if(_mirrorParked) return expressedThreshold();
@@ -594,7 +612,6 @@
       var mirrored = (A && typeof A.thresholdFromPct === 'function')
         ? A.thresholdFromPct(p)
         : Math.max(0, Math.min(100, Math.round(p))) / 100;
-      if(window.G && window.G.autoEatPct !== mirrored) window.G.autoEatPct = mirrored;
       return mirrored;
     }
     var t = expressedThreshold();
@@ -718,7 +735,8 @@
      * cover a window that cannot occur. */
     if(!A) return false;
     var decision = A.resolveAutoEat({
-      enabled: !!(eat && eat.enabled),
+      /* THE SERVER'S SWITCH, not the local one — see eatEnabled(). */
+      enabled: eatEnabled(),
       // b217: auto-eat is a purchased trait — unbypassable gate. Until bought
       // in the Store, combat healing is manual (the player clicks food).
       // ensureShape() above grandfathers pre-b217 saves that already had it on.
@@ -986,6 +1004,11 @@
     setEat: setEat,
     eatThreshold: eatThreshold,
     eatFoodId: eatFoodId,
+    autoEatFoodId: autoEatFoodId,
+    /* The SWITCH the engine obeys (`auto_eat_enabled`), as distinct from the
+       local gesture in `getEat().enabled`. Every surface that says "auto-eat is
+       on" reads this one. */
+    eatEnabled: eatEnabled,
     /* The SLIDER'S position (local, client-tier clamped) as distinct from the
        EFFECTIVE trigger point above (the server's `auto_eat_pct`). Published so
        the suite can prove the two differ and that only this one goes up. */
@@ -1012,7 +1035,7 @@
        leak a queued call into the next. */
     _flushEatSync: flushServerSync,
     _syncState: function(){ return { pending: _syncPending && Object.assign({}, _syncPending), inFlight: _syncInFlight, armed: !!_syncTimer, parked: _syncParked }; },
-    _resetEatSync: function(){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; _syncInFlight = false; notePctAnswered(); noteFoodAnswered(); },
+    _resetEatSync: function(){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; _syncInFlight = false; notePctAnswered(); noteFoodAnswered(); noteEnabledAnswered(); },
     /* The unanswered-gesture latch, for the regression suite. Reading it proves
        WHY eatThreshold() answered as it did; clearing it puts the client back in
        the "boot, nothing expressed yet" state the mirror governs. */

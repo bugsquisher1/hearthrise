@@ -235,7 +235,10 @@
       var _A = window.HearthriseAccrual;
       if (_A && typeof _A.playStreakDays === 'function') _srvStreak = _A.playStreakDays(G) || 0;
     } catch (e) {}
-    var streakBest = Math.max(_srvStreak, (G.streak && (G.streak.best || G.streak.count)) || 0);
+    /* THE SERVER'S COUNT OR NOTHING (2026-09-14): the `G.streak` residue this
+       used to max against is deleted — a device-clock counter feeding a score
+       term at ×5 a day was a faucet as well as a disagreement. */
+    var streakBest = _srvStreak;
     r += streakBest * W.streakBest;
 
     /* A SCORE TERM, and it must not swing on a transport hiccup. An UNKNOWN
@@ -249,17 +252,22 @@
     return Math.floor(r);
   }
 
-  // ── b226: THE RATCHET ───────────────────────────────────────
-  // `G.renownHigh` is the high-water mark of computeRenown(), and every rank
-  // decision reads it instead of the live score. It is the structural
-  // guarantee behind "earned progress is never clawed back": no future weight
-  // change, in ANY direction, and no recount of a term, can ever demote
-  // anybody. Without it the promise is a convention that survives exactly as
-  // long as everyone remembers it.
+  // ── b226: THE RATCHET, NOW SESSION-SCOPED ───────────────────
+  // `G.renownHigh` is the high-water mark of computeRenown() — the PREDICTION's
+  // floor, so a weight change or a recount cannot make the local figure appear
+  // to fall while a player is looking at it.
   //
-  // The live score still climbs normally — the ratchet only ever holds a
-  // FLOOR, so it is invisible until the day it saves someone's rank.
-  // One number in the save, no derived state, idempotent to recompute.
+  // ⚠ IT IS NO LONGER PERSISTED (2026-09-14). It was residue, and the client's
+  // ladder drifts ahead of the realm's BY CONSTRUCTION (a client kill scores
+  // zero renown server-side), so the saved high-water was a durable store for
+  // the residue-ahead class on a number that hands out perks — measured live
+  // 2026-09-13 at 1193 against a `renown_high` of 1058. The number every gate,
+  // claim and headline decides on is countedRenown() below, which is the
+  // server's own `renown_high` projection (itself a `greatest()` ratchet, so
+  // "earned progress is never clawed back" is now the SERVER's guarantee and
+  // not a client convention). This ratchet is declared in NO_SYNC: losing it
+  // across a reload is correct, because the next computeRenown rebuilds it from
+  // state that came from the server anyway.
   function effectiveRenown(G) {
     G = G || window.G;
     var live = computeRenown(G);

@@ -661,6 +661,21 @@ window.IAP_CATALOG=IAP_CATALOG;
 const SAVE_KEY='hearthbound-save-v2';
 const LEGACY_KEY='idle-game-v1';
 
+/* AUDITED AGAINST THE PROJECTION (2026-09-14). Three classes of key live here
+   and only the first holds a server-owned VALUE:
+   1. THE START-KIT STATEMENT (gold, gems, skills, equipment, hp, bank, foodSlot)
+      — these ARE `window.__FRESH_START` below, the client's only statement of the
+      starting kit, which B338-1 / SA010-1 / B495-1 compare to src/data/start-kit
+      → hr_create_character. Deleting them deletes the guard that keeps the two
+      character creators agreeing, and they are authority nowhere: every read goes
+      through the record's accessors, which answer UNKNOWN before the envelope.
+   2. EMPTY SHAPES (inventory, enchant, rooms, plotBuildings, farmPlots,
+      collection, quests, marks, bountyHunter) — no value, just somewhere for a
+      few hundred reads to land before the first envelope replaces them.
+   3. CLIENT-ONLY DEFAULTS (playerName, houseTheme, settings, daily, createdAt).
+   DELETED BY THIS AUDIT: ownedThemes, ownedCosmetics, autoEatPct — server-owned
+   values in neither class (tombstones in src/net/client-state.js). Add nothing
+   here the server owns. */
 let G={
   v:2,
   playerName:'Adventurer',
@@ -672,8 +687,8 @@ let G={
      purchased ladder read as un-owned. Guarded by smoke SA010-1. */
   bank:{goldBuys:0,gemBuys:0,grandfather:0},
   entitlements:{},                          /* {hearthHall:true, ...} — cosmetic/convenience only */
-  ownedThemes:['default'],
-  ownedCosmetics:[],
+  /* NO `ownedThemes` / `ownedCosmetics`: ownership is the envelope's
+     `gem_unlocks` (features/gem-unlocks.js). The free rows are owned by grammar. */
   /* b215: seasonPass field retired (pay-to-win XP). Old saves may still
      carry the key; nothing reads it. */
   skills:{attack:0,strength:0,defense:0,hitpoints:1154,prayer:0,magic:0,woodcutting:0,mining:0,fishing:0,farming:0,cooking:0,crafting:0,smithing:0},
@@ -703,7 +718,8 @@ let G={
      A client-state pref (src/net/client-state.js), so this is a client-only
      default and the player may re-point it at any time. */
   foodSlot:'cooked_shrimp',
-  autoEatPct:0.5,
+  /* NO `autoEatPct`: the threshold is `player_state.auto_eat_pct`, read through
+     HearthriseAuto.eatThreshold(). */
   activeMonster:null,
   monsterHp:0,monsterMaxHp:0,
   playerHp:10,playerMaxHp:10,
@@ -1510,39 +1526,13 @@ function refuseGemPurchase(what){
 window.gemSpendIsClientAuthored=gemSpendIsClientAuthored;
 window.refuseGemPurchase=refuseGemPurchase;
 
-/* ── OWNERSHIP OF A GEM-BOUGHT UNLOCK: THE SERVER FIRST, ALWAYS ──────────────
-   `ownedThemes` / `ownedCosmetics` are RESIDUE — a bag the client writes and
-   hr_put_client_state stores verbatim. Residue asserting ownership of a thing
-   the SERVER sells is the class currently deadlocking a player's Forge (a
-   residue property tier gating a server capability), and it is the half of the
-   b371 dupe that made the free theme STICK.
+/* `ownsGemUnlock` and its three siblings live in src/features/gem-unlocks.js,
+   extracted with the purge that deleted the ownedThemes/ownedCosmetics residue.
+   Bare calls below resolve to the window properties it publishes. */
 
-   This is multi-character.js ownsSlot() applied to the same problem, and the
-   fallback direction is the same one for the same reason: the SERVER'S SET WINS
-   WHEN THERE IS ONE, and residue answers only while the server has not spoken.
-   Today no envelope projects theme/cosmetic ownership (hr_state_of projects
-   hero_slots / traits / bank / companions / farm and nothing for these), so
-   `_gemUnlocks` is absent and every existing owner keeps every theme they hold
-   — NOBODY IS DE-OWNED BY THIS CHANGE. The day the migration projects the set,
-   `reconcileGemUnlocks` lands it in `G._gemUnlocks` (scratch, `_`-prefixed,
-   never persisted — the G._heroSlots shape exactly) and a forged residue entry
-   stops conferring anything, with no further edit to any caller.
-
-   ⚠ DO NOT make residue the authority again, and do not promote `_gemUnlocks`
-   out of scratch: the residue is precisely the store a cloud restore can rewind
-   while the entitlement it paid for stays granted. */
-function gemUnlockServerSet(){
-  var s=(typeof G!=='undefined')&&G&&G._gemUnlocks;
-  return (s&&Array.isArray(s.owned))?s.owned:null;
-}
-function ownsGemUnlock(kind,id){
-  if(typeof G==='undefined'||!G)return false;
-  var srv=gemUnlockServerSet();
-  if(srv)return srv.indexOf(kind+':'+id)>=0;
-  var bag=(kind==='theme')?G.ownedThemes:(kind==='cosmetic'?G.ownedCosmetics:null);
-  return !!(bag&&bag.indexOf&&bag.indexOf(id)>=0);
-}
-window.gemUnlockServerSet=gemUnlockServerSet;
+/* `autoEatFoodId()` — the provision the engine will actually eat — lives in
+   src/features/auto-actions.js beside `eatFoodId()`, the server observation it
+   reads. One module owns the nomination; this file calls it as a global. */
 window.ownsGemUnlock=ownsGemUnlock;
 
 /* ── b431 — THE ROOMS READ SEAM (legacy wrapper) ──────────────────────────────
@@ -2343,7 +2333,10 @@ function awayAutoEatState(hadFood){
     else owned=!!(G&&G.traits&&G.traits.auto_eat);
     var t=(typeof A.eatThreshold==='function')?A.eatThreshold():eat.threshold;
     var n=Number(t);
-    return { enabled: !!(eat.enabled&&owned),
+    /* THE SWITCH IS THE SERVER'S (`auto_eat_enabled`) — A.eatEnabled(); the
+       local gesture only until an envelope has spoken. */
+    var _on=(typeof A.eatEnabled==='function')?A.eatEnabled():!!eat.enabled;
+    return { enabled: !!(_on&&owned),
              pct: isFinite(n)?Math.round(Math.max(0,Math.min(1,n))*100):null,
              /* `undefined` when the caller did not sample it — the receipt then
                 claims nothing about the bag, which is the honest degradation
@@ -2740,7 +2733,9 @@ const IAP=(()=>{
        fails the build if a `gold:` field ever reappears on a product. */
     if(p.tokens){addItem('hearth_token',p.tokens);} /* b206: tradable premium bonds */
     if(p.ent)G.entitlements[p.ent]=true;
-    if(p.unlocks)p.unlocks.forEach(id=>{if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);});
+    /* NO THEME GRANT HERE: ownership is the server's (`gem_unlocks`), and the
+       push into a residue array was the store that made the gem dupe STICK. No
+       shipped IAP product carries `unlocks`; when one does, it grants server-side. */
     /* b215: the Season Pass was retired — it sold a permanent +10% all-XP
        multiplier, which is pay-to-win on public leaderboards and against the
        design rule that premium is convenience/cosmetic only. */
@@ -6293,10 +6288,17 @@ const COMBAT_FX={
     if(window.HearthriseAuto&&typeof window.HearthriseAuto.maybeAutoEat==='function'){
       return !!window.HearthriseAuto.maybeAutoEat();
     }
-    if(G.playerHp<G.playerMaxHp*(G.autoEatPct||0.5)&&G.foodSlot&&(G.inventory[G.foodSlot]||0)>0){
-      const fd=ITEMS[G.foodSlot];
+    /* THE COLD PATH — before HearthriseAuto loads. It reads the SAME server
+       observation the module would, never a client-held copy. */
+    const _srvAE=(function(){ try{ var A=window.HearthriseAccrual;
+      return (A&&typeof A.serverAutoEatSettings==='function')?(A.serverAutoEatSettings()||{}):{};
+    }catch(e){ return {}; } })();
+    const _pct=(typeof _srvAE.pct==='number'&&isFinite(_srvAE.pct))?Math.max(0,Math.min(1,_srvAE.pct/100)):0.5;
+    const _slot=(typeof _srvAE.food==='string'&&_srvAE.food)?_srvAE.food:G.foodSlot;
+    if(G.playerHp<G.playerMaxHp*_pct&&_slot&&(G.inventory[_slot]||0)>0){
+      const fd=ITEMS[_slot];
       if(fd&&fd.heals){
-        const _food=G.foodSlot;
+        const _food=_slot;
         G.playerHp=Math.min(G.playerMaxHp,G.playerHp+fd.heals);
         removeItem(_food,1);
         G.stats.buffsConsumed=(G.stats.buffsConsumed||0)+1;
@@ -9531,7 +9533,10 @@ function buyTheme(id){
     if(!gemSpendIsClientAuthored()){refuseGemPurchase('that theme');return;}
     G.gems-=t.price;
   }
-  if(!G.ownedThemes.includes(id))G.ownedThemes.push(id);
+  /* NOTHING IS PERSISTED LOCALLY: ownership is `gem_unlocks`, and the scratch
+     grant only keeps this session's second click from charging again. Equipping
+     stays the client's — houseTheme is a per-character preference. */
+  noteGemUnlockOptimistic('theme',id);
   G.houseTheme=id;
   notify(`${t.name} unlocked`,'levelup');saveLocal();updateTopbar();renderHouse();
 }
@@ -9733,8 +9738,9 @@ function buyCosmetic(id,price){
   if(!balCanAfford(cost,'gems')){notify(balKnown('gems')?'Not enough gems. Tap "Get Gems".':balShortfall(cost,'gems'),'kill');return;}
   if(!gemSpendIsClientAuthored()){refuseGemPurchase('that cosmetic');return;}
   G.gems-=cost;
-  G.ownedCosmetics=G.ownedCosmetics||[];
-  if(G.ownedCosmetics.indexOf(id)<0)G.ownedCosmetics.push(id);
+  /* NOTHING IS PERSISTED LOCALLY — see buyTheme. `ownedCosmetics` is off the
+     residue allowlist; the owned set is hr_state_of's `gem_unlocks`. */
+  noteGemUnlockOptimistic('cosmetic',id);
   notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();
 }
 /* b269: the "Buy space" dialog for the bank. Shows the live cap, the next gold
@@ -12201,7 +12207,7 @@ function _activityAwayXpHr(live){
 function awayFightSustains(){
   try{
     if(typeof hasTrait!=='function' || !hasTrait('auto_eat')) return false;
-    const id = G && G.foodSlot;
+    const id = autoEatFoodId();
     if(!id) return false;
     const item = window.ITEMS && window.ITEMS[id];
     if(!item || !(item.heals>0)) return false;
@@ -12856,7 +12862,7 @@ console.log('Activity bar: loaded');
 
     var hp = (G && G.playerHp > 0) ? G.playerHp : ((G && G.playerMaxHp) || 1);
     var maxHp = (G && G.playerMaxHp > 0) ? G.playerMaxHp : hp;
-    var pool = 0, foodId = G && G.foodSlot;
+    var pool = 0, foodId = autoEatFoodId();
     var owns = (typeof hasTrait === 'function') && hasTrait('auto_eat');
     if(owns && foodId && window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].heals > 0){
       /* A heal is wasted above the bar, so one food is worth at most a full
@@ -12947,7 +12953,7 @@ console.log('Activity bar: loaded');
      permission that no longer exists; the two that remain are the two real
      limits.) */
   function awayLineHtml(est){
-    var foodId = G && G.foodSlot;
+    var foodId = autoEatFoodId();
     /* THE FIRST TWO RUNGS, read from the ONE table that states the ladder
        (src/core/away.js `recoveryFor`) rather than typed here — a second copy of
        "2 minutes" is a number that drifts away from the rule it describes the
@@ -13012,7 +13018,7 @@ console.log('Activity bar: loaded');
     var hpLv = (typeof getLevel === 'function') ? getLevel('hitpoints') : 1;
     var rngLv = (typeof getLevel === 'function') ? getLevel('ranged') : 1;
     var magLv = (typeof getLevel === 'function') ? getLevel('magic') : 1;
-    var foodId = G && G.foodSlot;
+    var foodId = autoEatFoodId();
     var foodCount = foodId ? (G.inventory[foodId]||0) : 0;
     var foodIcon = foodId ? itemArt(foodId, 20) : _hrGly('uiFood', 16);
     var foodName = foodId && window.ITEMS[foodId] ? window.ITEMS[foodId].n : 'No food';
@@ -14082,7 +14088,9 @@ console.log('Character page loaded');
 /* ─── State migration ─── */
 function migrate(){
   if(typeof G !== 'object' || !G) return;
-  if(!G.streak || typeof G.streak !== 'object') G.streak = {count: 1, lastDay: 0};
+  /* NO `G.streak` SEED (2026-09-14). The play streak is the server's
+     `player_state.streak_days`, read through HearthriseStreakChip.days(); the
+     device counter that used to live here is deleted, not defaulted. */
   if(!G.dailyGoals || typeof G.dailyGoals !== 'object') G.dailyGoals = {dayKey: 0, progress: {}};
   if(typeof G.lastWelcome !== 'number') G.lastWelcome = 0;
   if(typeof G.lifetimeKills !== 'number') G.lifetimeKills = G.stats?.kills || 0;
@@ -14439,7 +14447,7 @@ function maybeShowWelcome(opts){
      days" over a Home card reading "Day 1" and a sheet reading "1-DAY STREAK".
      RULING: the reward sheet keeps the day language and drops "streak"; every
      play-streak surface says PLAYED / RUNNING and never "daily". */
-  var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : G.streak.count;
+  var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : 0;
   if(_playDays > 0) rows.push({g:'uiFlame', t: 'Played', v: _playDays + ' day' + (_playDays===1?'':'s') + ' running'});
   rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
   rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
@@ -15033,7 +15041,8 @@ function injectDailyGoals(){
 /* Boot sequence */
 function boot(){
   migrate();
-  var _S0 = streakChip(); if(_S0) _S0.advance(G);
+  /* NOTHING ADVANCES A LOCAL STREAK ANY MORE: hr_apply advances `streak_days`
+     from the server clock on every settle, and the chip paints THAT. */
   /* b544: WAITS for the boot settle rather than racing it (see WELCOME_GATE). */
   setTimeout(window.__presentWelcomeWhenSettled, 1500);
   setTimeout(paintAll, 600);

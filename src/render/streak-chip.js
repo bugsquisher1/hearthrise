@@ -9,7 +9,7 @@
 //
 // WHY IT CAME OUT HERE AND NOW (2026-09-14): the chip read `1` while
 // `player_state.streak_days` held `3` on the QA account. Two counters lived
-// under one word — a per-DEVICE residue this file still advances from the local
+// under one word — a per-DEVICE residue this file used to advance from the local
 // clock, and the server's own count, advanced from now() on any delta carrying
 // `accrued_to` (2026-08-21-streak-state.sql §4c). CLAUDE.md §6: the browser
 // never says one thing while the server says another. The fix is `days()`
@@ -17,9 +17,12 @@
 // the welcome card, the Week Warrior / Devoted achievements, and renown, which
 // SPENDS it at ×5 a day).
 //
-// WHAT IS STILL THE CLIENT'S: `advance()` — the local residue counter. It is
-// the only answer before the first envelope, and nothing else. It is never
-// merged upward and never overrules an observation.
+// WHAT IS NO LONGER THE CLIENT'S (2026-09-14, the projection purge): the local
+// counter. `advance()` and the `G.streak` residue it wrote are DELETED — a
+// device clock counting a number renown SPENDS is a faucet as well as a lie,
+// and the field is off RESIDUE_FIELDS, so the counter would have reset every
+// reload anyway and painted a 1 over the realm's 3. `days()` is the server's
+// count or nothing.
 //
 // Globals are read via window.* at CALL time (the src/render/* convention), so
 // this may load in any order after legacy.js.
@@ -33,24 +36,6 @@
     return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
   }
 
-  /* THE PER-DEVICE COUNTER (residue). Unchanged from the monolith: first day
-     ever → 1, same day → idempotent, yesterday → +1, any larger gap → 1. */
-  function advance(G) {
-    G = G || window.G;
-    if (!G || typeof G !== 'object') return;
-    if (!G.streak || typeof G.streak !== 'object') G.streak = { count: 1, lastDay: 0 };
-    var today = todayKey();
-    if (!G.streak.lastDay) { G.streak = { count: 1, lastDay: today }; return; }
-    if (G.streak.lastDay === today) return;
-    var prev = new Date();
-    prev.setUTCFullYear(Math.floor(G.streak.lastDay / 10000),
-      (Math.floor(G.streak.lastDay / 100) % 100) - 1, G.streak.lastDay % 100);
-    var dayDiff = Math.round((new Date() - prev) / 86400000);
-    if (dayDiff === 1) { G.streak.count++; }
-    else if (dayDiff > 1) { G.streak.count = 1; }
-    G.streak.lastDay = today;
-  }
-
   /** HOW MANY CONSECUTIVE DAYS THIS ACCOUNT HAS PLAYED — the server's
    *  `streak_days` whenever an envelope has carried one (accrue.js records it
    *  into `G._serverStreak` scratch), the device residue only until then.
@@ -61,7 +46,11 @@
     if (A && typeof A.playStreakDays === 'function') {
       try { return A.playStreakDays(G); } catch (e) { /* fall through */ }
     }
-    return (G && G.streak && G.streak.count) || 0;
+    /* NO LOCAL FALLBACK. Before the first envelope the honest answer is "the
+       realm has not said yet" — 0 — and every caller already treats 0 as "no
+       streak to show". A device-counted 1 here is exactly the number that used
+       to be painted over a server-held 3. */
+    return 0;
   }
 
   /* The chip itself. Painted from `days()`, so the number on the flame is the
@@ -69,11 +58,11 @@
   function paint(G) {
     G = G || window.G;
     var el = document.getElementById('top-streak-count');
-    if (!el || !G || !G.streak) return;
+    if (!el || !G) return;
     var n = days(G);
     el.textContent = n;
     if (el.parentElement) el.parentElement.classList.toggle('hot', n >= 3);
   }
 
-  window.HearthriseStreakChip = { advance: advance, days: days, paint: paint, todayKey: todayKey };
+  window.HearthriseStreakChip = { days: days, paint: paint, todayKey: todayKey };
 }());

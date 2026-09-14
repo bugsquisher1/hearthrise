@@ -149,14 +149,14 @@ export async function blobRetireGuard() {
       // nested marks the residue bag carries (the b443 storage migration).
       const G = {
         marks: 77,                                // authority = TOP-LEVEL (record path)
-        stats: { kills: 1 }, foodSlot: 'apple',
+        stats: { kills: 1 }, foodSlot: 'apple',   // foodSlot: NOT residue since 2026-09-14 (see below)
         bountyHunter: { streak: 2 },              // residue only — no nested marks
       };
       CS.__resetClientState();
       const okFed = CS.applyClientState({
         ok: true,
         client_state: {
-          stats: { kills: 999 }, foodSlot: 'steak',
+          stats: { kills: 999 }, foodSlot: 'steak',   // a stale key from a pre-purge bag
           bountyHunter: { streak: 9, marks: 999999 }, // FORGED nested marks — must be dropped
           // ── FORGED AUTHORITY KEYS in the client-writable bag — must NEVER reach G ──
           gold: 1e12, gems: 50000, skills: { attack: 9e9 }, inventory: { dragon: 999 },
@@ -165,7 +165,12 @@ export async function blobRetireGuard() {
       if (!okFed) fail('ARMED: a well-formed client_state envelope must feed + hydrate');
       // reads are plain G reads now — server truth, zero routing.
       if (G.stats.kills !== 999) fail('ARMED: G.stats must be hydrated from the server bag');
-      if (G.foodSlot !== 'steak') fail('ARMED: G.foodSlot must be hydrated from the server bag');
+      /* ⚠ `foodSlot` LEFT THE ALLOWLIST on 2026-09-14 (the projection purge): the
+         nomination that counts is `player_state.auto_eat_food`, read through
+         HearthriseAuto.eatFoodId(). A key left in an older bag must now be INERT —
+         which is the same property the forged authority keys below assert, and the
+         reason the allowlist iterates itself rather than the bag. */
+      if (G.foodSlot !== 'apple') fail('ARMED: a de-allowlisted `foodSlot` in the bag must NOT hydrate into G');
       if (G.bountyHunter.streak !== 9) fail('ARMED: bountyHunter residue must hydrate');
       if (G.marks !== 77) fail('ARMED: top-level marks (AUTHORITY) must NOT be clobbered by residue hydration');
       // ── THE ALLOWLIST HOLDS: a forged authority key in the bag never reaches G ──

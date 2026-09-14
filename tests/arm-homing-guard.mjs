@@ -184,12 +184,33 @@ export async function armHomingGuard() {
     'bountyHunter', 'gold', 'gems', 'stats', 'playerName', 'activeStyle', 'foodSlot',
     'restedXp', 'restedAt', 'chronicle',
     // the residue-census tail (b439 audit)
-    'settings', 'ownedThemes', 'ownedCosmetics', 'houseTheme', 'plotBuildings',
-    'daily', 'collection', 'quests', 'entitlements', 'lastSeen', 'autoEatPct', 'createdAt',
+    'settings', 'houseTheme', 'plotBuildings',
+    'daily', 'collection', 'quests', 'entitlements', 'lastSeen', 'createdAt',
     // other persisted top-level state
     'marks', 'gems', 'plotLevels', 'workers', 'enchant',
-    'heroSlotsUnlocked',  // b459: the hero-slot entitlement — missed by the original census
+    /* ⚠ `ownedThemes`, `ownedCosmetics`, `autoEatPct`, `heroSlotsUnlocked` LEFT THIS
+       LIST on 2026-09-14 — not because they were forgotten, but because the game no
+       longer writes them at all. They are enforced by PURGED_TO_PROJECTION below,
+       which is strictly stronger than a homing claim: it fails if any of them is
+       written OR re-added to the residue. */
   ];
+
+  /* ── THE TOMBSTONES (2026-09-14, the projection purge) ─────────────────────
+     A residue field that shadowed a server projection was DELETED, and the class
+     comes back one "harmless little cache" at a time unless something bites. For
+     each name: the server key that holds the fact, and the reader the client goes
+     through. The guard fails if the name is written into G anywhere in src/, or if
+     it reappears on RESIDUE_FIELDS.
+     ⚠ `combatStyle` and `toolCarry` are NOT here: they are still written (by their
+       reconciles), and are registered in SERVER_MECHANISM_FIELDS instead. */
+  const PURGED_TO_PROJECTION = new Map([
+    ['ownedThemes', "hr_state_of `gem_unlocks` → accrue.js reconcileGemUnlocks → legacy.js ownsGemUnlock"],
+    ['ownedCosmetics', "hr_state_of `gem_unlocks` → accrue.js reconcileGemUnlocks → legacy.js ownsGemUnlock"],
+    ['autoEatPct', "hr_state_of `state.auto_eat_pct` → HearthriseAuto.eatThreshold()"],
+    ['heroSlotsUnlocked', "hr_state_of `hero_slots` → accrue.js reconcileHeroSlots → multi-character.js ownsSlot()"],
+    ['streak', "hr_state_of `state.streak_days` → accrue.js reconcilePlayStreak → playStreakDays()"],
+    ['renownHigh', "hr_state_of `renown_high` → renown.js countedRenown() (the local ratchet is NO_SYNC)"],
+  ]);
 
   // ── SELF-CHECK: prove the scanner SEES Object.assign / alias writes (the b486
   //    blind spot). A regression here would silently re-open the smuggling gap,
@@ -300,6 +321,22 @@ export async function armHomingGuard() {
        this field WAS, when it lived in RESIDUE_FIELDS as a player-written
        remainingMs). VERIFIED below against a projected envelope. */
     'buffs',
+    /* 2026-09-14 — the projection purge. Both were RESIDUE copies of a real
+       server column, and both now have a mirror on the load path:
+         · combatStyle — accrue.js reconcileCombatStyle merges `state.combat_style`
+           (hr_set_style is its only writer) server-wins-per-family on every
+           envelope and re-sends any family the server has no opinion about, so the
+           picker shows the routing the ENGINE pays XP into ("only Attack saves");
+         · toolCarry   — accrue.js reconcileToolCarry mirrors `state.tool_carry`
+           (2026-08-15-tool-carry.sql; hr_apply validates the engine's delta and
+           hr_state_of projects it), and record.js hydrates it on an idle boot.
+       VERIFIED below against projected envelopes, like their neighbours. */
+    'combatStyle',
+    'toolCarry',
+    /* 2026-09-14 — gem unlocks land in the `_gemUnlocks` SCRATCH, not in G, so
+       they are not in this census at all. Named here only so the next reader does
+       not go looking: ownership is legacy.js ownsGemUnlock → accrue.js
+       reconcileGemUnlocks → the envelope's `gem_unlocks`. */
   ]);
   /* Derived / never-uploaded — homed by definition (recomputed at runtime, or
      re-supplied by the envelope on every load). EXPLICIT: a name here is a
@@ -311,6 +348,21 @@ export async function armHomingGuard() {
     'account', 'cloudSyncedAt', 'v',    // save-envelope bookkeeping, re-stamped on load
     'clanName', 'clanId',               // re-supplied by the clan fetch on every boot
   ]);
+
+  // ── THE TOMBSTONE ASSERTION (see PURGED_TO_PROJECTION). ──
+  for (const [f, where] of PURGED_TO_PROJECTION) {
+    if (residueFields.has(f)) {
+      fail(`'${f}' is back on RESIDUE_FIELDS. It was deleted on 2026-09-14 because it was a SECOND copy of a `
+         + `value the server projects (${where}). A persisted client copy of a server-owned fact is CLAUDE.md `
+         + "§6's residue-ahead class — read the projection instead.");
+    }
+    /* `renownHigh` is still WRITTEN (the in-session prediction ratchet) and is
+       declared in NO_SYNC; the others must have no writer left at all. */
+    if (f !== 'renownHigh' && censusFromSource.has(f)) {
+      fail(`'${f}' is written into G by src/ again. It was deleted on 2026-09-14 in favour of the server's own `
+         + `value (${where}); a new writer means the browser can say one thing while the server says another.`);
+    }
+  }
 
   // ── THE ASSERTION: every census field is on exactly one homing list. ──
   // The census is the SOURCE SCAN ∪ the hand list (see the header) — so a field
@@ -774,6 +826,58 @@ export async function armHomingGuard() {
   } catch (e) {
     fail('the EXECUTED buffs-mechanism check threw, so the claim went unverified: ' + (e && e.message));
   }
+  /* ── EXECUTED: combatStyle + toolCarry (2026-09-14, the projection purge).
+     Both names left RESIDUE_FIELDS in the same change, so a claim that they are
+     "homed by a reconcile" is exactly the kind of hand-typed assertion that let
+     `plotLevels` sit green while nothing projected it. Driven for real. */
+  try {
+    const A = await import(mod('src/net/accrue.js'));
+    if (typeof A.reconcileCombatStyle !== 'function' || typeof A.reconcileToolCarry !== 'function') {
+      fail("accrue.js no longer exports reconcileCombatStyle/reconcileToolCarry, so the 'combatStyle' and "
+         + "'toolCarry' mechanism claims in SERVER_MECHANISM_FIELDS are unverifiable — and neither field is "
+         + 'persisted any more, so a reload would reset the style routing and the fractional carry.');
+    } else {
+      // THE STYLE: the server's map wins per family, and absence changes nothing.
+      const G = { combatStyle: { sword: 'controlled' } };
+      A.reconcileCombatStyle(G, { ok: true, state: { combat_style: { sword: 'aggressive' } } });
+      if (!G.combatStyle || G.combatStyle.sword !== 'aggressive') {
+        fail("SERVER_MECHANISM_FIELDS claims 'combatStyle' is homed by reconcileCombatStyle, but driving the "
+           + `real reconcile with a server map left G.combatStyle = ${JSON.stringify(G.combatStyle)}. The picker `
+           + 'would show a routing the engine does not pay.');
+      }
+      const G2 = { combatStyle: { sword: 'aggressive' } };
+      A.reconcileCombatStyle(G2, { ok: true, state: {} });
+      if (!G2.combatStyle || G2.combatStyle.sword !== 'aggressive') {
+        fail('an envelope without `state.combat_style` must leave G.combatStyle UNTOUCHED (a lean envelope is '
+           + `not a statement that you chose nothing); got ${JSON.stringify(G2.combatStyle)}.`);
+      }
+      // THE CARRY: the server's fractions replace the prediction; absence leaves it.
+      const G3 = { toolCarry: { woodcutting: 0.9 } };
+      A.reconcileToolCarry(G3, { ok: true, state: { tool_carry: { woodcutting: 0.25, mining: 0.5 } } });
+      if (!G3.toolCarry || G3.toolCarry.woodcutting !== 0.25 || G3.toolCarry.mining !== 0.5) {
+        fail("SERVER_MECHANISM_FIELDS claims 'toolCarry' is homed by reconcileToolCarry, but driving the real "
+           + `reconcile left G.toolCarry = ${JSON.stringify(G3.toolCarry)} (expected the server's fractions). `
+           + 'Every reload would reset the carry the settle is still holding.');
+      }
+      const G4 = { toolCarry: { mining: 0.4 } };
+      A.reconcileToolCarry(G4, { ok: true, state: {} });
+      if (!G4.toolCarry || G4.toolCarry.mining !== 0.4) {
+        fail('an envelope without `state.tool_carry` must leave G.toolCarry UNTOUCHED — never evict on '
+           + `uncertainty (CLAUDE.md §6); got ${JSON.stringify(G4.toolCarry)}.`);
+      }
+      // A fraction outside [0,1) is not a carry and must not be adopted.
+      const G5 = {};
+      A.reconcileToolCarry(G5, { ok: true, state: { tool_carry: { mining: 7, fishing: 0.5 } } });
+      if (!G5.toolCarry || 'mining' in G5.toolCarry || G5.toolCarry.fishing !== 0.5) {
+        fail('reconcileToolCarry must drop a carry outside [0,1) — advanceToolCarry pays out whole units, so a '
+           + `7 is not a remainder; got ${JSON.stringify(G5.toolCarry)}.`);
+      }
+    }
+  } catch (e) {
+    fail('the EXECUTED combatStyle/toolCarry mechanism check threw, so the claims went unverified: '
+       + (e && e.message));
+  }
+
   // Bank purchase counters (goldBuys/gemBuys/grandfather) ride inside G.bank —
   // covered by the bank mechanism; no separate assertion. bountyHunter.marks was
   // the historic nested-authority trap — now top-level G.marks (b443), asserted above.

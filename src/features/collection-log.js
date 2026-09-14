@@ -397,10 +397,11 @@
       var it = (window.ITEMS || {})[d.id];
       var pct = (d.ch || 0) * 100;
       var found = window.G.collection && window.G.collection[d.id];
-      /* b293 (Tyler/Xarnathos): a recipe scroll is READ ON PICKUP — it never sits in
-         the bag — so "not yet found" was the only signal and a learned recipe looked
-         identical to one you'd never seen. Say plainly that you already know it. */
-      var learned = !!(it && it.recipe && window.G.unlockedRecipes && window.G.unlockedRecipes[d.id]);
+      /* b293 (Tyler/Xarnathos): a learned recipe used to look identical to one
+         you'd never seen. Say plainly that you already know it — off the SERVER's
+         learned set (2026-09-14), the same one the Forge gate and the away engine
+         read, so this line cannot claim a recipe the realm would refuse. */
+      var learned = !!(it && it.recipe && (typeof window.knowsRecipe === 'function') && window.knowsRecipe(d.id));
       var mark = learned ? ' <em class="hr-cl-learned">· recipe learned</em>'
                          : (found ? '' : ' <em>· not yet found</em>');
       return '<div class="hr-cl-drop"><span>' + window.itemArt(d.id, 18) + ' ' + (it ? it.n : d.id) + mark + '</span><b>' + (pct < 1 ? '<1' : Math.round(pct)) + '%</b></div>';

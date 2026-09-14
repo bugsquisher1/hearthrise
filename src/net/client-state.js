@@ -17,8 +17,8 @@
 //   · activeStyle      (which loadout is active — a pref)
 //   · foodSlot         (equipped-food pointer — a pref; the food itself is
 //                       server-owned inventory)
-//   … plus the wider self-only tail the census names (settings, ownedThemes,
-//   ownedCosmetics, houseTheme, daily, collection, quests, entitlements, …) —
+//   … plus the wider self-only tail the census names (settings, houseTheme,
+//   daily, collection, quests, entitlements, …) —
 //   the capstone decides the exact set; this store is a generic verbatim bag,
 //   so adding a field is a client decision, not a schema change.
 //
@@ -105,9 +105,22 @@ export const RESIDUE_FIELDS = Object.freeze([
   'activeStyle',    // active loadout pointer (a pref)
   'foodSlot',       // equipped-food pointer (the food itself is server inventory)
   'settings',
-  'ownedThemes',
-  'ownedCosmetics',
-  'houseTheme',
+  /* ⚠ `ownedThemes` and `ownedCosmetics` WERE HERE and are DELETED, not re-homed
+     (2026-09-14). They were the client-written half of the b371 gem dupe: gems
+     are SERVER_OF_RECORD and armed, so `G.gems -= price` was only ever a
+     prediction the next envelope retired, while the THING BOUGHT sat in a bag
+     this file stored verbatim — a free, repeatable premium purchase, and a
+     capability a console could forge by typing it. hr_buy_gem_unlock now writes
+     a player_progress flag and hr_state_of projects the account's owned set as a
+     top-level `gem_unlocks` array; accrue.js reconcileGemUnlocks lands it in the
+     `_gemUnlocks` scratch and legacy.js ownsGemUnlock reads ONLY that. Nothing
+     in src/ writes either field any more. Re-adding one would give ownership two
+     sources, and the residue is the one a cloud restore can rewind (§6). */
+  'houseTheme',     // the EQUIPPED theme, a per-character display pointer — NOT ownership.
+                    // It stays residue because it is a preference the server has no column for,
+                    // and it FAILS CLOSED: legacy.js activeHouseTheme() renders `default` when the
+                    // equipped id is not in the server's owned set, silently and without re-granting.
+                    // A forged value can therefore only ever paint a wall you already own.
   'plotBuildings',
   'daily',
   'collection',
@@ -201,7 +214,17 @@ export const RESIDUE_FIELDS = Object.freeze([
      Re-adding it would give one gate two clocks, and the client's is the one a
      restore can rewind — the residue-ahead class in §6. */
   'renown',         // { claimed:[], seenRank } — claimed ranks are server once-guarded; this is the shown state
-  'unlockedRecipes',// gated recipe unlocks the client has learned (server rows exist; this is the read cache)
+  /* ⚠ `unlockedRecipes` WAS HERE and is DELETED, not re-homed (2026-09-14). Its
+     own comment claimed "server rows exist; this is the read cache", and the
+     first half was never true: 2026-08-16-artisan-progress-model.sql built the
+     STORAGE and left the WRITE for a later author who never arrived, so no
+     recipe flag had ever been written for anybody. The browser said a recipe was
+     learned; the away engine read hr_perks_of, saw `{}`, and stopped eight gated
+     recipes at tick 0 every night — CLAUDE.md §6's 2026-09-14 rule exactly.
+     hr_recipe_learn now consumes the scroll and writes the flag; hr_state_of
+     projects `unlocked_recipes`; accrue.js reconcileRecipes lands it in the
+     `_recipeUnlocks` scratch and legacy.js unlockedRecipesMap() is the one read
+     both the attended gate and the away engine now agree on. */
   'tools',          // tool slots in the loadout kit
   /* ⚠ `buffs` WAS HERE and is REMOVED, not re-homed here (2026-09-13). The entry
      read "active consumable buffs (remainingMs) — short-lived, but a potion must

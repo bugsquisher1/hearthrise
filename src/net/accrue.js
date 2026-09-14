@@ -2236,6 +2236,81 @@ export function reconcileHeroSlots(G, res) {
   return { mode: 'server', owned: owned.length };
 }
 
+/* ── THE OWNED GEM UNLOCKS (THEMES + COSMETICS), HYDRATED FROM THE ENVELOPE ──
+   hr_buy_gem_unlock (supabase/migrations/2026-09-14-gem-unlock-buy.sql) is the
+   server-side writer of a theme or a cosmetic: it debits the server-owned GEM
+   balance on the calling character and writes a player_progress kind='flag'
+   key='<namespace>:<id>' row. hr_state_of projects the ACCOUNT's owned set as a
+   flat top-level `gem_unlocks` array of '<namespace>:<id>' strings — the exact
+   shape src/legacy.js ownsGemUnlock indexes — and THIS is what lands it.
+
+   ⚠ IT DOES NOT WRITE `G.ownedThemes` / `G.ownedCosmetics`. Those two left the
+   residue allowlist in this build (src/net/client-state.js) precisely because a
+   client-written bag asserting ownership of a server-sold capability IS the
+   half of the b371 dupe that made a free purchase stick. The server's answer
+   lands in its OWN `_`-prefixed scratch key — never synced, never persisted,
+   ABSENT on a cold boot — which is what lets ownsGemUnlock tell "the server has
+   not spoken yet" from "the server says you own nothing".
+
+   FAIL-CLOSED ON ABSENCE, AND IT NEVER NARROWS: no readable `res.gem_unlocks`
+   ARRAY → leave the scratch key EXACTLY as it was. A server build predating the
+   projection, or a partial we cannot trust, must not be read as "you own
+   nothing" — that would un-equip a theme somebody paid gems for on the strength
+   of a body that simply did not carry the key.
+
+   ABSOLUTE WHEN PRESENT, not a union: the projection ALWAYS carries the free
+   rows (hr_gem_unlocks_of unions `where g.free`, so theme:default is in every
+   answer), so a present-but-shorter set is a real de-own and the client does not
+   get a vote on it.
+
+   Pure — takes G + res, returns a small receipt, so the suite drives it without
+   a window. */
+export function reconcileGemUnlocks(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const u = res && res.gem_unlocks;
+  if (!Array.isArray(u)) return { mode: 'absent' };
+  const owned = [];
+  for (const raw of u) {
+    if (typeof raw !== 'string') continue;
+    const id = raw.trim();
+    /* '<namespace>:<id>' or nothing. A row that is not that shape cannot be
+       what ownsGemUnlock asks for, so carrying it would only make the set look
+       bigger than the capability it confers. */
+    if (!/^[a-z_]+:[A-Za-z0-9_.-]+$/.test(id)) continue;
+    if (!owned.includes(id)) owned.push(id);
+  }
+  owned.sort();
+  G._gemUnlocks = { owned, at: Date.now() };
+  return { mode: 'server', owned: owned.length };
+}
+
+/* ── THE LEARNED RECIPES, HYDRATED FROM THE ENVELOPE ─────────────────────────
+   hr_recipe_learn (supabase/migrations/2026-09-14-recipe-learn.sql) consumes the
+   scroll from player_inventory and writes a player_progress kind='flag'
+   key='recipe:<scroll_id>' row; hr_state_of projects the character's learned set
+   as a top-level `unlocked_recipes` OBJECT in the client's own wire shape,
+   `{ "<scroll_id>": true }` — the shape src/core/artisan.js gateOk already reads
+   for both the attended and the away path.
+
+   ⚠ PER CHARACTER, unlike the gem unlocks: hr_recipes_of filters on the slot by
+   design — a recipe is a character's craft knowledge, not an account purchase.
+
+   Same scratch/residue split and same fail-closed absence rule as
+   reconcileGemUnlocks, for the same reason: `unlockedRecipes` left the residue
+   allowlist in this build, and the ENGINE has always priced away artisan spans
+   off the SERVER's set. Before this the browser said "learned" and the server
+   said `{}`, so eight gated recipes paid NOTHING away and nobody could see it
+   (CLAUDE.md §6, 2026-09-14). One projection now feeds both gates. */
+export function reconcileRecipes(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const r = res && res.unlocked_recipes;
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return { mode: 'absent' };
+  const map = {};
+  for (const k of Object.keys(r)) if (r[k]) map[k] = true;
+  G._recipeUnlocks = { map, at: Date.now() };
+  return { mode: 'server', learned: Object.keys(map).length };
+}
+
 /* ── THE DUNGEON RE-ENTRY WINDOWS ARE THE SERVER'S ───────────────────────────
    hr_dungeon_settle refuses an early re-entry with `on_cooldown` and a detail
    carrying {dungeon, mode, next_entry_at}; hr_state_of projects the ACTIVE windows
@@ -3042,6 +3117,15 @@ export function applyEnvelopeState(G, res, ownKey) {
      Lands in `G._heroSlots` scratch, NEVER in the G.heroSlotsUnlocked residue;
      see reconcileHeroSlots' header for why keeping the two apart is the fix. */
   written.heroSlots = reconcileHeroSlots(G, res);
+
+  /* THE OWNED THEMES AND COSMETICS ARE THE SERVER'S (hr_buy_gem_unlock), and the
+     LEARNED RECIPES BESIDE THEM (hr_recipe_learn). Reconciled here so both ride
+     EVERY envelope — away, activity-switch and gold alike — which is what lets
+     the House cards, the shop and the Forge gate stay honest without a poll of
+     their own. Both land in `_`-prefixed SCRATCH, never in the residue bags they
+     replace; see their headers for why the two must stay distinguishable. */
+  written.gemUnlocks = reconcileGemUnlocks(G, res);
+  written.recipes = reconcileRecipes(G, res);
 
   /* AND THE DUNGEON RE-ENTRY WINDOWS BESIDE THEM, for the same reason: the panel's
      countdown must be right on the envelope the player's own action produced, not
@@ -5369,7 +5453,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

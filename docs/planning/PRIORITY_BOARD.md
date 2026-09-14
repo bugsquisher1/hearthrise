@@ -402,6 +402,14 @@ _Six read-only audit dimensions + a systems root-cause lane. THE ROOT CAUSE of a
 
 ## 9 · CODE HEALTH / ARCHITECTURE (the clean-code track — Tyler: "clean code is a must")
 
+**DEBT LEDGER (Tyler, 2026-09-14: "real fear that you have built another ball of tech debt") — named, sized, with the paydown that deletes it:**
+- Two bag code paths (merge vs absolute) in src/net/accrue.js — deleted when the inventory flip arms (after the 24 h soak); until then every bag bug has two shapes.
+- Patch chains: hr_apply 39 anchored splices, hr_state_of 23, both under RESTATEMENT-DEBT-ACK — one honest restatement each (Security GO) collapses them to one readable body; hr_apply first, right after the flip.
+- Test monolith src/features/smoke-test.js (~60k lines): ratchets hold the ceiling, but several lanes paid TF-1/CR ratchets by trimming comments — that is gaming, not paying. Rule from now: a ratchet is paid by deleting code or splitting the file, never by deleting prose.
+- UI monolith src/legacy.js (~19k lines): extraction to src/render/* continues per touch; no rewrite.
+- Guard sprawl: 167 guards with self-tests; plants in the FINAL body break whenever a later migration splices nearby (three relocations this week). Rule: a guard that mutates a body blinds every later file's gate by construction (the renown guard now does), never by hand.
+- Not debt (keep in any rewrite): server data model, RPC contracts, ledger, catalogue generation, apply-order honesty.
+
 _Code-health audit 2026-08-18. Headline: **on a real trajectory to the large-scale-multiplayer end-state — the hard bet (server-authority) is won and proven live, the logic core (`src/core`) is clean/pure/dual-runtime. The liability is the RENDER layer.** Four-layer scorecard: Data 85% · Logic 80% · **Render 20%** · Platform 40% — "built the load-bearing half first."_
 
 | Item | Status | Pri | Notes |

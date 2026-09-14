@@ -153,6 +153,8 @@
     "node tests/patch-chain-guard.mjs --report": "client-guards",
     "node tests/hr-apply-final-body.mjs": "client-guards",
     "node tests/hr-apply-final-body.mjs --selftest": "client-guards",
+    "node tests/hr-state-of-final-body.mjs": "client-guards",
+    "node tests/hr-state-of-final-body.mjs --selftest": "client-guards",
     "node tests/test-file-ratchet.mjs --selftest": "client-guards",
     "node tests/test-file-ratchet.mjs --report": "client-guards",
     "node tests/no-client-copy-of-projection.mjs --selftest": "client-guards",

@@ -2236,6 +2236,70 @@ export function reconcileHeroSlots(G, res) {
   return { mode: 'server', owned: owned.length };
 }
 
+/* ── THE OWNED GEM UNLOCKS (THEMES + COSMETICS), HYDRATED FROM THE ENVELOPE ──
+   hr_buy_gem_unlock (supabase/migrations/2026-09-14-gem-unlock-buy.sql) is the
+   server-side writer of a theme or a cosmetic: it debits the server-owned GEM
+   balance on the calling character and writes a player_progress kind='flag'
+   key='<namespace>:<id>' row. hr_state_of projects the ACCOUNT's owned set as a
+   flat top-level `gem_unlocks` array of '<namespace>:<id>' strings — the exact
+   shape src/legacy.js ownsGemUnlock indexes — and THIS is what lands it.
+
+   ⚠ IT DOES NOT WRITE `G.ownedThemes` / `G.ownedCosmetics`. Those two left the
+   residue allowlist in this build: a client-written bag asserting ownership of a
+   server-sold capability IS the half of the b371 dupe that made a free purchase
+   stick. The answer lands in `_`-prefixed scratch — never synced, ABSENT on a
+   cold boot — which is what lets ownsGemUnlock tell "not heard yet" from "heard,
+   and you own nothing".
+
+   FAIL-CLOSED ON ABSENCE, AND IT NEVER NARROWS: no readable `res.gem_unlocks`
+   ARRAY → leave the scratch EXACTLY as it was. A body predating the projection
+   must not be read as "you own nothing" — that un-equips a theme somebody paid
+   gems for. ABSOLUTE when present, not a union: the projection always carries
+   the free rows, so a shorter set is a real de-own. Pure (G + res → receipt). */
+export function reconcileGemUnlocks(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const u = res && res.gem_unlocks;
+  if (!Array.isArray(u)) return { mode: 'absent' };
+  const owned = [];
+  for (const raw of u) {
+    if (typeof raw !== 'string') continue;
+    const id = raw.trim();
+    /* '<namespace>:<id>' or nothing. A row that is not that shape cannot be
+       what ownsGemUnlock asks for, so carrying it would only make the set look
+       bigger than the capability it confers. */
+    if (!/^[a-z_]+:[A-Za-z0-9_.-]+$/.test(id)) continue;
+    if (!owned.includes(id)) owned.push(id);
+  }
+  owned.sort();
+  G._gemUnlocks = { owned, at: Date.now() };
+  return { mode: 'server', owned: owned.length };
+}
+
+/* ── THE LEARNED RECIPES, HYDRATED FROM THE ENVELOPE ─────────────────────────
+   hr_recipe_learn (supabase/migrations/2026-09-14-recipe-learn.sql) consumes the
+   scroll from player_inventory and writes a player_progress kind='flag'
+   key='recipe:<scroll_id>' row; hr_state_of projects the character's learned set
+   as a top-level `unlocked_recipes` OBJECT in the client's own wire shape,
+   `{ "<scroll_id>": true }` — the shape src/core/artisan.js gateOk already reads
+   for both the attended and the away path.
+
+   ⚠ PER CHARACTER, unlike the gem unlocks: hr_recipes_of filters on the slot by
+   design — a recipe is a character's craft knowledge, not an account purchase.
+
+   Same scratch/residue split and same fail-closed absence rule as its neighbour.
+   Before this the browser said "learned" and the server said `{}`, so eight
+   gated recipes paid NOTHING away and nobody could see it (§6). One projection
+   now feeds both gates. */
+export function reconcileRecipes(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const r = res && res.unlocked_recipes;
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return { mode: 'absent' };
+  const map = {};
+  for (const k of Object.keys(r)) if (r[k]) map[k] = true;
+  G._recipeUnlocks = { map, at: Date.now() };
+  return { mode: 'server', learned: Object.keys(map).length };
+}
+
 /* ── THE PLAY STREAK IS THE SERVER'S ─────────────────────────────────────────
    MEASURED LIVE (QA account, slot 2, 2026-09-14): the topbar flame chip read
    `1` while `player_state.streak_days` held `3`. Two counters, one word.
@@ -2897,15 +2961,31 @@ export function applyEnvelopeState(G, res, ownKey) {
   if (Number.isFinite(Number(st.gold))) { G.gold = Number(st.gold); written.gold = G.gold; }
 
   /* ELEMENTS v1 — THE WEAPON ENCHANT IS SERVER-AUTHORED. When the envelope
-     carries a `state.enchant` object, it is the truth: the server sets
+     carries an `enchant` object, it is the truth: the server sets
      `enchant.weapon` on a successful `enchant` verb and clears it whenever an
      `equip` changes the weapon. Applied absolutely whenever present (element
      name only — never a magnitude), and left ALONE when omitted (a server build
      that predates the verb sends no `enchant`, and absence is not a claim, the
      same rule skills follow above). Placed before both return paths so the
-     absolute-inventory branch does not skip it. */
-  if (st.enchant && typeof st.enchant === 'object' && !Array.isArray(st.enchant)) {
-    const el = st.enchant.weapon;
+     absolute-inventory branch does not skip it.
+
+     ⚠ IT IS A TOP-LEVEL KEY, NOT `state.enchant`, AND THIS READ WAS WRONG FROM
+       THE DAY IT SHIPPED (found 2026-09-14 by tests/no-client-copy-of-projection.mjs,
+       which asks the REPLAYED hr_state_of instead of trusting a comment).
+       2026-08-18-enchant.sql builds `'enchant', coalesce(v_st.enchant,'{}')` as a
+       SIBLING of `'state'`, and hr_apply returns hr_state_of's envelope verbatim —
+       so `st.enchant` was `undefined` on every envelope the game has ever applied
+       and this block never ran. `G.enchant` is not in RESIDUE_FIELDS either, so the
+       enchant a player paid for vanished from the browser on the next reload while
+       the server went on computing away combat with it: the ✦ badge disappeared and
+       equipmentStats() predicted damage the realm did not agree with (§6).
+       Both shapes are accepted (the src/render/bounty-progress.js precedent): the
+       key's PRESENCE is what is read, wherever the envelope carries it. */
+  const encSrc = (res && typeof res === 'object'
+                  && Object.prototype.hasOwnProperty.call(res, 'enchant')) ? res
+    : ((st && Object.prototype.hasOwnProperty.call(st, 'enchant')) ? st : null);
+  if (encSrc && encSrc.enchant && typeof encSrc.enchant === 'object' && !Array.isArray(encSrc.enchant)) {
+    const el = encSrc.enchant.weapon;
     const ok = el === 'ember' || el === 'frost' || el === 'poison';
     G.enchant = ok ? { weapon: el } : {};
     written.enchant = G.enchant.weapon || null;
@@ -3090,6 +3170,14 @@ export function applyEnvelopeState(G, res, ownKey) {
      see reconcileHeroSlots' header for why keeping the two apart is the fix. */
   written.heroSlots = reconcileHeroSlots(G, res);
 
+  /* THE OWNED THEMES AND COSMETICS ARE THE SERVER'S (hr_buy_gem_unlock), and the
+     LEARNED RECIPES BESIDE THEM (hr_recipe_learn). Reconciled here so both ride
+     EVERY envelope — away, activity-switch and gold alike — which is what lets
+     the House cards, the shop and the Forge gate stay honest without a poll of
+     their own. Both land in `_`-prefixed SCRATCH, never in the residue bags they
+     replace; see their headers for why the two must stay distinguishable. */
+  written.gemUnlocks = reconcileGemUnlocks(G, res);
+  written.recipes = reconcileRecipes(G, res);
   /* AND THE PLAY STREAK, which rides `state` rather than a top-level key but
      belongs to exactly the same rule: the number the flame chip shows is the
      one renown scores. See reconcilePlayStreak's header. */
@@ -5438,7 +5526,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

@@ -380,6 +380,14 @@ import './net/supabase-bootstrap.js?v=546';
 // no envelope has landed — so the smoke harness, a signed-out visitor and a
 // capstone-dormant build all see exactly today's behaviour.
 import './features/boot-hydration.js?v=546';
+/* 2026-09-14 — the two OWNERSHIP seams, extracted from legacy.js with the server
+   verbs they talk to (hr_buy_gem_unlock, hr_recipe_learn). Side-effect imports
+   because their consumers are the classic script (House, Shop, the bag's context
+   menu) and read them off `window`; there is no setup() and no state to arm.
+   They MUST load before the first House/Shop paint, which is why they sit up
+   here with boot-hydration rather than in the setup() block below. */
+import './features/gem-unlocks.js?v=546';
+import './features/recipe-scrolls.js?v=546';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with
 // a tab open for days, so "the fix ships" and "the fix arrives" are different
 // events; without this, every client-side fix reaches only the players who

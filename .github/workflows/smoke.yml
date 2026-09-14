@@ -798,6 +798,18 @@ jobs:
           node tests/recipe-learn.mjs
           node tests/recipe-learn.mjs --selftest
 
+      # THE PROJECTED KEY SET, BY EXECUTION. hr_state_of is created once and then
+      # programmatically PATCHED by later migrations, so its shipped body is in no
+      # file and a grep is a guess. This replays the chain, calls hr_state_of on a
+      # probe character and fails if the real key set is not the one
+      # tests/no-client-copy-of-projection.baseline.json pins — i.e. the day a
+      # migration adds a projection, this is red until the client half is mapped.
+      # The TEXT half of the same guard (residue collisions, missing readers, the
+      # raw-read ratchet) runs in client-guards with no database.
+      - name: Projected key set — hr_state_of's real keys vs the client's pin
+        if: ${{ !cancelled() }}
+        run: node tests/no-client-copy-of-projection.mjs --execute
+
   # ── economy-selftests ── THE MUTATION HARNESSES. Twenty guards that each plant
   # 8-45 real defects in real migration text and demand every one turns the
   # guard red. Before the snapshot cache these replayed the whole chain per
@@ -1791,6 +1803,22 @@ jobs:
       # exist because both failed silently: 12 guard files were reachable by
       # nothing, and a --selftest flag a file ignores is a vacuous proof that
       # reads exactly like a real one in a green log.
+      # THE CLASS TYLER NAMED ON 2026-09-14: "this has been part of releases like
+      # over a dozen times now" — auto-eat food, the play streak and the Renown
+      # record each regressed after they were fixed, because each fix landed the
+      # SERVER projection while the client kept its own persisted copy in
+      # RESIDUE_FIELDS and screens went on reading the copy. This forbids a
+      # persisted client copy of a projected value (except by name, with a
+      # reason), demands that every reader a mapping names actually EXISTS, and
+      # ratchets raw `G.<field>` reads in src/render, src/features and legacy.js
+      # so a new gate on the copy is red the day it is written. Text-only: the
+      # executed key set is pinned by the db-replay half above.
+      - name: No client copy of a server projection
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/no-client-copy-of-projection.mjs --selftest
+          node tests/no-client-copy-of-projection.mjs
+
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}
         run: node tests/guard-hygiene.mjs --selftest

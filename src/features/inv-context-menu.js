@@ -232,6 +232,24 @@
       }});
     }
 
+    /* RECIPE SCROLLS — READING ONE IS A GESTURE NOW, NOT A SIDE EFFECT OF
+       PICKING IT UP. Until 2026-09-14 a scroll unlocked itself on pickup and
+       deleted itself locally, so it could never appear in a bag and the realm
+       never learned anything (the away engine refused every gated recipe). It
+       now sits in the bag until the player reads it, and reading sends
+       hr_recipe_learn, which consumes the scroll and writes the flag together.
+       A recipe already known is labelled as such and disabled rather than hidden
+       — a scroll that is still in the bag with no visible verb reads as a bug. */
+    if(def.recipe){
+      var known = (typeof window.knowsRecipe === 'function') ? window.knowsRecipe(id) : false;
+      var makes = (window.ITEMS && window.ITEMS[def.recipe]) ? window.ITEMS[def.recipe].n : null;
+      opts.push(known
+        ? { label: 'Already learned' + (makes ? ' — ' + makes : ''), disabled: true }
+        : { label: 'Read' + (makes ? ' — learn ' + makes : ' — learn this recipe'), action: function(){
+            if(typeof window.readRecipeScroll === 'function') window.readRecipeScroll(id);
+          }});
+    }
+
     /* Bones — START THE ALTAR BENCH. There is no client-side fallback: a silent
        twin that grants XP nothing settles is the thing that was deleted, not a
        safety net. The XP figure is read from the recipe the SERVER prices. */

@@ -195,15 +195,17 @@ function renderInvFancy(){
         '<div class="invc-grid">'+
           (visible.length === 0 ?
             /* b293 (Xarnathos: "when you get a recipe it is not listed in the
-               inventory under recipe"). Recipe scrolls are READ ON PICKUP — addItem
-               unlocks them into G.unlockedRecipes and deletes the item — so this tab
-               could never hold anything and read as a bug. Show the recipes you have
-               actually learned instead of a dead "no items" wall. */
+               inventory under recipe"). Scrolls USED to be read on pickup and
+               deleted, so this tab could never hold anything. Since 2026-09-14 a
+               scroll stays in the bag until you read it (bag menu → Read), so the
+               tab shows real items again; this branch is what a player sees once
+               every scroll they hold has been read — the recipes they KNOW, off
+               the server's learned set. */
             (f.category === 'recipes'
               ? (function(){
-                  var known = Object.keys((G && G.unlockedRecipes) || {}).filter(function(id){ return ITEMS[id]; });
-                  if(!known.length) return '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No recipes learned yet — recipe scrolls drop from monsters and are learned the moment you pick them up.</div>';
-                  return '<div style="grid-column:1/-1;padding:6px 2px 10px;color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Recipes are learned the moment you pick up the scroll, so they live here rather than in your bag — these are yours permanently.</div>'
+                  var known = Object.keys(window.unlockedRecipesMap()).filter(function(id){ return ITEMS[id]; });
+                  if(!known.length) return '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No recipes learned yet — recipe scrolls drop from monsters, and stay in your bag until you read one.</div>';
+                  return '<div style="grid-column:1/-1;padding:6px 2px 10px;color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))">Recipes you have read. Learning one is permanent — the scroll itself is spent in the reading.</div>'
                     + known.map(function(id){
                         var d = ITEMS[id];
                         var makes = d.recipe && ITEMS[d.recipe] ? ITEMS[d.recipe].n : null;

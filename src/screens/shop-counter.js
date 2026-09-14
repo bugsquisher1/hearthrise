@@ -22,6 +22,12 @@
 // 10427, with unrelated balance-reader code between). It is reunited with
 // `vendorPrice` here. Nothing else moved, was renamed, or changed shape.
 //
+// (One MERGE, not a move: `buyCosmetic` was rewired onto hr_buy_gem_unlock by
+// the gem-unlock lane while this extraction was in flight. Their body is the one
+// below — the lane that changes behaviour wins, the lane that moves code
+// re-homes it — so the local `G.gems -=` debit and the ownedCosmetics residue
+// push are gone from this file as well as from the monolith.)
+//
 // ── WHY THE NAMES ARE PUBLISHED AT THE FOOT ─────────────────────────────────
 // At legacy.js's top level `function invSellOne(){}` WAS `window.invSellOne` by
 // language rule, which is how `onclick="invSellOne('bronze_bar')"` in the item
@@ -37,9 +43,11 @@
 // gestures are keyed by their goldSettle SITE STRING (`seam:vendor.sell_one`,
 // `seam:shop.buy`, …), which travels with the code, so the census follows this
 // file without a key change; only the ledger's human `site:` prose was updated
-// to name the new path. The gem ledger keys by `<file>#<function>`, so
-// `src/legacy.js#buyCosmetic` became `src/screens/shop-counter.js#buyCosmetic`
-// in src/net/gem-sites.js, and the gem census's own mutation anchor with it.
+// to name the new path. The GEM ledger has no row for anything in this file at
+// all any more, and that is correct rather than an omission: `buyCosmetic` moves
+// no gems now that it sends hr_buy_gem_unlock, and a row for a site that does
+// not exist is what gem-site-census L2 fails on. If a future edit reintroduces
+// `G.gems -=` here, L1 reports an UNDECLARED site and the build goes red.
 //
 // ── LOAD POSITION ───────────────────────────────────────────────────────────
 // Loads with the other screen controllers BEFORE legacy.js. Safe because every
@@ -80,23 +88,25 @@ function buyShopItem(id,qty,cost){
   if(_k&&window.HearthriseGold){const _p=window.HearthriseGold.buyShop(id,qty,cost,_k);if(_p&&_p.catch)_p.catch(()=>{});}
   notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
 }
-/* ── COSMETICS: THE THIRD GEM TWIN. This was one line and every part of it was
-   a client-authored premium purchase — `G.gems -= price` on an ARMED record
-   balance (retired by the next envelope) plus an unconditional
-   `G.ownedCosmetics.push(id)` into RESIDUE (which persists). Free cosmetics,
-   repeatable, and the push was not even deduplicated: a second buy appended the
-   same id again, so the residue grew without bound on a surface the shop only
-   accidentally guards (it disables the button when `owned`). Both are fixed
-   here; see the gem spend gate for why this refuses rather than routes. */
+/* ── COSMETICS: THE THIRD GEM TWIN, NOW THE THEME'S TWIN THE OTHER WAY. This
+   was one line and every part of it was a client-authored premium purchase —
+   `G.gems -= price` on an ARMED record balance (retired by the next envelope)
+   plus an unconditional `G.ownedCosmetics.push(id)` into RESIDUE (which
+   persisted). Free cosmetics, repeatable. It now goes through the SAME server
+   verb buyTheme does, so there is one purchase path for the premium currency and
+   the `price` argument the shop passes is a LABEL: it never crosses the wire and
+   the server reads the cost from its own catalogue. */
 function buyCosmetic(id,price){
   var cost=Math.max(0,Number(price)||0);
-  if(ownsGemUnlock('cosmetic',id)){notify('That cosmetic is already yours.','info');return;}
+  if(window.ownsGemUnlock('cosmetic',id)){notify('That cosmetic is already yours.','info');return;}
   if(!balCanAfford(cost,'gems')){notify(balKnown('gems')?'Not enough gems. Tap "Get Gems".':balShortfall(cost,'gems'),'kill');return;}
-  if(!gemSpendIsClientAuthored()){refuseGemPurchase('that cosmetic');return;}
-  G.gems-=cost;
-  G.ownedCosmetics=G.ownedCosmetics||[];
-  if(G.ownedCosmetics.indexOf(id)<0)G.ownedCosmetics.push(id);
-  notify('Cosmetic unlocked!','levelup');saveLocal();updateTopbar();renderShop();
+  return window.buyGemUnlock('cosmetic:'+id,'that cosmetic',function(){
+    notify('That cosmetic is already yours.','info');
+    renderShop();
+  }).then(function(res){
+    if(res&&res.ok===true){ notify('Cosmetic unlocked!','levelup'); saveLocal(); }
+    updateTopbar();renderShop();
+  });
 }
 
 /* ════════════════════════════════════════════════════════════════

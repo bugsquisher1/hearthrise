@@ -19,6 +19,16 @@
   ],
   "reviewed": "2026-09-06 (cleanup program, slice 2)",
   "guards": {
+    "no-new-prediction.mjs": {
+      "reason": "Registered in tools/lane-done.mjs (the per-lane runner) rather than in smoke.yml: this lane was briefed to add the guard WITHOUT editing the workflow, because .github/workflows/smoke.yml is the Coordinator's file and tests/ci-shape.baseline.json pins its step list. Both arms pass on today's tree (plain run green at 35 call sites, --selftest green on 8 controls including a clean arm). Its CI home is the `guards` job beside tests/no-client-xp-mint.mjs, as TWO steps — the plain run, then --selftest — and this entry is the written debt until the Coordinator adds them.",
+      "owner": "systems-engineer",
+      "disposition": "awaiting-workflow-registration",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "runner": "tools/lane-done.mjs"
+      }
+    },
     "signup-door-page.mjs": {
       "reason": "DELIBERATELY not in CI, by its own header and for a good reason: DOOR-1..7 and OPEN-3 already live in src/features/smoke-test.js and run inside the assembled in-page suite, which IS the contract. This file re-runs the SAME in-page runner filtered to one battery (window.__smokeTest({only})) so an agent proving one battery does not have to start a second multi-minute suite next to somebody else's and read the contention as a flake (b461). Registering it would duplicate the assertions and reintroduce exactly that contention. It is a development tool, not a gate.",
       "owner": "qa-engineer",

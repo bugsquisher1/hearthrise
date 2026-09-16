@@ -22,6 +22,9 @@ const STEPS = [
   // The server projects it, the client must not keep its own copy (Tyler, 2026-09-14).
   // Text-only here; the executed hr_state_of key set is pinned in the db-replay job.
   ['node', ['tests/no-client-copy-of-projection.mjs']],
+  // The client predicts nothing new from 2026-09-16 (LIVE_WORLD_BRIEF.md): the
+  // world tick + push channel is the path, not one more predicted field.
+  ['node', ['tests/no-new-prediction.mjs']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on

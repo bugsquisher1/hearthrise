@@ -133,8 +133,8 @@ through to every engine the brief lists:
 | `src/core/away.js` | `creditWindow`, `utcDaySegments`, `recoveryRefuses`, `AWAY_SCOPE` | The credited-window anchor and the recovery rule are unchanged — the tick's windows are short, so `creditWindow` is an identity on them, which is exactly why decomposition is *possible*. |
 | `src/core/buffs.js` | `buffQueueFromServer` / `tickBuffs` inside `simulateSpan` | Buff clocks drain on the tick's own instants. |
 | `src/core/auto-eat.js` | `chooseFood` / `resolveAutoEat` via `fx.autoEat` | unchanged |
-| `src/core/farm.js` | **not yet** — farm growth is not a `PAYABLE_KIND` | Farming stays on its own RPCs in step 1. It is the natural *second* channel for the tick (it is pure time, has no PRNG stream, and therefore has none of §11's blocker), but it is out of scope until combat is proven. See §14 open question 3 — I think it should be the *first*. |
-| `src/core/rng.js` | `createRng(inp.seed)` inside `computeAccrual` | **§11 — this is the blocker.** |
+| `src/core/farm.js` | **not yet** — farm growth is not a `PAYABLE_KIND` | Farming stays on its own RPCs in step 1; out of scope until combat is proven. See §14 open question 3 — I think it should be the *first* channel, on cost-of-being-wrong grounds. |
+| `src/core/rng.js` | `createRng(inp.seed)` inside `computeAccrual`, seeded per window from a watermark label | §11. No change needed — the tick reuses the edge's seeding mechanism verbatim. |
 
 There is no second path. `services/world-tick/shadow.js` is ~140 lines and
 contains no arithmetic on a game value; guard `P1` in
@@ -236,7 +236,7 @@ inputs must produce the same answer whichever path computed them.
 | **P2 time conservation** | A span settled as N tick-aligned windows simulates exactly as many combat ticks as the same span settled in one call, and the unsettled tail is `< tickMs` (deferred, never forfeited). | **green** |
 | **P2b checkpoint continuity** | Window *i* is handed window *i-1*'s `fight`, `consec_falls` and `recovering_until` checkpoints, asserted on the input the engine actually received. | **green** |
 | **P3 the alignment rule bites** | The same span settled as N **unaligned** 10 s windows simulates measurably **fewer** ticks. Run on every green pass, so RULE 1 is a measurement and not a belief. | **green** (measured loss 4.0% / 6.6% / 15.5% across the three fixtures) |
-| **P4 value parity** | Decomposed gold/xp/item totals equal accrual-on-return's. | **RED BY CONSTRUCTION — §11.** Pinned as a tripwire; `--require-parity` is the flipped assertion, ready for step 2's gate. |
+| **P4 stream health** | A decomposed span starves no drop the one-call span reaches, and its value drift stays inside ±15%. Decomposition resamples the stream; it is not supposed to reproduce the one-call totals (§11). | **green** (drift −1.1% / −5.6% / −4.5%, no starved drops) |
 
 Mutation proofs (`--mutate`), each turning at least one claim red:
 
@@ -245,6 +245,7 @@ Mutation proofs (`--mutate`), each turning at least one claim red:
 | `unaligned` | settles the raw wall-clock cadence | P2 |
 | `nofight` | drops the `fight` checkpoint between windows | P2b |
 | `capIsCadence` | passes the cadence as `capMs` | P1 |
+| `fixedSeed` | seeds every window from one per-character constant instead of from its watermark label | P1, P4 (+48% gold, three drops starved) |
 
 ### RULE 1 — tick-aligned windows (the measurement behind P2/P3)
 
@@ -507,68 +508,93 @@ edge.** The arbiter is the mechanism that already exists.
   advisory and session-scoped; a dead process releases it when its connection
   drops, and the surviving process picks the character up on the next roster.
 - **Determinism:** `Math.random()` is banned server-side and is already absent
-  from `src/core`. The tick introduces no new randomness — and §11 is precisely
-  the consequence of taking that rule seriously.
+  from `src/core`. The tick introduces no new randomness and no new seeding
+  mechanism — §11.
 
 ---
 
-## 11. The blocker: the PRNG stream does not decompose
+## 11. Seeding: per-tick watermark label, and no new column
 
-**This is the finding of step 1 and the thing step 2 cannot start without.**
+**Corrected 2026-09-16 after Coordinator review.** My first draft of this
+section claimed a blocker that does not exist on the live path, and reached it
+from a fixture that seeded every window from one per-character constant. That is
+not what production does.
 
-`computeAccrual` seeds a fresh generator per call:
-`rng: createRng(nat(inp.seed, 0))`, where `seed = hr_seed(user, slot, 'accrue:'||accrued_to)`.
-A single 10-minute accrual draws one continuous stream. Sixty 10-second tick
-windows draw **sixty copies of the same stream's prefix**. Measured on the
-spike's fixtures over ten minutes:
+`hr-accrue/index.ts` (~L641, `seedSql`) derives the PRNG seed as
 
-| Fixture | gold, 60 windows | gold, one call | drops the tick **never reached** |
+```sql
+public.hr_seed(user, slot, 'accrue:' || accrued_to) & 4294967295
+```
+
+— a label that **names the watermark**, mixed with a 256-bit secret held in a
+table with RLS on, so a player cannot predict their own rolls (server-authority
+review S20). Every settle window already draws a distinct stream. Two settles of
+different lengths already produce different answers for the same wall-clock
+minutes, today, and that is accepted behaviour.
+
+**The tick inherits the mechanism unchanged.** A tick window's watermark is its
+`fromMs`, so the tick seeds each window from a label naming it, exactly as the
+edge does. Consequences:
+
+- **No `rng_state` column.** Withdrawn.
+- **No `createRng.state()` getter.** Withdrawn.
+- **No Security GO for a seeding change.** Withdrawn — there is no change.
+- **No engine edit at all.** `computeAccrual` takes `inp.seed` and always has.
+
+`services/world-tick/shadow.js` `seedFor()` implements the label. The spike has
+no secret and must not invent one, so it uses `hashSeed` from `src/core/rng.js`
+over the same label shape — which reproduces the property under test (a distinct
+stream per watermark) without reproducing the property it is not testing
+(unpredictability). The real service calls `hr_seed`, as the edge does.
+
+### What the parity contract therefore is
+
+**P1, not P4.** The contract is *"the same window, computed by either caller,
+gives the same answer"* — which is provable and is green. It is **not** *"a span
+cut into sixty pieces reproduces the one-call answer"*, which is not achievable,
+not required, and not true of the accrual path against itself either.
+
+What must hold instead is that the decomposed stream is **healthy**, and P4 now
+asserts exactly that. Measured on the spike's fixtures over ten minutes at a
+10 s cadence, with production seeding:
+
+| Fixture | gold, 63–71 windows | gold, one call | drift | rare drops |
+|---|---|---|---|---|
+| early-game goblin | 792 | 801 | **−1.1%** | both paths reach `goblin_seal`, `goblin_totem`, `bronze_sword` |
+| maxed vs slime | 425 | 450 | **−5.6%** | both reach `sticky_core` |
+| bow user vs rat | 550 | 576 | **−4.5%** | both reach `small_fang`, `wheat` |
+
+That is noise between two draws of the same distribution, with no starved drops
+and no direction. P4's band is ±15%: wide enough for these three, narrow enough
+to catch the failure mode below.
+
+### The failure mode this section is really about, now a mutation proof
+
+Seeding every window from **one per-character constant** — the mistake a tick
+author makes by reaching for `char.seed` because it is right there — makes sixty
+windows replay one stream prefix sixty times. Measured:
+
+| Fixture | gold, constant seed | gold, one call | drops **never reached** |
 |---|---|---|---|
 | early-game goblin | **1124** | 760 | `goblin_totem`, `goblin_seal`, `bronze_sword` |
 | maxed vs slime | 449 | 426 | `bones`, `sticky_core` |
-| bow user vs rat | 497 | **570** | `small_fang`, `wheat` |
+| bow user vs rat | 497 | 570 | `small_fang`, `wheat` |
 
-Two consequences, both serious and in opposite directions:
+**+48% gold** (a dupe direction) and **rare drops at rate zero** — the "WOW I got
+something rare" moment silently deleted, with nobody able to file a bug for it.
+That measurement is now `--mutate --fixedSeed`, which turns P1 and P4 red. The
+finding kept its value by becoming the guard's proof rather than the program's
+blocker.
 
-1. **A value error of up to +48%** on one fixture — an over-payment, i.e. a
-   dupe-class defect, which is why this cannot ship on vibes.
-2. **Rare drops become unreachable.** A low-probability roll that fires late in
-   a stream never fires at all when the stream restarts every four ticks. The
-   "WOW I got something rare" moment that is an explicit design goal would be
-   *silently deleted* by a naive tick. Nobody would file a bug; the drop rate
-   would simply be zero.
+### The one blocker that stands
 
-Using a per-window seed (`hr_seed(..., 'tick:'||windowFromMs)`) fixes (2) and
-decorrelates the windows, but still cannot reproduce the single-span answer, so
-the tick and the accrual path would disagree about the same night — and the
-player is right whichever way it went.
-
-### The fix, and it is small
-
-Make the RNG **position-addressable**, i.e. make the generator's state a piece
-of session state exactly as `fight` already is.
-
-- `src/core/rng.js`: `createRng` returns an object that also exposes
-  `state()` — mulberry32's state is a **single uint32**, so this is a getter,
-  not a redesign, and it duplicates no maths.
-- `accrual.js`: accept `inp.rngState` (default `inp.seed`, so **every existing
-  caller is byte-identical**) and return `rngStateOut` alongside the delta.
-- `player_state`: one new `integer` column, `rng_state`, written as an
-  **ABSOLUTE checkpoint** in the delta — the same class as `fight`,
-  `ammo_carry`, `tool_carry`, `recovering_until`, with the same
-  self-configuring `if (col)` switch those four already use, so the migration
-  and the edge deploy are safe in either order.
-- `tests/world-tick-parity.mjs --require-parity` then goes green, and P4's
-  tripwire is flipped to an equality.
-
-Cost: one 4-byte column, one getter, one optional input. It is additive,
-inert for the accrual path, and it makes the whole program's central promise —
-"tick and accrual agree byte for byte" — *provable* rather than argued.
-
-**It is also a change to the value engine, so it is a lane-C item behind a
-Security GO, and I am not applying it in this lane.** `rng_state` must be
-server-derived exactly like `seed` is: a column, never a request field. If it
-ever becomes client-supplable, a player picks their own drop rolls.
+**The carry loss (§6, RULE 1).** `simulateSpan`'s `carryMs` is a call-local, so
+any settle boundary that is not a whole multiple of the character's `tickMs`
+discards the remainder — measured at 4.0% / 6.6% / 15.5% of a night on the three
+fixtures, in the under-paying direction. The tick answers it with `alignWindow`
+and no engine change. The same arithmetic applies to today's ~90 s attended
+settle cadence, which is already live; that measurement is being taken
+separately and is not in this lane.
 
 ---
 
@@ -643,17 +669,17 @@ Nothing is registered in this lane.
 1. **`caller` taxonomy** (§4.1). `finalWindow` is being borrowed. Does the Game
    Designer or Security want the min-span floor to apply to a tick window at
    all, or is "settle every aligned window" the rule?
-2. **`rng_state`** (§11). Lane C, needs a Security GO. Is a 32-bit generator
-   still the right choice once it becomes a persisted column, or is this the
-   moment to move to a counter-based PRNG (`hash(seed, tickIndex)`), which needs
-   **no** column at all but **does** change every existing roll? The second is
-   cleaner and has a bigger blast radius; I lean to the column for step 2 and
-   the counter-based stream as a separate, later, wipe-adjacent change.
+2. **The seed label's granularity** (§11). `'accrue:' || accrued_to` is unique
+   per window because the watermark moves, and `hr_seed` mixes `user` and `slot`
+   so two characters settling at the same instant get different streams. I
+   believe that is sufficient at a 10 s cadence and found no collision, but the
+   label is about to be used at ~9× the rate it was designed for and that is
+   worth a second pair of eyes from Security before the tick writes.
 3. **Farm, not combat, as the tick's first channel.** Farming is pure time with
-   no PRNG stream, so it decomposes today with *no blocker at all*, and it is
-   the feature that sat at zero from 2026-08-27 to 2026-09-06 with nobody able
-   to see it. The brief says combat first because `combat-sim.js` is already the
-   single engine; I disagree and say so in §16.
+   no drop rolls, so the cost of getting the first channel wrong is a carrot
+   rather than a dupe — and it is the feature that sat at zero from 2026-08-27
+   to 2026-09-06 with nobody able to see it. The brief says combat first because
+   `combat-sim.js` is already the single engine; I disagree and say so in §16.
 4. **Push cadence vs flush cadence** (§9's ⚠). A 10 s display frame that carries
    no authority is a prediction by another name. Either flush at push cadence or
    design an explicitly-provisional frame. Needs a decision before step 3.
@@ -675,8 +701,9 @@ Nothing is registered in this lane.
 
 - **Nothing here has been verified against a database.** No branch was created,
   no migration was written, no RPC exists. Every SQL snippet above is a
-  *proposal*; `hr_tick_roster`, `hr_shard_of`, `hr_tick` and `rng_state` do not
-  exist.
+  *proposal*; `hr_tick_roster`, `hr_shard_of` and `hr_tick` do not exist. The
+  seeding path (§11) is the one part of this document that rests on shipped,
+  live code and needs nothing new.
 - Parity is proven for the **combat** channel only. Gather and artisan go
   through the same `computeAccrual` front half and the same alignment rule, but
   their sims (`skill-sim.js`, `artisan-sim.js`) have their own carry state
@@ -693,12 +720,13 @@ Nothing is registered in this lane.
 
 ## 16. Where I disagree with the brief
 
-1. **"Tick becomes the writer for one channel (combat first)".** Combat is the
-   one channel with §11's blocker and the one with the most value at risk.
-   **Farm first**: it is pure time, has no PRNG stream, has no dupe direction,
-   is already the feature that went unobserved for ten days, and it proves the
-   whole pipeline (roster → engine → `hr_apply` → frame → client) on a channel
-   where a bug costs a carrot. Combat second, behind `rng_state`.
+1. **"Tick becomes the writer for one channel (combat first)".** Combat has the
+   most value at risk and is the only channel with drop rolls, so it is the
+   channel where a mistake is a dupe. **Farm first**: pure time, no rolls, no
+   dupe direction, already the feature that went unobserved for ten days, and it
+   proves the whole pipeline (roster → engine → `hr_apply` → frame → client)
+   where being wrong costs a carrot. Combat second — not because it is blocked,
+   but because it should not be the rehearsal.
 2. **"~7k lines of client prediction/mirror get retired".** Measured on b545 by
    the systems-engineer lane: **~2,860 lines** are true prediction; ~4,500 lines
    of `accrue.js` are applier, transport and receipts the push channel still

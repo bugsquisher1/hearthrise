@@ -16,7 +16,27 @@
 // ============================================================================
 
 import { computeAccrual } from '../../supabase/functions/hr-accrue/accrual.js';
+import { hashSeed } from '../../src/core/rng.js';
 import { planWindows } from './contract.js';
+
+/* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
+   Production does NOT hand the engine a constant. `hr-accrue/index.ts` (~L641)
+   derives it as `hr_seed(user, slot, 'accrue:' || accrued_to)` — a label that
+   NAMES THE WATERMARK, mixed with a 256-bit secret held in a table with RLS on,
+   so a player cannot predict their own rolls (server-authority review S20).
+   Every settle window therefore already draws a distinct stream, and that is
+   the mechanism the tick inherits unchanged: a tick window's watermark is its
+   `fromMs`, so labelling by it gives every tick its own stream with NO new
+   column, NO new engine input and nothing for Security to grant.
+
+   THE SPIKE HAS NO SECRET, and must not invent one. It uses `hashSeed` from
+   src/core/rng.js over the SAME LABEL SHAPE, which reproduces the production
+   property this file is testing (distinct stream per watermark) without
+   reproducing the property it is not (unpredictability). The real service
+   calls `hr_seed` exactly as the edge does. */
+export function seedFor(userId, slot, watermarkMs) {
+  return hashSeed(String(userId), String(slot), 'accrue:' + new Date(watermarkMs).toISOString());
+}
 
 /* The in-memory character the tick holds between windows. In production this is
    hydrated once from `hr_state_of` on session start and re-hydrated from it on
@@ -81,7 +101,11 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
     activeKind: char.activeKind,
     activeId: char.activeId,
     capMs: char.capMs,
-    seed: char.seed,
+    /* NOT a per-character constant. The watermark is `fromMs`, exactly as the
+       edge's label is `accrue:<accrued_to>`; `char.seed` is honoured only when
+       a fixture pins one, which is how the guard can hold the stream still and
+       isolate a different variable. */
+    seed: (o.fixedSeed && char.seed) ? char.seed : seedFor(char.userId, char.slot, fromMs),
     hp: char.hp,
     maxHp: char.maxHp,
     gold: char.gold,

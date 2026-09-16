@@ -19,6 +19,16 @@
   ],
   "reviewed": "2026-09-06 (cleanup program, slice 2)",
   "guards": {
+    "no-new-prediction.mjs": {
+      "reason": "Registered in tools/lane-done.mjs (the per-lane runner) rather than in smoke.yml: this lane was briefed to add the guard WITHOUT editing the workflow, because .github/workflows/smoke.yml is the Coordinator's file and tests/ci-shape.baseline.json pins its step list. Both arms pass on today's tree (plain run green at 35 call sites, --selftest green on 8 controls including a clean arm). Its CI home is the `guards` job beside tests/no-client-xp-mint.mjs, as TWO steps — the plain run, then --selftest — and this entry is the written debt until the Coordinator adds them.",
+      "owner": "systems-engineer",
+      "disposition": "awaiting-workflow-registration",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "runner": "tools/lane-done.mjs"
+      }
+    },
     "settle-carry-loss.mjs": {
       "reason": "MEASUREMENT, not a gate. It prices what the call-local `carryMs` in simulateSpan/sliceSpan costs at the REAL 90 s settle cadence (SETTLE_INTERVAL_MS) and exits 0 by design — it states a number, it does not defend a contract, and registering a number-printer in CI would make the guards job red the day a balance change moved a weapon speed. `--mutate` DOES assert (it exits 1 if threading the carry fails to take the forfeited time to ~0), which is what makes the number checkable; run it by hand when the engine's tick budget changes. If the carry is ever threaded for real (a `carry_ms` checkpoint, lane C), the forfeited-time property becomes a real invariant and THIS FILE'S --mutate arm is the guard to register then.",
       "owner": "systems-engineer",
@@ -115,6 +125,16 @@
       "verified": {
         "asserts": true,
         "selftest": true
+      }
+    },
+    "world-tick-parity.mjs": {
+      "reason": "Step 1 of the live-world program (docs/planning/WORLD_TICK_DESIGN.md) is a READ-ONLY SHADOW spike, and its brief says register nothing in CI yet — the service it guards writes nothing and ships to nothing, so a CI step would gate the build on a component that cannot affect a player. It asserts (exit 1 on any problem) and carries three --mutate proofs (unaligned / nofight / capIsCadence), all verified red on 2026-09-16. It runs in ~1 s, needs no database and no network. WHAT REGISTERING IT COSTS: a step in .github/workflows/smoke.yml (plain arm AND --mutate arm, per RULE 5) plus a re-pin of tests/ci-shape.baseline.json — see WORLD_TICK_DESIGN.md §13, which lists the full CI shape this program needs. It is registered the moment the tick becomes a writer for any channel, and NOT LATER: P4 is a tripwire that must be flipped to an equality when the rngState seam lands, and a tripwire nothing runs is not a tripwire.",
+      "owner": "backend-architect",
+      "disposition": "register-at-step-2",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "mutations": ["unaligned", "nofight", "capIsCadence"]
       }
     },
     "$deleted:2026-09-06-slice-2": {

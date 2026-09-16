@@ -915,15 +915,40 @@ export async function putClientState(patch, opts) {
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
     return { ok: false, error: 'bad_patch' };
   }
-  /* THE DENY-LIST, AT THE ONE SEAM EVERY PATCH CROSSES (see RESIDUE_NEVER_SEND).
+  /* ── THE ALLOWLIST PROJECTION, AT THE ONE SEAM EVERY PATCH CROSSES ──────────
+     THE OUTGOING PATCH IS ITS OWN ALLOWLIST PROJECTION, ALWAYS — `patch ⊆
+     RESIDUE_FIELDS`, computed HERE, as the last thing before the body is built.
+     This used to be a NAME-BY-NAME deny-list (RESIDUE_NEVER_SEND ∪
+     FORBIDDEN_DROPPED), and a deny-list can only ever refuse the names somebody
+     remembered to type: any other non-residue key — a field left over from an
+     older bundle, a rename of a permitted one, a caller that assembled its own
+     bag — sailed through, and hr_put_client_state refuses the WHOLE patch on ONE
+     such key. Measured on 2026-09-16: 569 `forbidden_field`/`buffs` refusals in a
+     day from one character, ~1 per 2–3 minutes, which is that character saving NO
+     residue at all — no loot filter, no bestiary, no achievements, no "already
+     shown today" markers — for as long as it keeps happening.
+
+     hydrateInto (the way IN) has always iterated RESIDUE_FIELDS rather than the
+     bag's key set, for exactly this reason. The way OUT is now symmetric, so the
+     two directions cannot disagree about what the residue IS, and no assembly
+     path — present, future, or a bundle a tab is still running — can put a
+     non-allowlisted key on the wire.
+
+     THE TWO NAMED CONTROLS REMAIN, AND STILL FAIL DIFFERENTLY: RESIDUE_NEVER_SEND
+     is the tripwire for a name being RE-ADDED to RESIDUE_FIELDS (`buffs` lived
+     there for months; the "a potion must survive a reload" instinct will recur),
+     and FORBIDDEN_DROPPED is what the SERVER refused at runtime — the only one of
+     the three that can name a field this bundle believes is legitimate residue.
+     Subtracted here too, so the ordering is: allowlist ∩ patch, minus refused.
+
      A copy, never a mutation of the caller's object: the patch is also the
      caller's record of what it tried to save. Silent by design — this is a
-     backstop for a name that should never have been assembled, and a warning the
+     backstop for a key that should never have been assembled, and a warning the
      player cannot act on is noise in the console of a live game. */
-  const denied = (f) => NEVER_SEND_SET.has(f) || FORBIDDEN_DROPPED.has(f);
+  const allowed = (f) => RESIDUE_SET.has(f) && !NEVER_SEND_SET.has(f) && !FORBIDDEN_DROPPED.has(f);
   for (const k of Object.keys(patch)) {
-    if (denied(k)) {
-      patch = Object.fromEntries(Object.entries(patch).filter(([f]) => !denied(f)));
+    if (!allowed(k)) {
+      patch = Object.fromEntries(Object.entries(patch).filter(([f]) => allowed(f)));
       break;
     }
   }

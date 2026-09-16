@@ -1629,6 +1629,40 @@ export default [
     assert(gen && gen.ok === false && !gen.capExceeded, 'a generic failure must NOT be mis-flagged as a cap overflow');
   }),
 
+  /* ── regression suite — THE OUTGOING RESIDUE IS ITS ALLOWLIST PROJECTION ────
+     MEASURED 2026-09-16 (vitals --refusals): 569 forbidden_field/`buffs` refusals
+     in a day from ONE character, 532 the day before. The server refuses the WHOLE
+     patch on one denied key, so that character persisted NO residue for two days.
+     A deny-list only refuses the names somebody typed; structurally now, the sent
+     body is `patch ∩ RESIDUE_FIELDS` minus what the server refused, at the put. */
+  () => tryRunAsync('CLIENT-STATE-ALLOWLIST (2026-09-16): the SENT residue body equals its allowlist projection, whatever the caller handed the put', async () => {
+    const CS = window.HearthriseClientState;
+    assert(CS && typeof CS.putClientState === 'function' && Array.isArray(CS.RESIDUE_FIELDS),
+      'CONTROL: putClientState / RESIDUE_FIELDS unpublished — this test would pass vacuously');
+    const allow = new Set(CS.RESIDUE_FIELDS);
+    assert(!allow.has('buffs'), 'CONTROL: `buffs` is back in RESIDUE_FIELDS — the server denies it, so this is the bug itself');
+    assert(allow.has('lootFilter') && allow.has('bestiary'),
+      'CONTROL: the honest fields this test rides along are not on the allowlist');
+    const sent = [];
+    const fetchStub = async (url, init) => { sent.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
+    /* As a stale/forgetful assembly path hands it over: real preferences, plus the
+       measured server-owned name and one no bundle ever owned. */
+    const r = await CS.putClientState({
+      lootFilter: ['junk'], bestiary: { rat: { kills: 3 } },
+      buffs: [{ type: 'damage', magnitude: 2, remainingMs: 600000 }],
+      someFieldNoAllowlistEverHad: 1,
+    }, { url: 'https://example.test', anonKey: 'k', jwt: 'j', slot: 0, idem: 'allowlist-test', fetch: fetchStub });
+    assert(r && r.ok === true, 'the put must still succeed — dropping the whole patch would BE the bug: ' + JSON.stringify(r));
+    assert(sent.length === 1, 'exactly one request');
+    const body = sent[0].p_patch;
+    const strays = Object.keys(body).filter((k) => !allow.has(k));
+    assert(strays.length === 0,
+      'THE BUG: the residue body carried ' + JSON.stringify(strays) + ' — hr_put_client_state refuses the WHOLE patch on one '
+      + 'non-allowlisted key, so every preference in the bag stops saving and the tab retries the identical body for ever');
+    assert(Object.prototype.hasOwnProperty.call(body, 'lootFilter') && Object.prototype.hasOwnProperty.call(body, 'bestiary'),
+      'the allowlisted fields must still ride — the projection KEEPS the residue, it does not empty it: ' + JSON.stringify(Object.keys(body)));
+  }),
+
   () => tryRunAsync('CLIENT-STATE-FORBIDDEN (2026-09-14): a forbidden_field refusal drops the key, tells the player and reloads ONCE — never a silent retry for ever', async () => {
     /* MEASURED LIVE 2026-09-14 15:08 UTC: user b94fa8c0, code forbidden_field,
        intent hr_put_client_state, n=603 today, first refusal 2026-09-13

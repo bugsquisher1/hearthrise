@@ -29,6 +29,15 @@
         "runner": "tools/lane-done.mjs"
       }
     },
+    "settle-carry-loss.mjs": {
+      "reason": "MEASUREMENT, not a gate. It prices what the call-local `carryMs` in simulateSpan/sliceSpan costs at the REAL 90 s settle cadence (SETTLE_INTERVAL_MS) and exits 0 by design — it states a number, it does not defend a contract, and registering a number-printer in CI would make the guards job red the day a balance change moved a weapon speed. `--mutate` DOES assert (it exits 1 if threading the carry fails to take the forfeited time to ~0), which is what makes the number checkable; run it by hand when the engine's tick budget changes. If the carry is ever threaded for real (a `carry_ms` checkpoint, lane C), the forfeited-time property becomes a real invariant and THIS FILE'S --mutate arm is the guard to register then.",
+      "owner": "systems-engineer",
+      "disposition": "intentional-tool",
+      "verified": {
+        "asserts": "only under --mutate",
+        "selftest": true
+      }
+    },
     "signup-door-page.mjs": {
       "reason": "DELIBERATELY not in CI, by its own header and for a good reason: DOOR-1..7 and OPEN-3 already live in src/features/smoke-test.js and run inside the assembled in-page suite, which IS the contract. This file re-runs the SAME in-page runner filtered to one battery (window.__smokeTest({only})) so an agent proving one battery does not have to start a second multi-minute suite next to somebody else's and read the contention as a flake (b461). Registering it would duplicate the assertions and reintroduce exactly that contention. It is a development tool, not a gate.",
       "owner": "qa-engineer",

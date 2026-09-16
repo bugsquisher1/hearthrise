@@ -1,0 +1,104 @@
+{
+  "_comment": [
+    "FIXTURE CHARACTERS for the shadow tick spike. NOT production data and never",
+    "read from production: every id below is validated against src/data at load",
+    "(see loadFixtures in ../fixtures.js), so a renamed item or monster turns the",
+    "spike red instead of silently testing the engine against data the game does",
+    "not contain.",
+    "userId is a nil-ish UUID; slot is 0. Nothing here is ever sent anywhere.",
+    "activeSinceMs / accruedToMs are relative offsets in ms from the scenario's",
+    "fromMs, resolved by fixtures.js — a JSON file with absolute epochs would rot."
+  ],
+  "characters": [
+    {
+      "name": "early-game goblin grinder, no food",
+      "userId": "00000000-0000-4000-8000-000000000001",
+      "slot": 0,
+      "activeKind": "combat",
+      "activeId": "goblin",
+      "activeSinceOffsetMs": 0,
+      "capMs": 43200000,
+      "seed": 1592269876,
+      "hp": 60,
+      "maxHp": 60,
+      "gold": 1234,
+      "skills": {
+        "attack": 30000, "strength": 28000, "defense": 22000, "hitpoints": 26000,
+        "ranged": 1000, "magic": 1000, "prayer": 500,
+        "woodcutting": 4000, "mining": 4000, "fishing": 4000
+      },
+      "inventory": {},
+      "equipment": {
+        "weapon": "dawn_sword",
+        "helmet": "regent_helm",
+        "body": "slagheart_platebody",
+        "pants": "abyssal_greaves",
+        "boots": "dawn_boots"
+      },
+      "fight": {},
+      "consecFalls": 0,
+      "recoveringUntilMs": 0,
+      "bestiaryKills": {},
+      "autoEatEnabled": false
+    },
+    {
+      "name": "fed fighter, auto-eat on, slime",
+      "userId": "00000000-0000-4000-8000-000000000002",
+      "slot": 0,
+      "activeKind": "combat",
+      "activeId": "slime",
+      "activeSinceOffsetMs": 0,
+      "capMs": 43200000,
+      "seed": 305419896,
+      "hp": 99,
+      "maxHp": 99,
+      "gold": 0,
+      "skills": {
+        "attack": 13034431, "strength": 13034431, "defense": 13034431,
+        "hitpoints": 13034431, "ranged": 13034431, "magic": 13034431, "prayer": 13034431
+      },
+      "inventory": { "hearthbread": 400 },
+      "equipment": {
+        "weapon": "dragonfang_pike",
+        "helmet": "regent_helm",
+        "body": "slagheart_platebody",
+        "pants": "abyssal_greaves",
+        "boots": "dawn_boots",
+        "gloves": "choirbone_gauntlets",
+        "belt": "warden_girdle",
+        "cape": "wyrmgilt_mantle"
+      },
+      "fight": {},
+      "consecFalls": 0,
+      "recoveringUntilMs": 0,
+      "bestiaryKills": {},
+      "autoEatEnabled": true,
+      "autoEatPct": 50,
+      "autoEatFood": "hearthbread"
+    },
+    {
+      "name": "ranged glass cannon vs rat, bow tick",
+      "userId": "00000000-0000-4000-8000-000000000003",
+      "slot": 0,
+      "activeKind": "combat",
+      "activeId": "rat",
+      "activeSinceOffsetMs": 0,
+      "capMs": 43200000,
+      "seed": 2596069104,
+      "hp": 40,
+      "maxHp": 40,
+      "gold": 500,
+      "skills": {
+        "attack": 5000, "strength": 5000, "defense": 3000, "hitpoints": 8000,
+        "ranged": 60000, "magic": 1000, "prayer": 0
+      },
+      "inventory": {},
+      "equipment": { "weapon": "duskwood_bow", "helmet": "regent_helm" },
+      "fight": {},
+      "consecFalls": 0,
+      "recoveringUntilMs": 0,
+      "bestiaryKills": {},
+      "autoEatEnabled": false
+    }
+  ]
+}

@@ -643,6 +643,29 @@ const MUTANTS = [
     from: '        if v_fight_max is null then',
     to: '        v_fight_max := 999999999;\n        if false then',
   },
+  {
+    /* ── THE BITE-PROOF FOR THE CHAIN ITSELF (2026-09-16) ──────────────────
+       derivationGuard above only asserts MEMBERSHIP: that a later toucher of
+       hr_state_of is named on HR_STATE_OF_CHAIN. The body diff — "is it the
+       predecessor's body plus insertions?" — is run-sql-tests.mjs PART 1f-ii,
+       so membership is worth exactly as much as that diff is. THIS mutant is
+       the proof that it is worth something: it registers nothing new, changes
+       no list, and simply DELETES the `fight` projection from the restatement
+       that is now the chain's last link. That is the P3 confiscation in one
+       line — every accrual window would start a fresh monster at full HP —
+       and it must go red.
+
+       ⚠ GRADED BY run-sql-tests.mjs, NOT by this file, and the distinction is
+         the whole point: this file would stay GREEN (the file is still on the
+         chain, still last in the apply order), which is precisely why the
+         membership check is not sufficient on its own. */
+    id: 'chain-drops-fight',
+    what: 'the restatement silently loses the `fight` projection (PART 1f-ii must diff it and go red)',
+    file: 'supabase/migrations/2026-09-14-hr-state-of-restatement.sql',
+    from: "      'fight', v_st.fight,\n",
+    to: '',
+    grader: 'tests/run-sql-tests.mjs',
+  },
 ];
 
 /* ⚠ EACH MUTANT RUNS IN A CHILD PROCESS, and that is not a style choice. The
@@ -685,8 +708,15 @@ async function mutate() {
     await writeFile(path, mutated, 'utf8');
     let out;
     try {
+      /* A mutant may name a DIFFERENT grader. The membership half of the
+         derivation property lives here; the body-diff half lives in
+         run-sql-tests.mjs PART 1f-ii, and a mutant that this file cannot see
+         by construction has to be scored by the file that can — otherwise it
+         would report SLIPPED and read as "the chain is blind" when the truth
+         is "the wrong judge was asked". */
       out = spawnSync(process.execPath,
-        [join(ROOT, 'tests', 'live-settlement.mjs'), ...(m.file.endsWith('.sql') ? [] : ['--engine'])],
+        [join(ROOT, m.grader || 'tests/live-settlement.mjs'),
+          ...(!m.grader && !m.file.endsWith('.sql') ? ['--engine'] : [])],
         { encoding: 'utf8', timeout: 900000 });
     } finally {
       await writeFile(path, original, 'utf8');

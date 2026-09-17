@@ -4383,7 +4383,23 @@ function hrCreditCombatXpFlush(force){
         if(got>0) G._combatXpPending[k]=Math.max(0,(Number(G._combatXpPending[k])||0)-got);
       }
     }
-    else if(cr && cr.ok===false && cr.error==='settle_first'){ if(_AC&&typeof _AC.dropPendingCombatXp==='function') _AC.dropPendingCombatXp(snap,G); }   // C1: the refused window is the away settle's and WILL be paid by simulation — keeping it pending would credit the same fights twice. Gains during the call are re-read from the live map and survive.
+    else if(cr && cr.ok===false && cr.error==='settle_first'){
+      /* ── C1 rev.2 (2026-09-17): DEFER, DO NOT DISCARD ───────────────────────
+         The refusal means the away settle OWNS this window — it does NOT mean the
+         settle has run. The refusal writes nothing server-side (no watermark
+         move), so until a settle CONFIRMS (`accrued`/`nothing`) nobody has paid
+         these fights. The old shape dropped here on the refusal alone, so a
+         throttled background tab (stale watermark every window) deleted its own
+         attended XP even when the settle then failed or the tab closed. Now the
+         snapshot is held by accrue.js and dropped only on a confirmed settle —
+         the same asymmetry the BOOT path has always had — and we ASK for that
+         settle now instead of waiting for the 90 s cadence a throttled timer is
+         not running. Never awaited: this callback can run inside the settle's own
+         forced flush, and awaiting it there would deadlock. */
+      if(_AC&&typeof _AC.deferPendingCombatXp==='function') _AC.deferPendingCombatXp(snap);
+      else if(_AC&&typeof _AC.dropPendingCombatXp==='function') _AC.dropPendingCombatXp(snap,G);
+      try{ if(_AC&&typeof _AC.requestAccrual==='function') Promise.resolve(_AC.requestAccrual({})).catch(function(){}); }catch(e){}
+    }
     /* On any OTHER !ok (rate_limited / daily_budget / bad_skill / network) keep the
        pending XP untouched — the next flush retries. ⚠ AND ON NO PATH IS A
        PREDICTION TOUCHED: it is retired when the RECORD carrying this credit

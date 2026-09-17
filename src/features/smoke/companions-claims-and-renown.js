@@ -1518,6 +1518,83 @@ export default [
     }
   }),
 
+  /* COMBAT-XP-SETTLE-FIRST-2 (regression suite) — vitals 2026-09-16/17: 41
+     `settle_first` refusals on one character. The server refuses the attended
+     credit while `accrued_to` is >180 s stale (correct: the away settle owns that
+     window) and WRITES NOTHING — its own migration comment says "The client keeps
+     its pending XP and re-flushes after the settle." The client did the opposite:
+     it dropped the pending snapshot on the refusal ALONE, so a throttled
+     background tab (which makes the watermark stale every window) deleted the
+     player's observed attended XP with nothing having paid it whenever the settle
+     then failed, halted, or never ran. The BOOT path next door has always waited
+     for a confirmed `accrued`/`nothing` before dropping; this is that asymmetry
+     closed, plus asking for the settle the refusal names.
+     MUTATION: restore `dropPendingCombatXp(snap, G)` on the refusal branch in
+     hrCreditCombatXpFlush → the "must stay pending" assertion goes RED. */
+  () => tryRunAsync('COMBAT-XP-SETTLE-FIRST-2: a `settle_first` refusal DEFERS the attended XP and re-submits it after the settle, and drops it only on a CONFIRMED settle', async () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.deferPendingCombatXp === 'function' && typeof A.resolveCombatXpDeferral === 'function'
+      && typeof A.__resetCombatXpDeferral === 'function',
+      'THE BUG: there is no deferral seam for a `settle_first` refusal — the refused snapshot is discarded on the refusal alone, before anything has paid it');
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    const origLatch = !!A.awaySettleDone();
+    const origReq = A.requestAccrual;
+    try {
+      A.__resetCombatXpDeferral();
+      const calls = []; let refuse = true; let settles = 0;
+      A.requestAccrual = () => { settles++; return Promise.resolve({ outcome: 'unreachable' }); };
+      window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: (m) => {
+          calls.push(JSON.parse(JSON.stringify(m)));
+          return Promise.resolve(refuse ? { ok: false, error: 'settle_first' } : { ok: true, credited: m });
+        },
+      };
+      A.__resetAwaySettleLatch(true);            // ATTENDED path: the session away window is closed
+
+      // ── (1) refused: the XP stays pending and the settle is ASKED FOR ──
+      window.G._combatXpPending = { attack: 600, strength: 200 };
+      await window.hrCreditCombatXpFlush(true);
+      assert(calls.length === 1, 'the flush must reach the RPC once; it fired ' + calls.length + ' time(s)');
+      assert((window.G._combatXpPending.attack || 0) === 600 && (window.G._combatXpPending.strength || 0) === 200,
+        'THE BUG: a `settle_first` refusal discarded the attended XP (attack=' + (window.G._combatXpPending.attack || 0)
+        + '). The refusal writes NOTHING server-side — nothing has paid these fights yet');
+      assert(settles === 1, 'a `settle_first` refusal must ask for the settle it is being told to run first (a throttled tab is not running the 90 s cadence)');
+      assert(A.pendingCombatXpDeferral() && A.pendingCombatXpDeferral().attack === 600,
+        'the refused snapshot must be held as the settle\u2019s debt, so a later confirmed settle can retire exactly it');
+
+      // ── (2) the settle did NOT confirm ⇒ the window is still unpaid ⇒ re-submit ──
+      A.resolveCombatXpDeferral('unreachable');
+      assert(A.pendingCombatXpDeferral() && A.pendingCombatXpDeferral().attack === 600,
+        'an unconfirmed settle must not retire the debt — nothing was paid');
+      refuse = false;
+      await window.hrCreditCombatXpFlush(true);
+      assert(calls.length === 2 && (calls[1].attack || 0) === 600 && (calls[1].strength || 0) === 200,
+        'the deferred attended XP must be RE-SUBMITTED once the credit is admitted again; sent ' + JSON.stringify(calls[1] || null));
+      assert((window.G._combatXpPending.attack || 0) === 0, 'the admitted re-submit drains what the server applied');
+
+      // ── (3) the other half: a CONFIRMED settle retires the debt (no double credit) ──
+      refuse = true;
+      window.G._combatXpPending = { attack: 400 };
+      await window.hrCreditCombatXpFlush(true);
+      assert((window.G._combatXpPending.attack || 0) === 400, 'still deferred, not dropped, on the refusal');
+      const dropped = A.resolveCombatXpDeferral('accrued');
+      assert(dropped === 400 && (window.G._combatXpPending.attack || 0) === 0,
+        'a CONFIRMED settle paid that window by simulation — the deferred snapshot must be dropped or the same fights would be credited twice; dropped=' + dropped);
+      assert(!A.pendingCombatXpDeferral(), 'the debt is cleared once retired');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseGoalClaim = origClaim;
+      A.__resetAwaySettleLatch(origLatch);
+      A.requestAccrual = origReq;
+      A.__resetCombatXpDeferral();
+      restoreG(snap);
+    }
+  }),
+
   () => tryRunAsync("CADENCE-NIC-1 (Security F1): a `not_in_combat` credit re-declares the fight ONCE and retries ONCE — never a loop", async () => {
     // supabase/migrations/2026-09-06-cadence-recovery-floor.sql caps the attended
     // credit window at player_state.active_since once the SERVER's pointer leaves

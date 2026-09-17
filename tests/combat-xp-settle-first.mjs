@@ -56,6 +56,23 @@ const SPAN_MS = NOW_MS - FROM_MS;                       // 14,552,349
 const MONSTER = MONSTERS.clay_golem ? 'clay_golem' : Object.keys(MONSTERS)[0];
 const FOOD = ITEMS.cooked_trout ? 'cooked_trout' : Object.keys(ITEMS).find((k) => ITEMS[k]?.foodClass === 'healing');
 
+/* Pull a balanced `{...}` body that follows `head` in the source - the branch is
+   multi-line with nested braces, so a lazy regex would hand back an unbalanced
+   fragment and `new Function` would throw (which reads as "no branch"). */
+function extractBranchBody(src, head) {
+  const at = src.indexOf(head);
+  if (at < 0) return null;
+  const open = src.indexOf('{', at + head.length);
+  if (open < 0) return null;
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    const c = src[i];
+    if (c === '{') depth++;
+    else if (c === '}') { depth--; if (depth === 0) return src.slice(open + 1, i); }
+  }
+  return null;
+}
+
 function settleRun(over) {
   return computeAccrual({
     userId: '00000000-0000-4000-8000-00000000000c',
@@ -153,32 +170,57 @@ export async function combatXpSettleFirstGuard() {
       ok(pendAfter === 0,
         `THE DOUBLE-CREDIT: ${pendAfter} XP observed before the boot settle is still pending after it — the settle paid that window by simulation and the next flush would pay it again`);
 
-      // A `settle_first` refusal is the same statement from the server side: the
-      // window is the settle's, so the flushed snapshot is dropped, not retried.
-      ok(typeof A.dropPendingCombatXp === 'function',
-        'accrue.js publishes no dropPendingCombatXp — legacy.js has no shared subtract for a settle_first refusal');
+      // -- A `settle_first` REFUSAL: DEFERRED, NOT DISCARDED (rev.2, 2026-09-17) -
+      // The property is still "the settle's window is never credited twice", but
+      // the refusal is NOT the moment it is satisfied: the refusal writes nothing
+      // server-side (no watermark move), so nothing has paid those fights yet.
+      // Dropping there deleted a throttled tab's attended XP whenever the settle
+      // then failed or never ran (41 refusals, one character, 2026-09-16/17). The
+      // debt is held and retired by a CONFIRMED settle instead - and BOTH halves
+      // are asserted here, so neither "always drop" nor "never drop" is green.
+      ok(typeof A.dropPendingCombatXp === 'function' && typeof A.deferPendingCombatXp === 'function'
+        && typeof A.resolveCombatXpDeferral === 'function',
+        'accrue.js publishes no defer/resolve seam - legacy.js has nowhere to hold a settle_first snapshot and would discard it on the refusal');
       if (typeof A.dropPendingCombatXp === 'function') {
         const G2 = { _combatXpPending: { attack: 900, strength: 40 } };
         const snap = { attack: 900, strength: 40 };
         G2._combatXpPending.attack += 25;                       // a gain DURING the call
         A.dropPendingCombatXp(snap, G2);
         ok((Number(G2._combatXpPending.attack) || 0) === 25 && (Number(G2._combatXpPending.strength) || 0) === 0,
-          `a settle_first refusal left ${JSON.stringify(G2._combatXpPending)} pending — the refused window is paid by the settle and must not be re-credited (gains during the call must survive)`);
+          `the shared subtract left ${JSON.stringify(G2._combatXpPending)} pending - a retired window must not be re-credited (gains during the call must survive)`);
       }
-      // …and legacy.js's flush must actually RUN that drop on the refusal. The
-      // branch body is extracted from the source and EXECUTED against stubs, so a
-      // branch that is present but inert (the mutation) is red, not green.
+      // ...and legacy.js's flush must actually RUN that deferral on the refusal.
+      // The branch body is extracted from the source and EXECUTED against stubs,
+      // so a branch that is present but inert (the mutation) is red, not green.
       const legacySrc = await readFile(new URL('src/legacy.js', ROOT), 'utf8');
-      const branch = legacySrc.match(/cr\.error==='settle_first'\)(\{[\s\S]{0,400}?\})/);
+      const branch = extractBranchBody(legacySrc, "cr.error==='settle_first')");
       ok(!!branch,
-        'hrCreditCombatXpFlush has no settle_first branch — a refused window stays pending and is credited a second time');
-      if (branch) {
+        'hrCreditCombatXpFlush has no settle_first branch - a refused window stays pending and is credited a second time');
+      if (branch && typeof A.resolveCombatXpDeferral === 'function') {
+        A.__resetCombatXpDeferral();
         const G3 = { _combatXpPending: { attack: 700 } };
         const snap3 = { attack: 700 };
+        let asked = 0;
+        const AC = {
+          dropPendingCombatXp: A.dropPendingCombatXp,
+          deferPendingCombatXp: A.deferPendingCombatXp,
+          requestAccrual: () => { asked++; return Promise.resolve({ outcome: 'unreachable' }); },
+        };
         // eslint-disable-next-line no-new-func
-        new Function('_AC', 'snap', 'G', branch[1])({ dropPendingCombatXp: A.dropPendingCombatXp }, snap3, G3);
-        ok((Number(G3._combatXpPending.attack) || 0) === 0,
-          `the settle_first branch ran and left ${G3._combatXpPending.attack} XP pending — the settle already pays that window, so this is a second credit`);
+        new Function('_AC', 'snap', 'G', branch)(AC, snap3, G3);
+        ok((Number(G3._combatXpPending.attack) || 0) === 700,
+          `THE LOSS: the settle_first branch discarded ${700 - (Number(G3._combatXpPending.attack) || 0)} attended XP on the refusal alone - the refusal paid nothing, so if the settle never lands that XP is gone`);
+        ok(asked === 1,
+          'the settle_first branch did not ASK for the settle it is being told to run first - a throttled tab is not running the 90 s cadence');
+        // An UNCONFIRMED settle retires nothing...
+        A.resolveCombatXpDeferral('unreachable', G3);
+        ok((Number(G3._combatXpPending.attack) || 0) === 700,
+          'an unconfirmed settle retired the deferred XP - nothing was paid, so the next flush must still be able to send it');
+        // ...a CONFIRMED one retires exactly the deferred snapshot.
+        const dropped = A.resolveCombatXpDeferral('accrued', G3);
+        ok(dropped === 700 && (Number(G3._combatXpPending.attack) || 0) === 0,
+          `THE DOUBLE-CREDIT: a confirmed settle left ${G3._combatXpPending.attack} XP pending - the settle paid that window by simulation and the next flush would pay it again`);
+        A.__resetCombatXpDeferral();
       }
     } finally {
       A.__resetAwaySettleLatch(false);

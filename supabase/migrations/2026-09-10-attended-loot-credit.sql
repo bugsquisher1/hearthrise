@@ -59,7 +59,25 @@
 --     is already committed with this change; nothing else moved.
 --
 --   ⚠ DO NOT APPLY IN THE FIRST FIVE MINUTES OF A UTC DAY.
---     ✅ RESOLVED 2026-09-16 — kept here because this is where the hazard was
+--     ◐ NARROWED 2026-09-16, NOT CLOSED (security review, measured). The
+--     [00:00, 00:05) window is gone; a ~8-SECOND band STRADDLING midnight is
+--     not. Clean-tree chain replays with the process clock parked at
+--     -00:00:06 … -00:00:01 and +00:00:00 … +00:00:01 exit 1 on a CORRECT
+--     function with `GATE(f5): the credit applied 0 … (expected 3)`: when
+--     midnight falls BETWEEN f5's two credits, the clamp moves the log stamp
+--     FORWARD to the day start, the anchor collapses and the cap honestly
+--     refuses the 15-kill claim — the same shape f6 was rewritten to survive,
+--     which f5's literal 3/55 expectations still do not. Green again at -7 and
+--     at +2. The band moves with replay speed, so on other hardware it is the
+--     same width at a different offset. `tests/utc-midnight-replay.mjs` does
+--     NOT cover it (its arms are timed from process start, not from when the
+--     fixture executes: the -8 arm reaches f6 at 23:59:58, still yesterday),
+--     and its +1 arm sits ON the band edge — measured GREEN and RED at the same
+--     offset twenty minutes apart. Operator rule until f5 is day-anchored the
+--     way f6 now is: DO NOT APPLY IN THE LAST 10 OR FIRST 5 SECONDS OF A UTC
+--     DAY. Fail-closed (the fixture's writes roll back), so the cost is a
+--     failed apply and a red CI run, never player data.
+--     Partially resolved 2026-09-16 — kept here because this is where the hazard was
 --     measured, and because the next fixture that backdates a stamp will be
 --     written by someone reading a header like this one. GATE(f5) inherited the
 --     clamp (reliability lane); GATE(f6) was a SECOND instance f5 was masking

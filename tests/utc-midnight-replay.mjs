@@ -62,6 +62,22 @@
 // red at every hour of the day is a broken guard, not a clock guard. The
 // file is restored byte-for-byte afterwards, verified by length and content.
 //
+// ⚠ WHAT THIS GUARD DOES NOT COVER (security review 2026-09-16, MEASURED on a
+// clean tree). The arms below are timed from PROCESS START, not from the moment
+// the fixture executes: GATE(f6) runs ~6.5 s into a replay, so the -8 "straddle"
+// arm reaches it at 23:59:58 — the whole DO block finishes BEFORE midnight and
+// nothing straddles. Offsets -6 … -1 and 0 … +1 exit 1 on a CORRECT function
+// with `GATE(f5): the credit applied 0 (expected 3)`: midnight falls BETWEEN
+// f5's two credits, the clamp pushes the log stamp FORWARD onto the day start,
+// the anchor collapses and the cap honestly refuses the 15-kill claim. Green at
+// -7 and +2. That is a ~8 s red band per day, and the +1 arm here sits ON its
+// edge — measured GREEN, then RED at the same offset twenty minutes later, so
+// this guard is currently a flake source at exactly the hour it polices.
+// FIX (reliability + backend lanes, not done here): day-anchor GATE(f5) the way
+// GATE(f6) now is (round size and expectations from the server's reported cap),
+// and re-time the arms so the BOUNDARY lands inside the fixture — probe the
+// offset at which f5 executes, then sweep it at 1 s granularity.
+//
 // Exit: 0 green · 1 the chain cannot rebuild at some hour of the day ·
 //       2 harness (the control arm failed, or a mutation could not be planted).
 //

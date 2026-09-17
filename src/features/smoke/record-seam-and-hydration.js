@@ -2708,6 +2708,15 @@ export default [
     }
     const noAuth = A.buildAccrueRequest({ url: 'https://x.supabase.co', slot: 0 });
     assert(!('Authorization' in noAuth.init.headers), 'a bearer header was invented with no token to put in it');
+    /* ⚠ ONE key, and the MISSING key is the point — the message says why. */
+    const keys = Object.keys(JSON.parse(noAuth.init.body));
+    assert(keys.length === 1 && keys[0] === 'slot',
+      'the accrue intent must carry ONE integer and NO client-chosen window; got '
+      + JSON.stringify(keys) + '. The window END is a server now() (hr-accrue/index.ts:540, :638) '
+      + 'and accrued_to advances to it (accrual.js:2480), so the forfeited sub-tick carry '
+      + '(measured in tests/settle-carry-loss.mjs: up to 6.66% on a 7000ms node) is NOT fixable '
+      + 'here — a client-supplied `to` is exactly the forged-value faucet CLAUDE.md §1 forbids. '
+      + 'Fix it where the watermark is chosen, as accrueRested already does (index.ts:1063).');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════

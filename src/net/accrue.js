@@ -440,10 +440,11 @@ export function dropPendingCombatXp(snap, g) {
    CONFIRMS it closed the window. Snapshots taken while deferred are supersets of
    each other (a refusal drains nothing), so they merge by MAX, never by sum — a
    sum would subtract the same XP twice and delete honest later gains.
-   ⚠ This does NOT recover the undercount: the window a confirmed settle paid is
-   priced unattended by the away sim, and re-submitting after it cannot help
-   (the RPC's cap is floored at `accrued_to`, so elapsed≈0 ⇒ cap 0). Closing that
-   gap is a server change; this closes the LOSS. */
+   The undercount it leaves — the window is priced unattended by the away sim —
+   is closed by `2026-09-17-attended-xp-on-settle`: the settle stamps the span it
+   priced and the next credit within 120 s tops it up, so the deferral is now
+   RE-SUBMITTED on a confirmed settle rather than dropped (see
+   resolveCombatXpDeferral). */
 let deferredCombatXp = null;
 
 /** Hold a refused snapshot until a settle confirms it owns the window. */
@@ -459,18 +460,82 @@ export function deferPendingCombatXp(snap) {
 }
 /** What the settle currently owes (read-only; null when nothing is deferred). */
 export function pendingCombatXpDeferral() { return deferredCombatXp; }
-/** Test seam: forget any deferral. */
-export function __resetCombatXpDeferral() { deferredCombatXp = null; }
 /**
- * A settle answered. ONLY `accrued`/`nothing` mean the away window is closed and
- * therefore paid — every other outcome leaves it open, so the deferral stands and
- * the next flush re-submits it. Returns the XP actually dropped.
+ * A credit was ADMITTED. The flush sends the WHOLE pending map, which is always a
+ * superset of anything deferred (a refusal drains nothing), so those fights have
+ * now been paid and the debt is void. Without this the deferral would outlive its
+ * payment and the next confirmed settle would restore XP the server already
+ * credited — a double credit on a ranked surface, and the reason `restore` (not
+ * `drop`) needs an explicit retirement point. Found by the in-page pair.
  */
+export function retireCombatXpDeferral() { const had = !!deferredCombatXp; deferredCombatXp = null; return had; }
+/** Test seam: forget any deferral. */
+export function __resetCombatXpDeferral() { deferredCombatXp = null; reflushP = null; }
+/** Put a held snapshot BACK into the pending map, merging by MAX (never by sum:
+    the live map may already hold these very fights, and summing would credit the
+    same kill twice). Returns how much the map grew. */
+export function restorePendingCombatXp(snap, g) {
+  if (!snap || typeof snap !== 'object') return 0;
+  const G = g || (typeof window !== 'undefined' ? window.G : null);
+  if (!G) return 0;
+  if (!G._combatXpPending || typeof G._combatXpPending !== 'object') G._combatXpPending = {};
+  let added = 0;
+  for (const k in snap) {
+    const n = Math.max(0, Math.floor(Number(snap[k]) || 0));
+    if (n <= 0) continue;
+    const have = Math.max(0, Math.floor(Number(G._combatXpPending[k]) || 0));
+    if (n > have) { G._combatXpPending[k] = n; added += n - have; }
+  }
+  return added;
+}
+
+/* The re-flush this module fired, exposed so a test can await the whole chain
+   (settle → restore → credit) without sleeping on ticks. Never awaited in prod:
+   requestAccrual is still `inFlight` at the call site and the flush's own
+   forced-caller path awaits accrual, so awaiting here would deadlock. */
+let reflushP = null;
+export function combatXpReflushPromise() { return reflushP; }
+
+/**
+ * A settle answered. ONLY `accrued`/`nothing` mean the away window is closed.
+ *
+ * ── S-1 (2026-09-17): CLAIM THE SPAN, DO NOT DROP IT ────────────────────────
+ * The old shape dropped the deferred snapshot here, on the theory that the away
+ * simulation had just paid that window. It did pay it — at the AWAY rate, well
+ * below what the player actually fought for. `2026-09-17-attended-xp-on-settle`
+ * makes the settle STAMP the span it just priced (`player_state.combat_settle_span`)
+ * and lets the NEXT `hr_credit_combat_xp` within 120 s top that span up to
+ * `least(claim, cap(span)) - sim_xp` — i.e. `max(sim_xp, cap(span))`, never the
+ * sum. That top-up is only reachable if the client RE-SENDS the snapshot the
+ * refusal deferred. Dropping it stamped a span nobody ever claimed, which the
+ * next settle then NULLed: the server half would have been inert.
+ * So: restore the snapshot into the pending map and fire the ORDINARY flush now,
+ * one round trip after the settle and well inside the grace. No branching on any
+ * server flag — the client does not hold, and must not gate on, the stamp:
+ * - a settle that stamped nothing (a short one, or `nothing`) simply credits the
+ *   ordinary window, which the migration's §4 gate (h) pins as "absent stamp ⇒
+ *   still the ordinary window / still `settle_first` when the watermark is stale";
+ * - a re-flush REFUSED again re-defers and asks for a settle, which the accrual
+ *   gate answers `throttled` WITHOUT resolving a deferral — so the loop is
+ *   bounded at one re-flush per settle and the XP just waits for the cadence.
+ * ⚠ ACCEPTED LOSS: a settle issued as a collect-before-switch (set-activity.js)
+ * is followed by the switch intent, whose `hr_apply` delta NULLs the stamp first.
+ * That is the migration's design (a span cannot outlive its round trip); the
+ * window keeps the away price it always had. Nothing is predicted or shown here.
+ * Returns the XP restored to the pending map. */
 export function resolveCombatXpDeferral(outcome, g) {
   if (outcome !== 'accrued' && outcome !== 'nothing') return 0;
   const owed = deferredCombatXp;
   deferredCombatXp = null;
-  return owed ? dropPendingCombatXp(owed, g) : 0;
+  if (!owed) return 0;   // AWAY: nothing was deferred ⇒ this settle fires no credit of its own
+  const restored = restorePendingCombatXp(owed, g);
+  const flush = (typeof window !== 'undefined') ? window.hrCreditCombatXpFlush : null;
+  if (typeof flush === 'function') {
+    /* A microtask hop, so `inFlight` is cleared before the flush can ask for an
+       accrual; the flush is async anyway, so this costs nothing real. */
+    reflushP = Promise.resolve().then(() => flush(true)).catch(() => null);
+  }
+  return restored;
 }
 
 /* The pending map as a plain snapshot, for the skipped-flush case below. */
@@ -585,9 +650,10 @@ export async function requestAccrual(opts) {
       dropPendingCombatXp(skippedSnap);
     }
     /* A credit REFUSED with `settle_first` deferred its snapshot to this settle.
-       Confirmed close ⇒ the away sim paid that window, so drop it (never credit
-       the same fights twice). Any other outcome ⇒ nothing was paid and the XP
-       stays pending for the next flush. */
+       Confirmed close ⇒ the settle stamped the span it just priced away, so the
+       snapshot goes back into the pending map and re-flushes NOW, inside the
+       server's 120 s top-up grace. Any other outcome ⇒ nothing was paid and the
+       deferral stands for the next flush. */
     try { if (out) resolveCombatXpDeferral(out.outcome); } catch (e) {}
     return out;
   } finally { inFlight = null; }
@@ -5833,6 +5899,7 @@ if (typeof window !== 'undefined') {
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
     deferPendingCombatXp, pendingCombatXpDeferral, resolveCombatXpDeferral, __resetCombatXpDeferral,   // a `settle_first` refusal defers, never discards
+    restorePendingCombatXp, combatXpReflushPromise, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,

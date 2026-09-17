@@ -216,10 +216,22 @@ export async function combatXpSettleFirstGuard() {
         A.resolveCombatXpDeferral('unreachable', G3);
         ok((Number(G3._combatXpPending.attack) || 0) === 700,
           'an unconfirmed settle retired the deferred XP - nothing was paid, so the next flush must still be able to send it');
-        // ...a CONFIRMED one retires exactly the deferred snapshot.
-        const dropped = A.resolveCombatXpDeferral('accrued', G3);
-        ok(dropped === 700 && (Number(G3._combatXpPending.attack) || 0) === 0,
-          `THE DOUBLE-CREDIT: a confirmed settle left ${G3._combatXpPending.attack} XP pending - the settle paid that window by simulation and the next flush would pay it again`);
+        // ...and a CONFIRMED one RE-SUBMITS it (S-1, 2026-09-17). The settle
+        // stamped the span it just priced away; the server's top-up is reachable
+        // only by a credit that arrives within 120 s, so the confirmed settle
+        // must put the snapshot back and flush - dropping it here would leave the
+        // stamp unclaimed and the window priced away forever (the server half
+        // inert). No double credit: the top-up subtracts what the sim paid.
+        G3._combatXpPending.attack = 0;                  // as if a drain had run
+        let reflushed = 0;
+        globalThis.window.hrCreditCombatXpFlush = (f) => { reflushed += (f === true ? 1 : 0); return Promise.resolve(null); };
+        const restored = A.resolveCombatXpDeferral('accrued', G3);
+        ok(restored === 700 && (Number(G3._combatXpPending.attack) || 0) === 700,
+          `THE UNCLAIMED SPAN: a confirmed settle restored ${restored} XP and left ${G3._combatXpPending.attack} pending - the deferred snapshot must go back so the settle's span top-up can be claimed`);
+        await A.combatXpReflushPromise();
+        ok(reflushed === 1,
+          'a confirmed settle did not fire the forced re-flush - the stamped span expires unclaimed after 120 s and the next settle NULLs it');
+        delete globalThis.window.hrCreditCombatXpFlush;
         A.__resetCombatXpDeferral();
       }
     } finally {

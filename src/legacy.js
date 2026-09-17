@@ -4376,6 +4376,10 @@ function hrCreditCombatXpFlush(force){
          so the snapshot IS the applied amount and the fallback is correct.
          New gains since the snapshot always remain: the map is re-read here, at
          resolution time, never captured. */
+      /* An ADMITTED credit pays everything pending, so any `settle_first` debt it
+         carried is void — leaving it would make the NEXT confirmed settle restore
+         XP the server already credited. */
+      if(_AC&&typeof _AC.retireCombatXpDeferral==='function') _AC.retireCombatXpDeferral();
       if(!G._combatXpPending||typeof G._combatXpPending!=='object') G._combatXpPending={};
       const _applied=(cr.credited && typeof cr.credited==='object' && !Array.isArray(cr.credited)) ? cr.credited : null;
       for(const k in snap){
@@ -4391,11 +4395,11 @@ function hrCreditCombatXpFlush(force){
          these fights. The old shape dropped here on the refusal alone, so a
          throttled background tab (stale watermark every window) deleted its own
          attended XP even when the settle then failed or the tab closed. Now the
-         snapshot is held by accrue.js and dropped only on a confirmed settle —
-         the same asymmetry the BOOT path has always had — and we ASK for that
-         settle now instead of waiting for the 90 s cadence a throttled timer is
-         not running. Never awaited: this callback can run inside the settle's own
-         forced flush, and awaiting it there would deadlock. */
+         snapshot is held by accrue.js and, once a settle CONFIRMS, put back and
+         RE-SENT inside the server's 120 s span top-up grace (S-1) — and we ASK
+         for that settle now instead of waiting for the 90 s cadence a throttled
+         timer is not running. Never awaited: this callback can run inside the
+         settle's own forced flush, and awaiting it there would deadlock. */
       if(_AC&&typeof _AC.deferPendingCombatXp==='function') _AC.deferPendingCombatXp(snap);
       else if(_AC&&typeof _AC.dropPendingCombatXp==='function') _AC.dropPendingCombatXp(snap,G);
       try{ if(_AC&&typeof _AC.requestAccrual==='function') Promise.resolve(_AC.requestAccrual({})).catch(function(){}); }catch(e){}

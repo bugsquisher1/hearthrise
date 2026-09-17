@@ -1575,21 +1575,133 @@ export default [
       assert(calls.length === 2 && (calls[1].attack || 0) === 600 && (calls[1].strength || 0) === 200,
         'the deferred attended XP must be RE-SUBMITTED once the credit is admitted again; sent ' + JSON.stringify(calls[1] || null));
       assert((window.G._combatXpPending.attack || 0) === 0, 'the admitted re-submit drains what the server applied');
+      assert(!A.pendingCombatXpDeferral(),
+        'an ADMITTED credit must void the debt — otherwise the next confirmed settle restores XP the server has already credited (double credit)');
 
       // ── (3) the other half: a CONFIRMED settle retires the debt (no double credit) ──
       refuse = true;
       window.G._combatXpPending = { attack: 400 };
       await window.hrCreditCombatXpFlush(true);
       assert((window.G._combatXpPending.attack || 0) === 400, 'still deferred, not dropped, on the refusal');
-      const dropped = A.resolveCombatXpDeferral('accrued');
-      assert(dropped === 400 && (window.G._combatXpPending.attack || 0) === 0,
-        'a CONFIRMED settle paid that window by simulation — the deferred snapshot must be dropped or the same fights would be credited twice; dropped=' + dropped);
-      assert(!A.pendingCombatXpDeferral(), 'the debt is cleared once retired');
+      window.G._combatXpPending = {};                       // as if a drain had run
+      const restored = A.resolveCombatXpDeferral('accrued');
+      assert(restored === 400 && (window.G._combatXpPending.attack || 0) === 400,
+        'a CONFIRMED settle stamps the span it just priced away — the deferred snapshot must go BACK so the server top-up can be claimed; restored=' + restored);
+      assert(!A.pendingCombatXpDeferral(), 'the debt is cleared once handed back to the pending map');
+      await A.combatXpReflushPromise();       // let the re-flush land on the stubs, not on the real RPC
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.HearthriseGoalClaim = origClaim;
       A.__resetAwaySettleLatch(origLatch);
       A.requestAccrual = origReq;
+      A.__resetCombatXpDeferral();
+      restoreG(snap);
+    }
+  }),
+
+  /* COMBAT-XP-SETTLE-FIRST-3 / ATTENDED (regression suite) — Security S-1 on
+     2026-09-17-attended-xp-on-settle. The server half stamps
+     `player_state.combat_settle_span` on a >180 s stale settle and lets the NEXT
+     hr_credit_combat_xp within 120 s top that span up to the attended cap
+     (minus what the away sim already paid). It is reachable ONLY if the client
+     re-sends the snapshot the `settle_first` refusal deferred. The client DROPPED
+     it on a confirmed settle, so the stamp was written, never claimed, and NULLed
+     by the next settle: the whole server half inert and the window priced away.
+     MUTATION: make resolveCombatXpDeferral drop (dropPendingCombatXp) again →
+     "must be RE-SUBMITTED" goes RED.
+     AWAY half: COMBAT-XP-SETTLE-FIRST-4 below. */
+  () => tryRunAsync('COMBAT-XP-SETTLE-FIRST-3 (attended): a stale settle confirmed ⇒ the deferred attended XP is re-submitted ONCE, inside the top-up grace', async () => {
+    const A = window.HearthriseAccrual;
+    assert(typeof A.restorePendingCombatXp === 'function' && typeof A.combatXpReflushPromise === 'function',
+      'THE UNCLAIMED SPAN: accrue.js has no restore/re-flush seam — a confirmed settle drops the deferral, so the span the settle stamped is never claimed');
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    const origLatch = !!A.awaySettleDone();
+    const origReq = A.requestAccrual;
+    try {
+      A.__resetCombatXpDeferral();
+      const calls = []; let refuse = true;
+      A.requestAccrual = () => Promise.resolve({ outcome: 'accrued' });
+      window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: (m) => {
+          calls.push(JSON.parse(JSON.stringify(m)));
+          return Promise.resolve(refuse ? { ok: false, error: 'settle_first' } : { ok: true, credited: m });
+        },
+      };
+      A.__resetAwaySettleLatch(true);
+
+      // (1) the attended flush is refused because the watermark is >180 s stale.
+      window.G._combatXpPending = { attack: 500, strength: 120 };
+      await window.hrCreditCombatXpFlush(true);
+      assert(calls.length === 1, 'the first flush must reach the RPC once; it fired ' + calls.length);
+
+      // (2) the settle CONFIRMS. It has just stamped the span it priced away, so
+      //     the deferral is handed back and re-flushed — one round trip, far
+      //     inside the server's 120 s grace, with no intent sent in between.
+      refuse = false;
+      const t0 = Date.now();
+      A.resolveCombatXpDeferral('accrued');
+      await A.combatXpReflushPromise();
+      assert(Date.now() - t0 < 120000, 're-flush must land inside the 120 s top-up grace');
+      assert(calls.length === 2, 'THE UNCLAIMED SPAN: the confirmed settle sent ' + (calls.length - 1)
+        + ' follow-up credit(s) — the stamped span must be claimed by exactly one re-submit');
+      assert((calls[1].attack || 0) === 500 && (calls[1].strength || 0) === 120,
+        'the re-submit must carry the deferred snapshot; sent ' + JSON.stringify(calls[1]));
+
+      // (3) it is idempotent in the ordinary way: the admitted credit drained the
+      //     map, so a second flush has nothing to send (never a second top-up).
+      await window.hrCreditCombatXpFlush(true);
+      assert(calls.length === 2, 'a second flush re-sent the same fights — the drained map must send nothing');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseGoalClaim = origClaim;
+      A.__resetAwaySettleLatch(origLatch);
+      A.requestAccrual = origReq;
+      A.__resetCombatXpDeferral();
+      restoreG(snap);
+    }
+  }),
+
+  /* COMBAT-XP-SETTLE-FIRST-4 / AWAY (regression suite) — the other half of the
+     pair. A genuine absence has no deferred attended snapshot: the settle pays
+     the window by simulation and the client must send NO credit afterwards, or
+     the away window would be claimed at the attended rate. */
+  () => tryRunAsync('COMBAT-XP-SETTLE-FIRST-4 (away): a confirmed settle with nothing deferred sends no credit at all', async () => {
+    const A = window.HearthriseAccrual;
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField;
+    const origClaim = window.HearthriseGoalClaim;
+    const origLatch = !!A.awaySettleDone();
+    try {
+      A.__resetCombatXpDeferral();
+      const calls = [];
+      window.clientMayWriteRecordField = function (f) { return f !== 'skills'; };
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => true,
+        creditCombatXp: (m) => { calls.push(m); return Promise.resolve({ ok: true, credited: m }); },
+      };
+      A.__resetAwaySettleLatch(true);
+      /* XP is pending, but NOTHING was deferred: no `settle_first` refusal ever
+         happened, so this settle is an ordinary away window the simulation just
+         priced. The confirmed settle must therefore fire NO credit of its own —
+         a credit here would claim the absence at the attended rate and stamp the
+         watermark over it. The cadence flush owns this map, not the settle. */
+      window.G._combatXpPending = { attack: 300 };
+
+      const restored = A.resolveCombatXpDeferral('accrued');
+      assert(restored === 0 && !A.pendingCombatXpDeferral(),
+        'an away settle has no debt to restore; restored=' + restored);
+      const p = A.combatXpReflushPromise();
+      if (p) await p;
+      assert(calls.length === 0,
+        'THE AWAY DOUBLE-CREDIT: the client sent a combat-XP credit after an away settle — that window was paid by the simulation');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.HearthriseGoalClaim = origClaim;
+      A.__resetAwaySettleLatch(origLatch);
       A.__resetCombatXpDeferral();
       restoreG(snap);
     }

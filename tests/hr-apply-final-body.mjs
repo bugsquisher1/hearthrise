@@ -264,7 +264,17 @@ async function main() {
      Not a file mutation: the point is what §0 does when it meets a body that
      was patched AFTER the restatement landed, which is what a re-apply on a
      production that has since taken a hotfix looks like. */
-  const { db } = await bootReplay();
+  /* ⚠ `upTo: HR_APPLY_FINAL`, NOT the whole chain, and the distinction is the
+     property being measured. "UNTOUCHED" means *the body as this restatement
+     left it* — the only state §0's `c_code_after` names. Booting the FULL chain
+     was correct only while the restatement was the chain end; the moment a later
+     file anchors on hr_apply (2026-09-17-attended-xp-on-settle.sql adds
+     combat_settle_span to the UPDATE's SET list) the full chain's body is a
+     PATCHED body, and this arm then asserts §0 no-ops over a patch — the exact
+     discard the NEXT arm exists to prove §0 refuses. The two arms were reading
+     the same state and disagreeing about it. Cutting the chain at this file is
+     what makes them describe two different bodies again. */
+  const { db } = await bootReplay({ upTo: HR_APPLY_FINAL });
   try {
     await rerunS0(db, sql);
     console.log('  ok      re-apply on an UNTOUCHED body: §0 is a no-op, as required');

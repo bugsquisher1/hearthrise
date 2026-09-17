@@ -163,6 +163,12 @@ const harness = (m) => { const e = new Error(m); e.harness = true; return e; };
    installs is patched once more by the projection purge, so a mutation to the
    text above has to account for it (see the BLIND entry). */
 const MIG_PROJ = '2026-09-14-client-state-projection-denylist.sql';
+/* THE CURRENT LAST TOUCHER OF hr_apply — the file [14] must measure for
+   idempotency on the FULL chain, because it is the one whose anchors are the
+   most recently-splicable text. Moving this constant when a new file patches
+   hr_apply is the registration step; [14] then covers the newest patch rather
+   than a body two files behind it. */
+const HR_APPLY_LAST = '2026-09-17-attended-xp-on-settle.sql';
 
 /* ── THE §4 BLINDS ─────────────────────────────────────────────────────────
    Each migration's self-check is short-circuited with a `return;` at the head of
@@ -555,7 +561,23 @@ async function run(mutate, blind) {
             pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure) as p`
   )).rows[0];
   const before = await defs();
-  for (const file of [MIG, MIG_DENY, MIG_SCALE, MIG_APPLY]) {
+  /* ⚠ MIG_APPLY IS NO LONGER IN THIS LOOP, AND THAT IS NOT A WEAKENING.
+     The restatement's §0 recognises exactly two bodies: the one it was cut from
+     and the one it installs. It REFUSES anything else, deliberately — a
+     restatement applied over a body a later file has patched would DISCARD that
+     patch (the b484 class). 2026-09-17-attended-xp-on-settle.sql is now that
+     later file (it adds combat_settle_span to hr_apply's UPDATE SET list), so on
+     the FULL chain a second apply of the restatement is a refusal BY DESIGN and
+     asserting it "runs clean" would be asserting the discard is fine.
+       The property [14] actually wants — "every anchored patch on hr_apply is
+     idempotent" — is preserved and in fact widened: MIG_APPLY is re-applied
+     below on a chain cut at itself, where it IS the end and §0's `c_code_after`
+     names the installed body; and HR_APPLY_LAST, the CURRENT chain end, joins
+     this full-chain loop so the newest patch is the one measured here. The
+     refusal itself is driven as its own arm by
+     tests/hr-apply-final-body.mjs --selftest ("re-apply after a LATER anchored
+     patch: §0 refuses"). */
+  for (const file of [MIG, MIG_DENY, MIG_SCALE, HR_APPLY_LAST]) {
     let sql = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
     /* The SAME patched text the chain was built from, so under a mutation this
        measures the MUTATED file's idempotency rather than a mismatch. */
@@ -567,6 +589,40 @@ async function run(mutate, blind) {
     try { await db.exec(`begin;\n${sql}\ncommit;`); } catch (e) { err = e; await db.exec('rollback').catch(() => {}); }
     ok(!err, `[14] a second apply of ${file} did not run clean — ${err && String(err.message).split('\n')[0]}`);
   }
+  /* [14b] THE RESTATEMENT'S OWN IDEMPOTENCY, MEASURED WHERE IT IS THE CHAIN END.
+     A separate replay cut at MIG_APPLY: there the installed hr_apply is exactly
+     what §0's c_code_after names, so a second apply must be a clean no-op and
+     must leave the body byte-identical. This is the half the full-chain loop
+     above can no longer make, and dropping it rather than moving it would have
+     retired a real property. */
+  /* ⚠ SKIPPED WHEN THE MUTATION PATCHES MIG_APPLY ITSELF, and not to be tidy:
+     §0's two hash constants live in the file being mutated, so a mutated
+     restatement installs a body its own unmutated constants cannot name and the
+     re-apply refuses for a reason that has nothing to do with the defect under
+     test. Left in, [14b] fails under 6 of the 23 mutations and inflates every
+     "N assertion(s) failed" count — noise that would eventually hide a mutant
+     that only [14b] catches. The clean baseline still runs it, which is where
+     idempotency is the question being asked. */
+  if (!((patchesFor(mutate, blind) || new Map()).has(MIG_APPLY))) {
+    const { db: db2 } = await bootReplay({ patches: patchesFor(mutate, blind), upTo: MIG_APPLY });
+    const body = async () => (await db2.query(
+      `select pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure) as a`
+    )).rows[0].a;
+    const b0 = await body();
+    let sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG_APPLY), 'utf8')).replace(/\r\n/g, '\n');
+    for (const [f, r] of (patchesFor(mutate, blind) || new Map()).get(MIG_APPLY) || []) {
+      if (sql.split(f).length - 1 !== 1) throw harness(`[14b] anchor matched != 1 time in ${MIG_APPLY}`);
+      sql = sql.replace(f, () => r);
+    }
+    let err = null;
+    try { await db2.exec(`begin;\n${sql}\ncommit;`); } catch (e) { err = e; await db2.exec('rollback').catch(() => {}); }
+    ok(!err, `[14b] a second apply of ${MIG_APPLY} at its own chain position did not run clean — `
+      + `${err && String(err.message).split('\n')[0]}`);
+    ok(!err && b0 === await body(),
+      '[14b] the hr_apply body CHANGED when the restatement was re-applied at its own chain position');
+    await db2.close?.();
+  }
+
   const after = await defs();
   ok(before.a === after.a, '[14] the hr_apply body CHANGED on a second apply — the anchored patch is not '
     + 'idempotent, and it patches a body ten patches deep');
@@ -1578,8 +1634,10 @@ if (RUN_DIRECTLY) {
       + 'the accrual engine is BYTE-IDENTICAL with no live buff and demonstrably richer with one; the '
       + 'Cellar rung the player BOUGHT is what lengthens the buff (scale 1.0 with no Cellar, each rung '
       + "paying its own payload from a catalogue equal to src/data/perks.js, the number on the envelope "
-      + "and on the apply's ONE ledger row); and a second apply of all three migrations leaves all "
-      + 'three bodies byte-identical.');
+      + "and on the apply's ONE ledger row); and a second apply of the buff migrations and of "
+      + "hr_apply's CURRENT last toucher leaves every body byte-identical, with the restatement's own "
+      + 'idempotency measured at its own chain position, where its §0 hash constants still name the '
+      + 'installed body.');
     process.exit(0);
   } catch (e) {
     if (e && e.harness) { console.error(`buff-queue: HARNESS — ${e.message}`); process.exit(2); }

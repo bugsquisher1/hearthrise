@@ -215,7 +215,13 @@ export const READ_SQL = `
    READ_SQL `now()`. This statement runs after that read, so a window bounded
    only below by `accrued_to` would project credit rows committed in the gap: paid
    here, and projected again on the next settle. hr_attended_kills clamps it with
-   `least(p_upto, now())`, so a wrong value can only ever pay LESS. */
+   `least(p_upto, now())`, so a wrong value can only ever pay LESS.
+   ⚠ THIS CALLER IS `finalWindow: true` (below), and that is what keeps the
+     sentence "it is the instant `accrued_to` will advance to" literally true
+     here after 2026-09-16. The accrue verb now defers an uncapped window's
+     sub-tick remainder (accrual.js `settledWatermarkMs`); a COLLECT has no next
+     call to defer into, so the engine refuses to move it and this collect still
+     settles to `nowMs` exactly. */
 const SEED_SQL = `
   select (public.hr_seed($1::uuid, $2::int, $3::text) & 4294967295)::bigint as seed,
          public.hr_seed($1::uuid, $2::int, $4::text)::text                  as salt,

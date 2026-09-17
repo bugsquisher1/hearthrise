@@ -293,3 +293,51 @@ three properties — never past `now`, strictly advancing on every uncapped wind
 3. `hr_engine` remains trusted to propose a legal watermark, as the section above already records.
    The deferral does not widen that trust: the value is still clamped twice, in the engine and
    again in `hr_apply`.
+
+---
+
+## 2026-09-17 — Security review: `2026-09-17-attended-xp-on-settle.sql` (lane C, NOT APPLIED)
+
+Verdict: **GO-WITH-CHANGES**. The server half is sound; the blocking condition is
+client-side and belongs to the systems-engineer lane, not to this file.
+
+### What was executed
+| Command | Exit / result |
+|---|---|
+| `node tests/live-settlement.mjs --mutate` | 0 — 11/11 caught incl. `topup-pays-on-top` |
+| `node tests/schema-drift.mjs` | 0 — rebuilds to `676a62498631…` |
+| `node tests/patch-chain-guard.mjs` | 0 — **green**, ACK recognised; `hr_credit_combat_xp__ungated` carried on the slice-7 list |
+| `node tests/restore-census.mjs` | 0 — no new table; pre-existing 3-row ledger residue unchanged |
+| `node tools/lane-done.mjs` | 0 — all green |
+| live read-only grant probe (prod) | `player_state`: SELECT-only to `authenticated`, one SELECT policy, no UPDATE/INSERT/ALL; `hr_apply` and `hr_credit_combat_xp__ungated` execute = false for anon/authenticated/service_role; `combat_settle_span` absent (file genuinely unapplied) |
+
+### Findings
+| # | Surface | Status | Blast radius | Severity |
+|---|---|---|---|---|
+| S-1 | b548 client drops the deferred XP on `accrued` (`src/net/accrue.js:469-474`, `:587-589`); the migration requires a **re-send** after the settle. The span is stamped and never claimed. | CONFIRMED (code read) | self only, under-pay — the P1 is **not fixed** by applying this alone | P1 efficacy, not security |
+| S-2 | The physical cap is linear with no constant term; `cap(1h)` = 16.7M–29.9M XP vs the 5M/day combat ceiling (reached in 10–18 min of elapsed on the **ordinary** path too). The top-up adds no new ceiling — the day budget is and remains the only binding anti-forgery bound. | CONFIRMED (cap body + arithmetic) | pre-existing residual, unchanged | accepted |
+| S-3 | `GATE(d)` proves single-consumption **sequentially**, not under concurrency; the guarantee rests on `pg_advisory_xact_lock` + `for update` (`GATE(R4)`). | PLAUSIBLE-closed | none observed | accepted |
+| S-4 | A second settle whose span is <=180 s NULLs a live stamp, silently disabling the top-up for that window. | CONFIRMED | under-pay only | accepted |
+
+Closed with evidence: client-forged span (grants + `GATE(b)` + live probe), direct
+`hr_apply` call (revoked, live-verified), span replay / second idem key
+(`GATE(d)`/`(e)`), reach-past-span (`v_span_to = v_accrued`, `GATE(f)`), mid-span
+activity switch (every non-accrual `hr_apply` delta NULLs the stamp, `GATE(i3)`),
+inflated `p_delta.xp` (engine-authored, and it only ever *subtracts*),
+projection leak (`hr_state_of` is an explicit `jsonb_build_object`; zero
+references to the column anywhere under `src/**`).
+
+### Conditions of the GO
+1. **The client re-flush (S-1) lands before or with the apply.** A confirmed
+   settle must re-submit the deferred snapshot inside the 120 s grace instead of
+   dropping it, with a smoke test that fails without it. Applying this migration
+   without it installs a dormant patch on a money function for zero player gain.
+2. **Restatement (item 12): do NOT restate from the repo before apply.** A
+   repo-authored restatement of a 7-deep live body is the b484 class and already
+   dropped the recovery floor once on this exact function (2026-09-09). The ACK
+   plus the eight `GATE(R*)` re-reads of the INSTALLED text is the correct
+   bounded control. The Coordinator's obligation instead: capture
+   `pg_get_functiondef` of `hr_apply` and `hr_credit_combat_xp__ungated`
+   **immediately before and immediately after** the apply, diff them, confirm the
+   only delta is the five splices, then `live-hash-drift --live --write`. The
+   paydown restatement is authored FROM that captured live text, in its own lane.

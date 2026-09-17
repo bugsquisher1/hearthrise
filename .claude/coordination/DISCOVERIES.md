@@ -3220,3 +3220,53 @@ without a client reader is red on the day the migration is written.
 `renownHigh` pin at 0 only because `legacy.js` / `renown.js` are their reader files. And
 `streak-chip.js` still ADVANCES `G.streak.count` on a client clock — the guard freezes the read
 count, it does not yet forbid the client-authored write.
+
+## 2026-09-16 · QA · buys = 0 is DEMAND, not a break — plus two pre-existing reds on set/b548
+
+**Buys = 0 (2026-09-16/17): no client-side break found.** The verb was not renamed: the edge still
+journals `kind:'shop'`, `intent:'shop_buy:<offer>'` (`supabase/functions/hr-accrue/shop-buy.js:103-104`)
+and `tools/vitals.mjs:57` still counts exactly that, so a real buy is still visible. Every one of the
+32 shop rows (`SEED_SHOP`/`EQUIP_SHOP`, `src/legacy.js:553-554`) resolves through `resolvePurchase`
+(`src/net/gold.js:228`) to a real offer — 0 unsendable, so no gesture dies at the one client-side
+step the journal cannot see, and `offerByItem` drops 0 offers to ambiguity. The ledger's
+`kind='shop'` path was ALIVE on 2026-09-16 (`rooms = 4`, i.e. `unlock_buy:room.*` rows).
+**Not ruled out:** a live buy on the QA account — the smoke suite signs in with the harness against
+its own static server, and the only live-intent tool (`tools/probe-intent.mjs:50`) prompts for a
+password I do not have and must not enter. One live buy would close this in a minute.
+
+**Fail-closed affordability is the one remaining candidate and it is BY DESIGN:** `gold` is
+server-of-record, so `balanceOf` returns UNKNOWN whenever the record has no gold
+(`src/net/balance.js:111-121`), `balCanAfford` refuses (`src/legacy.js:10399`) and
+`src/render/shop.js:274,306` renders every Buy button `disabled`. Correct (a player is never told a
+lie about their gold), but a player in that state presses nothing and the server sees nothing —
+worth a telemetry line if buys stay flat: a DISABLED shop is indistinguishable from an empty one.
+
+**P3 · the desktop-mode banner covers the gold readout — but ONLY in the state it fires in.**
+Measured on set/b548 with real Playwright device contexts: at 852x393 and 922x423 in the visual-qa
+harness environment (no touch, desktop UA, dpr 1) AND on a REAL landscape phone (Android UA, dpr
+2.75, hasTouch) the predicate is FALSE and no banner is built. It fires only with Desktop Site ON
+(touch + desktop UA + dpr 1 + innerWidth >= 820), which is the state it exists for — and there it is
+91px tall at `top:0` and overlaps `#top-gold` / `#top-gems` by 17px and `.topbar` by 40px
+(`src/desktop-mode-detector.js:96-104`). So the Art Director's "every landscape screen" reading is
+their own environment, not set/b548's harness (the committed `docs/reports/visual-qa/findings.json`
+on set/b548 contains zero `under-fixed-bar` findings); the DEFECT they name is real in the fire
+state — push the app down or dock the banner at the bottom, it must not cover gold.
+
+**P1 (release gate, not mine) · `node tests/run-smoke.mjs` on set/b548 = EXIT 1**, 1302/1315 passed,
+0 test failures, 0 runtime errors, 13 skipped — red on two GUARDS, both pre-existing:
+(1) `2026-09-14-hr-state-of-restatement.sql` is not on `HR_STATE_OF_CHAIN` in
+`tests/run-sql-tests.mjs` (route: Backend / the lane that applied it);
+(2) the edge payload guard — deployed `hr-accrue` reports `e33b8b8e…`, this repo packs to
+`66d7614e…`, so hr-accrue needs a redeploy before the cut (route: Coordinator).
+
+**settle_first ×27/×14 on `hr_credit_combat_xp`, one character:** expected ordering, with a real
+cost. The server refuses the credit when the settle watermark is more than 180s stale
+(`supabase/migrations/2026-09-09-combat-xp-settle-first.sql:212-214`) and the client then DROPS the
+pending attended XP (`src/legacy.js:4386`) because the away settle owns that window. No XP is lost
+outright — the watermark never moved, so the next settle still pays that window — but it pays it by
+SIMULATION, which by the client's own comment "prices this window UNATTENDED and undercounts 60-99%"
+(`src/legacy.js:3606-3610`). Note the asymmetry: the boot path drops its snapshot only after a
+CONFIRMED `accrued`/`nothing` (`src/net/accrue.js:535-538`), the settle_first path drops on the
+refusal alone. So 27 refusals in a day = up to 27 windows of attended combat repriced as away, on
+one character whose accrual cadence lagged >180s (a backgrounded tab throttles the timers). Routed
+to Systems as the attended-settle-gap class, P2 — not an XP-credit loss.

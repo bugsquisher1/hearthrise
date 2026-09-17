@@ -1182,7 +1182,7 @@ begin
       values (v_uid, v_slot, 'stat', 'ev:kill_any', 12, '', 'active')
       on conflict (user_id, slot, kind, key, period_key)
         do update set value = public.player_progress.value + 12;
-    update public.hr_kill_credit_log set created_at = now() - interval '5 minutes'
+    update public.hr_kill_credit_log set created_at = greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')
       where user_id = v_uid and slot = v_slot;
     -- the player kept fighting: 15 MORE observed kills, of which the settle
     -- already accounted for 12. Only 3 may land.

@@ -425,6 +425,54 @@ export function dropPendingCombatXp(snap, g) {
   return dropped;
 }
 
+/* ── SETTLE-FIRST DEFERRAL, NOT A DISCARD (2026-09-17) ──────────────────────
+   A `settle_first` REFUSAL is not proof that anything was paid. The server
+   refuses because `accrued_to` is >180 s stale (a throttled background tab hits
+   this every window) and — the load-bearing half of that migration — the refusal
+   writes NOTHING: no XP, no ledger, no watermark move. Its own comment states the
+   contract it expects of us: "The client keeps its pending XP and re-flushes
+   after the settle." Dropping on the refusal alone (the old C1 shape) assumed a
+   settle that may never land — a halted gate, an unreachable network or a closed
+   tab and the player's observed attended XP is deleted by their own client with
+   nothing having paid it, while the asymmetric BOOT path next door has always
+   waited for a confirmed `accrued`/`nothing` before dropping.
+   So the refused snapshot is DEFERRED here and dropped only when a settle
+   CONFIRMS it closed the window. Snapshots taken while deferred are supersets of
+   each other (a refusal drains nothing), so they merge by MAX, never by sum — a
+   sum would subtract the same XP twice and delete honest later gains.
+   ⚠ This does NOT recover the undercount: the window a confirmed settle paid is
+   priced unattended by the away sim, and re-submitting after it cannot help
+   (the RPC's cap is floored at `accrued_to`, so elapsed≈0 ⇒ cap 0). Closing that
+   gap is a server change; this closes the LOSS. */
+let deferredCombatXp = null;
+
+/** Hold a refused snapshot until a settle confirms it owns the window. */
+export function deferPendingCombatXp(snap) {
+  if (!snap || typeof snap !== 'object') return null;
+  for (const k in snap) {
+    const n = Math.max(0, Math.floor(Number(snap[k]) || 0));
+    if (n <= 0) continue;
+    if (!deferredCombatXp) deferredCombatXp = {};
+    deferredCombatXp[k] = Math.max(Number(deferredCombatXp[k]) || 0, n);
+  }
+  return deferredCombatXp;
+}
+/** What the settle currently owes (read-only; null when nothing is deferred). */
+export function pendingCombatXpDeferral() { return deferredCombatXp; }
+/** Test seam: forget any deferral. */
+export function __resetCombatXpDeferral() { deferredCombatXp = null; }
+/**
+ * A settle answered. ONLY `accrued`/`nothing` mean the away window is closed and
+ * therefore paid — every other outcome leaves it open, so the deferral stands and
+ * the next flush re-submits it. Returns the XP actually dropped.
+ */
+export function resolveCombatXpDeferral(outcome, g) {
+  if (outcome !== 'accrued' && outcome !== 'nothing') return 0;
+  const owed = deferredCombatXp;
+  deferredCombatXp = null;
+  return owed ? dropPendingCombatXp(owed, g) : 0;
+}
+
 /* The pending map as a plain snapshot, for the skipped-flush case below. */
 function snapshotPendingCombatXp() {
   const G = (typeof window !== 'undefined') ? window.G : null;
@@ -536,6 +584,11 @@ export async function requestAccrual(opts) {
     if (skippedSnap && out && (out.outcome === 'accrued' || out.outcome === 'nothing')) {
       dropPendingCombatXp(skippedSnap);
     }
+    /* A credit REFUSED with `settle_first` deferred its snapshot to this settle.
+       Confirmed close ⇒ the away sim paid that window, so drop it (never credit
+       the same fights twice). Any other outcome ⇒ nothing was paid and the XP
+       stays pending for the next flush. */
+    try { if (out) resolveCombatXpDeferral(out.outcome); } catch (e) {}
     return out;
   } finally { inFlight = null; }
 }
@@ -5779,6 +5832,7 @@ if (typeof window !== 'undefined') {
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
+    deferPendingCombatXp, pendingCombatXpDeferral, resolveCombatXpDeferral, __resetCombatXpDeferral,   // a `settle_first` refusal defers, never discards
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,

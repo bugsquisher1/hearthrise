@@ -444,6 +444,18 @@ export async function sqlGuard() {
     + 'its own fight state');
 }
 
+/* THE FOUR LINES THAT ARE THE RE-CLAMP (SETTLE-1g). Each is asserted in every
+   file that restates hr_apply from fight-carry onward. They are quoted as CODE,
+   not paraphrased: the lookup, the unknown-id refusal, the null-ceiling refusal
+   and the upper bound. Drop any one and a forged checkpoint becomes legal —
+   the lookup's absence admits any id, the ceiling's absence admits any hp. */
+const CEILING_TERMS = [
+  'select max_hp into v_fight_max from public.hr_activities',
+  "hr_reject('unknown_monster'",
+  'if v_fight_max is null then',
+  "(v_fight->>'hp')::numeric > v_fight_max",
+];
+
 // ── The derivation is not hand-edited ──────────────────────────────────────
 export async function derivationGuard() {
   const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'));
@@ -542,10 +554,50 @@ export async function derivationGuard() {
         + 'nothing compares against the one it replaces — which is how b346’s ownership flag, '
         + 'b348’s tool_carry key and this file’s entire fight block disappear in one commit '
         + 'with a green suite.');
+      /* ── SETTLE-1g — THE RE-CLAMP MUST SURVIVE EVERY RESTATEMENT ─────────
+         Security review, 2026-09-16. The `no-hp-ceiling` and `no-monster-lookup`
+         mutants SLIPPED, and the reason is not that the property is unguarded —
+         SETTLE-1c proves it behaviourally on the REPLAYED body — but that both
+         mutants edit `2026-08-17-fight-carry.sql`, which has not been the last
+         toucher of hr_apply since 2026-08-18. Six later links re-install the
+         whole body, so deleting the ceiling from the file that INTRODUCED it
+         changes nothing the database ever executes: a behaviourally inert
+         mutation, graded green, reading as "no detector".
+
+         The three SQL mutants that were CAUGHT were caught by the flat
+         `sql.includes(term)` list below — a text check on that same superseded
+         file — so every textual catch here was already one restatement away
+         from being decorative, and the two that slipped are simply the two
+         terms nobody added to the list.
+
+         The honest property is not "fight-carry still says it": it is that the
+         re-clamp is present in EVERY link that restates hr_apply, because the
+         live body is the LAST link and any one of them dropping it is the mint
+         (name the highest-value boss, claim 1 HP, kill it on the first swing of
+         every window, forever). Membership on HR_APPLY_CHAIN says a restatement
+         is accounted for; this says what it must still contain. Both halves are
+         cheap and neither replaces the behavioural SETTLE-1c. */
+      for (const term of CEILING_TERMS) {
+        ok(body.includes(term),
+          `SETTLE-1g: ${f} restates hr_apply but its body no longer contains "${term}". The `
+          + 'fight re-clamp — the monster-id lookup against hr_activities and the hp ceiling — must '
+          + 'be carried by EVERY link of the chain, because the live body is the last one. Without '
+          + 'it a forged checkpoint names the highest-value boss at 1 HP and every accrual window '
+          + 'kills it on the first swing.');
+      }
     }
   }
   const sql = await readFile(
     join(ROOT, 'supabase', 'migrations', '2026-08-17-fight-carry.sql'), 'utf8');
+  /* The file that INTRODUCED the re-clamp is a chain link too, and it is the
+     one the mutation harness plants in — assert the same terms on it directly,
+     so a deletion there is red here and not only in a later link's diff. */
+  for (const term of CEILING_TERMS) {
+    ok(stripSql(sql).includes(term),
+      `SETTLE-1g: 2026-08-17-fight-carry.sql no longer contains "${term}" — the re-clamp has been `
+      + 'removed from the file that states the property, so every later link derives from a body '
+      + 'that never had it.');
+  }
   for (const term of ['hr_activities', 'bad_fight_hp', "when p_delta ? 'activity' then '{}'::jsonb",
     'player_state_fight_object', 'v_fight_max',
     "v_fight ? 'monster' and v_fight ? 'hp' and v_fight ? 'kills'",   // F2

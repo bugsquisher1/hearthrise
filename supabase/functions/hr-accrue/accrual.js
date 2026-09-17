@@ -2924,7 +2924,23 @@ export function settledWatermarkMs(span, summary, tickMs, opts) {
     Math.min(nat(o.attendedToMs, 0), nowMs),                 // (d)
     nowMs - (grantMs - 1),                                   // strict advance
   );
-  return Math.max(floorMs, nowMs - remainder);
+  /* ⚠ THE CEILING IS STATED, NOT INFERRED (Security review 2026-09-16, F1).
+     The header above asserts this function "only ever returns a value in
+     `[nowMs - grantMs + 1, nowMs]` — never past `now`". It did not: `nat()`
+     does NOT floor (it accepts any finite non-negative Number), so a
+     FRACTIONAL `grantMs` below 1 makes the strict-advance floor
+     `nowMs - (grantMs - 1)` land ABOVE `nowMs`, and the function returns a
+     watermark in the FUTURE. Fuzzed over 76,832 hostile input combinations:
+     exactly one violation class, `{grantMs: 0.5, tickMs: 1}` → `nowMs + 0.5`.
+     It is unreachable from today's callers — every term of
+     `grantMs = min(elapsedMs, sinceActivityMs, capMs)` is integer ms and the
+     accrue path additionally refuses anything below ACCRUE_MIN_MS — and
+     `hr_apply`'s `least(now(), greatest(...))` would clamp it a second time.
+     Both of those are properties of the CURRENT callers, not of this value,
+     which is the same reasoning refusal (d) is closed by construction on. One
+     `Math.min` makes the stated range true by construction instead of by the
+     arithmetic of whoever calls next. tests/settle-carry-defer.mjs D9. */
+  return Math.min(nowMs, Math.max(floorMs, nowMs - remainder));
 }
 
 /* ── THE TOOL CARRY, NORMALISED ─────────────────────────────────────────────

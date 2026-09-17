@@ -301,6 +301,45 @@ console.log('D3..D6 — the four cases where the snap is refused BY DESIGN');
      'the attended floor binds over the carry when it is the later of the two');
 }
 
+// ── D9: THE STATED RANGE, EXECUTED (Security review 2026-09-16, F1) ─────────
+console.log('');
+console.log('D9 — the range the contract header claims, fuzzed rather than asserted');
+{
+  /* The header claims the return "only ever" lands in `[nowMs - grantMs + 1,
+     nowMs]`. That is the whole safety argument: never past `now` (paying for
+     time that has not happened) and never at or below the old watermark (hr_apply
+     clamps `greatest(old, ...)`, so a non-advancing watermark re-pays the SAME
+     span on the next call — a mint, not a loss). A claim that strong is a guard,
+     not a comment. `nat()` does not floor, so the hostile set is deliberately
+     not integers-only: a fractional `grantMs` below 1 put the strict-advance
+     floor ABOVE `nowMs` and returned a FUTURE watermark until the Math.min
+     landed. Mutation proof: drop the `Math.min(nowMs, …)` and D9a goes red. */
+  const NOW = 1_700_000_000_000;
+  const HOSTILE = [0, -1, 1, 0.5, 999.5, NaN, Infinity, -Infinity, 1e18, 2 ** 53,
+                   '90000', null, undefined, {}, [], 60_000, 90_000, 43_200_000];
+  let past = 0, stalled = 0, nonFinite = 0, n = 0, firstPast = null, firstStall = null;
+  for (const g of HOSTILE) for (const st of HOSTILE) for (const tk of HOSTILE) {
+    for (const at of HOSTILE) for (const capped of [true, false]) {
+      n++;
+      const w = settledWatermarkMs({ nowMs: NOW, grantMs: g, capped },
+        { ticks: tk, recoverMs: 0, idleMs: 0 }, st, { attendedToMs: at });
+      if (!Number.isFinite(w)) { nonFinite++; continue; }
+      if (w > NOW) { past++; firstPast = firstPast || { g, st, tk, at, capped, over: w - NOW }; }
+      const gN = Number(g);
+      if (Number.isFinite(gN) && gN > 0 && !capped && w <= NOW - gN) {
+        stalled++; firstStall = firstStall || { g, st, tk, at, w, old: NOW - gN };
+      }
+    }
+  }
+  ok('D9a', past === 0,
+     `no input pushes the watermark past now (${n} combinations`
+     + `${firstPast ? ', e.g. ' + JSON.stringify(firstPast) : ''})`);
+  ok('D9b', stalled === 0,
+     `the watermark strictly advances on every uncapped window`
+     + `${firstStall ? ', broken by ' + JSON.stringify(firstStall) : ''}`);
+  ok('D9c', nonFinite === 0, 'the return is always a finite instant');
+}
+
 // ── D7/D8: the two facts the fix must not have moved ────────────────────────
 console.log('');
 console.log('D7/D8 — idempotency and the PRNG stream still key on the window START');

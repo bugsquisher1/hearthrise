@@ -184,3 +184,112 @@ or DR document until (a) and (b) are green. Until then the operator rule is **do
 10 or first 5 seconds of a UTC day**. This does not block the apply: the failure is fail-closed (the
 fixture rolls back, the migration refuses), the function body is untouched, and the residual risk I am
 accepting is a red CI run or a refused apply inside an 8-second band — never a player-value movement.
+
+### 6a. The CHANGES landed — backend lane, 2026-09-16 (exit codes, not expectations)
+
+All three conditions of the GO-WITH-CHANGES above are met on `worktree-agent-a43bd2d0f232f944e`:
+
+- **(a) GATE(f5) is day-anchored** the way GATE(f6) is — both its stamps use the same
+  `greatest(hr_utc_day_start(now()), now() - interval '5 minutes')` expression, so both credits read
+  the SAME window; the round size is `v_c = least(40, cap)` from the server's own report, the settle
+  is `least(12, v_c)` and the second claim is `v_s + v_d` with `v_d = least(3, v_c - v_s)`, which is
+  `<= v_c <= cap` and therefore never cap-bound. 40 / 12 / 3 / **55**, never 67, wherever the window
+  allows; the same property at the server's own magnitude below that; `FIXTURE DEGENERATE` raises on
+  any day older than one second. The re-timed sweep then found a THIRD instance, **GATE(f4)**, whose
+  `cap > 0` degeneracy check raised on a correct function on a day younger than one 600 ms kill; its
+  tolerance is now confined to exactly that case and `credited = 0` is still asserted unconditionally.
+- **(b) The guard's arms are timed from the FIXTURE**: `tests/utc-midnight-replay.mjs` plants a
+  `raise exception 'HRPROBE now=%'` at the GATE(f5) marker, reads the database's own transaction
+  timestamp back out of the failure (measured 7.07–9.84 s after process start, jitter recorded in the
+  file), restores byte-for-byte, and sweeps midnight **-3 … +9 s** of the fixture's clock — to +9
+  because the band is a WINDOW-LENGTH artefact (15 kills need ~6.9 s, 40 need ~18.5 s), not a
+  boundary artefact — plus 00:02:30 / 00:04:30 / 00:25:00 against the 01:00 control.
+- **(c) The wording is honest**: the `2026-09-10-attended-loot-credit.sql` header says RESOLVED only
+  alongside the sweep that proves it, keeps the security measurement verbatim, and names all three
+  instances.
+
+Exit codes seen: `node tests/utc-midnight-replay.mjs` **0** (14 arms); `--selftest` **0** — it now
+plants TWO mutations, un-anchoring every §4 stamp (RED at the boundary `GATE(f4): the per-day
+bounty-free ceiling did not bind (cap 650, credited 400)`, GREEN at 01:00) and the S1 economy defect
+(RED at the boundary at the small magnitude, `round 2 applied 4 — expected 0`, and RED at 01:00 at
+the full one, `round 2 applied 40 — expected 28`) — which is the answer to "did day-anchoring turn it
+into something green at any magnitude": no. `node tests/schema-drift.mjs` **0**,
+`node tools/lane-done.mjs` **0**. `git diff -U0` earliest hunk is line 916 and the `do $$` block
+starts at 906, so no function body, grant or policy moved: no re-apply, no live-hash re-baseline.
+The operator rule ("do not apply in the last 10 or first 5 seconds of a UTC day") is retired by the
+sweep, not by assertion.
+
+---
+
+# Adversarial review — `settledWatermarkMs` (the deferred settle watermark)
+
+**2026-09-16 · security-engineer · branch `worktree-agent-a076e0726614423e6` @ b4eaf8e4, merged clean into `set/b548`**
+
+**VERDICT: GO-WITH-CHANGES.** The one change (F1) is made on the reviewing branch with a mutation
+proof; nothing else is required before apply/deploy.
+
+## The property this change has to hold, and whether it does
+
+`accrued_to` stops being `now()` and becomes `now()` minus the sub-tick remainder. Every window is
+priced `[accrued_to, now]`, so the ONLY ways deferral can mint are:
+
+| # | Mint vector | Closed by | Evidence |
+|---|---|---|---|
+| M1 | watermark at or below the old one (`hr_apply` clamps `greatest(old, …)`, so the window never advances and the SAME span is paid again) | the strict-advance floor `nowMs - (grantMs - 1)`, which equals `payFromMs + 1` because `grantMs = min(elapsedMs, sinceActivityMs, capMs)` and `elapsedMs = nowMs - payFromMs <= nowMs - accruedToMs` | D9b; probe P1 (`tickMs=120000 > grantMs=90000` advances 1 ms, is never frozen, and self-heals to `now()` the moment `capped` binds) |
+| M2 | watermark past `now()` | **WAS OPEN — see F1**; now `Math.min(nowMs, …)` | D9a, mutation-proved |
+| M3 | a grant priced per-`grantMs` rather than per-tick, so the overlapping span pays twice | nothing is: `grantMs` reaches only `journal.meta.ms`, `creditWindow` positioning and this function. Every payout is per tick | `grep -n grantMs accrual.js` — 0 payout consumers; probe P6 |
+| M4 | total simulated work exceeding wall clock | ticks paid `== floor(elapsed/tick)` exactly, never above | probe P6 over 6 tick/cadence pairs (13 s node: 3461 paid vs 3461 physical max, vs 3000 pre-change); probe P8 over 2401 attacker-chosen poll cadences, best excess **0 ticks** |
+| M5 | an attended `hr_kill_credit_log` row projected by two windows (C6) | refusal (d) floors the watermark at `attended.to`, and `attended.to` is genuinely `max(l.created_at)` of the rows the projection consumed (`2026-09-10-attended-loot-credit.sql`, the `w`/`a` CTEs), not `p_upto` | D6/D6b; probe P2 (a `to` above `now` cannot push the watermark past `now`) |
+| M6 | replay / two concurrent tabs paying the deferred tail twice | unchanged: the idempotency key and the PRNG label are both `st.accrued_to`, the window **START** (`index.ts:723`, `:1111`), so two tabs on the same watermark produce the same intent id and dedup; `hr_apply` is `least(now(), greatest(v_st.accrued_to, v_accrued))` (`2026-08-11-apply-engine.sql:1044`) plus the version check | D7/D7b; source read |
+
+The author's four refusals were executed, not read: (a) `capped` — note `capped` is
+`elapsedMs > grantMs`, so it also fires on an activity-age-bound window, which is *more* often than
+"over cap" and in the safe direction; (b) `finalWindow` is a server literal (`index.ts:833` false,
+`set-activity.js:977` true) and is reachable from no request field; (c) stopped-early
+(`remainder >= step`); (d) as above. Degrade-ladder `attended: null` + `capped` reaches (a) before
+(d) matters (probe P3/P3b).
+
+## Findings
+
+| # | Finding | Status | Trigger | Blast radius | Severity | Fix |
+|---|---|---|---|---|---|---|
+| **F1** | `settledWatermarkMs` could return an instant **after `nowMs`**, contradicting its own contract header ("only ever … never past `now`"). `nat()` does not floor — it accepts any finite non-negative Number — so a fractional `grantMs < 1` makes the strict-advance floor `nowMs - (grantMs - 1)` land above `nowMs` | **CONFIRMED** by fuzz; **unreachable from today's callers** | `settledWatermarkMs({nowMs, grantMs: 0.5, capped:false}, {ticks:0}, 1, {})` -> `nowMs + 0.5`. Production `grantMs` is integer ms throughout, and `hr_apply`'s `least(now(), …)` is a second clamp | none today; a future caller with a non-integer span would pay for time that has not happened | **Low** (latent) | **DONE on the review branch**: `return Math.min(nowMs, Math.max(floorMs, nowMs - remainder));` + guard `D9` |
+| **F2** | the recovered carry is smaller than advertised for active players: `hr_apply` stamps `accrued_to = now()` on any delta carrying `equip` / `activity` / `enchant`, which discards the deferred tail | CONFIRMED (source), **not a regression** — the tail was destroyed on every window before this change | equip a weapon shortly after a settle | self only, <= one tick, loss direction | Informational | none; do not restate 1.3-1.7% as a floor for players who equip/switch often |
+| **F3** | a player choosing the poll instant chooses the deferred tail, so <= `tickMs - 1` of simulation can be re-priced under a later Boss-of-the-Day / buff / catalogue | PLAUSIBLE, bounded | poll at `t`, wait for a rollover, poll again | self only, sub-one-kill; the lag is **non-compounding** — the watermark becomes tick-aligned, so total lag is `(now - W0) mod tickMs` | Informational | accepted; probe P5 `maxLag=1200 ms < tick 2400 ms` over 2000 polls, P7 `max deferrable = 2399 ms` |
+| **F4** | `recovering_until` is cleared against the window END (`ctx.toMs`) while the watermark lands before it, so a recovery expiring inside the tail is cleared <= one tick early | PLAUSIBLE, bounded | a knockout whose recovery ends inside the sub-tick tail | self only, < `tickMs` of a minutes-long clock; a pure-recovery window barely defers because `recoverMs` is inside `accounted` | Informational | accepted; journalled via `player_ledger` |
+
+`deferredMs` was verified not to leave `accrual.js`: `grep -rn deferredMs` outside it matches only
+the two test files. It is not a delta key, not ledger meta, and `index.ts` does not forward it.
+
+## Would the existing tests have caught F1?
+
+No. `settle-carry-defer.mjs` drove five realistic fixtures and three direct calls with integer
+inputs; the contract header's *range* claim was asserted nowhere. **D9** now fuzzes it:
+209,952 combinations of hostile `grantMs` / `tickMs` / `ticks` / `attendedToMs` / `capped` against
+three properties — never past `now`, strictly advancing on every uncapped window, always finite.
+
+## Executed evidence
+
+| Command | Exit |
+|---|---|
+| `git merge --no-edit worktree-agent-a076e0726614423e6` | **0**, zero conflict hunks |
+| `node tests/settle-carry-defer.mjs` (as handed over) | **0** |
+| `node tests/settle-carry-defer.mjs --mutate` (as handed over) | **0** — 5/5 caught |
+| adversarial probe P1-P8 (scratchpad) | P4 fuzz **RED**, one violation class -> F1; P1/P2/P3/P5/P6/P7/P8 ok |
+| `node tests/settle-carry-defer.mjs` with D9, **clamp mutated away** | **1** — `D9a … e.g. {"g":0.5,"st":1,"tk":0,"at":0,"capped":false,"over":0.5}` |
+| `node tests/settle-carry-defer.mjs` with D9 + clamp restored | **0** — D9a 209,952 combinations, D9b, D9c |
+| `node tests/settle-carry-defer.mjs --mutate` after the fix | **0** — 5/5 still caught |
+| `node tests/live-settlement.mjs` | **0** |
+| `node tests/settle-carry-loss.mjs --mutate` | **0** |
+
+## Residual risk accepted
+
+1. **F3 and F4**: a bounded, self-only, sub-one-tick timing benefit, non-compounding and journalled.
+   Re-open if `tickMs` ever approaches `ACCRUE_MIN_MS` (60,000 ms) — no catalogue row is near it
+   today, and probe P1 shows the degradation at `tickMs > grantMs` is a 1 ms/poll crawl that
+   `capped` heals, not a freeze and not a mint.
+2. `settle-carry-defer.mjs` (both arms, now including D9) lives in `tools/lane-done.mjs`, not in
+   `.github/workflows/smoke.yml`. Same standing debt as `no-new-prediction.mjs`; Coordinator's file.
+3. `hr_engine` remains trusted to propose a legal watermark, as the section above already records.
+   The deferral does not widen that trust: the value is still clamped twice, in the engine and
+   again in `hr_apply`.

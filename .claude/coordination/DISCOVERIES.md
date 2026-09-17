@@ -3220,3 +3220,29 @@ without a client reader is red on the day the migration is written.
 `renownHigh` pin at 0 only because `legacy.js` / `renown.js` are their reader files. And
 `streak-chip.js` still ADVANCES `G.streak.count` on a client clock — the guard freezes the read
 count, it does not yet forbid the client-authored write.
+
+## 2026-09-16 · Art Director · the landscape destination rail has no scroll affordance (P2, open)
+
+Found while clearing b548's desktop rail clips. On a landscape phone the six War Table destinations
+are a sideways-scrolling chip rail: the panel shows four, and Clan Raid + World Event sit past the
+panel edge with nothing on screen that says they are there. The visual gate reports them as six
+`clipped-by-parent` P1s on landscape/combat; they are NOT clipping bugs and I did not widen the
+gate's EXCLUDE to silence them, because the underlying complaint - two destinations a player cannot
+discover - is real.
+
+Why b548 did not fix it, measured rather than argued: the chip's height floor is b285's 40px thumb
+target on its button plus a 46px glyph, so a chip is ~112px tall. Two rows of three costs 229px of a
+393px-tall screen; one row of six at 123px wide breaks "The Hollow Regent" over four lines and costs
+MORE height than it saves. Neither is shippable, so the scroller stays.
+
+The cheap fix is an affordance, not a relayout: an edge fade (mask-image) or a persistent scroll
+indicator on `.wt-dest-rail` under the max-height:560 block, so the rail reads as scrollable. Worth
+one slice; also worth asking the gate's owner whether `clipped-by-parent` should stop its ancestor
+walk at the first ancestor that is scrollable in the offending axis, since scrolled-out content of an
+`overflow-x:auto` rail is reachable by definition.
+
+Second finding, same pass: `#panel-combat .wtd-img { width:20px; height:20px }` and
+`.wt-dest footer .btn { min-height:18px }` inside the max-height:560 block are both overridden by a
+higher-specificity rule elsewhere (measured 46px and 40px live). The button's 40px is b285's thumb
+target and is correct; the 46px glyph is not intentional and is half the landscape chip's height.
+Whoever takes the affordance slice should take that with it.

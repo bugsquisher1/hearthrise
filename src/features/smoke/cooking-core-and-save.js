@@ -4949,6 +4949,54 @@ export default [
     }
   }),
 
+  /* ── regression suite — THE DESTINATION RAIL THAT HUNG OFF THE PANEL ───────
+     `.wt-dests { min-width: min-content }` sized the row to the widest card's
+     intrinsic content — 217px x 6 = 1340px inside a 1240px rail — so the sixth
+     destination lived past the panel edge behind a scroll no player would find,
+     while the names that did fit were ellipsised anyway. Two properties, both
+     measured off the LIVE layout rather than the sheet: a name is never trimmed
+     (the catalogue holds "Elderscale, the Great Wyrm", which no card width
+     fitting six across can hold on one line, so it must WRAP), and the row fits
+     the rail it is drawn in. The landscape chip rail scrolls sideways on
+     purpose and is held out by the viewport guard, not by an exception. */
+  () => tryRun('b548: War Table destinations fit their rail and never trim a name', () => {
+    const CS = window.HearthriseCombatScreens;
+    if (!CS || typeof CS.setView !== 'function') { skip('combat screens module absent'); return; }
+    const panel = document.getElementById('panel-combat');
+    if (!panel) { skip('no combat panel'); return; }
+    CS.setView('table'); CS.render();
+    const dests = document.getElementById('wt-dests');
+    const cards = dests ? [...dests.querySelectorAll('.wt-dest')] : [];
+    if (!cards.length) { skip('no destination cards rendered'); return; }
+
+    cards.forEach((c) => {
+      const b = c.querySelector('.wtd-main b');
+      if (!b) return;
+      const cs = getComputedStyle(b);
+      const who = (c.querySelector('.wtd-kick') || {}).textContent || '?';
+      assert(cs.whiteSpace !== 'nowrap',
+        'the ' + who + ' destination name is nowrap — a name longer than the card is trimmed instead of wrapped');
+      assert(cs.textOverflow !== 'ellipsis',
+        'the ' + who + ' destination name still ellipsises; the longest catalogued name would never be readable');
+      assert(b.scrollWidth <= b.clientWidth + 2,
+        'the ' + who + ' destination name is clipped (' + b.scrollWidth + '>' + b.clientWidth + ')');
+    });
+
+    /* The containment half only means anything where the design asks for one
+       row of six: the landscape chip rail (max-height:560) scrolls on purpose. */
+    const rail = panel.querySelector('.wt-dest-rail');
+    if (!rail || innerWidth < 1200 || innerHeight <= 560) { skip('narrow/short viewport — rail containment not asserted here'); return; }
+    assert(rail.scrollWidth <= rail.clientWidth + 2,
+      'the destination row overflows its rail (' + rail.scrollWidth + '>' + rail.clientWidth + ') — a destination is off-panel');
+    const pr = panel.getBoundingClientRect();
+    cards.forEach((c) => {
+      const r = c.getBoundingClientRect();
+      assert(r.right <= pr.right + 2,
+        'the ' + ((c.querySelector('.wtd-kick') || {}).textContent || '?') + ' destination is drawn past the panel edge ('
+          + Math.round(r.right) + '>' + Math.round(pr.right) + ')');
+    });
+  }),
+
   () => tryRun('b253: toasts side-step a corner button on a short landscape screen (paione: toasts over content)', () => {
     const T = window.HearthriseToasts;
     assert(T && typeof T.computeOffsets === 'function', 'toast placement math must be exposed');

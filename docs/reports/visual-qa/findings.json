@@ -13,7 +13,7 @@
     ],
     "stats": {
       "els": 469,
-      "chars": 2784
+      "chars": 2790
     },
     "viewport": "desktop"
   },
@@ -41,24 +41,6 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "P1",
-        "kind": "clipped-text",
-        "detail": "\"Crypt of Bones\" (134>127)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b {Dungeon}"
-      },
-      {
-        "sev": "P1",
-        "kind": "clipped-text",
-        "detail": "\"The Maw Below\" (132>127)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b {Clan Raid}"
-      },
-      {
-        "sev": "P1",
-        "kind": "clipped-text",
-        "detail": "\"Today's blessing\" (142>127)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b {World Event}"
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
         "detail": "25 controls <44px — worst: 30px \"T1\" #wt-tiers>button.chip | 30px \"T2\" #wt-tiers>button.chip | 30px \"T3\" #wt-tiers>button.chip",
@@ -73,7 +55,7 @@
     ],
     "stats": {
       "els": 572,
-      "chars": 3656
+      "chars": 3721
     },
     "viewport": "desktop"
   },
@@ -109,7 +91,7 @@
     ],
     "stats": {
       "els": 271,
-      "chars": 635
+      "chars": 639
     },
     "viewport": "desktop"
   },
@@ -121,13 +103,13 @@
       {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "34 controls <44px — worst: 30px \"Everything\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 30px \"Weapons\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 30px \"Armour\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip",
+        "detail": "34 controls <44px — worst: 31px \"Equipment\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 31px \"Stats\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 31px \"Companion\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab",
         "el": "#app>.main>#panel-inventorysection.panel"
       }
     ],
     "stats": {
-      "els": 613,
-      "chars": 771
+      "els": 609,
+      "chars": 769
     },
     "viewport": "desktop"
   },
@@ -163,7 +145,7 @@
     ],
     "stats": {
       "els": 456,
-      "chars": 2809
+      "chars": 2790
     },
     "viewport": "desktop"
   },
@@ -217,7 +199,7 @@
     ],
     "stats": {
       "els": 289,
-      "chars": 698
+      "chars": 701
     },
     "viewport": "desktop"
   },
@@ -235,7 +217,7 @@
     ],
     "stats": {
       "els": 367,
-      "chars": 1071
+      "chars": 1086
     },
     "viewport": "desktop"
   },
@@ -245,6 +227,48 @@
     "vh": 393,
     "issues": [
       {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
+      {
         "sev": "P3",
         "kind": "small-target",
         "detail": "1 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
@@ -253,7 +277,7 @@
     ],
     "stats": {
       "els": 414,
-      "chars": 2784
+      "chars": 2790
     },
     "viewport": "landscape"
   },
@@ -262,6 +286,48 @@
     "vw": 852,
     "vh": 393,
     "issues": [
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
       {
         "sev": "P3",
         "kind": "small-target",
@@ -282,26 +348,14 @@
     "issues": [
       {
         "sev": "P1",
-        "kind": "clipped-text",
-        "detail": "\"Crypt of Bones\" (121>115)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b {Dungeon}"
-      },
-      {
-        "sev": "P1",
         "kind": "clipped-by-parent",
         "detail": "\"Clan Raid\" cut by .panel",
         "el": "#wt-dests>.wt-dest>span.wtd-kick {Clan Raid}"
       },
       {
         "sev": "P1",
-        "kind": "clipped-text",
-        "detail": "\"The Maw Below\" (120>115)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b {Clan Raid}"
-      },
-      {
-        "sev": "P1",
         "kind": "clipped-by-parent",
-        "detail": "\"The Maw Below\" cut by .panel",
+        "detail": "\"The Hollow Regent\" cut by .panel",
         "el": ".wt-dest>.wtd-body>.wtd-main>b {Clan Raid}"
       },
       {
@@ -315,12 +369,6 @@
         "kind": "clipped-by-parent",
         "detail": "\"World Event\" cut by .panel",
         "el": "#wt-dests>.wt-dest>span.wtd-kick {World Event}"
-      },
-      {
-        "sev": "P1",
-        "kind": "clipped-text",
-        "detail": "\"Today's blessing\" (129>115)",
-        "el": ".wt-dest>.wtd-body>.wtd-main>b {World Event}"
       },
       {
         "sev": "P1",
@@ -347,6 +395,48 @@
         "el": "#wt-classes>button.chip"
       },
       {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
+      {
         "sev": "P3",
         "kind": "small-target",
         "detail": "23 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Board ▸\" #wt-dests>.wt-dest>button.btn {Bounty} | 40px \"Fight ▸\" #wt-dests>.wt-dest>button.btn {Boss of the Day}",
@@ -361,7 +451,7 @@
     ],
     "stats": {
       "els": 311,
-      "chars": 3656
+      "chars": 3721
     },
     "viewport": "landscape"
   },
@@ -370,6 +460,48 @@
     "vw": 852,
     "vh": 393,
     "issues": [
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
       {
         "sev": "P3",
         "kind": "small-target",
@@ -389,15 +521,57 @@
     "vh": 393,
     "issues": [
       {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
+      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "10 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Plant all\" #farm-panel>.farm-status>.row>button.btn | 40px \"Water all\" #farm-panel>.farm-status>.row>button.btn",
+        "detail": "10 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Plant all (2)\" #farm-panel>.farm-status>.row>button.btn | 40px \"Water all\" #farm-panel>.farm-status>.row>button.btn",
         "el": "#app>.main>#panel-farmingsection.panel"
       }
     ],
     "stats": {
       "els": 221,
-      "chars": 635
+      "chars": 639
     },
     "viewport": "landscape"
   },
@@ -408,14 +582,56 @@
     "issues": [
       {
         "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
+      {
+        "sev": "P1",
         "kind": "small-target",
         "detail": "31 controls <44px — worst: 28px \"Everything\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 28px \"Weapons\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 28px \"Armour\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip",
         "el": "#app>.main>#panel-inventorysection.panel"
       }
     ],
     "stats": {
-      "els": 372,
-      "chars": 771
+      "els": 368,
+      "chars": 769
     },
     "viewport": "landscape"
   },
@@ -424,6 +640,48 @@
     "vw": 852,
     "vh": 393,
     "issues": [
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
       {
         "sev": "P3",
         "kind": "small-target",
@@ -443,6 +701,48 @@
     "vh": 393,
     "issues": [
       {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
+      {
         "sev": "P3",
         "kind": "small-target",
         "detail": "2 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Quartermaster\" #panel-dungeons>.dgn-scrip-bar>button.btn",
@@ -451,7 +751,7 @@
     ],
     "stats": {
       "els": 406,
-      "chars": 2809
+      "chars": 2790
     },
     "viewport": "landscape"
   },
@@ -460,6 +760,48 @@
     "vw": 852,
     "vh": 393,
     "issues": [
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
       {
         "sev": "P3",
         "kind": "small-target",
@@ -479,6 +821,48 @@
     "vh": 393,
     "issues": [
       {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
+      {
         "sev": "P3",
         "kind": "small-target",
         "detail": "1 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
@@ -497,6 +881,48 @@
     "vh": 393,
     "issues": [
       {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
+      {
         "sev": "P3",
         "kind": "small-target",
         "detail": "8 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Overall\" #lb-cats>button.chip | 40px \"Skills\" #lb-cats>button.chip",
@@ -505,7 +931,7 @@
     ],
     "stats": {
       "els": 239,
-      "chars": 698
+      "chars": 701
     },
     "viewport": "landscape"
   },
@@ -515,6 +941,48 @@
     "vh": 393,
     "issues": [
       {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"6\" 22px under .hr-desktopmode-banner",
+        "el": "#hr-quests-btn>span.hr-q-count"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"69\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-combatspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"CL\" 20px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"250,000\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>#top-goldspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gold\" 17px under .hr-desktopmode-banner",
+        "el": ".topbar>.top-stats>.t-stat>span.lab"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"40\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>#top-gemsspan"
+      },
+      {
+        "sev": "P1",
+        "kind": "under-fixed-bar",
+        "detail": "\"Gems\" 17px under .hr-desktopmode-banner",
+        "el": "#top-gem-btn>span.lab"
+      },
+      {
         "sev": "P3",
         "kind": "small-target",
         "detail": "12 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 40px \"New notices\" #bounty-board-body>.bb-board>.bb-rail>button.btn",
@@ -523,7 +991,7 @@
     ],
     "stats": {
       "els": 317,
-      "chars": 1078
+      "chars": 1084
     },
     "viewport": "landscape"
   }

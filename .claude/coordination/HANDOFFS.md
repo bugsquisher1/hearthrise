@@ -3108,3 +3108,29 @@ refused once any earlier test has stamped with `Date.now()`. That is what made
 in a way that looks exactly like the bug it guards. Fixed there and in `withServerBacked`; there are
 ~5 more literal versions in the file (`grep -n "version: [0-9]\{5,\}"`), all currently safe because
 their tests `delete G._record` first, none of them guarded against a future one that does not.
+
+## 2026-09-16 · Art Director -> Coordinator + whoever owns `src/desktop-mode-detector.js` · P1, BLOCKS THE VISUAL GATE
+
+Found on the ASSEMBLED set, not on my branch. After merging `origin/set/b548` into my lane the
+presentation floor went from 9 P1 to 93: **84 new `under-fixed-bar` findings, 7 on every one of the
+twelve landscape screens.** The new "Desktop Site looks turned on" banner
+(`#hr-desktopmode-banner`, `src/desktop-mode-detector.js:96`) is `position:fixed; top:0` with
+`z-index:2147483647` and lands directly on the topbar: Gold, Gems, CL and the quest count are all
+under it at 17-22px of overlap. A player in that state cannot read their own gold.
+
+Three art-direction violations in the same element, all at `src/desktop-mode-detector.js:96-112`:
+1. **`⚠️` rendered as art** in `bar.innerHTML`. Zero emoji as art is non-negotiable; the atlas in
+   `src/data/glyphs.js` has the icon.
+2. **Hardcoded `background:#7a1f1f` and `color:#fff`** inline. CLAUDE.md §7: every colour is a token
+   from `theme-cozy.css`. #7a1f1f is oxblood — the exact primary-button colour the Forge & Stone
+   direction rejected.
+3. **`font: 600 15px/1.4 system-ui,...`** — not Alegreya Sans. The banner reads as a browser chrome
+   warning dropped into the game, not as Hearthrise.
+
+Also worth a look by whoever owns the detection: it fires under the headless harness at 852x393,
+which is why the gate sees it on all twelve screens. If that is a true positive the banner must
+still not cover the topbar (push the app down, or dock it at the bottom); if it is a false positive
+the trigger is too loose.
+
+I did not touch the file — it is another lane's in-flight work and the trigger logic is Systems'.
+My b548 rail fix is unaffected: desktop/combat is 0 P1 before and after the merge.

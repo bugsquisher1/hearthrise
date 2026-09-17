@@ -28,11 +28,19 @@ const STEPS = [
   // The chain must rebuild at EVERY hour of the day, not just at whatever
   // o'clock the runner started (measured: two GitHub runs red inside
   // [00:00, 00:05) on commits whose 00:21Z sibling was green). It is the only
-  // step here that replays the migration chain — ~11 s per arm, six arms, one
-  // PGlite at a time — and it lives in the per-lane runner because a §4 fixture
-  // that only applies for 23h55m a day is written in a lane, not caught in CI.
+  // step here that replays the migration chain — one PGlite at a time, ~11 s per
+  // arm, fourteen arms (a probed sweep across the UTC boundary), so ~3 min — and
+  // it lives in the per-lane runner because a §4 fixture that only applies for
+  // 23h55m a day is written in a lane, not caught in CI.
   // Its CI home is the db-replay job (tests/guards-unregistered.json).
   ['node', ['tests/utc-midnight-replay.mjs']],
+  // `accrued_to` advances to the time the simulation ACCOUNTED FOR, not to now()
+  // (2026-09-16): the sub-tick carry is deferred to the next window, never
+  // forfeited, and the four refusals that keep that from minting hold. Both arms
+  // per RULE 5 — the plain run answers "green when nothing is wrong", --mutate
+  // answers "can this go red". ~2 s, no database, no network.
+  ['node', ['tests/settle-carry-defer.mjs']],
+  ['node', ['tests/settle-carry-defer.mjs', '--mutate']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on

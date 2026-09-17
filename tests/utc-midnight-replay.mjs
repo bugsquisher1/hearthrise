@@ -92,6 +92,14 @@ const ARMS = [
   { name: 'replay inside the first minute of a UTC day (00:00:01)', off: 1, window: true },
   { name: 'replay at 00:02:30 UTC', off: 150, window: true },
   { name: 'replay at 00:04:30 UTC', off: 270, window: true },
+  /* 00:25 is not padding. [00:00, 00:05) is only the window of the FIVE-minute
+     backdates; the chain also carries THIRTY-minute ones
+     (2026-09-02-renown-kill-faucet.sql lines 672/719 reset the kill-credit
+     anchor with `now() - interval '30 minutes'`). Those rows are bounty rows
+     (free = false), so no day-scoped read sees them today and the arm is green
+     — but the arm is what says so, and it is what will go red the day somebody
+     day-scopes that read. Cost: one more ~11 s replay. */
+  { name: 'replay at 00:25:00 UTC (covers the 30-minute fixture backdates)', off: 1500, window: true },
   { name: 'CONTROL — replay at 01:00:00 UTC (must be green)', off: 3600, window: false },
 ];
 

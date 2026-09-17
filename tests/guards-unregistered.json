@@ -30,13 +30,13 @@
       }
     },
     "utc-midnight-replay.mjs": {
-      "reason": "NOT registered in smoke.yml because its BASE RUN IS RED ON TODAY'S TREE, and a red step in the workflow makes the CI gate unreachable for every later build (CLAUDE.md §4). It is the exit code behind the hazard that 2026-09-10-attended-loot-credit.sql's header wrote down as prose: 2026-09-01-kill-daily-credit.sql backdates §4 fixture rows with `now() - interval '5 minutes'` and reads them through `created_at >= hr_utc_day_start(now())`, so inside the first minutes of a UTC day the chain REFUSES TO APPLY and every guard that replays it goes red — measured on GitHub as b0efb833 23:54Z RED, 3cfacdf8 00:04Z RED, f36c3da7 00:21Z GREEN, with edge/client-guards green throughout. GATE(f5) is FIXED in this commit by inheriting the clamp GATE(f4) already carried. GATE(f6) is a SECOND, INDEPENDENT instance that f5 was masking: measured with only the f5 clamp applied, the in-window replay still fails with 'the daily row is 196 against 160 credited' — clamping f6's backdates the same way moves it to 94, so its fixture needs a real day-anchored rewrite by its owner, not a clamp, and that is an economy gate the reliability lane must not hand-edit under §2. Register both arms in the db-replay job once GATE(f6) is day-anchored; the --selftest arm is GREEN today and is the proof the guard bites.",
-      "owner": "backend-architect (GATE(f6) fixture); reliability-engineer (the guard)",
-      "disposition": "blocked-on-gate-f6",
+      "reason": "Registered in tools/lane-done.mjs (the per-lane runner), NOT in smoke.yml: .github/workflows/smoke.yml is the Coordinator's file and tests/ci-shape.baseline.json pins its step list. The guard is the exit code behind the hazard that 2026-09-10-attended-loot-credit.sql's header wrote down as prose: a §4 fixture that backdates rows with `now() - interval 'N'` and reads them through `created_at >= hr_utc_day_start(now())` lands them in YESTERDAY inside the first N minutes of a UTC day, so the chain REFUSES TO APPLY and every guard that replays it goes red — measured on GitHub as b0efb833 23:54Z RED, 3cfacdf8 00:04Z RED, f36c3da7 00:21Z GREEN. BOTH instances are now fixed and the BASE RUN IS GREEN (2026-09-16): GATE(f5) inherited the clamp GATE(f4) already carried (reliability lane), and GATE(f6) — an economy gate, so its owner — was rewritten day-anchored by the backend lane: every stamp clamped to greatest(hr_utc_day_start(now()), now() - interval 'N'), and because that clamp also clamps the credit WINDOW to the day start, the round size is now the server's own least(40, cap) instead of a bare literal 40 (identical 40/12/160 arithmetic at every second of the day with a window >= ~18.5 s). Arms: -00:00:08 straddle, 00:00:01, 00:02:30, 00:04:30, 00:25:00 (the 30-minute backdates), and a 01:00 control that must stay green. Its CI home is the db-replay job beside tests/schema-drift.mjs, as TWO steps — the plain run, then --selftest — and this entry is the written debt until the Coordinator adds them.",
+      "owner": "reliability-engineer (the guard); backend-architect (the GATE(f6) fixture)",
+      "disposition": "awaiting-workflow-registration",
       "verified": {
         "asserts": true,
         "selftest": true,
-        "runner": "none — run by hand: node tests/utc-midnight-replay.mjs [--selftest]"
+        "runner": "tools/lane-done.mjs"
       }
     },
     "no-new-prediction.mjs": {
@@ -154,7 +154,11 @@
       "verified": {
         "asserts": true,
         "selftest": true,
-        "mutations": ["unaligned", "nofight", "capIsCadence"]
+        "mutations": [
+          "unaligned",
+          "nofight",
+          "capIsCadence"
+        ]
       }
     },
     "$deleted:2026-09-06-slice-2": {

@@ -25,6 +25,14 @@ const STEPS = [
   // The client predicts nothing new from 2026-09-16 (LIVE_WORLD_BRIEF.md): the
   // world tick + push channel is the path, not one more predicted field.
   ['node', ['tests/no-new-prediction.mjs']],
+  // The chain must rebuild at EVERY hour of the day, not just at whatever
+  // o'clock the runner started (measured: two GitHub runs red inside
+  // [00:00, 00:05) on commits whose 00:21Z sibling was green). It is the only
+  // step here that replays the migration chain — ~11 s per arm, six arms, one
+  // PGlite at a time — and it lives in the per-lane runner because a §4 fixture
+  // that only applies for 23h55m a day is written in a lane, not caught in CI.
+  // Its CI home is the db-replay job (tests/guards-unregistered.json).
+  ['node', ['tests/utc-midnight-replay.mjs']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on

@@ -58,8 +58,21 @@
 --         node tests/schema-drift.mjs --write
 --     is already committed with this change; nothing else moved.
 --
---   ⚠ DO NOT APPLY IN THE FIRST FIVE MINUTES OF A UTC DAY. Not this file's
---     defect, but it is in this file's apply path.
+--   ⚠ DO NOT APPLY IN THE FIRST FIVE MINUTES OF A UTC DAY.
+--     ✅ RESOLVED 2026-09-16 — kept here because this is where the hazard was
+--     measured, and because the next fixture that backdates a stamp will be
+--     written by someone reading a header like this one. GATE(f5) inherited the
+--     clamp (reliability lane); GATE(f6) was a SECOND instance f5 was masking
+--     (the daily row read 196 against 160) and was rewritten DAY-ANCHORED by the
+--     backend lane — clamping alone could not fix it, because clamping the stamps
+--     also clamps the credit WINDOW to the day start and the cap then honestly
+--     refuses a 40-kill claim in the first ~18.5 s of a day. There is now an exit
+--     code behind this paragraph: `node tests/utc-midnight-replay.mjs` replays the
+--     chain with the process clock parked at -00:00:08 / 00:00:01 / 00:02:30 /
+--     00:04:30 / 00:25:00 against a 01:00 control, and it runs in
+--     tools/lane-done.mjs. A hazard in prose is a hazard nobody can honour.
+--     The original finding, unedited:
+--     Not this file's defect, but it is in this file's apply path.
 --     2026-09-01-kill-daily-credit.sql's GATE(f5) backdates its fixture row with
 --     `created_at = now() - interval '5 minutes'` (line 1185) and then reads the
 --     watermark scoped to `created_at >= hr_utc_day_start(now())`. Inside the

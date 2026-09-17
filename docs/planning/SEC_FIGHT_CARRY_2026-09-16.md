@@ -138,6 +138,89 @@ still *behave*. Neither replaces the others.
 
 ---
 
+## 6. Addendum, 2026-09-16 — the UTC-midnight §4 fixture change (GATE(f5)/GATE(f6)) — **GO-WITH-CHANGES**
+
+**Is the gate as strong as before against C1/S1 ("settle absorbs the wrong delta") and C5
+("zero-claim forgives")? Yes — stronger, and I have the exit codes.** `git diff -U0` confirms the
+lane's claim itself: every hunk in `2026-09-01-kill-daily-credit.sql` is at line ≥ 916, the function
+body ends at 884 and the `revoke`/`grant` block is 884–886, so no body, grant, policy or ledger shape
+moved; the `2026-09-10-attended-loot-credit.sql` change is header prose only. Replaying the chain
+with the S1 mutant planted (`v_consumed := v_settle_delta`, line 755) exits **1 at both 01:00:00 and
+00:02:30** — `GATE(f6): round 2 applied 40 — expected 28` — and it now bites at ROUND 2 on an exact
+per-round expectation instead of only at the final row sum, so a mutant that shrank the round for the
+wrong reason can no longer pass as a smaller-but-consistent one. Both files restored byte-for-byte
+(sha256 `31079fdf…`, `2e51130e…`, `git status` clean). The zero-claim assertion and the
+`daily_kill_settle_absorbed` journal count (C5) are unchanged in substance. Taking the round size
+from the server's reported `cap` does **not** weaken it: an *inflated* cap changes nothing (the
+40-claim binds, `least(40, cap) = 40`, exactly as the literal did), and a *deflated or zero* cap is
+caught one gate earlier and at every hour of the day by `GATE(c)` in
+`2026-08-30-bounty-kill-credit.sql`, which pins the formula against literals — planted `cap→0` and
+`cap→least(7,…)` mutants both exit **1** with `GATE(c): cap(15,10,60000)=0 expected 130` / `=7`. The
+literal anchor was not lost, it moved to the gate that owns it. The `v_c = 0` skip path is reachable
+only in `[00:00:00, 00:00:01)` UTC, where GATE(f6) asserts nothing; measured, a replay reaches f6
+~6.5 s after start, so landing there needs the clock parked within a second of the boundary and
+`GATE(f5)` (literal 40, unclamped `accrued_to`) still runs there. Fixtures cannot collide with a real
+player: the uid is the fixed synthetic `000000c7-0000-0000-0000-0000000000c7` (not a v4 UUID, so
+`gen_random_uuid` cannot mint it), every write is inside a subtransaction rolled back via `HR821`,
+and the block then raises `GATE: §5 LEAKED a probe row` if anything survives in `player_state`,
+`player_ledger`, `player_progress`, `player_skills`, `active_bounty`, `hr_kill_credit_log`,
+`player_intents` or `auth.users`.
+
+**The CHANGES, and they are the reliability half's claim, not the gate's.** The header now reading
+"✅ RESOLVED" and the guard promising the chain "rebuilds at every hour of the day" are **false, and
+I measured it on a clean tree**: `[00:00, 00:05)` is closed, but a ~8-second band straddling midnight
+is not. Offsets −6 … −1 and 0 … +1 exit **1** on a correct function with `GATE(f5): the credit applied
+0 … (expected 3)` — when midnight falls between f5's two credits the clamp pushes the log stamp
+FORWARD onto the day start, the anchor collapses and the cap honestly refuses the 15-kill claim;
+green again at −7 and +2. `tests/utc-midnight-replay.mjs` cannot see it, because its arms are timed
+from process start rather than from when the fixture runs (its −8 "straddle" arm reaches f6 at
+23:59:58, still yesterday), and its `+1` arm sits ON the band edge — I measured it GREEN in the full
+guard run and RED at the same offset twenty minutes later, so the guard is itself a flake source at
+the one hour it polices. I have recorded the measurement in both headers rather than patching another
+lane's fixture; the unmet conditions are (a) day-anchor GATE(f5) the way GATE(f6) now is, (b) re-time
+the guard's arms so the boundary lands INSIDE the fixture (probe f5's execution offset, then sweep at
+1 s granularity), and (c) drop the "✅ RESOLVED"/"every hour of the day" wording from any release note
+or DR document until (a) and (b) are green. Until then the operator rule is **do not apply in the last
+10 or first 5 seconds of a UTC day**. This does not block the apply: the failure is fail-closed (the
+fixture rolls back, the migration refuses), the function body is untouched, and the residual risk I am
+accepting is a red CI run or a refused apply inside an 8-second band — never a player-value movement.
+
+### 6a. The CHANGES landed — backend lane, 2026-09-16 (exit codes, not expectations)
+
+All three conditions of the GO-WITH-CHANGES above are met on `worktree-agent-a43bd2d0f232f944e`:
+
+- **(a) GATE(f5) is day-anchored** the way GATE(f6) is — both its stamps use the same
+  `greatest(hr_utc_day_start(now()), now() - interval '5 minutes')` expression, so both credits read
+  the SAME window; the round size is `v_c = least(40, cap)` from the server's own report, the settle
+  is `least(12, v_c)` and the second claim is `v_s + v_d` with `v_d = least(3, v_c - v_s)`, which is
+  `<= v_c <= cap` and therefore never cap-bound. 40 / 12 / 3 / **55**, never 67, wherever the window
+  allows; the same property at the server's own magnitude below that; `FIXTURE DEGENERATE` raises on
+  any day older than one second. The re-timed sweep then found a THIRD instance, **GATE(f4)**, whose
+  `cap > 0` degeneracy check raised on a correct function on a day younger than one 600 ms kill; its
+  tolerance is now confined to exactly that case and `credited = 0` is still asserted unconditionally.
+- **(b) The guard's arms are timed from the FIXTURE**: `tests/utc-midnight-replay.mjs` plants a
+  `raise exception 'HRPROBE now=%'` at the GATE(f5) marker, reads the database's own transaction
+  timestamp back out of the failure (measured 7.07–9.84 s after process start, jitter recorded in the
+  file), restores byte-for-byte, and sweeps midnight **-3 … +9 s** of the fixture's clock — to +9
+  because the band is a WINDOW-LENGTH artefact (15 kills need ~6.9 s, 40 need ~18.5 s), not a
+  boundary artefact — plus 00:02:30 / 00:04:30 / 00:25:00 against the 01:00 control.
+- **(c) The wording is honest**: the `2026-09-10-attended-loot-credit.sql` header says RESOLVED only
+  alongside the sweep that proves it, keeps the security measurement verbatim, and names all three
+  instances.
+
+Exit codes seen: `node tests/utc-midnight-replay.mjs` **0** (14 arms); `--selftest` **0** — it now
+plants TWO mutations, un-anchoring every §4 stamp (RED at the boundary `GATE(f4): the per-day
+bounty-free ceiling did not bind (cap 650, credited 400)`, GREEN at 01:00) and the S1 economy defect
+(RED at the boundary at the small magnitude, `round 2 applied 4 — expected 0`, and RED at 01:00 at
+the full one, `round 2 applied 40 — expected 28`) — which is the answer to "did day-anchoring turn it
+into something green at any magnitude": no. `node tests/schema-drift.mjs` **0**,
+`node tools/lane-done.mjs` **0**. `git diff -U0` earliest hunk is line 916 and the `do $$` block
+starts at 906, so no function body, grant or policy moved: no re-apply, no live-hash re-baseline.
+The operator rule ("do not apply in the last 10 or first 5 seconds of a UTC day") is retired by the
+sweep, not by assertion.
+
+---
+
 # Adversarial review — `settledWatermarkMs` (the deferred settle watermark)
 
 **2026-09-16 · security-engineer · branch `worktree-agent-a076e0726614423e6` @ b4eaf8e4, merged clean into `set/b548`**

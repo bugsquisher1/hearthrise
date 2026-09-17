@@ -19,6 +19,26 @@
   ],
   "reviewed": "2026-09-06 (cleanup program, slice 2)",
   "guards": {
+    "_utc-clock-shim.mjs": {
+      "reason": "NOT A GUARD — it asserts nothing and cannot exit non-zero. It is a `node --import` PRELOAD, used only by tests/utc-midnight-replay.mjs, which parks the process clock at an offset from a UTC midnight so a chain replay can be driven across the day boundary (PGlite serves now() from the host JS clock; verified to the millisecond 2026-09-16). guard-hygiene's chain detector looks for `node tests/<file>` and cannot see a spawnSync `--import` argument, so it reads as an orphan. Named here rather than taught to the detector because widening that detector to match any string mention of a tests/ filename would let a real orphan hide behind a comment.",
+      "owner": "reliability-engineer",
+      "disposition": "not-a-guard",
+      "verified": {
+        "asserts": false,
+        "selftest": false,
+        "runner": "tests/utc-midnight-replay.mjs (node --import preload)"
+      }
+    },
+    "utc-midnight-replay.mjs": {
+      "reason": "Registered in tools/lane-done.mjs (the per-lane runner), NOT in smoke.yml: .github/workflows/smoke.yml is the Coordinator's file and tests/ci-shape.baseline.json pins its step list. The guard is the exit code behind the hazard that 2026-09-10-attended-loot-credit.sql's header wrote down as prose: a §4 fixture that backdates rows with `now() - interval 'N'` and reads them through `created_at >= hr_utc_day_start(now())` lands them in YESTERDAY inside the first N minutes of a UTC day, so the chain REFUSES TO APPLY and every guard that replays it goes red — measured on GitHub as b0efb833 23:54Z RED, 3cfacdf8 00:04Z RED, f36c3da7 00:21Z GREEN. BOTH instances are now fixed and the BASE RUN IS GREEN (2026-09-16): GATE(f5) inherited the clamp GATE(f4) already carried (reliability lane), and GATE(f6) — an economy gate, so its owner — was rewritten day-anchored by the backend lane: every stamp clamped to greatest(hr_utc_day_start(now()), now() - interval 'N'), and because that clamp also clamps the credit WINDOW to the day start, the round size is now the server's own least(40, cap) instead of a bare literal 40 (identical 40/12/160 arithmetic at every second of the day with a window >= ~18.5 s). Arms (2026-09-16, after security finding 5): the second at which the §4 block takes its transaction timestamp is PROBED each run, the boundary is swept across it at midnight -3…9 s, plus 00:02:30 / 00:04:30 / 00:25:00 (the 30-minute backdates) and a 01:00 control that must stay green. GATE(f4) and GATE(f5) were day-anchored in the same commit (a third and second instance of the class); --selftest plants BOTH the un-anchoring mutation and the S1 economy defect. Its CI home is the db-replay job beside tests/schema-drift.mjs, as TWO steps — the plain run, then --selftest — and this entry is the written debt until the Coordinator adds them.",
+      "owner": "reliability-engineer (the guard); backend-architect (the GATE(f6) fixture)",
+      "disposition": "awaiting-workflow-registration",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "runner": "tools/lane-done.mjs"
+      }
+    },
     "no-new-prediction.mjs": {
       "reason": "Registered in tools/lane-done.mjs (the per-lane runner) rather than in smoke.yml: this lane was briefed to add the guard WITHOUT editing the workflow, because .github/workflows/smoke.yml is the Coordinator's file and tests/ci-shape.baseline.json pins its step list. Both arms pass on today's tree (plain run green at 35 call sites, --selftest green on 8 controls including a clean arm). Its CI home is the `guards` job beside tests/no-client-xp-mint.mjs, as TWO steps — the plain run, then --selftest — and this entry is the written debt until the Coordinator adds them.",
       "owner": "systems-engineer",
@@ -145,7 +165,11 @@
       "verified": {
         "asserts": true,
         "selftest": true,
-        "mutations": ["unaligned", "nofight", "capIsCadence"]
+        "mutations": [
+          "unaligned",
+          "nofight",
+          "capIsCadence"
+        ]
       }
     },
     "$deleted:2026-09-06-slice-2": {

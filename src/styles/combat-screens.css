@@ -107,19 +107,30 @@
  * supposed to be, and none of them ever disappears: an empty slot in a menu is
  * what teaches the rotation. */
 #panel-combat .wt-dest-rail { flex: 0 0 auto; overflow-x: auto; overscroll-behavior-x: contain; }
-#panel-combat .wt-dests { display: flex; gap: 8px; min-width: min-content; }
+/* THE RAIL FITS ITS SIX, OR IT WRAPS — IT NEVER HANGS OFF THE PANEL (b548).
+ * `min-width: min-content` made the row as wide as the widest card's intrinsic
+ * content, so at 1440x900 the six cards resolved to 217px each, the row to
+ * 1340px inside a 1240px rail, and the World Event card's right edge landed at
+ * 1530 against a panel that ends at 1440 — name, meta and its "Events" button
+ * all sliced by `.panel`'s overflow, with the scroll that was supposed to
+ * rescue it offering no affordance a player would ever find. A destination the
+ * player cannot see is not a destination. The row now shrinks to the card
+ * floor first and WRAPS second, which is the honest failure mode: a second row
+ * of cards you can read beats a first row you cannot reach. */
+#panel-combat .wt-dests { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 #panel-combat .wt-dest {
-  flex: 1 1 200px; min-width: 190px; max-width: 320px;
+  flex: 1 1 190px; min-width: 0; max-width: 320px;
   display: flex; flex-direction: column; gap: 6px;
   padding: 8px 10px;
   background: var(--surf-sunken, rgba(0,0,0,.18));
   border: 1px solid var(--line-soft);
   border-radius: var(--r, 8px);
 }
-#panel-combat .wt-dest header { display: flex; align-items: baseline; gap: 6px; }
+#panel-combat .wt-dest header { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 #panel-combat .wtd-kick {
   font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
   font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-2);
+  min-width: 0;
 }
 #panel-combat .wtd-count {
   font-variant-numeric: tabular-nums; font-weight: 800; font-size: var(--t-micro, 11px);
@@ -134,9 +145,16 @@
 #panel-combat .wtd-img.is-glyph svg { width: 30px; height: 30px; }
 #panel-combat .wtr-kicker .hr-glyph { vertical-align: -2px; margin-right: 4px; }
 #panel-combat .wtd-main { display: flex; flex-direction: column; min-width: 0; }
+/* NAMES WRAP, THEY ARE NEVER TRIMMED. The catalogue's longest destination is
+ * "Elderscale, the Great Wyrm" (26 chars) and the roster carries "Magma
+ * Elemental" and "The Hollow Regent"; no card width that fits six across a
+ * 1240px rail will ever hold those on one line, so the old
+ * nowrap+ellipsis rendered "Magma Elemen..." as the permanent state of the
+ * Boss of the Day. A destination's name is the one word the card exists to
+ * say. Two short lines, full name, no tooltip required. */
 #panel-combat .wtd-main b {
   font-family: var(--f-display); font-size: var(--t-small, 13px); color: var(--ink);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  white-space: normal; overflow-wrap: anywhere; line-height: 1.15;
 }
 #panel-combat .wtd-main span { font-size: var(--t-micro, 11px); color: var(--ink-2); }
 #panel-combat .wt-dest footer { display: flex; }
@@ -1197,6 +1215,14 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
    * and the countdown go — they are on the destination's own screen, and the
    * chip's job here is only "this exists and it is one tap away". The rail
    * scrolls sideways, which is how the sixth one stays reachable. */
+  /* THE LANDSCAPE RAIL STAYS A SIDEWAYS SCROLLER (b548 re-asserts it). The base
+     rule above wraps, which is right on a desktop and wrong on a 393px-tall
+     phone: measured here, two rows of chips cost 229px of rail against the
+     scroller's 112px, and squeezing all six onto one 123px-wide row broke "The
+     Hollow Regent" over four lines for MORE height than it saved. The chip's
+     floor is the 40px thumb target on its button plus a 46px glyph, so a second
+     row is not affordable on this screen. */
+  #panel-combat .wt-dests { flex-wrap: nowrap; min-width: min-content; }
   #panel-combat .wt-dest {
     flex: 0 0 auto; min-width: 132px; max-width: 180px; padding: 2px 6px; gap: 0;
   }

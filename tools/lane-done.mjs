@@ -22,6 +22,16 @@ const STEPS = [
   // The server projects it, the client must not keep its own copy (Tyler, 2026-09-14).
   // Text-only here; the executed hr_state_of key set is pinned in the db-replay job.
   ['node', ['tests/no-client-copy-of-projection.mjs']],
+  // The client predicts nothing new from 2026-09-16 (LIVE_WORLD_BRIEF.md): the
+  // world tick + push channel is the path, not one more predicted field.
+  ['node', ['tests/no-new-prediction.mjs']],
+  // `accrued_to` advances to the time the simulation ACCOUNTED FOR, not to now()
+  // (2026-09-16): the sub-tick carry is deferred to the next window, never
+  // forfeited, and the four refusals that keep that from minting hold. Both arms
+  // per RULE 5 — the plain run answers "green when nothing is wrong", --mutate
+  // answers "can this go red". ~2 s, no database, no network.
+  ['node', ['tests/settle-carry-defer.mjs']],
+  ['node', ['tests/settle-carry-defer.mjs', '--mutate']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on

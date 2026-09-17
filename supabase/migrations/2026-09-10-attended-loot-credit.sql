@@ -59,35 +59,31 @@
 --     is already committed with this change; nothing else moved.
 --
 --   ⚠ DO NOT APPLY IN THE FIRST FIVE MINUTES OF A UTC DAY.
---     ◐ NARROWED 2026-09-16, NOT CLOSED (security review, measured). The
---     [00:00, 00:05) window is gone; a ~8-SECOND band STRADDLING midnight is
---     not. Clean-tree chain replays with the process clock parked at
---     -00:00:06 … -00:00:01 and +00:00:00 … +00:00:01 exit 1 on a CORRECT
---     function with `GATE(f5): the credit applied 0 … (expected 3)`: when
---     midnight falls BETWEEN f5's two credits, the clamp moves the log stamp
---     FORWARD to the day start, the anchor collapses and the cap honestly
---     refuses the 15-kill claim — the same shape f6 was rewritten to survive,
---     which f5's literal 3/55 expectations still do not. Green again at -7 and
---     at +2. The band moves with replay speed, so on other hardware it is the
---     same width at a different offset. `tests/utc-midnight-replay.mjs` does
---     NOT cover it (its arms are timed from process start, not from when the
---     fixture executes: the -8 arm reaches f6 at 23:59:58, still yesterday),
---     and its +1 arm sits ON the band edge — measured GREEN and RED at the same
---     offset twenty minutes apart. Operator rule until f5 is day-anchored the
---     way f6 now is: DO NOT APPLY IN THE LAST 10 OR FIRST 5 SECONDS OF A UTC
---     DAY. Fail-closed (the fixture's writes roll back), so the cost is a
---     failed apply and a red CI run, never player data.
---     Partially resolved 2026-09-16 — kept here because this is where the hazard was
---     measured, and because the next fixture that backdates a stamp will be
---     written by someone reading a header like this one. GATE(f5) inherited the
---     clamp (reliability lane); GATE(f6) was a SECOND instance f5 was masking
---     (the daily row read 196 against 160) and was rewritten DAY-ANCHORED by the
---     backend lane — clamping alone could not fix it, because clamping the stamps
---     also clamps the credit WINDOW to the day start and the cap then honestly
---     refuses a 40-kill claim in the first ~18.5 s of a day. There is now an exit
---     code behind this paragraph: `node tests/utc-midnight-replay.mjs` replays the
---     chain with the process clock parked at -00:00:08 / 00:00:01 / 00:02:30 /
---     00:04:30 / 00:25:00 against a 01:00 control, and it runs in
+--     ✅ RESOLVED 2026-09-16, and resolved MEANS an exit code swept across the
+--     boundary, not a clamp that looked right. The history matters because the
+--     next fixture that backdates a stamp will be written by someone reading a
+--     header like this one:
+--       1. GATE(f5) inherited GATE(f4)'s clamp (reliability lane). That closed
+--          [00:00, 00:05) and left an ~8-SECOND band straddling midnight: with
+--          the stamp clamped forward onto the day start but accrued_to still
+--          backdated ten minutes, f5's two credits read DIFFERENT windows, and a
+--          15-kill claim needs ≈6.9 s of window at the 600 ms kill floor, so the
+--          cap honestly refused it and the gate raised `the credit applied 0
+--          (expected 3)` ON A CORRECT FUNCTION. Security review measured it red
+--          at -00:00:06 … +00:00:01 of process start, green at -7 and +2.
+--       2. GATE(f6) was a second instance f5 had masked (the daily row read 196
+--          against 160), and GATE(f4) a third (cap 0 on a day a second old).
+--     A clamp alone could not fix any of them, because clamping the stamps also
+--     clamps the credit WINDOW to the day start and hr_bounty_kill_cap then
+--     honestly refuses a literal claim (40 kills need ≈18.5 s). All three are now
+--     DAY-ANCHORED: the magnitudes come from the server's own reported cap, the
+--     per-round expectations are derived from it, and a degenerate window RAISES
+--     rather than passing quietly unless the day is younger than one 600 ms kill.
+--     The exit code: `node tests/utc-midnight-replay.mjs` PROBES the second at
+--     which the §4 block takes its transaction timestamp and sweeps the boundary
+--     across it (midnight -3…+9 s, plus 00:02:30 / 00:04:30 / 00:25:00 against a
+--     01:00 control); `--selftest` proves it still bites by un-anchoring every
+--     stamp and, separately, by planting the S1 economy defect. It runs in
 --     tools/lane-done.mjs. A hazard in prose is a hazard nobody can honour.
 --     The original finding, unedited:
 --     Not this file's defect, but it is in this file's apply path.

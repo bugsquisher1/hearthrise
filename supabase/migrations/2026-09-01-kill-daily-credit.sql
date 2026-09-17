@@ -913,7 +913,7 @@ declare
   v_daily bigint; v_daily2 bigint; v_life bigint; v_kills bigint; v_best bigint;
   v_g0 bigint; v_g1 bigint; v_gem0 bigint; v_gem1 bigint;
   v_cur  bigint; v_n int; v_days text[]; v_sum bigint;
-  v_c    bigint; v_s bigint;  -- GATE(f6): the round size the SERVER allowed, and the settle it must absorb
+  v_c    bigint; v_s bigint; v_d bigint;  -- GATE(f5)/(f6): the magnitude the SERVER allowed, the settle it must absorb, and the part the settle missed
 begin
   -- (a) The client surface did not move: the wrapper stays authenticated-only,
   --     the inner verb and the cap stay revoked.
@@ -1144,8 +1144,17 @@ begin
     update public.player_state set accrued_to = now() - interval '30 minutes'
       where user_id = v_uid and slot = v_slot;
     v := public.hr_credit_kills__ungated(v_slot, v_t2, 400, 'idem-f4');
-    if coalesce((v->>'cap')::bigint, 0) <= 0 then
-      raise exception 'GATE(f4): FIXTURE DEGENERATE — cap is 0, so the ceiling was not the binding control: %', v;
+    -- ⚠ …and the day-start clamp above also clamps the WINDOW, so on a UTC day
+    --   younger than one 600 ms kill the cap is honestly 0 and no fixture can
+    --   make the ceiling the binding control. That one case is tolerated (and
+    --   ONLY that one: a 0 cap on a day older than a second is still the loud
+    --   failure it has always been); the `credited = 0` assertion below runs
+    --   either way. Same class as GATE(f5)/GATE(f6) — see their headers.
+    if coalesce((v->>'cap')::bigint, 0) <= 0
+       and now() > public.hr_utc_day_start(now()) + interval '1 second' then
+      raise exception 'GATE(f4): FIXTURE DEGENERATE — cap is 0 on a % s old UTC day, so the ceiling '
+                      'was not the binding control: %',
+                      round(extract(epoch from (now() - public.hr_utc_day_start(now())))::numeric, 3), v;
     end if;
     if coalesce((v->>'credited')::bigint, -1) <> 0 then
       raise exception 'GATE(f4): the per-day bounty-free ceiling did not bind (cap %, credited %)',
@@ -1160,46 +1169,85 @@ begin
     --        the settle-delta subtraction the row would read 40 + sim; with it the
     --        row reads exactly the 40 the player was observed to make.
     --        A clean fixture: no ceiling pressure, no bounty, a fresh anchor.
+    --
+    --        ⚠ DAY-ANCHORED, AND FOR THE SECOND TIME (2026-09-16, security
+    --        finding 5). The first pass here only inherited GATE(f4)'s clamp on
+    --        the log stamp, which closed [00:00, 00:05) and left an ~8 SECOND
+    --        band: with the stamp clamped forward onto the day start but
+    --        accrued_to still backdated ten minutes, the two credits of this
+    --        fixture read DIFFERENT windows, and a 15-kill claim needs ≈6.9 s of
+    --        window at the 600 ms kill floor — so on a day a few seconds old
+    --        hr_bounty_kill_cap honestly refused it and the gate raised
+    --        `the credit applied 0 (expected 3)` ON A CORRECT FUNCTION. Measured
+    --        red at -00:00:06 … +00:00:01 of process start, green at -7 and +2.
+    --        Both stamps now use the SAME day-clamped expression, so both calls
+    --        see the SAME window and therefore the same cap; the magnitudes come
+    --        from the server's own reported cap (v_c = least(40, cap), exact
+    --        because the first credit of the day has no watermark and so no
+    --        subtraction); the settle is least(12, v_c) so it is always
+    --        absorbable; and the second claim is v_s + v_d with
+    --        v_d = least(3, v_c - v_s), which is ≤ v_c ≤ cap and therefore NEVER
+    --        cap-bound. The asserted property and its arithmetic are unchanged:
+    --        settle_delta must read the settle, the second credit must apply only
+    --        the part the settle missed, and the row must read the observed total
+    --        v_c + v_s + v_d — 40 / 12 / 3 / 55, never 67, at every second of the
+    --        day with a window ≥ ~6.9 s, and the same property at the server's own
+    --        magnitude below that.
     delete from public.hr_kill_credit_log where user_id = v_uid and slot = v_slot;
     delete from public.player_progress
       where user_id=v_uid and slot=v_slot and kind='daily' and key='ev:kill_any';
     delete from public.player_progress
       where user_id=v_uid and slot=v_slot and kind='stat' and key='ev:kill_any';
-    update public.player_state set accrued_to = now() - interval '10 minutes'
-      where user_id = v_uid and slot = v_slot;
-    -- credit 40 observed kills → the row is 40 and the delta baseline is recorded.
+    update public.player_state
+       set accrued_to = greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')
+     where user_id = v_uid and slot = v_slot;
+    -- credit the observed kills → the row is v_c and the delta baseline is recorded.
     v := public.hr_credit_kills__ungated(v_slot, v_t2, 40, 'idem-f5a');
-    if coalesce((v->>'credited')::bigint, -1) <> 40 then
-      raise exception 'GATE(f5): the first bounty-free credit applied % (expected 40)', v->>'credited';
+    v_c := coalesce((v->>'credited')::bigint, -1);
+    if v_c <> least(40::bigint, coalesce((v->>'cap')::bigint, -1)) then
+      raise exception 'GATE(f5): the first bounty-free credit applied % against cap % — it is neither '
+                      'the claim nor the cap, so the fixture magnitude is not the server''s: %',
+                      v_c, v->>'cap', v;
     end if;
+    if v_c <= 0 and now() > public.hr_utc_day_start(now()) + interval '1 second' then
+      raise exception 'GATE(f5): FIXTURE DEGENERATE — the server allowed 0 kills in a % s window, so '
+                      'the double-advance below would be asserted on nothing: %',
+                      round(extract(epoch from (now() - public.hr_utc_day_start(now())))::numeric, 3), v;
+    end if;
+    v_s := least(12::bigint, v_c);
+    v_d := least(3::bigint, greatest(0::bigint, v_c - v_s));
     -- NOW THE SETTLE LANDS ON THE SAME WINDOW. hr_apply writes daily 'ev:kill_any'
     -- and lifetime stat 'ev:kill_any' from ONE counter, so both move by its
-    -- (undercounted) 12 — this is exactly what goalProgressOps emits.
+    -- (undercounted) v_s — this is exactly what goalProgressOps emits.
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
-      values (v_uid, v_slot, 'daily', 'ev:kill_any', 12, v_day, 'active')
+      values (v_uid, v_slot, 'daily', 'ev:kill_any', v_s, v_day, 'active')
       on conflict (user_id, slot, kind, key, period_key)
-        do update set value = public.player_progress.value + 12;
+        do update set value = public.player_progress.value + v_s;
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
-      values (v_uid, v_slot, 'stat', 'ev:kill_any', 12, '', 'active')
+      values (v_uid, v_slot, 'stat', 'ev:kill_any', v_s, '', 'active')
       on conflict (user_id, slot, kind, key, period_key)
-        do update set value = public.player_progress.value + 12;
-    update public.hr_kill_credit_log set created_at = greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')
-      where user_id = v_uid and slot = v_slot;
-    -- the player kept fighting: 15 MORE observed kills, of which the settle
-    -- already accounted for 12. Only 3 may land.
-    v := public.hr_credit_kills__ungated(v_slot, v_t2, 15, 'idem-f5b');
-    if coalesce((v->>'settle_delta')::bigint, -1) <> 12 then
-      raise exception 'GATE(f5): the settle delta read % (expected 12) — the anti-double-count is blind', v->>'settle_delta';
+        do update set value = public.player_progress.value + v_s;
+    update public.hr_kill_credit_log
+       set created_at = greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')
+     where user_id = v_uid and slot = v_slot;
+    -- the player kept fighting: v_s + v_d MORE observed kills, of which the settle
+    -- already accounted for v_s. Only v_d may land.
+    v := public.hr_credit_kills__ungated(v_slot, v_t2, v_s + v_d, 'idem-f5b');
+    if coalesce((v->>'settle_delta')::bigint, -1) <> v_s then
+      raise exception 'GATE(f5): the settle delta read % (expected %) — the anti-double-count is blind',
+        v->>'settle_delta', v_s;
     end if;
-    if coalesce((v->>'credited')::bigint, -1) <> 3 then
-      raise exception 'GATE(f5): the credit applied % on top of a settle that already covered 12 of the '
-                      '15 observed — credit+settle DOUBLE-ADVANCE the daily row', v->>'credited';
+    if coalesce((v->>'credited')::bigint, -1) <> v_d then
+      raise exception 'GATE(f5): the credit applied % (expected %) on top of a settle that already '
+                      'covered % of the % observed — credit+settle DOUBLE-ADVANCE the daily row',
+                      v->>'credited', v_d, v_s, v_s + v_d;
     end if;
     select coalesce(max(value),0) into v_daily2 from public.player_progress
       where user_id=v_uid and slot=v_slot and kind='daily' and key='ev:kill_any' and period_key=v_day;
-    if v_daily2 <> 55 then
-      raise exception 'GATE(f5): the daily row is % after 55 observed kills and a 12-kill settle '
-                      '(expected exactly 55 — never 67)', v_daily2;
+    if v_daily2 <> v_c + v_s + v_d then
+      raise exception 'GATE(f5): the daily row is % after % observed kills and a %-kill settle '
+                      '(expected exactly % — never %)',
+                      v_daily2, v_c + v_s + v_d, v_s, v_c + v_s + v_d, v_c + 2*v_s + v_d;
     end if;
 
     -- ── (f6) ⚠ S1 — A ZERO-CLAIM CALL MUST NOT FORGIVE THE SUBTRACTION ──────
@@ -1252,7 +1300,7 @@ begin
     -- the sum of the credits exactly rather than "within one settle".
     for v_n in 1..4 loop
       update public.player_state
-         set accrued_to = greatest(public.hr_utc_day_start(now()), now() - interval '10 minutes')
+         set accrued_to = greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')
        where user_id = v_uid and slot = v_slot;
       update public.hr_kill_credit_log
          set created_at = greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')
@@ -1290,7 +1338,7 @@ begin
       -- THE ATTACK: a zero-claim call, whose only purpose is to advance the
       -- watermark past a settle contribution it never subtracted.
       update public.player_state
-         set accrued_to = greatest(public.hr_utc_day_start(now()), now() - interval '10 minutes')
+         set accrued_to = greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')
        where user_id = v_uid and slot = v_slot;
       update public.hr_kill_credit_log
          set created_at = greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')

@@ -55,28 +55,28 @@
 // red arm to mean anything, and a red control is a HARNESS failure (exit 2),
 // never a verdict.
 //
-// --selftest is the mutation proof. It reverts the GATE(f5) clamp in the
-// REAL migration text (the one-line defect that is actually in this repo's
-// history), requires the in-window arm to go RED with the fixture's own
-// message, and requires the +1h control to stay GREEN — a guard that goes
-// red at every hour of the day is a broken guard, not a clock guard. The
-// file is restored byte-for-byte afterwards, verified by length and content.
+// --selftest is the mutation proof, and it plants TWO mutations in the REAL
+// migration text. (1) UN-ANCHOR every §4 stamp — the one-line defect that is
+// actually in this repo's history — and require a just-after-midnight arm to go
+// RED with a fixture's own message while the +1h control stays GREEN (a guard
+// that goes red at every hour of the day is a broken guard, not a clock guard).
+// (2) Plant the S1 economy defect (`v_consumed := v_settle_delta`, Security C1)
+// and require RED at BOTH the boundary and the control: day-anchoring a fixture
+// must not turn it into something that is green at any magnitude. The file is
+// restored byte-for-byte after each, verified by content.
 //
-// ⚠ WHAT THIS GUARD DOES NOT COVER (security review 2026-09-16, MEASURED on a
-// clean tree). The arms below are timed from PROCESS START, not from the moment
-// the fixture executes: GATE(f6) runs ~6.5 s into a replay, so the -8 "straddle"
-// arm reaches it at 23:59:58 — the whole DO block finishes BEFORE midnight and
-// nothing straddles. Offsets -6 … -1 and 0 … +1 exit 1 on a CORRECT function
-// with `GATE(f5): the credit applied 0 (expected 3)`: midnight falls BETWEEN
-// f5's two credits, the clamp pushes the log stamp FORWARD onto the day start,
-// the anchor collapses and the cap honestly refuses the 15-kill claim. Green at
-// -7 and +2. That is a ~8 s red band per day, and the +1 arm here sits ON its
-// edge — measured GREEN, then RED at the same offset twenty minutes later, so
-// this guard is currently a flake source at exactly the hour it polices.
-// FIX (reliability + backend lanes, not done here): day-anchor GATE(f5) the way
-// GATE(f6) now is (round size and expectations from the server's reported cap),
-// and re-time the arms so the BOUNDARY lands inside the fixture — probe the
-// offset at which f5 executes, then sweep it at 1 s granularity.
+// ⚠ THE ARMS ARE TIMED FROM THE FIXTURE, NOT FROM PROCESS START (security
+// review 2026-09-16 — the first version of this guard got this wrong and said
+// so). The §4 block takes its transaction timestamp ~7–10 s after the process
+// starts, so an arm parked at "-8 s" reached the fixture at 23:59:58 and never
+// straddled anything, while an arm at "+1" sat on the edge of a red band and
+// was measured GREEN and RED twenty minutes apart. The delay is now PROBED once
+// per run (a `raise exception 'HRPROBE now=%'` planted at the GATE(f5) marker,
+// the database's own transaction timestamp read back out of the failure) and
+// every sweep arm is expressed in seconds of the FIXTURE's clock. Two fixtures
+// were red in that band on a correct function and are fixed in the same commit
+// as this re-timing: GATE(f5) is day-anchored the way GATE(f6) already was, and
+// GATE(f4) tolerates a 0 cap ONLY on a day younger than one 600 ms kill.
 //
 // Exit: 0 green · 1 the chain cannot rebuild at some hour of the day ·
 //       2 harness (the control arm failed, or a mutation could not be planted).
@@ -95,26 +95,52 @@ const SHIM = pathToFileURL(join(HERE, '_utc-clock-shim.mjs')).href;
 const REPLAY = join(HERE, 'schema-drift.mjs');
 
 const MIGRATION = join(ROOT, 'supabase', 'migrations', '2026-09-01-kill-daily-credit.sql');
-const CLAMPED = "update public.hr_kill_credit_log set created_at = greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')";
-const UNCLAMPED = "update public.hr_kill_credit_log set created_at = now() - interval '5 minutes'";
+/* The mutation the --selftest plants: UN-ANCHOR every §4 stamp, i.e. revert the
+   whole class this guard polices in one edit. It is the literal one-line defect
+   that is in this repo's history (GATE(f5) did not inherit GATE(f4)'s clamp). */
+const CLAMPED = "greatest(public.hr_utc_day_start(now()), now() - interval '5 minutes')";
+const UNCLAMPED = "now() - interval '5 minutes'";
+/* …and the OTHER mutation: the S1 defect Security C1 reported, which is not a
+   clock bug at all. It must be red at the boundary AND at the control — that is
+   what says the day-anchored fixtures still assert their economy property and
+   did not become a green-at-any-magnitude no-op. */
+const S1_FIX = 'v_consumed   := least(v_settle_delta, v_credit);';
+const S1_DEFECT = 'v_consumed   := v_settle_delta;';
 
-/* The offsets, in seconds from a UTC midnight. The three in-window ones are
-   the boundary the attended-loot-credit header measured by hand (RED at
-   00:00:28, 00:01:26, 00:02:35, 00:03:13, 00:04:25; green again 00:05:34);
-   -8 makes the replay STRADDLE the boundary rather than start after it,
-   which is the shape a 23:5x push actually has. +3600 is the control. */
+/* WHERE THE FIXTURE ACTUALLY RUNS. The arms are parked relative to a UTC
+   midnight AT PROCESS START, but the §4 block that carries GATE(f5)/GATE(f6)
+   executes some seconds later — measured ~6.5 s, and it moves with the machine.
+   Timing the arms from process start is how the first version of this guard came
+   to have a "straddle" arm that never straddled (it reached the fixture at
+   23:59:58) and an arm sitting exactly on the edge of a red band, green in one
+   run and red twenty minutes later. So the offset is PROBED, once per run, by
+   planting a `raise exception 'HRPROBE now=%'` at the GATE(f5) marker and reading
+   the database's own transaction timestamp back out of the failure — and the
+   sweep below is expressed in seconds OF THE FIXTURE'S OWN CLOCK relative to
+   midnight, so k = 0 really is "the block runs as the day turns over". */
+const F5_MARK = '    -- ── (f5) ⚠ CREDIT';
+const PROBE_SQL = "    raise exception 'HRPROBE now=%', now();\n";
+const PROBE_OFFSET = 3600;
+// Must equal the shim's own midnight; asserted against the shim text below.
+const SHIM_MIDNIGHT = Date.parse('2026-09-18T00:00:00.000Z');
+/* The sweep, in seconds of the FIXTURE's clock relative to midnight. It runs to
+   +9 and not to +3 because the band the security review measured was not a
+   boundary artefact: a 15-kill claim needs ≈6.9 s of window at the 600 ms kill
+   floor, and a 40-kill one ≈18.5 s, so a fixture that re-acquires a literal
+   magnitude goes red for the first several SECONDS of a day, not the first
+   moment of it. ⚠ The label is the INTENDED second: the probe measures one
+   replay and the next replay is not identical (measured 8.65 s and 9.84 s in two
+   runs of the same tree, ~1.2 s of jitter), so read the sweep as covering the
+   band as a SET, not each arm to the second. Ten arms ≈ 2 min. */
+const SWEEP = [-3, -2, -1, 0, 1, 2, 3, 5, 7, 9];
+
+/* The fixed arms keep the coarse coverage the hand-measured window bought:
+   00:02:30 and 00:04:30 sit inside [00:00, 00:05), the window of the FIVE-minute
+   backdates, and 00:25:00 covers the THIRTY-minute ones
+   (2026-09-02-renown-kill-faucet.sql lines 672/719). +3600 is the control. */
 const ARMS = [
-  { name: 'replay straddling the UTC boundary (starts 00:00:-08)', off: -8, window: true },
-  { name: 'replay inside the first minute of a UTC day (00:00:01)', off: 1, window: true },
   { name: 'replay at 00:02:30 UTC', off: 150, window: true },
   { name: 'replay at 00:04:30 UTC', off: 270, window: true },
-  /* 00:25 is not padding. [00:00, 00:05) is only the window of the FIVE-minute
-     backdates; the chain also carries THIRTY-minute ones
-     (2026-09-02-renown-kill-faucet.sql lines 672/719 reset the kill-credit
-     anchor with `now() - interval '30 minutes'`). Those rows are bounty rows
-     (free = false), so no day-scoped read sees them today and the arm is green
-     — but the arm is what says so, and it is what will go red the day somebody
-     day-scopes that read. Cost: one more ~11 s replay. */
   { name: 'replay at 00:25:00 UTC (covers the 30-minute fixture backdates)', off: 1500, window: true },
   { name: 'CONTROL — replay at 01:00:00 UTC (must be green)', off: 3600, window: false },
 ];
@@ -142,6 +168,37 @@ function replayAt(offsetSeconds) {
   return { code: r.status, out };
 }
 
+/* Plant a probe, replay once, read the fixture's own now() out of the failure,
+   restore byte-for-byte. Returns the seconds between process start and the
+   moment the §4 block's transaction timestamp is taken. */
+function probeFixtureDelay() {
+  const shim = readFileSync(join(HERE, '_utc-clock-shim.mjs'), 'utf8');
+  if (!shim.includes("'2026-09-18T00:00:00.000Z'")) {
+    return { err: 'the clock shim no longer parks at 2026-09-18T00:00:00Z — SHIM_MIDNIGHT is stale' };
+  }
+  const original = readFileSync(MIGRATION, 'utf8');
+  const at = original.indexOf(F5_MARK);
+  if (at < 0) return { err: `could not find the GATE(f5) marker to plant the probe in ${MIGRATION}` };
+  writeFileSync(MIGRATION, original.slice(0, at) + PROBE_SQL + original.slice(at), 'utf8');
+  let out = '';
+  try {
+    out = replayAt(PROBE_OFFSET).out;
+  } finally {
+    writeFileSync(MIGRATION, original, 'utf8');
+    if (readFileSync(MIGRATION, 'utf8') !== original) {
+      return { err: 'the migration was NOT restored byte-for-byte after the probe' };
+    }
+  }
+  // Postgres renders the timestamp in the SESSION's TimeZone, which on a dev box
+  // is the host zone (`… 19:30:06.613-06`), not UTC — so the zone offset is part
+  // of what is parsed, never assumed.
+  const m = out.match(/HRPROBE now=(\d{4}-\d{2}-\d{2})[ T]([\d:.]+)([+-]\d{2})(?::?(\d{2}))?/);
+  if (!m) return { err: 'the probe did not report a timestamp (is the §4 block still reached?)' };
+  const seen = Date.parse(`${m[1]}T${m[2]}${m[3]}:${m[4] || '00'}`);
+  if (!Number.isFinite(seen)) return { err: `unparseable probe timestamp: ${m[0]}` };
+  return { delay: (seen - (SHIM_MIDNIGHT + PROBE_OFFSET * 1000)) / 1000 };
+}
+
 function firstGateLine(out) {
   const m = out.match(/GATE\([^)]*\)[^\n]*/);
   return m ? m[0].slice(0, 160) : (out.trim().split('\n').pop() || '').slice(0, 160);
@@ -158,35 +215,72 @@ async function base() {
     return;
   }
   ok(control.name, true);
+  const probe = probeFixtureDelay();
+  if (probe.err) {
+    console.error(`  HARNESS: ${probe.err}`);
+    harness = 1;
+    return;
+  }
+  console.log(`  ..    probed: the §4 block takes its transaction timestamp ${probe.delay.toFixed(2)} s after process start\n`);
+  for (const k of SWEEP) {
+    const r = replayAt(k - probe.delay);
+    ok(`the fixture runs at midnight ${k >= 0 ? '+' : '−'}${Math.abs(k)} s`,
+      r.code === 0, r.code === 0 ? '' : `→ ${firstGateLine(r.out)}`);
+  }
   for (const arm of ARMS.filter((a) => a.window)) {
     const r = replayAt(arm.off);
     ok(arm.name, r.code === 0, r.code === 0 ? '' : `→ ${firstGateLine(r.out)}`);
   }
 }
 
-async function selftest() {
-  console.log('\nUTC MIDNIGHT REPLAY — MUTATION PROOF (the GATE(f5) clamp reverted)\n');
+/* Plant `find` → `replace`, replay at the given offsets, restore byte-for-byte.
+   Returns the two results, or sets `harness` if the mutation could not be planted
+   or the file could not be put back. */
+function mutate(find, replace, offsets) {
   const original = readFileSync(MIGRATION, 'utf8');
-  if (!original.includes(CLAMPED)) {
-    console.error(`  HARNESS: could not find the clamped GATE(f5) line to revert in ${MIGRATION}`);
+  if (!original.includes(find)) {
+    console.error(`  HARNESS: could not find \`${find.slice(0, 60)}…\` to mutate in ${MIGRATION}`);
     harness = 1;
-    return;
+    return null;
   }
-  writeFileSync(MIGRATION, original.replace(CLAMPED, UNCLAMPED), 'utf8');
+  writeFileSync(MIGRATION, original.split(find).join(replace), 'utf8');
   try {
-    const red = replayAt(1);
-    ok('reverting the GATE(f5) clamp turns the in-window arm RED',
-      red.code !== 0, red.code !== 0 ? `→ ${firstGateLine(red.out)}` : '(it stayed green)');
-    const green = replayAt(3600);
-    ok('...and the 01:00 UTC control stays GREEN (a clock guard, not a broken one)',
-      green.code === 0, green.code === 0 ? '' : `→ ${firstGateLine(green.out)}`);
+    return offsets.map((o) => replayAt(o));
   } finally {
     writeFileSync(MIGRATION, original, 'utf8');
-    const back = readFileSync(MIGRATION, 'utf8');
-    if (back !== original) {
+    if (readFileSync(MIGRATION, 'utf8') !== original) {
       console.error('  HARNESS: the migration was NOT restored byte-for-byte.');
       harness = 1;
     }
+  }
+}
+
+async function selftest() {
+  console.log('\nUTC MIDNIGHT REPLAY — MUTATION PROOF\n');
+  const probe = probeFixtureDelay();
+  if (probe.err) {
+    console.error(`  HARNESS: ${probe.err}`);
+    harness = 1;
+    return;
+  }
+  // A few seconds INTO the day: the stamps are day-clamped and the cap is small,
+  // which is exactly where a fixture that had gone soft would stop biting.
+  const boundary = 2 - probe.delay;
+
+  const clamp = mutate(CLAMPED, UNCLAMPED, [boundary, 3600]);
+  if (clamp) {
+    ok('un-anchoring every §4 stamp turns the just-after-midnight arm RED',
+      clamp[0].code !== 0, clamp[0].code !== 0 ? `→ ${firstGateLine(clamp[0].out)}` : '(it stayed green)');
+    ok('...and the 01:00 UTC control stays GREEN (a clock guard, not a broken one)',
+      clamp[1].code === 0, clamp[1].code === 0 ? '' : `→ ${firstGateLine(clamp[1].out)}`);
+  }
+
+  const s1 = mutate(S1_FIX, S1_DEFECT, [boundary, 3600]);
+  if (s1) {
+    ok('the S1 defect (a zero-claim call forgives the settle) is RED just after midnight',
+      s1[0].code !== 0, s1[0].code !== 0 ? `→ ${firstGateLine(s1[0].out)}` : '(it stayed green)');
+    ok('...and RED at 01:00 too — the day-anchored fixtures still assert the economy property',
+      s1[1].code !== 0, s1[1].code !== 0 ? `→ ${firstGateLine(s1[1].out)}` : '(it stayed green)');
   }
 }
 

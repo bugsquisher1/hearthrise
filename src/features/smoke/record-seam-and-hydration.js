@@ -8,6 +8,69 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot } from './_harness.js?v=548';
 
+/* A RUNNING SMITHING BENCH ON A SCRIPTED WIRE — written once, driven by the two
+   recipe-switch regressions below. See their header for the report. */
+const benchSwitchArc = async (body) => {
+  const G = window.G, M = window.HearthriseActivity, A = window.HearthriseAccrual;
+  const R = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing) || [];
+  const a = R.find((x) => x.id === 'forge_iron_helm'), b = R.find((x) => x.id === 'forge_iron_platebody');
+  assert(a && b, 'the fixture needs two smithing recipes');
+  const snap = snapshotG(), realFetch = window.fetch, origNotify = window.notify, wasOn = A.isServerAccrualEnabled();
+  const sent = [], probe = [], log = [], said = [];
+  let steps = [], release = null;
+  const envOf = (v, id) => ({ version: v, now: null, activity: { kind: 'artisan', id },
+    state: { slot: 0, active_kind: 'artisan', active_id: id, gold: G.gold, hp: G.playerHp, max_hp: G.playerMaxHp, accrued_to: '2026-09-17T06:00:00Z' },
+    skills: Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: G.skills[k] }; return o; }, {}),
+    inventory: Object.assign({}, G.inventory) });
+  const t = {
+    a, b, sent, probe, log, said,
+    plan: (s) => { steps = s.slice(); },
+    accept: (v, id) => ({ status: 200, body: Object.assign({ ok: true, verb: 'set_activity' }, envOf(v, id)) }),
+    refuse: (v, id) => ({ status: 409, body: Object.assign({ ok: false, error: 'version_conflict', stage: 'switch' }, envOf(v, id)) }),
+    reset: () => { sent.length = 0; probe.length = 0; log.length = 0; release = null; },
+    canRelease: () => typeof release === 'function',
+    release: () => release(),
+    /* A SETTLE THE TEST HOLDS OPEN, so the ordering under test is a fact rather
+       than a timing coincidence. */
+    armSettle: () => {
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      const p = A.requestAccrual({ force: true }); if (p && p.catch) p.catch(() => {});
+    },
+  };
+  try {
+    window.notify = function (m) { said.push(String(m)); };
+    G.skills = Object.assign({}, G.skills, { smithing: 200000 });
+    G.inventory = Object.assign({}, G.inventory, { iron_bar: 200, oak_plank: 50 });
+    window.fetch = function (u, init) {
+      if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+      let bd = null; try { bd = JSON.parse(init && init.body); } catch (e) {}
+      const verb = (bd && bd.verb) || 'accrue';
+      if (verb === 'accrue') {
+        log.push('accrue:sent');
+        return new Promise((resolve) => { release = () => { log.push('accrue:answered'); resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 })); }; });
+      }
+      if (verb !== 'set_activity') return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+      sent.push(bd); probe.push({ target: G.skillTargetId }); log.push('switch:' + sent.length);
+      const step = steps.shift();
+      if (!step) return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+      return Promise.resolve(new Response(JSON.stringify(step.body), { status: step.status }));
+    };
+    armActivityTransport();
+    t.plan([t.accept(900, a.id)]);
+    window.startArtisan('smithing', a.id); await drain();
+    assert(G.skillTargetId === a.id, 'setup: the bench never started ' + a.id + ' (' + G.skillTargetId + ')');
+    t.reset();
+    await body(t);
+  } finally {
+    window.fetch = realFetch; window.notify = origNotify; restoreAccrualSwitch(wasOn);
+    try { if (release) release(); } catch (e) {}
+    M.resetActivity(); M.configureActivity(null);
+    try { A.configureAccrual(null); } catch (e) {}
+    try { window.stopSkill(); } catch (e) {}
+    restoreG(snap);
+  }
+};
+
 export default [
 
   /* ══ b337 — SERVER-AUTHORITATIVE AWAY TIME (the client rewire, slice 1) ════
@@ -6238,6 +6301,54 @@ export default [
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
+  }),
+
+  /* ── regression suite — THE SMITHING SWITCH THE PLAYER HAD TO PRESS TWICE ───
+     REPORTED (Paione, 2026-09-17 04:29, on live): «when I'm smithing for example a
+     steel platebody and swap to plate legs, the game doesn't change to the legs, it
+     stays on the platebody. After pressing a few times it changes.»
+
+     ONE FIXTURE, TWO PROPERTIES: a running bench, a scripted `set_activity`
+     plan, and a settle the test can hold open on the wire. The arm owns its own
+     try/finally so neither test can leak a fetch stub, a notify stub or an
+     unrestored G into the rest of the suite. */
+  () => tryRunAsync('B549-1: a recipe switch refused version_conflict is the CLIENT\'s retry, and the retry does not re-enter the window it just lost', async () => {
+    await benchSwitchArc(async (t) => {
+      // ONE TAP, ONE CONFLICT: the switch races a settle, the server's read loses, and the client asks again.
+      t.plan([t.refuse(901, t.a.id), t.accept(902, t.b.id)]);
+      window.startArtisan('smithing', t.b.id); await drain();
+      assert(t.sent.length === 2, 'ONE tap sent ' + t.sent.length + ' set_activity — a version_conflict is retried by the CLIENT, once');
+      assert(t.probe[1] && t.probe[1].target === t.b.id, 'between the refusal and the retry the client put the bench back on ' + (t.probe[1] && t.probe[1].target) + ' — the reconcile is HELD while the gesture is still asking');
+      assert(window.G.skillTargetId === t.b.id, 'after ONE tap the bench is smithing ' + window.G.skillTargetId + ', not ' + t.b.id + ' — this is Paione\'s "after pressing a few times it changes"');
+
+      /* AND THE RETRY WAITS FOR THIS CLIENT'S OWN SETTLE. A conflict is the
+         server's read losing a race to a write that is very often still on our
+         wire; re-sending in the same microtask loses to that same write, which
+         is how ONE retry still left the player pressing. */
+      t.reset(); t.armSettle();
+      t.plan([t.refuse(903, t.b.id), t.accept(904, t.a.id)]);
+      await drain();
+      assert(t.log.indexOf('accrue:sent') === 0 && t.canRelease(), 'setup: no settle is on the wire (' + JSON.stringify(t.log) + ') — this arm would measure nothing');
+      window.startArtisan('smithing', t.a.id); await drain();
+      assert(t.log.filter((x) => /^switch:/.test(x)).length === 1, 'the retry was sent while this client\'s own settle was still on the wire (' + JSON.stringify(t.log) + ') — it re-enters the window it just lost and is refused for the same reason');
+      t.release(); await drain();
+      assert(t.log.join(',') === 'accrue:sent,switch:1,accrue:answered,switch:2', 'the retry must wait for the settle to answer and then go: ' + JSON.stringify(t.log));
+      assert(window.G.skillTargetId === t.a.id, 'the waited retry did not land the bench on ' + t.a.id + ' (' + window.G.skillTargetId + ')');
+    });
+  }),
+
+  /* …AND THE CONFLICT THE CLIENT CANNOT CLOSE IS SAID OUT LOUD. The bench slides
+     back to the server's pointer — that is server truth and it stays — but in
+     silence a refused tap and a dead button look identical, which is the other
+     half of "I press it a few times". */
+  () => tryRunAsync('B549-2: a switch the retry could not close lands on the server\'s recipe AND tells the player', async () => {
+    await benchSwitchArc(async (t) => {
+      const stuck = t.refuse(905, t.a.id);
+      t.plan([stuck, stuck]);
+      window.startArtisan('smithing', t.b.id); await drain();
+      assert(window.G.skillTargetId === t.a.id, 'a switch the server refused twice left the bench on the client\'s own guess (' + window.G.skillTargetId + ') — the envelope is the truth');
+      assert(t.said.length >= 1, 'the bench slid back to ' + t.a.id + ' and the player was told NOTHING — a refused tap and a dead button are indistinguishable, so the player presses again');
+    });
   }),
 
   /* ACT-7 — A REFUSED DECLARATION MUST STOP THE LOCAL RUN. MEASURED LIVE

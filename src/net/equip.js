@@ -99,7 +99,7 @@
 // same bytes the browser runs.
 // ============================================================================
 
-import { markEquipAuthorityLive, resolveActiveSlot } from './accrue.js?v=548';
+import { markEquipAuthorityLive, resolveActiveSlot, awaitSettleRaceClear } from './accrue.js?v=548';
 
 export const EQUIP_VERB = 'equip';
 
@@ -576,6 +576,11 @@ export async function sendEquip(ops, o = {}) {
          able to be wrong about a success. */
       if (verdict.outcome === 'equipped' || verdict.outcome === 'replayed') break;
       if (!shouldRetryEquip(verdict, attempt, EQUIP_MAX_TRIES)) break;
+      /* THE RETRY DOES NOT RE-ENTER THE WINDOW IT JUST LOST (b549) — the one
+         policy, imported rather than restated, so equip and set_activity cannot
+         disagree about what a conflict means. `shouldRetryEquip` has already
+         established that this is an ANSWERED version_conflict. */
+      await awaitSettleRaceClear();
       /* A REFUSAL IS AN ANSWER ⇒ A NEW KEY. `hr_apply` records the decision under
          the key OUTSIDE the protected block, so a reused key is handed the stored
          `version_conflict` back for up to 25 h and could never succeed. */

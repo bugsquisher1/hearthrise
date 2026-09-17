@@ -77,7 +77,7 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
-  isReconcilePending, isAccrualFailure,
+  isReconcilePending, isAccrualFailure, awaitSettleRaceClear,
 } from './accrue.js?v=548';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
@@ -1048,6 +1048,13 @@ async function runDeclaration(kind, id) {
        failure; it must not be able to be wrong about a success. */
     if (verdict.outcome === 'switched' || verdict.outcome === 'replayed') break;
     if (!shouldRetryActivity(verdict, attempt, ACTIVITY_MAX_TRIES)) break;
+    /* THE RETRY DOES NOT RE-ENTER THE WINDOW IT JUST LOST (b549). Scoped to the
+       ANSWERED conflict: an UNANSWERED attempt is retried on the same key and
+       has nothing to do with a racing write, and making it wait would delay
+       every flaky-network retry behind a settle. */
+    if (verdict.outcome === 'refused' && verdict.reason === 'version_conflict') {
+      await awaitSettleRaceClear();
+    }
     key = nextIntentKey(key, verdict);
     if (!isIntentKey(key)) break;
   }

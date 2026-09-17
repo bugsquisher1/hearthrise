@@ -399,6 +399,38 @@ export function __resetAwaySettleLatch(v) { awaySettleClosed = !!v; }     // tes
 /* IS A SETTLE ON THE WIRE? "Unpaid" and "still coming" differ — one that never STARTED may never answer — and a waiting surface needs both (WELCOME_GATE). */
 export function settleInFlight() { return !!inFlight; }
 
+/* ── THE SAME FACT, AWAITABLE — ONE POLICY FOR EVERY INTENT'S RETRY ────────
+   `settleInFlight()` answers "is there one?" at an instant; a RETRY needs to
+   know WHEN it is over. A `version_conflict` is the server's own read losing a
+   race against a write, and the writer is very often THIS client's own settle,
+   still on the wire: re-sending the intent in the same microtask re-enters the
+   window it just lost, the second attempt is refused for the same reason as the
+   first, and the player is handed the retry loop. That is Paione's «after
+   pressing a few times it changes» (2026-09-17, smithing) and the tail of the
+   equip report (2026-09-11) that one retry did not close.
+
+   BOUNDED AND SWALLOWING, both deliberately: a hung settle must not hold a tap
+   for ever (the ceiling is the settle's own request timeout, so a wait that
+   reaches it means the settle is gone, not slow), and "the settle threw" is
+   never a reason to skip the player's retry. Nothing in flight ⇒ resolves on
+   the next microtask, so the caller has ONE code path. Returns true when a
+   settle was actually waited on — stated so a test can measure the ordering
+   rather than infer it from timing. */
+const SETTLE_RACE_WAIT_MS = 15000;
+export async function awaitSettleRaceClear() {
+  const p = inFlight;
+  if (!p) return false;
+  let timer = null;
+  try {
+    await Promise.race([
+      Promise.resolve(p).catch(() => null),
+      new Promise((r) => { timer = setTimeout(r, SETTLE_RACE_WAIT_MS); }),
+    ]);
+  } catch (e) { /* a waiter never fails the gesture it is waiting for */ }
+  finally { if (timer) clearTimeout(timer); }
+  return true;
+}
+
 /* ── C1: A REFUSED OR LATCHED WINDOW IS OWNED BY THE SETTLE ─────────────────
    The settle-first rule makes the server refuse (`settle_first`) — or makes the
    client skip — a credit whose window the away sim is about to pay. The observed

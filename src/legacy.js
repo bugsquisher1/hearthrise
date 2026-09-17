@@ -1801,42 +1801,20 @@ function explainUnownedStop(was,verdict){
 window.explainUnownedStop=explainUnownedStop;
 /* Move the local pointer to what the SERVER says, without declaring it back.
    ══════════════════════════════════════════════════════════════════════════
-   b348 — TWO CHANGES, AND THE SECOND IS A RULING.
+   (1) EVERY KIND IS REPRESENTED, not just `combat`. A gather node resolves
+       through `HearthriseCore.gatherNode` — the index the ACCRUAL ENGINE reads,
+       never a fresh if/else per skill — so the two sides cannot disagree about
+       which skill a node belongs to.
 
-   (1) IT CAN NOW REPRESENT `gather`. It could only ever act on `combat`, which
-       was complete while `combat` was the only settable kind and became a hole
-       the moment `gather` joined: a server saying "you are chopping oak" landed
-       on a branch that did nothing at all, so the one function whose job is
-       "the envelope is the truth" silently declined to apply half of it.
-       Resolving the node through `HearthriseCore.gatherNode` — the index the
-       ACCRUAL ENGINE reads — rather than through a fresh if/else per skill is
-       what keeps the two sides agreeing about which skill a node belongs to.
-
-   (2) A SERVER `idle` STOPS AN UNCONFIRMED RUN. **THE b348 RULING IS RETIRED**
-       (b519, measured live on hearthrise.net 2026-09-07 17:22 UTC).
-
-       b348 read `idle` as two different sentences — "you stopped, and I know
-       because you told me" (authority) and "I have no idea what you are doing"
-       (a pre-seam save) — and answered the second by RE-DECLARING rather than
-       stopping, so a player whose save predated the seam was not thrown out of
-       their session. That was correct for exactly as long as such saves
-       existed. The cutover is complete and the beta was wiped: there is no
-       character left whose activity the server has never heard of unless the
-       server REFUSED to hear it, and in that state re-declaring is not
-       self-healing, it is a client running a loop the server has said no to.
-
-       WHAT IT COST, MEASURED. QA slot 2, hero KNOCKED OUT
-       (`recovering_until` 44 minutes ahead), server `active_kind=idle`. The
-       player taps a fishing spot. `startSkill` arms the local loop and declares
-       `gather:shrimp_s`; the server refuses it — `set-activity.js` §(1b)
-       refuses EVERY payable kind inside a recovery window, BEFORE `hr_apply`,
-       so there is not even a `player_intents` row — and answers with its own
-       pointer, `idle`. This branch then re-declared, was refused again, and
-       gave up on the latch. The LOOP never stopped: for four minutes the Qty
-       badge climbed 37 → 51 and the Fishing header invented a level-up, all of
-       it client-authored, none of it real, and all of it gone on reload. That
-       is §1 ("nothing is authored by the client — ever") failing in the one
-       place the seam exists to hold.
+   (2) A SERVER `idle` STOPS AN UNCONFIRMED RUN. **THE b348 RULING (re-declare
+       instead of stopping, for pre-seam saves) IS RETIRED** — measured live on
+       hearthrise.net 2026-09-07 17:22 UTC: a knocked-out hero tapped a fishing
+       spot, the server refused every payable kind inside the recovery window
+       and answered `idle`, this branch re-declared, was refused again, and the
+       LOCAL loop painted four minutes of shrimp and a level-up that never
+       existed. Post-cutover there is no save the server has never heard of, so
+       re-declaring is not self-healing — it is a client running a loop the
+       server has said no to, i.e. §1 failing where the seam exists to hold it.
 
        THE RULE NOW. `isActivityConfirmed` still tells the two `idle`s apart,
        and both answers now converge on the server:
@@ -1888,6 +1866,14 @@ window.applyCarriedFight=applyCarriedFight;
 function reconcileActivityPointer(a,fight,verdict){
   if(!a||typeof a!=='object')return null;
   const kind=a.kind, id=a.id;
+  /* WHAT THE PLAYER HAD JUST TAPPED, read BEFORE the reconcile moves it (b549).
+     REPORTED (Paione, 2026-09-17): «when I'm smithing … and swap to plate legs,
+     the game doesn't change to the legs … after pressing a few times it
+     changes.» A `version_conflict` the client's ONE retry could not close ends
+     here, and the bench slid back to the server's pointer IN SILENCE — a
+     refused tap and a dead button looked identical. The stop branch has owed
+     that sentence since b519; a SWITCH is the same debt on the same screen. */
+  const _before=localActivityPointer();
   const applied=activityQuietly(function(){
     if(kind==='combat'&&id&&MONSTERS[id]){
       if(G.activeSkill&&typeof stopSkill==='function')stopSkill();
@@ -1976,6 +1962,21 @@ function reconcileActivityPointer(a,fight,verdict){
      from underneath a reconcile. Only the unconfirmed case is a surprise — a
      confirmed stop is the player's own Stop coming back. */
   if(applied&&applied.stopped==='unconfirmed')explainUnownedStop(applied.was,verdict);
+  /* …AND THE SWITCH THE SERVER REFUSED IS OWED THE SAME SENTENCE (b549). ONE
+     toast, on the REFUSAL only (an ordinary envelope moving the pointer is the
+     game working), never on top of `explainUnownedStop`. */
+  else if(applied&&applied.kind&&applied.kind!=='idle'&&verdict&&verdict.outcome==='refused'
+          &&_before&&_before.kind!=='idle'
+          &&!(_before.kind===applied.kind&&String(_before.id)===String(applied.id))){
+    try{
+      const M=window.HearthriseActivity, why=verdict.reason?String(verdict.reason):null;
+      console.warn('[activity] the switch to '+_before.kind+':'+_before.id+' was refused ('+(why||'refused')+') — the realm is still running '+applied.kind+':'+applied.id);
+      if(typeof notify==='function'){
+        notify((why&&M&&typeof M.activityRefusalMessage==='function')
+          ?M.activityRefusalMessage(why):'The hearth did not take that — nothing changed.','kill');
+      }
+    }catch(e){}
+  }
   return applied||{kind:kind||'idle',id:id==null?null:id};
 }
 window.reconcileActivityPointer=reconcileActivityPointer;

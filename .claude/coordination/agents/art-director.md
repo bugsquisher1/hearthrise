@@ -2626,3 +2626,41 @@ with the stylesheet reverted.
 
 Limitations are in today's HANDOFFS entry, and the style row's remaining 34.6px desktop bimodality
 is in DISCOVERIES — harmless now, but b512's guard cannot see it.
+
+### 2026-09-16 · b548 — the destination rail that hung off the panel
+
+The presentation floor read three shapes of one defect on the War Table's destination row. Measured
+at 1440x900 rather than reasoned from the sheet: `.wt-dests { min-width: min-content }` sized the row
+to the widest card's intrinsic content - six cards at 217px, a 1340px row inside a 1240px rail - so
+the World Event card's right edge landed at 1530 against a panel that ends at 1440. Its name, its
+meta line and its "Events" button were all sliced by `.panel`'s overflow, and the sideways scroll
+that was supposed to rescue it offered no affordance a player would ever find. A sixth destination
+nobody can see is not a destination. Meanwhile the names inside the cards that DID fit were
+ellipsised anyway ("Magma Elemen...", "The Hollow Regent" at 172>141).
+
+Two changes, both layout, no string shortened:
+- `.wt-dests` drops `min-width: min-content` and gains `flex-wrap: wrap`; `.wt-dest` drops its
+  190px hard floor to a basis. The row now shrinks to the card floor first and wraps second. At
+  1440x900 the six resolve to 200px each and the last card's right edge is 1430 - inside the panel.
+- `.wtd-main b` stops being nowrap+ellipsis and wraps instead. The sizing basis is the catalogue,
+  not the current roster: the boss data carries "Elderscale, the Great Wyrm" (26 chars), which no
+  card width that fits six across a 1240px rail will ever hold on one line. Trimming was never a
+  width problem to be tuned; it was the wrong mechanism.
+
+**The landscape chip rail keeps its sideways scroll, deliberately, and I measured both alternatives
+before deciding.** Two rows of three chips cost 229px of a 393px-tall screen against the scroller's
+112px; squeezing all six onto one row at 123px wide broke "The Hollow Regent" over four lines and
+cost MORE height than it saved. The chip's floor is b285's 40px thumb target plus a 46px glyph, so a
+second row is not affordable on that screen. I re-asserted `nowrap` + `min-content` inside the
+max-height:560 block so the new wrapping base rule cannot leak onto the phone - the
+leak-across-breakpoints bug this codebase keeps re-learning.
+
+The landscape rail's six remaining `clipped-by-parent` findings are therefore UNFIXED and are
+pre-existing, not new. They are a scroll-affordance question, not a clipping bug, and I did not
+widen `EXCLUDE` to hide them. Filed in DISCOVERIES.
+
+Gate: 17 P1 -> 9 P1. desktop/combat 5 -> 0. landscape/combat 11 -> 8 (the three ellipsis clips
+went with the wrap). Every remaining finding is a strict subset of the baseline list - I re-ran the
+gate on a reverted tree to prove no NEW finding was introduced rather than assuming it.
+Regression: `b548: War Table destinations fit their rail and never trim a name`, mutation-proved
+(1/1 with the fix, 0/1 with the stylesheet reverted). lane-done green.

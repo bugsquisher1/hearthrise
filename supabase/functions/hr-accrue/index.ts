@@ -694,12 +694,22 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        watermark. `(accrued_to, now]` is the ONLY double-pay guard this design
        has, so the two ends must name the same instant.
        ⚠ IT IS `new Date(nowMs).toISOString()`, NOT `read.now`, DELIBERATELY.
-         `accrued_to` is written as exactly that string (accrual.js: the delta's
-         `accrued_to: new Date(nowMs).toISOString()`), and `read.now` carries
-         Postgres's MICROSECONDS — so passing the raw value would leave a
-         sub-millisecond band above the watermark and below the bound. Deriving
-         both from `nowMs` makes them equal by construction rather than by
-         rounding luck.
+         `read.now` carries Postgres's MICROSECONDS, so passing the raw value
+         would leave a sub-millisecond band above this bound that no window
+         covers. Deriving the bound from `nowMs` — the same integer the delta's
+         watermark is derived from — makes the two commensurable by construction
+         rather than by rounding luck.
+       ⚠ AND THE WATERMARK IS NO LONGER ALWAYS THIS INSTANT (2026-09-16). An
+         uncapped window now stamps `accrued_to` at `nowMs` MINUS the sub-tick
+         remainder the simulation did not spend, so the half-wound swing is
+         deferred instead of destroyed (accrual.js `settledWatermarkMs`). That
+         would re-open the band `(accrued_to, nowMs]` to a SECOND projection of
+         a row this settle already ate — so the same function FLOORS the
+         watermark at `attended.to`, the newest row it actually consumed. C6's
+         property is unchanged and is now stated where it can be executed: a
+         credit row is inside exactly one window. Rows stamped after this read
+         carry `created_at > nowMs` and are picked up by the next settle, which
+         is what they were always for.
        ⚠ AND IT IS A SERVER VALUE. `nowMs` is `new Date(read.now).getTime()` —
          Postgres's own clock, read in this call. Nothing in the request body
          reaches it. The function clamps it with `least(p_upto, now())` anyway,

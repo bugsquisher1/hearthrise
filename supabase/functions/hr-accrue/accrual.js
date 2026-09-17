@@ -2466,18 +2466,34 @@ export function computeAccrual(input) {
      combat path, the same basis wireKillHook fires on live. Draw-free, gated. */
   for (const op of companionXpOps(inp, 'combat-kill', summary.kills)) progress.push(op);
 
+  /* WHERE THE WATERMARK ACTUALLY LANDS. `attended.toMs` is the newest attended
+     kill row this settle consumed — the C6 floor, so a row cannot be projected
+     by two windows. `attended` is null on every window with no attended credit,
+     which is every away night and most cadence polls. */
+  const settledTo = settledWatermarkMs(span, summary, tickMs, {
+    finalWindow: inp.finalWindow === true,
+    attendedToMs: attended ? attended.toMs : 0,
+  });
+  const deferredMs = Math.max(0, nowMs - settledTo);
+
   const delta = {
     // A watermark the SERVER computed and hr_apply then clamps into
     // [old, now()] — it can move neither backwards (paying the same seconds
     // twice) nor forwards (paying for time that has not happened).
     //
-    // NOTE it is `now`, not `fromMs + grantMs`, even when CAPPED. A capped
-    // absence forfeits its excess, which is the b307 per-absence rule the
-    // ruling explicitly preserves ("signing in resets the timer"). Advancing
-    // only to the paid instant would let a 40-hour absence be collected as four
-    // full 12h nights in a row — a cap that can be drained in instalments is
-    // not a cap.
-    accrued_to: new Date(nowMs).toISOString(),
+    // NOTE a CAPPED absence still stamps `now`, not `fromMs + grantMs`. A
+    // capped absence forfeits its excess, which is the b307 per-absence rule
+    // the ruling explicitly preserves ("signing in resets the timer").
+    // Advancing only to the paid instant would let a 40-hour absence be
+    // collected as four full 12h nights in a row — a cap that can be drained in
+    // instalments is not a cap. `settledWatermarkMs` refuses to move a capped
+    // window, so that rule is stated once, in the function that owns it.
+    //
+    // ON AN UNCAPPED WINDOW it is `now` MINUS the sub-tick remainder the
+    // simulation did not get to spend, so the swing that was half-wound when
+    // the settle fired is re-simulated by the next window instead of being
+    // thrown away. See settledWatermarkMs for the four cases where it is not.
+    accrued_to: new Date(settledTo).toISOString(),
     hp: Math.max(0, Math.min(state.playerMaxHp, Math.floor(state.playerHp))),
     journal: {
       kind: 'combat',
@@ -2721,6 +2737,13 @@ export function computeAccrual(input) {
        meta — index.ts does not forward it and hr_apply never sees it. */
     attendedSegments: attSegments,
     watermark: delta.accrued_to,
+    /* THE SUB-TICK TAIL THIS WINDOW LEFT OPEN, in ms. A RETURN field, never a
+       delta key and never journal meta — index.ts does not forward it, hr_apply
+       never sees it, and the ledger stays the size it was reviewed at. It is
+       there so a guard can assert "forfeited 0" without re-deriving the
+       arithmetic, and because the ledger already answers the dispute: row N+1's
+       `from` IS where row N's watermark landed. */
+    deferredMs,
     events,
     levelUps,
     companionActions: summary.kills,   // the companion-award basis (per kill), for the parity test
@@ -2793,6 +2816,115 @@ function windowEnvelope(credit, ranMs) {
     windowFrom: credit.fromMs,
     windowTo: credit.toMs,
   };
+}
+
+/* ── THE SETTLED WATERMARK — WHERE `accrued_to` MAY ACTUALLY STAND ──────────
+   MEASURED, 2026-09-16 (tests/settle-carry-loss.mjs): every accrual window
+   forfeits the sub-tick remainder of the action that was in progress when it
+   closed. `simulateSpan` budgets each segment as `seg.ms * rate + carryMs` and
+   takes `floor(budget / tickMs)` ticks (combat-sim.js:689-691); `sliceSpan`
+   does the identical thing per slice (skill-sim.js:332). Both open with
+   `let carryMs = 0;`, so the remainder rides across a segment boundary INSIDE
+   one call and dies at the call boundary. Meanwhile the delta advanced
+   `accrued_to` to `now()` unconditionally — so the remainder was not deferred
+   to the next window, it was DESTROYED. At the live 90 s attended cadence that
+   is 1.3-1.7% of a combat session and up to 6.66% on a 7 s gathering node,
+   every session, forever.
+
+   The fix is the one the engine already uses for the rested bank: `accrueRested`
+   advances `rested_at` by exactly the time it granted, never to `now()`
+   (index.ts:1063). Here the same rule reads: advance to the last instant the
+   simulation ACCOUNTED FOR, and leave the sub-tick tail open so the NEXT window
+   re-simulates it.
+
+   ⚠ THE ENGINES ARE NOT TOUCHED. `combat-sim.js` and `skill-sim.js` are
+     SHA-pinned and repacked into this function by tools/pack-edge.mjs, and they
+     are the SAME bytes the live client runs (AWAY-1). The remainder is
+     recovered from the summary the engine already states, not by threading a
+     carry through a second code path — so there is still exactly one engine and
+     the away and attended halves stay byte-identical.
+
+   `accounted` is the equality combat-sim.js:886 states outright
+   (`paidMs + recoverMs + idleMs === awayMs`, modulo the remainder), expressed
+   in the one unit every path has: whole ticks. `recoverMs` and `idleMs` are
+   combat-only fields and read as 0 on the skill paths, which is correct — those
+   paths have neither.
+
+   ── THE FOUR REFUSALS, each of which would otherwise be a mint or a stall ──
+
+   (a) CAPPED. An over-cap absence forfeits its excess ON PURPOSE — the b307
+       per-absence rule ("signing in resets the timer"). Advancing only to the
+       paid instant would let a 40-hour absence be collected as four full 12 h
+       nights in a row, and a cap that can be drained in instalments is not a
+       cap. A capped window therefore still stamps `now()`, exactly as before.
+
+   (b) FINAL WINDOW. `finalWindow` is the caller saying "this window has no next
+       call" — a stop/unload settle (`settleBeforeIntent`) or a
+       COLLECT-BEFORE-SWITCH, where the pointer is about to be replaced. There
+       is no later window to defer INTO, so deferring there is the b531 defect
+       with the sign flipped: the remainder would be destroyed AND the pointer
+       restamped. A final window settles to `now()`.
+
+   (c) THE REMAINDER IS NOT A REMAINDER. A deferral is only ever the sub-tick
+       carry, so `remainder < tickMs` is a REQUIREMENT, not an observation. When
+       the simulation stopped early in a way the summary does not account for —
+       a gathering node that ran out of supplies, a bench that hit its gate,
+       any future stop with no `idleMs` — `grantMs - accounted` is a large
+       number, and re-opening that span would re-simulate a stopped activity
+       every window, forever. Above one tick the window stamps `now()` and the
+       behaviour is byte-for-byte what shipped.
+
+   (d) SECURITY CONDITION C6 — THE ATTENDED ROWS THIS SETTLE ALREADY ATE.
+       `hr_attended_kills` projects `(accrued_to, p_upto]` and the whole
+       double-pay guard is that the two ends name the same instant
+       (2026-09-10-attended-loot-credit.sql:425). `p_upto` is `nowMs`. If the
+       watermark landed BELOW the newest row this settle consumed, that row is
+       still newer than the watermark on the next settle — it is projected
+       again, and `min(attended, cap) - summary.kills` pays its loot a second
+       time. `attendedToMs` is `max(created_at)` of the rows actually consumed
+       (the projection's own `to`), so flooring the watermark there keeps every
+       consumed row inside exactly one window. Sub-tick and rare; a mint if it
+       is ever reachable, so it is closed by construction rather than by odds.
+
+   AND ONE INVARIANT: the watermark must STRICTLY ADVANCE. `nowMs - (grantMs-1)`
+   is `payFromMs + 1` at worst, which is above the old `accrued_to` by at least
+   a millisecond, so a pathological `tickMs > grantMs` can never freeze the
+   watermark and stall the character. It cannot bind at today's values (the
+   floor is 60 s and no tick interval is near it) and it is not there for them.
+
+   THE DIRECTION OF EVERY ERROR IS THE SAME. This function only ever returns a
+   value in `[nowMs - grantMs + 1, nowMs]` — never past `now`, never at or below
+   the old watermark. Relative to what ships today it can only move the watermark
+   BACKWARDS, i.e. leave a window OPEN. An open window pays what the simulation
+   computes for it on the next call; it cannot mint, because every span is priced
+   from the watermark forward and nothing crosses a window boundary except the
+   character's own state — which is unchanged over a sub-tick in which, by
+   construction, no tick ran.
+
+   @param span    { nowMs, grantMs, capped } — the shared window object
+   @param summary the simulation's own report
+   @param tickMs  the ACTION interval the span was priced at
+   @param opts    { finalWindow, attendedToMs }
+   @returns the instant `accrued_to` should be stamped to, in ms
+*/
+export function settledWatermarkMs(span, summary, tickMs, opts) {
+  const o = opts || {};
+  const s = summary || {};
+  const nowMs = nat(span && span.nowMs, 0);
+  const grantMs = nat(span && span.grantMs, 0);
+  const step = nat(tickMs, 0);
+  if (span && span.capped === true) return nowMs;            // (a)
+  if (o.finalWindow === true) return nowMs;                  // (b)
+  if (!(step > 0) || !(grantMs > 0)) return nowMs;
+  const accounted = nat(s.ticks, 0) * step + nat(s.recoverMs, 0) + nat(s.idleMs, 0);
+  const remainder = grantMs - accounted;
+  if (!(remainder > 0)) return nowMs;                        // nothing was left over
+  if (remainder >= step) return nowMs;                       // (c)
+  const floorMs = Math.max(
+    Math.min(nat(o.attendedToMs, 0), nowMs),                 // (d)
+    nowMs - (grantMs - 1),                                   // strict advance
+  );
+  return Math.max(floorMs, nowMs - remainder);
 }
 
 /* ── THE TOOL CARRY, NORMALISED ─────────────────────────────────────────────
@@ -3111,8 +3243,17 @@ function accrueGather(inp, span) {
      action, the count wireAddItemForGather awards on live. Draw-free, gated. */
   for (const op of companionXpOps(inp, 'gather', companionActions)) progress.push(op);
 
+  /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see
+     settledWatermarkMs. No attended floor: `hr_attended_kills` is a COMBAT
+     projection and nothing on this path consumes a row stamped in the window.
+     A node that ran out or hit its level gate leaves `remainder >= stepMs`,
+     which refusal (c) answers with `now()` — so a stopped bench is never
+     re-simulated. */
+  const settledTo = settledWatermarkMs(span, summary, summary.intervalMs,
+    { finalWindow: inp.finalWindow === true });
+
   const delta = {
-    accrued_to: new Date(nowMs).toISOString(),
+    accrued_to: new Date(settledTo).toISOString(),
     journal: {
       kind: 'gather',
       intent: 'accrue',
@@ -3160,6 +3301,7 @@ function accrueGather(inp, span) {
     tickMs: summary.intervalMs,     // the ACTION interval; same field name, same meaning
     foodEaten: 0,
     watermark: delta.accrued_to,
+    deferredMs: Math.max(0, nowMs - settledTo),   // the sub-step tail left open; see the combat path
     events,
     levelUps,
     companionActions,               // the companion-award basis, for the parity test
@@ -3529,8 +3671,16 @@ function accrueArtisan(inp, span) {
      Draw-free, gated. */
   for (const op of companionXpOps(inp, 'artisan', companionActions)) progress.push(op);
 
+  /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — the same call the
+     gather path makes, over the same `sliceSpan` primitive (artisan-sim.js:355).
+     A bench that ran out of inputs or hit its gate leaves `remainder >= stepMs`
+     and refusal (c) stamps `now()`, so the `activity: idle` statement below is
+     never re-opened. */
+  const settledTo = settledWatermarkMs(span, summary, summary.intervalMs,
+    { finalWindow: inp.finalWindow === true });
+
   const delta = {
-    accrued_to: new Date(nowMs).toISOString(),
+    accrued_to: new Date(settledTo).toISOString(),
     journal: {
       /* ⚠ `craft`, NOT `artisan`, AND THAT IS NOT A SYNONYM — it is the only
          value `player_ledger_kind_check` accepts for this work. The constraint
@@ -3589,6 +3739,7 @@ function accrueArtisan(inp, span) {
     tickMs: summary.intervalMs,     // the ACTION interval; same field name, same meaning
     foodEaten: 0,
     watermark: delta.accrued_to,
+    deferredMs: Math.max(0, nowMs - settledTo),   // the sub-step tail left open; see the combat path
     events,
     levelUps,
     companionActions,               // the companion-award basis, for the parity test

@@ -5,6 +5,16 @@
 // MEASUREMENT LANE, REPORT-ONLY. Headless, fixtures only, no network, no
 // Supabase client, no production read. Prints a table and exits 0.
 //
+// ⚠ STATUS, 2026-09-16: THE DEFECT THIS FILE PRICED IS FIXED. `computeAccrual`
+//   now advances `accrued_to` to the last instant the simulation ACCOUNTED FOR
+//   (`settledWatermarkMs`), so the remainder is deferred rather than destroyed,
+//   and the columns below read ~0 on a tree that is working. The claim section
+//   that follows is preserved AS THE DIAGNOSIS — the arithmetic it describes is
+//   still what the engines do; what changed is that the edge no longer throws
+//   the remainder away. The INVARIANT is enforced by the sibling
+//   tests/settle-carry-defer.mjs, whose `--mutate` arm restores the old `now()`
+//   watermark and reprints these numbers as a proof that it can still be red.
+//
 // ── THE CLAIM UNDER TEST ────────────────────────────────────────────────────
 // `simulateSpan` (src/core/combat-sim.js:540) opens every call with
 // `let carryMs = 0;` and budgets each UTC segment as
@@ -247,7 +257,19 @@ const ZERO = () => ({ ticks: 0, kills: 0, gold: 0, drops: 0, xp: 0, deaths: 0,
    equality combat-sim.js:886 states, modulo the sub-tick remainder). The
    difference is time the player was CHARGED for and never simulated — the
    carry, forfeited. This number does not depend on any die roll, which is why
-   it and not gold is the primary measurement. */
+   it and not gold is the primary measurement.
+
+   ⚠ MINUS `res.deferredMs` SINCE 2026-09-16, AND THAT IS NOT A WEAKENING.
+     `computeAccrual` no longer stamps `accrued_to` at `now()` on an uncapped
+     window: `settledWatermarkMs` leaves the sub-tick remainder UNSETTLED, so
+     the next window's grant contains it and it is simulated then. Time that is
+     DEFERRED was not forfeited, and a metric that kept counting it would report
+     a loss the player no longer takes — the table would be wrong in exactly the
+     direction that gets a correct fix reverted.
+     The pre-fix numbers this file was written to show are still printed, by
+     `node tests/settle-carry-defer.mjs --mutate`, which re-runs the chain with
+     the old `now()` watermark and REQUIRES it to go red. That sibling is the
+     GATE; this file stays what it always was, a measurement that exits 0. */
 function accumulate(acc, res, tickMs) {
   acc.calls++;
   if (!res || !res.accrued) return acc;
@@ -263,7 +285,7 @@ function accumulate(acc, res, tickMs) {
   acc.grantMs += grantMs;
   const accounted = ticks * (Number(res.tickMs) || tickMs || 1)
     + Number(s.recoverMs || 0) + Number(s.idleMs || 0);
-  acc.forfeitMs += Math.max(0, grantMs - accounted);
+  acc.forfeitMs += Math.max(0, grantMs - accounted - Number(res.deferredMs || 0));
   return acc;
 }
 

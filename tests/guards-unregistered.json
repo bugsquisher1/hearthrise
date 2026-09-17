@@ -29,8 +29,19 @@
         "runner": "tools/lane-done.mjs"
       }
     },
+    "settle-carry-defer.mjs": {
+      "reason": "Registered in tools/lane-done.mjs (BOTH arms — the plain run and --mutate, per RULE 5) rather than in smoke.yml, for the reason no-new-prediction.mjs gives above: .github/workflows/smoke.yml is the Coordinator's file and tests/ci-shape.baseline.json pins its step list, and this lane was briefed not to move either. This is the succession the settle-carry-loss.mjs entry below predicted in writing: the carry IS threaded for real as of 2026-09-16 (accrual.js `settledWatermarkMs` advances `accrued_to` to the time the simulation accounted for), so the forfeited-time property is now an invariant with a gate instead of a number with a footnote. It chains real computeAccrual calls through the real delta.accrued_to across all THREE payable channels plus the four by-design refusals (capped / finalWindow / stopped-early / the C6 attended floor) and the two facts the fix must not have moved (the idempotency key and the PRNG label still read the window START). Runs in ~2 s, no database, no network. ITS CI HOME is the `guards` job beside tests/no-client-xp-mint.mjs, as two steps; this entry is the written debt until the Coordinator adds them.",
+      "owner": "backend-architect",
+      "disposition": "awaiting-workflow-registration",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "mutations": ["watermark-at-now, all 5 channel fixtures red"],
+        "runner": "tools/lane-done.mjs"
+      }
+    },
     "settle-carry-loss.mjs": {
-      "reason": "MEASUREMENT, not a gate. It prices what the call-local `carryMs` in simulateSpan/sliceSpan costs at the REAL 90 s settle cadence (SETTLE_INTERVAL_MS) and exits 0 by design — it states a number, it does not defend a contract, and registering a number-printer in CI would make the guards job red the day a balance change moved a weapon speed. `--mutate` DOES assert (it exits 1 if threading the carry fails to take the forfeited time to ~0), which is what makes the number checkable; run it by hand when the engine's tick budget changes. If the carry is ever threaded for real (a `carry_ms` checkpoint, lane C), the forfeited-time property becomes a real invariant and THIS FILE'S --mutate arm is the guard to register then.",
+      "reason": "MEASUREMENT, not a gate. It prices what the call-local `carryMs` in simulateSpan/sliceSpan costs at the REAL 90 s settle cadence (SETTLE_INTERVAL_MS) and exits 0 by design — it states a number, it does not defend a contract, and registering a number-printer in CI would make the guards job red the day a balance change moved a weapon speed. `--mutate` DOES assert (it exits 1 if threading the carry fails to take the forfeited time to ~0), which is what makes the number checkable; run it by hand when the engine's tick budget changes. SUCCEEDED 2026-09-16: the carry was threaded for real, so the forfeited-time property became a real invariant and moved to the sibling settle-carry-defer.mjs (entry above), which is registered and whose --mutate arm reprints these numbers as its red proof. This file's own metric now subtracts `res.deferredMs`, so its tables read ~0 on a working tree — deferred time is not forfeited time, and a metric that kept counting it would report a loss the player no longer takes. It remains the DIAGNOSIS, priced against the engines, and it remains report-only.",
       "owner": "systems-engineer",
       "disposition": "intentional-tool",
       "verified": {

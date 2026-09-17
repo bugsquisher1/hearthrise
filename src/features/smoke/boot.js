@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on } from './_harness.js?v=547';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on } from './_harness.js?v=548';
 
 export default [
   () => tryRun('boot: G defined', () => {

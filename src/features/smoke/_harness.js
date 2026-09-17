@@ -10,17 +10,17 @@
 // The runner (runSmokeTest) stayed in ../smoke-test.js with the registry, because it
 // owns the PLAN and the parks around it, not the fixtures.
 // ══════════════════════════════════════════════════════════════════════
-import { on, snapshot } from '../../net/events.js?v=547';
-import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=547';
+import { on, snapshot } from '../../net/events.js?v=548';
+import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=548';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=547';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=548';
 /* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
    table, never retyped: a designer re-pricing a rung must re-price the
    expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=547';
+import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=548';
 
 export const errorLog = (window.__errorLog = window.__errorLog || []);
 

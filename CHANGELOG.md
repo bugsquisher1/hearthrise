@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 548 — 2026-09-17 (A late settle no longer eats your fight)
+
+The fourth daily release. The server half shipped overnight; this build is the client that completes it.
+
+**Attended combat XP is no longer lost when a background tab settles late.** If your tab sat in the background long enough for the realm to ask for a settle before it would take your attended kills, the browser threw those kills away and the night-style settle repriced the window as if nobody had been there, paying a fraction of what you earned. The browser now keeps the pending XP, settles first, and hands the kills in once the settle confirms. The realm-side half that pays them at full attended value is staged behind a security review and lands with its own note.
+
+**Settle windows no longer forfeit the tail.** Every settle used to drop the sub-tick remainder at the end of its window: about 1.5% of attended combat at the normal cadence, and up to 6.7% on the fastest gathering nodes. The realm's watermark now advances only by the time it actually accounted for, so the remainder rolls into the next window instead of vanishing. This is already live on the server.
+
+**The War Table's destinations fit their rail again.** "World Event", "Today's blessing", "Events ▸" and the Clan Raid card were clipped on desktop; the row now wraps to its content instead of trimming names.
+
+**Under the hood:** the client's residue put sends only the allowlisted display fields, so a stray key can no longer make the realm refuse the whole patch (one player had been refused 600 times a day since the 13th); the CI matrix was red for a few seconds around UTC midnight because economy self-checks stamped fixtures across the day boundary, now day-anchored and swept by a guard; the live-world design brief, world-tick shadow service and client-prediction retirement plan are in `docs/planning`.
+
 ## v0.9.2-beta build 547 — 2026-09-14 (The Cellar lengthens your buffs, and the browser stops arguing with the realm)
 
 The third daily release. Everything server-side below is already live; this build is the client that shows it.

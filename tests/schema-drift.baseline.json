@@ -6,8 +6,8 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-09-14",
- "digest": "30efd1ca52062b6932b434c42c30936c1a99dc12fa7fb952052b22ae29dc339f",
+ "generated": "2026-09-17",
+ "digest": "676a624986316e521fdc26013c377a67da47556cdf7826f40fcd36e27c43c52c",
  "counts": {
   "relations": 118,
   "functions": 295,
@@ -15,7 +15,7 @@
   "indexes": 165,
   "triggers": 20,
   "constraints": 308,
-  "columns": 693,
+  "columns": 694,
   "rls": 105,
   "event_triggers": 1
  },
@@ -1621,6 +1621,7 @@
    "player_state.bank_cap integer NOT NULL",
    "player_state.buffs jsonb NOT NULL",
    "player_state.client_state jsonb NOT NULL",
+   "player_state.combat_settle_span jsonb",
    "player_state.combat_style jsonb NOT NULL",
    "player_state.combat_xp_accrued_to timestamp with time zone NOT NULL",
    "player_state.companion_equipped text",

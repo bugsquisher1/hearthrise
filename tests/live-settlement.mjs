@@ -718,6 +718,32 @@ const MUTANTS = [
     to: '',
     grader: 'tests/run-sql-tests.mjs',
   },
+  {
+    /* ── CLAIM AND SIM BOTH CREDITED (2026-09-17) ──────────────────────────
+       2026-09-17-attended-xp-on-settle.sql lets a deferred ATTENDED combat-XP
+       claim be priced over the span the settle just closed, because the retry
+       arrives with elapsed ~ 0 and would otherwise be capped to nothing (the
+       window then keeps the AWAY price, 60-99% low). The single line that makes
+       that INSTEAD OF the away price rather than ON TOP of it is the
+       subtraction of what the simulation already paid for the same span:
+
+           v_topup := greatest(0, hr_combat_xp_cap(v_dmg_lvl, v_span_ms) - v_span_sim);
+
+       Drop `- v_span_sim` and the character holds sim_xp PLUS the full cap for
+       one span - a double-pay on a RANKED surface, and precisely the shape a
+       reviewer cannot see by reading a header. The migration's own §4 GATE(c2)
+       is the judge, so the grader is the file that REPLAYS the chain.
+
+       ⚠ GRADED BY schema-drift.mjs, not by this file: this file never executes
+         the migration, so asked as judge it would report SLIPPED and read as
+         "the property is unguarded" when the truth is "the wrong judge". */
+    id: 'topup-pays-on-top',
+    what: 'the attended top-up stops subtracting the away simulation, so claim AND sim are both credited for one span',
+    file: 'supabase/migrations/2026-09-17-attended-xp-on-settle.sql',
+    from: '      v_topup    := greatest(0, public.hr_combat_xp_cap(v_dmg_lvl, v_span_ms) - v_span_sim);',
+    to: '      v_topup    := greatest(0, public.hr_combat_xp_cap(v_dmg_lvl, v_span_ms));',
+    grader: 'tests/schema-drift.mjs',
+  },
 ];
 
 /* ⚠ EACH MUTANT RUNS IN A CHILD PROCESS, and that is not a style choice. The

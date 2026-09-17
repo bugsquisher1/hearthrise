@@ -354,3 +354,47 @@ whatever was there when I looked". It normalises with `[[:space:]]+` and not
 whitespace on production and ate every letter `s` under PGlite), and a
 fingerprint gate that fires differently in the harness than on production is
 worse than no gate.
+
+---
+
+## §5 — The attended top-up on a settled span (2026-09-17)
+
+**The hole `settle_first` left open.** The settle-first precondition (2026-09-09)
+correctly refuses a combat-XP credit whose `accrued_to` is more than 180 s stale,
+so the credit cannot stamp over a window the settle has not paid for. b548 then
+made the client *defer* the pending XP rather than drop it. But the settle drives
+`accrued_to` to `now()`, and CONDITION 2 floors the credit's window at that
+watermark — so the retry arrives with `elapsed ≈ 0`, `hr_combat_xp_cap(dmg, 0) = 0`,
+and pays nothing. The window keeps the price the **away simulation** put on it,
+which undercounts attended combat by 60–99% (`src/legacy.js:3606-3610`). Measured:
+`settle_first` ×27 (2026-09-16) and ×14 (2026-09-17) on one character — up to 27
+windows a day of attended combat repriced as away.
+
+**The contract.** `hr_apply` states what it just priced; the credit verb tops it
+up once.
+
+| | |
+|---|---|
+| Stamp | `player_state.combat_settle_span` = `{from, to, sim_xp}`, written by `hr_apply` on an accrual delta whose watermark moved by (180 s, 1 h]. `from`/`to` are the old and new watermarks (both server clock, both already clamped); `sim_xp` is the sum of the **combat** skills in the delta being applied — what the away sim paid. Every other delta sets it to `NULL`. |
+| Claim | unchanged: the existing `hr_credit_combat_xp(slot, xp, idem)`. **No wire field was added** — the accrue intent still carries `{slot}` alone (the b337 invariant, `src/features/smoke/record-seam-and-hydration.js:2709`), and there is no client-chosen window anywhere in the design. |
+| Budget | `topup = max(0, hr_combat_xp_cap(dmg_level, span_ms) − span.sim_xp)`, added to the call's physical cap. The distribution loop is untouched, so the client's number is still `least(claim, pool)`: this raises a **cap**, it never grants. |
+| Gates | the span must end **exactly** at the watermark this call read under its own row lock; be ≤ 120 s old; the character must have been in the *same* combat bout since before the span began (`active_kind='combat'`, `active_since <= span.from`); no knockout may overlap it; `span_ms` is clamped to 1 h. |
+| Once | the span is `NULL`ed in the same locked `UPDATE`, whether or not the call credited. A replay of the idem key returns above the lock; a different key finds nothing. |
+| Refusal | none new. An absent or unusable stamp is silently ignored and the call behaves exactly as it does today. |
+
+**Instead of, never both.** The subtraction is the proof: the total a character can
+hold for one span is `sim_xp + max(0, cap(span) − sim_xp) == max(sim_xp, cap(span))`,
+never the sum. If the sim already paid more than the cap, the top-up is zero — XP
+is never clawed back. The two windows are disjoint by construction (`[span.from,
+span.to]` and `[max(wm, accrued_to), combat_end]`, and `span.to` *is* that floor).
+The property is asserted by executing SQL in the migration's `GATE(c2)`, and the
+`topup-pays-on-top` mutant in `tests/live-settlement.mjs` is the proof it bites.
+
+**Journal.** Zero new rows: the stamp rides a row `hr_apply` already updates, the
+consumption a row the credit verb already updates, and `span_ms` / `span_sim_xp` /
+`topup_cap` ride the existing `player_ledger` meta of the crediting call.
+
+**One engine.** `accrual.js` is untouched; `AWAY-12` holds. No edge redeploy.
+
+File: `supabase/migrations/2026-09-17-attended-xp-on-settle.sql` (staged, Security
+review pending).

@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 549 — 2026-09-17 (A refused recipe switch no longer snaps back)
+
+Out-of-band fix to build 548, from a player report.
+
+**Switching what you smith or craft sticks the first time.** Swapping from one recipe to another right after the realm had settled your bench was refused as a version conflict, and the browser retried before the settle had finished, lost the same race, and then quietly put you back on the old recipe. Equipping gear in the same window showed "changed somewhere else" for the same reason. Both now wait for the in-flight settle and retry once with the fresh version, and if the realm still refuses, the game tells you which recipe you are actually on instead of pretending.
+
 ## v0.9.2-beta build 548 — 2026-09-17 (A late settle no longer eats your fight)
 
 The fourth daily release. The server half shipped overnight; this build is the client that completes it.

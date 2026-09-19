@@ -6010,7 +6010,9 @@ export default [
     assert(d({ promptedFor: 333, cardShowing: false }).action === 'notify',
       'a card that disappeared unacknowledged must be shown again — the player was never told');
     assert(d({ dismissedFor: 333, cardShowing: false }).action === 'none', 'a dismissed build must not nag');
-    assert(d({ dismissedFor: 333, deployed: 334 }).action === 'notify',
+    // (running bumped so the lag stays 1: this is the CARD's latch question,
+    // not the auto-reload one, which has its own battery below.)
+    assert(d({ running: 333, dismissedFor: 333, deployed: 334 }).action === 'notify',
       'dismissing b333 must not silence b334 — the latch is per build, not forever');
 
     // Escalation. THE POINT OF THE MODULE: in the b331 auth-dead state a stale
@@ -6206,6 +6208,8 @@ export default [
       assert(W.applyBuildInfoText('cache: 333', Date.now()).action === 'none',
         'the dismissed build came back on the next poll — this would nag every 15 minutes forever');
       assert(!document.getElementById(W.CARD_ID), 'the dismissed card was rendered again');
+      // Keep the lag at 1: this asks about the card's per-build latch.
+      W.__setState({ running: 333 });
       assert(W.applyBuildInfoText('cache: 334', Date.now()).action === 'notify',
         'the NEXT build was silenced by a dismissal of the previous one');
 
@@ -6297,6 +6301,117 @@ export default [
       'the poll URL carries the RUNNING build\'s ?v= — it would fetch the version it already has: ' + W.BUILD_INFO_URL);
     // Armed: startBuildWatch() ran at import and set the first-poll watermark.
     assert(st.lastPollAt > 0, 'the watcher was never started — nothing polls, and every client fix waits for a reload');
+  }),
+
+  /* ── THE SIX-DAY TAB ──────────────────────────────────────────────────────
+     Measured live: one tab sent a residue key the server had since deny-listed
+     550-800 times a day for six days, persisting nothing and missing every
+     shipped fix. The watcher worked the whole time — it polled, it saw the new
+     build, it drew the card, and the player ignored the card; `cardShowing`
+     then answers 'already-showing' forever, so notify-only leaves staleness
+     unbounded. The class fix: one build behind is still the card, two or more
+     reloads itself at the next safe moment, once per cooldown. */
+  () => tryRun('b550: a tab two builds behind reloads ITSELF, once, at a safe moment — one build behind still only asks', () => {
+    const W = window.HearthriseBuildWatch;
+    const before = W.getState();
+    let reloads = 0;
+    let busy = false;
+    W.__setReloadHook(() => { reloads++; });
+    W.__setAuthDeadProbe(() => false);
+    W.__setBusyProbe(() => busy);
+    const T = 1e12;
+    try {
+      W.__clearAutoReloadStamp();
+      assert(W.AUTO_RELOAD_MIN_LAG === 2,
+        'the auto-reload threshold moved to ' + W.AUTO_RELOAD_MIN_LAG + ' — one build behind must still be a gentle card');
+
+      const d = (p) => W.decideBuildUpdate({
+        running: 546, deployed: 548, authDead: false, busy: false,
+        now: T, lastAutoReloadAt: 0, ...p,
+      });
+
+      // ONE behind: the card, never a yank. An idle player keeps playing.
+      assert(d({ deployed: 547 }).action === 'notify',
+        'one build behind auto-reloaded — play must never be taken away over a routine release');
+
+      // TWO behind: the tab moves itself. This is the six-day tab.
+      assert(d({}).action === 'reload',
+        'a tab TWO builds behind only got a card (' + d({}).action + ') — that is exactly the tab that ignored the card for six days');
+      assert(d({ deployed: 552 }).action === 'reload', 'six builds behind must also reload');
+
+      // …but never mid-modal, never over a write in flight, and never twice
+      // inside the cooldown. Each of those falls back to the CARD, not to
+      // silence, so the next poll can still act.
+      assert(d({ busy: true }).action === 'notify',
+        'the tab reloaded while a modal was open or a write was in flight — that costs the player the action');
+      assert(d({ lastAutoReloadAt: T - 1000 }).action === 'notify',
+        'a second auto-reload fired inside the cooldown — a CDN edge still serving the old bundle would spin this tab forever');
+      assert(d({ lastAutoReloadAt: T - (W.AUTO_RELOAD_COOLDOWN_MS + 1000) }).action === 'reload',
+        'the cooldown never expires — a tab that failed to update once could never be rescued again');
+      // Auth-dead: its premise (local is the only copy) still holds — escalate.
+      assert(d({ authDead: true }).action === 'escalate',
+        'an auth-dead tab auto-reloaded — in THAT state the local copy is the only copy');
+    } finally {
+      W.__setReloadHook(null);
+      W.__setAuthDeadProbe(null);
+      W.__setBusyProbe(null);
+      W.__clearAutoReloadStamp();
+      W.__setState(before);
+    }
+  }),
+
+  () => tryRun('the stale tab moves itself: the live poll path reloads once, stamps its cooldown, and defers around a busy moment', () => {
+    const W = window.HearthriseBuildWatch;
+    const before = W.getState();
+    let reloads = 0;
+    let busy = false;
+    W.__setReloadHook(() => { reloads++; });
+    W.__setAuthDeadProbe(() => false);
+    W.__setBusyProbe(() => busy);
+    const T = 1e12;
+    try {
+      W.__clearAutoReloadStamp();
+      /* The REAL path, end to end: the module reloads itself exactly once,
+         stamps the cooldown so the reload it just asked for cannot be asked
+         for again, and puts no card up. */
+      W.hideUpdateCard();
+      W.__setState({ running: 546, deployed: 0, promptedFor: 0, dismissedFor: 0, escalatedFor: 0, lastAutoReloadAt: 0 });
+      const v = W.applyBuildInfoText('export const BUILD = Object.freeze({ cache: 549, });', T);
+      assert(v.action === 'reload', 'the live poll path did not auto-reload a 3-build-behind tab: ' + v.action + '/' + v.reason);
+      assert(reloads === 1, 'the auto-reload did not reach the reload seam (' + reloads + ')');
+      assert(!document.getElementById(W.CARD_ID), 'the auto-reload left a card behind on a page that is navigating away');
+      assert(W.getState().lastAutoReloadAt === T, 'the auto-reload did not stamp its cooldown — the loop guard is not armed');
+
+      // The next poll, same page, must NOT reload again.
+      W.applyBuildInfoText('cache: 549', T + 60000);
+      assert(reloads === 1, 'a second auto-reload fired ' + reloads + ' times on the same page — this is a reload loop');
+
+      // The stamp must survive the reload itself, or the guard is decorative.
+      assert(Number(sessionStorage.getItem(W.AUTO_RELOAD_KEY)) === T,
+        'the cooldown is not in sessionStorage — it would be forgotten by the very reload it guards');
+
+      // Busy at the moment of the poll: the card, and the reload happens on the
+      // next poll once the moment is safe.
+      W.__clearAutoReloadStamp();
+      W.__setState({ running: 546, promptedFor: 0, dismissedFor: 0, lastAutoReloadAt: 0 });
+      busy = true;
+      const deferred = W.applyBuildInfoText('cache: 549', T + 120000);
+      assert(deferred.action === 'notify', 'a busy tab was not told at all: ' + deferred.action);
+      assert(reloads === 1, 'the tab was yanked out from under an open modal');
+      busy = false;
+      W.hideUpdateCard();
+      W.__setState({ promptedFor: 0 });
+      const later = W.applyBuildInfoText('cache: 549', T + 180000);
+      assert(later.action === 'reload' && reloads === 2,
+        'a deferred auto-reload never happened once the moment was safe (' + later.action + '/' + reloads + ')');
+    } finally {
+      W.__setReloadHook(null);
+      W.__setAuthDeadProbe(null);
+      W.__setBusyProbe(null);
+      W.__clearAutoReloadStamp();
+      W.hideUpdateCard();
+      W.__setState(before);
+    }
   }),
 
   /* ── b334 regression suite — "COMBAT STYLE CAN'T BE CHOSEN WHILE IN COMBAT" ─

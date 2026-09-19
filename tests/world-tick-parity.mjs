@@ -64,7 +64,8 @@ import { shadowSpan, shadowTick, hydrate, seedFor, advance } from '../services/w
 import { valueSummary, timeSummary, foldDeltas, planWindows, alignWindow }
   from '../services/world-tick/contract.js';
 import { analyzeRows, verdict, MISSING_FOR_VALUE_REPLAY, parseWaste } from '../services/world-tick/replay.js';
-import { computeAccrual, settledWatermarkMs } from '../supabase/functions/hr-accrue/accrual.js';
+import { computeAccrual, settledWatermarkMs, CALLER_AUTHORITY }
+  from '../supabase/functions/hr-accrue/accrual.js';
 
 const ARGS = process.argv.slice(2);
 const MUTATE = ARGS.includes('--mutate');
@@ -216,6 +217,11 @@ function accrualOnReturn(c, fromMs, toMs, o) {
        mismatched caller pass P1 by accident, and P1's whole value is that the
        tick and the reference are priced under the SAME contract. */
     caller: (o && o.caller) || 'accrue',
+    /* 'collect'/'tick' are fenced behind this imported object identity
+       (accrual.js CALLER_AUTHORITY, 2026-09-18): the reference must hold it or
+       every arm here would silently price as 'accrue' and P1 would compare two
+       different contracts. shadow.js holds it for the same reason. */
+    callerAuthority: CALLER_AUTHORITY,
   });
 }
 

@@ -40,7 +40,7 @@
 //   a function that re-validates every invariant".
 // ============================================================================
 
-import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS, deltaHasValue } from './accrual.js';
+import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS, deltaHasValue, CALLER_AUTHORITY } from './accrual.js';
 /* THE DORMANT COMPANION-XP ARM SWITCH — mirrored from index.ts (A14): a collect
    must price companion XP identically to an accrue over the same window. */
 import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
@@ -982,6 +982,12 @@ export async function collectCurrentWindow(o) {
        deferring like 'accrue', because its next window DOES exist.
        Mirrors index.ts field for field (A14). */
     caller: 'collect',
+    /* THE RUNTIME FENCE (Security, 2026-09-18). 'collect' is a PRIVILEGE — the
+       floor exemption plus the now() stamp — and accrualCaller now honours it
+       only when this token is present. It is an imported object identity, so no
+       request body can carry it: a body-borne `caller:'collect'` anywhere in
+       this bundle reads as 'accrue'. See CALLER_AUTHORITY. */
+    callerAuthority: CALLER_AUTHORITY,
   });
 
   if (!out.accrued) {

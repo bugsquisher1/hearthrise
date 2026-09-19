@@ -955,9 +955,38 @@ function nat(v, fallback) {
    a single call site with its own source guard. */
 export const ACCRUAL_CALLERS = Object.freeze(['accrue', 'collect', 'tick']);
 
+/* ── THE RUNTIME FENCE (Security, 2026-09-18) ────────────────────────────────
+   The paragraph above says the caller is a server literal, and A14b asserts it
+   — ON TWO FILENAMES, `index.ts` and `set-activity.js`. That is the whole of
+   the guard, and it is a source regex: a THIRD edge call site (a future intent
+   handler, a new verb's module) would spell `caller: body.caller` and no guard
+   in this repo would fire, because A14 and A14b both enumerate the two files
+   they knew about. A source assertion cannot see a file that did not exist when
+   it was written.
+
+   So the privilege is fenced at RUNTIME as well, by an unforgeable token rather
+   than by a string. `CALLER_AUTHORITY` is a module-private object IDENTITY: the
+   only way to hold it is to `import` it from this module, and a request body
+   cannot — it arrives as JSON, and JSON has no way to express "this exact
+   object". `JSON.parse(JSON.stringify(CALLER_AUTHORITY))` is a different
+   object and is refused, which is the property stated as a test
+   (tests/settle-carry-defer.mjs D4g).
+
+   The result: EVERY value a client could ever get into `inp.caller`, through
+   any present or future call site that forwards a body, reads as 'accrue' —
+   the floor stays on and the window is deferred. The privileged callers must
+   both name themselves AND prove they are server code. This does not stop an
+   author who deliberately imports the token and wires a body field to it; no
+   in-process check can. It stops the accident, which is the one that ships. */
+export const CALLER_AUTHORITY = Object.freeze({ hearthrise: 'accrual-caller-authority' });
+
 export function accrualCaller(inp) {
   const c = inp && inp.caller;
-  return (c === 'collect' || c === 'tick') ? c : 'accrue';
+  if (c !== 'collect' && c !== 'tick') return 'accrue';
+  /* Identity, not shape: `===` on the frozen singleton. A structural check
+     (`inp.callerAuthority.hearthrise === '...'`) would be satisfiable by a JSON
+     body and would be no fence at all. */
+  return (inp.callerAuthority === CALLER_AUTHORITY) ? c : 'accrue';
 }
 
 /* ── `w`: THE WINDOW'S NON-PAYING TIME, ONE SCALAR (2026-09-18, §15a) ────────

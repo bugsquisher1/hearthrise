@@ -60,7 +60,8 @@
 // Headless, fixtures only. No network, no Supabase client, no production read.
 // ============================================================================
 
-import { computeAccrual, settledWatermarkMs } from '../supabase/functions/hr-accrue/accrual.js';
+import { computeAccrual, settledWatermarkMs, CALLER_AUTHORITY }
+  from '../supabase/functions/hr-accrue/accrual.js';
 import { hashSeed } from '../src/core/rng.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -121,6 +122,10 @@ function call(char, fromMs, toMs, extra) {
     ammoCarry: char.ammoCarry, toolCarry: char.toolCarry,
     items: ITEMS, monsters: MONSTERS,
     nodes: GATHER_NODES, recipes: ARTISAN_RECIPES_ALL,
+    /* The server-code token 'collect'/'tick' are fenced behind (accrual.js
+       CALLER_AUTHORITY, 2026-09-18). Spelled BEFORE the spread so an arm can
+       override it with a forgery — which D4g does. */
+    callerAuthority: CALLER_AUTHORITY,
     ...(extra || {}),
   });
 }
@@ -307,6 +312,39 @@ console.log('D3..D6 — the four cases where the snap is refused BY DESIGN');
      'ACCRUE_MIN_MS refuses a 5 s window for accrue, exempts collect and tick');
   ok('D4f', call(baseChar({}), T0, shortTo, { caller: 'nonsense' }).accrued === false,
      'an unrecognised caller does NOT buy the floor exemption');
+
+  /* ── D4g — THE PRIVILEGE IS FENCED AT RUNTIME, NOT ONLY IN THE SOURCE ─────
+     (Security review, 2026-09-18.) A14b asserts the two call sites spell the
+     caller as a quoted literal — on TWO FILENAMES. A third edge call site
+     forwarding a request body is invisible to it, and 'collect' is a floor
+     exemption plus a now() stamp: a 1 s poll loop labelled 'collect' would be
+     payable every second. So `accrualCaller` honours 'collect'/'tick' only
+     against the imported object IDENTITY `CALLER_AUTHORITY`.
+
+     THE PROPERTY IS "A JSON BODY CANNOT EXPRESS IT". Each arm below is a thing
+     a request could actually carry — the field absent, a string, a lookalike
+     object, and the token itself put through a JSON round trip, which is
+     EXACTLY what a body-borne copy would be. All four must settle as 'accrue':
+     floor on, remainder deferred. This is also the mutation proof for the
+     fence: delete the `callerAuthority ===` line in accrualCaller and every
+     arm here goes red (observed 2026-09-18). */
+  for (const forged of [
+    { tag: 'absent', v: undefined },
+    { tag: 'string', v: 'accrual-caller-authority' },
+    { tag: 'lookalike', v: { hearthrise: 'accrual-caller-authority' } },
+    { tag: 'json round trip', v: JSON.parse(JSON.stringify(CALLER_AUTHORITY)) },
+    { tag: 'true', v: true },
+  ]) {
+    const priv = call(baseChar({}), T0, t, { caller: 'collect', callerAuthority: forged.v });
+    ok('D4g', priv.accrued && Date.parse(priv.delta.accrued_to) === Date.parse(acc.delta.accrued_to),
+       `caller='collect' with a ${forged.tag} authority settles as 'accrue' (deferred), not at now()`);
+    ok('D4g', call(baseChar({}), T0, shortTo,
+      { caller: 'tick', callerAuthority: forged.v }).accrued === false,
+       `caller='tick' with a ${forged.tag} authority does NOT buy the ACCRUE_MIN_MS exemption`);
+  }
+  /* And the token itself still works, or the arms above would pass vacuously. */
+  ok('D4g', call(baseChar({}), T0, shortTo, { caller: 'collect' }).accrued === true,
+     'the real CALLER_AUTHORITY still grants the exemption (D4g is not vacuous)');
 
   // D5 — STOPPED EARLY. A bench with no inputs must not be re-simulated forever.
   //     Driven through settledWatermarkMs directly: a summary whose accounted

@@ -113,6 +113,10 @@ const argv = process.argv.slice(2);
  * way. tests/schema-apply-order.json's note for that file records the takeover.
  */
 const PRUNE_OWNER = '2026-09-18-ledger-rollup-currencies.sql';
+// The LAST file in the apply order that may `create or replace`
+// hr_day_budget_used — patching any earlier one is overwritten and the mutant
+// silently slips, which is the failure this file's header already records.
+const BUDGET_OWNER = '2026-08-15-gem-daily-budget.sql';
 
 /**
  * The rollup's declared value columns -> how the prune must derive each.
@@ -127,6 +131,7 @@ const ROLLUP_SUMS = {
   gold_in: 'sum(greatest(coalesce(gold, 0), 0))',
   gold_out: 'sum(greatest(-coalesce(gold, 0), 0))',
   xp_in: 'sum(greatest(coalesce(xp, 0), 0))',
+  xp_out: 'sum(greatest(-coalesce(xp, 0), 0))',
   qty_in: 'sum(greatest(coalesce(qty, 0), 0))',
   qty_out: 'sum(greatest(-coalesce(qty, 0), 0))',
   gems_in: 'sum(greatest(coalesce(gems_in, 0), 0))',
@@ -155,6 +160,13 @@ const AGED = [
   [U2, 0, 'clan', 'deposit', 91, -900, 0, 7, 0],
   [U2, 0, 'raid', 'raid_claim', 92, 3100, 880, 1, 27],
   [U2, 0, 'iap', 'iap_grant', 185, 0, 0, 1, 500],
+  // A NEGATIVE xp movement. player_ledger.xp carries no non-negative CHECK
+  // (measured on production 2026-09-18: the constraint named
+  // player_ledger_inflow_nonneg guards xp_in, a different column), so an XP
+  // debit is writable today and must be conserved, not clamped to zero. Without
+  // this row xp_out is 0 everywhere and the clamp_xp_debit mutation below has
+  // nothing to bite on. Security S-LR-1.
+  [U1, 0, 'combat', 'respec_refund', 160, 0, -800, 0, 0],
 ];
 
 /** Rows the prune MUST LEAVE ALONE: inside the retention window. */
@@ -252,6 +264,89 @@ async function dayCeilings(db) {
 /** Run the prune the way cron does — verbatim from the scheduled command. */
 async function runPrune(db) {
   return (await db.query('select public.hr_ledger_prune(20000) as n')).rows[0].n;
+}
+
+/**
+ * ── PROPERTY (5): THE LIFETIME-READER CENSUS (Security, 2026-09-18) ─────────
+ *
+ * Property (4) is not a detector. It re-issues the per-day predicates the author
+ * BELIEVED were the only readers and checks those do not move — so it can only
+ * ever confirm the list it was given. Run against the real bodies, that list was
+ * incomplete: three live read sites query public.player_ledger with NO time
+ * predicate at all, and two of them ask a question the rollup structurally
+ * cannot answer, because the rollup key is (user, slot, month, kind) and carries
+ * neither `intent` nor `item_id`:
+ *
+ *   hr_apply           count(distinct item_id) … kind='hearthfind'   (set completion)
+ *   hr_apply           count(*)+1 … kind='hearthfind' and item_id=X  (global "Nth ever found")
+ *   hr_bounty_first_contract  … kind='bounty' and intent like 'bounty_turnin:%'
+ *
+ * Each is a LIFETIME fact read from a table with a 90-day retention. The hour
+ * the prune first fires those facts start decaying, silently and permanently:
+ * a trophy set a player spent months completing becomes incomplete, two players
+ * are both told they were the 12th ever to find an item, and a veteran gets the
+ * beginner bounty floor back. The hearthfind site even carries the comment
+ * "never a stored counter … would drift on any prune" — written by an author who
+ * assumed the ledger was permanent. It is not; this is the file that makes that
+ * assumption false in a currency-complete way, so this is where the assumption
+ * gets a detector.
+ *
+ * This guard does NOT fail on the three known sites — they are pre-existing and
+ * owned elsewhere (see docs/planning/SEC_FIGHT_CARRY_2026-09-16.md). It fails on
+ * a FOURTH. The census is pinned per function, so a new lifetime read of
+ * player_ledger anywhere — including a second one inside hr_apply — is red at
+ * authoring time rather than in production on 2026-11-21.
+ */
+const LIFETIME_READERS_PINNED = {
+  // proname -> [expected number of unbounded read sites, why it is tolerated]
+  hr_apply: [2, 'hearthfind set completion + global find ordinal; both decay when the prune '
+    + 'first fires. Owner: Backend Architect. Must be closed before ~2026-11-21.'],
+  hr_bounty_first_contract: [1, 'the 3-turn-in first-contract grace re-opens for any character '
+    + 'with 90 days of bounty inactivity. Owner: Backend Architect.'],
+};
+
+/** Read sites the census deliberately ignores. */
+const CENSUS_EXEMPT = new Set([
+  'hr_ledger_prune',      // it IS the prune
+  'hr_ledger_immutable',  // the append-only trigger, not a reader
+]);
+
+/** Does this SQL fragment bound itself in time? */
+const TIME_BOUNDED = /\bat\s*(>=|<=|<|>)|hr_utc_day_key\s*\(|hr_utc_day_start\s*\(|hr_goal_period_start\s*\(|date_trunc\s*\(\s*'(day|month|week)'|\binterval\b/i;
+
+/**
+ * Every place a pg_proc body SELECTs from public.player_ledger, with the ~8
+ * lines that follow it, classified bounded / lifetime. Runs against the replayed
+ * chain, which is the same set of bodies production runs.
+ */
+async function lifetimeReaderCensus(db) {
+  const { rows } = await db.query(
+    `select p.proname, p.prosrc from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.prosrc ilike '%player_ledger%'`);
+  const census = {};
+  for (const { proname, prosrc } of rows) {
+    if (CENSUS_EXEMPT.has(proname)) continue;
+    // Comments are stripped BEFORE windowing, not after. hr_dungeon_cooldowns
+    // puts an eight-line rationale between its from-clause and its `at >=`,
+    // and a window measured in raw lines reports it as unbounded — a false
+    // positive that would teach the next reader to widen the pin instead of
+    // reading the code. Measured: this guard did exactly that on its first run.
+    const code = String(prosrc).split('\n')
+      .map((l) => l.replace(/--.*$/, '')).filter((l) => l.trim());
+    code.forEach((line, i) => {
+      // A READ site: a from-clause naming the table. Writes are `insert into`,
+      // and `insert … select … from player_ledger` is a read too — but the
+      // prune is the only one of those and it is exempt.
+      if (!/\bfrom\s+public\.player_ledger\b(?!_)/i.test(line)) return;
+      // The statement ends at the first `;` — do not let the NEXT statement's
+      // date predicate launder this one.
+      const stmt = code.slice(i, i + 12).join(' ').split(';')[0];
+      if (TIME_BOUNDED.test(stmt)) return;
+      (census[proname] ||= []).push(stmt.trim().slice(0, 120));
+    });
+  }
+  return census;
 }
 
 // ── The assertions ─────────────────────────────────────────────────────────
@@ -354,6 +449,30 @@ async function check(db) {
     }
   }
 
+  // (5) THE LIFETIME-READER CENSUS. Property (4) confirms a list; this one
+  //     builds it from the real bodies.
+  const census = await lifetimeReaderCensus(db);
+  for (const [fn, sites] of Object.entries(census)) {
+    const pin = LIFETIME_READERS_PINNED[fn];
+    if (pin && sites.length <= pin[0]) continue;
+    P(`NEW LIFETIME READER OF player_ledger: ${fn} has ${sites.length} read site(s) with no\n`
+      + `      time predicate${pin ? `, pinned at ${pin[0]}` : ''}. player_ledger is pruned at\n`
+      + '      hr_ledger_config.retain_days, so a LIFETIME fact read from it decays silently the\n'
+      + '      hour the prune first fires. The rollup cannot rescue it: its key is\n'
+      + '      (user_id, slot, month, kind) and it carries neither intent nor item_id.\n'
+      + `      ${sites.slice(pin ? pin[0] : 0).map((s) => `  ${s}`).join('\n      ')}\n`
+      + '      Bound the read to a window shorter than retain_days, or persist the fact in a\n'
+      + '      durable counter. If this is a knowing, owned exception, pin it in\n'
+      + '      LIFETIME_READERS_PINNED with the owner and the date it must be closed.');
+  }
+  for (const [fn, [n]] of Object.entries(LIFETIME_READERS_PINNED)) {
+    const have = (census[fn] || []).length;
+    if (have < n) {
+      P(`STALE PIN: ${fn} is pinned at ${n} lifetime read site(s) and now has ${have}.\n`
+        + '      Someone fixed it — lower the pin so the guard keeps biting at the new level.');
+    }
+  }
+
   return problems;
 }
 
@@ -404,6 +523,29 @@ const MUTATIONS = {
       '  delete from public.player_ledger l\n'
       + '   using doomed d where l.id = d.id and l.at = d.at and false;',
     ], SKIP_SELFCHECK]]],
+  },
+  clamp_xp_debit: {
+    what: 'the xp aggregate keeps only the positive half, so an XP DEBIT (a respec, a '
+      + 'rollback, an anti-cheat clawback) is deleted from the detail and reads as zero in '
+      + 'the only surviving record — on a RANKED surface. This is the defect the file '
+      + 'shipped with until the 2026-09-18 security review; xp has no non-negative CHECK',
+    match: /CONSERVATION BROKEN: .*xp_out/,
+    patches: [[PRUNE_OWNER, [[
+      '             sum(greatest(-coalesce(l.xp, 0), 0)),',
+      '             0,',
+    ], SKIP_SELFCHECK]]],
+  },
+  a_new_lifetime_reader: {
+    what: 'a new RPC computes a LIFETIME total from player_ledger with no time predicate — '
+      + 'the hearthfind/first-contract class. It is correct the day it ships and decays '
+      + 'silently from the hour the prune first fires, and the rollup cannot rescue it',
+    match: /NEW LIFETIME READER OF player_ledger: hr_day_budget_used/,
+    patches: [[BUDGET_OWNER, [[
+      '   where user_id = p_user\n     and slot    = p_slot\n'
+      + '     and at >= public.hr_utc_day_start(p_at)\n'
+      + "     and at <  public.hr_utc_day_start(p_at) + interval '1 day';",
+      '   where user_id = p_user\n     and slot    = p_slot;',
+    ]]]],
   },
 };
 
@@ -457,6 +599,16 @@ async function main() {
     + `${left} live row(s) untouched, second run a no-op, `
     + `${Object.keys(await dayCeilings(db)).length} per-day ceiling(s) unmoved.`);
   console.log(`  conserved columns: ${Object.keys(ROLLUP_SUMS).join(', ')}`);
+  const census = await lifetimeReaderCensus(db);
+  const total = Object.values(census).reduce((a, s) => a + s.length, 0);
+  console.log(`  lifetime-reader census: ${total} unbounded read site(s) of player_ledger in `
+    + `${Object.keys(census).length} function(s), all pinned:`);
+  for (const [fn, sites] of Object.entries(census)) {
+    console.log(`    ${fn} ×${sites.length} — ${(LIFETIME_READERS_PINNED[fn] || [0, '?'])[1]}`);
+  }
+  console.log('    ⚠ These decay when the prune first fires and the rollup CANNOT rescue them');
+  console.log('      (no intent, no item_id in its key). Owned by the Backend Architect, due');
+  console.log('      before ~2026-11-21. This file does not fix them; it stops a FOURTH.');
   console.log('\n  ⚠ GREEN HERE IS THE REPO, NOT PRODUCTION. xp_in/qty_in/qty_out/gems_in exist');
   console.log('    because supabase/migrations/2026-09-18-ledger-rollup-currencies.sql is in the');
   console.log('    apply order — and that file is STAGED, NOT APPLIED. On production today the');

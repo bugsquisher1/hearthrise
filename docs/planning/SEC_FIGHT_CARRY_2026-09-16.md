@@ -341,3 +341,157 @@ references to the column anywhere under `src/**`).
    **immediately before and immediately after** the apply, diff them, confirm the
    only delta is the five splices, then `live-hash-drift --live --write`. The
    paydown restatement is authored FROM that captured live text, in its own lane.
+
+---
+
+## 2026-09-18 — Ledger rollup currencies + retired IAP catalogue removal (branch `rel-census-ledger-b550`)
+
+Adversarial review of two staged, unapplied migrations. Evidence is executed:
+read-only SELECTs against production `nezapsylztqbbwuwembx` through the
+management endpoint (token as file bytes, never printed), plus the PGlite chain
+replay in `tests/ledger-rollup.mjs`. **Doc size note: this file is now ~490
+lines and is still one readable document; the next section should split it by
+SUBJECT (not by date), not start a new file.**
+
+### Verdict
+| Migration | Verdict |
+|---|---|
+| `2026-09-18-ledger-rollup-currencies.sql` | **GO-WITH-CHANGES** — changes made on this branch, below |
+| `2026-09-18-retired-iap-catalogue-removal.sql` | **GO-WITH-CHANGES** — changes made on this branch, below |
+
+### S-LR-1 (CONFIRMED, changed) — `player_ledger.xp` has no non-negative CHECK
+The file summed `greatest(xp, 0)` into `xp_in` alone, justified as "xp and
+gems_in are non-negative by CHECK". Measured on production, `pg_constraint` on
+`public.player_ledger` holds `player_ledger_gems_in_nonneg` (on `gems_in`, real)
+and `player_ledger_inflow_nonneg` (on `gold_in`/`xp_in`/`qty_in`). **`xp` — the
+signed movement column this rollup actually summarises — is unconstrained.** The
+clamp is therefore unguarded: the first XP debit the game ever issues (respec,
+rollback, anti-cheat clawback) would be deleted by the prune with the only
+surviving record silently reading zero, on a RANKED surface. Zero negative-`xp`
+rows exist today; 329 negative-`qty` rows do, which is why `qty` correctly got a
+pair. Fixed: `xp_out` column + derivation + `on conflict` accumulation, self-check
+`e1` (5 cols) / `e6b` / `e12`, a negative-xp probe row (`probe_c`), and `e1b`,
+which fails loudly if someone later ADDS the CHECK and makes `xp_out` provably
+dead. Guard: `ROLLUP_SUMS.xp_out`, a negative-xp fixture row, and the
+`clamp_xp_debit` mutant.
+
+### S-LR-2 (changed) — the rollup's columns now carry their provenance
+`player_ledger` has both a movement and a same-named budget column for gold, xp
+and qty. `rollup.xp_in` derives from `ledger.xp`; `rollup.gems_in` derives from
+`ledger.gems_in`. Two conventions, one naming scheme, on the only artefact that
+outlives the detail — whose sole reader is a human doing forensics with no rows
+left to check the meaning against. Not renamed (that would move a shipped
+column); documented IN the database by `§1b` `comment on column`, asserted by
+`e1c`.
+
+### S-LR-3 (CONFIRMED, NOT fixed here — owner: Backend Architect, due before ~2026-11-21)
+**Property (4) of `tests/ledger-rollup.mjs` is not a detector.** It re-issues the
+per-day predicates the author believed were the only readers, so it can only
+confirm the list it was given. Run against the real bodies, that list was
+incomplete. Three live read sites query `player_ledger` with **no time predicate
+at all**, and the rollup structurally cannot rescue any of them — its key is
+`(user_id, slot, month, kind)` and it carries neither `intent` nor `item_id`:
+
+| Site | Lifetime fact | What the first prune does | Blast radius |
+|---|---|---|---|
+| `hr_apply` — `count(distinct item_id) … kind='hearthfind'` | trophy-set completion | a set assembled over >90 days can never complete; the earliest trophies are gone | self; destroys earned collection/title progress. Worse the RARER the collection, which is the whole point of hearthfind |
+| `hr_apply` — `count(*)+1 … kind='hearthfind' and item_id=X` | global "Nth ever found" ordinal | ordinals reset and repeat: two players both announced as the Nth finder | **crosses to other players** — a shared prestige surface becomes a lie, silently and permanently |
+| `hr_bounty_first_contract` — `… kind='bounty' and intent like 'bounty_turnin:%' limit 3` | the 3-turn-in beginner grace | a veteran with 90 days of bounty inactivity gets the widened kill FLOOR back | self; recurring difficulty/reward distortion |
+
+Not blocking, because all three are pre-existing defects in *other* functions and
+the currency fix strictly improves conservation. **Latent, not live:** production
+holds zero `kind='hearthfind'` rows today, and the prune has never fired. The
+`hr_apply` site carries the comment *"never a stored counter … would drift on any
+prune"* — written by an author who assumed the ledger was permanent.
+
+Guard added instead of a patch: **property (5), the lifetime-reader census**
+(`lifetimeReaderCensus()`), which scans every `pg_proc` body in the replayed
+chain, classifies each `from public.player_ledger` read site bounded/unbounded,
+and fails on a FOURTH. The three known sites are pinned with owner and due date;
+a *stale* pin (someone fixed one) is also red, so the pin cannot rot upward.
+Mutant `a_new_lifetime_reader` proves it bites. It found its own false positive
+on first run (`hr_dungeon_cooldowns` puts an 8-line rationale between its
+from-clause and its `at >=`), which is why the window strips comments before
+measuring rather than after.
+
+### Checked and clean (ledger rollup)
+Idempotency/crash-safety — one statement, one transaction; `doomed` is
+referenced twice so it materialises once; a batch boundary splitting a
+(user, day) is absorbed by `on conflict … do update set n = r.n + excluded.n`.
+Unknown `kind`s cannot be dropped: `kind` is in the GROUP BY and in the PK, so
+every kind rolls up whether or not anyone anticipated it (28 kinds permitted by
+`player_ledger_kind_check`; 20 have rows). NULLs are coalesced (measured: 21,288
+NULL `xp`, 21,580 NULL `qty`, 11,507 NULL `gems_in`, 1,250 NULL `gold`).
+Privileges: `hr_ledger_prune` is EXECUTE-able by `postgres` only; cron
+(`hr-ledger-prune`, `7 * * * *`) runs as `postgres`, so the `revoke … from
+service_role` does not break the caller. `player_ledger_rollup` has RLS enabled
+with a single `SELECT` policy `auth.uid() = user_id` — **no player can read
+another player's rollup**, and the new columns inherit it. PK is
+`(user_id, slot, month, kind)`. Every per-day ceiling is genuinely day-scoped
+(`hr_day_budget_used`, market list/escrow/spend/proceeds, unlock-buy namespace,
+gem-unlock, hero-slot, recipe, trait, dungeon scrip/count, quartermaster) —
+asserted, and now also detected. Live-hash: `hr_ledger_prune` is the only body
+moved.
+
+### S-IAP-1 (CONFIRMED, changed) — §0 gate (a) refused on the wrong set
+`key like 'entitlement:%'` refuses on ANY entitlement. The namespace has a THIRD
+member this file KEEPS — `entitlement:hearthHall`, catalogued as
+`iap.hearth_hall_premium`, repo-produced, one of the 91 that stay. A live,
+correct, unrelated purchase would have blocked a DR cleanup while reporting "a
+player owns one of these" about rows they do not own. Fail-closed, so not a hole
+— but a gate that refuses for a reason that is not its subject is a gate people
+learn to widen. Narrowed to the two target keys.
+
+### S-IAP-2 (changed) — the gates could have been vacuous, and one version broke DR
+Added `(a2)`: refuse if `player_progress`/`player_ledger` are empty, so the zeros
+in (a) and (b) are real zeros rather than an artefact of pointing at nothing
+(measured: 1,726 progress rows / 65 `kind='unlock'`, 22,169 ledger rows). The
+first draft of that gate was unconditional and **`tests/schema-drift.mjs`
+immediately went red** — a DR restore has no players by definition, so an
+unconditional emptiness check turns this file into the very hole it closes. Now
+scoped to "the target rows are actually present". Added `(a3)`: refuse if any
+offer other than the three being deleted grants the two unlocks (measured: none
+do) — `§2(d)` caught that after the fact, which is safe but late.
+
+### Checked and clean (IAP removal) — all measured on production 2026-09-18
+Ownership `entitlement:%` = **0**; ledger `unlock_buy:iap.%` or
+`meta->>'unlock' like 'entitlement:%'` = **0**; `kind='iap'` ledger rows = **0**.
+All three offers carry a refusal and NULL gold, so none is sellable. Counts are
+exactly as the file asserts: offers 142 (`gen-unlock-offers` 94 +
+`gen-gold-ladders` 48), unlocks 82. **Cascade risk: none — `pg_constraint` holds
+NO foreign key anywhere whose `confrelid` is `hr_unlocks` or
+`hr_unlock_offers`.** The file's §1 comment claiming an FK was corrected to say
+so. `theme:forest` keeps a live referrer (`theme.forest`) and is correctly kept.
+Client: no shop or unlock surface references the five ids — the only hits in
+`src/**` are the b505 guards asserting their ABSENCE, plus
+`src/features/smoke/bounty-and-artisan.js:2691`, which proves a **forged**
+`offlinePlus`/`noAds`/`hearthHall` entitlement flag moves the offline cap by
+zero. So the removal cannot produce a "client shows X, server refuses" state.
+
+### Required apply order, and what the Coordinator does after each
+1. `2026-09-18-ledger-rollup-currencies.sql` — after `2026-08-11-player-state.sql`
+   (its §0 refuses otherwise). It is the new LAST TOUCHER of `hr_ledger_prune`.
+   After apply: `node tests/live-hash-drift.mjs --live --write` + whys from
+   `--codediff` (expect exactly one moved body, `hr_ledger_prune`); flip its
+   apply-order note to APPLIED. No new table, so no census re-pin. No edge, no
+   client half. **Deadline: before ~2026-11-21**, after which the detail this
+   file would have summarised is already gone.
+2. `2026-09-18-retired-iap-catalogue-removal.sql` — last. NO function body moves,
+   so **no live-hash movement and no `--live --write` for this one**. After
+   apply: `node tests/restore-census.mjs --live-sql` on prod, then
+   `--live-compare` (expect offers 142→139, unlocks 82→80, red→green); flip its
+   apply-order note to APPLIED. No new table to classify. No edge, no client.
+
+Neither file has a client half, so neither needs to ride the daily cut.
+
+### Residual risks accepted
+1. **S-LR-3's three lifetime readers remain open.** Bounded (latent until the
+   prune fires ~2026-11-21; zero hearthfind rows exist today), journalled (the
+   census prints them on every green run), and now guarded against a fourth —
+   but not closed. If they are still open on 2026-11-01, that is a P1.
+2. `hr_ledger_prune` has still never executed against production data. Property
+   (5) and the PGlite replay are a fire drill, not the fire. The first real run
+   should be watched.
+3. The IAP removal's `e5`/`e6` pin absolute counts (139/80). Any catalogue change
+   applied between this review and the apply makes the file refuse — correct, and
+   it means the file must be re-measured, not edited, if that happens.

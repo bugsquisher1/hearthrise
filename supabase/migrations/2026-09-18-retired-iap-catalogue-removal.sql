@@ -81,14 +81,62 @@ begin
     raise exception 'the unlock catalogue tables are absent — apply the 2026-08-16 generated files first';
   end if;
 
-  -- (a) NOBODY OWNS THE ENTITLEMENTS. If a player has somehow acquired one
-  --     since the 2026-09-18 measurement, this file must NOT run: removing the
-  --     catalogue row under a live owner orphans their entitlement.
+  -- (a) NOBODY OWNS THE TWO ENTITLEMENTS THIS FILE REMOVES. If a player has
+  --     somehow acquired one since the 2026-09-18 measurement, this file must
+  --     NOT run: removing the catalogue row under a live owner orphans their
+  --     entitlement.
+  --
+  --     SECURITY REVIEW 2026-09-18 (S-IAP-1): this gate was written as
+  --     `key like 'entitlement:%'`, i.e. it refused on ANY entitlement.
+  --     Measured read-only on production the same day, the entitlement
+  --     namespace has a THIRD member that this file keeps —
+  --     `entitlement:hearthHall`, sold (refused, but catalogued) as
+  --     `iap.hearth_hall_premium`, repo-produced and part of the 91 that stay.
+  --     So the wildcard made a live, unrelated, correctly-catalogued purchase
+  --     into a blocker for a DR cleanup, and it would have said "a player owns
+  --     one of these" when they own none of these. Fail-closed in the safe
+  --     direction, but a gate that can refuse for a reason that is not its
+  --     subject is a gate people learn to widen. It now names its two targets.
   select count(*) into v_n from public.player_progress
-   where kind = 'unlock' and key like 'entitlement:%';
+   where kind = 'unlock' and key in ('entitlement:noAds', 'entitlement:offlinePlus');
   if v_n <> 0 then
-    raise exception 'REFUSING: % player_progress unlock row(s) name an entitlement:%% key. '
-      'A player owns one of these. Re-triage before removing the catalogue rows.', v_n;
+    raise exception 'REFUSING: % player_progress unlock row(s) own entitlement:noAds or '
+      'entitlement:offlinePlus. Re-triage before removing the catalogue rows.', v_n;
+  end if;
+
+  -- (a2) THE GATES ARE NOT VACUOUS. A zero count from an EMPTY table proves
+  --      nothing, and "we checked and found none" is the sentence behind every
+  --      removal incident. Measured 2026-09-18: player_progress holds 1,726
+  --      rows of which 65 are kind='unlock', and player_ledger holds 22,169.
+  --      This refuses if either table is empty, so the zeros above are real
+  --      zeros rather than an artifact of pointing at nothing.
+  --
+  --      SCOPED TO "THERE IS SOMETHING TO REMOVE" (found by tests/schema-drift
+  --      on the first draft, which replays the chain into a FRESH database).
+  --      A DR restore has no players by definition, and the retired rows are
+  --      absent there because the repo never builds them — so an unconditional
+  --      emptiness check turns this file into a hole in disaster recovery,
+  --      which is the exact defect it exists to close. The gate is about
+  --      trusting a zero, and there is no zero to trust when the targets are
+  --      already gone.
+  if exists (select 1 from public.hr_unlock_offers
+              where offer_id in ('iap.remove_ads','iap.offline_boost','iap.starter_bundle'))
+     and ((select count(*) from public.player_progress where kind = 'unlock') = 0
+       or (select count(*) from public.player_ledger) = 0) then
+    raise exception 'REFUSING: player_progress/player_ledger are empty, so the ownership '
+      'gates above are vacuous. This is not the database this removal was measured against.';
+  end if;
+
+  -- (a3) NOTHING ELSE POINTS AT THE TWO UNLOCKS. §2(d) catches an orphan after
+  --      the fact and would abort the transaction, which is safe but late;
+  --      naming it here means the file refuses instead of failing. Measured
+  --      2026-09-18: the only referrers are the two offers removed below.
+  select count(*) into v_n from public.hr_unlock_offers
+   where unlock_id in ('entitlement:noAds', 'entitlement:offlinePlus')
+     and offer_id not in ('iap.remove_ads', 'iap.offline_boost', 'iap.starter_bundle');
+  if v_n <> 0 then
+    raise exception 'REFUSING: % other offer(s) grant entitlement:noAds/offlinePlus. '
+      'Removing the unlock would orphan a grant this file does not know about.', v_n;
   end if;
 
   -- (b) NOTHING WAS EVER BOUGHT THROUGH THEM.
@@ -111,9 +159,14 @@ begin
 end $$;
 
 -- ── §1. The removal, by natural key ──────────────────────────────────────
--- Offers first: hr_unlock_offers.unlock_id references the unlock, so removing
--- the unlock first would leave a dangling reference for the length of the
--- transaction. Idempotent: a re-apply deletes nothing and raises nothing.
+-- Offers first: hr_unlock_offers.unlock_id names the unlock, so removing the
+-- unlock first would leave a dangling reference for the length of the
+-- transaction. It is a LOGICAL reference, not a declared one — measured
+-- read-only 2026-09-18, pg_constraint holds NO foreign key anywhere in the
+-- database whose confrelid is hr_unlocks or hr_unlock_offers, which is also the
+-- answer to "could this delete cascade into a player table": it cannot, there is
+-- no cascade to follow. The ordering is still right, and §2(d) proves it.
+-- Idempotent: a re-apply deletes nothing and raises nothing.
 delete from public.hr_unlock_offers
  where offer_id in ('iap.remove_ads', 'iap.offline_boost', 'iap.starter_bundle');
 

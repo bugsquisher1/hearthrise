@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-19",
- "digest": "7717a7efdf9e1964e9373e8adb8d9f7b78ad9209c1653ce151881eb9321048a7",
+ "digest": "baefdd349398e7fcdeabce010cbcd24dea677be77566a1dbf99f9a0c8b6dea70",
  "counts": {
   "relations": 118,
   "functions": 295,
@@ -15,7 +15,7 @@
   "indexes": 165,
   "triggers": 20,
   "constraints": 308,
-  "columns": 698,
+  "columns": 699,
   "rls": 105,
   "event_triggers": 1
  },
@@ -1602,6 +1602,7 @@
    "player_ledger_rollup.slot integer NOT NULL",
    "player_ledger_rollup.user_id uuid NOT NULL",
    "player_ledger_rollup.xp_in bigint NOT NULL",
+   "player_ledger_rollup.xp_out bigint NOT NULL",
    "player_progress.key text NOT NULL",
    "player_progress.kind text NOT NULL",
    "player_progress.period_key text NOT NULL",

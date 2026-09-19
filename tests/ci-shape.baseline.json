@@ -17,6 +17,8 @@
     "node tests/schema-drift.mjs --live-selftest": "db-replay",
     "node tests/utc-midnight-replay.mjs": "db-replay",
     "node tests/utc-midnight-replay.mjs --selftest": "db-replay",
+    "node tests/ledger-rollup.mjs": "db-replay",
+    "node tests/ledger-rollup.mjs --mutate": "db-replay",
     "node tests/catalogue-literal-drift.mjs": "db-replay",
     "node tests/catalogue-literal-drift.mjs --selftest": "db-replay",
     "node tests/live-hash-drift.mjs": "db-replay",

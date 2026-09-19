@@ -600,6 +600,28 @@ separately and is not in this lane.
 
 ## 12. Cost, honestly
 
+> **Capacity baseline, measured 2026-09-18 — `docs/design/restore-runbook.md` §14.**
+> The Reliability lane measured production read-only before this tick ships. Three numbers
+> bind this design and are not estimates:
+> * **`hr_apply` costs 9.35 ms** (14,240 real calls) — that is the tick's unit cost, and
+>   `hr_state_of` is 3.23 ms. Both are healthy.
+> * **⛔ `hr_ledger_prune` has a hard ceiling of 480,000 rows/day.** One ledger row per 10 s
+>   tick reaches 432,000 rows/day at **50 active characters**, so at **~56 characters the
+>   arrival rate exceeds the prune rate and `player_ledger` grows without bound** (90-day
+>   footprint at 50 characters ≈ 20.9 GB against a **2 GB** disk). **The tick must journal
+>   one row per credited window or value transfer, never one per tick.** Reliability blocks
+>   a per-tick ledger write on this number. §4's routing through `hr_apply` is the right
+>   shape; the row-count consequence is the part to decide deliberately.
+> * **Every row the tick writes is paid for twice.** `wal_level = logical` with two active
+>   replication slots means logical decoding walks every WAL record even though only
+>   `public.chat_messages` is published — already **7.16 h of CPU across 4.5M records**, the
+>   largest single consumer in the database. Budget tick writes at ~2 kB WAL each.
+>
+> Also relevant here: `hr_rate_gate` wraps the projection at **271 ms mean / 6.8 s max** and
+> takes a row lock per character per gated call (§14e), and PITR is **off** — a 24 h
+> data-loss window costs far more player-hours once progression accrues continuously (§14h).
+
+
 Approval is Tyler's and this needs the exact figure before purchase (budget
 freeze, 2026-08-17). These are order-of-magnitude, and I have **not** priced a
 specific vendor plan.

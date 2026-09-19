@@ -331,6 +331,17 @@ jobs:
           node tests/utc-midnight-replay.mjs
           node tests/utc-midnight-replay.mjs --selftest
 
+      # THE 90-DAY LEDGER ROLLUP HAS NEVER FIRED ON PRODUCTION (first real fire ~2026-11-21).
+      # This replays the chain, seeds aged ledger rows, runs hr_ledger_prune the way cron
+      # does and asserts every currency is conserved to the unit (gold, xp in AND out, qty,
+      # gems), the prune is idempotent, no per-day ceiling moves, and takes a census of every
+      # function that reads a LIFETIME fact out of a 90-day table. --mutate plants five defects.
+      - name: Ledger rollup — a prune conserves every currency and moves no ceiling
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/ledger-rollup.mjs
+          node tests/ledger-rollup.mjs --mutate
+
       # ...AND DO THE ROWS THE REBUILD PRODUCES MATCH src/data?
       # schema-drift proves the SCHEMA replays. This is the CONTENT half, and it
       # exists because of Security finding F2 (2026-09-13, Deep Seam review):

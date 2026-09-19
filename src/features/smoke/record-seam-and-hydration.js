@@ -6351,6 +6351,69 @@ export default [
     });
   }),
 
+  /* ── QA attack on the conflict retry: THE MESSY TAP. A player who is "pressing a few times"
+     does not tap the SAME recipe again — they tap a third one. Three intents for
+     one bench while the first is still conflicting against a settle is the exact
+     shape Paione was in, and the two properties that matter are (a) the bench
+     ends on the recipe the player asked for LAST, not on the one the first
+     gesture happened to win with, and (b) three taps do not put three retries on
+     the wire (the coalescer keeps the newest, one gesture at a time).
+     Drives the settle-race wait: the first gesture is refused version_conflict while a
+     settle is held open, so its retry is parked inside awaitSettleRaceClear()
+     while B and then C arrive. */
+  () => tryRunAsync('QA-B549-3: A→B→C taps during a held conflict converge on C, with one gesture on the wire at a time', async () => {
+    await benchSwitchArc(async (t) => {
+      const R = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing) || [];
+      const c = R.find((x) => x.id === 'forge_steel_helm') || R.find((x) => x.id !== t.a.id && x.id !== t.b.id);
+      if (!c) { skip('the fixture needs a third smithing recipe'); return; }
+      /* The arc seeds only iron_bar/oak_plank; a third recipe the bench cannot
+         AFFORD never starts locally and the tap would never reach the wire —
+         that would make this test measure the fixture, not the coalescer. */
+      Object.keys(c.inputs || {}).forEach((k) => { window.G.inventory[k] = (window.G.inventory[k] || 0) + 500; });
+      t.reset(); t.armSettle();
+      await drain();
+      assert(t.log.indexOf('accrue:sent') === 0 && t.canRelease(),
+        'setup: no settle is on the wire (' + JSON.stringify(t.log) + ') — the conflict would not be held');
+      // gesture 1 conflicts, then accepts on its waited retry; the queued tap follows.
+      t.plan([t.refuse(911, t.a.id), t.accept(912, t.b.id), t.accept(913, c.id)]);
+      window.startArtisan('smithing', t.b.id); await drain();
+      assert(t.sent.length === 1, 'setup: gesture 1 has not been refused yet (' + JSON.stringify(t.log) + ')');
+      // …and now the player keeps tapping while gesture 1 is parked on the settle.
+      window.startArtisan('smithing', t.a.id); await drain();
+      window.startArtisan('smithing', c.id); await drain();
+      assert(window.G.skillTargetId === c.id,
+        'setup: the third tap did not even start locally (bench is on ' + window.G.skillTargetId + ') — the fixture, not the coalescer, would be under test');
+      assert(t.sent.length === 1,
+        'THE RETRY STORM: ' + t.sent.length + ' set_activity are on the wire for one bench — taps during a held conflict must COALESCE, not queue a request each');
+      t.release();
+      for (let i = 0; i < 8 && (t.sent.length < 3 || window.HearthriseActivity.getActivityState().pending); i++) await drain();
+      await drain();
+      const ids = t.sent.map((s) => s && s.activity && s.activity.id);
+      assert(ids.length >= 2 && ids[ids.length - 1] === c.id,
+        'THE DROPPED TAP: the declarations on the wire were ' + JSON.stringify(ids) + ' — the server was never told the recipe the player actually ended on (' + c.id + '), so the bench they are watching is not the bench the realm is running');
+      assert(window.G.skillTargetId === c.id,
+        'the bench ended on ' + window.G.skillTargetId + ', not the LAST recipe the player tapped (' + c.id + ') — a coalesced tap that loses to an earlier gesture is Paione\'s bug wearing a different hat; wire: ' + JSON.stringify(ids));
+    });
+  }),
+
+  /* …AND THE TOAST IS NOT A FALSE ALARM. «Couldn't switch» was added so a
+     refused tap is not silent; the failure mode it introduces is the opposite
+     one — telling a player the switch failed on a gesture that then SUCCEEDS on
+     its retry. A player told "couldn't switch" who can see the new recipe
+     running files a bug about the message, and rightly. */
+  () => tryRunAsync('QA-B549-4: a conflict the retry CLOSES says nothing — the refusal toast is not a false alarm', async () => {
+    await benchSwitchArc(async (t) => {
+      t.said.length = 0;
+      t.plan([t.refuse(921, t.a.id), t.accept(922, t.b.id)]);
+      window.startArtisan('smithing', t.b.id); await drain();
+      assert(window.G.skillTargetId === t.b.id,
+        'setup: the retry did not close the switch (' + window.G.skillTargetId + '), so this arm measures nothing');
+      const cried = t.said.filter((m) => /Couldn.t switch/i.test(m));
+      assert(cried.length === 0,
+        'FALSE ALARM: the player was told ' + JSON.stringify(cried) + ' about a switch that SUCCEEDED one retry later — the bench is running what they asked for and the game is apologising for it');
+    });
+  }),
+
   /* ACT-7 — A REFUSED DECLARATION MUST STOP THE LOCAL RUN. MEASURED LIVE
      (2026-09-11 02:05 UTC): a gather intent the realm answered 409
      `unknown_activity` left the client reading "Fishing" and running the local

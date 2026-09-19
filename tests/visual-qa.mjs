@@ -141,15 +141,55 @@ function SWEEP({ label, fontsMissing = [], fontStatus = '' }) {
     const t = TXT(el); if (!t) return;
     if (el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).overflow !== 'visible')
       add('P1', 'clipped-text', `"${t.slice(0, 30)}" (${el.scrollWidth}>${el.clientWidth})`, el);
+    /* THE WALK STOPS AT A REAL SCROLLER (b550), AND HERE IS THE EVIDENCE.
+       This used to climb to the first `overflow:hidden` ancestor and call any
+       horizontal escape a clip. On the landscape War Table that produced eight
+       P1s — "Clan Raid", "The Hollow Regent", "Events ▸" … "cut by .panel" —
+       for text a player reaches by swiping: the chips live in `.wt-dest-rail`,
+       which is `overflow-x:auto` and genuinely scrolled (scrollWidth 1120 in a
+       776px box at 852x393, measured). `.panel` clips only what the RAIL has
+       already scrolled out of view, which is what a scroller is for.
+
+       So: an ancestor that actually scrolls on this axis ENDS the walk. That is
+       a reachability verdict, not an exemption — the EXCLUDE list is untouched,
+       a hidden non-scrolling parent still bites, and an element outside the
+       scroller's own scrollable extent is still reported.
+
+       Reachable is not the same as discoverable, and the eight findings were
+       really about the second. So the scroller is held to account IN ITS OWN
+       RIGHT: a rail carrying content past its edge with no fade mask and no
+       scroll-snap gets `scroller-no-affordance` — one finding on the container
+       that owns the fix, instead of six on innocent text nodes. P2, because a
+       player can reach the content; the clip severity belonged to text that
+       nothing could reach. */
     const r = el.getBoundingClientRect(); let p = el.parentElement;
     while (p && p !== document.body) {
       const pc = getComputedStyle(p);
+      const scrollsX = ['auto', 'scroll'].includes(pc.overflowX) && p.scrollWidth > p.clientWidth + 2;
+      if (scrollsX) {
+        const pr = p.getBoundingClientRect();
+        // Inside the scroller's reachable extent? Then this is scrolled-away, not cut.
+        const reach = r.left >= pr.left - p.scrollLeft - 2
+          && r.right <= pr.left - p.scrollLeft + p.scrollWidth + 2;
+        if (reach) break;
+      }
       if (pc.overflow === 'hidden' || pc.overflowX === 'hidden') {
         const pr = p.getBoundingClientRect();
         if (r.right > pr.right + 2 || r.left < pr.left - 2) { add('P1', 'clipped-by-parent', `"${t.slice(0, 26)}" cut by .${String(p.className).split(' ')[0]}`, el); break; }
       }
       p = p.parentElement;
     }
+  });
+
+  // The other half of the b550 rule: every sideways scroller must SAY it scrolls.
+  if (fontsOk) [...new Set(all)].forEach((p) => {
+    const pc = getComputedStyle(p);
+    if (!['auto', 'scroll'].includes(pc.overflowX)) return;
+    if (p.scrollWidth <= p.clientWidth + 2) return;
+    const masked = (pc.maskImage || pc.webkitMaskImage || 'none') !== 'none';
+    const snaps = (pc.scrollSnapType || 'none') !== 'none';
+    if (!masked && !snaps)
+      add('P2', 'scroller-no-affordance', `${p.scrollWidth}>${p.clientWidth} with no edge fade and no scroll-snap — the cut-off content reads as damage, not as "more this way"`, p);
   });
 
   // A "bar" is a real chrome strip (topbar/activity bar/nav) — NOT a decorative
@@ -558,6 +598,58 @@ async function selftest() {
       + JSON.stringify(stillMeasured.slice(0, 3).map((i) => i.kind + ' ' + i.el)));
     if (fonts.missing.length) fails.push('SELFTEST: the booted page never rendered ' + fonts.missing.join(', ')
       + ' — this run cannot prove the control case (is fonts.gstatic.com reachable?)');
+
+    /* ── b550: THE SCROLLER RULE, MUTATION-PROVED ─────────────────────────────
+       The clip walk now stops at an ancestor that genuinely scrolls on the X
+       axis. That is exactly the shape of change that quietly deletes a guard, so
+       it is proven on three planted fixtures inside the live active panel:
+
+         hidden   an `overflow:hidden` parent with content past its edge
+                  → MUST still be `clipped-by-parent`. This is the bite.
+         bare     an `overflow-x:auto` parent, scrolled content, no cue
+                  → NOT a clip (the player can swipe to it) but MUST raise
+                    `scroller-no-affordance`, or the rule is just an exemption.
+         cued     the same scroller with an edge fade
+                  → silent. This is the state the War Table rail now ships in. */
+    const scrollCase = async (mode) => {
+      await page.evaluate((mode) => {
+        const host = document.querySelector('.panel.active') || document.body;
+        document.getElementById('__hr_sc_fx')?.remove();
+        const box = document.createElement('div');
+        box.id = '__hr_sc_fx';
+        box.style.cssText = 'position:relative;width:180px;height:40px;'
+          + (mode === 'hidden' ? 'overflow:hidden' : 'overflow-x:auto')
+          + (mode === 'cued' ? ';mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 30px),transparent 100%)' : '');
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-wrap:nowrap;width:max-content';
+        ['Crypt of Bones', 'The Hollow Regent', 'Elderscale the Wyrm'].forEach((n) => {
+          const s = document.createElement('span');
+          s.textContent = n;
+          s.style.cssText = 'flex:0 0 auto;white-space:nowrap;padding:0 8px';
+          row.appendChild(s);
+        });
+        box.appendChild(row); host.appendChild(box);
+      }, mode);
+      await page.waitForTimeout(80);
+      const res = await page.evaluate(SWEEP, ARG);
+      await page.evaluate(() => document.getElementById('__hr_sc_fx')?.remove());
+      const mine = (res.issues || []).filter((i) => (i.el || '').includes('__hr_sc_fx'));
+      return { clips: mine.filter((i) => i.kind === 'clipped-by-parent'),
+        afford: (res.issues || []).filter((i) => i.kind === 'scroller-no-affordance' && (i.el || '').includes('__hr_sc_fx')) };
+    };
+    const scHidden = await scrollCase('hidden');
+    if (!scHidden.clips.length)
+      fails.push('SELFTEST: content past the edge of a NON-scrolling overflow:hidden parent was not flagged clipped-by-parent — the b550 scroller rule swallowed the real clip it was meant to keep');
+    const scBare = await scrollCase('bare');
+    if (scBare.clips.length)
+      fails.push('SELFTEST: text a player can swipe to inside an overflow-x:auto rail was still called clipped-by-parent: '
+        + JSON.stringify(scBare.clips.map((i) => i.detail)));
+    if (!scBare.afford.length)
+      fails.push('SELFTEST: a sideways scroller with no edge fade and no scroll-snap raised nothing — the rule became a pure exemption');
+    const scCued = await scrollCase('cued');
+    if (scCued.clips.length || scCued.afford.length)
+      fails.push('SELFTEST: a scroller WITH an edge fade still reported: '
+        + JSON.stringify([...scCued.clips, ...scCued.afford].map((i) => i.kind + ' ' + i.detail)));
 
     const tags = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('.wt-dest')];

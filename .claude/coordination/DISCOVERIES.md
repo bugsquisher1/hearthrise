@@ -3359,3 +3359,23 @@ Second finding, same pass: `#panel-combat .wtd-img { width:20px; height:20px }` 
 higher-specificity rule elsewhere (measured 46px and 40px live). The button's 40px is b285's thumb
 target and is correct; the 46px glyph is not intentional and is half the landscape chip's height.
 Whoever takes the affordance slice should take that with it.
+
+
+## 2026-09-18 · art-director · A visual-gate finding can be a REACHABILITY question, not a defect
+
+`tests/visual-qa.mjs`'s clip walk climbed to the first `overflow:hidden` ancestor and called any
+horizontal escape a clip. On the landscape War Table that produced eight P1s blaming `.panel` for
+text a player reaches by swiping: the chips live in an `overflow-x:auto` rail that is genuinely
+scrolled (776px box, 1120px scrollWidth at 852x393, measured). The walk now stops at a real
+scroller and the container carries a new P2 `scroller-no-affordance` instead. If a future finding
+reads "cut by .panel" on a rail, measure the rail's scrollWidth before believing it.
+
+## 2026-09-18 · art-director · b548's rail-containment assertions are VACUOUS inside the suite
+
+`b548: War Table destinations fit their rail and never trim a name` measures rects on `#panel-combat`
+without making the panel active. In the headless suite the panel is hidden, every
+`getBoundingClientRect()` is 0, and `rail.scrollWidth <= rail.clientWidth` is trivially 0<=0. The
+name/wrap half of that test is real (computed styles resolve on a hidden element); the CONTAINMENT
+half proves nothing where it runs. Any test that measures geometry must `showTab()` the screen first
+and skip loudly if it did not paint - both b550 rail tests do. Whoever next touches that test should
+give it the same treatment.

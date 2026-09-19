@@ -107,6 +107,14 @@
  * supposed to be, and none of them ever disappears: an empty slot in a menu is
  * what teaches the rotation. */
 #panel-combat .wt-dest-rail { flex: 0 0 auto; overflow-x: auto; overscroll-behavior-x: contain; }
+/* The rail is a keyboard-reachable region (it carries tabindex=0 + a role in
+ * combat-screens.js) because a sideways scroller a mouse can drag and a finger
+ * can swipe is otherwise unreachable with arrow keys. A focus ring on a scroll
+ * container is the whole point of giving it focus, so it is drawn, not removed. */
+#panel-combat .wt-dest-rail:focus-visible,
+#panel-combat .wt-classes:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 2px; border-radius: var(--r, 3px);
+}
 /* THE RAIL FITS ITS SIX, OR IT WRAPS — IT NEVER HANGS OFF THE PANEL (b548).
  * `min-width: min-content` made the row as wide as the widest card's intrinsic
  * content, so at 1440x900 the six cards resolved to 217px each, the row to
@@ -1223,6 +1231,54 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
      floor is the 40px thumb target on its button plus a 46px glyph, so a second
      row is not affordable on this screen. */
   #panel-combat .wt-dests { flex-wrap: nowrap; min-width: min-content; }
+  /* ── THE SCROLL HAS AN AFFORDANCE NOW (b550) ─────────────────────────────
+   * b548 kept the sideways scroll on evidence (two rows of chips cost 229px of
+   * a 393px screen against the scroller's 112px) and then filed the honest
+   * remainder: six destinations in a sideways scroller with NO hint that it
+   * scrolls. The eight P1 `clipped-by-parent` findings on this rail were never
+   * a clipping bug — Clan Raid and World Event are reachable — they were a
+   * DISCOVERABILITY bug, and clipped text with no cue is indistinguishable from
+   * broken text.
+   *
+   * Three cues, all on the container, none costing a pixel of the 393px:
+   *   · an EDGE FADE that says "the row continues this way". It is directional
+   *     and state-driven (`data-scroll` is set from the scroll position in
+   *     combat-screens.js): fade on the right at the start, both in the middle,
+   *     only the left at the end. A permanently-faded right edge on a rail that
+   *     is already scrolled to its end is a lie, and a lie is worse than no cue.
+   *   · SCROLL SNAP, so a swipe lands on a chip edge rather than halfway
+   *     through a name — which is what made the peek read as damage.
+   *   · the PEEK itself, preserved: `scroll-padding-inline` keeps the snapped
+   *     chip clear of the fade, and the end padding stops the last chip from
+   *     resting underneath it.
+   * `mask-image` is used rather than a background gradient because the cards
+   * are children: a container background paints BEHIND them and would be
+   * invisible under exactly the chip it needs to fade. Only the ALPHA of a mask
+   * stop matters, so the opaque stops are `currentColor` — no palette decision
+   * is being made here and none should be spelled as a colour literal. */
+  #panel-combat .wt-dest-rail {
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 22px 26px;
+    padding-right: 26px;
+  }
+  #panel-combat .wt-dest { scroll-snap-align: start; }
+  /* The class-filter rail one row below is the same component with the same
+     missing cue, so it gets the same treatment rather than a fix aimed at the
+     one selector the gate happened to name. */
+  #panel-combat .wt-classes { scroll-snap-type: x proximity; scroll-padding-inline: 18px 22px; }
+  #panel-combat .wt-classes .chip { scroll-snap-align: start; }
+  #panel-combat [data-scroll="start"] {
+    -webkit-mask-image: linear-gradient(90deg, currentColor 0, currentColor calc(100% - 30px), transparent 100%);
+    mask-image: linear-gradient(90deg, currentColor 0, currentColor calc(100% - 30px), transparent 100%);
+  }
+  #panel-combat [data-scroll="mid"] {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, currentColor 26px, currentColor calc(100% - 30px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, currentColor 26px, currentColor calc(100% - 30px), transparent 100%);
+  }
+  #panel-combat [data-scroll="end"] {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, currentColor 26px, currentColor 100%);
+    mask-image: linear-gradient(90deg, transparent 0, currentColor 26px, currentColor 100%);
+  }
   #panel-combat .wt-dest {
     flex: 0 0 auto; min-width: 132px; max-width: 180px; padding: 2px 6px; gap: 0;
   }

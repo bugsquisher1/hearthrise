@@ -531,7 +531,7 @@ function ensureStructure() {
   views.innerHTML = `
     <section class="wt-view" aria-label="War Table">
       <div class="wt-ribbon" id="wt-ribbon" hidden></div>
-      <div class="wt-dest-rail"><div class="wt-dests" id="wt-dests"></div></div>
+      <div class="wt-dest-rail" id="wt-dest-rail" tabindex="0" role="group" aria-label="Destinations — scrolls sideways"><div class="wt-dests" id="wt-dests"></div></div>
       <div class="wt-bar">
         <div class="wt-chips" id="wt-tiers"></div>
         <div class="wt-chips wt-classes" id="wt-classes"></div>
@@ -936,10 +936,42 @@ function renderDestinations() {
       <footer>${btn}</footer>
     </article>`;
   }).join('');
-  if (host.dataset.sig === html.length + '|' + list.map((d) => d.name + d.meta + (d.timer || '')).join()) return;
-  host.dataset.sig = html.length + '|' + list.map((d) => d.name + d.meta + (d.timer || '')).join();
+  const sig = html.length + '|' + list.map((d) => d.name + d.meta + (d.timer || '')).join();
+  if (host.dataset.sig === sig) { syncRailAffordance(); return; }
+  host.dataset.sig = sig;
   host.innerHTML = html;
+  syncRailAffordance();
 }
+
+/* THE SIDEWAYS RAILS SAY WHICH WAY THEY SCROLL.
+   On a landscape phone the destinations and the class filter are chip rails
+   that scroll sideways, and neither had any way to say so: the sixth
+   destination simply looked like a chopped-off fifth.
+
+   combat-screens.css draws the edge fade off this attribute rather than baking
+   it into the sheet, because a fade must be DIRECTIONAL — a rail parked at its
+   right end that still fades on the right says there is more when there is not.
+   `none` (everything fits, as on every desktop width) removes the mask. */
+const RAILS = ['wt-dest-rail', 'wt-classes'];
+
+function syncRailAffordance() {
+  RAILS.forEach((id) => {
+    const rail = document.getElementById(id);
+    if (!rail) return;
+    const slack = rail.scrollWidth - rail.clientWidth;
+    /* A rail with nothing to scroll is not a focus stop: it would be an empty
+       tab stop between the screen title and the first destination button. */
+    if (slack <= 2) { rail.dataset.scroll = 'none'; rail.removeAttribute('tabindex'); return; }
+    const x = rail.scrollLeft;
+    rail.dataset.scroll = x <= 2 ? 'start' : (x >= slack - 2 ? 'end' : 'mid');
+    rail.setAttribute('tabindex', '0');
+    if (!rail.dataset.wired) {
+      rail.dataset.wired = '1';
+      rail.addEventListener('scroll', syncRailAffordance, { passive: true });
+    }
+  });
+}
+addEventListener('resize', syncRailAffordance);
 
 function renderFilters() {
   const tiers = document.getElementById('wt-tiers');
@@ -957,6 +989,9 @@ function renderFilters() {
   if (fams.indexOf(classFilter) < 0 && classFilter !== 'all') classFilter = 'all';
   classes.innerHTML = ['all'].concat(fams).map((f) =>
     `<button type="button" class="chip${f === classFilter ? ' active' : ''}" data-cs-act="class" data-cls="${esc(f)}">${f === 'all' ? 'All' : esc(f)}</button>`).join('');
+  classes.setAttribute('role', 'group');
+  classes.setAttribute('aria-label', 'Monster class filter');
+  syncRailAffordance();
 }
 
 /* COMBAT-UI-03 / 04 — the portrait grid and the browsing unit. Everything on a

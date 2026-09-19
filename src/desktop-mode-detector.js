@@ -16,9 +16,30 @@
 // desktop mode from script. So we surface a plain, dismissible banner
 // telling the player how to turn it off — which is the actual fix.
 //
-// The banner is drawn with fully INLINE styles and a max z-index, on
-// purpose: the whole premise is that the page's own CSS is mislaid, so it
-// must not depend on any stylesheet, token, or media query to be legible.
+// The banner is drawn with fully INLINE styles and a max z-index, on purpose:
+// it must outrank every stacking context on a page whose layout is mislaid.
+//
+// What it does NOT need is its own private palette. The old comment here said
+// the banner "must not depend on any stylesheet or token", and that reasoning
+// was one step too far: desktop mode does not stop tokens.css loading, it makes
+// the browser IGNORE THE VIEWPORT META and lay the desktop grid out at ~980px.
+// The sheets are present and the ladder resolves. So every colour below is a
+// plain token (CLAUDE.md §7) and the banner wears Forge & Stone like the rest
+// of the chrome, instead of the oxblood browser-error slab it used to be.
+//
+// IT MUST NEVER COVER AN ACTIONABLE NUMBER. This used to be a bare
+// `position:fixed; top:0` with nothing reserving its space, so 91px of alert
+// sat ON TOP of Gold, Gems, Combat Level and the quest count: the one piece of
+// chrome whose whole job is to explain a broken layout was itself hiding the
+// four numbers a player acts on. It still pins to the top — an alert below the
+// fold is not an alert — but it now measures itself into `--hr-dm-banner-h` and
+// flags the body with `data-hr-desktop-mode`, and art-direction.css shortens
+// the app shell by exactly that much. A ResizeObserver re-measures when the
+// disclosure opens or the copy wraps, so the reservation is never a guess.
+//
+// It also stopped drawing ⚠️ and ✕ as art (the project forbids emoji as
+// artwork outright): the alert mark is `uiWarn` from the baked atlas and the
+// dismiss is a real labelled button with a 40px thumb target and a focus ring.
 // ============================================================
 (function () {
   'use strict';
@@ -88,9 +109,52 @@
     return (!uaMobile || lowDpr) && phoneSized;
   }
 
+  // ── The reservation ─────────────────────────────────────────
+  // The banner's own height, published to the app shell. `--hr-dm-banner-h` is
+  // read by ONE rule block in art-direction.css, gated on the body attribute,
+  // so it can neither leak into a theme nor apply on a viewport where the
+  // banner never fires.
+  var RESERVE_ATTR = 'data-hr-desktop-mode';
+  var RESERVE_VAR = '--hr-dm-banner-h';
+  var ro = null;
+
+  function reserve(bar) {
+    var h = Math.ceil(bar.getBoundingClientRect().height);
+    document.documentElement.style.setProperty(RESERVE_VAR, h + 'px');
+    document.body.setAttribute(RESERVE_ATTR, '1');
+    return h;
+  }
+  function unreserve() {
+    if (ro) { try { ro.disconnect(); } catch (e) {} ro = null; }
+    document.documentElement.style.removeProperty(RESERVE_VAR);
+    if (document.body) document.body.removeAttribute(RESERVE_ATTR);
+  }
+
+  // The alert mark comes from the baked atlas (src/data/glyphs.js), which is a
+  // classic script loaded before this one. If it is somehow absent we draw NO
+  // mark rather than falling back to a pictograph.
+  function warnMark(px) {
+    var d = (window.HR_GLYPHS && window.HR_GLYPHS.uiWarn) || '';
+    if (!d) return '';
+    return '<svg viewBox="0 0 512 512" width="' + px + '" height="' + px + '" aria-hidden="true" focusable="false"'
+      + ' style="display:block;flex:0 0 auto;fill:currentColor"><path d="' + d + '"/></svg>';
+  }
+
+  var CHIP = [
+    'appearance:none', 'cursor:pointer',
+    'min-height:40px', 'padding:0 12px',            // the thumb target
+    'border:1px solid var(--line-strong)',
+    'border-radius:var(--r,3px)',
+    'background:var(--surf-raised)',
+    'color:var(--ink)',
+    'font-family:var(--f-label,\'Alegreya Sans SC\',system-ui,sans-serif)',
+    'font-size:var(--t-micro,14.5px)', 'letter-spacing:.06em', 'text-transform:uppercase',
+    'white-space:nowrap'
+  ].join(';');
+
   function build() {
-    if (document.getElementById('hr-desktopmode-banner')) return;
-    if (sessionStorage.getItem(DISMISS_KEY) === '1') return;
+    if (document.getElementById('hr-desktopmode-banner')) return null;
+    if (sessionStorage.getItem(DISMISS_KEY) === '1') return null;
 
     var bar = document.createElement('div');
     bar.id = 'hr-desktopmode-banner';
@@ -98,36 +162,91 @@
     bar.style.cssText = [
       'position:fixed', 'top:0', 'left:0', 'right:0',
       'z-index:2147483647',
-      'background:#7a1f1f', 'color:#fff',
-      'font:600 15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
-      'padding:12px 44px 12px 14px', 'box-sizing:border-box',
-      'box-shadow:0 2px 10px rgba(0,0,0,.45)', 'text-align:left'
+      /* Forge & Stone, not the oxblood slab this used to be: the app's own card
+         surface with a gilt underline, so the notice reads as the game's chrome
+         rather than a browser error page. */
+      'background:var(--bg-card)',
+      'color:var(--ink)',
+      'border-bottom:2px solid var(--gold)',
+      'font-family:var(--f-ui,\'Alegreya Sans\',system-ui,sans-serif)',
+      'font-size:var(--t-small,16px)', 'line-height:1.35',
+      'padding:10px 14px', 'box-sizing:border-box',
+      // the one literal left in this file: a drop shadow is a depth cue, not a
+      // palette decision, and the theme has no shadow token to spend here.
+      'box-shadow:0 6px 18px -10px rgba(0,0,0,.9)', 'text-align:left'
     ].join(';');
+
     bar.innerHTML =
-      '<div style="max-width:640px;margin:0 auto">' +
-      '⚠️ <b>Desktop Site looks turned on.</b> That squashes the full ' +
-      'desktop layout onto your phone — turn it <b>off</b> for the mobile view:' +
-      '<div style="font-weight:400;margin-top:4px;opacity:.92">' +
-      'Chrome menu (⋮) → uncheck <b>Desktop site</b>, then reload.' +
-      '</div></div>';
+      '<div style="max-width:720px;margin:0 auto;display:flex;align-items:flex-start;gap:10px">' +
+        '<span style="color:var(--gold);margin-top:2px">' + warnMark(20) + '</span>' +
+        '<div style="flex:1 1 auto;min-width:0">' +
+          '<b style="display:block;font-family:var(--f-label,\'Alegreya Sans SC\',system-ui,sans-serif);' +
+            'font-size:var(--t-h3,16.5px);letter-spacing:.07em;text-transform:uppercase;' +
+            'color:var(--gold);font-weight:600">Desktop Site is on</b>' +
+          '<span style="display:block;color:var(--ink-2)">' +
+            'Your browser is drawing the full desktop layout on a phone screen. ' +
+            'Turn Desktop Site off for the mobile view.</span>' +
+          '<div id="hr-dm-how" hidden style="margin-top:6px;color:var(--ink-2)">' +
+            '<div><b style="color:var(--ink)">Chrome / Android:</b> tap the ⋮ menu, untick ' +
+              '<b style="color:var(--ink)">Desktop site</b>, then reload.</div>' +
+            '<div><b style="color:var(--ink)">Safari / iPhone:</b> tap <b style="color:var(--ink)">aA</b> ' +
+              'in the address bar, then <b style="color:var(--ink)">Request Mobile Website</b>.</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="flex:0 0 auto;display:flex;gap:8px;align-items:flex-start"></div>' +
+      '</div>';
+
+    var actions = bar.querySelector('div > div:last-child');
+
+    var how = document.createElement('button');
+    how.type = 'button';
+    how.id = 'hr-dm-howbtn';
+    how.textContent = 'Show me how';
+    how.setAttribute('aria-expanded', 'false');
+    how.setAttribute('aria-controls', 'hr-dm-how');
+    how.style.cssText = CHIP + ';border-color:var(--gold);color:var(--gold)';
+    how.addEventListener('click', function () {
+      var box = bar.querySelector('#hr-dm-how');
+      var open = box.hasAttribute('hidden');
+      if (open) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
+      how.setAttribute('aria-expanded', open ? 'true' : 'false');
+      how.textContent = open ? 'Hide steps' : 'Show me how';
+      reserve(bar);   // the disclosure changes the height; the shell follows it
+    });
 
     var x = document.createElement('button');
     x.type = 'button';
-    x.setAttribute('aria-label', 'Dismiss');
-    x.textContent = '✕';
-    x.style.cssText = [
-      'position:absolute', 'top:6px', 'right:8px',
-      'width:32px', 'height:32px', 'line-height:32px',
-      'background:transparent', 'border:0', 'color:#fff',
-      'font-size:18px', 'cursor:pointer'
-    ].join(';');
+    x.id = 'hr-dm-dismiss';
+    x.textContent = 'Dismiss';
+    x.style.cssText = CHIP + ';color:var(--ink-2)';
     x.addEventListener('click', function () {
       try { sessionStorage.setItem(DISMISS_KEY, '1'); } catch (e) {}
       if (bar.parentNode) bar.parentNode.removeChild(bar);
+      unreserve();
     });
-    bar.appendChild(x);
+
+    actions.appendChild(how);
+    actions.appendChild(x);
+
+    /* A visible focus ring on both controls. The inline style above cannot carry
+       a :focus-visible rule, and this banner must not depend on a stylesheet, so
+       the ring is set on the event. No transition anywhere in this component —
+       that is how it is reduced-motion safe: there is no motion to reduce. */
+    [how, x].forEach(function (btn) {
+      btn.addEventListener('focus', function () {
+        btn.style.outline = '2px solid var(--gold)';
+        btn.style.outlineOffset = '2px';
+      });
+      btn.addEventListener('blur', function () { btn.style.outline = ''; btn.style.outlineOffset = ''; });
+    });
 
     (document.body || document.documentElement).appendChild(bar);
+    reserve(bar);
+    if (typeof ResizeObserver === 'function') {
+      ro = new ResizeObserver(function () { if (bar.isConnected) reserve(bar); });
+      ro.observe(bar);
+    }
+    return bar;
   }
 
   function evaluate() {
@@ -135,12 +254,25 @@
     else {
       var b = document.getElementById('hr-desktopmode-banner');
       if (b && b.parentNode) b.parentNode.removeChild(b);
+      unreserve();
     }
   }
 
   // Exposed so the smoke test can drive the detector deterministically.
   window.__hrDesktopModeCheck = looksLikeDesktopMode;
   window.__hrDesktopModeEvaluate = evaluate;
+  /* The banner's own DOM path, separate from the predicate. The predicate can be
+     driven with a synthetic device (b371) but the BANNER could only ever be
+     inspected on a real phone in desktop mode — which is why it shipped covering
+     the top bar for 250 builds. This builds it here, on this viewport, so the
+     suite can measure what it covers. It respects the session dismissal exactly
+     as the real path does. */
+  window.__hrDesktopModeShowBanner = build;
+  window.__hrDesktopModeHideBanner = function () {
+    var b = document.getElementById('hr-desktopmode-banner');
+    if (b && b.parentNode) b.parentNode.removeChild(b);
+    unreserve();
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', evaluate);

@@ -4997,6 +4997,210 @@ export default [
     });
   }),
 
+  /* ── regression suite — THE ALERT THAT COVERED THE NUMBERS IT CAME TO SAVE ──
+     `#hr-desktopmode-banner` fires when a phone has "Desktop site" on. It was
+     `position:fixed; top:0` with nothing reserving its space, so 91px of banner
+     lay over Gold, Gems, Combat Level and the quest count: the one piece of
+     chrome whose job is to explain a broken layout was hiding the four numbers
+     a player acts on. The banner could only ever be inspected on a real phone in
+     desktop mode, which is why it shipped that way for 250 builds;
+     `__hrDesktopModeShowBanner` builds it here so it is MEASURED instead. */
+  () => tryRun('b550: the desktop-mode banner reserves its space and covers no number', () => {
+    if (typeof window.__hrDesktopModeShowBanner !== 'function') { skip('detector not loaded'); return; }
+    const KEY = 'hr_desktopModeBannerDismissed'; let was = null;
+    try { was = sessionStorage.getItem(KEY); sessionStorage.removeItem(KEY); } catch (e) {}
+    const app = document.querySelector('.app');
+    if (!app) { skip('no app shell'); return; }
+    let bar = null;
+    try {
+      bar = window.__hrDesktopModeShowBanner();
+      assert(bar && bar.isConnected, 'the banner did not build');
+      const r = bar.getBoundingClientRect();
+      assert(r.height > 0, 'the banner has no box');
+
+      // 1. NO EMOJI AS ART. The mark is uiWarn from the baked atlas.
+      const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
+      const txt = bar.textContent || '';
+      assert(!EMOJI.test(txt), 'the banner still renders an emoji as art: ' + JSON.stringify((txt.match(EMOJI) || [])[0]));
+      assert(!!bar.querySelector('svg path'), 'the alert mark must be an atlas glyph, not a character');
+
+      // 2. IT WEARS THE THEME. The old slab was a hardcoded #7a1f1f in system-ui.
+      const cs = getComputedStyle(bar);
+      assert(!/122,\s*31,\s*31/.test(cs.backgroundColor + cs.backgroundImage),
+        'the banner is still painted with the hardcoded oxblood slab');
+      assert(/Alegreya/i.test(cs.fontFamily), 'the banner is not set in the game\'s type: ' + cs.fontFamily);
+
+      // 3. IT RESERVES ITS OWN HEIGHT — the property the bug was.
+      assert(document.body.getAttribute('data-hr-desktop-mode') === '1',
+        'the banner did not flag the body, so no rule can move the shell out from under it');
+      const reserved = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hr-dm-banner-h')) || 0;
+      assert(Math.abs(reserved - r.height) <= 1,
+        'the reserved height (' + reserved + ') does not match the banner (' + Math.round(r.height) + ')');
+      const ar = app.getBoundingClientRect();
+      assert(ar.top >= r.bottom - 1,
+        'the app shell still starts UNDER the banner (app top ' + Math.round(ar.top) + ' < banner bottom ' + Math.round(r.bottom) + ')');
+      assert(ar.bottom <= innerHeight + 1,
+        'the shell was pushed down without being shortened — its bottom (' + Math.round(ar.bottom) + ') is off a ' + innerHeight + 'px screen');
+
+      // 4. NOTHING ACTIONABLE IS UNDERNEATH IT.
+      const hit = [...document.querySelectorAll('.topbar *')].filter((e) => {
+        const b = e.getBoundingClientRect();
+        return b.height > 2 && b.top < r.bottom - 1 && b.bottom > r.top && b.left < r.right && b.right > r.left;
+      });
+      assert(!hit.length, 'the banner covers ' + hit.length + ' top-bar element(s): '
+        + JSON.stringify(hit.slice(0, 4).map((e) => (e.textContent || '').trim().slice(0, 18))));
+
+      bar = null;
+    } finally {
+      try { window.__hrDesktopModeHideBanner(); } catch (e) {}
+      try { if (was === null) sessionStorage.removeItem(KEY); else sessionStorage.setItem(KEY, was); } catch (e) {}
+    }
+  }),
+
+  /* The same banner's CONTROLS. The player's way out of desktop mode is a one-tap
+     disclosure and a dismissal that is remembered, both on a thumb target — the
+     old pair was a 32px ✕ drawn as a character and no instructions beyond one
+     Chrome-only line. */
+  () => tryRun('b550: the desktop-mode banner explains the fix and dismisses for the session', () => {
+    if (typeof window.__hrDesktopModeShowBanner !== 'function') { skip('detector not loaded'); return; }
+    const KEY = 'hr_desktopModeBannerDismissed'; let was = null;
+    try { was = sessionStorage.getItem(KEY); sessionStorage.removeItem(KEY); } catch (e) {}
+    try {
+      const bar = window.__hrDesktopModeShowBanner();
+      assert(bar && bar.isConnected, 'the banner did not build');
+      const dis = bar.querySelector('#hr-dm-dismiss');
+      const how = bar.querySelector('#hr-dm-howbtn');
+      assert(dis && how, 'the banner must carry a dismiss AND a "how do I turn it off" control');
+      [dis, how].forEach((b) => assert(b.getBoundingClientRect().height >= 40,
+        'the ' + b.id + ' control is ' + Math.round(b.getBoundingClientRect().height) + 'px — under the 40px thumb target'));
+      assert(how.getAttribute('aria-expanded') === 'false' && bar.querySelector('#hr-dm-how').hasAttribute('hidden'),
+        'the steps must start collapsed and say so');
+      how.click();
+      const steps = bar.querySelector('#hr-dm-how');
+      assert(how.getAttribute('aria-expanded') === 'true' && !steps.hasAttribute('hidden'),
+        'one tap on "how" must reveal the steps');
+      assert(/Chrome/i.test(steps.textContent) && /Safari/i.test(steps.textContent),
+        'the steps must cover both phone browsers, not just Chrome: ' + steps.textContent.slice(0, 80));
+      const grown = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hr-dm-banner-h')) || 0;
+      assert(Math.abs(grown - bar.getBoundingClientRect().height) <= 1,
+        'the reservation did not follow the opened disclosure (' + grown + ' vs ' + Math.round(bar.getBoundingClientRect().height) + ')');
+
+      dis.click();
+      assert(!document.getElementById('hr-desktopmode-banner'), 'Dismiss must remove the banner');
+      assert(!document.body.hasAttribute('data-hr-desktop-mode'),
+        'dismissing must release the reserved space, or the shell keeps a gap for a banner that is gone');
+      assert(sessionStorage.getItem(KEY) === '1', 'the dismissal must be remembered for the session');
+      assert(window.__hrDesktopModeShowBanner() === null, 'a dismissed banner must not rebuild this session');
+    } finally {
+      try { window.__hrDesktopModeHideBanner(); } catch (e) {}
+      try { if (was === null) sessionStorage.removeItem(KEY); else sessionStorage.setItem(KEY, was); } catch (e) {}
+    }
+  }),
+
+  /* ── regression suite — THE SIDEWAYS RAIL WITH NO WAY TO KNOW IT SCROLLS ────
+     The landscape destination rail is a sideways scroller on measured evidence
+     (two rows of chips cost 229px of a 393px screen), and it left six
+     destinations behind a swipe with no cue that a swipe exists. The eight P1
+     `clipped-by-parent` findings on it were a discoverability defect, not a
+     clipping one — and clipped text with no cue reads as broken text.
+
+     Two halves, and each half fails alone: the STATE MACHINE (which end of the
+     scroll we are at, measured on the live rail by forcing it narrow, so the
+     assertion holds at any viewport) and the SHEET (a directional mask for each
+     of the three states, under the landscape query where the rail exists). A
+     permanently-faded right edge on a rail already at its end would be a lie,
+     so "end" must not carry the right fade. */
+  () => tryRun('b550: the landscape destination rail shows which way it scrolls', () => {
+    const CS = window.HearthriseCombatScreens;
+    if (!CS || typeof CS.setView !== 'function') { skip('combat screens module absent'); return; }
+    const prevTab = window.activeTab;
+    try { window.showTab('combat'); } catch (e) {}   // a hidden panel measures 0 and proves nothing
+    CS.setView('table'); CS.render();
+    const rail = document.getElementById('wt-dest-rail');
+    if (!rail || !rail.getBoundingClientRect().width) { try { window.showTab(prevTab || 'profile'); } catch (e) {} skip('the combat panel did not paint'); return; }
+    assert(['auto', 'scroll'].includes(getComputedStyle(rail).overflowX),
+      'the rail is no longer a scroller — this test is measuring the wrong element');
+
+    /* Forcing the overflow takes BOTH halves of the landscape shape: a narrow
+       rail and a row that refuses to wrap. Without the second the desktop base
+       rule simply wraps the cards into more rows and there is no scroll to
+       measure — which is exactly what this test read on its first run. */
+    const dests = document.getElementById('wt-dests');
+    const priorMax = rail.style.maxWidth;
+    const priorWrap = dests ? dests.style.cssText : '';
+    try {
+      rail.style.maxWidth = '240px';                 // force the overflow at any viewport
+      if (dests) { dests.style.flexWrap = 'nowrap'; dests.style.minWidth = 'min-content'; }
+      dispatchEvent(new Event('resize'));
+      const slack = rail.scrollWidth - rail.clientWidth;
+      assert(slack > 2, 'the forced-narrow rail does not overflow, so the states cannot be driven');
+      assert(rail.dataset.scroll === 'start', 'a rail parked at scrollLeft 0 must read "start", got ' + rail.dataset.scroll);
+      assert(rail.getAttribute('tabindex') === '0', 'a scrolling rail must be a keyboard focus stop');
+      rail.scrollLeft = Math.round(slack / 2); rail.dispatchEvent(new Event('scroll'));
+      assert(rail.dataset.scroll === 'mid', 'a half-scrolled rail must read "mid", got ' + rail.dataset.scroll);
+      rail.scrollLeft = rail.scrollWidth; rail.dispatchEvent(new Event('scroll'));
+      assert(rail.dataset.scroll === 'end', 'a rail at its far end must read "end", got ' + rail.dataset.scroll);
+      rail.scrollLeft = 0; rail.dispatchEvent(new Event('scroll'));
+    } finally {
+      rail.style.maxWidth = priorMax;
+      if (dests) dests.style.cssText = priorWrap;
+      dispatchEvent(new Event('resize'));
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+    assert(rail.dataset.scroll === 'none' || rail.scrollWidth > rail.clientWidth + 2,
+      'a rail with nothing to scroll must read "none", got ' + rail.dataset.scroll);
+
+    /* The sheet half. The mask lives under the landscape query, so on a desktop
+       viewport it is read from the stylesheet rather than the computed style —
+       reverting combat-screens.css still reds this. */
+    let landscape = '';
+    [...document.styleSheets].forEach((sh) => {
+      let rules = null; try { rules = sh.cssRules; } catch (e) { return; }
+      [...(rules || [])].forEach((r) => {
+        const q = r.media ? (r.conditionText || r.media.mediaText || '') : '';
+        if (/max-height/.test(q) && /560/.test(q)) landscape += [...(r.cssRules || [])].map((k) => k.cssText).join('\n') + '\n';
+      });
+    });
+    assert(landscape.length > 0, 'no max-height:560 block found in any sheet — the landscape rules are gone');
+    ['start', 'mid', 'end'].forEach((state) => assert(
+      new RegExp('\\[data-scroll="' + state + '"\\][^{]*\\{[^}]*mask-image').test(landscape),
+      'the landscape sheet has no edge fade for the "' + state + '" state'));
+    const endRule = (landscape.match(/\[data-scroll="end"\][^{]*\{[^}]*\}/) || [''])[0];
+    assert(/transparent 0/.test(endRule) && !/transparent 100%/.test(endRule),
+      'the "end" state fades its RIGHT edge — a rail already at its end is telling the player there is more: ' + endRule.slice(0, 160));
+    assert(/scroll-snap-type/.test(landscape), 'the rail lost its scroll-snap, so a swipe lands mid-name again');
+  }),
+
+  /* The War Table has TWO sideways scrollers — destinations and the class filter
+     — and a cue fitted to only the one a report happened to name leaves the same
+     defect standing one row below it. Every scroller on the screen is required
+     to publish its scroll state, so a third rail cannot ship mute. */
+  () => tryRun('b550: every sideways rail on the War Table publishes its scroll state', () => {
+    const CS = window.HearthriseCombatScreens;
+    if (!CS || typeof CS.setView !== 'function') { skip('combat screens module absent'); return; }
+    const prevTab = window.activeTab;
+    try {
+      try { window.showTab('combat'); } catch (e) {}
+      CS.setView('table'); CS.render();
+      const view = document.querySelector('#panel-combat .wt-view');
+      if (!view || !view.getBoundingClientRect().width) { skip('the combat panel did not paint'); return; }
+      /* Both of the design's rails must carry a state at every viewport — the
+         class rail is only a scroller under the landscape query, so a count is
+         not the assertion. */
+      const STATES = ['start', 'mid', 'end', 'none'];
+      ['wt-dest-rail', 'wt-classes'].forEach((id) => assert(
+        STATES.includes(((document.getElementById(id) || {}).dataset || {}).scroll || ''),
+        'the #' + id + ' rail publishes no scroll state, so no edge fade can be drawn for it'));
+      /* And nothing else on the screen may overflow sideways in silence. A
+         vertical scroller computes overflow-x:auto too, so the filter is what
+         ACTUALLY overflows, not what is merely declared. */
+      const mute = [...view.querySelectorAll('*')].filter((el) => ['auto', 'scroll'].includes(getComputedStyle(el).overflowX)
+        && el.scrollWidth > el.clientWidth + 2 && !el.dataset.scroll);
+      assert(!mute.length, 'sideways scroller(s) with no cue that they scroll: '
+        + JSON.stringify(mute.map((el) => el.id || String(el.className).split(' ')[0])));
+    } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
+  }),
+
   () => tryRun('b253: toasts side-step a corner button on a short landscape screen (paione: toasts over content)', () => {
     const T = window.HearthriseToasts;
     assert(T && typeof T.computeOffsets === 'function', 'toast placement math must be exposed');

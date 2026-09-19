@@ -329,6 +329,28 @@ body[data-theme] .hp-fill {
  * purse gets a surface, because currency is the one thing the player scans for
  * mid-action.
  * ---------------------------------------------------------------------- */
+/* THE DESKTOP-MODE BANNER RESERVES ITS OWN SPACE (b550).
+ * `#hr-desktopmode-banner` is fixed to the top of the viewport at the maximum
+ * z-index, and until b550 nothing moved out from under it: 91px of alert lay
+ * over Gold, Gems, Combat Level and the quest count — the notice that exists to
+ * explain a broken layout was hiding the four numbers a player acts on.
+ *
+ * `.app` is `height:100vh; overflow:hidden`, so padding on <body> would have
+ * pushed the shell's bottom off the screen instead of shortening it. The shell
+ * is shortened by the banner's MEASURED height (the detector publishes it into
+ * `--hr-dm-banner-h` from a ResizeObserver, so an opened disclosure or a wrapped
+ * line is accounted for) and the sidebar's own `height:100vh` is released to
+ * follow its grid, or it would hang out of the bottom by the same amount.
+ *
+ * Gated on a body ATTRIBUTE the detector sets, not on a media query and not on
+ * a theme: it applies exactly when the banner is on screen, in both themes, and
+ * is inert — variable unset, attribute absent — for every other player. */
+body[data-hr-desktop-mode] .app {
+  margin-top: var(--hr-dm-banner-h, 0px);
+  height: calc(100vh - var(--hr-dm-banner-h, 0px));
+}
+body[data-hr-desktop-mode] .sidebar { height: 100%; }
+
 body[data-theme] .topbar {
   background: linear-gradient(180deg, #1c1811, #131009);
   border-bottom: 1px solid rgba(201, 162, 74, .22);

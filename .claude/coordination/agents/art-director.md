@@ -2664,3 +2664,71 @@ went with the wrap). Every remaining finding is a strict subset of the baseline 
 gate on a reverted tree to prove no NEW finding was introduced rather than assuming it.
 Regression: `b548: War Table destinations fit their rail and never trim a name`, mutation-proved
 (1/1 with the fix, 0/1 with the stylesheet reverted). lane-done green.
+
+
+### 2026-09-18 · b550 — the alert that covered the numbers, and the rail that never said it scrolls
+
+Two filed items, both closed by MEASURING the rendered screen rather than reading the sheet.
+
+**1. The desktop-mode banner.** `#hr-desktopmode-banner` fires only with "Desktop site" on (QA
+confirmed the trigger is correct; Systems keeps it). Its defect was everything else about it: fixed
+at top:0 with nothing reserving its space, so 91px of oxblood in system-ui lay over Gold, Gems,
+Combat Level and the quest count, with the alert mark and the close control drawn as emoji. The
+chrome that exists to explain a broken layout was hiding the four numbers a player acts on.
+
+It still pins to the top - an alert below the fold is not an alert - but it now measures itself into
+`--hr-dm-banner-h` (ResizeObserver, so an opened disclosure or a wrapped line is accounted for) and
+flags `body[data-hr-desktop-mode]`; ONE attribute-gated block in art-direction.css shortens `.app`
+by exactly that much and releases the sidebar's own `height:100vh`. Padding on <body> was the wrong
+instrument: `.app` is `height:100vh; overflow:hidden`, so padding pushes the shell's bottom off the
+screen instead of shortening it. Measured at 980x450 and 1440x900: banner 87px, app top 88, app
+bottom == viewport bottom, ZERO topbar elements intersecting; opened to 137px the shell follows.
+
+The colour literals went too, and the comment that defended them was the interesting part: it
+claimed the banner "must not depend on any stylesheet or token" because "the page's CSS is
+mislaid". That reasoning is one step too far - desktop mode does not stop tokens.css loading, it
+makes the browser ignore the viewport meta and lay the desktop grid out at ~980px. The ladder
+resolves fine. So it is plain tokens now, the alert mark is `uiWarn` from the baked atlas, and the
+close control is a real 40px "Dismiss" beside a one-tap "Show me how" that carries BOTH phone
+browsers (Chrome/Android and Safari/iOS - the old copy was Chrome-only). No transition anywhere in
+the component, which is how it is reduced-motion safe: there is no motion to reduce.
+
+**2. The landscape chip rail - and the gate rule behind it.** The eight P1 `clipped-by-parent`
+findings were never a clipping bug. Measured at 852x393: the rail is 776px wide with a 1120px
+scrollWidth and `overflow-x:auto` - Clan Raid and World Event are REACHABLE. `.panel` clips only
+what the rail has already scrolled out of view, which is what a scroller is for. What was missing
+was the cue, and clipped text with no cue is indistinguishable from broken text.
+
+Three cues, all on the container, none costing a pixel of the 393px: a DIRECTIONAL edge fade
+(`data-scroll=start|mid|end|none` set from the scroll position in combat-screens.js, because a rail
+parked at its right end that still fades on the right is a lie - and a lie is worse than no cue),
+scroll-snap so a swipe lands on a chip edge, and the peek preserved via `scroll-padding-inline`.
+`mask-image`, not a background gradient: the chips are CHILDREN, so a container background paints
+behind them and would be invisible under exactly the chip it needs to fade. The mask stops are
+`currentColor` - only a mask stop's alpha matters, so no palette decision should be spelled there.
+Applied to BOTH rails on the screen, not just the one the gate named: the class filter one row below
+had the identical defect and would have been left standing.
+
+**The rule change, with its evidence.** `tests/visual-qa.mjs` climbed to the first `overflow:hidden`
+ancestor and called any horizontal escape a clip. It now STOPS at an ancestor that genuinely scrolls
+on the X axis, for an element inside that scroller's extent - a reachability verdict, not an
+exemption: EXCLUDE is untouched and a hidden non-scrolling parent still bites. Because reachable is
+not discoverable, the scroller is held to account in its own right with P2 `scroller-no-affordance`
+(no mask AND no snap), which is one finding on the container that owns the fix instead of six on
+innocent text nodes. `--selftest` grew three planted fixtures in the live panel: `hidden` (must
+still be clipped-by-parent - the bite), `bare` (not a clip, but must raise the affordance finding),
+`cued` (silent).
+
+Gate: 9 P1 -> 1 P1 (the remaining one is landscape/inventory's pre-existing 28px loot-filter chips,
+untouched), 8 clipped-by-parent -> 0, and the P2 I created on the class rail -> 0 after fixing it
+too. Baseline re-recorded with --write. Suite 1313/1326, 0 failed. Three regressions, each
+mutation-proved separately: drop the art-direction block -> "app shell still starts UNDER the
+banner"; drop the mask rules -> "no edge fade for the start state"; pin `data-scroll` to a constant
+-> "a half-scrolled rail must read mid, got start".
+
+One thing I got wrong and had to measure: the rail test's first form forced the rail narrow and
+found no overflow, because at desktop the base rule WRAPS the row - a narrow rail just makes more
+rows. Forcing the landscape shape takes both halves (narrow rail AND `flex-wrap:nowrap`). While
+fixing it I found that b548's own containment assertions run against a HIDDEN panel in the suite
+(every rect is 0), so they are vacuous there; both new tests call `showTab('combat')` first and skip
+loudly if the panel does not paint. Filed in DISCOVERIES.

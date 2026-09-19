@@ -3134,3 +3134,18 @@ the trigger is too loose.
 
 I did not touch the file — it is another lane's in-flight work and the trigger logic is Systems'.
 My b548 rail fix is unaffected: desktop/combat is 0 P1 before and after the merge.
+
+
+## 2026-09-18 · art-director -> systems-engineer · the desktop-mode banner's reservation contract
+
+`src/desktop-mode-detector.js` now publishes its measured height into `--hr-dm-banner-h` on
+<html> and sets `body[data-hr-desktop-mode="1"]` while the banner is up; ONE block in
+`src/styles/art-direction.css` shortens `.app` by that much. The DETECTION logic (`looksLikeDesktopMode`,
+the 500px phone threshold, the b371 device table) is untouched and stays yours.
+
+Two test hooks were added beside the existing `__hrDesktopModeCheck` / `__hrDesktopModeEvaluate`:
+`__hrDesktopModeShowBanner()` (builds the banner on the current viewport, returns it or null if the
+session dismissal is set) and `__hrDesktopModeHideBanner()`. They exist because the banner could
+only ever be inspected on a real phone in desktop mode, which is why it shipped covering the top bar
+for 250 builds. If you add chrome that also needs to move out from under it, read the CSS variable
+rather than re-measuring the element.

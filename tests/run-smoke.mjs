@@ -2423,6 +2423,29 @@ const run = async () => {
       exitCode = 1;
     }
 
+    /* ── The deferral's IDENTITY (QA-DEFER-ID, 2026-09-18) ──────────────────
+       The other half of the same deferral: it may only ever be handed back to
+       the character that earned it. Measured red before the fix — 1060 XP
+       restored into the incoming character and flushed with their slot after a
+       switch, and a deferral surviving the sign-out teardown. Four legs: the
+       switch, resetAccrualGate, a same-slot account change, and the honest
+       hand-back that must not regress. */
+    try {
+      const { combatXpDeferralIdentitySpec } = await import('./combat-xp-deferral-identity.spec.mjs');
+      const r = await combatXpDeferralIdentitySpec();
+      if (!r.ok) {
+        console.log('\nCombat-XP deferral identity — FAILED:');
+        for (const p of r.problems) console.log(`  ✗ ${p}`);
+        exitCode = 1;
+      } else {
+        console.log('\nCombat-XP deferral identity — a settle_first deferral cannot cross a character or an account.');
+      }
+    } catch (e) {
+      console.log('\nCombat-XP deferral identity — FAILED:');
+      for (const p of (e.problems || [e.message])) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    }
+
     /* ── The Bounty-Marks record guard (server-of-record slice) ─────────────
        Proves the CLIENT half of 2026-08-26-marks-record.sql: arm OFF is a no-op
        (marksOf reads G.bountyHunter.marks); arm ON reads the server's record and

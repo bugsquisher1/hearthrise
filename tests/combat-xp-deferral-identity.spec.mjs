@@ -2,14 +2,15 @@
 // ════════════════════════════════════════════════════════════════════════════
 // tests/combat-xp-deferral-identity.spec.mjs
 //
-// ⚠ UNREGISTERED AND CURRENTLY RED ON PURPOSE. This is a FAILING regression
-// spec filed by QA against b548, not a guard. It is deliberately NOT in
-// .github/workflows/smoke.yml and NOT in tests/run-smoke.mjs: the suite has no
-// expected-fail channel, and CLAUDE.md §4 forbids disabling or weakening a test
-// to keep a gate green. Register it in smoke.yml IN THE SAME COMMIT as the fix.
-//   Run:  node tests/combat-xp-deferral-identity.spec.mjs      (expect exit 1)
+// FILED RED BY QA AGAINST b548; FIXED AND REGISTERED 2026-09-18. It is invoked
+// by tests/run-smoke.mjs (so the GitHub `smoke` job runs it) and stands alone:
+//   Run:  node tests/combat-xp-deferral-identity.spec.mjs      (expect exit 0)
+// MUTATION PROOF — both arms verified red on 2026-09-18:
+//   • delete the identity check at the top of resolveCombatXpDeferral  → exit 1
+//     (1060 XP restored into character B, flushed with slot=1)
+//   • delete the clearCombatXpDeferral() call in resetAccrualGate      → exit 1
 //
-// ── THE BUG (QA-DEFER-ID, value class) ──────────────────────────────────────
+// ── THE BUG IT PINS (QA-DEFER-ID, value class) ──────────────────────────────
 // b548's `settle_first` deferral (src/net/accrue.js:480 `let deferredCombatXp`)
 // is a bare module-global holding a per-skill XP map with NO IDENTITY attached —
 // no user id, no character slot, no reference to the G it was taken from. Both
@@ -108,6 +109,53 @@ export async function combatXpDeferralIdentitySpec() {
     ok(!A.pendingCombatXpDeferral(),
       'a deferral survived resetAccrualGate() — the hook auth.js:935 uses to tear identity down on sign-out leaves '
       + 'the previous account\'s attended XP held in module state for the next session to hand back');
+
+    // ── ③ THE SIGN-OUT PATH, PLAYED (both-path rule) ──────────────────────
+    // The switch leg above moves the SLOT. This leg moves the USER and leaves
+    // the slot alone — account 1 defers on slot 0, signs out, account 2 signs
+    // in on the same tab and the same slot 0, and their settle answers. Slot
+    // equality must not be mistaken for identity.
+    A.__resetCombatXpDeferral();
+    let uid = 'user-one';
+    const G1 = { _combatXpPending: { attack: 400 } };
+    const sent2 = [];
+    globalThis.window = {
+      G: G1,
+      HearthriseProfile: { activeSlot: () => 0 },
+      HearthriseAuth: { currentUserId: () => uid },
+      hrCreditCombatXpFlush: () => { sent2.push(1); return Promise.resolve(null); },
+    };
+    A.deferPendingCombatXp({ attack: 400 });
+    uid = 'user-two';                              // the next account on this tab
+    const G2 = { _combatXpPending: {} };
+    globalThis.window.G = G2;
+    A.resolveCombatXpDeferral('accrued');
+    await A.combatXpReflushPromise();
+    ok(!(Number(G2._combatXpPending.attack) > 0) && sent2.length === 0,
+      `THE CROSS-ACCOUNT CREDIT: account one's 400 XP reached account two (pending=${G2._combatXpPending.attack || 0}, `
+      + `flushes=${sent2.length}) — the slot is identical, so only the user id can tell these two apart`);
+
+    // ── ④ THE HONEST PATH STILL PAYS ──────────────────────────────────────
+    // The whole point of b548's deferral: an unchanged identity must still get
+    // its XP back and still re-flush. An identity check that drops everything
+    // would pass ①–③ and silently delete every player's refused XP.
+    A.__resetCombatXpDeferral();
+    const Gsame = { _combatXpPending: { attack: 120 } };
+    let flushes = 0;
+    globalThis.window = {
+      G: Gsame,
+      HearthriseProfile: { activeSlot: () => 2 },
+      HearthriseAuth: { currentUserId: () => 'user-one' },
+      hrCreditCombatXpFlush: () => { flushes++; return Promise.resolve(null); },
+    };
+    A.deferPendingCombatXp({ attack: 120 });
+    Gsame._combatXpPending = {};                   // a flush drained the map meanwhile
+    const back = A.resolveCombatXpDeferral('accrued');
+    await A.combatXpReflushPromise();
+    ok(back === 120 && Gsame._combatXpPending.attack === 120 && flushes === 1,
+      `THE HONEST HAND-BACK REGRESSED: same user, same slot, restored=${back}, `
+      + `pending=${Gsame._combatXpPending.attack}, flushes=${flushes} (expected 120/120/1) — `
+      + 'the identity check must drop only what crossed, never the ordinary re-submit b548 exists for');
   } finally {
     A.__resetCombatXpDeferral();
     if (prevWindow === undefined) delete globalThis.window; else globalThis.window = prevWindow;

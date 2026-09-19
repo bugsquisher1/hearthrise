@@ -933,6 +933,11 @@ export async function signOut() {
      collaborator with no call site is a comment, not a seam. */
   try { window.HearthriseCharacter?.resetCharacterIntent?.(); } catch (e) {}
   try { window.HearthriseAccrual?.resetAccrualGate?.(); } catch (e) {}
+  /* …and the identity-scoped half of that module: a deferred combat-XP snapshot,
+     the away-settle latch, the pending fall and the arrival span all belong to
+     the account that just left. Sign-out does NOT reload, so without this they
+     are live module state when the next account signs in on this tab. */
+  try { window.HearthriseAccrual?.resetAccrualIdentity?.(); } catch (e) {}
   if (!supabase) { session = null; try { localStorage.removeItem(LOCAL_KEY); } catch (e) {} return; }
   await supabase.auth.signOut();
   session = null;

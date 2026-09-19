@@ -141,6 +141,22 @@
         ]
       }
     },
+    "ledger-rollup.mjs": {
+      "reason": "CI HOME IS THE db-replay JOB, and it is not in smoke.yml yet only because registering a step there is the Coordinator's call (the lane cannot edit the workflow's shape without re-pinning tests/ci-shape.baseline.json). It is NOT unrun: tools/lane-done.mjs runs BOTH arms (plain and --mutate) in every worktree, for the same reason it runs tests/utc-midnight-replay.mjs — it replays the whole migration chain in PGlite, which is minutes rather than seconds, so it belongs beside the other chain-replay steps in the db-replay job and not in the fast guards job. WHAT IT DEFENDS: hr_ledger_prune, the 90-day retention on public.player_ledger — the only long-term record of every player's value movement. Measured read-only on production 2026-09-18, that job has NEVER DELETED A ROW (player_ledger_rollup = 0 rows; oldest ledger row 27 days against retain_days = 90; first real fire ~2026-11-21), which is precisely the game_events shape: a cron row existed there too and the table still reached 1,598,269 rows / 229 MB from six players in four days. docs/design/restore-runbook.md marked this retention 'covered' on the strength of the cron row alone. The guard manufactures the aged rows production will not have for two months and asserts four properties by executing them: conservation of every declared rollup total to the unit, an EXACT aged/live boundary, an idempotent second run (the on-conflict clause accumulates, so that coupling to the delete is load-bearing), and — the dangerous one — that no per-day ceiling computed from player_ledger by any live RPC moves across the prune. WHAT REGISTERING IT COSTS: two steps in the db-replay job of .github/workflows/smoke.yml (plain AND --mutate, per RULE 5) plus a re-pin of tests/ci-shape.baseline.json.",
+      "family": "pglite-chain-replay",
+      "owner": "reliability-engineer",
+      "disposition": "register-in-db-replay-job",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "runner": "tools/lane-done.mjs (both arms)",
+        "mutations": [
+          "drop_a_kind_from_the_rollup",
+          "boundary_off_by_one",
+          "double_count_on_second_run"
+        ]
+      }
+    },
     "$deleted:2026-09-06-slice-2": {
       "reason": "NOT A GUARD FILE — the record of two orphans DELETED rather than adopted, so the decision is not re-litigated by whoever next greps for them. (1) tests/gold-intent-shape.mjs: a one-off investigation script, not a guard — it took the repo root as process.argv[2] and could not be run without one, printed a shape report, and asserted nothing that the registered conservation-fuzz and claim-intent steps do not already assert by execution against the same hr_apply. (2) tests/raid-claim-exploit.mjs: the b209 own-contribution-claim exploit reproduction, written against a HAND-BUILT partial schema in PGlite rather than the real migration chain, so it could pass while production diverged. The property it cared about — a free-rider cannot claim — is covered by the registered raid-band-denial step, whose --selftest plants exactly that defect against the real chain. Both bodies remain in git history at afa7175e~1."
     },

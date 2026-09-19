@@ -5,9 +5,9 @@
 //   node tests/world-tick-parity.mjs --mutate   prove the guard goes RED
 //   node tests/world-tick-parity.mjs --verbose  print every measurement
 //
-// FIVE CLAIMS (P1, P2, P2b, P3, P4). Each is a property of the tick service as
-// a CALLER of the engine
-// the Edge Function already runs; none of them re-implements a game rule.
+// SEVEN CLAIMS (P1, P2, P2b, P3, P4, P5, P6). Each is a property of the tick
+// service as a CALLER of the engine the Edge Function already runs; none of
+// them re-implements a game rule.
 //
 //  P1 CONSTRUCTION PARITY. The input object `services/world-tick/shadow.js`
 //     builds for `computeAccrual` produces a byte-identical result to the input
@@ -43,15 +43,28 @@
 //     per-character constant and the goblin fixture pays +48% gold and never
 //     sees a Goblin Seal, a Goblin Totem or a Bronze Sword at all.
 //
-// NO NETWORK, NO SUPABASE, NO PRODUCTION DATA. The fixtures are a JSON file
-// validated against src/data at load.
+//  P5 TICK/SETTLE COMPOSITION. N tick windows followed by an ordinary settle
+//     pay every millisecond of the settled span exactly once — no overlap
+//     (double-pay), no shortfall (forfeit), and a deferred sub-interval tail.
+//     This is the claim that makes the tick agree with `settledWatermarkMs`,
+//     which the edge gained on 2026-09-16.
+//
+//  P6 REAL RECORDED WINDOWS. 1,703 accepted `accrue` windows read READ-ONLY
+//     from production (tools/world-tick-replay.mjs) and replayed against
+//     `settledWatermarkMs`. The fixture carries window GEOMETRY only.
+//
+// NO NETWORK AT RUN TIME, NO SUPABASE CLIENT. The P1-P5 fixtures are validated
+// against src/data at load; the P6 fixture is a de-identified, value-stripped
+// snapshot produced by a separate SELECT-only tool.
 // ============================================================================
 
+import { readFileSync } from 'node:fs';
 import { loadFixtures, atSpan, CATALOGUES } from '../services/world-tick/fixtures.js';
-import { shadowSpan, shadowTick, hydrate, seedFor } from '../services/world-tick/shadow.js';
+import { shadowSpan, shadowTick, hydrate, seedFor, advance } from '../services/world-tick/shadow.js';
 import { valueSummary, timeSummary, foldDeltas, planWindows, alignWindow }
   from '../services/world-tick/contract.js';
-import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { analyzeRows, verdict, MISSING_FOR_VALUE_REPLAY } from '../services/world-tick/replay.js';
+import { computeAccrual, settledWatermarkMs } from '../supabase/functions/hr-accrue/accrual.js';
 
 const ARGS = process.argv.slice(2);
 const MUTATE = ARGS.includes('--mutate');
@@ -104,6 +117,23 @@ const MUTATIONS = {
      tick author reaching for `char.seed` because it is right there would.
      Kills P4 on both arms: +48% gold and three drops that never fire. */
   fixedSeed: { fixedSeed: true },
+  /* P5. The tick settles the RAW wall-clock cadence instead of a tick-aligned
+     window, and therefore hands `computeAccrual` a window whose remainder is
+     non-zero — which, because a tick window is spelled `finalWindow: true`
+     today, `settledWatermarkMs` stamps at `now` and FORFEITS. Kills P5b. This
+     mutation is also the measurement behind the caller-taxonomy open question:
+     the deferral the accrual path gained on 2026-09-16 does NOT reach the tick
+     through the flag it is currently borrowing. */
+  unalignedTick: { p5: { unaligned: true } },
+  /* P5. The tick rewinds its own watermark by one action interval — the
+     "re-simulate the last tick to be safe" reflex. Every instant in the overlap
+     is then simulated twice. Kills P5a and P5b in the DOUBLE-PAY direction,
+     which is the direction that mints. */
+  rewind: { p5: { rewindTicks: 1 } },
+  /* P6. One real recorded boundary is moved by a millisecond. If the replay
+     analyser still reports zero mismatches it is not reading production, it is
+     decorating it. */
+  replayLax: { p6: { nudgeMs: 1 } },
 };
 const MUTATION = MUTATE ? (ARGS.find((a) => MUTATIONS[a.replace(/^--/, '')]) || '--unaligned')
   .replace(/^--/, '') : null;
@@ -116,7 +146,7 @@ ok(FIXTURES.length >= 3, `fixture set collapsed to ${FIXTURES.length} characters
    `hr_state_of` — NOT by asking shadow.js for it. An independent second
    construction is the only kind of parity test worth having (the same rule
    tests/accrual-engine.mjs states for its client column). */
-function accrualOnReturn(c, fromMs, toMs) {
+function accrualOnReturn(c, fromMs, toMs, o) {
   return computeAccrual({
     userId: c.userId,
     slot: c.slot,
@@ -146,7 +176,11 @@ function accrualOnReturn(c, fromMs, toMs) {
     autoEatEnabled: c.autoEatEnabled,
     autoEatPct: c.autoEatPct,
     autoEatFood: c.autoEatFood,
-    finalWindow: true,
+    /* `finalWindow` is a COLLECT flag, not a settle flag: it tells
+       settledWatermarkMs to stamp `now` because there is no next call. An
+       ordinary settle does NOT set it, which is how it earns the deferral.
+       P5's handover settle passes false for exactly that reason. */
+    finalWindow: !o || o.finalWindow !== false,
   });
 }
 
@@ -261,6 +295,157 @@ for (const f of FIXTURES) {
   let threw = false;
   try { foldDeltas([{ gold: 1 }, { some_new_key: 2 }]); } catch { threw = true; }
   ok(threw, 'foldDeltas accepted an unclassified delta key');
+}
+
+/* ── P5 TICK/SETTLE COMPOSITION ─────────────────────────────────────────────
+   The edge gained `settledWatermarkMs` on 2026-09-16: an uncapped settle now
+   advances `accrued_to` by the time the simulation ACCOUNTED for, not to
+   `now()`, so the sub-tick remainder is deferred instead of destroyed. The
+   world tick is about to produce that boundary every ten seconds, and the two
+   have to compose: N tick windows followed by an ordinary settle must pay every
+   millisecond of the settled span exactly ONCE.
+
+   Stated as three arithmetic claims over one span, driven through the REAL
+   engine and the REAL watermark (the chain advances on `delta.accrued_to`, not
+   on a number this test computed):
+
+     P5a NO OVERLAP.   Each window starts exactly where the previous window's
+                       watermark landed, and the settle starts at the last one.
+                       An overlap is time paid twice — the minting direction.
+     P5b NO DROP.      accounted time (ticks x interval, plus recovery) summed
+                       over the tick phase AND the settle equals the settled
+                       span end-to-end. A shortfall is time deleted.
+     P5c TAIL DEFERRED The only unsettled time at the end is the tail after the
+                       last watermark, and it is strictly less than one action
+                       interval — i.e. still owed, not forfeited.
+
+   ⚠ WHAT THIS MEASURED, and it is a finding rather than a pass: a tick window
+     is spelled `finalWindow: true` today (shadow.js's note, design doc §4.1),
+     and `settledWatermarkMs` returns `nowMs` unconditionally for a final
+     window. So the deferral the accrual path just gained does NOT reach a tick
+     window through that flag: the tick is protected from the carry loss ONLY by
+     `alignWindow`, which makes the remainder zero so the two agree. Turn the
+     alignment off (`--mutate --unalignedTick`) and the tick forfeits its
+     remainder every ten seconds. That is the concrete cost of the borrowed
+     spelling and the argument for `caller: 'tick'`. */
+function tickThenSettle(c, fromMs, handoverMs, toMs, o) {
+  const opt = o || {};
+  const char = hydrate(c);
+  const probe = shadowTick(hydrate(c), fromMs, toMs, CATALOGUES, {});
+  const tickMs = Number(probe.tickMs) || 2400;
+  const anchor = Number(c.activeSinceMs) || fromMs;
+  const steps = [];
+  let wm = fromMs;
+  let guard = 0;
+  while (wm < handoverMs && guard++ < 5000) {
+    const rawTo = Math.min(wm + CADENCE_MS, handoverMs);
+    const w = opt.unaligned ? { fromMs: wm, toMs: rawTo } : alignWindow(anchor, wm, rawTo, tickMs);
+    if (w.toMs <= w.fromMs) {                 // cadence shorter than one action
+      const next = w.fromMs + tickMs;
+      if (next > handoverMs) break;
+      wm = next; continue;
+    }
+    const res = shadowTick(char, w.fromMs, w.toMs, CATALOGUES, {});
+    if (!res.accrued) { wm = w.toMs; continue; }
+    /* THE WATERMARK THE ENGINE ITSELF STAMPED. Not recomputed here — the whole
+       claim is that the tick chains on the value hr_apply would store. */
+    const stamped = Date.parse(res.delta.accrued_to);
+    const s = res.summary || {};
+    steps.push({
+      fromMs: w.fromMs, toMs: w.toMs, watermark: stamped,
+      accounted: Number(s.ticks || 0) * tickMs + Number(s.recoverMs || 0) + Number(s.idleMs || 0),
+    });
+    advance(char, res);
+    wm = stamped - (Number(opt.rewindTicks || 0) * tickMs);
+  }
+  /* THE HANDOVER SETTLE is an ordinary settle, not a collect: no finalWindow,
+     so its own sub-interval remainder is deferred by settledWatermarkMs rather
+     than stamped away. That is the half of the composition the tick does not
+     control and must not break. */
+  const settle = accrualOnReturn(char, wm, toMs, { finalWindow: false });
+  const ss = settle.summary || {};
+  return {
+    tickMs, steps, settle,
+    settleFromMs: wm,
+    settleWatermark: settle.accrued ? Date.parse(settle.delta.accrued_to) : wm,
+    settleAccounted: settle.accrued
+      ? Number(ss.ticks || 0) * tickMs + Number(ss.recoverMs || 0) + Number(ss.idleMs || 0) : 0,
+  };
+}
+
+for (const f of FIXTURES) {
+  const c = atSpan(f, FROM_MS);
+  const N = `[${c.name}]`;
+  const p5 = (MUTATION && MUTATIONS[MUTATION].p5) || {};
+  const HANDOVER = FROM_MS + 5 * 60000;          // 5 min of 10 s ticks, then a settle
+  const r = tickThenSettle(c, FROM_MS, HANDOVER, TO_MS, p5);
+
+  ok(r.steps.length >= 25,
+    `P5 ${N} the tick phase collapsed to ${r.steps.length} windows — a short chain proves nothing about composition`);
+
+  // P5a — no overlap, no gap, across the tick chain AND the handover.
+  for (let i = 1; i < r.steps.length; i++) {
+    if (r.steps[i].fromMs !== r.steps[i - 1].watermark) {
+      problems.push(`P5a ${N} window ${i} starts at ${r.steps[i].fromMs} but window ${i - 1}'s watermark landed at ${r.steps[i - 1].watermark} — ${r.steps[i].fromMs < r.steps[i - 1].watermark ? 'time is being paid TWICE' : 'time is being skipped'}`);
+      break;
+    }
+  }
+  const last = r.steps[r.steps.length - 1];
+  ok(!last || r.settleFromMs === last.watermark,
+    `P5a ${N} the settle after the tick phase starts at ${r.settleFromMs}, not at the last tick watermark ${last && last.watermark}`);
+
+  // P5b — every accounted millisecond, exactly once, over the settled span.
+  const accounted = r.steps.reduce((a, s) => a + s.accounted, 0) + r.settleAccounted;
+  const settled = r.settleWatermark - FROM_MS;
+  eq(accounted, settled,
+    `P5b ${N} accounted time and settled span disagree: the tick phase + settle accounted for ${accounted}ms but moved the watermark ${settled}ms. ${accounted < settled ? 'The watermark moved further than the simulation accounted for: time was SETTLED PAST WITHOUT BEING SIMULATED (forfeited).' : 'The simulation accounted for more time than the watermark moved: instants were SIMULATED TWICE (double-pay, the minting direction).'}`);
+
+  // P5c — the only unsettled time is a sub-interval tail, still owed.
+  const tail = TO_MS - r.settleWatermark;
+  ok(tail >= 0 && tail < r.tickMs,
+    `P5c ${N} the unsettled tail after the settle is ${tail}ms, outside [0, ${r.tickMs}) — whole actions are being forfeited at the handover, not deferred`);
+  say(`   P5 ${N} ${r.steps.length} tick windows @${r.tickMs}ms + 1 settle; accounted ${accounted} == settled ${settled}; tail ${tail}ms`);
+}
+
+/* ── P6 REAL RECORDED WINDOWS ───────────────────────────────────────────────
+   The other four claims are fixtures. This one is production: 1,703 accepted
+   `accrue` windows read READ-ONLY from public.player_ledger over 14 days
+   (tools/world-tick-replay.mjs, SELECT-only, token as file bytes), with the
+   user ids replaced and every value field stripped — the fixture carries window
+   GEOMETRY only (ms, from, to, ticks, capped).
+
+   The claim is the one the journal can answer without inventing state: every
+   boundary between two consecutive real windows is the instant
+   `settledWatermarkMs` computes from the FIRST window's own journalled numbers.
+   Measured 2026-09-18: 118 boundaries proven, 0 disagreements, action intervals
+   inferred from 2352 ms to 11200 ms.
+
+   It does NOT claim a value replay. That needs the window's starting state and
+   its seed, and the journal carries neither (the seed by design — `hr_seed`
+   mixes a 256-bit secret behind RLS). See services/world-tick/replay.js. */
+{
+  const p6 = (MUTATION && MUTATIONS[MUTATION].p6) || {};
+  let rows = JSON.parse(readFileSync(new URL('./fixtures/world-tick-real-windows.json', import.meta.url), 'utf8'));
+  if (p6.nudgeMs) {
+    rows = rows.map((x) => x);
+    /* Move the START of every window by a millisecond. Every boundary the
+       analyser can speak about then disagrees with the watermark the previous
+       window implies, and a decorative analyser would still say zero. */
+    rows = rows.map((x) => ({ ...x, meta: { ...x.meta, from: new Date(Date.parse(x.meta.from) + p6.nudgeMs).toISOString() } }));
+  }
+  const a = analyzeRows(rows);
+  const v = verdict(a);
+  ok(a.pairs >= 1000, `P6 the real-window fixture collapsed to ${a.pairs} consecutive pairs`);
+  ok(v.proven >= 100,
+    `P6 only ${v.proven} real boundaries could be proven against settledWatermarkMs (was 118 on 2026-09-18) — either the fixture shrank or the journal stopped carrying the geometry`);
+  ok(v.failed === 0,
+    `P6 ${v.failed} REAL recorded boundaries disagree with settledWatermarkMs. This is production telling us the watermark contract the tick is about to adopt is not the one the edge is running. First: ${JSON.stringify(a.mismatches[0] || null)}`);
+  /* The honesty half: the missing-field list must not quietly shrink, because
+     shrinking it is how "we can replay values now" gets claimed without the
+     journalling lane having landed. */
+  ok(MISSING_FOR_VALUE_REPLAY.length === 11,
+    `P6 MISSING_FOR_VALUE_REPLAY is now ${MISSING_FOR_VALUE_REPLAY.length} fields, not 11 — if the journal really gained a field, add the replay arm that uses it; do not just shorten the list`);
+  say(`   P6 real windows: ${a.pairs} pairs, ${v.proven} proven, ${v.failed} failed, ${a.byBucket.unaccounted} unaccounted, intervals ${a.tickMsSeen.length}`);
 }
 
 function pick(d) {

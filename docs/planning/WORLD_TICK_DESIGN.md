@@ -600,6 +600,28 @@ separately and is not in this lane.
 
 ## 12. Cost, honestly
 
+> **Capacity baseline, measured 2026-09-18 — `docs/design/restore-runbook.md` §14.**
+> The Reliability lane measured production read-only before this tick ships. Three numbers
+> bind this design and are not estimates:
+> * **`hr_apply` costs 9.35 ms** (14,240 real calls) — that is the tick's unit cost, and
+>   `hr_state_of` is 3.23 ms. Both are healthy.
+> * **⛔ `hr_ledger_prune` has a hard ceiling of 480,000 rows/day.** One ledger row per 10 s
+>   tick reaches 432,000 rows/day at **50 active characters**, so at **~56 characters the
+>   arrival rate exceeds the prune rate and `player_ledger` grows without bound** (90-day
+>   footprint at 50 characters ≈ 20.9 GB against a **2 GB** disk). **The tick must journal
+>   one row per credited window or value transfer, never one per tick.** Reliability blocks
+>   a per-tick ledger write on this number. §4's routing through `hr_apply` is the right
+>   shape; the row-count consequence is the part to decide deliberately.
+> * **Every row the tick writes is paid for twice.** `wal_level = logical` with two active
+>   replication slots means logical decoding walks every WAL record even though only
+>   `public.chat_messages` is published — already **7.16 h of CPU across 4.5M records**, the
+>   largest single consumer in the database. Budget tick writes at ~2 kB WAL each.
+>
+> Also relevant here: `hr_rate_gate` wraps the projection at **271 ms mean / 6.8 s max** and
+> takes a row lock per character per gated call (§14e), and PITR is **off** — a 24 h
+> data-loss window costs far more player-hours once progression accrues continuously (§14h).
+
+
 Approval is Tyler's and this needs the exact figure before purchase (budget
 freeze, 2026-08-17). These are order-of-magnitude, and I have **not** priced a
 specific vendor plan.
@@ -666,16 +688,49 @@ Nothing is registered in this lane.
 
 ## 14. Open questions
 
-1. **`caller` taxonomy** (§4.1). `finalWindow` is being borrowed. Does the Game
-   Designer or Security want the min-span floor to apply to a tick window at
-   all, or is "settle every aligned window" the rule?
+1. **`caller` taxonomy** (§4.1). **CLOSED 2026-09-18 — implemented.**
+   `finalWindow` (boolean) is now `inp.caller: 'accrue' | 'collect' | 'tick'`
+   (`accrual.js` `accrualCaller`). The boolean was answering two questions with
+   one bit:
+
+   | caller | ACCRUE_MIN_MS floor | sub-action remainder | call site |
+   |---|---|---|---|
+   | `'accrue'` | **applies** | **deferred** | `index.ts` cadence poll |
+   | `'collect'` | exempt | stamped at `now()` | `set-activity.js` collect-before-switch (b531) |
+   | `'tick'` | exempt | **deferred** | `services/world-tick` |
+
+   `'tick'` is the row the boolean could not spell. The min-span floor does NOT
+   apply to a tick window (10 s is below it by design) but the *deferral* does,
+   because a tick's next window starts at the watermark this one stamped — the
+   condition that actually matters is not "no next CALL", it is "no next WINDOW
+   to defer into", and only the collect satisfies it.
+
+   **Fail-safe:** anything unrecognised — absent, misspelled, hostile — reads as
+   `'accrue'`: the floor stays ON (grants nothing) and the remainder is deferred
+   (settles *less* than now). The only caller that loses time by being
+   mislabelled is `'collect'`, and that is a single call site with its own
+   source guard. Fuzzed over 13 hostile values in
+   `tests/settle-carry-defer.mjs` D4d/D4f.
+
+   **The caller is a SERVER LITERAL at both production call sites** and is never
+   read from a request body — a client that could name its own caller would pick
+   `'collect'` and buy the floor exemption on demand, turning a 1 s poll loop
+   into a payable window. A14 compares the two literals field-by-field.
+
+   Production behaviour is byte-identical for both existing callers: proved by
+   `tests/settle-carry-defer.mjs` D4 (collect still stamps `now()`) and D4b
+   (accrue still defers), plus the 14 accrual guards and the unchanged P6
+   numbers (1,686 pairs / 118 proven / 0 failed / 5 unaccounted).
 2. **The seed label's granularity** (§11). `'accrue:' || accrued_to` is unique
    per window because the watermark moves, and `hr_seed` mixes `user` and `slot`
    so two characters settling at the same instant get different streams. I
    believe that is sufficient at a 10 s cadence and found no collision, but the
    label is about to be used at ~9× the rate it was designed for and that is
    worth a second pair of eyes from Security before the tick writes.
-3. **Farm, not combat, as the tick's first channel.** Farming is pure time with
+3. **ANSWERED 2026-09-18 (§15a): gather, not farm and not combat.** The
+   original text is kept below because its reasoning about cost-of-being-wrong
+   still holds; what it did not know is that farm has no accrual path to reuse.
+   *Original:* **Farm, not combat, as the tick's first channel.** Farming is pure time with
    no drop rolls, so the cost of getting the first channel wrong is a carrot
    rather than a dupe — and it is the feature that sat at zero from 2026-08-27
    to 2026-09-06 with nobody able to see it. The brief says combat first because
@@ -718,7 +773,261 @@ Nothing is registered in this lane.
 
 ---
 
+## 15a. Step 1 results — 2026-09-18 (real data, read-only)
+
+Written after replaying **1,703 accepted `accrue` settle windows** from
+production (14 days, 8 accounts, 17 (user, slot, channel) streams) READ-ONLY
+through the management query endpoint, token read as file bytes, SELECT-only,
+**zero writes of any kind**. Tool: `tools/world-tick-replay.mjs`; the analysis is
+pure and lives in `services/world-tick/replay.js`; the de-identified,
+value-stripped snapshot is `tests/fixtures/world-tick-real-windows.json` and is
+now guard P6.
+
+### What the journal can and cannot replay
+
+A `player_ledger` accrue row carries the window's **geometry and result**
+(`ms, from, to, ticks, capped, kills|made, ate, stopped, delta{g,i,x,k}`). It
+does **not** carry the window's **starting state**, and it cannot carry the
+**seed** — `hr_seed(user, slot, 'accrue:'||accrued_to)` mixes a 256-bit secret
+behind RLS, which is a security property (S20), not a gap. So a **value replay**
+("re-roll the window, compare gold/XP/items") is **not possible today and this
+lane did not fake one**. The exact missing list is
+`MISSING_FOR_VALUE_REPLAY` in `replay.js`: `start_hp, start_max_hp, start_skills,
+start_equipment, start_inventory, start_fight, start_consec_falls, start_buffs,
+seed, recover_ms, idle_ms` (11 fields; P6 asserts the list has not been quietly
+shortened to make a replay "work").
+
+What **is** replayable with nothing invented is the property the tick must agree
+with: **the settle watermark**. `settledWatermarkMs` advances `accrued_to` by the
+time the simulation *accounted* for, so the journal is self-checking — the next
+window's `from` must be the watermark the previous window's own numbers imply.
+
+### The parity table (production, 14 days)
+
+| channel | watermark_exact | flush | gap | unaccounted | watermark_mismatch |
+|---|---|---|---|---|---|
+| combat | 51 | 828 | 112 | 5 | **0** |
+| craft | 52 | 131 | 236 | 0 | **0** |
+| gather | 15 | 137 | 119 | 0 | **0** |
+| **TOTAL** | **118** | 1096 | 467 | 5 | **0** |
+
+1,686 consecutive pairs. **118 boundaries land exactly on `settledWatermarkMs`;
+0 disagree.** Action intervals inferred purely from the arithmetic ranged
+2352–11200 ms across 22 distinct values. Buckets that are *not* proofs, stated
+as such:
+
+- **flush (1096)** — the watermark was `now`, which is correct for all four
+  cases `settledWatermarkMs` returns `nowMs` for (capped / final / remainder ≥
+  one interval / no remainder). Not further checkable without the interval.
+- **gap (467)** — `accrued_to` moved forward between the two rows, i.e. another
+  writer (a `set_activity` collect, a channel switch) settled in between. Not a
+  fault; just not a boundary this pair can speak about.
+- **unaccounted (5)** — `ms − deferral` is not a whole number of the window's
+  own ticks, so the simulation spent time on something the journal does not
+  record. Two of the five contain a journalled death in the window
+  (`recoverMs`); three do not, and are unexplained without `idle_ms`.
+
+### The ≤10-line lane-C journalling brief — **LANDED 2026-09-18 as `meta.w`**
+
+The brief below is kept verbatim as the record of what was asked for. What
+shipped differs in exactly one respect, and the reason is a guard rather than
+taste.
+
+> **Add two aggregate fields to the accrue journal meta: `rms` (recoverMs) and
+> `ims` (idleMs).** Both are already computed by `computeAccrual`'s summary and
+> discarded at journal time. Cost: two integers on a row that already exists —
+> **no new rows, no new table, no ledger-scale growth** (§5's rule is untouched).
+> Effect: closes the `unaccounted` bucket, and makes `accounted = ticks×interval
+> + rms + ims` an identity the journal can be audited on, instead of an
+> inference that breaks whenever a player dies. It does **not** enable a value
+> replay — that needs a starting-state snapshot, which is a different and much
+> more expensive decision and is **not** recommended at this time.
+
+**What shipped: ONE key, not two.** `meta.w = "<recoverMs>,<idleMs>"`, a
+comma-joined scalar, **omitted entirely when both terms are zero**. Two separate
+integer keys were not available:
+
+- `tests/artisan-accrual.mjs` **T7** refuses any nested value in the ledger, so
+  `w: [rms, ims]` (an array) is rejected outright. The house precedent for "two
+  facts, one scalar" is `skipped_items` (C5), and `w` follows it.
+- `tests/accrual-engine.mjs` **SHAPE** bounded the combat meta's key count at 8
+  — measured, it turned out, on a single sample that carried neither `att` nor
+  `spent`, while the real worst case was already **nine**. Two flat keys would
+  have made it eleven. The guard was **tightened, not loosened**: it is now an
+  **allowlist** (`ms, ticks, kills, capped, ate, att, spent, w, from, to`) plus
+  a length bound, with an always-run inline mutation proof that a per-kill-log
+  key and an over-long row are both refused. The nominal number moved 8 → 10
+  because the old one could be exceeded by a real row while the guard passed.
+
+**Ledger arithmetic for the raise** (the only currency that matters is rows;
+bytes are the sanity check). `w` is ≤24 B on a row that already exists and is
+absent on every window with no death and no idle time. Reliability's measured
+row cost is **407 B/row**, and the 14-day production read behind
+`tests/fixtures/world-tick-real-windows.json` is ~1.7k accrue rows for 5 users
+≈ **24 rows/user/day**. At 100× the live player base (500 active) that is ~12k
+accrue rows/day → **~290 KB/day of `w` at the ceiling**, against ~4.9 MB/day for
+the rows themselves. **No new rows, no new table.**
+
+`recover_ms` and `idle_ms` therefore came off `MISSING_FOR_VALUE_REPLAY` (11 →
+9 fields). **This did not make a value replay possible** and P6 asserts the list
+did not shrink without the arm that uses it: `seed` can never be present (S20).
+
+**Proof it is not decoration** (`tests/world-tick-parity.mjs` P7d/P7f): a real
+engine window containing recovery time, journalled in the engine's own meta
+shape and fed to the real analyser, replays as `watermark_exact`; **the same row
+with `w` stripped falls back to `unaccounted`** — the bucket the five production
+pairs sit in. P6 additionally asserts the pre-2026-09-18 fixture still reports
+0 waste-backed pairs and 5 unaccounted, because adding a field must never
+retroactively reclassify rows that never had it.
+
+### ⚠ The tick's write unit is the SETTLED WINDOW, never the tick (Reliability, 2026-09-18)
+
+Measured on the live database, and it moves §5's rule from "design constraint"
+to "hard capacity ceiling":
+
+- `player_ledger` costs **407 B/row**, not the 215 B §11 assumed.
+- `hr_ledger_prune(20000)` runs hourly and therefore deletes **at most 480,000
+  rows/day**. Anything above that line grows without bound.
+- `wal_level = logical` with 2 replication slots decodes every WAL record
+  (~2 kB WAL per `hr_apply`), so the write rate is paid twice.
+
+Rows/day at the two candidate write units:
+
+| active characters | **per TICK** (10 s) — rejected | **per SETTLED WINDOW** (90 s flush, continuously active) | at the measured duty cycle (~24 rows/char/day) |
+|---|---|---|---|
+| 4 | 34,560 | 3,840 | ~96 |
+| 50 | **432,000** — 90% of the entire prune budget | 48,000 | ~1,200 |
+| 500 | **4,320,000** — 9× the prune ceiling | **480,000** — exactly the ceiling | ~12,000 |
+
+So per-tick journalling goes unbounded from **~56 continuously-active
+characters** (≈20.9 GB in 90 days on a 2 GB disk) and is not a tuning problem.
+Per settled window it is inside the budget at today's duty cycle at every scale
+in the table, and the 500-character *continuous* column lands exactly ON the
+prune ceiling — which is the number that makes §9's **flush cadence the lever**,
+not an optimisation. At 500 continuously-active characters the rows alone cost
+~195 MB/day before `w`, so the cadence has to lengthen (or the apply has to
+batch) before the tick owns a channel at that scale.
+
+**The `rms`/`ims` change is row-neutral by construction** — it adds ≤24 B to a
+row that would have been written anyway and adds no row of its own — and it must
+stay that way. Any later journalling proposal states its rows/day at 4 / 50 /
+500 against the 480,000/day prune ceiling **before** its bytes.
+
+### Watermark semantics, proved as a test not as prose (P5)
+
+`tests/world-tick-parity.mjs` now drives 32–36 aligned 10 s tick windows and
+then **one ordinary settle**, chaining on the watermark the engine itself
+stamped (`delta.accrued_to`), and asserts three things: **P5a** no overlap and
+no gap across every boundary including the handover; **P5b** accounted time over
+the tick phase *plus* the settle equals the span the watermark actually moved;
+**P5c** the only unsettled time is a sub-interval tail, still owed. Measured
+green on all three fixtures (600000 == 600000 / 598296 == 598296 / 599808 ==
+599808; tails 0 / 1704 / 192 ms, all < one interval).
+
+**⚠ The finding P5 produced — RESOLVED 2026-09-18, see §14.1 below. It upgraded
+§14 open question 1 from taxonomy to arithmetic.** A tick window is spelled `finalWindow: true` today, and
+`settledWatermarkMs` returns `nowMs` **unconditionally** for a final window
+(case (b)). So the deferral the accrual path gained on 2026-09-16 **does not
+reach a tick window through the flag the tick is borrowing** — the tick is
+protected from the carry loss *only* by `alignWindow`, which makes the remainder
+zero so the two answers coincide. Turn alignment off (`--mutate
+--unalignedTick`) and the measured forfeit is **12000 / 20640 / 46560 ms of a
+ten-minute span (2.0% / 3.5% / 7.8%)**, in the under-paying direction. Two
+independent mechanisms now have to agree for the tick to be correct, and one of
+them is a flag whose name says the opposite. **Recommendation, unchanged in
+substance and now with a number behind it: replace the boolean with
+`inp.caller: 'accrue' | 'collect' | 'tick'`, exempt `'tick'` from the min-span
+floor and let it *defer* like an ordinary settle.** Additive, byte-identical for
+every existing caller.
+
+Mutation proofs, all nine exit 0 under `--mutate` and each turns a named claim
+red: `unaligned`→P2, `nofight`→P2b, `capIsCadence`→P1, `fixedSeed`→P1/P4,
+**`rewind`→P5a+P5b (double-pay direction)**, **`replayLax`→P6** (one real
+boundary nudged by 1 ms; a decorative analyser would still have said zero), and
+the three caller mutants added 2026-09-18: **`callerAccrue`→P7a/P7c/P7d/P7e**,
+**`callerCollect`→P7b/P7e**, **`callerTick`→P5b** (which reproduces the
+12000 / 20640 ms forfeit measured below).
+
+**`unalignedTick` was RETIRED**, and that is the result rather than a deletion:
+under `caller: 'tick'` the unaligned chain forfeits **zero**, so it stopped
+being a mutation and became a positive claim, **P5d** (`alignWindow` is a
+performance property, not the carry's only defence). A mutation that no longer
+bites is replaced by the claim it proved, never left in place exiting 0.
+
+### First channel: the decision changes to **gather**, not farm and not combat
+
+§16.1 argued farm first on cost-of-being-wrong grounds. The real windows say
+otherwise on a ground the fixtures could not show: **farm has no accrual window
+at all.** Fourteen days of `player_ledger` carry `farm_plant` / `farm_water` /
+`farm_harvest` intents (143/132/124, 3 users) and **zero `kind='farm'` accrue
+rows** — farm growth is computed on-read inside `hr_farm_*` RPCs against
+`hr_farm_growth_hours`, not through `computeAccrual` and not through a watermark.
+Making farm the tick's first channel therefore means writing a *new* accrual
+path and a *new* watermark for it, which is the opposite of "just another
+server-side caller" and puts the pipeline's first proof on the one channel where
+none of the proven machinery exists. Combat, per §7a, is still blocked behind the
+inventory ABSOLUTE flip and the frame gate, and it is the only channel with drop
+rolls. **Gather is the answer**: it already flows through `computeAccrual` →
+`hr_apply` (185 windows / 5 users / 7 days — the widest user base of any accrual
+channel), its state is the simplest of the three payable kinds (`tool_carry` and
+a watermark; no `fight` checkpoint, no `consec_falls`, no recovery clock, no
+auto-eat), its drops are catalogue yields rather than rare rolls, and per
+`CLIENT_PREDICTION_RETIREMENT.md` its client surface is a progress bar rather
+than an inventory fold — so it can be tick-owned *before* the ABSOLUTE flip
+lands, which combat cannot. Farm moves to third, after the flip, as the first
+channel that needs a new accrual path rather than the first that proves one.
+
+**The exact RPC list the tick calls for gather** — as just another server-side
+caller, adding no new surface:
+
+| Call | Why |
+|---|---|
+| `hr_tick_roster(p_shard, p_limit)` (**new**, §2) | the active set; `SECURITY DEFINER`, executable by `hr_tick` only |
+| `hr_seed(user, slot, 'accrue:'||accrued_to)` | the per-window PRNG label, verbatim as the edge derives it (§11) |
+| `hr_state_of(user, slot)` | hydration, the same projection the client applies |
+| `hr_apply(user, slot, version, delta, idem)` | **the only writer.** Unchanged, re-validates every invariant, bumps the version that is the push frame |
+
+That is four calls, of which exactly one is new. No new value RPC, no new grant
+beyond the two EXECUTEs in §8, no new client-reachable path.
+
+### Host plan — no spend, no signup, nothing purchased
+
+| Line | 4 active | 50 active | 500 active |
+|---|---|---|---|
+| Simulated actions/s (measured interval 2352–11200 ms, mean ≈ 3.5 s) | ~1 | ~14 | ~143 |
+| CPU (spike runs ~190 windows across 3 characters in <1 s ⇒ ≥200 windows/s/core) | <1% of a core | ~1% | ~7% |
+| RAM (5–10 KB hydrated per character + buffers) | <1 MB | ~0.5 MB | ~5 MB |
+| Postgres connections | **2, fixed** (1 roster + 1 apply), pooled — never per character | 2 | 2–4 |
+| Writes/s at a 10 s flush | 0.4 | 5 | 50 — **batch `hr_apply` or move the flush to 60 s** |
+| Journal rows/day (§5 rule: session + value transfer only) | ~20 | ~250 | ~2.5k |
+| Egress (400 B frame, 6/min) | ~1 MB/h | ~7 MB/h | ~70 MB/h |
+
+The binding constraint is **Postgres write rate, not CPU**, and it binds between
+50 and 500 active characters. The lever is §9's flush cadence, and taking it
+requires the provisional-frame design §14.4 names.
+
+| Option | Shape | Monthly | Note |
+|---|---|---|---|
+| Fly.io `shared-cpu-1x`, 512 MB, one machine | container, same region as Supabase | **~$4–7** | closest to the deploy model in §1; scale-to-zero must be OFF |
+| Hetzner CX22 (2 vCPU / 4 GB) | plain VM + systemd | **~$4–5** | cheapest headroom; we run the host, patching is ours |
+| Supabase-adjacent hyperscaler (Fargate 0.25 vCPU / 0.5 GB, or DO App Platform basic) | managed container | **~$10–15** | least operational work, most expensive per unit |
+
+**Nothing purchased, nothing signed up for, no account created** (budget freeze,
+2026-08-17). ⚠ **Honesty note: the three monthly figures are recalled list
+prices, NOT verified** — this lane fetched no vendor page and requested no
+quote, so treat them as an order of magnitude ("one small always-on container is
+single-digit to low-double-digit dollars") and confirm the exact figure on the
+vendor's own pricing page before any approval. The per-spend approval is
+Tyler's.
+
+---
+
 ## 16. Where I disagree with the brief
+
+0. **Superseded 2026-09-18 by §15a:** the first-channel argument below said
+   *farm*. Real windows changed the answer to **gather** — farm has no accrual
+   window at all, so it is the one channel where "the tick is just another
+   caller of the existing engine" is false. Read §15a before this item.
 
 1. **"Tick becomes the writer for one channel (combat first)".** Combat has the
    most value at risk and is the only channel with drop rolls, so it is the

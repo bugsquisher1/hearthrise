@@ -1217,7 +1217,7 @@ export default [
   /* LIVE ×2 (QA account, 2026-09-09 16:36 and 16:40 UTC): a smithing run was
      accepted server-side, the client's local loop predicted the bag would run
      out 37 s later, and the run paid NOTHING. The server half of that defect is
-     `finalWindow` in supabase/functions/hr-accrue/accrual.js — a collect has no
+     `caller: 'collect'` in supabase/functions/hr-accrue/accrual.js — a collect has no
      next call, so ACCRUE_MIN_MS may not apply to it.
 
      THIS is the client half of the same contract, and no server fix can rescue

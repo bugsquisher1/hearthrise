@@ -1331,3 +1331,358 @@ sections were already wrong.** Re-run this walk after any migration batch.
 > the census carries the only guard that covers the second direction. §3.4's claim was
 > right about content drift and wrong about count drift, and the difference was only
 > visible by executing the mutation instead of reasoning about it.
+
+---
+
+## 14. Capacity & health baseline — measured 2026-09-18, BEFORE the world tick
+
+Everything in this section was read from production `nezapsylztqbbwuwembx` through the
+read-only management query endpoint (the `tools/vitals.mjs` pattern: token read as file
+bytes from `~/.supabase-token`, never printed, never in argv), between 01:10 and 01:35 UTC
+on 2026-09-19. **No statement in this section wrote anything.** It exists because
+`docs/planning/WORLD_TICK_DESIGN.md` is about to change the write pattern from "a burst on
+claim" to "a steady small write per 10 s per active character", and §11's baseline is from
+2026-08-15 with a ledger row size that has since nearly doubled.
+
+Read §11 first; this section supersedes its *numbers* and keeps its *shape*.
+
+### 14a. Size — the database is healthy and the `game_events` incident stayed fixed ✅
+
+`pg_database_size` = **49,908,883 B (47.6 MB)**. The 244 MB / 94%-`game_events` incident is
+still resolved and has stayed resolved for a month: `game_events` is now **329 rows /
+256 kB**, i.e. **0.5% of the database**, running at **~45 rows/day** across all players.
+Retention is not merely configured, it is *firing* — `maintenance_log` holds 7
+`trim-game-events` runs in the last 7 days.
+
+Top tables by `pg_total_relation_size`:
+
+| Table | total | heap | index | live rows | measured row bytes (`pg_column_size`) |
+|---|---|---|---|---|---|
+| `player_ledger` | **11.94 MB** | 9.25 MB | 2.65 MB | 22,170 | **407 B** (538 B/row all-in) |
+| `player_intents` | 1.23 MB | 0.41 MB | 0.78 MB | 610 | 145 B |
+| `hr_combat_xp_credit_log` | 1.09 MB | 0.17 MB | 0.88 MB | 696 | 128 B |
+| `hr_db_samples` | 0.61 MB | 0.55 MB | 0.03 MB | 464 | 1,103 B |
+| `hr_kill_credit_log` | 0.30 MB | 0.06 MB | 0.20 MB | 170 | 147 B |
+| `game_events` | 0.26 MB | 0.14 MB | 0.08 MB | 329 | 313 B |
+| `hr_rejections` | 0.14 MB | 0.05 MB | 0.06 MB | 221 | 237 B |
+
+**The correction that matters: `player_ledger` is 407 B/row, not the 215 B §11 projected
+from.** Every capacity number below is 1.9× §11's for that reason alone. Note also that
+three tables are now *mostly index* (`player_intents` 63% index, `hr_combat_xp_credit_log`
+80% index) — harmless at this size, but it means their growth multiplier is ~3–5×, not 1×.
+
+### 14b. Growth — measured per day, not estimated
+
+`player_ledger` over the last 7 complete days: **5,489 rows across 7 distinct
+(user_id, slot) characters = 784 rows/day = ~112 rows per active character per day.** That
+is **well under** the 300/char/day §11 assumed, so today's arrival rate is comfortable. The
+oldest ledger row is **2026-08-23** — 27 days old. Other journals: `player_intents` ~550/day,
+`hr_kill_credit_log` and `hr_combat_xp_credit_log` bursty with play (610 rows on the busiest
+day), `game_events` ~45/day, `hr_db_samples` exactly 24/day, `maintenance_log` exactly
+25/day. All bounded and all pruned.
+
+**Projection at 90-day retention, 538 B/row all-in, 112 rows/char/day**, against the **2 GB
+disk** (§11 established that the disk, not `pg_database_size`, is the binding ceiling, and
+that the filesystem already holds several hundred MB of WAL/catalog/logs before any table):
+
+| active characters | `player_ledger` at 90 days | verdict against a 2 GB disk |
+|---|---|---|
+| 7 (today) | ~38 MB | fine |
+| 70 (10×) | ~380 MB | comfortable, no longer trivial |
+| 350 (50×) | **~1.90 GB** | **the ledger alone consumes the entire disk** |
+| 700 (100×) | ~3.80 GB | a paid autoscale event, not an outage |
+
+**So the 50× line is where today's write pattern breaks the disk, and it breaks on
+`player_ledger` alone.** The lever is the one §11 named — `hr_ledger_config.retain_days`,
+currently **90** — and the rollup already preserves the aggregate history. This is not urgent
+at 7 characters; it must be decided before 50×, not during it.
+
+### 14c. ⚠ The 90-day rollup has never executed. It is the `game_events` pattern, again.
+
+`public.player_ledger_rollup` holds **0 rows**, and the oldest `player_ledger` row is **27
+days old** against a **90-day** window. `hr_ledger_prune` runs hourly and has therefore
+**never deleted or rolled up a single row** — it cannot have, because nothing is old enough.
+First real fire is approximately **2026-11-21**.
+
+This is precisely the failure shape the `2026-08-11-telemetry-retention.sql` header
+documents: *"the retention job was calibrated so it could never fire… a policy that cannot
+fire is worse than no policy, because the dashboard reads as covered."* The retention
+coverage table in §11 marks `player_ledger` "✅ covered" on the strength of a cron job that
+has only ever returned zero. **The rollup path — the part that aggregates value before
+deleting it — is unexecuted code holding the only summary of deleted player value.**
+
+Remediation, and it does not need a migration: exercise the rollup on a **branch** (never
+production) by applying the chain, seeding synthetic aged rows, and running
+`hr_ledger_prune`. Assert that gold in/out totals per (user, slot, month, kind) survive the
+delete. Until that has been run and read, §11's "✅ covered" for `player_ledger` should be
+read as **"scheduled, never fired"**.
+
+### 14d. Indexes — no missing index on the hot path, and that is a measured verdict ✅
+
+Every per-character table on the accrue/settle path carries a primary key that *is* the hot
+predicate: `player_state (user_id, slot)`, `player_skills (user_id, slot, skill_id)`,
+`player_inventory (user_id, slot, item_id)`, `player_progress (user_id, slot, kind, key,
+period_key)`, `player_workers (user_id, slot, uid)`, `player_ledger (user_id, slot, at desc)`
+plus four partial indexes by `kind`, `hr_rate_counters (user_id, bucket)`.
+**I am proposing no index migration**, because there is no access path that wants one — a
+hunch-driven index here would be pure write amplification on the exact tables the tick is
+about to hammer.
+
+The large `seq_scan` counts (`hr_unlocks` 288,684 scans / 19.9M tuples; `player_skills`
+193,750 / 14.9M; `player_progress` 260,121 / 5.3M) are **the planner being right**: these
+tables are 41–1,726 rows and a seq scan beats an index probe at that size. They are recorded
+here as a *tripwire*, not a defect — `hr_unlocks` is a **catalogue**, so its scan cost grows
+with **content**, not players, and at 10× content the same call pattern reads ~200M tuples.
+Re-read this line when the catalogue crosses ~1,000 rows.
+
+Unused indexes (`idx_scan = 0`, non-unique, non-primary): `bug_reports_created_at_idx`,
+`bug_reports_resolved_idx`, `clan_invites_user_idx`, `clan_withdrawals_open_idx`,
+`hr_rejections_incident_idx`, `hr_xp_table_xp_idx`, `market_sales_item_idx`,
+`player_ledger_hearthfind_item_idx`. Combined size **~112 kB**. **Recommend no action**:
+several guard features that are simply not exercised yet (clan withdrawals, incident triage),
+dropping them reclaims nothing meaningful, and a `drop index` is a destructive change that
+would need explicit authorisation to buy 112 kB. Recorded so nobody re-discovers them.
+
+Vacuum health is good: no table exceeds a ~20% dead-tuple ratio, and every hot table shows an
+`last_autovacuum`/`last_autoanalyze` within the last 24–48 h. `autovacuum = on`.
+
+### 14e. Query cost — what production actually spends its CPU on
+
+From `pg_stat_statements`, ranked by total execution time. This is the part that should
+change how the tick is built.
+
+| statement | calls | mean | total | note |
+|---|---|---|---|---|
+| realtime WAL decode (`wal->>…`) | 4,509,426 | 5.72 ms | **25,793,809 ms ≈ 7.16 h** | **the single largest consumer in the database** |
+| `hr_leaderboard_refresh` | 9,430 | 52 ms | 493,052 ms | every 5 min, cost grows with players |
+| `hr_state_of` + `hr_offline_cap_ms` | 141,422 | **3.23 ms** | 456,890 ms | the envelope projection — cheap and healthy ✅ |
+| `hr_rate_gate` + `hr_state_of` wrapper | 1,113 | **271 ms** (max **6,823 ms**) | 302,052 ms | **the slowest player-facing statement by 5×** |
+| `hr_apply` | 14,240 | **9.35 ms** | 133,147 ms | the only writer; the tick's cost unit |
+| `hr_town_refresh` | 20,929 | 6.28 ms | 131,342 ms | every 25 s |
+| `SELECT name FROM pg_timezone_names` | 953 | 298 ms | 283,676 ms | PostgREST schema-cache reloads; 4.7 min of pure waste |
+
+Two findings:
+
+1. **The realtime decoder walks every WAL record whether or not the table is published.**
+   Only **`public.chat_messages`** is in the `supabase_realtime` publication, yet logical
+   decoding (`wal_level = logical`, two active replication slots) has processed 4.5M records
+   for **7.16 hours of CPU** and **6.87 × 10¹² buffer hits**. **476 GB of WAL has been
+   generated since boot.** The consequence for the tick is direct and non-obvious: *every row
+   the tick writes is paid for twice — once to write it, and again to decode it for a
+   subscription that will never match it.* Both slots are healthy (7,560 B lag, `active`),
+   so this is a cost observation, not an incident.
+2. **`hr_rate_gate` is the serialisation point, not `hr_state_of`.** Called directly,
+   `hr_state_of` is 3.23 ms over 141k calls. Wrapped behind `hr_rate_gate` the same
+   projection costs **271 ms mean and 6.8 s worst case** — and `hr_rate_gate` upserts
+   `hr_rate_counters (user_id, bucket)`, i.e. it takes a **row lock per character per gated
+   call**. A 10 s tick multiplies exactly this call.
+
+### 14f. Connections, locks, and what a tick writer adds
+
+* `max_connections` = **60**, `superuser_reserved_connections` = **3**. Currently **22** in
+  use (8 idle + 1 active `supabase_admin`, 4 idle `authenticator`/PostgREST, 3 unattributed,
+  plus the replication connections). **Headroom: ~35.**
+* Pooler: `aws-1-us-west-2.pooler.supabase.com:6543`, `pool_mode = transaction` (§6a-iii,
+  verified 2026-08-15).
+* Locks now: **none waiting.** The only long-running statement is the replication slot
+  (`START_REPLICATION`, 58,132 s — expected and healthy).
+* `shared_buffers` = 256 MB, `effective_cache_size` = 768 MB, `work_mem` = 3.5 MB,
+  `max_wal_size` = 4 GB. Micro compute.
+
+Projecting the tick at `hr_apply` = 9.35 ms measured, one apply per character per 10 s
+worst case (8,640 applies/character/day), and a conservative **~2 kB WAL per apply**
+(`player_state` is a wide `jsonb` row, so full-page images dominate):
+
+| active characters | applies/sec | CPU from apply alone | WAL/day | ledger rows/day (1 row/apply) |
+|---|---|---|---|---|
+| 4 | 0.4 | 0.4% of one core | ~69 MB | 34,560 |
+| 50 | 5 | **4.7% of one core** | ~864 MB | **432,000** |
+| 500 | 50 | **47% of one core** | **~8.6 GB** | 4,320,000 |
+
+Connections are **not** the binding constraint provided the tick uses a **small bounded pool
+through the transaction pooler (6543)** — 4–8 connections serves all three columns. One
+connection per character is fatal above ~35 and must never be built.
+
+### 14g. ⛔ The number that blocks a per-tick ledger write
+
+`hr_ledger_prune(20000)` runs **hourly**, and the limit is per invocation — a hard ceiling of
+**480,000 rows/day** (§11 established this; it still holds). The table above shows the tick
+reaching **432,000 ledger rows/day at 50 active characters** if every tick writes one ledger
+row.
+
+> **At ~56 concurrent active characters, a per-tick ledger write makes the arrival rate
+> exceed the prune rate, and `player_ledger` grows without bound.** At 50 characters the
+> 90-day footprint would be 8,640 × 50 × 90 × 538 B ≈ **20.9 GB** against a 2 GB disk.
+
+This is not an argument for a bigger disk or a faster prune. It is the rule CLAUDE.md
+already states — **journal aggregates and value transfers, never per-tick** — arriving with
+a number attached. **The world tick must write one ledger row per credited window or per
+value transfer, not one per 10 s tick.** `WORLD_TICK_DESIGN.md` §4 already routes the tick
+through `hr_apply` with the accrual path's own delta, which is the right shape; this section
+exists so the *row-count consequence* is decided deliberately rather than discovered at 56
+players. **I will block a per-tick ledger write on capacity grounds, and this paragraph is
+the number that justifies it.**
+
+### 14h. Durability — posture, stated plainly
+
+From `tests/restore-census.mjs` (exit 0) plus live SQL:
+
+* `wal_level = logical`, `archive_mode = on`,
+  `archive_command = /usr/bin/admin-mgr wal-push %p` (wal-g), `archive_timeout = 120 s`.
+* `pg_stat_archiver`: **22,479 WAL segments archived, 0 failed**, last archived
+  `0000000200000076000000EE`. **WAL archiving is working ✅** — verified by SQL.
+* Plan: **Pro. Daily physical backups, 8 retained. PITR is OFF.**
+* **Accepted data-loss window today: UP TO 24 HOURS.** With PITR: minutes.
+
+**What SQL cannot tell us, and needs Tyler in the dashboard:** whether PITR is purchased,
+the actual backup retention the plan is billing for, whether any backup has ever been
+*restored*, and the RTO. `archive_mode = on` with a healthy archiver proves WAL is being
+shipped — it does **not** prove PITR is enabled, because Supabase archives WAL on Pro
+projects to build the daily base backups regardless. **Do not read "0 failed" as "PITR is
+on".**
+
+**`restore-census.mjs` re-measured live against production today** (it was 20 days stale at
+2026-08-30). Results:
+
+* **26,642 rows exist nowhere but the database and its backups**, up from 20,832 — a **28%
+  increase in irreplaceable data in 20 days**. Largest: `player_ledger` 22,169,
+  `player_progress` 1,726, `player_skills` 697, `hr_combat_xp_credit_log` 696,
+  `player_inventory` 595, `hr_kill_credit_log` 170, `player_farm` 153.
+* Replay produced **105 base tables; production reported 105** ✅.
+* **3 findings that must be reconciled BEFORE any rebuild or restore:**
+  * `hr_unlock_offers` — production **142** rows, a repo rebuild produces **139**.
+  * `hr_unlocks` — production **82**, rebuild **80**.
+  * `hr_flags` operator-tunable row has moved: census recorded
+    `[{town_presence:false}]`; production now runs
+    `[{inventory_absolute:true},{town_presence:true}]`.
+
+  The catalogue divergences are the dangerous pair: **a restored player earned their unlock
+  rows against production's 142/82, and a rebuild would hand them 139/80.** These belong to
+  the Backend Architect to reconcile; the census is now the detector and it is red.
+
+**The register entry from §12 is unchanged and remains the top durability risk: no backup of
+this project has ever been restored.** 26,642 irreplaceable rows now sit behind a capability
+that is still a rumour. Cost to close is ~$0.04 and one dashboard click (§9).
+
+**Recommendation, unchanged and now better-priced:** enable **PITR before the world tick
+ships**. The tick converts the write pattern from "a burst on claim" to "a continuous stream
+of small value writes", which means a 24-hour restore window stops costing *a day of claims*
+and starts costing *a day of continuously-accrued progression for every active character* —
+the same wall-clock window, far more lost player-hours, and no client-side copy to
+reconcile against since the cutover.
+
+### 14i. Observability — the alert channel is saturated with stale criticals ⚠
+
+`public.maintenance_alerts` holds **13 open (unacked) alerts**, including **2 `critical`**
+dating to **2026-08-11 — 38 days**:
+
+* `trim-market-sales FAILED: column "sold_at" does not exist`
+* `trim-expired-listings FAILED: column "expires_at" does not exist`
+
+**Both of those cron jobs no longer exist** — `cron.job` now lists `hr-market-expire` and
+`hr-market-sales-prune`, which replaced them. So the alerts are **stale, correct at the time,
+and never acknowledged**. The remaining 11 are `info`-level "job has no run history yet"
+notices for jobs that have since run fine.
+
+The detector is good and is guarded (`tests/cron-health.mjs` carries mutation proofs for
+every arm, including the growth arm). The gap is the half that guard explicitly scopes out:
+*"assumes an operator ever reads `maintenance_alerts`. That is an ops question."* **It is now
+an ops answer: nobody does.** A channel whose oldest entry is a 38-day-old critical for a
+deleted job is a channel in which a real critical is invisible. This is mine to close: the
+alerts need acking (a targeted `update … set acked_at`, which is a **write to production and
+therefore requires explicit authorisation** — flagged, not performed), and the vitals surface
+should show the open-critical count so saturation is visible daily.
+
+All 14 active cron jobs are healthy: **zero failed runs in the last 7 days**, and
+`hr-cron-health` has logged 168 runs in 7 days (hourly, exactly as scheduled) ✅.
+
+### 14j. The stuck client — bounded, confirmed by measurement ✅
+
+One character, `b94fa8c0…` slot 0, has produced `forbidden_field` refusals for six
+consecutive days: **127 / 725 / 532 / 604 / 646 / 684 / 64 (partial)**, every one of them on
+verb **`hr_put_client_state`**.
+
+**Storage impact: bounded, and negligibly so.** `hr_rejections` is a daily aggregate keyed
+`(user_id, slot, day, code)`. Measured: **exactly 1 row per day for that character, 237 bytes
+each** — the counter `n` increments, no row is inserted. Six days of ~700 refusals/day cost
+**~1.4 kB total**. Whole-table: 221 rows carrying 4,586 occurrences, with a 180-day prune
+(`hr-rejections-prune`, daily) already covering it.
+
+**Nothing else grows per refusal — verified, not assumed:**
+
+| table | rows attributable to the refusals | why |
+|---|---|---|
+| `player_intents` | **0** (610 total, **0** non-ok, **0** from this character) | a refusal returns before the intent row is claimed |
+| `player_ledger` | **0** in 7 days from this character | no value moved |
+| `game_events` | 8 in 7 days | ordinary telemetry, unrelated rate |
+| `hr_rate_counters` | 27 rows, bounded by PK `(user_id, bucket)` | upsert, never append |
+
+**So this is not a capacity problem and should not be triaged as one.** The real costs are
+(a) ~700 wasted RPC round trips per day, and (b) ~700 HOT `UPDATE`s per day against a *single
+row* — invisible at one character, but the same aggregate row is a lock hotspot if a client
+bug ever ships to everyone at once. The actual defect is a client writing a non-allowlisted
+field into `hr_put_client_state` (the `RESIDUE_FIELDS` allowlist, CLAUDE.md §6) and retrying
+forever without backoff. **That is a Systems Engineer bug, P2, and the durable fix is client
+backoff on a refusal that will never succeed.** Reliability's only ask is the backoff, so a
+future stuck client costs tens of writes rather than hundreds.
+
+### 14k. Retention coverage — re-audited, tables added since §11
+
+| Table | rows | policy | enforced by | verdict |
+|---|---|---|---|---|
+| `player_ledger` | 22,170 | 90 d + rollup | `hr-ledger-prune` hourly | ⚠ **scheduled, never fired** — §14c |
+| `game_events` | 329 | 7 d | `trim-game-events` daily | ✅ firing, 7 runs/7 d |
+| `player_intents` | 610 | 24 h | `hr-intents-prune` hourly | ✅ |
+| `player_progress` | 1,726 | 31 d, periodic rows only | `hr-progress-prune` daily | ✅ |
+| `hr_rejections` | 221 | 180 d | `hr-rejections-prune` daily | ✅ |
+| `hr_kill_credit_log` | 170 | pruned | `hr-kill-credit-prune` daily | ✅ |
+| `hr_combat_xp_credit_log` | 696 | pruned | `hr-combat-xp-credit-prune` daily | ✅ |
+| `chat_messages` | 1 | 60 d | `trim-chat-messages` daily | ✅ |
+| `hr_db_samples` | 464 | 30 d | inside `hr_cron_health` | ✅ |
+| `maintenance_log` | 957 | 180 d | inside `hr_cron_health` | ✅ |
+| `hr_rate_counters` | 1,826 | bounded by PK | upsert | ✅ by design |
+| `town_snapshot` | 1 | rewritten in place | `hr-town-refresh` 25 s | ✅ by design |
+| `player_ledger_rollup` | 0 | none, deliberate | — | ✅ deliberate (§11) |
+| `world_finds` | 0 | **none** | — | ⚠ **no retention story** |
+
+**`world_finds` is the one table with no policy and no stated reason.** It is 0 rows today
+and it is a rare-drop journal, so permanence is plausibly *intentional* (the "super-rare drop
+moment" design wants the history). But CLAUDE.md requires the retention story in the
+migration that creates the table, and this one does not have it. **Decision needed, not a
+migration: is `world_finds` permanent by design?** If yes, write that down; if no, it needs
+a policy before the tick makes finds routine. It is unbounded either way, and at a rare-drop
+rate it is genuinely tiny — this is a documentation debt, not a capacity risk.
+
+### 14l. What "healthy" looks like, numerically
+
+So a future reader can tell drift from noise. Green = all of:
+
+| signal | healthy today | alarm at |
+|---|---|---|
+| `pg_database_size` | 47.6 MB | > 500 MB, or +20% week over week |
+| disk utilisation | (dashboard) | > 60% of 2 GB |
+| `player_ledger` rows/char/day | ~112 | > 500 sustained |
+| `player_ledger` total rows | 22,170 | rising 7 consecutive days after the 90-day mark |
+| `player_ledger_rollup` rows | 0 | **still 0 after 2026-11-21** |
+| connections used / max | 22 / 60 | > 45 |
+| `hr_state_of` mean | 3.23 ms | > 15 ms |
+| `hr_apply` mean | 9.35 ms | > 30 ms |
+| `hr_rate_gate` wrapper mean | 271 ms ⚠ | already over; target < 50 ms |
+| cron failed runs, 7 d | 0 | ≥ 1 |
+| open `critical` alerts | **2 (stale)** ⚠ | ≥ 1 that is *not* stale |
+| `pg_stat_archiver.failed_count` | 0 | ≥ 1 |
+| replication slot lag | 7,560 B | > 100 MB (a stalled slot fills the disk) |
+| restore-census findings | **3** ⚠ | ≥ 1 |
+
+### 14m. Not executed, and destructive steps flagged
+
+* **Nothing in this section wrote to production.** Read-only throughout.
+* **Acking the 13 stale `maintenance_alerts` rows is a WRITE and is NOT done.** It needs
+  explicit authorisation. What would be lost: nothing — `acked_at` is set, the rows and their
+  messages remain readable. Proposed statement is targeted at the two dead jobs plus the 11
+  `info` rows, never a blanket update.
+* **No index DDL is proposed** (§14d) — deliberately, there is no plan that asks for one.
+* **No migration is staged by this lane.** The two real remediations are (1) a branch-only
+  rollup drill, and (2) a design decision about the tick's ledger granularity. Neither is
+  DDL.
+* **PITR remains off and no backup has ever been restored** (§12, unchanged).

@@ -4,6 +4,69 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-09-18 · QA · adversarial pass on b548 (combat-XP deferral) + b549 (conflict retry)
+
+Both shipped "pushed, unplayed". Driven in the headless harness (Node against the real modules for
+the accrue seam; `benchSwitchArc` in `src/features/smoke/record-seam-and-hydration.js` for the
+switch seam), fake transport, settle held open on the wire. Matrix and verdicts:
+
+| # | Scenario | Observed | Class | Where | Test |
+|---|---|---|---|---|---|
+| 1 | Backgrounded tab, two `settle_first` refusals before the first deferral resolves | Second snapshot MAX-merged (`{attack:250}`, not 350); one confirmed settle restores once, no double count | **OK** | `src/net/accrue.js:483` | existing COMBAT-XP-SETTLE-FIRST-4 |
+| 1b | Confirmed settle -> admitted re-flush (retire + drain) -> a SECOND confirmed settle | Restores 0, pending stays 0 — the retired debt is not resurrected | **OK** | `accrue.js:503` | existing |
+| 2 | Activity switched combat->smithing with a deferral outstanding | The deferred combat XP is re-submitted after the switch. Correct: it is XP the player really fought for and the server clamps it; matches the "accepted loss" note (the switch's delta NULLs the span stamp, so it is priced away, not lost) | **OK / documented undercount** | `accrue.js:553` | existing |
+| 3 | **Character switch (or sign-out) with a deferral outstanding** | **Character A's 1060 deferred XP is restored into character B's pending map and flushed with `slot=1`.** The deferral carries no identity; `resolveCombatXpDeferral` writes into whatever `window.G` is current and the flush resolves the slot at call time | **value bug (P2)** | `src/net/accrue.js:480,511,564` + `src/net/goal-claim.js:53` | **NEW, RED:** `tests/combat-xp-deferral-identity.spec.mjs` |
+| 3b | Sign-out teardown | `auth.js:935` calls `resetAccrualGate()` as the identity reset; it does not clear `deferredCombatXp`. Account A's XP stays in module state | **value bug (P2, same root)** | `src/net/auth.js:935`, `accrue.js:595` | same spec, assertion (3) |
+| 4 | Settle unreachable, answers 3 min later (> the 120 s top-up grace) | Nothing is dropped: an unconfirmed outcome retires no deferral and the pending map is untouched, so the XP survives for the next flush. It is then priced at the away rate — an undercount the code states, not a browser/server disagreement | **cosmetic / known undercount** | `accrue.js:559` | existing COMBAT-XP-SETTLE-FIRST-3 |
+| 5 | b549: rapid A->B->C during a held `version_conflict` | Three taps put ONE `set_activity` on the wire while the conflict is parked; after release the coalesced newest tap lands and the bench converges on C | **OK** | `src/net/activity.js:1121` | **NEW:** `QA-B549-3` |
+| 5b | b549: `awaitSettleRaceClear` with nothing in flight / with a hung settle | Returns `false` on the next microtask with no settle; with a settle held open it waits and is bounded at 15 s (`SETTLE_RACE_WAIT_MS`), timer cleared in `finally`. A timed-out wait sends the retry anyway — degrades to pre-b549, never blocks the tap | **OK** | `accrue.js:419` | existing B549-1 |
+| 5c | b549: the refusal toast on a conflict the retry CLOSES | Silent — the toast fires only from `recoverCollectRefusal`, after the loop has given up. No false alarm | **OK** | `src/net/activity.js:687` | **NEW:** `QA-B549-4` |
+| 6 | Recipe switch while a combat-XP deferral is outstanding | The switch's own settle is the one that resolves the deferral; no interaction beyond #2's documented undercount | **OK** | — | — |
+
+### QA-DEFER-ID (#3/#3b) — routed to **Systems Engineer**, P2, value class
+
+Root cause: `let deferredCombatXp = null` (`src/net/accrue.js:480`) is a bare module-global holding a
+per-skill XP map with no user id and no slot. Both halves of the hand-back resolve LATE — the restore
+targets `window.G` (`accrue.js:511`), the flush resolves the slot at call time
+(`accrue.js:564` -> `goal-claim.js:53`) — so a deferral outstanding across a character switch is
+credited to the INCOMING character on a ranked surface.
+
+Reachability, stated honestly and the reason this is P2 and not P0: `switchSlotAsync`
+(`src/multi-character.js:339`) calls `location.reload()` and usually kills the module first. But the
+pointer has ALREADY moved when the reload starts (`multi-character.js:391`), navigation does not
+commit synchronously, the `noReload` path exists, and the sign-out hook has the same hole with no
+reload in front of it at all. It is a race, not a rule, on the one class of value CLAUDE.md §1 says
+must never cross between characters.
+
+Suggested fix (owner's call): stamp `{ userId, slot }` at defer time; `resolveCombatXpDeferral`
+DROPS rather than restores a snapshot whose identity does not match the live one; clear the deferral
+in `resetAccrualGate()` so sign-out is a hard reset.
+
+**The spec is RED and UNREGISTERED on purpose.** `tests/combat-xp-deferral-identity.spec.mjs` is not
+in `.github/workflows/smoke.yml` and not in `tests/run-smoke.mjs` — the suite has no expected-fail
+channel and §4 forbids weakening a gate to stay green. Register it in the SAME commit as the fix.
+
+### Mutation proof for the two new in-page tests
+
+`QA-B549-3` is a guard, not a decoration: mutating the coalescer at `src/net/activity.js:1124` to
+keep the OLDEST queued tap (`if (!queued) queued = …`) turns it red and nothing else in the suite
+(1310/1324, 1 failed), and the mutation was reverted. While chasing its first red I also learned the
+`benchSwitchArc` fixture seeds only `iron_bar`/`oak_plank`, so a third recipe must have its inputs
+seeded or the tap never starts locally and the test measures the fixture — the test now asserts the
+local start before it asserts anything about the wire.
+
+### What I could NOT rule out
+
+- Every scenario above was driven against a stubbed transport. None of it was played on live (QA has
+  no live sign-in in this lane), so the real server's `settle_first` cadence, the 120 s top-up grace
+  and the real span stamp are still unobserved end to end. The #4 undercount in particular is
+  argued from the code's own contract, not measured against the RPC.
+- A genuinely throttled background tab (10+ min of real rAF starvation) is simulated here by driving
+  the seam directly; I did not reproduce browser throttling itself.
+- Multi-tab: the single-active-session latch was not exercised against an outstanding deferral.
+
+---
+
 ## 2026-09-13 · Game Designer · lane `worktree-agent-a947d40b1e095f590` · the SELF-SUPPLY RATCHET IS PAID: 57 → 0
 
 **THE RULING (final, mine).** *A material is made where its tier opens, and no rung may ask for a tier

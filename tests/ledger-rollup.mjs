@@ -299,10 +299,26 @@ async function runPrune(db) {
  */
 const LIFETIME_READERS_PINNED = {
   // proname -> [expected number of unbounded read sites, why it is tolerated]
-  hr_apply: [2, 'hearthfind set completion + global find ordinal; both decay when the prune '
-    + 'first fires. Owner: Backend Architect. Must be closed before ~2026-11-21.'],
-  hr_bounty_first_contract: [1, 'the 3-turn-in first-contract grace re-opens for any character '
-    + 'with 90 days of bounty inactivity. Owner: Backend Architect.'],
+  // CLOSED 2026-09-19 by supabase/migrations/2026-09-19-lifetime-facts-off-the-ledger.sql:
+  // hr_apply's two sites (hearthfind set completion + global find ordinal) now read
+  // public.hearthfind_log / public.hearthfind_ordinal, and hr_bounty_first_contract reads
+  // player_progress(kind='stat', key='bounty_turnins'). Both are pinned at ZERO rather than
+  // deleted, so a future patch that reintroduces a ledger-derived lifetime read of either
+  // body is a NEW LIFETIME READER and this guard says so by name.
+  hr_apply: [0, 'CLOSED 2026-09-19 — hearthfind set + global ordinal moved to hearthfind_log / '
+    + 'hearthfind_ordinal. Pinned at 0 so a regression is named, not merely counted.'],
+  hr_bounty_first_contract: [0, 'CLOSED 2026-09-19 — the turn-in count is a durable '
+    + "player_progress stat. Pinned at 0 for the same reason."],
+  // THE BACKFILL IS THE ONE HONEST LIFETIME READER, and it must be: its whole job is to copy
+  // the pre-prune ledger into the durable homes above, so a time bound would silently skip
+  // exactly the old rows it exists to rescue. It is SECURITY DEFINER, revoked from every role
+  // including service_role, runs once inside the migration, and is idempotent (raise-only
+  // counters + a unique src_ledger_id), so a re-run after the first prune cannot renumber or
+  // lower anything. Owner: Backend Architect; it may be dropped once the migration is applied
+  // and the census re-pinned to remove this entry.
+  hr_backfill_lifetime_facts: [3, 'THE BACKFILL. Reads the ledger ONCE, unbounded, on purpose: '
+    + 'a time bound would skip the rows it exists to rescue. Idempotent and raise-only, so a '
+    + 'post-prune re-run cannot lower a fact. Owner: Backend Architect.'],
 };
 
 /** Read sites the census deliberately ignores. */

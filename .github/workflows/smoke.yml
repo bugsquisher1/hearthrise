@@ -319,6 +319,18 @@ jobs:
           node tests/schema-drift.mjs --mutate
           node tests/schema-drift.mjs --live-selftest
 
+      # THE CHAIN MUST REPLAY AT EVERY SECOND OF THE DAY. From 2026-08-29 to 2026-09-17 this
+      # job went red whenever a run started within seconds of UTC midnight: section-4
+      # self-check fixtures backdated rows with `now() - interval` and read them back
+      # through hr_utc_day_start(now()), so just after midnight they landed in
+      # yesterday and the chain refused to apply. The guard parks the clock around the
+      # boundary (in the fixture's own clock) and replays; --selftest proves it bites.
+      - name: UTC midnight replay — the chain applies at every second of the day
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/utc-midnight-replay.mjs
+          node tests/utc-midnight-replay.mjs --selftest
+
       # ...AND DO THE ROWS THE REBUILD PRODUCES MATCH src/data?
       # schema-drift proves the SCHEMA replays. This is the CONTENT half, and it
       # exists because of Security finding F2 (2026-09-13, Deep Seam review):
@@ -1656,6 +1668,15 @@ jobs:
           node tests/dead-exports.mjs --selftest
           node tests/dead-exports.mjs
 
+      # Live-world program: client prediction is being RETIRED (docs/planning/
+      # CLIENT_PREDICTION_RETIREMENT.md). This ratchet freezes the count of predict call
+      # sites and reconcilers so no new one lands while the tick service is built.
+      - name: Live world - no new client prediction
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/no-new-prediction.mjs
+          node tests/no-new-prediction.mjs --selftest
+
       - name: Cleanup slice 3 - dead CSS class census
         if: ${{ !cancelled() }}
         run: |
@@ -1918,3 +1939,14 @@ jobs:
       - name: Edge JWT gate — mutation proof
         if: ${{ !cancelled() }}
         run: node tests/edge-jwt-gate.mjs --selftest
+
+      # The settle watermark advances by ACCOUNTED time, not to now(): the sub-tick
+      # remainder rolls into the next window instead of being forfeited (1.3-1.7% of
+      # attended combat, up to 6.7% on 7 s nodes). Four refusals keep it from becoming a
+      # mint (capped, final window, a whole tick left over, an attended row newer than
+      # the watermark); --mutate plants the old now() stamp and each refusal's removal.
+      - name: Settle carry - the watermark advances by accounted time
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/settle-carry-defer.mjs
+          node tests/settle-carry-defer.mjs --mutate

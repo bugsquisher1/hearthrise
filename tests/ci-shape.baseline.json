@@ -15,6 +15,8 @@
     "node tests/schema-drift.mjs": "db-replay",
     "node tests/schema-drift.mjs --mutate": "db-replay",
     "node tests/schema-drift.mjs --live-selftest": "db-replay",
+    "node tests/utc-midnight-replay.mjs": "db-replay",
+    "node tests/utc-midnight-replay.mjs --selftest": "db-replay",
     "node tests/catalogue-literal-drift.mjs": "db-replay",
     "node tests/catalogue-literal-drift.mjs --selftest": "db-replay",
     "node tests/live-hash-drift.mjs": "db-replay",
@@ -131,6 +133,8 @@
     "node tests/token-single-source.mjs --selftest": "client-guards",
     "node tests/dead-exports.mjs --selftest": "client-guards",
     "node tests/dead-exports.mjs": "client-guards",
+    "node tests/no-new-prediction.mjs": "client-guards",
+    "node tests/no-new-prediction.mjs --selftest": "client-guards",
     "node tests/dead-css.mjs --selftest": "client-guards",
     "node tests/dead-css.mjs": "client-guards",
     "node tests/no-client-farm-mint.mjs --selftest": "client-guards",
@@ -162,6 +166,8 @@
     "node tests/guard-hygiene.mjs --selftest": "client-guards",
     "node tests/guard-hygiene.mjs": "client-guards",
     "node tests/edge-jwt-gate.mjs --strict": "edge",
-    "node tests/edge-jwt-gate.mjs --selftest": "edge"
+    "node tests/edge-jwt-gate.mjs --selftest": "edge",
+    "node tests/settle-carry-defer.mjs": "edge",
+    "node tests/settle-carry-defer.mjs --mutate": "edge"
   }
 }

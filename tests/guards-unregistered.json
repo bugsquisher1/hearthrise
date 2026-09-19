@@ -29,37 +29,6 @@
         "runner": "tests/utc-midnight-replay.mjs (node --import preload)"
       }
     },
-    "utc-midnight-replay.mjs": {
-      "reason": "Registered in tools/lane-done.mjs (the per-lane runner), NOT in smoke.yml: .github/workflows/smoke.yml is the Coordinator's file and tests/ci-shape.baseline.json pins its step list. The guard is the exit code behind the hazard that 2026-09-10-attended-loot-credit.sql's header wrote down as prose: a §4 fixture that backdates rows with `now() - interval 'N'` and reads them through `created_at >= hr_utc_day_start(now())` lands them in YESTERDAY inside the first N minutes of a UTC day, so the chain REFUSES TO APPLY and every guard that replays it goes red — measured on GitHub as b0efb833 23:54Z RED, 3cfacdf8 00:04Z RED, f36c3da7 00:21Z GREEN. BOTH instances are now fixed and the BASE RUN IS GREEN (2026-09-16): GATE(f5) inherited the clamp GATE(f4) already carried (reliability lane), and GATE(f6) — an economy gate, so its owner — was rewritten day-anchored by the backend lane: every stamp clamped to greatest(hr_utc_day_start(now()), now() - interval 'N'), and because that clamp also clamps the credit WINDOW to the day start, the round size is now the server's own least(40, cap) instead of a bare literal 40 (identical 40/12/160 arithmetic at every second of the day with a window >= ~18.5 s). Arms (2026-09-16, after security finding 5): the second at which the §4 block takes its transaction timestamp is PROBED each run, the boundary is swept across it at midnight -3…9 s, plus 00:02:30 / 00:04:30 / 00:25:00 (the 30-minute backdates) and a 01:00 control that must stay green. GATE(f4) and GATE(f5) were day-anchored in the same commit (a third and second instance of the class); --selftest plants BOTH the un-anchoring mutation and the S1 economy defect. Its CI home is the db-replay job beside tests/schema-drift.mjs, as TWO steps — the plain run, then --selftest — and this entry is the written debt until the Coordinator adds them.",
-      "owner": "reliability-engineer (the guard); backend-architect (the GATE(f6) fixture)",
-      "disposition": "awaiting-workflow-registration",
-      "verified": {
-        "asserts": true,
-        "selftest": true,
-        "runner": "tools/lane-done.mjs"
-      }
-    },
-    "no-new-prediction.mjs": {
-      "reason": "Registered in tools/lane-done.mjs (the per-lane runner) rather than in smoke.yml: this lane was briefed to add the guard WITHOUT editing the workflow, because .github/workflows/smoke.yml is the Coordinator's file and tests/ci-shape.baseline.json pins its step list. Both arms pass on today's tree (plain run green at 35 call sites, --selftest green on 8 controls including a clean arm). Its CI home is the `guards` job beside tests/no-client-xp-mint.mjs, as TWO steps — the plain run, then --selftest — and this entry is the written debt until the Coordinator adds them.",
-      "owner": "systems-engineer",
-      "disposition": "awaiting-workflow-registration",
-      "verified": {
-        "asserts": true,
-        "selftest": true,
-        "runner": "tools/lane-done.mjs"
-      }
-    },
-    "settle-carry-defer.mjs": {
-      "reason": "Registered in tools/lane-done.mjs (BOTH arms — the plain run and --mutate, per RULE 5) rather than in smoke.yml, for the reason no-new-prediction.mjs gives above: .github/workflows/smoke.yml is the Coordinator's file and tests/ci-shape.baseline.json pins its step list, and this lane was briefed not to move either. This is the succession the settle-carry-loss.mjs entry below predicted in writing: the carry IS threaded for real as of 2026-09-16 (accrual.js `settledWatermarkMs` advances `accrued_to` to the time the simulation accounted for), so the forfeited-time property is now an invariant with a gate instead of a number with a footnote. It chains real computeAccrual calls through the real delta.accrued_to across all THREE payable channels plus the four by-design refusals (capped / finalWindow / stopped-early / the C6 attended floor) and the two facts the fix must not have moved (the idempotency key and the PRNG label still read the window START). Runs in ~2 s, no database, no network. ITS CI HOME is the `guards` job beside tests/no-client-xp-mint.mjs, as two steps; this entry is the written debt until the Coordinator adds them.",
-      "owner": "backend-architect",
-      "disposition": "awaiting-workflow-registration",
-      "verified": {
-        "asserts": true,
-        "selftest": true,
-        "mutations": ["watermark-at-now, all 5 channel fixtures red"],
-        "runner": "tools/lane-done.mjs"
-      }
-    },
     "settle-carry-loss.mjs": {
       "reason": "MEASUREMENT, not a gate. It prices what the call-local `carryMs` in simulateSpan/sliceSpan costs at the REAL 90 s settle cadence (SETTLE_INTERVAL_MS) and exits 0 by design — it states a number, it does not defend a contract, and registering a number-printer in CI would make the guards job red the day a balance change moved a weapon speed. `--mutate` DOES assert (it exits 1 if threading the carry fails to take the forfeited time to ~0), which is what makes the number checkable; run it by hand when the engine's tick budget changes. SUCCEEDED 2026-09-16: the carry was threaded for real, so the forfeited-time property became a real invariant and moved to the sibling settle-carry-defer.mjs (entry above), which is registered and whose --mutate arm reprints these numbers as its red proof. This file's own metric now subtracts `res.deferredMs`, so its tables read ~0 on a working tree — deferred time is not forfeited time, and a metric that kept counting it would report a loss the player no longer takes. It remains the DIAGNOSIS, priced against the engines, and it remains report-only.",
       "owner": "systems-engineer",

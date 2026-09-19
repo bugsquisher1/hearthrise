@@ -216,7 +216,7 @@ export const READ_SQL = `
    only below by `accrued_to` would project credit rows committed in the gap: paid
    here, and projected again on the next settle. hr_attended_kills clamps it with
    `least(p_upto, now())`, so a wrong value can only ever pay LESS.
-   ⚠ THIS CALLER IS `finalWindow: true` (below), and that is what keeps the
+   ⚠ THIS CALLER IS `caller: 'collect'` (below), and that is what keeps the
      sentence "it is the instant `accrued_to` will advance to" literally true
      here after 2026-09-16. The accrue verb now defers an uncapped window's
      sub-tick remainder (accrual.js `settledWatermarkMs`); a COLLECT has no next
@@ -715,7 +715,7 @@ export async function collectCurrentWindow(o) {
      gather run whose inputs run out inside a minute paid nothing at all.
 
      A sub-threshold window IS confiscated by this verb, because this verb is the
-     one that replaces the pointer. So the collect now prices it: `finalWindow`
+     one that replaces the pointer. So the collect now prices it: `caller:'collect'`
      tells the engine the floor does not apply to a window with no next call, and
      `deltaHasValue` below keeps the DB cost where it was — a short window that
      produced nothing writes nothing, exactly as this exit did.
@@ -966,15 +966,22 @@ export async function collectCurrentWindow(o) {
        two literals by FIELD NAME, and "absent here, present there" is exactly
        the divergence that guard exists to catch. */
     actionBudget: null,
-    /* ── THE FLOOR EXEMPTION (b531). TRUE HERE AND ONLY HERE ────────────────
-       "This window has no next call." The switch that follows this collect
-       stamps `active_since = now()`, which clamps every later grant to the new
-       pointer's age — so a window this call declines to price is not deferred,
-       it is destroyed. index.ts's accrue path passes `false`: there the pointer
-       survives, the watermark is untouched, and the next cadence poll prices a
-       longer span, which is what the floor was written for.
+    /* ── 'collect': THE FLOOR EXEMPTION (b531). HERE AND ONLY HERE ──────────
+       A SERVER LITERAL, for the reason index.ts states: a caller a client could
+       choose would let it buy this exemption on demand.
+
+       The switch that follows this collect stamps `active_since = now()`, which
+       clamps every later grant to the new pointer's age — so a window this call
+       declines to price is not deferred, it is DESTROYED, and neither is its
+       sub-action remainder deferrable. 'collect' is therefore the one caller
+       settledWatermarkMs still stamps at `now()` for (refusal (b)), and the one
+       caller ACCRUE_MIN_MS is lifted for on a window that has no successor.
+       index.ts's accrue path passes 'accrue': there the pointer survives, the
+       watermark is untouched, and the next cadence poll prices a longer span.
+       The world tick passes 'tick' — exempt from the floor like this one, but
+       deferring like 'accrue', because its next window DOES exist.
        Mirrors index.ts field for field (A14). */
-    finalWindow: true,
+    caller: 'collect',
   });
 
   if (!out.accrued) {
@@ -1001,7 +1008,7 @@ export async function collectCurrentWindow(o) {
   }
 
   /* ── THE SUB-MINUTE WINDOW THAT EARNED NOTHING (b531) ────────────────────
-     `finalWindow` above let the engine price a window shorter than
+     `caller: 'collect'` above let the engine price a window shorter than
      ACCRUE_MIN_MS. Most such windows are switch-spam and produce nothing: a
      player retargeting three times in five seconds. Writing an apply, a version
      bump and a `craft`/`gather` ledger row for each of them would be the ledger

@@ -915,6 +915,88 @@ function nat(v, fallback) {
   return (Number.isFinite(n) && n >= 0) ? n : fallback;
 }
 
+/* ── WHO IS SETTLING THIS WINDOW (the caller taxonomy, 2026-09-18) ───────────
+   This replaces the boolean `finalWindow`, which was doing two jobs under a
+   name that only described one of them. Two behaviours hang off it — the
+   ACCRUE_MIN_MS floor (computeAccrual) and refusal (b) in settledWatermarkMs —
+   and they are properties of WHO IS CALLING, not of the window:
+
+     'accrue'   index.ts's cadence poll. The pointer survives the call, so a
+                sub-minute window is DEFERRED (the floor applies) and the
+                sub-action remainder is deferred too. Today's behaviour.
+     'collect'  set-activity.js's collect-before-switch. The switch that follows
+                stamps `active_since = now()`, so there is no next call and
+                nothing to defer INTO: the floor is exempt and the watermark
+                stamps `now()`. Exactly today's `finalWindow: true` (b531).
+     'tick'     the world tick (services/world-tick, docs/planning/
+                WORLD_TICK_DESIGN.md). A 10 s window is below the floor, so the
+                floor is exempt — but a tick window's remainder IS deferrable,
+                because the tick's NEXT window starts at the watermark this one
+                stamped. Borrowing 'collect' for it (the 2026-09-18 spike) made
+                `settledWatermarkMs` stamp `now()` and forfeit the sub-action
+                remainder every ten seconds: measured 2.0% / 3.5% / 7.8% of a
+                ten-minute span on the three parity fixtures with alignment off
+                (tests/world-tick-parity.mjs --mutate --callerTick). The tick was
+                protected only by `alignWindow` zeroing the remainder — two
+                independent mechanisms having to agree, one of them named the
+                opposite of what it did.
+
+   ⚠ THE CALLER IS A SERVER LITERAL, NEVER A REQUEST FIELD. index.ts and
+     set-activity.js each spell it as a constant string in the computeAccrual
+     literal; nothing reads it off the body. tests/activity-intent.mjs asserts
+     that (A14 + the caller SOURCE arm), because a caller a client could choose
+     would let it pick 'collect' and buy the floor exemption on demand.
+
+   FAIL-SAFE: anything unrecognised — absent, misspelled, a hostile value —
+   reads as 'accrue', the most conservative of the three. 'accrue' keeps the
+   floor (grants nothing it is unsure about) and defers the remainder (settles
+   LESS than now, so the window stays open and is paid next call). The only
+   caller that can LOSE time by being mislabelled is 'collect', and 'collect' is
+   a single call site with its own source guard. */
+export const ACCRUAL_CALLERS = Object.freeze(['accrue', 'collect', 'tick']);
+
+export function accrualCaller(inp) {
+  const c = inp && inp.caller;
+  return (c === 'collect' || c === 'tick') ? c : 'accrue';
+}
+
+/* ── `w`: THE WINDOW'S NON-PAYING TIME, ONE SCALAR (2026-09-18, §15a) ────────
+   `settledWatermarkMs` advances the watermark by the time the simulation
+   ACCOUNTED for, which is `ticks x interval + recoverMs + idleMs`. The journal
+   recorded only the first term, so a window containing a death was
+   arithmetically indistinguishable from a window whose watermark was computed
+   WRONGLY: replaying 14 days of real windows (services/world-tick/replay.js)
+   left five pairs in an `unaccounted` bucket that could not be judged either
+   way. Two integers close that, and turn `accounted = ticks x interval + rms +
+   ims` into an identity the ledger can be audited on instead of an inference.
+
+   ONE KEY, A COMMA-JOINED SCALAR, and both of those are guards rather than
+   taste:
+     · ONE key, because tests/accrual-engine.mjs SHAPE bounds the combat meta's
+       key count (the game_events rule made countable) and an attended window
+       already sits near the bound. `att` is nested for the same reason.
+     · A SCALAR STRING, because tests/artisan-accrual.mjs T7 refuses any nested
+       value in the ledger — `[rms, ims]` is an array and would be rejected. The
+       house precedent for "two facts, one scalar" is `skipped_items` (C5).
+   OMITTED ENTIRELY when both terms are zero, which is every window with no
+   death and no idle time — so an ordinary night's journal row is byte-for-byte
+   what it was and the ledger grows only where the extra fact exists.
+
+   LEDGER COST, stated because §5's rule is "aggregate, never per-tick": the
+   widest form is `"w":"43200000,86400000"` = 24 bytes on a row that already
+   exists; no new rows, no new table. Measured cadence: the 14-day production
+   read behind tests/fixtures/world-tick-real-windows.json is ~1.7k accrue rows
+   for 5 users = ~24 rows/user/day. At 100x the live player base (500 active)
+   that is ~12k accrue rows/day, so even if EVERY row carried the widest form
+   the ceiling is ~290 KB/day (~105 MB/year) — and the real figure is a small
+   fraction of it, because the key is absent on any window without a death. */
+function windowWaste(summary) {
+  const s = summary || {};
+  const r = Math.floor(nat(s.recoverMs, 0));
+  const i = Math.floor(nat(s.idleMs, 0));
+  return (r > 0 || i > 0) ? `${r},${i}` : null;
+}
+
 /**
  * ── THE RESTED BANK, SERVER-SIDE (b437) ────────────────────────────────────
  *
@@ -1334,7 +1416,10 @@ export function computeAccrual(input) {
      `accrue` verb (a cadence poll; the pointer survives) and FALSE for a
      COLLECT-BEFORE-SWITCH (the pointer is about to be replaced; there is no
      next call for this window). So the floor is a property of the CALLER, and
-     `finalWindow` is the caller saying "this window has no next call".
+     `inp.caller` names it: 'accrue' keeps the floor, 'collect' and 'tick' are
+     exempt because neither has a later call that would see a longer span (see
+     accrualCaller). Anything unrecognised reads as 'accrue', i.e. the floor
+     STAYS ON — the fail-safe direction, since the floor grants nothing.
 
      WHY THIS CANNOT BE GAMED. Paying it grants exactly what the simulation
      computes for the elapsed span and advances `accrued_to` to `now()`, so time
@@ -1345,7 +1430,7 @@ export function computeAccrual(input) {
      rows and no ledger noise. `grantMs > 0` is required either way — a
      zero-length window has nothing to simulate. */
   if (grantMs <= 0) return { accrued: false, reason: SKIP.TOO_SOON };
-  if (grantMs < ACCRUE_MIN_MS && inp.finalWindow !== true) {
+  if (grantMs < ACCRUE_MIN_MS && accrualCaller(inp) === 'accrue') {
     return { accrued: false, reason: SKIP.TOO_SOON };
   }
   const capped = elapsedMs > grantMs;
@@ -2471,7 +2556,7 @@ export function computeAccrual(input) {
      by two windows. `attended` is null on every window with no attended credit,
      which is every away night and most cadence polls. */
   const settledTo = settledWatermarkMs(span, summary, tickMs, {
-    finalWindow: inp.finalWindow === true,
+    caller: accrualCaller(inp),
     attendedToMs: attended ? attended.toMs : 0,
   });
   const deferredMs = Math.max(0, nowMs - settledTo);
@@ -2543,6 +2628,11 @@ export function computeAccrual(input) {
                                       sim: Math.floor(nat(summary.kills, 0)),
                                       top: attTopUp } } : {}),
               ...(Object.keys(summary.consumed || {}).length ? { spent: summary.consumed } : {}),
+              /* `w` = "<recoverMs>,<idleMs>", the window's NON-PAYING accounted
+                 time — the two terms settledWatermarkMs adds to `ticks x
+                 interval` and the journal used to throw away. Absent when both
+                 are zero. See windowWaste. */
+              ...(windowWaste(summary) ? { w: windowWaste(summary) } : {}),
               from: new Date(credit.fromMs).toISOString(),
               to: new Date(credit.toMs).toISOString() },
     },
@@ -2858,12 +2948,25 @@ function windowEnvelope(credit, ranMs) {
        nights in a row, and a cap that can be drained in instalments is not a
        cap. A capped window therefore still stamps `now()`, exactly as before.
 
-   (b) FINAL WINDOW. `finalWindow` is the caller saying "this window has no next
-       call" — a stop/unload settle (`settleBeforeIntent`) or a
-       COLLECT-BEFORE-SWITCH, where the pointer is about to be replaced. There
-       is no later window to defer INTO, so deferring there is the b531 defect
-       with the sign flipped: the remainder would be destroyed AND the pointer
-       restamped. A final window settles to `now()`.
+   (b) THE COLLECT. `caller === 'collect'` is set-activity.js's
+       collect-before-switch, where the pointer is about to be REPLACED
+       (`active_since = now()`). There is no later window to defer INTO, so
+       deferring there is the b531 defect with the sign flipped: the remainder
+       would be destroyed AND the pointer restamped. A collect settles to
+       `now()`.
+
+       ⚠ THIS IS THE ONLY CALLER IT APPLIES TO, and that is the 2026-09-18
+         correction. It was keyed on `finalWindow`, whose documented meaning was
+         "this window has no next CALL" — true of a collect, and also true of a
+         10 s world-tick window, which is why the tick spike borrowed it. But
+         the condition that actually matters is not "no next call", it is "no
+         next WINDOW to defer into". The tick has one: its next window starts at
+         the watermark this one stamps. Under the borrowed flag the tick forfeit
+         its sub-action remainder every ten seconds (2.0% / 3.5% / 7.8% of a
+         ten-minute span with alignment off, measured on the three parity
+         fixtures), and was saved only by `alignWindow` zeroing the remainder.
+         'tick' therefore falls through to the deferral below, exactly like
+         'accrue'. See accrualCaller.
 
    (c) THE REMAINDER IS NOT A REMAINDER. A deferral is only ever the sub-tick
        carry, so `remainder < tickMs` is a REQUIREMENT, not an observation. When
@@ -2904,7 +3007,9 @@ function windowEnvelope(credit, ranMs) {
    @param span    { nowMs, grantMs, capped } — the shared window object
    @param summary the simulation's own report
    @param tickMs  the ACTION interval the span was priced at
-   @param opts    { finalWindow, attendedToMs }
+   @param opts    { caller, attendedToMs } — `caller` is the accrualCaller()
+                  taxonomy; only 'collect' short-circuits to now(). An absent or
+                  unrecognised caller DEFERS (the conservative direction).
    @returns the instant `accrued_to` should be stamped to, in ms
 */
 export function settledWatermarkMs(span, summary, tickMs, opts) {
@@ -2914,7 +3019,7 @@ export function settledWatermarkMs(span, summary, tickMs, opts) {
   const grantMs = nat(span && span.grantMs, 0);
   const step = nat(tickMs, 0);
   if (span && span.capped === true) return nowMs;            // (a)
-  if (o.finalWindow === true) return nowMs;                  // (b)
+  if (o.caller === 'collect') return nowMs;                  // (b)
   if (!(step > 0) || !(grantMs > 0)) return nowMs;
   const accounted = nat(s.ticks, 0) * step + nat(s.recoverMs, 0) + nat(s.idleMs, 0);
   const remainder = grantMs - accounted;
@@ -3266,7 +3371,7 @@ function accrueGather(inp, span) {
      which refusal (c) answers with `now()` — so a stopped bench is never
      re-simulated. */
   const settledTo = settledWatermarkMs(span, summary, summary.intervalMs,
-    { finalWindow: inp.finalWindow === true });
+    { caller: accrualCaller(inp) });
 
   const delta = {
     accrued_to: new Date(settledTo).toISOString(),
@@ -3278,6 +3383,9 @@ function accrueGather(inp, span) {
       // game_events — 1.6M rows / 229 MB from six players in four days.
       meta: { ms: grantMs, ticks: summary.ticks, qty: stats.gathered || 0,
               capped, node: summary.nodeId, skill: summary.skill,
+              // `w` — the non-paying accounted time; see windowWaste. Absent
+              // when zero, which is most gathering windows (no death clock).
+              ...(windowWaste(summary) ? { w: windowWaste(summary) } : {}),
               // The credited window, for the reason the combat journal carries it.
               from: new Date(credit.fromMs).toISOString(),
               to: new Date(credit.toMs).toISOString() },
@@ -3693,7 +3801,7 @@ function accrueArtisan(inp, span) {
      and refusal (c) stamps `now()`, so the `activity: idle` statement below is
      never re-opened. */
   const settledTo = settledWatermarkMs(span, summary, summary.intervalMs,
-    { finalWindow: inp.finalWindow === true });
+    { caller: accrualCaller(inp) });
 
   const delta = {
     accrued_to: new Date(settledTo).toISOString(),
@@ -3726,6 +3834,9 @@ function accrueArtisan(inp, span) {
            — a key that is always present and almost always empty is a column
            nobody reads. */
         ...(skipped.length ? { skipped_items: skipped.join(',') } : {}),
+        /* `w` — the non-paying accounted time, the same comma-joined scalar for
+           the same reason `skipped_items` is one. See windowWaste. */
+        ...(windowWaste(summary) ? { w: windowWaste(summary) } : {}),
         // The credited window, for the reason the other two journals carry it.
         from: new Date(credit.fromMs).toISOString(),
         to: new Date(credit.toMs).toISOString(),

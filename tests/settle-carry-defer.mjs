@@ -269,14 +269,44 @@ console.log('D3..D6 — the four cases where the snap is refused BY DESIGN');
   ok('D3', r.accrued && Date.parse(r.delta.accrued_to) === now,
      `capped window stamps now() (${r.delta.accrued_to}), so the cap cannot be drained in instalments`);
 
-  // D4 — FINAL WINDOW. set-activity.js's collect passes finalWindow:true.
+  /* D4 — THE COLLECT. set-activity.js passes `caller: 'collect'` (it passed
+     `finalWindow: true` until 2026-09-18; the boolean was replaced by the
+     three-value taxonomy in accrual.js accrualCaller, and this arm is the proof
+     the COLLECT's behaviour is byte-identical across that rename). */
   const t = T0 + SETTLE_INTERVAL_MS;
-  const fin = call(baseChar({}), T0, t, { finalWindow: true });
-  const acc = call(baseChar({}), T0, t, { finalWindow: false });
+  const fin = call(baseChar({}), T0, t, { caller: 'collect' });
+  const acc = call(baseChar({}), T0, t, { caller: 'accrue' });
   ok('D4', fin.accrued && Date.parse(fin.delta.accrued_to) === t,
-     'finalWindow (stop / collect-before-switch) still settles to now()');
+     'caller=collect (collect-before-switch) still settles to now()');
   ok('D4b', acc.accrued && Number(acc.deferredMs) > 0 && Date.parse(acc.delta.accrued_to) < t,
      `the same window on the accrue verb defers ${acc.deferredMs} ms`);
+  /* D4c — THE TICK. The world tick is exempt from ACCRUE_MIN_MS like a collect
+     but DEFERS like an accrue, because its next window starts at the watermark
+     this one stamps. Borrowing 'collect' for it forfeits the remainder every
+     cadence (tests/world-tick-parity.mjs --mutate --callerTick measures it). */
+  const tick = call(baseChar({}), T0, t, { caller: 'tick' });
+  ok('D4c', tick.accrued && Date.parse(tick.delta.accrued_to) === Date.parse(acc.delta.accrued_to),
+     `caller=tick defers identically to accrue (${tick.deferredMs} ms), it does NOT stamp now()`);
+  /* D4d — THE FAIL-SAFE. An absent, misspelled or hostile caller must read as
+     'accrue': the floor stays on and the remainder is deferred. The direction
+     matters — the only caller that LOSES time by being mislabelled is
+     'collect', so an unknown value must never fall through to it. */
+  for (const bad of [undefined, null, '', 'COLLECT', 'collect ', 'tick\n', 0, 1, true,
+                     {}, [], 'accrue', '__proto__', 'constructor']) {
+    const r = call(baseChar({}), T0, t, { caller: bad });
+    ok('D4d', r.accrued && Date.parse(r.delta.accrued_to) === Date.parse(acc.delta.accrued_to),
+       `caller=${JSON.stringify(bad)} settles as 'accrue' (deferred), never as a collect`);
+  }
+  /* D4e — and the floor moves with it. A 5 s window is below ACCRUE_MIN_MS:
+     'accrue' must refuse it (deferred to the next poll), 'collect' and 'tick'
+     must price it (neither has a later call that would see a longer span). */
+  const shortTo = T0 + 5000;
+  ok('D4e', call(baseChar({}), T0, shortTo, { caller: 'accrue' }).accrued === false
+         && call(baseChar({}), T0, shortTo, { caller: 'collect' }).accrued === true
+         && call(baseChar({}), T0, shortTo, { caller: 'tick' }).accrued === true,
+     'ACCRUE_MIN_MS refuses a 5 s window for accrue, exempts collect and tick');
+  ok('D4f', call(baseChar({}), T0, shortTo, { caller: 'nonsense' }).accrued === false,
+     'an unrecognised caller does NOT buy the floor exemption');
 
   // D5 — STOPPED EARLY. A bench with no inputs must not be re-simulated forever.
   //     Driven through settledWatermarkMs directly: a summary whose accounted

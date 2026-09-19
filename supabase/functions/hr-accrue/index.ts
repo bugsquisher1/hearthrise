@@ -821,16 +821,22 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          sometimes by nothing at all. It is derived from the ENGINE'S OWN
          previous answer; nothing here comes from the request body. */
       actionBudget: step.actionBudget,
-      /* ── THE FLOOR EXEMPTION (b531). FALSE HERE, AND THE FALSE IS THE POINT ──
-         `finalWindow` means "this window has no next call", and the accrue verb
-         always has one: it does not touch the pointer, so a span it declines to
-         price is DEFERRED and the next cadence poll sees a longer one. That is
-         exactly the reasoning ACCRUE_MIN_MS was written on, so the floor stays
-         on this path unchanged. set-activity.js's collect passes `true` because
-         the switch that follows it stamps `active_since = now()` and destroys
-         the window instead of deferring it.
+      /* ── WHO IS SETTLING (b531; the caller taxonomy, 2026-09-18) ──────────
+         A SERVER LITERAL. Never read off the request body, never defaulted from
+         one: a client that could name its own caller would pick 'collect' and
+         buy the ACCRUE_MIN_MS exemption on demand, turning a 1 s poll loop into
+         a payable window. tests/activity-intent.mjs asserts the literal.
+
+         'accrue' HERE, and that is the point. The accrue verb does not touch
+         the pointer, so a span it declines to price is DEFERRED and the next
+         cadence poll sees a longer one — exactly the reasoning ACCRUE_MIN_MS
+         was written on, so the floor stays on this path unchanged, and the
+         sub-action remainder is deferred rather than stamped away.
+         set-activity.js's collect passes 'collect' because the switch that
+         follows it stamps `active_since = now()` and destroys the window
+         instead of deferring it.
          Mirrors set-activity.js field for field (A14). */
-      finalWindow: false,
+      caller: 'accrue',
       /* THE ATTENDED TOP-UP'S INPUT, AND IT COMES OFF `step`, NOT OFF THE CLOSURE.
          `degradeStep` returns `attended: null` on every rung, so a degraded
          attempt proposes strictly less. Reading `attendedIn` directly here would

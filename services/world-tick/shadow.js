@@ -118,12 +118,17 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
     bestiaryKills: char.bestiaryKills,
     items: catalogues.items,
     monsters: catalogues.monsters,
-    /* THE CALLER FLAG. A tick window is settled the instant it closes: there is
-       no "next call" that would see a longer span, which is the exact condition
-       `finalWindow` names in accrual.js (b531's collect-before-switch). Reusing
-       it is correct TODAY and is still the wrong spelling for production —
-       see the design doc's "caller taxonomy" open question. */
-    finalWindow: true,
+    /* THE CALLER. 'tick', not the borrowed 'collect' (`finalWindow` before
+       2026-09-18). A tick window is exempt from ACCRUE_MIN_MS like a collect —
+       10 s is below the floor and there is no later call that would see a
+       longer span — but unlike a collect its remainder IS deferrable, because
+       the tick's NEXT window starts at the watermark this one stamps. Under the
+       borrowed spelling settledWatermarkMs stamped `now()` and the tick forfeit
+       the sub-action remainder every cadence; see accrual.js accrualCaller.
+       The chaining half of the contract is the loop's, not this function's:
+       the next window's `fromMs` MUST be `delta.accrued_to` of this one, which
+       is what shadowSpan does and what world-tick-parity P5a asserts. */
+    caller: o.caller || 'tick',
   };
   const final = o.perturb ? o.perturb(input) : input;
   /* The guard reads the input the engine ACTUALLY got, so checkpoint

@@ -1457,6 +1457,54 @@ async function run(mutate) {
     ok(found.length === 0, `A14: ${found[0] || ''}`);
   }
 
+  /* ── A14b. `caller` IS A SERVER LITERAL, AT BOTH CALL SITES ──────────────
+     2026-09-18 replaced the boolean `finalWindow` with
+     `caller: 'accrue' | 'collect' | 'tick'` (accrual.js `accrualCaller`). Two
+     of the three buy an exemption from ACCRUE_MIN_MS, and `'collect'`
+     additionally stamps the watermark at `now()` instead of deferring — so a
+     caller a CLIENT could name is a floor bypass on demand: send
+     `caller:'collect'` on a 1 s poll loop and every sliver becomes payable.
+
+     The property is stated on the SOURCE because there is no runtime state that
+     can express it: the literal must be a quoted constant, and neither file may
+     read a caller off the request body. Read from `fnDir`, which is the MUTATED
+     copy under --mutate, for the reason A14 states.
+
+     MUTATION PROOF, inline: the same matcher run against a hand-built hostile
+     line must find it. A source assertion that has never been red is a comment. */
+  {
+    /* `[^'\s]` rather than a lookahead: `\s*` followed by a NEGATIVE lookahead
+       backtracks to zero width and matches the space itself, so the lookahead
+       form called every literal an expression. The character class cannot
+       backtrack past the whitespace. */
+    const bodySrc = (t) => /\bcaller\s*:\s*[^'\s]/.test(t);
+    ok(bodySrc("caller: body.caller || 'accrue',") === true
+       && bodySrc("caller: 'accrue',") === false,
+      'A14b-selftest: the caller-literal matcher does not distinguish a quoted constant from an expression');
+    for (const f of ['index.ts', 'set-activity.js']) {
+      const raw = await readFile(join(fnDir, f), 'utf8');
+      const src = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+      const lits = [...src.matchAll(/\bcaller\s*:\s*'(accrue|collect|tick)'/g)].map((m) => m[1]);
+      ok(lits.length === 1,
+        `A14b: ${f} spells the computeAccrual caller ${lits.length} times as a quoted literal (expected exactly 1, found [${lits}]) — the caller decides who is exempt from ACCRUE_MIN_MS and who stamps the watermark at now(), so it must be a server constant`);
+      ok(!bodySrc(src),
+        `A14b: ${f} assigns \`caller:\` from an expression rather than a quoted constant. A client that can name its own caller picks 'collect', buys the min-span exemption, and turns a 1 s poll loop into a payable window.`);
+    }
+    /* CODE, not prose. The comments in accrual.js and set-activity.js still
+       NAME `finalWindow` on purpose — they are the record of what the boolean
+       used to do and why 'tick' could not be spelled with it. What must not
+       survive is a live reference: an alias left behind is a second spelling of
+       the same decision and the next author picks the wrong one. (This arm was
+       observed RED against the un-stripped source on 2026-09-18, which is its
+       mutation proof: the matcher does find the word when it is there.) */
+    const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    ok(!/\bfinalWindow\b/.test(
+      strip(await readFile(join(fnDir, 'index.ts'), 'utf8'))
+      + strip(await readFile(join(fnDir, 'set-activity.js'), 'utf8'))
+      + strip(await readFile(join(fnDir, 'accrual.js'), 'utf8'))),
+      'A14b: `finalWindow` is still referenced in the engine or one of its callers. The boolean was REPLACED, not aliased — an alias left behind is a second spelling of the same decision and the next author picks the wrong one.');
+  }
+
   /* ══ b346 — THE ADVERSARIAL REVIEW'S CONDITIONS ═══════════════════════════
      Everything below was named by the Security Engineer's review of this intent
      and measured against PRODUCTION first, rolled back. The measurements are

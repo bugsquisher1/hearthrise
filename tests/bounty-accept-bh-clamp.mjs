@@ -65,6 +65,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay } from './schema-replay.mjs';
 import { unlockedTypes } from '../src/core/bounty.js';
+import { burnBountyGrace } from './bounty-grace-fixture.mjs';
 
 const MIG = '2026-09-12-bounty-accept-bh-clamp.sql';
 /* The migration BEFORE this one in the apply order — the pre-patch state used to
@@ -171,12 +172,12 @@ async function boot({ mutate, upTo } = {}) {
              values ($1, 0, 'bountyHunter', $2)
              on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [uid, xp]);
   };
-  // Burn the first-contract grace (3 journalled cull turn-ins) so honest accepts
-  // draw from the TIER table, not the new-hunter bracket — the same technique the
-  // difficulty-count guard uses. Written directly to keep this guard uncoupled
-  // from the claim path.
-  const burnGrace = async () => q(`insert into public.player_ledger (user_id, slot, kind, intent, meta)
-           select $1, 0, 'bounty', 'bounty_turnin:burn', '{}'::jsonb from generate_series(1,6)`, [uid]);
+  // Burn the first-contract grace so honest accepts draw from the TIER table,
+  // not the new-hunter bracket. Seeded rather than claimed, to keep this guard
+  // uncoupled from the claim path — but seeded in BOTH homes the way a real
+  // turn-in writes them, so it burns on the full chain (durable counter) and on
+  // the pre-2026-09-19 replay AC-8 boots (ledger). See tests/bounty-grace-fixture.mjs.
+  const burnGrace = () => burnBountyGrace(q, uid);
 
   const accept = async (target, type, diff, required) => {
     await gate();

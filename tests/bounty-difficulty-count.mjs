@@ -48,6 +48,7 @@
 //   node tests/bounty-difficulty-count.mjs --mutate=<id>
 // ════════════════════════════════════════════════════════════════════════
 import { bootReplay } from './schema-replay.mjs';
+import { burnBountyGrace } from './bounty-grace-fixture.mjs';
 import {
   BOUNTY_DIFFICULTY_COUNT, BOUNTY_KILL_COUNTS, BOUNTY_FIRST_CONTRACT_COUNT,
   BOUNTY_FIRST_CONTRACT_MAX_LEVEL, bountyCountRange, bountyRewards,
@@ -185,12 +186,12 @@ async function run(mutate) {
      see that the burn actually took. */
   const graceBefore = (await q('select public.hr_bounty_first_contract($1,0) f', [uid]))[0].f;
   const firstEasy = await accept('easy', 20);          // inside the scaled bracket
-  /* The grace counts kind='bounty' + intent LIKE 'bounty_turnin:%' rows in the
-     append-only journal (hr_bounty_first_contract). Written directly rather
-     than by claiming three real bounties: the claim path is another migration's
-     subject, and borrowing it would couple this guard to it. */
-  await q(`insert into public.player_ledger (user_id, slot, kind, intent, meta)
-           select $1, 0, 'bounty', 'bounty_turnin:burn', '{}'::jsonb from generate_series(1,6)`, [uid]);
+  /* Seeded rather than claimed: the claim path is another migration's subject
+     and borrowing it would couple this guard to it. Both homes of the turn-in
+     count are written, the way hr_claim_bounty__ungated writes them — since
+     2026-09-19 hr_bounty_first_contract reads the durable counter, not the
+     90-day journal. See tests/bounty-grace-fixture.mjs. */
+  await burnBountyGrace(q, uid);
   const graceAfter = (await q('select public.hr_bounty_first_contract($1,0) f', [uid]))[0].f;
 
   const round = {};

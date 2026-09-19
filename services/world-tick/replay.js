@@ -231,3 +231,70 @@ export function verdict(a) {
     ok: failed === 0 && proven > 0,
   };
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE GATHER DRY RUN (step-2 preparation, 2026-09-18)
+
+   "For the same sessions over the same span, print what the tick WOULD write
+   next to what accrual later actually wrote." This is that, and the first
+   thing it has to do is be honest about which half of it is possible.
+
+   VALUE cannot be compared against history, and the reason is a SECURITY
+   property rather than a gap: `hr_seed` mixes a 256-bit secret held behind RLS
+   (S20), and the journal carries no starting state — the exact missing list is
+   MISSING_FOR_VALUE_REPLAY above, and P6 asserts it has not been quietly
+   shortened to make a replay "work". Re-rolling a historical window would be a
+   NEW roll printed next to an old result, which is worse than no comparison
+   because it LOOKS like one. This function does not do it. The value proof is
+   made where value is reproducible — on fixtures, exactly, by P-G1.
+
+   GEOMETRY and COST can be compared exactly, and they are the two things the
+   tick actually changes about a gather window:
+     · how many ledger rows the same wall-clock time costs;
+     · whether the accrual windows themselves tile their stream with no gap and
+       no overlap, which is the invariant the tick has to preserve.
+   Both are computed from the rows' own journalled `from`/`to`/`ms`/`ticks`/
+   `qty` — no invention, no roll, no starting state.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function gatherDryRun(rows, opts) {
+  const o = opts || {};
+  const flushMs = Math.max(1000, Math.floor(o.flushMs || 90000));
+  const gather = rows.filter((r) => r.kind === 'gather' && r.meta && r.meta.from && r.meta.to);
+  const streams = new Map();
+  for (const r of gather) {
+    const key = `${r.user_id}|${r.slot}`;
+    if (!streams.has(key)) streams.set(key, []);
+    streams.get(key).push(r);
+  }
+  const out = [];
+  for (const [key, rs] of streams) {
+    rs.sort((a, b) => Date.parse(a.meta.from) - Date.parse(b.meta.from));
+    let accrueRows = 0; let spanMs = 0; let ticks = 0; let qty = 0; let tickRows = 0;
+    let overlap = 0; let gap = 0; let prevTo = null;
+    for (const r of rs) {
+      const from = Date.parse(r.meta.from); const to = Date.parse(r.meta.to);
+      const ms = Math.max(0, to - from);
+      accrueRows++;
+      spanMs += ms;
+      ticks += Number(r.meta.ticks || 0);
+      qty += Number(r.meta.qty || 0);
+      /* WHAT THE TICK WOULD HAVE WRITTEN for the same wall-clock window: one
+         row per flush period, and at least one for any window that settled
+         anything at all. `ceil`, not `round`: a partial flush is still a row. */
+      tickRows += ms > 0 ? Math.max(1, Math.ceil(ms / flushMs)) : 0;
+      if (prevTo !== null) {
+        if (from < prevTo) overlap++;
+        else if (from > prevTo) gap++;
+      }
+      prevTo = to;
+    }
+    out.push({ stream: key, accrueRows, tickRows, spanMs, ticks, qty, overlap, gap });
+  }
+  out.sort((a, b) => b.spanMs - a.spanMs);
+  const tot = out.reduce((a, s) => ({
+    accrueRows: a.accrueRows + s.accrueRows, tickRows: a.tickRows + s.tickRows,
+    spanMs: a.spanMs + s.spanMs, ticks: a.ticks + s.ticks, qty: a.qty + s.qty,
+    overlap: a.overlap + s.overlap, gap: a.gap + s.gap,
+  }), { accrueRows: 0, tickRows: 0, spanMs: 0, ticks: 0, qty: 0, overlap: 0, gap: 0 });
+  return { flushMs, streams: out, total: tot, windows: gather.length };
+}

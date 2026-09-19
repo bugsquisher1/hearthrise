@@ -1022,6 +1022,169 @@ Tyler's.
 
 ---
 
+## 15b. Step 2 PREPARATION — the gather channel, built in shadow (2026-09-18)
+
+Everything in this section exists in the repo and **nothing is deployed**. The
+tick service is not running, the migration is STAGED, and the only thing left
+for step 2 is *flip the flag after Security says GO*.
+
+| Piece | Where |
+|---|---|
+| the gather channel module | `services/world-tick/gather.js` |
+| the fixtures (3 sessions, validated against `src/data` on load) | `services/world-tick/fixtures/gather-sessions.json` |
+| the ONE new RPC, staged | `supabase/migrations/2026-09-20-world-tick-roster.sql` |
+| the proof | `tests/world-tick-parity.mjs` P-G1…P-G8 + 6 new mutants |
+| the read-only dry run | `node tools/world-tick-replay.mjs --gather` |
+
+### 15b.1 The ownership handover, as a state machine
+
+**The load-bearing claim of this section, stated first: no handover flag is
+needed for CORRECTNESS.** `player_state.accrued_to` is the single source of
+truth for "what has been paid for", it moves only forward, and it moves only
+inside `hr_apply`'s per-character `select … for update`. Whoever settles —
+edge or tick — reads it, proposes a window that starts there, and hands it back
+advanced. Two writers cannot double-pay because the second one's window starts
+where the first one's ended, and neither can leave a gap because neither is
+permitted to skip time. The flag is a **rollout control**, not a correctness
+mechanism, and the difference matters: a correctness mechanism that can be
+mis-set is a liability, and this one cannot pay a player twice however it is
+set.
+
+```
+                (no row, or owned=false)                ← FAIL-SAFE, the default
+   ┌─────────────────────────────────────────────────┐
+   │  ACCRUE-OWNED    edge settles on return.        │
+   │                  tick does not see the row.     │
+   └───────┬─────────────────────────────────────────┘
+           │  operator: update hr_tick_ownership set owned = true
+           ▼        (no state to migrate: the watermark IS the handover)
+   ┌─────────────────────────────────────────────────┐
+   │  TICK-OWNED      tick polls watermark→now every │
+   │                  cadence; flushes one hr_apply  │
+   │                  per 90 s window.               │
+   │                  edge STILL WORKS, unchanged:   │
+   │                  a return settles whatever the  │
+   │                  tick has not, which is a       │
+   │                  sub-action tail.               │
+   └───────┬─────────────────────────────────────────┘
+           │  operator: owned = false   (or the lease simply expires)
+           ▼
+       ACCRUE-OWNED again, from wherever the tick left accrued_to.
+```
+
+**What the edge does when it sees a tick-owned session: nothing different.**
+This is the part worth being explicit about, because the obvious design — teach
+the edge to read an ownership flag and behave differently — adds a read, a
+branch and a failure mode, and buys nothing. The edge already settles
+`accrued_to → now()`. If the tick is 2 s behind, that call is worth 2 s. It is
+*already* "catch-up only from the tick's watermark", because the tick's
+watermark is the only watermark there is.
+
+**What the tick does after downtime: one catch-up window, capped exactly like
+accrue's.** The first poll after a restart is `accruedTo → now()`, which may be
+hours. It is priced by the *same* `computeAccrual` under the *same* `capMs`
+the accrual path uses, so the per-absence cap is enforced by the engine and not
+by the tick. Refusal (a) — the 24 h `ACCRUE_MAX_SPAN_MS` — is applied a second
+time, earlier and more cheaply, by `hr_tick_roster`'s
+`accrued_to > now() - interval '24 hours'`: a character past the cap is
+**dropped from the roster** rather than simulated to zero.
+
+The failure cases, each with its mechanism rather than an intention:
+
+| Failure | What happens | Mechanism |
+|---|---|---|
+| **tick dies mid-window** | the in-memory batch is lost; `accrued_to` never moved, so the time is still OWED and the next owner (tick or edge) pays it | the watermark only advances inside `hr_apply` |
+| **two tick processes** | they claim **disjoint** sets and neither can settle the other's character | `for update … skip locked` on the OWNERSHIP row + a durable `lease_until`; and even if both claimed one character, the second `hr_apply` loses on `p_version` |
+| **clock skew, host ahead** | the proposal is **refused**, never minted | `hr_apply` clamps `accrued_to` into `[old, now()]` using Postgres `now()`. The host clock schedules; it never authorises |
+| **clock skew, host behind** | the tick simply settles less; the remainder is carried | the watermark is not the clock |
+| **player switches activity mid-tick** | the intent bumps `version`; the tick's next `hr_apply` is refused with `version_conflict`, it rehydrates and re-plans from the NEW `accrued_to` — and a `version_conflict` **releases the idempotency key** (b346), so the retry is not locked out | `p_version` + `hr_apply`'s narrow key release |
+| **pointer changes inside one flush window** | refused **loudly** in the tick rather than folded: `foldGatherMeta` throws if two polls carry different `node`s | the batch must close on a switch |
+| **player deletes / renames the character** | the roster join to `player_state` returns nothing next cadence; an in-flight `hr_apply` fails its own lookup. A display name is never read by the tick at all | the roster is a join, not a cache; names come from `profiles` |
+
+**Reversal is one statement:** `update public.hr_tick_ownership set owned =
+false;`. No schema change, no player-visible effect, no data to migrate.
+
+### 15b.2 What was proved, and how
+
+`tests/world-tick-parity.mjs` grew eight gather arms and six mutants (all 15
+mutants in the file exit 0 under `--mutate`, each turning a **named** claim
+red):
+
+| Arm | Claim | Mutant that kills it |
+|---|---|---|
+| P-G1 | tick intents == accrual-on-return **exactly** (xp, items, ticks); `tool_carry` within 1e-6 | `gatherWallclock` |
+| P-G2 | flush windows tile the span: no overlap, no gap, tail < one action interval | `gatherWallclock` |
+| P-G3 | one row per **settled window**, steady-state rate inside the 480k/day prune ceiling | `gatherPerTickRow` |
+| P-G4 | `uuid5('tick:<shard>:<user>:<slot>:<windowFrom>')`; a re-run is byte-identical; the version is the hydrated one | `gatherIdemConst` |
+| P-G5 | journalled `ms` == the span the watermark moved | `gatherSumMs` |
+| P-G6 | the ledger meta is accrue's key set + `src:'tick'`, nothing nested | `gatherShapeDrift` |
+| P-G7 | `hr_tick_roster`'s `c_payable` == `accrual.js` `PAYABLE_KINDS` | `gatherPayableDrift` |
+| P-G8 | chaining on the wall clock forfeits; chaining on `accrued_to` does not | `gatherWallclock` |
+
+**Two findings came out of building it, both in the under-paying / over-stating
+direction and both now guarded:**
+
+1. **Chaining on the wall clock forfeits 45% of a gather session.** Measured on
+   the oak fixture (4000 ms node, 10 s cadence): the naive "each poll settles
+   the last cadence" loop paid **60 of 110** action ticks. The engine's
+   `delta.accrued_to` is the only legal chain. (P-G8.)
+2. **Summing per-poll `grantMs` over-states the receipt by up to 31%.** Each
+   poll is asked *watermark → now*, so its `grantMs` includes the tail the
+   previous poll deferred. Measured: 732000 / 761440 / 784560 ms for a 600000 ms
+   span. The journalled `ms` is restated from the watermark. (P-G5.)
+
+A third, smaller one is recorded rather than fixed: **the tool carry is not
+bit-exact across a decomposition** (0.279999995 vs 0.280000000 over ten
+minutes — 5e-9 of one ore) because the carry is rounded per window instead of
+once per span. It cannot compound: the carry is re-hydrated from the server
+every roster call and is bounded in [0,1). P-G1 holds it at 1e-6.
+
+### 15b.3 The dry run, read-only, against real data
+
+`node tools/world-tick-replay.mjs --gather` (SELECT-only; the analysis is pure
+and lives in `services/world-tick/replay.js`). **Value is deliberately NOT
+re-rolled** — the journal carries no starting state and the seed is
+unobtainable by design (S20), so a re-roll printed next to a historical result
+would *look* like a comparison and be a new roll. Geometry and cost are exact.
+
+Over the 14-day production snapshot (`tests/fixtures/world-tick-real-windows.json`,
+279 real gather windows, 8 streams, 235.6 h of credited gathering):
+
+| | accrual (actual) | tick @ 90 s flush | tick @ 10 s (rejected) |
+|---|---|---|---|
+| ledger rows | **279** | **9,551** (×34.2) | 84,812 (×304) |
+| bytes @ 407 B/row | ~111 KiB | ~3.7 MiB | ~33 MiB |
+
+**This is the cost of the program stated honestly, and it is bigger than §15a's
+table implies.** §15a priced the tick against a *continuously active* baseline;
+this is the real one. Accrual settles a twelve-hour absence in **one** row; the
+tick settles the same twelve hours in **480**. The row count is therefore not
+driven by how much players play but by how long their pointers are *parked*,
+and a parked pointer costs the tick the same as an active one. At 500
+continuously-active characters a 90 s flush lands **exactly on** the 480,000
+rows/day prune ceiling with zero headroom. **Before gather is flipped on for
+more than a handful of characters, either the flush lengthens or `hr_apply`
+learns to batch** — §9's lever, now with a measurement behind it.
+
+**Live roster check, read-only, 2026-09-18:** 22 characters carry a `gather`
+pointer; **0** of them are inside the 24 h window, the freshest lag being
+2 d 17 h. So the tick's gather roster **would be empty right now**, which is the
+correct answer and the fail-safe working: those 22 pointers are parked, not
+active, and the roster is proportional to active players, not registered ones.
+It also means the first real flip will need a played gather session to watch.
+
+**Tiling:** 15 overlapping and 119 gapped boundaries inside a stream. The gaps
+are expected (another writer settled in between — a `set_activity` collect or a
+channel switch). **The 15 overlaps are NOT explained** and are recorded here as
+an open item rather than dismissed: step 1's analyser reported **0**
+`watermark_mismatch` on the same data, so whatever they are, they are not a
+watermark disagreement — most likely two rows whose `credit` windows are
+reported over a span another writer re-settled. Worth one read before gather is
+flipped on, and it is **not** a blocker for the staged migration, which writes
+nothing.
+
+---
+
 ## 16. Where I disagree with the brief
 
 0. **Superseded 2026-09-18 by §15a:** the first-channel argument below said

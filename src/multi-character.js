@@ -388,6 +388,12 @@
       var snap = localStorage.getItem(SAVE_KEY);
       if(snap) localStorage.setItem(charKey(profile.activeSlot), snap);
     }
+    /* BEFORE THE POINTER MOVES. Anything the accrual module is still holding
+       for the outgoing character — a deferred combat-XP snapshot above all —
+       resolves against whoever is active when the answer lands, and one line
+       below that is somebody else. The reload underneath is a race, not a
+       guarantee, and the `noReload` path has no reload at all. */
+    try { window.HearthriseAccrual && window.HearthriseAccrual.resetAccrualIdentity && window.HearthriseAccrual.resetAccrualIdentity(); } catch(e){}
     profile.activeSlot = slotId;
     saveProfile(profile);
     // Now load the new slot's data into SAVE_KEY so the engine picks

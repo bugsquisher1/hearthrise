@@ -479,17 +479,81 @@ export function dropPendingCombatXp(snap, g) {
    resolveCombatXpDeferral). */
 let deferredCombatXp = null;
 
+/* ── THE DEFERRAL CARRIES THE IDENTITY IT WAS EARNED UNDER (QA-DEFER-ID) ────
+   `deferredCombatXp` above is module state that outlives the character it came
+   from. BOTH halves of the hand-back resolve LATE — `restorePendingCombatXp`
+   writes into whatever `window.G` is current, and the flush addresses
+   `hr_credit_combat_xp` to whatever slot is active at CALL time
+   (goal-claim.js) — so a deferral outstanding across a character switch or a
+   sign-out is paid to the WRONG character on a ranked surface. The ordinary
+   switch path reloads the page right after moving the pointer, which usually
+   (not always: navigation is not synchronous, and `noReload` exists) kills the
+   module first; sign-out has no reload in front of it at all.
+   So the snapshot is STAMPED at defer time with (user id, slot) and handed back
+   only to that identity. A snapshot whose identity no longer matches is
+   DROPPED, never re-submitted: the server owns value, and the only safe
+   direction for a client that has lost track of whose XP it is holding is to
+   lose the XP, not to pay it to someone else. */
+let deferredCombatXpIdentity = null;
+let deferralIdentityDropLogged = false;
+
+/** Who is playing, right now: the signed-in user and the active character.
+ *  Both halves may be null/0 in a harness; that is one identity, and it only
+ *  ever matches itself. */
+export function accrualIdentity() {
+  let userId = null;
+  try {
+    const A = (typeof window !== 'undefined') && window.HearthriseAuth;
+    if (A && typeof A.currentUserId === 'function') {
+      const id = A.currentUserId();
+      if (typeof id === 'string' && id) userId = id;
+    }
+  } catch (e) {}
+  return { userId, slot: resolveActiveSlot(undefined) };
+}
+
+/** Identity equality. Absent is a value, not a wildcard. */
+export function sameAccrualIdentity(a, b) {
+  if (!a || !b) return false;
+  return (a.userId || null) === (b.userId || null) && a.slot === b.slot;
+}
+
+/** Forget a deferral without paying it. `why` is logged once per page session
+ *  so a switch storm cannot spam the console. Returns the XP dropped. */
+export function clearCombatXpDeferral(why) {
+  const owed = deferredCombatXp;
+  deferredCombatXp = null;
+  deferredCombatXpIdentity = null;
+  reflushP = null;
+  if (!owed) return 0;
+  let lost = 0;
+  for (const k in owed) lost += Math.max(0, Math.floor(Number(owed[k]) || 0));
+  if (!deferralIdentityDropLogged) {
+    deferralIdentityDropLogged = true;
+    try { console.warn('[accrual] dropped ' + lost + ' XP of deferred combat XP — ' + (why || 'the identity changed') + '. A snapshot is only ever handed back to the character that earned it; it is never re-submitted under another.'); } catch (e) {}
+  }
+  return lost;
+}
+
 /** Hold a refused snapshot until a settle confirms it owns the window. */
 export function deferPendingCombatXp(snap) {
   if (!snap || typeof snap !== 'object') return null;
+  const id = accrualIdentity();
+  /* A deferral held under a different identity is stale the moment a new one is
+     taken — drop it rather than merging two characters' XP into one map. */
+  if (deferredCombatXp && !sameAccrualIdentity(deferredCombatXpIdentity, id)) clearCombatXpDeferral('a new character deferred first');
   for (const k in snap) {
     const n = Math.max(0, Math.floor(Number(snap[k]) || 0));
     if (n <= 0) continue;
-    if (!deferredCombatXp) deferredCombatXp = {};
+    if (!deferredCombatXp) { deferredCombatXp = {}; deferredCombatXpIdentity = id; }
     deferredCombatXp[k] = Math.max(Number(deferredCombatXp[k]) || 0, n);
   }
   return deferredCombatXp;
 }
+/* NO PUBLIC READER FOR `deferredCombatXpIdentity` ON PURPOSE. The only correct
+   question is "does this still belong to whoever is playing?", which this module
+   answers itself at the two moments it matters; a getter would be an invitation
+   for a surface to re-implement that comparison and drift from it. */
 /** What the settle currently owes (read-only; null when nothing is deferred). */
 export function pendingCombatXpDeferral() { return deferredCombatXp; }
 /**
@@ -500,9 +564,16 @@ export function pendingCombatXpDeferral() { return deferredCombatXp; }
  * credited — a double credit on a ranked surface, and the reason `restore` (not
  * `drop`) needs an explicit retirement point. Found by the in-page pair.
  */
-export function retireCombatXpDeferral() { const had = !!deferredCombatXp; deferredCombatXp = null; return had; }
+export function retireCombatXpDeferral() {
+  const had = !!deferredCombatXp;
+  deferredCombatXp = null; deferredCombatXpIdentity = null;
+  return had;
+}
 /** Test seam: forget any deferral. */
-export function __resetCombatXpDeferral() { deferredCombatXp = null; reflushP = null; }
+export function __resetCombatXpDeferral() {
+  deferredCombatXp = null; deferredCombatXpIdentity = null; reflushP = null;
+  deferralIdentityDropLogged = false;
+}
 /** Put a held snapshot BACK into the pending map, merging by MAX (never by sum:
     the live map may already hold these very fights, and summing would credit the
     same kill twice). Returns how much the map grew. */
@@ -557,8 +628,16 @@ export function combatXpReflushPromise() { return reflushP; }
  * Returns the XP restored to the pending map. */
 export function resolveCombatXpDeferral(outcome, g) {
   if (outcome !== 'accrued' && outcome !== 'nothing') return 0;
+  /* IDENTITY FIRST (QA-DEFER-ID). The hand-back below writes into the LIVE G and
+     the flush addresses the LIVE slot, so a snapshot earned by someone else is
+     dropped here and never re-submitted — the settle that confirmed the window
+     belongs to whoever is playing now, and their pending map is their own. */
+  if (deferredCombatXp && !sameAccrualIdentity(deferredCombatXpIdentity, accrualIdentity())) {
+    clearCombatXpDeferral('the character or account changed before the settle answered');
+    return 0;
+  }
   const owed = deferredCombatXp;
-  deferredCombatXp = null;
+  deferredCombatXp = null; deferredCombatXpIdentity = null;
   if (!owed) return 0;   // AWAY: nothing was deferred ⇒ this settle fires no credit of its own
   const restored = restorePendingCombatXp(owed, g);
   const flush = (typeof window !== 'undefined') ? window.hrCreditCombatXpFlush : null;
@@ -595,7 +674,43 @@ export function getAccrualState() {
 export function resetAccrualGate(seed) {
   gate = seed ? { ...newAccrualGate(), ...seed } : newAccrualGate();
   haltAnnounced = false;
+  /* auth.js's sign-out calls THIS as the identity teardown, so a gate reset is
+     also a hard forget of anything the previous identity left owed. Dropping is
+     always safe (nothing is paid by dropping); keeping is not. */
+  clearCombatXpDeferral('the accrual gate was reset');
   return gate;
+}
+
+/* ── THE IDENTITY TEARDOWN ──────────────────────────────────────────────────
+   Everything above that is scoped to WHO is playing, cleared in one place, for
+   the two moments the answer changes without the module being destroyed: a
+   sign-out (auth.js, no reload) and a character switch (multi-character.js,
+   whose reload is a race the pointer has already won). Deliberately NOT folded
+   into resetAccrualGate: that is called ~40× by the suite as a transport reset
+   and must keep meaning only "forget the backoff".
+   - the deferred combat-XP snapshot: dropped, never paid to the newcomer.
+   - `awaySettleClosed`: the new identity's absence has NOT been paid, and the
+     latch is what holds attended credit back until a settle lands. Carrying a
+     `true` across would let the incoming character credit XP the settle is
+     about to trim. Fail-safe direction is false.
+   - the pending fall and its re-ask timer: the previous character's death
+     question, which the incoming character's envelope must never answer.
+   - `bootAccruedToAt`: the "how long were you away" span shown on arrival; it
+     is write-once per boot, so without this the newcomer inherits it. */
+export function resetAccrualIdentity() {
+  clearCombatXpDeferral('the signed-in account or character changed');
+  awaySettleClosed = false;
+  bootAccruedToAt = 0;
+  try { clearFall(); } catch (e) {}
+  /* The sibling module with the same shape: activity.js caches the last
+     DECLARED and CONFIRMED activity, the last server fight and a held
+     reconcile, all keyed to nothing. A stale `confirmed` would let the incoming
+     character's declare be suppressed as already-acknowledged, and a held
+     reconcile would fire the outgoing character's fight into the incoming G.
+     `resetActivity()` has existed since the intent cutover with no
+     identity-change caller; this is it. */
+  try { (typeof window !== 'undefined' ? window.HearthriseActivity : null)?.resetActivity?.(); } catch (e) {}
+  return true;
 }
 
 /* NO FETCH SEAM ON PURPOSE. The b331 battery swaps `window.fetch` itself and
@@ -5932,6 +6047,9 @@ if (typeof window !== 'undefined') {
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
     deferPendingCombatXp, pendingCombatXpDeferral, resolveCombatXpDeferral, __resetCombatXpDeferral,   // a `settle_first` refusal defers, never discards
     restorePendingCombatXp, combatXpReflushPromise, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable
+    /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
+       switch path and the sign-out path call these; nothing else may. */
+    accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,

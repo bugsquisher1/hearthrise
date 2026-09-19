@@ -16,7 +16,7 @@
   "the change was intended. Never edit a hash by hand to make a build green —",
   "a red hash is the check working."
  ],
- "generated": "2026-09-17",
+ "generated": "2026-09-19",
  "project": "nezapsylztqbbwuwembx",
  "postgres": {
   "production": "17.x",
@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-14",
- "replay_ms": 1618,
+ "replay_ms": 1271,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -138,7 +138,8 @@
     "2026-09-13-rejections-verb-map-2.sql",
     "2026-09-13-rejections-verb-map-3.sql",
     "2026-09-14-hr-apply-restatement.sql",
-    "2026-09-17-attended-xp-on-settle.sql"
+    "2026-09-17-attended-xp-on-settle.sql",
+    "2026-09-19-lifetime-facts-off-the-ledger.sql"
    ],
    "live": {
     "md5": "3184af12b27de9dc20b5258baa3e548b",
@@ -147,12 +148,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6a59c930524c95449c3b06aa29b44506",
-    "norm_len": 138130,
+    "md5": "f2316c3d9df8e293d1e92574b6a5af5b",
+    "norm_len": 139593,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED 2026-09-17: 2026-09-17-attended-xp-on-settle.sql (Security GO-WITH-CHANGES, SEC_FIGHT_CARRY §7) is on the set but NOT applied; the replay carries the attended-XP span stamp in hr_apply and the span top-up budget in hr_credit_combat_xp__ungated, live does not. Re-measure with --live --write after the apply."
+   "why": "STAGED 2026-09-19: the repo is ahead of live by migrations that are Security-reviewed (GO-WITH-CHANGES, SEC_FIGHT_CARRY_2026-09-16.md) but NOT applied: 2026-09-17-attended-xp-on-settle.sql (hr_apply gains the attended-XP span stamp) and 2026-09-19-lifetime-facts-off-the-ledger.sql (hr_apply's trophy-set and global-ordinal reads move from player_ledger to hearthfind_log/hearthfind_ordinal; hr_claim_bounty__ungated increments the lifetime bounty_turnins counter). Live bodies verified unchanged on 2026-09-18 via pg_get_functiondef. Re-measure with --live --write after the applies, in order: attended-xp, then lifetime-facts."
   },
   {
    "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -261,7 +262,8 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-11-bounty-hunter-xp.sql"
+    "2026-09-11-bounty-hunter-xp.sql",
+    "2026-09-19-lifetime-facts-off-the-ledger.sql"
    ],
    "live": {
     "md5": "0a3515fb34ba30de9f331069c030bf86",
@@ -270,11 +272,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0a3515fb34ba30de9f331069c030bf86",
-    "norm_len": 3761,
+    "md5": "b80a3a6092ee3d2e0e400270f1da6f82",
+    "norm_len": 4481,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED 2026-09-19: the repo is ahead of live by migrations that are Security-reviewed (GO-WITH-CHANGES, SEC_FIGHT_CARRY_2026-09-16.md) but NOT applied: 2026-09-17-attended-xp-on-settle.sql (hr_apply gains the attended-XP span stamp) and 2026-09-19-lifetime-facts-off-the-ledger.sql (hr_apply's trophy-set and global-ordinal reads move from player_ledger to hearthfind_log/hearthfind_ordinal; hr_claim_bounty__ungated increments the lifetime bounty_turnins counter). Live bodies verified unchanged on 2026-09-18 via pg_get_functiondef. Re-measure with --live --write after the applies, in order: attended-xp, then lifetime-facts."
   },
   {
    "sig": "hr_claim_daily__ungated(p_task_id text, p_slot integer)",

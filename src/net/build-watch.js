@@ -20,7 +20,25 @@
 //
 // FOUR RULES IT IS BUILT AROUND:
 //
-//  1. IT NEVER RELOADS WITHOUT CONSENT. An auto-reload can drop state that has
+// AMENDMENT — RULE 1 WAS TOO STRONG AND IT COST A PLAYER SIX DAYS. Measured
+// live: one tab sent a residue key the server had since deny-listed 550-800
+// times a day for six days, persisting nothing and missing every shipped fix.
+// The watcher worked the whole time: it polled, it saw the new build, it drew
+// the card — and the player ignored the card. `cardShowing` then answers
+// 'already-showing' forever, so notify-only leaves staleness unbounded.
+// Rule 1 was written for the auth-dead case, where the local copy is the ONLY
+// copy. Post-cutover that premise is false for a healthy tab: progression is
+// server-owned and the only thing a reload drops is the residue, which we
+// flush first with the same forced keepalive save `pagehide` uses. So: one
+// build behind is still the card; TWO OR MORE reloads itself at the next safe
+// moment (nothing modal, no write in flight); auth-dead still only escalates.
+// LOOP-PROOF: the reload stamps sessionStorage (survives the reload, dies with
+// the tab) and refuses a second one inside AUTO_RELOAD_COOLDOWN_MS, so a CDN
+// edge still serving the old bundle costs one reload, not a spin — and it
+// purges Cache Storage + unregisters the SW first, because a reload answered
+// from the stale shell IS the loop.
+//
+//  1. IT NEVER RELOADS WITHOUT CONSENT — *one build behind*. An auto-reload can drop state that has
 //     not reached localStorage — and in the exact failure mode this exists for
 //     (b331 auth-dead), the local copy is the ONLY copy of the player's
 //     progress. Save-before-reload is not available to us there: the save is
@@ -42,7 +60,8 @@
 //     became a request loop would be a perfect self-parody.
 //
 //  4. THE DECISION IS PURE. `decideBuildUpdate` (running, deployed, auth state,
-//     what the player has already been told) → none | notify | escalate, with
+//     what the player has already been told, busy, cooldown) → none | notify |
+//     reload | escalate, with
 //     no fetching and no DOM in it, so the suite drives the real decision table
 //     rather than a restatement of it.
 //
@@ -77,6 +96,20 @@ const FETCH_TIMEOUT_MS = 8000;
 /* A build-info.js is ~1 KB. Anything much larger is a captive-portal login page
    or an SPA index.html, not our file — refuse to regex-scan it. */
 export const MAX_BODY_BYTES = 64 * 1024;
+
+/* ── Auto-reload ───────────────────────────────────────────────────────
+   AUTO_RELOAD_MIN_LAG: 2. "One build behind" is a player who has been playing
+   across a release — routine, and the card is the right instrument. "Two or
+   more behind" is a tab that has already ignored at least one prompt, which the
+   live data says means it will ignore all of them.
+
+   AUTO_RELOAD_COOLDOWN_MS: 30 minutes, stamped in sessionStorage so it survives
+   the very reload it guards. If the CDN edge is still serving the old bundle,
+   the tab comes back just as stale — and refuses to reload again for half an
+   hour, falling back to the card. One reload, never a spin. */
+export const AUTO_RELOAD_MIN_LAG = 2;
+export const AUTO_RELOAD_COOLDOWN_MS = 30 * 60 * 1000;
+export const AUTO_RELOAD_KEY = 'hr-build-autoreload-at';
 
 /** Exponential backoff after consecutive failed polls. Pure. */
 export function nextPollBackoffMs(fails) {
@@ -145,6 +178,24 @@ export function decideBuildUpdate(input) {
     if (Number(s.escalatedFor) === deployed) return none('already-escalated');
     return { action: 'escalate', reason: 'stale-build-while-sync-dead', build: deployed };
   }
+
+  /* Two or more builds behind. This tab has already been told at least
+     once and did not act, so it moves itself — but only at a safe moment, and
+     only once per cooldown. Placed ABOVE the dismissal / already-showing
+     latches on purpose: those latches are what let the six-day tab exist. When
+     the moment is not safe (a modal is open, a write is in flight) or the
+     cooldown is live, we fall THROUGH to the card path rather than returning
+     'none', so the player is still told and the next poll can act. */
+  const lag = deployed - running;
+  if (lag >= AUTO_RELOAD_MIN_LAG) {
+    const now = Number(s.now) || 0;
+    const last = Number(s.lastAutoReloadAt) || 0;
+    const cooling = last > 0 && now - last >= 0 && now - last < AUTO_RELOAD_COOLDOWN_MS;
+    if (!cooling && !s.busy) {
+      return { action: 'reload', reason: 'builds-behind', build: deployed };
+    }
+  }
+
   if (Number(s.dismissedFor) === deployed) return none('dismissed');
   if (Number(s.promptedFor) === deployed && s.cardShowing) return none('already-showing');
   return { action: 'notify', reason: 'new-build', build: deployed };
@@ -178,6 +229,22 @@ export const BUILD_INFO_URL = (() => {
   catch (e) { return 'src/build-info.js'; }
 })();
 
+/* The auto-reload stamp lives in sessionStorage because it must survive the
+   reload it guards and must NOT survive the tab (a new tab is a new decision).
+   Unreadable / garbage / a future timestamp all read as "never" — uncertainty
+   must not be able to BLOCK the rescue either. */
+function readAutoReloadStamp() {
+  try {
+    if (typeof sessionStorage === 'undefined') return 0;
+    const n = Number(sessionStorage.getItem(AUTO_RELOAD_KEY));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch (e) { return 0; }
+}
+function writeAutoReloadStamp(now) {
+  try { if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(AUTO_RELOAD_KEY, String(now)); }
+  catch (e) {}
+}
+
 const state = {
   running: Number(BUILD && BUILD.cache) || 0,
   deployed: 0,
@@ -187,7 +254,30 @@ const state = {
   promptedFor: 0,
   dismissedFor: 0,
   escalatedFor: 0,
+  lastAutoReloadAt: readAutoReloadStamp(),
+  autoReloads: 0,
 };
+
+/**
+ * IS THIS A SAFE MOMENT TO TAKE THE PAGE AWAY? Conservative by construction:
+ * anything we are not sure about answers "busy", because deferring costs one
+ * poll interval and a bad moment costs the player an action.
+ *
+ * Busy = a dialog/modal owns the screen (including the eviction gate and the
+ * sign-in-expired sheet), or a record/intent write is on the wire.
+ */
+export function defaultBusyProbe() {
+  try {
+    if (typeof document === 'undefined') return true;
+    if (document.getElementById('hr-evicted-gate')) return true;
+    if (document.getElementById('hr-auth-expired-gate')) return true;
+    if (document.querySelector('dialog[open], .modal.show, .modal.open, .hr-modal:not([hidden])')) return true;
+    const R = typeof window !== 'undefined' && window.HearthriseRecord;
+    if (R && typeof R.getRecordState === 'function' && R.getRecordState().pending) return true;
+    return false;
+  } catch (e) { return true; }
+}
+let busyProbe = defaultBusyProbe;
 
 /* Read-only seam onto b331's terminal state. sync.js already publishes
    getAuthGate(); nothing in that file needed to change for this. Overridable
@@ -227,8 +317,13 @@ export function applyBuildInfoText(text, now = Date.now()) {
     dismissedFor: state.dismissedFor,
     escalatedFor: state.escalatedFor,
     cardShowing: typeof document !== 'undefined' && !!document.getElementById(CARD_ID),
+    busy: !!busyProbe(),
+    now,
+    lastAutoReloadAt: state.lastAutoReloadAt,
   });
-  if (verdict.action === 'notify') {
+  if (verdict.action === 'reload') {
+    autoReloadNow(verdict.build, now);
+  } else if (verdict.action === 'notify') {
     if (showUpdateCard(verdict.build)) state.promptedFor = verdict.build;
   } else if (verdict.action === 'escalate') {
     if (escalateIntoAuthSheet(verdict.build)) state.escalatedFor = verdict.build;
@@ -409,6 +504,50 @@ export function escalateIntoAuthSheet(build) {
  * suite navigating away, which is what lets "nothing ever reloads without a
  * click" be an assertion rather than a comment.
  */
+/**
+ * THE UNPROMPTED RELOAD, for a tab two or more builds behind.
+ *
+ * Order is load-bearing and each step is best-effort:
+ *   1. STAMP FIRST. The cooldown must be written before anything that can
+ *      navigate, or a reload that happens faster than the write is unguarded.
+ *   2. FLUSH THE RESIDUE with the exact forced-keepalive save `pagehide`
+ *      already uses. This is the only thing a reload can lose now that
+ *      progression is server-owned. We do not await it — keepalive is what
+ *      makes it survive teardown, and a hung network must not pin the tab on
+ *      the stale bundle forever.
+ *   3. PURGE THE SHELL. A reload served the same old bundle out of the service
+ *      worker's Cache Storage would come back equally stale — that IS the loop
+ *      this function is accused of being. Same body as the boot kill-switch.
+ */
+export function autoReloadNow(build, now = Date.now()) {
+  state.lastAutoReloadAt = Number(now) || Date.now();
+  state.autoReloads++;
+  writeAutoReloadStamp(state.lastAutoReloadAt);
+  hideUpdateCard();
+  try {
+    const S = typeof window !== 'undefined' && window.HearthriseSync;
+    if (S && typeof S.flush === 'function') S.flush();
+    if (S && typeof S.snapshotIfDue === 'function') S.snapshotIfDue(true, true);
+  } catch (e) {}
+  try {
+    console.warn('[build-watch] auto-reloading: this tab is b' + state.running
+      + ' and b' + (Number(build) || 0) + ' is live');
+  } catch (e) {}
+  if (reloadHook) { try { reloadHook(); } catch (e) {} return; }
+  const go = () => reloadNow();
+  let pending = null;
+  try {
+    if (typeof caches !== 'undefined' && typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      pending = Promise.all([
+        caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))),
+        navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister()))),
+      ]);
+    }
+  } catch (e) { pending = null; }
+  if (pending && typeof pending.then === 'function') pending.then(go, go);
+  else go();
+}
+
 let reloadHook = null;
 export function reloadNow() {
   if (reloadHook) { try { reloadHook(); } catch (e) {} return; }
@@ -437,8 +576,9 @@ if (typeof window !== 'undefined') {
     decideBuildUpdate, decideBuildPoll, parseDeployedBuild, nextPollBackoffMs,
     POLL_INTERVAL_MS, VISIBILITY_MIN_GAP_MS, FAIL_BACKOFF_BASE_MS, FAIL_BACKOFF_MAX_MS,
     MAX_BODY_BYTES, CARD_ID, ESCALATION_ID, BUILD_INFO_URL,
+    AUTO_RELOAD_MIN_LAG, AUTO_RELOAD_COOLDOWN_MS, AUTO_RELOAD_KEY, defaultBusyProbe,
     // runtime
-    startBuildWatch, tickBuildWatch, applyBuildInfoText,
+    startBuildWatch, tickBuildWatch, applyBuildInfoText, autoReloadNow,
     showUpdateCard, hideUpdateCard, escalateIntoAuthSheet,
     getState: () => ({ ...state }),
     /* Test seams. `__setState` restores exactly, and `__setAuthDeadProbe(null)`
@@ -448,6 +588,14 @@ if (typeof window !== 'undefined') {
     __setReloadHook: (fn) => { reloadHook = typeof fn === 'function' ? fn : null; },
     __setAuthDeadProbe: (fn) => {
       authDeadProbe = typeof fn === 'function' ? fn : defaultAuthDeadProbe;
+    },
+    /* Auto-reload seams. `__setBusyProbe(null)` restores the real safe-moment reader;
+       `__clearAutoReloadStamp()` drops the sessionStorage cooldown so the suite
+       leaves a live tab exactly as it found it. */
+    __setBusyProbe: (fn) => { busyProbe = typeof fn === 'function' ? fn : defaultBusyProbe; },
+    __clearAutoReloadStamp: () => {
+      state.lastAutoReloadAt = 0;
+      try { if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(AUTO_RELOAD_KEY); } catch (e) {}
     },
   };
   startBuildWatch();

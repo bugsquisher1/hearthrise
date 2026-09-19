@@ -32,7 +32,8 @@ const STEPS = [
   // arm, fourteen arms (a probed sweep across the UTC boundary), so ~3 min — and
   // it lives in the per-lane runner because a §4 fixture that only applies for
   // 23h55m a day is written in a lane, not caught in CI.
-  // Its CI home is the db-replay job (tests/guards-unregistered.json).
+  // Its CI home is its own utc-midnight-replay job, split out of db-replay 2026-09-19
+  // (b550) once the family's own budget could no longer fit it (tests/guards-unregistered.json).
   ['node', ['tests/utc-midnight-replay.mjs']],
   // `accrued_to` advances to the time the simulation ACCOUNTED FOR, not to now()
   // (2026-09-16): the sub-tick carry is deferred to the next window, never

@@ -344,14 +344,99 @@ references to the column anywhere under `src/**`).
 
 ---
 
+## 2026-09-18 — adversarial review: the caller taxonomy + `meta.w` (GO-WITH-CHANGES, changes landed)
+
+Subject: `finalWindow: boolean` → `caller: 'accrue'|'collect'|'tick'`
+(`accrualCaller`, `supabase/functions/hr-accrue/accrual.js`), and one journal
+meta key `w = "<recoverMs>,<idleMs>"`. No SQL, no RPC body, no grant, no new
+delta key; `caller` is never forwarded to `hr_apply`.
+
+**Why this needed a review at all.** `caller` is the first input to the accrual
+engine that decides a PRIVILEGE rather than a quantity. `'collect'` and `'tick'`
+each lift `ACCRUE_MIN_MS` (a 5 s window becomes payable), and `'collect'`
+additionally stamps the watermark at `now()` instead of deferring. A client that
+could name its own caller would poll at 1 Hz and be priced every time.
+
+### What the author shipped, and where it stopped short
+The two production call sites are quoted literals and A14b asserts that. Two
+gaps, both about what the guard CANNOT see:
+
+1. **A14b enumerates two filenames.** A third edge call site — a future intent
+   handler, a new verb's module — spelling `caller: body.caller` is invisible to
+   A14 and A14b alike, because a source regex cannot read a file that did not
+   exist when it was written. The privilege was defended by convention at every
+   call site not yet written.
+2. **A14b asserted `lits.length === 1`, never the VALUE.** Swapping `index.ts`
+   to `caller: 'collect'` passed it. That swap is precisely the defect the arm's
+   own comment describes.
+
+### The three changes made on this branch (all mutation-proven)
+* **A runtime fence, not only a source one.** `accrualCaller` honours
+  `'collect'`/`'tick'` only against `CALLER_AUTHORITY`, a module-private frozen
+  object IDENTITY held by `import`. A request body is JSON and cannot express
+  object identity: `JSON.parse(JSON.stringify(CALLER_AUTHORITY))` is refused.
+  Every present and future body-borne caller therefore reads as `'accrue'` —
+  floor on, remainder deferred, the conservative direction. Proof:
+  `tests/settle-carry-defer.mjs` D4g (five forgeries × two privileges, plus a
+  non-vacuity arm). Deleting the identity check turns eleven D4g arms red
+  (observed: exit 1).
+* **`'tick'` cannot ship in the edge payload.** `tickCallerProblems` /
+  `tickCallerGuard` in `tools/pack-edge.mjs`, wired into `runAll` and `--check`,
+  so it bites at PACK time — the last point where "what ships" is a readable
+  list of files. `'tick'` belongs to `services/world-tick`, a loop the SERVER
+  clocks; on a handler a client calls, the cadence is the attacker's. Proof:
+  `tests/activity-intent.mjs` A14c, selftest plus the live tree.
+* **A14b now pins the caller per file** (`index.ts` → `accrue`,
+  `set-activity.js` → `collect`) with the consequence of each swap named in the
+  message. Proof: mutating `index.ts` to `'collect'` → `activity-intent` exit 1
+  on that assertion.
+
+### Executed evidence for the questions asked
+| # | Question | Result |
+|---|---|---|
+| 1 | can a request field reach `caller`? | **No.** Three `computeAccrual` call sites exist (`index.ts`, `set-activity.js`, `services/world-tick/shadow.js` — undeployed); each builds a literal with no spread of the body. Now also fenced at runtime. |
+| 2 | can shipped code label itself `'tick'`? | **No**, and it now cannot become able to: `pack-edge` refuses a payload containing `caller: 'tick'`. |
+| 3 | does the b531 reason for `'collect'` hold? | **Yes** — `set-activity.js` stamps `active_since = now()` after the collect, so the window is destroyed rather than deferred. Mislabelling is now caught by a named assertion (the A14b per-file pin). |
+| 4 | can hammering 1 s accrues mint time? | **No.** 1,800 polls at 1 Hz over 30 min: 30 accepted, `paid = 1,800,000 ms` = exactly wall time. A single 30 min window pays the identical 1,800,000 ms. Even holding the REAL authority, `'collect'` at 1 Hz accepts 600 windows and still pays exactly wall time — the privilege buys ROWS, never TIME. |
+| 5 | does `meta.w` disclose anything? | **No.** Two integers the player's own simulation already produced (`recoverMs`, `idleMs`), on the player's own RLS-scoped ledger row, less precise than the `from`/`to` already on it. No seed term, no other player, no clock beyond `created_at`. The ten-key allowlist (`ms ticks kills capped ate att spent w from to`) admits no free text: `spent` is server catalogue ids, `att` is nested integers, `w` is two `Math.floor`ed integers. |
+| 6 | ledger size | **Row-neutral** — `w` rides an existing row and is omitted when both terms are zero. ≤ 24 B on affected rows against the runbook's 215 B/row measurement. `hr_ledger_prune`'s ceiling is a ROW-count budget and is untouched. |
+
+### Residual risks accepted
+* An author who deliberately imports `CALLER_AUTHORITY` and wires a body field
+  to it defeats the fence. No in-process check can stop that; A14b + A14c make
+  it a visible, deliberate act rather than an accident.
+* `services/world-tick/shadow.js` keeps `caller: o.caller || 'tick'` so the
+  parity suite can drive the `'collect'` mutant. It is not deployed; when the
+  tick service ships, that override is removed or gated.
+* `'collect'` is reachable by activity-switch spam and can write many small
+  ledger rows (600 per 30 min measured with nothing in front of the engine).
+  Bounded today by `deltaHasValue` (a no-value window writes nothing) and by
+  `hr_rate_gate` on the intent; the runbook's 800 rows/character/day budget at
+  100× is the thing to watch — not a new risk from this change.
+
+**Verdict: GO-WITH-CHANGES — the changes are on this branch.** Guards, exit
+codes observed: `settle-carry-defer --mutate` 0, `world-tick-parity --mutate` 0,
+`accrual-engine --mutate` 0, `activity-intent` 0, `live-settlement` 0,
+`pack-edge hr-accrue --hash` 0, `lane-done` 0.
+
+---
+
 ## 2026-09-18 — Ledger rollup currencies + retired IAP catalogue removal (branch `rel-census-ledger-b550`)
 
 Adversarial review of two staged, unapplied migrations. Evidence is executed:
 read-only SELECTs against production `nezapsylztqbbwuwembx` through the
 management endpoint (token as file bytes, never printed), plus the PGlite chain
-replay in `tests/ledger-rollup.mjs`. **Doc size note: this file is now ~490
-lines and is still one readable document; the next section should split it by
-SUBJECT (not by date), not start a new file.**
+replay in `tests/ledger-rollup.mjs`.
+
+**Doc size note (measured after the merge with the caller-taxonomy review):
+this file is 574 lines carrying four dated reviews, and tonight it produced a
+merge conflict because two Security lanes appended to the same tail on the same
+day — the append-only shape is now costing integration time, which is the signal
+to act on. RECOMMENDATION: at the next quiet moment, split it by SUBJECT into
+one file per reviewed surface (accrual/caller-authority, ledger retention,
+catalogue/DR) with this file reduced to an index of verdicts and open residual
+risks. Not done here: a split during an open lane-C review would rewrite the
+document the Coordinator is reading the GO out of.**
 
 ### Verdict
 | Migration | Verdict |

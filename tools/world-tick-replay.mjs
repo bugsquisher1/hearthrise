@@ -27,7 +27,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { analyzeRows, verdict, MISSING_FOR_VALUE_REPLAY, CHEAP_ADDITIONS }
+import { analyzeRows, verdict, MISSING_FOR_VALUE_REPLAY, JOURNALLED_WINDOW_TERMS }
   from '../services/world-tick/replay.js';
 
 const ARGS = process.argv.slice(2);
@@ -93,11 +93,20 @@ console.log(`PROVEN  ${v.proven} boundaries land exactly on settledWatermarkMs`)
 console.log(`FAILED  ${v.failed} boundaries disagree with it`);
 console.log(`unprovable from the journal alone: ${v.unprovable} (see the buckets above)`);
 console.log(`action intervals inferred: ${a.tickMsSeen.join(', ')} ms`);
+/* THE JOURNALLING CHANGE, MEASURED RATHER THAN ASSUMED. `meta.w` landed on
+   2026-09-18; every row written before it is `waste: null` and keeps the old
+   inference. This line is how we see the field actually reach production. */
+console.log(`pairs whose window carried meta.w (${JOURNALLED_WINDOW_TERMS.join(' + ')}): `
+  + `${a.withWaste}, of which ${a.provenWithWaste} proven`);
+if (a.withWaste === 0) {
+  console.log('   (none yet — either the read predates the field or the edge has not been deployed)');
+}
 
 if (a.unaccounted.length) {
   console.log(`\n${a.unaccounted.length} "unaccounted" pairs — the window's ms minus its deferral is NOT a`);
   console.log('whole number of its own ticks, which means the simulation spent time on something');
-  console.log(`the journal does not record. The missing terms are exactly: ${CHEAP_ADDITIONS.join(', ')}.`);
+  console.log(`the journal does not record: ${JOURNALLED_WINDOW_TERMS.join(', ')}. Rows written since`);
+  console.log('2026-09-18 carry both as meta.w and are judged rather than bucketed; these are older.');
   for (const u of a.unaccounted.slice(0, 5)) {
     console.log(`   · ${new Date(u.at).toISOString()} ${u.kind}: ms=${u.spanMs} ticks=${u.ticks} deferral=${u.deferral} accounted=${u.accounted} (accounted/ticks=${(u.accounted / u.ticks).toFixed(3)})`);
   }

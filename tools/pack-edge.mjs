@@ -513,6 +513,54 @@ export async function versionQueryGuard() {
   return problems;
 }
 
+/* ── 'tick' IS NOT AN EDGE CALLER (Security, 2026-09-18) ────────────────────
+   `caller: 'tick'` buys an exemption from ACCRUE_MIN_MS: a 10 s window is
+   payable under it. That is correct for the world tick — a server loop with no
+   client on the other end, whose cadence the server itself sets — and it is a
+   sliver-payment engine for anything a client can call, where the cadence is
+   whatever the attacker's loop does. The tick service (`services/world-tick/`)
+   is NOT part of any edge payload and must not become one by a call site
+   quietly labelling itself 'tick'.
+
+   The fence is structural and it bites at PACK time, i.e. before a deploy can
+   happen, because that is the last point where "what actually ships" is a
+   readable list of files. `accrualCaller`'s runtime token fences a body-borne
+   caller; this fences a SOURCE-borne one written by a future edge author.
+   Split as a pure function so a test can mutation-prove it in-process without
+   writing a hostile file to disk. */
+export function tickCallerProblems(files) {
+  const out = [];
+  for (const f of files) {
+    const src = String(f.src || '')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    if (/\bcaller\s*:\s*['"]tick['"]/.test(src)) {
+      out.push(`${f.name}: spells \`caller: 'tick'\` — the ACCRUE_MIN_MS exemption that makes a `
+        + `10 s window payable. 'tick' belongs to services/world-tick (a server loop the server `
+        + `clocks), never to a handler a client can call at whatever cadence it likes. Use `
+        + `'accrue', or 'collect' if the pointer is about to be replaced.`);
+    }
+  }
+  return out;
+}
+
+/** The disk half of the above: every shippable source under supabase/functions. */
+export async function tickCallerGuard() {
+  const files = [];
+  const exts = new Set(['.js', '.ts', '.mjs']);
+  async function walk(dir) {
+    let entries = [];
+    try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) { await walk(p); continue; }
+      if (!exts.has(e.name.slice(e.name.lastIndexOf('.')))) continue;
+      files.push({ name: toPosix(relative(ROOT, p)), src: await readFile(p, 'utf8') });
+    }
+  }
+  await walk(FUNCTIONS);
+  return tickCallerProblems(files);
+}
+
 /** Every function directory that has an entrypoint. */
 export async function functionNames() {
   try {
@@ -525,7 +573,7 @@ export async function functionNames() {
 export async function runAll() {
   const names = await functionNames();
   /* Tree-wide, so it is reported once rather than once per function. */
-  const problems = await versionQueryGuard();
+  const problems = [...(await versionQueryGuard()), ...(await tickCallerGuard())];
   for (const n of names) {
     /* Only functions that actually vendor from src/ are in scope. A function
        with no local imports (bug-report-bridge) packs to itself and has nothing
@@ -547,7 +595,8 @@ if (import.meta.url === new URL(`file://${(process.argv[1] || '').split(sep).joi
 
   if (args.includes('--check')) {
     const problems = fn
-      ? [...(await versionQueryGuard()), ...(await check(fn)).map((p) => `[${fn}] ${p}`)]
+      ? [...(await versionQueryGuard()), ...(await tickCallerGuard()),
+         ...(await check(fn)).map((p) => `[${fn}] ${p}`)]
       : await runAll();
     if (problems.length) {
       console.error('pack-edge --check FAILED:');

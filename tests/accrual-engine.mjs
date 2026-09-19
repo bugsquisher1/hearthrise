@@ -3473,9 +3473,51 @@ async function shapeGuard() {
   }
   ok(s.delta.journal?.kind === 'combat' && s.delta.journal?.intent === 'accrue',
     'SHAPE: the journal row must name kind=combat / intent=accrue');
-  ok(typeof s.delta.journal?.meta === 'object'
-     && Object.keys(s.delta.journal.meta).length <= 8,
-    'SHAPE: the journal meta must be an aggregate, not a per-kill log (game_events: 1.6M rows from six players)');
+  /* ── THE JOURNAL META: AN ALLOWLIST, NOT A COUNT (rewritten 2026-09-18) ────
+     This was `Object.keys(meta).length <= 8` measured on ONE sample, and the
+     sample was an away window with neither an attended split nor a consumable
+     burn — so the bound was never exercised against the shape it was written
+     for. The combat meta's WORST case on 2026-09-18 is
+       ms, ticks, kills, capped, ate, att, spent, w, from, to  = TEN keys,
+     and it was NINE before `w` landed. A count that a real row can exceed while
+     the guard passes is not a bound; an ALLOWLIST is, because a per-kill log
+     cannot be spelled without a key that is not on it. Both are asserted: an
+     unknown key fails, and so does a row longer than the enumerated list.
+
+     WHY THE NUMBER MAY MOVE FROM 9 TO 10, with the arithmetic rather than a
+     shrug. The rule this guard enforces is "aggregate, never per-tick"
+     (game_events: 1.6M rows / 229 MB from six players in four days). `w` adds
+     NO ROWS - it is a <=24-byte scalar on a row that already exists, and it is
+     OMITTED when both its terms are zero, i.e. on every window with no death
+     and no idle time. Measured cadence: the 14-day production read behind
+     tests/fixtures/world-tick-real-windows.json is ~1.7k accrue rows for 5
+     users, i.e. ~24 rows/user/day. At 100x the live player base (500 active)
+     that is ~12k accrue rows/day; if EVERY one carried the widest form the
+     ceiling is ~290 KB/day (~105 MB/year), and the real figure is a small
+     fraction of that. The bound that matters - rows - is unchanged.
+
+     ⚠ The next key gets the same treatment: add it to META_KEYS with its
+       byte-and-rows arithmetic, or nest it inside an existing one the way
+       `att` is. Never just raise a number. */
+  const META_KEYS = ['ms', 'ticks', 'kills', 'capped', 'ate', 'att', 'spent', 'w', 'from', 'to'];
+  const metaProblems = (m) => {
+    const out = [];
+    if (typeof m !== 'object' || m === null || Array.isArray(m)) return ['meta is not an object'];
+    const keys = Object.keys(m);
+    for (const k of keys) if (!META_KEYS.includes(k)) out.push(`unknown meta key '${k}'`);
+    if (keys.length > META_KEYS.length) out.push(`${keys.length} keys > ${META_KEYS.length}`);
+    return out;
+  };
+  /* MUTATION PROOF, INLINE AND ALWAYS RUN. A guard that has never been red is
+     not a guard: the two shapes it exists to refuse are a per-kill log (an
+     unknown key) and an over-long row. If either of these came back clean the
+     assertion below would be decoration. */
+  ok(metaProblems({ ...s.delta.journal.meta, kill_log: [1, 2, 3] }).length > 0,
+    'SHAPE-selftest: the meta checker accepted a per-kill log key — it is not checking anything');
+  ok(metaProblems(Object.fromEntries(META_KEYS.concat('extra').map((k) => [k, 1]))).length > 0,
+    'SHAPE-selftest: the meta checker accepted a row longer than its own allowlist');
+  ok(metaProblems(s.delta.journal?.meta).length === 0,
+    `SHAPE: the journal meta must be an aggregate, not a per-kill log (game_events: 1.6M rows from six players): ${metaProblems(s.delta.journal?.meta).join('; ')}`);
   ok(typeof s.delta.accrued_to === 'string' && !Number.isNaN(Date.parse(s.delta.accrued_to)),
     'SHAPE: accrued_to must be an ISO timestamp');
 

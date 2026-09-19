@@ -48,15 +48,39 @@ import { settledWatermarkMs } from '../../supabase/functions/hr-accrue/accrual.j
 export const MISSING_FOR_VALUE_REPLAY = Object.freeze([
   'start_hp', 'start_max_hp', 'start_skills', 'start_equipment',
   'start_inventory', 'start_fight', 'start_consec_falls', 'start_buffs',
-  'seed', 'recover_ms', 'idle_ms',
+  'seed',
 ]);
 
-/* Of those, the two that are cheap, non-secret and would close the LARGEST
-   bucket below are `recover_ms` and `idle_ms`: they are already computed by the
-   simulation and thrown away at journal time, and without them a window that
-   contained a death is arithmetically indistinguishable from a window whose
-   watermark was computed wrongly. */
-export const CHEAP_ADDITIONS = Object.freeze(['recover_ms', 'idle_ms']);
+/* `recover_ms` and `idle_ms` CAME OFF that list on 2026-09-18. They were the
+   two cheap, non-secret terms that closed the largest unprovable bucket — the
+   simulation already computed them and the journal threw them away, so a window
+   containing a death was arithmetically indistinguishable from a window whose
+   watermark was computed WRONGLY. They now ride on the existing accrue journal
+   row as ONE comma-joined scalar `meta.w = "<recoverMs>,<idleMs>"` (accrual.js
+   windowWaste): no new rows, no new table, and the key is omitted entirely when
+   both terms are zero, so an ordinary window's row is byte-for-byte what it was.
+
+   ⚠ This did NOT make a value replay possible and must not be read as such.
+     The nine fields above are still missing, and `seed` never can be present
+     (hr_seed mixes a 256-bit secret behind RLS — S20). What `w` buys is the
+     WATERMARK replay: `accounted = ticks x interval + recoverMs + idleMs`
+     becomes an identity the ledger can be audited on instead of an inference
+     that breaks whenever a player dies. */
+export const JOURNALLED_WINDOW_TERMS = Object.freeze(['recover_ms', 'idle_ms']);
+
+/* `meta.w` → `{ recoverMs, idleMs }`, or null for a row that predates the field
+   (every row written before 2026-09-18) or whose value is not the exact shape.
+   STRICT on purpose: a half-parsed waste term would be worse than none, because
+   it would move a row OUT of the honest `unaccounted` bucket on bad arithmetic.
+   Old rows stay unprovable, which is the correct report. */
+export function parseWaste(v) {
+  if (typeof v !== 'string') return null;
+  const m = /^(\d+),(\d+)$/.exec(v);
+  if (!m) return null;
+  const recoverMs = Number(m[1]); const idleMs = Number(m[2]);
+  if (!Number.isSafeInteger(recoverMs) || !Number.isSafeInteger(idleMs)) return null;
+  return { recoverMs, idleMs };
+}
 
 export const BUCKETS = Object.freeze([
   'watermark_exact',    // the next window's `from` IS settledWatermarkMs of this one
@@ -83,6 +107,8 @@ export function toWindow(row) {
     atMs: t(row.at), fromMs, toMs,
     spanMs: ms(m.ms), ticks: ms(m.ticks) || 0,
     capped: m.capped === true,
+    /* null for every row written before 2026-09-18 — see parseWaste. */
+    waste: parseWaste(m.w),
     stopped: m.stopped == null ? null : String(m.stopped),
     gold: ms((m.delta || {}).g) || 0,
     items: (m.delta || {}).i || {},
@@ -119,16 +145,27 @@ export function replayStream(windows) {
     }
     if (!(prev.ticks > 0)) { out.push({ ...base, bucket: 'no_ticks' }); continue; }
     const accounted = prev.spanMs - deferral;
-    const tickMs = accounted / prev.ticks;
-    if (!(tickMs > 0) || !Number.isInteger(tickMs) || deferral >= tickMs) {
-      out.push({ ...base, bucket: 'unaccounted', accounted }); continue;
+    /* ── THE TWO ARITHMETICS, AND WHICH ROWS GET WHICH ────────────────────────
+       `accounted = ticks x interval + recoverMs + idleMs`. Rows written since
+       2026-09-18 carry the last two terms as `meta.w`, so the interval is
+       SOLVED rather than inferred, and a window that contained a death is
+       judged instead of bucketed. Rows without `w` keep EXACTLY the 2026-09-18
+       arithmetic (interval := accounted / ticks) and therefore keep landing in
+       `unaccounted` whenever recovery or idle time was in play — reporting an
+       old row as unprovable is the honest answer, not a gap to paper over. */
+    const w = prev.waste;
+    const paid = w ? accounted - w.recoverMs - w.idleMs : accounted;
+    const tickMs = paid / prev.ticks;
+    if (!(paid > 0) || !(tickMs > 0) || !Number.isInteger(tickMs) || deferral >= tickMs) {
+      out.push({ ...base, bucket: 'unaccounted', accounted, usedWaste: !!w }); continue;
     }
     const got = settledWatermarkMs(
       { nowMs: prev.toMs, grantMs: prev.spanMs, capped: prev.capped },
-      { ticks: prev.ticks }, tickMs, {},
+      { ticks: prev.ticks, recoverMs: w ? w.recoverMs : 0, idleMs: w ? w.idleMs : 0 },
+      tickMs, {},
     );
     out.push({
-      ...base, tickMs, accounted,
+      ...base, tickMs, accounted, usedWaste: !!w,
       bucket: got === cur.fromMs ? 'watermark_exact' : 'watermark_mismatch',
       expected: got, actual: cur.fromMs,
     });
@@ -168,6 +205,13 @@ export function analyzeRows(rows) {
     streams: streams.size,
     pairs: findings.length,
     byBucket, byKind,
+    /* How many of the replayed pairs could use the journalled `w` terms. On the
+       14-day production fixture this is 0 and says so: the field landed after
+       those rows were written. It is the number that tells us the journalling
+       change actually reached production, rather than an assumption that it
+       did. */
+    withWaste: findings.filter((f) => f.usedWaste).length,
+    provenWithWaste: findings.filter((f) => f.usedWaste && f.bucket === 'watermark_exact').length,
     mismatches: findings.filter((f) => f.bucket === 'watermark_mismatch'),
     unaccounted: findings.filter((f) => f.bucket === 'unaccounted'),
     tickMsSeen: [...new Set(findings.filter((f) => f.tickMs).map((f) => f.tickMs))].sort((a, b) => a - b),

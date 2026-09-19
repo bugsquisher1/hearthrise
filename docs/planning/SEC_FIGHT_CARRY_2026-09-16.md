@@ -580,3 +580,47 @@ Neither file has a client half, so neither needs to ride the daily cut.
 3. The IAP removal's `e5`/`e6` pin absolute counts (139/80). Any catalogue change
    applied between this review and the apply makes the file refuse — correct, and
    it means the file must be re-measured, not edited, if that happens.
+
+---
+
+## 2026-09-19 — Security review: `2026-09-19-lifetime-facts-off-the-ledger.sql`
+
+**Verdict: GO-WITH-CHANGES — both changes are already made on this branch**
+(`hr_backfill_lifetime_facts` §0 refusal, `GATE(c2)`, `GATE(R0d)`). With them the
+file closes S-LR-3, i.e. residual #1 above. **Required apply order:**
+`2026-09-17-attended-xp-on-settle.sql` → **this file**;
+`2026-09-18-ledger-rollup-currencies.sql` and
+`2026-09-18-retired-iap-catalogue-removal.sql` touch neither `hr_apply` nor
+`hr_claim_bounty__ungated`, so they are order-independent of it, and
+`tests/schema-apply-order.json` placing this file last satisfies the constraint.
+The dangerous case is already closed: applying this file FIRST raises in §0 on
+the missing `ATTENDED-XP SPAN STAMP (2026-09-17)` string, and the two files'
+`hr_apply` anchors are disjoint (attended-xp anchors on
+`accrued_to   = v_accrued,`, this file inside the hearthfind arm), so neither
+order can silently no-op.
+
+| # | Finding | State | Trigger | Blast radius | Sev |
+|---|---|---|---|---|---|
+| S-LF-1 | `hr_backfill_lifetime_facts()` is NOT idempotent once `hr_apply` has allocated a live find. Its `on conflict on constraint hearthfind_log_src_uq` does not cover `hearthfind_log_nth_uq`, so a re-run re-derives that find's ordinal from the (prunable) ledger by `row_number()` and takes an **uncaught `unique_violation`** — from a function the header advertises as re-runnable and that REVERSIBILITY leans on. | CONFIRMED (fixed here) | an operator re-runs the backfill after the first real find | operator-only (revoked from every role) and it aborts atomically — but if `hearthfind_log_nth_uq` were ever relaxed the same path double-numbers a live trophy across players | P2 |
+| S-LF-2 | Fact 1 (`count(distinct item_id)` over `hearthfind_log`) is correct only because A1 writes this find's row before A2 counts. Nothing asserted that ordering; a future restatement that reorders the arm makes the set read one LOW **silently**, withholding the full-set title from the player who just earned it. | CONFIRMED latent (fixed here) | any later `hr_apply` restatement reordering (ii-b)/(iv-b) | one player, wrong answer on a bragging surface, no error raised | P2 |
+| S-LF-3 | Ordinal race: `insert … on conflict do update … returning` holds the counter row's lock across the read and the write, so two finders of one trophy serialise and get distinct N; concurrent first-ever finders serialise on the PK instead. A replay of one intent id never re-enters the arm (the decision is cached at step (5)), and there is no observable gap — a rejected apply rolls the increment back with everything else. | CONFIRMED SAFE | — | — | — |
+| S-LF-4 | Fact 3 cannot be forged DOWN. `hr_apply`'s progress op is additive-only (`add` ≥ 0, `value = pp.value + v_n`); there is no set/decrement path, `progress_claim` moves only `state`, and `hr_progress_prune` deletes only `period_key <> ''` — this row is `period_key = ''`. No client-callable RPC chooses `kind`/`key` (the engine emits `ev:`-prefixed keys only), and no character-delete/reset RPC exists. Forging it UP only costs the attacker the beginner floor. | CONFIRMED SAFE | — | self-harm only | — |
+| S-LF-5 | Privacy: `hearthfind_log` is `select`-only to `authenticated` under `user_id = auth.uid()`; `hearthfind_ordinal` carries no client privilege at all (GATE(d)/(d2)/(d3) execute all three). The only cross-player datum is the finder's own N, a global aggregate already implied by the public `world_finds` board. No FK by design, so a character deletion never renumbers anyone — at the cost of orphaned `user_id` rows surviving an account deletion. | ACCEPTED, bounded | account deletion | none in-game; a GDPR-erasure sweep must include this table | P4 |
+| S-LF-6 | Availability: a `unique_violation` inside `hr_apply` is caught as `bad_delta` and the decision is STORED under the derived accrual idempotency key (only `version_conflict` releases it), so a duplicate ordinal would brick one character's accrual for up to 25 h. Unreachable while N is allocated rather than counted; S-LF-1's fix removes the one path that could manufacture the duplicate. | PLAUSIBLE, closed by construction | — | one character, ≤25 h | noted |
+
+Existing tests would NOT have caught S-LF-1 or S-LF-2: `GATE(c)` proved
+idempotency only in a fixture with zero live-allocated rows, and no guard read
+the two anchors' relative order. The guards added are `GATE(c2)` (re-runs the
+backfill with live rows present and fails unless it refuses *explicitly*, not
+with a constraint violation — the mutation proof) and `GATE(R0d)` (strpos
+ordering of the two exactly-once anchors). Exit codes read on this branch:
+`schema-drift` 0, `patch-chain-guard` 0, `apply-order-honesty` 0,
+`restore-census` 0, `hr-apply-final-body --selftest` 0 (5 mutations caught),
+`ledger-rollup --mutate` 0 (5 planted defects caught), `lane-done` 0.
+
+**Residual risks accepted:** (1) the `hr_apply` restatement debt stays at chain
+depth 2 — the paydown is Coordinator-side, authored from the live body, and
+authoring it here is the b484 class; (2) `live-hash-drift` is RED on `hr_apply`
+and `hr_claim_bounty__ungated` until the Coordinator re-measures after apply, as
+expected; (3) §6's behavioural gates have run only in the PGlite replay, not
+against production — the apply is their first real run, and they fail closed.

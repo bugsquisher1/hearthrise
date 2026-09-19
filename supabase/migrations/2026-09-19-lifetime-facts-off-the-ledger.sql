@@ -222,6 +222,27 @@ declare
   v_ord    bigint := 0;
   v_bounty bigint := 0;
 begin
+  -- (0) THE WINDOW IS CLOSED ONCE LIVE ALLOCATION HAS BEGUN. (Security review
+  --     2026-09-19, finding S-LF-1, CONFIRMED.) The header claims this function
+  --     is idempotent and safe to re-run. It is - but ONLY while every row in
+  --     hearthfind_log came from the backfill. The moment hr_apply grants one
+  --     find (src_ledger_id NULL, nth_ever ALLOCATED from hearthfind_ordinal) a
+  --     re-run re-derives that same find's ordinal from the LEDGER row it also
+  --     wrote, by `row_number()`, and inserts it again: `on conflict on
+  --     constraint hearthfind_log_src_uq` does not cover hearthfind_log_nth_uq,
+  --     so the re-run takes an UNCAUGHT unique_violation and aborts. Worse, if
+  --     the nth constraint were ever relaxed it would DOUBLE-NUMBER a live
+  --     trophy. Both modes are closed by refusing rather than by hoping the
+  --     operator remembers: the backfill exists for exactly one moment, the
+  --     apply, and after that the durable home IS the authority.
+  if exists (select 1 from public.hearthfind_log where src_ledger_id is null) then
+    raise exception 'hr_backfill_lifetime_facts: REFUSING - hearthfind_log already holds % live '
+                    'find row(s) allocated by hr_apply. The backfill window closed at apply time; '
+                    're-running it would re-derive their ordinals from the (prunable) ledger and '
+                    'either abort on hearthfind_log_nth_uq or double-number a live trophy.',
+                    (select count(*) from public.hearthfind_log where src_ledger_id is null);
+  end if;
+
   -- (1) THE FINDS. Ordered by (at, id) - the ledger's own primary key order - so
   --     the ordinal a veteran is backfilled with is the one they were told at
   --     the time, and a re-run produces the same numbering.
@@ -519,6 +540,20 @@ begin
                    || '          from public.player_ledger') > 0 then
     raise exception 'GATE(R0c): a ledger-counted lifetime read survives in hr_apply';
   end if;
+  -- (R0d) THE ALLOCATION MUST PRECEDE THE SET COUNT. (Security review
+  --       2026-09-19, finding S-LF-2.) Fact 1 is now `count(distinct item_id)`
+  --       over hearthfind_log, and it is correct ONLY because A1 has already
+  --       inserted THIS find's row when A2 runs - which is the meaning the
+  --       ledger version had (its journal row was written first too). If a
+  --       future restatement ever reorders the arm, the set silently reads one
+  --       LOW and the full-set title is withheld from the player who just
+  --       completed it - a wrong answer on a bragging surface, with no error.
+  --       The two anchors are exactly-once, so strpos is an exact ordering test.
+  if strpos(v_def, 'insert into public.hearthfind_log (user_id, slot, item_id, nth_ever)')
+       >= strpos(v_def, 'select count(distinct item_id) into v_hf_set')
+     or strpos(v_def, 'select count(distinct item_id) into v_hf_set') = 0 then
+    raise exception 'GATE(R0d): the durable find row is not written BEFORE the trophy-set count - the set reads one low and the full-set title is withheld from the player who earned it';
+  end if;
   if strpos(v_def, 'hr_apply restated 2026-09-14') = 0 then
     raise exception 'GATE(R1): hr_apply lost the 2026-09-14 restatement banner';
   end if;
@@ -663,6 +698,23 @@ begin
     if v_dup then
       raise exception 'GATE(b2): a SECOND find was recorded as the same Nth of one trophy - two players can share a bragging moment';
     end if;
+
+    -- (c2) THE BACKFILL WINDOW IS CLOSED. Two LIVE rows (src_ledger_id NULL)
+    --      now exist from (b1), which is exactly the state a single real find
+    --      produces. Before the S-LF-1 fix a re-run here re-derived their
+    --      ordinals from the ledger and aborted on hearthfind_log_nth_uq - an
+    --      uncaught unique_violation from a function the header advertises as
+    --      idempotent. It must now refuse EXPLICITLY, and the refusal is the
+    --      mutation proof that the guard bites.
+    begin
+      v_bf := public.hr_backfill_lifetime_facts();
+      raise exception 'GATE(c2): the backfill RAN with live allocated find rows present - it would re-number a trophy already handed to a player';
+    exception when others then
+      if sqlerrm like 'GATE(c2)%' then raise; end if;
+      if strpos(sqlerrm, 'REFUSING') = 0 then
+        raise exception 'GATE(c2): the backfill failed with the WRONG error (%) - expected an explicit refusal, not a constraint violation', sqlerrm;
+      end if;
+    end;
 
     -- (d) A PLAYER CANNOT READ ANOTHER PLAYER'S FOUND SET.
     perform set_config('request.jwt.claim.sub', v_uid2::text, true);

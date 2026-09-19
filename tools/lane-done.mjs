@@ -41,6 +41,19 @@ const STEPS = [
   // answers "can this go red". ~2 s, no database, no network.
   ['node', ['tests/settle-carry-defer.mjs']],
   ['node', ['tests/settle-carry-defer.mjs', '--mutate']],
+  // The 90-day ledger retention, PROVEN BY RUNNING IT (2026-09-18). hr_ledger_prune
+  // is scheduled hourly and has never deleted a row — player_ledger_rollup = 0 rows
+  // and the oldest ledger row is 27 days old, so the first real fire is ~2026-11-21.
+  // Same shape as the game_events incident, where the cron row existed and the
+  // retention still did not work. This replays the chain, manufactures the aged rows
+  // production will not have for two months, runs the prune exactly as cron calls it,
+  // and asserts conservation / an exact boundary / an idempotent second run / that no
+  // per-day spending ceiling in any RPC moves across the prune. Both arms per RULE 5.
+  // It replays the migration chain (~2 arms x chain), so it lives in the per-lane
+  // runner for the same reason utc-midnight-replay does; its CI home is the db-replay
+  // job (tests/guards-unregistered.json).
+  ['node', ['tests/ledger-rollup.mjs']],
+  ['node', ['tests/ledger-rollup.mjs', '--mutate']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on

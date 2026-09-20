@@ -153,6 +153,16 @@ alter table auth.users add column if not exists role text;
  *        that was never planted is decoration. Used by the mutation proof.
  * @param {boolean} [opts.tolerant] collect failures instead of throwing on the
  *        first one, so a diagnostic run reports the whole cascade.
+ * @param {Map<string,string>} [opts.seedBefore] filename -> SQL executed
+ *        IMMEDIATELY BEFORE that migration is applied, against the database the
+ *        chain has built so far. It exists for ONE job: putting rows a real
+ *        database would hold in front of a migration's self-check, so a block
+ *        that reaches past its own probe rows is VISIBLE to a credential-free
+ *        replay. (2026-09-20: a self-check pruned every player's player_ledger
+ *        and schema-drift was green, because the replay's journal contained
+ *        nothing but the block's own fixture.) A seeded file is treated exactly
+ *        like a patched one for the snapshot prefix, so the seed always lands
+ *        BEFORE its file runs and never inside the cached prefix.
  * @param {string}  [opts.upTo] STOP after applying this migration filename
  *        (inclusive). A batch's own guard uses this to validate the database as
  *        of ITS migration, isolated from a LATER GLOBAL batch that would mask its
@@ -162,7 +172,7 @@ alter table auth.users add column if not exists role text;
  *        chain, so a stale upTo cannot silently boot the whole thing.
  * @returns {Promise<{db:any, applied:string[], failures:{file:string,error:string}[]}>}
  */
-export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
+export async function bootReplay({ patches, seedBefore, tolerant = false, upTo } = {}) {
   let PGlite;
   try { ({ PGlite } = await import('@electric-sql/pglite')); }
   catch {
@@ -227,6 +237,15 @@ export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
     }
   }
 
+  if (seedBefore) {
+    for (const name of seedBefore.keys()) {
+      if (!files.some(([n]) => n === name)) {
+        const e = new Error(`seedBefore names a file not in the chain: "${name}"`);
+        e.harness = true; throw e;
+      }
+    }
+  }
+
   if (upTo !== undefined && !files.some(([name]) => name === upTo)) {
     const e = new Error(`bootReplay upTo names a file not in the chain: "${upTo}"`);
     e.harness = true; throw e;
@@ -249,7 +268,10 @@ export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
   // restored from a snapshot thereafter, keyed on the exact SQL TEXT of every
   // file in it. `tolerant` opts out: that mode exists to REPORT a cascade of
   // apply failures, and a prefix that is skipped is a cascade nobody sees.
-  const cut = tolerant ? 0 : prefixLength(files, patches ? patches.keys() : [], upTo);
+  // A seeded file must not be inside the cached prefix — the seed has to run
+  // before it, and the prefix is restored whole. Same treatment as a patch.
+  const cutNames = [...(patches ? patches.keys() : []), ...(seedBefore ? seedBefore.keys() : [])];
+  const cut = tolerant ? 0 : prefixLength(files, cutNames, upTo);
   const usePrefix = cut >= MIN_PREFIX_FILES;
   const applied = [];
   const failures = [];
@@ -260,6 +282,14 @@ export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
     // Wrapped, because that is how a file is applied on this project: atomically.
     // A self-check `raise` must abort the whole file, not leave half installed.
     await d.exec(`begin;\n${sources.get(name)}\ncommit;`);
+  };
+
+  // The seed is its OWN transaction, committed before the file runs: a seed
+  // folded into the file's transaction would roll back with a failed apply and
+  // the row it planted would vanish along with the evidence.
+  const seed = async (d, name) => {
+    if (!seedBefore || !seedBefore.has(name)) return;
+    await d.exec(seedBefore.get(name));
   };
 
   let db;
@@ -328,6 +358,7 @@ export async function bootReplay({ patches, tolerant = false, upTo } = {}) {
     // Wrapped, because that is how a file is applied on this project: atomically.
     // A self-check `raise` must abort the whole file, not leave half installed.
     try {
+      await seed(db, name);
       await db.exec(`begin;\n${sources.get(name)}\ncommit;`);
       applied.push(name);
     } catch (err) {

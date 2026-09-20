@@ -3,7 +3,8 @@
 -- A LIFETIME FACT MAY NOT LIVE IN A TABLE WITH A 90-DAY RETENTION.
 --
 -- STATUS: STAGED, NOT APPLIED - REVIEW ONLY. The Coordinator applies after a
--- Security GO (fact 2 is a RANKED/bragging surface that crosses players). It
+-- FRESH Security GO (fact 2 is a RANKED/bragging surface that crosses players,
+-- and Section 6 was rewritten after the 2026-09-20 refusal below). It
 -- must be applied AFTER 2026-09-08-hearthfind.sql, 2026-08-29-bounty-first-
 -- contract.sql, 2026-09-11-bounty-hunter-xp.sql and 2026-09-14-hr-apply-
 -- restatement.sql; Section 0 fails closed on each and tests/schema-apply-
@@ -117,6 +118,34 @@
 -- EDGE: unchanged. The accrual engine proposes a hearthfind; it does not count
 -- one. No redeploy. CLIENT: unchanged - hr_state_of is not touched and no
 -- projection moves.
+--
+-- -- THE 2026-09-20 REFUSAL, AND WHAT SECTION 6 NOW DOES --------------------
+-- The first apply attempt FAILED and rolled back atomically, with no damage:
+--   ERROR 23514  player_ledger row is inside the 90 day retention window and
+--                cannot be deleted
+--   CONTEXT      hr_ledger_immutable() ... "delete from public.player_ledger
+--                where at < now() - interval '1 day'" ... inline_code_block:177
+-- Section 6's step "(a) THE PRUNE" simulated the 90-day retention by deleting
+-- EVERY row in player_ledger older than one day. On the PGlite replay chain the
+-- journal holds nothing but the probe rows the block itself writes, so the
+-- statement looked scoped and schema-drift never saw it; on production it is a
+-- blanket delete over every player's money history. TWO defects, not one:
+--   1. it cannot run where hr_ledger_immutable is armed and real rows exist -
+--      the trigger correctly refuses a delete inside the retention window; and
+--   2. far worse, a self-check must not touch a row it did not create, rolled
+--      back or not. The trigger refusing is LUCK, not design: every fixture row
+--      was dated 120-200 days back, i.e. OUTSIDE the window and therefore
+--      deletable, so a production ledger that had reached its first prune date
+--      would have had its aged tail silently deleted by a passing self-check.
+-- Section 6 now: derives the cut from hr_ledger_config (the policy in force,
+-- not a hard-coded interval), proves hr_ledger_immutable is ARMED before it
+-- prunes anything, prunes ONLY `user_id in (v_uid, v_uid2)`, and carries a
+-- BYSTANDER CANARY - the count of prunable rows belonging to anyone else, taken
+-- before and re-read after - so the scope is asserted rather than believed.
+-- The standing guard is tests/selfcheck-no-global-dml.mjs, which reads the
+-- whole chain for this class; tests/schema-drift.mjs now seeds the replay with
+-- real-looking bystander rows and requires them to survive, so the replay can
+-- see what it could not see on 2026-09-19.
 -- ============================================================================
 
 -- -- 0. PRECONDITIONS - fail closed ------------------------------------------
@@ -473,6 +502,8 @@ declare
   v_nth0    bigint; v_nth1 bigint;
   v_fc0     boolean; v_fc1 boolean;
   v_led_set bigint; v_led_nth bigint; v_led_fc boolean;
+  v_keep    int;    v_cut timestamptz;
+  v_byst0   bigint; v_byst1 bigint; v_armed boolean;
   v_rows0   bigint; v_rows1 bigint;
   v_n1      bigint; v_n2 bigint;
   v_dup     boolean := false;
@@ -590,16 +621,35 @@ begin
       values (v_uid, v_slot, 0, 0, 0), (v_uid2, v_slot, 0, 0, 0)
       on conflict (user_id, slot) do nothing;
 
-    -- A VETERAN'S HISTORY, entirely older than any retention window: two
-    -- distinct trophies (one of them found twice) and three bounty turn-ins.
+    -- THE RETENTION POLICY IN FORCE, READ RATHER THAN ASSUMED. hr_ledger_prune
+    -- derives its cut from hr_ledger_config.retain_days and hr_ledger_immutable
+    -- refuses a delete on the wrong side of the SAME number, so a fixture dated
+    -- by a hard-coded '200 days' silently moves INSIDE the window the day
+    -- retention is raised past 200 - and this block then fails on the trigger
+    -- rather than on a defect. The extra second matches the slack
+    -- hr_ledger_prune already takes so the two never argue about the boundary.
+    select retain_days into v_keep from public.hr_ledger_config;
+    v_cut := now() - make_interval(days => coalesce(v_keep, 90)) - interval '1 second';
+
+    -- THE BYSTANDER CANARY, TAKEN FIRST. Every row this block is ABOUT belongs
+    -- to v_uid/v_uid2. Every other prunable row in player_ledger belongs to a
+    -- real player and is their money history. This is the count the prune below
+    -- may not move; (a5) re-reads it. Bounded to the rows a delete could
+    -- actually reach - the retention tail - so it is a PK range scan on
+    -- (at, id) and not a full count of the journal.
+    select count(*) into v_byst0 from public.player_ledger
+      where at < v_cut and user_id not in (v_uid, v_uid2);
+
+    -- A VETERAN'S HISTORY, entirely older than the retention window in force:
+    -- two distinct trophies (one of them found twice) and three bounty turn-ins.
     insert into public.player_ledger (user_id, slot, kind, intent, item_id, qty, gold, meta, at) values
-      (v_uid, v_slot, 'hearthfind', 'hearthfind', 'probe_trophy_a', 1, 0, '{}'::jsonb, now() - interval '200 days'),
-      (v_uid, v_slot, 'hearthfind', 'hearthfind', 'probe_trophy_b', 1, 0, '{}'::jsonb, now() - interval '150 days'),
-      (v_uid, v_slot, 'hearthfind', 'hearthfind', 'probe_trophy_a', 1, 0, '{}'::jsonb, now() - interval '120 days');
+      (v_uid, v_slot, 'hearthfind', 'hearthfind', 'probe_trophy_a', 1, 0, '{}'::jsonb, v_cut - interval '40 days'),
+      (v_uid, v_slot, 'hearthfind', 'hearthfind', 'probe_trophy_b', 1, 0, '{}'::jsonb, v_cut - interval '30 days'),
+      (v_uid, v_slot, 'hearthfind', 'hearthfind', 'probe_trophy_a', 1, 0, '{}'::jsonb, v_cut - interval '20 days');
     insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at) values
-      (v_uid, v_slot, 'bounty', 'bounty_turnin:p1', 0, '{}'::jsonb, now() - interval '200 days'),
-      (v_uid, v_slot, 'bounty', 'bounty_turnin:p2', 0, '{}'::jsonb, now() - interval '180 days'),
-      (v_uid, v_slot, 'bounty', 'bounty_turnin:p3', 0, '{}'::jsonb, now() - interval '160 days');
+      (v_uid, v_slot, 'bounty', 'bounty_turnin:p1', 0, '{}'::jsonb, v_cut - interval '40 days'),
+      (v_uid, v_slot, 'bounty', 'bounty_turnin:p2', 0, '{}'::jsonb, v_cut - interval '35 days'),
+      (v_uid, v_slot, 'bounty', 'bounty_turnin:p3', 0, '{}'::jsonb, v_cut - interval '30 days');
 
     v_bf := public.hr_backfill_lifetime_facts();
     if coalesce((v_bf->>'finds')::bigint, 0) < 3 then
@@ -636,9 +686,53 @@ begin
         v_set0, v_led_set, v_nth0, v_led_nth, v_fc0;
     end if;
 
-    -- (a) THE PRUNE. Every ledger row older than a day is deleted - what the
-    --     90-day retention will do on ~2026-11-21, only sooner.
-    delete from public.player_ledger where at < now() - interval '1 day';
+    -- (a-pre) THE TRIGGER IS ARMED WHILE THIS RUNS. hr_ledger_immutable is what
+    --     makes the scoped delete below safe: it permits a row only OUTSIDE the
+    --     retention window, which is the same permission hr_ledger_prune's own
+    --     delete relies on. If a future body ever drops or widens it, (a) would
+    --     quietly become an unguarded delete, so it is proved here, on a probe
+    --     row inside the window, before anything is pruned. The refusal is the
+    --     mutation proof; `v_armed` false is the defect.
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at)
+      values (v_uid, v_slot, 'shop', 'probe_in_window', 0, '{}'::jsonb, now() - interval '1 hour');
+    v_armed := false;
+    begin
+      delete from public.player_ledger
+       where user_id = v_uid and slot = v_slot and intent = 'probe_in_window';
+    exception when check_violation then v_armed := true;
+    end;
+    if not v_armed then
+      raise exception 'GATE(a-pre): an IN-WINDOW ledger row was DELETABLE - hr_ledger_immutable is not armed, so the prune below proves nothing about a real retention prune';
+    end if;
+
+    -- (a) THE PRUNE, SCOPED TO THE PROBE CHARACTERS AND TO NOTHING ELSE. What
+    --     the retention prune will do on ~2026-11-21, applied to the rows this
+    --     block created. Three properties hold at once:
+    --       - the predicate names v_uid/v_uid2, so no real player's ledger row
+    --         is deleted, committed or rolled back (the 2026-09-20 defect);
+    --       - the cut is the POLICY's own (v_cut, from hr_ledger_config), so
+    --         the probe is pruned by the rule in force rather than by an
+    --         interval that can drift away from it; and
+    --       - hr_ledger_immutable stays ARMED for the statement, proved by
+    --         (a-pre). These rows are permitted for exactly the reason
+    --         hr_ledger_prune's rows are: they are outside the window.
+    --     hr_ledger_prune() is NOT called here. Its predicate is `at < v_cut`
+    --     with no owner column, so every call reaches every player's rows, and
+    --     a self-check may not touch a row it did not create. The function's own
+    --     conservation properties are proved in 2026-09-18-ledger-rollup-
+    --     currencies.sql; what this gate needs is only that the journal stops
+    --     answering, and a probe-scoped delete is that, exactly.
+    delete from public.player_ledger
+     where user_id in (v_uid, v_uid2) and at < v_cut;
+
+    -- (a5) THE CANARY READS BACK. The assertion that would have caught the
+    --      2026-09-20 blanket delete on the database it was aimed at.
+    select count(*) into v_byst1 from public.player_ledger
+      where at < v_cut and user_id not in (v_uid, v_uid2);
+    if v_byst1 <> v_byst0 then
+      raise exception 'GATE(a5): the prune deleted % ledger row(s) belonging to REAL players (% -> %) - a self-check may not touch the money journal',
+        v_byst0 - v_byst1, v_byst0, v_byst1;
+    end if;
 
     select count(distinct item_id) into v_set1 from public.hearthfind_log
       where user_id = v_uid and slot = v_slot;
@@ -760,6 +854,12 @@ begin
   end if;
   if exists (select 1 from public.player_ledger where user_id in (v_uid, v_uid2)) then
     raise exception 'GATE(z): fixture ledger rows survived the rollback';
+  end if;
+  -- The backfill writes fact 3 into player_progress, so the leak check has to
+  -- name that table too - otherwise a probe character's lifetime turn-in
+  -- counter is residue nothing looks for.
+  if exists (select 1 from public.player_progress where user_id in (v_uid, v_uid2)) then
+    raise exception 'GATE(z): fixture player_progress rows survived the rollback';
   end if;
   if exists (select 1 from public.player_state where user_id in (v_uid, v_uid2)) then
     raise exception 'GATE(z): the fixture characters survived the rollback';

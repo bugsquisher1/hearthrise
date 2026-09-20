@@ -199,7 +199,8 @@ const DROP_CANARY = [
   `    -- (a5) THE CANARY READS BACK. The assertion that would have caught the
     --      2026-09-20 blanket delete on the database it was aimed at.
     select count(*) into v_byst1 from public.player_ledger
-      where at < v_cut and user_id not in (v_uid, v_uid2);
+      where at < v_cut
+        and user_id is distinct from v_uid and user_id is distinct from v_uid2;
     if v_byst1 <> v_byst0 then
       raise exception 'GATE(a5): the prune deleted % ledger row(s) belonging to REAL players (% -> %) - a self-check may not touch the money journal',
         v_byst0 - v_byst1, v_byst0, v_byst1;
@@ -367,6 +368,32 @@ const MUTATIONS = {
     patches: [['2026-09-18-ledger-rollup-currencies.sql', [[
       '    update public.hr_ledger_config set retain_days = 3650 where only_row;',
       '    -- scope narrowing removed by the mutation harness',
+    ]]]],
+  },
+  selfcheck_rollback_not_asserted: {
+    what: 'the ledger-rollup self-check stops rolling back, so its probe rows COMMIT into the money journal — the leak 2026-09-18 believed rather than asserted until GATE(z)',
+    // Drop the sentinel and the subtransaction ends normally: every probe
+    // player_ledger row, the rollup rows the prune wrote from them and the
+    // widened retention window all commit. Before GATE(z) the file's own notice
+    // still said "probe rows rolled back" and nothing contradicted it.
+    expect: 'replay',
+    patches: [['2026-09-18-ledger-rollup-currencies.sql', [[
+      "    raise exception 'HR918_ROLLBACK_OK';",
+      '    -- sentinel removed by the mutation harness: the block now COMMITS',
+    ]]]],
+  },
+  selfcheck_backfill_scope_dropped: {
+    what: 'the 2026-09-19 gate calls the backfill UNSCOPED again, so the self-check upserts player_progress for every character with a turn-in (S-LF-1)',
+    // GATE(a6) reads the function's own reported row counts; v_uid2 also has a
+    // turn-in, so an unscoped call reports 2 characters where the scope permits
+    // exactly 1. This is the arm that makes the scope a measurement rather than
+    // a comment.
+    expect: 'replay',
+    patches: [['2026-09-19-lifetime-facts-off-the-ledger.sql', [[
+      `    v_bf := public.hr_backfill_lifetime_facts(v_uid);
+    if coalesce((v_bf->>'finds')::bigint, 0) < 3 then`,
+      `    v_bf := public.hr_backfill_lifetime_facts();
+    if coalesce((v_bf->>'finds')::bigint, 0) < 3 then`,
     ]]]],
   },
   reopen_a11: {

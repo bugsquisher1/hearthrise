@@ -388,5 +388,30 @@ begin
     when others then
       if sqlerrm <> 'HR918_ROLLBACK_OK' then raise; end if;
   end;
-  raise notice 'ledger-rollup-currencies self-check PASSED (e1-e15 incl. e1b/e1c/e6b); probe rows rolled back';
+
+  -- (z) THE ROLLBACK IS ASSERTED, NOT BELIEVED. (Security review 2026-09-20,
+  --     section (c) and residual risk 5.) Everything above runs inside a
+  --     subtransaction closed by the HR918_ROLLBACK_OK sentinel, so the probe's
+  --     player_ledger rows, the player_ledger_rollup rows the prune wrote from
+  --     them, and the widened retention window all disappear when it unwinds.
+  --     That was TRUE and MEASURED, and nothing in this file said so - the
+  --     notice below claimed "probe rows rolled back" with no statement behind
+  --     it. 2026-09-19 proves its own rollback in its GATE(z); this one only
+  --     believed it. Six lines, outside the subtransaction, so a sentinel that
+  --     ever stops unwinding is a refusal rather than a committed probe row in
+  --     the money journal.
+  if exists (select 1 from public.player_ledger where user_id = v_u) then
+    raise exception 'GATE(z): % probe ledger row(s) SURVIVED the rollback - the self-check left rows in the money journal',
+      (select count(*) from public.player_ledger where user_id = v_u);
+  end if;
+  if exists (select 1 from public.player_ledger_rollup where user_id = v_u) then
+    raise exception 'GATE(z): % probe rollup row(s) SURVIVED the rollback',
+      (select count(*) from public.player_ledger_rollup where user_id = v_u);
+  end if;
+  if (select retain_days from public.hr_ledger_config) <> v_keep0 then
+    raise exception 'GATE(z): hr_ledger_config.retain_days is %, not the % this file found - the (b0) widening was not unwound',
+      (select retain_days from public.hr_ledger_config), v_keep0;
+  end if;
+
+  raise notice 'ledger-rollup-currencies self-check PASSED (e1-e15 incl. e1b/e1c/e6b); probe rows rolled back (GATE(z) asserted)';
 end $$;

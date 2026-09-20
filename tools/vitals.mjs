@@ -61,11 +61,26 @@ led as (
   from public.player_ledger l where l.at >= now() - interval '8 days' group by 1),
 mk as (select (posted_at at time zone 'UTC')::date as day, count(*) as listings from public.market_listings where posted_at >= now() - interval '8 days' group by 1),
 ms as (select (at at time zone 'UTC')::date as day, count(*) as sales from public.market_sales where at >= now() - interval '8 days' group by 1),
-rf as (select day, sum(n) as refused from public.hr_rejections where day >= ((now() at time zone 'UTC')::date - 8) group by 1)
+rf as (select day, sum(n) as refused from public.hr_rejections where day >= ((now() at time zone 'UTC')::date - 8) group by 1),
+-- COMPANION XP, read from player_progress rather than the ledger. hr_apply
+-- journals a progress op as a KEY NAME ONLY in meta.k (the game_events lesson:
+-- 1.6M rows / 229 MB from six players in four days), so the ledger cannot answer
+-- "did a pet earn anything today" and no other column here could. player_progress
+-- carries updated_at, which can. Security review 2026-09-20, finding S-PX-2:
+-- companion XP was at zero from the day it shipped until a player said so twice,
+-- and nothing in this table could have shown it. A feature at zero for two days
+-- is a P1 by definition (CLAUDE.md §3.4) — so it has to be countable.
+pet as (select (updated_at at time zone 'UTC')::date as day,
+               count(*) as pets_xp, sum(value) as pet_xp
+          from public.player_progress
+         where kind = 'stat' and key like 'companion_xp:%' and period_key = ''
+           and updated_at >= now() - interval '8 days' group by 1)
 select d.day, coalesce(plants,0) plants, coalesce(waters,0) waters, coalesce(harvests,0) harvests, coalesce(fights,0) fights, coalesce(deaths,0) deaths,
        coalesce(gathers,0) gathers, coalesce(crafts,0) crafts, coalesce(workers,0) workers, coalesce(buys,0) buys, coalesce(rooms,0) rooms, coalesce(claims,0) claims,
+       coalesce(pets_xp,0) pets_xp, coalesce(pet_xp,0) pet_xp,
        coalesce(listings,0) listings, coalesce(sales,0) sales, coalesce(refused,0) refused, coalesce(users,0) users
 from days d left join led using (day) left join mk using (day) left join ms using (day) left join rf using (day)
+         left join pet using (day)
 order by d.day desc`;
 
 // WHY a REFUSAL BREAKDOWN is a separate query and not more columns: the vitals
@@ -149,9 +164,12 @@ if (refusalsMode) {
   // looks broken to anyone who checks its exit code, and looks fine to anyone
   // who only reads the table. Fall off the end instead.
 } else {
-  const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','workers','buys','rooms','claims','listings','sales','refused','users'];
+  const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','workers','buys','rooms','claims','pets_xp','pet_xp','listings','sales','refused','users'];
   console.log(cols.map((c) => String(c).padStart(c === 'day' ? 10 : 8)).join(' '));
   for (const row of rows) console.log(cols.map((c) => String(row[c] ?? '').padStart(c === 'day' ? 10 : 8)).join(' '));
-  const zeroTwoDays = ['plants','fights','gathers','buys','claims'].filter((c) => rows.slice(0, 2).every((row) => Number(row[c]) === 0));
+  // pets_xp joins the zero-watch: it is the column S-PX-2 exists for, and a
+  // feature at zero for two days is a P1 by definition (CLAUDE.md §3.4). pet_xp
+  // is the running total and does not fall back to zero, so it is not watched.
+  const zeroTwoDays = ['plants','fights','gathers','buys','claims','pets_xp'].filter((c) => rows.slice(0, 2).every((row) => Number(row[c]) === 0));
   if (rows.length >= 2 && zeroTwoDays.length) console.log(`\nP1 by definition — zero for two days: ${zeroTwoDays.join(', ')}`);
 }

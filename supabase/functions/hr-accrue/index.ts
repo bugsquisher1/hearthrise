@@ -72,9 +72,12 @@
 import postgres from 'npm:postgres@3.4.5';
 import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested, CALLER_AUTHORITY } from './accrual.js';
 import { withAwayReceipt, receiptRescue } from './away-receipt.js';
-/* THE DORMANT COMPANION-XP ARM SWITCH. Threaded into computeAccrual's input as
-   `companionXpBacked` (A14-mirrored in set-activity.js). False → the engine
-   emits no companion_xp op; the client keeps awarding. One line to arm. */
+/* THE COMPANION-XP ARM SWITCH — ARMED (b550). Threaded into computeAccrual's
+   input as `companionXpBacked` (A14-mirrored in set-activity.js). TRUE → the
+   engine emits the companion_xp op and IS the only writer: the client half
+   returns on blobRetired(). While this was false NOTHING wrote companion XP and
+   every pet in the game sat at level 1 — the comment here said "the client keeps
+   awarding" long after that stopped being true, which is why it shipped. */
 import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
@@ -973,9 +976,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          there is no self-configuring-null concern beyond that.
          Mirrors set-activity.js field for field (A14). */
       combatStyle: st.combat_style ?? null,
-      /* THE COMPANION-XP ARM SWITCH (dormant). A deploy-time constant, NOT a
-         request value. False today → the engine writes no companion_xp op.
-         Mirrors set-activity.js field for field (A14). */
+      /* THE COMPANION-XP ARM SWITCH (ARMED, b550). A deploy-time constant, NOT
+         a request value. True today → the engine writes the companion_xp op and
+         is its only writer. Mirrors set-activity.js field for field (A14). */
       companionXpBacked: COMPANION_XP_SERVER_BACKED,
       /* THE PERMANENT PERK STACK. Server-owned unlock rows only — the room
          rung, the plot buildings, the property tier. `null` means the channel

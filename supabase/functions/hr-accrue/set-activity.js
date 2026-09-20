@@ -41,8 +41,9 @@
 // ============================================================================
 
 import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS, deltaHasValue, CALLER_AUTHORITY } from './accrual.js';
-/* THE DORMANT COMPANION-XP ARM SWITCH — mirrored from index.ts (A14): a collect
-   must price companion XP identically to an accrue over the same window. */
+/* THE COMPANION-XP ARM SWITCH (ARMED, b550) — mirrored from index.ts (A14): a
+   collect must price companion XP identically to an accrue over the same
+   window. */
 import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 /* THE RECOVERY REFUSAL'S ONE DEFINITION (rev. 3, Designer ruling 2026-09-08).
    Imported from the dual-runtime core rather than restated here, because the
@@ -930,7 +931,7 @@ export async function collectCurrentWindow(o) {
        family default — the pre-migration behaviour. Mirrors index.ts field for
        field (A14). */
     combatStyle: st.combat_style ?? null,
-    /* THE COMPANION-XP ARM SWITCH (dormant) — the SAME defect class A14 exists
+    /* THE COMPANION-XP ARM SWITCH (armed, b550) — the SAME defect class A14 exists
        for: a collect and an accrue over the same window must credit the pet the
        same, so the constant is threaded here too. Mirrors index.ts (A14). */
     companionXpBacked: COMPANION_XP_SERVER_BACKED,

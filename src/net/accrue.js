@@ -2427,17 +2427,20 @@ function noteServerBankCap(G, res) {
    at `res.companions` (2026-08-22-companion-record.sql):
      { equipped: <id>|null, owned: [<id>,…], xp: { <id>: <xp> } }
 
-   ⚠ ARM-GATED, unlike reconcileWorkers/reconcileBank. G.companions is CLIENT-
-   authored today (dormant) — the client awards XP, equips, and unlocks locally.
-   So this must run ONLY under the capstone arm (isBlobRetired), or it would
-   overwrite the live client roster and break dormant byte-parity. Dormant it is a
-   pure no-op ({mode:'dormant'}), so today's load path is byte-for-byte unchanged.
+   ⚠ ARM-GATED, unlike reconcileWorkers/reconcileBank. The capstone arm
+   (isBlobRetired) is the literal `true` now, so this RUNS and the server is the
+   authority for the roster: the client's own awardCompanionXp returns on
+   blobRetired() and authors nothing. The gate is kept because the dormant branch
+   is still the fail-closed path — dormant it is a pure no-op ({mode:'dormant'})
+   and the load path is byte-for-byte unchanged. Do not read "dormant" here as a
+   description of what ships: it is the branch nobody takes.
 
    THE STARTER FOX is owned by grammar (no unlock row server-side — see
    hr_companion_equip c_starter), so the projection's `owned` deliberately omits
    it; the union below re-adds it, exactly as ensureCompanionState seeds it. XP is
-   0 for any id the server has not written a companion_xp row for (the XP writer,
-   b434, is still dormant) — the same self-configuring default hr_perks_of uses;
+   0 for any id the server has not written a companion_xp row for (the engine's
+   companion_xp op, ARMED in b550, is the only thing that writes one) — the same
+   self-configuring default hr_perks_of uses;
    the pet then shows level 1, reconciled to server truth, never client-invented.
 
    FAIL-CLOSED on absence: no readable `res.companions` object → leave G.companions

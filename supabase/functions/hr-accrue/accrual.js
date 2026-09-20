@@ -137,7 +137,7 @@ import { companionBonus } from '../../../src/core/companion-perk.js';
    the hard-coded 0 it was while the server held no queue. WALL-CLOCK drain — the
    rule is BUFF_DRAIN_RULE in that module, named once. */
 import { buffQueueFromServer, buffBonusFor, activeBuffs } from '../../../src/core/buffs.js';
-/* THE COMPANION XP WRITER (dormant). companionSpanXp turns the equipped
+/* THE COMPANION XP WRITER (ARMED, b550). companionSpanXp turns the equipped
    companion + a role-matched action count into an INTEGER stat grant; it draws
    no rng, so away == live stays byte-identical. Gated by inp.companionXpBacked,
    which index.ts / set-activity.js thread from COMPANION_XP_SERVER_BACKED — so
@@ -830,7 +830,7 @@ export function liveBuffHost(get) {
   return { get buffs() { return get(); } };
 }
 
-/* ── THE COMPANION XP OP (dormant writer) ──────────────────────────────────
+/* ── THE COMPANION XP OP (the only writer, armed b550) ────────────────────
    Emit a `stat companion_xp:<id>` progress op crediting the equipped companion
    for the role-matched actions of this span. The equipped id + current xp are
    READ from the same server-owned perk state hr_perks_of returned
@@ -839,11 +839,13 @@ export function liveBuffHost(get) {
    collection / goal counters use it) and the 'companion_xp:' key is what
    hr_perks_of reads, so no schema or grant-hygiene change is needed.
 
-   ⚠ GATED, AND DORMANT BY DEFAULT. `inp.companionXpBacked` is threaded from
+   ⚠ GATED, AND ARMED (b550). `inp.companionXpBacked` is threaded from
      COMPANION_XP_SERVER_BACKED (src/core/companion-xp.js) by index.ts and
      set-activity.js. False → this returns [] → no op → hr_perks_of reads xp 0 →
-     level 1 → the base magnitude (today's behaviour, no regression). The op is
-     the ONE thing the arm switch turns on.
+     level 1 FOREVER, because the client half is retired and writes nothing. That
+     is not "today's behaviour, no regression"; it is the b550 bug Paione
+     reported twice. The op is the ONE thing the arm switch turns on, and it is
+     the ONE writer companion XP has.
 
    ⚠ DRAW-FREE. companionSpanXp is pure arithmetic over the finished summary, so
      appending this op moves no seeded roll — away and a live settle over the
@@ -1274,7 +1276,7 @@ export function accrueRested({ nowMs, restedAtMs, restedXp, libraryCap }) {
  *                writes today — moving that number would silently re-open the
  *                double-count 2026-09-01-kill-daily-credit.sql exists to close,
  *                on a RANKED surface. See docs/design/attended-loot-credit.md.
- *   companionXpBacked  the DORMANT arm switch for the companion XP writer,
+ *   companionXpBacked  the ARMED arm switch for the companion XP writer,
  *                threaded from COMPANION_XP_SERVER_BACKED (src/core/companion-xp.js)
  *                by index.ts AND set-activity.js (A14-mirrored). `true` → each
  *                accruer emits a `stat companion_xp:<equipped id>` op crediting
@@ -2576,7 +2578,7 @@ export function computeAccrual(input) {
      item dropped this span. Bounded by the monster's drop table (well under the
      op cap; COLLECTION-2 asserts a 20-distinct span stays under it). */
   for (const op of collectionProgressOps(collection, events)) progress.push(op);
-  /* THE COMPANION XP OP (dormant) — the equipped pet earns per KILL on the
+  /* THE COMPANION XP OP (armed, b550) — the equipped pet earns per KILL on the
      combat path, the same basis wireKillHook fires on live. Draw-free, gated. */
   for (const op of companionXpOps(inp, 'combat-kill', summary.kills)) progress.push(op);
 
@@ -3220,7 +3222,7 @@ function accrueGather(inp, span) {
   const itemDelta = Object.create(null);
   const events = [];
   const levelUps = [];
-  /* COMPANION XP BASIS (dormant writer). The count of yield addItem calls — the
+  /* COMPANION XP BASIS (armed writer, b550). The count of yield addItem calls — the
      exact seam wireAddItemForGather fires awardXpForRole('gather') on live. Not
      the summed qty: a double-yield is ONE addItem call and one companion award,
      the same on both sides. */
@@ -3389,7 +3391,7 @@ function accrueGather(inp, span) {
     if (perSkill) modal[perSkill] = stats[perSkill];
     for (const op of modalGoalOps(nowMs, modal, events)) progress.push(op);
   }
-  /* THE COMPANION XP OP (dormant) — the equipped pet earns per gather-yield
+  /* THE COMPANION XP OP (armed, b550) — the equipped pet earns per gather-yield
      action, the count wireAddItemForGather awards on live. Draw-free, gated. */
   for (const op of companionXpOps(inp, 'gather', companionActions)) progress.push(op);
 
@@ -3580,7 +3582,7 @@ function accrueArtisan(inp, span) {
   const itemDelta = Object.create(null);
   const events = [];
   const levelUps = [];
-  /* COMPANION XP BASIS (dormant writer). The count of produce addItem calls —
+  /* COMPANION XP BASIS (armed writer, b550). The count of produce addItem calls —
      the exact seam wireAddItemForGather fires awardXpForRole('artisan') on for
      an active recipe. A burnt_food output goes through addItem too, so a burn
      counts on both sides; an input CONSUMED goes through removeItem, so it does
@@ -3819,7 +3821,7 @@ function accrueArtisan(inp, span) {
      The bench's own dailies (cook / smith / craft) are already carried by
      goalProgressOps above as `ev:cooked` / `ev:smithed` / `ev:crafted`. */
   for (const op of modalGoalOps(nowMs, { levelups: levelUps.length }, events)) progress.push(op);
-  /* THE COMPANION XP OP (dormant) — the equipped pet earns per produce action,
+  /* THE COMPANION XP OP (armed, b550) — the equipped pet earns per produce action,
      the count wireAddItemForGather awards on live for an active recipe.
      Draw-free, gated. */
   for (const op of companionXpOps(inp, 'artisan', companionActions)) progress.push(op);

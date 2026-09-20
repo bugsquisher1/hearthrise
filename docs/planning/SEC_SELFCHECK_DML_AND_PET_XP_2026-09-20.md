@@ -505,3 +505,223 @@ behaviour, and I am not claiming either is an exploit.
 6. **Nothing here was verified against production.** No session access, by design. Everything
    marked "measured" was measured against the repo's own chain replay, which is the schema — not
    the live row population. The pre-apply SQL above is what closes that gap.
+
+---
+---
+
+# RE-VERIFY 2026-09-20
+
+**Reviewer:** security-engineer · **Branch under review:** `lane/b550-sec-changes` @ `edf6d5cd` (= `next`)
+**Diff read:** `git diff f2f8d7ab..edf6d5cd` — 19 files, +1770/−130, every hunk read.
+**Claimed commits:** `9d1ec0a9`, `3c14c8d4`, `56ef7e72`, `c38d177a`, `2be3cda3`, `edf6d5cd`.
+
+| | FINAL verdict |
+|---|---|
+| **1 — self-check scope (the production apply)** | **GO** |
+| **2 — companion XP credit surface (the edge deploy + the client ship)** | **GO** |
+
+**EDGE DEPLOY hr-accrue at pack hash 16fdcd2e1a6ab3ac5da14c03b40b789adc9d7a7215aa66538271fdc2aa9b89f7: GO**
+Verified in this worktree: `node tools/pack-edge.mjs hr-accrue --hash` → `hr-accrue 16fdcd2e1a6ab3ac5da14c03b40b789adc9d7a7215aa66538271fdc2aa9b89f7`, byte-for-byte the hash named in the brief. Deploy, then confirm the live `payload_sha256` equals it before the push (CLAUDE.md §3.3).
+
+Every required change landed as specified. Two landed *better* than specified, and one
+recommendation I did not require (residual 5) was taken as well. **No proof test and no guard was
+weakened to get green, and I verified that rather than assuming it** — see "Was anything softened"
+below. Nothing behavioural rode along in the edge bundle: the diff on `accrual.js`, `index.ts`,
+`set-activity.js` and `src/net/accrue.js` is **comments only**, confirmed hunk by hunk.
+
+## Guards run here, on real exit codes
+
+| Command | Exit | What it said |
+|---|---|---|
+| `node tests/selfcheck-no-global-dml.mjs` | **0** | 202 migrations, all findings acknowledged with a written reason |
+| `node tests/selfcheck-no-global-dml.mjs --selftest` | **0** | 16 planted defects caught, 5 negative controls silent |
+| `node tests/selfcheck-no-global-dml.bypass.mjs` | **0** | `all 10 shapes are seen` — A×3, B×4, C×2, D×1 |
+| `node tests/companion-xp.mjs` | **0** | `ARMED — both-path totals identical (combat 14854, gather 9090, artisan 11365 xp attended == away)`; clamps at the L30 cap 792,783; disarmed control emits nothing |
+| `node tests/schema-drift.mjs` | **0** | repo rebuilds to the committed fingerprint `f6dab0d81414…` |
+| `node tests/ledger-rollup.mjs --mutate` | **0** | all 5 planted defects caught |
+| `node tests/lifetime-facts-reapply.mjs` | **0** | first apply green; one live find closes the file for good (S-LF-3 still true) |
+| `node tools/pack-edge.mjs hr-accrue --hash` | **0** | hash matches the brief |
+
+`@electric-sql/pglite` was not present in this container; `npm install` (devDependencies, no paid
+spend) installed it before the three chain-replay guards ran, so those three are measured, not assumed.
+
+## Verdict 1 — each required change, re-read in the diff
+
+| Required change | Landed | Where, and what makes it stick |
+|---|---|---|
+| **S-LF-1** scope the §6 backfill calls | **yes — both options, not one** | `hr_backfill_lifetime_facts(p_user uuid default null)` `:261`, with the scope applied at all three writing steps (`:318`, `:329`, `:347`) and **not** to `src`, so `row_number()` still numbers a find among every finder — a scoped call cannot renumber a cross-player ordinal. Both §6 calls pass `v_uid` (`:694`, `:721`). *And* the option-2 waiver: `ACKNOWLEDGED` gains a `scoped-by-proof` entry with three `proof` strings, pinned `sites: 2` (`:841-842`). |
+| …and it is **measured**, not asserted | **yes, and this is the part I did not ask for** | New `GATE(a6)` (`:700-708`) reads the function's own reported counts against a **second probe character seeded with a turn-in** (`v_uid2`, `:688`) — so "the scope held" is a statement that can be FALSE on a fresh replay, not only on a production journal. Backed by a new `schema-drift` mutation arm `selfcheck_backfill_scope_dropped`. Without `:688` the gate would have been unfalsifiable; they saw that and said so at `:684-686`. |
+| **GATE(c)** global `count(*)` scoped | **yes** | `:720`, `:723` — both counts now `where user_id in (v_uid, v_uid2)`. |
+| **S-LR-2** NULL-blind canaries | **yes, all four sites** | `2026-09-19:671`, `:793`; `2026-09-18:274`, `:345` — `is distinct from`, and `schema-drift`'s `DROP_CANARY` mutation text re-synced to match. |
+| **S-SC-1** families A–D | **yes** | `if (verb === 'update') continue;` is **gone**; `upserts()` classes `insert … select … on conflict do update` over a player-value table (C). `isScoped()` (`:542`) is rebuilt on `ownerBinds()` (`:498`) + `argIsOwned()`: the owner column must be bound by `=`/`in(…)` to a term composed only of declared locals and bind vocabulary — a subselect refuses, an alien qualified column refuses, a top-level `OR` refuses (B). `executePayloads()` (`:211`) reads the literal `execute` runs instead of blanking it (A). Pass 2 iterates every body the file **installs and calls**, not only top-level `do $tag$` blocks (D). |
+| registered **only** once green | **yes, correctly sequenced** | `56ef7e72` adds `node tests/selfcheck-no-global-dml.bypass.mjs` to `.github/workflows/smoke.yml` and `tests/ci-shape.baseline.json` in the same commit that turned it green — the b512 rule honoured, not skirted. |
+| **S-SC-2** `main()` on import | **yes** | `IS_ENTRY` entry-point check (`:1211`); the stray `selfcheck-no-global-dml: OK —` line is gone from the bypass proof's output. |
+| **S-UM-1** probe in a copy | **yes, with a standing regression** | `schema-replay.mjs:72` honours `HR_MIGRATIONS_DIR`; `utc-midnight-replay.mjs withPlantedChain()` builds a temp chain of **symlinks** with the one mutated file real, and `assertChainIntact()` re-reads the tracked migration after the probe and after every mutation arm. The tracked file is never opened for writing, so there is no `finally` for a SIGKILL to skip. Measured live in this run: the probe reported `the §4 block takes its transaction timestamp 13.97 s after process start`, i.e. the child genuinely read the planted **copy**, so the plumbing is not decorative. |
+| **S-LF-3** one-shot written down | **yes, in both places I offered** | File header `2026-09-19-…:13-23` (`⚠ ONE-SHOT. APPLY IT ONCE.`) **and** the `tests/schema-apply-order.json` note. |
+| **S-LR-4** hold time in the apply note | **yes** | `schema-apply-order.json`, 2026-09-18 entry, closing paragraph — including the `set local` GUC instruction if `hr_ledger_prune` ever gains a config write. |
+| *(residual 5 — recommended, not required)* | **taken** | `2026-09-18-…:395-413` adds `GATE(z)`: probe `player_ledger` rows, probe `player_ledger_rollup` rows and `hr_ledger_config.retain_days` are all re-read **outside** the subtransaction, so the rollback that file used to believe is now asserted. New mutation arm `selfcheck_rollback_not_asserted` drops the sentinel and is caught. |
+
+### `hr_backfill_lifetime_facts` gaining `p_user` — the question asked directly
+
+**Who can call it: nobody a client can be.** `revoke execute … from public, anon, authenticated,
+service_role` on the **new** signature (`:360`, correctly re-spelled `(uuid)`); `GATE(a)`
+(`:550-551`) asserts `has_function_privilege` is false for `authenticated` and `anon` on
+`hr_backfill_lifetime_facts(uuid)`; `grep -rn "grant .*hr_backfill" supabase/` returns **nothing**,
+so no role is granted it at all; it is not in `hr_client_rpc_baseline`; and no caller exists in
+`src/**` or `supabase/functions/**` — every call site in the repo is SQL inside the migration itself
+or test text.
+
+**Can a client pass another user's id? No, on two independent grounds.** It cannot reach the
+function. And if it could, `p_user` only ever **narrows** a write: every branch is
+`p_user is null or <owner> = p_user`, the unscoped behaviour is the pre-existing one, and all three
+writes derive their values from *that user's own* ledger rows through `on conflict … do nothing`
+(step 1) or `greatest()` (steps 2 and 3). There is no argument that raises another player's counter
+or inserts a row from forged input — the worst a forged `p_user` could do is re-derive a victim's
+own true facts. `hearthfind_ordinal` is the one cross-player surface it writes, and it is raise-only
+by `greatest()`, so a scoped call cannot lower a global ordinal.
+
+> ### S-RV-1 · the signature move is an overload hazard on a database that already has the old one · CONFIRMED · LOW · process, not code
+> `create or replace function public.hr_backfill_lifetime_facts(p_user uuid default null)` (`:261`)
+> does not replace a pre-existing zero-argument `hr_backfill_lifetime_facts()` — it creates a second
+> function. **Measured by execution** (PGlite, this session): creating the overload is *allowed*,
+> and the subsequent `select public.f()` then fails with `function public.f() is not unique`. On
+> production that would abort §2's own call (`:366`) — and therefore the whole file, atomically.
+>
+> This is **fail-closed and not a blocker**: nothing half-lands, no player value moves, and the
+> file is staged-not-applied so the expected path has no old overload. Pre-apply check #1 already
+> catches the ordinary version of this (the table would exist). I am adding a direct check as
+> **#0** below because it is one line and it names the fix, rather than leaving the Coordinator to
+> diagnose `is not unique` mid-apply.
+
+*Nit, not a finding:* `tests/restore-census.baseline.json:1112` still spells the function
+`hr_backfill_lifetime_facts()` in prose. It is a note string, asserted by nothing. Fix it when that
+file is next re-pinned.
+
+## Verdict 2 — each required change, re-read in the diff
+
+| Required change | Landed | Where |
+|---|---|---|
+| **S-PX-1** the fifteen stale comments | **yes, all of them** | `index.ts:75-80, 979-981`; `accrual.js:140, 833, 842, 1279, 2581, 3225, 3394, 3585, 3824`; `set-activity.js:44-46, 934`; `accrue.js:2430-2443`. Re-grepped the four files for `dormant` / `client keeps awarding` / `client awards` / `CLIENT-authored`: **every surviving hit is about a different, genuinely dormant arm** (the absolute-replace inventory flip, the ammo-carry column, the gold-proc path) or is an explicit correction. `src/core/companion-xp.js:37-57` now carries the whole story — that the client writer was already dead, that this switch kept the server writer dead too, and that the result was every pet frozen at level 1. That is the root-cause class closed, which is why I required it. |
+| **S-PX-2** companion XP visible in vitals | **yes, exceeded** | `tools/vitals.mjs` gains the `pet` CTE over `player_progress kind='stat' key like 'companion_xp:%' period_key=''` on `updated_at`, and `pets_xp` / `pet_xp` columns — *and* `pets_xp` is added to the **zero-for-two-days P1 watch**, which I did not ask for and which is the half that actually makes the feature un-ignorable. `pet_xp` is correctly left out of the watch (a running total does not return to zero). |
+| no behaviour change in the bundle | **confirmed** | The entire diff on the four files is comment text. The arm itself (`COMPANION_XP_SERVER_BACKED`) was already `true` at `f2f8d7ab`; this lane changed no logic on the credit path. |
+
+The Verdict-2 chain itself is unchanged since the original review and I re-read the table's
+load-bearing rows rather than re-deriving them: the equipped id still comes from
+`player_state.companion_equipped` behind `hr_companion_equip`'s ownership gate, `currentXp` still
+from `player_progress` in the same transaction, `hr_perks_of` and `hr_apply` are still not
+client-executable, and `companionSpanXp` still draws no rng. Residual risks 1–3 stand as accepted.
+
+## Was anything softened to get green? — No. Here is how I know.
+
+* **`tests/selfcheck-no-global-dml.bypass.mjs` is byte-identical to the file I wrote when it was
+  red 10/10.** `git diff 76c11d87..edf6d5cd -- tests/selfcheck-no-global-dml.bypass.mjs` is
+  **empty**. The same ten shapes, the same assertion, the same exit contract — it went from "10 of
+  10 INVISIBLE, exit 1" to "all 10 seen, exit 0" because **the guard moved, not the proof**. This is
+  the single strongest fact in this re-verify.
+* **Every line removed from the guard is replaced by something strictly stronger.** I read the
+  removals specifically for this: `if (verb === 'update') continue;`, the `BIND_WINDOW = 90`
+  proximity heuristic, the "any mention of `user_id|clan_id|owner_id` in the predicate counts as
+  scoped" shortcut, and the DO-blocks-only container loop are all **deleted**, not relaxed.
+* **No acknowledgement was widened.** `ACKNOWLEDGED` went from 5 entries to 6; the five originals
+  are unchanged, and the sixth is the `scoped-by-proof` waiver for the two unscoped calls I read,
+  pinned at `sites: 2` with a `countDrift` check so a third call is reported rather than absorbed.
+  `--selftest` carries an arm for exactly that (`family C — a THIRD unscoped call`) and a negative
+  control asserting a *scoped* call is **not** counted as a site.
+* **No mutation arm was deleted.** `schema-drift.mjs` gained two arms and lost none;
+  `ledger-rollup.mjs --mutate` still catches all five.
+* **`schema-drift.baseline.json` was re-pinned minimally.** Only the digest, the date and the one
+  function signature line changed; `relations: 121` and `functions: 296` are **unmoved**, so the
+  re-pin carries no smuggled schema change.
+* **No test was disabled or skipped**, and `tests/guards-unregistered.json` gained an entry
+  (`lifetime-facts-reapply.mjs`) while the bypass proof's entry was removed on registration — the
+  ledger of unregistered guards moved in the honest direction.
+
+## Apply order, and the pre-apply read-only SQL
+
+The order below is the chain's own recorded order (`tests/schema-apply-order.json` positions
+196/197/198) and it matches the original verdict's "narrower change first". **Note it is not the
+order named in the re-verify brief** — `2026-09-19` is LAST in the chain and must stay last; it is
+also the one-shot. One file per `node tools/apply-migration.mjs` call, never inside `begin/commit`,
+never during 00:00–00:10 UTC, Coordinator only (CLAUDE.md §2).
+
+```
+1. 2026-09-18-ledger-rollup-currencies.sql        # rollup currencies + the narrowed prune proof
+2. 2026-09-18-retired-iap-catalogue-removal.sql   # independent of both; may go before, between or after
+3. 2026-09-19-lifetime-facts-off-the-ledger.sql   # ONE-SHOT. LAST. apply it once, ever.
+```
+
+Prefer a low-traffic window for step 3: S-LF-1's scoping removed the two extra full-table passes
+from the gates, but §2's legitimate unscoped backfill still holds `hearthfind_ordinal` and
+`player_progress` write locks for the length of the transaction, and S-LR-4's `hr_ledger_config`
+row lock applies to step 1.
+
+After step 1 and after step 3: `node tests/live-hash-drift.mjs --live --write` plus the whys, flip
+the apply-order note to APPLIED, and `node tools/restore-census.mjs` to classify `hearthfind_log`
+and `hearthfind_ordinal` (CLAUDE.md §3.3 lane C).
+
+**Pre-apply read-only SQL.** Six now — #0 is new from this re-verify, #1–#5 are unchanged and still
+correct.
+
+```sql
+-- 0. S-RV-1 (NEW, re-verify 2026-09-20): is there a LEFTOVER zero-argument overload?
+--    Must return 1 row, 'hr_backfill_lifetime_facts()' absent. If both signatures come back,
+--    the new file's §2 call aborts with "function ... is not unique" — drop the old one first:
+--      drop function public.hr_backfill_lifetime_facts();
+select p.oid::regprocedure::text as signature
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = 'hr_backfill_lifetime_facts';
+
+-- 1. S-LF-3: is the 2026-09-19 file still appliable at all? Must be 0 rows / relation absent.
+--    ANY row here means a trophy has already been allocated live and §2 will refuse the apply.
+select to_regclass('public.hearthfind_log') as hearthfind_log_exists,
+       (select count(*) from public.hearthfind_log where src_ledger_id is null) as live_finds;
+
+-- 2. 2026-09-18 (e0): does ANY real ledger row predate the widened 3650-day window?
+--    Non-zero REFUSES the apply. Run it first so that is a decision, not a surprise.
+select count(*) as rows_past_3650d
+  from public.player_ledger
+ where at < now() - interval '3650 days'
+   and user_id is distinct from '00000000-0000-4000-c000-00000000f18a'::uuid;
+
+-- 3. The retention policy both files derive their cut from, and the canary's size.
+select c.retain_days,
+       (select count(*) from public.player_ledger
+         where at < now() - make_interval(days => coalesce(c.retain_days, 90))) as prunable_tail
+  from public.hr_ledger_config c;
+
+-- 4. S-LR-2 / the canaries' blind spot: must be 0, and must be 0 for the NOT NULL reason.
+select count(*) as null_owner_ledger_rows from public.player_ledger where user_id is null;
+select is_nullable from information_schema.columns
+ where table_schema='public' and table_name='player_ledger' and column_name='user_id';
+
+-- 5. §2's blast radius, so the hold time on the apply is a known number rather than a guess.
+select (select count(*) from public.player_progress
+         where kind='stat' and key='bounty_turnins' and period_key='') as progress_rows_touched,
+       (select count(*) from public.player_ledger
+         where kind='hearthfind' and item_id is not null)                as finds_to_backfill;
+```
+
+Expected: (0) one row, `hr_backfill_lifetime_facts(p_user uuid)` only — or **no** rows on a first
+apply · (1) `null` / 0 · (2) `0` · (3) `90`, and a `prunable_tail` of 0 until ~2026-11-21 · (4) `0`
+and `NO` · (5) informational. **A non-zero (1) or (2), or a zero-arg overload in (0), is a stop, not
+a warning.**
+
+## After the edge deploy
+
+S-PX-2 is closed in code, so use it: run `node tools/vitals.mjs` the day after the deploy and
+confirm `pets_xp` is non-zero. A zero there on two consecutive days is now a P1 the table states by
+itself — which is the whole point of the column, and the thing that was missing when every pet in
+the game sat at level 1 and only Paione noticed.
+
+## Residual risks accepted (additions to the original six)
+
+7. **`p_user uuid default null` defaults to the GLOBAL call.** A forgotten argument is the wide
+   behaviour, not the narrow one — the less safe default. It has to be, because §2's legitimate
+   backfill is the unscoped call. The compensating control is real and mechanical: the
+   `ACKNOWLEDGED` entry is pinned at `sites: 2`, a third unscoped call anywhere in that file is
+   reported as open, and `--selftest` has an arm proving it.
+8. **S-RV-1's overload hazard is mitigated by a pre-apply check, not by the file.** The file could
+   `drop function if exists public.hr_backfill_lifetime_facts();` before the create and close it
+   in code. It does not, and I am not requiring it: the failure is atomic and fail-closed, and
+   editing a staged migration to guard a state that pre-apply SQL #0 rules out would add risk
+   rather than remove it.

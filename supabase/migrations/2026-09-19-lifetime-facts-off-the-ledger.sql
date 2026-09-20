@@ -244,7 +244,7 @@ create policy hearthfind_log_read_own on public.hearthfind_log
 
 -- -- 2. THE BACKFILL - a function, so the migration and GATE(a)/(c) run the
 -- --    SAME code rather than two drafts of it ---------------------------------
-create or replace function public.hr_backfill_lifetime_facts()
+create or replace function public.hr_backfill_lifetime_facts(p_user uuid default null)
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $$
 declare
   v_finds  bigint := 0;
@@ -284,6 +284,12 @@ begin
       from public.player_ledger l
      where l.kind = 'hearthfind' and l.item_id is not null
   ), ins as (
+    -- p_user SCOPES THE WRITE, never the ordinal. (Security review 2026-09-20,
+    -- finding S-LF-1.) `src` stays global so row_number() still numbers a find
+    -- by its place among EVERY finder - the ordinal is a cross-player fact and
+    -- a scoped call must not renumber it - while only the named character's
+    -- rows are inserted. A self-check may then exercise the real code without
+    -- touching a row it did not create.
     insert into public.hearthfind_log (user_id, slot, item_id, nth_ever, found_at, src_ledger_id)
     select s.user_id, s.slot, s.item_id,
            -- Prefer the ordinal the player was SHOWN, if the journal recorded
@@ -295,6 +301,7 @@ begin
                         and (m.meta->>'nth_ever') is not null limit 1), s.rn),
            s.at, s.id
       from src s
+     where p_user is null or s.user_id = p_user
     on conflict on constraint hearthfind_log_src_uq do nothing
     returning 1
   )
@@ -304,7 +311,9 @@ begin
   --     so a backfill executed after the first prune cannot renumber anybody.
   with upd as (
     insert into public.hearthfind_ordinal (item_id, found_total, updated_at)
-    select item_id, max(nth_ever), now() from public.hearthfind_log group by item_id
+    select item_id, max(nth_ever), now() from public.hearthfind_log
+     where p_user is null or user_id = p_user
+     group by item_id
     on conflict (item_id) do update
       set found_total = greatest(public.hearthfind_ordinal.found_total, excluded.found_total),
           updated_at  = now()
@@ -321,6 +330,7 @@ begin
     select l.user_id, l.slot, 'stat', 'bounty_turnins', count(*), '', now()
       from public.player_ledger l
      where l.kind = 'bounty' and l.intent like 'bounty_turnin:%'
+       and (p_user is null or l.user_id = p_user)
        and exists (select 1 from public.player_state ps
                     where ps.user_id = l.user_id and ps.slot = l.slot)
      group by l.user_id, l.slot
@@ -333,7 +343,7 @@ begin
   return jsonb_build_object('finds', v_finds, 'ordinals', v_ord, 'characters', v_bounty);
 end $$;
 
-revoke execute on function public.hr_backfill_lifetime_facts()
+revoke execute on function public.hr_backfill_lifetime_facts(uuid)
   from public, anon, authenticated, service_role;
 
 do $$
@@ -523,8 +533,8 @@ begin
      or has_function_privilege('anon','public.hr_bounty_first_contract(uuid,integer)','execute') then
     raise exception 'GATE(a): hr_bounty_first_contract is client-executable - a client could probe another character''s history';
   end if;
-  if has_function_privilege('authenticated','public.hr_backfill_lifetime_facts()','execute')
-     or has_function_privilege('anon','public.hr_backfill_lifetime_facts()','execute') then
+  if has_function_privilege('authenticated','public.hr_backfill_lifetime_facts(uuid)','execute')
+     or has_function_privilege('anon','public.hr_backfill_lifetime_facts(uuid)','execute') then
     raise exception 'GATE(a): the backfill is client-executable';
   end if;
   if has_function_privilege('authenticated','public.hr_claim_bounty__ungated(integer)','execute') then
@@ -637,8 +647,14 @@ begin
     -- may not move; (a5) re-reads it. Bounded to the rows a delete could
     -- actually reach - the retention tail - so it is a PK range scan on
     -- (at, id) and not a full count of the journal.
+    -- `is distinct from`, not `not in`: `user_id not in (…)` is NULL for a row
+    -- with a NULL owner, which excludes it from BOTH counts and would let such
+    -- a row be deleted with the canary reporting no change (Security review
+    -- 2026-09-20, finding S-LR-2). player_ledger.user_id is NOT NULL today, so
+    -- this is one column default away from mattering and costs nothing now.
     select count(*) into v_byst0 from public.player_ledger
-      where at < v_cut and user_id not in (v_uid, v_uid2);
+      where at < v_cut
+        and user_id is distinct from v_uid and user_id is distinct from v_uid2;
 
     -- A VETERAN'S HISTORY, entirely older than the retention window in force:
     -- two distinct trophies (one of them found twice) and three bounty turn-ins.
@@ -650,16 +666,47 @@ begin
       (v_uid, v_slot, 'bounty', 'bounty_turnin:p1', 0, '{}'::jsonb, v_cut - interval '40 days'),
       (v_uid, v_slot, 'bounty', 'bounty_turnin:p2', 0, '{}'::jsonb, v_cut - interval '35 days'),
       (v_uid, v_slot, 'bounty', 'bounty_turnin:p3', 0, '{}'::jsonb, v_cut - interval '30 days');
+    -- A SECOND CHARACTER WITH A TURN-IN, so "the scoped call reached only v_uid"
+    -- is a statement that can be FALSE. Without it the backfill returns one
+    -- character row on a fresh replay whether it is scoped or not, and GATE(a6)
+    -- below would be a gate that can never be red (CLAUDE.md section 4).
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at) values
+      (v_uid2, v_slot, 'bounty', 'bounty_turnin:q1', 0, '{}'::jsonb, v_cut - interval '40 days');
 
-    v_bf := public.hr_backfill_lifetime_facts();
+    -- SCOPED (Security review 2026-09-20, finding S-LF-1). The unscoped call is
+    -- the file's WORK in section 2 and commits once; a SELF-CHECK may not touch
+    -- a row it did not create, rolled back or not, and the unscoped body upserts
+    -- player_progress for every character that has ever turned in a bounty.
+    v_bf := public.hr_backfill_lifetime_facts(v_uid);
     if coalesce((v_bf->>'finds')::bigint, 0) < 3 then
       raise exception 'GATE(backfill): the backfill carried % of 3 fixture finds', v_bf->>'finds';
     end if;
 
+    -- (a6) THE REACH. The function reports how many rows each step wrote, so
+    --      the scope is MEASURED rather than trusted: v_uid2 also has a turn-in
+    --      and must not appear. Remove `p_user` from any step and this is red
+    --      on the replay, not only on a production journal.
+    if coalesce((v_bf->>'characters')::bigint, 0) <> 1 then
+      raise exception 'GATE(a6): the scoped backfill wrote % turn-in counter row(s), expected 1 (the probe alone) - it reached past the character it was given',
+        v_bf->>'characters';
+    end if;
+    if coalesce((v_bf->>'ordinals')::bigint, 0) <> 2 then
+      raise exception 'GATE(a6): the scoped backfill wrote % trophy counter row(s), expected 2 (probe_trophy_a/_b) - it reached past the character it was given',
+        v_bf->>'ordinals';
+    end if;
+
     -- (c) IDEMPOTENT. A second run moves nothing.
-    select count(*) into v_rows0 from public.hearthfind_log;
-    v_bf := public.hr_backfill_lifetime_facts();
-    select count(*) into v_rows1 from public.hearthfind_log;
+    --     BOTH COUNTS ARE SCOPED (Security review 2026-09-20, section (d)): a
+    --     global count(*) is dominated by real rows on production, so the
+    --     equality would also be satisfied by a backfill that added and removed
+    --     the same number of rows. The unscoped re-run is not exercised here -
+    --     it is proved to REFUSE by GATE(c2) below, and by
+    --     tests/lifetime-facts-reapply.mjs.
+    select count(*) into v_rows0 from public.hearthfind_log
+      where user_id in (v_uid, v_uid2);
+    v_bf := public.hr_backfill_lifetime_facts(v_uid);
+    select count(*) into v_rows1 from public.hearthfind_log
+      where user_id in (v_uid, v_uid2);
     if v_rows1 <> v_rows0 or coalesce((v_bf->>'finds')::bigint, -1) <> 0 then
       raise exception 'GATE(c): the backfill is NOT idempotent - a second run added % rows (reported %)',
         v_rows1 - v_rows0, v_bf->>'finds';
@@ -728,7 +775,8 @@ begin
     -- (a5) THE CANARY READS BACK. The assertion that would have caught the
     --      2026-09-20 blanket delete on the database it was aimed at.
     select count(*) into v_byst1 from public.player_ledger
-      where at < v_cut and user_id not in (v_uid, v_uid2);
+      where at < v_cut
+        and user_id is distinct from v_uid and user_id is distinct from v_uid2;
     if v_byst1 <> v_byst0 then
       raise exception 'GATE(a5): the prune deleted % ledger row(s) belonging to REAL players (% -> %) - a self-check may not touch the money journal',
         v_byst0 - v_byst1, v_byst0, v_byst1;

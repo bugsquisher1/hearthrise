@@ -271,7 +271,7 @@ begin
     -- retention tail, so it is a PK range scan on (at, id), not a full count.
     select count(*) into v_byst0 from public.player_ledger
      where at < now() - make_interval(days => coalesce(v_keep0, 90))
-       and user_id <> v_u;
+       and user_id is distinct from v_u;   -- not `<>`: NULL-blind, S-LR-2
 
     update public.hr_ledger_config set retain_days = 3650 where only_row;
 
@@ -342,7 +342,7 @@ begin
     --      from a player table owes: the scope is asserted, not believed.
     select count(*) into v_byst1 from public.player_ledger
      where at < now() - make_interval(days => coalesce(v_keep0, 90))
-       and user_id <> v_u;
+       and user_id is distinct from v_u;   -- not `<>`: NULL-blind, S-LR-2
     if v_byst1 <> v_byst0 then
       raise exception 'e10b: the prune deleted % ledger row(s) belonging to REAL '
         'players (% -> %) - a self-check may not touch the money journal',

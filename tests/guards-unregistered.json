@@ -141,16 +141,6 @@
         ]
       }
     },
-    "selfcheck-no-global-dml.bypass.mjs": {
-      "reason": "SECURITY PROOF, EXPECTED RED (b550 review, finding S-SC-1). It plants ten global-DML shapes that tests/selfcheck-no-global-dml.mjs does not see — dynamic SQL through EXECUTE (string, format(), dollar-quoted), four fake-binding predicates that satisfy isScoped() while reaching every player's rows, a call to a chain function that globally UPDATEs a player-value table (pass 1 skips the UPDATE verb), and a self-check written as a pg_temp function rather than a `do $tag$` block (pass 2 reads only DO blocks). All ten slip today, so the file exits 1. DELIBERATELY NOT REGISTERED: a red step in smoke.yml makes the CI gate unreachable for every later build (CLAUDE.md §4, the b512 lesson). Register it in the SAME commit that closes the shapes and re-pin tests/ci-shape.baseline.json then — not before. It costs no database and ~1 s. The owner is the lane that wrote the guard.",
-      "owner": "security-engineer",
-      "disposition": "register-when-green",
-      "verified": {
-        "asserts": true,
-        "selftest": false,
-        "red_today": "10 of 10 shapes slipped, measured 2026-09-20"
-      }
-    },
     "lifetime-facts-reapply.mjs": {
       "reason": "family pglite-chain-replay, and a SECURITY PROOF rather than a standing gate (b550 review, finding S-LF-3). It replays the whole chain and then proves by execution that 2026-09-19-lifetime-facts-off-the-ledger.sql is ONE-SHOT on production: green on a second apply while no find is live, and refused outright by §2's unguarded hr_backfill_lifetime_facts() call the moment one hearthfind_log row carries src_ledger_id NULL. That is the safe direction and not a defect — it is a fact the apply order has to carry, because schema-drift replays a chain with no live finds and therefore cannot state it. Not registered for the same reason as the rest of this family: it boots PGlite and applies the whole chain, which CI already does once in the schema-drift step.",
       "family": "pglite-chain-replay",

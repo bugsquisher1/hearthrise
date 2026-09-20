@@ -2035,13 +2035,17 @@ jobs:
       # that is global by construction, must bind an owner column to a variable
       # the block declared — or carry a written acknowledgement here. Text-only,
       # no database, milliseconds; the executed half is schema-drift's bystander
-      # seed in db-replay. --selftest plants four defects plus a stale and an
-      # unused acknowledgement, with three negative controls.
+      # seed in db-replay. --selftest plants sixteen defects — one per bypass
+      # family from the 2026-09-20 security review (S-SC-1) — plus a stale and an
+      # unused acknowledgement, with five negative controls. The .bypass proof is
+      # the same ten shapes end to end; it went green with the families and is
+      # registered here in that commit, never before (CLAUDE.md §4, b512).
       - name: Self-checks may not delete a row they did not create
         if: ${{ !cancelled() }}
         run: |
           node tests/selfcheck-no-global-dml.mjs --selftest
           node tests/selfcheck-no-global-dml.mjs
+          node tests/selfcheck-no-global-dml.bypass.mjs
 
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}

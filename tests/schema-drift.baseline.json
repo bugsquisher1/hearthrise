@@ -6,8 +6,8 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-09-19",
- "digest": "50fac2b4054801d4c09d2798eac6c70f264d2515499bafafd5316600848834a2",
+ "generated": "2026-09-20",
+ "digest": "f6dab0d81414e2b46d312ecde23451c0d792556bc5ed0946fb5eb693e6340eaf",
  "counts": {
   "relations": 121,
   "functions": 296,
@@ -212,7 +212,7 @@
    "hr_attended_kills(p_user uuid, p_slot integer, p_upto timestamp with time zone)",
    "hr_auto_eat_max_pct(p_tier integer)",
    "hr_auto_eat_tier(p_user uuid, p_slot integer)",
-   "hr_backfill_lifetime_facts()",
+   "hr_backfill_lifetime_facts(p_user uuid)",
    "hr_bank_cap_for_rungs(p_rungs integer)",
    "hr_bank_cap_sync()",
    "hr_bank_move(p_slot integer, p_item text, p_qty bigint, p_dir text, p_idem uuid)",

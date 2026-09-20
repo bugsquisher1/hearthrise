@@ -168,6 +168,7 @@
     "node tests/no-client-copy-of-projection.mjs": "client-guards",
     "node tests/selfcheck-no-global-dml.mjs --selftest": "client-guards",
     "node tests/selfcheck-no-global-dml.mjs": "client-guards",
+    "node tests/selfcheck-no-global-dml.bypass.mjs": "client-guards",
     "node tests/guard-hygiene.mjs --selftest": "client-guards",
     "node tests/guard-hygiene.mjs": "client-guards",
     "node tests/edge-jwt-gate.mjs --strict": "edge",

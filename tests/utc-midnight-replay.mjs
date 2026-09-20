@@ -85,7 +85,8 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -94,7 +95,9 @@ const ROOT = join(HERE, '..');
 const SHIM = pathToFileURL(join(HERE, '_utc-clock-shim.mjs')).href;
 const REPLAY = join(HERE, 'schema-drift.mjs');
 
-const MIGRATION = join(ROOT, 'supabase', 'migrations', '2026-09-01-kill-daily-credit.sql');
+const MIGDIR = join(ROOT, 'supabase', 'migrations');
+const MIG_NAME = '2026-09-01-kill-daily-credit.sql';
+const MIGRATION = join(MIGDIR, MIG_NAME);
 /* The mutation the --selftest plants: UN-ANCHOR every §4 stamp, i.e. revert the
    whole class this guard polices in one edit. It is the literal one-line defect
    that is in this repo's history (GATE(f5) did not inherit GATE(f4)'s clamp). */
@@ -152,12 +155,13 @@ const ok = (label, cond, note = '') => {
   if (!cond) bad++;
 };
 
-function replayAt(offsetSeconds) {
+function replayAt(offsetSeconds, migDir = MIGDIR) {
   const r = spawnSync(process.execPath, ['--import', SHIM, REPLAY], {
     cwd: ROOT,
     encoding: 'utf8',
     env: {
       ...process.env,
+      HR_MIGRATIONS_DIR: migDir,
       HR_FAKE_UTC_OFFSET_S: String(offsetSeconds),
       // A restored snapshot never replays the chain, so a cached arm would
       // be green at every hour of the day and this guard would assert nothing.
@@ -166,6 +170,39 @@ function replayAt(offsetSeconds) {
   });
   const out = `${r.stdout || ''}${r.stderr || ''}`;
   return { code: r.status, out };
+}
+
+
+/* S-UM-1 (security review 2026-09-20). A chain whose ONE mutated file is a real
+   file and whose other 200 are symlinks to the tracked ones — built in the OS
+   temp directory, handed to the child through HR_MIGRATIONS_DIR, and removed
+   afterwards. The tracked migration is never opened for writing, so there is no
+   window in which a `raise exception` is sitting inside a checked-in migration
+   on the machine that also applies to production, and no `finally` that a
+   SIGKILL can skip. `assertChainIntact()` is the standing proof of that. */
+function withPlantedChain(text, run) {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-utc-chain-'));
+  try {
+    for (const f of readdirSync(MIGDIR)) {
+      if (f === MIG_NAME) writeFileSync(join(dir, f), text, 'utf8');
+      else symlinkSync(join(MIGDIR, f), join(dir, f));
+    }
+    return run(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/* The tracked file must be byte-identical to what it was when this run began.
+   It is the regression for the defect above: plant into MIGRATION again and
+   this is red. */
+const CHAIN_AT_START = readFileSync(MIGRATION, 'utf8');
+function assertChainIntact(where) {
+  if (readFileSync(MIGRATION, 'utf8') === CHAIN_AT_START) return true;
+  console.error(`  HARNESS: ${MIG_NAME} was MODIFIED ON DISK (${where}). A probe belongs in a copy, `
+    + 'never in a tracked migration — see S-UM-1.');
+  harness = 1;
+  return false;
 }
 
 /* Plant a probe, replay once, read the fixture's own now() out of the failure,
@@ -179,16 +216,9 @@ function probeFixtureDelay() {
   const original = readFileSync(MIGRATION, 'utf8');
   const at = original.indexOf(F5_MARK);
   if (at < 0) return { err: `could not find the GATE(f5) marker to plant the probe in ${MIGRATION}` };
-  writeFileSync(MIGRATION, original.slice(0, at) + PROBE_SQL + original.slice(at), 'utf8');
-  let out = '';
-  try {
-    out = replayAt(PROBE_OFFSET).out;
-  } finally {
-    writeFileSync(MIGRATION, original, 'utf8');
-    if (readFileSync(MIGRATION, 'utf8') !== original) {
-      return { err: 'the migration was NOT restored byte-for-byte after the probe' };
-    }
-  }
+  const planted = original.slice(0, at) + PROBE_SQL + original.slice(at);
+  const out = withPlantedChain(planted, (dir) => replayAt(PROBE_OFFSET, dir).out);
+  if (!assertChainIntact('after the probe')) return { err: 'the tracked migration was written to' };
   // Postgres renders the timestamp in the SESSION's TimeZone, which on a dev box
   // is the host zone (`… 19:30:06.613-06`), not UTC — so the zone offset is part
   // of what is parsed, never assumed.
@@ -243,16 +273,10 @@ function mutate(find, replace, offsets) {
     harness = 1;
     return null;
   }
-  writeFileSync(MIGRATION, original.split(find).join(replace), 'utf8');
-  try {
-    return offsets.map((o) => replayAt(o));
-  } finally {
-    writeFileSync(MIGRATION, original, 'utf8');
-    if (readFileSync(MIGRATION, 'utf8') !== original) {
-      console.error('  HARNESS: the migration was NOT restored byte-for-byte.');
-      harness = 1;
-    }
-  }
+  const planted = original.split(find).join(replace);
+  const res = withPlantedChain(planted, (dir) => offsets.map((o) => replayAt(o, dir)));
+  assertChainIntact('after a mutation arm');
+  return res;
 }
 
 async function selftest() {

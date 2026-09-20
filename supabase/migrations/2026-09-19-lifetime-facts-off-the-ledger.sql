@@ -10,6 +10,20 @@
 -- restatement.sql; Section 0 fails closed on each and tests/schema-apply-
 -- order.json places it last.
 --
+-- -- ⚠ ONE-SHOT. APPLY IT ONCE. (Security S-LF-3, 2026-09-20; proved by
+-- --   execution in tests/lifetime-facts-reapply.mjs) ------------------------
+-- Section 2 calls hr_backfill_lifetime_facts() UNSCOPED, and step (0) of that
+-- function REFUSES the moment hearthfind_log holds one row with src_ledger_id
+-- NULL - i.e. the moment hr_apply has allocated a single live find after this
+-- file arms it. That is the correct, fail-closed direction: a re-run would
+-- re-derive a live trophy's ordinal from the (prunable) ledger and either abort
+-- on hearthfind_log_nth_uq or double-number it. But the refusal comes from a
+-- bare `do $$` block with NO exception handler and no rollback sentinel, so a
+-- second apply ABORTS THE WHOLE FILE rather than reading as a gate message.
+-- tests/schema-drift.mjs replays a chain on which no find is ever live, so it
+-- cannot state this and never will. Nothing else in the repo says it either -
+-- which is why it is here and in tests/schema-apply-order.json.
+--
 -- -- THE FINDING (Security S-LR-3, 2026-09-19) --------------------------------
 -- THREE server functions answer LIFETIME questions by counting rows in
 -- public.player_ledger, which has a 90-DAY RETENTION. player_ledger_rollup is

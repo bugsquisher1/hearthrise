@@ -61,7 +61,17 @@ import { fileURLToPath } from 'node:url';
 import { bootTemplated, prefixLength, MIN_PREFIX_FILES } from './pglite-template.mjs';
 
 export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-const MIGDIR = join(ROOT, 'supabase', 'migrations');
+// HR_MIGRATIONS_DIR points a replay at a COPY of the chain. It exists so a
+// harness that needs to plant a probe in a migration can plant it in a copy
+// instead of in the tracked file (Security review 2026-09-20, finding S-UM-1:
+// tests/utc-midnight-replay.mjs wrote a `raise exception` INTO
+// supabase/migrations/2026-09-01-kill-daily-credit.sql and restored it in a
+// `finally` — which a SIGKILL, an OOM or a cancelled CI job does not run, on the
+// one machine that also runs tools/apply-migration.mjs). Unset in every normal
+// run, so the default is the tracked chain and nothing else changes.
+const MIGDIR = process.env.HR_MIGRATIONS_DIR
+  ? normalize(process.env.HR_MIGRATIONS_DIR)
+  : join(ROOT, 'supabase', 'migrations');
 
 export const MANIFEST_PATH = join(ROOT, 'tests', 'schema-apply-order.json');
 

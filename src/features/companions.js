@@ -15,13 +15,18 @@
 
 import { COMPANIONS } from '../data/companions.js?v=549';
 import { emit } from '../net/events.js?v=549';
-/* THE SERVER-OF-RECORD ARM SWITCH for companion XP. While false (DORMANT) the
-   client awards companion XP locally exactly as before. When flipped true, the
-   accrual engine becomes the sole writer (a `stat companion_xp:<id>` op priced
-   at settle/away) and the local award below MUST stop, or the two double-count:
-   the server accrues the same role-matched actions this client seam does. The
-   passive bonus already reads server companion XP through hr_perks_of, so under
-   arm the level shown reconciles to server truth. */
+/* THE SERVER-OF-RECORD ARM SWITCH for companion XP — ARMED. The accrual
+   engine is the sole writer (a `stat companion_xp:<id>` op priced at
+   settle AND away over the same role-matched actions this client seam counts),
+   so the local award below MUST stay off or the two double-count. The passive
+   bonus already reads server companion XP through hr_perks_of, so the level
+   shown reconciles to server truth on every envelope.
+
+   ⚠ THE OLD COMMENT HERE CLAIMED "while false the client awards locally". Not
+     true since the capstone retired the blob fork: `blobRetired()` is the literal
+     `true`, so `awardCompanionXp` already returned for every caller. With this
+     switch also false there was NO writer anywhere and every pet was frozen at
+     level 1 — Paione's live report. See src/core/companion-xp.js. */
 import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=549';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
@@ -193,20 +198,26 @@ export function getCompanionBonus() {
 // ── Mutations ──
 
 export function awardCompanionXp(amount) {
-  /* ⚠ SERVER-OF-RECORD GATE (dormant). When companion XP is server-backed the
-     accrual engine writes it (per role-matched action, at settle/away) and this
-     local award would DOUBLE-COUNT — so it no-ops entirely. The equipped pet's
-     level then comes from the server (hr_perks_of companion xp), reconciled on
-     the next envelope, never authored here. While dormant this is inert and the
-     client remains the writer, so there is no regression. */
+  /* ⚠ SERVER-OF-RECORD GATE — LIVE. The accrual engine writes
+     companion XP (per role-matched action, at settle AND away), so this local
+     award would DOUBLE-COUNT — it no-ops entirely. The equipped pet's level
+     comes from the server (hr_perks_of companion xp), reconciled on the next
+     envelope, never authored here. This is now the FIRST of two gates that both
+     return; see blobRetired below for why the second is not redundant. */
   if (COMPANION_XP_SERVER_BACKED) return;
   /* ⚠ ALSO GATED OFF UNDER THE BLOB-RETIRE ARM. Companion XP is a SERVER-OWNED
      aggregate (player_progress kind='stat' key='companion_xp:<id>') the accrual
-     engine writes, and under arm reconcileCompanions rebuilds G.companions.xp from
-     the envelope every load. A local award would be authored-then-discarded (the
-     blob is not uploaded under arm), so at best it makes the XP bar climb and then
-     snap back to server truth on the next envelope. The client renders server
-     state; it never authors an authoritative number. Dormant this is inert. */
+     engine writes, and reconcileCompanions rebuilds G.companions.xp from the
+     envelope every load. A local award would be authored-then-discarded (the blob
+     is not uploaded under arm), so at best it makes the XP bar climb and then snap
+     back to server truth on the next envelope. The client renders server state; it
+     never authors an authoritative number.
+
+     NOT REDUNDANT with the switch above, and it is kept deliberately: the two
+     gates answer different questions ("who writes companion XP" vs "is the blob
+     still the record"), and Paione's report is what a SINGLE gate looks like when
+     the other half silently moves — this one was load-bearing alone for dozens of
+     builds while the switch still claimed the client was writing. */
   if (blobRetired()) return;
   ensureState();
   const eq = window.G?.companions?.equipped;
@@ -1017,6 +1028,12 @@ export function setupCompanions() {
        companion really joined. */
     needsServerConfirm, requestServerUnlock, grantRefusalMessage,
     __setGrantRetryMs, __clearGrantBlocks, __parkGrants,
+    /* THE ARM, published READ-ONLY so the in-page regression suite can assert
+       that companion XP has a writer at all. It is a build-time constant
+       (src/core/companion-xp.js), not a setting: there is no setter here and the
+       suite must never be able to make the arm look on when the shipped bundle
+       has it off. */
+    SERVER_BACKED: COMPANION_XP_SERVER_BACKED,
   });
 
   // Hook into existing engine functions

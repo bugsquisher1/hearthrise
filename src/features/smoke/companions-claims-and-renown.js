@@ -3050,4 +3050,74 @@ export default [
     // Nothing the index already answered may regress.
     assert(/Dropped by/.test(window.itemSourceLine('big_bones') || ''), 'monster drops must still resolve');
   }),
+  /* PET-XP-SERVER-BACKED (regression suite) — Paione, live, twice: "the pets are
+     still not getting exp". Companion XP had two possible writers and BOTH were
+     off, so it had none: `awardCompanionXp` returns on `blobRetired()`, and the
+     engine's `companion_xp:<id>` op was gated on COMPANION_XP_SERVER_BACKED, which
+     shipped false while its header still called the client the live writer. No
+     stat row was ever written, so hr_state_of projected `xp: {}` and every pet sat
+     at level 1 forever — nothing earned and lost on reload; nothing earned at all.
+     MUTATION (proved): disarm the switch → (a) red here and companion-xp.mjs §1
+     exits 1; delete the `blobRetired()` return → (b) red; merge `xp` → (d) red. */
+  () => tryRun('PET-XP-SERVER-BACKED: companion XP has exactly one writer (the server), and a credited level survives the envelope', () => {
+    const CO = window.HearthriseCompanions;
+    const A = window.HearthriseAccrual;
+    if (!CO || !A || typeof A.reconcileCompanions !== 'function'
+        || typeof window.companionXpToReach !== 'function'
+        || typeof window.companionLevelFromXp !== 'function'
+        || typeof window.getCompanionBonus !== 'function'
+        || !window.COMPANIONS) { skip('no companion api'); return; }
+
+    // A pet with a real passive, from the catalogue so a rename cannot quietly
+    // turn this into an assertion about nothing.
+    const id = Object.keys(window.COMPANIONS).find((k) => {
+      const b = window.COMPANIONS[k] && window.COMPANIONS[k].bonus;
+      return b && Object.keys(b).some((key) => Number(b[key]) > 0);
+    });
+    if (!id) { skip('no companion carries a positive bonus'); return; }
+    const bonusKey = Object.keys(window.COMPANIONS[id].bonus).find((k) => Number(window.COMPANIONS[id].bonus[k]) > 0);
+
+    const snap = snapshotG();
+    try {
+      // (a) THE ARM — false here means no pet can gain XP at all.
+      assert(CO.SERVER_BACKED === true,
+        'THE BUG (Paione): companion XP is not server-backed and the client half is gated off, '
+        + 'so NOTHING writes companion_xp — every pet in the game is frozen at level 1 forever');
+
+      // (b) THE CLIENT AUTHORS NOTHING, or the two double-count. Real seam.
+      window.G.companions = { ownedIds: [id], equipped: id, xp: { [id]: 0 } };
+      if (typeof window.awardCompanionXp === 'function') window.awardCompanionXp(999999);
+      assert((window.G.companions.xp[id] || 0) === 0,
+        'the client authored companion XP while the server is the writer — the two would double-count, '
+        + 'and the bar would climb and then snap back on the next envelope');
+
+      // (c) A CREDITED LEVEL SURVIVES THE ENVELOPE AND THE RELOAD.
+      const l3 = window.companionXpToReach(3);
+      A.reconcileCompanions(window.G, { companions: { owned: [id], xp: { [id]: l3 }, equipped: id } });
+      assert((window.G.companions.xp[id] || 0) === l3,
+        'the envelope did not land the server XP: ' + (window.G.companions.xp[id] || 0) + ' vs ' + l3);
+      assert(window.companionLevelFromXp(window.G.companions.xp[id]) === 3,
+        'a pet the server says is level 3 must read as level 3');
+      const lifted = window.getCompanionBonus();
+      assert(Number(lifted[bonusKey]) > Number(window.COMPANIONS[id].bonus[bonusKey]),
+        'the levelled pet must pay MORE than its base ' + bonusKey + ' — the level is only real if it is priced');
+
+      // the reload: a second envelope carrying the same server truth.
+      A.reconcileCompanions(window.G, { companions: { owned: [id], xp: { [id]: l3 }, equipped: id } });
+      assert((window.G.companions.xp[id] || 0) === l3 && window.companionLevelFromXp(window.G.companions.xp[id]) === 3,
+        'THE PLAYER-VISIBLE SYMPTOM: the pet lost its level across a second envelope (a reload) — '
+        + 'server-credited XP must be durable, not a number the next envelope resets');
+
+      // (d) THE ENVELOPE REPLACES, NEVER MERGES UPWARD (CLAUDE.md §6).
+      window.G.companions.xp[id] = l3 * 4;
+      A.reconcileCompanions(window.G, { companions: { owned: [id], xp: { [id]: l3 }, equipped: id } });
+      assert((window.G.companions.xp[id] || 0) === l3,
+        'a client value ahead of the server SURVIVED the envelope (' + (window.G.companions.xp[id] || 0)
+        + ' vs ' + l3 + ') — the projection must replace, never merge upward');
+
+      A.reconcileCompanions(window.G, { state: {} });
+      assert((window.G.companions.xp[id] || 0) === l3 && window.G.companions.equipped === id,
+        'FAIL-CLOSED: a lean envelope with no companions key wiped the roster — absence is not a claim');
+    } finally { restoreG(snap); }
+  }),
 ];

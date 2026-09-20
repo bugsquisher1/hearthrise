@@ -34,14 +34,34 @@
 // channel: a settle over a span and an away replay of the same span produce a
 // byte-identical companion_xp op because they see the same counts.
 //
-// ── DORMANT BY DEFAULT ──────────────────────────────────────────────────────
-// COMPANION_XP_SERVER_BACKED is the single arm switch. While false, index.ts and
-// set-activity.js pass `companionXpBacked: false`, the engine emits NO
-// companion_xp op, hr_perks_of reads the stat row as 0 → level 1 → the base
-// magnitude (today's behaviour, no regression), and the client keeps awarding
-// into its own G.companions blob. Flipping it to true, redeploying hr-accrue and
-// bumping the client makes the server the sole writer AND gates the client's
-// award off (src/features/companions.js) so the two never double-count.
+// ── ARMED — AND WHY IT HAD TO BE ────────────────────────────────────────────
+// COMPANION_XP_SERVER_BACKED is the single arm switch. This header used to say
+// that while it was false "the client keeps awarding into its own G.companions
+// blob". THAT WAS NO LONGER TRUE, and the gap between the two halves was
+// Paione's live bug, reported twice: "the pets are still not getting exp".
+//
+// `src/features/companions.js awardCompanionXp` returns on `blobRetired()`,
+// which the capstone made the literal `true` — so the CLIENT writer was already
+// dead. This switch being false kept the SERVER writer dead too, and companion
+// XP therefore had NO writer at all: nothing ever inserted a player_progress
+// kind='stat' key='companion_xp:<id>' row, hr_state_of projected `xp: {}`,
+// accrue.js reconcileCompanions rebuilt every pet at 0, and every pet in the
+// game was frozen at level 1 forever. Not earned and lost on reload — never
+// earned.
+//
+// ARMED, index.ts and set-activity.js pass `companionXpBacked: true`, the engine
+// emits the companion_xp op on BOTH the away accrual and the attended settle,
+// hr_apply folds it into the stat row, hr_perks_of prices the levelled passive
+// off that row, and hr_state_of projects the roster the client renders. The
+// client's own award stays gated off (two gates now: this switch AND
+// blobRetired), so the two can never double-count.
+//
+// ⚠ FLIPPING THIS LINE CHANGES THE EDGE BUNDLE. supabase/functions/hr-accrue
+//   imports this module, so hr-accrue MUST be redeployed for the arm to reach
+//   the server; the in-page payload guard stays red until the live
+//   payload_sha256 matches `pack-edge --hash`. No migration is required: every
+//   server-side link (hr_apply's 'stat' kind, hr_perks_of's companion_xp read,
+//   hr_state_of's companions projection) already shipped and is unchanged.
 //
 // PURE ESM. No DOM, no window, no timers. Imported by the browser (through
 // companions.js) and by the Edge bundle (through accrual.js).
@@ -58,11 +78,15 @@ import { companionXpToReach, COMPANION_MAX_LEVEL } from './companion-perk.js?v=5
    the same ceiling src/features/companions.js clamps to (COMPANION_XP_CAP). */
 export const COMPANION_XP_CAP = companionXpToReach(COMPANION_MAX_LEVEL);
 
-/* ── THE ARM SWITCH — DORMANT ───────────────────────────────────────────────
-   Flip to true to make the accrual engine the server-of-record for companion
-   XP (and to gate the client's local award off). Read by BOTH the server (via
-   the input index.ts / set-activity.js thread) and the client. One line. */
-export const COMPANION_XP_SERVER_BACKED = false;
+/* ── THE ARM SWITCH — ARMED ─────────────────────────────────────────────────
+   The accrual engine is the server-of-record for companion XP, and the client's
+   local award is gated off. Read by BOTH the server (via the input index.ts /
+   set-activity.js thread) and the client. One line.
+
+   Turning this back to false does NOT restore a client writer — there is none
+   (companions.js blobRetired() is the literal true). It restores "no pet in the
+   game can ever gain XP", which is the defect this arm exists to close. */
+export const COMPANION_XP_SERVER_BACKED = true;
 
 /**
  * The XP one role-matched action grants the equipped companion. A VERBATIM

@@ -50,23 +50,51 @@ permissions:
 # and the second time this workflow has raised that number rather than the
 # question underneath it.
 #
-# The steps are now partitioned by what they NEED, into six jobs that run in
+# The steps are now partitioned by what they NEED, into SEVEN jobs that run in
 # parallel, so the wall clock is the slowest family rather than the sum:
 #
 #   job                  needs                      MEASURED   timeout (= x2)
 #   in-page              a real Chromium            ~15.5 min * 30
 #   economy-selftests    an applied migration chain  15.8 min  32
-#   db-replay            an applied migration chain   3.8 min  12 [1]
+#   db-replay            an applied migration chain   7.75 min 16 [1]
+#   db-replay-2          an applied migration chain   9.2 min  19 [1]
 #   utc-midnight-replay  an applied migration chain   6.85 min 14 [2]
-#   client-guards        nothing but this repo        2.0 min   5
+#   client-guards        nothing but this repo        4.3 min   9 [3]
 #   edge                 the live gateway              0.5 s    5 (floor)
 #
-# [1] db-replay's own MEASURED line is unrevised since 2026-09-07 and predates
-#     most of the guards now in it; its 14-min timeout (stated on the job
-#     itself) reflects a later, unrecorded re-measurement, not this line.
+# [1] db-replay SPLIT IN TWO 2026-09-20 (b550 follow-up): the GitHub run for
+#     7b509de8 (branch next) cancelled db-replay at its own 14-min timeout —
+#     mid "Gem unlock buy", with Recipe learn and Projected key set never
+#     run — even though nothing measured in it was failing. The family the
+#     2026-09-07 line ([228.0 s]) described predates most of the guards now
+#     in it (rejections journal, buff queue, renown projection, restore
+#     census, town presence, world finds projection, gem unlock buy, recipe
+#     learn, projected key set) and was never re-measured whole. Re-measured
+#     2026-09-20 from the GitHub run for 7b509de8's own steps (782 s through
+#     World finds projection) plus the three steps that never ran, measured
+#     locally on a box independently cross-checked against that same run
+#     (Retreat apply: 19.9 s local vs 19 s on GitHub) — Gem unlock buy 100.4 s,
+#     Recipe learn 73.8 s, Projected key set 2.4 s — for a real family total of
+#     960 s (16.0 min), well past the "~10 min per job" guideline. Split by
+#     family at the Buff queue / Renown projection boundary, PGlite snapshot
+#     cache verification repeated FIRST in the new job per CI-SHAPE-4 (no
+#     command may run in two jobs, so it is a second, independent
+#     verification, not a shared one): db-replay 465 s (7.75 min) x2 = 15.5,
+#     rounded up to 16; db-replay-2 552 s (9.2 min) x2 = 18.4, rounded up to
+#     19. No single step regressed — the whole family measured 20-35% slower
+#     on this GitHub run than on an earlier one the same day (7120434), which
+#     is shared-runner variance, not a code change (the two commits between
+#     them touch only smoke.yml/ci-shape.baseline.json/lane-done.mjs
+#     comments); the split is sized off the SLOWER, more conservative run.
 # [2] SPLIT OUT of db-replay 2026-09-19 (b550) — see the utc-midnight-replay
 #     job's own header comment for the measurement and the cancelled run that
 #     forced it.
+# [3] client-guards RE-MEASURED 2026-09-20: the 2.0-min line was never revised
+#     after the b550 guard wave. GitHub runs for ab7572e7 and 7120434 (branch
+#     next) both completed the full family at 255-258 s (4.3 min); the run for
+#     7b509de8 was cancelled by the old 5-min (300 s) timeout mid "hr_state_of
+#     final body" — a margin of ~40 s over the measured total, nowhere near
+#     x2. Budget = 258 s x2 = 8.6 min, rounded up to 9.
 #
 # RE-MEASURED 2026-09-07 after merging main, which brought SIXTEEN steps this
 # branch forked before (guard-hygiene, window-globals, no-client-farm-mint,
@@ -246,20 +274,20 @@ jobs:
           retention-days: 7
 
   # ── db-replay ── DOES THE REPO STILL REBUILD THE DATABASE, AND DOES IT MATCH
-  # WHAT PRODUCTION RUNS? The four guards that stand between a cutover database
-  # and an unrecoverable one, plus the two read-only production probes that need
-  # no credential. They share one PGlite chain snapshot
-  # (tests/pglite-template.mjs), which is why the cache's own verification step
-  # is the FIRST thing in this job: if the snapshot mechanism is not sound,
-  # nothing measured after it in this job means anything.
+  # WHAT PRODUCTION RUNS? The rebuild/drift/ledger/apply-execution half of the
+  # family: schema drift, ledger rollup, catalogue literal drift, live-hash
+  # drift, apply-order honesty, retreat apply and rejections journal, plus buff
+  # queue. They share one PGlite chain snapshot (tests/pglite-template.mjs),
+  # which is why the cache's own verification step is the FIRST thing in this
+  # job: if the snapshot mechanism is not sound, nothing measured after it in
+  # this job means anything.
   #
-  # MEASURED 2026-09-07: 16/16 green in 228.0 s (3.8 min) on the merged tree,
-  # 160 migration files in the chain. rpc-resolution --selftest was re-slotted
-  # here from main's serial job: it mutates the ONE probe the base run already
-  # made, so it costs 4.1 s and no extra network. Budget stays 12.
+  # SPLIT FROM db-replay-2 2026-09-20 (see the note above `jobs:` for the full
+  # measurement). This half MEASURED 465 s (7.75 min) on the GitHub run for
+  # 7b509de8 (branch next). Budget = measured x2 = 15.5 min, rounded up to 16.
   db-replay:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 16
 
     steps:
       - uses: actions/checkout@v4
@@ -292,7 +320,7 @@ jobs:
       # worth reading if it is red.
       - name: PGlite snapshot cache - restored == replayed, corruption refused
         if: ${{ !cancelled() }}
-        run: node tests/pglite-template.mjs --verify
+        run: node tests/pglite-template.mjs --verify --for=db-replay
 
       # CAN THE REPO REBUILD THE DATABASE? After cutover the database is the ONLY
       # copy of every player's progression, and disaster recovery rests entirely
@@ -567,6 +595,51 @@ jobs:
         run: |
           node tests/buff-queue.mjs
           node tests/buff-queue.mjs --selftest
+
+  # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20. Same
+  # inputs (an applied migration chain), same reason for the split as
+  # utc-midnight-replay: the family had outgrown one job's budget with no
+  # failing assertion anywhere in it (see the note above `jobs:`). Renown
+  # projection through Projected key set — the read-surface and purchase
+  # guards that landed after db-replay's 2026-09-07 measurement was last
+  # revised. Shares NO snapshot with db-replay: PGlite snapshot cache
+  # verification runs again, FIRST, as its own independent step (CI-SHAPE-4 —
+  # no guard command may run in two jobs, and that includes the cache verify).
+  #
+  # MEASURED 552 s (9.2 min): 494 s of this job's own steps on the GitHub run
+  # for 7b509de8 (branch next), through World finds projection, plus Gem
+  # unlock buy / Recipe learn / Projected key set measured locally after that
+  # run's own timeout cancelled them (see the note above `jobs:`), plus this
+  # job's own PGlite snapshot cache verify (46 s, not in the original single-
+  # job total). Budget = measured x2 = 18.4 min, rounded up to 19.
+  db-replay-2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 19
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # THE SNAPSHOT CACHE'S OWN PROOF, AGAIN. This job shares no PGlite
+      # snapshot with db-replay — each job is a fresh runner — so the same
+      # proof that stopped every guard below from reading a stale rebuild
+      # (build, restore, and again with the cache switched off; two planted
+      # corruptions, both refused) runs here too, FIRST, for the same reason
+      # it runs first in db-replay: nothing measured after it means anything
+      # if it is red.
+      - name: PGlite snapshot cache - restored == replayed, corruption refused
+        if: ${{ !cancelled() }}
+        run: node tests/pglite-template.mjs --verify --for=db-replay-2
 
       # DOES THE PLAYER SEE WHAT THE SERVER HAS COUNTED?
       # b535 pointed the renown headline and the rank-up card at a SERVER mirror,
@@ -1431,12 +1504,26 @@ jobs:
   # thirteen more steps than before the merge for LESS wall clock, because every
   # one of them is a text scan (no-client-farm-mint, no-duplicate-rpc-callers,
   # no-blob-branches, window-globals-exist, signup-door x2, guard-hygiene x2 and
-  # bump-version.sh --selftest at 12.3 s, the heaviest of them). Budget = 5, which is
-  # the floor rather than 2x: checkout + setup-node + npm install is ~40 s
-  # before a guard runs at all.
+  # bump-version.sh --selftest at 12.3 s, the heaviest of them). That line was
+  # never revised after the b550 guard wave (hr_apply/hr_state_of final-body
+  # execution, dead-export/dead-CSS censuses, monolith and patch-chain guards)
+  # more than doubled the family: the 5-min budget was still the ORIGINAL
+  # 2.0-min floor, not a re-measurement.
+  #
+  # RE-MEASURED 2026-09-20: the GitHub runs for ab7572e7 and 7120434 (branch
+  # next) both completed the full 39-step family at 255-258 s (4.3 min); the
+  # run for 7b509de8 was CANCELLED by the stale 5-min (300 s) timeout mid
+  # "hr_state_of final body" — no failing assertion, a margin of ~40 s over the
+  # measured total instead of x2. No single step regressed: cross-run step
+  # times differ by 10-20 s each (e.g. "hr_apply final body" 58-59 s vs 78 s,
+  # "Cleanup slice 3 - dead export census" 68 s vs 79 s), consistent with
+  # shared-runner variance rather than a code change — the commit between the
+  # green runs and the cancelled one touched only smoke.yml, ci-shape.baseline
+  # .json and a lane-done.mjs comment. Budget = measured (258 s) x2 = 8.6 min,
+  # rounded up to 9.
   client-guards:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 9
 
     steps:
       - uses: actions/checkout@v4

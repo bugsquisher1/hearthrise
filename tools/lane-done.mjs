@@ -20,7 +20,8 @@ const STEPS = [
   ['node', ['tests/css-literal-ratchet.mjs']],
   ['node', ['tests/breakpoint-guard.mjs']],
   // The server projects it, the client must not keep its own copy (Tyler, 2026-09-14).
-  // Text-only here; the executed hr_state_of key set is pinned in the db-replay job.
+  // Text-only here; the executed hr_state_of key set is pinned in the db-replay-2 job
+  // (split from db-replay 2026-09-20).
   ['node', ['tests/no-client-copy-of-projection.mjs']],
   // The client predicts nothing new from 2026-09-16 (LIVE_WORLD_BRIEF.md): the
   // world tick + push channel is the path, not one more predicted field.

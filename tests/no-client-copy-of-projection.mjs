@@ -41,16 +41,17 @@
 // guard REPLAYS the chain (tests/schema-replay.mjs bootReplay()), calls
 // hr_state_of on a probe character and reads the real key set — under `--execute`.
 //
-// That replay costs ~10 s and a pglite, which is the db-replay job's budget and
-// not the client-guards / lane-done budget. So the executed answer is PINNED in
+// That replay costs ~10 s and a pglite, which is the db-replay-2 job's budget
+// (split from db-replay 2026-09-20) and not the client-guards / lane-done
+// budget. So the executed answer is PINNED in
 // tests/no-client-copy-of-projection.baseline.json:
 //   · `--execute`         replays and FAILS if the pinned set differs from the
-//                         real one (registered in the db-replay job).
+//                         real one (registered in the db-replay-2 job).
 //   · the default run     is pure text over src/ + the pinned set, so every lane
 //                         hits it in `tools/lane-done.mjs` for ~1 s.
-// A migration that adds a projection therefore goes red in db-replay until the
-// key is re-pinned (`--write --execute`) AND mapped here — which is exactly the
-// moment the client half is owed.
+// A migration that adds a projection therefore goes red in db-replay-2 until
+// the key is re-pinned (`--write --execute`) AND mapped here — which is
+// exactly the moment the client half is owed.
 //
 // Run:
 //   node tests/no-client-copy-of-projection.mjs              # the gate

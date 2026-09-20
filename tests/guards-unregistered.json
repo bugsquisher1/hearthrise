@@ -141,6 +141,26 @@
         ]
       }
     },
+    "selfcheck-no-global-dml.bypass.mjs": {
+      "reason": "SECURITY PROOF, EXPECTED RED (b550 review, finding S-SC-1). It plants ten global-DML shapes that tests/selfcheck-no-global-dml.mjs does not see — dynamic SQL through EXECUTE (string, format(), dollar-quoted), four fake-binding predicates that satisfy isScoped() while reaching every player's rows, a call to a chain function that globally UPDATEs a player-value table (pass 1 skips the UPDATE verb), and a self-check written as a pg_temp function rather than a `do $tag$` block (pass 2 reads only DO blocks). All ten slip today, so the file exits 1. DELIBERATELY NOT REGISTERED: a red step in smoke.yml makes the CI gate unreachable for every later build (CLAUDE.md §4, the b512 lesson). Register it in the SAME commit that closes the shapes and re-pin tests/ci-shape.baseline.json then — not before. It costs no database and ~1 s. The owner is the lane that wrote the guard.",
+      "owner": "security-engineer",
+      "disposition": "register-when-green",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "red_today": "10 of 10 shapes slipped, measured 2026-09-20"
+      }
+    },
+    "lifetime-facts-reapply.mjs": {
+      "reason": "family pglite-chain-replay, and a SECURITY PROOF rather than a standing gate (b550 review, finding S-LF-3). It replays the whole chain and then proves by execution that 2026-09-19-lifetime-facts-off-the-ledger.sql is ONE-SHOT on production: green on a second apply while no find is live, and refused outright by §2's unguarded hr_backfill_lifetime_facts() call the moment one hearthfind_log row carries src_ledger_id NULL. That is the safe direction and not a defect — it is a fact the apply order has to carry, because schema-drift replays a chain with no live finds and therefore cannot state it. Not registered for the same reason as the rest of this family: it boots PGlite and applies the whole chain, which CI already does once in the schema-drift step.",
+      "family": "pglite-chain-replay",
+      "owner": "security-engineer",
+      "disposition": "adopt-via-shared-db",
+      "verified": {
+        "asserts": true,
+        "selftest": false
+      }
+    },
     "$deleted:2026-09-06-slice-2": {
       "reason": "NOT A GUARD FILE — the record of two orphans DELETED rather than adopted, so the decision is not re-litigated by whoever next greps for them. (1) tests/gold-intent-shape.mjs: a one-off investigation script, not a guard — it took the repo root as process.argv[2] and could not be run without one, printed a shape report, and asserted nothing that the registered conservation-fuzz and claim-intent steps do not already assert by execution against the same hr_apply. (2) tests/raid-claim-exploit.mjs: the b209 own-contribution-claim exploit reproduction, written against a HAND-BUILT partial schema in PGlite rather than the real migration chain, so it could pass while production diverged. The property it cared about — a free-rider cannot claim — is covered by the registered raid-band-denial step, whose --selftest plants exactly that defect against the real chain. Both bodies remain in git history at afa7175e~1."
     },

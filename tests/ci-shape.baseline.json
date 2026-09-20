@@ -166,6 +166,8 @@
     "node tests/test-file-ratchet.mjs --report": "client-guards",
     "node tests/no-client-copy-of-projection.mjs --selftest": "client-guards",
     "node tests/no-client-copy-of-projection.mjs": "client-guards",
+    "node tests/selfcheck-no-global-dml.mjs --selftest": "client-guards",
+    "node tests/selfcheck-no-global-dml.mjs": "client-guards",
     "node tests/guard-hygiene.mjs --selftest": "client-guards",
     "node tests/guard-hygiene.mjs": "client-guards",
     "node tests/edge-jwt-gate.mjs --strict": "edge",

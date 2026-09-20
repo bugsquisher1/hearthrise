@@ -199,6 +199,7 @@ declare
   v_r  record;
   v_n  int;
   v_left int;
+  v_keep0 int; v_byst0 int; v_byst1 int;
 begin
   begin
     -- (a) the four columns exist, are bigint, and are NOT NULL DEFAULT 0
@@ -235,6 +236,55 @@ begin
       raise exception 'e1c: expected 8 documented rollup aggregate columns, found %', v_n;
     end if;
 
+    -- (b0) THE PRUNE UNDER TEST IS GLOBAL BY CONSTRUCTION, SO ITS REACH IS
+    --      NARROWED TO THE PROBE BEFORE IT IS CALLED. (Incident 2026-09-20:
+    --      2026-09-19-lifetime-facts-off-the-ledger.sql was refused on
+    --      production for running a blanket `delete from public.player_ledger`
+    --      inside a self-check. This file has the same class in a subtler
+    --      shape: hr_ledger_prune's predicate is `at < now() - retain_days`
+    --      with no owner column, so on a production ledger that has reached its
+    --      first prune date (~2026-11-21), `perform public.hr_ledger_prune(20000)`
+    --      below deletes and rolls up REAL players' aged rows - rolled back,
+    --      but a self-check may not touch a row it did not create. It would
+    --      also have broken e11: an aged tail of more than 20,000 rows makes a
+    --      second prune return non-zero and fails this apply for a reason that
+    --      is not a defect.)
+    --
+    --      THE FIX, without weakening anything the gates prove: the retention
+    --      window is WIDENED to the maximum hr_ledger_config allows (3650 days,
+    --      its own CHECK ceiling) and the probe rows are dated beyond even
+    --      that. hr_ledger_prune is then called FOR REAL and unmodified - only
+    --      its reach is now provably the probe rows alone.
+    --
+    --      The UPDATE is on the config table, not on a player table, and rolls
+    --      back with everything else. A concurrent hr_ledger_prune() cannot see
+    --      it: that function reads retain_days with a plain SELECT, which under
+    --      MVCC returns the committed value, and it takes no lock this
+    --      statement would block on.
+    select retain_days into v_keep0 from public.hr_ledger_config;
+
+    -- THE BYSTANDER CANARY, taken at the retention cut ACTUALLY CONFIGURED -
+    -- i.e. over exactly the rows a normally-configured prune could delete. It
+    -- is what (c2) re-reads, and it is non-vacuous in the way a count at the
+    -- WIDENED cut would not be: if the prune below ignored the widening and
+    -- used the real cut, these are the rows it would take. Bounded to the
+    -- retention tail, so it is a PK range scan on (at, id), not a full count.
+    select count(*) into v_byst0 from public.player_ledger
+     where at < now() - make_interval(days => coalesce(v_keep0, 90))
+       and user_id <> v_u;
+
+    update public.hr_ledger_config set retain_days = 3650 where only_row;
+
+    -- (e0) NOTHING REAL IS IN REACH OF THE WIDENED PRUNE. A database that holds
+    --      a ten-year-old real ledger row refuses this apply rather than having
+    --      that row pruned by a self-check.
+    select count(*) into v_n from public.player_ledger
+     where at < now() - interval '3650 days' and user_id <> v_u;
+    if v_n <> 0 then
+      raise exception 'e0: % real ledger row(s) predate the widened retention window. '
+        'hr_ledger_prune would DELETE them inside this self-check; refusing.', v_n;
+    end if;
+
     -- (b) CONSERVATION, end to end. Two aged rows in ONE (user,slot,month,kind)
     --     bucket carrying every currency in BOTH directions, pruned for real.
     --     Both timestamps are anchored to the START OF THE SAME MONTH rather
@@ -244,20 +294,21 @@ begin
     --     instead of 2 once — leaving the accumulate-on-conflict path untested
     --     and the assertion below failing for a reason that is not a defect.
     --     Anchoring makes it true on every date this is ever applied. The month
-    --     is ~200 days back, so both rows are far outside the 90-day window.
+    --     is ~3700 days back, so all three rows are outside the widened window
+    --     (b0) opened - and, by (e0), nothing else in the database is.
     insert into public.player_ledger (user_id, slot, kind, intent, gold, xp, qty, gems_in,
                                       gold_in, xp_in, qty_in, at)
       values (v_u, 0, 'combat', 'probe_a',  700, 1234,  9, 5,  700, 1234,  9,
-              date_trunc('month', now() - interval '200 days') + interval '5 days'),
+              date_trunc('month', now() - interval '3700 days') + interval '5 days'),
              (v_u, 0, 'combat', 'probe_b', -250,  766, -4, 3,    0,  766,  0,
-              date_trunc('month', now() - interval '200 days') + interval '7 days'),
+              date_trunc('month', now() - interval '3700 days') + interval '7 days'),
              -- probe_c carries a NEGATIVE xp. It is insertable because
              -- player_ledger.xp has no non-negative CHECK (e1b proves that is
              -- still true), and it is the row that makes e6b non-vacuous: on the
              -- earlier draft of this file this movement was clamped to zero and
              -- deleted. Security S-LR-1.
              (v_u, 0, 'combat', 'probe_c',    0, -500,  0, 0,    0,    0,  0,
-              date_trunc('month', now() - interval '200 days') + interval '9 days');
+              date_trunc('month', now() - interval '3700 days') + interval '9 days');
 
     perform public.hr_ledger_prune(20000);
 
@@ -283,6 +334,19 @@ begin
     select count(*) into v_left from public.player_ledger where user_id = v_u;
     if v_left <> 0 then
       raise exception 'e10: % probe detail row(s) survived the prune', v_left;
+    end if;
+
+    -- (c2) THE BYSTANDER CANARY READS BACK. (b0)/(e0) proved nothing real was
+    --      in reach; this proves the prune did not reach one anyway. The
+    --      assertion the 2026-09-20 incident says every self-check that deletes
+    --      from a player table owes: the scope is asserted, not believed.
+    select count(*) into v_byst1 from public.player_ledger
+     where at < now() - make_interval(days => coalesce(v_keep0, 90))
+       and user_id <> v_u;
+    if v_byst1 <> v_byst0 then
+      raise exception 'e10b: the prune deleted % ledger row(s) belonging to REAL '
+        'players (% -> %) - a self-check may not touch the money journal',
+        v_byst0 - v_byst1, v_byst0, v_byst1;
     end if;
 
     -- (d) A SECOND RUN IS A NO-OP. The job is hourly and the on-conflict clause

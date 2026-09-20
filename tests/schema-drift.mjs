@@ -26,6 +26,24 @@
 //     and event triggers — and compared to a committed baseline. Editing a
 //     migration in a way that moves any object fails until the baseline is
 //     deliberately rewritten, which is a reviewable diff.
+//  4b. A SELF-CHECK THAT REACHES PAST ITS OWN PROBE ROWS. Added 2026-09-20,
+//     after 2026-09-19-lifetime-facts-off-the-ledger.sql was refused by
+//     production for running `delete from public.player_ledger where at <
+//     now() - interval '1 day'` inside its section-4 block — every player's
+//     money journal, deleted by a self-check. THIS GUARD WAS GREEN ON IT, and
+//     structurally could not have been otherwise: the replay's player_ledger
+//     holds nothing but the fixture rows the block itself wrote, so a blanket
+//     delete and a probe-scoped one are indistinguishable. `BYSTANDERS` below
+//     plants the missing half — two rows for a user no migration knows about,
+//     one INSIDE the retention window and one outside it — immediately before
+//     the tail files whose self-checks touch player_ledger, and requires both
+//     to be there when the chain ends. The in-window row makes the trigger
+//     refuse (the production error, reproduced); the aged one makes a silent
+//     delete visible. Proven by the `selfcheck_global_prune`,
+//     `selfcheck_silent_prune` and `selfcheck_global_prune_fn` mutations —
+//     and MEASURED the same day with the seed removed, where the first two
+//     apply cleanly and this guard reports OK. That is the negative control:
+//     without the seed there is nothing here to catch them.
 //  4. SILENT OBJECT LOSS FROM FILE ORDERING. This is not hypothetical: three
 //     migrations each defined clan_members "join as self", and in filename
 //     order the shortest sorted last, so a clean replay would have installed
@@ -172,6 +190,23 @@ const digest = (inv) =>
     .update(CATEGORIES.map((c) => `${c}\n${inv[c].join('\n')}`).join('\n--\n'))
     .digest('hex');
 
+// The file's own bystander canary, planted away by the three self-check
+// mutations below. It is the IN-MIGRATION half of the 2026-09-20 fix and it
+// catches every one of them on its own — which is exactly why each mutation
+// removes it first: what is being proved here is whether the REPLAY can see the
+// class, not whether the migration can.
+const DROP_CANARY = [
+  `    -- (a5) THE CANARY READS BACK. The assertion that would have caught the
+    --      2026-09-20 blanket delete on the database it was aimed at.
+    select count(*) into v_byst1 from public.player_ledger
+      where at < v_cut and user_id not in (v_uid, v_uid2);
+    if v_byst1 <> v_byst0 then
+      raise exception 'GATE(a5): the prune deleted % ledger row(s) belonging to REAL players (% -> %) - a self-check may not touch the money journal',
+        v_byst0 - v_byst1, v_byst0, v_byst1;
+    end if;`,
+  '    -- (a5) removed by the mutation harness',
+];
+
 // ── The mutation catalogue ─────────────────────────────────────────────────
 // Each is a defect this repo could plausibly ship, planted in the real file.
 // `expect` says which failure mode must fire: 'replay' (a file stops applying)
@@ -282,6 +317,58 @@ const MUTATIONS = {
       "    'hr_rate_gate(uuid,integer,text)',\n    'hr_perks_of(uuid,integer)'\n  ];",
     ]]]],
   },
+  /* ── 2026-09-20: THE CLASS THE BYSTANDER SEED EXISTS FOR ────────────────
+     Three shapes of the same defect: the statement as it was actually written,
+     the SILENT version of it, and the same thing one level down through a prune
+     function that is global by construction. All three plant the file's own
+     bystander canary away first — the canary is the in-migration half of the
+     fix and would otherwise catch every one of them, hiding whether the REPLAY
+     can see the class at all. Before the seed, mutation 1 applied cleanly and
+     this guard reported OK. */
+  selfcheck_global_prune: {
+    what: 'a section-4 self-check prunes player_ledger with no owner predicate — the 2026-09-19 statement, restored verbatim, and the production 23514 with it',
+    // The aged bystander is deletable; the LIVE one is inside the retention
+    // window, so hr_ledger_immutable refuses it and the file stops applying.
+    // That is the production failure, reproduced credential-free.
+    expect: 'replay',
+    patches: [['2026-09-19-lifetime-facts-off-the-ledger.sql', [
+      DROP_CANARY,
+      [`    delete from public.player_ledger
+     where user_id in (v_uid, v_uid2) and at < v_cut;`,
+       `    delete from public.player_ledger where at < now() - interval '1 day';`],
+    ]]],
+  },
+  selfcheck_silent_prune: {
+    what: 'a blanket delete on player_ledger in a self-check that is NOT inside the rolled-back subtransaction — it commits, nothing raises, and a real player\'s aged history is simply gone',
+    // THE SHAPE THAT ACTUALLY COSTS ROWS. The verbatim 2026-09-19 statement sat
+    // inside the block that HR_ROLLBACK_SENTINEL rolls back, so on a database
+    // where the trigger permitted it the delete would have been undone — which
+    // is why the house rule is "rolled back or not" rather than "unless it is
+    // rolled back". This plants the same statement in the part of the same DO
+    // block that COMMITS with the file (after the exception handler, beside the
+    // leak check). The in-window bystander is untouched, so no trigger fires and
+    // nothing in the chain raises: the only evidence that anything happened is
+    // an aged row that is no longer there, and the seed is the only thing that
+    // can see it.
+    expect: 'bystander',
+    patches: [['2026-09-19-lifetime-facts-off-the-ledger.sql', [[
+      `  -- (z) THE LEAK CHECK - the fixture is gone, so every gate above ran inside the`,
+      `  delete from public.player_ledger where at < v_cut;
+
+  -- (z) THE LEAK CHECK - the fixture is gone, so every gate above ran inside the`,
+    ]]]],
+  },
+  selfcheck_global_prune_fn: {
+    what: 'a self-check calls the real retention prune — global by construction — without narrowing its reach to the probe first',
+    // Caught by that file's own bystander canary (e10b), which is the layer
+    // this mutation exists to keep honest: if e10b ever stops firing, this
+    // arm reports `bystander` instead and the seed catches it one file later.
+    expect: 'replay',
+    patches: [['2026-09-18-ledger-rollup-currencies.sql', [[
+      '    update public.hr_ledger_config set retain_days = 3650 where only_row;',
+      '    -- scope narrowing removed by the mutation harness',
+    ]]]],
+  },
   reopen_a11: {
     what: 'the beta_invites lockdown GUC is unset, so a rebuild leaves every invite code world-readable',
     expect: 'replay', // live-market-rls §3b raises without it, by design
@@ -290,8 +377,54 @@ const MUTATIONS = {
   },
 };
 
+// ── THE BYSTANDER SEED (header item 4b) ────────────────────────────────────
+// A user no migration has ever heard of, holding two ordinary combat rows. It
+// is seeded immediately before the first tail migration whose self-check writes
+// to player_ledger, so every later self-check runs against a journal that looks
+// like production's rather than like an empty table.
+//   · the AGED row is outside any retention window, i.e. DELETABLE by
+//     hr_ledger_immutable — which is what makes a blanket prune silent.
+//   · the LIVE row is inside it, so the trigger refuses, which is the exact
+//     production error (23514) the 2026-09-20 apply took.
+// Neither row is kind='hearthfind' and neither carries a probe_% item_id, so no
+// existing gate's counts move: the seed is a bystander, not a fixture.
+const BYSTANDER_UID = '00000000-0000-4000-b000-0000000b57a4';
+const BYSTANDER_AT = '2026-09-18-ledger-rollup-currencies.sql';
+const BYSTANDERS = `
+insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at) values
+  ('${BYSTANDER_UID}', 0, 'combat', 'bystander_aged', 12, '{}'::jsonb,
+   now() - interval '400 days'),
+  ('${BYSTANDER_UID}', 0, 'combat', 'bystander_live', 34, '{}'::jsonb,
+   now() - interval '2 days');
+`;
+
+/**
+ * Both bystander rows must still be there when the chain ends. A missing row is
+ * not a schema finding — it is a self-check that deleted a real player's money
+ * history — so it is raised with its own flag and reported in its own words.
+ */
+async function assertBystanders(db) {
+  const { rows } = await db.query(
+    `select intent from public.player_ledger where user_id = $1 order by intent`,
+    [BYSTANDER_UID]);
+  const seen = rows.map((r) => r.intent);
+  const missing = ['bystander_aged', 'bystander_live'].filter((i) => !seen.includes(i));
+  if (!missing.length) return;
+  const e = new Error(
+    'A SELF-CHECK DELETED A ROW IT DID NOT CREATE.\n'
+    + `  player_ledger rows missing after the chain: ${missing.join(', ')}\n`
+    + `  They belong to ${BYSTANDER_UID}, a user no migration knows about, and were\n`
+    + `  seeded before ${BYSTANDER_AT}. Some DO-block below that point prunes,\n`
+    + '  deletes or updates player_ledger without scoping the statement to the rows\n'
+    + '  it wrote itself. On production that statement is every player\'s money\n'
+    + '  journal. See tests/selfcheck-no-global-dml.mjs for which file.');
+  e.bystander = true;
+  throw e;
+}
+
 async function fingerprint(patches) {
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, seedBefore: new Map([[BYSTANDER_AT, BYSTANDERS]]) });
+  await assertBystanders(db);
   return inventory(db);
 }
 
@@ -558,7 +691,10 @@ async function main() {
           console.error(`HARNESS  ${name}: ${e.message}`);
           process.exit(2);
         }
-        caught = 'replay';
+        // A bystander row that a self-check deleted is its own finding, and it
+        // must not be reported as a replay failure: the two are caught by
+        // different halves of this guard and only one of them is new.
+        caught = e.bystander ? 'bystander' : 'replay';
       }
       if (!caught) {
         console.error(`SLIPPED  ${name}\n           ${m.what}\n           This guard does not see it. It is decoration until it does.`);

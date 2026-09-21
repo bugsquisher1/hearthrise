@@ -1185,6 +1185,193 @@ nothing.
 
 ---
 
+## 15c. MILESTONE 1 — the fence and the scheduler (2026-09-21, `lane/world-tick-m1`)
+
+Step 2 became reachable when Security returned **GO-WITH-CHANGES**
+(`docs/planning/SEC_WORLD_TICK_GATHER_2026-09-19.md`). This section is what the
+lane landed, what it costs, and exactly what the Coordinator does to ship it in
+SHADOW on production. **Nothing here is applied and nothing here is armed.**
+
+### The writer, fenced
+
+The verdict's S-1 killed the design as staged: `hr_apply`'s impersonation seam
+tests `v_role = 'hr_engine'` **literally**, so the `hr_tick` role the roster
+migration granted `hr_apply` to could settle nothing — and each attempt would
+journal a `forbidden_impersonation` rejection, the highest-signal anti-cheat
+alert in the system, at one per flush per character.
+
+Security offered two ways out (splice the money function's seam, or let the tick
+present `hr_engine`) and preferred the second. The lane took a third that is
+strictly narrower, and it is available only because **milestone 1 has no
+always-on host** — the budget freeze stands:
+
+| | before | after |
+|---|---|---|
+| who selects | `hr_tick_roster`, granted to `hr_tick` | unchanged |
+| who settles | `hr_tick` → raw `hr_apply` (refused) | `hr_engine` → `hr_tick_settle` → `hr_apply` |
+| `hr_tick`'s grants | `hr_tick_roster` + `hr_apply` + `hr_seed` | `hr_tick_roster`, and nothing else |
+| `hr_apply`'s body | claimed unchanged, had to change | **genuinely unchanged; no live hash moves** |
+
+`hr_tick_settle` is `SECURITY DEFINER`, granted to `hr_engine` alone. The
+`role` GUC is the *request's* role and survives a definer boundary, so a call
+from the Edge Function reaches `hr_apply` as `hr_engine` and the seam accepts it
+without being touched. Measured, not assumed: self-check `e12` performs exactly
+that transition.
+
+**The selector and the settler are different roles, and neither can become the
+other.** "Choose whose world ticks" is therefore not a request field, not a
+config value and not a privilege the settling role holds — it is a lease row
+written by a function the settling role cannot execute.
+
+### The defence that did not exist (S-3)
+
+The roster file claimed three times that `hr_apply` clamping `accrued_to` into
+`[old, now()]` refuses a replayed window "on arithmetic". Security executed it:
+the clamp defends the **timestamp** and applies the **value** anyway, so a
+replay carrying a fresh version paid twice and moved the watermark zero
+milliseconds. There was one defence, not two.
+
+`hr_tick_settle` supplies the missing one, in SQL, under the row lock:
+
+```sql
+select * into v_st from public.player_state
+ where user_id = p_user and slot = p_slot for update;   -- the lock FIRST
+...
+if p_window_from < v_st.accrued_to then                  -- then the CAS
+  return jsonb_build_object('ok', false, 'error', 'window_already_settled');
+```
+
+A **compare-and-set on the settled watermark**, independent of the idempotency
+key and of the version. Equality is the honest deferral boundary
+(`settledWatermarkMs` stamps the next window's `from` *at* the previous
+watermark), so nothing correct is refused — `tests/world-tick-double-pay.mjs`
+D2b asserts that explicitly, because a CAS that was off by one would stall the
+tick after its first window. `p_delta->>'accrued_to' = p_window_to` binds the
+declared window to the paid one, so a caller cannot name ten seconds and pay an
+hour.
+
+### The 15 "overlapping" windows (S-5)
+
+They are not double pays and there was never a defect in the engine. The dry
+run counted an overlap as `from < prevTo`, which is the shape of **every**
+honest deferred window since `settledWatermarkMs` landed on 2026-09-16.
+`gatherDryRun` now classifies the boundary with `replayStream` — the arithmetic
+that solves each window's own geometry — and reports four buckets: `deferred`
+(correct), `overlap` (the only failing one), `gap`, `unprovable`. The tool's
+legend says so. **The Coordinator re-runs `node tools/world-tick-replay.mjs
+--gather` on production to confirm the count moves to zero**; this lane cannot,
+having no database access, and the number is not asserted here on anyone's
+authority.
+
+### The scheduler, in ten lines
+
+1. `pg_cron` fires `hr_tick_cron_run()` every 10 s. Both extensions are free and
+   in-database; pg_cron already runs six jobs here.
+2. The driver takes `pg_try_advisory_xact_lock` **first** — a slow tick skips
+   the next fire, never queues behind it.
+3. Then the kill switch: `hr_tick_config.enabled` false ⇒ return in under a
+   millisecond, lease nothing, post nothing.
+4. Then one `hr_tick_roster` call: batch cap (`batch_limit`, default 200) plus a
+   **keyset cursor** on `(accrued_to, user_id, slot)`, so a roster larger than
+   the cap is walked to its end rather than re-serving its head.
+5. The roster stamps a lease in the driver's own holder name; a short batch
+   wraps the cursor.
+6. The bearer is read from `vault.decrypted_secrets` at call time — never in the
+   repo, never in argv, never journalled (`c8b` asserts nothing bearer-shaped
+   reaches the log).
+7. One `pg_net` POST carries the whole batch to `hr-accrue` as `op:'tick'`.
+8. The edge runs `computeAccrual` with `caller:'tick'` — the engine it already
+   runs — and calls `hr_tick_settle` per flush window.
+9. `hr_tick_config.shadow` true ⇒ the fence journals what *would* have been paid
+   into `hr_tick_shadow` and returns before `hr_apply`. Nothing moves.
+10. Every fire writes one `hr_tick_cron_log` row: outcome, rostered count,
+    duration, and `effective_cadence_seconds` — the number that says "buy the
+    host" when it crosses 30.
+
+**Pure-SQL ticking was rejected with a reason, not an estimate:** a gather
+yield comes out of `accrueGather` → `src/core/skill-sim.js`. Re-implementing it
+in plpgsql is the second engine CLAUDE.md §1 and AWAY-12 forbid.
+
+### Cost, at three sizes
+
+| | beta (50 active) | 10× (500) | 100× (5,000) |
+|---|---|---|---|
+| Edge invocations/month | 263,000 **ceiling** (53% of the Free tier; **zero while nobody is active**) | unchanged | unchanged |
+| effective per-character cadence | 10 s | **30 s** | **250 s** — the design is over |
+| ledger rows/day (90 s flush) | 48,000 (10% of the 480,000 prune ceiling) | 480,000 — **at the ceiling** | over, by 10× |
+| DB time per fire | ~2.5 s (25% of a core, continuous) | ~6.3 s (63%) | ~63 s — 6.3 cores |
+
+A 5 s cadence costs 525,000 invocations/month and **crosses the Free tier**, so
+halving the cadence is a billing decision rather than a config change;
+`cadence_seconds` is checked `>= 5` so the smallest legal value is the one that
+needs the conversation. The failure mode at scale is the right one: the world
+slows uniformly, the bill does not rise.
+
+### Coordinator steps to ship M1 in SHADOW
+
+```
+# 0. one file per call, never inside begin/commit, never 00:00–00:10 UTC
+node tools/apply-migration.mjs supabase/migrations/2026-09-20-world-tick-roster.sql
+node tools/apply-migration.mjs supabase/migrations/2026-09-21-world-tick-settle-fence.sql
+node tools/apply-migration.mjs supabase/migrations/2026-09-21-world-tick-cron.sql
+# 1. read-only post-apply verification agent, then:
+node tests/live-hash-drift.mjs --live --write     # expect NO move on hr_apply
+node tests/restore-census.mjs                     # hr_tick_* already classified
+#    flip the three apply-order notes to APPLIED
+# 2. the free extension the driver needs
+#    (psql / dashboard)  create extension if not exists pg_net;
+# 3. the Vault secret — ONE TIME, never in git, never in argv
+#    select vault.create_secret(encode(gen_random_bytes(32),'hex'),
+#      'hr_tick_shared_secret', 'shared bearer: pg_net -> hr-accrue op:tick');
+#    npx supabase secrets set HR_TICK_SHARED_SECRET=<value> --project-ref nezapsylztqbbwuwembx
+# 4. point the driver at the function
+#    update public.hr_tick_config set edge_url =
+#      'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue';
+# 5. edge deploy (the op:'tick' entry — see "remaining work" below)
+# 6. ARM IN SHADOW. Pays nothing.
+#    update public.hr_tick_config set enabled = true, shadow = true;
+#    insert into public.hr_tick_ownership (user_id, slot, channel, owned)
+#      select user_id, slot, 'gather', true from public.player_state
+#       where active_kind = 'gather';        -- the rollout cohort, one INSERT
+```
+
+Reading the 48 h parity numbers:
+
+```sql
+-- what the tick WOULD have paid, against what accrual actually paid
+select date_trunc('hour', at) h, count(*) rows, sum(would_gold) gold, sum(would_qty) qty
+  from public.hr_tick_shadow group by 1 order by 1;
+select date_trunc('hour', at) h, count(*) rows,
+       sum((meta->'delta'->>'g')::bigint) gold, sum((meta->>'qty')::bigint) qty
+  from public.player_ledger
+ where kind = 'gather' and intent = 'accrue' and at > now() - interval '48 hours'
+ group by 1 order by 1;
+-- the driver's own health: outcome mix, and the "buy the host" number
+select outcome, count(*), avg(ms)::int ms, max(effective_cadence_seconds) eff
+  from public.hr_tick_cron_log where at > now() - interval '24 hours' group by 1;
+```
+
+**Arming is a separate decision with its own Security GO** (`update
+public.hr_tick_config set shadow = false;`), and the kill switch — `set enabled
+= false` — is the rollback for all of it, with no deploy and no schema change.
+
+### Remaining work before gather can be ARMED
+
+| # | Work | Why it is not in this lane |
+|---|---|---|
+| 1 | **The `op:'tick'` entry in `hr-accrue`** — bearer check against `HR_TICK_SHARED_SECRET`, the batch loop, `settleGatherSession`, `hr_tick_settle` per flush. ~300 lines. | It is a NEW AUTHENTICATED SURFACE on the function that writes all player value, so it needs its own adversarial review; and touching `supabase/functions/**` couples this lane to an edge deploy, which would leave the in-page payload guard red for every other lane until the Coordinator deployed. Named, specified, not smuggled in. |
+| 2 | **A Security GO on the three staged migrations**, with the fence read as a money surface. | CLAUDE.md §2 — the security role holds the veto and this lane cannot grant it to itself. |
+| 3 | **48 h of SHADOW parity on production**, read with the queries above. | Needs the apply, the deploy and real players. |
+| 4 | **Re-run `--gather` on production** and confirm the overlap count is 0 under the corrected classification. | No database access in this lane (S-5). |
+| 5 | **Confirm the concurrency claim on production**, read-only. | PGlite is one backend; every arm here proves the MECHANISM (lock before read, CAS against the locked row, UPDATE in the same transaction) and simulates the interleaving by ordering. Same limitation `tools/race-test.mjs` records. |
+| 6 | **pg_cron >= 1.5 confirmed on this project.** The migration probes for sub-minute support and falls back to 60 s with a NOTICE, so this is a fluidity question, not a blocker. | Needs the apply to answer. |
+
+Honest estimate: **items 1–2 are ~1 lane-day each; item 3 is 48 h of wall clock
+that costs no agent time; items 4–6 are minutes once the apply lands.** Gather
+can be armed roughly three days after the Security GO, and the tick is a writer
+for one channel at that point — not a live world yet. The push channel (§7),
+the inventory ABSOLUTE flip (§7a) and combat remain ahead of it, in that order.
+
 ## 16. Where I disagree with the brief
 
 0. **Superseded 2026-09-18 by §15a:** the first-channel argument below said

@@ -909,6 +909,67 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/no-client-copy-of-projection.mjs --execute
 
+      # ── THE WORLD TICK, REGISTERED 2026-09-21 ──────────────────────────────
+      # docs/planning/WORLD_TICK_DESIGN.md §13 asked for this the moment the
+      # tick became a writer for any channel "and NOT LATER", and
+      # tests/guards-unregistered.json carried the debt with that condition
+      # written into it. 2026-09-21-world-tick-settle-fence.sql is that writer:
+      # hr_tick_settle takes the player_state row lock, checks the lease,
+      # compare-and-sets the settled watermark and then calls hr_apply. It
+      # ships DISARMED (hr_tick_config.enabled = false, shadow = true), but a
+      # disarmed writer is still a writer the moment somebody runs one UPDATE,
+      # and a tripwire nothing runs is not a tripwire.
+      #
+      # All five arms cost ~9 s together against the restored snapshot, so they
+      # sit in this job rather than earning one of their own.
+      #
+      # PARITY. The same engine, asked by two callers, must answer identically:
+      # P-G1 compares N tick windows against one accrual call over the span
+      # (exact — gathering has no rare roll, so a correct decomposition is equal
+      # digit for digit), and P-G9 compares the SAME 90 s windows settled as
+      # `caller:'tick'` against `caller:'accrue'` and demands a byte-identical
+      # delta. AWAY-1's rule, on the channel the tick is about to own.
+      # --mutate plants four defects (unaligned windows, a dropped fight
+      # checkpoint, the cadence passed as capMs, a per-character constant seed
+      # — that last one measured +48% gold and three rare drops at rate zero).
+      - name: World tick — parity with the accrual path
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-parity.mjs
+          node tests/world-tick-parity.mjs --mutate
+
+      # ONE WINDOW IS PAID ONCE. The lane that staged the tick claimed two
+      # defences against a replayed window and had one: Security executed the
+      # "belt and braces" watermark claim and found hr_apply clamps the
+      # TIMESTAMP and applies the VALUE regardless, so a replay carrying a fresh
+      # version paid twice and moved accrued_to zero milliseconds
+      # (SEC_WORLD_TICK_GATHER_2026-09-19.md S-3). This guard is the exit code
+      # for the defence that closes it, plus the two rollout controls the
+      # milestone is armed behind: the kill switch and SHADOW mode.
+      #
+      # --mutate re-runs every arm against RAW hr_apply — the pre-fence path,
+      # which is production behaviour and not a synthetic defect — and requires
+      # each one to go red. The two arms whose defence hr_apply ALREADY had (the
+      # version compare-and-set) are marked as shared and do not invert; they
+      # are regression arms, so neither path can quietly lose it.
+      - name: World tick — one window is paid once, and only when armed
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-double-pay.mjs
+          node tests/world-tick-double-pay.mjs --mutate
+
+      # THE SECURITY VERDICT, AS AN EXIT CODE. Every arm of
+      # SEC_WORLD_TICK_GATHER_2026-09-19.md, executed: the tick reaches the
+      # writer only through the fence (S-1), the version CAS prevents a
+      # tick/accrue double pay (S-2), a replayed window is refused on the
+      # watermark alone (S-3), one gather roster call leases one channel and
+      # returns the character once (S-4), and an honest deferral is no longer
+      # counted as an overlap (S-5). It was RED BY DESIGN and deliberately
+      # unregistered while the review was open; it is green, so it is here.
+      - name: World tick — the security verdict, executed
+        if: ${{ !cancelled() }}
+        run: node tests/world-tick-writer-authz.mjs
+
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
   # snapshot cache 46 s, schema drift 73 s, THIS GUARD 411 s, ledger rollup

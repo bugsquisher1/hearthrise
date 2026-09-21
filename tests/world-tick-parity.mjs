@@ -962,6 +962,31 @@ for (const f of FIXTURES) {
       eq(JSON.stringify(inSql.slice().sort()), JSON.stringify(PAYABLE_KINDS.slice().sort()),
         `P-G7 hr_tick_roster's c_payable ${JSON.stringify(inSql)} != accrual.js PAYABLE_KINDS ${JSON.stringify(PAYABLE_KINDS)} - the SQL copy has drifted from the engine`);
     }
+
+    /* ── P-G7b, ADDED 2026-09-21. THE LITERAL IS NOW IN THREE PLACES, AND
+       TWO OF THEM ARE NEW. 2026-09-21-world-tick-settle-fence.sql holds its
+       own `c_payable` (the fence refuses a non-payable channel before it looks
+       at anything else) and hr_tick_ownership's CHECK constraint holds a third
+       copy. A drift guard that watched only the first would let the fence
+       quietly refuse a kind the engine pays — which reads to a player as
+       "gathering stopped crediting" and to an operator as nothing at all. */
+    const fence = readFileSync(new URL('../supabase/migrations/2026-09-21-world-tick-settle-fence.sql', import.meta.url), 'utf8');
+    const fm = fence.match(/c_payable\s+constant\s+text\[\]\s*:=\s*array\[([^\]]*)\]/);
+    ok(!!fm, 'P-G7b could not find the c_payable literal in 2026-09-21-world-tick-settle-fence.sql');
+    if (fm) {
+      let inFence = fm[1].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).filter(Boolean);
+      if (gm === 'gatherPayableDrift') inFence = inFence.filter((k) => k !== 'artisan');
+      eq(JSON.stringify(inFence.slice().sort()), JSON.stringify(PAYABLE_KINDS.slice().sort()),
+        `P-G7b hr_tick_settle's c_payable ${JSON.stringify(inFence)} != accrual.js PAYABLE_KINDS ${JSON.stringify(PAYABLE_KINDS)}`);
+    }
+    const ck = sql.match(/hr_tick_ownership_channel_ck[\s\S]{0,120}?channel in \(([^)]*)\)/);
+    ok(!!ck, "P-G7b could not find hr_tick_ownership's channel CHECK constraint");
+    if (ck) {
+      let inCk = ck[1].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).filter(Boolean);
+      if (gm === 'gatherPayableDrift') inCk = inCk.filter((k) => k !== 'artisan');
+      eq(JSON.stringify(inCk.slice().sort()), JSON.stringify(PAYABLE_KINDS.slice().sort()),
+        `P-G7b hr_tick_ownership's channel CHECK ${JSON.stringify(inCk)} != accrual.js PAYABLE_KINDS ${JSON.stringify(PAYABLE_KINDS)} - a character could be flagged for a channel the fence then refuses`);
+    }
   }
 
   /* ── P-G8. THE WALL CLOCK IS NOT THE WATERMARK ───────────────────────────
@@ -1032,7 +1057,7 @@ console.log('   P-G3 gather write unit   one row per settled window, inside the 
 console.log('   P-G4 gather idempotency  uuid5 per (shard,user,slot,windowFrom); a re-run is byte-identical');
 console.log('   P-G5 gather receipt      journalled ms == the span the watermark moved');
 console.log('   P-G6 gather journal      accrue meta keys + "src":"tick", nothing nested');
-console.log('   P-G7 catalogue drift     hr_tick_roster c_payable == accrual.js PAYABLE_KINDS');
+console.log('   P-G7 catalogue drift     roster + fence c_payable + the ownership CHECK == accrual.js PAYABLE_KINDS');
 console.log('   P-G8 watermark chain     chaining on the wall clock forfeits, on accrued_to does not');
 console.log('   P-G9 caller parity       the SAME 90s windows pay identically as tick and as accrue (AWAY-1)');
 for (const f of findings) {

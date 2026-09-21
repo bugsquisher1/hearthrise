@@ -127,20 +127,6 @@
         "selftest": true
       }
     },
-    "world-tick-parity.mjs": {
-      "reason": "Step 1 of the live-world program (docs/planning/WORLD_TICK_DESIGN.md) is a READ-ONLY SHADOW spike, and its brief says register nothing in CI yet — the service it guards writes nothing and ships to nothing, so a CI step would gate the build on a component that cannot affect a player. It asserts (exit 1 on any problem) and carries three --mutate proofs (unaligned / nofight / capIsCadence), all verified red on 2026-09-16. It runs in ~1 s, needs no database and no network. WHAT REGISTERING IT COSTS: a step in .github/workflows/smoke.yml (plain arm AND --mutate arm, per RULE 5) plus a re-pin of tests/ci-shape.baseline.json — see WORLD_TICK_DESIGN.md §13, which lists the full CI shape this program needs. It is registered the moment the tick becomes a writer for any channel, and NOT LATER: P4 is a tripwire that must be flipped to an equality when the rngState seam lands, and a tripwire nothing runs is not a tripwire.",
-      "owner": "backend-architect",
-      "disposition": "register-at-step-2",
-      "verified": {
-        "asserts": true,
-        "selftest": true,
-        "mutations": [
-          "unaligned",
-          "nofight",
-          "capIsCadence"
-        ]
-      }
-    },
     "lifetime-facts-reapply.mjs": {
       "reason": "family pglite-chain-replay, and a SECURITY PROOF rather than a standing gate (b550 review, finding S-LF-3). It replays the whole chain and then proves by execution that 2026-09-19-lifetime-facts-off-the-ledger.sql is ONE-SHOT on production: green on a second apply while no find is live, and refused outright by §2's unguarded hr_backfill_lifetime_facts() call the moment one hearthfind_log row carries src_ledger_id NULL. That is the safe direction and not a defect — it is a fact the apply order has to carry, because schema-drift replays a chain with no live finds and therefore cannot state it. Not registered for the same reason as the rest of this family: it boots PGlite and applies the whole chain, which CI already does once in the schema-drift step.",
       "family": "pglite-chain-replay",
@@ -159,17 +145,6 @@
     },
     "$family:pglite-chain-replay": {
       "reason": "NOT A GUARD FILE — a note covering the entries tagged family 'pglite-chain-replay'. Each boots a real PostgreSQL (PGlite/WASM) and applies the WHOLE migration chain verbatim before asserting, which costs minutes per file. CI already replays that chain once, in the registered `schema-drift` step (plus its --mutate and --live-selftest). Registering these individually would multiply the chain replay by the file count and turn a 20-minute workflow into an hour, for guards whose migrations also carry their own executing self-check blocks. The right fix is a SHARED replayed database these all attach to (tests/schema-replay.mjs already exports bootReplay for exactly this) — a real piece of work, not a line in a YAML file."
-    },
-    "world-tick-writer-authz.mjs": {
-      "reason": "SECURITY PROOF, review-owned and RED BY DESIGN on lane/world-tick-gather. It is the executed half of docs/planning/SEC_WORLD_TICK_GATHER_2026-09-19.md: five arms that turn the verdict's claims into exit codes (S-1 hr_tick cannot reach hr_apply at all — forbidden_impersonation; S-2 the version compare-and-set DOES prevent a tick/accrue double pay, the one arm that passes; S-3 a replayed window still pays because hr_apply clamps the watermark and not the value; S-4 one gather roster call leases another channel's row and returns the character twice; S-5 the dry run counts an honest deferral as an 'overlap'). DELIBERATELY NOT in smoke.yml or run-smoke.mjs: a red guard on the shared workflow makes the CI gate unreachable for every other lane (CLAUDE.md §4, the b512 class), and this one is owned by a review that is open, not by the release. IT IS NOT DEBT TO CARRY: it is the GO condition. When the lane closes S-1, S-3 and S-4 the guard goes green, and registering it in the guards job of .github/workflows/smoke.yml is part of that lane's work — at which point this entry is DELETED. If the lane is abandoned, delete the guard with it.",
-      "owner": "security-engineer",
-      "disposition": "review-open",
-      "verified": {
-        "asserts": true,
-        "selftest": false,
-        "runner": "by hand: node tests/world-tick-writer-authz.mjs (needs @electric-sql/pglite)",
-        "measured": "2026-09-19 — exit 1, 5 open findings, on sec/world-tick-gather @ lane tip eeb331aa"
-      }
     }
   },
   "$proof_baseline_comment": [

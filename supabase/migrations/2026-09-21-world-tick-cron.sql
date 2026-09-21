@@ -529,8 +529,17 @@ begin
 
     -- ── c5: AN EMPTY ROSTER IS `empty`, NOT `posted`. This is the property
     --        that makes an idle beta cost zero Edge invocations.
+    -- ⚠ THE URL MUST NOW SATISFY hr_tick_config_edge_url_ck (Security M-5).
+    --   `https://example.invalid/...` was this block's own demonstration that
+    --   the column took anything; with the constraint in place it is a
+    --   check_violation and the self-check would fail at c5 rather than
+    --   measure c5. A CONFORMING url that is nonetheless unreachable is what
+    --   is wanted: the origin is pinned and real, the FUNCTION NAME is not one
+    --   that exists, and nothing in this block gets far enough to post anyway
+    --   (c5 short-circuits on the empty roster, c6 stops at `no_secret`).
     update public.hr_tick_config
-       set edge_url = 'https://example.invalid/functions/v1/hr-accrue' where id;
+       set edge_url = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/'
+                      || 'hr-accrue-selfcheck-probe-does-not-exist' where id;
     v_r := public.hr_tick_cron_run();
     if v_r->>'outcome' <> 'empty' then
       raise exception 'c5: an empty roster did not short-circuit (%)', v_r;

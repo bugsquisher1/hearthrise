@@ -137,16 +137,6 @@
         "selftest": false
       }
     },
-    "world-tick-shadow-chain.mjs": {
-      "reason": "family pglite-chain-replay, and a SECURITY PROOF rather than a standing gate (M1 review, SEC_WORLD_TICK_M1_2026-09-21.md finding M-1). It is RED ON PURPOSE and must stay out of .github/workflows/smoke.yml until the lane fixes the defect: a red guard on the shared workflow makes the CI gate unreachable for every other lane (the b512 class). It proves by execution that hr_tick_cron_run's payload projection omits `shadow_accrued_to`, so the edge chains every window on the frozen `accrued_to` and the fence correctly refuses fires 2..N as window_already_settled - one shadow row per character instead of one per flush, which makes the 48 h parity measurement that gates arming impossible to take. SC-3 is the control: chaining on the column the roster already computes tiles every window, so the column is right and the defect is confined to one jsonb_build_object key list. DELETE THIS ENTRY AND REGISTER THE FILE once SC-1/SC-2 are green.",
-      "family": "pglite-chain-replay",
-      "owner": "security-engineer",
-      "disposition": "review-open",
-      "verified": {
-        "asserts": true,
-        "selftest": "SC-3 is the built-in control arm"
-      }
-    },
     "$deleted:2026-09-06-slice-2": {
       "reason": "NOT A GUARD FILE — the record of two orphans DELETED rather than adopted, so the decision is not re-litigated by whoever next greps for them. (1) tests/gold-intent-shape.mjs: a one-off investigation script, not a guard — it took the repo root as process.argv[2] and could not be run without one, printed a shape report, and asserted nothing that the registered conservation-fuzz and claim-intent steps do not already assert by execution against the same hr_apply. (2) tests/raid-claim-exploit.mjs: the b209 own-contribution-claim exploit reproduction, written against a HAND-BUILT partial schema in PGlite rather than the real migration chain, so it could pass while production diverged. The property it cared about — a free-rider cannot claim — is covered by the registered raid-band-denial step, whose --selftest plants exactly that defect against the real chain. Both bodies remain in git history at afa7175e~1."
     },

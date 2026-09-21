@@ -201,6 +201,24 @@ create table if not exists public.hr_tick_config (
   -- Where pg_net posts. NOT A SECRET (the secret is in Vault, see the cron
   -- file) — this is the public Edge Function URL and it is a config value so
   -- that a project move is an UPDATE rather than a migration.
+  --
+  -- ⚠ IT IS ALSO THE MOST DANGEROUS COLUMN ON THIS ROW, which is why it is the
+  --   one column that used to carry no CHECK while every tunable beside it
+  --   did (Security M-5, 2026-09-21). One UPDATE here re-aims `net.http_post`
+  --   — carrying `Authorization: Bearer <hr_tick_gateway_key>`,
+  --   `X-HR-Tick-Auth: <hr_tick_shared_secret>` AND the full `hr_state_of`
+  --   envelope of every rostered character — at any host, in plaintext if the
+  --   scheme says so. Executed before the constraint existed, the column
+  --   accepted `http://attacker.example/collect`,
+  --   `http://169.254.169.254/latest/meta-data/`, `file:///etc/passwd`,
+  --   `ftp://x/` and `''`.
+  --
+  --   No client or engine role can write this row (§ RLS below, and e22c
+  --   executes the refusal for all five roles), so the trigger is OPERATOR
+  --   ERROR or post-compromise, not a reachable client exploit — the
+  --   Coordinator types this URL by hand at step 4 of the runbook and a typo
+  --   that RESOLVES is a two-secret leak. The constraint turns that into a
+  --   constraint violation.
   edge_url        text,
   updated_at      timestamptz not null default now(),
   note            text,
@@ -211,7 +229,19 @@ create table if not exists public.hr_tick_config (
   constraint hr_tick_config_lease_ck      check (lease_ms between 5000 and 300000),
   -- The flush may not be shorter than the cadence: a flush per tick is the
   -- ledger-volume failure the header prices.
-  constraint hr_tick_config_flush_ge_cadence_ck check (flush_seconds >= cadence_seconds)
+  constraint hr_tick_config_flush_ge_cadence_ck check (flush_seconds >= cadence_seconds),
+  -- ★ M-5. PINNED TO THIS PROJECT'S FUNCTIONS ORIGIN, https ONLY.
+  --   NULL is allowed and is the DISARMED state the singleton is created in:
+  --   the driver refuses to post on a null or empty url (`no_edge_url`), so
+  --   "unset" stays reachable without being "anything".
+  --   `like` and not a regex: the pattern is an exact origin prefix with one
+  --   trailing wildcard for the function path, so there is no alternation, no
+  --   anchoring subtlety and nothing for a reader to get wrong. A host that
+  --   merely CONTAINS the project ref cannot satisfy a prefix match, and the
+  --   scheme is part of the prefix, so `http://` fails on the same line.
+  constraint hr_tick_config_edge_url_ck check (
+    edge_url is null
+    or edge_url like 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/%')
 );
 
 alter table public.hr_tick_config enable row level security;
@@ -526,6 +556,7 @@ declare
   v_from timestamptz := now() - interval '10 minutes';
   v_to   timestamptz := now() - interval '5 minutes';
   v_d    jsonb;
+  v_txt  text;          -- e22's loop variable: urls, then role names
 begin
   begin
     -- ── e1: the config singleton exists and SHIPS DISARMED. The single most
@@ -786,10 +817,113 @@ begin
       reset role;
     end;
 
+    -- ── e21: ★ THE END-OF-CHAIN GRANT EQUALITY ★ (Security M-4, 2026-09-21).
+    --         2026-09-20-world-tick-roster.sql's §5 says the milestone ends
+    --         with `hr_tick` holding EXACTLY ONE routine grant, and leaned on
+    --         that equality to argue "so a fourth arriving later is a review
+    --         failure". THE ASSERTION DID NOT EXIST. e18 counts grants ON
+    --         hr_tick_settle (a different question with a different answer),
+    --         and the roster's own e6 runs BEFORE this file applies, so
+    --         nothing re-checked the invariant at the point the chain actually
+    --         ends. An invariant nobody measures at the end is a sentence.
+    --
+    --         EQUALITY, NOT A SUPERSET: a count of 1 with the wrong member is
+    --         still wrong, so the member is named too. The one legitimate
+    --         grant is hr_tick_roster — the SELECTOR. If `hr_tick` ever holds
+    --         a second routine, or a different one, this apply fails here
+    --         rather than in an audit six weeks later.
+    select count(*) into v_n from information_schema.role_routine_grants g
+     where g.grantee = 'hr_tick' and g.specific_schema = 'public';
+    if v_n <> 1 then
+      raise exception 'e21: hr_tick holds % routine grant(s), expected exactly 1 (hr_tick_roster): %',
+        v_n, coalesce((select string_agg(g.routine_name, ',' order by g.routine_name)
+                         from information_schema.role_routine_grants g
+                        where g.grantee = 'hr_tick' and g.specific_schema = 'public'), '<none>');
+    end if;
+    if not has_function_privilege('hr_tick',
+         'public.hr_tick_roster(text[],int,int,text,int,timestamptz,uuid,int)', 'execute') then
+      raise exception 'e21b: hr_tick''s one grant is not hr_tick_roster — the selector is gone '
+                      'and something else took its place';
+    end if;
+
+    -- ── e22: ★ THE edge_url CONSTRAINT BITES, BY EXECUTION ★ (M-5).
+    --         PROBE ROWS ONLY: every statement below targets the singleton by
+    --         a WHERE that no production row satisfies — `id` is a boolean
+    --         primary key whose only legal value is true, so these UPDATEs are
+    --         written against `id and false`, which touches ZERO rows, and the
+    --         CHECK is exercised by a nested INSERT of a probe row into a
+    --         TEMP copy of the table instead. The 2026-09-20 production apply
+    --         failed because a self-check UPDATEd every row in a real table;
+    --         tests/selfcheck-no-global-dml.mjs is the standing detector and
+    --         this block is written to satisfy it rather than to be excused.
+    -- INCLUDING DEFAULTS as well as CONSTRAINTS: `LIKE` copies NOT NULL but
+    -- not the DEFAULTs behind it, so without this the probe INSERTs fail on
+    -- `enabled` being null and e22 would "pass" by never reaching the CHECK.
+    create temp table hr921_cfg_probe
+      (like public.hr_tick_config including defaults including constraints)
+      on commit drop;
+
+    -- the four shapes Security executed against the UNCONSTRAINED column
+    foreach v_txt in array array[
+      'http://attacker.example/collect',
+      'http://169.254.169.254/latest/meta-data/',
+      'file:///etc/passwd',
+      'ftp://x/',
+      '',
+      'https://nezapsylztqbbwuwembx.supabase.co.attacker.example/functions/v1/hr-accrue',
+      'https://other-project.supabase.co/functions/v1/hr-accrue'
+    ] loop
+      begin
+        insert into hr921_cfg_probe (id, edge_url) values (true, v_txt);
+        raise exception 'e22: hr_tick_config.edge_url ACCEPTED %, which re-aims two Vault '
+                        'secrets and every rostered envelope at an arbitrary host', v_txt;
+      exception
+        when check_violation then
+          delete from hr921_cfg_probe where id;      -- probe table only
+      end;
+    end loop;
+
+    -- ── e22b: AND IT IS NOT VACUOUS. The real URL, and NULL (the disarmed
+    --          state the singleton ships in), must both still be accepted — a
+    --          constraint that refuses everything would pass e22 and make the
+    --          tick unarmable.
+    begin
+      insert into hr921_cfg_probe (id, edge_url)
+        values (true, 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue');
+      delete from hr921_cfg_probe where id;
+      insert into hr921_cfg_probe (id, edge_url) values (true, null);
+      delete from hr921_cfg_probe where id;
+    exception when check_violation then
+      raise exception 'e22b: the edge_url CHECK refuses the REAL function url or NULL — '
+                      'the constraint is wrong, not the caller';
+    end;
+
+    -- ── e22c: WHO CAN UPDATE THAT COLUMN AT ALL. The constraint is the second
+    --          line; the first is that no role a request can arrive as holds
+    --          any privilege on the table. RLS is enabled AND forced with zero
+    --          policies, so even a grant would not be enough — but the grants
+    --          are gone too, and this asserts BOTH rather than trusting §1.
+    if not (select relrowsecurity and relforcerowsecurity
+              from pg_class where oid = 'public.hr_tick_config'::regclass) then
+      raise exception 'e22c: hr_tick_config does not have RLS enabled AND forced';
+    end if;
+    if exists (select 1 from pg_policies
+                where schemaname = 'public' and tablename = 'hr_tick_config') then
+      raise exception 'e22c2: hr_tick_config has a policy — it must have none';
+    end if;
+    foreach v_txt in array array['anon','authenticated','service_role','hr_engine','hr_tick'] loop
+      if has_table_privilege(v_txt, 'public.hr_tick_config', 'UPDATE')
+      or has_table_privilege(v_txt, 'public.hr_tick_config', 'INSERT')
+      or has_table_privilege(v_txt, 'public.hr_tick_config', 'SELECT') then
+        raise exception 'e22c3: % holds a privilege on hr_tick_config — one UPDATE to edge_url '
+                        'is a two-secret exfiltration', v_txt;
+      end if;
+    end loop;
+
     raise exception 'HR921_ROLLBACK_OK';
   exception
     when others then
       if sqlerrm <> 'HR921_ROLLBACK_OK' then raise; end if;
   end;
-  raise notice 'world-tick-settle-fence self-check PASSED (e1-e20); probe rows rolled back';
+  raise notice 'world-tick-settle-fence self-check PASSED (e1-e22); probe rows rolled back';
 end $$;

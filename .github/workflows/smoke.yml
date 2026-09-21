@@ -970,6 +970,28 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-tick-writer-authz.mjs
 
+      # THE SHADOW RUN MUST SURVIVE ITS OWN DRIVER
+      # (SEC_WORLD_TICK_M1_2026-09-21.md finding M-1, P0, which BLOCKED the
+      # cron file and SHADOW-on-production). The sibling above and
+      # world-tick-double-pay both call hr_tick_settle DIRECTLY with a
+      # window_from already chained on the shadow mark, so they prove the FENCE
+      # chains and are blind to whether the DRIVER ever delivers the mark. No
+      # test read hr_tick_cron_run's payload. That is how the lane was green and
+      # wrong: while shadowed the tick pays nothing, accrued_to never moves, and
+      # every fire after the first re-proposed the SAME window and was refused
+      # window_already_settled — 1 shadow row per character where 1,920 are
+      # expected over 48 h, so the parity measurement that GATES arming could
+      # not be taken. The dangerous "fix" for that stall is to loosen the
+      # watermark CAS, which is the double pay the step above exists to prevent.
+      #
+      # SC-3 is the built-in control and was green while SC-1/SC-2 were red,
+      # which localised the defect to one jsonb_build_object key list. It was
+      # RED BY DESIGN and deliberately unregistered while the review was open
+      # (tests/guards-unregistered.json); it is green, so it is here.
+      - name: World tick — SHADOW chains on its own watermark
+        if: ${{ !cancelled() }}
+        run: node tests/world-tick-shadow-chain.mjs
+
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
   # snapshot cache 46 s, schema drift 73 s, THIS GUARD 411 s, ledger rollup

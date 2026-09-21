@@ -11,11 +11,25 @@
 --     hr_state_of(user, slot)                                 existing
 --     hr_apply(user, slot, version, intent, delta)            existing, UNCHANGED
 --
--- ⚠ AMENDED 2026-09-21: the last two are no longer reachable by the tick role
---   directly. They are reached through `hr_tick_seeds` and `hr_tick_settle`,
---   the lease-checked wrappers in 2026-09-21-world-tick-settle-fence.sql. The
---   CALL LIST is still four; the GRANT list at this file's point in the chain
---   is one. See the exploit-surface note below.
+-- ⚠ AMENDED 2026-09-21, AND CORRECTED THE SAME DAY (Security M-3): the two
+--   grants this file originally made to `hr_tick` are WITHDRAWN (§5).
+--   `hr_apply` is replaced by ONE lease-checked wrapper, `hr_tick_settle`, in
+--   2026-09-21-world-tick-settle-fence.sql. `hr_seed` is NOT replaced by
+--   anything: it is simply not granted to `hr_tick` any more, because at
+--   MILESTONE 1 THE TICK IS THE EDGE, and the edge reaches `hr_seed` as
+--   `hr_engine` exactly as it always has
+--   (supabase/functions/hr-accrue/index.ts, tick.js `seedLadder`).
+--
+--   An earlier draft of this header said both were replaced by wrappers and
+--   named a second one, `hr_tick_seeds`. THAT FUNCTION WAS NEVER WRITTEN —
+--   `grep -rn hr_tick_seeds` returned only the three sentences claiming it.
+--   The sentences are gone. S-7's RNG oracle is stated honestly below: it is
+--   an UNCHANGED, ACCEPTED residual, not a narrowed one. A header that
+--   asserts a control nobody built is how the previous audit told the owner
+--   the save system was safe.
+--
+--   The CALL LIST is still four; the GRANT list at this file's point in the
+--   chain is one. See the exploit-surface note below.
 --
 -- ⚠ NOTHING IN THIS FILE MOVES VALUE. It creates no faucet, no clamp, no
 --   catalogue and no ledger row. It restates NO existing function body, so it
@@ -87,15 +101,28 @@
 --          label) in the database, not only over the characters the tick holds
 --          a lease on.
 --
---   Both grants are WITHDRAWN here (§5) and replaced in
---   2026-09-21-world-tick-settle-fence.sql by two narrow SECURITY DEFINER
---   wrappers — `hr_tick_settle` and `hr_tick_seeds` — each of which refuses
---   unless the caller holds a LIVE LEASE on the exact (user, slot, channel) it
---   names. So the tick host can settle only what the roster handed it, and a
---   compromised tick host is strictly LESS dangerous than a compromised edge
---   deploy rather than merely equal to it. The header's original claim that
---   "hr_apply is UNCHANGED" survives, and is the reason the wrapper route was
---   preferred over splicing the money function's seam.
+--   Both grants are WITHDRAWN here (§5). They are NOT both replaced, and the
+--   difference matters:
+--
+--     S-1/hr_apply  IS replaced, by ONE narrow SECURITY DEFINER wrapper —
+--         `hr_tick_settle` in 2026-09-21-world-tick-settle-fence.sql — which
+--         refuses unless the caller holds a LIVE LEASE on the exact (user,
+--         slot, channel) it names. So the tick host can settle only what the
+--         roster handed it, and a compromised tick host is strictly LESS
+--         dangerous than a compromised edge deploy rather than merely equal to
+--         it. The header's original claim that "hr_apply is UNCHANGED"
+--         survives, and is why the wrapper route beat splicing the money
+--         function's seam.
+--
+--     S-7/hr_seed   IS NOT REPLACED. Nothing wraps it and nothing narrows it.
+--         Withdrawing the grant means `hr_tick` cannot call it; it does not
+--         mean the oracle closed. At milestone 1 the tick IS the edge, which
+--         holds `hr_engine`, and `hr_engine` has held EXECUTE on `hr_seed`
+--         since 2026-08-11 under a standing acceptance. The edge calls it
+--         directly and unscoped for arbitrary (user, slot, label) — see
+--         tick.js `seedLadder`. THE RESIDUAL IS EXACTLY WHERE IT WAS.
+--         Re-open S-7 only if that stream is ever used for something a player
+--         can predict-and-choose; today it labels a window the server picked.
 --
 -- `hr_state_of` needs NO grant: the roster returns the hydration envelope by
 -- calling it internally as definer, so the tick never holds that EXECUTE.
@@ -510,14 +537,22 @@ revoke execute on function public.hr_shard_of(uuid) from anon, authenticated, se
 --    call was refused `forbidden_impersonation` — and S-7 recorded the second
 --    as an UNSCOPED RNG oracle over every (user, slot, label) in the database.
 --
---    Both are replaced by narrow SECURITY DEFINER wrappers in the next file,
---    2026-09-21-world-tick-settle-fence.sql, which are lease-checked and
---    watermark-checked: `hr_tick_settle` and `hr_tick_seeds`. The tick never
---    holds raw hr_apply or raw hr_seed again.
+--    hr_apply is replaced by ONE lease- and watermark-checked SECURITY DEFINER
+--    wrapper in the next file, 2026-09-21-world-tick-settle-fence.sql:
+--    `hr_tick_settle`, and it is granted to `hr_engine`, NOT to `hr_tick`.
+--    hr_seed is replaced by NOTHING (M-3): the withdrawal stops `hr_tick`
+--    calling it and changes nothing about `hr_engine`, which is the role the
+--    milestone-1 tick actually arrives as. `hr_tick` never holds raw hr_apply
+--    or raw hr_seed again; the edge's own access to hr_seed is untouched and
+--    is the accepted S-7 residual.
 --
---    THE INVARIANT AT THIS POINT IN THE CHAIN IS THEREFORE "EXACTLY ONE
---    ROUTINE GRANT" (e6 below). The fence file re-asserts "exactly three, and
---    hr_apply/hr_seed are not among them" at its own point in the chain.
+--    THE INVARIANT AT THIS POINT IN THE CHAIN IS "EXACTLY ONE ROUTINE GRANT"
+--    (e6 below), and it is STILL EXACTLY ONE at the end of the chain — the
+--    fence adds no grant to `hr_tick` at all. An earlier draft of this comment
+--    said the fence re-asserts "exactly three"; there is no reading of the
+--    chain under which three is right, and no such assertion existed (M-4).
+--    The fence now closes the chain with the equality this sentence always
+--    promised: `count(*) where grantee = 'hr_tick'` = 1, at e21.
 revoke execute on function public.hr_apply(uuid, integer, bigint, uuid, jsonb) from hr_tick;
 revoke execute on function public.hr_seed(uuid, integer, text) from hr_tick;
 

@@ -135,25 +135,42 @@ if (ARGS.includes('--gather')) {
   if (g.windows === 0) {
     console.log('   no gather accrue windows in the fetched range.');
   } else {
-    console.log(['stream'.padEnd(14), 'accrue rows'.padStart(12), 'tick rows'.padStart(11),
+    const head = ['stream'.padEnd(14), 'accrue rows'.padStart(12), 'tick rows'.padStart(11),
       'span (h)'.padStart(10), 'ticks'.padStart(9), 'qty'.padStart(8),
-      'overlap'.padStart(9), 'gap'.padStart(6)].join(''));
+      'deferred'.padStart(10), 'overlap'.padStart(9), 'gap'.padStart(6), 'unprov'.padStart(8)];
+    console.log(head.join(''));
     for (const s of g.streams) {
       console.log([s.stream.padEnd(14), String(s.accrueRows).padStart(12), String(s.tickRows).padStart(11),
         (s.spanMs / 3600000).toFixed(2).padStart(10), String(s.ticks).padStart(9), String(s.qty).padStart(8),
-        String(s.overlap).padStart(9), String(s.gap).padStart(6)].join(''));
+        String(s.deferred).padStart(10), String(s.overlap).padStart(9), String(s.gap).padStart(6),
+        String(s.unprovable).padStart(8)].join(''));
     }
     const t = g.total;
     console.log(['TOTAL'.padEnd(14), String(t.accrueRows).padStart(12), String(t.tickRows).padStart(11),
       (t.spanMs / 3600000).toFixed(2).padStart(10), String(t.ticks).padStart(9), String(t.qty).padStart(8),
-      String(t.overlap).padStart(9), String(t.gap).padStart(6)].join(''));
+      String(t.deferred).padStart(10), String(t.overlap).padStart(9), String(t.gap).padStart(6),
+      String(t.unprovable).padStart(8)].join(''));
     const mult = t.accrueRows ? (t.tickRows / t.accrueRows) : 0;
     console.log(`\nROW COST: the tick would have written ${t.tickRows} ledger rows where accrual wrote`);
     console.log(`${t.accrueRows} — ×${mult.toFixed(2)}, i.e. ~${Math.round(t.tickRows * 407 / 1024)} KiB against ~${Math.round(t.accrueRows * 407 / 1024)} KiB at the measured 407 B/row.`);
     console.log(`Per-tick journalling over the same span would have been ${Math.round(t.spanMs / 10000)} rows (×${(t.spanMs / 10000 / Math.max(1, t.accrueRows)).toFixed(0)}), which is the unit §15a rejected.`);
-    console.log(`TILING: ${t.overlap} overlapping and ${t.gap} gapped boundaries inside a stream.`);
-    console.log('   (a gap is not a fault — another writer, a set_activity collect or a channel');
-    console.log('    switch, legitimately settles in between; an OVERLAP would be a double pay.)');
+    console.log(`TILING: ${t.deferred} deferred, ${t.overlap} overlapping, ${t.gap} gapped, `
+      + `${t.unprovable} unprovable boundaries inside a stream.`);
+    console.log('   DEFERRED is the CORRECT shape and is the great majority: since settledWatermarkMs');
+    console.log('   landed (2026-09-16) the next window starts at prev.to MINUS the deferred sub-action');
+    console.log('   remainder, so its `from` is legitimately earlier than the previous window\'s `to`.');
+    console.log('   Before 2026-09-21 this column did not exist and every one of those boundaries was');
+    console.log('   counted as an OVERLAP — that is where the 15 "overlapping" windows of the step-1');
+    console.log('   run came from (SEC_WORLD_TICK_GATHER_2026-09-19.md S-5). The classification is now');
+    console.log('   replayStream\'s, which solves each window\'s own geometry rather than comparing');
+    console.log('   two timestamps.');
+    console.log('   A gap is not a fault either — another writer, a set_activity collect or a channel');
+    console.log('   switch legitimately settles in between.');
+    console.log(`   ⚠ OVERLAP IS THE ONLY FAILING BUCKET: ${t.overlap} window(s) began BEFORE the`);
+    console.log('   watermark the previous one earned, which is time paid for twice. Anything above');
+    console.log('   zero here is a P1 and is a finding, not a metric.');
+    console.log('   UNPROVABLE is the journal declining to answer (a pre-2026-09-18 row with no');
+    console.log('   `meta.w`, a zero-tick window, a capped flush) — reported, never counted as a pass.');
     console.log('\nVALUE IS NOT COMPARED HERE and no roll was made. The starting state and the seed');
     console.log('are both absent from the journal (the seed BY DESIGN), so the value proof is made');
     console.log('on fixtures where it is exact: tests/world-tick-parity.mjs P-G1.');

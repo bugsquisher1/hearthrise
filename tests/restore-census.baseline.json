@@ -407,6 +407,9 @@
       "hr-market-sales-prune | 45 3 * * * | select public.market_sales_prune()",
       "hr-progress-prune | 25 4 * * * | select public.hr_progress_prune()",
       "hr-rejections-prune | 35 4 * * * | select public.hr_rejections_prune()",
+      "hr-tick-cron-log-prune | 37 * * * * | select public.hr_tick_cron_log_prune(20000)",
+      "hr-tick-run | 10 seconds | select public.hr_tick_cron_run()",
+      "hr-tick-shadow-prune | 27 * * * * | select public.hr_tick_shadow_prune(20000)",
       "hr-town-refresh | 25 seconds | select public.hr_town_refresh()",
       "trim-chat-messages | 15 3 * * * | delete from public.chat_messages where created_at < now() - interval '60 days'",
       "trim-game-events | 0 3 * * * | select public.hr_trim_game_events(7)"
@@ -534,7 +537,9 @@
     "hr_rejections": "Sampled hr_apply rejections, pruned nightly. Anomaly-detection history only: it records that a call was refused, never that anyone was owed anything.",
     "player_intents": "The 24-hour idempotency window, pruned hourly by hr-intents-prune. Losing it means a retry INSIDE the window is no longer deduplicated — bounded by the version and watermark checks hr_apply makes anyway. Deliberately contrasted with the two credit logs, which look identical and are not: no ceiling is summed over this table.",
     "player_ledger_rollup": "Aggregates written by hr_ledger_prune as it deletes aged ledger rows. Derived — but NOT re-derivable once the source rows are pruned. Losing it loses history beyond the 90-day ledger window; it is never read to decide a live value, so no player is poorer for its loss.",
-    "session_claims": "Single-active-session heartbeat rows keyed on the browser TAB. Self-healing: a lost claim is re-taken on the next heartbeat, and save-invariant #2 means absence can never evict anyone (eviction requires a definitive fresh-heartbeat row, and no row is not that)."
+    "session_claims": "Single-active-session heartbeat rows keyed on the browser TAB. Self-healing: a lost claim is re-taken on the next heartbeat, and save-invariant #2 means absence can never evict anyone (eviction requires a definitive fresh-heartbeat row, and no row is not that).",
+    "hr_tick_ownership": "A ROLLOUT SWITCH, NOT A LEDGER. It answers 'which tick process may settle this character right now', and the fail-safe for a missing row is NOT OWNED — so an empty table after a restore is behaviourally identical to the world before the tick shipped: the accrual path settles the channel on return, from `player_state.accrued_to`, which is the row that actually holds the value and is itself restore_only. Neither a double pay nor a gap is possible whatever this table says, because the watermark is the correctness mechanism and it moves only inside hr_apply's per-character lock (2026-09-20-world-tick-roster.sql §3; Security S-4, SEC_WORLD_TICK_GATHER_2026-09-19.md).",
+    "hr_tick_shadow": "A MEASUREMENT OF WHAT WAS NOT PAID. Every row is written on the branch of hr_tick_settle that returns BEFORE hr_apply — the shadow branch pays nothing, and the migration's self-check e13 asserts gold, version and accrued_to are all unmoved after one. No RPC reads this table, nothing joins to it, and no number a player can spend, rank or trade is derived from it. Losing every row costs re-running the 48 h parity window."
   },
   "tables": {
     "active_bounty": {
@@ -1110,6 +1115,47 @@
       "class": "restore_only",
       "wiped_at_cutover": false,
       "note": "THE GLOBAL MONOTONIC TROPHY COUNTER (2026-09-19), one row per trophy, from which hr_apply ALLOCATES each find's nth_ever under the row lock. Not player-scoped (no user_id) but not regenerable either after a player_ledger prune: coming back empty restarts \"Nth ever found\" at 1 for every trophy. It can, however, be REBUILT FROM hearthfind_log (max(nth_ever) per item) by re-running hr_backfill_lifetime_facts(), which is raise-only — so restore hearthfind_log first and this follows. Server-only: no client role holds any privilege on it."
+    },
+    "hr_tick_ownership": {
+      "class": "operational",
+      "wiped_at_cutover": false,
+      "note": "THE WORLD TICK'S ROLLOUT SWITCH plus its lease, per (user, slot, channel) — created 2026-09-20-world-tick-roster.sql. `operational` and not `operator_tunable` because the repo authors NO row for it: a rebuild brings it back EMPTY and empty is the fail-safe, which reads as NOT OWNED for every character. It holds no player value — `player_state.accrued_to` is the single source of truth for what has been paid, it moves only forward, and only inside hr_apply's per-character lock — so an empty table after a restore is behaviourally identical to the world before the tick shipped: the accrual-on-return path settles every channel and no player loses a second of credited time. The lease columns are worth less still: a lease is at most 300 s old by construction. An operator re-flags the rollout cohort with one INSERT. RLS enabled AND forced, zero policies, zero grants, so no client can read it, write it or learn from it."
+    },
+    "hr_tick_config": {
+      "class": "operator_tunable",
+      "wiped_at_cutover": false,
+      "note": "THE WORLD TICK'S KILL SWITCH AND SHADOW FLAG — a singleton row created 2026-09-21-world-tick-settle-fence.sql (`id boolean primary key check (id)`). It carries no player value and no secret (the pg_net bearer lives in Vault). Coming back EMPTY is the SAFE direction and is the reason the fence reads it with `if not found ... return tick_disabled`: a missing row means the tick is off, the accrual path keeps every channel, and an operator re-arms deliberately. What is actually lost is the tuning — cadence, flush, batch cap, channel list, edge_url — which is four UPDATEs from the runbook, not player progress. RLS enabled and forced, zero policies, zero grants.",
+      "replay": 1,
+      "live_value": {
+        "measured": "2026-09-21",
+        "value": [
+          {
+            "id": true,
+            "enabled": false,
+            "shadow": true,
+            "cadence_seconds": 10,
+            "flush_seconds": 90,
+            "batch_limit": 200,
+            "lease_ms": 30000,
+            "channels": [
+              "gather"
+            ],
+            "edge_url": null,
+            "cursor_slot": null
+          }
+        ],
+        "note": "NOT YET IN PRODUCTION. 2026-09-21-world-tick-settle-fence.sql is STAGED, NOT APPLIED, so the value recorded here is the AUTHORED DEFAULT the migration ships and it is currently identical to what a rebuild produces. It is written down now, before the apply, because the moment an operator arms the tick (`enabled = true`) or leaves SHADOW (`shadow = false`) a rebuild would silently revert the live world to off — which is the safe direction, and still a revert nobody would notice. Re-measure this block on the first apply and after every arm/disarm."
+      }
+    },
+    "hr_tick_shadow": {
+      "class": "operational",
+      "wiped_at_cutover": false,
+      "note": "WHAT THE WORLD TICK WOULD HAVE PAID, and never what it did — created 2026-09-21-world-tick-settle-fence.sql. It is written ONLY on the shadow branch of hr_tick_settle, which returns before hr_apply is called; nothing reads it to decide a number a player can spend, rank or trade, and no RPC joins to it. It exists so the 48 h production parity window of LIVE_WORLD_BRIEF.md step 1 can be measured against what the accrual path actually wrote. Losing every row costs a MEASUREMENT — the parity run is repeated — and costs no player anything. Pruned hourly to 14 days by hr-tick-shadow-prune; budgeted at 48,000 rows/day at 50 active characters on the shipped 90 s flush. RLS enabled and forced, zero policies, zero grants."
+    },
+    "hr_tick_cron_log": {
+      "class": "operational",
+      "wiped_at_cutover": false,
+      "note": "ONE ROW PER TICK-DRIVER FIRE — created 2026-09-21-world-tick-cron.sql. Outcome, rostered count, duration and the effective per-character cadence; never one row per character and never a secret (c8b asserts nothing bearer-shaped reaches `detail`). It is the only window an operator has into a job nobody watches — the hr_ledger_prune lesson, where the cron row existed and the retention still did not work for weeks. Losing it costs the last 7 days of that visibility and nothing else; the next fire writes a new row. Pruned hourly to 7 days by hr-tick-cron-log-prune."
     }
   }
 }

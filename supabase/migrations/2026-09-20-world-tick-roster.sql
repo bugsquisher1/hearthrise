@@ -11,6 +11,12 @@
 --     hr_state_of(user, slot)                                 existing
 --     hr_apply(user, slot, version, intent, delta)            existing, UNCHANGED
 --
+-- ⚠ AMENDED 2026-09-21: the last two are no longer reachable by the tick role
+--   directly. They are reached through `hr_tick_seeds` and `hr_tick_settle`,
+--   the lease-checked wrappers in 2026-09-21-world-tick-settle-fence.sql. The
+--   CALL LIST is still four; the GRANT list at this file's point in the chain
+--   is one. See the exploit-surface note below.
+--
 -- ⚠ NOTHING IN THIS FILE MOVES VALUE. It creates no faucet, no clamp, no
 --   catalogue and no ledger row. It restates NO existing function body, so it
 --   is on no derivation chain, takes over no last-toucher role and MOVES NO
@@ -64,21 +70,32 @@
 --   §6  Self-check, EXECUTED, in a subtransaction that is rolled back.
 --
 -- ── EXPLOIT-SURFACE DELTA, STATED FOR THE SECURITY REVIEW ───────────────────
--- ONE new role with THREE execute grants, and one new table no client can read.
+-- ONE new role with ONE execute grant, and one new table no client can read.
 --
--- ⚠ THREE, NOT THE TWO §8 PROMISED, and the third is deliberate. §8 budgeted
---   `hr_tick_roster` + `hr_apply`. The tick also needs `hr_seed`, because the
---   per-window PRNG label names the window's WATERMARK (§11) and the watermark
---   moves on every poll inside a flush — so a seed handed out once at roster
---   time is a seed for one window only, and reusing it is precisely the
---   `fixedSeed` mutant (+48% gold on the combat fixtures). The alternative,
---   folding hr_seed into the roster's return, would force one roster call per
---   poll and still be wrong for the polls after the first.
---   The privilege this adds is EXACTLY the one hr_engine has held since
---   2026-08-11: hr_seed is granted to hr_engine today and the Edge Function
---   calls it for arbitrary (user, slot, label). A compromised tick host is
---   therefore exactly as dangerous as a compromised edge deploy, and no more —
---   which is the same argument §8 makes for reusing hr_apply.
+-- ⚠ AMENDED 2026-09-21 AFTER THE SECURITY VERDICT (GO-WITH-CHANGES,
+--   docs/planning/SEC_WORLD_TICK_GATHER_2026-09-19.md). As staged this file
+--   granted `hr_tick` EXECUTE on hr_apply and on hr_seed directly, and argued
+--   that this was "exactly the privilege hr_engine has held since 2026-08-11".
+--   Two things were wrong with that:
+--
+--     S-1  It does not work. hr_apply's impersonation seam tests
+--          `v_role = 'hr_engine'` LITERALLY, so hr_tick fell to
+--          `v_uid := auth.uid()` — NULL for a nologin role — and every tick
+--          call was refused `forbidden_impersonation`, the highest-signal
+--          anti-cheat alert in the system, at one per flush per character.
+--     S-7  hr_seed granted to hr_tick is an RNG oracle over EVERY (user, slot,
+--          label) in the database, not only over the characters the tick holds
+--          a lease on.
+--
+--   Both grants are WITHDRAWN here (§5) and replaced in
+--   2026-09-21-world-tick-settle-fence.sql by two narrow SECURITY DEFINER
+--   wrappers — `hr_tick_settle` and `hr_tick_seeds` — each of which refuses
+--   unless the caller holds a LIVE LEASE on the exact (user, slot, channel) it
+--   names. So the tick host can settle only what the roster handed it, and a
+--   compromised tick host is strictly LESS dangerous than a compromised edge
+--   deploy rather than merely equal to it. The header's original claim that
+--   "hr_apply is UNCHANGED" survives, and is the reason the wrapper route was
+--   preferred over splicing the money function's seam.
 --
 -- `hr_state_of` needs NO grant: the roster returns the hydration envelope by
 -- calling it internally as definer, so the tick never holds that EXECUTE.
@@ -217,7 +234,16 @@ create or replace function public.hr_tick_roster(
   p_shard    int     default 0,
   p_limit    int     default 200,
   p_holder   text    default null,
-  p_lease_ms int     default 30000
+  p_lease_ms int     default 30000,
+  -- THE CURSOR (2026-09-21). A keyset, not an offset: the driver hands back the
+  -- last row of the previous batch and this call resumes strictly after it, so a
+  -- roster larger than `p_limit` is walked to its end instead of re-serving its
+  -- head. Both NULL — the default and the wrap — start from the beginning.
+  -- Ordering is `(accrued_to, user_id, slot)`, which is total, so no row can be
+  -- skipped or served twice inside one pass.
+  p_after_accrued timestamptz default null,
+  p_after_user    uuid        default null,
+  p_after_slot    int         default null
 )
 returns table (
   user_id      uuid,
@@ -295,7 +321,12 @@ begin
   --        never the host's (§9 — the authority clock wins).
   return query
   with claim as (
-    select o.user_id, o.slot
+    -- S-2 (Security, 2026-09-19): `channel` is projected and joined on. The
+    -- primary key is (user_id, slot, channel), so a claim keyed on (user_id,
+    -- slot) alone stamped a lease on a channel row it never locked and
+    -- returned the character once per ownership row. Executed proof:
+    -- tests/world-tick-writer-authz.mjs S-4a/S-4b.
+    select o.user_id, o.slot, o.channel
       from public.hr_tick_ownership o
       join public.player_state ps
         on ps.user_id = o.user_id and ps.slot = o.slot
@@ -307,7 +338,23 @@ begin
        and (o.lease_until is null
             or o.lease_until < now()
             or o.lease_holder = v_holder)
-     order by ps.accrued_to asc          -- the furthest behind is served first
+       -- The keyset. Written out rather than as a row comparison so the NULL
+       -- (start-of-pass) case is explicit and cannot be read as "match nothing".
+       and (p_after_accrued is null
+            or (ps.accrued_to, o.user_id, o.slot)
+                 > (p_after_accrued,
+                    coalesce(p_after_user, '00000000-0000-0000-0000-000000000000'::uuid),
+                    -- FAIL-SAFE SENTINEL. A caller that names an instant and a
+                    -- user but no SLOT gets the boundary EXCLUSIVE of every slot
+                    -- that user holds at that instant. The other direction (-1,
+                    -- the first spelling) makes the cursor row itself compare
+                    -- greater than its own key, so every pass re-serves its last
+                    -- row and the walk never advances — measured in
+                    -- tests/world-tick-double-pay.mjs D5, which saw 8 rows over 5
+                    -- characters. Skipping a character costs one pass; re-serving
+                    -- it costs a second lease on a character already in flight.
+                    coalesce(p_after_slot, 2147483647)))
+     order by ps.accrued_to asc, o.user_id asc, o.slot asc   -- furthest behind first, then total
      limit v_limit
        for update of o skip locked
   ), leased as (
@@ -316,7 +363,7 @@ begin
            lease_until  = now() + v_lease,
            updated_at   = now()
       from claim c
-     where o.user_id = c.user_id and o.slot = c.slot
+     where o.user_id = c.user_id and o.slot = c.slot and o.channel = c.channel
      returning o.user_id, o.slot
   )
   select ps.user_id,
@@ -342,26 +389,38 @@ begin
          public.hr_state_of(ps.user_id, ps.slot)                        as state
     from leased l
     join public.player_state ps
-      on ps.user_id = l.user_id and ps.slot = l.slot;
+      on ps.user_id = l.user_id and ps.slot = l.slot
+   order by ps.accrued_to asc, ps.user_id asc, ps.slot asc;
 end $$;
 
 -- ── §5 GRANTS ───────────────────────────────────────────────────────────────
 -- `revoke ... from public` FIRST, then the single grant (CLAUDE.md §2). A
 -- privileged function left executable by `authenticated`/`anon` is the whole
 -- game, and a template that omits the revoke is how one gets omitted for real.
-revoke execute on function public.hr_tick_roster(text[], int, int, text, int) from public;
-revoke execute on function public.hr_tick_roster(text[], int, int, text, int) from anon, authenticated, service_role;
-grant  execute on function public.hr_tick_roster(text[], int, int, text, int) to hr_tick;
+revoke execute on function public.hr_tick_roster(text[], int, int, text, int, timestamptz, uuid, int) from public;
+revoke execute on function public.hr_tick_roster(text[], int, int, text, int, timestamptz, uuid, int) from anon, authenticated, service_role;
+grant  execute on function public.hr_tick_roster(text[], int, int, text, int, timestamptz, uuid, int) to hr_tick;
 
 revoke execute on function public.hr_shard_of(uuid) from public;
 revoke execute on function public.hr_shard_of(uuid) from anon, authenticated, service_role;
 
--- THE TICK BECOMES A CALLER OF THE WRITER THAT ALREADY EXISTS. hr_apply's body
--- is untouched by this file; only its grant list grows by one role.
-grant execute on function public.hr_apply(uuid, integer, bigint, uuid, jsonb) to hr_tick;
--- ⚠ THE THIRD GRANT, argued in the header: the per-window seed label names the
---    watermark, and the watermark moves on every poll inside a flush.
-grant execute on function public.hr_seed(uuid, integer, text) to hr_tick;
+-- ⚠ THE TWO GRANTS THIS FILE ORIGINALLY MADE ARE WITHDRAWN (2026-09-21).
+--    It granted `hr_tick` EXECUTE on hr_apply and on hr_seed directly. Security
+--    S-1 proved by execution that the first does not even work — hr_apply's
+--    impersonation seam tests `v_role = 'hr_engine'` literally, so every tick
+--    call was refused `forbidden_impersonation` — and S-7 recorded the second
+--    as an UNSCOPED RNG oracle over every (user, slot, label) in the database.
+--
+--    Both are replaced by narrow SECURITY DEFINER wrappers in the next file,
+--    2026-09-21-world-tick-settle-fence.sql, which are lease-checked and
+--    watermark-checked: `hr_tick_settle` and `hr_tick_seeds`. The tick never
+--    holds raw hr_apply or raw hr_seed again.
+--
+--    THE INVARIANT AT THIS POINT IN THE CHAIN IS THEREFORE "EXACTLY ONE
+--    ROUTINE GRANT" (e6 below). The fence file re-asserts "exactly three, and
+--    hr_apply/hr_seed are not among them" at its own point in the chain.
+revoke execute on function public.hr_apply(uuid, integer, bigint, uuid, jsonb) from hr_tick;
+revoke execute on function public.hr_seed(uuid, integer, text) from hr_tick;
 
 -- ── §6 SELF-CHECK — EXECUTED (CLAUDE.md §4) ─────────────────────────────────
 -- Properties asserted by RUNNING SQL, not by markers. The probe rows live in
@@ -390,7 +449,7 @@ begin
 
     -- e2b: ...and it IS executable by hr_tick, or the tick cannot run at all.
     if not has_function_privilege('hr_tick',
-         'public.hr_tick_roster(text[],int,int,text,int)', 'execute') then
+         'public.hr_tick_roster(text[],int,int,text,int,timestamptz,uuid,int)', 'execute') then
       raise exception 'e2b: hr_tick cannot execute hr_tick_roster';
     end if;
 
@@ -431,17 +490,20 @@ begin
      where table_schema = 'public' and grantee = 'hr_tick';
     if v_n <> 0 then raise exception 'e5: hr_tick holds % table grant(s) in public', v_n; end if;
 
-    -- e6: hr_tick holds EXACTLY the three EXECUTEs this file argues for, and
-    --     nothing else. A fourth appearing later is a review failure, not a
-    --     convenience — so this is an equality, not a superset test.
+    -- e6: hr_tick holds EXACTLY ONE EXECUTE at this point in the chain —
+    --     hr_tick_roster. A second appearing here is a review failure, not a
+    --     convenience, so this is an equality and not a superset test.
     select count(*) into v_n from information_schema.role_routine_grants
      where routine_schema = 'public' and grantee = 'hr_tick';
-    if v_n <> 3 then
-      raise exception 'e6: hr_tick holds % routine grant(s), expected exactly 3 (hr_tick_roster, hr_apply, hr_seed)', v_n;
+    if v_n <> 1 then
+      raise exception 'e6: hr_tick holds % routine grant(s), expected exactly 1 (hr_tick_roster)', v_n;
     end if;
-    if not (has_function_privilege('hr_tick', 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)', 'execute')
-        and has_function_privilege('hr_tick', 'public.hr_seed(uuid,integer,text)', 'execute')) then
-      raise exception 'e6b: hr_tick is missing hr_apply or hr_seed';
+    -- e6b: THE WITHDRAWAL, ASSERTED. Security S-1/S-7. The tick reaches the
+    --      writer and the RNG only through the lease-checked wrappers the next
+    --      file builds — never the raw money function, never an unscoped oracle.
+    if has_function_privilege('hr_tick', 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)', 'execute')
+    or has_function_privilege('hr_tick', 'public.hr_seed(uuid,integer,text)', 'execute') then
+      raise exception 'e6b: hr_tick holds raw hr_apply or raw hr_seed — the fence is bypassed';
     end if;
 
     -- e7: A NON-PAYABLE KIND IS REFUSED, not silently filtered.

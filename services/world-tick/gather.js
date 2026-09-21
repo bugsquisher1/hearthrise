@@ -213,8 +213,9 @@ export function settleGatherSession(session0, fromMs, toMs, opts) {
   const openBatch = (wmMs, clockMs) => ({ fromMs: wmMs, toMs: wmMs, openedAtMs: clockMs, deltas: [], metas: [], polls: 0, settled: 0 });
   const closeBatch = (clockMs, closedBy) => {
     if (!batch || batch.settled === 0) { batch = null; return; }
-    const intent = writeIntent({ userId: char.userId, slot: char.slot, shard, version },
-      batch.deltas, batch.metas, batch.fromMs, batch.toMs);
+    const intent = writeIntent(
+      { userId: char.userId, slot: char.slot, shard, version, holder: o.holder ?? null },
+      batch.deltas, batch.metas, batch.fromMs, batch.toMs, intents.length);
     /* `closedBy` and `clockMs` are OPERATOR metadata and are never sent. They
        exist because the row RATE is a property of the CLOCK (the flush period)
        while the journal window is a property of the WATERMARK, which lags it by
@@ -273,17 +274,39 @@ export function settleGatherSession(session0, fromMs, toMs, opts) {
 // THE WRITE INTENT — the tick as "just another server-side caller"
 // ═══════════════════════════════════════════════════════════════════════════
 
-/* THE IDEMPOTENCY KEY (§10). `tick:<shard>:<user>:<slot>:<windowFromMs>`,
-   hashed into a UUID because `hr_apply`'s fourth argument is `uuid`.
-   `windowFromMs` is the watermark the batch OPENED on, which is monotonic per
-   character, so a retry after a timeout replays to the same key and `hr_apply`
-   returns the stored decision instead of re-applying.
+/* THE IDEMPOTENCY KEY (§10), CORRECTED 2026-09-21 (Security S-3).
+   `tick:<shard>:<user>:<slot>:<windowFromMs>:<windowToMs>:<version>`, hashed
+   into a UUID because `hr_apply`'s fourth argument is `uuid`.
 
-   Belt and braces, and this is deliberate for a payment path: the watermark is
-   the SECOND defence. `hr_apply` clamps `accrued_to` into `[old, now()]`, so a
-   replayed window is also refused on arithmetic even if the key were lost. */
-export function tickIntentId(shard, userId, slot, windowFromMs) {
-  const label = `tick:${shard}:${userId}:${slot}:${Math.floor(windowFromMs)}`;
+   ⚠ THE OLD SPELLING OMITTED `version` AND THE WINDOW END, AND THE HEADER IT
+     CARRIED WAS WRONG. It claimed the watermark was a second, independent
+     defence: "hr_apply clamps accrued_to into [old, now()], so a replayed
+     window is also refused on arithmetic even if the key were lost". Security
+     executed that and it is FALSE — hr_apply clamps the TIMESTAMP and applies
+     the VALUE regardless, so a replayed window carrying a fresh version paid
+     twice and moved the watermark zero milliseconds:
+
+         replayed window  ok=true  gold=100 -> 200  ver=3
+         accrued_to moved? NO
+
+     So there was ONE defence, not two, and the tick's key was the weaker of the
+     two available spellings: the accrual engine's own key is derived from
+     (user, slot, watermark, VERSION, salt) precisely so that a re-derivation
+     after a conflict is a NEW key rather than a replay of a stale one.
+
+   The key now includes both terms, and the defence the header wrongly claimed
+   now genuinely exists — in SQL, under the row lock, in `hr_tick_settle`:
+
+         select ... from player_state ... for update;          -- lock FIRST
+         if p_window_from < v_st.accrued_to then                -- then the CAS
+           return 'window_already_settled';
+
+   (2026-09-21-world-tick-settle-fence.sql §3 (6); self-check e10/e16.)
+   Three independent defences now: this key, hr_apply's version CAS, and the
+   watermark CAS — which needs neither of the others. */
+export function tickIntentId(shard, userId, slot, windowFromMs, windowToMs, version) {
+  const label = `tick:${shard}:${userId}:${slot}:${Math.floor(windowFromMs)}`
+    + `:${Math.floor(Number(windowToMs) || 0)}:${Number(version) || 0}`;
   const h = createHash('sha1').update('hearthrise:world-tick:v1\n' + label).digest();
   const b = Buffer.from(h.subarray(0, 16));
   b[6] = (b[6] & 0x0f) | 0x50;                 // version 5
@@ -353,18 +376,27 @@ export function foldGatherMeta(metas, windowFromMs, windowToMs) {
   return out;
 }
 
-/* Build the ONE `hr_apply` call a flush window collapses into.
+/* Build the ONE settle call a flush window collapses into.
 
-   THE RPC LIST, unchanged from §15a — four calls, of which exactly one is new:
-     hr_tick_roster(kinds, shard, limit)  NEW. the active set + the lease.
+   THE RPC LIST, as fenced 2026-09-21 (Security S-1/S-3/S-7):
+     hr_tick_roster(kinds, shard, limit, holder, lease_ms, cursor)
+                                          the active set + the lease. hr_tick ONLY.
      hr_seed(user, slot, 'accrue:'||accrued_to)   the per-window PRNG label.
      hr_state_of(user, slot)              hydration, the client's own projection.
-     hr_apply(user, slot, version, intent, delta)  THE ONLY WRITER. Unchanged.
+     hr_tick_settle(holder, user, slot, channel, version, window_from,
+                    window_to, intent, delta)     THE DOOR. hr_engine ONLY.
 
-   No new value RPC. No fast path. `hr_apply` re-validates every invariant
-   regardless of caller — it has never trusted the edge and it does not trust
-   the tick. That is the whole argument for reusing it. */
-export function writeIntent(who, deltas, metas, windowFromMs, windowToMs) {
+   ⚠ THE LAST ONE IS NOT `hr_apply` ANY MORE, AND THAT IS THE POINT. The tick
+     does not hold raw hr_apply: `hr_tick_settle` is a SECURITY DEFINER fence
+     that takes the player_state row lock, refuses a character the roster has
+     not leased to THIS holder, compare-and-sets the settled watermark, honours
+     the kill switch and the SHADOW flag — and only then calls `hr_apply`,
+     verbatim, as the role the Edge Function already carries.
+
+   Still no second writer, no fast path and no tick-specific clamp: hr_apply
+   re-validates every invariant regardless of caller. The fence adds refusals;
+   it adds no arithmetic. */
+export function writeIntent(who, deltas, metas, windowFromMs, windowToMs, seq) {
   const folded = foldDeltas(deltas);
   /* `journal` is excluded by foldDeltas on purpose (each poll carried its own)
      and is restated here as the single row the flush writes. */
@@ -377,16 +409,42 @@ export function writeIntent(who, deltas, metas, windowFromMs, windowToMs) {
      from the batch rather than recomputed, so the value hr_apply stores is the
      value the engine stamped. */
   folded.accrued_to = new Date(windowToMs).toISOString();
+  /* ── S-6: INTENTS 2..N ARE STALE BY CONSTRUCTION, SO THEY CARRY NO VERSION.
+     A call that settles several flush windows holds ONE hydration, so only the
+     first intent's version can still be current: `hr_apply` bumps `version` on
+     every accepted write, and the second intent computed from the same hydrate
+     is therefore stale the moment the first one lands.
+
+     The old code emitted all N carrying the hydration version. That is
+     fail-closed (the database refuses them), but it is exactly the line a
+     step-2 author "fixes" by substituting a fresh version — and doing that on a
+     batch computed from the OLD watermark is S-3's double pay, with an
+     honest-looking ledger row.
+
+     So the later intents carry `p_version: null`, which `hr_apply` refuses
+     outright (`p_version is null` -> version_conflict), plus an explicit
+     `rehydrateBefore` contract naming what the caller must do instead. The
+     failure mode is now "the tick cannot send this without rehydrating",
+     not "the tick can send this if it invents a number". */
+  const n = Number(seq) || 0;
+  const rehydrateBefore = n > 0;
   return {
-    rpc: 'hr_apply',
+    rpc: 'hr_tick_settle',
     args: {
+      p_holder: who.holder ?? null,
       p_user: who.userId,
       p_slot: who.slot,
-      p_version: who.version,
-      p_intent_id: tickIntentId(who.shard, who.userId, who.slot, windowFromMs),
+      p_channel: CHANNEL,
+      p_version: rehydrateBefore ? null : who.version,
+      p_window_from: new Date(windowFromMs).toISOString(),
+      p_window_to: new Date(windowToMs).toISOString(),
+      p_intent_id: tickIntentId(who.shard, who.userId, who.slot, windowFromMs,
+        windowToMs, rehydrateBefore ? null : who.version),
       p_delta: folded,
     },
     /* Operator metadata; NOT sent. */
+    seq: n,
+    rehydrateBefore,
     window: { fromMs: windowFromMs, toMs: windowToMs, ms: windowToMs - windowFromMs },
     wroteAnything: false,
   };

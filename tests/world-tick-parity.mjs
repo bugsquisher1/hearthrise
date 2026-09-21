@@ -771,6 +771,61 @@ for (const f of FIXTURES) {
       }
     }
 
+    /* ── P-G9. AWAY-1 ACROSS THE CALLER, WINDOW BY WINDOW ──────────────────
+       P-G1 above compares N tick windows against ONE accrual call over the
+       whole span — the "does decomposing the span change the answer" question.
+       This is the other half, and it is the one the milestone's writer-change
+       actually needs: THE SAME WINDOW BOUNDARIES, settled by the tick caller
+       and by the accrue caller, must produce a BYTE-IDENTICAL delta.
+
+       It is a different claim from P1 (which compares constructions) because it
+       runs the whole chain: each window is fed the previous window's settled
+       watermark and carried state, and only `caller` differs between the two
+       runs. If a tick window ever paid differently from an accrue window over
+       the same instants, "the tick is just another caller of the same engine"
+       would be false and AWAY-12's one-engine rule would be broken.
+
+       THE BOUNDARIES ARE FLUSH-SIZED (90 s), NOT CADENCE-SIZED, and that is
+       forced rather than chosen: `caller:'accrue'` keeps the ACCRUE_MIN_MS
+       floor, so a 10 s window under that spelling is refused by design
+       (accrual.js accrualCaller). Comparing at the flush boundary is therefore
+       the largest window where BOTH callers are legal — and it is exactly the
+       unit `hr_tick_settle` is handed, which is what makes it the right one. */
+    const PG9_WINDOW = 90000;
+    const pg9 = (caller) => {
+      const ch = hydrate(gAtSpan(s0, FROM_MS));
+      let wm = FROM_MS; const out = [];
+      for (let clock = FROM_MS + PG9_WINDOW; clock <= G_TO; clock += PG9_WINDOW) {
+        const res = computeAccrual({
+          userId: ch.userId, slot: ch.slot,
+          nowMs: clock, accruedToMs: wm,
+          activeSinceMs: ch.activeSinceMs, activeKind: 'gather', activeId: ch.activeId,
+          capMs: ch.capMs,
+          /* THE SAME LABEL FOR BOTH RUNS. The seed names the watermark, so two
+             callers settling the same window draw the same stream — seeding
+             them differently here would be measuring the PRNG, not the
+             caller. */
+          seed: seedFor(ch.userId, ch.slot, wm),
+          hp: ch.hp, maxHp: ch.maxHp, gold: ch.gold,
+          skills: ch.skills, inventory: ch.inventory, equipment: ch.equipment,
+          toolCarry: ch.toolCarry, perks: ch.perks, buffs: ch.buffs,
+          items: GATHER_CATALOGUES.items, monsters: {}, nodes: GATHER_CATALOGUES.nodes,
+          caller, callerAuthority: CALLER_AUTHORITY,
+        });
+        if (!res.accrued) { out.push({ refused: res.reason }); continue; }
+        out.push(res.delta);
+        advance(ch, res);
+        wm = Date.parse(res.delta.accrued_to);
+      }
+      return out;
+    };
+    const asTick = pg9('tick');
+    const asAccrue = pg9('accrue');
+    ok(asTick.length > 1 && asTick.some((d) => !d.refused),
+      `P-G9 "${s.name}" the window-by-window run settled nothing - nothing to compare`);
+    eq(JSON.stringify(asTick), JSON.stringify(asAccrue),
+      `P-G9 "${s.name}" the SAME ${PG9_WINDOW / 1000}s windows paid differently depending on which caller asked - the tick is not "just another caller of the same engine" (AWAY-1/AWAY-12)`);
+
     /* ── P-G2. THE WATERMARK IS THE ONLY CLOCK THAT MOVES STATE ────────────
        Contiguity across every flush boundary (no overlap = no double pay, no
        gap = no confiscation), the chain starts where the character's
@@ -831,9 +886,27 @@ for (const f of FIXTURES) {
       `P-G4 "${s.name}" a re-run of the same span produced a different delta - the tick is not deterministic`);
     /* And the version the intent carries is the one it HYDRATED at, never a
        locally derived successor: hr_apply refuses a stale version and the tick
-       must rehydrate rather than guess (§10). */
-    ok(run.intents.every((i) => i.args.p_version === s0.version),
-      `P-G4 "${s.name}" an intent carries a version the tick invented rather than the one it hydrated at`);
+       must rehydrate rather than guess (§10).
+
+       ── P-G4b, ADDED 2026-09-21 (Security S-6) ───────────────────────────
+       A call that settles several flush windows holds ONE hydration, so only
+       the FIRST intent's version can still be current — hr_apply bumps
+       `version` on every accepted write. Intents 2..N used to carry the
+       hydration version anyway, which is fail-closed but is precisely the line
+       a step-2 author "fixes" with a fresh version, and doing that on a batch
+       computed from the OLD watermark is the S-3 double pay with an
+       honest-looking ledger row. They now carry NULL plus an explicit
+       `rehydrateBefore` contract: `hr_apply` refuses a null version outright,
+       so the failure mode is "cannot send this without rehydrating" rather
+       than "can send this if a number is invented". */
+    ok(run.intents[0].args.p_version === s0.version,
+      `P-G4 "${s.name}" the FIRST intent must carry the version the tick hydrated at`);
+    ok(run.intents.every((i, n) => (n === 0
+      ? i.rehydrateBefore === false
+      : i.args.p_version === null && i.rehydrateBefore === true)),
+      `P-G4b "${s.name}" a later intent carries a version the tick could not still hold — it must be null and marked rehydrateBefore (S-6)`);
+    ok(run.intents.every((i) => i.rpc === 'hr_tick_settle'),
+      `P-G4b "${s.name}" an intent names a writer other than the fence hr_tick_settle — the tick must not hold raw hr_apply (S-1/S-7)`);
 
     /* ── P-G5. THE RECEIPT DOES NOT OVER-STATE ─────────────────────────────
        Each poll is asked "from my watermark to now", so a poll's own grantMs
@@ -961,6 +1034,7 @@ console.log('   P-G5 gather receipt      journalled ms == the span the watermark
 console.log('   P-G6 gather journal      accrue meta keys + "src":"tick", nothing nested');
 console.log('   P-G7 catalogue drift     hr_tick_roster c_payable == accrual.js PAYABLE_KINDS');
 console.log('   P-G8 watermark chain     chaining on the wall clock forfeits, on accrued_to does not');
+console.log('   P-G9 caller parity       the SAME 90s windows pay identically as tick and as accrue (AWAY-1)');
 for (const f of findings) {
   console.log(`      · ${f.fixture}: ${f.windows} windows @ ${f.tickMs}ms; gold ${f.gold.tick} vs ${f.gold.accrual} (${f.gold.driftPct > 0 ? '+' : ''}${f.gold.driftPct}%); xp ${f.xp.tick} vs ${f.xp.accrual}`);
 }

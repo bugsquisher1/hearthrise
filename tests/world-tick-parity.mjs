@@ -64,8 +64,13 @@ import { shadowSpan, shadowTick, hydrate, seedFor, advance } from '../services/w
 import { valueSummary, timeSummary, foldDeltas, planWindows, alignWindow }
   from '../services/world-tick/contract.js';
 import { analyzeRows, verdict, MISSING_FOR_VALUE_REPLAY, parseWaste } from '../services/world-tick/replay.js';
-import { computeAccrual, settledWatermarkMs, CALLER_AUTHORITY }
+import { computeAccrual, settledWatermarkMs, CALLER_AUTHORITY, PAYABLE_KINDS }
   from '../supabase/functions/hr-accrue/accrual.js';
+/* The GATHER channel, the first tick-owned one (WORLD_TICK_DESIGN.md §15a). */
+import {
+  loadGatherSessions, atSpan as gAtSpan, settleGatherSession, intentValue,
+  tickIntentId, GATHER_CATALOGUES,
+} from '../services/world-tick/gather.js';
 
 const ARGS = process.argv.slice(2);
 const MUTATE = ARGS.includes('--mutate');
@@ -167,6 +172,32 @@ const MUTATIONS = {
      analyser still reports zero mismatches it is not reading production, it is
      decorating it. */
   replayLax: { p6: { nudgeMs: 1 } },
+  /* ── THE GATHER CHANNEL'S MUTANTS (step-2 prep, 2026-09-18) ───────────────
+     Each is a plausible alternative CALLER of services/world-tick/gather.js,
+     applied in the P-G block, and each must turn a NAMED P-G claim red.
+     They are declared here so `--mutate --<name>` selects them and so the set
+     is readable in one place. */
+  /* Chain each poll on the previous poll's `now` instead of on the engine's own
+     `delta.accrued_to` — the implementation a reasonable person writes first.
+     Throws the sub-action remainder away every cadence. Kills P-G8. */
+  gatherWallclock: { gather: true },
+  /* Journal `ms` as the SUM of per-poll grantMs. Every deferred tail is
+     re-counted, so the away receipt over-states time credited by up to 31%.
+     Kills P-G5. */
+  gatherSumMs: { gather: true },
+  /* One hr_apply call per 10 s poll instead of per flush window: 4.3M ledger
+     rows/day at 500 continuously-active characters against a 480,000/day prune
+     ceiling. Kills P-G3. */
+  gatherPerTickRow: { gather: true },
+  /* An idempotency key that does not vary with the window, so the second flush
+     replays the first away — value silently lost, not duplicated. Kills P-G4. */
+  gatherIdemConst: { gather: true },
+  /* A per-action list in the ledger meta: the game_events incident (1.6M rows /
+     229 MB from six players in four days) at ledger scale, and a row a player's
+     ledger can tell apart from an accrue. Kills P-G6. */
+  gatherShapeDrift: { gather: true },
+  /* The SQL copy of PAYABLE_KINDS drifts from the engine's. Kills P-G7. */
+  gatherPayableDrift: { gather: true },
 };
 const MUTATION = MUTATE ? (ARGS.find((a) => MUTATIONS[a.replace(/^--/, '')]) || '--unaligned')
   .replace(/^--/, '') : null;
@@ -645,6 +676,256 @@ for (const f of FIXTURES) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// P-G — THE GATHER CHANNEL, END TO END (step-2 preparation, 2026-09-18)
+//
+// The decision on record (WORLD_TICK_DESIGN.md §15a) is that the FIRST
+// tick-owned channel is gather. P1..P7 above prove the tick can decompose a
+// span; these arms prove the thing that actually ships: that a chain of 10 s
+// polls, folded into one hr_apply intent per flush window, pays a gathering
+// character EXACTLY what accrual-on-return would have paid them, writes far
+// fewer rows than ticks, replays safely, and cannot be told apart from an
+// accrue row in a player's ledger.
+//
+// Every arm is a claim about services/world-tick/gather.js, and every mutation
+// below perturbs THE CALLER — a plausible alternative implementation — never
+// the module under test.
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  const G_SPAN_MS = 10 * 60000;
+  const G_TO = FROM_MS + G_SPAN_MS;
+  const gm = (MUTATION || '').startsWith('gather') ? MUTATION : null;
+
+  const sessions = loadGatherSessions();
+  ok(sessions.length >= 3, `gather fixture set collapsed to ${sessions.length} sessions`);
+
+  /* The ACCRUAL-ON-RETURN reference for a gather span, built here from the
+     session the way hr-accrue/index.ts builds it from hr_state_of — an
+     independent second construction, for the reason accrualOnReturn states. */
+  const gatherReference = (s) => computeAccrual({
+    userId: s.userId, slot: s.slot,
+    nowMs: G_TO, accruedToMs: FROM_MS,
+    activeSinceMs: s.activeSinceMs, activeKind: 'gather', activeId: s.activeId,
+    capMs: s.capMs,
+    seed: seedFor(s.userId, s.slot, FROM_MS),
+    hp: s.hp, maxHp: s.maxHp, gold: s.gold,
+    skills: s.skills, inventory: s.inventory, equipment: s.equipment,
+    toolCarry: s.toolCarry,
+    items: GATHER_CATALOGUES.items, monsters: {}, nodes: GATHER_CATALOGUES.nodes,
+    caller: 'accrue', callerAuthority: CALLER_AUTHORITY,
+  });
+
+  for (const s0 of sessions) {
+    const s = gAtSpan(s0, FROM_MS);
+    const run = settleGatherSession(s, FROM_MS, G_TO, {});
+    const ref = gatherReference(s);
+    const val = intentValue(run.intents);
+
+    /* ── P-G1. VALUE PARITY, EXACT ─────────────────────────────────────────
+       Not a band. Gathering has no rare roll and no combat variance: the yield
+       is a catalogue quantity and the XP is `grantXp` over a tick count, so a
+       correct decomposition is EQUAL, digit for digit, and anything less is a
+       bug being tolerated. `tool_carry` is included because it is the channel's
+       one piece of carried server state — the sub-action remainder of the tool
+       double roll — and dropping it is a slow, invisible under-pay. */
+    ok(ref.accrued, `P-G1 the reference accrual refused "${s.name}" (${ref.reason}) - nothing to compare`);
+    if (ref.accrued) {
+      const refXp = JSON.stringify(sortMap(ref.delta.xp));
+      const refIt = JSON.stringify(sortMap(ref.delta.items));
+      eq(JSON.stringify(val.xp), refXp, `P-G1 xp "${s.name}": tick ${JSON.stringify(val.xp)} vs accrual ${refXp}`);
+      eq(JSON.stringify(val.items), refIt, `P-G1 items "${s.name}": tick ${JSON.stringify(val.items)} vs accrual ${refIt}`);
+      eq(val.ticks, Number(ref.summary.ticks), `P-G1 ticks "${s.name}"`);
+      /* THE CARRY IS THE ONE TERM THAT IS NOT BIT-EXACT, and the reason is
+         worth stating rather than hiding behind a loose comparison. The tool
+         carry is a FRACTION of a pending tool-double; accrual rounds it once at
+         the end of the span, the tick rounds it at the end of every window and
+         feeds the rounded value back in. Measured on the mining fixture over
+         ten minutes: 0.279999995 vs 0.280000000 — a drift of 5e-9, i.e. 5e-9
+         of one extra ore, and it cannot compound into a free double because the
+         carry is re-hydrated from the server every roster call and is bounded
+         in [0,1). The bar is therefore "indistinguishable at any scale a player
+         can reach", expressed as 1e-6 of one action — six orders of magnitude
+         below one yield — and NOT "close enough", which is how a band becomes
+         a leak. Every other term above is exact. */
+      const CARRY_EPS = 1e-6;
+      const lastCarry = run.intents.length
+        ? run.intents[run.intents.length - 1].args.p_delta.tool_carry : undefined;
+      const refCarry = ref.delta.tool_carry;
+      if (refCarry == null || lastCarry == null) {
+        eq(JSON.stringify(lastCarry ?? null), JSON.stringify(refCarry ?? null),
+          `P-G1 tool_carry "${s.name}": one side carries the key and the other does not (tick ${JSON.stringify(lastCarry ?? null)}, accrual ${JSON.stringify(refCarry ?? null)})`);
+      } else {
+        const keys = [...new Set([...Object.keys(lastCarry), ...Object.keys(refCarry)])];
+        for (const k of keys) {
+          const d = Math.abs(Number(lastCarry[k] || 0) - Number(refCarry[k] || 0));
+          ok(d < CARRY_EPS,
+            `P-G1 tool_carry "${s.name}" ${k}: tick ${lastCarry[k]} vs accrual ${refCarry[k]} (drift ${d}, bar ${CARRY_EPS})`);
+        }
+      }
+      /* A session with NO carry column must emit NO carry key: emitting
+         tool_carry against an hr_apply that does not implement it is
+         unknown_delta_key, a 409 that costs the window (accrual.js). */
+      if (s.toolCarry === null) {
+        ok(run.intents.every((i) => !('tool_carry' in i.args.p_delta)),
+          `P-G1 "${s.name}" has no tool_carry column and the tick emitted the key anyway`);
+      }
+    }
+
+    /* ── P-G2. THE WATERMARK IS THE ONLY CLOCK THAT MOVES STATE ────────────
+       Contiguity across every flush boundary (no overlap = no double pay, no
+       gap = no confiscation), the chain starts where the character's
+       `accrued_to` was, and the only unsettled time is a sub-action tail that
+       is still OWED. */
+    let cursor = FROM_MS;
+    for (const it of run.intents) {
+      eq(it.window.fromMs, cursor, `P-G2 "${s.name}" flush window starts at ${new Date(it.window.fromMs).toISOString()}, expected ${new Date(cursor).toISOString()} (overlap = double pay, gap = confiscation)`);
+      ok(it.window.toMs >= it.window.fromMs, `P-G2 "${s.name}" flush window runs backwards`);
+      eq(it.args.p_delta.accrued_to, new Date(it.window.toMs).toISOString(),
+        `P-G2 "${s.name}" the delta's accrued_to disagrees with the window it claims to settle`);
+      cursor = it.window.toMs;
+    }
+    eq(cursor, run.watermarkMs, `P-G2 "${s.name}" the last intent does not end on the run's watermark`);
+    const interval = ref.accrued ? Number(ref.summary.intervalMs || 0) : 0;
+    ok(run.unsettledMs >= 0 && (interval === 0 || run.unsettledMs < interval),
+      `P-G2 "${s.name}" left ${run.unsettledMs}ms unsettled, which is >= one action interval (${interval}ms) - that is time the engine could have paid and did not`);
+
+    /* ── P-G3. THE WRITE UNIT IS THE SETTLED WINDOW, NEVER THE TICK ────────
+       Reliability's measured ceiling (§15a): player_ledger is 407 B/row and
+       hr_ledger_prune deletes at most 480,000 rows/day, so per-tick journalling
+       goes unbounded from ~56 continuously-active characters. This arm is the
+       code-level expression of that ceiling. */
+    const runRows = gm === 'gatherPerTickRow'
+      ? settleGatherSession(s, FROM_MS, G_TO, { flushMs: 10000 }) : run;
+    const rows = runRows.intents.length;
+    /* THE RATE IS A PROPERTY OF THE CLOCK, NOT OF THE SAMPLE. Extrapolating
+       "rows in this 10-minute span × 144" counts the final partial flush as if
+       it were a steady-state one and over-states by ~5%; measuring the journal
+       WINDOW instead over-states by the watermark's lag. The honest number is
+       the flush period the implementation actually keeps, taken from the
+       flush-closed windows themselves (never from the config, which would make
+       the arm assert its own input). */
+    const steady = runRows.intents.filter((i) => i.window.closedBy === 'flush');
+    ok(steady.length >= 2, `P-G3 "${s.name}" produced ${steady.length} steady-state flush window(s) - too few to measure a rate`);
+    const period = steady.length ? Math.min(...steady.map((i) => i.window.clockMs)) : 0;
+    const perCharPerDay = period > 0 ? 86400000 / period : Infinity;
+    const at500 = perCharPerDay * 500;
+    ok(at500 <= 480000,
+      `P-G3 "${s.name}" flushes every ${period}ms = ${Math.round(perCharPerDay)} rows/char/day = ${Math.round(at500)}/day at 500 continuously-active characters, over the 480,000/day hr_ledger_prune ceiling (407 B/row)`);
+    ok(rows < runRows.polls,
+      `P-G3 "${s.name}" emitted ${rows} write intent(s) for ${runRows.polls} polls - the tick is journalling per tick`);
+
+    /* ── P-G4. IDEMPOTENCY, AND IT IS A FUNCTION OF THE WINDOW ─────────────
+       §10's key: uuid5('tick:<shard>:<user>:<slot>:<windowFromMs>'). Two
+       properties, and a careless implementation breaks exactly one of them
+       each way: a key that does not vary with the window makes the SECOND
+       flush a replay of the first (silent loss), and a key that varies with
+       anything else (a timestamp, a counter) makes a retry a DOUBLE PAY. */
+    const ids = run.intents.map((i) => gm === 'gatherIdemConst'
+      ? tickIntentId(s.shard, s.userId, s.slot, FROM_MS) : i.args.p_intent_id);
+    ok(new Set(ids).size === ids.length,
+      `P-G4 "${s.name}" ${ids.length} flush windows produced ${new Set(ids).size} distinct idempotency keys - a repeated key means the later window is silently replayed away`);
+    const again = settleGatherSession(gAtSpan(s0, FROM_MS), FROM_MS, G_TO, {});
+    eq(JSON.stringify(again.intents.map((i) => i.args.p_intent_id)), JSON.stringify(run.intents.map((i) => i.args.p_intent_id)),
+      `P-G4 "${s.name}" a re-run of the SAME span produced different keys - a retry after a timeout would double-pay instead of replaying`);
+    eq(JSON.stringify(again.intents.map((i) => i.args.p_delta)), JSON.stringify(run.intents.map((i) => i.args.p_delta)),
+      `P-G4 "${s.name}" a re-run of the same span produced a different delta - the tick is not deterministic`);
+    /* And the version the intent carries is the one it HYDRATED at, never a
+       locally derived successor: hr_apply refuses a stale version and the tick
+       must rehydrate rather than guess (§10). */
+    ok(run.intents.every((i) => i.args.p_version === s0.version),
+      `P-G4 "${s.name}" an intent carries a version the tick invented rather than the one it hydrated at`);
+
+    /* ── P-G5. THE RECEIPT DOES NOT OVER-STATE ─────────────────────────────
+       Each poll is asked "from my watermark to now", so a poll's own grantMs
+       INCLUDES the tail the previous poll deferred. Summing them re-counts
+       every tail. The honest `ms` is the span the watermark actually moved.
+       Measured here rather than asserted in prose, because the naive sum is
+       the implementation somebody will reach for. */
+    const sumGrant = run.results.reduce((a, r) => a + (r.res.accrued ? Number(r.res.grantMs || 0) : 0), 0);
+    const honest = run.intents.reduce((a, i) => a + Number(i.args.p_delta.journal.meta.ms || 0), 0);
+    const claimed = gm === 'gatherSumMs' ? sumGrant : honest;
+    eq(claimed, run.watermarkMs - FROM_MS,
+      `P-G5 "${s.name}" the journalled ms totals ${claimed} for a watermark that moved ${run.watermarkMs - FROM_MS}ms (the sum of per-poll grantMs is ${sumGrant}, +${Math.round((sumGrant / (run.watermarkMs - FROM_MS) - 1) * 100)}%) - the away receipt would over-state time credited`);
+
+    /* ── P-G6. A PLAYER'S LEDGER CANNOT TELL A TICK FROM AN ACCRUE ─────────
+       The key set is taken from the ENGINE's own gather journal on this very
+       span, not from a list retyped here, so the arm cannot rot into agreeing
+       with a stale expectation. The one permitted difference is `src`, and it
+       exists so an OPERATOR can tell — the opposite requirement. */
+    if (ref.accrued && run.intents.length) {
+      const refKeys = Object.keys(ref.delta.journal.meta).sort();
+      let meta = run.intents[0].args.p_delta.journal.meta;
+      if (gm === 'gatherShapeDrift') meta = { ...meta, perAction: [{ t: 1 }] };
+      const tickKeys = Object.keys(meta).sort();
+      const extra = tickKeys.filter((k) => !refKeys.includes(k));
+      const missing = refKeys.filter((k) => !tickKeys.includes(k) && k !== 'w');
+      eq(JSON.stringify(extra), JSON.stringify(['src']),
+        `P-G6 "${s.name}" the tick journal carries key(s) ${JSON.stringify(extra)} an accrue row does not; only "src" is permitted`);
+      eq(JSON.stringify(missing), '[]',
+        `P-G6 "${s.name}" the tick journal is missing accrue key(s) ${JSON.stringify(missing)}`);
+      eq(meta.src, 'tick', `P-G6 "${s.name}" the operator marker is ${JSON.stringify(meta.src)}, expected "tick"`);
+      eq(run.intents[0].args.p_delta.journal.kind, 'gather', `P-G6 "${s.name}" journal kind`);
+      eq(run.intents[0].args.p_delta.journal.intent, 'accrue', `P-G6 "${s.name}" journal intent`);
+      /* NO NESTED VALUE. tests/artisan-accrual.mjs T7 refuses one outright, and
+         a per-action list is the game_events mistake at ledger scale. */
+      const nested = Object.keys(meta).filter((k) => meta[k] !== null && typeof meta[k] === 'object');
+      eq(JSON.stringify(nested), '[]',
+        `P-G6 "${s.name}" the tick journal meta carries nested value(s) ${JSON.stringify(nested)} - artisan-accrual T7 refuses them and a per-action list is the game_events incident`);
+    }
+  }
+
+  /* ── P-G7. THE SQL DOES NOT RETYPE THE ENGINE'S CATALOGUE ────────────────
+     hr_tick_roster holds a `c_payable` literal because plpgsql cannot import
+     accrual.js. The price of the literal is this guard: the two are compared
+     credential-free, here, so the day PAYABLE_KINDS grows a fourth kind the
+     roster cannot silently refuse it. */
+  {
+    const sql = readFileSync(new URL('../supabase/migrations/2026-09-20-world-tick-roster.sql', import.meta.url), 'utf8');
+    const m = sql.match(/c_payable\s+constant\s+text\[\]\s*:=\s*array\[([^\]]*)\]/);
+    ok(!!m, 'P-G7 could not find the c_payable literal in 2026-09-20-world-tick-roster.sql - the drift guard has nothing to compare');
+    if (m) {
+      let inSql = m[1].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).filter(Boolean);
+      if (gm === 'gatherPayableDrift') inSql = inSql.filter((k) => k !== 'artisan');
+      eq(JSON.stringify(inSql.slice().sort()), JSON.stringify(PAYABLE_KINDS.slice().sort()),
+        `P-G7 hr_tick_roster's c_payable ${JSON.stringify(inSql)} != accrual.js PAYABLE_KINDS ${JSON.stringify(PAYABLE_KINDS)} - the SQL copy has drifted from the engine`);
+    }
+  }
+
+  /* ── P-G8. THE WALL CLOCK IS NOT THE WATERMARK ───────────────────────────
+     The mutation is a whole alternative caller: chain each poll on the
+     PREVIOUS POLL'S `now` instead of on the engine's own `delta.accrued_to`.
+     It is the implementation a reasonable person writes first, and it throws
+     the sub-action remainder away every cadence. Stated as a positive claim so
+     the measurement is in the green output, not only in the mutant. */
+  {
+    const s = gAtSpan(sessions[1], FROM_MS);          // the 4000 ms oak node
+    const naive = (() => {
+      const char = hydrate(s);
+      let clock = FROM_MS; let paidTicks = 0;
+      while (clock < G_TO) {
+        const from = clock;
+        clock = Math.min(clock + CADENCE_MS, G_TO);
+        const res = shadowTick(char, from, clock, GATHER_CATALOGUES, { caller: 'tick' });
+        if (res.accrued) { paidTicks += Number(res.summary.ticks || 0); advance(char, res); }
+      }
+      return paidTicks;
+    })();
+    const chained = settleGatherSession(s, FROM_MS, G_TO, {});
+    const chainedTicks = intentValue(chained.intents).ticks;
+    const measured = gm === 'gatherWallclock' ? naive : chainedTicks;
+    const refTicks = Number(gatherReference(s).summary.ticks || 0);
+    eq(measured, refTicks,
+      `P-G8 chaining on the wall clock paid ${naive} of ${refTicks} action ticks (${Math.round((1 - naive / refTicks) * 100)}% forfeited); chaining on the engine's own accrued_to paid ${chainedTicks}`);
+    say(`   P-G8 wall-clock chain ${naive} ticks vs watermark chain ${chainedTicks} vs accrual ${refTicks}`);
+  }
+}
+
+function sortMap(m) {
+  const out = {};
+  for (const k of Object.keys(m || {}).sort()) out[k] = Number(m[k] || 0);
+  return out;
+}
+
 function pick(d) {
   return { gold: d.gold || 0, xp: d.xp || {}, items: d.items || {} };
 }
@@ -672,6 +953,14 @@ console.log('   P1 construction parity   tick delta == accrual delta, byte for b
 console.log('   P2 time conservation     aligned decomposition loses zero ticks');
 console.log('   P3 alignment bites       unaligned decomposition measurably loses ticks');
 console.log('   P4 stream health         no starved drops, value drift inside +/-' + (GOLD_BAND * 100) + '%');
+console.log('   P-G1 gather value        tick intents == accrual delta, exact (carry within 1e-6)');
+console.log('   P-G2 gather watermark    contiguous flush windows, tail under one action interval');
+console.log('   P-G3 gather write unit   one row per settled window, inside the 480k/day prune ceiling');
+console.log('   P-G4 gather idempotency  uuid5 per (shard,user,slot,windowFrom); a re-run is byte-identical');
+console.log('   P-G5 gather receipt      journalled ms == the span the watermark moved');
+console.log('   P-G6 gather journal      accrue meta keys + "src":"tick", nothing nested');
+console.log('   P-G7 catalogue drift     hr_tick_roster c_payable == accrual.js PAYABLE_KINDS');
+console.log('   P-G8 watermark chain     chaining on the wall clock forfeits, on accrued_to does not');
 for (const f of findings) {
   console.log(`      · ${f.fixture}: ${f.windows} windows @ ${f.tickMs}ms; gold ${f.gold.tick} vs ${f.gold.accrual} (${f.gold.driftPct > 0 ? '+' : ''}${f.gold.driftPct}%); xp ${f.xp.tick} vs ${f.xp.accrual}`);
 }

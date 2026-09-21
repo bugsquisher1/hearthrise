@@ -118,6 +118,20 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
     bestiaryKills: char.bestiaryKills,
     items: catalogues.items,
     monsters: catalogues.monsters,
+    /* THE GATHER CHANNEL'S INPUTS (2026-09-18, step-2 prep). `nodes` is the
+       gather index and `toolCarry` is the server-owned sub-action remainder of
+       the tool double roll; without them `computeAccrual` refuses a `gather`
+       pointer as an unknown node and the tick settles nothing. All five keys
+       are `undefined` for the combat fixtures, so the combat arms are
+       byte-identical to before — asserted by P1..P5 staying green.
+       `toolCarry: null` is NOT the same as absent and must survive: null means
+       "the column does not exist for this character", and emitting the key
+       against an hr_apply that does not implement it is a 409. */
+    nodes: catalogues.nodes,
+    toolCarry: char.toolCarry,
+    perks: char.perks,
+    buffs: char.buffs,
+    goals: char.goals,
     /* THE CALLER. 'tick', not the borrowed 'collect' (`finalWindow` before
        2026-09-18). A tick window is exempt from ACCRUE_MIN_MS like a collect —
        10 s is below the floor and there is no later call that would see a

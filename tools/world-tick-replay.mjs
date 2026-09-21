@@ -27,7 +27,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { analyzeRows, verdict, MISSING_FOR_VALUE_REPLAY, JOURNALLED_WINDOW_TERMS }
+import { analyzeRows, verdict, gatherDryRun, MISSING_FOR_VALUE_REPLAY, JOURNALLED_WINDOW_TERMS }
   from '../services/world-tick/replay.js';
 
 const ARGS = process.argv.slice(2);
@@ -120,5 +120,44 @@ console.log('\nA VALUE replay (re-roll the window, compare gold/items/xp) is NOT
 console.log('the journal and this tool does not attempt one. Missing fields, exactly:');
 console.log(`   ${MISSING_FOR_VALUE_REPLAY.join(', ')}`);
 console.log('The seed is unobtainable BY DESIGN (hr_seed mixes a 256-bit secret behind RLS).');
+
+/* ── THE GATHER DRY RUN ─────────────────────────────────────────────────────
+   `--gather` prints what the world tick WOULD have written for the same real
+   gather windows, next to what accrual actually wrote. Still READ-ONLY and
+   still SELECT-only: it consumes the rows already fetched above and issues no
+   further query. Value is deliberately NOT re-rolled — see gatherDryRun's
+   header for why a re-roll printed next to a historical result is worse than
+   no comparison at all. */
+if (ARGS.includes('--gather')) {
+  const FLUSH = Math.max(1000, Number(arg('flush', 90000)) || 90000);
+  const g = gatherDryRun(rows, { flushMs: FLUSH });
+  console.log(`\n── GATHER DRY RUN (no writes, no rolls) — ${g.windows} real gather windows, ${FLUSH / 1000}s flush ──`);
+  if (g.windows === 0) {
+    console.log('   no gather accrue windows in the fetched range.');
+  } else {
+    console.log(['stream'.padEnd(14), 'accrue rows'.padStart(12), 'tick rows'.padStart(11),
+      'span (h)'.padStart(10), 'ticks'.padStart(9), 'qty'.padStart(8),
+      'overlap'.padStart(9), 'gap'.padStart(6)].join(''));
+    for (const s of g.streams) {
+      console.log([s.stream.padEnd(14), String(s.accrueRows).padStart(12), String(s.tickRows).padStart(11),
+        (s.spanMs / 3600000).toFixed(2).padStart(10), String(s.ticks).padStart(9), String(s.qty).padStart(8),
+        String(s.overlap).padStart(9), String(s.gap).padStart(6)].join(''));
+    }
+    const t = g.total;
+    console.log(['TOTAL'.padEnd(14), String(t.accrueRows).padStart(12), String(t.tickRows).padStart(11),
+      (t.spanMs / 3600000).toFixed(2).padStart(10), String(t.ticks).padStart(9), String(t.qty).padStart(8),
+      String(t.overlap).padStart(9), String(t.gap).padStart(6)].join(''));
+    const mult = t.accrueRows ? (t.tickRows / t.accrueRows) : 0;
+    console.log(`\nROW COST: the tick would have written ${t.tickRows} ledger rows where accrual wrote`);
+    console.log(`${t.accrueRows} — ×${mult.toFixed(2)}, i.e. ~${Math.round(t.tickRows * 407 / 1024)} KiB against ~${Math.round(t.accrueRows * 407 / 1024)} KiB at the measured 407 B/row.`);
+    console.log(`Per-tick journalling over the same span would have been ${Math.round(t.spanMs / 10000)} rows (×${(t.spanMs / 10000 / Math.max(1, t.accrueRows)).toFixed(0)}), which is the unit §15a rejected.`);
+    console.log(`TILING: ${t.overlap} overlapping and ${t.gap} gapped boundaries inside a stream.`);
+    console.log('   (a gap is not a fault — another writer, a set_activity collect or a channel');
+    console.log('    switch, legitimately settles in between; an OVERLAP would be a double pay.)');
+    console.log('\nVALUE IS NOT COMPARED HERE and no roll was made. The starting state and the seed');
+    console.log('are both absent from the journal (the seed BY DESIGN), so the value proof is made');
+    console.log('on fixtures where it is exact: tests/world-tick-parity.mjs P-G1.');
+  }
+}
 
 process.exitCode = v.failed === 0 ? 0 : 1;

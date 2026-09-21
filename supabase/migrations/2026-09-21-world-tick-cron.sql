@@ -72,13 +72,51 @@
 --     `hr_tick_config.cadence_seconds` is checked >= 5 so that the smallest
 --     legal value is the one that needs the conversation.
 --
--- Rows/day (the bound Reliability set, docs/design/restore-runbook.md §14 —
--- `hr_ledger_prune` deletes at most 480,000 rows/day):
+-- Rows/day — CORRECTED 2026-09-21 (Security M-6; the 10x figure below used to
+-- read "at the ceiling", which is the wrong preposition and hid the finding).
 --
---   50 active characters, 90 s flush  →  50 x 960   =  48,000 rows/day  (10%)
---   50 active characters, 10 s flush  →  50 x 8,640 = 432,000 rows/day  (90%) ⚠
---   `hr_tick_config.flush_seconds` ships at 90 for exactly this reason.
---   Shadow rows run at the same rate into `hr_tick_shadow`, pruned at 14 days.
+-- ⚠ THE CEILING IS SHARED AND IT IS A TOTAL, NOT A PER-WRITER ALLOWANCE.
+--   `cron.job` runs `[7 * * * *] select public.hr_ledger_prune(20000)`:
+--   20,000/hour x 24 = 480,000 rows/day for EVERY ledger writer in the game
+--   combined — combat, buys, claims, market, dungeons and the tick. Anything
+--   above that line makes `player_ledger` grow without bound, and that table
+--   is the money journal every dispute is read from.
+--
+--   ONE ROW PER SETTLED FLUSH WINDOW PER CHARACTER, never one per fire: the
+--   edge computes at most one flush window per character per fire and skips
+--   below the flush line, so the rate is active/flush_seconds.
+--
+--     ARMED, 90 s flush:
+--        50 active  ->  50 x   960 =    48,000 rows/day —  10% of the budget
+--       500 active  -> 500 x   960 =   480,000 rows/day — 100% OF IT. OVER.
+--                      leaves ZERO for every other writer in the game.
+--     5,000 active  ->              = 4,800,000 rows/day —  10x over
+--     ARMED, 10 s flush (the shape the CHECK and the clamps make unreachable):
+--        50 active  ->  50 x 8,640 =   432,000 rows/day —  90% ⚠
+--   `hr_tick_config.flush_seconds` ships at 90 for exactly this reason, and
+--   `flush_seconds >= cadence_seconds` is a CHECK, not a convention.
+--
+-- ⚠ SHADOW — WHICH IS ALL OF MILESTONE 1 — COSTS THE LEDGER NOTHING.
+--   hr_tick_settle step (8) returns BEFORE hr_apply: it writes one
+--   `hr_tick_shadow` row and one watermark and touches no player table at all
+--   (Security enumerated all 111 public base tables around one shadow settle).
+--   player_ledger rows/day while shadowed, at every size: ZERO. The shadow
+--   journal runs at the same rate into its OWN table, with its OWN 14-day
+--   retention and its OWN hourly prune (`hr-tick-shadow-prune` ->
+--   hr_tick_shadow_prune(20000)) — it never draws on the ledger budget. At
+--   100x its prune batch needs raising; that is a config line, not a design.
+--   `hr_tick_cron_log` is one row per FIRE, never per character: 8,640/day at
+--   a 10 s cadence whatever the player count, 7-day retention, own prune.
+--
+-- ⚠ THEREFORE ARMING AT 10x OR ABOVE NEEDS RELIABILITY'S SIGN-OFF WITH THIS
+--   ARITHMETIC ATTACHED, and so does any change to `flush_seconds` or
+--   `batch_limit` at arming time. The pre-arm read is measured, not assumed:
+--     select count(*) filter (where at > now() - interval '1 day')
+--              as ledger_rows_yesterday,
+--            480000 - count(*) filter (where at > now() - interval '1 day')
+--              as headroom_for_the_tick
+--       from public.player_ledger;
+--   EXPECT headroom comfortably above 48,000 before `shadow = false`.
 --
 -- Database time per fire, from Reliability's measured unit costs
 -- (`hr_apply` 9.35 ms, `hr_state_of` 3.23 ms, 14,240 real calls):

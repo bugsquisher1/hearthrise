@@ -1327,8 +1327,63 @@ refused **even though `accrued_to` still permits it**.
 |---|---|---|---|
 | Edge invocations/month | 263,000 **ceiling** (**zero while nobody is active**) | unchanged | unchanged |
 | effective per-character cadence | 10 s | **30 s** | **250 s** — the design is over |
-| ledger rows/day (90 s flush) | 48,000 (10% of the 480,000 prune ceiling) | 480,000 — **at the ceiling** | over, by 10× |
+| **`player_ledger` rows/day, ARMED** (90 s flush) | 48,000 — **10%** of the shared 480,000/day prune budget | 480,000 — **100% of it. OVER, not "at" it.** | 4,800,000 — **10× over** |
+| **`hr_tick_shadow` rows/day, SHADOW** (90 s flush) | 48,000 — its **own** 14-day retention and its **own** hourly prune | 480,000 — same, own budget | 4,800,000 — needs a bigger prune batch |
+| **`player_ledger` rows/day, SHADOW (= milestone 1)** | **0** | **0** | **0** |
 | DB time per fire | ~2.5 s (25% of a core, continuous) | ~6.3 s (63%) | ~63 s — 6.3 cores |
+
+#### The ledger arithmetic, corrected (Security M-6, 2026-09-21)
+
+The row that used to read "480,000 — at the ceiling" was **understated, and the
+wording hid it.** `hr_ledger_prune` runs `[7 * * * *] select
+public.hr_ledger_prune(20000)` — 20,000/hour × 24 = **480,000 rows/day, SHARED
+by every ledger writer in the game.** So at 10× the tick alone consumes **100%
+of it**, leaving zero for combat, buys, claims, market, dungeons and the rest;
+`player_ledger` then grows monotonically, and it is the money journal every
+dispute is read from. It is not *at* the ceiling. **It is the ceiling.**
+
+Three things make that survivable, and all three are properties of the design
+rather than promises:
+
+1. **SHADOW writes ZERO ledger rows, so milestone 1 costs the ledger nothing.**
+   `hr_tick_settle` step (8) returns before `hr_apply`; the shadow branch
+   inserts one row into `hr_tick_shadow` and updates one watermark, and Security
+   enumerated all 111 public base tables around one shadow settle to confirm
+   nothing else moved. **The ledger pressure arrives at ARMING, not at apply.**
+2. **The journal is per SETTLED WINDOW, never per tick.** The edge computes at
+   most one flush window per character per fire and skips below the flush line
+   (`below_flush`), so the rate is `active ÷ flush_seconds`, not
+   `active ÷ cadence_seconds`. At a 10 s cadence and a 90 s flush that is the
+   difference between 480,000/day and **4,320,000/day** — the 9× the §9 table
+   already priced. `flush_seconds >= cadence_seconds` is a CHECK constraint on
+   `hr_tick_config` and is restated as a clamp in `tick.js`, so a body naming
+   two numbers cannot reach the expensive shape.
+3. **The shadow journal never touches the ledger budget.** `hr_tick_shadow` has
+   its own 14-day retention and its own hourly prune job,
+   `hr-tick-shadow-prune` → `hr_tick_shadow_prune(20000)`. At 1× and 10× that
+   budget covers its own arrivals exactly as the ledger's does; at 100× the
+   prune batch needs raising, which is a one-line config change and not a
+   design change. `hr_tick_cron_log` is one row per FIRE (never per character)
+   on a 7-day retention with its own prune — 8,640/day at a 10 s cadence,
+   independent of player count.
+
+**Therefore, and this is a gate rather than a note: arming gather at 10× or
+above requires Reliability's sign-off with this arithmetic attached, and so does
+any change to `flush_seconds` or `batch_limit` at arming time.** The pre-arm
+read is measured, not assumed:
+
+```sql
+-- headroom in the SHARED daily budget, before the tick is armed
+select count(*) filter (where at > now() - interval '1 day') as ledger_rows_yesterday,
+       480000 - count(*) filter (where at > now() - interval '1 day') as headroom_for_the_tick
+  from public.player_ledger;
+-- EXPECT: headroom comfortably above 48,000 (the 1x tick budget) BEFORE ARMING.
+```
+
+At 1× (48,000/day, 10%) the design is genuinely comfortable. At 10× the honest
+options are: raise `hr_ledger_prune`'s hourly batch, lengthen `flush_seconds`
+(the lever §9 names), or shorten `player_ledger` retention — a decision with
+Reliability, taken before `shadow = false`, not after the table starts growing.
 
 **The invocation number is arithmetic; the plan ceiling is not mine to assert.**
 86,400/10 × 30.44 = 263,000 fires a month is a calculation and it stands. What
@@ -1344,15 +1399,25 @@ slows uniformly, the bill does not rise.
 
 ### Coordinator steps to ship M1 in SHADOW
 
+**The milestone is FOUR files, not three** (Security M-2). Step 3 is not
+optional and **must not trail step 4 overnight**: between steps 2 and 3 the
+nightly `hr-grant-hygiene` job raises, and a detector that is expected to be
+red hides the next real regression.
+
 ```
 # 0. one file per call, never inside begin/commit, never 00:00–00:10 UTC
 node tools/apply-migration.mjs supabase/migrations/2026-09-20-world-tick-roster.sql
 node tools/apply-migration.mjs supabase/migrations/2026-09-21-world-tick-settle-fence.sql
+node tools/apply-migration.mjs supabase/migrations/2026-09-21-engine-allowlist-tick-settle.sql
 node tools/apply-migration.mjs supabase/migrations/2026-09-21-world-tick-cron.sql
 # 1. read-only post-apply verification agent, then:
-node tests/live-hash-drift.mjs --live --write     # expect NO move on hr_apply
+node tests/live-hash-drift.mjs --live --write
+#    ⚠ EXPECT A MOVE on hr_assert_grant_hygiene (step 3 restates it) and
+#      NO MOVE on hr_apply. "MOVES NO LIVE HASH" is true of each of the other
+#      three files and FALSE OF THE MILESTONE — write the whys from --codediff.
 node tests/restore-census.mjs                     # hr_tick_* already classified
-#    flip the three apply-order notes to APPLIED
+select public.hr_assert_grant_hygiene();          # EXPECT: no raise (M-2 landed)
+#    flip ALL FOUR apply-order notes to APPLIED
 # 2. the free extension the driver needs
 #    (psql / dashboard)  create extension if not exists pg_net;
 # 3. TWO Vault secrets — ONE TIME, never in git, never in argv.
@@ -1368,15 +1433,30 @@ node tests/restore-census.mjs                     # hr_tick_* already classified
 # 4. point the driver at the function
 #    update public.hr_tick_config set edge_url =
 #      'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue';
+#    ⚠ hr_tick_config_edge_url_ck (Security M-5) now PINS this to https and to
+#      this project's functions origin, so a typo that would otherwise RESOLVE
+#      is a check_violation instead of a two-secret exfiltration: this column
+#      aims net.http_post, which carries BOTH Vault bearers and the full
+#      hr_state_of envelope of every rostered character. A foreign host, a
+#      plaintext scheme, file://, and '' are all refused by execution (fence
+#      e22). If this UPDATE fails, read the URL — do not drop the constraint.
 # 5. edge deploy (the op:'tick' entry — see "remaining work" below)
-# 6. ARM IN SHADOW. Pays nothing.
+# 6. ARM IN SHADOW. Pays nothing, and costs the ledger NOTHING (M-6):
+#    player_ledger rows/day while shadowed is ZERO at every size.
 #    update public.hr_tick_config set enabled = true, shadow = true;
 #    insert into public.hr_tick_ownership (user_id, slot, channel, owned)
 #      select user_id, slot, 'gather', true from public.player_state
 #       where active_kind = 'gather';        -- the rollout cohort, one INSERT
 ```
 
-Reading the 48 h parity numbers:
+Reading the 48 h parity numbers. **These only mean anything because the shadow
+chain was fixed (M-1):** before it, the driver shipped the frozen `accrued_to`,
+every fire after the first was refused `window_already_settled`, and the first
+query below would have returned **one row per character instead of one per
+flush** — ~0.05% of what accrual paid. `tests/world-tick-shadow-chain.mjs` is
+the exit code for that and is registered in `smoke.yml`. **A parity read that
+returns roughly one row per character is that bug, not a tick that pays
+nothing — check the row count before reading the sums.**
 
 ```sql
 -- what the tick WOULD have paid, against what accrual actually paid
@@ -1400,7 +1480,7 @@ public.hr_tick_config set shadow = false;`), and the kill switch — `set enable
 
 | # | Work | Why it is not in this lane |
 |---|---|---|
-| 1 | **The `op:'tick'` entry in `hr-accrue`** — see the contract below. ~300 lines. | It is a NEW AUTHENTICATION PATH on the function that writes all player value, and it must sit **before** `verifyJwt`, which is a bypass of the gate `tests/edge-jwt-gate.mjs` exists to defend. That needs its own adversarial review. Touching `supabase/functions/**` also couples this lane to an edge deploy, which would leave the in-page payload guard red for every other lane until the Coordinator deployed. Named and specified, not smuggled in. |
+| 1 | ~~**The `op:'tick'` entry in `hr-accrue`**~~ — **LANDED on `lane/world-tick-m1b`** (`supabase/functions/hr-accrue/tick.js`), hardened on `lane/world-tick-m1c`. | Still needs its own adversarial review — it is a NEW AUTHENTICATION PATH on the function that writes all player value and it sits **before** `verifyJwt`, a deliberate bypass of the gate `tests/edge-jwt-gate.mjs` defends. `tests/edge-tick-gate.mjs` is the standing exit code (13 arms, 6 mutations, all biting); the review's attack list is SEC_WORLD_TICK_M1_2026-09-21.md §7 and items 4, 5, 7 and 8 of it are now covered by execution (T-M1e, T-M1, T-R1, T-BB1). **It couples the milestone to an edge deploy: `supabase/functions/**` moved, so `pack-edge` + deploy comes BEFORE the push, or the in-page payload guard is red for every other lane.** |
 | 2 | **A Security GO on the three staged migrations**, with the fence read as a money surface. | CLAUDE.md §2 — the security role holds the veto and this lane cannot grant it to itself. |
 | 3 | **48 h of SHADOW parity on production**, read with the queries above. | Needs the apply, the deploy and real players. |
 | 4 | **Re-run `--gather` on production** and confirm the overlap count is 0 under the corrected classification. | No database access in this lane (S-5). |

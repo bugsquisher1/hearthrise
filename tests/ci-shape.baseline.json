@@ -54,6 +54,7 @@
     "node tests/world-tick-double-pay.mjs": "db-replay-2",
     "node tests/world-tick-double-pay.mjs --mutate": "db-replay-2",
     "node tests/world-tick-writer-authz.mjs": "db-replay-2",
+    "node tests/world-tick-shadow-chain.mjs": "db-replay-2",
     "node tests/utc-midnight-replay.mjs": "utc-midnight-replay",
     "node tests/utc-midnight-replay.mjs --selftest": "utc-midnight-replay",
     "node tests/renown-kill-faucet.mjs --selftest": "economy-selftests",

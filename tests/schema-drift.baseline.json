@@ -7,14 +7,14 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-21",
- "digest": "957dd6d0a98af35e1c95c90e09da3e219ddd12b8429516b408bdd1fd02cbeeea",
+ "digest": "d38cdb9c7ce834b33db24f77d77b9d174539b554112ac405e56587fbe3cb83f9",
  "counts": {
   "relations": 127,
   "functions": 303,
   "policies": 90,
   "indexes": 178,
   "triggers": 20,
-  "constraints": 329,
+  "constraints": 330,
   "columns": 752,
   "rls": 111,
   "event_triggers": 1
@@ -965,6 +965,7 @@
    "hr_start_skill_xp :: hr_start_skill_xp_xp_check",
    "hr_tick_config :: hr_tick_config_batch_ck",
    "hr_tick_config :: hr_tick_config_cadence_ck",
+   "hr_tick_config :: hr_tick_config_edge_url_ck",
    "hr_tick_config :: hr_tick_config_flush_ck",
    "hr_tick_config :: hr_tick_config_flush_ge_cadence_ck",
    "hr_tick_config :: hr_tick_config_lease_ck",

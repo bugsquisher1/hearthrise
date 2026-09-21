@@ -178,6 +178,8 @@
     "node tests/guard-hygiene.mjs": "client-guards",
     "node tests/edge-jwt-gate.mjs --strict": "edge",
     "node tests/edge-jwt-gate.mjs --selftest": "edge",
+    "node tests/edge-tick-gate.mjs": "edge",
+    "node tests/edge-tick-gate.mjs --selftest": "edge",
     "node tests/settle-carry-defer.mjs": "edge",
     "node tests/settle-carry-defer.mjs --mutate": "edge"
   }

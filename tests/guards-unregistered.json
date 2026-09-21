@@ -145,6 +145,16 @@
     },
     "$family:pglite-chain-replay": {
       "reason": "NOT A GUARD FILE — a note covering the entries tagged family 'pglite-chain-replay'. Each boots a real PostgreSQL (PGlite/WASM) and applies the WHOLE migration chain verbatim before asserting, which costs minutes per file. CI already replays that chain once, in the registered `schema-drift` step (plus its --mutate and --live-selftest). Registering these individually would multiply the chain replay by the file count and turn a 20-minute workflow into an hour, for guards whose migrations also carry their own executing self-check blocks. The right fix is a SHARED replayed database these all attach to (tests/schema-replay.mjs already exports bootReplay for exactly this) — a real piece of work, not a line in a YAML file."
+    },
+    "world-tick-edge-contract.mjs": {
+      "reason": "family pglite-chain-replay, and a SECURITY PROOF rather than a standing gate (OP:TICK REVIEW 2026-09-21, SEC_WORLD_TICK_M1_2026-09-21.md findings T-1 and T-2). RED ON PURPOSE and must stay out of .github/workflows/smoke.yml until the lane fixes both defects: a red guard on the shared workflow makes the CI gate unreachable for every other lane (the b512 class). It drives the op:'tick' entry's own round trips against a REAL Postgres instead of a hand-written exec stub. T-1: the driver parses timestamptz into a JS Date, so tick.js tickOne's `String(read0[0].now)` is a spelling Postgres refuses, and probeWatermark - the first engine statement of every character of every fire - THROWS; runTick catches it per character and the 48 h shadow parity run journals zero rows. T-2: the accrue path labels a window 'accrue:'+<hr_state_of JSONB rendering> (.123456+00:00) while tick.js planSeedLabels and the roster's to_char spell it .123Z, so hr_seed draws a different stream for the same window and the parity number measures the PRNG rather than the tick. EC-1c, EC-2b, EC-2c and EC-3d are the controls and are GREEN, which localises each fix to one spelling. EC-2c additionally pins a property nothing else asserts: the watermark probe writes nothing, and what stops it is hr_tick_settle step (7)'s null-version refusal - that arm should become a standing guard even after T-1 and T-2 are closed. DELETE THIS ENTRY AND REGISTER THE FILE once EC-1b, EC-2a and EC-3a/b/c are green.",
+      "family": "pglite-chain-replay",
+      "owner": "security-engineer",
+      "disposition": "review-open",
+      "verified": {
+        "asserts": true,
+        "selftest": "EC-1c / EC-2b / EC-2c / EC-3d are the built-in control arms"
+      }
     }
   },
   "$proof_baseline_comment": [

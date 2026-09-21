@@ -267,9 +267,16 @@ returns table (
   active_kind  text,
   active_id    text,
   active_since timestamptz,
+  -- ★ THE EFFECTIVE WATERMARK — WHERE THIS CHARACTER'S NEXT WINDOW STARTS.
+  --   Armed: `player_state.accrued_to`, the instant hr_apply last paid to.
+  --   Shadowed: `greatest(accrued_to, shadow_accrued_to)`, because the tick
+  --   pays nothing and accrued_to would stand still. A caller may chain on
+  --   this column alone, in either mode, and be correct (M-1).
   accrued_to   timestamptz,
-  -- The shadow watermark, so the tick can chain on it while it is paying
-  -- nothing. NULL for an armed channel, which is the signal to use accrued_to.
+  -- The shadow displacement, and ONLY when there is one: NULL whenever the
+  -- column above already says everything there is to say (an armed channel, or
+  -- a client accrue that overtook the shadow mark). NULL is the signal to use
+  -- accrued_to, which is what this contract has always said and now does.
   shadow_accrued_to timestamptz,
   version      bigint,
   seed         bigint,
@@ -297,6 +304,14 @@ declare
   v_limit    int;
   v_lease    interval;
   v_holder   text;
+  -- THE MODE, READ FROM THE CONFIG SINGLETON RATHER THAN ASSUMED (M-1,
+  -- Security 2026-09-21). The roster's `accrued_to` is WHERE THE NEXT WINDOW
+  -- STARTS, and the fence decides that with `case when shadow then
+  -- greatest(accrued_to, shadow_accrued_to) else accrued_to end`. If the
+  -- roster used a different rule the two would disagree about the boundary and
+  -- every proposal would be refused `window_already_settled` — which is
+  -- precisely the stall M-1 measured. Same expression, same source of truth.
+  v_shadow   boolean;
   k          text;
 begin
   -- ── (0) THE IDENTITY SEAM. Same reasoning as hr_apply's: the PRIMARY control
@@ -329,6 +344,20 @@ begin
   v_lease  := make_interval(secs => least(greatest(coalesce(p_lease_ms, 30000), 5000), 300000) / 1000.0);
   v_holder := left(coalesce(nullif(p_holder, ''), 'unnamed'), 64);
 
+  -- ── (1b) THE MODE. Dynamic EXECUTE and a to_regclass guard because
+  --        `hr_tick_config` is created by the NEXT file in the chain
+  --        (2026-09-21-world-tick-settle-fence.sql), and this file's own §6
+  --        self-check calls this function at apply time — a static reference
+  --        would make the roster unappliable on its own.
+  --        FAILS SAFE TO SHADOW: chaining on the shadow mark can only ever
+  --        propose a window at or AFTER the paid one, so a wrong guess here
+  --        skips time at worst and can never re-propose settled time.
+  v_shadow := true;
+  if to_regclass('public.hr_tick_config') is not null then
+    execute 'select shadow from public.hr_tick_config where id' into v_shadow;
+    v_shadow := coalesce(v_shadow, true);
+  end if;
+
   -- ── (2) THE ACTIVE SET, AND THE LEASE, IN ONE STATEMENT.
   --        `for update skip locked` on the OWNERSHIP row (never on
   --        player_state — the tick must not hold a lock on the table hr_apply
@@ -344,10 +373,22 @@ begin
     -- slot) alone stamped a lease on a channel row it never locked and
     -- returned the character once per ownership row. Executed proof:
     -- tests/world-tick-writer-authz.mjs S-4a/S-4b.
-    select o.user_id, o.slot, o.channel
+    --
+    -- M-1 (Security, 2026-09-21): `mark` is THE EFFECTIVE WATERMARK — where
+    -- this character's next window starts — and it is computed ONCE, in a
+    -- LATERAL, so the keyset below, the ORDER BY, and the `accrued_to` this
+    -- function RETURNS are the same value and cannot drift apart. It is the
+    -- byte-identical expression hr_tick_settle step (6) compares against, so
+    -- the roster and the door can never disagree about a window boundary.
+    select o.user_id, o.slot, o.channel, m.mark
       from public.hr_tick_ownership o
       join public.player_state ps
         on ps.user_id = o.user_id and ps.slot = o.slot
+      cross join lateral (
+        select case when v_shadow
+                    then greatest(ps.accrued_to,
+                                  coalesce(o.shadow_accrued_to, ps.accrued_to))
+                    else ps.accrued_to end as mark) m
      where o.owned
        and o.channel = ps.active_kind
        and ps.active_kind = any (v_kinds)
@@ -359,7 +400,7 @@ begin
        -- The keyset. Written out rather than as a row comparison so the NULL
        -- (start-of-pass) case is explicit and cannot be read as "match nothing".
        and (p_after_accrued is null
-            or (ps.accrued_to, o.user_id, o.slot)
+            or (m.mark, o.user_id, o.slot)
                  > (p_after_accrued,
                     coalesce(p_after_user, '00000000-0000-0000-0000-000000000000'::uuid),
                     -- FAIL-SAFE SENTINEL. A caller that names an instant and a
@@ -372,7 +413,12 @@ begin
                     -- characters. Skipping a character costs one pass; re-serving
                     -- it costs a second lease on a character already in flight.
                     coalesce(p_after_slot, 2147483647)))
-     order by ps.accrued_to asc, o.user_id asc, o.slot asc   -- furthest behind first, then total
+     -- FURTHEST BEHIND FIRST, measured in the units the tick actually pays in.
+     -- Ordering on the frozen ps.accrued_to while returning the effective mark
+     -- would make the driver's keyset cursor (which hands back max(accrued_to))
+     -- compare against a different column than the one it walked, and rows
+     -- between the two values would be SKIPPED for a whole pass.
+     order by m.mark asc, o.user_id asc, o.slot asc
      limit v_limit
        for update of o skip locked
   ), leased as (
@@ -382,7 +428,7 @@ begin
            updated_at   = now()
       from claim c
      where o.user_id = c.user_id and o.slot = c.slot and o.channel = c.channel
-     returning o.user_id, o.slot
+     returning o.user_id, o.slot, c.mark
   )
   select ps.user_id,
          ps.slot,
@@ -390,14 +436,33 @@ begin
          ps.active_kind,
          ps.active_id,
          ps.active_since,
-         ps.accrued_to,
-         -- Never BEHIND the real watermark: a client accrue that landed while
-         -- the tick was shadowed drags the shadow mark forward with it, so the
-         -- shadow run can never propose a window the player was already paid
-         -- for. The same `greatest` the fence applies, so the roster and the
-         -- door cannot disagree about where a shadow window starts.
-         greatest(ps.accrued_to, coalesce(o.shadow_accrued_to, ps.accrued_to))
-                                                                       as shadow_accrued_to,
+         -- ── ★ WHERE THE NEXT WINDOW STARTS ★ (M-1, Security 2026-09-21) ──
+         -- THIS COLUMN IS THE WATERMARK, NOT THE PAID MARK. It used to be the
+         -- raw `ps.accrued_to`, which in SHADOW never moves — the tick pays
+         -- nothing, so `hr_apply` never advances it. Every consumer that
+         -- chained on it therefore re-proposed [T0, T0+flush] on every fire and
+         -- the fence refused all of them, correctly, as `window_already_settled`.
+         -- Over 48 h at a 90 s flush that is 1 shadow row where 1,920 are
+         -- expected: the parity measurement the whole milestone exists to take
+         -- cannot be taken, and the obvious "fix" is to loosen the CAS, which
+         -- is the double pay S-3 exists to prevent.
+         --
+         -- `l.mark` is the effective watermark computed under the claim's own
+         -- lock: `greatest(accrued_to, shadow_accrued_to)` while shadowed,
+         -- `accrued_to` while armed — the byte-identical rule the fence uses.
+         -- So a caller that simply chains on `accrued_to` is now CORRECT in
+         -- both modes, and the payload stops being a trap.
+         l.mark                                                         as accrued_to,
+         -- THE SHADOW MARK, AND ONLY WHEN IT SAYS SOMETHING THE COLUMN ABOVE
+         -- DOES NOT. NULL means "no shadow displacement — use accrued_to",
+         -- which is the contract this signature has claimed since it was
+         -- written (`NULL for an armed channel`) and did not honour: it
+         -- coalesced, so it was never NULL and never distinguishable.
+         -- `nullif` against the PAID mark makes the contract true. It is never
+         -- BEHIND `accrued_to`, because `l.mark` took the `greatest` first — a
+         -- client accrue landing mid-shadow drags this forward rather than
+         -- being replayed over.
+         nullif(l.mark, ps.accrued_to)                                  as shadow_accrued_to,
          ps.version,
          -- THE PER-WINDOW PRNG LABEL, derived here EXACTLY as
          -- hr-accrue/index.ts derives it: hr_seed(user, slot,
@@ -412,9 +477,7 @@ begin
          -- prefix over and over would report a parity number that says more
          -- about the PRNG than about the tick.
          public.hr_seed(ps.user_id, ps.slot,
-                        'accrue:' || to_char(
-                          greatest(ps.accrued_to, coalesce(o.shadow_accrued_to, ps.accrued_to))
-                            at time zone 'UTC',
+                        'accrue:' || to_char(l.mark at time zone 'UTC',
                           'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))  as seed,
          -- HYDRATION IS THE ENVELOPE THE CLIENT APPLIES, not a bag of columns
          -- assembled here. "What the tick holds" and "what the player sees" are
@@ -423,9 +486,10 @@ begin
     from leased l
     join public.player_state ps
       on ps.user_id = l.user_id and ps.slot = l.slot
-    join public.hr_tick_ownership o
-      on o.user_id = l.user_id and o.slot = l.slot and o.channel = ps.active_kind
-   order by ps.accrued_to asc, ps.user_id asc, ps.slot asc;
+   -- The same order the claim walked, on the same value, so the driver's
+   -- keyset cursor (max(accrued_to) + the last row's user/slot) names a
+   -- boundary this function will compare against identically on the next pass.
+   order by l.mark asc, ps.user_id asc, ps.slot asc;
 end $$;
 
 -- ── §5 GRANTS ───────────────────────────────────────────────────────────────

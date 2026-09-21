@@ -98,7 +98,7 @@ import { withCors } from './cors.js';
    the ONE request path that reaches the engine with no player behind it, so it
    is its own module with its own adversarial review and its own test
    (tests/edge-tick-gate.mjs). Nothing else in this payload may import it. */
-import { tickGate, runTick } from './tick.js';
+import { tickGate, runTick, readTickBody } from './tick.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
@@ -275,7 +275,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
           await tx`set local role hr_engine`;
           return await tx.unsafe(text, params as any[]);
         }) as unknown as Record<string, any>[];
-      const out = await runTick({ exec: execTick, body: await req.json().catch(() => ({})) });
+      /* BOUNDED, AND ONLY NOW. The bearer has been accepted; the body has
+         still not been touched. `readTickBody` refuses a body over the
+         ceiling by its Content-Length AND by counting the bytes that actually
+         arrive, so a chunked sender that omits the header is metered too. A
+         refusal is `bad_request` and says nothing about which of the two
+         reasons it was — the same non-oracle discipline the bearer follows. */
+      const body = await readTickBody(req);
+      if (body === null) return json({ ok: false, error: 'bad_request' }, 400);
+      const out = await runTick({ exec: execTick, body });
       return json(out.body, out.status);
     } catch (e) {
       const msg = String((e as Error)?.message || e);

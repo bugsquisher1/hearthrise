@@ -273,10 +273,22 @@ begin
   --        THIS job, because `hr_tick_settle` refuses a settle whose holder
   --        does not match the lease stamped here.
   v_holder := left('cron:' || coalesce(current_database(), 'db'), 64);
+  -- ⚠ `r.accrued_to` IS THE EFFECTIVE WATERMARK, NOT `player_state.accrued_to`
+  --   (M-1, Security 2026-09-21). The roster returns where the next window
+  --   STARTS — `greatest(accrued_to, shadow_accrued_to)` while shadowed — so a
+  --   consumer that chains on this key tiles windows correctly in both modes.
+  --   Before that fix the projection shipped the frozen paid mark and the
+  --   shadow run journalled ONE window per character and then refused itself
+  --   forever, which is the measurement the whole milestone exists to take.
+  --   `shadow_accrued_to` rides alongside it and is NULL unless the shadow mark
+  --   says something `accrued_to` does not; it is sent so the receiving entry
+  --   can SEE the displacement rather than infer it, and so a future consumer
+  --   cannot pick the frozen column by accident — there no longer is one.
   select jsonb_agg(jsonb_build_object(
            'user_id', r.user_id, 'slot', r.slot, 'shard', r.shard,
            'active_kind', r.active_kind, 'active_id', r.active_id,
            'active_since', r.active_since, 'accrued_to', r.accrued_to,
+           'shadow_accrued_to', r.shadow_accrued_to,
            'version', r.version, 'seed', r.seed, 'state', r.state)
            order by r.accrued_to, r.user_id, r.slot),
          count(*),

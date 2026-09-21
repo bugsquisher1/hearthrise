@@ -31,6 +31,12 @@
 //                              reports the FENCE's mode, never the body's flag
 //   T-P1  a player JWT alone can never reach op:tick (wiring, packed bytes)
 //   T-W1  the player path is byte-for-byte unchanged for non-tick ops (wiring)
+//   T-M1  SHADOW CHAINS END TO END through the entry: successive fires tile
+//         successive windows instead of re-proposing the first one forever
+//         (Security M-1's receiving half, 2026-09-21 §7 item 5)
+//   T-R1  one refused character does not cost the other 199 their window
+//         (§7 item 7) — and hr_apply is never reached on any of those paths
+//   T-BB1 the body is BOUNDED before it is parsed (§7 item 8)
 //
 // ── --selftest: FOUR MUTATIONS, EACH MUST GO RED ───────────────────────────
 // A guard that has never been red is not a guard (CLAUDE.md §4). Each mutation
@@ -38,6 +44,9 @@
 // re-implementation — and the run fails if the arms stay green:
 //   M1 remove the bearer check        M2 accept a body-supplied user id
 //   M3 skip the kill switch           M4 write payable rows while shadowed
+//   M5 chain the next window on the BODY's accrued_to instead of the fence's
+//      watermark (the M-1 stall, reproduced through the entry)
+//   M6 abort the whole batch on the first refused character
 //
 // Usage:
 //   node tests/edge-tick-gate.mjs
@@ -51,8 +60,8 @@ import { fileURLToPath } from 'node:url';
 import { pack } from '../tools/pack-edge.mjs';
 import {
   tickGate, tickBearerOk, tickSecretUsable, parseTickBody, parseSelectors,
-  probeKillSwitch, runTick,
-  TICK_HEADER, TICK_OP, MIN_SECRET_LEN, MAX_ROSTER,
+  probeKillSwitch, runTick, readTickBody,
+  TICK_HEADER, TICK_OP, MIN_SECRET_LEN, MAX_ROSTER, MAX_BODY_BYTES,
   CADENCE_MS_MIN, CADENCE_MS_MAX, FLUSH_MS_MIN, FLUSH_MS_MAX,
 } from '../supabase/functions/hr-accrue/tick.js';
 
@@ -86,8 +95,21 @@ const EVIL = '99999999-9999-9999-9999-999999999999';
 function fakeDb(cfg) {
   const o = Object.assign({
     enabled: true, shadow: true, markMs: NOW_MS - 120000,
+    /* THE SHADOW MARK, modelled because the REAL fence keeps one
+       (2026-09-21-world-tick-settle-fence.sql step 8: `update
+       hr_tick_ownership set shadow_accrued_to = p_window_to`). Leaving it out
+       made this stub accept the same window over and over — the exact
+       behaviour the real fence refuses as `window_already_settled` — so an
+       entry with M-1's stall in it would have looked green here. A stub that
+       is more permissive than the door it stands in for is not a test. */
+    shadowMarkMs: null,
     version: 7, activeKind: 'gather', known: new Set([UID]),
   }, cfg || {});
+  /* `case when shadow then greatest(accrued_to, shadow_accrued_to) else
+     accrued_to end` — the fence's step (6) expression, verbatim. */
+  const effMark = () => (o.shadow
+    ? Math.max(o.markMs, o.shadowMarkMs === null ? o.markMs : o.shadowMarkMs)
+    : o.markMs);
   const calls = [];
   const settles = [];
   const exec = async (text, params) => {
@@ -123,14 +145,23 @@ function fakeDb(cfg) {
       }
       if (!o.known.has(user)) return [{ res: { ok: false, error: 'no_character' } }];
       if (o.activeKind !== channel) return [{ res: { ok: false, error: 'channel_moved' } }];
-      if (Date.parse(wFrom) < o.markMs) {
+      /* THE WATERMARK CAS, against the EFFECTIVE mark — and the refusal
+         CARRIES it, which is the only way the entry can read a table
+         `hr_engine` is revoked from. Both halves matter: the comparison is
+         what makes a replay impossible, and the reported value is what makes
+         the next window chainable. */
+      if (Date.parse(wFrom) < effMark() || Date.parse(wTo) <= effMark()) {
         return [{ res: { ok: false, error: 'window_already_settled',
-          accrued_to: new Date(o.markMs).toISOString(), shadow: o.shadow } }];
+          accrued_to: new Date(effMark()).toISOString(), shadow: o.shadow } }];
       }
       if (version !== o.version) return [{ res: { ok: false, error: 'version_conflict' } }];
       settles.push({ holder, user, slot, channel, version, wFrom, wTo, key, delta: JSON.parse(delta) });
-      if (o.shadow) return [{ res: { ok: true, mode: 'shadow', paid: false, window_to: wTo } }];
-      o.markMs = Date.parse(wTo); o.version += 1;
+      if (o.shadow) {
+        o.shadowMarkMs = Date.parse(wTo);      // step (8): the shadow chain
+        return [{ res: { ok: true, mode: 'shadow', paid: false, window_to: wTo } }];
+      }
+      o.markMs = Date.parse(wTo); o.shadowMarkMs = null;   // step (9): armed clears it
+      o.version += 1;
       return [{ res: { ok: true, mode: 'armed', paid: true } }];
     }
     throw new Error('fakeDb: unexpected statement — ' + text.slice(0, 80));
@@ -255,7 +286,12 @@ async function runArms(mod) {
       roster: [rosterRow(UID, { version: 999999, accrued_to: '1999-01-01T00:00:00.000Z' })],
     } });
     ok(db.settles.length === 1, 'T-B1d — the settle went through the fence');
-    const s = db.settles[0];
+    /* A RED ARM MUST REPORT, NOT THROW. Without this fallback the next four
+       arms died on `undefined.holder` the moment T-B1d went red, which under
+       --selftest reads as "the mutation did not bite" — the right words for
+       the wrong reason. The sentinel matches nothing, so every arm below still
+       goes red; they just say so. */
+    const s = db.settles[0] || { holder: null, version: null, wFrom: null };
     ok(s.holder === 'cron:postgres',
       'T-B1e — the holder is the SERVER-derived one, not the body\'s "cron:attacker"', s.holder);
     ok(s.version === db.cfg.version,
@@ -319,6 +355,107 @@ async function runArms(mod) {
     ok(outA.body.processed === 1 && outA.body.shadowed === 0,
       'T-S1d — the same code armed reports processed, so T-S1a is not vacuous',
       JSON.stringify(outA.body));
+  }
+
+  // ── T-M1 — M-1's RECEIVING HALF, END TO END ─────────────────────────────
+  group('T-M1  SHADOW chains across fires through the entry');
+  {
+    /* The SQL half of M-1 is proved in tests/world-tick-shadow-chain.mjs. This
+       is the other half, and it is the one that decides whether the fix
+       SURVIVES a change to this module: the entry must take its window origin
+       from the FENCE (the `window_already_settled` probe, which reports
+       `greatest(accrued_to, shadow_accrued_to)` under the row lock), never from
+       the body — so it chains even though `player_state.accrued_to` is frozen
+       for the whole shadow run.
+
+       FOUR fires, the way the driver fires: same roster row every time, its
+       `accrued_to` FROZEN exactly as production's would be while shadowed. An
+       entry that believed the body would settle window 1 and then be refused
+       `window_already_settled` forever, which is the stall M-1 measured. */
+    const db = fakeDb({ shadow: true, markMs: NOW_MS - 6 * 90000 });
+    const frozen = new Date(db.cfg.markMs).toISOString();
+    const body = { op: 'tick', flush_ms: 90000, cadence_ms: 10000,
+      roster: [rosterRow(UID, { accrued_to: frozen })] };
+    const outs = [];
+    for (let i = 0; i < 4; i++) outs.push(await runTick({ exec: db.exec, body }));
+
+    ok(db.settles.length === 4,
+      'T-M1a — four fires settled FOUR windows; the shadow run does not stall',
+      `settles=${db.settles.length} outcomes=${JSON.stringify(outs.map((o) => o.body.reasons))}`);
+    const froms = db.settles.map((x) => Date.parse(x.wFrom));
+    const tos = db.settles.map((x) => Date.parse(x.wTo));
+    ok(froms.every((f, i) => i === 0 || f === tos[i - 1]),
+      'T-M1b — the windows TILE: each one starts exactly where the last ended',
+      JSON.stringify(db.settles.map((x) => [x.wFrom, x.wTo])));
+    ok(new Set(froms).size === 4,
+      'T-M1c — no window is proposed twice, so the parity sum counts each minute once');
+    ok(db.settles.every((x) => Date.parse(x.delta.accrued_to) === Date.parse(x.wTo)),
+      'T-M1d — every settle binds its declared delta to its own window end');
+    ok(!db.calls.some((c) => c.text.includes('hr_apply')),
+      'T-M1e — hr_apply was never called across any of the four fires');
+  }
+
+  // ── T-R1 — ONE REFUSAL MUST NOT ABORT THE BATCH ─────────────────────────
+  group('T-R1  a refused character costs only itself');
+  {
+    /* §7 item 7. A batch is up to 500 characters and the fence refuses
+       individually — an unleased character, one that moved channel, one whose
+       version raced. If any of those aborted the fire, a single stale roster
+       row would stop the whole world tick, and the failure would look like a
+       driver problem rather than one character's. */
+    const db = fakeDb({ shadow: true });
+    const out = await runTick({ exec: db.exec, body: { op: 'tick',
+      roster: [rosterRow(EVIL), rosterRow(UID)] } });
+    ok(out.body.shadowed === 1,
+      'T-R1a — the good character still got its window', JSON.stringify(out.body));
+    ok(out.body.skipped === 1 && out.body.ok === true,
+      'T-R1b — the unknown one was skipped by name, and the fire still reports ok',
+      JSON.stringify(out.body));
+
+    /* AND A THROW, not just a refusal: the entry wraps each character so an
+       engine exception is one character's problem too. */
+    const boom = fakeDb({ shadow: true, known: new Set([UID]) });
+    let armed = false;
+    const exec = async (text, params) => {
+      if (armed && text.includes('hr_state_of')) throw new Error('engine exploded');
+      return boom.exec(text, params);
+    };
+    const outT = await runTick({ exec, body: { op: 'tick',
+      roster: [rosterRow(UID), rosterRow(UID.replace(/5$/, '6'))] } });
+    armed = true;
+    ok(outT.body.ok === true && (outT.body.shadowed + outT.body.skipped + outT.body.refused) === 2,
+      'T-R1c — every character in the batch is accounted for, none aborts the fire',
+      JSON.stringify(outT.body));
+  }
+
+  // ── T-BB1 — THE BODY IS BOUNDED BEFORE IT IS PARSED ─────────────────────
+  group('T-BB1  the request body is capped');
+  {
+    /* §7 item 8. The branch runs before verifyJwt; holding the bearer must not
+       buy the right to make the function that writes all player value
+       allocate without limit. */
+    const mk = (bytes, withLen) => {
+      const payload = JSON.stringify({ op: 'tick', pad: 'x'.repeat(bytes) });
+      const h = withLen ? { 'content-length': String(payload.length) } : {};
+      return new Request('https://x.invalid/', { method: 'POST', body: payload, headers: h });
+    };
+    ok(MAX_BODY_BYTES > 0 && MAX_BODY_BYTES <= 16 * 1024 * 1024,
+      `T-BB1a — a ceiling exists and is a bound, not a formality (${MAX_BODY_BYTES} bytes)`);
+    const small = await readTickBody(mk(64, true));
+    ok(small && small.op === 'tick', 'T-BB1b — an honest body still parses');
+    const bigDeclared = await readTickBody(mk(4096, true), 1024);
+    ok(bigDeclared === null,
+      'T-BB1c — an oversize body is refused on its declared Content-Length');
+    const bigChunked = await readTickBody(mk(4096, false), 1024);
+    ok(bigChunked === null,
+      'T-BB1d — and refused by COUNTING BYTES when the sender omits the header, '
+      + 'so the header check is not the whole cap');
+    ok(await readTickBody(new Request('https://x.invalid/',
+      { method: 'POST', body: 'not json' })) === null,
+      'T-BB1e — unparseable is the same refusal, so the answer is not an oracle');
+    const index = await readFile(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8');
+    ok(index.includes('readTickBody(req)') && !/runTick\(\{[^}]*req\.json\(\)/s.test(index),
+      'T-BB1f — index.ts reads the tick body through the bounded reader, never req.json()');
   }
 
   // ── T-F1 — THE PACK-TIME FENCE ROUND THE 'tick' CALLER ──────────────────
@@ -473,6 +610,66 @@ const MUTATIONS = [
     }),
     mustFail: ['T-S1'],
   },
+  {
+    /* M-1 ITSELF, reproduced through the entry. The mutant believes the body:
+       it takes each character's window origin from the roster row's
+       `accrued_to` instead of from the fence's probe. In SHADOW that value is
+       frozen, so fire 1 settles and fires 2..4 are refused
+       `window_already_settled` — one shadow row per character, forever, which
+       is the measurement failure the whole milestone turns on. If T-M1 stays
+       green under this, T-M1 is not measuring the fix. */
+    id: 'M5', what: "chain on the body's accrued_to instead of the fence watermark",
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: async (text, params) => {
+          /* The WATERMARK PROBE's answer is overwritten with the instant the
+             BODY named, which is precisely what an entry that trusted the
+             payload would chain on. Nothing else about the entry changes —
+             the defect is one value, and one value is all it takes. */
+          const rows = await o.exec(text, params);
+          const r = rows && rows[0] && rows[0].res;
+          if (r && r.error === 'window_already_settled') {
+            const rows0 = o.body && Array.isArray(o.body.roster) ? o.body.roster : [];
+            const hit = rows0.find((x) => x && x.user_id === params[1]);
+            if (hit && hit.accrued_to) r.accrued_to = hit.accrued_to;
+          }
+          return rows;
+        },
+      })),
+    }),
+    /* T-B1 as well as T-M1, and that is not padding: T-B1g is the arm that
+       says "the window starts at the FENCE's watermark, not the body's 1999
+       timestamp". A mutant that chains on the body is exactly what T-B1g
+       forbids, so an M5 that left T-B1 green would mean T-B1g was decorative. */
+    mustFail: ['T-M1', 'T-B1'],
+  },
+  {
+    /* §7 item 7's failure mode: the first refused character takes the other
+       199 down with it. A batch that aborts on one stale roster row is a world
+       tick one player can stop. */
+    id: 'M6', what: 'abort the whole batch on the first refusal',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => {
+        const out = await REAL.runTick(Object.assign({}, o, {
+          exec: async (text, params) => {
+            const rows = await o.exec(text, params);
+            const r = rows && rows[0] && rows[0].res;
+            /* params[1] is the user: a NULL user is the kill-switch probe,
+               which is not a character and whose refusal is not a batch
+               event. Throwing there would abort the fire before it began and
+               would prove nothing about batch isolation. */
+            if (r && r.ok !== true && params[1] !== null
+                && r.error !== 'window_already_settled') {
+              throw new Error('batch aborted: ' + r.error);
+            }
+            return rows;
+          },
+        }));
+        return out;
+      },
+    }),
+    mustFail: ['T-R1'],
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -488,7 +685,17 @@ async function main() {
       const log = console.log;
       const lines = [];
       console.log = (...a) => lines.push(a.join(' '));
-      try { await runArms(m.patch(REAL)); } catch { fails++; } finally { console.log = log; }
+      /* ⚠ A MUTATION THAT CRASHES THE ARMS IS NOT A MUTATION THAT BIT.
+         Without this the throw was swallowed, the arms after it never ran, and
+         the report read "the guard does not bite there" — the right words for
+         the wrong reason, and the kind of message somebody answers by deleting
+         the mutation. It is recorded with a ✗ so it lands in `red` and is
+         printed with the rest. */
+      try { await runArms(m.patch(REAL)); }
+      catch (e) {
+        lines.push(`✗ the mutation THREW before the arms finished: ${(e && e.message) || e}`
+          + ` @ ${String((e && e.stack) || '').split('\n')[1] || '?'}`);
+      } finally { console.log = log; }
       const red = lines.filter((l) => l.includes('✗'));
       const hit = m.mustFail.filter((arm) => red.some((l) => l.includes(arm)));
       fails = before;                       // the mutation's reds are not OUR reds

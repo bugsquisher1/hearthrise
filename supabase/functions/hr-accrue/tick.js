@@ -101,6 +101,21 @@ export const MIN_SECRET_LEN = 32;
    world tick. */
 export const MAX_ROSTER = 500;
 
+/* THE BODY CEILING (Security §7.8, 2026-09-21). A fire carries at most
+   `batch_limit` (<= 500) rows, and a row is a full `hr_state_of` envelope — a
+   few KB at the top of the range. 4 MiB is a comfortable multiple of the
+   largest honest batch and still a hard bound, which is the point: the branch
+   above this one runs before `verifyJwt`, so the only thing between a socket
+   and `JSON.parse` is the bearer. Holding the bearer must not also buy the
+   right to make this function allocate without limit — the function that
+   writes all player value is the worst possible thing to be able to stall.
+
+   CHECKED TWICE, and that is deliberate: `Content-Length` is a CLAIM by the
+   sender and is refused early when it is honest, but a chunked or lying sender
+   omits it, so the bytes are counted as they arrive and the read is ABORTED at
+   the same ceiling. A header check alone is not a cap. */
+export const MAX_BODY_BYTES = 4 * 1024 * 1024;
+
 /* Engine polls per character per fire. `toMs` is already capped at one flush
    window below, so this is the second, independent bound — the one that still
    holds if a future caller widens the first. */
@@ -123,6 +138,41 @@ export const FLUSH_MS_MAX = 900000;
 const PROBE_FROM_ISO = '1970-01-01T00:00:00.000Z';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/* THE BOUNDED READ. Returns the parsed body, or `null` for "too big or not
+   JSON" — which the caller answers as `bad_request` WITHOUT saying which,
+   because a body-shaped oracle on this branch is the same mistake as a
+   length-shaped one on the bearer.
+
+   It is a pure function of a Request-like object so a Node test can drive it
+   with a real `Request`; `body` may be absent (a Response-less stub), in which
+   case there is nothing to read and `{}` is the honest answer. */
+export async function readTickBody(req, limit = MAX_BODY_BYTES) {
+  const declared = Number(req.headers && req.headers.get
+    ? req.headers.get('content-length') : NaN);
+  if (Number.isFinite(declared) && declared > limit) return null;
+  if (!req.body || typeof req.body.getReader !== 'function') {
+    /* No stream to meter (a stub, or a runtime that buffered it already). Fall
+       back to the whole-body read, still bounded by the length check above. */
+    try { return await req.json(); } catch { return null; }
+  }
+  const reader = req.body.getReader();
+  const chunks = [];
+  let n = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      n += value.byteLength;
+      if (n > limit) { await reader.cancel(); return null; }
+      chunks.push(value);
+    }
+  } catch { return null; }
+  const buf = new Uint8Array(n);
+  let at = 0;
+  for (const c of chunks) { buf.set(c, at); at += c.byteLength; }
+  try { return JSON.parse(new TextDecoder().decode(buf)); } catch { return null; }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // THE BEARER

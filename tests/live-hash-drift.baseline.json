@@ -16,15 +16,15 @@
   "the change was intended. Never edit a hash by hand to make a build green —",
   "a red hash is the check working."
  ],
- "generated": "2026-09-19",
+ "generated": "2026-09-21",
  "project": "nezapsylztqbbwuwembx",
  "postgres": {
   "production": "17.x",
   "replay": "PGlite (PG18) — see tests/schema-replay.mjs"
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
- "live_measured": "2026-09-14",
- "replay_ms": 1271,
+ "live_measured": "2026-09-21",
+ "replay_ms": 1445,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -44,7 +44,7 @@
    "live": {
     "md5": "cdc1b5f4b58dee8b424780b5005619b8",
     "norm_len": 413,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -68,7 +68,7 @@
    "live": {
     "md5": "d98d063119f063168df46d40d5599b01",
     "norm_len": 409,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -93,7 +93,7 @@
    "live": {
     "md5": "c6b86f79de9a80138a1649ba40b5de97",
     "norm_len": 5758,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -142,9 +142,9 @@
     "2026-09-19-lifetime-facts-off-the-ledger.sql"
    ],
    "live": {
-    "md5": "3184af12b27de9dc20b5258baa3e548b",
-    "norm_len": 136418,
-    "measured": "2026-09-14",
+    "md5": "f2316c3d9df8e293d1e92574b6a5af5b",
+    "norm_len": 139593,
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -152,8 +152,7 @@
     "norm_len": 139593,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED 2026-09-19: the repo is ahead of live by migrations that are Security-reviewed (GO-WITH-CHANGES, SEC_FIGHT_CARRY_2026-09-16.md) but NOT applied: 2026-09-17-attended-xp-on-settle.sql (hr_apply gains the attended-XP span stamp) and 2026-09-19-lifetime-facts-off-the-ledger.sql (hr_apply's trophy-set and global-ordinal reads move from player_ledger to hearthfind_log/hearthfind_ordinal; hr_claim_bounty__ungated increments the lifetime bounty_turnins counter). Live bodies verified unchanged on 2026-09-18 via pg_get_functiondef. Re-measure with --live --write after the applies, in order: attended-xp, then lifetime-facts."
+   "agree": true
   },
   {
    "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -178,7 +177,7 @@
    "live": {
     "md5": "638425ee833c49065936d390a44c3484",
     "norm_len": 26804,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -201,7 +200,7 @@
    "live": {
     "md5": "b9538d0ed981316c6234b20e1422d873",
     "norm_len": 6833,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -223,7 +222,7 @@
    "live": {
     "md5": "db1826672c8a43de334b0a0bbf582d63",
     "norm_len": 4445,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -245,7 +244,7 @@
    "live": {
     "md5": "c3ac903821cd7ab09590ce0f979922a4",
     "norm_len": 9772,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -266,9 +265,9 @@
     "2026-09-19-lifetime-facts-off-the-ledger.sql"
    ],
    "live": {
-    "md5": "0a3515fb34ba30de9f331069c030bf86",
-    "norm_len": 3761,
-    "measured": "2026-09-14",
+    "md5": "b80a3a6092ee3d2e0e400270f1da6f82",
+    "norm_len": 4481,
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -276,8 +275,7 @@
     "norm_len": 4481,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED 2026-09-19: the repo is ahead of live by migrations that are Security-reviewed (GO-WITH-CHANGES, SEC_FIGHT_CARRY_2026-09-16.md) but NOT applied: 2026-09-17-attended-xp-on-settle.sql (hr_apply gains the attended-XP span stamp) and 2026-09-19-lifetime-facts-off-the-ledger.sql (hr_apply's trophy-set and global-ordinal reads move from player_ledger to hearthfind_log/hearthfind_ordinal; hr_claim_bounty__ungated increments the lifetime bounty_turnins counter). Live bodies verified unchanged on 2026-09-18 via pg_get_functiondef. Re-measure with --live --write after the applies, in order: attended-xp, then lifetime-facts."
+   "agree": true
   },
   {
    "sig": "hr_claim_daily__ungated(p_task_id text, p_slot integer)",
@@ -293,7 +291,7 @@
    "live": {
     "md5": "36a972a99b24ddcb4564694e50a978b0",
     "norm_len": 3995,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -316,7 +314,7 @@
    "live": {
     "md5": "f538e493cc118188511d16a050d30f67",
     "norm_len": 8503,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -339,7 +337,7 @@
    "live": {
     "md5": "10372c9994729fabbff1ba492933f81e",
     "norm_len": 4749,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -362,7 +360,7 @@
    "live": {
     "md5": "81b5a41b4861f284f25b0dc1046d941f",
     "norm_len": 8482,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -387,7 +385,7 @@
    "live": {
     "md5": "134be3455bb53bebcb37200523054472",
     "norm_len": 10842,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -410,9 +408,9 @@
     "2026-09-17-attended-xp-on-settle.sql"
    ],
    "live": {
-    "md5": "6cf400561308115d03d7d9780c98f796",
-    "norm_len": 16710,
-    "measured": "2026-09-14",
+    "md5": "40cd62d5540dd49407fb92e6a0419f3a",
+    "norm_len": 19432,
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -420,8 +418,7 @@
     "norm_len": 19432,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED 2026-09-17: 2026-09-17-attended-xp-on-settle.sql (Security GO-WITH-CHANGES, SEC_FIGHT_CARRY §7) is on the set but NOT applied; the replay carries the attended-XP span stamp in hr_apply and the span top-up budget in hr_credit_combat_xp__ungated, live does not. Re-measure with --live --write after the apply."
+   "agree": true
   },
   {
    "sig": "hr_credit_kills__ungated(p_slot integer, p_target text, p_claimed bigint, p_idem text)",
@@ -438,7 +435,7 @@
    "live": {
     "md5": "ab39935430da4abf223626bb72a82363",
     "norm_len": 29458,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -462,7 +459,7 @@
    "live": {
     "md5": "9cdfde85f2d243619627d452bb0641bf",
     "norm_len": 2299,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -484,7 +481,7 @@
    "live": {
     "md5": "40b0935afb1a8c718db954c718f55db7",
     "norm_len": 335,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -506,7 +503,7 @@
    "live": {
     "md5": "9ab6f689b4ecdb81f1b3d6041b700f0c",
     "norm_len": 16308,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -529,7 +526,7 @@
    "live": {
     "md5": "afb0e20b452cd14d7b159015738ccb0b",
     "norm_len": 7784,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -554,7 +551,7 @@
    "live": {
     "md5": "ed3d20468ba9b19a8472888a9125f52f",
     "norm_len": 7851,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -578,7 +575,7 @@
    "live": {
     "md5": "bb087feef2991979575b91b40d1afe4d",
     "norm_len": 6552,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -601,7 +598,7 @@
    "live": {
     "md5": "926570772cc4eb9cabc081a17acc8c6c",
     "norm_len": 4438,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -623,7 +620,7 @@
    "live": {
     "md5": "97f6c74e00fa9e8419b9c6437efc0685",
     "norm_len": 1645,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -645,7 +642,7 @@
    "live": {
     "md5": "b527321e54deb4699ba20155d9b1af30",
     "norm_len": 12598,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -668,7 +665,7 @@
    "live": {
     "md5": "807506a8f149cc089f0716a30d80034a",
     "norm_len": 2139,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -693,7 +690,7 @@
    "live": {
     "md5": "abe004d3ba1bc85dcaa555659a8afd23",
     "norm_len": 5999,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -718,7 +715,7 @@
    "live": {
     "md5": "9674ca3ac77631b5e4b92c30a8ad4131",
     "norm_len": 3947,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live",
     "mojibake": true
    },
@@ -745,7 +742,7 @@
    "live": {
     "md5": "1d4b32ddac88a883dab862e8ff1e8996",
     "norm_len": 2175,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -773,7 +770,7 @@
    "live": {
     "md5": "545d26dafbcd6dc1909ecc31c1525f1f",
     "norm_len": 9599,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -795,7 +792,7 @@
    "live": {
     "md5": "c60535aab4b595c1a8120e7006db5112",
     "norm_len": 475,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -817,7 +814,7 @@
    "live": {
     "md5": "eeb836b4bf709b919937cac6665904dc",
     "norm_len": 403,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -843,7 +840,7 @@
    "live": {
     "md5": "c583b4545f4ae41e378340e8c1b101e2",
     "norm_len": 3922,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -865,7 +862,7 @@
    "live": {
     "md5": "4fe27ae0417cfd242df90a7a37af9d8b",
     "norm_len": 7771,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -912,7 +909,7 @@
    "live": {
     "md5": "256ea8c8d5eb6f7641e5931b43aa647c",
     "norm_len": 2878,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -937,7 +934,7 @@
    "live": {
     "md5": "114a18f05ea2e423d85470a7442de49e",
     "norm_len": 6350,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -960,7 +957,7 @@
    "live": {
     "md5": "ca900dc9a74f5123b0dedef66d47b80a",
     "norm_len": 6368,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -983,7 +980,7 @@
    "live": {
     "md5": "aaa43577cb9de2fadfa813705427c7b6",
     "norm_len": 5357,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1040,7 +1037,7 @@
    "live": {
     "md5": "50913bae9c63bd8b7984fcdd30e5d1b4",
     "norm_len": 29802,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1063,7 +1060,7 @@
    "live": {
     "md5": "39776e3a0ed05b94f3cb4f8bfacedf9d",
     "norm_len": 5657,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1086,7 +1083,7 @@
    "live": {
     "md5": "89916214f9aa67785acac0103db9dcef",
     "norm_len": 10518,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1108,7 +1105,7 @@
    "live": {
     "md5": "40f1ead2515b0c3f898db0bd4bf97a35",
     "norm_len": 20059,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1130,7 +1127,7 @@
    "live": {
     "md5": "11394712df724d52990bce2c6ca6c7d6",
     "norm_len": 1235,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1157,7 +1154,7 @@
    "live": {
     "md5": "0d0ed3b05cde0bbdac584696fb159f90",
     "norm_len": 220,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1181,7 +1178,7 @@
    "live": {
     "md5": "6ec96537a3581e36ab6568c8f53817e2",
     "norm_len": 235,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1203,7 +1200,7 @@
    "live": {
     "md5": "69a7af7d432dfc8a6723142ab4aa638d",
     "norm_len": 808,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1226,7 +1223,7 @@
    "live": {
     "md5": "8daf82ea78a08b5aef51f2bb80602cce",
     "norm_len": 4362,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1251,7 +1248,7 @@
    "live": {
     "md5": "d1d0d0289e01cc9cbef24aa7a57302ad",
     "norm_len": 4069,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1275,7 +1272,7 @@
    "live": {
     "md5": "fb338f1ad3b3f614effecdce8d8e7f07",
     "norm_len": 453,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {
@@ -1300,7 +1297,7 @@
    "live": {
     "md5": "0ae1c264bf0fce09e76834d16a446972",
     "norm_len": 10176,
-    "measured": "2026-09-14",
+    "measured": "2026-09-21",
     "source": "measured-live"
    },
    "replay": {

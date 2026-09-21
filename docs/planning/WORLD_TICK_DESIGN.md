@@ -1283,7 +1283,8 @@ authority.
 8. The edge runs `computeAccrual` with `caller:'tick'` — the engine it already
    runs — and calls `hr_tick_settle` per flush window.
 9. `hr_tick_config.shadow` true ⇒ the fence journals what *would* have been paid
-   into `hr_tick_shadow` and returns before `hr_apply`. Nothing moves.
+   into `hr_tick_shadow`, stamps `hr_tick_ownership.shadow_accrued_to`, and
+   returns before `hr_apply`. Nothing a player owns moves.
 10. Every fire writes one `hr_tick_cron_log` row: outcome, rostered count,
     duration, and `effective_cadence_seconds` — the number that says "buy the
     host" when it crosses 30.
@@ -1292,19 +1293,53 @@ authority.
 yield comes out of `accrueGather` → `src/core/skill-sim.js`. Re-implementing it
 in plpgsql is the second engine CLAUDE.md §1 and AWAY-12 forbid.
 
+### The shadow watermark, and why the parity number needs one
+
+In SHADOW the tick pays nothing, so `player_state.accrued_to` never moves for
+it. A tick that kept chaining on `accrued_to` would propose `[T0, T0+10s]`, then
+`[T0, T0+20s]`, then `[T0, T0+30s]` — **overlapping windows, every one of them
+journalled**. Summing `hr_tick_shadow.would_gold` over 48 h would then count the
+same minutes again and again, and the parity report — the entire deliverable of
+the shadow run — would say the tick pays several times what accrual pays. Read
+one way that blocks a correct rollout; read the other way it hides a real gap.
+
+`hr_tick_ownership.shadow_accrued_to` is the watermark the tick chains on while
+shadowed. It is not authority and it is not player value:
+
+* the fence compares against `greatest(accrued_to, shadow_accrued_to)`, so a
+  client accrue landing mid-shadow **drags the mark forward** rather than being
+  replayed over;
+* an armed payment **clears it**, because `accrued_to` is the authority again
+  and a second watermark nobody reads is how a wrong one survives long enough to
+  be believed;
+* the roster seeds each window from the *effective* watermark, not from
+  `accrued_to` — seeding every shadow window from one constant instant is the
+  `fixedSeed` mutant of §11, which measured **+48% gold and three rare drops at
+  rate zero**.
+
+`tests/world-tick-double-pay.mjs` D4e–D4g are its exit code: the mark is
+stamped, the next window tiles onto it, and re-proposing the first window is
+refused **even though `accrued_to` still permits it**.
+
 ### Cost, at three sizes
 
 | | beta (50 active) | 10× (500) | 100× (5,000) |
 |---|---|---|---|
-| Edge invocations/month | 263,000 **ceiling** (53% of the Free tier; **zero while nobody is active**) | unchanged | unchanged |
+| Edge invocations/month | 263,000 **ceiling** (**zero while nobody is active**) | unchanged | unchanged |
 | effective per-character cadence | 10 s | **30 s** | **250 s** — the design is over |
 | ledger rows/day (90 s flush) | 48,000 (10% of the 480,000 prune ceiling) | 480,000 — **at the ceiling** | over, by 10× |
 | DB time per fire | ~2.5 s (25% of a core, continuous) | ~6.3 s (63%) | ~63 s — 6.3 cores |
 
-A 5 s cadence costs 525,000 invocations/month and **crosses the Free tier**, so
-halving the cadence is a billing decision rather than a config change;
-`cadence_seconds` is checked `>= 5` so the smallest legal value is the one that
-needs the conversation. The failure mode at scale is the right one: the world
+**The invocation number is arithmetic; the plan ceiling is not mine to assert.**
+86,400/10 × 30.44 = 263,000 fires a month is a calculation and it stands. What
+it is *53% of* depends on the project's actual plan, and this lane has no
+database or dashboard access to read it — the published Free-tier figure at time
+of writing is 500,000 invocations/month and Pro is 2,000,000, but **the
+Coordinator confirms the real ceiling against the project's own billing page
+before arming.** A 5 s cadence doubles the figure to 525,000, which crosses the
+published Free line, so halving the cadence is a billing decision rather than a
+config change; `cadence_seconds` is checked `>= 5` so the smallest legal value is
+the one that needs the conversation. The failure mode at scale is the right one: the world
 slows uniformly, the bill does not rise.
 
 ### Coordinator steps to ship M1 in SHADOW
@@ -1320,9 +1355,15 @@ node tests/restore-census.mjs                     # hr_tick_* already classified
 #    flip the three apply-order notes to APPLIED
 # 2. the free extension the driver needs
 #    (psql / dashboard)  create extension if not exists pg_net;
-# 3. the Vault secret — ONE TIME, never in git, never in argv
+# 3. TWO Vault secrets — ONE TIME, never in git, never in argv.
+#    There are two because verify_jwt = true stays on: the gateway checks
+#    Authorization before the function runs, and the tick's own bearer rides
+#    X-HR-Tick-Auth. The gateway key is the PUBLIC anon key and is not the
+#    tick's authorisation; do not conflate them.
 #    select vault.create_secret(encode(gen_random_bytes(32),'hex'),
-#      'hr_tick_shared_secret', 'shared bearer: pg_net -> hr-accrue op:tick');
+#      'hr_tick_shared_secret', 'X-HR-Tick-Auth: pg_net -> hr-accrue op:tick');
+#    select vault.create_secret('<project anon key>', 'hr_tick_gateway_key',
+#      'Authorization: Bearer — satisfies verify_jwt at the gateway');
 #    npx supabase secrets set HR_TICK_SHARED_SECRET=<value> --project-ref nezapsylztqbbwuwembx
 # 4. point the driver at the function
 #    update public.hr_tick_config set edge_url =
@@ -1359,12 +1400,36 @@ public.hr_tick_config set shadow = false;`), and the kill switch — `set enable
 
 | # | Work | Why it is not in this lane |
 |---|---|---|
-| 1 | **The `op:'tick'` entry in `hr-accrue`** — bearer check against `HR_TICK_SHARED_SECRET`, the batch loop, `settleGatherSession`, `hr_tick_settle` per flush. ~300 lines. | It is a NEW AUTHENTICATED SURFACE on the function that writes all player value, so it needs its own adversarial review; and touching `supabase/functions/**` couples this lane to an edge deploy, which would leave the in-page payload guard red for every other lane until the Coordinator deployed. Named, specified, not smuggled in. |
+| 1 | **The `op:'tick'` entry in `hr-accrue`** — see the contract below. ~300 lines. | It is a NEW AUTHENTICATION PATH on the function that writes all player value, and it must sit **before** `verifyJwt`, which is a bypass of the gate `tests/edge-jwt-gate.mjs` exists to defend. That needs its own adversarial review. Touching `supabase/functions/**` also couples this lane to an edge deploy, which would leave the in-page payload guard red for every other lane until the Coordinator deployed. Named and specified, not smuggled in. |
 | 2 | **A Security GO on the three staged migrations**, with the fence read as a money surface. | CLAUDE.md §2 — the security role holds the veto and this lane cannot grant it to itself. |
 | 3 | **48 h of SHADOW parity on production**, read with the queries above. | Needs the apply, the deploy and real players. |
 | 4 | **Re-run `--gather` on production** and confirm the overlap count is 0 under the corrected classification. | No database access in this lane (S-5). |
 | 5 | **Confirm the concurrency claim on production**, read-only. | PGlite is one backend; every arm here proves the MECHANISM (lock before read, CAS against the locked row, UPDATE in the same transaction) and simulates the interleaving by ordering. Same limitation `tools/race-test.mjs` records. |
 | 6 | **pg_cron >= 1.5 confirmed on this project.** The migration probes for sub-minute support and falls back to 60 s with a NOTICE, so this is a fluidity question, not a blocker. | Needs the apply to answer. |
+
+### The `op:'tick'` entry, specified
+
+Two headers, and the reason there are two is `verify_jwt = true` in
+`supabase/config.toml`, which stays on:
+
+| header | value | who checks it |
+|---|---|---|
+| `Authorization: Bearer …` | the project's **gateway key** (the anon key is a valid JWT and the gateway accepts it), read from Vault as `hr_tick_gateway_key` | Supabase's gateway, before the function runs |
+| `X-HR-Tick-Auth` | the tick bearer, Vault `hr_tick_shared_secret` | the new branch, in constant time |
+
+`index.ts` verifies a PLAYER's JWT as its second statement and derives `user`
+from it. A tick request is not about one player and carries no player token, so
+the branch must come **before** that call, must compare `X-HR-Tick-Auth` against
+`HR_TICK_SHARED_SECRET` in constant time, must return the same `401
+not_signed_in` on any mismatch (so it is not an oracle), and must do nothing
+else on that path — no database access, no body parse, before the comparison
+succeeds. Then, per roster row: `computeAccrual` with `caller:'tick'`,
+`settleGatherSession`, and one `hr_tick_settle` per flush window. It never calls
+`hr_apply` directly and never reads a user id from the body.
+
+That "before `verifyJwt`" is the whole reason item 1 is a separate review rather
+than a line in this lane: it is the one place in the system where a request
+reaches the engine without a player behind it.
 
 Honest estimate: **items 1–2 are ~1 lane-day each; item 3 is 48 h of wall clock
 that costs no agent time; items 4–6 are minutes once the apply lands.** Gather

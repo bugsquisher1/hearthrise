@@ -298,6 +298,7 @@ declare
   v_st       public.player_state%rowtype;
   v_own      public.hr_tick_ownership%rowtype;
   v_declared timestamptz;
+  v_mark     timestamptz;
   v_out      jsonb;
 begin
   -- ── (0) IDENTITY. The PRIMARY control is the GRANT in §4: this function is
@@ -395,13 +396,23 @@ begin
   --        less and is refused, whatever its version and whatever its key.
   --        This holds against a client accrue, a client collect, a second tick
   --        process and a replay of this very call.
-  if p_window_from < v_st.accrued_to then
+  -- THE MARK THE CAS COMPARES AGAINST. When armed it IS `accrued_to`, because
+  -- the tick's own payments move it. When SHADOWED the tick pays nothing, so
+  -- `accrued_to` would stand still and the tick would propose [T0,T0+10], then
+  -- [T0,T0+20], then [T0,T0+30] — overlapping windows, all journalled, and a
+  -- 48 h parity sum that counts the same minutes many times over. The shadow
+  -- mark is what it chains on instead, and `greatest` keeps it from ever being
+  -- behind a client accrue that landed in the middle.
+  v_mark := case when v_cfg.shadow
+                 then greatest(v_st.accrued_to, coalesce(v_own.shadow_accrued_to, v_st.accrued_to))
+                 else v_st.accrued_to end;
+  if p_window_from < v_mark then
     return jsonb_build_object('ok', false, 'error', 'window_already_settled',
-      'window_from', p_window_from, 'accrued_to', v_st.accrued_to);
+      'window_from', p_window_from, 'accrued_to', v_mark, 'shadow', v_cfg.shadow);
   end if;
-  if p_window_to <= v_st.accrued_to then
+  if p_window_to <= v_mark then
     return jsonb_build_object('ok', false, 'error', 'window_already_settled',
-      'window_to', p_window_to, 'accrued_to', v_st.accrued_to);
+      'window_to', p_window_to, 'accrued_to', v_mark, 'shadow', v_cfg.shadow);
   end if;
 
   -- ── (7) The version, checked here so the refusal has a tick-shaped name and
@@ -427,6 +438,11 @@ begin
        coalesce((p_delta#>>'{journal,meta,qty}')::bigint, 0),
        coalesce((p_delta#>>'{journal,meta,ticks}')::bigint, 0))
     on conflict (user_id, slot, intent_id) do nothing;
+    -- CHAIN. The next shadow window starts where this one ended, exactly as an
+    -- armed window would start where hr_apply left `accrued_to`.
+    update public.hr_tick_ownership
+       set shadow_accrued_to = p_window_to, updated_at = now()
+     where user_id = p_user and slot = p_slot and channel = p_channel;
     return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,
       'window_to', p_window_to);
   end if;
@@ -436,8 +452,12 @@ begin
   --        clamp. It re-validates every invariant regardless of caller.
   v_out := public.hr_apply(p_user, p_slot, p_version, p_intent_id, p_delta);
   if coalesce((v_out->>'ok')::boolean, false) then
+    -- ARMED PAYMENTS CLEAR THE SHADOW MARK. `accrued_to` is the authority again
+    -- from here, and a stale shadow mark left lying around would be a second
+    -- watermark nobody reads — which is how a mark that is WRONG survives long
+    -- enough to be believed the next time somebody re-enters shadow.
     update public.hr_tick_ownership
-       set updated_at = now()
+       set shadow_accrued_to = null, updated_at = now()
      where user_id = p_user and slot = p_slot and channel = p_channel;
   end if;
   return v_out || jsonb_build_object('mode', 'armed', 'paid',

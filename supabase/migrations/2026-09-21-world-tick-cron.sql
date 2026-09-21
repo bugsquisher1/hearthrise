@@ -201,6 +201,30 @@ revoke execute on function public.hr_tick_cron_log_prune(int)
 -- It never settles anything itself. It does exactly three things: decide
 -- whether this fire should happen, lease a batch, and hand that batch to the
 -- engine over HTTP. Every value decision is behind `hr_tick_settle`.
+-- THE LOG IS QUIET WHEN NOTHING IS HAPPENING. At a 10 s cadence a job that
+-- logged every fire would write 8,640 rows/day while the tick is DISABLED —
+-- the state it ships in and the state it spends most of its life in — which is
+-- noise that makes the one interesting row impossible to find and costs disk
+-- for a world that is not ticking. `disabled` and `locked` are therefore
+-- COALESCED: the first one is written, and a repeat is suppressed for five
+-- minutes. Every other outcome is always written, because every other outcome
+-- means the tick tried to do something.
+create or replace function public.hr_tick_cron_note(
+  p_outcome text, p_ms int, p_rostered int default 0,
+  p_eff int default null, p_detail jsonb default null)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if p_outcome in ('disabled', 'locked')
+     and exists (select 1 from public.hr_tick_cron_log
+                  where outcome = p_outcome and at > now() - interval '5 minutes') then
+    return;
+  end if;
+  insert into public.hr_tick_cron_log (outcome, ms, rostered, effective_cadence_seconds, detail)
+  values (p_outcome, coalesce(p_ms, 0), coalesce(p_rostered, 0), p_eff, p_detail);
+end $$;
+revoke execute on function public.hr_tick_cron_note(text, int, int, int, jsonb)
+  from public, anon, authenticated, service_role, hr_engine, hr_tick;
+
 create or replace function public.hr_tick_cron_run()
 returns jsonb
 language plpgsql volatile security definer set search_path = public as $$
@@ -214,6 +238,7 @@ declare
   v_last_s   int;
   v_last_a   timestamptz;
   v_secret   text;
+  v_gateway  text;
   v_eff      int;
   v_out      text;
   v_ms       int;
@@ -226,18 +251,18 @@ begin
   --        strand it. `pg_try_` and not `pg_` — a held lock means SKIP THIS
   --        FIRE, never queue behind it.
   if not pg_try_advisory_xact_lock(hashtext('hr_tick_cron_run')) then
-    insert into public.hr_tick_cron_log (outcome, ms) values ('locked', 0);
+    perform public.hr_tick_cron_note('locked', 0);
     return jsonb_build_object('ok', true, 'outcome', 'locked');
   end if;
 
   -- ── (2) THE KILL SWITCH, FAILING CLOSED. A missing row is "off".
   select * into v_cfg from public.hr_tick_config where id;
   if not found or not v_cfg.enabled then
-    insert into public.hr_tick_cron_log (outcome, ms) values ('disabled', 0);
+    perform public.hr_tick_cron_note('disabled', 0);
     return jsonb_build_object('ok', true, 'outcome', 'disabled');
   end if;
   if v_cfg.edge_url is null or v_cfg.edge_url = '' then
-    insert into public.hr_tick_cron_log (outcome, ms) values ('no_edge_url', 0);
+    perform public.hr_tick_cron_note('no_edge_url', 0);
     return jsonb_build_object('ok', false, 'outcome', 'no_edge_url');
   end if;
 
@@ -266,8 +291,8 @@ begin
     -- roster (or the roster is empty); the next fire starts from the beginning.
     update public.hr_tick_config set cursor_at = null, cursor_user = null,
            cursor_slot = null, updated_at = now() where id;
-    insert into public.hr_tick_cron_log (outcome, ms, rostered)
-    values ('empty', floor(extract(epoch from (clock_timestamp() - v_t0)) * 1000)::int, 0);
+    perform public.hr_tick_cron_note('empty',
+     floor(extract(epoch from (clock_timestamp() - v_t0)) * 1000)::int, 0);
     return jsonb_build_object('ok', true, 'outcome', 'empty');
   end if;
 
@@ -290,18 +315,33 @@ begin
   -- THE NUMBER THAT SAYS "BUY THE HOST". See the 10x/100x tables in the header.
   v_eff := v_cfg.cadence_seconds * greatest(1, ceil(v_n::numeric / greatest(1, v_cfg.batch_limit))::int);
 
-  -- ── (4) THE SECRET, FROM VAULT. Read at call time, used once, never
-  --        returned and never journalled. §3 is the one-time setup.
+  -- ── (4) TWO SECRETS, FROM VAULT, BECAUSE THERE ARE TWO GATES.
+  --        `supabase/config.toml` pins `verify_jwt = true` on hr-accrue and it
+  --        STAYS ON (tests/edge-jwt-gate.mjs --strict defends exactly that), so
+  --        Supabase's gateway rejects the request before the function runs
+  --        unless `Authorization` carries a JWT it accepts. That is the
+  --        GATEWAY key. It is not the tick's authorisation and must not be
+  --        mistaken for it: the project's anon key satisfies the gateway and is
+  --        public, so anyone could present it.
+  --
+  --        The tick's own bearer therefore rides its own header,
+  --        `X-HR-Tick-Auth`, and the op:'tick' entry compares it in constant
+  --        time. Both are read at call time, used once, and never returned,
+  --        raised or journalled. §3 is the one-time setup for both.
   if to_regclass('vault.decrypted_secrets') is null then
-    v_secret := null;
+    v_secret := null; v_gateway := null;
   else
     execute 'select decrypted_secret from vault.decrypted_secrets where name = $1 limit 1'
       into v_secret using 'hr_tick_shared_secret';
+    execute 'select decrypted_secret from vault.decrypted_secrets where name = $1 limit 1'
+      into v_gateway using 'hr_tick_gateway_key';
   end if;
-  if v_secret is null or v_secret = '' then
-    insert into public.hr_tick_cron_log (outcome, ms, rostered, effective_cadence_seconds, detail)
-    values ('no_secret', floor(extract(epoch from (clock_timestamp() - v_t0)) * 1000)::int, v_n, v_eff,
-            jsonb_build_object('hint', 'select vault.create_secret(<value>, ''hr_tick_shared_secret'')'));
+  if v_secret is null or v_secret = '' or v_gateway is null or v_gateway = '' then
+    perform public.hr_tick_cron_note('no_secret',
+     floor(extract(epoch from (clock_timestamp() - v_t0)) * 1000)::int, v_n, v_eff,
+     jsonb_build_object('hint', 'vault needs BOTH hr_tick_shared_secret and hr_tick_gateway_key',
+                        'have_tick_bearer', v_secret is not null and v_secret <> '',
+                        'have_gateway_key', v_gateway is not null and v_gateway <> ''));
     return jsonb_build_object('ok', false, 'outcome', 'no_secret', 'rostered', v_n);
   end if;
 
@@ -310,9 +350,9 @@ begin
   --        every fire, which is a visible, harmless, fixable state rather than
   --        a migration that will not replay.
   if to_regprocedure('net.http_post(text,jsonb,jsonb,jsonb,integer)') is null then
-    insert into public.hr_tick_cron_log (outcome, ms, rostered, effective_cadence_seconds, detail)
-    values ('pg_net_absent', floor(extract(epoch from (clock_timestamp() - v_t0)) * 1000)::int, v_n, v_eff,
-            jsonb_build_object('hint', 'create extension if not exists pg_net'));
+    perform public.hr_tick_cron_note('pg_net_absent',
+     floor(extract(epoch from (clock_timestamp() - v_t0)) * 1000)::int, v_n, v_eff,
+     jsonb_build_object('hint', 'create extension if not exists pg_net'));
     return jsonb_build_object('ok', false, 'outcome', 'pg_net_absent', 'rostered', v_n);
   end if;
 
@@ -326,23 +366,25 @@ begin
                                'roster', v_batch),
             '{}'::jsonb,
             jsonb_build_object('Content-Type', 'application/json',
-                               'Authorization', 'Bearer ' || v_secret),
+                               -- the GATEWAY's gate...
+                               'Authorization', 'Bearer ' || v_gateway,
+                               -- ...and the tick's own, which the entry checks.
+                               'X-HR-Tick-Auth', v_secret),
             greatest(1000, v_cfg.cadence_seconds * 1000 - 1000);
     v_out := 'posted';
   exception when others then
     -- The secret must not reach the log even in an error path.
     v_out := 'error';
-    insert into public.hr_tick_cron_log (outcome, ms, rostered, effective_cadence_seconds, detail)
-    values ('error', floor(extract(epoch from (clock_timestamp() - v_t0)) * 1000)::int, v_n, v_eff,
-            jsonb_build_object('sqlstate', sqlstate));
+    perform public.hr_tick_cron_note('error',
+     floor(extract(epoch from (clock_timestamp() - v_t0)) * 1000)::int, v_n, v_eff,
+     jsonb_build_object('sqlstate', sqlstate));
     return jsonb_build_object('ok', false, 'outcome', 'error', 'sqlstate', sqlstate);
   end;
 
   v_ms := floor(extract(epoch from (clock_timestamp() - v_t0)) * 1000)::int;
-  insert into public.hr_tick_cron_log (outcome, ms, rostered, effective_cadence_seconds, detail)
-  values (v_out, v_ms, v_n, v_eff,
-          jsonb_build_object('shadow', v_cfg.shadow, 'holder', v_holder,
-                             'cursor_wrapped', v_n < v_cfg.batch_limit));
+  perform public.hr_tick_cron_note(v_out, v_ms, v_n, v_eff,
+    jsonb_build_object('shadow', v_cfg.shadow, 'holder', v_holder,
+                       'cursor_wrapped', v_n < v_cfg.batch_limit));
   return jsonb_build_object('ok', true, 'outcome', v_out, 'rostered', v_n,
                             'shadow', v_cfg.shadow, 'ms', v_ms,
                             'effective_cadence_seconds', v_eff);
@@ -353,12 +395,18 @@ end $$;
 -- that stops the tick at 03:00 on a Sunday. NONE OF IT RUNS HERE: this file
 -- creates no secret, reads no secret at apply time and contains no secret.
 --
---   1. Mint the bearer (64 hex chars from a CSPRNG, not a password):
+--   1. Mint the TICK BEARER (64 hex chars from a CSPRNG, not a password):
 --        select vault.create_secret(
 --          encode(gen_random_bytes(32), 'hex'),
 --          'hr_tick_shared_secret',
---          'shared bearer: pg_net -> hr-accrue op:tick. Rotate by create_secret again.');
---   2. Give the Edge Function the SAME value, out of band, never through git:
+--          'X-HR-Tick-Auth: pg_net -> hr-accrue op:tick. Rotate by create_secret again.');
+--   1b. Store the GATEWAY KEY — the project ANON key, which is public and is
+--       already in the repo, but is read from Vault so that a project move is a
+--       Vault write rather than a migration, and so the driver never guesses:
+--        select vault.create_secret(
+--          '<the project anon key>', 'hr_tick_gateway_key',
+--          'Authorization: Bearer — satisfies verify_jwt at the Supabase gateway. NOT the tick''s authorisation.');
+--   2. Give the Edge Function the TICK BEARER, out of band, never through git:
 --        npx supabase secrets set HR_TICK_SHARED_SECRET=<the value> \
 --          --project-ref nezapsylztqbbwuwembx
 --      (read it back once with `select decrypted_secret from
@@ -495,7 +543,7 @@ begin
     --        the bearer is required rather than optional.
     v_r := public.hr_tick_cron_run();
     if v_r->>'outcome' not in ('no_secret', 'pg_net_absent') then
-      raise exception 'c6: the driver posted without a Vault secret (%)', v_r;
+      raise exception 'c6: the driver posted without its Vault secrets (%)', v_r;
     end if;
     if coalesce((v_r->>'rostered')::int, 0) <> 1 then
       raise exception 'c6b: the roster returned % rows for one owned character', v_r->>'rostered';
@@ -528,6 +576,16 @@ begin
     select count(*) into v_c from public.hr_tick_cron_log;
     if v_c < 4 then
       raise exception 'c8: % fires logged, expected at least 4 (disabled, no_edge_url, empty, no_secret)', v_c;
+    end if;
+    -- c8c: THE COALESCING BITES. A second `disabled` fire inside five minutes
+    --      must not write a second row, or a disabled tick writes 8,640 rows a
+    --      day saying nothing.
+    update public.hr_tick_config set enabled = false where id;
+    perform public.hr_tick_cron_run();
+    perform public.hr_tick_cron_run();
+    select count(*) into v_n from public.hr_tick_cron_log where outcome = 'disabled';
+    if v_n <> 1 then
+      raise exception 'c8c: % `disabled` rows after three disabled fires — the log is not coalescing', v_n;
     end if;
     -- The shapes a leaked bearer would actually take: the header prefix, or the
     -- 64 hex characters §3 mints. A `_` in LIKE is a wildcard, so the pattern

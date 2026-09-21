@@ -295,6 +295,47 @@ async function d4(db) {
   judge('D4d', Number(end.gold) === 0,
     'after two shadow settles the character still holds 0 gold — shadow is not a slow faucet',
     `the character holds ${end.gold} gold after two SHADOW settles`);
+
+  /* ── D4e. THE SHADOW RUN'S WHOLE POINT IS THE NUMBER IT PRODUCES ────────
+     In SHADOW the tick pays nothing, so `player_state.accrued_to` never moves
+     for it. A tick that kept chaining on accrued_to would propose [T0,T0+5m],
+     then [T0,T0+9m], then [T0,T0+10m] — OVERLAPPING windows, every one of them
+     journalled, and the 48 h parity sum would count the same minutes over and
+     over in the OVER-paying direction. That is not a rounding error: it is a
+     parity report that says the tick pays several times what accrual pays,
+     which would either block a correct rollout or, read the other way, hide a
+     real gap. `hr_tick_ownership.shadow_accrued_to` is the watermark the tick
+     chains on while shadowed, and these arms are its exit code. */
+  const v = U(9); await makeChar(db, v); await own(db, v);
+  await config(db, 'enabled = true, shadow = true');
+  const W1 = `(now() - interval '8 minutes')::timestamptz`;
+  const W2 = `(now() - interval '4 minutes')::timestamptz`;
+  await settle(db, v, { ver: 1, key: KEY(410), from: FROM, to: W1 });
+  const mark = (await db.query(
+    `select shadow_accrued_to from public.hr_tick_ownership
+      where user_id = '${v}' and slot = 0 and channel = 'gather'`)).rows[0]?.shadow_accrued_to;
+  judge('D4e', !!mark,
+    'a shadow settle stamped hr_tick_ownership.shadow_accrued_to, so the next window has '
+    + 'somewhere to start',
+    'a shadow settle left shadow_accrued_to null — the next window would chain on accrued_to, '
+    + 'which SHADOW never moves, and every later window would overlap this one');
+
+  // The NEXT window, starting where that one ended, is accepted...
+  const chained = await settle(db, v, { ver: 1, key: KEY(411), from: W1, to: W2 });
+  judge('D4f', chained.ok === true,
+    'the next shadow window, starting where the last one ended, is accepted — shadow windows '
+    + 'tile the same way armed ones do',
+    `the chained shadow window was refused (${JSON.stringify(chained)}) — a shadow run that `
+    + 'cannot advance measures one window and then stops');
+
+  // ...and re-proposing the FIRST window, which accrued_to still permits, is not.
+  const overlap = await settle(db, v, { ver: 1, key: KEY(412), from: FROM, to: W1 });
+  const rows3 = await shadowRows(db, v);
+  judge('D4g', overlap.error === 'window_already_settled' && rows3 === 2,
+    `a re-proposed window is refused against the SHADOW watermark even though accrued_to still `
+    + `permits it; ${rows3} journal rows for two real windows`,
+    `the shadow journal took ${rows3} rows for two real windows (${JSON.stringify(overlap)}) — `
+    + 'the 48 h parity sum would count the same minutes twice');
 }
 
 // ── D5. THE BATCH CAP AND THE CURSOR ────────────────────────────────────────

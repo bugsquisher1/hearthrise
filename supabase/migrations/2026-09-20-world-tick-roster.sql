@@ -201,6 +201,21 @@ create table if not exists public.hr_tick_ownership (
   -- connection can outlive the process that took the lock.
   lease_holder text,
   lease_until  timestamptz,
+  -- THE SHADOW WATERMARK (2026-09-21). While hr_tick_config.shadow is true the
+  -- tick pays nothing, so `player_state.accrued_to` never moves for it — and a
+  -- tick that kept chaining on accrued_to would propose [T0, T0+10], then
+  -- [T0, T0+20], then [T0, T0+30]: OVERLAPPING windows, every one of them
+  -- journalled, so summing hr_tick_shadow over 48 h would count the same
+  -- minutes again and again and the parity number the shadow run exists to
+  -- produce would be a lie in the OVER-paying direction.
+  --
+  -- This is the watermark the tick chains on INSTEAD, and only while shadowed.
+  -- It is not player value and it is not authority: it is cleared the moment
+  -- the channel is armed, and it can never be ahead of what the player would
+  -- have been paid, because the fence takes greatest(accrued_to, this) — so a
+  -- client accrue landing in the middle drags it forward rather than being
+  -- replayed over.
+  shadow_accrued_to timestamptz,
   updated_at   timestamptz not null default now(),
   primary key (user_id, slot, channel),
   constraint hr_tick_ownership_channel_ck
@@ -253,6 +268,9 @@ returns table (
   active_id    text,
   active_since timestamptz,
   accrued_to   timestamptz,
+  -- The shadow watermark, so the tick can chain on it while it is paying
+  -- nothing. NULL for an armed channel, which is the signal to use accrued_to.
+  shadow_accrued_to timestamptz,
   version      bigint,
   seed         bigint,
   state        jsonb
@@ -373,6 +391,13 @@ begin
          ps.active_id,
          ps.active_since,
          ps.accrued_to,
+         -- Never BEHIND the real watermark: a client accrue that landed while
+         -- the tick was shadowed drags the shadow mark forward with it, so the
+         -- shadow run can never propose a window the player was already paid
+         -- for. The same `greatest` the fence applies, so the roster and the
+         -- door cannot disagree about where a shadow window starts.
+         greatest(ps.accrued_to, coalesce(o.shadow_accrued_to, ps.accrued_to))
+                                                                       as shadow_accrued_to,
          ps.version,
          -- THE PER-WINDOW PRNG LABEL, derived here EXACTLY as
          -- hr-accrue/index.ts derives it: hr_seed(user, slot,
@@ -380,9 +405,17 @@ begin
          -- tick's first window draws the same stream an accrue would have.
          -- Later windows in the same flush re-derive it per watermark through
          -- the hr_seed grant (§5) — see the exploit-surface note in the header.
+         -- Seeded from the EFFECTIVE watermark, not from accrued_to: in shadow
+         -- the two differ, and seeding every shadow window from one constant
+         -- instant is the `fixedSeed` mutant that measured +48% gold and three
+         -- rare drops at rate zero (§11). A shadow run drawing one stream
+         -- prefix over and over would report a parity number that says more
+         -- about the PRNG than about the tick.
          public.hr_seed(ps.user_id, ps.slot,
-                        'accrue:' || to_char(ps.accrued_to at time zone 'UTC',
-                                             'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))  as seed,
+                        'accrue:' || to_char(
+                          greatest(ps.accrued_to, coalesce(o.shadow_accrued_to, ps.accrued_to))
+                            at time zone 'UTC',
+                          'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))  as seed,
          -- HYDRATION IS THE ENVELOPE THE CLIENT APPLIES, not a bag of columns
          -- assembled here. "What the tick holds" and "what the player sees" are
          -- one object (§2), and it costs the tick no grant on hr_state_of.
@@ -390,6 +423,8 @@ begin
     from leased l
     join public.player_state ps
       on ps.user_id = l.user_id and ps.slot = l.slot
+    join public.hr_tick_ownership o
+      on o.user_id = l.user_id and o.slot = l.slot and o.channel = ps.active_kind
    order by ps.accrued_to asc, ps.user_id asc, ps.slot asc;
 end $$;
 

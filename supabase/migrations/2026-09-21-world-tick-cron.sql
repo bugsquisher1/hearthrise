@@ -472,9 +472,36 @@ end $$;
 --   7. ONLY THEN, after a Security GO on the parity result:
 --        update public.hr_tick_config set shadow = false;
 --
--- ROTATION is `vault.create_secret` again plus `supabase secrets set` again, in
--- that order; a fire between the two reports `error`, retries next cadence, and
--- loses one window of fluidity and no value.
+-- ── ROTATION, AND WHAT THE DISAGREEMENT WINDOW ACTUALLY LOOKS LIKE ─────────
+-- (Security §7 item 9, 2026-09-21. The previous sentence here said a fire in
+--  the window "reports `error`". IT DOES NOT, and a runbook that tells the
+--  operator to watch for the wrong symptom is worse than one that says
+--  nothing — they rotate, see `posted`, and conclude it worked.)
+--
+--   ORDER: `vault.create_secret` first, then `supabase secrets set`. Vault is
+--   what the DRIVER reads at call time; the env var is what the EDGE compares
+--   against. Between the two they disagree.
+--
+--   WHAT HAPPENS IN THAT WINDOW: the driver posts the NEW bearer, the edge
+--   still holds the OLD one, `tickGate` finds no match and answers
+--   `401 not_signed_in` — the same body the player path returns for a bad
+--   token, so the branch is not an oracle. REFUSALS, NEVER A BYPASS: an unset
+--   or short `HR_TICK_SHARED_SECRET` fails CLOSED (`MIN_SECRET_LEN`, 32), so
+--   the gap cannot be walked through by presenting nothing, and the comparison
+--   is over two fixed-length digests, so it is not a length oracle either.
+--
+--   ⚠ THE DRIVER WILL NOT TELL YOU. `net.http_post` is ASYNCHRONOUS — it
+--     returns a request id, not a response — so `hr_tick_cron_log` records
+--     `posted` for every fire in the window and the 401 never reaches it.
+--     VERIFY A ROTATION by reading `net._http_response` (status 401) or the
+--     Edge Function logs, NOT the fire log. A green fire log during a rotation
+--     means the POST left, not that the tick ran.
+--
+--   COST: no value, and no time. The watermark does not move for a window
+--   nobody settled, so the next accepted fire resumes from the same mark and
+--   the owed time is paid then — one or two windows of fluidity, nothing else.
+--   Rotating in the other order (env first, Vault second) has the same shape
+--   and the same cost; pick one and keep to it so the symptom is familiar.
 
 -- ── §4 THE SCHEDULE ─────────────────────────────────────────────────────────
 -- The cron row exists so that ARMING NEEDS NO MIGRATION — the switch is

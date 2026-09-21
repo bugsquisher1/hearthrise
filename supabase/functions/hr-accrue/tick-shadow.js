@@ -105,7 +105,20 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        edge's label is `accrue:<accrued_to>`; `char.seed` is honoured only when
        a fixture pins one, which is how the guard can hold the stream still and
        isolate a different variable. */
-    seed: (o.fixedSeed && char.seed) ? char.seed : seedFor(char.userId, char.slot, fromMs),
+    /* ── `seedOf` IS THE PRODUCTION SEED SEAM (2026-09-21, milestone 1b) ──
+       `seedFor` below is a HASH OVER VISIBLE VALUES (user, slot, watermark)
+       and nothing else — which is right for a fixture run and WRONG on the
+       wire: the client can read its own `accrued_to`, so a player could
+       predict their own rolls (server-authority review S20). Production hands
+       this hook `hr_seed(user, slot, 'accrue:' || <watermark>)`, which mixes a
+       256-bit secret held in a table with RLS on and no grant to any client
+       role — the SAME label `hr-accrue/index.ts` derives for an accrue, so a
+       tick window draws the stream an accrue would have drawn.
+       Absent (every offline caller) the behaviour is unchanged, which is what
+       keeps tests/world-tick-parity.mjs measuring the same thing it did. */
+    seed: (o.fixedSeed && char.seed) ? char.seed
+      : (typeof o.seedOf === 'function' ? o.seedOf(fromMs)
+                                        : seedFor(char.userId, char.slot, fromMs)),
     hp: char.hp,
     maxHp: char.maxHp,
     gold: char.gold,

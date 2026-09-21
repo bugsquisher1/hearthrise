@@ -513,14 +513,30 @@ export async function versionQueryGuard() {
   return problems;
 }
 
-/* ── 'tick' IS NOT AN EDGE CALLER (Security, 2026-09-18) ────────────────────
+/* ── 'tick' IS A FENCED EDGE CALLER (Security 2026-09-18; narrowed 2026-09-21)
    `caller: 'tick'` buys an exemption from ACCRUE_MIN_MS: a 10 s window is
    payable under it. That is correct for the world tick — a server loop with no
    client on the other end, whose cadence the server itself sets — and it is a
    sliver-payment engine for anything a client can call, where the cadence is
-   whatever the attacker's loop does. The tick service (`services/world-tick/`)
-   is NOT part of any edge payload and must not become one by a call site
-   quietly labelling itself 'tick'.
+   whatever the attacker's loop does.
+
+   THE ORIGINAL RULE WAS "NEVER IN AN EDGE PAYLOAD", and it was right for as
+   long as the tick had no edge entry. Milestone 1b gives it one
+   (WORLD_TICK_DESIGN.md §15c, `op:'tick'`), and pack-edge can only vendor from
+   `src/core` and `src/data` — so the tick's production half had to MOVE into
+   the payload, and a rule spelled "never" would have been answered by deleting
+   it. It is restated instead, and it bites harder than before, because the
+   property that actually matters was never the directory:
+
+     1. `caller: 'tick'` may appear only in the four TICK MODULES below.
+        Anywhere else in any payload it is the old failure, unchanged.
+     2. A payload that carries any tick module must also carry the BEARER GATE
+        — `HR_TICK_SHARED_SECRET` and a `tickGate(` call — so tick code cannot
+        ship into a function that has no door in front of it.
+     3. Nothing may IMPORT a tick module except `tick.js` and the entrypoint,
+        and the entrypoint may import only `tick.js`. That is what keeps the
+        exemption behind the bearer rather than one import away from a verb a
+        client can call.
 
    The fence is structural and it bites at PACK time, i.e. before a deploy can
    happen, because that is the last point where "what actually ships" is a
@@ -528,17 +544,58 @@ export async function versionQueryGuard() {
    caller; this fences a SOURCE-borne one written by a future edge author.
    Split as a pure function so a test can mutation-prove it in-process without
    writing a hostile file to disk. */
+export const TICK_MODULES = Object.freeze([
+  'supabase/functions/hr-accrue/tick.js',
+  'supabase/functions/hr-accrue/tick-gather.js',
+  'supabase/functions/hr-accrue/tick-shadow.js',
+  'supabase/functions/hr-accrue/tick-contract.js',
+]);
+const TICK_ENTRY = 'supabase/functions/hr-accrue/tick.js';
+const TICK_BASENAMES = new Set(TICK_MODULES.map((m) => m.slice(m.lastIndexOf('/') + 1)));
+
 export function tickCallerProblems(files) {
   const out = [];
+  const strip = (v) => String(v || '')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const present = new Set();
+  let gateSecret = false;
+  let gateCall = false;
+
   for (const f of files) {
-    const src = String(f.src || '')
-      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-    if (/\bcaller\s*:\s*['"]tick['"]/.test(src)) {
+    const src = strip(f.src);
+    const isTickModule = TICK_MODULES.includes(f.name);
+    if (isTickModule) present.add(f.name);
+    if (/\bHR_TICK_SHARED_SECRET\b/.test(src)) gateSecret = true;
+    if (/\btickGate\s*\(/.test(src)) gateCall = true;
+
+    if (/\bcaller\s*:\s*['"]tick['"]/.test(src) && !isTickModule) {
       out.push(`${f.name}: spells \`caller: 'tick'\` — the ACCRUE_MIN_MS exemption that makes a `
-        + `10 s window payable. 'tick' belongs to services/world-tick (a server loop the server `
-        + `clocks), never to a handler a client can call at whatever cadence it likes. Use `
-        + `'accrue', or 'collect' if the pointer is about to be replaced.`);
+        + `10 s window payable. 'tick' belongs to the fenced tick modules (${TICK_MODULES.join(', ')}), `
+        + `reachable only behind the X-HR-Tick-Auth bearer, never to a handler a client can call at `
+        + `whatever cadence it likes. Use 'accrue', or 'collect' if the pointer is about to be replaced.`);
     }
+
+    /* (3) THE IMPORT FENCE. A tick module may be imported by `tick.js` and by
+       the entrypoint, and the entrypoint may reach only `tick.js`. Anything
+       else puts the exemption one import away from a client-callable verb. */
+    for (const spec of specifiersOf(src)) {
+      const base = bare(spec);
+      const leaf = base.slice(base.lastIndexOf('/') + 1);
+      if (!TICK_BASENAMES.has(leaf)) continue;
+      if (f.name === TICK_ENTRY) continue;                   // tick.js may reach them all
+      if (TICK_MODULES.includes(f.name)) continue;           // and they may reach each other
+      if (/\/index\.(ts|js)$/.test(f.name) && leaf === 'tick.js') continue;
+      out.push(`${f.name}: imports '${spec}'. Only ${TICK_ENTRY} and the function's entrypoint may `
+        + `reach a tick module, and the entrypoint may reach only tick.js — otherwise the `
+        + `ACCRUE_MIN_MS exemption is one import away from a verb a client can call.`);
+    }
+  }
+
+  /* (2) THE DOOR MUST SHIP WITH THE ROOM. */
+  if (present.size > 0 && !(gateSecret && gateCall)) {
+    out.push(`${[...present].sort().join(', ')}: tick code is in this payload but the bearer gate is `
+      + `not — expected HR_TICK_SHARED_SECRET and a tickGate( call. 'tick' code with no door in `
+      + `front of it is the ACCRUE_MIN_MS exemption on an unauthenticated path.`);
   }
   return out;
 }

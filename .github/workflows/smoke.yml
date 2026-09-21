@@ -2175,6 +2175,32 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/edge-jwt-gate.mjs --selftest
 
+      # ── THE op:'tick' BYPASS, REGISTERED 2026-09-21 (milestone 1b) ─────────
+      # hr-accrue now has a branch that runs BEFORE the player JWT is verified.
+      # That is a deliberate bypass of the gate the two steps above defend, and
+      # it is the one place in the system where a request reaches the engine
+      # with no player behind it — so the guard that says it is NARROWER than
+      # what it bypasses runs beside them, not in a database job.
+      #
+      # It needs no credential and no network: it drives the SHIPPED module
+      # (supabase/functions/hr-accrue/tick.js) with real Headers and a fake
+      # `exec`, and it reads the PACKED bytes to prove the branch really does
+      # sit before verifyJwt and really is the only call site. Nine arms: the
+      # bearer (absent / wrong / unset-env / length-independent), a forged body
+      # (only user_id and slot survive; holder, version, watermark and mode are
+      # all re-derived server-side), the kill switch as a genuine no-op, SHADOW
+      # paying nothing, and the pack-time fence round `caller: 'tick'`.
+      #
+      # --selftest plants the four mutations a reviewer would ask about —
+      # remove the bearer check, accept a body-supplied user id, skip the kill
+      # switch, write payable rows while shadowed — and fails if any of them
+      # leaves the arms green.
+      - name: The op:'tick' entry — is the bypass narrower than the gate?
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/edge-tick-gate.mjs
+          node tests/edge-tick-gate.mjs --selftest
+
       # The settle watermark advances by ACCOUNTED time, not to now(): the sub-tick
       # remainder rolls into the next window instead of being forfeited (1.3-1.7% of
       # attended combat, up to 6.7% on 7 s nodes). Four refusals keep it from becoming a

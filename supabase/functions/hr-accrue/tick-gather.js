@@ -191,7 +191,21 @@ export function settleGatherSession(session0, fromMs, toMs, opts) {
   batch = openBatch(watermarkMs, fromMs);
   let flushDue = fromMs + flushMs;
 
+  /* BLAST RADIUS, not balance. A caller that names a wide span must not be
+     able to spend an unbounded amount of engine time in one request; the
+     remainder is OWED (the watermark did not move), so the next call pays it. */
+  const maxPolls = Math.max(1, Math.floor(o.maxPolls || Infinity));
+
   while (clock < toMs) {
+    if (results.length >= maxPolls) break;
+    /* THE SEED MUST BE IN HAND BEFORE THE ENGINE RUNS. `seedOf` is resolved
+       against the WATERMARK, which is only known one window at a time, so a
+       production caller pre-resolves a ladder of them and this loop stops the
+       moment it walks past the end of that ladder. Stopping is free: the
+       watermark has not moved, so the unsettled tail is paid by the next call.
+       Never a fallback seed — a window silently simulated on a predictable
+       stream is the failure this hook exists to prevent. */
+    if (typeof o.seedOf === 'function' && o.seedOf(watermarkMs) == null) break;
     clock = Math.min(clock + cadenceMs, toMs);
     /* RULE 1 + RULE 2. The window is watermark → clock, and only the engine's
        answer may move the watermark. */

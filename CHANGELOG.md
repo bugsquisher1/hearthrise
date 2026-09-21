@@ -4,6 +4,20 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 550 — 2026-09-21 (Pets finally earn XP)
+
+**Companions gain XP again.** Since the move to the realm, no pet was earning experience at all: every companion sat at level 1. The realm now grants companion XP itself, for kills, gathers and crafts, whether you are watching or away. Thank you Paione for reporting it twice.
+
+**Fights you watch count in full.** XP from a fight you were present for is now credited by the realm when it settles, so a late settle can no longer shave it.
+
+**Trophies and first-contract facts are permanent.** Your Hearthfind trophy set, the world-first find numbers and your first bounty contract used to be read from a 90-day journal. They now live in their own permanent records.
+
+**A tab left open across updates reloads itself.** If your browser is two builds behind, it refreshes instead of arguing with the realm.
+
+**Switching characters can no longer carry a pending combat-XP snapshot to the wrong character.**
+
+**Small things.** The desktop-mode banner on phones no longer covers your Gold, and side rails that scroll now show that they scroll. Retired store entries from the old beta were removed from the catalogue.
+
 ## v0.9.2-beta build 549 — 2026-09-17 (A refused recipe switch no longer snaps back)
 
 Out-of-band fix to build 548, from a player report.

@@ -296,7 +296,7 @@ function clampInt(v, lo, hi, dflt) {
 async function fence(exec, args) {
   const [r] = await exec(
     'select public.hr_tick_settle($1::text, $2::uuid, $3::int, $4::text, $5::bigint,'
-    + ' $6::timestamptz, $7::timestamptz, $8::uuid, $9::jsonb) as res',
+    + ' $6::timestamptz, $7::timestamptz, $8::uuid, $9::text::jsonb) as res',
     [args.holder, args.user, args.slot, args.channel, args.version,
       args.windowFrom, args.windowTo, args.intentId, args.delta]);
   return (r && r.res) || null;

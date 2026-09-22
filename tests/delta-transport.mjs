@@ -247,6 +247,20 @@ const MUTATIONS = {
     why: 'the booted chain lacks a function SEED_SQL calls — the b532 red, which over pglite-socket '
        + 'surfaces as CONNECTION_CLOSED instead of 42883 and names nothing.',
   },
+  bare_jsonb_tick_fence: {
+    /* The P0 came back on 2026-09-22 exactly as T6 predicted — in a file this
+       guard did not name, calling a function T6 did not census. tick.js bound
+       the world tick's pre-stringified fence delta into a bare `$9::jsonb`;
+       hr_tick_settle's first guard answered bad_delta on the watermark probe,
+       every fire, every character, and the first shadow window on production
+       never opened (edge response: skipped:1, reasons {bad_delta:1}). */
+    stagedFile: 'supabase/functions/hr-accrue/tick.js',
+    why: 'tick.js binds the pre-stringified fence delta into a bare $9::jsonb — the shipped P0 on '
+       + 'the WORLD TICK. hr_tick_settle answers bad_delta on the watermark probe and shadow '
+       + 'parity never starts.',
+    find: "$8::uuid, $9::text::jsonb) as res'",
+    repl: "$8::uuid, $9::jsonb) as res'",
+  },
   gather_interval_halved: {
     stagedFile: 'src/core/skill-sim.js',
     why: 'the gather action interval is derived at HALF its honest value — a night pays twice the '
@@ -410,10 +424,14 @@ function deltaCastOf(text, label) {
    would find zero sites and report GREEN — the exact failure this file exists
    to stop, so the "at least two sites" floor below is load-bearing. */
 
-/** Every `public.hr_apply(...)` argument list in one file's text. */
+/** Every `public.hr_apply(...)` and `public.hr_tick_settle(...)` argument list
+ *  in one file's text, as `{ fn, args }`. Both take the delta LAST and both open
+ *  with `jsonb_typeof(p_delta) <> 'object' → bad_delta`, so both are the same
+ *  transport hazard. The fence joined the census on 2026-09-22, after the world
+ *  tick shipped the P0 through it (see `bare_jsonb_tick_fence`). */
 function applyArgLists(text) {
   const out = [];
-  const re = /public\.hr_apply\s*\(/g;
+  const re = /public\.(hr_apply|hr_tick_settle)\s*\(/g;
   let m;
   while ((m = re.exec(text))) {
     let i = m.index + m[0].length, depth = 1;
@@ -422,7 +440,7 @@ function applyArgLists(text) {
       if (c === '(') depth++; else if (c === ')') depth--;
       i++;
     }
-    out.push(depth === 0 ? text.slice(m.index + m[0].length, i - 1) : null);
+    out.push({ fn: m[1], args: depth === 0 ? text.slice(m.index + m[0].length, i - 1) : null });
   }
   return out;
 }
@@ -552,26 +570,28 @@ async function run(mutate) {
                  : rel === 'set-activity.js' ? src.setActivity
                  : rel === 'claim-reward.js' ? src.claimReward
                  : (await readFile(file, 'utf8')).replace(/\r\n/g, '\n');
-      for (const args of applyArgLists(text)) {
+      for (const { fn, args } of applyArgLists(text)) {
         if (args === null) {
-          problems.push(`T6: ${rel} contains an unbalanced \`public.hr_apply(\` — this scanner `
+          problems.push(`T6: ${rel} contains an unbalanced \`public.${fn}(\` — this scanner `
             + 'cannot read its delta argument, so it cannot vouch for it');
           continue;
         }
-        seen.push(rel);
+        seen.push(`${rel}:${fn}`);
         const delta = lastArg(args);
         if (!/::text::jsonb$/.test(delta)) {
-          problems.push(`T6: ${rel} binds hr_apply's delta as \`${delta.replace(/\s+/g, ' ')}\` — `
+          problems.push(`T6: ${rel} binds ${fn}'s delta as \`${delta.replace(/\s+/g, ' ')}\` — `
             + 'it must end `::text::jsonb`. A pre-stringified delta bound into a bare `::jsonb` is '
             + 'described to postgres.js as type 3802, whose serialiser is JSON.stringify, so the '
-            + 'value is encoded twice and reaches hr_apply as a jsonb STRING SCALAR — bad_delta, '
-            + 'every call, silently, exactly as it shipped on 2026-08-15.');
+            + `value is encoded twice and reaches ${fn} as a jsonb STRING SCALAR — bad_delta, `
+            + 'every call, silently, exactly as it shipped on 2026-08-15 (hr_apply) and again on '
+            + '2026-09-22 (hr_tick_settle: the world tick\'s first shadow fire on production).');
         }
       }
     }
-    note(seen.length >= 3,
-      `T6: the payload census found ${seen.length} \`public.hr_apply(\` call site(s), expected at `
-      + 'least the three known ones (index.ts, set-activity.js, claim-reward.js). Either the '
+    note(seen.length >= 4 && seen.some((s) => s.endsWith(':hr_tick_settle')),
+      `T6: the payload census found ${seen.length} delta-taking call site(s) [${seen.join(', ')}], `
+      + 'expected at least the four known ones (index.ts, set-activity.js, claim-reward.js on '
+      + 'hr_apply; tick.js on hr_tick_settle). Either the '
       + 'scanner stopped matching the real syntax or the apply '
       + 'sites moved out of the deployed directory — either way this assertion is now vacuous and '
       + 'a green run means nothing.');

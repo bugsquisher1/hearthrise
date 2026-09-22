@@ -108,7 +108,19 @@ import {
   simulateArtisanSpan, STOP_REASON as ARTISAN_STOP, benchPayable, benchBlockedBy,
 } from '../../../src/core/artisan-sim.js';
 import { BENCH_COUNTERS } from '../../../src/core/artisan.js';
-import { chooseFood, resolveAutoEat, thresholdFromPct } from '../../../src/core/auto-eat.js';
+import {
+  chooseFood, resolveAutoEat, thresholdFromPct, isAutoEatable,
+  autoEatTier, maxPctForTier,
+} from '../../../src/core/auto-eat.js';
+/* THE HUNT (docs/design/HUNTS_AND_ANALYZER.md). The stance table, the stop
+   predicate and the Vigour arithmetic are src/core/hunt.js's and ONLY its, for
+   the reason simulateSpan is combat-sim.js's: this file is ONE of the callers,
+   and a second copy of "when does the hunt stop" would let the live tick and
+   the away replay end a player's night at different moments (AWAY-1). */
+import {
+  stanceOf, evaluateStop, DEFAULT_STANCE,
+  vigourBudgetMin, vigourMult, vigourChargeMin, VIGOUR_PROGRESS_KEY, VIGOUR_DRY_MULT,
+} from '../../../src/core/hunt.js';
 import { killBonusesFor } from '../../../src/core/botd.js';
 /* WHICH hours of an over-cap absence are credited. One definition, imported by
    both the server and (through core-bridge) the client — the flip from
@@ -1765,13 +1777,83 @@ export function computeAccrual(input) {
   const bestiary = makeBestiaryCounter();
   const collection = makeCollectionCounter();
   const autoEatOn = inp.autoEatEnabled === true;
+
+  /* ── THE HUNT'S STANCE (2026-09-22) ──────────────────────────────────────
+     `player_state.hunt_stance`, resolved through the ONE table. FAIL-SAFE by
+     construction: an absent column, a null column or an id this build does not
+     know all read as `steady`, which IS today's behaviour — so this whole block
+     is a no-op for every character until one is chosen, and no existing night
+     changes by a single draw.
+
+     ⚠ A STANCE SUPPLIES VALUES FOR THREE SHIPPED KNOBS AND NOTHING ELSE
+       (design §2.2). Two of the three — the dry-quiver policy and the
+       consecutive-fall limit — are evaluated by the STOP PREDICATE at the end
+       of this window, beside the player's own rules, because that is where the
+       settle already holds the state they read. Only the auto-eat threshold
+       reaches the simulation, and it reaches it HERE. */
+  const stance = stanceOf(inp.huntStance);
+
+  /* ⚠ THE STANCE MAY NEVER RAISE THE THRESHOLD PAST WHAT THE CHARACTER PAID
+       FOR, AND THIS IS THE LINE THAT MAKES THAT TRUE.
+     `careful` asks for 0.75. Auto-Eat I's ceiling is 25% (src/core/auto-eat.js
+     AUTO_EAT_TIERS) and `player_state.auto_eat_pct` is clamped to it by SQL —
+     so handing 0.75 straight to the simulation would let a free stance buy the
+     100-mark Auto-Eat II upgrade's entitlement. That is a stance carrying
+     POWER, which is the one thing design §2.2 forbids outright, and it is a
+     real purchase being given away rather than a theoretical worry.
+
+     `inp.traits` is hr_state_of's `traits` array (trait ids, unprefixed). It is
+     SELF-CONFIGURING and FAIL-CLOSED: an absent input reads as tier 0, whose
+     ceiling is tier 1's 25% — so a caller that has not been taught to send it
+     gets the SAFE answer (the stance cannot raise anything) rather than the
+     generous one. tests/hunt-stance-stop.mjs mutates the clamp away and
+     requires the guard to go red. */
+  const traitMap = Object.create(null);
+  if (Array.isArray(inp.traits)) for (const t of inp.traits) traitMap[String(t)] = true;
+  const eatCeiling = maxPctForTier(autoEatTier(traitMap)) / 100;
+  const storedThreshold = thresholdFromPct(inp.autoEatPct);
   const eatCfg = {
     enabled: autoEatOn,
     owned: autoEatOn,
-    threshold: thresholdFromPct(inp.autoEatPct),
+    /* No stance chosen -> the stored dial, byte-for-byte as before. A stance
+       chosen -> its value, capped by what the character is entitled to. */
+    threshold: (inp.huntStance && stance.id !== DEFAULT_STANCE)
+      ? Math.min(stance.eatAt, eatCeiling)
+      : storedThreshold,
     foodId: (typeof inp.autoEatFood === 'string' && inp.autoEatFood) ? inp.autoEatFood : null,
   };
   let foodEaten = 0;
+
+  /* ── VIGOUR: THE DAILY BUDGET, RESOLVED BEFORE THE SPAN RUNS ─────────────
+     design §4. The budget is DERIVED (`hr_offline_cap_ms` in minutes, floored
+     at 720, plus what was bought today, capped at 22 h) and the split is
+     time-weighted across this window: the part inside the budget pays 1, the
+     part past it pays VIGOUR_DRY_MULT.
+
+     ⚠ SELF-CONFIGURING AND INERT BY DEFAULT. `inp.vigour` absent — which is
+       every caller until the vigour migration is applied and index.ts is taught
+       to send it — makes `spentMin` 0 against a budget of at least 720 minutes,
+       so `vigMult` is exactly 1 and every line below is arithmetic that changes
+       nothing. There is no flag to forget to flip.
+
+     ⚠ ONE MULTIPLIER, COMPUTED ONCE, APPLIED IN THREE PLACES, AND IT IS THE
+       SAME NUMBER ATTENDED AND AWAY. Re-simulating the span at two rates would
+       be a SECOND combat path, which AWAY-12 forbids; a blend is identical in
+       expectation and errs in neither direction. */
+  const vigIn = (inp.vigour && typeof inp.vigour === 'object') ? inp.vigour : null;
+  /* ⚠ THE SERVER'S OWN `budget_min` IS PREFERRED OVER RE-DERIVING IT, and that
+       is the point of reading it off the envelope at all: hr_vigour_of applies
+       the 22-hour ceiling and the five-refill clamp, and an engine that derived
+       its own budget could pay against one number while the meter the player is
+       looking at showed another — the 2026-09-14 class in its own feature.
+       `vigourBudgetMin` stays as the MIRROR: it is what a caller that can only
+       send the raw cap gets, and tests/vigour.mjs asserts the two agree. */
+  const vigBudgetMin = vigIn
+    ? (Number.isFinite(Number(vigIn.budget_min))
+        ? Math.max(0, Math.floor(Number(vigIn.budget_min)))
+        : vigourBudgetMin({ offlineCapMs: vigIn.offline_cap_ms, refills: vigIn.refills }))
+    : null;
+  const vigSpentMin = vigIn ? nat(vigIn.spent_min, 0) : 0;
 
   /* ── THE RECOVERY CLOCK, SEEDED FROM THE ROW (First-Night Idle Rescue) ────
      `player_state.recovering_until` is an ABSOLUTE server timestamp and the
@@ -2117,6 +2199,14 @@ export function computeAccrual(input) {
      SAME `style` object simulateSpan routes XP through, resolved above from
      server-owned equipment — never from the request body. */
   const tickMs = deriveTickMs(equipment, items, style);
+  /* THE TIRED MULTIPLIER FOR THIS WINDOW. Computed HERE because `credit` — the
+     span that will actually be paid — is only settled above this line, and a
+     multiplier derived from anything else would describe a window that was
+     never run. Exactly 1 whenever no vigour input was supplied. */
+  const vigMult = vigBudgetMin === null ? 1 : vigourMult({
+    spentMin: vigSpentMin, budgetMin: vigBudgetMin, windowMs: credit.paidMs,
+  });
+
   const ctx = {
     away: true,                    // this IS the away path (docs/design/away-time-ruling.md)
     /* THE FIRST `grantMs` AFTER THE PLAYER LEFT, not the last before they came
@@ -2149,7 +2239,24 @@ export function computeAccrual(input) {
     monsterRolls(m) {
       return monsterCombatRolls(m, { eq, skills: state.skills, bonus });
     },
-    weakness(m) { return weaknessInfo(m, eq, charms); },
+    /* ⚠ VIGOUR RIDES THE DROP *CHANCE*, NOT THE DROP COUNT, AND THAT IS THE
+         WHOLE REASON IT IS HERE AND NOT AT THE DELTA.
+       `rollDropTable` applies `min(0.95, ch x dropMult x (1+dropBuff) x
+       featured)` (src/core/drops.js), so folding the tired multiplier into
+       `dropMult` makes "loot pays a quarter" exactly true IN EXPECTATION while
+       leaving every roll a roll. Scaling the QUANTITIES afterwards would have
+       to floor them, and `floor(1 x 0.25)` is 0 — a 1-in-500 sword would become
+       deterministically unobtainable while tired, which is a far harsher rule
+       than the one the design wrote and one no player could ever observe as
+       "a quarter".
+       It costs the shared engine NOTHING: combat-sim.js and drops.js are
+       untouched, `vigMult` is 1 for every caller that sends no vigour input,
+       and the cap is applied AFTER every multiplier so a reduction is always
+       honoured. */
+    weakness(m) {
+      const w = weaknessInfo(m, eq, charms);
+      return (vigMult === 1) ? w : { ...w, dropMult: (w.dropMult || 1) * vigMult };
+    },
     /* Boss of the Day, resolved PER UTC-DAY SEGMENT of the absence, from the
        SERVER instant. simulateSpan rebinds this per segment, so an absence
        crossing UTC midnight pays each half its own day's boss (the ruling). */
@@ -2425,9 +2532,18 @@ export function computeAccrual(input) {
      watermark this is exactly `state.skills - skills0`, so an away night is
      byte-identical to before (AWAY-1). Loot/gold/progress below are UNCHANGED and
      still pay the full [accrued_to, now] window — only combat XP is split. */
+  /* ⚠ VIGOUR SCALES THE PROPOSED XP HERE, BEFORE THE LEVEL-UPS ARE DERIVED
+       FROM IT. Below this line the receipt's level-up list is read off
+       `xpDelta`, so scaling afterwards would promise crossings the write never
+       banked — the exact honesty defect the block under it was written to fix.
+       `Math.floor` after the multiply, and a grant that rounds to zero is
+       simply not proposed: the same direction every other rounding in this
+       engine takes. `vigMult === 1` short-circuits so an ordinary night is
+       byte-identical. */
   const xpDelta = {};
   for (const k in eligibleXp) {
-    const gained = Math.floor(eligibleXp[k] || 0);
+    const raw = Math.floor(eligibleXp[k] || 0);
+    const gained = vigMult === 1 ? raw : Math.floor(raw * vigMult);
     if (gained > 0) xpDelta[k] = gained;
   }
 
@@ -2454,7 +2570,14 @@ export function computeAccrual(input) {
     for (let lv = from; lv < to; lv++) levelUps.push({ skill: k, from: lv, to: lv + 1 });
   }
 
-  const goldDelta = Math.floor(state.gold || 0);
+  /* THE SAME MULTIPLIER, THE SAME WAY. Gold is the third and last thing Vigour
+     touches (loot is the drop chance, up at ctx.weakness); nothing else in this
+     delta is scaled, because nothing else is a PAYOUT — a death, a watermark
+     and a consumable burn all happened whether the character was tired or not,
+     and discounting them would pay a player for being out of Vigour. */
+  const goldDelta = vigMult === 1
+    ? Math.floor(state.gold || 0)
+    : Math.floor(Math.floor(state.gold || 0) * vigMult);
 
   /* THE ITEM DELTA IS SIGNED. Gains come from drops; the one negative is food
      auto-eat consumed. hr_apply's item block is signed too — it re-reads
@@ -2592,6 +2715,87 @@ export function computeAccrual(input) {
   });
   const deferredMs = Math.max(0, nowMs - settledTo);
 
+  /* ══ THE HUNT'S STOP RULES (2026-09-22, design §2.4) ═══════════════════════
+     EVALUATED INSIDE THE SETTLE, against the state the settle is already
+     holding, by the engine — no scheduler, no timer row, no second writer. That
+     is the property that makes the whole feature cheap: it is a predicate the
+     simulation already had the inputs for.
+
+     ⚠ IT IS THE SAME SEAM THE RETREAT AND THE LEVEL GATE ALREADY USE, one line
+       above and three hundred below. A stop is `delta.activity = {kind:'idle'}`
+       — the same key, re-clamped by hr_apply like every other — and it is
+       proposed by the settle that has ALREADY PRICED this window in the same
+       delta, so nothing is forfeited. It must never be proposed by a client.
+
+     ⚠ EVALUATED AT THE WINDOW BOUNDARY, NOT MID-TICK, AND THAT IS STATED
+       RATHER THAN GLOSSED. A hunt told to stop when the quiver runs dry stops
+       at the end of the window in which it ran dry, having paid that window's
+       dry portion at AMMO_DRY_MULT exactly as today. Stopping mid-span would
+       mean splitting the simulation, which is the second combat path AWAY-12
+       forbids; the cost is bounded by the settle cadence and the player is
+       never charged for it.
+
+     ⚠ `bagFree` IS PASSED AS null — "unknown" — AND THAT IS NOT AN OVERSIGHT.
+       This game has NO BAG CAPACITY: `bag` above is an unbounded map and there
+       is no slot limit anywhere in src/core or src/data. The `bag_full` rule is
+       accepted, validated and stored so it works the day a cap exists, and
+       `evaluateStop` fails SAFE on an unreadable count (it does not stop), so
+       it can never end a night for a reason that is not real. The client half
+       of this lane therefore does not print "if the bag fills". Named for the
+       Game Designer in this lane's report rather than shipped as a rule that
+       silently never fires.
+
+     ⚠ `paidMs` IS THE HUNT'S ELAPSED TIME, NOT ITS CUMULATIVE PAID TIME.
+       The design writes `hours` against paid time; the engine holds only THIS
+       window's grant, and the cumulative figure is a ledger aggregate this hot
+       path must not run on every settle. Elapsed is also what the panel's own
+       sentence promises ("stops after 8 hours") and what a player setting it at
+       11 p.m. means. Named in the report as a deviation for the Designer. */
+  const huntStop = (inp.huntStop && typeof inp.huntStop === 'object') ? inp.huntStop : null;
+  let stoppedBy = null;
+  /* The two conditions under which the pointer is ALREADY ending — an
+     activity the simulation cleared, and the Recovery Retreat — are asked
+     here rather than by reading a `delta` that does not exist yet. A hunt
+     that is stopping for one of those reasons must not also be reported as
+     stopping for a rule the player set: the receipt would name the wrong
+     cause, and `meta.stopped` is the ONLY record of why a night ended.
+     Declared BEFORE the delta literal because the journal inside it reads
+     `stoppedBy`; a `let` used above its declaration is a ReferenceError, not
+     an undefined. */
+  if (state.activeMonster && summary.stoppedBy !== COMBAT_STOP.RETREAT) {
+    /* WHAT THE BAG HOLDS AT THE END OF THE WINDOW — the LIVE view (`startInv +
+       every drop - every meal - every arrow loosed`), which is the only honest
+       answer to "is the supply line thin NOW". A window-open snapshot would
+       stop a hunt that has since restocked and miss one that emptied. */
+    let foodLeft = 0;
+    for (const id in bag) {
+      if (isAutoEatable(items[id])) foodLeft += Math.max(0, Math.floor(bag[id]) || 0);
+    }
+    const ammoId = (equipment && equipment.ammo) || null;
+    const ammoLeft = ammoId ? Math.max(0, Math.floor(bag[ammoId]) || 0) : null;
+
+    stoppedBy = evaluateStop({
+      stop: huntStop,
+      stance,
+      consecFalls: state.consecFalls,
+      bagFree: null,
+      foodStack: foodLeft,
+      ammoStock: ammoLeft,
+      paidMs: sinceMs ? Math.max(0, nowMs - sinceMs) : 0,
+    });
+
+    /* THE STANCE'S OWN DRY-QUIVER ORDER, asked here because it is the same
+       question at the same instant. `summary.dryMs !== null` — NEVER
+       `if (summary.dryMs)`: null means "it never ran out" and ZERO means "it
+       was already empty when the span began", which is the case a truthiness
+       check silently reports as a good night (combat-sim.js says so in those
+       words). Ordered AFTER the player's own rules so a rule they set by hand
+       is the one named on the receipt when both fired. */
+    if (!stoppedBy && stance.ammoDry === 'stop' && summary.dryMs !== null) {
+      stoppedBy = 'ammo_dry';
+    }
+  }
+
   const delta = {
     // A watermark the SERVER computed and hr_apply then clamps into
     // [old, now()] — it can move neither backwards (paying the same seconds
@@ -2653,8 +2857,20 @@ export function computeAccrual(input) {
            bound where it was reviewed.
          Omitted entirely when the read was absent, so an away night's journal is
          byte-for-byte what it was. */
+      /* `stopped` NAMES THE RULE THAT ENDED THIS HUNT, and it is the eleventh
+         key on this allowlist (tests/accrual-engine.mjs META_KEYS), added with
+         its arithmetic rather than by raising a number. It is a SCALAR of at
+         most 11 bytes on a row that already exists — it adds NO ROWS, which is
+         the bound that actually matters (game_events: 1.6M rows / 229 MB from
+         six players in four days) — and it is OMITTED on every window that did
+         not stop, which is all of them but the last of a hunt. At 100x the live
+         player base the widest form costs well under 1 KB/day in total. It is
+         also the ONLY record of WHY a night ended: without it the Analyzer's
+         "Stopped by" line would have to be guessed from a pointer that is
+         already idle for four other reasons. */
       meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped,
               ate: foodEaten,
+              ...(stoppedBy ? { stopped: stoppedBy } : {}),
               ...(attended ? { att: { claimed: attClaimed, cap: attCap,
                                       sim: Math.floor(nat(summary.kills, 0)),
                                       top: attTopUp } } : {}),
@@ -2683,6 +2899,37 @@ export function computeAccrual(input) {
 
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
+  /* ── THE VIGOUR CHARGE (design §4.1, §5) ─────────────────────────────────
+     CHARGED FROM THE SAME `grantMs` THE PAYOUT WAS COMPUTED FROM, in the same
+     delta, so a window cannot pay and not charge: there is ONE number. An
+     ordinary daily counter row — the existing machinery, the existing
+     c_max_progress_add clamp, the existing per-period retention (design §4.2).
+
+     ⚠ COMBAT ONLY. Gather and artisan do not charge Vigour: they are not hunts,
+       they are already rate-limited by nodes and benches, and charging them
+       would turn one budget into three arguments (design §4.1). This is the
+       combat accruer, so that is true by where the line sits.
+
+     ⚠ SELF-CONFIGURING. `inp.vigour` absent — every caller until the migration
+       is applied — proposes NOTHING, because hr_apply would accept the row but
+       hr_vigour_of would not yet exist to read it and a counter nothing reads
+       is a row nobody asked for. The presence of the input IS the switch.
+
+     ⚠ THE PERIOD KEY IS THE SERVER'S, handed over by the caller that read it
+       from `hr_utc_day_key(now())`. The engine never derives a day from its own
+       clock: `nowMs` is a server instant but the DAY BOUNDARY is a database
+       spelling, and two spellings of "today" is how a daily gets charged twice.
+
+     Whole minutes, floored — a window shorter than a minute charges nothing,
+     the same direction every other rounding here takes. */
+  if (vigIn && vigIn.day_key) {
+    const charge = vigourChargeMin(grantMs);
+    if (charge > 0) {
+      progress.push({ kind: 'daily', key: VIGOUR_PROGRESS_KEY,
+        period: String(vigIn.day_key), add: charge, state: 'active' });
+    }
+  }
+
   if (progress.length) delta.progress = progress;
   /* ⚠ A DEATH NO LONGER IDLES THE POINTER (First-Night Idle Rescue). This line
      used to read `if (summary.died || !state.activeMonster)`, and that `died`
@@ -2721,6 +2968,11 @@ export function computeAccrual(input) {
        (c)) — the retreating fall's rung stands. Pulling back is mercy, not
        amnesty. */
   if (summary.stoppedBy === COMBAT_STOP.RETREAT) delta.activity = { kind: 'idle', id: null };
+
+  /* THE STOP RULES DECIDED ABOVE ARE APPLIED HERE, on the same seam the
+     retreat uses one line up: `delta.activity = {kind:'idle'}`, proposed by the
+     settle that has already priced this window, so nothing is forfeited. */
+  if (stoppedBy) delta.activity = { kind: 'idle', id: null };
 
   /* ── THE RETREAT COUNTER (Recovery rev. 3) ───────────────────────────────
      ABSOLUTE, not a delta — the fifth key in this contract that is, for the

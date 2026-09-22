@@ -936,6 +936,30 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       autoEatEnabled: st.auto_eat_enabled === true,
       autoEatFood: st.auto_eat_food ?? null,
       autoEatPct: Number(st.auto_eat_pct),
+      /* ── THE HUNT (2026-09-22) — FOUR INPUTS, ALL SELF-CONFIGURING ────────
+         A14-MIRRORED: index.ts and set-activity.js are the two callers of
+         computeAccrual and they must hand it the same fields, field for field.
+         Every one of the four is ABSENT-SAFE, so this deploy is byte-identical
+         until the lane-C migrations are applied:
+           huntStance  `?? null`   -> stanceOf reads null as `steady`, which IS
+                       today's behaviour. A database without the column projects
+                       no key and the engine changes not one draw.
+           huntStop    `?? null`   -> no rules, so the stop predicate never fires.
+           traits      the envelope's trait id ARRAY. It is what clamps a
+                       stance's auto-eat threshold to the tier the character
+                       actually PAID for; absent reads as tier 0, whose ceiling
+                       is the LOWER one, so a caller that forgets it gets the
+                       safe answer rather than the generous one.
+           vigour      hr_vigour_of's whole block, including the SERVER's
+                       `budget_min` and its `day_key`. Absent -> the engine
+                       proposes no charge and pays no dry multiplier. The day
+                       key travels from the database because a daily boundary is
+                       a database spelling, and two spellings of "today" is how
+                       a daily gets charged twice. */
+      huntStance: st.hunt_stance ?? null,
+      huntStop: st.hunt_stop ?? null,
+      traits: env.traits ?? null,
+      vigour: env.vigour ?? null,
       /* THE GATHER CARRY. `?? null` and NOT `?? {}`: null means the column does
          not exist on this database, and the engine reads that as "do not write
          a tool_carry key", because hr_apply refuses an unknown delta key and

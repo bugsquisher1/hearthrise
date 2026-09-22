@@ -212,6 +212,17 @@ export function evaluateStop(o) {
       }
       case 'bag_full': {
         if (stop.bag_full !== true) break;
+        /* ⚠ `null` AND `undefined` ARE CHECKED BEFORE THE CAST, AND THAT IS THE
+             WHOLE FAIL-SAFE. `Number(null)` is 0 and 0 is finite, so a
+             `Number.isFinite` test alone reads "I do not know how many free
+             slots there are" as "there are none" and ends the night. This game
+             has NO bag capacity today (there is no slot limit anywhere in
+             src/core or src/data), so the engine passes `null` on every call —
+             which under the earlier form stopped every hunt that set the rule,
+             immediately, for a reason that does not exist.
+             Caught by tests/hunt-stance-stop.mjs S7, which is why that arm
+             exists rather than trusting this comment. */
+        if (c.bagFree === null || typeof c.bagFree === 'undefined') break;
         const free = Math.floor(Number(c.bagFree));
         /* FAIL-SAFE IS "DO NOT STOP". An unreadable bag count must not end a
            night that was going fine; a bag that is genuinely full re-asserts
@@ -221,12 +232,16 @@ export function evaluateStop(o) {
       }
       case 'food_floor': {
         if (!Number.isInteger(stop.food_floor)) break;
+        /* The same null-is-not-zero rule as bag_full above. */
+        if (c.foodStack === null || typeof c.foodStack === 'undefined') break;
         const have = Math.floor(Number(c.foodStack));
         if (Number.isFinite(have) && have < stop.food_floor) return 'food_floor';
         break;
       }
       case 'ammo_floor': {
         if (!Number.isInteger(stop.ammo_floor)) break;
+        /* The same null-is-not-zero rule as bag_full above. */
+        if (c.ammoStock === null || typeof c.ammoStock === 'undefined') break;
         const have = Math.floor(Number(c.ammoStock));
         if (Number.isFinite(have) && have < stop.ammo_floor) return 'ammo_floor';
         break;

@@ -59,6 +59,13 @@ import { refusalBody } from './envelope.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL, ARTISAN_RECIPES_PAYABLE } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { MONSTERS } from '../../../src/data/monsters.js';
+/* THE HUNT'S TWO STANDING ORDERS (docs/design/HUNTS_AND_ANALYZER.md §6). The
+   stance catalogue and the stop bounds are src/core/hunt.js's and ONLY its:
+   this file asks, hr_apply re-asks against hr_hunt_stances / hr_hunt_stop_valid,
+   and the two can no more disagree than SETTABLE_KINDS can disagree with
+   PAYABLE_KINDS. A private copy of either here would be a second catalogue with
+   no test that compares them. */
+import { STANCES, validateStop } from '../../../src/core/hunt.js';
 
 /* ── THE INTENT'S ALLOWLIST — DERIVED FROM THE PAYER, NEVER RESTATED ────────
    `hr_activities` holds 344 rows across three kinds; this intent accepts the
@@ -133,7 +140,69 @@ export function validateDeclaration(a) {
       detail: { why: kind === 'idle' ? 'idle takes no id' : 'this kind requires an id' },
     };
   }
-  return { ok: true, kind, id: kind === 'idle' ? null : id };
+  /* ── THE HUNT'S TWO OPTIONAL FIELDS (2026-09-22) ───────────────────────
+     Validated HERE, on shape and against the catalogue, before any database
+     work — so a client looping on a forged stance cannot spend a real player's
+     rate budget. hr_apply re-checks both and is the authority; this is the
+     early answer that makes a typo cost a tap instead of a collect.
+
+     ⚠ PRESENCE, NOT TRUTHINESS, on both. An ABSENT field leaves the standing
+       order alone; an EXPLICIT null CLEARS it (back to steady / no rules).
+       request.js already made those two gestures distinguishable with
+       hasOwnProperty, and collapsing them here would take away a player's only
+       way to turn a rule off. `undefined` is request.js's UNREADABLE marker and
+       is the one value that is a refusal.
+
+     ⚠ THE FIELDS ARE INDEPENDENT OF `kind`, INCLUDING `idle`. A stance is a
+       standing order on the CHARACTER, not on the activity — a player fixing
+       their auto-eat threshold while stopped is doing something reasonable, and
+       hr_apply's UPDATE writes them the same way whatever the pointer does. */
+  const out = { ok: true, kind, id: kind === 'idle' ? null : id };
+
+  if (Object.prototype.hasOwnProperty.call(a, 'stance')) {
+    const st = a.stance;
+    if (typeof st === 'undefined') {
+      return { ok: false, error: INTENT_ERRORS.BAD_STANCE, detail: { why: 'unreadable stance' } };
+    }
+    if (st !== null) {
+      /* `hasOwnProperty`, NOT `STANCES[st]`. The id shape /^[a-z]{1,24}$/
+         matches `constructor`, which is truthy on any object literal — the same
+         trap `catalogueHas` exists for, one line of defence lower. */
+      if (!Object.prototype.hasOwnProperty.call(STANCES, st)) {
+        return {
+          ok: false,
+          error: INTENT_ERRORS.UNKNOWN_STANCE,
+          detail: { stance: st, stances: Object.keys(STANCES) },
+        };
+      }
+    }
+    out.stance = st;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(a, 'stop')) {
+    const sp = a.stop;
+    if (typeof sp === 'undefined') {
+      return { ok: false, error: INTENT_ERRORS.BAD_STOP, detail: { why: 'unreadable stop object' } };
+    }
+    if (sp === null) {
+      out.stop = null;
+    } else {
+      /* ONE definition of the bounds, and it REFUSES rather than clamps — a
+         clamp lets a client discover a hidden maximum by pushing at one. The
+         FIELD is named in the refusal so a player told "8 is fine, 9,999 is
+         not" knows which rule to fix. */
+      const v = validateStop(sp);
+      if (!v.ok) {
+        return { ok: false, error: INTENT_ERRORS.BAD_STOP, detail: { why: v.error, field: v.field } };
+      }
+      /* Re-serialised through the validator's own normalised object, so a
+         prototype-polluted or key-reordered body cannot reach hr_apply as
+         anything other than the five published rules. */
+      out.stop = { ...v.stop };
+    }
+  }
+
+  return out;
 }
 
 /**
@@ -146,9 +215,23 @@ export function validateDeclaration(a) {
  * pointing at the previous activity's start, and accrual.js's fail-closed
  * precondition would then refuse to pay a brand-new character at all.
  */
-export function activityDelta(kind, id, from) {
+export function activityDelta(kind, id, from, orders) {
+  /* THE TWO STANDING ORDERS RIDE THE SAME KEY, and are OMITTED unless the
+     caller actually named them. An `activity` key is a complete, re-validated
+     activity statement (hr_apply R11), so sending `stance: undefined` would be
+     a statement that the client did not make — and hr_apply reads PRESENCE, so
+     an unnamed field must be absent rather than null. */
+  const o = orders || {};
+  const hasStance = Object.prototype.hasOwnProperty.call(o, 'stance');
+  const hasStop = Object.prototype.hasOwnProperty.call(o, 'stop');
   return {
-    activity: { kind, id: kind === 'idle' ? null : id, restart: true },
+    activity: {
+      kind,
+      id: kind === 'idle' ? null : id,
+      restart: true,
+      ...(hasStance ? { stance: o.stance } : {}),
+      ...(hasStop ? { stop: o.stop } : {}),
+    },
     journal: {
       /* `admin`, not the activity's own kind. A declaration MOVES NO VALUE, and
          `player_ledger.kind` is what the rollup aggregates on — a transition
@@ -317,8 +400,15 @@ export async function runSetActivity(o) {
   }
   const decl = validateDeclaration(activity);
   if (!decl.ok) {
+    /* 409 for "real, and not what you think": an unsupported kind and an
+       unknown stance are both facts about a CATALOGUE. 400 for a malformed or
+       out-of-bounds field, which is a fact about the REQUEST. Same split the
+       three activity codes above already use, for the same reason: a player
+       told "bad request" when the truth is "there is no such stance" files a
+       bug against the wrong system. */
     return {
-      status: decl.error === INTENT_ERRORS.ACTIVITY_UNSUPPORTED ? 409 : 400,
+      status: (decl.error === INTENT_ERRORS.ACTIVITY_UNSUPPORTED
+               || decl.error === INTENT_ERRORS.UNKNOWN_STANCE) ? 409 : 400,
       body: { ok: false, error: decl.error, ...(decl.detail || {}) },
     };
   }
@@ -537,7 +627,7 @@ export async function runSetActivity(o) {
   /* (3) THE SWITCH. The version is the one the COLLECT left behind, because a
          collect that paid has already bumped it. */
   const version = gate.version ?? env.version;
-  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id });
+  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id }, decl);
   const [applied] = await exec(APPLY_SQL, [user, slot, version, intentId, JSON.stringify(delta)]);
   const res = applied && applied.res;
 
@@ -601,7 +691,19 @@ export async function runSetActivity(o) {
 function activityOf(env) {
   const st = env && env.state;
   if (!st) return null;
-  return { kind: st.active_kind ?? null, id: st.active_id ?? null };
+  return {
+    kind: st.active_kind ?? null,
+    id: st.active_id ?? null,
+    /* READ OUT OF THE SERVER'S ROW, NEVER ECHOED FROM THE DECLARATION — the
+       same rule the block above `activityOf`'s caller states about `activity`
+       itself. A body that reported the CLIENT's stance beside a `state` that
+       said something else is the exact shape this whole programme removes.
+       `?? null` rather than omitted, because a database that predates the
+       columns projects no key and "no stance" must not read as "steady chosen".
+       Only present when the projection carries them. */
+    ...('hunt_stance' in st ? { stance: st.hunt_stance ?? null } : {}),
+    ...('hunt_stop' in st ? { stop: st.hunt_stop ?? null } : {}),
+  };
 }
 
 /** THIS INTENT'S top-level summary of the server's state, handed to the shared
@@ -843,6 +945,30 @@ export async function collectCurrentWindow(o) {
     autoEatEnabled: st.auto_eat_enabled === true,
     autoEatFood: st.auto_eat_food ?? null,
     autoEatPct: Number(st.auto_eat_pct),
+    /* ── THE HUNT (2026-09-22) — FOUR INPUTS, ALL SELF-CONFIGURING ────────
+       A14-MIRRORED: index.ts and set-activity.js are the two callers of
+       computeAccrual and they must hand it the same fields, field for field.
+       Every one of the four is ABSENT-SAFE, so this deploy is byte-identical
+       until the lane-C migrations are applied:
+         huntStance  `?? null`   -> stanceOf reads null as `steady`, which IS
+                     today's behaviour. A database without the column projects
+                     no key and the engine changes not one draw.
+         huntStop    `?? null`   -> no rules, so the stop predicate never fires.
+         traits      the envelope's trait id ARRAY. It is what clamps a
+                     stance's auto-eat threshold to the tier the character
+                     actually PAID for; absent reads as tier 0, whose ceiling
+                     is the LOWER one, so a caller that forgets it gets the
+                     safe answer rather than the generous one.
+         vigour      hr_vigour_of's whole block, including the SERVER's
+                     `budget_min` and its `day_key`. Absent -> the engine
+                     proposes no charge and pays no dry multiplier. The day
+                     key travels from the database because a daily boundary is
+                     a database spelling, and two spellings of "today" is how
+                     a daily gets charged twice. */
+    huntStance: st.hunt_stance ?? null,
+    huntStop: st.hunt_stop ?? null,
+    traits: env.traits ?? null,
+    vigour: env.vigour ?? null,
     /* THE GATHER CARRY — `?? null`, and the null is load-bearing. See the same
        field in index.ts and the `toolCarry` note in computeAccrual's contract:
        an absent column means the engine must NOT put `tool_carry` in the delta,

@@ -3499,7 +3499,25 @@ async function shapeGuard() {
      ⚠ The next key gets the same treatment: add it to META_KEYS with its
        byte-and-rows arithmetic, or nest it inside an existing one the way
        `att` is. Never just raise a number. */
-  const META_KEYS = ['ms', 'ticks', 'kills', 'capped', 'ate', 'att', 'spent', 'w', 'from', 'to'];
+  /* ELEVENTH KEY, 2026-09-22: `stopped`. Added WITH the arithmetic this block's
+     own closing note demands, never by raising a number.
+       WHAT IT IS: the name of the hunt stop rule that ended the run — one of
+       six short strings ('falls', 'bag_full', 'food_floor', 'ammo_floor',
+       'hours', 'ammo_dry'), at most 11 bytes.
+       ROWS ADDED: ZERO. It is a scalar on a row that already exists, and the
+       rule this guard enforces is "aggregate, never per-tick" (game_events:
+       1.6M rows / 229 MB from six players in four days).
+       BYTES: OMITTED on every window that did not stop, i.e. on all of them but
+       the LAST of a hunt. A hunt is at least an hour and settles at the ~90 s
+       attended cadence, so fewer than 1 in 40 combat rows can carry it even in
+       the worst case. Against the measured ~24 accrue rows/user/day, at 100x
+       the live player base (500 active) that is at most ~300 rows/day x 11
+       bytes = ~3 KB/day. The bound that matters — rows — is unchanged.
+       WHY NOT NESTED: `att` is nested because it is four related integers;
+       this is one scalar, and nesting a single value inside an object to keep a
+       count down would be the number-raising this note forbids, wearing a hat.
+     The next key gets the same treatment. */
+  const META_KEYS = ['ms', 'ticks', 'kills', 'capped', 'ate', 'att', 'spent', 'w', 'from', 'to', 'stopped'];
   const metaProblems = (m) => {
     const out = [];
     if (typeof m !== 'object' || m === null || Array.isArray(m)) return ['meta is not an object'];

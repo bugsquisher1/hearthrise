@@ -1021,6 +1021,23 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-tick-edge-contract.mjs
 
+      # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
+      # asserting the literal `+00:00` on the accrue path's rendering, which is
+      # the replay session's TimeZone talking — PGlite takes that GUC from the
+      # host's UTC offset — so the arm was red on any machine off UTC and green
+      # here, where the runner is UTC, with a failure message naming a spelling
+      # collision that had not happened. Database-free and milliseconds: the
+      # verdict is a pure function of three renderings and a label hash, and
+      # --selftest plants four defects in it (a converged tick spelling, a
+      # converged roster spelling, a canonicalising hr_seed, an accrue rendering
+      # that is no longer Postgres's) plus the two negative controls — a UTC
+      # session and an off-UTC one — that must stay silent. Per C4 the plain run
+      # above stays registered: only it answers "is this green when it should
+      # be" against the real Postgres renderings.
+      - name: World tick — EC-3d control, mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/world-tick-edge-contract.mjs --selftest
+
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
   # snapshot cache 46 s, schema drift 73 s, THIS GUARD 411 s, ledger rollup

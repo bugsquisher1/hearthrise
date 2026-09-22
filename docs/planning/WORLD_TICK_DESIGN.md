@@ -1676,6 +1676,22 @@ turn the arm red. The guard is built so it is **not** structurally blind the way
 `world-tick-parity.mjs` was — that file feeds the same JS `seedFor()` to both
 sides of every comparison, which is exactly why nothing in the repo saw T-2.
 
+**And the module written to prevent T-2 fell into it, which is the strongest
+thing this section can say about the rule.** `settleCombatSession` originally
+left the seed hook unset when no production one was supplied, so it fell through
+to `tick-shadow.js` `seedFor` — the Date path, the `…Z` spelling. Nothing looked
+wrong: the code reads as "no hook, no override". `C14`'s value-conservation arm
+caught it, because the shipped loop and the guard's own chain then drew two
+different streams for the same windows and their item maps disagreed by a few
+units. So the label is now derived in ONE place from the envelope's string, and
+a session carrying no rendered watermark is **refused** rather than seeded from
+a Date — the failure mode is "the tick cannot settle this", not "the tick
+settles it on a stream nobody chose". That precondition is itself an arm of C9.
+
+The general lesson, since it is the second time in this program: **an
+UNSPELLABLE default beats a documented one.** T-2 and this were both a
+reasonable-looking fallback, not a mistake anybody typed.
+
 ### 16.4 The eleven missing inputs — the actual content of this milestone
 
 `tick-shadow.js` built the engine's input object from the fields a GATHER window

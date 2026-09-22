@@ -222,6 +222,32 @@ What a claim *is* worth: the trophy on the monster card, the count on the
 profile, and a place on a future "trophies claimed" board where the ranked
 quantity is **a count of rows the server itself wrote**.
 
+> **BINDING RULE — WHICH ROWS THAT BOARD COUNTS (Security F2, 2026-09-22).**
+> Any "trophies claimed" ranking counts **`player_ledger` rows with
+> `intent = 'trophy_claim'`** — never `player_progress` rows.
+>
+> The two populations are not interchangeable, and the sentence above is the
+> reason the distinction has to be written down before the board exists rather
+> than after. `hr_trophy_claim` is the only writer that produces BOTH, in one
+> transaction, and it is the only writer this design ever intends. But
+> `hr_apply` admits `kind='collection'` with any 1..64-character key, and
+> `progress_claim` flips a `done` row to `claimed`: a `{kind:'collection',
+> key:'trophy:<id>:<stage>', state:'done'}` delta followed by a
+> `progress_claim` produces a trophy row that `hr_trophy_of` returns **with no
+> ledger row beside it**. That is not reachable from a browser — `parseIntent`
+> / `INTENT_KEYS` in `src/net/request.js` carry no progress or delta field, and
+> `hr_put_client_state` writes only `player_state.client_state` — so it needs a
+> compromised Edge, and it mints nothing and crosses to nobody either way.
+> It is still the difference between a ranked count anyone but
+> `hr_trophy_claim` can author and one only it can: `player_ledger` is
+> append-only, journalled and trigger-protected, `player_progress` is a
+> projection table with a second writer. **Rank the journal.**
+>
+> The real reservation — `hr_apply` refusing `key like 'trophy:%'` outright — is
+> a lane-C follow-up on the priority board. It is another restatement of the
+> repo's highest-traffic writer and does not belong in the lane that created the
+> namespace; until it lands, this rule is what keeps the ranking honest.
+
 Claiming is also the only *gesture* in the feature, and that matters for feel: a
 milestone that lands silently in a projection is a milestone nobody remembers.
 The 2,500th kill should be something a player presses a button about.

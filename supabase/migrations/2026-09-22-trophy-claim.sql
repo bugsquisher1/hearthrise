@@ -42,6 +42,33 @@
 -- asserts it by MEASURING gold/gems/xp/inventory across a real claim, not by
 -- observing that this file contains no credit.
 --
+-- ── WHICH ROWS A "TROPHIES CLAIMED" RANKING COUNTS (Security F2, 2026-09-22) ─
+-- BINDING, and written here because the design promises the board
+-- (BESTIARY_LADDER.md §4.3, which now carries the same rule):
+--
+--     ANY "trophies claimed" ranking counts `player_ledger` rows with
+--     intent = 'trophy_claim'. NEVER `player_progress` rows.
+--
+-- hr_trophy_claim below writes BOTH, in one transaction, and is the only writer
+-- this design intends. The database does not enforce that, and saying so is the
+-- point of this paragraph: hr_apply admits kind='collection' with any 1..64-char
+-- key and `progress_claim` flips a `done` row to `claimed`, so a
+-- {kind:'collection', key:'trophy:<id>:<stage>', state:'done'} delta plus a
+-- progress_claim produces a row hr_trophy_of returns WITH NO LEDGER ROW BESIDE
+-- IT. Not reachable from a browser — parseIntent / INTENT_KEYS carry no progress
+-- or delta field and hr_put_client_state writes only player_state.client_state —
+-- so it needs a compromised Edge, and it mints nothing and crosses to nobody
+-- either way. It is still the difference between a ranked count that only
+-- hr_trophy_claim can author and one that a second writer can: player_ledger is
+-- append-only and trigger-protected, player_progress is a projection table.
+-- RANK THE JOURNAL.
+--
+-- ⚠ THE REAL RESERVATION IS NOT IN THIS FILE, DELIBERATELY. Making hr_apply
+--   refuse `key like 'trophy:%'` is another restatement of the repo's
+--   highest-traffic writer, which does not belong in the lane that created the
+--   namespace — it is filed as a lane-C follow-up on docs/planning/PRIORITY_BOARD.md.
+--   Until it lands, the rule above is what keeps the ranking honest.
+--
 -- ── NO CLIENT VALUE REACHES A DECISION ──────────────────────────────────────
 -- The signature has no kill-count parameter, so a forged count is not refused —
 -- it is UNREPRESENTABLE. The function reads the total out of `player_progress`

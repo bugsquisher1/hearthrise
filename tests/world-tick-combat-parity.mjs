@@ -151,6 +151,12 @@ const MUTATIONS = {
   /* Letting an attended claim through to the tick instead of refusing it. The
      top-up is priced against the SPAN, so sixty windows pay it sixty times. */
   attendedThrough: { kills: 'C10', attendedThrough: true },
+  /* THE FAILURE C6 EXISTS TO CATCH, AND HAD NO MUTANT FOR. Seed every window
+     of the span from ONE constant instant instead of from its own watermark —
+     the §11 `fixedSeed` shape, measured at +48% gold with three rare rows at
+     rate zero. Until this entry C6 was the only claim in the table no mutant
+     killed, which is the definition of decorative (CLAUDE.md §4). */
+  fixedSeed: { kills: 'C6', fixedLabel: true },
 };
 
 const MUTATION = MUTATE
@@ -173,7 +179,7 @@ function CLAIM_TEXT() {
     C3: 'checkpoint continuity — fight / consec_falls / recovering_until / hp / bag',
     C4: 'watermark tiling and the receipt: no overlap, no gap, ms restated from the mark',
     C5: 'the pointer ends the session — a retreat closes the batch and stops the walk',
-    C6: 'stream health against the one-call span: no starved drop, drift inside the band',
+    C6: 'stream health over MANY span starts: no rare row starved, drift inside the band',
     C7: 'the recovery boundary — a death across a window is not a free heal or a free kill',
     C8: 'the food debit is conserved exactly, and food_in_bag divergence is PINNED',
     C9: 'the seed label is the envelope rendering, and a relabel is detectable',
@@ -347,7 +353,13 @@ function referenceChain(c0, fromMs, toMs, cadenceMs) {
     if (res.accrued) {
       advance(char, res);
       wm = Date.parse(res.delta.accrued_to);
-      wmText = res.delta.accrued_to;
+      /* WHAT THE ACCRUE PATH WOULD LABEL WINDOW i+1 WITH (Security S-1).
+         `hr_apply` stores `delta.accrued_to` into a timestamptz and the next
+         accrue reads `hr_state_of`'s JSONB rendering of THAT column — so the
+         accrue path's next label is the SERVER's spelling, never the engine's
+         `toISOString()`. A reference chain that carried the engine's string
+         would agree with the defect instead of measuring it. */
+      wmText = pgTimestamptzText(wm);
       if (res.delta.activity) break;
     }
   }
@@ -402,7 +414,8 @@ function tickChainManual(c0, fromMs, toMs, cadenceMs, mut) {
       advance(char, res);
       if (m.afterWindow) m.afterWindow(char, res);
       wm = Date.parse(res.delta.accrued_to);
-      wmText = res.delta.accrued_to;
+      /* The shipped loop's rule, restated (Security S-1) — see referenceChain. */
+      wmText = pgTimestamptzText(wm);
       if (res.delta.activity) break;
     }
   }
@@ -415,6 +428,57 @@ function tickChainManual(c0, fromMs, toMs, cadenceMs, mut) {
 
 const { hashSeed } = await import('../src/core/rng.js');
 _hashSeed = hashSeed;
+
+/* ── C6's STARVATION HALF, AS A VERDICT RATHER THAN A DRAW ────────────────
+   "Restarting the stream every four ticks must not zero a rare row" is a claim
+   about a RATE, and it used to be asserted on ONE realization at one pinned
+   span start. Measured over 60 span starts on the drop-table fixture, the
+   decomposed chain misses a rare the one-call span reached on 6 of them with
+   the label spelling this guard shipped with, 9 with the padded spelling and
+   11 with the accrue path's — so the arm was green at FROM_MS by luck, and any
+   change that moves the stream (Security S-1 moves it, correctly) flips a coin
+   against it. One sample is not a verdict (CLAUDE.md §4).
+
+   So it is measured the way it is claimed: over N span starts, the rare rows
+   the decomposed chain reaches must COVER the rows the one-call span reaches.
+   An occasional miss is the noise the drift band already names; a row the
+   decomposition can never reach is the defect. The `fixedSeed` mutant — the
+   real failure, one constant instant seeding every window — still starves
+   `goblin_totem` and `goblin_seal` at every N tried, so the arm bites harder
+   than the draw it replaces, at 350 ms. */
+const HEALTH_STARTS = 8;
+const HEALTH_STEP_MS = 1800000;
+
+function raresOf(deltaItems, into) {
+  for (const k of Object.keys(deltaItems || {})) if (deltaItems[k] > 0) into.add(k);
+  return into;
+}
+
+function streamHealth(rawSession, mut) {
+  const m = mut || {};
+  const one = new Set();
+  const many = new Set();
+  for (let i = 0; i < HEALTH_STARTS; i++) {
+    const from = FROM_MS + i * HEALTH_STEP_MS;
+    const to = from + SPAN_MS;
+    const c = atSpan(rawSession, from);
+    /* The one-call span: the whole window in a single accrue, labelled with the
+       envelope's own rendering — the incumbent this whole milestone is held to. */
+    const once = computeAccrual(accrueInput(hydrate(c), from, to,
+      { caller: 'accrue', labelText: c.accruedToText }));
+    if (once.accrued) raresOf(once.delta.items, one);
+    /* The decomposed span, through the SHIPPED loop. Under --mutate=fixedSeed
+       every window is seeded from the span's own start instead of from its
+       watermark, which is the §11 shape. */
+    const opts = { cadenceMs: CADENCE_MS };
+    if (m.fixedLabel) {
+      opts.seedOf = () => hashLabel(c.userId, c.slot, seedLabelFor(c.accruedToText));
+    }
+    const run = settleCombatSession(c, from, to, opts);
+    for (const r of run.results) if (r.res.accrued) raresOf(r.res.delta.items, many);
+  }
+  return { one, many, starved: [...one].filter((k) => !many.has(k)) };
+}
 
 const SESSIONS = loadCombatSessions();
 ok('C0', SESSIONS.length >= 6, `fixture set collapsed to ${SESSIONS.length} sessions`);
@@ -612,10 +676,14 @@ for (const raw of SESSIONS) {
         if (w.res.delta.items[k] > 0) dropsMany.add(k);
       }
     }
-    const starved = [...dropsOne].filter((k) => !dropsMany.has(k));
-    ok('C6', starved.length === 0,
-      `drops the one-call span reached and the decomposed span never did: ${starved.join(', ')} `
-      + '— restarting the stream every four ticks must not zero a rare row');
+    /* THE STARVATION CLAIM, over HEALTH_STARTS span starts rather than this
+       one (see streamHealth). `dropsOne` / `dropsMany` stay as the drift
+       arm's own inputs and as the finding line's numbers. */
+    const health = streamHealth(raw, M);
+    ok('C6', health.starved.length === 0,
+      `rare rows the one-call span reached over ${HEALTH_STARTS} span starts and the `
+      + `decomposed span reached at NONE of them: ${health.starved.join(', ')} — restarting `
+      + 'the stream every four ticks must not zero a rare row');
     const goldOne = Number(one.delta.gold || 0);
     const drift = goldOne > 0 ? (goldMany - goldOne) / goldOne : 0;
     /* ── THE DRIFT BAND IS PER FIXTURE, AND ONE FIXTURE DECLARES NONE ───────
@@ -647,7 +715,8 @@ for (const raw of SESSIONS) {
     findings.push(`   · ${c.name}: ${settled.length} windows @ ${tickMs}ms; `
       + `gold ${goldMany} vs ${goldOne} (${(100 * drift).toFixed(1)}%`
       + `${band === null ? ', band declared N/A' : ''}); `
-      + `drops ${dropsMany.size}/${dropsOne.size}`);
+      + `drops ${dropsMany.size}/${dropsOne.size}; rare rows over ${HEALTH_STARTS} starts `
+      + `${health.many.size}/${health.one.size}`);
   }
 
   // ── C7: the recovery boundary ─────────────────────────────────────────────
@@ -749,6 +818,57 @@ for (const raw of SESSIONS) {
       + `path's label for the same watermark draws ${want}. One instant, two labels, `
       + 'two RNG streams — and on the one channel with rare drop tables that is every '
       + 'drop roll (Security T-2).');
+  }
+
+  /* ── C9, ON EVERY WINDOW OF THE SHIPPED CHAIN (Security S-1) ─────────────
+     The arm above asserts `windows[0]` and took the rest on induction, which
+     is how the re-chaining defect lived under a green guard: the helper was
+     right and the CHAIN was not. This arm reads the label the SHIPPED loop
+     resolves at the seam production is handed — `seedOf(watermarkMs,
+     watermarkText)` — for every window, and holds three properties on each:
+
+       (a) no window carries the `…Z` spelling. That is T-2 exactly, and it is
+           independent of how many fraction digits either side writes.
+       (b) the STRING and the NUMBER name the same instant. A label that is
+           correct but stale is the same wrong stream as one spelled wrongly.
+       (c) window 1 is the envelope's rendering VERBATIM (microseconds and
+           all), and every window after it is the accrue path's rendering of
+           the instant the engine settled to.
+
+     `seedOf` returns what `offlineSeedFor` would, so the loop under test runs
+     the chain it ships with; the hook observes, it does not steer. */
+  if (!loopMut) {
+    const seen = [];
+    settleCombatSession(c, FROM_MS, TO_MS, {
+      cadenceMs: CADENCE_MS,
+      seedOf: (wmMs, wmText) => {
+        seen.push({ wmMs, wmText });
+        return hashLabel(c.userId, c.slot, seedLabelFor(wmText));
+      },
+    });
+    ok('C9', seen.length > 2,
+      `only ${seen.length} window(s) resolved a label — this arm needs a CHAIN to say `
+      + 'anything about one');
+    const zSpelled = seen.filter((w) => /Z$/.test(String(w.wmText)));
+    ok('C9', zSpelled.length === 0,
+      `${zSpelled.length} of ${seen.length} windows label hr_seed in the \`...Z\` spelling `
+      + `(first: "${zSpelled.length ? zSpelled[0].wmText : ''}"). The accrue path has never `
+      + 'used it, so every window after the first drew a stream it never would — on the one '
+      + 'channel with rare drop tables that is every drop roll (Security S-1, T-2).');
+    const stale = seen.filter((w) => Date.parse(String(w.wmText)) !== Math.floor(w.wmMs));
+    ok('C9', stale.length === 0,
+      `${stale.length} of ${seen.length} windows carry a label that names a different instant `
+      + 'than the window it seeds — a stale label is the same wrong stream as a mis-spelled one');
+    ok('C9', seen.length === 0 || seen[0].wmText === c.accruedToText,
+      `window 1 labelled "${seen.length ? seen[0].wmText : ''}" where the envelope renders `
+      + `"${c.accruedToText}" — the first window is the one instant no re-render can `
+      + 'reproduce, so its string must travel verbatim');
+    const reRendered = seen.slice(1).filter((w) => w.wmText !== pgTimestamptzText(w.wmMs));
+    ok('C9', reRendered.length === 0,
+      `${reRendered.length} of ${Math.max(0, seen.length - 1)} later windows are not the accrue `
+      + "path's rendering of the instant the engine settled to");
+    say(`   C9  ${seen.length} windows, every label the accrue path's spelling `
+      + `("${seen.length ? seen[seen.length - 1].wmText : ''}" last)`);
   }
   if (!loopMut) {
     let threw = null;

@@ -326,11 +326,23 @@ export function settleCombatSession(session0, fromMs, toMs, opts) {
   const version = Number(session0.version);
 
   let watermarkMs = Number(session0.accruedToMs || fromMs);
-  /* T-2. The watermark's STRING, advanced from the engine's own
-     `delta.accrued_to` — which is the value hr_apply stores and therefore the
-     value `hr_state_of` will render on the next hydrate. Chaining the string
-     alongside the number is what keeps the label the accrue path's spelling
-     for every window after the first. */
+  /* ── T-2, ON THE CHAIN AND NOT ONLY ON THE FIRST WINDOW (Security S-1) ────
+     The watermark's STRING. Window 1 carries the envelope's own rendering
+     verbatim, because that string is the only thing that survives a watermark
+     `hr_apply` clamped to a microsecond `now()` — `accruedToMs` has already
+     lost those digits and no re-render can put them back.
+
+     Windows 2..N are RE-RENDERED from the instant the engine settled to, in
+     the accrue path's spelling. They are NOT chained from
+     `res.delta.accrued_to`: accrual.js emits that as
+     `new Date(settledTo).toISOString()`, the `…Z` spelling T-2 names, and
+     `hr_seed` hashes the LABEL — so one instant became two streams and every
+     window after the first drew rolls the accrue path never would. On the one
+     channel with rare drop tables that is every drop roll, which is why the
+     48 h parity read could not have been believed (WORLD_TICK_DESIGN.md
+     §16.3). Re-rendering is exact here and only here: what the engine settles
+     to is millisecond-precision by construction, so the accrue path's
+     rendering of it has nothing left to truncate. */
   /* T-2, AS A PRECONDITION. A session with no rendered watermark cannot be
      labelled the accrue path's way, and the only other thing to label with is a
      Date — which is the defect. Refusing costs nothing: the watermark has not
@@ -410,7 +422,10 @@ export function settleCombatSession(session0, fromMs, toMs, opts) {
       batch.toMs = settledTo;
       advance(char, res);
       watermarkMs = settledTo;
-      watermarkText = res.delta.accrued_to;
+      /* THE SAME RENDERING `probeWatermark` CARRIES OUT OF THE FENCE, not the
+         engine's ISO string (Security S-1). One instant, one label, one
+         stream — for window 2 as for window 1. */
+      watermarkText = pgTimestamptzText(settledTo);
       /* ── THE POINTER ENDED, SO THE SESSION ENDS (16.8 item 5) ────────────
          Gather's pointer only moves on a level stop. A combat pointer is idled
          by the engine itself on a RETREAT (Recovery rev. 3) and on a target the

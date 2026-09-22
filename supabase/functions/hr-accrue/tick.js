@@ -348,7 +348,13 @@ export async function probeWatermark(exec, holder, sel, nowIso) {
   if (err === 'window_already_settled') {
     const mark = res.accrued_to ? Date.parse(String(res.accrued_to)) : NaN;
     if (!Number.isFinite(mark)) return { ok: false, reason: 'unreadable_watermark' };
-    return { ok: true, markMs: mark };
+    /* THE VERBATIM SPELLING TRAVELS WITH THE MILLISECONDS (T-2). `accrued_to`
+       arrives as the fence's own jsonb rendering of the mark — microseconds and
+       `+00:00` included — and that string IS the per-window PRNG label the
+       accrue path names. `Date.parse` truncates it to ms, which is the right
+       number for the window arithmetic and the wrong text for the label, so
+       both are kept and neither is re-derived from the other. */
+    return { ok: true, markMs: mark, markText: String(res.accrued_to) };
   }
   /* `tick_disabled` cannot appear here (the switch was read above and a change
      between the two calls simply refuses every settle below). Everything else
@@ -363,7 +369,7 @@ export async function probeWatermark(exec, holder, sel, nowIso) {
    away except for the instants it visited, and then resolved together.
 
    The dry pass's numbers never leave this function and are never settled: it
-   returns labels, not deltas. That matters because a dry pass necessarily runs
+   returns instants, not deltas. That matters because a dry pass necessarily runs
    on `seedFor`'s visible-values hash, which is exactly the predictable stream
    the real pass must not use. If the real chain diverges from the predicted one
    — a level-up inside the window changing the action interval, say — the real
@@ -373,23 +379,44 @@ export function planSeedLabels(session, fromMs, toMs, opts) {
   const dry = settleGatherSession(session, fromMs, toMs, opts);
   const out = [];
   const seen = new Set();
+  /* THE FIRST WINDOW'S INSTANT IS CARRIED, NOT RE-SPELLED. It is the instant
+     the accrue path would have labelled, and `probeWatermark` already holds the
+     fence's own rendering of it; `markMs` has lost the microseconds. */
+  const markText = (opts && typeof opts.markText === 'string') ? opts.markText : null;
   for (const r of dry.results) {
     const ms = Math.floor(r.watermarkMs);
     if (seen.has(ms)) continue;
     seen.add(ms);
-    out.push({ ms, label: 'accrue:' + new Date(ms).toISOString() });
+    out.push({ ms, ts: (ms === fromMs && markText) ? markText : new Date(ms).toISOString() });
   }
   return out;
 }
+
+/* THE LABEL IS SPELLED BY POSTGRES, NEVER BY JS (T-2).
+   `hr_seed` hashes the LABEL, so one window has one stream only if every path
+   that names it spells the instant identically. The accrue path's label is
+   `'accrue:' + String(st.accrued_to)` (index.ts:785) where `st` is the
+   `hr_state_of` JSONB envelope — Postgres's own ISO rendering of the column,
+   microseconds and `+00:00` included. `new Date(ms).toISOString()` cannot
+   reproduce it (`.739Z` vs `.739123+00:00`) and a `to_char` template agrees
+   only by luck, which is how the tick and the roster came to agree with each
+   other and with nothing that had ever paid a player. So neither side spells
+   it: the instants travel as timestamptz text and the SERVER renders the
+   label, in the same call that hashes it. The roster does the same thing with
+   `to_jsonb(l.mark) #>> '{}'`, and `hr_state_of` is where both come from.
+   Exported because tests/world-tick-edge-contract.mjs EC-3a executes THIS
+   expression rather than restating it; the alias is `l` and the column `ts`. */
+export const SEED_LABEL_EXPR = "'accrue:' || (to_jsonb(l.ts::timestamptz) #>> '{}')";
 
 /** `hr_seed` for a whole ladder, masked exactly as the accrue path masks it. */
 async function seedLadder(exec, sel, labels) {
   const map = new Map();
   if (labels.length === 0) return map;
   const rows = await exec(
-    'select l.ord, (public.hr_seed($1::uuid, $2::int, l.label) & 4294967295)::bigint as seed'
-    + ' from unnest($3::text[]) with ordinality l(label, ord)',
-    [sel.userId, sel.slot, labels.map((x) => x.label)]);
+    `select l.ord, (public.hr_seed($1::uuid, $2::int, ${SEED_LABEL_EXPR})`
+    + ' & 4294967295)::bigint as seed'
+    + ' from unnest($3::text[]) with ordinality l(ts, ord)',
+    [sel.userId, sel.slot, labels.map((x) => x.ts)]);
   for (const r of rows || []) {
     const i = Number(r.ord) - 1;
     if (labels[i]) map.set(labels[i].ms, Number(r.seed));
@@ -405,7 +432,16 @@ async function tickOne(exec, holder, sel, body) {
          gathering, and from when" in one call that writes nothing — so an
          unleased character costs one round trip and zero engine time. */
   const read0 = await exec('select now()::timestamptz as now', []);
-  const nowIso = String(read0[0].now);
+  /* THE DRIVER HANDS BACK A `Date`, NOT A STRING (T-1). `postgres` parses OID
+     1184 into a JS Date and index.ts gives it no `types` override, so
+     `String(...)` here spells `Mon Sep 21 2026 17:58:04 GMT+0000 (…)` — which
+     is bound straight back as `$7::timestamptz` AND written into
+     `delta.accrued_to`, and Postgres answers 22P02. That throw lands on the
+     FIRST engine statement of every character of every fire, so the fire
+     returns 200 with `processed:0` and the shadow journal stays empty.
+     `.toISOString()` is the spelling index.ts:775 already uses on the accrue
+     path; tests/world-tick-edge-contract.mjs EC-1b/EC-2a is the exit code. */
+  const nowIso = new Date(read0[0].now).toISOString();
   const probe = await probeWatermark(exec, holder, sel, nowIso);
   if (!probe.ok) return { outcome: 'skipped', reason: probe.reason };
 
@@ -424,7 +460,9 @@ async function tickOne(exec, holder, sel, body) {
   if (st.active_kind !== CHANNEL) {
     return { outcome: 'skipped', reason: 'channel_moved' };
   }
-  const nowMs = new Date(String(row.now)).getTime();
+  /* Same driver contract as (1): `row.now` is a Date. `String()` happened to
+     survive here only because JS can parse what Postgres cannot. */
+  const nowMs = new Date(row.now).getTime();
   const markMs = probe.markMs;
 
   /* (3) THE WINDOW. It ENDS at one flush period past the mark or at the server
@@ -468,7 +506,8 @@ async function tickOne(exec, holder, sel, body) {
   };
 
   /* (5) THE SEEDS, THEN THE ONE REAL PASS. */
-  const labels = planSeedLabels(session, markMs, toMs, geom);
+  const labels = planSeedLabels(session, markMs, toMs,
+    Object.assign({}, geom, { markText: probe.markText }));
   const seeds = await seedLadder(exec, sel, labels);
   const run = settleGatherSession(session, markMs, toMs,
     Object.assign({}, geom, { seedOf: (ms) => (seeds.has(ms) ? seeds.get(ms) : null) }));

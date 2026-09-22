@@ -89,6 +89,37 @@ const headers = (o) => new Headers(o || {});
 // ═══════════════════════════════════════════════════════════════════════════
 const NOW_ISO = '2026-09-21T12:00:00.000Z';
 const NOW_MS = Date.parse(NOW_ISO);
+
+/* ── THE STUB MUST NOT BE MORE FORGIVING THAN THE TRANSPORT ────────────────
+   (OP:TICK REVIEW 2026-09-21 finding T-3, P1.) This stub used to answer
+   `select now()` — and `hr_state_of`'s `now` column — with an ISO **string**.
+   The real driver does not: `postgres` in the edge, and PGlite in the replay
+   guards, both parse OID 1184 into a JS **Date**. The entry then did
+   `String(<Date>)` and handed `Mon Sep 21 2026 12:00:00 GMT+0000 (…)` back to
+   Postgres as a `$::timestamptz`, which is a spelling Postgres refuses (22P02,
+   finding T-1) — so `probeWatermark`, the FIRST engine statement of every
+   character of every fire, threw against the deployed bytes while sixty-odd
+   arms here ran green. `supabase/functions/hr-accrue/cors.js` already carries
+   the lesson in its header: a check that does not use the transport the caller
+   uses is checking a different system.
+
+   So: the row columns this stub returns are DATES, because that is what the
+   driver returns, while values INSIDE the `hr_state_of` jsonb envelope stay
+   strings, because that is what jsonb parsing returns. And an unparseable
+   window bound is recorded HERE and refused, rather than compared as `NaN` —
+   `NaN < x` is false, so the old arm silently answered "not yet settled" to a
+   bound Postgres would have rejected outright.
+
+   `tests/world-tick-edge-contract.mjs` remains the transport-level backstop:
+   a stub that models the driver is not a substitute for a guard that uses one. */
+const TRANSPORT = [];
+
+/* What Postgres will take for a `$::timestamptz` bind: ISO 8601, or its own
+   output spelling. Deliberately NOT `Date.parse`, which also accepts
+   `Mon Sep 21 2026 12:00:00 GMT+0000 (Coordinated Universal Time)` — the
+   value T-1 is about, and the reason a `Date.parse` guard would be one more
+   check that is more forgiving than the transport. */
+const PG_TIMESTAMPTZ = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}(:?\d{2})?)?$/;
 const UID = '11111111-2222-3333-4444-555555555555';
 const EVIL = '99999999-9999-9999-9999-999999999999';
 
@@ -115,14 +146,16 @@ function fakeDb(cfg) {
   const exec = async (text, params) => {
     calls.push({ text, params });
     if (text.includes('current_database()')) return [{ holder: 'cron:postgres' }];
-    if (/^select now\(\)/.test(text)) return [{ now: NOW_ISO }];
+    if (/^select now\(\)/.test(text)) return [{ now: new Date(NOW_MS) }];
     if (text.includes('hr_seed')) {
-      return (params[2] || []).map((label, i) => ({ ord: i + 1, seed: 1000 + i }));
+      return (params[2] || []).map((ts, i) => ({ ord: i + 1, seed: 1000 + i }));
     }
     if (text.includes('hr_state_of')) {
-      if (!o.known.has(params[0])) return [{ state: { ok: false, error: 'no_character' }, now: NOW_ISO }];
+      if (!o.known.has(params[0])) {
+        return [{ state: { ok: false, error: 'no_character' }, now: new Date(NOW_MS) }];
+      }
       return [{
-        now: NOW_ISO,
+        now: new Date(NOW_MS),                 // the COLUMN: a Date, as the driver gives it
         cap_ms: 43200000,
         state: {
           ok: true, version: o.version, now: NOW_ISO,
@@ -145,6 +178,18 @@ function fakeDb(cfg) {
       }
       if (!o.known.has(user)) return [{ res: { ok: false, error: 'no_character' } }];
       if (o.activeKind !== channel) return [{ res: { ok: false, error: 'channel_moved' } }];
+      /* POSTGRES PARSES THESE BOUNDS OR REFUSES THE STATEMENT. Comparing an
+         unparseable one as NaN below would answer "not yet settled" to a value
+         the real fence never sees, which is exactly how T-1 stayed invisible.
+         `Date.parse` is NOT the test: JS parses its own `Date.toString()`
+         happily and Postgres refuses it, and that gap IS finding T-1. */
+      for (const [name, v] of [['p_window_from', wFrom], ['p_window_to', wTo]]) {
+        if (v !== null && !PG_TIMESTAMPTZ.test(String(v))) {
+          TRANSPORT.push(`hr_tick_settle ${name} is not a timestamptz Postgres would `
+            + `accept: ${String(v).slice(0, 60)}`);
+          return [{ res: { ok: false, error: 'unparseable_window' } }];
+        }
+      }
       /* THE WATERMARK CAS, against the EFFECTIVE mark — and the refusal
          CARRIES it, which is the only way the entry can read a table
          `hr_engine` is revoked from. Both halves matter: the comparison is
@@ -179,6 +224,7 @@ const rosterRow = (userId, extra) => Object.assign({
 // ═══════════════════════════════════════════════════════════════════════════
 async function runArms(mod) {
   const { tickGate, parseTickBody, parseSelectors, probeKillSwitch, runTick } = mod;
+  TRANSPORT.length = 0;
 
   // ── T-G1 ────────────────────────────────────────────────────────────────
   group('T-G1  the geometry clamps still match hr_tick_config');
@@ -538,6 +584,14 @@ async function runArms(mod) {
     ok(index.includes("return json({ ok: false, error: 'not_signed_in' }, 401);"),
       'T-W1b — the player 401 is untouched and is the body the tick branch mirrors');
   }
+
+  // ── T-T1 ────────────────────────────────────────────────────────────────
+  group('T-T1  the entry spoke the transport, in every arm above');
+  {
+    ok(TRANSPORT.length === 0,
+      'T-T1a — no statement bound a value Postgres would have refused',
+      TRANSPORT.slice(0, 4).join('\n      '));
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -642,6 +696,22 @@ const MUTATIONS = [
        timestamp". A mutant that chains on the body is exactly what T-B1g
        forbids, so an M5 that left T-B1 green would mean T-B1g was decorative. */
     mustFail: ['T-M1', 'T-B1'],
+  },
+  {
+    /* T-3's OWN PROOF. T-T1 is worth nothing unless it goes red on the defect
+       it was written for, and that defect — T-1 — is `String(<Date>)` on a
+       value the driver parsed for us. Re-spell every timestamptz the entry
+       binds the way a JS `Date` prints itself and the arm must bite; before
+       this stub returned Dates it could not, which is the whole finding. */
+    id: 'M7', what: 'spell a bound timestamptz the way JS prints a Date (T-1)',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: (text, params) => o.exec(text, (params || []).map((v) => (
+          typeof v === 'string' && Number.isFinite(Date.parse(v)) && /T\d\d:/.test(v)
+            ? String(new Date(v)) : v))),
+      })),
+    }),
+    mustFail: ['T-T1'],
   },
   {
     /* §7 item 7's failure mode: the first refused character takes the other

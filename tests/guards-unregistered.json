@@ -159,6 +159,16 @@
     },
     "$family:pglite-chain-replay": {
       "reason": "NOT A GUARD FILE — a note covering the entries tagged family 'pglite-chain-replay'. Each boots a real PostgreSQL (PGlite/WASM) and applies the WHOLE migration chain verbatim before asserting, which costs minutes per file. CI already replays that chain once, in the registered `schema-drift` step (plus its --mutate and --live-selftest). Registering these individually would multiply the chain replay by the file count and turn a 20-minute workflow into an hour, for guards whose migrations also carry their own executing self-check blocks. The right fix is a SHARED replayed database these all attach to (tests/schema-replay.mjs already exports bootReplay for exactly this) — a real piece of work, not a line in a YAML file."
+    },
+    "sec-bestiary-trophy-proofs.mjs": {
+      "reason": "A SECURITY REVIEW PROOF, EXPECTED RED, and deliberately unregistered — registering it would make the CI gate unreachable for every build, which is the b512 class. It is the executable half of three findings in docs/planning/SEC_BESTIARY_TROPHY_2026-09-22.md against lane/m7-bestiary-backend: S-1, hr_trophy_of's stage regex admits a digit tail wider than int4 so the ::int in its target list raises 22003 on the read path that runs on every accrual (measured on a real PostgreSQL, against the projection body LIFTED OUT OF the migration so the proof cannot drift from the file); S-2, getPlayerCombatRolls(m).weak.dropMult and getWeaknessInfo(m).dropMult answer 1.15 and 1.1845 for the same kill at stage 4, because playerCombatRolls resolves the trophy off ctx.monsterId and neither caller passes one (0 of 108 roster rows carry .id) — and hunt-raids-and-screens.js:2049 asserts those two equal to 1e-9, so it is a latent in-page RED that arms itself at the first Stalker; S-3, the same gap makes TROPHY_DAMAGE_ARM_ENABLED unreachable where maxHit is rolled. It goes GREEN when the lane lands the required changes, and at that point the lane's author folds the three assertions into tests/bestiary-trophy.mjs and DELETES this file — it is not a standing guard and must not become one.",
+      "owner": "security-engineer",
+      "disposition": "review-artifact-expected-red",
+      "verified": {
+        "asserts": true,
+        "selftest": false,
+        "runner": "by hand: node tests/sec-bestiary-trophy-proofs.mjs (exits 1 on the lane as reviewed)"
+      }
     }
   },
   "$proof_baseline_comment": [

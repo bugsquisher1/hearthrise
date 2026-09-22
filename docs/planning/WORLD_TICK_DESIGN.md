@@ -1634,7 +1634,7 @@ the one that agrees with `resolveDeath`'s own `foodless`, which reads the LIVE
 bag at the fall and is the fact the retreat ladder actually uses. **It is not a
 value defect** — `food_in_bag` is an audit field on the death ledger row and no
 gate, price or grant reads it. It is recorded here, asserted by `C8`, and named
-in 16.7's honest list, because the alternative — quietly calling it parity —
+in 16.8's honest list, because the alternative — quietly calling it parity —
 is how a receipt field stops meaning anything.
 
 ### 16.3 The seed label MUST be the `hr_state_of` JSONB rendering (Security T-2)
@@ -1903,7 +1903,7 @@ and not about combat.
 | 3 | no recovery | a window can be **entirely recovery** and must still settle | 16.1; RECOVER-2 |
 | 4 | bag is written only | bag is **spent** (auto-eat) and read back | 16.2; `advance()` carries it |
 | 5 | pointer changes only on a level stop | **retreat** idles the pointer mid-flush (measured: a weak character retreats and 58 of 60 windows then refuse `no_activity`) | the batch CLOSES on an `activity` key and the character leaves the roster; C5 |
-| 6 | ≤2 progress ops/window | up to **10**, and 65 in a 90 s flush against a cap of 64 | the progress fold, 16.5(a) |
+| 6 | ≤2 progress ops/window | up to **10**, and **69** in a 90 s flush against a cap of 64 | the progress fold, 16.5(a) |
 | 7 | `hearthfind` possible but rare | same key, and the fold turns two into an ARRAY `hr_apply` refuses | 16.5(b) |
 | 8 | no attended surface | the attended top-up cannot be decomposed | refused, 16.6 |
 | 9 | 8 engine inputs | **19** — eleven more, two of them P0 | 16.4, C1 |

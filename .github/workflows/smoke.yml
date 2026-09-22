@@ -984,6 +984,26 @@ jobs:
           node tests/world-tick-combat-parity.mjs
           node tests/world-tick-combat-parity.mjs --mutate
 
+      # SECURITY'S OWN ARMS ON THE SEED LABEL, against a REAL PostgreSQL.
+      # world-tick-combat-parity has no database, so it can state the label's
+      # SHAPE and no more; this file asks pglite what Postgres actually renders
+      # a timestamptz as inside JSON, which is the spelling hr_seed is hashed
+      # over. S-M3-1 reads the label the shipped loop resolves for EVERY window
+      # (the chain, not the helper — windows 2..N used to carry the `...Z`
+      # spelling, Security T-2); S-M3-2 holds pgTimestamptzText to the server on
+      # an exact second and on three millisecond precisions, because Postgres
+      # trims trailing zeros and omits the fraction entirely on an exact second
+      # and a 10 s cadence lands there constantly.
+      #
+      # --mutate puts BOTH defects back and every arm must go RED; it exits 0
+      # only when they did. (Filed 2026-09-22 as a failing proof, so
+      # SEC_WORLD_TICK_M3_2026-09-22.md records the opposite --mutate sense.)
+      - name: World tick — the combat seed label, against a real Postgres
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/sec-world-tick-m3-seed-label.mjs
+          node tests/sec-world-tick-m3-seed-label.mjs --mutate
+
       - name: World tick — one window is paid once, and only when armed
         if: ${{ !cancelled() }}
         run: |

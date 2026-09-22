@@ -2,39 +2,54 @@
 // ============================================================================
 // tests/sec-world-tick-m3-seed-label.mjs
 //
-// SECURITY PROOF ARMS for the M3 combat channel (SEC_WORLD_TICK_M3_2026-09-22).
-// These are FAILING PROOFS, filed by the security-engineer role against
-// `lane/world-tick-m3` at 59b748e5. They are not a fix: lane code is untouched.
+// THE STANDING GUARD on the M3 combat channel's seed label
+// (SEC_WORLD_TICK_M3_2026-09-22).
 //
-// WHAT THEY PROVE
-//   S-M3-1  The seed label is the `hr_state_of` spelling for the FIRST window
-//           of a session ONLY. `settleCombatSession` re-chains the label from
+// Filed by the security-engineer role against `lane/world-tick-m3` at
+// 59b748e5 as two FAILING PROOFS. Both defects are now fixed, so the arms are
+// GREEN and the file is registered in smoke.yml; the entry in
+// tests/guards-unregistered.json is deleted with the same commit.
+//
+// ⚠ `--mutate` CHANGED MEANING WITH THAT MOVE, and Security's table records the
+//   old one. As a proof file the mutant APPLIED the recommended fix and each
+//   arm went green (exit 0, arms green). As a standing guard the mutant
+//   REINTRODUCES the defect and every arm must go RED — the repo's idiom for
+//   world-tick-parity and world-tick-double-pay. It still exits 0, and it still
+//   exits 0 for the right reason, but the reason is the opposite one: 0 now
+//   means the guard bit. A `--mutate` that comes back green is the guard
+//   having gone decorative, and it says so.
+//
+// WHAT THEY HOLD
+//   S-M3-1  EVERY window's seed label is the `hr_state_of` spelling, not just
+//           the first. `settleCombatSession` used to re-chain the label from
 //           `res.delta.accrued_to`, which accrual.js emits as
 //           `new Date(settledTo).toISOString()` — the `...Z`, millisecond
-//           spelling that Security finding T-2 names. Every window after the
-//           first therefore labels `hr_seed` with a string the accrue path has
-//           never used, which is a different RNG stream for every drop roll,
-//           crit roll and gold roll on the one channel that mints loot
+//           spelling Security finding T-2 names — so every window after the
+//           first labelled `hr_seed` with a string the accrue path has never
+//           used. That is a different RNG stream for every drop roll, crit roll
+//           and gold roll on the one channel that mints loot
 //           (WORLD_TICK_DESIGN.md 16.3).
 //
-//           C9 does not see this because it asserts `tick.windows[0]` — the
-//           first window — and takes the rest on induction. That is the same
-//           class of blindness 16.3 attributes to world-tick-parity.mjs, one
-//           level up: the helper is right, the CHAIN is not.
+//           C9 could not see it: it asserted `tick.windows[0]` and took the
+//           rest on induction — the same blindness 16.3 attributes to
+//           world-tick-parity.mjs, one level up. The helper was right and the
+//           CHAIN was not. C9 now asserts every window; this arm is the
+//           independent one, because it reads the label at the seam production
+//           is handed rather than through the guard's own chain.
 //
-//   S-M3-2  `pgTimestamptzText` is not what Postgres renders. It pads the
-//           fraction to six digits; Postgres TRIMS trailing zeros and omits
-//           the fraction entirely on an exact second. Checked against a real
-//           PostgreSQL (pglite), not against a restatement. The offline
-//           fixture spelling `...T12:00:09.600000+00:00` is therefore one
-//           production cannot emit for a millisecond-precision watermark, and
-//           C9's `/\.\d{6}\+/` arm ENFORCES that unreachable spelling — so the
-//           guard that is the exit code for T-2 is calibrated to a string the
-//           accrue path will never label with. A 10 s cadence lands on exact
-//           seconds constantly, which is the `...T12:00:00+00:00` case.
+//           MUTANT: re-chain windows 2..N from the engine's `toISOString()`,
+//           exactly as the shipped loop did. The arm must go RED.
 //
-// Each arm carries its own MUTATION PROOF (`--mutate`): the mutant makes the
-// arm pass, which is how you know the arm is measuring the thing it names.
+//   S-M3-2  `pgTimestamptzText` renders what Postgres renders. It used to pad
+//           the fraction to six digits; Postgres TRIMS trailing zeros and omits
+//           the fraction entirely on an exact second. Asked of a real
+//           PostgreSQL (pglite) rather than of a restatement, which is what
+//           makes this file the authority on the spelling and lets
+//           world-tick-combat-parity.mjs — which has no database — state only
+//           the SHAPE. A 10 s cadence lands on an exact second constantly, so
+//           `...T12:00:00+00:00` is the common case and not the corner.
+//
+//           MUTANT: pad to six digits again. The arm must go RED.
 // ============================================================================
 
 import { PGlite } from '@electric-sql/pglite';
@@ -47,10 +62,35 @@ const FROM_MS = Date.parse('2026-09-18T12:00:00.000Z');
 const SPAN_MS = 60_000;
 const CADENCE_MS = 10_000;
 
+/* ── WHICH ARMS INVERT UNDER --mutate, AND WHICH MUST NOT ─────────────────
+   `ok` is a DEFECT arm: the mutant plants the defect it is filed against, so
+   an arm that stays green under the mutant is decorative and the verdict
+   inverts (world-tick-double-pay's `judge`).
+
+   `pre` is a HARNESS PRECONDITION — "did this run produce a chain at all" —
+   and it is shared with the mutated path. Inverting it would demand that the
+   harness BREAK under the mutant, which would then hide a real arm that had
+   stopped biting: exactly the 2026-09-12 shape where every arm threw and the
+   driver printed "all mutations caught". It never inverts. */
 let failures = 0;
-const ok = (id, cond, msg) => {
-  if (cond) { console.log(`  ✓ ${id}`); return; }
+let reds = 0;
+const ARMS = [];
+const pre = (id, cond, msg) => {
+  if (cond) { console.log(`  ✓ ${id}${MUTATE ? ' (precondition — does not invert)' : ''}`); return; }
   failures++;
+  console.log(`  ✗ ${id} — ${msg}`);
+};
+const ok = (id, cond, msg) => {
+  ARMS.push(id);
+  if (!cond) reds++;
+  const want = MUTATE ? !cond : cond;
+  if (want) { console.log(`  ✓ ${id}${MUTATE ? ' — RED under the mutant, as required' : ''}`); return; }
+  failures++;
+  if (MUTATE) {
+    console.log(`  ✗ ${id} — the mutant planted the defect and this arm STAYED GREEN. `
+      + 'A guard that cannot go red is not a guard (CLAUDE.md §4).');
+    return;
+  }
   console.log(`  ✗ ${id} — ${msg}`);
 };
 
@@ -64,8 +104,8 @@ async function pgRender(db, isoZ) {
   return r.rows[0].t;
 }
 
-console.log('sec-world-tick-m3-seed-label: Security proof arms for the M3 combat channel'
-  + (MUTATE ? '  [--mutate: each arm must now PASS]' : ''));
+console.log('sec-world-tick-m3-seed-label: the M3 combat channel\'s seed label'
+  + (MUTATE ? '  [--mutate: the defect is back; every arm must go RED]' : ''));
 
 const db = await new PGlite();
 
@@ -78,19 +118,25 @@ console.log('\nS-M3-1  every window\'s seed label is the hr_state_of rendering')
      production hook is handed — `seedOf(watermarkMs, watermarkText)` — so this
      reads the shipped chain rather than a restatement of it. */
   const labels = [];
+  let seenWindows = 0;
   settleCombatSession(session, FROM_MS, FROM_MS + SPAN_MS, {
     cadenceMs: CADENCE_MS,
     seedOf: (wmMs, wmText) => {
-      /* THE MUTANT: re-render the watermark in the accrue path's spelling
-         before labelling, which is what the loop would do if it did not chain
-         the engine's own ISO string. Under --mutate the arm goes green, which
-         is the proof that the arm measures the chaining and nothing else. */
-      labels.push(MUTATE ? pgTimestamptzText(wmMs) : wmText);
+      /* THE MUTANT: put the shipped loop back the way it was — windows 2..N
+         re-chained from `res.delta.accrued_to`, i.e. the engine's own
+         `new Date(ms).toISOString()`. Window 1 is unchanged, because window 1
+         was never the defect. Under --mutate the arm must go RED, which is the
+         proof that it measures the CHAIN and nothing else. */
+      const mutated = MUTATE && seenWindows > 0
+        ? new Date(Math.floor(wmMs)).toISOString()
+        : wmText;
+      seenWindows++;
+      labels.push(mutated);
       return 1;
     },
   });
 
-  ok('S-M3-1a', labels.length > 2,
+  pre('S-M3-1a', labels.length > 2,
     `only ${labels.length} windows resolved — the arm needs a CHAIN to say anything`);
 
   /* ISOLATED FROM S-M3-2 ON PURPOSE. This arm asks ONE question: does any
@@ -114,8 +160,8 @@ console.log('\nS-M3-1  every window\'s seed label is the hr_state_of rendering')
     console.log(`      accrue path  : ${await pgRender(db, zSpelled[0])}   (what hr_state_of renders)`);
     console.log(`      root cause   : services/world-tick/combat.js  `
       + `watermarkText = res.delta.accrued_to`);
-    console.log(`      why C9 is green: it asserts tick.windows[0] — the FIRST window — `
-      + `and takes the chain on induction.`);
+    console.log('      how it stayed hidden: C9 used to assert tick.windows[0] — the '
+      + 'FIRST window — and take the chain on induction. It now asserts every window.');
   }
 }
 
@@ -129,13 +175,16 @@ console.log('\nS-M3-2  pgTimestamptzText reproduces what PostgreSQL renders');
     '2026-09-18T12:00:00.000Z',   // exact second — Postgres emits NO fraction
     '2026-09-18T12:00:09.600Z',   // trailing zeros — Postgres TRIMS them
     '2026-09-18T12:00:09.739Z',   // three significant digits
+    '2026-09-18T12:00:10.000Z',   // the cadence's own landing, one window on
   ];
   const bad = [];
   for (const iso of cases) {
     const ms = Date.parse(iso);
-    /* THE MUTANT: ask PostgreSQL instead of the repo helper, which is exactly
-       the fix this arm recommends. Green under --mutate. */
-    const got = MUTATE ? await pgRender(db, iso) : pgTimestamptzText(ms);
+    /* THE MUTANT: pad the fraction to six digits again — the helper body this
+       arm was filed against. RED under --mutate. */
+    const got = MUTATE
+      ? new Date(ms).toISOString().replace(/\.(\d{3})Z$/, '.$1000+00:00')
+      : pgTimestamptzText(ms);
     const want = await pgRender(db, iso);
     if (got !== want) bad.push({ iso, got, want });
   }
@@ -154,5 +203,11 @@ console.log('\nS-M3-2  pgTimestamptzText reproduces what PostgreSQL renders');
 
 await db.close();
 
+if (MUTATE) {
+  console.log(`\nsec-world-tick-m3-seed-label --mutate: ${failures === 0
+    ? `green — ${reds} of ${ARMS.length} arm(s) went RED with the defect back, so the guard bites`
+    : `FAILED — ${failures} arm(s) stayed green under the mutant`}`);
+  process.exit(failures === 0 ? 0 : 1);
+}
 console.log(`\nsec-world-tick-m3-seed-label: ${failures === 0 ? 'green' : `RED — ${failures} arm(s) failed`}`);
 process.exit(failures === 0 ? 0 : 1);

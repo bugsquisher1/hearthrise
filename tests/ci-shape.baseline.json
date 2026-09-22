@@ -53,6 +53,8 @@
     "node tests/world-tick-parity.mjs --mutate": "db-replay-2",
     "node tests/world-tick-combat-parity.mjs": "db-replay-2",
     "node tests/world-tick-combat-parity.mjs --mutate": "db-replay-2",
+    "node tests/sec-world-tick-m3-seed-label.mjs": "db-replay-2",
+    "node tests/sec-world-tick-m3-seed-label.mjs --mutate": "db-replay-2",
     "node tests/world-tick-double-pay.mjs": "db-replay-2",
     "node tests/world-tick-double-pay.mjs --mutate": "db-replay-2",
     "node tests/world-tick-writer-authz.mjs": "db-replay-2",

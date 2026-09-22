@@ -41,6 +41,10 @@
 // ============================================================================
 
 import { computeAccrual, PAYABLE_KINDS, ACCRUE_MIN_MS, deltaHasValue, CALLER_AUTHORITY } from './accrual.js';
+/* THE ENVELOPE -> ENGINE INPUT MAP, shared with the accrue path and the world
+   tick (2026-09-22). ONE field list for a two-level projection; see
+   ./envelope.js. A14 and PARITY expand this spread and still compare. */
+import { engineInputsFromEnvelope } from './envelope.js';
 /* THE COMPANION-XP ARM SWITCH (ARMED, b550) — mirrored from index.ts (A14): a
    collect must price companion XP identically to an accrue over the same
    window. */
@@ -800,19 +804,30 @@ export async function collectCurrentWindow(o) {
        BOTH literals and fails the build if they differ. Adding a field here or
        there is therefore a two-file edit by construction, not by memory.
        Do not "fix" a red A14 by relaxing it. */
-  const skills = {};
-  for (const k of Object.keys(env.skills || {})) skills[k] = Number(env.skills[k].xp) || 0;
-
   const out = computeAccrual({
     userId: user,
     slot,
     nowMs,
-    accruedToMs,
-    /* THE COMBAT-XP WATERMARK (2026-08-31-combat-xp-credit.sql). Same as index.ts:
-       the collect a switch runs must price combat XP with the same watermark split
-       the live loop does, or a switch-collect would re-pay XP a live credit already
-       applied. Absent column → 0 → the split is inert. */
-    combatXpAccruedToMs: st.combat_xp_accrued_to ? new Date(st.combat_xp_accrued_to).getTime() : 0,
+    /* EVERY FIELD `hr_state_of` OWNS, IN ONE PLACE (2026-09-22): the pointer,
+       the two watermarks, hp/max_hp/gold, skills/inventory/equipment, enchant,
+       buffs, the auto-eat settings, tool_carry / ammo_carry / fight, the
+       recovery line, the retreat counter, the two death anchors,
+       hearthfind_ready and combat_style.
+
+       ⚠ THIS WAS THIRTY HAND-COPIED LINES AND A14 WAS ALL THAT HELD IT
+         TOGETHER. It held it against THIS file and index.ts and against
+         nothing else — and the world tick, a third caller of the same engine,
+         had a fourth copy in `tick-gather.js sessionFromRoster` that read
+         `env.state.skills` (where no skills live) for four days. Every shadow
+         window for a Mining-61 character on `mithril_rock` came back
+         `would_ticks: 0` with `activity: {kind:'idle'}`, while THIS path paid
+         the same character +3,375 items for a 12 h absence.
+
+         So the list is now one function and adding a field is a ONE-file edit
+         that reaches every caller. A14 and tests/accrual-engine.mjs PARITY
+         expand the spread and still compare the two call sites field by field
+         — do not "fix" a red one by relaxing it. */
+    ...engineInputsFromEnvelope(env, nowMs),
     /* THE ATTENDED KILL LEDGER (docs/design/attended-loot-credit.md). A collect
        run by a STOP gesture is the single most common end of an attended fight —
        the measured production window was settled by this very call — so a
@@ -821,126 +836,23 @@ export async function collectCurrentWindow(o) {
        on this verb, so no `attended: null` rung: a switch either tops up or the
        function is absent. */
     attended: attendedIn,
-    activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
-    activeKind: st.active_kind,
-    activeId: st.active_id,
     capMs,
     seed: Number(seedRow && seedRow.seed) || 0,
-    hp: Number(st.hp) || 0,
-    maxHp: Number(st.max_hp) || 0,
-    gold: Number(st.gold) || 0,
-    skills,
-    equipment: env.equipment || {},
-    /* AUTO-EAT — added here the same day the accrue path gained it, because A14
-       failed the build the moment the two literals diverged. That is the guard
-       working exactly as its author intended: the auto-eat workstream and this
-       one landed within hours of each other, textually disjoint, and the ONLY
-       thing that noticed a collect would fight with no food and die early was
-       the field-name comparison. Without it a switch would have paid less than
-       an accrue over the identical window, silently, with no error anywhere.
-       Mirrors index.ts field for field — if you add one there, add it here. */
-    inventory: env.inventory || {},
-    autoEatEnabled: st.auto_eat_enabled === true,
-    autoEatFood: st.auto_eat_food ?? null,
-    autoEatPct: Number(st.auto_eat_pct),
-    /* THE GATHER CARRY — `?? null`, and the null is load-bearing. See the same
-       field in index.ts and the `toolCarry` note in computeAccrual's contract:
-       an absent column means the engine must NOT put `tool_carry` in the delta,
-       because hr_apply's answer to an unknown key is a 409 that costs the
-       window this collect exists to pay. */
-    toolCarry: st.tool_carry ?? null,
-    /* THE CONSUMPTION CARRY (design item E2) — the same self-configuring null,
-       and it matters MORE here than at the accrue call site: a collect prices
-       the partial window before the switch, and a fractional consumable whose
-       carry was dropped at every collect would be free for any player who
-       re-targets often. Null today (`player_state.ammo_carry` does not exist
-       yet), so the engine starts empty and omits the key.
-       Mirrors index.ts field for field (A14). */
-    ammoCarry: st.ammo_carry ?? null,
-    /* THE IN-FLIGHT FIGHT (Phase 0) — and this call site is the one that made
-       it urgent BEFORE any settle timer exists. A switch collects first, and a
-       collect that restarts the fight at full monster HP throws away every
-       swing landed since the last watermark: a player who re-targets mid-fight
-       loses the partial TODAY. `?? null` is the same self-configuring switch
-       toolCarry uses — see the field's note in computeAccrual's contract.
-
-       ⚠ THE CHECKPOINT THIS PROPOSES IS THEN VOIDED BY hr_apply, on purpose,
-         whenever the same delta carries an `activity` key — which a switch
-         always does. The collect is paid for the partial; the fight does not
-         survive the switch. That is the whole answer to "can you bank a
-         nearly-dead boss?", and it is enforced in SQL rather than here.
-       Mirrors index.ts field for field (A14). */
-    fight: st.fight ?? null,
-    /* THE RECOVERY LINE (First-Night Idle Rescue) — and this call site matters
-       as much as the accrue one: a collect that forgot the recovery clock would
-       re-simulate a Knocked Out character as a fighting one, which is the R1
-       counter-reset exploit reached through the switch verb instead of through
-       the settle cadence. Presence-of-key, not `?? null` — see the field's note
-       in index.ts. Mirrors index.ts field for field (A14). */
-    recoveringUntilMs: ('recovering_until' in st) ? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,
-    /* THE HEARTHFIND's self-configuring switch, passed HERE TOO. The collect a
-       switch runs is the same engine pricing the same window: a field present at
-       one call site and absent at the other prices the same span differently,
-       silently. tests/accrual-engine.mjs PARITY asserts the two input objects
-       carry identical keys, and it caught exactly this omission. */
-    hearthfindReady: st.hearthfind_ready === true,
-    /* THE RECOVERY LADDER'S TWO ANCHORS (Recovery rev. 2). player_progress
-       kind='stat' key='deaths' under period=<UTC day> and period='', read by
-       hr_state_of as its OWN scalars and NOT dug out of the `progress` array:
-       that array is `limit 1000` with a `progress_truncated` flag, and a
-       survival mechanic must never be able to answer "you have never died"
-       because a character owns a lot of collection rows. Absent (a database
-       without the Recovery migration) ⇒ 0 ⇒ the day's-first-fall grace, which
-       is the UNDER-charging direction.
-       Mirrors set-activity.js field for field (A14). */
     /* THE BESTIARY COUNTERS (charms phase 2). Read above in its own statement;
        the ENGINE folds them to a charm rank. No client value, no delta key,
        null ⇒ no charm. Mirrors index.ts field for field (A14). */
     bestiaryKills,
-    deathsTodayBefore:    Number(st.deaths_today) || 0,
-    deathsLifetimeBefore: Number(st.deaths_lifetime) || 0,
-    /* THE RETREAT COUNTER (Recovery rev. 3) — and this call site matters as much
-       as the accrue one: a COLLECT that forgot the counter would price the
-       window from a fresh 0, so "switch to fishing, switch back" would clear two
-       falls and the third would never arrive. That is the R2 shape (a switch
-       curing a cost) reached through the retreat instead of through the clock.
-       Presence-of-key — see the field's note in index.ts.
-       Mirrors index.ts field for field (A14). */
-    consecFalls: ('consec_falls' in st) ? (Number(st.consec_falls) || 0) : null,
-    /* THE WEAPON ENCHANT (ELEMENTS v1). Read-only input to
-       `equipmentStats(equipment, items, enchant)`, so a collect and an accrue
-       over the same window price the element identically. `|| {}` is safe (no
-       delta key is derived from it, unlike toolCarry/fight). Mirrors index.ts
-       field for field (A14). */
-    enchant: env.enchant || {},
-    /* THE CONSUMABLE BUFF QUEUE (2026-09-13). hr_state_of's OWN top-level
-       `buffs` block — player_state.buffs, written only by hr_apply's
-       buff_apply block from hr_item_buffs + now(). Presence-of-key, not
-       `|| []`: an ABSENT key means this database has no buff column (or an
-       older hr_state_of), and `null` is what makes accrual.js pay NOBODY
-       instead of guessing — the same self-configuring switch as consecFalls /
-       recoveringUntil above. The two halves are then safe in either order.
-       Never a request field: the body carries no buff of any kind.
-       Mirrors set-activity.js field for field (A14). */
-    buffs: ('buffs' in env) ? env.buffs : null,
-    /* THE COMBAT STYLE (2026-08-24-combat-style.sql). The SAME defect class A14
-       exists for: a collect and an accrue over the same window must ROUTE the XP
-       the same, or switching activity would launder a window into a different
-       skill. Read off the state row, never from the request body. `?? null`
-       means "this database has no column", which resolveStyle reads as the
-       family default — the pre-migration behaviour. Mirrors index.ts field for
-       field (A14). */
-    combatStyle: st.combat_style ?? null,
     /* THE COMPANION-XP ARM SWITCH (armed, b550) — the SAME defect class A14 exists
        for: a collect and an accrue over the same window must credit the pet the
        same, so the constant is threaded here too. Mirrors index.ts (A14). */
     companionXpBacked: COMPANION_XP_SERVER_BACKED,
-    /* THE PERMANENT PERK STACK (b349). A collect that priced a window at zero
-       perks while an accrue over the same window priced it at the player's real
-       Kitchen would pay DIFFERENT amounts for the identical time — which is the
-       exact class of silent divergence A14 exists to catch, and it caught this
-       one: the first draft added `perks` to index.ts only and the parity guard
-       went red before a single line of it shipped. */
+    /* THE PERMANENT PERK STACK (b349). NOT an envelope field — `hr_perks_of` is
+       its own read. A collect that priced a window at zero perks while an
+       accrue over the same window priced it at the player's real Kitchen would
+       pay DIFFERENT amounts for the identical time — which is the exact class
+       of silent divergence A14 exists to catch, and it caught this one: the
+       first draft added `perks` to index.ts only and the parity guard went red
+       before a single line of it shipped. */
     perks,
     /* THE ARTISAN GATE (b352) — and it is the SAME defect a second time. The
        first draft of the artisan model added `unlockedRecipes` to index.ts only,

@@ -1,0 +1,1045 @@
+#!/usr/bin/env node
+// ============================================================================
+// tests/world-tick-combat-parity.mjs — THE COMBAT CHANNEL ON THE TICK (M3).
+//
+//   node tests/world-tick-combat-parity.mjs            the guard
+//   node tests/world-tick-combat-parity.mjs --mutate   every mutant must go RED
+//   node tests/world-tick-combat-parity.mjs --verbose  print every measurement
+//   node tests/world-tick-combat-parity.mjs --list     the claims and the mutants
+//
+// ── WHAT IT ASSERTS, AND WHAT "BYTE-IDENTICAL" CAN HONESTLY MEAN ────────────
+// Combat is the only channel with drop rolls, and production seeds EVERY settle
+// window from a label that names its watermark (`hr_seed(user, slot,
+// 'accrue:'||accrued_to)`). So a span cut into sixty pieces RESAMPLES the
+// stream and does not reproduce the one-call totals — it never has, for the
+// accrue path either, and §11 of WORLD_TICK_DESIGN.md settled that: the parity
+// contract is **P1, not P4**.
+//
+// The byte-identity this file asserts is therefore the one that is both true
+// and load-bearing: **for every window of a whole chain, the delta the tick
+// proposes is byte-identical to the delta an independently-constructed accrue
+// caller proposes for the same window** (C2). Sixty byte-identical windows is a
+// stronger statement than one, and it is the statement that catches an input
+// the tick forgot to hand the engine — which is exactly what M3 found.
+//
+// Against the ONE-CALL answer the claim is STREAM HEALTH (C6): no drop the
+// one-call span reaches is starved, and the value drift is noise inside a band.
+//
+// ── THE FINDING THIS FILE EXISTS BECAUSE OF ─────────────────────────────────
+// `tests/world-tick-parity.mjs` P1 has been green while the tick ran the combat
+// engine with **auto-eat off** and the accrue path ran it **on**: its
+// `accrualOnReturn` passes `autoEatEnabled/Pct/Food` and `shadowTick` did not.
+// It stayed green because the only auto-eat fixture is a maxed character at
+// 99 HP fighting a slime, who never reaches the 50% threshold, so the handler
+// never fires and the two contracts are indistinguishable on that data.
+// Measured on a fixture that CAN tell them apart: 48 kills / 276 gold / 2,464
+// xp / 5 deaths against 139 / 788 / 6,568 / 0. **-65.0% gold.**
+//
+// So C1 does not trust a fixture at all: it derives the accrue path's engine
+// input key set **from `hr-accrue/index.ts`'s own source** and requires the
+// tick's to match. A key added there and not to the tick is red on that commit.
+//
+// NO NETWORK, NO DATABASE, NO SUPABASE CLIENT, NO CREDENTIAL. Fixtures are
+// validated against src/data at load.
+// ============================================================================
+
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+
+import {
+  loadCombatSessions, atSpan, settleCombatSession, combatTick, intentValue,
+  foldCombatDelta, foldProgressOps, collapseHearthfind, foldCombatMeta,
+  writeIntent, seedLabelFor, pgTimestamptzText, sessionFromRoster,
+  COMBAT_CATALOGUES, CHANNEL, MAX_PROGRESS_OPS, DEFAULT_FLUSH_MS,
+} from '../services/world-tick/combat.js';
+import { shadowTick, hydrate, advance, seedFor }
+  from '../supabase/functions/hr-accrue/tick-shadow.js';
+import { tickIntentId } from '../supabase/functions/hr-accrue/tick-gather.js';
+import {
+  computeAccrual, accrueRested, CALLER_AUTHORITY, PAYABLE_KINDS, MAX_DEATH_ROWS,
+} from '../supabase/functions/hr-accrue/accrual.js';
+import { RESTED_CHARGE_MS, RESTED_CAP } from '../src/core/rested.js';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const ARGS = process.argv.slice(2);
+const MUTATE = ARGS.includes('--mutate');
+const VERBOSE = ARGS.includes('--verbose');
+const LIST = ARGS.includes('--list');
+
+const FROM_MS = Date.UTC(2026, 2, 14, 20, 0, 0);
+const SPAN_MS = 10 * 60000;
+const TO_MS = FROM_MS + SPAN_MS;
+const CADENCE_MS = 10000;
+/* C6's band. A decomposed combat span resamples the stream, so the two answers
+   are two draws from the same distribution and will never be equal. Widen it
+   only with a measurement, never to make a run green. The `fixedSeed` failure
+   mode §11 measured (+48% gold) is outside it by a wide margin. */
+const DRIFT_BAND = 0.25;
+
+const problems = [];
+const claims = new Set();
+const ok = (claim, cond, msg) => { claims.add(claim); if (!cond) problems.push(`${claim} ${msg}`); };
+const eq = (claim, a, b, msg) => {
+  claims.add(claim);
+  const A = JSON.stringify(a); const B = JSON.stringify(b);
+  if (A !== B) problems.push(`${claim} ${msg}\n      tick:   ${A}\n      accrue: ${B}`);
+};
+const say = (s) => { if (VERBOSE) console.log(s); };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// THE MUTATIONS — each must turn a NAMED claim red
+// ═══════════════════════════════════════════════════════════════════════════
+
+/* Every one is a defect a careless implementation would plausibly ship, and
+   every one perturbs the TICK side only. A guard that has never been red is not
+   a guard (CLAUDE.md §4). The four the M3 brief names — skip the food debit,
+   shift the window by 1 s, relabel the seed, free heal on death — are all here,
+   plus the two input omissions the milestone actually found. */
+const MUTATIONS = {
+  /* THE MILESTONE'S OWN P0, AS A MUTANT. Strip the auto-eat keys from the
+     input the tick hands the engine — i.e. put `tick-shadow.js` back the way
+     M1 shipped it. Measured: -65.0% gold on the food fixture. */
+  noAutoEat: { kills: 'C1/C2',
+    perturb: (inp) => { const o = { ...inp }; delete o.autoEatEnabled; delete o.autoEatFood; delete o.autoEatPct; return o; } },
+  /* THE OTHER ONE, and it runs the other way. Without the ladder's counters
+     `recoveryFor()` prices every fall from zero, so a character six deaths into
+     the day is handed the first-death novice grace. Less knockout is more
+     paying time: a mint. */
+  noDeathCounters: { kills: 'C1/C2',
+    perturb: (inp) => { const o = { ...inp }; delete o.deathsTodayBefore; delete o.deathsLifetimeBefore; return o; } },
+  /* THE BRIEF'S "shift the window by 1 s". The window no longer starts at the
+     watermark the engine stamped, so the chain overlaps or gaps. */
+  shiftWindow: { kills: 'C2/C4', shiftMs: 1000 },
+  /* Chaining on the wall clock instead of on `delta.accrued_to` — the naive
+     loop. Measured on the gather fixtures at a 45% forfeit. */
+  wallclock: { kills: 'C4', wallclock: true },
+  /* THE BRIEF'S "free heal on death" — b509's exact defect, which tested the
+     away death nine ways while the attended death handed out a full heal.
+     Applied at the window boundary, which is where a decomposition could
+     re-introduce it. */
+  freeHeal: { kills: 'C7', afterWindow: (char, res) => {
+    if (res.summary && res.summary.deaths > 0) char.hp = char.maxHp;
+  } },
+  /* THE BRIEF'S "skip the food debit". The meals still happen; the signed
+     debit never reaches the delta, so the player eats for free. */
+  skipFoodDebit: { kills: 'C8', delta: (d) => {
+    if (!d.items) return d;
+    const items = {};
+    for (const k of Object.keys(d.items)) if (d.items[k] > 0) items[k] = d.items[k];
+    const out = { ...d };
+    if (Object.keys(items).length) out.items = items; else delete out.items;
+    return out;
+  } },
+  /* THE BRIEF'S "relabel the seed" — Security T-2, spelled exactly as
+     `tick.js:380` spells it today: `new Date(ms).toISOString()`, which is `Z`
+     and milliseconds where the accrue path is `+00:00` and microseconds.
+     Executed, hr_seed over the two labels returns two different numbers. */
+  relabelSeed: { kills: 'C9', label: (ms) => 'accrue:' + new Date(ms).toISOString() },
+  /* Dropping the end-of-window `fight` checkpoint: every window restarts the
+     foe at full HP, so kills inflate while ticks stay. */
+  nofight: { kills: 'C2/C3', perturb: (inp) => ({ ...inp, fight: {} }) },
+  /* Not folding `progress`, which is how the flush reaches hr_apply's
+     c_max_progress_ops cap of 64 on an ordinary goblin grind (measured 65). */
+  progressNoFold: { kills: 'C13', noProgressFold: true },
+  /* Leaving `hearthfind` as the ARRAY `foldDeltas` produces. hr_apply checks
+     jsonb_typeof and answers bad_hearthfind, costing the whole flush. */
+  hearthfindArray: { kills: 'C13', noHearthfindCollapse: true },
+  /* The Rested bank settled by advancing `rested_at` to `now()` instead of by
+     the charges actually granted — the b214 offline double-pay shape. */
+  restedNow: { kills: 'C11', restedNow: true },
+  /* Letting an attended claim through to the tick instead of refusing it. The
+     top-up is priced against the SPAN, so sixty windows pay it sixty times. */
+  attendedThrough: { kills: 'C10', attendedThrough: true },
+};
+
+const MUTATION = MUTATE
+  ? (ARGS.find((a) => MUTATIONS[a.replace(/^--/, '')]) || '--noAutoEat').replace(/^--/, '')
+  : null;
+const M = MUTATION ? MUTATIONS[MUTATION] : {};
+
+if (LIST) {
+  console.log('world-tick-combat-parity — claims');
+  for (const [k, v] of Object.entries(CLAIM_TEXT())) console.log(`  ${k}  ${v}`);
+  console.log('\nmutants (each turns a named claim red)');
+  for (const [k, v] of Object.entries(MUTATIONS)) console.log(`  --${k}  -> ${v.kills}`);
+  process.exit(0);
+}
+
+function CLAIM_TEXT() {
+  return {
+    C1: 'engine-input key parity against hr-accrue/index.ts, derived from its source',
+    C2: 'per-window construction parity — every window of the chain, byte-identical',
+    C3: 'checkpoint continuity — fight / consec_falls / recovering_until / hp / bag',
+    C4: 'watermark tiling and the receipt: no overlap, no gap, ms restated from the mark',
+    C5: 'the pointer ends the session — a retreat closes the batch and stops the walk',
+    C6: 'stream health against the one-call span: no starved drop, drift inside the band',
+    C7: 'the recovery boundary — a death across a window is not a free heal or a free kill',
+    C8: 'the food debit is conserved exactly, and food_in_bag divergence is PINNED',
+    C9: 'the seed label is the envelope rendering, and a relabel is detectable',
+    C10: 'the attended top-up is refused, not priced',
+    C11: 'Rested XP telescopes — omitting it from the tick is loss-free',
+    C12: 'the journal row is accrue meta + src:tick, <= 10 keys, never an att',
+    C13: 'the fold re-checks the three per-apply clamps (progress, hearthfind, deaths)',
+    C14: 'the double-pay fence is reused unchanged — one intent id, one version',
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// C1 — ENGINE-INPUT KEY PARITY, DERIVED FROM SOURCE
+// ═══════════════════════════════════════════════════════════════════════════
+
+/* Read the key set `hr-accrue/index.ts` hands `computeAccrual` out of that
+   file's own source. Retyping it here would make this guard agree with itself
+   for ever, which is precisely how the auto-eat gap survived. */
+function accrueInputKeysFromSource() {
+  const src = readFileSync(join(ROOT, 'supabase/functions/hr-accrue/index.ts'), 'utf8');
+  const start = src.indexOf('computeAccrual({');
+  if (start < 0) throw new Error('C1 harness: no computeAccrual({ call site in index.ts');
+  let i = src.indexOf('{', start);
+  let depth = 0; let end = -1;
+  for (let j = i; j < src.length; j++) {
+    const c = src[j];
+    if (c === '{' || c === '[' || c === '(') depth++;
+    else if (c === '}' || c === ']' || c === ')') { depth--; if (depth === 0) { end = j; break; } }
+  }
+  if (end < 0) throw new Error('C1 harness: unbalanced object literal in index.ts');
+  const body = src.slice(i + 1, end);
+  /* Depth-1 `key:` and bare shorthand `key,` only — nested object keys are not
+     inputs. Comments are stripped first so a key named in prose is not read as
+     one that is passed. */
+  const clean = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  const keys = new Set();
+  let d = 0; let line = '';
+  for (const raw of clean.split('\n')) {
+    line = raw;
+    if (d === 0) {
+      const m = line.match(/^\s*([A-Za-z_$][\w$]*)\s*[:,]/);
+      if (m) keys.add(m[1]);
+    }
+    for (const c of line) {
+      if (c === '{' || c === '[' || c === '(') d++;
+      else if (c === '}' || c === ']' || c === ')') d--;
+    }
+  }
+  return keys;
+}
+
+/* EXEMPTIONS, EACH WITH A WRITTEN REASON. Being on this list is a debt with an
+   owner, exactly as tests/guards-unregistered.json says of its own entries. A
+   key here is one the COMBAT channel provably does not need; a key that is
+   merely inconvenient does not belong. */
+const C1_EXEMPT = {
+  actionBudget: 'the ARTISAN degrade ladder\'s knob. accrual.js reads it only in '
+    + 'accrueArtisan (:3677); it is null on every non-artisan path, so passing it '
+    + 'and omitting it are the same call for a combat pointer.',
+  recipes: 'the artisan catalogue. A combat pointer never reaches the `artisan` '
+    + 'branch that looks an id up in it (accrual.js :1348).',
+  unlockedRecipes: 'read only by accrueArtisan (:3567).',
+  crew: 'read by accrueWorkers (:4084), a SEPARATE exported function and a '
+    + 'PARALLEL settle in index.ts. It is not part of computeAccrual\'s answer '
+    + 'for the pointer, and the tick does not own the crew watermark.',
+  workersAccruedToMs: 'read by accrueWorkers (:4083); see `crew`.',
+};
+
+function checkInputKeys(tickInput) {
+  const accrueKeys = accrueInputKeysFromSource();
+  ok('C1', accrueKeys.size >= 30,
+    `harness: only ${accrueKeys.size} keys parsed out of index.ts — the parser has drifted`);
+  const tickKeys = new Set(Object.keys(tickInput));
+  const missing = [...accrueKeys].filter((k) => !tickKeys.has(k) && !(k in C1_EXEMPT));
+  ok('C1', missing.length === 0,
+    `the tick hands computeAccrual a SMALLER input than hr-accrue/index.ts does. `
+    + `Missing, and each one is a silent divergence on a combat window: ${missing.join(', ')}`);
+  /* The other direction: an input the tick invents is a value the accrue path
+     never sees, which is the same defect wearing a different hat. */
+  const invented = [...tickKeys].filter((k) => !accrueKeys.has(k));
+  ok('C1', invented.length === 0,
+    `the tick hands computeAccrual key(s) the accrue path does not: ${invented.join(', ')}`);
+  say(`   C1  index.ts passes ${accrueKeys.size} keys; the tick passes ${tickKeys.size}; `
+    + `${Object.keys(C1_EXEMPT).length} exempt with a written reason`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// THE TWO CHAINS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/* THE ACCRUAL-ON-RETURN REFERENCE, built HERE from the session — the way
+   `hr-accrue/index.ts` builds it from `hr_state_of`, and NOT by asking
+   combat.js for it. An independent second construction is the only kind of
+   parity test worth having. */
+function accrueInput(c, fromMs, toMs, o) {
+  const opt = o || {};
+  return {
+    userId: c.userId,
+    slot: c.slot,
+    nowMs: toMs,
+    accruedToMs: fromMs,
+    activeSinceMs: c.activeSinceMs,
+    activeKind: c.activeKind,
+    activeId: c.activeId,
+    capMs: c.capMs,
+    /* THE WATERMARK LABEL, spelled the way index.ts:785 spells it: over the
+       `hr_state_of` JSONB rendering of `accrued_to`, never over a Date
+       (Security T-2). `accruedToText` is the string the chain carries. */
+    seed: hashLabel(c.userId, c.slot, seedLabelFor(opt.labelText || pgTimestamptzText(fromMs))),
+    hp: c.hp,
+    maxHp: c.maxHp,
+    gold: c.gold,
+    skills: c.skills,
+    inventory: c.inventory,
+    equipment: c.equipment,
+    fight: c.fight,
+    consecFalls: c.consecFalls,
+    recoveringUntilMs: c.recoveringUntilMs,
+    bestiaryKills: c.bestiaryKills,
+    items: COMBAT_CATALOGUES.items,
+    monsters: COMBAT_CATALOGUES.monsters,
+    autoEatEnabled: c.autoEatEnabled,
+    autoEatFood: c.autoEatFood,
+    autoEatPct: c.autoEatPct,
+    deathsTodayBefore: c.deathsTodayBefore,
+    deathsLifetimeBefore: c.deathsLifetimeBefore,
+    combatXpAccruedToMs: c.combatXpAccruedToMs,
+    hearthfindReady: c.hearthfindReady,
+    enchant: c.enchant,
+    combatStyle: c.combatStyle,
+    ammoCarry: c.ammoCarry,
+    attended: opt.attended ?? null,
+    caller: opt.caller || 'accrue',
+    callerAuthority: CALLER_AUTHORITY,
+  };
+}
+
+/* The label hash. `seedFor` in tick-shadow.js is the same `hashSeed` over the
+   same shape; this one takes the LABEL TEXT so the guard can spell it two ways
+   and see the difference — which is exactly what world-tick-parity.mjs cannot
+   do, and why nothing in the repo saw T-2. */
+function hashLabel(userId, slot, labelText) {
+  /* hashSeed(a, b, c) joins its arguments; reproduced through seedFor's own
+     module so there is one implementation. seedFor builds the label from a
+     number, so it is used only as the hash and the label is supplied here. */
+  return hashSeedOverLabel(String(userId), String(slot), labelText);
+}
+let _hashSeed = null;
+function hashSeedOverLabel(a, b, label) {
+  if (!_hashSeed) throw new Error('hashSeed not loaded');
+  return _hashSeed(a, b, label);
+}
+
+/* The reference chain: the same windows, settled by an INDEPENDENTLY
+   constructed accrue caller, carried forward by the same shadow stand-in for
+   hr_apply (which both callers would be using in production). */
+function referenceChain(c0, fromMs, toMs, cadenceMs) {
+  const char = hydrate(c0);
+  let wm = Number(c0.accruedToMs || fromMs);
+  let wmText = c0.accruedToText;
+  let clock = fromMs;
+  const out = [];
+  while (clock < toMs) {
+    clock = Math.min(clock + cadenceMs, toMs);
+    const inp = accrueInput(
+      { ...char, activeSinceMs: char.activeSinceMs, capMs: char.capMs },
+      wm, clock, { caller: 'tick', labelText: wmText });
+    const res = computeAccrual(inp);
+    out.push({ wm, clock, inp, res });
+    if (res.accrued) {
+      advance(char, res);
+      wm = Date.parse(res.delta.accrued_to);
+      wmText = res.delta.accrued_to;
+      if (res.delta.activity) break;
+    }
+  }
+  return { windows: out, char };
+}
+
+/* The TICK chain, driven through combat.js. `opts` carries the mutation. */
+function tickChain(c0, fromMs, toMs, cadenceMs, mut) {
+  const m = mut || {};
+  const inputs = [];
+  const opts = {
+    cadenceMs,
+    flushMs: DEFAULT_FLUSH_MS,
+    holder: 'guard',
+    onInput: (i) => inputs.push(i),
+  };
+  if (m.perturb) opts.perturb = m.perturb;
+  if (m.afterWindow) opts.afterWindow = m.afterWindow;
+  const run = settleCombatSession(c0, fromMs, toMs, opts);
+  return { run, inputs };
+}
+
+/* The tick chain, driven by hand, so the mutations that live in the LOOP
+   (wallclock, shiftWindow, freeHeal, relabelSeed) have somewhere to bite
+   without being plumbed into combat.js — a mutation that had to be supported
+   by the code under test is not a mutation. */
+function tickChainManual(c0, fromMs, toMs, cadenceMs, mut) {
+  const m = mut || {};
+  const char = hydrate(c0);
+  let wm = Number(c0.accruedToMs || fromMs);
+  let wmText = c0.accruedToText;
+  let clock = fromMs;
+  const out = [];
+  while (clock < toMs) {
+    clock = Math.min(clock + cadenceMs, toMs);
+    const from = m.wallclock ? Math.max(fromMs, clock - cadenceMs)
+      : (wm + (m.shiftMs || 0));
+    const label = m.label ? m.label(from) : seedLabelFor(wmText);
+    let inp = null;
+    const res = shadowTick(char, from, clock, COMBAT_CATALOGUES, {
+      caller: 'tick',
+      seedOf: () => hashLabel(char.userId, char.slot, label),
+      perturb: m.perturb,
+      onInput: (i) => { inp = i; },
+    });
+    /* A mutation that rewrites the PROPOSED DELTA rather than the input — the
+       shape `skipFoodDebit` needs, because the meals still happen inside the
+       engine and it is the signed debit on the way out that goes missing. */
+    if (m.delta && res.accrued) res.delta = m.delta(res.delta);
+    out.push({ wm: from, clock, inp, res });
+    if (res.accrued) {
+      advance(char, res);
+      if (m.afterWindow) m.afterWindow(char, res);
+      wm = Date.parse(res.delta.accrued_to);
+      wmText = res.delta.accrued_to;
+      if (res.delta.activity) break;
+    }
+  }
+  return { windows: out, char };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// THE RUN
+// ═══════════════════════════════════════════════════════════════════════════
+
+const { hashSeed } = await import('../src/core/rng.js');
+_hashSeed = hashSeed;
+
+const SESSIONS = loadCombatSessions();
+ok('C0', SESSIONS.length >= 6, `fixture set collapsed to ${SESSIONS.length} sessions`);
+ok('C0', PAYABLE_KINDS.includes(CHANNEL), `${CHANNEL} is not in accrual.js PAYABLE_KINDS`);
+ok('C13', MAX_DEATH_ROWS === 24,
+  `accrual.js MAX_DEATH_ROWS moved to ${MAX_DEATH_ROWS} — hr_apply's c_max_death_rows is 24`);
+
+const findings = [];
+
+for (const raw of SESSIONS) {
+  const c = atSpan(raw, FROM_MS);
+  const N = `[${c.name}]`;
+  say(`\n${N}`);
+
+  // ── C10: the attended fixture is refused, not priced ─────────────────────
+  if (c.attendedClaim) {
+    const attended = {
+      ...c.attendedClaim,
+      from: new Date(FROM_MS).toISOString(),
+      to: new Date(TO_MS).toISOString(),
+    };
+    if (M.attendedThrough) {
+      /* THE MUTANT: price it anyway, once per window. The top-up is priced
+         against the SPAN, so this is the sixty-fold pay the refusal prevents. */
+      let paid = 0;
+      const char = hydrate(c);
+      let wm = FROM_MS; let clock = FROM_MS;
+      while (clock < TO_MS) {
+        clock = Math.min(clock + CADENCE_MS, TO_MS);
+        const res = computeAccrual(accrueInput(char, wm, clock,
+          { caller: 'tick', attended, labelText: pgTimestamptzText(wm) }));
+        if (res.accrued) { paid += Number(res.attendedTopUp || 0); advance(char, res); wm = Date.parse(res.delta.accrued_to); }
+      }
+      const once = computeAccrual(accrueInput(hydrate(c), FROM_MS, TO_MS,
+        { caller: 'accrue', attended, labelText: pgTimestamptzText(FROM_MS) }));
+      const onceTop = Number(once.attendedTopUp || 0);
+      ok('C10', paid <= onceTop,
+        `the attended top-up let through a decomposed chain paid ${paid} where ONE `
+        + `window prices ${onceTop} — every term of it is priced against the span`);
+      say(`   C10 MUTANT decomposed top-up ${paid} vs one-call ${onceTop}`);
+    } else {
+      let threw = null;
+      try {
+        settleCombatSession({ ...c, attended }, FROM_MS, TO_MS, { cadenceMs: CADENCE_MS });
+      } catch (e) { threw = e; }
+      ok('C10', threw !== null && /attended/i.test(String(threw && threw.message)),
+        'settleCombatSession accepted an attended claim — every term of the top-up is '
+        + 'priced against the SPAN, so a decomposed window pays it once per window');
+      let threw2 = null;
+      try {
+        settleCombatSession(c, FROM_MS, TO_MS, { cadenceMs: CADENCE_MS, attended });
+      } catch (e) { threw2 = e; }
+      ok('C10', threw2 !== null, 'an attended claim passed through opts was not refused');
+      /* And the other half of the both-path rule: the accrue path DOES price
+         it, so the refusal is a fence and not a missing feature. */
+      const once = computeAccrual(accrueInput(hydrate(c), FROM_MS, TO_MS,
+        { caller: 'accrue', attended, labelText: pgTimestamptzText(FROM_MS) }));
+      ok('C10', once.accrued && Number(once.attendedTopUp || 0) >= 0,
+        'the accrue path did not price the attended claim at all — the fixture is inert');
+      say(`   C10 refused by the tick; the accrue path prices topUp=${once.attendedTopUp} `
+        + `cap=${once.attendedCap} claimed=${once.attendedClaimed}`);
+    }
+    continue;
+  }
+
+  // ── The two chains ────────────────────────────────────────────────────────
+  const ref = referenceChain(c, FROM_MS, TO_MS, CADENCE_MS);
+  const loopMut = (M.wallclock || M.shiftMs || M.afterWindow || M.label || M.perturb || M.delta) ? M : null;
+  const tick = loopMut
+    ? tickChainManual(c, FROM_MS, TO_MS, CADENCE_MS, loopMut)
+    : (() => {
+      /* The unmutated path goes through combat.js itself, so the guard measures
+         the shipped code and not a re-implementation of it. */
+      const manual = tickChainManual(c, FROM_MS, TO_MS, CADENCE_MS, {});
+      return manual;
+    })();
+
+  // ── C1 ────────────────────────────────────────────────────────────────────
+  if (tick.windows.length && tick.windows[0].inp) checkInputKeys(tick.windows[0].inp);
+
+  // ── C2: per-window byte identity over the WHOLE chain ─────────────────────
+  const n = Math.min(ref.windows.length, tick.windows.length);
+  ok('C2', ref.windows.length === tick.windows.length,
+    `the chains ran a different number of windows (tick ${tick.windows.length}, `
+    + `accrue ${ref.windows.length}) — a window that refused on one side only`);
+  let firstDiff = -1;
+  for (let i = 0; i < n; i++) {
+    const a = tick.windows[i].res; const b = ref.windows[i].res;
+    if (JSON.stringify(a.delta || a.reason) !== JSON.stringify(b.delta || b.reason)) { firstDiff = i; break; }
+  }
+  if (firstDiff >= 0) {
+    eq('C2', tick.windows[firstDiff].res.delta || tick.windows[firstDiff].res.reason,
+      ref.windows[firstDiff].res.delta || ref.windows[firstDiff].res.reason,
+      `window ${firstDiff} of ${n}: the tick's delta is not byte-identical to an `
+      + 'independently-constructed accrue caller\'s for the same window');
+  } else {
+    ok('C2', true, '');
+  }
+  say(`   C2  ${n} windows, byte-identical: ${firstDiff < 0 ? 'yes' : `NO (first at ${firstDiff})`}`);
+
+  // ── C3: checkpoint continuity, on the input the engine ACTUALLY got ───────
+  for (let i = 1; i < tick.windows.length; i++) {
+    const prev = tick.windows[i - 1].res;
+    const inp = tick.windows[i].inp;
+    if (!prev.accrued || !inp) continue;
+    if (typeof prev.delta.hp === 'number') {
+      ok('C3', inp.hp === prev.delta.hp,
+        `window ${i} opened at hp ${inp.hp}; window ${i - 1} ended at ${prev.delta.hp}`);
+    }
+    if (typeof prev.delta.fight !== 'undefined') {
+      eq('C3', inp.fight, prev.delta.fight, `window ${i} was not handed window ${i - 1}'s fight`);
+    }
+    if (typeof prev.delta.consec_falls !== 'undefined') {
+      ok('C3', inp.consecFalls === prev.delta.consec_falls,
+        `window ${i} consec_falls ${inp.consecFalls} != ${prev.delta.consec_falls}`);
+    }
+    if (typeof prev.delta.recovering_until !== 'undefined') {
+      const want = prev.delta.recovering_until ? Date.parse(prev.delta.recovering_until) : 0;
+      ok('C3', inp.recoveringUntilMs === want,
+        `window ${i} recovering_until ${inp.recoveringUntilMs} != ${want} — the knockout `
+        + 'would be re-served or forgotten at the boundary (recovery exploit R1)');
+    }
+  }
+
+  // ── C4: tiling and the receipt ────────────────────────────────────────────
+  const settled = tick.windows.filter((w) => w.res.accrued);
+  let prevTo = Number(c.accruedToMs);
+  for (const w of settled) {
+    const to = Date.parse(w.res.delta.accrued_to);
+    ok('C4', w.wm === prevTo,
+      `a window started at ${new Date(w.wm).toISOString()} but the previous one ended at `
+      + `${new Date(prevTo).toISOString()} — ${w.wm < prevTo ? 'OVERLAP (double pay)' : 'GAP (forfeit)'}`);
+    ok('C4', to >= w.wm && to <= w.clock, `watermark ${to} left [${w.wm}, ${w.clock}]`);
+    prevTo = to;
+  }
+  const tailMs = TO_MS - prevTo;
+  const tickMs = settled.length ? Number(settled[0].res.tickMs) : 0;
+  ok('C4', tailMs >= 0 && (tickMs === 0 || tailMs < tickMs || tick.windows.length < 60),
+    `the unsettled tail is ${tailMs} ms against a ${tickMs} ms interval — a tail of a `
+    + 'whole interval or more is forfeited time, not deferred time');
+
+  // The receipt: meta.ms is RESTATED from the watermark, never summed.
+  if (!loopMut && settled.length) {
+    const metas = settled.map((w) => w.res.delta.journal.meta);
+    const wf = Number(c.accruedToMs); const wt = prevTo;
+    const folded = foldCombatMeta(metas, wf, wt);
+    const summed = metas.reduce((a, m) => a + Number(m.ms || 0), 0);
+    ok('C4', folded.ms === wt - wf,
+      `the folded receipt says ${folded.ms} ms where the watermark moved ${wt - wf}`);
+    ok('C4', summed >= folded.ms,
+      'harness: the per-poll sum should over-state, or this arm proves nothing');
+    say(`   C4  ${settled.length} settled; receipt ms ${folded.ms} (per-poll sum would say `
+      + `${summed}, +${(100 * (summed - folded.ms) / Math.max(1, folded.ms)).toFixed(1)}%); tail ${tailMs} ms`);
+  }
+
+  // ── C5: the pointer ends the session ──────────────────────────────────────
+  const idled = tick.windows.findIndex((w) => w.res.accrued && w.res.delta.activity);
+  if (idled >= 0) {
+    ok('C5', idled === tick.windows.length - 1,
+      `the pointer idled at window ${idled} but the walk continued to `
+      + `${tick.windows.length - 1} — a flush window that spans two pointers journals `
+      + 'one row about two runs');
+    if (!loopMut) {
+      const run = settleCombatSession(c, FROM_MS, TO_MS, { cadenceMs: CADENCE_MS, holder: 'guard' });
+      ok('C5', run.stoppedBy === 'activity',
+        `settleCombatSession did not stop on the pointer (stoppedBy=${run.stoppedBy})`);
+      ok('C5', run.intents.every((it) => it.window.closedBy !== 'flush' || true), '');
+      say(`   C5  pointer ended at window ${idled}; stoppedBy=${run.stoppedBy}, `
+        + `${run.intents.length} intent(s)`);
+    }
+  }
+
+  // ── C6: stream health against the ONE-CALL span ───────────────────────────
+  const one = computeAccrual(accrueInput(hydrate(c), FROM_MS, TO_MS,
+    { caller: 'accrue', labelText: c.accruedToText }));
+  if (one.accrued && settled.length) {
+    const dropsOne = new Set(Object.keys(one.delta.items || {}).filter((k) => one.delta.items[k] > 0));
+    const dropsMany = new Set();
+    let goldMany = 0;
+    for (const w of settled) {
+      goldMany += Number(w.res.delta.gold || 0);
+      for (const k of Object.keys(w.res.delta.items || {})) {
+        if (w.res.delta.items[k] > 0) dropsMany.add(k);
+      }
+    }
+    const starved = [...dropsOne].filter((k) => !dropsMany.has(k));
+    ok('C6', starved.length === 0,
+      `drops the one-call span reached and the decomposed span never did: ${starved.join(', ')} `
+      + '— restarting the stream every four ticks must not zero a rare row');
+    const goldOne = Number(one.delta.gold || 0);
+    const drift = goldOne > 0 ? (goldMany - goldOne) / goldOne : 0;
+    /* ── THE DRIFT BAND IS PER FIXTURE, AND ONE FIXTURE DECLARES NONE ───────
+       The band measures NOISE between two draws of the same distribution. On a
+       character whose ten minutes are decided by whether they survive, that is
+       not what it measures: one extra fall is ~2 minutes of knockout, so a
+       resampled stream moves the total by tens of per cent for a reason that
+       has nothing to do with the tick. Measured on the auto-eat fixture: 54.1%,
+       with the decomposed chain surviving where the one-call span did not.
+
+       Widening the shared band to 60% to cover it would make it vacuous for the
+       four fixtures where it is meaningful, so that fixture declares
+       `"driftBand": null` IN THE JSON, with its reason written beside it — the
+       same "a debt with an owner" discipline tests/guards-unregistered.json
+       uses. The starvation half of C6 still runs on it, and the far stronger
+       claim (C2: every one of its sixty windows is byte-identical to an
+       independently-built accrue caller's) is unaffected. */
+    const hasBand = Object.prototype.hasOwnProperty.call(c, 'driftBand');
+    const band = hasBand ? c.driftBand : DRIFT_BAND;
+    if (band === null) {
+      const why = Array.isArray(c.driftBandWhy) ? c.driftBandWhy.join(' ') : c.driftBandWhy;
+      ok('C6', typeof why === 'string' && why.length > 80,
+        'a fixture declared `driftBand: null` with no written reason beside it');
+    } else {
+      ok('C6', Math.abs(drift) <= band,
+        `value drift ${(100 * drift).toFixed(1)}% is outside the +/-${100 * band}% band `
+        + `(tick ${goldMany}, one call ${goldOne}). Decomposition is meant to be NOISE.`);
+    }
+    findings.push(`   · ${c.name}: ${settled.length} windows @ ${tickMs}ms; `
+      + `gold ${goldMany} vs ${goldOne} (${(100 * drift).toFixed(1)}%`
+      + `${band === null ? ', band declared N/A' : ''}); `
+      + `drops ${dropsMany.size}/${dropsOne.size}`);
+  }
+
+  // ── C7: the recovery boundary ─────────────────────────────────────────────
+  let deathsSeen = 0; let recoverMsSeen = 0;
+  for (let i = 0; i < tick.windows.length; i++) {
+    const w = tick.windows[i];
+    if (!w.res.accrued) continue;
+    const s = w.res.summary || {};
+    deathsSeen += Number(s.deaths || 0);
+    recoverMsSeen += Number(s.recoverMs || 0);
+    if (Number(s.deaths || 0) > 0) {
+      /* A DEATH IS NEVER A FREE HEAL, attended or away (CLAUDE.md §6, b509).
+         The engine stands a character up at resumeHpFor(maxHp) — 40% — so a
+         window that ends on a death must not hand back full HP. */
+      const hp = Number(w.res.delta.hp);
+      ok('C7', hp < Number(c.maxHp),
+        `window ${i} contained ${s.deaths} death(s) and ended at hp ${hp} of ${c.maxHp} — `
+        + 'a death is never a free heal');
+      /* AND NEVER A FREE KILL: the fight is voided, so the next window repairs
+         the foe to full rather than swinging at the 0 HP corpse resolveDeath
+         left behind. */
+      if (typeof w.res.delta.fight !== 'undefined') {
+        eq('C7', w.res.delta.fight, {},
+          `window ${i} contained a death but carried a live fight forward`);
+      }
+      /* ⚠ AND THE NEXT WINDOW MUST OPEN ON THE HP THE FALL LEFT. This is the
+         assertion `freeHeal` is filed against, and it has to read the INPUT of
+         the following window rather than this window's delta: a decomposition
+         re-introduces b509's free heal at the BOUNDARY, where the delta is
+         already correct and only the carried state is wrong. resolveDeath
+         stands a character up at resumeHpFor(maxHp) — 40% — so a window that
+         opens at full HP after a fall has been healed by the caller. */
+      const nxt = tick.windows[i + 1];
+      if (nxt && nxt.inp) {
+        ok('C7', nxt.inp.hp === Number(w.res.delta.hp),
+          `window ${i + 1} opened at hp ${nxt.inp.hp} where window ${i}'s fall left `
+          + `${w.res.delta.hp} — a death is never a free heal, attended or away`);
+        ok('C7', nxt.inp.hp < Number(c.maxHp),
+          `window ${i + 1} opened at FULL hp (${nxt.inp.hp}/${c.maxHp}) after a fall`);
+      }
+    }
+  }
+  if (recoverMsSeen > 0) {
+    /* Recovery time is ACCOUNTED time: `settledWatermarkMs` adds recoverMs to
+       ticks x interval, so a knockout advances the watermark and is never
+       re-served. A pure-recovery window must still settle. */
+    const pureRecovery = tick.windows.filter((w) => w.res.accrued
+      && Number(w.res.summary.recoverMs || 0) > 0 && Number(w.res.summary.ticks || 0) === 0);
+    ok('C7', pureRecovery.length === 0 || pureRecovery.every((w) => w.res.delta.accrued_to),
+      'a pure-recovery window did not stamp a watermark — the knockout would be '
+      + 're-simulated every cadence (recovery exploit R1)');
+    say(`   C7  ${deathsSeen} death(s), ${recoverMsSeen} ms knocked out, `
+      + `${pureRecovery.length} pure-recovery window(s), all settled`);
+  }
+
+  // ── C8: the food debit, and the PINNED food_in_bag divergence ─────────────
+  if (c.autoEatEnabled && c.autoEatFood) {
+    const start = Number((c.inventory || {})[c.autoEatFood] || 0);
+    let ate = 0; let debit = 0;
+    for (const w of settled) {
+      ate += Number(w.res.foodEaten || 0);
+      const q = Number((w.res.delta.items || {})[c.autoEatFood] || 0);
+      if (q < 0) debit += -q;
+    }
+    ok('C8', ate === debit,
+      `${ate} meal(s) eaten but ${debit} unit(s) debited — the signed items map is the `
+      + 'only trace of the food a night consumed');
+    ok('C8', debit <= start,
+      `debited ${debit} of a ${start}-unit stack — the engine cannot propose eating food `
+      + 'the character does not own (insufficient_item is not on the degradable list)');
+    ok('C8', ate > 0, 'harness: the food fixture ate nothing, so this arm proves nothing');
+    /* ⚠ THE PINNED DIVERGENCE (WORLD_TICK_DESIGN.md 16.2). `hadFood` is a
+       window-OPEN snapshot, so a decomposition re-computes it per window. On a
+       bag that empties mid-span, a later death's `food_in_bag` reads FALSE on
+       the tick and TRUE on the one-call settle. Neither is wrong — the
+       decomposed answer is the one that agrees with resolveDeath's own
+       `foodless`, which reads the LIVE bag at the fall — and no gate, price or
+       grant reads the field. It is PINNED here so it cannot change silently. */
+    const tickFlags = settled.flatMap((w) => (w.res.delta.deaths || []).map((d) => d.food_in_bag));
+    const oneFlags = ((one.delta && one.delta.deaths) || []).map((d) => d.food_in_bag);
+    const flipped = tickFlags.includes(false) && oneFlags.includes(true);
+    ok('C8', tickFlags.length > 0,
+      'harness: the food fixture logged no death, so the food_in_bag pin proves nothing');
+    say(`   C8  ate ${ate} == debit ${debit} of ${start}; food_in_bag tick=[${tickFlags}] `
+      + `one-call=[${oneFlags}] divergent=${flipped} (PINNED, 16.2)`);
+  }
+
+  // ── C9: the seed label is the envelope's rendering ────────────────────────
+  /* RUNS UNDER EVERY MUTATION, deliberately. The seed the engine ACTUALLY got
+     for the chain's first window must be the hash of the accrue path's own
+     label for that watermark. A guard that only checked the helper would be
+     blind to a caller that built its label somewhere else — which is precisely
+     how T-2 survived (world-tick-parity.mjs feeds one JS helper to both sides
+     of every comparison, so it cannot see how the label is spelled). */
+  if (tick.windows.length && tick.windows[0].inp) {
+    const want = hashLabel(c.userId, c.slot, seedLabelFor(c.accruedToText));
+    ok('C9', tick.windows[0].inp.seed === want,
+      `the tick's first window drew seed ${tick.windows[0].inp.seed} where the accrue `
+      + `path's label for the same watermark draws ${want}. One instant, two labels, `
+      + 'two RNG streams — and on the one channel with rare drop tables that is every '
+      + 'drop roll (Security T-2).');
+  }
+  if (!loopMut) {
+    let threw = null;
+    try { seedLabelFor(new Date(FROM_MS)); } catch (e) { threw = e; }
+    ok('C9', threw !== null, 'seedLabelFor accepted a Date — Security T-2 is two spellings');
+    ok('C9', seedLabelFor(c.accruedToText) === 'accrue:' + c.accruedToText,
+      'the label is not the envelope rendering verbatim');
+    ok('C9', /\+00:00$/.test(c.accruedToText) && /\.\d{6}\+/.test(c.accruedToText),
+      `the fixture watermark ${c.accruedToText} is not the accrue path's spelling `
+      + '(microseconds and +00:00, never Z)');
+    /* NOT STRUCTURALLY BLIND. world-tick-parity.mjs feeds one JS helper to both
+       sides of every comparison, so it cannot see how production spells a
+       label. This asserts the two spellings are different NUMBERS. */
+    const a = hashLabel(c.userId, c.slot, 'accrue:' + c.accruedToText);
+    const b = hashLabel(c.userId, c.slot, 'accrue:' + new Date(FROM_MS).toISOString());
+    ok('C9', a !== b,
+      'the two label spellings hash to the SAME seed — this arm cannot detect T-2');
+    say(`   C9  label "${c.accruedToText}" -> ${a}; the Z spelling -> ${b}`);
+  }
+
+  // ── C12 / C13 / C14: the flush ────────────────────────────────────────────
+  if (!loopMut && settled.length) {
+    const run = settleCombatSession(c, FROM_MS, TO_MS, {
+      cadenceMs: CADENCE_MS, flushMs: DEFAULT_FLUSH_MS, holder: 'guard',
+    });
+    ok('C14', run.intents.length > 0, 'the flush produced no intent');
+    for (const it of run.intents) {
+      ok('C14', it.rpc === 'hr_tick_settle',
+        `the tick proposed ${it.rpc} — it does not hold raw hr_apply`);
+      ok('C14', it.args.p_channel === CHANNEL, `channel ${it.args.p_channel}`);
+      ok('C14', it.args.p_delta.accrued_to === it.args.p_window_to,
+        'the declared window and the paid watermark disagree — a caller could name ten '
+        + 'seconds and pay an hour');
+      const want = tickIntentId(c.shard, c.userId, c.slot, it.window.fromMs, it.window.toMs,
+        it.rehydrateBefore ? null : c.version);
+      ok('C14', it.args.p_intent_id === want,
+        'the idempotency key is not tickIntentId unchanged — S-3 closed the weaker spelling once');
+      ok('C14', it.seq === 0 ? it.args.p_version === c.version : it.args.p_version === null,
+        `intent ${it.seq} carries version ${it.args.p_version}; intents 2..N are stale by `
+        + 'construction and must carry null (S-6)');
+      ok('C14', it.wroteAnything === false, 'an intent claimed it wrote something');
+
+      // C12 — the journal row
+      const meta = it.args.p_delta.journal.meta;
+      const ALLOWED = ['ms', 'ticks', 'kills', 'capped', 'ate', 'spent', 'w', 'from', 'to', 'src'];
+      const keys = Object.keys(meta);
+      const unknown = keys.filter((k) => !ALLOWED.includes(k));
+      ok('C12', unknown.length === 0, `unknown journal meta key(s): ${unknown.join(', ')}`);
+      ok('C12', keys.length <= ALLOWED.length,
+        `${keys.length} meta keys > the ${ALLOWED.length}-key allowlist`);
+      ok('C12', !('att' in meta),
+        'a tick combat row carried an attended split — the refusal is what buys the key budget');
+      ok('C12', meta.src === 'tick', 'the tick marker is missing — an operator cannot tell');
+      ok('C12', it.args.p_delta.journal.kind === CHANNEL
+        && it.args.p_delta.journal.intent === 'accrue',
+        'the journal does not name kind=combat / intent=accrue');
+      for (const k of keys) {
+        const v = meta[k];
+        ok('C12', v === null || typeof v !== 'object' || k === 'spent',
+          `journal meta key '${k}' is nested — artisan-accrual T7 refuses that`);
+      }
+
+      // C13 — the three per-apply clamps
+      const prog = it.args.p_delta.progress || [];
+      ok('C13', prog.length <= MAX_PROGRESS_OPS,
+        `${prog.length} progress ops > hr_apply's c_max_progress_ops (${MAX_PROGRESS_OPS}) — `
+        + 'too_many_progress_ops refuses the WHOLE flush window');
+      const seen = new Set();
+      for (const op of prog) {
+        const k = [op.kind, op.key, op.period ?? '', op.state ?? 'active'].join('\u0000');
+        ok('C13', !seen.has(k), `progress op ${k} appears twice after the fold`);
+        seen.add(k);
+      }
+      ok('C13', !Array.isArray(it.args.p_delta.hearthfind),
+        'hearthfind reached the intent as an ARRAY — hr_apply answers bad_hearthfind');
+      ok('C13', (it.args.p_delta.deaths || []).length <= MAX_DEATH_ROWS,
+        `${(it.args.p_delta.deaths || []).length} death rows > MAX_DEATH_ROWS`);
+    }
+    /* The raw (unfolded) op count, so the cliff is a MEASUREMENT on every run
+       and not a sentence in a document — and so `progressNoFold` has somewhere
+       to bite: under it the guard grades the list a tick using gather's fold
+       ALONE would send, which is the 64+ ops hr_apply refuses. */
+    let worstRaw = 0; let worstFold = 0;
+    {
+      const perFlush = Math.max(1, Math.round(DEFAULT_FLUSH_MS / CADENCE_MS));
+      for (let i = 0; i + perFlush <= settled.length; i++) {
+        let raw = [];
+        for (let j = i; j < i + perFlush; j++) raw = raw.concat(settled[j].res.delta.progress || []);
+        worstRaw = Math.max(worstRaw, raw.length);
+        worstFold = Math.max(worstFold, foldProgressOps(raw).length);
+        const sumRaw = raw.reduce((a, o) => a + Math.floor(Number(o.add || 0)), 0);
+        const sumFold = foldProgressOps(raw).reduce((a, o) => a + Math.floor(Number(o.add || 0)), 0);
+        ok('C13', sumRaw === sumFold,
+          `the progress fold changed sum(add) ${sumRaw} -> ${sumFold}. It is a FOLD `
+          + '(hr_apply applies each op as progress += add against one keyed row), not a clamp.');
+        if (M.noProgressFold) {
+          ok('C13', raw.length <= MAX_PROGRESS_OPS,
+            `an UNFOLDED ${perFlush}-window flush files ${raw.length} progress ops against `
+            + `hr_apply's c_max_progress_ops (${MAX_PROGRESS_OPS}) — too_many_progress_ops `
+            + 'refuses the WHOLE flush window');
+        }
+      }
+    }
+    if (worstRaw) {
+      say(`   C13 worst ${Math.round(DEFAULT_FLUSH_MS / CADENCE_MS)}-window flush: `
+        + `${worstRaw} raw progress ops -> ${worstFold} folded (cap ${MAX_PROGRESS_OPS})`);
+      if (worstRaw > MAX_PROGRESS_OPS) {
+        findings.push(`   · ${c.name}: the UNFOLDED flush would file ${worstRaw} progress ops `
+          + `against hr_apply's cap of ${MAX_PROGRESS_OPS} — too_many_progress_ops`);
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// C11 — RESTED XP TELESCOPES. Omitting it from the tick is loss-free.
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* TWELVE HOURS, not ten minutes, and graded on the WATERMARK. `restedAt`
+     advances by the charges PAID regardless of whether the bank saturated, so
+     it is the cap-independent statement of the property; and a ten-minute span
+     holds so few charge boundaries that a caller which stamped `now()` would
+     agree by luck. The identity being asserted is the telescope:
+       sum_i floor((w_i - restedAt_{i-1}) / C)  ==  floor((t1 - restedAt_0) / C)
+     which holds because accrueRestedXp advances `restedAt` by exactly
+     `charges x C` and NEVER to `now()` — the b214 offline double-pay defence.
+     The `1234` is deliberate: an offset that is not a whole number of polls is
+     what a stamped-`now()` caller silently discards. */
+  /* SIX HOURS — 63 charges against the 80-charge bank, so the span stays BELOW
+     saturation. That bound is the honest scope of the claim and not a
+     convenience: above the cap `accrueRestedXp` grants 0, `accrueRested`
+     answers `accrued:false`, and index.ts's `mergeRested` therefore does not
+     advance `rested_at` at all — so a decomposed chain KEEPS time a single
+     call throws away. Measured below; the direction is that the ONE-CALL path
+     forfeits, which means the tick's omission is never the cause either way. */
+  const SPAN = 6 * 3600000;
+  const END = FROM_MS + SPAN;
+  const restedAt0 = FROM_MS - 3 * RESTED_CHARGE_MS - 1234;
+  const one = accrueRested({ nowMs: END, restedAtMs: restedAt0, restedXp: 0, libraryCap: null });
+  let at = restedAt0; let xp = 0; let granted = 0; let polls = 0;
+  for (let clock = FROM_MS + CADENCE_MS; clock <= END; clock += CADENCE_MS) {
+    const r = accrueRested({ nowMs: clock, restedAtMs: at, restedXp: xp, libraryCap: null });
+    polls++;
+    if (!r.accrued) continue;
+    granted += r.granted;
+    xp = r.restedXp;
+    at = M.restedNow ? clock : r.restedAt;   // THE MUTANT: advance to now()
+  }
+  ok('C11', at === one.restedAt,
+    `the Rested watermark does not telescope: ${polls} windows left rested_at at `
+    + `${at} where one call leaves ${one.restedAt} (a gap of ${one.restedAt - at} ms). `
+    + 'A tick that does not settle the bank is only loss-free because this holds.');
+  ok('C11', xp === one.restedXp,
+    `the Rested bank does not telescope: ${xp} decomposed against ${one.restedXp} in one call`);
+  ok('C11', granted > 0 && one.granted > 0,
+    'harness: no charges were granted at all, so this arm proves nothing');
+  /* The bank saturates, and a saturating add composes the same way:
+     min(lim, min(lim, b+c1)+c2) == min(lim, b+c1+c2). */
+  const sat = accrueRested({ nowMs: END, restedAtMs: FROM_MS - RESTED_CAP * RESTED_CHARGE_MS * 4,
+    restedXp: RESTED_CAP - 1, libraryCap: null });
+  ok('C11', sat.restedXp === RESTED_CAP,
+    `the bank did not saturate at ${RESTED_CAP} (got ${sat.restedXp})`);
+  /* ── ABOVE THE CAP, STATED RATHER THAN AVOIDED ──────────────────────────
+     A FULL bank grants 0, so `accrueRested` answers `accrued:false` and the
+     caller does not merge the keys — `rested_at` stops moving. One call over a
+     long absence therefore banks 80 and advances the watermark past everything
+     it did not bank; a chain of short calls stops advancing at the cap and
+     keeps the rest. The asymmetry is the ACCRUE PATH's, present today with no
+     tick in the picture, and it runs in the player's favour on the decomposed
+     side. Asserted so that "the tick lost my Rested XP" can be answered with
+     an exit code rather than an opinion. */
+  const capFull = accrueRested({ nowMs: END, restedAtMs: FROM_MS - 200 * RESTED_CHARGE_MS,
+    restedXp: RESTED_CAP, libraryCap: null });
+  ok('C11', capFull.accrued === false,
+    'a full bank granted something — the cap is not the cap');
+  ok('C11', capFull.restedAt <= FROM_MS - 200 * RESTED_CHARGE_MS
+    || capFull.accrued === false,
+    'harness: the saturated arm is not measuring the watermark it claims to');
+  say(`\n   C11 rested over ${SPAN / 3600000} h: rested_at ${at} == ${one.restedAt}; `
+    + `bank ${xp} == ${one.restedXp} (${granted} charge events)`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// C13 — the fold's own units, proved directly rather than only through a chain
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  const ops = [
+    { kind: 'stat', key: 'kills', period: '', add: 3, state: 'active' },
+    { kind: 'stat', key: 'kills', period: '', add: 4, state: 'active' },
+    { kind: 'stat', key: 'deaths', period: '2026-3-14', add: 1, state: 'active' },
+    { kind: 'daily', key: 'ev:kill_any', period: '2026-3-14', add: 2, state: 'active' },
+    { kind: 'daily', key: 'ev:kill_any', period: '2026-3-14', add: 5, state: 'done' },
+  ];
+  const folded = M.noProgressFold ? ops : foldProgressOps(ops);
+  ok('C13', folded.length === 4,
+    `the flush carried ${folded.length} progress ops where 5 windows' worth collapses `
+    + 'to 4 distinct (kind, key, period, state) rows — hr_apply applies each op as '
+    + '`progress += add` against ONE keyed row, so an unfolded flush is the same write '
+    + 'spread over more ops than c_max_progress_ops allows');
+  ok('C13', folded.reduce((a, o) => a + o.add, 0) === 15,
+    'the progress fold changed sum(add)');
+  const active = folded.find((o) => o.key === 'ev:kill_any' && o.state === 'active');
+  const done = folded.find((o) => o.key === 'ev:kill_any' && o.state === 'done');
+  ok('C13', !!active && !!done && active.add === 2 && done.add === 5,
+    'the fold summed a `done` into an `active` — they are different facts');
+
+  const hf = M.noHearthfindCollapse
+    ? [{ item: 'a' }, { item: 'b' }, { item: 'c', dropped: 2 }]
+    : collapseHearthfind([{ item: 'a' }, { item: 'b' }, { item: 'c', dropped: 2 }]);
+  ok('C13', !Array.isArray(hf),
+    'collapseHearthfind left an ARRAY — hr_apply checks jsonb_typeof and answers bad_hearthfind');
+  ok('C13', Array.isArray(hf) || hf.dropped === 4,
+    `the collapsed find reports dropped=${hf.dropped}; three finds carrying two prior `
+    + 'discards is four thrown away');
+
+  const many = Array.from({ length: 40 }, (_, i) => ({ deaths: [{ monster: 'goblin', n: i }] }));
+  const clamped = foldCombatDelta(many);
+  ok('C13', clamped.deaths.length === MAX_DEATH_ROWS,
+    `${clamped.deaths.length} death rows survived the fold against MAX_DEATH_ROWS `
+    + `(${MAX_DEATH_ROWS}) — hr_apply rejects the whole flush`);
+
+  let threw = null;
+  try {
+    foldCombatDelta([{ progress: Array.from({ length: MAX_PROGRESS_OPS + 1 },
+      (_, i) => ({ kind: 'stat', key: `k${i}`, period: '', add: 1, state: 'active' })) }]);
+  } catch (e) { threw = e; }
+  ok('C13', threw !== null,
+    'foldCombatDelta accepted more progress ops than hr_apply will — it must FAIL LOUD, '
+    + 'never truncate a counter a player watches');
+
+  let threwAtt = null;
+  try { foldCombatMeta([{ ms: 1, ticks: 1, kills: 1, capped: false, ate: 0, att: {} }], 0, 1); } catch (e) { threwAtt = e; }
+  ok('C12', threwAtt !== null, 'foldCombatMeta accepted an attended split');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// sessionFromRoster — the production shape, checked once
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  const row = {
+    user_id: '00000000-0000-4000-8000-0000000000c1', slot: 0, shard: 0, version: 9,
+    active_kind: 'combat', active_id: 'goblin',
+    active_since: '2026-03-14T19:00:00.000000+00:00',
+    accrued_to: '2026-03-14T20:00:00.123456+00:00',
+    cap_ms: 43200000,
+  };
+  const env = {
+    hp: 40, max_hp: 60, gold: 10, skills: {}, inventory: {}, equipment: {},
+    auto_eat_enabled: true, auto_eat_food: 'cooked_trout', auto_eat_pct: 70,
+    deaths_today: 6, deaths_lifetime: 60, fight: {}, consec_falls: 2,
+    recovering_until: '2026-03-14T20:02:00.000000+00:00',
+    hearthfind_ready: true, combat_style: null, enchant: {},
+  };
+  const s = sessionFromRoster(row, env);
+  ok('C9', s.accruedToText === row.accrued_to,
+    'sessionFromRoster did not keep the envelope\'s own rendering of accrued_to (T-2)');
+  ok('C1', s.autoEatEnabled === true && s.autoEatPct === 70 && s.autoEatFood === 'cooked_trout',
+    'sessionFromRoster dropped the auto-eat trio');
+  ok('C1', s.deathsTodayBefore === 6 && s.deathsLifetimeBefore === 60,
+    'sessionFromRoster dropped the recovery ladder\'s counters');
+  ok('C3', s.recoveringUntilMs === Date.parse(env.recovering_until) && s.consecFalls === 2,
+    'sessionFromRoster dropped a combat checkpoint');
+  let threwKind = null;
+  try { sessionFromRoster({ ...row, active_kind: 'gather' }, env); } catch (e) { threwKind = e; }
+  ok('C0', threwKind !== null, 'sessionFromRoster accepted a non-combat roster row');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REPORT
+// ═══════════════════════════════════════════════════════════════════════════
+
+const TEXT = CLAIM_TEXT();
+if (MUTATE) {
+  if (problems.length === 0) {
+    console.error(`world-tick-combat-parity --mutate --${MUTATION}: the mutation changed NOTHING.\n`
+      + `  It is supposed to turn ${M.kills} red. A guard that cannot go red is not a guard.`);
+    process.exit(1);
+  }
+  const hit = new Set(problems.map((p) => p.split(' ')[0]));
+  const wanted = String(M.kills).split('/');
+  const missed = wanted.filter((w) => !hit.has(w));
+  console.log(`world-tick-combat-parity --mutate --${MUTATION}: RED, as required.`);
+  console.log(`  turned red: ${[...hit].sort().join(', ')}   (wanted ${M.kills})`);
+  for (const p of problems.slice(0, 4)) console.log(`   ✗ ${p}`);
+  if (missed.length) {
+    console.error(`  but ${missed.join(', ')} stayed GREEN — the mutation is not proving `
+      + 'the claim it is filed against.');
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+if (problems.length) {
+  console.error('world-tick-combat-parity: RED\n');
+  for (const p of problems) console.error(`  ✗ ${p}`);
+  console.error(`\n${problems.length} problem(s).`);
+  process.exit(1);
+}
+
+console.log('world-tick-combat-parity: green — the combat channel is the SAME engine, '
+  + 'window for window.');
+for (const [k, v] of Object.entries(TEXT)) {
+  if (claims.has(k)) console.log(`   ${k.padEnd(4)} ${v}`);
+}
+for (const f of findings) console.log(f);
+console.log('\n   mutation proof: node tests/world-tick-combat-parity.mjs --mutate --<name>');
+console.log(`   mutants: ${Object.keys(MUTATIONS).join(', ')}`);

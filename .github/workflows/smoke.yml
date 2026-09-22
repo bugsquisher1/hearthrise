@@ -952,6 +952,38 @@ jobs:
       # each one to go red. The two arms whose defence hr_apply ALREADY had (the
       # version compare-and-set) are marked as shared and do not invert; they
       # are regression arms, so neither path can quietly lose it.
+      # THE COMBAT CHANNEL, M3 (WORLD_TICK_DESIGN.md §16). Combat is the third
+      # tick channel and the hard one: deaths, the recovery clock, auto-eat,
+      # drop tables, and eleven engine inputs a gather window does not need.
+      #
+      # It exists because the sibling above was BLIND, not wrong. P1 compares
+      # the tick's engine input against the accrue path's for byte-identity and
+      # has been green while the tick ran combat with AUTO-EAT OFF and the
+      # accrue path ran it ON — its only auto-eat fixture is a maxed character
+      # at 99 HP fighting a slime who never reaches the 50% threshold, so the
+      # handler never fires and the two contracts are indistinguishable on that
+      # data. Measured on a fixture that CAN tell them apart: 48 kills / 276
+      # gold against 139 / 788. -65.0% gold, and the death counters run the
+      # other way (a rung-7 character handed the first-death novice grace).
+      #
+      # C1 therefore derives the accrue path's engine-input key set from
+      # hr-accrue/index.ts's OWN SOURCE, in both directions, so a key added
+      # there and not to the tick is red on that commit. C2 asserts every
+      # window of a whole chain is byte-identical against an independently
+      # constructed accrue caller. C13 measures the progress-op cliff on every
+      # run: an ordinary 90 s flush files up to 69 ops against hr_apply's
+      # c_max_progress_ops of 64.
+      #
+      # --mutate plants twelve defects including the four the milestone brief
+      # names — skip the food debit, shift the window by 1 s, relabel the seed
+      # (Security T-2), a free heal on death (b509) — and each must turn the
+      # NAMED claim red, not merely something.
+      - name: World tick — the combat channel, window for window
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-combat-parity.mjs
+          node tests/world-tick-combat-parity.mjs --mutate
+
       - name: World tick — one window is paid once, and only when armed
         if: ${{ !cancelled() }}
         run: |

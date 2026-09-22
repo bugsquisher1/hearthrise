@@ -426,7 +426,8 @@ first `lane-done` run on this branch was **red for exactly that reason**
 is the guard working; `node tests/guard-hygiene.mjs` → exit 0 after the entry
 landed ("no orphans, no ghosts, no stale entries, no vacuous proofs").
 
-`node tools/lane-done.mjs` on the review branch → **exit 0**, every step `ok`,
+`node tools/lane-done.mjs` on the review branch → **exit 0**, last line `lane-done:
+all green.`, 24 steps `ok`,
 including `patch-chain-guard`, `no-client-xp-mint`, `property-gate-census`,
 `no-client-copy-of-projection`, `no-new-prediction`, `ci-shape`, `guard-hygiene`
 and `bump-version.sh --check`. **Nothing on this branch touches lane code, the

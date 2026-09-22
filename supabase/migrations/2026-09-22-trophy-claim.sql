@@ -179,11 +179,23 @@ as $body$
      and pp.value      > 0
      and pp.key like 'trophy:%'
      -- Exactly three colon-separated segments, a non-empty monster id, and a
-     -- stage that is all digits. `::int` on a non-numeric tail would be a 22P02
-     -- that aborts the caller's transaction — on the READ path, which runs on
-     -- every accrual.
+     -- stage that is a SMALL positive integer. Both casts that can abort the
+     -- caller's transaction are bounded away here, and it took two passes to
+     -- see the second:
+     --   22P02  a non-numeric tail. The digit class closes it.
+     --   22003  a NUMERIC tail that does not fit in `int`. `^[1-9][0-9]*$`
+     --          admits `trophy:goblin:99999999999`, and the `::int` in the
+     --          target list above then overflows (Security F1, 2026-09-22,
+     --          proof S-1). ⚠ WHY THAT IS NOT MERELY UNTIDY: this read runs on
+     --          EVERY accrual (hr-accrue/index.ts), and the savepoint around it
+     --          degrades on 42883 ONLY — so a 22003 rethrows and kills the
+     --          whole accrual read for that character, permanently, with no
+     --          way for the player out of it.
+     -- `{0,2}` is the ladder's own shape with room to grow: TROPHY_STAGES has
+     -- four rungs, 999 is three orders above it, and every value the class
+     -- admits fits in `int` by construction rather than by luck.
      and split_part(pp.key, ':', 2) <> ''
-     and split_part(pp.key, ':', 3) ~ '^[1-9][0-9]*$'
+     and split_part(pp.key, ':', 3) ~ '^[1-9][0-9]{0,2}$'
      and split_part(pp.key, ':', 4) = ''
 $body$;
 
@@ -1195,6 +1207,30 @@ begin
     if v_n <> 1 then
       raise exception 'trophy-claim (f): a non-trophy collection row leaked into hr_trophy_of';
     end if;
+
+    -- (f2) AN OUT-OF-RANGE STAGE IS DROPPED, NOT CAST (Security F1, proof S-1).
+    --      PROBE ROWS ONLY: one row, under v_uid, inside the rolled-back
+    --      subtransaction, exactly like the decoy above. The property is proven
+    --      by CALLING the projection and requiring it to ANSWER — a marker
+    --      search would say nothing about what Postgres does with the row.
+    --      11 digits is past int4 and inside int8, so the old `^[1-9][0-9]*$`
+    --      passed it to the `::int` in the target list and raised 22003 on the
+    --      accrual read path, which degrades on 42883 only.
+    insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
+    values (v_uid, 0, 'collection', 'trophy:' || v_mon || ':99999999999', '', 1, 'claimed')
+    on conflict (user_id, slot, kind, key, period_key) do nothing;
+    begin
+      select count(*) into v_n from public.hr_trophy_of(v_uid, 0);
+    exception when sqlstate '22003' then
+      raise exception 'trophy-claim (f2): an out-of-range stage overflowed hr_trophy_of''s ::int '
+                      '(SQLSTATE 22003). This read runs on every accrual and its savepoint degrades '
+                      'on 42883 ONLY, so this character''s progression reads are dead for good';
+    end;
+    if v_n <> 1 then
+      raise exception 'trophy-claim (f2): hr_trophy_of returned % rows beside the one real trophy — '
+                      'an out-of-range stage was RENDERED rather than dropped', v_n;
+    end if;
+
     -- …and a SECOND character sees none of it. The projection is per (user,slot)
     -- and a trophy is not a public fact about somebody else.
     perform set_config('request.jwt.claim.sub', v_other::text, true);
@@ -1228,5 +1264,6 @@ begin
   raise notice 'trophy-claim PASSED: hr_engine-only and absent from the client baseline, an unknown '
                'monster and a below-threshold claim refused with the server''s own count, one progress '
                'row and one ledger row per trophy, already_owned and replayed kept apart, no currency '
-               'no item no xp and no accrued_to movement, and the projection scoped to its owner';
+               'no item no xp and no accrued_to movement, an out-of-range stage dropped rather than '
+               'cast, and the projection scoped to its owner';
 end $$;

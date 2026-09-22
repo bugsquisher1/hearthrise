@@ -396,6 +396,24 @@ const MUTATIONS = {
     if coalesce((v_bf->>'finds')::bigint, 0) < 3 then`,
     ]]]],
   },
+  /* ── 2026-09-22, Security F1 on the Bestiary trophy ladder ─────────────
+     hr_trophy_of parses `trophy:<monster>:<stage>` and casts the tail to int.
+     The regex it shipped with, `^[1-9][0-9]*$`, admits an ELEVEN-digit tail,
+     which the cast in the target list then overflows. The read runs on every
+     accrual and its savepoint degrades on 42883 ONLY, so the 22003 rethrows
+     and that character's progression reads are dead permanently. The file's
+     §5(f2) arm inserts exactly that row under its own probe uuid and requires
+     the projection to ANSWER; this mutation restores the unbounded class and
+     requires the arm to catch it, because a self-check that has never been red
+     is not a self-check. */
+  trophy_stage_unbounded: {
+    what: "hr_trophy_of's stage class is unbounded again, so an 11-digit key overflows the ::int on the read path every accrual takes",
+    expect: 'replay', // §5(f2) raises: an out-of-range stage overflowed … 22003
+    patches: [['2026-09-22-trophy-claim.sql', [[
+      "     and split_part(pp.key, ':', 3) ~ '^[1-9][0-9]{0,2}$'",
+      "     and split_part(pp.key, ':', 3) ~ '^[1-9][0-9]*$'",
+    ]]]],
+  },
   reopen_a11: {
     what: 'the beta_invites lockdown GUC is unset, so a rebuild leaves every invite code world-readable',
     expect: 'replay', // live-market-rls §3b raises without it, by design

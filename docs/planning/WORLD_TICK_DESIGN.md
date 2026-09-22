@@ -1743,38 +1743,43 @@ The fold law (§6) classifies every delta key. Gather's flush only ever exercise
 in `APPEND`, and **three of its per-call clamps are re-checked after the fold
 for the first time**. All three were measured to bite on ordinary play.
 
-**(a) `progress` — measured 65 ops against `hr_apply`'s cap of 64.**
+**(a) `progress` — measured 69 ops against `hr_apply`'s cap of 64.**
 `c_max_progress_ops constant int := 64` (2026-09-14-hr-apply-restatement.sql
 :316). A combat window files up to **ten** progress ops — `stat:kills`,
 `stat:crits`, `stat:deaths` (lifetime), `stat:deaths` (UTC day), `stat:rare_drops`,
 the goal counters (`ev:kill_any`, `ev:kill_monster:<id>`, `ev:loot:<item>` …),
 the modal-goal daily rows, and a `flag:recipe:<id>` for every recipe scroll that
-dropped. Measured over an ordinary ten-minute goblin grind at the shipped 10 s
-cadence / 90 s flush:
+dropped. Nine of those windows is ONE 90 s flush at the shipped 10 s cadence.
+Measured on the M3 fixtures over ten minutes, raw ops per flush → folded
+(`node tests/world-tick-combat-parity.mjs --verbose` reprints this on every run):
 
-| flush window | raw ops | folded ops |
-|---|---|---|
-| 1 | 53 | 7 |
-| 2 | 57 | 10 |
-| 3 | **65** | 14 |
-| 4 | 56 | 7 |
-| 5 | 57 | 10 |
-| 6 | 63 | 10 |
-| 7 (short) | 44 | 10 |
+| fixture | flush 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| goblin grind | 55→7 | 56→9 | 52→6 | 58→11 | 56→9 | **64**→11 |
+| auto-eat, bag empties | **68**→9 | **65**→9 | **65**→9 | 62→9 | **65**→9 | 62→9 |
+| opens Knocked Out | 0→0 | 32→9 | 63→11 | **65**→11 | 54→9 | 53→7 |
+| bow vs rat | **65**→9 | **66**→9 | 59→8 | 63→8 | **65**→9 | **69**→9 |
 
-**65 > 64 is `too_many_progress_ops`, which refuses the whole flush window.**
-Nine windows of a *normal* fight is already at the cliff; a longer flush or a
-faster weapon is over it. So the combat flush folds `progress` by
+**Anything over 64 is `too_many_progress_ops`, which refuses the whole flush
+window.** Three of the four fixtures are over it on an ORDINARY fight, and the
+fourth touches 64 exactly. So the combat flush folds `progress` by
 `(kind, key, period, state)` and sums `add`.
 
 That is a FOLD and not a clamp, and the distinction is the whole argument for
 being allowed to do it: `hr_apply`'s own loop applies each op as
 `progress = progress + add` against a row keyed on exactly
 `(kind, key, period_key)`, so summing identical keys before the call is
-arithmetically the same write. Measured: `sum(add)` is preserved exactly on
-every flush above (118/133/145/151/130/172/93, raw == folded). `state` is part
-of the fold key so a `done` is never summed into an `active`, and first-seen
-order is preserved. **Nothing is clamped, dropped or re-priced.**
+arithmetically the same write. `sum(add)` is therefore preserved exactly, and
+that equality is asserted on every flush of every fixture on every run (C13) —
+not sampled. `state` is part of the fold key so a `done` is never summed into
+an `active`, and first-seen order is preserved, because `hr_apply` applies them
+in order and a reordered stream is a different ledger to read.
+**Nothing is clamped, dropped or re-priced.**
+
+`foldCombatDelta` still FAILS LOUD if the folded list somehow exceeds the cap
+(the worst folded flush measured is 11 against 64). Truncating there would
+silently drop a counter a player watches; shortening the flush is the caller's
+decision, so the caller is the one told.
 
 **(b) `hearthfind` — the fold produces an ARRAY, and `hr_apply` refuses it.**
 `foldDeltas` classifies `hearthfind` as `APPEND`, so two windows that each rolled
@@ -1944,11 +1949,34 @@ no-op and the file says so rather than pretending to add it.
 
 ### 16.10 What is proved, what needs production, and what remains
 
-**Proved offline, with an exit code** (`node tests/world-tick-combat-parity.mjs`,
-plus `--mutate`): per-window construction parity over a whole chain, time
-conservation and watermark tiling, the death/recovery/food boundary behaviours,
-the progress/hearthfind/deaths fold, the attended refusal, the Rested telescope,
-the seed-label contract, and the engine-input key-set parity against `index.ts`.
+**Proved offline, with an exit code.** `node tests/world-tick-combat-parity.mjs`
+(registered in `smoke.yml` beside its gather sibling): fifteen claims, twelve
+mutants, each mutant red on the claim it is FILED against rather than merely on
+something.
+
+| | claim | its mutant |
+|---|---|---|
+| C1 | engine-input key parity, derived from `index.ts`'s own source, both directions | `noAutoEat`, `noDeathCounters` |
+| C2 | per-window construction parity — all 60 windows of every chain, byte-identical | `nofight`, `shiftWindow` |
+| C3 | checkpoint continuity: `fight` / `consec_falls` / `recovering_until` / hp / bag | `nofight` |
+| C4 | tiling and the receipt — no overlap, no gap, `ms` restated from the watermark | `wallclock`, `shiftWindow` |
+| C5 | a retreat closes the batch and ends the session | — (positive claim) |
+| C6 | stream health against the one-call span: no starved drop, drift in band | — |
+| C7 | the recovery boundary is not a free heal and not a free kill | `freeHeal` |
+| C8 | the food debit is conserved exactly; `food_in_bag` divergence is PINNED | `skipFoodDebit` |
+| C9 | the seed label is the envelope's rendering, and a relabel is DETECTABLE | `relabelSeed` |
+| C10 | the attended top-up is refused, not priced | `attendedThrough` |
+| C11 | Rested XP telescopes below the bank cap | `restedNow` |
+| C12 | the journal row is accrue's meta + `src:'tick'`, ≤10 keys, never an `att` | — |
+| C13 | the fold re-checks the three per-apply clamps | `progressNoFold`, `hearthfindArray` |
+| C14 | the fence is reused unchanged — one intent id, version on intent 0 only | — |
+| C15 | the staged migration's channel literal == `PAYABLE_KINDS`, and it arms nothing | — |
+
+The four the M3 brief asked for by name are `skipFoodDebit`, `shiftWindow`,
+`relabelSeed` and `freeHeal`. `freeHeal` is worth one sentence because of where
+it had to bite: applied to this window's delta it changes nothing (the delta is
+already correct), so the assertion reads the INPUT of the NEXT window — which is
+exactly where a decomposition would re-introduce b509.
 
 **Needs production to answer**, and is asserted by nobody here: whether the
 combat roster is non-empty (the gather roster was measured EMPTY on 2026-09-18 —

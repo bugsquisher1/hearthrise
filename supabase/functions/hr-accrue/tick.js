@@ -73,7 +73,7 @@
 // (not under src/**).
 // ============================================================================
 
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 import {
   CHANNEL, DEFAULT_CADENCE_MS, DEFAULT_FLUSH_MS,
@@ -147,14 +147,30 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
    It is a pure function of a Request-like object so a Node test can drive it
    with a real `Request`; `body` may be absent (a Response-less stub), in which
    case there is nothing to read and `{}` is the honest answer. */
-export async function readTickBody(req, limit = MAX_BODY_BYTES) {
+export async function readTickBytes(req, limit = MAX_BODY_BYTES) {
   const declared = Number(req.headers && req.headers.get
     ? req.headers.get('content-length') : NaN);
   if (Number.isFinite(declared) && declared > limit) return null;
   if (!req.body || typeof req.body.getReader !== 'function') {
     /* No stream to meter (a stub, or a runtime that buffered it already). Fall
-       back to the whole-body read, still bounded by the length check above. */
-    try { return await req.json(); } catch { return null; }
+       back to the whole-body read, still bounded by the length check above, and
+       still returned as BYTES — `text()` then `TextEncoder` round-trips through
+       the same UTF-8 the sender used, which is what the mac is computed over. */
+    try {
+      if (typeof req.text === 'function') {
+        const t = await req.text();
+        const b = new TextEncoder().encode(t);
+        return b.byteLength > limit ? null : b;
+      }
+      if (typeof req.json === 'function') {
+        /* Last resort, for a stub that offers only `json()`: re-serialise. The
+           bytes are then OURS rather than the sender's, so `tickBodyAuthOk`
+           will refuse unless they happen to match — which is the safe
+           direction, and the reason the real runtime never lands here. */
+        return new TextEncoder().encode(JSON.stringify(await req.json()));
+      }
+      return null;
+    } catch { return null; }
   }
   const reader = req.body.getReader();
   const chunks = [];
@@ -171,62 +187,209 @@ export async function readTickBody(req, limit = MAX_BODY_BYTES) {
   const buf = new Uint8Array(n);
   let at = 0;
   for (const c of chunks) { buf.set(c, at); at += c.byteLength; }
-  try { return JSON.parse(new TextDecoder().decode(buf)); } catch { return null; }
+  return buf;
+}
+
+/* The parse, SEPARATED FROM THE READ so that authentication can sit between
+   them. `null` means "not JSON"; the caller answers `bad_request`, and by then
+   the caller already holds the secret, so that answer is not an oracle. */
+export function parseTickBytes(bytes) {
+  if (!(bytes instanceof Uint8Array)) return null;
+  try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { return null; }
+}
+
+/* The old whole-body read, kept because the bound is worth asserting on its own
+   and the guard drives it directly. NOTHING IN THE REQUEST PATH CALLS IT: the
+   entry reads bytes, authenticates them, and only then parses (§the token
+   block below). */
+export async function readTickBody(req, limit = MAX_BODY_BYTES) {
+  const bytes = await readTickBytes(req, limit);
+  return bytes === null ? null : parseTickBytes(bytes);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// THE BEARER
+// THE TOKEN — DERIVED PER FIRE (Security T-5.3, 2026-09-22)
+//
+// The static 64-hex bearer is GONE. It transited `net.http_request_queue` and
+// `net._http_response`, both SELECT-to-PUBLIC by a grant `supabase_admin` made
+// and `postgres` cannot revoke, so its confidentiality rested on PostgREST's
+// exposed-schema list and on the absence of a bridge — reachability, not
+// privilege. T-5.3 makes replacing it the hard condition on the tick ever
+// PAYING. WORLD_TICK_DESIGN.md §17 is the design.
+//
+//     X-HR-Tick-Auth: v1 t=<bucket> b=<body_sha256_hex> m=<hmac_sha256_hex>
+//
+//       bucket = floor(epoch_seconds / 30)
+//       m      = hmac_sha256(key = HR_TICK_SHARED_SECRET,
+//                            msg = bucket + '.' + body_sha256_hex)
+//
+// FOUR CHECKS, AND NONE OF THEM IS REDUNDANT:
+//   1. the secret is usable at all (>= MIN_SECRET_LEN) — else refuse everything;
+//   2. the header parses as exactly this shape, both digests 64 LOWER-CASE hex;
+//   3. `bucket` is within ±1 of ours — a ≤90 s window, the flush cadence, far
+//      wider than any Postgres↔edge skew and narrow enough that a captured
+//      header expires before the next flush;
+//   4. sha256(the body we actually received) === `b`, AND `m` verifies over
+//      `t.b`, constant time.
+// (4) is two halves and both are load-bearing: `m` covers only `t` and `b`, so
+// WITHOUT THE BODY HASH CHECK a captured triple would authenticate any body at
+// all. That check is the body binding, and it is why there is no nonce.
+//
+// ── WHY NO NONCE AND NO PER-ISOLATE REPLAY CACHE ───────────────────────────
+// At a 10 s cadence three fires land in each 30 s bucket, and when the roster
+// has not moved the driver's body is BYTE-IDENTICAL — so `t`, `b` and therefore
+// `m` are identical too. An LRU keyed on the token would refuse the driver's own
+// second and third legitimate fire of every bucket: an outage with a
+// security-shaped name. Per-isolate memory would not be a control anyway (N
+// isolates behind one URL, recycled, catching an unknown fraction). T-5.3 says
+// the same: "no nonce table, no new row growth".
+//   RESIDUAL R-T1: a verbatim replay inside the ≤90 s window is
+//   indistinguishable from an extra cron fire. The fence refuses any character
+//   the roster did not lease in the driver's own holder name, the watermark CAS
+//   refuses a second payment for a settled window (S-3), and accrual is bounded
+//   to [watermark, now()]. IT CANNOT DOUBLE-PAY, CANNOT NAME AN UNLEASED
+//   CHARACTER, AND CANNOT MOVE A WATERMARK BACKWARDS.
+//
+// ── THE ORDERING CHANGE, AND WHAT IT COSTS ─────────────────────────────────
+// The mac binds the body hash, so the bytes must be READ before they can be
+// authenticated. Shape and window are checked FIRST and allocate nothing; the
+// read is bounded by MAX_BODY_BYTES exactly as before; nothing is PARSED and
+// nothing touches the database until the mac verifies. RESIDUAL R-T2: a caller
+// presenting a syntactically valid in-window header — which needs no secret,
+// because the shape is not authenticated — can make the function buffer up to
+// 4 MiB. The ceiling is the control, doing the job it was already sized for.
+//   Net: the body is now AUTHENTICATED BEFORE IT IS PARSED, which the static
+//   form never was.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/* Is this env var usable as the tick bearer at all? Split out so the refusal
+/* Is this env var usable as the tick secret at all? Split out so the refusal
    path can be asserted without an env var and without a request. */
 export function tickSecretUsable(secret) {
   return typeof secret === 'string' && secret.length >= MIN_SECRET_LEN;
+}
+
+/* The bucket width and the skew tolerance. 30 s × {n-1, n, n+1} = a ≤90 s
+   acceptance window, which is T-5.3's number and the gather flush cadence. */
+export const TICK_BUCKET_SECONDS = 30;
+export const TICK_BUCKET_SKEW = 1;
+
+/* The token version tag. A future v2 changes THIS and the migration together;
+   there is deliberately no multi-version accept path (WORLD_TICK_DESIGN.md
+   §17.9 — the cutover is one form at a time, behind the kill switch). */
+export const TICK_TOKEN_VERSION = 'v1';
+
+/* THE SHAPE, PINNED. Lower-case hex only: accepting both cases would mean two
+   spellings of one digest and a comparison that has to normalise before it can
+   be constant time. The driver emits `encode(…, 'hex')`, which is lower-case. */
+const TOKEN_RE = /^v1 t=(0|[1-9][0-9]{0,15}) b=([0-9a-f]{64}) m=([0-9a-f]{64})$/;
+
+/* Parse and nothing else — no secret is touched here, so a malformed header
+   costs a regex and not a digest. Returns null for anything that is not
+   exactly the shape. */
+export function parseTickToken(presented) {
+  if (typeof presented !== 'string') return null;
+  const m = TOKEN_RE.exec(presented);
+  if (m === null) return null;
+  const bucket = Number(m[1]);
+  if (!Number.isSafeInteger(bucket) || bucket <= 0) return null;
+  const out = Object.create(null);
+  out.bucket = bucket;
+  out.bodySha = m[2];
+  out.mac = m[3];
+  return out;
+}
+
+/* The bucket this instant belongs to. `nowMs` is a parameter so every arm can
+   drive the clock instead of sleeping. */
+export function tickBucketOf(nowMs) {
+  return Math.floor(nowMs / 1000 / TICK_BUCKET_SECONDS);
+}
+
+/* ±TICK_BUCKET_SKEW buckets. A token from the future is refused as firmly as a
+   stale one: a clock that far ahead is a broken driver, not a slow network. */
+export function tickWindowOk(bucket, nowMs) {
+  if (!Number.isSafeInteger(bucket)) return false;
+  return Math.abs(bucket - tickBucketOf(nowMs)) <= TICK_BUCKET_SKEW;
+}
+
+/* The mac the driver should have sent for this (bucket, body hash). Exported so
+   the guard can build a real token rather than a plausible-looking string. */
+export function tickTokenMac(bucket, bodyShaHex, secret) {
+  return createHmac('sha256', secret)
+    .update(`${bucket}.${bodyShaHex}`, 'utf8').digest('hex');
+}
+
+/* The sha256 of the bytes as they arrived. `Uint8Array` in, lower-case hex out,
+   so it is comparable to the driver's `encode(digest(…), 'hex')` directly. */
+export function tickBodySha256(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
 }
 
 /* CONSTANT TIME, AND LENGTH-INDEPENDENT.
    `timingSafeEqual` throws on a length mismatch, and catching that throw would
    itself be the length oracle — so both sides are hashed to a fixed 32 bytes
    FIRST and the comparison is always over 32 bytes. A wrong guess therefore
-   costs exactly what a right one costs, whatever its length, and the digest of
-   a secret is not the secret.
+   costs exactly what a right one costs, whatever its length.
 
-   `presented` is attacker-controlled and may be null; `secret` is the env var
-   and is only ever reached through `tickSecretUsable`. */
-export function tickBearerOk(presented, secret) {
-  if (!tickSecretUsable(secret)) return false;
-  if (typeof presented !== 'string' || presented.length === 0) return false;
+   Both arguments here are hex digests rather than secrets, but the discipline
+   stays: this is the function that answers "is the presented mac the right
+   one", and that answer must not be reachable one character at a time. */
+export function tickMacOk(presented, expected) {
+  if (typeof presented !== 'string' || typeof expected !== 'string') return false;
+  if (presented.length === 0 || expected.length === 0) return false;
   const a = createHash('sha256').update(presented, 'utf8').digest();
-  const b = createHash('sha256').update(secret, 'utf8').digest();
+  const b = createHash('sha256').update(expected, 'utf8').digest();
   return timingSafeEqual(a, b);
 }
 
-/* THE GATE, AS A PURE FUNCTION OF (headers, env).
+/* THE GATE, AS A PURE FUNCTION OF (headers, env, clock). Stage one of two: it
+   decides whether this is a tick request at all, and whether the token is
+   well-formed and fresh — WITHOUT reading the body, because the body is the
+   thing the rest of the check is about.
 
    Three answers, and the caller in index.ts must handle all three:
      null                 → not a tick request; fall through to the player path,
                             byte for byte unchanged.
-     { ok:false, … }      → a tick request that failed the bearer. 401
-                            `not_signed_in` — the SAME body the player path
-                            returns for a bad token, so this branch is not an
-                            oracle for "does op:tick exist here".
-     { ok:true }          → proceed, and only now may anything else run.
+     { ok:false, … }      → a tick request that failed. 401 `not_signed_in` —
+                            the SAME body the player path returns for a bad
+                            token, so this branch is not an oracle for "does
+                            op:tick exist here", and the same body for EVERY
+                            reason, so it is not an oracle for which check bit.
+     { ok:true, token }   → the shape and the window hold. `token` must then be
+                            carried to `tickBodyAuthOk` with the bytes; nothing
+                            else may run first.
 
-   THE DISCRIMINATOR IS THE HEADER'S PRESENCE, NEVER THE BODY. Reading the body
-   to decide whether to check the bearer would mean parsing attacker-controlled
-   JSON before authenticating it, which is the thing §15c says must not happen.
-   A request with no `X-HR-Tick-Auth` is simply not a tick request and is
-   handled by the player path exactly as it was before this file existed —
-   including a body that says `op: 'tick'`, which reaches `parseIntent` and is
-   answered as that caller's own accrual, never as a tick. */
-export function tickGate(headers, secret) {
+   THE DISCRIMINATOR IS THE HEADER'S PRESENCE, NEVER THE BODY. A request with no
+   `X-HR-Tick-Auth` is simply not a tick request and is handled by the player
+   path exactly as it was before this file existed — including a body that says
+   `op: 'tick'`, which reaches `parseIntent` and is answered as that caller's own
+   accrual, never as a tick. */
+export function tickGate(headers, secret, nowMs = Date.now()) {
   const presented = headers && typeof headers.get === 'function'
     ? headers.get(TICK_HEADER) : null;
   if (presented === null || presented === undefined) return null;
-  if (!tickBearerOk(presented, secret)) {
-    return { ok: false, status: 401, body: { ok: false, error: 'not_signed_in' } };
-  }
-  return { ok: true };
+  const refuse = { ok: false, status: 401, body: { ok: false, error: 'not_signed_in' } };
+  if (!tickSecretUsable(secret)) return refuse;
+  const token = parseTickToken(presented);
+  if (token === null) return refuse;
+  if (!tickWindowOk(token.bucket, nowMs)) return refuse;
+  return { ok: true, token };
+}
+
+/* Stage two: the body binding and the mac, in that order. `bytes` is exactly
+   what arrived — not a re-serialisation of a parsed object, which would be a
+   different byte string and would defeat the whole point.
+
+   `bytes === null` means the read was refused (over the ceiling, or the stream
+   died). That is a FALSE, not a separate answer: a body we could not read is a
+   body we could not authenticate, and answering it differently would hand an
+   unauthenticated caller an oracle the static form never gave. */
+export function tickBodyAuthOk(token, bytes, secret) {
+  if (!tickSecretUsable(secret)) return false;
+  if (!token || typeof token.bodySha !== 'string' || typeof token.mac !== 'string') return false;
+  if (!(bytes instanceof Uint8Array)) return false;
+  if (tickBodySha256(bytes) !== token.bodySha) return false;
+  return tickMacOk(token.mac, tickTokenMac(token.bucket, token.bodySha, secret));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

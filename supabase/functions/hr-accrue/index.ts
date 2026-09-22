@@ -98,7 +98,7 @@ import { withCors } from './cors.js';
    the ONE request path that reaches the engine with no player behind it, so it
    is its own module with its own adversarial review and its own test
    (tests/edge-tick-gate.mjs). Nothing else in this payload may import it. */
-import { tickGate, runTick, readTickBody } from './tick.js';
+import { tickGate, tickBodyAuthOk, runTick, readTickBytes, parseTickBytes } from './tick.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
@@ -253,11 +253,14 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
      to verify and nothing to derive. §15c specifies the branch here, and
      everything that makes it narrower than the gate it steps around lives in
      ./tick.js: the discriminator is the PRESENCE of `X-HR-Tick-Auth` (never
-     the body, which is not read until the bearer has been accepted), the
-     comparison is constant time against `HR_TICK_SHARED_SECRET`, an unset or
-     short secret refuses every tick request, and a mismatch answers the SAME
-     `401 not_signed_in` the player path answers so this branch is not an
-     oracle.
+     the body), the header carries a token DERIVED PER FIRE rather than a
+     long-lived bearer (Security T-5.3 — `v1 t=<bucket> b=<body sha256>
+     m=<hmac>`), its shape and its ±90 s window are checked before a byte of
+     body is buffered, the mac is verified constant time against
+     `HR_TICK_SHARED_SECRET` over the bytes that actually arrived, an unset or
+     short secret refuses every tick request, and EVERY refusal answers the
+     SAME `401 not_signed_in` the player path answers so this branch is not an
+     oracle — not for "does op:tick exist here", and not for which check bit.
 
      ⚠ A REQUEST WITHOUT THAT HEADER IS NOT A TICK REQUEST AND FALLS THROUGH
        UNCHANGED, including one whose body says `op: 'tick'`: `parseIntent`
@@ -268,6 +271,31 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
   if (tick) {
     if (!tick.ok) return json(tick.body, tick.status);
     try {
+      /* ── STAGE TWO: THE BODY BINDING, BEFORE ANYTHING ELSE AT ALL ────────
+         `tickGate` proved the token's SHAPE and its WINDOW. It could not prove
+         the mac, because the mac covers the body hash and the body had not
+         been read. So: read the bytes (bounded by Content-Length AND by
+         counting what actually arrives, so a chunked sender that omits the
+         header is metered too), then verify sha256(bytes) === `b` and that `m`
+         verifies over `t.b` in constant time.
+
+         ⚠ ORDER MATTERS AND THIS IS THE ORDER. No parse, no pooler, no
+           connection, no `set local role` until `tickBodyAuthOk` is true. A
+           body that could not be read is `false` here rather than a 400:
+           answering an unreadable body differently from an unauthenticated one
+           would hand an unauthenticated caller an oracle the static bearer
+           never gave. Every pre-auth refusal on this branch is the same
+           `401 not_signed_in` the player path returns. */
+      const bytes = await readTickBytes(req);
+      if (!tickBodyAuthOk(tick.token, bytes, TICK_SECRET)) {
+        return json({ ok: false, error: 'not_signed_in' }, 401);
+      }
+      /* ONLY NOW is attacker-controlled JSON parsed — and by this point it is
+         not attacker-controlled, because the bytes are bound to a mac only the
+         driver could have produced. `bad_request` is safe to distinguish here:
+         reaching it means holding the secret. */
+      const body = parseTickBytes(bytes);
+      if (body === null) return json({ ok: false, error: 'bad_request' }, 400);
       assertPooler();
       if (!sql) throw new Error('config:no_connection');
       const execTick = async (text: string, params: unknown[]): Promise<Record<string, any>[]> =>
@@ -275,14 +303,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
           await tx`set local role hr_engine`;
           return await tx.unsafe(text, params as any[]);
         }) as unknown as Record<string, any>[];
-      /* BOUNDED, AND ONLY NOW. The bearer has been accepted; the body has
-         still not been touched. `readTickBody` refuses a body over the
-         ceiling by its Content-Length AND by counting the bytes that actually
-         arrive, so a chunked sender that omits the header is metered too. A
-         refusal is `bad_request` and says nothing about which of the two
-         reasons it was — the same non-oracle discipline the bearer follows. */
-      const body = await readTickBody(req);
-      if (body === null) return json({ ok: false, error: 'bad_request' }, 400);
       const out = await runTick({ exec: execTick, body });
       return json(out.body, out.status);
     } catch (e) {

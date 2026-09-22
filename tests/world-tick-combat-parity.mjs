@@ -876,9 +876,35 @@ for (const raw of SESSIONS) {
     ok('C9', threw !== null, 'seedLabelFor accepted a Date — Security T-2 is two spellings');
     ok('C9', seedLabelFor(c.accruedToText) === 'accrue:' + c.accruedToText,
       'the label is not the envelope rendering verbatim');
-    ok('C9', /\+00:00$/.test(c.accruedToText) && /\.\d{6}\+/.test(c.accruedToText),
+    /* ── THE SPELLING, AS POSTGRES WRITES IT (Security S-2) ───────────────
+       This arm used to demand `/\.\d{6}\+/` — six fraction digits, always —
+       which is a string PostgreSQL cannot produce for a millisecond-precision
+       watermark: it TRIMS trailing zeros and OMITS the fraction on an exact
+       second, and a 10 s cadence lands on an exact second constantly. The
+       guard that is the exit code for T-2 was calibrated to an unreachable
+       spelling, so it could not certify the label it exists to certify.
+
+       The shape below is PostgreSQL's rule, not the helper's opinion: offset
+       always `+00:00`, never `Z`, fraction OPTIONAL, and when present never
+       ending in a zero. The authority on what a real server renders is
+       tests/sec-world-tick-m3-seed-label.mjs S-M3-2, which asks pglite on an
+       exact second and on two millisecond precisions; this guard has no
+       database and states the shape it can state without one. */
+    const PG_TSTZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d*[1-9])?\+00:00$/;
+    ok('C9', PG_TSTZ.test(c.accruedToText),
       `the fixture watermark ${c.accruedToText} is not the accrue path's spelling `
-      + '(microseconds and +00:00, never Z)');
+      + '(+00:00, never Z, fraction optional and never zero-padded)');
+    /* AND THE HELPER AGREES WITH IT ON BOTH SHAPES THE CADENCE MEETS — the
+       exact second and a millisecond — rather than on whichever one the
+       fixture happens to start at. */
+    const exact = pgTimestamptzText(Date.UTC(2026, 2, 14, 20, 0, 0));
+    const milli = pgTimestamptzText(Date.UTC(2026, 2, 14, 20, 0, 9, 600));
+    ok('C9', exact === '2026-03-14T20:00:00+00:00',
+      `an exact second renders "${exact}" — Postgres omits the fraction entirely`);
+    ok('C9', milli === '2026-03-14T20:00:09.6+00:00',
+      `a .600 millisecond renders "${milli}" — Postgres trims the trailing zeros`);
+    ok('C9', PG_TSTZ.test(exact) && PG_TSTZ.test(milli),
+      'the helper does not render the shape this arm requires of the envelope');
     /* NOT STRUCTURALLY BLIND. world-tick-parity.mjs feeds one JS helper to both
        sides of every comparison, so it cannot see how production spells a
        label. This asserts the two spellings are different NUMBERS. */

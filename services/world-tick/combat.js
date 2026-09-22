@@ -762,9 +762,10 @@ export function loadCombatSessions(file) {
    scenario and stays true.
 
    `accruedToText` is stamped here in the ACCRUE PATH'S OWN SPELLING — the
-   `hr_state_of` JSONB rendering, `+00:00` with microseconds — rather than
+   `hr_state_of` JSONB rendering, `+00:00` and no padded fraction — rather than
    `toISOString()`. A fixture that carried the `Z` spelling would make the
-   guard agree with the defect T-2 names. */
+   guard agree with the defect T-2 names, and one that carried a padded
+   fraction would agree with S-2. */
 export function atSpan(session, fromMs) {
   const s = JSON.parse(JSON.stringify(session));
   s.activeKind = CHANNEL;
@@ -781,12 +782,38 @@ export function atSpan(session, fromMs) {
 
 /* THE ACCRUE PATH'S SPELLING OF A TIMESTAMP, which is what `hr_state_of`'s
    JSONB rendering produces and therefore what `index.ts:785` labels with:
-   `2026-03-14T20:00:00.000000+00:00` — microseconds, and `+00:00`, never `Z`.
-   Offline there is no database, so the guard needs a rendering it can hold the
-   two paths to; this is it, and C9 proves the guard is red when a window is
-   relabelled the other way. */
+   `+00:00`, never `Z`.
+
+   ⚠ POSTGRES DOES NOT PAD (Security S-2). This function used to write
+     `.$1000+00:00` — six digits, always. PostgreSQL renders a timestamptz into
+     JSON with TRAILING ZEROS TRIMMED and the fraction OMITTED ENTIRELY on an
+     exact second, so the padded form is a string the accrue path cannot emit
+     for a millisecond-precision watermark:
+
+       2026-09-18T12:00:00.000Z  ->  2026-09-18T12:00:00+00:00      (no fraction)
+       2026-09-18T12:00:09.600Z  ->  2026-09-18T12:00:09.6+00:00    (zeros trimmed)
+       2026-09-18T12:00:09.739Z  ->  2026-09-18T12:00:09.739+00:00
+
+     A 10 s cadence lands on an exact second constantly, so the first case is
+     the common one, not the corner. `hr_seed` hashes the LABEL, so a padded
+     label is a different stream — the same defect T-2 names, one spelling
+     over.
+
+   This is the OFFLINE rendering: there is no database in a fixture run, so the
+   two paths need a string they can both be held to. It is not the authority on
+   what Postgres writes — `tests/sec-world-tick-m3-seed-label.mjs` S-M3-2 is,
+   and it asks a real server (pglite) on an exact second, on a trailing-zero
+   millisecond and on a three-digit millisecond. On the wire the label is
+   spelled by the server and never by JS (`tick.js` SEED_LABEL_EXPR), and a
+   watermark carrying real microseconds travels VERBATIM as the envelope's own
+   string, which is why `settleCombatSession` never re-renders window 1.
+
+   `ms` is milliseconds, so this can produce at most three fraction digits —
+   it cannot invent the microseconds a `now()`-clamped watermark may hold. */
 export function pgTimestamptzText(ms) {
   const d = new Date(Math.floor(Number(ms) || 0));
-  const iso = d.toISOString();                       // ...T20:00:00.000Z
-  return iso.replace(/\.(\d{3})Z$/, '.$1000+00:00');
+  const iso = d.toISOString();                       // ...T20:00:09.600Z
+  const [whole, frac = ''] = iso.slice(0, -1).split('.');
+  const trimmed = frac.replace(/0+$/, '');
+  return whole + (trimmed ? '.' + trimmed : '') + '+00:00';
 }

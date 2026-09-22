@@ -1702,6 +1702,31 @@ jobs:
           node tests/parse-check.mjs
           node tests/parse-check.mjs --selftest
 
+      # THE BESTIARY TROPHY LADDER (docs/design/BESTIARY_LADDER.md). Two things
+      # it refuses. (1) src/data/bestiary.js is DERIVED -- buildBestiary(MONSTERS)
+      # runs at module load -- so a monster added to the roster gets its ladder
+      # for free, and the day someone flattens that into a literal the census
+      # stops following the roster with nothing else going red. B9 rebuilds from
+      # a synthetic roster and is the only assertion a hand-typed table fails.
+      # (2) THE MAGNITUDES. A trophy is a memory of work done, not a build: the
+      # class charm (<=1.03) and the monster trophy (<=1.03) apply against the
+      # same monster at the same time, so it is their PRODUCT a reviewer approved
+      # (MAX_MEMORY_DROP_MULT), and the damage half multiplies into the ONE
+      # `damageMult` expression in src/core/combat.js that MAX_TOTAL_DAMAGE_MULT
+      # clamps. B6 owns both. 12 mutations, one per assertion, each required to
+      # be caught by its NAMED assertion, plus two negative controls (a display
+      # rename, a twelfth monster class) that must stay silent. No database, no
+      # credential, milliseconds.
+      - name: Bestiary trophy ladder - every monster has one, every bonus is tiny
+        if: ${{ !cancelled() }}
+        run: node tests/bestiary-ladder.mjs --selftest
+
+      # A --selftest-only registration cannot tell a broken guard from a caught
+      # defect. Run the plain body too: only it answers "green when nothing is wrong".
+      - name: Bestiary trophy ladder - base run
+        if: ${{ !cancelled() }}
+        run: node tests/bestiary-ladder.mjs
+
       # The cache-buster must agree across build-info.js, index.html and every
       # ESM import specifier. Cheap, so run it before spending time on a browser.
       - name: Cache-buster invariant

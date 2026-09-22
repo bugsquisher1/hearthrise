@@ -261,6 +261,22 @@ begin
     exception when check_violation then
       delete from hr_tick_config_probe where id;
     end;
+    -- ── c2c: A NULL ELEMENT IS REFUSED, AND THIS IS NOT A FORMALITY.
+    --   `channels` is `not null`, which says nothing about its ELEMENTS, and a
+    --   CHECK that evaluated to NULL would PASS — the classic three-valued
+    --   hole. `<@` uses equality and NULL matches nothing, so containment is
+    --   FALSE rather than NULL and the constraint bites; asserted by execution
+    --   because "I believe `<@` returns false here" is exactly the kind of
+    --   belief this repo writes exit codes for.
+    foreach v_txt in array array['{NULL}', '{gather,NULL}'] loop
+      begin
+        insert into hr_tick_config_probe (id, channels) values (true, v_txt::text[]);
+        raise exception 'c2c: hr_tick_config.channels accepted % — a NULL element made the '
+                        'CHECK evaluate to NULL, which passes', v_txt;
+      exception when check_violation then
+        delete from hr_tick_config_probe where id;
+      end;
+    end loop;
 
     -- ── c3: THE REAL SINGLETON IS UNCHANGED AND STILL DISARMED. Applying this
     --        file must not arm a channel, and this is the assertion that says so.

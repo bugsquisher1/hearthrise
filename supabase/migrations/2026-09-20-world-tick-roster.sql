@@ -503,9 +503,23 @@ begin
          -- rare drops at rate zero (§11). A shadow run drawing one stream
          -- prefix over and over would report a parity number that says more
          -- about the PRNG than about the tick.
+         --
+         -- ⚠ `to_jsonb(l.mark) #>> '{}'` AND NOT `to_char(...)` (OP:TICK review
+         --   T-2, P0). index.ts:785 labels from `st.accrued_to`, and `st` is
+         --   the hr_state_of JSONB envelope — so the accrue path's spelling is
+         --   whatever Postgres renders a timestamptz as INSIDE JSON:
+         --   `2026-09-21T17:55:55.739123+00:00`. The `'…MS"Z"'` template this
+         --   line used to carry spells the same instant `…739Z`: microseconds
+         --   truncated, `+00:00` written `Z`. hr_seed hashes the LABEL, so that
+         --   was a DIFFERENT STREAM for the same window, and the 48 h parity
+         --   number would have measured the PRNG rather than the tick — which
+         --   is the exact failure the paragraph above warns about, committed by
+         --   the line below it. The accrue path has 200 days of live seeds
+         --   behind it and does not move; this file was unapplied, so the fix
+         --   is one expression. `to_jsonb` is the rendering, not a restatement
+         --   of it, so it cannot drift from hr_state_of again.
          public.hr_seed(ps.user_id, ps.slot,
-                        'accrue:' || to_char(l.mark at time zone 'UTC',
-                          'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))  as seed,
+                        'accrue:' || (to_jsonb(l.mark) #>> '{}'))      as seed,
          -- HYDRATION IS THE ENVELOPE THE CLIENT APPLIES, not a bag of columns
          -- assembled here. "What the tick holds" and "what the player sees" are
          -- one object (§2), and it costs the tick no grant on hr_state_of.

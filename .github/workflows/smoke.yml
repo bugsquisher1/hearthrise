@@ -992,6 +992,35 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-tick-shadow-chain.mjs
 
+      # AND DOES THE ENTRY SPEAK THE TRANSPORT IT DEPLOYS ON?
+      # (SEC_WORLD_TICK_M1_2026-09-21.md OP:TICK REVIEW findings T-1 and T-2,
+      # both P0.) tests/edge-tick-gate.mjs drives the same entry and was GREEN
+      # through both of them, because its `exec` stub answered `select now()`
+      # with an ISO STRING while `postgres` — and PGlite — parse OID 1184 into a
+      # JS Date. The entry did `String(<Date>)` and handed the result back as a
+      # `$::timestamptz`, which Postgres refuses (22P02), so probeWatermark —
+      # the FIRST engine statement of every character of every fire — threw, the
+      # fire still answered HTTP 200, and the 48 h shadow parity run that GATES
+      # arming would have journalled zero rows with every dashboard green.
+      #
+      # The same class covers the per-window PRNG label: hr_seed hashes the
+      # LABEL, and the accrue path spells the instant the way Postgres renders a
+      # timestamptz into JSON (`.739123+00:00`, index.ts:785) while the tick and
+      # the roster spelled it `.739Z`. Same instant, different stream, so the
+      # parity number would have measured the PRNG rather than the tick.
+      #
+      # So this file uses the transport: a real Postgres, the shipped `runTick`
+      # driving its own round trips through it, tick.js's own SEED_LABEL_EXPR
+      # and hr_tick_roster itself — no arm quotes the source back at itself.
+      # EC-1c, EC-2b, EC-2c and EC-3d are the negatives and they stay: EC-2c in
+      # particular pins a property nothing else asserts (the watermark probe is
+      # WRITE-CAPABLE and what stops it is hr_tick_settle step (7)'s null-version
+      # refusal — Security I-5). It was RED BY DESIGN and deliberately
+      # unregistered while the review was open; it is green, so it is here.
+      - name: World tick — the entry against the transport it deploys on
+        if: ${{ !cancelled() }}
+        run: node tests/world-tick-edge-contract.mjs
+
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
   # snapshot cache 46 s, schema drift 73 s, THIS GUARD 411 s, ledger rollup

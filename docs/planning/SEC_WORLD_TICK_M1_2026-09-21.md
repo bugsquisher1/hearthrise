@@ -1204,3 +1204,325 @@ select outcome, count(*), sum(rostered) from public.hr_tick_cron_log
 
 Only with all four green does `update public.hr_tick_config set shadow = false;` come back to
 Security for its own GO. **That is a separate review and this document does not grant it.**
+
+---
+
+# T-5 RULING 2026-09-22
+
+**Reviewer:** security-engineer (veto) · **Branch:** `sec/world-tick-t5`, cut from `set/b551` @ `1addc2db` ·
+**Ruling on:** T-5 (§B.1), runbook step 0a, and residual #9 ("T-5's grants are unread").
+**No production access.** Every production number below was measured read-only by the Coordinator
+on 2026-09-22 and is quoted, not re-taken. Everything else is code I read on `1addc2db`.
+
+| question | ruling |
+|---|---|
+| **(a) SHADOW ON PRODUCTION** | **GO** |
+| **(b) the standing guard** | `tests/pg-net-queue-unreachable.mjs` — written here, `--selftest` 18 caught / 8 controls silent, registered in `smoke.yml` job `edge` |
+| **(c) per-request derived token** | **REQUIRED-BEFORE-PAYING** (before `shadow = false`), not before arm |
+| **(d) runbook step 7** | **NOT exactly right — three corrections below.** Kill switch: correct as written |
+
+---
+
+## T-5.1 — step 0a asked the wrong question, and I wrote it
+
+Step 0a said: *"A TRUE on `http_request_queue` means the tick bearer is readable by that role and
+the milestone does not arm until it is revoked."* The measurement came back TRUE, and the revoke is
+impossible:
+
+- `aclexplode` on `net.http_request_queue` and `net._http_response`: **SELECT granted to PUBLIC**
+  (grantee `-`) and to `supabase_admin`; GRANTOR `supabase_admin`, OWNER `supabase_admin`. USAGE on
+  schema `net` to `anon`, `authenticated`, `service_role`, `postgres`, again by `supabase_admin`.
+- The applying role `postgres` is **not a superuser and not a member of `supabase_admin`**, so
+  `revoke select … from public` issued by it is a silent no-op. `2026-09-22-pg-net-queue-lockdown.sql`
+  is that revoke, and its §4 self-check **refused the apply** for exactly that reason. That file did
+  its job by failing.
+
+**Disposition of `2026-09-22-pg-net-queue-lockdown.sql`: keep it, do not retry it, and do not hold
+the arm on it.** It is last in `tests/schema-apply-order.json` and replays as a no-op wherever
+pg_net is absent, so it costs the chain nothing; it records the intent; and it is the statement that
+would actually take effect the day the grantor changes or the tables are recreated by a role we own.
+Its apply-order note ends *"this one applies before shadow is ARMED (runbook step 0a must read
+all-false first)"* — **that sentence is superseded by this ruling** and should be restated to say
+the file is permanently unappliable by `postgres` and that arming is gated on
+`tests/pg-net-queue-unreachable.mjs`, not on step 0a's all-false. Leaving it as written would make
+the milestone wait on an apply that can never succeed.
+
+So step 0a, read literally, blocks the milestone forever on a condition no role we hold can satisfy.
+That is my defect, not the lane's. **The gate was a privilege test standing in for a reachability
+question**, and the two came apart the moment the privilege turned out to be supabase_admin's.
+
+`anon` and `authenticated` are **not login roles** — the login-capable set is `authenticator`,
+`hr_engine_login`, `postgres` and the Supabase platform roles. No player ever opens a connection as
+`anon`; PostgREST connects as `authenticator` and role-switches per request. A grant to a role
+nobody can log in as is worth precisely what a reachable surface makes of it. There are four such
+surfaces and I walked all four:
+
+| # | surface | state on 2026-09-22 | who controls it |
+|---|---|---|---|
+| 1 | **PostgREST tables/views** | `Accept-Profile: net` on both tables, with the anon key → **HTTP 406 `PGRST106`**, *"Invalid schema: net / Only the following schemas are exposed: public, graphql_public"* | the exposed-schema list — a setting, not a grant |
+| 2 | **PostgREST RPC** — a routine in an exposed schema that reads the queue and hands it back | **none exists.** No function in `public` or `net` other than pg_net's own references either table; none of pg_net's own (`net._await_response`, `net._http_collect_response`, `net.http_get/post/delete`) is SECURITY DEFINER, and `net` is not exposed anyway | `supabase/migrations` |
+| 3 | **the Realtime publication** | `2026-09-06-realtime-publication-trim.sql` pins `supabase_realtime` to exactly `[chat_messages]` | `supabase/migrations` |
+| 4 | **`hr_engine_login`** | held only by the edge, which executes no client-supplied SQL; the `op:'tick'` entry's SQL surface is the fixed `exec` set B.2 already walked | our code |
+
+Surface 2 is the one that matters most and it is the one that is most firmly ours: CLAUDE.md §2 —
+*"Production DB writes happen only through `node tools/apply-migration.mjs <file>`"* — makes
+`supabase/migrations` the **only** write path to production for us. That is what turns a static scan
+of the repository from a sample into a complete detector, and it is the whole basis of (b).
+
+One gap I found while checking surface 3, and it is real: the trim migration's self-check
+(`2026-09-06-realtime-publication-trim.sql:137`, `:149`) filters on `schemaname = 'public'`. **A
+`net` table added to `supabase_realtime` would pass that self-check green.** A published table is
+delivered to any subscriber holding SELECT on it, and PUBLIC holds SELECT here — so that is a live
+feed of the bearer that our own publication guard cannot see. The file is applied history and I do
+not edit it; arm Q-4 of the new guard is what closes it.
+
+### (a) SHADOW ON PRODUCTION: **GO**
+
+No client-reachable surface can read the queue row while it exists. Three things bound the residual
+and they compound:
+
+1. **Nothing reaches it.** All four surfaces above are closed, and the three that are ours are
+   closed in the repository, where the guard can see them.
+2. **The row barely exists.** Queue depth measured **0**; the pg_net worker deletes the row after
+   the send. The exposure is the drain latency, not a stored secret — the "indefinitely if the
+   worker is stopped" case from T-5 is real but is now a *measured* 0 with (0b) standing in the
+   runbook to keep it measured.
+3. **In shadow the bearer buys nothing.** `hr_tick_ownership` is empty (ownership count **0**), so
+   the fence refuses every character `not_tick_owned`; `config.shadow = t` means the tick pays
+   nothing even for the one row step 7 inserts; `hr_tick`'s grant equality is exactly
+   `[hr_tick_roster]` — **zero value grants** — and `hr_assert_grant_hygiene(true)` returns without
+   raising. A holder of the bearer during the 48-hour window can cause shadow rows to be journalled
+   for one QA character and nothing else. Parity check (8d) measures that, rather than assuming it.
+
+What I am explicitly **not** saying: that the bearer is safe because it is hard to reach. It is
+unreachable because of *one setting we do not own* (PostgREST's exposed-schema list) and *the
+absence of a bridge we do own*. That asymmetry is the whole of (c).
+
+Residual #9 of §B.3 is **closed**: the grants are read. It is replaced by:
+
+> **10. The PUBLIC grant on `net.http_request_queue` / `net._http_response` is permanent and not
+> ours.** `supabase_admin` granted it and only `supabase_admin` can take it back. Confidentiality of
+> anything transiting pg_net rests on reachability — PostgREST's schema list, the absence of a
+> definer bridge or a view in `public`, and the Realtime publication — not on privilege.
+> `tests/pg-net-queue-unreachable.mjs` is the standing measurement of all three.
+>
+> **11. A routine created on production by a route other than `supabase/migrations`** — the
+> dashboard SQL editor, a support engineer, a Supabase platform migration — is outside the static
+> guard's reach. §2 forbids the first two for us; the third is supabase_admin's. The in-database
+> chain-end assertion in T-5.2 is what would close it, and it is not a blocker.
+
+---
+
+## T-5.2 — (b) the standing guard: `tests/pg-net-queue-unreachable.mjs`
+
+Written on this branch, registered in `.github/workflows/smoke.yml` job `edge` beside
+`edge-tick-gate`, and pinned in `tests/ci-shape.baseline.json`. No DB, no credential, no network in
+its default mode. **Exit codes I read, not expectations:** `node tests/pg-net-queue-unreachable.mjs`
+→ **0** (207 migrations, 405 routine bodies, 6 views); `--selftest` → **0**;
+`node tests/ci-shape.mjs` → **0**; `node tests/guard-hygiene.mjs` → **0**
+("PASSED — no orphans, no ghosts, no stale entries, no vacuous proofs").
+
+| arm | property |
+|---|---|
+| **Q-1** | No routine in a PostgREST-exposed schema (`public`, `graphql_public`) **reads** `net.http_request_queue` / `net._http_response`. Read positions are `from / join / into / update / using / copy`, including inside a dynamic `execute` string — literals are walked, not blanked, because a dynamic EXECUTE is code that runs. |
+| **Q-1b** | No view or materialized view in an exposed schema selects from them. PostgREST serves a view exactly as it serves a table; this is the same bridge without a function around it. |
+| **Q-2** | No migration GRANTs a queue read (or `all tables in schema net`) to `public/anon/authenticated/service_role/hr_engine/hr_tick`. supabase_admin's grant is not ours to revoke — **one we issue ourselves would be**, so it must never be issued. |
+| **Q-3** | `net` never joins PostgREST's exposed-schema list: not via `pgrst.db_schemas` in a migration, not via `schemas` in `supabase/config.toml`. This is the single setting standing between the PUBLIC grant and every browser on the internet. |
+| **Q-4** | No queue table enters a publication — no `alter publication … add table net.…`, no `add tables in schema net`, no `create publication … for all tables`. This is the gap the trim migration's `schemaname = 'public'` filter leaves open. |
+| **`--live`** | The external probe with the repo's anon key (§2: the only key in the repo): `Accept-Profile: net` on both tables must be refused by **PostgREST** with `net` absent from the exposed list. HTTP 200 is red. An answer from anything that is not PostgREST — a proxy, a WAF, a captive portal — **exits 2, never 0**: a probe that was intercepted is neither green nor red. |
+
+`--selftest` plants **eighteen** defects and **all eighteen are caught**: a definer bridge in
+`public`; the same bridge inside a dynamic EXECUTE; a view and a materialized view; four grants
+(`select`, `all`, schema-wide, and one to PUBLIC — the one we *could* revoke afterwards, and so the
+one to refuse now); `net` on the schema list from a migration and from `config.toml`; the queue
+published over Realtime, `add tables in schema net`, and `for all tables`. Nine of those are the
+spellings a reviewer asks about rather than the shape I first imagined — quoted identifiers
+(`"net"."http_request_queue"`), the whole statement uppercased, a routine created with no schema at
+all (which lands in `public`), `from` and the table on different lines, and `net._http_response`
+alone. **Eight** controls stay silent, and the first is the one that matters: **a `public` SECURITY DEFINER function that
+*asserts* on `has_table_privilege('anon','net.http_request_queue','SELECT')` must not trip Q-1**,
+because that is the in-database half of this same guard and a detector that forbids its own
+counterpart is a detector nobody will keep. Naming the table as a string argument is not a read;
+that is why the read positions are enumerated rather than matched loosely. The other seven
+controls: a comment quoting the exploit shape; a routine in schema `net` (pg_net's own shape — `net`
+is not exposed); the staged lockdown's own `revoke`; a grant to `postgres`, which keeps the read a
+rotation check needs; the driver's own `net.http_post`, which is a **write** into the queue and is
+the feature; a `public` object whose *name* merely contains the queue's, since schema qualification
+is the test; and a publication edit naming a `public` table.
+
+**The in-database half, recommended and NOT blocking.** Fold into the next
+`hr_assert_grant_hygiene` restatement, as a chain-end assertion, so the nightly 04:50 UTC job also
+carries it: raise if `pg_publication_tables` holds any row with `schemaname = 'net'`, and if any
+routine in an exposed schema has `net.http_request_queue` or `net._http_response` in its
+`pg_get_functiondef` body. That covers residual #11 — a routine that arrived by a route other than
+a migration — which the static guard cannot. It needs a lane-C migration restating a live body, so
+it rides the next `hr_assert_grant_hygiene` change rather than gating this one. **`--live` is the
+Coordinator's, run before `enabled = true` and again at the T+1 h parity read.**
+
+---
+
+## T-5.3 — (c) the per-request derived token: **REQUIRED-BEFORE-PAYING**
+
+Not required before arm. Required before `update public.hr_tick_config set shadow = false;`, and
+that is a hard condition on the GO that review will need, not a suggestion.
+
+**Why not before arm.** The reachability analysis holds today and is now guarded; the queue drains
+to depth 0; and in shadow a stolen bearer moves no value at all — it can journal shadow rows for a
+cohort of one QA character, which (8c)/(8d) would show as a parity anomaly rather than as a loss.
+Blocking the 48-hour measurement on a token redesign would trade a real, bounded, *measured* risk
+for the risk the milestone already exists to retire, and the M1 lane has been blocked twice on
+things that were right to block and this is not one of them.
+
+**Why before paying.** Once `shadow = false`, residual #8 becomes live: a holder of the bearer can
+propose any legal delta for any character the roster leased it, bounded by `hr_apply`'s clamps and
+journalled in `player_ledger`. At that point the *only* thing between a 64-hex long-lived secret
+sitting in a PUBLIC-readable table and a real economy is a PostgREST setting in a dashboard we do
+not own and cannot guard from inside the database. A long-lived bearer also makes rotation a
+multi-step window (`vault.create_secret` → `supabase secrets set` → redeploy) during which the old
+value is still accepted. A derived token removes the class: **nothing long-lived ever transits the
+queue.**
+
+**Contract sketch.**
+
+- The Vault secret `hr_tick_shared_secret` stays where it is and **never leaves the database**. The
+  driver sends a derivation of it, not the thing itself.
+- `hr_tick_cron_run` builds, in the same dynamic EXECUTE that reads the secret today (so the secret
+  is still never a variable that can be raised or journalled):
+
+  ```
+  X-HR-Tick-Auth: v1 t=<bucket> b=<body_sha256_hex> m=<hmac_sha256_hex>
+      bucket = floor(extract(epoch from now()) / 30)::bigint
+      body_sha256 = encode(digest(<the exact posted body bytes>, 'sha256'), 'hex')
+      m = encode(hmac(bucket::text || '.' || body_sha256, <secret>, 'sha256'), 'hex')
+  ```
+  pgcrypto is installed (`gen_random_bytes` is already used in the chain); `hmac`/`digest` must be
+  **schema-qualified**, because `hr_tick_cron_run` carries `set search_path = public`.
+- The `op:'tick'` entry (`supabase/functions/hr-accrue/tick.js`) recomputes `m` from
+  `HR_TICK_SHARED_SECRET` for `bucket ∈ {n-1, n, n+1}` against the **body it actually received**,
+  compares in constant time (the existing `timingSafeEqual` path, unchanged in shape), and refuses
+  otherwise. Three buckets at 30 s is a **≤90 s acceptance window**, which is the flush cadence and
+  comfortably wider than any clock skew between Postgres and the edge.
+- **Replay is closed by the body binding, with no server-side state**: a captured header is valid
+  only for the identical body, and the body carries the window bounds and the watermark the fence
+  CASes on — so a replay is refused `window_already_settled` by the control that already exists
+  (S-3). No nonce table, no new row growth, nothing for M-6's budget.
+- **Rotation becomes a one-liner and stops having a window**: accept `HR_TICK_SHARED_SECRET` and
+  `HR_TICK_SHARED_SECRET_PREV` for one deploy, then drop the second. The plaintext never transits
+  either way.
+- `hr_tick_gateway_key` is unchanged and is **not** in scope: it is the project anon key, which is
+  public by design (`src/net/supabase-bootstrap.js:53`). It transits the queue and always will.
+- **The exit code.** Three arms added to `tests/edge-tick-gate.mjs`, each with its `--selftest`
+  mutation: (i) a token whose bucket is outside the window is refused; (ii) a valid token for a
+  *different* body is refused; (iii) the raw Vault secret **never appears in any header value** —
+  assert on the constructed header, not on the docs. Arm (iii) is the one that keeps this honest:
+  it is the property, and the other two are how it stays true under load.
+
+---
+
+## T-5.4 — (d) runbook step 7: three corrections, then it is right
+
+**The arm SQL as published is wrong for this cohort.** Corrected block — this supersedes step 7:
+
+```sql
+-- (7a) POINT THE DRIVER. hr_tick_config is a singleton by construction
+--      (`id boolean primary key check (id)`), so an unqualified UPDATE is
+--      exactly one row and cannot be a global DML.
+update public.hr_tick_config
+   set edge_url = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue';
+
+-- (7b) ★ NEW — PROVE THE COHORT WILL ACTUALLY BE ROSTERED, BEFORE ARMING.
+--      hr_tick_roster's WHERE (roster:410-426) needs FOUR things true at once,
+--      and `owned` is only one of them. If any of the others is false the
+--      roster returns empty, (8a) reads ZERO SHADOW ROWS, and that is
+--      indistinguishable from T-1 coming back — which is the single most
+--      expensive misread available during this window.
+select ps.active_kind,
+       ps.active_kind = 'gather'                as channel_matches,
+       ps.accrued_to,
+       ps.accrued_to > now() - interval '24 hours' as mark_is_fresh,
+       (select channels from public.hr_tick_config) as config_channels
+  from public.player_state ps
+ where ps.user_id = '0a47ba77-3a6d-495d-8a95-07480a9d90cf' and ps.slot = 2;
+--   EXPECT: active_kind = 'gather', channel_matches = t, mark_is_fresh = t,
+--   config_channels = {gather}. If active_kind is anything else, GO AND GATHER
+--   ON THE QA ACCOUNT FIRST — the tick only ticks the channel the character is
+--   actually in. (`hr_shard_of` returns 0 for everyone in beta, roster:203-206,
+--   so the shard predicate is a no-op and is not checked here.)
+
+-- (7c) THE ROLLOUT COHORT. The tick ticks NOBODY until a row says otherwise.
+--      SLOT 2, not slot 0 — the QA account's played character.
+insert into public.hr_tick_ownership (user_id, slot, channel, owned)
+values ('0a47ba77-3a6d-495d-8a95-07480a9d90cf', 2, 'gather', true)
+on conflict (user_id, slot, channel) do update
+   set owned = true,
+       -- ★ NEW. A stale lease from a dead holder makes the roster skip this
+       --   character (roster:424-426) and a stale shadow watermark would start
+       --   the parity sum in the wrong place. Ownership is empty today (count
+       --   0), so this branch is unreachable now and is written for the day it
+       --   is not.
+       lease_holder = null, lease_until = null, shadow_accrued_to = null;
+
+-- (7d) READ IT BACK.
+select enabled, shadow, channels, cadence_seconds, flush_seconds, batch_limit, edge_url
+  from public.hr_tick_config;
+--   EXPECT: f, t, {gather}, 10, 90, 200, the on-origin url.
+select user_id, slot, channel, owned, lease_holder, shadow_accrued_to
+  from public.hr_tick_ownership;
+--   EXPECT: exactly one row, slot 2, gather, owned = t, lease null, watermark null.
+
+-- (7e) ARM. The 48 h window starts here.
+update public.hr_tick_config set enabled = true, shadow = true;
+```
+
+**The three corrections, and one narrowing of a claim the old step made:**
+
+1. **`slot 0` → `slot 2`**, and the uuid placeholder is filled with
+   `0a47ba77-3a6d-495d-8a95-07480a9d90cf`. A row on the wrong slot is not an error anywhere in the
+   chain — `hr_tick_ownership_slot_ck` allows `0 ≤ slot < 100` and the roster's join to
+   `player_state` simply finds nothing. It would arm a cohort of **zero** and read as a stall.
+2. **(7b) is new and is the one I would not skip.** Three of the roster's four predicates are about
+   the character, not about the flag, and `o.channel = ps.active_kind` is the one that will bite:
+   the QA account must be *gathering* when the window opens.
+3. **The ON CONFLICT branch now clears the lease and the shadow watermark.** Harmless today
+   (ownership count 0), load-bearing the first time the cohort is re-armed after a kill.
+
+*And a claim narrowed, not a correction:* step 7's comment read *"Any other value is now a
+check_violation (M-5)."* `hr_tick_config_edge_url_ck` (fence `:242-244`) is
+`edge_url is null or edge_url like 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/%'` — so
+it refuses every **off-origin** url, which is the two-secret exfiltration M-5 was written against,
+but it permits any **sibling function on our own origin**. That is the right shape and I am not
+asking for more; the comment should say *off-origin*, because a reader who believes the constraint
+pins the exact function will not check the url they typed.
+
+**The kill switch is correct as written.** Verified in code, not assumed:
+
+```sql
+update public.hr_tick_config set enabled = false;    -- stops settling; the job still fires, cheaply
+select public.hr_cron_drop('hr-tick-run');           -- stops the driver entirely
+```
+
+`hr_cron_drop(text)` exists (`2026-08-11-player-state.sql:1013`), is `security definer set
+search_path = public`, returns `false` rather than raising when the job is already gone, and is
+**revoked from `public, anon, authenticated, service_role`** — no client can stop the world tick.
+Use the **first** one at any surprise: it is a single-row UPDATE on a singleton, it takes effect on
+the next 10 s fire, and it needs neither a migration nor a deploy. One addition for the operator:
+after `hr_cron_drop`, the job is *gone*, not paused — re-arming is
+`select public.hr_cron_ensure('hr-tick-run', '10 seconds', 'select public.hr_tick_cron_run()');`
+(cron `:521`), and `hr_cron_ensure` is revoked from the client roles the same way.
+
+One thing I did **not** need to take on faith: `hr_tick_ownership` carries `enable row level
+security` + `force row level security` with **zero policies** (roster `:258-259`, e3c asserts the
+count is zero), which would refuse the step-7 INSERT even for the table's owner — except that the
+roster's own §4 self-check inserts into it (roster `:622`, `:630`) *after* forcing RLS, and that
+migration **applied cleanly on production at 20:13 UTC**. So `postgres` carries `BYPASSRLS`,
+measured by consequence rather than asserted, and step 7 will write.
+
+---
+
+## T-5 — what this ruling does and does not grant
+
+It grants **SHADOW ON PRODUCTION**: `enabled = true, shadow = true`, cohort of one, on the corrected
+step 7. It does not grant `shadow = false`; that remains a separate review, and it now carries one
+more condition than §8 listed — **(c), the derived token** — alongside the four parity conditions in
+step 8. If `--live` ever exits 1, or Q-1…Q-4 ever go red on a branch, the response is the kill
+switch first and the diagnosis second.

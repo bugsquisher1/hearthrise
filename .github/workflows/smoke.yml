@@ -1734,6 +1734,31 @@ jobs:
           node tests/parse-check.mjs
           node tests/parse-check.mjs --selftest
 
+      # THE BESTIARY TROPHY LADDER (docs/design/BESTIARY_LADDER.md). Two things
+      # it refuses. (1) src/data/bestiary.js is DERIVED -- buildBestiary(MONSTERS)
+      # runs at module load -- so a monster added to the roster gets its ladder
+      # for free, and the day someone flattens that into a literal the census
+      # stops following the roster with nothing else going red. B9 rebuilds from
+      # a synthetic roster and is the only assertion a hand-typed table fails.
+      # (2) THE MAGNITUDES. A trophy is a memory of work done, not a build: the
+      # class charm (<=1.03) and the monster trophy (<=1.03) apply against the
+      # same monster at the same time, so it is their PRODUCT a reviewer approved
+      # (MAX_MEMORY_DROP_MULT), and the damage half multiplies into the ONE
+      # `damageMult` expression in src/core/combat.js that MAX_TOTAL_DAMAGE_MULT
+      # clamps. B6 owns both. 12 mutations, one per assertion, each required to
+      # be caught by its NAMED assertion, plus two negative controls (a display
+      # rename, a twelfth monster class) that must stay silent. No database, no
+      # credential, milliseconds.
+      - name: Bestiary trophy ladder - every monster has one, every bonus is tiny
+        if: ${{ !cancelled() }}
+        run: node tests/bestiary-ladder.mjs --selftest
+
+      # A --selftest-only registration cannot tell a broken guard from a caught
+      # defect. Run the plain body too: only it answers "green when nothing is wrong".
+      - name: Bestiary trophy ladder - base run
+        if: ${{ !cancelled() }}
+        run: node tests/bestiary-ladder.mjs
+
       # The cache-buster must agree across build-info.js, index.html and every
       # ESM import specifier. Cheap, so run it before spending time on a browser.
       - name: Cache-buster invariant
@@ -2283,6 +2308,37 @@ jobs:
         run: |
           node tests/edge-tick-gate.mjs
           node tests/edge-tick-gate.mjs --selftest
+
+      # T-5. The tick bearer transits `net.http_request_queue` — pg_net inserts
+      # the request row, headers included, and the worker deletes it after the
+      # send. Measured on production 2026-09-22: SELECT on that table is granted
+      # to PUBLIC by supabase_admin, and the applying role `postgres` is not a
+      # member of supabase_admin, so we CANNOT revoke it (the staged
+      # 2026-09-22-pg-net-queue-lockdown.sql refused the apply for exactly that
+      # reason). What keeps the bearer unreadable is therefore not the grant but
+      # REACHABILITY: PostgREST exposes only public + graphql_public, no routine
+      # or view in an exposed schema reads the queue, and no queue table is
+      # published over Realtime. All three are repo-controlled — CLAUDE.md §2
+      # makes supabase/migrations the only write path to production — which is
+      # what makes a static scan a complete detector rather than a sample.
+      #
+      # --selftest plants the eighteen ways in — a definer bridge, the same
+      # bridge in a dynamic EXECUTE, a view and a matview, four grants, `net` on
+      # PostgREST's schema list from a migration and from config.toml, three
+      # publication spellings, and the variants a reviewer asks about (quoted
+      # identifiers, uppercase, an unqualified routine, `from` across newlines,
+      # _http_response alone) — and eight controls that must stay silent, among
+      # them a public function ASSERTING on the privilege, which is the
+      # in-database half of this guard and must never trip it.
+      #
+      # `--live` re-runs the external probe with the anon key. It needs egress
+      # to the project and exits 2 if an intermediary answers, so it is the
+      # Coordinator's before arming, not CI's.
+      - name: T-5 — pg_net's request queue is unreachable from any client surface
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/pg-net-queue-unreachable.mjs
+          node tests/pg-net-queue-unreachable.mjs --selftest
 
       # The settle watermark advances by ACCOUNTED time, not to now(): the sub-tick
       # remainder rolls into the next window instead of being forfeited (1.3-1.7% of

@@ -552,9 +552,21 @@ for (const raw of SESSIONS) {
   }
   const tailMs = TO_MS - prevTo;
   const tickMs = settled.length ? Number(settled[0].res.tickMs) : 0;
-  ok('C4', tailMs >= 0 && (tickMs === 0 || tailMs < tickMs || tick.windows.length < 60),
-    `the unsettled tail is ${tailMs} ms against a ${tickMs} ms interval — a tail of a `
-    + 'whole interval or more is forfeited time, not deferred time');
+  /* THE TAIL IS OWED, NOT LOST — but only while the session is still running.
+     A chain that ended on an `activity` key did not leave a tail at all: the
+     activity stopped, so the remaining wall clock is not time the tick declined
+     to settle. Conditioned on which of those happened rather than waved through
+     by a window count, because "it stopped early so the tail is fine" is how a
+     forfeit hides. */
+  const endedOnPointer = tick.windows.some((w) => w.res.accrued && w.res.delta.activity);
+  if (endedOnPointer) {
+    ok('C4', prevTo <= TO_MS,
+      `the chain ended on an activity key but its watermark ${prevTo} is past the span end`);
+  } else {
+    ok('C4', tailMs >= 0 && (tickMs === 0 || tailMs < tickMs),
+      `the unsettled tail is ${tailMs} ms against a ${tickMs} ms interval — a tail of a `
+      + 'whole interval or more is forfeited time, not deferred time');
+  }
 
   // The receipt: meta.ms is RESTATED from the watermark, never summed.
   if (!loopMut && settled.length) {

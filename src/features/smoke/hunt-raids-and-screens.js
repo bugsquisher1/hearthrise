@@ -3706,13 +3706,13 @@ export default [
     }
   }),
 
-  // ══ b551 · THE HUNT PANEL (docs/design/HUNT_ANALYZER_UI.md) ══════════════
+  // ══ THE HUNT PANEL (docs/design/HUNT_ANALYZER_UI.md) ══════════════
   // PLAYER ACTIONS, happy path: a player opens the Hunt panel and reads what
   // last night was worth. The panel is a PURE function of the three
   // server-projected blocks, which is exactly what makes it assertable here —
   // there is no request to stub and no state to seed, because the client holds
   // no hunt arithmetic of its own.
-  () => tryRun('b551: the Hunt panel renders the server projection', () => {
+  () => tryRun('hunt panel: the Hunt panel renders the server projection', () => {
     assert(typeof window.huntPanelHtml === 'function', 'huntPanelHtml missing');
     const html = window.huntPanelHtml({
       hunt: { stance: 'careful', stop: { hours: 8 } },
@@ -3740,8 +3740,8 @@ export default [
     assert(/settled \d\d:\d\d UTC/.test(html), 'the honesty line is missing');
   }),
 
-  // b551: an UNSETTLED hunt shows em-dashes, never zeroes. A zero is a claim.
-  () => tryRun('b551: the Hunt panel never invents a number', () => {
+  // an UNSETTLED hunt shows em-dashes, never zeroes. A zero is a claim.
+  () => tryRun('hunt panel: the Hunt panel never invents a number', () => {
     if (typeof window.huntPanelHtml !== 'function') return;
     const html = window.huntPanelHtml({
       hunt: { stance: 'steady', stop: null },
@@ -3757,19 +3757,19 @@ export default [
       'slice 1 ships Vigour READ-ONLY (HUNTS_AND_ANALYZER.md 4.6) — there must be no refill control');
   }),
 
-  // b551: THE EMPTY STATE. Eleven words, no tutorial, no modal.
-  () => tryRun('b551: the Hunt panel empty state explains itself', () => {
+  // THE EMPTY STATE. Eleven words, no tutorial, no modal.
+  () => tryRun('hunt panel: the Hunt panel empty state explains itself', () => {
     if (typeof window.huntPanelHtml !== 'function') return;
     const html = window.huntPanelHtml({ hunt: null, vigour: null, analyzer: null, monsters: {} });
     assert(/No hunts yet/.test(html), 'the empty state does not explain itself');
     assert(!/gold \/ h/.test(html), 'the empty state still renders a verdict it has no data for');
   }),
 
-  // b551: THE STOP SENTENCE never promises a stop the server cannot deliver.
+  // THE STOP SENTENCE never promises a stop the server cannot deliver.
   // This game has NO bag capacity, so the bag_full rule cannot fire; the field
   // is accepted and stored for the day a cap exists, and until then the panel
   // must not print it. (Reported to the Game Designer by the M6 backend lane.)
-  () => tryRun('b551: the stop sentence promises only rules that can fire', () => {
+  () => tryRun('hunt panel: the stop sentence promises only rules that can fire', () => {
     assert(typeof window.huntStopSentence === 'function', 'huntStopSentence missing');
     const s = window.huntStopSentence({ hours: 8, bag_full: true });
     assert(/after 8 hours/.test(s), 'the hours rule is not stated');
@@ -3780,11 +3780,11 @@ export default [
       'a hunt with no rules does not say so');
   }),
 
-  // b551: THE INTENT CARRIES THE TWO FIELDS ONLY WHEN NAMED. An absent field
+  // THE INTENT CARRIES THE TWO FIELDS ONLY WHEN NAMED. An absent field
   // leaves the standing order alone; an explicit null CLEARS it. A client that
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
-  () => tryRunAsync('b551: set_activity carries stance/stop only when named', async () => {
+  () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
     const mod = await import('../../net/activity.js?v=550');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);

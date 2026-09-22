@@ -2703,6 +2703,16 @@ export function reconcileGemUnlocks(G, res) {
 }
 
 /* ── THE HUNT, HYDRATED FROM THE ENVELOPE ───────────────────────────────────
+   ⚠ `hydrate`, NOT `reconcile`, AND THE NAME IS THE ARGUMENT.
+     tests/no-new-prediction.mjs freezes the set of `reconcile*` exports in
+     src/net/** and states why in one sentence: "every reconciler exists because
+     some client-held number can disagree with the server's". NOTHING here is
+     client-held. There is no hunt value in the residue, nothing predicts a
+     kill count forward, and no local number is merged with a server one — the
+     projection simply REPLACES scratch on every envelope. Calling this a
+     reconciler would have been a second copy of a word that means "there are
+     two answers to this number", about a feature whose whole design is that
+     there is one (HUNT_ANALYZER_UI.md §6). The guard was right to stop it.
    Three server-projected blocks in one reconcile, because the Hunt panel renders
    all three together and a panel whose stance came from one envelope and whose
    Analyzer came from another would show two different hunts:
@@ -2729,7 +2739,7 @@ export function reconcileGemUnlocks(G, res) {
    predates the migration) leaves the scratch untouched, so the client renders
    NO panel rather than a fabricated empty one. PRESENCE is the switch, never a
    coalesce — the same rule every other watermark on this envelope follows. */
-export function reconcileHunt(G, res) {
+export function hydrateHunt(G, res) {
   if (!G || typeof G !== 'object') return null;
   const st = (res && res.state) || null;
   const out = { mode: 'absent' };
@@ -3705,7 +3715,7 @@ export function applyEnvelopeState(G, res, ownKey) {
      the Analyzer's last settled reading. Reconciled here so all four ride EVERY
      envelope (away, activity-switch and gold alike), which is what lets the Hunt
      panel render without a read of its own (HUNT_ANALYZER_UI.md §6). */
-  written.hunt = reconcileHunt(G, res);
+  written.hunt = hydrateHunt(G, res);
 
   /* THE OWNED HERO SLOTS ARE THE SERVER'S (hr_buy_hero_slot). Reconciled here so
      the projection rides EVERY envelope — away, activity-switch and gold alike —
@@ -6125,7 +6135,7 @@ if (typeof window !== 'undefined') {
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHunt, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

@@ -44,6 +44,22 @@
 -- MUST APPLY AFTER 2026-09-21-world-tick-settle-fence.sql, which creates both
 -- tables. §0 preflights on them rather than assuming.
 --
+-- ── OPERATOR PRE-FLIGHT, READ-ONLY, BEFORE THE APPLY (Security S-5) ─────────
+-- The `channels` CHECK below is validated against the EXISTING row on apply,
+-- and a NULL ELEMENT in the live array makes the predicate NULL — which
+-- PASSES validation. §3 c2c only probes a temp table, so it never sees the
+-- live row. Run this first and read the answer:
+--
+--   select channels,
+--          array_position(channels, null) as has_null_element,
+--          enabled, shadow
+--     from public.hr_tick_config where id;
+--   -- Expect: channels = {gather}, has_null_element NULL, enabled false,
+--   --         shadow true.
+--
+-- If `has_null_element` is NOT NULL, STOP: clean the array before applying, or
+-- the constraint validates a value the tick cannot settle.
+--
 -- RE-RUNNABLE. Every statement is `if not exists`-guarded, so a second apply is
 -- byte-identical (tests/schema-drift.mjs replays the chain twice).
 --

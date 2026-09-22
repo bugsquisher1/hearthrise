@@ -1966,7 +1966,7 @@ no-op and the file says so rather than pretending to add it.
 ### 16.10 What is proved, what needs production, and what remains
 
 **Proved offline, with an exit code.** `node tests/world-tick-combat-parity.mjs`
-(registered in `smoke.yml` beside its gather sibling): fifteen claims, twelve
+(registered in `smoke.yml` beside its gather sibling): fifteen claims, thirteen
 mutants, each mutant red on the claim it is FILED against rather than merely on
 something.
 
@@ -1977,10 +1977,10 @@ something.
 | C3 | checkpoint continuity: `fight` / `consec_falls` / `recovering_until` / hp / bag | `nofight` |
 | C4 | tiling and the receipt — no overlap, no gap, `ms` restated from the watermark | `wallclock`, `shiftWindow` |
 | C5 | a retreat closes the batch and ends the session | — (positive claim; measured: the pointer ends at window 14 of 60, `stoppedBy='activity'`, 2 intents) |
-| C6 | stream health against the one-call span: no starved drop, drift in band | — |
+| C6 | stream health over 8 span starts: no rare row starved at ALL of them, drift in band | `fixedSeed` |
 | C7 | the recovery boundary is not a free heal and not a free kill | `freeHeal` |
 | C8 | the food debit is conserved exactly; `food_in_bag` divergence is PINNED | `skipFoodDebit` |
-| C9 | the seed label is the envelope's rendering, and a relabel is DETECTABLE | `relabelSeed` |
+| C9 | EVERY window's seed label is a server rendering of that window's own watermark | `relabelSeed` |
 | C10 | the attended top-up is refused, not priced | `attendedThrough` |
 | C11 | Rested XP telescopes below the bank cap | `restedNow` |
 | C12 | the journal row is accrue's meta + `src:'tick'`, ≤10 keys, never an `att` | — |
@@ -2001,13 +2001,25 @@ attended=false bucket; whether `combatStyle` and `enchant` move a real
 character's window, since both measured inert on these fixtures; and the
 `too_many_progress_ops` rate at real flush lengths.
 
-**⚠ THE EDGE PAYLOAD HASH MOVES, AND THE SECURITY VERDICT NAMES THE OLD ONE.**
+**⚠ THE EDGE PAYLOAD HASH MOVES, AND IT HAS MOVED TWICE.**
 `tick-shadow.js` is IN the payload (`tick.js` → `tick-gather.js` → it), so the
-eleven-input change moves `pack-edge --hash` from
+eleven-input change moves `pack-edge --hash` off
 `253215e48d3e2b3ccd3d1ebec1f52e529d3e8cf50147429ef80915c680ab14d8` — the exact
-hash `SEC_WORLD_TICK_M1_2026-09-21.md` returns **BLOCK** at — to
-`df215d589a00f30fd7b985ca928291a3a39aa7a7c9c4685cc80fc635f8ee9051`. Two
-consequences, neither optional:
+hash `SEC_WORLD_TICK_M1_2026-09-21.md` returns **BLOCK** at.
+
+**The hash to verify after the deploy is
+`9f9ec411bfefe428056df54b0cb9947fe683bfe5254096790f8d09ed997138f3`**, measured
+with `node tools/pack-edge.mjs hr-accrue --hash` at this lane's head. Two
+earlier numbers are in circulation and BOTH are stale, which is the whole
+reason this paragraph names how it was measured rather than only what it says
+(Security S-6): `df215d58…` was the hash at `ea889df`, before the lane merged
+`next`, and `e76ae11c…` was the hash at `59b748e5`, before it merged `next`
+again for the fence's `::text::jsonb` delta fix. An operator who verifies
+`payload_sha256` against either will chase a deploy that in fact succeeded.
+Nothing in the S-1/S-2/S-3 fixes moves it again: they live in
+`services/world-tick/combat.js`, which `pack-edge --check` does not list.
+
+Two consequences, neither optional:
 
 1. **`supabase/functions/**` moved, so `pack-edge` + deploy comes BEFORE the
    push**, or the in-page payload guard is red for every other lane (CLAUDE.md
@@ -2023,6 +2035,29 @@ they arrive `undefined` exactly as they did; `attended: null` and an absent
 input that did nothing, which is worse than an absent one because the next
 author wires a real goal model into it. P-G1…P-G9 staying green is the exit
 code for all of that.
+
+**THE APPLY RUNBOOK** (`2026-09-22-world-tick-combat-channel.sql`; the same
+steps are in the migration header, where the operator running it will look).
+
+1. **Pre-flight, read-only, before anything (Security S-5).** The `channels`
+   CHECK is validated against the existing row on apply, and a **NULL element**
+   in the live array makes the predicate NULL — which *passes* validation. §3
+   `c2c` only probes a temp table, so it never sees the live row.
+
+   ```sql
+   select channels,
+          array_position(channels, null) as has_null_element,   -- must be NULL
+          enabled, shadow
+     from public.hr_tick_config where id;
+   -- Expect: channels = {gather}, has_null_element NULL, enabled false, shadow true.
+
+   select pg_size_pretty(pg_total_relation_size('public.hr_tick_shadow')) as size,
+          count(*) as rows
+     from public.hr_tick_shadow;
+   ```
+
+   If `has_null_element` is not NULL, **stop** and clean the array first: the
+   constraint would validate a value the tick cannot settle.
 
 **What remains before combat is even SHADOW-able on production**, in order:
 

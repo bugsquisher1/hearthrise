@@ -80,6 +80,27 @@ do $$ begin
   raise notice 'recipe-learn: hr_state_of projects unlocked_recipes`,
 ];
 
+/* ── POST-CHAIN PLANTING (`post`) ─────────────────────────────────────────
+   A defect that is a GRANT cannot be planted in migration TEXT and still reach
+   this file's assertions. Since 2026-09-21 the chain ends with
+   2026-09-21-engine-allowlist-tick-settle.sql, whose section-4 self-check runs
+   strict hr_assert_grant_hygiene over the WHOLE database and refuses any
+   client-reachable ungated verb — so a text-planted grant aborts the REPLAY and
+   the arm scores "the repo cannot rebuild the database" instead of proving
+   anything about this guard. That check is doing its job; blinding it, even for
+   a test, would retire the one detector that sees this class repo-wide.
+
+   So a grant/ACL arm carries BOTH forms, and each mode uses the one that
+   actually measures something:
+     · gate mode       — `find`/`repl`, refused by this migration's own §5
+                         GATE(b) at apply. That arm demonstrates the MIGRATION.
+     · gate-blind mode — `post`, the EQUIVALENT statement executed against the
+                         database after the tracked chain has applied verbatim,
+                         clean, with no migration patched at all. Nothing in the
+                         chain can catch it, so the tick belongs to THIS GUARD's
+                         R0 — which is the whole point of the gate-blind pair.
+   A body/logic defect keeps the text patch in both modes: the chain-end check
+   has no opinion on a function body. */
 const MUTATIONS = {
   projection_key_renamed: {
     by: 'R2/R9',
@@ -214,6 +235,8 @@ const MUTATIONS = {
   from anon, authenticated, service_role;`,
     repl: `grant execute on function public.hr_recipe_learn__ungated(text, int, uuid)
   to authenticated;`,
+    post: `grant execute on function public.hr_recipe_learn__ungated(text, int, uuid)
+  to authenticated;`,
   },
 };
 
@@ -223,23 +246,28 @@ const NEGATIVE_CONTROL = {
 };
 
 async function boot(mutate, gateBlind, extra) {
+  const m = mutate ? MUTATIONS[mutate] : null;
+  /* The gate-blind half of a grant/ACL arm: the chain applies VERBATIM and the
+     defect lands after it. No text patch, so no §5 to blind either. */
+  const post = (m && m.post && gateBlind) ? m.post : null;
   const byFile = new Map();
   const add = (file, pair) => {
     if (!byFile.has(file)) byFile.set(file, []);
     byFile.get(file).push(pair);
   };
-  if (mutate) add(MUTATIONS[mutate].file || MIG, [MUTATIONS[mutate].find, MUTATIONS[mutate].repl]);
+  if (m && !post) add(m.file || MIG, [m.find, m.repl]);
   if (extra) add(MIG, [extra.find, extra.repl]);
-  if (gateBlind) {
+  if (gateBlind && !post) {
     add(MIG, GATE_BLIND);
     /* An arm that plants into the RESTATEMENT is caught at apply time by that
        file's own §3 — correct behaviour, and also a gate. In gate-blind mode the
        job is to prove THIS GUARD sees the defect, so §3 is short-circuited too. */
-    if (mutate && MUTATIONS[mutate].file === HR_STATE_OF_FINAL) {
+    if (m && m.file === HR_STATE_OF_FINAL) {
       add(HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND.slice());
     }
   }
   const { db } = byFile.size ? await bootReplay({ patches: byFile }) : await bootReplay();
+  if (post) await db.exec(post);
   return db;
 }
 

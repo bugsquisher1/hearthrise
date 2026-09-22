@@ -720,7 +720,10 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     let bestiary: {
       kills_by_class: Record<string, number>;
       kills_by_monster: Record<string, number>;
-      trophies: Array<{ monster: string; stage: number }>;
+      /* OPTIONAL, and the `?` is the type-level half of Security F3: a required
+         field is a field the emit site cannot leave out, and this one MUST be
+         left out when hr_trophy_of did not answer. See the emit below. */
+      trophies?: Array<{ monster: string; stage: number }>;
     } | null = null;
     /* THE SAME ROWS, HANDED TO THE ENGINE RAW (charms phase 2). The engine does
        its OWN fold (accrual.js `killsByClass` → `charmIndex`) rather than reading
@@ -755,7 +758,23 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          server has actually written, which is what the button's "Claimed" state
          must read. `[]` is a truthful "none claimed"; the key is OMITTED
          entirely on a database without hr_trophy_of, and the client's fail-safe
-         is "not claimed", never a claim the server does not hold. */
+         is "not claimed", never a claim the server does not hold.
+
+         ⚠ THE OMISSION IS A SPREAD, NOT A COMMENT (Security F3, 2026-09-22).
+           This block said all of the above and then emitted `trophies: claimed`
+           UNCONDITIONALLY, built from `trophyRows ?? []`. So on the 42883
+           degradation path — and on this feature's own documented rollback,
+           `drop function public.hr_trophy_of` — the key was PRESENT and EMPTY.
+           noteEnvelope (src/features/bestiary-trophies.js) reads a present key
+           as authority, so `hasTrophyKey` went true with nothing in it,
+           `isClaimed` went false for every trophy the server holds, and the
+           panel re-offered Claim on a claimed trophy while the server answered
+           `already_owned`. That is CLAUDE.md §6's "the browser says one thing
+           and the server says another", on the surface this lane built.
+           `trophy-claim.js`'s PROJECTION_SQL path already had this right — a
+           failed re-read drops the whole block rather than emitting an empty
+           one — and this is the same rule at the other emit site: ABSENCE MUST
+           STAY ABSENCE, because an empty array is a claim and null is not. */
       const claimed: Array<{ monster: string; stage: number }> = [];
       for (const r of (trophyRows ?? [])) {
         const mid = String(r?.monster_id ?? '');
@@ -765,7 +784,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       bestiary = {
         kills_by_class: { ...(killsByClass(byId, MONSTERS) || {}) },
         kills_by_monster: { ...byId },
-        trophies: claimed,
+        ...(trophyRows ? { trophies: claimed } : {}),
       };
       bestiaryKills = byId;
     }

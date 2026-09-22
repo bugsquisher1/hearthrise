@@ -1753,3 +1753,74 @@ second. The plaintext transits nothing either way, so the disagreement window
 stops being a confidentiality question and becomes an availability one.
 **Not built in this lane** — it is a separate change with its own arms, and
 naming it here is not shipping it.
+
+### 17.11 Operator section — apply, deploy, verify, kill
+
+The authoritative copy is §6 of `2026-09-22-world-tick-derived-token.sql`; this
+is the same thing short enough to work from. Coordinator only (CLAUDE.md §2 —
+agents stage, the Coordinator applies).
+
+**Order.** Steps 1 and 4 are the seam; between them the tick posts nothing, so
+no build ever exists that accepts both forms.
+
+```bash
+# 1. STOP THE FIRES (takes effect on the next fire, ≤10 s)
+#    update public.hr_tick_config set enabled = false;
+#    select at, outcome from public.hr_tick_cron_log order by id desc limit 5;   -- EXPECT: disabled
+
+# 2. APPLY — one file, never inside begin/commit, never 00:00–00:10 UTC
+node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-derived-token.sql
+#    EXPECT the §5 notice to name d1 d2 d9 d4 d5 d6 d7 d8 d8b as RAN.
+#    ⚠ IF d4–d7 READ AS SKIPPED ON PRODUCTION, STOP: pgcrypto is not reachable,
+#      the tick will answer `no_hmac` forever, and the fix is
+#      `create extension if not exists pgcrypto;` + a re-apply, not a re-arm.
+
+# 3. DEPLOY THE EDGE HALF — nothing works until both halves are the same version
+node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue
+cp supabase/config.toml <dir>/supabase/config.toml
+npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
+  --project-ref nezapsylztqbbwuwembx
+node tools/pack-edge.mjs hr-accrue --hash
+curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
+#    The GET's `payload_sha256` MUST equal --hash. On this branch that is
+#    1b97422cd1542ec36224e37e930cc0df5370b76968f1fc2d60316f62c3bd24ec.
+
+# 4. RE-ARM
+#    update public.hr_tick_config set enabled = true;
+```
+
+**Then, after the apply:** `live-hash-drift --live --write` plus a whys entry
+(`hr_tick_cron_run` is a restated live body), the apply-order note flipped to
+APPLIED, and `restore-census` re-run — no new table, so it should be a no-op.
+
+**The verification reads, and what each one means.**
+
+| # | read | expect | if not |
+|---|---|---|---|
+| a | `select at, outcome, detail->>'auth', detail->>'bucket' from public.hr_tick_cron_log order by id desc limit 10;` | `posted`, auth `v1` | `no_hmac` → pgcrypto; `no_secret` → Vault secret missing or <32 chars; `error` → read `sqlstate` |
+| b | `select id, status_code from net._http_response order by id desc limit 10;` | 200 | **401 = the two halves disagree.** `net.http_post` is async, so a rejected token still logs `posted` — (a) cannot tell you this and (b) is the only honest read |
+| c | `select count(*) from net.http_request_queue q, vault.decrypted_secrets s where s.name='hr_tick_shared_secret' and q.headers->>'X-HR-Tick-Auth' = s.decrypted_secret;` | **0** | non-zero = the plaintext is on the wire and this whole change did not land |
+| d | `select count(*), max(at) from public.hr_tick_shadow where at > now() - interval '1 hour';` | climbing at ≈ active/flush_seconds | frozen at the cutover instant = step 3 or 4 did not land |
+
+Queue depth is normally **0** (the pg_net worker deletes the row after the
+send), so (c) returning no rows is health, not a failure.
+
+**The kill switch is unchanged by this lane** and is verified in code (T-5.4):
+
+```sql
+update public.hr_tick_config set enabled = false;   -- USE THIS FIRST
+select public.hr_cron_drop('hr-tick-run');          -- stops the driver entirely
+```
+
+The first is a single-row UPDATE on a singleton, takes effect on the next 10 s
+fire, and needs neither a migration nor a deploy — use it at any surprise and
+diagnose second. `hr_cron_drop` returns false rather than raising when the job is
+already gone and is revoked from `public, anon, authenticated, service_role`: no
+client can stop the world tick. After it the job is **gone, not paused**; re-arm
+with `select public.hr_cron_ensure('hr-tick-run', '10 seconds', 'select
+public.hr_tick_cron_run()');`.
+
+**Rolling this lane back** is re-applying `2026-09-21-world-tick-cron.sql` (which
+restates `hr_tick_cron_run` in its static form) and re-deploying the previous
+hr-accrue payload, both behind the kill switch, in that order — and it puts the
+T-5.3 block back, so M2 is blocked again.

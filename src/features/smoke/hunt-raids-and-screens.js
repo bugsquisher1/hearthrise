@@ -3705,4 +3705,97 @@ export default [
       if (window.HearthriseAuto._resetEatSync) window.HearthriseAuto._resetEatSync();
     }
   }),
+
+  // ══ b551 · THE HUNT PANEL (docs/design/HUNT_ANALYZER_UI.md) ══════════════
+  // PLAYER ACTIONS, happy path: a player opens the Hunt panel and reads what
+  // last night was worth. The panel is a PURE function of the three
+  // server-projected blocks, which is exactly what makes it assertable here —
+  // there is no request to stub and no state to seed, because the client holds
+  // no hunt arithmetic of its own.
+  () => tryRun('b551: the Hunt panel renders the server projection', () => {
+    assert(typeof window.huntPanelHtml === 'function', 'huntPanelHtml missing');
+    const html = window.huntPanelHtml({
+      hunt: { stance: 'careful', stop: { hours: 8 } },
+      vigour: { spent_min: 512, budget_min: 720 },
+      analyzer: {
+        spawn_id: 'goblin', stance: 'careful', elapsed_ms: 11520000, paid_ms: 9660000,
+        downtime_ms: 1860000, kills: 3114, kills_per_h: 974, deaths: 2, gold: 9800,
+        loot_value: 41200, supplies_value: 8400, profit_per_h: 14200,
+        xp_per_h: 18400, raw_xp_per_h: 21900, settled_at: new Date().toISOString(),
+      },
+      monsters: window.MONSTERS || {},
+    });
+    // THE TEN-SECOND TEST (§1), as four assertions.
+    assert(/hunting/.test(html), 'the live pill does not say the character is hunting');
+    assert(/hunt-stance-btn is-on/.test(html), 'no stance is visibly selected');
+    assert(/Stops after 8 hours/.test(html), 'the stop rules are not stated as a sentence');
+    assert(/\+ 14,200 gold \/ h/.test(html), 'the profit verdict is not the headline number');
+    // §C: ABSOLUTE MINUTES, never a percentage of an invisible budget.
+    assert(/512 \/ 720 min today/.test(html), 'the Vigour label is not in absolute minutes');
+    // §E: a cost rendered as a positive number is a cost players do not subtract.
+    assert(/− 8,400 g/.test(html), 'supplies is not rendered with a leading minus');
+    // §E: raw XP/h is shown BESIDE effective — the gap IS the diagnosis.
+    assert(/18,400/.test(html) && /21,900/.test(html), 'raw and effective XP/h are not both shown');
+    // §F: the honesty line is a requirement, not decoration.
+    assert(/settled \d\d:\d\d UTC/.test(html), 'the honesty line is missing');
+  }),
+
+  // b551: an UNSETTLED hunt shows em-dashes, never zeroes. A zero is a claim.
+  () => tryRun('b551: the Hunt panel never invents a number', () => {
+    if (typeof window.huntPanelHtml !== 'function') return;
+    const html = window.huntPanelHtml({
+      hunt: { stance: 'steady', stop: null },
+      vigour: { spent_min: 0, budget_min: 720 },
+      analyzer: { spawn_id: 'goblin', elapsed_ms: 60000, paid_ms: 0, kills: null,
+                  profit_per_h: null, xp_per_h: null, raw_xp_per_h: null, settled_at: null },
+      monsters: window.MONSTERS || {},
+    });
+    assert(/nothing settled yet/.test(html),
+      'a hunt with no settled window did not say so');
+    assert(/—/.test(html), 'the unsettled panel shows numbers where it has none');
+    assert(!/refill/i.test(html),
+      'slice 1 ships Vigour READ-ONLY (HUNTS_AND_ANALYZER.md 4.6) — there must be no refill control');
+  }),
+
+  // b551: THE EMPTY STATE. Eleven words, no tutorial, no modal.
+  () => tryRun('b551: the Hunt panel empty state explains itself', () => {
+    if (typeof window.huntPanelHtml !== 'function') return;
+    const html = window.huntPanelHtml({ hunt: null, vigour: null, analyzer: null, monsters: {} });
+    assert(/No hunts yet/.test(html), 'the empty state does not explain itself');
+    assert(!/gold \/ h/.test(html), 'the empty state still renders a verdict it has no data for');
+  }),
+
+  // b551: THE STOP SENTENCE never promises a stop the server cannot deliver.
+  // This game has NO bag capacity, so the bag_full rule cannot fire; the field
+  // is accepted and stored for the day a cap exists, and until then the panel
+  // must not print it. (Reported to the Game Designer by the M6 backend lane.)
+  () => tryRun('b551: the stop sentence promises only rules that can fire', () => {
+    assert(typeof window.huntStopSentence === 'function', 'huntStopSentence missing');
+    const s = window.huntStopSentence({ hours: 8, bag_full: true });
+    assert(/after 8 hours/.test(s), 'the hours rule is not stated');
+    assert(!/bag/i.test(s),
+      'the panel promises "if the bag fills", but this game has no bag capacity and the rule '
+      + 'cannot fire — a stop that never comes is how a player concludes the game cheated them');
+    assert(/Runs until you stop it/.test(window.huntStopSentence(null)),
+      'a hunt with no rules does not say so');
+  }),
+
+  // b551: THE INTENT CARRIES THE TWO FIELDS ONLY WHEN NAMED. An absent field
+  // leaves the standing order alone; an explicit null CLEARS it. A client that
+  // restated its own copy on every declaration is how a stale client value ends
+  // up overwriting a server one.
+  () => tryRunAsync('b551: set_activity carries stance/stop only when named', async () => {
+    const mod = await import('../../net/activity.js?v=550');
+    const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
+      Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
+    const bare = bodyOf({});
+    assert(!('stance' in bare.activity) && !('stop' in bare.activity),
+      'an ordinary declaration grew fields the player did not set');
+    const named = bodyOf({ stance: 'careful', stop: { hours: 8 } });
+    assert(named.activity.stance === 'careful', 'the stance did not reach the request');
+    assert(named.activity.stop.hours === 8, 'the stop rules did not reach the request');
+    const cleared = bodyOf({ stance: null });
+    assert('stance' in cleared.activity && cleared.activity.stance === null,
+      'an explicit null did not survive as a CLEAR — a player cannot turn a stance off');
+  }),
 ];

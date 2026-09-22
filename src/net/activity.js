@@ -341,7 +341,27 @@ export function buildActivityRequest(opts) {
         verb: ACTIVITY_VERB,
         slot,
         intentId: String(o.intentId == null ? '' : o.intentId),
-        activity: { kind, id },
+        /* ── THE HUNT'S TWO OPTIONAL FIELDS (2026-09-22) ──────────────────
+           OMITTED unless the caller named them, and that is the whole
+           contract: an ABSENT field leaves the standing order alone, an
+           EXPLICIT null CLEARS it. `hasOwnProperty` on the OPTIONS is the only
+           way to tell those two gestures apart, and the server reads exactly
+           the same distinction (hr_apply's UPDATE, request.js readActivity).
+           A client that always sent `stance: G.something` would restate a
+           value it does not own on every declaration — which is how a stale
+           client value ends up overwriting a server one.
+
+           NOT VALIDATED HERE. The bounds are src/core/hunt.js's and the
+           catalogue is the server's; a client that pre-refused its own request
+           would be a second copy of both, and the refusal a player needs to
+           see ('there is no such stance') comes back BY NAME from the intent
+           layer before any database work. */
+        activity: {
+          kind,
+          id,
+          ...(Object.prototype.hasOwnProperty.call(o, 'stance') ? { stance: o.stance } : {}),
+          ...(Object.prototype.hasOwnProperty.call(o, 'stop') ? { stop: o.stop } : {}),
+        },
       }),
     },
   };

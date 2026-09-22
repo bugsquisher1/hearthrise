@@ -754,6 +754,21 @@ for (const raw of SESSIONS) {
     const b = hashLabel(c.userId, c.slot, 'accrue:' + new Date(FROM_MS).toISOString());
     ok('C9', a !== b,
       'the two label spellings hash to the SAME seed — this arm cannot detect T-2');
+    /* ── AND THE PRECONDITION IS EXECUTABLE. A session with no rendered
+       watermark cannot be labelled the accrue path's way, and the only other
+       thing to spell one from is a Date — which IS the defect. The module
+       originally fell through to `seedFor`'s Date path here, and C14's
+       value-conservation arm caught it: the shipped loop and this guard's own
+       chain drew two different streams for the same windows. T-2, reproduced
+       inside the module written to prevent it. It now refuses. */
+    let threwNoText = null;
+    try {
+      const { accruedToText, ...noText } = c;
+      settleCombatSession(noText, FROM_MS, TO_MS, { cadenceMs: CADENCE_MS });
+    } catch (e) { threwNoText = e; }
+    ok('C9', threwNoText !== null && /accruedToText|T-2/.test(String(threwNoText && threwNoText.message)),
+      'settleCombatSession accepted a session with no rendered watermark — it would then '
+      + 'seed every window from a Date, which is the spelling the accrue path has never used');
     say(`   C9  label "${c.accruedToText}" -> ${a}; the Z spelling -> ${b}`);
   }
 
@@ -815,6 +830,35 @@ for (const raw of SESSIONS) {
       ok('C13', (it.args.p_delta.deaths || []).length <= MAX_DEATH_ROWS,
         `${(it.args.p_delta.deaths || []).length} death rows > MAX_DEATH_ROWS`);
     }
+    /* ── C14b: THE FLUSH NEITHER LOSES NOR INVENTS VALUE ────────────────────
+       `intentValue` is what a 48 h shadow read is compared on, so if it
+       disagreed with the windows that produced it the parity number would be
+       measuring the FOLD rather than the tick. Summed here from the per-window
+       deltas independently of the fold that built the intents. */
+    const iv = intentValue(run.intents);
+    const fromWindows = { gold: 0, kills: 0, ate: 0, deaths: 0, xp: {}, items: {} };
+    for (const w of settled) {
+      const d = w.res.delta;
+      fromWindows.gold += Number(d.gold || 0);
+      fromWindows.kills += Number(d.journal.meta.kills || 0);
+      fromWindows.ate += Number(d.journal.meta.ate || 0);
+      fromWindows.deaths += Array.isArray(d.deaths) ? d.deaths.length : 0;
+      for (const k of Object.keys(d.xp || {})) fromWindows.xp[k] = (fromWindows.xp[k] || 0) + d.xp[k];
+      for (const k of Object.keys(d.items || {})) fromWindows.items[k] = (fromWindows.items[k] || 0) + d.items[k];
+    }
+    ok('C14', iv.gold === fromWindows.gold && iv.kills === fromWindows.kills
+      && iv.ate === fromWindows.ate,
+      `the flush's value summary (gold ${iv.gold}, kills ${iv.kills}, ate ${iv.ate}) `
+      + `disagrees with the windows that produced it (${fromWindows.gold}, `
+      + `${fromWindows.kills}, ${fromWindows.ate}) — the parity read would measure the fold`);
+    const sortObj = (m) => { const o2 = {}; for (const k of Object.keys(m).sort()) if (m[k] !== 0) o2[k] = m[k]; return o2; };
+    eq('C14', iv.xp, sortObj(fromWindows.xp), 'the flush lost or invented XP');
+    eq('C14', iv.items, sortObj(fromWindows.items), 'the flush lost or invented items');
+    /* Deaths are APPEND and are CLAMPED after the fold, so the intent may carry
+       FEWER than the windows produced — never more. */
+    ok('C14', iv.deaths <= fromWindows.deaths,
+      `the flush carries ${iv.deaths} death rows from ${fromWindows.deaths} windows' worth`);
+
     /* The raw (unfolded) op count, so the cliff is a MEASUREMENT on every run
        and not a sentence in a document — and so `progressNoFold` has somewhere
        to bite: under it the guard grades the list a tick using gather's fold

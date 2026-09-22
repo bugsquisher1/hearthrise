@@ -30,7 +30,9 @@
 // The combat entry does not exist yet: `supabase/functions/hr-accrue/tick.js`
 // speaks gather only, and it is itself under an open Security review
 // (SEC_WORLD_TICK_M1_2026-09-21.md, verdict BLOCK on three expressions). So
-// this module is NOT in the payload and does not move `payload_sha256`. When
+// THIS FILE is not in the payload. (`tick-shadow.js` IS, and the eleven-input
+// change there moves `pack-edge --hash` off the 253215e4… the verdict names —
+// see WORLD_TICK_DESIGN.md §16.10; this file is not the reason.) When
 // the entry learns the combat channel it MOVES to
 // `supabase/functions/hr-accrue/tick-combat.js` and this file becomes a
 // re-export, exactly as gather did on 2026-09-21.
@@ -58,8 +60,9 @@
 //   -62.5% xp; the death counters absent hands a six-times-dead character the
 //   first-death novice grace, which runs in the PAYING direction.
 // · THREE PER-CALL CLAMPS THE FOLD MUST RE-CHECK, all of which bite on
-//   ordinary play: `progress` (measured 65 ops against hr_apply's cap of 64),
-//   `hearthfind` (the fold produces an ARRAY hr_apply refuses), and `deaths`
+//   ordinary play: `progress` (measured 69 ops against hr_apply's cap of 64,
+//   on three of four fixtures), `hearthfind` (the fold produces an ARRAY
+//   hr_apply refuses), and `deaths`
 //   (MAX_DEATH_ROWS, per apply and not per window).
 // · THE ATTENDED TOP-UP, WHICH CANNOT BE DECOMPOSED AND IS THEREFORE REFUSED.
 // · A SEED LABEL THAT MUST BE THE ENVELOPE'S OWN RENDERING (Security T-2).
@@ -74,6 +77,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
+import { hashSeed } from '../../src/core/rng.js';
 import { ITEMS } from '../../src/data/items.js';
 import { MONSTERS } from '../../src/data/monsters.js';
 import { PAYABLE_KINDS, MAX_DEATH_ROWS } from '../../supabase/functions/hr-accrue/accrual.js';
@@ -246,12 +250,41 @@ export function sessionFromRoster(row, envelope) {
 // THE LOOP
 // ═══════════════════════════════════════════════════════════════════════════
 
+/* ── THE OFFLINE SEED, OVER THE ENVELOPE'S OWN LABEL ───────────────────────
+   `tick-shadow.js` `seedFor` builds its label from `new Date(ms).toISOString()`
+   — the `…Z` spelling — which is the WRONG one (T-2) and is the spelling the
+   accrue path has never used. Combat cannot inherit it: this is the only
+   channel with rare drop tables, so a mis-spelled label is every drop roll.
+
+   THIS DEFECT WAS IN THIS FILE AND THE GUARD FOUND IT. `settleCombatSession`
+   originally left `seedOf` unset when no production hook was supplied, so it
+   fell through to `seedFor`'s Date path — and C14's value-conservation arm went
+   red because the shipped loop and the guard's own chain drew two different
+   streams for the same windows. That is T-2 reproduced in miniature, inside the
+   module written to prevent it, which is the argument for the fence below: the
+   label is now derived in ONE place, from the envelope's own string, and a
+   session with no string is REFUSED rather than silently seeded from a Date.
+
+   No secret here and none invented: production hands `settleCombatSession` a
+   `seedOf` that calls `hr_seed`, which mixes the 256-bit secret. This
+   reproduces the property under test (a distinct stream per watermark, labelled
+   the accrue path's way) without the one it is not (unpredictability). */
+export function offlineSeedFor(userId, slot, accruedToText) {
+  return hashSeed(String(userId), String(slot), seedLabelFor(accruedToText));
+}
+
 /* One poll. `watermarkMs` is the SESSION'S WATERMARK — never the previous
-   clock tick. Returns the engine's answer verbatim; this function adds nothing
-   to it and subtracts nothing from it. */
-export function combatTick(char, watermarkMs, nowMs, opts) {
+   clock tick — and `watermarkText` is that same instant AS THE ENVELOPE
+   RENDERED IT, because the seed label is spelled from the string and the window
+   is planned from the number. Returns the engine's answer verbatim; this
+   function adds nothing to it and subtracts nothing from it. */
+export function combatTick(char, watermarkMs, watermarkText, nowMs, opts) {
+  const o = opts || {};
+  const seedOf = typeof o.seedOf === 'function'
+    ? (wmMs) => o.seedOf(wmMs, watermarkText)
+    : () => offlineSeedFor(char.userId, char.slot, watermarkText);
   return shadowTick(char, watermarkMs, nowMs, COMBAT_CATALOGUES,
-    Object.assign({ caller: 'tick' }, opts || {}));
+    Object.assign({}, o, { caller: 'tick', seedOf }));
 }
 
 /* Settle `[fromMs, toMs]` as a chain of cadence polls, folding each flush
@@ -298,7 +331,16 @@ export function settleCombatSession(session0, fromMs, toMs, opts) {
      value `hr_state_of` will render on the next hydrate. Chaining the string
      alongside the number is what keeps the label the accrue path's spelling
      for every window after the first. */
-  let watermarkText = session0.accruedToText || null;
+  /* T-2, AS A PRECONDITION. A session with no rendered watermark cannot be
+     labelled the accrue path's way, and the only other thing to label with is a
+     Date — which is the defect. Refusing costs nothing: the watermark has not
+     moved, so the next call pays the span. */
+  let watermarkText = session0.accruedToText;
+  if (typeof watermarkText !== 'string' || watermarkText.length === 0) {
+    throw new Error('settleCombatSession: the session carries no `accruedToText` — the seed '
+      + 'label must be the hr_state_of rendering of accrued_to, and there is nothing else '
+      + 'to spell it from but a Date, which is Security finding T-2');
+  }
   let clock = fromMs;
   const results = [];
   const intents = [];
@@ -349,7 +391,7 @@ export function settleCombatSession(session0, fromMs, toMs, opts) {
     clock = Math.min(clock + cadenceMs, toMs);
     /* RULES 1 + 2. The window is watermark -> clock, and only the engine's
        answer may move the watermark. */
-    const res = combatTick(char, watermarkMs, clock, seedOpts(o, watermarkText));
+    const res = combatTick(char, watermarkMs, watermarkText, clock, o);
     results.push({ watermarkMs, nowMs: clock, res });
     batch.polls++;
     if (res.accrued) {
@@ -401,14 +443,6 @@ export function settleCombatSession(session0, fromMs, toMs, opts) {
     polls: results.length,
     settled: results.filter((r) => r.res.accrued).length,
   };
-}
-
-/* Thread the watermark's own STRING into the engine's seed hook. A caller with
-   no `seedOf` (every offline run) is unchanged; a production caller gets the
-   label spelled from the envelope's rendering and never from a Date (T-2). */
-function seedOpts(o, watermarkText) {
-  if (typeof o.seedOf !== 'function') return o;
-  return Object.assign({}, o, { seedOf: (wmMs) => o.seedOf(wmMs, watermarkText) });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

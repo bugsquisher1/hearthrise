@@ -715,6 +715,46 @@ jobs:
           node tests/restore-census.mjs --mutate
           node tests/restore-census.mjs --baseline-selftest
 
+      # THE BESTIARY TROPHY LADDER, BOTH HALVES (docs/design/BESTIARY_LADDER.md).
+      # It lives in THIS job and not in client-guards because its second arm
+      # rebuilds a real PostgreSQL from the chain, which is what this job already
+      # pays for -- the prefix snapshot makes the whole guard 1.6 s and its
+      # mutation proof 22 s (measured 2026-09-22 on the dev machine).
+      #
+      # The PURE arm owns the derived half: the multiplier each stage derives
+      # equals the ladder as AUTHORED (compared against the raw table, never
+      # against min(table, ceiling) -- pre-clamping there makes a re-priced rung
+      # invisible), stage 1 pays no power, the product of the two
+      # remembered-kills ladders is clamped once against MAX_MEMORY_DROP_MULT,
+      # the damage half is honestly dormant, the key fits player_progress's
+      # 64-char CHECK for all 108 monsters, and the ATTENDED and AWAY bindings
+      # quote ONE drop rate (AWAY-1) -- including the vacuity check that the
+      # trophy actually paid on both, and the fact that a binding which drops the
+      # monster id pays the charm and not the trophy.
+      #
+      # The SQL arm owns the claimed half against the real RPC: an unknown
+      # monster and a below-threshold claim refused with the SERVER's own count,
+      # exactly one progress row and one ledger row per trophy, already_owned and
+      # replayed kept apart, no value moved, the projection scoped to its owner,
+      # and the trophy population out of hr_state_of's 1000-row envelope.
+      #
+      # ⚠ WHY IT EXISTS GIVEN THE MIGRATION'S OWN section 4 SELF-CHECK, which
+      #   schema-drift already executes on every replay: a self-check runs inside
+      #   the file it checks, so it can only ever prove that file correct AS
+      #   WRITTEN. This arm MUTATES the migration -- the threshold check, the
+      #   once-guard, the catalogue validation, the grant -- and requires each
+      #   defect to be caught. 6 pure mutations + 4 SQL mutations, each pinned to
+      #   its NAMED assertion, plus 2 negative controls that must stay silent.
+      - name: Bestiary trophies - derived power, claimed row, neither trusts the client
+        if: ${{ !cancelled() }}
+        run: node tests/bestiary-trophy.mjs --selftest
+
+      # A --selftest-only registration cannot tell a broken guard from a caught
+      # defect. Run the plain body too: only it answers "green when nothing is wrong".
+      - name: Bestiary trophies - base run
+        if: ${{ !cancelled() }}
+        run: node tests/bestiary-trophy.mjs
+
       # REALTIME COST. Measured on production 2026-09-06 over 20.25 days: the
       # Realtime WAL poller is 2,706,517 calls / 15,669 s / max 9.8 s — ~61% of
       # all exec time and ~36x the #2 statement — for two published tables, one

@@ -155,6 +155,12 @@ import { companionSpanXp } from '../../../src/core/companion-xp.js';
      function, two independent folds — which is also why the client's predicted
      rank can only ever be reconciled, never trusted. */
 import { killsByClass, charmIndex } from '../../../src/core/charms.js';
+/* THE TROPHY LADDER (docs/design/BESTIARY_LADDER.md). `trophyIndex` only — the
+   two multiplier functions are read inside `weaknessInfo` and must not be read
+   here, for the reason src/core/trophies.js's header states: a trophy priced in
+   a second place is a trophy the live tick and this replay can disagree about.
+   Same fold, same counters, same sealed catalogue as the charm above. */
+import { trophyIndex } from '../../../src/core/trophies.js';
 /* THE DAILY/QUEST COUNTER CONTRACT (Designer Ruling 3.1). The key shapes, the
    day key, the clamp and the vocabulary live in ONE module that both this
    engine and the guard read; see its header for why `kind='daily'`/`kind='stat'`
@@ -1529,6 +1535,15 @@ export function computeAccrual(input) {
      byte and the under-paying direction. One value, read by BOTH the away span
      and the attended top-up below, so AWAY-1 parity holds by construction. */
   const charms = charmIndex(killsByClass(inp.bestiaryKills, monsters));
+  /* THE TROPHY INDEX — the SAME `inp.bestiaryKills` rows the charm folds, read
+     PER MONSTER instead of per class, against the same sealed catalogue. It is
+     derived here, ONCE, and handed to both the away span and the attended
+     top-up below for the charm's exact reason: two derivations of one ladder is
+     how the two halves of one night come to disagree (AWAY-1). `null` — a
+     database without 2026-08-20-bestiary.sql, or a character who has not ground
+     2,500 of anything — resolves to no multiplier at all, which is the
+     pre-trophy behaviour byte for byte and the under-paying direction. */
+  const trophies = trophyIndex(inp.bestiaryKills, monsters);
   const setBonus = armorSetBonus(equipment, items);
   const profile = deriveProfile(eq.weaponType);
   /* THE PLAYER'S CHOSEN STYLE, FROM SERVER STATE (2026-08-24-combat-style.sql).
@@ -2143,13 +2158,18 @@ export function computeAccrual(input) {
     playerRolls(m) {
       return playerCombatRolls(m, {
         eq, equipment, items, skills: state.skills,
-        bonus, setBonus, profile, style, charms,
+        bonus, setBonus, profile, style, charms, trophies,
       });
     },
     monsterRolls(m) {
       return monsterCombatRolls(m, { eq, skills: state.skills, bonus });
     },
-    weakness(m) { return weaknessInfo(m, eq, charms); },
+    /* `id` IS THE FIFTH ARGUMENT and it is not optional in practice: the trophy
+       index is keyed by monster id and no roster row carries one, so a binding
+       that dropped it would pay every charm and no trophy — away only, and
+       silently. combat-sim.js passes the id it already holds at both of its
+       call sites. */
+    weakness(m, id) { return weaknessInfo(m, eq, charms, trophies, id); },
     /* Boss of the Day, resolved PER UTC-DAY SEGMENT of the absence, from the
        SERVER instant. simulateSpan rebinds this per segment, so an absence
        crossing UTC midnight pays each half its own day's boss (the ruling). */
@@ -2296,11 +2316,12 @@ export function computeAccrual(input) {
         rng: createRng((nat(inp.seed, 0) ^ ATTENDED_RNG_SALT) >>> 0),
         bonus,
         botd: null,                 // rebound PER UTC-DAY SEGMENT, never once
-        /* THE SAME `charms` THE SPAN USED. The attended top-up pays the loot of
-           fights the player WATCHED, so a charm that lifted the away drop rate
-           and not this one would make the two halves of one night disagree —
-           the AWAY-1 property, in the direction nobody looks at. */
-        weakness(mm) { return weaknessInfo(mm, eq, charms); },
+        /* THE SAME `charms` AND `trophies` THE SPAN USED. The attended top-up
+           pays the loot of fights the player WATCHED, so a ladder that lifted
+           the away drop rate and not this one would make the two halves of one
+           night disagree — the AWAY-1 property, in the direction nobody looks
+           at. Both indexes are the ones derived once at the top of the run. */
+        weakness(mm, mid) { return weaknessInfo(mm, eq, charms, trophies, mid); },
         style,
         fx: lootFx,
       };

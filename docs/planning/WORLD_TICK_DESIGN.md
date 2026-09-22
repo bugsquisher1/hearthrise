@@ -1985,6 +1985,29 @@ attended=false bucket; whether `combatStyle` and `enchant` move a real
 character's window, since both measured inert on these fixtures; and the
 `too_many_progress_ops` rate at real flush lengths.
 
+**⚠ THE EDGE PAYLOAD HASH MOVES, AND THE SECURITY VERDICT NAMES THE OLD ONE.**
+`tick-shadow.js` is IN the payload (`tick.js` → `tick-gather.js` → it), so the
+eleven-input change moves `pack-edge --hash` from
+`253215e48d3e2b3ccd3d1ebec1f52e529d3e8cf50147429ef80915c680ab14d8` — the exact
+hash `SEC_WORLD_TICK_M1_2026-09-21.md` returns **BLOCK** at — to
+`df215d589a00f30fd7b985ca928291a3a39aa7a7c9c4685cc80fc635f8ee9051`. Two
+consequences, neither optional:
+
+1. **`supabase/functions/**` moved, so `pack-edge` + deploy comes BEFORE the
+   push**, or the in-page payload guard is red for every other lane (CLAUDE.md
+   §3.3).
+2. **Security re-verifies at the new hash.** The change is on the seam that
+   decides what the engine is told, which is squarely in the T-series' scope.
+
+**The deployed GATHER behaviour does not move, and that is asserted rather than
+argued.** `tick-gather.js`'s `sessionFromRoster` sets none of the eleven, so
+they arrive `undefined` exactly as they did; `attended: null` and an absent
+`attended` both `normaliseAttended` to `null`; and `goals` was removed because
+`computeAccrual` builds its own counter and never read `inp.goals` — a plumbed
+input that did nothing, which is worse than an absent one because the next
+author wires a real goal model into it. P-G1…P-G9 staying green is the exit
+code for all of that.
+
 **What remains before combat is even SHADOW-able on production**, in order:
 
 | # | Work | Owner |

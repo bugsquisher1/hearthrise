@@ -33,7 +33,7 @@
     "Classifications are AUTHORED, never generated — deciding what a restore owes",
     "a table is a judgement, and --write preserves whatever is already here."
   ],
-  "generated": "2026-09-14",
+  "generated": "2026-09-22",
   "production": {
     "measured": "2026-08-30",
     "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -657,6 +657,16 @@
       "wiped_at_cutover": true,
       "note": "The RETIRED client-authored blob: gold, inventory, every skill's XP, equipment, farm. One row left in production. server-authority.md §2a-iv is explicit — 'Starting state is FRESH. game_saves.snapshot is never read' — so a post-cutover restore has NO reason to bring it back, and reading it would launder the forged values the audit found. This is the single table whose value flipped from critical to worthless the moment the cutover completed, and the cutover has now completed."
     },
+    "hearthfind_log": {
+      "class": "restore_only",
+      "wiped_at_cutover": false,
+      "note": "PLAYER VALUE, AND UNRECONSTRUCTIBLE BY DESIGN (2026-09-19). The append-only record of every hearthfind ever made: the per-character trophy SET and the global \"Nth ever found\" ordinal. It exists precisely BECAUSE these lifetime facts used to be counted out of player_ledger, which has a 90-day retention — so after the first prune there is nothing left to rebuild it from. Coming back empty un-completes every veteran trophy set and restarts the global ordinal, handing a second player a bragging number another already holds. Never pruned. Written only by hr_apply (SECURITY DEFINER); no client write grant; readable by its owner only."
+    },
+    "hearthfind_ordinal": {
+      "class": "restore_only",
+      "wiped_at_cutover": false,
+      "note": "THE GLOBAL MONOTONIC TROPHY COUNTER (2026-09-19), one row per trophy, from which hr_apply ALLOCATES each find's nth_ever under the row lock. Not player-scoped (no user_id) but not regenerable either after a player_ledger prune: coming back empty restarts \"Nth ever found\" at 1 for every trophy. It can, however, be REBUILT FROM hearthfind_log (max(nth_ever) per item) by re-running hr_backfill_lifetime_facts(), which is raise-only — so restore hearthfind_log first and this follows. Server-only: no client role holds any privilege on it."
+    },
     "hr_activities": {
       "class": "seeded",
       "replay": 503,
@@ -694,7 +704,7 @@
     },
     "hr_client_rpc_baseline": {
       "class": "seeded",
-      "replay": 80,
+      "replay": 81,
       "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 77 IN THE REPLAY SINCE 2026-09-13-town-presence.sql §12 registered the three Week-1 live-system verbs for `authenticated` — hr_heartbeat(p_slot integer), hr_set_presence_quiet(p_slot integer, p_quiet boolean) and hr_town_of(p_zone text) — with the same delete-then-insert, so a re-apply cannot double them. APPLIED 2026-09-13 (town-presence): production and replay converged at 77. 78 IN THE REPLAY SINCE 2026-09-13-world-finds-projection.sql §5 registered hr_world_finds_of(p_limit integer) for `authenticated` — the projected Hearthfind board, which closes the named pre-launch P2 by minting the finder's display name server-side (NULL for a presence_quiet finder) so that world_finds.user_id could be revoked from anon and authenticated — with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. APPLIED 2026-09-13 08:14 UTC (world-finds-projection): production and replay converged at 78. This row is the APPROVAL for the grant, in the same migration as the grant: hr_assert_grant_hygiene check (2) raises nightly on any client-executable function this table does not list, so a rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 80 IN THE REPLAY SINCE 2026-09-14-gem-unlock-buy.sql section 6b and 2026-09-14-recipe-learn.sql section 4d registered hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid) and hr_recipe_learn(p_item text, p_slot integer, p_idem uuid) for `authenticated`, each with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double a row nor leave an approval for a shape that no longer exists. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 78 until the Coordinator applies the two migrations, at which point the counts converge with no further re-baseline. This entry was updated BY HAND rather than with --write, deliberately: --write would also re-pin every other table's row count from this branch's replay, which is not this lane's to certify."
     },
     "hr_client_write_baseline": {
@@ -813,6 +823,12 @@
       "class": "seeded",
       "replay": 6,
       "note": "Hand-seeded by 2026-08-08-hunt.sql: the hunt boss definitions. Rebuilt from repo, never restored."
+    },
+    "hr_hunt_stances": {
+      "class": "seeded",
+      "replay": 3,
+      "wiped_at_cutover": false,
+      "note": "THE HUNT STANCE CATALOGUE (created 2026-09-22-hunt-stance-stop.sql). Three rows - careful/steady/reckless - and three columns, each a knob that already shipped: the auto-eat threshold, the dry-quiver policy and the consecutive-fall stop. Mirrors src/core/hunt.js STANCES, which is the runtime copy both the live tick and the away replay read; the migration reseeds it wholesale on every apply, so the repo rebuilds it and no backup is needed. A FOURTH COLUMN WOULD BE A MULTIPLIER WEARING A NAME and the migration's section-6 gate fails the apply on one. If it came back empty, player_state.hunt_stance's FK would refuse every declaration and every character would fall back to steady - i.e. to today's behaviour - so the failure is loud and harmless."
     },
     "hr_hunt_tiers": {
       "class": "seeded",
@@ -953,6 +969,47 @@
       "replay": 1,
       "note": "Generated from src/data/start-kit.js — the XP a fresh character starts each skill at. Rebuilt from repo, never restored."
     },
+    "hr_tick_config": {
+      "class": "operator_tunable",
+      "wiped_at_cutover": false,
+      "note": "THE WORLD TICK'S KILL SWITCH AND SHADOW FLAG — a singleton row created 2026-09-21-world-tick-settle-fence.sql (`id boolean primary key check (id)`). It carries no player value and no secret (the pg_net bearer lives in Vault). Coming back EMPTY is the SAFE direction and is the reason the fence reads it with `if not found ... return tick_disabled`: a missing row means the tick is off, the accrual path keeps every channel, and an operator re-arms deliberately. What is actually lost is the tuning — cadence, flush, batch cap, channel list, edge_url — which is four UPDATEs from the runbook, not player progress. RLS enabled and forced, zero policies, zero grants.",
+      "replay": 1,
+      "live_value": {
+        "measured": "2026-09-21",
+        "value": [
+          {
+            "id": true,
+            "enabled": false,
+            "shadow": true,
+            "cadence_seconds": 10,
+            "flush_seconds": 90,
+            "batch_limit": 200,
+            "lease_ms": 30000,
+            "channels": [
+              "gather"
+            ],
+            "edge_url": null,
+            "cursor_slot": null
+          }
+        ],
+        "note": "NOT YET IN PRODUCTION. 2026-09-21-world-tick-settle-fence.sql is STAGED, NOT APPLIED, so the value recorded here is the AUTHORED DEFAULT the migration ships and it is currently identical to what a rebuild produces. It is written down now, before the apply, because the moment an operator arms the tick (`enabled = true`) or leaves SHADOW (`shadow = false`) a rebuild would silently revert the live world to off — which is the safe direction, and still a revert nobody would notice. Re-measure this block on the first apply and after every arm/disarm."
+      }
+    },
+    "hr_tick_cron_log": {
+      "class": "operational",
+      "wiped_at_cutover": false,
+      "note": "ONE ROW PER TICK-DRIVER FIRE — created 2026-09-21-world-tick-cron.sql. Outcome, rostered count, duration and the effective per-character cadence; never one row per character and never a secret (c8b asserts nothing bearer-shaped reaches `detail`). It is the only window an operator has into a job nobody watches — the hr_ledger_prune lesson, where the cron row existed and the retention still did not work for weeks. Losing it costs the last 7 days of that visibility and nothing else; the next fire writes a new row. Pruned hourly to 7 days by hr-tick-cron-log-prune."
+    },
+    "hr_tick_ownership": {
+      "class": "operational",
+      "wiped_at_cutover": false,
+      "note": "THE WORLD TICK'S ROLLOUT SWITCH plus its lease, per (user, slot, channel) — created 2026-09-20-world-tick-roster.sql. `operational` and not `operator_tunable` because the repo authors NO row for it: a rebuild brings it back EMPTY and empty is the fail-safe, which reads as NOT OWNED for every character. It holds no player value — `player_state.accrued_to` is the single source of truth for what has been paid, it moves only forward, and only inside hr_apply's per-character lock — so an empty table after a restore is behaviourally identical to the world before the tick shipped: the accrual-on-return path settles every channel and no player loses a second of credited time. The lease columns are worth less still: a lease is at most 300 s old by construction. An operator re-flags the rollout cohort with one INSERT. RLS enabled AND forced, zero policies, zero grants, so no client can read it, write it or learn from it."
+    },
+    "hr_tick_shadow": {
+      "class": "operational",
+      "wiped_at_cutover": false,
+      "note": "WHAT THE WORLD TICK WOULD HAVE PAID, and never what it did — created 2026-09-21-world-tick-settle-fence.sql. It is written ONLY on the shadow branch of hr_tick_settle, which returns before hr_apply is called; nothing reads it to decide a number a player can spend, rank or trade, and no RPC joins to it. It exists so the 48 h production parity window of LIVE_WORLD_BRIEF.md step 1 can be measured against what the accrual path actually wrote. Losing every row costs a MEASUREMENT — the parity run is repeated — and costs no player anything. Pruned hourly to 14 days by hr-tick-shadow-prune; budgeted at 48,000 rows/day at 50 active characters on the shipped 90 s flush. RLS enabled and forced, zero policies, zero grants."
+    },
     "hr_traits": {
       "class": "seeded",
       "replay": 2,
@@ -967,6 +1024,42 @@
       "class": "seeded",
       "replay": 80,
       "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored. ⚠ PRODUCTION RUNS 65 AND A REBUILD PRODUCES 82 — see production.divergence_vs_repo; the whole delta is namespace='companion' (4 vs 21) and it is an apply-state issue, not a DR one. RULED 2026-08-30: a wholesale `delete from public.hr_unlocks;` in this very file destroyed the 17 rows 2026-08-22-companion-grant.sql had added when it was regenerated and re-applied on 2026-08-23. The fix is forward — supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql, STAGED/REVIEW-ONLY — and the replay pin stays 82 because the rebuild already produced them. ⚠ NEVER re-apply this file to production to 'refresh' the catalogue: it deletes 20 rows it does not own and silently flag-shapes the four shop companions. tests/unlock-catalogue-ownership.mjs measures that and proves the declared repair."
+    },
+    "hr_vigour_prices": {
+      "class": "operator_tunable",
+      "replay": 5,
+      "wiped_at_cutover": false,
+      "note": "THE VIGOUR REFILL LADDER (created 2026-09-22-vigour-refill.sql). Five rows: nth, cost_gold, minutes - 2,000 gold tripling to 162,000 within the UTC day. OPERATOR TUNABLE rather than seeded because these are the game designer's PLACEHOLDERS pending Tyler's ruling (docs/design/HUNTS_AND_ANALYZER.md 4.6), and they live in a table precisely so his answer is a reviewed UPDATE rather than a migration: a rebuild would silently restore the placeholder prices over whatever was tuned. THE ROW COUNT IS ALSO THE PER-DAY CAP - hr_vigour_refill refuses an nth with no row - so a truncated table does not open a faucet, it closes the shop. Public read, no client write policy and no client write grant; hr_vigour_refill is the only reader that prices from it. NOT YET ON PRODUCTION: the migration is STAGED pending a Security GO, so `live_value` records the AUTHORED ladder as of 2026-09-22 and not a measurement. The Coordinator re-measures it after the apply, and again after any of Tyler's four price rulings land - otherwise a rebuild would silently revert a tuned economy to these placeholders.",
+      "live_value": {
+        "measured": "2026-09-22",
+        "value": [
+          {
+            "nth": 1,
+            "cost_gold": 2000,
+            "minutes": 120
+          },
+          {
+            "nth": 2,
+            "cost_gold": 6000,
+            "minutes": 120
+          },
+          {
+            "nth": 3,
+            "cost_gold": 18000,
+            "minutes": 120
+          },
+          {
+            "nth": 4,
+            "cost_gold": 54000,
+            "minutes": 120
+          },
+          {
+            "nth": 5,
+            "cost_gold": 162000,
+            "minutes": 120
+          }
+        ]
+      }
     },
     "hr_xp_table": {
       "class": "seeded",
@@ -1105,57 +1198,6 @@
       "class": "restore_only",
       "wiped_at_cutover": false,
       "note": "PLAYER VALUE. One row per Hearthfind find a character has ever made (user_id, find id, found_at, nth ever) — the shared world feed and the source of the Emberborn/Rootwarden/Deepdelver/Tidesworn/Wonderkeeper titles. Written only by hr_apply (SECURITY DEFINER, 3/day + 30 s clamps), pruned by hr_world_finds_prune; anon/authenticated SELECT only. Losing it silently un-earns titles and erases the feed. 0 rows at classification (2026-09-08, feature just applied)."
-    },
-    "hearthfind_log": {
-      "class": "restore_only",
-      "wiped_at_cutover": false,
-      "note": "PLAYER VALUE, AND UNRECONSTRUCTIBLE BY DESIGN (2026-09-19). The append-only record of every hearthfind ever made: the per-character trophy SET and the global \"Nth ever found\" ordinal. It exists precisely BECAUSE these lifetime facts used to be counted out of player_ledger, which has a 90-day retention — so after the first prune there is nothing left to rebuild it from. Coming back empty un-completes every veteran trophy set and restarts the global ordinal, handing a second player a bragging number another already holds. Never pruned. Written only by hr_apply (SECURITY DEFINER); no client write grant; readable by its owner only."
-    },
-    "hearthfind_ordinal": {
-      "class": "restore_only",
-      "wiped_at_cutover": false,
-      "note": "THE GLOBAL MONOTONIC TROPHY COUNTER (2026-09-19), one row per trophy, from which hr_apply ALLOCATES each find's nth_ever under the row lock. Not player-scoped (no user_id) but not regenerable either after a player_ledger prune: coming back empty restarts \"Nth ever found\" at 1 for every trophy. It can, however, be REBUILT FROM hearthfind_log (max(nth_ever) per item) by re-running hr_backfill_lifetime_facts(), which is raise-only — so restore hearthfind_log first and this follows. Server-only: no client role holds any privilege on it."
-    },
-    "hr_tick_ownership": {
-      "class": "operational",
-      "wiped_at_cutover": false,
-      "note": "THE WORLD TICK'S ROLLOUT SWITCH plus its lease, per (user, slot, channel) — created 2026-09-20-world-tick-roster.sql. `operational` and not `operator_tunable` because the repo authors NO row for it: a rebuild brings it back EMPTY and empty is the fail-safe, which reads as NOT OWNED for every character. It holds no player value — `player_state.accrued_to` is the single source of truth for what has been paid, it moves only forward, and only inside hr_apply's per-character lock — so an empty table after a restore is behaviourally identical to the world before the tick shipped: the accrual-on-return path settles every channel and no player loses a second of credited time. The lease columns are worth less still: a lease is at most 300 s old by construction. An operator re-flags the rollout cohort with one INSERT. RLS enabled AND forced, zero policies, zero grants, so no client can read it, write it or learn from it."
-    },
-    "hr_tick_config": {
-      "class": "operator_tunable",
-      "wiped_at_cutover": false,
-      "note": "THE WORLD TICK'S KILL SWITCH AND SHADOW FLAG — a singleton row created 2026-09-21-world-tick-settle-fence.sql (`id boolean primary key check (id)`). It carries no player value and no secret (the pg_net bearer lives in Vault). Coming back EMPTY is the SAFE direction and is the reason the fence reads it with `if not found ... return tick_disabled`: a missing row means the tick is off, the accrual path keeps every channel, and an operator re-arms deliberately. What is actually lost is the tuning — cadence, flush, batch cap, channel list, edge_url — which is four UPDATEs from the runbook, not player progress. RLS enabled and forced, zero policies, zero grants.",
-      "replay": 1,
-      "live_value": {
-        "measured": "2026-09-21",
-        "value": [
-          {
-            "id": true,
-            "enabled": false,
-            "shadow": true,
-            "cadence_seconds": 10,
-            "flush_seconds": 90,
-            "batch_limit": 200,
-            "lease_ms": 30000,
-            "channels": [
-              "gather"
-            ],
-            "edge_url": null,
-            "cursor_slot": null
-          }
-        ],
-        "note": "NOT YET IN PRODUCTION. 2026-09-21-world-tick-settle-fence.sql is STAGED, NOT APPLIED, so the value recorded here is the AUTHORED DEFAULT the migration ships and it is currently identical to what a rebuild produces. It is written down now, before the apply, because the moment an operator arms the tick (`enabled = true`) or leaves SHADOW (`shadow = false`) a rebuild would silently revert the live world to off — which is the safe direction, and still a revert nobody would notice. Re-measure this block on the first apply and after every arm/disarm."
-      }
-    },
-    "hr_tick_shadow": {
-      "class": "operational",
-      "wiped_at_cutover": false,
-      "note": "WHAT THE WORLD TICK WOULD HAVE PAID, and never what it did — created 2026-09-21-world-tick-settle-fence.sql. It is written ONLY on the shadow branch of hr_tick_settle, which returns before hr_apply is called; nothing reads it to decide a number a player can spend, rank or trade, and no RPC joins to it. It exists so the 48 h production parity window of LIVE_WORLD_BRIEF.md step 1 can be measured against what the accrual path actually wrote. Losing every row costs a MEASUREMENT — the parity run is repeated — and costs no player anything. Pruned hourly to 14 days by hr-tick-shadow-prune; budgeted at 48,000 rows/day at 50 active characters on the shipped 90 s flush. RLS enabled and forced, zero policies, zero grants."
-    },
-    "hr_tick_cron_log": {
-      "class": "operational",
-      "wiped_at_cutover": false,
-      "note": "ONE ROW PER TICK-DRIVER FIRE — created 2026-09-21-world-tick-cron.sql. Outcome, rostered count, duration and the effective per-character cadence; never one row per character and never a secret (c8b asserts nothing bearer-shaped reaches `detail`). It is the only window an operator has into a job nobody watches — the hr_ledger_prune lesson, where the cron row existed and the retention still did not work for weeks. Losing it costs the last 7 days of that visibility and nothing else; the next fire writes a new row. Pruned hourly to 7 days by hr-tick-cron-log-prune."
     }
   }
 }

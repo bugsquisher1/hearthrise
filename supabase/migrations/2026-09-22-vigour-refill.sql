@@ -1,0 +1,519 @@
+-- ════════════════════════════════════════════════════════════════════════════
+-- 2026-09-22-vigour-refill.sql — THE GOLD SINK. MONEY MOVES IN THIS FILE.
+--
+-- docs/design/HUNTS_AND_ANALYZER.md §4.4. +120 paid minutes per refill, bought
+-- with GOLD AND ONLY GOLD, at a price that TRIPLES within the UTC day, at most
+-- five a day, and never past the 22-hour daily ceiling.
+--
+-- ⚠ CLAUDE.md §2: THIS FILE MOVES GOLD. It does not apply without a Security GO
+--   from the security-engineer role, and the four figures below are the ONE
+--   item docs/design/HUNTS_AND_ANALYZER.md §4.6 flags for TYLER:
+--     · the 2,000-gold opening price      · the x3 escalation
+--     · the 5-refill daily cap            · VIGOUR_DRY_MULT (0.25 or 0.00)
+--   They ship here as the DESIGNER'S PLACEHOLDERS IN A SERVER CATALOGUE ROW
+--   (hr_vigour_prices), never as literals inside the verb, so Tyler's answer is
+--   an UPDATE of five rows under review and not a code change. §5(a) asserts
+--   that property by refusing any 3+ digit literal in the verb's own body — the
+--   same gate 2026-09-14-gem-unlock-buy.sql uses for the same reason.
+--
+-- ⚠ GEMS AND HEARTH TOKENS MAY NEVER BUY HUNTING TIME (design §4.4, settled).
+--   An away-accrual boost sold for cash is pay-to-win on a ranked economy; that
+--   is the ruling that removed Offline+ and the Hearth Hall bonus, and selling
+--   the same hours under a new noun would be the same product. The verb reads
+--   player_state.gold and nothing else, and §5(b) asserts that it never names
+--   gems or hearth_tokens at all.
+--
+-- ⚠ THE CEILING IS WHAT STOPS THIS BEING A FAUCET FOR THE RICH. Two hours a day
+--   that gold CANNOT buy is what keeps "richest player hunts most" from becoming
+--   "richest player hunts always" (design §4.4). A refill that would buy nothing
+--   because the ceiling is already reached is REFUSED, not sold — taking gold
+--   for zero minutes is the defect the gem-unlock `already_owned` refusal exists
+--   to prevent, in a new currency.
+--
+-- ── SLICE 1 DOES NOT SHIP THE BUTTON ────────────────────────────────────────
+-- design §4.6: "Slice 1 ships Vigour read-only: the meter displays, the charge
+-- accrues, and the refill button does not exist." This verb is STAGED so the
+-- Security review and Tyler's numbers can happen against real code rather than
+-- a plan; the client half of this lane renders NO refill control.
+--
+-- LANE C. STAGED, NOT APPLIED. SECURITY GO REQUIRED. TYLER'S PRICES REQUIRED.
+--
+-- REVERSIBILITY
+--   drop function public.hr_vigour_refill(int, uuid);
+--   drop function public.hr_vigour_refill__ungated(int, uuid);
+--   drop table public.hr_vigour_prices;
+--   delete from public.hr_client_rpc_baseline where proname = 'hr_vigour_refill';
+--   -- re-apply the file that owns hr_rpc_gate to drop the bucket.
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- ── 0. PRECONDITIONS — FAIL CLOSED ─────────────────────────────────────────
+do $$
+begin
+  if to_regprocedure('public.hr_vigour_of(uuid,int)') is null then
+    raise exception 'PRECONDITION: hr_vigour_of is absent - apply 2026-09-22-vigour-daily.sql FIRST'; end if;
+  if to_regprocedure('public.hr_rpc_gate(text)') is null then
+    raise exception 'PRECONDITION: hr_rpc_gate is absent'; end if;
+  if to_regprocedure('public.hr_intent_replay(uuid,int,uuid,text)') is null then
+    raise exception 'PRECONDITION: hr_intent_replay is absent - apply 2026-08-15-intent-key-hygiene.sql FIRST'; end if;
+  if to_regprocedure('public.hr_note_rejection(text,int,jsonb)') is null then
+    raise exception 'PRECONDITION: hr_note_rejection is absent - apply 2026-09-12-hr-rejections-journal.sql FIRST'; end if;
+  if to_regclass('public.player_ledger') is null then
+    raise exception 'player_ledger is missing - a purchase with no journal is not a purchase'; end if;
+end $$;
+
+-- ── 1. player_ledger.kind must admit 'vigour' — PROGRAMMATIC, ADDITIVE ─────
+-- The 2026-09-14-gem-unlock-buy.sql idiom: read the live CHECK, insert one
+-- literal at a known anchor, never restate the list. A restatement here would
+-- silently drop whatever kinds another file added after this one was written.
+do $$
+declare v_def text; v_new text;
+begin
+  select pg_get_constraintdef(oid) into v_def from pg_constraint
+   where conrelid = 'public.player_ledger'::regclass and conname = 'player_ledger_kind_check';
+  if v_def is null then
+    raise exception 'player_ledger_kind_check is absent - this verb''s journal row would be unconstrained';
+  end if;
+  if position('''vigour''' in v_def) > 0 then
+    raise notice 'player_ledger.kind already admits ''vigour'' - widen skipped'; return;
+  end if;
+  if (length(v_def) - length(replace(v_def, '''accrue''::text', ''))) <> length('''accrue''::text') then
+    raise exception 'player_ledger_kind_check has no single ''accrue''::text anchor (%) - refusing to widen blind', v_def;
+  end if;
+  v_new := replace(v_def, '''accrue''::text', '''accrue''::text, ''vigour''::text');
+  execute 'alter table public.player_ledger drop constraint player_ledger_kind_check';
+  execute 'alter table public.player_ledger add constraint player_ledger_kind_check ' || v_new;
+  raise notice 'player_ledger.kind widened to admit ''vigour'' (insertion, nothing removed)';
+end $$;
+
+-- ── 2. THE PRICE CATALOGUE — the only place a gold number lives ────────────
+-- ⚠ THESE FIVE NUMBERS ARE THE GAME DESIGNER'S PLACEHOLDERS AND ARE TYLER'S TO
+--   CONFIRM (design §4.6). They are DATA so his answer is a reviewed UPDATE, not
+--   a migration. x3 and not the bank ladder's x1.32: the bank rung is a permanent
+--   capability bought once, so it wants a curve a player climbs; Vigour is bought
+--   AGAIN EVERY DAY, so a shallow curve becomes a fixed daily tax the wealthy
+--   stop noticing by week two. x3 means refill 1 is an easy yes, refill 3 is a
+--   real decision and refill 5 is something a player does on purpose.
+--
+--   The sink is the point: 242,000 gold a day at full refill, leaving the
+--   economy through a faucet nobody can resell.
+create table if not exists public.hr_vigour_prices (
+  nth        int    primary key check (nth >= 1),
+  cost_gold  bigint not null check (cost_gold > 0),
+  minutes    int    not null check (minutes > 0)
+);
+
+insert into public.hr_vigour_prices (nth, cost_gold, minutes) values
+  (1,   2000, 120),
+  (2,   6000, 120),
+  (3,  18000, 120),
+  (4,  54000, 120),
+  (5, 162000, 120)
+on conflict (nth) do update set cost_gold = excluded.cost_gold, minutes = excluded.minutes;
+
+comment on table public.hr_vigour_prices is
+  'THE VIGOUR REFILL LADDER (2026-09-22). The ONLY place a refill price exists - hr_vigour_refill__ungated contains no gold literal and the migration''s gate refuses one. Rows are the game designer''s placeholders pending Tyler''s ruling (HUNTS_AND_ANALYZER.md 4.6); tuning is an UPDATE under review, never a code change. The number of rows IS the per-day cap: an nth with no row is refused.';
+
+alter table public.hr_vigour_prices enable row level security;
+revoke all on public.hr_vigour_prices from public, anon, authenticated, service_role;
+-- READ-ONLY to signed-in clients so the panel can print tonight's price without
+-- computing it. A price the client derives is a price that can disagree with the
+-- one charged (CLAUDE.md §6).
+grant select on public.hr_vigour_prices to authenticated;
+drop policy if exists hr_vigour_prices_read on public.hr_vigour_prices;
+create policy hr_vigour_prices_read on public.hr_vigour_prices for select to authenticated using (true);
+
+-- ── 3. hr_vigour_refill__ungated — verify, debit, count, journal ───────────
+create or replace function public.hr_vigour_refill__ungated(p_slot int, p_idem uuid)
+returns jsonb language plpgsql volatile security definer
+set search_path = public, pg_catalog as $$
+declare
+  v_uid     uuid := auth.uid();
+  v_slot    int  := coalesce(p_slot, 0);
+  v_st      public.player_state%rowtype;
+  v_day     text;
+  v_cached  jsonb;
+  v_vig     jsonb;
+  v_nth     int;
+  v_cost    bigint;
+  v_min     int;
+  v_cap     int;
+  v_intent  text;
+  v_result  jsonb;
+begin
+  if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
+  if p_slot is null or p_slot < 0 or p_slot > 5 then
+    return jsonb_build_object('ok', false, 'error', 'bad_slot', 'slot', p_slot);
+  end if;
+
+  -- ── (1) SERIALISE ON THE CHARACTER. The key is byte-identical to the one
+  --        hr_apply takes, so this also serialises against an accrual settling
+  --        the same character - which matters here because that accrual is what
+  --        SPENDS the minutes this purchase adds. Transaction-scoped, so it is
+  --        safe under the transaction pooler and re-entrant.
+  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_slot::text, 0));
+
+  -- ── (2) THE SERVER'S DAY. Read AFTER the lock and used for every counter
+  --        below, so a purchase cannot straddle the rollover and be counted in
+  --        one day while being priced in another.
+  v_day := public.hr_utc_day_key(now());
+  v_intent := 'vigour_refill:' || v_day;
+
+  -- ── (3) IDEMPOTENCY IS PER (KEY, INTENT, SLOT). Read INSIDE the lock so two
+  --        simultaneous retries of one tap cannot both miss the cache. ONLY
+  --        SUCCESSES ARE CACHED (see (9)), so "you are short 400 gold" stays
+  --        retryable.
+  select public.hr_intent_replay(v_uid, v_slot, p_idem, v_intent) into v_cached;
+  if v_cached ->> 'error' = 'intent_mismatch' then return v_cached; end if;
+  if v_cached is not null then return v_cached || jsonb_build_object('replayed', true); end if;
+
+  select * into v_st from public.player_state
+   where user_id = v_uid and slot = v_slot for update;
+  if v_st.user_id is null then
+    return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', v_slot);
+  end if;
+
+  -- ── (4) WHERE THIS CHARACTER STANDS, from the ONE meter. Not a private count
+  --        here: a second reading of "how many today" is a second answer.
+  v_vig := public.hr_vigour_of(v_uid, v_slot);
+  v_nth := coalesce((v_vig->>'refills')::int, 0) + 1;
+  v_cap := coalesce((v_vig->>'refills_max')::int, 0);
+
+  -- ── (5) THE PER-DAY CLAMP. The CATALOGUE'S ROW COUNT is the cap, so raising
+  --        it is adding a priced row and can never be done by accident. Refused
+  --        BY NAME, before any debit.
+  if v_nth > v_cap then
+    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'vigour_daily_cap',
+      jsonb_build_object('used', v_nth - 1, 'limit', v_cap), 1);
+    return jsonb_build_object('ok', false, 'error', 'vigour_daily_cap',
+      'used', v_nth - 1, 'limit', v_cap, 'vigour', v_vig);
+  end if;
+
+  select cost_gold, minutes into v_cost, v_min from public.hr_vigour_prices where nth = v_nth;
+  if v_cost is null then
+    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'vigour_daily_cap',
+      jsonb_build_object('nth', v_nth), 1);
+    return jsonb_build_object('ok', false, 'error', 'vigour_daily_cap', 'nth', v_nth, 'vigour', v_vig);
+  end if;
+
+  -- ── (6) THE CEILING. A refill that would buy NOTHING is refused rather than
+  --        sold. Taking gold for zero minutes is the `already_owned` defect in a
+  --        new currency, and it is the likeliest way this verb becomes a
+  --        complaint: a player at a 22-hour grant would pay 2,000 gold for air.
+  if coalesce((v_vig->>'budget_min')::int, 0) >= coalesce((v_vig->>'ceiling_min')::int, 0) then
+    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'vigour_ceiling',
+      jsonb_build_object('budget_min', v_vig->>'budget_min', 'ceiling_min', v_vig->>'ceiling_min'), 1);
+    return jsonb_build_object('ok', false, 'error', 'vigour_ceiling',
+      'budget_min', (v_vig->>'budget_min')::int, 'ceiling_min', (v_vig->>'ceiling_min')::int,
+      'vigour', v_vig);
+  end if;
+
+  -- ── (7) THE DEBIT. Every number here came from the server's own catalogue or
+  --        the server's own row; nothing on the wire priced anything. The
+  --        balance cannot go negative - the check and the update are one
+  --        statement apart inside a transaction holding the row lock.
+  if coalesce(v_st.gold, 0) < v_cost then
+    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'insufficient_gold',
+      jsonb_build_object('cost', v_cost, 'have', coalesce(v_st.gold, 0)), 1);
+    return jsonb_build_object('ok', false, 'error', 'insufficient_gold',
+      'cost', v_cost, 'have', coalesce(v_st.gold, 0),
+      'short_by', v_cost - coalesce(v_st.gold, 0), 'vigour', v_vig);
+  end if;
+  update public.player_state
+     set gold = gold - v_cost, version = version + 1, updated_at = now()
+   where user_id = v_uid and slot = v_slot;
+  -- ⚠ accrued_to IS NOT TOUCHED. A purchase is not an activity change, so the
+  --   unpaid accrual window survives it; stamping it here would confiscate the
+  --   elapsed time of exactly the player who just paid to hunt longer.
+
+  -- ── (8) THE COUNTER. The SAME daily row hr_vigour_of reads, so what was
+  --        charged and what is granted cannot disagree - there is one number
+  --        (design §5). The minutes themselves are NOT stored: the budget is
+  --        derived from this count, so there is nothing to drift.
+  insert into public.player_progress as pp
+    (user_id, slot, kind, key, value, period_key, state, updated_at)
+  values (v_uid, v_slot, 'daily', 'ev:vigour_refills', 1, v_day, 'active', now())
+  on conflict (user_id, slot, kind, key, period_key)
+    do update set value = pp.value + 1, updated_at = now();
+
+  -- ── (9) THE JOURNAL. ONE row per refill, carrying the SIGNED gold movement
+  --        so a support request about a missing 18,000 gold is answerable from
+  --        the append-only record. gold_in/xp_in/qty_in/gems_in are ZERO and
+  --        written explicitly: this transaction MINTED nothing.
+  insert into public.player_ledger
+    (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+  values
+    (v_uid, v_slot, 'vigour', v_intent, -v_cost, 0, 0, 0, 0,
+     jsonb_build_object('nth', v_nth, 'cost', v_cost, 'minutes', v_min,
+                        'currency', 'gold', 'day', v_day, 'idem', p_idem));
+
+  -- ── (10) THE ENVELOPE. The balance and the meter are RE-READ from the rows
+  --         rather than computed from a pre-update snapshot, so what the client
+  --         renders is what the database holds.
+  select * into v_st from public.player_state where user_id = v_uid and slot = v_slot;
+  v_result := jsonb_build_object(
+    'ok', true, 'nth', v_nth, 'cost', v_cost, 'minutes', v_min, 'currency', 'gold',
+    'gold', v_st.gold, 'version', v_st.version, 'slot', v_slot,
+    'vigour', public.hr_vigour_of(v_uid, v_slot));
+
+  -- ⚠ SUCCESSES ONLY. A cached refusal would make "not enough gold" permanent
+  --   for that key; the client generates a fresh key per gesture, so a genuine
+  --   retry of the SAME gesture replays this envelope and debits nothing.
+  if p_idem is not null then
+    insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
+      values (v_uid, p_idem, v_slot, v_intent, v_result, now())
+      on conflict (user_id, intent_id) do nothing;
+  end if;
+
+  return v_result;
+end $$;
+
+-- ── 4. The gated wrapper ───────────────────────────────────────────────────
+-- ⚠ BOTH ARGUMENTS CARRY DEFAULTS. PostgREST resolves an RPC by the NAMED
+--   arguments in the POST body; a client posting {} against a two-argument
+--   function with no defaults gets PGRST202, a 404 indistinguishable from "the
+--   migration was never applied".
+-- ⚠ THE hr_note_rejection SEAM IS WRITTEN HERE, NOT INHERITED: the 2026-09-12
+--   sweep decorated the pairs that existed when it ran, so a wrapper created
+--   afterwards carries its own. Exactly one call, in the sweep's shape.
+create or replace function public.hr_vigour_refill(p_slot int default 0, p_idem uuid default null)
+returns jsonb language plpgsql volatile security definer
+set search_path = public, pg_catalog as $w$
+begin
+  if not public.hr_rpc_gate('hr_vigour_refill') then
+    return jsonb_build_object('ok', false, 'error', 'rate_limited')::jsonb;
+  end if;
+  return public.hr_note_rejection('hr_vigour_refill', p_slot,
+           public.hr_vigour_refill__ungated($1, $2));
+end $w$;
+
+revoke execute on function public.hr_vigour_refill__ungated(int, uuid) from public;
+revoke execute on function public.hr_vigour_refill__ungated(int, uuid)
+  from anon, authenticated, service_role;
+revoke execute on function public.hr_vigour_refill(int, uuid) from public;
+revoke execute on function public.hr_vigour_refill(int, uuid) from anon, service_role;
+grant  execute on function public.hr_vigour_refill(int, uuid) to authenticated;
+
+-- ── 5. hr_rpc_gate — PROGRAMMATIC additive patch (one bucket) ──────────────
+-- An UNKNOWN bucket fails CLOSED (`else return false`), so without this the verb
+-- would answer rate_limited forever and deploy green and dead.
+-- 6/min: the whole ladder is five rows a day and each is a deliberate decision.
+do $$
+declare v_src text; v_new text;
+begin
+  select pg_get_functiondef('public.hr_rpc_gate(text)'::regprocedure) into v_src;
+  v_src := replace(v_src, chr(13), '');
+  if position('''hr_vigour_refill''' in v_src) > 0 then
+    raise notice 'hr_rpc_gate already admits hr_vigour_refill - patch skipped'; return;
+  end if;
+  if (length(v_src) - length(replace(v_src, 'else return false;' || chr(10) || '  end case;', '')))
+     <> length('else return false;' || chr(10) || '  end case;') then
+    raise exception 'hr_rpc_gate case terminator anchor did not match exactly once - refusing to patch blind';
+  end if;
+  v_new := replace(v_src,
+    'else return false;' || chr(10) || '  end case;',
+    'when ''hr_vigour_refill'' then v_limit := 6;' || chr(10) ||
+    '    else return false;' || chr(10) || '  end case;');
+  execute v_new;
+  raise notice 'hr_rpc_gate patched: hr_vigour_refill admitted at 6/min';
+end $$;
+revoke execute on function public.hr_rpc_gate(text) from public;
+revoke execute on function public.hr_rpc_gate(text) from anon, authenticated, service_role;
+
+-- ── 6. Grant-hygiene baseline ──────────────────────────────────────────────
+-- Targeted, never a call to hr_grant_baseline_sync(): that would re-approve the
+-- entire live surface and turn a differential check into a rubber stamp.
+do $$
+begin
+  if to_regclass('public.hr_client_rpc_baseline') is null then
+    raise notice 'hr_client_rpc_baseline absent - grant-hygiene not applied; nothing to record'; return;
+  end if;
+  delete from public.hr_client_rpc_baseline
+   where proname = 'hr_vigour_refill' and grantee = 'authenticated';
+  insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values
+    ('hr_vigour_refill', 'p_slot integer, p_idem uuid', 'authenticated',
+     'added 2026-09-22: buys +120 paid hunting minutes for GOLD on the calling character. The price '
+     'comes from public.hr_vigour_prices (nth = today''s refill count + 1); the caller sends one of '
+     'its own slots and an idempotency key and nothing else - no amount, no price, no currency. '
+     'Gems and Hearth Tokens may never buy hunting time (HUNTS_AND_ANALYZER.md 4.4). Capped at the '
+     'catalogue''s row count per UTC day and refused at the 22h daily ceiling rather than sold for '
+     'zero minutes. MONEY SURFACE: applied only on a Security GO (CLAUDE.md 2).');
+end $$;
+
+-- ── 7. SELF-VERIFYING COMMIT GATE (CLAUDE.md §4) ───────────────────────────
+do $$
+declare
+  v_uid  constant uuid := '00000000-0000-4000-8000-0000b5510004';
+  v_src  text;
+  v_r    jsonb;
+  v_vig  jsonb;
+  v_gold bigint;
+  v_p1   bigint;
+  v_p2   bigint;
+  v_day  text := public.hr_utc_day_key(now());
+begin
+  select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname='public' and p.proname='hr_vigour_refill__ungated';
+  if v_src is null then raise exception 'GATE(a): hr_vigour_refill__ungated is missing'; end if;
+
+  -- (a) THE CATALOGUE IS THE ONLY PRICE. No 3+ digit literal may appear in the
+  --     verb's executable body. This is what makes Tyler's four numbers DATA.
+  if v_src ~ '[^0-9a-zA-Z_]\d{3,}' then
+    raise exception 'GATE(a): the verb contains a 3+ digit literal outside a comment - a price typed into the verb is a second copy of a money number that Tyler cannot tune';
+  end if;
+  if position('hr_vigour_prices' in v_src) = 0 then
+    raise exception 'GATE(a): the verb does not read hr_vigour_prices at all';
+  end if;
+
+  -- (b) GOLD ONLY. The settled ruling (design §4.4): selling away-accrual hours
+  --     for cash is pay-to-win on a ranked economy.
+  -- ⚠ `gems_in` IS BLANKED FIRST, AND IT IS NOT A SOFTENING. It is one of
+  --   hr_apply's four daily-budget STAMP COLUMNS, written here as an explicit
+  --   ZERO because "this transaction minted nothing" is a different fact from
+  --   "unstamped" - every value verb in this chain writes it. What the rule
+  --   forbids is the verb READING or MOVING a premium currency, and that cannot
+  --   be spelled without the bare word.
+  if regexp_replace(v_src, 'gems_in', '', 'g') ~* '(gems|hearth_tokens|dungeon_scrip|marks)' then
+    raise exception 'GATE(b): the verb names a currency that is not gold - gems and Hearth Tokens may NEVER buy hunting time';
+  end if;
+  -- AND IT REALLY DOES SPEND GOLD. The half of the rule the pattern above
+  -- cannot state: a verb that named no currency at all would also pass it.
+  if v_src !~ 'gold[[:space:]]*=[[:space:]]*gold[[:space:]]*-' then
+    raise exception 'GATE(b): the verb does not debit player_state.gold - a refill that charges nothing is a faucet';
+  end if;
+
+  -- (c) THE WRAPPER IS GATED, SEAMED AND DEFAULTED.
+  select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname='public' and p.proname='hr_vigour_refill';
+  if position('hr_rpc_gate' in v_src) = 0 then raise exception 'GATE(c): the wrapper is not rate-gated'; end if;
+  if (length(v_src) - length(replace(v_src, 'hr_note_rejection', ''))) / length('hr_note_rejection') <> 1 then
+    raise exception 'GATE(c): the wrapper does not carry exactly one hr_note_rejection seam';
+  end if;
+  if (select pronargdefaults from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+       where n.nspname='public' and p.proname='hr_vigour_refill') <> 2 then
+    raise exception 'GATE(c): hr_vigour_refill does not default both arguments - PostgREST would answer PGRST202';
+  end if;
+  -- (c2) THE UNGATED BODY IS CALLABLE BY NOBODY.
+  if has_function_privilege('authenticated', 'public.hr_vigour_refill__ungated(int, uuid)', 'execute') then
+    raise exception 'GATE(c2): authenticated can call the UNGATED verb - the rate gate is bypassable';
+  end if;
+  if not has_function_privilege('authenticated', 'public.hr_vigour_refill(int, uuid)', 'execute') then
+    raise exception 'GATE(c2): authenticated cannot call the gated wrapper - the verb ships dead';
+  end if;
+
+  -- (d) THE LADDER RISES. Asserted from the rows, so a mis-seeded catalogue
+  --     (every rung 2,000) fails the apply instead of shipping a flat tax.
+  select cost_gold into v_p1 from public.hr_vigour_prices where nth = 1;
+  select cost_gold into v_p2 from public.hr_vigour_prices where nth = 2;
+  if v_p2 <= v_p1 then
+    raise exception 'GATE(d): refill 2 (%) is not dearer than refill 1 (%) - a flat curve becomes a fixed daily tax the wealthy stop noticing', v_p2, v_p1;
+  end if;
+  if exists (select 1 from public.hr_vigour_prices a join public.hr_vigour_prices b
+              on b.nth = a.nth + 1 where b.cost_gold <= a.cost_gold) then
+    raise exception 'GATE(d): the price ladder is not strictly increasing';
+  end if;
+
+  begin  -- ── SUBTRANSACTION ────────────────────────────────────────────────
+    insert into auth.users (id) values (v_uid);
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+    v_r := public.hr_create_character(0);
+    if v_r->>'created' <> 'true' then raise exception 'GATE(e): no probe character: %', v_r; end if;
+
+    -- (e1) NO GOLD, NO REFILL. Run BEFORE any gold is placed, so the refusal is
+    --      the shipped default rather than something this probe arranged.
+    select coalesce(gold, 0) into v_gold from public.player_state where user_id = v_uid and slot = 0;
+    if v_gold >= v_p1 then
+      raise exception 'GATE(e1) CANNOT RUN: a new character starts with % gold, enough for the first refill (%) - this probe proves nothing', v_gold, v_p1;
+    end if;
+    v_r := public.hr_vigour_refill__ungated(0, gen_random_uuid());
+    if v_r->>'error' is distinct from 'insufficient_gold' then
+      raise exception 'GATE(e1): a broke character was answered % - it must be insufficient_gold', v_r; end if;
+    if exists (select 1 from public.player_progress where user_id = v_uid
+                and kind='daily' and key='ev:vigour_refills') then
+      raise exception 'GATE(e1): the REFUSED refill counted anyway';
+    end if;
+
+    -- (e2) THE HAPPY PATH. Gold placed on the row directly (a synthetic probe,
+    --      not a player - no faucet is exercised). It must debit EXACTLY the
+    --      catalogue price, count exactly one, and journal the signed movement.
+    update public.player_state set gold = v_p1 + v_p2 + 1 where user_id = v_uid and slot = 0;
+    v_r := public.hr_vigour_refill__ungated(0, '00000000-0000-4000-8000-0000b5510aa1');
+    if coalesce(v_r->>'ok','false') <> 'true' then raise exception 'GATE(e2): a funded refill was refused: %', v_r; end if;
+    if (v_r->>'cost')::bigint <> v_p1 then
+      raise exception 'GATE(e2): charged % for refill 1, catalogue says %', v_r->>'cost', v_p1; end if;
+    if (v_r->>'gold')::bigint <> v_p2 + 1 then
+      raise exception 'GATE(e2): the debit left % gold, expected %', v_r->>'gold', v_p2 + 1; end if;
+    if (v_r->'vigour'->>'refills')::int <> 1 then
+      raise exception 'GATE(e2): the meter did not count the refill: %', v_r->'vigour'; end if;
+    if (v_r->'vigour'->>'budget_min')::int
+         <> least((v_r->'vigour'->>'ceiling_min')::int,
+                  (v_r->'vigour'->>'grant_min')::int + 120) then
+      raise exception 'GATE(e2): the budget did not grow by the purchased minutes: %', v_r->'vigour'; end if;
+    if (select count(*) from public.player_ledger where user_id = v_uid and kind = 'vigour') <> 1 then
+      raise exception 'GATE(e2): the refill did not journal exactly one row'; end if;
+    if (select gold from public.player_ledger where user_id = v_uid and kind='vigour' limit 1) <> -v_p1 then
+      raise exception 'GATE(e2): the journal does not record the SIGNED gold movement'; end if;
+
+    -- (e3) THE REPLAY. The SAME key answers the SAME envelope and debits
+    --      nothing - the property a retrying client depends on and the one a
+    --      double-tap would otherwise break.
+    v_r := public.hr_vigour_refill__ungated(0, '00000000-0000-4000-8000-0000b5510aa1');
+    if coalesce(v_r->>'replayed','false') <> 'true' then
+      raise exception 'GATE(e3): the replayed key was not answered from the cache: %', v_r; end if;
+    if (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_p2 + 1 then
+      raise exception 'GATE(e3): the replay MOVED GOLD - a retry charges twice'; end if;
+    if (public.hr_vigour_of(v_uid, 0)->>'refills')::int <> 1 then
+      raise exception 'GATE(e3): the replay counted a second refill'; end if;
+
+    -- (e4) THE PRICE RISES. A FRESH key must be charged the SECOND rung.
+    v_r := public.hr_vigour_refill__ungated(0, gen_random_uuid());
+    if coalesce(v_r->>'ok','false') <> 'true' then raise exception 'GATE(e4): the second refill was refused: %', v_r; end if;
+    if (v_r->>'cost')::bigint <> v_p2 then
+      raise exception 'GATE(e4): refill 2 cost % - the ladder is not rising within the day', v_r->>'cost'; end if;
+
+    -- (e5) THE DAY CAP BITES, AND IT IS THE CATALOGUE'S ROW COUNT. Gold is
+    --      placed far above every rung so the refusal can only be the cap.
+    update public.player_state set gold = 100000000 where user_id = v_uid and slot = 0;
+    for i in 3..(select max(nth) from public.hr_vigour_prices) loop
+      v_r := public.hr_vigour_refill__ungated(0, gen_random_uuid());
+      if coalesce(v_r->>'ok','false') <> 'true' then
+        raise exception 'GATE(e5): refill % was refused with gold to spare: %', i, v_r; end if;
+    end loop;
+    select gold into v_gold from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_vigour_refill__ungated(0, gen_random_uuid());
+    if v_r->>'error' is distinct from 'vigour_daily_cap' then
+      raise exception 'GATE(e5): the (max+1)th refill answered % - it must be vigour_daily_cap', v_r; end if;
+    if (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold then
+      raise exception 'GATE(e5): the REFUSED refill still took gold'; end if;
+    -- AND THE CEILING HELD THROUGHOUT.
+    v_vig := public.hr_vigour_of(v_uid, 0);
+    if (v_vig->>'budget_min')::int > (v_vig->>'ceiling_min')::int then
+      raise exception 'GATE(e5): five refills pushed the budget to % min, past the ceiling % - gold bought the whole day', v_vig->>'budget_min', v_vig->>'ceiling_min'; end if;
+
+    -- (e6) THE REFILLS ARE TODAY'S ONLY. Every counter row is on today's period
+    --      key, so tomorrow starts at rung 1 with no reset job anywhere.
+    if exists (select 1 from public.player_progress where user_id = v_uid
+                and kind='daily' and key='ev:vigour_refills' and period_key <> v_day) then
+      raise exception 'GATE(e6): a refill counted against a day that is not today';
+    end if;
+
+    raise exception using errcode = 'HR922', message = 'vigour-refill §7 complete - rolling back';
+  exception when sqlstate 'HR922' then null;
+  end;
+
+  perform set_config('request.jwt.claim.sub', '', true);
+
+  if exists (select 1 from public.player_state     where user_id = v_uid)
+     or exists (select 1 from public.player_skills    where user_id = v_uid)
+     or exists (select 1 from public.player_inventory where user_id = v_uid)
+     or exists (select 1 from public.player_equipment where user_id = v_uid)
+     or exists (select 1 from public.player_progress  where user_id = v_uid)
+     or exists (select 1 from public.player_ledger    where user_id = v_uid)
+     or exists (select 1 from public.player_intents   where user_id = v_uid)
+     or exists (select 1 from auth.users             where id = v_uid) then
+    raise exception 'GATE: §7 LEAKED a probe row';
+  end if;
+
+  raise notice 'vigour-refill: no price literal lives in the verb, no currency but gold is named, the wrapper is gated + seamed + defaulted and the ungated body is callable by nobody, the ladder strictly rises, and EXECUTED - a broke character is refused and counts nothing, a funded one pays exactly rung 1 and journals the signed debit, the replay charges nothing, rung 2 costs more, the day cap is the catalogue row count and refuses without taking gold, and five refills never pass the 22h ceiling - all green, net zero';
+end $$;

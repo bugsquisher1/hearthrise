@@ -628,6 +628,23 @@ export const INTENT_ERRORS = Object.freeze({
   BAD_ACTIVITY: 'bad_activity',                 // 400 — the declaration is malformed
   ACTIVITY_UNSUPPORTED: 'activity_unsupported', // 409 — a real kind the server cannot pay YET
   UNKNOWN_ACTIVITY: 'unknown_activity',         // 409 — not in the authored data
+  /* THE HUNT'S TWO STANDING ORDERS (2026-09-22, docs/design/HUNTS_AND_ANALYZER
+     .md §6). `set_activity` grows two OPTIONAL fields and NO new verb, so these
+     are activity-shape codes and they sit with their three neighbours above.
+     Each is answered from src/core/hunt.js — in process, before the rate gate
+     and before any database work — which is why all three are STATELESS below.
+       BAD_STANCE     400 — not a readable stance id at all
+       UNKNOWN_STANCE 409 — a real-looking id that is not in the catalogue. The
+                            same split as bad_activity vs unknown_activity, and
+                            for the same reason: "malformed request" files a bug
+                            against the wrong system.
+       BAD_STOP       400 — a stop object that is malformed, carries an unknown
+                            rule, or names a value OUTSIDE its published bounds.
+                            REFUSED, never clamped: a clamp lets a client
+                            discover a hidden maximum by pushing at one. */
+  BAD_STANCE: 'bad_stance',                     // 400 — unreadable stance field
+  UNKNOWN_STANCE: 'unknown_stance',             // 409 — not in the stance catalogue
+  BAD_STOP: 'bad_stop',                         // 400 — malformed or out-of-bounds stop rule
   NO_CHARACTER: 'no_character',                 // 409 — nothing to act on in this slot
   RATE_LIMITED: 'rate_limited',                 // 429
   /* 409, stage:'collect'. The elapsed window could not be priced, so switching
@@ -831,6 +848,13 @@ export const STATELESS_REFUSALS = Object.freeze([
   INTENT_ERRORS.BAD_ACTIVITY,
   INTENT_ERRORS.ACTIVITY_UNSUPPORTED,
   INTENT_ERRORS.UNKNOWN_ACTIVITY,
+  /* The hunt's three, for the identical reason as the three above them: each is
+     answered from src/core/hunt.js before the rate gate and before any database
+     work, so reading a state envelope for one would be exactly the database work
+     the shape check exists to avoid. */
+  INTENT_ERRORS.BAD_STANCE,
+  INTENT_ERRORS.UNKNOWN_STANCE,
+  INTENT_ERRORS.BAD_STOP,
   INTENT_ERRORS.RATE_LIMITED,
   INTENT_ERRORS.NO_CHARACTER,
   /* The gold verbs' shape refusals, and they are on this list for exactly the

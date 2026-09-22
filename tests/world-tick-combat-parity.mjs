@@ -182,6 +182,7 @@ function CLAIM_TEXT() {
     C12: 'the journal row is accrue meta + src:tick, <= 10 keys, never an att',
     C13: 'the fold re-checks the three per-apply clamps (progress, hearthfind, deaths)',
     C14: 'the double-pay fence is reused unchanged — one intent id, one version',
+    C15: 'the staged migration\'s channel literal == PAYABLE_KINDS, and it arms nothing',
   };
 }
 
@@ -969,6 +970,44 @@ for (const raw of SESSIONS) {
   let threwAtt = null;
   try { foldCombatMeta([{ ms: 1, ticks: 1, kills: 1, capped: false, ate: 0, att: {} }], 0, 1); } catch (e) { threwAtt = e; }
   ok('C12', threwAtt !== null, 'foldCombatMeta accepted an attended split');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// C15 — THE FOURTH COPY OF PAYABLE_KINDS
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* plpgsql cannot import accrual.js, so every SQL statement of "which kinds
+     may the tick settle" is a hand-typed copy of `PAYABLE_KINDS`. There were
+     three — hr_tick_roster's `c_payable`, hr_tick_settle's `c_payable`, and
+     hr_tick_ownership's channel CHECK — and world-tick-parity.mjs P-G7/P-G7b
+     guard those. 2026-09-22-world-tick-combat-channel.sql adds a fourth, on
+     `hr_tick_config.channels`, and the price of a fourth copy is this arm.
+
+     A drift here is quiet in the worst way: the tick would refuse to be
+     POINTED at a kind the engine pays, which reads to a player as "combat
+     stopped crediting" and to an operator as nothing at all. */
+  const sql = readFileSync(
+    join(ROOT, 'supabase/migrations/2026-09-22-world-tick-combat-channel.sql'), 'utf8');
+  const m = sql.match(/hr_tick_config_channels_ck[\s\S]{0,200}?channels\s*<@\s*array\[([^\]]*)\]/);
+  ok('C15', !!m,
+    'C15 could not find hr_tick_config_channels_ck\'s channel literal — the drift guard '
+    + 'has nothing to compare, which is the state P-G7 exists to prevent');
+  if (m) {
+    const inCk = m[1].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).filter(Boolean);
+    eq('C15', inCk.slice().sort(), PAYABLE_KINDS.slice().sort(),
+      'hr_tick_config.channels\' CHECK does not match accrual.js PAYABLE_KINDS — the tick '
+      + 'could not be pointed at a kind the engine pays');
+  }
+  /* AND THE FILE STILL DOES NOT ARM COMBAT. A migration that widened the
+     default, or that UPDATEd the singleton, would turn a channel on by being
+     applied — which is an operator decision with its own Security GO. The
+     migration's own c3 asserts this by execution against a real database; this
+     asserts it on the SOURCE, so it is red in CI before an apply is attempted. */
+  ok('C15', !/update\s+public\.hr_tick_config\s+set[\s\S]{0,200}?channels/i.test(sql),
+    'the staged migration UPDATEs hr_tick_config.channels — applying a file must not arm a channel');
+  ok('C15', !/alter\s+column\s+channels\s+set\s+default/i.test(sql),
+    'the staged migration re-defaults hr_tick_config.channels — applying a file must not arm '
+    + 'a channel, and the default is the fence\'s to set');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

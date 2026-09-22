@@ -231,3 +231,108 @@ export function verdict(a) {
     ok: failed === 0 && proven > 0,
   };
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE GATHER DRY RUN (step-2 preparation, 2026-09-18)
+
+   "For the same sessions over the same span, print what the tick WOULD write
+   next to what accrual later actually wrote." This is that, and the first
+   thing it has to do is be honest about which half of it is possible.
+
+   VALUE cannot be compared against history, and the reason is a SECURITY
+   property rather than a gap: `hr_seed` mixes a 256-bit secret held behind RLS
+   (S20), and the journal carries no starting state — the exact missing list is
+   MISSING_FOR_VALUE_REPLAY above, and P6 asserts it has not been quietly
+   shortened to make a replay "work". Re-rolling a historical window would be a
+   NEW roll printed next to an old result, which is worse than no comparison
+   because it LOOKS like one. This function does not do it. The value proof is
+   made where value is reproducible — on fixtures, exactly, by P-G1.
+
+   GEOMETRY and COST can be compared exactly, and they are the two things the
+   tick actually changes about a gather window:
+     · how many ledger rows the same wall-clock time costs;
+     · whether the accrual windows themselves tile their stream with no gap and
+       no overlap, which is the invariant the tick has to preserve.
+   Both are computed from the rows' own journalled `from`/`to`/`ms`/`ticks`/
+   `qty` — no invention, no roll, no starting state.
+
+   ── S-5, CORRECTED 2026-09-21 (SEC_WORLD_TICK_GATHER_2026-09-19.md) ─────────
+   THE OVERLAP COUNT USED TO BE `from < prevTo`, AND THAT IS THE SHAPE OF EVERY
+   HONEST DEFERRED WINDOW. Since `settledWatermarkMs` landed on 2026-09-16 the
+   engine stamps `accrued_to` at the instant it ACCOUNTED for, not at `now()`,
+   so the next window legitimately starts at `prev.to MINUS the deferred
+   sub-action remainder`. `from < prevTo` is therefore true of a correct
+   boundary and of a double pay alike, and the tool printed "an OVERLAP would be
+   a double pay" over the sum of both. That — not a defect in the engine — is
+   where the 15 "overlapping" gather windows of the step-1 production run came
+   from.
+
+   The arithmetic that CAN tell them apart already existed twenty lines up:
+   `replayStream` solves each window's own geometry and asks whether the next
+   window began exactly where `settledWatermarkMs` says it should. This function
+   now uses it rather than a second, cruder rule. The buckets it reports:
+
+     deferred    the boundary IS settledWatermarkMs of the previous window —
+                 correct, and the thing the old metric miscounted
+     overlap     the next window began BEFORE the watermark the previous one
+                 earned. A REAL double pay, and the only failing bucket.
+     gap         the next window began AFTER it — time nobody paid for
+     unprovable  the journal cannot settle the question for this pair (an old
+                 row with no `meta.w`, a zero-tick window, a capped flush).
+                 Reported as such rather than counted as a pass.
+   ══════════════════════════════════════════════════════════════════════════ */
+export function gatherDryRun(rows, opts) {
+  const o = opts || {};
+  const flushMs = Math.max(1000, Math.floor(o.flushMs || 90000));
+  const gather = rows.filter((r) => r.kind === 'gather' && r.meta && r.meta.from && r.meta.to);
+  const streams = new Map();
+  for (const r of gather) {
+    const key = `${r.user_id}|${r.slot}`;
+    if (!streams.has(key)) streams.set(key, []);
+    streams.get(key).push(r);
+  }
+  const out = [];
+  for (const [key, rs] of streams) {
+    rs.sort((a, b) => Date.parse(a.meta.from) - Date.parse(b.meta.from));
+    let accrueRows = 0; let spanMs = 0; let ticks = 0; let qty = 0; let tickRows = 0;
+    for (const r of rs) {
+      const from = Date.parse(r.meta.from); const to = Date.parse(r.meta.to);
+      const ms = Math.max(0, to - from);
+      accrueRows++;
+      spanMs += ms;
+      ticks += Number(r.meta.ticks || 0);
+      qty += Number(r.meta.qty || 0);
+      /* WHAT THE TICK WOULD HAVE WRITTEN for the same wall-clock window: one
+         row per flush period, and at least one for any window that settled
+         anything at all. `ceil`, not `round`: a partial flush is still a row. */
+      tickRows += ms > 0 ? Math.max(1, Math.ceil(ms / flushMs)) : 0;
+    }
+    /* THE BOUNDARY CLASSIFICATION, delegated to the arithmetic that knows about
+       the deferral (S-5). One rule, one implementation: if this ever disagrees
+       with `replayStream`, one of them is wrong and it will be this one. */
+    const windows = rs.map(toWindow).filter(Boolean);
+    let deferred = 0; let overlap = 0; let gap = 0; let unprovable = 0;
+    for (const f of replayStream(windows)) {
+      if (f.bucket === 'watermark_exact' || f.bucket === 'flush') deferred++;
+      else if (f.bucket === 'gap') gap++;
+      else if (f.bucket === 'watermark_mismatch') {
+        /* The boundary disagrees. WHICH DIRECTION decides what it is: a window
+           that began before the watermark the previous one earned re-pays time
+           already settled (the double pay); one that began after it leaves time
+           nobody paid for. */
+        if (f.actual < f.expected) overlap++; else gap++;
+      } else unprovable++;
+    }
+    out.push({ stream: key, accrueRows, tickRows, spanMs, ticks, qty,
+               deferred, overlap, gap, unprovable });
+  }
+  out.sort((a, b) => b.spanMs - a.spanMs);
+  const tot = out.reduce((a, s) => ({
+    accrueRows: a.accrueRows + s.accrueRows, tickRows: a.tickRows + s.tickRows,
+    spanMs: a.spanMs + s.spanMs, ticks: a.ticks + s.ticks, qty: a.qty + s.qty,
+    deferred: a.deferred + s.deferred, overlap: a.overlap + s.overlap,
+    gap: a.gap + s.gap, unprovable: a.unprovable + s.unprovable,
+  }), { accrueRows: 0, tickRows: 0, spanMs: 0, ticks: 0, qty: 0,
+        deferred: 0, overlap: 0, gap: 0, unprovable: 0 });
+  return { flushMs, streams: out, total: tot, windows: gather.length };
+}

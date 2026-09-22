@@ -95,6 +95,11 @@ import { runEquip } from './equip.js';
 import { runEnchant } from './enchant.js';
 import { runEat } from './eat.js';
 import { withCors } from './cors.js';
+/* THE WORLD TICK'S OWN ENTRY (WORLD_TICK_DESIGN.md §15c, milestone 1b). It is
+   the ONE request path that reaches the engine with no player behind it, so it
+   is its own module with its own adversarial review and its own test
+   (tests/edge-tick-gate.mjs). Nothing else in this payload may import it. */
+import { tickGate, runTick, readTickBody } from './tick.js';
 import { PAYLOAD_SHA256 } from './payload-hash.js';
 import { GATHER_NODES, ARTISAN_RECIPES_ALL } from './catalogue.js';
 import { ITEMS } from '../../../src/data/items.js';
@@ -117,6 +122,13 @@ import { killsByClass } from '../../../src/core/charms.js';
    prepared on does not, so the next statement fails with "prepared statement
    does not exist" under load and only under load. */
 const DB_URL = Deno.env.get('HR_ENGINE_DB_URL') ?? '';
+
+/* THE TICK BEARER, READ ONCE AT MODULE LOAD. `tick.js` fails closed on an
+   unset or short value — it is never a reason to skip the check — and the
+   value itself is never logged, returned or raised. It is NOT the gateway
+   key: `verify_jwt = true` stays on and Supabase checks `Authorization`
+   before any of this runs. Conflating the two is the whole exploit. */
+const TICK_SECRET = Deno.env.get('HR_TICK_SHARED_SECRET') ?? '';
 
 /* Constraint 2, enforced at MODULE LOAD rather than per request. A copy-pasted
    session-mode connection string is the single most likely way the pooler rule
@@ -235,6 +247,53 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     return json({ ok: true, fn: 'hr-accrue', payload_sha256: PAYLOAD_SHA256 });
   }
   if (req.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405);
+
+  /* ── THE WORLD TICK BRANCH, AND IT IS BEFORE `verifyJwt` ON PURPOSE ───────
+     A tick request is not about one player and carries no player token, so the
+     JWT verification below — which DERIVES `user` from the token — has nothing
+     to verify and nothing to derive. §15c specifies the branch here, and
+     everything that makes it narrower than the gate it steps around lives in
+     ./tick.js: the discriminator is the PRESENCE of `X-HR-Tick-Auth` (never
+     the body, which is not read until the bearer has been accepted), the
+     comparison is constant time against `HR_TICK_SHARED_SECRET`, an unset or
+     short secret refuses every tick request, and a mismatch answers the SAME
+     `401 not_signed_in` the player path answers so this branch is not an
+     oracle.
+
+     ⚠ A REQUEST WITHOUT THAT HEADER IS NOT A TICK REQUEST AND FALLS THROUGH
+       UNCHANGED, including one whose body says `op: 'tick'`: `parseIntent`
+       has no reader for `op`, so such a body is that caller's own accrual and
+       reaches nothing here. A player's JWT can therefore never arrive at the
+       tick, which is the property tests/edge-tick-gate.mjs T-P1 executes. */
+  const tick = tickGate(req.headers, TICK_SECRET);
+  if (tick) {
+    if (!tick.ok) return json(tick.body, tick.status);
+    try {
+      assertPooler();
+      if (!sql) throw new Error('config:no_connection');
+      const execTick = async (text: string, params: unknown[]): Promise<Record<string, any>[]> =>
+        await sql.begin(async (tx) => {
+          await tx`set local role hr_engine`;
+          return await tx.unsafe(text, params as any[]);
+        }) as unknown as Record<string, any>[];
+      /* BOUNDED, AND ONLY NOW. The bearer has been accepted; the body has
+         still not been touched. `readTickBody` refuses a body over the
+         ceiling by its Content-Length AND by counting the bytes that actually
+         arrive, so a chunked sender that omits the header is metered too. A
+         refusal is `bad_request` and says nothing about which of the two
+         reasons it was — the same non-oracle discipline the bearer follows. */
+      const body = await readTickBody(req);
+      if (body === null) return json({ ok: false, error: 'bad_request' }, 400);
+      const out = await runTick({ exec: execTick, body });
+      return json(out.body, out.status);
+    } catch (e) {
+      const msg = String((e as Error)?.message || e);
+      if (msg.startsWith('config:')) return json({ ok: false, error: 'engine_unconfigured' }, 503);
+      /* Never the exception text: it is the only thing on this path that could
+         carry a fragment of a connection string into a response body. */
+      return json({ ok: false, error: 'tick_failed' }, 500);
+    }
+  }
 
   let user: string;
   try {

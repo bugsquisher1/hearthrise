@@ -1,0 +1,67 @@
+{
+  "_comment": [
+    "Gather sessions for the step-2 shadow proof. Three shapes on purpose:",
+    "a bare-handed early node (no tool, tool_carry column absent -> null, so the",
+    "delta must NOT carry tool_carry), a tooled mid node whose interval does not",
+    "divide the 10 s cadence (4000 ms -> the remainder MUST be carried, not",
+    "forfeited), and a mining session that already holds a tool_carry the server",
+    "owns. Every id is validated against src/data on load by loadGatherSessions.",
+    "No real user ids: these uuids are zero-prefixed and match no account."
+  ],
+  "sessions": [
+    {
+      "name": "bare-handed woodcutter, normal tree, no tool carry column",
+      "userId": "00000000-0000-4000-8000-0000000000a1",
+      "slot": 0,
+      "shard": 0,
+      "version": 1000,
+      "activeId": "normal_tree",
+      "activeSinceOffsetMs": 0,
+      "capMs": 43200000,
+      "seed": 918273645,
+      "hp": 40,
+      "maxHp": 40,
+      "gold": 50,
+      "skills": { "woodcutting": 500, "mining": 0, "fishing": 0, "hitpoints": 1200 },
+      "inventory": {},
+      "equipment": {},
+      "toolCarry": null
+    },
+    {
+      "name": "tooled woodcutter, oak tree (4000 ms vs a 10 s cadence)",
+      "userId": "00000000-0000-4000-8000-0000000000a2",
+      "slot": 1,
+      "shard": 0,
+      "version": 2000,
+      "activeId": "oak_tree",
+      "activeSinceOffsetMs": -37000,
+      "capMs": 43200000,
+      "seed": 55512345,
+      "hp": 55,
+      "maxHp": 55,
+      "gold": 900,
+      "skills": { "woodcutting": 12000, "mining": 3000, "fishing": 1000, "hitpoints": 8000 },
+      "inventory": { "steel_axe": 1, "normal_log": 12 },
+      "equipment": {},
+      "toolCarry": {}
+    },
+    {
+      "name": "miner on iron, tool carry already held by the server",
+      "userId": "00000000-0000-4000-8000-0000000000a3",
+      "slot": 0,
+      "shard": 0,
+      "version": 3000,
+      "activeId": "iron_rock",
+      "activeSinceOffsetMs": -125000,
+      "capMs": 43200000,
+      "seed": 7654321,
+      "hp": 70,
+      "maxHp": 70,
+      "gold": 4200,
+      "skills": { "woodcutting": 2000, "mining": 15000, "fishing": 500, "hitpoints": 9000 },
+      "inventory": { "steel_pickaxe": 1, "copper_ore": 40 },
+      "equipment": {},
+      "toolCarry": { "mining": 0.4 }
+    }
+  ]
+}

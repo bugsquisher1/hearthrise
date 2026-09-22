@@ -127,20 +127,6 @@
         "selftest": true
       }
     },
-    "world-tick-parity.mjs": {
-      "reason": "Step 1 of the live-world program (docs/planning/WORLD_TICK_DESIGN.md) is a READ-ONLY SHADOW spike, and its brief says register nothing in CI yet — the service it guards writes nothing and ships to nothing, so a CI step would gate the build on a component that cannot affect a player. It asserts (exit 1 on any problem) and carries three --mutate proofs (unaligned / nofight / capIsCadence), all verified red on 2026-09-16. It runs in ~1 s, needs no database and no network. WHAT REGISTERING IT COSTS: a step in .github/workflows/smoke.yml (plain arm AND --mutate arm, per RULE 5) plus a re-pin of tests/ci-shape.baseline.json — see WORLD_TICK_DESIGN.md §13, which lists the full CI shape this program needs. It is registered the moment the tick becomes a writer for any channel, and NOT LATER: P4 is a tripwire that must be flipped to an equality when the rngState seam lands, and a tripwire nothing runs is not a tripwire.",
-      "owner": "backend-architect",
-      "disposition": "register-at-step-2",
-      "verified": {
-        "asserts": true,
-        "selftest": true,
-        "mutations": [
-          "unaligned",
-          "nofight",
-          "capIsCadence"
-        ]
-      }
-    },
     "lifetime-facts-reapply.mjs": {
       "reason": "family pglite-chain-replay, and a SECURITY PROOF rather than a standing gate (b550 review, finding S-LF-3). It replays the whole chain and then proves by execution that 2026-09-19-lifetime-facts-off-the-ledger.sql is ONE-SHOT on production: green on a second apply while no find is live, and refused outright by §2's unguarded hr_backfill_lifetime_facts() call the moment one hearthfind_log row carries src_ledger_id NULL. That is the safe direction and not a defect — it is a fact the apply order has to carry, because schema-drift replays a chain with no live finds and therefore cannot state it. Not registered for the same reason as the rest of this family: it boots PGlite and applies the whole chain, which CI already does once in the schema-drift step.",
       "family": "pglite-chain-replay",

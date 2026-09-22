@@ -515,6 +515,46 @@ declare
     -- the migration's §5(e) compares gold/gems/xp/inventory AND accrued_to
     -- across a real claim. NO NEW TARGET: p_user again.
     'hr_trophy_claim(uuid,integer,text,integer,text)',
+    -- ── ADDED 2026-09-21 — THE WORLD TICK'S ONE DOOR ───────────────────
+    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6/8/9:
+    -- it removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with `<> all (...)`.
+    --
+    -- ⚠ NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived.
+    -- hr_tick_settle is the FENCE in front of hr_apply for the world tick, and
+    -- it is the ONLY route the tick has to player value: the roster WITHDREW
+    -- the tick's raw hr_apply grant and this function replaced it. Its whole
+    -- caller-supplied surface is a holder name, a (user, slot, channel), a
+    -- version, a window [from,to), an idempotency uuid and a delta — and every
+    -- one of those is CHECKED AGAINST THE DATABASE before a value moves:
+    --   * THE LEASE. The caller must name a character the ROSTER handed it, in
+    --     its own holder name, inside the lease window. hr_tick_roster is
+    --     executable by `hr_tick` and by NOTHING ELSE, and hr_engine is
+    --     asserted NOT to hold it (fence e19), so a settling role structurally
+    --     cannot stamp its own lease. "Choose whose world ticks" is closed one
+    --     level deeper than a grant.
+    --   * THE WATERMARK CAS, under `select ... for update` on player_state
+    --     taken BEFORE any comparison: a window at or after the settled mark is
+    --     accepted, a window behind it is refused whatever its version and
+    --     whatever its key. This holds against a client accrue, a client
+    --     collect, a second tick process and a replay of the same call.
+    --   * THE DECLARED WINDOW IS BOUND TO THE PAID ONE
+    --     (`p_delta->>'accrued_to' = p_window_to`), so a caller cannot name
+    --     ten seconds and hand over an hour.
+    --   * THE VERSION, and then hr_apply re-validates every invariant regardless
+    --     of caller — ONE call site, after every check, no tick-specific clamp
+    --     and no fast path.
+    -- NO NEW TARGET: p_user is the parameter the engine already passes to
+    -- hr_apply and hr_state_of. The holder of hr_apply can already WRITE any
+    -- character it names; this is strictly NARROWER than what it already has.
+    -- WHY THE ENGINE NEEDS IT: hr_apply's impersonation seam tests
+    -- `v_role = 'hr_engine'` literally, so the tick cannot reach hr_apply as
+    -- `hr_tick` at all (S-1, proved by execution); the edge arrives as
+    -- hr_engine and this is the door it knocks on. Granted to hr_engine ONLY —
+    -- fence e18c asserts `hr_tick` does NOT hold it, because that would be
+    -- a door that cannot open and would journal a forgery alert every fire.
+    'hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,timestamp with time zone,uuid,jsonb)',
     -- ── ADDED 2026-09-11 — THE QUARTERMASTER SPEND WRITER ───────────────
     -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6/8: it
     -- removes nothing, so PART 1f-ii grades this link with an EMPTY

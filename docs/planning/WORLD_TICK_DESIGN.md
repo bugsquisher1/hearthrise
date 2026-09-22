@@ -1542,3 +1542,214 @@ the inventory ABSOLUTE flip (§7a) and combat remain ahead of it, in that order.
    client whose inventory fold is a one-way `Math.max` ratchet reproduces the
    2026-09-13/14 bug class at 10 s resolution. This is a hard ordering
    constraint, not a preference.
+
+---
+
+## 17. The derived per-request token — T-5.3, the condition on PAYING
+
+**Status: STAGED on `lane/world-tick-token`. Security review of T-5.3 pending.**
+M1 is arming in SHADOW on production. M2 — `update public.hr_tick_config set
+shadow = false;` — is BLOCKED by Security ruling T-5.3
+(`docs/planning/SEC_WORLD_TICK_M1_2026-09-21.md`) until the static bearer the
+cron driver posts is replaced by a token derived per fire. This section is the
+design of that replacement. It is a money-gating surface: it decides when the
+tick may PAY.
+
+### 17.1 The problem, restated in one paragraph
+
+`hr_tick_cron_run` reads the Vault secret `hr_tick_shared_secret` and posts it
+verbatim in `X-HR-Tick-Auth`. That header transits `net.http_request_queue` and
+`net._http_response`, both of which carry **SELECT to PUBLIC**, granted by
+`supabase_admin`, which the applying role `postgres` cannot revoke —
+`2026-09-22-pg-net-queue-lockdown.sql` is that revoke and its own self-check
+refused the apply for exactly this reason (T-5.1). The secret is therefore
+unreachable today because of *one PostgREST setting we do not own* plus *the
+absence of a bridge we do own*, and not because of privilege. In SHADOW a
+stolen bearer moves no value, which is why T-5.1 granted the arm. Once
+`shadow = false` a holder of that bearer can propose a legal delta for any
+character the roster leased. **A derived token removes the class: nothing
+long-lived ever transits the queue.**
+
+### 17.2 The shape — T-5.3's, exactly
+
+The brief for this lane sketched `v2.<ts>.<nonce>.<mac>` with a per-isolate
+nonce LRU. **T-5.3 prescribes a different shape and T-5.3 wins** (CLAUDE.md §0:
+a dated ruling is not overridden by an undated one). The shape is:
+
+```
+X-HR-Tick-Auth: v1 t=<bucket> b=<body_sha256_hex> m=<hmac_sha256_hex>
+
+  bucket      = floor(extract(epoch from now()) / 30)::bigint
+  body_sha256 = hex sha256 of the EXACT posted body bytes
+  m           = hex hmac_sha256(key = the Vault secret,
+                                msg = bucket::text || '.' || body_sha256)
+```
+
+- The Vault secret `hr_tick_shared_secret` **never leaves the database**. The
+  driver sends a derivation of it.
+- The edge recomputes `m` from `HR_TICK_SHARED_SECRET` for
+  `bucket ∈ {n-1, n, n+1}` and compares **constant time**. Three 30 s buckets is
+  a **≤90 s acceptance window** — the flush cadence, and far wider than any
+  Postgres↔edge clock skew.
+- The edge ALSO recomputes `sha256(body bytes)` and requires it to equal `b`.
+  **Both checks are load-bearing and neither is redundant**: `m` covers only
+  `t` and `b`, so without the body-hash check a captured triple would
+  authenticate *any* body. That check is the body binding.
+- An unset or short (`< MIN_SECRET_LEN`, 32) `HR_TICK_SHARED_SECRET` refuses
+  every tick request, unchanged from the static form.
+
+### 17.3 Why there is no nonce and no replay cache
+
+The brief asked for an in-memory LRU per isolate. **It is not built, and the
+reason is a liveness bug rather than a preference.** At a 10 s cadence three
+fires land in each 30 s bucket. When the roster has not moved between them the
+driver's body is **byte-identical** — same holder, same geometry, same roster
+rows, same watermarks — so `t`, `b` and therefore `m` are identical too. An LRU
+keyed on the token would refuse the driver's own second and third legitimate
+fire of every bucket. A replay cache that cannot tell a replay from a repeat
+is not a control; it is an outage with a security-shaped name.
+
+Per-isolate memory would not have been a replay control anyway: Deno Deploy
+runs N isolates behind one URL and recycles them, so a cache in one isolate
+sees a fraction of the traffic and forgets it on every cold start. A control
+that catches an unknown fraction of attempts is a control nobody can reason
+about.
+
+**So replay is closed downstream, and here is the honest accounting of it.**
+T-5.3 says a replay "is refused `window_already_settled` by the control that
+already exists (S-3)". That sentence is *nearly* right and the difference
+matters to a reviewer: the entry does **not** take the window origin from the
+body — `tick.js` re-derives it from the fence's watermark probe on every
+request, which is the M-1 fix and the property `T-B1g` executes. So a verbatim
+replay inside the ≤90 s window is not refused as a stale window; it is
+**indistinguishable from an extra driver fire**, and that is the correct
+statement of the residual:
+
+> **Residual R-T1.** A captured `(header, body)` pair can be re-posted verbatim
+> for ≤90 s. Its effect is bounded to what one extra cron fire does: the fence
+> (`hr_tick_settle`) refuses any character the roster did not lease in the
+> driver's own holder name, the watermark CAS under the row lock refuses a
+> second payment for a window already settled (S-3), and the accrual is bounded
+> to `[server watermark, server now()]` whatever the body says. **It cannot
+> double-pay, cannot name an unleased character, and cannot move a watermark
+> backwards.** What it can do is make the tick run marginally early, at the cost
+> of one Edge invocation. That is the whole of it, and it is a smaller residual
+> than a 64-hex long-lived bearer sitting in a PUBLIC-readable table.
+
+### 17.4 What the body binding costs, stated rather than skipped
+
+The mac covers the body hash, so the edge **must read the body bytes before it
+can authenticate**. Today it reads nothing until the bearer has been accepted.
+That ordering changes, and the change is a real one:
+
+- **Before the read**, the edge checks the header's *shape* (`v1 t= b= m=`,
+  `b` and `m` both 64 lower-case hex) and the *bucket window*. Both are cheap,
+  allocate nothing and run before a single byte of body is buffered.
+- **The read itself stays bounded** by `MAX_BODY_BYTES` (4 MiB), enforced both
+  by `Content-Length` and by counting the bytes that actually arrive, so a
+  chunked sender that omits the header is metered too.
+- **Residual R-T2.** A caller who can present a syntactically valid, in-window
+  header — which needs no secret, because the shape is not authenticated — can
+  make the function buffer up to 4 MiB before being refused. The ceiling is the
+  control; it is the same ceiling that bounded the authenticated caller before,
+  now doing a job it was already sized for. Nothing is parsed, and nothing
+  touches the database, until the mac verifies.
+
+Ordering, in the entry, after this change: **shape → window → bounded byte read
+→ body hash → mac (constant time) → JSON.parse → pooler → engine.** The body is
+now *authenticated before it is parsed*, which the static form never was.
+
+### 17.5 Every pre-auth refusal is the same answer
+
+`401 { ok: false, error: 'not_signed_in' }` — the body the player path returns
+for a bad token — for all of: no usable secret, a malformed header, a bucket
+outside the window, a body that could not be read or exceeded the ceiling, a
+body whose hash does not match `b`, and a mac that does not verify. **The
+oversize-body case is deliberately folded into the 401 rather than answered
+`400 bad_request`**: a body we could not read is a body we could not
+authenticate, and answering differently would hand an unauthenticated caller an
+oracle the static form never gave. `400 bad_request` survives only for a body
+that authenticated and then failed to parse as JSON, where the caller already
+holds the secret.
+
+### 17.6 Hashing the bytes pg_net actually sends
+
+The mac binds `b` to the posted bytes, so the driver must hash exactly what
+leaves. `net.http_post(url, body jsonb, …)` stores `convert_to(body::text,
+'UTF8')` in the queue and the worker sends those bytes verbatim. The driver
+therefore materialises the body as **text first** —
+`v_body_txt := <the jsonb>::text` — hashes `convert_to(v_body_txt, 'UTF8')`,
+and posts `v_body_txt::jsonb`. Both sides call the same `jsonb_out`, on the same
+value, so the bytes are the same bytes; `jsonb::text` is normalised (sorted
+keys, no insignificant whitespace), which is what makes that a property rather
+than a coincidence. Where pg_net is installed, the migration's §4 self-check
+**executes** the equality against the real queue row rather than asserting it in
+prose.
+
+### 17.7 pgcrypto, resolved rather than assumed
+
+`hr_tick_cron_run` carries `set search_path = public`, so `hmac` and `digest`
+must be schema-qualified (T-5.3). The repo has never executed pgcrypto in a
+migration — both existing mentions are comments — so the schema is **resolved
+from `pg_proc` at call time** and interpolated with `quote_ident`, rather than
+guessed at `extensions`. If `hmac(text,text,text)` is not found the driver
+returns the new outcome **`no_hmac`** and posts nothing: it **never falls back
+to the static bearer**, because a fallback is the whole class this change
+removes.
+
+`@electric-sql/pglite` ships without pgcrypto (measured, 2026-09-22), so the
+credential-free replay cannot execute the derivation. The self-check is honest
+about that: on the replay it asserts the fail-closed path (`no_hmac`, nothing
+posted, no secret in the log) and NOTICEs the skip; on production, where
+pgcrypto is present, it executes the header shape, the known test vector and
+the queue-row body binding at apply time.
+
+### 17.8 The secret stops being a variable
+
+Today the driver reads the plaintext into `v_secret` and interpolates it into
+the header. After this change the plaintext is never assigned to a plpgsql
+variable at all: `hr_tick_auth_header(bucket, body_sha)` reads
+`vault.decrypted_secrets` and computes the mac **inside one dynamic EXECUTE**,
+and only the mac comes back. That helper is a mac oracle by construction, so it
+is `security definer` and **revoked from `public, anon, authenticated,
+service_role, hr_engine, hr_tick`** — the same posture as `hr_tick_cron_run`,
+asserted by the self-check. `hr_tick_gateway_key` is unchanged and stays a
+variable: it is the project anon key, public by design, and T-5.3 puts it
+explicitly out of scope.
+
+### 17.9 The cutover: one form at a time, no dual-accept
+
+**Chosen: the edge accepts `v1 t= b= m=` ONLY, and the static bearer is refused
+from the moment that build is live.** The seam is the kill switch, not a
+dual-accept window:
+
+1. `update public.hr_tick_config set enabled = false;` — fires stop in ≤10 s.
+2. Apply `2026-09-22-world-tick-derived-token.sql` (Coordinator, one file).
+3. Pack and deploy `hr-accrue`; verify the live `payload_sha256` equals
+   `pack-edge --hash`.
+4. `update public.hr_tick_config set enabled = true;` — re-arm.
+
+Between (1) and (4) the tick posts nothing, so there is no window in which the
+two halves disagree and no window in which a build exists that accepts both
+forms. **Dual-accept was rejected**: it needs two deploys, the second one is the
+one that actually satisfies T-5.3, and a "remove this by <date>" line on a money
+gate is the thing that gets forgotten. It also costs the in-page payload guard
+its meaning for the duration — there would be a live build whose hash is green
+and whose behaviour is the thing Security blocked.
+
+If steps (1)–(4) are not run as one sequence, the honest failure is loud and
+free: the driver posts `v1 …`, an edge still holding the static check finds no
+match and answers `401 not_signed_in`, the watermark does not move, and the owed
+time is paid by the next accepted fire. `net.http_post` is asynchronous, so
+`hr_tick_cron_log` still reads `posted` — **verify a cutover in
+`net._http_response` or the Edge logs, never in the fire log** (the same trap
+the rotation note in `2026-09-21-world-tick-cron.sql` §3 documents).
+
+### 17.10 Rotation, after this lands
+
+Unchanged in shape and strictly better in cost: accept `HR_TICK_SHARED_SECRET`
+and `HR_TICK_SHARED_SECRET_PREV` on the edge for one deploy, then drop the
+second. The plaintext transits nothing either way, so the disagreement window
+stops being a confidentiality question and becomes an availability one.
+**Not built in this lane** — it is a separate change with its own arms, and
+naming it here is not shipping it.

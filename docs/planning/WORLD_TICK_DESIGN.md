@@ -1976,7 +1976,7 @@ something.
 | C2 | per-window construction parity — all 60 windows of every chain, byte-identical | `nofight`, `shiftWindow` |
 | C3 | checkpoint continuity: `fight` / `consec_falls` / `recovering_until` / hp / bag | `nofight` |
 | C4 | tiling and the receipt — no overlap, no gap, `ms` restated from the watermark | `wallclock`, `shiftWindow` |
-| C5 | a retreat closes the batch and ends the session | — (positive claim) |
+| C5 | a retreat closes the batch and ends the session | — (positive claim; measured: the pointer ends at window 14 of 60, `stoppedBy='activity'`, 2 intents) |
 | C6 | stream health against the one-call span: no starved drop, drift in band | — |
 | C7 | the recovery boundary is not a free heal and not a free kill | `freeHeal` |
 | C8 | the food debit is conserved exactly; `food_in_bag` divergence is PINNED | `skipFoodDebit` |

@@ -69,6 +69,35 @@ export const VERB = 'trophy_claim';
 const CLAIM_SQL = `
   select public.hr_trophy_claim($1::uuid, $2::int, $3::text, $4::int, $5::text) as res`;
 
+/* THE PROJECTION, RE-READ AFTER THE WRITE — one statement, two aggregates.
+   ⚠ WITHOUT THIS THE CLAIM IS A "BROWSER SAYS ONE THING" BUG OF ITS OWN.
+     `hr_state_of` no longer carries the trophy population at all
+     (2026-09-22-state-of-trophy-prefix.sql took it out), so the envelope this
+     verb returns cannot tell the client its new row exists — and the panel would
+     go on offering Claim until the next accrual settled, where a second press
+     earns `already_owned`. The client must never be left showing a state the
+     server has already moved past (CLAUDE.md §6).
+
+   READ AFTER THE COMMIT, in its own transaction, so it states what the database
+   HOLDS rather than what this call believed it wrote. That is the same reason
+   unlock_buy's receipt is built from `res.charged` and not from the Edge
+   catalogue: a projection re-read is a fact, a locally-assembled one is a guess.
+
+   AGGREGATED IN SQL because both projections return SETS and `exec` hands back
+   rows; `coalesce` because an aggregate over zero rows is NULL and "no trophies"
+   must be an empty array rather than a missing key.
+
+   ⚠ NO `kills_by_class` — and the omission is deliberate, not laziness. That
+     block is the CHARM mirror's, the fold belongs to src/core/charms.js, and
+     this verb has no business re-deriving it. The client's charm adopter treats
+     a block without it as "no counters" and leaves its own mirror alone, which
+     is the absence-is-not-a-claim rule both mirrors already follow. */
+const PROJECTION_SQL = `
+  select coalesce((select jsonb_object_agg(monster_id, kills)
+                     from public.hr_bestiary_of($1::uuid, $2::int)), '{}'::jsonb) as kills,
+         coalesce((select jsonb_agg(jsonb_build_object('monster', monster_id, 'stage', stage))
+                     from public.hr_trophy_of($1::uuid, $2::int)), '[]'::jsonb)   as trophies`;
+
 /**
  * Resolve the parsed `trophy` object to a claim, or to a refusal that says why.
  * Pure — no database, no clock, no request beyond the parsed object.
@@ -184,12 +213,29 @@ export async function runTrophyClaim(o) {
          ⚠ AND THERE IS NO `gold`, `gems`, `items` OR `xp` FIELD ON IT, because
            there is nothing to put in one. A receipt shaped like a payout is the
            first step toward somebody adding a payout. */
+  /* (4) THE FRESH PROJECTION. Best-effort: a failed re-read must NOT turn a
+         successful claim into an error — the row IS written and the caller is
+         entitled to know that. The key is then simply OMITTED and the client
+         falls back to its existing mirror until the next settle, which is the
+         behaviour before this statement existed. Absence is never a claim. */
+  let bestiary = null;
+  try {
+    const [proj] = await exec(PROJECTION_SQL, [user, slot]);
+    if (proj) {
+      bestiary = {
+        kills_by_monster: (proj.kills && typeof proj.kills === 'object') ? proj.kills : {},
+        trophies: Array.isArray(proj.trophies) ? proj.trophies : [],
+      };
+    }
+  } catch { /* see above — the claim stands either way */ }
+
   return {
     status: 200,
     body: {
       ...res,
       ok: true,
       verb: VERB,
+      ...(bestiary ? { bestiary } : {}),
       receipt: (res.replayed === true || !res.claimed) ? null : {
         monster: res.claimed?.monster,
         stage: res.claimed?.stage,

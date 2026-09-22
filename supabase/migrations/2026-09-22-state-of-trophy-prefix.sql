@@ -77,7 +77,7 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── 0. PRECONDITIONS — FAIL CLOSED ─────────────────────────────────────────
-do $mig$
+do $$
 declare
   v_def text;
   -- ⚠ EACH ANCHOR IS PREFIXED WITH A NEWLINE, and that is not cosmetic. The two
@@ -127,10 +127,10 @@ begin
     raise exception 'hr_state_of no longer carries the 1000-row cap or its truncation flag — the '
                     'premise of this file has changed; re-derive it before applying';
   end if;
-end $mig$;
+end $$;
 
 -- ── 1. THE PATCH ───────────────────────────────────────────────────────────
-do $mig$
+do $$
 declare
   v_def text;
   -- ⚠ EACH ANCHOR IS PREFIXED WITH A NEWLINE, and that is not cosmetic. The two
@@ -163,7 +163,7 @@ begin
     || '           and key not like ''trophy:%''');
   execute v_def;
   raise notice 'hr_state_of patched: the trophy population leaves the generic envelope';
-end $mig$;
+end $$;
 -- create-or-replace preserves an ACL; re-state the lockdown anyway (the repo
 -- convention and the grant-hygiene lint). hr_state_of is Edge-mediated: no
 -- client role may execute it.
@@ -178,7 +178,7 @@ grant  execute on function public.hr_state_of(uuid, int) to hr_engine;
 -- subtransaction discarded by a sentinel raise (HR845), and a leak check runs
 -- after it. tests/selfcheck-no-global-dml.mjs is the standing guard on that rule
 -- and the 2026-09-19 incident is why it exists.
-do $mig$
+do $$
 declare
   v_def  text;
   v_env  jsonb;
@@ -296,4 +296,4 @@ begin
   raise notice 'state-of trophy prefix PASSED: trophy keys are excluded from BOTH the progress array '
                'and its truncation flag, the collection-log milestones and ordinary stats still ride, '
                'the bestiary and collection exclusions survived, and no grant moved';
-end $mig$;
+end $$;

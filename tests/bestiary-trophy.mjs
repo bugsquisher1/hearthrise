@@ -643,7 +643,7 @@ async function selfcheckStripPatch() {
   const start = src.indexOf('-- ── 5. SELF-CHECK');
   if (start < 0) { const e = new Error('the §5 self-check marker moved in ' + CLAIM_SQL_FILE); e.harness = true; throw e; }
   const block = src.slice(start);
-  if (!block.trimEnd().endsWith('end $mig$;')) {
+  if (!block.trimEnd().endsWith('end $$;')) {
     const e = new Error('the §5 self-check block does not end where this harness expects'); e.harness = true; throw e;
   }
   return [block, '-- §5 removed by tests/bestiary-trophy.mjs --selftest\n'];

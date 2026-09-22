@@ -31,9 +31,10 @@
 // never as a trophy the server does not believe in.
 //
 // ⚠ AND `claimed` IS NEVER SET LOCALLY ON A SUCCESSFUL CLAIM. The button goes
-//   busy, the server answers, and the next envelope carries the row. Writing it
-//   optimistically would be the same class one step smaller: a claimed state the
-//   server has not confirmed, which a reload would take away.
+//   busy, the server answers WITH A FRESHLY RE-READ trophy block, and this
+//   module adopts that block through the same `noteEnvelope` every accrual uses.
+//   Writing it optimistically would be the same class one step smaller: a
+//   claimed state the server has not confirmed, which a reload would take away.
 //
 // ── WHY IT IS MIRRORED FROM `settle()` ──────────────────────────────────────
 // `applyEnvelopeState` runs only on `accrued:true`, and the COMMON boot response
@@ -323,6 +324,20 @@ export async function claim(id, stage) {
     verdict = await M.sendTrophyClaim(id, stage);
   } finally {
     if (btn) btn.disabled = false;
+  }
+  /* ADOPT THE PROJECTION THE ANSWER CARRIES, success or refusal alike.
+     ⚠ THIS IS WHY `claimed` IS STILL NEVER SET LOCALLY. The claim response
+       carries a FRESHLY RE-READ `bestiary` block (hr-accrue/trophy-claim.js
+       PROJECTION_SQL) — the server stating what it now holds — so the claimed
+       set and the counters come from the same place they always do. The client
+       never writes a trophy it inferred; it adopts one the server reported.
+       Needed at all because hr_state_of no longer carries the trophy population,
+       so the ordinary envelope cannot report the new row.
+     On a REFUSAL the same block is what puts a client whose count ran ahead back
+     to the server's number, which is the `not_yet` case (CLAUDE.md §6). */
+  const note = w().hrNoteServerTrophies;
+  if (typeof note === 'function' && verdict && verdict.body) {
+    try { note(verdict.body); } catch (e) { /* display only */ }
   }
   /* SAY WHY, when the server said why. An unlisted code says nothing rather
      than guessing — see TROPHY_REFUSAL_COPY in src/net/trophy-claim.js. */

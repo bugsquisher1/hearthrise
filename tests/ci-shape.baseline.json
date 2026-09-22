@@ -38,6 +38,8 @@
     "node tests/restore-census.mjs --baseline-selftest": "db-replay-2",
     "node tests/bestiary-trophy.mjs --selftest": "db-replay-2",
     "node tests/bestiary-trophy.mjs": "db-replay-2",
+    "node tests/trophy-call-sites.mjs --selftest": "db-replay-2",
+    "node tests/trophy-call-sites.mjs": "db-replay-2",
     "node tests/trophy-wire-shape.mjs --selftest": "db-replay-2",
     "node tests/trophy-wire-shape.mjs": "db-replay-2",
     "node tests/realtime-cost.mjs --selftest": "db-replay-2",

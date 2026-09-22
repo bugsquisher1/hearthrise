@@ -159,8 +159,12 @@ import { killsByClass, charmIndex } from '../../../src/core/charms.js';
    two multiplier functions are read inside `weaknessInfo` and must not be read
    here, for the reason src/core/trophies.js's header states: a trophy priced in
    a second place is a trophy the live tick and this replay can disagree about.
-   Same fold, same counters, same sealed catalogue as the charm above. */
-import { trophyIndex } from '../../../src/core/trophies.js';
+   Same fold, same counters, same sealed catalogue as the charm above.
+   `monsterIdIn` comes with it because the trophy index is keyed by monster ID
+   and a roster ROW carries none (0 of 108 measured, Security F4 proof S-2), so
+   the identity has to be resolved from the catalogue at the call — see
+   `playerRolls` below. It is a lookup, not a second fold. */
+import { trophyIndex, monsterIdIn } from '../../../src/core/trophies.js';
 /* THE DAILY/QUEST COUNTER CONTRACT (Designer Ruling 3.1). The key shapes, the
    day key, the clamp and the vocabulary live in ONE module that both this
    engine and the guard read; see its header for why `kind='daily'`/`kind='stat'`
@@ -2156,9 +2160,23 @@ export function computeAccrual(input) {
        away and drain away, nothing is paused. */
     activeBuffCount: activeBuffs(state.buffs).length,
     playerRolls(m) {
+      /* `monsterId` IS NOT OPTIONAL, for the same reason `weakness`'s fifth
+         argument below is not (Security F4, 2026-09-22). playerCombatRolls
+         calls weaknessInfo internally, and weaknessInfo resolves the TROPHY off
+         the id — so a context without one pays every charm and NO trophy, and
+         does it silently. That is not a display nit here: `maxHit` from this
+         roll is what the damage arm would multiply and what `attendedKillCap`
+         re-derives the clamp from, so the two combat numbers this engine
+         computes were both priced at trophy stage 0 while `weakness(m, id)`
+         beside it priced stage 4. AWAY-1 is satisfied only when BOTH seams
+         carry the id.
+         Resolved by IDENTITY from the sealed catalogue this context already
+         holds — never from a field on the row, which does not exist, and never
+         from the request. */
+      const id = monsterIdIn(monsters, m);
       return playerCombatRolls(m, {
         eq, equipment, items, skills: state.skills,
-        bonus, setBonus, profile, style, charms, trophies,
+        bonus, setBonus, profile, style, charms, trophies, monsterId: id,
       });
     },
     monsterRolls(m) {

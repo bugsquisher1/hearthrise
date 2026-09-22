@@ -755,6 +755,26 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/bestiary-trophy.mjs
 
+      # THE SHIPPED CALL SITES PASS THE MONSTER ID (Security F4/F5, 2026-09-22).
+      # The trophy index is keyed by monster id and no roster row carries one, so
+      # weaknessInfo resolves it off its fifth argument and playerCombatRolls off
+      # ctx.monsterId -- which combatCtx correctly does not carry, because it is
+      # built once per loadout. Neither call site passed it, so the Fight screen
+      # quoted 1.15 where the server pays 1.1845 at Nemesis, and the away seam
+      # maxHit is rolled through had the same hole. bestiary-trophy.mjs T6 is
+      # structurally blind to it: it passes monsterId itself. This guard builds
+      # nothing -- both callers are lifted out of the SHIPPED bytes and executed,
+      # the client one against the real src/core-bridge.js.
+      - name: Trophy call sites - the fight screen quotes what the server pays
+        if: ${{ !cancelled() }}
+        run: node tests/trophy-call-sites.mjs --selftest
+
+      # A --selftest-only registration cannot tell a broken guard from a caught
+      # defect. Run the plain body too: only it answers "green when nothing is wrong".
+      - name: Trophy call sites - base run
+        if: ${{ !cancelled() }}
+        run: node tests/trophy-call-sites.mjs
+
       # ABSENCE MUST STAY ABSENCE ON THE TROPHY WIRE (Security F3, 2026-09-22).
       # hr-accrue/index.ts reads the claimed trophy rows behind a savepoint that
       # degrades on 42883 -- a database without hr_trophy_of, which is also this

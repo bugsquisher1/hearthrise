@@ -343,7 +343,20 @@ function combatCtx(eq, setBonus) {
        for whichever monster the caller then names, so the id travels with the
        call (`weaknessInfo(m, eq, charms, trophies, id)`) rather than being
        frozen into the context. A ctx-level id would price every fight as the one
-       the context happened to be built for. */
+       the context happened to be built for.
+
+       ⚠ WHICH MAKES PASSING IT AT THE CALL MANDATORY, and that half went missing
+         for a day (Security F4, 2026-09-22). `playerCombatRolls` calls
+         `weaknessInfo` ITSELF and resolves the trophy off `ctx.monsterId`, so a
+         caller that spreads this context and adds nothing pays every charm and
+         NO trophy — silently, because a charm still moves the number and the
+         result looks plausible. Measured on a stage-4 holder: 1.15 from
+         `getPlayerCombatRolls` against 1.1845 from `getWeaknessInfo` for the
+         same kill, and the SERVER pays the second (combat-sim.js `resolveKill`
+         hands `ctx.weakness` the id it already holds). legacy.js
+         `getPlayerCombatRolls` and hr-accrue/accrual.js `playerRolls(m)` are the
+         two callers; `tests/trophy-call-sites.mjs` lifts both out of the shipped
+         bytes and executes them, so the omission cannot come back unobserved. */
     trophies: trophies(),
     profile: (typeof window.getCombatStatProfile === 'function')
       ? window.getCombatStatProfile()

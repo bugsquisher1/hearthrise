@@ -164,6 +164,17 @@ Until then the ×1.01 at `nemesis` is **documented as pending**, not shown to
 players as live. A stated effect that does nothing is how `arm-flag-honesty.mjs`
 came to exist in this repository.
 
+**The plumbing arming needs now exists (Security F4/F5, 2026-09-22).** `maxHit`
+is rolled from `ctx.playerRolls(m)`, and until that day neither shipped caller
+passed a `monsterId` — so the path the damage half would be applied on resolved
+trophy stage **0**, and flipping the flag would have stated an effect that pays
+nothing on the very expression it names. Both call sites now pass the id
+(`src/legacy.js` `getPlayerCombatRolls`, `hr-accrue/accrual.js` `playerRolls`),
+and `tests/trophy-call-sites.mjs` C3 requires the stage to reach the roll. The
+flag itself is still off and arming it is still the *shared* review with the
+charm's damage half — that has not changed, and this paragraph is not an
+argument for bringing it forward.
+
 ---
 
 ## 4. The claim

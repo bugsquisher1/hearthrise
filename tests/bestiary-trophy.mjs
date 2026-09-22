@@ -227,7 +227,15 @@ function auditPure(w) {
 
      ⚠ AND THE ID IS THE THING THAT BREAKS FIRST. No roster row carries an `id`,
        so a caller that drops the fifth argument pays every charm and no trophy
-       — silently, and on one path only. The third case below is that caller. */
+       — silently, and on one path only. The third case below is that caller.
+
+     ⚠ THIS ARM PASSES THE ID ITSELF, so it is structurally blind to a SHIPPED
+       CALLER that does not — which is exactly what Security F4 found on
+       2026-09-22 with T6 green (src/legacy.js `getPlayerCombatRolls` and
+       hr-accrue/accrual.js `playerRolls(m)` both omitted it). That half is
+       tests/trophy-call-sites.mjs, which lifts both callers out of the shipped
+       bytes and executes them. This arm owns the CORE contract; that one owns
+       who calls it. Neither subsumes the other. */
   {
     const m = MONSTERS.slime;
     const eq = equipmentStats({}, ITEMS);

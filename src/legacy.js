@@ -2777,7 +2777,7 @@ function ensureStarterCombatKit(){
 function getPlayerCombatRolls(m,eq=getEquipmentStats()){
   const C=window.HearthriseCore;
   const _set=(typeof getArmorSetBonus==='function')?getArmorSetBonus():null;
-  return C.combat.playerCombatRolls(m, C.combatCtx(eq, _set));
+  return C.combat.playerCombatRolls(m, { ...C.combatCtx(eq, _set), monsterId: C.monsterId(m) }); /* id AT THE CALL, never in combatCtx — that function says why (Security F4) */
 }
 /* Wave 5c: armour SET bonus. Count equipped armour pieces by material tier; the
    dominant tier at 5+ pieces (a near-full/full same-tier set) grants tier×1% crit

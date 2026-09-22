@@ -61,13 +61,28 @@
 // source): tick.js `String(read0[0].now)` -> EC-2a red; tick.js
 // `SEED_LABEL_EXPR` back to the `to_char`/`toISOString` spelling -> EC-3a and
 // EC-3c red; the roster's `seed` column back to `to_char` -> EC-3b red.
+// EC-3d's proof is no longer by hand: `--selftest` plants four defects in the
+// control's own verdict (a converged tick spelling, a converged roster
+// spelling, a label hash that canonicalises its input, an accrue rendering that
+// is no longer Postgres's) and two negative controls that must stay silent, one
+// of them the off-UTC session that made this arm red on 2026-09-22 (below).
 // `tick.js:438`'s `String(row.now)` is the one change with no arm behind it and
 // that is not an oversight: JS parses what Postgres refuses, so there is no
 // observable defect to catch there — Security says as much in T-1. It is fixed
 // because the next reader should not have to rediscover why one of two
 // identical-looking expressions was safe.
 //
+// 2026-09-22, EC-3d: the control was red on every machine whose clock is not
+// UTC and green on GitHub, because it asserted the literal `+00:00` — a
+// property of the replay's session TimeZone (PGlite takes that GUC from the
+// host offset at initdb), not of the spellings it was built to separate. The
+// claims it meant are now stated zone-independently and in the SEED as well as
+// the string. Note for whoever reads this next: the replay's session zone is
+// still the host's, so any guard that pins a rendered timestamptz literal is
+// machine-dependent by construction.
+//
 // Run: node tests/world-tick-edge-contract.mjs
+//      node tests/world-tick-edge-contract.mjs --selftest   (EC-3d's control, mutated)
 // ============================================================================
 
 import { bootReplay } from './schema-replay.mjs';
@@ -82,6 +97,179 @@ const group = (t) => console.log(`\n${t}`);
 
 const U = (n) => `00000000-0000-4000-8000-0000000e${String(n).padStart(4, '0')}`;
 const KEY0 = '00000000-0000-0000-0000-000000000000';
+
+// ── EC-3d's VERDICT, AS A FUNCTION, BECAUSE THE CONTROL ITSELF WAS WRONG ────
+// EC-3d shipped as ONE boolean over four propositions, and the last two of them
+// were not claims about the SPELLINGS at all but about the machine the guard
+// ran on: `nowCorrect.endsWith('+00:00') && oldTick.endsWith('Z')`.
+// `to_jsonb(ts) #>> '{}'` renders a timestamptz in the SESSION's TimeZone, and
+// PGlite takes that GUC from the host's UTC offset at initdb — TZ=America/
+// Chicago gives `Etc/GMT+6` and the fixture renders `...11:55:55.739123-06:00`.
+// So the arm was red on every developer machine off UTC (a fresh replay on
+// Tyler's PC; a cached snapshot hides it until the cache is rebuilt) while
+// printing "a previous spelling now AGREES with the accrue path" over two
+// strings that plainly differ, and green on GitHub, whose runners are UTC. A
+// control that reports a collision which did not happen teaches the next reader
+// to distrust the arm instead of the tree, which is how a real revert gets
+// waved through.
+//
+// What EC-3d MEANS does not depend on the session's zone, and is now said that
+// way: for one instant, each shipped spelling must render a DIFFERENT STRING
+// and hash to a DIFFERENT SEED than the accrue path's rendering, and the two
+// renderings must still differ in the documented way — Postgres's JSON
+// rendering carries microseconds and a numeric offset in whatever zone the
+// session holds, while `new Date(ms).toISOString()` (planSeedLabels) and the
+// roster's `to_char(... 'MS"Z"')` carry milliseconds and a literal `Z`.
+//
+// The SEED claims are the ones the brief asks for and they are not a restating
+// of the string claims: `seedOf` is the real `hr_seed` in the arm below, so a
+// label hash that canonicalised its input — parsed the timestamp, or trimmed
+// the offset — would be caught here even though the three strings still differ.
+// Two spellings drawing one stream is the only shape in which the defect EC-3a
+// guards could survive EC-3a.
+const MICROS_AND_OFFSET = /T\d{2}:\d{2}:\d{2}\.\d{4,6}[+-]\d{2}:\d{2}$/;
+const MILLIS_AND_Z = /T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+/** @returns {Promise<{pass:boolean, failed:string[], seeds:object}>} */
+async function ec3dClaims({ accrueLabel, oldTick, oldRoster, seedOf }) {
+  const failed = [];
+  const claim = (key, ok) => { if (!ok) failed.push(key); };
+  claim('tick_spelling_still_differs', oldTick !== accrueLabel);
+  claim('roster_spelling_still_differs', oldRoster !== accrueLabel);
+  // The fixture instant carries six significant fractional digits, so Postgres
+  // renders six; {4,6} only tolerates a trailing zero being trimmed, and still
+  // cannot be satisfied by the three-digit JS rendering.
+  claim('accrue_rendering_is_postgres_json', MICROS_AND_OFFSET.test(accrueLabel));
+  claim('old_renderings_are_js_millis_z',
+    MILLIS_AND_Z.test(oldTick) && MILLIS_AND_Z.test(oldRoster));
+  const a = String(await seedOf(accrueLabel));
+  const t = String(await seedOf(oldTick));
+  const r = String(await seedOf(oldRoster));
+  claim('tick_seed_still_differs', t !== a);
+  claim('roster_seed_still_differs', r !== a);
+  return { pass: failed.length === 0, failed, seeds: { accrue: a, tick: t, roster: r } };
+}
+
+// ── THE MUTATION PROOF FOR THAT CONTROL ────────────────────────────────────
+// A control is the one arm whose job is to be able to go red for the right
+// reason, and this one went red for the wrong one for a day. So it now carries
+// its own proof, and the proof runs without a database: the verdict is a pure
+// function of three renderings and a label hash, which is exactly what can be
+// mutated. The REAL renderings come from Postgres in the arm below — the plain
+// run is the floor (guard-hygiene R3), and both halves are registered.
+const SELFTEST_CASES = {
+  utc_session_rendering: {
+    what: 'THE FIRST NEGATIVE CONTROL. A UTC session: the tight case, and the one CI measures',
+    expect: null,
+    inputs: {
+      accrueLabel: 'accrue:2026-09-21T17:55:55.739123+00:00',
+      oldTick: 'accrue:2026-09-21T17:55:55.739Z',
+      oldRoster: 'accrue:2026-09-21T17:55:55.739Z',
+    },
+  },
+  off_utc_session_rendering: {
+    what: 'THE SECOND NEGATIVE CONTROL, AND THE DEFECT THIS LANE FIXED. The same instant '
+        + 'rendered by a session in America/Chicago. Nothing about the spellings changed, so '
+        + 'the control must stay silent — it did not, before ec3dClaims',
+    expect: null,
+    inputs: {
+      accrueLabel: 'accrue:2026-09-21T11:55:55.739123-06:00',
+      oldTick: 'accrue:2026-09-21T17:55:55.739Z',
+      oldRoster: 'accrue:2026-09-21T17:55:55.739Z',
+    },
+  },
+  tick_spelling_came_back: {
+    what: 'planSeedLabels re-spells the first window with `new Date(ms).toISOString()` and the '
+        + 'projection renders the same — the T-2 revert, and the reason EC-3d exists',
+    expect: 'tick_spelling_still_differs',
+    inputs: {
+      accrueLabel: 'accrue:2026-09-21T17:55:55.739Z',
+      oldTick: 'accrue:2026-09-21T17:55:55.739Z',
+      oldRoster: 'accrue:2026-09-21T17:55:55.739Z',
+    },
+  },
+  roster_to_char_came_back: {
+    what: 'the roster\'s `to_char(... \'MS"Z"\')` column agrees with the accrue rendering, so '
+        + 'EC-3b could no longer tell the roster\'s label from the accrue path\'s',
+    expect: 'roster_spelling_still_differs',
+    inputs: {
+      accrueLabel: 'accrue:2026-09-21T17:55:55.739123+00:00',
+      oldTick: 'accrue:2026-09-21T17:55:55.739Z',
+      oldRoster: 'accrue:2026-09-21T17:55:55.739123+00:00',
+    },
+  },
+  label_hash_canonicalises: {
+    what: 'THE ONE THE STRING CLAIMS CANNOT SEE. Three different strings, but hr_seed parses '
+        + 'the instant out of the label, so the old spellings draw the SAME stream after all',
+    expect: 'tick_seed_still_differs',
+    inputs: {
+      accrueLabel: 'accrue:2026-09-21T17:55:55.739123+00:00',
+      oldTick: 'accrue:2026-09-21T17:55:55.739Z',
+      oldRoster: 'accrue:2026-09-21T17:55:55.739Z',
+    },
+    seedOf: (label) => `by-instant:${Date.parse(label.slice('accrue:'.length))}`,
+  },
+  accrue_rendering_lost_its_microseconds: {
+    what: 'the accrue path\'s label stops being Postgres\'s JSON rendering (milliseconds, and '
+        + 'an offset pasted on), so "microseconds vs milliseconds" is no longer what these '
+        + 'three strings differ by and the arm is describing a system that moved',
+    expect: 'accrue_rendering_is_postgres_json',
+    inputs: {
+      accrueLabel: 'accrue:2026-09-21T17:55:55.739+00:00',
+      oldTick: 'accrue:2026-09-21T17:55:55.739Z',
+      oldRoster: 'accrue:2026-09-21T17:55:55.739Z',
+    },
+  },
+};
+
+// An honest stand-in for hr_seed: different label in, different number out.
+// It is not a model of hr_seed and does not need to be — the arm below uses
+// the real one; this only has to be injective over the planted strings.
+const seedByString = (label) => {
+  let h = 5381n;
+  for (const ch of label) h = ((h * 33n) ^ BigInt(ch.codePointAt(0))) & 0xffffffffffffffffn;
+  return h.toString();
+};
+
+async function selftest() {
+  console.log('world-tick-edge-contract --selftest: EC-3d, the control, against planted defects\n');
+  let bad = 0;
+  for (const [id, c] of Object.entries(SELFTEST_CASES)) {
+    let got;
+    try {
+      got = await ec3dClaims(Object.assign({ seedOf: c.seedOf || seedByString }, c.inputs));
+    } catch (e) {
+      console.error(`  x  ${id} — UNEXPECTED ERROR: ${String(e && e.message).split('\n')[0]}`
+        + `\n     ${c.what}`);
+      bad += 1; continue;
+    }
+    if (c.expect === null) {
+      if (got.pass) { console.log(`  ok  ${id.padEnd(38)} silent, as it must be`); continue; }
+      console.error(`  x  ${id} — expected NO finding; got: ${got.failed.join(', ')}`
+        + `\n     ${c.what}`);
+      bad += 1; continue;
+    }
+    if (got.failed.includes(c.expect)) {
+      console.log(`  ok  ${id.padEnd(38)} ${got.failed.join(', ')}`);
+    } else {
+      console.error(`  x  ${id} — expected the claim "${c.expect}" to fail; got: `
+        + `${got.failed.join(', ') || '(nothing — the control did not bite)'}\n     ${c.what}`);
+      bad += 1;
+    }
+  }
+  if (bad) {
+    console.error(`\n${bad} planted case(s) did not behave as the assertion written for them requires.`);
+    process.exit(1);
+  }
+  console.log(`\nall ${Object.keys(SELFTEST_CASES).length} planted cases behaved as their named `
+    + 'assertion requires — EC-3d bites on a converged spelling and on a canonicalising label '
+    + 'hash, and is silent about the session\'s time zone.');
+}
+
+if (process.argv.slice(2).includes('--selftest')) {
+  await selftest();
+  process.exit(process.exitCode || 0);
+}
 
 console.log('world-tick-edge-contract: the op:\'tick\' entry against the transport it deploys on');
 
@@ -318,8 +506,12 @@ try {
     /* THE NEGATIVE. Both defects were a spelling, and a spelling is exactly
        what a later edit restores without noticing. These are the two that were
        shipped — `new Date(ms).toISOString()` in planSeedLabels and the roster's
-       `to_char(... 'MS"Z"')` — and they must both still be WRONG, or the three
-       arms above have stopped distinguishing anything. */
+       `to_char(... 'MS"Z"')` — and they must both still be WRONG for the same
+       instant, in the string AND in the seed, or the three arms above have
+       stopped distinguishing anything. The renderings are Postgres's, in
+       whatever zone this session holds; the claims are ec3dClaims', which is
+       where the zone stops mattering (see its header) and which --selftest
+       mutates. */
     const r = (await db.query(`
       select to_jsonb(ts) #>> '{}'                                            as accrue_spelling,
              to_char(ts at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')   as roster_to_char,
@@ -328,14 +520,27 @@ try {
     const oldTick = 'accrue:' + new Date(r.raw).toISOString();
     const oldRoster = 'accrue:' + r.roster_to_char;
     const nowCorrect = 'accrue:' + r.accrue_spelling;
-    judge('EC-3d (control)', oldTick !== nowCorrect && oldRoster !== nowCorrect
-        && nowCorrect.endsWith('+00:00') && oldTick.endsWith('Z'),
-      'the two PREVIOUS spellings are still wrong for the same instant — `+00:00` vs `Z`, '
-      + `microseconds vs milliseconds (${nowCorrect} vs ${oldTick}) — so a revert in either `
-      + 'tick.js or the roster is still caught by EC-3a/EC-3b',
-      'a previous spelling now AGREES with the accrue path, so EC-3a/EC-3b can no longer tell '
-      + `the fix from the defect.\n           accrue : ${nowCorrect}\n           old tick   : `
-      + `${oldTick}\n           old roster : ${oldRoster}`);
+    const zone = (await db.query('select current_setting(\'TimeZone\') as z')).rows[0].z;
+    const ctl = await ec3dClaims({
+      accrueLabel: nowCorrect,
+      oldTick,
+      oldRoster,
+      seedOf: async (label) => (await db.query(
+        'select public.hr_seed($1::uuid, 0, $2) as s', [u, label])).rows[0].s,
+    });
+    judge('EC-3d (control)', ctl.pass,
+      'the two PREVIOUS spellings are still wrong for the same instant — microseconds and a '
+      + `numeric offset vs milliseconds and \`Z\` (${nowCorrect} vs ${oldTick}, session `
+      + `TimeZone ${zone}) — and they hash to different seeds (${ctl.seeds.accrue} vs `
+      + `${ctl.seeds.tick}/${ctl.seeds.roster}), so a revert in either tick.js or the roster is `
+      + 'still caught by EC-3a/EC-3b',
+      'a previous spelling is no longer distinguishable from the accrue path, so EC-3a/EC-3b can '
+      + `no longer tell the fix from the defect.\n           failed claims : ${ctl.failed.join(', ')}`
+      + `\n           accrue     : ${nowCorrect}  seed ${ctl.seeds.accrue}`
+      + `\n           old tick   : ${oldTick}  seed ${ctl.seeds.tick}`
+      + `\n           old roster : ${oldRoster}  seed ${ctl.seeds.roster}`
+      + `\n           session TimeZone : ${zone}  (the renderings above are Postgres's, in that `
+      + 'zone; none of the claims depend on it)');
   }
 } finally {
   await db.close();

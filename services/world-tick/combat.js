@@ -164,6 +164,67 @@ export function seedLabelFor(accruedToText) {
   return 'accrue:' + accruedToText;
 }
 
+/* ── WHICH STRING THE FIRST WINDOW IS LABELLED WITH, AND WHY (Security S-3)
+   `hr_tick_roster` returns `accrued_to` as a **timestamptz**, and a timestamptz
+   crossing a PG driver is a `Date` (the `postgres` driver parses OID 1184, and
+   index.ts gives it no `types` override — this is T-1 one column over) or the
+   driver's own text, `2026-09-18 12:00:09.6+00`: a SPACE separator and `+00`.
+   Neither is the `hr_state_of` rendering the accrue path labels with, so
+   reading the column made window 1's label driver-dependent — fail-closed if a
+   Date, silently a different RNG stream if a string.
+
+   The label must name the instant the window STARTS at, spelled the way the
+   server renders it. In SHADOW that instant is the roster's effective
+   watermark, `greatest(accrued_to, shadow_accrued_to)` — an instant
+   `player_state.accrued_to` may never have held — so "the envelope's string"
+   and "the watermark's string" are not always the same thing, and the source
+   is chosen in this order:
+
+     1. `row.mark_text`, the fence's OWN rendering of the effective watermark,
+        which `probeWatermark` already carries out of `hr_tick_settle` as
+        `markText` and which the gather driver already threads through
+        (`tick.js` planSeedLabels). This is the only source that survives a
+        watermark `hr_apply` clamped to a microsecond `now()`, because
+        `accruedToMs` has already lost those digits.
+     2. The envelope's `state->>'accrued_to'`, when it names the SAME instant —
+        i.e. an armed channel, or a shadow with no displacement. Taken
+        verbatim, microseconds and all.
+     3. Nothing. A displaced shadow watermark with no `mark_text` is REFUSED
+        rather than spelled from a Date or from the driver's text. Refusing
+        costs one window and the watermark has not moved; guessing costs every
+        drop roll of the run, which is what this milestone is measuring.
+
+   The instants are compared, not the strings: a source that renders a
+   DIFFERENT instant than the window starts at is a stale label, which is the
+   same wrong stream as a mis-spelled one. */
+function instantMsOf(v) {
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === 'number') return Math.floor(v);
+  if (typeof v === 'string' && v.length) return Date.parse(v);
+  return NaN;
+}
+
+export function rosterWatermarkText(row, envelope) {
+  const st = envelope || {};
+  const markMs = instantMsOf(row.accrued_to);
+  if (!Number.isFinite(markMs)) {
+    throw new Error('rosterWatermarkText: the roster row carries no readable watermark');
+  }
+  for (const cand of [row.mark_text, st.accrued_to]) {
+    if (typeof cand !== 'string' || cand.length === 0) continue;
+    /* A driver-rendered timestamptz (`2026-09-18 12:00:09.6+00`) parses to the
+       right instant and is still the wrong SPELLING, so the shape is checked
+       too: the JSONB rendering is `T`-separated and `+00:00`. */
+    if (!/^\d{4}-\d{2}-\d{2}T[\d:.]+\+00:00$/.test(cand)) continue;
+    if (Date.parse(cand) === markMs) return cand;
+  }
+  throw new Error('rosterWatermarkText: no server rendering of the watermark '
+    + `${new Date(markMs).toISOString()} — the envelope renders `
+    + `"${String(st.accrued_to)}" and no mark_text was carried. The seed label must be `
+    + 'the hr_state_of rendering of the instant the window starts at, and the only other '
+    + 'thing to spell it from is a Date or the driver\'s text, which is Security T-2/S-3');
+}
+
 /* THE PRODUCTION SHAPE. One roster row (`hr_tick_roster`) plus its
    `hr_state_of` envelope becomes the in-memory session the loop carries. Every
    field is named here so a reviewer can answer "what can the client influence?"
@@ -196,9 +257,12 @@ export function sessionFromRoster(row, envelope) {
     activeId: row.active_id,
     activeSinceMs: Date.parse(row.active_since),
     accruedToMs: Date.parse(row.accrued_to),
-    /* T-2. The STRING, kept beside the number, because the label is spelled
-       from the string and the window is planned from the number. */
-    accruedToText: row.accrued_to,
+    /* T-2 / S-3. The STRING, kept beside the number, because the label is
+       spelled from the string and the window is planned from the number. It is
+       a SERVER rendering of the same instant `accruedToMs` names — never the
+       roster's timestamptz column, which a driver hands over as a Date or in
+       its own spelling. See rosterWatermarkText. */
+    accruedToText: rosterWatermarkText(row, st),
     capMs: row.cap_ms == null ? undefined : Number(row.cap_ms),
     hp: st.hp, maxHp: st.max_hp, gold: st.gold,
     skills: st.skills || {},

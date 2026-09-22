@@ -1225,14 +1225,60 @@ for (const raw of SESSIONS) {
   };
   const env = {
     hp: 40, max_hp: 60, gold: 10, skills: {}, inventory: {}, equipment: {},
+    /* THE ENVELOPE'S OWN RENDERING of the watermark — `state->>'accrued_to'`,
+       which is where the label comes from (S-3). */
+    accrued_to: '2026-03-14T20:00:00.123456+00:00',
     auto_eat_enabled: true, auto_eat_food: 'cooked_trout', auto_eat_pct: 70,
     deaths_today: 6, deaths_lifetime: 60, fight: {}, consec_falls: 2,
     recovering_until: '2026-03-14T20:02:00.000000+00:00',
     hearthfind_ready: true, combat_style: null, enchant: {},
   };
   const s = sessionFromRoster(row, env);
-  ok('C9', s.accruedToText === row.accrued_to,
-    'sessionFromRoster did not keep the envelope\'s own rendering of accrued_to (T-2)');
+  ok('C9', s.accruedToText === env.accrued_to,
+    'sessionFromRoster did not label from the envelope\'s own rendering of accrued_to '
+    + '(T-2, S-3)');
+
+  /* ── THE TWO SHAPES A DRIVER ACTUALLY HANDS BACK (Security S-3) ──────────
+     `hr_tick_roster.accrued_to` is a timestamptz. The `postgres` driver parses
+     OID 1184 into a JS Date; others hand back their own text,
+     `2026-03-14 20:00:00.123456+00` — a SPACE separator and `+00`. Both name
+     the right instant and neither is the spelling hr_seed is hashed over, so
+     neither may become the label. With the envelope present the label is
+     unmoved; with the envelope gone the session is REFUSED, not guessed. */
+  for (const driverShape of [
+    new Date('2026-03-14T20:00:00.123Z'),
+    '2026-03-14 20:00:00.123456+00',
+  ]) {
+    const sd = sessionFromRoster({ ...row, accrued_to: driverShape }, env);
+    ok('C9', sd.accruedToText === env.accrued_to,
+      `a roster column handed over as ${typeof driverShape === 'string' ? 'driver text' : 'a Date'} `
+      + `became the label "${sd.accruedToText}" — the label is the envelope's rendering`);
+    let threwDriver = null;
+    try {
+      const { accrued_to: _drop, ...noEnv } = env;
+      sessionFromRoster({ ...row, accrued_to: driverShape }, noEnv);
+    } catch (e) { threwDriver = e; }
+    ok('C9', threwDriver !== null,
+      'sessionFromRoster spelled the label from the roster\'s timestamptz column when the '
+      + 'envelope carried none — a Date or the driver\'s text is not the accrue path\'s spelling');
+  }
+
+  /* THE SHADOW DISPLACEMENT, STATED. In shadow the roster's watermark is
+     `greatest(accrued_to, shadow_accrued_to)`, an instant the envelope may
+     never have held — so the envelope's string names the WRONG instant and is
+     refused. The fence's own rendering (`mark_text`, what probeWatermark
+     carries) is what the driver must thread through, and it is accepted. */
+  const displaced = { ...row, accrued_to: '2026-03-14T20:05:00.5+00:00' };
+  let threwDisplaced = null;
+  try { sessionFromRoster(displaced, env); } catch (e) { threwDisplaced = e; }
+  ok('C9', threwDisplaced !== null,
+    'sessionFromRoster labelled a displaced shadow watermark with the envelope\'s string, '
+    + 'which names a different instant — a stale label is the same wrong stream');
+  const withMark = sessionFromRoster(
+    { ...displaced, mark_text: '2026-03-14T20:05:00.5+00:00' }, env);
+  ok('C9', withMark.accruedToText === '2026-03-14T20:05:00.5+00:00'
+    && withMark.accruedToMs === Date.parse('2026-03-14T20:05:00.5+00:00'),
+    'the fence\'s own rendering of the effective watermark was not used as the label');
   ok('C1', s.autoEatEnabled === true && s.autoEatPct === 70 && s.autoEatFood === 'cooked_trout',
     'sessionFromRoster dropped the auto-eat trio');
   ok('C1', s.deathsTodayBefore === 6 && s.deathsLifetimeBefore === 60,

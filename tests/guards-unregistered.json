@@ -127,6 +127,17 @@
         "selftest": true
       }
     },
+    "vigour-charge-conservation.mjs": {
+      "reason": "RED BY DESIGN \u2014 it is the executable form of finding S1 in docs/planning/SEC_HUNTS_M6_2026-09-22.md, not a gate that regressed. The Vigour charge (src/core/hunt.js vigourChargeMin) floors per settle window and DISCARDS the sub-minute remainder with no carry, so the minutes charged for a fixed span fall as the span is cut into more windows: 40 charged for an hour at a 90 s poll cadence with no privilege at all, and ZERO for an hour of sub-minute set_activity collects, which are exempt from ACCRUE_MIN_MS by design (b531). Registering the plain run in smoke.yml today would make the five-job matrix unreachable for every later build, which CLAUDE.md \u00a74 names as the exact way one standing red makes a CI gate useless. Its --selftest EXITS 0 and is the honest half: it plants the conserving charge in the engine and requires every arm to go GREEN while the shipped engine stays RED, so the arms are proven to measure the law and not an implementation. DELETE THIS ENTRY AND REGISTER THE PLAIN RUN the moment the charge conserves \u2014 the guard is written to be the regression test for its own fix.",
+      "owner": "security-engineer",
+      "disposition": "finding-repro",
+      "verified": {
+        "asserts": true,
+        "selftest": true,
+        "measured": "2026-09-22 on lane/m6-hunts-backend @76af094: plain run exit 1 (five arms red), --selftest exit 0",
+        "blocks": "docs/planning/SEC_HUNTS_M6_2026-09-22.md S1 \u2014 BLOCK on 2026-09-22-vigour-daily.sql and its engine half"
+      }
+    },
     "lifetime-facts-reapply.mjs": {
       "reason": "family pglite-chain-replay, and a SECURITY PROOF rather than a standing gate (b550 review, finding S-LF-3). It replays the whole chain and then proves by execution that 2026-09-19-lifetime-facts-off-the-ledger.sql is ONE-SHOT on production: green on a second apply while no find is live, and refused outright by §2's unguarded hr_backfill_lifetime_facts() call the moment one hearthfind_log row carries src_ledger_id NULL. That is the safe direction and not a defect — it is a fact the apply order has to carry, because schema-drift replays a chain with no live finds and therefore cannot state it. Not registered for the same reason as the rest of this family: it boots PGlite and applies the whole chain, which CI already does once in the schema-drift step.",
       "family": "pglite-chain-replay",

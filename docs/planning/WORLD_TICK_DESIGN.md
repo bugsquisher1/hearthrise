@@ -2059,6 +2059,26 @@ steps are in the migration header, where the operator running it will look).
    If `has_null_element` is not NULL, **stop** and clean the array first: the
    constraint would validate a value the tick cannot settle.
 
+2. **Drain the lease and pause the tick — this is a TABLE REWRITE (Security
+   S-4).** The eight new columns are `GENERATED ALWAYS … STORED`, and
+   PostgreSQL always rewrites a table to add one. The rewrite holds ACCESS
+   EXCLUSIVE on `hr_tick_shadow` while the gather shadow inserts into it every
+   90 s: the apply blocks on the running writer and blocks it in turn, for a
+   duration that scales with the table (sized by the second select above).
+   This is the "changes" in GO-WITH-CHANGES; the migration is otherwise clean.
+
+   Wait for the current lease to expire (`lease_until <= now()` in
+   `hr_tick_ownership`), then `update public.hr_tick_config set enabled = false
+   where id;` for the apply, and set it back to `true` afterwards. The file
+   arms nothing either way (§3 `c3`), so the gather cohort resumes untouched.
+
+3. **Apply**, one file, Coordinator only, never inside `begin/commit`, never
+   00:00–00:10 UTC (CLAUDE.md §2):
+
+   ```bash
+   node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-combat-channel.sql
+   ```
+
 **What remains before combat is even SHADOW-able on production**, in order:
 
 | # | Work | Owner |

@@ -60,6 +60,28 @@
 -- If `has_null_element` is NOT NULL, STOP: clean the array before applying, or
 -- the constraint validates a value the tick cannot settle.
 --
+-- ── DRAIN THE LEASE FOR THE APPLY — THIS IS A TABLE REWRITE (Security S-4) ──
+-- §2's eight columns are `GENERATED ALWAYS … STORED`, and PostgreSQL ALWAYS
+-- REWRITES a table to add one. The rewrite takes ACCESS EXCLUSIVE on
+-- `hr_tick_shadow` while the GATHER shadow is inserting into it every 90 s, so
+-- the apply blocks on the running tick writer AND the writer blocks on the
+-- apply, for a duration that scales with the table's size. Nothing else in
+-- this file takes a lock worth naming.
+--
+-- THE OPERATOR RULE, and it is the "changes" in GO-WITH-CHANGES:
+--
+--   1. Let the current lease expire — wait for `lease_until <= now()` in
+--      public.hr_tick_ownership — and set the tick OFF for the apply:
+--        update public.hr_tick_config set enabled = false where id;
+--   2. Apply, one file, per CLAUDE.md §2:
+--        node tools/apply-migration.mjs \
+--          supabase/migrations/2026-09-22-world-tick-combat-channel.sql
+--   3. RE-ENABLE:
+--        update public.hr_tick_config set enabled = true where id;
+--
+-- Sizing the rewrite window is the second pre-flight select above. The file
+-- arms nothing either way (§3 c3): the gather cohort resumes untouched.
+--
 -- RE-RUNNABLE. Every statement is `if not exists`-guarded, so a second apply is
 -- byte-identical (tests/schema-drift.mjs replays the chain twice).
 --

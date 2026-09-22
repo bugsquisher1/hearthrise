@@ -47,6 +47,11 @@ import * as away from './core/away.js?v=550';
 import * as botd from './core/botd.js?v=550';
 import * as buffs from './core/buffs.js?v=550';
 import * as combatSim from './core/combat-sim.js?v=550';
+/* THE TROPHY LADDER (docs/design/BESTIARY_LADDER.md). Only `monsterIdIn` is
+   reached from here: the multipliers are read inside `weaknessInfo`, the one
+   expression the live tick and the Edge replay share, and a bridge that also
+   priced a trophy would be the second place one ladder is priced. */
+import * as trophiesMod from './core/trophies.js?v=550';
 /* The gather half of the same unification. `skillSim.sliceSpan` IS
    `replayAwaySpan` (legacy.js:1153), lifted; `simulateSkillSpan` is the loop
    the away gather branch and the accrual Edge Function both run. Published
@@ -108,6 +113,13 @@ let rng = rngMod.createRng((Math.random() * 0x100000000) >>> 0);
 
 const G = () => window.G;
 const ITEMS = () => window.ITEMS || {};
+/* The roster, read off `window` for the SAME reason ITEMS is: src/main.js
+   merges the ESM content INTO the objects legacy.js holds, so `window.MONSTERS`
+   is the same identity as the module's export and `applyClassProfiles` has
+   stamped it. An import here would be a second reference to one catalogue —
+   and `monsterIdIn` matches rows by IDENTITY, so a second reference is a
+   resolver that answers null for every row the game is actually holding. */
+const MONSTERS = () => window.MONSTERS || {};
 
 /* ── THE GATHER INDEX, CLIENT SIDE (b348) ──────────────────────────────────
    `{ [nodeId]: { skill, node } }` over every gathering node, built by the SAME
@@ -279,6 +291,26 @@ function charms() {
   } catch (e) { return null; }
 }
 
+/* THE BESTIARY TROPHY INDEX. The same seam, the same reason, the same defences:
+   the owner of `G._bestiaryTrophies` is src/render/bestiary-trophies.js and a
+   bridge that dug the scratch key out itself would be a second reader of one
+   fact. A build without the module, a tab before its first envelope and a
+   signed-out session all contribute NO trophy, never a stage. */
+function trophies() {
+  try {
+    const T = (typeof window !== 'undefined') ? window.HearthriseTrophies : null;
+    return (T && typeof T.indexForCombat === 'function') ? (T.indexForCombat() || null) : null;
+  } catch (e) { return null; }
+}
+
+/* The roster KEY for a MONSTERS row — `monsterIdIn` bound to the catalogue this
+   bridge already owns. It lives here rather than in src/legacy.js because the
+   lookup is pure and the monolith is not where a pure function goes
+   (CLAUDE.md §7); legacy's `getWeaknessInfo` reaches it as `C.monsterId`. */
+function monsterId(row) {
+  try { return trophiesMod.monsterIdIn(MONSTERS(), row); } catch (e) { return null; }
+}
+
 /* Tool speed still routes through window.HearthriseTools rather than
    straight to core, because that object is a documented public API other
    feature modules call — and it now delegates to core itself. */
@@ -306,6 +338,13 @@ function combatCtx(eq, setBonus) {
     /* The charm rank per class — an INPUT, derived from the server's projected
        counters. See `charms()` above and src/core/charms.js. */
     charms: charms(),
+    /* The trophy stage per MONSTER, from the same counters. `monsterId` is NOT
+       set here and must not be: this context is built once per loadout and read
+       for whichever monster the caller then names, so the id travels with the
+       call (`weaknessInfo(m, eq, charms, trophies, id)`) rather than being
+       frozen into the context. A ctx-level id would price every fight as the one
+       the context happened to be built for. */
+    trophies: trophies(),
     profile: (typeof window.getCombatStatProfile === 'function')
       ? window.getCombatStatProfile()
       : Object.assign({}, combat.DEFAULT_PROFILE, { type: (eq && eq.weaponType) || 'sword' }),
@@ -397,7 +436,7 @@ window.HearthriseCore = {
   },
 
   /* The adapters legacy.js calls. */
-  bonus, toolSpeed, charms, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
+  bonus, toolSpeed, charms, trophies, monsterId, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
   /* b348 — the gather index and its lookup, shared with the accrual engine. */
   gatherNodes, gatherNode,
   /* …and the artisan index, on the same contract, plus its reverse (item →

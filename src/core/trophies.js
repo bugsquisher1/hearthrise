@@ -113,6 +113,33 @@ export function trophyIndex(killsByMonsterId, monsters) {
 }
 
 /**
+ * The roster KEY for a monster row, or null.
+ *
+ * The charm resolves its class off the row (`cls`/`family` are ON the row); a
+ * trophy needs the row's IDENTITY, and not one of the 108 rows carries an `id`
+ * field — measured. So the id has to come from the catalogue the row came out
+ * of, and this is the one function that does that lookup.
+ *
+ * IDENTITY, NOT EQUALITY. Two rows can carry the same `name`, and the id is
+ * what the server's counters and the trophy key are built from, so a match on a
+ * display field would file a kill under the wrong monster. `row.id` is honoured
+ * first for a caller holding a stamped row (the client's `applyClassProfiles`
+ * may add fields the sealed server copy does not have).
+ *
+ * Linear over the roster and called once per weakness read, which is nothing
+ * next to the roll it feeds. A cached reverse map would be a second copy of the
+ * roster to keep in step, which is the thing this module's data half exists to
+ * avoid.
+ */
+export function monsterIdIn(monsters, row) {
+  if (!row || typeof row !== 'object') return null;
+  if (typeof row.id === 'string' && row.id) return row.id;
+  if (!monsters || typeof monsters !== 'object') return null;
+  for (const k of Object.keys(monsters)) { if (monsters[k] === row) return k; }
+  return null;
+}
+
+/**
  * The stage an index holds for `monsterId`, OWN-PROPERTY ONLY — 0 for anything
  * else.
  *

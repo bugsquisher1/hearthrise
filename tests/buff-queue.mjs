@@ -68,12 +68,19 @@
 //       buff pays MORE. A wiring that returned zero would satisfy [10] perfectly.
 //  [12] NO CLIENT WRITE SURFACE — player_state has no non-read RLS policy and no
 //       client role holds a write grant on hr_item_buffs.
-//  [13] THE SHADOW COPY IS GONE — a client_state PUT carrying `buffs` is refused
-//       forbidden_field, an HONEST residue PUT still saves, and `buffs` is not in
-//       RESIDUE_FIELDS (which would refuse every residue patch for every player).
-//  [14] A SECOND APPLY IS A NO-OP — both files re-apply with all three bodies
-//       byte-identical and exactly one CHECK constraint. They patch bodies ten
-//       patches deep; a double-patch is a silent corruption of the engine.
+//  [13] THE SHADOW COPY IS GONE — a client_state PUT carrying `buffs` does not
+//       STORE it, an HONEST residue PUT still saves, and `buffs` is not in
+//       RESIDUE_FIELDS. ⚠ THE MECHANISM CHANGED ON 2026-09-23 AND THE PROPERTY
+//       DID NOT: until then the whole patch was REFUSED forbidden_field, which
+//       cost one player with a stale tab nine days of saves; now the key is
+//       STRIPPED and journalled and the honest remainder saves. What [13]
+//       asserts is what it always meant — the forgeable copy never lands.
+//  [14] A SECOND APPLY IS A NO-OP — the chain-end files re-apply with all three
+//       bodies byte-identical and exactly one CHECK constraint. They patch bodies
+//       ten patches deep; a double-patch is a silent corruption of the engine.
+//       [14b]/[14c] measure the two files a LATER restatement has since overtaken
+//       at their own chain positions, where "is this file idempotent" is the
+//       question actually being asked.
 //  [16] PER-SEGMENT STACKING (F2) — all four orderings by execution (weaker
 //       waits / stronger starts now and covers / an outliving weaker resumes /
 //       same magnitude extends one segment), the per-type segment budget refuses a
@@ -159,10 +166,15 @@ const CAP_MS = 3600000;
 
 const harness = (m) => { const e = new Error(m); e.harness = true; return e; };
 
-/* The FINAL body for hr_put_client_state__ungated: the deny-list this chain
-   installs is patched once more by the projection purge, so a mutation to the
-   text above has to account for it (see the BLIND entry). */
-const MIG_PROJ = '2026-09-14-client-state-projection-denylist.sql';
+/* THE FINAL BODY for hr_put_client_state__ungated. It was
+   2026-09-14-client-state-projection-denylist.sql, which is DELETED as of
+   2026-09-23: that file would have made the nine projection names AUTHORITY
+   keys, i.e. reproduced the `buffs` outage nine names at a time on every
+   unreloaded tab. Its successor RESTATES the body whole and splits the list —
+   AUTHORITY names still refuse the patch, RETIRED names (buffs + the nine) are
+   stripped and journalled — so it owns every line of this text and is where a
+   mutation to the deny-list has to be planted. */
+const MIG_RETIRED = '2026-09-23-client-state-retired-fields.sql';
 /* THE CURRENT LAST TOUCHER OF hr_apply — the file [14] must measure for
    idempotency on the FULL chain, because it is the one whose anchors are the
    most recently-splicable text. Moving this constant when a new file patches
@@ -209,19 +221,22 @@ const BLIND = {
   [MIG_PAY]: ["  if strpos(v_apply, 'buff_not_paid') = 0 then",
     '  return;  -- \u00a72 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  if strpos(v_apply, 'buff_not_paid') = 0 then"],
-  /* ⚠ THE FINAL BODY FOR hr_put_client_state__ungated IS A LATER FILE'S
-     (2026-09-14-client-state-projection-denylist.sql), and it PINS this chain's
-     deny-list text: §0 counts the `'buffs'` tail anchor and refuses to patch a
-     body it cannot account for, then §2 asserts its own nine keys installed. Under
-     `denylist_key_typo` both are true failures of a mutated chain and neither is
-     this guard's tick, so both are blinded — narrowly, one `if` and one `return`,
-     leaving that file's §1 patch and its grant re-statement to run. Without this
-     the arm scores HARNESS and the typo goes unproven. */
-  [MIG_PROJ]: [
-    ["  if v_n <> 1 then", "  if false then  -- ANCHOR COUNT BLINDED FOR THE MUTATION PROOF (tests/buff-queue.mjs)"],
-    ["  -- (a) EVERY key installed, and every PRE-EXISTING authority key SURVIVED. A",
-      "  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n"
-      + "  -- (a) EVERY key installed, and every PRE-EXISTING authority key SURVIVED. A"],
+  /* ⚠ THE FINAL BODY FOR hr_put_client_state__ungated IS MIG_RETIRED'S, and that
+     file GATES its own text twice: §3 pins the CODE md5 of the body it installs
+     and asserts which list every name landed on, and §4 EXECUTES the contract as
+     a signed-in player. Under `denylist_key_typo` both are true failures of a
+     mutated chain and neither is this guard's tick, so both are blinded —
+     narrowly, one `if` and one `return`, leaving §1's restatement and §2's grant
+     re-statement to run. Without this the arm scores HARNESS and the typo goes
+     unproven. (The same rule the deleted projection file needed, for the same
+     reason; only the anchors moved.) */
+  [MIG_RETIRED]: [
+    ['  v_code := btrim(regexp_replace(\n              regexp_replace(replace(pg_get_functiondef(',
+      '  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
+      + '  v_code := btrim(regexp_replace(\n              regexp_replace(replace(pg_get_functiondef('],
+    ["    perform set_config('request.jwt.claim.sub', v_uid::text, true);",
+      "    return;  -- §4 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n"
+      + "    perform set_config('request.jwt.claim.sub', v_uid::text, true);"],
   ],
   /* The predicate file's §2 — its own (c1)/(c2) assertions catch the two predicate
      mutations, so without this blind the tick would be "the migration refused"
@@ -421,16 +436,18 @@ const MUTATIONS = {
       "               'remaining_ms', 0::bigint)"]],
   },
   denylist_key_typo: {
-    file: MIG_DENY,
-    why: "the deny-list gains 'buffsX' instead of 'buffs', so the forgeable client_state shadow copy "
-       + 'survives — Security\'s condition silently unmet while the migration reports success',
-    pairs: [["    'buffs'$new$);", "    'buffsX'$new$);"]],
-    /* ⚠ THIS ARM MUTATES TEXT A LATER FILE PINS. 2026-09-14-client-state-
-       projection-denylist.sql anchors its own patch on the `'buffs'` this file
-       leaves behind and counts it, so the typo made THAT file refuse and the arm
-       scored HARNESS instead of the tick it earns. The rule in the BLIND map
-       applies verbatim: blind the downstream gate (narrowly), keep the tick where
-       it belongs — this guard's own assertion that a forged buff patch is refused. */
+    file: MIG_RETIRED,
+    why: "the retired list gains 'buffsX' instead of 'buffs', so a client_state PUT carrying a forged "
+       + 'buff queue is neither refused nor stripped and the shadow copy LANDS — the 2026-09-13 '
+       + "security condition silently unmet while the migration reports success",
+    pairs: [["    'buffs',\n    'streak','autoEatPct'", "    'buffsX',\n    'streak','autoEatPct'"]],
+    /* ⚠ PLANT IN THE FILE THAT OWNS THE LIVE TEXT. This arm used to edit
+       2026-09-13-client-state-buffs-denylist.sql's `'buffs'$new$);` splice.
+       MIG_RETIRED now RESTATES the whole body, so that typo is overwritten and
+       the arm would be VACUOUS — the chain would come back correct and the guard
+       would report a tick it did not earn. Same rule the file's own header
+       states for the next author, and the same rule the BLIND map above obeys
+       from the other side. */
   },
   payment_gate_off: {
     file: MIG_APPLY,   // was MIG_PAY — hr_apply body
@@ -531,7 +548,7 @@ const patchesFor = (mutate, blind) => {
     for (const p of pairs) map.get(file).push(p);
   };
   /* A BLIND is one [find, replace] pair, or an ARRAY of them when a downstream
-     file pins this block in more than one place (see MIG_PROJ). */
+     file pins this block in more than one place (see MIG_RETIRED). */
   if (blind) for (const [file, pair] of Object.entries(BLIND)) add(file, Array.isArray(pair[0]) ? pair : [pair]);
   if (mutate) {
     const m = MUTATIONS[mutate];
@@ -577,7 +594,20 @@ async function run(mutate, blind) {
      refusal itself is driven as its own arm by
      tests/hr-apply-final-body.mjs --selftest ("re-apply after a LATER anchored
      patch: §0 refuses"). */
-  for (const file of [MIG, MIG_DENY, MIG_SCALE, HR_APPLY_LAST]) {
+  /* ⚠ MIG_DENY LEFT THIS LOOP ON 2026-09-23, FOR THE SAME REASON MIG_APPLY DID,
+     and it is the same non-weakening. MIG_RETIRED now RESTATES
+     hr_put_client_state__ungated and splits the list, so a retired `buffs` is
+     STRIPPED rather than refused — and MIG_DENY's own §2(c) asserts the refusal
+     it was written for. Re-applying it at CHAIN END therefore raises, correctly:
+     "A RESTATEMENT IS ONLY RE-APPLIABLE UNTIL THE NEXT MIGRATION ADDS TO THE
+     BODY" (2026-09-13-rejections-verb-map-3.sql's own header) cuts both ways —
+     the EARLIER file stops being re-appliable once a later one owns the text.
+     Its §1 patch is re-entrant and skips, so the raise changes nothing; that
+     refusal is the b484-b487 protection working. The property is not dropped,
+     it is MOVED to [14c] below, where MIG_DENY is the chain end and the question
+     "is this file idempotent" is the one actually being asked. MIG_RETIRED joins
+     the loop in its place, because it is now this body's chain end. */
+  for (const file of [MIG, MIG_SCALE, HR_APPLY_LAST, MIG_RETIRED]) {
     let sql = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
     /* The SAME patched text the chain was built from, so under a mutation this
        measures the MUTATED file's idempotency rather than a mismatch. */
@@ -621,6 +651,31 @@ async function run(mutate, blind) {
     ok(!err && b0 === await body(),
       '[14b] the hr_apply body CHANGED when the restatement was re-applied at its own chain position');
     await db2.close?.();
+  }
+
+  /* [14c] MIG_DENY'S OWN IDEMPOTENCY, MEASURED WHERE IT IS THE CHAIN END.
+     A separate replay cut at MIG_DENY: there its §2(c) refusal assertion is the
+     live contract, so a second apply must be a clean no-op leaving the body
+     byte-identical. Same shape and same reasoning as [14b]. */
+  {
+    const { db: db3 } = await bootReplay({ patches: patchesFor(mutate, blind), upTo: MIG_DENY });
+    const body = async () => (await db3.query(
+      `select pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure) as p`
+    )).rows[0].p;
+    const b0 = await body();
+    let sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG_DENY), 'utf8')).replace(/\r\n/g, '\n');
+    for (const [f, r] of (patchesFor(mutate, blind) || new Map()).get(MIG_DENY) || []) {
+      if (sql.split(f).length - 1 !== 1) throw harness(`[14c] anchor matched != 1 time in ${MIG_DENY}`);
+      sql = sql.replace(f, () => r);
+    }
+    let err = null;
+    try { await db3.exec(`begin;\n${sql}\ncommit;`); } catch (e) { err = e; await db3.exec('rollback').catch(() => {}); }
+    ok(!err, `[14c] a second apply of ${MIG_DENY} at its own chain position did not run clean — `
+      + `${err && String(err.message).split('\n')[0]}`);
+    ok(!err && b0 === await body(),
+      '[14c] the hr_put_client_state__ungated body CHANGED when the deny-list file was re-applied at '
+      + 'its own chain position');
+    await db3.close?.();
   }
 
   const after = await defs();
@@ -1357,24 +1412,34 @@ async function run(mutate, blind) {
   await db.exec('set role authenticated');
   let put = null; let putOk = null;
   try {
+    /* An HONEST key travels WITH the forged queue, deliberately. Before
+       2026-09-23 this whole patch was refused and `lootFilter` never saved —
+       which is the outage 2026-09-23-client-state-retired-fields.sql closes, and
+       the assertion below is the only place this guard would have seen it. */
     put = (await db.query(
       `select public.hr_put_client_state(0, $1::jsonb, gen_random_uuid()) as r`,
-      [JSON.stringify({ buffs: [{ type: 'damage', magnitude: 9999, remainingMs: 9e9 }] })])).rows[0].r;
+      [JSON.stringify({ buffs: [{ type: 'damage', magnitude: 9999, remainingMs: 9e9 }],
+        lootFilter: ['junk'] })])).rows[0].r;
     putOk = (await db.query(
       `select public.hr_put_client_state(0, $1::jsonb, gen_random_uuid()) as r`,
-      [JSON.stringify({ lootFilter: ['junk'] })])).rows[0].r;
+      [JSON.stringify({ lockedItems: { bronze_sword: true } })])).rows[0].r;
   } catch (e) { put = { ok: false, error: '__threw__', message: String(e && e.message) }; }
   await db.exec('reset role');
-  ok(!!put && put.ok === false && put.error === 'forbidden_field' && put.field === 'buffs',
-    `[13] a client_state PUT carrying a forged buff queue was not refused forbidden_field/buffs — got `
-    + `${JSON.stringify(put).slice(0, 140)}`);
+  ok(!!put && put.ok === true && Array.isArray(put.stripped) && put.stripped.includes('buffs'),
+    `[13] a client_state PUT carrying a forged buff queue was not answered ok with buffs STRIPPED — got `
+    + `${JSON.stringify(put).slice(0, 140)}. A retired key is not an authority key: refusing the whole `
+    + 'patch cost one player nine days of saves.');
   ok(!!putOk && putOk.ok === true,
     `[13] an HONEST residue PUT was refused (${JSON.stringify(putOk).slice(0, 140)}) — a deny-list that `
     + 'eats legitimate patches is worse than none');
   const stored = (await db.query(
     'select client_state from public.player_state where user_id = $1 and slot = 0', [U])).rows[0].client_state;
   ok(!stored || !Object.prototype.hasOwnProperty.call(stored, 'buffs'),
-    `[13] client_state stored a buffs key anyway: ${JSON.stringify(stored).slice(0, 120)}`);
+    `[13] client_state stored a buffs key anyway: ${JSON.stringify(stored).slice(0, 120)} — the forgeable `
+    + 'shadow copy must never land, whichever mechanism keeps it out');
+  ok(!!stored && JSON.stringify(stored.lootFilter) === JSON.stringify(['junk']),
+    `[13] the honest key that travelled with the forged buff queue was NOT stored `
+    + `(${JSON.stringify(stored).slice(0, 120)}) — that is the 927-955-refusals-a-day outage`);
 
   /* ── [21] THE CELLAR SCALES THE CLOCK, SERVER-SIDE (step 3) ───────────────
      2026-09-13-buff-cellar-scale.sql makes a perk the player BOUGHT reach the
@@ -1630,7 +1695,7 @@ if (RUN_DIRECTLY) {
       + 'JOINS, and the type stays one row; repeated consumes land on the 60-minute cap and the next is '
       + 'refused buff_at_max with the gold in the same delta unmoved; a replayed intent buffs once; the '
       + 'envelope projects the queue top-level with a server-derived remaining_ms (expired entries at 0) '
-      + 'and ate no neighbour; client_state refuses a forged buff patch while an honest one still saves; '
+      + 'and ate no neighbour; client_state STRIPS a forged buff patch (never storing it) while every honest key beside it still saves; '
       + 'the accrual engine is BYTE-IDENTICAL with no live buff and demonstrably richer with one; the '
       + 'Cellar rung the player BOUGHT is what lengthens the buff (scale 1.0 with no Cellar, each rung '
       + "paying its own payload from a catalogue equal to src/data/perks.js, the number on the envelope "

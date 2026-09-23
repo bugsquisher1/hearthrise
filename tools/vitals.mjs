@@ -2,7 +2,8 @@
 // tools/vitals.mjs — the §3.4 dead-feature vitals, read-only, from production.
 //
 //   node tools/vitals.mjs            # last 7 days, per day
-//   node tools/vitals.mjs --refusals # why calls were REFUSED, by code and verb
+//   node tools/vitals.mjs --refusals # why calls were REFUSED, by code and verb, plus
+//                                    # the deny-list codes per (user, slot)
 //
 // Runs ONE fixed SELECT over public.player_ledger through the same management
 // endpoint tools/apply-migration.mjs uses (token from ~/.supabase-token, read
@@ -126,21 +127,76 @@ select x.day, x.code, min(x.severity) as severity, sum(x.n) as n,
   from x group by x.day, x.code
  order by x.day desc, sum(x.n) desc, x.code`;
 
+// WHY THE DENY-LIST CODES GET THEIR OWN PER-(user, slot) ROWS (2026-09-23).
+// hr_rejections is already a per-(user, slot, day, code) aggregate, and the
+// table above then SUMS those rows away. For most codes that is the right
+// reading. For the two deny-list codes it hides the only fact worth having:
+// MEASURED on production, forbidden_field has run at 927-955 occurrences a day
+// since 2026-09-13 20:48 UTC and every one of them is ONE CHARACTER -- user
+// b94fa8c0 slot 0, a hidden pre-b544 tab still sending the retired key -- which
+// is roughly 99% of the refused count the vitals table prints. Read as a total
+// it looks like the server is refusing the whole player base; read per tab it is
+// one browser window nobody has reloaded, and any REAL burst underneath it (an
+// equip conflict, a rate-limit storm) is invisible until it is separated out.
+// So: ONE TAB PRINTS AS ONE TAB.
+//
+// NO BACKTICKS IN THIS STRING, including in its SQL comments -- see the note in
+// REFUSALS. retired_field arrives with
+// 2026-09-23-client-state-retired-fields.sql; before it is applied this simply
+// returns no rows for that code, which is the honest answer and not an error.
+const REFUSAL_TABS = `
+with x as (
+  select h.day, h.code, h.severity, h.n, h.user_id, h.slot, h.last_at, h.intent,
+         coalesce((to_jsonb(h) ->> 'whys')::jsonb, '{}'::jsonb) as whys
+    from public.hr_rejections h
+   where h.day >= ((now() at time zone 'UTC')::date - 1)
+     and h.code in ('forbidden_field', 'retired_field')),
+w as (
+  select x.day, x.code, x.user_id, x.slot, e.key as why, sum(e.value::bigint) as wn
+    from x, lateral jsonb_each_text(x.whys) e group by 1, 2, 3, 4, 5)
+select x.day, x.code, x.severity,
+       left(x.user_id::text, 8) as who, x.slot, x.n,
+       to_char(x.last_at at time zone 'UTC', 'HH24:MI') as last_utc,
+       coalesce(nullif(x.intent, ''), '-') as verb,
+       coalesce(nullif((select string_agg(w.why || '=' || w.wn::text, ' ' order by w.wn desc, w.why)
+                          from w where w.day = x.day and w.code = x.code
+                           and w.user_id = x.user_id and w.slot = x.slot
+                           and not (w.why = '(none)'
+                                and 1 = (select count(*) from w w2
+                                          where w2.day = x.day and w2.code = x.code
+                                            and w2.user_id = x.user_id and w2.slot = x.slot))), ''), '-')
+         as whys
+  from x
+ order by x.day desc, x.n desc, x.code, who`;
+
 const refusalsMode = process.argv.includes('--refusals');
 const chosen = refusalsMode ? REFUSALS : QUERY;
 
-if (/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|call|do)\b/i.test(chosen)) {
-  console.error('vitals: refusing — query is not SELECT-only'); process.exitCode = 2; throw new Error('not select-only');
+// The secret guard is the contract (CLAUDE.md s2): EVERY query this tool can
+// send is checked, not just the one the flag selected. A second query added
+// later must not be able to ride in unchecked behind the first one's clearance.
+const selectOnly = (sql) => !/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|call|do)\b/i.test(sql);
+for (const sql of [chosen, ...(refusalsMode ? [REFUSAL_TABS] : [])]) {
+  if (!selectOnly(sql)) {
+    console.error('vitals: refusing — query is not SELECT-only'); process.exitCode = 2; throw new Error('not select-only');
+  }
 }
 
-const r = await fetch(URL_Q, {
-  method: 'POST',
-  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-  body: JSON.stringify({ query: chosen }),
-});
-const text = await r.text();
-if (!r.ok) { console.error(`vitals: HTTP ${r.status}: ${text.slice(0, 400)}`); process.exitCode = 1; throw new Error('query failed'); }
-const rows = JSON.parse(text);
+const ask = async (sql) => {
+  const res = await fetch(URL_Q, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: sql }),
+  });
+  const body = await res.text();
+  if (!res.ok) {
+    console.error(`vitals: HTTP ${res.status}: ${body.slice(0, 400)}`); process.exitCode = 1;
+    throw new Error('query failed');
+  }
+  return JSON.parse(body);
+};
+
+const rows = await ask(chosen);
 
 if (refusalsMode) {
   const rc = ['day', 'code', 'severity', 'n', 'characters', 'verbs', 'whys'];
@@ -157,6 +213,22 @@ if (refusalsMode) {
     console.log(rc.map((c) => (w[c] ? String(row[c] ?? '').padStart(w[c]) : `  ${String(row[c] ?? '')}`)).join(' '));
   }
   if (!rows.length) console.log('  (no refusals recorded in the last two day buckets)');
+
+  // THE DENY-LIST CODES, PER TAB. See the header on REFUSAL_TABS: summed, these
+  // two codes read as a server refusing everybody; per (user, slot) they read as
+  // the handful of browser windows they actually are.
+  const tabs = await ask(REFUSAL_TABS);
+  const tc = ['day', 'code', 'severity', 'who', 'slot', 'n', 'last_utc', 'verb', 'whys'];
+  const tw = { day: 10, code: 16, severity: 9, who: 10, slot: 5, n: 7, last_utc: 9 };
+  console.log('\ndeny-list refusals PER (user, slot) — one tab prints as one tab. forbidden_field is');
+  console.log('a whole-patch refusal on an AUTHORITY key; retired_field is a key STRIPPED from an');
+  console.log('otherwise honest patch (2026-09-23-client-state-retired-fields.sql; no rows before it');
+  console.log('is applied). whys names WHICH key, which is what says which build the tab is running.');
+  console.log(tc.map((c) => (tw[c] ? String(c).padStart(tw[c]) : `  ${c}`)).join(' '));
+  for (const row of tabs) {
+    console.log(tc.map((c) => (tw[c] ? String(row[c] ?? '').padStart(tw[c]) : `  ${String(row[c] ?? '')}`)).join(' '));
+  }
+  if (!tabs.length) console.log('  (no deny-list refusals in the last two day buckets)');
   // NO process.exit() HERE. fetch() leaves a keep-alive socket on the loop, and
   // tearing the process down under it aborts libuv on Windows ("Assertion
   // failed: !(handle->flags & UV_HANDLE_CLOSING)") with exit 127 AFTER the

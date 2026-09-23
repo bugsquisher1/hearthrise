@@ -1635,6 +1635,23 @@ statement of the residual:
 > backwards.** What it can do is make the tick run marginally early, at the cost
 > of one Edge invocation. That is the whole of it, and it is a smaller residual
 > than a 64-hex long-lived bearer sitting in a PUBLIC-readable table.
+>
+> **★ And its size depends on `flush_seconds`, which is a tunable** (Security
+> T-2, 2026-09-23). Two numbers hide behind "≤90 s" and only one of them is the
+> replay number: ≤90 s is the **width of the accepted set** `{n-1, n, n+1}`,
+> which is the figure that matters for clock skew, while a token minted in
+> bucket *n* is accepted only until the end of bucket *n*+1 — so its **post-mint
+> validity is ≤60 s**. `tick.js` settles only when a *whole* flush period has
+> elapsed since the watermark. Therefore: **at `flush_seconds > 60` a verbatim
+> replay settles nothing, because the flush floor refuses it; below that it can
+> settle one window up to 60 s early, which is still not a double pay.** The
+> shipped default is 90 and is on the zero side, but `hr_tick_config_flush_ck`
+> permits 10 — so the zero residual is a property of the **configuration**, not
+> an invariant. The migration's `d11` gates what is the repo's to keep true (the
+> bucket width, the column default, the floor still sitting below the window)
+> and NOTICEs the live row, which is Reliability's row-volume lever; `X-5a-e` in
+> `tests/world-tick-token-leak.mjs` hold the same sentence to an exit code from
+> the edge's side, and `MX6` proves `d11` bites.
 
 ### 17.4 What the body binding costs, stated rather than skipped
 
@@ -1760,6 +1777,43 @@ The authoritative copy is §6 of `2026-09-22-world-tick-derived-token.sql`; this
 is the same thing short enough to work from. Coordinator only (CLAUDE.md §2 —
 agents stage, the Coordinator applies).
 
+**Pre-flight, read-only, BEFORE `apply-migration`.** These are reads, not
+checks you can skip because the guards are green: the guards ran on a replay,
+and two of these are about the production database specifically.
+
+```sql
+-- (P1) pgcrypto: PRESENT, and in which schema. §0b of the migration REFUSES the
+--      apply if this comes back empty while `vault.decrypted_secrets` exists
+--      (Security T-1) — so a miss here is a failed apply, not a silent no-op.
+select n.nspname as schema, p.proname, oidvectortypes(p.proargtypes) as arg_types
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where p.proname in ('hmac', 'digest') order by 1, 2;
+--   EXPECT  extensions | digest | bytea, text
+--           extensions | hmac   | text, text, text
+--   NO ROWS => run `create extension if not exists pgcrypto with schema extensions;`
+
+-- (P2) the Vault contract. The apply is harmless without it; the RE-ARM is not.
+select name, length(decrypted_secret) as len from vault.decrypted_secrets
+ where name in ('hr_tick_shared_secret', 'hr_tick_gateway_key') order by 1;
+--   EXPECT hr_tick_shared_secret with len >= 32 (the edge's MIN_SECRET_LEN and
+--   the helper's own floor — a short secret refuses on BOTH sides, by design).
+
+-- (P4) ★ the state the apply lands in, and R-T1's size (Security T-2).
+select enabled, shadow, cadence_seconds, flush_seconds, edge_url
+  from public.hr_tick_config;
+--   EXPECT shadow = true. THIS FILE DOES NOT FLIP IT.
+--   flush_seconds SHOULD be 90. The token's post-mint validity is <= 60 s, and
+--   a fire settles only after a WHOLE flush period, so at flush_seconds > 60 a
+--   verbatim replay settles NOTHING; at <= 60 it can settle one window up to
+--   60 s early (never twice, never for an unleased character, never backwards).
+--   d11 NOTICEs this at apply time rather than refusing — the row is
+--   Reliability's row-volume lever, not this file's.
+
+-- (P5) what the §5 probe fire will touch. A 0 here means d7 proves nothing
+--      about a real batch.
+select count(*) as owned from public.hr_tick_ownership where owned;
+```
+
 **Order.** Steps 1 and 4 are the seam; between them the tick posts nothing, so
 no build ever exists that accepts both forms.
 
@@ -1770,10 +1824,16 @@ no build ever exists that accepts both forms.
 
 # 2. APPLY — one file, never inside begin/commit, never 00:00–00:10 UTC
 node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-derived-token.sql
-#    EXPECT the §5 notice to name d1 d2 d9 d4 d5 d6 d7 d8 d8b as RAN.
+#    EXPECT the §5 notice to name d1 d2 d9 d4 d5 d6 d7 d8 d8b d10 d11 as RAN.
 #    ⚠ IF d4–d7 READ AS SKIPPED ON PRODUCTION, STOP: pgcrypto is not reachable,
 #      the tick will answer `no_hmac` forever, and the fix is
 #      `create extension if not exists pgcrypto;` + a re-apply, not a re-arm.
+#      ★ Since 2026-09-23 that STOP is an exit code (Security T-1): §0b raises
+#        HR_TICK_NO_PGCRYPTO and the apply fails by itself. You are not the gate.
+#    ★ ALSO READ the `d11` notice if one appears: it means flush_seconds is at
+#      or below the token's 60 s replay window and R-T1's residual is non-zero
+#      on this database (Security T-2). It is not a reason to stop — it is a
+#      number to know before `shadow = false` is discussed.
 
 # 3. DEPLOY THE EDGE HALF — nothing works until both halves are the same version
 node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue

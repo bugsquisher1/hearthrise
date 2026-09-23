@@ -68,6 +68,21 @@
 --   WATERMARK BACKWARDS. It can make the tick run marginally early for one Edge
 --   invocation. That is smaller than a long-lived bearer in a PUBLIC table.
 --
+--   ★ AND IT DEPENDS ON `flush_seconds`, WHICH IS A TUNABLE (Security T-2).
+--     Two different numbers hide behind "≤90 s" and only one of them is the
+--     replay number. ≤90 s is the WIDTH OF THE ACCEPTED SET ({n-1, n, n+1}),
+--     which is the right figure for clock skew. A token minted in bucket n is
+--     accepted until the end of bucket n+1, so its POST-MINT VALIDITY is ≤60 s.
+--     `tick.js` settles only when a WHOLE flush period has elapsed since the
+--     watermark, so: AT `flush_seconds > 60` A VERBATIM REPLAY SETTLES NOTHING,
+--     BECAUSE THE FLUSH FLOOR REFUSES IT; BELOW THAT IT CAN SETTLE ONE WINDOW UP
+--     TO 60 s EARLY, WHICH IS STILL NOT A DOUBLE PAY. The shipped default is 90
+--     and is therefore on the zero side — but `hr_tick_config_flush_ck` permits
+--     10, so this is a property of the CONFIGURATION and not an invariant, and
+--     saying so is the whole of T-2. d11 gates the parts that are this file's to
+--     keep true (the bucket width, the column default, the floor still being
+--     below the window) and NOTICEs the live row, which is Reliability's lever.
+--
 -- ── HASHING THE BYTES pg_net ACTUALLY SENDS ────────────────────────────────
 -- The mac binds `b` to the posted bytes, so the driver must hash exactly what
 -- leaves. `net.http_post(url, body jsonb, …)` stores `convert_to(body::text,
@@ -136,7 +151,7 @@
 --   §2  `hr_tick_body_sha256()` / `hr_tick_auth_header()`.
 --   §3  `hr_tick_cron_run()` RESTATED — same driver, derived header.
 --   §4  Grants: nobody, on all four.
---   §5  Self-check d1-d10, EXECUTED, PROBE ROWS ONLY, rolled back regardless.
+--   §5  Self-check d1-d11, EXECUTED, PROBE ROWS ONLY, rolled back regardless.
 --   §6  The operator section: apply + deploy order, verification reads, kill switch.
 --
 -- MOVES A LIVE HASH: `hr_tick_cron_run` is a restated live body, so
@@ -579,6 +594,18 @@ declare
   k_bucket   bigint := 59666666;
   k_sha      text := '17282fb11f9af43c5f1eef8209d34638b3a13fb28ab449c2ad33ecdf1c0df883';
   k_mac      text := 'e64d6ce866a3f8a1333f774d5ae022f72a87a93ea3c4c4441571a5da1b5ccb91';
+  -- d11's constants. `k_bucket_s` is the bucket width this file's driver
+  -- derives with and `k_skew` is the edge's TICK_BUCKET_SKEW; the pair is what
+  -- makes the replay window a NUMBER rather than a sentence, and d11a pins the
+  -- first of them against the installed body so the two cannot drift.
+  -- tests/world-tick-token-leak.mjs X-5d binds both to tick.js's own exports,
+  -- which is the half SQL cannot reach.
+  k_bucket_s int := 30;
+  k_skew     int := 1;
+  v_window_s int;
+  v_floor_s  int;
+  v_default  int;
+  v_cdef     text;
 begin
   begin
     -- ── d1: NOBODY MAY CALL ANY OF THE FOUR BY HAND. `hr_tick_auth_header` is
@@ -877,6 +904,65 @@ begin
     end if;
     v_ran := v_ran || 'd10'::text;
 
+    -- ── d11: THE REPLAY WINDOW, BOUND TO `flush_seconds` (T-2). R-T1's residual
+    --         is ZERO rather than merely bounded only while the flush floor
+    --         outlasts the token: *at `flush_seconds > 60` a verbatim replay
+    --         settles nothing, because the flush floor refuses it; below that it
+    --         can settle one window up to 60 s early, which is still not a double
+    --         pay.* Security T-2 is that this sentence was true of the shipped
+    --         row and written down NOWHERE, while the CHECK permits 10.
+    --
+    --         WHAT THIS ARM GATES AND WHAT IT DELIBERATELY DOES NOT. It gates the
+    --         SCHEMA — the bucket width, the column DEFAULT, and the fact that the
+    --         floor is still below the window — because those are this file's to
+    --         keep true. It does NOT gate `hr_tick_config.flush_seconds` itself:
+    --         that row is Reliability's row-volume lever, and a migration that
+    --         refused to replay because an operator turned a dial would be a
+    --         worse failure than the one T-2 names. The live value is NOTICED
+    --         with its consequence spelled out instead, and it is the runbook's
+    --         (P4) read that is meant to catch it before the apply.
+    v_window_s := (k_skew + 1) * k_bucket_s;            -- 60 s of post-mint validity
+    if position('/ ' || k_bucket_s::text || ')::bigint' in v_def) = 0 then
+      raise exception 'd11a: the driver no longer derives its bucket on a %s width — the '
+                      'replay window in R-T1 is arithmetic, not prose, and it just moved',
+                      k_bucket_s;
+    end if;
+    select pg_get_expr(d.adbin, d.adrelid)::int into v_default
+      from pg_attrdef d
+      join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+     where d.adrelid = 'public.hr_tick_config'::regclass and a.attname = 'flush_seconds';
+    if coalesce(v_default, 0) <= v_window_s then
+      raise exception 'd11b: hr_tick_config.flush_seconds DEFAULTS to % s, which is not longer '
+                      'than the token''s % s replay window — a fresh database would land on the '
+                      'non-zero side of R-T1 by construction', v_default, v_window_s;
+    end if;
+    -- pg_get_constraintdef NORMALISES `between a and b` into `(x >= a) AND
+    -- (x <= b)`, so the floor is read from the rendering and not from the
+    -- source text. X-5c in tests/world-tick-token-leak.mjs parses the same
+    -- shape from node, which is what keeps the two readings honest.
+    select pg_get_constraintdef(c.oid) into v_cdef from pg_constraint c
+     where c.conrelid = 'public.hr_tick_config'::regclass
+       and c.conname = 'hr_tick_config_flush_ck';
+    v_floor_s := (regexp_match(coalesce(v_cdef, ''), '>=\s*\(?([0-9]+)'))[1]::int;
+    if v_floor_s is null then
+      raise exception 'd11c: hr_tick_config_flush_ck could not be read (%) — the arm cannot '
+                      'see what it claims to', coalesce(v_cdef, '<absent>');
+    end if;
+    if v_floor_s > v_window_s then
+      raise exception 'd11c: hr_tick_config_flush_ck now floors flush_seconds at % s, above the '
+                      '% s replay window — R-T1''s residual has become an INVARIANT rather than a '
+                      'tunable, which is better news than this file says. Rewrite R-T1.',
+                      v_floor_s, v_window_s;
+    end if;
+    if (select flush_seconds from public.hr_tick_config where id) <= v_window_s then
+      raise notice 'd11 ★ R-T1 IS NON-ZERO ON THIS DATABASE: flush_seconds is at or below the '
+                   '% s replay window, so a captured (header, body) pair CAN settle one window up '
+                   'to % s early. It still cannot double-pay, name an unleased character or move a '
+                   'watermark backwards. Raise flush_seconds above % to restore the zero residual.',
+                   v_window_s, v_window_s, v_window_s;
+    end if;
+    v_ran := v_ran || 'd11'::text;
+
     raise notice 'world-tick-derived-token self-check: RAN [%]; SKIPPED [%]',
                  array_to_string(v_ran, ' '), coalesce(array_to_string(v_skipped, ' '), '');
     raise exception 'HR923_ROLLBACK_OK';
@@ -903,7 +989,7 @@ end $$;
 --   2. APPLY THIS FILE.  One file, never inside begin/commit, never 00:00–00:10
 --      UTC, Coordinator only (CLAUDE.md §2):
 --        node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-derived-token.sql
---      EXPECT the §5 notices to name d1 d2 d9 d4 d5 d6 d7 d8 d8b d10 as RAN on
+--      EXPECT the §5 notices to name d1 d2 d9 d4 d5 d6 d7 d8 d8b d10 d11 as RAN on
 --      production. IF d4–d7 READ AS SKIPPED ON PRODUCTION, STOP: pgcrypto is not
 --      reachable and the tick will answer `no_hmac` forever. The fix is
 --      `create extension if not exists pgcrypto;` and a re-apply, not a re-arm.

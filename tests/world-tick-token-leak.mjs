@@ -58,6 +58,7 @@ import {
 
 const TOKEN_FILE = '2026-09-22-world-tick-derived-token.sql';
 const CRON_FILE = '2026-09-21-world-tick-cron.sql';
+const FENCE_FILE = '2026-09-21-world-tick-settle-fence.sql';
 
 /* THE FIXTURES AND THE PINNED VECTOR MOVED to tests/world-tick-token-shims.mjs
    on 2026-09-23, unchanged, when tests/world-tick-token-failclosed.mjs (Security
@@ -216,6 +217,26 @@ async function main(selftest) {
   ok('X-5c ...but the CHECK still PERMITS a flush_seconds below that, so the '
     + 'zero-effect property is a TUNABLE, not an invariant (finding T-2)',
     floorS * 1000 <= maxReplayMs, `floor=${floorS}s, FLUSH_MS_MIN=${FLUSH_MS_MIN}ms`);
+  /* T-2's FIX, from the side SQL cannot reach. d11 in the migration pins the
+     bucket width and the skew as SQL constants and asserts the schema against
+     them; nothing in Postgres can see that those two numbers are the edge's.
+     These two arms are that binding, and they are why d11 is a measurement
+     rather than a restatement of itself. */
+  const tokenSrc = (await (await import('node:fs/promises')).readFile(
+    (await import('node:path')).join(
+      (await import('./schema-replay.mjs')).ROOT, 'supabase', 'migrations', TOKEN_FILE), 'utf8'));
+  ok('X-5d d11 pins the SAME bucket width and skew the edge verifier uses',
+    new RegExp(`k_bucket_s int := ${TICK_BUCKET_SECONDS};`).test(tokenSrc)
+    && new RegExp(`k_skew     int := ${TICK_BUCKET_SKEW};`).test(tokenSrc),
+    `edge says ${TICK_BUCKET_SECONDS}s x skew ${TICK_BUCKET_SKEW}`);
+  const dflt = (await db.query(
+    "select pg_get_expr(d.adbin, d.adrelid)::int v from pg_attrdef d"
+    + " join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum"
+    + " where d.adrelid = 'public.hr_tick_config'::regclass"
+    + " and a.attname = 'flush_seconds'")).rows[0].v;
+  ok('X-5e and the column DEFAULT is on the zero-residual side of the window, so a '
+    + 'FRESH database starts there rather than arriving by an operator\u2019s habit (T-2)',
+    Number(dflt) * 1000 > maxReplayMs, `default=${dflt}s, window=${maxReplayMs / 1000}s`);
 
   // ── X-6  THE MAC ORACLE IS REACHABLE BY NOBODY ───────────────────────────
   console.log('\nX-6  the mac oracle is callable by no role, and by PUBLIC least of all');
@@ -331,6 +352,16 @@ async function main(selftest) {
       TOKEN_FILE, [["using p_bucket::text || '.' || p_body_sha, 'hr_tick_shared_secret';",
         "using p_bucket::text, 'hr_tick_shared_secret';"]],
       'X-1/X-2b'],
+    /* T-2. The default is the only part of R-T1's zero residual that is this
+       repo's to keep true — the live row is Reliability's lever — so the
+       mutation moves the DEFAULT under the replay window and d11b must refuse
+       the apply. It patches the file that DECLARES the column, not the token
+       file, which is also what proves d11 reads the installed schema rather
+       than its own source text. */
+    ['MX6 flush_seconds DEFAULTS below the token\u2019s replay window (T-2)',
+      FENCE_FILE, [['flush_seconds   int         not null default 90,',
+        'flush_seconds   int         not null default 30,']],
+      'd11b, at apply time'],
   ];
   let caught = 0;
   for (const [name, file, patch, by] of mutations) {

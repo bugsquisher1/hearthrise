@@ -121,9 +121,9 @@ import {
      rule for the whole envelope, in accrue.js, shared with the away applier and
      the activity applier. See WORLD_TICK_DESIGN.md §7.1. */
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame,
-} from './accrue.js?v=550';
-import { SHOP_OFFERS } from '../data/shops.js?v=550';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=550';
+} from './accrue.js?v=551';
+import { SHOP_OFFERS } from '../data/shops.js?v=551';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=551';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';

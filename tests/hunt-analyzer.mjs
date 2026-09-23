@@ -80,8 +80,8 @@ const patchesFor = (mutate) => {
          a window credited at the instant of a restart leaks into the new
          hunt's totals. */
       return new Map([[MIG, [[
-        "     and l.at > v_from;\n\n  -- (2) DEATHS",
-        "     and l.at >= v_from;\n\n  -- (2) DEATHS",
+        "             and l.at > v_from) l",
+        "             and l.at >= v_from) l",
       ], [
         "     and l.kind = 'combat' and l.intent = 'death'\n     and l.at > v_from;",
         "     and l.kind = 'combat' and l.intent = 'death'\n     and l.at >= v_from;",

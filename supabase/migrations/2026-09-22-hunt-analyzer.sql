@@ -193,7 +193,22 @@ begin
          coalesce(sum(lx.xp), 0)
     into v_paid, v_kills, v_gold, v_ate, v_windows, v_trunc, v_settled,
          v_loot, v_supplies, v_xp
-    from public.player_ledger l
+    -- ⚠ THE ROW SELECTION IS ITS OWN SUBQUERY, AND THE `at` BOUND SITS WITHIN
+    --   THREE LINES OF THE from-CLAUSE ON PURPOSE. tests/ledger-rollup.mjs
+    --   censuses every read of player_ledger by reading the twelve code lines
+    --   after each `from public.player_ledger` and requiring a time predicate
+    --   among them - an UNBOUNDED read of a 90-day-pruned table is a lifetime
+    --   fact that decays silently the hour the prune first fires. With the two
+    --   laterals spliced between the from and the where, this read WAS reported
+    --   as a new lifetime reader, correctly by the guard's own lights: nothing
+    --   near the scan said it was bounded. Pinning it would have been the wrong
+    --   answer twice over - it IS bounded, and the pin list is for owned
+    --   exceptions, not for a shape that is awkward to read.
+    from (select l.at, l.gold, l.meta
+            from public.player_ledger l
+           where l.user_id = p_user and l.slot = coalesce(p_slot, 0)
+             and l.kind = 'combat' and l.intent = 'accrue'
+             and l.at > v_from) l
     left join lateral (
       select coalesce(sum(case when q.qty > 0 then q.qty * coalesce(i.value, 0) else 0 end), 0) as loot,
              coalesce(sum(case when q.qty < 0 then (-q.qty) * coalesce(i.value, 0) else 0 end), 0) as supplies
@@ -203,10 +218,7 @@ begin
     left join lateral (
       select coalesce(sum(coalesce(nullif(e.amount,'')::bigint, 0)), 0) as xp
         from jsonb_each_text(coalesce(l.meta->'delta'->'x', '{}'::jsonb)) as e(skill_id, amount)
-        join public.hr_skills s on s.skill_id = e.skill_id and s.cat = 'combat') lx on true
-   where l.user_id = p_user and l.slot = coalesce(p_slot, 0)
-     and l.kind = 'combat' and l.intent = 'accrue'
-     and l.at > v_from;
+        join public.hr_skills s on s.skill_id = e.skill_id and s.cat = 'combat') lx on true;
 
   -- (2) DEATHS, from the rows hr_apply already fans out one per fall. A
   --     different `intent`, so it cannot ride the scan above.

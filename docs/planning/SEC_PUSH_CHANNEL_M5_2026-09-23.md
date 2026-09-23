@@ -16,6 +16,12 @@ gold, inventory and XP — so it is reviewed as one.
 
 ## Verdicts
 
+> ⚠ **SUPERSEDED — see the RE-VERIFY at the end of this file (2026-09-23,
+> second pass, lane head `f8f3fc05`).** The verdicts below are the FIRST pass,
+> against `585fdc2f`. All four client findings and all four transport findings
+> below have since been answered; the operative verdicts are the three lines
+> under "RE-VERIFY → Verdicts".
+
 **CLIENT FRAME GATE SHIP: GO-WITH-CHANGES**
 
 **TRANSPORT DECISION: ACCEPTED-WITH-CONDITIONS**
@@ -510,3 +516,453 @@ child of `585fdc2f`.**
 - **Not measured by anyone:** no load test against a real Realtime tenant exists,
   at any concurrency, and the document says so itself (§3.7). The connection
   ceiling of 500 is a quota line, not an observation.
+
+---
+
+# RE-VERIFY — 2026-09-23 (second pass, same reviewer)
+
+**Lane:** `lane/m5-push-channel` @ `f8f3fc05`. **Branch:** `sec/m5-push-channel-2`,
+cut from that head, docs-only.
+**Why this pass exists:** the Coordinator merged the ORIGINAL frame gate into the
+set, the matrix went red — `tests/activity-intent.mjs` (the activity-intent
+economy guard) caught **S1**, plus the comment-ratio and test-file ratchets — and
+the merge was **REVERTED** (`289a1ab0`). The lane re-merges only on this GO.
+**Under review:** `fc211e57` (S1), `51260982` (S2), `9f9255e9` (S3), `14979512`
+(S4), `a86b89a9` (T1 — the STAGED migration), `7c7e4d84` (T2–T4), `f8f3fc05`
+(comment-ratchet paydown). `npm install --no-audit --no-fund` clean.
+
+Every green below is an exit code I read. Every CLOSED below is a repro I ran on
+this head, not a diff I approved.
+
+---
+
+## Verdicts
+
+**CLIENT FRAME GATE SHIP (re-merge into the set): GO**
+
+**MIGRATION 2026-09-22-frame-push-channel.sql: GO-WITH-CHANGES**
+
+**TRANSPORT DECISION: ACCEPTED-WITH-CONDITIONS**
+
+All four client findings are closed — S1, S2 and S4 by the **same script run at
+both ends of the bisect**: exit 1 on the parent `1e25db3`, exit 0 on `f8f3fc05`. The two ratchets that reddened the matrix
+are green. The migration now exists, replays, and its self-check is the strongest
+in this repo's chain — and the one property I said was unwritten, the RLS
+predicate, I have now **executed**: no cross-player read, against a control that
+leaks. What it still owes is one measurement it cannot take from a worktree
+(condition 8) and two corrections to its own proof and its own comments.
+
+---
+
+## 1. The original findings, re-run
+
+| # | Was | Now | The proof I ran |
+|---|---|---|---|
+| **S1** | HIGH — the duplicate drop deleted the refusal correction | **CLOSED** | §1.1 repro, **one script, both ends of the bisect**: on the parent `1e25db3` `G.gold` stays 40 over a server holding 100 — **exit 1**; on `f8f3fc05` it is pulled to **100**, `correction=true`, floor unmoved at 77, reorder still dropped and still `null` — **exit 0**. |
+| **S2** | HIGH — `resetFrameGate()` had no production call site | **CLOSED** | Identity switch through the **production hook only**. Parent `1e25db3`: `resetAccrualIdentity()` leaves the floor at **4200** and B's boot read is dropped whole — **exit 1**. Head: 4200 → **−1** → B's frame lands, floor 37 — **exit 0**. |
+| **S3** | MEDIUM — no detector for a floor that is too high | **SUBSTANTIALLY CLOSED**, one gap → **R3** | The counter is real, counted at all three appliers, and `tests/frame-drop-streak.mjs` catches 5/5 mutations. The publish half lands on a seam with no production reader. |
+| **S4** | LOW — `classifyFrame` failed OPEN on a falsy-finite `since` | **CLOSED** | Floor 500, frame 9. Parent: **5 of 8** falsy non-numbers classify `fresh` against a floor of ZERO — **exit 1**. Head: all eight classify `reorder`, and an explicit numeric `0` still overrides — **exit 0**. |
+| **T1** | MEDIUM — the STAGED migration did not exist | **CLOSED** | 704 lines, in `supabase/migrations/`, replays byte-identically (`schema-drift` exit 0, fingerprint `ac920d6c6f9f…`), self-check asserts by executing SQL, `selfcheck-no-global-dml` exit 0. |
+| **T2** | MEDIUM — §3.6 charged (b) one `hr_state_of` too few | **CLOSED** | §3.6's (b) column now states the same one call per frame at the same 3.23 ms, **moved onto the write path inside `hr_apply`'s lock**, marked `[D, UNMEASURED IN THE LOCK]`; §3.7 names condition 8 open. |
+| **T3** | MEDIUM — the RLS predicate was unwritten | **CLOSED, and now EXECUTED** | §6.1 states it verbatim and is **byte-identical** to the migration's (normalised for comments/whitespace — I diffed the two texts programmatically). Then I attacked it: see §2. |
+| **T4** | LOW — dollars derived from `[R]` allowances | **CLOSED** | Every figure `[R, UNVERIFIED]`, a standing blockquote that no spend may rest on them, **and none is requested**. The 2026-08-17 freeze is respected. |
+
+### 1.1 S1's fix creates a new write path, so I attacked that too
+
+The lane took option 1 — a `duplicate` re-applies, absolutely, and never raises
+the floor — and went further than I asked: it noticed that a **retransmit**
+reaches the same branch and that the away collect receipt is an **event**, not
+state. `legacy.js` credits `written.paidReceipt` into `updateDaily('kill_any')`,
+the Muster's **shared** world meter, so re-hanging it would put a forged
+contribution on a shared surface (`CLAUDE.md` §1). Executed on this head:
+
+```
+FRESH   @77 : WRITTEN | paidReceipt HUNG | correction false
+RETRANS @77 : WRITTEN | paidReceipt none | correction true
+state after : gold = 100 | copper_ore = 3 | floor = 77
+IDEMPOTENT — the receipt is hung ONCE; a retransmit cannot pay the shared meter twice.
+```
+
+The state re-states identically and the floor holds. **The `CLAUDE.md` §1 target
+property is intact and this lane does not weaken it.**
+
+### 1.2 S2 — I checked the sign-IN side too, not just sign-out
+
+`resetAccrualIdentity()` has exactly two production call sites, `auth.js:940`
+(`signOut()`, which deliberately does not reload) and `multi-character.js:396`
+(before the slot pointer moves), and `resetFrameGate()` is now called from it
+(`accrue.js:856`). The sign-**in** paths — `settings-page.js:355`,
+`account-gate.js:1062/1096` — are reachable only from a signed-out UI, so a
+sign-out always precedes them; `onAuthStateChange` needs no call. `resetGold()`
+keeps its own call and the comment now names it correctly as the suite's.
+
+---
+
+## 2. Condition 2 — the RLS predicate, EXECUTED
+
+This is the highest-blast-radius property in the file: the frame payload is the
+whole `hr_state_of` projection, so the `using` clause is the entire thing keeping
+one player's economy out of another player's socket. The migration's own `e2`
+**skips** wherever `realtime.messages` is absent, and it is absent from the
+PGlite replay — so "e2 covers it" was, in this environment, a skip.
+
+I gave the replay a faithful stand-in (`realtime.messages` with the columns the
+policy reads; `realtime.topic()` as the GUC Supabase sets it from) and installed
+the policy **from the migration's own text, extracted verbatim, never retyped**.
+Then I joined as one user and asked for other users' topics — which is exactly
+the request an attacker sends, since `realtime.topic()` is entirely attacker-
+controlled and only the JWT is not.
+
+```
+  ✓ another player's topic         rows=0   ✓ a wildcard-shaped topic  rows=0
+  ✓ another player's other slot    rows=0   ✓ every topic, unsegmented rows=0
+  ✓ my own topic                   rows=4   ✓ as `anon`, no JWT        rows=0
+  ✗ my topic + an attacker suffix  rows=4   ← R2
+
+CONTROL: the same attack against the shape-scoped policy this review warned
+about (`topic like 'hr:%'`) → rows=4. It LEAKS, so the test measures something.
+```
+
+(The owner's row reads 4, not 1, and that is correct rather than a leak: RLS on
+`realtime.messages` is how Realtime authorizes a **channel join**, not a
+per-row delivery filter — the predicate never compares the row's `topic`
+column to anything. My first harness expected a row filter and was wrong about
+that; the policy is not.)
+
+**NO CROSS-PLAYER READ.** The predicate binds identity, and the owner can still
+join, and the control proves the harness is not simply denying everything.
+Condition 2's *property* is met. Two things about the *proof* of it are not, and
+I found the first by tripping over it.
+
+---
+
+## 3. New findings
+
+| # | Surface | Sev | Status | Blast radius | Blocks |
+|---|---|---|---|---|---|
+| **R1** | `2026-09-22-frame-push-channel.sql` `e2` — a cross-user join that asserts zero rows, with **no positive control** | **MEDIUM** | **CONFIRMED** (I reproduced the vacuous pass) | none directly; it is the *proof* of the highest-blast-radius property in the file | migration |
+| **R2** | the same file §6 — `split_part` does not anchor the END of the topic, and two comments say it does | LOW | CONFIRMED (executed, §2) | none today — segment 2 still binds the subscriber's own `auth.uid()` | migration |
+| **R3** | `src/net/accrue.js:809` — the frame-drop streak is published on `getAccrualState()`, which has **zero production readers** | LOW | CONFIRMED (grep + `src/bug-report.js`) | self; a stuck client stays as invisible to a bug report as before | — (same-day follow-up) |
+| **R4** | the same file's header — "s9 asserts it by executing a shadow settle"; `s9` does no such thing | LOW | CONFIRMED | none — the property holds by construction | — |
+
+### R1 — MEDIUM. `e2` cannot tell "refused" from "nothing there".
+
+`e2` sets a JWT for user A, points `realtime.topic` at user B's topic, assumes
+`authenticated`, and asserts `count(*) = 0`. It never asserts that the **owner's**
+join returns more than zero. If `auth.uid()` resolves to NULL for any reason the
+policy denies everything, `e2` passes, and it has proved nothing at all.
+
+**This is not hypothetical — I hit it.** `e2` sets only `request.jwt.claims`;
+this repo's own `tests/sql/pglite-fixture.sql` reads
+`request.jwt.claim.sub`. On my first run the identical attack returned 0 rows
+against a policy that was doing **nothing**, and the only reason I noticed was
+the `like 'hr:%'` control leaking 4 rows beside it. Supabase production's
+`auth.uid()` does read `request.jwt.claims`, so `e2` is correct on the apply that
+counts — but a check that passes both when the policy works and when it is inert
+is the **always-null-probe** family, which `pglite-fixture.sql`'s own header
+names, and which `s6b` in this very file was written to avoid ("s6 would pass
+just as happily on a trigger that had been dropped").
+
+**Required change:** in the same block, **before** the stranger's zero, point
+`realtime.topic` at `hr_frame_topic(v_u, 0)` under v_u's own JWT and assert the
+count is **> 0**; fail with "e2 proved nothing — the owner cannot read either,
+so the zero below is the policy being inert, not the policy working." Set both
+claim spellings while you are there, so the check is not silently inert wherever
+the older GUC is what `auth.uid()` reads.
+
+### R2 — LOW. The predicate is unanchored; two comments claim it is not.
+
+`split_part(topic, ':', 3) ~ '^[0-5]$'` does not reject a fourth segment.
+Executed: `hr:<own-uid>:0:injected` is **accepted**. The migration's §6 comment
+("The three segments are matched exactly") and `LIVE_COUNTERS_PUSH.md` §6.1
+point 2 (which offers precisely `hr:<uid>:0:anything` as the reason to prefer
+`split_part` over `like`) are therefore **both false**: on the suffix question
+the two spellings are equivalent. `e1c` does not catch it — it greps for
+`~~`/`like`/`similar to`.
+
+**Not a cross-player break, and I will not inflate it:** segment 2 still binds
+`auth.uid()`, so a player reaches only `hr:<their-own-uid>:<0-5>:<anything>`, and
+the emitter writes three-segment topics only, so nothing is delivered there.
+Blast radius today is **none**. It matters because the file's stated reason for
+its own spelling is wrong, and because the day `hr:`-prefixed topics gain a
+fourth segment for anything else, this predicate silently reaches it.
+
+**Required change:** one more conjunct —
+`and array_length(string_to_array((select realtime.topic()), ':'), 1) = 3` —
+and correct both comments to say what `split_part` actually buys (segment 2
+pinned to the JWT, segment 3 pinned to one digit), which is real and is enough.
+
+### R3 — LOW. The streak is counted correctly and published to nobody.
+
+`getFrameDrops()` is folded into `getAccrualState()` under a comment reading "on
+the sheet a bug report already carries". `src/bug-report.js` builds its
+diagnostics from a hand-listed set and does not call `getAccrualState()`; every
+consumer of that function in the tree is the smoke suite. It is reachable from
+devtools on `window.HearthriseAccrual`, which is better than the nothing that
+was there before — but the comment is **false in the tree**, and that is the
+b339 shape this lane just fixed for S2, one function over.
+
+**Required change (same day, not before the merge):** carry
+`window.HearthriseAccrual?.getAccrualState?.()`'s `{frame, drops, verdict}` into
+`bug-report.js`'s diagnostics, or correct the comment to say devtools. I will
+not hold a proven S1/S2 fix hostage to a one-line diagnostics wire, and I will
+not let the comment ship saying something untrue.
+
+### R4 — LOW. The header overstates which check proves the shadow property.
+
+The header says "s9 asserts it by executing a shadow settle". `s9` is the
+no-INSERT-policy check. The shadow property is `e4`/`e4b`, a **source-position**
+check on `hr_tick_settle` (first occurrence of `hr_tick_shadow` vs `hr_apply`).
+The property itself holds by construction — an `AFTER UPDATE` trigger cannot fire
+where no row is written — and `e4` pins the structure, so this is an honesty gap,
+not a hole. The probe-trigger machinery already in the file (`hr922_probe_emit`
++ the `hr922.fires` counter) would make an executed shadow settle nearly free;
+recommended, not required. **Fix the header either way.**
+
+---
+
+## 4. Security's eleven conditions, re-graded by me
+
+The lane's own §6.2 checklist claims 10 of 11 met with condition 8 open, and
+invites a re-verify to attack it rather than restate it. My grading:
+
+| # | Lane says | I say | On what |
+|---|---|---|---|
+| 1 | MET | **MET** | the file replays; `schema-drift`, `selfcheck-no-global-dml`, `apply-order-honesty` all exit 0 |
+| 2 | MET | **MET (property), WEAK (proof)** | §2 above — I executed it; **R1** is the proof's gap |
+| 3 | MET | **MET** | no INSERT/ALL/UPDATE/DELETE policy; `revoke … from public` first, then anon/authenticated/service_role/hr_engine/hr_tick; `s4` asserts all four client roles |
+| 4 | MET | **MET, and well** | `s5` (armed + committed), `s5b` (a deliberately throwing probe trigger, payment intact, plus `s5b2` proving the probe fired at all), `s5c3` (the handler **follows** the send in the source, so it wraps it) |
+| 5 | MET | **MET** | `s1` (flag false), `e6` (missing/NULL row fails closed) |
+| 6 | MET | **MET** | `e3`, `e3b` (no `nextval`/`+1` derivation), `e3c` (a version that goes down still emits) |
+| 7 | MET | **MET by construction, asserted weakly** | **R4** |
+| 8 | ⚠ OPEN | **OPEN — and it is the blocker on the apply** | needs a live database under load; not a worktree's to take |
+| 9 | MET | **MET** | `e5`/`e5b`, the `frame_keys` CHECK, and `s1b` keeping `inventory`/`bank` out until the ABSOLUTE flip |
+| 10 | MET | **MET** | `s8` in-database; the publication is unmoved |
+| 11 | MET | **MET** | `revoke … from service_role` explicit; `grep` finds no service-role key anywhere in `src/**` |
+
+**On the M6 S-5 allowlist lesson (checked, and it does not bite this file).**
+The live last toucher of `hr_assert_grant_hygiene` is
+`2026-09-22-trophy-claim.sql` (applied 2026-09-23T00:41:24Z; it is in
+`live-hash-drift.baseline.json`, arrives with `lane/m7-bestiary-backend`, and is
+not on this branch). **This migration adds no allowlist link at all** — it
+appears zero times in `tools/derive-grant-hygiene.mjs`'s `LINKS`, and it never
+restates the detector; `s7` only **reads** the detector's two reports and greps
+them for `hr_frame_%`, which is body-agnostic and therefore safe against exactly
+that skew. There is no link base here to cut wrong.
+`node tools/derive-grant-hygiene.mjs --check` — exit **0**, 10 links, 11 patches.
+
+---
+
+## 5. Guards — exit codes I saw
+
+| Command | Exit | Result |
+|---|---|---|
+| `node tests/envelope-frame-gate.mjs` | **0** | one monotonic frame gate, strictly greater, whole-frame-or-nothing, committed by all three appliers |
+| `node tests/envelope-frame-gate.mjs --selftest` | **0** | **8/8 caught**, incl. the three new ones: `duplicate_dropped`→S6,F6 · `since_fails_open`→F7 · `identity_reset_missing`→S7 |
+| `node tests/frame-drop-streak.mjs` | **0** | streak counted at all three appliers; `D4` pins the too-high gap **as a gap** |
+| `node tests/frame-drop-streak.mjs --mutate` | **0** | 5/5 caught |
+| `node tests/activity-intent.mjs` | **0** | **the economy guard that caught S1 — 22 groups, real PG18 + the deployed intent module** |
+| `node tests/no-client-xp-mint.mjs` | **0** | 9 `addXp` sites, 0 unclassified; 3 direct `G.skills` writes, all named |
+| `node tests/property-gate-census.mjs` | **0** | merge rule both directions; 229 sources |
+| `node tests/comment-ratio-ratchet.mjs` | **0** | **was RED on the reverted merge — paid down in this lane, as §4 requires** |
+| `node tests/test-file-ratchet.mjs` | **0** | **was RED — now 33.65 against a ceiling of 33.65. Green, and with nothing left.** See the runbook. |
+| `node tests/ci-shape.mjs` | **0** | 193 guard commands, 193 distinct, 7 jobs |
+| `node tests/schema-drift.mjs` | **0** | repo rebuilds to `ac920d6c6f9f…`; the new migration replays byte-identically |
+| `node tests/apply-order-honesty.mjs` | **0** | 28 files carry a measured verdict, all agreeing with the live-hash baseline |
+| `node tests/selfcheck-no-global-dml.mjs` | **0** | 208 migrations, 9 global statements, all acknowledged |
+| `node tools/derive-grant-hygiene.mjs --check` | **0** | derivation in sync (10 links, 11 patches) |
+| `node tests/frame-drop-streak.mjs` (S3, both directions executed) | **0** | floor too LOW: 2 drops → `hello` @900 lands, streak **0**. Floor too HIGH (4200): 3 real frames + the `hello` itself all refused, streak **4**. The gap is real, pinned, and now countable. |
+| `node tools/lane-done.mjs` | **0** | **`lane-done: all green.`** 23 guards, incl. both ratchets that reddened the matrix. By `CLAUDE.md` §4 the lane is done. |
+| `node tests/run-smoke.mjs` | **1** | in-page `passed 1324/1338  failed 1  skipped 13  runtime errors 0` + 4 guard failures — **NOT a valid record in this environment**, see §9. All seven `M5 regression:` tests passed. |
+
+**The bisect, as one line:** the S1, S2 and S4 repro scripts are **byte-identical
+between the two runs**; only the tree changed. Parent `1e25db3` → exit 1, 1, 1.
+Head `f8f3fc05` → exit 0, 0, 0.
+
+---
+
+## 6. What the Coordinator needs
+
+**The re-merge target is the SET branch (`next` / `set/b<NNN>`), not `main`.**
+This lane already merged `origin/next` at `1e25db3`, so a diff against `main`
+shows the day's other work — `b5e9ff4` (the Coordinator's own M7 trophy
+live-hash re-measure) and `8260682` (another lane's tick hydration) — that this
+lane did not author. Against `origin/next` the lane adds **exactly its own**:
+`accrue.js` / `activity.js` / `gold.js`, the two guards, the in-page
+regressions, the migration with its apply-order and schema-drift baselines, and
+the docs.
+
+- **`git merge origin/lane/m5-push-channel` into the set has ZERO conflict
+  hunks** — `git merge-tree --write-tree` against `origin/main` (b551) exits 0.
+  `CLAUDE.md` §3.3's integration rule is satisfied without a hand-resolved hunk;
+  §5a of the original review is closed by the lane's own `1e25db3`.
+- **No edge deploy is owed by this lane.** It touches no `supabase/functions/**`
+  of its own. (The *set* may still owe one from `8260682`; that is not this
+  lane's and is not this review's.)
+- **No bump conflict.** The lane touches neither `src/build-info.js` nor
+  `index.html` nor `CHANGELOG.md`; its ESM imports are already at `?v=551`.
+- **`tests/live-hash-drift.baseline.json` is untouched by this lane** —
+  correctly, it is Coordinator-only (`CLAUDE.md` §2). The two baselines it does
+  move, `schema-apply-order.json` and `schema-drift.baseline.json`, are
+  regenerated by their own tools and both guards are green.
+- **The migration does NOT apply at this merge.** Its apply-order note reads
+  `STAGED, NOT APPLIED — REVIEW ONLY`, and `apply-order-honesty` agrees.
+  Per `CLAUDE.md` §3.3a a lane-C apply does not wait for the cut — but this one
+  waits for **condition 8**, below.
+- **⚠ `tests/test-file-ratchet.mjs` is green at exactly its ceiling**:
+  `33.65` CODE lines per registered test against a ceiling of `33.65`. It is
+  green and it has **nothing left in the band**. The next lane that adds code
+  without tests turns it red on the set, and that will look like this lane's
+  regression when it is not. Worth a `--write` re-pin by whoever lands next.
+
+### Before the migration is applied (lane C, a separate step)
+
+1. **R1 and R2 land in the file first** (`GO-WITH-CHANGES`, `CLAUDE.md` §2).
+   Both are inside the self-check and the policy; neither needs a redesign.
+2. **Condition 8 is measured** — the trigger's added lock-hold on `player_state`
+   (`hr_state_of` + the `realtime.messages` INSERT, timed *inside* `hr_apply`'s
+   transaction), and §3.6 restated from the measurement. This cannot be taken
+   from a worktree; it is the Coordinator's or Reliability's, on a live database
+   under load. **No GO for the apply until it exists.** Reliability also owes the
+   WAL/retention read on one `realtime.messages` row per frame under
+   `wal_level = logical` with two slots.
+3. Apply with `node tools/apply-migration.mjs supabase/migrations/2026-09-22-frame-push-channel.sql`
+   — one file, never inside `begin/commit`, never 00:00–00:10 UTC. It is
+   ordered **after** `2026-09-21-world-tick-settle-fence.sql` and
+   `2026-09-14-hr-state-of-restatement.sql`; both are live.
+4. On the apply, read the NOTICEs. `e2`, `e1`, `s9` and `s9b` all **skip** where
+   `realtime.messages` is absent — on production it is present, so a
+   `SKIPPED` notice there means the check did not run and the apply must be
+   treated as unverified for condition 2, not as passed.
+5. Applying changes the behaviour of nothing: `frame_push` ships `false`, and
+   `s1` fails the apply if it does not. The undo is
+   `update public.hr_tick_config set frame_push = false;` — no deploy, no schema
+   change, no player-visible effect.
+6. Then `live-hash-drift --live --write` + whys, the apply-order note flipped to
+   APPLIED, and `restore-census` (the file adds no table, so expect no new
+   classification).
+
+### Before `lane/m5-live-subscribe` (unchanged from the first review, re-checked)
+
+S1, S2 and S4 are now on the lane and may go to `main`. Still owed by *that*
+lane: the forced re-read that is allowed to **reset** the floor after N
+consecutive drops (`tests/frame-drop-streak.mjs` `D4` pins the hole and **will
+go red when it is closed** — that is deliberate, and the author who closes it
+must come to that claim and say so); the inventory/bank ABSOLUTE flip
+(`WORLD_TICK_DESIGN.md` §7a step 1) before any frame carries `inventory` —
+`s1b` enforces the ordering from the database side; `RESIDUE_FIELDS` gains
+nothing; one Realtime client and one connection; `setAuth` re-run on every token
+refresh.
+
+---
+
+## 7. Residual risk I am accepting
+
+- **Closed.** Nothing in this lane lets a forged client value cross into another
+  player's economy or ranking. The client sends `{ slot }`, authors no version,
+  persists no frame, and the gate is raise-only. S1's new re-apply arm is
+  **idempotent on the one thing that is an event** — the away collect receipt
+  that feeds the Muster's shared meter — which I executed, not read. The
+  `CLAUDE.md` §1 target property is intact.
+- **Closed, and now proven rather than intended.** The cross-player
+  confidentiality property of the push channel: a subscriber authenticated as
+  one user reads zero rows on another user's topic, on both slots, against a
+  control that leaks. This was the single largest open item of the first review.
+- **Bounded.** R2's unanchored predicate reaches only the subscriber's own
+  `hr:<uid>:<0-5>:<suffix>`, where the emitter never writes. No data is
+  delivered there today.
+- **Remains, self-only, and now SAYABLE but not SAID.** A client whose floor is
+  stuck high still drops every frame including its own healer. The streak is
+  counted and pinned by `D4`; it reaches `getAccrualState()` and no further
+  (**R3**), so a bug report still cannot tell a stuck client from a quiet one.
+  `CLAUDE.md` §3.4's two-day rule still applies to that blindness.
+- **Remains, unmeasured by anyone.** Condition 8 — the emitter's cost inside
+  `hr_apply`'s row lock on the money write path. And there is still no load test
+  against a real Realtime tenant at any concurrency; the 500-connection ceiling
+  is a quota line, not an observation. The document says both itself.
+- **Remains, and no spend may rest on it.** Every dollar in §3.4 is `[R]`.
+  `supabase.com` is blocked by this environment's egress proxy, so I could not
+  verify them either. The 2026-08-17 freeze holds; none is requested.
+- **Not a valid record here.** See §5's note on `run-smoke.mjs` below — the
+  in-page suite's record of truth is the GitHub run on the release SHA
+  (`CLAUDE.md` §3.3), not this container.
+
+---
+
+## 8. What I checked this pass and found CORRECT
+
+Recorded so the next reviewer does not re-derive it, and because two of these
+are places I expected to find something and did not.
+
+| Question | Answer |
+|---|---|
+| **Does the swallowed `enable row level security` leave a hole?** §6 tries it and catches `insufficient_privilege` with a notice reading "Supabase manages it; the policy below is what matters" — and the policy does **not** matter if RLS is off. Nothing in the file asserts `relrowsecurity`. | **No hole. `e2` catches it.** I built all four worlds and executed them: with RLS **off**, grants alone decide and the cross-user join returns every topic's rows (3), so `e2` **raises**. The only world where `e2` passes while the property is not held is `auth.uid()` NULL **with RLS on** — which is **R1**, and only R1. I went looking for a second finding here and there is not one. An explicit `relrowsecurity` assertion would still be a cheap belt, but it is not required. |
+| Is the `duplicate` re-apply arm idempotent on anything that is not state? | **Yes** — §1.1. The collect receipt is the only event on that path and it is suppressed on the arm; a retransmit hangs it once. |
+| Does a `duplicate` correction wrongly clear or wrongly raise the drop streak? | **Neither, and that is right.** `commitFrame` is raise-only, so the duplicate's commit is a no-op and `clearFrameDrops()` does not run; the duplicate arm does not call `noteFrameDrop` either. A correction leaves the streak untouched, which is honest: an equal frame proves the floor is not too high, but it does not prove frames are advancing. |
+| `search_path` hijacking of the SECURITY DEFINER emitter? | **No.** `set search_path = public` on both functions, and every call inside the emitter is schema-qualified (`public.hr_tick_config`, `public.hr_state_of`, `public.hr_frame_topic`, `realtime.send`, `to_regprocedure('realtime.send(...)')`). |
+| Does the lane persist a frame number, or send one? | **No** — unchanged from the first review, re-checked: the floor is module scope, absent from `RESIDUE_FIELDS`, and `buildAccrueRequest` still sends `{ slot }`. No residue-ahead. |
+| Does the trigger's `WHEN` clause let a housekeeping write masquerade as a frame? | **No.** `when (new.version is distinct from old.version)`; `s6` proves the negative and **`s6b` is the control** that proves `s6` was measuring a trigger that exists. That control is the difference between a guard and decoration, and the file wrote it unprompted. |
+| Does the emitter's `exception when others` actually wrap the send, or merely coexist with it? | **It wraps it, and this is asserted.** `s5c3` compares source positions: a handler that came *before* the `realtime.send` would catch nothing and would read, to a skimmer, exactly like one that does. This is the sharpest check in the file. |
+| Does this lane add an allowlist link that could be cut off a stale base (the M6 S-5 lesson)? | **It adds none.** §4 above; `derive-grant-hygiene --check` exit 0. |
+| Do the two new guards actually run on the record gate, or only locally? | **They run.** Both are registered in `.github/workflows/smoke.yml`'s `client-guards` job (`CLAUDE.md` §5's rule that new guards are registered *there*), `node tests/run-ci-local.mjs --list` enumerates all four commands, and `ci-shape` agrees at 193 distinct commands across 7 jobs. A guard that is not in the workflow never runs on the SHA that decides. |
+| Does the lane touch the Coordinator-only live-hash baseline? | **No.** §6 above. |
+| Did the comment-ratchet paydown (`f8f3fc05`, −129/+68 lines) thin any load-bearing prose? | **No — it compressed, it did not delete.** I diffed every removed line against the surviving text: "advancing and applying are different questions", "this counts the state; it does not fix it", "counted at the appliers, never in `classifyFrame`", the healer's honest limit and the S4 note all survive in tighter form. **No guard was loosened to get the ratchet green** (`CLAUDE.md` §2), which is the thing I was actually checking for. One casualty is worth naming: the removed text said the streak is sayable "by the diagnostics sheet, **by a bug report**, and by `tests/frame-drop-streak.mjs`" — the bug-report half was already untrue and the surviving comment still says it. That is **R3**. |
+| Does every SEC finding carry an in-page regression under "regression suite" (`CLAUDE.md` §4)? | **S1, S2 and S3 do** — `M5 · regression suite` at `record-seam-and-hydration.js:7909`, seven tests, three of them named for the findings. **S4 does not**, and that is right: it is latent with no production caller, and it carries the headless claim `F7` plus the `since_fails_open` mutation. |
+
+---
+
+## 9. Note on `node tests/run-smoke.mjs` in this container
+
+Recorded once, honestly, because it is the same limit as the first review and it
+is **not** a statement about this lane either way. This container has no Supabase
+egress and does not ship the Chromium build the repo pins (it has 1194; the
+suite asks for 1234, which I shimmed under `/opt/pw-browsers/` to get the run to
+start at all). Per `CLAUDE.md` §3.3 **the record gate is the GitHub run on the
+release SHA**, not a local suite — so what follows is a smoke signal, not a
+record, and this review does not rest on it.
+
+```
+Hearthrise smoke suite — v0.9.2-beta (b551)
+  passed 1324/1338   failed 1   skipped 13   runtime errors 0
+```
+
+**All seven `M5 regression:` tests PASSED** — the three named for S1, S2 and S3
+among them. None appears in the failure list.
+
+| ✗ | Attributable to |
+|---|---|
+| `errors: clean log` — 6 × `unhandled-rejection: Failed to fetch` | **this container's egress**, not the lane |
+| `Edge payload guard` — `GET …/functions/v1/hr-accrue` → **403** | **the proxy**, not the lane |
+| `Account-wall guard` / `Cold-load guard` — `pageerror: Failed to fetch` | **this container's egress**, not the lane |
+| `Reachability guard` — `#btn-settings-rail` at y 731..769 in a 768 px viewport | **plausibly the shimmed Chromium 1194** (1 px), unverified — identical to the first pass |
+
+**⚠ AND ONE THING THE FIRST PASS FLAGGED IS GONE.** That run was
+`1317/1332 failed 2`; the second ✗ was `B354-13-CONTROL` in
+`market-night-and-prices.js` ("day N of the cycle pays no gems, so the gem half
+of this test has no subject"), which I could not attribute and warned might make
+the GitHub `smoke` job unreachable for every later build — the b512 shape. **It
+does not appear at all in today's run.** That confirms what I suspected: it is
+**day-of-cycle dependent**, not this lane's, and not red today. It is still an
+unpinned clock (`CLAUDE.md` §4: "clock pinned, state torn down") and will come
+back on the wrong cycle day, so it is worth a ticket — but it is **not blocking
+this lane and not a P1 today**, and I am withdrawing the "may make the CI gate
+unreachable" warning as it applied to this build.
+
+---
+
+## 10. ⚠ What `schema-drift`'s green does NOT cover
+
+`node tests/schema-drift.mjs` exits 0 and the migration replays byte-identically
+— but the replay is PGlite, and **nothing in this repo creates a `realtime`
+schema**: the fixture does not, and the only migration that names
+`realtime.messages` is this one, which guards on its absence. So in the replay:
+
+| Self-check | Replay | Covers |
+|---|---|---|
+| `s1`–`s8`, `e3`–`e6` | **RUN** | the flag, the key set, the topic spelling, the grants, the payment-survives-a-broken-push proof, the WHEN clause + its control, grant hygiene, the publication, the frame number, the shadow structure, the whole-projection rule, the missing-config row |
+| `e1`, `e1b`, `e1c`, `e2`, `s9`, `s9b` | **SKIP** | **conditions 2 and 3 — the RLS predicate and the no-INSERT rule** |
+
+**So a green `schema-drift` is not evidence for the two highest-blast-radius
+conditions in the file.** That is the whole reason §2 of this re-verify exists,
+and the whole reason runbook item 4 says a `SKIPPED` notice on the *production*
+apply means unverified, not passed.

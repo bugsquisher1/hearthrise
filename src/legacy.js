@@ -2777,7 +2777,7 @@ function ensureStarterCombatKit(){
 function getPlayerCombatRolls(m,eq=getEquipmentStats()){
   const C=window.HearthriseCore;
   const _set=(typeof getArmorSetBonus==='function')?getArmorSetBonus():null;
-  return C.combat.playerCombatRolls(m, C.combatCtx(eq, _set));
+  return C.combat.playerCombatRolls(m, { ...C.combatCtx(eq, _set), monsterId: C.monsterId(m) }); /* id AT THE CALL, never in combatCtx — that function says why (Security F4) */
 }
 /* Wave 5c: armour SET bonus. Count equipped armour pieces by material tier; the
    dominant tier at 5+ pieces (a near-full/full same-tier set) grants tier×1% crit
@@ -2803,8 +2803,8 @@ function getEquipmentStats(){
      src/core/elements.js. */
   return window.HearthriseCore.combat.equipmentStats(equipmentMapG(), ITEMS, G.enchant);
 }
-function getWeaknessInfo(m,eq=getEquipmentStats(),C=window.HearthriseCore){ /* CHARMS phase 2 — the 3rd arg is the SAME HearthriseCore.charms() combatCtx reads, so the loot preview, the live tick and the away replay quote ONE drop rate. src/core-bridge.js. */
-  return C.combat.weaknessInfo(m,eq,(typeof C.charms==='function')?C.charms():null);
+function getWeaknessInfo(m,eq=getEquipmentStats(),C=window.HearthriseCore,id=null){ /* CHARMS phase 2 — the 3rd arg is the SAME HearthriseCore.charms() combatCtx reads, so the loot preview, the live tick and the away replay quote ONE drop rate. TROPHIES (BESTIARY_LADDER.md) — the 4th and 5th, and the 5th is load-bearing: the index is keyed by MONSTER ID and no roster row carries one, so a caller that omits it pays every charm and no trophy, silently and on this path only. src/core-bridge.js. */
+  return C.combat.weaknessInfo(m,eq,(typeof C.charms==='function')?C.charms():null,(typeof C.trophies==='function')?C.trophies():null,id||((typeof C.monsterId==='function')?C.monsterId(m):null));
 }
 /* ELEMENTS v1 — CROSS-VERB COUPLING (flagged in CONFLICTS.md). Whenever the
    item in the weapon slot CHANGES, the enchant it carried is void: it is bound

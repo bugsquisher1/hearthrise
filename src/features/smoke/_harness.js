@@ -1758,28 +1758,6 @@ export const withResidueWire = async (onRequest, body, extraCfg) => {
    so it would pass or fail on the real account's data. This drives the SHIPPED
    reconcile with a projected envelope — the same path a settle takes.
    `null` clears the observation (back to never-observed, which reads 0). */
-/* ── M5 — A FRESH PROBE CHARACTER GETS A FRESH FRAME FLOOR ─────────────────
-   accrue.js's frame gate (WORLD_TICK_DESIGN.md §7.1) refuses any envelope whose
-   `version` is not STRICTLY greater than the last one this client applied, and
-   the floor is per CHARACTER. Production's boundary is a slot change and goes
-   through resetGold(); `restoreG` covers the suite's equivalent. What neither
-   covers is a test that builds SEVERAL private probe characters inside one
-   block and applies the same fixture envelope to each — three different people
-   in production, one floor here, and the second and third applies are dropped
-   as duplicates for a reason that has nothing to do with what the test is
-   about. Call this between them and say which character is next.
-
-   ⚠ NOT A WAY TO RE-APPLY AN ENVELOPE TO THE **SAME** CHARACTER. If a fixture
-     needs a second server statement for one character, the faithful fix is a
-     HIGHER version — that is what a real server would send, and reaching for
-     this instead would hide exactly the duplicate the gate exists to catch. */
-export const freshFrameGate = () => {
-  try {
-    const A = window.HearthriseAccrual;
-    if (A && typeof A.resetFrameGate === 'function') A.resetFrameGate();
-  } catch (e) {}
-};
-
 export const seedPlayStreak = (n) => {
   const A = window.HearthriseAccrual;
   if (!A || typeof A.reconcilePlayStreak !== 'function' || !window.G) return;
@@ -1815,19 +1793,6 @@ export const restoreG = (snap) => {
   try {
     const P = window.HearthrisePredict;
     if (P && typeof P.resetPredictions === 'function') P.resetPredictions(window.G);
-  } catch (e) {}
-  /* M5 — AND THE FRAME FLOOR GOES WITH IT, for the same reason one rung down.
-     accrue.js's frame gate (WORLD_TICK_DESIGN.md §7.1) refuses any envelope
-     whose `version` is not STRICTLY greater than the last one applied, and the
-     floor is per CHARACTER. `restoreG` is the moment this suite swaps one
-     character for another, and a test that applied an envelope stamped
-     `Date.now()` would otherwise leave a floor of ~1.7e12 in front of every
-     later test that uses a small fixture version — refused, silently, and only
-     in a particular ORDER. Production's equivalent boundary is a slot change,
-     which goes through resetGold() and resets the same floor. */
-  try {
-    const A = window.HearthriseAccrual;
-    if (A && typeof A.resetFrameGate === 'function') A.resetFrameGate();
   } catch (e) {}
   if (typeof window.stopSkill === 'function' && window.G.activeSkill) try { window.stopSkill(); } catch {}
   if (typeof window.stopCombat === 'function' && window.G.activeMonster) try { window.stopCombat(); } catch {}

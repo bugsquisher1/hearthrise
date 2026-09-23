@@ -432,6 +432,15 @@ export async function armHomingGuard() {
     const SOURCES = [
       'supabase/migrations/2026-08-22-client-state-denylist.sql',
       'supabase/migrations/2026-09-13-client-state-buffs-denylist.sql',
+      /* 2026-09-23: the file that now OWNS the body. It RESTATES v_deny rather
+         than splicing onto it, so without this line the scan would be reading
+         two historical files and would go blind to the next name added — which
+         is the failure the list above was made a list to prevent. It reads as a
+         superset either way (`buffs` stays in the union from the 2026-09-13
+         file even though it is RETIRED rather than denied now, and a residue
+         field named `buffs` would still never save), so this line can only
+         tighten the check. */
+      'supabase/migrations/2026-09-23-client-state-retired-fields.sql',
     ];
     const deny = new Set();
     let read = 0;
@@ -467,6 +476,33 @@ export async function armHomingGuard() {
           fail(`residue field '${f}' is on the hr_put_client_state AUTHORITY deny-list. The server refuses the `
              + `ENTIRE patch on a forbidden key, so shipping this would stop every residue field from saving for `
              + `every player. It is an authority field — home it in SERVER_OF_RECORD, not RESIDUE_FIELDS.`);
+        }
+      }
+    }
+
+    /* ── THE OTHER HALF OF THE SPLIT (2026-09-23) ─────────────────────────
+       2026-09-23-client-state-retired-fields.sql added a SECOND list to the same
+       body. A RETIRED name is not refused — it is silently STRIPPED out of the
+       patch and journalled — so a residue field that lands on it does not stop
+       every OTHER field saving, it stops saving ITSELF, for ever, with an ok:true
+       answer and no error anywhere the player can see. That is quieter than the
+       deny-list collision and therefore worth its own check: the deny-list scan
+       above cannot see it, because v_retired is a different declaration. */
+    const retiredSrc = await readFile(
+      new URL('supabase/migrations/2026-09-23-client-state-retired-fields.sql', ROOT), 'utf8');
+    const retArr = /v_retired\s+constant\s+text\[\]\s*:=\s*array\[([\s\S]*?)\]/.exec(retiredSrc);
+    const retired = new Set(retArr
+      ? [...retArr[1].matchAll(/'([A-Za-z_][A-Za-z0-9_]*)'/g)].map((m) => m[1]) : []);
+    if (retired.size < 10) {
+      fail(`the hr_put_client_state RETIRED-list scan found ${retired.size} keys (expected >= 10) — the `
+         + 'scan has drifted or the list has shrunk, and either way this check would pass VACUOUSLY.');
+    } else {
+      for (const f of residueFields) {
+        if (retired.has(f)) {
+          fail(`residue field '${f}' is on the hr_put_client_state RETIRED list. The server STRIPS a retired `
+             + `key out of the patch and answers ok:true, so this field would never save again and nothing `
+             + `would say so — the server already owns that fact. Read it from the envelope; do not keep a `
+             + `second copy in RESIDUE_FIELDS.`);
         }
       }
     }

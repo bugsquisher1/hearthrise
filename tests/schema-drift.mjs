@@ -416,22 +416,58 @@ const MUTATIONS = {
   },
   /* ── 2026-09-23, the M5 push channel's e4 arm ─────────────────────────
      The frame-push self-check asserts that hr_tick_settle's SHADOW branch
-     returns before hr_apply, so a dry-run tick can never write player_state
-     and can never push a frame. It asked `to_regprocedure('public.
-     hr_tick_settle(int)')` for the body — a one-argument form that has never
-     existed, the fence's door taking nine — so the lookup answered NULL, the
-     arm printed a NOTICE and skipped, and every apply since reported a
-     property nothing had measured. The signature is now DERIVED from pg_proc
-     by name and finding none RAISES (e4c); this mutation spells a signature
-     into the name again, exactly as the defect did, and requires the file to
-     REFUSE TO APPLY rather than skip. An arm that homes on nothing is
-     decoration, and a mutation is the only thing that tells the two apart. */
+     pays nothing and pushes nothing, so a dry-run tick can never write
+     player_state and can never hand a client a frame. Three mutations,
+     because the arm has three ways to stop biting and they fail
+     independently:
+
+       · homes_on_nothing — it asked `to_regprocedure('public.hr_tick_settle
+         (int)')` for the body, a one-argument form that has never existed
+         (the fence's door takes nine), so the lookup answered NULL, the arm
+         printed a NOTICE and skipped, and every apply since reported a
+         property nothing had measured. The existence test is now by NAME and
+         finding none RAISES (e4c); this spells a signature into the name
+         again, exactly as the defect did.
+       · shadow_emits_a_frame / shadow_pays — the arm no longer grades
+         hr_tick_settle's source text (a `--` or `/*` inside a string literal
+         hid a real hr_apply call site from it, and `return` matched inside a
+         raise notice; Security RE-VERIFY 3, R5 and R6 — both reproduced).
+         It EXECUTES a shadow settle and requires zero frames and an unmoved
+         player_state, so these two plant exactly that: a shadow branch that
+         writes player_state before returning, and one that moves gold before
+         returning. Both are scoped to the frame-push file's OWN probe uuid,
+         so the fence's e13 still sees an untouched shadow settle and the
+         refusal is attributable to this arm and to nothing else. */
   frame_e4_homes_on_nothing: {
     what: "the frame-push e4 arm names an hr_tick_settle that pg_proc cannot match, so the shadow-branch claim is graded against no function at all",
     expect: 'replay', // e4c raises: no public.hr_tick_settle is installed …
     patches: [['2026-09-22-frame-push-channel.sql', [[
-      "       where n.nspname = 'public' and p.proname = 'hr_tick_settle'",
-      "       where n.nspname = 'public' and p.proname = 'hr_tick_settle(int)'",
+      "     where n.nspname = 'public' and p.proname = 'hr_tick_settle';",
+      "     where n.nspname = 'public' and p.proname = 'hr_tick_settle(int)';",
+    ]]]],
+  },
+  frame_e4_shadow_emits_a_frame: {
+    what: "hr_tick_settle's shadow branch bumps player_state.version before returning, so a DRY-RUN tick pushes a frame and the client raises its floor to a payment that never happened",
+    expect: 'replay', // e4b raises: a SHADOW settle emitted 1 frame(s) …
+    patches: [['2026-09-21-world-tick-settle-fence.sql', [[
+      "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
+      "    if p_user = '00000000-0000-4000-8000-00000000fa3e'::uuid then\n"
+      + "      update public.player_state set version = version + 1\n"
+      + "       where user_id = p_user and slot = p_slot;\n"
+      + "    end if;\n"
+      + "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
+    ]]]],
+  },
+  frame_e4_shadow_pays: {
+    what: "hr_tick_settle's shadow branch moves gold before returning — no frame, because `version` did not move, so only the value assertion can see that a dry run paid",
+    expect: 'replay', // e4d raises: a SHADOW settle moved player_state (gold …)
+    patches: [['2026-09-21-world-tick-settle-fence.sql', [[
+      "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
+      "    if p_user = '00000000-0000-4000-8000-00000000fa3e'::uuid then\n"
+      + "      update public.player_state set gold = gold + 1\n"
+      + "       where user_id = p_user and slot = p_slot;\n"
+      + "    end if;\n"
+      + "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
     ]]]],
   },
   reopen_a11: {

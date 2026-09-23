@@ -2269,3 +2269,107 @@ Standing rules from here: the QA account's last-played slot is now slot 1, so **
 | shadow trace, slot 1 | 42 windows: would_deaths 41, would_kills 52, would_gold 103, would_ate 0; would_hp 4 and would_recovering_until ≈ +31 min in EVERY window | **defect** |
 
 **Finding (Coordinator, 16:45 UTC).** The shadow re-fights every 90 s window from the REAL `player_state` (hp 4, recovery clock in the past) and knocks the character out again: one death per window, forty-one in an hour. A chained simulation would sit inside the recovery clock for ~20 windows after each knockout. Cause, from the code: `hr_tick_settle` §8 (settle-fence migration) journals the delta verbatim and chains only `shadow_accrued_to`; `tick.js` step (5) assembles every session from `hr_state_of`; nothing carries hp, `recovering_until`, `consec_falls`, the `fight` checkpoint, `ammo_carry`/`tool_carry` or the consumed inventory across fires, because player_state is (correctly) never written in shadow. `tick-shadow.js`'s `advance()` is the harness's carrier and says so — production has none. The real away settle is one pass with state carried, so 8c's EXACT fields (deaths, kills, hp, consec_falls) cannot agree; the M3 48 h clock cannot start on this shadow. Gather is affected in substance only through `tool_carry`. Not a Security finding against the arm: the tick paid nothing (8d), the fences hold, and the cohort stays armed so the fixed shadow can be compared against the same character. Fix dispatched as a class-kill lane (`lane/m3-shadow-state-chain`: the engine's own continuation state travels with the settle, stored on `hr_tick_ownership` beside the shadow mark, cleared with it on the armed branch, overlaid by the driver only while shadowed); it is a settle-body change and needs Security's GO before apply, then the edge deploy.
+
+---
+
+## RE-VERIFY 5 — the shadow state chain (2026-09-23)
+
+**Under review:** `lane/m3-shadow-state-chain` @ `34cab5da` ("chain the shadow character, not just its
+watermark"), reviewed on `sec/m3-shadow-state-chain` after merging `origin/set/b551` myself — the lane's
+own merge (`dfe85346`) predated b551's head by three commits (`0b032d0c`, `853a3f52`, `8c143513`, the M8
+S1 apply). The one conflict was `tests/schema-apply-order.json`, resolved structurally (the Coordinator's
+APPLIED notes for the three M8 files + the lane's new entry) rather than by hand, per CLAUDE.md §5.
+
+**Subject:** `hr_tick_ownership.shadow_state`, a tenth parameter on `hr_tick_settle`, and the driver
+overlay that reads it back. The T+1 h defect above — 41 deaths in 42 windows, `would_hp = 4` in all of
+them — is real and this lane closes it. Six findings; **all six are landed on this branch by me and
+re-proved by the guards**, two of them changes to the file the Coordinator applies.
+
+### Findings
+
+| # | Sev | Finding | Verdict |
+|---|---|---|---|
+| **S-1** | **HIGH** | **The overlay and the carrier were two conditions, not one, and the gap between them reaches `hr_apply`.** `tickOne` overlays when `chaining` (`probe.shadow && probe.shadowState && markMs > accrued_to`) but carries when `probe.shadow && atMark && shadowStateOf() !== null`. `shadowStateOf` returns null **by design** when the bound breaks, and `atMark` is false when the settle loop ran past the fenced intent — so a window could be settled from an **overlaid** session with a **null** tenth argument. `shadow_state_while_armed` keys on a *non-null* argument, so an operator arming between `probeWatermark` and that settle would have the armed branch accept it and `hr_apply` **pay a delta computed from the shadow's own proposals**. That is precisely what design constraint 2 forbids, reached through the gap rather than through the branch; the driver's own header claims the race is covered, and it was only covered while the two conditions agreed. | **FIXED BY ME.** `carry = carried \|\| (chaining ? restart-marker : null)` — anything that overlaid now sends a carrier. The marker names no field, so the next overlay applies nothing and re-seeds from `hr_state_of` (the same restart `carried === null` already meant), while the armed branch still refuses before `hr_apply`. New arms **SC-11** (the marker is refused when armed, pays nothing, is inert when read back) and **SC-11b** (the driver actually sends it), plus mutant `armedPaysOverlay`. |
+| **S-2** | **MED** | **`tests/world-tick-shadow-chain.mjs --mutate` was a no-op that exited 0.** The flag parsed nowhere; the ten arms ran unchanged and the process answered green. CLAUDE.md §4: a guard that has never been red is not a guard — and a flag that answers green without doing anything is worse than no flag, because it answers "has this been mutation-proved?" with a lie that costs one command to check. The brief asked for this exit code; taken at face value it would have been recorded as a proof that had never run. | **FIXED BY ME.** Five mutants, each breaking one load-bearing line and naming the arm that must go red. All five RED (below). Three are caught at **apply time** by the migration's own §5 self-check — the strongest verdict available, since the file then refuses to install at all. |
+| **S-3** | LOW | **`e6` asserted the fence's inherited `gold/version/accrued_to` triple and not the two fields this change actually carries.** The probe sends `hp 4` and `cooked_trout -3` against a row at `hp 10` with an empty bag, so a carrier that leaked onto the paying side would land exactly on `hp` and `player_inventory` — and the triple would not notice. | **FIXED BY ME** — `e6c` (hp unmoved) and `e6d` (zero `player_inventory` rows). |
+| **S-4** | LOW | **The 16 KiB bound was declared in two units, not one.** `shadowStateOf` measured `JSON.stringify(st).length` (UTF-16 code units); §1's CHECK and the fence's `c_state_max` measure `octet_length` (bytes). The file's claim is that the two halves agree "by declaration, not by luck" — with `.length` they agree only on pure ASCII, and past it the edge sends a carrier the fence refuses `shadow_state_too_large`. Fails closed (a countable refusal, chain restarts, measurement under-reports), but the bound does not hold where it says it does. | **FIXED BY ME** — `jsonByteLength()` via `TextEncoder`. |
+| **S-5** | LOW | **`v_shadow_before` / `v_enabled_before` were captured and never used.** Two locals that read like a restore and are not one. The rollback is the real mechanism, but `enabled` and `shadow` are the two booleans that decide whether the world tick **pays**, and the M5 frame-emit review already ruled (f11d) that no such boolean is left to a rollback that might not take. | **FIXED BY ME** — restored explicitly and re-read at `e14b`. |
+| **S-6** | **MED** | **Nothing in the file or its apply-order note said the live-hash baseline goes red — against a guard that wants THREE whys.** Measured credential-free on this branch, `tests/live-hash-drift.mjs` exits **1** with three problems: `replay hr_assert_grant_hygiene(p_strict boolean)`, `replay-missing hr_tick_settle(…,uuid,jsonb)` and `replay-extra hr_tick_settle(…,uuid,jsonb,jsonb)`. The frame-emit review wrote down exactly this failure: "a note that named ONE entry against a guard that wants four is how a re-seed ends up with three unexplained rows." Here it named zero against three. | **FIXED BY ME** — an AFTER APPLYING block in the migration header and the same three in the apply-order note, with `touched_by` named for **both** bodies. |
+
+**Reported, not fixed here** (neither blocks this apply):
+
+- **S-7 — link 12 is unlinted, and the lane said so rather than hiding it.** `2026-09-22-engine-allowlist-hunt-reads.sql` applied to production on 2026-09-23 06:25 UTC and was never registered in `HR_GRANT_HYGIENE_CHAIN` or `ALSO_LINTED`, so the derivation walk grades a two-link jump and link 12's own body is ungraded. The lane declared this in `tests/run-sql-tests.mjs` instead of quietly registering it, which is the right call — registering it silently would hide how long the hunt link has gone unlinted. Correct either way here, because hunt-reads is insertions-only and the only line this file removes from either predecessor is the nine-argument signature. **One line in the M6 lane; the Coordinator's to place.**
+- **S-8 — `tests/ci-shape.mjs` can exit 1 with 75 false problems, nondeterministically, and it is not this change.** Reproduced twice under load, then six consecutive greens on a quiet machine. `run-ci-local.mjs --list` writes ~19 KB with `console.log` and then calls `process.exit(0)`; stdout to a **pipe** is asynchronous, so the exit truncates the tail — and `ci-shape` reads the short list as "the local gate does not enumerate these commands", naming the last ~75 (the `client-guards` tail and the whole `edge` job). Not maxBuffer (19 KB against a 1 MB ceiling). **It fails CLOSED** — a false RED, never a false green — so it costs a re-run and cannot wave a regression through, which is why it does not block anything here. Fix is `process.exitCode = 0` in place of `process.exit(0)` at `tests/run-ci-local.mjs:302` (and `:262`). Pre-existing; a hardening lane, not this one.
+
+**One correction to the brief.** `tools/derive-grant-hygiene.mjs` is **not a new tool** — it predates this lane (links 1–12; link 12 landed 2026-09-22 at `f16f7be5`/`eeff52e1`) and this commit adds link 13. More importantly, the suspicion the brief raises does not apply to it: **it derives nothing from the live catalogue.** It is a text transform over a *committed predecessor migration's* body, and every `c_engine_allow` entry still carries its own argued justification — including this one, re-derived rather than carried. The derivation exists so a link cannot silently **revert** an earlier link's entries, which is a different thing from deriving the allowlist itself, and §0 fails the apply closed if the installed detector does not already carry link 12's two entries.
+
+### The thirteen, answered
+
+1. **Shadow pays nothing, still.** `e6`/`e6b` and `SC-5` execute it: gold, version, `accrued_to` and zero ledger rows — now **plus hp and `player_inventory`** (S-3). Asserted by executing SQL, not by markers.
+2. **The armed branch never reads `shadow_state`.** `v_chain` is `'{}'` unless `v_cfg.shadow`, and `hr_apply` receives `p_delta` alone — there is no expression on the armed path that reads the column. A carrier planted before an armed settle changes nothing the armed settle pays: `e10`/`e10b`/`e10c` plant one and prove the refusal, zero payment and an untouched carrier; `SC-9` repeats it against the real fence. Mutant `noArmedRefusal` makes the migration refuse to apply (`e10`).
+3. **The overlay is display-only.** No path reaches `hr_apply`, the ledger, `player_state`, `hr_state_of` or the client envelope. The column is on an operator table no client role can read or write; a shadow window's whole output is `hr_tick_shadow` (`operational` + `player_value_exempt`). `_chain` is `_`-prefixed and `engineStateOf` forwards only `ENGINE_STATE_KEYS`, so it cannot re-enter the engine as an input. **After S-1**, the one path that could have crossed is closed.
+4. **The state is the engine's output.** `advance()` is assignments and sums of the engine's **own** `progress` ops (`countersFromProgress`); no growth rule, no drop table, no clamp beyond the pre-existing `Math.max(0, …)` gold floor. Nothing in the SQL computes, applies or clamps a delta — §2's shadow branch checks shape and stores verbatim.
+5. **The probe channel.** `hr_tick_settle` is callable by **`hr_engine` only**: §3 revokes from `public`, `anon`, `authenticated`, `service_role`, `hr_tick` and grants `hr_engine`; step (0) additionally refuses those roles by name. `e4`/`e4b`/`e4c`/`e4d` assert the whole matrix with `has_function_privilege`, by execution. `authenticated` and `service_role` cannot reach the refusal at all. `hr_engine` can — and gains **no new target**: it already holds `hr_apply` and `hr_state_of` for any `(user, slot)`, so reading a continuation state is strictly narrower than the write it already has. `hr_tick` cannot reach it (S-8's rule from RE-VERIFY 3 still holds).
+6. **Bound and shape.** `jsonb_typeof = 'object'` plus `octet_length ≤ 16384` as a CHECK; the fence re-checks the same ceiling first so the refusal has a countable *name* (`shadow_state_too_large`) rather than aborting the batch on a `check_violation`. Growth is bounded structurally above that: only keys a window **moved**, capped at 32 xp / 64 item / 16 bestiary keys, and a breach returns **null** rather than clamping — a chain that restarts under-reports, a chain that drops half a bag lies. `e2`/`e2b` prove both CHECK arms bite. After S-4 the edge's half counts the same unit as the database's.
+7. **The CAS.** Unchanged in every term — `greatest(accrued_to, coalesce(shadow_accrued_to, accrued_to))` in shadow, `accrued_to` armed. A replay is refused on arithmetic before §8 (`e8`, `SC-7`); a second holder is refused at the lease check (4). A member's real return mid-shadow is handled **twice, independently**: `accrued_to` catches up so `greatest` picks it and `v_chain` is withheld by construction (`shadow_accrued_to > accrued_to` is false), *and* `applyShadowState`'s `base_version` gate drops the overlay because `player_state.version` moved. The next shadow window re-seeds from `hr_state_of`.
+8. **Idempotence.** A second settle on the same `intent_id` never reaches §8 — the watermark CAS refuses it first — and the chain update is additionally guarded on `v_ins > 0`, so the mark and the carrier cannot advance past a window that journalled nothing. `e8`/`e8b`/`e8c` and `SC-7` prove the replay overwrites **neither**, including with a *different* state in the replay's own argument.
+9. **The gather channel.** `tool_carry` now chains; `C19` proves it survives a flush boundary through the carrier. The 8c gather arithmetic and the 24 h span property are untouched — no window arithmetic changed, and `world-tick-parity` (P-G9, AWAY-1) is green.
+10. **Apply order — migration BEFORE edge, and it matters in only one direction.** *Apply, then the gap:* the **old** nine-argument payload binds `p_shadow_state` to its `default null`, which is today's behaviour exactly, and the nine-argument overload is **dropped** so there is no `42725 function is not unique` (`e3`/`e3b`). The gap is safe and unbounded in length. *Reversed:* the **new** ten-argument payload meets a nine-argument function, Postgres answers `42883`, and **every settle fails** — including `probeWatermark`, so the tick stalls completely until the apply lands. Not a data-safety failure, a total outage of the measurement. The order is mandatory, and the file says so.
+11. **Live-hash.** Two tracked bodies are restated — `hr_tick_settle` and `hr_assert_grant_hygiene` — which the sweep reports as **three** entries (the settle appears twice, `replay-missing` on the old signature and `replay-extra` on the new). `hr_tick_roster` is **not** touched and **not** tracked; `hr_tick_cron_run` is untouched. Measured, exit 1. See S-6 — the three whys are now written down, and `touched_by` must name this file on **both** bodies.
+12. **`run-sql-tests.mjs` and `derive-grant-hygiene.mjs` — no guard is loosened.** The `DECLARED_REMOVALS` entry is exactly one line, and the walk still fails any *undeclared* removal; registering the file in `ALSO_LINTED` widens the lints rather than narrowing them. The chain gains a link that is graded, not skipped. `guard-hygiene` green.
+13. **The multi-window parity.** `C17` compares the **carried** chain against the **in-memory** chain EXACT on `deaths`, `kills`, `gold`, `ate`, `windows`, on the `xp` and `items` maps, and on the end-state `hp`, `consecFalls`, `deathsToday`, `activeKind` — so the knockout property is proven compositionally: `C3` asserts `hp`, `fight`, `consec_falls` and `recovering_until` are carried across every window boundary (a knockout in window 1 therefore holds windows 2..N inside the recovery clock, which is where the zero kills come from), and `C17` asserts the serialisation reproduces that chain without loss. `C18` keeps `C17` from being decorative by requiring the **uncarried** chain to diverge on at least three fixtures. `--mutate --noOverlay` goes **RED on deaths** (`0 vs 5` on the auto-eat fixture), exit 0 = mutation correctly detected.
+
+### The measurement — may the 48 h clock restart on the same armed cohort?
+
+**Yes. No re-arm ritual.** The apply changes no roster membership, no `hr_tick_config.shadow`, no
+`channels`, no lease and no ownership row; `e1b` asserts at apply time that **every** ownership row
+carries `shadow_state IS NULL`, which is why "applying this file changes the behaviour of nothing" is a
+claim about something. QA slot 1 stays armed and the same character is compared against itself, which is
+what makes the before/after readable at all. Step 9's arm (a)/(b) must **not** be re-run.
+
+**But the clock RESTARTS at the DEPLOY, it does not continue, and the two halves of the table must be
+partitioned.** The chain begins at the first shadow window after the **edge deploy** — not the apply,
+which is deliberately inert. Every `hr_tick_shadow` row written before that instant came from an
+**unchained** simulation (41 deaths in 42 windows), so folding them into 8c compares an unchained shadow
+against a chained accrue and fails on the EXACT fields **by construction**. Record the deploy instant and
+use it as a lower bound on `at` (equivalently `window_from`) in **8a, 8b, 8c and 8e**. **8d keeps the
+whole span** — it is a "nothing was paid" read, and the pre-deploy rows only strengthen it.
+
+**What must be re-read after the deploy:** 8a (the carrier must not reduce the row rate — a drop means
+the chain is refusing rather than tiling), 8b (`breaks = 0`; no window arithmetic changed, so a break is
+a regression), 8c (**readable for the first time** — this is the whole point), and 8e, which now has
+three **new** refusal names to watch: `shadow_state_while_armed`, `bad_shadow_state` and
+`shadow_state_too_large`. All three are zero on a healthy shadow run. **Read 8e before believing 8c:** a
+non-zero `shadow_state_too_large` means the bound is biting and the chain is silently restarting, which
+makes 8c under-report in a way that looks like a parity result. Of the fences, **(i) must be re-read at
+the deploy** if the QA account was played in the interval — live kill credit near the watermark pollutes
+8c exactly as before, and a real accrue *also* ends the chain through the `base_version` gate, so a
+played character restarts both the chain and the clock. **(ii)** only needs re-reading if the character
+gained rooms, plots, property tier or bestiary rows; it is a property of the character, not of the
+settle body, and the settle body is all that moved. **(iii)/step 9** — not applicable, the cohort is
+already armed.
+
+### Verdicts
+
+| Move | Verdict |
+|---|---|
+| **MIGRATION APPLY** — `supabase/migrations/2026-09-23-world-tick-shadow-state-chain.sql` | **GO.** Six findings, all landed on `sec/m3-shadow-state-chain` and re-proved. Apply alone changes the behaviour of nothing. Not during 00:00–00:10 UTC; one file, one call. |
+| **EDGE DEPLOY** — `hr-accrue` | **GO, strictly AFTER the apply.** Reversed, `42883` stalls every settle. Re-pack on the **assembled set**, not this branch (the S-9 precedent): this branch's head packs to `c8edbc99188fbaafb508a34d793ac7ae0f10847db969d22d64f33facbcd8f8c1`, which is the lane's hash and not necessarily the one to deploy. Verify the live `payload_sha256` equals `pack-edge --hash` before the play gate. |
+
+### Guards run — real exit codes (branch on `$?`, CLAUDE.md §4)
+
+| Command | Exit |
+|---|---|
+| `node tests/schema-drift.mjs` | **0** |
+| `node tests/apply-order-honesty.mjs` | **0** — 35 files carry a measured verdict |
+| `node tests/world-tick-shadow-chain.mjs` | **0** — SC-1..SC-11b, twelve arms |
+| `node tests/world-tick-shadow-chain.mjs --mutate` | **0** — all 5 mutants RED (`carrierNotStored`→`e5d` at apply, `noProbeCarrier`→`e7b` at apply, `noArmedRefusal`→`e10` at apply, `noClearOnPay`→SC-10, `armedPaysOverlay`→SC-11b) |
+| `node tests/world-tick-combat-parity.mjs` | **0** |
+| `node tests/world-tick-combat-parity.mjs --mutate` | **0** — every mutant RED, `noOverlay` red on **deaths** |
+| `node tests/world-tick-parity.mjs` | **0** |
+| `node tests/world-tick-ledger-meta.mjs` | **0** |
+| `node tests/guard-hygiene.mjs` | **0** |
+| `node tests/ci-shape.mjs` | **0** on a quiet machine — see **S-8**, it is nondeterministic under load and fails closed |
+| `node tools/pack-edge.mjs hr-accrue --hash` | **0** — `c8edbc99188fbaafb508a34d793ac7ae0f10847db969d22d64f33facbcd8f8c1` |
+| `node tools/lane-done.mjs` | **0** — all green |
+| `node tests/live-hash-drift.mjs` | **1** — the three entries of **S-6**, deliberate, Coordinator re-seeds |

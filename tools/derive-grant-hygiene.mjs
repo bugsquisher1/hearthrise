@@ -235,6 +235,40 @@ export const LINKS = [
     target: '2026-09-22-engine-allowlist-hunt-reads.sql',
     patchIds: ['hunt_reads'],
   },
+  /* Link 13 (M3 shadow-state chain, 2026-09-23) — THE FIRST LINK IN THIS CHAIN
+     THAT REPLACES AN ENGINE ENTRY RATHER THAN INSERTING ONE, so its
+     declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is NON-EMPTY
+     and holds exactly the old nine-argument signature line.
+
+     WHY A REMOVAL AT ALL. `c_engine_allow` is keyed on
+     `p.oid::regprocedure::text` — deliberately, because keying on `proname`
+     accepted ANY overload of an approved name and that is defect 2 in check
+     (7)'s own header. 2026-09-23-world-tick-shadow-state-chain.sql gives
+     hr_tick_settle a TENTH parameter (`p_shadow_state jsonb default null`),
+     which is a different regprocedure string, so:
+       · leaving the old line in place records a signature that no longer
+         exists — check (7) reports it under `lost` and the REAL door is
+         `engine_execute_outside_allowlist` on the nightly cron, every night;
+       · adding the new line WITHOUT removing the old one records a door that
+         is gone as though it were still open, which is the same lie in the
+         other direction and is exactly what a set of "insertions only" links
+         accumulates into.
+     A replacement is therefore the honest edit and the removal is declared.
+
+     ⚠ AND THE OLD SIGNATURE IS DROPPED, NOT LEFT ALONGSIDE. `create or replace`
+       cannot replace a function whose argument list changed, so without an
+       explicit `drop function` the nine-argument body would survive next to the
+       ten-argument one: two doors to hr_apply where the fence's whole claim is
+       that there is exactly one, the older of which chains nothing. It is also
+       not merely untidy — a nine-argument call would then match both candidates
+       and Postgres answers 42725 `function is not unique`, so every probe in
+       the driver fails closed. The migration drops it in §2 and re-issues the
+       revoke-then-grant, because a drop takes the grants with it. */
+  {
+    base: '2026-09-22-engine-allowlist-hunt-reads.sql',
+    target: '2026-09-23-world-tick-shadow-state-chain.sql',
+    patchIds: ['tick_settle_shadow_state'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -775,6 +809,47 @@ export const PATCHES = [
     'market_expire(integer)',
 `,
     add: '',
+    where: 'replace',
+  },
+  {
+    id: 'tick_settle_shadow_state',
+    name: "the c_engine_allow hr_tick_settle signature (link 13)",
+    find: `    'hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,timestamp with time zone,uuid,jsonb)',\n`,
+    add: `    -- ── RESTATED 2026-09-23 — THE TENTH ARGUMENT (M3 shadow-state chain) ─
+    -- A REPLACEMENT, not an insertion: this chain's first, and the removed
+    -- line is declared in tests/run-sql-tests.mjs PART 1f-ii. The entry is
+    -- keyed on \`regprocedure\`, so a signature change is a DIFFERENT string
+    -- and the old one now names a function that does not exist — reported
+    -- under \`lost\` while the real door raises
+    -- \`engine_execute_outside_allowlist\` on the nightly cron every night.
+    --
+    -- ⚠ THE CLAIM IS UNCHANGED, AND IT IS RE-DERIVED RATHER THAN CARRIED.
+    -- The tenth argument is \`p_shadow_state jsonb\`, and it is the ONLY
+    -- caller-supplied value on this function that is neither checked against
+    -- the database nor handed to hr_apply. It does not need to be, because it
+    -- cannot reach player value at all:
+    --   * IT IS WRITTEN ONLY ON THE SHADOW BRANCH, the branch with no
+    --     hr_apply call in it, under the same row lock as the watermark it
+    --     chains. On the ARMED branch a non-null one is REFUSED
+    --     (\`shadow_state_while_armed\`) before hr_apply is reached — never
+    --     ignored, because a carrier silently dropped on the branch that pays
+    --     is how a stale proposal would be believed.
+    --   * IT IS STORED VERBATIM AND READ BACK BY THE SAME ROLE that wrote it,
+    --     into \`hr_tick_ownership.shadow_state\` — a column on an operator
+    --     table that no client role can read or write, bounded by its own
+    --     CHECK constraint, and CLEARED together with \`shadow_accrued_to\`
+    --     the moment an armed settle succeeds.
+    --   * NOTHING READS IT TO DECIDE A NUMBER A PLAYER CAN SPEND. Its only
+    --     consumer is the next SHADOW window, whose entire output is
+    --     \`hr_tick_shadow\` — classified \`operational\` +
+    --     \`player_value_exempt\` in tests/restore-census.baseline.json on
+    --     exactly the basis that losing every row of it costs a measurement
+    --     and not a progression.
+    -- NO NEW TARGET: p_user is still the parameter the engine already passes
+    -- to hr_apply and hr_state_of, and every other check of the fence — the
+    -- lease, the watermark CAS under \`for update\`, the declared-window
+    -- binding, the version — is untouched and runs in the same order.
+    'hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,timestamp with time zone,uuid,jsonb,jsonb)',\n`,
     where: 'replace',
   },
 ];

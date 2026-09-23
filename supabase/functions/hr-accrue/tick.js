@@ -83,6 +83,12 @@ import {
   CHANNEL as COMBAT_CHANNEL,
   sessionFromRoster as combatSessionFromRoster, settleCombatSession,
 } from './tick-combat.js';
+/* THE CHAIN CARRIER, ONE DEFINITION, SHARED WITH THE OFFLINE GUARDS
+   (services/world-tick/contract.js re-exports the same module — AWAY-12).
+   `shadowStateOf` serialises the engine's own output state; `applyShadowState`
+   lays it back over a session read from `hr_state_of`. Neither computes a
+   delta and neither is authority. */
+import { shadowStateOf, applyShadowState, SHADOW_STATE_V } from './tick-contract.js';
 
 /* ── THE DISPATCH TABLE (Security S-8, 2026-09-23) ───────────────────────────
    Until today this file imported ONE `CHANNEL` — gather's — and used it three
@@ -519,11 +525,20 @@ function clampInt(v, lo, hi, dflt) {
 
 /** `hr_tick_settle`, the ONLY writer this entry can reach. */
 async function fence(exec, args) {
+  /* ── THE TENTH ARGUMENT: THE SHADOW'S CONTINUATION STATE (2026-09-23) ────
+     NULL on every call but a shadow settle, and the fence REFUSES a non-null
+     one on the armed branch (`shadow_state_while_armed`) rather than ignoring
+     it — a carrier that is silently dropped on the branch that pays is how a
+     stale proposal would reach hr_apply. It is declared `default null` in SQL
+     so the migration can apply BEFORE this payload is deployed without the
+     nine-argument probe breaking for the length of the deploy window. */
   const [r] = await exec(
     'select public.hr_tick_settle($1::text, $2::uuid, $3::int, $4::text, $5::bigint,'
-    + ' $6::timestamptz, $7::timestamptz, $8::uuid, $9::text::jsonb) as res',
+    + ' $6::timestamptz, $7::timestamptz, $8::uuid, $9::text::jsonb,'
+    + ' $10::text::jsonb) as res',
     [args.holder, args.user, args.slot, args.channel, args.version,
-      args.windowFrom, args.windowTo, args.intentId, args.delta]);
+      args.windowFrom, args.windowTo, args.intentId, args.delta,
+      args.shadowState ?? null]);
   return (r && r.res) || null;
 }
 
@@ -587,7 +602,37 @@ export async function probeWatermark(exec, holder, sel, nowIso, channel) {
        accrue path names. `Date.parse` truncates it to ms, which is the right
        number for the window arithmetic and the wrong text for the label, so
        both are kept and neither is re-derived from the other. */
-    return { ok: true, markMs: mark, markText: String(res.accrued_to) };
+    /* ── THE CARRIER RIDES THE SAME REFUSAL AS THE MARK (design 4) ───────
+       The alternative was `hr_tick_roster`'s row. It was rejected, and the
+       reason is the sentence the fence exists to keep true: the roster is
+       executable by `hr_tick` and by NOTHING ELSE, so its row does not reach
+       this role directly — it arrives in the driver's REQUEST BODY, via
+       `hr_tick_cron_run`'s payload. Routing the continuation state through
+       the body would make "the server picks whose world ticks, and from
+       when" a claim about a POST rather than about a row somebody else
+       wrote, and a tick host that could edit its own payload could hand the
+       engine any hp, any recovery clock and any bag it liked. It journals
+       nothing tradeable today, but it is the measurement that gates ARMING,
+       and a measurement a caller can author is not one.
+       This refusal is read under the fence's own `for update` on the
+       ownership row, in this role's own transaction, on the same statement
+       that reports the mark — one lock, one answer, no second read.
+
+       `shadow` is the fence's own `hr_tick_config.shadow`, never the body's:
+       the driver must know the mode BEFORE it settles, because sending a
+       state on the armed branch is a refusal by design. If the operator arms
+       between this probe and the settle below, that one settle is refused
+       `shadow_state_while_armed`, loudly and countably, and the next fire
+       runs armed with no carrier — the tick pays nothing rather than paying
+       against a proposal built in the other mode. */
+    return {
+      ok: true,
+      markMs: mark,
+      markText: String(res.accrued_to),
+      shadow: res.shadow === true,
+      shadowState: (res.shadow_state && typeof res.shadow_state === 'object')
+        ? res.shadow_state : null,
+    };
   }
   /* `tick_disabled` cannot appear here (the switch was read above and a change
      between the two calls simply refuses every settle below). Everything else
@@ -754,7 +799,7 @@ async function tickOne(exec, holder, sel, body) {
            came back `would_ticks: 0` with `activity: {kind:'idle'}` — the
            level gate, on a character who can mine that node. The field list
            itself is now ./envelope.js, shared with index.ts's accrue path. */
-  const session = driver.sessionFromRoster({
+  const session0 = driver.sessionFromRoster({
     user_id: sel.userId,
     slot: sel.slot,
     shard: 0,                       // hr_shard_of is `select 0`; see the header
@@ -786,6 +831,35 @@ async function tickOne(exec, holder, sel, body) {
     cap_ms: row.cap_ms,
   }, env);
 
+  /* (5b) ── THE SHADOW OVERLAY (2026-09-23) ────────────────────────────────
+         Armed, there is nothing to do here: hr_apply wrote the last window and
+         `hr_state_of` above already read it back. SHADOW PAYS NOTHING — e15,
+         deliberately — so `player_state` stands still and every fire re-seeds
+         the character from the SAME row. Measured on production at 16:40 UTC
+         on 2026-09-23 (QA slot 1, hp 4/10, no food, auto-eat off, armed in
+         shadow at 15:36): 42 windows in 62 minutes, `would_deaths = 1` in 41
+         of them, `would_hp = 4` in every one, `would_recovering_until` ~31
+         minutes past the end of every one. A chained character dies once and
+         then sits inside its own recovery clock; 41 deaths in an hour is the
+         absence of a chain, not a simulation result. The M3 parity read 8c
+         (deaths, kills, hp, consec_falls EXACT) could not have passed.
+
+         THE OVERLAY IS A DISPLAY OF THE SHADOW'S OWN PROPOSALS AND NEVER
+         AUTHORITY. The session is built from `hr_state_of` field by field,
+         exactly as above; this lays the shadow's cumulative movement over it,
+         and every number it touches ends up in `hr_tick_shadow` — a table
+         classified `operational` + `player_value_exempt` that nothing reads
+         to decide a number a player can spend. It is applied ONLY when the
+         fence is chaining (`probe.shadow` and a mark the shadow's own column
+         moved past `accrued_to`), and `applyShadowState` drops it again if
+         `player_state.version` has moved since it was built — any real write
+         to this character ends the chain instead of being papered over. */
+  const chaining = probe.shadow === true && probe.shadowState
+    && markMs > (st.accrued_to ? Date.parse(st.accrued_to) : markMs);
+  const session = chaining
+    ? applyShadowState(session0, probe.shadowState)
+    : session0;
+
   const geom = {
     cadenceMs: body.cadenceMs,
     flushMs: body.flushMs,
@@ -809,6 +883,51 @@ async function tickOne(exec, holder, sel, body) {
   const intent = run.intents[0];
   if (intent.rehydrateBefore) return { outcome: 'skipped', reason: 'rehydrate_required' };
   const a = intent.args;
+  /* ── WHAT THE NEXT WINDOW IS SEEDED FROM, AND WHEN IT IS NOT ─────────────
+     `run.char` is the engine's OWN output state — the continuation object
+     `advance()` holds, the same one the attended loop and the parity harness
+     carry — serialised by `shadowStateOf` and stored by the fence verbatim.
+     No arithmetic of ours crosses, and none is done in SQL.
+
+     IT IS SENT ONLY WHEN THE CHARACTER'S STATE IS THE STATE AT EXACTLY THE
+     INSTANT BEING SETTLED. `settleCombatSession` walks the whole span it is
+     given and advances `char` past every window it settled, while only
+     `intents[0]` is handed to the fence — so if the loop ran past this
+     intent's `p_window_to` (a second flush batch, which a flush-sized span
+     does not produce but a config change could), the carried state would be
+     AHEAD of the watermark the fence is about to stamp and the next window
+     would double-count the difference. Refusing to carry is the safe
+     direction: the chain restarts from `hr_state_of` and under-reports,
+     which is a measurement that is honest about being short rather than one
+     that silently pays twice. */
+  const atMark = run.watermarkMs === Date.parse(a.p_window_to);
+  const carried = (probe.shadow === true && atMark)
+    ? shadowStateOf(run.char, { baseVersion: env.version, atMs: run.watermarkMs })
+    : null;
+  /* ── ANYTHING THAT OVERLAID MUST SEND A CARRIER (Security S-1, 2026-09-23) ─
+     `chaining` above laid the shadow's own proposals over this session, so the
+     delta just computed is built on a character that is PART PROPOSAL. The one
+     thing standing between that delta and hr_apply is the fence's
+     `shadow_state_while_armed` refusal — and that refusal keys on a NON-NULL
+     tenth argument.
+
+     `carried` is null on two reachable paths that have nothing to do with the
+     mode: the bound breaking (`shadowStateOf` returns null BY DESIGN so the
+     chain restarts rather than lying) and `!atMark`. On either of those, an
+     operator who arms between `probeWatermark` and this call would have the
+     armed branch accept a null carrier and PAY a delta built on the overlay —
+     exactly what design constraint 2 forbids, reached through the gap between
+     "we overlaid" and "we have something to carry". The header above claims
+     that race is covered by `shadow_state_while_armed`; it only is while those
+     two conditions agree, so they are made one here.
+
+     The marker carries NO state, so the next window's overlay applies nothing
+     and re-seeds from `hr_state_of` — the same restart `carried === null`
+     already meant — while the armed branch still sees a non-null argument and
+     refuses before hr_apply. Covered by tests/world-tick-shadow-chain.mjs
+     SC-11 and by its `--mutate armedPaysOverlay` mutant. */
+  const carry = carried
+    || (chaining ? { v: SHADOW_STATE_V, base_version: env.version, restart: true } : null);
   const res = await fence(exec, {
     holder,                          // ours, never `a.p_holder` from the fold
     user: sel.userId,
@@ -819,6 +938,7 @@ async function tickOne(exec, holder, sel, body) {
     windowTo: a.p_window_to,
     intentId: a.p_intent_id,
     delta: JSON.stringify(a.p_delta),
+    shadowState: carry ? JSON.stringify(carry) : null,
   });
   if (!res || res.ok !== true) {
     return { outcome: 'refused', reason: String((res && res.error) || 'no_answer') };

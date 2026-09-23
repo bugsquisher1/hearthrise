@@ -109,12 +109,49 @@ const MUTATIONS = {
     find: 'resolveStyle(eq.weaponType, normaliseStyleKeys({ ...(inp.combatStyle || {}) }))',
     replace: 'resolveStyle(eq.weaponType, null)',
   },
+  /* 2026-09-23: the five arms below re-pin section C to where the read ACTUALLY
+     lives. Lane M1f (82606827) moved every envelope -> engine read into ONE
+     shared map in envelope.js, and the two callers now obtain the style only by
+     spreading it. So the defects a reviewer could plausibly write moved too: the
+     ONE source stops projecting, the ONE source starts reading the body, or a
+     caller grows a second answer of its own (a local read, a dropped spread, a
+     copy of the module). `style_from_body` is the SAME arm as before, re-anchored
+     — the property it defends has not changed. */
+  style_source_deleted: {
+    why: 'The ONE envelope -> engine map stops projecting the style, so every caller settles with '
+       + 'resolveStyle(weaponType, null) — the original P0, one file upstream of where it was.',
+    file: 'envelope.js',
+    find: 'combatStyle: st.combat_style ?? null,',
+    replace: 'combatStyle: null,',
+  },
   style_from_body: {
     why: 'The engine reads the style out of the REQUEST instead of the state row — a client '
        + 'could then choose, per call, which skill the server pays.',
-    file: 'index.ts',
+    file: 'envelope.js',
     find: 'combatStyle: st.combat_style ?? null,',
-    replace: 'combatStyle: (body && body.combatStyle) ?? st.combat_style ?? null,',
+    replace: 'combatStyle: (env.body && env.body.combatStyle) ?? st.combat_style ?? null,',
+  },
+  second_style_read_in_index: {
+    why: 'index.ts plants its OWN combat_style read beside the shared map — the second copy M1f '
+       + 'deleted, and the collect and the accrue drift apart the moment the two disagree.',
+    file: 'index.ts',
+    find: '      ...engineInputsFromEnvelope(env, nowMs),',
+    replace: '      ...engineInputsFromEnvelope(env, nowMs),\n'
+           + '      combatStyle: env.state.combat_style ?? null,',
+  },
+  set_activity_bypasses_map: {
+    why: 'set-activity.js stops spreading the shared map and names the style itself, so a COLLECT '
+       + 'and an ACCRUE over the same window route XP by two different answers.',
+    file: 'set-activity.js',
+    find: '    ...engineInputsFromEnvelope(env, nowMs),',
+    replace: '    combatStyle: env.state.combat_style ?? null,',
+  },
+  index_second_map_module: {
+    why: 'index.ts imports the map from a COPY of envelope.js — two field lists again, which is '
+       + 'how `skills {}` reached a Mining-61 character for four days.',
+    file: 'index.ts',
+    find: "import { engineInputsFromEnvelope } from './envelope.js';",
+    replace: "import { engineInputsFromEnvelope } from './envelope-copy.js';",
   },
   catalogue_drift: {
     why: 'A style the client can render that the server would refuse — the player presses a '
@@ -147,6 +184,7 @@ const MUTATIONS = {
 
 const FILES = {
   'accrual.js':  join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js'),
+  'envelope.js': join(ROOT, 'supabase', 'functions', 'hr-accrue', 'envelope.js'),
   'index.ts':    join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'),
   'set-activity.js': join(ROOT, 'supabase', 'functions', 'hr-accrue', 'set-activity.js'),
   'accrue.js':   join(ROOT, 'src', 'net', 'accrue.js'),
@@ -513,6 +551,7 @@ function sectionB() {
 // ════════════════════════════════════════════════════════════════════════
 function sectionC(src) {
   const accrual = stripJs(src['accrual.js']);
+  const envelope = stripJs(src['envelope.js']);
   const index = stripJs(src['index.ts']);
   const setAct = stripJs(src['set-activity.js']);
 
@@ -522,15 +561,42 @@ function sectionC(src) {
     'C: accrual.js never calls normaliseStyleKeys — a partial style map would leave the other '
     + 'families unresolved');
 
-  /* THE A14 MIRROR. index.ts and set-activity.js build the SAME engine input; a
-     field present in one and absent in the other means a COLLECT and an ACCRUE
-     over the same window route XP differently, which is the exact divergence
-     class A14 exists to catch. */
+  /* THE ONE SOURCE (lane M1f, 82606827, 2026-09-22). This used to demand the
+     literal `combatStyle: st.combat_style ?? null` in index.ts AND in
+     set-activity.js, because each hand-copied the envelope -> engine field list.
+     M1f deleted the copies: the map is now ONE function in ./envelope.js and the
+     callers spread it. The PROPERTY is unchanged and stronger — the settle and
+     the collect route XP by the SERVER-STORED style off the row hr_apply locks,
+     and they now read the SAME value BY CONSTRUCTION rather than by two files
+     agreeing. So the literal is pinned where it lives: once. */
+  ok(/combatStyle:\s*st\.combat_style\s*\?\?\s*null/.test(envelope),
+    'C: envelope.js does not read combatStyle from the state row as `st.combat_style ?? null` — '
+    + 'the ONE envelope -> engine map has stopped projecting the style, so every caller settles '
+    + 'with resolveStyle(weaponType, null), i.e. Attack-only: the original P0 through the new '
+    + 'seam, and for the tick as well as for the collect and the accrue');
+
+  /* THE A14 MIRROR, NOW A SOURCING RULE. index.ts and set-activity.js build the
+     SAME engine input; a field present in one and absent in the other means a
+     COLLECT and an ACCRUE over the same window route XP differently, which is
+     the exact divergence class A14 exists to catch. Since M1f the way that is
+     guaranteed is that NEITHER caller sources the style itself: it imports the
+     shared map from ./envelope.js, spreads it into its engine literal, and names
+     no combat style anywhere in its own code. A local read beside the spread is
+     precisely how a second answer comes back — and it is the copy that wins,
+     because it is spread LAST. */
   for (const [name, text] of [['index.ts', index], ['set-activity.js', setAct]]) {
-    ok(/combatStyle:\s*st\.combat_style\s*\?\?\s*null/.test(text),
-      `C: ${name} does not read combatStyle from the state row as \`st.combat_style ?? null\` — `
-      + 'either it is missing (the collect and the accrue would route differently) or it is '
-      + 'reading it from somewhere that is not the row hr_apply locks');
+    ok(/import\s*\{[^}]*\bengineInputsFromEnvelope\b[^}]*\}\s*from\s*'\.\/envelope\.js'/.test(text),
+      `C: ${name} does not import engineInputsFromEnvelope from './envelope.js' — a caller with `
+      + 'its own envelope -> engine map is the second copy M1f deleted, and the halves drift '
+      + 'silently because each one reads a real object and gets an answer');
+    ok(/\.\.\.\s*engineInputsFromEnvelope\s*\(\s*env\s*,/.test(text),
+      `C: ${name} never spreads engineInputsFromEnvelope(env, …) into its engine call — the `
+      + 'style, and every other field hr_state_of owns, would reach the engine by some other '
+      + 'route or not at all');
+    ok(!/combat_?[Ss]tyle/.test(text),
+      `C: ${name} names a combat style in CODE — since M1f the ONLY source is the shared map in `
+      + './envelope.js, so a local `st.combat_style` read, or a second `combatStyle:` key on the '
+      + 'computeAccrual literal, is a second answer to which skill the server pays');
   }
 
   /* NOT FROM THE REQUEST. request.js is the only reader of the body; a style key
@@ -539,10 +605,15 @@ function sectionC(src) {
   ok(!/combat_?[Ss]tyle/.test(request),
     'C: request.js parses a combatStyle field out of the request body — the style must come '
     + 'from player_state and nowhere else');
-  for (const [name, text] of [['index.ts', index], ['set-activity.js', setAct]]) {
+  /* envelope.js is the file that legitimately NAMES the style, so the blanket
+     arm above cannot cover it — this one does. It is also the only place the
+     body could now be smuggled in from: the map is documented PURE (envelope in,
+     engine inputs out) and both callers are already forbidden the spelling. */
+  for (const [name, text] of [['index.ts', index], ['set-activity.js', setAct],
+    ['envelope.js', envelope]]) {
     ok(!/(body|req|intent)\s*\.\s*combat_?[Ss]tyle/.test(text),
-      `C: ${name} reads a combat style off the request — never trust a client value that '
-      + 'decides which skill the server pays`);
+      `C: ${name} reads a combat style off the request — never trust a client value that `
+      + 'decides which skill the server pays');
   }
 }
 

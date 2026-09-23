@@ -1285,6 +1285,42 @@ jobs:
           node tests/party-membership.mjs
           node tests/party-membership.mjs --mutate
 
+      # M8 SLICE 3 — THE SPLIT, AND §18-SEC.3 RULES THAT THIS FILE *IS* THE
+      # SLICE'S §4 SELF-CHECK: "the split is a pure function, so its self-check
+      # is in tests/party-split.mjs --mutate; the migration half has no body."
+      # So there is no migration in this slice at all, and the executing
+      # assertion §18.5 asks for — both share vectors summing to 10,000 bp on a
+      # planted four-member window read back out of hr_tick_shadow — runs here,
+      # inside a transaction that is ROLLED BACK, against the PGlite chain.
+      #
+      # It reads the attribution off `delta->'journal'->'meta'->'party'`, which
+      # is where §18.2.1a puts it and the object hr_apply would receive verbatim;
+      # `hr_tick_shadow.party` is S2's nullable column and does not exist yet, so
+      # the guard DETECTS it and grades both forms the day it lands.
+      #
+      # The plain run is eleven properties over 414 generated windows of 1..4
+      # members: both vectors at exactly 10,000 bp with no band (P-b), the XP
+      # floor and the participation threshold, NO floor on gold or on the lottery
+      # weights (S-5), the remainder to the lowest (user_id, slot) (S-6),
+      # VIGOUR_DRY_MULT on the member's own share with the freed value accounted
+      # rather than redistributed (S-10, and (P-c) as an inequality with an exact
+      # equality underneath), the seven-key nested journal set as an EQUALITY
+      # with a thirteenth top-level meta key still red (B-A5), determinism, and
+      # §18.1's own published Fellowship block reproduced to the basis point.
+      #
+      # --mutate patches a COPY of src/core/party-split.js in a temp dir — never
+      # the tracked file (S-UM-1) — ten times, and each mutant must go red BY THE
+      # PROPERTY THAT NAMES IT: the floor applied to gold, the floor applied to
+      # the lottery weights, the remainder to the highest, a vector at 9,999, an
+      # eighth journal key, VIGOUR_DRY_MULT dropped, a leaked float, the floor
+      # removed, the threshold removed, and the lottery line detached from
+      # damage. A missing anchor exits 2, and the clean arm runs first.
+      - name: M8 parties — the split, and its ten mutants
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-split.mjs
+          node tests/party-split.mjs --mutate
+
       # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
       # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
       # migration's own §5 self-check CANNOT RUN THE DERIVATION on the

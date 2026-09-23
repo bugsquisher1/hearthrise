@@ -452,3 +452,190 @@ a proof file and one debt entry.
   no single file. That is pre-existing debt this lane adds two lines to; it is
   not a reason to block, and a restatement is the wrong fix on the one function
   every client read passes through.
+
+---
+
+# RE-VERIFY — 2026-09-23, `lane/m7-bestiary-backend` @ `2b08a392`
+
+**Reviewer:** security-engineer (veto). **Branch:** `sec/m7-bestiary-2`, cut from that
+lane head. No production or DB access; every "green" below is an exit code I saw.
+Scope: `d7285045..2b08a392` — the two merges (`sec/m7-bestiary`, `set/b551`) plus
+one commit per finding. `2026-09-22-state-of-trophy-prefix.sql` is **byte-identical**
+to the file I signed off (empty diff), so its GO carries unchanged. The net diff of
+`2026-09-22-trophy-claim.sql` is F1 + F2 **plus one hunk from the `set/b551` merge**
+that I read and that matters — see §R4.
+
+## R0. Verdicts
+
+**2026-09-22-state-of-trophy-prefix.sql: GO**
+**2026-09-22-trophy-claim.sql: GO**
+**CLIENT SHIP: GO**
+
+All four conditions are met, and the client ship is a GO **for the release AFTER both
+applies, never the same release and never before file 2** — before file 2 the Claim
+button's only commit point does not exist (`42883` → 500 → `unavailable`), and before
+file 1 the writer is live while the envelope still carries `trophy:%`, which silently
+pushes a long-lived character's quest rows off the `limit 1000` cap. Order:
+**file 1 → file 2 → (next daily cut) client half.** F5 closed with F4. No new finding.
+
+## R1. Per-item ruling
+
+| # | Condition I set | Ruling | The evidence, measured today |
+|---|---|---|---|
+| **F1** | stage class bounded; proven by executing SQL on probe rows only | **CLOSED** | I replayed the repo chain in PGlite twice myself and **materialised** `hr_trophy_of`'s rows (`select *`, not `count(*)`, so the `::int` cannot be planned away) for a character holding `trophy:slime:4` **and** `trophy:<mon>:99999999999`. As committed: **1 row, `{goblin,4}`, no 22003** — the 11-digit key is dropped. With `^[1-9][0-9]*$` restored the chain goes **RED inside the migration itself**: `trophy-claim (f2): an out-of-range stage overflowed hr_trophy_of's ::int (SQLSTATE 22003)`. So §5(f2) is a real execution, it is non-vacuous, and the count *does* force the cast. `node tests/schema-drift.mjs --mutate` → **exit 0**, `caught trophy_stage_unbounded via replay`, all 16 defects caught. `node tests/selfcheck-no-global-dml.mjs` → **exit 0** (209 migrations, 9 global statements, all 9 acknowledged; **neither new file adds one**, so every DML in §5(f2) is `v_uid`-scoped), `--selftest` → **exit 0**, 16/16 planted defects caught, 5 controls silent. |
+| **F2** | the rule written where a ranking author reads it; reservation on the board | **CLOSED** | The binding rule is in **`docs/design/BESTIARY_LADDER.md` §4.3, immediately under the sentence that promises the board** — the paragraph a "trophies claimed" author is reading when they decide what to count — and restated in `2026-09-22-trophy-claim.sql`'s header ("RANK THE JOURNAL"). The lane-C follow-up (`hr_apply` refuses `key like 'trophy:%'`) is on `docs/planning/PRIORITY_BOARD.md:365` with the trigger, the blast radius and why it is not in this lane. That is more than I asked for. **Residual, accepted and unchanged:** the boards themselves dispatch inside `hr_leaderboard__ungated`, which carries no pointer to the rule — writing one there means restating the repo's ranking function, exactly the restatement this lane was right to refuse. |
+| **F3** | key ABSENT on 42883, PRESENT otherwise, test red on the always-emit shape | **CLOSED** | `index.ts:787` is `...(trophyRows ? { trophies: claimed } : {})`, and `trophies?:` is now optional at the type level, so the emit site *cannot* silently re-acquire the key. The two savepoints are separate and `42883` **and only** `42883` degrades to `null`. I restored the always-emit shape in the shipped bytes and ran the guard: **exit 1**, `W1: 'trophies' is PRESENT on the 42883 path…` and `W4: after the 42883 path the mirror records hasTrophyKey TRUE`. The assertion ends at the player-visible question, not at a JSON key. `tests/trophy-wire-shape.mjs` → **exit 0**; `--selftest` → **exit 0**, 3 caught by name, control silent. Both emit sites (this one and `trophy-claim.js`'s `PROJECTION_SQL`) drop rather than fake. |
+| **F4** | id reaches `playerCombatRolls` on BOTH runtimes; preview == engine at stage 4 (1.1845); in-page assertion stays; one-sided mutation red | **CLOSED** | Computed independently of the lane's guard on a monster carrying the 1.15 `NEUTRAL_DROP_BONUS`: `playerCombatRolls` **with** `monsterId` → `1.1844999999999999`, `weaknessInfo(…, id)` → `1.1844999999999999` (equal), **without** it → `1.15`. So 1.15 × 1.03 = **1.1845**, exactly the figure the first review recorded, and the fix is load-bearing rather than cosmetic. Both runtimes carry it: `src/legacy.js:2780` (client) and `hr-accrue/accrual.js` `playerRolls(m)` via `monsterIdIn(monsters, m)` — resolved by identity from the sealed catalogue, never from a row field or the request, so no new client-authored value. `combatCtx` still carries no id, correctly. **One-sided mutation, on the shipped bytes, each reverted after:** dropping it in `legacy.js` → **exit 1** (`C1` + `C2`); dropping it in `accrual.js` → **exit 1** (`C2` + `C3`, `C3` being the damage arm). The in-page assertion at `src/features/smoke/hunt-raids-and-screens.js:2049-2050` **stays, untouched** (the file is not in the lane's diff). `tests/trophy-call-sites.mjs` → **exit 0**; `--selftest` → **exit 0**, 3 caught by name, control silent. **F5 closes with it**: `maxHit` is rolled from this path and `C3` requires the stage to reach the roll, so `TROPHY_DAMAGE_ARM_ENABLED` now names an effect the plumbing can pay. |
+
+**Nothing else moved.** `tests/live-hash-drift.baseline.json` and `RESIDUE_FIELDS`
+(`src/net/client-state.js`) are untouched on the lane (empty diff) — correct, the
+baseline is Coordinator-only. No test was weakened: the only change to
+`tests/bestiary-trophy.mjs` is +8 lines of comment recording that its T6 arm passes
+the id itself and is therefore structurally blind to a caller that does not. The
+expected-red review artifact `tests/sec-bestiary-trophy-proofs.mjs` is **deleted**
+and its `guards-unregistered.json` debt entry removed in the same commit, which is
+what I asked for; `guard-hygiene` is green on that. No version bump, no CHANGELOG —
+correct, the cut is the Coordinator's.
+
+## R2. Guards, on real exit codes
+
+| Command | Exit | Last line |
+|---|---|---|
+| `node tests/bestiary-ladder.mjs` | **0** | green — 108 monsters, 4 stages, every bonus inside the band |
+| `node tests/bestiary-trophy.mjs` | **0** | green — the ladder derives its own multipliers inside the stated ceilings… |
+| `node tests/bestiary-trophy.mjs --selftest` | **0** | every mutation caught by its named assertion, every negative control silent — non-vacuous |
+| `node tests/trophy-wire-shape.mjs` | **0** | green — the trophies key is ABSENT when hr_trophy_of did not answer and PRESENT otherwise… |
+| `node tests/trophy-wire-shape.mjs --selftest` | **0** | all 3 planted defects caught by name, the negative control silent |
+| `node tests/trophy-call-sites.mjs` | **0** | green — both shipped seams pass the monster id… (×1.2200349999999998 at stage 4, charm × trophy) |
+| `node tests/trophy-call-sites.mjs --selftest` | **0** | all 3 planted defects caught by name, the negative control silent |
+| `node tests/schema-drift.mjs` | **0** | repo rebuilds to the committed fingerprint (`8a0ec72d37c8…`) |
+| `node tests/schema-drift.mjs --mutate` | **0** | all 16 planted defects caught (incl. `trophy_stage_unbounded via replay`) |
+| `node tests/selfcheck-no-global-dml.mjs` | **0** | 209 migrations, 9 global statement(s), all 9 acknowledged |
+| `node tests/selfcheck-no-global-dml.mjs --selftest` | **0** | all 16 planted defects caught, 5 controls silent |
+| `node tests/accrual-engine.mjs` | **0** | full fixture set green |
+| `node tests/delta-transport.mjs` | **0** | delta-transport guard — GREEN |
+| `node tests/apply-order-honesty.mjs` | **0** | 30 file(s) carry a measured verdict… every note agrees with the live-hash baseline |
+| `node tests/world-tick-parity.mjs` | **0** | parity fixtures green |
+| `node tests/guard-hygiene.mjs` | **0** | PASSED — no orphans, no ghosts, no stale entries, no vacuous proofs |
+| `node tests/ci-shape.mjs` | **0** | run-ci-local --list enumerates the whole matrix |
+| `node tools/derive-grant-hygiene.mjs --check` | **0** | derivation in sync (**11 links, 12 patches**) |
+| `node tools/pack-edge.mjs hr-accrue --check` | **0** | 78 files (47 vendored), 1767.7 KB |
+| `node tools/lane-done.mjs` | **0** | **lane-done: all green.** |
+| `node tests/live-hash-drift.mjs` (replay half) | **1** | **RED BY DESIGN — exactly two bodies move.** See §R3. |
+
+`npm install --no-audit --no-fund` was run in this worktree (a registry install, not a
+purchase; the 2026-08-17 budget freeze is untouched).
+
+## R3. ⚠ THE §5 AND §6 FIGURES HAVE MOVED — USE THESE, NOT THE ONES ABOVE
+
+`2026-09-21-engine-allowlist-tick-settle.sql` **applied to production on 2026-09-22
+21:26 UTC**, after the first review was written. The detector's live body moved with
+it, so **query (9b) as written in §5 above is now a false STOP.** The baseline
+(`live_measured: 2026-09-22`) records what production actually holds:
+
+| Function | Production holds today (normalised md5 / length) | Repo rebuilds to, after both applies |
+|---|---|---|
+| `hr_assert_grant_hygiene(p_strict boolean)` | `04bb41b05e0d05181c7e5bcab8522ad2` / **29451** | `5c39579b8ab9f609cfe863ca9ad3dbcb` / **31838** |
+| `hr_state_of(p_user uuid, p_slot integer)` | `50913bae9c63bd8b7984fcdd30e5d1b4` / **29802** | `5527d069e857db9cb653445d12b239d7` / **30524** |
+
+The old §6 figures (`638425ee…`/26804 and `18004554…`/29191) are **superseded**.
+
+And the restatement itself is now **safer than when I first reviewed it**: §4b was
+regenerated on the `set/b551` merge and the restated `c_engine_allow` carries
+**23 entries**, head-insertion only — the two trophy functions **on top of**
+`hr_tick_settle(text,uuid,integer,text,bigint,timestamptz,timestamptz,uuid,jsonb)`.
+So the apply no longer reverts the 2026-09-21 allowlist that is live. That was the
+b484–b487 risk I flagged in §3; it is closed for this apply, and query (9) below is
+still the read that keeps it closed.
+
+After both applies: **exactly two baselined bodies move** (the two above) and the
+baseline grows **50 → 52** — the two added names must be exactly `hr_trophy_of` and
+`hr_trophy_claim`. A third moved body means something unreviewed rode along: stop and
+read it. `restore-census`: no new table; re-run and confirm the count is unchanged
+rather than assuming it.
+
+## R4. COORDINATOR RUNBOOK
+
+**Pre-apply, read-only:** run §5's queries (1)–(5) before file 1, (6) before **and**
+between, (7)–(11) before file 2 — **with (9b)'s expected value replaced by
+`04bb41b05e0d05181c7e5bcab8522ad2` / 29451** per §R3. A mismatch on (9a) or (9b) is
+still a STOP.
+
+**Apply — one file per call, never inside `begin/commit`, never 00:00–00:10 UTC, and
+the order is not interchangeable** (file 2's §0 refuses to install without file 1):
+
+```bash
+node tools/apply-migration.mjs supabase/migrations/2026-09-22-state-of-trophy-prefix.sql
+node tools/apply-migration.mjs supabase/migrations/2026-09-22-trophy-claim.sql
+```
+
+**Expected self-check output.** File 1, in order:
+
+```
+NOTICE:  hr_state_of patched: the trophy population leaves the generic envelope
+NOTICE:  state-of trophy prefix PASSED: trophy keys are excluded from BOTH the progress array and its truncation flag, the collection-log milestones and ordinary stats still ride, the bestiary and collection exclusions survived, and no grant moved
+```
+
+(`hr_state_of already excludes trophy:% — patch skipped` is the **re-apply** line and
+is correct on a second run only. Seeing it on the FIRST apply means the namespace was
+already patched by something else: stop.) File 2:
+
+```
+NOTICE:  trophy-claim PASSED: hr_engine-only and absent from the client baseline, an unknown monster and a below-threshold claim refused with the server's own count, one progress row and one ledger row per trophy, already_owned and replayed kept apart, no currency no item no xp and no accrued_to movement, an out-of-range stage dropped rather than cast, and the projection scoped to its owner
+```
+
+The **`an out-of-range stage dropped rather than cast`** clause is F1's proof landing
+on production. If it is absent, an old copy of the file was applied: stop.
+
+**Post-apply, read-only verification** (the read-only agent, not the applier):
+
+```sql
+select public.hr_assert_grant_hygiene(true);                                     -- every array empty, no raise
+select count(*) from public.hr_client_rpc_baseline where proname like 'hr_trophy%';  -- 0
+select has_function_privilege('hr_engine',     'public.hr_trophy_of(uuid,integer)','execute') as of_engine,   -- t
+       has_function_privilege('authenticated','public.hr_trophy_of(uuid,integer)','execute') as of_auth,     -- f
+       has_function_privilege('anon',         'public.hr_trophy_of(uuid,integer)','execute') as of_anon,     -- f
+       has_function_privilege('service_role', 'public.hr_trophy_of(uuid,integer)','execute') as of_svc;      -- f
+select has_function_privilege('hr_engine',     'public.hr_trophy_claim(uuid,integer,text,integer,text)','execute') as cl_engine, -- t
+       has_function_privilege('authenticated','public.hr_trophy_claim(uuid,integer,text,integer,text)','execute') as cl_auth,   -- f
+       has_function_privilege('anon',         'public.hr_trophy_claim(uuid,integer,text,integer,text)','execute') as cl_anon,   -- f
+       has_function_privilege('service_role', 'public.hr_trophy_claim(uuid,integer,text,integer,text)','execute') as cl_svc;    -- f
+select count(*) from public.player_progress where key like 'trophy:%';           -- 0 (nobody has claimed yet)
+select count(*) from public.player_ledger   where intent = 'trophy_claim';       -- 0 (F2's ranking population)
+-- the F1 class, read against the INSTALLED body rather than the file:
+select pg_get_functiondef('public.hr_trophy_of(uuid,integer)'::regprocedure)
+       like '%[1-9][0-9]{0,2}%' as stage_class_bounded;                          -- t
+-- the tick-settle allowlist entry SURVIVED the §4b restatement (see §R3):
+select pg_get_functiondef('public.hr_assert_grant_hygiene(boolean)'::regprocedure)
+       like '%hr_tick_settle%' as tick_settle_still_allowed;                     -- t
+```
+
+Every query in this block was **executed against the replayed chain** before it was
+written here — all eight return the documented answer, `hr_assert_grant_hygiene(true)`
+included (all nine arrays empty, no raise). A runbook nobody ran is a runbook.
+
+**Then:** `node tests/live-hash-drift.mjs --live --write` (expect **only** the two
+moves in §R3's right-hand column, baseline 50 → 52), whys written from `--codediff`;
+flip both `tests/schema-apply-order.json` notes to APPLIED; `restore-census` re-run and
+confirmed unchanged. `node tests/apply-order-honesty.mjs` must stay exit 0 afterwards.
+
+**Edge deploy** (`supabase/functions/**` moved — F3 is in `index.ts`, F4 in
+`accrual.js`), and it belongs to the **client-half release**, not to the applies:
+
+```
+node tools/pack-edge.mjs hr-accrue --hash
+→ df0db01bc12406451840bccb0809668b65e293adf5328ac5477359a362f71009
+```
+
+Verify the live `payload_sha256` equals that after deploy. `pack-edge` strips `?v=`
+from vendored specifiers, so the daily cut's cache-buster bump does **not** move this
+hash — but re-measure `--hash` on the exact commit deployed rather than trusting this
+line, since any further code change to the 78 packed files will.
+
+## R5. Residual risks I am accepting (unchanged, plus one)
+
+Everything in §10 stands. Added: **the "trophies claimed" rule is written in the design
+doc and the migration header, not enforced by the database** — the `hr_apply` key
+reservation is the lane-C follow-up on the board, and until it lands a compromised Edge
+could author a trophy row with no ledger row beside it. Self-scoped, mints nothing,
+crosses to nobody, and closed for ranking purposes by the binding rule.

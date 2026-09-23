@@ -182,7 +182,8 @@ alter table auth.users add column if not exists role text;
  *        chain, so a stale upTo cannot silently boot the whole thing.
  * @returns {Promise<{db:any, applied:string[], failures:{file:string,error:string}[]}>}
  */
-export async function bootReplay({ patches, seedBefore, tolerant = false, upTo } = {}) {
+export async function bootReplay({ patches, seedBefore, tolerant = false, upTo,
+                                   sessionTimeZone = 'UTC' } = {}) {
   let PGlite;
   try { ({ PGlite } = await import('@electric-sql/pglite')); }
   catch {
@@ -266,6 +267,16 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo }
   // set_config(..., false) is SESSION state and is NOT inside a data-directory
   // snapshot. It runs on every boot, cached or not.
   const session = async (d) => {
+    // TIME ZONE FIRST, BEFORE THE GUCS. PGlite inherits the MACHINE's zone, so
+    // every `timestamptz` the replay renders comes out in it — and TZ in the
+    // environment does not reach it. Production is UTC, and the combat driver's
+    // seed label is the SERVER's own rendering of the window start
+    // (`rosterWatermarkText`, Security T-2/S-3: a Date or the driver's text is
+    // the thing that must never spell it). So a Coordinator on Chicago time read
+    // `…T00:22:02.413-06:00` off the envelope and world-tick-hydration threw,
+    // on code that is correct in production. Pinning the session to UTC makes
+    // the replay render what the server renders, on any machine.
+    await d.exec(`set time zone '${String(sessionTimeZone).replace(/'/g, "''")}'`);
     for (const [k, v] of gucs) {
       await d.exec(`select set_config('${k.replace(/'/g, "''")}','${String(v).replace(/'/g, "''")}',false)`);
     }

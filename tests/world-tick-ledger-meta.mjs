@@ -7,6 +7,11 @@
 //   node tests/world-tick-ledger-meta.mjs --mutate   plant the old spellings,
 //                                                    require each to go red
 //
+// HR_LEDGER_META_DESIGN / HR_LEDGER_META_RUNBOOK override the two document
+// paths (default: the repo's own). They exist so the CRLF path this guard was
+// blind to can be PROVEN on an LF checkout — point them at `sed 's/$/\r/'`
+// copies and the run must stay green — not so a checkout can dodge the guard.
+//
 // ── THE FAILURE THIS EXISTS TO KILL ─────────────────────────────────────────
 // `hr_apply` writes a ledger row's meta as
 //
@@ -71,17 +76,27 @@ function judge(id, pass, good, bad) {
 }
 const group = (t) => console.log(`\n${t}`);
 
-const DESIGN = join(ROOT, 'docs', 'planning', 'WORLD_TICK_DESIGN.md');
+const DESIGN = process.env.HR_LEDGER_META_DESIGN
+  || join(ROOT, 'docs', 'planning', 'WORLD_TICK_DESIGN.md');
 /* THE OPERATOR'S RUNBOOK for the combat arm — the file the Coordinator actually
    pastes from. When the runbook moves, this constant moves with it (L-8). */
-const RUNBOOK = join(ROOT, 'docs', 'planning', 'SEC_WORLD_TICK_M3_2026-09-22.md');
+const RUNBOOK = process.env.HR_LEDGER_META_RUNBOOK
+  || join(ROOT, 'docs', 'planning', 'SEC_WORLD_TICK_M3_2026-09-22.md');
+
+/* EVERY DOC READ GOES THROUGH HERE, LINE ENDINGS NORMALISED. The fence regexes
+   below match a literal '```sql\n'; on a CRLF checkout (git autocrlf, which is
+   how the Coordinator's Windows clone lands) the byte before the newline is a
+   \r and NONE of the three matched — L-1 threw "found 0" and L-8 graded an
+   empty runbook, on documents that are correct. The repo is LF; the working
+   copy need not be, so normalise on the way in rather than pinning the checkout. */
+const readDoc = (path) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const U = '00000000-0000-4000-8000-0000000d0001';
 
 /* THE §16.6 BLOCK, OUT OF THE DOCUMENT. Found by its own marker comment rather
    than by line number, so ordinary edits above it do not silently change what
    this guard executes. */
 function designAttendedQuery() {
-  const md = readFileSync(DESIGN, 'utf8');
+  const md = readDoc(DESIGN);
   /* The fence is INDENTED — §16.6's block sits inside a numbered list — so the
      opening indent is captured and stripped off every line. A regex that
      assumed column 0 would silently find no block and this guard would report
@@ -284,7 +299,7 @@ try {
   // ── L-6 ── NO SQL BLOCK IN THE DESIGN MAY ADDRESS meta->'meta' ───────────
   group('L-6  the whole design file, not just §16.6');
   {
-    const md = readFileSync(DESIGN, 'utf8');
+    const md = readDoc(DESIGN);
     /* EXECUTABLE sql only. §16.6 deliberately NAMES the wrong spelling in a
        `--` comment so the next reader sees which level is the trap; a guard
        that counted that as a defect would push the warning out of the file. */
@@ -301,7 +316,7 @@ try {
   // ── L-7 ── NO LITERAL PAYLOAD HASH MAY LIVE IN THE DESIGN (S-6b) ─────────
   group('L-7  §16.10 names no payload hash — it names how to measure one');
   {
-    const md = readFileSync(DESIGN, 'utf8');
+    const md = readDoc(DESIGN);
     /* A pack hash is 64 hex characters. Truncated forms (`9f9ec411…`) are
        HISTORY and are allowed on purpose: §16.10 lists the stale ones by their
        short form precisely so a reader who finds one in an old review knows why
@@ -346,7 +361,7 @@ try {
   // statements that are perfectly correct.
   group('L-8  every sql statement in the combat runbook, executed and rolled back');
   {
-    const md = readFileSync(RUNBOOK, 'utf8');
+    const md = readDoc(RUNBOOK);
     const blocks = [...md.matchAll(/^([ \t]*)```sql\n([\s\S]*?)^\1```/gm)]
       .map((m) => m[2].split('\n').map((l) => (l.startsWith(m[1]) ? l.slice(m[1].length) : l)).join('\n'));
     const bads = [];

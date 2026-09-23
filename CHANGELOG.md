@@ -4,6 +4,26 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 552 — 2026-09-23 (Hunts get orders, trophies go live)
+
+The fifth daily release. Everything server-side below was applied and verified on the realm during the night; this build is the client that shows it.
+
+**Bestiary trophies are live.** Kill 2,500 of one monster and the realm awards its first trophy stage; 5,000, 10,000 and 20,000 follow. The trophy is claimed by the realm from your own bestiary count, never from a number the browser sends.
+
+**Hunts take standing orders.** Pick a stance for a hunt — Careful (eat at 75% health, stop when the quiver runs dry, stop after two falls), Steady (eat at half, keep swinging) or Reckless (eat at a quarter, keep swinging) — and set stop orders: a time limit, a food floor, an ammo floor and a fall count. The realm honours them whether your tab is open or closed.
+
+**The Hunt Analyzer.** A readout of what a hunt has actually paid: kills, gold and XP per hour, deaths and food eaten, computed by the realm from its own ledger over the last 24 hours of the hunt. It is a reading, not a promise, and it says when it is capped.
+
+**Vigour, held for now.** Every character now carries a daily hunting budget on the realm. The bar that shows it is deliberately not drawn yet: the refill shop has no prices until they are ruled on, and a meter you cannot act on would only raise questions. It arrives with the prices.
+
+**The top bar follows the realm.** After a daily claim (or any reward, sale, purchase or listing) the gold and gems in the top bar now repaint from the realm's answer the moment it lands. They used to keep the old number until something else happened to repaint them, so the bar could say 500 while the realm said 1,000.
+
+**A tab from an older build can save again.** If your browser is behind the realm, its saves used to be refused whole for carrying a field the realm no longer stores; the realm now strips the retired field, journals it, and takes the rest.
+
+**A hidden tab keeps itself current.** A tab left in the background checks for a new build every six hours and reloads itself when one has shipped.
+
+**Under the hood.** Parties have their first server objects: a party, its members and its invites now exist on the realm with the five membership verbs (create, invite, accept, leave, kick), rate-limited, journalled and reviewed; there is no party screen yet and no hunting through a party until later slices ship. The world tick's combat channel is applied and armed in shadow (it pays nothing and changes nothing you can see); the tick now authenticates every fire with a per-request derived token; the push channel for live counters is applied on the realm with its switch off, its frame is now built from the envelope the realm already computes for you (one projection per write, measured at half a millisecond instead of ten), and it stays off until Reliability signs its retention; two production migrations that had been recorded as staged for a month are now honestly recorded as applied; the live-hash guard attributes a migration only when it restates a body; and four guards that could go red on one machine but not another are pinned to production's time zone, line endings and file-linking rules.
+
 ## v0.9.2-beta build 551 — 2026-09-22 (The realm starts ticking)
 
 **The world ticks on the server.** In shadow mode, the realm now advances a test character's gathering every 10 seconds on its own, side by side with the settle you already know, and pays nothing yet. When the two agree for 48 hours straight, gathering will stop waiting for you to come back. Nothing changes for players in this build.

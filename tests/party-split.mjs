@@ -108,13 +108,13 @@ const bad = (id, msg) => console.log(`  ✗ ${id} — ${msg}`);
 /** The mutated copy lives outside src/, so its one relative import has to be
     re-pointed at the real file. Everything hunt.js itself imports keeps
     resolving relative to hunt.js, which is where it lives. */
-const HUNT_URL = `${pathToFileURL(join(ROOT, 'src', 'core', 'hunt.js')).href}?v=551`;
+const HUNT_URL = `${pathToFileURL(join(ROOT, 'src', 'core', 'hunt.js')).href}?v=552`;
 
 let TMP = null;
 let planted = 0;
 
 async function loadSplit(patch) {
-  if (!patch) return import(`${pathToFileURL(SRC).href}?v=551`);
+  if (!patch) return import(`${pathToFileURL(SRC).href}?v=552`);
   const raw = await readFile(SRC, 'utf8');
   const hits = raw.split(patch.from).length - 1;
   if (hits !== 1) {
@@ -122,7 +122,7 @@ async function loadSplit(patch) {
   }
   const body = raw
     .replace(patch.from, patch.to)
-    .replace("'./hunt.js?v=551'", JSON.stringify(HUNT_URL));
+    .replace("'./hunt.js?v=552'", JSON.stringify(HUNT_URL));
   const file = join(TMP, `party-split.${patch.id}.${++planted}.mjs`);
   await writeFile(file, body, 'utf8');
   return import(pathToFileURL(file).href);

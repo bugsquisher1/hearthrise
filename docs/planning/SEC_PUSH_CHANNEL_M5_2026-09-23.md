@@ -2009,3 +2009,25 @@ corrected in the migration and in `LIVE_COUNTERS_PUSH.md` §6.1), **R5** and
 - **Still true of every green in §4.** A guard's exit code proves the defects
   somebody planted are caught. R7 is what that sentence looks like when it
   bites.
+
+---
+
+# Coordinator measurement — CONDITION 8a (RE-VERIFY 4 §2.2), 2026-09-23 07:25 UTC
+
+The apply's own addition with `frame_push` left **false**: one single-row `hr_tick_config` read and
+the early return, inside the QA character's `player_state` row lock, 100 samples per run, three
+runs, each rolled back through `raise exception` (nothing persisted). `frame_push` does not exist on
+production until the apply, so it is read through `to_jsonb(v_cfg)->>'frame_push'` and defaults to
+false, which is what `coalesce(v_cfg.frame_push, false)` will do.
+
+| run (UTC) | early returns | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|
+| 07:25:09 | 100/100 | 0.020 ms | **0.028 ms** | 0.054 ms | 1.072 ms |
+| 07:25:13 | 100/100 | 0.021 ms | **0.030 ms** | 0.069 ms | 1.156 ms |
+| 07:25:17 | 100/100 | 0.020 ms | **0.025 ms** | 0.062 ms | 1.079 ms |
+
+**8a is MET**: every sample's `TOTAL p95` is under 0.05 ms against the ≤ 0.5 ms line. The trigger's
+dispatch overhead itself is not in this figure (the trigger is not installed until the apply) and is
+intrinsic to `AFTER UPDATE … WHEN (new.version is distinct from old.version)`.
+
+Condition 8b (the flipped channel, 10.1 ms) stays NOT MET and gates the flag flip, exactly as ruled.

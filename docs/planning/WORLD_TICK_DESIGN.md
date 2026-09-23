@@ -2029,23 +2029,29 @@ attended=false bucket; whether `combatStyle` and `enchant` move a real
 character's window, since both measured inert on these fixtures; and the
 `too_many_progress_ops` rate at real flush lengths.
 
-**⚠ THE EDGE PAYLOAD HASH MOVES, AND IT HAS MOVED TWICE.**
-`tick-shadow.js` is IN the payload (`tick.js` → `tick-gather.js` → it), so the
-eleven-input change moves `pack-edge --hash` off
-`253215e48d3e2b3ccd3d1ebec1f52e529d3e8cf50147429ef80915c680ab14d8` — the exact
-hash `SEC_WORLD_TICK_M1_2026-09-21.md` returns **BLOCK** at.
+**⚠ THIS SECTION NAMES NO PAYLOAD HASH, AND THAT IS THE RULE (Security S-6b,
+2026-09-23).** It named one three times and the literal was stale all three
+times — `253215e4…`, then `df215d58…`, then `e76ae11c…`, then `9f9ec411…` —
+because every merge into the lane moves it. An operator verifying
+`payload_sha256` against a number written down days earlier chases a deploy
+that in fact succeeded, and a document that keeps a value which rots by
+construction will keep producing that finding. So the value is no longer
+written here at all:
 
-**The hash to verify after the deploy is
-`9f9ec411bfefe428056df54b0cb9947fe683bfe5254096790f8d09ed997138f3`**, measured
-with `node tools/pack-edge.mjs hr-accrue --hash` at this lane's head. Two
-earlier numbers are in circulation and BOTH are stale, which is the whole
-reason this paragraph names how it was measured rather than only what it says
-(Security S-6): `df215d58…` was the hash at `ea889df`, before the lane merged
-`next`, and `e76ae11c…` was the hash at `59b748e5`, before it merged `next`
-again for the fence's `::text::jsonb` delta fix. An operator who verifies
-`payload_sha256` against either will chase a deploy that in fact succeeded.
-Nothing in the S-1/S-2/S-3 fixes moves it again: they live in
-`services/world-tick/combat.js`, which `pack-edge --check` does not list.
+> **MEASURE IT AT THE SHA YOU ARE DEPLOYING.** Run
+> `node tools/pack-edge.mjs hr-accrue --hash` at the exact commit being
+> deployed, and verify the live function's `payload_sha256` equals **that**
+> output. Never against a hash quoted in this file, in a review, or in a
+> changelog — all three are historical by the time they are read.
+
+The payload genuinely does move, which is why the instruction is a
+measurement and not a constant: `tick-shadow.js` and `tick-gather.js` are in it
+(`tick.js` → them), and since 2026-09-23 so is `tick-combat.js` — the combat
+settler MOVED into `supabase/functions/hr-accrue/` when `tick.js` learned to
+dispatch on `active_kind` (Security S-8). The older note that the combat fixes
+"live in `services/world-tick/combat.js`, which `pack-edge --check` does not
+list" was true when written and is **no longer**: that file is a re-export now,
+and a change to the settler moves the payload hash like any other edge file.
 
 Two consequences, neither optional:
 

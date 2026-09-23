@@ -46,6 +46,16 @@
 // `hr_tick_config.flush_seconds` (not `flush_ms`), `hr_kill_credit_log
 // .created_at` (not `at`), and deaths as their own `intent = 'death'` rows
 // (not a `meta->'delta'->'deaths'` array, which is always absent).
+//
+// ── L-7, THE SAME CLASS ONE FIELD OVER (Security S-6b) ──────────────────────
+// §16.10 used to name the edge payload hash to verify a deploy against, as a
+// literal. Every merge into the lane moves that value, so it was stale all
+// three times it was written down and Security filed it three times. A
+// verification target that rots by construction is the same defect as a query
+// addressing a level that does not exist: an instruction in the runbook that
+// reads wrong when an operator executes it. L-7 requires the design to name NO
+// full-length payload hash, so the only way to answer "what should
+// payload_sha256 be" stays `pack-edge --hash` at the SHA being deployed.
 // ============================================================================
 
 import { readFileSync } from 'node:fs';
@@ -283,6 +293,29 @@ try {
       + '(the prose naming the defect is not a query and is left alone)',
       `${bad.length} sql block(s) still address meta->'meta' — an operator running them reads `
       + `an empty result as a defect:\n${bad.join('\n---\n').slice(0, 600)}`);
+  }
+
+  // ── L-7 ── NO LITERAL PAYLOAD HASH MAY LIVE IN THE DESIGN (S-6b) ─────────
+  group('L-7  §16.10 names no payload hash — it names how to measure one');
+  {
+    const md = readFileSync(DESIGN, 'utf8');
+    /* A pack hash is 64 hex characters. Truncated forms (`9f9ec411…`) are
+       HISTORY and are allowed on purpose: §16.10 lists the stale ones by their
+       short form precisely so a reader who finds one in an old review knows why
+       it must not be trusted. It is the full-length value — the only form an
+       operator can paste into a comparison — that must not be here. */
+    const literals = [...new Set((md.match(/\b[0-9a-f]{64}\b/g) || []))];
+    const measures = /pack-edge\.mjs hr-accrue --hash/.test(md);
+    judge('L-7', literals.length === 0 && measures,
+      'the design names no full-length payload hash and does tell the operator to run '
+      + '`pack-edge --hash` at the SHA being deployed — so there is no value here to go stale',
+      literals.length
+        ? `${literals.length} full-length hash literal(s) are back in WORLD_TICK_DESIGN.md: `
+          + `${literals.map((h) => h.slice(0, 8) + '…').join(', ')}. Every merge moves the payload, `
+          + 'so a written-down hash is stale by construction and an operator verifying against it '
+          + 'chases a deploy that succeeded (Security S-6, filed three times).'
+        : 'the design no longer tells the operator HOW to measure the hash — removing the literal '
+          + 'without leaving the instruction is worse than the literal was');
   }
 } finally {
   await db.close();

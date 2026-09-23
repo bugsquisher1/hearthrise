@@ -318,6 +318,18 @@ Slice 1 ships Vigour **read-only**: the meter displays, the charge accrues, and
 the refill button does not exist. That keeps the first playable slice out of the
 money lane entirely.
 
+**TYLER — 2026-09-23, still unanswered, and the figures below are PLACEHOLDERS.**
+Nothing in the repo records his ruling, so the backend lane did not invent one.
+The four numbers ship as **catalogue rows** (`hr_vigour_prices`, seeded
+2,000 / 6,000 / 18,000 / 54,000 / 162,000 — ×3 within the UTC day, five rungs)
+and one imported constant (`VIGOUR_DRY_MULT`, currently `AMMO_DRY_MULT` = 0.25),
+which is the right shape: **his answer is a reviewed `UPDATE`, not a code
+change**, and the row count IS the per-day cap so a sixth rung re-opens the
+Security review. Condition 5 of `docs/planning/SEC_HUNTS_M6_2026-09-22.md`:
+*"the refill verb must not reach production with four unanswered money numbers
+in it."* Nothing about the playable slice waits on this — slice 1 ships no
+refill control at all — but `2026-09-22-vigour-refill.sql` does.
+
 ---
 
 ## 5. Anti-abuse

@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 1510,
+ "replay_ms": 1509,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -706,13 +706,15 @@
    "sig": "hr_put_client_state__ungated(p_slot integer, p_patch jsonb, p_idem uuid)",
    "name": "hr_put_client_state__ungated",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-08-22-client-state-denylist.sql",
+    "2026-08-28-client-state.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-13-client-state-buffs-denylist.sql",
-    "2026-09-14-client-state-projection-denylist.sql"
+    "2026-09-23-client-state-retired-fields.sql"
    ],
    "live": {
     "md5": "9674ca3ac77631b5e4b92c30a8ad4131",
@@ -722,12 +724,12 @@
     "mojibake": true
    },
    "replay": {
-    "md5": "2a9514c48a67b4cca6279413a60fb75c",
-    "norm_len": 4353,
+    "md5": "17ebca77a2158d319b07a7b32f465317",
+    "norm_len": 6735,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-14 08:05 UTC: DELIBERATELY DIVERGENT — 2026-09-14-client-state-projection-denylist.sql is STAGED, NOT APPLIED (adds nine residue names to the deny-list); the repo chain rebuilds to 2a9514c4/4353 while production runs 9674ca3a/3947 (the 2026-09-13 buffs denylist, applied 20:47 that day, matched the replay to the code at the time). Security timing condition: apply no earlier than 24 h after the b547 client (which stops sending the nine) is live, because a forbidden key refuses the whole put for a stale tab. Converges on apply; re-measure then."
+   "why": "2026-09-23: hr_put_client_state__ungated — the STAGED 2026-09-14-client-state-projection-denylist.sql was REMOVED from the chain by lane/client-state-retired-fields (superseded by 2026-09-23-client-state-retired-fields.sql, Security GO-WITH-CHANGES S1); the replay now equals the live body it was deliberately diverging from. The 2026-09-23 file is STAGED, not applied; re-measure after its apply."
   },
   {
    "sig": "hr_rate_gate(p_user uuid, p_slot integer, p_bucket text)",

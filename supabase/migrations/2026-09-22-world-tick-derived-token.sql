@@ -1093,7 +1093,15 @@ end $$;
 --                                  'select public.hr_tick_cron_run()');
 --   which is revoked the same way.
 --
---   ROLLING BACK THIS FILE means re-applying 2026-09-21-world-tick-cron.sql
---   (which restates `hr_tick_cron_run` in its static form) and re-deploying the
---   previous hr-accrue payload. Both halves, in that order, behind the kill
---   switch — and it puts the T-5.3 block back, so M2 is blocked again.
+--   ROLLING BACK THIS FILE means re-deploying the previous hr-accrue payload
+--   and re-applying 2026-09-21-world-tick-cron.sql (which restates
+--   `hr_tick_cron_run` in its static form). Both halves, behind the kill switch,
+--   and THE DEPLOY GOES FIRST on the way back — the mirror of step 2-then-3
+--   going out, for the same reason: the half that ACCEPTS must never be older
+--   than the half that SENDS. It puts the T-5.3 block back, so M2 is blocked.
+--
+--   ★ "THE PREVIOUS PAYLOAD" IS A VALUE, AND IT IS ONLY READABLE BEFORE STEP 3
+--     (Security T-4). Before deploying, `curl` the function's GET and write its
+--     `payload_sha256` down — step 3 overwrites it and nothing else records it.
+--     The full rollback runbook, with the command that proves you packed the
+--     right commit, is WORLD_TICK_DESIGN.md §17.11 (P3).

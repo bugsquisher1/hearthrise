@@ -1820,6 +1820,8 @@ select name, length(decrypted_secret) as len from vault.decrypted_secrets
 --   the helper's own floor — a short secret refuses on BOTH sides, by design).
 
 -- (P4) ★ the state the apply lands in, and R-T1's size (Security T-2).
+--      ...and see (P3) below, which is a shell read rather than a SQL one and
+--      is the only one of these that STOPS BEING READABLE once step 3 runs.
 select enabled, shadow, cadence_seconds, flush_seconds, edge_url
   from public.hr_tick_config;
 --   EXPECT shadow = true. THIS FILE DOES NOT FLIP IT.
@@ -1834,6 +1836,35 @@ select enabled, shadow, cadence_seconds, flush_seconds, edge_url
 --      about a real batch.
 select count(*) as owned from public.hr_tick_ownership where owned;
 ```
+
+**★ (P3) THE ROLLBACK VALUE — read it now, because step 3 overwrites it**
+(Security T-4, 2026-09-23). The rollback below says "re-deploy the previous
+hr-accrue payload", and until this read is written down, *nothing anywhere
+records what that payload is*. A deploy is not reversible by memory.
+
+```bash
+curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
+#   -> the GET returns `payload_sha256`. WRITE IT DOWN, here, before step 3:
+#
+#        PREVIOUS payload_sha256 = ____________________________________________
+#        read at (UTC)           = ____________________________________________
+#
+#   This is the ONLY pre-flight read that cannot be taken again afterwards.
+#   If the GET does not answer, STOP: a function you cannot read is a function
+#   you cannot roll back to, and the cutover can wait for that.
+```
+
+⚠ **Do not copy a payload hash out of a document — including this one.** The
+value moves whenever anything under `supabase/functions/**` moves, and on this
+branch it already has: Security's review recorded
+`1b97422cd1542ec36224e37e930cc0df5370b76968f1fc2d60316f62c3bd24ec` on
+2026-09-23, and merging `origin/next` (M1f's `hr-accrue/envelope.js` and the M5
+frame gate) took the packed payload to
+`92f5d8b5fab1be4e7516ed94f7d82b7f587877b171c17cdad3e7b3587db32fd6`. Both
+numbers are correct for the tree that produced them and neither is
+authoritative for yours. **`node tools/pack-edge.mjs hr-accrue --hash` at
+deploy time is the number that matters**; what this section pins is the READ,
+not the digest.
 
 **Order.** Steps 1 and 4 are the seam; between them the tick posts nothing, so
 no build ever exists that accepts both forms.
@@ -1863,8 +1894,12 @@ npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
   --project-ref nezapsylztqbbwuwembx
 node tools/pack-edge.mjs hr-accrue --hash
 curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
-#    The GET's `payload_sha256` MUST equal --hash. On this branch that is
-#    1b97422cd1542ec36224e37e930cc0df5370b76968f1fc2d60316f62c3bd24ec.
+#    The GET's `payload_sha256` MUST equal --hash — compare the two VALUES you
+#    just read, never a value from a document (see (P3)). On this branch
+#    --hash is 92f5d8b5fab1be4e7516ed94f7d82b7f587877b171c17cdad3e7b3587db32fd6
+#    as of the origin/next merge; re-read it rather than trusting that.
+#    ★ (P3) must already be written down. If it is not, go back — the previous
+#      payload_sha256 is no longer readable once this deploy lands.
 
 # 4. RE-ARM
 #    update public.hr_tick_config set enabled = true;
@@ -1901,7 +1936,46 @@ client can stop the world tick. After it the job is **gone, not paused**; re-arm
 with `select public.hr_cron_ensure('hr-tick-run', '10 seconds', 'select
 public.hr_tick_cron_run()');`.
 
-**Rolling this lane back** is re-applying `2026-09-21-world-tick-cron.sql` (which
-restates `hr_tick_cron_run` in its static form) and re-deploying the previous
-hr-accrue payload, both behind the kill switch, in that order — and it puts the
-T-5.3 block back, so M2 is blocked again.
+**Rolling this lane back.** Both halves, behind the kill switch, and the
+**deploy goes first** on the way back for the same reason the migration went
+first on the way out: the half that ACCEPTS must never be older than the half
+that SENDS. Both intermediate states refuse, so neither direction can pay.
+
+```bash
+# 1. STOP THE FIRES
+#    update public.hr_tick_config set enabled = false;
+
+# 2. RE-DEPLOY THE PREVIOUS PAYLOAD — the one (P3) recorded. <P3_HASH> is that
+#    value; it is not in this file and cannot be, because it describes what was
+#    live before you started.
+git log --oneline -- supabase/functions/hr-accrue   # find the deployed commit
+git worktree add /tmp/hr-rollback <that commit>
+# pack-edge derives its ROOT from its OWN path, so run the copy INSIDE the
+# rollback worktree and it packs that tree (verified 2026-09-23). There is no
+# --root flag; reaching for one is how a rollback quietly packs HEAD instead.
+node /tmp/hr-rollback/tools/pack-edge.mjs hr-accrue --hash
+#    ★ THIS MUST PRINT <P3_HASH>. If it does not, you have the wrong commit and
+#      re-deploying it is a second change, not a rollback. Stop and find the one
+#      that does — that is exactly what (P3) was read for.
+node /tmp/hr-rollback/tools/pack-edge.mjs hr-accrue \
+  --out /tmp/hr-rollback-pack/supabase/functions/hr-accrue
+cp /tmp/hr-rollback/supabase/config.toml /tmp/hr-rollback-pack/supabase/config.toml
+npx --yes supabase@latest functions deploy hr-accrue --workdir /tmp/hr-rollback-pack \
+  --project-ref nezapsylztqbbwuwembx
+curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
+#    payload_sha256 MUST now equal <P3_HASH>. That is the rollback, confirmed.
+
+# 3. RESTATE THE DRIVER IN ITS STATIC FORM
+node tools/apply-migration.mjs supabase/migrations/2026-09-21-world-tick-cron.sql
+#    X-7a-c execute that this re-applies cleanly, restores the static form, and
+#    is NOT blocked by the `no_hmac` rows the failed cutover wrote.
+
+# 4. RE-ARM
+#    update public.hr_tick_config set enabled = true;
+#    -- and if the JOB itself was dropped rather than disabled:
+#    select public.hr_cron_ensure('hr-tick-run', '10 seconds',
+#                                 'select public.hr_tick_cron_run()');
+```
+
+Rolling back puts the T-5.3 block back, so **M2 is blocked again** — that is
+the intended consequence, not a side effect.

@@ -321,6 +321,8 @@ declare
   v_v    bigint;
   v_g    bigint;
   v_txt  text;
+  v_sig  text;           -- e4: the signature hr_tick_settle actually carries
+  v_code text;           -- e4: that function's source with its comments stripped
   v_env  jsonb;          -- e5: the projection the emitter would have sent
   v_keys text[];         -- e5: the configured frame key set
 begin
@@ -649,20 +651,68 @@ begin
     --     trigger cannot fire. That is an argument about another file, and an
     --     argument is not a guard — so it is asserted here, from that
     --     function's own installed source.
-    if to_regprocedure('public.hr_tick_settle(int)') is not null then
-      v_txt := pg_get_functiondef('public.hr_tick_settle(int)'::regprocedure);
-      if position('hr_tick_shadow' in v_txt) = 0 then
-        raise exception 'e4: hr_tick_settle no longer names hr_tick_shadow — the shadow branch '
-                        'this check is about has moved, and the claim is unverified';
+    --
+    --     ⚠ THE SIGNATURE IS DERIVED, NOT SPELLED (2026-09-23). As first
+    --       written this arm asked `to_regprocedure('public.hr_tick_settle
+    --       (int)')`, and hr_tick_settle has never had a one-argument form —
+    --       the fence's door takes nine. to_regprocedure therefore answered
+    --       NULL in every database, the else-arm printed a NOTICE, and the
+    --       assertion below could not fail anywhere. An assertion that cannot
+    --       fail is not an assertion (CLAUDE.md §4). The oid now comes from
+    --       pg_proc BY NAME, so a future argument change cannot silently
+    --       re-disable this arm; EVERY overload is graded, because a second
+    --       hr_tick_settle carrying its own shadow branch is the same claim
+    --       again; and finding NONE raises (e4c) instead of skipping, since §0
+    --       already refuses to apply this file without the fence that creates
+    --       it. Still a READ: this file states no part of that body.
+    --
+    --     ⚠ AND IT IS GRADED ON CODE, NOT ON PROSE. The ordering test below
+    --       reads the definition with its comments stripped, because
+    --       hr_tick_settle's header and its steps (6)-(8) DISCUSS hr_apply
+    --       four times before the shadow branch is reached — on the raw text
+    --       the first mention of `hr_apply` precedes the first mention of
+    --       `hr_tick_shadow` and e4b fires on a function that is correct. A
+    --       `--` inside a string literal would strip the rest of that source
+    --       line, which can only ever produce a false RED; a silent pass it
+    --       cannot produce.
+    v_n := 0;
+    for v_sig, v_txt in
+      select p.oid::regprocedure::text, pg_get_functiondef(p.oid)
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = 'hr_tick_settle'
+       order by p.oid
+    loop
+      v_n := v_n + 1;
+      v_code := regexp_replace(regexp_replace(v_txt, '/\*.*?\*/', ' ', 'gs'), '--[^\n]*', '', 'g');
+      if position('hr_tick_shadow' in v_code) = 0 then
+        raise exception 'e4: % no longer names hr_tick_shadow — the shadow branch this check '
+                        'is about has moved, and the claim is unverified', v_sig;
       end if;
-      if position('hr_apply' in v_txt) > 0
-         and position('hr_tick_shadow' in v_txt) > position('hr_apply' in v_txt) then
-        raise exception 'e4b: hr_tick_settle reaches hr_apply BEFORE its shadow branch, so a '
-                        'SHADOW settle now writes player_state and emits a frame. A shadow '
-                        'settle is a dry run; a client must never be told it happened.';
+      if position('hr_apply' in v_code) > 0
+         and position('hr_tick_shadow' in v_code) > position('hr_apply' in v_code) then
+        raise exception 'e4b: % reaches hr_apply BEFORE its shadow branch, so a SHADOW settle '
+                        'now writes player_state and emits a frame. A shadow settle is a dry '
+                        'run; a client must never be told it happened.', v_sig;
       end if;
-    else
-      raise notice 'e4 SKIPPED: hr_tick_settle is not installed in this database';
+      -- ── e4d: …AND IT RETURNS IN BETWEEN. Ordering alone is satisfied by a
+      --     shadow branch that writes its journal row and then FALLS THROUGH
+      --     to hr_apply, which is the failure e4b names and cannot see. The
+      --     `return` that ends the branch is what makes the claim true, so it
+      --     is the thing asserted.
+      if position('hr_apply' in v_code) > 0
+         and substring(v_code from position('hr_tick_shadow' in v_code)
+                       for position('hr_apply' in v_code)
+                           - position('hr_tick_shadow' in v_code)) !~* '\mreturn\M' then
+        raise exception 'e4d: % writes its shadow journal row and reaches hr_apply without '
+                        'returning first, so a SHADOW settle pays, writes player_state and '
+                        'pushes a frame for a tick that was supposed to be a dry run.', v_sig;
+      end if;
+    end loop;
+    if v_n = 0 then
+      raise exception 'e4c: no public.hr_tick_settle is installed, so e4 graded nothing at all. '
+                      'The fence that creates it is this file''s declared prerequisite (§0), and '
+                      'an arm that homes on no function is decoration, not a guard.';
     end if;
 
     -- ── e5 (condition 9): THE DELTA STATES WHOLE TOP-LEVEL KEYS OF THE SAME

@@ -337,8 +337,58 @@ let lastAppliedFrame = -1;
 /** Read-only seam for the suite and the bug report. */
 export function getAppliedFrame() { return lastAppliedFrame; }
 
+/* ── THE DROP STREAK (SEC S3, 2026-09-23) ───────────────────────────────────
+   A floor that is too LOW heals itself: the next frame is above it and lands.
+   A floor that is too HIGH does not, and it is the failure that has no shape —
+   the client keeps asking, the server keeps answering, every answer is refused,
+   and NOTHING anywhere says so. In the browser it looks like a quiet game; in
+   `vitals.mjs` it looks like a player who stopped playing, which CLAUDE.md §3.4
+   calls a P1 by definition and gives two days to notice.
+
+   ⚠ WHAT HEALS IT, STATED HONESTLY BECAUSE THE ANSWER IS "NOT ENOUGH YET".
+   The only healer this client has is the `hello` path — the existing
+   `hr-accrue` / `hr_state_of` round trip, whose full envelope carries the
+   server's CURRENT version. That heals a floor that is too low, in one step,
+   and `clearFrameDrops()` below is the seam it clears the streak through. It
+   does NOT heal a floor that is too high: a `hello` envelope at a version below
+   the bad floor classifies `reorder` and is dropped like everything else, so
+   the healer is gated by the thing it is meant to heal. Closing that needs a
+   re-read that is allowed to RESET the floor rather than be gated by it, and
+   that is a hard prerequisite of `lane/m5-live-subscribe`, not of this lane
+   (SEC_PUSH_CHANNEL_M5_2026-09-23.md §3). Until it lands, this counter is the
+   whole of the detection: it does not fix the state, it makes it SAYABLE — by
+   the diagnostics sheet, by a bug report, and by `tests/frame-drop-streak.mjs`,
+   which goes red if the streak stops being observable.
+
+   COUNTED AT THE APPLIERS, NEVER IN `classifyFrame`. The predicate is pure and
+   is deliberately safe to ask twice (`isEnvelopeApplicable` asks it without
+   applying), so counting there would score one frame as two. */
+let frameDrops = 0;
+let lastDropVerdict = null;
+
+/** How many envelopes in a row have been REFUSED by the gate, and why the last
+ *  one was. 0 means the last envelope to reach an applier landed. */
+export function getFrameDrops() { return { drops: frameDrops, verdict: lastDropVerdict }; }
+
+/** An applier refused a frame. One counter, raised by the three appliers on
+ *  their non-apply branch and by nothing else — the mirror of `commitFrame`. */
+export function noteFrameDrop(verdict) {
+  frameDrops += 1;
+  lastDropVerdict = typeof verdict === 'string' ? verdict : null;
+  return frameDrops;
+}
+
+/** A frame landed, so the streak is over. Called from `commitFrame` on a raise
+ *  — which is the `hello` healer's path too, since a full envelope at the
+ *  server's current version is exactly a raise. */
+export function clearFrameDrops() { frameDrops = 0; lastDropVerdict = null; return 0; }
+
 /** A DIFFERENT CHARACTER IS NOW IN G. */
-export function resetFrameGate() { lastAppliedFrame = -1; return lastAppliedFrame; }
+export function resetFrameGate() {
+  lastAppliedFrame = -1;
+  clearFrameDrops();
+  return lastAppliedFrame;
+}
 
 /** Named so a caller branches on the REASON, not on the numbers. */
 export const FRAME_VERDICTS = Object.freeze(['fresh', 'duplicate', 'reorder', 'unversioned']);
@@ -364,6 +414,11 @@ export function commitFrame(version) {
   const v = Number(version);
   if (!Number.isFinite(v) || v <= lastAppliedFrame) return false;
   lastAppliedFrame = v;
+  /* THE STREAK ENDS HERE AND ONLY HERE (SEC S3). A raise is the one event that
+     proves the gate is not stuck — and it is also the `hello` healer's own
+     path, a full envelope at the server's current version being exactly a
+     raise, so the healer clears the counter without knowing it exists. */
+  clearFrameDrops();
   return true;
 }
 
@@ -774,6 +829,12 @@ export function getAccrualState() {
     enabled: true,               // b515: the kill switch is retired; always on
     configured: !!config,
     pending: !!inFlight,
+    /* SEC S3 — THE FRAME GATE, ON THE SHEET A BUG REPORT ALREADY CARRIES.
+       Without these two a client whose every frame is being refused is
+       indistinguishable from one nobody is playing: the game looks quiet, the
+       report says nothing, and vitals.mjs counts a player who stopped. */
+    frame: lastAppliedFrame,
+    ...getFrameDrops(),
     ...gate,
     ...decideAccrualGate(gate, now),
   };
@@ -4743,8 +4804,18 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   return written;
 }
 
+/* THE REFUSAL, NOTED AND THEN REFUSED (SEC S3). Returns null so it still reads
+   as the gate's own answer at the call site, and counts ONLY when there was a
+   `G` to write into — a missing `G` is a caller bug, not a dropped frame. The
+   verdict is re-derived rather than passed, because the one caller's gate is
+   `isEnvelopeApplicable`, which deliberately answers a single boolean. */
+function refuseFrame(G, res) {
+  if (G) noteFrameDrop(isEnvelopeShapeComplete(res) ? classifyFrame(res.version).verdict : 'malformed');
+  return null;
+}
+
 export function applyEnvelope(G, res) {
-  if (!G || !isEnvelopeApplicable(res)) return null;
+  if (!G || !isEnvelopeApplicable(res)) return refuseFrame(G, res);
   /* THE ONE GATE. Refusing here writes nothing at all — the server has already
      recorded the grant against its own watermark, so the next accrual returns
      the same truth and nothing is lost by waiting for an answer. */
@@ -6172,6 +6243,7 @@ if (typeof window !== 'undefined') {
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1). */
     isEnvelopeShapeComplete, classifyFrame, commitFrame, getAppliedFrame,
+    getFrameDrops, noteFrameDrop, clearFrameDrops,
     resetFrameGate, FRAME_VERDICTS,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,

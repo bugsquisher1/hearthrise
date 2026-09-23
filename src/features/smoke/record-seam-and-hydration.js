@@ -8205,4 +8205,56 @@ function m5FrameGateTests() { return [
       assert(A.getAppliedFrame() === 37, 'the floor did not follow the new character');
     } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
   }),
+  /* ── SEC S3 — A CLIENT WHOSE FRAMES ARE ALL REFUSED MUST SAY SO ───────────
+     docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S3 (MEDIUM).
+
+     There was no counter of dropped frames anywhere, so a client stuck behind a
+     bad floor was indistinguishable from a quiet one — in the browser, in a bug
+     report, and in vitals.mjs, which CLAUDE.md §3.4 gives two days to notice.
+
+     WHAT HEALS IT, HONESTLY. `hello` — the existing hr-accrue / hr_state_of
+     round trip — heals a floor that is too LOW, in one step, and that is the
+     path asserted at (3). It does NOT heal a floor that is too HIGH: that
+     `hello` is itself gated by the bad floor. Closing that needs a re-read
+     allowed to RESET the floor and is a prerequisite of lane/m5-live-subscribe,
+     not of this lane; `tests/frame-drop-streak.mjs` D4 pins the hole meanwhile.
+
+     RED WITHOUT THE FIX at (1): getAccrualState() carries no streak at all. */
+  () => tryRun('M5 regression: the frame-drop streak is counted and published (SEC S3)', () => {
+    const A = m5Gate();
+    const wasAcked = A.isReplacementAcknowledged();
+    try {
+      A.acknowledgeReplacement(true);
+      A.resetFrameGate();
+      A.commitFrame(500);
+
+      /* (1) IT COUNTS, AND IT REACHES THE SHEET A HUMAN READS. */
+      A.applyEnvelope({ gold: 1 }, m5Env(499, 9));
+      A.applyEnvelope({ gold: 1 }, m5Env(498, 9));
+      const st = A.getAccrualState();
+      assert(st.drops === 2 && st.verdict === 'reorder' && st.frame === 500,
+        'the diagnostics seam does not carry the frame gate: drops=' + st.drops + ' verdict='
+        + st.verdict + ' frame=' + st.frame + '. Without it a client whose every frame is being '
+        + 'refused looks exactly like a player who stopped playing.');
+
+      /* (2) AND IT IS THE CONSECUTIVE count, not a lifetime total. */
+      const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+      assert(A.applyEnvelope(G, m5Env(501, 42)) !== null, 'frame 501 was refused over a floor of 500');
+      assert(A.getAccrualState().drops === 0,
+        'a frame LANDED and the streak stayed at ' + A.getAccrualState().drops
+        + '. A counter that only rises is not a signal.');
+
+      /* (3) THE HELLO HEALS A FLOOR THAT IS TOO LOW, AND CLEARS THE STREAK. */
+      A.resetFrameGate();
+      A.commitFrame(600);
+      for (const v of [10, 11, 12]) A.applyEnvelope({ gold: 1 }, m5Env(v, 1));
+      assert(A.getAccrualState().drops === 3, 'the drop sequence did not accumulate');
+      const GH = { gold: 0, gems: 0, skills: {}, inventory: {} };
+      assert(A.applyEnvelope(GH, m5Env(900, 12345)) !== null && GH.gold === 12345,
+        'the `hello` full envelope was refused — §5 makes it the only way back from below');
+      assert(A.getAccrualState().drops === 0,
+        'the healer left the streak at ' + A.getAccrualState().drops + ', so the sheet keeps '
+        + 'reporting an outage that is over');
+    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+  }),
 ]; }

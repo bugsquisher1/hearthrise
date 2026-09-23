@@ -116,7 +116,7 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
-  classifyFrame, commitFrame, resetFrameGate, getAppliedFrame,   // the frame gate, §7.1
+  classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
 } from './accrue.js?v=551';
 import { SHOP_OFFERS } from '../data/shops.js?v=551';
 import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=551';
@@ -599,6 +599,9 @@ export function applyGoldEnvelope(G, body, ownKey) {
      in docs/design/LIVE_COUNTERS_PUSH.md §7; F2 is why it still rolls back. */
   const frame = classifyFrame(env.version);
   if (!frame.apply) {
+    /* SEC S3 — the streak. The carry comes off below, so the PLAYER is correct
+       either way; what is counted is that the server's frame did not land. */
+    noteFrameDrop(frame.verdict);
     const undone = rollbackPrediction(G, ownKey);
     return { stale: true, verdict: frame.verdict, version: env.version,
       current: frame.current, undone };

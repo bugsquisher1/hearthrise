@@ -80,7 +80,7 @@ import {
   isReconcilePending, isAccrualFailure, awaitSettleRaceClear,
   /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1), imported — this module is the
      THIRD applier of a server envelope and it had no monotonic rule at all. */
-  classifyFrame, commitFrame,
+  classifyFrame, commitFrame, noteFrameDrop, clearFrameDrops,
 } from './accrue.js?v=551';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
@@ -796,7 +796,7 @@ export function applyIntentEnvelope(G, body) {
      forged contribution on a shared surface (CLAUDE.md §1). State is absolute
      and replays clean; a receipt is an event and does not. */
   const frame = classifyFrame(env.version);
-  if (!frame.apply && frame.verdict !== 'duplicate') return null;
+  if (!frame.apply && frame.verdict !== 'duplicate') { noteFrameDrop(frame.verdict); return null; }
   const duplicate = frame.verdict === 'duplicate';
 
   const loss = describeReplacement(G, env);
@@ -830,6 +830,10 @@ export function applyIntentEnvelope(G, body) {
      the whole of "a duplicate never raises the floor": stated here rather than
      branched on, so there is one raise rule and not two. */
   commitFrame(env.version);
+  /* SEC S3 — and the streak ends even on the DUPLICATE arm, where commitFrame
+     is a no-op. The counter's question is "is the server's state reaching this
+     client", and a correction that landed is a yes. */
+  if (duplicate) clearFrameDrops();
   /* Which arm wrote this, for the diagnostics seam and the regression tests: a
      correction re-states a frame already behind the floor, a fresh apply moves
      it. Nothing branches on this — it is a label, not a gate. */

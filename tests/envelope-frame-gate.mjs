@@ -133,7 +133,7 @@ const MUTATIONS = {
     why: 'the applier stops refusing the WHOLE frame and instead merges the '
        + 'keys a stale frame happens to carry — the fix a hurried author writes',
     file: 'src/net/accrue.js',
-    from: 'export function applyEnvelope(G, res) {\n  if (!G || !isEnvelopeApplicable(res)) return null;',
+    from: 'export function applyEnvelope(G, res) {\n  if (!G || !isEnvelopeApplicable(res)) return refuseFrame(G, res);',
     to:   'export function applyEnvelope(G, res) {\n'
         + '  if (!G || !isEnvelopeShapeComplete(res)) return null;\n'
         + '  if (!classifyFrame(res.version).apply) { try { G.gold = Number(res.state.gold); } catch (e) {} return null; }',
@@ -153,8 +153,8 @@ const MUTATIONS = {
     why: 'the third applier writes the envelope but never raises the floor, so '
        + 'the floor sits below the state actually in G',
     file: 'src/net/activity.js',
-    from: '  commitFrame(env.version);\n  /* Which arm wrote this,',
-    to:   '  /* Which arm wrote this,',
+    from: '  commitFrame(env.version);\n  /* SEC S3 — and the streak ends',
+    to:   '  /* SEC S3 — and the streak ends',
     kills: ['S2'],
   },
   duplicate_dropped: {
@@ -162,8 +162,8 @@ const MUTATIONS = {
        + 'reorder — the shape that left a REFUSAL uncorrected on screen '
        + '(SEC_PUSH_CHANNEL_M5_2026-09-23.md S1)',
     file: 'src/net/activity.js',
-    from: "  if (!frame.apply && frame.verdict !== 'duplicate') return null;",
-    to:   '  if (!frame.apply) return null;',
+    from: "  if (!frame.apply && frame.verdict !== 'duplicate') { noteFrameDrop(frame.verdict); return null; }",
+    to:   '  if (!frame.apply) { noteFrameDrop(frame.verdict); return null; }',
     kills: ['S6', 'F6'],
     /* ALSO behavioural: the mutant re-runs F6 against a gate broken the same
        way, which is what says F6's assertions are not vacuous. */
@@ -378,7 +378,7 @@ export async function envelopeFrameGateGuard(mutation) {
   ok(/commitFrame\(env\.version\)/.test(actSrc), 'S2',
     'activity.js applyIntentEnvelope does not commit the frame it applied — the floor '
     + 'would sit BELOW the state in G, after which an older frame reads as fresh.');
-  ok(/const frame = classifyFrame\(env\.version\);\n  if \(!frame\.apply && frame\.verdict !== 'duplicate'\) return null;/.test(actSrc), 'S2',
+  ok(/const frame = classifyFrame\(env\.version\);\n  if \(!frame\.apply && frame\.verdict !== 'duplicate'\) \{ noteFrameDrop\(frame\.verdict\); return null; \}/.test(actSrc), 'S2',
     'activity.js applyIntentEnvelope does not GATE on the frame it is about to write.');
 
   /* S6 — THE CORRECTION ARM, IN THE TREE. The behavioural claim F6 drives the
@@ -442,9 +442,11 @@ export async function envelopeFrameGateGuard(mutation) {
     const head = accSrc.indexOf('export function applyEnvelope(G, res) {');
     const body = head < 0 ? '' : accSrc.slice(head, accSrc.indexOf('applyEnvelopeState(G, res)', head));
     ok(head >= 0, 'S5', 'applyEnvelope is gone from accrue.js — the one gate cannot be checked.');
-    ok(/^export function applyEnvelope\(G, res\) \{\n  if \(!G \|\| !isEnvelopeApplicable\(res\)\) return null;/.test(body), 'S5',
+    ok(/^export function applyEnvelope\(G, res\) \{\n  if \(!G \|\| !isEnvelopeApplicable\(res\)\) return refuseFrame\(G, res\);/.test(body), 'S5',
       "applyEnvelope's first statement is no longer the single `isEnvelopeApplicable` gate. "
-      + 'Splitting the shape and frame halves HERE is how a per-key merge gets in.');
+      + 'Splitting the shape and frame halves HERE is how a per-key merge gets in. (The gate '
+      + 'answers through `refuseFrame`, which counts the drop and returns null — one statement, '
+      + 'one gate, both halves still asked together.)');
     ok(!/\bG\.[a-zA-Z_]+\s*=/.test(body), 'S5',
       'applyEnvelope writes into G between the frame gate and applyEnvelopeState — a refused '
       + 'frame must write NO key at all. Found: '

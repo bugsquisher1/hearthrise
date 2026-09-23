@@ -845,8 +845,16 @@ export function atSpan(session, fromMs) {
   if (typeof s.recoveringUntilOffsetMs === 'number') {
     s.recoveringUntilMs = fromMs + s.recoveringUntilOffsetMs;
   }
+  /* THE COMBAT-XP WATERMARK, RELATIVE LIKE THE OTHER TWO. A fixture that
+     pinned it absolutely would name an instant outside every span and the
+     split would be inert — which is how a fixture stops being able to SEE an
+     input (M1f F4). Offset zero is still spelled as the plain field. */
+  if (typeof s.combatXpAccruedToOffsetMs === 'number') {
+    s.combatXpAccruedToMs = fromMs + s.combatXpAccruedToOffsetMs;
+  }
   delete s.activeSinceOffsetMs;
   delete s.recoveringUntilOffsetMs;
+  delete s.combatXpAccruedToOffsetMs;
   return s;
 }
 

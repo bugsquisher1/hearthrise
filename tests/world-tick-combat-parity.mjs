@@ -59,7 +59,7 @@ import { tickIntentId } from '../supabase/functions/hr-accrue/tick-gather.js';
 /* THE SPREAD'S OWN DECLARED KEY SETS. C1 resolves a depth-1 `...f(...)` in
    either source against these, so the guard still DERIVES both key sets
    rather than retyping them — see resolveSpread below. */
-import { ENGINE_INPUT_KEYS, ENGINE_STATE_KEYS }
+import { ENGINE_INPUT_KEYS, ENGINE_STATE_KEYS, engineStateOf }
   from '../supabase/functions/hr-accrue/envelope.js';
 import {
   computeAccrual, accrueRested, CALLER_AUTHORITY, PAYABLE_KINDS, MAX_DEATH_ROWS,
@@ -113,6 +113,21 @@ const MUTATIONS = {
      paying time: a mint. */
   noDeathCounters: { kills: 'C1/C2',
     perturb: (inp) => { const o = { ...inp }; delete o.deathsTodayBefore; delete o.deathsLifetimeBefore; return o; } },
+  /* THE OTHER FOUR OF THE NINE, ONE MUTANT EACH (M1f F4). Until the session
+     built for them existed these deleted a key no fixture could spend, so the
+     chains stayed byte-identical and the mutation "changed NOTHING" — the
+     definition of a blind guard. Each one now turns C1 red (the tick names a
+     key it did not pass) and C2 red (the window prices differently). */
+  noEnchant: { kills: 'C1/C2',
+    perturb: (inp) => { const o = { ...inp }; delete o.enchant; return o; } },
+  noCombatStyle: { kills: 'C1/C2',
+    perturb: (inp) => { const o = { ...inp }; delete o.combatStyle; return o; } },
+  noBuffs: { kills: 'C1/C2',
+    perturb: (inp) => { const o = { ...inp }; delete o.buffs; return o; } },
+  /* The split against combat XP a LIVE kill-credit already paid. Dropped, the
+     tick re-mints XP the player has already been given — the paying direction. */
+  noCombatXpMark: { kills: 'C1/C2',
+    perturb: (inp) => { const o = { ...inp }; delete o.combatXpAccruedToMs; return o; } },
   /* THE BRIEF'S "shift the window by 1 s". The window no longer starts at the
      watermark the engine stamped, so the chain overlaps or gaps. */
   shiftWindow: { kills: 'C2/C4', shiftMs: 1000 },
@@ -194,6 +209,7 @@ function CLAIM_TEXT() {
     C13: 'the fold re-checks the three per-apply clamps (progress, hearthfind, deaths)',
     C14: 'the double-pay fence is reused unchanged — one intent id, one version',
     C15: 'the staged migration\'s channel literal == PAYABLE_KINDS, and it arms nothing',
+    C16: 'the nine combat inputs are LOAD-BEARING on a fixture, not merely passed',
   };
 }
 
@@ -374,28 +390,24 @@ function accrueInput(c, fromMs, toMs, o) {
        `hr_state_of` JSONB rendering of `accrued_to`, never over a Date
        (Security T-2). `accruedToText` is the string the chain carries. */
     seed: hashLabel(c.userId, c.slot, seedLabelFor(opt.labelText || pgTimestamptzText(fromMs))),
-    hp: c.hp,
-    maxHp: c.maxHp,
-    gold: c.gold,
-    skills: c.skills,
-    inventory: c.inventory,
-    equipment: c.equipment,
-    fight: c.fight,
-    consecFalls: c.consecFalls,
-    recoveringUntilMs: c.recoveringUntilMs,
+    /* ── THE STATE, THROUGH THE SAME SPREAD THE TICK USES ─────────────────
+       This was a THIRD hand-written copy of the field list — after index.ts's
+       and tick-shadow.js's — and it had already drifted: it named seventeen
+       keys and omitted `buffs` and `toolCarry`, so the moment a fixture
+       carried a live buff the reference chain priced a window the tick did
+       not, and C2 went red for the GUARD's reason rather than the tick's.
+       A key list this file keeps privately is one C1 cannot see, which is the
+       whole failure C1 was written against. `engineStateOf` forwards exactly
+       ENGINE_STATE_KEYS off a flat character, which is what `c` is. What C2
+       measures is the DECOMPOSITION; the key set is C1's question. */
+    ...engineStateOf(c),
     bestiaryKills: c.bestiaryKills,
     items: COMBAT_CATALOGUES.items,
     monsters: COMBAT_CATALOGUES.monsters,
-    autoEatEnabled: c.autoEatEnabled,
-    autoEatFood: c.autoEatFood,
-    autoEatPct: c.autoEatPct,
-    deathsTodayBefore: c.deathsTodayBefore,
-    deathsLifetimeBefore: c.deathsLifetimeBefore,
-    combatXpAccruedToMs: c.combatXpAccruedToMs,
-    hearthfindReady: c.hearthfindReady,
-    enchant: c.enchant,
-    combatStyle: c.combatStyle,
-    ammoCarry: c.ammoCarry,
+    /* Not envelope keys, named here exactly as the tick names them, so the two
+       objects are comparable key for key (C1's reference-builder arm). */
+    perks: c.perks,
+    companionXpBacked: c.companionXpBacked,
     attended: opt.attended ?? null,
     caller: opt.caller || 'accrue',
     callerAuthority: CALLER_AUTHORITY,
@@ -862,12 +874,24 @@ for (const raw of SESSIONS) {
 
   // ── C8: the food debit, and the PINNED food_in_bag divergence ─────────────
   if (c.autoEatEnabled && c.autoEatFood) {
-    const start = Number((c.inventory || {})[c.autoEatFood] || 0);
+    /* THE DEBIT IS SUMMED OVER EVERY FOOD, NOT OVER THE NOMINATED ONE.
+       `chooseFood` falls back to a scan of the bag the moment the nominated
+       stack runs out, so a bag with two foods eats both — and this arm counted
+       meals of ALL of them against debits of ONE, which reads as a free meal
+       that never happened. Every fixture above holds a single food, so the
+       narrowness was invisible until one held two. Summing the auto-eatable
+       debits is STRICTER, not looser: `skipFoodDebit` strips the negatives
+       whatever their id, so it still bites (its mutant proof is the exit
+       code). Only NEGATIVE quantities count — a monster can drop food. */
+    const edible = (id) => Number((COMBAT_CATALOGUES.items[id] || {}).heals) > 0;
+    const start = Object.keys(c.inventory || {}).filter(edible)
+      .reduce((n, id) => n + Number(c.inventory[id] || 0), 0);
     let ate = 0; let debit = 0;
     for (const w of settled) {
       ate += Number(w.res.foodEaten || 0);
-      const q = Number((w.res.delta.items || {})[c.autoEatFood] || 0);
-      if (q < 0) debit += -q;
+      for (const [id, q] of Object.entries(w.res.delta.items || {})) {
+        if (edible(id) && Number(q) < 0) debit += -Number(q);
+      }
     }
     ok('C8', ate === debit,
       `${ate} meal(s) eaten but ${debit} unit(s) debited — the signed items map is the `
@@ -1451,6 +1475,130 @@ for (const raw of SESSIONS) {
   let threwKind = null;
   try { sessionFromRoster({ ...row, active_kind: 'gather' }, env); } catch (e) { threwKind = e; }
   ok('C0', threwKind !== null, 'sessionFromRoster accepted a non-combat roster row');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// C16 — THE NINE COMBAT INPUTS ARE LOAD-BEARING, NOT MERELY PASSED
+// ═══════════════════════════════════════════════════════════════════════════
+
+/* M1f F4. C1 proves the tick NAMES the same inputs as the accrue path and H5d
+   proves the session CARRIES them off a real envelope. Neither proves they
+   MATTER: on the six sessions this file shipped with, `enchant` was `{}`,
+   `combatStyle` was `null`, `hearthfindReady` was `false` and
+   `combatXpAccruedToMs` was `0` on every one — so a tick that dropped all four
+   produced byte-identical deltas and C2 stayed green. The fixtures were blind,
+   not wrong, which is the same sentence §16.4 had to write about the auto-eat
+   gap, and writing it twice is what makes this a standing arm.
+
+   C16 measures the sensitivity DIRECTLY: drop one input from the session and
+   settle the same span again. A byte-identical answer means this guard cannot
+   see that input, and it says which one rather than passing. */
+{
+  const NINE = [
+    'autoEatEnabled', 'autoEatFood', 'autoEatPct',
+    'deathsTodayBefore', 'deathsLifetimeBefore',
+    'combatXpAccruedToMs', 'hearthfindReady', 'enchant', 'combatStyle',
+  ];
+  /* `buffs` is not one of the nine F4 counts (it reached the tick before this
+     milestone) but it is on the same spread and has the same blindness risk,
+     so it is measured beside them. */
+  const ALSO = ['buffs'];
+  /* THE ONE EXEMPTION, AND IT IS NOT A CONVENIENCE. See the hearthfind block
+     below for why a ten-minute window cannot draw the roll and why a seed
+     pinned for a lucky find would be a worse guard than none. Its coverage is
+     the SOURCE-derived gate arm, which is a different claim honestly labelled
+     rather than this claim quietly weakened. */
+  const NOT_DIFFERENTIABLE = {
+    hearthfindReady: 'a 1-in-14,940..24,860 roll per kill on three monsters; '
+      + 'ten minutes of kills draws one about once in five hundred seeds. Pinned by '
+      + 'the gate arm below instead.',
+  };
+
+  const probe = SESSIONS.find((x) => /NINE combat inputs/.test(x.name));
+  ok('C16', !!probe,
+    'the combat fixture set no longer holds a session built to move the nine combat inputs — '
+    + 'without it every arm below is vacuous and C2 is blind to four of them again');
+
+  if (probe) {
+    const settleOf = (raw) => {
+      const run = settleCombatSession(atSpan(raw, FROM_MS), FROM_MS, TO_MS,
+        { cadenceMs: CADENCE_MS });
+      return JSON.stringify(run.intents.map((i) => i.args.p_delta));
+    };
+    const base = settleOf(probe);
+    const blind = [];
+    for (const key of [...NINE, ...ALSO]) {
+      if (key in NOT_DIFFERENTIABLE) continue;
+      const without = { ...probe };
+      delete without[key];
+      /* The span-relative spellings `atSpan` resolves must go with the field
+         they resolve to, or "dropped" would leave the value behind. */
+      delete without[key.replace(/Ms$/, 'OffsetMs')];
+      let out;
+      try { out = settleOf(without); } catch { out = '__threw__'; }
+      if (out === base) blind.push(key);
+    }
+    ok('C16', blind.length === 0,
+      `dropping these from the session changed NOTHING, so no arm in this file can see them: `
+      + `${blind.join(', ')}. A fixture that cannot tell the input apart from its absence is `
+      + 'not coverage — give the probe a value the engine spends.');
+    /* AN EXEMPTION THAT STOPS BEING NEEDED MUST NOT STAY. If a fixture ever
+       does move `hearthfindReady`, the honest arm is the differential one and
+       this list should shrink — so an exempt key that turns out measurable is
+       red, the same way C1's exemptions are a debt with an owner. */
+    const nowMeasurable = Object.keys(NOT_DIFFERENTIABLE).filter((key) => {
+      const without = { ...probe };
+      delete without[key];
+      try { return settleOf(without) !== base; } catch { return true; }
+    });
+    ok('C16', nowMeasurable.length === 0,
+      `${nowMeasurable.join(', ')} now MOVES this fixture, so the exemption is stale — measure `
+      + 'it differentially and delete the entry from NOT_DIFFERENTIABLE');
+
+    /* HEARTHFIND IS THE ONE OF THE NINE A TEN-MINUTE WINDOW CANNOT DRAW, and
+       it is pinned rather than counted. The combat sources are elk_king,
+       grim_reaper and dragon at 1-in-14,940 to 1-in-24,860 PER KILL, so a span
+       that lands thirty kills finds one about once in five hundred seeds. The
+       differential arm above therefore lists it only because the fixture's
+       OTHER inputs move; a seed pinned for a lucky find would be an arm that
+       goes red the next time an unrelated change shifts the stream, which is a
+       worse guard than none. So the GATE is pinned at its source: `accrual.js`
+       proposes `delta.hearthfind` only behind `inp.hearthfindReady`, at BOTH
+       emit sites, and removing either is red here on the commit that does it. */
+    const engineSrc = readFileSync(
+      join(ROOT, 'supabase/functions/hr-accrue/accrual.js'), 'utf8');
+    const emits = [...engineSrc.matchAll(/delta\.hearthfind\s*=/g)].length;
+    const gated = [...engineSrc.matchAll(
+      /if\s*\(\s*inp\.hearthfindReady\s*&&[^)]*\)\s*\{\s*\n\s*delta\.hearthfind\s*=/g)].length;
+    ok('C16', emits > 0 && gated === emits,
+      `accrual.js assigns delta.hearthfind at ${emits} site(s) but only ${gated} of them sit `
+      + 'behind `inp.hearthfindReady &&`. The switch is what keeps an edge deployed before the '
+      + 'migration inert instead of 409-ing unknown_delta_key and costing a player their night');
+    say(`   C16 ${NINE.length + ALSO.length} inputs measured on [${probe.name}]; `
+      + `hearthfind gated at ${gated}/${emits} emit site(s)`);
+  }
+
+  /* AND THIS FILE'S OWN REFERENCE BUILDER IS NOT A PRIVATE KEY LIST. It was
+     one, it had drifted by two keys, and C1 could not see it because C1 reads
+     index.ts and tick-shadow.js. Comparing the object `accrueInput` actually
+     builds against the tick's declared set closes the third copy. */
+  const refKeys = new Set(Object.keys(accrueInput(
+    atSpan(SESSIONS[0], FROM_MS), FROM_MS, TO_MS, {})));
+  const tickDeclared = tickInputKeysFromSource();
+  /* `nodes` is the GATHER index. `tick-shadow.js` names it because one object
+     serves both channels; a combat pointer never reaches the branch that looks
+     an id up in it (accrual.js refuses an unknown node before it), so the
+     combat reference caller omitting it is correct and not drift. Declared,
+     with the reason, exactly as C1_EXEMPT is. */
+  const REF_EXEMPT = { nodes: 'the gather index; unreachable from a combat pointer' };
+  const refMissing = [...tickDeclared].filter((k) => !refKeys.has(k)
+    && !ENGINE_STATE_KEYS.includes(k) && !(k in REF_EXEMPT));
+  const refExtra = [...refKeys].filter((k) => !tickDeclared.has(k));
+  ok('C16', refMissing.length === 0 && refExtra.length === 0,
+    `this guard's own reference caller has drifted from the tick's input set — `
+    + `${refMissing.length ? `it omits ${refMissing.join(', ')}. ` : ''}`
+    + `${refExtra.length ? `it invents ${refExtra.join(', ')}. ` : ''}`
+    + 'C2 would then be red for the GUARD\'s reason, not the tick\'s');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

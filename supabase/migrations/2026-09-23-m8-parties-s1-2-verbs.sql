@@ -213,14 +213,23 @@ begin
   on conflict (user_id, intent_id) do nothing;
   if not found then return jsonb_build_object('ok', false, 'error', 'intent_in_flight'); end if;
 
-  insert into public.party (leader_user, leader_slot) values (v_uid, v_slot) returning id into v_id;
+  -- ⚠ BOTH INSERTS ARE INSIDE THE SUB-BLOCK, AND THAT IS THE POINT (Security
+  --   B3, 2026-09-23). The sub-block's implicit savepoint rolls back only what
+  --   it contains: with the `party` insert OUTSIDE it, the loser of an
+  --   invariant-1 race kept its party row — leaderless, memberless, readable by
+  --   nobody, because the SELECT policy needs a live member — while the handler
+  --   released the idempotency key and never spent `ev:party_creates`. Two
+  --   concurrent creates on one character therefore minted one permanent junk
+  --   row for free, bounded by the 12/min bucket (~17k a day per account)
+  --   rather than by the 10-a-day clamp the row was supposed to cost.
   begin
+    insert into public.party (leader_user, leader_slot) values (v_uid, v_slot) returning id into v_id;
     insert into public.party_member (party_id, user_id, slot, role)
       values (v_id, v_uid, v_slot, 'leader');
   exception when unique_violation then
     -- INVARIANT 1 lost a race with a concurrent create on the same character.
     -- The index is the authority, not the read above; the key is released so
-    -- an honest retry works.
+    -- an honest retry works, and the party row above is rolled back with it.
     delete from public.player_intents where user_id = v_uid and intent_id = p_idem;
     perform public.hr_record_rejection(v_uid, v_slot, 'party_create', 'already_in_party',
       jsonb_build_object('raced', true));
@@ -260,6 +269,11 @@ declare
   v_tslot  int;
   v_why    text;
   v_id     uuid;
+  -- The three post-resolution predicates, evaluated unconditionally so the
+  -- clock cannot tell them apart (Security B5).
+  v_partied boolean;
+  v_live    bigint;
+  v_today   bigint;
   -- THE ONE THING THE SENDER IS EVER TOLD. Declared once so no branch below
   -- can accidentally return a second, more informative string.
   c_one    constant text := 'invite_target_unavailable';
@@ -305,9 +319,23 @@ begin
   -- ══ S-13. FIVE CAUSES, ONE ANSWER ═════════════════════════════════════════
   -- Every branch below sets v_why (the REAL reason, journalled) and returns
   -- c_one (what the sender sees). Nothing in the returned object varies with
-  -- the cause — no detail, no hint, no timing difference worth measuring, and
-  -- the day-clamp read above happens BEFORE resolution so a refused sender
-  -- cannot use their own budget to tell one cause from another.
+  -- the cause — no detail, no hint, and the day-clamp read above happens BEFORE
+  -- resolution so a refused sender cannot use their own budget to tell one
+  -- cause from another.
+  --
+  -- ⚠ AND THE WORK DOES NOT VARY EITHER, ONCE A TARGET IS RESOLVED (Security
+  --   B5, 2026-09-23). The earlier draft short-circuited: `already_in_party`
+  --   returned after one hr_party_of call, an honest target after two more
+  --   counts. One string with three different amounts of work behind it is
+  --   still an oracle, read off the clock instead of off the payload — and it
+  --   is the exact fact S-13 exists to hide, because "does this name exist" is
+  --   ALREADY public (display_names is `for select using (true)`) and
+  --   "is this player currently in a party" is not public anywhere else.
+  --   The sender's 20-a-day clamp does not bound the sampling either: it is
+  --   spent only on a SUCCESSFUL invite, so a refused probe is free and the
+  --   only ceiling is the 12/min bucket. So the three post-resolution
+  --   predicates are ALL evaluated, unconditionally, and the reason is chosen
+  --   afterwards — partied and not-partied cost the same three reads.
   v_canon := public.hr_canon_display_name(p_name);
   v_why   := null;
   v_target := null;
@@ -328,25 +356,24 @@ begin
       -- takes the shape §18.2.1 wrote down.
       select ps.slot into v_tslot from public.player_state ps
        where ps.user_id = v_target order by ps.updated_at desc, ps.slot asc limit 1;
-      if v_tslot is null then
-        v_why := 'no_character';
-      elsif public.hr_party_of(v_target, v_tslot) is not null then
-        v_why := 'already_in_party';
-      else
-        -- THE RECEIVER CLAMP §18 OMITTED (S-13): 5 live, 20 received per
-        -- character per UTC day. Journalled as invite_inbox_full; the sender is
-        -- told c_one like everyone else, because "no distinction visible to the
-        -- sender" cannot be satisfied by a second string.
-        select count(*) into v_n from public.party_invite
-         where user_id = v_target and slot = v_tslot
-           and accepted_at is null and revoked_at is null and expires_at > now();
-        if v_n >= 5 then v_why := 'inbox_full'; end if;   -- journals as invite_inbox_full
-        if v_why is null then
-          select count(*) into v_n from public.party_invite
-           where user_id = v_target and slot = v_tslot
-             and created_at >= date_trunc('day', now() at time zone 'utc') at time zone 'utc';
-          if v_n >= 20 then v_why := 'inbox_full'; end if;
-        end if;
+      -- ALL THREE, ALWAYS. v_tslot NULL makes each of them an index probe that
+      -- matches nothing, so the no_character branch is the only cheap one left
+      -- and it says nothing S-13 protects.
+      v_partied := public.hr_party_of(v_target, v_tslot) is not null;
+      -- THE RECEIVER CLAMP §18 OMITTED (S-13): 5 live, 20 received per
+      -- character per UTC day. Journalled as invite_inbox_full; the sender is
+      -- told c_one like everyone else, because "no distinction visible to the
+      -- sender" cannot be satisfied by a second string.
+      select count(*) into v_live from public.party_invite
+       where user_id = v_target and slot = v_tslot
+         and accepted_at is null and revoked_at is null and expires_at > now();
+      select count(*) into v_today from public.party_invite
+       where user_id = v_target and slot = v_tslot
+         and created_at >= date_trunc('day', now() at time zone 'utc') at time zone 'utc';
+      if    v_tslot is null   then v_why := 'no_character';
+      elsif v_partied         then v_why := 'already_in_party';
+      elsif v_live  >= 5      then v_why := 'inbox_full';   -- journals as invite_inbox_full
+      elsif v_today >= 20     then v_why := 'inbox_full';
       end if;
     end if;
   end if;
@@ -380,6 +407,21 @@ begin
     values (v_uid, p_idem, v_slot, 'party_invite')
   on conflict (user_id, intent_id) do nothing;
   if not found then return jsonb_build_object('ok', false, 'error', 'intent_in_flight'); end if;
+
+  -- ⚠ RETIRE THIS PARTY'S EXPIRED CARD FOR THIS CHARACTER FIRST (Security B4,
+  --   2026-09-23). party_invite_live is unique on (party_id, user_id, slot)
+  --   `where accepted_at is null and revoked_at is null` — and EXPIRY is
+  --   neither of those. A card that timed out fifteen minutes ago therefore
+  --   held the slot for ever, so the second invite to the same character from
+  --   the same party raised unique_violation and answered
+  --   invite_target_unavailable permanently: a transient state turned into a
+  --   standing denial, and the leader had no way to see or clear it. It also
+  --   made the index and the receiver clamp disagree about the word "live" —
+  --   the 5-live count reads `expires_at > now()`, the index did not. Expiry is
+  --   now written down as a revocation, which is what it always meant.
+  update public.party_invite set revoked_at = now()
+   where party_id = v_party and user_id = v_target and slot = v_tslot
+     and accepted_at is null and revoked_at is null and expires_at <= now();
 
   begin
     insert into public.party_invite (party_id, user_id, slot, invited_by_user)
@@ -421,6 +463,7 @@ declare
   v_inv   public.party_invite%rowtype;
   v_party public.party%rowtype;
   v_n     bigint;
+  v_size  bigint;                   -- the party's LIVE member count, under the lock
   v_lvl   int;
   v_lo    int;
   v_hi    int;
@@ -485,12 +528,15 @@ begin
     perform public.hr_record_rejection(v_uid, v_slot, 'party_accept', 'party_hunt_running', '{}'::jsonb);
     return jsonb_build_object('ok', false, 'error', 'party_hunt_running'); end if;
 
-  -- SIZE, RE-COUNTED UNDER THE LOCK (T-6).
-  select count(*) into v_n from public.party_member
+  -- SIZE, RE-COUNTED UNDER THE LOCK (T-6). It is held in its OWN variable:
+  -- the answer's `members` is built from it at the end of the verb, and the
+  -- day-clamp read below used to land in the same v_n and be reported as the
+  -- party's size (Security B1).
+  select count(*) into v_size from public.party_member
    where party_id = v_party.id and left_at is null;
-  if v_n >= v_party.size_cap then
+  if v_size >= v_party.size_cap then
     perform public.hr_record_rejection(v_uid, v_slot, 'party_accept', 'party_full',
-      jsonb_build_object('members', v_n, 'cap', v_party.size_cap));
+      jsonb_build_object('members', v_size, 'cap', v_party.size_cap));
     return jsonb_build_object('ok', false, 'error', 'party_full'); end if;
 
   -- ══ S-12 — THE SPREAD, RE-CHECKED ON ACCEPT ══════════════════════════════
@@ -527,9 +573,31 @@ begin
   on conflict (user_id, intent_id) do nothing;
   if not found then return jsonb_build_object('ok', false, 'error', 'intent_in_flight'); end if;
 
+  -- ⚠ A REJOIN REVIVES THE DEAD ROW; IT DOES NOT INSERT A SECOND ONE (Security
+  --   B2, 2026-09-23). party_member's PRIMARY KEY is (party_id, user_id, slot)
+  --   and a member who LEFT keeps their row with left_at stamped, so a plain
+  --   insert on a rejoin raised on the PK — and the handler below, which cannot
+  --   tell a PK collision from an invariant-1 one, answered `already_in_party`.
+  --   The effect was permanent and silent: leave → re-invite → accept, the
+  --   path §18-SEC.1 S-6 calls "the same lever with 20/day of headroom", could
+  --   never complete for the same party, and the player was told they were in a
+  --   party they had left. File 2's §8(f) walks exactly that path but is
+  --   refused one step earlier by the stubbed hunt predicate, so nothing saw it.
+  --   A LIVE row does not match the `where`, so the upsert touches nothing and
+  --   falls through to the raced refusal; a row live in ANOTHER party still
+  --   raises party_member_one_live, which is the fence invariant 1 IS.
   begin
-    insert into public.party_member (party_id, user_id, slot, role)
-      values (v_party.id, v_uid, v_slot, 'member');
+    insert into public.party_member as pm (party_id, user_id, slot, role)
+      values (v_party.id, v_uid, v_slot, 'member')
+    on conflict (party_id, user_id, slot) do update
+      set role = 'member', joined_at = now(), left_at = null, removed_by = null
+      where pm.left_at is not null;
+    if not found then
+      delete from public.player_intents where user_id = v_uid and intent_id = p_idem;
+      perform public.hr_record_rejection(v_uid, v_slot, 'party_accept', 'already_in_party',
+        jsonb_build_object('raced', true));
+      return jsonb_build_object('ok', false, 'error', 'already_in_party');
+    end if;
   exception when unique_violation then
     delete from public.player_intents where user_id = v_uid and intent_id = p_idem;
     perform public.hr_record_rejection(v_uid, v_slot, 'party_accept', 'already_in_party',
@@ -545,8 +613,12 @@ begin
   on conflict (user_id, slot, kind, key, period_key)
     do update set value = pp.value + 1, updated_at = now();
 
+  -- `members` is the party's size + this joiner, from the count taken under the
+  -- lock — never from v_n, which by here holds the acceptor's daily accept
+  -- count (Security B1: the browser must never be told a number the server
+  -- does not hold, CLAUDE.md §6).
   v_out := jsonb_build_object('ok', true, 'party_id', v_party.id, 'role', 'member',
-                              'members', v_n + 1);
+                              'members', v_size + 1);
   update public.player_intents set result = v_out
    where user_id = v_uid and intent_id = p_idem;
   return v_out;
@@ -834,6 +906,38 @@ begin
     end if;
   end loop;
 
+  -- (y2) NO VERB MAY WRITE A ROW OUTSIDE THE SAVEPOINT THAT CLEANS UP AFTER IT
+  --      (Security B3, 2026-09-23). hr_party_create's `insert into public.party`
+  --      used to sit ABOVE the `begin … exception when unique_violation` that
+  --      wraps the party_member insert, so a plpgsql sub-block rollback — which
+  --      undoes only what the sub-block contains — left the loser of an
+  --      invariant-1 race holding a leaderless, memberless party row that no
+  --      policy can read, while the handler released the idempotency key and
+  --      never spent `ev:party_creates`. The row was therefore free: two
+  --      concurrent creates on one character minted one, at 12/min rather than
+  --      at ten a day. A race cannot be staged on a single replay connection,
+  --      so the property is asserted where it IS visible — in the source, on
+  --      the order of two statements.
+  --      The discriminator is one `begin`: when both inserts are inside the
+  --      sub-block the span from the party insert to the handler contains no
+  --      `begin` at all, and when the party insert is above the sub-block that
+  --      span contains exactly the `begin` that opens it.
+  select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'hr_party_create';
+  if position('insert into public.party (leader_user' in v_src) = 0
+     or position('exception when unique_violation' in v_src) = 0
+     or position('exception when unique_violation' in v_src)
+        < position('insert into public.party (leader_user' in v_src) then
+    raise exception 'GATE(y2): hr_party_create no longer spells its party insert and its unique_violation handler the way this arm reads them, in that order — re-read the body rather than deleting the arm (guard-hygiene R3: a probe that cannot fail is not a proof).';
+  end if;
+  if position('begin' in substring(v_src
+        from position('insert into public.party (leader_user' in v_src)
+        for  position('exception when unique_violation' in v_src)
+             - position('insert into public.party (leader_user' in v_src))) > 0 then
+    raise exception 'GATE(y2): hr_party_create inserts its party row OUTSIDE the sub-block whose rollback is supposed to take it back. The loser of an invariant-1 race then keeps a party nobody can read, for free — the day clamp is never spent on it.';
+  end if;
+
   -- (x) THE GRANT MATRIX, PER ROLE.
   foreach t in array array['public.hr_party_create(integer,uuid)',
                            'public.hr_party_invite(integer,text,uuid)',
@@ -956,6 +1060,16 @@ begin
       raise exception 'GATE(e): hr_party_accept refused a live card: %', v_r; end if;
     if public.hr_party_of(v_b, 0) is distinct from v_p then
       raise exception 'GATE(e): accept returned ok and wrote no membership row in the right party'; end if;
+    -- (e1) THE ANSWER'S `members` IS THE PARTY'S SIZE (Security B1). It used to
+    --      be built from a variable the day-clamp read had already overwritten,
+    --      so the first accept of a UTC day told a party of two that it held
+    --      one. CLAUDE.md §6: the browser is never told a number the server
+    --      does not hold, and nothing else in this batch reads it, so only an
+    --      arm here can see it.
+    select count(*) into v_n from public.party_member
+     where party_id = v_p and left_at is null;
+    if (v_r->>'members')::bigint is distinct from v_n then
+      raise exception 'GATE(e1): accept answered members=% and the party holds % live member(s).', v_r->>'members', v_n; end if;
 
     -- (e2) AN INVITE ID IS NOT A PROBE FOR SOMEBODY ELSE'S CARD. A caller
     --      naming an invite addressed to another character gets the same
@@ -964,6 +1078,58 @@ begin
     v_r := public.hr_party_accept(0, v_inv, gen_random_uuid());
     if coalesce(v_r->>'error','') not in ('already_in_party','invite_gone') then
       raise exception 'GATE(e2): accepting ANOTHER character''s invite answered %', v_r; end if;
+
+    -- ══ (e3) A PARTY YOU LEFT CAN BE REJOINED, AND AN EXPIRED CARD DOES NOT
+    --         HOLD THE DOOR SHUT (Security B2 and B4) ══════════════════════
+    --     Both defects were permanent, silent and on the same path — the
+    --     leave → re-invite → accept path §18-SEC.1 S-6 prices as a lever.
+    --     B2: party_member's PK is (party_id, user_id, slot), so the dead row
+    --     from the first tenure made the rejoin raise on the PK and answer
+    --     `already_in_party` — a player told they are in a party they left.
+    --     B4: party_invite_live's predicate is `accepted_at is null and
+    --     revoked_at is null`, which EXPIRY is neither of, so a timed-out card
+    --     held the (party, character) slot for ever and every later invite
+    --     answered invite_target_unavailable. (f) below walks this exact path
+    --     but is refused one step earlier by the stubbed hunt predicate, so
+    --     neither defect was reachable from any arm in this file.
+    perform set_config('request.jwt.claim.sub', v_b::text, true);
+    perform public.hr_party_leave(0, gen_random_uuid());
+    perform set_config('request.jwt.claim.sub', v_a::text, true);
+    v_r := public.hr_party_invite(0, 'Bram Probe', gen_random_uuid());
+    if coalesce(v_r->>'ok','') <> 'true' then
+      raise exception 'GATE(e3) CANNOT RUN: the re-invite was refused %', v_r; end if;
+    -- Age that card past its own expiry and ask for another one.
+    update public.party_invite set expires_at = now() - interval '1 minute'
+     where party_id = v_p and user_id = v_b and slot = 0
+       and accepted_at is null and revoked_at is null;
+    v_r := public.hr_party_invite(0, 'Bram Probe', gen_random_uuid());
+    if coalesce(v_r->>'ok','') <> 'true' then
+      raise exception 'GATE(e3): B4 — an EXPIRED card blocked the next invite (%). party_invite_live keys on accepted_at/revoked_at, so expiry has to be written down as a revocation or a fifteen-minute timeout becomes a permanent denial the leader cannot see or clear.', v_r;
+    end if;
+    select count(*) into v_n from public.party_invite
+     where party_id = v_p and user_id = v_b and slot = 0
+       and accepted_at is null and revoked_at is null and expires_at > now();
+    if v_n <> 1 then
+      raise exception 'GATE(e3): B4 — % live card(s) for one character from one party, expected exactly 1', v_n; end if;
+    select id into v_inv from public.party_invite
+     where party_id = v_p and user_id = v_b and slot = 0
+       and accepted_at is null and revoked_at is null and expires_at > now();
+    perform set_config('request.jwt.claim.sub', v_b::text, true);
+    v_r := public.hr_party_accept(0, v_inv, gen_random_uuid());
+    if coalesce(v_r->>'ok','') <> 'true' then
+      raise exception 'GATE(e3): B2 — rejoining a party this character LEFT answered %. The dead row is revived as a new tenure; a plain insert raises on the primary key and is mis-reported as already_in_party, permanently.', v_r;
+    end if;
+    if public.hr_party_of(v_b, 0) is distinct from v_p then
+      raise exception 'GATE(e3): the rejoin answered ok and wrote no live membership row'; end if;
+    select count(*) into v_n from public.party_member
+     where party_id = v_p and user_id = v_b and slot = 0;
+    if v_n <> 1 then
+      raise exception 'GATE(e3): the rejoin left % party_member row(s) for one character in one party — the dead row must be REVIVED, not duplicated', v_n; end if;
+    select count(*) into v_n from public.party_member
+     where party_id = v_p and left_at is null;
+    if (v_r->>'members')::bigint is distinct from v_n then
+      raise exception 'GATE(e3): the rejoin answered members=% against % live member(s)', v_r->>'members', v_n; end if;
+    perform set_config('request.jwt.claim.sub', v_a::text, true);
 
     -- ══ (f) S-11 — party_accept IS REFUSED WHILE A HUNT IS LIVE ════════════
     --     hr_party_hunt_live is FALSE in S1, so the refusal is proved by

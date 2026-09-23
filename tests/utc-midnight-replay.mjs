@@ -85,7 +85,8 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -173,8 +174,48 @@ function replayAt(offsetSeconds, migDir = MIGDIR) {
 }
 
 
+/* S-UM-2 (this fix, Windows-only red measured 2026-09-23). An unprivileged
+   Windows process cannot create a file symlink (EPERM) — `symlinkSync` never
+   reaches the fallback, it just throws, so every machine that isn't running
+   elevated or in Developer Mode died here on every replay. HR_UTC_PLANT=copy
+   forces the fallback unconditionally (used by the gate that proves the copy
+   path itself, and by the corruption proof below, where a symlink would write
+   THROUGH to the tracked file — see S-UM-1). Auto mode tries the symlink first
+   (cheap, and what S-UM-1 was written for) and only falls back on the specific
+   errors a permissions/feature refusal raises; anything else still throws. */
+function plantFile(src, dest, mode) {
+  if (mode !== 'copy') {
+    try {
+      symlinkSync(src, dest);
+      return;
+    } catch (e) {
+      if (!['EPERM', 'EACCES', 'EINVAL'].includes(e.code)) throw e;
+    }
+  }
+  copyFileSync(src, dest);
+}
+
+const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
+
+/* THE PROPERTY EITHER PLANT PATH MUST KEEP: the chain the replay boots from is
+   byte-identical to the repo chain, file for file — a copy is not allowed to
+   drift from what a symlink would have served. Checked by size first (cheap,
+   catches most corruption without hashing) and then by sha256, once per file,
+   every plant, on both paths — never only on the symlink path a Windows box
+   can't take. */
+function verifyPlantedChain(dir, migNameText) {
+  for (const f of readdirSync(dir)) {
+    const source = f === MIG_NAME ? Buffer.from(migNameText, 'utf8') : readFileSync(join(MIGDIR, f));
+    const planted = readFileSync(join(dir, f));
+    if (planted.length !== source.length || sha256(planted) !== sha256(source)) {
+      return { ok: false, file: f };
+    }
+  }
+  return { ok: true };
+}
+
 /* S-UM-1 (security review 2026-09-20). A chain whose ONE mutated file is a real
-   file and whose other 200 are symlinks to the tracked ones — built in the OS
+   file and whose other 200 are planted from the tracked ones — built in the OS
    temp directory, handed to the child through HR_MIGRATIONS_DIR, and removed
    afterwards. The tracked migration is never opened for writing, so there is no
    window in which a `raise exception` is sitting inside a checked-in migration
@@ -182,10 +223,17 @@ function replayAt(offsetSeconds, migDir = MIGDIR) {
    SIGKILL can skip. `assertChainIntact()` is the standing proof of that. */
 function withPlantedChain(text, run) {
   const dir = mkdtempSync(join(tmpdir(), 'hr-utc-chain-'));
+  const mode = process.env.HR_UTC_PLANT === 'copy' ? 'copy' : 'auto';
   try {
     for (const f of readdirSync(MIGDIR)) {
       if (f === MIG_NAME) writeFileSync(join(dir, f), text, 'utf8');
-      else symlinkSync(join(MIGDIR, f), join(dir, f));
+      else plantFile(join(MIGDIR, f), join(dir, f), mode);
+    }
+    const check = verifyPlantedChain(dir, text);
+    if (!check.ok) {
+      console.error(`  HARNESS: planted chain diverged from its source at ${check.file} (mode=${mode}) — S-UM-2.`);
+      harness = 1;
+      return undefined;
     }
     return run(dir);
   } finally {
@@ -218,6 +266,7 @@ function probeFixtureDelay() {
   if (at < 0) return { err: `could not find the GATE(f5) marker to plant the probe in ${MIGRATION}` };
   const planted = original.slice(0, at) + PROBE_SQL + original.slice(at);
   const out = withPlantedChain(planted, (dir) => replayAt(PROBE_OFFSET, dir).out);
+  if (out === undefined) return { err: 'the planted chain failed its byte-identity check — see S-UM-2 above' };
   if (!assertChainIntact('after the probe')) return { err: 'the tracked migration was written to' };
   // Postgres renders the timestamp in the SESSION's TimeZone, which on a dev box
   // is the host zone (`… 19:30:06.613-06`), not UTC — so the zone offset is part
@@ -305,6 +354,33 @@ async function selftest() {
       s1[0].code !== 0, s1[0].code !== 0 ? `→ ${firstGateLine(s1[0].out)}` : '(it stayed green)');
     ok('...and RED at 01:00 too — the day-anchored fixtures still assert the economy property',
       s1[1].code !== 0, s1[1].code !== 0 ? `→ ${firstGateLine(s1[1].out)}` : '(it stayed green)');
+  }
+
+  // S-UM-2 mutation proof (this fix). Planted with mode='copy' explicitly —
+  // never 'auto' — so the byte we flip lands in a temp COPY, never through a
+  // symlink back into a tracked migration (that hazard is S-UM-1, above).
+  {
+    const dir = mkdtempSync(join(tmpdir(), 'hr-utc-chain-selftest-'));
+    try {
+      for (const f of readdirSync(MIGDIR)) {
+        if (f === MIG_NAME) writeFileSync(join(dir, f), CHAIN_AT_START, 'utf8');
+        else plantFile(join(MIGDIR, f), join(dir, f), 'copy');
+      }
+      const clean = verifyPlantedChain(dir, CHAIN_AT_START);
+      ok('a freshly planted chain (copy mode) is byte-identical to its source', clean.ok,
+        clean.ok ? '' : `→ diverged at ${clean.file}`);
+
+      const victim = readdirSync(dir).find((f) => f !== MIG_NAME);
+      const p = join(dir, victim);
+      const buf = readFileSync(p);
+      buf[0] ^= 0xff;
+      writeFileSync(p, buf);
+      const corrupted = verifyPlantedChain(dir, CHAIN_AT_START);
+      ok(`a one-byte flip in a planted file (${victim}) turns the byte-identity assertion RED`,
+        !corrupted.ok, corrupted.ok ? '(it stayed green — S-UM-2 regression)' : `→ diverged at ${corrupted.file}`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   }
 }
 

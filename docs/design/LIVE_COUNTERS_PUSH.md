@@ -128,11 +128,15 @@ Realtime limits, per plan **[F]**:
 | Channels per connection | 100 | 100 | 100 |
 | Broadcast payload size | 256 KB | **3,000 KB** | 3,000 KB |
 
-Monthly allowances **[R]**: Pro includes ~5M Realtime messages/month (overage
-~$2.50 per additional million) and ~250 GB egress (overage ~$0.09/GB); additional
-peak connections ~$10 per 1,000. `PRIORITY_BOARD.md`'s Living-Town costing is
-already priced on these same figures, so the house has been using them — that is
-consistency, not verification.
+Monthly allowances **[R — UNVERIFIED, NO SPEND MAY REST ON THESE]**: Pro
+includes ~5M Realtime messages/month (overage ~$2.50 per additional million) and
+~250 GB egress (overage ~$0.09/GB); additional peak connections ~$10 per 1,000.
+`PRIORITY_BOARD.md`'s Living-Town costing is already priced on these same
+figures, so the house has been using them — that is consistency, not
+verification, and `SEC_PUSH_CHANNEL_M5_2026-09-23.md` T4 is explicit that the
+2026-08-17 budget freeze (`CLAUDE.md` §2) forbids taking a spend decision on
+them. `supabase.com` is blocked by this environment's egress proxy; every figure
+here must be read off the vendor's own page before it prices anything.
 
 ### 3.2 The frame rate
 
@@ -168,18 +172,35 @@ ships lands at 56/s, comfortably inside both.
 
 ### 3.4 The message bill, which is the cadence's bill and not the transport's
 
-Against ~5M included messages/month **[R]**, 30-day month **[D]**:
+> ### ⚠ EVERY DOLLAR FIGURE IN THIS SECTION IS **UNVERIFIED**
+>
+> `SEC_PUSH_CHANNEL_M5_2026-09-23.md` T4. The money column below is derived
+> entirely from two **[R]** (recalled, not read) figures — **~5M included
+> messages/month** and **~$2.50 per additional million** — because
+> `supabase.com` is blocked by this environment's egress proxy and neither
+> number has been read off the vendor's own page by anyone.
+>
+> Under the **2026-08-17 budget freeze (`CLAUDE.md` §2)** no spend may be
+> approved on an **[R]** figure, and **none is requested or approved here**.
+> The *shape* of the conclusion — that cadence, not transport, is what costs
+> money — survives being wrong by an order of magnitude in either direction,
+> and that is the only load this table is asked to bear. Before any spend
+> decision (including "the 500-connection cap comes off"), both figures must be
+> read from the vendor's pricing page by someone whose network can reach it,
+> and this section re-derived and re-labelled **[F]**.
+
+Against ~5M included messages/month **[R, UNVERIFIED]**, 30-day month **[D]**:
 
 | Concurrent | @10 s | @90 s | @ measured duty |
 |---|---|---|---|
-| 50 | 13.0M → **~$20/mo** | 1.4M → **$0** | 36k → **$0** |
-| 500 | 129.6M → **~$311/mo** | 14.4M → **~$24/mo** | 360k → **$0** |
-| 5,000 | 1.296B → **~$3,230/mo** | 144M → **~$348/mo** | 3.6M → **$0** |
+| 50 | 13.0M → **~$20/mo [R]** | 1.4M → **$0 [R]** | 36k → **$0 [R]** |
+| 500 | 129.6M → **~$311/mo [R]** | 14.4M → **~$24/mo [R]** | 360k → **$0 [R]** |
+| 5,000 | 1.296B → **~$3,230/mo [R]** | 144M → **~$348/mo [R]** | 3.6M → **$0 [R]** |
 
-**This is the most important row in the document.** The beta, at today's duty
-cycle, is free at every scale in the table. A 10 s cadence is **not free at 50
-concurrent characters**, and "zero spend" therefore constrains the *cadence*, not
-the transport. `WORLD_TICK_DESIGN.md` §14.4 ("push cadence vs flush cadence") is
+**This is the most important row in the document**, and its *ordering* is what
+matters, not its dollars. The beta, at today's duty cycle, is free at every
+scale in the table. A 10 s cadence is **not free at 50 concurrent characters**,
+and "zero spend" therefore constrains the *cadence*, not the transport. `WORLD_TICK_DESIGN.md` §14.4 ("push cadence vs flush cadence") is
 now a cost question with a dollar figure attached, and §9's "set both to 10 s for
 the beta and revisit under load" should be read as **set both to 90 s and revisit
 with an approved spend**, which is what `hr_tick_config` already ships.
@@ -213,15 +234,17 @@ what that error was hiding, and the program's budgeting should use 2.5 kB.
 **[D]**: (b) = 2.5 kB/frame. (a) = the changed `player_state` row (~1.2 kB, no
 inventory/skills/bank — those are other tables) **plus** a full `hr_state_of`
 re-read (~4.5 kB) **plus** HTTPS request/response overhead (~0.7 kB) = 6.4 kB,
-i.e. **2.6× (b)**. Against ~250 GB/month included **[R]**, (b) at 500 concurrent
-and 10 s is 324 GB/month (~$7 overage); (a) at the same point is 829 GB/month.
+i.e. **2.6× (b)**. Against ~250 GB/month included **[R, UNVERIFIED]**, (b) at 500
+concurrent and 10 s is 324 GB/month (**~$7 overage [R, UNVERIFIED]**); (a) at the
+same point is 829 GB/month. The **ratio** is shape arithmetic and stands; the
+dollar is recalled and does not.
 
 ### 3.6 Database cost — where the two options actually diverge
 
 | Line | (a) `postgres_changes` | **(b) broadcast** |
 |---|---|---|
 | Authorization work | **one read per change PER SUBSCRIBER** on the published table **[F]**, on Realtime's **single** change-processing thread **[F]** → **250 / 25,000 / 2,500,000 reads per second** at 50 / 500 / 5,000 **[D]** | one RLS evaluation per **topic join**, not per change. A reconnect, not a frame. |
-| Extra `hr_state_of` calls | one per frame: 5 / 50 / 500 per second → at 3.23 ms **[M**, `restore-runbook` §14**]** = **1.6% / 16.2% / 161.5% of one core** **[D]**, before `hr_rate_gate`'s 271 ms mean and its per-character row lock **[M]** | **none.** The payload is the answer. |
+| Extra `hr_state_of` calls | one per frame: 5 / 50 / 500 per second → at 3.23 ms **[M**, `restore-runbook` §14**]** = **1.6% / 16.2% / 161.5% of one core** **[D]**, before `hr_rate_gate`'s 271 ms mean and its per-character row lock **[M]** | ⚠ **CORRECTED 2026-09-23 (`SEC_PUSH_CHANNEL_M5_2026-09-23.md` T2). The first version of this row said "none. The payload is the answer", and that was wrong.** §6 builds the payload from `public.hr_state_of(new.user_id, new.slot)` **inside the `AFTER UPDATE` trigger** — the same one call per frame at the same 3.23 ms **[M]**, so the same **1.6% / 16.2% / 161.5% of one core** **[D]**. It was not eliminated; it was **moved from a client-initiated READ onto the server's WRITE path**, inside `hr_apply`'s transaction and under its per-character row lock. A money function's lock-hold is not a rounding error: at 5,000 concurrent on a 10 s cadence this adds 161% of a core to **writes**, and lengthening the per-character lock on every accepted write is a concurrency and availability property of the payment path. **What (b) genuinely saves — and it is still decisive — is the network round trip, the edge invocation, `hr_rate_gate`'s 271 ms mean **[M]** and 2.6× the egress**, none of which (a) avoids. **[D, UNMEASURED IN THE LOCK]** |
 | Publication | requires `player_state` — the hottest-written table in the game — in `supabase_realtime`, **reversing `2026-09-06-realtime-publication-trim.sql`** and turning `tests/realtime-cost.mjs` red | **none.** `realtime.messages` is Realtime's own table; `supabase_realtime` stays `{chat_messages}`. |
 | WAL | the `player_state` UPDATE is already written; publishing it adds per-write decode + per-subscriber RLS | one extra `realtime.messages` INSERT per frame (~1 kB WAL **[D]**), **paid twice** under `wal_level = logical` with 2 slots **[M]**. Partitioned daily, ~3-day retention, **not** subject to `hr_ledger_prune`'s 480,000 rows/day ceiling **[M]** |
 | Poller | **[M, 2026-09-06]** the Realtime WAL poller is 2,706,517 calls / 15,669 s / mean 5.79 ms / **max 9,847 ms** over 20.25 days = **~61% of all measured exec time and ~36× the #2 statement — for two published tables holding zero rows.** Adding the game's hottest table to it is the decision this measurement exists to prevent. | unchanged |
@@ -248,6 +271,12 @@ does not discover that; it confirms it with M5's own numbers and then builds it.
   rest on them — it rests on §3.6, which is [M] and [F].
 - `realtime.messages` row cost is assumed to be `player_ledger`-shaped (407 B/row
   **[M]**) plus payload. That is an analogy, not a measurement.
+- **The trigger's added lock-hold on `player_state` has NOT been measured** — the
+  3.23 ms above is `hr_state_of`'s standalone cost **[M]**, not its cost *inside*
+  `hr_apply`'s transaction with the `realtime.messages` INSERT after it. This is
+  Security's condition 8 (§4 below) and it is the one condition of the eleven
+  that cannot be proved from inside the migration: it needs a live database under
+  load. **It is OPEN, and the migration has no GO until it is measured.**
 
 ---
 
@@ -349,6 +378,78 @@ Shape only; the migration is the authority and carries its own §4 self-check.
 - Production fact **[M, prior lane]**: `realtime.messages` currently has **0 RLS
   policies**, i.e. private channels are unjoinable today. This migration is what
   makes exactly one topic shape joinable, by its owner, read-only.
+
+### 6.1 The predicate, verbatim (`SEC_PUSH_CHANNEL_M5_2026-09-23.md` T3)
+
+The frame payload is the **whole `hr_state_of` projection** — gold, gems,
+inventory, bank, equipment, skills, XP, farm, progress — so **this `using`
+clause is the entire property that keeps one player's economy out of another
+player's socket.** It is a one-word difference from a break: a policy scoped by
+topic *shape* (`topic like 'hr:%'`) rather than by the subscriber's own identity
+would let any authenticated player stream any other player's whole character.
+Blast radius: **another player**, the highest this project ranks. So it is
+written out here in full, exactly as the migration installs it:
+
+```sql
+create policy "hr_frame_receive_own_topic"
+  on realtime.messages
+  for select                                   -- SELECT only. No INSERT policy exists.
+  to authenticated                             -- never `public`, never `anon`.
+  using (
+    realtime.messages.extension = 'broadcast'
+    and split_part((select realtime.topic()), ':', 1) = 'hr'
+    and split_part((select realtime.topic()), ':', 2) = (select auth.uid())::text
+    and split_part((select realtime.topic()), ':', 3) ~ '^[0-5]$'
+  );
+```
+
+Four things are load-bearing and each is asserted by the migration's self-check:
+
+1. **`auth.uid()`, not a pattern.** The subscriber is resolved from the **JWT**
+   — which the client cannot forge — and compared to the topic's own user
+   segment. A predicate that does not name the subscriber cannot exclude
+   anybody. (`e1b`)
+2. **`split_part`, not `like`.** `topic like 'hr:' || auth.uid() || ':%'` also
+   matches `hr:<uid>:0:anything`, and "anything" is attacker-chosen. The three
+   segments are compared exactly; the third is a single digit because a slot is
+   0-5 (`MAX_SLOT`). (`e1c`)
+3. **`for select` and nothing else, and no INSERT policy anywhere on the
+   table.** The client applies envelopes ABSOLUTELY, so a player who can *send*
+   on a topic — their own included — can hand themselves any state they like.
+   That is server impersonation into a client, and it is the P0 of this area.
+   (`s9`)
+4. **The topic has one spelling.** `public.hr_frame_topic()` is what the emitter
+   writes and these same three tests are what the policy reads; if they ever
+   disagree a frame either reaches nobody or reaches the wrong player, and
+   neither is visible from either side alone. (`s3`, `s3b`)
+
+And the executed half, which is the one that matters: `e2` authenticates as one
+user, sets `realtime.topic()` to **another** user's topic, and asserts **zero
+rows**. "The owner can read" proves nothing; the property is that a stranger
+cannot.
+
+### 6.2 Security's conditions before this migration gets a GO
+
+`SEC_PUSH_CHANNEL_M5_2026-09-23.md` §4, as a checklist. `GO-WITH-CHANGES` means
+these land **first** (`CLAUDE.md` §2). Status as of 2026-09-23, this lane:
+
+| # | Condition | Status | Where |
+|---|---|---|---|
+| 1 | The migration exists in the repo, one file, with a §4 self-check asserted by **executing SQL** | **MET** | `2026-09-22-frame-push-channel.sql`, checks `s1`-`s9`, `e1`-`e6`; replays on `schema-drift` |
+| 2 | The RLS predicate **binds identity, not shape** (`auth.uid()`, not `like`), and the self-check **attempts a cross-user topic join and asserts zero rows** | **MET** | §6.1 above; `e1`/`e1b`/`e1c` read the INSTALLED policy, `e2` executes the cross-user join as `authenticated` |
+| 3 | **No INSERT policy** on `realtime.messages`, `revoke … from public` before any grant, INSERT denied for `authenticated` | **MET** | §5 of the migration; `s4`, `s9` |
+| 4 | **The emitter cannot fail the payment** — proven by making the push fail and asserting `hr_apply`'s value still committed | **MET** | `s5` (armed + committed), `s5b` (a deliberately throwing probe trigger, payment intact), `s5c`/`s5c3` (the real emitter owns the handler, and it *wraps* the send) |
+| 5 | **Fail-closed on the flag**: `frame_push` ships `false`, and a **missing config row** emits nothing | **MET** | `s1` (flag), `e6` (missing/NULL row) |
+| 6 | **The frame number is never synthesised** — equals `new.version` exactly, for each producer; a version that goes **down** still emits | **MET** | `e3`, `e3b`, `e3c` |
+| 7 | **The shadow property is asserted, not inherited** — a shadow settle emits no frame | **MET** | `e4`/`e4b`, read off `hr_tick_settle`'s installed source |
+| 8 | **The trigger's cost INSIDE the lock is measured** — `hr_state_of` + the `realtime.messages` INSERT, timed as added lock-hold on `player_state`; §3.6 restated from the measurement; Reliability reviews the WAL and retention consequences | ⚠ **OPEN — this is the blocker** | §3.6 is restated **honestly** (T2) and §3.7 names it open. The measurement itself needs a live database under load and **cannot be done from a lane worktree**; it is the Coordinator's or Reliability's to run. **No GO until it exists.** |
+| 9 | **The delta states the WHOLE projection, every time** — the payload's top-level key set equals `hr_state_of`'s | **MET** | `e5`/`e5b`, plus the `frame_keys` CHECK constraint and `s2` |
+| 10 | `tests/realtime-cost.mjs` stays green — `supabase_realtime` still publishes exactly `{chat_messages}` | **MET** | guard green (exit 0); also asserted in-database by `s8` |
+| 11 | **No service-role key** anywhere in the socket path; the anon key remains the only key in the client bundle | **MET** | the migration revokes EXECUTE from `service_role` explicitly (`s4`); nothing in `src/**` gains a key |
+
+**Verdict this lane can honestly claim: 10 of 11 met, condition 8 OPEN.** The
+migration is staged and unapplied, and Security's GO is not assumed — the
+cross-check above is what a re-verify should attack, not a substitute for one.
 
 ---
 

@@ -2478,15 +2478,15 @@ curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
 
 ⚠ **Do not copy a payload hash out of a document — including this one.** The
 value moves whenever anything under `supabase/functions/**` moves, and on this
-branch it already has: Security's review recorded
-`1b97422cd1542ec36224e37e930cc0df5370b76968f1fc2d60316f62c3bd24ec` on
-2026-09-23, and merging `origin/next` (M1f's `hr-accrue/envelope.js` and the M5
-frame gate) took the packed payload to
-`92f5d8b5fab1be4e7516ed94f7d82b7f587877b171c17cdad3e7b3587db32fd6`. Both
-numbers are correct for the tree that produced them and neither is
-authoritative for yours. **`node tools/pack-edge.mjs hr-accrue --hash` at
-deploy time is the number that matters**; what this section pins is the READ,
-not the digest.
+branch it already has: Security's review recorded `1b97422c…` on 2026-09-23,
+and merging `origin/next` (M1f's `hr-accrue/envelope.js` and the M5 frame gate)
+took the packed payload to `92f5d8b5…`, which the combat-channel merge has
+moved again. Each is correct for the tree that produced it and none is
+authoritative for yours — which is why only their truncated forms survive here
+(Security S-6b): a full-length value is the only form an operator can paste
+into a comparison, so this section does not carry one. **`node tools/pack-edge.mjs hr-accrue --hash`
+at deploy time is the number that matters**; what this section pins is the
+READ, not the digest.
 
 **Order.** Steps 1 and 4 are the seam; between them the tick posts nothing, so
 no build ever exists that accepts both forms.
@@ -2517,9 +2517,9 @@ npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
 node tools/pack-edge.mjs hr-accrue --hash
 curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
 #    The GET's `payload_sha256` MUST equal --hash — compare the two VALUES you
-#    just read, never a value from a document (see (P3)). On this branch
-#    --hash is 92f5d8b5fab1be4e7516ed94f7d82b7f587877b171c17cdad3e7b3587db32fd6
-#    as of the origin/next merge; re-read it rather than trusting that.
+#    just read, never a value from a document (see (P3)). There is deliberately
+#    no expected value printed here: --hash at the SHA you are deploying IS the
+#    expectation (Security S-6b).
 #    ★ (P3) must already be written down. If it is not, go back — the previous
 #      payload_sha256 is no longer readable once this deploy lands.
 

@@ -1123,6 +1123,20 @@ const MUTATIONS = [
                 && r.error !== 'window_already_settled') {
               throw new Error('batch aborted: ' + r.error);
             }
+            /* AND THE PROJECTION'S OWN REFUSAL (Security S-8, 2026-09-23).
+               tickOne used to meet the fence first, so every per-character
+               refusal arrived as a `res` and the line above modelled all of
+               them. S-8 moved `hr_state_of` in front of the fence — the
+               character's channel has to be READ before it can be asked
+               about — so `no_character` now arrives as an ENVELOPE with
+               `ok:false` and no `res` at all. Left unmodelled, the mutation
+               stopped throwing on T-R1's unknown character and the arm went
+               green under it: M6 was vacuous, which is a guard that has
+               never been red. */
+            const env = rows && rows[0] && rows[0].state;
+            if (env && env.ok !== true) {
+              throw new Error('batch aborted: ' + env.error);
+            }
             return rows;
           },
         }));

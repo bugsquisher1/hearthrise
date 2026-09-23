@@ -470,6 +470,31 @@ const MUTATIONS = {
       + "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
     ]]]],
   },
+  /* ── 2026-09-23, Security RE-VERIFY 4, R7 ────────────────────────────
+     The three above plant a DIRECT `update public.player_state`, which
+     bypasses hr_apply entirely — so they are green whether or not e4's
+     probe settle runs as hr_engine, and `--mutate`'s green said nothing
+     about the one line the arm's meaning rests on. This plants what a real
+     regression looks like instead: the shadow branch reaches hr_apply and
+     DISCARDS its answer (Security's case E′), so nothing returns an error
+     for e4a to see and only the frame counter and the value compare are
+     left. Called as the apply's role, hr_apply's impersonation seam answers
+     forbidden_impersonation, writes nothing, and the chain APPLIES — the
+     arm passing on a function that reached hr_apply. Called as hr_engine it
+     pays, the trigger fires, and e4b (then e4d) refuse. Probe-scoped to
+     e4's own uuid, so the fence's e13 sees an untouched shadow settle and
+     the refusal is this arm's alone. */
+  frame_e4_shadow_reaches_hr_apply: {
+    what: "hr_tick_settle's shadow branch calls hr_apply for the probe and throws the answer away, so a dry-run tick pays and pushes a frame while still reporting mode=shadow",
+    expect: 'replay', // e4b raises: a SHADOW settle emitted 1 frame(s) …
+    patches: [['2026-09-21-world-tick-settle-fence.sql', [[
+      "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
+      "    if p_user = '00000000-0000-4000-8000-00000000fa3e'::uuid then\n"
+      + "      perform public.hr_apply(p_user, p_slot, p_version, p_intent_id, p_delta);\n"
+      + "    end if;\n"
+      + "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
+    ]]]],
+  },
   reopen_a11: {
     what: 'the beta_invites lockdown GUC is unset, so a rebuild leaves every invite code world-readable',
     expect: 'replay', // live-market-rls §3b raises without it, by design

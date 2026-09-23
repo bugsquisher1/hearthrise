@@ -819,8 +819,30 @@ begin
 
     select version, gold into v_v, v_g from public.player_state where user_id = v_u and slot = 0;
     perform set_config('hr922.fires', '0', true);
+    --     ⚠ AS hr_engine, OR THE ZEROS BELOW ARE hr_apply's AND NOT THE
+    --       BRANCH'S (2026-09-23, Security RE-VERIFY 4, R7). hr_apply's
+    --       impersonation seam (2026-09-14-hr-apply-restatement.sql:699) reads
+    --       `role` and refuses any caller that is not hr_engine — and `role`
+    --       survives hr_tick_settle's definer boundary. Called as the APPLY's
+    --       role, a shadow branch that DOES reach hr_apply gets back
+    --       {"ok": false, "error": "forbidden_impersonation"}: nothing is
+    --       written, no frame is emitted, and e4b/e4d pass on a function that
+    --       reached hr_apply. That is a check that passes both when the
+    --       property holds and when the thing it calls refused it — the arm
+    --       would measure the seam, one file down, instead of the branch it is
+    --       about. Security executed three reachable, probe-scoped plants
+    --       (`--` hidden, `/*…*/` hidden, and the answer silently discarded):
+    --       all three APPLIED without these two lines and all three REFUSE via
+    --       e4b with them. Same idiom, same reason, as the fence's own e12
+    --       (2026-09-21-world-tick-settle-fence.sql:704), and the role is held
+    --       across the call only — every assertion below reads as the apply.
+    --       tests/schema-drift.mjs plants that defect as
+    --       `frame_e4_shadow_reaches_hr_apply`, so `--mutate` goes red if
+    --       these two lines are ever taken back out.
+    set local role hr_engine;
     v_r := public.hr_tick_settle('hr922-selfcheck', v_u, 0, 'gather', v_v, v_tf, v_tt,
              '00000000-0000-4000-8000-00000000fa04', v_d);
+    reset role;
 
     --     e4a: ★ THE POSITIVE CONTROL, BEFORE ANY ZERO IS BELIEVED ★. Every
     --     assertion below is a zero or an equality, and a settle the fence

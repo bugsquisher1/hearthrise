@@ -846,6 +846,11 @@ function settle(verdict, now) {
     try {
       const W = (typeof window !== 'undefined') ? window : null;
       if (W && typeof W.hrNoteServerBestiary === 'function') W.hrNoteServerBestiary(verdict.body);
+      /* The TROPHY half of the same block (kills_by_monster + the claimed rows).
+         Its own adopter and its own try, because they are different facts with
+         different absences: a server without hr_trophy_of still sends counters,
+         and one adopter throwing must not cost the other its mirror. */
+      if (W && typeof W.hrNoteServerTrophies === 'function') W.hrNoteServerTrophies(verdict.body);
     } catch (e) {}
   }
   /* ── b368: A RECOVERED SERVER TAKES ITS OWN SHEET DOWN ────────────────────

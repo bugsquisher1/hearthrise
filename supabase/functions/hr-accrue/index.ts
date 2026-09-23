@@ -92,6 +92,7 @@ import { runClaimReward } from './claim-reward.js';
 import { runUnlockBuy } from './unlock-buy.js';
 import { runDungeonSettle } from './dungeon-settle.js';
 import { runQuartermasterBuy } from './quartermaster-buy.js';
+import { runTrophyClaim } from './trophy-claim.js';
 import { runMarketList, runMarketCancel, runMarketBuy } from './market.js';
 import { runEquip } from './equip.js';
 import { runEnchant } from './enchant.js';
@@ -525,6 +526,29 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       return json(out.body, out.status);
     }
 
+    /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4). Same three
+       lines. It forwards a MONSTER ID and a STAGE NUMBER and nothing else — no
+       kill count, no multiplier, no "earned" bit. hr_trophy_claim validates the
+       monster against the server's own combat catalogue, re-reads the kill total
+       from player_progress under the advisory lock, and writes one collection
+       row plus one ledger row. Like unlock_buy / dungeon_settle / quartermaster_buy
+       its commit point is a dedicated RPC and not hr_apply — a trophy row is a
+       GREATEST-style once-ever write, and hr_apply merges progress ADDITIVELY.
+
+       ⚠ IT MINTS NOTHING, so this is the one value-verb dispatch in this file
+         after which no balance has moved. See trophy-claim.js's header for why
+         that is the feature's whole security argument rather than an omission. */
+    if (intent.verb === 'trophy_claim') {
+      const out = await runTrophyClaim({
+        exec,
+        user,                       // the VERIFIED subject, never a body field
+        slot,
+        intentId: intent.intentId,
+        trophy: intent.trophy,
+      });
+      return json(out.body, out.status);
+    }
+
     /* ── b355 — THE MARKET VERBS. THE FIRST VALUE THAT CROSSES BETWEEN TWO
        PLAYERS, and the dispatch is the same three lines the others get, which
        is the point: index.ts stays five things and every intent is a pure ESM
@@ -642,7 +666,24 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
         kills = null;
       }
-      return { ...(row as Row), bestiary_rows: kills } as Row;
+      /* THE CLAIMED TROPHY ROWS (docs/design/BESTIARY_LADDER.md §4), in their
+         OWN savepoint rather than the one above. A combined savepoint would
+         make a database that has hr_bestiary_of but not hr_trophy_of — i.e.
+         every database between the two applies — lose the KILL counters too,
+         which price the drop multiplier. Degrading a projection is a missing
+         badge; degrading the counters is an under-paid night.
+         Same rule otherwise: 42883 AND ONLY 42883 degrades, to null, and
+         absence is never a claim. */
+      let trophyRows: Row[] | null = null;
+      try {
+        trophyRows = await tx.savepoint((sp: typeof tx) => sp`
+          select monster_id, stage
+            from public.hr_trophy_of(${user}::uuid, ${slot}::int)`) as unknown as Row[];
+      } catch (e) {
+        if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
+        trophyRows = null;
+      }
+      return { ...(row as Row), bestiary_rows: kills, trophy_rows: trophyRows } as Row;
     });
 
     if (read?.limited) return json({ ok: false, error: 'rate_limited' }, 429);
@@ -676,7 +717,17 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     const bestiaryRows = Array.isArray((read as Record<string, unknown>)?.bestiary_rows)
       ? (read as Record<string, unknown>).bestiary_rows as Row[]
       : null;
-    let bestiary: { kills_by_class: Record<string, number> } | null = null;
+    const trophyRows = Array.isArray((read as Record<string, unknown>)?.trophy_rows)
+      ? (read as Record<string, unknown>).trophy_rows as Row[]
+      : null;
+    let bestiary: {
+      kills_by_class: Record<string, number>;
+      kills_by_monster: Record<string, number>;
+      /* OPTIONAL, and the `?` is the type-level half of Security F3: a required
+         field is a field the emit site cannot leave out, and this one MUST be
+         left out when hr_trophy_of did not answer. See the emit below. */
+      trophies?: Array<{ monster: string; stage: number }>;
+    } | null = null;
     /* THE SAME ROWS, HANDED TO THE ENGINE RAW (charms phase 2). The engine does
        its OWN fold (accrual.js `killsByClass` → `charmIndex`) rather than reading
        `kills_by_class` back: that block is a display projection, and an engine
@@ -695,7 +746,49 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          (its keys are data-derived lookup keys) and the wire wants an ordinary
          JSON object. `{}` when nothing has been killed yet — a truthful empty
          bestiary, distinct from the absent key above. */
-      bestiary = { kills_by_class: { ...(killsByClass(byId, MONSTERS) || {}) } };
+      /* ⚠ `kills_by_monster` RIDES THE SAME BLOCK, AND IT IS NOT REDUNDANT WITH
+         `kills_by_class`. The TROPHY ladder is per monster: its badge, and the
+         "8,120 more to Slayer" line that is the whole retention affordance,
+         cannot be rendered from eleven class totals. It is the same `byId` the
+         engine is handed — the server's own rows, never a client counter — so
+         the panel and the engine read ONE set of numbers (CLAUDE.md §6: the
+         browser never says one thing while the server says another). At most
+         one entry per monster ever killed, so ≤108 today.
+
+         ⚠ AND THE CLAIMED TROPHY ROWS. The stage is DERIVED from the counters
+         above and is NOT sent — there is no stage field on this wire, so there
+         is none to forge. This array is the CLAIM half only: which trophies the
+         server has actually written, which is what the button's "Claimed" state
+         must read. `[]` is a truthful "none claimed"; the key is OMITTED
+         entirely on a database without hr_trophy_of, and the client's fail-safe
+         is "not claimed", never a claim the server does not hold.
+
+         ⚠ THE OMISSION IS A SPREAD, NOT A COMMENT (Security F3, 2026-09-22).
+           This block said all of the above and then emitted `trophies: claimed`
+           UNCONDITIONALLY, built from `trophyRows ?? []`. So on the 42883
+           degradation path — and on this feature's own documented rollback,
+           `drop function public.hr_trophy_of` — the key was PRESENT and EMPTY.
+           noteEnvelope (src/features/bestiary-trophies.js) reads a present key
+           as authority, so `hasTrophyKey` went true with nothing in it,
+           `isClaimed` went false for every trophy the server holds, and the
+           panel re-offered Claim on a claimed trophy while the server answered
+           `already_owned`. That is CLAUDE.md §6's "the browser says one thing
+           and the server says another", on the surface this lane built.
+           `trophy-claim.js`'s PROJECTION_SQL path already had this right — a
+           failed re-read drops the whole block rather than emitting an empty
+           one — and this is the same rule at the other emit site: ABSENCE MUST
+           STAY ABSENCE, because an empty array is a claim and null is not. */
+      const claimed: Array<{ monster: string; stage: number }> = [];
+      for (const r of (trophyRows ?? [])) {
+        const mid = String(r?.monster_id ?? '');
+        const st = Number(r?.stage ?? 0);
+        if (mid && Number.isFinite(st) && st > 0) claimed.push({ monster: mid, stage: Math.floor(st) });
+      }
+      bestiary = {
+        kills_by_class: { ...(killsByClass(byId, MONSTERS) || {}) },
+        kills_by_monster: { ...byId },
+        ...(trophyRows ? { trophies: claimed } : {}),
+      };
       bestiaryKills = byId;
     }
 

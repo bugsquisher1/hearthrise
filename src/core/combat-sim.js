@@ -165,7 +165,13 @@ export function resolveKill(state, m, ctx) {
   const feat = (ctx.botd && typeof ctx.botd.killBonuses === 'function')
     ? ctx.botd.killBonuses(id) : NO_BONUS;
 
-  const dropMult = (typeof ctx.weakness === 'function' ? ctx.weakness(m) : { dropMult: 1 }).dropMult;
+  /* `id` IS PASSED, and it is load-bearing (BESTIARY_LADDER.md). The charm
+     resolves its class off the row; the trophy needs the row's IDENTITY and no
+     roster row carries one, so `weaknessInfo` is handed the id the kill already
+     knows. Drop it and the long ladder pays nothing — silently, and only on
+     this path — which is why tests/bestiary-trophy.mjs proves the ATTENDED and
+     the AWAY columns pay the same multiplier (AWAY-1). */
+  const dropMult = (typeof ctx.weakness === 'function' ? ctx.weakness(m, id) : { dropMult: 1 }).dropMult;
   /* THE BALANCE ASSERTION the designer asked for (ruling, "Balance risk"):
      rollDropTable applies `min(0.95, ch x dropMult x (1+dropBuff) x featured)`
      — the cap is AFTER every multiplier, and a guaranteed drop (ch >= 1) is
@@ -548,7 +554,7 @@ export function simulateSpan(state, ctx) {
      is unstudied, which is the ordinary night and prints nothing. */
   let charmClass = null; let charmRank = 0; let charmDropMult = 1;
   if (state.activeMonster && typeof ctx.weakness === 'function') {
-    const w0 = ctx.weakness((ctx.monsters || {})[state.activeMonster]) || {};
+    const w0 = ctx.weakness((ctx.monsters || {})[state.activeMonster], state.activeMonster) || {};
     if (w0.charmRank > 0) {
       charmClass = w0.charmClass || null;
       charmRank = Math.floor(Number(w0.charmRank) || 0);

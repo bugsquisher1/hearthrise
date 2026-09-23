@@ -69,6 +69,13 @@
 //                      suppressed on that arm. Dropping both again is the
 //                      SEC S1 defect, and it is invisible to every claim
 //                      about the RETURN value.
+//   S7  IDENTITY RESET the floor is cleared by `resetAccrualIdentity()`, the
+//                      hook BOTH production identity changes already run
+//                      (auth.js signOut, which does not reload; and
+//                      multi-character.js, before the pointer moves). A reset
+//                      wired only to `resetGold()` — which has no production
+//                      caller — is a comment, not a seam, and the suite's own
+//                      call proves nothing about it.
 //   S3  SHAPE ≠ FRAME  classifyAccrueResponse keeps classifying on SHAPE. If
 //                      the frame gate lived there, a duplicate would classify
 //                      `malformed` and three of them would trip
@@ -161,6 +168,16 @@ const MUTATIONS = {
     /* ALSO behavioural: the mutant re-runs F6 against a gate broken the same
        way, which is what says F6's assertions are not vacuous. */
     behaviour: true,
+  },
+  identity_reset_missing: {
+    why: 'the frame floor stops being reset on an identity change — the shape '
+       + 'that let a signed-in account B inherit account A\'s floor and have '
+       + 'every one of its frames dropped for the whole session '
+       + '(SEC_PUSH_CHANNEL_M5_2026-09-23.md S2)',
+    file: 'src/net/accrue.js',
+    from: '  resetFrameGate();\n  try { clearFall(); } catch (e) {}',
+    to:   '  try { clearFall(); } catch (e) {}',
+    kills: ['S7'],
   },
   classify_gates_on_frame: {
     why: 'the frame gate is moved INTO classifyAccrueResponse, so a duplicate '
@@ -384,6 +401,25 @@ export async function envelopeFrameGateGuard(mutation) {
     'activity.js re-hangs the COLLECT RECEIPT on a duplicate. `written.paidReceipt` is replayed '
     + "by legacy.js's creditServerAwayKills into updateDaily('kill_any') — the Muster's SHARED "
     + 'world-event meter — so a retransmit would contribute to a shared surface twice.');
+
+  /* S7 — THE RESET HAS A PRODUCTION CALL SITE. This is a claim about the TREE
+     and it cannot be anything else: a reset the suite calls and production does
+     not is green on every behavioural test ever written, because the suite is
+     what wires it. The floor is module state that outlives a sign-out (auth.js
+     does not reload), so an identity change that does not clear it hands the
+     incoming character the outgoing character's floor — and every frame below
+     it is dropped, for the whole session, with no healer (S3). */
+  {
+    const head = accSrc.indexOf('export function resetAccrualIdentity() {');
+    const body = head < 0 ? '' : accSrc.slice(head, accSrc.indexOf('\n}', head));
+    ok(head >= 0, 'S7', 'resetAccrualIdentity is gone from accrue.js — the identity teardown '
+      + 'both production paths call cannot be checked.');
+    ok(/(^|\n)\s*resetFrameGate\(\);/.test(body), 'S7',
+      'resetAccrualIdentity() does not reset the frame floor. It is the ONE hook both production '
+      + 'identity changes run (auth.js signOut — which does NOT reload — and multi-character.js '
+      + 'before the pointer moves); resetGold() has no production caller, so a reset that lives '
+      + 'only there is wired to the suite and to nothing else.');
+  }
 
   /* S4 — STRICTLY GREATER, in the tree. `>=` is the regression that looks
      right: it reads as "apply anything at least as new", which is exactly the

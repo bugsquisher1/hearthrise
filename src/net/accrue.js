@@ -320,7 +320,10 @@ export const ACCRUE_OUTCOMES = [
    PER CHARACTER, so the reset is load-bearing: two characters' counters are
    unrelated integers, and carrying one floor into the other would drop every
    frame of the new character until its version passed the old one's.
-   `resetFrameGate()` runs from `resetGold()` (every slot change and sign-out).
+   `resetFrameGate()` runs from `resetAccrualIdentity()` — the hook auth.js's
+   signOut() (which does NOT reload) and multi-character.js both already call.
+   It runs from `resetGold()` too, which has no production caller: that one is
+   the suite's reset and was never the seam this claimed it was (SEC S2).
 
    NEVER PERSISTED. The floor is session state; after a reload the `hello`
    re-read restates it. A stored floor is the residue-ahead class wearing a
@@ -806,6 +809,18 @@ export function resetAccrualIdentity() {
   clearCombatXpDeferral('the signed-in account or character changed');
   awaySettleClosed = false;
   bootAccruedToAt = 0;
+  /* ── THE FRAME FLOOR, AND WHY IT IS RESET *HERE* (SEC S2, 2026-09-23) ─────
+     Two characters' `player_state.version` counters are unrelated integers, so
+     a floor carried across an identity change drops every frame of the incoming
+     character — the boot read, the away grant, every gold verb, every intent —
+     until its version happens to pass the outgoing one's. The comment at the
+     gate claimed `resetGold()` did this; `resetGold()` has no production caller
+     at all, so the reset was wired to nothing but the suite. A documented
+     collaborator with no call site is a comment, not a seam (b339).
+     THIS is the hook both production paths already run: auth.js's signOut(),
+     which deliberately does NOT reload, and multi-character.js, before the slot
+     pointer moves. `resetGold()` keeps its own call, for the suite. */
+  resetFrameGate();
   try { clearFall(); } catch (e) {}
   /* The sibling module with the same shape: activity.js caches the last
      DECLARED and CONFIRMED activity, the last server fight and a held

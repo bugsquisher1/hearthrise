@@ -8154,4 +8154,55 @@ function m5FrameGateTests() { return [
       assert(A.getAppliedFrame() === 77, 'a reordered intent envelope moved the floor');
     } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
   }),
+  /* ── SEC S2 — THE IDENTITY CHANGE CLEARS THE FLOOR ────────────────────────
+     docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S2 (HIGH, CONFIRMED).
+
+     Two characters' `player_state.version` counters are unrelated integers, and
+     the floor is module state that OUTLIVES a sign-out — auth.js's signOut()
+     deliberately does not reload, which is why it hand-resets the other three
+     identity-scoped holders. The floor was the fourth and was not among them:
+     the comment said `resetGold()` did it, and `resetGold()` has no production
+     caller at all, so the reset was wired to this suite and to nothing else.
+
+     THE PLAYER'S VERSION. Sign out of an account at version 4200, sign in as
+     one at version 37 in the same tab: every envelope for the newcomer — the
+     boot read, the away grant, every gold verb, every intent — is a `reorder`
+     and is dropped WHOLE, for the whole session, until its version passes
+     4200. There is no healer, because `hello` is itself gated by the floor.
+
+     RED WITHOUT THE FIX at (2): the newcomer's first envelope is refused.
+     Driven through `resetAccrualIdentity()`, the hook BOTH production paths
+     call (auth.js:940, multi-character.js:396) — never through resetFrameGate,
+     which would only re-prove the thing that was already wired. */
+  () => tryRun('M5 regression: an identity change clears the frame floor (SEC S2)', () => {
+    const A = m5Gate();
+    assert(typeof A.resetAccrualIdentity === 'function',
+      'accrue.js must publish resetAccrualIdentity — it is the identity teardown both the '
+      + 'sign-out and the slot switch already call, and the floor rides on it');
+    const wasAcked = A.isReplacementAcknowledged();
+    try {
+      A.acknowledgeReplacement(true);
+      A.resetFrameGate();
+
+      /* (1) THE OUTGOING CHARACTER, far along. */
+      const GA = { gold: 0, gems: 0, skills: {}, inventory: {} };
+      assert(A.applyEnvelope(GA, m5Env(4200, 900)) && A.getAppliedFrame() === 4200,
+        'the outgoing character\'s envelope did not land — the precondition is broken');
+
+      /* (2) THE SWITCH, through the PRODUCTION hook, and the newcomer's first
+             envelope. A fresh character is at a low version; if the floor came
+             across, this is a `reorder` and the player sees a dead screen. */
+      A.resetAccrualIdentity();
+      assert(A.getAppliedFrame() === -1,
+        'resetAccrualIdentity() left the floor at ' + A.getAppliedFrame() + '. The incoming '
+        + 'character inherits the outgoing one\'s counter and every frame below it is dropped '
+        + 'for the whole session — and `hello` cannot heal it, being gated by the same floor.');
+      const GB = { gold: 0, gems: 0, skills: {}, inventory: {} };
+      assert(A.applyEnvelope(GB, m5Env(37, 5)) && GB.gold === 5,
+        'the NEW character\'s first envelope (37) was refused after a switch from a character at '
+        + '4200. Every envelope for this player is now dropped whole, invisibly, until their '
+        + 'version passes 4200.');
+      assert(A.getAppliedFrame() === 37, 'the floor did not follow the new character');
+    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+  }),
 ]; }

@@ -276,8 +276,124 @@ export const ACCRUE_OUTCOMES = [
   'unconfigured',   // no endpoint / no token on this device
 ];
 
-/** Does this envelope carry enough to BE the truth? Fail closed. */
-export function isEnvelopeApplicable(res) {
+/* ══════════════════════════════════════════════════════════════════════════
+   THE FRAME GATE — ONE MONOTONIC RULE FOR THE WHOLE ENVELOPE
+   docs/planning/WORLD_TICK_DESIGN.md §7.1 · docs/design/LIVE_COUNTERS_PUSH.md §7
+
+   WHAT WAS HERE BEFORE, AND WHY IT WAS SURVIVABLE. `isEnvelopeApplicable` asked
+   only that `res.version` be a finite NUMBER. The monotonic rule — "a newer
+   answer may not be overwritten by an older one" — existed in exactly ONE place
+   in the client, for exactly ONE field: src/net/gold.js's
+   `if (env.version < lastVersion) return { stale: true … }`. Under a
+   request/response transport that is survivable, because a response is the
+   answer to a request this client just made, and the only reordering that
+   exists is two gold verbs racing each other — which is precisely the case
+   gold.js was written to cover.
+
+   WHY IT IS NOT SURVIVABLE UNDER A PUSH STREAM. M5 makes the client a receiver:
+   frames arrive unbidden, at the server's cadence, over a transport that
+   reorders, duplicates and retransmits as a matter of routine (a tab wake, a
+   network flap, a token refresh). Every one of those events, against the old
+   gate, is a SILENT REWIND of every field the envelope carries except gold —
+   hp, the activity pointer, the bag, a buff clock, a plot tier. A rewind the
+   player can act on is the 2026-09-13 "browser says X, server says Y" class,
+   which CLAUDE.md §6 makes a P1 class-kill, arriving at the cadence of the
+   world tick instead of at the cadence of a reload.
+
+   THE RULE, VERBATIM FROM §7.1: a client applies a frame only if
+   `frame > lastAppliedFrame`. STRICTLY greater. Equal is a duplicate and is
+   dropped; lower is a reorder and is dropped. There is no merge, no "apply the
+   newer fields", no per-key comparison — THE WHOLE FRAME IS APPLIED OR THE
+   WHOLE FRAME IS DROPPED. A per-key merge is the failure this gate exists to
+   forbid: it produces a state the server never held, assembled from two frames,
+   and nothing downstream can tell that it is a fiction.
+
+   `frame` IS `player_state.version`, and the client does not get a second
+   counter. hr_apply bumps it on every accepted write, from either producer (the
+   edge's intents and the world tick), under the per-character row lock — so it
+   is already monotonic per character and it is already the number gold.js was
+   comparing. A frame the database did not stamp does not exist.
+
+   ── THE SPLIT: WHO READS AND WHO WRITES ───────────────────────────────────
+   The PREDICATE reads the ledger; only an APPLIER commits to it. That is not
+   tidiness, it is what keeps `isEnvelopeApplicable` safe to ask twice: a caller
+   that asks "could I apply this?" and then does not must not have moved the
+   floor for the caller that would have. The three appliers — applyEnvelope
+   here, applyGoldEnvelope in gold.js and applyIntentEnvelope in activity.js —
+   each call `commitFrame` on the answer they actually wrote, and nothing else
+   in the tree may.
+
+   ── PER CHARACTER, WHICH IS WHY THE RESET IS LOAD-BEARING ─────────────────
+   Two characters' `version` counters are unrelated integers. Carrying one
+   character's floor into another would drop every frame of the new character
+   until its version happened to pass the old one's — a character that silently
+   stops updating, for a bounded but unpredictable time. `resetFrameGate()` is
+   called from `resetGold()` (which every slot change and every sign-out already
+   runs) and from the smoke harness's `restoreG`.
+
+   ── NOT PERSISTED, EVER ───────────────────────────────────────────────────
+   The floor is session state and must never reach RESIDUE_FIELDS or a server
+   column. After a reload the client re-reads (`hello`, §7.1) and the envelope
+   it gets back restates the floor. A client-persisted frame number is the
+   residue-ahead class (CLAUDE.md §6) wearing a transport: a stale stored floor
+   would make a correct server frame unapplicable, with a fail-OPEN direction.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** The highest frame (= player_state.version) this character has APPLIED.
+ *  -1 is "nothing yet", and it is below every version the server can stamp. */
+let lastAppliedFrame = -1;
+
+/** Read-only seam for the suite, the bug report and the diagnostics sheet. */
+export function getAppliedFrame() { return lastAppliedFrame; }
+
+/** A DIFFERENT CHARACTER IS NOW IN G. See the per-character note above. */
+export function resetFrameGate() { lastAppliedFrame = -1; return lastAppliedFrame; }
+
+/** Every verdict this gate can reach. Named so a caller can branch on the
+ *  REASON rather than re-deriving it from the numbers. */
+export const FRAME_VERDICTS = Object.freeze(['fresh', 'duplicate', 'reorder', 'unversioned']);
+
+/**
+ * PURE given its floor. `since` defaults to the module ledger; passing it
+ * explicitly is how a test asks the question without owning the session.
+ *
+ * ⚠ FAIL CLOSED ON AN UNREADABLE VERSION. A frame whose version is absent, NaN
+ *   or Infinity is not "probably fine" — it is a frame whose ORDER cannot be
+ *   established, and applying it would put an unorderable state on top of an
+ *   ordered one. `Infinity` is the one that would have been worst: it is
+ *   `> lastAppliedFrame` for every finite floor, so a single garbage frame
+ *   would have latched the gate shut against every real frame afterwards.
+ */
+export function classifyFrame(version, since) {
+  const floor = Number.isFinite(Number(since)) ? Number(since) : lastAppliedFrame;
+  const v = Number(version);
+  if (!Number.isFinite(v)) return { apply: false, verdict: 'unversioned', frame: null, current: floor };
+  if (v > floor) return { apply: true, verdict: 'fresh', frame: v, current: floor };
+  if (v === floor) return { apply: false, verdict: 'duplicate', frame: v, current: floor };
+  return { apply: false, verdict: 'reorder', frame: v, current: floor };
+}
+
+/**
+ * RAISE THE FLOOR. Called by an applier with the frame it actually wrote, and
+ * by nothing else. RAISE-ONLY (CLAUDE.md §6: the client never rolls a server
+ * version back), so a mis-ordered commit is a no-op rather than a rewind.
+ * @returns true if the floor moved.
+ */
+export function commitFrame(version) {
+  const v = Number(version);
+  if (!Number.isFinite(v) || v <= lastAppliedFrame) return false;
+  lastAppliedFrame = v;
+  return true;
+}
+
+/**
+ * THE SHAPE HALF. Pure, stateless, and deliberately separate: "this body is not
+ * an envelope" and "this envelope is not the next frame" are different facts
+ * with different consequences — the first is a malformed answer and trips the
+ * breaker, the second is a duplicate and is ordinary traffic. Collapsing them
+ * would make a reordered frame look like an outage.
+ */
+export function isEnvelopeShapeComplete(res) {
   if (!res || res.ok !== true || res.accrued !== true) return false;
   if (!res.state || typeof res.state !== 'object') return false;
   if (!res.skills || typeof res.skills !== 'object') return false;
@@ -287,12 +403,29 @@ export function isEnvelopeApplicable(res) {
   return true;
 }
 
+/** Does this envelope carry enough to BE the truth, AND is it the next frame?
+ *  Fail closed on both halves. `since` overrides the module floor (tests). */
+export function isEnvelopeApplicable(res, since) {
+  if (!isEnvelopeShapeComplete(res)) return false;
+  return classifyFrame(res.version, since).apply;
+}
+
 export function classifyAccrueResponse(status, body) {
   const b = (body && typeof body === 'object') ? body : null;
   if (status === 200) {
     if (!b || b.ok !== true) return { outcome: 'malformed', body: b };
     if (b.accrued === true) {
-      return isEnvelopeApplicable(b)
+      /* ⚠ THE SHAPE HALF, DELIBERATELY — NOT THE FRAME HALF. This function
+         classifies what the SERVER SAID, and a duplicate or reordered frame is
+         a perfectly well-formed answer that the server was right to send. If
+         the frame gate lived here, a stale frame would classify as `malformed`
+         and THREE of them would trip ACCRUE_HALT_AFTER_TRIES — the b475 shape
+         exactly: the "Away progress is paused" sheet in front of a player whose
+         grant the server made and this client already has. Under a push stream
+         duplicates are ordinary traffic, so that sheet would be permanent.
+         The frame half gates the APPLIER (applyEnvelope), which is the only
+         place a frame can rewind anything. */
+      return isEnvelopeShapeComplete(b)
         ? { outcome: 'accrued', body: b }
         : { outcome: 'malformed', body: b, reason: 'envelope_incomplete' };
     }
@@ -4655,6 +4788,13 @@ export function applyEnvelope(G, res) {
      nothing calls the sheet on the load path any more. */
   const st = res.state || {};
   const written = applyEnvelopeState(G, res);
+  /* ── RAISE THE FLOOR, AND ONLY HERE ──────────────────────────────────────
+     AFTER the write, never before: a throw inside applyEnvelopeState must not
+     leave the floor above a frame that was never applied, because the retry
+     carrying the same version would then be dropped as a duplicate and the
+     grant would be invisible until the server's NEXT write. Failing this way
+     costs one re-application of an absolute envelope, which is a no-op. */
+  commitFrame(res.version);
 
   /* The receipt. Shaped to the SAME contract legacy.js's local summary uses, so
      every welcome-back renderer keeps working unchanged — and every field is a
@@ -6045,6 +6185,10 @@ if (typeof window !== 'undefined') {
     showReplacementSheet, hideReplacementSheet,
     configureAccrual, getAccrualConfig, accrueEndpoint,
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
+    /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1). gold.js and activity.js
+       import these; the suite and the bug report read them. */
+    isEnvelopeShapeComplete, classifyFrame, commitFrame, getAppliedFrame,
+    resetFrameGate, FRAME_VERDICTS,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence

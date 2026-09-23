@@ -99,6 +99,12 @@ set search_path = public, pg_catalog as $$
 declare
   v_st        public.player_state%rowtype;
   v_now       timestamptz := now();
+  -- THE SCAN'S LOWER BOUND, and the denominator of every rate below it
+  -- (finding A-1). See the note above the one scan.
+  c_window    constant interval := interval '24 hours';
+  v_from      timestamptz;
+  v_capped    boolean;
+  v_window_ms bigint;
   v_elapsed   bigint;
   v_paid      bigint := 0;
   v_kills     bigint := 0;
@@ -130,7 +136,41 @@ begin
 
   v_elapsed := greatest(0, (extract(epoch from (v_now - v_st.active_since)) * 1000)::bigint);
 
-  -- (1) THE WINDOW ROWS, in one pass.
+  -- ── THE BOUND (finding A-1) ──────────────────────────────────────────────
+  -- This function is spliced into hr_state_of, so it runs on EVERY envelope:
+  -- every accrue poll, every intent, every reload and every world-tick settle
+  -- for every rostered character. The original header claimed the scan was
+  -- bounded by ACCRUE_MAX_SPAN_MS, and that is not the bound that applies -
+  -- the 24 h cap bounds ONE WINDOW'S LENGTH, not the NUMBER of windows since
+  -- active_since, which moves only on `restart: true`. A character left on one
+  -- monster and settled at the ordinary cadence writes ~1,440 accrue rows a day
+  -- and player_ledger retains 90 days, so the honest upper bound was ~130,000
+  -- rows with no LIMIT, no time floor and no early exit - FIVE times over.
+  --
+  -- Two changes, in the review's order:
+  --   1. ONE SCAN instead of three. Passes 2 and 3 selected exactly the rows
+  --      pass 1 did, with a different lateral each; they are now LEFT JOIN
+  --      LATERALs on the same scan. Deaths (a different `intent`) and the
+  --      last-window lookup (`order by ... limit 1`, which the index serves in
+  --      one row) stay separate, as the review asked.
+  --   2. A LOWER BOUND OF 24 HOURS. Every rate in the readout is already
+  --      per-hour, so a 24 h window is the honest span to compute them over -
+  --      and it makes the scan genuinely bounded by the accrual cap the header
+  --      always claimed bounded it. Lifetime-of-hunt totals would need a
+  --      rollup, not a wider scan.
+  --
+  -- ⚠ THE DENOMINATOR MOVES WITH THE NUMERATOR. Flooring the rows without
+  --   flooring the span would divide 24 hours of gold by five days of elapsed
+  --   and print a profit/h a player would act on and be wrong about. `elapsed_ms`
+  --   and `started_at` still describe the WHOLE hunt, because that is what a
+  --   player asked for when they started it; every SUM and every RATE below is
+  --   over `window_ms`, and `window_from`/`window_capped` say so on the
+  --   envelope so the panel can print the span rather than imply one.
+  v_from      := greatest(v_st.active_since, v_now - c_window);
+  v_capped    := v_st.active_since < v_now - c_window;
+  v_window_ms := greatest(0, (extract(epoch from (v_now - v_from)) * 1000)::bigint);
+
+  -- (1) THE WINDOW ROWS, THE SIGNED ITEM MAP AND THE COMBAT XP — ONE SCAN.
   select coalesce(sum(coalesce((l.meta->>'ms')::bigint, 0)), 0),
          coalesce(sum(coalesce((l.meta->>'kills')::bigint, 0)), 0),
          coalesce(sum(coalesce(l.gold, 0)), 0),
@@ -141,56 +181,51 @@ begin
          -- that quietly omits a window is the same defect class as a payment the
          -- player is never told about.
          coalesce(sum(case when (l.meta->'delta') ? 'i_n' then 1 else 0 end), 0),
-         max(l.at)
-    into v_paid, v_kills, v_gold, v_ate, v_windows, v_trunc, v_settled
+         max(l.at),
+         -- BOTH SIGNS OF THE ITEM MAP, priced from the SEALED CATALOGUE. An item
+         -- the catalogue does not know prices at 0 rather than aborting: a
+         -- readout must not fail because a row was retired.
+         coalesce(sum(li.loot), 0),
+         coalesce(sum(li.supplies), 0),
+         -- COMBAT XP ONLY, and `combat` is the CATALOGUE's answer
+         -- (hr_skills.cat), never a list typed here. A night that levelled
+         -- Cooking off a drop does not inflate a combat rate.
+         coalesce(sum(lx.xp), 0)
+    into v_paid, v_kills, v_gold, v_ate, v_windows, v_trunc, v_settled,
+         v_loot, v_supplies, v_xp
     from public.player_ledger l
+    left join lateral (
+      select coalesce(sum(case when q.qty > 0 then q.qty * coalesce(i.value, 0) else 0 end), 0) as loot,
+             coalesce(sum(case when q.qty < 0 then (-q.qty) * coalesce(i.value, 0) else 0 end), 0) as supplies
+        from jsonb_each_text(coalesce(l.meta->'delta'->'i', '{}'::jsonb)) as e(item_id, qty_text)
+        cross join lateral (select coalesce(nullif(e.qty_text,'')::bigint, 0) as qty) q
+        left join public.hr_items i on i.item_id = e.item_id) li on true
+    left join lateral (
+      select coalesce(sum(coalesce(nullif(e.amount,'')::bigint, 0)), 0) as xp
+        from jsonb_each_text(coalesce(l.meta->'delta'->'x', '{}'::jsonb)) as e(skill_id, amount)
+        join public.hr_skills s on s.skill_id = e.skill_id and s.cat = 'combat') lx on true
    where l.user_id = p_user and l.slot = coalesce(p_slot, 0)
      and l.kind = 'combat' and l.intent = 'accrue'
-     and l.at > v_st.active_since;
+     and l.at > v_from;
 
-  -- (2) THE SIGNED ITEM MAP, both signs, priced from the SEALED CATALOGUE.
-  --     An item the catalogue does not know prices at 0 rather than aborting:
-  --     a readout must not fail because a row was retired.
-  select coalesce(sum(case when q.qty > 0 then q.qty * coalesce(i.value, 0) else 0 end), 0),
-         coalesce(sum(case when q.qty < 0 then (-q.qty) * coalesce(i.value, 0) else 0 end), 0)
-    into v_loot, v_supplies
-    from public.player_ledger l
-    cross join lateral jsonb_each_text(coalesce(l.meta->'delta'->'i', '{}'::jsonb))
-                 as e(item_id, qty_text)
-    cross join lateral (select coalesce(nullif(e.qty_text,'')::bigint, 0) as qty) q
-    left join public.hr_items i on i.item_id = e.item_id
-   where l.user_id = p_user and l.slot = coalesce(p_slot, 0)
-     and l.kind = 'combat' and l.intent = 'accrue'
-     and l.at > v_st.active_since;
-
-  -- (3) COMBAT XP ONLY, and `combat` is the CATALOGUE's answer (hr_skills.cat),
-  --     never a list typed here. A night that levelled Cooking off a drop does
-  --     not inflate a combat rate.
-  select coalesce(sum(coalesce(nullif(e.amount,'')::bigint, 0)), 0)
-    into v_xp
-    from public.player_ledger l
-    cross join lateral jsonb_each_text(coalesce(l.meta->'delta'->'x', '{}'::jsonb))
-                 as e(skill_id, amount)
-    join public.hr_skills s on s.skill_id = e.skill_id and s.cat = 'combat'
-   where l.user_id = p_user and l.slot = coalesce(p_slot, 0)
-     and l.kind = 'combat' and l.intent = 'accrue'
-     and l.at > v_st.active_since;
-
-  -- (4) DEATHS, from the rows hr_apply already fans out one per fall.
+  -- (2) DEATHS, from the rows hr_apply already fans out one per fall. A
+  --     different `intent`, so it cannot ride the scan above.
   select count(*) into v_deaths from public.player_ledger l
    where l.user_id = p_user and l.slot = coalesce(p_slot, 0)
      and l.kind = 'combat' and l.intent = 'death'
-     and l.at > v_st.active_since;
+     and l.at > v_from;
 
-  -- (5) WHICH RULE ENDED THE LAST WINDOW, if any.
+  -- (3) WHICH RULE ENDED THE LAST WINDOW, if any. ONE ROW, served straight off
+  --     player_ledger_user_idx (user_id, slot, at desc) - never a scan.
   select l.meta->>'stopped' into v_stopped from public.player_ledger l
    where l.user_id = p_user and l.slot = coalesce(p_slot, 0)
      and l.kind = 'combat' and l.intent = 'accrue'
-     and l.at > v_st.active_since
+     and l.at > v_from
    order by l.at desc, l.id desc limit 1;
 
   v_profit    := v_gold + v_loot - v_supplies;
-  v_h_elapsed := v_elapsed::numeric / 3600000;
+  -- THE RATES DIVIDE BY THE WINDOW THE ROWS CAME FROM, never by the whole hunt.
+  v_h_elapsed := v_window_ms::numeric / 3600000;
   v_h_paid    := v_paid::numeric / 3600000;
 
   return jsonb_build_object(
@@ -200,11 +235,20 @@ begin
     'stance',        coalesce(v_st.hunt_stance, 'steady'),
     'stop',          v_st.hunt_stop,
     'started_at',    v_st.active_since,
+    -- THE WHOLE HUNT, for the elapsed pill. Every SUM and RATE below is over
+    -- `window_ms`, not this (finding A-1).
     'elapsed_ms',    v_elapsed,
+    -- THE SPAN THE NUMBERS BELOW ACTUALLY COVER, and whether it is shorter than
+    -- the hunt. Named on the envelope rather than left implicit: a total the
+    -- player reads as "this hunt" when it is "the last day of this hunt" is a
+    -- number that says one thing while the server means another.
+    'window_ms',     v_window_ms,
+    'window_from',   v_from,
+    'window_capped', v_capped,
     'paid_ms',       v_paid,
-    -- ELAPSED MINUS PAID: recovery, refusals and dry windows. The number that
+    -- WINDOW MINUS PAID: recovery, refusals and dry windows. The number that
     -- tells a player their stance or their supplies are wrong.
-    'downtime_ms',   greatest(0, v_elapsed - v_paid),
+    'downtime_ms',   greatest(0, v_window_ms - v_paid),
     'windows',       v_windows,
     'kills',         v_kills,
     'deaths',        v_deaths,
@@ -232,7 +276,7 @@ begin
 end $$;
 
 comment on function public.hr_hunt_analyzer(uuid, int) is
-  'THE HUNT ANALYZER (2026-09-22). Arithmetic over player_ledger accrue rows since player_state.active_since. READ-ONLY: writes no row, so it cannot be replayed into a gain. Loot is priced from hr_items.value (VENDOR value, a catalogue constant - never a market price, which a player could wash-trade to inflate a rate). Combat XP is filtered by hr_skills.cat. Profit/h divides by ELAPSED, not paid. There is deliberately no per-hunt counter table.';
+  'THE HUNT ANALYZER (2026-09-22). Arithmetic over player_ledger accrue rows since greatest(player_state.active_since, now() - 24h) - ONE scan for the windows, the item map and the XP, plus one for deaths and one indexed single-row lookup, because this runs inside hr_state_of on every envelope (finding A-1). elapsed_ms/started_at describe the whole hunt; every sum and rate is over window_ms, which window_from and window_capped name. READ-ONLY: writes no row, so it cannot be replayed into a gain. Loot is priced from hr_items.value (VENDOR value, a catalogue constant - never a market price, which a player could wash-trade to inflate a rate). Combat XP is filtered by hr_skills.cat. Profit/h divides by ELAPSED, not paid. There is deliberately no per-hunt counter table.';
 
 revoke execute on function public.hr_hunt_analyzer(uuid, int) from public;
 revoke execute on function public.hr_hunt_analyzer(uuid, int) from anon, authenticated, service_role;

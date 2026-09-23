@@ -44,7 +44,8 @@ const MUTATIONS = {
   loot_counts_supplies: 'Count the NEGATIVE side of the item map as loot (the night\'s burn becomes profit).',
   xp_ignores_skill_cat: 'Drop the hr_skills.cat=combat filter so a cooking level inflates the combat rate.',
   profit_over_paid: 'Divide profit by PAID time instead of ELAPSED (design §3 note 3).',
-  boundary_leaks_previous_hunt: 'Use >= active_since so a window credited at the restart leaks in.',
+  boundary_leaks_previous_hunt: 'Use >= the window floor so a window credited at the restart leaks in.',
+  analyzer_unbounded_scan: 'Drop the 24-hour floor so the scan runs to active_since again — up to ~130,000 ledger rows on every envelope (A-1).',
 };
 
 const patchesFor = (mutate) => {
@@ -55,9 +56,12 @@ const patchesFor = (mutate) => {
         "         coalesce(sum(coalesce((l.meta->>'client_kills')::bigint, (l.meta->>'kills')::bigint, 0)), 0),",
       ]]]]);
     case 'loot_counts_supplies':
+      /* ANCHOR MOVED 2026-09-22 with finding A-1: the item map's two signs are
+         now a LEFT JOIN LATERAL on the one scan rather than a pass of their
+         own. Same expression, same deletion of the sign test. */
       return new Map([[MIG, [[
-        '  select coalesce(sum(case when q.qty > 0 then q.qty * coalesce(i.value, 0) else 0 end), 0),',
-        '  select coalesce(sum(abs(q.qty) * coalesce(i.value, 0)), 0),',
+        '      select coalesce(sum(case when q.qty > 0 then q.qty * coalesce(i.value, 0) else 0 end), 0) as loot,',
+        '      select coalesce(sum(abs(q.qty) * coalesce(i.value, 0)), 0) as loot,',
       ]]]]);
     case 'xp_ignores_skill_cat':
       return new Map([[MIG, [[
@@ -70,12 +74,28 @@ const patchesFor = (mutate) => {
         "    'profit_per_h',  case when v_h_paid > 0 then round(v_profit/ v_h_paid) end,",
       ]]]]);
     case 'boundary_leaks_previous_hunt':
+      /* ANCHOR MOVED 2026-09-22 with finding A-1: the bound is now `v_from`
+         (greatest(active_since, now - 24h)) and there are three predicates
+         rather than five. Widening ALL of them to `>=` is the same defect —
+         a window credited at the instant of a restart leaks into the new
+         hunt's totals. */
       return new Map([[MIG, [[
-        "     and l.at > v_st.active_since\n   order by l.at desc, l.id desc limit 1;",
-        "     and l.at >= v_st.active_since\n   order by l.at desc, l.id desc limit 1;",
+        "     and l.at > v_from;\n\n  -- (2) DEATHS",
+        "     and l.at >= v_from;\n\n  -- (2) DEATHS",
       ], [
-        "     and l.kind = 'combat' and l.intent = 'accrue'\n     and l.at > v_st.active_since;\n\n  -- (2) THE SIGNED ITEM MAP",
-        "     and l.kind = 'combat' and l.intent = 'accrue'\n     and l.at >= v_st.active_since;\n\n  -- (2) THE SIGNED ITEM MAP",
+        "     and l.kind = 'combat' and l.intent = 'death'\n     and l.at > v_from;",
+        "     and l.kind = 'combat' and l.intent = 'death'\n     and l.at >= v_from;",
+      ], [
+        "     and l.at > v_from\n   order by l.at desc, l.id desc limit 1;",
+        "     and l.at >= v_from\n   order by l.at desc, l.id desc limit 1;",
+      ]]]]);
+    case 'analyzer_unbounded_scan':
+      /* THE FINDING, PLANTED BACK. `v_from` becomes active_since again, so the
+         scan has no time floor and the readout costs a walk of every accrue row
+         since the hunt began — inside hr_state_of, on every envelope. */
+      return new Map([[MIG, [[
+        "  v_from      := greatest(v_st.active_since, v_now - c_window);\n  v_capped    := v_st.active_since < v_now - c_window;",
+        '  v_from      := v_st.active_since;\n  v_capped    := false;',
       ]]]]);
     default: return undefined;
   }
@@ -222,7 +242,16 @@ async function run(mutate) {
     + 'definition of a combat skill; a cooking level must not inflate a combat rate.');
 
   // ── A2. THE RATES, AND WHICH DENOMINATOR EACH USES ─────────────────────
-  const elapsedH = Number(a.elapsed_ms) / 3600000;
+  /* ⚠ THE RATES DIVIDE BY `window_ms`, NOT `elapsed_ms` (finding A-1). On this
+       fixture the hunt is minutes old so the two are equal, and this arm SAYS
+       so rather than leaving the reader to notice: if they ever diverge here,
+       the arms below would be comparing the server's window against the
+       guard's idea of the whole hunt and passing for the wrong reason. A6
+       drives the case where they genuinely differ. */
+  ok(a.window_capped === false && Number(a.window_ms) === Number(a.elapsed_ms),
+    `A2 CANNOT RUN AS WRITTEN: the fixture hunt is already capped (window ${a.window_ms} ms vs `
+    + `elapsed ${a.elapsed_ms} ms). These arms assume an uncapped hunt.`);
+  const elapsedH = Number(a.window_ms) / 3600000;
   const paidH = Number(a.paid_ms) / 3600000;
   ok(elapsedH > paidH,
     `A2 CANNOT RUN: elapsed (${elapsedH}h) is not greater than paid (${paidH}h), so the two `
@@ -238,8 +267,8 @@ async function run(mutate) {
     `A2: profit/h is ${a.profit_per_h}; over ELAPSED it is ${Math.round(Number(a.profit) / elapsedH)}. `
     + 'A hunt that spends half its night knocked out is not profitable, and the number used to '
     + 'choose a spawn must not hide that (design §3 note 3).');
-  ok(Number(a.downtime_ms) === Number(a.elapsed_ms) - Number(a.paid_ms),
-    'A2: downtime is not elapsed minus paid.');
+  ok(Number(a.downtime_ms) === Number(a.window_ms) - Number(a.paid_ms),
+    'A2: downtime is not the window minus paid.');
   ok(a.stopped === 'hours',
     `A2: the Analyzer named '${a.stopped}' as the stopping rule; the LAST window carrying one said `
     + "'hours'. meta.stopped is the only record of why a night ended.");
@@ -276,6 +305,61 @@ async function run(mutate) {
   ok(a3 === null,
     'A4: an idle character got an Analyzer block. A zero is a CLAIM about a hunt that never ran; '
     + 'the panel renders em-dashes off the absence (HUNT_ANALYZER_UI.md §3).');
+
+  /* ── A6. THE SCAN IS BOUNDED, AND THE DENOMINATOR IS BOUNDED WITH IT ───
+     hr_hunt_analyzer is spliced into hr_state_of, so it runs on EVERY envelope
+     — every poll, every intent, every reload, every world-tick settle. Before
+     finding A-1 it walked every accrue row since `active_since`, which moves
+     only on a restart, five separate times, with no LIMIT and no time floor
+     under player_ledger's 90-day retention: ~130,000 rows for a character left
+     on one monster. A readout that costs more than the settle it describes is a
+     readout that gets turned off under load.
+
+     ⚠ AND THE DENOMINATOR HAD TO MOVE WITH IT. A floor on the rows alone would
+       divide one day of gold by five days of elapsed and print a profit/h a
+       player would act on and be wrong about — the "browser says one thing, the
+       server says another" class arriving through arithmetic. So this arm
+       asserts BOTH: the old rows are gone AND every rate is over the window
+       that produced them, with `elapsed_ms` still describing the whole hunt. */
+  await db.query("update public.player_state set active_kind='combat', active_id='goblin', "
+    + "active_since = now() - interval '72 hours' where user_id=$1 and slot=0", [U]);
+  /* MEASURED AS A DELTA, not against absolutes: the fixture's own windows are
+     still on the journal (A3 proved the restart deletes nothing) and they are
+     inside the 24 h window too. Reading before and after is what isolates the
+     two rows this arm plants. */
+  const a6base = (await q('select public.hr_hunt_analyzer($1, 0) as a', [U]))[0].a;
+  // One accrue row INSIDE the 24 h window and one well OUTSIDE it. Written
+  // straight to the journal: hr_apply stamps `at` with now() and this arm needs
+  // a row older than the floor, which no legitimate writer can produce today.
+  await db.query(
+    "insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at) "
+    + "values ($1,0,'combat','accrue',$2,0,0,0,0,$3::jsonb, now() - interval '48 hours'),"
+    + "       ($1,0,'combat','accrue',$4,0,0,0,0,$5::jsonb, now() - interval '1 hour')",
+    [U, 7777, JSON.stringify({ ms: 3600000, kills: 999, ate: 0, delta: {} }),
+      111, JSON.stringify({ ms: 600000, kills: 5, ate: 0, delta: {} })]);
+  const a6 = (await q('select public.hr_hunt_analyzer($1, 0) as a', [U]))[0].a;
+  ok(a6 && a6.window_capped === true,
+    'A6: a 72-hour-old hunt did not report a capped window. The scan has no floor, so it walks every '
+    + 'accrue row since active_since on every envelope.');
+  ok(a6 && Math.abs(Number(a6.window_ms) - 24 * 3600000) < 60000,
+    `A6: the window is ${a6 && a6.window_ms} ms, not the 24 hours the rows are floored at.`);
+  ok(a6 && Number(a6.elapsed_ms) > Number(a6.window_ms),
+    'A6: elapsed_ms was floored along with the window. `started_at` and `elapsed_ms` describe the '
+    + 'WHOLE hunt — that is what the player asked for when they started it.');
+  ok(a6 && a6base && Number(a6.kills) - Number(a6base.kills) === 5
+     && Number(a6.gold) - Number(a6base.gold) === 111,
+    `A6: planting one row INSIDE the window (5 kills, 111 gold) and one 48 HOURS OLD (999 kills, `
+    + `7,777 gold) moved the readout by ${a6 && a6base && Number(a6.kills) - Number(a6base.kills)} kills `
+    + `and ${a6 && a6base && Number(a6.gold) - Number(a6base.gold)} gold. Only the in-window row may `
+    + 'count — if the old one does, the scan has no floor and its cost is the whole 90-day retention.');
+  ok(a6 && Number(a6.window_ms) > 0
+     && Number(a6.kills_per_h) === Math.round(Number(a6.kills) / (Number(a6.window_ms) / 3600000)),
+    `A6: kills/h is ${a6 && a6.kills_per_h}; over the WINDOW it is `
+    + `${a6 && Math.round(Number(a6.kills) / (Number(a6.window_ms) / 3600000))}. A rate whose numerator `
+    + 'is one day and whose denominator is three is a number a player would choose a spawn on.');
+  ok(a6 && new Date(a6.window_from).getTime() > new Date(a6.started_at).getTime(),
+    'A6: window_from is not later than started_at on a capped hunt, so the envelope does not say '
+    + 'which span these numbers cover and the panel cannot print it.');
 
   // ── A5. IT IS A READ, AND IT IS THE ENVELOPE'S ─────────────────────────
   const acl = await q(

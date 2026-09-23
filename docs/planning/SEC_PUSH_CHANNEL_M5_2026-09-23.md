@@ -1445,3 +1445,74 @@ about the two I planted in §2.
 - **Not re-run this pass.** The in-page suite; RE-VERIFY §9's container limits
   are unchanged and this diff touches no client file. The record gate is the
   GitHub run on the release SHA (`CLAUDE.md` §3.3).
+
+---
+
+# Coordinator measurement — CONDITION 8 and the WAL read (2026-09-23, 05:49–06:03 UTC)
+
+Executed by the Coordinator on production, read-only in effect: condition 8 ran as ONE `do` block
+that takes the QA character's `player_state` row lock (`for update`), runs the trigger's added work
+100 times, and ends in `raise exception` carrying the numbers — the lock, the 100 `realtime.send`
+inserts and everything else roll back (CLAUDE.md §2: nothing persisted). Because the migration is not
+applied, `frame_keys` and `hr_frame_topic` do not exist on production yet; the block inlines the
+file's own default key set (`state, skills, buffs, place`) and the topic format
+(`'hr:' || user || ':' || slot`) verbatim. Character: the QA account, slot 2 (the played slot, so the
+envelope is a real one — 2,168 bytes, not an empty probe).
+
+## CONDITION 8 — three samples at a QUIET hour (0 accepted writes in the hour)
+
+| sample (UTC) | TOTAL p50 | TOTAL p95 | TOTAL p99 | max | hr_state_of p95 | payload max |
+|---|---|---|---|---|---|---|
+| 05:50:46 | 7.998 ms | **10.078 ms** | 12.216 ms | 22.406 ms | 9.573 ms | 2,168 B |
+| 05:51:03 | 8.105 ms | 9.918 ms | 10.356 ms | 22.277 ms | 9.394 ms | 2,168 B |
+| 05:51:10 | 8.281 ms | **10.153 ms** | 10.664 ms | 23.516 ms | 9.675 ms | 2,168 B |
+
+Against §4.1's four criteria: p99 ≤ 25 ms and max ≤ 250 ms **pass**; payload 2,168 B ≤ 64 KB
+**passes**; added load = 10.15 ms × 0.018 writes/s ÷ 1000 = **0.0002 ≤ 0.05 passes** (the measured
+peak hour is 22:00 UTC on 2026-09-22 with 66 accepted writes); **TOTAL p95 ≤ 10 ms is NOT MET** —
+two of three samples read 10.08 and 10.15 ms and the third 9.92 ms. The line is straddled, not
+cleared, and one sample is not a verdict either way. **Condition 8 is therefore not met as
+specified.** The peak-hour sample (22:00 UTC) is still owed and cannot read lower.
+
+**What the number is made of.** `hr_state_of` alone is 9.4–9.7 ms at p95 — about 94 % of the
+added work. The trigger's cost is a SECOND projection of the row `hr_apply` has just written, and
+`hr_apply` already computes that envelope to return it. A design that emits the frame from the
+envelope `hr_apply` already holds (one projection per write, no trigger-side re-read) would remove
+almost the whole charge; the `realtime.send` insert and the key fold are well under 1 ms. That is a
+lane decision for backend-architect under a Security ruling, not something this measurement decides —
+it is recorded here so §3.6 can be restated from a measured number instead of the `[D, UNMEASURED IN
+THE LOCK] 3.23 ms` charge, which is wrong by a factor of three.
+
+## The WAL / retention read (§4.2), answered with the queries as written
+
+- **(a)** `wal_level = logical`, `max_replication_slots = 10`, `max_slot_wal_keep_size = 512 MB`,
+  `max_wal_size = 4096 MB`, `min_wal_size = 1024 MB`, `wal_keep_size = 0`, `archive_mode = on`;
+  also `archive_timeout = 120 s`, `checkpoint_timeout = 300 s`, `full_page_writes = on`,
+  `wal_compression = zstd`.
+- **(b)** two logical slots, both `active`, both `temporary`, `wal_status = reserved`,
+  `safe_wal_size = 512 MB`, `retained_wal = 16 MB` each, `unconfirmed = 0` — neither slot is behind.
+  `supabase_realtime_replication_slot_…` (wal2json) and
+  `supabase_realtime_messages_replication_slot_…` (pgoutput).
+- **(c)** 9 segments, 112 MB of WAL on disk.
+- **(d)** `supabase_realtime` (no tables) and `supabase_realtime_messages_publication`, which
+  **does carry `realtime.messages`** — so every frame row goes through the pgoutput slot and the WAL
+  question is real, not plain heap growth.
+- **(e)** daily partitions `messages_2026_09_20` … `messages_2026_09_26`, 24 kB each, 0 rows. None
+  older than three days exists, so partitions are being created ahead; whether old ones are DROPPED
+  is not yet observable — the oldest is from the install date. Re-read (e) after 2026-09-27.
+- **(f)** measured twice: `82/B2003350` at 05:49:05 → `82/B70051B8` at 05:59:58 = 80 MB in 653 s.
+  **That figure is NOT record volume.** `archive_timeout = 120 s` forces a 16 MB segment switch every
+  two minutes on an idle server, and 5 switches × 16 MB is the whole 80 MB. The honest measure is
+  `pg_stat_wal` over a 123.5 s window with no other activity: `wal_bytes` +76,297, `wal_records`
+  +228, `wal_fpi` +48 across 12 tick fires — **6.4 kB, 19 records and 4 full-page images per fire,
+  ≈ 55 MB/day of WAL records at the 10 s cadence** (consistent with the 2.9 GB `pg_stat_wal` has
+  counted since 2026-08-17: 78 MB/day). Per fire that is one `hr_tick_cron_log` insert, one HOT
+  update of `hr_tick_config`, ~1.2 HOT updates of `hr_tick_ownership`, one `net.http_request_queue`
+  insert, and a `hr_tick_shadow` insert every 90 s.
+- **The frame channel's projection:** one `realtime.messages` row per accepted write at ~2.2 kB
+  payload ≈ 3 kB of WAL record plus amortised FPI. At the measured peak (66 writes/h) that is
+  ~0.2 MB/h — nothing. At the scale the world-tick program is built for (5,000 concurrent
+  characters settling every 90 s ≈ 55 writes/s) it is ~165 kB/s ≈ **14 GB/day through the pgoutput
+  slot**, and a slot that falls ~52 minutes behind at that rate reaches `max_slot_wal_keep_size` and
+  is invalidated. That is the number Reliability has to sign, together with a re-read of (e) once a
+  partition is old enough to have been dropped.

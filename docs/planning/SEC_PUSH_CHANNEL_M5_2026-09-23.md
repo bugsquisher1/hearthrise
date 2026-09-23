@@ -2031,3 +2031,459 @@ dispatch overhead itself is not in this figure (the trigger is not installed unt
 intrinsic to `AFTER UPDATE … WHEN (new.version is distinct from old.version)`.
 
 Condition 8b (the flipped channel, 10.1 ms) stays NOT MET and gates the flag flip, exactly as ruled.
+
+---
+
+# Security review — frame-emit-from-apply (2026-09-23)
+
+**Under review:** `origin/lane/m5-emit-from-apply` @ `595a5ce1`, diff `153bac9f..595a5ce1`.
+Four files: the new STAGED migration `supabase/migrations/2026-09-23-frame-emit-from-apply.sql`
+(958 lines), its apply-order note, six `tests/schema-drift.mjs` mutations, and the
+`tests/schema-drift.baseline.json` re-pin (+1 function, −1 trigger).
+
+**What it is:** the ONE design change I accepted in RE-VERIFY 4 §2.2 for condition 8b —
+`hr_apply` hands the envelope it already computed to the emitter, so there is one
+`hr_state_of` per accepted write instead of two. The trigger `hr_frame_push` and the
+trigger function `hr_frame_emit()` are removed; `hr_frame_payload(jsonb,text[])` (pure) and
+`hr_frame_send(uuid,int,jsonb)` are added; `hr_apply` gains one anchored 14-line insertion
+immediately before its final `return v_out;`.
+
+## Verdict
+
+> ### **MIGRATION apply — GO-WITH-CHANGES.**
+> **F1 lands first.** It is one arm, in this file, and it is the one defect I found that can
+> make this apply fail — on a money-path DDL, with an error that reads like a property
+> violation when it is an environment problem.
+> **F2 and F3 land before the FLIP**, not before the apply: they are defects in §6, the
+> operator measurement, which the apply does not execute and which is the only thing
+> standing between this file and condition 8b.
+> F4–F8 are LOW and ride this file's next touch.
+>
+> **`hr_apply` moves no money differently.** Not one value it writes, not its version
+> stamping, not its ledger row, not a refusal envelope, not the impersonation seam. The
+> insertion is after the write, after the idempotency decision and after the rejection
+> record; it reads `v_out` and `p_version` and writes nothing. I checked this by execution,
+> not by reading the anchor.
+>
+> **The flip may NOT follow the apply on a ≤ 0.9 ms reading alone.** See §7.
+
+## 1. The questions I was asked, answered
+
+| # | Question | Answer |
+|---|---|---|
+| 1 | Does it alter any value `hr_apply` writes? | **No.** The insertion is downstream of every write. Executed: H2 below, and `f2d`/`f3b`/`f6b`/`f5b`. |
+| 2 | Its version stamping? | **No.** `v_out := public.hr_state_of(v_uid, v_slot)` is unchanged and still the last statement of the protected block. |
+| 3 | Its ledger row? | **No.** `f3d` asserts the row survives a throwing emitter; the renown-ratchet ledger insert is untouched. |
+| 4 | Its refusal envelopes? | **No.** Eight early returns (`forbidden_impersonation`, `not_signed_in`, `bad_delta`, `missing_intent_id`, `unknown_delta_key`, `rate_limited`, `intent_mismatch`, `intent_in_flight`) never reach the patched final return. The ninth shape — a `HR000` rejection caught by the protected block's handler — reaches it and is gated out by the `ok` half. |
+| 5 | Its impersonation seam? | **No.** Step (0) is untouched, and the self-check holds `set local role hr_engine` **across the `hr_apply` call only** — which is the correct shape, because called as the owner the seam answers `forbidden_impersonation` and every zero below would be the seam's rather than the property's. |
+| 6 | Can a push failure roll back or delay the payment? | **Roll back: no**, defended twice (`hr_frame_send`'s own handler and the call site's), `f3`/`f3b`/`f3c` execute it and `frame_push_failure_fails_payment` plants the defect. **Delay: unchanged from the trigger** — the emit sits at the same point in the transaction and under the same locks. See §6, residual risk. |
+| 7 | Can the frame carry a version the row does not have? | **No.** `hr_frame_payload` reads `p_env->>'version'`; `p_env` is `v_out`; `v_out` is `hr_state_of` off the row under the lock. `f9`/`f9b` forbid synthesis in the source, `f4` asserts row == envelope == emitter's argument, and `frame_synthesised_version` plants the `+1`. |
+| 8 | Can a shadow settle emit? | **No.** `f5`, executed, with `f5c` refusing to grade if `hr_tick_settle` is absent and `f5a` refusing if the probe settle did not run. `frame_shadow_emits` plants it. |
+| 9 | A refused / stale-version intent? | **No.** `f6`, executed on a real `version_conflict`. `frame_refusal_emits` plants the dropped `ok` half. |
+| 10 | A **replayed** intent? | **No — but the file only argues it.** I executed it (H2). See **F4**. |
+| 11 | Is the trigger path removed, with no double-emit window? | **Removed, and no window.** See §3. |
+| 12 | Is the emitted envelope exactly the projection `hr_apply` returns? | **Yes today.** See §4 and **F8**. |
+| 13 | Do `frame_keys`' fold and the topic stay identical? | **Yes.** Byte-for-byte the same `foreach … if p_env ? v_key then v_patch := v_patch \|\| jsonb_build_object(v_key, p_env->v_key)` loop; `hr_frame_topic` is not restated, only called. |
+| 14 | Does §4 execute each of my six §2.2 proofs? | Proofs 1–4 yes, and each is planted. Proofs 5–6 are §6/Coordinator by design. See §5. |
+| 15 | Does it end on its terminator, roll its probes back, keep the guards green? | **Yes** — last line is `end $$;`; `f11`/`f11b`/`f11c` restore both probes explicitly and assert byte-identity. Exit codes in §8. |
+
+## 2. What I checked by EXECUTION
+
+Two things the file asserts about `hr_apply` that I would not take from reading, and one
+number for the runbook. All three are my own harnesses against `tests/schema-replay.mjs`
+`bootReplay`, on `595a5ce1`, nothing in the repo modified.
+
+### H1 — a transport failure fails the APPLY. **This is finding F1.**
+
+Seeded a `realtime` schema before the file whose `realtime.send` raises `check_violation`
+(the shape a missing `realtime.messages` daily partition throws), then replayed the chain:
+
+```
+H1 RESULT: apply FAILED. The migration aborts on a realtime.send error
+           that f10b does not enumerate.
+  error: 2026-09-23-frame-emit-from-apply.sql failed to apply:
+         f10c: the emitter armed sent 0 frame(s), expected exactly 1 —
+         f10b above was measuring an emitter that never sends at all
+```
+
+Note the mechanism, because it is worse than the one I went looking for. `f10b`'s handler
+enumerates `insufficient_privilege or undefined_table or undefined_function` — but that
+handler never fires, because **`hr_frame_send` swallows the transport error by design**.
+The send fails silently, zero rows land, and `f10c` raises. So every transport failure —
+a missing partition, a payload over the broadcast limit, a changed `realtime.send`
+signature, an RLS visibility failure on the count-back — arrives dressed as a property
+violation, and fails a money-path migration.
+
+### H2 — a replayed intent emits nothing. **Holds. Nothing pins it — finding F4.**
+
+```json
+{ "first_ok": true,  "first_version": 42, "sends_on_accepted_write": "1",
+  "replay_ok": true, "replay_replayed": true, "replay_version": 42,
+  "sends_on_REPLAY": "0",
+  "row_after": { "version": 42, "gold": 1013 } }
+```
+
+Same `intent_id` twice through `hr_apply` as `hr_engine`, with a counting stand-in over
+`hr_frame_send`. The accepted write emits exactly one; the replay emits zero and moves
+nothing. The file's reasoning is right: step (3) returns
+`hr_state_of(...) || {replayed:true}` and never reaches the patched return.
+
+### H3 — the `ACCESS EXCLUSIVE` window on `player_state`. **Finding F7.**
+
+```json
+{ "ms_before_the_drop": 14.8, "ms_after_the_drop_TOTAL": 114.2 }
+```
+
+`ms_after_the_drop_TOTAL` is everything from §4's `drop trigger` to the end of the file —
+the span for which the apply holds `ACCESS EXCLUSIVE` on `public.player_state`. PGlite,
+one connection, and with `f10b` **SKIPPED** (no realtime schema), so production is strictly
+more: `f10b` runs there, and `hr_apply` is the real 142 KB body.
+
+## 3. The ordering question — no double-emit, and no zero-emit, window
+
+The statement order in the file is: §4 drops the trigger and `hr_frame_emit()`, **then**
+§5 installs the call site. Read alone that is a window in which an accepted write emits
+nothing.
+
+**It is not a window, because the whole file is one transaction.**
+`tools/apply-migration.mjs` POSTs the file's bytes as a single `database/query` call, so
+the statements run in one implicit transaction — the tool's own header says as much ("a
+migration whose self-checks raised will have been rolled back whole"), and the
+`2026-09-22-vigour-refill.sql` apply-order note records a real invocation that "returned
+without landing anything". A concurrent writer therefore sees either the old shape
+(trigger armed, no call site) or the new one (no trigger, call site), never a mixture, and
+never both.
+
+`f0`/`f0b` read the absences off the catalog and `f0c`/`f0d` assert the presence and that
+there is **exactly one** call site — which is the right pairing, because two absences are
+also what a file that did nothing at all produces. `frame_trigger_left_armed` plants the
+armed trigger and is caught.
+
+The cost of that atomicity is F7: the `drop trigger`'s `ACCESS EXCLUSIVE` is held to
+COMMIT, across §5 and the whole of §7.
+
+## 4. The payload, and the one dependency that lives in another file
+
+`f1` compares, as text, the patch built from `hr_apply`'s own envelope against the patch
+built from a fresh `hr_state_of` at the same version, on a probe with skills and inventory,
+and refuses a patch under 256 bytes or missing any frame key. That is proof 1 done properly:
+executed, not argued from both callers naming the same function. `frame_emit_reprojects`
+plants the second projection and `f2` catches it by count.
+
+But `v_out` is **not** always `hr_state_of(...)`. The protected block ends:
+
+```sql
+    v_out := public.hr_state_of(v_uid, v_slot);
+    if v_hf_out is not null then
+      v_out := jsonb_set(v_out, '{hearthfind}', v_hf_out);
+    end if;
+```
+
+On a hearthfind apply the envelope carries a top-level `hearthfind` key the projection did
+not put there. **There is no drift today** — `hr_tick_config_frame_keys_known` admits only
+`state, skills, buffs, place, dungeon_cooldowns, inventory, bank, equipment, enchant,
+workers, farm, progress`, so the fold can never pick `hearthfind` up. But that constraint
+lives in `2026-09-22-frame-push-channel.sql`, and `f1`'s probe never takes the hearthfind
+branch, so this file would stay green through a widening of it. That is **F8**.
+
+## 5. The six proofs of §2.2, graded
+
+| Proof | Where | Executed? | Defect planted? |
+|---|---|---|---|
+| 1 — payload byte-identical, non-empty character | `f1`/`f1c`/`f1d`/`f1e` | ✓ | `frame_emit_reprojects` |
+| 2 — exactly ONE projection per accepted write, counted | `f2`, with positive controls `f2b`/`f2c`/`f2d` | ✓ | `frame_emit_reprojects` |
+| 3 — a push failure cannot fail a payment | `f3`/`f3b`/`f3c`/`f3d` | ✓ | `frame_push_failure_fails_payment` |
+| 4 — the frame is `hr_apply`'s post-write version | `f4`/`f4a`/`f4b`, `f9`/`f9b` | ✓ | `frame_synthesised_version` |
+| 5 — re-measure at BOTH hours | §6, Coordinator | — | **F2, F3** |
+| 6 — restate the documents from the measurement | §6, Coordinator | — | **F9** |
+| + shadow settle emits nothing | `f5`/`f5a`/`f5b`/`f5c` | ✓ | `frame_shadow_emits` |
+| + refused intent emits nothing | `f6`/`f6a`/`f6b` | ✓ | `frame_refusal_emits` |
+| + no double emit | `f0`/`f0b`/`f0c`/`f0d`, `f7` | ✓ | `frame_trigger_left_armed` |
+| + replayed intent emits nothing | — | **✗** | **F4** |
+
+`node tests/schema-drift.mjs --mutate` exit **0**; all six new arms read `caught … via replay`.
+
+I want to record what I liked, because it is the part that was refused last pass and is now
+right. `f2b` is a positive control on the counter *before any count is believed*; `f2d`
+refuses to grade if the probe apply was refused, because a refusal produces the tidy version
+of every assertion that follows; `f3c` writes down why the obvious control does not work
+(`set_config(..., true)` is transactional and the call site's subtransaction rolls the
+probe's own increment back — measured, not guessed) and replaces it with two facts that are
+each already proved; `f8`'s handler-position arm measures **from the call forward** and says
+why a first draft that compared absolute positions would have gone red on the correct
+function. That is the standard.
+
+## 6. Findings, numbered, with the fix each needs
+
+### F1 — MEDIUM, CONFIRMED BY EXECUTION. `f10b`/`f10c` turns a transport failure into a failed apply. **Blocks the apply.**
+
+The file's whole thesis is that a push failure may never fail a payment. `f10c` is the one
+place it fails something: `hr_frame_send` swallows the transport error, zero rows land, and
+`f10c` raises `expected exactly 1` — aborting a money-path migration with a message that
+reads like the emitter is broken. H1 reproduces it.
+
+This is not hypothetical on the apply that counts, and the sibling file already knows it.
+`2026-09-22-frame-push-channel.sql`'s `s5`/`s5b`/`s6` counted **probe trigger fires**, and
+its `e2` seeds its probe row by a **direct** `insert into realtime.messages`. Nothing in the
+chain has ever invoked `realtime.send` against production. So **`f10b`/`f10c`/`f10d` is the
+first arm that requires the live `realtime.send`** — its own partition routing, payload
+limits and signature — **to land a row and be counted back**, and it does so on a money-path
+apply.
+
+And `e2` draws exactly the distinction `f10b` drops. Its seed is wrapped:
+
+```sql
+          exception when others then
+            reset role;
+            raise notice 'e2 SKIPPED: realtime.messages is empty and a probe row could not be '
+                         'seeded (%) — without it the cross-user zero below is indistinguishable '
+                         'from an inert policy, and this arm will not report one as the other',
+                         sqlerrm;
+            v_n := -1;
+```
+
+"The probe could not be seeded" **skips** there and **fails the apply** here. That is the
+whole of this finding: the standard already exists one file back, and `f10b` is the arm that
+lost it.
+
+**Fix** — the file's own `f2b`/`f2d` doctrine, applied to the one arm that lacks it: a
+positive control before any count is believed. Ahead of `f10b`'s assertions, do one direct
+`realtime.send` on a throwaway topic and SELECT it back in its own `begin … exception`. If
+the round trip does not return the row, `raise notice 'f10b SKIPPED: realtime.messages does
+not round-trip from this session'` and skip `f10b`/`f10c`/`f10d` entirely. Only once the
+control lands may `f10c` demand exactly 1. The property is preserved — a *working*
+transport that sends with `frame_push` false, or sends twice, still fails the apply — and an
+*absent* one stops grading instead of stopping the migration.
+
+### F2 — MEDIUM. §6 does not measure the seam that ships. **Blocks the flip, not the apply.**
+
+§6's timed section is `select frame_keys … ; hr_frame_payload(…); realtime.send(…)`. The
+shipped path is `begin perform public.hr_frame_send(v_uid, v_slot, v_out); exception … end`,
+and `hr_frame_send` opens a second `begin … exception` of its own. Four costs are outside
+the measurement and inside the row lock on every accepted write:
+
+1. the call site's `begin … exception` subtransaction,
+2. `hr_frame_send`'s own `begin … exception` subtransaction,
+3. the `SECURITY DEFINER` call into `hr_frame_send` (role switch + plan cache),
+4. `to_regprocedure('realtime.send(jsonb,text,text,boolean)')`, a catalog lookup,
+
+and §6 reads one column where the emitter does `select * into v_cfg` (a whole-row
+`hr_tick_config%rowtype`). Each is small. I expect all four together to be well under
+0.1 ms against a 10 ms line, and I am not going to assert that, because RE-VERIFY 4 §2.2 is
+where I wrote "I will not assert a number I have not seen" and this file exists because I
+held to it.
+
+**Fix** — a third timing loop, before the control, with `frame_push` **as shipped (false)**
+so it takes no lock on the `hr_tick_config` singleton:
+
+```sql
+--   for i in 1..100 loop
+--     t0 := clock_timestamp();
+--     begin perform public.hr_frame_send(v_u, v_s, v_env); exception when others then null; end;
+--     wrap_ms := wrap_ms || round(extract(epoch from clock_timestamp() - t0) * 1000, 3);
+--   end loop;
+```
+
+That times the two subtransactions, the definer call and the config read, all of which the
+emitter pays whether armed or not. Report it as `WRAPPER p95`, and 8b's TOTAL is
+`WRAPPER p95 + armed-loop p95`. Do **not** flip `frame_push` inside the measurement
+transaction to get the armed path through `hr_frame_send`: that row-locks the singleton the
+live tick driver also writes, for the length of the run, at peak.
+
+### F3 — MEDIUM. §6's peak-finding query reads 7 days of a table that holds 24 hours.
+
+```sql
+--     from public.player_intents
+--    where at > now() - interval '7 days'
+```
+
+`hr_intents_prune(interval)` (`2026-08-11-player-state.sql`) deletes
+`where at < now() - greatest(interval '1 hour', coalesce(p_older, interval '24 hours'))`.
+The query silently returns a one-day peak wearing a seven-day label, and proof 5's "three
+samples at the measured peak" is only as good as the peak. It happens to have landed on
+22:00 UTC, which the Coordinator already measured — so the practical damage today is nil and
+the standing damage is that nobody re-running this next month will know.
+
+**Fix** — either relabel it `interval '24 hours'` and say a longer window needs
+`player_ledger`, or take the peak from `player_ledger` (`kind`/`at`), which is append-only and
+retains.
+
+### F4 — LOW. The replayed intent is the one gate case that is argued rather than executed.
+
+The file's header reasons it correctly and H2 shows it holds. But §2.2 proof 2's whole point
+was *counted by execution — not a grep and not a comment*, and this is the one branch of the
+gate that got the comment. A future patch that moved the emit above step (3), or that let
+the replay branch fall through, would emit a duplicate frame at an already-delivered version
+and no arm in this file would see it. The blast radius is small (the client's floor drops it),
+which is why this is LOW and not MEDIUM.
+
+**Fix** — one arm after `f7`, reusing the same `intent_id`: assert `replayed = true`,
+`sends = 0` and the row unmoved; plus a `frame_replay_emits` mutation that hoists the call
+above step (3)'s early return.
+
+### F5 — LOW. `f11` restores the two probe functions explicitly and leaves three `hr_tick_config` booleans to the rollback — including `frame_push = true`.
+
+§7 writes `enabled = true, shadow = true` (f5's setup) and `frame_push = true` (f10b) on the
+singleton config row, and unwinds none of them before the sentinel raise. The file's own
+stated doctrine for `f11` is that a rollback which did not take must be harmless. The
+subtransaction rollback is reliable PL/pgSQL and I am not claiming otherwise — but the flag
+this arm leaves set is **precisely the one my veto is gating**, and a residue would be the
+channel ARMED in production with 8b not met.
+
+**Fix** — mirror `f11`: capture the three booleans into locals before the first write and
+restore them explicitly before `raise exception 'HR923_ROLLBACK_OK'`, asserting the row reads
+back as captured.
+
+### F6 — LOW. The post-apply `live-hash-drift` red is described as one problem. It is four.
+
+The header and the apply-order note both say the guard "reads a DELIBERATE replay divergence
+on `hr_apply`". Measured on `595a5ce1`, `node tests/live-hash-drift.mjs` exit **1**, **4
+problems**:
+
+```
+RED  untracked      hr_frame_send
+RED  untracked      hr_frame_payload
+RED  replay         hr_apply(...)   a416d576… vs baseline d4fa5a6b…
+RED  replay-missing hr_frame_emit()
+```
+
+The Coordinator writes the `--codediff` whys off that note. A note that names one entry
+against a guard that wants four is how a re-seed ends up with three unexplained rows.
+
+**Fix** — name all four in the apply-order note and in the header's ⚠ block.
+
+### F7 — LOW. The apply holds `ACCESS EXCLUSIVE` on `player_state` from §4 to COMMIT.
+
+Measured 114.2 ms in PGlite with `f10b` skipped (H3); production strictly more. `DROP
+TRIGGER` takes `ACCESS EXCLUSIVE`, and because the file is one transaction it is held across
+§5 and the whole of §7 — which does three `hr_apply` calls, a `hr_tick_settle`, four
+`create or replace function`s and, on production, the `f10b` realtime round trip. Every
+player **read and write** of `player_state` queues behind it, `hr_state_of` included. Worse
+than the stall is the queue: while `drop trigger` waits behind any in-flight `player_state`
+transaction, every new query on that table waits behind the `drop trigger`.
+
+At 66 accepted writes/hour the collision odds are small and the game heals on the 90 s poll,
+which is why this is LOW and a runbook item rather than a change I am blocking on.
+
+**Fix** — `set local lock_timeout = '3s';` as §0's first statement. It is legal here (the
+file runs in one implicit transaction; CLAUDE.md §2 forbids `begin`/`commit`, not `set
+local`) and it converts a game-wide freeze into a clean, atomic failure the Coordinator
+re-runs. Until it lands, the runbook in §7 below carries it.
+
+### F8 — LOW. `f1`'s byte-identity is proved only where `v_hf_out is null`.
+
+Per §4 above. No drift today; the guarantee is `hr_tick_config_frame_keys_known` in another
+file, and nothing in this one notices if that constraint widens.
+
+**Fix** — one line in `f1`, after the fold: assert the envelope's top-level key set minus
+`hr_state_of`'s is disjoint from `v_keys`. Cheaper than a second probe apply and it pins the
+actual dependency rather than a symptom.
+
+### F9 — carried, not a defect in this file. Proof 6 is unstarted.
+
+`docs/design/LIVE_COUNTERS_PUSH.md` §3.6 still charges `[D, UNMEASURED IN THE LOCK] 3.23 ms`
+for the thing that measured 9.4–9.7 ms, and its line 361 still lists
+`public.hr_frame_emit()` as the live emitter — which this apply makes false immediately,
+ahead of the measurement. §2.2 proof 6 correctly sequences the restatement after the numbers,
+so this is owed, not late.
+
+## 7. The apply runbook
+
+**Order.** LAST in the chain. After `2026-09-22-frame-push-channel.sql` (live, 08:01Z,
+`frame_push = false`) and after `2026-09-14-hr-apply-restatement.sql` (live). §0 preflights
+both plus `hr_frame_topic`, `frame_push` and `frame_keys`, and fails closed on each.
+
+**Pause needed?** No. But:
+
+- **Not 00:00–00:10 UTC** (CLAUDE.md §2), and **not 22:00 UTC** — that is the measured peak
+  and F7's `player_state` lock window wants the quiet hour.
+- **Do not set a short `statement_timeout`.** §7 legitimately runs for hundreds of
+  milliseconds to seconds. `lock_timeout` is the knob that wants to be short, and it is
+  F7's fix.
+- **The live tick will block briefly.** §7 row-locks the `hr_tick_config` singleton (f5's
+  `enabled`/`shadow`, f10b's `frame_push`) to COMMIT. The tick driver writes that row; it
+  will wait for the apply and then proceed. No correctness issue — but do not run the apply
+  and a tick-driver deploy into each other.
+- **If the apply hangs past ~10 s**, it is queued on `player_state`'s `ACCESS EXCLUSIVE`
+  and the game is queued behind it. That is F7.
+- **If the apply fails at `f10c`** (`the emitter armed sent 0 frame(s)`), that is **F1**, not
+  a property violation. Nothing landed — the file is atomic. Land F1's control and re-run;
+  do not loosen `f10c`.
+
+**One file, one call:** `node tools/apply-migration.mjs 2026-09-23-frame-emit-from-apply.sql`.
+
+**After the apply, in this order:**
+
+1. `node tests/live-hash-drift.mjs --live --write`, whys from `--codediff` — **four** entries
+   (F6): `hr_apply`'s new body, `hr_frame_send` and `hr_frame_payload` newly tracked,
+   `hr_frame_emit()` gone. `touched_by` for `hr_apply` gains this filename. Coordinator only.
+2. Flip the apply-order note to APPLIED with the timestamp.
+3. `restore-census` re-pin — no new table, expect a no-op.
+4. **No edge deploy** (`supabase/functions/**` is untouched by this diff), **no `?v=` bump**,
+   **no client half**. Nothing ships to Pages for this.
+
+**Rollback** is as the file states and I checked it: re-apply
+`2026-09-22-frame-push-channel.sql` (recreates `hr_frame_emit` and the trigger), then
+`2026-09-14-hr-apply-restatement.sql` (restates `hr_apply` without the insertion). And
+`update public.hr_tick_config set frame_push = false;` still stops every frame dead with no
+deploy — which, since the flag is already false, is the state this apply lands in.
+
+## 8. May the flip follow the apply once the measurement reads ≤ 0.9 ms? — **No.**
+
+A `TOTAL p95 ≤ 0.9 ms` clears the *latency* half of my condition 8b and nothing else. To be
+explicit about what `update public.hr_tick_config set frame_push = true` still waits on:
+
+| Gate | Owner | State |
+|---|---|---|
+| 8b latency — 3 quiet-hour **and** 3 peak (22:00 UTC) samples, **all three peak** `TOTAL p95` ≤ 10 ms, `hr_state_of` reported separately as the removed control | me | open; and the block must first carry **F2** and **F3** |
+| Proof 6 — `LIVE_COUNTERS_PUSH.md` §3.6 and `WORLD_TICK_DESIGN.md` restated from the measured numbers | me | open (**F9**) |
+| W1 — a partition old enough to have been dropped | Reliability | **not before 2026-09-27** |
+| W2 — 14 GB/day-at-scale signed against `max_slot_wal_keep_size = 512 MB`, with a lag budget and a named detector for a silently-stopped slot | Reliability | open |
+| W3 — a worst-case slot-lag observation, not an idle one | Reliability | open |
+
+W1 alone puts the earliest possible flip at **2026-09-27**. The apply is not blocked by any
+of this, which is the whole reason 8 was split into 8a and 8b: this file flips nothing, and
+`frame_push` is written nowhere outside a rolled-back self-check. I re-read that and it is
+true.
+
+## 9. Guards — exit codes I read, on `595a5ce1`
+
+Each run on its own, exit code branched on, not `( cmd || echo RED )`.
+
+| Guard | Exit |
+|---|---|
+| `node tests/schema-drift.mjs` | **0** |
+| `node tests/schema-drift.mjs --mutate` | **0** — all six new arms `caught … via replay` |
+| `node tests/selfcheck-no-global-dml.mjs` | **0** |
+| `node tests/envelope-frame-gate.mjs` | **0** |
+| `node tests/apply-order-honesty.mjs` | **0** |
+| `node tests/patch-chain-guard.mjs` | **0** |
+| `node tests/hr-apply-final-body.mjs` | **0** |
+| `node tests/guard-hygiene.mjs` | **0** |
+| `node tests/live-hash-drift.mjs` | **1** — 4 problems, all four the deliberate pre-apply divergence (F6). Coordinator re-seeds after the apply; agents never touch that baseline. |
+| `node tools/lane-done.mjs` | **0** — `lane-done: all green.` |
+
+`hr_assert_grant_hygiene` needs no new link: both new functions are revoked from `public`,
+`anon`, `authenticated`, `service_role`, `hr_engine` and `hr_tick`, so neither is executable
+by a role the detector watches. `f4c`/`f4d` assert that by `has_function_privilege`, and the
+`f2`/`f7` counts were taken through a real `set local role hr_engine` call into `hr_apply`,
+so the privilege path is executed, not assumed.
+
+## 10. Residual risk I am accepting
+
+1. **A hung `realtime.send` holds the money lock.** The emit is inside `hr_apply`'s advisory
+   lock and the `player_state` row lock. A `raise` is swallowed; a *hang* is not a raise.
+   Unchanged from the AFTER trigger — same point in the transaction, same locks — so this is
+   not a regression, and `statement_timeout` on the engine role is the backstop. Naming it
+   because moving the emit into the money function's own body makes it read like a new risk,
+   and it is not.
+2. **`f10b` exercises the insert, not the delivery path**, since it rolls back. The file says
+   so. Unchanged and correct.
+3. **One session, no concurrency.** §6 bounds per-write latency and CPU and says nothing
+   about Realtime tenant behaviour at concurrency. That is W2/W3's ground, not mine.
+4. **`hr_apply`'s restatement debt is now depth 5.** The file acknowledges it and carries it
+   forward, and I agree with the trade it made: a 2,400-line restatement of the money
+   function behind a latency fix is a diff no reviewer can read, and this file's insertion is
+   14 lines with an anchor that raises rather than no-ops. But the joint `hr_apply` /
+   `hr_state_of` restatement that `2026-09-22-hunt-stance-stop.sql` already names as owed is
+   **overdue on both bodies** and should be scheduled before the next patch on either.

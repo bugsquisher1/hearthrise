@@ -481,7 +481,16 @@ async function tickOne(exec, holder, sel, body) {
   /* (4) THE SESSION. Assembled from SERVER values field by field, with the
          watermark the FENCE reported rather than `st.accrued_to` — in shadow
          the two differ, and chaining on `accrued_to` is the overlapping-window
-         bug §15c's shadow mark exists to prevent. */
+         bug §15c's shadow mark exists to prevent.
+
+         ⚠ THE SECOND ARGUMENT IS `env`, THE WHOLE ENVELOPE, NOT `st`
+           (2026-09-22). `skills`, `inventory`, `equipment`, `enchant` and
+           `buffs` live at the envelope TOP LEVEL; `state` holds the
+           player_state columns. Handing `st` here gave the engine `skills {}`
+           and every shadow window for a Mining-61 character on `mithril_rock`
+           came back `would_ticks: 0` with `activity: {kind:'idle'}` — the
+           level gate, on a character who can mine that node. The field list
+           itself is now ./envelope.js, shared with index.ts's accrue path. */
   const session = sessionFromRoster({
     user_id: sel.userId,
     slot: sel.slot,
@@ -496,7 +505,7 @@ async function tickOne(exec, holder, sel, body) {
        engine answers `no_cap` and settles nothing, which is the safe direction
        and is also a tick that silently never runs; T-S1 is what catches it. */
     cap_ms: row.cap_ms,
-  }, st);
+  }, env);
 
   const geom = {
     cadenceMs: body.cadenceMs,

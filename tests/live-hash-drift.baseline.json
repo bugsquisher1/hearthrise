@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 1639,
+ "replay_ms": 2616,
  "counts": {
-  "tracked_names": 55,
-  "entries": 53
+  "tracked_names": 56,
+  "entries": 54
  },
  "functions": [
   {
@@ -138,17 +138,18 @@
     "2026-09-13-consumable-buffs.sql",
     "2026-09-14-hr-apply-restatement.sql",
     "2026-09-17-attended-xp-on-settle.sql",
-    "2026-09-19-lifetime-facts-off-the-ledger.sql"
+    "2026-09-19-lifetime-facts-off-the-ledger.sql",
+    "2026-09-22-hunt-stance-stop.sql"
    ],
    "live": {
-    "md5": "f2316c3d9df8e293d1e92574b6a5af5b",
-    "norm_len": 139593,
+    "md5": "d4fa5a6baf7d87250a4ee7b35b2d2161",
+    "norm_len": 141609,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f2316c3d9df8e293d1e92574b6a5af5b",
-    "norm_len": 139593,
+    "md5": "d4fa5a6baf7d87250a4ee7b35b2d2161",
+    "norm_len": 141609,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -173,17 +174,18 @@
     "2026-09-10-dungeon-settle.sql",
     "2026-09-11-quartermaster-buy.sql",
     "2026-09-21-engine-allowlist-tick-settle.sql",
+    "2026-09-22-engine-allowlist-hunt-reads.sql",
     "2026-09-22-trophy-claim.sql"
    ],
    "live": {
-    "md5": "5c39579b8ab9f609cfe863ca9ad3dbcb",
-    "norm_len": 31838,
+    "md5": "b11266627ba398a653c10a3f5fc37f67",
+    "norm_len": 33400,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5c39579b8ab9f609cfe863ca9ad3dbcb",
-    "norm_len": 31838,
+    "md5": "b11266627ba398a653c10a3f5fc37f67",
+    "norm_len": 33400,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -642,7 +644,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-23: hr_frame_emit is NOT on production and is not expected to be: it is authored only by 2026-09-22-frame-push-channel.sql, which is STAGED (Security SEC_PUSH_CHANNEL_M5 re-verify: MIGRATION GO-WITH-CHANGES; the apply waits on R1/R2 landing and the condition-8 lock-hold measurement on a live database). Tracked because the chain authors it; live=null is the expected reading until that apply, after which --live --write must record it."
+   "why": "2026-09-23: hr_frame_emit is NOT on production and is not expected to be: it is authored only by 2026-09-22-frame-push-channel.sql, which is STAGED (Security SEC_PUSH_CHANNEL_M5 RE-VERIFY 3: MIGRATION GO-WITH-CHANGES; R1/R2/R5/R6 landed at b3a92a61; condition 8 measured 05:50Z, p95 straddles 10 ms; RE-VERIFY 4 pending). Tracked because the chain authors it; live=null is the expected reading until that apply, after which --live --write must record it."
   },
   {
    "sig": "hr_intent_replay(p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
@@ -940,17 +942,18 @@
     "2026-09-13-town-presence.sql",
     "2026-09-13-world-finds-projection.sql",
     "2026-09-14-gem-unlock-buy.sql",
-    "2026-09-14-recipe-learn.sql"
+    "2026-09-14-recipe-learn.sql",
+    "2026-09-22-vigour-refill.sql"
    ],
    "live": {
-    "md5": "256ea8c8d5eb6f7641e5931b43aa647c",
-    "norm_len": 2878,
+    "md5": "dffb74a4b6e5c1b36effb494316cf4a9",
+    "norm_len": 2921,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "256ea8c8d5eb6f7641e5931b43aa647c",
-    "norm_len": 2878,
+    "md5": "dffb74a4b6e5c1b36effb494316cf4a9",
+    "norm_len": 2921,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1070,17 +1073,20 @@
     "2026-09-14-gem-unlock-buy.sql",
     "2026-09-14-hr-state-of-restatement.sql",
     "2026-09-14-recipe-learn.sql",
-    "2026-09-22-state-of-trophy-prefix.sql"
+    "2026-09-22-hunt-analyzer.sql",
+    "2026-09-22-hunt-stance-stop.sql",
+    "2026-09-22-state-of-trophy-prefix.sql",
+    "2026-09-22-vigour-daily.sql"
    ],
    "live": {
-    "md5": "5527d069e857db9cb653445d12b239d7",
-    "norm_len": 30524,
+    "md5": "1a9bfb987e8c7659638b1b57bc15c827",
+    "norm_len": 31560,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5527d069e857db9cb653445d12b239d7",
-    "norm_len": 30524,
+    "md5": "1a9bfb987e8c7659638b1b57bc15c827",
+    "norm_len": 31560,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1290,6 +1296,28 @@
    "replay": {
     "md5": "69a7af7d432dfc8a6723142ab4aa638d",
     "norm_len": 808,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_vigour_of(p_user uuid, p_slot integer)",
+   "name": "hr_vigour_of",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-22-vigour-daily.sql"
+   ],
+   "live": {
+    "md5": "040cbcb79e5e2be1e734d2d82e606e3b",
+    "norm_len": 4711,
+    "measured": "2026-09-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "040cbcb79e5e2be1e734d2d82e606e3b",
+    "norm_len": 4711,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -1027,38 +1027,12 @@
     },
     "hr_vigour_prices": {
       "class": "operator_tunable",
-      "replay": 5,
+      "replay": 0,
       "wiped_at_cutover": false,
-      "note": "THE VIGOUR REFILL LADDER (created 2026-09-22-vigour-refill.sql). Five rows: nth, cost_gold, minutes - 2,000 gold tripling to 162,000 within the UTC day. OPERATOR TUNABLE rather than seeded because these are the game designer's PLACEHOLDERS pending Tyler's ruling (docs/design/HUNTS_AND_ANALYZER.md 4.6), and they live in a table precisely so his answer is a reviewed UPDATE rather than a migration: a rebuild would silently restore the placeholder prices over whatever was tuned. THE ROW COUNT IS ALSO THE PER-DAY CAP - hr_vigour_refill refuses an nth with no row - so a truncated table does not open a faucet, it closes the shop. Public read, no client write policy and no client write grant; hr_vigour_refill is the only reader that prices from it. NOT YET ON PRODUCTION: the migration is STAGED pending a Security GO, so `live_value` records the AUTHORED ladder as of 2026-09-22 and not a measurement. The Coordinator re-measures it after the apply, and again after any of Tyler's four price rulings land - otherwise a rebuild would silently revert a tuned economy to these placeholders.",
+      "note": "THE VIGOUR REFILL LADDER (created 2026-09-22-vigour-refill.sql, APPLIED 2026-09-23 06:26:46 UTC). SHIPS EMPTY (Security I-3, 2026-09-23): the designer's placeholder ladder (2,000 gold tripling to 162,000, x5 within the UTC day) is recorded in the migration as a rolled-back fixture only; GATE(d0)/GATE(f) fail the apply if a row is ever seeded by a migration, and hr_vigour_refill refuses every call by name (refill_unpriced) while the table is empty. OPERATOR TUNABLE: Tyler's four money figures (docs/design/HUNTS_AND_ANALYZER.md 4.6) land as a reviewed INSERT under the same Security review, never a migration, so a rebuild must not resurrect placeholders. THE ROW COUNT IS ALSO THE PER-DAY CAP - a truncated or empty table does not open a faucet, it closes the shop. Public read, no client write policy and no client write grant; hr_vigour_refill is the only reader that prices from it. live_value MEASURED on production 2026-09-23 after the apply: 0 rows. Re-measure after Tyler's ruling.",
       "live_value": {
-        "measured": "2026-09-22",
-        "value": [
-          {
-            "nth": 1,
-            "cost_gold": 2000,
-            "minutes": 120
-          },
-          {
-            "nth": 2,
-            "cost_gold": 6000,
-            "minutes": 120
-          },
-          {
-            "nth": 3,
-            "cost_gold": 18000,
-            "minutes": 120
-          },
-          {
-            "nth": 4,
-            "cost_gold": 54000,
-            "minutes": 120
-          },
-          {
-            "nth": 5,
-            "cost_gold": 162000,
-            "minutes": 120
-          }
-        ]
+        "measured": "2026-09-23",
+        "value": []
       }
     },
     "hr_xp_table": {

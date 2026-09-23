@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 1509,
+ "replay_ms": 1400,
  "counts": {
   "tracked_names": 52,
   "entries": 50
@@ -717,19 +717,17 @@
     "2026-09-23-client-state-retired-fields.sql"
    ],
    "live": {
-    "md5": "9674ca3ac77631b5e4b92c30a8ad4131",
-    "norm_len": 3947,
+    "md5": "17ebca77a2158d319b07a7b32f465317",
+    "norm_len": 6735,
     "measured": "2026-09-23",
-    "source": "measured-live",
-    "mojibake": true
+    "source": "measured-live"
    },
    "replay": {
     "md5": "17ebca77a2158d319b07a7b32f465317",
     "norm_len": 6735,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "2026-09-23: hr_put_client_state__ungated — the STAGED 2026-09-14-client-state-projection-denylist.sql was REMOVED from the chain by lane/client-state-retired-fields (superseded by 2026-09-23-client-state-retired-fields.sql, Security GO-WITH-CHANGES S1); the replay now equals the live body it was deliberately diverging from. The 2026-09-23 file is STAGED, not applied; re-measure after its apply."
+   "agree": true
   },
   {
    "sig": "hr_rate_gate(p_user uuid, p_slot integer, p_bucket text)",

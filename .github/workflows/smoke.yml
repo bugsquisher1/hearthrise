@@ -1321,6 +1321,46 @@ jobs:
           node tests/party-split.mjs
           node tests/party-split.mjs --mutate
 
+      # M8 SLICE 2 — THE PARTY AS A ROSTER UNIT, IN SHADOW. The three migrations
+      # carry their own §4 blocks (Security's §18-SEC.3 S2 list, executed at
+      # apply time and refusing to install otherwise); this is the STANDING half,
+      # and it asserts three things a §4 block structurally cannot.
+      #
+      #   P-IDEM  the three files re-apply byte-identically. tools/apply-migration
+      #           .mjs is run by hand, at speed, on a file that may already be in.
+      #           It runs BEFORE the fixture is planted, because file 1's §7(z)
+      #           requires the two S2 tables to be EMPTY after an apply.
+      #   P-ARM   the ARMED branch END TO END on a throwaway database: four
+      #           hr_apply calls in one transaction, the party mark and all four
+      #           member marks advancing TOGETHER (invariant 8 as a fact rather
+      #           than a promise), the carrier cleared, `meta->'party'` readable
+      #           at the level hr_apply actually writes it and the two wrong
+      #           spellings pinned empty. The migration cannot arm itself — file
+      #           2's §5(z) requires `shadow` TRUE after the apply — so the armed
+      #           half has nowhere else to live, and S5 flips an operator switch
+      #           over code no later review sees.
+      #   P-FENCE invariant 8 at the INTENT door, driven through the real
+      #           party-fence.js bytes the edge deploys: a partied character's own
+      #           accrue refused party_settle_required, every collectsFirst verb
+      #           party_hunt_running, a non-collecting verb untouched, and an
+      #           UNPARTIED character NOT refused — the last of which is what
+      #           tells a fence apart from a wall.
+      #
+      # Every call is made AS THE ROLE THAT HOLDS IT — the settle as hr_engine,
+      # both rosters as hr_tick — because driving them as the replay's owner
+      # passes either way and measures a door nobody in production knocks on.
+      #
+      # --mutate plants four defects, each of which the MIGRATIONS' OWN §4 blocks
+      # must refuse at apply time, which is the strongest verdict available: a
+      # thirteenth (nested) journal key that metaProblems() cannot see (B-A5),
+      # `exception when others` in the armed handler (B-A3), a member set the CAS
+      # must reject being accepted (S-9), and the two rosters overlapping (S-8).
+      - name: M8 parties — the roster unit and the one-call settle, in shadow
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-settle.mjs
+          node tests/party-settle.mjs --mutate
+
       # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
       # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
       # migration's own §5 self-check CANNOT RUN THE DERIVATION on the

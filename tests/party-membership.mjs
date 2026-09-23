@@ -198,31 +198,92 @@ try {
   }
 
   // ══ P-IDEM ═══════════════════════════════════════════════════════════════
-  group('P-IDEM  the three migrations re-apply byte-identically');
+  // ⚠ NARROWED BY M8 S2 (2026-09-23), AND THE NARROWING IS ITSELF AN ARM.
+  //   This used to re-apply the three S1 files onto the FULL chain, and from the
+  //   day S2 landed it went red — correctly. File 1 §7(f) refuses to install if
+  //   `party_hunt` or `party_tick_lease` exists, and that refusal is not a scope
+  //   claim that expired: re-applying S1 file 1 after S2 would silently REVERT
+  //   `hr_party_hunt_live` to `select false`, and S-11's party_hunt_running
+  //   refusal — the thing that stops a player joining mid-hunt with their own
+  //   accrued_to days back — would die with it. A loud refusal is exactly what
+  //   should happen, so the guard asserts BOTH halves rather than loosening one:
+  //
+  //     P-IDEM   the three files are a byte-identical no-op re-applied AT THEIR
+  //              OWN POSITION IN THE CHAIN, which is what "additive and
+  //              idempotent" claims and all it ever claimed.
+  //     P-IDEM2  and they REFUSE to re-apply once S2 is in, by name.
+  //
+  //   P-IDEM needs its own boot, because the property is about a database that
+  //   holds S1 and not S2. That is one extra PGlite boot and it buys the only
+  //   reading under which both statements are true at once.
+  group('P-IDEM  the three migrations re-apply byte-identically, at their own position');
   {
-    const before = await inventory(db);
-    let err = null;
-    for (const f of [F1, F2, F3]) {
-      const sql = (await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8'))
-        .replace(/\r\n/g, '\n');
-      let text = sql;
-      if (MUTATE && f === F2) {
-        text = text.split(MUTANT[0]).join(MUTANT[1])
-          .split(NEUTER_SELFCHECK[0]).join(NEUTER_SELFCHECK[1]);
+    const r = await bootReplay({ upTo: F3, patches });
+    if (r.failures.length) {
+      judge('P-IDEM', false, '', `the S1-position replay did not complete: ${JSON.stringify(r.failures[0])}`);
+      await r.db.close();
+    } else {
+      const before = await inventory(r.db);
+      let err = null;
+      for (const f of [F1, F2, F3]) {
+        const sql = (await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8'))
+          .replace(/\r\n/g, '\n');
+        let text = sql;
+        if (MUTATE && f === F2) {
+          text = text.split(MUTANT[0]).join(MUTANT[1])
+            .split(NEUTER_SELFCHECK[0]).join(NEUTER_SELFCHECK[1]);
+        }
+        try { await r.db.exec(text); }
+        catch (e) { err = `${f}: ${String(e.message).split('\n')[0]}`; break; }
       }
-      try { await db.exec(text); }
-      catch (e) { err = `${f}: ${String(e.message).split('\n')[0]}`; break; }
+      const after = err ? null : await inventory(r.db);
+      const same = after && JSON.stringify(before) === JSON.stringify(after);
+      await r.db.close();
+      judge('P-IDEM', !err && same,
+        'all three re-applied cleanly onto a database that holds S1 and not S2 — every §4 '
+        + 'self-check passed a SECOND time against a database that already holds the objects, '
+        + 'and the schema inventory is byte-identical before and after',
+        err
+          ? `a re-apply FAILED: ${err}. tools/apply-migration.mjs is run by hand on a file that may `
+            + 'already be in; "additive and idempotent" has to be a measurement, not a header.'
+          : 'the re-apply changed the schema inventory — the second run is not a no-op');
     }
-    const after = err ? null : await inventory(db);
-    const same = after && JSON.stringify(before) === JSON.stringify(after);
-    judge('P-IDEM', !err && same,
-      'all three re-applied cleanly — every §4 self-check passed a SECOND time against a '
-      + 'database that already holds the objects, and the schema inventory is byte-identical '
-      + 'before and after',
-      err
-        ? `a re-apply FAILED: ${err}. tools/apply-migration.mjs is run by hand on a file that may `
-          + 'already be in; "additive and idempotent" has to be a measurement, not a header.'
-        : 'the re-apply changed the schema inventory — the second run is not a no-op');
+  }
+
+  // ══ P-IDEM2  AND ONCE S2 IS IN, THE RE-APPLY IS REFUSED BY NAME ══════════
+  // The hazard is silent and permanent: file 1 re-applied over S2 would restore
+  // `hr_party_hunt_live` to the stub, and every `hr_party_accept` in the game
+  // would stop refusing `party_hunt_running`. §7(f) is what turns that into a
+  // refusal an operator sees.
+  group('P-IDEM2  and it REFUSES to re-apply once S2 has landed');
+  {
+    const hasS2 = (await q("select to_regclass('public.party_hunt') is not null as x"))[0].x;
+    let err = null;
+    if (hasS2) {
+      const sql = (await readFile(join(ROOT, 'supabase', 'migrations', F1), 'utf8'))
+        .replace(/\r\n/g, '\n');
+      try { await db.exec(sql); } catch (e) { err = String(e.message).split('\n')[0]; }
+    }
+    /* AND THE REFUSED RE-APPLY LEFT THE PREDICATE ALONE. The whole file runs
+       as one implicit transaction, so the raise takes back the `create or
+       replace hr_party_hunt_live` the file carries — but that is the property
+       being relied on, so it is MEASURED rather than assumed: a refusal that
+       still reverted the body would be the silent revert with an error message
+       stapled to it. */
+    const stillReal = hasS2
+      ? (await q("select position('party_hunt' in p.prosrc) > 0 as x from pg_proc p"
+          + " join pg_namespace n on n.oid = p.pronamespace"
+          + " where n.nspname = 'public' and p.proname = 'hr_party_hunt_live'"))[0].x
+      : true;
+    judge('P-IDEM2', hasS2 ? (/GATE\(f\)/.test(String(err || '')) && stillReal === true) : true,
+      hasS2
+        ? `re-applying file 1 over S2 is refused: "${String(err).slice(0, 96)}…" — and the raise `
+          + 'took the whole file back, so hr_party_hunt_live still reads party_hunt. Without that '
+          + 'refusal the re-apply would restore it to `select false` and S-11\'s '
+          + 'party_hunt_running would silently stop firing for every party in the game'
+        : 'S2 has not landed on this chain yet, so there is nothing for this arm to measure',
+      `re-applying file 1 over S2 answered ${err === null ? 'CLEANLY — and that is the silent revert' : `"${err}"`}`
+      + `; hr_party_hunt_live still reads party_hunt: ${stillReal}`);
   }
 
   // ══ THE JOURNEY ══════════════════════════════════════════════════════════

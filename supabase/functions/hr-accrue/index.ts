@@ -85,6 +85,7 @@ import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
+import { partyIntentFence } from './party-fence.js';
 import { runSetActivity } from './set-activity.js';
 import { runShopBuy } from './shop-buy.js';
 import { runVendorSell } from './vendor-sell.js';
@@ -367,6 +368,24 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         await tx`set local role hr_engine`;
         return await tx.unsafe(text, params as any[]);
       }) as unknown as Record<string, any>[];
+
+    /* ── INVARIANT 8, AT THE DOOR (M8 S2) ──────────────────────────────────
+       BEFORE THE DISPATCH AND BEFORE ANY KEY IS DERIVED (§18.3). For the life
+       of a party hunt the party watermark IS the member's watermark, and
+       `hr_party_tick_settle` is the only writer of either — so a partied
+       character's own `accrue` is refused `party_settle_required` and every
+       `collectsFirst` verb `party_hunt_running`. The quantity being fenced is
+       the INSTANT of an ordinary client intent, which would otherwise re-price
+       a window three other players are paid from: CLAUDE.md §1's target
+       property failing by timing rather than by number (§18.4 T-5b).
+
+       ONE call site, not eight — see supabase/functions/hr-accrue/party-fence
+       .js for why, and for why it fails closed. It costs a read only for a verb
+       it could actually refuse. */
+    {
+      const refusal = await partyIntentFence({ exec, user, slot, verb: intent.verb });
+      if (refusal) return json(refusal.body, refusal.status);
+    }
 
     /* ── VERB DISPATCH ─────────────────────────────────────────────────────
        Each intent is its own pure ESM module behind `exec`, so the bytes a Node

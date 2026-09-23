@@ -89,6 +89,12 @@ import {
    lays it back over a session read from `hr_state_of`. Neither computes a
    delta and neither is authority. */
 import { shadowStateOf, applyShadowState, SHADOW_STATE_V } from './tick-contract.js';
+/* THE PARTY UNIT (M8 S2). A party is a ROSTER UNIT, not a new engine and not a
+   new channel: `settleParty` runs the SAME `settleCombatSession` this file runs
+   for a solo character, once per member, and emits ONE `hr_party_tick_settle`
+   call for the window. `AWAY-12` forbids a second combat path and there is not
+   one — see supabase/functions/hr-accrue/tick-party.js. */
+import { parseParties, settleParty } from './tick-party.js';
 
 /* ── THE DISPATCH TABLE (Security S-8, 2026-09-23) ───────────────────────────
    Until today this file imported ONE `CHANNEL` — gather's — and used it three
@@ -478,6 +484,19 @@ export function parseTickBody(raw) {
      and it must not be reachable by naming two numbers in a body. */
   if (out.flushMs < out.cadenceMs) out.flushMs = out.cadenceMs;
   out.roster = parseSelectors(b.roster);
+  /* THE PARTY COHORT (M8 S2). Same rule as `roster`: SELECTORS, never
+     authority. A unit names a party, a hunt, its monster and its members'
+     (user, slot) pairs — and NOTHING it carries about the watermark, the mode
+     or the shadow carrier is read, because `settleParty` re-derives all three
+     from the fence's own refusal under the party lock.
+
+     ⚠ NOTHING POSTS THIS YET. `hr_tick_cron_run` builds its POST from
+       `hr_tick_roster` alone; teaching it the party cohort — with its limit
+       counted in CHARACTERS (I-3) — is §18.5's S5 row. It is unreachable
+       before S4 in any case, because `hr_party_hunt_start` is S4's and there is
+       no live `party_hunt` for `hr_party_roster` to return. The key and the
+       unit shape are frozen HERE so that wiring is additive when it comes. */
+  out.parties = parseParties(b.parties);
   return out;
 }
 
@@ -950,6 +969,18 @@ async function tickOne(exec, holder, sel, body) {
   return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed' };
 }
 
+/* THE PARTY'S SEED LADDER, PER MEMBER. The same two functions the solo path
+   uses, handed the party's own window geometry — so a party member's window
+   draws the stream an accrue would have drawn, which is the whole of T-2. It is
+   passed to `settleParty` as a dependency rather than imported by it, because
+   `seedLadder` and `planSeedLabels` are this module's and a party is not a
+   reason to grow a second copy of either. */
+async function partySeedLadder(exec, member, session, fromMs, toMs, geom) {
+  const labels = planSeedLabels(settleCombatSession, session, fromMs, toMs,
+    Object.assign({}, geom, { markText: session.accruedToText }));
+  return seedLadder(exec, { userId: member.userId, slot: member.slot }, labels);
+}
+
 /* ── THE FIRE ───────────────────────────────────────────────────────────────
    `exec` is index.ts's one-statement seam; `now` is injectable so a test can
    measure `ms` without a clock. Returns the small JSON summary §15c asks for. */
@@ -984,6 +1015,24 @@ export async function runTick(opts) {
 
   const counts = { processed: 0, skipped: 0, shadowed: 0, refused: 0 };
   const reasons = Object.create(null);
+
+  /* PARTIES FIRST, and the order is not a preference: invariant 7 excludes a
+     partied character from `body.roster` at the ROSTER, so the two cohorts are
+     disjoint by construction and cannot contend. Settling parties first means a
+     cohort that is disjoint anyway is also settled in the order the design
+     reads. */
+  for (const unit of body.parties) {
+    let v;
+    try {
+      v = await settleParty(exec, holder, unit, body, { seedLadder: partySeedLadder });
+    } catch (e) {
+      /* NO PARTY'S FAILURE COSTS ANOTHER ONE ITS WINDOW. */
+      v = { outcome: 'refused', reason: 'party_error:' + String((e && e.message) || e).slice(0, 56) };
+    }
+    counts[v.outcome] = (counts[v.outcome] || 0) + 1;
+    if (v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1;
+  }
+
   for (const sel of body.roster) {
     let v;
     try {

@@ -269,6 +269,28 @@ export const LINKS = [
     target: '2026-09-23-world-tick-shadow-state-chain.sql',
     patchIds: ['tick_settle_shadow_state'],
   },
+  /* Link 14 (M8 S2 parties, 2026-09-23) — THE PARTY FENCE AND INVARIANT 7's
+     PREDICATE. Two entries, INSERTIONS ONLY, so its declared-removals list in
+     tests/run-sql-tests.mjs PART 1f-ii is EMPTY.
+
+     Its base is link 13's TARGET — the body production runs since the
+     shadow-state chain applied at 20:06 UTC — so it cannot silently revert the
+     ten-argument hr_tick_settle signature that link recorded, which is exactly
+     the failure a re-cut off an older base produces (Security S-5's finding
+     against the M6/M7 pair, three files up).
+
+     ⚠ IT MUST NOT TRAIL ITS OWN GRANTS OVERNIGHT, the rule links 10 and 12
+       both state. 2026-09-23-m8-parties-s2-1-hunt-tables.sql grants hr_partied
+       to hr_engine and ...-s2-2-roster-settle.sql grants hr_party_tick_settle
+       to hr_engine; between those applies and this one the nightly
+       `hr-grant-hygiene` cron RAISES on `engine_execute_outside_allowlist`, and
+       a detector expected to be red hides the next genuine regression. THE
+       THREE FILES APPLY IN ONE SITTING, IN ORDER. */
+  {
+    base: '2026-09-23-world-tick-shadow-state-chain.sql',
+    target: '2026-09-23-m8-parties-s2-3-engine-allowlist.sql',
+    patchIds: ['party_settle'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -851,6 +873,67 @@ export const PATCHES = [
     -- binding, the version — is untouched and runs in the same order.
     'hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,timestamp with time zone,uuid,jsonb,jsonb)',\n`,
     where: 'replace',
+  },
+  {
+    id: 'party_settle',
+    name: 'the c_engine_allow array head (link 14)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-09-23 — THE PARTY FENCE AND ITS PREDICATE (M8 S2) ────
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list. Position carries no meaning —
+    -- check (7) tests membership with \`<> all (...)\`.
+    --
+    -- ⚠ hr_party_tick_settle IS NOT READ-ONLY, and the claim rests on
+    -- SELF-VALIDATING, re-derived rather than carried across from
+    -- hr_tick_settle's entry. It is the world tick's ONE door to player value
+    -- for a PARTY, and its whole caller-supplied surface is a holder name, a
+    -- party id, a window [from,to), an idempotency uuid and an array of 1..4
+    -- member objects — every one of which is CHECKED AGAINST THE DATABASE
+    -- before a value moves:
+    --   * THE LEASE, at party grain. The caller must name a party the ROSTER
+    --     handed it, in its own holder name, inside the lease window.
+    --     hr_party_roster is executable by \`hr_tick\` and by NOTHING ELSE, and
+    --     hr_engine is asserted NOT to hold it, so a settling role
+    --     structurally cannot stamp its own lease.
+    --   * THE PARTY LOCK, taken FIRST, which is what serialises a settle
+    --     against a join, a leave and a kick.
+    --   * THE WATERMARK CAS, the PARTY's, computed once under that lock and
+    --     byte-identical in every term to hr_tick_settle's own.
+    --   * INVARIANT 8, PER MEMBER: \`player_state.accrued_to\` must EQUAL the
+    --     party watermark. An inequality either way is a broken invariant and
+    --     the whole call is refused — there is no branch that reconciles.
+    --   * THE LIVE MEMBER SET, re-counted UNDER THE LOCK and asserted equal to
+    --     the declared set with no member named twice. A subset is a partial
+    --     settle, which pays some members a split computed from all of them —
+    --     a mint, and the one defect that cannot be recovered after the fact.
+    --   * THE DECLARED WINDOW IS BOUND TO THE PAID ONE per member
+    --     (\`delta->>'accrued_to' = p_window_to\`), and the delta's top-level
+    --     key set is asserted to be a solo combat settle's, so attribution
+    --     cannot ride in the delta and no unknown key can reach hr_apply.
+    --   * AND THEN hr_apply RE-VALIDATES EVERY INVARIANT regardless of caller.
+    --     It is the only money writer; this function computes and fences and
+    --     never moves a value except through it, once per member, inside ONE
+    --     transaction whose savepoint rolls the whole fan-out back if any
+    --     member cannot be paid.
+    -- NO NEW TARGET: the members it names are (user, slot) pairs the engine
+    -- already passes to hr_apply and hr_state_of. The holder of hr_apply can
+    -- already WRITE any character it names; this is strictly NARROWER.
+    --
+    -- ⚠ hr_partied IS READ-ONLY, which is the strongest form an entry here can
+    -- take: \`stable sql\`, one EXISTS over party_member joined to party_hunt,
+    -- no row written, so it cannot be replayed into a gain. NO NEW TARGET —
+    -- (p_user, p_slot), the same pair again. WHY THE ENGINE NEEDS IT: it is
+    -- invariant 8's fence at the intent door. A partied character's own
+    -- \`accrue\` is refused \`party_settle_required\` and every other
+    -- collectsFirst verb \`party_hunt_running\`, because the timing of an
+    -- ordinary client intent would otherwise re-price a window three other
+    -- players are paid from — CLAUDE.md §1's target property failing by timing
+    -- rather than by number. No client role holds it: a client-callable
+    -- membership predicate is an oracle it can sweep.
+    'hr_party_tick_settle(text,uuid,timestamp with time zone,timestamp with time zone,uuid,jsonb)',
+    'hr_partied(uuid,integer)',
+`,
+    where: 'after',
   },
 ];
 

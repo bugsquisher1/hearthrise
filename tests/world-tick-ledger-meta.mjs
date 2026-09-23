@@ -72,6 +72,9 @@ function judge(id, pass, good, bad) {
 const group = (t) => console.log(`\n${t}`);
 
 const DESIGN = join(ROOT, 'docs', 'planning', 'WORLD_TICK_DESIGN.md');
+/* THE OPERATOR'S RUNBOOK for the combat arm — the file the Coordinator actually
+   pastes from. When the runbook moves, this constant moves with it (L-8). */
+const RUNBOOK = join(ROOT, 'docs', 'planning', 'SEC_WORLD_TICK_M3_2026-09-22.md');
 const U = '00000000-0000-4000-8000-0000000d0001';
 
 /* THE §16.6 BLOCK, OUT OF THE DOCUMENT. Found by its own marker comment rather
@@ -316,6 +319,72 @@ try {
           + 'chases a deploy that succeeded (Security S-6, filed three times).'
         : 'the design no longer tells the operator HOW to measure the hash — removing the literal '
           + 'without leaving the instruction is worse than the literal was');
+  }
+
+  // ── L-8 ── EVERY STATEMENT IN THE RUNBOOK MUST EXECUTE (Security S-12) ────
+  // L-1 grades the ONE query §16.6 carries. It says nothing about the file an
+  // operator arms combat from, and that file was wrong in three more ways —
+  // each found only by running it, each syntactically plausible:
+  //
+  //   · `set channels = array(select distinct unnest(channels || 'combat'))`
+  //     raises `malformed array literal: "combat"`. `text[] || unknown` resolves
+  //     to `anyarray || anyarray`, so Postgres parses the literal as an ARRAY.
+  //     The one statement that arms the channel did not run at all.
+  //   · `max(k.at)` — `hr_kill_credit_log` has `created_at`, so the arm fence
+  //     failed with `column k.at does not exist`.
+  //   · `(meta->'meta' ? 'att')` — S-10, still live in the earlier runbook's
+  //     parity block, where it answers one NULL bucket instead of two.
+  //
+  // So the whole runbook is EXECUTED here, statement by statement, against the
+  // chain replay and rolled back. A runbook instruction that reads wrong when an
+  // operator executes it is the same defect as a query addressing a level that
+  // does not exist, and this is the arm that makes the class unshippable.
+  //
+  // OWNER CONTEXT on purpose: a runbook is run by the Coordinator through the
+  // management endpoint, not by the edge's `hr_engine` seam, which holds no
+  // grant on `hr_tick_config` and would answer `permission denied` to twenty
+  // statements that are perfectly correct.
+  group('L-8  every sql statement in the combat runbook, executed and rolled back');
+  {
+    const md = readFileSync(RUNBOOK, 'utf8');
+    const blocks = [...md.matchAll(/^([ \t]*)```sql\n([\s\S]*?)^\1```/gm)]
+      .map((m) => m[2].split('\n').map((l) => (l.startsWith(m[1]) ? l.slice(m[1].length) : l)).join('\n'));
+    const bads = [];
+    let n = 0;
+    for (const [bi, b] of blocks.entries()) {
+      /* COMMENTS FIRST, THEN THE SPLIT. A `;` inside a `--` comment is not a
+         statement boundary; splitting first grades prose and reports a syntax
+         error that is the harness's, not the runbook's. */
+      const stmts = b.split('\n').map((l) => l.replace(/--.*$/, '')).join('\n')
+        .split(';').map((x) => x.trim()).filter((x) => x.length > 0);
+      for (const [si, raw] of stmts.entries()) {
+        /* The runbook's two placeholders. Anything else angle-bracketed is a
+           placeholder this arm does not know, and it will fail loudly rather
+           than be skipped. */
+        let sql = raw.replace(/<uuid>/g, U).replace(/<slot>/g, '0');
+        /* --mutate puts the arm UPDATE's defect back — the cast removed — and
+           requires this arm to go red on it. */
+        if (MUTATE) sql = sql.replace(/'combat'::text/g, "'combat'");
+        n += 1;
+        await db.exec('begin');
+        let err = null;
+        try { await db.query(sql); } catch (e) { err = String(e.message).slice(0, 100); }
+        await db.exec('rollback');
+        if (err) bads.push(`b${bi + 1}.s${si + 1}: ${err}  <- ${sql.replace(/\s+/g, ' ').slice(0, 88)}`);
+      }
+    }
+    const pass = MUTATE ? bads.length > 0 : bads.length === 0;
+    judge(MUTATE ? 'L-8 (mutate)' : 'L-8', pass,
+      MUTATE
+        ? `the uncast \`channels || 'combat'\` is still refused by Postgres — `
+          + `${bads.length} statement(s) went red, first: ${bads[0]}`
+        : `all ${n} statement(s) in ${blocks.length} sql block(s) of the runbook execute against `
+          + 'the real chain (rolled back) — an operator pasting any of them gets an answer, not '
+          + 'an error and not an empty partition',
+      MUTATE
+        ? 'the uncast array concat EXECUTED, so this arm can no longer tell the defect from the '
+          + 'fix — the mutation may have stopped applying'
+        : `${bads.length} of ${n} runbook statement(s) do NOT execute:\n    ` + bads.join('\n    '));
   }
 } finally {
   await db.close();

@@ -231,7 +231,7 @@ recurring on the *chain* rather than on the helper. `guard-hygiene` is green wit
 ```sql
 -- (a) the channel. One row, id = true.
 update public.hr_tick_config
-   set channels = array(select distinct unnest(channels || 'combat'))
+   set channels = array(select distinct unnest(channels || 'combat'::text))
  where id
    and not ('combat' = any (channels));
 
@@ -244,7 +244,7 @@ on conflict (user_id, slot, channel) do update set owned = excluded.owned;
 
 -- (c) the ARM FENCE §16.6 requires: never arm a character with live kill credit
 --     near its watermark, or the shadow read is polluted by the top-up.
-select k.user_id, k.slot, max(k.at) as newest_credit, ps.accrued_to
+select k.user_id, k.slot, max(k.created_at) as newest_credit, ps.accrued_to
   from public.hr_kill_credit_log k
   join public.player_state ps using (user_id, slot)
  where k.user_id = '<uuid>'
@@ -257,9 +257,21 @@ UPDATE with its own Security GO; this document does not grant it.
 
 ### Parity queries, per field
 
+> **SUPERSEDED 2026-09-23 by RE-VERIFY 3 step 10 below — and CORRECTED IN PLACE.**
+> These three queries shipped with the S-10 spelling (`meta->'meta'`, which answers
+> one NULL bucket), with `max(k.at)` (which raises `column k.at does not exist`),
+> with an uncast `channels || 'combat'` in the arm UPDATE above (which raises
+> `malformed array literal`), and with a `deaths` sum over a delta array that is
+> never present. The spellings are fixed here so nothing in this file is a query
+> that answers wrongly when pasted — `tests/world-tick-ledger-meta.mjs` L-8
+> executes every statement in this document — but the **span-fenced** reads in
+> step 10 are the ones to run: a naive 48 h sum is not comparable at all (see
+> "The gather parity caveat").
+
 ```sql
 -- (1) THE PARTITION. Compare ONLY the attended=false bucket (§16.6).
-select date_trunc('hour', at) h, (meta->'meta' ? 'att') attended,
+--     `meta ? 'att'`, at the TOP: corrected 2026-09-23 (S-10).
+select date_trunc('hour', at) h, (meta ? 'att') attended,
        count(*) rows, sum((meta->'delta'->>'g')::bigint) gold
   from public.player_ledger
  where kind = 'combat' and intent = 'accrue' and at > now() - interval '48 hours'
@@ -276,18 +288,27 @@ with tick as (
 paid as (
   select date_trunc('hour', at) h,
          sum((meta->'delta'->>'g')::bigint)            gold,
-         sum((meta->'meta'->>'kills')::bigint)         kills,
-         sum((meta->'meta'->>'ate')::bigint)           ate,
-         sum(jsonb_array_length(coalesce(meta->'delta'->'deaths','[]'::jsonb))) deaths
+         sum((meta->>'kills')::bigint)                 kills,
+         sum((meta->>'ate')::bigint)                   ate
     from public.player_ledger
    where kind = 'combat' and intent = 'accrue'
      and at > now() - interval '48 hours'
-     and not (meta->'meta' ? 'att')
+     and not (meta ? 'att')
+   group by 1),
+-- DEATHS ARE THEIR OWN ROWS (corrected 2026-09-23, S-10). The old spelling
+-- summed jsonb_array_length(meta->'delta'->'deaths'), a key hr_apply never
+-- writes, so it answered 0 for every death — a zero that reads as a defect.
+died as (
+  select date_trunc('hour', at) h, count(*) deaths
+    from public.player_ledger
+   where kind = 'combat' and intent = 'death'
+     and at > now() - interval '48 hours'
    group by 1)
 select coalesce(t.h, p.h) h,
        t.gold, p.gold, round(100.0*(t.gold - p.gold)/nullif(p.gold,0), 2) gold_pct,
-       t.kills, p.kills, t.ate, p.ate, t.deaths, p.deaths
-  from tick t full join paid p using (h) order by 1;
+       t.kills, p.kills, t.ate, p.ate, t.deaths, d.deaths paid_deaths
+  from tick t full join paid p using (h) left join died d on d.h = coalesce(t.h, p.h)
+ order by 1;
 
 -- (3) ITEMS AND XP, which is the whole question on a channel that mints loot.
 select key as item, sum(value::bigint) qty
@@ -962,7 +983,7 @@ on conflict (user_id, slot, channel) do update set owned = excluded.owned;
 
 -- (b) THE CHANNEL. One row, id = true. Idempotent and order-stable.
 update public.hr_tick_config
-   set channels = array(select distinct unnest(channels || 'combat'))
+   set channels = array(select distinct unnest(channels || 'combat'::text))
  where id
    and not ('combat' = any (channels));
 
@@ -1186,3 +1207,413 @@ executed against a real ledger row before it is signed, not after; (3) **S-9** �
 merged set head; (5) the §16.6 attended fence, still open and still correctly a hard
 blocker for paying. **S-11 is not on this list** — it is the set's debt and I will not
 make S-7's fix wait behind it.
+
+---
+
+# RE-VERIFY 3 — 2026-09-23
+
+**Reviewer:** security-engineer (veto authority)
+**Under review:** `lane/world-tick-m3` @ `76c5df8b` — `2384b0b1` merged `next` (b551 + M7 +
+retired-fields), then `f0d45087` (S-8), `55a0471d` (S-10) and `76c5df8b` (S-6b).
+**Branch:** `sec/world-tick-m3-4`, cut from that head. `npm install --no-audit --no-fund`.
+
+## Verdicts
+
+```
+S-8: CLOSED
+S-9: CLOSED
+S-10: CLOSED
+S-6b: CLOSED
+MIGRATION 2026-09-22-world-tick-combat-channel.sql: GO-WITH-CHANGES
+EDGE DEPLOY (from the SET after merge): GO
+COMBAT SHADOW ARM: GO
+```
+
+**S-8: CLOSED**
+
+**S-9: CLOSED**
+
+**S-10: CLOSED**
+
+**MIGRATION 2026-09-22-world-tick-combat-channel.sql: GO-WITH-CHANGES** — the file is
+**byte-identical** to both heads I have ruled on (`git diff 16965c96 HEAD` and
+`git diff 0ab94c17 HEAD` on the path are empty, exit 0). The changes are unchanged and are
+conditions on the **apply**, not on the file: the S-5 pre-flight `select` is read FIRST, and
+the tick is paused with the lease **drained** for the S-4 `ACCESS EXCLUSIVE` rewrite. A
+plain GO would say it may be applied with neither. It may not.
+
+**EDGE DEPLOY (from the SET after merge): GO** — and "from the SET" is still load-bearing.
+`origin/next` is **22 commits ahead** of this head (M5's frame gate, `467bd799`), and a
+trial merge conflicts on exactly two files — `tests/schema-apply-order.json` and
+`tests/schema-drift.baseline.json` — which CLAUDE.md §5 regenerates by their own tools and
+never hand-merges. So the merge chore comes first, per §3.3. What I can say about the
+payload: `next` touches **no** file under `supabase/functions/**`, `src/core/**`,
+`src/data/**` or `supabase/config.toml` since the merge base (`66579258`), so the set's
+payload should be this head's — but it is still **measured at the set SHA and never quoted**
+(S-6b). At this head `--check` is exit **0**, 79 files, 47 vendored, payload `3cab1cbe…`,
+and I packed it to a scratch directory and listed it: `tick-combat.js` **and**
+`trophy-claim.js` are both in the 79.
+
+**COMBAT SHADOW ARM: GO** — first GO this milestone. S-8 is closed with the driver I drove
+myself, S-10's instrument executes against a real `hr_apply` row, S-9's payload carries the
+live intent, and the arm statement that did not execute at all (S-12, below, mine) is fixed
+in this commit and now under a guard. The GO is for the runbook at the end of this section
+**in that order**, and its conditions are part of it: the migration applied, the set's edge
+deployed and its `payload_sha256` verified, **one** character, the §16.6 attended fence, and
+the perks/bestiary cohort fence (residual R-1). §16.6's attended fence remains a separate
+hard blocker for `shadow = false`, which nothing here grants.
+
+---
+
+## S-8 — CLOSED, with the driver driven end to end
+
+I did not take EC-4 as the evidence. I wrote my own probe over the repo's PGlite chain
+replay (the full chain, so the staged `2026-09-22-world-tick-combat-channel.sql` is applied),
+seeded a level-61 fighter — armed, fed, auto-eat on, mid-fight, enchanted, a chosen style —
+leased it to the cron holder, armed `channels = {combat,gather,artisan}` on the replay only,
+and called the **shipped** `runTick`. Nine arms, exit **0**:
+
+```
+ok A1  fire={"shadowed":1,"skipped":0,"refused":0,"reasons":{}}
+       hr_tick_shadow: channel=combat would_kills=25
+       would_xp={"strength":1225,"hitpoints":345} would_gold=148 would_ate=0
+ok A2  exactly ONE shadow channel for the character — [combat] — and one ownership row,
+       whose shadow_accrued_to moved
+ok A3  the fence's own rendering of the mark is "2026-09-23T03:43:08.251+00:00" —
+       T-separated, +00:00, microseconds kept: the spelling rosterWatermarkText accepts
+ok A4  the DISPLACED second window settles: 1 -> 2 shadow rows, fire2 shadowed=1
+ok A5  a gather character still reaches settleGatherSession: 1 gather shadow row
+ok A6  a THIRD kind (artisan) is skipped BY NAME — reasons {"channel_not_driven":1},
+       0 shadow rows, ownership mark still NULL: fail-closed, nothing journalled
+ok A7  hr_tick_roster DID lease [artisan,combat,gather]; admitted by
+       hr_tick_config_channels_ck [artisan,combat,gather] == driven [combat,gather]
+       + declared undriven [artisan], unaccounted none
+ok A8  the combat character probed as 'gather' is refused `not_tick_owned`, while its own
+       channel reads the watermark back (`window_already_settled`)
+ok A9  and shadow paid NOTHING: 0 player_ledger rows, version still 7, gold still 1234,
+       accrued_to unmoved, after two settles
+```
+
+**The two mutations, planted in the real source and then restored** (exit codes observed):
+
+| Mutation | My probe | The lane's guard |
+|---|---|---|
+| `tickOne` fences on the constant again (`CHANNELS[GATHER_CHANNEL]`, pointer must equal gather) | exit **1** — A1/A2/A3/A4/A6 RED with `reasons {"channel_moved":1}` and **no shadow row**: S-8's own signature. A5/A7/A8 stayed green, so the arms are specific | `world-tick-edge-contract` exit **1**, **EC-4a** RED with the same `channel_moved` and `NO ROW` |
+| the `mark_text: probe.markText` line deleted from the session build | exit **1** — **A4 alone** RED, `error:rosterWatermarkText: no server rendering of the watermark`, 1 → 1 rows, while **A1 stayed green** | EC-4e is the arm that carries this |
+
+The second mutation is the one worth reading twice: without `mark_text` a combat character
+settles **once** and then refuses every window after it. That reads as "the tick stalled",
+not as a missing field, and it is the shape a 48 h parity read cannot distinguish from S-8.
+
+| Claim from the brief | Ruling | The executing proof |
+|---|---|---|
+| `tickOne` dispatches on `st.active_kind` | **CLOSED** | `CHANNELS` is a frozen table keyed by kind; the `hr_state_of` read MOVED ahead of the probe because the fence looks a lease up by `(user, slot, channel)`. A1/A5/A6 exercise all three outcomes |
+| a combat roster row reaches `settleCombatSession` under `p_channel='combat'` and produces a SHADOW row with `would_kills`/`would_xp` > 0 for a level-61 fighter | **CLOSED** | A1: 25 kills, 1225 + 345 xp, 148 gold. Not S-7's zeros |
+| a gather row still takes the gather path | **CLOSED** | A5 |
+| `mark_text` threaded | **CLOSED** | A3 + A4, and the deletion mutation above |
+| a character of a third kind is skipped, never fenced under the wrong channel | **CLOSED** | A6: `channel_not_driven`, by name, nothing written, no watermark moved |
+| the mutation that fences combat as 'gather' is RED | **CLOSED** | the table above, both my probe and EC-4a |
+| the roster can never lease a channel the edge cannot settle | **CLOSED, with the honest wording** | A7 proves the roster **does** lease `artisan` if an operator puts it in `channels` — the CHECK is the only bound, and `hr_tick_roster` refuses only non-payable kinds. What is closed is the consequence: `UNDRIVEN_CHANNELS` declares it, the edge skips it **by name**, nothing is paid or journalled, and **EC-4d** reads `hr_tick_config_channels_ck` out of the catalogue and goes red if a fourth value is admitted without a driver or a declaration. Residual: one `batch_limit` slot per fire per wrongly-armed character, reachable only by an operator UPDATE that needs its own GO |
+| the combat settler is in the packed payload, bound to its `services/` source | **CLOSED** | `tick-combat.js` is in the 79-file payload, and `services/world-tick/combat.js` is a **re-export** (`export * from '../../supabase/functions/hr-accrue/tick-combat.js'`), not a copy — so there is no drift surface at all, which is stronger than a drift guard. `pack-edge`'s `TICK_MODULES` learned the file and `edge-tick-gate` **T-F1g** now pins that allowlist by NAME (five files), with T-F1h/i/j fencing the new entry exactly as `tick-gather.js` is fenced: registering a file is not a way to exempt it |
+
+## S-9 — CLOSED
+
+`git ls-tree -r HEAD supabase/functions/hr-accrue/` lists `trophy-claim.js` beside
+`tick.js`, `tick-gather.js`, `tick-combat.js`, `tick-shadow.js`, and the packed directory
+contains it. The payload no longer removes a live intent whose RPC is already applied.
+
+## S-10 — CLOSED
+
+`tests/world-tick-ledger-meta.mjs` is the right shape: it **lifts §16.6's sql block out of
+the design file and executes it** against two rows written by the real `hr_apply`, so the
+document an operator runs is the thing under test. Exit **0** plain, **0** `--mutate`
+(the old `meta->'meta'` spelling planted back into that same query, L-1 red, one NULL
+bucket). L-2 pins the control by execution (`meta ? 'att'` true and `meta->>'kills'` 4,
+against NULL/NULL for the nested spelling; the old unattended filter returns **0** rows
+where the correct one returns 1); L-3 reads all eight corrected keys off the row; L-4 proves
+a delta carrying one death produces a separate `intent = 'death'` **row** and zero accrue
+rows with a `meta->'delta'->'deaths'` array; L-5 reads `flush_seconds` and `created_at` off
+the catalogue. I re-ran §16.6's block myself and it partitions two buckets.
+
+## S-6b — CLOSED
+
+§16.10 names no hash. It names the measurement (`pack-edge --hash` at the SHA being
+deployed) and says never to verify against a value quoted in a file, a review or a
+changelog. **L-7** requires the design to carry no 64-hex literal at all, while allowing the
+truncated history — so the finding cannot return a fourth time. My own verdict above quotes
+`3cab1cbe…` in the truncated form for the same reason.
+
+## S-12 (NEW, P1 operational) — the arm statement did not execute, and it is mine
+
+| # | Surface | Claim | Status | Trigger | Blast radius | Sev | Fix |
+|---|---|---|---|---|---|---|---|
+| **S-12** | this document's own runbook | `set channels = array(select distinct unnest(channels || 'combat'))` raises **`malformed array literal: "combat"`**. `text[] || unknown` resolves to `anyarray \|\| anyarray`, so Postgres parses the literal as an ARRAY, not as an element. The single statement that arms the channel **did not run at all** — in both the 2026-09-22 block and RE-VERIFY 2 step 9. Two more in the same file: `max(k.at)` (the column is `created_at`) and the 2026-09-22 parity block still spelling `meta->'meta'`, which answers one NULL bucket. | **CONFIRMED by execution**, PostgreSQL 18 | the arm itself | The operator pastes the arm, gets an error, and improvises a spelling under time pressure on the one statement that decides which kinds the tick settles. The other two return an error or nothing where a measurement was expected — §16.3's failure shape, in the instrument again | **P1 for the ARM** | `channels \|\| 'combat'::text` (verified: `array_append` and `array['combat']::text[]` also work; the bare literal does not). All three are corrected in place in this commit, dated, with the superseded block marked as superseded |
+
+This is mine twice over: I wrote those statements and I signed them, having executed neither
+— the same standard I held S-10's author to, failed the same way, one field over. So the
+class is killed rather than the bug: **L-8** now lifts **every** sql block out of this
+runbook, executes all 33 statements against the chain replay in owner context and rolls them
+back, and requires zero failures. It found exactly these three before the fix, and
+`--mutate` (the cast removed) turns it red. An unrunnable runbook statement cannot ship
+again.
+
+Two notes on L-8's shape, because both were wrong on my first attempt and would have made it
+grade nothing: comments are stripped **before** the `;` split (a `;` inside a `--` comment is
+not a statement boundary), and the statements run in **owner** context — a runbook is run by
+the Coordinator through the management endpoint, not by the edge's `hr_engine` seam, which
+holds no grant on `hr_tick_config` and answered `permission denied` to twenty correct
+statements.
+
+## S-11 — CLEARED at this head
+
+`tools/lane-done.mjs` was exit 1 at `16965c96` on two inherited ratchets. At `76c5df8b`
+`comment-ratio-ratchet` and `test-file-ratchet` are both **ok** — the set's paydown landed
+and the M3 commits' own comment weight carried the rest. Nothing was re-pinned to get there;
+both baselines are byte-identical to the previous head.
+
+## Residual risks I am accepting with the ARM GO
+
+| # | Risk | Why it is acceptable, and what fences it |
+|---|---|---|
+| **R-1** | `perks` and `bestiaryKills` are `undefined` in the tick session — `hr_perks_of` / `hr_bestiary_of` are two separate reads no tick driver makes. The tick therefore prices bestiary, charm and perk bonuses at **zero** where the accrue path does not, so a parity read on a character that HAS either shows a one-directional under-pay that is **not** a defect | In shadow nothing is paid, so this is a measurement confound, not a loss. It is fenced in **cohort selection**: the candidate must read empty on both, and the runbook makes that a stop condition rather than a footnote. `sessionFromRoster` names both keys from the caller instead of reading names that never existed, so the day a driver makes those reads it threads them in |
+| **R-2** | an operator can arm `artisan`, which the CHECK admits and no settler drives | Fail-closed and journal-silent (A6), one roster slot per fire, EC-4d red the day the CHECK widens without a driver or a declaration. Arming needs its own GO |
+| **R-3** | one leased combat character takes one of `batch_limit` slots from the running gather cohort | ONE character in the cohort, and 8d reads the refusal histogram so a slot famine is visible rather than inferred |
+| **R-4** | CI registers `world-tick-combat-parity --mutate` with no arm, so it runs the default and the other sixteen are proved by hand — today, by me, 17/17 exit 0 | `C16`'s differential arm is in the plain run. Worth a `--mutate --all` driver; not a blocker. Carried from RE-VERIFY 2, unchanged |
+| **R-5** | PGlite is one backend: every lease and advisory lock in this chain is contended by nothing | Unchanged and unchangeable here. The lease's real contention is two cron fires, which only production can show |
+
+---
+
+## Guards run — real exit codes
+
+Every number is an exit code I observed in this worktree, on a clean tree, not an
+expectation. (`guard-hygiene` was red on my first pass for one reason: my own untracked
+probe file in `tests/`. It is in the scratchpad now, and the guard was right.)
+
+| Guard | Exit |
+|---|---|
+| `tests/sec-world-tick-m3-seed-label.mjs` | **0** |
+| `tests/sec-world-tick-m3-seed-label.mjs --mutate` | **0** |
+| `tests/world-tick-combat-parity.mjs` | **0** |
+| `tests/world-tick-combat-parity.mjs --mutate --<name>` × **17** | **0** each — `noAutoEat`, `noDeathCounters`, `noEnchant`, `noCombatStyle`, `noBuffs`, `noCombatXpMark`, `shiftWindow`, `wallclock`, `freeHeal`, `skipFoodDebit`, `relabelSeed`, `nofight`, `progressNoFold`, `hearthfindArray`, `restedNow`, `attendedThrough`, `fixedSeed` |
+| `tests/world-tick-hydration.mjs` | **0** |
+| `tests/world-tick-hydration.mjs --mutate` | **0** |
+| `tests/world-tick-parity.mjs` | **0** |
+| `tests/world-tick-parity.mjs --mutate` | **0** |
+| `tests/world-tick-double-pay.mjs` | **0** |
+| `tests/world-tick-shadow-chain.mjs` | **0** |
+| `tests/world-tick-writer-authz.mjs` | **0** |
+| `tests/world-tick-edge-contract.mjs` | **0** (and **1** with either S-8 mutation planted) |
+| `tests/world-tick-edge-contract.mjs --selftest` | **0** |
+| `tests/world-tick-ledger-meta.mjs` | **0** — L-0…L-8, L-8 added here |
+| `tests/world-tick-ledger-meta.mjs --mutate` | **0** — L-1 and L-8 both red as required |
+| `tests/edge-tick-gate.mjs` | **0** |
+| `tests/delta-transport.mjs` | **0** |
+| `tests/accrual-engine.mjs` | **0** |
+| `tests/schema-drift.mjs` | **0** |
+| `tests/apply-order-honesty.mjs` | **0** |
+| `tests/guard-hygiene.mjs` | **0** |
+| `tests/ci-shape.mjs` | **0** |
+| `tools/pack-edge.mjs hr-accrue --check` | **0** — 79 files, 47 vendored, payload `3cab1cbe…` |
+| `tools/pack-edge.mjs hr-accrue --hash` | **0** — same value; measure again at the SET SHA |
+| `tools/lane-done.mjs` | **0** at the lane head, and **0** again on this branch with my two
+edits in the tree: `lane-done: all green.` S-11 is cleared (see above) and my edits do not
+move a ratchet. |
+| Security's own probe (A1–A9) | **0**; **1** under each of the two S-8 mutations |
+| Security's own runbook executor (33 statements) | **1** before the S-12 fix, **0** after |
+
+---
+
+## Coordinator runbook — the combat shadow, end to end, final
+
+Steps 1–6 are unchanged from RE-VERIFY 2 except where marked. **Step 7's BLOCK is lifted**;
+7–11 are now authorised in this order and only in this order.
+
+### 1. Pre-flight, read-only (S-5)
+
+```sql
+select channels,
+       array_position(channels, null) as has_null_element,   -- must be NULL
+       enabled, shadow, batch_limit, lease_ms, cadence_seconds, flush_seconds
+  from public.hr_tick_config where id;
+-- Expect: channels = {gather}, has_null_element NULL, enabled true, shadow true.
+
+select pg_size_pretty(pg_total_relation_size('public.hr_tick_shadow')) as size,
+       count(*) as rows
+  from public.hr_tick_shadow;   -- sizes the S-4 rewrite window
+```
+
+`has_null_element` not NULL → **STOP** and clean the array first: the CHECK's predicate is
+NULL for a NULL element, which passes, and the tick cannot settle it.
+
+### 2. Pause the tick, and DRAIN the lease (S-4)
+
+```sql
+update public.hr_tick_config set enabled = false where id;
+select user_id, slot, channel, owned, lease_until,
+       lease_until <= now() as drained
+  from public.hr_tick_ownership order by lease_until desc;
+-- proceed ONLY when every row reads drained = true
+```
+
+### 3. Apply — one file, Coordinator only, never in `begin/commit`, never 00:00–00:10 UTC
+
+```bash
+node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-combat-channel.sql
+```
+
+Expect `world-tick-combat-channel self-check PASSED (c1-c8); probe rows rolled back`.
+
+### 4. Resume
+
+```sql
+update public.hr_tick_config set enabled = true where id;
+```
+
+The migration arms nothing (`c3`): `channels` is still `{gather}`.
+
+### 5. Post-apply
+
+Read-only verification agent → `live-hash-drift --live --write` + whys → apply-order note
+flipped to **APPLIED** → `restore-census` (no new tables; eight new columns).
+
+### 6. Deploy the SET's edge, and verify by measurement
+
+```bash
+node tools/pack-edge.mjs hr-accrue --hash           # MEASURE HERE, at the set SHA
+node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue
+cp supabase/config.toml <dir>/supabase/config.toml
+npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
+  --project-ref nezapsylztqbbwuwembx
+```
+
+Verify the live `payload_sha256` equals the **first line's** output — never a hash quoted in
+this file, in §16.10 or in a changelog (S-6b). Confirm the packed directory contains
+**`trophy-claim.js`** (S-9: without it the deploy removes a live intent) **and
+`tick-combat.js`** (S-8: without it every leased combat character is skipped
+`channel_not_driven` and the arm measures nothing).
+
+### 7. The arm is authorised from here. It was not before.
+
+`shadow` stays **true** throughout. `shadow = false` for combat is a separate action with
+its own GO, which §16.6's attended fence blocks independently and this document does not
+grant.
+
+### 8. Choose the cohort — ONE character, read-only
+
+```sql
+-- CANDIDATES. Read-only; writes nothing.
+with cfg as (select flush_seconds from public.hr_tick_config where id)
+select ps.user_id, ps.slot, ps.active_id, ps.accrued_to,
+       floor(extract(epoch from (now() - ps.accrued_to)) * 1000)::bigint as behind_ms,
+       (select max(k.created_at) from public.hr_kill_credit_log k
+         where k.user_id = ps.user_id and k.slot = ps.slot) as newest_kill_credit,
+       exists (select 1 from public.hr_tick_ownership o
+                where o.user_id = ps.user_id and o.slot = ps.slot) as already_rostered
+  from public.player_state ps, cfg
+ where ps.active_kind = 'combat'
+   and ps.active_since is not null
+   and ps.accrued_to < now() - (cfg.flush_seconds || ' seconds')::interval
+ order by behind_ms desc;
+```
+
+Take a row with `already_rostered = false` (never the gather cohort — one channel per
+character, or the parity read cannot attribute a window), then **two stop conditions on that
+candidate**:
+
+```sql
+-- (i) THE §16.6 ATTENDED FENCE. Live kill credit near the watermark pollutes the read.
+select max(k.created_at) as newest_credit, ps.accrued_to
+  from public.player_state ps
+  left join public.hr_kill_credit_log k
+    on k.user_id = ps.user_id and k.slot = ps.slot
+ where ps.user_id = '<uuid>' and ps.slot = <slot>
+ group by ps.accrued_to;
+-- Require newest_credit < accrued_to - ATTENDED_EDGE_SLACK_MS, else pick another.
+
+-- (ii) THE R-1 FENCE, NEW. The tick prices perks and bestiary at ZERO (both are
+--      separate reads no driver makes), so a candidate holding either shows a
+--      one-directional under-pay that is NOT a defect and is not distinguishable
+--      from one. Require BOTH to be empty.
+with p as (select public.hr_perks_of('<uuid>'::uuid, <slot>) as j)
+select j as perks,
+       (j->>'ok')::boolean                      as readable,
+       j->'rooms' = '{}'::jsonb
+         and j->'plots' = '{}'::jsonb
+         and (j->>'propertyTier')::int = 0      as prices_nothing,
+       (select count(*) from public.hr_bestiary_of('<uuid>'::uuid, <slot>)) as bestiary_rows
+  from p;
+-- Require: readable = true, prices_nothing = true, bestiary_rows = 0.
+-- `rooms`, `plots` and `propertyTier` are the only three hr_perks_of actually
+-- sources today (`renown`, `clan`, `castle`, `companions` are declared blocked
+-- or contributes-zero in its own `sources` field), so those three empty is the
+-- whole condition. ok = false means no character, not an empty stack.
+```
+
+### 9. The arm — ownership first, then the channel
+
+Ownership **before** the channel, `owned = false` on the insert so the roster stamps the
+lease itself (the `c1b` property). Reversing the two lets the roster see the channel with no
+cohort behind it.
+
+```sql
+-- (a) THE COHORT. owned = false, so the roster stamps the lease.
+insert into public.hr_tick_ownership (user_id, slot, channel, owned)
+values ('<uuid>', <slot>, 'combat', false)
+on conflict (user_id, slot, channel) do update set owned = excluded.owned;
+
+-- (b) THE CHANNEL. One row, id = true. Idempotent and order-stable.
+--     `'combat'::text` IS LOAD-BEARING (S-12): text[] || unknown resolves to
+--     anyarray || anyarray, so the bare literal raises `malformed array literal`.
+update public.hr_tick_config
+   set channels = array(select distinct unnest(channels || 'combat'::text))
+ where id
+   and not ('combat' = any (channels));
+
+-- (c) READ IT BACK before walking away.
+select channels, enabled, shadow from public.hr_tick_config where id;
+-- Expect: channels = {combat,gather}, enabled true, shadow TRUE.
+```
+
+### 10. The parity reads — at T+1 h, T+24 h and T+48 h
+
+Read **8a first**: zero means the settler is not running and everything below measures
+nothing. Every spelling here is the corrected one, and all of it is executed by
+`tests/world-tick-ledger-meta.mjs` **L-8** — see RE-VERIFY 2 step 10 for the full 8a–8d
+block, which stands as written, plus this one addition:
+
+```sql
+-- (8e) NEW. The per-character outcome histogram is the S-8 detector, and
+--      `channel_not_driven` is its new spelling: it means the edge running in
+--      production does not carry tick-combat.js, i.e. step 6 did not happen or
+--      did not take. `channel_moved` means the pointer left combat, which is a
+--      player action and not a defect. The two must not be read as one.
+select outcome, count(*), sum(rostered) from public.hr_tick_cron_log
+ where at > now() - interval '1 hour' group by 1 order by 2 desc;
+```
+
+**What number means parity holds, after 48 h — all five, unchanged from RE-VERIFY 2**:
+(8a) ≥ 95 % of `48 × 3600 / flush_seconds` rows per character; (8b) `breaks = 0` exactly and
+≤ 40 rows/hour/character; (8c) `ate`, `kills`, `deaths`, `hp`, `consec_falls` **EXACT**;
+(8c) `gold`, `xp`, `items` within **±10 % per usable span** with no monotone drift, and no
+rare item present in one set and absent from the other; (8d) zero `error`, zero `no_secret`,
+**zero** tick-sourced `player_ledger` rows for the cohort. Discard every span with
+`coverage_pct < 99`. A field at **zero for two days is a P1 by definition** (CLAUDE.md §3.4).
+
+### 11. The kill switch — cheapest first, none needs a deploy
+
+```sql
+-- (1) STOP EVERYTHING. The gather cohort stops too; this is the blunt one.
+update public.hr_tick_config set enabled = false where id;
+
+-- (2) DROP COMBAT ONLY, leaving gather running. The preferred switch.
+update public.hr_tick_config set channels = array_remove(channels, 'combat') where id;
+
+-- (3) DE-COHORT THE ONE CHARACTER, leaving the channel armed.
+delete from public.hr_tick_ownership
+ where user_id = '<uuid>' and slot = <slot> and channel = 'combat';
+
+-- (4) AND IF SHADOW WAS EVER FLIPPED, PUT IT BACK FIRST, before anything else.
+update public.hr_tick_config set shadow = true where id;
+```
+
+None of the four needs an edge deploy, and (2) is reversible by step 9(b).

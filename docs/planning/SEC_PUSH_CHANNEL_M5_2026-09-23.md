@@ -3132,3 +3132,13 @@ Against the lines: Security's ≤ 10 ms — **met by a factor of ~20**; Reliabil
 reported separately and is no longer inside the lock. The three PEAK-hour samples (22:00 UTC) are
 still owed before 8b's latency half is closed; proof 6 (the documents restated from these numbers)
 is Security's F9; W1 (2026-09-27), W2 and W3 are Reliability's. The flip remains off.
+
+### Condition 8b — peak-hour samples (Coordinator, 2026-09-23 21:57 UTC, 3 pm Chicago + ~5 h; no QA session live, so "quiet-peak")
+
+| sample | armed p50 | armed p95 | armed p99 | wrapper p95 | TOTAL p95 | payload | frame_push |
+|---|---|---|---|---|---|---|---|
+| 1 | 0.357 ms | 0.433 ms | 1.426 ms | 0.042 ms | **0.475 ms** | 2,207 B | false |
+| 2 | 0.368 ms | 0.450 ms | 0.926 ms | 0.038 ms | **0.488 ms** | 2,207 B | false |
+| 3 | 0.382 ms | 0.494 ms | 1.998 ms | 0.042 ms | **0.536 ms** | 2,207 B | false |
+
+Comparator (the removed trigger's `hr_state_of` path, same minute): p95 9.47 ms. Peak matches the quiet-hour band (0.451–0.513 ms); `state_of_removed_p95` 6.96–7.73 ms is the cost the seam no longer pays. The flip stays gated on Reliability W1 (partition drops after 09-27) and Security's proof-6 restatement.

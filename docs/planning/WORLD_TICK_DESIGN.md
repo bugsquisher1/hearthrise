@@ -748,7 +748,7 @@ Nothing is registered in this lane.
    no drop rolls, so the cost of getting the first channel wrong is a carrot
    rather than a dupe — and it is the feature that sat at zero from 2026-08-27
    to 2026-09-06 with nobody able to see it. The brief says combat first because
-   `combat-sim.js` is already the single engine; I disagree and say so in §16.
+   `combat-sim.js` is already the single engine; I disagree and say so in §17.
 4. **Push cadence vs flush cadence** (§9's ⚠). A 10 s display frame that carries
    no authority is a prediction by another name. Either flush at push cadence or
    design an explicitly-provisional frame. Needs a decision before step 3.
@@ -970,7 +970,7 @@ bites is replaced by the claim it proved, never left in place exiting 0.
 
 ### First channel: the decision changes to **gather**, not farm and not combat
 
-§16.1 argued farm first on cost-of-being-wrong grounds. The real windows say
+§17.1 argued farm first on cost-of-being-wrong grounds. The real windows say
 otherwise on a ground the fixtures could not show: **farm has no accrual window
 at all.** Fourteen days of `player_ledger` carry `farm_plant` / `farm_water` /
 `farm_harvest` intents (143/132/124, 3 users) and **zero `kind='farm'` accrue
@@ -1531,7 +1531,615 @@ can be armed roughly three days after the Security GO, and the tick is a writer
 for one channel at that point — not a live world yet. The push channel (§7),
 the inventory ABSOLUTE flip (§7a) and combat remain ahead of it, in that order.
 
-## 16. Where I disagree with the brief
+## 16. MILESTONE 3 — the COMBAT channel on the tick, in SHADOW (2026-09-22, `lane/world-tick-m3`)
+
+Gather (§15b, §15c) was chosen first because it is the *simplest* payable kind:
+a watermark and `tool_carry`, no `fight` checkpoint, no `consec_falls`, no
+recovery clock, no auto-eat, no rare roll. Combat is every one of those things
+at once, and this section is what the tick has to do differently to pay a combat
+window the way the accrue path pays it.
+
+**Status: SHADOW, and not yet wired.** `services/world-tick/combat.js` exists,
+`tests/world-tick-combat-parity.mjs` is its exit code, and
+`supabase/migrations/2026-09-22-world-tick-combat-channel.sql` is STAGED. The
+`op:'tick'` entry (`supabase/functions/hr-accrue/tick.js`) still speaks gather
+only; wiring it is M3's next step and is listed under "what remains" below.
+Nothing in this section is applied, deployed or armed.
+
+**The one-line summary, because it is not the one the brief expected:** the
+combat channel did not need a new engine, a new window rule or a new fence — it
+needed **eleven more inputs handed to the engine it already runs**, and two of
+the eleven were measured to move a ten-minute window by 65% of its gold and to
+hand a seven-time-dead character a first-death grace.
+
+---
+
+### 16.1 The window: a 10 s tick driving `combat-sim` in fixed windows
+
+Unchanged from gather, and deliberately so — the geometry is a property of the
+CALLER, not of the channel:
+
+1. **The cadence is 10 s; the window is `watermark → clock`.** Never
+   `previous clock → clock`. The engine answers with `delta.accrued_to` — the
+   instant it actually ACCOUNTED for — and that becomes the next window's
+   `accruedToMs`. (Rule 1 of `tick-gather.js`; P-G8 measured 45% forfeit on the
+   wall-clock chain.)
+2. **`caller: 'tick'`** — exempt from `ACCRUE_MIN_MS` like a collect, but its
+   sub-action remainder is DEFERRED, because the tick's next window starts at
+   the watermark this one stamped (§14.1).
+3. **`alignWindow` is a performance property, not a correctness one** (P5d).
+   Under `caller:'tick'` the unaligned chain forfeits zero, because
+   `settledWatermarkMs` hands the remainder to the next window instead of
+   stamping `now()`.
+4. **The write unit is the SETTLED WINDOW, never the tick.** Ticks accumulate in
+   memory; one `hr_tick_settle` per 90 s flush (§15a's 480,000 rows/day prune
+   ceiling). Combat does not get an exemption from that arithmetic.
+
+What combat adds to the geometry is **one accounting term**. `settledWatermarkMs`
+computes `accounted = ticks × tickMs + recoverMs + idleMs`. Gather windows have
+`recoverMs = 0` and `idleMs = 0` always, so gather never exercised the other two
+terms. A combat window can be **entirely recovery** — zero ticks, zero kills,
+zero value — and it must still settle, because `delta.recovering_until` is the
+only thing that carries the recovery line forward and `SKIP.NOTHING` sends no
+delta at all (accrual.js `nothingHappened`, RECOVER-2). So:
+
+> **A combat tick window that proposes no value is not a no-op.** The tick must
+> batch and flush it exactly like a paying one. A caller that skipped
+> `accrued === true && no gold && no items && no xp` would re-simulate the same
+> knockout every cadence — recovery exploit R1, arriving through the tick.
+
+### 16.2 Where the window boundary falls relative to a death, a clock and a meal
+
+Three boundary questions, each with the mechanism rather than an intention.
+
+**A death.** `simulateSpan` stamps `recoverUntilMs = atMs + tickMs + rec` at the
+fall and writes one `deathLog` entry. Both cross a window boundary intact:
+`delta.recovering_until` is an ABSOLUTE ISO instant (already an `ABSOLUTE` key
+in `tick-contract.js`), and `delta.deaths` is `APPEND`. `delta.fight` is voided
+to `{}` on any window that contained a death, so the next window repairs the
+monster to full HP from the catalogue rather than resuming a corpse. **A death
+on the last tick of a window is therefore not a free kill**, and that is three
+separate mechanisms agreeing rather than one rule:
+
+| mechanism | what it carries | if it were missing |
+|---|---|---|
+| `delta.recovering_until` (ABSOLUTE) | the line | the knockout is re-served every window (R1) |
+| `delta.fight = {}` on `died` | "nothing in flight" | the next window swings at a 0 HP foe → a death PAYS |
+| `resolveDeath` sets `playerHp = resumeHpFor(maxHp)` | the 40% stand-up | the resume never happens across the boundary |
+
+The one case worth stating because it looks like a bug and is not: **the `downed`
+flag is a `simulateSpan` local and is NOT carried.** It is re-derived as
+`recoverUntilMs > 0` at every span start. A window whose recovery line falls
+EXACTLY on its own `toMs` clears `state.recoveringUntilMs` to 0, so the next
+window seeds `downed = false` and never runs the resume block. That is benign,
+but only because the resume block's two effects (monster to full HP, player to
+40%) have already been performed by `delta.fight = {}` and by `resolveDeath`.
+It is benign by coincidence of three mechanisms, so it is a **guard**
+(`C7 recovery-boundary`), not a comment.
+
+**A recovery clock crossing the span.** The line is an absolute instant, so a
+window that opens mid-recovery spends its budget on recovery ticks, earns
+nothing, drains the buff queue, and reports `summary.recoverMs > 0`. Accounted
+time is therefore `recoverMs` and the watermark advances by exactly it. Two
+windows tiling one knockout account for the same milliseconds one window would.
+The retreat's `idleMs` is the same shape — but see 16.6, because a retreat is
+also the one thing that ENDS a tick session.
+
+**A food debit.** `delta.items[foodId]` is negative and `ADDITIVE_MAP`, so the
+fold sums it; `advance()` carries the bag forward and deletes a key that reaches
+zero. The bag the engine reads at window *k* is therefore the bag window *k-1*
+ate out of, which is what makes a mid-span exhaustion land on the same tick in
+both paths.
+
+**⚠ But one death-row field is a window-OPEN snapshot and therefore genuinely
+diverges.** `hadFood` is computed once per `computeAccrual` call, before the
+span (accrual.js: *"Computed before the span because after it the bag has been
+eaten out of"*), and it is journalled as `delta.deaths[].food_in_bag` and
+`summary.autoEat.hadFood`. Over a decomposition it is re-computed per window, so
+for a character whose bag empties at minute 5 and who falls at minute 8:
+
+| | `food_in_bag` on that death row |
+|---|---|
+| accrue path, one 10-minute call | `true` (the bag had food when the WINDOW opened) |
+| tick, 60 windows | `false` (the bag was empty when THAT window opened) |
+
+Neither is wrong; they answer different questions, and the decomposed answer is
+the one that agrees with `resolveDeath`'s own `foodless`, which reads the LIVE
+bag at the fall and is the fact the retreat ladder actually uses. **It is not a
+value defect** — `food_in_bag` is an audit field on the death ledger row and no
+gate, price or grant reads it. It is recorded here, asserted by `C8`, and named
+in 16.8's honest list, because the alternative — quietly calling it parity —
+is how a receipt field stops meaning anything.
+
+### 16.3 The seed label MUST be the `hr_state_of` JSONB rendering (Security T-2)
+
+`hr_seed(user, slot, label)` hashes the LABEL. Security executed the three
+spellings in play and found the tick and the roster agreeing with each other and
+neither agreeing with the accrue path
+(`SEC_WORLD_TICK_M1_2026-09-21.md` T-2, **P0, blocks SHADOW**):
+
+| | expression | result |
+|---|---|---|
+| accrue path (the incumbent, 200 days of live seeds) | `'accrue:' + String(st.accrued_to)`, `st` = the `hr_state_of` **JSONB** envelope | `accrue:2026-09-21T17:55:55.739123+00:00` |
+| `tick.js:380` | `'accrue:' + new Date(ms).toISOString()` | `accrue:2026-09-21T17:55:55.739Z` |
+| roster `:507` | `'accrue:' \|\| to_char(…,'…MS"Z"')` | `accrue:2026-09-21T17:55:55.739Z` |
+
+Executed, `hr_seed` over the two labels returns
+`-1921344458354348381` vs `7953584315518101330`. **`Z` vs `+00:00`, and
+milliseconds vs microseconds, are two different RNG streams.**
+
+For gather that costs the measurement. **For combat it costs more**, because
+combat is the only channel with rare drop rolls: every drop, every crit and
+every gold roll in `hr_tick_shadow` would diverge from what accrual paid *by
+construction*, and the natural reading of a 48 h mismatch on a channel that
+mints loot is "the tick is wrong" — or, worse, "loosen something".
+
+**The rule for the combat channel, therefore, stated as a contract and not as a
+convention:**
+
+> The tick never *builds* a seed label from a `Date`. It carries the watermark's
+> **string as the envelope rendered it** and labels with that string verbatim.
+> `combat.js` `sessionFromRoster` keeps `accruedToText` beside `accruedToMs`;
+> `seedLabelFor(text)` is `'accrue:' + text` and takes no Date, no number and no
+> format argument. A window whose label is unobtainable **breaks the walk** and
+> leaves the tail owed — never a fallback seed, which is the `fixedSeed` mutant
+> (+48% gold, three rare drops at rate zero).
+
+`C9` is the exit code: relabelling one window `…Z` instead of `…+00:00` must
+turn the arm red. The guard is built so it is **not** structurally blind the way
+`world-tick-parity.mjs` was — that file feeds the same JS `seedFor()` to both
+sides of every comparison, which is exactly why nothing in the repo saw T-2.
+
+**And the module written to prevent T-2 fell into it, which is the strongest
+thing this section can say about the rule.** `settleCombatSession` originally
+left the seed hook unset when no production one was supplied, so it fell through
+to `tick-shadow.js` `seedFor` — the Date path, the `…Z` spelling. Nothing looked
+wrong: the code reads as "no hook, no override". `C14`'s value-conservation arm
+caught it, because the shipped loop and the guard's own chain then drew two
+different streams for the same windows and their item maps disagreed by a few
+units. So the label is now derived in ONE place from the envelope's string, and
+a session carrying no rendered watermark is **refused** rather than seeded from
+a Date — the failure mode is "the tick cannot settle this", not "the tick
+settles it on a stream nobody chose". That precondition is itself an arm of C9.
+
+The general lesson, since it is the second time in this program: **an
+UNSPELLABLE default beats a documented one.** T-2 and this were both a
+reasonable-looking fallback, not a mistake anybody typed.
+
+### 16.4 The eleven missing inputs — the actual content of this milestone
+
+`tick-shadow.js` built the engine's input object from the fields a GATHER window
+needs. `hr-accrue/index.ts` `runAccrual` builds it from the whole `hr_state_of`
+row. The difference, for a combat pointer, is eleven keys, and this is the list:
+
+| input | what it drives | direction if omitted |
+|---|---|---|
+| **`autoEatEnabled` / `autoEatFood` / `autoEatPct`** | `fx.autoEat` → `resolveAutoEat` | **UNDER-PAY, catastrophically** |
+| **`deathsTodayBefore` / `deathsLifetimeBefore`** | `recoveryFor()` — which rung of the ladder this fall charges | **OVER-PAY (a mint)** |
+| `combatXpAccruedToMs` | `xpEligibleFromMs` — the split against XP a live credit already applied | over-pay (double-credited combat XP) |
+| `hearthfindReady` | whether `delta.hearthfind` may be proposed at all | under-pay, and a deleted "wow" moment |
+| `enchant` | gear bonuses inside `equipmentStats` | unmeasured |
+| `combatStyle` | `deriveTickMs(equipment, items, style)` | measured INERT on the bow fixture (2112 ms either way); unproven in general |
+| `companionXpBacked` | the pet-XP ops a kill files | under-pay |
+| `ammoCarry` | the consumable remainder | inert TODAY (`player_state.ammo_carry` does not exist) |
+
+**MEASURED, same character, same window, same seed** (`small_wolf`, 10 minutes,
+hp 20, 40 Cooked Trout in the bag, auto-eat at 70%):
+
+| | kills | ticks | deaths | gold | XP | meals |
+|---|---|---|---|---|---|---|
+| tick input as M1 shipped it (auto-eat keys absent) | 48 | 99 | **5** | 276 | 2,464 | 0 |
+| accrue input (auto-eat on) | **139** | **250** | **0** | **788** | **6,568** | 15 |
+| | | | | **−65.0%** | **−62.5%** | |
+
+That reproduces, through the TICK, the −63% to −99% band `src/core/auto-eat.js`
+measured when the *engine* had no auto-eat at all. A tick-owned combat channel
+shipped with this input set would have deleted between two thirds and
+ninety-nine per cent of every unattended night **for exactly the players who
+bought Auto-Eat to avoid that**.
+
+**And the ladder, which runs the other way** (`lesser_demon`, 10 minutes, a
+character with 6 deaths today / 60 lifetime):
+
+| | recovery per fall | `deaths_today` on the ledger row | `recoverMs` | paying ticks |
+|---|---|---|---|---|
+| tick input as M1 shipped it | `0 ms`, then `120,000 ms` | 1, 2, 3 | 120,000 | 7 |
+| accrue input (`deathsTodayBefore: 6`) | **`3,840,000 ms`** | **7** | 590,400 | 4 |
+
+The tick hands a seven-time-dead character **the first-death novice grace**.
+Recovery is the *cost* of dying, so less knockout time is more paying time: this
+one is a mint, it is silent, and the ledger row it writes says `deaths_today: 1`
+about a character on rung 7.
+
+**Why no guard saw either.** `tests/world-tick-parity.mjs` `accrualOnReturn`
+DOES pass `autoEatEnabled/Pct/Food`; `shadowTick` does not. P1 compares them for
+byte-identity and has been green — because the only fixture with auto-eat on is a
+maxed character at 99 HP fighting a slime, who never drops below the 50%
+threshold, so the handler never fires and the two contracts are indistinguishable
+on that data. **The guard was not wrong; it was blind.** The fix is a fixture
+that can tell them apart and a structural arm that does not depend on a fixture
+at all:
+
+> **`C1 — ENGINE-INPUT KEY PARITY.** The key set of the object the tick hands
+> `computeAccrual` must equal the key set `hr-accrue/index.ts` hands it, derived
+> **from that file's source** rather than retyped here.* A key added to the
+> accrue path and not to the tick is then red on the commit that adds it, which
+> is the only way this class of defect stops recurring.
+
+### 16.5 The fold, where combat is genuinely different from gather
+
+The fold law (§6) classifies every delta key. Gather's flush only ever exercised
+`ADDITIVE_*` and `ABSOLUTE`. Combat is the first channel that puts real content
+in `APPEND`, and **three of its per-call clamps are re-checked after the fold
+for the first time**. All three were measured to bite on ordinary play.
+
+**(a) `progress` — measured 69 ops against `hr_apply`'s cap of 64.**
+`c_max_progress_ops constant int := 64` (2026-09-14-hr-apply-restatement.sql
+:316). A combat window files up to **ten** progress ops — `stat:kills`,
+`stat:crits`, `stat:deaths` (lifetime), `stat:deaths` (UTC day), `stat:rare_drops`,
+the goal counters (`ev:kill_any`, `ev:kill_monster:<id>`, `ev:loot:<item>` …),
+the modal-goal daily rows, and a `flag:recipe:<id>` for every recipe scroll that
+dropped. Nine of those windows is ONE 90 s flush at the shipped 10 s cadence.
+Measured on the M3 fixtures over ten minutes, raw ops per flush → folded
+(`node tests/world-tick-combat-parity.mjs --verbose` reprints this on every run):
+
+| fixture | flush 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| goblin grind | 55→7 | 56→9 | 52→6 | 58→11 | 56→9 | **64**→11 |
+| auto-eat, bag empties | **68**→9 | **65**→9 | **65**→9 | 62→9 | **65**→9 | 62→9 |
+| opens Knocked Out | 0→0 | 32→9 | 63→11 | **65**→11 | 54→9 | 53→7 |
+| bow vs rat | **65**→9 | **66**→9 | 59→8 | 63→8 | **65**→9 | **69**→9 |
+
+**Anything over 64 is `too_many_progress_ops`, which refuses the whole flush
+window.** Three of the four fixtures are over it on an ORDINARY fight, and the
+fourth touches 64 exactly. So the combat flush folds `progress` by
+`(kind, key, period, state)` and sums `add`.
+
+That is a FOLD and not a clamp, and the distinction is the whole argument for
+being allowed to do it: `hr_apply`'s own loop applies each op as
+`progress = progress + add` against a row keyed on exactly
+`(kind, key, period_key)`, so summing identical keys before the call is
+arithmetically the same write. `sum(add)` is therefore preserved exactly, and
+that equality is asserted on every flush of every fixture on every run (C13) —
+not sampled. `state` is part of the fold key so a `done` is never summed into
+an `active`, and first-seen order is preserved, because `hr_apply` applies them
+in order and a reordered stream is a different ledger to read.
+**Nothing is clamped, dropped or re-priced.**
+
+`foldCombatDelta` still FAILS LOUD if the folded list somehow exceeds the cap
+(the worst folded flush measured is 11 against 64). Truncating there would
+silently drop a counter a player watches; shortening the flush is the caller's
+decision, so the caller is the one told.
+
+**(b) `hearthfind` — the fold produces an ARRAY, and `hr_apply` refuses it.**
+`foldDeltas` classifies `hearthfind` as `APPEND`, so two windows that each rolled
+a find produce `hearthfind: [ {...}, {...} ]`. `hr_apply` (§4a-h) checks
+`jsonb_typeof` and answers `bad_hearthfind` — *"the `hearthfind` key is an
+OBJECT, so the body structurally cannot see two"*. The flush therefore collapses
+to ONE find carrying `dropped: <count of the rest>`, which is the identical rule
+`accrual.js` already applies WITHIN one window (`finds.length > 1 ? {...finds[0],
+dropped} : finds[0]`). One rule, restated at the one place a second find can
+now appear. The discard is journalled by `hr_apply` as `hearthfind_span_discard`
+exactly as it is today.
+
+**(c) `deaths` — clamp to `MAX_DEATH_ROWS` after the fold.** Each window already
+slices to 24; nine windows can carry 216. `hr_apply` rejects `> c_max_death_rows`
+with the whole flush attached (:1560). The flush slices after the fold.
+
+**(d) `consec_falls`, `fight`, `recovering_until`, `hp`, `activity`** are all
+`ABSOLUTE` — last window wins — which is already correct and needed no change.
+**(e) `gold`, `xp`, `items`** are additive; `items` is SIGNED, so the food debit
+and the drops sum into one map, which is what `hr_apply`'s
+`have + delta >= 0` re-check is written against.
+
+**The journal meta.** The tick's combat row is `accrue`'s own meta key set plus
+`src:'tick'`, per §15b: `ms, ticks, kills, capped, ate, spent?, w?, from, to,
+src`. `ms` is RESTATED from the watermark, never summed from the polls (P-G5's
++31% over-statement). That is **ten keys at the widest**, which is exactly
+`tests/accrual-engine.mjs` SHAPE's allowlist length — and it fits only because
+`att` is structurally absent from a tick row. See 16.6.
+
+### 16.6 The attended split, and why the tick refuses it rather than prices it
+
+`attended` is the server's own record of kills it has ALREADY accepted and
+clamped for this character since `accrued_to` (`hr_attended_kills`). The accrue
+path pays `min(claimed, attendedKillCap, ATTENDED_MAX_FIDELITY × sim) − sim` on
+top of the simulation.
+
+**Every term of that is priced against the SPAN.** Decompose a span into sixty
+windows and hand each the same claim and it is paid sixty times; split the claim
+and the arithmetic is undefined. There is no correct way for a 10 s window to
+carry an attended top-up, so:
+
+> **The combat channel hands the engine `attended: null`, always, and
+> `settleCombatSession` THROWS if a caller supplies one.** Fail-closed, and
+> executable (`C10`).
+
+Two consequences, both stated rather than discovered later:
+
+1. **In SHADOW this pollutes the parity read, and the read must partition.** A
+   character with live kill-credit in the window will show `hr_tick_shadow`
+   under what `player_ledger` recorded, by exactly the top-up — and that is the
+   T-2 failure shape (a measurement that reads as a defect). It needs no new
+   column: the accrue path journals `meta.att` on **every** attended settle, so
+   the partition key already exists.
+
+   **THE SPELLING IS `meta ? 'att'`, AT THE TOP (Security S-10, 2026-09-23).**
+   `hr_apply` writes the row as
+   `jsonb_build_object('delta', v_meta) || coalesce(v_j->'meta','{}')`
+   (`2026-08-11-apply-engine.sql:1159` and every restatement since), so the
+   journal's own keys — `att`, `kills`, `ate`, `capped`, `ms`, `ticks` — are
+   merged at the TOP of `player_ledger.meta`, and only the engine's delta
+   summary sits under `meta->'delta'`. There is no `meta->'meta'` level.
+
+   This block used to spell the partition `(meta->'meta' ? 'att')`, which
+   evaluates to **NULL** — so `group by` collapsed to one bucket and any
+   `where … and not (meta->'meta' ? 'att')` returned NO ROWS AT ALL. That is
+   16.3's own failure shape planted in the instrument: a measurement that
+   reads as a defect, or as nothing. Three related spellings were wrong the
+   same way and are corrected wherever they appear: `hr_tick_config` has
+   **`flush_seconds`**, not `flush_ms`; `hr_kill_credit_log` has
+   **`created_at`**, not `at`; and **deaths are their own `intent = 'death'`
+   ledger rows**, never a `meta->'delta'->'deaths'` array — the delta summary
+   carries `g`, `m`, `i`, `x`, `e`, `bs`, `k` and no deaths at all, so
+   `jsonb_array_length(meta->'delta'->'deaths')` is always 0.
+
+   ```sql
+   -- COMBAT parity, 48 h, partitioned on whether the window was attended.
+   -- NOTE THE LEVEL: `meta ? 'att'`, not `meta->'meta' ? 'att'`.
+   select date_trunc('hour', at) h, (meta ? 'att') attended,
+          count(*) rows, sum((meta->'delta'->>'g')::bigint) gold,
+          sum((meta->>'kills')::bigint) kills, sum((meta->>'ate')::bigint) ate
+     from public.player_ledger
+    where kind = 'combat' and intent = 'accrue' and at > now() - interval '48 hours'
+    group by 1, 2 order by 1, 2;
+   -- compare ONLY the attended=false bucket against hr_tick_shadow.
+   ```
+
+   **Every query in this section is EXECUTED by
+   `tests/world-tick-ledger-meta.mjs`** against a real `hr_apply` ledger row on
+   the PGlite chain replay — the block above is lifted out of this file and
+   run, and the old spelling is pinned as still returning nothing. A parity
+   read that silently addresses a level that does not exist cannot come back.
+
+2. **It is a hard ARM blocker.** Arming combat while an attended character is on
+   the roster under-pays them by the top-up. Before `shadow = false` for combat,
+   either the roster excludes a character with kill-credit rows newer than
+   `accrued_to − ATTENDED_EDGE_SLACK_MS`, or the entry passes `attended` through
+   and the flush becomes the unit the cap is priced on. **Neither is in this
+   lane**; both are named in 16.8.
+
+It also buys the meta key budget in 16.5: a tick combat row cannot carry `att`,
+so its widest shape is ten keys and SHAPE's allowlist is not touched.
+
+### 16.7 Rested XP is NOT the tick's, and that is loss-free — proved, not asserted
+
+`index.ts` settles the Rested bank alongside every accrual, on its **own**
+watermark `rested_at`, even when the pointer accrual refused. The tick does not,
+and must not: `rested_xp` / `rested_at` are not in `tick-contract.js`'s key
+classification, so `foldDeltas` would throw on them — correctly, because a bank
+charge is not a combat product and folding it would be the second copy of
+`accrueRested`.
+
+The reason that costs nothing is arithmetic rather than hope.
+`accrueRestedXp` grants `floor((now − restedAt) / CHARGE_MS)` and advances
+`restedAt` by **exactly the charges paid**, never to `now()`. So over any
+partition of `[t0, t1]` the charges telescope:
+`Σ floor((wᵢ − restedAtᵢ₋₁)/C) = floor((t1 − restedAt₀)/C)`, and the bank is a
+saturating add, for which `min(lim, min(lim, b+c₁)+c₂) = min(lim, b+c₁+c₂)`.
+**A player whose combat is tick-settled banks the identical Rested XP at their
+next return, to the charge.** `C11` asserts the telescoping identity and its
+mutant (`restedNow` — advance `rested_at` to `now()` instead of by the charges
+granted) turns it red.
+
+The honest note that goes with it: **this is equally true of the gather channel,
+which also does not settle Rested XP**, so 16.7 is a statement about the tick
+and not about combat.
+
+### 16.8 The one honest list: where combat differs from gather
+
+| # | Gather | Combat | Where it is handled |
+|---|---|---|---|
+| 1 | no rare roll — a decomposition is digit-for-digit equal (P-G1) | drop rolls, crit rolls, gold rolls — a decomposition **resamples the stream** and is NOT equal to one call | parity is **per window** (C2), stream health across the span (C6). §11's "P1, not P4" |
+| 2 | `tool_carry` only | `fight`, `consec_falls`, `recovering_until`, `hp`, plus the death log | all ABSOLUTE/APPEND and already classified; C3/C7 |
+| 3 | no recovery | a window can be **entirely recovery** and must still settle | 16.1; RECOVER-2 |
+| 4 | bag is written only | bag is **spent** (auto-eat) and read back | 16.2; `advance()` carries it |
+| 5 | pointer changes only on a level stop | **retreat** idles the pointer mid-flush (measured: a weak character retreats and 58 of 60 windows then refuse `no_activity`) | the batch CLOSES on an `activity` key and the character leaves the roster; C5 |
+| 6 | ≤2 progress ops/window | up to **10**, and **69** in a 90 s flush against a cap of 64 | the progress fold, 16.5(a) |
+| 7 | `hearthfind` possible but rare | same key, and the fold turns two into an ARRAY `hr_apply` refuses | 16.5(b) |
+| 8 | no attended surface | the attended top-up cannot be decomposed | refused, 16.6 |
+| 9 | 8 engine inputs | **19** — eleven more, two of them P0 | 16.4, C1 |
+| 10 | seed label costs the measurement | seed label costs the measurement **and every drop roll** | 16.3, C9 |
+| 11 | `food_in_bag` n/a | a window-OPEN snapshot that genuinely diverges under decomposition | 16.2, C8 — recorded, not papered over |
+
+**The double-pay fence is reused UNCHANGED**, and that is the one place combat
+is boring. `hr_tick_settle` takes the `player_state` row lock, compare-and-sets
+`greatest(accrued_to, shadow_accrued_to)`, checks the version, binds
+`p_delta->>'accrued_to'` to `p_window_to`, honours the kill switch and the shadow
+flag — none of which is channel-aware. `tickIntentId` is imported from
+`tick-gather.js` rather than re-spelled: one copy, so a channel cannot drift into
+a weaker key. The channel appears in the key only through the window bounds and
+the version, which is sufficient because a character has exactly one pointer.
+
+### 16.9 What the shadow table records for combat, and why
+
+The 48 h parity read has to be answerable **per field**, because "the tick paid
+5% less" is not an actionable sentence — "the tick paid 5% less and ate 0 meals"
+is. `hr_tick_shadow` today denormalises `would_gold`, `would_qty`, `would_ticks`,
+which is the gather shape. The staged migration adds, **as STORED GENERATED
+columns over the `delta` the fence already stores verbatim**:
+
+| column | from | reads |
+|---|---|---|
+| `would_kills` | `delta#>>'{journal,meta,kills}'` | kills |
+| `would_ate` | `delta#>>'{journal,meta,ate}'` | **food eaten — the auto-eat parity number of 16.4** |
+| `would_xp` | `delta->'xp'` | XP by skill |
+| `would_items` | `delta->'items'` | **drops by item, and the signed food debit** |
+| `would_deaths` | `jsonb_array_length(delta->'deaths')` | deaths |
+| `would_recovering_until` | `delta->>'recovering_until'` | the recovery state, **as text** |
+| `would_hp` | `delta->>'hp'` | the resulting HP |
+| `would_consec_falls` | `delta->>'consec_falls'` | the retreat counter |
+
+Three deliberate choices:
+
+- **GENERATED, not inserted.** `hr_tick_settle`'s body is not restated, so the
+  file adds no ordering dependency on an unapplied function and moves no live
+  hash. The columns cannot disagree with the delta they are derived from.
+- **`would_recovering_until` is `text`, not `timestamptz`.** The cast
+  `text → timestamptz` is STABLE (it reads the `TimeZone` GUC), not IMMUTABLE,
+  so a generated column cannot use it. Storing the ISO string the engine
+  actually proposed is the honest value anyway — it is what `hr_apply` would
+  have been handed.
+- **`would_xp` / `would_items` are jsonb**, because "which skill" and "which
+  item" is the whole question a combat parity read asks, and a scalar sum would
+  answer none of it.
+
+`hr_tick_config.channels` also gains a CHECK: it is the only tunable on that row
+with no constraint, and it is the column that decides which kinds the tick may
+be pointed at. It is constrained to `accrual.js` `PAYABLE_KINDS`, the same set
+the roster's `c_payable` already carries. **It is NOT defaulted to include
+combat** — arming is an operator UPDATE with its own Security GO, and a
+migration that widened the default would arm a channel by applying a file.
+
+The `hr_tick_ownership` and `hr_tick_shadow` channel CHECKs **already list
+`'combat'`** (roster `:249`, fence `:285`), so the enum half of this file is a
+no-op and the file says so rather than pretending to add it.
+
+### 16.10 What is proved, what needs production, and what remains
+
+**Proved offline, with an exit code.** `node tests/world-tick-combat-parity.mjs`
+(registered in `smoke.yml` beside its gather sibling): fifteen claims, thirteen
+mutants, each mutant red on the claim it is FILED against rather than merely on
+something.
+
+| | claim | its mutant |
+|---|---|---|
+| C1 | engine-input key parity, derived from `index.ts`'s own source, both directions | `noAutoEat`, `noDeathCounters` |
+| C2 | per-window construction parity — all 60 windows of every chain, byte-identical | `nofight`, `shiftWindow` |
+| C3 | checkpoint continuity: `fight` / `consec_falls` / `recovering_until` / hp / bag | `nofight` |
+| C4 | tiling and the receipt — no overlap, no gap, `ms` restated from the watermark | `wallclock`, `shiftWindow` |
+| C5 | a retreat closes the batch and ends the session | — (positive claim; measured: the pointer ends at window 14 of 60, `stoppedBy='activity'`, 2 intents) |
+| C6 | stream health over 8 span starts: no rare row starved at ALL of them, drift in band | `fixedSeed` |
+| C7 | the recovery boundary is not a free heal and not a free kill | `freeHeal` |
+| C8 | the food debit is conserved exactly; `food_in_bag` divergence is PINNED | `skipFoodDebit` |
+| C9 | EVERY window's seed label is a server rendering of that window's own watermark | `relabelSeed` |
+| C10 | the attended top-up is refused, not priced | `attendedThrough` |
+| C11 | Rested XP telescopes below the bank cap | `restedNow` |
+| C12 | the journal row is accrue's meta + `src:'tick'`, ≤10 keys, never an `att` | — |
+| C13 | the fold re-checks the three per-apply clamps | `progressNoFold`, `hearthfindArray` |
+| C14 | the fence is reused unchanged — one intent id, version on intent 0 only | — |
+| C15 | the staged migration's channel literal == `PAYABLE_KINDS`, and it arms nothing | — |
+
+The four the M3 brief asked for by name are `skipFoodDebit`, `shiftWindow`,
+`relabelSeed` and `freeHeal`. `freeHeal` is worth one sentence because of where
+it had to bite: applied to this window's delta it changes nothing (the delta is
+already correct), so the assertion reads the INPUT of the NEXT window — which is
+exactly where a decomposition would re-introduce b509.
+
+**Needs production to answer**, and is asserted by nobody here: whether the
+combat roster is non-empty (the gather roster was measured EMPTY on 2026-09-18 —
+22 parked pointers, 0 inside the 24 h window); the real 48 h value drift on the
+attended=false bucket; whether `combatStyle` and `enchant` move a real
+character's window, since both measured inert on these fixtures; and the
+`too_many_progress_ops` rate at real flush lengths.
+
+**⚠ THIS SECTION NAMES NO PAYLOAD HASH, AND THAT IS THE RULE (Security S-6b,
+2026-09-23).** It named one three times and the literal was stale all three
+times — `253215e4…`, then `df215d58…`, then `e76ae11c…`, then `9f9ec411…` —
+because every merge into the lane moves it. An operator verifying
+`payload_sha256` against a number written down days earlier chases a deploy
+that in fact succeeded, and a document that keeps a value which rots by
+construction will keep producing that finding. So the value is no longer
+written here at all:
+
+> **MEASURE IT AT THE SHA YOU ARE DEPLOYING.** Run
+> `node tools/pack-edge.mjs hr-accrue --hash` at the exact commit being
+> deployed, and verify the live function's `payload_sha256` equals **that**
+> output. Never against a hash quoted in this file, in a review, or in a
+> changelog — all three are historical by the time they are read.
+
+The payload genuinely does move, which is why the instruction is a
+measurement and not a constant: `tick-shadow.js` and `tick-gather.js` are in it
+(`tick.js` → them), and since 2026-09-23 so is `tick-combat.js` — the combat
+settler MOVED into `supabase/functions/hr-accrue/` when `tick.js` learned to
+dispatch on `active_kind` (Security S-8). The older note that the combat fixes
+"live in `services/world-tick/combat.js`, which `pack-edge --check` does not
+list" was true when written and is **no longer**: that file is a re-export now,
+and a change to the settler moves the payload hash like any other edge file.
+
+Two consequences, neither optional:
+
+1. **`supabase/functions/**` moved, so `pack-edge` + deploy comes BEFORE the
+   push**, or the in-page payload guard is red for every other lane (CLAUDE.md
+   §3.3).
+2. **Security re-verifies at the new hash.** The change is on the seam that
+   decides what the engine is told, which is squarely in the T-series' scope.
+
+**The deployed GATHER behaviour does not move, and that is asserted rather than
+argued.** `tick-gather.js`'s `sessionFromRoster` sets none of the eleven, so
+they arrive `undefined` exactly as they did; `attended: null` and an absent
+`attended` both `normaliseAttended` to `null`; and `goals` was removed because
+`computeAccrual` builds its own counter and never read `inp.goals` — a plumbed
+input that did nothing, which is worse than an absent one because the next
+author wires a real goal model into it. P-G1…P-G9 staying green is the exit
+code for all of that.
+
+**THE APPLY RUNBOOK** (`2026-09-22-world-tick-combat-channel.sql`; the same
+steps are in the migration header, where the operator running it will look).
+
+1. **Pre-flight, read-only, before anything (Security S-5).** The `channels`
+   CHECK is validated against the existing row on apply, and a **NULL element**
+   in the live array makes the predicate NULL — which *passes* validation. §3
+   `c2c` only probes a temp table, so it never sees the live row.
+
+   ```sql
+   select channels,
+          array_position(channels, null) as has_null_element,   -- must be NULL
+          enabled, shadow
+     from public.hr_tick_config where id;
+   -- Expect: channels = {gather}, has_null_element NULL, enabled false, shadow true.
+
+   select pg_size_pretty(pg_total_relation_size('public.hr_tick_shadow')) as size,
+          count(*) as rows
+     from public.hr_tick_shadow;
+   ```
+
+   If `has_null_element` is not NULL, **stop** and clean the array first: the
+   constraint would validate a value the tick cannot settle.
+
+2. **Drain the lease and pause the tick — this is a TABLE REWRITE (Security
+   S-4).** The eight new columns are `GENERATED ALWAYS … STORED`, and
+   PostgreSQL always rewrites a table to add one. The rewrite holds ACCESS
+   EXCLUSIVE on `hr_tick_shadow` while the gather shadow inserts into it every
+   90 s: the apply blocks on the running writer and blocks it in turn, for a
+   duration that scales with the table (sized by the second select above).
+   This is the "changes" in GO-WITH-CHANGES; the migration is otherwise clean.
+
+   Wait for the current lease to expire (`lease_until <= now()` in
+   `hr_tick_ownership`), then `update public.hr_tick_config set enabled = false
+   where id;` for the apply, and set it back to `true` afterwards. The file
+   arms nothing either way (§3 `c3`), so the gather cohort resumes untouched.
+
+3. **Apply**, one file, Coordinator only, never inside `begin/commit`, never
+   00:00–00:10 UTC (CLAUDE.md §2):
+
+   ```bash
+   node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-combat-channel.sql
+   ```
+
+**What remains before combat is even SHADOW-able on production**, in order:
+
+| # | Work | Owner |
+|---|---|---|
+| 1 | Security's T-1/T-2/T-3 fixes land — combat inherits T-2 and is hurt worse by it (16.3) | M1 |
+| 2 | The `op:'tick'` entry learns the combat channel (`tick.js` is gather-only) | next M3 step |
+| 3 | The migration applies behind a Security GO; it touches a money surface's journal | Coordinator |
+| 4 | `update hr_tick_config set channels = channels \|\| 'combat'` + an ownership cohort | operator |
+| 5 | **Before ARMING**: the attended fence (16.6), and §7a's inventory ABSOLUTE flip + monotonic frame gate, which combat has always been behind | separate lanes |
+
+---
+
+## 17. Where I disagree with the brief
 
 0. **Superseded 2026-09-18 by §15a:** the first-channel argument below said
    *farm*. Real windows changed the answer to **gather** — farm has no accrual
@@ -1870,15 +2478,15 @@ curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
 
 ⚠ **Do not copy a payload hash out of a document — including this one.** The
 value moves whenever anything under `supabase/functions/**` moves, and on this
-branch it already has: Security's review recorded
-`1b97422cd1542ec36224e37e930cc0df5370b76968f1fc2d60316f62c3bd24ec` on
-2026-09-23, and merging `origin/next` (M1f's `hr-accrue/envelope.js` and the M5
-frame gate) took the packed payload to
-`92f5d8b5fab1be4e7516ed94f7d82b7f587877b171c17cdad3e7b3587db32fd6`. Both
-numbers are correct for the tree that produced them and neither is
-authoritative for yours. **`node tools/pack-edge.mjs hr-accrue --hash` at
-deploy time is the number that matters**; what this section pins is the READ,
-not the digest.
+branch it already has: Security's review recorded `1b97422c…` on 2026-09-23,
+and merging `origin/next` (M1f's `hr-accrue/envelope.js` and the M5 frame gate)
+took the packed payload to `92f5d8b5…`, which the combat-channel merge has
+moved again. Each is correct for the tree that produced it and none is
+authoritative for yours — which is why only their truncated forms survive here
+(Security S-6b): a full-length value is the only form an operator can paste
+into a comparison, so this section does not carry one. **`node tools/pack-edge.mjs hr-accrue --hash`
+at deploy time is the number that matters**; what this section pins is the
+READ, not the digest.
 
 **Order.** Steps 1 and 4 are the seam; between them the tick posts nothing, so
 no build ever exists that accepts both forms.
@@ -1909,9 +2517,9 @@ npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
 node tools/pack-edge.mjs hr-accrue --hash
 curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
 #    The GET's `payload_sha256` MUST equal --hash — compare the two VALUES you
-#    just read, never a value from a document (see (P3)). On this branch
-#    --hash is 92f5d8b5fab1be4e7516ed94f7d82b7f587877b171c17cdad3e7b3587db32fd6
-#    as of the origin/next merge; re-read it rather than trusting that.
+#    just read, never a value from a document (see (P3)). There is deliberately
+#    no expected value printed here: --hash at the SHA you are deploying IS the
+#    expectation (Security S-6b).
 #    ★ (P3) must already be written down. If it is not, go back — the previous
 #      payload_sha256 is no longer readable once this deploy lands.
 

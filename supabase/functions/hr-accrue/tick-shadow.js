@@ -148,6 +148,62 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        not make it yet, so this is undefined in production and a fixture's
        pinned value offline. Under-paying, and named in the lane report. */
     perks: char.perks,
+    /* `goals` WAS HERE AND WAS DEAD (removed 2026-09-22, milestone 3).
+       `computeAccrual` builds its own counter — `const goals = makeGoalCounter()`
+       (accrual.js :1759/:3232) — and never reads `inp.goals`; `hr-accrue/index.ts`
+       does not pass one either. A key the engine ignores is not harmless: it
+       reads as a plumbed input, so the next author wires a real goal model into
+       it and it silently does nothing. Found by the M3 key-set parity arm
+       (tests/world-tick-combat-parity.mjs C1), which compares this object
+       against index.ts's own source in BOTH directions for exactly that reason. */
+    /* ══ THE COMBAT CHANNEL'S INPUTS ═══════════════════════════════════════
+       ELEVEN KEYS A GATHER WINDOW DOES NOT NEED AND A COMBAT WINDOW CANNOT BE
+       CORRECT WITHOUT — the auto-eat trio, the two death counters,
+       `combatXpAccruedToMs`, `hearthfindReady`, `enchant`, `combatStyle`,
+       `buffs` and `ammoCarry`. They ARE NOT LISTED HERE ANY MORE: every one of
+       them is in `ENGINE_STATE_KEYS` and arrives through the
+       `...engineStateOf(char)` spread above (M1f, 2026-09-22). Listing them a
+       second time here is not redundant, it is WRONG — the explicit key would
+       sit after the spread and overwrite a present value with `char.X`, and for
+       the presence-of-key switches (`buffs`, `ammoCarry`) it would turn an
+       ABSENT key into an explicit `undefined`, which is the "this database has
+       no column" signal spelled as a value. One list, in envelope.js, read by
+       the accrue path and by a tick window alike (AWAY-12).
+
+       ⚠ THIS BLOCK WAS THE MILESTONE and the two measurements that bought it
+         stand, on the SAME character, window and seed over ten minutes:
+
+         · auto-eat absent  ->  48 kills / 276 gold / 2,464 xp / 5 deaths,
+           against 139 / 788 / 6,568 / 0 with it. -65.0% gold, -62.5% xp.
+           That is `src/core/auto-eat.js`'s own -63%..-99% band, reproduced by
+           the CALLER instead of by a missing handler.
+         · the death counters absent -> `recoveryFor()` prices every fall from
+           zero, so a character with six deaths today is handed the FIRST-DEATH
+           novice grace (0 ms, then 120,000 ms) where the accrue path charges
+           3,840,000 ms — and the ledger row it writes says `deaths_today: 1`.
+           Recovery is the COST of dying, so this one runs in the PAYING
+           direction. A mint, and a silent one.
+
+       WHY NO GUARD SAW IT: tests/world-tick-parity.mjs `accrualOnReturn` DOES
+       pass the auto-eat keys and this object did not, and P1 compares the two
+       for byte-identity — green, because the only auto-eat fixture is a maxed
+       character at 99 HP fighting a slime who never reaches the 50% threshold.
+       The guard was blind, not wrong. tests/world-tick-combat-parity.mjs C1
+       closes the class STRUCTURALLY: it derives the accrue path's key set from
+       `hr-accrue/index.ts`'s own source and requires this object to match it,
+       so a key added there and not here is red on that commit. */
+    /* NOT an envelope key and NOT in ENGINE_STATE_KEYS: `hr_companion_xp_of`
+       is its own read, exactly as `perks` above. Named at every call site. */
+    companionXpBacked: char.companionXpBacked,
+    /* ── THE ATTENDED TOP-UP IS STRUCTURALLY ABSENT, NOT FORGOTTEN ─────────
+       Every term of `min(claimed, attendedKillCap, MAX_FIDELITY x sim) - sim`
+       is priced against the SPAN. Hand sixty windows the same claim and it is
+       paid sixty times; split the claim and the arithmetic is undefined. There
+       is no correct way for a 10 s window to carry one, so the tick never
+       does, and `settleCombatSession` THROWS on a caller that supplies one
+       rather than letting a null look like an oversight
+       (WORLD_TICK_DESIGN.md 16.6, guard C10). */
+    attended: null,
     /* THE CALLER. 'tick', not the borrowed 'collect' (`finalWindow` before
        2026-09-18). A tick window is exempt from ACCRUE_MIN_MS like a collect —
        10 s is below the floor and there is no later call that would see a

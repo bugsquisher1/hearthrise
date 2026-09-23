@@ -829,8 +829,36 @@ async function runArms(mod) {
     ok(P([GATE, TICKMOD, { name: 'supabase/functions/hr-accrue/index.ts',
       src: "import { x } from './tick-gather.js';\n" }]).length === 1,
       'T-F1f — (3) bites: even the entrypoint may reach only tick.js');
-    ok(TICK_MODULES.length === 4 && TICK_MODULES.every((m) => m.startsWith('supabase/functions/hr-accrue/tick')),
-      'T-F1g — the allowlist is four named files, not a directory or a prefix');
+    /* PINNED BY NAME, not by size (2026-09-23). This arm read
+       `length === 4 && every(startsWith(...))`, which a fifth file makes red —
+       correctly — but which is then answered by editing a number, and the arm
+       cannot tell a legitimately-registered settler from a module somebody
+       added to get a payload green. The set itself is the claim now, so adding
+       or removing ANY entry goes red and has to be argued for here. */
+    const EXPECTED_TICK_MODULES = [
+      'supabase/functions/hr-accrue/tick.js',
+      'supabase/functions/hr-accrue/tick-gather.js',
+      'supabase/functions/hr-accrue/tick-combat.js',
+      'supabase/functions/hr-accrue/tick-shadow.js',
+      'supabase/functions/hr-accrue/tick-contract.js',
+    ];
+    ok(JSON.stringify([...TICK_MODULES].sort()) === JSON.stringify([...EXPECTED_TICK_MODULES].sort())
+      && TICK_MODULES.every((m) => m.startsWith('supabase/functions/hr-accrue/tick')),
+      'T-F1g — the allowlist is these five NAMED files, not a directory or a prefix',
+      `allowlist drifted: ${JSON.stringify(TICK_MODULES)}`);
+
+    /* T-F1h — the newly-registered settler is fenced exactly as gather is.
+       Registering a file must not be a way to exempt it. */
+    const COMBATMOD = { name: 'supabase/functions/hr-accrue/tick-combat.js',
+      src: "  Object.assign({}, o, { caller: 'tick', seedOf });\n" };
+    ok(P([GATE, COMBATMOD]).length === 0,
+      'T-F1h — tick-combat.js may spell `caller:\'tick\'` behind the bearer gate');
+    ok(P([COMBATMOD]).length === 1,
+      'T-F1i — (2) bites on it too: tick-combat.js with no bearer gate is refused',
+      JSON.stringify(P([COMBATMOD])));
+    ok(P([GATE, COMBATMOD, { name: 'supabase/functions/hr-accrue/equip.js',
+      src: "import { settleCombatSession } from './tick-combat.js';\n" }]).length === 1,
+      'T-F1j — (3) bites on it too: an ordinary verb importing the combat settler is refused');
   }
 
   // ── T-W1 / T-P1 — WIRING, against the PACKED bytes ──────────────────────
@@ -1086,15 +1114,37 @@ const MUTATIONS = [
         const out = await REAL.runTick(Object.assign({}, o, {
           exec: async (text, params) => {
             const rows = await o.exec(text, params);
-            const r = rows && rows[0] && rows[0].res;
+            const row0 = rows && rows[0];
             /* params[1] is the user: a NULL user is the kill-switch probe,
                which is not a character and whose refusal is not a batch
                event. Throwing there would abort the fire before it began and
                would prove nothing about batch isolation. */
-            if (r && r.ok !== true && params[1] !== null
-                && r.error !== 'window_already_settled') {
-              throw new Error('batch aborted: ' + r.error);
-            }
+            if (params[1] === null) return rows;
+            /* ── A CHARACTER IS REFUSED IN TWO SHAPES, AND THIS MUTANT MUST
+                  SEE BOTH (2026-09-23).
+               `res` is the FENCE's answer. `state.ok === false` is
+               `hr_state_of` declining to project a character at all
+               (`no_character`).
+               Until S-8 the fence always spoke first, so the `res` shape alone
+               reached every refusal and this mutant bit. S-8 moved the
+               hr_state_of read AHEAD of the watermark probe — the probe needs
+               the character's own channel, and active_kind is the only
+               server-side answer to that — so an unknown character is now
+               declined by the PROJECTION before any fence call is made. The
+               mutant went silently VACUOUS: it perturbed a path the batch no
+               longer takes, T-R1 stayed green, and `--selftest` reported M6 as
+               not biting. Caught by tests/run-ci-local.mjs, which runs this
+               --selftest; the plain run is green either way, which is why the
+               hand-picked gate list missed it.
+               Both shapes are named here so the mutant follows the refusal
+               rather than the statement order. */
+            const refused = (row0 && row0.res && row0.res.ok !== true
+                             && row0.res.error !== 'window_already_settled')
+              ? row0.res.error
+              : (row0 && row0.state && row0.state.ok === false
+                ? (row0.state.error || 'no_character')
+                : null);
+            if (refused) throw new Error('batch aborted: ' + refused);
             return rows;
           },
         }));

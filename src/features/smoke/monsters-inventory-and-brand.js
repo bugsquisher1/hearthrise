@@ -4265,8 +4265,9 @@ export default [
     const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
     let sent = [];
     const drain = () => new Promise((r) => setTimeout(r, 60));
+    let awayVersion = 5;   // ⚠ MOVES PER CALL (M5): five applies to one character are five accepted writes, and hr_apply bumps `version` on each. Pinned, they are duplicates the frame gate drops (§7.1) and the self-heal sees no envelope at all.
     const awayEnvelope = (equipment) => ({
-      ok: true, accrued: true, version: 5, now: '2026-08-18T00:00:00Z',
+      ok: true, accrued: true, version: awayVersion++, now: '2026-08-18T00:00:00Z',
       state: { slot: 0, gold: 3, hp: 10, max_hp: 10 },
       skills: {}, inventory: { iron_sword: 1 }, equipment,
       away: { grantMs: 0, gold: 0, xp: {}, items: {} },

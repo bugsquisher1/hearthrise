@@ -7,15 +7,15 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-23",
- "digest": "8183a968d8a9a8eff9039b5a7b8c48971e22119229fd3e1a89143c7be67b3eed",
+ "digest": "23866c5f4cf2d851bf2a5d1bdf89011eca997c8d6c29d25639824df34c33f390",
  "counts": {
   "relations": 129,
-  "functions": 310,
+  "functions": 312,
   "policies": 92,
   "indexes": 180,
-  "triggers": 20,
-  "constraints": 340,
-  "columns": 761,
+  "triggers": 21,
+  "constraints": 341,
+  "columns": 763,
   "rls": 113,
   "event_triggers": 1
  },
@@ -314,6 +314,8 @@
    "hr_farm_water(p_slot integer, p_plot_idx integer, p_idem uuid)",
    "hr_flag_on(p_key text)",
    "hr_fnv1a(p_s text)",
+   "hr_frame_emit()",
+   "hr_frame_topic(p_user uuid, p_slot integer)",
    "hr_game_events_guard()",
    "hr_gem_unlocks_of(p_user uuid, p_slot integer)",
    "hr_goal_daily_seed(p_str text)",
@@ -760,7 +762,8 @@
    "player_ledger :: hr_ledger_no_truncate",
    "player_progress :: player_progress_bank_cap_sync",
    "player_progress :: player_progress_unlock_guard",
-   "player_skills :: hr_player_skills_max_hp"
+   "player_skills :: hr_player_skills_max_hp",
+   "player_state :: hr_frame_push"
   ],
   "constraints": [
    "active_bounty :: active_bounty_pkey",
@@ -985,6 +988,7 @@
    "hr_tick_config :: hr_tick_config_edge_url_ck",
    "hr_tick_config :: hr_tick_config_flush_ck",
    "hr_tick_config :: hr_tick_config_flush_ge_cadence_ck",
+   "hr_tick_config :: hr_tick_config_frame_keys_known",
    "hr_tick_config :: hr_tick_config_lease_ck",
    "hr_tick_config :: hr_tick_config_pkey",
    "hr_tick_config :: hr_tick_config_singleton_ck",
@@ -1558,6 +1562,8 @@
    "hr_tick_config.edge_url text",
    "hr_tick_config.enabled boolean NOT NULL",
    "hr_tick_config.flush_seconds integer NOT NULL",
+   "hr_tick_config.frame_keys text[] NOT NULL",
+   "hr_tick_config.frame_push boolean NOT NULL",
    "hr_tick_config.id boolean NOT NULL",
    "hr_tick_config.lease_ms integer NOT NULL",
    "hr_tick_config.note text",

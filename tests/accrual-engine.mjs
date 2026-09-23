@@ -4828,6 +4828,40 @@ export function computeAccrualInputParity(fnDir) {
         + 'resolved, so this comparison would be blind on every envelope field');
       return found;
     }
+    /* THE LIST MUST DESCRIBE THE MAP (2026-09-23, b552 CI red). The comparison
+       below resolves BOTH spreads through the same two frozen arrays, so from
+       the moment M1f (82606827) moved the field list into one builder the two
+       call sites agree BY CONSTRUCTION and the parity half can no longer be
+       violated from envelope.js at all. What can still happen is the defect
+       tests/activity-intent.mjs `input_set_drift` plants: an input is dropped
+       from `engineInputsFromEnvelope`'s BODY while its name stays on the list,
+       after which this function reports the two call sites agreeing on a key
+       NEITHER of them receives, and the collect prices its window against a
+       state the server never had. Measured 2026-09-23: deleting `gold:` from
+       the body slipped every guard in this tree.
+       So the list is not trusted, it is CHECKED — against what the builder
+       actually returns, by calling it. Read from `fnDir`, which is the MUTATED
+       temp copy under a mutation, for the reason A14's header gives. */
+    let built = null;
+    try {
+      const href = `${pathToFileURL(join(fnDir, 'envelope.js')).href}?parity=${Date.now()}`;
+      const mod = await import(href);
+      built = Object.keys(mod.engineInputsFromEnvelope({}, 0));
+    } catch (e) {
+      found.push('PARITY: envelope.js could not be imported to check its own key list against the '
+        + `map it declares — ${e && e.message}`);
+      return found;
+    }
+    const notBuilt = spreadKeys.filter((k) => !built.includes(k));
+    const notListed = built.filter((k) => !spreadKeys.includes(k));
+    if (notBuilt.length || notListed.length) {
+      found.push('PARITY: engineInputsFromEnvelope does not produce the key list it exports, so the '
+        + 'spread both call sites rely on is a claim rather than a fact. On the list but NOT built: '
+        + `[${notBuilt.join(', ')}] (every caller silently loses these). Built but NOT on the list: `
+        + `[${notListed.join(', ')}] (invisible to this comparison and to engineStateOf).`);
+      return found;
+    }
+
     const shell = keysOf(await readFile(join(fnDir, 'index.ts'), 'utf8'), spreadKeys);
     const intent = keysOf(await readFile(join(fnDir, 'set-activity.js'), 'utf8'), spreadKeys);
     /* CONTROL FIRST. An extractor that returns [] would make the comparison

@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 1510,
+ "replay_ms": 1446,
  "counts": {
-  "tracked_names": 52,
-  "entries": 50
+  "tracked_names": 54,
+  "entries": 52
  },
  "functions": [
   {
@@ -611,6 +611,24 @@
    "agree": true
   },
   {
+   "sig": "hr_frame_emit()",
+   "name": "hr_frame_emit",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-22-frame-push-channel.sql"
+   ],
+   "live": null,
+   "replay": {
+    "md5": "e966d332bed27b2492cb9bf24a4578fd",
+    "norm_len": 2794,
+    "source": "computed-from-replay"
+   },
+   "agree": false,
+   "why": "2026-09-23: hr_frame_emit is NEW and STAGED (2026-09-22-frame-push-channel.sql, M5 push channel; Security GO-WITH-CHANGES for staging only, apply is a separate lane-C step) — absent on production by design until that apply."
+  },
+  {
    "sig": "hr_intent_replay(p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
    "name": "hr_intent_replay",
    "tracked_by": [
@@ -706,28 +724,28 @@
    "sig": "hr_put_client_state__ungated(p_slot integer, p_patch jsonb, p_idem uuid)",
    "name": "hr_put_client_state__ungated",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-08-22-client-state-denylist.sql",
+    "2026-08-28-client-state.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-13-client-state-buffs-denylist.sql",
-    "2026-09-14-client-state-projection-denylist.sql"
+    "2026-09-23-client-state-retired-fields.sql"
    ],
    "live": {
-    "md5": "9674ca3ac77631b5e4b92c30a8ad4131",
-    "norm_len": 3947,
+    "md5": "17ebca77a2158d319b07a7b32f465317",
+    "norm_len": 6735,
     "measured": "2026-09-23",
-    "source": "measured-live",
-    "mojibake": true
+    "source": "measured-live"
    },
    "replay": {
-    "md5": "2a9514c48a67b4cca6279413a60fb75c",
-    "norm_len": 4353,
+    "md5": "17ebca77a2158d319b07a7b32f465317",
+    "norm_len": 6735,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "2026-09-14 08:05 UTC: DELIBERATELY DIVERGENT — 2026-09-14-client-state-projection-denylist.sql is STAGED, NOT APPLIED (adds nine residue names to the deny-list); the repo chain rebuilds to 2a9514c4/4353 while production runs 9674ca3a/3947 (the 2026-09-13 buffs denylist, applied 20:47 that day, matched the replay to the code at the time). Security timing condition: apply no earlier than 24 h after the b547 client (which stops sending the nine) is live, because a forbidden key refuses the whole put for a stale tab. Converges on apply; re-measure then."
+   "agree": true
   },
   {
    "sig": "hr_rate_gate(p_user uuid, p_slot integer, p_bucket text)",
@@ -1047,6 +1065,28 @@
    "replay": {
     "md5": "5527d069e857db9cb653445d12b239d7",
     "norm_len": 30524,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tick_settle(p_holder text, p_user uuid, p_slot integer, p_channel text, p_version bigint, p_window_from timestamp with time zone, p_window_to timestamp with time zone, p_intent_id uuid, p_delta jsonb)",
+   "name": "hr_tick_settle",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-22-frame-push-channel.sql"
+   ],
+   "live": {
+    "md5": "d6948f6ac30d0466599d94c95d0f3c9e",
+    "norm_len": 9241,
+    "measured": "2026-09-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d6948f6ac30d0466599d94c95d0f3c9e",
+    "norm_len": 9241,
     "source": "computed-from-replay"
    },
    "agree": true

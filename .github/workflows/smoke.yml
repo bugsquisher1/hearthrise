@@ -596,6 +596,38 @@ jobs:
           node tests/buff-queue.mjs
           node tests/buff-queue.mjs --selftest
 
+      # A RETIRED KEY IS NOT AN AUTHORITY KEY.
+      # hr_put_client_state__ungated refused the WHOLE residue patch on any denied
+      # name. Right for `gold`; wrong for `buffs`, which was legitimate residue
+      # until 2026-09-13 20:47 UTC. One real player's hidden pre-b544 tab has sent
+      # it ever since — 603 refusals by 2026-09-14, 927-955/day by 2026-09-22,
+      # ~99% of every refusal vitals reports — and that account has saved no
+      # lootFilter, achievements or bestiary for nine days while the noise hid any
+      # real burst underneath it.
+      # 2026-09-23-client-state-retired-fields.sql restates the body and splits the
+      # list: AUTHORITY names still refuse the whole patch, RETIRED names are
+      # stripped, journalled as `retired_field` (severity normal, one `why` per
+      # name so the breakdown says WHICH BUILD the tab is running) and the honest
+      # remainder saves.
+      #
+      # This replays the REAL ordered chain and drives the REAL GATED WRAPPER the
+      # browser calls, so hr_rpc_gate and the hr_note_rejection decorator are
+      # exercised rather than modelled. The two assertions that carry it: the
+      # forged buff queue is stripped while lootFilter IS stored (the outage, and
+      # the 2026-09-13 security property, in one arm), and {gold:999} is still
+      # refused forbidden_field/gold with nothing stored and NOT filed as retired.
+      #
+      # --without replays the chain STOPPING at the migration before this one —
+      # the database production runs today — and REQUIRES the guard to be RED, so
+      # it cannot go green against a chain that does not contain its own file.
+      # --selftest plants nine defects, each gate and gate-blind, plus --without
+      # and a comment-only negative control. No credentials; production untouched.
+      - name: Client-state retired fields — a retired key strips, an authority key refuses
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-state-retired-fields.mjs
+          node tests/client-state-retired-fields.mjs --selftest
+
   # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20. Same
   # inputs (an applied migration chain), same reason for the split as
   # utc-midnight-replay: the family had outgrown one job's budget with no
@@ -1141,6 +1173,39 @@ jobs:
       - name: World tick — EC-3d control, mutation proof
         if: ${{ !cancelled() }}
         run: node tests/world-tick-edge-contract.mjs --selftest
+
+      # THE THREE PROPERTIES THE STRIP INTRODUCED THAT ITS OWN GUARD DOES NOT
+      # MEASURE. Written by the security-engineer role during the review of
+      # 2026-09-23-client-state-retired-fields.sql; it deliberately does NOT
+      # repeat tests/client-state-retired-fields.mjs (which already proves a
+      # retired key strips, an authority key refuses and a replay is one effect).
+      #   X1 SIZE ACCOUNTING — the strip moved the merge from `p_patch` to
+      #      `v_patch`. A later restatement that merges the raw patch while still
+      #      reporting `stripped` keeps the answer saying the right thing while
+      #      the forged value lands AND eats the 256 KiB bag cap. 50 KB of
+      #      retired `buffs` must change `bytes` by nothing and the bag by
+      #      nothing, and a bag already 200 KB full must still accept a put whose
+      #      only over-cap key is retired.
+      #   X2 ORDERING IS THE WHOLE FAIL-SAFE — nothing says a name cannot be on
+      #      BOTH lists; what makes the authority key win is that the deny loop
+      #      runs FIRST and reads the RAW patch. The arm proving it bites hoists
+      #      the strip, points the deny loop at the stripped remainder and puts
+      #      `gold` on both lists — the shape a restatement "simplifying" the body
+      #      into one remainder would take.
+      #   X3 THE JOURNAL IS BOUNDED BY A CAP IN ANOTHER FILE — hr_record_rejection
+      #      folds `whys` at c_why_cap = 12 (2026-09-13-rejections-verb-map-2.sql)
+      #      and v_retired holds TEN, so the breakdown naming WHICH key a stale
+      #      tab sends survives on two names of headroom held in a file that has
+      #      never heard of v_retired. The list is read out of the INSTALLED body,
+      #      so the arm grows with it rather than going stale.
+      # Registered in db-replay-2 rather than db-replay on the budget rationale
+      # that split the family: this is one replay plus eight mutation boots, and
+      # db-replay already took the lane's own guard.
+      - name: Client-state retired fields — size accounting, list ordering, journal bound
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-state-retired-fields-adversarial.mjs
+          node tests/client-state-retired-fields-adversarial.mjs --selftest
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
@@ -2187,6 +2252,43 @@ jobs:
         run: |
           node tests/no-client-xp-mint.mjs --selftest
           node tests/no-client-xp-mint.mjs
+
+      # THE FRAME GATE (M5, docs/design/LIVE_COUNTERS_PUSH.md §7). Before it, the
+      # client had NO whole-envelope version gate: isEnvelopeApplicable asked
+      # only that `version` be a finite number, and the monotonic rule lived in
+      # ONE place for ONE field (gold.js's `lastVersion`). That is survivable
+      # under request/response and is a silent rewind of hp, the bag, the
+      # activity pointer and every buff clock under a push stream. The rule is
+      # now one floor, strictly greater, whole-frame-or-nothing, committed by
+      # all three appliers (accrue / gold / activity).
+      # Base AND selftest, per C4: a selftest-only registration cannot tell a
+      # caught defect from a guard that is broken at rest. --selftest plants
+      # five defects — `>=` restored, a per-key merge below the gate, gold.js
+      # growing its floor back, the activity applier not committing, and the
+      # frame gate moved into classifyAccrueResponse (which would halt the
+      # accrual loop on three duplicates) — and requires each one caught.
+      - name: Envelope frame gate — one monotonic frame, whole frame or nothing
+        run: |
+          node tests/envelope-frame-gate.mjs --selftest
+          node tests/envelope-frame-gate.mjs
+
+      # FRAME DROP STREAK (SEC_PUSH_CHANNEL_M5_2026-09-23.md S3). The gate's two
+      # failure directions are not symmetric: a floor that is too LOW heals on
+      # the next frame; one that is too HIGH refuses every frame including the
+      # `hello` that is the only documented healer, so the healer is gated by
+      # the thing it heals. A client in that state looks IDENTICAL to a quiet
+      # one — in the browser, in a bug report and in vitals.mjs, which CLAUDE.md
+      # §3.4 gives two days to notice. Until lane/m5-live-subscribe ships the
+      # re-read that may RESET the floor, the deliverable is detection, and this
+      # guard is what keeps it honest: it pins that all three appliers count
+      # their refusals, that a landed frame clears the streak, and — D4 — that
+      # the too-high hole is still there. D4 goes RED when the hole is closed,
+      # on purpose, so the author who closes it has to come and say so.
+      # Base AND mutate, per C4: five planted defects, each required caught.
+      - name: Frame drop streak — a refused client must be able to say so
+        run: |
+          node tests/frame-drop-streak.mjs --mutate
+          node tests/frame-drop-streak.mjs
 
       # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
       # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a

@@ -78,6 +78,9 @@ import {
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
   isReconcilePending, isAccrualFailure, awaitSettleRaceClear,
+  /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1), imported — this module is the
+     THIRD applier of a server envelope and it had no monotonic rule at all. */
+  classifyFrame, commitFrame, noteFrameDrop, clearFrameDrops,
 } from './accrue.js?v=551';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
@@ -777,6 +780,45 @@ export function applyIntentEnvelope(G, body) {
   const env = envelopeOf(body);
   if (!G || typeof G !== 'object' || !env) return null;
 
+  /* ── THE FRAME GATE, AND WHY THE THIRD APPLIER CANNOT BE EXEMPT ──────────
+     WORLD_TICK_DESIGN.md §7.1 keeps ONE floor per character, and a floor is
+     only true if every applier both reads it and raises it. This module is a
+     writer of the same envelope, addressed by the same `player_state.version`,
+     so an applier that wrote without committing would leave the floor BELOW
+     the state actually in `G` — after which a genuinely older accrue frame
+     would read as "fresh" against the stale floor and be applied on top. The
+     gate would then be worse than none: it would look present and be wrong.
+
+     ── A REORDER IS DROPPED. A DUPLICATE IS RE-APPLIED. ──────────────────
+     The first revision of this gate dropped both, on the argument that an
+     equal version can only carry state this client already holds. That is true
+     of what was APPLIED and false of what is ON SCREEN, and the difference is
+     a REFUSAL: a refused intent writes nothing server-side, so
+     `player_state.version` does not move and the correcting envelope arrives
+     at `=== lastAppliedFrame`. Dropping it leaves the caller's optimistic swap
+     standing over a server that never took it — CLAUDE.md §6, the exact class
+     this gate exists to kill, and the one applier with no compensator
+     (gold.js retires its prediction on the same verdict; this module has
+     nothing to retire and so must re-state the truth instead).
+
+     Re-applying an equal frame CANNOT be a rewind: the server never rewrites
+     the content of a version it has already stamped, so the frame in hand is
+     byte-for-byte the state behind the floor. §7.1's "equal is dropped" is
+     sound for a STATELESS receiver; this one carries optimistic writes.
+     A REORDER still writes nothing at all — that one would be a rewind.
+
+     WHAT A DUPLICATE MAY NOT DO is anything that is not idempotent, because a
+     retransmit reaches this same branch. The floor is not raised (`commitFrame`
+     is raise-only, so the call below is already a no-op) and the COLLECT
+     RECEIPT is not re-hung: legacy.js credits away kills from
+     `written.paidReceipt` into `updateDaily('kill_any')`, which is the Muster's
+     SHARED world-event meter, and paying that twice for one night would put a
+     forged contribution on a shared surface (CLAUDE.md §1). State is absolute
+     and replays clean; a receipt is an event and does not. */
+  const frame = classifyFrame(env.version);
+  if (!frame.apply && frame.verdict !== 'duplicate') { noteFrameDrop(frame.verdict); return null; }
+  const duplicate = frame.verdict === 'duplicate';
+
   const loss = describeReplacement(G, env);
   /* b366 — THE DEVICE-HANDOFF DEFERRAL, APPLIED TO THIS TWIN TOO. accrue.js's
      applyEnvelope carries the same three lines and the same reasoning: `G`
@@ -802,6 +844,20 @@ export function applyIntentEnvelope(G, body) {
   }
 
   const written = applyEnvelopeState(G, env);
+  /* AFTER the write, never before — same reasoning as applyEnvelope's commit:
+     a throw must not leave the floor above a frame nothing applied. On the
+     DUPLICATE arm this is a no-op by `commitFrame`'s raise-only rule, which is
+     the whole of "a duplicate never raises the floor": stated here rather than
+     branched on, so there is one raise rule and not two. */
+  commitFrame(env.version);
+  /* SEC S3 — and the streak ends even on the DUPLICATE arm, where commitFrame
+     is a no-op. The counter's question is "is the server's state reaching this
+     client", and a correction that landed is a yes. */
+  if (duplicate) clearFrameDrops();
+  /* Which arm wrote this, for the diagnostics seam and the regression tests: a
+     correction re-states a frame already behind the floor, a fresh apply moves
+     it. Nothing branches on this — it is a label, not a gate. */
+  written.correction = duplicate;
   /* THE CONSTRUCTED envelope goes back to the caller so record.js's applyRecord
      can read a REFUSAL's state too. A refused switch whose collect applied moved
      `accrued_to`, and `decodeRecord` fails closed on `ok !== true` — so handing
@@ -809,7 +865,12 @@ export function applyIntentEnvelope(G, body) {
      that was just paid. Constructed, never a spread of the refusal. */
   written.envelope = env;
 
-  const collected = collectedOf(body);
+  /* NOT ON A DUPLICATE — see the gate's note. A collect is an EVENT; re-hanging
+     its receipt re-credits away kills into a shared meter. A true refusal
+     carries no collect anyway (a collect that applied would have moved the
+     version, making the frame fresh), so this costs a live player nothing; it
+     is here so a RETRANSMIT of a frame that did collect cannot pay twice. */
+  const collected = duplicate ? null : collectedOf(body);
   if (collected) {
     /* THE ONE THAT WOULD BITE. Through the away card's own translator, into the
        field every welcome-back surface already reads, so the player is told

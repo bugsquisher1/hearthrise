@@ -276,8 +276,128 @@ export const ACCRUE_OUTCOMES = [
   'unconfigured',   // no endpoint / no token on this device
 ];
 
-/** Does this envelope carry enough to BE the truth? Fail closed. */
-export function isEnvelopeApplicable(res) {
+/* ══════════════════════════════════════════════════════════════════════════
+   THE FRAME GATE — ONE MONOTONIC RULE FOR THE WHOLE ENVELOPE
+   docs/planning/WORLD_TICK_DESIGN.md §7.1 · docs/design/LIVE_COUNTERS_PUSH.md §7
+
+   BEFORE: the monotonic rule lived in one place for one field — gold.js's
+   `if (env.version < lastVersion)` — and the shape check asked only that
+   `res.version` be finite. Survivable under request/response, whose only
+   reorder is two gold verbs racing; NOT under a push stream, where reorder,
+   duplicate and late retransmit are what a socket DOES. Each silently rewound
+   hp, the activity pointer, the bag, a buff clock and the plot tier: "browser
+   says X, server says Y" (CLAUDE.md §6, a P1 class-kill) at the tick's cadence.
+
+   THE RULE: a frame ADVANCES the gate only if `frame > lastAppliedFrame`.
+   STRICTLY greater. Equal is a duplicate, lower is a reorder, NEITHER EVER
+   RAISES THE FLOOR, and THE WHOLE FRAME IS APPLIED OR THE WHOLE FRAME IS
+   DROPPED. A per-key merge is the failure this forbids: it assembles a state
+   the server never held, and nothing downstream can tell it is a fiction.
+
+   ⚠ ADVANCING AND APPLYING ARE DIFFERENT QUESTIONS (SEC S1). `.apply` answers
+   only the first; whether a DUPLICATE's state may be WRITTEN is the applier's
+   own, answered at its gate. A REORDER is dropped by all three.
+
+   `frame` IS `player_state.version`. hr_apply bumps it on every accepted write
+   from either producer under the per-character row lock, so it is already
+   monotonic and already the number gold.js was comparing.
+
+   THE PREDICATE READS THE FLOOR; ONLY AN APPLIER RAISES IT, which keeps
+   `isEnvelopeApplicable` safe to ask twice: applyEnvelope here, applyGoldEnvelope
+   and applyIntentEnvelope call `commitFrame` on what they wrote, nothing else may.
+
+   PER CHARACTER, so the reset is load-bearing: carrying one character's floor
+   into another would drop every frame of the new one until its version passed
+   the old one's. `resetFrameGate()` runs from `resetAccrualIdentity()` — called
+   by auth.js's signOut() (which does NOT reload) and by multi-character.js —
+   and from `resetGold()`, the suite's reset with no production caller (SEC S2).
+
+   NEVER PERSISTED. The floor is session state; after a reload the `hello`
+   re-read restates it. A stored floor is the residue-ahead class wearing a
+   transport, and it fails OPEN.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** The highest frame (= player_state.version) this character has APPLIED.
+ *  -1 is "nothing yet", and it is below every version the server can stamp. */
+let lastAppliedFrame = -1;
+
+/** Read-only seam for the suite and devtools (`window.HearthriseAccrual`). */
+export function getAppliedFrame() { return lastAppliedFrame; }
+
+/* ── THE DROP STREAK (SEC S3, 2026-09-23) ───────────────────────────────────
+   A floor that is too LOW heals itself: the next frame is above it and lands.
+   A floor that is too HIGH does not, and it is the failure with no shape — the
+   client asks, the server answers, every answer is refused, and NOTHING says
+   so. A quiet game in the browser; a player who stopped in `vitals.mjs`.
+
+   ⚠ THIS COUNTS THE STATE; IT DOES NOT FIX IT. The only healer is `hello`,
+   which heals a floor that is too low — one too HIGH refuses the healer too.
+   The cure belongs to `lane/m5-live-subscribe`; the gap is in
+   LIVE_COUNTERS_PUSH.md §5 and pinned by D4 of `tests/frame-drop-streak.mjs`.
+   COUNTED AT THE APPLIERS, NEVER IN `classifyFrame`: that predicate is pure and
+   safe to ask twice, so counting there would score one frame as two. */
+let frameDrops = 0;
+let lastDropVerdict = null;
+
+/** Consecutive refusals, and the last verdict. 0 = the last envelope landed. */
+export function getFrameDrops() { return { drops: frameDrops, verdict: lastDropVerdict }; }
+
+/** The mirror of `commitFrame`: raised by the three appliers on their non-apply
+ *  branch and by nothing else. */
+export function noteFrameDrop(verdict) {
+  frameDrops += 1;
+  lastDropVerdict = typeof verdict === 'string' ? verdict : null;
+  return frameDrops;
+}
+
+/** A frame landed, so the streak is over. */
+export function clearFrameDrops() { frameDrops = 0; lastDropVerdict = null; return 0; }
+
+/** A DIFFERENT CHARACTER IS NOW IN G. */
+export function resetFrameGate() {
+  lastAppliedFrame = -1;
+  clearFrameDrops();
+  return lastAppliedFrame;
+}
+
+/** Named so a caller branches on the REASON, not on the numbers. */
+export const FRAME_VERDICTS = Object.freeze(['fresh', 'duplicate', 'reorder', 'unversioned']);
+
+/** PURE given its floor. `since` defaults to the module ledger.
+ *  ⚠ FAIL CLOSED ON AN UNREADABLE VERSION — a frame whose ORDER cannot be
+ *    established must not land on top of an ordered one. `Infinity` is the
+ *    worst case: `> lastAppliedFrame` for every finite floor, so one garbage
+ *    frame would latch the gate shut against every real frame after it.
+ *  ⚠ AND `since` IS A NUMBER OR IT IS ABSENT (SEC S4). `Number(null)` and
+ *    `Number('')` are a finite 0, so the old coercing spelling gated a falsy
+ *    non-number against floor ZERO — which every frame the server has stamped
+ *    is above. Fail OPEN, in the function contracted to fail closed. */
+export function classifyFrame(version, since) {
+  const floor = (typeof since === 'number' && Number.isFinite(since)) ? since : lastAppliedFrame;
+  const v = Number(version);
+  if (!Number.isFinite(v)) return { apply: false, verdict: 'unversioned', frame: null, current: floor };
+  if (v > floor) return { apply: true, verdict: 'fresh', frame: v, current: floor };
+  if (v === floor) return { apply: false, verdict: 'duplicate', frame: v, current: floor };
+  return { apply: false, verdict: 'reorder', frame: v, current: floor };
+}
+
+/** RAISE THE FLOOR. An applier only, with the frame it actually wrote.
+ *  RAISE-ONLY (CLAUDE.md §6), so a mis-ordered commit is a no-op, not a
+ *  rewind. Returns true if the floor moved. */
+export function commitFrame(version) {
+  const v = Number(version);
+  if (!Number.isFinite(v) || v <= lastAppliedFrame) return false;
+  lastAppliedFrame = v;
+  /* THE STREAK ENDS HERE AND ONLY HERE (SEC S3): a raise is the one event that
+     proves the gate is not stuck, and `hello` arrives as a raise. */
+  clearFrameDrops();
+  return true;
+}
+
+/** THE SHAPE HALF. Pure, and deliberately separate: "not an envelope" trips
+ *  the breaker, "not the next frame" is ordinary traffic. Collapsing them
+ *  makes a reordered frame look like an outage. */
+export function isEnvelopeShapeComplete(res) {
   if (!res || res.ok !== true || res.accrued !== true) return false;
   if (!res.state || typeof res.state !== 'object') return false;
   if (!res.skills || typeof res.skills !== 'object') return false;
@@ -287,12 +407,27 @@ export function isEnvelopeApplicable(res) {
   return true;
 }
 
+/** Does this envelope carry enough to BE the truth, AND is it the next frame?
+ *  Fail closed on both halves. `since` overrides the module floor (tests). */
+export function isEnvelopeApplicable(res, since) {
+  if (!isEnvelopeShapeComplete(res)) return false;
+  return classifyFrame(res.version, since).apply;
+}
+
 export function classifyAccrueResponse(status, body) {
   const b = (body && typeof body === 'object') ? body : null;
   if (status === 200) {
     if (!b || b.ok !== true) return { outcome: 'malformed', body: b };
     if (b.accrued === true) {
-      return isEnvelopeApplicable(b)
+      /* ⚠ THE SHAPE HALF, DELIBERATELY — NOT THE FRAME HALF. This classifies
+         what the SERVER SAID, and a duplicate is a well-formed answer the
+         server was right to send. Gating on the frame here would classify one
+         as `malformed`, and three of those trip ACCRUE_HALT_AFTER_TRIES — the
+         "Away progress is paused" sheet in front of a player whose grant this
+         client already holds, and permanent once duplicates are ordinary
+         traffic. The frame half gates the APPLIER, the only place a frame can
+         rewind anything. */
+      return isEnvelopeShapeComplete(b)
         ? { outcome: 'accrued', body: b }
         : { outcome: 'malformed', body: b, reason: 'envelope_incomplete' };
     }
@@ -666,6 +801,9 @@ export function getAccrualState() {
     enabled: true,               // b515: the kill switch is retired; always on
     configured: !!config,
     pending: !!inFlight,
+    /* SEC S3/R3 — the frame gate, readable from devtools; no sheet carries it yet. */
+    frame: lastAppliedFrame,
+    ...getFrameDrops(),
     ...gate,
     ...decideAccrualGate(gate, now),
   };
@@ -701,6 +839,15 @@ export function resetAccrualIdentity() {
   clearCombatXpDeferral('the signed-in account or character changed');
   awaySettleClosed = false;
   bootAccruedToAt = 0;
+  /* ── THE FRAME FLOOR (SEC S2) ────────────────────────────────────────────
+     Two characters' version counters are unrelated integers, so a floor carried
+     across an identity change drops EVERY frame of the incoming character until
+     its version passes the outgoing one's. The gate claimed `resetGold()` did
+     this; that has no production caller, so it was wired to the suite alone —
+     a documented collaborator with no call site is a comment, not a seam. THIS
+     is the hook both paths run (auth.js signOut, which does NOT reload, and
+     multi-character.js). */
+  resetFrameGate();
   try { clearFall(); } catch (e) {}
   /* The sibling module with the same shape: activity.js caches the last
      DECLARED and CONFIRMED activity, the last server fight and a held
@@ -4714,8 +4861,14 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   return written;
 }
 
+/* SEC S3 — counts only when there was a `G`: a missing one is a caller bug. */
+function refuseFrame(G, res) {
+  if (G) noteFrameDrop(isEnvelopeShapeComplete(res) ? classifyFrame(res.version).verdict : 'malformed');
+  return null;
+}
+
 export function applyEnvelope(G, res) {
-  if (!G || !isEnvelopeApplicable(res)) return null;
+  if (!G || !isEnvelopeApplicable(res)) return refuseFrame(G, res);
   /* THE ONE GATE. Refusing here writes nothing at all — the server has already
      recorded the grant against its own watermark, so the next accrual returns
      the same truth and nothing is lost by waiting for an answer. */
@@ -4746,6 +4899,11 @@ export function applyEnvelope(G, res) {
      nothing calls the sheet on the load path any more. */
   const st = res.state || {};
   const written = applyEnvelopeState(G, res);
+  /* RAISE THE FLOOR, AND ONLY HERE — AFTER the write, never before. A throw
+     inside applyEnvelopeState must not leave the floor above a frame nothing
+     applied: the retry carrying that version would be dropped as a duplicate
+     and the grant stay invisible until the server's NEXT write. */
+  commitFrame(res.version);
 
   /* The receipt. Shaped to the SAME contract legacy.js's local summary uses, so
      every welcome-back renderer keeps working unchanged — and every field is a
@@ -6136,6 +6294,10 @@ if (typeof window !== 'undefined') {
     showReplacementSheet, hideReplacementSheet,
     configureAccrual, getAccrualConfig, accrueEndpoint,
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
+    /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1). */
+    isEnvelopeShapeComplete, classifyFrame, commitFrame, getAppliedFrame,
+    getFrameDrops, noteFrameDrop, clearFrameDrops,
+    resetFrameGate, FRAME_VERDICTS,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence

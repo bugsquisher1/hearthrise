@@ -321,6 +321,8 @@ declare
   v_v    bigint;
   v_g    bigint;
   v_txt  text;
+  v_env  jsonb;          -- e5: the projection the emitter would have sent
+  v_keys text[];         -- e5: the configured frame key set
 begin
   begin
     -- ── s1: THE SWITCH SHIPS OFF. The single most important property of
@@ -542,10 +544,161 @@ begin
       raise notice 's9 SKIPPED: realtime.messages absent in this database';
     end if;
 
+    -- ════════════════════════════════════════════════════════════════════
+    -- §4 OF THE SECURITY REVIEW (SEC_PUSH_CHANNEL_M5_2026-09-23.md) — the
+    -- conditions Security named before it will GO this migration. s1-s9 above
+    -- cover 1, 3, 4, 5(flag half) and 10; e1-e6 below cover the rest that can
+    -- be proved from inside this file. Condition 8 (the trigger's added
+    -- lock-hold, MEASURED) cannot be: it needs a live database under load and
+    -- it is named OPEN in docs/design/LIVE_COUNTERS_PUSH.md §3.6.
+    -- ════════════════════════════════════════════════════════════════════
+
+    -- ── e1 (condition 2): ★ THE POLICY BINDS IDENTITY, NOT SHAPE ★
+    --     The single highest-blast-radius property in this file: the payload is
+    --     the WHOLE hr_state_of projection, so a policy scoped by topic SHAPE
+    --     (`topic like 'hr:%'`) rather than by the subscriber's own uid would
+    --     let any authenticated player stream any other player's gold, bag, XP
+    --     and bank. It is a one-word difference in a `using` clause, and it is
+    --     read here off the INSTALLED catalog rather than off this file's own
+    --     source — what was applied is the only thing that matters.
+    if to_regclass('realtime.messages') is not null then
+      select pg_get_expr(polqual, polrelid) into v_txt
+        from pg_policy where polname = 'hr_frame_receive_own_topic';
+      if v_txt is null then
+        raise exception 'e1: the receive policy has no USING expression at all — a policy '
+                        'that restricts nothing is worse than none, because it reads as one';
+      end if;
+      if position('auth.uid()' in v_txt) = 0 then
+        raise exception 'e1b: the receive policy does not resolve the subscriber from the JWT '
+                        '(auth.uid() absent from: %). A predicate that does not name the '
+                        'subscriber cannot exclude anyone.', v_txt;
+      end if;
+      if v_txt ~* '~~|like|similar to' then
+        raise exception 'e1c: the receive policy pattern-matches the topic (%). `hr:<uid>:%%` '
+                        'also matches `hr:<uid>:0:anything`, and "anything" is attacker-chosen. '
+                        'The segments are compared exactly or not at all.', v_txt;
+      end if;
+    else
+      raise notice 'e1 SKIPPED: realtime.messages absent in this database';
+    end if;
+
+    -- ── e2 (condition 2, the executed half): ★ A CROSS-USER TOPIC JOIN SEES
+    --     NOTHING ★. "The owner can read" proves nothing; the property is that
+    --     a STRANGER cannot. Evaluated as the `authenticated` role, with the
+    --     JWT claiming one user and realtime.topic() naming ANOTHER user's
+    --     topic — which is exactly the request an attacker sends. Skipped, with
+    --     a notice, wherever the realtime schema or the role is absent (the
+    --     PGlite replay); it runs on the apply that counts.
+    if to_regclass('realtime.messages') is not null
+       and exists (select 1 from pg_roles where rolname = 'authenticated') then
+      begin
+        perform set_config('request.jwt.claims',
+          json_build_object('sub', v_u::text, 'role', 'authenticated')::text, true);
+        perform set_config('realtime.topic',
+          public.hr_frame_topic('00000000-0000-4000-8000-0000000051de'::uuid, 0), true);
+        set local role authenticated;
+        select count(*) into v_n from realtime.messages;
+        reset role;
+        if v_n <> 0 then
+          raise exception 'e2: a subscriber authenticated as one user read % row(s) on ANOTHER '
+                          'user''s topic. That is every column hr_state_of projects — gold, bag, '
+                          'XP, bank — crossing to a player who is not entitled to it.', v_n;
+        end if;
+      exception
+        when insufficient_privilege or undefined_function or undefined_table then
+          reset role;
+          raise notice 'e2 SKIPPED: cannot assume `authenticated` here (%)', sqlerrm;
+        when others then reset role; raise;
+      end;
+    else
+      raise notice 'e2 SKIPPED: realtime.messages or the authenticated role is absent';
+    end if;
+
+    -- ── e3 (condition 6): THE FRAME NUMBER IS NEVER SYNTHESISED. `frame` is
+    --     `new.version` read off the row hr_apply just wrote — not incremented,
+    --     not defaulted, not drawn from a sequence, not taken from a request.
+    --     A synthesised frame is a floor the client raises to a number the
+    --     database never stamped, after which the REAL frame at that version is
+    --     a duplicate and is never applied.
+    v_txt := pg_get_functiondef('public.hr_frame_emit()'::regprocedure);
+    if v_txt !~ '''frame''\s*,\s*new\.version' then
+      raise exception 'e3: hr_frame_emit no longer puts `new.version` in the frame field — a '
+                      'frame the database did not stamp does not exist';
+    end if;
+    if v_txt ~* 'nextval|new\.version\s*\+|version\s*\+\s*1' then
+      raise exception 'e3b: hr_frame_emit derives the frame number instead of reporting it: %',
+        substring(v_txt from 1 for 400);
+    end if;
+
+    -- ── e3c (condition 6, second half): A VERSION THAT GOES *DOWN* STILL
+    --     EMITS. `is distinct from`, not `>`. The client drops it as a reorder,
+    --     which is the fail-safe direction; a trigger that stayed silent would
+    --     leave the client with no frame at all and no way to know.
+    perform set_config('hr922.fires', '0', true);
+    update public.player_state set version = version - 1
+     where user_id = v_u and slot = 0;
+    if coalesce(current_setting('hr922.fires', true), '0')::int <> 1 then
+      raise exception 'e3c: a version that moved BACKWARDS emitted no frame. The WHEN clause '
+                      'must be `is distinct from`; the client is what decides to drop it.';
+    end if;
+
+    -- ── e4 (condition 7): A SHADOW SETTLE EMITS NOTHING — PINNED, NOT
+    --     INHERITED. True today by construction: hr_tick_settle's shadow branch
+    --     writes hr_tick_shadow and hr_tick_ownership and RETURNS BEFORE
+    --     hr_apply, so no player_state row is written and an AFTER UPDATE
+    --     trigger cannot fire. That is an argument about another file, and an
+    --     argument is not a guard — so it is asserted here, from that
+    --     function's own installed source.
+    if to_regprocedure('public.hr_tick_settle(int)') is not null then
+      v_txt := pg_get_functiondef('public.hr_tick_settle(int)'::regprocedure);
+      if position('hr_tick_shadow' in v_txt) = 0 then
+        raise exception 'e4: hr_tick_settle no longer names hr_tick_shadow — the shadow branch '
+                        'this check is about has moved, and the claim is unverified';
+      end if;
+      if position('hr_apply' in v_txt) > 0
+         and position('hr_tick_shadow' in v_txt) > position('hr_apply' in v_txt) then
+        raise exception 'e4b: hr_tick_settle reaches hr_apply BEFORE its shadow branch, so a '
+                        'SHADOW settle now writes player_state and emits a frame. A shadow '
+                        'settle is a dry run; a client must never be told it happened.';
+      end if;
+    else
+      raise notice 'e4 SKIPPED: hr_tick_settle is not installed in this database';
+    end if;
+
+    -- ── e5 (condition 9): THE DELTA STATES WHOLE TOP-LEVEL KEYS OF THE SAME
+    --     PROJECTION. §7.2 forbids path patches, and combined with the frame
+    --     rule a PARTIAL delta would leave the client holding a state assembled
+    --     from two frames that the server never held — the exact failure the
+    --     gate exists to forbid, arriving through the emitter instead of the
+    --     applier. Every configured key must be a top-level key of hr_state_of.
+    v_env := public.hr_state_of(v_u, 0);
+    if coalesce(v_env->>'ok', 'false') <> 'true' then
+      raise exception 'e5: hr_state_of did not project the probe character, so the key set '
+                      'below would be measured against nothing';
+    end if;
+    select frame_keys into v_keys from public.hr_tick_config where id limit 1;
+    foreach v_txt in array coalesce(v_keys, array[]::text[]) loop
+      if not (v_env ? v_txt) then
+        raise exception 'e5b: frame key `%` is not a top-level key of hr_state_of. The emitter '
+                        'would silently send a delta missing it, and the client would hold a '
+                        'state assembled from two frames.', v_txt;
+      end if;
+    end loop;
+
+    -- ── e6 (condition 5, the second half): A MISSING CONFIG ROW EMITS NOTHING.
+    --     The flag half is s1; this is the row half. Read from the emitter's
+    --     own source rather than by deleting the singleton, which would be
+    --     global DML on a table every character's tick reads.
+    v_txt := pg_get_functiondef('public.hr_frame_emit()'::regprocedure);
+    if v_txt !~* 'if\s+not\s+found\s+or\s+not\s+coalesce' then
+      raise exception 'e6: hr_frame_emit no longer fails closed on a missing or NULL config row. '
+                      'A gate that treats "no answer" as "on" is the wrong direction (§6).';
+    end if;
+
     raise exception 'HR922_ROLLBACK_OK';
   exception
     when others then
       if sqlerrm <> 'HR922_ROLLBACK_OK' then raise; end if;
   end;
-  raise notice 'frame-push-channel self-check PASSED (s1-s9); probe rows rolled back';
+  raise notice 'frame-push-channel self-check PASSED (s1-s9, e1-e6 = SEC §4 conditions 1-7, 9, 10; condition 8 is a live measurement and is OPEN); probe rows rolled back';
 end $$;

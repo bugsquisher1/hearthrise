@@ -52,6 +52,11 @@
        the ESM half this is null and every charm affordance is simply absent —
        the modal renders exactly as it did before. Fail-safe, never a gate. */
     var C = window.HearthriseCharms || null;
+    /* BESTIARY TROPHIES (docs/design/BESTIARY_LADDER.md) — the LONG ladder,
+       resolved at CALL TIME and unwired-safe exactly like the charms above:
+       without the ESM half this is null and every trophy affordance is simply
+       absent. Fail-safe, never a gate. */
+    var T = window.HearthriseTrophies || null;
     paintCharmStrip(C);
     list.innerHTML = Object.entries(MONSTERS).map(function (kv) {
       var id = kv[0], m = kv[1];
@@ -64,10 +69,30 @@
          — that is the charm's whole reward, and for Extra Dimensional
          (`hiddenElement`) it is the only door. '' below rank 1. */
       var el = (disc && C) ? C.elementLineHtml(id) : '';
-      return '<div class="bestiary-row ' + (disc ? 'discovered' : 'undiscovered') + '">' +
+      /* ⚠ THE TROPHY LINE READS THE *SERVER'S* COUNT, NOT `entry.kills`.
+         `entry` is G.bestiary — the locally-written residue map the row's `×`
+         figure has always come from — and gating a claim on it would put a live
+         Claim button on a trophy the server answers `not_yet` to. That is the
+         residue-ahead class CLAUDE.md §6 names, and it is the one thing this
+         surface must not do. So every trophy affordance below goes through
+         window.HearthriseTrophies, which reads only the mirrored server block
+         and fails safe to "no stage, not claimed, not claimable".
+         The badge/next/claim trio is rendered for an UNDISCOVERED row too when
+         the server has counted kills for it: `disc` is a residue fact, and
+         hiding a trophy the server holds behind a local flag is the same bug
+         pointed the other way. */
+      var tKills = T ? T.killsOfMonster(id) : 0;
+      var trophy = (T && tKills > 0)
+        ? ('<div class="br-trophy">' + T.badgeHtml(id) + T.nextThresholdHtml(id)
+           + T.claimButtonHtml(id) + '</div>')
+        : '';
+      /* The server's count wins the `×` too when it has one: two numbers for
+         one fact on one row is how a player learns not to trust either. */
+      var shown = tKills > 0 ? tKills : entry.kills;
+      return '<div class="bestiary-row ' + (disc || tKills > 0 ? 'discovered' : 'undiscovered') + '">' +
         '<div class="br-icon">' + img + '</div>' +
-        '<div class="br-info"><b>' + (disc ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + el + '</div>' +
-        '<div class="br-kills">' + (disc ? entry.kills + '×' : '—') + '</div>' +
+        '<div class="br-info"><b>' + (disc || tKills > 0 ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + el + trophy + '</div>' +
+        '<div class="br-kills">' + (shown > 0 ? shown.toLocaleString() + '×' : '—') + '</div>' +
       '</div>';
     }).join('');
     ov.classList.add('show');

@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-09-21",
- "digest": "d38cdb9c7ce834b33db24f77d77b9d174539b554112ac405e56587fbe3cb83f9",
+ "generated": "2026-09-23",
+ "digest": "8a0ec72d37c89a73952caa4d1d2e458f82151120c968d96011b284a6d9d97caa",
  "counts": {
   "relations": 127,
-  "functions": 303,
+  "functions": 305,
   "policies": 90,
   "indexes": 178,
   "triggers": 20,
@@ -420,6 +420,8 @@
    "hr_trait_buy(p_trait_id text, p_slot integer, p_idem uuid)",
    "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",
    "hr_trim_game_events(p_days integer, p_batch integer)",
+   "hr_trophy_claim(p_user uuid, p_slot integer, p_monster text, p_stage integer, p_idem text)",
+   "hr_trophy_of(p_user uuid, p_slot integer)",
    "hr_unlock_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_offer_id text)",
    "hr_unlock_guard()",
    "hr_unlock_levels(p_user uuid, p_slot integer)",

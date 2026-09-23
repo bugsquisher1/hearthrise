@@ -59,6 +59,7 @@ import { ITEMS } from '../../../src/data/items.js';
 import { GATHER_NODES } from './catalogue.js';
 import { PAYABLE_KINDS } from './accrual.js';
 import { shadowTick, advance, hydrate } from './tick-shadow.js';
+import { engineInputsFromEnvelope } from './envelope.js';
 import { foldDeltas } from './tick-contract.js';
 
 
@@ -94,40 +95,50 @@ export const DEFAULT_FLUSH_MS = 90000;
 
 /* THE PRODUCTION SHAPE. One roster row (`hr_tick_roster`, the one new RPC) plus
    its `hr_state_of` envelope becomes the in-memory session the loop carries.
-   Every field is named here so a reviewer can answer "what can the client
-   influence?" from one function — the same discipline `computeAccrual`'s input
-   object enforces. NOTHING here is read from a request body: the roster is
-   server rows and the clock is `now()`.
+   NOTHING here is read from a request body: the roster is server rows and the
+   clock is `now()`.
+
+   ⚠ THE ARGUMENT IS THE WHOLE ENVELOPE, NOT `env.state` (2026-09-22). This
+     function used to carry its OWN field list and read `skills`, `inventory`,
+     `equipment`, `perks`, `buffs` and `goals` off `env.state` — where none of
+     them live. Measured on production 22:37–22:42 UTC: a character at Mining
+     61–64 on `mithril_rock`, whose ACCRUE path paid +3,375 items for a 12 h
+     absence, produced shadow rows of `would_ticks: 0, would_qty: 0` carrying
+     `activity: {kind:'idle', id:null}` — the engine hit the gather LEVEL gate
+     on `skills {}` and the tick would have ENDED the activity, every window.
+     The list is now `engineInputsFromEnvelope` in ./envelope.js, which the
+     accrue path in index.ts calls with the same bytes; there is no second list
+     to keep in step. (`goals` and `perks` were never inputs the ENVELOPE
+     carries: computeAccrual builds its own goal counter, and perks come from
+     `hr_perks_of` — the tick does not read that channel yet, so a tick window
+     prices without perk bonuses, which is the under-paying direction. Named in
+     the report to Security rather than silently fixed here.)
 
    `version` is load-bearing and is NOT a game value: it is
    `player_state.version`, the number `hr_apply` refuses a stale copy of and the
    number §7.1 makes the push frame. The tick never invents one. */
 export function sessionFromRoster(row, envelope) {
-  const st = envelope || {};
   if (row.active_kind !== CHANNEL) {
     throw new Error(`sessionFromRoster: kind "${row.active_kind}" is not ${CHANNEL}`);
   }
   return {
+    ...engineInputsFromEnvelope(envelope, Date.parse(row.accrued_to)),
     userId: row.user_id,
     slot: row.slot,
     shard: Number(row.shard || 0),
+    /* THE ROSTER ROW WINS ON THE POINTER AND THE WATERMARK, and that is the
+       whole reason the pointer keys are named apart from the state in
+       ./envelope.js. `accruedToMs` here is the FENCE's mark, not
+       `state.accrued_to`: in shadow the two differ, and chaining on
+       `accrued_to` is the overlapping-window bug §15c's shadow mark exists to
+       prevent. `version` and `cap_ms` are the caller's for the same reason —
+       `hr_offline_cap_ms` is read in tick.js's own transaction. */
     version: Number(row.version),
     activeKind: CHANNEL,
     activeId: row.active_id,
     activeSinceMs: Date.parse(row.active_since),
     accruedToMs: Date.parse(row.accrued_to),
     capMs: row.cap_ms == null ? undefined : Number(row.cap_ms),
-    hp: st.hp, maxHp: st.max_hp, gold: st.gold,
-    skills: st.skills || {},
-    inventory: st.inventory || {},
-    equipment: st.equipment || {},
-    perks: st.perks,
-    buffs: st.buffs,
-    goals: st.goals,
-    /* null means "the column does not exist for this character" and MUST stay
-       null — emitting `tool_carry` against an hr_apply that does not implement
-       it is `unknown_delta_key`, a 409 that costs the window (accrual.js). */
-    toolCarry: st.tool_carry == null ? null : st.tool_carry,
   };
 }
 

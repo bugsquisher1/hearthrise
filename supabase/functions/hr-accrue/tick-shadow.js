@@ -18,6 +18,7 @@
 import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
 import { planWindows } from './tick-contract.js';
+import { engineStateOf } from './envelope.js';
 
 /* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
    Production does NOT hand the engine a constant. `hr-accrue/index.ts` (~L641)
@@ -119,15 +120,17 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
     seed: (o.fixedSeed && char.seed) ? char.seed
       : (typeof o.seedOf === 'function' ? o.seedOf(fromMs)
                                         : seedFor(char.userId, char.slot, fromMs)),
-    hp: char.hp,
-    maxHp: char.maxHp,
-    gold: char.gold,
-    skills: char.skills,
-    inventory: char.inventory,
-    equipment: char.equipment,
-    fight: char.fight,
-    consecFalls: char.consecFalls,
-    recoveringUntilMs: char.recoveringUntilMs,
+    /* ── THE CHARACTER'S STATE, AS ONE LIST (2026-09-22) ──────────────────
+       `engineStateOf` forwards exactly `ENGINE_STATE_KEYS` from ./envelope.js —
+       the SAME list `engineInputsFromEnvelope` fills from `hr_state_of`, so a
+       field that reaches the accrue path reaches a tick window too. It used to
+       be thirteen names written out here, and the four that were missing
+       (`enchant`, `combatStyle`, the auto-eat trio, `hearthfindReady`) were
+       inputs the engine reads and a tick silently priced without. Only keys the
+       character actually HOLDS are forwarded: several of these are
+       presence-of-key switches, so an offline fixture that never had the column
+       must keep reading as "no column". */
+    ...engineStateOf(char),
     bestiaryKills: char.bestiaryKills,
     items: catalogues.items,
     monsters: catalogues.monsters,
@@ -141,10 +144,10 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        "the column does not exist for this character", and emitting the key
        against an hr_apply that does not implement it is a 409. */
     nodes: catalogues.nodes,
-    toolCarry: char.toolCarry,
+    /* NOT from the envelope: `hr_perks_of` is its own read and the tick does
+       not make it yet, so this is undefined in production and a fixture's
+       pinned value offline. Under-paying, and named in the lane report. */
     perks: char.perks,
-    buffs: char.buffs,
-    goals: char.goals,
     /* THE CALLER. 'tick', not the borrowed 'collect' (`finalWindow` before
        2026-09-18). A tick window is exempt from ACCRUE_MIN_MS like a collect —
        10 s is below the floor and there is no later call that would see a

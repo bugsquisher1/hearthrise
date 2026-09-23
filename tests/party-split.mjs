@@ -96,6 +96,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { bootReplay, ROOT } from './schema-replay.mjs';
+/* Imported HERE, from hunt.js, so `dryMultBp()` is checked against the SOURCE
+   §18.1 names ("derived and not retyped … Tyler may set it to 0.00 in one
+   edit") and not against itself. A constant a guard reads out of the module it
+   is grading is a constant nothing is guarding. */
+import { VIGOUR_DRY_MULT as HUNT_VIGOUR_DRY_MULT } from '../src/core/hunt.js?v=552';
 
 const MUTATE = process.argv.slice(2).includes('--mutate');
 const SRC = join(ROOT, 'src', 'core', 'party-split.js');
@@ -112,9 +117,19 @@ const HUNT_URL = `${pathToFileURL(join(ROOT, 'src', 'core', 'hunt.js')).href}?v=
 
 let TMP = null;
 let planted = 0;
+/* The TEXT of the module the battery is currently grading — the real file on
+   the clean arm, the mutated copy on a mutant. §18.1's "derived and not
+   retyped" is a claim about the source, not about the value: `return 2500` and
+   `Math.round(VIGOUR_DRY_MULT * BP)` are the same NUMBER today, and the whole
+   point of the derivation is the day they stop being. A value check cannot see
+   that; this is why the source is carried. */
+let SRC_TEXT = null;
 
 async function loadSplit(patch) {
-  if (!patch) return import(`${pathToFileURL(SRC).href}?v=552`);
+  if (!patch) {
+    SRC_TEXT = await readFile(SRC, 'utf8');
+    return import(`${pathToFileURL(SRC).href}?v=552`);
+  }
   const raw = await readFile(SRC, 'utf8');
   const hits = raw.split(patch.from).length - 1;
   if (hits !== 1) {
@@ -123,6 +138,7 @@ async function loadSplit(patch) {
   const body = raw
     .replace(patch.from, patch.to)
     .replace("'./hunt.js?v=552'", JSON.stringify(HUNT_URL));
+  SRC_TEXT = body;
   const file = join(TMP, `party-split.${patch.id}.${++planted}.mjs`);
   await writeFile(file, body, 'utf8');
   return import(pathToFileURL(file).href);
@@ -154,7 +170,7 @@ function corpus() {
     huntId: 'bbbbbbbb-0000-4000-8000-00000000f002',
     roll: opts.roll ?? 4242,
     members: dmgs.map((d, i) => ({
-      user: U(i + 1), slot: opts.slots?.[i] ?? 0, damage: d,
+      user: opts.users?.[i] ?? U(i + 1), slot: opts.slots?.[i] ?? 0, damage: d,
       knockedOut: opts.ko?.[i] === true, vigourDry: opts.dry?.[i] === true,
     })),
   });
@@ -174,7 +190,27 @@ function corpus() {
   out.push(mk([1250, 1250, 6875, 625]));     // a member exactly ON the threshold
   out.push(mk([2500, 2500, 2500, 2500]));
   out.push(mk([9999, 1]));                   // one member carries the window
-  out.push(mk([1, 1], { slots: [1, 0] }));   // the tie-break is (user, SLOT) too
+  out.push(mk([1, 1], { slots: [1, 0] }));   // distinct users — the USER half only
+  /* THE SLOT HALF OF THE TIE-BREAK, WHICH NEEDS ONE PLAYER ON TWO SLOTS. Two
+     characters of the same account in one party is not a hypothetical: it is
+     exactly the boxed-alt party §18.4 T-8 prices, so `(user_id, slot)` is a
+     two-key ordering in ordinary play and the slot half must be exercised. */
+  out.push(mk([600, 400], { users: [U(9), U(9)], slots: [1, 0] }));
+  out.push(mk([4000, 3000, 2000, 1000], { users: [U(9), U(9), U(2), U(3)], slots: [3, 1, 0, 0] }));
+  out.push(mk([300, 300, 300], { dry: [true, true, true] }));   // EVERY member dry
+  out.push(mk([5200, 3860, 900, 40], { dry: [true, true, true, true] }));
+  out.push(mk([0], { dry: [true] }));
+  /* HOSTILE / GARBAGE DAMAGE. §18.4 T-5 has the settle read damage from the
+     simulation and never from a client, so this is depth and not the fence —
+     but a sign error upstream must not be able to mint a 200% share, and a
+     non-finite must not be able to ABORT the settle (BigInt(Infinity) raises).
+     Every one of these floors to 0 and the vectors stay inside [0, 10000]. */
+  out.push(mk([-5000, 10000]));
+  out.push(mk([Infinity, 100]));
+  out.push(mk([-Infinity, 100, 100]));
+  out.push(mk([NaN, 100]));
+  out.push(mk(['5000', 100]));
+  out.push(mk([undefined, 100, null, 7]));
   out.push(mk([7, 5, 3, 1], { dry: [true, false, false, false] }));
   out.push(mk([100, 100, 100], { dry: [false, true, true] }));
 
@@ -186,7 +222,17 @@ function corpus() {
       const r = rnd();
       dmgs.push(r < 0.12 ? 0 : Math.floor(r * (r < 0.5 ? 200 : 40000)));
     }
+    /* THE USER IDS ARE PERMUTED, and that is load-bearing. With members always
+       U(1)…U(n) ascending the lowest (user_id, slot) is index 0 in every single
+       window, so every assertion about WHERE the remainder lands is vacuously
+       true — `apportion(…, 0)` and `apportion(…, lowest)` are the same call. */
+    const ids = [1, 2, 3, 4].slice(0, n);
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+    }
     out.push(mk(dmgs, {
+      users: ids.map((x) => U(x)),
       dry: dmgs.map(() => rnd() < 0.25),
       ko: dmgs.map(() => rnd() < 0.2),
       slots: dmgs.map(() => (rnd() < 0.3 ? 1 : 0)),
@@ -246,6 +292,15 @@ function battery(api) {
     for (const k of ['thresholdBp', 'floorBp', 'fellowBp', 'eligibleCount', 'totalDamage', 'roll', 'n']) {
       if (!isInt(s[k])) note('S-INT', `split.${k} is ${JSON.stringify(s[k])}, not an integer (${tag})`);
     }
+    /* S-INT SHORT-CIRCUITS, and that is the point. `partyPayout` does
+       `BigInt(m.dmg_bp)`, which RAISES on a float — and the driver refuses to
+       score a throw as a named property ("red, but not by a named property").
+       Without this `continue` a float leaking into the VECTORS is red on
+       `<threw>` instead of on S-INT, so the one mutant S-INT exists to catch
+       would be recorded as a failure of the mutation proof. Stop at the
+       property that owns the finding; nothing downstream of a non-integer bp
+       is meaningful anyway. */
+    if (fail.some((f) => f.id === 'S-INT' && f.msg.endsWith(`(${tag})`))) continue;
 
     // ── S-RAW — the damage vector carries no floor and no threshold ───────
     const total = ms.reduce((a, m) => a + m.damage, 0);
@@ -258,6 +313,23 @@ function battery(api) {
       }
       if (ms[i].lottery_bp !== ms[i].dmg_bp) {
         note('S-LOTTO', `lottery_bp[${i}] = ${ms[i].lottery_bp} but dmg_bp[${i}] = ${ms[i].dmg_bp} — the lottery must follow damage EXACTLY (${tag})`);
+      }
+    }
+
+    /* NO SHARE OUTSIDE [0, 10,000] — the bound a NEGATIVE damage breaks. A
+       forged or sign-flipped -5,000 against a +10,000 apportions to
+       [-10,000, +20,000]: one member paid 200% of the window's gold and one
+       paid a debt, with both vectors still summing to 10,000, so (P-b) alone
+       does NOT see it. The clamp in splitParty is what holds this, and this is
+       the assertion that the clamp is load-bearing (§18.4 T-5, depth). */
+    for (let i = 0; i < n; i++) {
+      for (const k of ['dmg_bp', 'xp_bp', 'lottery_bp']) {
+        if (ms[i][k] < 0 || ms[i][k] > BP) {
+          note('S-RAW', `member ${i}'s ${k} is ${ms[i][k]}, outside [0, ${BP}] — a share was minted or a debt was dealt (${tag})`);
+        }
+      }
+      if (ms[i].damage < 0 || !Number.isFinite(ms[i].damage)) {
+        note('S-RAW', `member ${i}'s damage read back as ${ms[i].damage} — garbage must floor to 0, never propagate (${tag})`);
       }
     }
 
@@ -296,8 +368,25 @@ function battery(api) {
         note('S-PARK', `eligible member ${i} carries ${ms[i].fellow_bp} bp of fellowship, the party line is ${s.fellowBp} (${tag})`);
       }
     }
-    const expectFellow = fellowshipBp(eligibleExpected.filter(Boolean).length);
-    if (s.fellowBp !== expectFellow) note('S-PARK', `fellowship is ${s.fellowBp} bp, +5% per member beyond the first capped at +15% over ${eligibleExpected.filter(Boolean).length} eligible says ${expectFellow} (${tag})`);
+    /* §18.1's LITERALS, written here and not read out of the module: "+5% per
+       member beyond the first, maximum +15% at four". `expectFellow` used to be
+       `fellowshipBp(eligible)` — the module's own function on both sides of the
+       equals sign, which is green for ANY value of FELLOWSHIP_MAX_BP. The cap is
+       what makes §18.4 T-8 true ("four boxed alts … strictly worse than four solo
+       hunts"), so it is pinned to 1500 by this table and by nothing else. */
+    const FELLOW_18_1 = [0, 0, 500, 1000, 1500];
+    const eligibleN = eligibleExpected.filter(Boolean).length;
+    const expectFellow = FELLOW_18_1[eligibleN];
+    if (s.fellowBp !== expectFellow) note('S-PARK', `fellowship is ${s.fellowBp} bp over ${eligibleN} eligible; §18.1's +5% per member beyond the first, capped at +15%, says ${expectFellow} (${tag})`);
+    if (fellowshipBp(eligibleN) !== expectFellow) note('S-PARK', `fellowshipBp(${eligibleN}) = ${fellowshipBp(eligibleN)}, §18.1 says ${expectFellow} (${tag})`);
+    /* AND THE CEILING WHERE IT ACTUALLY BINDS. At four members the cap is not
+       binding — three steps of 500 IS 1500 — so `FELLOWSHIP_MAX_BP` can be set
+       to any number above 1500 and every in-range assertion stays green. The
+       ceiling is therefore asserted ABOVE the roster cap, which is the only
+       place the constant does any work and the only place a raised cap shows. */
+    for (const k of [4, 5, 9]) {
+      if (fellowshipBp(k) !== 1500) note('S-PARK', `fellowshipBp(${k}) = ${fellowshipBp(k)} — §18.1 caps the fellowship bonus at +15% (1500 bp), and the ceiling must hold above the roster cap too`);
+    }
 
     // ── S-DRY and (P-c) ──────────────────────────────────────────────────
     const produced = { gold: 240000 + total, xp: 730000 + total * 3 };
@@ -308,6 +397,18 @@ function battery(api) {
     if (pay.paid.xp > produced.xp + pay.fellowship.xp) note('S-DRY', `paid ${pay.paid.xp} xp against ${produced.xp} + ${pay.fellowship.xp} fellowship (${tag})`);
     if (pay.paid.gold !== produced.gold - pay.dryLost.gold) note('S-DRY', `gold: paid ${pay.paid.gold} ≠ produced ${produced.gold} − dry ${pay.dryLost.gold}; the deficit must be exactly the declared reduction (${tag})`);
     if (pay.paid.xp !== produced.xp + pay.fellowship.xp - pay.dryLost.xp) note('S-DRY', `xp: paid ${pay.paid.xp} ≠ produced ${produced.xp} + fellowship ${pay.fellowship.xp} − dry ${pay.dryLost.xp} (${tag})`);
+    /* DERIVED, NOT RETYPED (§18.1, and the module header's own claim). Checked
+       against `VIGOUR_DRY_MULT` imported straight from hunt.js, so a literal
+       2500 written here — which every other assertion in this file would accept,
+       because they all read the number back out of the module — is red. This is
+       the line that keeps "Tyler may set it to 0.00 in one edit" true. */
+    if (dryMultBp() !== Math.round(HUNT_VIGOUR_DRY_MULT * BP)) {
+      note('S-DRY', `dryMultBp() = ${dryMultBp()}, hunt.js's VIGOUR_DRY_MULT derives ${Math.round(HUNT_VIGOUR_DRY_MULT * BP)} — the multiplier was retyped instead of derived`);
+    }
+    if (!/import\s*\{[^}]*\bVIGOUR_DRY_MULT\b[^}]*\}\s*from\s*'\.\/hunt\.js\?v=\d+'/.test(SRC_TEXT || '')
+      || !/function dryMultBp\(\)\s*\{[^}]*\bVIGOUR_DRY_MULT\b/.test(SRC_TEXT || '')) {
+      note('S-DRY', 'dryMultBp() does not derive its value from the VIGOUR_DRY_MULT it imports from hunt.js — §18.1: derived and not retyped, "precisely so dry means a quarter is learned once and true twice"');
+    }
     const anyDry = ms.some((m) => m.vigourDry);
     /* Only a dry member who actually HELD a share can have one reduced: a dry
        member at zero damage is paid zero either way, and demanding a withholding
@@ -319,6 +420,24 @@ function battery(api) {
     if (!anyDry && (pay.dryLost.gold !== 0 || pay.dryLost.xp !== 0)) {
       note('S-DRY', `no member was dry and ${pay.dryLost.gold} gold / ${pay.dryLost.xp} xp was withheld (${tag})`);
     }
+    /* THE REMAINDER RULE ON THE PAYOUT VECTORS, WHICH IS WHERE THE MONEY IS.
+       S-REM below pins `split.lowest`; it does not pin where partyPayout sends
+       its own two remainders, and `apportion(gold, …, 0)` conserves perfectly
+       while handing every window's spare gold and xp to whoever happens to sit
+       at index 0. Every member but `lowest` must hold EXACTLY their floored
+       share, and `lowest` must hold the whole shortfall — which is structurally
+       < n units, and that bound is the entire size of the S-6 lever. */
+    for (const [label, vec, tot, bpk] of [['gold', pay.members.map((m) => m.preGold), produced.gold, 'dmg_bp'],
+      ['xp', pay.members.map((m) => m.preXp), produced.xp, 'xp_bp']]) {
+      const exact = ms.map((m) => Math.floor((tot * m[bpk]) / BP));
+      const rem = tot - exact.reduce((a, b) => a + b, 0);
+      for (let i = 0; i < n; i++) {
+        const want = exact[i] + (i === s.lowest ? rem : 0);
+        if (vec[i] !== want) note('S-REM', `pre-multiplier ${label}[${i}] = ${vec[i]}, the ${bpk} apportionment with the remainder on the lowest (user_id, slot) says ${want} (${tag})`);
+      }
+      if (rem < 0 || rem >= n) note('S-REM', `the ${label} remainder is ${rem}, which is not in [0, ${n}) — the shortfall must be smaller than the party (${tag})`);
+    }
+
     /* The reduction lands on the DRY MEMBER and on nobody else: a non-dry
        member's payout must be identical with and without a dry co-member. */
     if (anyDry) {
@@ -345,6 +464,15 @@ function battery(api) {
         || j.fellow_bp !== ms[i].fellow_bp || j.roll !== s.roll) {
         note('S-JOURNAL', `journal.meta.party for member ${i} does not carry the member's own numbers (${tag})`);
       }
+    }
+
+    /* THE SEED SEAM (§18.4 T-1, "the whole distribution is replayable"). The
+       roll is an INPUT, and the number the ledger carries must be the number the
+       caller handed in — otherwise the window replays to a different bag than
+       the one it paid. S-JOURNAL checks the journal against `split.roll`; both
+       are the module's, so only this line pins either to the caller. */
+    if (s.roll !== Math.floor(Number(input.roll) || 0)) {
+      note('S-DET', `the split carries roll ${s.roll}, the caller passed ${input.roll} — the seed seam belongs to the caller (${tag})`);
     }
 
     // ── S-REM — the remainder goes to the LOWEST (user_id, slot) ─────────
@@ -396,6 +524,27 @@ function battery(api) {
     if (metaProblems(meta).length !== 0) note('S-JOURNAL', `the twelve-key meta with party on it was refused: ${metaProblems(meta).join('; ')}`);
     if (metaProblems({ ...meta, kill_log: [1, 2, 3] }).length === 0) note('S-JOURNAL', 'a THIRTEENTH top-level meta key was accepted — B-A5');
     if (Object.isFrozen(PARTY_JOURNAL_KEYS) !== true) note('S-JOURNAL', 'PARTY_JOURNAL_KEYS is not frozen — the nested set must be an equality, not a suggestion');
+  }
+
+  // ── S-SUM — the roster range the split will price at all ───────────────
+  {
+    /* §18.1 caps a party at FOUR and the module throws outside 1..4. Membership
+       is S1's CHECK and this function cannot police a roster it never sees —
+       but what it IS handed, it must refuse rather than silently price, because
+       a five-member split conserves perfectly (apportion is structural) and so
+       nothing downstream would ever notice. ONE is accepted, deliberately:
+       §18.2.6 (P-a) and §18.5's S5 pre-arm bar both require a real one-member
+       party. */
+    const call = (k) => splitParty({ partyId: 'p', huntId: 'h', roll: 1,
+      members: Array.from({ length: k }, (_, i) => ({ user: U(i + 1), slot: 0, damage: 100 })) });
+    for (const k of [0, 5, 8]) {
+      let threw = null;
+      try { call(k); } catch (e) { threw = e; }
+      if (!(threw instanceof RangeError)) note('S-SUM', `a ${k}-member roster was priced instead of refused (got ${threw ? threw.constructor.name : 'a split'}) — §18.1 caps the party at ${4}`);
+    }
+    for (const k of [1, 2, 3, 4]) {
+      try { call(k); } catch (e) { note('S-SUM', `a ${k}-member roster was refused: ${e.message}`); }
+    }
   }
 
   // ── S-DET — determinism, and the both-path rule (§4) ───────────────────
@@ -453,6 +602,12 @@ function battery(api) {
         note('S-SUM', `§18.1's worked example: ${k} is ${JSON.stringify(got[k])}, the design prints ${JSON.stringify(want[k])}`);
       }
     }
+    /* S-INT owns a non-integer vector, and everything downstream of one RAISES
+       (`partyPayout` does `BigInt(m.dmg_bp)`). The per-input loop short-circuits
+       on S-INT; this block is outside it, so it stops here too — otherwise a
+       float leaking into the vectors is scored `<threw>` rather than red on the
+       property that found it, and the driver rightly refuses to count a throw. */
+    if (fail.some((f) => f.id === 'S-INT')) return fail;
     const pay = partyPayout({ split: s, produced: { gold: 2280, xp: 6443 } });
     const goldWant = [1186, 880, 205, 9];
     if (JSON.stringify(pay.members.map((m) => m.gold)) !== JSON.stringify(goldWant)) {
@@ -607,6 +762,54 @@ const MUTANTS = [
     what: 'the lottery weight line detached from the damage vector (loot rolled per member, not per kill) — §18.5 S3',
     from: '  const sum = weights.reduce((a, b) => a + b, 0);',
     to: '  const sum = Math.max(...weights);',
+  },
+  {
+    id: 'M11', catches: 'S-PARK',
+    what: 'the +15% fellowship CAP removed — §18.1\'s ceiling and §18.4 T-8 with it',
+    from: 'export const FELLOWSHIP_MAX_BP = 1500;',
+    to: 'export const FELLOWSHIP_MAX_BP = 150000;',
+  },
+  {
+    id: 'M12', catches: 'S-DRY',
+    what: 'VIGOUR_DRY_MULT retyped as a literal instead of derived from hunt.js — §18.1',
+    from: '  return Math.round(VIGOUR_DRY_MULT * BP);',
+    to: '  return 2500;',
+  },
+  {
+    id: 'M13', catches: 'S-REM',
+    what: 'the PAYOUT vectors send gold and xp remainders to index 0, not to the lowest (user_id, slot) — S-6 where the money is',
+    from: '  const lowest = split.lowest;',
+    to: '  const lowest = 0;',
+  },
+  {
+    id: 'M14', catches: 'S-REM',
+    what: 'the SLOT half of the (user_id, slot) tie-break reversed — one player on two slots',
+    from: '    if (au < bu || (au === bu && Number(a.slot) < Number(b.slot))) best = i;',
+    to: '    if (au < bu || (au === bu && Number(a.slot) > Number(b.slot))) best = i;',
+  },
+  {
+    id: 'M15', catches: 'S-RAW',
+    what: 'the damage clamp removed — a forged negative damage mints a 200% share while both vectors still sum to 10,000',
+    from: '    return BigInt(Number.isFinite(d) && d > 0 ? d : 0);',
+    to: '    return BigInt(Number.isFinite(d) ? d : 0);',
+  },
+  {
+    id: 'M16', catches: 'S-INT',
+    what: 'float leakage into the bp VECTORS themselves, not just the reported line',
+    from: '  return out.map((x) => Number(x));',
+    to: '  return out.map((x) => Number(x) + 0.25);',
+  },
+  {
+    id: 'M17', catches: 'S-DET',
+    what: 'the lottery roll re-derived inside the split instead of carried from the caller — §18.4 T-1 replayability',
+    from: '    roll: Math.floor(Number(o?.roll) || 0),',
+    to: '    roll: (Math.floor(Number(o?.roll) || 0) ^ 1),',
+  },
+  {
+    id: 'M18', catches: 'S-SUM',
+    what: 'the 1..4 roster range check removed — a five-member party splits and conserves',
+    from: '  if (n < 1 || n > PARTY_MAX) {',
+    to: '  if (n < 1 || n > PARTY_MAX + 4) {',
   },
 ];
 

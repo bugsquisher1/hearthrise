@@ -2752,6 +2752,18 @@ Lowest-`(user_id, slot)` is equally deterministic, equally replayable, and
 nobody can position themselves to collect it. Nothing is minted and nothing is
 lost either way.
 
+> **S-6 rev.2 (Security, 2026-09-23, `SEC_PARTIES_M8_2026-09-23.md` §"S3 — the
+> split"): the "among the tied-largest shares" filter is STRUCK.** Read
+> literally it is self-defeating — with one unique largest share, which is the
+> ordinary case, it hands the remainder back to the biggest hitter, who is the
+> same member choosing the settle boundaries, i.e. the rule S-6 replaced. The
+> operative clause is *"nobody can position themselves to collect it"*, and the
+> **unconditional lowest `(user_id, slot)`** is the only reading under which it
+> is true, because a member chooses their damage and cannot choose their user id
+> or their slot. `src/core/party-split.js` implements the unconditional form and
+> is correct; the remainder is bounded at strictly less than n units per
+> apportionment and `tests/party-split.mjs` asserts that bound.
+
 Item drops roll **once per kill, never once per member**, and each roll is
 assigned to one member by a lottery weighted with the **damage** vector and
 seeded from the window seed — so expected item value tracks damage dealt and a
@@ -3966,6 +3978,10 @@ member, who is the one choosing the boundaries.
 - **The remainder goes to the LOWEST `(user_id, slot)`** among the tied-largest
   shares, not to the largest share. Nobody can position themselves to collect
   it, and it stays deterministic and replayable.
+  **rev.2 (2026-09-23):** the "among the tied-largest shares" clause is struck —
+  it restores the very lever this bullet closes. The rule is the unconditional
+  lowest `(user_id, slot)`. See §18.1's note and `SEC_PARTIES_M8_2026-09-23.md`
+  §"S3 — the split".
 
 #### S-7 — `party_member`'s SELECT policy recurses, and the panel's read surface is undesigned **[P1 — BLOCKS S1]**
 

@@ -511,3 +511,154 @@ Applied from `set/b551` @ 853a3f52 (Security's landed changes merged first), one
 | 8 frozen shape | code read: name, combat_level, hp, hp_max, recovering_until, then S2's three as NULL literals |
 
 Records: `live-hash-drift --live --write` re-measured — hr_rpc_gate live == replay e282db6e (the §3 body change, now the deploy record); the three apply-order notes flipped to APPLIED with timestamps; restore-census re-pinned (see commit). §5.3 stands: no client half yet; the panel is a later lane and must not call hr_party_view with `{get:true}` nor poll it at envelope cadence.
+
+---
+
+## S3 — the split (2026-09-23)
+
+Reviewed on `sec/m8-s3-split` off `origin/set/b553` (which carries
+`lane/m8-parties-s3-split` merged): `src/core/party-split.js`, its export in
+`src/core/index.js`, `tests/party-split.mjs`, the `smoke.yml` step and the
+`ci-shape` baseline line. Graded against §18.1 rev.2, §18.2 rev.2 (§18.2.1a,
+§18.2.6), §18.5's S3 cell, and S-5, S-6, S-10, B-A5 and §18-SEC-2.3's S3 brief.
+
+**The arithmetic is right.** I read the code rather than the test for the two
+rulings that matter, and both hold literally: the XP floor never touches
+`dmg_bp`, and `dmg_bp` is what gold, the lottery weight and the pre-multiplier
+gold vector are all apportioned from. The three disjoint sets in `xpWeights`
+(parked / lifted / above) are §18.1's three sentences, computed over a common
+denominator `Q = 2nD` so nothing rounds until `apportion`, and both vectors sum
+to 10,000 bp *structurally* — `apportion` conserves whatever its weights are,
+so (P-b) does not depend on a proof in a comment. The lane's decision to route
+all four integer vectors through that one function is what made half the
+mutation proof possible.
+
+**What I found was in the GUARD, not in the arithmetic — with one exception.**
+All nine findings are landed on this branch and re-proved. Eight new mutants
+(M11–M18) join the lane's ten; all eighteen are RED on their own named property.
+
+| # | Finding | Sev | Status |
+|---|---|---|---|
+| C1 | A non-finite `damage` **aborts the whole party settle**: `BigInt(Infinity)` raises, and a raise is not one of §18.2.5a's three refusals, so the window neither pays nor refuses for any of the four members. NaN, a string, a negative and `undefined` all already floored to 0; a non-finite number was the one hole. | P1 | **LANDED** — module: `Number.isFinite(d) && d > 0 ? d : 0`, plus the hostile-damage corpus |
+| C2 | **The payout remainder recipient was unguarded.** `partyPayout` could send every window's spare gold and xp to index 0 and the battery stayed green — because all 414 corpus windows listed members `U(1)…U(n)` ascending, so `lowest` was index 0 in every one and `apportion(…, 0)` and `apportion(…, lowest)` were the same call. S-REM pinned `split.lowest`; nothing pinned where the money landed. This is S-6's rule at the only place it moves money. | P1 | **LANDED** — user ids permuted in the generator, per-member oracle on both pre-multiplier vectors, the `0 ≤ rem < n` bound asserted, mutant M13 |
+| C3 | **The fellowship line was asserted against itself**: `expectFellow = fellowshipBp(eligible)` read the module's own function on both sides of the equals sign, so any `FELLOWSHIP_STEP_BP` or `FELLOWSHIP_MAX_BP` was green. And the cap does no work at `PARTY_MAX = 4` — three steps of 500 *is* 1500 — so it was unreachable as well as unpinned. §18.4 T-8 ("four boxed alts strictly worse than four solo hunts") rests on this number. | P1 | **LANDED** — §18.1's literals `[0,0,500,1000,1500]` pinned in the test, the ceiling asserted at k = 4, 5, 9 where it actually binds, mutant M11 |
+| C4 | **A float in the bp VECTORS was red on `<threw>`, not on S-INT.** `partyPayout` does `BigInt(m.dmg_bp)`, which raises on a float, so the battery died before its verdict — and the driver rightly refuses to score a throw as a named property. The one mutant S-INT exists to catch would have been recorded as a failure of the mutation proof. (M7 mutated only the *reported* floor line, which raises nothing.) | P1 | **LANDED** — S-INT short-circuits in the loop and before the worked example, mutant M16 |
+| C5 | A **negative damage mints a >100% share** — `[-5000, +10000]` apportions to `[-10000, +20000]`, both vectors still summing to 10,000, so (P-b) does not see it. The clamp was present and correct; nothing proved it was load-bearing. | P1 | **LANDED** — `dmg_bp`, `xp_bp` and `lottery_bp` asserted inside `[0, BP]`, mutant M15 |
+| C6 | **"Derived and not retyped" was unguarded.** §18.1 makes the derivation a design property ("Tyler may set it to 0.00 in one edit"), but `return 2500` and `Math.round(VIGOUR_DRY_MULT * BP)` are the same *number* today, so every value check accepts the retyping. A claim about the source needs an assertion about the source. | P2 | **LANDED** — the graded module's text is carried and the import + `dryMultBp` body are shape-checked, plus a value check against `VIGOUR_DRY_MULT` imported straight from `hunt.js`, mutant M12 |
+| C7 | **The SLOT half of the `(user_id, slot)` tie-break was never exercised.** The corpus comment claimed it, but every case planted distinct users, so only the user half ran — and one player on two slots in one party is not hypothetical, it is exactly the boxed-alt party T-8 prices. M3 flipped both halves and was caught by the user half alone. | P2 | **LANDED** — two same-user corpus parties, slot-only mutant M14 |
+| C8 | **The seed seam was unpinned.** S-JOURNAL compared the journalled roll to `split.roll` — both the module's — so the roll could be re-derived inside the split and stay deterministic, replayable and green, while §18.4 T-1's "the whole distribution is replayable" quietly became "replayable to a different bag". | P2 | **LANDED** — `split.roll` asserted equal to the caller's roll, mutant M17 |
+| C9 | **The 1..4 roster refusal was unproven.** A five-member split conserves perfectly (`apportion` is structural), so nothing downstream would ever notice one. | P2 | **LANDED** — 0, 5 and 8 members asserted to raise `RangeError`, 1–4 to succeed, mutant M18 |
+
+### Rulings the brief asked for, where no change was owed
+
+- **The floor is XP-ONLY (S-5): CONFIRMED, from the code.** `dmgBp` is
+  `apportion(BP, dmg, lowest)` and nothing else reads `xpWeights`;
+  `lottery_bp` is `dmgBp[i]`; `preGold` is apportioned from `dmg_bp`; the
+  fellowship bonus is added to XP only. M1, M2 and M15 hold the three doors,
+  and C3's gold equality (`paid.gold === produced.gold − dryLost.gold`) is what
+  refuses a fellowship bonus leaking onto gold.
+- **(P-c): the code is right and my own brief's wording was wrong.** The brief
+  said "the freed bp is redistributed … checkable as an equality". §18.2.6 and
+  S-10(c) say the opposite and the module follows them: the dry reduction is
+  **not** redistributed, the sum over members is strictly less than the party
+  total, and that is exactly why (P-c) is an inequality with an exact equality
+  underneath. `partyPayout` names `preMultiplier`, `fellowship`, `dryLost` and
+  `paid` separately, so both statements are one line each in the guard. No
+  change.
+- **S-6's remainder, rev.2 — the lane's reading is CORRECT and my sentence was
+  not.** S-6 and §18.1 both say "the LOWEST `(user_id, slot)` **among the
+  tied-largest shares**". Read literally that clause is self-defeating: with one
+  unique largest share — the ordinary case — it hands the remainder back to the
+  biggest hitter, who in ordinary play is the same member choosing the settle
+  boundaries, which is the rule S-6 replaced. The operative clause is the one
+  next to it, *"nobody can position themselves to collect it"*, and
+  unconditional-lowest is the only reading under which that is true, because a
+  member chooses their damage and cannot choose their user id or slot. **The
+  rule is the unconditional lowest `(user_id, slot)`**; the "tied-largest"
+  filter is struck. The lane owed me this reading and stated it in the header
+  rather than taking it quietly, which is how it should have arrived.
+- **The journal object (B-A5): CONFIRMED** — exactly `{id, hunt, dmg_bp, xp_bp,
+  floor, fellow_bp, roll}`, frozen, asserted as an equality both ways, with M5
+  proving an eighth key red and the thirteenth-top-level-key check carried
+  locally against a copy of `META_KEYS`. `floor` as the signed `xp_bp − dmg_bp`
+  is the right call: Σ is exactly 0, so every basis point a floored member
+  gained is named against the member it came from, which is what (P-c) has to
+  read. The **twelve-key allowlist widening itself is still S2's** and its
+  thirteenth-key mutant is still owed there.
+- **Determinism and edge importability: CONFIRMED, and packed rather than
+  asserted.** No `Date.now`, no `Math.random`, no browser global, no float in
+  any output, the lottery roll an input, BigInt over exact common denominators
+  throughout. `party-split.js` is not in today's bundle because nothing imports
+  it yet, so I planted an import in `supabase/functions/hr-accrue/tick.js`,
+  packed, and confirmed it vendors as `vendor/core/party-split.js` with
+  `./hunt.js?v=552` correctly stripped to `./hunt.js` — 81 files, exit 0 — then
+  restored the file. S2's import will work.
+- **§18.5's read-back assertion: the lane's placement SATISFIES it; S2 need not
+  carry a duplicate.** §18.5 asks for the vectors to read back out of
+  `hr_tick_shadow.party`; that column is S2's and §18-SEC-2.3 rules S3 may run
+  in parallel with S2, so an assertion S3 cannot execute without S2 would make
+  the parallelism I granted impossible. §18.2.1a establishes the column as the
+  *denormalisation* of `delta->'journal'->'meta'->'party'` and §18.2.5 step 7
+  stores that delta verbatim — so the arm asserts against the **authoritative**
+  copy, which is stronger, not weaker. The arm detects the column, grades both
+  forms the day it exists and prints which it graded; I verified that branch by
+  adding the column to the PGlite chain myself and watching it grade "via
+  delta->'journal'->'meta'->'party' **and the party column**". Both vectors at
+  10,000 bp on a planted four-member window, every row rolled back, table empty
+  after.
+
+### Recorded, not owed
+
+- **The remainder lever is not fully closed, and its size is now guarded.**
+  Lowest-`(user_id, slot)` is positionable, just expensively: v4 user ids are
+  random, so an actor can mint accounts until one sorts low and then collect
+  every remainder of every party they join. The quantum is bounded by
+  `apportion` at **strictly less than n units per call** — ≤3 gold and ≤3 xp per
+  settle — and that bound is now an assertion rather than an argument. Against
+  the largest-share rule, which hands the same quantum to the member who also
+  chooses the boundary, this is strictly better. No change; priced.
+- `totalDamage` and `member.damage` narrow through `Number()` above 2^53. The
+  bp arithmetic is BigInt end to end and the journal carries `dmg_bp`, not
+  `damage`, so this is a reporting artefact, not a share.
+- `FELLOWSHIP_MAX_BP` is non-binding at `PARTY_MAX = 4` (C3). It is kept, and
+  now asserted where it binds, so raising the roster cap cannot silently raise
+  the bonus.
+- `assignDrop` returns index 0 rather than `lowest` on an all-zero weight
+  vector. Unreachable — `dmg_bp` always sums to 10,000 — and left alone.
+
+### Guards — real exit codes, on `sec/m8-s3-split`
+
+| Command | Exit |
+|---|---|
+| `node tests/party-split.mjs` | **0** — 425 windows; S-SUM, S-FLOOR, S-RAW, S-PARK, S-DRY, S-JOURNAL, S-DET, S-REM, S-LOTTO, S-INT, S-SQL, S-SQL-ROLLBACK all ✓ |
+| `node tests/party-split.mjs --mutate` | **0** — 18/18 mutants RED on their own named property |
+| `bash ./bump-version.sh --check` | **0** — build-info 552, index.html and every ESM import agree; no `?v=` bumped |
+| `node tests/dead-exports.mjs` | **0** — 1561 exported names, 0 unreachable |
+| `node tools/pack-edge.mjs hr-accrue --hash` | **0** — `c8edbc99188fbaafb508a34d793ac7ae0f10847db969d22d64f33facbcd8f8c1` (unchanged; nothing imports the split yet) |
+| `node tests/guard-hygiene.mjs` | **0** — no orphans, no ghosts, no vacuous proofs |
+| `node tests/ci-shape.mjs` | **0** — 225 guard commands, 225 distinct, 7 jobs |
+| `node tools/lane-done.mjs` | **0** — all 24 steps green |
+
+## S3 VERDICT
+
+### **GO-WITH-CHANGES — and the changes are LANDED, on `sec/m8-s3-split`.**
+
+**S2 may import the split.** The arithmetic was sound on arrival; nine findings
+were in what proved it, and one — C1 — was a raise that would have taken the
+whole settle down. All nine are fixed and re-proved on this branch, and the
+mutation proof is eighteen arms, each red on the property that owns it.
+
+Two conditions carried forward, both S2's:
+
+1. **When `hr_tick_shadow.party` lands, S2's guard must assert the column and
+   `delta->'journal'->'meta'->'party'` carry the same object.** The column is a
+   denormalisation; a denormalisation that can drift makes §18.2.6's 24 h parity
+   read a report about itself. S3's arm starts grading both forms automatically
+   the day the column exists — that is the detector, not the equality.
+2. **B-A5's twelfth/thirteenth-key work is still S2's**, unchanged: widening
+   `META_KEYS` by exactly one and proving a thirteenth still red. S3 carries a
+   local copy of the allowlist on purpose; if the two ever disagree that is a
+   finding for S2's guard.
+
+This verdict covers the split only. S4 lands after it (§18-SEC.3, Correction 2),
+and S5 remains NOT briefable on its own pre-arm bar.

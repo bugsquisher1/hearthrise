@@ -341,8 +341,14 @@ export function splitParty(o) {
     throw new RangeError(`party-split: ${n} members, expected 1..${PARTY_MAX}`);
   }
   const dmg = src.map((m) => {
+    /* Garbage in is ZERO, never a throw and never a share. `Number.isFinite`
+       is load-bearing: `BigInt(Infinity)` RAISES, and a raise here aborts the
+       whole party settle for all four members down a path §18.2.5a does not
+       name — an unhandled exception is not one of its three refusals, so the
+       window would neither pay nor refuse. NaN, a string and a negative all
+       already floor to 0; a non-finite number was the one hole. */
     const d = Math.floor(Number(m?.damage) || 0);
-    return BigInt(d > 0 ? d : 0);
+    return BigInt(Number.isFinite(d) && d > 0 ? d : 0);
   });
   const total = dmg.reduce((a, b) => a + b, 0n);
   const lowest = lowestIndex(src);

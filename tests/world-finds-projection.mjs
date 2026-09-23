@@ -115,6 +115,35 @@ const DISARM_4A = [
   + "  v_after := replace(pg_get_functiondef('public.hr_rpc_gate(text)'::regprocedure), chr(13), '');",
 ];
 
+/* ── POST-CHAIN PLANTING (`post` instead of `pairs`) ───────────────────────
+   A defect that opens a FUNCTION to a client role cannot be planted in
+   migration TEXT and still reach the assertions below. Since 2026-09-21 the
+   chain ends with 2026-09-21-engine-allowlist-tick-settle.sql, whose section-4
+   self-check runs strict hr_assert_grant_hygiene over the WHOLE database and
+   refuses any ungated or unapproved client-reachable verb — so a text-planted
+   grant aborts the REPLAY, and tests/mutation-proof.mjs correctly scores that
+   throw as HARNESS rather than as a tick. Disarming that check is not on the
+   table: it is the one detector that sees this class repo-wide, and `refuses:
+   true` would only record that a LATER migration objected, not that anything
+   here can see the defect.
+
+   So the arm hands over SQL instead of a patch pair. The tracked chain applies
+   verbatim, the equivalent statement runs against the database it built, and
+   then the assertions run — which puts the tick where it belongs, on this
+   guard's own measurements rather than on a neighbouring migration.
+
+   Two forms, and an arm reaches for one only because the chain refuses its text:
+     · `post` as a STRING — SQL executed against the booted database (a grant,
+       or the DML that moves a catalogue row).
+     · `post` as a [find, replace] PAIR with `postFn` — the defect is planted
+       in the INSTALLED body of that function: pg_get_functiondef is read back,
+       the anchor is replaced (exactly once, or this throws as a harness error
+       the way bootReplay's own patcher does) and the result is re-executed. The
+       anchor is the same text the migration carries, so the arm still rots
+       loudly if the body moves.
+   Everything else keeps its `pairs` and is planted in the migration text,
+   which is the stronger statement wherever it is available. */
+
 /* ── THE MUTATION CATALOGUE — one real defect each ──────────────────────── */
 const MUTATIONS = {
   name_not_minted: {
@@ -192,22 +221,24 @@ const MUTATIONS = {
     why: 'the privileged inner is granted to authenticated, so a browser calls the SECURITY DEFINER '
        + 'read directly and the rate gate, the refusal seam and the auth check are all one POST away '
        + 'from irrelevant',
-    pairs: [['grant  execute on function public.hr_world_finds_of(int) to authenticated;',
-             'grant  execute on function public.hr_world_finds_of(int) to authenticated;\n'
-             + 'grant  execute on function public.hr_world_finds_of__ungated(int) to authenticated;']],
+    post: 'grant execute on function public.hr_world_finds_of__ungated(int) to authenticated;',
   },
   anon_can_call_the_verb: {
     why: 'the verb is opened to anon, so the board (and every display name on it) is readable with '
        + 'nothing but the public anon key, from outside the invite wall, at scraper speed',
-    pairs: [['grant  execute on function public.hr_world_finds_of(int) to authenticated;',
-             'grant  execute on function public.hr_world_finds_of(int) to authenticated, anon;']],
+    post: 'grant execute on function public.hr_world_finds_of(int) to anon;',
   },
   rate_gate_removed: {
     why: 'the wrapper stops calling hr_rpc_gate, so a client-callable read that aggregates the whole '
        + 'board is uncapped — free CPU for anyone with the anon key and a session',
-    pairs: [["  if not public.hr_rpc_gate('hr_world_finds_of') then\n"
-             + "    return jsonb_build_object('ok', false, 'error', 'rate_limited');\n"
-             + '  end if;\n', '']],
+    /* Text-planted, this reads to hr_assert_grant_hygiene as an UNGATED client
+       verb and the chain-end check refuses the apply — the defect is a body
+       change but its signature is an ACL one. So it is re-planted into the
+       installed body instead; see POST-CHAIN PLANTING above. */
+    postFn: 'public.hr_world_finds_of(int)',
+    post: ["  if not public.hr_rpc_gate('hr_world_finds_of') then\n"
+         + "    return jsonb_build_object('ok', false, 'error', 'rate_limited');\n"
+         + '  end if;\n', ''],
   },
   bucket_not_registered: {
     why: 'the hr_rpc_gate bucket is never added, and an UNKNOWN bucket fails CLOSED — so the feature '
@@ -232,7 +263,12 @@ const MUTATIONS = {
     why: 'the new client verb is not declared in hr_client_rpc_baseline, so hr_assert_grant_hygiene '
        + 'raises a finding against it every night forever and the nightly monitor becomes noise that '
        + 'nobody reads — which is how the next real one is missed',
-    pairs: [["    ('hr_world_finds_of', 'p_limit integer', 'authenticated',", "    ('hr_world_finds_of__NOT_THE_VERB', 'p_limit integer', 'authenticated',"]],
+    /* Text-planted, the undeclared grant is exactly what the chain-end
+       hr_assert_grant_hygiene refuses at apply — so the row is renamed after
+       the chain instead, which is the same end state. */
+    post: `update public.hr_client_rpc_baseline
+                set proname = 'hr_world_finds_of__NOT_THE_VERB'
+              where proname = 'hr_world_finds_of' and grantee = 'authenticated';`,
   },
 };
 
@@ -240,13 +276,36 @@ let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
 
 async function boot(mutate) {
+  const m = mutate ? MUTATIONS[mutate] : null;
+  /* DISARM still applies on a post arm: the baseline carries it, and the two
+     must differ by the defect and nothing else. */
   const patches = new Map([[MIG, [DISARM, DISARM_4A]]]);
-  if (mutate) {
-    const m = MUTATIONS[mutate];
-    patches.set(MIG, [...patches.get(MIG), ...m.pairs]);
-  }
+  if (m && !m.post) patches.set(MIG, [...patches.get(MIG), ...m.pairs]);
   const { db } = await bootReplay({ patches });
+  if (m && typeof m.post === 'string') await db.exec(m.post);
+  else if (m && m.post) await plantInBody(db, m.postFn, m.post);
   return db;
+}
+
+/* Re-plant a defect in an installed function body. The anchor must match
+   EXACTLY ONCE and must change the text — a mutation that never landed is
+   decoration — and `harness: true` is how tests/mutation-proof.mjs is told that
+   a throw here is a broken arm rather than this guard's tick. */
+async function plantInBody(db, fn, [find, replace]) {
+  const def = (await one(db, `select pg_get_functiondef('${fn}'::regprocedure) as d`))
+    .d.replace(/\r\n/g, '\n');
+  const n = def.split(find).length - 1;
+  if (n !== 1) {
+    const e = new Error(`post-body anchor matched ${n} times in ${fn} (need exactly 1) — `
+      + 'the body has moved; fix the anchor rather than letting the mutation no-op.');
+    e.harness = true; throw e;
+  }
+  const after = def.replace(find, () => replace);
+  if (after === def) {
+    const e = new Error(`post-body patch on ${fn} produced an identical body`);
+    e.harness = true; throw e;
+  }
+  await db.exec(after);
 }
 
 const one = async (db, sql, params) => (await db.query(sql, params)).rows[0];

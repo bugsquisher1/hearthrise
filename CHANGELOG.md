@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 551 — 2026-09-22 (The realm starts ticking)
+
+**The world ticks on the server.** In shadow mode, the realm now advances a test character's gathering every 10 seconds on its own, side by side with the settle you already know, and pays nothing yet. When the two agree for 48 hours straight, gathering will stop waiting for you to come back. Nothing changes for players in this build.
+
+**Bestiary trophy ladder designed.** Per-monster trophy stages (2,500 / 5,000 / 10,000 / 20,000 kills) now live in the game's data. The trophies themselves arrive in a later build once the server half passes review.
+
+**Under the hood.** Security rulings on the tick's request queue and its combat channel; the tick's first shadow fire on production found a transport bug before anything could pay, and it is fixed with a guard that now covers every settle path; four release-gate tests fixed so they read the same on every machine.
+
 ## v0.9.2-beta build 550 — 2026-09-21 (Pets finally earn XP)
 
 **Companions gain XP again.** Since the move to the realm, no pet was earning experience at all: every companion sat at level 1. The realm now grants companion XP itself, for kills, gathers and crafts, whether you are watching or away. Thank you Paione for reporting it twice.

@@ -90,6 +90,11 @@ import { foldDeltas } from '../../supabase/functions/hr-accrue/tick-contract.js'
    moves to tick-contract.js the day combat's production half lands beside
    gather's; until then importing it is the single copy. */
 import { tickIntentId } from '../../supabase/functions/hr-accrue/tick-gather.js';
+/* THE ONE ENVELOPE -> ENGINE MAP (M1f). Shared with `index.ts`'s accrue path
+   and `set-activity.js`'s collect path, so there is no second reader of
+   `hr_state_of`'s two levels. See sessionFromRoster. */
+import { engineInputsFromEnvelope }
+  from '../../supabase/functions/hr-accrue/envelope.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -205,7 +210,11 @@ function instantMsOf(v) {
 }
 
 export function rosterWatermarkText(row, envelope) {
-  const st = envelope || {};
+  /* `accrued_to` is a player_state COLUMN, so it lives on `state` and not at
+     the envelope top level. The argument is the WHOLE envelope — every
+     function in this file now takes the same object, which is the only way a
+     reader can stop having to remember which level each name is on (S-7). */
+  const st = (envelope && envelope.state) || {};
   const markMs = instantMsOf(row.accrued_to);
   if (!Number.isFinite(markMs)) {
     throw new Error('rosterWatermarkText: the roster row carries no readable watermark');
@@ -235,20 +244,48 @@ export function rosterWatermarkText(row, envelope) {
    `player_state.version`, the number `hr_apply` refuses a stale copy of and the
    number §7.1 makes the push frame. The tick never invents one.
 
-   ⚠ THE BLOCK MARKED "COMBAT" IS THE MILESTONE. Each of those keys is a column
-     `hr-accrue/index.ts` reads inside the transaction hr_apply locks, and each
-     one this function forgot would be a silent divergence — see the two
-     measurements in tick-shadow.js's combat block. `undefined` is the
-     self-configuring "this database does not have the column" that every other
-     input in this system uses; it is NOT a safe default for the auto-eat trio
-     or the death counters, which is why C1 asserts the key set structurally
-     rather than trusting this function to stay complete. */
+   ⚠ THE SECOND ARGUMENT IS THE WHOLE ENVELOPE, NOT `env.state` (S-7,
+     2026-09-23). `hr_state_of` has TWO levels: `state` holds the player_state
+     columns (hp, fight, auto_eat_*, deaths_today, accrued_to) and the envelope
+     TOP LEVEL holds the projections built from other tables (skills,
+     inventory, equipment, enchant, buffs, version). This function used to read
+     BOTH off one object, so a level-61 fighter reached `computeAccrual` at
+     LEVEL 0, unarmed, with an empty bag: auto-eat could never fire though
+     `autoEatEnabled` was true, and the level gate answered `STOP_REASON.LEVEL`,
+     which `settleCombatSession` reads as the pointer having ended and closes
+     the batch. In shadow that is a 48 h parity read of all zeros; armed it is
+     a catastrophic under-pay AND a proposed `delta.activity = {kind:'idle'}`
+     that would end a real player's fight.
+
+     There is no field list here any more. `engineInputsFromEnvelope` is the
+     ONE map, and it also unwraps the third defect inside the first: the
+     projection is `{skill_id: {xp, level}}` and the engine takes raw xp, so
+     correcting the level alone would still have handed the engine objects
+     where it expects numbers. */
 export function sessionFromRoster(row, envelope) {
-  const st = envelope || {};
   if (row.active_kind !== CHANNEL) {
     throw new Error(`sessionFromRoster: kind "${row.active_kind}" is not ${CHANNEL}`);
   }
+  const env = envelope || {};
   return {
+    /* ── EVERY ENGINE INPUT THE ENVELOPE OWNS, THROUGH THE ONE MAP ──────────
+       Twenty-five keys, `hr-accrue/envelope.js`, the same function the accrue
+       path in `index.ts` and the `collect` path in `set-activity.js` call.
+       That is AWAY-12 spelled as code: there is no second reader of
+       `hr_state_of`, so the tick's session for a character IS the accrue
+       path's session for that character, and a field that changes level
+       changes for both callers in the same commit. */
+    ...engineInputsFromEnvelope(env, instantMsOf(row.accrued_to)),
+
+    /* ── THE ROSTER ROW WINS ON THE POINTER AND THE WATERMARK ───────────────
+       Which is the whole reason envelope.js names the pointer keys apart from
+       the state. `accruedToMs` is the FENCE's mark, not `state.accrued_to`: in
+       shadow the two differ, and chaining on `accrued_to` is the
+       overlapping-window bug §15c's shadow mark exists to prevent. `version`
+       and `cap_ms` are the caller's for the same reason — `hr_offline_cap_ms`
+       is read in the driver's own transaction. `version` is load-bearing and
+       is NOT a game value: it is `player_state.version`, the number `hr_apply`
+       refuses a stale copy of. The tick never invents one. */
     userId: row.user_id,
     slot: row.slot,
     shard: Number(row.shard || 0),
@@ -257,56 +294,25 @@ export function sessionFromRoster(row, envelope) {
     activeId: row.active_id,
     activeSinceMs: Date.parse(row.active_since),
     accruedToMs: Date.parse(row.accrued_to),
+    capMs: row.cap_ms == null ? undefined : Number(row.cap_ms),
     /* T-2 / S-3. The STRING, kept beside the number, because the label is
        spelled from the string and the window is planned from the number. It is
        a SERVER rendering of the same instant `accruedToMs` names — never the
        roster's timestamptz column, which a driver hands over as a Date or in
        its own spelling. See rosterWatermarkText. */
-    accruedToText: rosterWatermarkText(row, st),
-    capMs: row.cap_ms == null ? undefined : Number(row.cap_ms),
-    hp: st.hp, maxHp: st.max_hp, gold: st.gold,
-    skills: st.skills || {},
-    inventory: st.inventory || {},
-    equipment: st.equipment || {},
-    perks: st.perks,
-    buffs: st.buffs,
-    goals: st.goals,
-    bestiaryKills: st.bestiary_kills,
-    // ── COMBAT ──────────────────────────────────────────────────────────────
-    /* The end-of-window checkpoints. `null` means the column does not exist on
-       this database and the engine must then OMIT the key — an unknown delta
-       key is a 409 that costs the whole window. */
-    fight: st.fight == null ? null : st.fight,
-    consecFalls: st.consec_falls == null ? null : Number(st.consec_falls),
-    recoveringUntilMs: st.recovering_until == null
-      ? null : Date.parse(st.recovering_until),
-    ammoCarry: st.ammo_carry == null ? null : st.ammo_carry,
-    /* AUTO-EAT. Without these three the server never heals, the character dies
-       early and the night stops paying: measured -65.0% gold and -62.5% xp on
-       one ten-minute window, which is `src/core/auto-eat.js`'s own -63%..-99%
-       band arriving through the caller instead of through a missing handler.
-       `auto_eat_enabled` is also the purchased-trait receipt, so nothing here
-       defaults to true. */
-    autoEatEnabled: st.auto_eat_enabled === true,
-    autoEatFood: st.auto_eat_food ?? null,
-    autoEatPct: Number(st.auto_eat_pct),
-    /* THE RECOVERY LADDER'S INPUTS. `recoveryFor()` prices a fall from these
-       two counters; omitted they read 0 and every fall is charged the
-       FIRST-DEATH novice grace. Measured on a character with six deaths today:
-       the accrue path charges 3,840,000 ms and the tick charged 0, then
-       120,000. Less knockout time is more paying time, so this is a mint. */
-    deathsTodayBefore: Number(st.deaths_today) || 0,
-    deathsLifetimeBefore: Number(st.deaths_lifetime) || 0,
-    /* The split against combat XP a live kill-credit already applied. Absent
-       column -> 0 -> the split is inert and the window pays as it did. */
-    combatXpAccruedToMs: st.combat_xp_accrued_to
-      ? Date.parse(st.combat_xp_accrued_to) : 0,
-    /* The self-configuring switch on whether `delta.hearthfind` may be
-       proposed at all: a database that does not allowlist the key never sees
-       one. */
-    hearthfindReady: st.hearthfind_ready === true,
-    enchant: st.enchant || {},
-    combatStyle: st.combat_style ?? null,
+    accruedToText: rosterWatermarkText(row, env),
+
+    /* ── THE TWO INPUTS THE ENVELOPE CANNOT CARRY ───────────────────────────
+       `perks` is `hr_perks_of` and `bestiaryKills` is `hr_bestiary_of`, two
+       SEPARATE reads `index.ts` makes (:637) and no tick driver makes yet.
+       They used to be read off the envelope as `st.perks` / `st.bestiary_kills`
+       — names that have never existed on either level, so both were `undefined`
+       while LOOKING sourced. Named here, from the caller, so the day a driver
+       makes those reads it threads them in rather than discovering the gap.
+       Absent they are `undefined`, which prices bestiary, charm and perk
+       bonuses at zero: UNDER-paying, deliberate, and an ARM blocker. */
+    perks: row.perks,
+    bestiaryKills: row.bestiary_kills,
   };
 }
 

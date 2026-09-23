@@ -1311,20 +1311,95 @@ for (const raw of SESSIONS) {
     accrued_to: '2026-03-14T20:00:00.123456+00:00',
     cap_ms: 43200000,
   };
+  /* ── A TWO-LEVEL ENVELOPE, WHICH IS THE ONLY SHAPE `hr_state_of` EMITS ───
+     This fixture WAS FLAT — every name on one object, with `skills`,
+     `inventory` and `equipment` pinned to `{}` — and that is precisely why no
+     arm here could see S-7. A guard whose fixture agrees with the defect
+     cannot report it: `sessionFromRoster(row, env.state)` and
+     `sessionFromRoster(row, env)` returned the same session against a flat
+     object, so the level confusion was invisible BY CONSTRUCTION.
+
+     The two levels are the projection's own
+     (`2026-09-14-hr-state-of-restatement.sql:818-819`): `state` holds the
+     player_state COLUMNS, the TOP LEVEL holds the projections built from other
+     tables. `skills` is `{skill_id: {xp, level}}` because the client renders
+     the level; the engine takes raw xp. Non-empty on purpose — `{}` is a
+     perfectly good skills map that says level 0, which is how this read
+     failed silently for four days instead of loudly. */
+  const MARK_TEXT = '2026-03-14T20:00:00.123456+00:00';
   const env = {
-    hp: 40, max_hp: 60, gold: 10, skills: {}, inventory: {}, equipment: {},
-    /* THE ENVELOPE'S OWN RENDERING of the watermark — `state->>'accrued_to'`,
-       which is where the label comes from (S-3). */
-    accrued_to: '2026-03-14T20:00:00.123456+00:00',
-    auto_eat_enabled: true, auto_eat_food: 'cooked_trout', auto_eat_pct: 70,
-    deaths_today: 6, deaths_lifetime: 60, fight: {}, consec_falls: 2,
-    recovering_until: '2026-03-14T20:02:00.000000+00:00',
-    hearthfind_ready: true, combat_style: null, enchant: {},
+    ok: true,
+    version: 9,
+    // ── THE ENVELOPE TOP LEVEL: projections from other tables ──────────────
+    skills: {
+      attack: { xp: 500000, level: 61 },
+      strength: { xp: 500000, level: 61 },
+      hp: { xp: 400000, level: 58 },
+    },
+    inventory: { cooked_trout: 25, bones: 3 },
+    equipment: { weapon: 'mithril_sword' },
+    enchant: { weapon: 'fire' },
+    buffs: [],
+    // ── `state`: the player_state columns hr_apply locks ───────────────────
+    state: {
+      /* THE ENVELOPE'S OWN RENDERING of the watermark — `state->>'accrued_to'`,
+         which is where the label comes from (S-3). A COLUMN, so it is here and
+         not at the top level. */
+      accrued_to: MARK_TEXT,
+      hp: 40, max_hp: 60, gold: 10,
+      auto_eat_enabled: true, auto_eat_food: 'cooked_trout', auto_eat_pct: 70,
+      deaths_today: 6, deaths_lifetime: 60, fight: {}, consec_falls: 2,
+      recovering_until: '2026-03-14T20:02:00.000000+00:00',
+      hearthfind_ready: true, combat_style: null,
+    },
   };
+  /* THE FIXTURE CANNOT DRIFT BACK TO FLAT without this failing first. */
+  ok('C9', env.state.skills === undefined && Object.keys(env.skills).length > 0
+    && env.skills.attack.xp === 500000 && env.state.hp === 40,
+    'the C9 envelope fixture is not the two-level shape hr_state_of emits — a flat fixture '
+    + 'bakes S-7 in as the contract and no arm below can go red on it');
+
   const s = sessionFromRoster(row, env);
-  ok('C9', s.accruedToText === env.accrued_to,
+  ok('C9', s.accruedToText === MARK_TEXT,
     'sessionFromRoster did not label from the envelope\'s own rendering of accrued_to '
     + '(T-2, S-3)');
+
+  /* ── S-7: EVERY INPUT OFF THE LEVEL IT ACTUALLY LIVES ON ─────────────────
+     Reading both levels off one object put a level-61 fighter in front of
+     `computeAccrual` at LEVEL 0, unarmed, with an empty bag — so auto-eat
+     could never fire though `autoEatEnabled` was true, and the level gate
+     answered `STOP_REASON.LEVEL`, which `settleCombatSession` reads as the
+     pointer having ended. The third defect inside the first is the SHAPE:
+     the projection is `{xp, level}` and the engine takes raw xp, so getting
+     the level right and the unwrap wrong hands the engine objects where it
+     expects numbers — which compare as NaN, not as an error. */
+  ok('C9', s.skills.attack === 500000 && s.skills.hp === 400000,
+    `the tick's session carries skills ${JSON.stringify(s.skills)} — the engine takes RAW XP `
+    + 'NUMBERS off the envelope top level, and `{}` or `{xp,level}` is a level-0 fighter');
+  ok('C9', s.inventory.cooked_trout === 25 && s.equipment.weapon === 'mithril_sword'
+    && s.enchant.weapon === 'fire',
+    'the tick\'s session lost a top-level projection (inventory / equipment / enchant) — '
+    + 'an unarmed fighter with an empty bag cannot auto-eat and cannot hit');
+  ok('C9', s.hp === 40 && s.maxHp === 60 && s.gold === 10,
+    'the tick\'s session lost a `state`-level column — reading the columns off the TOP '
+    + 'level is the other half of S-7 and it reads as undefined, not as an error');
+  ok('C9', Array.isArray(s.buffs),
+    'the buff queue did not survive; `buffs` is a top-level projection and presence is the switch');
+
+  /* THE STATE LEVEL ALONE — the pre-fix driver convention — must FAIL CLOSED
+     rather than hydrate a level-0 session. It carries the watermark, so the
+     old code got a correct LABEL for a silently empty character. */
+  let threwStateOnly = null;
+  try { sessionFromRoster(row, env.state); } catch (e) { threwStateOnly = e; }
+  ok('C9', threwStateOnly !== null,
+    'sessionFromRoster(row, env.state) — the pre-S-7 convention — built a session instead of '
+    + 'refusing. That session is a level-61 fighter at level 0 with an empty bag');
+
+  /* AND THE TWO INPUTS THE ENVELOPE CANNOT CARRY stay absent rather than
+     looking sourced. `hr_perks_of` / `hr_bestiary_of` are separate reads no
+     driver makes yet: under-paying, named, an ARM blocker. */
+  ok('C9', s.perks === undefined && s.bestiaryKills === undefined,
+    'perks / bestiaryKills were sourced from an envelope that cannot carry them');
 
   /* ── THE TWO SHAPES A DRIVER ACTUALLY HANDS BACK (Security S-3) ──────────
      `hr_tick_roster.accrued_to` is a timestamptz. The `postgres` driver parses
@@ -1338,13 +1413,13 @@ for (const raw of SESSIONS) {
     '2026-03-14 20:00:00.123456+00',
   ]) {
     const sd = sessionFromRoster({ ...row, accrued_to: driverShape }, env);
-    ok('C9', sd.accruedToText === env.accrued_to,
+    ok('C9', sd.accruedToText === MARK_TEXT,
       `a roster column handed over as ${typeof driverShape === 'string' ? 'driver text' : 'a Date'} `
       + `became the label "${sd.accruedToText}" — the label is the envelope's rendering`);
     let threwDriver = null;
     try {
-      const { accrued_to: _drop, ...noEnv } = env;
-      sessionFromRoster({ ...row, accrued_to: driverShape }, noEnv);
+      const { accrued_to: _drop, ...noMark } = env.state;
+      sessionFromRoster({ ...row, accrued_to: driverShape }, { ...env, state: noMark });
     } catch (e) { threwDriver = e; }
     ok('C9', threwDriver !== null,
       'sessionFromRoster spelled the label from the roster\'s timestamptz column when the '
@@ -1371,7 +1446,7 @@ for (const raw of SESSIONS) {
     'sessionFromRoster dropped the auto-eat trio');
   ok('C1', s.deathsTodayBefore === 6 && s.deathsLifetimeBefore === 60,
     'sessionFromRoster dropped the recovery ladder\'s counters');
-  ok('C3', s.recoveringUntilMs === Date.parse(env.recovering_until) && s.consecFalls === 2,
+  ok('C3', s.recoveringUntilMs === Date.parse(env.state.recovering_until) && s.consecFalls === 2,
     'sessionFromRoster dropped a combat checkpoint');
   let threwKind = null;
   try { sessionFromRoster({ ...row, active_kind: 'gather' }, env); } catch (e) { threwKind = e; }

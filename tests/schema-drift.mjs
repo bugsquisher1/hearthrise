@@ -241,6 +241,38 @@ begin
 end $rt$;
 `;
 
+// ── The DUPLICATING transport ───────────────────────────────────────────────
+// Security RE-VERIFY 2026-09-23, N1 (SEC_PUSH_CHANNEL_M5_2026-09-23.md §2) —
+// the OTHER direction of f10a's control, and the one its first form got wrong.
+// This `realtime.send` is PRESENT and working in the only sense the control
+// measured: it lands the control's throwaway topic. It simply lands everything
+// TWICE. Read as `v_n <> 1`, f10a stood down and printed "an ABSENT transport"
+// — on a transport that is there, and that f10c used to refuse outright as
+// `the emitter armed sent 2 frame(s)`. f10a now RAISES on it. Same fixture
+// shape as LYING_TRANSPORT above: one mutation only, never in the canonical
+// chain, so it moves no fingerprint.
+const DUPLICATING_TRANSPORT = `
+create schema if not exists realtime;
+create table if not exists realtime.messages (
+  id          bigserial primary key,
+  topic       text not null,
+  event       text,
+  payload     jsonb,
+  private     boolean,
+  extension   text,
+  inserted_at timestamptz not null default now()
+);
+create or replace function realtime.send(payload jsonb, event text, topic text,
+                                         private boolean default true)
+returns void language plpgsql as $rt$
+begin
+  insert into realtime.messages (topic, event, payload, private, extension)
+  values (topic, event, payload, private, 'broadcast');
+  insert into realtime.messages (topic, event, payload, private, extension)
+  values (topic, event, payload, private, 'broadcast');
+end $rt$;
+`;
+
 // ── The mutation catalogue ─────────────────────────────────────────────────
 // Each is a defect this repo could plausibly ship, planted in the real file.
 // `expect` says which failure mode must fire: 'replay' (a file stops applying)
@@ -714,6 +746,21 @@ const MUTATIONS = {
     expect: 'replay', // f10c raises: the emitter armed sent 0 frame(s), expected exactly 1
     patches: [],
     seedBefore: [['2026-09-23-frame-emit-from-apply.sql', LYING_TRANSPORT]],
+  },
+  /* ── 2026-09-23, Security RE-VERIFY of frame-emit-from-apply, N1 ───────
+     The sibling above proves f10a does not become a bypass for a transport
+     that DROPS. This proves it does not become one for a transport that
+     DUPLICATES — the case F1's first, undirected `v_n <> 1` handed back to
+     the skip branch, where a present-and-broken transport was reported as
+     an absent one and the apply passed. It is the same arm and the other
+     direction, so it is planted as its own mutation rather than folded in:
+     `lies` is caught by f10c and `duplicates` must be caught by f10a
+     ITSELF, before f10b/c/d are believed, and one seed cannot show both. */
+  frame_control_transport_duplicates: {
+    what: "realtime.send delivers every broadcast twice — a PRESENT, duplicating transport that f10a's control must REFUSE rather than excuse as absent (Security N1)",
+    expect: 'replay', // f10a raises: the control send counted back 2 rows — this transport duplicates
+    patches: [],
+    seedBefore: [['2026-09-23-frame-emit-from-apply.sql', DUPLICATING_TRANSPORT]],
   },
   reopen_a11: {
     what: 'the beta_invites lockdown GUC is unset, so a rebuild leaves every invite code world-readable',

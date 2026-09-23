@@ -574,6 +574,8 @@ declare
   v_hf_k   text;       --      the hearthfind catalogue, so the probe can DRIVE
   v_hf_s   text;       --      hr_apply's v_hf_out branch instead of skipping it
   v_sodef  text;       -- the real hr_state_of, captured and restored
+  v_sohdr  text;       -- …its HEADER alone, cut from that text, so the counting
+  v_at     int;        --   stand-in is assembled and never typed (see f2a0)
   v_snddef text;       -- the real hr_frame_send, captured and restored
   v_cfg_e  boolean;    -- f11d: hr_tick_config.enabled    as this block found it
   v_cfg_s  boolean;    -- f11d: hr_tick_config.shadow     as this block found it
@@ -746,9 +748,39 @@ begin
                       'would be installed over a body that no longer answers. The name '
                       'substitution matched nothing — re-cut it against pg_get_functiondef.';
     end if;
-    execute $f$
-      create or replace function public.hr_state_of(p_user uuid, p_slot integer)
-      returns jsonb language plpgsql security definer set search_path = public as $b$
+    -- ── f2a0: ★ THE STAND-IN'S HEADER IS CUT FROM v_sodef, NEVER TYPED HERE ★
+    --         ⚠ THIS FILE TAKES OVER NO LAST-TOUCHER ROLE. It patches
+    --           hr_state_of PROGRAMMATICALLY (pg_get_functiondef + a rebuilt
+    --           header + execute — the 2026-08-28-client-state.sql idiom), so
+    --           it carries no literal `create or replace function
+    --           public.hr_state_of(` header, none for `public.hr_apply(`
+    --           either, and it is a member of NO derivation chain.
+    --         Typed out, that header is what tests/live-settlement.mjs's
+    --         last-toucher scan reads — on the comment-stripped text, so a
+    --         comment like this one is free and a statement is not — and the
+    --         file would have to join HR_STATE_OF_CHAIN, where run-sql-tests
+    --         PART 1f-ii diffs each link against its predecessor. It cannot BE
+    --         a link: its net effect on hr_state_of is a RESTORE (f11), not a
+    --         derivation, so the diff would grade an eight-line counting probe
+    --         as the next projection and the membership would be a lie.
+    --         Cutting the header also makes the stand-in inherit the REAL
+    --         body's own attributes — volatility, security, search_path — in
+    --         place of a hand-typed copy that can silently drift from them.
+    --         ⚠ strpos TWICE rather than once over upper(): a case fold is not
+    --           guaranteed to preserve length for every codepoint, and this
+    --           index is used to CUT. pg_get_functiondef emits `AS $tag$` at
+    --           the start of its own line; the lowercase probe is belt-and-
+    --           braces, not a second format.
+    v_at := strpos(v_sodef, chr(10) || 'AS $');
+    if v_at = 0 then v_at := strpos(v_sodef, chr(10) || 'as $'); end if;
+    if v_at = 0 then
+      raise exception 'f2a0: pg_get_functiondef handed back no header/body split for '
+                      'hr_state_of, so the counting stand-in cannot be cut from it and '
+                      'f2 below would be installed over nothing';
+    end if;
+    v_sohdr := left(v_sodef, v_at);          -- through the newline, before `AS $tag$`
+    execute v_sohdr || $f$
+      AS $b$
       begin
         if p_user = '00000000-0000-4000-8000-00000000fb3e'::uuid then
           perform set_config('hr923.projections',
@@ -1246,8 +1278,10 @@ begin
         --         this file's own f2b/f2d doctrine: a positive control BEFORE
         --         any count is believed. One direct send on a throwaway topic,
         --         counted back in its own begin … exception. If it does not
-        --         round-trip, THIS ARM STOPS GRADING — it does not stop the
-        --         migration.
+        --         round-trip AT ALL, THIS ARM STOPS GRADING — it does not stop
+        --         the migration. If it round-trips MORE than it was sent, it
+        --         DOES stop it: that transport is present and broken, not
+        --         absent (N1, at the verdict below).
         --
         --         ⚠ AND THIS IS NOT A LOOSENING OF f10c. A WORKING transport
         --           still has to honour the kill switch and still has to send
@@ -1264,7 +1298,23 @@ begin
         exception when others then
           v_n := -1;
         end;
-        if v_n <> 1 then
+        -- ── N1 (Security RE-VERIFY 2026-09-23, SEC_PUSH_CHANNEL_M5 §2): THE
+        --    CONTROL'S VERDICT SPLITS BY DIRECTION. A control may excuse an
+        --    ABSENT instrument; it may never excuse a BROKEN one. Read as a
+        --    bare `<> 1`, a transport that delivers every broadcast TWICE
+        --    counts the control back twice and stood this arm down with a
+        --    notice calling it "ABSENT" — while f10c used to refuse exactly
+        --    that transport outright, as `the emitter armed sent 2 frame(s)`.
+        --    So the control widened the skip by the one case it was meant to
+        --    sharpen. Caught now, and by execution: tests/schema-drift.mjs
+        --    mutation `frame_control_transport_duplicates` seeds that
+        --    transport and requires THIS raise (its sibling
+        --    `frame_control_transport_lies` covers the dropping direction).
+        if v_n > 1 then
+          raise exception 'f10a: the control send counted back % rows — this transport '
+                          'duplicates, and f10c exists to refuse exactly that', v_n;
+        end if;
+        if v_n < 1 then
           raise notice 'f10b SKIPPED: realtime.messages does not round-trip from this session '
                        '(the control send counted back % row(s)) — f10b/f10c/f10d would grade '
                        'an ABSENT transport as a broken emitter and fail this apply', v_n;

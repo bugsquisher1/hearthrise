@@ -71,6 +71,9 @@
 
 import postgres from 'npm:postgres@3.4.5';
 import { computeAccrual, levelsOf, degradeStep, accrueWorkers, accrueRested, CALLER_AUTHORITY } from './accrual.js';
+/* THE ENVELOPE -> ENGINE INPUT MAP, shared with the world tick (2026-09-22).
+   ONE field list for a two-level projection; see ./envelope.js. */
+import { engineInputsFromEnvelope } from './envelope.js';
 import { withAwayReceipt, receiptRescue } from './away-receipt.js';
 /* THE COMPANION-XP ARM SWITCH — ARMED (b550). Threaded into computeAccrual's
    input as `companionXpBacked` (A14-mirrored in set-activity.js). TRUE → the
@@ -718,7 +721,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
 
     const st = env.state;
     const nowMs = new Date(read.now as string).getTime();
-    const accruedToMs = st.accrued_to ? new Date(st.accrued_to).getTime() : nowMs;
 
     // Two seeds, one round trip. The PRNG seed is derived from a label that
     // names the watermark, so the SAME absence always replays to the SAME rolls
@@ -859,11 +861,18 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     const attendedIn = (attendedEnv && attendedEnv.ok === true) ? attendedEnv : null;
 
     // ── COMPUTE. Pure, in-process, no I/O. Field by field. ─────────────────
-    const skills: Record<string, number> = {};
-    for (const k of Object.keys(env.skills || {})) skills[k] = Number(env.skills[k].xp) || 0;
-
+    /* ⚠ THE ENVELOPE'S OWN FIELDS ARE NOT LISTED HERE ANY MORE (2026-09-22).
+       They were, and the world tick listed them a SECOND time in
+       `tick-gather.js sessionFromRoster` — off `env.state` instead of off the
+       envelope top level, so the tick handed the engine `skills {}` for a
+       Mining-61 character and every shadow window came back `would_ticks: 0`
+       with `activity: {kind:'idle'}`. One two-level shape, two readers, and
+       both "worked". The map now lives in ./envelope.js with ONE field list and
+       both callers spread it; see that file's header for the measurement.
+       Everything NOT in it — the seed, the perks, the attended ledger, the
+       bestiary, the cap, the catalogues, the caller literals — is still named
+       at this call site, because none of it comes from the envelope. */
     const capMs = Number(read.cap_ms) || 0;
-    const equipment = env.equipment || {};
 
     /* The engine is called with a LITERAL, field by field, from named server
        values. `slot` is the only field on this object whose value came from the
@@ -878,21 +887,13 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       userId: user,
       slot,
       nowMs,
-      accruedToMs,
-      /* THE COMBAT-XP WATERMARK (2026-08-31-combat-xp-credit.sql). Advanced ONLY
-         by hr_credit_combat_xp; the settle reads it here and credits combat XP
-         only for the window at/after it (accrual.js xpEligibleFromMs), so it never
-         re-mints XP a live credit already applied. Absent column → 0 → the split
-         is inert and the settle pays the whole window exactly as before. */
-      combatXpAccruedToMs: st.combat_xp_accrued_to ? new Date(st.combat_xp_accrued_to).getTime() : 0,
-      /* NULL, not a fallback to accruedToMs (b345). `active_since` is the second
-         watermark and substituting the first one for it removes the clamp at
-         exactly the moment it is needed — a `start_activity` that forgot to send
-         `accrued_to` is the case it exists for. computeAccrual now refuses a
-         payable activity with no `active_since` by name (`no_active_since`). */
-      activeSinceMs: st.active_since ? new Date(st.active_since).getTime() : null,
-      activeKind: st.active_kind,
-      activeId: st.active_id,
+      /* EVERY FIELD `hr_state_of` OWNS, IN ONE PLACE: the pointer, the two
+         watermarks, hp/max_hp/gold, skills/inventory/equipment, enchant, buffs,
+         the auto-eat settings, tool_carry / ammo_carry / fight, the recovery
+         line, the retreat counter, the two death anchors, hearthfind_ready and
+         combat_style. Not one of them is request-derived — the envelope is the
+         projection the row hr_apply locks is read through. */
+      ...engineInputsFromEnvelope(env, nowMs),
       capMs: step.capMs,
       /* THE LADDER'S KNOB (Security C1). Null on the first attempt and on every
          non-artisan path — unbounded, i.e. exactly the pre-b356 behaviour. On a
@@ -938,132 +939,21 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          does, for exactly that reason. */
       attended: step.attended,
       seed: Number(seedRow?.seed) || 0,
-      hp: Number(st.hp) || 0,
-      maxHp: Number(st.max_hp) || 0,
-      gold: Number(st.gold) || 0,
-      skills,
-      equipment,
-      /* AUTO-EAT. All four values are columns on the row hr_apply locks, read
-         inside the same transaction as everything else above. `inventory` is
-         the first input the engine SPENDS rather than only reads — auto-eat
-         consumes food — which is why the returned delta's `items` map is
-         signed. The three settings are what let the server heal exactly as the
-         client does; without them it never healed at all and an unattended
-         night ended at the first death (measured: -63% to -99% of the night).
-         `auto_eat_enabled` is also the purchased-trait receipt, so nothing here
-         defaults to true. */
-      inventory: env.inventory || {},
-      autoEatEnabled: st.auto_eat_enabled === true,
-      autoEatFood: st.auto_eat_food ?? null,
-      autoEatPct: Number(st.auto_eat_pct),
-      /* THE GATHER CARRY. `?? null` and NOT `?? {}`: null means the column does
-         not exist on this database, and the engine reads that as "do not write
-         a tool_carry key", because hr_apply refuses an unknown delta key and
-         that refusal costs a whole night. The presence of the column IS the
-         switch — there is no flag to forget to flip.
-         Mirrors set-activity.js field for field (A14). */
-      toolCarry: st.tool_carry ?? null,
-      /* THE CONSUMPTION CARRY (design item E2). `?? null` for exactly the
-         reason above, and it resolves to null TODAY because
-         `player_state.ammo_carry` does not exist yet — the engine then starts
-         each span from an empty carry and omits the delta key, which is
-         byte-for-byte the pre-E1 behaviour. Wired now so the migration that
-         adds the column is one SQL file rather than SQL plus a second Edge
-         redeploy. Mirrors set-activity.js field for field (A14). */
-      ammoCarry: st.ammo_carry ?? null,
-      /* THE IN-FLIGHT FIGHT (Phase 0). `?? null` and NOT `?? {}`, for exactly
-         the reason above: null means the column does not exist on this
-         database, the engine starts every span at full monster HP and omits
-         the `fight` delta key, which is the pre-Phase-0 behaviour. With the
-         column, a settle RESUMES the fight instead of restarting it — without
-         it, any monster whose time-to-kill exceeds the span pays zero forever
-         (docs/design/live-settlement.md §0).
-         Mirrors set-activity.js field for field (A14). */
-      fight: st.fight ?? null,
-      /* THE RECOVERY LINE (First-Night Idle Rescue). `player_state.recovering_until`
-         — an ABSOLUTE server timestamp, the only authority on whether this
-         character is Knocked Out. It is a self-configuring switch like
-         tool_carry/fight, but it CANNOT be spelled `?? null`: null is the
-         ORDINARY value (the character is up), so `??` would report every
-         healthy character as a database without the column and the engine would
-         never propose the key at all. The distinction is the KEY'S PRESENCE in
-         hr_state_of's envelope — absent column ⇒ absent key ⇒ null here ⇒ the
-         engine omits `recovering_until` from the delta, which is byte-for-byte
-         the pre-Recovery behaviour. Present-and-null ⇒ 0 ⇒ the engine owns it.
-         Mirrors set-activity.js field for field (A14). */
-      recoveringUntilMs: ('recovering_until' in st) ? (st.recovering_until ? new Date(st.recovering_until).getTime() : 0) : null,
-      /* THE HEARTHFIND's SELF-CONFIGURING SWITCH (Feature Slate 2). hr_state_of
-         projects `hearthfind_ready:true` only on a database whose hr_apply
-         allowlists the `hearthfind` delta key. Without it the engine OMITS the
-         key, so an edge deployed BEFORE the migration is inert rather than
-         409-ing `unknown_delta_key` and costing a player their night. The switch
-         is the ENVELOPE, never a deploy flag - the two halves are safe in either
-         order, which is the property every column in this schema is built for. */
-      hearthfindReady: st.hearthfind_ready === true,
-      /* THE RECOVERY LADDER'S TWO ANCHORS (Recovery rev. 2). player_progress
-         kind='stat' key='deaths' under period=<UTC day> and period='', read by
-         hr_state_of as its OWN scalars and NOT dug out of the `progress` array:
-         that array is `limit 1000` with a `progress_truncated` flag, and a
-         survival mechanic must never be able to answer "you have never died"
-         because a character owns a lot of collection rows. Absent (a database
-         without the Recovery migration) ⇒ 0 ⇒ the day's-first-fall grace, which
-         is the UNDER-charging direction.
-         Mirrors set-activity.js field for field (A14). */
       /* THE BESTIARY COUNTERS (charms phase 2). `hr_bestiary_of`'s rows, read in
          the state transaction above behind its own savepoint, folded to a charm
          rank BY THE ENGINE. No client value, no delta key, and null ⇒ no charm.
          Mirrors set-activity.js field for field (A14). */
       bestiaryKills,
-      deathsTodayBefore:    Number(st.deaths_today) || 0,
-      deathsLifetimeBefore: Number(st.deaths_lifetime) || 0,
-      /* THE RETREAT COUNTER (Recovery rev. 3). `player_state.consec_falls` —
-         consecutive falls with no kill between them, written ONLY by hr_apply
-         from the engine's own proposal. Presence-of-key, not `?? null`: the
-         column is `not null default 0` so `??` would work, but all four
-         self-configuring inputs read the same way here on purpose — one idiom
-         at the call site, not two. Absent column ⇒ absent key ⇒ null ⇒ the
-         engine omits `consec_falls` and no character ever retreats, which is
-         byte-for-byte the pre-Retreat behaviour.
-         Mirrors set-activity.js field for field (A14). */
-      consecFalls: ('consec_falls' in st) ? (Number(st.consec_falls) || 0) : null,
-      /* THE WEAPON ENCHANT (ELEMENTS v1). `{ <equip_slot>: <element> }` from
-         hr_state_of, or `{}` when the column is absent. Unlike tool_carry/fight
-         it is a READ-ONLY input to `equipmentStats(equipment, items, enchant)` —
-         no delta key is derived from it — so `|| {}` is safe and there is no
-         self-configuring-null concern. It is what makes an AWAY fight see the
-         element (accrual.js `weakness`). Mirrors set-activity.js (A14). */
-      enchant: env.enchant || {},
-      /* THE CONSUMABLE BUFF QUEUE (2026-09-13). hr_state_of's OWN top-level
-         `buffs` block — player_state.buffs, written only by hr_apply's
-         buff_apply block from hr_item_buffs + now(). Presence-of-key, not
-         `|| []`: an ABSENT key means this database has no buff column (or an
-         older hr_state_of), and `null` is what makes accrual.js pay NOBODY
-         instead of guessing — the same self-configuring switch as consecFalls /
-         recoveringUntil above. The two halves are then safe in either order.
-         Never a request field: the body carries no buff of any kind.
-         Mirrors set-activity.js field for field (A14). */
-      buffs: ('buffs' in env) ? env.buffs : null,
-      /* THE COMBAT STYLE (2026-08-24-combat-style.sql). `player_state.combat_style`,
-         projected INSIDE the state object, read off the row hr_apply locks —
-         never from the request body, which carries no style field at all. It is
-         what makes an away fight train the skill the player picked; without it
-         the engine settled every styled grant to Attack (the P0 Paione
-         reported). `?? null` and NOT `?? {}`: null means the column does not
-         exist on this database, and `resolveStyle(weaponType, null)` is exactly
-         the pre-migration behaviour — the column's PRESENCE is the switch. Like
-         `enchant` it is READ-ONLY input (no delta key is derived from it), so
-         there is no self-configuring-null concern beyond that.
-         Mirrors set-activity.js field for field (A14). */
-      combatStyle: st.combat_style ?? null,
       /* THE COMPANION-XP ARM SWITCH (ARMED, b550). A deploy-time constant, NOT
          a request value. True today → the engine writes the companion_xp op and
          is its only writer. Mirrors set-activity.js field for field (A14). */
       companionXpBacked: COMPANION_XP_SERVER_BACKED,
       /* THE PERMANENT PERK STACK. Server-owned unlock rows only — the room
-         rung, the plot buildings, the property tier. `null` means the channel
-         is absent or the character has bought nothing, and the engine reads
-         that as 0 for every key, which is the `zeroBonus` behaviour that
-         shipped before b349. Nothing here comes from the request body. */
+         rung, the plot buildings, the property tier. It does NOT come from the
+         envelope: `hr_perks_of` is its own read, in the seed transaction.
+         `null` means the channel is absent or the character has bought nothing,
+         and the engine reads that as 0 for every key, which is the `zeroBonus`
+         behaviour that shipped before b349. Nothing here is request-derived. */
       perks,
       /* THE ARTISAN GATE. `?? null`, not `?? {}` — null means this database
          predates the model, and the engine reads that as LOCKED. Nothing here

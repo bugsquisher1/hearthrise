@@ -78,6 +78,9 @@ import {
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
   isReconcilePending, isAccrualFailure, awaitSettleRaceClear,
+  /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1), imported — this module is the
+     THIRD applier of a server envelope and it had no monotonic rule at all. */
+  classifyFrame, commitFrame,
 } from './accrue.js?v=551';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
@@ -757,6 +760,24 @@ export function applyIntentEnvelope(G, body) {
   const env = envelopeOf(body);
   if (!G || typeof G !== 'object' || !env) return null;
 
+  /* ── THE FRAME GATE, AND WHY THE THIRD APPLIER CANNOT BE EXEMPT ──────────
+     WORLD_TICK_DESIGN.md §7.1 keeps ONE floor per character, and a floor is
+     only true if every applier both reads it and raises it. This module is a
+     writer of the same envelope, addressed by the same `player_state.version`,
+     so an applier that wrote without committing would leave the floor BELOW
+     the state actually in `G` — after which a genuinely older accrue frame
+     would read as "fresh" against the stale floor and be applied on top. The
+     gate would then be worse than none: it would look present and be wrong.
+
+     Refusing here costs nothing on either verdict. The switch's collect has
+     already been recorded against the server's own watermark, and a refusal
+     body's state is a fresh read at a version this client — by the definition
+     of a duplicate — already holds. `applyRecord` downstream is itself
+     monotonic on `version`, so nothing it would have been handed is newer than
+     what it has. */
+  const frame = classifyFrame(env.version);
+  if (!frame.apply) return null;
+
   const loss = describeReplacement(G, env);
   /* b366 — THE DEVICE-HANDOFF DEFERRAL, APPLIED TO THIS TWIN TOO. accrue.js's
      applyEnvelope carries the same three lines and the same reasoning: `G`
@@ -782,6 +803,9 @@ export function applyIntentEnvelope(G, body) {
   }
 
   const written = applyEnvelopeState(G, env);
+  /* AFTER the write, never before — same reasoning as applyEnvelope's commit:
+     a throw must not leave the floor above a frame nothing applied. */
+  commitFrame(env.version);
   /* THE CONSTRUCTED envelope goes back to the caller so record.js's applyRecord
      can read a REFUSAL's state too. A refused switch whose collect applied moved
      `accrued_to`, and `decodeRecord` fails closed on `ok !== true` — so handing

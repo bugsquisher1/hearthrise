@@ -280,16 +280,13 @@ export const ACCRUE_OUTCOMES = [
    THE FRAME GATE — ONE MONOTONIC RULE FOR THE WHOLE ENVELOPE
    docs/planning/WORLD_TICK_DESIGN.md §7.1 · docs/design/LIVE_COUNTERS_PUSH.md §7
 
-   BEFORE: `isEnvelopeApplicable` asked only that `res.version` be a finite
-   NUMBER, and the monotonic rule lived in one place for one field —
-   src/net/gold.js's `if (env.version < lastVersion)`. Survivable under
-   request/response, where a response answers a request this client just made
-   and the only reorder is two gold verbs racing. NOT survivable under a push
-   stream: frames arrive unbidden, and reorder, duplicate and late retransmit
-   are what a socket DOES. Every one of them, against the old gate, silently
-   rewound hp, the activity pointer, the bag, a buff clock and the plot tier —
-   the "browser says X, server says Y" class (CLAUDE.md §6, a P1 class-kill)
-   arriving at the world tick's cadence instead of at a reload's.
+   BEFORE: the monotonic rule lived in one place for one field — gold.js's
+   `if (env.version < lastVersion)` — and the shape check asked only that
+   `res.version` be finite. Survivable under request/response, whose only
+   reorder is two gold verbs racing; NOT under a push stream, where reorder,
+   duplicate and late retransmit are what a socket DOES. Each silently rewound
+   hp, the activity pointer, the bag, a buff clock and the plot tier: "browser
+   says X, server says Y" (CLAUDE.md §6, a P1 class-kill) at the tick's cadence.
 
    THE RULE: a frame ADVANCES the gate only if `frame > lastAppliedFrame`.
    STRICTLY greater. Equal is a duplicate, lower is a reorder, NEITHER EVER
@@ -305,18 +302,15 @@ export const ACCRUE_OUTCOMES = [
    from either producer under the per-character row lock, so it is already
    monotonic and already the number gold.js was comparing.
 
-   THE PREDICATE READS THE FLOOR; ONLY AN APPLIER RAISES IT. That is what keeps
-   `isEnvelopeApplicable` safe to ask twice. The three appliers — applyEnvelope
-   here, applyGoldEnvelope, applyIntentEnvelope — each call `commitFrame` on
-   what they actually wrote, and nothing else may.
+   THE PREDICATE READS THE FLOOR; ONLY AN APPLIER RAISES IT, which keeps
+   `isEnvelopeApplicable` safe to ask twice: applyEnvelope here, applyGoldEnvelope
+   and applyIntentEnvelope call `commitFrame` on what they wrote, nothing else may.
 
-   PER CHARACTER, so the reset is load-bearing: two characters' counters are
-   unrelated integers, and carrying one floor into the other would drop every
-   frame of the new character until its version passed the old one's.
-   `resetFrameGate()` runs from `resetAccrualIdentity()` — the hook auth.js's
-   signOut() (which does NOT reload) and multi-character.js both already call.
-   It runs from `resetGold()` too, which has no production caller: that one is
-   the suite's reset and was never the seam this claimed it was (SEC S2).
+   PER CHARACTER, so the reset is load-bearing: carrying one character's floor
+   into another would drop every frame of the new one until its version passed
+   the old one's. `resetFrameGate()` runs from `resetAccrualIdentity()` — called
+   by auth.js's signOut() (which does NOT reload) and by multi-character.js —
+   and from `resetGold()`, the suite's reset with no production caller (SEC S2).
 
    NEVER PERSISTED. The floor is session state; after a reload the `hello`
    re-read restates it. A stored floor is the residue-ahead class wearing a
@@ -327,7 +321,7 @@ export const ACCRUE_OUTCOMES = [
  *  -1 is "nothing yet", and it is below every version the server can stamp. */
 let lastAppliedFrame = -1;
 
-/** Read-only seam for the suite and the bug report. */
+/** Read-only seam for the suite and devtools (`window.HearthriseAccrual`). */
 export function getAppliedFrame() { return lastAppliedFrame; }
 
 /* ── THE DROP STREAK (SEC S3, 2026-09-23) ───────────────────────────────────
@@ -807,7 +801,7 @@ export function getAccrualState() {
     enabled: true,               // b515: the kill switch is retired; always on
     configured: !!config,
     pending: !!inFlight,
-      /* SEC S3 — the frame gate, on the sheet a bug report already carries. */
+    /* SEC S3/R3 — the frame gate, readable from devtools; no sheet carries it yet. */
     frame: lastAppliedFrame,
     ...getFrameDrops(),
     ...gate,

@@ -2297,12 +2297,7 @@ export default [
 
       /* (c) THE PRESS. One intent, five fields, and the figures that follow are
              the SECOND envelope's — not 876-10 and not the RPC's own qty. */
-      /* ⚠ AND THE VERSION MOVES (M5). This is the SAME character's SECOND
-         server statement — the deposit hr_apply just accepted — so on a real
-         server its version is higher. Reusing 9 made it a duplicate frame,
-         which the gate drops whole (§7.1), and the Depot never saw the realm's
-         ten stacks. */
-      env = { ...env, version: env.version + 1, inventory: { [ID]: 866 }, bank: { [ID]: 10 } };
+      env = { ...env, inventory: { [ID]: 866 }, bank: { [ID]: 10 } };
       await press(10);
       assert(rpc.length === 1, 'the pressed Store put ' + rpc.length + ' intents on the wire, not one (live: three presses, one POST, no message)');
       assert(rpc[0].p_item === ID && rpc[0].p_qty === 10 && rpc[0].p_dir === 'deposit' && /^[0-9a-f-]{36}$/i.test(String(rpc[0].p_idem)),

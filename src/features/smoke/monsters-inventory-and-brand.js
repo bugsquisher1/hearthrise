@@ -4221,15 +4221,8 @@ export default [
     const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
     let sent = [];
     const drain = () => new Promise((r) => setTimeout(r, 60));
-    /* ⚠ THE VERSION MOVES PER CALL (M5). This fixture is applied FIVE times to
-       ONE character, and on a real server five accepted writes are five
-       versions — hr_apply bumps it under the per-character lock every time.
-       Pinning it at 5 made the second and later applies duplicates, which the
-       frame gate correctly drops (WORLD_TICK_DESIGN.md §7.1), and the self-heal
-       under test would then never see an envelope at all. */
-    let awayVersion = 5;
     const awayEnvelope = (equipment) => ({
-      ok: true, accrued: true, version: awayVersion++, now: '2026-08-18T00:00:00Z',
+      ok: true, accrued: true, version: 5, now: '2026-08-18T00:00:00Z',
       state: { slot: 0, gold: 3, hp: 10, max_hp: 10 },
       skills: {}, inventory: { iron_sword: 1 }, equipment,
       away: { grantMs: 0, gold: 0, xp: {}, items: {} },

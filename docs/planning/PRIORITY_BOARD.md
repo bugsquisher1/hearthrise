@@ -362,6 +362,7 @@ _Six read-only audit dimensions + a systems root-cause lane. THE ROOT CAUSE of a
 | Item | Status | Pri | Notes |
 |---|---|---|---|
 | Skill-detail banner copy is stale | FIXED b541 | P3 | Viewing a bench while another skill trains shows “Click ‘Stop’ on that skill first to start a new activity”, but a tap on any tile switches directly (seen on live b539: Woodcutting while cooking). Copy only; behaviour is the router’s. |
+| **lane-C follow-up: `hr_apply` refuses collection keys like `trophy:%`** | 🧊 | P3 | Security F2 on the Bestiary trophy ladder (`SEC_BESTIARY_TROPHY_2026-09-22.md`). `hr_apply` admits `kind='collection'` with any 1..64-char key and `progress_claim` flips `done`→`claimed`, so a trophy row can exist with no `player_ledger` row beside it. NOT client-reachable (`parseIntent`/`INTENT_KEYS` carry no progress or delta field) and it mints nothing; bounded to a compromised Edge. Closed for ranking purposes today by the binding rule in `BESTIARY_LADDER.md` §4.3 and the header of `2026-09-22-trophy-claim.sql`: any "trophies claimed" board counts `player_ledger` rows with `intent='trophy_claim'`, never `player_progress` rows. The real reservation is another restatement of the repo's highest-traffic writer and needs its own lane-C. |
 | Craft material dupe | documented | P2 | Accepted pre-wipe trade (dupe > data loss). Real fix = inventory authority (§2). |
 | 32px requirement chips below 44px tap target | 🧊 | P3 | Art-director handoff. |
 | P3 polish backlog (various from audits) | 🧊 | P3 | In `.claude/coordination/DISCOVERIES.md`. |

@@ -348,6 +348,11 @@ import './net/enchant.js?v=551';
 // it reuses the shared kill switch (isServerAccrualEnabled) and reconciles HP +
 // inventory absolutely through applyEnvelopeState like every other envelope.
 import './net/eat.js?v=551';
+/* THE TROPHY CLAIM (docs/design/BESTIARY_LADDER.md §4). Side-effect import: it
+   publishes window.HearthriseTrophyClaim for the Bestiary modal, the sign-in
+   wiring and legacy.js's envelope hook. It sends nothing on load — the verb
+   fires only from the Claim button. */
+import './net/trophy-claim.js?v=551';
 // THE DUNGEON SETTLE INTENT (docs/design/dungeon-settlement.md §2). Dungeon scrip
 // + run loot become server-owned: the completion paths send hr_dungeon_settle and
 // reconcile the envelope instead of minting into G (the "scrip goes to 0 on
@@ -422,6 +427,12 @@ import { setupBountyProgress } from './render/bounty-progress.js?v=551';
    the rank on every read (nothing is stored). Published on window for the
    classic-script Bestiary modal and for the envelope hook in net/accrue.js. */
 import { setupBestiaryCharms } from './render/bestiary-charms.js?v=551';
+/* BESTIARY TROPHIES (docs/design/BESTIARY_LADDER.md) — the LONG ladder, the same
+   treatment. Mirrors the envelope's `bestiary.kills_by_monster` and
+   `bestiary.trophies` blocks into `G._bestiaryTrophies` scratch and derives the
+   stage on every read (nothing is stored). It also publishes the claim handler
+   the Bestiary modal's template string calls. */
+import { setupBestiaryTrophies } from './render/bestiary-trophies.js?v=551';
 /* THE COMMON (live-world week 1). Two halves, both display-only: net/town.js
    reads `hr_town_of` on its own 25s cadence into `G._town` scratch, and this
    turns that into one row on Home. Neither is authority and neither is a gate —
@@ -486,6 +497,9 @@ function tryBootFeatures() {
      envelope that lands ahead of the boot would drop its counters until the
      next one. */
   boot('bestiary-charms', setupBestiaryCharms);
+  /* Same window, same reason: settle() reaches this through
+     window.hrNoteServerTrophies and a missing hook is a silent no-op. */
+  boot('bestiary-trophies', setupBestiaryTrophies);
   boot('town-panel', setupTownPanel);
   /* AFTER the panel is published: the first poll can land before the next Home
      repaint, and a parked view with no renderer is a view nothing draws. */

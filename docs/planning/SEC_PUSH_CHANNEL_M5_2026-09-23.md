@@ -966,3 +966,482 @@ schema**: the fixture does not, and the only migration that names
 conditions in the file.** That is the whole reason §2 of this re-verify exists,
 and the whole reason runbook item 4 says a `SKIPPED` notice on the *production*
 apply means unverified, not passed.
+
+---
+---
+
+# RE-VERIFY 3 — 2026-09-23 (third pass, same reviewer)
+
+**Lane:** `lane/m5-push-channel` @ `622d4c45`. **Branch:** `sec/m5-push-channel-3`,
+cut from that head, docs-only.
+**Why this pass exists:** after RE-VERIFY's `MIGRATION: GO-WITH-CHANGES`, commit
+`622d4c45` rewrote the self-check's `e4` arm — `to_regprocedure('public.hr_tick_settle(int)')`
+was NULL in every database (the real signature carries nine arguments), so
+`e4`/`e4b` had never executed anywhere. The arm now loops `pg_proc` by
+`proname`, grades every overload, raises `e4c` on no match, strips comments
+before the ordering test, and adds `e4d`. `tests/schema-drift.mjs` gained
+`frame_e4_homes_on_nothing`. **Under review:** `git diff a030727f..622d4c45`
+(74 lines in the migration, 20 in the mutation table). `npm install
+--no-audit --no-fund` clean.
+
+**Everything below is an exit code or a replay transcript I read. Nothing below
+is a diff I approved by reading.**
+
+---
+
+## Verdicts
+
+**`e4` REWRITE (the diff under review): GO.** It converts an arm that could not
+fail anywhere into one that fails on every defect I could plant in its own
+shape. Four arms, four executed refusals. It is a pure catalogue READ.
+
+**MIGRATION `2026-09-22-frame-push-channel.sql`: GO-WITH-CHANGES — UNCHANGED,
+AND NOT YET EARNED. The apply is BLOCKED today.** RE-VERIFY's two required
+changes, **R1 and R2, have not landed**; condition 8 is still unmeasured; and
+this pass adds **R5 and R6**, two ways to defeat `e4b`/`e4d` silently, both
+reproduced on the replay.
+
+**CLIENT FRAME GATE SHIP: GO (unchanged).** Nothing in this diff touches the
+client. `node tools/lane-done.mjs` exits 0 at this head.
+
+---
+
+## 1. `e4`/`e4b`/`e4c`/`e4d`, EXECUTED
+
+Six replays through `tests/schema-replay.mjs` `bootReplay()`. Each patches the
+**fence** file (`2026-09-21-world-tick-settle-fence.sql`, which owns
+`hr_tick_settle`) and asks one question: does
+`2026-09-22-frame-push-channel.sql` **refuse to apply**? Every planted defect
+is behaviour-preserving where it can be, so the fence's own `e15`/`e16` still
+pass and the refusal is attributable to `e4` and to nothing else.
+
+| # | What I planted | Result | Arm |
+|---|---|---|---|
+| A | nothing (control) | **APPLIED**, exit 0 | — |
+| B | the shadow insert spelled `public.U&"hr_tick_shado\0077"` — same table, so the fence's own checks still pass, but `prosrc` no longer contains the name | **REFUSED** | `e4` |
+| C | `proname = 'hr_tick_settle(int)'` — a signature spelled into the name, exactly the shipped defect | **REFUSED** | `e4c` |
+| D | `if p_holder = 'no-such-holder' then v_out := public.hr_apply(…); end if;` placed **before** the shadow branch | **REFUSED** | `e4b` |
+| E | the same call placed **after** the shadow insert and **before** its `return` | **REFUSED** | `e4d` |
+
+Verbatim, from the transcript:
+
+```
+[baseline]            APPLIED
+[b_no_shadow_name]    REFUSED  e4:  hr_tick_settle(text,uuid,integer,…,jsonb) no longer names hr_tick_shadow …
+[c_homes_on_nothing]  REFUSED  e4c: no public.hr_tick_settle is installed, so e4 graded nothing at all …
+[d_apply_before_shadow] REFUSED e4b: … reaches hr_apply BEFORE its shadow branch, so a SHADOW settle now writes player_state and emits a frame …
+[e_fallthrough]       REFUSED  e4d: … writes its shadow journal row and reaches hr_apply without returning first …
+```
+
+**All four arms are load-bearing.** `e4c` is the important one: it is what stops
+this arm from ever silently returning to the state `622d4c45` found it in.
+`frame_e4_homes_on_nothing` is a real mutation — `node tests/schema-drift.mjs
+--mutate` reports `caught frame_e4_homes_on_nothing via replay`, 17/17.
+
+### 1.1 The arm is a pure READ — confirmed
+
+```sql
+select p.oid::regprocedure::text, pg_get_functiondef(p.oid)
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public' and p.proname = 'hr_tick_settle'
+```
+
+Two catalogue reads and `pg_get_functiondef`. No DML, no `set_config`, no
+`execute`. **Nothing of `hr_tick_settle`'s body is restated in this file** — the
+arm asserts against the installed source and holds no copy of it, which is the
+property that stops the two files drifting apart in silence.
+`node tests/selfcheck-no-global-dml.mjs` exit 0 (210 migrations, 9 global
+statements, all 9 acknowledged). `v_n` is re-initialised to 0 immediately
+before the loop and read by nothing after `e4c`; no later arm is clobbered.
+
+---
+
+## 2. R5 and R6 — the comment stripper CAN produce a silent pass
+
+The arm's own comment states an absolute:
+
+> A `--` inside a string literal would strip the rest of that source line, which
+> can only ever produce a false RED; **a silent pass it cannot produce.**
+
+**That is false, and I reproduced it in both directions.**
+
+### R5 — MEDIUM, CONFIRMED. A `--` or `/*` inside a string literal hides a real `hr_apply` call site from `e4b`.
+
+Case **F** is case D byte-for-byte, with one `raise notice` ahead of the call on
+the same source line:
+
+```sql
+if p_holder = 'no-such-holder' then raise notice 'tick -- note'; v_out := public.hr_apply(…); end if;
+```
+
+`regexp_replace(…, '--[^\n]*', '', 'g')` is not string-aware. It deletes from
+the `--` inside that message to end of line — taking the `hr_apply` call with
+it. `e4b` never sees the occurrence.
+
+```
+[d_apply_before_shadow]      REFUSED   (e4b)
+[f_dashdash_hides_apply]     APPLIED   ← same defect, same position, one string literal added
+```
+
+Case **G** is the same with `/* … */`, both halves inside `raise notice`
+messages on different lines; the block stripper is `'gs'` and non-greedy, so it
+deletes everything between them — including the `hr_apply` call sitting on the
+line in between. **`APPLIED`.**
+
+The planted call is a real branch on a real parameter, not dead code. Whether
+it is *reachable* is precisely what a text check cannot decide — which is the
+point: `e4b` grades text, so text is all an author has to get past it.
+
+### R6 — MEDIUM, CONFIRMED. `e4d`'s `\mreturn\M` matches inside a string literal.
+
+Comments are stripped; **string literals are not**. Case **H** is case E plus
+one line inside the shadow branch:
+
+```sql
+raise notice 'the shadow branch will return shortly';
+```
+
+```
+[e_fallthrough]          REFUSED   (e4d)
+[h_return_in_a_string]   APPLIED   ← identical fall-through, one notice added
+```
+
+A shadow branch that writes its journal row and falls through to `hr_apply` —
+the exact failure `e4d` was added to catch — passes if anything between the two
+positions merely *says* the word `return`.
+
+### The fix, and why the obvious one is NOT the fix
+
+The obvious repair is to strip string literals *before* comments. **I tried it
+and it is worse.** Patching the stripper to
+`regexp_replace(v_txt, '''(''''|[^''])*''', '''''''', 'g')` ahead of the two
+existing passes turns the **unmodified, correct** `hr_tick_settle` red:
+
+```
+[i_baseline]  REFUSED   e4: … no longer names hr_tick_shadow …
+```
+
+Because `hr_tick_settle`'s comments carry bare apostrophes —
+`current_setting('role')` **is the REQUEST's**, `S-3's`, the `tick's`, the
+`window's` (fence lines 337, 414, 421, 423, 430). Each is an unbalanced quote, so a
+strings-first pass matches across the shadow insert and deletes it.
+
+**Comments-first is defeated by strings; strings-first is defeated by comments.
+Neither regex order is sound, and no third order exists.** The stripper is
+nonetheless load-bearing — `hr_tick_settle` genuinely discusses `hr_apply` in
+`--` comments at lines 338, 389 and 449, all before the shadow branch at 461 —
+so it cannot simply be removed either.
+
+**Required change (one of, in preference order):**
+
+1. **Stop grading text. Execute the property.** The probe machinery is *already
+   in this file* — `hr922_probe_emit` + the `hr922.fires` counter, used by
+   `e3c`. Set `hr_tick_config.shadow`, call `hr_tick_settle` with the probe
+   row's arguments, and assert `hr922.fires = 0` and that `player_state.version`
+   and `gold` are unmoved. An executed shadow settle cannot be fooled by a
+   comment, a string literal or a stripper, and **this is what RE-VERIFY's R4
+   already called "nearly free"**. It also closes R4 for real instead of by
+   correcting a header.
+2. **Or lex it properly** — a ~20-line PL/pgSQL single pass over `prosrc`
+   tracking `in-string` / `in-line-comment` / `in-block-comment` and emitting
+   code-only text. Deterministic, no backtracking, correct in both directions.
+3. **Minimum, if neither lands: refuse on ambiguity.** Add `e4e` — raise if
+   `prosrc` contains `--`, `/*` or `return` *inside a single-quoted literal* at
+   all. A guard that stops rather than guesses is honest; one that guesses
+   wrong in the passing direction is `e4(int)` again in a new costume.
+
+**And delete the "a silent pass it cannot produce" sentence regardless of which
+fix lands.** `CLAUDE.md` §4: a claim is gated on an exit code, never on
+expectation. That sentence is an expectation, and it is wrong.
+
+---
+
+## 3. R1 and R2 — NOT LANDED
+
+RE-VERIFY §6 lists them as the first thing owed *before the migration is
+applied*, and `CLAUDE.md` §2 is explicit: **GO-WITH-CHANGES means the listed
+changes land first.** I went looking for them at `622d4c45`. They are not there.
+
+**R1 (the `e2` positive control) — ABSENT.** `e2` is unchanged at lines
+587–616. It still sets one claim spelling and still asserts only a zero:
+
+```sql
+        perform set_config('request.jwt.claims',
+          json_build_object('sub', v_u::text, 'role', 'authenticated')::text, true);
+        perform set_config('realtime.topic',
+          public.hr_frame_topic('00000000-0000-4000-8000-0000000051de'::uuid, 0), true);
+        set local role authenticated;
+        select count(*) into v_n from realtime.messages;
+        reset role;
+        if v_n <> 0 then
+```
+
+No owner-side `> 0` assertion anywhere in the block; no `request.jwt.claim.sub`.
+The always-null-probe hole RE-VERIFY reproduced is open, unchanged.
+
+**R2 (the unanchored predicate) — ABSENT, and both false comments still ship.**
+Lines 303–305:
+
+```sql
+        and split_part((select realtime.topic()), ':', 1) = 'hr'
+        and split_part((select realtime.topic()), ':', 2) = (select auth.uid())::text
+        and split_part((select realtime.topic()), ':', 3) ~ '^[0-5]$'
+```
+
+No `array_length(string_to_array(…, ':'), 1) = 3` conjunct. And lines 292-293 still
+read:
+
+```
+     match `hr:<uuid>:0:anything`, and "anything" is attacker-chosen. The three
+     segments are matched exactly, and the third is a single digit because a
+```
+
+`hr:<own-uid>:0:injected` is still accepted; the sentence claiming otherwise is
+still in the file. Blast radius is still **none** today (segment 2 binds
+`auth.uid()`, the emitter writes three segments), exactly as graded before — but
+the condition was to land the change, and it did not land.
+
+**R3** — `a030727f` ("R3's comment is true") corrects the comment to say
+devtools rather than claim a bug-report wire. That closes R3 as *honest*; the
+diagnostics wire remains the same-day follow-up it always was. **R4** remains
+open; fix 1 above closes it properly.
+
+---
+
+## 4. Re-grade: what remains before `node tools/apply-migration.mjs 2026-09-22-frame-push-channel.sql`
+
+**MIGRATION: GO-WITH-CHANGES. Five items, all of them blocking, none of them a
+redesign.**
+
+| # | Owed | Owner | Why it blocks |
+|---|---|---|---|
+| **R1** | `e2` gains an owner-side `> 0` control and sets both claim spellings | the lane | `e2` is the only executed proof of the highest-blast-radius property in the file, and it passes today whether the policy works or is inert |
+| **R2** | one `array_length(…) = 3` conjunct; both comments corrected | the lane | not a break today; the file's stated reason for its own spelling is false, and `CLAUDE.md` §2 means a listed change lands |
+| **R5** | `e4b` cannot be defeated by a `--`/`/*` inside a string literal | the lane | reproduced: `APPLIED` on a defect that `REFUSED` without the literal |
+| **R6** | `e4d`'s `return` is graded on code, not on prose | the lane | reproduced: `APPLIED` on a fall-through that `REFUSED` without the notice |
+| **8** | the lock-hold measurement, §4.1 below | **Coordinator / Reliability** | `hr_apply` is the money write path; an unmeasured addition to its row lock is not something this review can lift |
+
+Not lifted by this review, unchanged from RE-VERIFY: runbook items 3–6 (one
+file, never inside `begin/commit`, never 00:00–00:10 UTC; read the NOTICEs and
+treat a `SKIPPED` on production as *unverified*, not passed; then
+`live-hash-drift --live --write`, the apply-order note flipped to APPLIED, and
+`restore-census`).
+
+### 4.1 CONDITION 8 — the executable procedure
+
+The trigger is not installed on production, so its cost cannot be observed
+directly without applying the thing being gated. **Measure the two statements
+the trigger adds, inside a real `player_state` row lock, in a transaction that
+is rolled back.** Nothing is committed: no player state is written
+(`CLAUDE.md` §2), and the `realtime.messages` row `realtime.send` inserts
+disappears with the rollback.
+
+**Run as the Coordinator, one `psql` session, at the measured daily peak.** Find
+the peak first — this is also the load figure the pass criteria need:
+
+```sql
+-- (L) the busiest hour of the last 7 days, and the write rate in it.
+select date_trunc('hour', at) as hour,
+       count(*)                as accepted_writes,
+       round(count(*)/3600.0, 3) as writes_per_sec
+  from public.player_intents
+ where at > now() - interval '7 days'
+ group by 1 order by 2 desc limit 5;
+```
+
+Then, **in that hour**:
+
+```sql
+-- CONDITION 8. Times hr_state_of + the frame_keys fold + realtime.send as one
+-- unit, inside the exact lock hr_apply holds, 100 times. Ends in ROLLBACK.
+-- Substitute the QA account's user_id. Never a live player picked at random.
+begin;
+set local hr8.user = '<QA-ACCOUNT-UUID>';
+set local hr8.slot = '0';
+
+-- (1) the lock hr_apply takes on the row it is about to write.
+select version from public.player_state
+ where user_id = current_setting('hr8.user')::uuid
+   and slot    = current_setting('hr8.slot')::int
+ for update;
+
+-- (2) the trigger's added work, inside that lock. 100 samples, because
+--     CLAUDE.md §4: one sample is not a verdict.
+do $$
+declare
+  v_u    uuid := current_setting('hr8.user')::uuid;
+  v_s    int  := current_setting('hr8.slot')::int;
+  v_keys text[] := (select frame_keys from public.hr_tick_config where id limit 1);
+  t0 timestamptz; i int; v_env jsonb; v_patch jsonb; v_key text;
+  all_ms numeric[] := '{}'; env_ms numeric[] := '{}'; bytes int := 0;
+begin
+  for i in 1..100 loop
+    t0 := clock_timestamp();
+    v_env := public.hr_state_of(v_u, v_s);
+    env_ms := env_ms || round(extract(epoch from clock_timestamp() - t0) * 1000, 3);
+    v_patch := '{}'::jsonb;
+    foreach v_key in array v_keys loop
+      if v_env ? v_key then v_patch := v_patch || jsonb_build_object(v_key, v_env->v_key); end if;
+    end loop;
+    perform realtime.send(
+      jsonb_build_object('t','delta','frame', 0, 'patch', v_patch),
+      'frame', public.hr_frame_topic(v_u, v_s), true);
+    all_ms := all_ms || round(extract(epoch from clock_timestamp() - t0) * 1000, 3);
+    bytes  := greatest(bytes, octet_length(v_patch::text));
+  end loop;
+  raise warning 'condition8 n=% | TOTAL p50=% p95=% p99=% max=% | hr_state_of p95=% | payload_max_bytes=%',
+    array_length(all_ms, 1),
+    (select percentile_disc(0.50) within group (order by x) from unnest(all_ms) x),
+    (select percentile_disc(0.95) within group (order by x) from unnest(all_ms) x),
+    (select percentile_disc(0.99) within group (order by x) from unnest(all_ms) x),
+    (select max(x) from unnest(all_ms) x),
+    (select percentile_disc(0.95) within group (order by x) from unnest(env_ms) x),
+    bytes;
+end $$;
+rollback;
+```
+
+**The numbers that pass.** All four, or condition 8 is not met and §3.6 is
+restated from the measurement before it is met:
+
+| Measure | Passes | Fails |
+|---|---|---|
+| `TOTAL p95` — the ms added to every accepted write, inside the lock | **≤ 10 ms** | > 10 ms |
+| `TOTAL p99` / `max` — what a player feels on a bad sample | **p99 ≤ 25 ms and max ≤ 250 ms** | either exceeded |
+| added load = `p95 × writes_per_sec ÷ 1000` from (L) | **≤ 0.05** (5% of one core-second per second at peak) | > 0.05 |
+| `payload_max_bytes` against the Realtime broadcast limit | **≤ 64 KB** | > 64 KB (and a hard stop at 256 KB — over the limit the send throws, the emitter swallows it, and every frame for that character is silently lost) |
+
+`hr_state_of p95` is reported separately so §3.6's `[D, UNMEASURED IN THE LOCK]`
+`3.23 ms` charge can be replaced with a measured number rather than re-asserted.
+Run it **twice** — once at peak, once at a quiet hour — and report both; a
+number taken only when the database is idle is not a measurement of the thing
+condition 8 is about.
+
+Two honest limits on this procedure, stated so nobody reads more into the result
+than it carries: it measures the added work in **one** session, so it bounds
+per-write latency and CPU but says nothing about Realtime tenant behaviour at
+concurrency (the 500-connection ceiling is still a quota line, not an
+observation); and `realtime.send` inside a rolled-back transaction exercises the
+insert but not the delivery path.
+
+### 4.2 The WAL / retention read Reliability owes — as a question, with the queries
+
+**The question:** *at one `realtime.messages` row per accepted write, under
+`wal_level = logical` with two replication slots — (a) how many WAL bytes per
+day does the frame channel add, (b) can either slot fall far enough behind to
+pin WAL beyond the instance's disk headroom, and (c) does `realtime.messages`'
+partition retention actually drop partitions, or do they accumulate?*
+
+```sql
+-- (a) the settings that make this a WAL question at all
+select name, setting from pg_settings
+ where name in ('wal_level','max_replication_slots','max_wal_size','min_wal_size',
+                'wal_keep_size','max_slot_wal_keep_size','archive_mode');
+
+-- (b) every slot: how far behind, and how much WAL it pins
+select slot_name, plugin, slot_type, active, temporary, wal_status, safe_wal_size,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn))        as retained_wal,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) as unconfirmed
+  from pg_replication_slots order by restart_lsn;
+
+-- (c) WAL on disk now
+select count(*) as segments, pg_size_pretty(sum(size)) as wal_on_disk from pg_ls_waldir();
+
+-- (d) does either slot's publication actually carry realtime.messages?
+select p.pubname, p.puballtables from pg_publication p;
+select p.pubname, n.nspname, c.relname
+  from pg_publication_rel r
+  join pg_publication p on p.oid = r.prpubid
+  join pg_class c       on c.oid = r.prrelid
+  join pg_namespace n   on n.oid = c.relnamespace
+ where n.nspname = 'realtime';
+
+-- (e) the partitions, their size, and whether old ones are being dropped
+select c.relname, c.relpersistence, c.relreplident,
+       pg_size_pretty(pg_total_relation_size(c.oid)) as total,
+       c.reltuples::bigint                            as est_rows
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+ where n.nspname = 'realtime' and c.relname like 'messages%'
+ order by c.relname;
+
+-- (f) growth MEASURED, not estimated: run twice, 600 s apart.
+select pg_current_wal_lsn(), now();
+-- bytes/day = pg_wal_lsn_diff(lsn_1, lsn_0) * 144
+```
+
+**What the answer has to establish before condition 8 is signed off:** that
+`(f)` measured *with* the frame channel's projected row rate still leaves
+`safe_wal_size` positive on **both** slots at their worst observed lag from
+`(b)`, and that `(e)` shows partitions being dropped rather than accumulating.
+If `(d)` shows neither publication carries `realtime.messages`, say so — the
+WAL question shrinks to plain heap growth and `(e)` alone decides it. That is a
+Reliability answer, not a Security one; this review does not grade it, it only
+refuses to call condition 8 met without it.
+
+---
+
+## 5. Guards — exit codes I read, on `622d4c45`
+
+`$?` captured after each command; no `|| echo` anywhere (`CLAUDE.md` §4).
+
+| Command | Exit | Last line |
+|---|---|---|
+| `node tests/schema-drift.mjs` | **0** | `OK — repo rebuilds to the committed fingerprint (65061ed937e4…)` |
+| `node tests/schema-drift.mjs --mutate` | **0** | `all 17 planted defects caught` — incl. `caught frame_e4_homes_on_nothing via replay` |
+| `node tests/selfcheck-no-global-dml.mjs` | **0** | `OK — 210 migrations, 9 global statement(s), all 9 acknowledged with a written reason` |
+| `node tests/envelope-frame-gate.mjs` | **0** | `OK — one monotonic frame gate, strictly greater, whole-frame-or-nothing, committed by all three appliers.` |
+| `node tests/apply-order-honesty.mjs` | **0** | `30 file(s) carry a measured verdict (30 evidenced-live, 0 evidenced-absent) and every note about them agrees with tests/live-hash-drift.baseline.json.` |
+| `node tests/guard-hygiene.mjs` | **0** | `PASSED — no orphans, no ghosts, no stale entries, no vacuous proofs.` |
+| `node tools/lane-done.mjs` | **0** | `lane-done: all green.` (24 steps) |
+
+`apply-order-honesty` is **green**, not red: the frame-push note still reads
+`STAGED, NOT APPLIED — REVIEW ONLY` and agrees with the baseline, which is
+correct for a file that has not been applied. `tests/live-hash-drift.baseline.json`
+is untouched by this branch (`CLAUDE.md` §2 — Coordinator-only).
+
+**⚠ And `guard-hygiene`'s green is worth reading narrowly.** It reports `100
+workflow step(s) claim a mutation proof; each resolves to a file that branches
+on the flag`. That is a proof that the mutation *exists and is wired*, which is
+exactly what `frame_e4_homes_on_nothing` now supplies — and exactly what the
+arm lacked for its whole life before `622d4c45`, while every guard in this table
+was green. R5 and R6 are the same shape one layer down: the mutation table
+plants the defect the author thought of, and `--mutate`'s green says nothing
+about the two I planted in §2.
+
+---
+
+## 6. What I checked this pass and found CORRECT
+
+| Question I attacked | Answer |
+|---|---|
+| Does `e4c` actually fire, or is it unreachable like the arm it replaced? | **Fires.** Case C, the shipped mutation's own shape: `REFUSED`. |
+| Does the loop grade *every* overload, or stop at the first? | **Every one.** `for … loop` over `pg_proc` ordered by `oid`, each graded, `v_n` counted; a second `hr_tick_settle` carrying its own shadow branch is graded too. |
+| Can `e4d`'s `substring(… for position(apply) - position(shadow))` take a negative length and error instead of asserting? | **No.** Negative length is only possible when `apply < shadow`, and `e4b` raises on that first, in the same iteration, before `e4d` is evaluated. |
+| Does `v_n := 0` clobber a later arm? | **No.** `v_n` is re-initialised immediately before the loop and read by nothing after `e4c`. |
+| Does the arm restate any part of `hr_tick_settle`? | **No.** It reads `pg_get_functiondef` and holds no copy. §1.1. |
+| Is the comment stripper load-bearing, or could it just be deleted? | **Load-bearing.** `hr_tick_settle` discusses `hr_apply` in `--` comments at fence lines 338, 389 and 449, all ahead of the shadow branch at 461. Without stripping, `e4b` fires on a correct function. That is why R5's fix is "execute the property", not "remove the stripper". |
+| Did this diff touch the client, the build, or any baseline it may not? | **No.** Two files: the migration and the mutation table. `lane-done` exit 0. |
+
+---
+
+## 7. Residual risk I am accepting
+
+- **Improved, and now proven.** `e4` went from an assertion that could not fail
+  anywhere to one that refuses the apply on four distinct planted defects. That
+  is the single largest thing this diff buys, and it is real.
+- **Open, reproduced, and mine to have caught.** R5 and R6 — `e4b` and `e4d` can
+  each be defeated by a string literal. Not exploitable by a player; the exposure
+  is that the property `e4` exists to pin could regress with the arm still green.
+  `frame_push` ships `false` and the shadow property holds by construction today,
+  so the blast radius **now** is none; the blast radius is entirely in the future
+  this guard was written to protect.
+- **Open, unchanged, and the reason the apply does not go.** R1 and R2 did not
+  land. I am not softening a GO-WITH-CHANGES because the intervening diff was
+  good work on a third thing.
+- **Remains, unmeasured by anyone.** Condition 8. §4.1 is now executable end to
+  end, with pass numbers, so the next round-trip is a measurement rather than a
+  question. The WAL/retention read (§4.2) is Reliability's and is stated as a
+  question with its queries.
+- **Not re-run this pass.** The in-page suite; RE-VERIFY §9's container limits
+  are unchanged and this diff touches no client file. The record gate is the
+  GitHub run on the release SHA (`CLAUDE.md` §3.3).

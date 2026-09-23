@@ -7618,6 +7618,165 @@ export default [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     regression suite — THE CLAIM THE SERVER PAID AND THE CLIENT NEVER HEARD
+     (live P1, hearthrise.net)
+
+     Hero 3 slot 2, 19:45 UTC 2026-09-23, QA account. Header 42,128 gold /
+     13 gems. Claim on the completed daily goal `level_up` → "Reward claimed",
+     row flips to ✓ Claimed, and the SERVER pays: player_ledger kind=daily
+     intent=goal_claim:2026-9-23:level_up, player_state gold 42,628 gems 14 at
+     version 1991. `window.G.gold` read 42,128 for at least forty more seconds,
+     header included, until a reload showed 42,628.
+
+     NOT the header-repaint bug immediately above: `applyRecord` never ran
+     at all. `src/net/goal-claim.js` is a bare PostgREST transport — it hands
+     the RPC's JSON back and reconciles NOTHING — so a payout that exists only
+     in the server's answer reached no seam. Every claim on that transport
+     shared it (goal, quest, daily task, milestone, bounty); only renown.js had
+     noticed, and it patched its own handler instead of the transport.
+
+     THE FIX IS AT THE SEAM: `call()` reconciles after any CREDIT verb the
+     server answers ok — through `applyGoldEnvelope` when the answer IS an
+     envelope, otherwise through `requestRecord()`, the same applyRecord tail.
+     MUTATION: drop `reconcileAfterCredit` from call() → RED here.
+
+     THE SECOND HALF, same §6 class: the toast quoted `DAILY_REWARDS`, a client
+     price list, for a payout the server owns. It now quotes the answer's own
+     `gold`/`gems`/`xp`/`items` — which is why the receipt below says 777 and
+     the client table says 500.
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRunAsync('goal-claim regression: a credited claim ends in the server\'s balance, not the click', async () => {
+    const A = window.HearthriseAccrual;
+    const R = window.HearthriseRecord;
+    const G = window.G;
+    const GC = window.HearthriseGoalClaim;
+    assert(GC && typeof GC.claimGoal === 'function',
+      'src/net/goal-claim.js did not load — the transport this guard watches is absent');
+    assert(typeof window.claimQuestReward === 'function',
+      'window.claimQuestReward is gone — this guard drives the REAL Claim path, not a stub');
+    assert(window.__hrSyncServerGoals && typeof window.__hrSyncServerGoals.reset === 'function',
+      'the server-goal test seam is gone, so the fixture cannot make the row claimable deterministically');
+    const cell = document.getElementById('top-gold');
+    assert(cell, 'there is no #top-gold in the page — the surface this guard watches is gone');
+    const shown = () => {
+      const t = String(cell.textContent || '').replace(/[,\s]/g, '');
+      return /^\d+$/.test(t) ? Number(t) : null;
+    };
+
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    const wasAck = A.isReplacementAcknowledged();
+    const origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
+    const origNotify = window.notify, origCfg = R.getRecordConfig();
+    const save = { gold: G.gold, gems: G.gems, dailyGoals: G.dailyGoals,
+      stats: G.stats ? Object.assign({}, G.stats) : G.stats };
+    const said = [], seen = [];
+
+    try {
+      A.setServerAccrualEnabled(true);
+      A.acknowledgeReplacement(true);
+      assert(window.clientMayWriteRecordField('gold') === false,
+        'CONTROL: gold is not armed in this fixture, so claimQuestReward takes its DORMANT branch and '
+        + 'the server path under test never runs');
+      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://probe.supabase.co', anonKey: 'anon' }) };
+      window.HearthriseAuth = { getSession: () => ({ user: { id: 'qa' }, access_token: 'jwt' }) };
+      R.configureRecord({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      window.notify = (m) => { said.push(String(m)); };
+      window.__hrSyncServerGoals.reset();
+
+      /* TODAY'S SLATE, FORCED to carry the goal under test — the picker takes
+         three of eight by day, so a test that hoped for `level_up` would be
+         green six days in seven and mean nothing. `counterBaselined` is what
+         makes the baseline KNOWN for a server-mirrored counter; without it the
+         row grades as 0 and there is nothing to claim. */
+      window.getGoalsForToday();
+      G.dailyGoals.picks = ['level_up'];
+      G.dailyGoals.startValues = { level_up: 0 };
+      G.dailyGoals.counterBaselined = { level_up: true };
+      G.dailyGoals.claimed = {};
+      G.stats = G.stats || {};
+      G.stats.levelups = 1;
+      G.gold = 42128; G.gems = 13;
+      stampBalanceLikeLoad(G);
+      window.updateTopbar();
+      assert(shown() === 42128,
+        'CONTROL: the top bar reads ' + JSON.stringify(cell.textContent) + ' before the claim, not 42,128 — '
+        + 'the fixture never reached the surface, so every assertion below would pass for free');
+
+      /* Strictly newer than the stamp above, or applyRecord reads the load as
+         stale and gap-fills nothing (the balance is already KNOWN). */
+      const LOAD_VERSION = ((G._record && Number(G._record.version)) || 0) + 1;
+      const SERVER_GOLD = 12345, SERVER_GEMS = 14;
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (/rpc\/hr_claim_goal/.test(s)) {
+          seen.push('claim');
+          /* THE SHAPE PRODUCTION RETURNS — a grant RECEIPT, not an envelope:
+             hr_claim_goal answers {ok, credited, goal, gold, gems, xp, items}
+             and carries no state/version at all. 777 is deliberately NOT the
+             500 DAILY_REWARDS prices, so a toast built from the client table
+             cannot pass. */
+          return Promise.resolve(new Response(JSON.stringify({
+            ok: true, outcome: 'applied', credited: true, goal: 'level_up',
+            weekly: false, period: '2026-9-23', have: 4, target: 1,
+            gold: 777, gems: 1, xp: {}, items: {}, skipped_xp: {}, skipped_items: {},
+          }), { status: 200 }));
+        }
+        if (/rpc\/hr_load/.test(s)) {
+          seen.push('load');
+          const skills = {}; for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+          return Promise.resolve(new Response(JSON.stringify({
+            ok: true, version: LOAD_VERSION, now: new Date().toISOString(),
+            state: { gold: SERVER_GOLD, gems: SERVER_GEMS, active_kind: 'idle', active_id: null, accrued_to: null },
+            skills, inventory: Object.assign({}, G.inventory),
+          }), { status: 200 }));
+        }
+        if (/rpc\/hr_goal_state/.test(s)) {
+          return Promise.resolve(new Response(JSON.stringify({ ok: true, goals: [] }), { status: 200 }));
+        }
+        return realFetch.apply(this, arguments);
+      };
+
+      window.claimQuestReward('level_up', false);
+      await drain(); await drain();
+
+      assert(seen.indexOf('claim') !== -1,
+        'CONTROL: the Claim path never reached hr_claim_goal (' + JSON.stringify(seen) + ') — the fixture '
+        + 'did not make the row claimable, so nothing below is being tested');
+      assert(G.gold === SERVER_GOLD,
+        'THE CLAIM WAS PAID AND THE CLIENT NEVER HEARD. `G.gold` is ' + G.gold + ' and the realm says '
+        + SERVER_GOLD + '. The server credited, journalled and once-guarded this claim; the client marked '
+        + 'the row ✓ Claimed and reconciled nothing, so the player is shown — and spends against — a '
+        + 'balance that is theirs no longer. §6: a claim\'s payout exists ONLY in the server\'s answer, so '
+        + 'the claim transport must end in an envelope apply, not in a row repaint.');
+      assert(G.gems === SERVER_GEMS,
+        'gems are ' + G.gems + ' and the realm says ' + SERVER_GEMS + ' — the reconcile landed gold and '
+        + 'left the premium balance on the pre-claim figure');
+      assert(shown() === SERVER_GOLD,
+        'THE BROWSER SAYS ' + JSON.stringify(cell.textContent) + ' AND THE REALM SAYS ' + SERVER_GOLD
+        + '. `G.gold` is ' + G.gold + ', so the apply landed and the header did not follow it.');
+      assert(said.some((m) => /\b777g\b/.test(m)),
+        'THE TOAST QUOTED THE CLIENT\'S PRICE LIST, NOT THE RECEIPT: ' + JSON.stringify(said) + '. The '
+        + 'server said it paid 777 gold; DAILY_REWARDS says 500. A figure the client authors for a payout '
+        + 'the server owns reads right only while the two catalogues agree — and on the day they do not, '
+        + 'the player is told a number their balance never moved by.');
+    } finally {
+      window.fetch = realFetch;
+      window.notify = origNotify;
+      window.HearthriseSupabase = origSb;
+      window.HearthriseAuth = origAuth;
+      R.configureRecord(origCfg);
+      window.__hrSyncServerGoals.reset();
+      A.acknowledgeReplacement(wasAck);
+      restoreAccrualSwitch(wasOn);
+      Object.assign(G, save);
+      stampBalanceLikeLoad(G);
+      try { window.updateTopbar(); } catch (e) {}
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
   /* B354-5 IS RETIRED (b515), and it is the clearest case in the batch. Every
      one of its assertions was about the DARK position: with the b353 kill
      switch off, no gold verb may reach hr-accrue, the daily claim and the

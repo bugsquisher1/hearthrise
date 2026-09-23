@@ -7909,106 +7909,128 @@ export default [
   /* ── M5 · regression suite — THE MONOTONIC FRAME GATE ────────────────────
      docs/design/LIVE_COUNTERS_PUSH.md §7 · WORLD_TICK_DESIGN.md §7.1
 
-     THE GAP THIS CLOSES, AS IT WAS BEFORE THE LIFT. The client had no
-     whole-envelope version gate at all: `isEnvelopeApplicable` required
-     `res.version` to be a finite NUMBER and nothing else, and the monotonic
-     rule existed in exactly ONE place for exactly ONE field — gold.js's
-     `if (env.version < lastVersion) return { stale: true … }`. So an OLDER
-     envelope arriving at applyEnvelope (the away/boot applier) or at
-     applyIntentEnvelope (the switch applier) was applied IN FULL: hp, the
+     THE GAP. The client had no whole-envelope version gate: `isEnvelopeApplicable`
+     required `res.version` to be a finite NUMBER and nothing more, and the
+     monotonic rule lived in ONE place for ONE field — gold.js's
+     `if (env.version < lastVersion)`. An OLDER envelope reaching applyEnvelope
+     (away/boot) or applyIntentEnvelope (switch) was applied IN FULL: hp, the
      activity pointer, the bag, every skill, every buff clock and the plot tier
-     all rewound to a state the server had already moved past, silently.
+     rewound to a state the server had already moved past, silently.
 
-     Under today's request/response transport that is rare, because a response
-     answers a request this client just made. Under M5's push stream it is the
-     normal operating condition of a phone on a train — reorder, duplicate and
-     late retransmit are what a socket DOES — and a rewind the player can act on
-     is the 2026-09-13 "browser says X, server says Y" class, which CLAUDE.md §6
-     makes a P1 CLASS-KILL. The gate must therefore exist BEFORE anything
-     pushes, which is the ordering WORLD_TICK_DESIGN.md §7a fixes.
+     Rare under request/response, where a response answers a request this client
+     just made. Under M5's push stream it is the normal operating condition of a
+     phone on a train — reorder, duplicate and late retransmit are what a socket
+     DOES — and a rewind the player can act on is the "browser says X, server
+     says Y" class, a P1 CLASS-KILL under CLAUDE.md §6. The gate must therefore
+     exist BEFORE anything pushes, which is the ordering §7a fixes.
 
-     WHAT IS ASSERTED, AND WHY EACH IS RED WITHOUT THE LIFT:
-       (A) a REORDERED envelope writes NOTHING through applyEnvelope
-           — pre-lift it wrote everything, because the gate only checked shape.
-       (B) a DUPLICATE (equal version) is refused, by every applier
-           — pre-lift gold.js's rule was `<`, so equal was applied, and the away
-             applier had no rule at all.
-       (C) the whole frame or nothing: a refused frame leaves EVERY key as it
-           was. This is the claim a per-key "apply the newer fields" fix gets
-           wrong, and a merged state is a fiction the server never held.
-       (D) ONE floor, shared: an envelope applied through accrue.js moves the
-           floor gold.js reads. Pre-lift they were two unrelated counters, which
-           is why gold's rule never protected the away path.
-       (E) the hello heals: a fresh full envelope after a drop applies in one
-           step and the floor jumps to it — §7.1's only way back.
+     Four tests, and each is RED without the lift:
+       (A) reorder     pre-lift applyEnvelope wrote everything; the gate only
+                       checked shape. Also the whole-frame-or-nothing claim,
+                       which a per-key "apply the newer fields" fix gets wrong.
+       (B) duplicate   gold's rule was `<`, so equal was applied; the away
+                       applier had no rule at all.
+       (C) one floor   accrue and gold were two unrelated counters, which is why
+                       gold's rule never protected the away path.
+       (D) hello       §7.1's only way back from a missed frame — and a gate
+                       that can latch shut is worse than no gate.
 
      PRIVATE Gs throughout, never window.G, so nothing global moves and the
      destructive-replacement gate sees no local progress to lose. */
-  () => tryRun('M5 regression: the monotonic frame gate — strictly greater, whole frame or nothing', () => {
-    const A = window.HearthriseAccrual;
-    const Gd = window.HearthriseGold;
-    const M = window.HearthriseActivity;
-    assert(A && typeof A.classifyFrame === 'function' && typeof A.commitFrame === 'function'
-      && typeof A.resetFrameGate === 'function' && typeof A.getAppliedFrame === 'function',
-      'accrue.js does not publish the frame gate (classifyFrame/commitFrame/resetFrameGate/'
-      + 'getAppliedFrame) — the whole contract below is about it');
-    assert(Gd && typeof Gd.applyGoldEnvelope === 'function' && typeof Gd.getGoldState === 'function',
-      'gold.js applyGoldEnvelope/getGoldState must be published');
-    assert(M && typeof M.applyIntentEnvelope === 'function',
-      'activity.js applyIntentEnvelope must be published — it is the third applier');
+  ...m5FrameGateTests(),
+];
 
-    /* A COMPLETE envelope, so every refusal below is the FRAME rule biting and
-       never the shape rule. Shape failures have their own tests. */
-    const envAt = (version, gold) => ({
-      ok: true, accrued: true, version, now: '2026-09-22T12:00:00Z',
-      state: { slot: 0, gold, gems: 0, hp: 40, max_hp: 40, accrued_to: '2026-09-22T12:00:00Z',
-        active_kind: 'gather', active_id: 'copper_rock' },
-      skills: { mining: { xp: gold * 2 } },
-      inventory: { copper_ore: gold },
-      equipment: {}, bank: {}, progress: [],
-      away: { ms: 10000, kind: 'gather', credited: true },
-    });
+/* The shared fixture. A COMPLETE envelope, so every refusal in the four tests
+   is the FRAME rule biting and never the shape rule (shape has its own tests). */
+const m5Env = (version, gold) => ({
+  ok: true, accrued: true, version, now: '2026-09-22T12:00:00Z',
+  state: { slot: 0, gold, gems: 0, hp: 40, max_hp: 40, accrued_to: '2026-09-22T12:00:00Z',
+    active_kind: 'gather', active_id: 'copper_rock' },
+  skills: { mining: { xp: gold * 2 } },
+  inventory: { copper_ore: gold },
+  equipment: {}, bank: {},
+  away: { ms: 10000, kind: 'gather', credited: true },
+});
+/* ⚠ NO `progress` KEY, AND THAT IS DELIBERATE. applyEnvelopeState hands the whole
+   envelope to daily-reward's noteServerStreak, which CAPTURES whenever
+   `progress` is an array — so `progress: []` here files a zero-row login-claim
+   capture under today's server day, and B354-13 (a later file) then prices Day 1
+   and reports "this day pays no gems". The gate under test needs no progress,
+   and the house fixtures for the other appliers carry none either. */
 
+const m5Gate = () => {
+  const A = window.HearthriseAccrual;
+  assert(A && ['classifyFrame', 'commitFrame', 'resetFrameGate', 'getAppliedFrame']
+    .every((f) => typeof A[f] === 'function'),
+    'accrue.js does not publish the frame gate — the whole contract here is about it');
+  return A;
+};
+
+/* ⚠ A HOISTED `function`, NOT a `const` arrow. The exported array above is
+   evaluated at module load and spreads this call, so a const declared BELOW it
+   is in its temporal dead zone: the whole suite module fails to load, nothing
+   defines window.__smokeTest, and the harness reports a 30 s waitForFunction
+   timeout with no failing assertion in it. */
+function m5FrameGateTests() { return [
+  () => tryRun('M5 regression: a reordered frame writes NOTHING — whole frame or nothing', () => {
+    const A = m5Gate();
     const wasAcked = A.isReplacementAcknowledged();
     try {
       A.acknowledgeReplacement(true);
       A.resetFrameGate();
+      const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+      assert(A.applyEnvelope(G, m5Env(200, 500)) && G.gold === 500,
+        'the FIRST envelope was refused — the precondition of this test is broken');
+      assert(A.getAppliedFrame() === 200, 'the floor did not move to 200: ' + A.getAppliedFrame());
 
-      /* ══ (A) A REORDERED ENVELOPE WRITES NOTHING ════════════════════════ */
-      const G1 = { gold: 0, gems: 0, skills: {}, inventory: {} };
-      assert(A.applyEnvelope(G1, envAt(200, 500)) && G1.gold === 500,
-        'the FIRST envelope was refused — the precondition of this whole test is broken');
-      assert(A.getAppliedFrame() === 200,
-        'the floor did not move to 200 after applying frame 200: ' + A.getAppliedFrame());
-
-      const before = JSON.stringify(G1);
-      const wroteOld = A.applyEnvelope(G1, envAt(199, 1));
-      assert(wroteOld === null,
-        'applyEnvelope returned a receipt for a REORDERED frame (199 after 200). Under a push '
-        + 'stream this is a silent rewind of hp, the bag and every buff clock.');
-
-      /* ══ (C) …AND IT WROTE NO KEY AT ALL ════════════════════════════════ */
-      assert(JSON.stringify(G1) === before,
+      const before = JSON.stringify(G);
+      assert(A.applyEnvelope(G, m5Env(199, 1)) === null,
+        'applyEnvelope took a REORDERED frame (199 after 200) — a silent rewind of hp and the bag');
+      assert(JSON.stringify(G) === before,
         'a refused frame still wrote into G — the WHOLE frame is applied or the WHOLE frame is '
-        + 'dropped (§7.1), with no per-key merge. Was ' + before + ', is ' + JSON.stringify(G1));
+        + 'dropped (§7.1), with no per-key merge. Was ' + before + ', is ' + JSON.stringify(G));
       assert(A.getAppliedFrame() === 200, 'a refused frame moved the floor');
+      assert(A.classifyFrame(199).verdict === 'reorder',
+        'a frame below the floor did not classify as `reorder`: ' + A.classifyFrame(199).verdict);
+    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+  }),
 
-      /* ══ (B) A DUPLICATE IS REFUSED — STRICTLY GREATER ══════════════════ */
-      assert(A.applyEnvelope(G1, envAt(200, 9)) === null && G1.gold === 500,
-        'frame 200 was applied TWICE. §7.1 is STRICTLY greater; equal is a duplicate and is '
-        + 'dropped, because "apply it again" and "apply it again OUT OF ORDER" are one code path.');
-      assert(A.classifyFrame(200).verdict === 'duplicate' && A.classifyFrame(199).verdict === 'reorder',
-        'the gate does not name its two refusals apart: '
-        + A.classifyFrame(200).verdict + ' / ' + A.classifyFrame(199).verdict);
+  () => tryRun('M5 regression: a duplicate frame is refused — strictly greater, not >=', () => {
+    const A = m5Gate();
+    const wasAcked = A.isReplacementAcknowledged();
+    try {
+      A.acknowledgeReplacement(true);
+      A.resetFrameGate();
+      const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+      assert(A.applyEnvelope(G, m5Env(200, 500)) && G.gold === 500, 'the first envelope was refused');
+      assert(A.applyEnvelope(G, m5Env(200, 9)) === null && G.gold === 500,
+        'frame 200 applied TWICE. §7.1 is STRICTLY greater — "apply it again" and "apply it '
+        + 'again OUT OF ORDER" are one code path.');
+      assert(A.classifyFrame(200).verdict === 'duplicate',
+        'an equal frame did not classify as `duplicate`: ' + A.classifyFrame(200).verdict);
+    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+  }),
 
-      /* ══ (D) ONE FLOOR, SHARED BY ALL THREE APPLIERS ════════════════════
-         The floor accrue.js just moved to 200 is the SAME floor gold.js reads.
-         Pre-lift these were two unrelated counters — which is exactly why
-         gold's rule protected the gold verbs and nothing protected the away
-         path. A gold envelope stamped BELOW it must now be refused as stale. */
+  () => tryRun('M5 regression: ONE frame floor, shared by all three appliers', () => {
+    /* Pre-lift accrue.js and gold.js held two unrelated counters and activity.js
+       held none — which is exactly why gold's rule protected the gold verbs and
+       nothing protected the away path. */
+    const A = m5Gate();
+    const Gd = window.HearthriseGold;
+    const M = window.HearthriseActivity;
+    assert(Gd && typeof Gd.applyGoldEnvelope === 'function' && typeof Gd.getGoldState === 'function'
+      && M && typeof M.applyIntentEnvelope === 'function',
+      'gold.js and activity.js — the second and third appliers — must be published');
+    const wasAcked = A.isReplacementAcknowledged();
+    try {
+      A.acknowledgeReplacement(true);
+      A.resetFrameGate();
+      const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+      assert(A.applyEnvelope(G, m5Env(200, 500)) && G.gold === 500, 'the accrue envelope was refused');
       assert(Gd.getGoldState().version === 200,
         'gold.js reads a DIFFERENT floor from accrue.js (' + Gd.getGoldState().version
         + ' vs 200). Two floors are two answers to "is this frame stale".');
+
       const Gg = { gold: 500, gems: 0, skills: {}, inventory: {} };
       const stale = Gd.applyGoldEnvelope(Gg, { ok: true, verb: 'shop_buy', version: 150,
         state: { gold: 7, gems: 0 }, skills: {}, inventory: {} }, Gd.newIntentKey());
@@ -8016,88 +8038,82 @@ export default [
         'a gold envelope below the SHARED floor was not refused as stale: ' + JSON.stringify(stale));
       assert(Gg.gold === 500, 'the stale gold envelope wrote the balance anyway: ' + Gg.gold);
 
-      /* …and the switch applier, the third one, obeys the same floor. */
       const Ga = { gold: 500, gems: 0, skills: {}, inventory: {} };
       assert(M.applyIntentEnvelope(Ga, { ok: true, verb: 'set_activity', version: 150,
         state: { gold: 3, gems: 0, slot: 0 }, skills: {}, inventory: {} }) === null,
-        'activity.js applyIntentEnvelope applied an envelope BELOW the shared floor — an applier '
-        + 'that ignores the floor leaves it below the state actually in G, after which a genuinely '
-        + 'older frame reads as fresh.');
+        'activity.js applied an envelope BELOW the shared floor — an applier that ignores the '
+        + 'floor leaves it below the state in G, after which an older frame reads as fresh.');
       assert(Ga.gold === 500, 'the stale switch envelope wrote the balance anyway: ' + Ga.gold);
+    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); Gd.resetGold(); }
+  }),
 
-      /* ══ (E) THE HELLO HEALS, IN ONE STEP ═══════════════════════════════
-         §7.1: a dropped frame is not a hole to be patched. A client that wants
-         certainty asks again and gets a full envelope, and the floor jumps to
-         it. This is the ONLY way back from a missed frame and it must always
-         work — a gate that can latch shut is worse than no gate. */
-      const G2 = { gold: 0, gems: 0, skills: {}, inventory: {} };
-      assert(A.applyEnvelope(G2, envAt(900, 12345)) && G2.gold === 12345,
-        'the hello envelope (900) was refused after the drop sequence');
+  () => tryRun('M5 regression: the hello heals in one step, and a garbage frame cannot latch the gate', () => {
+    const A = m5Gate();
+    const wasAcked = A.isReplacementAcknowledged();
+    try {
+      A.acknowledgeReplacement(true);
+      A.resetFrameGate();
+      A.commitFrame(200);
+      /* §7.1: a dropped frame is not a hole to be patched. A client that wants
+         certainty asks again and gets a full envelope, and the floor jumps to it. */
+      const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+      assert(A.applyEnvelope(G, m5Env(900, 12345)) && G.gold === 12345,
+        'the hello (900) was refused after a drop — the ONLY way back from a missed frame');
       assert(A.getAppliedFrame() === 900, 'the floor did not jump to the hello envelope');
-      assert(A.applyEnvelope({ gold: 0 }, envAt(901, 1)) !== null,
+      assert(A.applyEnvelope({ gold: 0 }, m5Env(901, 1)) !== null,
         'the next real frame after a hello was refused — the gate latched shut');
 
-      /* CONTROL: an unorderable version is refused WITHOUT latching the gate.
-         Infinity is `> floor` for every finite floor, so a single garbage frame
-         that raised the floor would refuse every real frame afterwards. */
+      /* Infinity is `> floor` for every finite floor, so a garbage frame that
+         raised the floor would refuse every real frame afterwards. */
       A.resetFrameGate();
       A.commitFrame(50);
       for (const bad of [Infinity, NaN, undefined, null]) {
+        assert(A.classifyFrame(bad).apply === false,
+          'an unorderable version (' + String(bad) + ') was accepted as a frame');
         assert(A.commitFrame(bad) === false,
           'commitFrame accepted an unorderable version (' + String(bad) + ')');
       }
       assert(A.getAppliedFrame() === 50, 'a garbage frame moved the floor');
-      assert(A.applyEnvelope({ gold: 0 }, envAt(51, 3)) !== null,
+      assert(A.applyEnvelope({ gold: 0 }, m5Env(51, 3)) !== null,
         'the gate latched shut behind a garbage frame');
-    } finally {
-      A.acknowledgeReplacement(wasAcked);
-      A.resetFrameGate();
-      Gd.resetGold();
-    }
+    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
   }),
 
-  /* ── M5 · regression suite — A REFUSAL MUST STILL CORRECT THE BROWSER ─────
-     docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S1 (HIGH, CONFIRMED),
-     reproduced here as the player meets it. CLAUDE.md §6.
+  /* ── SEC S1 — A REFUSAL MUST STILL CORRECT THE BROWSER ────────────────────
+     docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S1 (HIGH, CONFIRMED).
 
-     THE BUG, EXACTLY. The gate directly above drops an EQUAL frame, on the
-     argument that equality can only mean the client already applied that frame.
-     That is true of what was APPLIED and false of what is ON SCREEN. The client
-     carries optimistic writes on top of the applied frame, and the envelope
-     that retires them is a REFUSAL — which writes nothing server-side, so
-     `player_state.version` does NOT move. The correction therefore arrives at
-     `version === lastAppliedFrame`, classified `duplicate`, and the first
-     revision of this lane returned null before writing a single key. The swap
-     the server refused stayed on the screen, spendable, until the next
-     accepted write happened to move the version.
+     The gate above dropped an EQUAL frame, on the argument that equality can
+     only mean the client already applied that frame. True of what was APPLIED,
+     false of what is ON SCREEN: the client carries optimistic writes, and the
+     envelope that retires them is a REFUSAL — which writes nothing server-side,
+     so `player_state.version` does NOT move and the correction arrives at
+     `=== lastAppliedFrame`. It was dropped before a single key was written, and
+     the swap the server refused stayed on screen, spendable (CLAUDE.md §6).
 
-     WHY THIS APPLIER AND NOT THE OTHER TWO. gold.js runs `rollbackPrediction`
-     on the same verdict, so its carry is retired either way; accrue.js's
-     applyEnvelope answers the away/boot path, where a duplicate is a
-     retransmit of a grant already credited and re-applying it would re-pay the
-     receipt. `applyIntentEnvelope` had no compensator at all — and it is the
-     applier every non-gold intent lands on (equip, enchant, recipe learn, the
-     activity switch, via legacy.js applyServerEnvelope {intent:true}).
+     WHY THIS APPLIER. gold.js rolls its prediction back on the same verdict;
+     accrue.js answers the away/boot path, where a duplicate is a retransmit of
+     a grant already credited. `applyIntentEnvelope` had no compensator at all,
+     and it is where every non-gold intent lands (equip, enchant, recipe learn,
+     the activity switch, via legacy.js applyServerEnvelope {intent:true}).
 
-     RED WITHOUT THE FIX: (1) fails — G.gold stays at the optimistic 40 while
-     the server holds 100, which is the §6 sentence verbatim.
-
-     PRIVATE G throughout, never window.G. */
+     RED WITHOUT THE FIX at (1): G.gold stays at the optimistic 40 while the
+     server holds 100 — the §6 sentence verbatim. PRIVATE G, never window.G. */
   () => tryRun('M5 regression: a REFUSED intent still corrects the browser (SEC S1)', () => {
-    const A = window.HearthriseAccrual;
+    const A = m5Gate();
     const M = window.HearthriseActivity;
-    assert(A && typeof A.resetFrameGate === 'function' && typeof A.getAppliedFrame === 'function'
-      && M && typeof M.applyIntentEnvelope === 'function',
-      'the frame gate and the intent applier must both be published');
+    assert(M && typeof M.applyIntentEnvelope === 'function',
+      'activity.js applyIntentEnvelope must be published — it is the applier under test');
 
-    /* An INTENT answer: no `away` receipt, because nothing was absent. A
-       REFUSAL is this same body at a version the server did not move. */
+    /* An INTENT answer, not an accrue envelope: no `away` receipt (nothing was
+       absent) and no `progress` (see m5Env's note — it would file a zero-row
+       streak capture). A REFUSAL is this body at a version the server did not
+       move, which is the whole of the repro. */
     const intentAt = (version, gold) => ({
       ok: true, verb: 'set_activity', version, now: '2026-09-22T12:00:00Z',
       state: { slot: 0, gold, gems: 0, hp: 40, max_hp: 40,
         accrued_to: '2026-09-22T12:00:00Z', active_kind: 'gather', active_id: 'copper_rock' },
       skills: { mining: { xp: 10 } }, inventory: { copper_ore: 1 },
-      equipment: {}, bank: {}, progress: [],
+      equipment: {}, bank: {},
     });
 
     const wasAcked = A.isReplacementAcknowledged();
@@ -8110,15 +8126,14 @@ export default [
         'the first intent envelope (77) did not land — the precondition is broken. gold='
         + G.gold + ' floor=' + A.getAppliedFrame());
 
-      /* (1) THE PLAYER TAPS. The client predicts the spend; the server refuses
-             and answers with its own unchanged truth, at the unchanged version. */
+      /* (1) THE PLAYER TAPS: the client predicts the spend, the server refuses
+             and answers its own unchanged truth at the unchanged version. */
       G.gold = 40;
       const corrected = M.applyIntentEnvelope(G, intentAt(77, 100));
       assert(G.gold === 100,
-        'THE BROWSER SAYS ' + G.gold + ' AND THE SERVER HOLDS 100. A refusal arrives at the '
-        + 'floor (it wrote nothing, so the version did not move) and is the only thing that '
-        + 'retires the prediction. Dropping it is CLAUDE.md §6 — the P1 class this gate exists '
-        + 'to kill, arriving through the gate itself.');
+        'THE BROWSER SAYS ' + G.gold + ' AND THE SERVER HOLDS 100. A refusal arrives at the floor '
+        + '(it wrote nothing, so the version did not move) and is the only thing that retires the '
+        + 'prediction. Dropping it is CLAUDE.md §6, reached through the gate meant to kill it.');
       assert(corrected !== null,
         'the correction returned null, so applyServerEnvelope stops at `if(!written) return null` '
         + '— no saveLocal, no refreshAll, and the stale number stays painted.');
@@ -8126,22 +8141,17 @@ export default [
         'the receipt does not name itself a correction, so no diagnostic can tell a re-statement '
         + 'of the floor from a step forward');
 
-      /* (2) AND IT ADVANCES NOTHING. commitFrame is raise-only, so re-applying
-             an equal frame cannot move the floor past a frame nobody sent. */
+      /* (2) AND IT ADVANCES NOTHING — commitFrame is raise-only. */
       assert(A.getAppliedFrame() === 77,
-        'the duplicate RAISED the floor to ' + A.getAppliedFrame() + '. A correction re-states '
-        + 'the frame behind the floor; it is not a step forward.');
+        'the duplicate RAISED the floor to ' + A.getAppliedFrame() + '. A correction re-states the '
+        + 'frame behind the floor; it is not a step forward.');
 
-      /* (3) A REORDER IS STILL DROPPED WHOLE. That one would be a real rewind —
-             the server has already moved past the state it carries. */
+      /* (3) A REORDER IS STILL DROPPED WHOLE — that one would be a real rewind. */
       G.gold = 40;
       assert(M.applyIntentEnvelope(G, intentAt(70, 1)) === null && G.gold === 40,
         'a REORDERED intent envelope (70 < 77) was applied. The correction arm is for an EQUAL '
         + 'frame only. G.gold=' + G.gold);
       assert(A.getAppliedFrame() === 77, 'a reordered intent envelope moved the floor');
-    } finally {
-      A.acknowledgeReplacement(wasAcked);
-      A.resetFrameGate();
-    }
+    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
   }),
-];
+]; }

@@ -2601,3 +2601,525 @@ node tools/apply-migration.mjs supabase/migrations/2026-09-21-world-tick-cron.sq
 
 Rolling back puts the T-5.3 block back, so **M2 is blocked again** — that is
 the intended consequence, not a side effect.
+
+---
+
+## §18 PARTIES — server-owned hunting groups (M8 design, 2026-09-23)
+
+Written by the Game Designer (§18.1, final authority per `CLAUDE.md` §3.1 —
+nothing here is queued on Tyler except the two finance lines in §18.6) and the
+Backend Architect (§18.2–§18.5). Milestone **M8, target 2026-10-30**, and the
+thing `LIVE_WORLD_BRIEF.md` observed in Huntera that we do not have: *"party
+hunts are a server object: the leader starts with team, each member accepts, the
+server walks everyone to the portal and runs the hunt as one unit."*
+
+**The one-sentence design: a party is a ROSTER UNIT, not a new engine, not a new
+channel and not a new authority — the tick settles four characters in one fenced
+call instead of four, and the split is arithmetic the settle does under the row
+locks it already holds.** If a decision below would have created a second place
+where "what a character is doing" lives, a second money journal, or a client
+field that names a share, a weight or a recipient, the decision is wrong.
+
+Status: **DESIGN ONLY.** No migration, no data row, no code in this lane.
+
+---
+
+### §18.1 THE PLAYER EXPERIENCE
+
+#### Forming one
+
+Kaya and Bram are friends, both around combat level 30. Kaya opens the Party
+panel (empty: one button, *Form a party*), taps it, and is a party of one with
+herself as leader. She taps *Invite*, types Bram's display name; Bram sees a
+card — *Kaya invited you to a party*, Accept / Decline, a 15-minute clock. He
+accepts; both panels show two rows: name, combat level, HP bar, "idle".
+
+No lobby, no matchmaking, no party chat in M8. A party is a named list of two to
+four characters and the hunt they are on. That is the whole object.
+
+- **Party size: 2–4.** Four because that is the number at which a single
+  monster's HP pool divided by the party's combined DPS still leaves every
+  member a visible contribution, and because four is the largest fan-out that
+  keeps the ledger arithmetic identical to solo (§18.4). A party that falls to
+  one member keeps existing so its last member can invite again, but its hunt
+  stops.
+- **Level spread: at most 10 combat levels** between the lowest and the highest
+  member, checked **at hunt start only**, never continuously (refusal
+  `party_level_spread`) — a member who levels past the spread mid-hunt did it by
+  fighting, and stopping the party for that is the game taking back what it paid.
+
+#### Starting a hunt
+
+Kaya picks Wolves, a stance (`careful` / `steady` / `reckless`,
+`HUNTS_AND_ANALYZER.md` §2.2) and stop rules, and taps *Start with team*. Only
+the leader may start. The server refuses if any member is knocked out
+(`party_member_recovering`), if any member's open accrual window cannot be
+priced (`member_uncollectable` — the start closes four windows at once, so it
+collects first for all four, `CLAUDE.md` §3 rule 3), or if the spread fails. On
+success every member's activity pointer moves in one transaction.
+
+#### Both tabs closed
+
+Kaya shuts her laptop; Bram's tab is open on his phone, and his party panel
+keeps updating every 10 s — Kaya's damage climbing, her kills climbing, her HP
+dipping and recovering as auto-eat fires. **That is the M8 moment and it is the
+whole point**: the proof a player can *see* that the world does not depend on a
+client being awake is a friend's numbers moving on a machine the friend is not
+sitting at. Then Bram closes his tab too and nothing changes server-side — the
+tick holds the party's lease and settles it every flush window until a stop rule
+fires or Vigour and supplies run down.
+
+#### What each member sees on return
+
+The Hunt Analyzer, unchanged (`HUNTS_AND_ANALYZER.md` §3), plus one block:
+
+```
+Fellowship — Wolf Ridge, 6 h 12 m
+  Kaya    52.0% of damage   share 50.0%   2,930 xp   1,140 g   fell 0
+  Bram    38.6% of damage   share 37.1%   2,174 xp     846 g   fell 1
+  Ilse     9.0% of damage   share 12.5%     733 xp     285 g   fell 3  ← floor
+  Tomas    0.4% of damage   share  0.4%      23 xp       9 g          ← parked
+  Fellowship bonus +10% xp (3 of 4 fought)   ·   settled 41 s ago
+```
+
+Every number is the last **settled** window's projection, replaced whole by each
+envelope, never extrapolated (`CLAUDE.md` §6). No client-side kill counter ticks
+up between windows: that is the phantom-seed bug with a different noun.
+
+#### The split rule
+
+**Contribution-weighted by damage dealt, with a 50%-of-equal-share floor, and
+the floor itself applies only to a member above a 25%-of-equal-share
+participation threshold.** One rule for XP, gold and loot value — not three.
+
+Concretely, in a four-party (equal share = 25%): a member holding ≥ 6.25% of the
+window's damage is paid `max(raw_share, 12.5%)`; a member below 6.25% is paid
+`raw_share`. Shares are computed in basis points and renormalised to exactly
+10,000 bp after the floor by scaling the above-floor members down
+proportionally; the integer remainder goes to the largest share, ties broken by
+`(user_id, slot)`, so nothing is minted and nothing is lost. Item drops roll
+**once per kill, never once per member**, and each roll is assigned to one
+member by a lottery weighted with the same shares and seeded from the window
+seed — so expected item value tracks the share and a one-quantity sword lands in
+exactly one bag.
+
+**Defence, two sentences.** Weighting by damage is what makes a party useless as
+a pipe — an account that did not fight cannot be paid, so a party can neither
+boost an alt's XP nor carry gold to a fresh account, and a parked member only
+dilutes the people who fought. The floor exists because a tank, a worse weapon
+or a night spent knocked out are legitimate ways to be in a party and a raw
+proportional split punishes exactly the player who took the hits — and the floor
+is itself floored, so it protects the *weak* contributor and never the *absent*
+one.
+
+#### Why party at all
+
+Per member a party is **never better than solo on gold or loot** — the table
+rolls once per kill either way, so four people split one stream. A party buys
+(a) **access** to spawns a solo character of that level cannot survive, and
+(b) a capped **fellowship XP bonus: +5% per member beyond the first, maximum
++15% at four**, XP only, **counted over members above the participation
+threshold and paid only to them** (three who fought and one parked = +10%, and
+the parked member gets none of it). That shape
+makes a party a reason to have friends and never a reason to run four clients,
+because four boxed alts split one stream four ways to buy 15% XP — strictly
+worse than four solo hunts. Gems and Hearth Tokens may never buy, extend or
+boost a party, for the reason that removed Offline+
+(`HUNTS_AND_ANALYZER.md` §4.4).
+
+#### A death inside a party
+
+The Recovery Rule (rev. 2) is unchanged and is **per character**: a member who
+falls is knocked out, stops dealing damage, and watches their own weighted share
+fall while the others keep fighting — the honest consequence, needing no extra
+rule. The hunt continues, and a death is never a free heal, attended or away.
+Two party-level rules sit on top:
+
+1. **Party wipe stops the hunt.** When every live member is recovering at the
+   same settle, the party hunt ends with `stopped_by = 'party_wipe'` and all
+   members go idle. A party grinding to zero all night with nobody alive is the
+   silent-loss shape `bag_full` exists to prevent.
+2. **The `falls` stop rule is per member and stops the PARTY.** `careful`'s two
+   consecutive falls, or an explicit `falls: N`, ends the hunt for everyone with
+   `stopped_by = 'falls:<user>'`. One member dying repeatedly is the party's
+   problem, not that member's alone — and the alternative (drop the dead member,
+   keep hunting) is a kick dressed as a mechanic.
+
+#### Leaving and being kicked
+
+Leaving is one intent, effective at the next settle boundary (at most one flush
+window away). There is no 3-second countdown: **the settle boundary is the
+atomic point**, so a leaver is paid their share of the window they were in and
+then removed, and a countdown would be UI theatre over a guarantee the
+transaction already gives. A kick carries the same guarantee (settle first,
+remove second, §18.4 T-3). The last member to leave dissolves the party; if the
+leader leaves, leadership transfers to the longest-tenured live member (`order
+by joined_at, user_id`) — deterministic, no election, no vote.
+
+---
+
+### §18.2 THE SERVER OBJECTS
+
+#### §18.2.1 Tables
+
+```sql
+create table public.party (
+  id            uuid primary key default gen_random_uuid(),
+  leader_user   uuid not null references auth.users(id) on delete cascade,
+  leader_slot   int  not null,
+  size_cap      int  not null default 4 check (size_cap between 2 and 4),
+  created_at    timestamptz not null default now(),
+  dissolved_at  timestamptz,
+  version       bigint not null default 0
+);
+
+create table public.party_member (
+  party_id  uuid not null references public.party(id) on delete cascade,
+  user_id   uuid not null references auth.users(id) on delete cascade,
+  slot      int  not null,
+  role      text not null default 'member' check (role in ('leader','member')),
+  joined_at timestamptz not null default now(),
+  left_at   timestamptz,
+  primary key (party_id, user_id, slot)
+);
+-- INVARIANT 1 (one party per character) and INVARIANT 2 (one character per USER
+-- per party — an account cannot fill a party with its own slots), enforced by
+-- indexes rather than by a read.
+create unique index party_member_one_live
+  on public.party_member (user_id, slot) where left_at is null;
+create unique index party_member_one_char_per_user
+  on public.party_member (party_id, user_id) where left_at is null;
+
+-- clan_invites' shape verbatim, with a 15-minute expiry instead of 7 days and a
+-- slot column: (id, party_id, user_id, slot, invited_by_user, created_at,
+-- expires_at default now() + interval '15 minutes', accepted_at, revoked_at),
+-- plus the same partial unique index on the LIVE row.
+create table public.party_invite ( … );
+create unique index party_invite_live on public.party_invite (party_id, user_id, slot)
+  where accepted_at is null and revoked_at is null;
+
+-- THE SESSION OBJECT. One live row per party; history is kept for the Analyzer.
+create table public.party_hunt (
+  id          uuid primary key default gen_random_uuid(),
+  party_id    uuid not null references public.party(id) on delete cascade,
+  active_id   text not null,                    -- monster/spawn id, hr_activities-validated
+  stance      text not null default 'steady',
+  stop        jsonb not null default '{}'::jsonb,
+  started_at  timestamptz not null default now(),
+  accrued_to  timestamptz not null,             -- THE PARTY WATERMARK
+  ended_at    timestamptz,
+  stopped_by  text,
+  version     bigint not null default 0
+);
+create unique index party_hunt_one_live on public.party_hunt (party_id)
+  where ended_at is null;
+
+-- The lease, at PARTY grain. hr_tick_ownership's semantics, one row per party.
+create table public.party_tick_lease (
+  party_id          uuid primary key references public.party(id) on delete cascade,
+  owned             boolean not null default false,
+  lease_holder      text,
+  lease_until       timestamptz,
+  shadow_accrued_to timestamptz,                -- §15c's shadow watermark, per party
+  updated_at        timestamptz not null default now()
+);
+```
+
+**There is no `party_ledger`, and there will not be one.** Attribution rides
+`player_ledger` on the member's own row: `meta.party_id`, `meta.party_hunt`,
+`meta.dmg_bp`, `meta.share_bp`, `meta.floor_applied`, `meta.fellowship_bp`, and
+`meta.roll_seq` for an assigned drop. A second money journal is a second copy of
+what `player_ledger` already says and must agree with it — the same ruling that
+refused a per-hunt counter table (`HUNTS_AND_ANALYZER.md` §3).
+
+**`party` is NOT a new tick channel.** `hr_tick_shadow.channel` and
+`hr_tick_ownership.channel` stay `('combat','gather','artisan')` and neither
+CHECK is widened: a party settle writes ordinary `channel = 'combat'` rows and
+carries `party_id`, `dmg_bp` and `share_bp` **inside the existing `delta`
+jsonb** — so `hr_tick_shadow` gains **no column and is never rewritten**, which
+is the whole of §16's ACCESS EXCLUSIVE drain avoided. The party is a unit of
+*scheduling*, not a kind of work.
+
+#### §18.2.2 RLS and who may write which column
+
+**Nobody writes any of these tables through a policy. There is no client INSERT,
+UPDATE or DELETE anywhere in §18.2.1** — the clan lesson, stated in
+`2026-08-11-clan-membership-authority.sql`: *a client that could INSERT here
+could invite itself.* The RPCs are the only door.
+
+| Table | SELECT policy (`to authenticated`) | Writers |
+|---|---|---|
+| `party` | live member of it: `exists (select 1 from party_member m where m.party_id = party.id and m.user_id = auth.uid() and m.left_at is null)` | `hr_party_create/leave/kick/transfer` |
+| `party_member` | `auth.uid() = user_id` **or** live co-member (same predicate) | `hr_party_accept/leave/kick`, and `hr_party_tick_settle` never |
+| `party_invite` | `auth.uid() = user_id` (your own invites only) | `hr_party_invite/accept/revoke` |
+| `party_hunt` | live member of the party | `hr_party_hunt_start/stop`, `hr_party_tick_settle` (`accrued_to`, `ended_at`, `stopped_by` only) |
+| `party_tick_lease` | **none — no client policy at all** | `hr_party_roster` (lease columns), `hr_party_tick_settle` (`shadow_accrued_to`) |
+
+Grants mirror the fence exactly (§15c): `hr_party_roster` executable by
+**`hr_tick` and nothing else**, `hr_party_tick_settle` by **`hr_engine` and
+nothing else**, and the leader predicate `hr_party_role(p_party, p_user, p_slot)
+→ 'leader'|'member'|null` `SECURITY DEFINER` and **revoked from `anon`,
+`authenticated`, `service_role`**, exactly as `hr_clan_may_admit` is. The
+selector and the settler remain different roles and neither can become the other.
+
+#### §18.2.3 Invariants
+
+1. One party per character — `party_member_one_live`.
+2. One character per user per party — `party_member_one_char_per_user`.
+3. The leader is always a live member; leader departure transfers to
+   `order by joined_at, user_id limit 1` inside the same transaction.
+4. The last live member leaving stamps `party.dissolved_at`, revokes live
+   invites, and ends any open `party_hunt`.
+5. **A membership change while a hunt is live settles the open window FIRST**,
+   in the same transaction (§18.4, kick-before-split).
+6. **The character stays the STATE unit; the party is only the ROSTER unit.**
+   Every member's `player_state.active_kind/active_id/active_since/accrued_to`
+   move exactly as they do solo, so the Analyzer, `recovering`, Vigour, the
+   envelope and every existing guard keep working with no second source of
+   "what is this character doing".
+7. `hr_tick_ownership.party_id is not null` ⇒ the per-character roster **refuses
+   to serve that character**. A character is served either as a party member or
+   alone, never both, so it can never be settled twice in one window.
+
+#### §18.2.4 The roster, the lease, and the watermark
+
+**Decision: the party is the roster unit, and the lease lives on the party.**
+
+- `hr_tick_roster` gains a sibling `hr_party_roster(p_channels, p_cursor,
+  p_limit, p_holder)` returning **one row per live `party_hunt`** with its
+  members' full `hr_state_of` envelopes nested — §2's rule, the tick never
+  assembles a character out of parts.
+- `hr_tick_ownership` gains **one nullable `party_id uuid` column** (a
+  catalog-only `ALTER` — no `GENERATED … STORED`, so no table rewrite and none
+  of §16's ACCESS EXCLUSIVE drain). Member rows carry the party id while the
+  hunt is live and are excluded from the per-character roster by invariant 7.
+- **One lease, on the party.** `party_tick_lease` is stamped in the driver's own
+  holder name exactly as `hr_tick_ownership` is; a member cannot be leased away
+  from under it because the member row is never offered.
+- **Members' `accrued_to` move together**: a party window is `[party_hunt
+  .accrued_to, t]` for every member, one geometry, computed once. A member whose
+  own `player_state.accrued_to` is *ahead* of the party's (a client accrue landed
+  mid-window) drags the party's `from` forward the same way `greatest(accrued_to,
+  shadow_accrued_to)` does today — the party never replays over a paid minute.
+- In SHADOW the party chains on `party_tick_lease.shadow_accrued_to`, for
+  exactly the §15c reason: chaining on `party_hunt.accrued_to` while paying
+  nothing produces overlapping windows and a parity number that lies upward.
+  Arming clears it.
+
+#### §18.2.5 How `hr_tick_settle` receives a party settle
+
+**Decision: ONE fence call per party, carrying per-member deltas, all-or-nothing.
+Not one call per member under a party lock.**
+
+```sql
+hr_party_tick_settle(
+  p_holder      text,
+  p_party       uuid,
+  p_window_from timestamptz,
+  p_window_to   timestamptz,
+  p_intent_id   uuid,            -- ONE key for the whole party window
+  p_members     jsonb            -- [{user, slot, version, delta}, …] 2..4
+) returns jsonb
+```
+
+Order inside, and every step is `hr_tick_settle`'s own with the party grain
+added:
+
+1. **Identity** — `current_setting('role')` refused for
+   `anon/authenticated/service_role/hr_tick`, and the GRANT is the primary
+   control (§15c).
+2. **Kill switch** — `hr_tick_config.enabled`, missing row = off.
+3. `select … from party_hunt where party_id = p_party and ended_at is null
+   for update` — **the party lock, taken first.** This is what serialises a
+   settle against a join, a leave and a kick.
+4. Lock member `player_state` rows `for update` **ordered by `(user_id, slot)`**.
+   Deterministic order is the whole deadlock argument: a concurrent solo settle
+   holds exactly one of these rows and can only ever be waited on, never
+   circularly.
+5. **Per-member CAS** on `greatest(accrued_to, shadow_accrued_to)`, plus
+   `p_delta->>'accrued_to' = p_window_to` binding the declared window to the paid
+   one. **Any member failing ⇒ the whole call returns
+   `{ok:false, error:'party_window_already_settled', member:{…}}` and nothing is
+   written.** All-or-nothing is not tidiness: a partial settle pays three
+   members a split computed from four contributors, which is a mint.
+6. **Shadow branch** — one `hr_tick_shadow` row per member (`channel='combat'`,
+   `delta` verbatim and carrying `party_id`/`share_bp`), stamp
+   `party_tick_lease.shadow_accrued_to`, return **before** `hr_apply`. Nothing a
+   player owns moves.
+7. **Armed branch** — `hr_apply` once per member inside the one transaction,
+   then `party_hunt.accrued_to = p_window_to`, then `party.version + 1`.
+
+**Why one call and not four.** Four calls under a party advisory lock are four
+transactions: a crash between the second and the third leaves two members paid
+from a four-way split with the party watermark un-advanced, and the retry then
+either double-pays the first two or refuses them and pays nobody. The split is
+one arithmetic over one window and must commit as one row set. The cost is
+stated rather than discovered: the settle holds up to four `player_state` row
+locks across four `hr_apply` calls, which is why step 4's ordering is a hard
+rule and why S2's guard mutation-proves it.
+
+#### §18.2.6 The shadow / parity read
+
+```sql
+select s.delta->>'party_id' as party_id, s.window_from, s.window_to,
+       count(*) as members, sum(s.would_gold) as party_gold,
+       sum((s.delta->>'share_bp')::int) as share_bp_total
+  from public.hr_tick_shadow s
+ where s.delta ? 'party_id' and s.window_to > now() - interval '24 hours'
+ group by 1,2,3;   -- share_bp_total MUST be 10000 on every row
+```
+
+`node tools/world-tick-replay.mjs --party` re-runs the window through
+`computeAccrual` + `src/core/party-split.js` and asserts three properties:
+
+- **(P-a) Degenerate parity.** A one-member party is **byte-identical** to the
+  solo path on the same inputs. This is the `AWAY-1` property restated at party
+  grain and it is the single most valuable guard in the milestone, because it
+  makes the party path a *wrapper* rather than a second engine (`AWAY-12`).
+- **(P-b) The shares sum to exactly 10,000 bp**, every window, with the
+  remainder rule of §18.1 applied — no rounding leak in either direction.
+- **(P-c) Conservation.** The sum over members of every paid quantity equals the
+  party simulation's own total. A party may never pay out more than it produced;
+  the fellowship bonus is the *one* declared exception and is carried as its own
+  `meta.fellowship_bp` line so conservation is checkable with it subtracted.
+
+---
+
+### §18.3 THE INTENTS
+
+Seven verbs, all `needsKey: true`, all through `hr-accrue`'s existing dispatcher
+and `INTENT_REGISTRY`. No new transport, no new door.
+
+| verb | bucket | collectsFirst | per-call clamp | per-day clamp |
+|---|---|---|---|---|
+| `party_create` | `party` | false | — | 10 / character / UTC day |
+| `party_invite` | `party` | false | target must exist, not be in a party, not be you | 20 / character / day |
+| `party_accept` | `party` | false | invite live and ≤ 15 min old | 20 / character / day |
+| `party_leave` | `party` | **true** | settles an open hunt first | — (never clamped: a player may always leave) |
+| `party_kick` | `party` | **true** | leader only; settles first | 20 / party / day |
+| `party_hunt_start` | `activity` | **true** | 2–4 live members, spread ≤ 10, none recovering | 60 / character / day (the `activity` budget) |
+| `party_hunt_stop` | `activity` | **true** | leader, or any member for themselves (= leave) | — |
+
+`collectsFirst: true` on the last four is derived, not preferred: each builds a
+delta carrying `activity`, `hr_apply` stamps `accrued_to` on exactly that key,
+and a verb that stamps without collecting confiscates the elapsed window.
+`guardStampKeys()` re-checks it at runtime, so the day someone adds `equip` to a
+party delta it is a refusal (`delta_would_stamp`) rather than the silent
+confiscation of four players' nights at once.
+
+**Idempotency.** One client-supplied `intentId` per membership verb, exactly as
+today. The **hunt window** key is different and is *derived*, never supplied:
+`uuid_v5(party_id, window_from||window_to)`, so a retried party settle is the
+same operation however many times the tick asks — the accrue verb's rule
+(`index.ts §Idempotency`) at party grain.
+
+**Refusal codes** (400 = malformed, 409 = a real thing the server refuses; the
+split follows `intents.js`'s existing taxonomy so a player is never told "bad
+request" when the truth is "your friend is knocked out"):
+
+| code | HTTP | what the client shows |
+|---|---|---|
+| `bad_party` | 400 | *(a bug — file it)*; the panel refreshes from the envelope |
+| `unknown_party` | 409 | "That party no longer exists." Panel clears. |
+| `already_in_party` | 409 | "You're already in a party." Offer *Leave first*. |
+| `not_in_party` | 409 | "You're not in that party." Panel clears. |
+| `not_party_leader` | 409 | The button is not rendered for non-leaders; if it is reached, "Only the leader can do that." |
+| `party_full` | 409 | "That party is full (4)." |
+| `invite_expired` | 409 | "That invite expired." Card removed. |
+| `invite_gone` | 409 | "That invite was withdrawn." |
+| `party_level_spread` | 409 | "Everyone must be within 10 levels — Tomas is 18 below." Names the member and the gap. |
+| `party_member_recovering` | 409 | "Ilse is recovering (4 m 12 s)." Carries `until` + `remaining_ms` so the client renders a countdown, never a retry loop — `recovering`'s own shape. |
+| `member_uncollectable` | 409 | "Couldn't price Bram's last session — nothing was lost, try again." Nothing written; every window intact. |
+| `party_hunt_running` | 409 | "Stop the hunt first." |
+| `party_settle_required` | 409 | "Settling the last window — one moment." The client retries once after 2 s, then surfaces it. |
+| `party_daily_cap` | 429-shaped 409 | "You've formed enough parties today." |
+| `rate_limited` | 429 | the existing bucket message |
+
+Every refusal is journalled in `hr_rejections` with its verb, by the
+`c-hr-rejections-journal` verb map (§3.4) — so "nobody can start a party hunt"
+is visible in `vitals.mjs --refusals` on the day it breaks, not two days later.
+
+---
+
+### §18.4 ECONOMY + ANTI-ABUSE — the threat model Security will grade
+
+| # | Threat | The rule that defeats it |
+|---|---|---|
+| T-1 | **Loot laundering between alts.** Main farms, drops land in a throwaway. | **There is no directed transfer anywhere in the API.** No intent carries a recipient, an item id, a quantity or a share. Drops roll once per kill and are assigned by a share-weighted, window-seeded lottery inside `hr_party_tick_settle`; the assignment is journalled with `meta.roll_seq`, so the whole distribution is replayable from the ledger. |
+| T-2 | **Low-level leech** parked in a high-level party. | Two independent controls: the **level spread ≤ 10 at start** (`party_level_spread`), and **damage weighting with a participation threshold** — below 25% of an equal share a member is paid their raw share (≈0), gets no floor, and **grants no fellowship bonus**. Leeching pays nothing and costs the leecher's friends nothing to tolerate. |
+| T-3 | **Kick-before-split.** Leader kicks at minute 59 of a 60-minute window and keeps the share. | **A membership change while a hunt is live settles the open window first, in the same transaction** (invariant 5): `hr_party_kick` calls `hr_party_tick_settle` for `[accrued_to, now()]`, pays *every* member including the one being removed, and only then writes `left_at`. If the settle cannot run, the kick is refused with `party_settle_required` — the kick is never the cheaper path. |
+| T-4 | **A party as a gold-transfer channel** to a fresh account for sale. | Gold follows the same damage weighting as XP. The most a non-fighting account can receive is its raw share (≈0), and a *fighting* account earns what it fought for, which is play, not a transfer. There is no split-override, no "give my share to", no leader-takes-all mode, and no way for a member to be paid from a window they were not in (§18.2.5 step 5 binds the payout to the locked member set). |
+| T-5 | **A member forging the split.** | The split is computed **inside the settle**, from the engine's own per-member damage totals, by `src/core/party-split.js` — one pure function, dual-runtime, the same code in the live tick and the away replay. **No client field names a share, a weight, a damage number or a recipient**; the intents carry a party id, a member id and an idempotency key. A forged client value has nothing to forge. |
+| T-6 | **Over-filling the party** (5+ members, or one user's four slots). | `party_member_one_char_per_user` and a re-count under the `party_hunt` row lock at start and at every settle; `size_cap` CHECK `between 2 and 4`. A count read outside the lock is the shape the clan member-cap bug turned on. |
+| T-7 | **Replay / double pay** of a party window. | Per-member CAS on `greatest(accrued_to, shadow_accrued_to)`, all-or-nothing (§18.2.5 step 5), plus the derived window key. The D-series of `world-tick-double-pay.mjs` is re-run at party grain. |
+| T-8 | **Fellowship-bonus farming** with boxed accounts. | Capped at **+15%, XP only**, paid only above the participation threshold, journalled per member as `meta.fellowship_bp`, and economically dominated: four boxed alts split one monster stream four ways to buy 15% XP, which is strictly worse than four solo hunts. |
+| T-9 | **Settle starvation / deadlock** wedging a party's payouts. | Step 4's fixed `(user_id, slot)` lock order; the party lease expires like any other, so an abandoned lease is re-taken by the next fire; a party that cannot settle for a full lease period is journalled in `hr_tick_cron_log` with its party id. |
+| T-10 | **Cross-party double membership** (a character hunting solo *and* in a party). | Invariant 1 (unique index) plus invariant 7 (the per-character roster refuses a character carrying `party_id`). Two enforcement points, one at the write and one at the read. |
+
+Two ledger facts Security and Reliability will both want, stated plainly:
+
+- **Ledger rows are per MEMBER per settled window, i.e. identical to solo.** Four
+  characters in a party write the same four rows per flush window that they
+  would write hunting alone, so §15c's shared 480,000/day prune budget is
+  unchanged by M8. What M8 *saves* is edge invocations and lock acquisitions:
+  one settle call per party instead of four.
+- **The fellowship bonus is the only place the party pays out more than the
+  simulation produced.** It is XP, never gold, never an item, and it is carried
+  on its own `meta` line precisely so the conservation check (P-c) stays a
+  strict equality with it subtracted.
+
+---
+
+### §18.5 THE SLICES FOR M8
+
+A slice = one lane-C migration + one edge change + one client half, each with an
+in-page test, per `CLAUDE.md` §3.3. "Before ARMED" means the slice can land
+while the combat channel is still in SHADOW (M4 has not flipped
+`hr_tick_config.channels`); "after ARMED" means it pays players and cannot.
+
+| # | Slice | Migration | Edge | Client | Guards | M4? |
+|---|---|---|---|---|---|---|
+| **S1** | **The party exists.** Membership only — no hunting, no money. | `party`, `party_member`, `party_invite`, `hr_party_role`, `hr_party_create/invite/accept/leave/kick/transfer`, `hr_party_of(user,slot)`, RLS per §18.2.2 | 5 verbs in `INTENT_REGISTRY` + `party.js`; `party` rate bucket in `hr_rpc_gate` | Party panel, invite card, projected `party` block in the envelope | `tests/party-membership.mjs` + `--selftest` (invariants 1–4 each mutation-proved: drop an index, the guard goes red); in-page "player actions" test that forms, invites, accepts, leaves, dissolves | **before** |
+| **S2** | **The party is a roster unit, in SHADOW.** | `party_hunt`, `party_tick_lease`, `hr_tick_ownership.party_id` (nullable, catalog-only), `hr_party_roster`, `hr_party_tick_settle` **shadow branch only** | `tick.js` learns the party roster shape and the one-call settle | none (shadow pays nothing) | `tests/party-tick-parity.mjs` — **(P-a) degenerate parity**, (P-b) 10,000 bp, (P-c) conservation; `world-tick-double-pay.mjs` D-series at party grain; a planted partial-settle mutant must go red | **before** |
+| **S3** | **The split, in shadow.** | none (the settle from S2 calls it) | `src/core/party-split.js` (pure, dual-runtime); `computeAccrual` returns per-member damage | Analyzer's Fellowship block, rendered from the projection, replaced per envelope | `tests/party-split.mjs` + `--mutate`: removing the floor, removing the participation threshold, or rolling loot per member must each turn it red; ATTENDED **and** AWAY tests (both-path rule, §4) | **before** |
+| **S4** | **The hunt intents.** | `hr_party_hunt_start/stop` (pointer only; the settle is S2's) | 2 verbs, `collectsFirst: true`, the refusal table of §18.3 | Start-with-team / Stop, every refusal string, the recovering countdown | `tests/party-intents.mjs`: spread, recovering, `member_uncollectable`, kick-before-split (T-3) each asserted by exit code; in-page happy path | **before** (the pointer moves; the tick still shadows it) |
+| **S5** | **ARM parties on combat.** | none — an operator `update hr_tick_config` plus a party cohort in `party_tick_lease` | the armed branch of `hr_party_tick_settle` begins reaching `hr_apply` | pushed party frames on the party topic (M5 transport) | pre-arm: Security **GO** on this whole §18 threat model, Reliability sign-off on the ledger read, and a 48 h shadow parity report with (P-a)–(P-c) all green | **after — and also gated on M5's push channel and §7a's inventory ABSOLUTE flip + monotonic frame gate** |
+
+Ordering constraints that are not preferences:
+
+1. **S1–S4 all land in SHADOW and pay nobody.** That is deliberate: it means M8
+   can be built in parallel with M4's arming work instead of queueing behind it,
+   and the 48 h shadow parity run that S5 needs is already accumulating by the
+   time M4 flips.
+2. **S5 cannot precede M4.** A party settle reaching `hr_apply` *is* the combat
+   channel paying; arming parties first would arm combat through a side door.
+3. **S5 cannot precede M5 + §7a.** Pushing party frames into a client whose
+   inventory fold is a one-way `Math.max` ratchet reproduces the 2026-09-13/14
+   bug class — at four characters at once, on a shared surface, which is the
+   worst version of it.
+4. **Every slice is its own lane-C review.** S1 touches no money surface and
+   Security's review there is structural; S2, S3 and S5 touch XP, gold, drops
+   and the journal, and none of them applies without a **GO**.
+
+---
+
+### §18.6 OPEN QUESTIONS FOR TYLER — finance only
+
+Nothing else in this document is queued on Tyler; every design decision above is
+made under `CLAUDE.md` §3.1.
+
+1. **Does the (still unapproved) always-on host figure cover the M8 shape?** A
+   party settle holds up to four `player_state` row locks for the duration of
+   four `hr_apply` calls, so the per-fire database time at a given active
+   population is higher than §15c's per-character number even though the *row*
+   counts are identical. The direction was approved on 2026-09-16; the monthly
+   figure never was, and this is the milestone that makes it a gate rather than
+   a preference. **No spend has been made or committed by this lane.**
+2. **Realtime delivered-message budget for party frames.** A party frame is one
+   `realtime.send` delivered to N subscribers, and Realtime bills *delivered*
+   messages — so a four-party costs 4 deliveries per frame where a solo
+   character costs 1, at the same cadence. At M5's 10 s cadence that is a real
+   invoice line. The lever is the party frame cadence (30 s for the party panel,
+   10 s for your own character, which is also the honest UX split), and which
+   way to take it is a budget call, not a design one.
+

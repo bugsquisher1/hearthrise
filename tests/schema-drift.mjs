@@ -208,10 +208,46 @@ const DROP_CANARY = [
   '    -- (a5) removed by the mutation harness',
 ];
 
+// ── A TRANSPORT THAT LIES ABOUT ROUND-TRIPPING ─────────────────────────────
+// Seeded in front of 2026-09-23-frame-emit-from-apply.sql by the mutation
+// `frame_control_transport_lies`. The credential-free replay has no realtime
+// schema at all, so f10a/f10b/f10c/f10d are SKIPPED in every other run here —
+// which means F1's new control had no coverage of the case that matters: a
+// transport good enough to satisfy the control and not good enough to carry a
+// frame. This is that transport. `realtime.send` lands the control's own
+// throwaway topic and DROPS everything else, exactly as the real one behaves
+// when the daily partition for the target topic is missing: it swallows, warns,
+// and returns. The seed is a fixture for ONE mutation and is never part of the
+// canonical chain, so it changes no fingerprint.
+const LYING_TRANSPORT = `
+create schema if not exists realtime;
+create table if not exists realtime.messages (
+  id          bigserial primary key,
+  topic       text not null,
+  event       text,
+  payload     jsonb,
+  private     boolean,
+  extension   text,
+  inserted_at timestamptz not null default now()
+);
+create or replace function realtime.send(payload jsonb, event text, topic text,
+                                         private boolean default true)
+returns void language plpgsql as $rt$
+begin
+  if topic like 'hr923-control:%' then
+    insert into realtime.messages (topic, event, payload, private, extension)
+    values (topic, event, payload, private, 'broadcast');
+  end if;
+end $rt$;
+`;
+
 // ── The mutation catalogue ─────────────────────────────────────────────────
 // Each is a defect this repo could plausibly ship, planted in the real file.
 // `expect` says which failure mode must fire: 'replay' (a file stops applying)
 // or 'fingerprint' (everything applies but the resulting schema moved).
+// `seedBefore` is the rare third shape: [[filename, sql]] committed immediately
+// BEFORE that file runs, for a defect that lives in the ENVIRONMENT rather than
+// in the repo — the property being proved is that the arm still bites in it.
 const MUTATIONS = {
   drop_dr_table: {
     what: 'the bug_reports reconstruction is gutted — exactly the state the repo was in before 2026-08-14',
@@ -585,6 +621,100 @@ const MUTATIONS = {
       + "      raise;",
     ]]]],
   },
+  /* ── 2026-09-23, Security review of frame-emit-from-apply, F4 ─────────
+     f7b is the arm the review asked for: the REPLAYED intent, EXECUTED
+     rather than argued. This plants what it exists to see — the emit
+     HOISTED ABOVE step (3)'s early return — so a second call on an
+     intent_id the database has already answered pushes a duplicate frame
+     at a version the client has applied, and the real frame at that
+     version is dropped with it.
+
+     IT IS PLANTED IN §5's PATCHER, NOT IN THE BODY hr_apply IS AUTHORED
+     IN. A first draft edited 2026-09-14-hr-apply-restatement.sql and
+     `--mutate` went green on it — but on that file's OWN §3(a) md5 pin
+     ("the installed body is not the one this file states it installs"),
+     nine files earlier, so f7b never ran and the arm was decoration
+     wearing a pass. Hoisting it here is also the truer shape of the
+     regression: a FUTURE PATCHER of hr_apply moving the call, which is
+     exactly what F4 says no arm in this file would have seen.
+
+     Spelled `hr_frame_send(` UNQUALIFIED on purpose. f0d refuses a body
+     that carries more than one `public.hr_frame_send(`, and it would
+     refuse this before f7b could grade it; hr_apply is
+     `set search_path to 'public'`, so the unqualified call resolves to the
+     same function and f0c/f0d/f8/f8b all still read the one real call
+     site. Nothing else in the chain replays an intent under the probe's
+     uuid, and this file is last in the order. */
+  frame_replay_emits: {
+    what: "a later patch hoists hr_apply's frame call above step (3)'s replay short-circuit, so a REPLAYED intent pushes a duplicate frame at a version the client has already applied",
+    expect: 'replay', // f7b raises: a REPLAYED intent emitted 1 frame(s)
+    patches: [['2026-09-23-frame-emit-from-apply.sql', [[
+      "  v_def := replace(v_def, c_anchor, c_anchor || c_add);\n"
+      + "  execute v_def;",
+      "  v_def := replace(v_def, c_anchor, c_anchor || c_add);\n"
+      + "  v_def := replace(v_def,\n"
+      + "    $h$      return public.hr_state_of(v_uid, v_slot) || jsonb_build_object('replayed', true);$h$,\n"
+      + "    $h$      begin perform hr_frame_send(v_uid, v_slot, public.hr_state_of(v_uid, v_slot));\n"
+      + "      exception when others then null; end;\n"
+      + "      return public.hr_state_of(v_uid, v_slot) || jsonb_build_object('replayed', true);$h$);\n"
+      + "  execute v_def;",
+    ]]]],
+  },
+  /* ── 2026-09-23, Security review of frame-emit-from-apply, F8 ─────────
+     f1 proves the payload byte-identical on a write where `v_out` simply IS
+     hr_state_of(...). f1g re-proves it on the branch where it is NOT: a
+     hearthfind apply, where hr_apply jsonb_sets a receipt into the envelope
+     AFTER the projection was taken. This plants the defect that branch can
+     carry and that no other arm can see — the receipt folded into a
+     PROJECTED key instead of alongside it, so a player who finds a trophy
+     is pushed a frame that is not their row.
+
+     f1/f1c cannot see it: the ordinary accepted write they grade never
+     enters the branch. f1f/f1g2 cannot see it either: the key SET is
+     unchanged — `state` is on both sides, and it is its CONTENT that stops
+     being the row. Only a byte comparison taken ON THE BRANCH sees it.
+     Planted through §5's patcher for the same reason frame_replay_emits
+     is (2026-09-14-hr-apply-restatement.sql pins its own body's md5 nine
+     files earlier, so a mutation there is graded by that pin and f1g never
+     runs). */
+  frame_hearthfind_receipt_folds_into_state: {
+    what: "hr_apply edits the envelope's projected `state` key after the projection is taken, writing the hearthfind receipt into it, so on a find the frame the client applies is not the row the database holds",
+    expect: 'replay', // f1g raises: on a HEARTHFIND apply the payload … is NOT the payload a fresh projection builds
+    patches: [['2026-09-23-frame-emit-from-apply.sql', [[
+      "  v_def := replace(v_def, c_anchor, c_anchor || c_add);\n"
+      + "  execute v_def;",
+      "  v_def := replace(v_def, c_anchor, c_anchor || c_add);\n"
+      + "  v_def := replace(v_def,\n"
+      + "    $h$      v_out := jsonb_set(v_out, '{hearthfind}', v_hf_out);$h$,\n"
+      + "    $h$      v_out := jsonb_set(v_out, '{hearthfind}', v_hf_out);\n"
+      + "      v_out := jsonb_set(v_out, '{state}', v_hf_out);$h$);\n"
+      + "  execute v_def;",
+    ]]]],
+  },
+  /* ── 2026-09-23, Security review of frame-emit-from-apply, F1 ─────────
+     F1's fix adds f10a, a positive control that SKIPS f10b/f10c/f10d when
+     realtime.send does not round-trip — because a swallowed transport
+     error arrives at f10c as "the emitter sent 0 frames" and aborts a
+     money-path apply with a message that reads like a property violation.
+     The danger of that fix is that it becomes a bypass, so this plants the
+     case that separates a control from an excuse: a transport that LIES —
+     it round-trips f10a's throwaway topic and silently drops everything
+     else, which is exactly the shape realtime.send has when the daily
+     partition for the real topic is missing (it swallows and warns). f10a
+     is satisfied, grading proceeds, and f10c must still REFUSE.
+
+     It needs no patch: the defect is the ENVIRONMENT, and the property is
+     that the arm still bites in it. So it is the one mutation that seeds
+     instead of patching — a realtime schema in front of the file, which
+     the credential-free replay otherwise does not have at all (which is
+     why f10b is SKIPPED in every other run here, and why this class had no
+     coverage until now). */
+  frame_control_transport_lies: {
+    what: "realtime.send round-trips f10a's control topic and silently drops the emitter's frame — a WORKING transport that lies, which f10a must not excuse and f10c must still refuse",
+    expect: 'replay', // f10c raises: the emitter armed sent 0 frame(s), expected exactly 1
+    patches: [],
+    seedBefore: [['2026-09-23-frame-emit-from-apply.sql', LYING_TRANSPORT]],
+  },
   reopen_a11: {
     what: 'the beta_invites lockdown GUC is unset, so a rebuild leaves every invite code world-readable',
     expect: 'replay', // live-market-rls §3b raises without it, by design
@@ -638,8 +768,15 @@ async function assertBystanders(db) {
   throw e;
 }
 
-async function fingerprint(patches) {
-  const { db } = await bootReplay({ patches, seedBefore: new Map([[BYSTANDER_AT, BYSTANDERS]]) });
+async function fingerprint(patches, extraSeeds) {
+  // The bystander seed is unconditional (header item 4b); a mutation may add
+  // its own, and two seeds on the SAME file concatenate rather than one
+  // silently replacing the other.
+  const seedBefore = new Map([[BYSTANDER_AT, BYSTANDERS]]);
+  for (const [file, sql] of extraSeeds || []) {
+    seedBefore.set(file, (seedBefore.get(file) || '') + sql);
+  }
+  const { db } = await bootReplay({ patches, seedBefore });
   await assertBystanders(db);
   return inventory(db);
 }
@@ -899,7 +1036,7 @@ async function main() {
           }
         } else {
           const patches = new Map(m.patches);
-          const inv = await fingerprint(patches);
+          const inv = await fingerprint(patches, m.seedBefore);
           if (digest(inv) !== base.digest) caught = 'fingerprint';
         }
       } catch (e) {

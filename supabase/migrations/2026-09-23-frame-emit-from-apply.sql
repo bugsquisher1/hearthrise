@@ -1,7 +1,13 @@
 -- ════════════════════════════════════════════════════════════════════════
 -- 2026-09-23-frame-emit-from-apply.sql
--- STAGED, NOT APPLIED — Security review PENDING. The Coordinator applies after
--- a Security GO (CLAUDE.md §2, lane C).
+-- STAGED, NOT APPLIED. Security reviewed this file 2026-09-23 and ruled
+-- MIGRATION apply GO-WITH-CHANGES (SEC_PUSH_CHANNEL_M5_2026-09-23.md, section
+-- "Security review — frame-emit-from-apply"). F1 blocked the apply and is
+-- landed (f10a); F2/F3 blocked the FLIP and are landed in §6; F4–F8 were LOW,
+-- "ride this file's next touch", and this is that touch — f7b/f7c/f7d (F4),
+-- f11d (F5), the four-entry live-hash note (F6), §0's lock_timeout (F7) and
+-- f1f/f1g (F8). The Coordinator applies (CLAUDE.md §2, lane C); agents never
+-- do.
 --
 -- THE FRAME IS EMITTED FROM THE ENVELOPE hr_apply ALREADY COMPUTED.
 -- One projection per accepted write. No trigger-side hr_state_of.
@@ -83,12 +89,23 @@
 -- ── RESTATEMENT DEBT ───────────────────────────────────────────────────────
 -- RESTATEMENT-DEBT-ACK: adds 1 anchored patch to hr_apply (chain depth 5 since the 2026-09-14 restatement). Same trade the three files above it in this set state in full: the spliced text is 14 lines, the anchor is asserted to match EXACTLY ONCE and RAISES otherwise so it cannot no-op in silence, and a body that already carries the call is recognised so a re-apply is byte-identical. A restatement was considered and is the WRONG trade HERE specifically: this is a latency fix with a measured number behind it, and copying 2,400 lines of the money function into it would put an unreviewed rewrite of every payment path behind a performance change - the diff no reviewer can read. The joint hr_apply/hr_state_of restatement that 2026-09-22-hunt-stance-stop.sql already names as owed is now overdue on BOTH bodies and is carried into this lane's report as debt for the Coordinator to schedule before the next patch on either.
 --
--- ⚠ AFTER APPLYING: hr_apply is live-hash-tracked and this file now owns its
---   last line, so the REPLAY is deliberately divergent from production until
---   the apply. `node tests/live-hash-drift.mjs` reads that divergence as a
---   drift on hr_apply and is RED until the Coordinator re-seeds
---   tests/live-hash-drift.baseline.json with `--live --write` and writes the
---   why from `--codediff` (CLAUDE.md §2 — agents never touch that file).
+-- ⚠ AFTER APPLYING, `node tests/live-hash-drift.mjs` IS RED WITH **FOUR**
+--   PROBLEMS, NOT ONE (Security 2026-09-23, F6). Measured on this branch,
+--   credential-free, exit 1:
+--
+--     RED  untracked      hr_frame_send        §2 — new, and the sweep tracks it
+--     RED  untracked      hr_frame_payload     §1 — new, and the sweep tracks it
+--     RED  replay         hr_apply(p_user uuid, p_slot integer, p_version bigint,
+--                                  p_intent_id uuid, p_delta jsonb)
+--                         repo a416d576… (142871 ch.) vs baseline d4fa5a6b… (141609)
+--     RED  replay-missing hr_frame_emit()      §4 — dropped here, production has it
+--
+--   All four are this file and all four are deliberate. The Coordinator
+--   re-seeds tests/live-hash-drift.baseline.json with `--live --write` and
+--   writes FOUR whys from `--codediff` (CLAUDE.md §2 — agents never touch that
+--   file); `touched_by` for hr_apply also gains this filename. A note that
+--   named ONE entry against a guard that wants four is how a re-seed ends up
+--   with three unexplained rows.
 --   Also: re-pin restore-census (no new table, so it should be a no-op) and
 --   flip this file's apply-order note to APPLIED.
 --
@@ -102,6 +119,34 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PREFLIGHT — fail closed if what this builds on is absent ─────────────
+-- ⚠ THE FIRST STATEMENT IS A lock_timeout, AND DELIBERATELY NOT A
+--   statement_timeout (Security 2026-09-23, F7). §4's `drop trigger` takes
+--   ACCESS EXCLUSIVE on public.player_state, and because tools/apply-migration.mjs
+--   POSTs this file as ONE implicit transaction it is HELD TO COMMIT — across
+--   §5 and the whole of §7 (measured 114.2 ms in PGlite with f10b skipped;
+--   production is strictly more, because f10b runs there and hr_apply is the
+--   real 142 KB body). Every player READ and WRITE of player_state queues
+--   behind it, hr_state_of included, and worse than the stall is the queue:
+--   while `drop trigger` waits on an in-flight writer, every new query on that
+--   table waits on the waiting `drop trigger`.
+--
+--   Three seconds converts a game-wide freeze into a clean, atomic failure.
+--   WHAT THE OPERATOR DOES ON A LOCK TIMEOUT: nothing landed — the file is one
+--   transaction, so a 55P03 (`lock_timeout`) means the DDL could not TAKE its
+--   lock, never that a property failed. Re-run the same command in a quieter
+--   minute (not 00:00–00:10 UTC, not 22:00 UTC). If it times out repeatedly,
+--   find the long-running player_state transaction first —
+--   `select pid, state, query_start, left(query,120) from pg_stat_activity
+--     where wait_event_type is distinct from 'Client' order by query_start;` —
+--   rather than raising this number.
+--
+--   NOT a short statement_timeout: §7 legitimately runs for hundreds of
+--   milliseconds to seconds, so a short one would abort the SELF-CHECK, which
+--   is the opposite trade. `set local` is legal here — CLAUDE.md §2 forbids
+--   `begin`/`commit` inside a migration, not a transaction-scoped GUC — and it
+--   expires with the transaction whichever way the apply ends.
+set local lock_timeout = '3s';
+
 do $$
 begin
   if to_regprocedure('public.hr_apply(uuid,integer,bigint,uuid,jsonb)') is null then
@@ -317,6 +362,20 @@ end $$;
 --   · ALL THREE PEAK samples must read TOTAL p95 ≤ 10 ms. Expected ≪ 1 ms:
 --     what is left inside the lock is one single-row config read, the
 --     frame_keys fold and one realtime.send.
+--   · AND `TOTAL` IS `WRAPPER p95 + ARMED-LOOP p95` — NOT THE ARMED LOOP ALONE
+--     (Security 2026-09-23, F2). The armed loop times the payload and the send.
+--     The SHIPPED seam is
+--     `begin perform public.hr_frame_send(…); exception … end`, and
+--     hr_frame_send opens a second `begin … exception` of its own, so four
+--     costs sit between the two and inside the row lock on EVERY accepted
+--     write: the call site's subtransaction, the emitter's own subtransaction,
+--     the SECURITY DEFINER call (role switch + plan cache) and
+--     to_regprocedure('realtime.send(jsonb,text,text,boolean)') — plus a whole
+--     hr_tick_config%rowtype read where the armed loop reads one column. Loop
+--     (2a) below times exactly those. Each is expected to be small; NONE of
+--     them is asserted to be, because a number nobody has seen is not a number.
+--     The config read is counted in BOTH loops, so TOTAL over-states the seam —
+--     deliberately, and in the safe direction.
 --   · hr_state_of's own p95 is reported SEPARATELY as the CONTROL — the charge
 --     this change removes. It is no longer part of TOTAL, and the pair of
 --     numbers is what proves it left rather than moved.
@@ -326,14 +385,42 @@ end $$;
 --     measurement (proof 6). §3.6 still charges an UNMEASURED 3.23 ms for the
 --     thing that measured 9.4–9.7 ms.
 --
--- Find the peak first — it is also the writes_per_sec the load line needs:
+-- Find the peak first — it is also the writes_per_sec the load line needs.
+--
+-- ⚠ A 7-DAY PEAK DOES NOT COME FROM player_intents (Security 2026-09-23, F3).
+--   That table holds 24 HOURS: hr_intents_prune(interval)
+--   (2026-08-11-player-state.sql) deletes `where at < now() - greatest(interval
+--   '1 hour', coalesce(p_older, interval '24 hours'))`. A 7-day window on it
+--   returns a ONE-DAY peak wearing a seven-day label, and proof 5's "three
+--   samples at the measured peak" is only ever as good as the peak.
+--
+--   SO THE 7-DAY PEAK COMES FROM player_ledger, which is append-only and
+--   retains. Every accepted write that MOVED A VALUE journals a row there, and
+--   that is the write class this seam's cost is paid on:
 --
 --   select date_trunc('hour', at) as hour,
---          count(*)                as accepted_writes,
+--          count(*)                as value_moving_writes,
 --          round(count(*)/3600.0, 3) as writes_per_sec
---     from public.player_intents
+--     from public.player_ledger
 --    where at > now() - interval '7 days'
 --    group by 1 order by 2 desc limit 5;
+--
+--   Then cross-check the LAST 24 HOURS — and only those — against the journal
+--   of accepted intents, which counts accepted writes exactly (a write that
+--   moved no value is journalled there and not in the ledger, so it is the
+--   upper bound and the ledger is the lower one):
+--
+--   select date_trunc('hour', at) as hour, count(*) as accepted_writes
+--     from public.player_intents
+--    where at > now() - interval '24 hours'
+--    group by 1 order by 2 desc limit 5;
+--
+--   The Coordinator's `node tools/vitals.mjs` reports the same series per DAY
+--   for the last 7 days (and `--refusals` the hr_rejections aggregate) and is
+--   the third reading if the two above disagree. Today all of them land on
+--   22:00 UTC, which is the hour already measured — the practical damage of
+--   the old query was nil and the standing damage was that whoever re-ran it
+--   next month would not have known.
 --
 -- Then, IN THAT HOUR, one psql session. It ends in ROLLBACK: no player state is
 -- written (CLAUDE.md §2) and the realtime.messages rows realtime.send inserts
@@ -351,7 +438,8 @@ end $$;
 --      and slot    = current_setting('hr8.slot')::int
 --    for update;
 --
---   -- (2) the work the NEW seam adds, inside that lock, 100 samples. The
+--   -- (2) the ARMED LOOP: the payload and the send, inside that lock, 100
+--   --     samples. NOT the whole seam on its own — see (2a). The
 --   --     envelope is projected ONCE outside the timed section because that
 --   --     is exactly what the change buys: hr_apply had already paid for it.
 --   do $m$
@@ -360,7 +448,8 @@ end $$;
 --     v_s   int  := current_setting('hr8.slot')::int;
 --     v_env jsonb; v_keys text[]; v_msg jsonb;
 --     t0 timestamptz; i int;
---     all_ms numeric[] := '{}'; env_ms numeric[] := '{}'; bytes int := 0;
+--     all_ms numeric[] := '{}'; env_ms numeric[] := '{}';
+--     wrap_ms numeric[] := '{}'; bytes int := 0;
 --   begin
 --     v_env := public.hr_state_of(v_u, v_s);          -- pre-existing, NOT added
 --     for i in 1..100 loop
@@ -371,6 +460,27 @@ end $$;
 --       all_ms := all_ms || round(extract(epoch from clock_timestamp() - t0) * 1000, 3);
 --       bytes  := greatest(bytes, octet_length((v_msg->'patch')::text));
 --     end loop;
+--     -- (2a) ★ THE WRAPPER — THE SEAM THAT ACTUALLY SHIPS ★ (Security F2).
+--     --      The loop above times `payload + send`; hr_apply calls
+--     --      `begin perform public.hr_frame_send(v_uid, v_slot, v_out);
+--     --       exception … end`, and hr_frame_send opens a second
+--     --      `begin … exception` inside that. This times the two
+--     --      subtransactions, the SECURITY DEFINER call and the whole-row
+--     --      hr_tick_config read — everything the emitter pays on every
+--     --      accepted write WHETHER OR NOT the channel is armed.
+--     --
+--     --      RUN AS SHIPPED, i.e. with frame_push FALSE: the emitter returns
+--     --      at the kill switch and takes NO row lock on the hr_tick_config
+--     --      singleton. ⚠ DO NOT FLIP frame_push INSIDE THIS TRANSACTION to
+--     --      get the armed path through the wrapper. That row-locks the
+--     --      singleton the live tick driver also writes, for the length of the
+--     --      run, at peak — and this block ends in ROLLBACK, so the flip would
+--     --      be held and then discarded with every tick queued behind it.
+--     for i in 1..100 loop
+--       t0 := clock_timestamp();
+--       begin perform public.hr_frame_send(v_u, v_s, v_env); exception when others then null; end;
+--       wrap_ms := wrap_ms || round(extract(epoch from clock_timestamp() - t0) * 1000, 3);
+--     end loop;
 --     -- THE CONTROL: the charge this file removes from the lock, timed the same
 --     -- way and reported separately. It must NOT appear in TOTAL above.
 --     for i in 1..100 loop
@@ -378,14 +488,20 @@ end $$;
 --       perform public.hr_state_of(v_u, v_s);
 --       env_ms := env_ms || round(extract(epoch from clock_timestamp() - t0) * 1000, 3);
 --     end loop;
---     raise warning 'condition8b n=% | TOTAL p50=% p95=% p99=% max=% | hr_state_of(REMOVED) p95=% | payload_max_bytes=%',
+--     raise warning 'condition8b n=% | ARMED p50=% p95=% p99=% max=% | WRAPPER p95=% | TOTAL p95 (=WRAPPER+ARMED)=% | hr_state_of(REMOVED) p95=% | payload_max_bytes=%',
 --       array_length(all_ms, 1),
 --       (select percentile_disc(0.50) within group (order by x) from unnest(all_ms) x),
 --       (select percentile_disc(0.95) within group (order by x) from unnest(all_ms) x),
 --       (select percentile_disc(0.99) within group (order by x) from unnest(all_ms) x),
 --       (select max(x) from unnest(all_ms) x),
+--       (select percentile_disc(0.95) within group (order by x) from unnest(wrap_ms) x),
+--       (select percentile_disc(0.95) within group (order by x) from unnest(wrap_ms) x)
+--       + (select percentile_disc(0.95) within group (order by x) from unnest(all_ms) x),
 --       (select percentile_disc(0.95) within group (order by x) from unnest(env_ms) x),
 --       bytes;
+--     -- ⚠ 8b IS GRADED ON THE `TOTAL p95` COLUMN — the sum. The ARMED figure
+--     --   alone is not the seam, and p99/max are reported on the armed loop
+--     --   because that is where the send's tail lives.
 --   end $m$;
 --   rollback;
 --
@@ -411,13 +527,18 @@ end $$;
 --
 -- SIX PROOFS ARE OWED (SEC §2.2). Mapped to the arms that execute them:
 --   1 the payload is unchanged, byte-identical, on a non-empty character  → f1
+--     …the key set hr_apply adds is outside the fold (Security F8)        → f1f
+--     …and the same bytes on the branch where v_hf_out is NOT null        → f1g
 --   2 exactly ONE projection per accepted write, COUNTED by execution     → f2
 --   3 a push failure still cannot fail a payment                          → f3
 --   4 the frame gate is unmoved — frame is hr_apply's post-write version  → f4
 --   5 re-measure at both hours                                → §6, Coordinator
 --   6 restate the documents from the measurement              → §6, Coordinator
--- and the three the brief adds: a shadow settle emits nothing (f5), a refused
--- intent emits nothing (f6), the trigger path cannot double-emit (f0, f7).
+-- and the four the brief and the review add: a shadow settle emits nothing
+-- (f5), a refused intent emits nothing (f6), a REPLAYED intent emits nothing
+-- and moves nothing (f7b/f7c/f7d — Security F4: it was the one gate case this
+-- file argued rather than executed), and the trigger path cannot double-emit
+-- (f0, f7).
 --
 -- ⚠ TWO PROBES REPLACE A LIVE FUNCTION FOR THE LENGTH OF THIS BLOCK, and both
 --   are RESTORED EXPLICITLY before the sentinel raise rather than left to the
@@ -427,6 +548,10 @@ end $$;
 --   uuid: the hr_state_of stand-in DELEGATES for every other caller, and the
 --   hr_frame_send stand-in returns without sending, which is the fail-safe
 --   direction.
+--   ⚠ AND SO ARE THE THREE hr_tick_config BOOLEANS THIS BLOCK WRITES —
+--     enabled and shadow (f5) and frame_push (f10b). Captured before the first
+--     write, restored and read back at f11d, for the same reason and to the
+--     same standard (Security 2026-09-23, F5).
 do $$
 declare
   v_u      uuid := '00000000-0000-4000-8000-00000000fb3e';
@@ -441,10 +566,21 @@ declare
   v_env    jsonb;
   v_r      jsonb;
   v_d      jsonb;
+  v_rp     jsonb;      -- f7b: the envelope a REPLAYED intent answers with
   v_pa     jsonb;      -- f1: the payload built from hr_apply's own envelope
   v_pf     jsonb;      -- f1: the payload built from a fresh projection
+  v_fresh  jsonb;      -- f1/f1f: that fresh projection itself, kept for f1f
+  v_hf_i   text;       -- f1g: a real (item, source_kind, source_id) triple from
+  v_hf_k   text;       --      the hearthfind catalogue, so the probe can DRIVE
+  v_hf_s   text;       --      hr_apply's v_hf_out branch instead of skipping it
   v_sodef  text;       -- the real hr_state_of, captured and restored
   v_snddef text;       -- the real hr_frame_send, captured and restored
+  v_cfg_e  boolean;    -- f11d: hr_tick_config.enabled    as this block found it
+  v_cfg_s  boolean;    -- f11d: hr_tick_config.shadow     as this block found it
+  v_cfg_f  boolean;    -- f11d: hr_tick_config.frame_push as this block found it
+  v_chk_e  boolean;    -- f11d: …and as it reads back after the restore
+  v_chk_s  boolean;
+  v_chk_f  boolean;
   v_tf     timestamptz;
   v_tt     timestamptz;
 begin
@@ -576,7 +712,17 @@ begin
     insert into public.player_inventory (user_id, slot, item_id, qty) values
       (v_u, 0, 'copper_ore', 240), (v_u, 0, 'logs', 91);
 
-    select frame_keys into v_keys from public.hr_tick_config where id limit 1;
+    -- ⚠ AND THE THREE BOOLEANS THIS BLOCK WILL WRITE ARE CAPTURED HERE,
+    --   BEFORE THE FIRST WRITE (Security 2026-09-23, F5). f5 below sets
+    --   enabled/shadow and f10b sets frame_push. The subtransaction rollback
+    --   would unwind all three — but frame_push is PRECISELY the flag
+    --   Security's veto is gating, and a residue would be the push channel
+    --   ARMED in production with condition 8b not met. So they are restored
+    --   EXPLICITLY at f11d and asserted, exactly as the two probe functions
+    --   are at f11, and a rollback that did not take is harmless either way.
+    select frame_keys, enabled, shadow, frame_push
+      into v_keys, v_cfg_e, v_cfg_s, v_cfg_f
+      from public.hr_tick_config where id limit 1;
     if v_keys is null or array_length(v_keys, 1) is null then
       raise exception 'f1a: hr_tick_config carries no frame_keys, so every patch below would be '
                       'empty and every comparison would be vacuous';
@@ -718,13 +864,56 @@ begin
                       coalesce(current_setting('hr923.frame', true), 'NULL'), v_v2;
     end if;
 
+    -- ── f7b: ★ A REPLAYED INTENT EMITS NOTHING — EXECUTED, NOT ARGUED ★
+    --         (Security 2026-09-23, F4). This file's header reasons it
+    --         correctly — step (3) short-circuits on an intent_id it has
+    --         already answered and returns `hr_state_of(…) || {replayed:true}`
+    --         without ever reaching the patched return — and that is exactly
+    --         the kind of reasoning proof 2 refused everywhere else. A future
+    --         patch that hoisted the emit above that early return, or that let
+    --         the replay branch fall through, would push a DUPLICATE frame at a
+    --         version the client has already applied, and NO arm in this file
+    --         would have seen it.
+    --
+    --         The same intent_id as the accepted write above, with the same
+    --         intent name and slot — a different one answers `intent_mismatch`,
+    --         which is a REFUSAL wearing a replay's clothes and would make the
+    --         zero below f6's property a second time rather than this one. And
+    --         the CURRENT version, so that if the short-circuit ever went away
+    --         this would be an ordinary ACCEPTED write and both assertions
+    --         would fire rather than passing quietly. It sits after f4 because
+    --         it needs f4's post-write version to say "the row did not move".
+    perform set_config('hr923.sends', '0', true);
+    set local role hr_engine;
+    v_rp := public.hr_apply(v_u, 0, v_v2,
+              '00000000-0000-4000-8000-00000000fb01'::uuid, v_d);
+    reset role;
+    if coalesce((v_rp->>'ok')::boolean, false) is not true
+       or coalesce((v_rp->>'replayed')::boolean, false) is not true then
+      raise exception 'f7c: the second call on the same intent_id was not answered as a REPLAY '
+                      '(%) — the zero below would be a property nothing measured', v_rp;
+    end if;
+    if coalesce(current_setting('hr923.sends', true), '0')::int <> 0 then
+      raise exception 'f7b: a REPLAYED intent emitted % frame(s). The client has already '
+                      'applied that version, so the duplicate raises no floor, drops — and the '
+                      'REAL frame at that version drops with it.',
+                      coalesce(current_setting('hr923.sends', true), '0');
+    end if;
+    select version, gold into v_v, v_g from public.player_state where user_id = v_u and slot = 0;
+    if v_v <> v_v2 or v_g <> v_g2 then
+      raise exception 'f7d: a replayed intent moved player_state (version % → %, gold % → %) — '
+                      'it was not a replay at all, it was a second payment',
+                      v_v2, v_v, v_g2, v_g;
+    end if;
+
     -- ── f1: ★ THE PAYLOAD IS UNCHANGED, BYTE-IDENTICAL ★ (Security proof 1).
     --        Not argued from the fact that both sides name hr_state_of — RUN.
     --        The patch built from the envelope hr_apply returned, against the
     --        patch the trigger would have built from a fresh projection at the
     --        same version, through the same fold, compared as text.
     v_pa := public.hr_frame_payload(v_r, v_keys);
-    v_pf := public.hr_frame_payload(public.hr_state_of(v_u, 0), v_keys);
+    v_fresh := public.hr_state_of(v_u, 0);
+    v_pf := public.hr_frame_payload(v_fresh, v_keys);
     if v_pa is null or v_pf is null then
       raise exception 'f1b: a payload came back NULL (apply=%, fresh=%) — the comparison below '
                       'would be two nulls agreeing', v_pa is null, v_pf is null;
@@ -750,6 +939,128 @@ begin
     if (v_pa->>'frame')::bigint <> v_v2 or v_pa->>'t' <> 'delta' then
       raise exception 'f1e: the message envelope moved (t=%, frame=%, row=%)',
                       v_pa->>'t', v_pa->>'frame', v_v2;
+    end if;
+    -- ── f1f: ★ NO KEY hr_apply ADDS TO THE ENVELOPE IS INSIDE THE FOLD ★
+    --         (Security 2026-09-23, F8; f1g below walks the branch itself).
+    --         f1 above compares two payloads built at the same version — but
+    --         `v_out` is NOT always `hr_state_of(…)`. hr_apply's
+    --         protected block ends
+    --
+    --             v_out := public.hr_state_of(v_uid, v_slot);
+    --             if v_hf_out is not null then
+    --               v_out := jsonb_set(v_out, '{hearthfind}', v_hf_out);
+    --             end if;
+    --
+    --         so a hearthfind apply carries a TOP-LEVEL key the projection
+    --         never put there, and this probe's delta never takes that branch.
+    --         There is no drift today ONLY because
+    --         hr_tick_config_frame_keys_known admits no such key — and that
+    --         constraint lives in 2026-09-22-frame-push-channel.sql, which this
+    --         file does not restate, so a widening of it would sail through f1.
+    --         Pin the DEPENDENCY instead of the symptom, which is also cheaper
+    --         than a second probe apply: every top-level key hr_apply adds to
+    --         the envelope must be OUTSIDE the fold. If one is ever inside it,
+    --         the two payloads agree only on the branch this probe walked.
+    select count(*) into v_n
+      from (select jsonb_object_keys(v_r)
+            except
+            select jsonb_object_keys(v_fresh)) x(k)
+     where x.k = any (v_keys);
+    if v_n <> 0 then
+      raise exception 'f1f: hr_apply adds % top-level key(s) to its envelope that hr_state_of '
+                      'does not, and frame_keys FOLDS them (apply-only keys: %). f1''s '
+                      'byte-identity then holds only where v_hf_out is null — widen '
+                      'hr_tick_config_frame_keys_known and this file stops being true.',
+                      v_n,
+                      (select string_agg(x.k, ', ')
+                         from (select jsonb_object_keys(v_r)
+                               except
+                               select jsonb_object_keys(v_fresh)) x(k)
+                        where x.k = any (v_keys));
+    end if;
+
+    -- ── f1g: ★ AND BYTE-IDENTITY ON THE BRANCH WHERE v_hf_out IS NOT NULL ★
+    --         (Security 2026-09-23, F8). f1 above compares two payloads on a
+    --         write that took the ORDINARY path, where `v_out` simply IS
+    --         `hr_state_of(v_uid, v_slot)`. hr_apply's protected block does not
+    --         always end there:
+    --
+    --             v_out := public.hr_state_of(v_uid, v_slot);
+    --             if v_hf_out is not null then
+    --               v_out := jsonb_set(v_out, '{hearthfind}', v_hf_out);
+    --             end if;
+    --
+    --         so on a hearthfind apply the envelope the emitter is handed has
+    --         been edited after the projection was taken. f1 never walked that
+    --         branch, and "there is no drift today" rested on a constraint in
+    --         ANOTHER file. So drive the branch and re-run the comparison on it
+    --         — the whole of it, bytes included, not just the key set that f1f
+    --         pins. f1g0 refuses to grade unless the branch was actually taken.
+    select s.source_kind, s.source_id, s.item_id
+      into v_hf_k, v_hf_s, v_hf_i
+      from public.hr_hearthfind_sources s
+      join public.hr_hearthfind_items  i on i.item_id = s.item_id
+     order by s.source_kind, s.source_id, s.item_id
+     limit 1;
+    if v_hf_i is null then
+      raise exception 'f1g0: the hearthfind catalogue is empty, so hr_apply''s v_hf_out branch '
+                      'could not be driven and f1 would stay proved only where v_out IS '
+                      'hr_state_of(...)';
+    end if;
+    set local role hr_engine;
+    v_rp := public.hr_apply(v_u, 0, v_v2, '00000000-0000-4000-8000-00000000fb05'::uuid,
+              jsonb_build_object(
+                'hearthfind', jsonb_build_object('item', v_hf_i,
+                  'source_kind', v_hf_k, 'source_id', v_hf_s),
+                'journal', jsonb_build_object('kind', 'gather', 'intent', 'accrue',
+                  'meta', jsonb_build_object('src', 'selfcheck-hf'))));
+    reset role;
+    if coalesce((v_rp->>'ok')::boolean, false) is not true then
+      raise exception 'f1g0: the hearthfind probe apply was REFUSED (%) — the branch this arm '
+                      'exists to walk was never taken', v_rp;
+    end if;
+    if not (v_rp ? 'hearthfind') then
+      raise exception 'f1g0: the hearthfind apply returned no top-level `hearthfind` key, so '
+                      'v_hf_out was null and this arm just graded the branch f1 already did';
+    end if;
+    select version, gold into v_v2, v_g2 from public.player_state where user_id = v_u and slot = 0;
+    if (v_rp->>'version')::bigint <> v_v2 then
+      raise exception 'f1g0: the hearthfind apply returned version % while the row holds % — the '
+                      'comparison below would be across two different rows',
+                      v_rp->>'version', v_v2;
+    end if;
+    v_fresh := public.hr_state_of(v_u, 0);
+    v_pa := public.hr_frame_payload(v_rp, v_keys);
+    v_pf := public.hr_frame_payload(v_fresh, v_keys);
+    if v_pa is null or v_pf is null then
+      raise exception 'f1g1: a payload came back NULL on the hearthfind branch (apply=%, '
+                      'fresh=%)', v_pa is null, v_pf is null;
+    end if;
+    if v_pa::text <> v_pf::text then
+      raise exception 'f1g: on a HEARTHFIND apply the payload built from hr_apply''s envelope is '
+                      'NOT the payload a fresh projection builds at the same version. The '
+                      'receipt hr_apply folds in after the projection has reached a key the '
+                      'frame carries, so a player who finds a trophy is pushed a frame that is '
+                      'not their row. apply=% fresh=%',
+                      left(v_pa::text, 700), left(v_pf::text, 700);
+    end if;
+    -- …and the key-set pin of f1f, re-run where it has content: `hearthfind`
+    -- IS an apply-only top-level key here, and it must be OUTSIDE the fold.
+    select count(*) into v_n
+      from (select jsonb_object_keys(v_rp)
+            except
+            select jsonb_object_keys(v_fresh)) x(k)
+     where x.k = any (v_keys);
+    if v_n <> 0 then
+      raise exception 'f1g2: on a hearthfind apply, % of hr_apply''s apply-only top-level '
+                      'key(s) are inside frame_keys (%). hr_tick_config_frame_keys_known has '
+                      'widened past what hr_state_of projects and this file''s byte-identity '
+                      'is no longer true.', v_n,
+                      (select string_agg(x.k, ', ')
+                         from (select jsonb_object_keys(v_rp)
+                               except
+                               select jsonb_object_keys(v_fresh)) x(k)
+                        where x.k = any (v_keys));
     end if;
 
     -- ── f6: ★ A REFUSED INTENT EMITS NOTHING ★. A stale version is the refusal
@@ -909,6 +1220,55 @@ begin
     if to_regclass('realtime.messages') is not null
        and to_regprocedure('realtime.send(jsonb,text,text,boolean)') is not null then
       begin
+        -- ── f10a: ★ THE TRANSPORT IS PROVED BEFORE IT IS USED AS AN
+        --         INSTRUMENT ★ (Security 2026-09-23, F1 — CONFIRMED BY
+        --         EXECUTION, and it blocks the apply without this control).
+        --
+        --         f10b/f10c/f10d are the FIRST arms in this whole chain that
+        --         require the LIVE realtime.send — its partition routing, its
+        --         payload limit, its signature — to land a row and be counted
+        --         back. The sibling file never did: 2026-09-22-frame-push-
+        --         channel.sql's s5/s5b/s6 counted probe TRIGGER fires and its
+        --         e2 seeded its probe row by a direct insert.
+        --
+        --         And hr_frame_send SWALLOWS a transport error BY DESIGN, so an
+        --         absent transport never reaches this block's handler below: it
+        --         arrives as ZERO ROWS, and f10c says `expected exactly 1`.
+        --         A missing realtime.messages daily partition (check_violation),
+        --         a payload over the broadcast limit, a changed send signature,
+        --         an RLS visibility failure on the count-back — every one of
+        --         them would abort a MONEY-PATH migration with a message that
+        --         reads like the emitter is broken. Security reproduced exactly
+        --         that (H1) on this branch.
+        --
+        --         e2 one file back already draws this distinction and skips.
+        --         This is that standard, restored to the arm that lost it, in
+        --         this file's own f2b/f2d doctrine: a positive control BEFORE
+        --         any count is believed. One direct send on a throwaway topic,
+        --         counted back in its own begin … exception. If it does not
+        --         round-trip, THIS ARM STOPS GRADING — it does not stop the
+        --         migration.
+        --
+        --         ⚠ AND THIS IS NOT A LOOSENING OF f10c. A WORKING transport
+        --           still has to honour the kill switch and still has to send
+        --           exactly once: the control has a topic of its own, and a
+        --           transport that round-trips the control while dropping the
+        --           emitter's frame fails f10c exactly as it always did
+        --           (tests/schema-drift.mjs mutation
+        --           `frame_control_transport_lies`, caught via replay).
+        v_txt := 'hr923-control:' || v_u::text;
+        begin
+          perform realtime.send(jsonb_build_object('t', 'hr923-control'),
+                                'hr923-control', v_txt, true);
+          select count(*) into v_n from realtime.messages where topic = v_txt;
+        exception when others then
+          v_n := -1;
+        end;
+        if v_n <> 1 then
+          raise notice 'f10b SKIPPED: realtime.messages does not round-trip from this session '
+                       '(the control send counted back % row(s)) — f10b/f10c/f10d would grade '
+                       'an ABSENT transport as a broken emitter and fail this apply', v_n;
+        else
         select count(*) into v_n from realtime.messages
          where topic = public.hr_frame_topic(v_u, 0);
         if v_n <> 0 then
@@ -927,8 +1287,9 @@ begin
           select count(*) into v_n from realtime.messages
            where topic = public.hr_frame_topic(v_u, 0);
           if v_n <> 1 then
-            raise exception 'f10c: the emitter armed sent % frame(s), expected exactly 1 — f10b '
-                            'above was measuring an emitter that never sends at all', v_n;
+            raise exception 'f10c: the emitter armed sent % frame(s), expected exactly 1 — and '
+                            'f10a proved the transport round-trips from this session, so this '
+                            'is the EMITTER, not the environment', v_n;
           end if;
           -- …ON THE PROBE'S OWN TOPIC AND NOBODY ELSE'S. The topic is what the
           -- receive policy reads; a frame on the wrong one is another player's
@@ -939,6 +1300,7 @@ begin
             raise exception 'f10d: % frame(s) landed on another character''s topic', v_n;
           end if;
         end if;
+        end if;
       exception
         when insufficient_privilege or undefined_table or undefined_function then
           raise notice 'f10b SKIPPED: realtime.messages is not writable from here (%)', sqlerrm;
@@ -947,12 +1309,39 @@ begin
       raise notice 'f10b SKIPPED: the realtime schema is absent in this database';
     end if;
 
+    -- ════════════════════════════════════════════════════════════════════
+    -- f11d: AND THE CONFIG SINGLETON GOES BACK THE SAME WAY THE PROBES DID
+    --       (Security 2026-09-23, F5). f5 wrote enabled and shadow; f10b just
+    --       wrote frame_push. The subtransaction rollback below would unwind
+    --       all three and it is reliable PL/pgSQL — but f11's own stated
+    --       doctrine is that a rollback which did not take must be HARMLESS,
+    --       and frame_push left true is not harmless: it is this channel ARMED
+    --       in production with condition 8b not met, which is the one thing
+    --       Security's veto is gating. So it is unwound explicitly, from the
+    --       values captured before the first write, and read back.
+    -- ════════════════════════════════════════════════════════════════════
+    update public.hr_tick_config
+       set enabled = v_cfg_e, shadow = v_cfg_s, frame_push = v_cfg_f
+     where id;
+    select enabled, shadow, frame_push into v_chk_e, v_chk_s, v_chk_f
+      from public.hr_tick_config where id limit 1;
+    if v_chk_e is distinct from v_cfg_e
+       or v_chk_s is distinct from v_cfg_s
+       or v_chk_f is distinct from v_cfg_f then
+      raise exception 'f11d: hr_tick_config was NOT restored to what this block found '
+                      '(enabled % → %, shadow % → %, frame_push % → %). A frame_push left '
+                      'true is the push channel armed in production with 8b not met.',
+                      v_cfg_e, v_chk_e, v_cfg_s, v_chk_s, v_cfg_f, v_chk_f;
+    end if;
+
     raise exception 'HR923_ROLLBACK_OK';
   exception
     when others then
       if sqlerrm <> 'HR923_ROLLBACK_OK' then raise; end if;
   end;
-  raise notice 'frame-emit-from-apply self-check PASSED (f0-f11 = SEC §2.2 proofs 1-4, plus the '
-               'shadow, refusal and double-emit arms; proofs 5-6 are the live re-measurement in '
-               '§6 and are the Coordinator''s); probe rows rolled back';
+  raise notice 'frame-emit-from-apply self-check PASSED (f0-f11d = SEC §2.2 proofs 1-4, plus the '
+               'shadow, refusal, REPLAY, HEARTHFIND-branch and double-emit arms, f10a''s '
+               'transport control and '
+               'f11d''s explicit hr_tick_config restore; proofs 5-6 are the live re-measurement '
+               'in §6 and are the Coordinator''s); probe rows rolled back';
 end $$;

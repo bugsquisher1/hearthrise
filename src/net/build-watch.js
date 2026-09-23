@@ -55,8 +55,10 @@
 //
 //  3. FAIL SILENT AND CHEAP. A failed poll, an offline device, a 404, a
 //     truncated or malformed body: all do nothing at all. Every gate is a pure
-//     function, backoff is exponential, a poll is never issued while the tab is
-//     hidden or while one is already in flight. A build-freshness watchdog that
+//     function, backoff is exponential, and a poll is never issued while one is
+//     already in flight. A hidden tab polls on its own far slower cadence
+//     (HIDDEN_POLL_INTERVAL_MS) rather than never — see that constant for the
+//     nine-day tab that bought the amendment. A build-freshness watchdog that
 //     became a request loop would be a perfect self-parody.
 //
 //  4. THE DECISION IS PURE. `decideBuildUpdate` (running, deployed, auth state,
@@ -85,9 +87,24 @@ import { BUILD } from '../build-info.js?v=551';
    immediately — throttled to once a minute so alt-tabbing cannot be turned
    into a request loop.
 
-   HIDDEN TABS NEVER POLL. A background tab is not about to act; it will be
-   checked the instant it is looked at. This is what keeps 30 idle tabs free.  */
+   HIDDEN_POLL_INTERVAL_MS: 6 hours. "HIDDEN TABS NEVER POLL" was the original
+   rule here and it is the second premise this module got wrong. Measured live
+   on 2026-09-22: a tab born 2026-08-21, on a bundle nine releases behind, has
+   been putting a residue key the server retired on the wire every ~60 s for
+   NINE days — the server refuses each put (`forbidden_field`), so that tab has
+   saved nothing since, and it is ~99% of every refusal the game records
+   (927-955/day). It cannot heal itself. Its eviction gate's only exit is a
+   reload; the watcher's only escape hatch is a poll; and it is hidden, so it
+   never polls. Worse, it RECLAIMS the account's single session whenever the
+   player's real tab goes quiet for five minutes, so six fresh loads on newer
+   builds did not end it. A hidden tab is not about to act — but a hidden tab
+   that is nine days stale is a tab that is actively harming the account it
+   belongs to, and the only instrument that reaches it is the wire. 6 h bounds
+   the rescue at 4 requests/day/hidden-tab of a ~1 KB static file, which keeps
+   30 idle tabs free to the nearest rounding error, while capping how long a
+   buried tab can stay broken at a quarter of a day instead of forever.       */
 export const POLL_INTERVAL_MS = 15 * 60 * 1000;
+export const HIDDEN_POLL_INTERVAL_MS = 6 * 3600e3;
 export const VISIBILITY_MIN_GAP_MS = 60 * 1000;
 export const TICK_MS = 60 * 1000;
 export const FAIL_BACKOFF_BASE_MS = 2 * 60 * 1000;
@@ -140,7 +157,7 @@ export function parseDeployedBuild(text) {
  * THE DECISION. Pure, total, and the whole contract of this module.
  *
  *   in:  { running, deployed, authDead, promptedFor, dismissedFor, escalatedFor,
- *          cardShowing }
+ *          cardShowing, busy, hidden, now, lastAutoReloadAt }
  *   out: { action: 'none' | 'notify' | 'escalate', reason, build }
  *
  * Ordering is load-bearing:
@@ -191,8 +208,16 @@ export function decideBuildUpdate(input) {
     const now = Number(s.now) || 0;
     const last = Number(s.lastAutoReloadAt) || 0;
     const cooling = last > 0 && now - last >= 0 && now - last < AUTO_RELOAD_COOLDOWN_MS;
-    if (!cooling && !s.busy) {
-      return { action: 'reload', reason: 'builds-behind', build: deployed };
+    /* HIDDEN OUTRANKS BUSY. `busy` asks "would this take an action away from
+       the player right now?" — and on a tab nobody is looking at the answer is
+       no, whatever is on screen underneath. That distinction is the whole
+       rescue: the nine-day tab's blocker IS a modal (the eviction gate, whose
+       only exit is a reload), so a busy-probe that counts it defers forever.
+       Safe because autoReloadNow() flushes the residue with the same forced
+       keepalive save `pagehide` uses BEFORE it navigates, and a write already
+       on the wire is a keepalive send that outlives the teardown. */
+    if (!cooling && (!s.busy || s.hidden)) {
+      return { action: 'reload', reason: s.hidden ? 'builds-behind-hidden' : 'builds-behind', build: deployed };
     }
   }
 
@@ -212,10 +237,19 @@ export function decideBuildPoll(input) {
   const now = Number(s.now) || 0;
   const no = (reason) => ({ poll: false, reason });
   if (s.inFlight) return no('in-flight');
-  if (s.hidden) return no('hidden');
   const since = now - (Number(s.lastPollAt) || 0);
   if (since < 0) return no('clock-went-backwards');
   const backoff = nextPollBackoffMs(s.fails);
+  /* HIDDEN IS SLOW, NOT NEVER. A buried tab still gets a heartbeat on the
+     hidden cadence, because a poll is the only way a fix reaches a tab nobody
+     is looking at, and a nine-day-stale hidden tab is not harmless: it refuses
+     its own saves and steals the account's session back from the tab the
+     player is actually using. Backoff still applies, so a 404ing endpoint does
+     not get four guaranteed requests a day either. */
+  if (s.hidden) {
+    if (since < Math.max(backoff, HIDDEN_POLL_INTERVAL_MS)) return no('hidden');
+    return { poll: true, reason: 'hidden-rescue' };
+  }
   const floor = Math.max(backoff, s.trigger === 'visible' ? VISIBILITY_MIN_GAP_MS : POLL_INTERVAL_MS);
   if (since < floor) return no(backoff > 0 ? 'backoff' : 'too-soon');
   return { poll: true, reason: s.trigger === 'visible' ? 'returned-to-tab' : 'interval' };
@@ -318,6 +352,7 @@ export function applyBuildInfoText(text, now = Date.now()) {
     escalatedFor: state.escalatedFor,
     cardShowing: typeof document !== 'undefined' && !!document.getElementById(CARD_ID),
     busy: !!busyProbe(),
+    hidden: hidden(),
     now,
     lastAutoReloadAt: state.lastAutoReloadAt,
   });
@@ -574,7 +609,8 @@ if (typeof window !== 'undefined') {
   window.HearthriseBuildWatch = {
     // pure
     decideBuildUpdate, decideBuildPoll, parseDeployedBuild, nextPollBackoffMs,
-    POLL_INTERVAL_MS, VISIBILITY_MIN_GAP_MS, FAIL_BACKOFF_BASE_MS, FAIL_BACKOFF_MAX_MS,
+    POLL_INTERVAL_MS, HIDDEN_POLL_INTERVAL_MS, VISIBILITY_MIN_GAP_MS,
+    FAIL_BACKOFF_BASE_MS, FAIL_BACKOFF_MAX_MS,
     MAX_BODY_BYTES, CARD_ID, ESCALATION_ID, BUILD_INFO_URL,
     AUTO_RELOAD_MIN_LAG, AUTO_RELOAD_COOLDOWN_MS, AUTO_RELOAD_KEY, defaultBusyProbe,
     // runtime

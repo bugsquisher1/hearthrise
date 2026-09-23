@@ -69,6 +69,26 @@ end $$;
 --     falls     player_state.consec_falls, read by src/core/away.js
 --   A column that is not one of those three is a multiplier wearing a name, and
 --   §7(b) fails the apply on one.
+--
+-- ── ⚠ THIS TABLE IS AN ID ALLOWLIST. THE KNOB VALUES ARE NOT READ AT RUNTIME.
+--    Finding H-1 of docs/planning/SEC_HUNTS_M6_2026-09-22.md offered two
+--    answers and THIS FILE TAKES (a): say so, here and in the table comment,
+--    and keep the columns as documentation. (b) — pass the row through the
+--    envelope and let `stanceOf` take values rather than look them up — is the
+--    version that would make the table mean what a reader assumes, and it is a
+--    bigger change than this lane should take on.
+--
+--    What IS load-bearing is `stance_id`: hr_apply's patched arm refuses an
+--    activity whose stance has no row here, and that is the only stance check a
+--    compromised edge cannot bypass. What is NOT load-bearing is `eat_at`,
+--    `ammo_dry` and `falls`: the engine resolves a stance through
+--    `stanceOf(inp.huntStance)` against the frozen JS STANCES table, and no
+--    function, RPC or client selects these three columns. An operator who tunes
+--    `eat_at` here changes NOTHING and is told nothing, which is worse than a
+--    plain duplicate because one copy is silently inert — so it is written down
+--    rather than left to be discovered. §7(b2) ASSERTS the claim by executing
+--    it, so the day somebody wires a knob up this file goes red instead of
+--    stale, and tuning one becomes the deliberate move to (b) that it should be.
 create table if not exists public.hr_hunt_stances (
   stance_id text primary key,
   eat_at    numeric not null check (eat_at >= 0 and eat_at <= 1),
@@ -84,7 +104,7 @@ on conflict (stance_id) do update
   set eat_at = excluded.eat_at, ammo_dry = excluded.ammo_dry, falls = excluded.falls;
 
 comment on table public.hr_hunt_stances is
-  'HUNT STANCES (2026-09-22). The server catalogue player_state.hunt_stance is validated against. THREE columns, and each is a knob that already shipped (auto-eat threshold, dry-quiver policy, consecutive-fall stop). A stance NEVER carries a multiplier, a rate or a bonus - design HUNTS_AND_ANALYZER.md 2.2; the migration''s section-4 self-check asserts the column set. Mirrors src/core/hunt.js STANCES, which is the runtime copy both the live tick and the away replay read.';
+  'HUNT STANCES (2026-09-22). AN ID ALLOWLIST: stance_id is the authority hr_apply validates player_state.hunt_stance against, and it is the only stance check a compromised edge cannot bypass. THE THREE KNOB COLUMNS ARE DOCUMENTATION AND ARE NOT READ AT RUNTIME (finding H-1, answer (a)) - the engine resolves a stance through src/core/hunt.js STANCES, so TUNING eat_at, ammo_dry OR falls HERE CHANGES NOTHING; making them load-bearing is a deliberate change to hr_state_of and stanceOf, not an UPDATE. Each is still a knob that already shipped (auto-eat threshold, dry-quiver policy, consecutive-fall stop). A stance NEVER carries a multiplier, a rate or a bonus - design HUNTS_AND_ANALYZER.md 2.2; the migration''s section-4 self-check asserts the column set. Mirrors src/core/hunt.js STANCES, which is the runtime copy both the live tick and the away replay read.';
 
 alter table public.hr_hunt_stances enable row level security;
 revoke all on public.hr_hunt_stances from public, anon, authenticated, service_role;
@@ -101,6 +121,7 @@ create policy hr_hunt_stances_read on public.hr_hunt_stances for select to authe
 -- IMMUTABLE so it may be used in a CHECK constraint. Every bound is the one
 -- src/core/hunt.js STOP_BOUNDS publishes; the two are compared by
 -- tests/hunt-stance-stop.mjs rather than trusted to agree.
+
 create or replace function public.hr_hunt_stop_valid(p_stop jsonb)
 returns boolean language sql immutable set search_path = public, pg_catalog as $$
   select case
@@ -336,6 +357,23 @@ begin
   if     public.hr_hunt_stop_valid('{"hours":2.5}'::jsonb)         then raise exception 'GATE(b): a FRACTIONAL hours was ACCEPTED'; end if;
   if     public.hr_hunt_stop_valid('{"forever":true}'::jsonb)      then raise exception 'GATE(b): an UNKNOWN rule key was ACCEPTED - the allowlist is not one'; end if;
   if     public.hr_hunt_stop_valid('[]'::jsonb)                    then raise exception 'GATE(b): an ARRAY was ACCEPTED as a stop object'; end if;
+
+  -- (b3) THE STANCE CATALOGUE IS AN ID ALLOWLIST, AND ITS KNOB VALUES ARE
+  --      GENUINELY NOT READ (finding H-1, answer (a)). The table comment and
+  --      §1's header both now SAY this; this is the arm that makes the claim
+  --      checkable instead of aspirational. Any routine that reads
+  --      hr_hunt_stances may name `stance_id` and nothing else — the day
+  --      somebody wires `eat_at` into a body, this apply goes RED and they have
+  --      to move the table to answer (b) deliberately rather than discover
+  --      later that tuning it changed nothing.
+  if exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') like '%hr_hunt_stances%'
+       and regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g')
+             ~ '\m(eat_at|ammo_dry|falls)\M') then
+    raise exception 'GATE(b3): a routine reads hr_hunt_stances AND names one of its knob columns. The table is documented as an ID ALLOWLIST whose values nothing reads (finding H-1(a)); if that is no longer true, the header, the table comment and this gate must move together - a catalogue that claims to be authority and is not will be tuned by somebody eventually.';
+  end if;
 
   -- (c) THE ENVELOPE PROJECTS BOTH, TOP-LEVEL INSIDE `state`. Not "the body
   --     mentions hunt_stance" - the exact spliced expression, because a key

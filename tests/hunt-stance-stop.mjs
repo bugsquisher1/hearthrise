@@ -106,6 +106,7 @@ const MUTATIONS = {
   stop_clamps: 'Clamp an out-of-bounds stop value instead of refusing it.',
   stop_away_only: 'Evaluate the stop rules only on the away path (breaks AWAY-1).',
   stop_order: 'Check the time cap before the fall counter (design §2.4 fixes the order).',
+  stances_claim_authority: 'Drop the ID-ALLOWLIST declaration, so the catalogue claims an authority its values do not have (H-1).',
 };
 
 const MON = 'goblin';
@@ -181,8 +182,27 @@ async function run(mutate) {
   // Two copies of a stance is exactly what this file exists to prevent, and the
   // SQL seed is the second copy. Read out of the migration text rather than a
   // database, so it runs credential-free beside the cheap guards.
-  const migSrc = await readFile(
+  /* THE MIGRATION TEXT, and the two mutations that plant a defect IN IT. Same
+     idiom as the engine mutations above - the patch is applied to the SHIPPED
+     file's bytes, and a patch that matched no anchor throws rather than
+     silently no-opping, so a moved goalpost cannot read as a catch. */
+  let migSrc = await readFile(
     join(ROOT, 'supabase/migrations/2026-09-22-hunt-stance-stop.sql'), 'utf8');
+  const MIG_PATCH = {
+    stances_claim_authority: ['THIS TABLE IS AN ID ALLOWLIST. THE KNOB VALUES ARE NOT READ AT RUNTIME.',
+      '(nothing to say about what the knob columns do)'],
+  };
+  if (MIG_PATCH[mutate]) {
+    const [find, replace] = MIG_PATCH[mutate];
+    const n = migSrc.split(find).length - 1;
+    if (n !== 1) {
+      throw Object.assign(new Error(
+        `mutation '${mutate}' anchor matched ${n} times in 2026-09-22-hunt-stance-stop.sql `
+        + '(need exactly 1). The migration text has moved; fix the anchor rather than letting the '
+        + 'mutation no-op.'), { harness: true });
+    }
+    migSrc = migSrc.replace(find, () => replace);
+  }
   for (const id of Object.keys(STANCES)) {
     const s = STANCES[id];
     const row = new RegExp(`\\('${id}',\\s*([0-9.]+),\\s*'(stop|swing)',\\s*(null|\\d+)\\)`);
@@ -198,10 +218,26 @@ async function run(mutate) {
   // The SQL bounds and the JS bounds are one rule with two spellings.
   for (const [field, b] of Object.entries(STOP_BOUNDS)) {
     if (b.bool) continue;
-    ok(migSrc.includes(`between ${b.min} and ${b.max}`)
-       || migSrc.includes(`'${field}')::bigint between ${b.min} and ${b.max}`),
+    ok(migSrc.includes(`between ${b.min} and ${b.max}`),
       `S2: hr_hunt_stop_valid does not carry the published ${field} bounds [${b.min}, ${b.max}].`);
   }
+
+  /* -- S2c. THE CATALOGUE SAYS WHICH AUTHORITY IT ACTUALLY HAS (H-1(a)) --
+     hr_hunt_stances' `stance_id` IS the authority hr_apply validates against
+     and the only stance check a compromised edge cannot bypass. Its three knob
+     columns are read by NOTHING - the engine resolves a stance through the
+     frozen STANCES table in src/core/hunt.js - so an operator who tunes
+     `eat_at` changes nothing and is told nothing. That is worse than a plain
+     duplicate, because one copy is silently inert. The file takes the review's
+     answer (a): say so. This arm keeps the saying from rotting away; the
+     migration's GATE(b3) is the executable half, refusing the apply the day a
+     routine reads a knob column without the documentation moving with it. */
+  ok(/THIS TABLE IS AN ID ALLOWLIST\. THE KNOB VALUES ARE NOT READ AT RUNTIME/.test(migSrc),
+    'S2c: 2026-09-22-hunt-stance-stop.sql no longer declares hr_hunt_stances an ID ALLOWLIST whose '
+    + 'knob values nothing reads (finding H-1, answer (a)). Either the engine now reads them - in '
+    + 'which case this is answer (b) and the header, the table comment, GATE(b3) and this arm all '
+    + 'move together - or the documentation was deleted and the next person to tune eat_at will '
+    + 'believe they changed something.');
 
   // ── S3. THE BOUNDS REFUSE, THEY DO NOT CLAMP ───────────────────────────
   // A clamp lets a client discover a hidden maximum by pushing at one, which is

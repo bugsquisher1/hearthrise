@@ -57,6 +57,8 @@ const MUTATIONS = {
   spent_ignores_remainder: 'Drop the sub-minute remainder from hr_vigour_of\'s read, so the charge stops conserving (finding S-1).',
   refill_sells_partial: 'Refuse only a refill that would buy NOTHING, so a ceiling-clamped one is sold at full price for half the minutes (S-3).',
   refill_idem_optional: 'Let a null p_idem through, so the money verb debits on every call (S-4).',
+  refill_prices_seeded: 'Seed the placeholder ladder in the migration, so a player pays a price Tyler never ruled on (I-3).',
+  refill_unpriced_unnamed: 'Drop the refill_unpriced branch, so an unpriced catalogue refuses as vigour_daily_cap (I-3).',
 };
 
 /** The mutations are TEXTUAL patches on the real migrations, so a planted defect
@@ -150,6 +152,37 @@ const patchesFor = (mutate) => {
         ['  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    values (v_uid, p_idem, v_slot, v_intent, v_result, now())\n    on conflict (user_id, intent_id) do nothing;',
           '  if p_idem is not null then\n  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    values (v_uid, p_idem, v_slot, v_intent, v_result, now())\n    on conflict (user_id, intent_id) do nothing;\n  end if;'],
       ]]]);
+
+    case 'refill_prices_seeded':
+      /* THE I-3 DEFECT, PLANTED BACK: the placeholder ladder seeded at apply
+         time. Nothing else in the file changes — the verb sells exactly as it
+         does today — so what this catches is the ONE thing I-3 is about: gold
+         moving on four figures Tyler has not ruled on. V4b(a) is the assertion
+         that must go red; the migration's own GATE(d0) is short-circuited on a
+         mutated run, so the catch is this guard's, not the apply's. */
+      return withShortCircuit(new Map([[REFILL, [[
+        'create table if not exists public.hr_vigour_prices (',
+        "insert into public.hr_vigour_prices (nth, cost_gold, minutes)\n"
+        + '  select * from (values (1, 2000::bigint, 120), (2, 6000::bigint, 120)) v\n'
+        + '  on conflict (nth) do nothing;\n'
+        + 'create table if not exists public.hr_vigour_prices (',
+      ]]]]));
+
+    case 'refill_unpriced_unnamed':
+      /* The branch deleted, not the behaviour. An empty catalogue is still
+         refused — hr_vigour_of reports refills_max 0 and the day-cap test fires
+         — so the money property survives and ONLY THE NAME is wrong. That is
+         the whole point of the arm: a player told "you have used your daily
+         limit" for a control that has never been purchasable, and a vitals row
+         that reads as a real cap biting. A guard that only asserted "no gold
+         moved" would call this caught-nothing and pass forever. */
+      return withShortCircuit(new Map([[REFILL, [[
+        "  if not exists (select 1 from public.hr_vigour_prices) then\n"
+        + "    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'refill_unpriced', '{}'::jsonb, 1);\n"
+        + "    return jsonb_build_object('ok', false, 'error', 'refill_unpriced', 'slot', v_slot);\n"
+        + '  end if;',
+        '  if false then null; end if;',
+      ]]]]));
 
     case 'budget_ignores_ceiling':
       return withShortCircuit(new Map([[DAILY, [[
@@ -263,6 +296,50 @@ async function run(mutate) {
   };
   await db.query('insert into auth.users (id) values ($1)', [PROBE]);
   await as('select public.hr_create_character(0)');
+
+  /* ── V4b. THE CATALOGUE SHIPS EMPTY, AND THE VERB SAYS SO BY NAME (I-3) ──
+     Tyler has not ruled on the four design §4.6 figures, so the migration seeds
+     NO ROW: the refill verb ships live and refuses every call without moving
+     gold, and the ruling lands later as a reviewed INSERT. Asserted on the
+     UNTOUCHED chain, before this guard seeds its own fixture below — the only
+     moment the shipped state is observable. */
+  const shipped = Number((await q('select count(*)::int as n from public.hr_vigour_prices'))[0].n);
+  ok(shipped === 0,
+    `V4b: the chain shipped ${shipped} price row(s). Nothing in the repo records Tyler's ruling on `
+    + 'the design §4.6 figures, and a seeded placeholder is a real player paying a made-up number '
+    + 'the first night this applies. The ruling is DATA — a reviewed INSERT, never a seed.');
+
+  const broke = (await as('select public.hr_vigour_refill__ungated(0, gen_random_uuid()) as r'))[0].r;
+  ok(broke.error === 'refill_unpriced',
+    `V4b: an unpriced catalogue answered "${broke.error}". It must refuse by its OWN name, ahead of `
+    + 'the gold test and the day cap: "you have used your daily limit" for a control that has never '
+    + 'been purchasable tells the player the wrong thing and tells vitals a real cap is biting.');
+
+  await db.query('update public.player_state set gold = 100000000 where user_id = $1', [PROBE]);
+  const fundedGold = (await q('select gold from public.player_state where user_id = $1', [PROBE]))[0].gold;
+  const funded = (await as('select public.hr_vigour_refill__ungated(0, gen_random_uuid()) as r'))[0].r;
+  ok(funded.error === 'refill_unpriced',
+    `V4b: a FUNDED character on an unpriced catalogue was answered "${funded.error}". The broke `
+    + 'probe above cannot tell "refused because unpriced" from "refused because broke"; this one can.');
+  ok(String((await q('select gold from public.player_state where user_id = $1', [PROBE]))[0].gold)
+     === String(fundedGold),
+    'V4b: the unpriced refill MOVED GOLD. No gold may move on a price nobody ruled on — that is the '
+    + 'whole of what shipping the catalogue empty buys.');
+  ok((await q("select count(*)::int as n from public.player_progress where user_id = $1"
+              + " and kind='daily' and key='ev:vigour_refills'", [PROBE]))[0].n === 0,
+    'V4b: the unpriced refill counted against the day anyway.');
+  await db.query('update public.player_state set gold = 0 where user_id = $1', [PROBE]);
+
+  /* ── THIS GUARD'S OWN LADDER ────────────────────────────────────────────
+     V5-V11 price real purchases and the shipped table is empty, so the fixture
+     is the Game Designer's proposed curve (design §4.6) — the same five rows
+     the migration's §7 inserts inside its rolled-back subtransaction. It is a
+     FIXTURE, not the seed: V4b above asserts the shipped chain carries none,
+     and `refill_prices_seeded` plants the seed back and must go red. */
+  await db.query(`insert into public.hr_vigour_prices (nth, cost_gold, minutes) values
+    (1, 2000, 120), (2, 6000, 120), (3, 18000, 120), (4, 54000, 120), (5, 162000, 120)
+    on conflict (nth) do nothing`);
+
   const ladder = (await q('select nth, cost_gold from public.hr_vigour_prices order by nth'))
     .map((r) => ({ nth: Number(r.nth), cost: BigInt(r.cost_gold) }));
   ok(ladder.length === VIGOUR_MAX_REFILLS,

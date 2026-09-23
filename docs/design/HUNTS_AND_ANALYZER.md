@@ -320,15 +320,25 @@ money lane entirely.
 
 **TYLER — 2026-09-23, still unanswered, and the figures below are PLACEHOLDERS.**
 Nothing in the repo records his ruling, so the backend lane did not invent one.
-The four numbers ship as **catalogue rows** (`hr_vigour_prices`, seeded
-2,000 / 6,000 / 18,000 / 54,000 / 162,000 — ×3 within the UTC day, five rungs)
-and one imported constant (`VIGOUR_DRY_MULT`, currently `AMMO_DRY_MULT` = 0.25),
-which is the right shape: **his answer is a reviewed `UPDATE`, not a code
+The four numbers live as **catalogue rows** (`hr_vigour_prices`) and one
+imported constant (`VIGOUR_DRY_MULT`, currently `AMMO_DRY_MULT` = 0.25), which
+is the right shape: **his answer is a reviewed `INSERT`/`UPDATE`, not a code
 change**, and the row count IS the per-day cap so a sixth rung re-opens the
 Security review. Condition 5 of `docs/planning/SEC_HUNTS_M6_2026-09-22.md`:
 *"the refill verb must not reach production with four unanswered money numbers
-in it."* Nothing about the playable slice waits on this — slice 1 ships no
-refill control at all — but `2026-09-22-vigour-refill.sql` does.
+in it."*
+
+**AND SO THE CATALOGUE SHIPS EMPTY (2026-09-23, Security R4.1/R5 condition 2).**
+`2026-09-22-vigour-refill.sql` seeds **no row**. The proposed ladder — 2,000 /
+6,000 / 18,000 / 54,000 / 162,000 for 120 minutes each, ×3 within the UTC day,
+five rungs — is the Game Designer's and is recorded in the migration's §2 and
+driven by its §7 as a rolled-back *fixture*, never as a seed. Until a priced row
+exists the verb refuses every call by name, `refill_unpriced`, **before the
+advisory lock and before the gold test**, so no gold can move on a number nobody
+ruled on; `GATE(d0)` and `GATE(f)` fail the apply if a row is ever seeded here,
+and `tests/vigour.mjs` V4b asserts the same on the shipped chain. Tyler's ruling
+then lands as a reviewed `INSERT` under this same review. Nothing about the
+playable slice waits on this — slice 1 ships no refill control at all.
 
 ---
 

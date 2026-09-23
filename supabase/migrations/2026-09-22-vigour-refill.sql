@@ -86,32 +86,34 @@ begin
 end $$;
 
 -- ── 2. THE PRICE CATALOGUE — the only place a gold number lives ────────────
--- ⚠ THESE FIVE NUMBERS ARE THE GAME DESIGNER'S PLACEHOLDERS AND ARE TYLER'S TO
---   CONFIRM (design §4.6). They are DATA so his answer is a reviewed UPDATE, not
---   a migration. x3 and not the bank ladder's x1.32: the bank rung is a permanent
---   capability bought once, so it wants a curve a player climbs; Vigour is bought
---   AGAIN EVERY DAY, so a shallow curve becomes a fixed daily tax the wealthy
---   stop noticing by week two. x3 means refill 1 is an easy yes, refill 3 is a
---   real decision and refill 5 is something a player does on purpose.
+-- ⚠ THE TABLE SHIPS EMPTY, AND THAT IS THE ANSWER TO I-3 (Tyler, design §4.6;
+--   Security R4.1/R5 condition 2, 2026-09-23). The Game Designer's proposed
+--   ladder is 2,000 / 6,000 / 18,000 / 54,000 / 162,000 gold for 120 minutes
+--   each — x3 and not the bank ladder's x1.32, because the bank rung is a
+--   permanent capability bought once while Vigour is bought AGAIN EVERY DAY and
+--   a shallow curve becomes a fixed daily tax the wealthy stop noticing by week
+--   two; the sink is the point, at 242,000 gold a day at full refill leaving
+--   the economy through a faucet nobody can resell.
 --
---   The sink is the point: 242,000 gold a day at full refill, leaving the
---   economy through a faucet nobody can resell.
+--   ⚠ THOSE FIVE NUMBERS ARE PLACEHOLDERS AND ARE TYLER'S TO RULE ON. Nothing
+--     in the repo records a ruling as of 2026-09-23, and a placeholder price
+--     SEEDED is a real player paying a made-up number the first night this
+--     applies — so no row is seeded and NO GOLD CAN MOVE. The verb ships live
+--     and refuses every call by name (`refill_unpriced`, §3), which is the
+--     same fail-closed shape every other unconfigured surface in this schema
+--     has. Tyler's answer lands as a reviewed INSERT under this same review;
+--     it is DATA, so it is never a code change, and §7(f) asserts the table is
+--     still empty at the end of this apply.
+--
+--   Slice 1 ships no refill control, so nothing playable waits on the ruling.
 create table if not exists public.hr_vigour_prices (
   nth        int    primary key check (nth >= 1),
   cost_gold  bigint not null check (cost_gold > 0),
   minutes    int    not null check (minutes > 0)
 );
 
-insert into public.hr_vigour_prices (nth, cost_gold, minutes) values
-  (1,   2000, 120),
-  (2,   6000, 120),
-  (3,  18000, 120),
-  (4,  54000, 120),
-  (5, 162000, 120)
-on conflict (nth) do update set cost_gold = excluded.cost_gold, minutes = excluded.minutes;
-
 comment on table public.hr_vigour_prices is
-  'THE VIGOUR REFILL LADDER (2026-09-22). The ONLY place a refill price exists - hr_vigour_refill__ungated contains no gold literal and the migration''s gate refuses one. Rows are the game designer''s placeholders pending Tyler''s ruling (HUNTS_AND_ANALYZER.md 4.6); tuning is an UPDATE under review, never a code change. The number of rows IS the per-day cap: an nth with no row is refused.';
+  'THE VIGOUR REFILL LADDER (2026-09-22). The ONLY place a refill price exists - hr_vigour_refill__ungated contains no gold literal and the migration''s gate refuses one. SEEDED EMPTY 2026-09-23 (I-3): Tyler has not ruled on the four design 4.6 figures, and a placeholder price is a real player paying a made-up number - so the verb refuses every call with refill_unpriced until a priced row exists. The ruling lands as a reviewed INSERT, never a code change. The number of rows IS the per-day cap: an nth with no row is refused.';
 
 alter table public.hr_vigour_prices enable row level security;
 revoke all on public.hr_vigour_prices from public, anon, authenticated, service_role;
@@ -169,6 +171,26 @@ begin
   if p_idem is null then
     perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'missing_idem', '{}'::jsonb, 1);
     return jsonb_build_object('ok', false, 'error', 'missing_idem', 'slot', v_slot);
+  end if;
+
+  -- ── (0b) THE CATALOGUE IS UNPRICED — REFUSED BY ITS OWN NAME (I-3) ───────
+  --        The table ships EMPTY (§2) because Tyler has not ruled on the design
+  --        §4.6 figures, and the whole point of shipping empty is that NO GOLD
+  --        CAN MOVE on a placeholder. Without this branch an empty catalogue is
+  --        still refused — hr_vigour_of reports refills_max 0 and §(5) fires —
+  --        but it is refused as `vigour_daily_cap`, which tells a player they
+  --        have used up a limit they have never been able to reach, and tells
+  --        the vitals a real cap is biting. One rule, one name: a surface that
+  --        is not configured says so.
+  --
+  -- ⚠ BEFORE THE ADVISORY LOCK, for the same reason `missing_idem` is: a call
+  --   that CANNOT succeed on any character must not first serialise every other
+  --   call on this one. Journalled like every other refusal in this verb, so
+  --   `vitals --refusals` shows how many players found the control before the
+  --   ruling landed.
+  if not exists (select 1 from public.hr_vigour_prices) then
+    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'refill_unpriced', '{}'::jsonb, 1);
+    return jsonb_build_object('ok', false, 'error', 'refill_unpriced', 'slot', v_slot);
   end if;
 
   -- ── (1) SERIALISE ON THE CHARACTER. The key is byte-identical to the one
@@ -463,16 +485,11 @@ begin
     raise exception 'GATE(c2): authenticated cannot call the gated wrapper - the verb ships dead';
   end if;
 
-  -- (d) THE LADDER RISES. Asserted from the rows, so a mis-seeded catalogue
-  --     (every rung 2,000) fails the apply instead of shipping a flat tax.
-  select cost_gold into v_p1 from public.hr_vigour_prices where nth = 1;
-  select cost_gold into v_p2 from public.hr_vigour_prices where nth = 2;
-  if v_p2 <= v_p1 then
-    raise exception 'GATE(d): refill 2 (%) is not dearer than refill 1 (%) - a flat curve becomes a fixed daily tax the wealthy stop noticing', v_p2, v_p1;
-  end if;
-  if exists (select 1 from public.hr_vigour_prices a join public.hr_vigour_prices b
-              on b.nth = a.nth + 1 where b.cost_gold <= a.cost_gold) then
-    raise exception 'GATE(d): the price ladder is not strictly increasing';
+  -- (d0) THE CATALOGUE SHIPS EMPTY (I-3). The control for every arm below: if a
+  --      row were seeded, (e0) would be proving nothing and a player could pay
+  --      a placeholder price the first night this applies.
+  if exists (select 1 from public.hr_vigour_prices) then
+    raise exception 'GATE(d0): hr_vigour_prices is SEEDED - Tyler has not ruled on the design 4.6 figures (I-3), so a priced row here is a real player paying a made-up number. The ruling lands as a reviewed INSERT, not as a seed in this file.';
   end if;
 
   begin  -- ── SUBTRANSACTION ────────────────────────────────────────────────
@@ -480,6 +497,45 @@ begin
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     v_r := public.hr_create_character(0);
     if v_r->>'created' <> 'true' then raise exception 'GATE(e): no probe character: %', v_r; end if;
+
+    -- (e0) ★ THE SHIPPED STATE: AN UNPRICED CATALOGUE REFUSES BY ITS OWN NAME
+    --      (I-3, Security R4.1 condition 2) ★ — and it refuses AHEAD of both
+    --      the gold test and the day cap, which is what proves §(0b) is reached
+    --      rather than shadowed. `vigour_daily_cap` here would tell a player
+    --      they had used up a limit they have never been able to reach.
+    v_gold := (select coalesce(gold, 0) from public.player_state where user_id = v_uid and slot = 0);
+    v_r := public.hr_vigour_refill__ungated(0, gen_random_uuid());
+    if coalesce(v_r->>'error','') <> 'refill_unpriced' then
+      raise exception 'GATE(e0): an UNPRICED catalogue answered % - it must be refill_unpriced, by name, before any other rule', v_r; end if;
+    if (select coalesce(gold, 0) from public.player_state where user_id = v_uid and slot = 0) <> v_gold then
+      raise exception 'GATE(e0): the unpriced refill MOVED GOLD'; end if;
+    if exists (select 1 from public.player_progress where user_id = v_uid
+                and kind='daily' and key='ev:vigour_refills') then
+      raise exception 'GATE(e0): the unpriced refill counted anyway'; end if;
+
+    -- ── THE GATE'S OWN LADDER, AND IT LIVES ONLY IN THIS SUBTRANSACTION ─────
+    -- Every arm below prices a purchase, and the shipped table is empty, so the
+    -- fixture is the Game Designer's proposed curve (design §4.6) inserted HERE
+    -- and rolled back with the probes at HR922. It is a test fixture, not a
+    -- seed: (d0) above and (f) below both assert the real table is untouched.
+    insert into public.hr_vigour_prices (nth, cost_gold, minutes) values
+      (1,   2000, 120),
+      (2,   6000, 120),
+      (3,  18000, 120),
+      (4,  54000, 120),
+      (5, 162000, 120);
+
+    -- (d) THE LADDER RISES. Asserted from the rows, so a mis-seeded catalogue
+    --     (every rung 2,000) fails the apply instead of shipping a flat tax.
+    select cost_gold into v_p1 from public.hr_vigour_prices where nth = 1;
+    select cost_gold into v_p2 from public.hr_vigour_prices where nth = 2;
+    if v_p2 <= v_p1 then
+      raise exception 'GATE(d): refill 2 (%) is not dearer than refill 1 (%) - a flat curve becomes a fixed daily tax the wealthy stop noticing', v_p2, v_p1;
+    end if;
+    if exists (select 1 from public.hr_vigour_prices a join public.hr_vigour_prices b
+                on b.nth = a.nth + 1 where b.cost_gold <= a.cost_gold) then
+      raise exception 'GATE(d): the price ladder is not strictly increasing';
+    end if;
 
     -- (e1) NO GOLD, NO REFILL. Run BEFORE any gold is placed, so the refusal is
     --      the shipped default rather than something this probe arranged.
@@ -635,6 +691,21 @@ begin
     if public.hr_vigour_of(v_uid2, 0) is distinct from v_vig then
       raise exception 'GATE(e7): the refused refill moved the meter'; end if;
 
+    -- (e0b) AND THE REFUSAL HOLDS WITH GOLD ON THE TABLE. (e0) ran on a probe
+    --       that had nothing to spend, so on its own it cannot tell
+    --       "refused because unpriced" from "refused because broke". Withdraw
+    --       the fixture ladder from under a character holding 100,000,000 gold
+    --       and the answer must still be refill_unpriced, and the gold must
+    --       still be there. This is the arm that says NO GOLD CAN MOVE on a
+    --       placeholder, which is the whole of what I-3 buys.
+    delete from public.hr_vigour_prices;
+    v_gold2 := (select gold from public.player_state where user_id = v_uid2 and slot = 0);
+    v_r := public.hr_vigour_refill__ungated(0, gen_random_uuid());
+    if coalesce(v_r->>'error','') <> 'refill_unpriced' then
+      raise exception 'GATE(e0b): a FUNDED character on an unpriced catalogue was answered % - it must be refill_unpriced', v_r; end if;
+    if (select gold from public.player_state where user_id = v_uid2 and slot = 0) <> v_gold2 then
+      raise exception 'GATE(e0b): the unpriced refill took gold from a funded character'; end if;
+
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
 
     raise exception using errcode = 'HR922', message = 'vigour-refill §7 complete - rolling back';
@@ -659,5 +730,13 @@ begin
     raise exception 'GATE: §7 LEAKED a probe row';
   end if;
 
-  raise notice 'vigour-refill: no price literal lives in the verb, no currency but gold is named, the wrapper is gated + seamed + defaulted and the ungated body is callable by nobody, the ladder strictly rises, and EXECUTED - a broke character is refused and counts nothing, a funded one pays exactly rung 1 and journals the signed debit, the replay charges nothing, rung 2 costs more, the day cap is the catalogue row count and refuses without taking gold, five refills never pass the 22h ceiling, a NULL idempotency key is refused by name and moves no gold, and on a CLAN-PERKED probe a refill that would be clamped by the ceiling is REFUSED while every refill delivered in full moves the budget by exactly the minutes its receipt reports - all green, net zero';
+  -- (f) AND THE CATALOGUE IS STILL EMPTY (I-3). The fixture ladder (d)/(e1)-(e7)
+  --     priced against was inserted inside the rolled-back subtransaction; if it
+  --     survived to here, this apply would ship five placeholder prices and the
+  --     first refill on production would charge a number nobody ruled on.
+  if exists (select 1 from public.hr_vigour_prices) then
+    raise exception 'GATE(f): §7 LEAKED its fixture price ladder - the catalogue must ship EMPTY until Tyler rules (design 4.6)';
+  end if;
+
+  raise notice 'vigour-refill: no price literal lives in the verb, no currency but gold is named, the wrapper is gated + seamed + defaulted and the ungated body is callable by nobody, the ladder strictly rises, and EXECUTED - a broke character is refused and counts nothing, a funded one pays exactly rung 1 and journals the signed debit, the replay charges nothing, rung 2 costs more, the day cap is the catalogue row count and refuses without taking gold, five refills never pass the 22h ceiling, a NULL idempotency key is refused by name and moves no gold, and on a CLAN-PERKED probe a refill that would be clamped by the ceiling is REFUSED while every refill delivered in full moves the budget by exactly the minutes its receipt reports; the catalogue SHIPS EMPTY (I-3) and an unpriced refill is refused by name ahead of every other rule, broke and funded alike, taking no gold and counting nothing - all green, net zero';
 end $$;

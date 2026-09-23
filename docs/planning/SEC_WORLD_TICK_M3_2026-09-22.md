@@ -346,3 +346,255 @@ I will re-verify on request. **Residual risks I am accepting** with the two GOs:
 hazard mitigated by the runbook, not by code; S-5 is unverifiable without production and is covered by
 one pre-flight query; the attended top-up remains unpriced and is a hard ARM blocker, correctly, for
 whenever arming is proposed.
+
+---
+
+# RE-VERIFY — 2026-09-23
+
+**Reviewer:** security-engineer (veto authority)
+**Under review:** `lane/world-tick-m3` @ `0ab94c17` — the lane merged `sec/world-tick-m3`
+(`a63d7ea`) and `next` (`e1b2b6f1`), then landed `51e892e8` (S-1), `3ead5a96` (S-2),
+`90b6bdee` (S-3), `b339a3cc` (S-5/S-6), `dabb0837` (S-4) and `fc090fd2` (guard registration).
+**Branch:** `sec/world-tick-m3-2`, cut from that head. `npm install --no-audit --no-fund`.
+**Known dependency ruled on below:** `lane/world-tick-m1f` @ `82606827`, not on `next`.
+
+## Verdicts
+
+```
+MIGRATION 2026-09-22-world-tick-combat-channel.sql: GO-WITH-CHANGES
+EDGE DEPLOY (combat inputs): GO
+COMBAT SHADOW ARM: BLOCK
+ORDER vs M1f: apply-after-M1f
+```
+
+**MIGRATION 2026-09-22-world-tick-combat-channel.sql: GO-WITH-CHANGES** — the SQL body has
+not moved since the first review (`git diff 59b748e5..HEAD` on the file is header only); the
+"changes" are the two operator conditions, now written where the operator will look (the
+migration header and §16.10) but still conditions on the **apply**, not on the file: the S-5
+pre-flight `select` must be read before the apply, and the tick must be paused for the S-4
+rewrite. A GO would say the file may be applied with neither. It may not.
+
+**EDGE DEPLOY (combat inputs): GO** — `pack-edge --check` exit **0**, 75 files, 45 vendored,
+payload `9f9ec411bfefe428056df54b0cb9947fe683bfe5254096790f8d09ed997138f3`; I packed it to a
+scratch directory and listed it: **no file under `services/`**, so S-1/S-2/S-3 do not move the
+hash and `combat.js` is not deployed by this. Per the order ruling below the payload that
+actually deploys is the post-rebase one, so **re-measure the hash after the M1f merge** — do not
+verify `payload_sha256` against `9f9ec411…` on a rebased build.
+
+**COMBAT SHADOW ARM: BLOCK** — on **S-7** below, which is new, CONFIRMED by execution, and is
+the same class the known dependency fixes. The §16.6 attended fence remains a separate hard ARM
+blocker, unchanged and correctly so.
+
+**ORDER vs M1f: apply-after-M1f.** M3 must be **rebased onto `lane/world-tick-m1f` before the
+edge deploy and before any arm.** One artefact is genuinely free and is named so it is not held
+hostage: the **migration** is DDL on `hr_tick_shadow` / `hr_tick_config` only, touches no engine
+input and arms nothing (C15, and §3 `c3`), so it may apply on its own schedule per CLAUDE.md
+§3.3a. The **edge half and the arm are order-bound**, for three reasons: (1) S-7 — `combat.js`
+hydrates from the wrong envelope level and there is no argument that makes it right on this head;
+(2) M1f's `tick-shadow.js` change and M3's eleven-key block are the **same lines**, so the merge
+is a conflict the Coordinator may not hand-resolve (CLAUDE.md §3.3) — it goes back to this lane;
+(3) M1f fixes a **live** defect (the gather shadow measured `would_ticks: 0` on production
+2026-09-22 22:37–22:42 UTC), and deploying M3's payload first buys nothing and costs a second
+deploy cycle at a third hash.
+
+---
+
+## Findings ruled, one by one
+
+| # | Ruling | The executing proof |
+|---|---|---|
+| **S-1** seed label on every window | **CLOSED** | `settleCombatSession` no longer chains `res.delta.accrued_to`; `combat.js:492` re-renders `pgTimestamptzText(settledTo)` and window 1 travels verbatim. `tests/sec-world-tick-m3-seed-label.mjs` exit **0**; `--mutate` exit **0** printing *"2 of 2 arm(s) went RED with the defect back"* — the file inverted from a failing proof to a standing guard and **both** arms bite. `--mutate --relabelSeed` on the parity guard exit **0** (RED, as required). |
+| **S-2** `pgTimestamptzText` pads | **CLOSED** | The helper trims trailing zeros and omits the fraction entirely. Asked of a real server, not of a restatement: S-M3-2 renders four watermarks through pglite `to_jsonb($1::timestamptz) #>> '{}'` — the **exact second** `…T12:00:00+00:00`, the **trailing-zero ms** `…09.6+00:00`, the **three-digit ms** `…09.739+00:00`, and the cadence's next landing `…T12:00:10+00:00` — and all four match. Under `--mutate` all four diverge (`…00.000000+00:00` vs `…00+00:00`). C9's `/\.\d{6}\+/` arm is gone, replaced by PostgreSQL's own shape `^\d{4}-…(\.\d*[1-9])?\+00:00$` plus exact-second and millisecond arms on the helper. |
+| **S-3** window 1 from the roster column | **CLOSED for the label** | `rosterWatermarkText(row, envelope)` (`combat.js:207`) never reads `row.accrued_to` as a string: the candidates are **`row.mark_text` first** — which is what `probeWatermark` carries out of the **fence** (`tick.js:357`, `markText: String(res.accrued_to)`), the only rendering that survives a microsecond mark — then the envelope's `state->>'accrued_to'`, and each must pass the `T…+00:00` shape **and** name the same instant as `row.accrued_to`, else the session is **refused**. Executed by C9: a `Date` and the driver's `2026-03-14 20:00:00.123456+00` both label from the envelope, both **throw** when the envelope carries none, a **displaced** shadow watermark throws, and `mark_text` is accepted. `world-tick-combat-parity.mjs` exit **0**, all 13 mutants RED-as-required. |
+| **S-4** `STORED` columns rewrite `hr_tick_shadow` | **CLOSED as an operator condition** (no code to close) | The migration header now names the `ACCESS EXCLUSIVE` rewrite and the three-step pause, and §16.10 carries the same steps. It is documentation of a hazard, so it closes only when the apply is performed that way — see the runbook. |
+| **S-5** NULL element passes the CHECK | **CLOSED as an operator condition** | The read-only pre-flight `array_position(channels, null)` is in the migration header and in §16.10's runbook. Still unverifiable without production; still one `select`. |
+| **S-6** §16.10 names a stale pack hash | **CLOSED** | §16.10 now names `9f9ec411bfefe428056df54b0cb9947fe683bfe5254096790f8d09ed997138f3` and says how it was measured; I re-measured it at the head and got the same string. Both stale numbers (`df215d58…` at `ea889df`, `e76ae11c…` at `59b748e5`) are named as stale rather than deleted, which is the right call for an operator holding one of them. |
+
+Nit from the first review, now fixed: `goals` is gone from both `tick-shadow.js` and the input
+object. `sessionFromRoster` still sets `goals: st.goals`, and it is still dead — but it is now
+dead **and** always `undefined`, which is S-7.
+
+---
+
+## S-7 (NEW) — `combat.js` hydrates the engine from the wrong level of the envelope
+
+| # | Surface | Claim | Status | Trigger | Blast radius | Sev | Fix |
+|---|---|---|---|---|---|---|---|
+| **S-7** | `services/world-tick/combat.js` `sessionFromRoster` | `hr_state_of` is **two levels**: `state` holds the `player_state` columns and the **envelope top level** holds the projections built from other tables. `sessionFromRoster` reads **both** off one object — `st.hp` / `st.fight` / `st.auto_eat_enabled` / `st.deaths_today` (state level) beside `st.skills` / `st.inventory` / `st.equipment` / `st.enchant` / `st.buffs` (top level). There is **no argument that makes it right.** | **CONFIRMED by execution** | Every combat session, the moment a driver wires one | A level-61 fighter reaches `computeAccrual` at **level 0, unarmed, with an empty bag** — so auto-eat can never fire despite `autoEatEnabled: true`, and a level gate answers `STOP_REASON.LEVEL`, which `settleCombatSession` reads as *the pointer ended* and closes the batch. In SHADOW nothing is paid, so no player value moves; the 48 h per-field read is **all zeros**, i.e. unreadable for the second time. **Armed**, it is a catastrophic under-pay **and** a proposed `delta.activity = {kind:'idle'}` that would end a real player's fight. | **P0 for the ARM** | Rebase onto `lane/world-tick-m1f` and hydrate through `engineInputsFromEnvelope` / `engineStateOf` from `hr-accrue/envelope.js` |
+
+The authority is the projection's own source, not a reading of it:
+`2026-09-14-hr-state-of-restatement.sql:818` (`c_top`) lists `skills`, `inventory`,
+`equipment`, `enchant`, `buffs`, `version`, `traits`, `unlocked_recipes` **beside** `state`;
+`:819` (`c_state`) lists `accrued_to`, `hp`, `max_hp`, `gold`, `fight`, `consec_falls`,
+`recovering_until`, `auto_eat_*`, `deaths_today`, `deaths_lifetime`, `combat_style`,
+`hearthfind_ready`, `tool_carry` — and **none** of the five projections.
+
+Executed against a realistic envelope of that shape:
+
+```
+(A) sessionFromRoster(row, env.state)   <- the only existing driver convention (tick.js:490)
+      accruedToText : 2026-03-14T20:00:00.123456+00:00      <- the label is RIGHT
+      skills        : {}          inventory : {}
+      equipment     : {}          enchant   : {}      buffs : undefined
+(B) sessionFromRoster(row, env)         <- the other level
+      THREW: rosterWatermarkText: no server rendering of the watermark … the envelope
+             renders "undefined"                            <- the label fails CLOSED
+(C) what the engine actually wants (envelope.js engineInputsFromEnvelope)
+      skills        : {"attack":500000,"hp":400000}         <- raw xp NUMBERS
+```
+
+So (A) is silently wrong and (B) is loudly wrong, and there is no third argument. (C) is the
+third defect inside the first: even at the right level the projection is
+`{skill_id: {xp, level}}` and the engine takes raw xp — `engineInputsFromEnvelope` unwraps
+`.xp`, `sessionFromRoster` does not, so correcting the level alone would hand the engine
+objects where it expects numbers.
+
+Two inputs are wrong on **either** level and are part of the same class: `bestiaryKills`
+(`st.bestiary_kills`) comes from `hr_bestiary_of`, a **separate read** `index.ts:637` makes and
+this driver does not — it is `undefined` always, so bestiary and charm bonuses price at zero —
+and `perks` likewise (`hr_perks_of`). M1f names both as owed-and-under-paying; this head
+sources them from an envelope that cannot carry them and says nothing.
+
+**Would an existing guard have caught it? No, and the reason is the guard's own fixture.**
+`world-tick-combat-parity.mjs:1225` builds its `env` as a **flat** object with
+`hp, max_hp, gold, skills: {}, inventory: {}, equipment: {}, …, enchant: {}` all at one level —
+it bakes the two-level confusion in as the contract **and** pins the three projections to `{}`,
+so the defect is invisible by construction. C1 is structural but it derives the key set of
+`tick-shadow.js`'s input object from `index.ts`, which says nothing about where
+`sessionFromRoster` **read** those keys from. The guard that does see it is M1f's
+`tests/world-tick-hydration.mjs`, which boots the real chain.
+
+**Recommended fix, and it is the dependency's:** merge `lane/world-tick-m1f` into this lane,
+replace `sessionFromRoster`'s state block with `engineInputsFromEnvelope(env, nowMs)` +
+`ENGINE_STATE_KEYS`, keep `rosterWatermarkText` (which is right and which M1f does not have),
+and re-point C9's fixture at a **two-level** envelope so the guard stops agreeing with the
+defect. Then re-run this battery and re-measure the pack hash.
+
+**Carried forward as an ARM condition, not a finding:** `tick.js` builds its roster row itself
+and does **not** set `mark_text` (`tick.js:490`, `accrued_to: new Date(markMs).toISOString()`).
+A combat driver must thread `mark_text: probe.markText` onto the row, or every displaced shadow
+window is refused by `rosterWatermarkText` — fail-closed, so it costs windows rather than
+correctness, but it would read as "combat settles nothing".
+
+**Residual on the re-render, for whenever the ARM is proposed.** `pgTimestamptzText` is
+millisecond-precision and is exact **in shadow**: the fence writes
+`shadow_accrued_to = p_window_to` verbatim, with no clamp
+(`2026-09-21-world-tick-settle-fence.sql:474`). `hr_apply` is different — it clamps
+`v_accrued := least(now(), greatest(v_st.accrued_to, v_accrued))`
+(`2026-09-14-hr-apply-restatement.sql:2288`) — so an **armed** window whose proposal races
+`now()` would be stamped with microseconds a JS re-render cannot reproduce. Narrow, and exactly
+the case window 1's verbatim-string rule exists for; the armed driver should take the label from
+the fence's returned rendering rather than re-render it.
+
+---
+
+## Guards run — real exit codes
+
+Every number is an exit code I observed in this worktree, not an expectation.
+
+| Guard | Exit |
+|---|---|
+| `tests/sec-world-tick-m3-seed-label.mjs` | **0** — green, 2 arms |
+| `tests/sec-world-tick-m3-seed-label.mjs --mutate` | **0** — 2 of 2 arms RED with the defect back |
+| `tests/world-tick-combat-parity.mjs` | **0** |
+| `tests/world-tick-combat-parity.mjs --mutate --<name>` × 13 | **0** each — `noAutoEat`, `noDeathCounters`, `shiftWindow`, `wallclock`, `freeHeal`, `skipFoodDebit`, `relabelSeed`, `nofight`, `progressNoFold`, `hearthfindArray`, `restedNow`, `attendedThrough`, `fixedSeed`, every one "RED, as required" |
+| `tests/world-tick-parity.mjs` | **0** |
+| `tests/world-tick-parity.mjs --mutate` | **0** |
+| `tests/world-tick-double-pay.mjs` | **0** |
+| `tests/world-tick-shadow-chain.mjs` | **0** |
+| `tests/world-tick-writer-authz.mjs` | **0** |
+| `tests/world-tick-edge-contract.mjs` | **0** |
+| `tests/edge-tick-gate.mjs` | **0** |
+| `tests/delta-transport.mjs` | **0** |
+| `tests/schema-drift.mjs` | **0** — rebuilds to `5933a496b2a2…` |
+| `tests/apply-order-honesty.mjs` | **0** — 30 files carry a measured verdict |
+| `tests/guard-hygiene.mjs` | **0** — no orphans, no ghosts, no vacuous proofs |
+| `tools/pack-edge.mjs hr-accrue --check` | **0** — 75 files, `9f9ec411…` |
+| `tools/pack-edge.mjs hr-accrue --hash` | **0** — `9f9ec411bfefe428056df54b0cb9947fe683bfe5254096790f8d09ed997138f3` |
+| `tools/lane-done.mjs` | **0** — `lane-done: all green.` |
+
+`tests/guards-unregistered.json` no longer carries the M3 entry and
+`tests/sec-world-tick-m3-seed-label.mjs` is registered in `.github/workflows/smoke.yml:1004-1005`
+with both arms. `guard-hygiene` green with the entry **gone** is the exit code for that.
+
+---
+
+## Coordinator runbook
+
+### Order
+
+0. **`lane/world-tick-m1f` merges first**, and M3 merges it into itself and re-runs this
+   battery (CLAUDE.md §3.3 — the Coordinator does not hand-resolve the `tick-shadow.js`
+   conflict). The migration below does **not** wait for it.
+
+### The apply — `2026-09-22-world-tick-combat-channel.sql`
+
+1. **Pre-flight, read-only (S-5).**
+   ```sql
+   select channels,
+          array_position(channels, null) as has_null_element,   -- must be NULL
+          enabled, shadow
+     from public.hr_tick_config where id;
+   -- Expect: channels = {gather}, has_null_element NULL, enabled false, shadow true.
+
+   select pg_size_pretty(pg_total_relation_size('public.hr_tick_shadow')) as size,
+          count(*) as rows
+     from public.hr_tick_shadow;   -- sizes the S-4 rewrite window
+   ```
+   If `has_null_element` is **not** NULL, STOP and clean the array first.
+
+2. **Pause the tick for the apply (S-4).** The eight `GENERATED ALWAYS … STORED` columns
+   rewrite `hr_tick_shadow` under `ACCESS EXCLUSIVE` while the gather shadow inserts every 90 s.
+   ```sql
+   -- wait for the lease to drain
+   select user_id, slot, channel, owned, lease_until, lease_until <= now() as drained
+     from public.hr_tick_ownership order by lease_until desc;
+   update public.hr_tick_config set enabled = false where id;
+   ```
+
+3. **Apply**, one file, Coordinator only, never inside `begin/commit`, never 00:00–00:10 UTC:
+   ```bash
+   node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-combat-channel.sql
+   ```
+   Expect `world-tick-combat-channel self-check PASSED (c1-c8); probe rows rolled back`.
+
+4. **Re-enable.**
+   ```sql
+   update public.hr_tick_config set enabled = true where id;
+   ```
+
+5. **Post-apply:** read-only verification agent → `live-hash-drift --live --write` + whys →
+   apply-order note flipped to APPLIED → `restore-census` (no new tables; the columns are new).
+
+### The edge deploy — AFTER the M1f rebase, and before any push
+
+```bash
+node tools/pack-edge.mjs hr-accrue --hash          # re-measure; it is NOT 9f9ec411 on a rebase
+node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue
+cp supabase/config.toml <dir>/supabase/config.toml
+npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
+  --project-ref nezapsylztqbbwuwembx
+```
+Then verify the live `payload_sha256` equals the hash from the **first** line above.
+
+### Do NOT arm combat
+
+The arm SQL, the `hr_kill_credit_log` arm fence and the per-field parity queries from the
+2026-09-22 runbook are unchanged and still stand — including the cohort of **one**, chosen for
+a **non-attended** combat pointer, inserted `owned = false` so the roster hands it out under a
+lease. They are not restated here because nothing about them moved and a second copy is a second
+thing to drift. `hr_tick_config.enabled` stays governed by the apply runbook above and `shadow`
+stays **true**; arming remains an operator UPDATE with its own Security GO, which this document
+does not grant.
+
+**What satisfies the ARM block:** (1) the M1f rebase, with `sessionFromRoster` hydrating through
+`engineInputsFromEnvelope`; (2) C9's `env` fixture re-pointed at a **two-level** envelope with
+non-empty `skills` / `inventory` / `equipment`, so the guard can go red on S-7; (3) the combat
+driver threading `mark_text`; (4) this battery re-run green at the rebased head; (5) the §16.6
+attended fence, still open and still correctly a hard ARM blocker.
+
+**Residual risks I am accepting with the migration GO-WITH-CHANGES and the edge GO:** S-4 is an
+operational hazard mitigated by a runbook and not by code; S-5 remains unverifiable without
+production and is covered by one `select`; the attended top-up remains unpriced; `perks` and
+`bestiaryKills` remain under-paying inputs that no driver reads yet; and the microsecond
+re-render residual above is scoped to the armed path, which is blocked.

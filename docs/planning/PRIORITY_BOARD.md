@@ -22,6 +22,19 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Last five merges | f9da2e5b Merge branch 'worktree-agent-ad408251ef743025a'<br>07b83f0a Merge branch 'worktree-agent-a13103d1368b3ed10'<br>68ab4a9b Merge branch 'worktree-agent-ad408251ef743025a'<br>b729ae21 Merge branch 'worktree-agent-a5ec5d462bc708b2b'<br>8a700736 Merge branch 'worktree-agent-a4bd50bfbdabbad36' |
 <!-- END GENERATED -->
 
+## 2026-09-23 20:00 UTC — b552 LIVE and PLAYED (Coordinator) · M8 slice 1 applied · M3 shadow defect found and fixed in lane
+
+| Item | State |
+|---|---|
+| b552 (header repaint at the envelope seam, M8 S1 staged→applied, Windows guard fix) | live 19:41 UTC, GitHub 7/7 green on release/b552, played on QA Hero 3, Discord posted |
+| M8 slice 1 (party, party_member, party_invite, five verbs) | APPLIED 18:33–18:34 UTC on Security GO-WITH-CHANGES (changes landed); eight read-only checks pass; no client half yet |
+| M3 combat shadow | armed 15:36 UTC; DEFECT: shadow chains the watermark but not the character (41 deaths in 42 windows); class fix on lane/m3-shadow-state-chain, Security RE-VERIFY 5 in flight; 48 h clock restarts after apply + edge deploy |
+| Hero 2 real settle 15:35→19:41 | 5 kills, 2 falls, +8 gold, 4 h 05 m knocked out — the unchained shadow said 52 kills / 41 deaths in its first hour |
+| P1 found at the gate | daily GOAL claim pays on the realm (gems +1, gold +500) but G/header keep the old numbers until reload; toast says 200 g from a client table → lane/goal-claim-envelope (cloud) |
+| M8 design rev.2 | all 16 Security findings CLOSED; S2/S3/S4 briefable (own GOs); S3 split lane landed (merge chore for ?v=552 in flight); S2 waits on RE-VERIFY 5's shadow ruling |
+| Open on Tyler | the four Vigour refill prices (I-3/I-5) — the Vigour bar stays hidden until then |
+
+
 _Last updated: 2026-09-07 (**b518 LIVE, b519 set assembled on main awaiting a quiet machine; cleanup program running; two live findings from playing the QA account**)_
 
 > **📍 2026-09-08 18:25 UTC — "step it up this week".** **b521 candidate** (`e4852e81`: first-day card, four Paione fixes, ungated benches, monolith −1,011) sits on `origin/release/b521`; its gate must run on GitHub (Tyler's PC is memory-bound while he plays) → needs a GitHub sign-in in his Chrome, then one "Run workflow" click; merge to main only when green. **Staging `next`** (63422ea5, all guards green): Set the Night (welcome-v2 retired, −315 lines) + Forge/Workshop identity perks (1/2/4/6/8, edge payload moved) + test-seed paydown; the Retreat (Security GO-WITH-CHANGES, all landed) is merging onto it. **The Hearthfind**: server half Security GO (measured boss odds, hours band 100–400, `player_cosmetics` titles Emberborn/Rootwarden/Deepdelver/Tidesworn/Wonderkeeper, 30 s broadcast); client half built (reveal never auto-dismissed, away band, chat line from `world_finds`, collection rows, share card). Apply order and edge deploy recorded in memory; Art Director owes four trophy icons (budget-frozen) and the scrim. **Rulings today:** Retreat deviations (warning once/monster, dismissal = fight, sheet reads the clock); Prayer/Smithing/Crafting ungated (levels grant permission, rooms grant speed); XP→room grandfather deleted; Hearthfind items/odds/payout/reveal.
@@ -358,6 +371,8 @@ _Six read-only audit dimensions + a systems root-cause lane. THE ROOT CAUSE of a
 ---
 
 ## 8 · KNOWN RESIDUALS / SMALL BUGS
+
+- **2026-09-23 (P3, self-healing):** starting a fight sends the first kill/XP credit before `set_activity:combat` lands; the server refuses it `kind_mismatch` and the set_activity itself hit `version_conflict` ×3 first (stale version right after a hero switch/reload). Kills-today still matched (server 5 = browser 5) because the settle covered it, but the client should sequence set_activity before the first credit and refresh its version after a switch.
 
 | Item | Status | Pri | Notes |
 |---|---|---|---|

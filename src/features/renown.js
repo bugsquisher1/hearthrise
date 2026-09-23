@@ -495,23 +495,15 @@
   function repaintBalances() {
     try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
   }
-  /* "The cheapest honest refresh there is" (buyTrait's phrase, and the
-     bug_reports #46 fix in completeBounty). gold/gems are SERVER_OF_RECORD
-     under the arm, so the credit hr_claim_rank just made is INVISIBLE to the
-     topbar until an envelope arrives — the player claims 300,000 gold and
-     watches the counter not move. One request refreshes the whole envelope. */
-  function refreshRecordAfterCredit() {
-    try {
-      var R = window.HearthriseRecord;
-      if (R && typeof R.requestRecord === 'function') {
-        var p = R.requestRecord();
-        if (p && p.then) p.then(function () { repaintBalances(); }, function () {});
-        else repaintBalances();
-        return;
-      }
-    } catch (e) {}
-    repaintBalances();
-  }
+  /* THE POST-CREDIT REFRESH MOVED TO THE TRANSPORT (2026-09-23). It used to
+     live here — "the cheapest honest refresh there is", because gold/gems are
+     SERVER_OF_RECORD under the arm and the credit hr_claim_rank just made is
+     invisible to the topbar until an envelope arrives. It was RIGHT and it was
+     in the wrong place: a per-handler patch on a transport-wide gap, which is
+     why the goal, quest, daily-task, milestone and bounty claims all still had
+     the bug (live P1, 2026-09-23). src/net/goal-claim.js `call()` now reconciles
+     after every credit verb, this one included, so a second request here would
+     only be a duplicate. */
   function mayWrite(field) {
     return !window.clientMayWriteRecordField || window.clientMayWriteRecordField(field);
   }
@@ -632,7 +624,6 @@
       if (res && res.ok) {
         grantLocally(G, s, rankId, rw);        // AFTER the verdict — nothing to revert
         say('Claimed ' + rewardText(rw), 'gold');
-        refreshRecordAfterCredit();
         return rw;
       }
       if (res && res.error === 'already_claimed') {

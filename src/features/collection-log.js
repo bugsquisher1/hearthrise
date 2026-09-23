@@ -201,19 +201,9 @@
   function msRepaint() {
     try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
   }
-  /* gold/gems are SERVER_OF_RECORD under the arm, so the server's credit is
-     invisible to the topbar until an envelope arrives. Same one-line refresh the
-     bounty turn-in and the rank claim use. */
-  function msRefreshRecord() {
-    try {
-      var R = window.HearthriseRecord;
-      if (R && typeof R.requestRecord === 'function') {
-        var p = R.requestRecord();
-        if (p && p.then) { p.then(function () { msRepaint(); }, function () {}); return; }
-      }
-    } catch (e) {}
-    msRepaint();
-  }
+  /* THE POST-CREDIT REFRESH MOVED TO THE TRANSPORT (2026-09-23) — see the note
+     at the same spot in src/features/renown.js. src/net/goal-claim.js `call()`
+     reconciles after every credit verb, hr_claim_milestone included. */
   function msMayWrite(field) {
     return !window.clientMayWriteRecordField || window.clientMayWriteRecordField(field);
   }
@@ -290,7 +280,6 @@
       if (res && res.ok) {
         msGrantLocally(G, s, id, rw);            // AFTER the verdict — nothing to revert
         msSay('Collection reward: ' + msRewardText(rw), 'gold');
-        msRefreshRecord();
         return rw;
       }
       if (res && res.error === 'already_claimed') {

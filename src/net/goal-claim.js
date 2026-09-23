@@ -80,6 +80,109 @@
       || (typeof json.message === 'string' && /could not find the function/i.test(json.message))));
   }
 
+  /* ══════════════════════════════════════════════════════════════════════
+     EVERY CREDITED CLAIM ENDS IN THE SERVER'S NUMBERS — ONE SEAM, NOT ONE
+     PER HANDLER (live P1, hearthrise.net, 19:45 UTC 2026-09-23).
+
+     Hero 3 slot 2 claimed the daily goal `level_up`. The server credited and
+     journalled it (player_ledger kind=daily intent=goal_claim:2026-9-23:
+     level_up; player_state gold 42,128 → 42,628, gems 13 → 14, version 1991) —
+     and `window.G.gold` still read 42,128 forty seconds later, header included,
+     until a reload. Not the header-repaint bug fixed the same day: applyRecord
+     never ran at all, because NOTHING on this transport reconciles `G` after a
+     claim. Every RPC in this module is a bare `fetch` whose JSON is handed back
+     to a caller that updates its own row and nothing else, so a claim's payout
+     — which exists ONLY in the server's answer — stayed invisible until the
+     ~90s settle.
+
+     Two callers had noticed — renown.js after `hr_claim_rank` and
+     collection-log.js after `hr_claim_milestone` — and both were per-handler
+     patches on a transport-wide gap, which is why the goal, quest, daily-task
+     and bounty claims all kept the bug. The reconcile belongs HERE, where
+     every claim already passes; those two call sites are folded into it.
+
+     WHAT IT DOES, IN THE SAME ORDER shop_buy resolves an answer:
+       1. If the answer IS a full envelope, apply it through the very function
+          the gold verbs use — `applyGoldEnvelope` (absolute, version-monotonic,
+          prediction-accounted, repaints via applyRecord's tail). None of the
+          PostgREST claim RPCs return one today; they answer a GRANT RECEIPT
+          ({ok, gold, gems, xp, items}), so this arm is what makes the day one
+          of them grows an envelope a no-change.
+       2. Otherwise ASK for one: `HearthriseRecord.requestRecord()` — "the
+          cheapest honest refresh there is" — which lands the server's whole
+          state through `applyRecord`, the same tail. Single-flighted, and a
+          claim is a handful of calls a day.
+     Never a client-side credit: the client does not add the reward to `G`, it
+     re-reads what the realm says the balance now is (§6). A failed refresh is
+     silent — the settle still comes — and never turns a paid claim into an
+     error the player sees. */
+  var CREDIT_VERBS = {
+    hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_goal: 1,
+    hr_claim_milestone: 1, hr_claim_rank: 1, hr_claim_bounty: 1
+  };
+
+  /* ONLY WHEN THE SERVER OWNS THE BALANCE. In the dormant position (signed
+     out, the suite's pre-arm fixtures, the client-authoritative switch) the
+     client's own grant IS the payout and no envelope can take it away, so a
+     record read would settle nothing and would fire on every best-effort
+     intent those paths send fire-and-forget. Fail OPEN — an unknown arm state
+     reconciles, because a missed reconcile is the bug this exists for.
+
+     READ WHEN THE INTENT IS SENT, not when the answer lands, so this matches
+     the branch the CALLER took. A dormant claim is fire-and-forget and its
+     answer can arrive long after something else has armed the record; asking
+     then would reconcile a payout the client already owns and paid. */
+  function serverOwnsBalance() {
+    var may = window.clientMayWriteRecordField;
+    if (typeof may !== 'function') return true;
+    try { return may('gold') === false || may('gems') === false; } catch (e) { return true; }
+  }
+
+  function reconcileAfterCredit(json) {
+    try {
+      var Gd = window.HearthriseGold;
+      if (Gd && typeof Gd.envelopeOf === 'function' && typeof Gd.applyGoldEnvelope === 'function'
+          && Gd.envelopeOf(json)) {
+        Gd.applyGoldEnvelope(window.G, json);
+        return;
+      }
+    } catch (e) {}
+    try {
+      var R = window.HearthriseRecord;
+      if (R && typeof R.requestRecord === 'function') {
+        var p = R.requestRecord();
+        if (p && typeof p.catch === 'function') p.catch(function () {});
+      }
+    } catch (e) {}
+  }
+
+  /* WHAT THE SERVER SAYS IT PAID, as a reward-shaped object the claim surfaces
+     can render — or null when the answer names no payout.
+
+     THE TOAST IS A RECEIPT, NOT A PRICE LIST (§6). legacy.js claimQuestReward
+     used to quote its own DAILY_REWARDS table at the player for a payout the
+     server owns: it reads right only while the two catalogues agree, and on
+     the day they do not (a retune that lands in one of the three homes, or a
+     reward component the server could not credit and returned in skipped_xp /
+     skipped_items) the player is told a figure their balance never moved by.
+     hr_claim_goal answers with the gold and gems its OWN catalogue priced and
+     the xp/items it actually credited, so that is what the sentence quotes.
+
+     ONE OBJECT LITERAL, no `out.gold = …` anywhere: this builds a DISPLAY
+     summary, never a balance, and the gold/gem censuses match on the SHAPE of
+     a write (`<recv>.gold =`) rather than on its receiver — so a field-by-field
+     build would read to them as two undeclared currency write sites. The
+     literal says the same thing and evades nothing: no currency property of
+     anything is assigned here. */
+  function grantedReward(res) {
+    if (!res || res.ok !== true) return null;
+    var gold = Number(res.gold), gems = Number(res.gems);
+    var xp = (res.xp && typeof res.xp === 'object' && Object.keys(res.xp).length) ? res.xp : null;
+    var items = (res.items && typeof res.items === 'object' && Object.keys(res.items).length) ? res.items : null;
+    if (!(gold > 0) && !(gems > 0) && !xp && !items) return null;
+    return { gold: gold > 0 ? gold : 0, gems: gems > 0 ? gems : 0, xp: xp, items: items };
+  }
+
   async function call(name, body) {
     var R = window.HearthriseRpc;
     if (R && typeof R.mayCall === 'function' && !R.mayCall(name, isSignedIn())) {
@@ -88,6 +191,7 @@
     if (missing(name)) return { ok: false, error: 'rpc_missing' };
     var c = cfg();
     if (!c) return { ok: false, error: 'no_config' };
+    var reconcile = CREDIT_VERBS[name] ? serverOwnsBalance() : false;
     try {
       var res = await fetch(c.url + '/rest/v1/rpc/' + name, {
         method: 'POST', headers: headers(), body: JSON.stringify(body || {})
@@ -96,7 +200,10 @@
       try { json = await res.json(); } catch (e) { json = null; }
       if (isMissingShape(json, res.status)) { note(name, false); return { ok: false, error: 'rpc_missing' }; }
       note(name, true);
-      if (json && typeof json === 'object') return json;
+      if (json && typeof json === 'object') {
+        if (json.ok === true && reconcile) reconcileAfterCredit(json);
+        return json;
+      }
       return { ok: false, error: 'bad_response', status: res.status };
     } catch (e) {
       return { ok: false, error: 'network' };
@@ -161,6 +268,7 @@
   window.HearthriseGoalClaim = {
     activeSlot: activeSlot,
     isSignedIn: isSignedIn,
+    grantedReward: grantedReward,
     /* Exposed for the regression test (smoke-test.js CADENCE-NIC-1), which
        drives the helper with a fake `fire` rather than a live RPC: the property
        under test is "exactly one re-declare and one retry, and never two", and

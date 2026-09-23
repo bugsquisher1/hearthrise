@@ -492,3 +492,22 @@ row counts (zero) rather than authored ones.
 - **S2's brief must not read the roster predicate out of §18.2.2** (§18-SEC-2 B-A2). That
   paragraph describes a policy the S1 lane measured unbuildable, and §18 is a record, so
   it stays as written and this is where the correction lives.
+
+---
+
+## Coordinator record — applied 2026-09-23 18:33–18:34 UTC, verified read-only 18:36 UTC
+
+Applied from `set/b551` @ 853a3f52 (Security's landed changes merged first), one file per call, one sitting: tables 18:33:03 (5 functions landed), verbs 18:34:20 (6 functions), client-surface 18:34:31 (no function; the baseline rows). Every call returned `apply result: []`.
+
+| §5.2 read | Result |
+|---|---|
+| 1 tables empty | party 0 / party_member 0 / party_invite 0 |
+| 2 RLS | `relrowsecurity` true on all three; 3 policies, 0 non-SELECT. (`relforcerowsecurity` false on all three — the owner is `postgres`, which the SECURITY DEFINER verbs run as; recorded, not a finding under §5.2.) |
+| 3 table privileges | `authenticated`: SELECT only; `anon`, PUBLIC, `service_role`: none; owner `postgres` all |
+| 4 function matrix | hr_party_of / hr_party_role / hr_party_level / hr_party_hunt_live: EXECUTE false for anon, authenticated, service_role, hr_engine; hr_party_view and the five verbs: true for authenticated only, hr_engine none |
+| 5 grant hygiene | `hr_assert_grant_hygiene(true)`: unapproved_client_rpcs [], ungated_client_rpcs [], engine_execute_outside_allowlist [] (key present); hr_client_rpc_baseline carries exactly six `hr_party*` rows for authenticated (five verbs + hr_party_view), none for the four predicates |
+| 6 hr_rpc_gate | exactly one `when 'party' then v_limit := 12;`, exactly one `else return false;`, `hr_vigour_refill` 6 intact, 14 buckets |
+| 7 S2 absent | hr_party_hunt_live(random uuid) = false; party_hunt and party_tick_lease both NULL |
+| 8 frozen shape | code read: name, combat_level, hp, hp_max, recovering_until, then S2's three as NULL literals |
+
+Records: `live-hash-drift --live --write` re-measured — hr_rpc_gate live == replay e282db6e (the §3 body change, now the deploy record); the three apply-order notes flipped to APPLIED with timestamps; restore-census re-pinned (see commit). §5.3 stands: no client half yet; the panel is a later lane and must not call hr_party_view with `{get:true}` nor poll it at envelope cadence.

@@ -774,11 +774,15 @@
       "wiped_at_cutover": false,
       "note": "THE SERVER FEATURE FLAGS (created 2026-09-13-town-presence.sql; the chain had no flag table before it — every arm switch was a `constant boolean := true` inside a function body, i.e. a migration and an apply window to change). One row per flag: key, enabled, note, updated_at. PUBLIC READ, no write policy and no write grant to any role including service_role, so the only writer is the owner. A rebuild seeds every flag at its SHIPPED DEFAULT, which for town_presence is OFF — fail-safe by construction: a restore-free rebuild closes a live surface rather than opening one. What is lost is the OPERATOR'S CURRENT CHOICE (a feature an operator had switched on comes back off) and the `note`/`updated_at` audit of when it was flipped. Cheap to re-assert: one UPDATE per flag. operator_tunable rather than seeded because the row's VALUE is an operations decision, not content. ⚠ live_value RECORDS town_presence = FALSE, AND THAT IS THE LIVE TRUTH TODAY (Security F2, 2026-09-13): production has the flag OFF, because 2026-09-13-town-presence-on.sql is STAGED. An earlier revision of this entry recorded TRUE - the state the apply will land in - which is the same class of mistake apply-order-honesty exists to catch: a deployment record that describes a future. A CHAIN REBUILD does produce TRUE (the ON file is in `order`), so the repo and production diverge on this one row until the Coordinator applies it - that is a KNOWN, NAMED window, not drift, and `expected_after` records what to move it to and how. Re-measure with `node tests/restore-census.mjs --live-sql` + --live-compare per lane C after the flip, and again if an operator ever uses the one-statement kill switch (2026-09-13-town-presence-off.sql). Only `key` and `enabled` are compared - the projection is built from the keys recorded here - so `note` and `updated_at` drift freely and cannot make this check permanently red.",
       "live_value": {
-        "measured": "2026-09-13",
+        "measured": "2026-09-23",
         "value": [
           {
+            "key": "inventory_absolute",
+            "enabled": true
+          },
+          {
             "key": "town_presence",
-            "enabled": false
+            "enabled": true
           }
         ]
       },
@@ -977,24 +981,24 @@
       "note": "THE WORLD TICK'S KILL SWITCH AND SHADOW FLAG — a singleton row created 2026-09-21-world-tick-settle-fence.sql (`id boolean primary key check (id)`). It carries no player value and no secret (the pg_net bearer lives in Vault). Coming back EMPTY is the SAFE direction and is the reason the fence reads it with `if not found ... return tick_disabled`: a missing row means the tick is off, the accrual path keeps every channel, and an operator re-arms deliberately. What is actually lost is the tuning — cadence, flush, batch cap, channel list, edge_url — which is four UPDATEs from the runbook, not player progress. RLS enabled and forced, zero policies, zero grants.",
       "replay": 1,
       "live_value": {
-        "measured": "2026-09-21",
+        "measured": "2026-09-23",
         "value": [
           {
             "id": true,
-            "enabled": false,
             "shadow": true,
-            "cadence_seconds": 10,
-            "flush_seconds": 90,
-            "batch_limit": 200,
-            "lease_ms": 30000,
+            "enabled": true,
             "channels": [
+              "combat",
               "gather"
             ],
-            "edge_url": null,
-            "cursor_slot": null
+            "edge_url": "https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue",
+            "lease_ms": 30000,
+            "batch_limit": 200,
+            "cursor_slot": null,
+            "flush_seconds": 90,
+            "cadence_seconds": 10
           }
-        ],
-        "note": "NOT YET IN PRODUCTION. 2026-09-21-world-tick-settle-fence.sql is STAGED, NOT APPLIED, so the value recorded here is the AUTHORED DEFAULT the migration ships and it is currently identical to what a rebuild produces. It is written down now, before the apply, because the moment an operator arms the tick (`enabled = true`) or leaves SHADOW (`shadow = false`) a rebuild would silently revert the live world to off — which is the safe direction, and still a revert nobody would notice. Re-measure this block on the first apply and after every arm/disarm."
+        ]
       }
     },
     "hr_tick_cron_log": {

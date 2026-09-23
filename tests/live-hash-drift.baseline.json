@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 1446,
+ "replay_ms": 1324,
  "counts": {
-  "tracked_names": 54,
-  "entries": 52
+  "tracked_names": 55,
+  "entries": 53
  },
  "functions": [
   {
@@ -626,7 +626,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-23: hr_frame_emit is NEW and STAGED (2026-09-22-frame-push-channel.sql, M5 push channel; Security GO-WITH-CHANGES for staging only, apply is a separate lane-C step) — absent on production by design until that apply."
+   "why": "2026-09-23: hr_farm_water was RESTATED/INSTALLED on production by 2026-09-22-world-tick-derived-token.sql (APPLIED 2026-09-23T04:14:37Z, Security GO x3 / T-5.3 SATISFIED): the cron driver now posts the derived per-request token (HMAC over nonce+timestamp+body sha256) instead of the static bearer; live and replay agree; the edge half deployed at 3b083f46 04:15:06Z and the first fires read posted / 200 / zero plaintext on the wire."
   },
   {
    "sig": "hr_intent_replay(p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
@@ -1065,6 +1065,28 @@
    "replay": {
     "md5": "5527d069e857db9cb653445d12b239d7",
     "norm_len": 30524,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tick_cron_run()",
+   "name": "hr_tick_cron_run",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-22-world-tick-derived-token.sql"
+   ],
+   "live": {
+    "md5": "abdaed1a6a0f652f23d9c29760c9ec34",
+    "norm_len": 8735,
+    "measured": "2026-09-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "abdaed1a6a0f652f23d9c29760c9ec34",
+    "norm_len": 8735,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -1021,6 +1021,35 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-tick-edge-contract.mjs
 
+      # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
+      # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
+      # migration's own §5 self-check CANNOT RUN THE DERIVATION on the
+      # credential-free replay: PGlite has no pgcrypto, so d4-d7 skip by name and
+      # only the fail-closed path is proven there. Three of that file's arms —
+      # d6d (the header carries the key), d7b (the queued header binds the queued
+      # body) and d8 (no credential in the fire log) — are therefore VACUOUS on
+      # the replay and had never been red anywhere; the lane hand-wrote d8b for
+      # exactly that reason but did not know it was true of d6d and d7b too.
+      #
+      # This guard gives the replay faithful stubs of the three things Supabase
+      # has and PGlite does not — pgcrypto (a second implementation of RFC 2104
+      # over core sha256(), PINNED against node:crypto AND the migration's own
+      # vector, so it cannot agree by being wrong), vault.decrypted_secrets, and
+      # pg_net's documented convert_to(body::text,'UTF8') queue insert — and then
+      # runs a real fire and sweeps every observable surface for the plaintext:
+      # the driver's return value, hr_tick_cron_log, every routine body in
+      # `public`, and the PUBLIC-readable queue row itself. X-4 replays that
+      # captured row against the real edge verifier: the verbatim pair is
+      # accepted (residual R-T1, executed rather than claimed), one byte of body
+      # is refused, a stale or future bucket is refused, and the old static
+      # bearer is refused outright. --selftest plants five defects in the file
+      # under review and all five are refused.
+      - name: World tick — the derived token carries no secret and binds its body
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-token-leak.mjs
+          node tests/world-tick-token-leak.mjs --selftest
+
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
   # snapshot cache 46 s, schema drift 73 s, THIS GUARD 411 s, ledger rollup

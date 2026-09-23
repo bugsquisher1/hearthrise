@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 1943,
+ "replay_ms": 2002,
  "counts": {
-  "tracked_names": 56,
-  "entries": 54
+  "tracked_names": 58,
+  "entries": 55
  },
  "functions": [
   {
@@ -139,17 +139,18 @@
     "2026-09-14-hr-apply-restatement.sql",
     "2026-09-17-attended-xp-on-settle.sql",
     "2026-09-19-lifetime-facts-off-the-ledger.sql",
-    "2026-09-22-hunt-stance-stop.sql"
+    "2026-09-22-hunt-stance-stop.sql",
+    "2026-09-23-frame-emit-from-apply.sql"
    ],
    "live": {
-    "md5": "d4fa5a6baf7d87250a4ee7b35b2d2161",
-    "norm_len": 141609,
+    "md5": "a416d576f488c23b97db8c60e443e200",
+    "norm_len": 142871,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d4fa5a6baf7d87250a4ee7b35b2d2161",
-    "norm_len": 141609,
+    "md5": "a416d576f488c23b97db8c60e443e200",
+    "norm_len": 142871,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -629,23 +630,45 @@
    "agree": true
   },
   {
-   "sig": "hr_frame_emit()",
-   "name": "hr_frame_emit",
+   "sig": "hr_frame_payload(p_env jsonb, p_keys text[])",
+   "name": "hr_frame_payload",
    "tracked_by": [
     "pin"
    ],
    "touched_by": [
-    "2026-09-22-frame-push-channel.sql"
+    "2026-09-23-frame-emit-from-apply.sql"
    ],
    "live": {
-    "md5": "e966d332bed27b2492cb9bf24a4578fd",
-    "norm_len": 2794,
+    "md5": "8a6907536d6b16514536510fb47e9c0a",
+    "norm_len": 945,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e966d332bed27b2492cb9bf24a4578fd",
-    "norm_len": 2794,
+    "md5": "8a6907536d6b16514536510fb47e9c0a",
+    "norm_len": 945,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_frame_send(p_user uuid, p_slot integer, p_env jsonb)",
+   "name": "hr_frame_send",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-23-frame-emit-from-apply.sql"
+   ],
+   "live": {
+    "md5": "76b73406b3103be4ddcf31d71d15582a",
+    "norm_len": 1575,
+    "measured": "2026-09-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "76b73406b3103be4ddcf31d71d15582a",
+    "norm_len": 1575,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1080,7 +1103,8 @@
     "2026-09-22-hunt-analyzer.sql",
     "2026-09-22-hunt-stance-stop.sql",
     "2026-09-22-state-of-trophy-prefix.sql",
-    "2026-09-22-vigour-daily.sql"
+    "2026-09-22-vigour-daily.sql",
+    "2026-09-23-frame-emit-from-apply.sql"
    ],
    "live": {
     "md5": "1a9bfb987e8c7659638b1b57bc15c827",

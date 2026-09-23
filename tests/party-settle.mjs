@@ -4,7 +4,7 @@
 //                          ALL-OR-NOTHING CALL.
 //
 //   node tests/party-settle.mjs            the guard
-//   node tests/party-settle.mjs --mutate   four mutants, each required to go RED
+//   node tests/party-settle.mjs --mutate   six mutants, each required to go RED
 //
 // M8 slice 2 (docs/planning/WORLD_TICK_DESIGN.md §18.2.4, §18.2.5, §18.2.5a,
 // §18-SEC.3's S2 list and §18-SEC-2's B-A3/B-A5), built by lane/m8-parties-s2
@@ -35,13 +35,18 @@
 //           `partyIntentFence` bytes the edge deploys.
 //
 // ── THE MUTATION PROOF (CLAUDE.md §4) ──────────────────────────────────────
-// Four mutants, each breaking one load-bearing line and naming the arm that
+// Six mutants, each breaking one load-bearing line and naming the arm that
 // must go red. A guard that has never been red is not a guard.
 //
-//   thirteenthKey   journal.meta.party grows an eighth field (B-A5)
-//   whenOthers      the armed handler catches `when others` (B-A3)
-//   memberPaid      one member is paid while the fan-out failed (S-9)
-//   rostersOverlap  the per-character roster stops excluding a party (S-8)
+//   thirteenthKey    journal.meta.party grows an eighth field (B-A5)
+//   whenOthers       the armed handler catches `when others` (B-A3)
+//   partialMemberSet the live member set stops being re-counted (S-9)
+//   rostersOverlap   the per-character roster stops excluding a party (S-8)
+//   carrierBoundsDontCompose  the two carrier ceilings stop composing (S2-f2)
+//   fanOutNotRolledBack  ★ STAGE 2 — this one INSTALLS. One member is paid
+//                    while another's hr_apply refused: the armed fan-out's
+//                    savepoint is what S-9 IS, and an arm that is only ever
+//                    green has never been a guard (CLAUDE.md §4).
 //
 // Exit: 0 green · 1 a failed arm · 2 a harness problem.
 // ════════════════════════════════════════════════════════════════════════════
@@ -95,12 +100,29 @@ const MUTANTS = {
   whenOthers: { file: F2, pair: [
     "  exception when sqlstate 'HR826' then",
     "  exception when others then"], arm: 'B-A3' },
-  /* S-9. A partial settle pays some members a split computed from all of them,
-     which is a mint, and it is the one defect that cannot be recovered after
-     the fact (§18-SEC.2's 8b-ii). */
-  memberPaid: { file: F2, pair: [
+  /* S-9's FIRST half — the member SET. A partial settle pays some members a
+     split computed from all of them, which is a mint, and it is the one defect
+     that cannot be recovered after the fact (§18-SEC.2's 8b-ii).
+
+     ⚠ RENAMED FROM `memberPaid` (Security, S2 review). It breaks the member-set
+       re-count at (6) and is caught by the APPLY, which is a real proof of a
+       real property — but it is NOT the property its old name claimed. Nothing
+       here touched the ARMED fan-out's savepoint, and "a member paid while
+       another failed" is what S-9 is actually about. That mutant is
+       `fanOutNotRolledBack` in STAGE 2, where it belongs: it INSTALLS, and the
+       arm that catches it is one that has to RUN. */
+  partialMemberSet: { file: F2, pair: [
     "  if v_live <> v_n or v_matched <> v_n then",
     "  if false then"], arm: 'S-9' },
+  /* Security, S2 review. The per-member carrier bound and the whole-object
+     CHECK must COMPOSE. Reverted to 64 KiB they do not: four members each at
+     EXACTLY the per-member maximum the settle accepts assemble past it and the
+     settle raises 23514 instead of answering `shadow_state_too_large` — the
+     check_violation RE-VERIFY 5's named refusal exists to replace, after four
+     hr_tick_shadow rows have already been written. */
+  carrierBoundsDontCompose: { file: F1, pair: [
+    "               and octet_length(shadow_state::text) <= 66560))",
+    "               and octet_length(shadow_state::text) <= 65536))"], arm: 'S2-f2' },
   /* S-8. Not symmetric: the solo settle pays one member the WHOLE party's
      stream and the party settle then fails its CAS and the party wedges. */
   rostersOverlap: { file: F1, pair: [
@@ -109,7 +131,7 @@ const MUTANTS = {
 };
 
 console.log('party-settle: M8 slice 2, a four-member party through one fenced call'
-  + (MUTATE ? '  [--mutate: four mutants, each required to go RED]' : ''));
+  + (MUTATE ? '  [--mutate: five apply-time mutants + one that INSTALLS]' : ''));
 
 // ── STAGE 1 OF THE MUTATION PROOF ──────────────────────────────────────────
 // Planted alone, EVERY one of these must be refused BY THE APPLY, because the
@@ -136,7 +158,7 @@ if (MUTATE) {
     + ' proof whose base run is red proves only that something is broken)');
 }
 
-const { db, failures } = await bootReplay({ upTo: F3 });
+let { db, failures } = await bootReplay({ upTo: F3 });
 if (failures.length) {
   console.error('the schema replay did not complete:', failures);
   process.exit(2);
@@ -371,6 +393,62 @@ try {
       + 'that does not, which is how a stale proposal reaches hr_apply',
       `the armed settle answered ${JSON.stringify(armedCarrier)} and the ledger holds ${ledgerNow} `
       + `row(s) against ${ledgerBefore} before`);
+    /* ── C3: THE TWO CEILINGS COMPOSE, EXECUTED (Security, S2 review) ───────
+       The per-member bound and party_tick_lease_shadow_state_ck's whole-object
+       bound are two different numbers guarding one object, and until this arm
+       existed no reading related them. FOUR members each at the per-member
+       MAXIMUM the settle accepts is the composition's own worst case: under the
+       old 64 KiB CHECK it raised SQLSTATE 23514 out of the settle — the
+       check_violation the NAMED refusal exists to replace — after four
+       hr_tick_shadow rows had already been inserted, wedging that party's
+       shadow chain silently for ever. The migration's GATE(f2) refuses the
+       install if the arithmetic stops composing; this measures it happening. */
+    const perMax = Number((await one(
+      "select (regexp_match(regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g'),"
+      + " 'c_state_max\\s+constant\\s+int\\s*:=\\s*(\\d+)'))[1]::int as n"
+      + "   from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace"
+      + "  where ns.nspname = 'public' and p.proname = 'hr_party_tick_settle'")).n);
+    const c3From = addSec(to, 90);
+    const c3To = addSec(to, 180);
+    await q('update public.party_hunt set accrued_to = $2, ended_at = null, stopped_by = null where id = $1',
+      [hunt, c3From]);
+    await q(`update public.player_state set accrued_to = $2
+              where user_id = any($1::uuid[]) and slot = 0`, [U, c3From]);
+    await q('update public.party_tick_lease set shadow_accrued_to = null, shadow_state = null where party_id = $1', [party]);
+    const heavy = (await buildMembers(c3From, c3To)).map((m) => {
+      /* Grown to EXACTLY the per-member ceiling as the SETTLE measures it —
+         jsonb's own text rendering, not JSON.stringify's, which is five octets
+         shorter on this shape and would leave the worst case unreached. */
+      let pad = perMax;
+      let st = null;
+      for (;;) {
+        st = { v: 1, base_version: m.version, pad: 'x'.repeat(pad) };
+        const n = Number(JSON.stringify(st).length) + 5;
+        if (n <= perMax) break;
+        pad -= (n - perMax);
+      }
+      return { ...m, shadow_state: st };
+    });
+    let c3 = null;
+    let c3raised = null;
+    try { c3 = await settle(heavy, c3From, c3To); }
+    catch (e) { c3raised = `${e.code || ''} ${String(e.message).split('\n')[0]}`; }
+    const c3lease = await one('select octet_length(shadow_state::text) as n from public.party_tick_lease where party_id = $1', [party]);
+    judge('C3', !c3raised && c3?.ok === true && Number(c3lease?.n) > perMax * 3,
+      `four members each at the per-member ceiling (${perMax} octets) assemble to `
+      + `${c3lease?.n} octets and the settle ANSWERS — the two carrier bounds compose. Under the `
+      + 'old 64 KiB CHECK this raised 23514 out of the settle after four shadow rows were already '
+      + 'written, which is the check_violation RE-VERIFY 5\'s countable name exists to replace',
+      c3raised
+        ? `the settle RAISED ${c3raised} — the per-member ceiling and party_tick_lease_shadow_state_ck `
+          + 'do not compose, so a party can be wedged by carrying what the settle accepted'
+        : `the settle answered ${JSON.stringify(c3)} and the lease holds ${c3lease?.n} octet(s)`);
+    /* Put the fixture back where the later arms found it. */
+    await q('update public.party_tick_lease set shadow_accrued_to = null, shadow_state = null where party_id = $1', [party]);
+    await q('delete from public.hr_tick_shadow where user_id = any($1::uuid[])', [U]);
+    await q('update public.party_hunt set accrued_to = $2 where id = $1', [hunt, from]);
+    await q(`update public.player_state set accrued_to = $2
+              where user_id = any($1::uuid[]) and slot = 0`, [U, from]);
   }
 
   // ══ P-FENCE  INVARIANT 8 AT THE INTENT DOOR ══════════════════════════════
@@ -627,6 +705,106 @@ try {
       'a duplicated unit is ONE party and a malformed one is DROPPED rather than refused — one '
       + 'bad unit must not cost the rest of the cohort its window',
       'parseParties did not collapse the duplicate or did not drop the malformed unit');
+
+    /* ── E8: WHAT THE 48 h SHADOW ACTUALLY MEASURES (Security, S2 review) ───
+       §18.5's S2 Guards cell asks for (P-c) — *"paid ≤ produced + fellowship,
+       and Σ pre-multiplier member share = produced exactly"*. It is not
+       assertable yet, and the reason is structural rather than an omission in
+       the guard: `settleParty` journals `partyJournal(split, i)` and NEVER
+       calls `partyPayout`, so the delta the fence stores is the member's OWN
+       solo settle output with attribution stapled on. The vectors are carried;
+       nothing is apportioned by them, no fellowship bonus is added and no
+       VIGOUR_DRY_MULT reduction is taken.
+
+       That is the SAFE direction — S2 is shadow and paying nothing is the
+       strongest possible state — and it is the right slice boundary, because
+       apportioning is driver arithmetic that lands with S3's damage counter
+       and touches no migration. But it means the 48 h pre-arm evidence S5's GO
+       rests on measures FOUR SOLO SETTLES with attribution on them, not a party
+       payout — and a parity number that silently measures the wrong quantity is
+       the exact failure §16.3 records. So it is pinned HERE, where it goes RED
+       the day the payout IS wired and the partition rule has to be rewritten,
+       rather than left for whoever reads the number to discover. */
+    {
+      let grabbed = null;
+      const uneven = (session, fromMs, toMs) => {
+        const i = Math.max(0, U.indexOf(session.userId));
+        const base = engine(session, fromMs, toMs);
+        /* Grossly unequal contribution: 1x..4x, so dmg_bp is 1000/2000/3000/4000
+           and an apportioned gold would be four different numbers. */
+        return { ...base,
+          results: [{ summary: { survivedMs: (i + 1) * 10000, died: false, dryMs: null } }] };
+      };
+      await asRole('hr_engine', () => settleParty(exec, HOLDER, unit,
+        { cadenceMs: 10000, flushMs: 90000 },
+        { settle: uneven,
+          sessionFromRoster: (row, env) => ({
+            userId: row.user_id, slot: row.slot, version: env.version,
+            accruedToText: row.mark_text, accruedToMs: Date.parse(row.accrued_to),
+          }),
+          fence: async (ex, a) => { grabbed = a; return { ok: true, mode: 'shadow' }; } }));
+      const golds = (grabbed?.members || []).map((m) => m.delta.gold);
+      const bps = (grabbed?.members || []).map((m) => m.delta.journal.meta.party.dmg_bp);
+      judge('E8',
+        bps.length === 4 && new Set(bps).size === 4
+          && golds.length === 4 && new Set(golds).size === 1,
+        `the shadow measures FOUR SOLO SETTLES with attribution on them: dmg_bp is ${bps.join('/')} `
+        + `and every member's delta.gold is still ${golds[0]} — \`partyPayout\` is not wired, so `
+        + 'nothing is apportioned, no fellowship bonus is added and no VIGOUR_DRY_MULT reduction '
+        + 'is taken. Shadow-safe and the right slice boundary, and the reason (P-c) is not '
+        + 'assertable in S2. THE DAY THIS GOES RED THE PAYOUT HAS LANDED and the 48 h parity '
+        + 'partition must be re-cut at that deploy before S5 reads a number from it',
+        `the driver apportioned: dmg_bp ${bps.join('/')} against gold ${golds.join('/')}. That is `
+        + 'the payout landing — good, and it means §18.2.6 (P-c) is now assertable and MUST be '
+        + 'asserted here, and the pre-arm evidence before this deploy measures a different '
+        + 'quantity and cannot be folded in');
+    }
+  }
+
+  // ══ O  THE APPLY-ORDER INTERIM, IN BOTH DIRECTIONS (Security, S2 review) ══
+  // The order against the edge is a CLAIM the apply-order note makes, so it is
+  // measured here rather than reasoned about. It is the opposite direction from
+  // RE-VERIFY 5's — there the reversed order stalled the MEASUREMENT; here it
+  // stops every player playing — which is exactly why it must not be inherited
+  // by analogy.
+  group('O  the migrations deploy BEFORE the edge, and the interim is measured');
+  {
+    const pre = await bootReplay({ upTo: '2026-09-23-world-tick-shadow-state-chain.sql' });
+    const preExec = async (t, params) => (await pre.db.query(t, params)).rows;
+    const refused = [];
+    const passed = [];
+    for (const verb of ['accrue', 'set_activity', 'equip', 'eat', 'shop_buy', 'market_list']) {
+      const r = await partyIntentFence({ exec: preExec, user: U[0], slot: 0, verb });
+      (r ? refused : passed).push(r ? `${verb}:${r.status} ${r.body.error}` : verb);
+    }
+    await pre.db.close();
+    judge('O1',
+      refused.length === 3
+        && refused.every((x) => x.endsWith('409 party_settle_required'))
+        && passed.length === 3,
+      'EDGE BEFORE APPLY IS A TOTAL PLAY OUTAGE, measured on a pre-S2 replay: the real '
+      + `party-fence bytes refuse ${refused.join(', ')} for EVERY player — including the ~90 s `
+      + 'attended cadence and the return-from-away claim — because hr_partied does not exist, '
+      + 'the 42883 is caught and the fence fails CLOSED. That is the right direction and it is '
+      + 'why the three migrations apply FIRST',
+      `the pre-S2 fence answered refused=[${refused}] passed=[${passed}], so the apply-order `
+      + 'note in tests/schema-apply-order.json describes an interim that is not this one');
+    /* And the FORWARD interim is inert — on THIS database, where the three
+       files HAVE applied, the same bytes pass a character with no party. That is
+       the whole of the forward reading: hr_partied exists, answers false, and
+       the fence is a fence rather than a wall. Without it O1 would pass just as
+       well against a fence that refuses always, which is the vacuous proof. */
+    const nobody = '00000000-0000-4000-8000-0000b80200ff';
+    const fwd = [];
+    for (const verb of ['accrue', 'set_activity', 'equip']) {
+      const r = await partyIntentFence({ exec, user: nobody, slot: 0, verb });
+      if (r) fwd.push(`${verb}:${r.body.error}`);
+    }
+    judge('O2', fwd.length === 0,
+      'and FORWARD the interim is inert — with the three files APPLIED and the character in no '
+      + 'party, hr_partied answers false and the same three verbs pass. O1 therefore measured a '
+      + 'refusal caused by the ABSENT function, not a fence that refuses always',
+      `the applied database refuses ${fwd.join(', ')} for a character that is in no party at all`);
   }
 } catch (e) {
   if (e.harness) { console.error('\nharness: ' + e.message); await db.close(); process.exit(2); }
@@ -636,6 +814,118 @@ try {
 }
 
 await db.close();
+
+/* ══ STAGE 2 OF THE MUTATION PROOF — THE ONE THAT HAS TO RUN ════════════════
+   Security, S2 review. Every stage-1 mutant is caught by the APPLY, which is
+   the earliest and strongest place to catch one — and it is precisely why the
+   ARMED fan-out's savepoint had no mutant at all: §5 never executes the armed
+   branch, so no static gate can see whether plpgsql's sub-block rollback
+   actually takes back a member's hr_apply write. U1..U4 asserted that it does
+   and had never once been red.
+
+   §18.2.5a IS that savepoint. "Pay the others" is step 5's mint — three members
+   paid a split computed from four — so the property is not "the call refuses",
+   it is "NOBODY IS PAID". This mutant leaves every static term in place (HR826
+   is still raised nowhere but still CAUGHT, `member_unpayable:` is still
+   stamped, `when others` still absent, hr_apply still called) so §5(k) passes
+   it and the batch INSTALLS. What it takes away is the raise itself: an
+   unpayable member is skipped and the fan-out walks on. Three members are then
+   paid out of a four-way split and the party watermark advances over a window
+   one member was never paid for.
+   ══════════════════════════════════════════════════════════════════════════ */
+if (MUTATE) {
+  group('M2  the ARMED FAN-OUT rolls back — mutation-proved by EXECUTION, not by a body read');
+  const M2 = ['        raise exception \'HR_PARTY_MEMBER_UNPAYABLE\' using errcode = \'HR826\';',
+    '        continue;  -- --mutate fanOutNotRolledBack'];
+  let installed = false;
+  let verdict = null;
+  try {
+    const r = await bootReplay({ upTo: F3, patches: new Map([[F2, [M2]]]) });
+    installed = r.failures.length === 0;
+    db = r.db;
+    if (installed) verdict = await runUnpayableScenario();
+    await db.close();
+  } catch (e) {
+    verdict = { crashed: String((e && e.message) || e).split('\n')[0] };
+  }
+  judge('M2-installs', installed,
+    'the mutant INSTALLS — every static term §5(k) reads is still there, which is the whole '
+    + 'point: a defect a body read cannot see is the one an executing arm has to catch',
+    'the mutated batch was refused by the apply, so this mutant proves a static gate again '
+    + 'rather than the savepoint');
+  judge('M2-fanOutNotRolledBack',
+    !!verdict && verdict.paid === true,
+    `U2 goes RED on it — the fan-out paid ${verdict && verdict.ledgerDelta} ledger row(s) while `
+    + 'one member could not be paid, and the party watermark '
+    + `${verdict && verdict.markMoved ? 'ADVANCED over a window that member was never paid for' : 'held'}. `
+    + 'That is step 5\'s mint, and U2 is what refuses it',
+    `the mutant was not caught: ${JSON.stringify(verdict)}. U1..U4 are then green against a `
+    + 'fan-out with no savepoint behind it, which is a guard that has never been red');
+}
+
+/* The U scenario, standing alone so stage 2 can drive it against a mutated
+   replay. It plants its own four characters — the base suite's fixture lives
+   inside the main try block and this must not depend on it. */
+async function runUnpayableScenario() {
+  const MU = U.map((u) => `${u.slice(0, -2)}f${u.slice(-1)}`);
+  const qq = async (sql, params) => (await db.query(sql, params)).rows;
+  const oneq = async (sql, params) => (await qq(sql, params))[0];
+  for (const uid of MU) {
+    await db.exec(`insert into auth.users (id) values ('${uid}') on conflict do nothing;`);
+    await db.query("select set_config('request.jwt.claim.sub', $1, false)", [uid]);
+    await qq('select public.hr_create_character(0)');
+  }
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)", ['']);
+  const wFrom = (await oneq("select date_trunc('second', now()) - interval '300 seconds' as t")).t;
+  const wTo = (await oneq("select date_trunc('second', now()) - interval '210 seconds' as t")).t;
+  const p = (await oneq('insert into public.party (leader_user, leader_slot) values ($1, 0) returning id', [MU[0]])).id;
+  for (const [i, uid] of MU.entries()) {
+    await qq('insert into public.party_member (party_id, user_id, slot, role) values ($1, $2, 0, $3)',
+      [p, uid, i === 0 ? 'leader' : 'member']);
+  }
+  const h = (await oneq("insert into public.party_hunt (party_id, active_id, accrued_to) values ($1, 'slime', $2) returning id", [p, wFrom])).id;
+  await qq(`update public.player_state
+               set active_kind = 'combat', active_id = 'slime', active_since = $2, accrued_to = $2
+             where user_id = any($1::uuid[]) and slot = 0`, [MU, wFrom]);
+  await qq(`insert into public.party_tick_lease (party_id, owned, lease_holder, lease_until)
+            values ($1, true, $2, now() + interval '5 minutes')
+            on conflict (party_id) do update set owned = true, lease_holder = $2,
+                 lease_until = now() + interval '5 minutes'`, [p, HOLDER]);
+  await db.exec(`update public.hr_tick_config set enabled = true, shadow = false,
+                     channels = array['combat','gather']::text[] where id;`);
+  const rows = await qq(`select user_id, slot, version from public.player_state
+                          where user_id = any($1::uuid[]) and slot = 0 order by user_id`, [MU]);
+  /* The SAME planted refusal U uses: `too_many_progress_ops`, one of §18.2.5a's
+     three, and one hr_apply answers rather than one the settle's own CAS
+     catches first. */
+  const members = rows.map((r, i) => ({
+    user: r.user_id, slot: r.slot, version: Number(r.version),
+    delta: Object.assign({ gold: 4 + i, accrued_to: wTo,
+      journal: { kind: 'combat', intent: 'accrue',
+        meta: { ms: 89000, ticks: 8, kills: 2, capped: false, ate: 0,
+          from: wFrom, to: wTo, src: 'tick',
+          party: { id: p, hunt: h, dmg_bp: 2500, xp_bp: 2500, floor: 0, fellow_bp: 1500, roll: 4242 } } } },
+      i === 2 ? { progress: Array.from({ length: 80 }, (_, k) => ({
+        kind: 'stat', key: `guard:s9:${k}`, add: 1, period_key: '' })) } : {}),
+  }));
+  const before = Number((await oneq('select count(*)::int as n from public.player_ledger')).n);
+  await db.exec('set role hr_engine;');
+  let res;
+  try {
+    res = (await oneq('select public.hr_party_tick_settle($1::text, $2::uuid, $3::timestamptz,'
+      + ' $4::timestamptz, gen_random_uuid(), $5::text::jsonb) as res',
+      [HOLDER, p, wFrom, wTo, JSON.stringify(members)])).res;
+  } finally { await db.exec('reset role;'); }
+  const after = Number((await oneq('select count(*)::int as n from public.player_ledger')).n);
+  const hunt2 = await oneq('select accrued_to from public.party_hunt where id = $1', [h]);
+  return {
+    error: res && res.error,
+    ok: res && res.ok,
+    ledgerDelta: after - before,
+    paid: after > before,
+    markMoved: new Date(hunt2.accrued_to).getTime() !== new Date(wFrom).getTime(),
+  };
+}
 
 if (problems.length) {
   console.error(`\nparty-settle: RED — ${problems.length} arm(s) failed: ${problems.join(', ')}`);

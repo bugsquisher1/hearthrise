@@ -91,6 +91,49 @@
 --   temporarily; §7(c2) plants a real `party_hunt` row instead, and rolls it
 --   back with everything else.
 --
+-- ── ⚠ AFTER APPLYING: live-hash-drift GOES RED ON THREE (Security, S2 review)
+-- Measured credential-free, exit 1, three problems — not the one the lane
+-- reported. Two of them are NEW AND ARE THIS FILE'S:
+--
+--   untracked hr_tick_roster        §5b's programmatic patch is one of the
+--                                   three disjuncts the sweep derives tracking
+--                                   from, so the body this file's own header
+--                                   calls dangerously unwatched IS now watched.
+--                                   That is the outcome argued for below, not
+--                                   an accident.
+--   untracked hr_party_hunt_live    §5a is the THIRD migration to restate it
+--                                   (S1's three files, then this), which
+--                                   crosses the 3+ threshold.
+--   replay hr_assert_grant_hygiene  FILE 3's, chain link 14.
+--
+-- The three whys the Coordinator records are written out in full in this file's
+-- entry in tests/schema-apply-order.json. `--codediff` FIRST, then
+-- `--live --write`, then `touched_by` on all three. Agents never edit that
+-- baseline (CLAUDE.md §2) and this lane has not.
+--
+-- ── ⚠ APPLY ALL THREE **BEFORE** THE EDGE DEPLOY (Security, S2 review) ─────
+-- The reversed order is a TOTAL PLAY OUTAGE, not a measurement one, and that
+-- is the opposite direction from RE-VERIFY 5's ordering constraint — so it is
+-- written down here rather than inferred from it.
+--
+-- supabase/functions/hr-accrue/party-fence.js runs `select
+-- public.hr_partied($1::uuid, $2::int)` at the intent door for `accrue` and
+-- every `collectsFirst` verb, and it FAILS CLOSED on its own error. That is the
+-- right direction (a false refusal costs a retry; a false pass re-prices a
+-- window three other players are paid from) and it is exactly why the interim
+-- is expensive: against a database where `hr_partied` does not exist, 42883 is
+-- caught and EVERY `accrue`, `set_activity` and `equip` in the game is refused
+-- 409 `party_settle_required` — every player, including the ~90 s attended
+-- cadence and the return-from-away claim. Measured on the replay at the pre-S2
+-- head; `eat`, `shop_buy` and `market_list` are `collectsFirst: false` and pass.
+--
+-- FORWARD the interim is inert: `hr_partied` exists, `party_hunt` is EMPTY, the
+-- predicate answers false for everybody and the fence passes; and nothing posts
+-- `body.parties` (hr_tick_cron_run builds its POST from hr_tick_roster alone,
+-- and hr_party_hunt_start is S4's), so `hr_party_roster` returns no row and a
+-- fire behaves exactly as it does today. tests/party-settle.mjs arm O1 executes
+-- both readings rather than asserting them.
+--
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 --   re-apply 2026-09-20-world-tick-roster.sql (restores hr_tick_roster without
 --   the clause), restore hr_party_hunt_live to `select false`, then
@@ -210,15 +253,32 @@ create table if not exists public.party_tick_lease (
   shadow_accrued_to timestamptz,
   shadow_state      jsonb,
   updated_at        timestamptz not null default now(),
-  -- THE SAME TWO TERMS RE-VERIFY 5's CHECK carries, at four times the members
-  -- and therefore four times the ceiling: 64 KiB. The per-member bound stays
-  -- 16 KiB and is enforced in the settle (file 2, `shadow_state_too_large`),
-  -- so the refusal has a countable NAME rather than aborting the batch on a
-  -- check_violation. This CHECK is the backstop under it.
+  -- THE SAME TWO TERMS RE-VERIFY 5's CHECK carries, at party grain. The
+  -- per-member bound stays 16 KiB and is enforced in the settle (file 2,
+  -- `shadow_state_too_large`), so the refusal has a countable NAME rather than
+  -- aborting the batch on a check_violation. This CHECK is the backstop under
+  -- it, and a backstop that the fence in front of it can step past is not one.
+  --
+  -- ⚠ THE CEILING IS DERIVED, NOT ROUND (Security, S2 review). 64 KiB was
+  --   `4 x 16 KiB` and it DID NOT COMPOSE: this object is not the concatenation
+  --   of four member states, it is a jsonb OBJECT that also carries four
+  --   `"<uuid>:<slot>": ` keys and its own separators — about 176 octets of
+  --   structure. Measured on the replay, four members each at EXACTLY the
+  --   per-member maximum the settle accepts (16 379 octets apiece, under 16 384)
+  --   assembled to 65 712 and raised SQLSTATE 23514 out of the settle instead of
+  --   answering `shadow_state_too_large` — the check_violation this whole design
+  --   exists to replace, and one that wedges that party's shadow chain silently
+  --   and forever, counted only as a `party_error:` reason.
+  --
+  --   So the ceiling is `c_max_members * c_state_max + 1024` = 66 560, and the
+  --   slack is the structure with room to spare. It is a DERIVATION, so file 2's
+  --   §5(f2) re-derives it from the settle's own two constants read out of the
+  --   INSTALLED body and refuses to install if the two stop composing: the day
+  --   PARTY_MAX or the per-member bound moves, this number must move with it.
   constraint party_tick_lease_shadow_state_ck
     check (shadow_state is null
            or (jsonb_typeof(shadow_state) = 'object'
-               and octet_length(shadow_state::text) <= 65536))
+               and octet_length(shadow_state::text) <= 66560))
 );
 comment on table public.party_tick_lease is
   'M8 S2 (2026-09-23). The world tick''s lease at PARTY grain, plus the shadow '
@@ -456,6 +516,26 @@ begin
       raise exception 'GATE(a2): public.% carries % non-SELECT policy/policies. The RPCs are the only door (§18.2.2).', t, v_n;
     end if;
   end loop;
+  -- (a3) THE TABLE PRIVILEGE MATRIX, EVERY ROLE, NOT JUST THE ONE (a) DROVE.
+  --      S1's B11 exactly, at S2's two tables: (a) proves `authenticated` is
+  --      refused, and a stray privilege left on `anon`, `PUBLIC`,
+  --      `service_role`, `hr_engine` or `hr_tick` would pass it untouched. It
+  --      matters most for `service_role`, which is BYPASSRLS — for it the
+  --      revoke is the ONLY fence, and a SELECT there reads every party hunt in
+  --      the game past every policy. `party_hunt`'s own revoke names four roles
+  --      and the lease's names six; this asserts the RESULT rather than the
+  --      list, so a role nobody thought to name is caught too.
+  for v_dml, t in
+    select g.grantee, g.table_name from information_schema.role_table_grants g
+     where g.table_schema = 'public'
+       and g.table_name in ('party_hunt','party_tick_lease')
+       and g.grantee <> 'postgres'
+       and not (g.table_name = 'party_hunt' and g.grantee = 'authenticated'
+                and g.privilege_type = 'SELECT')
+  loop
+    raise exception 'GATE(a3): % holds a table privilege on public.% that this batch does not grant. authenticated gets SELECT on party_hunt and nothing else gets anything: party_tick_lease is the TICK''s bookkeeping and service_role is BYPASSRLS, so for it the revoke is the only fence there is.', v_dml, t;
+  end loop;
+
   -- party_tick_lease has NO policy at all — §18.2.2, and the absence is the
   -- fence. A SELECT policy appearing here later would hand a player the tick's
   -- own lease bookkeeping.

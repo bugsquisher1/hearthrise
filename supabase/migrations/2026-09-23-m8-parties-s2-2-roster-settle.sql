@@ -847,6 +847,9 @@ declare
   v_keys  text[];
   v_apply text;
   v_ours  text[];
+  v_per   int;
+  v_max   int;
+  v_cap   int;
   t       text;
   v_state text;
 begin
@@ -1254,6 +1257,46 @@ begin
                    and c.conname = 'hr_tick_shadow_channel_ck'
                    and pg_get_constraintdef(c.oid) not like '%party%') then
     raise exception 'GATE(j): hr_tick_shadow_channel_ck moved. `party` is a unit of SCHEDULING, not a kind of work: a party settle writes ordinary channel = combat rows and neither CHECK widens (§18.2.1a).';
+  end if;
+
+  -- ══ (f2) THE TWO CARRIER BOUNDS COMPOSE — DERIVED, NOT ASSUMED ══════════
+  --    Security, S2 review. The per-member ceiling is the settle's
+  --    `c_state_max` and the whole-object ceiling is
+  --    `party_tick_lease_shadow_state_ck`'s, and until this arm existed NOTHING
+  --    related the two. They did not compose: four members each at EXACTLY the
+  --    per-member maximum (16 379 octets apiece, under 16 384) assembled to
+  --    65 712 against a 65 536 CHECK, and the settle raised SQLSTATE 23514
+  --    instead of answering `shadow_state_too_large` — the check_violation the
+  --    NAMED refusal exists to replace (RE-VERIFY 5, design 6), aborting the
+  --    statement after four hr_tick_shadow rows had already been inserted and
+  --    wedging that party's shadow chain silently and for ever, counted only as
+  --    a `party_error:` reason the operator has to go looking for.
+  --
+  --    All three numbers are READ, none retyped: a bound asserted against a
+  --    copy of itself is the failure §18-SEC-2's C3 records. The day PARTY_MAX
+  --    or either ceiling moves, this refuses the install.
+  --    Read fresh here rather than leaning on whatever (g) left in v_state: a
+  --    gate that depends on the value of a variable set eighty lines earlier is
+  --    one edit away from grading the wrong body.
+  select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_state
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'hr_party_tick_settle';
+  select (regexp_match(v_state, 'c_state_max\s+constant\s+int\s*:=\s*(\d+)'))[1]::int
+    into v_per;
+  select (regexp_match(v_state, 'c_max_members\s+constant\s+int\s*:=\s*(\d+)'))[1]::int
+    into v_max;
+  select (regexp_match(pg_get_constraintdef(c.oid), 'octet_length\(\(?shadow_state\)?::text\)\s*<=\s*(\d+)'))[1]::int
+    into v_cap
+    from pg_constraint c
+    join pg_class r on r.oid = c.conrelid
+    join pg_namespace n on n.oid = r.relnamespace
+   where n.nspname = 'public' and r.relname = 'party_tick_lease'
+     and c.conname = 'party_tick_lease_shadow_state_ck';
+  if v_per is null or v_max is null or v_cap is null then
+    raise exception 'GATE(f2): could not READ the three bounds back (per-member=%, members=%, object=%). A composition asserted against numbers this gate typed itself is not an assertion.', v_per, v_max, v_cap;
+  end if;
+  if v_cap < v_max * v_per + 1024 then
+    raise exception 'GATE(f2): the carrier bounds DO NOT COMPOSE. % members x % octets = %, and party_tick_lease_shadow_state_ck admits only % — so % members each UNDER the per-member bound the settle accepts assemble into an object the CHECK refuses, and the settle raises a check_violation (23514) where RE-VERIFY 5''s design requires the countable name `shadow_state_too_large`. The object is not the concatenation of the member states: it also carries % "<uuid>:<slot>": keys and its own separators, ~176 octets of structure.', v_max, v_per, v_max * v_per, v_cap, v_max, v_max;
   end if;
 
   -- ══ (k) B-A3 — THE HANDLER NAMES ITS EXCEPTION AND DOES NOT SAY `others` ══

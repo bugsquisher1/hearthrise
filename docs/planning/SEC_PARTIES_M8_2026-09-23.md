@@ -662,3 +662,500 @@ Two conditions carried forward, both S2's:
 
 This verdict covers the split only. S4 lands after it (§18-SEC.3, Correction 2),
 and S5 remains NOT briefable on its own pre-arm bar.
+
+---
+
+## S2 — the roster unit in shadow (2026-09-23)
+
+**Reviewer:** security-engineer (veto) · **Under review:** `lane/m8-parties-s2` @ `84ff4012`
+("the party is a roster unit, in shadow") · **Review branch:** `sec/m8-s2-review`, with
+`origin/set/b553` merged first (clean, no conflict hunks — the lane branched before S3's
+merge landed). Graded against §18.2.1–§18.2.6, §18-SEC.3's S2 self-check list,
+§18-SEC-2.3's S2 brief (B-A2, B-A3, B-A5), and `SEC_WORLD_TICK_M3_2026-09-22.md`
+RE-VERIFY 5.
+
+**This is a MONEY-SURFACE review** (§18-SEC.3, Correction 1). S1's "structural review"
+sentence does not read across, and the lane did not try to make it: the armed branch is
+written in full and I reviewed it in full, because the only thing between this file and
+money moving is an operator `update hr_tick_config set shadow = false`.
+
+**No production reads and no production writes were made. No database credential was
+sought or used.** Every measurement below ran against the repo's own PGlite chain replay
+in this container.
+
+Three conclusions up front. **The fence is right and I could not break it** — every
+attack the brief names is refused, executed, below in §4. **The three defects I found
+are all in what PROVES the batch rather than in what it does**, which is the same
+pattern as S3: the arm the whole of S-9 rests on had never been red, two of three
+live-hash entries were unnamed, and a bound was declared in a place it did not hold.
+**And one thing is not a defect but is the most important sentence in this document:
+the split is journalled and never applied**, so the 48 h evidence S5's GO rests on does
+not yet measure a party payout. That is shadow-safe, it is the right slice boundary, and
+it is now a standing guard rather than a thing to be discovered.
+
+---
+
+## 1. Findings
+
+**LANDED** means the change is on `sec/m8-s2-review` and re-proved. **RECORDED** means
+it is a note for a later brief and blocks nothing.
+
+| # | Sev | Finding | Status |
+|---|---|---|---|
+| **D1** | **P2** | The two carrier bounds **do not compose**: four members each UNDER the per-member ceiling assemble past the table CHECK, and the settle raises `23514` where the design requires a countable name | **LANDED** |
+| **D2** | **P2** | `--mutate memberPaid` does not prove what it is named for. The ARMED fan-out's savepoint — the whole of S-9 — had **no mutant at all** | **LANDED** |
+| **D3** | **P2** | `live-hash-drift` goes red on **three** entries; the lane named **one**, and two files claim "no tracked body moves in THIS file", measured FALSE | **LANDED** |
+| **D4** | **P2** | The apply-order notes say nothing about the **edge** order, and reversed it is a **total play outage** — every `accrue`, `set_activity` and `equip` in the game refused, for every player | **LANDED** |
+| **D5** | P3 | `(a)`'s DML probes drive `authenticated` only; a stray privilege on `anon`, `PUBLIC`, `service_role`, `hr_engine` or `hr_tick` passes untouched (S1's B11 at S2's tables) | **LANDED** |
+| **D6** | **I** | **The split is journalled and NEVER APPLIED.** `partyPayout` is not wired, so the shadow measures four solo settles with attribution stapled on: nothing is apportioned, no fellowship bonus, no `VIGOUR_DRY_MULT` reduction — and §18.5's S2 cell asks for (P-c), which is therefore not assertable | **LANDED as a guard**; the ruling is in §2 |
+| **D7** | I | `META_KEYS` is still **eleven** in `tests/accrual-engine.mjs` and **twelve** in `tests/party-split.mjs`. B-A5's flat half is unlanded and the two copies disagree — which S3's review named in advance as "a finding for S2's guard" | **RECORDED** |
+| **D8** | I | `party_hunt` has `enable row level security`; `party_tick_lease` also has `force`. Asymmetric, and neither is a hole while every path is a `postgres`-owned definer function | **RECORDED** |
+| **D9** | I | `hr_party_roster` counts `member_count` from `party_member` and builds `members` through a join to `player_state`; a member with no state row makes the two disagree. Fails safe — the settle's (6) refuses the short set | **RECORDED** |
+
+### D1 — the per-member carrier bound and the table CHECK do not compose **[P2, LANDED]**
+
+`hr_party_tick_settle` refuses a carrier over `c_state_max = 16384` octets **per member**,
+by name, at (2b). `party_tick_lease_shadow_state_ck` bounded the **whole object** at
+65 536 — "four times the ceiling", says the comment. It is not four times the ceiling,
+because the object is not the concatenation of four member states: it is a jsonb object
+that also carries four `"<uuid>:<slot>": ` keys and its own separators.
+
+**Measured, not argued.** Four members each at 16 379 octets — every one of them
+individually accepted by (2b):
+
+```
+per-member carrier octets: [ 16379, 16379, 16379, 16379 ] (bound 16384) — each is UNDER
+RESULT: the settle RAISED rather than returning a named refusal:
+  sqlstate : 23514
+  message  : new row for relation "party_tick_lease" violates check constraint
+             "party_tick_lease_shadow_state_ck"
+```
+
+That is **exactly the failure the named refusal exists to replace** — RE-VERIFY 5's
+design 6, and this file's own header: *"so the refusal has a countable NAME rather than
+aborting the batch on a check_violation."* Worse than the name: the raise lands **after
+all four `hr_tick_shadow` rows are inserted**, so the whole statement aborts, and the
+next fire re-proposes the same carrier and aborts again — that party's shadow chain
+wedges silently and for ever, visible only as a `party_error:` reason count.
+
+Reachable? Not on today's fixtures — `shadowStateOf` caps at 32 xp / 64 item / 16
+bestiary keys, a few KiB in practice. It is P2 because **a bound that does not hold
+where it says it holds is RE-VERIFY 5's own S-4 finding at party grain**, and because
+the failure mode is silent.
+
+**Landed three ways.** The CHECK is now `c_max_members * c_state_max + 1024` = **66 560**,
+a derivation rather than a round number, with the 176 octets of structure named. File 2's
+new **§5(f2)** re-derives all three numbers out of the INSTALLED catalogue — the settle's
+own two constants out of its `prosrc`, the ceiling out of `pg_get_constraintdef` — and
+**refuses the install** if they stop composing, so the day `PARTY_MAX` or either bound
+moves the other must move with it. And `tests/party-settle.mjs` arm **C3** executes the
+worst case: four members at exactly the per-member ceiling now assemble to **65 712
+octets and the settle ANSWERS**. Mutation-proved — `--mutate carrierBoundsDontCompose`
+reverts the CHECK to 65 536 and the apply fails with
+`GATE(f2): the carrier bounds DO NOT COMPOSE. 4 members x 16384 octets = 65536, and
+party_tick_lease_shadow_state_ck admits only 65536 …`.
+
+### D2 — the arm the whole of S-9 rests on had never been red **[P2, LANDED]**
+
+The brief asked for two mutants: `when others` RED, and **a member paid while another
+failed** RED. The lane has the first. It named the second `memberPaid` — and that mutant
+disables the **member-set re-count at (6)** and is caught by `GATE(d)` at apply time. It
+is a real proof of a real property. It is not this one. **Nothing in the batch mutated
+the armed fan-out's savepoint**, and nothing could: §5 never executes the armed branch,
+so `GATE(k)` reads the handler's *text* — `HR826` present, `when others` absent,
+`member_unpayable:` present, `hr_apply(` present — and a body read cannot tell you
+whether plpgsql's sub-block rollback actually takes a member's `hr_apply` write back.
+
+`U1..U4` asserted that it does and had been green every time they ran, which under
+`CLAUDE.md` §4 means they were not guards.
+
+**Landed.** `memberPaid` is renamed **`partialMemberSet`**, which is what it proves. A
+new **stage 2** boots a second replay under **`fanOutNotRolledBack`** — it replaces the
+`raise … HR826` with `continue`, leaving every static term `GATE(k)` reads in place, so
+**the batch installs** and only an executing arm can catch it. It is caught:
+
+```
+✓ M2-installs — the mutant INSTALLS — every static term §5(k) reads is still there
+✓ M2-fanOutNotRolledBack — U2 goes RED on it — the fan-out paid 6 ledger row(s) while
+  one member could not be paid, and the party watermark ADVANCED over a window that
+  member was never paid for. That is step 5's mint, and U2 is what refuses it
+```
+
+Six mutants now, five refused by the apply and one that has to be run to be found.
+
+### D3 — live-hash goes red on three, and two files say it does not **[P2, LANDED]**
+
+Measured credential-free on this branch, `node tests/live-hash-drift.mjs` exits **1**
+with **three** problems. The lane's commit message and both apply-order notes report
+one — and files 1 and 2's notes each say *"no tracked body moves in THIS file"*, which is
+false in the same sentence that matters.
+
+1. **`untracked hr_tick_roster`** — NEW, **and caused by this batch**. §5b patches the
+   body with the `pg_get_functiondef` + exactly-once-anchor idiom, and a *programmatic
+   patch* is one of the three disjuncts the sweep derives tracking from. RE-VERIFY 5
+   item 11 says in as many words that `hr_tick_roster` is *"not touched and not
+   tracked"*; this file touches it. **That is a good outcome** — file 1's own header
+   argues at length that an untracked `hr_tick_roster` is a hazard — and the note should
+   claim it rather than deny it.
+2. **`untracked hr_party_hunt_live`** — NEW, also this batch: S1's three files plus §5a
+   here is the third migration to restate it, which crosses the 3+ threshold.
+3. **`replay hr_assert_grant_hygiene`** — file 3's chain link 14. The one the lane named.
+
+This is RE-VERIFY 5's S-6 verbatim: *"a note that named ONE entry against a guard that
+wants four is how a re-seed ends up with three unexplained rows."* Here it named one
+against three, and two of the three are for bodies **nobody has ever written a belief
+about**.
+
+**Landed.** All three are named in all three apply-order notes with the exact why the
+Coordinator records, and the two false sentences are explicitly superseded there; file
+1's header carries the same block. `apply-order-honesty` green afterwards. I did not
+touch `tests/live-hash-drift.baseline.json` (`CLAUDE.md` §2) and neither did the lane.
+
+### D4 — the edge deployed first is a total PLAY outage **[P2, LANDED]**
+
+`party-fence.js` runs `select public.hr_partied($1::uuid, $2::int)` at the intent door for
+`accrue` and every `collectsFirst` verb, and **fails closed on its own error**. That is
+the right direction — a false refusal costs a retry, a false pass re-prices a window three
+other players are paid from — and it is precisely what makes the reversed order
+expensive. Driven against the pre-S2 head, where `hr_partied` does not exist, the **real
+fence bytes**:
+
+```
+hr_partied present in the pre-S2 database: NO
+  accrue        -> 409 party_settle_required
+  set_activity  -> 409 party_settle_required
+  equip         -> 409 party_settle_required
+  eat           -> allowed          (collectsFirst: false)
+  shop_buy      -> allowed
+  market_list   -> allowed
+```
+
+**Every player in the game**, including the ~90 s attended cadence and the
+return-from-away claim. This is the **opposite direction** from RE-VERIFY 5's ordering
+constraint, where the reversed order stalled the *measurement* — so it must not be
+inherited by analogy, and nothing in the batch wrote it down.
+
+Forward, the interim is inert: `hr_partied` exists, `party_hunt` is empty, the predicate
+answers false, the fence passes; nothing posts `body.parties`, so `hr_party_roster`
+returns no row and a fire behaves exactly as it does today.
+
+**Landed** in file 1's header, in `party-fence.js`'s header, in all three apply-order
+notes — and as arms **O1/O2**, which execute both readings rather than asserting them.
+O2 is what stops O1 grading a fence that refuses always.
+
+### D5 — the DML probe is one role wide **[P3, LANDED]**
+
+§7(a) drives six INSERT/UPDATE/DELETE probes as `authenticated` and requires 42501 each,
+which is the right shape and is the clan lesson executed. It is also the only role it
+asks about. A stray SELECT left on `service_role` — BYPASSRLS, for which the revoke is
+the only fence — would pass it, as would anything on `anon`, `PUBLIC`, `hr_engine` or
+`hr_tick`. That is S1's B11 exactly, one slice later and on tables that gate a paid
+window.
+
+**Landed** as **§7(a3)**, which asserts the RESULT rather than the revoke list: every
+`role_table_grants` row on the two tables other than `authenticated`'s SELECT on
+`party_hunt` raises. A role nobody thought to name is caught too.
+
+### D6 — the split is journalled and never applied **[INFORMATIONAL, and it is the sentence that matters]**
+
+`settleParty` calls `splitParty` and `partyJournal`. It does **not** call `partyPayout`.
+The delta the fence stores is `Object.assign({}, a.p_delta)` with only `journal` replaced —
+so it is the member's **own solo settle output** with attribution stapled on. Executed,
+with contributions deliberately 1×/2×/3×/4×:
+
+```
+✓ E8 — dmg_bp is 1000/2000/3000/4000 and every member's delta.gold is still 3
+```
+
+Nothing is apportioned by the vectors, no fellowship bonus is added, and no
+`VIGOUR_DRY_MULT` reduction is taken. **This is not a defect and I am not asking for it
+in S2.** It is the safe direction (shadow pays nothing, and paying nothing is the
+strongest state available), it is the right slice boundary (apportioning is driver
+arithmetic that lands with S3's damage counter and touches no migration), and the lane
+had already named the *other* half of the same seam honestly — `memberContribution`
+falls back to `survivedMs` because S3's per-member damage counter has not landed, and
+arm E6 says so out loud.
+
+**What it costs is the measurement, and that is what S5's GO is granted on.** §18.5's S2
+Guards cell asks for **(P-c)** — *"paid ≤ produced + fellowship, and Σ pre-multiplier
+member share = produced exactly"* — and (P-c) has no content until a payout exists.
+(P-a) degenerate parity is likewise not asserted; arm S4 asserts its *precondition* (the
+stored delta carries no party key at any level), not the byte comparison against a solo
+run. So **two of the three properties §18.5 asks S2's guard for are not yet assertable,
+and the third is true of the vectors alone.**
+
+**Landed as a self-invalidating guard.** Arm **E8** pins the gap and goes RED the day the
+payout is wired, with the failure message telling that reader that (P-c) is now
+assertable, must be asserted, and that the evidence before that deploy measures a
+different quantity and cannot be folded in. See §3 for the partition rule.
+
+### Recorded, not owed
+
+- **D7 — B-A5's flat half is unlanded and the two copies disagree.** `META_KEYS` is
+  eleven in `tests/accrual-engine.mjs:3520` and does not contain `party`;
+  `META_KEYS_12` in `tests/party-split.mjs:262` is twelve and does. S3's review said in
+  advance: *"S3 carries a local copy of the allowlist on purpose; if the two ever
+  disagree that is a finding for S2's guard."* They disagree and S2's guard does not see
+  it. **It is not a hole today** — nothing grades a party `meta` with the eleven-key
+  list, and the bound B-A5 actually cared about (the nested key set as an equality) IS
+  landed, executed at (2d) and mutation-proved. I deliberately did **not** widen
+  `META_KEYS`: widening an allowlist that nothing on this path consults is a loosening
+  that buys nothing (`CLAUDE.md` §2). **The reconciliation is owed by whichever slice
+  first grades a party delta through `metaProblems()`** — and the honest form is for
+  `party-split.mjs` to derive its list from the real one plus `party`, not to retype it.
+- **D8 — `party_tick_lease` is RLS `force`d and `party_hunt` is not.** Neither matters
+  while every path is a `postgres`-owned `SECURITY DEFINER` function and `force` only
+  binds the owner; the S1 Coordinator record already recorded the same asymmetry across
+  the three S1 tables. Left alone, named so the next reader does not re-derive it.
+- **D9 — `member_count` and `members` can disagree.** `member_count` counts
+  `party_member`; `members` is a `jsonb_agg` over a join to `player_state`. A member with
+  no state row is counted and not nested. Fails safe in both directions: all missing →
+  `members` is NULL → `parsePartyUnit` drops the unit; some missing → the driver proposes
+  a short set → (6) refuses `party_window_already_settled`. No mint, no silent loss.
+- **Invariant 5 is not implemented in S2, and that is correct.** A leave or kick during a
+  live hunt does not settle the open window — those verbs are S1's and S4 owns
+  kick-before-split. The shape it degrades to is safe and is worth stating: the departing
+  member becomes unpartied, `hr_partied` goes false, and the **per-character** roster
+  serves them from their own `player_state.accrued_to` — which invariant 8 has kept equal
+  to the party watermark — so the interval is paid once, by one path, and none is lost.
+- **S-6's 8-boundary budget is not S2's and S2 does not open a door to it.**
+  `party_settle_churn` appears nowhere in the repo; per B-A1 and §18.5 it is S4's, with
+  the `party_hunt_start`/`party_hunt_stop` ruling B-A1 still owes. S2 adds no
+  membership-forced settle boundary.
+- **`tools/derive-grant-hygiene.mjs` — asked with suspicion, and the answer is no.** It
+  does **not** derive an allowlist that should be argued. Link 14's two entries are
+  hand-written literal text in `PATCHES[party_settle]`, each carrying its own argument,
+  reproduced verbatim into the migration; what is *derived* is the rest of the detector
+  body, out of link 13's committed base, which is the point (a `create or replace` on the
+  detector typed from memory could silently delete check (5) and every self-check would
+  still pass). File 3's §1 additionally fails CLOSED if the installed detector does not
+  already carry link 13's ten-argument `hr_tick_settle` entry. `--check` green:
+  *"derivation in sync (14 links, 15 patches)"*.
+- **`ci-shape` is nondeterministic under load and fails CLOSED.** It exited 1 with 95
+  false problems on the first run of the sweep and 0 on three consecutive re-runs on a
+  quiet machine. That is RE-VERIFY 5's S-8, unchanged and still not this lane's:
+  `run-ci-local.mjs --list` truncates its stdout on `process.exit(0)` through a pipe.
+  A false RED, never a false green.
+
+---
+
+## 2. What I attacked, and could not break
+
+Each of these is an attack the brief named. Every one was **executed** against the chain
+replay, and every one was refused.
+
+| attack | answer |
+|---|---|
+| **Read another party's hunt** as `authenticated` | a live member of party 1 sees **1** row; a member of party 2 sees **0** — zero, not an error, which is the only reading that distinguishes a working policy from 42P17 or 42501. `party_tick_lease` answers **42501** to `authenticated`: RLS armed, **no policy at all**, and the privilege revoked, so the read is refused by ABSENCE |
+| **A second holder settles a leased party** | `no_lease`, naming the real holder and its expiry |
+| **Forge a mark ahead of a member's** — a window starting 45 minutes before the watermark | `party_window_already_settled`, carrying the true mark. The CAS is the party's, computed once under the party lock from rows no caller can read |
+| **Cross-party attribution** — `journal.meta.party.id` naming the other party | `bad_party_meta`, *"names a different party than the call does"* |
+| **Settle a party with no lease row** | `not_tick_owned` |
+| **Reach `hr_apply` from the shadow branch** | ledger **6 → 6** across an honest two-member shadow settle; and there is no `hr_apply` call site on that branch to reach |
+| **Make a member settle twice** — `[A, A]` against a live `{A, B}` | refused. The counts match and the sets do not; the **DISTINCT match count** is the third term of (6)'s predicate and is what refuses it |
+| **Pay a member whose `hr_apply` refused** | refused, **and now mutation-proved** (D2). U1–U4 execute it: the fan-out's savepoint rolls every member's write back, the watermark holds, the hunt ends `member_unpayable:<user>` |
+| **Overflow the carrier** | three names per member (`bad_shadow_state`, `shadow_state_too_large`, `shadow_state_while_armed`), 16 KiB in OCTETS — and, after D1, the assembled object too |
+| **Arm parties through a side door before M4** (ordering constraint 2) | nothing in the batch writes `hr_tick_config`. §5(z) asserts `shadow` is still TRUE after the apply rather than trusting the rollback — RE-VERIFY 5's S-5, honoured. `body.parties` is posted by nobody, and `hr_party_hunt_start` is S4's, so there is no live `party_hunt` for the roster to return |
+| **Arm through the carrier** | a carrier on an armed settle is refused **before the lock, before the lease** and a very long way before `hr_apply`, and the armed branch clears the mark and the carrier in one statement |
+
+**And on the things that are right, recorded so the next reviewer does not re-litigate
+them.** The identity seam refuses `hr_tick` **by name** inside the settle, so the
+selector cannot become the settler, and §5(a)/(b) assert that for all five roles **and**
+call it as each forbidden one. The delta vocabulary is proved a **subset of `hr_apply`'s
+own `c_delta_keys`, parsed out of its installed body** — which is the right way to write
+S-1, because in shadow the settle returns before `hr_apply` ever sees the object and
+nothing else would notice a payload the database cannot accept. B-A3 is honoured
+properly: `HR826` and nothing else, so a deadlock or a bug in the split is loud instead
+of naming an innocent player. The CAS refusal doubling as the driver's only probe is the
+right call and the reason is stated rather than discovered — `party_tick_lease` is
+readable by nobody and `hr_party_roster` is `hr_tick`'s, so the alternative is the
+watermark travelling in a POST body. And `parsePartyUnit` **parses `accrued_to` only to
+drop a malformed row and throws the value away**, which arm E3 proves by feeding it a lie.
+
+---
+
+## 3. The partition rule for the party shadow's parity read
+
+RE-VERIFY 5 established the shape: a shadow clock restarts at the **deploy**, not the
+apply, and the two halves of the table are partitioned. The party shadow needs the same
+rule and needs it **twice more**, because of D6.
+
+1. **The party clock starts at the hr-accrue deploy that carries `tick-party.js`**, not
+   at the migration apply. Read §18.2.6's grouped query with
+   `window_from >= <deploy instant>`; `party is not null` already partitions party rows
+   from solo ones, so no second predicate is needed for that.
+2. **Until `body.parties` is posted, the partition is empty and that is correct, not a
+   failure.** `hr_tick_cron_run` builds its POST from `hr_tick_roster` alone and
+   `hr_party_hunt_start` is S4's. A zero row count here means the cohort is not wired
+   yet — it does not mean the shadow is refusing. Read the `party_error:` and
+   `no_party_hunt` reason counts before concluding anything from a zero.
+3. **RE-CUT THE PARTITION AT EACH OF THE TWO REMAINING SEAMS, and do not fold across
+   them.** Rows written before each deploy measure a different quantity:
+   - **the engine's per-member `damage` counter (S3's other half).** Until it lands,
+     `memberContribution` weights by `survivedMs` — fight time, not damage — so `dmg_bp`
+     and `xp_bp` are not the vectors an armed window would pay. (P-b) holds either way;
+     the SPLIT half of the parity read does not. Arm E6 reports which branch was taken.
+   - **`partyPayout` being applied (D6).** Until it lands, `delta.gold` and `delta.xp`
+     are each member's SOLO settle, so `sum(would_gold)` over a party window is four solo
+     streams, not a pot apportioned by `dmg_bp`, and neither the fellowship bonus nor the
+     `VIGOUR_DRY_MULT` reduction exists to be measured. **(P-c) is not assertable before
+     this**, and §18.5's S2 Guards cell asks for it. Arm E8 goes RED on that deploy.
+
+   **S5's 48 h pre-arm clock therefore starts at the LATER of those two deploys, not at
+   this one.** A 48 h window that straddles either seam is two measurements of two
+   different things with one number on it, which is §16.3's recorded failure.
+4. **(P-a) degenerate parity still has to be built.** Arm S4 asserts the stored delta
+   carries no party key at any level — the *precondition* for the byte comparison, not
+   the comparison. The one-member party §18.5's S5 bar requires is what makes it
+   possible; the arm belongs with the payout, since before it the comparison is trivially
+   true.
+
+---
+
+## 4. Guards — real exit codes
+
+Run on `sec/m8-s2-review` after `npm install --no-audit --no-fund`, with every change of
+§1 landed. Every number is `$?`, branched on, never `( cmd || echo )`.
+
+| command | exit | last line |
+|---|---|---|
+| `node tests/schema-drift.mjs` | **0** | `OK — repo rebuilds to the committed fingerprint (a6e559b275a3…)` — the three §4 blocks, including my §7(a3) and §5(f2), EXECUTE in the replay |
+| `node tests/apply-order-honesty.mjs` | **0** | 34 files carry a measured verdict, and every note agrees with the live-hash baseline |
+| `node tests/party-settle.mjs` | **0** | 37 arms — P-IDEM, R1–R4, S1–S7, I1, P1–P2, C1–C3, F1–F4, A1–A6, U1–U4, O1–O2, E1–E8 |
+| `node tests/party-settle.mjs --mutate` | **0** | 5 apply-time mutants RED + `M2-fanOutNotRolledBack` RED **by execution** |
+| `node tests/party-membership.mjs` | **0** | green |
+| `node tests/party-membership.mjs --mutate` | **0** | two honest stages, unchanged by this batch |
+| `node tests/party-split.mjs` | **0** | 425 windows; S-SQL now grades **both** forms, the column included |
+| `node tests/party-split.mjs --mutate` | **0** | 18/18 RED |
+| `node tests/world-tick-shadow-chain.mjs` (+ `--mutate`) | **0** / **0** | RE-VERIFY 5's twelve arms and five mutants, unmoved |
+| `node tests/world-tick-combat-parity.mjs` | **0** | `AWAY-1` unmoved — the party path adds no combat code |
+| `node tests/world-tick-ledger-meta.mjs` | **0** | the design's parity queries execute against a real `hr_apply` row |
+| `node tests/restore-census.mjs` | **0** | the two new tables classified; `party`/`party_member` moved onto `player_value_tables` as S1's own note required |
+| `node tests/guard-hygiene.mjs` | **0** | no orphans, no ghosts, **no vacuous proofs** |
+| `node tests/ci-shape.mjs` | **0** | on a quiet machine — see RE-VERIFY 5's S-8; it failed closed once under load and was green on three consecutive re-runs |
+| `node tools/derive-grant-hygiene.mjs --check` | **0** | `derivation in sync (14 links, 15 patches)` |
+| `node tools/pack-edge.mjs hr-accrue --hash` | **0** | packs; re-pack on the **assembled set**, not this branch (the S-9 precedent) |
+| `node tools/lane-done.mjs` | **0** | all green |
+| `node tests/live-hash-drift.mjs` | **1** | **the three entries of D3, deliberate.** Coordinator re-seeds |
+
+**`?v=` sweep**, as the brief required: `grep -rn '?v=[0-9]' tests/ supabase/functions/`
+returns 16 hits and **every one is prose inside a comment** — `cache-buster-guard.mjs`'s
+own worked example, `predict-display.mjs`'s two-instances note, `party-split.mjs:120`'s
+anchor note, `conservation-fuzz.mjs`'s aside. **No code specifier anywhere**, so nothing
+was removed and no `?v=` was bumped.
+
+**Mutation proofs — each run, each red, each restored.**
+
+| mutant | caught by | exit | what it said |
+|---|---|---|---|
+| `thirteenthKey` — the nested key-set equality disabled | apply, `GATE(e)` | **1** | an EIGHTH key on `journal.meta.party` was accepted |
+| `whenOthers` — the handler catches `when others` | apply, `GATE(k)` | **1** | B-A3's whole argument, executed |
+| `partialMemberSet` — (6)'s predicate disabled | apply, `GATE(d)` | **1** | a SHORT member set (1 of 2 live) answered `ok: true` |
+| `rostersOverlap` — invariant 7's clause removed | apply, `GATE(d)` | **1** | the per-character roster still offers a partied character |
+| **`carrierBoundsDontCompose`** (mine) — CHECK back to 64 KiB | apply, `GATE(f2)` | **1** | `4 members x 16384 octets = 65536, and … admits only 65536` |
+| **`fanOutNotRolledBack`** (mine) — the `HR826` raise becomes `continue` | **`U2`, by execution** | **RED** | the fan-out **paid 6 ledger rows** while one member could not be paid, and the party watermark ADVANCED |
+
+**Baselines — honest?** Yes, checked by set comparison.
+`tests/restore-census.baseline.json` moves `party` and `party_member` onto
+`player_value_tables` — which is S1's own stated expiry, honoured in the batch that
+triggered it — classifies `party_hunt` `restore_only` with a bounded, stated rebuild cost
+(nobody loses credited time, because invariant 8 keeps each member's own `accrued_to`
+equal to the party's) and `party_tick_lease` `operational` (the repo authors no row;
+`hr_party_roster` re-seeds it, and empty is the fail-safe). `schema-apply-order.json`
+carries all three files in precondition order with `STAGED, NOT APPLIED`. `ci-shape` +
+`guard-hygiene` both green on the new `smoke.yml` step, which runs the base **and**
+`--mutate`, so no `proof_baseline` exemption is needed. `schema-drift.baseline.json` and
+`ci-shape.baseline.json` needed no edit from me and got none; `live-hash-drift.baseline.json`
+is Coordinator-only and neither the lane nor I touched it.
+
+---
+
+## 5. VERDICT
+
+### 5.1 The APPLY — **GO-WITH-CHANGES, and every change is LANDED on `sec/m8-s2-review` and re-proved.**
+
+Nothing is waiting on the author. D1, D2, D3, D4 and D5 are on this branch, each with an
+executing arm behind it, two of them mutation-proved against the real chain, and the
+whole gate list above green afterwards. **Merge `sec/m8-s2-review` and apply the three
+files from it.** Applying `84ff4012` as staged would ship a carrier bound that does not
+hold where it says it holds, a `--mutate` whose headline arm proves a different property
+from the one it names, and two apply-order notes that tell the Coordinator to expect one
+live-hash entry when the guard produces three.
+
+`CLAUDE.md` §2 — one file per call, Coordinator only, never 00:00–00:10 UTC, **all three
+in ONE sitting** (between files 1/2's engine grants and file 3's record the nightly
+`hr-grant-hygiene` cron raises on `engine_execute_outside_allowlist`, and a detector
+expected to be red hides the next real regression):
+
+```bash
+node tools/apply-migration.mjs supabase/migrations/2026-09-23-m8-parties-s2-1-hunt-tables.sql
+node tools/apply-migration.mjs supabase/migrations/2026-09-23-m8-parties-s2-2-roster-settle.sql
+node tools/apply-migration.mjs supabase/migrations/2026-09-23-m8-parties-s2-3-engine-allowlist.sql
+```
+
+Each file's own §7/§5/§3 block refuses the install if its properties do not hold, so a
+clean return IS the post-condition for that file. Do not proceed past a file that raised.
+
+### 5.2 The EDGE DEPLOY — **GO, strictly AFTER all three applies.**
+
+Not "in the same sitting" — **after**, and the order is mandatory in a way the M3
+precedent does not cover, because it fails in the opposite direction (D4): the edge in
+front of the migrations refuses every `accrue`, `set_activity` and `equip` in the game,
+for every player. After them it is inert. Re-pack on the **assembled set**, not on this
+branch (the S-9 precedent), and verify the live `payload_sha256` equals
+`pack-edge --hash` before the play gate.
+
+The edge half is sound on its own terms: one call site for the fence rather than eight,
+failing closed; the split imported from S3's file and never re-implemented; one
+`hr_party_tick_settle` call per party window; the window key derived from
+`(party, window)` and never supplied; and not one number the engine computes from coming
+out of the request.
+
+### 5.3 What the Coordinator reads AFTER the apply (read-only; no write, no seed, no probe row)
+
+1. **Both tables EXIST and are EMPTY** — `party_hunt` 0, `party_tick_lease` 0. Non-zero
+   is a P0: §7(z) did not hold on production.
+2. **RLS + privileges.** `relrowsecurity` true on both; `party_hunt` carries exactly one
+   SELECT policy and `party_tick_lease` **zero policies of any kind**;
+   `role_table_grants` for the two tables shows `authenticated` SELECT on `party_hunt`
+   and **nothing else for anybody** (`service_role` is BYPASSRLS — for it the revoke is
+   the only fence).
+3. **The function matrix, per role.** `has_function_privilege` false for `anon`,
+   `authenticated` and `service_role` on `hr_partied` and `hr_party_hunt_live`;
+   `hr_party_roster` **`hr_tick` only** with `hr_engine` explicitly absent;
+   `hr_party_tick_settle` **`hr_engine` only** with `hr_tick` explicitly absent.
+4. **`hr_tick_roster` carries the invariant-7 clause exactly ONCE**, and still carries
+   its watermark LATERAL, its `for update of o skip locked`, its keyset sentinel and its
+   seed rendering. `hr_party_hunt_live(gen_random_uuid())` is **false**.
+5. **`hr_assert_grant_hygiene(true)`** — read the REPORT, not the absence of a raise:
+   `unapproved_client_rpcs` empty, `ungated_client_rpcs` empty,
+   `engine_execute_outside_allowlist` **empty and present as a key**, and both new
+   entries at their exact regprocedure spellings with link 13's ten-argument
+   `hr_tick_settle` still there.
+6. **`hr_tick_config` is untouched** — `shadow` still **TRUE**, `enabled` and `channels`
+   as found. Arming is S5's own GO and is not in this batch.
+7. **`hr_tick_shadow`**: the `party` column is nullable jsonb with no default, the
+   channel CHECK is still the three-value one, and `count(*) where party is not null` is
+   **0**.
+8. **`live-hash-drift --codediff` FIRST**, then `--live --write`. Expect **THREE**
+   entries (D3), not one: `hr_tick_roster` and `hr_party_hunt_live` newly tracked, and
+   `hr_assert_grant_hygiene` restated as chain link 14 — whose diff must be exactly the
+   two inserted `c_engine_allow` lines and their argued comment block at the head of the
+   array. The whys are written out in full in the apply-order notes. Then the three notes
+   flip STAGED → APPLIED with timestamps, and `restore-census` re-pins.
+
+### 5.4 What must NOT happen next
+
+- **No edge deploy before the applies** (D4). This is the one that costs players their
+  evening rather than costing a measurement.
+- **No `update hr_tick_config set shadow = false`.** S5 is a separate GO and its own
+  pre-arm bar is unmet by definition; ordering constraint 2 (M4) and 3 (M5 + §7a) both
+  still stand.
+- **No reading of a 48 h party parity number until §3's partition rule is satisfied.**
+  Today the party shadow measures four solo settles weighted by fight time. Both seams
+  have to close and the clock has to be re-cut at the later of them.
+- **B-A1 is still owed by S4** (do `party_hunt_start`/`party_hunt_stop` count against
+  S-6's 8 boundaries?), and B-A6's all-or-nothing `member_uncollectable` self-check with
+  it.
+
+This verdict covers S2 only.

@@ -57,6 +57,15 @@
 // cost of a false pass is three other players' window re-priced by somebody
 // else's button. §18.3 already gives the client a retry for that code.
 //
+// ── ⚠ THIS FILE IS WHY THE MIGRATIONS DEPLOY FIRST (Security, S2 review) ───
+// Failing closed is right, and it is also what makes the reversed order a TOTAL
+// PLAY OUTAGE rather than a measurement one: deployed against a database
+// without `hr_partied`, the 42883 is caught below and EVERY `accrue`,
+// `set_activity` and `equip` in the game is refused 409 for EVERY player —
+// including the ~90 s attended cadence and the return-from-away claim.
+// Measured, not argued: tests/party-settle.mjs arm O1 drives these bytes over a
+// pre-S2 replay. The three S2 migrations apply BEFORE this file deploys.
+//
 // PURE ESM, Node + Deno. No `?v=` (not under src/**).
 // ============================================================================
 

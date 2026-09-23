@@ -3462,6 +3462,50 @@ export default [
     }
   }),
 
+  () => tryRunAsync('INV-STAGE-9b regression suite — the hr_flags read sent the ACCESSOR, not the JWT', async () => {
+    /* auth.js stores `authToken` as an ACCESSOR (`() => liveAccessToken()`) so a
+       refreshed JWT needs no re-wiring, and every transport in accrue.js unwraps it
+       through tokenOf(). fetchServerArmPermission concatenated `config.authToken`
+       instead, so the wire carried the literal text `Bearer () => liveAccessToken()`,
+       PostgREST answered 401/PGRST301, the swallowed failure left the permission at
+       UNKNOWN, and maybeAutoArm guard (3c) refused forever: the server's
+       `inventory_absolute` row has been enabled since 2026-09-14 and no client could
+       ever observe it. The spy answers as PostgREST does — a malformed bearer is a
+       401, never a row — so (b) is red for the REASON (a) is, not merely alongside it.
+       MUTATION: restore `config.authToken` at that call site ⇒ both go red. */
+    const A = window.HearthriseAccrual, permWas = A.isServerArmPermitted(), realFetch = window.fetch;
+    try {
+      // configureAccrual fires its own flag read; keep that one off the network.
+      window.fetch = () => Promise.resolve({ ok: false, status: 0, json: () => Promise.resolve(null) });
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key',
+        authToken: () => 'jwt-token', slot: 0 });      // the PRODUCTION shape: an accessor
+      A.__resetServerArmPermission();  const seen = [];
+      const postgrest = (u, init) => {
+        const h = (init && init.headers) || {};
+        seen.push({ url: String(u), auth: String(h.Authorization || '') });
+        return Promise.resolve(h.Authorization === 'Bearer jwt-token'
+          ? { ok: true, status: 200, json: () => Promise.resolve([{ enabled: true }]) }
+          : { ok: false, status: 401, json: () => Promise.resolve({ code: 'PGRST301' }) });
+      };
+      await A.fetchServerArmPermission(postgrest);
+      assert(seen.length === 1 && /\/rest\/v1\/hr_flags\?select=enabled&key=eq\./.test(seen[0].url),
+        'guard: expected exactly one hr_flags read, got ' + JSON.stringify(seen));
+      assert(!/=>|function/.test(seen[0].auth),
+        'the Authorization header carries function SOURCE TEXT (' + JSON.stringify(seen[0].auth)
+        + ') — the accessor was string-concatenated instead of called, and PostgREST answers 401');
+      assert(seen[0].auth === 'Bearer jwt-token',
+        'the hr_flags read sent ' + JSON.stringify(seen[0].auth) + ' — it must unwrap through tokenOf() '
+        + 'and carry the live JWT, like every other transport in that file');
+      assert(A.serverArmPermissionState() === 'granted' && A.isServerArmObserved() === true,
+        'the server answered enabled:true and the permission is still ' + A.serverArmPermissionState()
+        + ' — maybeAutoArm guard (3c) arms on nothing less than an OBSERVED grant, so the flip is dead');
+    } finally {
+      window.fetch = realFetch;  A.__resetServerArmPermission();
+      if (permWas === false) A.noteServerArmPermission(false);
+      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
+    }
+  }),
+
   () => tryRun('INV-STAGE-10: the start-kit hint discard cannot delete a non-owned id (C-8)', () => {
     /* The hint discard runs on the MERGE path — the NEVER-DELETE path — and
        `cooked_shrimp` is an EXCLUDED id, so before the `serverOwnedItem` guard it

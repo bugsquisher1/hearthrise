@@ -510,7 +510,12 @@ export function buildIntentWiring(cfg) {
        slot. Configured always so the transport KNOWS its endpoint — it stays
        SILENT until DUNGEON_SETTLE_ARM_ENABLED flips (isDungeonSettleEnabled()
        gates every send), so wiring it dark changes nothing on the wire. */
-    dungeon: { ...base } };
+    dungeon: { ...base },
+    /* THE TROPHY CLAIM (docs/design/BESTIARY_LADDER.md §4). Same base as every
+       other intent — url, apiKey, a re-read authToken and NO pinned slot
+       (resolved per call). It carries no arm flag: the verb mints nothing, so
+       there is no value for a dark period to protect. */
+    trophy: { ...base } };
 }
 
 /* ── IS THE EQUIP GESTURE ACTUALLY ROUTED ON THIS CLIENT? (b366) ────────────
@@ -561,6 +566,8 @@ export function wireServerIntents(win, cfg) {
   catch (e) { console.warn('[auth] gold wiring skipped:', e && e.message); }
   try { if (win && win.HearthriseEat) win.HearthriseEat.configureEat(w.eat); }
   catch (e) { console.warn('[auth] eat wiring skipped:', e && e.message); }
+  try { if (win && win.HearthriseTrophyClaim) win.HearthriseTrophyClaim.configureTrophyClaim(w.trophy); }
+  catch (e) { console.warn('[auth] trophy-claim wiring skipped:', e && e.message); }
   /* THE DUNGEON-SCRIP ECONOMY (dungeon-settlement.md). Teaches the settle +
      quartermaster transport where to send. It stays DORMANT (isDungeonSettleEnabled
      gates every send on DUNGEON_SETTLE_ARM_ENABLED, shipped false), so this only

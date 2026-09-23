@@ -999,6 +999,11 @@ function settle(verdict, now) {
     try {
       const W = (typeof window !== 'undefined') ? window : null;
       if (W && typeof W.hrNoteServerBestiary === 'function') W.hrNoteServerBestiary(verdict.body);
+      /* The TROPHY half of the same block (kills_by_monster + the claimed rows).
+         Its own adopter and its own try, because they are different facts with
+         different absences: a server without hr_trophy_of still sends counters,
+         and one adopter throwing must not cost the other its mirror. */
+      if (W && typeof W.hrNoteServerTrophies === 'function') W.hrNoteServerTrophies(verdict.body);
     } catch (e) {}
   }
   /* ── b368: A RECOVERED SERVER TAKES ITS OWN SHEET DOWN ────────────────────
@@ -2002,7 +2007,11 @@ export async function fetchServerArmPermission(f) {
   try {
     const url = config.url + '/rest/v1/hr_flags?select=enabled&key=eq.' + INVENTORY_ARM_FLAG_KEY;
     const headers = { apikey: config.apiKey || '', Accept: 'application/json' };
-    if (config.authToken) headers.Authorization = 'Bearer ' + config.authToken;
+    /* tokenOf(), never `config.authToken` — auth.js stores the ACCESSOR here, so
+       concatenating it put a function's source text on the wire and every read
+       answered 401/PGRST301. One unwrapping helper, every call site. */
+    const armTok = tokenOf();
+    if (armTok) headers.Authorization = 'Bearer ' + armTok;
     const r = await fetcher(url, { headers });
     if (!r || !r.ok) return isServerArmPermitted();       // not an answer — not a decision
     const rows = await r.json();

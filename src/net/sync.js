@@ -88,6 +88,15 @@ let buffer = [];
 let flushTimer = null;
 let concurrencyTimer = null;
 let claimTimer = null;
+// setupSync() re-runs on every auth event (see the SYNC-ONCE note below), and
+// these four one-shots were unlatched: each re-run armed a second timer on top
+// of whatever the previous run already scheduled, so boot sent duplicate
+// session_claims writes/reads. Held in module scope and cleared on re-run, same
+// pattern as claimTimer/flushTimer above.
+let concurrentStartTimer = null;
+let claimStartTimer = null;
+let claimCheckTimer = null;
+let flushStartTimer = null;
 let lastSnapshotAt = 0;
 let lastCloudSaveAt = 0;   // b299: last CONFIRMED cloud upload (for the verify tool + status)
 let concurrentWarned = '';   // b366: fallback when sessionStorage is unavailable
@@ -1682,18 +1691,21 @@ export function setupSync(opts = {}) {
   // from session_claims, and without that table there is no liveness evidence to
   // reason from and therefore nothing honest to say.
   if (concurrencyTimer) clearInterval(concurrencyTimer);
+  if (concurrentStartTimer) clearTimeout(concurrentStartTimer);
   if (config.claimEndpoint) {
     concurrencyTimer = setInterval(() => { checkConcurrentDevice(); }, config.concurrencyIntervalMs || 45000);
-    setTimeout(() => { checkConcurrentDevice(); }, 4000);
+    concurrentStartTimer = setTimeout(() => { concurrentStartTimer = null; checkConcurrentDevice(); }, 4000);
   }
 
   // b302: single active device. Claim the account for THIS device on connect
   // (new device wins), then poll for eviction. Inert until the session_claims
   // table + claimEndpoint exist — claim/poll simply no-op or error out safely.
   if (claimTimer) clearInterval(claimTimer);
+  if (claimStartTimer) clearTimeout(claimStartTimer);
+  if (claimCheckTimer) clearTimeout(claimCheckTimer);
   if (config.claimEndpoint && !paused) {
-    setTimeout(() => { claimSession(); }, 1500);                       // take ownership
-    setTimeout(() => { checkSessionClaim(); }, 6000);                  // first eviction check
+    claimStartTimer = setTimeout(() => { claimStartTimer = null; claimSession(); }, 1500);       // take ownership
+    claimCheckTimer = setTimeout(() => { claimCheckTimer = null; checkSessionClaim(); }, 6000);  // first eviction check
     claimTimer = setInterval(() => { checkSessionClaim(); }, config.claimIntervalMs || 15000);
     // Re-check the moment the tab regains focus, so a kicked device locks out on return.
     /* b461 — same once-per-page rule as the forced-save listeners above (this
@@ -1707,7 +1719,8 @@ export function setupSync(opts = {}) {
   }
 
   // And one immediate attempt
-  setTimeout(flush, 1000);
+  if (flushStartTimer) clearTimeout(flushStartTimer);
+  flushStartTimer = setTimeout(() => { flushStartTimer = null; flush(); }, 1000);
 
   console.log('[Cloud Sync]', config.endpoint ? 'configured: ' + config.endpoint : 'offline mode (no endpoint)');
 }

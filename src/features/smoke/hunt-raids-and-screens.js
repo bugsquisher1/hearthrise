@@ -2178,6 +2178,131 @@ export default [
     }
   }),
 
+  /* ── TROPHY-1..3 — THE BESTIARY TROPHY LADDER, PLAYED ────────────────────
+     docs/design/BESTIARY_LADDER.md. The LONG ladder: 2,500 kills against ONE
+     monster earns Quarry, and the trophy ROW is claimed while the power is
+     DERIVED and already on. Three registered tests because these are three
+     properties, and they share `hrCharmDriver` — the same idle-envelope funnel
+     the charm battery above rides, which is the response a RELOADING player
+     actually gets. No multiplier is asserted here: that half is proven headless
+     against the real RPC in tests/bestiary-trophy.mjs. */
+  () => tryRunAsync('TROPHY-1: the server’s per-monster kills earn Quarry and paint the ladder; 99,999 LOCAL kills earn nothing', async () => {
+    const G = window.G, T = window.HearthriseTrophies;
+    assert(T && typeof T.noteEnvelope === 'function' && typeof window.hrNoteServerTrophies === 'function',
+      'CONTROL: the trophy seam is unpublished (HearthriseTrophies / hrNoteServerTrophies) — the feature has no client half');
+    const snap = snapshotG(); const rig = hrCharmDriver(); const prev = G._bestiaryTrophies;
+    const listHtml = () => (document.getElementById('best-list') || {}).innerHTML || '';
+    try {
+      /* ARM 1 — NO SERVER BLOCK, AND A LOUD LOCAL RESIDUE. `G.bestiary` is the
+         client-written map the row's `×` has always come from and it can run
+         AHEAD of the server; a claim gated on it is the residue-ahead class
+         (CLAUDE.md §6) and on this surface it is the exact "browser says one
+         thing, server says another" report Tyler called a P1 class-kill. */
+      delete G._bestiaryTrophies;
+      G.bestiary = { goblin: { kills: 99999 } };
+      const none = await rig.drive(null);
+      assert(none && none.outcome === 'nothing', 'the idle envelope classified as ' + (none && none.outcome) + ', not "nothing"');
+      assert(T.noteEnvelope({ ok: true }).reason === 'no_key' && T.stageOfMonster('goblin') === 0
+        && T.badgeHtml('goblin') === '' && T.claimButtonHtml('goblin') === '',
+        'an envelope with no bestiary block produced a stage off 99,999 LOCAL kills — the residue must buy nothing');
+      window.openBestiary();
+      assert(!/trophy-claim/.test(listHtml()), 'a Claim button painted with no server counters: ' + listHtml().slice(0, 200));
+      /* ARM 2 — THE COUNTERS ARRIVE, AND THE LADDER PAINTS FROM THEM. */
+      const got = await rig.drive({ kills_by_class: {}, kills_by_monster: { goblin: 2500, slime: 12, not_a_monster: 99999 }, trophies: [] });
+      assert(got && got.outcome === 'nothing' && G._bestiaryTrophies && G._bestiaryTrophies.killsByMonster.goblin === 2500,
+        'the idle envelope did not mirror the per-monster counters: ' + JSON.stringify(G._bestiaryTrophies && G._bestiaryTrophies.killsByMonster));
+      assert(!('not_a_monster' in G._bestiaryTrophies.killsByMonster),
+        'an id outside the roster survived the mirror — a hostile block could put a junk monster on screen');
+      assert(T.stageOfMonster('goblin') === 1 && T.stageOfMonster('slime') === 0,
+        'goblin at 2,500 read stage ' + T.stageOfMonster('goblin') + ' and slime at 12 read ' + T.stageOfMonster('slime') + ' — the first rung is 2,500');
+      const nx = T.nextOfMonster('goblin');
+      assert(nx && nx.row.at === 5000 && nx.remaining === 2500,
+        'the next threshold said ' + JSON.stringify(nx && { at: nx.row.at, r: nx.remaining }) + ' — it must name the next rung and the kills left, derived, never stored');
+      window.openBestiary();
+      assert(/trophy-badge/.test(listHtml()) && /Quarry/.test(listHtml()) && /2,500 more to Stalker/.test(listHtml()),
+        'the goblin row did not paint its badge and the number a player can act on: ' + listHtml().slice(0, 300));
+    } finally {
+      rig.restore();
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      if (prev === undefined) delete G._bestiaryTrophies; else G._bestiaryTrophies = prev;
+      restoreG(snap);
+    }
+  }),
+
+  /* THE CLAIMED SET IS THE SERVER'S ROWS, never a local flag set on success.
+     Reaching a rung is what pays the derived drop bonus; CLAIMING it is the
+     gesture and the collection row, and the button must read the second. */
+  () => tryRunAsync('TROPHY-2: a trophy the SERVER lists as claimed offers no button; one it does not, does', async () => {
+    const G = window.G, T = window.HearthriseTrophies;
+    const snap = snapshotG(); const rig = hrCharmDriver(); const prev = G._bestiaryTrophies;
+    const listHtml = () => (document.getElementById('best-list') || {}).innerHTML || '';
+    try {
+      await rig.drive({ kills_by_class: {}, kills_by_monster: { goblin: 2500 }, trophies: [] });
+      assert(T.isClaimable('goblin', 1) === true && T.isClaimed('goblin', 1) === false,
+        'a reached, unclaimed trophy did not read claimable');
+      window.openBestiary();
+      assert(/trophy-claim/.test(listHtml()) && /Claim Quarry/.test(listHtml()), 'no Claim button on a reached, unclaimed trophy');
+      await rig.drive({ kills_by_class: {}, kills_by_monster: { goblin: 2500 }, trophies: [{ monster: 'goblin', stage: 1 }] });
+      assert(T.isClaimed('goblin', 1) === true && T.isClaimable('goblin', 1) === false,
+        'the server listed the trophy as claimed and the client still offered it');
+      window.openBestiary();
+      assert(!/trophy-claim/.test(listHtml()) && /is-claimed/.test(listHtml()),
+        'a claimed trophy still painted a Claim button: ' + listHtml().slice(0, 300));
+    } finally {
+      rig.restore();
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      if (prev === undefined) delete G._bestiaryTrophies; else G._bestiaryTrophies = prev;
+      restoreG(snap);
+    }
+  }),
+
+  /* THE WIRE AND THE REFUSAL. Two names and no kill count may cross — the field
+     a future caller adds by accident is the field that turns a NAME into a
+     VALUE — and a `not_yet` (what a client whose count ran ahead gets) must
+     repaint from the envelope riding it rather than leave its own number up. */
+  () => tryRunAsync('TROPHY-3: the claim sends two names and no count, and a not_yet puts the client’s own number back', async () => {
+    const G = window.G, T = window.HearthriseTrophies, TC = window.HearthriseTrophyClaim;
+    assert(TC && typeof TC.sendTrophyClaim === 'function' && typeof window.hrClaimTrophy === 'function',
+      'CONTROL: the trophy claim transport or its modal handler is unpublished');
+    const snap = snapshotG(); const realFetch = window.fetch; const prev = G._bestiaryTrophies;
+    const prevCfg = TC.getTrophyClaimConfig(); let sent = null;
+    try {
+      const body = JSON.parse(TC.buildTrophyClaimRequest({ url: 'https://proj.supabase.co', apiKey: 'anon-key',
+        token: 'jwt', slot: 0, intentId: '11111111-1111-4111-8111-111111111111', monster: 'goblin', stage: 2 }).init.body);
+      assert(Object.keys(body).sort().join(',') === 'intentId,slot,trophy,verb',
+        'the claim carries ' + Object.keys(body).join(',') + ' — exactly {verb,slot,intentId,trophy} may cross');
+      assert(Object.keys(body.trophy).sort().join(',') === 'monster,stage',
+        'the trophy object carries ' + Object.keys(body.trophy).join(',') + ' — a kill count here is a number the server would have to disbelieve');
+      assert(body.verb === 'trophy_claim' && body.trophy.monster === 'goblin' && body.trophy.stage === 2,
+        'the claim did not name the trophy it was asked for: ' + JSON.stringify(body));
+      window.hrNoteServerTrophies({ ok: true, bestiary: { kills_by_class: {}, kills_by_monster: { goblin: 2500 }, trophies: [] } });
+      window.fetch = (u, init) => {
+        if (!/hr-accrue/.test(String(u))) return realFetch.call(window, u, init);
+        sent = JSON.parse(init.body);
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'not_yet', verb: 'trophy_claim',
+          version: 4, now: new Date().toISOString(), state: { gold: G.gold }, detail: { have: 2400, need: 2500 },
+          bestiary: { kills_by_class: {}, kills_by_monster: { goblin: 2400 }, trophies: [] } }), { status: 409 }));
+      };
+      TC.configureTrophyClaim({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt' });
+      const verdict = await window.hrClaimTrophy('goblin', 1);
+      assert(sent && sent.verb === 'trophy_claim' && sent.trophy.monster === 'goblin',
+        'the Claim button did not send a trophy_claim intent: ' + JSON.stringify(sent));
+      assert(verdict && verdict.outcome === 'refused' && verdict.reason === 'not_yet',
+        'a not_yet answer classified as ' + JSON.stringify(verdict && { o: verdict.outcome, r: verdict.reason }));
+      assert(TC.refusalCopyFor(verdict).length > 0,
+        'a not_yet produced no sentence — the panel just said the trophy was ready, and silence there is the whole complaint');
+      window.hrNoteServerTrophies({ ok: true, bestiary: { kills_by_class: {}, kills_by_monster: { goblin: 2400 }, trophies: [] } });
+      assert(T.killsOfMonster('goblin') === 2400 && T.stageOfMonster('goblin') === 0 && T.isClaimable('goblin', 1) === false,
+        'after a not_yet the client still showed its own count — the envelope on a refusal is how a client that ran ahead is put back');
+    } finally {
+      window.fetch = realFetch;
+      try { TC.configureTrophyClaim(prevCfg); } catch (e) {}
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      if (prev === undefined) delete G._bestiaryTrophies; else G._bestiaryTrophies = prev;
+      restoreG(snap);
+    }
+  }),
+
   /* ── BANK-1 — THE DEPOT, PLAYED ─────────────────────────────────────────────
      The server's bank store shipped b438 and sat dormant for a hundred builds
      because nothing could call it: the flyout's "→ Bank" button was guarded on a

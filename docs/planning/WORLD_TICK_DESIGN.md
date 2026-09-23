@@ -3123,3 +3123,584 @@ made under `CLAUDE.md` §3.1.
    10 s for your own character, which is also the honest UX split), and which
    way to take it is a budget call, not a design one.
 
+---
+
+## §18-SEC Security threat model — §18 parties (2026-09-23)
+
+Adversarial review of `lane/m8-parties-design` @ `efda8e91` by the
+security-engineer, before any code exists. Graded against `CLAUDE.md` §1's
+target property — *a forged client value cannot cross into another player's
+economy or ranking* — and against the fences already standing: the tick fence
+(§15c), `hr_apply` as the only money writer, `player_ledger` journalling with
+per-call/per-day clamps, RLS per user, the Recovery Rule, §16.6's attended
+fence, M5's frame topic policy, and the 5,000-character scale target.
+
+Design reviews are cheaper than migrations, so this one is long where §18 is
+silent and short where §18 is right. **§18 is right about the big decision** —
+the party as a roster unit, one fenced call, all-or-nothing, no second ledger,
+no client field naming a share — and most of what follows is the second layer
+of that same decision, which §18 has not reached yet.
+
+### §18-SEC.0 Verdict
+
+| Section | Verdict | The reason in one line |
+|---|---|---|
+| §18.1 Player experience | **ACCEPT-WITH-CHANGES** | The split floor is a directed transfer (S-5); the parked and knocked-out member's Vigour charge is unstated (S-10). |
+| §18.2 Server objects | **REDESIGN** | Attribution rides `delta`, which `hr_apply` refuses by design (S-1); the roster exclusion is a denormalised column (S-8); the member's own `accrue` is a second settler (S-3); §16.6 has no party form (S-4). |
+| §18.3 Intents | **ACCEPT-WITH-CHANGES** | `party_accept` must collect first or be refused during a live hunt (S-11); invite targeting is an enumeration oracle with no receiver clamp (S-13). |
+| §18.4 Economy + anti-abuse | **ACCEPT-WITH-CHANGES** | T-1, T-5, T-6, T-7, T-9, T-10 hold as written. T-2 and T-4 are stated more strongly than they hold (S-5); T-3's fix creates a re-roll lever it does not price (S-6). |
+| §18.5 Slices | **ACCEPT-WITH-CHANGES** | No slice carries a §4 self-check block, and none names the grant-hygiene allowlist entry we have now shipped without twice (S-14). |
+| §18.6 Finance | **ACCEPT** | Correctly Tyler's, correctly two lines, no spend committed. |
+
+**Ruling on the brief: YES — M8 slice 1 may be briefed to a backend lane now**,
+scoped to membership only (`party`, `party_member`, `party_invite`,
+`hr_party_role`, `hr_party_of`, `hr_party_view`, the five membership verbs, the
+`party` rate bucket, the panel), carrying S-7, S-11, S-12, S-13 and S-14, and
+touching **no** money surface: no `party_hunt`, no `party_tick_lease`, no
+settle, no split, no `hr_apply` reachability. S1's own review at apply time is
+structural and is a separate GO from this one. **S2 through S5 are not briefable
+until S-1 through S-4 are answered in this document** — each of the four
+invalidates work that would be built on it, and S-1 in particular means a 48 h
+shadow parity run would measure a delta shape that can never be paid.
+
+### §18-SEC.1 Findings
+
+Severity is the usual: **P0** blocks the named slice outright, **P1** blocks it
+until answered, **P2** lands with the slice, **I** is recorded, not owed.
+
+#### S-1 — the split attribution rides `delta`, and `hr_apply` refuses unknown delta keys **[P0 — BLOCKS S2, S3, S5]**
+
+§18.2.1: *"a party settle writes ordinary `channel = 'combat'` rows and carries
+`party_id`, `dmg_bp` and `share_bp` **inside the existing `delta` jsonb***".
+§18.2.5 step 7 then calls `hr_apply` once per member, in the one transaction —
+with that delta.
+
+`2026-09-14-hr-apply-restatement.sql:719`:
+
+```
+  -- Unknown top-level keys are an error, not a shrug. A delta key that this
+  -- function does not implement must never look like it worked.
+  if exists (select 1 from jsonb_object_keys(p_delta) as t(dk)
+              where dk <> all (c_delta_keys)) then
+    v_out := jsonb_build_object('ok', false, 'error', 'unknown_delta_key', …
+```
+
+So the armed branch refuses **every** party settle, on the first member, and
+all-or-nothing turns one refusal into a party that never pays anybody — while
+`hr_record_rejection` journals `unknown_delta_key` four times a window for
+every party in the game. In SHADOW it is worse than a loud error, because the
+shadow branch returns *before* `hr_apply`: S2–S4 would accumulate 48 h of
+parity evidence for a delta shape that `hr_apply` would have refused, and S5's
+pre-arm report would read green on a payload that cannot pay.
+
+It also breaks **(P-a) degenerate parity** by construction, which §18 calls
+"the single most valuable guard in the milestone": a one-member party cannot be
+byte-identical to solo if its delta carries three keys solo does not.
+
+**The rule that must hold: the delta handed to `hr_apply` is key-for-key the
+delta a solo settle would hand it. Attribution is JOURNAL, never DELTA.**
+§18 does not state it. The fix is one nullable `party jsonb` column on
+`hr_tick_shadow` — catalog-only, and see S-16 for why §18's stated reason for
+refusing it is not a real fence — plus the split passed as the `meta` argument
+`hr_apply` already takes.
+
+#### S-2 — seven new top-level meta keys, against a ten-key allowlist, at an unstated level **[P0 — BLOCKS S2]**
+
+§18.2.1 proposes `meta.party_id`, `meta.party_hunt`, `meta.dmg_bp`,
+`meta.share_bp`, `meta.floor_applied`, `meta.fellowship_bp`, `meta.roll_seq`.
+
+§16.5's *journal meta* paragraph pins the budget: the tick's combat row is
+`ms, ticks, kills, capped, ate, spent?, w?, from, to, src` — *"ten keys at the
+widest, which is exactly `tests/accrual-engine.mjs` SHAPE's allowlist length"* —
+and §16.6 closes by spending the last of it: *"a tick combat row cannot carry
+`att`, so its widest shape is ten keys and SHAPE's allowlist is not touched."*
+Seven more makes seventeen, SHAPE goes red, and loosening SHAPE to fit is
+refused by `CLAUDE.md` §2.
+
+**The rule: ONE key.** `meta.party = {id, hunt, dmg_bp, share_bp, floor,
+fellow_bp, roll}` widens the allowlist by exactly one, with a `--mutate` proof
+that an eighteenth key still goes red.
+
+And **state the level**, because this is S-10's bug from six days ago wearing a
+different noun. `hr_apply` writes the row as `jsonb_build_object('delta',
+v_meta) || coalesce(v_j->'meta','{}')`, so journal keys merge at the **TOP** of
+`player_ledger.meta`. The read is `meta->'party'` — never `meta->'meta'->'party'`
+(no such level; it evaluates to NULL and a `where` on it returns no rows at all)
+and never `meta->'delta'->'party'` (that is the engine's delta summary).
+`tests/world-tick-ledger-meta.mjs` must EXECUTE the party read against a real
+`hr_apply` ledger row on the PGlite chain and pin both wrong spellings as
+returning nothing, exactly as it now does for `meta ? 'att'`.
+
+#### S-3 — a member's own `accrue` is a second settler for the party's window **[P0 — BLOCKS S2, S4]**
+
+§18.2.3 invariant 6 states the collision as a feature:
+
+> "**The character stays the STATE unit; the party is only the ROSTER unit.**
+> Every member's `player_state.active_kind/active_id/active_since/accrued_to`
+> move exactly as they do solo…"
+
+`INTENT_REGISTRY` (`supabase/functions/hr-accrue/intents.js:383`) makes that
+concrete: `accrue` prices `[accrued_to, now]` for whatever the character is
+doing — which, for a party member, is the party's combat — and every
+`collectsFirst: true` verb (`set_activity`, eat, equip, the shop verbs) collects
+first. A member with a tab open therefore pays themselves a **solo** simulation
+of the party's monster stream: 100 % of it, not their ~25 % share, plus the
+attended top-up §16.6 exists to fence, for a sliver the party has not settled,
+at a cadence they choose.
+
+§18.2.4 then makes one member's button press into everyone's loss:
+
+> "A member whose own `player_state.accrued_to` is *ahead* of the party's (a
+> client accrue landed mid-window) drags the party's `from` forward the same way
+> `greatest(accrued_to, shadow_accrued_to)` does today — the party never replays
+> over a paid minute."
+
+The party does not replay, and the other three are not paid for the interval
+either. A client-controlled quantity — the *timing* of an ordinary intent —
+crosses into three other players' economies. That is `CLAUDE.md` §1's target
+property failing by timing rather than by number, and it is not an edge case:
+it is the normal client path, every time anybody in a party touches anything.
+
+**The rule: for the duration of a live `party_hunt`, the party watermark IS the
+member's watermark.** The member's own collect for the party's activity refuses
+(`party_settle_required`, journalled), and every `collectsFirst` verb collects
+against `party_hunt.accrued_to` as a hard floor it may never advance past.
+§18.2.4's "drags forward" sentence must be **deleted, not softened** — there is
+no correct way for one member to move a shared window's left edge.
+
+#### S-4 — §16.6's attended fence has no party form, and §18 does not mention it **[P0 — BLOCKS S5; an M4 co-blocker §18 does not name]**
+
+§16.6 is not cited once in §18. It rules: *"The combat channel hands the engine
+`attended: null`, always, and `settleCombatSession` THROWS if a caller supplies
+one"*, and it names its own ARM blocker — before `shadow = false` for combat,
+*"the roster excludes a character with kill-credit rows newer than
+`accrued_to − ATTENDED_EDGE_SLACK_MS`"*.
+
+That exclusion is **per character**. §18 makes the roster unit the **party**. So
+the party form of it is: exclude the whole party whenever *any* member has fresh
+kill credit — one member playing attended stalls four players' settles for as
+long as they keep playing, which is the exact inverse of §18.1's "both tabs
+closed" promise and is a silent-loss shape rather than a refusal anybody sees.
+
+Three honest answers exist; §18 owes one:
+
+1. **Refuse the credit, not the party** — attended kill credit is not accepted
+   for a character in a live party hunt. The attended client renders; the party
+   pays. Cleanest, and it composes with S-3's fence (same predicate, same place).
+2. **Exclude the party, and journal why** — with a distinct `hr_tick_cron_log`
+   outcome so an attended-stalled party is visible in the 8e histogram rather
+   than inferred from a gap.
+3. Price attended per member inside the party settle. **Vetoed** on §16.6's own
+   proof: *"Decompose a span into sixty windows and hand each the same claim and
+   it is paid sixty times; split the claim and the arithmetic is undefined."*
+
+I will accept (1) or (2). (1) is my recommendation.
+
+#### S-5 — the 50 %-of-equal floor is a directed transfer; T-2 and T-4 are overstated **[P1 — BLOCKS S3]**
+
+§18.4 T-4: *"The most a non-fighting account can receive is its raw share (≈0)."*
+True — and not the threat. The threat is the *barely*-fighting account.
+
+§18.1's own arithmetic: in a four-party a member holding ≥ 6.25 % of the
+window's damage is paid `max(raw_share, 12.5 %)`, funded by scaling the
+above-floor members down. At the threshold that is a **2× subsidy**, and the
+subsidy is paid in gold and loot value, not only XP. Three alts each clearing
+6.25 % — which a character within the ten-level spread clears with a starter
+weapon against a monster the main is killing anyway — collect 37.5 % of the
+party's gold for ~19 % of its damage. In a two-party the shape is the same at
+25 % against a 12.5 % threshold. §18.1's defence sentence, *"an account that did
+not fight cannot be paid"*, is true of the absent member and silent about the
+subsidised one, and T-2's *"leeching pays nothing"* is true only below the
+threshold, which is the one place nobody will sit.
+
+This is T-4 — a party as a gold pipe to a fresh account for sale — and it
+survives §18's stated defences.
+
+**Ruling: the floor is XP-only.** Gold and the item-assignment lottery weights
+follow raw damage share exactly, no floor, no threshold; T-4 then holds
+literally rather than approximately, and the parked member's ≈0 is genuinely
+≈0 in every tradeable quantity. The tank §18 wants to protect is a *progression*
+fairness problem, which an XP floor solves. If gold fairness for tanks is wanted
+later it returns as an **effective-contribution** metric the engine already
+knows — damage dealt + damage mitigated + healing done — not as a flat floor,
+and it returns with its own GO.
+
+The rest of the split rule I accept as written and it is good work: basis
+points, renormalisation to exactly 10,000 bp, one roll per kill assigned by a
+share-weighted window-seeded lottery, one rule for all three quantities. See
+S-6 for the remainder recipient.
+
+#### S-6 — a membership change is a re-roll lever, and `party_leave` is unclamped by design **[P1 — BLOCKS S4]**
+
+T-3's fix is right and I accept it: settle the open window first, in the same
+transaction, pay the member being removed, then write `left_at`. Its side effect
+is not stated. **Every join, leave and kick forces a settle boundary at an
+instant a player chooses**, and §18.1 seeds the drop lottery "from the window
+seed" (§16.3: the seed label is the `hr_state_of` JSONB rendering). Cutting a
+window short re-simulates its kills and re-assigns its drops.
+
+`party_kick` is clamped at 20/party/day. `party_leave` is *"never clamped: a
+player may always leave"*, and leave → re-invite → accept is the same lever with
+20/day of headroom per member — roughly **80 chosen re-rolls a day per party**.
+The integer remainder rule compounds it: *"the integer remainder goes to the
+largest share"* hands every one of those boundaries' remainders to the same
+member, who is the one choosing the boundaries.
+
+**The numbers §18 does not give, and they are the finding:**
+
+- **Forced settle boundaries from membership changes: ≤ 8 per party per UTC
+  day**, journalled, refusal `party_settle_churn`. Past 8, a leave is still
+  honoured **immediately for membership** — nobody is ever held in a party —
+  but it is *paid* at the next natural flush boundary. The right to leave is
+  preserved exactly; the lever is not.
+- **The remainder goes to the LOWEST `(user_id, slot)`** among the tied-largest
+  shares, not to the largest share. Nobody can position themselves to collect
+  it, and it stays deterministic and replayable.
+
+#### S-7 — `party_member`'s SELECT policy recurses, and the panel's read surface is undesigned **[P1 — BLOCKS S1]**
+
+§18.2.2 gives `party_member` a SELECT policy of *"`auth.uid() = user_id` **or**
+live co-member (same predicate)"*, where that predicate selects from
+`party_member`. A policy on T whose `USING` clause reads T recurses. The repo
+already knows the fix and §18 already cites it: `hr_clan_may_admit` is
+`SECURITY DEFINER` for this reason. Use `hr_party_of(auth.uid(), slot)`, which
+S1 builds anyway.
+
+The larger half: §18.1's panel renders each member's **name, combat level and
+HP bar**, and the Fellowship block renders each member's **xp and gold**. None
+of the four tables in §18.2.1 carries any of that, and §18.2.2 does not say
+where it comes from — so the read surface gets invented at code time, by
+someone reaching for a cross-user read of `player_state` or `hr_state_of`. It
+must be designed here:
+
+> **`hr_party_view(p_party)`, `SECURITY DEFINER`, refusing any caller who is not
+> a live member, returning a FROZEN column set**: display name, combat level,
+> `hp`/`hp_max`, `recovering_until`, and the last settled window's
+> `share_bp`/`xp`/`gold`. Never inventory, never gold balance, never the ledger,
+> never activity detail, never another member's envelope.
+
+A column added to that list is a code change with a review, which is the point.
+It is also the one new cross-user read M8 introduces, so it is where the review
+attention belongs.
+
+#### S-8 — invariant 7 is a denormalised column with no maintainer **[P1 — BLOCKS S2]**
+
+§18.2.3.7: *"`hr_tick_ownership.party_id is not null` ⇒ the per-character roster
+**refuses to serve that character**."* Two gaps, and they open at both ends.
+
+1. **Nothing says who writes that column, or in which transaction.** If the
+   `party_hunt` insert and the `hr_tick_ownership.party_id` update are not the
+   same statement, a character is servable by both rosters in between. The
+   failure is not symmetric: the solo settle pays 100 % of a party's stream to
+   one member, and the party settle then fails its CAS and the party wedges.
+2. **A character with no `hr_tick_ownership` row at all** — never served, or
+   pruned — has no `party_id` to be non-null, so the exclusion never fires and
+   the double-serve is permanent rather than transient.
+
+**The exclusion must be POSITIVE and derived**: the per-character roster
+excludes a character that is a live member of a party with a live `party_hunt`,
+by join. A standing guard asserts the two rosters' outputs are **disjoint on
+every fire**, and it is cheap to mutation-prove — plant one character in both
+and it goes red. The denormalised column may stay as an index helper; it may not
+be the authority. A second source of truth for "what is this character doing" is
+precisely what §18's own one-sentence design forbids.
+
+#### S-9 — atomicity is specified for the CAS and left open for `hr_apply` **[P1 — BLOCKS S2]**
+
+§18.2.5 step 5 is right, and its argument is the best sentence in the document:
+*"a partial settle pays three members a split computed from four contributors,
+which is a mint."* Step 7 then calls `hr_apply` four times and says nothing
+about one of them refusing.
+
+`hr_apply` refuses for reasons that are ordinary play, not corruption:
+`too_many_progress_ops` (§16.5 measured **69 ops against a cap of 64** on an
+ordinary fight, before any party fan-out), a bag that cannot take the item,
+`c_max_progress_add`. Under all-or-nothing, one member's full bag stops four
+players' payouts; the unsettled window then grows against the 24 h cap until a
+night is silently eaten — the `bag_full` silent-loss shape §18.1 itself cites as
+the thing party wipe exists to prevent.
+
+The rule must be stated, and it must not be "pay the others" (that is step 5's
+mint). **A member-level `hr_apply` refusal rolls back the whole transaction and
+ends the party hunt** with `stopped_by = 'member_unpayable:<user>'`; the retry
+settles the same window with the party already ended, so the refusing member's
+overflow is priced once under the pre-existing solo rules and the other three
+are paid. Whatever shape is chosen, S2's guard plants each of the three
+refusals above and asserts the window is **fully paid or fully unpaid, never
+partial**, and that the party does not wedge.
+
+#### S-10 — the party settle does not charge Vigour, and it is the highest-throughput hunting surface in the game **[P1 — BLOCKS S2]**
+
+§18 names Vigour twice, both in passing (*"until a stop rule fires or Vigour and
+supplies run down"*; *"the Analyzer, `recovering`, Vigour … keep working"*). It
+never says the party settle charges it. Vigour is *"a daily budget of PAID
+hunting minutes"*, *"charged from the same `ms` the payout is computed from, in
+the same transaction"* (`HUNTS_AND_ANALYZER.md` §4, §5) — it is the scarcity the
+refill gold sink is priced against. **A settle path that pays combat and does
+not file `ev:vigour_min` is a clean bypass of the daily limiter for every party
+in the game**, and it arrives at 4× the throughput of the path it bypasses.
+
+Three sub-rules are owed, because each has a different answer:
+
+- **(a) Every live member is charged from the same window ms**, using the
+  quotient/remainder pair (`ev:vigour_min` + `ev:vigour_rem_ms`) that
+  `SEC_HUNTS_M6_2026-09-22.md` S-1 landed. A per-member per-window floor is that
+  P0 back at four times the rate: *"windows of just under 2U charge U"*.
+- **(b) A knocked-out member** deals no damage and is paid ≈0. Charging them a
+  full window of Vigour is payment for nothing. State it: the charge is priced
+  on the member's own **fighting** ms, not the window's wall clock — which also
+  makes (a) fall out for free.
+- **(c) A Vigour-dry member** takes `VIGOUR_DRY_MULT = 0.25` on their own
+  payout, so the sum over members is strictly **less** than the party total.
+  **(P-c) conservation as §18 writes it — "a strict equality with [the
+  fellowship bonus] subtracted" — is therefore false on any window containing a
+  dry member.** (P-c) must be an inequality in the safe direction (paid ≤
+  produced + fellowship) **plus** an exact equality on the pre-multiplier
+  shares, or the guard will be red on ordinary play and get relaxed, which is
+  how a guard stops being one.
+
+#### S-11 — `party_accept` must collect first, or be refused during a live hunt **[P2 — BLOCKS S1]**
+
+§18.3 gives `party_accept` `collectsFirst: false`. A character accepting into a
+party whose hunt is already live is then inside the next party window while
+their own `accrued_to` sits wherever they left it — days back, for a returning
+player. Step 5's CAS is on `greatest(accrued_to, shadow_accrued_to)` against
+`p_window_from`, so either the settle refuses forever (the party wedges on its
+new member) or it stamps `accrued_to = p_window_to` and **confiscates that
+player's entire away window** — `guardStampKeys`'s `delta_would_stamp` failure
+on a path `guardStampKeys` does not run.
+
+**The narrow rule is the right one: `party_accept` is refused with
+`party_hunt_running` while the party has a live hunt.** It closes S-12 for free.
+If joining mid-hunt is wanted later it returns as `collectsFirst: true` plus a
+per-member `joined_at` floor on the window — a redesign of §18.2.4's "one
+geometry, computed once", not a flag flip.
+
+#### S-12 — the level spread is checked at start only, and members can be added after the start **[P2 — BLOCKS S4]**
+
+§18.1: *"checked **at hunt start only**, never continuously"*, because *"a member
+who levels past the spread mid-hunt did it by fighting, and stopping the party
+for that is the game taking back what it paid."* That reasoning is right and I
+accept it — **for levelling**. It does not cover **joining**: invariant 5
+explicitly contemplates a membership change during a live hunt, so a party can
+start inside the spread and then accept a level-1 alt into a level-30 hunt with
+no check at all, which is T-2 through the side door.
+
+Re-check the spread **on accept**. That is not "continuous" and it takes back
+nothing already paid. Under S-11 it costs nothing; it must still be written
+down, because S-11 may be relaxed later and this rule must not relax with it.
+
+#### S-13 — invite targeting is an enumeration oracle with no receiver clamp **[P2 — BLOCKS S1]**
+
+§18.3 clamps `party_invite` at 20/character/day, with a per-call clamp of
+*"target must exist, not be in a party, not be you"* — three distinguishable
+refusals, i.e. an oracle answering *"does this display name exist"* and *"is
+this player currently partied"* twenty times a day per account. The name → user
+resolution surface itself is designed nowhere in §18. And the clamp is on the
+**sender**: twenty accounts hand one player four hundred invite cards a day.
+
+- Resolve the name **inside** the RPC and return **one** refusal,
+  `invite_target_unavailable`, for all three cases; the real reason is journalled
+  server-side where the player cannot read it.
+- Add the receiver clamp §18 omits: **at most 5 live invites and 20 received per
+  character per UTC day**, refusal `invite_inbox_full`, with no distinction
+  visible to the sender.
+
+#### S-14 — the grant-hygiene allowlist entry, in the same lane-C batch **[P2 — BLOCKS S1, S2]**
+
+§18.2.2 says *"Grants mirror the fence exactly (§15c)"* and stops. `hr_engine`'s
+EXECUTE allowlist is an argued list **inside `hr_assert_grant_hygiene`**, and a
+grant outside it is a finding that RAISES nightly. We have shipped that mistake
+twice; `2026-09-22-engine-allowlist-hunt-reads.sql` exists only to clean it up,
+and says so: *"Review did not catch it; the suite did."*
+
+Every function §18 adds needs its allowlist entry with its claim argued, in the
+**same** lane-C batch, **after** the file that grants it: `hr_party_roster` (to
+`hr_tick`), `hr_party_tick_settle` (to `hr_engine`), `hr_party_role`,
+`hr_party_of`, and `hr_party_view` from S-7. §18.5's Guards column must name it
+per slice, or it gets remembered on the morning the detector is red — and a
+detector expected to be red hides the next real regression, which is the whole
+cost.
+
+#### S-15 — the party frame does not fit M5's topic policy, and a leaver keeps receiving it **[P2 — BLOCKS S5]**
+
+§18.5 S5 and §18.6 both assume *"pushed party frames on the party topic (M5
+transport)"*. M5's `realtime.messages` policy authorizes a join by comparing the
+topic's own user segment to the JWT — `topic = 'hr:' || auth.uid()::text || ':'
+|| <slot>`, deliberately an equality and **not** a `like`, because a
+topic-shaped predicate *"would let any authenticated player join any other
+player's topic and stream their entire state"*
+(`SEC_PUSH_CHANNEL_M5_2026-09-23.md` S1). A party topic has no user segment, so
+that policy cannot authorize it, and a new predicate resolving membership inside
+an RLS policy is evaluated per subscriber per change — the 2.5M-reads/s line
+that document already flags at 5,000 characters.
+
+Worse: Realtime authorizes at **join**, not per delivery. A kicked or departed
+member keeps receiving the party's frames on an already-open channel until they
+reconnect — a disclosure that outlives the membership that justified it.
+
+Both problems vanish with the cheaper design: **emit N per-member frames on each
+member's own, already-proven `hr:<user_id>:<slot>` topic**, carrying the S-7
+projection and nothing else. §18.6 already budgets four deliveries per frame, so
+this costs nothing it has not priced, and it adds no topic shape and no policy.
+
+#### S-16 — §18 refuses a column on a fence that is not one **[P2]**
+
+§18.2.1 refuses to touch `hr_tick_shadow` because it *"gains **no column and is
+never rewritten**, which is the whole of §16's ACCESS EXCLUSIVE drain avoided"*
+— and §18.2.4, three paragraphs later, correctly says `hr_tick_ownership` gains
+*"one nullable `party_id uuid` column (a catalog-only `ALTER` — no `GENERATED …
+STORED`, so no table rewrite…)"*.
+
+They are the same `ALTER`. §16's drain argument was about a **stored generated**
+column, which rewrites; a plain nullable add does not, by §18's own sentence.
+So the stated reason for cramming the split into `delta` is not true, and S-1
+needs that column. Correct the claim rather than keep a fence that is not one:
+an argument wrong in the direction of *"we cannot"* costs as much as one wrong
+in the direction of *"we can"*, and this one bought S-1.
+
+#### Recorded, not owed
+
+- **I-1** — the fifteen refusal codes of §18.3 need their `STATELESS_REFUSALS`
+  decision made per code (`intents.js:895`). `party_member_recovering` carries
+  `until` + `remaining_ms` and is **stateful** — it must not be listed. The
+  shape refusals answered before any database work (`bad_party`, and the
+  registry ones) belong on the list, or a malformed client spends the rate
+  budget the check exists to protect.
+- **I-2** — §18.3's journalling claim depends on `c-hr-rejections-journal`'s
+  verb map, which `CLAUDE.md` §3.4 records as *staged 2026-09-11, Security
+  review pending*. Without it a party refusal burst reads as an aggregate with
+  no verb, i.e. invisible in `vitals.mjs --refusals` — which is the thing §18
+  says it is buying. Not M8's to fix; M8's to depend on knowingly.
+- **I-3** — capacity: a party takes **one** lease but **four** characters of
+  settle work, so `batch_limit` stops meaning what it means today (R-3's slot
+  accounting). State the party cohort's limit in characters, not parties, before
+  S2's dry run, or the first cohort is 4× the intended size.
+
+### §18-SEC.2 The shadow / parity read at party grain — what 8a–8e become
+
+§18.2.6 proposes one grouped query and three properties. The three properties
+(P-a, P-b, P-c) are good and I accept them with S-10(c)'s correction to P-c.
+They are not a substitute for 8a–8e, which answer a different question — *is the
+instrument measuring anything at all* — and M3 learned that the expensive way.
+The party forms, read in this order:
+
+- **(8a) Is it running.** `count(*)` of `hr_tick_shadow` rows carrying a party
+  id in the last hour, **and** the count of distinct party ids. Zero rows is the
+  S-8 shape and everything below measures nothing — **STOP**. Expect
+  `members × 3600 / flush_seconds` rows per party. The denominator is **per
+  admissible interval**, not wall clock, per RE-VERIFY 2's correction.
+- **(8b) Do the windows tile — twice.** Per member as today (`breaks = 0`), and
+  **per party**: `lag(window_to) over (partition by party_id order by
+  window_from)`. A party whose members tile individually but not collectively is
+  §18.2.4's "drags forward" bug (S-3) showing up as a gap in three members and
+  not in the fourth. This read is the S-3 detector and it must exist even after
+  S-3 is fixed.
+- **(8b-ii) NEW, party-only. Every window has the same member set it was priced
+  on.** `count(distinct user_id)` per `(party_id, window_from, window_to)` equals
+  the party's live member count at `window_to`. Anything else is S-9's partial
+  settle, and it is the one defect that cannot be recovered after the fact.
+- **(8c) Per-field parity, span-fenced, per member** — unchanged, with the
+  attended partition on `meta ? 'att'` at the **top** level. Under S-4(1) the
+  attended bucket must be **empty** for party members, and that emptiness is
+  itself the assertion that S-4's fence is live.
+- **(8c-ii) The split, which is the only genuinely new read.** Per window:
+  `sum(share_bp) = 10000` **exactly** (P-b, zero tolerance — this is integer
+  arithmetic, not a simulation, and a band would hide a rounding leak); paid
+  gold/xp/items summed over members **≤** the party simulation's own total, with
+  equality once the fellowship line and any `VIGOUR_DRY_MULT` reduction are
+  accounted (P-c per S-10(c)); and `count(*) filter (where floor_applied)` — if
+  the floor is applied on more than a small minority of member-windows it is not
+  a floor, it is the split, and S-5's ruling needs revisiting before arming.
+- **(8d) The refusal histogram, and the proof that shadow paid nothing.** Add
+  `unknown_delta_key` to what is read (S-1 makes it the expected failure if S-1
+  is not fixed), plus `party_settle_required`, `party_window_already_settled`
+  and `member_unpayable`. **Zero** tick-sourced `player_ledger` rows for the
+  party cohort, as today.
+- **(8e) The per-party outcome histogram**, on `hr_tick_cron_log`, with S-4(2)'s
+  attended-stall outcome as its own spelling, distinct from `channel_moved` and
+  from `channel_not_driven`. Three causes that read as one gap is how M3's S-8
+  hid for a week.
+
+**Pre-arm bar for S5: 48 h, all of 8a–8e green, plus (P-a) degenerate parity
+byte-identical, on at least one real four-member party and one one-member party.**
+A one-member party is not a formality — it is the only configuration where the
+party path and the solo path can be compared *byte for byte*, and S-1 means it
+does not currently hold.
+
+### §18-SEC.3 The slice order, and what each §4 self-check must EXECUTE
+
+§18.5's ordering constraints 1–4 are correct and I accept them, including the
+ruling that S5 cannot precede M4 (*"arming parties first would arm combat
+through a side door"*) and cannot precede M5 + §7a. Two corrections and one
+omission:
+
+**Correction 1 — S2 and S3 are not "before ARMED" in the sense §18 means.**
+They are before *paying*, which is different. S2 builds the settle whose armed
+branch reaches `hr_apply`, and S3 builds the arithmetic that decides who is
+paid what. Both are money-surface reviews under `CLAUDE.md` §2 even though
+neither moves a coin on the day it applies — the money moves later, on an
+operator `update`, with no further code review in between. §18.5's note that
+"S1 touches no money surface and Security's review there is structural" is
+right; the same sentence must not be read across to S2 and S3.
+
+**Correction 2 — S4 cannot land before S3.** §18.5 lists the hunt intents (S4)
+as landing after the split (S3), which is right, but its per-slice guard column
+lets S4's `member_uncollectable` and kick-before-split assertions stand alone.
+T-3's kick **calls the settle**, which calls the split; S4's tests are asserting
+against S3's arithmetic and must be ordered as such, not merely numbered.
+
+**Omission — not one slice carries a §4 self-check block.** `CLAUDE.md` §4:
+*"Server-side changes carry a §4 self-check block in the migration (properties
+asserted by executing SQL, not by markers)."* §18.5's Guards column names only
+external node guards. What each migration must EXECUTE, at apply time, refusing
+to install otherwise:
+
+- **S1** — `set role authenticated` and attempt an INSERT, UPDATE and DELETE
+  against each of `party`, `party_member`, `party_invite`; assert each RAISES
+  (this is the clan lesson §18.2.2 quotes, executed rather than asserted).
+  Attempt the duplicate inserts that `party_member_one_live` and
+  `party_member_one_char_per_user` exist to refuse, and assert the unique
+  violation — an index that has never been red is not an invariant. Assert
+  `has_function_privilege('authenticated', 'hr_party_role(uuid,uuid,integer)',
+  'EXECUTE')` is **false** for each of `anon`, `authenticated`, `service_role`.
+  Assert `hr_party_view` refuses a non-member (S-7). Assert
+  `hr_assert_grant_hygiene(true)` does not raise (S-14).
+- **S2** — assert `hr_party_tick_settle` is executable by `hr_engine` and by
+  nothing else, and `hr_party_roster` by `hr_tick` and nothing else, by
+  `has_function_privilege` for all five roles. Execute the identity refusal:
+  call the settle as each forbidden role and assert the refusal string. Execute
+  a **partial-settle mutant** — a member set the CAS must reject — and assert
+  zero rows written anywhere (S-9). Assert the two rosters are disjoint for a
+  planted party member (S-8). Assert `hr_tick_shadow.channel`'s CHECK is
+  unchanged.
+- **S3** — the split is a pure function, so its self-check is in
+  `tests/party-split.mjs --mutate` and §18.5 has it right; the migration half
+  has no body. Add one executing assertion where it does touch SQL: shares
+  summing to 10,000 bp on a planted four-member window read back out of
+  `hr_tick_shadow`.
+- **S4** — execute each refusal path and assert the code: spread, recovering,
+  `member_uncollectable`, `party_hunt_running` on accept (S-11), the spread
+  re-check on accept (S-12), and kick-before-split leaving `left_at` unwritten
+  when the settle cannot run.
+- **S5** — no migration; the gate is this GO plus §18.5's stated pre-arm bar,
+  with §18-SEC.2's additions.
+
+**Which slices may land before M4 arms combat:** S1 unconditionally (it has no
+settle and no `hr_apply` reachability); S2, S3 and S4 in shadow, once S-1
+through S-4 are answered — they are genuinely parallel to M4's arming work, and
+§18.5's argument for that is good. **S5 needs its own GO** and so do S2 and S3,
+per Correction 1.
+
+### §18-SEC.4 What §18 gets right, recorded because it will be built on
+
+Stated plainly so the next reviewer does not re-litigate it: the roster-unit
+decision (§18.2.4), the one-call all-or-nothing settle with its `(user_id,
+slot)` lock ordering and its explicit cost (§18.2.5 steps 3–5, 7), the refusal
+of a `party_ledger` (§18.2.1), no client field naming a share, weight, damage or
+recipient (T-5), one roll per **kill** rather than per member (T-1), the
+participation threshold on the fellowship bonus (T-8), shadow chaining on a
+separate watermark (§18.2.4), the per-character Recovery Rule left untouched
+with two party rules layered on top (§18.1), and `collectsFirst: true` derived
+from "does the delta stamp" rather than preferred (§18.3). Those are the load-bearing
+ones and they are sound.

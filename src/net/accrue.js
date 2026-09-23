@@ -1849,7 +1849,11 @@ export async function fetchServerArmPermission(f) {
   try {
     const url = config.url + '/rest/v1/hr_flags?select=enabled&key=eq.' + INVENTORY_ARM_FLAG_KEY;
     const headers = { apikey: config.apiKey || '', Accept: 'application/json' };
-    if (config.authToken) headers.Authorization = 'Bearer ' + config.authToken;
+    /* tokenOf(), never `config.authToken` — auth.js stores the ACCESSOR here, so
+       concatenating it put a function's source text on the wire and every read
+       answered 401/PGRST301. One unwrapping helper, every call site. */
+    const armTok = tokenOf();
+    if (armTok) headers.Authorization = 'Bearer ' + armTok;
     const r = await fetcher(url, { headers });
     if (!r || !r.ok) return isServerArmPermitted();       // not an answer — not a decision
     const rows = await r.json();

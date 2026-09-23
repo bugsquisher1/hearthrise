@@ -297,16 +297,9 @@ export const ACCRUE_OUTCOMES = [
    DROPPED. A per-key merge is the failure this forbids: it assembles a state
    the server never held, and nothing downstream can tell it is a fiction.
 
-   ⚠ ADVANCING AND APPLYING ARE DIFFERENT QUESTIONS (amended 2026-09-23,
-   SEC_PUSH_CHANNEL_M5_2026-09-23.md S1). `.apply` answers the first only.
-   Whether a duplicate's STATE may be written is the applier's question, and
-   they receive different traffic: applyIntentEnvelope RE-APPLIES it, because a
-   REFUSAL arrives at exactly the floor (nothing was written, so the version did
-   not move) and re-stating the truth is the only thing that retires the
-   caller's optimistic write — dropping it was CLAUDE.md §6 wearing the gate
-   meant to kill it. applyGoldEnvelope rolls its prediction back instead;
-   applyEnvelope drops it, a duplicate there being a RETRANSMIT of a grant
-   already credited. A REORDER is dropped by all three.
+   ⚠ ADVANCING AND APPLYING ARE DIFFERENT QUESTIONS (SEC S1). `.apply` answers
+   only the first; whether a DUPLICATE's state may be WRITTEN is the applier's
+   own, answered at its gate. A REORDER is dropped by all three.
 
    `frame` IS `player_state.version`. hr_apply bumps it on every accepted write
    from either producer under the per-character row lock, so it is already
@@ -339,48 +332,31 @@ export function getAppliedFrame() { return lastAppliedFrame; }
 
 /* ── THE DROP STREAK (SEC S3, 2026-09-23) ───────────────────────────────────
    A floor that is too LOW heals itself: the next frame is above it and lands.
-   A floor that is too HIGH does not, and it is the failure that has no shape —
-   the client keeps asking, the server keeps answering, every answer is refused,
-   and NOTHING anywhere says so. In the browser it looks like a quiet game; in
-   `vitals.mjs` it looks like a player who stopped playing, which CLAUDE.md §3.4
-   calls a P1 by definition and gives two days to notice.
+   A floor that is too HIGH does not, and it is the failure with no shape — the
+   client asks, the server answers, every answer is refused, and NOTHING says
+   so. A quiet game in the browser; a player who stopped in `vitals.mjs`.
 
-   ⚠ WHAT HEALS IT, STATED HONESTLY BECAUSE THE ANSWER IS "NOT ENOUGH YET".
-   The only healer this client has is the `hello` path — the existing
-   `hr-accrue` / `hr_state_of` round trip, whose full envelope carries the
-   server's CURRENT version. That heals a floor that is too low, in one step,
-   and `clearFrameDrops()` below is the seam it clears the streak through. It
-   does NOT heal a floor that is too high: a `hello` envelope at a version below
-   the bad floor classifies `reorder` and is dropped like everything else, so
-   the healer is gated by the thing it is meant to heal. Closing that needs a
-   re-read that is allowed to RESET the floor rather than be gated by it, and
-   that is a hard prerequisite of `lane/m5-live-subscribe`, not of this lane
-   (SEC_PUSH_CHANNEL_M5_2026-09-23.md §3). Until it lands, this counter is the
-   whole of the detection: it does not fix the state, it makes it SAYABLE — by
-   the diagnostics sheet, by a bug report, and by `tests/frame-drop-streak.mjs`,
-   which goes red if the streak stops being observable.
-
-   COUNTED AT THE APPLIERS, NEVER IN `classifyFrame`. The predicate is pure and
-   is deliberately safe to ask twice (`isEnvelopeApplicable` asks it without
-   applying), so counting there would score one frame as two. */
+   ⚠ THIS COUNTS THE STATE; IT DOES NOT FIX IT. The only healer is `hello`,
+   which heals a floor that is too low — one too HIGH refuses the healer too.
+   The cure belongs to `lane/m5-live-subscribe`; the gap is in
+   LIVE_COUNTERS_PUSH.md §5 and pinned by D4 of `tests/frame-drop-streak.mjs`.
+   COUNTED AT THE APPLIERS, NEVER IN `classifyFrame`: that predicate is pure and
+   safe to ask twice, so counting there would score one frame as two. */
 let frameDrops = 0;
 let lastDropVerdict = null;
 
-/** How many envelopes in a row have been REFUSED by the gate, and why the last
- *  one was. 0 means the last envelope to reach an applier landed. */
+/** Consecutive refusals, and the last verdict. 0 = the last envelope landed. */
 export function getFrameDrops() { return { drops: frameDrops, verdict: lastDropVerdict }; }
 
-/** An applier refused a frame. One counter, raised by the three appliers on
- *  their non-apply branch and by nothing else — the mirror of `commitFrame`. */
+/** The mirror of `commitFrame`: raised by the three appliers on their non-apply
+ *  branch and by nothing else. */
 export function noteFrameDrop(verdict) {
   frameDrops += 1;
   lastDropVerdict = typeof verdict === 'string' ? verdict : null;
   return frameDrops;
 }
 
-/** A frame landed, so the streak is over. Called from `commitFrame` on a raise
- *  — which is the `hello` healer's path too, since a full envelope at the
- *  server's current version is exactly a raise. */
+/** A frame landed, so the streak is over. */
 export function clearFrameDrops() { frameDrops = 0; lastDropVerdict = null; return 0; }
 
 /** A DIFFERENT CHARACTER IS NOW IN G. */
@@ -398,14 +374,10 @@ export const FRAME_VERDICTS = Object.freeze(['fresh', 'duplicate', 'reorder', 'u
  *    established must not land on top of an ordered one. `Infinity` is the
  *    worst case: `> lastAppliedFrame` for every finite floor, so one garbage
  *    frame would latch the gate shut against every real frame after it.
- *  ⚠ AND `since` IS A NUMBER OR IT IS ABSENT (SEC S4, 2026-09-23). The first
- *    spelling was `Number.isFinite(Number(since))`, and `Number(null)`,
- *    `Number('')` and `Number(false)` are all a finite 0 — so a caller passing
- *    a falsy-but-not-numeric `since` silently gated against floor ZERO instead
- *    of the module floor. That is the fail-OPEN direction, inside the one
- *    function whose contract is to fail closed: every frame the server has ever
- *    stamped is `> 0`. Latent today (no production caller passes `since`) and
- *    live the moment the subscription lane forwards an optional one. */
+ *  ⚠ AND `since` IS A NUMBER OR IT IS ABSENT (SEC S4). `Number(null)` and
+ *    `Number('')` are a finite 0, so the old coercing spelling gated a falsy
+ *    non-number against floor ZERO — which every frame the server has stamped
+ *    is above. Fail OPEN, in the function contracted to fail closed. */
 export function classifyFrame(version, since) {
   const floor = (typeof since === 'number' && Number.isFinite(since)) ? since : lastAppliedFrame;
   const v = Number(version);
@@ -422,10 +394,8 @@ export function commitFrame(version) {
   const v = Number(version);
   if (!Number.isFinite(v) || v <= lastAppliedFrame) return false;
   lastAppliedFrame = v;
-  /* THE STREAK ENDS HERE AND ONLY HERE (SEC S3). A raise is the one event that
-     proves the gate is not stuck — and it is also the `hello` healer's own
-     path, a full envelope at the server's current version being exactly a
-     raise, so the healer clears the counter without knowing it exists. */
+  /* THE STREAK ENDS HERE AND ONLY HERE (SEC S3): a raise is the one event that
+     proves the gate is not stuck, and `hello` arrives as a raise. */
   clearFrameDrops();
   return true;
 }
@@ -837,10 +807,7 @@ export function getAccrualState() {
     enabled: true,               // b515: the kill switch is retired; always on
     configured: !!config,
     pending: !!inFlight,
-    /* SEC S3 — THE FRAME GATE, ON THE SHEET A BUG REPORT ALREADY CARRIES.
-       Without these two a client whose every frame is being refused is
-       indistinguishable from one nobody is playing: the game looks quiet, the
-       report says nothing, and vitals.mjs counts a player who stopped. */
+      /* SEC S3 — the frame gate, on the sheet a bug report already carries. */
     frame: lastAppliedFrame,
     ...getFrameDrops(),
     ...gate,
@@ -878,17 +845,14 @@ export function resetAccrualIdentity() {
   clearCombatXpDeferral('the signed-in account or character changed');
   awaySettleClosed = false;
   bootAccruedToAt = 0;
-  /* ── THE FRAME FLOOR, AND WHY IT IS RESET *HERE* (SEC S2, 2026-09-23) ─────
-     Two characters' `player_state.version` counters are unrelated integers, so
-     a floor carried across an identity change drops every frame of the incoming
-     character — the boot read, the away grant, every gold verb, every intent —
-     until its version happens to pass the outgoing one's. The comment at the
-     gate claimed `resetGold()` did this; `resetGold()` has no production caller
-     at all, so the reset was wired to nothing but the suite. A documented
-     collaborator with no call site is a comment, not a seam (b339).
-     THIS is the hook both production paths already run: auth.js's signOut(),
-     which deliberately does NOT reload, and multi-character.js, before the slot
-     pointer moves. `resetGold()` keeps its own call, for the suite. */
+  /* ── THE FRAME FLOOR (SEC S2) ────────────────────────────────────────────
+     Two characters' version counters are unrelated integers, so a floor carried
+     across an identity change drops EVERY frame of the incoming character until
+     its version passes the outgoing one's. The gate claimed `resetGold()` did
+     this; that has no production caller, so it was wired to the suite alone —
+     a documented collaborator with no call site is a comment, not a seam. THIS
+     is the hook both paths run (auth.js signOut, which does NOT reload, and
+     multi-character.js). */
   resetFrameGate();
   try { clearFall(); } catch (e) {}
   /* The sibling module with the same shape: activity.js caches the last
@@ -4812,11 +4776,7 @@ export function reconcileInventory(G, res, invAbsolute, baselineComplete) {
   return written;
 }
 
-/* THE REFUSAL, NOTED AND THEN REFUSED (SEC S3). Returns null so it still reads
-   as the gate's own answer at the call site, and counts ONLY when there was a
-   `G` to write into — a missing `G` is a caller bug, not a dropped frame. The
-   verdict is re-derived rather than passed, because the one caller's gate is
-   `isEnvelopeApplicable`, which deliberately answers a single boolean. */
+/* SEC S3 — counts only when there was a `G`: a missing one is a caller bug. */
 function refuseFrame(G, res) {
   if (G) noteFrameDrop(isEnvelopeShapeComplete(res) ? classifyFrame(res.version).verdict : 'malformed');
   return null;

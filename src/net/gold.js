@@ -599,9 +599,7 @@ export function applyGoldEnvelope(G, body, ownKey) {
      in docs/design/LIVE_COUNTERS_PUSH.md §7; F2 is why it still rolls back. */
   const frame = classifyFrame(env.version);
   if (!frame.apply) {
-    /* SEC S3 — the streak. The carry comes off below, so the PLAYER is correct
-       either way; what is counted is that the server's frame did not land. */
-    noteFrameDrop(frame.verdict);
+    noteFrameDrop(frame.verdict);   // SEC S3 — the carry comes off below, so the PLAYER is correct either way; the FRAME still did not land.
     const undone = rollbackPrediction(G, ownKey);
     return { stale: true, verdict: frame.verdict, version: env.version,
       current: frame.current, undone };

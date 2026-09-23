@@ -8081,33 +8081,26 @@ function m5FrameGateTests() { return [
 
   /* ── SEC S1 — A REFUSAL MUST STILL CORRECT THE BROWSER ────────────────────
      docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S1 (HIGH, CONFIRMED).
-
      The gate above dropped an EQUAL frame, on the argument that equality can
-     only mean the client already applied that frame. True of what was APPLIED,
-     false of what is ON SCREEN: the client carries optimistic writes, and the
-     envelope that retires them is a REFUSAL — which writes nothing server-side,
-     so `player_state.version` does NOT move and the correction arrives at
-     `=== lastAppliedFrame`. It was dropped before a single key was written, and
-     the swap the server refused stayed on screen, spendable (CLAUDE.md §6).
+     only mean the client already applied it. True of what was APPLIED, false of
+     what is ON SCREEN: the client carries optimistic writes, and the envelope
+     that retires them is a REFUSAL — which writes nothing server-side, so
+     `player_state.version` does NOT move and the correction arrives at
+     `=== lastAppliedFrame`. Dropped before a key was written, the swap the
+     server refused stayed on screen, spendable (CLAUDE.md §6). WHY THIS
+     APPLIER: the other two compensate on the same verdict; this one had no
+     compensator, and is where every non-gold intent lands.
 
-     WHY THIS APPLIER. gold.js rolls its prediction back on the same verdict;
-     accrue.js answers the away/boot path, where a duplicate is a retransmit of
-     a grant already credited. `applyIntentEnvelope` had no compensator at all,
-     and it is where every non-gold intent lands (equip, enchant, recipe learn,
-     the activity switch, via legacy.js applyServerEnvelope {intent:true}).
-
-     RED WITHOUT THE FIX at (1): G.gold stays at the optimistic 40 while the
-     server holds 100 — the §6 sentence verbatim. PRIVATE G, never window.G. */
+     RED WITHOUT THE FIX at (1): G.gold stays at 40 while the server holds 100 —
+     the §6 sentence verbatim. PRIVATE G, never window.G. */
   () => tryRun('M5 regression: a REFUSED intent still corrects the browser (SEC S1)', () => {
     const A = m5Gate();
     const M = window.HearthriseActivity;
     assert(M && typeof M.applyIntentEnvelope === 'function',
       'activity.js applyIntentEnvelope must be published — it is the applier under test');
 
-    /* An INTENT answer, not an accrue envelope: no `away` receipt (nothing was
-       absent) and no `progress` (see m5Env's note — it would file a zero-row
-       streak capture). A REFUSAL is this body at a version the server did not
-       move, which is the whole of the repro. */
+    /* An INTENT answer: no `away` receipt and no `progress` (see m5Env's note).
+       A REFUSAL is this body at a version the server did not move. */
     const intentAt = (version, gold) => ({
       ok: true, verb: 'set_activity', version, now: '2026-09-22T12:00:00Z',
       state: { slot: 0, gold, gems: 0, hp: 40, max_hp: 40,
@@ -8126,8 +8119,8 @@ function m5FrameGateTests() { return [
         'the first intent envelope (77) did not land — the precondition is broken. gold='
         + G.gold + ' floor=' + A.getAppliedFrame());
 
-      /* (1) THE PLAYER TAPS: the client predicts the spend, the server refuses
-             and answers its own unchanged truth at the unchanged version. */
+      /* (1) THE PLAYER TAPS: the client predicts the spend; the server refuses
+             and answers its unchanged truth at the unchanged version. */
       G.gold = 40;
       const corrected = M.applyIntentEnvelope(G, intentAt(77, 100));
       assert(G.gold === 100,
@@ -8146,7 +8139,7 @@ function m5FrameGateTests() { return [
         'the duplicate RAISED the floor to ' + A.getAppliedFrame() + '. A correction re-states the '
         + 'frame behind the floor; it is not a step forward.');
 
-      /* (3) A REORDER IS STILL DROPPED WHOLE — that one would be a real rewind. */
+      /* (3) A REORDER IS STILL DROPPED — that one would be a real rewind. */
       G.gold = 40;
       assert(M.applyIntentEnvelope(G, intentAt(70, 1)) === null && G.gold === 40,
         'a REORDERED intent envelope (70 < 77) was applied. The correction arm is for an EQUAL '
@@ -8156,24 +8149,18 @@ function m5FrameGateTests() { return [
   }),
   /* ── SEC S2 — THE IDENTITY CHANGE CLEARS THE FLOOR ────────────────────────
      docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S2 (HIGH, CONFIRMED).
-
-     Two characters' `player_state.version` counters are unrelated integers, and
-     the floor is module state that OUTLIVES a sign-out — auth.js's signOut()
-     deliberately does not reload, which is why it hand-resets the other three
-     identity-scoped holders. The floor was the fourth and was not among them:
-     the comment said `resetGold()` did it, and `resetGold()` has no production
-     caller at all, so the reset was wired to this suite and to nothing else.
+     Two characters' version counters are unrelated integers, and the floor is
+     module state that OUTLIVES a sign-out — which is why signOut() hand-resets
+     three other identity-scoped holders. The floor was the fourth and was not
+     among them: the comment named `resetGold()`, which has no caller.
 
      THE PLAYER'S VERSION. Sign out of an account at version 4200, sign in as
-     one at version 37 in the same tab: every envelope for the newcomer — the
-     boot read, the away grant, every gold verb, every intent — is a `reorder`
-     and is dropped WHOLE, for the whole session, until its version passes
-     4200. There is no healer, because `hello` is itself gated by the floor.
-
-     RED WITHOUT THE FIX at (2): the newcomer's first envelope is refused.
-     Driven through `resetAccrualIdentity()`, the hook BOTH production paths
-     call (auth.js:940, multi-character.js:396) — never through resetFrameGate,
-     which would only re-prove the thing that was already wired. */
+     one at 37 in the same tab: every envelope for the newcomer — boot read,
+     away grant, gold verbs, intents — is a `reorder`, dropped WHOLE for the
+     session, until its version passes 4200. No healer: `hello` is gated by the
+     same floor. RED WITHOUT THE FIX at (2): the newcomer's first envelope is
+     refused. Driven through `resetAccrualIdentity()`, the hook BOTH production
+     paths call — never resetFrameGate, which re-proves only what was wired. */
   () => tryRun('M5 regression: an identity change clears the frame floor (SEC S2)', () => {
     const A = m5Gate();
     assert(typeof A.resetAccrualIdentity === 'function',
@@ -8189,9 +8176,8 @@ function m5FrameGateTests() { return [
       assert(A.applyEnvelope(GA, m5Env(4200, 900)) && A.getAppliedFrame() === 4200,
         'the outgoing character\'s envelope did not land — the precondition is broken');
 
-      /* (2) THE SWITCH, through the PRODUCTION hook, and the newcomer's first
-             envelope. A fresh character is at a low version; if the floor came
-             across, this is a `reorder` and the player sees a dead screen. */
+      /* (2) THE SWITCH, through the PRODUCTION hook. A fresh character is at a
+             low version; if the floor came across this is a `reorder`. */
       A.resetAccrualIdentity();
       assert(A.getAppliedFrame() === -1,
         'resetAccrualIdentity() left the floor at ' + A.getAppliedFrame() + '. The incoming '
@@ -8207,17 +8193,12 @@ function m5FrameGateTests() { return [
   }),
   /* ── SEC S3 — A CLIENT WHOSE FRAMES ARE ALL REFUSED MUST SAY SO ───────────
      docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S3 (MEDIUM).
-
      There was no counter of dropped frames anywhere, so a client stuck behind a
      bad floor was indistinguishable from a quiet one — in the browser, in a bug
-     report, and in vitals.mjs, which CLAUDE.md §3.4 gives two days to notice.
-
-     WHAT HEALS IT, HONESTLY. `hello` — the existing hr-accrue / hr_state_of
-     round trip — heals a floor that is too LOW, in one step, and that is the
-     path asserted at (3). It does NOT heal a floor that is too HIGH: that
-     `hello` is itself gated by the bad floor. Closing that needs a re-read
-     allowed to RESET the floor and is a prerequisite of lane/m5-live-subscribe,
-     not of this lane; `tests/frame-drop-streak.mjs` D4 pins the hole meanwhile.
+     report, and in vitals.mjs (CLAUDE.md §3.4: two days to notice).
+     WHAT HEALS IT, HONESTLY: `hello` heals a floor that is too LOW in one step
+     — the path asserted at (3) — and does NOT heal one too HIGH, being gated by
+     the same floor. D4 of frame-drop-streak.mjs pins that hole.
 
      RED WITHOUT THE FIX at (1): getAccrualState() carries no streak at all. */
   () => tryRun('M5 regression: the frame-drop streak is counted and published (SEC S3)', () => {
@@ -8228,7 +8209,7 @@ function m5FrameGateTests() { return [
       A.resetFrameGate();
       A.commitFrame(500);
 
-      /* (1) IT COUNTS, AND IT REACHES THE SHEET A HUMAN READS. */
+      /* (1) IT COUNTS, AND REACHES THE SHEET A HUMAN READS. */
       A.applyEnvelope({ gold: 1 }, m5Env(499, 9));
       A.applyEnvelope({ gold: 1 }, m5Env(498, 9));
       const st = A.getAccrualState();
@@ -8244,7 +8225,7 @@ function m5FrameGateTests() { return [
         'a frame LANDED and the streak stayed at ' + A.getAccrualState().drops
         + '. A counter that only rises is not a signal.');
 
-      /* (3) THE HELLO HEALS A FLOOR THAT IS TOO LOW, AND CLEARS THE STREAK. */
+      /* (3) THE HELLO HEALS A FLOOR THAT IS TOO LOW AND CLEARS THE STREAK. */
       A.resetFrameGate();
       A.commitFrame(600);
       for (const v of [10, 11, 12]) A.applyEnvelope({ gold: 1 }, m5Env(v, 1));

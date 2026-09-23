@@ -33,7 +33,11 @@
 --      in shadow mode — it journals into hr_tick_shadow and returns. A trigger
 --      on player_state therefore CANNOT fire on a shadow settle. That is a
 --      property of where the trigger is hung, and it survives somebody
---      forgetting a flag. s9 asserts it by executing a shadow settle.
+--      forgetting a flag. e4 asserts it by EXECUTING a shadow settle
+--      through hr_tick_settle's own door and requiring zero frames and
+--      an unmoved player_state; e4a is the control that the settle ran
+--      at all. (s9 is the no-INSERT-policy check and was named here by
+--      mistake until 2026-09-23 — Security RE-VERIFY R4.)
 --
 -- ── THE ONE PROPERTY THAT IS NON-NEGOTIABLE ────────────────────────────────
 -- A PUSH FAILURE MAY NEVER FAIL A PAYMENT. hr_apply has already computed,
@@ -288,11 +292,20 @@ begin
     execute 'drop policy "hr_frame_receive_own_topic" on realtime.messages';
   end if;
 
-  /* ⚠ SPLIT_PART, NOT LIKE. `topic like 'hr:' || auth.uid() || ':%'` would also
-     match `hr:<uuid>:0:anything`, and "anything" is attacker-chosen. The three
-     segments are matched exactly, and the third is a single digit because a
-     slot is 0-5 (MAX_SLOT). s3 asserts hr_frame_topic round-trips through
-     exactly these three tests, so the spelling cannot drift. */
+  /* ⚠ SPLIT_PART, NOT LIKE, AND ANCHORED AT BOTH ENDS. What split_part buys
+     over `topic like 'hr:' || auth.uid() || ':%'` is the two things that
+     matter: segment 2 is pinned to the JWT's own uid by EQUALITY, and segment
+     3 is pinned to one digit because a slot is 0-5 (MAX_SLOT).
+     What it does NOT buy on its own is a bound on the END of the topic —
+     `split_part` simply ignores a fourth segment, so `hr:<uid>:0:anything`
+     was ACCEPTED, exactly as `like` accepts it (Security RE-VERIFY R2,
+     executed 2026-09-23; this file previously claimed the opposite here and
+     in LIVE_COUNTERS_PUSH.md §6.1). The array_length conjunct is what
+     actually rejects it. Blast radius was none — segment 2 still bound
+     auth.uid() and the emitter writes three segments — but a predicate whose
+     stated reason for its own spelling is false is one refactor away from
+     being wrong. s3/s3c assert hr_frame_topic round-trips through exactly
+     these four tests, so the spelling cannot drift. */
   execute $p$
     create policy "hr_frame_receive_own_topic"
       on realtime.messages
@@ -303,6 +316,7 @@ begin
         and split_part((select realtime.topic()), ':', 1) = 'hr'
         and split_part((select realtime.topic()), ':', 2) = (select auth.uid())::text
         and split_part((select realtime.topic()), ':', 3) ~ '^[0-5]$'
+        and array_length(string_to_array((select realtime.topic()), ':'), 1) = 3
       )
   $p$;
   raise notice 'frame-push: realtime.messages receive-only policy installed (no INSERT policy)';
@@ -321,8 +335,12 @@ declare
   v_v    bigint;
   v_g    bigint;
   v_txt  text;
-  v_sig  text;           -- e4: the signature hr_tick_settle actually carries
-  v_code text;           -- e4: that function's source with its comments stripped
+  v_r    jsonb;          -- e4: what the executed shadow settle answered
+  v_tf   timestamptz;    -- e4: the probe settle's window
+  v_tt   timestamptz;
+  v_d    jsonb;          -- e4: the delta that settle is handed
+  v_v2   bigint;         -- e4: version and gold AFTER the shadow settle
+  v_g2   bigint;
   v_env  jsonb;          -- e5: the projection the emitter would have sent
   v_keys text[];         -- e5: the configured frame key set
 begin
@@ -362,6 +380,14 @@ begin
     if public.hr_frame_topic(v_u, 0) = public.hr_frame_topic(v_u, 1) then
       raise exception 's3b: two slots of one account share a topic — one character''s frames '
                       'would be delivered as the other''s';
+    end if;
+    -- s3c: …AND EXACTLY THREE SEGMENTS. The policy's fourth conjunct refuses a
+    --      topic that is not three segments, so an emitter that ever grew a
+    --      fourth would push frames no subscriber is allowed to join. The
+    --      anchor cuts both ways and both ways are asserted here.
+    if array_length(string_to_array(v_t, ':'), 1) <> 3 then
+      raise exception 's3c: hr_frame_topic (%) is not three segments — the RLS policy anchors '
+                      'the topic at both ends, so every frame it emits would be refused', v_t;
     end if;
 
     -- ── s4: NO ROLE A REQUEST CAN ARRIVE AS MAY EXECUTE EITHER FUNCTION.
@@ -580,6 +606,15 @@ begin
                         'also matches `hr:<uid>:0:anything`, and "anything" is attacker-chosen. '
                         'The segments are compared exactly or not at all.', v_txt;
       end if;
+      -- e1d: …AND THE TOPIC IS ANCHORED AT ITS END. split_part alone ignores a
+      --      fourth segment, so without this conjunct the predicate accepts
+      --      `hr:<uid>:0:anything` exactly as `like` does (RE-VERIFY R2).
+      if position('array_length' in v_txt) = 0 then
+        raise exception 'e1d: the receive policy does not bound the NUMBER of topic segments '
+                        '(%). split_part ignores a fourth segment, so the policy reaches '
+                        '`hr:<uid>:0:anything` — which is the very thing e1c refuses `like` for.',
+                        v_txt;
+      end if;
     else
       raise notice 'e1 SKIPPED: realtime.messages absent in this database';
     end if;
@@ -591,20 +626,75 @@ begin
     --     topic — which is exactly the request an attacker sends. Skipped, with
     --     a notice, wherever the realtime schema or the role is absent (the
     --     PGlite replay); it runs on the apply that counts.
+    --
+    --     ⚠ WITH AN OWNER-SIDE POSITIVE CONTROL, AND BOTH CLAIM SPELLINGS
+    --       (2026-09-23, Security RE-VERIFY R1). As first written this arm
+    --       asserted only a zero, and a zero is what a policy that denies
+    --       EVERYONE returns: if auth.uid() resolves to NULL the attack
+    --       "fails", the arm passes, and nothing has been measured. That is
+    --       the always-null-probe family tests/sql/pglite-fixture.sql names,
+    --       and it was reproduced — this file set only `request.jwt.claims`
+    --       while that fixture reads `request.jwt.claim.sub`, so on a database
+    --       where the older GUC is what auth.uid() reads the whole check was
+    --       inert. BOTH spellings are set, and the OWNER's own join must
+    --       return MORE THAN ZERO before the stranger's zero is allowed to
+    --       mean anything.
     if to_regclass('realtime.messages') is not null
        and exists (select 1 from pg_roles where rolname = 'authenticated') then
       begin
         perform set_config('request.jwt.claims',
           json_build_object('sub', v_u::text, 'role', 'authenticated')::text, true);
-        perform set_config('realtime.topic',
-          public.hr_frame_topic('00000000-0000-4000-8000-0000000051de'::uuid, 0), true);
+        perform set_config('request.jwt.claim.sub', v_u::text, true);
+
+        -- ── e2a: ★ THE POSITIVE CONTROL ★. The owner, on the owner's own
+        --     topic. `realtime.messages` is how Realtime authorizes a CHANNEL
+        --     JOIN, not a per-row delivery filter — the predicate never
+        --     compares the row's `topic` column to anything — so a permitted
+        --     join reads the whole table and a refused one reads nothing.
+        --     "Nothing there" and "refused" are therefore the same number on
+        --     an EMPTY table, which is why one probe broadcast row on the
+        --     probe's OWN topic is seeded first (rolled back with the rest of
+        --     this block). Where it cannot be seeded and the table is empty
+        --     the control cannot be established, and this arm SKIPS rather
+        --     than reporting a pass it has not earned.
+        perform set_config('realtime.topic', public.hr_frame_topic(v_u, 0), true);
         set local role authenticated;
         select count(*) into v_n from realtime.messages;
         reset role;
-        if v_n <> 0 then
-          raise exception 'e2: a subscriber authenticated as one user read % row(s) on ANOTHER '
-                          'user''s topic. That is every column hr_state_of projects — gold, bag, '
-                          'XP, bank — crossing to a player who is not entitled to it.', v_n;
+        if v_n = 0 then
+          begin
+            insert into realtime.messages (topic, extension)
+            values (public.hr_frame_topic(v_u, 0), 'broadcast');
+            set local role authenticated;
+            select count(*) into v_n from realtime.messages;
+            reset role;
+          exception when others then
+            reset role;
+            raise notice 'e2 SKIPPED: realtime.messages is empty and a probe row could not be '
+                         'seeded (%) — without it the cross-user zero below is indistinguishable '
+                         'from an inert policy, and this arm will not report one as the other',
+                         sqlerrm;
+            v_n := -1;
+          end;
+          if v_n = 0 then
+            raise exception 'e2a: e2 proved nothing — the owner cannot read either, so the zero '
+                            'below is the policy being inert, not the policy working. auth.uid() '
+                            'is resolving to NULL (claim spelling) or the predicate denies '
+                            'everyone.';
+          end if;
+        end if;
+
+        if v_n > 0 then
+          perform set_config('realtime.topic',
+            public.hr_frame_topic('00000000-0000-4000-8000-0000000051de'::uuid, 0), true);
+          set local role authenticated;
+          select count(*) into v_n from realtime.messages;
+          reset role;
+          if v_n <> 0 then
+            raise exception 'e2: a subscriber authenticated as one user read % row(s) on ANOTHER '
+                            'user''s topic. That is every column hr_state_of projects — gold, bag, '
+                            'XP, bank — crossing to a player who is not entitled to it.', v_n;
+          end if;
         end if;
       exception
         when insufficient_privilege or undefined_function or undefined_table then
@@ -644,76 +734,142 @@ begin
                       'must be `is distinct from`; the client is what decides to drop it.';
     end if;
 
-    -- ── e4 (condition 7): A SHADOW SETTLE EMITS NOTHING — PINNED, NOT
-    --     INHERITED. True today by construction: hr_tick_settle's shadow branch
-    --     writes hr_tick_shadow and hr_tick_ownership and RETURNS BEFORE
-    --     hr_apply, so no player_state row is written and an AFTER UPDATE
-    --     trigger cannot fire. That is an argument about another file, and an
-    --     argument is not a guard — so it is asserted here, from that
-    --     function's own installed source.
+    -- ── e4 (condition 7): ★ A SHADOW SETTLE EMITS NOTHING — EXECUTED ★
+    --     True today by construction: hr_tick_settle's shadow branch writes
+    --     hr_tick_shadow and hr_tick_ownership and RETURNS BEFORE hr_apply, so
+    --     no player_state row is written and an AFTER UPDATE trigger cannot
+    --     fire. That is an argument about another file, and an argument is not
+    --     a guard.
     --
-    --     ⚠ THE SIGNATURE IS DERIVED, NOT SPELLED (2026-09-23). As first
-    --       written this arm asked `to_regprocedure('public.hr_tick_settle
-    --       (int)')`, and hr_tick_settle has never had a one-argument form —
-    --       the fence's door takes nine. to_regprocedure therefore answered
-    --       NULL in every database, the else-arm printed a NOTICE, and the
-    --       assertion below could not fail anywhere. An assertion that cannot
-    --       fail is not an assertion (CLAUDE.md §4). The oid now comes from
-    --       pg_proc BY NAME, so a future argument change cannot silently
-    --       re-disable this arm; EVERY overload is graded, because a second
-    --       hr_tick_settle carrying its own shadow branch is the same claim
-    --       again; and finding NONE raises (e4c) instead of skipping, since §0
-    --       already refuses to apply this file without the fence that creates
-    --       it. Still a READ: this file states no part of that body.
+    --     ⚠ AND IT IS NOW RUN, NOT READ (2026-09-23, Security RE-VERIFY 3,
+    --       R5+R6). This arm used to grade hr_tick_settle's SOURCE TEXT: first
+    --       occurrence of `hr_tick_shadow` before first occurrence of
+    --       `hr_apply`, with a `return` in between, on the definition with its
+    --       comments regex-stripped. Both halves were defeated, and both were
+    --       reproduced on the replay: a `--` or `/*` inside a string literal
+    --       deletes a real `hr_apply` call site along with the comment the
+    --       stripper was aiming at, and the `return` test matches the word
+    --       `return` inside a `raise notice` message. Stripping strings FIRST
+    --       is worse, not better — hr_tick_settle's own comments carry bare
+    --       apostrophes (`current_setting('role')` is the REQUEST's, `S-3's`,
+    --       the `tick's`), so a strings-first pass matches across the shadow
+    --       insert and turns the CORRECT function red. Comments-first is
+    --       defeated by strings, strings-first is defeated by comments, and
+    --       there is no third order. So the text is not graded at all: the
+    --       property is EXECUTED against the installed function, with the
+    --       probe trigger machinery this file already owns (hr922.fires, as
+    --       e3c uses it). An executed shadow settle cannot be fooled by a
+    --       comment, a string literal or a stripper.
     --
-    --     ⚠ AND IT IS GRADED ON CODE, NOT ON PROSE. The ordering test below
-    --       reads the definition with its comments stripped, because
-    --       hr_tick_settle's header and its steps (6)-(8) DISCUSS hr_apply
-    --       four times before the shadow branch is reached — on the raw text
-    --       the first mention of `hr_apply` precedes the first mention of
-    --       `hr_tick_shadow` and e4b fires on a function that is correct. A
-    --       `--` inside a string literal would strip the rest of that source
-    --       line, which can only ever produce a false RED; a silent pass it
-    --       cannot produce.
-    v_n := 0;
-    for v_sig, v_txt in
-      select p.oid::regprocedure::text, pg_get_functiondef(p.oid)
-        from pg_proc p
-        join pg_namespace n on n.oid = p.pronamespace
-       where n.nspname = 'public' and p.proname = 'hr_tick_settle'
-       order by p.oid
-    loop
-      v_n := v_n + 1;
-      v_code := regexp_replace(regexp_replace(v_txt, '/\*.*?\*/', ' ', 'gs'), '--[^\n]*', '', 'g');
-      if position('hr_tick_shadow' in v_code) = 0 then
-        raise exception 'e4: % no longer names hr_tick_shadow — the shadow branch this check '
-                        'is about has moved, and the claim is unverified', v_sig;
-      end if;
-      if position('hr_apply' in v_code) > 0
-         and position('hr_tick_shadow' in v_code) > position('hr_apply' in v_code) then
-        raise exception 'e4b: % reaches hr_apply BEFORE its shadow branch, so a SHADOW settle '
-                        'now writes player_state and emits a frame. A shadow settle is a dry '
-                        'run; a client must never be told it happened.', v_sig;
-      end if;
-      -- ── e4d: …AND IT RETURNS IN BETWEEN. Ordering alone is satisfied by a
-      --     shadow branch that writes its journal row and then FALLS THROUGH
-      --     to hr_apply, which is the failure e4b names and cannot see. The
-      --     `return` that ends the branch is what makes the claim true, so it
-      --     is the thing asserted.
-      if position('hr_apply' in v_code) > 0
-         and substring(v_code from position('hr_tick_shadow' in v_code)
-                       for position('hr_apply' in v_code)
-                           - position('hr_tick_shadow' in v_code)) !~* '\mreturn\M' then
-        raise exception 'e4d: % writes its shadow journal row and reaches hr_apply without '
-                        'returning first, so a SHADOW settle pays, writes player_state and '
-                        'pushes a frame for a tick that was supposed to be a dry run.', v_sig;
-      end if;
-    end loop;
+    --       WHAT THIS ARM DOES NOT COVER, SAID PLAINLY. It grades the settle
+    --       it RAN. A dormant hr_apply call the probe's arguments never reach
+    --       (Security's case D — `if p_holder = 'no-such-holder' then …`) is
+    --       invisible to it, measured 2026-09-23: planted, the chain APPLIES.
+    --       A REACHABLE one is caught, with or without a string literal
+    --       hiding it (planted three ways, all REFUSED — e4b, e4d, and the
+    --       fence's own e13 one file earlier). That is the trade the text
+    --       check was making in reverse, and this direction is the one that
+    --       fails safe: a dormant branch pays nobody, while the text check
+    --       was passing REACHABLE ones outright.
+    --
+    --     ⚠ e4c FIRST, AND IT STILL RAISES. As first written this arm asked
+    --       `to_regprocedure('public.hr_tick_settle(int)')` — a one-argument
+    --       form that has never existed, the fence's door taking nine — so the
+    --       lookup answered NULL everywhere and the assertion could not fail.
+    --       The existence test is by NAME, every overload counts, and finding
+    --       NONE raises rather than skipping: §0 already refuses to apply this
+    --       file without the fence that creates it, and an arm that homes on
+    --       no function is decoration (tests/schema-drift.mjs plants exactly
+    --       that defect as `frame_e4_homes_on_nothing`).
+    select count(*) into v_n
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'hr_tick_settle';
     if v_n = 0 then
       raise exception 'e4c: no public.hr_tick_settle is installed, so e4 graded nothing at all. '
                       'The fence that creates it is this file''s declared prerequisite (§0), and '
                       'an arm that homes on no function is decoration, not a guard.';
     end if;
+
+    --     THE PROBE SETTLE. Every row it touches is one this block created,
+    --     under a uuid gen_random_uuid() cannot mint: the probe character's
+    --     pointer (step (5) of the fence's door refuses a settle whose channel
+    --     moved) and its own lease row, in this block's own holder name.
+    --     `active_id` travels with it: player_state_activity_chk refuses an
+    --     activity without a target. It is a real gather node where the
+    --     catalogue has one and a probe literal where it does not, because
+    --     this arm must not SKIP on a content table.
+    update public.player_state
+       set active_kind = 'gather',
+           active_id = coalesce((select activity_id from public.hr_activities
+                                  where kind = 'gather' limit 1), 'hr922-probe-gather')
+     where user_id = v_u and slot = 0;                    -- version UNCHANGED
+    insert into public.hr_tick_ownership
+      (user_id, slot, channel, owned, lease_holder, lease_until)
+    values (v_u, 0, 'gather', true, 'hr922-selfcheck', now() + interval '5 minutes');
+    update public.hr_tick_config set enabled = true, shadow = true where id;
+
+    v_tf := now() - interval '10 minutes';
+    v_tt := now() - interval '5 minutes';
+    v_d  := jsonb_build_object(
+      'gold', 100,
+      'accrued_to', to_jsonb(v_tt),
+      'journal', jsonb_build_object('kind', 'gather', 'intent', 'accrue',
+        'meta', jsonb_build_object('src', 'tick', 'qty', 7, 'ticks', 3)));
+
+    select version, gold into v_v, v_g from public.player_state where user_id = v_u and slot = 0;
+    perform set_config('hr922.fires', '0', true);
+    v_r := public.hr_tick_settle('hr922-selfcheck', v_u, 0, 'gather', v_v, v_tf, v_tt,
+             '00000000-0000-4000-8000-00000000fa04', v_d);
+
+    --     e4a: ★ THE POSITIVE CONTROL, BEFORE ANY ZERO IS BELIEVED ★. Every
+    --     assertion below is a zero or an equality, and a settle the fence
+    --     REFUSED — a lost lease, a moved pointer, a stale version, a disabled
+    --     tick — produces all of them without emitting anything. The settle
+    --     must have actually happened, in shadow, or this arm has measured a
+    --     refusal and called it a property.
+    if coalesce((v_r->>'ok')::boolean, false) is not true or v_r->>'mode' <> 'shadow' then
+      raise exception 'e4a: the probe shadow settle did not run (%) — a refused settle writes '
+                      'nothing and emits nothing, so the two assertions below would pass on a '
+                      'tick that never happened', v_r;
+    end if;
+
+    --     e4b: …AND IT PUSHED NO FRAME. hr922.fires is the same counter s6b
+    --     proved LIVE on a version bump two dozen lines above, so a zero here
+    --     is a trigger that did not fire rather than a trigger that is not
+    --     there. A shadow settle is a dry run; a client must never be told it
+    --     happened.
+    if coalesce(current_setting('hr922.fires', true), '0')::int <> 0 then
+      raise exception 'e4b: a SHADOW settle emitted % frame(s). A dry-run tick pushed a frame, '
+                      'so the client raises its floor to a version for a payment that was never '
+                      'made and drops the real frame at that version as a duplicate.',
+                      coalesce(current_setting('hr922.fires', true), '0');
+    end if;
+
+    --     e4d: …AND IT MOVED NO VALUE. The frame is the symptom; reaching
+    --     hr_apply at all is the defect. A shadow branch that writes its
+    --     journal row and then FALLS THROUGH pays real gold on a tick that was
+    --     supposed to be a dry run, and `gold` catches that even where the
+    --     version happens not to move.
+    select version, gold into v_v2, v_g2 from public.player_state where user_id = v_u and slot = 0;
+    if v_v2 <> v_v or v_g2 <> v_g then
+      raise exception 'e4d: a SHADOW settle moved player_state (version % → %, gold % → %). '
+                      'The shadow branch reached hr_apply, so a dry run paid.',
+                      v_v, v_v2, v_g, v_g2;
+    end if;
+
+    --     AND THE SHADOW JOURNAL ROW EXISTS, so "it emitted nothing" is not
+    --     "it did nothing": the settle took the branch this arm is about.
+    select count(*) into v_n from public.hr_tick_shadow where user_id = v_u;
+    if v_n <> 1 then
+      raise exception 'e4e: the probe shadow settle wrote % hr_tick_shadow row(s), expected 1 — '
+                      'it reported mode=shadow without taking the shadow branch', v_n;
+    end if;
+
+    --     …and the probe's pointer goes back where it was, so e5 below reads
+    --     the same character this block inserted rather than one e4 moved.
+    update public.player_state set active_kind = 'idle', active_id = null
+     where user_id = v_u and slot = 0;                    -- version UNCHANGED
 
     -- ── e5 (condition 9): THE DELTA STATES WHOLE TOP-LEVEL KEYS OF THE SAME
     --     PROJECTION. §7.2 forbids path patches, and combined with the frame
@@ -750,5 +906,5 @@ begin
     when others then
       if sqlerrm <> 'HR922_ROLLBACK_OK' then raise; end if;
   end;
-  raise notice 'frame-push-channel self-check PASSED (s1-s9, e1-e6 = SEC §4 conditions 1-7, 9, 10; condition 8 is a live measurement and is OPEN); probe rows rolled back';
+  raise notice 'frame-push-channel self-check PASSED (s1-s9, e1-e6 = SEC §4 conditions 1-7, 9, 10, and RE-VERIFY R1/R2/R5/R6; condition 8 is a live measurement and is OPEN); probe rows rolled back';
 end $$;

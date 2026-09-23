@@ -409,10 +409,17 @@ Four things are load-bearing and each is asserted by the migration's self-check:
    — which the client cannot forge — and compared to the topic's own user
    segment. A predicate that does not name the subscriber cannot exclude
    anybody. (`e1b`)
-2. **`split_part`, not `like`.** `topic like 'hr:' || auth.uid() || ':%'` also
-   matches `hr:<uid>:0:anything`, and "anything" is attacker-chosen. The three
-   segments are compared exactly; the third is a single digit because a slot is
-   0-5 (`MAX_SLOT`). (`e1c`)
+2. **`split_part`, not `like` — plus an explicit segment count.** What
+   `split_part` buys over `topic like 'hr:' || auth.uid() || ':%'` is segment 2
+   compared to the JWT by equality and segment 3 pinned to a single digit
+   because a slot is 0-5 (`MAX_SLOT`). What it does **not** buy on its own is a
+   bound on the end of the topic: `split_part` ignores a fourth segment, so
+   `hr:<uid>:0:anything` was accepted exactly as `like` accepts it — executed
+   2026-09-23, Security RE-VERIFY R2, and this point claimed the opposite until
+   then. The `array_length(string_to_array(topic, ':'), 1) = 3` conjunct is what
+   actually rejects it. Blast radius was none (segment 2 still bound
+   `auth.uid()`, and the emitter writes three segments), which is why it is
+   listed as a correction and not an incident. (`e1c`, `e1d`, `s3c`)
 3. **`for select` and nothing else, and no INSERT policy anywhere on the
    table.** The client applies envelopes ABSOLUTELY, so a player who can *send*
    on a topic — their own included — can hand themselves any state they like.

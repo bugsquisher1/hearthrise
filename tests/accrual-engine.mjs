@@ -3817,6 +3817,67 @@ async function shellGuard() {
   ok(/tool_carry/.test(hydration),
     'SHELL: the accrue path no longer reads tool_carry off hr_state_of — the null branch would be '
     + 'permanent and applying the migration would change nothing');
+
+  /* (j) THE FIELD LIST CANNOT SHRINK SILENTLY (2026-09-22, and it is the hole
+     the extraction itself opened).
+
+     Until today the envelope's fields were hand-copied at each call site and
+     PARITY held them together by COMPARING THE TWO COPIES. One list means
+     there is nothing to compare: delete `hearthfindReady` from
+     ENGINE_STATE_KEYS and both callers lose it in the same commit, PARITY
+     still agrees, and every away night silently stops proposing hearthfinds.
+     That is the same shape as the defect this whole change is about — a value
+     the engine reads and nobody hands it — so it gets the same treatment: the
+     list is checked against the ENGINE, not against another copy of itself.
+
+     `accrual.js` reads its input as `inp.<name>` and nothing else, so the set
+     of names it reads is greppable and is the truth. Subtract the inputs that
+     do NOT come from the envelope — each one named here with where it does
+     come from — and what remains must be exactly what the map declares. */
+  const engineSrc = await readFile(join(FN_DIR, 'accrual.js'), 'utf8');
+  const engineCode = engineSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const read = new Set([...engineCode.matchAll(/\binp\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
+  /* NOT FROM `hr_state_of`, each from a named other read or a server literal. */
+  const NOT_FROM_ENVELOPE = new Set([
+    'nowMs',            // the server clock, read in the settling transaction
+    'capMs',            // hr_offline_cap_ms, its own column in the same select
+    'seed',             // hr_seed over the window label, the seed transaction
+    'perks',            // hr_perks_of, the seed transaction
+    'unlockedRecipes',  // hr_perks_of's own field
+    'attended',         // hr_attended_kills, the seed transaction
+    'bestiaryKills',    // hr_bestiary_of, behind its own savepoint
+    'crew',             // env.workers, but consumed by accrueWorkers, not computeAccrual
+    'workersAccruedToMs', // ditto — the crew's own watermark
+    'actionBudget',     // the degrade ladder's knob, from the engine's own answer
+    'caller',           // a server literal per call site
+    'callerAuthority',  // an imported object identity
+    'items', 'monsters', 'nodes', 'recipes',  // the generated catalogues
+    'companionXpBacked',                      // a deploy-time constant
+  ]);
+  /* Declared by the map and NOT read by the engine. One entry, and it is
+     honest: both call sites have always passed `gold` and accrual.js has never
+     read it. Listed rather than deleted so removing it is a deliberate edit. */
+  const PASSED_BUT_UNREAD = new Set(['gold']);
+  const declared = new Set([...envCode.matchAll(
+    /export const ENGINE_(?:POINTER|STATE)_KEYS = Object\.freeze\(\[([\s\S]*?)\]\)/g)]
+    .flatMap((m) => [...m[1].matchAll(/'([A-Za-z_$][\w$]*)'/g)].map((x) => x[1])));
+  ok(declared.size >= 20,
+    `SHELL: envelope.js declares only ${declared.size} engine-input keys — the extractor is blind, `
+    + 'so the two comparisons below prove nothing');
+  for (const name of [...read].sort()) {
+    if (NOT_FROM_ENVELOPE.has(name)) continue;
+    ok(declared.has(name),
+      `SHELL: accrual.js reads \`inp.${name}\` but envelope.js's ENGINE_*_KEYS do not declare it, `
+      + 'and it is not on the not-from-the-envelope list. The engine would read undefined on EVERY '
+      + 'path at once — there is only one field list now, so nothing else can notice.');
+  }
+  for (const name of [...declared].sort()) {
+    if (PASSED_BUT_UNREAD.has(name)) continue;
+    ok(read.has(name),
+      `SHELL: envelope.js declares '${name}' but accrual.js never reads \`inp.${name}\` — either `
+      + 'the engine stopped reading it (then say so in PASSED_BUT_UNREAD) or the name is wrong '
+      + 'and the real field is silently undefined.');
+  }
 }
 
 // ── 4b. CROSS-FILE CONSTANTS ────────────────────────────────────────────────

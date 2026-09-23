@@ -62,7 +62,8 @@ import { bootReplay, ROOT } from './schema-replay.mjs';
 import { runTick } from '../supabase/functions/hr-accrue/tick.js';
 import { sessionFromRoster, settleGatherSession, GATHER_CATALOGUES }
   from '../supabase/functions/hr-accrue/tick-gather.js';
-import { engineInputsFromEnvelope } from '../supabase/functions/hr-accrue/envelope.js';
+import { engineInputsFromEnvelope, ENGINE_INPUT_KEYS }
+  from '../supabase/functions/hr-accrue/envelope.js';
 import { computeAccrual, CALLER_AUTHORITY } from '../supabase/functions/hr-accrue/accrual.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -370,6 +371,16 @@ try {
        not only the tick entry. A claim that cannot go red is not a claim. */
     const hy = engineInputsFromEnvelope(MUTATE ? env.state : env, nowMs);
     const empty = ['skills', 'inventory'].filter((k) => Object.keys(hy[k] || {}).length === 0);
+    /* AND THE SESSION CARRIES EVERY KEY THE MAP DECLARES. `sessionFromRoster`
+       overrides four of them from the roster row; none of the rest may be
+       dropped on the way through, or the tick is back to handing the engine
+       `undefined` for a field the accrue path fills. */
+    const missing = ENGINE_INPUT_KEYS.filter((k) => !(k in session));
+    judge('H2f', missing.length === 0,
+      `the tick's session carries all ${ENGINE_INPUT_KEYS.length} keys engineInputsFromEnvelope `
+      + 'declares — nothing is lost between the envelope and the loop',
+      `the session is missing ${missing.join(', ')} — sessionFromRoster drops fields the map fills`);
+
     judge('H2e', empty.length === 0 && hy.activeId === NODE && hy.hp > 0,
       `engineInputsFromEnvelope filled skills(${Object.keys(hy.skills).length}) / `
       + `inventory(${Object.keys(hy.inventory).length}) / hp(${hy.hp}) / activeId(${hy.activeId}) `

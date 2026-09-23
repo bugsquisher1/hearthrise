@@ -1226,6 +1226,30 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-tick-edge-contract.mjs --selftest
 
+      # THE PARITY READ MUST ADDRESS A LEVEL THAT EXISTS (Security S-10,
+      # 2026-09-23). hr_apply writes a ledger row as
+      # `jsonb_build_object('delta', v_meta) || coalesce(v_j->'meta','{}')`, so
+      # the journal's keys — att, kills, ate, capped, ms — merge at the TOP of
+      # player_ledger.meta and there is no `meta->'meta'` level. WORLD_TICK_
+      # DESIGN.md §16.6 and the 2026-09-22 Security runbook both spelled the
+      # attended partition `(meta->'meta' ? 'att')`, which does not error: it
+      # evaluates to NULL, so `group by` collapses to ONE bucket and
+      # `where … and not (…)` returns NO ROWS AT ALL. The combat parity read
+      # would have come back empty and been read as a defect — 16.3's own
+      # failure shape, planted in the instrument.
+      #
+      # This guard LIFTS §16.6's sql block out of the design file and EXECUTES
+      # it against two real hr_apply rows on the chain replay, so the document
+      # an operator actually runs is the thing under test; a transcription
+      # would have gone green while the doc stayed wrong, which is how this
+      # survived two reviews. --mutate plants the old spelling back into that
+      # same query and requires L-1 to go red.
+      - name: World tick — the parity read's ledger-meta spellings
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-ledger-meta.mjs
+          node tests/world-tick-ledger-meta.mjs --mutate
+
       # THE THREE PROPERTIES THE STRIP INTRODUCED THAT ITS OWN GUARD DOES NOT
       # MEASURE. Written by the security-engineer role during the review of
       # 2026-09-23-client-state-retired-fields.sql; it deliberately does NOT

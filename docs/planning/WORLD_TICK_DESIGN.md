@@ -1850,15 +1850,43 @@ Two consequences, both stated rather than discovered later:
    column: the accrue path journals `meta.att` on **every** attended settle, so
    the partition key already exists.
 
+   **THE SPELLING IS `meta ? 'att'`, AT THE TOP (Security S-10, 2026-09-23).**
+   `hr_apply` writes the row as
+   `jsonb_build_object('delta', v_meta) || coalesce(v_j->'meta','{}')`
+   (`2026-08-11-apply-engine.sql:1159` and every restatement since), so the
+   journal's own keys — `att`, `kills`, `ate`, `capped`, `ms`, `ticks` — are
+   merged at the TOP of `player_ledger.meta`, and only the engine's delta
+   summary sits under `meta->'delta'`. There is no `meta->'meta'` level.
+
+   This block used to spell the partition `(meta->'meta' ? 'att')`, which
+   evaluates to **NULL** — so `group by` collapsed to one bucket and any
+   `where … and not (meta->'meta' ? 'att')` returned NO ROWS AT ALL. That is
+   16.3's own failure shape planted in the instrument: a measurement that
+   reads as a defect, or as nothing. Three related spellings were wrong the
+   same way and are corrected wherever they appear: `hr_tick_config` has
+   **`flush_seconds`**, not `flush_ms`; `hr_kill_credit_log` has
+   **`created_at`**, not `at`; and **deaths are their own `intent = 'death'`
+   ledger rows**, never a `meta->'delta'->'deaths'` array — the delta summary
+   carries `g`, `m`, `i`, `x`, `e`, `bs`, `k` and no deaths at all, so
+   `jsonb_array_length(meta->'delta'->'deaths')` is always 0.
+
    ```sql
-   -- COMBAT parity, 48 h, partitioned on whether the window was attended
-   select date_trunc('hour', at) h, (meta->'meta' ? 'att') attended,
-          count(*) rows, sum((meta->'delta'->>'g')::bigint) gold
+   -- COMBAT parity, 48 h, partitioned on whether the window was attended.
+   -- NOTE THE LEVEL: `meta ? 'att'`, not `meta->'meta' ? 'att'`.
+   select date_trunc('hour', at) h, (meta ? 'att') attended,
+          count(*) rows, sum((meta->'delta'->>'g')::bigint) gold,
+          sum((meta->>'kills')::bigint) kills, sum((meta->>'ate')::bigint) ate
      from public.player_ledger
     where kind = 'combat' and intent = 'accrue' and at > now() - interval '48 hours'
     group by 1, 2 order by 1, 2;
    -- compare ONLY the attended=false bucket against hr_tick_shadow.
    ```
+
+   **Every query in this section is EXECUTED by
+   `tests/world-tick-ledger-meta.mjs`** against a real `hr_apply` ledger row on
+   the PGlite chain replay — the block above is lifted out of this file and
+   run, and the old spelling is pinned as still returning nothing. A parity
+   read that silently addresses a level that does not exist cannot come back.
 
 2. **It is a hard ARM blocker.** Arming combat while an attended character is on
    the roster under-pays them by the top-up. Before `shadow = false` for combat,

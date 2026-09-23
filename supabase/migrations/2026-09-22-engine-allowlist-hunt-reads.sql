@@ -637,6 +637,17 @@ begin
     raise exception 'GATE(a): the installed detector does not carry the hr_vigour_of allowlist entry';
   end if;
 
+  -- (a2) AND THE ENTRIES EARLIER LINKS RECORDED ARE STILL THERE. This body is
+  --      a DERIVED restatement of the whole detector, so the way it goes wrong
+  --      is by being cut against a stale base and silently dropping somebody
+  --      else's entry — which reads as a pass on every marker test.
+  if strpos(pg_get_functiondef('public.hr_assert_grant_hygiene(boolean)'::regprocedure),
+            'hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,') = 0
+     or strpos(pg_get_functiondef('public.hr_assert_grant_hygiene(boolean)'::regprocedure),
+               'hr_quartermaster_buy(uuid,integer,bigint,uuid,text)') = 0 then
+    raise exception 'GATE(a2): this restatement DROPPED an allowlist entry an earlier link recorded - it was hand-edited or cut against a stale base';
+  end if;
+
   -- (b) AND IT IS GREEN. Run non-strict so the whole report comes back rather
   --     than the first raise, then assert the ONE signal this file is about.
   v_r := public.hr_assert_grant_hygiene(false);
@@ -644,6 +655,17 @@ begin
   if v_extra is not null and jsonb_array_length(v_extra) > 0 then
     raise exception 'GATE(b): hr_engine still holds EXECUTE outside its allowlist: %', v_extra;
   end if;
+
+  -- (b2) ★ THE ASSERTION THE REVIEW ASKS FOR (SEC_HUNTS_M6_2026-09-22.md S-2,
+  --      condition 2) ★ — THE WHOLE DETECTOR, STRICT, with both grants live.
+  --      This is the statement that RAISES on production between applying
+  --      vigour-daily/hunt-analyzer and applying this file, and it is the one
+  --      the nightly hr-grant-hygiene cron runs. (b) tests the one signal this
+  --      file is about; only this tests what the cron will actually see, and a
+  --      file that widened the allowlist without running it would be proving
+  --      its own edit rather than its effect.
+  v_r := public.hr_assert_grant_hygiene(true);
+  raise notice 'GRANT HYGIENE STRICT PASSES with both hunt reads recorded.';
 
   -- (c) IT IS STILL A DETECTOR. A body that recorded the entries and stopped
   --     checking would satisfy (a) and (b) and be worthless. The check (7)
@@ -660,5 +682,53 @@ begin
     raise exception 'GATE(d): a client role can call one of the hunt reads directly - they reach the browser on the ENVELOPE and nowhere else';
   end if;
 
-  raise notice 'engine-allowlist-hunt-reads: both read-only hunt functions are recorded on hr_engine''s allowlist, the detector is green on them, it still consults the list, and neither is client-callable - all green';
+  -- (e) THE MUTATION ARM. A migration that widened an allowlist without proving
+  --     the detector STILL FIRES has replaced a control with a comment, and
+  --     (a)-(d) would every one of them pass against a body that recorded the
+  --     two entries and stopped checking. Mirrors
+  --     2026-09-21-engine-allowlist-tick-settle.sql §4(C), which is the file
+  --     this one follows. No exception handler around the probe grant, on
+  --     purpose: anything that raises below rolls the whole migration back, so
+  --     the probe cannot outlive it. NO PLAYER ROW IS READ OR WRITTEN.
+  if exists (select 1 from pg_roles where rolname = 'hr_engine') then
+    create or replace function public.hr__hunt_allow_probe() returns int
+      language sql immutable as 'select 1';
+    execute 'revoke execute on function public.hr__hunt_allow_probe() '
+            'from public, anon, authenticated, service_role';
+    execute 'grant execute on function public.hr__hunt_allow_probe() to hr_engine';
+
+    v_r := public.hr_assert_grant_hygiene(false);
+    if not (v_r->'engine_execute_outside_allowlist') @> '["hr__hunt_allow_probe()"]'::jsonb then
+      raise exception 'GATE(e): THE DETECTOR IS BLIND - hr_engine was granted EXECUTE on an unlisted function and check (7) did not name it. The allowlist was widened without the check that makes an allowlist mean anything. report=%', (v_r->'engine_execute_outside_allowlist')::text;
+    end if;
+    begin
+      v_r := public.hr_assert_grant_hygiene(true);
+      raise exception 'GATE(e): THE DETECTOR IS NOT FATAL - strict mode returned normally with an unlisted engine grant live. The nightly cron would report success over a real regression.';
+    exception when others then
+      if sqlerrm not like 'GRANT HYGIENE FAILED%' then raise; end if;
+    end;
+
+    execute 'revoke execute on function public.hr__hunt_allow_probe() from hr_engine';
+    drop function if exists public.hr__hunt_allow_probe();
+
+    -- Clean again, strict, so this file does not leave behind a database whose
+    -- only proven state is the failing one.
+    v_r := public.hr_assert_grant_hygiene(true);
+    raise notice 'MUTATION ARM PASSED: an unlisted engine grant is still named AND still fatal.';
+  else
+    raise warning 'hr_engine does not exist on this database - check (7) skips itself and the mutation arm could not run. This file installed correctly but proved less than it does on a database with the accrual engine.';
+  end if;
+
+  raise notice 'engine-allowlist-hunt-reads: both read-only hunt functions are recorded on hr_engine''s allowlist, STRICT hr_assert_grant_hygiene(true) RETURNS WITHOUT RAISING, the detector still consults the list and is still fatal on an unlisted grant, and neither read is client-callable - all green, net zero';
+end $$;
+
+-- ── 4. THE PROBE IS GONE ───────────────────────────────────────────────────
+-- §3(e) creates it inside a conditional branch, so prove it is gone whichever
+-- branch ran. A probe left behind is a granted function nobody reviewed — and
+-- it would be granted to the one role that can write every player's value.
+do $$
+begin
+  if to_regprocedure('public.hr__hunt_allow_probe()') is not null then
+    raise exception 'the §3(e) mutation probe survived this migration';
+  end if;
 end $$;

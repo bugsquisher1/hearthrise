@@ -55,6 +55,13 @@ import {
 } from '../services/world-tick/combat.js';
 import { shadowTick, hydrate, advance, seedFor }
   from '../supabase/functions/hr-accrue/tick-shadow.js';
+/* THE FLUSH-BOUNDARY CARRIER (M3, 2026-09-23). C17/C18/C19's subject. */
+import { shadowStateOf, applyShadowState }
+  from '../supabase/functions/hr-accrue/tick-contract.js';
+import {
+  loadGatherSessions, atSpan as gatherAtSpan, settleGatherSession,
+  GATHER_CATALOGUES,
+} from '../services/world-tick/gather.js';
 import { tickIntentId } from '../supabase/functions/hr-accrue/tick-gather.js';
 /* THE SPREAD'S OWN DECLARED KEY SETS. C1 resolves a depth-1 `...f(...)` in
    either source against these, so the guard still DERIVES both key sets
@@ -177,6 +184,16 @@ const MUTATIONS = {
      rate zero. Until this entry C6 was the only claim in the table no mutant
      killed, which is the definition of decorative (CLAUDE.md §4). */
   fixedSeed: { kills: 'C6', fixedLabel: true },
+  /* ── THE M3 DEFECT, AS A MUTANT (2026-09-23) ─────────────────────────────
+     Drop the overlay at the flush boundary — i.e. put the driver back the way
+     production runs it today, re-seeding every fire's session from the frozen
+     `hr_state_of` row. Measured against the carried chain on the fixtures
+     below: `seven falls deep` files 12 deaths where the chain files 1, the
+     retreat fixture files 24 where the chain files 3 AND never ends its
+     pointer (108 windows against 18), and the nine-input fixture pays 7,966
+     gold against 1,713 on 52 meals against 8 — because the bag never empties.
+     That last one is the PAYING direction and is +365%. */
+  noOverlay: { kills: 'C17', noOverlay: true },
 };
 
 const MUTATION = MUTATE
@@ -198,6 +215,9 @@ function CLAIM_TEXT() {
     C2: 'per-window construction parity — every window of the chain, byte-identical',
     C3: 'checkpoint continuity — fight / consec_falls / recovering_until / hp / bag',
     C4: 'watermark tiling and the receipt: no overlap, no gap, ms restated from the mark',
+    C17: 'the flush-boundary carrier is lossless — serialise/deserialise == the in-memory chain',
+    C18: 'and the carrier is LOAD-BEARING: without it the chain diverges, measurably',
+    C19: 'gather tool_carry survives a flush boundary through the carrier',
     C5: 'the pointer ends the session — a retreat closes the batch and stops the walk',
     C6: 'stream health over MANY span starts: no rare row starved, drift inside the band',
     C7: 'the recovery boundary — a death across a window is not a free heal or a free kill',
@@ -1599,6 +1619,200 @@ for (const raw of SESSIONS) {
     + `${refMissing.length ? `it omits ${refMissing.join(', ')}. ` : ''}`
     + `${refExtra.length ? `it invents ${refExtra.join(', ')}. ` : ''}`
     + 'C2 would then be red for the GUARD\'s reason, not the tick\'s');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// C17 / C18 / C19 — THE FLUSH BOUNDARY (M3, 2026-09-23)
+//
+// C1..C16 measure ONE call: a span decomposed into cadence windows, chained in
+// memory by `advance()`. That chain is correct and has been all along. The
+// defect is the seam BETWEEN two calls.
+//
+// `tick.js` step (4) settles at most ONE flush window per fire. Armed, the
+// carrier across the seam is the database: hr_apply wrote hp, fight,
+// recovering_until, the counters and the bag, and the next fire's
+// `hr_state_of` reads them back. SHADOW PAYS NOTHING — e15, deliberately — so
+// `player_state` stands still and every fire re-seeds from the SAME row.
+//
+// PRODUCTION, 2026-09-23 16:40 UTC. QA slot 1, hp 4/10, no food, auto-eat off,
+// fighting a slime, armed in shadow at 15:36: 42 windows in 62 minutes,
+// `would_deaths = 1` in 41 of them, `would_hp = 4` in ALL 42,
+// `would_recovering_until` ~31 minutes past the end of every one. A chained
+// character is knocked out ONCE and then files zero kills for twenty windows.
+//
+// ── WHAT THESE ARMS CAN HONESTLY ASSERT, AND WHAT THEY CANNOT ──────────────
+// The brief asked for equality against a ONE-PASS `computeAccrual` over the
+// same span, EXACT on deaths/kills/hp/consec_falls/ate. THAT CANNOT HOLD ON
+// THIS CHANNEL and this file's own header says why: production seeds every
+// settle window from a label naming its watermark, so a span cut into pieces
+// RESAMPLES the stream. §11 of WORLD_TICK_DESIGN.md settled it — the parity
+// contract is P1, not P4 — and C6 already measures the one-pass comparison the
+// only way it is true: as a BAND, plus a starvation check over many starts.
+// Asserting exact equality there would be a claim that is false for a reason
+// that has nothing to do with the carrier, and it would be red on the day it
+// was written.
+//
+// So C17 asserts the strongest statement that IS exactly true and IS the
+// carrier's whole contract: **a chain carried across flush boundaries through
+// `shadowStateOf` -> `applyShadowState` is identical, key for key, to the same
+// chain carried in memory.** The serialisation is lossless or the arm is red.
+// C18 then proves the arm is not decorative by running the production shape —
+// re-seeded from the fixture at every boundary — and requiring it to DIVERGE.
+// A guard whose "broken" case agrees with its "fixed" case is measuring
+// nothing (CLAUDE.md §4), and this one has three fixtures where the gap is
+// 12 deaths against 1, 24 against 3, and +365% gold.
+// ═══════════════════════════════════════════════════════════════════════════
+const FLUSHES = 12;                     // 12 x 90 s = 18 minutes, 108 windows
+
+/* Walk `FLUSHES` flush windows. `mode` is the seam:
+     'memory'    the next flush continues from `run.char` directly — the
+                 reference, and what a single long call would do
+     'carried'   the next flush is re-seeded from the FIXTURE (as tick.js
+                 re-seeds from `hr_state_of`) and the carrier laid over it
+     'uncarried' re-seeded and nothing laid over it — production today */
+function flushChain(fixture, mode, mut) {
+  const m = mut || {};
+  const base = atSpan(fixture, FROM_MS);
+  let cur = hydrate(base);
+  let wm = base.accruedToMs;
+  let wmText = base.accruedToText;
+  let carry = null;
+  const tot = { deaths: 0, kills: 0, gold: 0, ate: 0, xp: {}, items: {}, windows: 0 };
+  let end = null;
+  for (let f = 0; f < FLUSHES; f++) {
+    let sess;
+    if (mode === 'memory') {
+      sess = cur;
+    } else {
+      /* THE RE-SEED, EXACTLY AS THE DRIVER DOES IT. `hr_state_of` is truth and
+         is unchanged by a shadow window, so the fixture IS the row every fire
+         reads back. Only the watermark is displaced, which is the fence's
+         `shadow_accrued_to` and is the one thing that DOES chain today. */
+      sess = hydrate(base);
+      if (mode === 'carried' && carry && !m.noOverlay) applyShadowState(sess, carry);
+    }
+    sess.accruedToMs = wm;
+    sess.accruedToText = wmText;
+    const run = settleCombatSession(sess, wm, wm + DEFAULT_FLUSH_MS,
+      { cadenceMs: CADENCE_MS, flushMs: DEFAULT_FLUSH_MS, holder: 'guard' });
+    for (const r of run.results) {
+      if (!r.res.accrued) continue;
+      const d = r.res.delta;
+      tot.deaths += Number(r.res.summary.deaths || 0);
+      tot.kills += Number(r.res.summary.kills || 0);
+      tot.gold += Number(d.gold || 0);
+      tot.ate += Number(r.res.foodEaten || 0);
+      for (const k of Object.keys(d.xp || {})) tot.xp[k] = (tot.xp[k] || 0) + Number(d.xp[k]);
+      for (const k of Object.keys(d.items || {})) tot.items[k] = (tot.items[k] || 0) + Number(d.items[k]);
+      tot.windows++;
+    }
+    /* Nothing settled: the watermark did not move, so the next flush would ask
+       the identical question. Stopping is what the driver does (`below_flush`
+       / `nothing_settled`) and spinning would inflate `windows` for free. */
+    if (run.watermarkMs === wm) break;
+    cur = run.char;
+    carry = shadowStateOf(run.char, { baseVersion: base.version, atMs: run.watermarkMs });
+    wm = run.watermarkMs;
+    wmText = pgTimestamptzText(wm);
+    end = { hp: run.char.hp, consecFalls: run.char.consecFalls,
+      deathsToday: run.char.deathsTodayBefore, activeKind: run.char.activeKind };
+    /* THE POINTER ENDED (a retreat). The character leaves the roster on the
+       next cadence, so the chain ends here rather than being re-pointed. */
+    if (run.stoppedBy === 'activity') break;
+  }
+  return { tot, end, carry };
+}
+
+{
+  const KEYS = ['deaths', 'kills', 'gold', 'ate', 'windows'];
+  const chainable = SESSIONS.filter((x) => !/ATTENDED/.test(x.name));
+  let divergences = 0;
+
+  for (const fixture of chainable) {
+    const name = fixture.name.slice(0, 44);
+    const mem = flushChain(fixture, 'memory');
+    const car = flushChain(fixture, 'carried', M);
+    const unc = flushChain(fixture, 'uncarried');
+
+    // ── C17: the serialisation is LOSSLESS. Exact, key for key.
+    for (const k of KEYS) {
+      eq(`C17`, car.tot[k], mem.tot[k],
+        `"${name}": the CARRIED chain differs from the in-memory chain on ${k} `
+        + `(${car.tot[k]} vs ${mem.tot[k]}). shadowStateOf/applyShadowState is not `
+        + 'lossless, so a flush boundary silently rewrites the character');
+    }
+    for (const map of ['xp', 'items']) {
+      const a = JSON.stringify(sortedPairs(car.tot[map]));
+      const b = JSON.stringify(sortedPairs(mem.tot[map]));
+      eq('C17', a, b,
+        `"${name}": the CARRIED chain's ${map} differs from the in-memory chain's`);
+    }
+    /* The end-state checkpoints by name, so a red says WHICH field the carrier
+       dropped rather than only that the totals moved. */
+    if (car.end && mem.end) {
+      for (const k of ['hp', 'consecFalls', 'deathsToday', 'activeKind']) {
+        eq('C17', car.end[k], mem.end[k],
+          `"${name}": the carried chain ends with a different ${k}`);
+      }
+    }
+
+    // ── C18: and it is LOAD-BEARING. Counted here, judged below.
+    if (KEYS.some((k) => unc.tot[k] !== mem.tot[k])) divergences++;
+    say(`   · ${name}: carried ${JSON.stringify(car.tot.deaths)}d/${car.tot.kills}k/`
+      + `${car.tot.gold}g/${car.tot.ate}ate over ${car.tot.windows} windows · `
+      + `UNCARRIED ${unc.tot.deaths}d/${unc.tot.kills}k/${unc.tot.gold}g/${unc.tot.ate}ate `
+      + `over ${unc.tot.windows}`);
+    if (unc.tot.deaths !== mem.tot.deaths || unc.tot.gold !== mem.tot.gold) {
+      findings.push(`   · ${name}: the carrier is worth ${mem.tot.deaths} deaths vs `
+        + `${unc.tot.deaths} uncarried, ${mem.tot.gold} gold vs ${unc.tot.gold}, `
+        + `${mem.tot.ate} meals vs ${unc.tot.ate}, over ${mem.tot.windows} windows vs `
+        + `${unc.tot.windows}`);
+    }
+  }
+
+  /* ⚠ THE ARM THAT KEEPS C17 FROM BEING DECORATIVE. If dropping the carrier
+     changed nothing on every fixture, C17 would be asserting that two
+     identical things are identical. It has to BITE on real data, and the
+     measurement above is that it bites on three of seven. */
+  ok('C18', divergences >= 3,
+    `dropping the flush-boundary carrier changed the outcome on only ${divergences} of `
+    + `${chainable.length} fixtures (need >= 3). Either the fixtures no longer reach a `
+    + 'knockout, a retreat or an empty bag, or the seam has stopped mattering — and '
+    + 'C17 is then comparing two identical things and proving nothing');
+
+  // ── C19: GATHER. `tool_carry` is the sub-action remainder of the tool double
+  //        roll, and it is ABSOLUTE — forfeited every flush today. The fixture
+  //        with the column ALREADY HELD by the server is the one that can tell
+  //        a carried boundary from a dropped one.
+  const G = loadGatherSessions();
+  let toolCarried = 0;
+  for (const gf of G) {
+    const base = gatherAtSpan(gf, FROM_MS);
+    if (base.toolCarry == null) continue;         // no column: nothing to chain
+    const run1 = settleGatherSession(base, base.accruedToMs,
+      base.accruedToMs + DEFAULT_FLUSH_MS,
+      { cadenceMs: CADENCE_MS, flushMs: DEFAULT_FLUSH_MS, holder: 'guard' });
+    if (run1.watermarkMs === base.accruedToMs) continue;
+    const state = shadowStateOf(run1.char, { baseVersion: base.version, atMs: run1.watermarkMs });
+    ok('C19', state !== null && 'tool_carry' in state,
+      `"${gf.name}": the carrier does not hold tool_carry after a flush window — `
+      + 'gather forfeits its sub-action remainder at every boundary, which is the '
+      + `class this lane closes, not a combat-only field (carrier: ${JSON.stringify(state)})`);
+    if (state && 'tool_carry' in state) {
+      const next = applyShadowState(hydrate(base), state);
+      eq('C19', JSON.stringify(next.toolCarry), JSON.stringify(run1.char.toolCarry),
+        `"${gf.name}": tool_carry did not survive the serialise/deserialise round trip`);
+      toolCarried++;
+    }
+  }
+  ok('C19', toolCarried > 0,
+    'no gather fixture carried a tool_carry across a flush boundary — the arm measured '
+    + 'nothing. A fixture whose server already holds the column is what makes this '
+    + 'testable at all (services/world-tick/fixtures/gather-sessions.json).');
+}
+
+function sortedPairs(m) {
+  return Object.keys(m || {}).sort().map((k) => [k, m[k]]).filter(([, v]) => v !== 0);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

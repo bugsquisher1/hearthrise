@@ -17,7 +17,7 @@
 
 import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
-import { planWindows } from './tick-contract.js';
+import { planWindows, countersFromProgress } from './tick-contract.js';
 import { engineStateOf } from './envelope.js';
 
 /* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
@@ -64,11 +64,32 @@ export function hydrate(fixture) {
 export function advance(char, res) {
   if (!res || !res.accrued) return char;
   const d = res.delta || {};
-  if (typeof d.gold === 'number') char.gold = Math.max(0, Math.floor((char.gold || 0) + d.gold));
-  for (const k of Object.keys(d.xp || {})) char.skills[k] = (char.skills[k] || 0) + Number(d.xp[k] || 0);
+  /* ── THE CUMULATIVE HALF, FOR THE CARRIER (2026-09-23) ──────────────────
+     `char` is the state AFTER this window; `char._chain` is the MOVEMENT this
+     chain has proposed since it was seeded from `hr_state_of`. Armed, nobody
+     needs it — hr_apply wrote each window and the next fire reads the row
+     back. In SHADOW the database is not the carrier (nothing is written), so
+     `tick-contract.js` `shadowStateOf` serialises this into the jsonb the
+     fence stores, and the maps are the BOUND: only the keys a window actually
+     moved are ever in it. `_`-prefixed, so it is scratch and `engineStateOf`
+     (which forwards exactly ENGINE_STATE_KEYS) can never hand it to the
+     engine as an input. */
+  const ch = char._chain || (char._chain = {
+    gold: 0, xp: {}, items: {}, bestiaryKills: {},
+    deathsToday: 0, deathsLifetime: 0, vigourMin: 0, activity: null,
+  });
+  if (typeof d.gold === 'number') {
+    char.gold = Math.max(0, Math.floor((char.gold || 0) + d.gold));
+    ch.gold += Math.floor(d.gold);
+  }
+  for (const k of Object.keys(d.xp || {})) {
+    char.skills[k] = (char.skills[k] || 0) + Number(d.xp[k] || 0);
+    ch.xp[k] = (ch.xp[k] || 0) + Number(d.xp[k] || 0);
+  }
   for (const k of Object.keys(d.items || {})) {
     const q = (char.inventory[k] || 0) + Number(d.items[k] || 0);
     if (q > 0) char.inventory[k] = q; else delete char.inventory[k];
+    ch.items[k] = (ch.items[k] || 0) + Number(d.items[k] || 0);
   }
   if (typeof d.hp === 'number') char.hp = d.hp;
   if (typeof d.fight !== 'undefined') char.fight = d.fight;
@@ -78,13 +99,47 @@ export function advance(char, res) {
   if (typeof d.recovering_until !== 'undefined') {
     char.recoveringUntilMs = d.recovering_until ? Date.parse(d.recovering_until) : 0;
   }
-  if (d.activity && d.activity.kind) { char.activeKind = d.activity.kind; char.activeId = d.activity.id; }
+  if (d.activity && d.activity.kind) {
+    char.activeKind = d.activity.kind; char.activeId = d.activity.id;
+    ch.activity = { kind: d.activity.kind, id: d.activity.id ?? null };
+  }
   if (d.accrued_to) char.accruedToMs = Date.parse(d.accrued_to);
   /* The bestiary counters the charm index reads. Server-owned rows in
      production (`hr_bestiary_of`); here, the kills the window just proposed. */
   if (res.summary && res.summary.kills > 0 && char.activeKind === 'combat' && char.activeId) {
     char.bestiaryKills = char.bestiaryKills || {};
     char.bestiaryKills[char.activeId] = (char.bestiaryKills[char.activeId] || 0) + res.summary.kills;
+    ch.bestiaryKills[char.activeId] = (ch.bestiaryKills[char.activeId] || 0) + res.summary.kills;
+  }
+  /* ── THE THREE COUNTERS hr_apply WOULD HAVE WRITTEN (2026-09-23) ─────────
+     NOT an arithmetic of our own and NOT a rule: `countersFromProgress` sums
+     the `progress` ops THE ENGINE ITSELF FILED on this delta — `stat:deaths`
+     under period '' and under today's UTC day, and `daily:ev:vigour_min`.
+     hr_apply applies each as `progress = progress + add` against those exact
+     rows, and `hr_state_of` projects them back as `deaths_lifetime`,
+     `deaths_today` and the vigour block, which is where the engine reads them
+     from on the next window.
+
+     THEY WERE MISSING FROM THIS FUNCTION AND BOTH RUN IN THE PAYING
+     DIRECTION. `recoveryFor()` prices a fall from the two death counters, so
+     a chain that never advances them hands the character the first-death
+     novice grace on every window of the night — the `noDeathCounters` mutant
+     of tests/world-tick-combat-parity.mjs, permanently on. `vigourMult`
+     decays against `spent_min`, so a budget that refills itself every window
+     never decays at all. */
+  const counters = countersFromProgress(d.progress);
+  if (counters.deathsLifetime) {
+    char.deathsLifetimeBefore = (Number(char.deathsLifetimeBefore) || 0) + counters.deathsLifetime;
+    ch.deathsLifetime += counters.deathsLifetime;
+  }
+  if (counters.deathsToday) {
+    char.deathsTodayBefore = (Number(char.deathsTodayBefore) || 0) + counters.deathsToday;
+    ch.deathsToday += counters.deathsToday;
+  }
+  if (counters.vigourMin && char.vigour && typeof char.vigour === 'object') {
+    char.vigour = Object.assign({}, char.vigour,
+      { spent_min: (Number(char.vigour.spent_min) || 0) + counters.vigourMin });
+    ch.vigourMin += counters.vigourMin;
   }
   return char;
 }

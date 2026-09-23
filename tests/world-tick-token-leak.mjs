@@ -297,28 +297,40 @@ async function main(selftest) {
         .rows[0].n >= 1);
   }
 
-  // ── X-8  THE RESOLUTION IS NAME-SENSITIVE, AND THE APPLY NOW REFUSES ───
-  // ⚠ REWRITTEN 2026-09-23 BY THE AUTHORING LANE, AFTER T-1 LANDED. The arms
-  //   below used to assert the DEFECT: that a database which cannot resolve
-  //   pgcrypto took the migration GREEN and only then answered `no_hmac` for
-  //   ever (X-8c/d/e). §0b now raises `HR_TICK_NO_PGCRYPTO` on exactly that
-  //   state, so the old arms are not weakened here — they are UNREACHABLE, and
-  //   what replaces them is the refusal itself. The named-argument shim is still
-  //   the instrument, because T-3 (the resolution is name-sensitive) has not
-  //   landed yet and it is still what makes pgcrypto unresolvable on demand.
-  //   The driver's own `no_hmac` fire path did not move and is still executed —
-  //   by the migration's d3 and by tests/world-tick-token-failclosed.mjs F-1c,
-  //   which is where the (no Vault, no pgcrypto) state now lives.
-  console.log('\nX-8  pgcrypto resolution: name-sensitive (T-3), and the apply fails closed (T-1)');
+  // ── X-8  pgcrypto RESOLUTION: PRESENT BOTH WAYS, AND ABSENT ───────────
+  // ⚠ REWRITTEN TWICE BY THE AUTHORING LANE ON 2026-09-23, and the history is
+  //   the point rather than noise. These arms first asserted the DEFECT (T-3:
+  //   the same algorithm with NAMED arguments was silently not found, and the
+  //   driver then answered `no_hmac` for ever off a migration that had applied
+  //   GREEN — T-1). T-1 turned that apply into a refusal; T-3 removed the name
+  //   sensitivity that made the state reachable at all. So what is asserted here
+  //   now is the FIX, in all three states the resolution can be in.
+  console.log('\nX-8  pgcrypto resolution: unnamed, named, and absent');
   {
+    const b2 = await boot(SHIM_CRYPTO_NAMED);
+    const sch = (await b2.db.query('select public.hr_tick_crypto_schema() s')).rows[0].s;
+    ok('X-8a PRESENT with NAMED arguments is resolved (finding T-3, closed)',
+      sch === 'extensions', `crypto_schema=${sch}`);
+    const r = (await b2.db.query(
+      "select oidvectortypes(p.proargtypes) t,"
+      + " pg_get_function_identity_arguments(p.oid) i from pg_proc p"
+      + " join pg_namespace n on n.oid = p.pronamespace"
+      + " where n.nspname = 'extensions' and p.proname = 'hmac'")).rows[0];
+    ok('X-8b ...and this is WHY it had to change: the types are identical either '
+      + 'way, the RENDERING is not', r.t === 'text, text, text' && r.i !== r.t,
+      `types=${r.t} / identity=${r.i}`);
+    await plantProbe(b2.db);
+    const f2 = (await b2.db.query('select public.hr_tick_cron_run() r')).rows[0].r;
+    ok('X-8c so the driver posts instead of dying `no_hmac` on a database that had '
+      + 'the algorithm all along', f2 && f2.outcome === 'posted', JSON.stringify(f2));
+  }
+  {
+    // ABSENT — and T-3 must not have weakened T-1's refusal on the way past.
     let applyErr = null;
-    try { await boot(SHIM_CRYPTO_NAMED); }
+    try { await bootReplay({ seedBefore: new Map([[TOKEN_FILE, SHIM_VAULT + SHIM_NET]]) }); }
     catch (e) { applyErr = String((e && e.message) || e); }
-    ok('X-8a the SAME algorithm with NAMED arguments is not resolved (finding T-3)',
+    ok('X-8d ABSENT, with Vault present, still REFUSES the apply (T-1 intact)',
       applyErr !== null && applyErr.includes('HR_TICK_NO_PGCRYPTO'), applyErr);
-    ok('X-8b ...and the apply REFUSES rather than landing a silent no-op (finding T-1, '
-      + 'now closed: this state cost the world tick everything and warned nobody)',
-      applyErr !== null && /create extension if not exists pgcrypto/.test(applyErr));
   }
 
   if (!selftest) return;
@@ -362,12 +374,26 @@ async function main(selftest) {
       FENCE_FILE, [['flush_seconds   int         not null default 90,',
         'flush_seconds   int         not null default 30,']],
       'd11b, at apply time'],
+    /* T-3. Reverting the resolution to the RENDERED signature is invisible on
+       pgcrypto as shipped — its arguments are unnamed — so this is the one
+       mutation that has to be planted against the NAMED shim to be a defect at
+       all. It is the same shape as MX4's first spelling: a mutation that plants
+       nothing scores as uncaught, and finding that out is the point of a
+       mutation record. */
+    ['MX7 the resolution goes back to matching RENDERED argument names (T-3)',
+      TOKEN_FILE, [["and oidvectortypes(p.proargtypes) = 'text, text, text'",
+        "and pg_get_function_identity_arguments(p.oid) = 'text, text, text'"],
+      ["and oidvectortypes(d.proargtypes) = 'bytea, text'",
+        "and pg_get_function_identity_arguments(d.oid) = 'bytea, text'"]],
+      '§0b, at apply time — the algorithm is present and is not found',
+      SHIM_CRYPTO_NAMED],
   ];
   let caught = 0;
-  for (const [name, file, patch, by] of mutations) {
+  for (const [name, file, patch, by, shim] of mutations) {
     let red = null;
     try {
-      const seed = new Map(); seed.set(TOKEN_FILE, SHIM_CRYPTO + SHIM_VAULT + SHIM_NET);
+      const seed = new Map();
+      seed.set(TOKEN_FILE, (shim || SHIM_CRYPTO) + SHIM_VAULT + SHIM_NET);
       const p = new Map(); p.set(file, patch);
       const b = await bootReplay({ seedBefore: seed, patches: p });
       red = await probeMutation(b.db, name);

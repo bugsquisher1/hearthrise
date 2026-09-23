@@ -1714,6 +1714,27 @@ returns the new outcome **`no_hmac`** and posts nothing: it **never falls back
 to the static bearer**, because a fallback is the whole class this change
 removes.
 
+**★ The match is on the argument TYPES, never on their rendering** (Security
+T-3, 2026-09-23). The first draft compared
+`pg_get_function_identity_arguments(p.oid)` to `'text, text, text'`, and that
+function **renders argument names where they exist** — measured on PG 18.3,
+`hmac(a text, b text, c text)` identifies as `'a text, b text, c text'`. The
+equality was therefore correct for pgcrypto *only because pgcrypto happens to
+declare these two unnamed*; any build, repackaging or self-hosted rebuild that
+named them would have been silently not found, and the whole tick would have
+died `no_hmac` on a database where the algorithm was sitting right there.
+`oidvectortypes(proargtypes)` is the same signature with the names taken out,
+and `prokind = 'f'` stops an aggregate or procedure of the same name answering
+for one. `X-8a-d` in `tests/world-tick-token-leak.mjs` execute the same
+algorithm under both spellings and with pgcrypto absent; `MX7` proves the
+revert is caught.
+
+**★ And "not found" is now an exit code at apply time** (Security T-1): §0b of
+the migration raises `HR_TICK_NO_PGCRYPTO` when `vault.decrypted_secrets`
+exists and the resolution comes back NULL, so a Supabase-shaped database
+cannot take this file and then quietly stop ticking.
+`tests/world-tick-token-failclosed.mjs` builds all three states.
+
 `@electric-sql/pglite` ships without pgcrypto (measured, 2026-09-22), so the
 credential-free replay cannot execute the derivation. The self-check is honest
 about that: on the replay it asserts the fail-closed path (`no_hmac`, nothing

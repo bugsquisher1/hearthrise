@@ -190,18 +190,34 @@ end $$;
 -- puts it in `extensions`; a self-hosted database may put it in `public`; PGlite
 -- does not have it at all. Returning NULL is the honest third answer and is what
 -- makes the driver's `no_hmac` reachable.
+--
+-- ★ MATCHED ON THE ARGUMENT *TYPES*, NEVER ON THEIR RENDERING (Security T-3).
+--   The first draft compared `pg_get_function_identity_arguments(p.oid)` to the
+--   string 'text, text, text'. That function RENDERS ARGUMENT NAMES where they
+--   exist — measured on PG 18.3, `hmac(a text, b text, c text)` identifies as
+--   'a text, b text, c text' — so the equality was correct for pgcrypto only
+--   because pgcrypto happens to declare these two unnamed. An extension build,
+--   a repackaging or a self-hosted rebuild that named them would have been
+--   SILENTLY NOT FOUND, and the whole world tick would have answered `no_hmac`
+--   on a database where the algorithm was sitting right there.
+--   `oidvectortypes(proargtypes)` is the same signature with the names taken
+--   out. `prokind = 'f'` keeps an aggregate or a procedure that happened to be
+--   called `hmac` from answering for one. tests/world-tick-token-leak.mjs X-8
+--   executes both spellings against the SAME algorithm.
 create or replace function public.hr_tick_crypto_schema()
 returns text language sql stable security definer set search_path = public as $$
   select n.nspname::text
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where p.proname = 'hmac'
-     and pg_get_function_identity_arguments(p.oid) = 'text, text, text'
+     and p.prokind = 'f'
+     and oidvectortypes(p.proargtypes) = 'text, text, text'
      and exists (select 1 from pg_proc d
                   join pg_namespace dn on dn.oid = d.pronamespace
                  where d.proname = 'digest'
+                   and d.prokind = 'f'
                    and dn.nspname = n.nspname
-                   and pg_get_function_identity_arguments(d.oid) = 'bytea, text')
+                   and oidvectortypes(d.proargtypes) = 'bytea, text')
    order by (n.nspname = 'extensions') desc, n.nspname
    limit 1
 $$;
@@ -566,6 +582,11 @@ revoke execute on function public.hr_tick_auth_header(bigint, text)
 -- at all. Neither was caught by the first draft of this block. MD6 is Security
 -- T-1 and is executed by tests/world-tick-token-failclosed.mjs --selftest,
 -- which is the only place the (Vault, no pgcrypto) state can be BUILT.
+-- d11's proof lives beside it for the same reason — the defects it catches are
+-- in OTHER files or need a fixture this block cannot create:
+--   MX6 flush_seconds DEFAULTS below the replay window       -> d11b (T-2)
+--   MX7 the resolution matches RENDERED argument names again -> §0b  (T-3)
+-- both in tests/world-tick-token-leak.mjs --selftest, 7/7 caught.
 --
 -- THE PINNED VECTOR is shared with tests/edge-tick-gate.mjs (arm T-V1), which
 -- reproduces it with node:crypto. That constant is what binds the SQL
